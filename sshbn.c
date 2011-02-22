@@ -221,10 +221,8 @@ static int mul_compute_scratch(int len)
 static void internal_mul(const BignumInt *a, const BignumInt *b,
 			 BignumInt *c, int len, BignumInt *scratch)
 {
-    int i, j;
-    BignumDblInt t;
-
     if (len > KARATSUBA_THRESHOLD) {
+        int i;
 
         /*
          * Karatsuba divide-and-conquer algorithm. Cut each input in
@@ -311,9 +309,9 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
          * copied over. */
         scratch[0] = scratch[1] = scratch[midlen] = scratch[midlen+1] = 0;
 
-        for (j = 0; j < toplen; j++) {
-            scratch[midlen - toplen + j] = a[j]; /* a_1 */
-            scratch[2*midlen - toplen + j] = b[j]; /* b_1 */
+        for (i = 0; i < toplen; i++) {
+            scratch[midlen - toplen + i] = a[i]; /* a_1 */
+            scratch[2*midlen - toplen + i] = b[i]; /* b_1 */
         }
 
         /* compute a_1 + a_0 */
@@ -355,8 +353,8 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
          * product to obtain the middle one.
          */
         scratch[0] = scratch[1] = scratch[2] = scratch[3] = 0;
-        for (j = 0; j < 2*toplen; j++)
-            scratch[2*midlen - 2*toplen + j] = c[j];
+        for (i = 0; i < 2*toplen; i++)
+            scratch[2*midlen - 2*toplen + i] = c[i];
         scratch[1] = internal_add(scratch+2, c + 2*toplen,
                                   scratch+2, 2*botlen);
 #ifdef KARA_DEBUG
@@ -386,13 +384,13 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
         carry = internal_add(c + 2*len - botlen - 2*midlen,
                              scratch + 2*midlen,
                              c + 2*len - botlen - 2*midlen, 2*midlen);
-        j = 2*len - botlen - 2*midlen - 1;
+        i = 2*len - botlen - 2*midlen - 1;
         while (carry) {
-            assert(j >= 0);
-            carry += c[j];
-            c[j] = (BignumInt)carry;
+            assert(i >= 0);
+            carry += c[i];
+            c[i] = (BignumInt)carry;
             carry >>= BIGNUM_INT_BITS;
-            j--;
+            i--;
         }
 #ifdef KARA_DEBUG
         printf("ab = 0x");
@@ -403,23 +401,27 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 #endif
 
     } else {
+        int i;
+        BignumInt carry;
+        BignumDblInt t;
+        const BignumInt *ap, *bp;
+        BignumInt *cp, *cps;
 
         /*
          * Multiply in the ordinary O(N^2) way.
          */
 
-        for (j = 0; j < 2 * len; j++)
-            c[j] = 0;
+        for (i = 0; i < 2 * len; i++)
+            c[i] = 0;
 
-        for (i = len - 1; i >= 0; i--) {
-            t = 0;
-            for (j = len - 1; j >= 0; j--) {
-                t += MUL_WORD(a[i], (BignumDblInt) b[j]);
-                t += (BignumDblInt) c[i + j + 1];
-                c[i + j + 1] = (BignumInt) t;
-                t = t >> BIGNUM_INT_BITS;
+        for (cps = c + 2*len, ap = a + len; ap-- > a; cps--) {
+            carry = 0;
+            for (cp = cps, bp = b + len; cp--, bp-- > b ;) {
+                t = (MUL_WORD(*ap, *bp) + carry) + *cp;
+                *cp = (BignumInt) t;
+                carry = t >> BIGNUM_INT_BITS;
             }
-            c[i] = (BignumInt) t;
+            *cp = carry;
         }
     }
 }
@@ -432,10 +434,8 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 static void internal_mul_low(const BignumInt *a, const BignumInt *b,
                              BignumInt *c, int len, BignumInt *scratch)
 {
-    int i, j;
-    BignumDblInt t;
-
     if (len > KARATSUBA_THRESHOLD) {
+        int i;
 
         /*
          * Karatsuba-aware version of internal_mul_low. As before, we
@@ -492,8 +492,8 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
                          scratch + 2*len);
 
         /* Copy the bottom half of the big coefficient into place */
-        for (j = 0; j < botlen; j++)
-            c[toplen + j] = scratch[2*toplen + botlen + j];
+        for (i = 0; i < botlen; i++)
+            c[toplen + i] = scratch[2*toplen + botlen + i];
 
         /* Add the two small coefficients, throwing away the returned carry */
         internal_add(scratch, scratch + toplen, scratch, toplen);
@@ -503,20 +503,27 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
                      c, toplen);
 
     } else {
+        int i;
+        BignumInt carry;
+        BignumDblInt t;
+        const BignumInt *ap, *bp;
+        BignumInt *cp, *cps;
 
-        for (j = 0; j < len; j++)
-            c[j] = 0;
+        /*
+         * Multiply in the ordinary O(N^2) way.
+         */
 
-        for (i = len - 1; i >= 0; i--) {
-            t = 0;
-            for (j = len - 1; j >= len - i - 1; j--) {
-                t += MUL_WORD(a[i], (BignumDblInt) b[j]);
-                t += (BignumDblInt) c[i + j + 1 - len];
-                c[i + j + 1 - len] = (BignumInt) t;
-                t = t >> BIGNUM_INT_BITS;
+        for (i = 0; i < len; i++)
+            c[i] = 0;
+
+        for (cps = c + len, ap = a + len; ap-- > a; cps--) {
+            carry = 0;
+            for (cp = cps, bp = b + len; bp--, cp-- > c ;) {
+                t = (MUL_WORD(*ap, *bp) + carry) + *cp;
+                *cp = (BignumInt) t;
+                carry = t >> BIGNUM_INT_BITS;
             }
         }
-
     }
 }
 
