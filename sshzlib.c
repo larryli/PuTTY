@@ -1259,6 +1259,8 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
 		goto finished;
 	    nlen = dctx->bits & 0xFFFF;
 	    EATBITS(16);
+	    if (dctx->uncomplen != (nlen ^ 0xFFFF))
+		goto decode_error;
 	    if (dctx->uncomplen == 0)
 		dctx->state = OUTSIDEBLK;	/* block is empty */
 	    else
