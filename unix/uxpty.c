@@ -80,7 +80,7 @@ struct pty_tag {
     int master_fd, slave_fd;
     void *frontend;
     char name[FILENAME_MAX];
-    int child_pid;
+    pid_t child_pid;
     int term_width, term_height;
     int child_dead, finished;
     int exit_code;
@@ -137,7 +137,7 @@ static int pty_compare_by_pid(void *av, void *bv)
 
 static int pty_find_by_pid(void *av, void *bv)
 {
-    int a = *(int *)av;
+    pid_t a = *(pid_t *)av;
     Pty b = (Pty)bv;
 
     if (a < b->child_pid)
@@ -167,7 +167,8 @@ static tree234 *ptys_by_pid = NULL;
 static Pty single_pty = NULL;
 
 #ifndef OMIT_UTMP
-static int pty_utmp_helper_pid, pty_utmp_helper_pipe;
+static pid_t pty_utmp_helper_pid;
+static int pty_utmp_helper_pipe;
 static int pty_stamped_utmp;
 static struct utmpx utmp_entry;
 #endif
@@ -630,7 +631,6 @@ int pty_select_result(int fd, int event)
 
     if (fd == pty_signal_pipe[0]) {
 	pid_t pid;
-	int ipid;
 	int status;
 	char c[1];
 
@@ -641,7 +641,6 @@ int pty_select_result(int fd, int event)
 	do {
 	    pid = waitpid(-1, &status, WNOHANG);
 
-	    ipid = pid;
 	    pty = find234(ptys_by_pid, &pid, pty_find_by_pid);
 
 	    if (pty)
