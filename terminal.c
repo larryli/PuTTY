@@ -1889,13 +1889,18 @@ static void check_selection(Terminal *term, pos from, pos to)
 static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 {
     termline *line;
-    int i, seltop, olddisptop, shift;
+    int i, seltop;
+#ifdef OPTIMISE_SCROLL
+    int olddisptop, shift;
+#endif /* OPTIMISE_SCROLL */
 
     if (topline != 0 || term->alt_which != 0)
 	sb = FALSE;
 
+#ifdef OPTIMISE_SCROLL
     olddisptop = term->disptop;
     shift = lines;
+#endif /* OPTIMISE_SCROLL */
     if (lines < 0) {
 	while (lines < 0) {
 	    line = delpos234(term->screen, botline);
