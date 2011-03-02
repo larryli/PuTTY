@@ -311,6 +311,15 @@ static void close_session(void)
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
 		   IDM_RESTART, "&Restart Session");
     }
+
+    /*
+     * Unset the 'must_close_session' flag, or else we'll come
+     * straight back here the next time we go round the main message
+     * loop - which, worse still, will be immediately (without
+     * blocking) because we've just triggered a WM_SETTEXT by the
+     * window title change above.
+     */
+    must_close_session = FALSE;
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
