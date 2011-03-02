@@ -4,7 +4,8 @@
  * use for them.
  */
 
+#include "putty.h"
+
 const int ngsslibs = 0;
 const char *const gsslibnames[1] = { "dummy" };
-const char *const gsslibkeywords[1] = { "dummy" };
-
+const struct keyval gsslibkeywords[1] = { { "dummy", 0 } };
