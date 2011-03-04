@@ -1371,6 +1371,7 @@ int main(int argc, char **argv)
 
 const struct ssh_compress ssh_zlib = {
     "zlib",
+    "zlib@openssh.com", /* delayed version */
     zlib_compress_init,
     zlib_compress_cleanup,
     zlib_compress_block,
