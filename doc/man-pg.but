@@ -37,7 +37,11 @@ the following section.
 \S{puttygen-manpage-options} OPTIONS
 
 In the first phase, \c{puttygen} either loads or generates a key.
-The options to control this are:
+Note that generating a key requires random data (from
+\c{/dev/random}), which can cause \c{puttygen} to pause, possibly for
+some time if your system does not have much randomness available.
+
+The options to control this phase are:
 
 \dt \e{keyfile}
 
