@@ -366,11 +366,6 @@ point at display 10 or above on the SSH server machine itself:
 If this works, you should then be able to run X applications in the
 remote session and have them display their windows on your PC.
 
-Note that if your PC X server requires \I{X11 authentication}authentication
-to connect, then PuTTY cannot currently support it. If this is a problem for
-you, you should mail the PuTTY authors \#{FIXME} and give details
-(see \k{feedback}).
-
 For more options relating to X11 forwarding, see \k{config-ssh-x11}.
 
 \H{using-port-forwarding} Using \i{port forwarding} in SSH
