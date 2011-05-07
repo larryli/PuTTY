@@ -3540,15 +3540,29 @@ int pt_main(int argc, char **argv)
 
 	inst->menu = gtk_menu_new();
 
-#define MKMENUITEM(title, func) do { \
-    menuitem = title ? gtk_menu_item_new_with_label(title) : \
-    gtk_menu_item_new(); \
-    gtk_container_add(GTK_CONTAINER(inst->menu), menuitem); \
-    gtk_widget_show(menuitem); \
-    if (func != NULL) \
-	gtk_signal_connect(GTK_OBJECT(menuitem), "activate", \
-			       GTK_SIGNAL_FUNC(func), inst); \
-} while (0)
+#define MKMENUITEM(title, func) do                                      \
+        {                                                               \
+            menuitem = gtk_menu_item_new_with_label(title);             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+            gtk_signal_connect(GTK_OBJECT(menuitem), "activate",        \
+                               GTK_SIGNAL_FUNC(func), inst);            \
+        } while (0)
+
+#define MKSUBMENU(title) do                                             \
+        {                                                               \
+            menuitem = gtk_menu_item_new_with_label(title);             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+        } while (0)
+
+#define MKSEP() do                                                      \
+        {                                                               \
+            menuitem = gtk_menu_item_new();                             \
+            gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
+            gtk_widget_show(menuitem);                                  \
+        } while (0)
+
 	if (new_session)
 	    MKMENUITEM("New Session...", new_session_menuitem);
         MKMENUITEM("Restart Session", restart_session_menuitem);
@@ -3563,27 +3577,29 @@ int pt_main(int argc, char **argv)
 	    gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem),
 				      inst->sessionsmenu);
 	}
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
         MKMENUITEM("Change Settings...", change_settings_menuitem);
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
 	if (use_event_log)
 	    MKMENUITEM("Event Log", event_log_menuitem);
-	MKMENUITEM("Special Commands", NULL);
+	MKSUBMENU("Special Commands");
 	inst->specialsmenu = gtk_menu_new();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menuitem), inst->specialsmenu);
 	inst->specialsitem1 = menuitem;
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
 	inst->specialsitem2 = menuitem;
 	gtk_widget_hide(inst->specialsitem1);
 	gtk_widget_hide(inst->specialsitem2);
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
-	MKMENUITEM(NULL, NULL);
+	MKSEP();
 	s = dupcat("About ", appname, NULL);
 	MKMENUITEM(s, about_menuitem);
 	sfree(s);
 #undef MKMENUITEM
+#undef MKSUBMENU
+#undef MKSEP
     }
 
     inst->textcursor = make_mouse_ptr(inst, GDK_XTERM);

@@ -9131,10 +9131,9 @@ static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
     /* log the debug message */
     char *msg;
     int msglen;
-    int always_display;
 
-    /* XXX maybe we should actually take notice of this */
-    always_display = ssh2_pkt_getbool(pktin);
+    /* XXX maybe we should actually take notice of the return value */
+    ssh2_pkt_getbool(pktin);
     ssh_pkt_getstring(pktin, &msg, &msglen);
 
     logeventf(ssh, "Remote debug message: %.*s", msglen, msg);

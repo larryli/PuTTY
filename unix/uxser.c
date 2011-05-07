@@ -352,13 +352,11 @@ static void serial_free(void *handle)
 static void serial_reconfig(void *handle, Config *cfg)
 {
     Serial serial = (Serial) handle;
-    const char *err;
-
-    err = serial_configure(serial, cfg);
 
     /*
-     * FIXME: what should we do if err returns something?
+     * FIXME: what should we do if this returns an error?
      */
+    serial_configure(serial, cfg);
 }
 
 static int serial_select_result(int fd, int event)

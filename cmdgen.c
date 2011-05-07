@@ -316,25 +316,47 @@ int main(int argc, char **argv)
 			    *p++ = '\0';
 			    val = p;
 			} else
-			    val = NULL;
+                            val = NULL;
+
 			if (!strcmp(opt, "-help")) {
-			    help();
-			    nogo = TRUE;
+                            if (val) {
+                                errs = TRUE;
+                                fprintf(stderr, "puttygen: option `-%s'"
+                                        " expects no argument\n", opt);
+                            } else {
+                                help();
+                                nogo = TRUE;
+                            }
 			} else if (!strcmp(opt, "-version")) {
-			    showversion();
-			    nogo = TRUE;
+                            if (val) {
+                                errs = TRUE;
+                                fprintf(stderr, "puttygen: option `-%s'"
+                                        " expects no argument\n", opt);
+                            } else {
+                                showversion();
+                                nogo = TRUE;
+                            }
 			} else if (!strcmp(opt, "-pgpfp")) {
-                            /* support "-pgpfp" for consistency with others */
-                            pgp_fingerprints();
-                            nogo = TRUE;
+                            if (val) {
+                                errs = TRUE;
+                                fprintf(stderr, "puttygen: option `-%s'"
+                                        " expects no argument\n", opt);
+                            } else {
+                                /* support --pgpfp for consistency */
+                                pgp_fingerprints();
+                                nogo = TRUE;
+                            }
                         }
 			/*
-			 * A sample option requiring an argument:
+			 * For long options requiring an argument, add
+			 * code along the lines of
 			 * 
 			 * else if (!strcmp(opt, "-output")) {
-			 *     if (!val)
-			 *         errs = TRUE, error(err_optnoarg, opt);
-			 *     else
+			 *     if (!val) {
+			 *         errs = TRUE;
+                         *         fprintf(stderr, "puttygen: option `-%s'"
+                         *                 " expects an argument\n", opt);
+			 *     } else
 			 *         ofile = val;
 			 * }
 			 */

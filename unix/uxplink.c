@@ -588,7 +588,6 @@ int main(int argc, char **argv)
     int errors;
     int use_subsystem = 0;
     int got_host = FALSE;
-    void *ldisc;
     long now;
 
     fdlist = NULL;
@@ -901,7 +900,7 @@ int main(int argc, char **argv)
 	    return 1;
 	}
 	back->provide_logctx(backhandle, logctx);
-	ldisc = ldisc_create(&cfg, NULL, back, backhandle, NULL);
+	ldisc_create(&cfg, NULL, back, backhandle, NULL);
 	sfree(realhost);
     }
     connopen = 1;

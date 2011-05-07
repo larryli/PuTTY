@@ -4775,7 +4775,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	termchar *lchars;
 	int dirty_line, dirty_run, selected;
 	unsigned long attr = 0, cset = 0;
-	int updated_line = 0;
 	int start = 0;
 	int ccount = 0;
 	int last_run_dirty = 0;
@@ -4973,8 +4972,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
 			do_cursor(ctx, start, i, ch, ccount, attr,
 				  ldata->lattr);
-
-		    updated_line = 1;
 		}
 		start = j;
 		ccount = 0;
@@ -5059,8 +5056,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
 		do_cursor(ctx, start, i, ch, ccount, attr,
 			  ldata->lattr);
-
-	    updated_line = 1;
 	}
 
 	unlineptr(ldata);
@@ -5256,7 +5251,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	    sprintf(cbuf, "<U+%04x>", (ldata[top.x] & 0xFFFF));
 #else
 	    wchar_t cbuf[16], *p;
-	    int set, c;
+	    int c;
 	    int x = top.x;
 
 	    if (ldata->chars[x].chr == UCSWIDE) {
@@ -5290,7 +5285,6 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 		    break;
 		}
 
-		set = (uc & CSET_MASK);
 		c = (uc & ~CSET_MASK);
 #ifdef PLATFORM_IS_UTF16
 		if (uc > 0x10000 && uc < 0x110000) {
