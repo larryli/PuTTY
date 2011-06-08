@@ -3744,7 +3744,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		sfree(s->response);
 		if (s->publickey_blob && !s->tried_publickey)
 		    logevent("Configured key file not in Pageant");
-	    }
+	    } else {
+                logevent("Failed to get reply from Pageant");
+            }
 	    if (s->authed)
 		break;
 	}
@@ -7500,6 +7502,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			s->nkeys = 0;
 		    }
 		}
+	    } else {
+                logevent("Failed to get reply from Pageant");
 	    }
 	}
 
