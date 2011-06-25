@@ -15,11 +15,11 @@ const char *const gsslibnames[4] = {
     "libgss (Sun)",
     "User-specified GSSAPI library",
 };
-const struct keyval gsslibkeywords[] = {
-    { "libgssapi", 0 },
-    { "libgssapi_krb5", 1 },
-    { "libgss", 2 },
-    { "custom", 3 },
+const struct keyvalwhere gsslibkeywords[] = {
+    { "libgssapi", 0, -1, -1 },
+    { "libgssapi_krb5", 1, -1, -1 },
+    { "libgss", 2, -1, -1 },
+    { "custom", 3, -1, -1 },
 };
 
 /*
@@ -116,8 +116,8 @@ const int ngsslibs = 1;
 const char *const gsslibnames[1] = {
     "static",
 };
-const struct keyval gsslibkeywords[] = {
-    { "static", 0 },
+const struct keyvalwhere gsslibkeywords[] = {
+    { "static", 0, -1, -1 },
 };
 
 /*

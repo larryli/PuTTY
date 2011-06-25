@@ -8,4 +8,4 @@
 
 const int ngsslibs = 0;
 const char *const gsslibnames[1] = { "dummy" };
-const struct keyval gsslibkeywords[1] = { { "dummy", 0 } };
+const struct keyvalwhere gsslibkeywords[1] = { { "dummy", 0, -1, -1 } };
