@@ -1,0 +1,11 @@
+This directory contains 'cygtermd', a small and specialist Telnet
+server designed to act as middleware between PuTTY and a Cygwin shell
+session running on the same machine, so that PuTTY can act as an
+xterm-alike for Cygwin.
+
+To install it, you must compile it from source using Cygwin gcc,
+install it in Cygwin's /bin, and configure PuTTY to use it as a local
+proxy process. For detailed instructions, see the PuTTY Wishlist page
+at
+
+http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/cygwin-terminal-window.html
