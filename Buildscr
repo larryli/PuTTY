@@ -98,9 +98,14 @@ deliver putty/windows/*.map maps-x86/$@
 # whatever key they want.
 deliver putty/sign.sh $@
 
-# Building the md5sums file is most easily done in the destination
-# directory.
-in-dest putty do md5sum `\find * -type f -print` > md5sums
+# Create files of cryptographic checksums, which will be signed along
+# with the files they verify. We've provided MD5 checksums for a
+# while, but now MD5 is looking iffy, we're expanding our selection.
+#
+# Creating these files is most easily done in the destination
+# directory, where all the files we're delivering are already in their
+# final relative layout.
+in-dest putty do a=`\find * -type f -print`; md5sum $$a > md5sums && sha1sum $$a > sha1sums && sha256sum $$a > sha256sums && sha512sum $$a > sha512sums
 
 # And construct .htaccess files. One in the top-level directory,
 # setting the MIME types for Windows help files and providing an

@@ -3,9 +3,9 @@
 # Generate GPG signatures on a PuTTY release/snapshot directory as
 # delivered by Buildscr.
 
-# Usage: sign.sh <builddir> <keytype>
-# e.g. sign.sh build.out Snapshots
-#   or sign.sh 0.60 Releases
+# Usage: sh sign.sh <builddir> <keytype>
+# e.g.   sh sign.sh putty Snapshots  (probably in the build.out directory)
+#   or   sh sign.sh 0.60 Releases
 
 set -e
 
@@ -25,5 +25,7 @@ for t in DSA RSA; do
   for i in putty*src.zip putty*.tar.gz x86/*.exe x86/*.zip; do
     sign --detach-sign "$i" "$i.$t"
   done
-  sign --clearsign md5sums md5sums.$t
+  for i in md5sums sha1sums sha256sums sha512sums; do
+    sign --clearsign $i ${i}.$t
+  done
 done
