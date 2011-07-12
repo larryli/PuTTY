@@ -71,17 +71,17 @@ void luni_send(void *handle, wchar_t * widebuf, int len, int interactive)
 	    if (ch < 0x80) {
 		*p++ = (char) (ch);
 	    } else if (ch < 0x800) {
-		*p++ = (0xC0 | (ch >> 6));
-		*p++ = (0x80 | (ch & 0x3F));
+		*p++ = (char) (0xC0 | (ch >> 6));
+		*p++ = (char) (0x80 | (ch & 0x3F));
 	    } else if (ch < 0x10000) {
-		*p++ = (0xE0 | (ch >> 12));
-		*p++ = (0x80 | ((ch >> 6) & 0x3F));
-		*p++ = (0x80 | (ch & 0x3F));
+		*p++ = (char) (0xE0 | (ch >> 12));
+		*p++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*p++ = (char) (0x80 | (ch & 0x3F));
 	    } else {
-		*p++ = (0xF0 | (ch >> 18));
-		*p++ = (0x80 | ((ch >> 12) & 0x3F));
-		*p++ = (0x80 | ((ch >> 6) & 0x3F));
-		*p++ = (0x80 | (ch & 0x3F));
+		*p++ = (char) (0xF0 | (ch >> 18));
+		*p++ = (char) (0x80 | ((ch >> 12) & 0x3F));
+		*p++ = (char) (0x80 | ((ch >> 6) & 0x3F));
+		*p++ = (char) (0x80 | (ch & 0x3F));
 	    }
 	}
     } else {
