@@ -100,7 +100,7 @@ of the tag.
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
-   ixion:src/putty/local/announce-<ver> in case it's needed again
+   atreus:src/putty/local/announce-<ver> in case it's needed again
    within days of the release going out.
 
  - Build the release: `bob putty-0.XX RELEASE=0.XX'. This should
@@ -112,32 +112,42 @@ of the tag.
    report their version numbers accurately, and so on. Test the
    installer and the Unix source tarball.
 
- - Save the link maps. Currently I keep these on ixion, in
+ - Save the link maps. Currently I keep these on atreus, in
    src/putty/local/maps-<version>.
 
  - Sign the release: in the `build.out' directory, type `./sign.sh
    putty Releases', and enter the passphrases a lot of times.
 
  - Now the whole release directory should be present and correct.
-   Upload it to ixion:www/putty/<ver>.
+   Upload it to atreus:www/putty/<ver>.
 
  - Do final checks on the release directory:
     + verify all the signatures:
-      for i in `find . -name '*.*SA'`; do case $i in *md5sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
-    + check the md5sums:
+      for i in `find . -name '*.*SA'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
+    + check the checksum files:
       md5sum -c md5sums
+      sha1sum -c sha1sums
+      sha256sum -c sha256sums
+      sha512sum -c sha512sums
 
- - Having double-checked the release, copy it from ixion to
+ - Having double-checked the release, copy it from atreus to
    chiark:ftp/putty-<ver> and to the:www/putty/<ver>.
 
  - Check the permissions! Actually try downloading from the, to make
    sure it really works.
 
+ - Update the website to refer to the new release:
+    + on the front page, add a news item.
+    + also on the front page, update the line that says "The latest
+      version is beta 0.XX". (This one's really important, because the
+      'update-rsync' website mirror script on chiark greps for it!)
+    + write a section on the Changes page.
+
  - Update the HTTP redirects.
     + Update the one at the:www/putty/htaccess which points the
       virtual subdir `latest' at the actual latest release dir. TEST
       THIS ONE - it's quite important.
-    + ixion:www/putty/.htaccess has an individual redirect for each
+    + atreus:www/putty/.htaccess has an individual redirect for each
       version number. Add a new one.
 
  - Update the FTP symlink (chiark:ftp/putty-latest -> putty-<ver>).
@@ -160,18 +170,19 @@ of the tag.
  - Check that the web server attaches the right content type to .HLP
    and .CNT files.
 
- - Run webupdate, so that all the changes on ixion propagate to
+ - Run webupdate, so that all the changes on atreus propagate to
    chiark. Important to do this _before_ announcing that the release
    is available.
 
- - After running webupdate, run update-rsync on chiark and verify
-   that the rsync mirror package correctly identifies the new
-   version.
+ - After running webupdate, run update-rsync on chiark and verify that
+   the rsync mirror package (~/ftp/putty-website-mirror) contains a
+   subdirectory for the new version and mentions it in its .htaccess.
 
  - Announce the release!
-    + Mail the announcement to putty-announce.
-       * Set a Reply-To on the mail so that people don't keep
-	 replying to my personal address.
+    + Mail the announcement to <putty-announce@lists.tartarus.org>.
+       * Put a 'Reply-To: putty@projects.tartarus.org' header on the
+	 mail so that people don't keep replying to my personal
+	 address.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
