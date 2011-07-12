@@ -136,13 +136,6 @@ of the tag.
  - Check the permissions! Actually try downloading from the, to make
    sure it really works.
 
- - Update the website to refer to the new release:
-    + on the front page, add a news item.
-    + also on the front page, update the line that says "The latest
-      version is beta 0.XX". (This one's really important, because the
-      'update-rsync' website mirror script on chiark greps for it!)
-    + write a section on the Changes page.
-
  - Update the HTTP redirects.
     + Update the one at the:www/putty/htaccess which points the
       virtual subdir `latest' at the actual latest release dir. TEST
@@ -153,10 +146,11 @@ of the tag.
  - Update the FTP symlink (chiark:ftp/putty-latest -> putty-<ver>).
 
  - Update web site.
-   + Adjust front page (`the latest version is <ver>').
-   + Adjust Download page similarly.
-   + Adjust filenames of installer and Unix tarball on links in
-     Download page.
+   + Adjust front page to say 'The latest version is <ver>'.
+   + Adjust front page to add a news item.
+   + Adjust Download page to say 'The latest release version (<ver>)'.
+   + Adjust Download page to update filenames of installer and Unix
+     tarball (both in the hrefs themselves and the link text).
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
 
