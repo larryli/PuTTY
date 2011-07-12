@@ -39,7 +39,7 @@
 
 /* We keep this around even for snapshots, for monotonicity of version
  * numbering. It needs to be kept up to date. NB _comma_-separated. */
-#define BASE_VERSION 0,60
+#define BASE_VERSION 0,61
 
 #if defined SNAPSHOT
 
