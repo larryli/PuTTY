@@ -89,7 +89,7 @@ static void raw_sent(Plug plug, int bufsize)
  * freed by the caller.
  */
 static const char *raw_init(void *frontend_handle, void **backend_handle,
-			    Config *cfg,
+			    Conf *conf,
 			    char *host, int port, char **realhost, int nodelay,
 			    int keepalive)
 {
@@ -102,6 +102,8 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     SockAddr addr;
     const char *err;
     Raw raw;
+    int addressfamily;
+    char *loghost;
 
     raw = snew(struct raw_backend_data);
     raw->fn = &fn_table;
@@ -110,19 +112,20 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
 
     raw->frontend = frontend_handle;
 
+    addressfamily = conf_get_int(conf, CONF_addressfamily);
     /*
      * Try to find host.
      */
     {
 	char *buf;
 	buf = dupprintf("Looking up host \"%s\"%s", host,
-			(cfg->addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
-			 (cfg->addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
+			(addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
+			 (addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
 			  "")));
 	logevent(raw->frontend, buf);
 	sfree(buf);
     }
-    addr = name_lookup(host, port, realhost, cfg, cfg->addressfamily);
+    addr = name_lookup(host, port, realhost, conf, addressfamily);
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;
@@ -135,15 +138,16 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
      * Open socket.
      */
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, keepalive,
-			    (Plug) raw, cfg);
+			    (Plug) raw, conf);
     if ((err = sk_socket_error(raw->s)) != NULL)
 	return err;
 
-    if (*cfg->loghost) {
+    loghost = conf_get_str(conf, CONF_loghost);
+    if (*loghost) {
 	char *colon;
 
 	sfree(*realhost);
-	*realhost = dupstr(cfg->loghost);
+	*realhost = dupstr(loghost);
 	colon = strrchr(*realhost, ':');
 	if (colon) {
 	    /*
@@ -170,7 +174,7 @@ static void raw_free(void *handle)
 /*
  * Stub routine (we don't have any need to reconfigure this backend).
  */
-static void raw_reconfig(void *handle, Config *cfg)
+static void raw_reconfig(void *handle, Conf *conf)
 {
 }
 

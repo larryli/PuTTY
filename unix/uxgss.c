@@ -53,9 +53,10 @@ static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
 }
 
 /* Dynamically load gssapi libs. */
-struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
+struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 {
     void *gsslib;
+    char *gsspath;
     struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
 
     list->libraries = snewn(4, struct ssh_gss_library);
@@ -77,11 +78,11 @@ struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
 		 2, "Using GSSAPI from libgss.so.1");
 
     /* User-specified GSSAPI library */
-    if (cfg->ssh_gss_custom.path[0] &&
-	(gsslib = dlopen(cfg->ssh_gss_custom.path, RTLD_LAZY)) != NULL)
+    gsspath = conf_get_filename(conf, CONF_ssh_gss_custom)->path;
+    if (*gsspath && (gsslib = dlopen(gsspath, RTLD_LAZY)) != NULL)
 	gss_init(&list->libraries[list->nlibraries++], gsslib,
 		 3, dupprintf("Using GSSAPI from user-specified"
-			      " library '%s'", cfg->ssh_gss_custom.path));
+			      " library '%s'", gsspath));
 
     return list;
 }
@@ -129,7 +130,7 @@ const struct keyvalwhere gsslibkeywords[] = {
 #include <gssapi/gssapi.h>
 
 /* Dynamically load gssapi libs. */
-struct ssh_gss_liblist *ssh_gss_setup(const Config *cfg)
+struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 {
     struct ssh_gss_liblist *list = snew(struct ssh_gss_liblist);
 

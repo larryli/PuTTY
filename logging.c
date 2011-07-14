@@ -18,7 +18,8 @@ struct LogContext {
     bufchain queue;
     Filename currlogfilename;
     void *frontend;
-    Config cfg;
+    Conf *conf;
+    int logtype;		       /* cached out of conf */
 };
 
 static void xlatlognam(Filename *d, Filename s, char *hostname, struct tm *tm);
@@ -75,7 +76,7 @@ static void logprintf(struct LogContext *ctx, const char *fmt, ...)
  */
 void logflush(void *handle) {
     struct LogContext *ctx = (struct LogContext *)handle;
-    if (ctx->cfg.logtype > 0)
+    if (ctx->logtype > 0)
 	if (ctx->state == L_OPEN)
 	    fflush(ctx->lgfp);
 }
@@ -110,10 +111,10 @@ static void logfopen_callback(void *handle, int mode)
 		      ctx->state == L_ERROR ?
 		      (mode == 0 ? "Disabled writing" : "Error writing") :
 		      (mode == 1 ? "Appending" : "Writing new"),
-		      (ctx->cfg.logtype == LGTYP_ASCII ? "ASCII" :
-		       ctx->cfg.logtype == LGTYP_DEBUG ? "raw" :
-		       ctx->cfg.logtype == LGTYP_PACKETS ? "SSH packets" :
-		       ctx->cfg.logtype == LGTYP_SSHRAW ? "SSH raw data" :
+		      (ctx->logtype == LGTYP_ASCII ? "ASCII" :
+		       ctx->logtype == LGTYP_DEBUG ? "raw" :
+		       ctx->logtype == LGTYP_PACKETS ? "SSH packets" :
+		       ctx->logtype == LGTYP_SSHRAW ? "SSH raw data" :
 		       "unknown"),
 		      filename_to_str(&ctx->currlogfilename));
     logevent(ctx->frontend, event);
@@ -148,19 +149,22 @@ void logfopen(void *handle)
     if (ctx->state != L_CLOSED)
 	return;
 
-    if (!ctx->cfg.logtype)
+    if (!ctx->logtype)
 	return;
 
     tm = ltime();
 
     /* substitute special codes in file name */
-    xlatlognam(&ctx->currlogfilename, ctx->cfg.logfilename,ctx->cfg.host, &tm);
+    xlatlognam(&ctx->currlogfilename,
+	       *conf_get_filename(ctx->conf, CONF_logfilename),
+	       conf_get_str(ctx->conf, CONF_host), &tm);
 
     ctx->lgfp = f_open(ctx->currlogfilename, "r", FALSE);  /* file already present? */
     if (ctx->lgfp) {
+	int logxfovr = conf_get_int(ctx->conf, CONF_logxfovr);
 	fclose(ctx->lgfp);
-	if (ctx->cfg.logxfovr != LGXF_ASK) {
-	    mode = ((ctx->cfg.logxfovr == LGXF_OVR) ? 2 : 1);
+	if (logxfovr != LGXF_ASK) {
+	    mode = ((logxfovr == LGXF_OVR) ? 2 : 1);
 	} else
 	    mode = askappend(ctx->frontend, ctx->currlogfilename,
 			     logfopen_callback, ctx);
@@ -189,8 +193,8 @@ void logfclose(void *handle)
 void logtraffic(void *handle, unsigned char c, int logmode)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
-    if (ctx->cfg.logtype > 0) {
-	if (ctx->cfg.logtype == logmode)
+    if (ctx->logtype > 0) {
+	if (ctx->logtype == logmode)
 	    logwrite(ctx, &c, 1);
     }
 }
@@ -214,8 +218,8 @@ void log_eventlog(void *handle, const char *event)
     /* If we don't have a context yet (eg winnet.c init) then skip entirely */
     if (!ctx)
 	return;
-    if (ctx->cfg.logtype != LGTYP_PACKETS &&
-	ctx->cfg.logtype != LGTYP_SSHRAW)
+    if (ctx->logtype != LGTYP_PACKETS &&
+	ctx->logtype != LGTYP_SSHRAW)
 	return;
     logprintf(ctx, "Event Log: %s\r\n", event);
     logflush(ctx);
@@ -236,8 +240,8 @@ void log_packet(void *handle, int direction, int type,
     int p = 0, b = 0, omitted = 0;
     int output_pos = 0; /* NZ if pending output in dumpdata */
 
-    if (!(ctx->cfg.logtype == LGTYP_SSHRAW ||
-          (ctx->cfg.logtype == LGTYP_PACKETS && texttype)))
+    if (!(ctx->logtype == LGTYP_SSHRAW ||
+          (ctx->logtype == LGTYP_PACKETS && texttype)))
 	return;
 
     /* Packet header. */
@@ -326,13 +330,14 @@ void log_packet(void *handle, int direction, int type,
     logflush(ctx);
 }
 
-void *log_init(void *frontend, Config *cfg)
+void *log_init(void *frontend, Conf *conf)
 {
     struct LogContext *ctx = snew(struct LogContext);
     ctx->lgfp = NULL;
     ctx->state = L_CLOSED;
     ctx->frontend = frontend;
-    ctx->cfg = *cfg;		       /* STRUCTURE COPY */
+    ctx->conf = conf_copy(conf);
+    ctx->logtype = conf_get_int(ctx->conf, CONF_logtype);
     bufchain_init(&ctx->queue);
     return ctx;
 }
@@ -346,13 +351,15 @@ void log_free(void *handle)
     sfree(ctx);
 }
 
-void log_reconfig(void *handle, Config *cfg)
+void log_reconfig(void *handle, Conf *conf)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
     int reset_logging;
 
-    if (!filename_equal(ctx->cfg.logfilename, cfg->logfilename) ||
-	ctx->cfg.logtype != cfg->logtype)
+    if (!filename_equal(*conf_get_filename(ctx->conf, CONF_logfilename),
+			*conf_get_filename(conf, CONF_logfilename)) ||
+	conf_get_int(ctx->conf, CONF_logtype) !=
+	conf_get_int(conf, CONF_logtype))
 	reset_logging = TRUE;
     else
 	reset_logging = FALSE;
@@ -360,7 +367,10 @@ void log_reconfig(void *handle, Config *cfg)
     if (reset_logging)
 	logfclose(ctx);
 
-    ctx->cfg = *cfg;		       /* STRUCTURE COPY */
+    conf_free(ctx->conf);
+    ctx->conf = conf_copy(conf);
+
+    ctx->logtype = conf_get_int(ctx->conf, CONF_logtype);
 
     if (reset_logging)
 	logfopen(ctx);

@@ -12,7 +12,7 @@
 #include "ssh.h"
 #include "network.h"
 
-void platform_get_x11_auth(struct X11Display *disp, const Config *cfg)
+void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
 {
     char *xauthfile;
     int needs_free;

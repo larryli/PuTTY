@@ -334,13 +334,11 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 
 /* Exports from portfwd.c */
 extern const char *pfd_newconnect(Socket * s, char *hostname, int port,
-				  void *c, const Config *cfg,
-				  int addressfamily);
+				  void *c, Conf *conf, int addressfamily);
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
-				  int port, void *backhandle,
-				  const Config *cfg, void **sockdata,
-				  int address_family);
+				  int port, void *backhandle, Conf *conf,
+				  void **sockdata, int address_family);
 extern void pfd_close(Socket s);
 extern void pfd_terminate(void *sockdata);
 extern int pfd_send(Socket s, char *data, int len);
@@ -393,18 +391,17 @@ struct X11Display {
  * details are looked up by calling platform_get_x11_auth.
  */
 extern struct X11Display *x11_setup_display(char *display, int authtype,
-					    const Config *);
+					    Conf *);
 void x11_free_display(struct X11Display *disp);
 extern const char *x11_init(Socket *, struct X11Display *, void *,
-			    const char *, int, const Config *);
+			    const char *, int, Conf *);
 extern void x11_close(Socket);
 extern int x11_send(Socket, char *, int);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 char *x11_display(const char *display);
 /* Platform-dependent X11 functions */
-extern void platform_get_x11_auth(struct X11Display *display,
-				  const Config *);
+extern void platform_get_x11_auth(struct X11Display *display, Conf *);
     /* examine a mostly-filled-in X11Display and fill in localauth* */
 extern const int platform_uses_x11_unix_by_default;
     /* choose default X transport in the absence of a specified one */

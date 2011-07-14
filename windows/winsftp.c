@@ -20,7 +20,7 @@ int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     return ret;
 }
 
-void platform_get_x11_auth(struct X11Display *display, const Config *cfg)
+void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }

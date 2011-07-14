@@ -162,7 +162,7 @@ union control {
 	 * 
 	 * The `data' parameter points to the writable data being
 	 * modified as a result of the configuration activity; for
-	 * example, the PuTTY `Config' structure, although not
+	 * example, the PuTTY `Conf' structure, although not
 	 * necessarily.
 	 * 
 	 * The `dlg' parameter is passed back to the platform-
@@ -522,45 +522,6 @@ union control *ctrl_checkbox(struct controlset *, char *label, char shortcut,
 union control *ctrl_tabdelay(struct controlset *, union control *);
 
 /*
- * Standard handler routines to cover most of the common cases in
- * the config box.
- */
-/*
- * The standard radio-button handler expects the main `context'
- * field to contain the `offsetof' of an int field in the structure
- * pointed to by `data', and expects each of the individual button
- * data to give a value for that int field.
- */
-void dlg_stdradiobutton_handler(union control *ctrl, void *dlg,
-				void *data, int event);
-/*
- * The standard checkbox handler expects the main `context' field
- * to contain the `offsetof' an int field in the structure pointed
- * to by `data', optionally ORed with CHECKBOX_INVERT to indicate
- * that the sense of the datum is opposite to the sense of the
- * checkbox.
- */
-#define CHECKBOX_INVERT (1<<30)
-void dlg_stdcheckbox_handler(union control *ctrl, void *dlg,
-			     void *data, int event);
-/*
- * The standard edit-box handler expects the main `context' field
- * to contain the `offsetof' a field in the structure pointed to by
- * `data'. The secondary `context2' field indicates the type of
- * this field:
- * 
- *  - if context2 > 0, the field is a char array and context2 gives
- *    its size.
- *  - if context2 == -1, the field is an int and the edit box is
- *    numeric.
- *  - if context2 < -1, the field is an int and the edit box is
- *    _floating_, and (-context2) gives the scale. (E.g. if
- *    context2 == -1000, then typing 1.2 into the box will set the
- *    field to 1200.)
- */
-void dlg_stdeditbox_handler(union control *ctrl, void *dlg,
-			    void *data, int event);
-/*
  * The standard file-selector handler expects the main `context'
  * field to contain the `offsetof' a Filename field in the
  * structure pointed to by `data'.
@@ -584,7 +545,7 @@ int dlg_radiobutton_get(union control *ctrl, void *dlg);
 void dlg_checkbox_set(union control *ctrl, void *dlg, int checked);
 int dlg_checkbox_get(union control *ctrl, void *dlg);
 void dlg_editbox_set(union control *ctrl, void *dlg, char const *text);
-void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length);
+char *dlg_editbox_get(union control *ctrl, void *dlg);   /* result must be freed by caller */
 /* The `listbox' functions can also apply to combo boxes. */
 void dlg_listbox_clear(union control *ctrl, void *dlg);
 void dlg_listbox_del(union control *ctrl, void *dlg, int index);

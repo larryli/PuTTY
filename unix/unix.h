@@ -89,7 +89,7 @@ long get_windowid(void *frontend);
 void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 
 /* Things pterm.c needs from gtkdlg.c */
-int do_config_box(const char *title, Config *cfg,
+int do_config_box(const char *title, Conf *conf,
 		  int midsession, int protcfginfo);
 void fatal_message_box(void *window, char *msg);
 void about_box(void *window);
@@ -100,7 +100,7 @@ int reallyclose(void *frontend);
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
-int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch);
+int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch);
 
 /* pterm.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);

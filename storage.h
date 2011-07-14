@@ -9,9 +9,9 @@
 /* ----------------------------------------------------------------------
  * Functions to save and restore PuTTY sessions. Note that this is
  * only the low-level code to do the reading and writing. The
- * higher-level code that translates a Config structure into a set
- * of (key,value) pairs is elsewhere, since it doesn't (mostly)
- * change between platforms.
+ * higher-level code that translates an internal Conf structure into
+ * a set of (key,value) pairs in their external storage format is
+ * elsewhere, since it doesn't (mostly) change between platforms.
  */
 
 /*
@@ -41,8 +41,8 @@ void close_settings_w(void *handle);
  * number of calls to read_setting_s() and read_setting_i(), and
  * then close it using close_settings_r().
  * 
- * read_setting_s() writes into the provided buffer and returns a
- * pointer to the same buffer.
+ * read_setting_s() returns a dynamically allocated string which the
+ * caller must free.
  * 
  * If a particular string setting is not present in the session,
  * read_setting_s() can return NULL, in which case the caller
@@ -53,7 +53,7 @@ void close_settings_w(void *handle);
  * the provided buffer, and return zero if they failed to.
  */
 void *open_settings_r(const char *sessionname);
-char *read_setting_s(void *handle, const char *key, char *buffer, int buflen);
+char *read_setting_s(void *handle, const char *key);
 int read_setting_i(void *handle, const char *key, int defvalue);
 int read_setting_filename(void *handle, const char *key, Filename *value);
 int read_setting_fontspec(void *handle, const char *key, FontSpec *font);

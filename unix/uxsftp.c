@@ -34,7 +34,7 @@ char *x_get_default(const char *key)
     return NULL;		       /* this is a stub */
 }
 
-void platform_get_x11_auth(struct X11Display *display, const Config *cfg)
+void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }

@@ -20,6 +20,15 @@ say you weren't warned!
 
 Other ways in which the port is currently unfinished include:
 
+Bit rot
+-------
+
+ - the conversion of the old fixed-size 'Config' structure to the
+   new dynamic 'Conf' was never applied to this directory
+
+ - probably other things are out of date too; it would need some
+   work to make it compile again
+
 Missing terminal window features
 --------------------------------
 

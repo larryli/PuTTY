@@ -44,7 +44,7 @@ static struct dlgparam dp;
 static char **events = NULL;
 static int nevents = 0, negsize = 0;
 
-extern Config cfg;		       /* defined in window.c */
+extern Conf *conf;		       /* defined in window.c */
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
@@ -648,7 +648,7 @@ int do_config(void)
     dp_add_tree(&dp, &ctrls_panel);
     dp.wintitle = dupprintf("%s Configuration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = &cfg;
+    dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -666,15 +666,15 @@ int do_config(void)
 
 int do_reconfig(HWND hwnd, int protcfginfo)
 {
-    Config backup_cfg;
-    int ret;
+    Conf *backup_conf;
+    int ret, protocol;
 
-    backup_cfg = cfg;		       /* structure copy */
+    backup_conf = conf_copy(conf);
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, TRUE, cfg.protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE,
-                         cfg.protocol);
+    protocol = conf_get_int(conf, CONF_protocol);
+    setup_config_box(ctrlbox, TRUE, protocol, protcfginfo);
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE, protocol);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -682,7 +682,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp_add_tree(&dp, &ctrls_panel);
     dp.wintitle = dupprintf("%s Reconfiguration", appname);
     dp.errtitle = dupprintf("%s Error", appname);
-    dp.data = &cfg;
+    dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
 
@@ -695,7 +695,9 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp_cleanup(&dp);
 
     if (!ret)
-	cfg = backup_cfg;	       /* structure copy */
+	conf_copy_into(conf, backup_conf);
+
+    conf_free(backup_conf);
 
     return ret;
 }

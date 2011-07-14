@@ -330,11 +330,10 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
      * The first call to "changed", if allowed to proceed normally,
      * will cause an EVENT_VALCHANGE event on the edit box, causing
      * a call to dlg_editbox_get() which will read the empty string
-     * out of the GtkEntry - and promptly write it straight into
-     * the Config structure, which is precisely where our `text'
-     * pointer is probably pointing, so the second editing
-     * operation will insert that instead of the string we
-     * originally asked for.
+     * out of the GtkEntry - and promptly write it straight into the
+     * Conf structure, which is precisely where our `text' pointer
+     * is probably pointing, so the second editing operation will
+     * insert that instead of the string we originally asked for.
      *
      * Hence, we must take our own copy of the text before we do
      * this.
@@ -344,7 +343,7 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     sfree(tmpstring);
 }
 
-void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
+char *dlg_editbox_get(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
@@ -353,25 +352,16 @@ void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
 #if GTK_CHECK_VERSION(2,4,0)
     if (uc->combo) {
 #if GTK_CHECK_VERSION(2,6,0)
-	strncpy(buffer,
-		gtk_combo_box_get_active_text(GTK_COMBO_BOX(uc->combo)),
-		length);
+	return dupstr(gtk_combo_box_get_active_text(GTK_COMBO_BOX(uc->combo)));
 #else
-	strncpy(buffer,
-		gtk_entry_get_text
-		(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))),
-		length);
+	return dupstr(gtk_entry_get_text
+		      (GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))));
 #endif
-	buffer[length-1] = '\0';
-	return;
     }
 #endif
 
     if (uc->entry) {
-	strncpy(buffer, gtk_entry_get_text(GTK_ENTRY(uc->entry)),
-		length);
-	buffer[length-1] = '\0';
-	return;
+	return dupstr(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
     }
 
     assert(!"We shouldn't get here");
@@ -2826,12 +2816,12 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
 #endif
 }
 
-int do_config_box(const char *title, Config *cfg, int midsession,
+int do_config_box(const char *title, Conf *conf, int midsession,
 		  int protcfginfo)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
-    int index, level;
+    int index, level, protocol;
     struct controlbox *ctrlbox;
     char *path;
 #if GTK_CHECK_VERSION(2,0,0)
@@ -2859,8 +2849,9 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     window = gtk_dialog_new();
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, midsession, cfg->protocol, protcfginfo);
-    unix_setup_config_box(ctrlbox, midsession, cfg->protocol);
+    protocol = conf_get_int(conf, CONF_protocol);
+    setup_config_box(ctrlbox, midsession, protocol, protcfginfo);
+    unix_setup_config_box(ctrlbox, midsession, protocol);
     gtk_setup_config_box(ctrlbox, midsession, window);
 
     gtk_window_set_title(GTK_WINDOW(window), title);
@@ -3095,7 +3086,7 @@ int do_config_box(const char *title, Config *cfg, int midsession,
     }
 #endif
 
-    dp.data = cfg;
+    dp.data = conf;
     dlg_refresh(NULL, &dp);
 
     dp.shortcuts = &selparams[0].shortcuts;

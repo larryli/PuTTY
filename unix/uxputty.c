@@ -31,17 +31,17 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-Backend *select_backend(Config *cfg)
+Backend *select_backend(Conf *conf)
 {
-    Backend *back = backend_from_proto(cfg->protocol);
+    Backend *back = backend_from_proto(conf_get_int(conf, CONF_protocol));
     assert(back != NULL);
     return back;
 }
 
-int cfgbox(Config *cfg)
+int cfgbox(Conf *conf)
 {
     char *title = dupcat(appname, " Configuration", NULL);
-    int ret = do_config_box(title, cfg, 0, 0);
+    int ret = do_config_box(title, conf, 0, 0);
     sfree(title);
     return ret;
 }
@@ -50,7 +50,7 @@ static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 
-int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
+int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
 {
     char *p, *q = arg;
 
@@ -61,7 +61,7 @@ int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
          * argument, so that it will be deferred until it's a good
          * moment to run it.
          */
-        int ret = cmdline_process_param("-P", arg, 1, cfg);
+        int ret = cmdline_process_param("-P", arg, 1, conf);
         assert(ret == 2);
     } else if (!strncmp(q, "telnet:", 7)) {
         /*
@@ -74,7 +74,7 @@ int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
         q += 7;
         if (q[0] == '/' && q[1] == '/')
             q += 2;
-        cfg->protocol = PROT_TELNET;
+        conf_set_int(conf, CONF_protocol, PROT_TELNET);
         p = q;
         while (*p && *p != ':' && *p != '/')
             p++;
@@ -82,11 +82,10 @@ int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
         if (*p)
             *p++ = '\0';
         if (c == ':')
-            cfg->port = atoi(p);
+            conf_set_int(conf, CONF_port, atoi(p));
         else
-            cfg->port = -1;
-        strncpy(cfg->host, q, sizeof(cfg->host) - 1);
-        cfg->host[sizeof(cfg->host) - 1] = '\0';
+            conf_set_int(conf, CONF_port, -1);
+	conf_set_str(conf, CONF_host, q);
         got_host = 1;
     } else {
         /*
@@ -97,8 +96,7 @@ int process_nonoption_arg(char *arg, Config *cfg, int *allow_launch)
             p++;
         if (*p)
             *p++ = '\0';
-        strncpy(cfg->host, q, sizeof(cfg->host) - 1);
-        cfg->host[sizeof(cfg->host) - 1] = '\0';
+        conf_set_str(conf, CONF_host, q);
         got_host = 1;
     }
     if (got_host)

@@ -44,7 +44,7 @@ static int using_sftp = 0;
 
 static Backend *back;
 static void *backhandle;
-static Config cfg;
+static Conf *conf;
 
 static void source(char *src);
 static void rsource(char *src);
@@ -333,88 +333,90 @@ static void do_cmd(char *host, char *user, char *cmd)
      */
     if (!loaded_session) {
 	/* Try to load settings for `host' into a temporary config */
-	Config cfg2;
-	cfg2.host[0] = '\0';
-	do_defaults(host, &cfg2);
-	if (cfg2.host[0] != '\0') {
+	Conf *conf2 = conf_new();
+	conf_set_str(conf2, CONF_host, "");
+	do_defaults(host, conf2);
+	if (conf_get_str(conf2, CONF_host)[0] != '\0') {
 	    /* Settings present and include hostname */
 	    /* Re-load data into the real config. */
-	    do_defaults(host, &cfg);
+	    do_defaults(host, conf);
 	} else {
 	    /* Session doesn't exist or mention a hostname. */
 	    /* Use `host' as a bare hostname. */
-	    strncpy(cfg.host, host, sizeof(cfg.host) - 1);
-	    cfg.host[sizeof(cfg.host) - 1] = '\0';
+	    conf_set_str(conf, CONF_host, host);
 	}
     } else {
 	/* Patch in hostname `host' to session details. */
-	strncpy(cfg.host, host, sizeof(cfg.host) - 1);
-	cfg.host[sizeof(cfg.host) - 1] = '\0';
+	conf_set_str(conf, CONF_host, host);
     }
 
     /*
      * Force use of SSH. (If they got the protocol wrong we assume the
      * port is useless too.)
      */
-    if (cfg.protocol != PROT_SSH) {
-        cfg.protocol = PROT_SSH;
-        cfg.port = 22;
+    if (conf_get_int(conf, CONF_protocol) != PROT_SSH) {
+        conf_set_int(conf, CONF_protocol, PROT_SSH);
+        conf_set_int(conf, CONF_port, 22);
     }
 
     /*
      * Enact command-line overrides.
      */
-    cmdline_run_saved(&cfg);
+    cmdline_run_saved(conf);
 
     /*
-     * Trim leading whitespace off the hostname if it's there.
+     * Muck about with the hostname in various ways.
      */
     {
-	int space = strspn(cfg.host, " \t");
-	memmove(cfg.host, cfg.host+space, 1+strlen(cfg.host)-space);
-    }
+	char *hostbuf = dupstr(conf_get_str(conf, CONF_host));
+	char *host = hostbuf;
+	char *p, *q;
 
-    /* See if host is of the form user@host */
-    if (cfg.host[0] != '\0') {
-	char *atsign = strrchr(cfg.host, '@');
-	/* Make sure we're not overflowing the user field */
-	if (atsign) {
-	    if (atsign - cfg.host < sizeof cfg.username) {
-		strncpy(cfg.username, cfg.host, atsign - cfg.host);
-		cfg.username[atsign - cfg.host] = '\0';
-	    }
-	    memmove(cfg.host, atsign + 1, 1 + strlen(atsign + 1));
-	}
-    }
+	/*
+	 * Trim leading whitespace.
+	 */
+	host += strspn(host, " \t");
 
-    /*
-     * Remove any remaining whitespace from the hostname.
-     */
-    {
-	int p1 = 0, p2 = 0;
-	while (cfg.host[p2] != '\0') {
-	    if (cfg.host[p2] != ' ' && cfg.host[p2] != '\t') {
-		cfg.host[p1] = cfg.host[p2];
-		p1++;
+	/*
+	 * See if host is of the form user@host, and separate out
+	 * the username if so.
+	 */
+	if (host[0] != '\0') {
+	    char *atsign = strrchr(host, '@');
+	    if (atsign) {
+		*atsign = '\0';
+		conf_set_str(conf, CONF_username, host);
+		host = atsign + 1;
 	    }
-	    p2++;
 	}
-	cfg.host[p1] = '\0';
+
+	/*
+	 * Remove any remaining whitespace.
+	 */
+	p = hostbuf;
+	q = host;
+	while (*q) {
+	    if (*q != ' ' && *q != '\t')
+		*p++ = *q;
+	    q++;
+	}
+	*p = '\0';
+
+	conf_set_str(conf, CONF_host, hostbuf);
+	sfree(hostbuf);
     }
 
     /* Set username */
     if (user != NULL && user[0] != '\0') {
-	strncpy(cfg.username, user, sizeof(cfg.username) - 1);
-	cfg.username[sizeof(cfg.username) - 1] = '\0';
-    } else if (cfg.username[0] == '\0') {
+	conf_set_str(conf, CONF_username, user);
+    } else if (conf_get_str(conf, CONF_username)[0] == '\0') {
 	user = get_username();
 	if (!user)
 	    bump("Empty user name");
 	else {
 	    if (verbose)
 		tell_user(stderr, "Guessing user name: %s", user);
-	    strncpy(cfg.username, user, sizeof(cfg.username) - 1);
-	    cfg.username[sizeof(cfg.username) - 1] = '\0';
+	    conf_set_str(conf, CONF_username, user);
 	    sfree(user);
 	}
     }
@@ -424,10 +426,14 @@ static void do_cmd(char *host, char *user, char *cmd)
      * things like SCP and SFTP: agent forwarding, port forwarding,
      * X forwarding.
      */
-    cfg.x11_forward = 0;
-    cfg.agentfwd = 0;
-    cfg.portfwd[0] = cfg.portfwd[1] = '\0';
-    cfg.ssh_simple = TRUE;
+    conf_set_int(conf, CONF_x11_forward, 0);
+    conf_set_int(conf, CONF_agentfwd, 0);
+    conf_set_int(conf, CONF_ssh_simple, TRUE);
+    {
+	char *key;
+	while ((key = conf_get_str_nthstrkey(conf, CONF_portfwd, 0)) != NULL)
+	    conf_del_str_str(conf, CONF_portfwd, key);
+    }
 
     /*
      * Set up main and possibly fallback command depending on
@@ -435,44 +441,49 @@ static void do_cmd(char *host, char *user, char *cmd)
      * Attempt to start the SFTP subsystem as a first choice,
      * falling back to the provided scp command if that fails.
      */
-    cfg.remote_cmd_ptr2 = NULL;
+    conf_set_str(conf, CONF_remote_cmd2, "");
     if (try_sftp) {
 	/* First choice is SFTP subsystem. */
 	main_cmd_is_sftp = 1;
-	strcpy(cfg.remote_cmd, "sftp");
-	cfg.ssh_subsys = TRUE;
+	conf_set_str(conf, CONF_remote_cmd, "sftp");
+	conf_set_int(conf, CONF_ssh_subsys, TRUE);
 	if (try_scp) {
 	    /* Fallback is to use the provided scp command. */
 	    fallback_cmd_is_sftp = 0;
-	    cfg.remote_cmd_ptr2 = cmd;
-	    cfg.ssh_subsys2 = FALSE;
+	    conf_set_str(conf, CONF_remote_cmd2, "sftp");
+	    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
 	} else {
 	    /* Since we're not going to try SCP, we may as well try
 	     * harder to find an SFTP server, since in the current
 	     * implementation we have a spare slot. */
 	    fallback_cmd_is_sftp = 1;
 	    /* see psftp.c for full explanation of this kludge */
-	    cfg.remote_cmd_ptr2 = 
-		"test -x /usr/lib/sftp-server && exec /usr/lib/sftp-server\n"
-		"test -x /usr/local/lib/sftp-server && exec /usr/local/lib/sftp-server\n"
-		"exec sftp-server";
-	    cfg.ssh_subsys2 = FALSE;
+	    conf_set_str(conf, CONF_remote_cmd2,
+			 "test -x /usr/lib/sftp-server &&"
+			 " exec /usr/lib/sftp-server\n"
+			 "test -x /usr/local/lib/sftp-server &&"
+			 " exec /usr/local/lib/sftp-server\n"
+			 "exec sftp-server");
+	    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
 	}
     } else {
 	/* Don't try SFTP at all; just try the scp command. */
 	main_cmd_is_sftp = 0;
-	cfg.remote_cmd_ptr = cmd;
-	cfg.ssh_subsys = FALSE;
+	conf_set_str(conf, CONF_remote_cmd, cmd);
+	conf_set_int(conf, CONF_ssh_subsys, FALSE);
     }
-    cfg.nopty = TRUE;
+    conf_set_int(conf, CONF_nopty, TRUE);
 
     back = &ssh_backend;
 
-    err = back->init(NULL, &backhandle, &cfg, cfg.host, cfg.port, &realhost, 
-		     0, cfg.tcp_keepalives);
+    err = back->init(NULL, &backhandle, conf,
+		     conf_get_str(conf, CONF_host),
+		     conf_get_int(conf, CONF_port),
+		     &realhost, 0,
+		     conf_get_int(conf, CONF_tcp_keepalives));
     if (err != NULL)
 	bump("ssh_init: %s", err);
-    logctx = log_init(NULL, &cfg);
+    logctx = log_init(NULL, conf);
     back->provide_logctx(backhandle, logctx);
     console_provide_logctx(logctx);
     ssh_scp_init();
@@ -2221,14 +2232,15 @@ int psftp_main(int argc, char *argv[])
     sk_init();
 
     /* Load Default Settings before doing anything else. */
-    do_defaults(NULL, &cfg);
+    conf = conf_new();
+    do_defaults(NULL, conf);
     loaded_session = FALSE;
 
     for (i = 1; i < argc; i++) {
 	int ret;
 	if (argv[i][0] != '-')
 	    break;
-	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1, &cfg);
+	ret = cmdline_process_param(argv[i], i+1<argc?argv[i+1]:NULL, 1, conf);
 	if (ret == -2) {
 	    cmdline_error("option \"%s\" requires an argument", argv[i]);
 	} else if (ret == 2) {

@@ -317,7 +317,7 @@ void *open_settings_r(const char *sessionname)
     return ret;
 }
 
-char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
+char *read_setting_s(void *handle, const char *key)
 {
     tree234 *tree = (tree234 *)handle;
     const char *val;
@@ -333,11 +333,8 @@ char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
 
     if (!val)
 	return NULL;
-    else {
-	strncpy(buffer, val, buflen);
-	buffer[buflen-1] = '\0';
-	return buffer;
-    }
+    else
+	return dupstr(val);
 }
 
 int read_setting_i(void *handle, const char *key, int defvalue)
@@ -375,26 +372,40 @@ int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
      * ("FontName").
      */
     char *suffname = dupcat(name, "Name", NULL);
-    if (read_setting_s(handle, suffname, result->name, sizeof(result->name))) {
+    char *tmp;
+
+    if ((tmp = read_setting_s(handle, suffname)) != NULL) {
+	strncpy(result->name, tmp, sizeof(result->name)-1);
+	result->name[sizeof(result->name)-1] = '\0';
 	sfree(suffname);
+	sfree(tmp);
 	return TRUE;		       /* got new-style name */
     }
     sfree(suffname);
 
     /* Fall back to old-style name. */
-    memcpy(result->name, "server:", 7);
-    if (!read_setting_s(handle, name,
-			result->name + 7, sizeof(result->name) - 7) ||
-	!result->name[7]) {
-	result->name[0] = '\0';
-	return FALSE;
-    } else {
+    tmp = read_setting_s(handle, name);
+    if (tmp && *tmp) {
+	strcpy(result->name, "server:");
+	strncpy(result->name + 7, tmp, sizeof(result->name) - 8);
+	result->name[sizeof(result->name)-1] = '\0';
+	sfree(tmp);
 	return TRUE;
+    } else {
+	sfree(tmp);
+	return FALSE;
     }
 }
 int read_setting_filename(void *handle, const char *name, Filename *result)
 {
-    return !!read_setting_s(handle, name, result->path, sizeof(result->path));
+    char *tmp = read_setting_s(handle, name);
+    if (tmp) {
+	strncpy(result->path, tmp, sizeof(result->path)-1);
+	result->path[sizeof(result->path)-1] = '\0';
+	sfree(tmp);
+	return TRUE;
+    } else
+	return FALSE;
 }
 
 void write_setting_fontspec(void *handle, const char *name, FontSpec result)

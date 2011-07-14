@@ -123,7 +123,7 @@ static const char *sk_localproxy_socket_error(Socket s)
 Socket platform_new_connection(SockAddr addr, char *hostname,
 			       int port, int privport,
 			       int oobinline, int nodelay, int keepalive,
-			       Plug plug, const Config *cfg)
+			       Plug plug, Conf *conf)
 {
     char *cmd;
 
@@ -145,10 +145,10 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
     STARTUPINFO si;
     PROCESS_INFORMATION pi;
 
-    if (cfg->proxy_type != PROXY_CMD)
+    if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
 	return NULL;
 
-    cmd = format_telnet_command(addr, port, cfg);
+    cmd = format_telnet_command(addr, port, conf);
 
     {
 	char *msg = dupprintf("Starting local proxy command: %s", cmd);

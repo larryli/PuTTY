@@ -18,7 +18,7 @@
 
 #ifndef DONE_TYPEDEFS
 #define DONE_TYPEDEFS
-typedef struct config_tag Config;
+typedef struct conf_tag Conf;
 typedef struct backend_tag Backend;
 typedef struct terminal_tag Terminal;
 #endif
@@ -304,7 +304,7 @@ enum {
 };
 
 enum {
-    /* Protocol back ends. (cfg.protocol) */
+    /* Protocol back ends. (CONF_protocol) */
     PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH,
     /* PROT_SERIAL is supported on a subset of platforms, but it doesn't
      * hurt to define it globally. */
@@ -312,22 +312,22 @@ enum {
 };
 
 enum {
-    /* Bell settings (cfg.beep) */
+    /* Bell settings (CONF_beep) */
     BELL_DISABLED, BELL_DEFAULT, BELL_VISUAL, BELL_WAVEFILE, BELL_PCSPEAKER
 };
 
 enum {
-    /* Taskbar flashing indication on bell (cfg.beep_ind) */
+    /* Taskbar flashing indication on bell (CONF_beep_ind) */
     B_IND_DISABLED, B_IND_FLASH, B_IND_STEADY
 };
 
 enum {
-    /* Resize actions (cfg.resize_action) */
+    /* Resize actions (CONF_resize_action) */
     RESIZE_TERM, RESIZE_DISABLED, RESIZE_FONT, RESIZE_EITHER
 };
 
 enum {
-    /* Function key types (cfg.funky_type) */
+    /* Function key types (CONF_funky_type) */
     FUNKY_TILDE,
     FUNKY_LINUX,
     FUNKY_XTERM,
@@ -415,12 +415,11 @@ enum {
 
 struct backend_tag {
     const char *(*init) (void *frontend_handle, void **backend_handle,
-			 Config *cfg,
-			 char *host, int port, char **realhost, int nodelay,
-			 int keepalive);
+			 Conf *conf, char *host, int port, char **realhost,
+			 int nodelay, int keepalive);
     void (*free) (void *handle);
     /* back->reconfig() passes in a replacement configuration. */
-    void (*reconfig) (void *handle, Config *cfg);
+    void (*reconfig) (void *handle, Conf *conf);
     /* back->send() returns the current amount of buffered data. */
     int (*send) (void *handle, char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
@@ -460,214 +459,6 @@ extern const int be_default_protocol;
  * and other pieces of text.
  */
 extern const char *const appname;
-
-/*
- * IMPORTANT POLICY POINT: everything in this structure which wants
- * to be treated like an integer must be an actual, honest-to-
- * goodness `int'. No enum-typed variables. This is because parts
- * of the code will want to pass around `int *' pointers to them
- * and we can't run the risk of porting to some system on which the
- * enum comes out as a different size from int.
- */
-struct config_tag {
-    /* Basic options */
-    char host[512];
-    int port;
-    int protocol;
-    int addressfamily;
-    int close_on_exit;
-    int warn_on_close;
-    int ping_interval;		       /* in seconds */
-    int tcp_nodelay;
-    int tcp_keepalives;
-    char loghost[512];  /* logical host being contacted, for host key check */
-    /* Proxy options */
-    char proxy_exclude_list[512];
-    int proxy_dns;
-    int even_proxy_localhost;
-    int proxy_type;
-    char proxy_host[512];
-    int proxy_port;
-    char proxy_username[128];
-    char proxy_password[128];
-    char proxy_telnet_command[512];
-    /* SSH options */
-    char remote_cmd[512];
-    char *remote_cmd_ptr;	       /* might point to a larger command
-				        * but never for loading/saving */
-    char *remote_cmd_ptr2;	       /* might point to a larger command
-				        * but never for loading/saving */
-    int nopty;
-    int compression;
-    int ssh_kexlist[KEX_MAX];
-    int ssh_rekey_time;		       /* in minutes */
-    char ssh_rekey_data[16];
-    int tryagent;
-    int agentfwd;
-    int change_username;	       /* allow username switching in SSH-2 */
-    int ssh_cipherlist[CIPHER_MAX];
-    Filename keyfile;
-    int sshprot;		       /* use v1 or v2 when both available */
-    int ssh2_des_cbc;		       /* "des-cbc" unrecommended SSH-2 cipher */
-    int ssh_no_userauth;	       /* bypass "ssh-userauth" (SSH-2 only) */
-    int ssh_show_banner;	       /* show USERAUTH_BANNERs (SSH-2 only) */
-    int try_tis_auth;
-    int try_ki_auth;
-    int try_gssapi_auth;               /* attempt gssapi auth */
-    int gssapifwd;                     /* forward tgt via gss */
-    int ssh_gsslist[4];		       /* preference order for local GSS libs */
-    Filename ssh_gss_custom;
-    int ssh_subsys;		       /* run a subsystem rather than a command */
-    int ssh_subsys2;		       /* fallback to go with remote_cmd_ptr2 */
-    int ssh_no_shell;		       /* avoid running a shell */
-    char ssh_nc_host[512];	       /* host to connect to in `nc' mode */
-    int ssh_nc_port;		       /* port to connect to in `nc' mode */
-    /* Telnet options */
-    char termtype[32];
-    char termspeed[32];
-    char ttymodes[768];		       /* MODE\tVvalue\0MODE\tA\0\0 */
-    char environmt[1024];	       /* VAR\tvalue\0VAR\tvalue\0\0 */
-    char username[100];
-    int username_from_env;
-    char localusername[100];
-    int rfc_environ;
-    int passive_telnet;
-    /* Serial port options */
-    char serline[256];
-    int serspeed;
-    int serdatabits, serstopbits;
-    int serparity;
-    int serflow;
-    /* Keyboard options */
-    int bksp_is_delete;
-    int rxvt_homeend;
-    int funky_type;
-    int no_applic_c;		       /* totally disable app cursor keys */
-    int no_applic_k;		       /* totally disable app keypad */
-    int no_mouse_rep;		       /* totally disable mouse reporting */
-    int no_remote_resize;	       /* disable remote resizing */
-    int no_alt_screen;		       /* disable alternate screen */
-    int no_remote_wintitle;	       /* disable remote retitling */
-    int no_dbackspace;		       /* disable destructive backspace */
-    int no_remote_charset;	       /* disable remote charset config */
-    int remote_qtitle_action;	       /* remote win title query action */
-    int app_cursor;
-    int app_keypad;
-    int nethack_keypad;
-    int telnet_keyboard;
-    int telnet_newline;
-    int alt_f4;			       /* is it special? */
-    int alt_space;		       /* is it special? */
-    int alt_only;		       /* is it special? */
-    int localecho;
-    int localedit;
-    int alwaysontop;
-    int fullscreenonaltenter;
-    int scroll_on_key;
-    int scroll_on_disp;
-    int erase_to_scrollback;
-    int compose_key;
-    int ctrlaltkeys;
-    char wintitle[256];		       /* initial window title */
-    /* Terminal options */
-    int savelines;
-    int dec_om;
-    int wrap_mode;
-    int lfhascr;
-    int cursor_type;		       /* 0=block 1=underline 2=vertical */
-    int blink_cur;
-    int beep;
-    int beep_ind;
-    int bellovl;		       /* bell overload protection active? */
-    int bellovl_n;		       /* number of bells to cause overload */
-    int bellovl_t;		       /* time interval for overload (seconds) */
-    int bellovl_s;		       /* period of silence to re-enable bell (s) */
-    Filename bell_wavefile;
-    int scrollbar;
-    int scrollbar_in_fullscreen;
-    int resize_action;
-    int bce;
-    int blinktext;
-    int win_name_always;
-    int width, height;
-    FontSpec font;
-    int font_quality;
-    Filename logfilename;
-    int logtype;
-    int logxfovr;
-    int logflush;
-    int logomitpass;
-    int logomitdata;
-    int hide_mouseptr;
-    int sunken_edge;
-    int window_border;
-    char answerback[256];
-    char printer[128];
-    int arabicshaping;
-    int bidi;
-    /* Colour options */
-    int ansi_colour;
-    int xterm_256_colour;
-    int system_colour;
-    int try_palette;
-    int bold_colour;
-    unsigned char colours[22][3];
-    /* Selection options */
-    int mouse_is_xterm;
-    int rect_select;
-    int rawcnp;
-    int rtf_paste;
-    int mouse_override;
-    short wordness[256];
-    /* translations */
-    int vtmode;
-    char line_codepage[128];
-    int cjk_ambig_wide;
-    int utf8_override;
-    int xlat_capslockcyr;
-    /* X11 forwarding */
-    int x11_forward;
-    char x11_display[128];
-    int x11_auth;
-    Filename xauthfile;
-    /* port forwarding */
-    int lport_acceptall; /* accept conns from hosts other than localhost */
-    int rport_acceptall; /* same for remote forwarded ports (SSH-2 only) */
-    /*
-     * The port forwarding string contains a number of
-     * NUL-terminated substrings, terminated in turn by an empty
-     * string (i.e. a second NUL immediately after the previous
-     * one). Each string can be of one of the following forms:
-     * 
-     *   [LR]localport\thost:port
-     *   [LR]localaddr:localport\thost:port
-     *   Dlocalport
-     *   Dlocaladdr:localport
-     */
-    char portfwd[1024];
-    /* SSH bug compatibility modes */
-    int sshbug_ignore1, sshbug_plainpw1, sshbug_rsa1,
-	sshbug_hmac2, sshbug_derivekey2, sshbug_rsapad2,
-	sshbug_pksessid2, sshbug_rekey2, sshbug_maxpkt2,
-	sshbug_ignore2;
-    /*
-     * ssh_simple means that we promise never to open any channel other
-     * than the main one, which means it can safely use a very large
-     * window in SSH-2.
-     */
-    int ssh_simple;
-    /* Options for pterm. Should split out into platform-dependent part. */
-    int stamp_utmp;
-    int login_shell;
-    int scrollbar_on_left;
-    int shadowbold;
-    FontSpec boldfont;
-    FontSpec widefont;
-    FontSpec wideboldfont;
-    int shadowboldoffset;
-    int crhaslf;
-    char winclass[256];
-};
 
 /*
  * Some global flags denoting the type of application.
@@ -839,6 +630,255 @@ void set_busy_status(void *frontend, int status);
 void cleanup_exit(int);
 
 /*
+ * Exports from conf.c, and a big enum (via parametric macro) of
+ * configuration option keys.
+ */
+#define CONFIG_OPTIONS(X) \
+    /* X(value-type, subkey-type, keyword) */ \
+    X(STR, NONE, host) \
+    X(INT, NONE, port) \
+    X(INT, NONE, protocol) \
+    X(INT, NONE, addressfamily) \
+    X(INT, NONE, close_on_exit) \
+    X(INT, NONE, warn_on_close) \
+    X(INT, NONE, ping_interval) /* in seconds */ \
+    X(INT, NONE, tcp_nodelay) \
+    X(INT, NONE, tcp_keepalives) \
+    X(STR, NONE, loghost) /* logical host being contacted, for host key check */ \
+    /* Proxy options */ \
+    X(STR, NONE, proxy_exclude_list) \
+    X(INT, NONE, proxy_dns) \
+    X(INT, NONE, even_proxy_localhost) \
+    X(INT, NONE, proxy_type) \
+    X(STR, NONE, proxy_host) \
+    X(INT, NONE, proxy_port) \
+    X(STR, NONE, proxy_username) \
+    X(STR, NONE, proxy_password) \
+    X(STR, NONE, proxy_telnet_command) \
+    /* SSH options */ \
+    X(STR, NONE, remote_cmd) \
+    X(STR, NONE, remote_cmd2) /* fallback if remote_cmd fails; never loaded or saved */ \
+    X(INT, NONE, nopty) \
+    X(INT, NONE, compression) \
+    X(INT, INT, ssh_kexlist) \
+    X(INT, NONE, ssh_rekey_time) /* in minutes */ \
+    X(STR, NONE, ssh_rekey_data) /* string encoding e.g. "100K", "2M", "1G" */ \
+    X(INT, NONE, tryagent) \
+    X(INT, NONE, agentfwd) \
+    X(INT, NONE, change_username) /* allow username switching in SSH-2 */ \
+    X(INT, INT, ssh_cipherlist) \
+    X(FILENAME, NONE, keyfile) \
+    X(INT, NONE, sshprot) /* use v1 or v2 when both available */ \
+    X(INT, NONE, ssh2_des_cbc) /* "des-cbc" unrecommended SSH-2 cipher */ \
+    X(INT, NONE, ssh_no_userauth) /* bypass "ssh-userauth" (SSH-2 only) */ \
+    X(INT, NONE, ssh_show_banner) /* show USERAUTH_BANNERs (SSH-2 only) */ \
+    X(INT, NONE, try_tis_auth) \
+    X(INT, NONE, try_ki_auth) \
+    X(INT, NONE, try_gssapi_auth) /* attempt gssapi auth */ \
+    X(INT, NONE, gssapifwd) /* forward tgt via gss */ \
+    X(INT, INT, ssh_gsslist) /* preference order for local GSS libs */ \
+    X(FILENAME, NONE, ssh_gss_custom) \
+    X(INT, NONE, ssh_subsys) /* run a subsystem rather than a command */ \
+    X(INT, NONE, ssh_subsys2) /* fallback to go with remote_cmd_ptr2 */ \
+    X(INT, NONE, ssh_no_shell) /* avoid running a shell */ \
+    X(STR, NONE, ssh_nc_host) /* host to connect to in `nc' mode */ \
+    X(INT, NONE, ssh_nc_port) /* port to connect to in `nc' mode */ \
+    /* Telnet options */ \
+    X(STR, NONE, termtype) \
+    X(STR, NONE, termspeed) \
+    X(STR, STR, ttymodes) /* values are "Vvalue" or "A" */ \
+    X(STR, STR, environmt) \
+    X(STR, NONE, username) \
+    X(INT, NONE, username_from_env) \
+    X(STR, NONE, localusername) \
+    X(INT, NONE, rfc_environ) \
+    X(INT, NONE, passive_telnet) \
+    /* Serial port options */ \
+    X(STR, NONE, serline) \
+    X(INT, NONE, serspeed) \
+    X(INT, NONE, serdatabits) \
+    X(INT, NONE, serstopbits) \
+    X(INT, NONE, serparity) \
+    X(INT, NONE, serflow) \
+    /* Keyboard options */ \
+    X(INT, NONE, bksp_is_delete) \
+    X(INT, NONE, rxvt_homeend) \
+    X(INT, NONE, funky_type) \
+    X(INT, NONE, no_applic_c) /* totally disable app cursor keys */ \
+    X(INT, NONE, no_applic_k) /* totally disable app keypad */ \
+    X(INT, NONE, no_mouse_rep) /* totally disable mouse reporting */ \
+    X(INT, NONE, no_remote_resize) /* disable remote resizing */ \
+    X(INT, NONE, no_alt_screen) /* disable alternate screen */ \
+    X(INT, NONE, no_remote_wintitle) /* disable remote retitling */ \
+    X(INT, NONE, no_dbackspace) /* disable destructive backspace */ \
+    X(INT, NONE, no_remote_charset) /* disable remote charset config */ \
+    X(INT, NONE, remote_qtitle_action) /* remote win title query action */ \
+    X(INT, NONE, app_cursor) \
+    X(INT, NONE, app_keypad) \
+    X(INT, NONE, nethack_keypad) \
+    X(INT, NONE, telnet_keyboard) \
+    X(INT, NONE, telnet_newline) \
+    X(INT, NONE, alt_f4) /* is it special? */ \
+    X(INT, NONE, alt_space) /* is it special? */ \
+    X(INT, NONE, alt_only) /* is it special? */ \
+    X(INT, NONE, localecho) \
+    X(INT, NONE, localedit) \
+    X(INT, NONE, alwaysontop) \
+    X(INT, NONE, fullscreenonaltenter) \
+    X(INT, NONE, scroll_on_key) \
+    X(INT, NONE, scroll_on_disp) \
+    X(INT, NONE, erase_to_scrollback) \
+    X(INT, NONE, compose_key) \
+    X(INT, NONE, ctrlaltkeys) \
+    X(STR, NONE, wintitle) /* initial window title */ \
+    /* Terminal options */ \
+    X(INT, NONE, savelines) \
+    X(INT, NONE, dec_om) \
+    X(INT, NONE, wrap_mode) \
+    X(INT, NONE, lfhascr) \
+    X(INT, NONE, cursor_type) /* 0=block 1=underline 2=vertical */ \
+    X(INT, NONE, blink_cur) \
+    X(INT, NONE, beep) \
+    X(INT, NONE, beep_ind) \
+    X(INT, NONE, bellovl) /* bell overload protection active? */ \
+    X(INT, NONE, bellovl_n) /* number of bells to cause overload */ \
+    X(INT, NONE, bellovl_t) /* time interval for overload (seconds) */ \
+    X(INT, NONE, bellovl_s) /* period of silence to re-enable bell (s) */ \
+    X(FILENAME, NONE, bell_wavefile) \
+    X(INT, NONE, scrollbar) \
+    X(INT, NONE, scrollbar_in_fullscreen) \
+    X(INT, NONE, resize_action) \
+    X(INT, NONE, bce) \
+    X(INT, NONE, blinktext) \
+    X(INT, NONE, win_name_always) \
+    X(INT, NONE, width) \
+    X(INT, NONE, height) \
+    X(FONT, NONE, font) \
+    X(INT, NONE, font_quality) \
+    X(FILENAME, NONE, logfilename) \
+    X(INT, NONE, logtype) \
+    X(INT, NONE, logxfovr) \
+    X(INT, NONE, logflush) \
+    X(INT, NONE, logomitpass) \
+    X(INT, NONE, logomitdata) \
+    X(INT, NONE, hide_mouseptr) \
+    X(INT, NONE, sunken_edge) \
+    X(INT, NONE, window_border) \
+    X(STR, NONE, answerback) \
+    X(STR, NONE, printer) \
+    X(INT, NONE, arabicshaping) \
+    X(INT, NONE, bidi) \
+    /* Colour options */ \
+    X(INT, NONE, ansi_colour) \
+    X(INT, NONE, xterm_256_colour) \
+    X(INT, NONE, system_colour) \
+    X(INT, NONE, try_palette) \
+    X(INT, NONE, bold_colour) \
+    X(INT, INT, colours) \
+    /* Selection options */ \
+    X(INT, NONE, mouse_is_xterm) \
+    X(INT, NONE, rect_select) \
+    X(INT, NONE, rawcnp) \
+    X(INT, NONE, rtf_paste) \
+    X(INT, NONE, mouse_override) \
+    X(INT, INT, wordness) \
+    /* translations */ \
+    X(INT, NONE, vtmode) \
+    X(STR, NONE, line_codepage) \
+    X(INT, NONE, cjk_ambig_wide) \
+    X(INT, NONE, utf8_override) \
+    X(INT, NONE, xlat_capslockcyr) \
+    /* X11 forwarding */ \
+    X(INT, NONE, x11_forward) \
+    X(STR, NONE, x11_display) \
+    X(INT, NONE, x11_auth) \
+    X(FILENAME, NONE, xauthfile) \
+    /* port forwarding */ \
+    X(INT, NONE, lport_acceptall) /* accept conns from hosts other than localhost */ \
+    X(INT, NONE, rport_acceptall) /* same for remote forwarded ports (SSH-2 only) */ \
+    /*                                                                \
+     * Subkeys for 'portfwd' can have the following forms:            \
+     *                                                                \
+     *   [LR]localport                                                \
+     *   [LR]localaddr:localport                                      \
+     *                                                                \
+     * Dynamic forwardings are indicated by an 'L' key, and the       \
+     * special value "D". For all other forwardings, the value        \
+     * should be of the form 'host:port'.                             \
+     */ \
+    X(STR, STR, portfwd) \
+    /* SSH bug compatibility modes */ \
+    X(INT, NONE, sshbug_ignore1) \
+    X(INT, NONE, sshbug_plainpw1) \
+    X(INT, NONE, sshbug_rsa1) \
+    X(INT, NONE, sshbug_hmac2) \
+    X(INT, NONE, sshbug_derivekey2) \
+    X(INT, NONE, sshbug_rsapad2) \
+    X(INT, NONE, sshbug_pksessid2) \
+    X(INT, NONE, sshbug_rekey2) \
+    X(INT, NONE, sshbug_maxpkt2) \
+    X(INT, NONE, sshbug_ignore2) \
+    /*                                                                \
+     * ssh_simple means that we promise never to open any channel     \
+     * other than the main one, which means it can safely use a very  \
+     * large window in SSH-2.                                         \
+     */ \
+    X(INT, NONE, ssh_simple) \
+    /* Options for pterm. Should split out into platform-dependent part. */ \
+    X(INT, NONE, stamp_utmp) \
+    X(INT, NONE, login_shell) \
+    X(INT, NONE, scrollbar_on_left) \
+    X(INT, NONE, shadowbold) \
+    X(FONT, NONE, boldfont) \
+    X(FONT, NONE, widefont) \
+    X(FONT, NONE, wideboldfont) \
+    X(INT, NONE, shadowboldoffset) \
+    X(INT, NONE, crhaslf) \
+    X(STR, NONE, winclass) \
+
+/* Now define the actual enum of option keywords using that macro. */
+#define CONF_ENUM_DEF(valtype, keytype, keyword) CONF_ ## keyword,
+enum config_primary_key { CONFIG_OPTIONS(CONF_ENUM_DEF) N_CONFIG_OPTIONS };
+#undef CONF_ENUM_DEF
+
+#define NCFGCOLOURS 22 /* number of colours in CONF_colours above */
+
+/* Functions handling configuration structures. */
+Conf *conf_new(void);		       /* create an empty configuration */
+void conf_free(Conf *conf);
+Conf *conf_copy(Conf *oldconf);
+void conf_copy_into(Conf *dest, Conf *src);
+/* Mandatory accessor functions: enforce by assertion that keys exist. */
+int conf_get_int(Conf *conf, int key);
+int conf_get_int_int(Conf *conf, int key, int subkey);
+char *conf_get_str(Conf *conf, int key);   /* result still owned by conf */
+char *conf_get_str_str(Conf *conf, int key, const char *subkey);
+Filename *conf_get_filename(Conf *conf, int key);
+FontSpec *conf_get_fontspec(Conf *conf, int key);
+/* Optional accessor function: return NULL if key does not exist. */
+char *conf_get_str_str_opt(Conf *conf, int key, const char *subkey);
+/* Accessor function to step through a string-subkeyed list.
+ * Returns the next subkey after the provided one, or the first if NULL.
+ * Returns NULL if there are none left.
+ * Both the return value and *subkeyout are still owned by conf. */
+char *conf_get_str_strs(Conf *conf, int key, char *subkeyin, char **subkeyout);
+/* Return the nth string subkey in a list. Owned by conf. NULL if beyond end */
+char *conf_get_str_nthstrkey(Conf *conf, int key, int n);
+/* Functions to set entries in configuration. Always copy their inputs. */
+void conf_set_int(Conf *conf, int key, int value);
+void conf_set_int_int(Conf *conf, int key, int subkey, int value);
+void conf_set_str(Conf *conf, int key, const char *value);
+void conf_set_str_str(Conf *conf, int key,
+		      const char *subkey, const char *val);
+void conf_del_str_str(Conf *conf, int key, const char *subkey);
+void conf_set_filename(Conf *conf, int key, const Filename *val);
+void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
+/* Serialisation functions for Duplicate Session */
+int conf_serialised_size(Conf *conf);
+void conf_serialise(Conf *conf, void *data);
+int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
+
+/*
  * Exports from noise.c.
  */
 void noise_get_heavy(void (*func) (void *, int));
@@ -853,13 +893,13 @@ void random_destroy_seed(void);
  */
 Backend *backend_from_name(const char *name);
 Backend *backend_from_proto(int proto);
-int get_remote_username(Config *cfg, char *user, size_t len);
-char *save_settings(char *section, Config * cfg);
-void save_open_settings(void *sesskey, Config *cfg);
-void load_settings(char *section, Config * cfg);
-void load_open_settings(void *sesskey, Config *cfg);
+char *get_remote_username(Conf *conf); /* dynamically allocated */
+char *save_settings(char *section, Conf *conf);
+void save_open_settings(void *sesskey, Conf *conf);
+void load_settings(char *section, Conf *conf);
+void load_open_settings(void *sesskey, Conf *conf);
 void get_sesslist(struct sesslist *, int allocate);
-void do_defaults(char *, Config *);
+void do_defaults(char *, Conf *);
 void registry_cleanup(void);
 
 /*
@@ -882,7 +922,7 @@ FontSpec platform_default_fontspec(const char *name);
  * Exports from terminal.c.
  */
 
-Terminal *term_init(Config *, struct unicode_data *, void *);
+Terminal *term_init(Conf *, struct unicode_data *, void *);
 void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
 void term_paint(Terminal *, Context, int, int, int, int, int);
@@ -904,7 +944,7 @@ void term_paste(Terminal *);
 void term_nopaste(Terminal *);
 int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *);
-void term_reconfig(Terminal *, Config *);
+void term_reconfig(Terminal *, Conf *);
 void term_seen_key_event(Terminal *); 
 int term_data(Terminal *, int is_stderr, const char *data, int len);
 int term_data_untrusted(Terminal *, const char *data, int len);
@@ -922,9 +962,9 @@ int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
 /*
  * Exports from logging.c.
  */
-void *log_init(void *frontend, Config *cfg);
+void *log_init(void *frontend, Conf *conf);
 void log_free(void *logctx);
-void log_reconfig(void *logctx, Config *cfg);
+void log_reconfig(void *logctx, Conf *conf);
 void logfopen(void *logctx);
 void logfclose(void *logctx);
 void logtraffic(void *logctx, unsigned char c, int logmode);
@@ -975,7 +1015,8 @@ extern Backend ssh_backend;
 /*
  * Exports from ldisc.c.
  */
-void *ldisc_create(Config *, Terminal *, Backend *, void *, void *);
+void *ldisc_create(Conf *, Terminal *, Backend *, void *, void *);
+void ldisc_configure(void *, Conf *);
 void ldisc_free(void *);
 void ldisc_send(void *handle, char *buf, int len, int interactive);
 
@@ -1003,8 +1044,8 @@ void random_unref(void);
  * Exports from pinger.c.
  */
 typedef struct pinger_tag *Pinger;
-Pinger pinger_new(Config *cfg, Backend *back, void *backhandle);
-void pinger_reconfig(Pinger, Config *oldcfg, Config *newcfg);
+Pinger pinger_new(Conf *conf, Backend *back, void *backhandle);
+void pinger_reconfig(Pinger, Conf *oldconf, Conf *newconf);
 void pinger_free(Pinger);
 
 /*
@@ -1012,8 +1053,8 @@ void pinger_free(Pinger);
  */
 
 #include "misc.h"
-int cfg_launchable(const Config *cfg);
-char const *cfg_dest(const Config *cfg);
+int conf_launchable(Conf *conf);
+char const *conf_dest(Conf *conf);
 
 /*
  * Exports from sercfg.c.
@@ -1147,8 +1188,8 @@ void printer_finish_job(printer_job *);
  * defined differently in various places and required _by_
  * cmdline.c).
  */
-int cmdline_process_param(char *, char *, int, Config *);
-void cmdline_run_saved(Config *);
+int cmdline_process_param(char *, char *, int, Conf *);
+void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
 int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen);
 #define TOOLTYPE_FILETRANSFER 1
@@ -1161,6 +1202,18 @@ void cmdline_error(char *, ...);
  * Exports from config.c.
  */
 struct controlbox;
+union control;
+void conf_radiobutton_handler(union control *ctrl, void *dlg,
+			      void *data, int event);
+#define CHECKBOX_INVERT (1<<30)
+void conf_checkbox_handler(union control *ctrl, void *dlg,
+			   void *data, int event);
+void conf_editbox_handler(union control *ctrl, void *dlg,
+			  void *data, int event);
+void conf_filesel_handler(union control *ctrl, void *dlg,
+			  void *data, int event);
+void conf_fontsel_handler(union control *ctrl, void *dlg,
+			  void *data, int event);
 void setup_config_box(struct controlbox *b, int midsession,
 		      int protocol, int protcfginfo);
 

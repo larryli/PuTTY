@@ -139,7 +139,7 @@ int init_ucs(struct unicode_data *ucsdata, char *linecharset,
 
     /*
      * Failing that, line_codepage should be decoded from the
-     * specification in cfg.
+     * specification in conf.
      */
     if (ucsdata->line_codepage == CS_NONE)
 	ucsdata->line_codepage = decode_codepage(linecharset);

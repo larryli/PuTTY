@@ -2100,13 +2100,23 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     SetDlgItemText(dp->hwnd, c->base_id+1, text);
 }
 
-void dlg_editbox_get(union control *ctrl, void *dlg, char *buffer, int length)
+char *dlg_editbox_get(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
+    char *ret;
+    int size;
     assert(c && c->ctrl->generic.type == CTRL_EDITBOX);
-    GetDlgItemText(dp->hwnd, c->base_id+1, buffer, length);
-    buffer[length-1] = '\0';
+
+    size = 0;
+    ret = NULL;
+    do {
+	size = size * 4 / 3 + 512;
+	ret = sresize(ret, size, char);
+	GetDlgItemText(dp->hwnd, c->base_id+1, ret, size);
+    } while (!memchr(ret, '\0', size-1));
+
+    return ret;
 }
 
 /* The `listbox' functions can also apply to combo boxes. */
@@ -2471,8 +2481,10 @@ int dlg_coloursel_results(union control *ctrl, void *dlg,
 void dlg_auto_set_fixed_pitch_flag(void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
-    Config *cfg = (Config *)dp->data;
-    HFONT font;
+    Conf *conf = (Conf *)dp->data;
+    FontSpec *font;
+    int quality;
+    HFONT hfont;
     HDC hdc;
     TEXTMETRIC tm;
     int is_var;
@@ -2483,16 +2495,19 @@ void dlg_auto_set_fixed_pitch_flag(void *dlg)
      * dialog box as false.
      *
      * We assume here that any client of the dlg_* mechanism which is
-     * using font selectors at all is also using a normal 'Config *'
+     * using font selectors at all is also using a normal 'Conf *'
      * as dp->data.
      */
 
-    font = CreateFont(0, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
-                      DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
-                      CLIP_DEFAULT_PRECIS, FONT_QUALITY(cfg->font_quality),
-                      FIXED_PITCH | FF_DONTCARE, cfg->font.name);
+    quality = conf_get_int(conf, CONF_font_quality);
+    font = conf_get_fontspec(conf, CONF_font);
+
+    hfont = CreateFont(0, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
+                       DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
+                       CLIP_DEFAULT_PRECIS, FONT_QUALITY(quality),
+                       FIXED_PITCH | FF_DONTCARE, font->name);
     hdc = GetDC(NULL);
-    if (font && hdc && SelectObject(hdc, font) && GetTextMetrics(hdc, &tm)) {
+    if (font && hdc && SelectObject(hdc, hfont) && GetTextMetrics(hdc, &tm)) {
         /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
         is_var = (tm.tmPitchAndFamily & TMPF_FIXED_PITCH);
     } else {
@@ -2500,8 +2515,8 @@ void dlg_auto_set_fixed_pitch_flag(void *dlg)
     }
     if (hdc)
         ReleaseDC(NULL, hdc);
-    if (font)
-        DeleteObject(font);
+    if (hfont)
+        DeleteObject(hfont);
 
     if (is_var)
         dp->fixed_pitch_fonts = FALSE;

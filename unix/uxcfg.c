@@ -16,11 +16,11 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
     union control *c;
 
     /*
-     * The Config structure contains two Unix-specific elements
-     * which are not configured in here: stamp_utmp and
-     * login_shell. This is because pterm does not put up a
-     * configuration box right at the start, which is the only time
-     * when these elements would be useful to configure.
+     * The Conf structure contains two Unix-specific elements which
+     * are not configured in here: stamp_utmp and login_shell. This
+     * is because pterm does not put up a configuration box right at
+     * the start, which is the only time when these elements would
+     * be useful to configure.
      */
 
     /*
@@ -41,8 +41,8 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
 	for (i = 0; i < s->ncontrols; i++) {
 	    c = s->ctrls[i];
 	    if (c->generic.type == CTRL_RADIO &&
-		c->generic.context.i == offsetof(Config, proxy_type)) {
-		assert(c->generic.handler == dlg_stdradiobutton_handler);
+		c->generic.context.i == CONF_proxy_type) {
+		assert(c->generic.handler == conf_radiobutton_handler);
 		c->radio.nbuttons++;
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
@@ -58,9 +58,8 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol)
 	for (i = 0; i < s->ncontrols; i++) {
 	    c = s->ctrls[i];
 	    if (c->generic.type == CTRL_EDITBOX &&
-		c->generic.context.i ==
-		offsetof(Config, proxy_telnet_command)) {
-		assert(c->generic.handler == dlg_stdeditbox_handler);
+		c->generic.context.i == CONF_proxy_telnet_command) {
+		assert(c->generic.handler == conf_editbox_handler);
 		sfree(c->generic.label);
 		c->generic.label = dupstr("Telnet command, or local"
 					  " proxy command");

@@ -150,17 +150,26 @@ void *open_settings_r(const char *sessionname)
     return (void *) sesskey;
 }
 
-char *read_setting_s(void *handle, const char *key, char *buffer, int buflen)
+char *read_setting_s(void *handle, const char *key)
 {
     DWORD type, size;
-    size = buflen;
+    char *ret;
 
-    if (!handle ||
-	RegQueryValueEx((HKEY) handle, key, 0,
-			&type, buffer, &size) != ERROR_SUCCESS ||
+    if (!handle)
+	return NULL;
+
+    /* Find out the type and size of the data. */
+    if (RegQueryValueEx((HKEY) handle, key, 0,
+			&type, NULL, &size) != ERROR_SUCCESS ||
+	type != REG_SZ)
+	return NULL;
+
+    ret = snewn(size+1, char);
+    if (RegQueryValueEx((HKEY) handle, key, 0,
+			&type, ret, &size) != ERROR_SUCCESS ||
 	type != REG_SZ) return NULL;
-    else
-	return buffer;
+
+    return ret;
 }
 
 int read_setting_i(void *handle, const char *key, int defvalue)
@@ -181,17 +190,25 @@ int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
 {
     char *settingname;
     FontSpec ret;
+    char *fontname;
 
-    if (!read_setting_s(handle, name, ret.name, sizeof(ret.name)))
+    fontname = read_setting_s(handle, name);
+    if (!fontname)
 	return 0;
+    strncpy(ret.name, fontname, sizeof(ret.name)-1);
+    ret.name[sizeof(ret.name)-1] = '\0';
+    sfree(fontname);
+
     settingname = dupcat(name, "IsBold", NULL);
     ret.isbold = read_setting_i(handle, settingname, -1);
     sfree(settingname);
     if (ret.isbold == -1) return 0;
+
     settingname = dupcat(name, "CharSet", NULL);
     ret.charset = read_setting_i(handle, settingname, -1);
     sfree(settingname);
     if (ret.charset == -1) return 0;
+
     settingname = dupcat(name, "Height", NULL);
     ret.height = read_setting_i(handle, settingname, INT_MIN);
     sfree(settingname);
@@ -218,7 +235,14 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec font)
 
 int read_setting_filename(void *handle, const char *name, Filename *result)
 {
-    return !!read_setting_s(handle, name, result->path, sizeof(result->path));
+    char *tmp = read_setting_s(handle, name);
+    if (tmp) {
+	strncpy(result->path, tmp, sizeof(result->path)-1);
+	result->path[sizeof(result->path)-1] = '\0';
+	sfree(tmp);
+	return TRUE;
+    } else
+	return FALSE;
 }
 
 void write_setting_filename(void *handle, const char *name, Filename result)

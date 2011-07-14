@@ -76,7 +76,7 @@ typedef struct pty_tag *Pty;
 static int pty_signal_pipe[2] = { -1, -1 };   /* obviously bogus initial val */
 
 struct pty_tag {
-    Config cfg;
+    Conf *conf;
     int master_fd, slave_fd;
     void *frontend;
     char name[FILENAME_MAX];
@@ -588,6 +588,8 @@ int pty_real_select_result(Pty pty, int event, int status)
     }
 
     if (finished && !pty->finished) {
+	int close_on_exit;
+
 	uxsel_del(pty->master_fd);
 	pty_close(pty);
 	pty->master_fd = -1;
@@ -600,8 +602,9 @@ int pty_real_select_result(Pty pty, int event, int status)
 	 * Only On Clean and it wasn't a clean exit) do we output a
 	 * `terminated' message.
 	 */
-	if (pty->cfg.close_on_exit == FORCE_OFF ||
-	    (pty->cfg.close_on_exit == AUTO && pty->exit_code != 0)) {
+	close_on_exit = conf_get_int(pty->conf, CONF_close_on_exit);
+	if (close_on_exit == FORCE_OFF ||
+	    (close_on_exit == AUTO && pty->exit_code != 0)) {
 	    char message[512];
 	    if (WIFEXITED(pty->exit_code))
 		sprintf(message, "\r\n[pterm: process terminated with exit"
@@ -681,7 +684,7 @@ static void pty_uxsel_setup(Pty pty)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
+static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 			    char *host, int port, char **realhost, int nodelay,
 			    int keepalive)
 {
@@ -705,9 +708,9 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     pty->frontend = frontend;
     *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
 
-    pty->cfg = *cfg;		       /* structure copy */
-    pty->term_width = cfg->width;
-    pty->term_height = cfg->height;
+    pty->conf = conf_copy(conf);
+    pty->term_width = conf_get_int(conf, CONF_width);
+    pty->term_height = conf_get_int(conf, CONF_height);
 
     if (pty->master_fd < 0)
 	pty_open_master(pty);
@@ -719,7 +722,8 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     {
 	struct termios attrs;
 	tcgetattr(pty->master_fd, &attrs);
-	attrs.c_cc[VERASE] = cfg->bksp_is_delete ? '\177' : '\010';
+	attrs.c_cc[VERASE] = conf_get_int(conf, CONF_bksp_is_delete)
+	    ? '\177' : '\010';
 	tcsetattr(pty->master_fd, TCSANOW, &attrs);
     }
 
@@ -728,7 +732,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
      * Stamp utmp (that is, tell the utmp helper process to do so),
      * or not.
      */
-    if (!cfg->stamp_utmp) {
+    if (!conf_get_int(conf, CONF_stamp_utmp)) {
 	close(pty_utmp_helper_pipe);   /* just let the child process die */
 	pty_utmp_helper_pipe = -1;
     } else {
@@ -787,7 +791,8 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	close(open(pty->name, O_WRONLY, 0));
 	setpgid(pgrp, pgrp);
 	{
-	    char *term_env_var = dupprintf("TERM=%s", cfg->termtype);
+	    char *term_env_var = dupprintf("TERM=%s",
+					   conf_get_str(conf, CONF_termtype));
 	    putenv(term_env_var);
 	    /* We mustn't free term_env_var, as putenv links it into the
 	     * environment in place.
@@ -803,18 +808,12 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	}
 #endif
 	{
-	    char *e = cfg->environmt;
-	    char *var, *varend, *val, *varval;
-	    while (*e) {
-		var = e;
-		while (*e && *e != '\t') e++;
-		varend = e;
-		if (*e == '\t') e++;
-		val = e;
-		while (*e) e++;
-		e++;
+	    char *key, *val;
 
-		varval = dupprintf("%.*s=%s", varend-var, var, val);
+	    for (val = conf_get_str_strs(conf, CONF_environmt, NULL, &key);
+		 val != NULL;
+		 val = conf_get_str_strs(conf, CONF_environmt, key, &key)) {
+		char *varval = dupcat(key, "=", val, NULL);
 		putenv(varval);
 		/*
 		 * We must not free varval, since putenv links it
@@ -841,7 +840,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
 	else {
 	    char *shell = getenv("SHELL");
 	    char *shellname;
-	    if (cfg->login_shell) {
+	    if (conf_get_int(conf, CONF_login_shell)) {
 		char *p = strrchr(shell, '/');
 		shellname = snewn(2+strlen(shell), char);
 		p = p ? p+1 : shell;
@@ -884,7 +883,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Config *cfg,
     return NULL;
 }
 
-static void pty_reconfig(void *handle, Config *cfg)
+static void pty_reconfig(void *handle, Conf *conf)
 {
     Pty pty = (Pty)handle;
     /*
@@ -892,7 +891,7 @@ static void pty_reconfig(void *handle, Config *cfg)
      * unfortunately we do need to pick up the setting of Close On
      * Exit so we know whether to give a `terminated' message.
      */
-    pty->cfg = *cfg;		       /* structure copy */
+    conf_copy_into(pty->conf, conf);
 }
 
 /*

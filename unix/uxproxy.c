@@ -224,7 +224,7 @@ static int localproxy_select_result(int fd, int event)
 Socket platform_new_connection(SockAddr addr, char *hostname,
 			       int port, int privport,
 			       int oobinline, int nodelay, int keepalive,
-			       Plug plug, const Config *cfg)
+			       Plug plug, Conf *conf)
 {
     char *cmd;
 
@@ -243,10 +243,10 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
     Local_Proxy_Socket ret;
     int to_cmd_pipe[2], from_cmd_pipe[2], pid;
 
-    if (cfg->proxy_type != PROXY_CMD)
+    if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
 	return NULL;
 
-    cmd = format_telnet_command(addr, port, cfg);
+    cmd = format_telnet_command(addr, port, conf);
 
     ret = snew(struct Socket_localproxy_tag);
     ret->fn = &socket_fn_table;

@@ -68,8 +68,7 @@ static const struct plug_function_table dummy_plug = {
     dummy_plug_sent, dummy_plug_accepting
 };
 
-struct X11Display *x11_setup_display(char *display, int authtype,
-				     const Config *cfg)
+struct X11Display *x11_setup_display(char *display, int authtype, Conf *conf)
 {
     struct X11Display *disp = snew(struct X11Display);
     char *localcopy;
@@ -166,7 +165,7 @@ struct X11Display *x11_setup_display(char *display, int authtype,
 
 	disp->port = 6000 + disp->displaynum;
 	disp->addr = name_lookup(disp->hostname, disp->port,
-				 &disp->realhost, cfg, ADDRTYPE_UNSPEC);
+				 &disp->realhost, conf, ADDRTYPE_UNSPEC);
     
 	if ((err = sk_addr_error(disp->addr)) != NULL) {
 	    sk_addr_free(disp->addr);
@@ -249,7 +248,7 @@ struct X11Display *x11_setup_display(char *display, int authtype,
     disp->localauthproto = X11_NO_AUTH;
     disp->localauthdata = NULL;
     disp->localauthdatalen = 0;
-    platform_get_x11_auth(disp, cfg);
+    platform_get_x11_auth(disp, conf);
 
     return disp;
 }
@@ -558,8 +557,7 @@ int x11_get_screen_number(char *display)
  * also, fills the SocketsStructure
  */
 extern const char *x11_init(Socket *s, struct X11Display *disp, void *c,
-			    const char *peeraddr, int peerport,
-			    const Config *cfg)
+			    const char *peeraddr, int peerport, Conf *conf)
 {
     static const struct plug_function_table fn_table = {
 	x11_log,
@@ -586,7 +584,7 @@ extern const char *x11_init(Socket *s, struct X11Display *disp, void *c,
 
     pr->s = *s = new_connection(sk_addr_dup(disp->addr),
 				disp->realhost, disp->port,
-				0, 1, 0, 0, (Plug) pr, cfg);
+				0, 1, 0, 0, (Plug) pr, conf);
     if ((err = sk_socket_error(*s)) != NULL) {
 	sfree(pr);
 	return err;
