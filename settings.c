@@ -145,10 +145,8 @@ static int gppmap(void *handle, char *name, Conf *conf, int primary)
     /*
      * Start by clearing any existing subkeys of this key from conf.
      */
-    for (val = conf_get_str_strs(conf, primary, NULL, &key);
-	 val != NULL;
-	 val = conf_get_str_strs(conf, primary, key, &key))
-	conf_del_str_str(conf, primary, key);
+    while ((key = conf_get_str_nthstrkey(conf, primary, 0)) != NULL)
+        conf_del_str_str(conf, primary, key);
 
     /*
      * Now read a serialised list from the settings and unmarshal it
