@@ -313,6 +313,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 	host = dupprintf("%.*s", portp - value, value);
 	conf_set_str(conf, CONF_ssh_nc_host, host);
 	conf_set_int(conf, CONF_ssh_nc_port, atoi(portp + 1));
+        sfree(host);
     }
     if (!strcmp(p, "-m")) {
 	char *filename, *command;
