@@ -3594,8 +3594,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	    dec = dec * 2 - font_height;
 
 	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, fg));
-	MoveToEx(hdc, x, y + dec, NULL);
-	LineTo(hdc, x + len * char_width, y + dec);
+	MoveToEx(hdc, line_box.left, line_box.top + dec, NULL);
+	LineTo(hdc, line_box.right, line_box.top + dec);
 	oldpen = SelectObject(hdc, oldpen);
 	DeleteObject(oldpen);
     }
