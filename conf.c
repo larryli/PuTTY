@@ -199,6 +199,8 @@ void conf_copy_into(Conf *newconf, Conf *oldconf)
     struct conf_entry *entry, *entry2;
     int i;
 
+    conf_clear(newconf);
+
     for (i = 0; (entry = index234(oldconf->tree, i)) != NULL; i++) {
 	entry2 = snew(struct conf_entry);
 	copy_key(&entry2->key, &entry->key);
