@@ -17,7 +17,8 @@
 
 int agent_exists(void)
 {
-    if (getenv("SSH_AUTH_SOCK") != NULL)
+    const char *p = getenv("SSH_AUTH_SOCK");
+    if (p && *p)
 	return TRUE;
     return FALSE;
 }
