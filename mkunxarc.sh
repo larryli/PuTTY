@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/bash 
 
 # Build a Unix source distribution from the PuTTY CVS area.
 #
@@ -16,7 +16,7 @@ case "$1" in
     ;;
   r*)
     arcsuffix="-$1"
-    ver="-DSVN_REV=$1"
+    ver="-DSVN_REV=${1#r}"
     docver=
     ;;
   '')
