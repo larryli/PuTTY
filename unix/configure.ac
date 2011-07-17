@@ -27,22 +27,47 @@ WITH_GSSAPI=
 AS_IF([test "x$with_gssapi" != xno],
   [AC_DEFINE([WITH_GSSAPI], [1], [Define if building with GSSAPI support.])])
 
+AC_ARG_WITH([gtk-version],
+  [AS_HELP_STRING([--with-gtk-version],
+                  [specify GTK version to use (1 or 2) (optional)])],
+  [gtk_version_desired="$withval"],
+  [gtk_version_desired="any"])
+
+case "$gtk_version_desired" in
+  1 | 2 | any) ;;
+  *) AC_ERROR([Invalid GTK version specified])
+esac
+
 AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
 # Look for both GTK 1 and GTK 2.
-ifdef([AM_PATH_GTK],[
-AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
-],[AC_WARNING([generating configure script without GTK 1 autodetection])])
-ifdef([AM_PATH_GTK_2_0],[
-AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
-],[AC_WARNING([generating configure script without GTK 2 autodetection])])
+
+gtk=none
+
+case "$gtk_version_desired" in
+  1 | any)
+    ifdef([AM_PATH_GTK],[
+    AM_PATH_GTK([1.2.0], [gtk=1], [])
+    ],[AC_WARNING([generating configure script without GTK 1 autodetection])])
+    ;;
+esac
+
+case "$gtk_version_desired" in
+  2 | any)
+    ifdef([AM_PATH_GTK_2_0],[
+    AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
+    ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
+    ;;
+esac
+
 if test "$gtk" = "none"; then
   all_targets="all-cli"
 else
   all_targets="all-cli all-gtk"
 fi
+
 if test "$gtk" = "2"; then
   ac_save_CFLAGS="$CFLAGS"
   ac_save_LIBS="$LIBS"
