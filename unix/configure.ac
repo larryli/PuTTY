@@ -32,8 +32,12 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <utmp.h>])
 
 # Look for both GTK 1 and GTK 2.
+ifdef([AM_PATH_GTK],[
 AM_PATH_GTK([1.2.0], [gtk=1], [gtk=none])
+],[AC_WARNING([generating configure script without GTK 1 autodetection])])
+ifdef([AM_PATH_GTK_2_0],[
 AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
+],[AC_WARNING([generating configure script without GTK 2 autodetection])])
 if test "$gtk" = "none"; then
   all_targets="all-cli"
 else
