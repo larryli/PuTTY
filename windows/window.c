@@ -2934,7 +2934,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                      */
 		    need_backend_resize = TRUE;
 		    conf_set_int(conf, CONF_height, h);
-		    conf_set_int(conf, CONF_height, w);
+		    conf_set_int(conf, CONF_width, w);
                 } else {
                     term_size(term, h, w, conf_get_int(conf, CONF_savelines));
                 }
