@@ -7718,7 +7718,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
                         logevent("Server refused keyboard-interactive authentication");
 		    } else if (s->type==AUTH_TYPE_GSSAPI) {
 			/* always quiet, so no c_write */
-                        logevent("GSSAPI authentication failed");
+                        /* also, the code down in the GSSAPI block has
+                         * already logged this in the Event Log */
 		    } else if (s->type == AUTH_TYPE_KEYBOARD_INTERACTIVE) {
                         logevent("Keyboard-interactive authentication failed");
 			c_write_str(ssh, "Access denied\r\n");
