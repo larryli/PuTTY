@@ -426,7 +426,7 @@ static void process_subneg(Telnet telnet)
 	    logevent(telnet->frontend, logbuf);
 	    sfree(logbuf);
 	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
-		if (conf_get_str(telnet->conf, CONF_rfc_environ)) {
+		if (conf_get_int(telnet->conf, CONF_rfc_environ)) {
 		    value = RFC_VALUE;
 		    var = RFC_VAR;
 		} else {
