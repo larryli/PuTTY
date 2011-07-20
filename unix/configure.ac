@@ -92,7 +92,9 @@ AS_IF([test "x$with_gssapi" != xno],
        [],
        [AC_DEFINE([NO_GSSAPI_LIB], [1], [Define if we could not find a gssapi library])])])])
 
-AC_CHECK_LIB(X11, XOpenDisplay)
+AC_CHECK_LIB(X11, XOpenDisplay,
+             [GTK_LIBS="-lX11 $GTK_LIBS"
+              AC_DEFINE([HAVE_LIBX11],[],[Define if libX11.a is available])])
 
 AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
