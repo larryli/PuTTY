@@ -445,7 +445,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    HANDLE filemap;
 	    void *cp;
 	    unsigned cpsize;
-	    if (sscanf(p + 1, "%p:%u", &filemap, &cpsize) == 1 &&
+	    if (sscanf(p + 1, "%p:%u", &filemap, &cpsize) == 2 &&
 		(cp = MapViewOfFile(filemap, FILE_MAP_READ,
 				    0, 0, cpsize)) != NULL) {
 		conf_deserialise(conf, cp, cpsize);
