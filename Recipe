@@ -19,7 +19,7 @@
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile unix unix/Makefile.ux
-!makefile ac unix/Makefile.in
+!makefile am unix/Makefile.am
 !makefile osx macosx/Makefile
 !makefile devcppproj windows/DEVCPP
 # Source directories.
@@ -169,6 +169,19 @@ version.o: FORCE
 	fi
 !end
 !specialobj gtk version
+# In the automake build, we have to do the whole job by supplying
+# extra CFLAGS, so we have to put the if statement inside one big
+# backtick expression. We also force rebuilding via a -D option that
+# makes version.o include empty.h, which we construct ourselves and
+# touch whenever any source file is updated.
+!cflags am version $(VER) -DINCLUDE_EMPTY_H `if test -z "$(VER)" && (cd $(srcdir)/..; md5sum -c manifest >/dev/null 2>&1); then cat $(srcdir)/../version.def; else echo "$(VER)"; fi`
+!begin am
+BUILT_SOURCES = empty.h
+CLEANFILES = empty.h
+empty.h: $(allsources)
+	echo '/* nothing to see here */' >$@
+
+!end
 
 # Add VER to Windows resource targets, and force them to be rebuilt every
 # time, on the assumption that they will contain version information.
@@ -226,6 +239,21 @@ install-strip:
 !end
 !begin osx vars
 CFLAGS += -DMACOSX
+!end
+
+# List the man pages for the automake makefile.
+!begin am
+man1_MANS = ../doc/plink.1 ../doc/pscp.1 ../doc/psftp.1 ../doc/pterm.1 \
+            ../doc/putty.1 ../doc/puttygen.1 ../doc/puttytel.1
+!end
+
+# In automake, chgrp/chmod pterm after installation, if configured to.
+!begin am
+if HAVE_SETID_CMD
+install-exec-local:
+	@SETID_CMD@ $(bindir)/pterm
+	chmod @SETID_MODE@ $(bindir)/pterm
+endif
 !end
 
 # Random symbols.
