@@ -65,8 +65,12 @@ For building on Unix:
 
  - unix/configure is for Unix and GTK. If you don't have GTK, you
    should still be able to build the command-line utilities (PSCP,
-   PSFTP, Plink, PuTTYgen) using this script. To use it, change
-   into the `unix' subdirectory, run `./configure' and then `make'.
+   PSFTP, Plink, PuTTYgen) using this script. To use it, change into
+   the `unix' subdirectory, run `./configure' and then `make'. Or you
+   can do the same in the top-level directory (we provide a little
+   wrapper that invokes configure one level down), which is more like
+   a normal Unix source archive but doesn't do so well at keeping the
+   per-platform stuff in each platform's subdirectory; it's up to you.
 
    Note that Unix PuTTY has mostly only been tested on Linux so far;
    portability problems such as BSD-style ptys or different header file
