@@ -17,7 +17,20 @@
 
 use warnings;
 use FileHandle;
+use File::Basename;
 use Cwd;
+
+if ($#ARGV >= 0 and $ARGV[0] eq "-u") {
+    # Convenience for Unix users: -u means that after we finish what
+    # we're doing here, we also run mkauto.sh and then 'configure' in
+    # the Unix subdirectory. So it's a one-stop shop for regenerating
+    # the actual end-product Unix makefile.
+    #
+    # Arguments supplied after -u go to configure.
+    shift @ARGV;
+    @confargs = @ARGV;
+    $do_unix = 1;
+}
 
 open IN, "Recipe" or do {
     # We want to deal correctly with being run from one of the
@@ -399,6 +412,8 @@ sub manpages {
   return ();
 }
 
+$orig_dir = cwd;
+
 # Now we're ready to output the actual Makefiles.
 
 if (defined $makefiles{'cygwin'}) {
@@ -676,8 +691,6 @@ if (defined $makefiles{'vc'}) {
 
 if (defined $makefiles{'vcproj'}) {
     $dirpfx = &dirpfx($makefiles{'vcproj'}, "\\");
-
-    $orig_dir = cwd;
 
     ##-- MSVC 6 Workspace and projects
     #
@@ -1362,6 +1375,8 @@ if (defined $makefiles{'devcppproj'}) {
       create_devcpp_project(\%all_object_deps, $progname);
     }
 
+    chdir $orig_dir;
+
     sub create_devcpp_project {
       my ($all_object_deps, $progname) = @_;
       # Construct program's dependency info (Taken from 'vcproj', seems to work right here, too.)
@@ -1516,4 +1531,16 @@ if (defined $makefiles{'devcppproj'}) {
       select STDOUT; close OUT;
       chdir "..";
     }
+}
+
+# All done, so do the Unix postprocessing if asked to.
+
+if ($do_unix) {
+    chdir $orig_dir;
+    system "./mkauto.sh";
+    die "mkfiles.pl: mkauto.sh returned $?\n" if $? > 0;
+    chdir ($targetdir = dirname($makefiles{"am"}))
+        or die "$targetdir: chdir: $!\n";
+    system "./configure", @confargs;
+    die "mkfiles.pl: configure returned $?\n" if $? > 0;
 }
