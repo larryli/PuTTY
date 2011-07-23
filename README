@@ -80,9 +80,13 @@ For building on Unix:
    utilities and has no Gtk dependence.
 
  - For the graphical utilities, Gtk+-1.2 and Gtk+-2.0 should both be
-   supported. In the absence of either, the configure script will
+   supported. If you have both installed, you can manually specify
+   which one you want by giving the option '--with-gtk=1' or
+   '--with-gtk=2' to the configure script. (2 is the default, of
+   course.) In the absence of either, the configure script will
    automatically construct a Makefile which builds only the
-   command-line utilities.
+   command-line utilities; you can manually create this condition by
+   giving configure the option '--without-gtk'.
 
  - pterm would like to be setuid or setgid, as appropriate, to permit
    it to write records of user logins to /var/run/utmp and

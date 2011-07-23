@@ -50,14 +50,17 @@ WITH_GSSAPI=
 AS_IF([test "x$with_gssapi" != xno],
   [AC_DEFINE([WITH_GSSAPI], [1], [Define if building with GSSAPI support.])])
 
-AC_ARG_WITH([gtk-version],
-  [AS_HELP_STRING([--with-gtk-version],
-                  [specify GTK version to use (1 or 2) (optional)])],
+AC_ARG_WITH([gtk],
+  [AS_HELP_STRING([--with-gtk=VER],
+                  [specify GTK version to use (`1' or `2')])
+AS_HELP_STRING([--without-gtk],
+                  [do not use GTK (build command-line tools only)])],
   [gtk_version_desired="$withval"],
   [gtk_version_desired="any"])
 
 case "$gtk_version_desired" in
-  1 | 2 | any) ;;
+  1 | 2 | any | no) ;;
+  yes) gtk_version_desired="any" ;;
   *) AC_ERROR([Invalid GTK version specified])
 esac
 
@@ -119,7 +122,15 @@ AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 
 AC_OUTPUT
 
-if test "$gtk" = "none"; then cat <<EOF
+if test "$gtk_version_desired" = "no"; then cat <<EOF
+
+'configure' was instructed not to build using GTK. Therefore, PuTTY
+itself and the other GUI utilities will not be built by the generated
+Makefile: only the command-line tools such as puttygen, plink and
+psftp will be built.
+
+EOF
+elif test "$gtk" = "none"; then cat <<EOF
 
 'configure' was unable to find either the GTK 1 or GTK 2 libraries on
 your system. Therefore, PuTTY itself and the other GUI utilities will
