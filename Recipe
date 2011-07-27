@@ -317,7 +317,7 @@ LIBS     = advapi32.lib user32.lib gdi32.lib comctl32.lib comdlg32.lib
 # to proxy.c depending on whether we're crypto-avoidant or not.
 BE_ALL   = be_all cproxy
 BE_NOSSH = be_nossh nocproxy
-BE_SSH   = be_none cproxy
+BE_SSH   = be_ssh cproxy
 BE_NONE  = be_none nocproxy
 # More backend sets, with the additional Windows serial-port module.
 W_BE_ALL = be_all_s winser cproxy

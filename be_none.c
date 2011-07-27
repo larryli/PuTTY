@@ -1,6 +1,6 @@
 /*
  * Linking module for programs that do not support selection of backend
- * (such as pscp or pterm).
+ * (such as pterm).
  */
 
 #include <stdio.h>
