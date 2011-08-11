@@ -7,8 +7,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
+
 #include <termios.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "putty.h"
 #include "storage.h"
@@ -326,31 +328,45 @@ void logevent(void *frontend, const char *string)
 }
 
 /*
- * Special function to print text to the console for password
- * prompts and the like. Uses /dev/tty or stderr, in that order of
- * preference; also sanitises escape sequences out of the text, on
+ * Special functions to read and print to the console for password
+ * prompts and the like. Uses /dev/tty or stdin/stderr, in that order
+ * of preference; also sanitises escape sequences out of the text, on
  * the basis that it might have been sent by a hostile SSH server
  * doing malicious keyboard-interactive.
  */
-static void console_prompt_text(FILE **confp, const char *data, int len)
+static void console_open(FILE **outfp, int *infd)
+{
+    int fd;
+
+    if ((fd = open("/dev/tty", O_RDWR)) >= 0) {
+        *infd = fd;
+        *outfp = fdopen(*infd, "w");
+    } else {
+        *infd = 0;
+        *outfp = stderr;
+    }
+}
+static void console_close(FILE *outfp, int infd)
+{
+    if (outfp != stderr)
+        fclose(outfp);             /* will automatically close infd too */
+}
+
+static void console_prompt_text(FILE *outfp, const char *data, int len)
 {
     int i;
 
-    if (!*confp) {
-	if ((*confp = fopen("/dev/tty", "w")) == NULL)
-	    *confp = stderr;
-    }
-
     for (i = 0; i < len; i++)
 	if ((data[i] & 0x60) || (data[i] == '\n'))
-	    fputc(data[i], *confp);
-    fflush(*confp);
+	    fputc(data[i], outfp);
+    fflush(outfp);
 }
 
 int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 {
     size_t curr_prompt;
-    FILE *confp = NULL;
+    FILE *outfp = NULL;
+    int infd;
 
     /*
      * Zero all the results, in case we abort half-way through.
@@ -364,22 +380,24 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     if (p->n_prompts && console_batch_mode)
 	return 0;
 
+    console_open(&outfp, &infd);
+
     /*
      * Preamble.
      */
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
 	size_t l = strlen(p->name);
-	console_prompt_text(&confp, p->name, l);
+	console_prompt_text(outfp, p->name, l);
 	if (p->name[l-1] != '\n')
-	    console_prompt_text(&confp, "\n", 1);
+	    console_prompt_text(outfp, "\n", 1);
     }
     /* ...but we always print any `instruction'. */
     if (p->instruction) {
 	size_t l = strlen(p->instruction);
-	console_prompt_text(&confp, p->instruction, l);
+	console_prompt_text(outfp, p->instruction, l);
 	if (p->instruction[l-1] != '\n')
-	    console_prompt_text(&confp, "\n", 1);
+	    console_prompt_text(outfp, "\n", 1);
     }
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
@@ -388,32 +406,31 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 	int i;
 	prompt_t *pr = p->prompts[curr_prompt];
 
-	tcgetattr(0, &oldmode);
+	tcgetattr(infd, &oldmode);
 	newmode = oldmode;
 	newmode.c_lflag |= ISIG | ICANON;
 	if (!pr->echo)
 	    newmode.c_lflag &= ~ECHO;
 	else
 	    newmode.c_lflag |= ECHO;
-	tcsetattr(0, TCSANOW, &newmode);
+	tcsetattr(infd, TCSANOW, &newmode);
 
-	console_prompt_text(&confp, pr->prompt, strlen(pr->prompt));
+	console_prompt_text(outfp, pr->prompt, strlen(pr->prompt));
 
-	i = read(0, pr->result, pr->result_len - 1);
+	i = read(infd, pr->result, pr->result_len - 1);
 
-	tcsetattr(0, TCSANOW, &oldmode);
+	tcsetattr(infd, TCSANOW, &oldmode);
 
 	if (i > 0 && pr->result[i-1] == '\n')
 	    i--;
 	pr->result[i] = '\0';
 
 	if (!pr->echo)
-	    console_prompt_text(&confp, "\n", 1);
+	    console_prompt_text(outfp, "\n", 1);
 
     }
 
-    if (confp && confp != stderr)
-	fclose(confp);
+    console_close(outfp, infd);
 
     return 1; /* success */
 }
