@@ -830,12 +830,13 @@ int scp_send_filetimes(unsigned long mtime, unsigned long atime)
     }
 }
 
-int scp_send_filename(char *name, uint64 size, int modes)
+int scp_send_filename(char *name, uint64 size, int permissions)
 {
     if (using_sftp) {
 	char *fullname;
 	struct sftp_packet *pktin;
 	struct sftp_request *req, *rreq;
+        struct fxp_attrs attrs;
 
 	if (scp_sftp_targetisdir) {
 	    fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
@@ -843,8 +844,12 @@ int scp_send_filename(char *name, uint64 size, int modes)
 	    fullname = dupstr(scp_sftp_remotepath);
 	}
 
+        attrs.flags = 0;
+        PUT_PERMISSIONS(attrs, permissions);
+
 	sftp_register(req = fxp_open_send(fullname, SSH_FXF_WRITE |
-					  SSH_FXF_CREAT | SSH_FXF_TRUNC));
+					  SSH_FXF_CREAT | SSH_FXF_TRUNC,
+                                          &attrs));
 	rreq = sftp_find_request(pktin = sftp_recv());
 	assert(rreq == req);
 	scp_sftp_filehandle = fxp_open_recv(pktin, rreq);
@@ -864,7 +869,9 @@ int scp_send_filename(char *name, uint64 size, int modes)
 	char buf[40];
 	char sizestr[40];
 	uint64_decimal(size, sizestr);
-	sprintf(buf, "C%04o %s ", modes, sizestr);
+        if (permissions < 0)
+            permissions = 0644;
+	sprintf(buf, "C%04o %s ", (int)(permissions & 07777), sizestr);
 	back->send(backhandle, buf, strlen(buf));
 	back->send(backhandle, name, strlen(name));
 	back->send(backhandle, "\n", 1);
@@ -1144,7 +1151,7 @@ struct scp_sink_action {
     int action;			       /* FILE, DIR, ENDDIR */
     char *buf;			       /* will need freeing after use */
     char *name;			       /* filename or dirname (not ENDDIR) */
-    int mode;			       /* access mode (not ENDDIR) */
+    long permissions;  	       /* access permissions (not ENDDIR) */
     uint64 size;		       /* file size (not ENDDIR) */
     int settime;		       /* 1 if atime and mtime are filled */
     unsigned long atime, mtime;	       /* access times for the file */
@@ -1370,7 +1377,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->buf = dupstr(stripslashes(fname, 0));
 		act->name = act->buf;
 		act->size = uint64_make(0,0);     /* duhh, it's a directory */
-		act->mode = 07777 & attrs.permissions;
+		act->permissions = 07777 & attrs.permissions;
 		if (scp_sftp_preserve &&
 		    (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
 		    act->atime = attrs.atime;
@@ -1392,7 +1399,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->size = attrs.size;
 	    } else
 		act->size = uint64_make(ULONG_MAX,ULONG_MAX);   /* no idea */
-	    act->mode = 07777 & attrs.permissions;
+	    act->permissions = 07777 & attrs.permissions;
 	    if (scp_sftp_preserve &&
 		(attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
 		act->atime = attrs.atime;
@@ -1474,7 +1481,8 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	{
 	    char sizestr[40];
 	
-	    if (sscanf(act->buf, "%o %s %n", &act->mode, sizestr, &i) != 2)
+	    if (sscanf(act->buf, "%lo %s %n", &act->permissions,
+                       sizestr, &i) != 2)
 		bump("Protocol error: Illegal file descriptor format");
 	    act->size = uint64_from_decimal(sizestr);
 	    act->name = act->buf + i;
@@ -1489,7 +1497,8 @@ int scp_accept_filexfer(void)
 	struct sftp_packet *pktin;
 	struct sftp_request *req, *rreq;
 
-	sftp_register(req = fxp_open_send(scp_sftp_currentname, SSH_FXF_READ));
+	sftp_register(req = fxp_open_send(scp_sftp_currentname, SSH_FXF_READ,
+                                          NULL));
 	rreq = sftp_find_request(pktin = sftp_recv());
 	assert(rreq == req);
 	scp_sftp_filehandle = fxp_open_recv(pktin, rreq);
@@ -1609,6 +1618,7 @@ static void source(char *src)
 {
     uint64 size;
     unsigned long mtime, atime;
+    long permissions;
     char *last;
     RFile *f;
     int attr;
@@ -1656,7 +1666,7 @@ static void source(char *src)
     if (last == src && strchr(src, ':') != NULL)
 	last = strchr(src, ':') + 1;
 
-    f = open_existing_file(src, &size, &mtime, &atime);
+    f = open_existing_file(src, &size, &mtime, &atime, &permissions);
     if (f == NULL) {
 	run_err("%s: Cannot open file", src);
 	return;
@@ -1671,7 +1681,7 @@ static void source(char *src)
 	uint64_decimal(size, sizestr);
 	tell_user(stderr, "Sending file %s, size=%s", last, sizestr);
     }
-    if (scp_send_filename(last, size, 0644))
+    if (scp_send_filename(last, size, permissions))
 	return;
 
     stat_bytes = uint64_make(0,0);
@@ -1888,7 +1898,7 @@ static void sink(char *targ, char *src)
 	    continue;
 	}
 
-	f = open_new_file(destfname);
+	f = open_new_file(destfname, act.permissions);
 	if (f == NULL) {
 	    run_err("%s: Cannot create file", destfname);
 	    continue;

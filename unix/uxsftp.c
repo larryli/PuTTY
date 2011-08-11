@@ -125,7 +125,8 @@ struct RFile {
 };
 
 RFile *open_existing_file(char *name, uint64 *size,
-			  unsigned long *mtime, unsigned long *atime)
+			  unsigned long *mtime, unsigned long *atime,
+                          long *perms)
 {
     int fd;
     RFile *ret;
@@ -137,7 +138,7 @@ RFile *open_existing_file(char *name, uint64 *size,
     ret = snew(RFile);
     ret->fd = fd;
 
-    if (size || mtime || atime) {
+    if (size || mtime || atime || perms) {
 	struct stat statbuf;
 	if (fstat(fd, &statbuf) < 0) {
 	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
@@ -153,6 +154,9 @@ RFile *open_existing_file(char *name, uint64 *size,
 
 	if (atime)
 	    *atime = statbuf.st_atime;
+
+	if (perms)
+	    *perms = statbuf.st_mode;
     }
 
     return ret;
@@ -174,12 +178,13 @@ struct WFile {
     char *name;
 };
 
-WFile *open_new_file(char *name)
+WFile *open_new_file(char *name, long perms)
 {
     int fd;
     WFile *ret;
 
-    fd = open(name, O_CREAT | O_TRUNC | O_WRONLY, 0666);
+    fd = open(name, O_CREAT | O_TRUNC | O_WRONLY,
+              (mode_t)(perms ? perms : 0666));
     if (fd < 0)
 	return NULL;
 

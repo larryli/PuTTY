@@ -212,6 +212,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     uint64 offset;
     WFile *file;
     int ret, shown_err = FALSE;
+    struct fxp_attrs attrs;
 
     /*
      * In recursive mode, see if we're dealing with a directory.
@@ -219,7 +220,6 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
      * subsequent FXP_OPEN will return a usable error message.)
      */
     if (recurse) {
-	struct fxp_attrs attrs;
 	int result;
 
 	sftp_register(req = fxp_stat_send(fname));
@@ -383,7 +383,13 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	}
     }
 
-    sftp_register(req = fxp_open_send(fname, SSH_FXF_READ));
+    sftp_register(req = fxp_stat_send(fname));
+    rreq = sftp_find_request(pktin = sftp_recv());
+    assert(rreq == req);
+    if (!fxp_stat_recv(pktin, rreq, &attrs))
+        attrs.flags = 0;
+
+    sftp_register(req = fxp_open_send(fname, SSH_FXF_READ, NULL));
     rreq = sftp_find_request(pktin = sftp_recv());
     assert(rreq == req);
     fh = fxp_open_recv(pktin, rreq);
@@ -396,7 +402,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	file = open_existing_wfile(outfname, NULL);
     } else {
-	file = open_new_file(outfname);
+	file = open_new_file(outfname, GET_PERMISSIONS(attrs));
     }
 
     if (!file) {
@@ -500,6 +506,8 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     uint64 offset;
     RFile *file;
     int ret, err, eof;
+    struct fxp_attrs attrs;
+    long permissions;
 
     /*
      * In recursive mode, see if we're dealing with a directory.
@@ -507,7 +515,6 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
      * subsequent fopen will return an error message.)
      */
     if (recurse && file_type(fname) == FILE_TYPE_DIRECTORY) {
-	struct fxp_attrs attrs;
 	int result;
 	int nnames, namesize;
 	char *name, **ournames;
@@ -630,16 +637,19 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	return 1;
     }
 
-    file = open_existing_file(fname, NULL, NULL, NULL);
+    file = open_existing_file(fname, NULL, NULL, NULL, &permissions);
     if (!file) {
 	printf("local: unable to open %s\n", fname);
 	return 0;
     }
+    attrs.flags = 0;
+    PUT_PERMISSIONS(attrs, permissions);
     if (restart) {
-	sftp_register(req = fxp_open_send(outfname, SSH_FXF_WRITE));
+	sftp_register(req = fxp_open_send(outfname, SSH_FXF_WRITE, &attrs));
     } else {
 	sftp_register(req = fxp_open_send(outfname, SSH_FXF_WRITE |
-					  SSH_FXF_CREAT | SSH_FXF_TRUNC));
+					  SSH_FXF_CREAT | SSH_FXF_TRUNC,
+                                          &attrs));
     }
     rreq = sftp_find_request(pktin = sftp_recv());
     assert(rreq == req);

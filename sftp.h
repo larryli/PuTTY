@@ -82,6 +82,19 @@ struct fxp_attrs {
     unsigned long mtime;
 };
 
+/*
+ * Copy between the possibly-unused permissions field in an fxp_attrs
+ * and a possibly-negative integer containing the same permissions.
+ */
+#define PUT_PERMISSIONS(attrs, perms)                   \
+    ((perms) >= 0 ?                                     \
+     ((attrs).flags |= SSH_FILEXFER_ATTR_PERMISSIONS,   \
+      (attrs).permissions = (perms)) :                  \
+     ((attrs).flags &= ~SSH_FILEXFER_ATTR_PERMISSIONS))
+#define GET_PERMISSIONS(attrs)                          \
+    ((attrs).flags & SSH_FILEXFER_ATTR_PERMISSIONS ?    \
+     (attrs).permissions : -1)
+
 struct fxp_handle {
     char *hstring;
     int hlen;
@@ -116,9 +129,11 @@ struct sftp_request *fxp_realpath_send(char *path);
 char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
- * Open a file.
+ * Open a file. 'attrs' contains attributes to be applied to the file
+ * if it's being created.
  */
-struct sftp_request *fxp_open_send(char *path, int type);
+struct sftp_request *fxp_open_send(char *path, int type,
+                                   struct fxp_attrs *attrs);
 struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin,
 				 struct sftp_request *req);
 

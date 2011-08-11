@@ -88,7 +88,8 @@ struct RFile {
 };
 
 RFile *open_existing_file(char *name, uint64 *size,
-			  unsigned long *mtime, unsigned long *atime)
+			  unsigned long *mtime, unsigned long *atime,
+                          long *perms)
 {
     HANDLE h;
     RFile *ret;
@@ -112,6 +113,9 @@ RFile *open_existing_file(char *name, uint64 *size,
 	if (mtime)
 	    TIME_WIN_TO_POSIX(wrtime, *mtime);
     }
+
+    if (perms)
+        *perms = -1;
 
     return ret;
 }
@@ -137,7 +141,7 @@ struct WFile {
     HANDLE h;
 };
 
-WFile *open_new_file(char *name)
+WFile *open_new_file(char *name, long perms)
 {
     HANDLE h;
     WFile *ret;
