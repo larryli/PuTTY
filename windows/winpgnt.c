@@ -1684,6 +1684,53 @@ static void update_sessions(void)
     }
 }
 
+#ifndef NO_SECURITY
+/*
+ * Versions of Pageant prior to 0.61 expected this SID on incoming
+ * communications. For backwards compatibility, and more particularly
+ * for compatibility with derived works of PuTTY still using the old
+ * Pageant client code, we accept it as an alternative to the one
+ * returned from get_user_sid() in winpgntc.c.
+ */
+PSID get_default_sid(void)
+{
+    HANDLE proc = NULL;
+    DWORD sidlen;
+    PSECURITY_DESCRIPTOR psd = NULL;
+    PSID sid = NULL, copy = NULL, ret = NULL;
+
+    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
+                            GetCurrentProcessId())) == NULL)
+        goto cleanup;
+
+    if (p_GetSecurityInfo(proc, SE_KERNEL_OBJECT, OWNER_SECURITY_INFORMATION,
+                          &sid, NULL, NULL, NULL, &psd) != ERROR_SUCCESS)
+        goto cleanup;
+
+    sidlen = GetLengthSid(sid);
+
+    copy = (PSID)smalloc(sidlen);
+
+    if (!CopySid(sidlen, copy, sid))
+        goto cleanup;
+
+    /* Success. Move sid into the return value slot, and null it out
+     * to stop the cleanup code freeing it. */
+    ret = copy;
+    copy = NULL;
+
+  cleanup:
+    if (proc != NULL)
+        CloseHandle(proc);
+    if (psd != NULL)
+        LocalFree(psd);
+    if (copy != NULL)
+        sfree(copy);
+
+    return ret;
+}
+#endif
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -1821,9 +1868,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    void *p;
 	    HANDLE filemap;
 #ifndef NO_SECURITY
-	    PSID mapowner, ourself;
-	    PSECURITY_DESCRIPTOR psd1 = NULL, psd2 = NULL;
+	    PSID mapowner, ourself, ourself2;
 #endif
+            PSECURITY_DESCRIPTOR psd = NULL;
 	    int ret = 0;
 
 	    cds = (COPYDATASTRUCT *) lParam;
@@ -1850,10 +1897,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			return 0;
                     }
 
+                    if ((ourself2 = get_default_sid()) == NULL) {
+#ifdef DEBUG_IPC
+			debug(("couldn't get default SID\n"));
+#endif
+			return 0;
+                    }
+
 		    if ((rc = p_GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
 						OWNER_SECURITY_INFORMATION,
 						&mapowner, NULL, NULL, NULL,
-						&psd1) != ERROR_SUCCESS)) {
+						&psd) != ERROR_SUCCESS)) {
 #ifdef DEBUG_IPC
 			debug(("couldn't get owner info for filemap: %d\n",
                                rc));
@@ -1862,22 +1916,26 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    }
 #ifdef DEBUG_IPC
                     {
-                        LPTSTR ours, theirs;
+                        LPTSTR ours, ours2, theirs;
                         ConvertSidToStringSid(mapowner, &theirs);
                         ConvertSidToStringSid(ourself, &ours);
-                        debug(("got both sids: ours=%s theirs=%s\n",
-                               ours, theirs));
+                        ConvertSidToStringSid(ourself2, &ours2);
+                        debug(("got sids:\n  oursnew=%s\n  oursold=%s\n"
+                               "  theirs=%s\n", ours, ours2, theirs));
                         LocalFree(ours);
+                        LocalFree(ours2);
                         LocalFree(theirs);
                     }
 #endif
-		    if (!EqualSid(mapowner, ourself))
+		    if (!EqualSid(mapowner, ourself) &&
+                        !EqualSid(mapowner, ourself2))
 			return 0;      /* security ID mismatch! */
 #ifdef DEBUG_IPC
 		    debug(("security stuff matched\n"));
 #endif
-		    LocalFree(psd1);
-		    LocalFree(psd2);
+                    LocalFree(psd);
+                    sfree(ourself);
+                    sfree(ourself2);
 		} else {
 #ifdef DEBUG_IPC
 		    debug(("security APIs not present\n"));
