@@ -450,7 +450,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	if (try_scp) {
 	    /* Fallback is to use the provided scp command. */
 	    fallback_cmd_is_sftp = 0;
-	    conf_set_str(conf, CONF_remote_cmd2, "sftp");
+	    conf_set_str(conf, CONF_remote_cmd2, cmd);
 	    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
 	} else {
 	    /* Since we're not going to try SCP, we may as well try
