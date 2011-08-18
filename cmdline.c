@@ -504,6 +504,10 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 		    break;
 
 		  case '5':
+		  case '6':
+		  case '7':
+		  case '8':
+		  case '9':
 		    conf_set_int(conf, CONF_serdatabits, *nextitem-'0');
 		    break;
 
