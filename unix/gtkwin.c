@@ -2968,7 +2968,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          */
         if (strcmp(conf_get_str(oldconf, CONF_wintitle),
 		   conf_get_str(newconf, CONF_wintitle)))
-            set_title(inst, conf_get_str(oldconf, CONF_wintitle));
+            set_title(inst, conf_get_str(newconf, CONF_wintitle));
 	set_window_titles(inst);
 
         /*
