@@ -68,24 +68,24 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
-# Look for both GTK 1 and GTK 2. If we can't find either, have the
-# makefile only build the CLI programs.
+# Look for both GTK 2 and GTK 1, in descending order of preference. If
+# we can't find either, have the makefile only build the CLI programs.
 
 gtk=none
 
-case "$gtk_version_desired" in
-  1 | any)
-    ifdef([AM_PATH_GTK],[
-    AM_PATH_GTK([1.2.0], [gtk=1], [])
-    ],[AC_WARNING([generating configure script without GTK 1 autodetection])])
-    ;;
-esac
-
-case "$gtk_version_desired" in
-  2 | any)
+case "$gtk_version_desired:$gtk" in
+  2:none | any:none)
     ifdef([AM_PATH_GTK_2_0],[
     AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
     ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
+    ;;
+esac
+
+case "$gtk_version_desired:$gtk" in
+  1:none | any:none)
+    ifdef([AM_PATH_GTK],[
+    AM_PATH_GTK([1.2.0], [gtk=1], [])
+    ],[AC_WARNING([generating configure script without GTK 1 autodetection])])
     ;;
 esac
 
