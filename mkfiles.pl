@@ -20,16 +20,19 @@ use FileHandle;
 use File::Basename;
 use Cwd;
 
-if ($#ARGV >= 0 and $ARGV[0] eq "-u") {
+if ($#ARGV >= 0 and ($ARGV[0] eq "-u" or $ARGV[0] eq "-U")) {
     # Convenience for Unix users: -u means that after we finish what
     # we're doing here, we also run mkauto.sh and then 'configure' in
     # the Unix subdirectory. So it's a one-stop shop for regenerating
     # the actual end-product Unix makefile.
     #
     # Arguments supplied after -u go to configure.
+    #
+    # -U is identical, but runs 'configure' at the _top_ level, for
+    # people who habitually do that.
+    $do_unix = ($ARGV[0] eq "-U" ? 2 : 1);
     shift @ARGV;
     @confargs = @ARGV;
-    $do_unix = 1;
 }
 
 open IN, "Recipe" or do {
@@ -1539,8 +1542,10 @@ if ($do_unix) {
     chdir $orig_dir;
     system "./mkauto.sh";
     die "mkfiles.pl: mkauto.sh returned $?\n" if $? > 0;
-    chdir ($targetdir = dirname($makefiles{"am"}))
-        or die "$targetdir: chdir: $!\n";
+    if ($do_unix == 1) {
+        chdir ($targetdir = dirname($makefiles{"am"}))
+            or die "$targetdir: chdir: $!\n";
+    }
     system "./configure", @confargs;
     die "mkfiles.pl: configure returned $?\n" if $? > 0;
 }
