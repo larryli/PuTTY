@@ -30,6 +30,7 @@ struct Socket_proxy_tag {
     bufchain pending_oob_output_data;
     int pending_flush;
     bufchain pending_input_data;
+    int pending_eof;
 
 #define PROXY_STATE_NEW    -1
 #define PROXY_STATE_ACTIVE  0

@@ -489,6 +489,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
 				 void *privdata, int flags);
 int handle_write(struct handle *h, const void *data, int len);
+void handle_write_eof(struct handle *h);
 HANDLE *handle_get_events(int *nevents);
 void handle_free(struct handle *h);
 void handle_got_event(HANDLE event);

@@ -62,6 +62,13 @@ static int rlogin_closing(Plug plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
     Rlogin rlogin = (Rlogin) plug;
+
+    /*
+     * We don't implement independent EOF in each direction for Telnet
+     * connections; as soon as we get word that the remote side has
+     * sent us EOF, we wind up the whole connection.
+     */
+
     if (rlogin->s) {
         sk_close(rlogin->s);
         rlogin->s = NULL;

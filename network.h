@@ -37,6 +37,7 @@ struct socket_function_table {
     void (*close) (Socket s);
     int (*write) (Socket s, const char *data, int len);
     int (*write_oob) (Socket s, const char *data, int len);
+    void (*write_eof) (Socket s);
     void (*flush) (Socket s);
     void (*set_private_ptr) (Socket s, void *ptr);
     void *(*get_private_ptr) (Socket s);
@@ -140,6 +141,7 @@ Socket sk_register(OSSocket sock, Plug plug);
 #define sk_close(s) (((*s)->close) (s))
 #define sk_write(s,buf,len) (((*s)->write) (s, buf, len))
 #define sk_write_oob(s,buf,len) (((*s)->write_oob) (s, buf, len))
+#define sk_write_eof(s) (((*s)->write_eof) (s))
 #define sk_flush(s) (((*s)->flush) (s))
 
 #ifdef DEFINE_PLUG_METHOD_MACROS

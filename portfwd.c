@@ -65,10 +65,14 @@ static int pfd_closing(Plug plug, const char *error_msg, int error_code,
      * We have no way to communicate down the forwarded connection,
      * so if an error occurred on the socket, we just ignore it
      * and treat it like a proper close.
+     *
+     * FIXME: except we could initiate a full close here instead of
+     * just an outgoing EOF? ssh.c currently has no API for that, but
+     * it could.
      */
     if (pr->c)
-	sshfwd_close(pr->c);
-    pfd_close(pr->s);
+	sshfwd_write_eof(pr->c);
+
     return 1;
 }
 
@@ -537,6 +541,10 @@ int pfd_send(Socket s, char *data, int len)
     return sk_write(s, data, len);
 }
 
+void pfd_send_eof(Socket s)
+{
+    sk_write_eof(s);
+}
 
 void pfd_confirm(Socket s)
 {

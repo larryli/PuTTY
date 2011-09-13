@@ -64,6 +64,7 @@ struct Socket_tag {
     char oobdata[1];
     int sending_oob;
     int oobinline, nodelay, keepalive, privport;
+    enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
     SockAddr addr;
     SockAddrStep step;
     int port;
@@ -167,6 +168,7 @@ DECL_WINDOWS_FUNCTION(static, int, setsockopt,
 DECL_WINDOWS_FUNCTION(static, SOCKET, socket, (int, int, int));
 DECL_WINDOWS_FUNCTION(static, int, listen, (SOCKET, int));
 DECL_WINDOWS_FUNCTION(static, int, send, (SOCKET, const char FAR *, int, int));
+DECL_WINDOWS_FUNCTION(static, int, shutdown, (SOCKET, int));
 DECL_WINDOWS_FUNCTION(static, int, ioctlsocket,
 		      (SOCKET, long, u_long FAR *));
 DECL_WINDOWS_FUNCTION(static, SOCKET, accept,
@@ -291,6 +293,7 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, socket);
     GET_WINDOWS_FUNCTION(winsock_module, listen);
     GET_WINDOWS_FUNCTION(winsock_module, send);
+    GET_WINDOWS_FUNCTION(winsock_module, shutdown);
     GET_WINDOWS_FUNCTION(winsock_module, ioctlsocket);
     GET_WINDOWS_FUNCTION(winsock_module, accept);
     GET_WINDOWS_FUNCTION(winsock_module, recv);
@@ -745,6 +748,7 @@ static void sk_tcp_flush(Socket s)
 static void sk_tcp_close(Socket s);
 static int sk_tcp_write(Socket s, const char *data, int len);
 static int sk_tcp_write_oob(Socket s, const char *data, int len);
+static void sk_tcp_write_eof(Socket s);
 static void sk_tcp_set_private_ptr(Socket s, void *ptr);
 static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
@@ -759,6 +763,7 @@ Socket sk_register(void *sock, Plug plug)
 	sk_tcp_close,
 	sk_tcp_write,
 	sk_tcp_write_oob,
+	sk_tcp_write_eof,
 	sk_tcp_flush,
 	sk_tcp_set_private_ptr,
 	sk_tcp_get_private_ptr,
@@ -780,6 +785,7 @@ Socket sk_register(void *sock, Plug plug)
     bufchain_init(&ret->output_data);
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
+    ret->outgoingeof = EOF_NO;
     ret->frozen = 1;
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
@@ -1007,6 +1013,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	sk_tcp_close,
 	sk_tcp_write,
 	sk_tcp_write_oob,
+	sk_tcp_write_eof,
 	sk_tcp_flush,
 	sk_tcp_set_private_ptr,
 	sk_tcp_get_private_ptr,
@@ -1028,6 +1035,7 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->connected = 0;		       /* to start with */
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
+    ret->outgoingeof = EOF_NO;
     ret->frozen = 0;
     ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
@@ -1058,6 +1066,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
 	sk_tcp_close,
 	sk_tcp_write,
 	sk_tcp_write_oob,
+	sk_tcp_write_eof,
 	sk_tcp_flush,
 	sk_tcp_set_private_ptr,
 	sk_tcp_get_private_ptr,
@@ -1089,6 +1098,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
     bufchain_init(&ret->output_data);
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
+    ret->outgoingeof = EOF_NO;
     ret->frozen = 0;
     ret->frozen_readable = 0;
     ret->localhost_only = local_host_only;
@@ -1325,11 +1335,22 @@ void try_send(Actual_Socket s)
 	    }
 	}
     }
+
+    /*
+     * If we reach here, we've finished sending everything we might
+     * have needed to send. Send EOF, if we need to.
+     */
+    if (s->outgoingeof == EOF_PENDING) {
+        p_shutdown(s->s, SD_SEND);
+        s->outgoingeof = EOF_SENT;
+    }
 }
 
 static int sk_tcp_write(Socket sock, const char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
+
+    assert(s->outgoingeof == EOF_NO);
 
     /*
      * Add the data to the buffer list on the socket.
@@ -1349,6 +1370,8 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
+    assert(s->outgoingeof == EOF_NO);
+
     /*
      * Replace the buffer list on the socket with the data.
      */
@@ -1364,6 +1387,24 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
 	try_send(s);
 
     return s->sending_oob;
+}
+
+static void sk_tcp_write_eof(Socket sock)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+
+    assert(s->outgoingeof == EOF_NO);
+
+    /*
+     * Mark the socket as pending outgoing EOF.
+     */
+    s->outgoingeof = EOF_PENDING;
+
+    /*
+     * Now try sending from the start of the buffer list.
+     */
+    if (s->writable)
+	try_send(s);
 }
 
 int select_result(WPARAM wParam, LPARAM lParam)

@@ -65,6 +65,9 @@ void proxy_activate (Proxy_Socket p)
      */
     if (p->pending_flush) sk_flush(p->sub_socket);
 
+    /* if we have a pending EOF to send, send it */
+    if (p->pending_eof) sk_write_eof(p->sub_socket);
+
     /* if the backend wanted the socket unfrozen, try to unfreeze.
      * our set_frozen handler will flush buffered receive data before
      * unfreezing the actual underlying socket.
@@ -115,6 +118,17 @@ static int sk_proxy_write_oob (Socket s, const char *data, int len)
 	return len;
     }
     return sk_write_oob(ps->sub_socket, data, len);
+}
+
+static void sk_proxy_write_eof (Socket s)
+{
+    Proxy_Socket ps = (Proxy_Socket) s;
+
+    if (ps->state != PROXY_STATE_ACTIVE) {
+        ps->pending_eof = 1;
+	return;
+    }
+    sk_write_eof(ps->sub_socket);
 }
 
 static void sk_proxy_flush (Socket s)
@@ -372,6 +386,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	sk_proxy_close,
 	sk_proxy_write,
 	sk_proxy_write_oob,
+	sk_proxy_write_eof,
 	sk_proxy_flush,
 	sk_proxy_set_private_ptr,
 	sk_proxy_get_private_ptr,
@@ -412,6 +427,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 
 	ret->error = NULL;
 	ret->pending_flush = 0;
+	ret->pending_eof = 0;
 	ret->freeze = 0;
 
 	bufchain_init(&ret->pending_input_data);

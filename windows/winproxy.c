@@ -87,6 +87,13 @@ static int sk_localproxy_write_oob(Socket s, const char *data, int len)
     return sk_localproxy_write(s, data, len);
 }
 
+static void sk_localproxy_write_eof(Socket s)
+{
+    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+
+    handle_write_eof(ps->to_cmd_h);
+}
+
 static void sk_localproxy_flush(Socket s)
 {
     /* Local_Proxy_Socket ps = (Local_Proxy_Socket) s; */
@@ -132,6 +139,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	sk_localproxy_close,
 	sk_localproxy_write,
 	sk_localproxy_write_oob,
+	sk_localproxy_write_eof,
 	sk_localproxy_flush,
 	sk_localproxy_set_private_ptr,
 	sk_localproxy_get_private_ptr,

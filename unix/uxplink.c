@@ -383,6 +383,7 @@ void cleanup_termios(void)
 }
 
 bufchain stdout_data, stderr_data;
+enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
 int try_output(int is_stderr)
 {
@@ -391,23 +392,26 @@ int try_output(int is_stderr)
     void *senddata;
     int sendlen, ret, fl;
 
-    if (bufchain_size(chain) == 0)
-        return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
-
-    fl = fcntl(fd, F_GETFL);
-    if (fl != -1 && !(fl & O_NONBLOCK))
-	fcntl(fd, F_SETFL, fl | O_NONBLOCK);
-    do {
-	bufchain_prefix(chain, &senddata, &sendlen);
-	ret = write(fd, senddata, sendlen);
-	if (ret > 0)
-	    bufchain_consume(chain, ret);
-    } while (ret == sendlen && bufchain_size(chain) != 0);
-    if (fl != -1 && !(fl & O_NONBLOCK))
-	fcntl(fd, F_SETFL, fl);
-    if (ret < 0 && errno != EAGAIN) {
-	perror(is_stderr ? "stderr: write" : "stdout: write");
-	exit(1);
+    if (bufchain_size(chain) > 0) {
+        fl = fcntl(fd, F_GETFL);
+        if (fl != -1 && !(fl & O_NONBLOCK))
+            fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+        do {
+            bufchain_prefix(chain, &senddata, &sendlen);
+            ret = write(fd, senddata, sendlen);
+            if (ret > 0)
+                bufchain_consume(chain, ret);
+        } while (ret == sendlen && bufchain_size(chain) != 0);
+        if (fl != -1 && !(fl & O_NONBLOCK))
+            fcntl(fd, F_SETFL, fl);
+        if (ret < 0 && errno != EAGAIN) {
+            perror(is_stderr ? "stderr: write" : "stdout: write");
+            exit(1);
+        }
+    }
+    if (outgoingeof == EOF_PENDING && bufchain_size(&stdout_data) == 0) {
+        close(STDOUT_FILENO);
+        outgoingeof = EOF_SENT;
     }
     return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
@@ -419,6 +423,7 @@ int from_backend(void *frontend_handle, int is_stderr,
 	bufchain_add(&stderr_data, data, len);
 	return try_output(TRUE);
     } else {
+        assert(outgoingeof == EOF_NO);
 	bufchain_add(&stdout_data, data, len);
 	return try_output(FALSE);
     }
@@ -432,6 +437,14 @@ int from_backend_untrusted(void *frontend_handle, const char *data, int len)
      */
     assert(!"Unexpected call to from_backend_untrusted()");
     return 0; /* not reached */
+}
+
+int from_backend_eof(void *frontend_handle)
+{
+    assert(outgoingeof == EOF_NO);
+    outgoingeof = EOF_PENDING;
+    try_output(FALSE);
+    return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
 int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
@@ -598,6 +611,10 @@ int main(int argc, char **argv)
      */
     default_protocol = PROT_SSH;
     default_port = 22;
+
+    bufchain_init(&stdout_data);
+    bufchain_init(&stderr_data);
+    outgoingeof = EOF_NO;
 
     flags = FLAG_STDERR | FLAG_STDERR_TTY;
 

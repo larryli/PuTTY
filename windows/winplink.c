@@ -130,6 +130,12 @@ int from_backend_untrusted(void *frontend_handle, const char *data, int len)
     return 0; /* not reached */
 }
 
+int from_backend_eof(void *frontend_handle)
+{
+    handle_write_eof(stdout_handle);
+    return FALSE;   /* do not respond to incoming EOF with outgoing */
+}
+
 int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 {
     int ret;

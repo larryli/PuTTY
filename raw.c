@@ -23,6 +23,7 @@ typedef struct raw_backend_data {
     Socket s;
     int bufsize;
     void *frontend;
+    int sent_console_eof, sent_socket_eof;
 } *Raw;
 
 static void raw_size(void *handle, int width, int height);
@@ -49,21 +50,51 @@ static void raw_log(Plug plug, int type, SockAddr addr, int port,
     logevent(raw->frontend, msg);
 }
 
+static void raw_check_close(Raw raw)
+{
+    /*
+     * Called after we send EOF on either the socket or the console.
+     * Its job is to wind up the session once we have sent EOF on both.
+     */
+    if (raw->sent_console_eof && raw->sent_socket_eof) {
+        if (raw->s) {
+            sk_close(raw->s);
+            raw->s = NULL;
+            notify_remote_exit(raw->frontend);
+        }
+    }
+}
+
 static int raw_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
     Raw raw = (Raw) plug;
 
-    if (raw->s) {
-        sk_close(raw->s);
-        raw->s = NULL;
-	notify_remote_exit(raw->frontend);
-    }
     if (error_msg) {
-	/* A socket error has occurred. */
-	logevent(raw->frontend, error_msg);
-	connection_fatal(raw->frontend, "%s", error_msg);
-    }				       /* Otherwise, the remote side closed the connection normally. */
+        /* A socket error has occurred. */
+        if (raw->s) {
+            sk_close(raw->s);
+            raw->s = NULL;
+            notify_remote_exit(raw->frontend);
+        }
+        logevent(raw->frontend, error_msg);
+        connection_fatal(raw->frontend, "%s", error_msg);
+    } else {
+        /* Otherwise, the remote side closed the connection normally. */
+        if (!raw->sent_console_eof && from_backend_eof(raw->frontend)) {
+            /*
+             * The front end wants us to close the outgoing side of the
+             * connection as soon as we see EOF from the far end.
+             */
+            if (!raw->sent_socket_eof) {
+                if (raw->s)
+                    sk_write_eof(raw->s);
+                raw->sent_socket_eof= TRUE;
+            }
+        }
+        raw->sent_console_eof = TRUE;
+        raw_check_close(raw);
+    }
     return 0;
 }
 
@@ -109,6 +140,7 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     raw->fn = &fn_table;
     raw->s = NULL;
     *backend_handle = raw;
+    raw->sent_console_eof = raw->sent_socket_eof = FALSE;
 
     raw->frontend = frontend_handle;
 
@@ -212,11 +244,17 @@ static void raw_size(void *handle, int width, int height)
 }
 
 /*
- * Send raw special codes.
+ * Send raw special codes. We only handle outgoing EOF here.
  */
 static void raw_special(void *handle, Telnet_Special code)
 {
-    /* Do nothing! */
+    Raw raw = (Raw) handle;
+    if (code == TS_EOF && raw->s) {
+        sk_write_eof(raw->s);
+        raw->sent_socket_eof= TRUE;
+        raw_check_close(raw);
+    }
+
     return;
 }
 

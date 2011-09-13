@@ -595,6 +595,11 @@ void ldisc_update(void *frontend, int echo, int edit);
 void update_specials_menu(void *frontend);
 int from_backend(void *frontend, int is_stderr, const char *data, int len);
 int from_backend_untrusted(void *frontend, const char *data, int len);
+/* Called when the back end wants to indicate that EOF has arrived on
+ * the server-to-client stream. Returns FALSE to indicate that we
+ * intend to keep the session open in the other direction, or TRUE to
+ * indicate that if they're closing so are we. */
+int from_backend_eof(void *frontend);
 void notify_remote_exit(void *frontend);
 /* Get a sensible value for a tty mode. NULL return = don't set.
  * Otherwise, returned value should be freed by caller. */

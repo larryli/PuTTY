@@ -5612,6 +5612,11 @@ int from_backend_untrusted(void *frontend, const char *data, int len)
     return term_data_untrusted(term, data, len);
 }
 
+int from_backend_eof(void *frontend)
+{
+    return TRUE;   /* do respond to incoming EOF with outgoing */
+}
+
 int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 {
     int ret;

@@ -667,6 +667,12 @@ static int telnet_closing(Plug plug, const char *error_msg, int error_code,
 {
     Telnet telnet = (Telnet) plug;
 
+    /*
+     * We don't implement independent EOF in each direction for Telnet
+     * connections; as soon as we get word that the remote side has
+     * sent us EOF, we wind up the whole connection.
+     */
+
     if (telnet->s) {
         sk_close(telnet->s);
         telnet->s = NULL;

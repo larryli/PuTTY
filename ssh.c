@@ -473,6 +473,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			 struct Packet *pktin);
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     struct Packet *pktin);
+static void ssh_channel_destroy(struct ssh_channel *c);
 
 /*
  * Buffer management constants. There are several of these for
@@ -588,18 +589,35 @@ struct ssh_channel {
      *   8   We have received SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION.
      * 
      * A channel is completely finished with when all four bits are set.
+     *
+     * In SSH-2, the four bits mean:
+     *
+     *   1   We have sent SSH2_MSG_CHANNEL_EOF.
+     *   2   We have sent SSH2_MSG_CHANNEL_CLOSE.
+     *   4   We have received SSH2_MSG_CHANNEL_EOF.
+     *   8   We have received SSH2_MSG_CHANNEL_CLOSE.
+     *
+     * A channel is completely finished with when we have both sent
+     * and received CLOSE.
+     *
+     * The symbolic constants below use the SSH-2 terminology, which
+     * is a bit confusing in SSH-1, but we have to use _something_.
      */
+#define CLOSES_SENT_EOF    1
+#define CLOSES_SENT_CLOSE  2
+#define CLOSES_RCVD_EOF    4
+#define CLOSES_RCVD_CLOSE  8
     int closes;
 
     /*
-     * This flag indicates that a close is pending on the outgoing
-     * side of the channel: that is, wherever we're getting the data
-     * for this channel has sent us some data followed by EOF. We
-     * can't actually close the channel until we've finished sending
-     * the data, so we set this flag instead to remind us to
-     * initiate the closing process once our buffer is clear.
+     * This flag indicates that an EOF is pending on the outgoing side
+     * of the channel: that is, wherever we're getting the data for
+     * this channel has sent us some data followed by EOF. We can't
+     * actually send the EOF until we've finished sending the data, so
+     * we set this flag instead to remind us to do so once our buffer
+     * is clear.
      */
-    int pending_close;
+    int pending_eof;
 
     /*
      * True if this channel is causing the underlying connection to be
@@ -830,6 +848,7 @@ struct ssh_tag {
     } state;
 
     int size_needed, eof_needed;
+    int sent_console_eof;
 
     struct Packet **queue;
     int queuelen, queuesize;
@@ -4188,70 +4207,50 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     crFinish(1);
 }
 
-void sshfwd_close(struct ssh_channel *c)
+static void ssh_channel_try_eof(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+    assert(c->pending_eof);          /* precondition for calling us */
+    if (c->halfopen)
+        return;                 /* can't close: not even opened yet */
+    if (ssh->version == 2 && bufchain_size(&c->v.v2.outbuffer) > 0)
+        return;              /* can't send EOF: pending outgoing data */
+
+    if (ssh->version == 1) {
+        send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
+                    PKT_END);
+        c->closes |= CLOSES_SENT_EOF;
+    } else {
+        struct Packet *pktout;
+        pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
+        ssh2_pkt_adduint32(pktout, c->remoteid);
+        ssh2_pkt_send(ssh, pktout);
+        c->closes |= CLOSES_SENT_EOF;
+        if (!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes)) {
+            /*
+             * Also send MSG_CLOSE.
+             */
+            pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+            ssh2_pkt_adduint32(pktout, c->remoteid);
+            ssh2_pkt_send(ssh, pktout);
+            c->closes |= CLOSES_SENT_CLOSE;
+        }
+    }
+    c->pending_eof = FALSE;            /* we've sent it now */
+}
+
+void sshfwd_write_eof(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
 
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (!c->closes) {
-	/*
-	 * If halfopen is true, we have sent
-	 * CHANNEL_OPEN for this channel, but it hasn't even been
-	 * acknowledged by the server. So we must set a close flag
-	 * on it now, and then when the server acks the channel
-	 * open, we can close it then.
-	 */
-	if (!c->halfopen) {
-	    if (ssh->version == 1) {
-		send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
-			    PKT_END);
-		c->closes = 1;		       /* sent MSG_CLOSE */
-	    } else {
-		int bytes_to_send = bufchain_size(&c->v.v2.outbuffer);
-		if (bytes_to_send > 0) {
-		    /*
-		     * If we still have unsent data in our outgoing
-		     * buffer for this channel, we can't actually
-		     * initiate a close operation yet or that data
-		     * will be lost. Instead, set the pending_close
-		     * flag so that when we do clear the buffer
-		     * we'll start closing the channel.
-		     */
-		    char logmsg[160] = {'\0'};
-		    sprintf(
-			    logmsg,
-			    "Forwarded port pending to be closed : "
-			    "%d bytes remaining",
-			    bytes_to_send);
-		    logevent(logmsg);
+    if (c->closes & CLOSES_SENT_EOF)
+        return;
 
-		    c->pending_close = TRUE;
-		} else {
-		    /*
-		     * No locally buffered data, so we can send the
-		     * close message immediately.
-		     */
-		    struct Packet *pktout;
-		    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-		    ssh2_pkt_adduint32(pktout, c->remoteid);
-		    ssh2_pkt_send(ssh, pktout);
-		    c->closes = 1;		       /* sent MSG_CLOSE */
-		    logevent("Nothing left to send, closing channel");
-		}
-	    }
-	}
-
-	if (c->type == CHAN_X11) {
-	    c->u.x11.s = NULL;
-	    logevent("Forwarded X11 connection terminated");
-	} else if (c->type == CHAN_SOCKDATA ||
-		   c->type == CHAN_SOCKDATA_DORMANT) {
-	    c->u.pfd.s = NULL;
-	    logevent("Forwarded port closed");
-	}
-    }
+    c->pending_eof = TRUE;
+    ssh_channel_try_eof(c);
 }
 
 int sshfwd_write(struct ssh_channel *c, char *buf, int len)
@@ -4754,7 +4753,7 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	    c->halfopen = FALSE;
 	    c->localid = alloc_channel_id(ssh);
 	    c->closes = 0;
-	    c->pending_close = FALSE;
+	    c->pending_eof = FALSE;
 	    c->throttling_conn = 0;
 	    c->type = CHAN_X11;	/* identify channel type */
 	    add234(ssh->channels, c);
@@ -4784,10 +4783,11 @@ static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
 	c->halfopen = FALSE;
 	c->localid = alloc_channel_id(ssh);
 	c->closes = 0;
-	c->pending_close = FALSE;
+	c->pending_eof = FALSE;
 	c->throttling_conn = 0;
 	c->type = CHAN_AGENT;	/* identify channel type */
 	c->u.a.lensofar = 0;
+	c->u.a.message = NULL;
 	add234(ssh->channels, c);
 	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
 		    PKT_INT, c->remoteid, PKT_INT, c->localid,
@@ -4839,7 +4839,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 	    c->halfopen = FALSE;
 	    c->localid = alloc_channel_id(ssh);
 	    c->closes = 0;
-	    c->pending_close = FALSE;
+	    c->pending_eof = FALSE;
 	    c->throttling_conn = 0;
 	    c->type = CHAN_SOCKDATA;	/* identify channel type */
 	    add234(ssh->channels, c);
@@ -4866,15 +4866,14 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 	pfd_confirm(c->u.pfd.s);
     }
 
-    if (c && c->closes) {
+    if (c && c->pending_eof) {
 	/*
 	 * We have a pending close on this channel,
 	 * which we decided on before the server acked
 	 * the channel open. So now we know the
 	 * remoteid, we can close it again.
 	 */
-	send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE,
-		    PKT_INT, c->remoteid, PKT_END);
+        ssh_channel_try_eof(c);
     }
 }
 
@@ -4899,34 +4898,59 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
     struct ssh_channel *c;
     c = find234(ssh->channels, &i, ssh_channelfind);
     if (c && !c->halfopen) {
-	int closetype;
-	closetype =
-	    (pktin->type == SSH1_MSG_CHANNEL_CLOSE ? 1 : 2);
 
-	if ((c->closes == 0) && (c->type == CHAN_X11)) {
-	    logevent("Forwarded X11 connection terminated");
-	    assert(c->u.x11.s != NULL);
-	    x11_close(c->u.x11.s);
-	    c->u.x11.s = NULL;
-	}
-	if ((c->closes == 0) && (c->type == CHAN_SOCKDATA)) {
-	    logevent("Forwarded port closed");
-	    assert(c->u.pfd.s != NULL);
-	    pfd_close(c->u.pfd.s);
-	    c->u.pfd.s = NULL;
-	}
+        if (pktin->type == SSH1_MSG_CHANNEL_CLOSE &&
+            !(c->closes & CLOSES_RCVD_EOF)) {
+            /*
+             * Received CHANNEL_CLOSE, which we translate into
+             * outgoing EOF.
+             */
+            int send_close = FALSE;
 
-	c->closes |= (closetype << 2);   /* seen this message */
-	if (!(c->closes & closetype)) {
-	    send_packet(ssh, pktin->type, PKT_INT, c->remoteid,
-			PKT_END);
-	    c->closes |= closetype;      /* sent it too */
-	}
+            c->closes |= CLOSES_RCVD_EOF;
 
-	if (c->closes == 15) {
-	    del234(ssh->channels, c);
-	    sfree(c);
-	}
+            switch (c->type) {
+              case CHAN_X11:
+                if (c->u.x11.s)
+                    x11_send_eof(c->u.x11.s);
+                else
+                    send_close = TRUE;
+              case CHAN_SOCKDATA:
+                if (c->u.pfd.s)
+                    x11_send_eof(c->u.pfd.s);
+                else
+                    send_close = TRUE;
+              case CHAN_AGENT:
+                send_close = TRUE;
+            }
+
+            if (send_close && !(c->closes & CLOSES_SENT_EOF)) {
+                send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
+                            PKT_END);
+                c->closes |= CLOSES_SENT_EOF;
+            }
+        }
+
+        if (pktin->type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION &&
+            !(c->closes & CLOSES_RCVD_CLOSE)) {
+
+            if (!(c->closes & CLOSES_SENT_EOF)) {
+                bombout(("Received CHANNEL_CLOSE_CONFIRMATION for channel %d"
+                         " for which we never sent CHANNEL_CLOSE\n", i));
+            }
+
+            c->closes |= CLOSES_RCVD_CLOSE;
+        }
+
+        if (!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes) &&
+            !(c->closes & CLOSES_SENT_CLOSE)) {
+            send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION,
+                        PKT_INT, c->remoteid, PKT_END);
+            c->closes |= CLOSES_SENT_CLOSE;
+        }
+
+	if (!((CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE) & ~c->closes))
+            ssh_channel_destroy(c);
     } else {
 	bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
 		 pktin->type == SSH1_MSG_CHANNEL_CLOSE ? "" :
@@ -6438,6 +6462,7 @@ static int ssh2_try_send(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
     struct Packet *pktout;
+    int ret;
 
     while (c->v.v2.remwindow > 0 && bufchain_size(&c->v.v2.outbuffer) > 0) {
 	int len;
@@ -6462,14 +6487,23 @@ static int ssh2_try_send(struct ssh_channel *c)
      * After having sent as much data as we can, return the amount
      * still buffered.
      */
-    return bufchain_size(&c->v.v2.outbuffer);
+    ret = bufchain_size(&c->v.v2.outbuffer);
+
+    /*
+     * And if there's no data pending but we need to send an EOF, send
+     * it.
+     */
+    if (!ret && c->pending_eof)
+        ssh_channel_try_eof(c);
+
+    return ret;
 }
 
 static void ssh2_try_send_and_unthrottle(Ssh ssh, struct ssh_channel *c)
 {
     int bufsize;
-    if (c->closes)
-	return;			       /* don't send on closing channels */
+    if (c->closes & CLOSES_SENT_EOF)
+	return;                   /* don't send on channels we've EOFed */
     bufsize = ssh2_try_send(c);
     if (bufsize == 0) {
 	switch (c->type) {
@@ -6489,19 +6523,6 @@ static void ssh2_try_send_and_unthrottle(Ssh ssh, struct ssh_channel *c)
 	    break;
 	}
     }
-
-    /*
-     * If we've emptied the channel's output buffer and there's a
-     * pending close event, start the channel-closing procedure.
-     */
-    if (c->pending_close && bufchain_size(&c->v.v2.outbuffer) == 0) {
-	struct Packet *pktout;
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-	ssh2_pkt_adduint32(pktout, c->remoteid);
-	ssh2_pkt_send(ssh, pktout);
-	c->closes = 1;
-	c->pending_close = FALSE;
-    }
 }
 
 /*
@@ -6512,7 +6533,7 @@ static void ssh2_channel_init(struct ssh_channel *c)
     Ssh ssh = c->ssh;
     c->localid = alloc_channel_id(ssh);
     c->closes = 0;
-    c->pending_close = FALSE;
+    c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
     c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
 	conf_get_int(ssh->conf, CONF_ssh_simple) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
@@ -6529,11 +6550,11 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
     Ssh ssh = c->ssh;
 
     /*
-     * Never send WINDOW_ADJUST for a channel that the remote side
-     * already thinks it's closed; there's no point, since it won't
-     * be sending any more data anyway.
+     * Never send WINDOW_ADJUST for a channel that the remote side has
+     * already sent EOF on; there's no point, since it won't be
+     * sending any more data anyway.
      */
-    if (c->closes != 0)
+    if (c->closes & CLOSES_RCVD_EOF)
 	return;
 
     /*
@@ -6699,7 +6720,7 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (!c->closes) {
+    if (!(c->closes & CLOSES_SENT_EOF)) {
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
 	ssh2_try_send_and_unthrottle(ssh, c);
     }
@@ -6771,6 +6792,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 				    ssh_agentf_callback, c))
 			ssh_agentf_callback(c, reply, replylen);
 		    sfree(c->u.a.message);
+                    c->u.a.message = NULL;
 		    c->u.a.lensofar = 0;
 		}
 	    }
@@ -6808,66 +6830,33 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
     }
 }
 
-static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
+static void ssh_channel_destroy(struct ssh_channel *c)
 {
-    struct ssh_channel *c;
+    Ssh ssh = c->ssh;
 
-    c = ssh2_channel_msg(ssh, pktin);
-    if (!c)
-	return;
-
-    if (c->type == CHAN_X11) {
-	/*
-	 * Remote EOF on an X11 channel means we should
-	 * wrap up and close the channel ourselves.
-	 */
-	x11_close(c->u.x11.s);
-	c->u.x11.s = NULL;
-	sshfwd_close(c);
-    } else if (c->type == CHAN_AGENT) {
-	sshfwd_close(c);
-    } else if (c->type == CHAN_SOCKDATA) {
-	pfd_close(c->u.pfd.s);
-	c->u.pfd.s = NULL;
-	sshfwd_close(c);
-    }
-}
-
-static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
-{
-    struct ssh_channel *c;
-    struct Packet *pktout;
-
-    c = ssh2_channel_msg(ssh, pktin);
-    if (!c)
-	return;
-    /* Do pre-close processing on the channel. */
     switch (c->type) {
       case CHAN_MAINSESSION:
-	ssh->mainchan = NULL;
-	update_specials_menu(ssh->frontend);
-	break;
+        ssh->mainchan = NULL;
+        update_specials_menu(ssh->frontend);
+        break;
       case CHAN_X11:
-	if (c->u.x11.s != NULL)
-	    x11_close(c->u.x11.s);
-	sshfwd_close(c);
-	break;
+        if (c->u.x11.s != NULL)
+            x11_close(c->u.x11.s);
+        logevent("Forwarded X11 connection terminated");
+        break;
       case CHAN_AGENT:
-	sshfwd_close(c);
-	break;
+        sfree(c->u.a.message);
+        break;
       case CHAN_SOCKDATA:
-	if (c->u.pfd.s != NULL)
-	    pfd_close(c->u.pfd.s);
-	sshfwd_close(c);
-	break;
+        if (c->u.pfd.s != NULL)
+            pfd_close(c->u.pfd.s);
+        logevent("Forwarded port closed");
+        break;
     }
-    if (c->closes == 0) {
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-	ssh2_pkt_adduint32(pktout, c->remoteid);
-	ssh2_pkt_send(ssh, pktout);
-    }
+
     del234(ssh->channels, c);
-    bufchain_clear(&c->v.v2.outbuffer);
+    if (ssh->version == 2)
+        bufchain_clear(&c->v.v2.outbuffer);
     sfree(c);
 
     /*
@@ -6875,26 +6864,115 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
      * (This is only our termination condition if we're
      * not running in -N mode.)
      */
-    if (!conf_get_int(ssh->conf, CONF_ssh_no_shell) && count234(ssh->channels) == 0) {
-	/*
-	 * We used to send SSH_MSG_DISCONNECT here,
-	 * because I'd believed that _every_ conforming
-	 * SSH-2 connection had to end with a disconnect
-	 * being sent by at least one side; apparently
-	 * I was wrong and it's perfectly OK to
-	 * unceremoniously slam the connection shut
-	 * when you're done, and indeed OpenSSH feels
-	 * this is more polite than sending a
-	 * DISCONNECT. So now we don't.
-	 */
-	ssh_disconnect(ssh, "All channels closed", NULL, 0, TRUE);
+    if (ssh->version == 2 &&
+        !conf_get_int(ssh->conf, CONF_ssh_no_shell) &&
+        count234(ssh->channels) == 0) {
+        /*
+         * We used to send SSH_MSG_DISCONNECT here,
+         * because I'd believed that _every_ conforming
+         * SSH-2 connection had to end with a disconnect
+         * being sent by at least one side; apparently
+         * I was wrong and it's perfectly OK to
+         * unceremoniously slam the connection shut
+         * when you're done, and indeed OpenSSH feels
+         * this is more polite than sending a
+         * DISCONNECT. So now we don't.
+         */
+        ssh_disconnect(ssh, "All channels closed", NULL, 0, TRUE);
+    }
+}
+
+static void ssh2_channel_check_close(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+    struct Packet *pktout;
+
+    if ((c->closes & (CLOSES_SENT_EOF | CLOSES_RCVD_EOF | CLOSES_SENT_CLOSE))
+        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF)) {
+        /*
+         * We have both sent and received EOF, which means the channel
+         * is in final wind-up. But we haven't sent CLOSE, so let's.
+         */
+	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+	ssh2_pkt_adduint32(pktout, c->remoteid);
+	ssh2_pkt_send(ssh, pktout);
+        c->closes |= CLOSES_SENT_CLOSE;
+    }
+
+    if (!((CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE) & ~c->closes)) {
+        /*
+         * We have both sent and received CLOSE, which means we're
+         * completely done with the channel.
+         */
+        ssh_channel_destroy(c);
+    }
+}
+
+static void ssh2_channel_got_eof(struct ssh_channel *c)
+{
+    if (c->closes & CLOSES_RCVD_EOF)
+        return;                        /* already seen EOF */
+    c->closes |= CLOSES_RCVD_EOF;
+
+    if (c->type == CHAN_X11) {
+	x11_send_eof(c->u.x11.s);
+    } else if (c->type == CHAN_AGENT) {
+        /* Manufacture an outgoing EOF in response to the incoming one. */
+        sshfwd_write_eof(c);
+    } else if (c->type == CHAN_SOCKDATA) {
+	pfd_send_eof(c->u.pfd.s);
+    } else if (c->type == CHAN_MAINSESSION) {
+        Ssh ssh = c->ssh;
+
+        if (!ssh->sent_console_eof && from_backend_eof(ssh->frontend)) {
+            /*
+             * The front end wants us to close the outgoing side of the
+             * connection as soon as we see EOF from the far end.
+             */
+            sshfwd_write_eof(c);
+        }
+        ssh->sent_console_eof = TRUE;
+    }
+
+    ssh2_channel_check_close(c);
+}
+
+static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
+{
+    struct ssh_channel *c;
+
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
+	return;
+    ssh2_channel_got_eof(c);
+}
+
+static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
+{
+    struct ssh_channel *c;
+
+    c = ssh2_channel_msg(ssh, pktin);
+    if (!c)
+	return;
+
+    /*
+     * When we receive CLOSE on a channel, we assume it comes with an
+     * implied EOF if we haven't seen EOF yet.
+     */
+    ssh2_channel_got_eof(c);
+
+    /*
+     * Now process the actual close.
+     */
+    if (!(c->closes & CLOSES_RCVD_CLOSE)) {
+        c->closes |= CLOSES_RCVD_CLOSE;
+        ssh2_channel_check_close(c);
     }
 }
 
 static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 {
     struct ssh_channel *c;
-    struct Packet *pktout;
 
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
@@ -6908,17 +6986,8 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
     if (c->u.pfd.s)
 	pfd_confirm(c->u.pfd.s);
-    if (c->closes) {
-	/*
-	 * We have a pending close on this channel,
-	 * which we decided on before the server acked
-	 * the channel open. So now we know the
-	 * remoteid, we can close it again.
-	 */
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-	ssh2_pkt_adduint32(pktout, c->remoteid);
-	ssh2_pkt_send(ssh, pktout);
-    }
+    if (c->pending_eof)
+        ssh_channel_try_eof(c);
 }
 
 static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
@@ -9367,6 +9436,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     bufchain_init(&ssh->queued_incoming_data);
     ssh->frozen = FALSE;
     ssh->username = NULL;
+    ssh->sent_console_eof = FALSE;
 
     *backend_handle = ssh;
 
@@ -9619,7 +9689,7 @@ static int ssh_sendbuffer(void *handle)
     if (ssh->version == 1) {
 	return override_value;
     } else if (ssh->version == 2) {
-	if (!ssh->mainchan || ssh->mainchan->closes > 0)
+	if (!ssh->mainchan)
 	    return override_value;
 	else
 	    return (override_value +
@@ -9768,9 +9838,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	if (ssh->version == 1) {
 	    send_packet(ssh, SSH1_CMSG_EOF, PKT_END);
 	} else if (ssh->mainchan) {
-	    struct Packet *pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
-	    ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-	    ssh2_pkt_send(ssh, pktout);
+            sshfwd_write_eof(ssh->mainchan);
             ssh->send_ok = 0;          /* now stop trying to read from stdin */
 	}
 	logevent("Sent EOF message");

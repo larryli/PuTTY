@@ -37,6 +37,7 @@ char *pwd, *homedir;
 static Backend *back;
 static void *backhandle;
 static Conf *conf;
+int sent_eof = FALSE;
 
 /* ----------------------------------------------------------------------
  * Higher-level helper functions used in commands.
@@ -980,6 +981,7 @@ int sftp_cmd_close(struct sftp_command *cmd)
     if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
+        sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }
     do_sftp_cleanup();
@@ -2362,6 +2364,7 @@ void do_sftp_cleanup()
     char ch;
     if (back) {
 	back->special(backhandle, TS_EOF);
+        sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
 	back->free(backhandle);
 	sftp_cleanup_request();
@@ -2569,6 +2572,19 @@ int from_backend_untrusted(void *frontend_handle, const char *data, int len)
      */
     assert(!"Unexpected call to from_backend_untrusted()");
     return 0; /* not reached */
+}
+int from_backend_eof(void *frontend)
+{
+    /*
+     * We expect to be the party deciding when to close the
+     * connection, so if we see EOF before we sent it ourselves, we
+     * should panic.
+     */
+    if (!sent_eof) {
+        connection_fatal(frontend,
+                         "Received unexpected end-of-file from SFTP server");
+    }
+    return FALSE;
 }
 int sftp_recvdata(char *buf, int len)
 {
@@ -2952,6 +2968,7 @@ int psftp_main(int argc, char *argv[])
     if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
+        sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }
     do_sftp_cleanup();

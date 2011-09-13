@@ -9,8 +9,8 @@
 
 struct ssh_channel;
 
-extern void sshfwd_close(struct ssh_channel *c);
 extern int sshfwd_write(struct ssh_channel *c, char *, int);
+extern void sshfwd_write_eof(struct ssh_channel *c);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
 
 /*
@@ -342,6 +342,7 @@ extern const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
 extern void pfd_close(Socket s);
 extern void pfd_terminate(void *sockdata);
 extern int pfd_send(Socket s, char *data, int len);
+extern void pfd_send_eof(Socket s);
 extern void pfd_confirm(Socket s);
 extern void pfd_unthrottle(Socket s);
 extern void pfd_override_throttle(Socket s, int enable);
@@ -397,6 +398,7 @@ extern const char *x11_init(Socket *, struct X11Display *, void *,
 			    const char *, int, Conf *);
 extern void x11_close(Socket);
 extern int x11_send(Socket, char *, int);
+extern void x11_send_eof(Socket s);
 extern void x11_unthrottle(Socket s);
 extern void x11_override_throttle(Socket s, int enable);
 char *x11_display(const char *display);

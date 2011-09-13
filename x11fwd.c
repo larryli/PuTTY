@@ -507,9 +507,12 @@ static int x11_closing(Plug plug, const char *error_msg, int error_code,
      * We have no way to communicate down the forwarded connection,
      * so if an error occurred on the socket, we just ignore it
      * and treat it like a proper close.
+     *
+     * FIXME: except we could initiate a full close here instead of
+     * just an outgoing EOF? ssh.c currently has no API for that, but
+     * it could.
      */
-    sshfwd_close(pr->c);
-    x11_close(pr->s);
+    sshfwd_write_eof(pr->c);
     return 1;
 }
 
@@ -721,8 +724,7 @@ int x11_send(Socket s, char *data, int len)
 	    memset(reply + 8, 0, msgsize);
 	    memcpy(reply + 8, message, msglen);
 	    sshfwd_write(pr->c, (char *)reply, 8 + msgsize);
-	    sshfwd_close(pr->c);
-	    x11_close(s);
+	    sshfwd_write_eof(pr->c);
 	    sfree(reply);
 	    sfree(message);
 	    return 0;
@@ -786,4 +788,9 @@ int x11_send(Socket s, char *data, int len)
      */
 
     return sk_write(s, data, len);
+}
+
+void x11_send_eof(Socket s)
+{
+    sk_write_eof(s);
 }

@@ -45,6 +45,7 @@ static int using_sftp = 0;
 static Backend *back;
 static void *backhandle;
 static Conf *conf;
+int sent_eof = FALSE;
 
 static void source(char *src);
 static void rsource(char *src);
@@ -214,6 +215,19 @@ int from_backend_untrusted(void *frontend_handle, const char *data, int len)
     assert(!"Unexpected call to from_backend_untrusted()");
     return 0; /* not reached */
 }
+int from_backend_eof(void *frontend)
+{
+    /*
+     * We expect to be the party deciding when to close the
+     * connection, so if we see EOF before we sent it ourselves, we
+     * should panic.
+     */
+    if (!sent_eof) {
+        connection_fatal(frontend,
+                         "Received unexpected end-of-file from server");
+    }
+    return FALSE;
+}
 static int ssh_scp_recv(unsigned char *buf, int len)
 {
     outptr = buf;
@@ -298,6 +312,7 @@ static void bump(char *fmt, ...)
     if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
+        sent_eof = TRUE;
 	ssh_scp_recv((unsigned char *) &ch, 1);
     }
 
@@ -2314,6 +2329,7 @@ int psftp_main(int argc, char *argv[])
     if (back != NULL && back->connected(backhandle)) {
 	char ch;
 	back->special(backhandle, TS_EOF);
+        sent_eof = TRUE;
 	ssh_scp_recv((unsigned char *) &ch, 1);
     }
     random_save_seed();

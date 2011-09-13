@@ -87,6 +87,8 @@ struct Socket_tag {
     int sending_oob;
     int oobpending;		       /* is there OOB data available to read? */
     int oobinline;
+    enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
+    int incomingeof;
     int pending_error;		       /* in case send() returns error */
     int listener;
     int nodelay, keepalive;            /* for connect()-type sockets */
@@ -466,6 +468,7 @@ static void sk_tcp_flush(Socket s)
 static void sk_tcp_close(Socket s);
 static int sk_tcp_write(Socket s, const char *data, int len);
 static int sk_tcp_write_oob(Socket s, const char *data, int len);
+static void sk_tcp_write_eof(Socket s);
 static void sk_tcp_set_private_ptr(Socket s, void *ptr);
 static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
@@ -476,6 +479,7 @@ static struct socket_function_table tcp_fn_table = {
     sk_tcp_close,
     sk_tcp_write,
     sk_tcp_write_oob,
+    sk_tcp_write_eof,
     sk_tcp_flush,
     sk_tcp_set_private_ptr,
     sk_tcp_get_private_ptr,
@@ -502,6 +506,8 @@ Socket sk_register(OSSocket sockfd, Plug plug)
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->oobpending = FALSE;
+    ret->outgoingeof = EOF_NO;
+    ret->incomingeof = FALSE;
     ret->listener = 0;
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
@@ -724,6 +730,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobpending = FALSE;
+    ret->outgoingeof = EOF_NO;
+    ret->incomingeof = FALSE;
     ret->listener = 0;
     ret->addr = addr;
     START_STEP(ret->addr, ret->step);
@@ -776,6 +784,8 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobpending = FALSE;
+    ret->outgoingeof = EOF_NO;
+    ret->incomingeof = FALSE;
     ret->listener = 1;
     ret->addr = NULL;
 
@@ -1053,12 +1063,28 @@ void try_send(Actual_Socket s)
 	    }
 	}
     }
+
+    /*
+     * If we reach here, we've finished sending everything we might
+     * have needed to send. Send EOF, if we need to.
+     */
+    if (s->outgoingeof == EOF_PENDING) {
+        shutdown(s->s, SHUT_WR);
+        s->outgoingeof = EOF_SENT;
+    }
+
+    /*
+     * Also update the select status, because we don't need to select
+     * for writing any more.
+     */
     uxsel_tell(s);
 }
 
 static int sk_tcp_write(Socket sock, const char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
+
+    assert(s->outgoingeof == EOF_NO);
 
     /*
      * Add the data to the buffer list on the socket.
@@ -1084,6 +1110,8 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
+    assert(s->outgoingeof == EOF_NO);
+
     /*
      * Replace the buffer list on the socket with the data.
      */
@@ -1105,6 +1133,30 @@ static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
     uxsel_tell(s);
 
     return s->sending_oob;
+}
+
+static void sk_tcp_write_eof(Socket sock)
+{
+    Actual_Socket s = (Actual_Socket) sock;
+
+    assert(s->outgoingeof == EOF_NO);
+
+    /*
+     * Mark the socket as pending outgoing EOF.
+     */
+    s->outgoingeof = EOF_PENDING;
+
+    /*
+     * Now try sending from the start of the buffer list.
+     */
+    if (s->writable)
+	try_send(s);
+
+    /*
+     * Update the select() status to correctly reflect whether or
+     * not we should be selecting for write.
+     */
+    uxsel_tell(s);
 }
 
 static int net_select_result(int fd, int event)
@@ -1237,6 +1289,8 @@ static int net_select_result(int fd, int event)
             if (err != 0)
                 return plug_closing(s->plug, strerror(err), err, 0);
 	} else if (0 == ret) {
+            s->incomingeof = TRUE;     /* stop trying to read now */
+            uxsel_tell(s);
 	    return plug_closing(s->plug, NULL, 0, 0);
 	} else {
             /*
@@ -1365,7 +1419,7 @@ static void uxsel_tell(Actual_Socket s)
     } else {
 	if (!s->connected)
 	    rwx |= 2;			/* write == connect */
-	if (s->connected && !s->frozen)
+	if (s->connected && !s->frozen && !s->incomingeof)
 	    rwx |= 1 | 4;		/* read, except */
 	if (bufchain_size(&s->output_data))
 	    rwx |= 2;			/* write */
