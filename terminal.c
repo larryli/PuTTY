@@ -1538,6 +1538,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->selstate = NO_SELECTION;
     term->curstype = 0;
 
+    term_copy_stuff_from_conf(term);
+
     term->screen = term->alt_screen = term->scrollback = NULL;
     term->tempsblines = 0;
     term->alt_sblines = 0;
@@ -1575,8 +1577,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->basic_erase_char.attr = ATTR_DEFAULT;
     term->basic_erase_char.cc_next = 0;
     term->erase_char = term->basic_erase_char;
-
-    term_copy_stuff_from_conf(term);
 
     return term;
 }
