@@ -850,6 +850,7 @@ struct ssh_tag {
 
     int size_needed, eof_needed;
     int sent_console_eof;
+    int got_pty;           /* affects EOF behaviour on main channel */
 
     struct Packet **queue;
     int queuelen, queuesize;
@@ -5181,9 +5182,11 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	} else if (pktin->type == SSH1_SMSG_FAILURE) {
 	    c_write_str(ssh, "Server refused to allocate pty\r\n");
 	    ssh->editing = ssh->echoing = 1;
-	}
-	logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
-		  ssh->ospeed, ssh->ispeed);
+	} else {
+            logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
+                      ssh->ospeed, ssh->ispeed);
+            ssh->got_pty = TRUE;
+        }
     } else {
 	ssh->editing = ssh->echoing = 1;
     }
@@ -6932,10 +6935,15 @@ static void ssh2_channel_got_eof(struct ssh_channel *c)
     } else if (c->type == CHAN_MAINSESSION) {
         Ssh ssh = c->ssh;
 
-        if (!ssh->sent_console_eof && from_backend_eof(ssh->frontend)) {
+        if (!ssh->sent_console_eof &&
+            (from_backend_eof(ssh->frontend) || ssh->got_pty)) {
             /*
-             * The front end wants us to close the outgoing side of the
-             * connection as soon as we see EOF from the far end.
+             * Either from_backend_eof told us that the front end
+             * wants us to close the outgoing side of the connection
+             * as soon as we see EOF from the far end, or else we've
+             * unilaterally decided to do that because we've allocated
+             * a remote pty and hence EOF isn't a particularly
+             * meaningful concept.
              */
             sshfwd_write_eof(c);
         }
@@ -9018,6 +9026,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	} else {
 	    logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
 		      ssh->ospeed, ssh->ispeed);
+            ssh->got_pty = TRUE;
 	}
     } else {
 	ssh->editing = ssh->echoing = 1;
@@ -9445,6 +9454,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->frozen = FALSE;
     ssh->username = NULL;
     ssh->sent_console_eof = FALSE;
+    ssh->got_pty = FALSE;
 
     *backend_handle = ssh;
 
