@@ -473,6 +473,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			 struct Packet *pktin);
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     struct Packet *pktin);
+static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_destroy(struct ssh_channel *c);
 
 /*
@@ -6667,6 +6668,11 @@ static int ssh2_handle_winadj_response(struct ssh_channel *c)
      */
     if (c->v.v2.throttle_state == UNTHROTTLING)
 	c->v.v2.throttle_state = UNTHROTTLED;
+    /*
+     * We may now initiate channel-closing procedures, if that winadj
+     * was the last thing outstanding before we send CHANNEL_CLOSE.
+     */
+    ssh2_channel_check_close(c);
     return TRUE;
 }
 
@@ -6888,10 +6894,12 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     struct Packet *pktout;
 
     if ((c->closes & (CLOSES_SENT_EOF | CLOSES_RCVD_EOF | CLOSES_SENT_CLOSE))
-        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF)) {
+        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF) && !c->v.v2.winadj_head) {
         /*
-         * We have both sent and received EOF, which means the channel
-         * is in final wind-up. But we haven't sent CLOSE, so let's.
+         * We have both sent and received EOF, and we have no
+         * outstanding winadj channel requests, which means the
+         * channel is in final wind-up. But we haven't sent CLOSE, so
+         * let's do so now.
          */
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
