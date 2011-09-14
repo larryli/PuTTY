@@ -88,7 +88,9 @@ while (<IN>) {
   }
   if ($_[0] eq "!forceobj") { $forceobj{$_[1]} = 1; next; }
   if ($_[0] eq "!begin") {
-      if (&mfval($_[1])) {
+      if ($_[1] =~ /^>(.*)/) {
+	  $divert = \$auxfiles{$1};
+      } elsif (&mfval($_[1])) {
           $sect = $_[2] ? $_[2] : "end";
 	  $divert = \($makefile_extra{$_[1]}->{$sect});
       } else {
@@ -144,6 +146,12 @@ while (<IN>) {
 }
 
 close IN;
+
+foreach $aux (sort keys %auxfiles) {
+    open AUX, ">$aux";
+    print AUX $auxfiles{$aux};
+    close AUX;
+}
 
 # Now retrieve the complete list of objects and resource files, and
 # construct dependency data for them. While we're here, expand the

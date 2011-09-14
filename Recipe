@@ -179,8 +179,11 @@ version.o: FORCE
 BUILT_SOURCES = empty.h
 CLEANFILES = empty.h
 empty.h: $(allsources)
-	echo '/* nothing to see here */' >$@
+	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
 
+!end
+!begin >empty.h
+/* Empty file touched by automake makefile to force rebuild of version.o */
 !end
 
 # Add VER to Windows resource targets, and force them to be rebuilt every
