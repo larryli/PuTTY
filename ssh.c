@@ -6978,6 +6978,24 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
     ssh2_channel_got_eof(c);
 
     /*
+     * And we also send an outgoing EOF, if we haven't already, on the
+     * assumption that CLOSE is a pretty forceful announcement that
+     * the remote side is doing away with the entire channel. (If it
+     * had wanted to send us EOF and continue receiving data from us,
+     * it would have just sent CHANNEL_EOF.)
+     *
+     * For the moment, this policy applies to the main session channel
+     * only, because we have a convenient mechanism (ssh->send_ok) for
+     * ceasing to read from our local data source. Ideally I think
+     * we'd do this for auxiliary channels too, which would need an
+     * extra API call in the forwarding modules.
+     */
+    if (c->type == CHAN_MAINSESSION && !(c->closes & CLOSES_SENT_EOF)) {
+        sshfwd_write_eof(ssh->mainchan);
+        ssh->send_ok = 0;          /* now stop trying to read from stdin */
+    }
+
+    /*
      * Now process the actual close.
      */
     if (!(c->closes & CLOSES_RCVD_CLOSE)) {
