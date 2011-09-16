@@ -1204,7 +1204,7 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype)
     }
 }
 
-int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
+int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
 	     char *mbstr, int mblen, char *defchr, int *defused,
 	     struct unicode_data *ucsdata)
 {
@@ -1242,7 +1242,7 @@ int wc_to_mb(int codepage, int flags, wchar_t *wcstr, int wclen,
 				   mbstr, mblen, defchr, defused);
 }
 
-int mb_to_wc(int codepage, int flags, char *mbstr, int mblen,
+int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen)
 {
     return MultiByteToWideChar(codepage, flags, mbstr, mblen, wcstr, wclen);

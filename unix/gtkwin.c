@@ -690,7 +690,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 */
 	output_charset = CS_UTF8;
 	{
-	    wchar_t widedata[32], *wp;
+	    wchar_t widedata[32];
+            const wchar_t *wp;
 	    int wlen;
 	    int ulen;
 
@@ -1638,7 +1639,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
      * if we aren't in direct-to-font mode using the D800 hack.
      */
     if (!inst->direct_to_font) {
-	wchar_t *tmp = data;
+	const wchar_t *tmp = data;
 	int tmplen = len;
 	XTextProperty tp;
 	char *list[1];
