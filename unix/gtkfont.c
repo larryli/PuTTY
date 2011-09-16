@@ -73,7 +73,7 @@ struct unifont_vtable {
 		       int shadowoffset, int shadowalways);
     void (*destroy)(unifont *font);
     void (*draw_text)(GdkDrawable *target, GdkGC *gc, unifont *font,
-		      int x, int y, const char *string, int len, int wide,
+		      int x, int y, const wchar_t *string, int len, int wide,
 		      int bold, int cellwidth);
     void (*enum_fonts)(GtkWidget *widget,
 		       fontsel_add_entry callback, void *callback_ctx);
@@ -92,7 +92,7 @@ struct unifont_vtable {
  */
 
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
-			      int x, int y, const char *string, int len,
+			      int x, int y, const wchar_t *string, int len,
 			      int wide, int bold, int cellwidth);
 static unifont *x11font_create(GtkWidget *widget, const char *name,
 			       int wide, int bold,
@@ -132,6 +132,14 @@ struct x11font {
      * positioning during text drawing.
      */
     int variable;
+    /*
+     * real_charset is the charset used when translating text into the
+     * font's internal encoding inside draw_text(). This need not be
+     * the same as the public_charset provided to the client; for
+     * example, public_charset might be CS_ISO8859_1 while
+     * real_charset is CS_ISO8859_1_X11.
+     */
+    int real_charset;
     /*
      * Data passed in to unifont_create().
      */
@@ -298,7 +306,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->u.descent = xfs->descent;
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
-    xfont->u.real_charset = realcs;
+    xfont->real_charset = realcs;
     xfont->fonts[0] = xfs;
     xfont->allocated[0] = TRUE;
     xfont->sixteen_bit = sixteen_bit;
@@ -428,7 +436,7 @@ static void x11font_really_draw_text(GdkDrawable *target, XFontStruct *xfs,
 }
 
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gdkgc, unifont *font,
-			      int x, int y, const char *string, int len,
+			      int x, int y, const wchar_t *string, int len,
 			      int wide, int bold, int cellwidth)
 {
     Display *disp = GDK_DISPLAY();
@@ -468,41 +476,33 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gdkgc, unifont *font,
     if (xfont->sixteen_bit) {
 	/*
 	 * This X font has 16-bit character indices, which means
-	 * we expect our string to have been passed in UTF-8.
+	 * we can directly use our Unicode input string.
 	 */
 	XChar2b *xcs;
-	wchar_t *wcs;
-	int nchars, maxchars, i;
+	int i;
 
-	/*
-	 * Convert the input string to wide-character Unicode.
-	 */
-	maxchars = 0;
-	for (i = 0; i < len; i++)
-	    if ((unsigned char)string[i] <= 0x7F ||
-		(unsigned char)string[i] >= 0xC0)
-		maxchars++;
-	wcs = snewn(maxchars+1, wchar_t);
-	nchars = charset_to_unicode((char **)&string, &len, wcs, maxchars,
-				    CS_UTF8, NULL, NULL, 0);
-	assert(nchars <= maxchars);
-	wcs[nchars] = L'\0';
-
-	xcs = snewn(nchars, XChar2b);
-	for (i = 0; i < nchars; i++) {
-	    xcs[i].byte1 = wcs[i] >> 8;
-	    xcs[i].byte2 = wcs[i];
+	xcs = snewn(len, XChar2b);
+	for (i = 0; i < len; i++) {
+	    xcs[i].byte1 = string[i] >> 8;
+	    xcs[i].byte2 = string[i];
 	}
 
 	x11font_really_draw_text_16(target, xfont->fonts[sfid], gc, x, y,
-                                    xcs, nchars, shadowoffset,
+                                    xcs, len, shadowoffset,
                                     xfont->variable, cellwidth * mult);
 	sfree(xcs);
-	sfree(wcs);
     } else {
+        /*
+         * This X font has 8-bit indices, so we must convert to the
+         * appropriate character set.
+         */
+        char *sbstring = snewn(len+1, char);
+        int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
+                             sbstring, len+1, ".", NULL, NULL);
 	x11font_really_draw_text(target, xfont->fonts[sfid], gc, x, y,
-				 string, len, shadowoffset,
+				 sbstring, sblen, shadowoffset,
 				 xfont->variable, cellwidth * mult);
+        sfree(sbstring);
     }
 }
 
@@ -744,7 +744,7 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 #endif
 
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
-				int x, int y, const char *string, int len,
+				int x, int y, const wchar_t *string, int len,
 				int wide, int bold, int cellwidth);
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
 				 int wide, int bold,
@@ -892,7 +892,6 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
     /* The Pango API is hardwired to UTF-8 */
     pfont->u.public_charset = CS_UTF8;
-    pfont->u.real_charset = CS_UTF8;
     pfont->desc = desc;
     pfont->fset = fset;
     pfont->widget = widget;
@@ -914,12 +913,14 @@ static void pangofont_destroy(unifont *font)
 }
 
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
-				int x, int y, const char *string, int len,
+				int x, int y, const wchar_t *string, int len,
 				int wide, int bold, int cellwidth)
 {
     struct pangofont *pfont = (struct pangofont *)font;
     PangoLayout *layout;
     PangoRectangle rect;
+    char *utfstring, *utfptr;
+    int utflen;
     int shadowbold = FALSE;
 
     if (wide)
@@ -940,7 +941,16 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	}
     }
 
-    while (len > 0) {
+    /*
+     * Pango always expects UTF-8, so convert the input wide character
+     * string to UTF-8.
+     */
+    utfstring = snewn(len*6+1, char); /* UTF-8 has max 6 bytes/char */
+    utflen = wc_to_mb(CS_UTF8, 0, string, len,
+                      utfstring, len*6+1, ".", NULL, NULL);
+
+    utfptr = utfstring;
+    while (utflen > 0) {
 	int clen, n;
 
 	/*
@@ -972,16 +982,16 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	 * string.
 	 */
 	clen = 1;
-	while (clen < len &&
-	       (unsigned char)string[clen] >= 0x80 &&
-	       (unsigned char)string[clen] < 0xC0)
+	while (clen < utflen &&
+	       (unsigned char)utfptr[clen] >= 0x80 &&
+	       (unsigned char)utfptr[clen] < 0xC0)
 	    clen++;
 	n = 1;
 
 	/*
 	 * See if that character has the width we expect.
 	 */
-	pango_layout_set_text(layout, string, clen);
+	pango_layout_set_text(layout, utfptr, clen);
 	pango_layout_get_pixel_extents(layout, NULL, &rect);
 
 	if (rect.width == cellwidth) {
@@ -989,15 +999,15 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	     * Try extracting more characters, for as long as they
 	     * stay well-behaved.
 	     */
-	    while (clen < len) {
+	    while (clen < utflen) {
 		int oldclen = clen;
 		clen++;		       /* skip UTF-8 introducer byte */
-		while (clen < len &&
-		       (unsigned char)string[clen] >= 0x80 &&
-		       (unsigned char)string[clen] < 0xC0)
+		while (clen < utflen &&
+		       (unsigned char)utfptr[clen] >= 0x80 &&
+		       (unsigned char)utfptr[clen] < 0xC0)
 		    clen++;
 		n++;
-		pango_layout_set_text(layout, string, clen);
+		pango_layout_set_text(layout, utfptr, clen);
 		pango_layout_get_pixel_extents(layout, NULL, &rect);
 		if (rect.width != n * cellwidth) {
 		    clen = oldclen;
@@ -1007,7 +1017,7 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	    }
 	}
 
-	pango_layout_set_text(layout, string, clen);
+	pango_layout_set_text(layout, utfptr, clen);
 	pango_layout_get_pixel_extents(layout, NULL, &rect);
 	gdk_draw_layout(target, gc, x + (n*cellwidth - rect.width)/2,
 			y + (pfont->u.height - rect.height)/2, layout);
@@ -1015,10 +1025,12 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	    gdk_draw_layout(target, gc, x + (n*cellwidth - rect.width)/2 + pfont->shadowoffset,
 			    y + (pfont->u.height - rect.height)/2, layout);
 
-	len -= clen;
-	string += clen;
+	utflen -= clen;
+	utfptr += clen;
 	x += n * cellwidth;
     }
+
+    sfree(utfstring);
 
     g_object_unref(layout);
 }
@@ -1358,7 +1370,7 @@ void unifont_destroy(unifont *font)
 }
 
 void unifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
-		       int x, int y, const char *string, int len,
+		       int x, int y, const wchar_t *string, int len,
 		       int wide, int bold, int cellwidth)
 {
     font->vt->draw_text(target, gc, font, x, y, string, len,
@@ -1741,11 +1753,11 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 	     */
 	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
 				       0, font->ascent,
-				       "bankrupt jilted showmen quiz convex fogey",
+				       L"bankrupt jilted showmen quiz convex fogey",
 				       41, FALSE, FALSE, font->width);
 	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
 				       0, font->ascent + font->height,
-				       "BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
+				       L"BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
 				       41, FALSE, FALSE, font->width);
 	    /*
 	     * The ordering of punctuation here is also selected
@@ -1761,7 +1773,7 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 	     */
 	    info->fontclass->draw_text(fs->preview_pixmap, gc, font,
 				       0, font->ascent + font->height * 2,
-				       "0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
+				       L"0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
 				       42, FALSE, FALSE, font->width);
 	}
 	gdk_gc_unref(gc);

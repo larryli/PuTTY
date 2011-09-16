@@ -2138,28 +2138,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 		       rlen*widefactor*inst->font_width, inst->font_height);
 
     gdk_gc_set_foreground(gc, &inst->cols[nfg]);
-    {
-	gchar *gcs;
-
-	/*
-	 * FIXME: this length is hardwired on the assumption that
-	 * conversions from wide to multibyte characters will
-	 * never generate more than 10 bytes for a single wide
-	 * character.
-	 */
-	gcs = snewn(len*10+1, gchar);
-
-	for (combining = 0; combining < ncombining; combining++) {
-	    int mblen = wc_to_mb(inst->fonts[fontid]->real_charset, 0,
-				 text + combining, len, gcs, len*10+1, ".",
-				 NULL, NULL);
-	    unifont_draw_text(inst->pixmap, gc, inst->fonts[fontid],
-			      x*inst->font_width+inst->window_border,
-			      y*inst->font_height+inst->window_border+inst->fonts[0]->ascent,
-			      gcs, mblen, widefactor > 1, bold, inst->font_width);
-	}
-
-	sfree(gcs);
+    for (combining = 0; combining < ncombining; combining++) {
+        unifont_draw_text(inst->pixmap, gc, inst->fonts[fontid],
+                          x*inst->font_width+inst->window_border,
+                          y*inst->font_height+inst->window_border+inst->fonts[0]->ascent,
+                          text + combining, len, widefactor > 1,
+                          bold, inst->font_width);
     }
 
     if (attr & ATTR_UNDER) {
