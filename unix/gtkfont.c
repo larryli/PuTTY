@@ -1114,34 +1114,42 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	    clen++;
 	n = 1;
 
-	/*
-	 * See if that character has the width we expect.
-	 */
-	pango_layout_set_text(layout, utfptr, clen);
-	pango_layout_get_pixel_extents(layout, NULL, &rect);
+        /*
+         * If it's a right-to-left character, we must display it on
+         * its own, to stop Pango helpfully re-reversing our already
+         * reversed text.
+         */
+        if (!is_rtl(string[0])) {
 
-	if (rect.width == cellwidth) {
-	    /*
-	     * Try extracting more characters, for as long as they
-	     * stay well-behaved.
-	     */
-	    while (clen < utflen) {
-		int oldclen = clen;
-		clen++;		       /* skip UTF-8 introducer byte */
-		while (clen < utflen &&
-		       (unsigned char)utfptr[clen] >= 0x80 &&
-		       (unsigned char)utfptr[clen] < 0xC0)
-		    clen++;
-		n++;
-		pango_layout_set_text(layout, utfptr, clen);
-		pango_layout_get_pixel_extents(layout, NULL, &rect);
-		if (rect.width != n * cellwidth) {
-		    clen = oldclen;
-		    n--;
-		    break;
-		}
-	    }
-	}
+            /*
+             * See if that character has the width we expect.
+             */
+            pango_layout_set_text(layout, utfptr, clen);
+            pango_layout_get_pixel_extents(layout, NULL, &rect);
+
+            if (rect.width == cellwidth) {
+                /*
+                 * Try extracting more characters, for as long as they
+                 * stay well-behaved.
+                 */
+                while (clen < utflen) {
+                    int oldclen = clen;
+                    clen++;		       /* skip UTF-8 introducer byte */
+                    while (clen < utflen &&
+                           (unsigned char)utfptr[clen] >= 0x80 &&
+                           (unsigned char)utfptr[clen] < 0xC0)
+                        clen++;
+                    n++;
+                    pango_layout_set_text(layout, utfptr, clen);
+                    pango_layout_get_pixel_extents(layout, NULL, &rect);
+                    if (rect.width != n * cellwidth) {
+                        clen = oldclen;
+                        n--;
+                        break;
+                    }
+                }
+            }
+        }
 
 	pango_layout_set_text(layout, utfptr, clen);
 	pango_layout_get_pixel_extents(layout, NULL, &rect);
@@ -1153,6 +1161,7 @@ static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 
 	utflen -= clen;
 	utfptr += clen;
+        string += n;
 	x += n * cellwidth;
     }
 
