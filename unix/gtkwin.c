@@ -2745,8 +2745,8 @@ void setup_fonts_ucs(struct gui_data *inst)
         unifont_destroy(inst->fonts[3]);
 
     fs = conf_get_fontspec(inst->conf, CONF_font);
-    inst->fonts[0] = unifont_create(inst->area, fs->name, FALSE, FALSE,
-				    shadowboldoffset, shadowbold);
+    inst->fonts[0] = multifont_create(inst->area, fs->name, FALSE, FALSE,
+                                      shadowboldoffset, shadowbold);
     if (!inst->fonts[0]) {
 	fprintf(stderr, "%s: unable to load font \"%s\"\n", appname,
 		fs->name);
@@ -2757,8 +2757,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (shadowbold || !fs->name[0]) {
 	inst->fonts[1] = NULL;
     } else {
-	inst->fonts[1] = unifont_create(inst->area, fs->name, FALSE, TRUE,
-					shadowboldoffset, shadowbold);
+	inst->fonts[1] = multifont_create(inst->area, fs->name, FALSE, TRUE,
+                                          shadowboldoffset, shadowbold);
 	if (!inst->fonts[1]) {
 	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
 		    fs->name);
@@ -2768,8 +2768,8 @@ void setup_fonts_ucs(struct gui_data *inst)
 
     fs = conf_get_fontspec(inst->conf, CONF_widefont);
     if (fs->name[0]) {
-	inst->fonts[2] = unifont_create(inst->area, fs->name, TRUE, FALSE,
-					shadowboldoffset, shadowbold);
+	inst->fonts[2] = multifont_create(inst->area, fs->name, TRUE, FALSE,
+                                          shadowboldoffset, shadowbold);
 	if (!inst->fonts[2]) {
 	    fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
 		    fs->name);
@@ -2783,8 +2783,8 @@ void setup_fonts_ucs(struct gui_data *inst)
     if (shadowbold || !fs->name[0]) {
 	inst->fonts[3] = NULL;
     } else {
-	inst->fonts[3] = unifont_create(inst->area, fs->name, TRUE, TRUE,
-					shadowboldoffset, shadowbold);
+	inst->fonts[3] = multifont_create(inst->area, fs->name, TRUE, TRUE,
+                                          shadowboldoffset, shadowbold);
 	if (!inst->fonts[3]) {
 	    fprintf(stderr, "%s: unable to load wide bold font \"%s\"\n", appname,
 		    fs->name);

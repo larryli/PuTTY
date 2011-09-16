@@ -71,7 +71,10 @@ struct unifont_vtable {
      */
     unifont *(*create)(GtkWidget *widget, const char *name, int wide, int bold,
 		       int shadowoffset, int shadowalways);
+    unifont *(*create_fallback)(GtkWidget *widget, int height, int wide,
+                                int bold, int shadowoffset, int shadowalways);
     void (*destroy)(unifont *font);
+    int (*has_glyph)(unifont *font, wchar_t glyph);
     void (*draw_text)(GdkDrawable *target, GdkGC *gc, unifont *font,
 		      int x, int y, const wchar_t *string, int len, int wide,
 		      int bold, int cellwidth);
@@ -91,6 +94,7 @@ struct unifont_vtable {
  * X11 font implementation, directly using Xlib calls.
  */
 
+static int x11font_has_glyph(unifont *font, wchar_t glyph);
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 			      int x, int y, const wchar_t *string, int len,
 			      int wide, int bold, int cellwidth);
@@ -148,7 +152,9 @@ struct x11font {
 
 static const struct unifont_vtable x11font_vtable = {
     x11font_create,
+    NULL,                              /* no fallback fonts in X11 */
     x11font_destroy,
+    x11font_has_glyph,
     x11font_draw_text,
     x11font_enum_fonts,
     x11font_canonify_fontname,
@@ -219,6 +225,65 @@ static int x11_font_width(XFontStruct *xfs, int sixteen_bit)
     }
 }
 
+static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
+{
+    int index;
+
+    /*
+     * Not to be confused with x11font_has_glyph, which is a method of
+     * the x11font 'class' and hence takes a unifont as argument. This
+     * is the low-level function which grubs about in an actual
+     * XFontStruct to see if a given glyph exists.
+     *
+     * We must do this ourselves rather than letting Xlib's
+     * XTextExtents16 do the job, because XTextExtents will helpfully
+     * substitute the font's default_char for any missing glyph and
+     * not tell us it did so, which precisely won't help us find out
+     * which glyphs _are_ missing.
+     *
+     * The man page for XQueryFont is rather confusing about how the
+     * per_char array in the XFontStruct is laid out, because it gives
+     * formulae for determining the two-byte X character code _from_
+     * an index into the per_char array. Going the other way, it's
+     * rather simpler:
+     *
+     * The valid character codes have byte1 between min_byte1 and
+     * max_byte1 inclusive, and byte2 between min_char_or_byte2 and
+     * max_char_or_byte2 inclusive. This gives a rectangle of size
+     * (max_byte2-min_byte1+1) by
+     * (max_char_or_byte2-min_char_or_byte2+1), which is precisely the
+     * rectangle encoded in the per_char array. Hence, given a
+     * character code which is valid in the sense that it falls
+     * somewhere in that rectangle, its index in per_char is given by
+     * setting
+     *
+     *   x = byte2 - min_char_or_byte2
+     *   y = byte1 - min_byte1
+     *   index = y * (max_char_or_byte2-min_char_or_byte2+1) + x
+     *
+     * If min_byte1 and min_byte2 are both zero, that's a special case
+     * which can be treated as if min_byte2 was 1 instead, i.e. the
+     * per_char array just runs from min_char_or_byte2 to
+     * max_char_or_byte2 inclusive, and byte1 should always be zero.
+     */
+
+    if (byte2 < xfs->min_char_or_byte2 || byte2 > xfs->max_char_or_byte2)
+        return FALSE;
+
+    if (xfs->min_byte1 == 0 && xfs->max_byte1 == 0) {
+        index = byte2 - xfs->min_char_or_byte2;
+    } else {
+        if (byte1 < xfs->min_byte1 || byte1 > xfs->max_byte1)
+            return FALSE;
+        index = ((byte2 - xfs->min_char_or_byte2) +
+                 ((byte1 - xfs->min_byte1) *
+                  (xfs->max_char_or_byte2 - xfs->min_char_or_byte2 + 1)));
+    }
+
+    return (xfs->per_char[index].ascent + xfs->per_char[index].descent > 0 ||
+            xfs->per_char[index].width > 0);
+}
+
 static unifont *x11font_create(GtkWidget *widget, const char *name,
 			       int wide, int bold,
 			       int shadowoffset, int shadowalways)
@@ -263,28 +328,19 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 	    }
 
 	    /*
-	     * Hack for X line-drawing characters: if the primary
-	     * font is encoded as ISO-8859-1, and has valid glyphs
-	     * in the first 32 char positions, it is assumed that
-	     * those glyphs are the VT100 line-drawing character
-	     * set.
-	     * 
-	     * Actually, we'll hack even harder by only checking
-	     * position 0x19 (vertical line, VT100 linedrawing
-	     * `x'). Then we can check it easily by seeing if the
-	     * ascent and descent differ.
+	     * Hack for X line-drawing characters: if the primary font
+	     * is encoded as ISO-8859-1, and has valid glyphs in the
+	     * low character positions, it is assumed that those
+	     * glyphs are the VT100 line-drawing character set.
 	     */
 	    if (pubcs == CS_ISO8859_1) {
-		int dir, asc, desc;
-                XCharStruct cs;
-		XChar2b text;
-
-		text.byte1 = '\0';
-		text.byte2 = '\x12';
-                XTextExtents16(xfs, &text, 1, &dir, &asc, &desc, &cs);
-                if (asc != desc)
-		    realcs = CS_ISO8859_1_X11;
-	    }
+                int ch;
+                for (ch = 1; ch < 32; ch++)
+                    if (!x11_font_has_glyph(xfs, 0, ch))
+                        break;
+                if (ch == 32)
+                    realcs = CS_ISO8859_1_X11;
+            }
 
 	    sfree(encoding);
 	}
@@ -306,6 +362,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->u.descent = xfs->descent;
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
+    xfont->u.want_fallback = TRUE;
     xfont->real_charset = realcs;
     xfont->fonts[0] = xfs;
     xfont->allocated[0] = TRUE;
@@ -345,6 +402,31 @@ static void x11_alloc_subfont(struct x11font *xfont, int sfid)
     xfont->allocated[sfid] = TRUE;
     sfree(derived_name);
     /* Note that xfont->fonts[sfid] may still be NULL, if XLQF failed. */
+}
+
+static int x11font_has_glyph(unifont *font, wchar_t glyph)
+{
+    struct x11font *xfont = (struct x11font *)font;
+
+    if (xfont->sixteen_bit) {
+	/*
+	 * This X font has 16-bit character indices, which means
+	 * we can directly use our Unicode input value.
+	 */
+        return x11_font_has_glyph(xfont->fonts[0], glyph >> 8, glyph & 0xFF);
+    } else {
+        /*
+         * This X font has 8-bit indices, so we must convert to the
+         * appropriate character set.
+         */
+        char sbstring[2];
+        int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
+                             sbstring, 2, "", NULL, NULL);
+        if (!sbstring[0])
+            return FALSE;              /* not even in the charset */
+
+        return x11_font_has_glyph(xfont->fonts[0], 0, sbstring[0]);
+    }
 }
 
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -743,12 +825,16 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 #define PANGO_PRE_1POINT6	       /* make life easier for pre-1.4 folk */
 #endif
 
+static int pangofont_has_glyph(unifont *font, wchar_t glyph);
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 				int x, int y, const wchar_t *string, int len,
 				int wide, int bold, int cellwidth);
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
 				 int wide, int bold,
 				 int shadowoffset, int shadowalways);
+static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
+                                          int wide, int bold,
+                                          int shadowoffset, int shadowalways);
 static void pangofont_destroy(unifont *font);
 static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 				 void *callback_ctx);
@@ -777,7 +863,9 @@ struct pangofont {
 
 static const struct unifont_vtable pangofont_vtable = {
     pangofont_create,
+    pangofont_create_fallback,
     pangofont_destroy,
+    pangofont_has_glyph,
     pangofont_draw_text,
     pangofont_enum_fonts,
     pangofont_canonify_fontname,
@@ -834,31 +922,19 @@ static int pangofont_check_desc_makes_sense(PangoContext *ctx,
     return matched;
 }
 
-static unifont *pangofont_create(GtkWidget *widget, const char *name,
-				 int wide, int bold,
-				 int shadowoffset, int shadowalways)
+static unifont *pangofont_create_internal(GtkWidget *widget,
+                                          PangoContext *ctx,
+                                          PangoFontDescription *desc,
+                                          int wide, int bold,
+                                          int shadowoffset, int shadowalways)
 {
     struct pangofont *pfont;
-    PangoContext *ctx;
 #ifndef PANGO_PRE_1POINT6
     PangoFontMap *map;
 #endif
-    PangoFontDescription *desc;
     PangoFontset *fset;
     PangoFontMetrics *metrics;
 
-    desc = pango_font_description_from_string(name);
-    if (!desc)
-	return NULL;
-    ctx = gtk_widget_get_pango_context(widget);
-    if (!ctx) {
-	pango_font_description_free(desc);
-	return NULL;
-    }
-    if (!pangofont_check_desc_makes_sense(ctx, desc)) {
-	pango_font_description_free(desc);
-	return NULL;
-    }
 #ifndef PANGO_PRE_1POINT6
     map = pango_context_get_font_map(ctx);
     if (!map) {
@@ -890,6 +966,7 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
     pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
     pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
+    pfont->u.want_fallback = FALSE;
     /* The Pango API is hardwired to UTF-8 */
     pfont->u.public_charset = CS_UTF8;
     pfont->desc = desc;
@@ -904,12 +981,61 @@ static unifont *pangofont_create(GtkWidget *widget, const char *name,
     return (unifont *)pfont;
 }
 
+static unifont *pangofont_create(GtkWidget *widget, const char *name,
+				 int wide, int bold,
+				 int shadowoffset, int shadowalways)
+{
+    PangoContext *ctx;
+    PangoFontDescription *desc;
+
+    desc = pango_font_description_from_string(name);
+    if (!desc)
+	return NULL;
+    ctx = gtk_widget_get_pango_context(widget);
+    if (!ctx) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    if (!pangofont_check_desc_makes_sense(ctx, desc)) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    return pangofont_create_internal(widget, ctx, desc, wide, bold,
+                                     shadowoffset, shadowalways);
+}
+
+static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
+                                          int wide, int bold,
+                                          int shadowoffset, int shadowalways)
+{
+    PangoContext *ctx;
+    PangoFontDescription *desc;
+
+    desc = pango_font_description_from_string("Monospace");
+    if (!desc)
+	return NULL;
+    ctx = gtk_widget_get_pango_context(widget);
+    if (!ctx) {
+	pango_font_description_free(desc);
+	return NULL;
+    }
+    pango_font_description_set_absolute_size(desc, height * PANGO_SCALE);
+    return pangofont_create_internal(widget, ctx, desc, wide, bold,
+                                     shadowoffset, shadowalways);
+}
+
 static void pangofont_destroy(unifont *font)
 {
     struct pangofont *pfont = (struct pangofont *)font;
     pango_font_description_free(pfont->desc);
     g_object_unref(pfont->fset);
     sfree(font);
+}
+
+static int pangofont_has_glyph(unifont *font, wchar_t glyph)
+{
+    /* Pango implements font fallback, so assume it has everything */
+    return TRUE;
 }
 
 static void pangofont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
@@ -1294,6 +1420,8 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
  * event that the same font name is valid as both a Pango and an
  * X11 font, it will be interpreted as the former in the absence
  * of an explicit type-disambiguating prefix.)
+ *
+ * The 'multifont' subclass is omitted here, as discussed above.
  */
 static const struct unifont_vtable *unifont_types[] = {
 #if GTK_CHECK_VERSION(2,0,0)
@@ -1375,6 +1503,123 @@ void unifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 {
     font->vt->draw_text(target, gc, font, x, y, string, len,
 			wide, bold, cellwidth);
+}
+
+/* ----------------------------------------------------------------------
+ * Multiple-font wrapper. This is a type of unifont which encapsulates
+ * up to two other unifonts, permitting missing glyphs in the main
+ * font to be filled in by a fallback font.
+ *
+ * This is a type of unifont just like the previous two, but it has a
+ * separate constructor which is manually called by the client, so it
+ * doesn't appear in the list of available font types enumerated by
+ * unifont_create. This means it's not used by unifontsel either, so
+ * it doesn't need to support any methods except draw_text and
+ * destroy.
+ */
+
+static void multifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
+				int x, int y, const wchar_t *string, int len,
+				int wide, int bold, int cellwidth);
+static void multifont_destroy(unifont *font);
+
+struct multifont {
+    struct unifont u;
+    unifont *main;
+    unifont *fallback;
+};
+
+static const struct unifont_vtable multifont_vtable = {
+    NULL,                             /* creation is done specially */
+    NULL,
+    multifont_destroy,
+    NULL,
+    multifont_draw_text,
+    NULL,
+    NULL,
+    NULL,
+    "client",
+};
+
+unifont *multifont_create(GtkWidget *widget, const char *name,
+                          int wide, int bold,
+                          int shadowoffset, int shadowalways)
+{
+    int i;
+    unifont *font, *fallback;
+    struct multifont *mfont;
+
+    font = unifont_create(widget, name, wide, bold,
+                          shadowoffset, shadowalways);
+    if (!font)
+        return NULL;
+
+    if (font->want_fallback) {
+	for (i = 0; i < lenof(unifont_types); i++) {
+            if (unifont_types[i]->create_fallback) {
+                fallback = unifont_types[i]->create_fallback
+                    (widget, font->height, wide, bold,
+                     shadowoffset, shadowalways);
+                if (fallback)
+                    break;
+            }
+        }
+    }
+
+    /*
+     * Construct our multifont. Public members are all copied from the
+     * primary font we're wrapping.
+     */
+    mfont = snew(struct multifont);
+    mfont->u.vt = &multifont_vtable;
+    mfont->u.width = font->width;
+    mfont->u.ascent = font->ascent;
+    mfont->u.descent = font->descent;
+    mfont->u.height = font->height;
+    mfont->u.public_charset = font->public_charset;
+    mfont->u.want_fallback = FALSE; /* shouldn't be needed, but just in case */
+    mfont->main = font;
+    mfont->fallback = fallback;
+
+    return (unifont *)mfont;
+}
+
+static void multifont_destroy(unifont *font)
+{
+    struct multifont *mfont = (struct multifont *)font;
+    unifont_destroy(mfont->main);
+    if (mfont->fallback)
+        unifont_destroy(mfont->fallback);
+    sfree(font);
+}
+
+static void multifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
+				int x, int y, const wchar_t *string, int len,
+				int wide, int bold, int cellwidth)
+{
+    struct multifont *mfont = (struct multifont *)font;
+    int ok, i;
+
+    while (len > 0) {
+        /*
+         * Find a maximal sequence of characters which are, or are
+         * not, supported by our main font.
+         */
+        ok = mfont->main->vt->has_glyph(mfont->main, string[0]);
+        for (i = 1;
+             i < len &&
+             !mfont->main->vt->has_glyph(mfont->main, string[i]) == !ok;
+             i++);
+
+        /*
+         * Now display it.
+         */
+        unifont_draw_text(target, gc, ok ? mfont->main : mfont->fallback,
+                          x, y, string, i, wide, bold, cellwidth);
+        string += i;
+        len -= i;
+        x += i * cellwidth;
+    }
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
