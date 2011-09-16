@@ -30,12 +30,6 @@
  *    and in particular whether it's client- or server-side,
  *    during the progress of the font selector.
  * 
- *  - all the GDK font functions used in the x11font subclass are
- *    deprecated, so one day they may go away. When this happens -
- *    or before, if I'm feeling proactive - it oughtn't to be too
- *    difficult in principle to convert the whole thing to use
- *    actual Xlib font calls.
- * 
  *  - it would be nice if we could move the processing of
  *    underline and VT100 double width into this module, so that
  *    instead of using the ghastly pixmap-stretching technique
@@ -94,7 +88,7 @@ struct unifont_vtable {
 };
 
 /* ----------------------------------------------------------------------
- * GDK-based X11 font implementation.
+ * X11 font implementation, directly using Xlib calls.
  */
 
 static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
@@ -124,12 +118,12 @@ struct x11font {
      * failed, so that we don't keep trying and failing
      * subsequently).
      */
-    GdkFont *fonts[4];
+    XFontStruct *fonts[4];
     int allocated[4];
     /*
      * `sixteen_bit' is true iff the font object is indexed by
      * values larger than a byte. That is, this flag tells us
-     * whether we use gdk_draw_text_wc() or gdk_draw_text().
+     * whether we use XDrawString or XDrawString16, etc.
      */
     int sixteen_bit;
     /*
@@ -154,10 +148,9 @@ static const struct unifont_vtable x11font_vtable = {
     "server",
 };
 
-char *x11_guess_derived_font_name(GdkFont *font, int bold, int wide)
+static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
 {
-    XFontStruct *xfs = GDK_FONT_XFONT(font);
-    Display *disp = GDK_FONT_XDISPLAY(font);
+    Display *disp = GDK_DISPLAY();
     Atom fontprop = XInternAtom(disp, "FONT", False);
     unsigned long ret;
     if (XGetFontProperty(xfs, fontprop, &ret)) {
@@ -206,15 +199,15 @@ char *x11_guess_derived_font_name(GdkFont *font, int bold, int wide)
     return NULL;
 }
 
-static int x11_font_width(GdkFont *font, int sixteen_bit)
+static int x11_font_width(XFontStruct *xfs, int sixteen_bit)
 {
     if (sixteen_bit) {
 	XChar2b space;
 	space.byte1 = 0;
 	space.byte2 = '0';
-	return gdk_text_width(font, (const gchar *)&space, 2);
+	return XTextWidth16(xfs, &space, 1);
     } else {
-	return gdk_char_width(font, '0');
+	return XTextWidth(xfs, "0", 1);
     }
 }
 
@@ -223,20 +216,16 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 			       int shadowoffset, int shadowalways)
 {
     struct x11font *xfont;
-    GdkFont *font;
     XFontStruct *xfs;
-    Display *disp;
+    Display *disp = GDK_DISPLAY();
     Atom charset_registry, charset_encoding, spacing;
     unsigned long registry_ret, encoding_ret, spacing_ret;
     int pubcs, realcs, sixteen_bit, variable;
     int i;
 
-    font = gdk_font_load(name);
-    if (!font)
+    xfs = XLoadQueryFont(disp, name);
+    if (!xfs)
 	return NULL;
-
-    xfs = GDK_FONT_XFONT(font);
-    disp = GDK_FONT_XDISPLAY(font);
 
     charset_registry = XInternAtom(disp, "CHARSET_REGISTRY", False);
     charset_encoding = XInternAtom(disp, "CHARSET_ENCODING", False);
@@ -278,13 +267,14 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 	     * ascent and descent differ.
 	     */
 	    if (pubcs == CS_ISO8859_1) {
-		int lb, rb, wid, asc, desc;
-		gchar text[2];
+		int dir, asc, desc;
+                XCharStruct cs;
+		XChar2b text;
 
-		text[1] = '\0';
-		text[0] = '\x12';
-		gdk_string_extents(font, text, &lb, &rb, &wid, &asc, &desc);
-		if (asc != desc)
+		text.byte1 = '\0';
+		text.byte2 = '\x12';
+                XTextExtents16(xfs, &text, 1, &dir, &asc, &desc, &cs);
+                if (asc != desc)
 		    realcs = CS_ISO8859_1_X11;
 	    }
 
@@ -303,13 +293,13 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 
     xfont = snew(struct x11font);
     xfont->u.vt = &x11font_vtable;
-    xfont->u.width = x11_font_width(font, sixteen_bit);
-    xfont->u.ascent = font->ascent;
-    xfont->u.descent = font->descent;
+    xfont->u.width = x11_font_width(xfs, sixteen_bit);
+    xfont->u.ascent = xfs->ascent;
+    xfont->u.descent = xfs->descent;
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
     xfont->u.real_charset = realcs;
-    xfont->fonts[0] = font;
+    xfont->fonts[0] = xfs;
     xfont->allocated[0] = TRUE;
     xfont->sixteen_bit = sixteen_bit;
     xfont->variable = variable;
@@ -328,63 +318,124 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 
 static void x11font_destroy(unifont *font)
 {
+    Display *disp = GDK_DISPLAY();
     struct x11font *xfont = (struct x11font *)font;
     int i;
 
     for (i = 0; i < lenof(xfont->fonts); i++)
 	if (xfont->fonts[i])
-	    gdk_font_unref(xfont->fonts[i]);
+	    XFreeFont(disp, xfont->fonts[i]);
     sfree(font);
 }
 
 static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 {
+    Display *disp = GDK_DISPLAY();
     char *derived_name = x11_guess_derived_font_name
 	(xfont->fonts[0], sfid & 1, !!(sfid & 2));
-    xfont->fonts[sfid] = gdk_font_load(derived_name);   /* may be NULL */
+    xfont->fonts[sfid] = XLoadQueryFont(disp, derived_name);
     xfont->allocated[sfid] = TRUE;
     sfree(derived_name);
+    /* Note that xfont->fonts[sfid] may still be NULL, if XLQF failed. */
 }
 
-static void x11font_really_draw_text(GdkDrawable *target, GdkFont *font,
-				     GdkGC *gc, int x, int y,
-				     const gchar *string, int clen, int nchars,
-				     int shadowbold, int shadowoffset,
-				     int fontvariable, int cellwidth)
+#if !GTK_CHECK_VERSION(2,0,0)
+#define GDK_DRAWABLE_XID(d) GDK_WINDOW_XWINDOW(d) /* GTK1's name for this */
+#endif
+
+static void x11font_really_draw_text_16(GdkDrawable *target, XFontStruct *xfs,
+                                        GC gc, int x, int y,
+                                        const XChar2b *string, int nchars,
+                                        int shadowoffset,
+                                        int fontvariable, int cellwidth)
 {
-    int step = clen * nchars, nsteps = 1, centre = FALSE;
+    Display *disp = GDK_DISPLAY();
+    int step, nsteps, centre;
 
     if (fontvariable) {
 	/*
 	 * In a variable-pitch font, we draw one character at a
 	 * time, and centre it in the character cell.
 	 */
-	step = clen;
+	step = 1;
 	nsteps = nchars;
 	centre = TRUE;
+    } else {
+        /*
+         * In a fixed-pitch font, we can draw the whole lot in one go.
+         */
+        step = nchars;
+        nsteps = 1;
+        centre = FALSE;
     }
 
     while (nsteps-- > 0) {
 	int X = x;
 	if (centre)
-	    X += (cellwidth - gdk_text_width(font, string, step)) / 2;
+	    X += (cellwidth - XTextWidth16(xfs, string, step)) / 2;
 
-	gdk_draw_text(target, font, gc, X, y, string, step);
-	if (shadowbold)
-	    gdk_draw_text(target, font, gc, X + shadowoffset, y, string, step);
+        XDrawString16(disp, GDK_DRAWABLE_XID(target), gc,
+                      X, y, string, step);
+	if (shadowoffset)
+            XDrawString16(disp, GDK_DRAWABLE_XID(target), gc,
+                          X + shadowoffset, y, string, step);
 
 	x += cellwidth;
 	string += step;
     }
 }
 
-static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
+static void x11font_really_draw_text(GdkDrawable *target, XFontStruct *xfs,
+                                     GC gc, int x, int y,
+                                     const char *string, int nchars,
+                                     int shadowoffset,
+                                     int fontvariable, int cellwidth)
+{
+    Display *disp = GDK_DISPLAY();
+    int step, nsteps, centre;
+
+    if (fontvariable) {
+	/*
+	 * In a variable-pitch font, we draw one character at a
+	 * time, and centre it in the character cell.
+	 */
+	step = 1;
+	nsteps = nchars;
+	centre = TRUE;
+    } else {
+        /*
+         * In a fixed-pitch font, we can draw the whole lot in one go.
+         */
+        step = nchars;
+        nsteps = 1;
+        centre = FALSE;
+    }
+
+    while (nsteps-- > 0) {
+	int X = x;
+	if (centre)
+	    X += (cellwidth - XTextWidth(xfs, string, step)) / 2;
+
+        XDrawString(disp, GDK_DRAWABLE_XID(target), gc,
+                    X, y, string, step);
+	if (shadowoffset)
+            XDrawString(disp, GDK_DRAWABLE_XID(target), gc,
+                        X + shadowoffset, y, string, step);
+
+	x += cellwidth;
+	string += step;
+    }
+}
+
+static void x11font_draw_text(GdkDrawable *target, GdkGC *gdkgc, unifont *font,
 			      int x, int y, const char *string, int len,
 			      int wide, int bold, int cellwidth)
 {
+    Display *disp = GDK_DISPLAY();
     struct x11font *xfont = (struct x11font *)font;
+    GC gc = GDK_GC_XGC(gdkgc);
     int sfid;
-    int shadowbold = FALSE;
+    int shadowoffset = 0;
     int mult = (wide ? 2 : 1);
 
     wide -= xfont->wide;
@@ -395,7 +446,7 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
      * use shadow bold.
      */
     if (xfont->shadowalways && bold) {
-	shadowbold = TRUE;
+	shadowoffset = xfont->shadowoffset;
 	bold = 0;
     }
     sfid = 2 * wide + bold;
@@ -403,7 +454,7 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	x11_alloc_subfont(xfont, sfid);
     if (bold && !xfont->fonts[sfid]) {
 	bold = 0;
-	shadowbold = TRUE;
+	shadowoffset = xfont->shadowoffset;
 	sfid = 2 * wide + bold;
 	if (!xfont->allocated[sfid])
 	    x11_alloc_subfont(xfont, sfid);
@@ -411,6 +462,8 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 
     if (!xfont->fonts[sfid])
 	return;			       /* we've tried our best, but no luck */
+
+    XSetFont(disp, gc, xfont->fonts[sfid]->fid);
 
     if (xfont->sixteen_bit) {
 	/*
@@ -441,16 +494,14 @@ static void x11font_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 	    xcs[i].byte2 = wcs[i];
 	}
 
-	x11font_really_draw_text(target, xfont->fonts[sfid], gc, x, y,
-				 (gchar *)xcs, 2, nchars,
-				 shadowbold, xfont->shadowoffset,
- 				 xfont->variable, cellwidth * mult);
+	x11font_really_draw_text_16(target, xfont->fonts[sfid], gc, x, y,
+                                    xcs, nchars, shadowoffset,
+                                    xfont->variable, cellwidth * mult);
 	sfree(xcs);
 	sfree(wcs);
     } else {
 	x11font_really_draw_text(target, xfont->fonts[sfid], gc, x, y,
-				 string, 1, len,
-				 shadowbold, xfont->shadowoffset,
+				 string, len, shadowoffset,
 				 xfont->variable, cellwidth * mult);
     }
 }
@@ -638,19 +689,16 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
      * _aliases_, unless specifically asked to, because the font
      * selector treats them as worthwhile in their own right.
      */
-    GdkFont *font = gdk_font_load(name);
     XFontStruct *xfs;
-    Display *disp;
+    Display *disp = GDK_DISPLAY();
     Atom fontprop, fontprop2;
     unsigned long ret;
 
-    if (!font)
+    xfs = XLoadQueryFont(disp, name);
+
+    if (!xfs)
 	return NULL;		       /* didn't make sense to us, sorry */
 
-    gdk_font_ref(font);
-
-    xfs = GDK_FONT_XFONT(font);
-    disp = GDK_FONT_XDISPLAY(font);
     fontprop = XInternAtom(disp, "FONT", False);
 
     if (XGetFontProperty(xfs, fontprop, &ret)) {
@@ -661,7 +709,7 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
 	    fontprop2 = XInternAtom(disp, "PIXEL_SIZE", False);
 	    if (XGetFontProperty(xfs, fontprop2, &fsize) && fsize > 0) {
 		*size = fsize;
-		gdk_font_unref(font);
+                XFreeFont(disp, xfs);
 		if (flags) {
 		    if (name[0] == '-' || resolve_aliases)
 			*flags = FONTFLAG_SERVERSIDE;
@@ -674,7 +722,8 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
 	}
     }
 
-    gdk_font_unref(font);
+    XFreeFont(disp, xfs);
+
     return NULL;		       /* something went wrong */
 }
 
