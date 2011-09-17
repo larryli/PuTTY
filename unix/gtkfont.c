@@ -425,7 +425,8 @@ static int x11font_has_glyph(unifont *font, wchar_t glyph)
         if (!sbstring[0])
             return FALSE;              /* not even in the charset */
 
-        return x11_font_has_glyph(xfont->fonts[0], 0, sbstring[0]);
+        return x11_font_has_glyph(xfont->fonts[0], 0,
+                                  (unsigned char)sbstring[0]);
     }
 }
 
