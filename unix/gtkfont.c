@@ -280,6 +280,9 @@ static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
                   (xfs->max_char_or_byte2 - xfs->min_char_or_byte2 + 1)));
     }
 
+    if (!xfs->per_char)   /* per_char NULL => everything in range exists */
+        return TRUE;
+
     return (xfs->per_char[index].ascent + xfs->per_char[index].descent > 0 ||
             xfs->per_char[index].width > 0);
 }
