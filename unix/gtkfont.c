@@ -1567,6 +1567,7 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     if (!font)
         return NULL;
 
+    fallback = NULL;
     if (font->want_fallback) {
 	for (i = 0; i < lenof(unifont_types); i++) {
             if (unifont_types[i]->create_fallback) {
