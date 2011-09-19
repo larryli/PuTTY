@@ -167,8 +167,8 @@ static tree234 *ptys_by_pid = NULL;
 static Pty single_pty = NULL;
 
 #ifndef OMIT_UTMP
-static pid_t pty_utmp_helper_pid;
-static int pty_utmp_helper_pipe;
+static pid_t pty_utmp_helper_pid = -1;
+static int pty_utmp_helper_pipe = -1;
 static int pty_stamped_utmp;
 static struct utmpx utmp_entry;
 #endif
@@ -408,106 +408,106 @@ void pty_pre_init(void)
 
     if (geteuid() != getuid() || getegid() != getgid()) {
 	pty_open_master(pty);
-    }
 
 #ifndef OMIT_UTMP
-    /*
-     * Fork off the utmp helper.
-     */
-    if (pipe(pipefd) < 0) {
-	perror("pterm: pipe");
-	exit(1);
-    }
-    cloexec(pipefd[0]);
-    cloexec(pipefd[1]);
-    pid = fork();
-    if (pid < 0) {
-	perror("pterm: fork");
-	exit(1);
-    } else if (pid == 0) {
-	char display[128], buffer[128];
-	int dlen, ret;
+        /*
+         * Fork off the utmp helper.
+         */
+        if (pipe(pipefd) < 0) {
+            perror("pterm: pipe");
+            exit(1);
+        }
+        cloexec(pipefd[0]);
+        cloexec(pipefd[1]);
+        pid = fork();
+        if (pid < 0) {
+            perror("pterm: fork");
+            exit(1);
+        } else if (pid == 0) {
+            char display[128], buffer[128];
+            int dlen, ret;
 
-	close(pipefd[1]);
-	/*
-	 * Now sit here until we receive a display name from the
-	 * other end of the pipe, and then stamp utmp. Unstamp utmp
-	 * again, and exit, when the pipe closes.
-	 */
+            close(pipefd[1]);
+            /*
+             * Now sit here until we receive a display name from the
+             * other end of the pipe, and then stamp utmp. Unstamp utmp
+             * again, and exit, when the pipe closes.
+             */
 
-	dlen = 0;
-	while (1) {
+            dlen = 0;
+            while (1) {
 	    
-	    ret = read(pipefd[0], buffer, lenof(buffer));
-	    if (ret <= 0) {
-		cleanup_utmp();
-		_exit(0);
-	    } else if (!pty_stamped_utmp) {
-		if (dlen < lenof(display))
-		    memcpy(display+dlen, buffer,
-			   min(ret, lenof(display)-dlen));
-		if (buffer[ret-1] == '\0') {
-		    /*
-		     * Now we have a display name. NUL-terminate
-		     * it, and stamp utmp.
-		     */
-		    display[lenof(display)-1] = '\0';
-		    /*
-		     * Trap as many fatal signals as we can in the
-		     * hope of having the best possible chance to
-		     * clean up utmp before termination. We are
-		     * unfortunately unprotected against SIGKILL,
-		     * but that's life.
-		     */
-		    putty_signal(SIGHUP, fatal_sig_handler);
-		    putty_signal(SIGINT, fatal_sig_handler);
-		    putty_signal(SIGQUIT, fatal_sig_handler);
-		    putty_signal(SIGILL, fatal_sig_handler);
-		    putty_signal(SIGABRT, fatal_sig_handler);
-		    putty_signal(SIGFPE, fatal_sig_handler);
-		    putty_signal(SIGPIPE, fatal_sig_handler);
-		    putty_signal(SIGALRM, fatal_sig_handler);
-		    putty_signal(SIGTERM, fatal_sig_handler);
-		    putty_signal(SIGSEGV, fatal_sig_handler);
-		    putty_signal(SIGUSR1, fatal_sig_handler);
-		    putty_signal(SIGUSR2, fatal_sig_handler);
+                ret = read(pipefd[0], buffer, lenof(buffer));
+                if (ret <= 0) {
+                    cleanup_utmp();
+                    _exit(0);
+                } else if (!pty_stamped_utmp) {
+                    if (dlen < lenof(display))
+                        memcpy(display+dlen, buffer,
+                               min(ret, lenof(display)-dlen));
+                    if (buffer[ret-1] == '\0') {
+                        /*
+                         * Now we have a display name. NUL-terminate
+                         * it, and stamp utmp.
+                         */
+                        display[lenof(display)-1] = '\0';
+                        /*
+                         * Trap as many fatal signals as we can in the
+                         * hope of having the best possible chance to
+                         * clean up utmp before termination. We are
+                         * unfortunately unprotected against SIGKILL,
+                         * but that's life.
+                         */
+                        putty_signal(SIGHUP, fatal_sig_handler);
+                        putty_signal(SIGINT, fatal_sig_handler);
+                        putty_signal(SIGQUIT, fatal_sig_handler);
+                        putty_signal(SIGILL, fatal_sig_handler);
+                        putty_signal(SIGABRT, fatal_sig_handler);
+                        putty_signal(SIGFPE, fatal_sig_handler);
+                        putty_signal(SIGPIPE, fatal_sig_handler);
+                        putty_signal(SIGALRM, fatal_sig_handler);
+                        putty_signal(SIGTERM, fatal_sig_handler);
+                        putty_signal(SIGSEGV, fatal_sig_handler);
+                        putty_signal(SIGUSR1, fatal_sig_handler);
+                        putty_signal(SIGUSR2, fatal_sig_handler);
 #ifdef SIGBUS
-		    putty_signal(SIGBUS, fatal_sig_handler);
+                        putty_signal(SIGBUS, fatal_sig_handler);
 #endif
 #ifdef SIGPOLL
-		    putty_signal(SIGPOLL, fatal_sig_handler);
+                        putty_signal(SIGPOLL, fatal_sig_handler);
 #endif
 #ifdef SIGPROF
-		    putty_signal(SIGPROF, fatal_sig_handler);
+                        putty_signal(SIGPROF, fatal_sig_handler);
 #endif
 #ifdef SIGSYS
-		    putty_signal(SIGSYS, fatal_sig_handler);
+                        putty_signal(SIGSYS, fatal_sig_handler);
 #endif
 #ifdef SIGTRAP
-		    putty_signal(SIGTRAP, fatal_sig_handler);
+                        putty_signal(SIGTRAP, fatal_sig_handler);
 #endif
 #ifdef SIGVTALRM
-		    putty_signal(SIGVTALRM, fatal_sig_handler);
+                        putty_signal(SIGVTALRM, fatal_sig_handler);
 #endif
 #ifdef SIGXCPU
-		    putty_signal(SIGXCPU, fatal_sig_handler);
+                        putty_signal(SIGXCPU, fatal_sig_handler);
 #endif
 #ifdef SIGXFSZ
-		    putty_signal(SIGXFSZ, fatal_sig_handler);
+                        putty_signal(SIGXFSZ, fatal_sig_handler);
 #endif
 #ifdef SIGIO
-		    putty_signal(SIGIO, fatal_sig_handler);
+                        putty_signal(SIGIO, fatal_sig_handler);
 #endif
-		    setup_utmp(pty->name, display);
-		}
-	    }
-	}
-    } else {
-	close(pipefd[0]);
-	pty_utmp_helper_pid = pid;
-	pty_utmp_helper_pipe = pipefd[1];
+                        setup_utmp(pty->name, display);
+                    }
+                }
+            }
+        } else {
+            close(pipefd[0]);
+            pty_utmp_helper_pid = pid;
+            pty_utmp_helper_pipe = pipefd[1];
+        }
+#endif
     }
-#endif
 
     /* Drop privs. */
     {
@@ -735,7 +735,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     if (!conf_get_int(conf, CONF_stamp_utmp)) {
 	close(pty_utmp_helper_pipe);   /* just let the child process die */
 	pty_utmp_helper_pipe = -1;
-    } else {
+    } else if (pty_utmp_helper_pipe >= 0) {
 	char *location = get_x_display(pty->frontend);
 	int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
 	while (pos < len) {
