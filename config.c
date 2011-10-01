@@ -147,12 +147,11 @@ void conf_fontsel_handler(union control *ctrl, void *dlg,
     Conf *conf = (Conf *)data;
 
     if (event == EVENT_REFRESH) {
-	dlg_fontsel_set(ctrl, dlg, *conf_get_fontspec(conf, key));
+	dlg_fontsel_set(ctrl, dlg, conf_get_fontspec(conf, key));
     } else if (event == EVENT_VALCHANGE) {
-	FontSpec fontspec;
-	dlg_fontsel_get(ctrl, dlg, &fontspec);
-	conf_set_fontspec(conf, key, &fontspec);
-	/* If FontSpecs ever become dynamic, free this one. */
+	FontSpec *fontspec = dlg_fontsel_get(ctrl, dlg);
+	conf_set_fontspec(conf, key, fontspec);
+        fontspec_free(fontspec);
     }
 }
 

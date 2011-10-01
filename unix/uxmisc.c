@@ -150,3 +150,35 @@ FILE *f_open(struct Filename filename, char const *mode, int is_private)
 	return fdopen(fd, mode);
     }
 }
+
+FontSpec *fontspec_new(const char *name)
+{
+    FontSpec *f = snew(FontSpec);
+    f->name = dupstr(name);
+    return f;
+}
+FontSpec *fontspec_copy(const FontSpec *f)
+{
+    return fontspec_new(f->name);
+}
+void fontspec_free(FontSpec *f)
+{
+    sfree(f->name);
+    sfree(f);
+}
+int fontspec_serialise(FontSpec *f, void *data)
+{
+    int len = strlen(f->name);
+    if (data)
+        strcpy(data, f->name);
+    return len + 1;                    /* include trailing NUL */
+}
+FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
+{
+    char *data = (char *)vdata;
+    char *end = memchr(data, '\0', maxsize);
+    if (!end)
+        return NULL;
+    *used = end - data + 1;
+    return fontspec_new(data);
+}

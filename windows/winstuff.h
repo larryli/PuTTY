@@ -21,11 +21,13 @@ struct Filename {
 #define f_open(filename, mode, isprivate) ( fopen((filename).path, (mode)) )
 
 struct FontSpec {
-    char name[64];
+    char *name;
     int isbold;
     int height;
     int charset;
 };
+struct FontSpec *fontspec_new(const char *name,
+                               int bold, int height, int charset);
 
 #ifndef CLEARTYPE_QUALITY
 #define CLEARTYPE_QUALITY 5

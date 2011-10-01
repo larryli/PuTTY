@@ -186,50 +186,47 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 	return val;
 }
 
-int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
+FontSpec *read_setting_fontspec(void *handle, const char *name)
 {
     char *settingname;
-    FontSpec ret;
     char *fontname;
+    int isbold, height, charset;
 
     fontname = read_setting_s(handle, name);
     if (!fontname)
-	return 0;
-    strncpy(ret.name, fontname, sizeof(ret.name)-1);
-    ret.name[sizeof(ret.name)-1] = '\0';
-    sfree(fontname);
+	return NULL;
 
     settingname = dupcat(name, "IsBold", NULL);
-    ret.isbold = read_setting_i(handle, settingname, -1);
+    isbold = read_setting_i(handle, settingname, -1);
     sfree(settingname);
-    if (ret.isbold == -1) return 0;
+    if (isbold == -1) return NULL;
 
     settingname = dupcat(name, "CharSet", NULL);
-    ret.charset = read_setting_i(handle, settingname, -1);
+    charset = read_setting_i(handle, settingname, -1);
     sfree(settingname);
-    if (ret.charset == -1) return 0;
+    if (charset == -1) return NULL;
 
     settingname = dupcat(name, "Height", NULL);
-    ret.height = read_setting_i(handle, settingname, INT_MIN);
+    height = read_setting_i(handle, settingname, INT_MIN);
     sfree(settingname);
-    if (ret.height == INT_MIN) return 0;
-    *result = ret;
-    return 1;
+    if (height == INT_MIN) return NULL;
+
+    return fontspec_new(fontname, isbold, height, charset);
 }
 
-void write_setting_fontspec(void *handle, const char *name, FontSpec font)
+void write_setting_fontspec(void *handle, const char *name, FontSpec *font)
 {
     char *settingname;
 
-    write_setting_s(handle, name, font.name);
+    write_setting_s(handle, name, font->name);
     settingname = dupcat(name, "IsBold", NULL);
-    write_setting_i(handle, settingname, font.isbold);
+    write_setting_i(handle, settingname, font->isbold);
     sfree(settingname);
     settingname = dupcat(name, "CharSet", NULL);
-    write_setting_i(handle, settingname, font.charset);
+    write_setting_i(handle, settingname, font->charset);
     sfree(settingname);
     settingname = dupcat(name, "Height", NULL);
-    write_setting_i(handle, settingname, font.height);
+    write_setting_i(handle, settingname, font->height);
     sfree(settingname);
 }
 

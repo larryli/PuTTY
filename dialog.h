@@ -567,8 +567,8 @@ void dlg_listbox_select(union control *ctrl, void *dlg, int index);
 void dlg_text_set(union control *ctrl, void *dlg, char const *text);
 void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn);
 void dlg_filesel_get(union control *ctrl, void *dlg, Filename *fn);
-void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec fn);
-void dlg_fontsel_get(union control *ctrl, void *dlg, FontSpec *fn);
+void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fn);
+FontSpec *dlg_fontsel_get(union control *ctrl, void *dlg);
 /*
  * Bracketing a large set of updates in these two functions will
  * cause the front end (if possible) to delay updating the screen

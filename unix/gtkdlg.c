@@ -926,24 +926,22 @@ void dlg_filesel_get(union control *ctrl, void *dlg, Filename *fn)
     fn->path[lenof(fn->path)-1] = '\0';
 }
 
-void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec fs)
+void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fs)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
     assert(uc->entry != NULL);
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), fs.name);
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), fs->name);
 }
 
-void dlg_fontsel_get(union control *ctrl, void *dlg, FontSpec *fs)
+FontSpec *dlg_fontsel_get(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
     assert(uc->entry != NULL);
-    strncpy(fs->name, gtk_entry_get_text(GTK_ENTRY(uc->entry)),
-	    lenof(fs->name));
-    fs->name[lenof(fs->name)-1] = '\0';
+    return fontspec_new(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
 }
 
 /*

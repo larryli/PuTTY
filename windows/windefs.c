@@ -6,18 +6,12 @@
 
 #include <commctrl.h>
 
-FontSpec platform_default_fontspec(const char *name)
+FontSpec *platform_default_fontspec(const char *name)
 {
-    FontSpec ret;
-    if (!strcmp(name, "Font")) {
-	strcpy(ret.name, "Courier New");
-	ret.isbold = 0;
-	ret.charset = ANSI_CHARSET;
-	ret.height = 10;
-    } else {
-	ret.name[0] = '\0';
-    }
-    return ret;
+    if (!strcmp(name, "Font"))
+        return fontspec_new("Courier New", 0, 10, ANSI_CHARSET);
+    else
+        return fontspec_new("", 0, 0, 0);
 }
 
 Filename platform_default_filename(const char *name)

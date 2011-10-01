@@ -32,7 +32,7 @@ void *open_settings_w(const char *sessionname, char **errmsg);
 void write_setting_s(void *handle, const char *key, const char *value);
 void write_setting_i(void *handle, const char *key, int value);
 void write_setting_filename(void *handle, const char *key, Filename value);
-void write_setting_fontspec(void *handle, const char *key, FontSpec font);
+void write_setting_fontspec(void *handle, const char *key, FontSpec *font);
 void close_settings_w(void *handle);
 
 /*
@@ -56,7 +56,7 @@ void *open_settings_r(const char *sessionname);
 char *read_setting_s(void *handle, const char *key);
 int read_setting_i(void *handle, const char *key, int defvalue);
 int read_setting_filename(void *handle, const char *key, Filename *value);
-int read_setting_fontspec(void *handle, const char *key, FontSpec *font);
+FontSpec *read_setting_fontspec(void *handle, const char *key);
 void close_settings_r(void *handle);
 
 /*

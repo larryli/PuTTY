@@ -108,10 +108,11 @@ static void gpps(void *handle, const char *name, const char *def,
  */
 static void gppfont(void *handle, const char *name, Conf *conf, int primary)
 {
-    FontSpec result;
-    if (!read_setting_fontspec(handle, name, &result))
-	result = platform_default_fontspec(name);
-    conf_set_fontspec(conf, primary, &result);
+    FontSpec *result = read_setting_fontspec(handle, name);
+    if (!result)
+        result = platform_default_fontspec(name);
+    conf_set_fontspec(conf, primary, result);
+    fontspec_free(result);
 }
 static void gppfile(void *handle, const char *name, Conf *conf, int primary)
 {
@@ -553,7 +554,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_s(sesskey, "WinTitle", conf_get_str(conf, CONF_wintitle));
     write_setting_i(sesskey, "TermWidth", conf_get_int(conf, CONF_width));
     write_setting_i(sesskey, "TermHeight", conf_get_int(conf, CONF_height));
-    write_setting_fontspec(sesskey, "Font", *conf_get_fontspec(conf, CONF_font));
+    write_setting_fontspec(sesskey, "Font", conf_get_fontspec(conf, CONF_font));
     write_setting_i(sesskey, "FontQuality", conf_get_int(conf, CONF_font_quality));
     write_setting_i(sesskey, "FontVTMode", conf_get_int(conf, CONF_vtmode));
     write_setting_i(sesskey, "UseSystemColours", conf_get_int(conf, CONF_system_colour));
@@ -621,9 +622,9 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "StampUtmp", conf_get_int(conf, CONF_stamp_utmp));
     write_setting_i(sesskey, "LoginShell", conf_get_int(conf, CONF_login_shell));
     write_setting_i(sesskey, "ScrollbarOnLeft", conf_get_int(conf, CONF_scrollbar_on_left));
-    write_setting_fontspec(sesskey, "BoldFont", *conf_get_fontspec(conf, CONF_boldfont));
-    write_setting_fontspec(sesskey, "WideFont", *conf_get_fontspec(conf, CONF_widefont));
-    write_setting_fontspec(sesskey, "WideBoldFont", *conf_get_fontspec(conf, CONF_wideboldfont));
+    write_setting_fontspec(sesskey, "BoldFont", conf_get_fontspec(conf, CONF_boldfont));
+    write_setting_fontspec(sesskey, "WideFont", conf_get_fontspec(conf, CONF_widefont));
+    write_setting_fontspec(sesskey, "WideBoldFont", conf_get_fontspec(conf, CONF_wideboldfont));
     write_setting_i(sesskey, "ShadowBold", conf_get_int(conf, CONF_shadowbold));
     write_setting_i(sesskey, "ShadowBoldOffset", conf_get_int(conf, CONF_shadowboldoffset));
     write_setting_s(sesskey, "SerialLine", conf_get_str(conf, CONF_serline));

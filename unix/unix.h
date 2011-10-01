@@ -18,8 +18,9 @@ struct Filename {
 FILE *f_open(struct Filename, char const *, int);
 
 struct FontSpec {
-    char name[256];
+    char *name;    /* may be "" to indicate no selected font at all */
 };
+struct FontSpec *fontspec_new(const char *name);
 
 typedef void *Context;                 /* FIXME: probably needs changing */
 

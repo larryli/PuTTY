@@ -2315,7 +2315,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		{
 		    FontSpec *font = conf_get_fontspec(conf, CONF_font);
 		    FontSpec *prev_font = conf_get_fontspec(prev_conf,
-							    CONF_font);
+                                                             CONF_font);
 
 		    if (!strcmp(font->name, prev_font->name) ||
 			!strcmp(conf_get_str(conf, CONF_line_codepage),

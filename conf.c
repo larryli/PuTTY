@@ -44,7 +44,7 @@ struct value {
 	int intval;
 	char *stringval;
 	Filename fileval;
-	FontSpec fontval;
+	FontSpec *fontval;
     } u;
 };
 
@@ -125,6 +125,8 @@ static void free_value(struct value *val, int type)
 {
     if (type == TYPE_STR)
 	sfree(val->u.stringval);
+    else if (type == TYPE_FONT)
+	fontspec_free(val->u.fontval);
 }
 
 /*
@@ -144,7 +146,7 @@ static void copy_value(struct value *to, struct value *from, int type)
 	to->u.fileval = from->u.fileval;
 	break;
       case TYPE_FONT:
-	to->u.fontval = from->u.fontval;
+	to->u.fontval = fontspec_copy(from->u.fontval);
 	break;
     }
 }
@@ -343,7 +345,7 @@ FontSpec *conf_get_fontspec(Conf *conf, int primary)
     key.primary = primary;
     entry = find234(conf->tree, &key, NULL);
     assert(entry);
-    return &entry->value.u.fontval;
+    return entry->value.u.fontval;
 }
 
 void conf_set_int(Conf *conf, int primary, int value)
@@ -427,7 +429,7 @@ void conf_set_fontspec(Conf *conf, int primary, const FontSpec *value)
     assert(subkeytypes[primary] == TYPE_NONE);
     assert(valuetypes[primary] == TYPE_FONT);
     entry->key.primary = primary;
-    entry->value.u.fontval = *value;   /* structure copy */
+    entry->value.u.fontval = fontspec_copy(value);
     conf_insert(conf, entry);
 }
 
@@ -458,7 +460,7 @@ int conf_serialised_size(Conf *conf)
 	    size += sizeof(entry->value.u.fileval);
 	    break;
 	  case TYPE_FONT:
-	    size += sizeof(entry->value.u.fontval);
+	    size += fontspec_serialise(entry->value.u.fontval, NULL);
 	    break;
 	}
     }
@@ -507,9 +509,7 @@ void conf_serialise(Conf *conf, void *vdata)
 	    data += sizeof(entry->value.u.fileval);
 	    break;
 	  case TYPE_FONT:
-	    memcpy(data, &entry->value.u.fontval,
-		   sizeof(entry->value.u.fontval));
-	    data += sizeof(entry->value.u.fontval);
+            data += fontspec_serialise(entry->value.u.fontval, data);
 	    break;
 	}
     }
@@ -522,7 +522,7 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
     unsigned char *data = (unsigned char *)vdata;
     unsigned char *start = data;
     struct conf_entry *entry;
-    int primary;
+    int primary, used;
     unsigned char *zero;
 
     while (maxsize >= 4) {
@@ -592,16 +592,16 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
 	    maxsize -= sizeof(entry->value.u.fileval);
 	    break;
 	  case TYPE_FONT:
-	    if (maxsize < sizeof(entry->value.u.fontval)) {
+            entry->value.u.fontval =
+                fontspec_deserialise(data, maxsize, &used);
+            if (!entry->value.u.fontval) {
 		if (subkeytypes[entry->key.primary] == TYPE_STR)
 		    sfree(entry->key.secondary.s);
 		sfree(entry);
 		goto done;
 	    }
-	    memcpy(&entry->value.u.fontval, data,
-		   sizeof(entry->value.u.fontval));
-	    data += sizeof(entry->value.u.fontval);
-	    maxsize -= sizeof(entry->value.u.fontval);
+	    data += used;
+	    maxsize -= used;
 	    break;
 	}
 	conf_insert(conf, entry);

@@ -151,14 +151,12 @@ void connection_fatal(void *frontend, char *p, ...)
 /*
  * Default settings that are specific to pterm.
  */
-FontSpec platform_default_fontspec(const char *name)
+FontSpec *platform_default_fontspec(const char *name)
 {
-    FontSpec ret;
     if (!strcmp(name, "Font"))
-	strcpy(ret.name, "server:fixed");
+	return fontspec_new("server:fixed");
     else
-	*ret.name = '\0';
-    return ret;
+        return fontspec_new("");
 }
 
 Filename platform_default_filename(const char *name)
@@ -2541,36 +2539,36 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
         }
 
 	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
-	    FontSpec fs;
+	    FontSpec *fs;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(fs.name, val, sizeof(fs.name));
-	    fs.name[sizeof(fs.name)-1] = '\0';
-	    conf_set_fontspec(conf, CONF_font, &fs);
+            fs = fontspec_new(val);
+	    conf_set_fontspec(conf, CONF_font, fs);
+            fontspec_free(fs);
 
 	} else if (!strcmp(p, "-fb")) {
-	    FontSpec fs;
+	    FontSpec *fs;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(fs.name, val, sizeof(fs.name));
-	    fs.name[sizeof(fs.name)-1] = '\0';
-	    conf_set_fontspec(conf, CONF_boldfont, &fs);
+            fs = fontspec_new(val);
+	    conf_set_fontspec(conf, CONF_font, fs);
+            fontspec_free(fs);
 
 	} else if (!strcmp(p, "-fw")) {
-	    FontSpec fs;
+	    FontSpec *fs;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(fs.name, val, sizeof(fs.name));
-	    fs.name[sizeof(fs.name)-1] = '\0';
-	    conf_set_fontspec(conf, CONF_widefont, &fs);
+            fs = fontspec_new(val);
+	    conf_set_fontspec(conf, CONF_font, fs);
+            fontspec_free(fs);
 
 	} else if (!strcmp(p, "-fwb")) {
-	    FontSpec fs;
+	    FontSpec *fs;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(fs.name, val, sizeof(fs.name));
-	    fs.name[sizeof(fs.name)-1] = '\0';
-	    conf_set_fontspec(conf, CONF_wideboldfont, &fs);
+            fs = fontspec_new(val);
+	    conf_set_fontspec(conf, CONF_font, fs);
+            fontspec_free(fs);
 
 	} else if (!strcmp(p, "-cs")) {
 	    EXPECTS_ARG;

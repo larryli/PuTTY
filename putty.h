@@ -859,7 +859,7 @@ int conf_get_int_int(Conf *conf, int key, int subkey);
 char *conf_get_str(Conf *conf, int key);   /* result still owned by conf */
 char *conf_get_str_str(Conf *conf, int key, const char *subkey);
 Filename *conf_get_filename(Conf *conf, int key);
-FontSpec *conf_get_fontspec(Conf *conf, int key);
+FontSpec *conf_get_fontspec(Conf *conf, int key); /* still owned by conf */
 /* Optional accessor function: return NULL if key does not exist. */
 char *conf_get_str_str_opt(Conf *conf, int key, const char *subkey);
 /* Accessor function to step through a string-subkeyed list.
@@ -882,6 +882,20 @@ void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
 int conf_serialised_size(Conf *conf);
 void conf_serialise(Conf *conf, void *data);
 int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
+
+/*
+ * Functions to copy, free, serialise and deserialise FontSpecs.
+ * Provided per-platform, to go with the platform's idea of a
+ * FontSpec's contents.
+ *
+ * fontspec_serialise returns the number of bytes written, and can
+ * handle data==NULL without crashing. So you can call it once to find
+ * out a size, then again once you've allocated a buffer.
+ */
+FontSpec *fontspec_copy(const FontSpec *f);
+void fontspec_free(FontSpec *f);
+int fontspec_serialise(FontSpec *f, void *data);
+FontSpec *fontspec_deserialise(void *data, int maxsize, int *used);
 
 /*
  * Exports from noise.c.
@@ -917,11 +931,14 @@ void registry_cleanup(void);
  * function is perfectly all right returning NULL, of course. The
  * Filename and FontSpec functions are _not allowed_ to fail to
  * return, since these defaults _must_ be per-platform.)
+ *
+ * The 'FontSpec *' returned by platform_default_fontspec has
+ * ownership transferred to the caller, and must be freed.
  */
 char *platform_default_s(const char *name);
 int platform_default_i(const char *name, int def);
 Filename platform_default_filename(const char *name);
-FontSpec platform_default_fontspec(const char *name);
+FontSpec *platform_default_fontspec(const char *name);
 
 /*
  * Exports from terminal.c.

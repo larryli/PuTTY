@@ -357,7 +357,7 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 	return atoi(val);
 }
 
-int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
+FontSpec *read_setting_fontspec(void *handle, const char *name)
 {
     /*
      * In GTK1-only PuTTY, we used to store font names simply as a
@@ -375,25 +375,24 @@ int read_setting_fontspec(void *handle, const char *name, FontSpec *result)
     char *tmp;
 
     if ((tmp = read_setting_s(handle, suffname)) != NULL) {
-	strncpy(result->name, tmp, sizeof(result->name)-1);
-	result->name[sizeof(result->name)-1] = '\0';
+        FontSpec *fs = fontspec_new(tmp);
 	sfree(suffname);
 	sfree(tmp);
-	return TRUE;		       /* got new-style name */
+	return fs;		       /* got new-style name */
     }
     sfree(suffname);
 
     /* Fall back to old-style name. */
     tmp = read_setting_s(handle, name);
     if (tmp && *tmp) {
-	strcpy(result->name, "server:");
-	strncpy(result->name + 7, tmp, sizeof(result->name) - 8);
-	result->name[sizeof(result->name)-1] = '\0';
+        char *tmp2 = dupcat("server:", tmp, NULL);
+        FontSpec *fs = fontspec_new(tmp2);
+	sfree(tmp2);
 	sfree(tmp);
-	return TRUE;
+	return fs;
     } else {
 	sfree(tmp);
-	return FALSE;
+	return NULL;
     }
 }
 int read_setting_filename(void *handle, const char *name, Filename *result)
@@ -408,7 +407,7 @@ int read_setting_filename(void *handle, const char *name, Filename *result)
 	return FALSE;
 }
 
-void write_setting_fontspec(void *handle, const char *name, FontSpec result)
+void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
 {
     /*
      * read_setting_fontspec had to handle two cases, but when
@@ -416,7 +415,7 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec result)
      * new-style name.
      */
     char *suffname = dupcat(name, "Name", NULL);
-    write_setting_s(handle, suffname, result.name);
+    write_setting_s(handle, suffname, fs->name);
     sfree(suffname);
 }
 void write_setting_filename(void *handle, const char *name, Filename result)

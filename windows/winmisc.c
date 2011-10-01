@@ -379,3 +379,51 @@ void *minefield_c_realloc(void *p, size_t size)
 }
 
 #endif				/* MINEFIELD */
+
+FontSpec *fontspec_new(const char *name,
+                        int bold, int height, int charset)
+{
+    FontSpec *f = snew(FontSpec);
+    f->name = dupstr(name);
+    f->isbold = bold;
+    f->height = height;
+    f->charset = charset;
+    return f;
+}
+FontSpec *fontspec_copy(const FontSpec *f)
+{
+    return fontspec_new(f->name, f->isbold, f->height, f->charset);
+}
+void fontspec_free(FontSpec *f)
+{
+    sfree(f->name);
+    sfree(f);
+}
+int fontspec_serialise(FontSpec *f, void *vdata)
+{
+    char *data = (char *)vdata;
+    int len = strlen(f->name) + 1;     /* include trailing NUL */
+    if (data) {
+        strcpy(data, f->name);
+        PUT_32BIT_MSB_FIRST(data + len, f->isbold);
+        PUT_32BIT_MSB_FIRST(data + len + 4, f->height);
+        PUT_32BIT_MSB_FIRST(data + len + 8, f->charset);
+    }
+    return len + 12;                   /* also include three 4-byte ints */
+}
+FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
+{
+    char *data = (char *)vdata;
+    char *end;
+    if (maxsize < 13)
+        return NULL;
+    end = memchr(data, '\0', maxsize-12);
+    if (!end)
+        return NULL;
+    end++;
+    *used = end - data + 12;
+    return fontspec_new(data,
+                        GET_32BIT_MSB_FIRST(end),
+                        GET_32BIT_MSB_FIRST(end + 4),
+                        GET_32BIT_MSB_FIRST(end + 8));
+}
