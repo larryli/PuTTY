@@ -2551,7 +2551,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_font, fs);
+	    conf_set_fontspec(conf, CONF_boldfont, fs);
             fontspec_free(fs);
 
 	} else if (!strcmp(p, "-fw")) {
@@ -2559,7 +2559,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_font, fs);
+	    conf_set_fontspec(conf, CONF_widefont, fs);
             fontspec_free(fs);
 
 	} else if (!strcmp(p, "-fwb")) {
@@ -2567,7 +2567,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_font, fs);
+	    conf_set_fontspec(conf, CONF_wideboldfont, fs);
             fontspec_free(fs);
 
 	} else if (!strcmp(p, "-cs")) {
