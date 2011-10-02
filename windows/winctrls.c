@@ -2098,26 +2098,12 @@ void dlg_editbox_set(union control *ctrl, void *dlg, char const *text)
     SetDlgItemText(dp->hwnd, c->base_id+1, text);
 }
 
-static char *getdlgitemtext_alloc(HWND hwnd, int id)
-{
-    char *ret = NULL;
-    int size = 0;
-
-    do {
-	size = size * 4 / 3 + 512;
-	ret = sresize(ret, size, char);
-	GetDlgItemText(hwnd, id, ret, size);
-    } while (!memchr(ret, '\0', size-1));
-
-    return ret;
-}
-
 char *dlg_editbox_get(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->generic.type == CTRL_EDITBOX);
-    return getdlgitemtext_alloc(dp->hwnd, c->base_id+1);
+    return GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
 }
 
 /* The `listbox' functions can also apply to combo boxes. */
@@ -2312,7 +2298,7 @@ Filename *dlg_filesel_get(union control *ctrl, void *dlg)
     char *tmp;
     Filename *ret;
     assert(c && c->ctrl->generic.type == CTRL_FILESELECT);
-    tmp = getdlgitemtext_alloc(dp->hwnd, c->base_id+1);
+    tmp = GetDlgItemText_alloc(dp->hwnd, c->base_id+1);
     ret = filename_from_str(tmp);
     sfree(tmp);
     return ret;

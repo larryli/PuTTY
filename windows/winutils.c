@@ -151,6 +151,25 @@ void pgp_fingerprints(void)
 }
 
 /*
+ * Handy wrapper around GetDlgItemText which doesn't make you invent
+ * an arbitrary length limit on the output string. Returned string is
+ * dynamically allocated; caller must free.
+ */
+char *GetDlgItemText_alloc(HWND hwnd, int id)
+{
+    char *ret = NULL;
+    int size = 0;
+
+    do {
+	size = size * 4 / 3 + 512;
+	ret = sresize(ret, size, char);
+	GetDlgItemText(hwnd, id, ret, size);
+    } while (!memchr(ret, '\0', size-1));
+
+    return ret;
+}
+
+/*
  * Split a complete command line into argc/argv, attempting to do
  * it exactly the same way Windows itself would do it (so that
  * console utilities, which receive argc and argv from Windows,

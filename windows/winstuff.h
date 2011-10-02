@@ -287,6 +287,7 @@ BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save);
 filereq *filereq_new(void);
 void filereq_free(filereq *state);
 int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid);
+char *GetDlgItemText_alloc(HWND hwnd, int id);
 void split_into_argv(char *, int *, char ***, char ***);
 
 /*
