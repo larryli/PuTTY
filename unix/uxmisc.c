@@ -174,7 +174,7 @@ FILE *f_open(const Filename *filename, char const *mode, int is_private)
 	int fd;
 	assert(mode[0] == 'w');	       /* is_private is meaningless for read,
 					  and tricky for append */
-	fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0700);
+	fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fd < 0)
 	    return NULL;
 	return fdopen(fd, mode);
