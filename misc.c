@@ -200,6 +200,14 @@ char *dupcat(const char *s1, ...)
     return p;
 }
 
+void burnstr(char *string)             /* sfree(str), only clear it first */
+{
+    if (string) {
+        memset(string, 0, strlen(string));
+        sfree(string);
+    }
+}
+
 /*
  * Do an sprintf(), but into a custom-allocated buffer.
  * 
