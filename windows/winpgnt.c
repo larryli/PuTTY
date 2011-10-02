@@ -159,10 +159,8 @@ struct blob {
 };
 static int cmpkeys_ssh2_asymm(void *av, void *bv);
 
-#define PASSPHRASE_MAXLEN 512
-
 struct PassphraseProcStruct {
-    char *passphrase;
+    char **passphrase;
     char *comment;
 };
 
@@ -247,7 +245,7 @@ static HWND passphrase_box;
 static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam)
 {
-    static char *passphrase = NULL;
+    static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
 
     switch (msg) {
@@ -275,8 +273,9 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 	passphrase = p->passphrase;
 	if (p->comment)
 	    SetDlgItemText(hwnd, 101, p->comment);
-	*passphrase = 0;
-	SetDlgItemText(hwnd, 102, passphrase);
+        burnstr(*passphrase);
+        *passphrase = dupstr("");
+	SetDlgItemText(hwnd, 102, *passphrase);
 	return 0;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -291,9 +290,8 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 	    return 0;
 	  case 102:		       /* edit box */
 	    if ((HIWORD(wParam) == EN_CHANGE) && passphrase) {
-		GetDlgItemText(hwnd, 102, passphrase,
-			       PASSPHRASE_MAXLEN - 1);
-		passphrase[PASSPHRASE_MAXLEN - 1] = '\0';
+                burnstr(*passphrase);
+                *passphrase = GetDlgItemText_alloc(hwnd, 102);
 	    }
 	    return 0;
 	}
@@ -387,7 +385,7 @@ static void keylist_update(void)
  */
 static void add_keyfile(Filename *filename)
 {
-    char passphrase[PASSPHRASE_MAXLEN];
+    char *passphrase;
     struct RSAKey *rkey = NULL;
     struct ssh2_userkey *skey = NULL;
     int needs_pass;
@@ -395,7 +393,6 @@ static void add_keyfile(Filename *filename)
     int attempts;
     char *comment;
     const char *error = NULL;
-    struct PassphraseProcStruct pps;
     int type;
     int original_pass;
 	
@@ -523,17 +520,24 @@ static void add_keyfile(Filename *filename)
     attempts = 0;
     if (type == SSH_KEYTYPE_SSH1)
 	rkey = snew(struct RSAKey);
-    pps.passphrase = passphrase;
-    pps.comment = comment;
+    passphrase = NULL;
     original_pass = 0;
     do {
+        burnstr(passphrase);
+        passphrase = NULL;
+
 	if (needs_pass) {
 	    /* try all the remembered passphrases first */
 	    char *pp = index234(passphrases, attempts);
 	    if(pp) {
-		strcpy(passphrase, pp);
+		passphrase = dupstr(pp);
 	    } else {
 		int dlgret;
+                struct PassphraseProcStruct pps;
+
+                pps.passphrase = &passphrase;
+                pps.comment = comment;
+
 		original_pass = 1;
 		dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
 					NULL, PassphraseProc, (LPARAM) &pps);
@@ -545,9 +549,12 @@ static void add_keyfile(Filename *filename)
 			sfree(rkey);
 		    return;		       /* operation cancelled */
 		}
+
+                assert(passphrase != NULL);
 	    }
 	} else
-	    *passphrase = '\0';
+	    passphrase = dupstr("");
+
 	if (type == SSH_KEYTYPE_SSH1)
 	    ret = loadrsakey(filename, rkey, passphrase, &error);
 	else {
@@ -562,11 +569,14 @@ static void add_keyfile(Filename *filename)
 	attempts++;
     } while (ret == -1);
 
-    /* if they typed in an ok passphrase, remember it */
     if(original_pass && ret) {
-	char *pp = dupstr(passphrase);
-	addpos234(passphrases, pp, 0);
+        /* If they typed in an ok passphrase, remember it */
+	addpos234(passphrases, passphrase, 0);
+    } else {
+        /* Otherwise, destroy it */
+        burnstr(passphrase);
     }
+    passphrase = NULL;
 
     if (comment)
 	sfree(comment);

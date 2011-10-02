@@ -5,6 +5,7 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #define PUTTY_DO_GLOBALS
 
@@ -116,10 +117,8 @@ static void progress_update(void *param, int action, int phase, int iprogress)
 
 extern char ver[];
 
-#define PASSPHRASE_MAXLEN 512
-
 struct PassphraseProcStruct {
-    char *passphrase;
+    char **passphrase;
     char *comment;
 };
 
@@ -129,7 +128,7 @@ struct PassphraseProcStruct {
 static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam)
 {
-    static char *passphrase = NULL;
+    static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
 
     switch (msg) {
@@ -157,8 +156,9 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 	passphrase = p->passphrase;
 	if (p->comment)
 	    SetDlgItemText(hwnd, 101, p->comment);
-	*passphrase = 0;
-	SetDlgItemText(hwnd, 102, passphrase);
+        burnstr(*passphrase);
+        *passphrase = dupstr("");
+	SetDlgItemText(hwnd, 102, *passphrase);
 	return 0;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -173,9 +173,8 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 	    return 0;
 	  case 102:		       /* edit box */
 	    if ((HIWORD(wParam) == EN_CHANGE) && passphrase) {
-		GetDlgItemText(hwnd, 102, passphrase,
-			       PASSPHRASE_MAXLEN - 1);
-		passphrase[PASSPHRASE_MAXLEN - 1] = '\0';
+                burnstr(*passphrase);
+                *passphrase = GetDlgItemText_alloc(hwnd, 102);
 	    }
 	    return 0;
 	}
@@ -617,13 +616,12 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 void load_key_file(HWND hwnd, struct MainDlgState *state,
 		   Filename *filename, int was_import_cmd)
 {
-    char passphrase[PASSPHRASE_MAXLEN];
+    char *passphrase;
     int needs_pass;
     int type, realtype;
     int ret;
     const char *errmsg = NULL;
     char *comment;
-    struct PassphraseProcStruct pps;
     struct RSAKey newkey1;
     struct ssh2_userkey *newkey2 = NULL;
 
@@ -646,17 +644,22 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     }
 
     comment = NULL;
+    passphrase = NULL;
     if (realtype == SSH_KEYTYPE_SSH1)
 	needs_pass = rsakey_encrypted(filename, &comment);
     else if (realtype == SSH_KEYTYPE_SSH2)
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     else
 	needs_pass = import_encrypted(filename, realtype, &comment);
-    pps.passphrase = passphrase;
-    pps.comment = comment;
     do {
+        burnstr(passphrase);
+        passphrase = NULL;
+
 	if (needs_pass) {
 	    int dlgret;
+            struct PassphraseProcStruct pps;
+            pps.passphrase = &passphrase;
+            pps.comment = comment;
 	    dlgret = DialogBoxParam(hinst,
 				    MAKEINTRESOURCE(210),
 				    NULL, PassphraseProc,
@@ -665,8 +668,9 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 		ret = -2;
 		break;
 	    }
+            assert(passphrase != NULL);
 	} else
-	    *passphrase = '\0';
+	    passphrase = dupstr("");
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (realtype == type)
 		ret = loadrsakey(filename, &newkey1, passphrase, &errmsg);
@@ -779,6 +783,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 		       MB_OK | MB_ICONINFORMATION);
 	}
     }
+    burnstr(passphrase);
 }
 
 /*
@@ -1097,8 +1102,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
-		char passphrase[PASSPHRASE_MAXLEN];
-		char passphrase2[PASSPHRASE_MAXLEN];
+		char *passphrase, *passphrase2;
                 int type, realtype;
 
                 if (state->ssh2)
@@ -1124,16 +1128,17 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    break;
                 }
 
-		GetDlgItemText(hwnd, IDC_PASSPHRASE1EDIT,
-			       passphrase, sizeof(passphrase));
-		GetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
-			       passphrase2, sizeof(passphrase2));
+		passphrase = GetDlgItemText_alloc(hwnd, IDC_PASSPHRASE1EDIT);
+		passphrase2 = GetDlgItemText_alloc(hwnd, IDC_PASSPHRASE2EDIT);
 		if (strcmp(passphrase, passphrase2)) {
 		    MessageBox(hwnd,
 			       "The two passphrases given do not match.",
 			       "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                    burnstr(passphrase);
+                    burnstr(passphrase2);
 		    break;
 		}
+                burnstr(passphrase2);
 		if (!*passphrase) {
 		    int ret;
 		    ret = MessageBox(hwnd,
@@ -1141,8 +1146,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				     "without a passphrase to protect it?",
 				     "PuTTYgen Warning",
 				     MB_YESNO | MB_ICONWARNING);
-		    if (ret != IDYES)
-			break;
+		    if (ret != IDYES) {
+                        burnstr(passphrase);
+                        break;
+                    }
 		}
 		if (prompt_keyfile(hwnd, "Save private key as:",
 				   filename, 1, (type == realtype))) {
@@ -1156,8 +1163,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
 					 MB_YESNO | MB_ICONWARNING);
 			sfree(buffer);
-			if (ret != IDYES)
+			if (ret != IDYES) {
+                            burnstr(passphrase);
 			    break;
+                        }
 		    }
 
 		    if (state->ssh2) {
@@ -1185,6 +1194,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				   "PuTTYgen Error", MB_OK | MB_ICONERROR);
 		    }
 		}
+                burnstr(passphrase);
 	    }
 	    break;
 	  case IDC_SAVEPUB:
