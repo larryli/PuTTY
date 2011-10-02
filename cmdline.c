@@ -105,15 +105,12 @@ int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen) {
     if (tried_once)
 	return 0;
 
-    strncpy(p->prompts[0]->result, cmdline_password,
-	    p->prompts[0]->result_len);
-    p->prompts[0]->result[p->prompts[0]->result_len-1] = '\0';
+    prompt_set_result(p->prompts[0], cmdline_password);
     memset(cmdline_password, 0, strlen(cmdline_password));
     sfree(cmdline_password);
     cmdline_password = NULL;
     tried_once = 1;
     return 1;
-
 }
 
 /*

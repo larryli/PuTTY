@@ -99,24 +99,48 @@ prompts_t *new_prompts(void *frontend)
     p->name_reqd = p->instr_reqd = FALSE;
     return p;
 }
-void add_prompt(prompts_t *p, char *promptstr, int echo, size_t len)
+void add_prompt(prompts_t *p, char *promptstr, int echo)
 {
     prompt_t *pr = snew(prompt_t);
-    char *result = snewn(len, char);
     pr->prompt = promptstr;
     pr->echo = echo;
-    pr->result = result;
-    pr->result_len = len;
+    pr->result = NULL;
+    pr->resultsize = 0;
     p->n_prompts++;
     p->prompts = sresize(p->prompts, p->n_prompts, prompt_t *);
     p->prompts[p->n_prompts-1] = pr;
+}
+void prompt_ensure_result_size(prompt_t *pr, int newlen)
+{
+    if ((int)pr->resultsize < newlen) {
+        char *newbuf;
+        newlen = newlen * 5 / 4 + 512; /* avoid too many small allocs */
+
+        /*
+         * We don't use sresize / realloc here, because we will be
+         * storing sensitive stuff like passwords in here, and we want
+         * to make sure that the data doesn't get copied around in
+         * memory without the old copy being destroyed.
+         */
+        newbuf = snewn(newlen, char);
+        memcpy(newbuf, pr->result, pr->resultsize);
+        memset(pr->result, '\0', pr->resultsize);
+        sfree(pr->result);
+        pr->result = newbuf;
+        pr->resultsize = newlen;
+    }
+}
+void prompt_set_result(prompt_t *pr, const char *newstr)
+{
+    prompt_ensure_result_size(pr, strlen(newstr) + 1);
+    strcpy(pr->result, newstr);
 }
 void free_prompts(prompts_t *p)
 {
     size_t i;
     for (i=0; i < p->n_prompts; i++) {
 	prompt_t *pr = p->prompts[i];
-	memset(pr->result, 0, pr->result_len); /* burn the evidence */
+	memset(pr->result, 0, pr->resultsize); /* burn the evidence */
 	sfree(pr->result);
 	sfree(pr->prompt);
 	sfree(pr);

@@ -525,8 +525,19 @@ struct RSAKey;			       /* be a little careful of scope */
 typedef struct {
     char *prompt;
     int echo;
-    char *result;	/* allocated/freed by caller */
-    size_t result_len;
+    /*
+     * 'result' must be a dynamically allocated array of exactly
+     * 'resultsize' chars. The code for actually reading input may
+     * realloc it bigger (and adjust resultsize accordingly) if it has
+     * to. The caller should free it again when finished with it.
+     *
+     * If resultsize==0, then result may be NULL. When setting up a
+     * prompt_t, it's therefore easiest to initialise them this way,
+     * which means all actual allocation is done by the callee. This
+     * is what add_prompt does.
+     */
+    char *result;
+    size_t resultsize;
 } prompt_t;
 typedef struct {
     /*
@@ -549,7 +560,9 @@ typedef struct {
 			 * get_userpass_input(); initially NULL */
 } prompts_t;
 prompts_t *new_prompts(void *frontend);
-void add_prompt(prompts_t *p, char *promptstr, int echo, size_t len);
+void add_prompt(prompts_t *p, char *promptstr, int echo);
+void prompt_set_result(prompt_t *pr, const char *newstr);
+void prompt_ensure_result_size(prompt_t *pr, int len);
 /* Burn the evidence. (Assumes _all_ strings want free()ing.) */
 void free_prompts(prompts_t *p);
 

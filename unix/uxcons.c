@@ -374,7 +374,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     {
 	int i;
 	for (i = 0; i < p->n_prompts; i++)
-	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
+            prompt_set_result(p->prompts[i], "");
     }
 
     if (p->n_prompts && console_batch_mode)
@@ -403,7 +403,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
 
 	struct termios oldmode, newmode;
-	int i;
+	int len;
 	prompt_t *pr = p->prompts[curr_prompt];
 
 	tcgetattr(infd, &oldmode);
@@ -417,17 +417,34 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 
 	console_prompt_text(outfp, pr->prompt, strlen(pr->prompt));
 
-	i = read(infd, pr->result, pr->result_len - 1);
+        len = 0;
+        while (1) {
+            int ret;
+
+            prompt_ensure_result_size(pr, len * 5 / 4 + 512);
+            ret = read(infd, pr->result + len, pr->resultsize - len - 1);
+            if (ret <= 0) {
+                len = -1;
+                break;
+            }
+            len += ret;
+            if (pr->result[len - 1] == '\n') {
+                len--;
+                break;
+            }
+        }
 
 	tcsetattr(infd, TCSANOW, &oldmode);
-
-	if (i > 0 && pr->result[i-1] == '\n')
-	    i--;
-	pr->result[i] = '\0';
 
 	if (!pr->echo)
 	    console_prompt_text(outfp, "\n", 1);
 
+        if (len < 0) {
+            console_close(outfp, infd);
+            return 0;                  /* failure due to read error */
+        }
+
+	pr->result[len] = '\0';
     }
 
     console_close(outfp, infd);

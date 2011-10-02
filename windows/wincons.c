@@ -315,7 +315,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     {
 	int i;
 	for (i = 0; i < (int)p->n_prompts; i++)
-	    memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
+            prompt_set_result(p->prompts[i], "");
     }
 
     /*
@@ -365,9 +365,9 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
 
-	DWORD savemode, newmode, i = 0;
+	DWORD savemode, newmode;
+        int len;
 	prompt_t *pr = p->prompts[curr_prompt];
-	BOOL r;
 
 	GetConsoleMode(hin, &savemode);
 	newmode = savemode | ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT;
@@ -379,25 +379,44 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
 
 	console_data_untrusted(hout, pr->prompt, strlen(pr->prompt));
 
-	r = ReadFile(hin, pr->result, pr->result_len - 1, &i, NULL);
+        len = 0;
+        while (1) {
+            DWORD ret = 0;
+            BOOL r;
+
+            prompt_ensure_result_size(pr, len * 5 / 4 + 512);
+
+            r = ReadFile(hin, pr->result + len, pr->resultsize - len - 1,
+                         &ret, NULL);
+
+            if (!r || ret == 0) {
+                len = -1;
+                break;
+            }
+            len += ret;
+            if (pr->result[len - 1] == '\n') {
+                len--;
+                if (pr->result[len - 1] == '\r')
+                    len--;
+                break;
+            }
+        }
 
 	SetConsoleMode(hin, savemode);
-
-	if ((int) i > pr->result_len)
-	    i = pr->result_len - 1;
-	else
-	    i = i - 2;
-	pr->result[i] = '\0';
 
 	if (!pr->echo) {
 	    DWORD dummy;
 	    WriteFile(hout, "\r\n", 2, &dummy, NULL);
 	}
 
+        if (len < 0) {
+            return 0;                  /* failure due to read error */
+        }
+
+	pr->result[len] = '\0';
     }
 
     return 1; /* success */
-
 }
 
 void frontend_keypress(void *handle)

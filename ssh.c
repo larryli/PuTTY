@@ -517,9 +517,6 @@ static void ssh_channel_destroy(struct ssh_channel *c);
 #define OUR_V2_MAXPKT 0x4000UL
 #define OUR_V2_PACKETLIMIT 0x9000UL
 
-/* Maximum length of passwords/passphrases (arbitrary) */
-#define SSH_MAX_PASSWORD_LEN 100
-
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
 const static struct ssh_mac *macs[] = {
@@ -3526,8 +3523,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    s->cur_prompt = new_prompts(ssh->frontend);
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH login name");
-	    /* 512 is an arbitrary upper limit on username size */
-	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE, 512);
+	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
 	    ret = get_userpass_input(s->cur_prompt, NULL, 0);
 	    while (ret < 0) {
 		ssh->send_ok = 1;
@@ -3820,8 +3816,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    s->cur_prompt->name = dupstr("SSH key passphrase");
 		    add_prompt(s->cur_prompt,
 			       dupprintf("Passphrase for key \"%.100s\": ",
-					 s->publickey_comment),
-			       FALSE, SSH_MAX_PASSWORD_LEN);
+					 s->publickey_comment), FALSE);
 		    ret = get_userpass_input(s->cur_prompt, NULL, 0);
 		    while (ret < 0) {
 			ssh->send_ok = 1;
@@ -3976,7 +3971,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			      (*instr_suf) ? "\n" : "",
 			      instr_suf);
 		s->cur_prompt->instr_reqd = TRUE;
-		add_prompt(s->cur_prompt, prompt, FALSE, SSH_MAX_PASSWORD_LEN);
+		add_prompt(s->cur_prompt, prompt, FALSE);
 		sfree(instr_suf);
 	    }
 	}
@@ -4019,7 +4014,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			      (*instr_suf) ? "\n" : "",
 			      instr_suf);
 		s->cur_prompt->instr_reqd = TRUE;
-		add_prompt(s->cur_prompt, prompt, FALSE, SSH_MAX_PASSWORD_LEN);
+		add_prompt(s->cur_prompt, prompt, FALSE);
 		sfree(instr_suf);
 	    }
 	}
@@ -4032,7 +4027,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    s->cur_prompt->name = dupstr("SSH password");
 	    add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
 						ssh->username, ssh->savedhost),
-		       FALSE, SSH_MAX_PASSWORD_LEN);
+		       FALSE);
 	}
 
 	/*
@@ -7675,8 +7670,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    s->cur_prompt = new_prompts(ssh->frontend);
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH login name");
-	    /* 512 is an arbitrary limit :-( */
-	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE, 512); 
+	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE); 
 	    ret = get_userpass_input(s->cur_prompt, NULL, 0);
 	    while (ret < 0) {
 		ssh->send_ok = 1;
@@ -8082,7 +8076,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			add_prompt(s->cur_prompt,
 				   dupprintf("Passphrase for key \"%.100s\": ",
 					     s->publickey_comment),
-				   FALSE, SSH_MAX_PASSWORD_LEN);
+				   FALSE);
 			ret = get_userpass_input(s->cur_prompt, NULL, 0);
 			while (ret < 0) {
 			    ssh->send_ok = 1;
@@ -8462,7 +8456,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			}
 			add_prompt(s->cur_prompt,
 				   dupprintf("%.*s", prompt_len, prompt),
-				   echo, SSH_MAX_PASSWORD_LEN);
+                                   echo);
 		    }
 
 		    if (name_len) {
@@ -8559,7 +8553,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
 						    ssh->username,
 						    ssh->savedhost),
-			   FALSE, SSH_MAX_PASSWORD_LEN);
+			   FALSE);
 
 		ret = get_userpass_input(s->cur_prompt, NULL, 0);
 		while (ret < 0) {
@@ -8661,11 +8655,11 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		     */
 		    add_prompt(s->cur_prompt,
 			       dupstr("Current password (blank for previously entered password): "),
-			       FALSE, SSH_MAX_PASSWORD_LEN);
+			       FALSE);
 		    add_prompt(s->cur_prompt, dupstr("Enter new password: "),
-			       FALSE, SSH_MAX_PASSWORD_LEN);
+			       FALSE);
 		    add_prompt(s->cur_prompt, dupstr("Confirm new password: "),
-			       FALSE, SSH_MAX_PASSWORD_LEN);
+			       FALSE);
 
 		    /*
 		     * Loop until the user manages to enter the same

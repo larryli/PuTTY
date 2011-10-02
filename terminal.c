@@ -6604,7 +6604,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 	{
 	    int i;
 	    for (i = 0; i < (int)p->n_prompts; i++)
-		memset(p->prompts[i]->result, 0, p->prompts[i]->result_len);
+                prompt_set_result(p->prompts[i], "");
 	}
     }
 
@@ -6631,8 +6631,8 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 	      case 10:
 	      case 13:
 		term_data(term, 0, "\r\n", 2);
+                prompt_ensure_result_size(pr, s->pos + 1);
 		pr->result[s->pos] = '\0';
-		pr->result[pr->result_len - 1] = '\0';
 		/* go to next prompt, if any */
 		s->curr_prompt++;
 		s->done_prompt = 0;
@@ -6667,10 +6667,9 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 		 * when we're doing password input, because some people
 		 * have control characters in their passwords.
 		 */
-		if ((!pr->echo ||
-		     (c >= ' ' && c <= '~') ||
-		     ((unsigned char) c >= 160))
-		    && s->pos < pr->result_len - 1) {
+		if (!pr->echo || (c >= ' ' && c <= '~') ||
+		     ((unsigned char) c >= 160)) {
+                    prompt_ensure_result_size(pr, s->pos + 1);
 		    pr->result[s->pos++] = c;
 		    if (pr->echo)
 			term_data(term, 0, &c, 1);
