@@ -457,12 +457,13 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
     }
 
     if (!strcmp(p, "-i")) {
-	Filename fn;
+	Filename *fn;
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 	fn = filename_from_str(value);
-	conf_set_filename(conf, CONF_keyfile, &fn);
+	conf_set_filename(conf, CONF_keyfile, fn);
+        filename_free(fn);
     }
 
     if (!strcmp(p, "-4") || !strcmp(p, "-ipv4")) {

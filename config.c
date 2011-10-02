@@ -131,12 +131,11 @@ void conf_filesel_handler(union control *ctrl, void *dlg,
     Conf *conf = (Conf *)data;
 
     if (event == EVENT_REFRESH) {
-	dlg_filesel_set(ctrl, dlg, *conf_get_filename(conf, key));
+	dlg_filesel_set(ctrl, dlg, conf_get_filename(conf, key));
     } else if (event == EVENT_VALCHANGE) {
-	Filename filename;
-	dlg_filesel_get(ctrl, dlg, &filename);
-	conf_set_filename(conf, key, &filename);
-	/* If Filenames ever become dynamic, free this one. */
+	Filename *filename = dlg_filesel_get(ctrl, dlg);
+	conf_set_filename(conf, key, filename);
+        filename_free(filename);
     }
 }
 

@@ -522,21 +522,6 @@ union control *ctrl_checkbox(struct controlset *, char *label, char shortcut,
 union control *ctrl_tabdelay(struct controlset *, union control *);
 
 /*
- * The standard file-selector handler expects the main `context'
- * field to contain the `offsetof' a Filename field in the
- * structure pointed to by `data'.
- */
-void dlg_stdfilesel_handler(union control *ctrl, void *dlg,
-			    void *data, int event);
-/*
- * The standard font-selector handler expects the main `context'
- * field to contain the `offsetof' a Font field in the structure
- * pointed to by `data'.
- */
-void dlg_stdfontsel_handler(union control *ctrl, void *dlg,
-			    void *data, int event);
-
-/*
  * Routines the platform-independent dialog code can call to read
  * and write the values of controls.
  */
@@ -565,8 +550,8 @@ int dlg_listbox_index(union control *ctrl, void *dlg);
 int dlg_listbox_issel(union control *ctrl, void *dlg, int index);
 void dlg_listbox_select(union control *ctrl, void *dlg, int index);
 void dlg_text_set(union control *ctrl, void *dlg, char const *text);
-void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn);
-void dlg_filesel_get(union control *ctrl, void *dlg, Filename *fn);
+void dlg_filesel_set(union control *ctrl, void *dlg, Filename *fn);
+Filename *dlg_filesel_get(union control *ctrl, void *dlg);
 void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fn);
 FontSpec *dlg_fontsel_get(union control *ctrl, void *dlg);
 /*

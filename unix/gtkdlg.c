@@ -906,24 +906,22 @@ void dlg_label_change(union control *ctrl, void *dlg, char const *text)
     }
 }
 
-void dlg_filesel_set(union control *ctrl, void *dlg, Filename fn)
+void dlg_filesel_set(union control *ctrl, void *dlg, Filename *fn)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FILESELECT);
     assert(uc->entry != NULL);
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), fn.path);
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), fn->path);
 }
 
-void dlg_filesel_get(union control *ctrl, void *dlg, Filename *fn)
+Filename *dlg_filesel_get(union control *ctrl, void *dlg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_FILESELECT);
     assert(uc->entry != NULL);
-    strncpy(fn->path, gtk_entry_get_text(GTK_ENTRY(uc->entry)),
-	    lenof(fn->path));
-    fn->path[lenof(fn->path)-1] = '\0';
+    return filename_from_str(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
 }
 
 void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fs)
@@ -3741,7 +3739,7 @@ void logevent_dlg(void *estuff, const char *string)
     es->nevents++;
 }
 
-int askappend(void *frontend, Filename filename,
+int askappend(void *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
@@ -3753,7 +3751,7 @@ int askappend(void *frontend, Filename filename,
     char *mbtitle;
     int mbret;
 
-    message = dupprintf(msgtemplate, FILENAME_MAX, filename.path);
+    message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
     mbtitle = dupprintf("%s Log to File", appname);
 
     mbret = messagebox(get_window(frontend), mbtitle, message,

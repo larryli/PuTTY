@@ -3573,7 +3573,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
      * Load the public half of any configured keyfile for later use.
      */
     s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
-    if (!filename_is_null(*s->keyfile)) {
+    if (!filename_is_null(s->keyfile)) {
 	int keytype;
 	logeventf(ssh, "Reading private key file \"%.150s\"",
 		  filename_to_str(s->keyfile));
@@ -7529,7 +7529,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 * for later use.
 	 */
 	s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
-	if (!filename_is_null(*s->keyfile)) {
+	if (!filename_is_null(s->keyfile)) {
 	    int keytype;
 	    logeventf(ssh, "Reading private key file \"%.150s\"",
 		      filename_to_str(s->keyfile));

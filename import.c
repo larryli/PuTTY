@@ -334,7 +334,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
     ret->encrypted = 0;
     memset(ret->iv, 0, sizeof(ret->iv));
 
-    fp = f_open(*filename, "r", FALSE);
+    fp = f_open(filename, "r", FALSE);
     if (!fp) {
 	errmsg = "unable to open key file";
 	goto error;
@@ -919,7 +919,7 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
      * And save it. We'll use Unix line endings just in case it's
      * subsequently transferred in binary mode.
      */
-    fp = f_open(*filename, "wb", TRUE);      /* ensure Unix line endings */
+    fp = f_open(filename, "wb", TRUE);      /* ensure Unix line endings */
     if (!fp)
 	goto error;
     fputs(header, fp);
@@ -1053,7 +1053,7 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
     ret->keyblob = NULL;
     ret->keyblob_len = ret->keyblob_size = 0;
 
-    fp = f_open(*filename, "r", FALSE);
+    fp = f_open(filename, "r", FALSE);
     if (!fp) {
 	errmsg = "unable to open key file";
 	goto error;
@@ -1672,7 +1672,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
      * And save it. We'll use Unix line endings just in case it's
      * subsequently transferred in binary mode.
      */
-    fp = f_open(*filename, "wb", TRUE);      /* ensure Unix line endings */
+    fp = f_open(filename, "wb", TRUE);      /* ensure Unix line endings */
     if (!fp)
 	goto error;
     fputs("---- BEGIN SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);

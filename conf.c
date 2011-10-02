@@ -43,7 +43,7 @@ struct value {
     union {
 	int intval;
 	char *stringval;
-	Filename fileval;
+	Filename *fileval;
 	FontSpec *fontval;
     } u;
 };
@@ -125,6 +125,8 @@ static void free_value(struct value *val, int type)
 {
     if (type == TYPE_STR)
 	sfree(val->u.stringval);
+    else if (type == TYPE_FILENAME)
+	filename_free(val->u.fileval);
     else if (type == TYPE_FONT)
 	fontspec_free(val->u.fontval);
 }
@@ -143,7 +145,7 @@ static void copy_value(struct value *to, struct value *from, int type)
 	to->u.stringval = dupstr(from->u.stringval);
 	break;
       case TYPE_FILENAME:
-	to->u.fileval = from->u.fileval;
+	to->u.fileval = filename_copy(from->u.fileval);
 	break;
       case TYPE_FONT:
 	to->u.fontval = fontspec_copy(from->u.fontval);
@@ -332,7 +334,7 @@ Filename *conf_get_filename(Conf *conf, int primary)
     key.primary = primary;
     entry = find234(conf->tree, &key, NULL);
     assert(entry);
-    return &entry->value.u.fileval;
+    return entry->value.u.fileval;
 }
 
 FontSpec *conf_get_fontspec(Conf *conf, int primary)
@@ -418,7 +420,7 @@ void conf_set_filename(Conf *conf, int primary, const Filename *value)
     assert(subkeytypes[primary] == TYPE_NONE);
     assert(valuetypes[primary] == TYPE_FILENAME);
     entry->key.primary = primary;
-    entry->value.u.fileval = *value;   /* structure copy */
+    entry->value.u.fileval = filename_copy(value);
     conf_insert(conf, entry);
 }
 
@@ -457,7 +459,7 @@ int conf_serialised_size(Conf *conf)
 	    size += 1 + strlen(entry->value.u.stringval);
 	    break;
 	  case TYPE_FILENAME:
-	    size += sizeof(entry->value.u.fileval);
+	    size += filename_serialise(entry->value.u.fileval, NULL);
 	    break;
 	  case TYPE_FONT:
 	    size += fontspec_serialise(entry->value.u.fontval, NULL);
@@ -504,9 +506,7 @@ void conf_serialise(Conf *conf, void *vdata)
 	    *data++ = 0;
 	    break;
 	  case TYPE_FILENAME:
-	    memcpy(data, &entry->value.u.fileval,
-		   sizeof(entry->value.u.fileval));
-	    data += sizeof(entry->value.u.fileval);
+            data += filename_serialise(entry->value.u.fileval, data);
 	    break;
 	  case TYPE_FONT:
             data += fontspec_serialise(entry->value.u.fontval, data);
@@ -580,16 +580,16 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
 	    data = zero + 1;
 	    break;
 	  case TYPE_FILENAME:
-	    if (maxsize < sizeof(entry->value.u.fileval)) {
+            entry->value.u.fileval =
+                filename_deserialise(data, maxsize, &used);
+            if (!entry->value.u.fileval) {
 		if (subkeytypes[entry->key.primary] == TYPE_STR)
 		    sfree(entry->key.secondary.s);
 		sfree(entry);
 		goto done;
 	    }
-	    memcpy(&entry->value.u.fileval, data,
-		   sizeof(entry->value.u.fileval));
-	    data += sizeof(entry->value.u.fileval);
-	    maxsize -= sizeof(entry->value.u.fileval);
+	    data += used;
+	    maxsize -= used;
 	    break;
 	  case TYPE_FONT:
             entry->value.u.fontval =

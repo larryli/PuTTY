@@ -27,12 +27,16 @@ unsigned long getticks(void)
     return tv.tv_sec * 1000 + tv.tv_usec / 1000 + tickcount_offset;
 }
 
-Filename filename_from_str(const char *str)
+Filename *filename_from_str(const char *str)
 {
-    Filename ret;
-    strncpy(ret.path, str, sizeof(ret.path));
-    ret.path[sizeof(ret.path)-1] = '\0';
+    Filename *ret = snew(Filename);
+    ret->path = dupstr(str);
     return ret;
+}
+
+Filename *filename_copy(const Filename *fn)
+{
+    return filename_from_str(fn->path);
 }
 
 const char *filename_to_str(const Filename *fn)
@@ -40,14 +44,41 @@ const char *filename_to_str(const Filename *fn)
     return fn->path;
 }
 
-int filename_equal(Filename f1, Filename f2)
+int filename_equal(const Filename *f1, const Filename *f2)
 {
-    return !strcmp(f1.path, f2.path);
+    return !strcmp(f1->path, f2->path);
 }
 
-int filename_is_null(Filename fn)
+int filename_is_null(const Filename *fn)
 {
-    return !*fn.path;
+    return !fn->path[0];
+}
+
+void filename_free(Filename *fn)
+{
+    sfree(fn->path);
+    sfree(fn);
+}
+
+int filename_serialise(const Filename *f, void *vdata)
+{
+    char *data = (char *)vdata;
+    int len = strlen(f->path) + 1;     /* include trailing NUL */
+    if (data) {
+        strcpy(data, f->path);
+    }
+    return len;
+}
+Filename *filename_deserialise(void *vdata, int maxsize, int *used)
+{
+    char *data = (char *)vdata;
+    char *end;
+    end = memchr(data, '\0', maxsize);
+    if (!end)
+        return NULL;
+    end++;
+    *used = end - data;
+    return filename_from_str(data);
 }
 
 #ifdef DEBUG
@@ -135,16 +166,15 @@ int cloexec(int fd) {
     return fcntl(fd, F_SETFD, fdflags | FD_CLOEXEC);
 }
 
-FILE *f_open(struct Filename filename, char const *mode, int is_private)
+FILE *f_open(const Filename *filename, char const *mode, int is_private)
 {
     if (!is_private) {
-	return fopen(filename.path, mode);
+	return fopen(filename->path, mode);
     } else {
 	int fd;
 	assert(mode[0] == 'w');	       /* is_private is meaningless for read,
 					  and tricky for append */
-	fd = open(filename.path, O_WRONLY | O_CREAT | O_TRUNC,
-		      0700);
+	fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0700);
 	if (fd < 0)
 	    return NULL;
 	return fdopen(fd, mode);

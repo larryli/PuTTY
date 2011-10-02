@@ -615,7 +615,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 }
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
-		   Filename filename, int was_import_cmd)
+		   Filename *filename, int was_import_cmd)
 {
     char passphrase[PASSPHRASE_MAXLEN];
     int needs_pass;
@@ -627,7 +627,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     struct RSAKey newkey1;
     struct ssh2_userkey *newkey2 = NULL;
 
-    type = realtype = key_type(&filename);
+    type = realtype = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 &&
 	type != SSH_KEYTYPE_SSH2 &&
 	!import_possible(type)) {
@@ -647,13 +647,11 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 
     comment = NULL;
     if (realtype == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(&filename, &comment);
+	needs_pass = rsakey_encrypted(filename, &comment);
     else if (realtype == SSH_KEYTYPE_SSH2)
-	needs_pass =
-	ssh2_userkey_encrypted(&filename, &comment);
+	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     else
-	needs_pass = import_encrypted(&filename, realtype,
-				      &comment);
+	needs_pass = import_encrypted(filename, realtype, &comment);
     pps.passphrase = passphrase;
     pps.comment = comment;
     do {
@@ -671,18 +669,15 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    *passphrase = '\0';
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (realtype == type)
-		ret = loadrsakey(&filename, &newkey1,
-				 passphrase, &errmsg);
+		ret = loadrsakey(filename, &newkey1, passphrase, &errmsg);
 	    else
-		ret = import_ssh1(&filename, realtype,
-				  &newkey1, passphrase, &errmsg);
+		ret = import_ssh1(filename, realtype, &newkey1,
+                                  passphrase, &errmsg);
 	} else {
 	    if (realtype == type)
-		newkey2 = ssh2_load_userkey(&filename,
-					    passphrase, &errmsg);
+		newkey2 = ssh2_load_userkey(filename, passphrase, &errmsg);
 	    else
-		newkey2 = import_ssh2(&filename, realtype,
-				      passphrase, &errmsg);
+		newkey2 = import_ssh2(filename, realtype, passphrase, &errmsg);
 	    if (newkey2 == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!newkey2)
@@ -1166,22 +1161,24 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    }
 
 		    if (state->ssh2) {
-			Filename fn = filename_from_str(filename);
+			Filename *fn = filename_from_str(filename);
                         if (type != realtype)
-                            ret = export_ssh2(&fn, type, &state->ssh2key,
+                            ret = export_ssh2(fn, type, &state->ssh2key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = ssh2_save_userkey(&fn, &state->ssh2key,
+                            ret = ssh2_save_userkey(fn, &state->ssh2key,
                                                     *passphrase ? passphrase :
                                                     NULL);
+                        filename_free(fn);
 		    } else {
-			Filename fn = filename_from_str(filename);
+			Filename *fn = filename_from_str(filename);
                         if (type != realtype)
-                            ret = export_ssh1(&fn, type, &state->key,
+                            ret = export_ssh1(fn, type, &state->key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = saversakey(&fn, &state->key,
+                            ret = saversakey(fn, &state->key,
                                              *passphrase ? passphrase : NULL);
+                        filename_free(fn);
 		    }
 		    if (ret <= 0) {
 			MessageBox(hwnd, "Unable to save key file",

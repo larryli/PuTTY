@@ -932,12 +932,13 @@ void registry_cleanup(void);
  * Filename and FontSpec functions are _not allowed_ to fail to
  * return, since these defaults _must_ be per-platform.)
  *
- * The 'FontSpec *' returned by platform_default_fontspec has
- * ownership transferred to the caller, and must be freed.
+ * The 'Filename *' returned by platform_default_filename, and the
+ * 'FontSpec *' returned by platform_default_fontspec, have ownership
+ * transferred to the caller, and must be freed.
  */
 char *platform_default_s(const char *name);
 int platform_default_i(const char *name, int def);
-Filename platform_default_filename(const char *name);
+Filename *platform_default_filename(const char *name);
 FontSpec *platform_default_fontspec(const char *name);
 
 /*
@@ -1181,7 +1182,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
  *  - 0 means cancel logging for this session
  *  - -1 means please wait.
  */
-int askappend(void *frontend, Filename filename,
+int askappend(void *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx);
 
 /*
@@ -1263,11 +1264,18 @@ extern const char *const x11_authnames[];  /* declared in x11fwd.c */
 
 /*
  * Miscellaneous exports from the platform-specific code.
+ *
+ * filename_serialise and filename_deserialise have the same semantics
+ * as fontspec_serialise and fontspec_deserialise above.
  */
-Filename filename_from_str(const char *string);
+Filename *filename_from_str(const char *string);
 const char *filename_to_str(const Filename *fn);
-int filename_equal(Filename f1, Filename f2);
-int filename_is_null(Filename fn);
+int filename_equal(const Filename *f1, const Filename *f2);
+int filename_is_null(const Filename *fn);
+Filename *filename_copy(const Filename *fn);
+void filename_free(Filename *fn);
+int filename_serialise(const Filename *f, void *data);
+Filename *filename_deserialise(void *data, int maxsize, int *used);
 char *get_username(void);	       /* return value needs freeing */
 char *get_random_data(int bytes);      /* used in cmdgen.c */
 

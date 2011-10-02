@@ -395,16 +395,15 @@ FontSpec *read_setting_fontspec(void *handle, const char *name)
 	return NULL;
     }
 }
-int read_setting_filename(void *handle, const char *name, Filename *result)
+Filename *read_setting_filename(void *handle, const char *name)
 {
     char *tmp = read_setting_s(handle, name);
     if (tmp) {
-	strncpy(result->path, tmp, sizeof(result->path)-1);
-	result->path[sizeof(result->path)-1] = '\0';
+        Filename *ret = filename_from_str(tmp);
 	sfree(tmp);
-	return TRUE;
+	return ret;
     } else
-	return FALSE;
+	return NULL;
 }
 
 void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
@@ -418,9 +417,9 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
     write_setting_s(handle, suffname, fs->name);
     sfree(suffname);
 }
-void write_setting_filename(void *handle, const char *name, Filename result)
+void write_setting_filename(void *handle, const char *name, Filename *result)
 {
-    write_setting_s(handle, name, result.path);
+    write_setting_s(handle, name, result->path);
 }
 
 void close_settings_r(void *handle)

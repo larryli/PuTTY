@@ -385,7 +385,7 @@ static void keylist_update(void)
 /*
  * This function loads a key from a file and adds it.
  */
-static void add_keyfile(Filename filename)
+static void add_keyfile(Filename *filename)
 {
     char passphrase[PASSPHRASE_MAXLEN];
     struct RSAKey *rkey = NULL;
@@ -399,7 +399,7 @@ static void add_keyfile(Filename filename)
     int type;
     int original_pass;
 	
-    type = key_type(&filename);
+    type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
 	char *msg = dupprintf("Couldn't load this key (%s)",
 			      key_type_to_str(type));
@@ -419,7 +419,7 @@ static void add_keyfile(Filename filename)
 	int i, nkeys, bloblen, keylistlen;
 
 	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(&filename, &blob, &bloblen, NULL, &error)) {
+	    if (!rsakey_pubblob(filename, &blob, &bloblen, NULL, &error)) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
 		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 			    HELPCTXID(errors_cantloadkey));
@@ -429,7 +429,7 @@ static void add_keyfile(Filename filename)
 	    keylist = get_keylist1(&keylistlen);
 	} else {
 	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(&filename, NULL, &bloblen,
+	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen,
 					NULL, &error);
 	    if (!blob) {
 		char *msg = dupprintf("Couldn't load private key (%s)", error);
@@ -517,9 +517,9 @@ static void add_keyfile(Filename filename)
 
     error = NULL;
     if (type == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(&filename, &comment);
+	needs_pass = rsakey_encrypted(filename, &comment);
     else
-	needs_pass = ssh2_userkey_encrypted(&filename, &comment);
+	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     attempts = 0;
     if (type == SSH_KEYTYPE_SSH1)
 	rkey = snew(struct RSAKey);
@@ -549,9 +549,9 @@ static void add_keyfile(Filename filename)
 	} else
 	    *passphrase = '\0';
 	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(&filename, rkey, passphrase, &error);
+	    ret = loadrsakey(filename, rkey, passphrase, &error);
 	else {
-	    skey = ssh2_load_userkey(&filename, passphrase, &error);
+	    skey = ssh2_load_userkey(filename, passphrase, &error);
 	    if (skey == SSH2_WRONG_PASSPHRASE)
 		ret = -1;
 	    else if (!skey)

@@ -159,14 +159,12 @@ FontSpec *platform_default_fontspec(const char *name)
         return fontspec_new("");
 }
 
-Filename platform_default_filename(const char *name)
+Filename *platform_default_filename(const char *name)
 {
-    Filename ret;
     if (!strcmp(name, "LogFileName"))
-	strcpy(ret.path, "putty.log");
+	return filename_from_str("putty.log");
     else
-	*ret.path = '\0';
-    return ret;
+	return filename_from_str("");
 }
 
 char *platform_default_s(const char *name)
@@ -2648,13 +2646,13 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    conf_set_str(conf, CONF_wintitle, val);
 
 	} else if (!strcmp(p, "-log")) {
-	    Filename fn;
+	    Filename *fn;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    strncpy(fn.path, val, sizeof(fn.path));
-	    fn.path[sizeof(fn.path)-1] = '\0';
-	    conf_set_filename(conf, CONF_logfilename, &fn);
+            fn = filename_from_str(val);
+	    conf_set_filename(conf, CONF_logfilename, fn);
 	    conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
+            filename_free(fn);
 
 	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
 	    SECOND_PASS_ONLY;

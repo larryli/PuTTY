@@ -103,7 +103,7 @@ static void gpps(void *handle, const char *name, const char *def,
 
 /*
  * gppfont and gppfile cannot have local defaults, since the very
- * format of a Filename or Font is platform-dependent. So the
+ * format of a Filename or FontSpec is platform-dependent. So the
  * platform-dependent functions MUST return some sort of value.
  */
 static void gppfont(void *handle, const char *name, Conf *conf, int primary)
@@ -116,10 +116,11 @@ static void gppfont(void *handle, const char *name, Conf *conf, int primary)
 }
 static void gppfile(void *handle, const char *name, Conf *conf, int primary)
 {
-    Filename result;
-    if (!read_setting_filename(handle, name, &result))
+    Filename *result = read_setting_filename(handle, name);
+    if (!result)
 	result = platform_default_filename(name);
-    conf_set_filename(conf, primary, &result);
+    conf_set_filename(conf, primary, result);
+    filename_free(result);
 }
 
 static int gppi_raw(void *handle, char *name, int def)
@@ -426,7 +427,7 @@ void save_open_settings(void *sesskey, Conf *conf)
 
     write_setting_i(sesskey, "Present", 1);
     write_setting_s(sesskey, "HostName", conf_get_str(conf, CONF_host));
-    write_setting_filename(sesskey, "LogFileName", *conf_get_filename(conf, CONF_logfilename));
+    write_setting_filename(sesskey, "LogFileName", conf_get_filename(conf, CONF_logfilename));
     write_setting_i(sesskey, "LogType", conf_get_int(conf, CONF_logtype));
     write_setting_i(sesskey, "LogFileClash", conf_get_int(conf, CONF_logxfovr));
     write_setting_i(sesskey, "LogFlush", conf_get_int(conf, CONF_logflush));
@@ -486,13 +487,13 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "AuthGSSAPI", conf_get_int(conf, CONF_try_gssapi_auth));
 #ifndef NO_GSSAPI
     wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);
-    write_setting_filename(sesskey, "GSSCustom", *conf_get_filename(conf, CONF_ssh_gss_custom));
+    write_setting_filename(sesskey, "GSSCustom", conf_get_filename(conf, CONF_ssh_gss_custom));
 #endif
     write_setting_i(sesskey, "SshNoShell", conf_get_int(conf, CONF_ssh_no_shell));
     write_setting_i(sesskey, "SshProt", conf_get_int(conf, CONF_sshprot));
     write_setting_s(sesskey, "LogHost", conf_get_str(conf, CONF_loghost));
     write_setting_i(sesskey, "SSH2DES", conf_get_int(conf, CONF_ssh2_des_cbc));
-    write_setting_filename(sesskey, "PublicKeyFile", *conf_get_filename(conf, CONF_keyfile));
+    write_setting_filename(sesskey, "PublicKeyFile", conf_get_filename(conf, CONF_keyfile));
     write_setting_s(sesskey, "RemoteCommand", conf_get_str(conf, CONF_remote_cmd));
     write_setting_i(sesskey, "RFCEnviron", conf_get_int(conf, CONF_rfc_environ));
     write_setting_i(sesskey, "PassiveTelnet", conf_get_int(conf, CONF_passive_telnet));
@@ -530,7 +531,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "BlinkCur", conf_get_int(conf, CONF_blink_cur));
     write_setting_i(sesskey, "Beep", conf_get_int(conf, CONF_beep));
     write_setting_i(sesskey, "BeepInd", conf_get_int(conf, CONF_beep_ind));
-    write_setting_filename(sesskey, "BellWaveFile", *conf_get_filename(conf, CONF_bell_wavefile));
+    write_setting_filename(sesskey, "BellWaveFile", conf_get_filename(conf, CONF_bell_wavefile));
     write_setting_i(sesskey, "BellOverload", conf_get_int(conf, CONF_bellovl));
     write_setting_i(sesskey, "BellOverloadN", conf_get_int(conf, CONF_bellovl_n));
     write_setting_i(sesskey, "BellOverloadT", conf_get_int(conf, CONF_bellovl_t)
@@ -605,7 +606,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "X11Forward", conf_get_int(conf, CONF_x11_forward));
     write_setting_s(sesskey, "X11Display", conf_get_str(conf, CONF_x11_display));
     write_setting_i(sesskey, "X11AuthType", conf_get_int(conf, CONF_x11_auth));
-    write_setting_filename(sesskey, "X11AuthFile", *conf_get_filename(conf, CONF_xauthfile));
+    write_setting_filename(sesskey, "X11AuthFile", conf_get_filename(conf, CONF_xauthfile));
     write_setting_i(sesskey, "LocalPortAcceptAll", conf_get_int(conf, CONF_lport_acceptall));
     write_setting_i(sesskey, "RemotePortAcceptAll", conf_get_int(conf, CONF_rport_acceptall));
     wmap(sesskey, "PortForwardings", conf, CONF_portfwd);

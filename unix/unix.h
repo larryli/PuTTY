@@ -13,9 +13,9 @@
 #include "charset.h"
 
 struct Filename {
-    char path[FILENAME_MAX];
+    char *path;
 };
-FILE *f_open(struct Filename, char const *, int);
+FILE *f_open(const struct Filename *, char const *, int);
 
 struct FontSpec {
     char *name;    /* may be "" to indicate no selected font at all */
