@@ -46,6 +46,7 @@ static const struct {
     { "koi8-u", CS_KOI8_U },
     { "ibm-cp437", CS_CP437 },
     { "ibm-cp850", CS_CP850 },
+    { "ibm-cp852", CS_CP852 },
     { "ibm-cp866", CS_CP866 },
     { "microsoft-cp1250", CS_CP1250 },
     { "microsoft-cp1251", CS_CP1251 },

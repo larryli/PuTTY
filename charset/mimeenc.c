@@ -135,6 +135,11 @@ static const struct {
     { "850", CS_CP850 },
     { "csPC850Multilingual", CS_CP850 },
 
+    { "IBM852", CS_CP852 },
+    { "cp852", CS_CP852 },
+    { "852", CS_CP852 },
+    { "csIBM852", CS_CP852 },
+
     { "IBM866", CS_CP866 },
     { "cp866", CS_CP866 },
     { "866", CS_CP866 },
