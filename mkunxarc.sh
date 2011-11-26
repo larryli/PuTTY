@@ -24,8 +24,17 @@ case "$1" in
     ver=
     docver=
     ;;
+  *pre)
+    set -- "${1%pre}" "$2"
+    case "$1" in *[!.0-9a-z~]*) echo "Malformed prerelease ID '$1'">&2;exit 1;;esac
+    case "$2" in *[!.0-9a-z~]*) echo "Malformed prerelease revision '$1'">&2;exit 1;;esac
+    autoconfver="$1~pre$2"
+    arcsuffix="-$autoconfver"
+    ver="-DPRERELEASE=$1 -DSVN_REV=$2"
+    docver="VERSION=\"PuTTY prerelease $1:r$2\""
+    ;;
   *)
-    case "$1" in *[!.0-9a-z]*) echo "Malformed release ID '$1'">&2;exit 1;;esac
+    case "$1" in *[!.0-9a-z~]*) echo "Malformed release ID '$1'">&2;exit 1;;esac
     arcsuffix="-$1"
     ver="-DRELEASE=$1"
     docver="VERSION=\"PuTTY release $1\""

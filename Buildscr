@@ -7,6 +7,7 @@ module putty
 set Makever -DSVN_REV=$(revision)
 ifneq "$(!numeric $(revision))" "yes" set Makever $(Makever) -DMODIFIED
 ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
+ifneq "$(PRERELEASE)" "" set Makever $(Makever) -DPRERELEASE=$(PRERELEASE)
 ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
 set Makeargs VER="$(Makever)"
 ifneq "$(XFLAGS)" "" set Makeargs $(Makeargs) XFLAGS="$(XFLAGS)"
@@ -15,11 +16,13 @@ ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
 # Set up the version string for the docs build.
 set Docmakeargs VERSION="PuTTY revision $(revision)"
 ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
+ifneq "$(PRERELEASE)" "" set Docmakeargs VERSION="PuTTY pre-release $(PRERELEASE):r$(revision)"
 ifneq "$(date)" "" set Docmakeargs VERSION="PuTTY development snapshot $(date)"
 
 # Set up the version string for the Unix source archive.
 set Unxver r$(revision)
 ifneq "$(RELEASE)" "" set Unxver $(RELEASE)
+ifneq "$(PRERELEASE)" "" set Unxver $(PRERELEASE)pre $(revision)
 ifneq "$(date)" "" set Unxver $(date)
 
 # Set up the various version strings for the installer.
@@ -33,15 +36,14 @@ ifneq "$(RELEASE)" "" set Iname PuTTY version $(RELEASE)
 ifneq "$(RELEASE)" "" set Ivertext Release $(RELEASE)
 ifneq "$(RELEASE)" "" set Irev 0
 ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
+ifneq "$(PRERELEASE)" "" set Iversion $(PRERELEASE):r$(revision)
+ifneq "$(PRERELEASE)" "" set Iname PuTTY pre-release $(PRERELEASE):r$(revision)
+ifneq "$(PRERELEASE)" "" set Ivertext Pre-release $(PRERELEASE):r$(revision)
+ifneq "$(PRERELEASE)" "" set Ifilename putty-$(PRERELEASE)-pre$(revision)-installer.exe
 ifneq "$(date)" "" set Iversion $(date):r$(revision)
 ifneq "$(date)" "" set Iname PuTTY development snapshot $(date):r$(revision)
 ifneq "$(date)" "" set Ivertext Development snapshot $(date):r$(revision)
 ifneq "$(date)" "" set Ifilename putty-$(date)-installer.exe
-
-# Set up the version string for the installer.
-set Iversion r$(revision)
-ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
-ifneq "$(date)" "" set Iversion $(date):r$(revision)
 
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh $(Unxver)
