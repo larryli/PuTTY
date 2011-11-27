@@ -151,6 +151,10 @@ of the tag.
    + Adjust Download page to say 'The latest release version (<ver>)'.
    + Adjust Download page to update filenames of installer and Unix
      tarball (both in the hrefs themselves and the link text).
+   + Check over the Download page and remove any mention of
+     pre-releases, if there were any before this release. Comment out
+     the big pre-release section at the top, and also adjust the
+     sections about source archives at the bottom.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
 
