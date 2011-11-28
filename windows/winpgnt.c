@@ -1938,8 +1938,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     }
 #endif
 		    if (!EqualSid(mapowner, ourself) &&
-                        !EqualSid(mapowner, ourself2))
+                        !EqualSid(mapowner, ourself2)) {
+                        CloseHandle(filemap);
 			return 0;      /* security ID mismatch! */
+                    }
 #ifdef DEBUG_IPC
 		    debug(("security stuff matched\n"));
 #endif
