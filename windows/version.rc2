@@ -61,6 +61,11 @@
 #define VERSION_TEXT "Release " STR(RELEASE)
 #define BINARY_VERSION BASE_VERSION,0,0
 
+#elif defined PRERELEASE
+
+#define VERSION_TEXT "Pre-release " STR(PRERELEASE) ":r" STR(SVN_REV);
+#define BINARY_VERSION BASE_VERSION,SVN_REV,0
+
 #elif defined SVN_REV
 
 #define VERSION_TEXT "Custom build r" STR(SVN_REV)
