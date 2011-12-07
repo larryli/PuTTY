@@ -8524,6 +8524,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    }
 		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 
+                    /*
+                     * Free the prompts structure from this iteration.
+                     * If there's another, a new one will be allocated
+                     * when we return to the top of this while loop.
+                     */
+                    free_prompts(s->cur_prompt);
+
 		    /*
 		     * Get the next packet in case it's another
 		     * INFO_REQUEST.
