@@ -558,7 +558,15 @@ enum {				       /* channel types */
     CHAN_X11,
     CHAN_AGENT,
     CHAN_SOCKDATA,
-    CHAN_SOCKDATA_DORMANT	       /* one the remote hasn't confirmed */
+    CHAN_SOCKDATA_DORMANT,	       /* one the remote hasn't confirmed */
+    /*
+     * CHAN_ZOMBIE is used to indicate a channel for which we've
+     * already destroyed the local data source: for instance, if a
+     * forwarded port experiences a socket error on the local side, we
+     * immediately destroy its local socket and turn the SSH channel
+     * into CHAN_ZOMBIE.
+     */
+    CHAN_ZOMBIE
 };
 
 /*
@@ -4248,6 +4256,34 @@ void sshfwd_write_eof(struct ssh_channel *c)
 
     c->pending_eof = TRUE;
     ssh_channel_try_eof(c);
+}
+
+void sshfwd_unclean_close(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+    struct Packet *pktout;
+
+    if (ssh->state == SSH_STATE_CLOSED)
+	return;
+
+    if (c->closes & CLOSES_SENT_CLOSE)
+        return;
+
+    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+    ssh2_pkt_adduint32(pktout, c->remoteid);
+    ssh2_pkt_send(ssh, pktout);
+    c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
+    switch (c->type) {
+      case CHAN_X11:
+        x11_close(c->u.x11.s);
+        break;
+      case CHAN_SOCKDATA:
+      case CHAN_SOCKDATA_DORMANT:
+        pfd_close(c->u.pfd.s);
+        break;
+    }
+    c->type = CHAN_ZOMBIE;
+    ssh2_channel_check_close(c);
 }
 
 int sshfwd_write(struct ssh_channel *c, char *buf, int len)

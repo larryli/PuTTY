@@ -61,17 +61,19 @@ static int pfd_closing(Plug plug, const char *error_msg, int error_code,
 {
     struct PFwdPrivate *pr = (struct PFwdPrivate *) plug;
 
-    /*
-     * We have no way to communicate down the forwarded connection,
-     * so if an error occurred on the socket, we just ignore it
-     * and treat it like a proper close.
-     *
-     * FIXME: except we could initiate a full close here instead of
-     * just an outgoing EOF? ssh.c currently has no API for that, but
-     * it could.
-     */
-    if (pr->c)
-	sshfwd_write_eof(pr->c);
+    if (error_msg) {
+        /*
+         * Socket error. Slam the connection instantly shut.
+         */
+        sshfwd_unclean_close(pr->c);
+    } else {
+        /*
+         * Ordinary EOF received on socket. Send an EOF on the SSH
+         * channel.
+         */
+        if (pr->c)
+            sshfwd_write_eof(pr->c);
+    }
 
     return 1;
 }
