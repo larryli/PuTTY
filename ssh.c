@@ -6551,9 +6551,10 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
     /*
      * Never send WINDOW_ADJUST for a channel that the remote side has
      * already sent EOF on; there's no point, since it won't be
-     * sending any more data anyway.
+     * sending any more data anyway. Ditto if _we've_ already sent
+     * CLOSE.
      */
-    if (c->closes & CLOSES_RCVD_EOF)
+    if (c->closes & (CLOSES_RCVD_EOF | CLOSES_SENT_CLOSE))
 	return;
 
     /*
