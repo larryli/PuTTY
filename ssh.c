@@ -6999,7 +6999,7 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
         /*
          * Send outgoing EOF.
          */
-        sshfwd_write_eof(ssh->mainchan);
+        sshfwd_write_eof(c);
     }
 
     /*
