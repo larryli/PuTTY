@@ -886,6 +886,12 @@ int main(int argc, char **argv)
 	conf_set_int(conf, CONF_port, portnumber);
 
     /*
+     * Block SIGPIPE, so that we'll get EPIPE individually on
+     * particular network connections that go wrong.
+     */
+    putty_signal(SIGPIPE, SIG_IGN);
+
+    /*
      * Set up the pipe we'll use to tell us about SIGWINCH.
      */
     if (pipe(signalpipe) < 0) {
