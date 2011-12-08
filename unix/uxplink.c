@@ -585,6 +585,8 @@ static void version(void)
     exit(1);
 }
 
+void frontend_net_error_pending(void) {}
+
 int main(int argc, char **argv)
 {
     int sending;
@@ -1106,6 +1108,8 @@ int main(int argc, char **argv)
 	if (FD_ISSET(STDERR_FILENO, &wset)) {
 	    back->unthrottle(backhandle, try_output(TRUE));
 	}
+
+        net_pending_errors();
 
 	if ((!connopen || !back->connected(backhandle)) &&
 	    bufchain_size(&stdout_data) == 0 &&

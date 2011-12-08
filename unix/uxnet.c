@@ -1048,6 +1048,16 @@ void try_send(Actual_Socket s)
 		 * plug_closing()) at some suitable future moment.
 		 */
 		s->pending_error = err;
+                /*
+                 * Immediately cease selecting on this socket, so that
+                 * we don't tight-loop repeatedly trying to do
+                 * whatever it was that went wrong.
+                 */
+                uxsel_tell(s);
+                /*
+                 * Notify the front end that it might want to call us.
+                 */
+                frontend_net_error_pending();
 		return;
 	    }
 	} else {
@@ -1414,15 +1424,17 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 static void uxsel_tell(Actual_Socket s)
 {
     int rwx = 0;
-    if (s->listener) {
-	rwx |= 1;			/* read == accept */
-    } else {
-	if (!s->connected)
-	    rwx |= 2;			/* write == connect */
-	if (s->connected && !s->frozen && !s->incomingeof)
-	    rwx |= 1 | 4;		/* read, except */
-	if (bufchain_size(&s->output_data))
-	    rwx |= 2;			/* write */
+    if (!s->pending_error) {
+        if (s->listener) {
+            rwx |= 1;                  /* read == accept */
+        } else {
+            if (!s->connected)
+                rwx |= 2;              /* write == connect */
+            if (s->connected && !s->frozen && !s->incomingeof)
+                rwx |= 1 | 4;          /* read, except */
+            if (bufchain_size(&s->output_data))
+                rwx |= 2;              /* write */
+        }
     }
     uxsel_set(s->s, rwx, net_select_result);
 }

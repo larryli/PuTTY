@@ -605,6 +605,8 @@ char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
     }
 }
 
+void frontend_net_error_pending(void) {}
+
 /*
  * Main program: do platform-specific initialisation and then call
  * psftp_main().
