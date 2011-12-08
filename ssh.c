@@ -6564,7 +6564,6 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
      */
     if ((ssh->remote_bugs & BUG_SSH2_MAXPKT) && newwin > OUR_V2_MAXPKT)
 	newwin = OUR_V2_MAXPKT;
-	
 
     /*
      * Only send a WINDOW_ADJUST if there's significantly more window
