@@ -177,10 +177,13 @@ of the tag.
    subdirectory for the new version and mentions it in its .htaccess.
 
  - Announce the release!
-    + Mail the announcement to <putty-announce@lists.tartarus.org>.
-       * Put a 'Reply-To: putty@projects.tartarus.org' header on the
-	 mail so that people don't keep replying to my personal
-	 address.
+    + Construct a release announcement email whose message body is the
+      announcement written above, and which includes the following
+      headers:
+       * Reply-To: <putty@projects.tartarus.org>
+       * Subject: PuTTY X.YZ is released
+    + Mail that release announcement to
+      <putty-announce@lists.tartarus.org>.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
