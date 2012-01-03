@@ -41,6 +41,11 @@
  *    I haven't the energy.
  */
 
+#if !GLIB_CHECK_VERSION(1,3,7)
+#define g_ascii_strcasecmp g_strcasecmp
+#define g_ascii_strncasecmp g_strncasecmp
+#endif
+
 /*
  * Ad-hoc vtable mechanism to allow font structures to be
  * polymorphic.
@@ -661,21 +666,21 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	    style = p;
 	    p += sprintf(p, "%s", components[2][0] ? components[2] :
 			 "regular");
-	    if (!g_strcasecmp(components[3], "i"))
+	    if (!g_ascii_strcasecmp(components[3], "i"))
 		p += sprintf(p, " italic");
-	    else if (!g_strcasecmp(components[3], "o"))
+	    else if (!g_ascii_strcasecmp(components[3], "o"))
 		p += sprintf(p, " oblique");
-	    else if (!g_strcasecmp(components[3], "ri"))
+	    else if (!g_ascii_strcasecmp(components[3], "ri"))
 		p += sprintf(p, " reverse italic");
-	    else if (!g_strcasecmp(components[3], "ro"))
+	    else if (!g_ascii_strcasecmp(components[3], "ro"))
 		p += sprintf(p, " reverse oblique");
-	    else if (!g_strcasecmp(components[3], "ot"))
+	    else if (!g_ascii_strcasecmp(components[3], "ot"))
 		p += sprintf(p, " other-slant");
-	    if (components[4][0] && g_strcasecmp(components[4], "normal"))
+	    if (components[4][0] && g_ascii_strcasecmp(components[4], "normal"))
 		p += sprintf(p, " %s", components[4]);
-	    if (!g_strcasecmp(components[10], "m"))
+	    if (!g_ascii_strcasecmp(components[10], "m"))
 		p += sprintf(p, " [M]");
-	    if (!g_strcasecmp(components[10], "c"))
+	    if (!g_ascii_strcasecmp(components[10], "c"))
 		p += sprintf(p, " [C]");
 	    if (components[5][0])
 		p += sprintf(p, " %s", components[5]);
@@ -687,23 +692,23 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     */
 	    p++;
 	    stylekey = p;
-	    if (!g_strcasecmp(components[2], "medium") ||
-		!g_strcasecmp(components[2], "regular") ||
-		!g_strcasecmp(components[2], "normal") ||
-		!g_strcasecmp(components[2], "book"))
+	    if (!g_ascii_strcasecmp(components[2], "medium") ||
+		!g_ascii_strcasecmp(components[2], "regular") ||
+		!g_ascii_strcasecmp(components[2], "normal") ||
+		!g_ascii_strcasecmp(components[2], "book"))
 		weightkey = 0;
-	    else if (!g_strncasecmp(components[2], "demi", 4) ||
-		     !g_strncasecmp(components[2], "semi", 4))
+	    else if (!g_ascii_strncasecmp(components[2], "demi", 4) ||
+		     !g_ascii_strncasecmp(components[2], "semi", 4))
 		weightkey = 1;
 	    else
 		weightkey = 2;
-	    if (!g_strcasecmp(components[3], "r"))
+	    if (!g_ascii_strcasecmp(components[3], "r"))
 		slantkey = 0;
-	    else if (!g_strncasecmp(components[3], "r", 1))
+	    else if (!g_ascii_strncasecmp(components[3], "r", 1))
 		slantkey = 2;
 	    else
 		slantkey = 1;
-	    if (!g_strcasecmp(components[4], "normal"))
+	    if (!g_ascii_strcasecmp(components[4], "normal"))
 		setwidthkey = 0;
 	    else
 		setwidthkey = 1;
@@ -915,8 +920,8 @@ static int pangofont_check_desc_makes_sense(PangoContext *ctx,
 
     matched = FALSE;
     for (i = 0; i < nfamilies; i++) {
-	if (!g_strcasecmp(pango_font_family_get_name(families[i]),
-			  pango_font_description_get_family(desc))) {
+	if (!g_ascii_strcasecmp(pango_font_family_get_name(families[i]),
+				pango_font_description_get_family(desc))) {
 	    matched = TRUE;
 	    break;
 	}
@@ -1713,7 +1718,7 @@ static int strnullcasecmp(const char *a, const char *b)
     /*
      * Otherwise, ordinary strcasecmp.
      */
-    return g_strcasecmp(a, b);
+    return g_ascii_strcasecmp(a, b);
 }
 
 static int fontinfo_realname_compare(void *av, void *bv)
