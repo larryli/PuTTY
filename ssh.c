@@ -4266,13 +4266,13 @@ void sshfwd_unclean_close(struct ssh_channel *c)
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (c->closes & CLOSES_SENT_CLOSE)
-        return;
+    if (!(c->closes & CLOSES_SENT_CLOSE)) {
+        pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+        ssh2_pkt_adduint32(pktout, c->remoteid);
+        ssh2_pkt_send(ssh, pktout);
+        c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
+    }
 
-    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-    ssh2_pkt_adduint32(pktout, c->remoteid);
-    ssh2_pkt_send(ssh, pktout);
-    c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
     switch (c->type) {
       case CHAN_X11:
         x11_close(c->u.x11.s);
@@ -4283,6 +4283,7 @@ void sshfwd_unclean_close(struct ssh_channel *c)
         break;
     }
     c->type = CHAN_ZOMBIE;
+
     ssh2_channel_check_close(c);
 }
 
