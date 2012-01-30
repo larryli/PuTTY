@@ -849,3 +849,8 @@ saved sessions from
 \IM{GSSAPI credential delegation} GSSAPI credential delegation
 \IM{GSSAPI credential delegation} credential delegation, GSSAPI
 \IM{GSSAPI credential delegation} delegation, of GSSAPI credentials
+
+\IM{SYSTEM32} \cw{SYSTEM32} directory, on Windows
+
+\IM{64-bit Windows} 64-bit Windows
+\IM{64-bit Windows} Windows, 64-bit

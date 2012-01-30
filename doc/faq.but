@@ -1043,6 +1043,23 @@ is triggered by PuTTY 0.58. This was fixed in 0.59. The
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
 entry in PuTTY's wishlist has more details.
 
+\S{faq-system32}{Question} When I put PuTTY in
+\cw{C:\\WINDOWS\\\i{SYSTEM32}} on my \i{64-bit Windows} system,
+\i{\q{Duplicate Session}} doesn't work.
+
+The short answer is not to put the PuTTY executables in that location.
+
+On 64-bit systems, \cw{C:\\WINDOWS\\SYSTEM32} is intended to contain
+only 64-bit binaries; Windows' 32-bit binaries live in
+\cw{C:\\WINDOWS\\SYSWOW64}. When a 32-bit program such as PuTTY runs
+on a 64-bit system, it cannot by default see the \q{real}
+\cw{C:\\WINDOWS\\SYSTEM32} at all, because the
+\W{http://msdn.microsoft.com/en-us/library/aa384187(v=vs.85).aspx}{File
+System Redirector} arranges that the running program sees the
+appropriate kind of binaries in \cw{SYSTEM32}. Thus, operations in
+the PuTTY suite that involve it accessing its own executables, such as
+\i{\q{New Session}} and \q{Duplicate Session}, will not work.
+
 \H{faq-secure} Security questions
 
 \S{faq-publicpc}{Question} Is it safe for me to download PuTTY and
