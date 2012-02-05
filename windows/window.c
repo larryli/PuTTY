@@ -2899,7 +2899,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     h = height / font_height;
                     if (h < 1) h = 1;
 
-                    term_size(term, h, w, conf_get_int(conf, CONF_savelines));
+                    if (resizing) {
+                        /*
+                         * As below, if we're in the middle of an
+                         * interactive resize we don't call
+                         * back->size. In Windows 7, this case can
+                         * arise in maximisation as well via the Aero
+                         * snap UI.
+                         */
+                        need_backend_resize = TRUE;
+                        conf_set_int(conf, CONF_height, h);
+                        conf_set_int(conf, CONF_width, w);
+                    } else {
+                        term_size(term, h, w,
+                                  conf_get_int(conf, CONF_savelines));
+                    }
                 }
                 reset_window(0);
             } else if (wParam == SIZE_RESTORED && was_zoomed) {
