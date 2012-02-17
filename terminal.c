@@ -3016,8 +3016,8 @@ static void term_out(Terminal *term)
 			width = 1;
 		    if (!width)
 			width = (term->cjk_ambig_wide ?
-				 mk_wcwidth_cjk((wchar_t) c) :
-				 mk_wcwidth((wchar_t) c));
+				 mk_wcwidth_cjk((unsigned int) c) :
+				 mk_wcwidth((unsigned int) c));
 
 		    if (term->wrapnext && term->wrap && width > 0) {
 			cline->lattr |= LATTR_WRAPPED;
@@ -4692,7 +4692,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 		}
 
 		term->wcFrom[it].origwc = term->wcFrom[it].wc =
-		    (wchar_t)uc;
+		    (unsigned int)uc;
 		term->wcFrom[it].index = it;
 	    }
 
@@ -5067,10 +5067,17 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 		dirty_run = TRUE;
 	    }
 
-	    if (ccount >= chlen) {
+	    if (ccount+2 > chlen) {
 		chlen = ccount + 256;
 		ch = sresize(ch, chlen, wchar_t);
 	    }
+
+#ifdef PLATFORM_IS_UTF16
+	    if (tchar > 0x10000 && tchar < 0x110000) {
+		ch[ccount++] = (wchar_t) HIGH_SURROGATE_OF(tchar);
+		ch[ccount++] = (wchar_t) LOW_SURROGATE_OF(tchar);
+	    } else
+#endif /* PLATFORM_IS_UTF16 */
 	    ch[ccount++] = (wchar_t) tchar;
 
 	    if (d->cc_next) {
@@ -5094,10 +5101,17 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 			break;
 		    }
 
-		    if (ccount >= chlen) {
+		    if (ccount+2 > chlen) {
 			chlen = ccount + 256;
 			ch = sresize(ch, chlen, wchar_t);
 		    }
+
+#ifdef PLATFORM_IS_UTF16
+		    if (schar > 0x10000 && schar < 0x110000) {
+			ch[ccount++] = (wchar_t) HIGH_SURROGATE_OF(schar);
+			ch[ccount++] = (wchar_t) LOW_SURROGATE_OF(schar);
+		    } else
+#endif /* PLATFORM_IS_UTF16 */
 		    ch[ccount++] = (wchar_t) schar;
 		}
 

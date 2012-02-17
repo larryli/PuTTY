@@ -58,7 +58,7 @@ shapetypes[(xh)-SHAPE_FIRST].type : SU) /*))*/
 #define leastGreaterEven(x) ( ((x)+2) &~ 1 )
 
 typedef struct bidi_char {
-    wchar_t origwc, wc;
+    unsigned int origwc, wc;
     unsigned short index;
 } bidi_char;
 

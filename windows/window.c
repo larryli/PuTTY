@@ -206,6 +206,12 @@ static int compose_state = 0;
 
 static UINT wm_mousewheel = WM_MOUSEWHEEL;
 
+#define IS_HIGH_VARSEL(wch1, wch2) \
+    ((wch1) == 0xDB40 && ((wch2) >= 0xDD00 && (wch2) <= 0xDDEF))
+#define IS_LOW_VARSEL(wch) \
+    (((wch) >= 0x180B && (wch) <= 0x180D) || /* MONGOLIAN FREE VARIATION SELECTOR */ \
+     ((wch) >= 0xFE00 && (wch) <= 0xFE0F)) /* VARIATION SELECTOR 1-16 */
+
 /* Dummy routine, only required in plink. */
 void ldisc_update(void *frontend, int echo, int edit)
 {
@@ -3105,9 +3111,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * instead we luni_send the characters one by one.
 		 */
 		term_seen_key_event(term);
-		for (i = 0; i < n; i += 2) {
-		    if (ldisc)
+		/* don't divide SURROGATE PAIR */
+		if (ldisc) {
+                    for (i = 0; i < n; i += 2) {
+			WCHAR hs = *(unsigned short *)(buff+i);
+			if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
+			    WCHAR ls = *(unsigned short *)(buff+i+2);
+			    if (IS_LOW_SURROGATE(ls)) {
+				luni_send(ldisc, (unsigned short *)(buff+i), 2, 1);
+				i += 2;
+				continue;
+			    }
+			}
 			luni_send(ldisc, (unsigned short *)(buff+i), 1, 1);
+                    }
 		}
 		free(buff);
 	    }
@@ -3309,6 +3326,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     static int *lpDx = NULL;
     static int lpDx_len = 0;
     int *lpDx_maybe;
+    int len2; /* for SURROGATE PAIR */
 
     lattr &= LATTR_MODE;
 
@@ -3379,7 +3397,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     }
 
     /* Anything left as an original character set is unprintable. */
-    if (DIRECT_CHAR(text[0])) {
+    if (DIRECT_CHAR(text[0]) &&
+        (len < 2 || !IS_SURROGATE_PAIR(text[0], text[1]))) {
 	int i;
 	for (i = 0; i < len; i++)
 	    text[i] = 0xFFFD;
@@ -3432,6 +3451,24 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     line_box.top = y;
     line_box.right = x + char_width * len;
     line_box.bottom = y + font_height;
+    /* adjust line_box.right for SURROGATE PAIR & VARIATION SELECTOR */
+    {
+	int i;
+	int rc_width = 0;
+	for (i = 0; i < len ; i++) {
+	    if (i+1 < len && IS_HIGH_VARSEL(text[i], text[i+1])) {
+		i++;
+	    } else if (i+1 < len && IS_SURROGATE_PAIR(text[i], text[i+1])) {
+		rc_width += char_width;
+		i++;
+	    } else if (IS_LOW_VARSEL(text[i])) {
+		/* do nothing */
+            } else {
+		rc_width += char_width;
+            }
+	}
+	line_box.right = line_box.left + rc_width;
+    }
 
     /* Only want the left half of double width lines */
     if (line_box.right > font_width*term->cols+offset_width)
@@ -3462,8 +3499,19 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     opaque = TRUE;                     /* start by erasing the rectangle */
     for (remaining = len; remaining > 0;
-         text += len, remaining -= len, x += char_width * len) {
+         text += len, remaining -= len, x += char_width * len2) {
         len = (maxlen < remaining ? maxlen : remaining);
+        /* don't divide SURROGATE PAIR and VARIATION SELECTOR */
+        len2 = len;
+        if (maxlen == 1) {
+            if (remaining >= 1 && IS_SURROGATE_PAIR(text[0], text[1]))
+                len++;
+            if (remaining-len >= 1 && IS_LOW_VARSEL(text[len]))
+                len++;
+            else if (remaining-len >= 2 &&
+                     IS_HIGH_VARSEL(text[len], text[len+1]))
+                len += 2;
+        }
 
         if (len > lpDx_len) {
             if (len > lpDx_len) {
@@ -3473,8 +3521,24 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
         }
         {
             int i;
-            for (i = 0; i < len; i++)
+            /* only last char has dx width in SURROGATE PAIR and
+             * VARIATION sequence */
+            for (i = 0; i < len; i++) {
                 lpDx[i] = char_width;
+                if (i+1 < len && IS_HIGH_VARSEL(text[i], text[i+1])) {
+                    if (i > 0) lpDx[i-1] = 0;
+                    lpDx[i] = 0;
+                    i++;
+                    lpDx[i] = char_width;
+                } else if (i+1 < len && IS_SURROGATE_PAIR(text[i],text[i+1])) {
+                    lpDx[i] = 0;
+                    i++;
+                    lpDx[i] = char_width;
+                } else if (IS_LOW_VARSEL(text[i])) {
+                    if (i > 0) lpDx[i-1] = 0;
+                    lpDx[i] = char_width;
+                }
+            }
         }
 
         /* We're using a private area for direct to font. (512 chars.) */
@@ -3623,9 +3687,35 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 {
     if (attr & TATTR_COMBINING) {
 	unsigned long a = 0;
-	attr &= ~TATTR_COMBINING;
+	int len0 = 1;
+        /* don't divide SURROGATE PAIR and VARIATION SELECTOR */
+	if (len >= 2 && IS_SURROGATE_PAIR(text[0], text[1]))
+	    len0 = 2;
+	if (len-len0 >= 1 && IS_LOW_VARSEL(text[len0])) {
+	    attr &= ~TATTR_COMBINING;
+	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr);
+	    text += len0+1;
+	    len -= len0+1;
+	    a = TATTR_COMBINING;
+	} else if (len-len0 >= 2 && IS_HIGH_VARSEL(text[len0], text[len0+1])) {
+	    attr &= ~TATTR_COMBINING;
+	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr);
+	    text += len0+2;
+	    len -= len0+2;
+	    a = TATTR_COMBINING;
+	} else {
+            attr &= ~TATTR_COMBINING;
+        }
+
 	while (len--) {
-	    do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
+	    if (len >= 1 && IS_SURROGATE_PAIR(text[0], text[1])) {
+		do_text_internal(ctx, x, y, text, 2, attr | a, lattr);
+		len--;
+		text++;
+	    } else {
+                do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
+            }
+
 	    text++;
 	    a = TATTR_COMBINING;
 	}
