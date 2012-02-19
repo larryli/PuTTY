@@ -20,7 +20,7 @@
 
 #define WM_DONEKEY (WM_APP + 1)
 
-#define DEFAULT_KEYSIZE 1024
+#define DEFAULT_KEYSIZE 2048
 
 static char *cmdline_keyfile = NULL;
 
