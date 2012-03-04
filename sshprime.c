@@ -838,11 +838,19 @@ static const unsigned short primes[] = {
  *    more than a multiple of a dirty great bignum. In this case
  *    `bits' gives the size of the factor by which we _multiply_
  *    that bignum, rather than the size of the whole number.
+ *
+ *  - for the basically cosmetic purposes of generating keys of the
+ *    length actually specified rather than off by one bit, we permit
+ *    the caller to provide an unsigned integer 'firstbits' which will
+ *    match the top few bits of the returned prime. (That is, there
+ *    will exist some n such that (returnvalue >> n) == firstbits.) If
+ *    'firstbits' is not needed, specifying it to either 0 or 1 is
+ *    an adequate no-op.
  */
 Bignum primegen(int bits, int modulus, int residue, Bignum factor,
-		int phase, progfn_t pfn, void *pfnparam)
+		int phase, progfn_t pfn, void *pfnparam, unsigned firstbits)
 {
-    int i, k, v, byte, bitsleft, check, checks;
+    int i, k, v, byte, bitsleft, check, checks, fbsize;
     unsigned long delta;
     unsigned long moduli[NPRIMES + 1];
     unsigned long residues[NPRIMES + 1];
@@ -852,6 +860,10 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
 
     byte = 0;
     bitsleft = 0;
+
+    fbsize = 0;
+    while (firstbits >> fbsize)        /* work out how to align this */
+        fbsize++;
 
   STARTOVER:
 
@@ -865,9 +877,11 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
      */
     p = bn_power_2(bits - 1);
     for (i = 0; i < bits; i++) {
-	if (i == 0 || i == bits - 1)
+	if (i == 0 || i == bits - 1) {
 	    v = (i != 0 || !factor) ? 1 : 0;
-	else {
+        } else if (i >= bits - fbsize) {
+            v = (firstbits >> (i - (bits - fbsize))) & 1;
+        } else {
 	    if (bitsleft <= 0)
 		bitsleft = 8, byte = random_byte();
 	    v = byte & 1;
@@ -1040,4 +1054,33 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
     freebn(q);
     freebn(pm1);
     return p;
+}
+
+/*
+ * Invent a pair of values suitable for use as 'firstbits' in the
+ * above function, such that their product is at least 2.
+ *
+ * This is used for generating both RSA and DSA keys which have
+ * exactly the specified number of bits rather than one fewer - if you
+ * generate an a-bit and a b-bit number completely at random and
+ * multiply them together, you could end up with either an (ab-1)-bit
+ * number or an (ab)-bit number. The former happens log(2)*2-1 of the
+ * time (about 39%) and, though actually harmless, every time it
+ * occurs it has a non-zero probability of sparking a user email along
+ * the lines of 'Hey, I asked PuTTYgen for a 2048-bit key and I only
+ * got 2047 bits! Bug!'
+ */
+void invent_firstbits(unsigned *one, unsigned *two)
+{
+    /*
+     * Our criterion is that any number in the range [one,one+1)
+     * multiplied by any number in the range [two,two+1) should have
+     * the highest bit set. It should be clear that we can trivially
+     * test this by multiplying the smallest values in each interval,
+     * i.e. the ones we actually invented.
+     */
+    do {
+        *one = 0x100 | random_byte();
+        *two = 0x100 | random_byte();
+    } while (*one * *two < 0x20000);
 }

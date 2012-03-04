@@ -550,7 +550,8 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
 int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
 		 void *pfnparam);
 Bignum primegen(int bits, int modulus, int residue, Bignum factor,
-		int phase, progfn_t pfn, void *pfnparam);
+		int phase, progfn_t pfn, void *pfnparam, unsigned firstbits);
+void invent_firstbits(unsigned *one, unsigned *two);
 
 
 /*
