@@ -64,8 +64,8 @@
 #include "putty.h" /* for prototypes */
 
 struct interval {
-  int first;
-  int last;
+  unsigned int first;
+  unsigned int last;
 };
 
 /* auxiliary function for binary search in interval table */
