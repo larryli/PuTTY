@@ -847,8 +847,8 @@ static void colour_handler(union control *ctrl, void *dlg,
 	    } else {
 		clear = FALSE;
 		r = conf_get_int_int(conf, CONF_colours, i*3+0);
-		g = conf_get_int_int(conf, CONF_colours, i*3+0);
-		b = conf_get_int_int(conf, CONF_colours, i*3+0);
+		g = conf_get_int_int(conf, CONF_colours, i*3+1);
+		b = conf_get_int_int(conf, CONF_colours, i*3+2);
 	    }
 	    update = TRUE;
 	}
@@ -901,8 +901,8 @@ static void colour_handler(union control *ctrl, void *dlg,
 	     */
 	    if (dlg_coloursel_results(ctrl, dlg, &r, &g, &b)) {
 		conf_set_int_int(conf, CONF_colours, i*3+0, r);
-		conf_set_int_int(conf, CONF_colours, i*3+0, g);
-		conf_set_int_int(conf, CONF_colours, i*3+0, b);
+		conf_set_int_int(conf, CONF_colours, i*3+1, g);
+		conf_set_int_int(conf, CONF_colours, i*3+2, b);
 		clear = FALSE;
 		update = TRUE;
 	    }
