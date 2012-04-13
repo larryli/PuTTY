@@ -910,9 +910,13 @@ void dlg_filesel_set(union control *ctrl, void *dlg, Filename *fn)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    /* We must copy fn->path before passing it to gtk_entry_set_text.
+     * See comment in dlg_editbox_set() for the reasons. */
+    char *duppath = dupstr(fn->path);
     assert(uc->ctrl->generic.type == CTRL_FILESELECT);
     assert(uc->entry != NULL);
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), fn->path);
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), duppath);
+    sfree(duppath);
 }
 
 Filename *dlg_filesel_get(union control *ctrl, void *dlg)
@@ -928,9 +932,13 @@ void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fs)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    /* We must copy fs->name before passing it to gtk_entry_set_text.
+     * See comment in dlg_editbox_set() for the reasons. */
+    char *dupname = dupstr(fs->name);
     assert(uc->ctrl->generic.type == CTRL_FONTSELECT);
     assert(uc->entry != NULL);
-    gtk_entry_set_text(GTK_ENTRY(uc->entry), fs->name);
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), dupname);
+    sfree(dupname);
 }
 
 FontSpec *dlg_fontsel_get(union control *ctrl, void *dlg)
