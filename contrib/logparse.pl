@@ -490,7 +490,8 @@ if ($dumpchannels) {
                       'halfclosed'=>2, 'open'=>3, 'halfopen'=>4);
     for my $index (0..$#channels) {
         my $chan = $channels[$index];
-        my $so = $stateorder{$chan->{'state'}} or 1000; # unknown sorts highest
+        my $so = $stateorder{$chan->{'state'}};
+        $so = 1000 unless defined $so; # any state I've missed above comes last
         $chan->{'index'} = sprintf "ch%d", $index;
         $chan->{'order'} = sprintf "%08d %08d", $so, $index;
     }
