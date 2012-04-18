@@ -321,10 +321,12 @@ void console_provide_logctx(void *logctx)
 void logevent(void *frontend, const char *string)
 {
     struct termios cf;
-    premsg(&cf);
+    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE))
+        premsg(&cf);
     if (console_logctx)
 	log_eventlog(console_logctx, string);
-    postmsg(&cf);
+    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE))
+        postmsg(&cf);
 }
 
 /*
