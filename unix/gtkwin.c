@@ -2989,6 +2989,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 		   conf_get_fontspec(newconf, CONF_wideboldfont)->name) ||
 	    strcmp(conf_get_str(oldconf, CONF_line_codepage),
 		   conf_get_str(newconf, CONF_line_codepage)) ||
+	    conf_get_int(oldconf, CONF_utf8_override) !=
+	    conf_get_int(newconf, CONF_utf8_override) ||
 	    conf_get_int(oldconf, CONF_vtmode) !=
 	    conf_get_int(newconf, CONF_vtmode) ||
 	    conf_get_int(oldconf, CONF_shadowbold) !=
