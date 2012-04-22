@@ -145,6 +145,7 @@ typedef struct terminal_tag Terminal;
 #define TICKSPERSEC 1000	       /* GetTickCount returns milliseconds */
 
 #define DEFAULT_CODEPAGE CP_ACP
+#define USES_VTLINE_HACK
 
 typedef HDC Context;
 

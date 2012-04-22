@@ -3371,6 +3371,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     if (attr & ATTR_NARROW)
 	nfont |= FONT_NARROW;
 
+#ifdef USES_VTLINE_HACK
     /* Special hack for the VT100 linedraw glyphs. */
     if (text[0] >= 0x23BA && text[0] <= 0x23BD) {
 	switch ((unsigned char) (text[0])) {
@@ -3395,6 +3396,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	    force_manual_underline = 1;
 	}
     }
+#endif
 
     /* Anything left as an original character set is unprintable. */
     if (DIRECT_CHAR(text[0]) &&

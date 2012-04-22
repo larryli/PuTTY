@@ -5019,11 +5019,13 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 
 	    break_run = ((tattr ^ attr) & term->attr_mask) != 0;
 
+#ifdef USES_VTLINE_HACK
 	    /* Special hack for VT100 Linedraw glyphs */
 	    if ((tchar >= 0x23BA && tchar <= 0x23BD) ||
                 (j > 0 && (newline[j-1].chr >= 0x23BA &&
                            newline[j-1].chr <= 0x23BD)))
 		break_run = TRUE;
+#endif
 
 	    /*
 	     * Separate out sequences of characters that have the
