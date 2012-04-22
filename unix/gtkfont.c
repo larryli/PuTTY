@@ -430,7 +430,7 @@ static int x11font_has_glyph(unifont *font, wchar_t glyph)
         char sbstring[2];
         int sblen = wc_to_mb(xfont->real_charset, 0, &glyph, 1,
                              sbstring, 2, "", NULL, NULL);
-        if (!sbstring[0])
+        if (sblen == 0 || !sbstring[0])
             return FALSE;              /* not even in the charset */
 
         return x11_font_has_glyph(xfont->fonts[0], 0,
