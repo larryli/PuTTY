@@ -237,7 +237,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
      * in which case we prompt for it and may end up deferring doing
      * anything else until the local prompt mechanism returns.
      */
-    if ((ruser = get_remote_username(conf)) == NULL) {
+    if ((ruser = get_remote_username(conf)) != NULL) {
         rlogin_startup(rlogin, ruser);
         sfree(ruser);
     } else {
