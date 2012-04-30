@@ -414,7 +414,7 @@ my %packets = (
         my $otherdir = ($direction eq "i" ? "o" : "i");
         my $request = shift @{$chan->{'requests_' . $otherdir}};
         if (defined $request) {
-            printf " to %s", $request;
+            printf " to %s", $request->[0];
         } else {
             print " (spurious?)";
         }
