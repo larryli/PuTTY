@@ -10037,6 +10037,12 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    }
 	}
     }
+
+    /*
+     * Now process any SSH connection data that was stashed in our
+     * queue while we were frozen.
+     */
+    ssh_process_queued_incoming_data(ssh);
 }
 
 void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
