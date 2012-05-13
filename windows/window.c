@@ -699,6 +699,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
+     * Initialise the fonts, simultaneously correcting the guesses
+     * for font_{width,height}.
+     */
+    init_fonts(0,0);
+
+    /*
      * Initialise the terminal. (We have to do this _after_
      * creating the window, since the terminal is the first thing
      * which will call schedule_timer(), which will in turn call
@@ -710,12 +716,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     term_size(term, conf_get_int(conf, CONF_height),
 	      conf_get_int(conf, CONF_width),
 	      conf_get_int(conf, CONF_savelines));
-
-    /*
-     * Initialise the fonts, simultaneously correcting the guesses
-     * for font_{width,height}.
-     */
-    init_fonts(0,0);
 
     /*
      * Correct the guesses for extra_{width,height}.
