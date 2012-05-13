@@ -1027,27 +1027,8 @@ int main(int argc, char **argv)
 	    ret = select(maxfd, &rset, &wset, &xset, ptv);
 	    if (ret == 0)
 		now = next;
-	    else {
-		long newnow = GETTICKCOUNT();
-		/*
-		 * Check to see whether the system clock has
-		 * changed massively during the select.
-		 */
-		if (newnow - now < 0 || newnow - now > next - now) {
-		    /*
-		     * If so, look at the elapsed time in the
-		     * select and use it to compute a new
-		     * tickcount_offset.
-		     */
-		    long othernow = now + tv.tv_sec * 1000 + tv.tv_usec / 1000;
-		    /* So we'd like GETTICKCOUNT to have returned othernow,
-		     * but instead it return newnow. Hence ... */
-		    tickcount_offset += othernow - newnow;
-		    now = othernow;
-		} else {
-		    now = newnow;
-		}
-	    }
+	    else
+		now = GETTICKCOUNT();
 	} while (ret < 0 && errno == EINTR);
 
 	if (ret < 0) {

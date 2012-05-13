@@ -60,11 +60,6 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define GETTICKCOUNT getticks
 #define TICKSPERSEC    1000	       /* we choose to use milliseconds */
 #define CURSORBLINK     450	       /* no standard way to set this */
-/* getticks() works using gettimeofday(), so it's vulnerable to system clock
- * changes causing chaos. Therefore, we provide a compensation mechanism. */
-#define TIMING_SYNC
-#define TIMING_SYNC_ANOW
-extern long tickcount_offset;
 
 #define WCHAR wchar_t
 #define BYTE unsigned char

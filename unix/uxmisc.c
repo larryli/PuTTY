@@ -13,8 +13,6 @@
 
 #include "putty.h"
 
-long tickcount_offset = 0;
-
 unsigned long getticks(void)
 {
     struct timeval tv;
@@ -24,7 +22,7 @@ unsigned long getticks(void)
      * because we need a decent number of them to fit into a 32-bit
      * word so it can be used for keepalives.
      */
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000 + tickcount_offset;
+    return tv.tv_sec * TICKSPERSEC + tv.tv_usec / (1000000 / TICKSPERSEC);
 }
 
 Filename *filename_from_str(const char *str)

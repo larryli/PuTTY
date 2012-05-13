@@ -7,6 +7,24 @@
  * changes; and, very importantly, it tracks the context pointers
  * passed to schedule_timer(), so that if a context is freed all
  * the timers associated with it can be immediately annulled.
+ *
+ *
+ * The problem is that computer clocks aren't perfectly accurate.
+ * The GETTICKCOUNT function returns a 32bit number that normally
+ * increases by about 1000 every second. On windows this uses the PC's
+ * interrupt timer and so is only accurate to around 20ppm.  On unix it's
+ * a value that's calculated from the current UTC time and so is in theory
+ * accurate in the long term but may jitter and jump in the short term.
+ *
+ * What PuTTY needs from these timers is simply a way of delaying the
+ * calling of a function for a little while, if it's occasionally called a
+ * little early or late that's not a problem. So to protect against clock
+ * jumps schedule_timer records the time that it was called in the timer
+ * structure. With this information the run_timers function can see when
+ * the current GETTICKCOUNT value is after the time the event should be
+ * fired OR before the time it was set. In the latter case the clock must
+ * have jumped, the former is (probably) just the normal passage of time.
+ *
  */
 
 #include <assert.h>
@@ -19,6 +37,7 @@ struct timer {
     timer_fn_t fn;
     void *ctx;
     long now;
+    long when_set;
 };
 
 static tree234 *timers = NULL;
@@ -96,7 +115,8 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
 
     init_timers();
 
-    when = ticks + GETTICKCOUNT();
+    now = GETTICKCOUNT();
+    when = ticks + now;
 
     /*
      * Just in case our various defences against timing skew fail
@@ -110,6 +130,7 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
     t->fn = fn;
     t->ctx = ctx;
     t->now = when;
+    t->when_set = now;
 
     if (t != add234(timers, t)) {
 	sfree(t);		       /* identical timer already exists */
@@ -140,59 +161,7 @@ int run_timers(long anow, long *next)
 
     init_timers();
 
-#ifdef TIMING_SYNC
-    /*
-     * In this ifdef I put some code which deals with the
-     * possibility that `anow' disagrees with GETTICKCOUNT by a
-     * significant margin. Our strategy for dealing with it differs
-     * depending on platform, because on some platforms
-     * GETTICKCOUNT is more likely to be right whereas on others
-     * `anow' is a better gold standard.
-     */
-    {
-	long tnow = GETTICKCOUNT();
-
-	if (tnow + TICKSPERSEC/50 - anow < 0 ||
-	    anow + TICKSPERSEC/50 - tnow < 0
-	    ) {
-#if defined TIMING_SYNC_ANOW
-	    /*
-	     * If anow is accurate and the tick count is wrong,
-	     * this is likely to be because the tick count is
-	     * derived from the system clock which has changed (as
-	     * can occur on Unix). Therefore, we resolve this by
-	     * inventing an offset which is used to adjust all
-	     * future output from GETTICKCOUNT.
-	     * 
-	     * A platform which defines TIMING_SYNC_ANOW is
-	     * expected to have also defined this offset variable
-	     * in (its platform-specific adjunct to) putty.h.
-	     * Therefore we can simply reference it here and assume
-	     * that it will exist.
-	     */
-	    tickcount_offset += anow - tnow;
-#elif defined TIMING_SYNC_TICKCOUNT
-	    /*
-	     * If the tick count is more likely to be accurate, we
-	     * simply use that as our time value, which may mean we
-	     * run no timers in this call (because we got called
-	     * early), or alternatively it may mean we run lots of
-	     * timers in a hurry because we were called late.
-	     */
-	    anow = tnow;
-#else
-/*
- * Any platform which defines TIMING_SYNC must also define one of the two
- * auxiliary symbols TIMING_SYNC_ANOW and TIMING_SYNC_TICKCOUNT, to
- * indicate which measurement to trust when the two disagree.
- */
-#error TIMING_SYNC definition incomplete
-#endif
-	}
-    }
-#endif
-
-    now = anow;
+    now = GETTICKCOUNT();
 
     while (1) {
 	first = (struct timer *)index234(timers, 0);
@@ -207,7 +176,8 @@ int run_timers(long anow, long *next)
 	     */
 	    delpos234(timers, 0);
 	    sfree(first);
-	} else if (first->now - now <= 0) {
+	} else if (first->now - now <= 0 ||
+	           now - (first->when_set - 10) < 0) {
 	    /*
 	     * This timer is active and has reached its running
 	     * time. Run it.

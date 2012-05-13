@@ -237,15 +237,6 @@ GLOBAL void *logctx;
 				 "All Files (*.*)\0*\0\0\0")
 
 /*
- * On some versions of Windows, it has been known for WM_TIMER to
- * occasionally get its callback time simply wrong, and call us
- * back several minutes early. Defining these symbols enables
- * compensation code in timing.c.
- */
-#define TIMING_SYNC
-#define TIMING_SYNC_TICKCOUNT
-
-/*
  * winnet.c dynamically loads WinSock 2 or WinSock 1 depending on
  * what it can get, which means any WinSock routines used outside
  * that module must be exported from it as function pointers. So
