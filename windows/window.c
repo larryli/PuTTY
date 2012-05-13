@@ -3515,12 +3515,13 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                 len += 2;
         }
 
-        if (len > lpDx_len) {
-            if (len > lpDx_len) {
-                lpDx_len = len * 9 / 8 + 16;
-                lpDx = sresize(lpDx, lpDx_len, int);
-            }
-        }
+	if (len > lpDx_len) {
+	    lpDx_len = len * 9 / 8 + 16;
+	    lpDx = sresize(lpDx, lpDx_len, int);
+
+	    if (lpDx_maybe) lpDx_maybe = lpDx;
+	}
+
         {
             int i;
             /* only last char has dx width in SURROGATE PAIR and
