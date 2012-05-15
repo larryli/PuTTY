@@ -29,7 +29,7 @@ unsigned long getticks(void)
         struct timespec ts;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
             return ts.tv_sec * TICKSPERSEC +
-                ts.tv_nsec / (1000000 / TICKSPERSEC);
+                ts.tv_nsec / (1000000000 / TICKSPERSEC);
     }
 #endif
     {
