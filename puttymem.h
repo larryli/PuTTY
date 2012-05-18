@@ -37,6 +37,7 @@ void safefree(void *);
  */
 #define snew(type) ((type *)snmalloc(1, sizeof(type)))
 #define snewn(n, type) ((type *)snmalloc((n), sizeof(type)))
-#define sresize(ptr, n, type) ((type *)snrealloc((ptr), (n), sizeof(type)))
+#define sresize(ptr, n, type) \
+    ((type *)snrealloc((sizeof((type *)0 == (ptr)), (ptr)), (n), sizeof(type)))
 
 #endif
