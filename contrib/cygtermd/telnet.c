@@ -424,7 +424,10 @@ void telnet_from_net(Telnet telnet, char *buf, int len)
 		char cc = c;
 		sel_write(telnet->pty, &cc, 1);
 
-		telnet->state = SEENCR;
+		if (c == CR)
+		    telnet->state = SEENCR;
+		else
+		    telnet->state = TOP_LEVEL;
 	    }
 	    break;
 	  case SEENIAC:
