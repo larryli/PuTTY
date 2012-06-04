@@ -5778,6 +5778,12 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		break;
 	    }
 	}
+	if (!ssh->hostkey) {
+	    bombout(("Couldn't agree a host key algorithm (available: %s)",
+		     str ? str : "(null)"));
+	    crStop(0);
+	}
+
 	s->guessok = s->guessok &&
 	    first_in_commasep_string(hostkey_algs[0]->name, str, len);
 	ssh_pkt_getstring(pktin, &str, &len);    /* client->server cipher */
