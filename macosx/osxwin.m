@@ -109,11 +109,11 @@
 	nfg = nbg;
 	nbg = t;
     }
-    if (cfg.bold_colour && (attr & ATTR_BOLD)) {
+    if ((cfg.bold_style & 2) && (attr & ATTR_BOLD)) {
 	if (nfg < 16) nfg |= 8;
 	else if (nfg >= 256) nfg |= 1;
     }
-    if (cfg.bold_colour && (attr & ATTR_BLINK)) {
+    if ((cfg.bold_style & 2) && (attr & ATTR_BLINK)) {
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
@@ -129,7 +129,7 @@
 	widefactor = 1;
     }
 
-    /* FIXME: ATTR_BOLD without cfg.bold_colour */
+    /* FIXME: ATTR_BOLD if cfg.bold_style & 1 */
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
 	x *= 2;

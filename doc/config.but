@@ -1541,20 +1541,22 @@ If you do not see \cq{colors#256} in the output, you may need to
 change your terminal setting. On modern Linux machines, you could
 try \cq{xterm-256color}.
 
-\S{config-boldcolour} \q{Bolded text is a different colour}
+\S{config-boldcolour} \q{Indicate bolded text by changing}
 
 \cfg{winhelp-topic}{colours.bold}
 
 When the server sends a \i{control sequence} indicating that some text
-should be displayed in \i{bold}, PuTTY can handle this two ways. It can
-either change the \i{font} for a bold version, or use the same font in a
-brighter colour. This control lets you choose which.
+should be displayed in \i{bold}, PuTTY can handle this in several
+ways. It can either change the \i{font} for a bold version, or use the
+same font in a brighter colour, or it can do both (brighten the colour
+\e{and} embolden the font). This control lets you choose which.
 
-By default the box is checked, so non-bold text is displayed in
-light grey and bold text is displayed in bright white (and similarly
-in other colours). If you uncheck the box, bold and non-bold text
-will be displayed in the same colour, and instead the font will
-change to indicate the difference.
+By default bold is indicated by colour, so non-bold text is displayed
+in light grey and bold text is displayed in bright white (and
+similarly in other colours). If you change the setting to \q{The font}
+box, bold and non-bold text will be displayed in the same colour, and
+instead the font will change to indicate the difference. If you select
+\q{Both}, the font and the colour will both change.
 
 \S{config-logpalette} \q{Attempt to use \i{logical palettes}}
 

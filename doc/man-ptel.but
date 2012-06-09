@@ -37,7 +37,7 @@ Sorry.)
 \dd Specify the font to use for bold text displayed in the terminal. If
 the \cw{BoldAsColour} resource is set to 1 (the default), bold text
 will be displayed in different colours instead of a different font,
-so this option will be ignored. If \cw{BoldAsColour} is set to 0
+so this option will be ignored. If \cw{BoldAsColour} is set to 0 or 2
 and you do not specify a bold font, \cw{puttytel} will overprint the
 normal font to make it look bolder.
 
@@ -50,7 +50,7 @@ Chinese, Japanese and Korean text) displayed in the terminal.
 
 \dd Specify the font to use for bold double-width characters
 (typically Chinese, Japanese and Korean text). Like \cw{-fb}, this
-will be ignored unless the \cw{BoldAsColour} resource is set to 0.
+will be ignored unless the \cw{BoldAsColour} resource is set to 0 or 2.
 
 \dt \cw{\-geometry} \e{geometry}
 
@@ -74,12 +74,12 @@ terminal.
 \dt \cw{\-bfg} \e{colour}
 
 \dd Specify the foreground colour to use for bold text, if the
-\cw{BoldAsColour} resource is set to 1 (the default).
+\cw{BoldAsColour} resource is set to 1 (the default) or 2.
 
 \dt \cw{\-bbg} \e{colour}
 
 \dd Specify the foreground colour to use for bold reverse-video text, if
-the \cw{BoldAsColour} resource is set to 1 (the default). (This
+the \cw{BoldAsColour} resource is set to 1 (the default) or 2. (This
 colour is best thought of as the bold version of the background
 colour; so it only appears when text is displayed \e{in} the
 background colour.)

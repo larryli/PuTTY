@@ -174,8 +174,9 @@ static HFONT fonts[FONT_MAXNO];
 static LOGFONT lfont;
 static int fontflag[FONT_MAXNO];
 static enum {
-    BOLD_COLOURS, BOLD_SHADOW, BOLD_FONT
-} bold_mode;
+    BOLD_NONE, BOLD_SHADOW, BOLD_FONT
+} bold_font_mode;
+static int bold_colours;
 static enum {
     UND_LINE, UND_FONT
 } und_mode;
@@ -1409,8 +1410,9 @@ static void init_fonts(int pick_width, int pick_height)
     for (i = 0; i < FONT_MAXNO; i++)
 	fonts[i] = NULL;
 
-    bold_mode = conf_get_int(conf, CONF_bold_colour) ?
-	BOLD_COLOURS : BOLD_FONT;
+    bold_font_mode = conf_get_int(conf, CONF_bold_style) & 1 ?
+	BOLD_FONT : BOLD_NONE;
+    bold_colours = conf_get_int(conf, CONF_bold_style) & 2 ? TRUE : FALSE;
     und_mode = UND_FONT;
 
     font = conf_get_fontspec(conf, CONF_font);
@@ -1535,7 +1537,7 @@ static void init_fonts(int pick_width, int pick_height)
 	}
     }
 
-    if (bold_mode == BOLD_FONT) {
+    if (bold_font_mode == BOLD_FONT) {
 	f(FONT_BOLD, font->charset, fw_bold, FALSE);
     }
 #undef f
@@ -1562,9 +1564,9 @@ static void init_fonts(int pick_width, int pick_height)
 	fonts[FONT_UNDERLINE] = 0;
     }
 
-    if (bold_mode == BOLD_FONT &&
+    if (bold_font_mode == BOLD_FONT &&
 	fontsize[FONT_BOLD] != fontsize[FONT_NORMAL]) {
-	bold_mode = BOLD_SHADOW;
+	bold_font_mode = BOLD_SHADOW;
 	DeleteObject(fonts[FONT_BOLD]);
 	fonts[FONT_BOLD] = 0;
     }
@@ -2333,8 +2335,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			conf_get_int(prev_conf, CONF_font_quality) ||
 			conf_get_int(conf, CONF_vtmode) !=
 			conf_get_int(prev_conf, CONF_vtmode) ||
-			conf_get_int(conf, CONF_bold_colour) !=
-			conf_get_int(prev_conf, CONF_bold_colour) ||
+			conf_get_int(conf, CONF_bold_style) !=
+			conf_get_int(prev_conf, CONF_bold_style) ||
 			resize_action == RESIZE_DISABLED ||
 			resize_action == RESIZE_EITHER ||
 			resize_action != conf_get_int(prev_conf,
@@ -3323,6 +3325,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     int text_adjust = 0;
     int xoffset = 0;
     int maxlen, remaining, opaque;
+    int is_cursor = FALSE;
     static int *lpDx = NULL;
     static int lpDx_len = 0;
     int *lpDx_maybe;
@@ -3346,11 +3349,9 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     if ((attr & TATTR_ACTCURS) && (cursor_type == 0 || term->big_cursor)) {
 	attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS);
-	if (bold_mode == BOLD_COLOURS)
-	    attr &= ~ATTR_BOLD;
-
 	/* cursor fg and bg */
 	attr |= (260 << ATTR_FGSHIFT) | (261 << ATTR_BGSHIFT);
+        is_cursor = TRUE;
     }
 
     nfont = 0;
@@ -3412,7 +3413,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     nfg = ((attr & ATTR_FGMASK) >> ATTR_FGSHIFT);
     nbg = ((attr & ATTR_BGMASK) >> ATTR_BGSHIFT);
-    if (bold_mode == BOLD_FONT && (attr & ATTR_BOLD))
+    if (bold_font_mode == BOLD_FONT && (attr & ATTR_BOLD))
 	nfont |= FONT_BOLD;
     if (und_mode == UND_FONT && (attr & ATTR_UNDER))
 	nfont |= FONT_UNDERLINE;
@@ -3432,11 +3433,11 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	nfg = nbg;
 	nbg = t;
     }
-    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BOLD)) {
+    if (bold_colours && (attr & ATTR_BOLD) && !is_cursor) {
 	if (nfg < 16) nfg |= 8;
 	else if (nfg >= 256) nfg |= 1;
     }
-    if (bold_mode == BOLD_COLOURS && (attr & ATTR_BLINK)) {
+    if (bold_colours && (attr & ATTR_BLINK)) {
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
@@ -3586,7 +3587,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                         ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                         &line_box, uni_buf, nlen,
                         lpDx_maybe);
-            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+            if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(hdc, TRANSPARENT);
                 ExtTextOutW(hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
@@ -3611,7 +3612,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                        &line_box, directbuf, len, lpDx_maybe);
-            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+            if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(hdc, TRANSPARENT);
 
                 /* GRR: This draws the character outside its box and
@@ -3650,7 +3651,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                             opaque && !(attr & TATTR_COMBINING));
 
             /* And the shadow bold hack. */
-            if (bold_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
+            if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
                 SetBkMode(hdc, TRANSPARENT);
                 ExtTextOutW(hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
@@ -4930,7 +4931,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 		    bgcolour = tmpcolour;
 		}
 
-		if (bold_mode == BOLD_COLOURS && (attr[i] & ATTR_BOLD)) {
+		if (bold_colours && (attr[i] & ATTR_BOLD)) {
 		    if (fgcolour  <   8)	/* ANSI colours */
 			fgcolour +=   8;
 		    else if (fgcolour >= 256)	/* Default colours */
@@ -5021,7 +5022,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 		    bgcolour = tmpcolour;
 		}
 
-		if (bold_mode == BOLD_COLOURS && (attr[tindex] & ATTR_BOLD)) {
+		if (bold_colours && (attr[tindex] & ATTR_BOLD)) {
 		    if (fgcolour  <   8)	    /* ANSI colours */
 			fgcolour +=   8;
 		    else if (fgcolour >= 256)	    /* Default colours */
@@ -5038,7 +5039,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
                 /*
                  * Collect other attributes
                  */
-		if (bold_mode != BOLD_COLOURS)
+		if (bold_font_mode != BOLD_NONE)
 		    attrBold  = attr[tindex] & ATTR_BOLD;
 		else
 		    attrBold  = 0;
@@ -5057,7 +5058,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 			bgcolour  = -1;		    /* No coloring */
 
 		    if (fgcolour >= 256) {	    /* Default colour */
-			if (bold_mode == BOLD_COLOURS && (fgcolour & 1) && bgcolour == -1)
+			if (bold_colours && (fgcolour & 1) && bgcolour == -1)
 			    attrBold = ATTR_BOLD;   /* Emphasize text with bold attribute */
 
 			fgcolour  = -1;		    /* No coloring */

@@ -104,14 +104,14 @@ struct gui_data {
     guint32 input_event_time; /* Timestamp of the most recent input event. */
     int reconfiguring;
     /* Cached things out of conf that we refer to a lot */
-    int bold_colour;
+    int bold_style;
     int window_border;
     int cursor_type;
 };
 
 static void cache_conf_values(struct gui_data *inst)
 {
-    inst->bold_colour = conf_get_int(inst->conf, CONF_bold_colour);
+    inst->bold_style = conf_get_int(inst->conf, CONF_bold_style);
     inst->window_border = conf_get_int(inst->conf, CONF_window_border);
     inst->cursor_type = conf_get_int(inst->conf, CONF_cursor_type);
 }
@@ -2061,11 +2061,11 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	nfg = nbg;
 	nbg = t;
     }
-    if (inst->bold_colour && (attr & ATTR_BOLD)) {
+    if ((inst->bold_style & 2) && (attr & ATTR_BOLD)) {
 	if (nfg < 16) nfg |= 8;
 	else if (nfg >= 256) nfg |= 1;
     }
-    if (inst->bold_colour && (attr & ATTR_BLINK)) {
+    if ((inst->bold_style & 2) && (attr & ATTR_BLINK)) {
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
@@ -2083,7 +2083,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	widefactor = 1;
     }
 
-    if ((attr & ATTR_BOLD) && !inst->bold_colour) {
+    if ((attr & ATTR_BOLD) && (inst->bold_style & 1)) {
 	bold = 1;
 	fontid |= 1;
     } else {

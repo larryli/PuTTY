@@ -791,7 +791,7 @@ void cleanup_exit(int);
     X(INT, NONE, xterm_256_colour) \
     X(INT, NONE, system_colour) \
     X(INT, NONE, try_palette) \
-    X(INT, NONE, bold_colour) \
+    X(INT, NONE, bold_style) \
     X(INT, INT, colours) \
     /* Selection options */ \
     X(INT, NONE, mouse_is_xterm) \

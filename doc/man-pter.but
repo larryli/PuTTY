@@ -57,7 +57,7 @@ sets of defaults and choose between them.
 \dd Specify the font to use for bold text displayed in the terminal. If
 the \cw{BoldAsColour} resource is set to 1 (the default), bold text
 will be displayed in different colours instead of a different font,
-so this option will be ignored. If \cw{BoldAsColour} is set to 0
+so this option will be ignored. If \cw{BoldAsColour} is set to 0 or 2
 and you do not specify a bold font, \cw{pterm} will overprint the
 normal font to make it look bolder.
 
@@ -70,7 +70,7 @@ Chinese, Japanese and Korean text) displayed in the terminal.
 
 \dd Specify the font to use for bold double-width characters
 (typically Chinese, Japanese and Korean text). Like \cw{-fb}, this
-will be ignored unless the \cw{BoldAsColour} resource is set to 0.
+will be ignored unless the \cw{BoldAsColour} resource is set to 0 or 2.
 
 \dt \cw{\-geometry} \e{geometry}
 
@@ -94,12 +94,12 @@ terminal.
 \dt \cw{\-bfg} \e{colour}
 
 \dd Specify the foreground colour to use for bold text, if the
-\cw{BoldAsColour} resource is set to 1 (the default).
+\cw{BoldAsColour} resource is set to 1 (the default) or 2.
 
 \dt \cw{\-bbg} \e{colour}
 
 \dd Specify the foreground colour to use for bold reverse-video text, if
-the \cw{BoldAsColour} resource is set to 1 (the default). (This
+the \cw{BoldAsColour} resource is set to 1 (the default) or 2. (This
 colour is best thought of as the bold version of the background
 colour; so it only appears when text is displayed \e{in} the
 background colour.)
@@ -498,7 +498,7 @@ controls the font used to display normal text. The default is
 
 \dd This resource is the same as the \cw{\-fb} command-line option: it
 controls the font used to display bold text when \cw{BoldAsColour}
-is turned off. The default is unset (the font will be bolded by
+is set to 0 or 2. The default is unset (the font will be bolded by
 printing it twice at a one-pixel offset).
 
 \dt \cw{pterm.WideFont}
@@ -511,7 +511,7 @@ default is unset (double-width characters cannot be displayed).
 
 \dd This resource is the same as the \cw{\-fwb} command-line option: it
 controls the font used to display double-width characters in bold,
-when \cw{BoldAsColour} is turned off. The default is unset
+when \cw{BoldAsColour} is set to 0 or 2. The default is unset
 (double-width characters are displayed in bold by printing them
 twice at a one-pixel offset).
 
@@ -529,10 +529,11 @@ than 1 (in one direction or the other).
 
 \dt \cw{pterm.BoldAsColour}
 
-\dd This option should be set to either 0 or 1; the default is 1. It
-specifies the default state of auto wrap mode. When set to 1, bold
+\dd This option should be set to either 0, 1, or 2; the default is 1.
+It specifies how bold text should be displayed. When set to 1, bold
 text is shown by displaying it in a brighter colour; when set to 0,
-bold text is shown by displaying it in a heavier font.
+bold text is shown by displaying it in a heavier font; when set to 2,
+both effects happen at once (a heavy font \e{and} a brighter colour).
 
 \dt \cw{pterm.Colour0}, \cw{pterm.Colour1}, ..., \cw{pterm.Colour21}
 
