@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <errno.h>
+#include <locale.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -23,6 +24,10 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+
+#if GTK_CHECK_VERSION(2,0,0)
+#include <gtk/gtkimmodule.h>
+#endif
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 
@@ -68,6 +73,9 @@ struct gui_data {
 	*restartitem;
     GtkWidget *sessionsmenu;
     GdkPixmap *pixmap;
+#if GTK_CHECK_VERSION(2,0,0)
+    GtkIMContext *imc;
+#endif
     unifont *fonts[4];                 /* normal, bold, wide, widebold */
     int xpos, ypos, gotpos, gravity;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
@@ -489,6 +497,10 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     if (inst->term)
 	term_invalidate(inst->term);
 
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_im_context_set_client_window(inst->imc, widget->window);
+#endif
+
     return TRUE;
 }
 
@@ -539,21 +551,26 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
      * inconvenience in having to type a zero before a single-digit
      * character code.
      */
-    if (event->type == GDK_KEY_RELEASE &&
-	(event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
-	 event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R) &&
-	inst->alt_keycode >= 0 && inst->alt_digits > 1) {
+    if (event->type == GDK_KEY_RELEASE) {
+        if ((event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
+             event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R) &&
+            inst->alt_keycode >= 0 && inst->alt_digits > 1) {
 #ifdef KEY_DEBUGGING
-	printf("Alt key up, keycode = %d\n", inst->alt_keycode);
+            printf("Alt key up, keycode = %d\n", inst->alt_keycode);
 #endif
-	/*
-	 * FIXME: we might usefully try to do something clever here
-	 * about interpreting the generated key code in a way that's
-	 * appropriate to the line code page.
-	 */
-	output[0] = inst->alt_keycode;
-	end = 1;
-	goto done;
+            /*
+             * FIXME: we might usefully try to do something clever here
+             * about interpreting the generated key code in a way that's
+             * appropriate to the line code page.
+             */
+            output[0] = inst->alt_keycode;
+            end = 1;
+            goto done;
+        }
+#if GTK_CHECK_VERSION(2,0,0)
+        if (gtk_im_context_filter_keypress(inst->imc, event))
+            return TRUE;
+#endif
     }
 
     if (event->type == GDK_KEY_PRESS) {
@@ -669,12 +686,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	output_charset = CS_ISO8859_1;
 	strncpy(output+1, event->string, lenof(output)-1);
 #else
+        if (gtk_im_context_filter_keypress(inst->imc, event))
+            return TRUE;
+
 	/*
 	 * GDK 2.0 arranges to have done some translation for us: in
 	 * GDK 2.0, event->string is encoded in the current locale.
-	 *
-	 * (However, it's also deprecated; we really ought to be
-	 * using a GTKIMContext.)
 	 *
 	 * So we use the standard C library function mbstowcs() to
 	 * convert from the current locale into Unicode; from there
@@ -1135,6 +1152,14 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     return TRUE;
 }
+
+#if GTK_CHECK_VERSION(2,0,0)
+void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
+}
+#endif
 
 gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 			 GdkEventType type, guint ebutton, guint state,
@@ -2328,6 +2353,17 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 		    x*inst->font_width+inst->window_border,
 		    y*inst->font_height+inst->window_border,
 		    len*widefactor*inst->font_width, inst->font_height);
+
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+        GdkRectangle cursorrect;
+        cursorrect.x = x*inst->font_width+inst->window_border;
+        cursorrect.y = y*inst->font_height+inst->window_border;
+        cursorrect.width = len*widefactor*inst->font_width;
+        cursorrect.height = inst->font_height;
+        gtk_im_context_set_cursor_location(inst->imc, &cursorrect);
+    }
+#endif
 }
 
 GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
@@ -3446,6 +3482,8 @@ int pt_main(int argc, char **argv)
     extern int cfgbox(Conf *conf);
     struct gui_data *inst;
 
+    setlocale(LC_CTYPE, "");
+
     /*
      * Create an instance structure and initialise to zeroes
      */
@@ -3506,6 +3544,10 @@ int pt_main(int argc, char **argv)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
     inst->area = gtk_drawing_area_new();
+
+#if GTK_CHECK_VERSION(2,0,0)
+    inst->imc = gtk_im_multicontext_new();
+#endif
 
     setup_fonts_ucs(inst);
     init_cutbuffers();
@@ -3597,6 +3639,10 @@ int pt_main(int argc, char **argv)
 		       GTK_SIGNAL_FUNC(selection_get), inst);
     gtk_signal_connect(GTK_OBJECT(inst->area), "selection_clear_event",
 		       GTK_SIGNAL_FUNC(selection_clear), inst);
+#if GTK_CHECK_VERSION(2,0,0)
+    g_signal_connect(G_OBJECT(inst->imc), "commit",
+                     G_CALLBACK(input_method_commit_event), inst);
+#endif
     if (conf_get_int(inst->conf, CONF_scrollbar))
 	gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
 			   GTK_SIGNAL_FUNC(scrollbar_moved), inst);

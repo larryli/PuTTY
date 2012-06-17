@@ -29,7 +29,6 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 	mbstate_t state;
 
 	memset(&state, 0, sizeof state);
-	setlocale(LC_CTYPE, "");
 
 	while (mblen > 0) {
 	    size_t i = mbrtowc(wcstr+n, mbstr, (size_t)mblen, &state);
@@ -39,8 +38,6 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 	    mbstr += i;
 	    mblen -= i;
 	}
-
-	setlocale(LC_CTYPE, "C");
 
 	return n;
     } else if (codepage == CS_NONE) {
@@ -73,7 +70,6 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
 	int n = 0;
 
 	memset(&state, 0, sizeof state);
-	setlocale(LC_CTYPE, "");
 
 	while (wclen > 0) {
 	    int i = wcrtomb(output, wcstr[0], &state);
@@ -84,8 +80,6 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
 	    wcstr++;
 	    wclen--;
 	}
-
-	setlocale(LC_CTYPE, "C");
 
 	return n;
     } else if (codepage == CS_NONE) {
