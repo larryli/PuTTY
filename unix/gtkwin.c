@@ -1158,6 +1158,8 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
+    show_mouseptr(inst, 0);
+    term_seen_key_event(inst->term);
 }
 #endif
 
