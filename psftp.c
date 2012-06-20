@@ -830,7 +830,17 @@ char *sftp_wildcard_get_filename(SftpWildcardMatcher *swcm)
 		    printf("%s: reading directory: %s\n", swcm->prefix,
 			   fxp_error());
 		return NULL;
-	    }
+	    } else if (swcm->names->nnames == 0) {
+                /*
+                 * Another failure mode which we treat as EOF is if
+                 * the server reports success from FXP_READDIR but
+                 * returns no actual names. This is unusual, since
+                 * from most servers you'd expect at least "." and
+                 * "..", but there's nothing forbidding a server from
+                 * omitting those if it wants to.
+                 */
+                return NULL;
+            }
 
 	    swcm->namepos = 0;
 	}
