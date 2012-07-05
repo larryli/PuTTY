@@ -532,6 +532,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     char output[256];
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, output_charset, use_ucsoutput;
+    int nethack_mode, app_keypad_mode;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
@@ -673,6 +674,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	special = FALSE;
 	use_ucsoutput = FALSE;
 
+        nethack_mode = conf_get_int(inst->conf, CONF_nethack_keypad);
+        app_keypad_mode = (inst->term->app_keypad_keys &&
+                           !conf_get_int(inst->conf, CONF_no_applic_k));
+
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -686,8 +691,68 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	output_charset = CS_ISO8859_1;
 	strncpy(output+1, event->string, lenof(output)-1);
 #else
-        if (gtk_im_context_filter_keypress(inst->imc, event))
-            return TRUE;
+        /*
+         * Most things can now be passed to
+         * gtk_im_context_filter_keypress without breaking anything
+         * below this point. An exception is the numeric keypad if
+         * we're in Nethack or application mode: the IM will eat
+         * numeric keypad presses if Num Lock is on, but we don't want
+         * it to.
+         */
+	if (app_keypad_mode &&
+            (event->keyval == GDK_Num_Lock ||
+             event->keyval == GDK_KP_Divide ||
+             event->keyval == GDK_KP_Multiply ||
+             event->keyval == GDK_KP_Subtract ||
+             event->keyval == GDK_KP_Add ||
+             event->keyval == GDK_KP_Enter ||
+             event->keyval == GDK_KP_0 ||
+             event->keyval == GDK_KP_Insert ||
+             event->keyval == GDK_KP_1 ||
+             event->keyval == GDK_KP_End ||
+             event->keyval == GDK_KP_2 ||
+             event->keyval == GDK_KP_Down ||
+             event->keyval == GDK_KP_3 ||
+             event->keyval == GDK_KP_Page_Down ||
+             event->keyval == GDK_KP_4 ||
+             event->keyval == GDK_KP_Left ||
+             event->keyval == GDK_KP_5 ||
+             event->keyval == GDK_KP_Begin ||
+             event->keyval == GDK_KP_6 ||
+             event->keyval == GDK_KP_Right ||
+             event->keyval == GDK_KP_7 ||
+             event->keyval == GDK_KP_Home ||
+             event->keyval == GDK_KP_8 ||
+             event->keyval == GDK_KP_Up ||
+             event->keyval == GDK_KP_9 ||
+             event->keyval == GDK_KP_Page_Up ||
+             event->keyval == GDK_KP_Decimal ||
+             event->keyval == GDK_KP_Delete)) {
+            /* app keypad; do nothing */
+        } else if (nethack_mode &&
+                   (event->keyval == GDK_KP_1 ||
+                    event->keyval == GDK_KP_End ||
+                    event->keyval == GDK_KP_2 ||
+                    event->keyval == GDK_KP_Down ||
+                    event->keyval == GDK_KP_3 ||
+                    event->keyval == GDK_KP_Page_Down ||
+                    event->keyval == GDK_KP_4 ||
+                    event->keyval == GDK_KP_Left ||
+                    event->keyval == GDK_KP_5 ||
+                    event->keyval == GDK_KP_Begin ||
+                    event->keyval == GDK_KP_6 ||
+                    event->keyval == GDK_KP_Right ||
+                    event->keyval == GDK_KP_7 ||
+                    event->keyval == GDK_KP_Home ||
+                    event->keyval == GDK_KP_8 ||
+                    event->keyval == GDK_KP_Up ||
+                    event->keyval == GDK_KP_9 ||
+                    event->keyval == GDK_KP_Page_Up)) {
+            /* nethack mode; do nothing */
+        } else {
+            if (gtk_im_context_filter_keypress(inst->imc, event))
+                return TRUE;
+        }
 
 	/*
 	 * GDK 2.0 arranges to have done some translation for us: in
@@ -817,7 +882,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * NetHack keypad mode.
 	 */
-	if (conf_get_int(inst->conf, CONF_nethack_keypad)) {
+	if (nethack_mode) {
 	    char *keys = NULL;
 	    switch (event->keyval) {
 	      case GDK_KP_1: case GDK_KP_End: keys = "bB\002"; break;
@@ -846,8 +911,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Application keypad mode.
 	 */
-	if (inst->term->app_keypad_keys &&
-	    !conf_get_int(inst->conf, CONF_no_applic_k)) {
+	if (app_keypad_mode) {
 	    int xkey = 0;
 	    switch (event->keyval) {
 	      case GDK_Num_Lock: xkey = 'P'; break;
