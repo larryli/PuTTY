@@ -835,9 +835,41 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	putty_signal(SIGQUIT, SIG_DFL);
 	putty_signal(SIGPIPE, SIG_DFL);
 	block_signal(SIGCHLD, 0);
-	if (pty_argv)
+	if (pty_argv) {
+            /*
+             * Exec the exact argument list we were given.
+             */
 	    execvp(pty_argv[0], pty_argv);
-	else {
+            /*
+             * If that fails, and if we had exactly one argument, pass
+             * that argument to $SHELL -c.
+             *
+             * This arranges that we can _either_ follow 'pterm -e'
+             * with a list of argv elements to be fed directly to
+             * exec, _or_ with a single argument containing a command
+             * to be parsed by a shell (but, in cases of doubt, the
+             * former is more reliable).
+             *
+             * A quick survey of other terminal emulators' -e options
+             * (as of Debian squeeze) suggests that:
+             *
+             *  - xterm supports both modes, more or less like this
+             *  - gnome-terminal will only accept a one-string shell command
+             *  - Eterm, kterm and rxvt will only accept a list of
+             *    argv elements (as did older versions of pterm).
+             *
+             * It therefore seems important to support both usage
+             * modes in order to be a drop-in replacement for either
+             * xterm or gnome-terminal, and hence for anyone's
+             * plausible uses of the Debian-style alias
+             * 'x-terminal-emulator'...
+             */
+            if (pty_argv[1] == NULL) {
+                char *shell = getenv("SHELL");
+                if (shell)
+                    execl(shell, shell, "-c", pty_argv[0], (void *)NULL);
+            }
+        } else {
 	    char *shell = getenv("SHELL");
 	    char *shellname;
 	    if (conf_get_int(conf, CONF_login_shell)) {
