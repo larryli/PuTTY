@@ -122,6 +122,14 @@ AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
 AC_CHECK_DECLS([CLOCK_MONOTONIC], [], [], [[#include <time.h>]])
 AC_SEARCH_LIBS([clock_gettime], [rt], [AC_DEFINE([HAVE_CLOCK_GETTIME],[],[Define if clock_gettime() is available])])
 
+if test "x$GCC" = "xyes"; then
+  :
+  AC_SUBST(WARNINGOPTS, ['-Wall -Werror'])
+else
+  :
+  AC_SUBST(WARNINGOPTS, [])
+fi
+
 AC_OUTPUT
 
 if test "$gtk_version_desired" = "no"; then cat <<EOF
