@@ -174,7 +174,7 @@ static void forget_passphrases(void)
 {
     while (count234(passphrases) > 0) {
 	char *pp = index234(passphrases, 0);
-	memset(pp, 0, strlen(pp));
+	smemclr(pp, strlen(pp));
 	delpos234(passphrases, 0);
 	free(pp);
     }
@@ -968,7 +968,7 @@ static void answer_msg(void *msg)
 	    MD5Init(&md5c);
 	    MD5Update(&md5c, response_source, 48);
 	    MD5Final(response_md5, &md5c);
-	    memset(response_source, 0, 48);	/* burn the evidence */
+	    smemclr(response_source, 48);	/* burn the evidence */
 	    freebn(response);	       /* and that evidence */
 	    freebn(challenge);	       /* yes, and that evidence */
 	    freebn(reqkey.exponent);   /* and free some memory ... */

@@ -108,7 +108,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
 	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_decrypt_pubkey(keybuf, buf + i, (len - i + 7) & ~7);
-	memset(keybuf, 0, sizeof(keybuf));	/* burn the evidence */
+	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
     }
 
     /*
@@ -150,7 +150,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
 	ret = 1;
 
   end:
-    memset(buf, 0, sizeof(buf));       /* burn the evidence */
+    smemclr(buf, sizeof(buf));       /* burn the evidence */
     return ret;
 }
 
@@ -358,7 +358,7 @@ int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase)
 	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_encrypt_pubkey(keybuf, estart, p - estart);
-	memset(keybuf, 0, sizeof(keybuf));	/* burn the evidence */
+	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
     }
 
     /*
@@ -794,14 +794,14 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 
 	    hmac_sha1_simple(mackey, 20, macdata, maclen, binary);
 
-	    memset(mackey, 0, sizeof(mackey));
-	    memset(&s, 0, sizeof(s));
+	    smemclr(mackey, sizeof(mackey));
+	    smemclr(&s, sizeof(s));
 	} else {
 	    SHA_Simple(macdata, maclen, binary);
 	}
 
 	if (free_macdata) {
-	    memset(macdata, 0, maclen);
+	    smemclr(macdata, maclen);
 	    sfree(macdata);
 	}
 
@@ -1116,10 +1116,10 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 	    SHA_Bytes(&s, passphrase, strlen(passphrase));
 	SHA_Final(&s, mackey);
 	hmac_sha1_simple(mackey, 20, macdata, maclen, priv_mac);
-	memset(macdata, 0, maclen);
+	smemclr(macdata, maclen);
 	sfree(macdata);
-	memset(mackey, 0, sizeof(mackey));
-	memset(&s, 0, sizeof(s));
+	smemclr(mackey, sizeof(mackey));
+	smemclr(&s, sizeof(s));
     }
 
     if (passphrase) {
@@ -1139,8 +1139,8 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 	aes256_encrypt_pubkey(key, priv_blob_encrypted,
 			      priv_encrypted_len);
 
-	memset(key, 0, sizeof(key));
-	memset(&s, 0, sizeof(s));
+	smemclr(key, sizeof(key));
+	smemclr(&s, sizeof(s));
     }
 
     fp = f_open(filename, "w", TRUE);
@@ -1160,7 +1160,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
     fclose(fp);
 
     sfree(pub_blob);
-    memset(priv_blob, 0, priv_blob_len);
+    smemclr(priv_blob, priv_blob_len);
     sfree(priv_blob);
     sfree(priv_blob_encrypted);
     return 1;

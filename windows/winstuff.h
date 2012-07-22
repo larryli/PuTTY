@@ -75,6 +75,8 @@ struct FontSpec *fontspec_new(const char *name,
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001
 
+#define PLATFORM_HAS_SMEMCLR /* inhibit cross-platform one in misc.c */
+
 /*
  * Dynamically linked functions. These come in two flavours:
  *

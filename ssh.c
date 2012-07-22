@@ -3849,7 +3849,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		ret = loadrsakey(s->keyfile, &s->key, passphrase,
 				 &error);
 		if (passphrase) {
-		    memset(passphrase, 0, strlen(passphrase));
+		    smemclr(passphrase, strlen(passphrase));
 		    sfree(passphrase);
 		}
 		if (ret == 1) {
@@ -6294,7 +6294,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	assert(ssh->csmac->len <=
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
-	memset(keyspace, 0, sizeof(keyspace));
+	smemclr(keyspace, sizeof(keyspace));
     }
 
     logeventf(ssh, "Initialised %.200s client->server encryption",
@@ -6360,7 +6360,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	assert(ssh->scmac->len <=
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
-	memset(keyspace, 0, sizeof(keyspace));
+	smemclr(keyspace, sizeof(keyspace));
     }
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
@@ -8151,7 +8151,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    key = ssh2_load_userkey(s->keyfile, passphrase, &error);
 		    if (passphrase) {
 			/* burn the evidence */
-			memset(passphrase, 0, strlen(passphrase));
+			smemclr(passphrase, strlen(passphrase));
 			sfree(passphrase);
 		    }
 		    if (key == SSH2_WRONG_PASSPHRASE || key == NULL) {
@@ -8730,7 +8730,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     */
 			    /* burn the evidence */
 			    free_prompts(s->cur_prompt);
-			    memset(s->password, 0, strlen(s->password));
+			    smemclr(s->password, strlen(s->password));
 			    sfree(s->password);
 			    ssh_disconnect(ssh, NULL, "Unable to authenticate",
 					   SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
@@ -8746,7 +8746,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			 * re-enter it if they louse up the new password.)
 			 */
 			if (s->cur_prompt->prompts[0]->result[0]) {
-			    memset(s->password, 0, strlen(s->password));
+			    smemclr(s->password, strlen(s->password));
 				/* burn the evidence */
 			    sfree(s->password);
 			    s->password =
@@ -8813,7 +8813,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		 * We don't need the old password any more, in any
 		 * case. Burn the evidence.
 		 */
-		memset(s->password, 0, strlen(s->password));
+		smemclr(s->password, strlen(s->password));
 		sfree(s->password);
 
 	    } else {

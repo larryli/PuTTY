@@ -63,7 +63,7 @@ void cmdline_cleanup(void)
     int pri;
 
     if (cmdline_password) {
-	memset(cmdline_password, 0, strlen(cmdline_password));
+	smemclr(cmdline_password, strlen(cmdline_password));
 	sfree(cmdline_password);
 	cmdline_password = NULL;
     }
@@ -106,7 +106,7 @@ int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen) {
 	return 0;
 
     prompt_set_result(p->prompts[0], cmdline_password);
-    memset(cmdline_password, 0, strlen(cmdline_password));
+    smemclr(cmdline_password, strlen(cmdline_password));
     sfree(cmdline_password);
     cmdline_password = NULL;
     tried_once = 1;
@@ -368,7 +368,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 	    /* Assuming that `value' is directly from argv, make a good faith
 	     * attempt to trample it, to stop it showing up in `ps' output
 	     * on Unix-like systems. Not guaranteed, of course. */
-	    memset(value, 0, strlen(value));
+	    smemclr(value, strlen(value));
 	}
     }
 

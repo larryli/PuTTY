@@ -264,10 +264,10 @@ void x11_free_display(struct X11Display *disp)
     sfree(disp->hostname);
     sfree(disp->unixsocketpath);
     if (disp->localauthdata)
-	memset(disp->localauthdata, 0, disp->localauthdatalen);
+	smemclr(disp->localauthdata, disp->localauthdatalen);
     sfree(disp->localauthdata);
     if (disp->remoteauthdata)
-	memset(disp->remoteauthdata, 0, disp->remoteauthdatalen);
+	smemclr(disp->remoteauthdata, disp->remoteauthdatalen);
     sfree(disp->remoteauthdata);
     sfree(disp->remoteauthprotoname);
     sfree(disp->remoteauthdatastring);
@@ -487,7 +487,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
 
     done:
     fclose(authfp);
-    memset(buf, 0, 65537 * 4);
+    smemclr(buf, 65537 * 4);
     sfree(buf);
     sfree(ourhostname);
 }

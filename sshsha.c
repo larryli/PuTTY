@@ -253,7 +253,7 @@ static void sha1_key_internal(void *handle, unsigned char *key, int len)
     SHA_Init(&keys[1]);
     SHA_Bytes(&keys[1], foo, 64);
 
-    memset(foo, 0, 64);		       /* burn the evidence */
+    smemclr(foo, 64);		       /* burn the evidence */
 }
 
 static void sha1_key(void *handle, unsigned char *key)

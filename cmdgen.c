@@ -667,7 +667,7 @@ int main(int argc, char **argv)
 	    return 1;
 	}
 	random_add_heavynoise(entropy, bits / 8);
-	memset(entropy, 0, bits/8);
+	smemclr(entropy, bits/8);
 	sfree(entropy);
 
 	if (keytype == DSA) {
@@ -860,7 +860,7 @@ int main(int argc, char **argv)
 		return 1;
 	    }
 	    if (passphrase) {
-		memset(passphrase, 0, strlen(passphrase));
+		smemclr(passphrase, strlen(passphrase));
 		sfree(passphrase);
 	    }
 	    passphrase = dupstr(p->prompts[0]->result);
@@ -1035,7 +1035,7 @@ int main(int argc, char **argv)
     }
 
     if (passphrase) {
-	memset(passphrase, 0, strlen(passphrase));
+	smemclr(passphrase, strlen(passphrase));
 	sfree(passphrase);
     }
 

@@ -20,7 +20,7 @@ static void sha_mpint(SHA_State * s, Bignum b)
 	lenbuf[0] = bignum_byte(b, len);
 	SHA_Bytes(s, lenbuf, 1);
     }
-    memset(lenbuf, 0, sizeof(lenbuf));
+    smemclr(lenbuf, sizeof(lenbuf));
 }
 
 static void sha512_mpint(SHA512_State * s, Bignum b)
@@ -34,7 +34,7 @@ static void sha512_mpint(SHA512_State * s, Bignum b)
 	lenbuf[0] = bignum_byte(b, len);
 	SHA512_Bytes(s, lenbuf, 1);
     }
-    memset(lenbuf, 0, sizeof(lenbuf));
+    smemclr(lenbuf, sizeof(lenbuf));
 }
 
 static void getstring(char **data, int *datalen, char **p, int *length)
@@ -575,7 +575,7 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
     SHA512_Bytes(&ss, digest, sizeof(digest));
     SHA512_Final(&ss, digest512);
 
-    memset(&ss, 0, sizeof(ss));
+    smemclr(&ss, sizeof(ss));
 
     /*
      * Now convert the result into a bignum, and reduce it mod q.
@@ -584,7 +584,7 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
     k = bigmod(proto_k, dss->q);
     freebn(proto_k);
 
-    memset(digest512, 0, sizeof(digest512));
+    smemclr(digest512, sizeof(digest512));
 
     /*
      * Now we have k, so just go ahead and compute the signature.

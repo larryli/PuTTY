@@ -958,7 +958,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		 * Seed the entropy pool
 		 */
 		random_add_heavynoise(state->entropy, state->entropy_size);
-		memset(state->entropy, 0, state->entropy_size);
+		smemclr(state->entropy, state->entropy_size);
 		sfree(state->entropy);
 		state->collecting_entropy = FALSE;
 

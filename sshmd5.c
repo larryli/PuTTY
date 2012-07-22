@@ -249,7 +249,7 @@ void hmacmd5_key(void *handle, void const *keyv, int len)
     MD5Init(&keys[1]);
     MD5Update(&keys[1], foo, 64);
 
-    memset(foo, 0, 64);		       /* burn the evidence */
+    smemclr(foo, 64);		       /* burn the evidence */
 }
 
 static void hmacmd5_key_16(void *handle, unsigned char *key)

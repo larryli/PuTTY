@@ -3582,7 +3582,7 @@ int pt_main(int argc, char **argv)
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
 	read_dupsession_data(inst, inst->conf, argv[1]);
 	/* Splatter this argument so it doesn't clutter a ps listing */
-	memset(argv[1], 0, strlen(argv[1]));
+	smemclr(argv[1], strlen(argv[1]));
     } else {
 	/* By default, we bring up the config dialog, rather than launching
 	 * a session. This gets set to TRUE if something happens to change

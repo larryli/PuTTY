@@ -124,7 +124,7 @@ void prompt_ensure_result_size(prompt_t *pr, int newlen)
          */
         newbuf = snewn(newlen, char);
         memcpy(newbuf, pr->result, pr->resultsize);
-        memset(pr->result, '\0', pr->resultsize);
+        smemclr(pr->result, pr->resultsize);
         sfree(pr->result);
         pr->result = newbuf;
         pr->resultsize = newlen;
@@ -140,7 +140,7 @@ void free_prompts(prompts_t *p)
     size_t i;
     for (i=0; i < p->n_prompts; i++) {
 	prompt_t *pr = p->prompts[i];
-	memset(pr->result, 0, pr->resultsize); /* burn the evidence */
+	smemclr(pr->result, pr->resultsize); /* burn the evidence */
 	sfree(pr->result);
 	sfree(pr->prompt);
 	sfree(pr);
@@ -203,7 +203,7 @@ char *dupcat(const char *s1, ...)
 void burnstr(char *string)             /* sfree(str), only clear it first */
 {
     if (string) {
-        memset(string, 0, strlen(string));
+        smemclr(string, strlen(string));
         sfree(string);
     }
 }
@@ -685,3 +685,43 @@ char const *conf_dest(Conf *conf)
     else
 	return conf_get_str(conf, CONF_host);
 }
+
+#ifndef PLATFORM_HAS_SMEMCLR
+/*
+ * Securely wipe memory.
+ *
+ * The actual wiping is no different from what memset would do: the
+ * point of 'securely' is to try to be sure over-clever compilers
+ * won't optimise away memsets on variables that are about to be freed
+ * or go out of scope. See
+ * https://buildsecurityin.us-cert.gov/bsi-rules/home/g1/771-BSI.html
+ *
+ * Some platforms (e.g. Windows) may provide their own version of this
+ * function.
+ */
+void smemclr(void *b, size_t n) {
+    volatile char *vp;
+
+    if (b && n > 0) {
+        /*
+         * Zero out the memory.
+         */
+        memset(b, 0, n);
+
+        /*
+         * Perform a volatile access to the object, forcing the
+         * compiler to admit that the previous memset was important.
+         *
+         * This while loop should in practice run for zero iterations
+         * (since we know we just zeroed the object out), but in
+         * theory (as far as the compiler knows) it might range over
+         * the whole object. (If we had just written, say, '*vp =
+         * *vp;', a compiler could in principle have 'helpfully'
+         * optimised the memset into only zeroing out the first byte.
+         * This should be robust.)
+         */
+        vp = b;
+        while (*vp) vp++;
+    }
+}
+#endif

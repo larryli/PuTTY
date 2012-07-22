@@ -110,7 +110,7 @@ static void sha512_mpint(SHA512_State * s, Bignum b)
 	lenbuf[0] = bignum_byte(b, len);
 	SHA512_Bytes(s, lenbuf, 1);
     }
-    memset(lenbuf, 0, sizeof(lenbuf));
+    smemclr(lenbuf, sizeof(lenbuf));
 }
 
 /*

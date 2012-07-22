@@ -148,7 +148,7 @@ void freebn(Bignum b)
     /*
      * Burn the evidence, just in case.
      */
-    memset(b, 0, sizeof(b[0]) * (b[0] + 1));
+    smemclr(b, sizeof(b[0]) * (b[0] + 1));
     sfree(b);
 }
 
