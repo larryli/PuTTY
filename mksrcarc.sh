@@ -20,5 +20,5 @@ bintext=testdata/*.txt
 bin=`{ ls -1 windows/*.ico windows/putty.iss windows/website.url macosx/*.icns; \
        find . -name '*.dsp' -print -o -name '*.dsw' -print; }`
 zip -k -l putty-src.zip $text > /dev/null
-zip -k -l putty-src.zip $bintext >& /dev/null
+zip -k -l putty-src.zip $bintext > /dev/null 2>&1
 zip -k putty-src.zip $bin > /dev/null
