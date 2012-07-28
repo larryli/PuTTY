@@ -529,12 +529,19 @@ static void sshbug_handler(union control *ctrl, void *dlg,
 {
     Conf *conf = (Conf *)data;
     if (event == EVENT_REFRESH) {
+        /*
+         * We must fetch the previously configured value from the Conf
+         * before we start modifying the drop-down list, otherwise the
+         * spurious SELCHANGE we trigger in the process will overwrite
+         * the value we wanted to keep.
+         */
+        int oldconf = conf_get_int(conf, ctrl->listbox.context.i);
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
 	dlg_listbox_addwithid(ctrl, dlg, "Auto", AUTO);
 	dlg_listbox_addwithid(ctrl, dlg, "Off", FORCE_OFF);
 	dlg_listbox_addwithid(ctrl, dlg, "On", FORCE_ON);
-	switch (conf_get_int(conf, ctrl->listbox.context.i)) {
+	switch (oldconf) {
 	  case AUTO:      dlg_listbox_select(ctrl, dlg, 0); break;
 	  case FORCE_OFF: dlg_listbox_select(ctrl, dlg, 1); break;
 	  case FORCE_ON:  dlg_listbox_select(ctrl, dlg, 2); break;
