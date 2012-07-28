@@ -1128,9 +1128,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
 	    char *family, *type, *src, *key, *val;
-	    int i, whichbutton;
+	    int whichbutton;
 
-	    i = 0;
 #ifndef NO_IPV6
 	    whichbutton = dlg_radiobutton_get(pfd->addressfamily, dlg);
 	    if (whichbutton == 1)
