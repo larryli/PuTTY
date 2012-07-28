@@ -196,6 +196,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_PK_SESSIONID                   128
 #define BUG_SSH2_MAXPKT				256
 #define BUG_CHOKES_ON_SSH2_IGNORE               512
+#define BUG_CHOKES_ON_WINADJ                   1024
 
 /*
  * Codes for terminal modes.
@@ -2579,6 +2580,15 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_CHOKES_ON_SSH2_IGNORE;
 	logevent("We believe remote version has SSH-2 ignore bug");
+    }
+
+    if (conf_get_int(ssh->conf, CONF_sshbug_winadj) == FORCE_ON) {
+	/*
+	 * Servers that don't support our winadj request for one
+	 * reason or another. Currently, none detected automatically.
+	 */
+	ssh->remote_bugs |= BUG_CHOKES_ON_WINADJ;
+	logevent("We believe remote version has winadj bug");
     }
 }
 
@@ -6635,7 +6645,8 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	 * unexpected CHANNEL_FAILUREs.
 	 */
 	if (newwin == c->v.v2.locmaxwin &&
-	    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE]) {
+	    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] &&
+            !(ssh->remote_bugs & BUG_CHOKES_ON_WINADJ)) {
 	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	    ssh2_pkt_adduint32(pktout, c->remoteid);
 	    ssh2_pkt_addstring(pktout, "winadj@putty.projects.tartarus.org");
