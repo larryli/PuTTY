@@ -7512,6 +7512,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	int siglen, retlen, len;
 	char *q, *agentreq, *ret;
 	int try_send;
+	int requested_x11;
+	int requested_agent;
+	int requested_tty;
 	int num_env, env_left, env_ok;
 	struct Packet *pktout;
 	Filename *keyfile;
@@ -8999,6 +9002,17 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     }
 
     /*
+     * Enable port forwardings.
+     */
+    ssh_setup_portfwd(ssh, ssh->conf);
+
+    /*
+     * Send the CHANNEL_REQUESTS for the main channel.  We send them all
+     * and then start looking for responses, so it's important that the
+     * sending and receiving code below it is kept in sync.
+     */
+
+    /*
      * Potentially enable X11 forwarding.
      */
     if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_x11_forward) &&
@@ -9023,26 +9037,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	end_log_omission(ssh, s->pktout);
 	ssh2_pkt_adduint32(s->pktout, ssh->x11disp->screennum);
 	ssh2_pkt_send(ssh, s->pktout);
-
-	crWaitUntilV(pktin);
-
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to X11 forwarding request:"
-			 " packet type %d", pktin->type));
-		crStopV;
-	    }
-	    logevent("X11 forwarding refused");
-	} else {
-	    logevent("X11 forwarding enabled");
-	    ssh->X11_fwd_enabled = TRUE;
-	}
-    }
-
-    /*
-     * Enable port forwardings.
-     */
-    ssh_setup_portfwd(ssh, ssh->conf);
+	s->requested_x11 = TRUE;
+    } else
+	s->requested_x11 = FALSE;
 
     /*
      * Potentially enable agent forwarding.
@@ -9054,21 +9051,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addstring(s->pktout, "auth-agent-req@openssh.com");
 	ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
 	ssh2_pkt_send(ssh, s->pktout);
-
-	crWaitUntilV(pktin);
-
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to agent forwarding request:"
-			 " packet type %d", pktin->type));
-		crStopV;
-	    }
-	    logevent("Agent forwarding refused");
-	} else {
-	    logevent("Agent forwarding enabled");
-	    ssh->agentfwd_enabled = TRUE;
-	}
-    }
+	s->requested_agent = TRUE;
+    } else
+	s->requested_agent = FALSE;
 
     /*
      * Now allocate a pty for the session.
@@ -9097,7 +9082,75 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh2_pkt_addstring_data(s->pktout, "\0", 1); /* TTY_OP_END */
 	ssh2_pkt_send(ssh, s->pktout);
 	ssh->state = SSH_STATE_INTERMED;
+	s->requested_tty = TRUE;
+    } else
+	s->requested_tty = FALSE;
 
+    /*
+     * Send environment variables.
+     * 
+     * Simplest thing here is to send all the requests at once, and
+     * then wait for a whole bunch of successes or failures.
+     */
+    s->num_env = 0;
+    if (ssh->mainchan && !ssh->ncmode) {
+	char *key, *val;
+
+	for (val = conf_get_str_strs(ssh->conf, CONF_environmt, NULL, &key);
+	     val != NULL;
+	     val = conf_get_str_strs(ssh->conf, CONF_environmt, key, &key)) {
+	    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+	    ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
+	    ssh2_pkt_addstring(s->pktout, "env");
+	    ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
+	    ssh2_pkt_addstring(s->pktout, key);
+	    ssh2_pkt_addstring(s->pktout, val);
+	    ssh2_pkt_send(ssh, s->pktout);
+
+	    s->num_env++;
+	}
+	if (s->num_env)
+	    logeventf(ssh, "Sent %d environment variables", s->num_env);
+    }
+
+    /*
+     * All CHANNEL_REQUESTs sent.  Now collect up the replies.  These
+     * must be in precisely the same order as the requests.
+     */
+
+    if (s->requested_x11) {
+	crWaitUntilV(pktin);
+
+	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
+	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
+		bombout(("Unexpected response to X11 forwarding request:"
+			 " packet type %d", pktin->type));
+		crStopV;
+	    }
+	    logevent("X11 forwarding refused");
+	} else {
+	    logevent("X11 forwarding enabled");
+	    ssh->X11_fwd_enabled = TRUE;
+	}
+    }
+
+    if (s->requested_agent) {
+	crWaitUntilV(pktin);
+
+	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
+	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
+		bombout(("Unexpected response to agent forwarding request:"
+			 " packet type %d", pktin->type));
+		crStopV;
+	    }
+	    logevent("Agent forwarding refused");
+	} else {
+	    logevent("Agent forwarding enabled");
+	    ssh->agentfwd_enabled = TRUE;
+	}
+    }
+
+    if (s->requested_tty) {
 	crWaitUntilV(pktin);
 
 	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
@@ -9117,63 +9170,35 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->editing = ssh->echoing = 1;
     }
 
-    /*
-     * Send environment variables.
-     * 
-     * Simplest thing here is to send all the requests at once, and
-     * then wait for a whole bunch of successes or failures.
-     */
-    if (ssh->mainchan && !ssh->ncmode) {
-	char *key, *val;
+    if (s->num_env) {
+	s->env_ok = 0;
+	s->env_left = s->num_env;
 
-	s->num_env = 0;
+	while (s->env_left > 0) {
+	    crWaitUntilV(pktin);
 
-	for (val = conf_get_str_strs(ssh->conf, CONF_environmt, NULL, &key);
-	     val != NULL;
-	     val = conf_get_str_strs(ssh->conf, CONF_environmt, key, &key)) {
-	    s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	    ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
-	    ssh2_pkt_addstring(s->pktout, "env");
-	    ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
-	    ssh2_pkt_addstring(s->pktout, key);
-	    ssh2_pkt_addstring(s->pktout, val);
-	    ssh2_pkt_send(ssh, s->pktout);
+	    if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
+		if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
+		    bombout(("Unexpected response to environment request:"
+			     " packet type %d", pktin->type));
+		    crStopV;
+		}
+	    } else {
+		s->env_ok++;
+	    }
 
-	    s->num_env++;
+	    s->env_left--;
 	}
 
-	if (s->num_env) {
-	    logeventf(ssh, "Sent %d environment variables", s->num_env);
-
-	    s->env_ok = 0;
-	    s->env_left = s->num_env;
-
-	    while (s->env_left > 0) {
-		crWaitUntilV(pktin);
-
-		if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-		    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-			bombout(("Unexpected response to environment request:"
-				 " packet type %d", pktin->type));
-			crStopV;
-		    }
-		} else {
-		    s->env_ok++;
-		}
-
-		s->env_left--;
-	    }
-
-	    if (s->env_ok == s->num_env) {
-		logevent("All environment variables successfully set");
-	    } else if (s->env_ok == 0) {
-		logevent("All environment variables refused");
-		c_write_str(ssh, "Server refused to set environment variables\r\n");
-	    } else {
-		logeventf(ssh, "%d environment variables refused",
-			  s->num_env - s->env_ok);
-		c_write_str(ssh, "Server refused to set all environment variables\r\n");
-	    }
+	if (s->env_ok == s->num_env) {
+	    logevent("All environment variables successfully set");
+	} else if (s->env_ok == 0) {
+	    logevent("All environment variables refused");
+	    c_write_str(ssh, "Server refused to set environment variables\r\n");
+	} else {
+	    logeventf(ssh, "%d environment variables refused",
+		      s->num_env - s->env_ok);
+	    c_write_str(ssh, "Server refused to set all environment variables\r\n");
 	}
     }
 
