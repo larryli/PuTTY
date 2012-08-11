@@ -364,12 +364,11 @@ void base64_encode_atom(unsigned char *data, int n, char *out)
  *  - return the current size of the buffer chain in bytes
  */
 
-#define BUFFER_GRANULE  512
+#define BUFFER_MIN_GRANULE  512
 
 struct bufchain_granule {
     struct bufchain_granule *next;
-    int buflen, bufpos;
-    char buf[BUFFER_GRANULE];
+    char *bufpos, *bufend, *bufmax;
 };
 
 void bufchain_init(bufchain *ch)
@@ -403,28 +402,29 @@ void bufchain_add(bufchain *ch, const void *data, int len)
 
     ch->buffersize += len;
 
-    if (ch->tail && ch->tail->buflen < BUFFER_GRANULE) {
-	int copylen = min(len, BUFFER_GRANULE - ch->tail->buflen);
-	memcpy(ch->tail->buf + ch->tail->buflen, buf, copylen);
-	buf += copylen;
-	len -= copylen;
-	ch->tail->buflen += copylen;
-    }
     while (len > 0) {
-	int grainlen = min(len, BUFFER_GRANULE);
-	struct bufchain_granule *newbuf;
-	newbuf = snew(struct bufchain_granule);
-	newbuf->bufpos = 0;
-	newbuf->buflen = grainlen;
-	memcpy(newbuf->buf, buf, grainlen);
-	buf += grainlen;
-	len -= grainlen;
-	if (ch->tail)
-	    ch->tail->next = newbuf;
-	else
-	    ch->head = ch->tail = newbuf;
-	newbuf->next = NULL;
-	ch->tail = newbuf;
+	if (ch->tail && ch->tail->bufend < ch->tail->bufmax) {
+	    int copylen = min(len, ch->tail->bufmax - ch->tail->bufend);
+	    memcpy(ch->tail->bufend, buf, copylen);
+	    buf += copylen;
+	    len -= copylen;
+	    ch->tail->bufend += copylen;
+	}
+	if (len > 0) {
+	    int grainlen =
+		max(sizeof(struct bufchain_granule) + len, BUFFER_MIN_GRANULE);
+	    struct bufchain_granule *newbuf;
+	    newbuf = smalloc(grainlen);
+	    newbuf->bufpos = newbuf->bufend =
+		(char *)newbuf + sizeof(struct bufchain_granule);
+	    newbuf->bufmax = (char *)newbuf + grainlen;
+	    newbuf->next = NULL;
+	    if (ch->tail)
+		ch->tail->next = newbuf;
+	    else
+		ch->head = newbuf;
+	    ch->tail = newbuf;
+	}
     }
 }
 
@@ -436,13 +436,13 @@ void bufchain_consume(bufchain *ch, int len)
     while (len > 0) {
 	int remlen = len;
 	assert(ch->head != NULL);
-	if (remlen >= ch->head->buflen - ch->head->bufpos) {
-	    remlen = ch->head->buflen - ch->head->bufpos;
+	if (remlen >= ch->head->bufend - ch->head->bufpos) {
+	    remlen = ch->head->bufend - ch->head->bufpos;
 	    tmp = ch->head;
 	    ch->head = tmp->next;
-	    sfree(tmp);
 	    if (!ch->head)
 		ch->tail = NULL;
+	    sfree(tmp);
 	} else
 	    ch->head->bufpos += remlen;
 	ch->buffersize -= remlen;
@@ -452,8 +452,8 @@ void bufchain_consume(bufchain *ch, int len)
 
 void bufchain_prefix(bufchain *ch, void **data, int *len)
 {
-    *len = ch->head->buflen - ch->head->bufpos;
-    *data = ch->head->buf + ch->head->bufpos;
+    *len = ch->head->bufend - ch->head->bufpos;
+    *data = ch->head->bufpos;
 }
 
 void bufchain_fetch(bufchain *ch, void *data, int len)
@@ -468,9 +468,9 @@ void bufchain_fetch(bufchain *ch, void *data, int len)
 	int remlen = len;
 
 	assert(tmp != NULL);
-	if (remlen >= tmp->buflen - tmp->bufpos)
-	    remlen = tmp->buflen - tmp->bufpos;
-	memcpy(data_c, tmp->buf + tmp->bufpos, remlen);
+	if (remlen >= tmp->bufend - tmp->bufpos)
+	    remlen = tmp->bufend - tmp->bufpos;
+	memcpy(data_c, tmp->bufpos, remlen);
 
 	tmp = tmp->next;
 	len -= remlen;
