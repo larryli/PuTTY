@@ -45,6 +45,13 @@ static void sftp_pkt_addbyte(struct sftp_packet *pkt, unsigned char byte)
 {
     sftp_pkt_adddata(pkt, &byte, 1);
 }
+static void sftp_pkt_adduint32(struct sftp_packet *pkt,
+			       unsigned long value)
+{
+    unsigned char x[4];
+    PUT_32BIT(x, value);
+    sftp_pkt_adddata(pkt, x, 4);
+}
 static struct sftp_packet *sftp_pkt_init(int pkt_type)
 {
     struct sftp_packet *pkt;
@@ -53,6 +60,7 @@ static struct sftp_packet *sftp_pkt_init(int pkt_type)
     pkt->savedpos = -1;
     pkt->length = 0;
     pkt->maxlen = 0;
+    sftp_pkt_adduint32(pkt, 0); /* length field will be filled in later */
     sftp_pkt_addbyte(pkt, (unsigned char) pkt_type);
     return pkt;
 }
@@ -62,13 +70,6 @@ static void sftp_pkt_addbool(struct sftp_packet *pkt, unsigned char value)
     sftp_pkt_adddata(pkt, &value, 1);
 }
 */
-static void sftp_pkt_adduint32(struct sftp_packet *pkt,
-			       unsigned long value)
-{
-    unsigned char x[4];
-    PUT_32BIT(x, value);
-    sftp_pkt_adddata(pkt, x, 4);
-}
 static void sftp_pkt_adduint64(struct sftp_packet *pkt, uint64 value)
 {
     unsigned char x[8];
@@ -215,9 +216,8 @@ static void sftp_pkt_free(struct sftp_packet *pkt)
 int sftp_send(struct sftp_packet *pkt)
 {
     int ret;
-    char x[4];
-    PUT_32BIT(x, pkt->length);
-    ret = (sftp_senddata(x, 4) && sftp_senddata(pkt->data, pkt->length));
+    PUT_32BIT(pkt->data, pkt->length - 4);
+    ret = sftp_senddata(pkt->data, pkt->length);
     sftp_pkt_free(pkt);
     return ret;
 }
