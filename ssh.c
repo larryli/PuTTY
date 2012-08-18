@@ -431,10 +431,12 @@ enum {
  *    Database for Edit and Continue'.
  */
 #define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
-#define crState(t) \
-    struct t *s; \
-    if (!ssh->t) ssh->t = snew(struct t); \
-    s = ssh->t;
+#define crBeginState	crBegin(s->crLine)
+#define crStateP(t, v)				\
+    struct t *s; 				\
+    if (!(v)) { s = (v) = snew(struct t); s->crLine = 0; }	\
+    s = (v);
+#define crState(t)	crStateP(t, ssh->t)
 #define crFinish(z)	} *crLine = 0; return (z); }
 #define crFinishV	} *crLine = 0; return; }
 #define crReturn(z)	\
@@ -888,12 +890,8 @@ struct ssh_tag {
 
     int ssh1_rdpkt_crstate;
     int ssh2_rdpkt_crstate;
-    int do_ssh_init_crstate;
     int ssh_gotdata_crstate;
-    int do_ssh1_login_crstate;
     int do_ssh1_connection_crstate;
-    int do_ssh2_transport_crstate;
-    int do_ssh2_authconn_crstate;
 
     void *do_ssh_init_state;
     void *do_ssh1_login_state;
@@ -2659,6 +2657,7 @@ static void ssh_send_verstring(Ssh ssh, char *svers)
 static int do_ssh_init(Ssh ssh, unsigned char c)
 {
     struct do_ssh_init_state {
+	int crLine;
 	int vslen;
 	char version[10];
 	char *vstring;
@@ -2667,8 +2666,8 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	int proto1, proto2;
     };
     crState(do_ssh_init_state);
-
-    crBegin(ssh->do_ssh_init_crstate);
+    
+    crBeginState;
 
     /* Search for a line beginning with the string "SSH-" in the input. */
     for (;;) {
@@ -3257,6 +3256,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
     struct do_ssh1_login_state {
+	int crLine;
 	int len;
 	unsigned char *rsabuf, *keystr1, *keystr2;
 	unsigned long supported_ciphers_mask, supported_auths_mask;
@@ -3284,7 +3284,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     };
     crState(do_ssh1_login_state);
 
-    crBegin(ssh->do_ssh1_login_crstate);
+    crBeginState;
 
     if (!pktin)
 	crWaitUntil(pktin);
@@ -5475,6 +5475,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 {
     unsigned char *in = (unsigned char *)vin;
     struct do_ssh2_transport_state {
+	int crLine;
 	int nbits, pbits, warn_kex, warn_cscipher, warn_sccipher;
 	Bignum p, g, e, f, K;
 	void *our_kexinit;
@@ -5508,7 +5509,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     };
     crState(do_ssh2_transport_state);
 
-    crBegin(ssh->do_ssh2_transport_crstate);
+    crBeginState;
 
     s->cscipher_tobe = s->sccipher_tobe = NULL;
     s->csmac_tobe = s->scmac_tobe = NULL;
@@ -7474,6 +7475,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     struct Packet *pktin)
 {
     struct do_ssh2_authconn_state {
+	int crLine;
 	enum {
 	    AUTH_TYPE_NONE,
 		AUTH_TYPE_PUBLICKEY,
@@ -7529,7 +7531,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     };
     crState(do_ssh2_authconn_state);
 
-    crBegin(ssh->do_ssh2_authconn_crstate);
+    crBeginState;
 
     s->done_service_req = FALSE;
     s->we_are_in = s->userauth_success = FALSE;
@@ -9540,12 +9542,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
     ssh->ssh2_rdpkt_crstate = 0;
-    ssh->do_ssh_init_crstate = 0;
     ssh->ssh_gotdata_crstate = 0;
     ssh->do_ssh1_connection_crstate = 0;
-    ssh->do_ssh1_login_crstate = 0;
-    ssh->do_ssh2_transport_crstate = 0;
-    ssh->do_ssh2_authconn_crstate = 0;
     ssh->do_ssh_init_state = NULL;
     ssh->do_ssh1_login_state = NULL;
     ssh->do_ssh2_transport_state = NULL;
