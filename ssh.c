@@ -4959,13 +4959,16 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
                     x11_send_eof(c->u.x11.s);
                 else
                     send_close = TRUE;
+		break;
               case CHAN_SOCKDATA:
                 if (c->u.pfd.s)
-                    x11_send_eof(c->u.pfd.s);
+                    pfd_send_eof(c->u.pfd.s);
                 else
                     send_close = TRUE;
+		break;
               case CHAN_AGENT:
                 send_close = TRUE;
+		break;
             }
 
             if (send_close && !(c->closes & CLOSES_SENT_EOF)) {
