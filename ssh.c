@@ -9391,6 +9391,7 @@ static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin)
 			  ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
 					pktin->type));
     ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+    sfree(buf);
 }
 
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
