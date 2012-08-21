@@ -5533,7 +5533,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
   begin_key_exchange:
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     {
-	int i, j, commalist_started;
+	int i, j, k, commalist_started;
 
 	/*
 	 * Set up the preferred key exchange. (NULL => warn below here)
@@ -5645,45 +5645,29 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (i < lenof(hostkey_algs) - 1)
 		ssh2_pkt_addstring_str(s->pktout, ",");
 	}
-	/* List client->server encryption algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
-	commalist_started = 0;
-	for (i = 0; i < s->n_preferred_ciphers; i++) {
-	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-	    if (!c) continue;	       /* warning flag */
-	    for (j = 0; j < c->nciphers; j++) {
-		if (commalist_started)
-		    ssh2_pkt_addstring_str(s->pktout, ",");
-		ssh2_pkt_addstring_str(s->pktout, c->list[j]->name);
-		commalist_started = 1;
+	/* List encryption algorithms (client->server then server->client). */
+	for (k = 0; k < 2; k++) {
+	    ssh2_pkt_addstring_start(s->pktout);
+	    commalist_started = 0;
+	    for (i = 0; i < s->n_preferred_ciphers; i++) {
+		const struct ssh2_ciphers *c = s->preferred_ciphers[i];
+		if (!c) continue;	       /* warning flag */
+		for (j = 0; j < c->nciphers; j++) {
+		    if (commalist_started)
+			ssh2_pkt_addstring_str(s->pktout, ",");
+		    ssh2_pkt_addstring_str(s->pktout, c->list[j]->name);
+		    commalist_started = 1;
+		}
 	    }
 	}
-	/* List server->client encryption algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
-	commalist_started = 0;
-	for (i = 0; i < s->n_preferred_ciphers; i++) {
-	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-	    if (!c) continue; /* warning flag */
-	    for (j = 0; j < c->nciphers; j++) {
-		if (commalist_started)
+	/* List MAC algorithms (client->server then server->client). */
+	for (j = 0; j < 2; j++) {
+	    ssh2_pkt_addstring_start(s->pktout);
+	    for (i = 0; i < s->nmacs; i++) {
+		ssh2_pkt_addstring_str(s->pktout, s->maclist[i]->name);
+		if (i < s->nmacs - 1)
 		    ssh2_pkt_addstring_str(s->pktout, ",");
-		ssh2_pkt_addstring_str(s->pktout, c->list[j]->name);
-		commalist_started = 1;
 	    }
-	}
-	/* List client->server MAC algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
-	for (i = 0; i < s->nmacs; i++) {
-	    ssh2_pkt_addstring_str(s->pktout, s->maclist[i]->name);
-	    if (i < s->nmacs - 1)
-		ssh2_pkt_addstring_str(s->pktout, ",");
-	}
-	/* List server->client MAC algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
-	for (i = 0; i < s->nmacs; i++) {
-	    ssh2_pkt_addstring_str(s->pktout, s->maclist[i]->name);
-	    if (i < s->nmacs - 1)
-		ssh2_pkt_addstring_str(s->pktout, ",");
 	}
 	/* List client->server compression algorithms,
 	 * then server->client compression algorithms. (We use the
