@@ -960,6 +960,7 @@ struct ssh_tag {
      * indications from a request.
      */
     struct queued_handler *qhead, *qtail;
+    handler_fn_t q_saved_handler1, q_saved_handler2;
 
     /*
      * This module deals with sending keepalives.
@@ -4353,27 +4354,26 @@ static void ssh_queueing_handler(Ssh ssh, struct Packet *pktin)
 
     if (qh->msg1 > 0) {
 	assert(ssh->packet_dispatch[qh->msg1] == ssh_queueing_handler);
-	ssh->packet_dispatch[qh->msg1] = NULL;
+	ssh->packet_dispatch[qh->msg1] = ssh->q_saved_handler1;
     }
     if (qh->msg2 > 0) {
 	assert(ssh->packet_dispatch[qh->msg2] == ssh_queueing_handler);
-	ssh->packet_dispatch[qh->msg2] = NULL;
+	ssh->packet_dispatch[qh->msg2] = ssh->q_saved_handler2;
     }
 
     if (qh->next) {
 	ssh->qhead = qh->next;
 
 	if (ssh->qhead->msg1 > 0) {
-	    assert(ssh->packet_dispatch[ssh->qhead->msg1] == NULL);
+	    ssh->q_saved_handler1 = ssh->packet_dispatch[ssh->qhead->msg1];
 	    ssh->packet_dispatch[ssh->qhead->msg1] = ssh_queueing_handler;
 	}
 	if (ssh->qhead->msg2 > 0) {
-	    assert(ssh->packet_dispatch[ssh->qhead->msg2] == NULL);
+	    ssh->q_saved_handler2 = ssh->packet_dispatch[ssh->qhead->msg2];
 	    ssh->packet_dispatch[ssh->qhead->msg2] = ssh_queueing_handler;
 	}
     } else {
 	ssh->qhead = ssh->qtail = NULL;
-	ssh->packet_dispatch[pktin->type] = NULL;
     }
 
     qh->handler(ssh, pktin, qh->ctx);
@@ -4397,11 +4397,11 @@ static void ssh_queue_handler(Ssh ssh, int msg1, int msg2,
 	ssh->qhead = qh;
 
 	if (qh->msg1 > 0) {
-	    assert(ssh->packet_dispatch[qh->msg1] == NULL);
+	    ssh->q_saved_handler1 = ssh->packet_dispatch[ssh->qhead->msg1];
 	    ssh->packet_dispatch[qh->msg1] = ssh_queueing_handler;
 	}
 	if (qh->msg2 > 0) {
-	    assert(ssh->packet_dispatch[qh->msg2] == NULL);
+	    ssh->q_saved_handler2 = ssh->packet_dispatch[ssh->qhead->msg2];
 	    ssh->packet_dispatch[qh->msg2] = ssh_queueing_handler;
 	}
     } else {
@@ -6410,19 +6410,6 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 					 ssh2_timer, ssh);
 
     /*
-     * If this is the first key exchange phase, we must pass the
-     * SSH2_MSG_NEWKEYS packet to the next layer, not because it
-     * wants to see it but because it will need time to initialise
-     * itself before it sees an actual packet. In subsequent key
-     * exchange phases, we don't pass SSH2_MSG_NEWKEYS on, because
-     * it would only confuse the layer above.
-     */
-    if (s->activated_authconn) {
-	crReturn(0);
-    }
-    s->activated_authconn = TRUE;
-
-    /*
      * Now we're encrypting. Begin returning 1 to the protocol main
      * function so that other things can run on top of the
      * transport. If we ever see a KEXINIT, we must go back to the
@@ -6440,6 +6427,13 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
 	     (!pktin && inlen < 0))) {
         wait_for_rekey:
+	if (!ssh->protocol_initial_phase_done) {
+	    ssh->protocol_initial_phase_done = TRUE;
+	    /*
+	     * Allow authconn to initialise itself.
+	     */
+	    do_ssh2_authconn(ssh, NULL, 0, NULL);
+	}
 	crReturn(1);
     }
     if (pktin) {
@@ -7474,6 +7468,11 @@ static void ssh2_send_ttymode(void *data, char *mode, char *val)
 /*
  * Handle the SSH-2 userauth and connection layers.
  */
+static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin)
+{
+    do_ssh2_authconn(ssh, NULL, 0, pktin);
+}
+
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			     struct Packet *pktin)
 {
@@ -7536,6 +7535,31 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
     crBeginState;
 
+    /* Register as a handler for all the messages this coroutine handles. */
+    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = ssh2_msg_authconn;
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = ssh2_msg_authconn; duplicate case value */
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = ssh2_msg_authconn; duplicate case value */
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_authconn;
+    
     s->done_service_req = FALSE;
     s->we_are_in = s->userauth_success = FALSE;
 #ifndef NO_GSSAPI
@@ -9367,6 +9391,24 @@ static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
     logeventf(ssh, "Remote debug message: %.*s", msglen, msg);
 }
 
+static void ssh2_msg_transport(Ssh ssh, struct Packet *pktin)
+{
+    do_ssh2_transport(ssh, NULL, 0, pktin);
+}
+
+/*
+ * Called if we receive a packet that isn't allowed by the protocol.
+ * This only applies to packets whose meaning PuTTY understands.
+ * Entirely unknown packets are handled below.
+ */
+static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin)
+{
+    char *buf = dupprintf("Server protocol violation: unexpected %s packet",
+			  ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
+					pktin->type));
+    ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
+}
+
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin)
 {
     struct Packet *pktout;
@@ -9393,45 +9435,47 @@ static void ssh2_protocol_setup(Ssh ssh)
 	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
 
     /*
-     * Any message we actually understand, we set to NULL so that
-     * the coroutines will get it.
+     * Initially, we only accept transport messages (and a few generic
+     * ones).  do_ssh2_authconn will add more when it starts.
+     * Messages that are understood but not currently acceptable go to
+     * ssh2_msg_unexpected.
      */
-    ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_SERVICE_REQUEST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEXINIT] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_NEWKEYS] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEXDH_INIT] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEXDH_REPLY] = NULL;
-    /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REQUEST] = NULL; duplicate case value */
-    /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_GROUP] = NULL; duplicate case value */
-    ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_INIT] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REPLY] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = NULL;
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = NULL; duplicate case value */
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = NULL; duplicate case value */
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = NULL;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = NULL;
+    ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_SERVICE_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_KEXINIT] = ssh2_msg_transport;
+    ssh->packet_dispatch[SSH2_MSG_NEWKEYS] = ssh2_msg_transport;
+    ssh->packet_dispatch[SSH2_MSG_KEXDH_INIT] = ssh2_msg_transport;
+    ssh->packet_dispatch[SSH2_MSG_KEXDH_REPLY] = ssh2_msg_transport;
+    /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REQUEST] = ssh2_msg_transport; duplicate case value */
+    /* ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_GROUP] = ssh2_msg_transport; duplicate case value */
+    ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_INIT] = ssh2_msg_transport;
+    ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REPLY] = ssh2_msg_transport;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = ssh2_msg_unexpected;
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = ssh2_msg_unexpected; duplicate case value */
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = ssh2_msg_unexpected; duplicate case value */
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_unexpected;
 
     /*
-     * These special message types we install handlers for.
+     * These messages have a special handler from the start.
      */
     ssh->packet_dispatch[SSH2_MSG_DISCONNECT] = ssh2_msg_disconnect;
     ssh->packet_dispatch[SSH2_MSG_IGNORE] = ssh_msg_ignore; /* shared with SSH-1 */
@@ -9466,24 +9510,12 @@ static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 	    do_ssh2_transport(ssh, "too much data received", -1, NULL);
     }
 
-    if (pktin && ssh->packet_dispatch[pktin->type]) {
+    if (pktin)
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
-	return;
-    }
-
-    if (!ssh->protocol_initial_phase_done ||
-	(pktin && pktin->type >= 20 && pktin->type < 50)) {
-	if (do_ssh2_transport(ssh, in, inlen, pktin) &&
-	    !ssh->protocol_initial_phase_done) {
-	    ssh->protocol_initial_phase_done = TRUE;
-	    /*
-	     * Allow authconn to initialise itself.
-	     */
-	    do_ssh2_authconn(ssh, NULL, 0, NULL);
-	}
-    } else {
+    else if (!ssh->protocol_initial_phase_done)
+	do_ssh2_transport(ssh, in, inlen, pktin);
+    else
 	do_ssh2_authconn(ssh, in, inlen, pktin);
-    }
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
