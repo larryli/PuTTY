@@ -2287,10 +2287,13 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	 *      >this has "quotes" in<
 	 *      >and"this"<
 	 */
-	while (*p) {
+	while (1) {
 	    /* skip whitespace */
 	    while (*p && (*p == ' ' || *p == '\t'))
 		p++;
+            /* terminate loop */
+            if (!*p)
+                break;
 	    /* mark start of word */
 	    q = r = p;		       /* q sits at start, r writes word */
 	    quoting = 0;
