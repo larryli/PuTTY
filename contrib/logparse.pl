@@ -274,6 +274,7 @@ my %packets = (
         my $index = $chan_by_id{$rid};
         my $chan = $channels[$index];
         printf "ch%d (%s), %s bytes\n", $index, $chan->{'id'}, $bytes;
+        my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
             my $filekey = $direction . "file";
             if (!defined $chan->{$filekey}) {
@@ -283,11 +284,14 @@ my %packets = (
                     die "$filename: $!\n";
                 }
             }
-            my @realdata = splice @$data, 0, $bytes;
             die "channel data not present in $seq\n" if @realdata < $bytes;
             my $rawdata = pack "C*", @realdata;
             my $fh = $chan->{$filekey};
             print $fh $rawdata;
+        }
+        if (@realdata == $bytes and defined $chan->{$direction."data"}) {
+            my $rawdata = pack "C*", @realdata;
+            $chan->{$direction."data"}->($chan, $index, $direction, $rawdata);
         }
     },
 #define SSH2_MSG_CHANNEL_EXTENDED_DATA            95	/* 0x5f */
@@ -298,6 +302,7 @@ my %packets = (
         my $index = $chan_by_id{$rid};
         my $chan = $channels[$index];
         printf "ch%d (%s), %s bytes\n", $index, $chan->{'id'}, $bytes;
+        my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
             # We treat EXTENDED_DATA as equivalent to DATA, for the
             # moment. It's not clear what else would be a better thing
@@ -312,11 +317,14 @@ my %packets = (
                     die "$filename: $!\n";
                 }
             }
-            my @realdata = splice @$data, 0, $bytes;
             die "channel data not present in $seq\n" if @realdata < $bytes;
             my $rawdata = pack "C*", @realdata;
             my $fh = $chan->{$filekey};
             print $fh $rawdata;
+        }
+        if (@realdata == $bytes and defined $chan->{$direction."data"}) {
+            my $rawdata = pack "C*", @realdata;
+            $chan->{$direction."data"}->($chan, $index, $direction, $rawdata);
         }
     },
 #define SSH2_MSG_CHANNEL_EOF                      96	/* 0x60 */
@@ -367,6 +375,9 @@ my %packets = (
         } elsif ($type eq "subsystem") {
             my ($subsys) = &parse("s", $data);
             printf " %s", &str($subsys);
+            if ($subsys eq "sftp") {
+                &sftp_setup($index);
+            }
         } elsif ($type eq "window-change") {
             my ($w, $h, $pw, $ph) = &parse("uuuu", $data);
             printf " %sx%s", $w, $h;
@@ -452,6 +463,233 @@ my %packets = (
     },
 );
 
+my %sftp_packets = (
+#define SSH_FXP_INIT                              1	/* 0x1 */
+    0x1 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($ver) = &parse("u", $data);
+        printf "SSH_FXP_INIT %d\n", $ver;
+    },
+#define SSH_FXP_VERSION                           2	/* 0x2 */
+    0x2 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($ver) = &parse("u", $data);
+        printf "SSH_FXP_VERSION %d\n", $ver;
+    },
+#define SSH_FXP_OPEN                              3	/* 0x3 */
+    0x3 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path, $pflags) = &parse("usu", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_OPEN");
+        printf " \"%s\" ", $path;
+        if ($pflags eq 0) {
+            print "0";
+        } else {
+            my $sep = "";
+            if ($pflags & 1) { $pflags ^= 1; print "${sep}READ"; $sep = "|"; }
+            if ($pflags & 2) { $pflags ^= 2; print "${sep}WRITE"; $sep = "|"; }
+            if ($pflags & 4) { $pflags ^= 4; print "${sep}APPEND"; $sep = "|"; }
+            if ($pflags & 8) { $pflags ^= 8; print "${sep}CREAT"; $sep = "|"; }
+            if ($pflags & 16) { $pflags ^= 16; print "${sep}TRUNC"; $sep = "|"; }
+            if ($pflags & 32) { $pflags ^= 32; print "${sep}EXCL"; $sep = "|"; }
+            if ($pflags) { print "${sep}${pflags}"; }
+        }
+        print "\n";
+    },
+#define SSH_FXP_CLOSE                             4	/* 0x4 */
+    0x4 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_CLOSE");
+        printf " \"%s\"", &stringescape($handle);
+        print "\n";
+    },
+#define SSH_FXP_READ                              5	/* 0x5 */
+    0x5 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle, $offset, $len) = &parse("usUu", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_READ");
+        printf " \"%s\" %d %d", &stringescape($handle), $offset, $len;
+        print "\n";
+    },
+#define SSH_FXP_WRITE                             6	/* 0x6 */
+    0x6 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle, $offset, $wdata) = &parse("usUs", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_WRITE");
+        printf " \"%s\" %d [%d bytes]", &stringescape($handle), $offset, length $wdata;
+        print "\n";
+    },
+#define SSH_FXP_LSTAT                             7	/* 0x7 */
+    0x7 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_LSTAT");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_FSTAT                             8	/* 0x8 */
+    0x8 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_FSTAT");
+        printf " \"%s\"", &stringescape($handle);
+        print "\n";
+    },
+#define SSH_FXP_SETSTAT                           9	/* 0x9 */
+    0x9 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_SETSTAT");
+        my $attrs = &sftp_parse_attrs($data);
+        printf " \"%s\" %s", $path, $attrs;
+        print "\n";
+    },
+#define SSH_FXP_FSETSTAT                          10	/* 0xa */
+    0xa => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_FSETSTAT");
+        my $attrs = &sftp_parse_attrs($data);
+        printf " \"%s\" %s", &stringescape($handle), $attrs;
+        print "\n";
+    },
+#define SSH_FXP_OPENDIR                           11	/* 0xb */
+    0xb => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_OPENDIR");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_READDIR                           12	/* 0xc */
+    0xc => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_READDIR");
+        printf " \"%s\"", &stringescape($handle);
+        print "\n";
+    },
+#define SSH_FXP_REMOVE                            13	/* 0xd */
+    0xd => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_REMOVE");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_MKDIR                             14	/* 0xe */
+    0xe => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_MKDIR");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_RMDIR                             15	/* 0xf */
+    0xf => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_RMDIR");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_REALPATH                          16	/* 0x10 */
+    0x10 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_REALPATH");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_STAT                              17	/* 0x11 */
+    0x11 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $path) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_STAT");
+        printf " \"%s\"", $path;
+        print "\n";
+    },
+#define SSH_FXP_RENAME                            18	/* 0x12 */
+    0x12 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $srcpath, $dstpath) = &parse("uss", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_RENAME");
+        printf " \"%s\" \"%s\"", $srcpath, $dstpath;
+        print "\n";
+    },
+#define SSH_FXP_STATUS                            101	/* 0x65 */
+    0x65 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $status) = &parse("uu", $data);
+        &sftp_logreply($chan, $direction, $reqid, $id, "SSH_FXP_STATUS");
+        print " ";
+        if ($status eq "0") { print "SSH_FX_OK"; }
+        elsif ($status eq "1") { print "SSH_FX_EOF"; }
+        elsif ($status eq "2") { print "SSH_FX_NO_SUCH_FILE"; }
+        elsif ($status eq "3") { print "SSH_FX_PERMISSION_DENIED"; }
+        elsif ($status eq "4") { print "SSH_FX_FAILURE"; }
+        elsif ($status eq "5") { print "SSH_FX_BAD_MESSAGE"; }
+        elsif ($status eq "6") { print "SSH_FX_NO_CONNECTION"; }
+        elsif ($status eq "7") { print "SSH_FX_CONNECTION_LOST"; }
+        elsif ($status eq "8") { print "SSH_FX_OP_UNSUPPORTED"; }
+        else { printf "[unknown status %d]", $status; }
+        print "\n";
+    },
+#define SSH_FXP_HANDLE                            102	/* 0x66 */
+    0x66 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $handle) = &parse("us", $data);
+        &sftp_logreply($chan, $direction, $reqid, $id, "SSH_FXP_HANDLE");
+        printf " \"%s\"", &stringescape($handle);
+        print "\n";
+    },
+#define SSH_FXP_DATA                              103	/* 0x67 */
+    0x67 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $retdata) = &parse("us", $data);
+        &sftp_logreply($chan, $direction, $reqid, $id, "SSH_FXP_DATA");
+        printf " [%d bytes]", length $retdata;
+        print "\n";
+    },
+#define SSH_FXP_NAME                              104	/* 0x68 */
+    0x68 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $count) = &parse("uu", $data);
+        &sftp_logreply($chan, $direction, $reqid, $id, "SSH_FXP_NAME");
+        for my $i (1..$count) {
+            my ($name, $longname) = &parse("ss", $data);
+            my $attrs = &sftp_parse_attrs($data);
+            print " [name=\"$name\", longname=\"$longname\", attrs=$attrs]";
+        }
+        print "\n";
+    },
+#define SSH_FXP_ATTRS                             105	/* 0x69 */
+    0x69 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid) = &parse("u", $data);
+        &sftp_logreply($chan, $direction, $reqid, $id, "SSH_FXP_ATTRS");
+        my $attrs = &sftp_parse_attrs($data);
+        printf " %s", $attrs;
+        print "\n";
+    },
+#define SSH_FXP_EXTENDED                          200	/* 0xc8 */
+    0xc8 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid, $type) = &parse("us", $data);
+        &sftp_logreq($chan, $direction, $reqid, $id, "SSH_FXP_EXTENDED");
+        printf " \"%s\"", $type;
+        print "\n";
+    },
+#define SSH_FXP_EXTENDED_REPLY                    201	/* 0xc9 */
+    0xc9 => sub {
+        my ($chan, $index, $direction, $id, $data) = @_;
+        my ($reqid) = &parse("u", $data);
+        print "\n";
+        &sftp_logreply($chan, $direction, $reqid,$id,"SSH_FXP_EXTENDED_REPLY");
+    },
+);
+
 my ($direction, $seq, $ourseq, $type, $data, $recording);
 my %ourseqs = ('i'=>0, 'o'=>0);
 
@@ -508,7 +746,7 @@ sub parseone {
         return "<missing>" if @bytes < 4 or grep { $_<0 } @bytes;
         return unpack "N", pack "C*", @bytes;
     } elsif ($type eq "U") { # uint64
-        my @bytes = splice @$data, 0, 4;
+        my @bytes = splice @$data, 0, 8;
         return "<missing>" if @bytes < 8 or grep { $_<0 } @bytes;
         my @words = unpack "NN", pack "C*", @bytes;
         return ($words[0] << 32) + $words[1];
@@ -559,4 +797,96 @@ sub str {
     # strange characters inside the string to be quoted.
     my $str = shift @_;
     return "'$str'";
+}
+
+sub sftp_setup {
+    my $index = shift @_;
+    my $chan = $channels[$index];
+    $chan->{'obuf'} = $chan->{'ibuf'} = '';
+    $chan->{'ocnt'} = $chan->{'icnt'} = 0;
+    $chan->{'odata'} = $chan->{'idata'} = \&sftp_data;
+    $chan->{'sftpreqs'} = {};
+}
+
+sub sftp_data {
+    my ($chan, $index, $direction, $data) = @_;
+    my $buf = \$chan->{$direction."buf"};
+    my $cnt = \$chan->{$direction."cnt"};
+    $$buf .= $data;
+    while (length $$buf >= 4) {
+        my $msglen = unpack "N", $$buf;
+        last if length $$buf < 4 + $msglen;
+        my $msg = substr $$buf, 4, $msglen;
+        $$buf = substr $$buf, 4 + $msglen;
+        $msg = [unpack "C*", $msg];
+        my $type = shift @$msg;
+        my $id = sprintf "ch%d_sftp_%s%d", $index, $direction, ${$cnt}++;
+        print "$id: ";
+        if (defined $sftp_packets{$type}) {
+            $sftp_packets{$type}->($chan, $index, $direction, $id, $msg);
+        } else {
+            printf "unknown SFTP packet type %d\n", $type;
+        }
+    }
+}
+
+sub sftp_logreq {
+    my ($chan, $direction, $reqid, $id, $name) = @_;
+    print "$name";
+    if ($direction eq "o") { # requests coming _in_ are too weird to track
+        $chan->{'sftpreqs'}->{$reqid} = $id;
+    }
+}
+
+sub sftp_logreply {
+    my ($chan, $direction, $reqid, $id, $name) = @_;
+    print "$name";
+    if ($direction eq "i") { # replies going _out_ are too weird to track
+        if (defined $chan->{'sftpreqs'}->{$reqid}) {
+            print " to ", $chan->{'sftpreqs'}->{$reqid};
+            $chan->{'sftpreqs'}->{$reqid} = undef;
+        }
+    }
+}
+
+sub sftp_parse_attrs {
+    my ($data) = @_;
+    my ($flags) = &parse("u", $data);
+    return $flags if $flags eq "<missing>";
+    my $out = "{";
+    my $sep = "";
+    if ($flags & 0x00000001) { # SSH_FILEXFER_ATTR_SIZE
+        $out .= $sep . sprintf "size=%d", &parse("U", $data);
+        $sep = ", ";
+    }
+    if ($flags & 0x00000002) { # SSH_FILEXFER_ATTR_UIDGID
+        $out .= $sep . sprintf "uid=%d", &parse("u", $data);
+        $out .= $sep . sprintf "gid=%d", &parse("u", $data);
+        $sep = ", ";
+    }
+    if ($flags & 0x00000004) { # SSH_FILEXFER_ATTR_PERMISSIONS
+        $out .= $sep . sprintf "perms=%#o", &parse("u", $data);
+        $sep = ", ";
+    }
+    if ($flags & 0x00000008) { # SSH_FILEXFER_ATTR_ACMODTIME
+        $out .= $sep . sprintf "atime=%d", &parse("u", $data);
+        $out .= $sep . sprintf "mtime=%d", &parse("u", $data);
+        $sep = ", ";
+    }
+    if ($flags & 0x80000000) { # SSH_FILEXFER_ATTR_EXTENDED
+        my $extcount = &parse("u", $data);
+        while ($extcount-- > 0) {
+            $out .= $sep . sprintf "\"%s\"=\"%s\"", &parse("ss", $data);
+            $sep = ", ";
+        }
+    }
+    $out .= "}";
+    return $out;
+}
+
+sub stringescape {
+    my ($str) = @_;
+    $str =~ s!\\!\\\\!g;
+    $str =~ s![^ -~]!sprintf "\\x%02X", ord $&!eg;
+    return $str;
 }
