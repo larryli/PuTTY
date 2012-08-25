@@ -4244,6 +4244,7 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
     if (ssh->version == 2 && bufchain_size(&c->v.v2.outbuffer) > 0)
         return;              /* can't send EOF: pending outgoing data */
 
+    c->pending_eof = FALSE;            /* we're about to send it */
     if (ssh->version == 1) {
         send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
                     PKT_END);
@@ -4254,17 +4255,8 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
         ssh2_pkt_adduint32(pktout, c->remoteid);
         ssh2_pkt_send(ssh, pktout);
         c->closes |= CLOSES_SENT_EOF;
-        if (!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes)) {
-            /*
-             * Also send MSG_CLOSE.
-             */
-            pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-            ssh2_pkt_adduint32(pktout, c->remoteid);
-            ssh2_pkt_send(ssh, pktout);
-            c->closes |= CLOSES_SENT_CLOSE;
-        }
+	ssh2_channel_check_close(c);
     }
-    c->pending_eof = FALSE;            /* we've sent it now */
 }
 
 void sshfwd_write_eof(struct ssh_channel *c)
@@ -6599,6 +6591,7 @@ static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
     struct outstanding_channel_request *ocr =
 	snew(struct outstanding_channel_request);
 
+    assert(!(c->closes & (CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE)));
     ocr->handler = handler;
     ocr->ctx = ctx;
     ocr->next = NULL;
@@ -6615,12 +6608,18 @@ static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
  * when it arrives.  The returned packet is ready to have any
  * request-specific data added and be sent.  Note that if a handler is
  * provided, it's essential that the request actually be sent.
+ *
+ * The handler will usually be passed the response packet in pktin.
+ * If pktin is NULL, this means that no reply will ever be forthcoming
+ * (e.g. because the entire connection is being destroyed) and the
+ * handler should free any storage it's holding.
  */
 static struct Packet *ssh2_chanreq_init(struct ssh_channel *c, char *type,
 					cchandler_fn_t handler, void *ctx)
 {
     struct Packet *pktout;
 
+    assert(!(c->closes & (CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE)));
     pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
     ssh2_pkt_adduint32(pktout, c->remoteid);
     ssh2_pkt_addstring(pktout, type);
@@ -6911,8 +6910,10 @@ static void ssh_channel_destroy(struct ssh_channel *c)
     }
 
     del234(ssh->channels, c);
-    if (ssh->version == 2)
+    if (ssh->version == 2) {
         bufchain_clear(&c->v.v2.outbuffer);
+	assert(c->v.v2.chanreq_head == NULL);
+    }
     sfree(c);
 
     /*
@@ -6958,6 +6959,7 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     }
 
     if (!((CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE) & ~c->closes)) {
+	assert(c->v.v2.chanreq_head == NULL);
         /*
          * We have both sent and received CLOSE, which means we're
          * completely done with the channel.
@@ -7465,7 +7467,6 @@ static void ssh2_send_ttymode(void *data, char *mode, char *val)
     ssh2_pkt_adduint32(pktout, arg);
 }
 
-static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin);
 static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 				 void *ctx)
 {
@@ -7504,11 +7505,13 @@ static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-	    logevent("X11 forwarding enabled");
-	    ssh->X11_fwd_enabled = TRUE;
-	} else
-	    logevent("X11 forwarding refused");
+	if (pktin) {
+	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+		logevent("X11 forwarding enabled");
+		ssh->X11_fwd_enabled = TRUE;
+	    } else
+		logevent("X11 forwarding refused");
+	}
     }
     sfree(s);
     crFinishV;
@@ -7534,11 +7537,13 @@ static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-	    logevent("Agent forwarding enabled");
-	    ssh->agentfwd_enabled = TRUE;
-	} else
-	    logevent("Agent forwarding refused");
+	if (pktin) {
+	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+		logevent("Agent forwarding enabled");
+		ssh->agentfwd_enabled = TRUE;
+	    } else
+		logevent("Agent forwarding refused");
+	}
     }
     sfree(s);
     crFinishV;
@@ -7581,13 +7586,15 @@ static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-	    logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
-		      ssh->ospeed, ssh->ispeed);
-            ssh->got_pty = TRUE;
-	} else {
-	    c_write_str(ssh, "Server refused to allocate pty\r\n");
-	    ssh->editing = ssh->echoing = 1;
+	if (pktin) {
+	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+		logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
+			  ssh->ospeed, ssh->ispeed);
+		ssh->got_pty = TRUE;
+	    } else {
+		c_write_str(ssh, "Server refused to allocate pty\r\n");
+		ssh->editing = ssh->echoing = 1;
+	    }
 	}
     } else {
 	ssh->editing = ssh->echoing = 1;
@@ -7639,6 +7646,7 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 
 	while (s->env_left > 0) {
 	    crWaitUntilV(pktin);
+	    if (!pktin) goto out;
 	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS)
 		s->env_ok++;
 	    s->env_left--;
@@ -7655,6 +7663,7 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 	    c_write_str(ssh, "Server refused to set all environment variables\r\n");
 	}
     }
+out:
     sfree(s);
     crFinishV;
 }
@@ -9724,6 +9733,17 @@ static void ssh_free(void *handle)
 		if (c->u.pfd.s != NULL)
 		    pfd_close(c->u.pfd.s);
 		break;
+	    }
+	    if (ssh->version == 2) {
+		struct outstanding_channel_request *ocr, *nocr;
+		ocr = c->v.v2.chanreq_head;
+		while (ocr) {
+		    ocr->handler(c, NULL, ocr->ctx);
+		    nocr = ocr->next;
+		    sfree(ocr);
+		    ocr = nocr;
+		}
+		bufchain_clear(&c->v.v2.outbuffer);
 	    }
 	    sfree(c);
 	}
