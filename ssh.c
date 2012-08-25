@@ -572,6 +572,20 @@ enum {				       /* channel types */
     CHAN_ZOMBIE
 };
 
+typedef void (*handler_fn_t)(Ssh ssh, struct Packet *pktin);
+typedef void (*chandler_fn_t)(Ssh ssh, struct Packet *pktin, void *ctx);
+typedef void (*cchandler_fn_t)(struct ssh_channel *, struct Packet *, void *);
+
+/*
+ * Each channel has a queue of outstanding CHANNEL_REQUESTS and their
+ * handlers.
+ */
+struct outstanding_channel_request {
+    cchandler_fn_t handler;
+    void *ctx;
+    struct outstanding_channel_request *next;
+};
+
 /*
  * little structure to keep track of outstanding WINDOW_ADJUSTs
  */
@@ -646,10 +660,10 @@ struct ssh_channel {
 	     */
 	    int remlocwin;
 	    /*
-	     * These store the list of window adjusts that haven't
+	     * These store the list of channel requests that haven't
 	     * been acked.
 	     */
-	    struct winadj *winadj_head, *winadj_tail;
+	    struct outstanding_channel_request *chanreq_head, *chanreq_tail;
 	    enum { THROTTLED, UNTHROTTLING, UNTHROTTLED } throttle_state;
 	} v2;
     } v;
@@ -766,6 +780,7 @@ static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, long now);
 static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			     struct Packet *pktin);
+static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
 
 struct rdpkt1_state_tag {
     long len, pad, biglen, to_read;
@@ -783,9 +798,6 @@ struct rdpkt2_state_tag {
     unsigned long incoming_sequence;
     struct Packet *pktin;
 };
-
-typedef void (*handler_fn_t)(Ssh ssh, struct Packet *pktin);
-typedef void (*chandler_fn_t)(Ssh ssh, struct Packet *pktin, void *ctx);
 
 struct queued_handler;
 struct queued_handler {
@@ -6571,14 +6583,37 @@ static void ssh2_channel_init(struct ssh_channel *c)
     c->throttling_conn = FALSE;
     c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
 	conf_get_int(ssh->conf, CONF_ssh_simple) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
-    c->v.v2.winadj_head = c->v.v2.winadj_tail = NULL;
+    c->v.v2.chanreq_head = NULL;
     c->v.v2.throttle_state = UNTHROTTLED;
     bufchain_init(&c->v.v2.outbuffer);
 }
 
 /*
+ * CHANNEL_FAILURE doesn't come with any indication of what message
+ * caused it, so we have to keep track of the outstanding
+ * CHANNEL_REQUESTs ourselves.
+ */
+static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
+				       cchandler_fn_t handler, void *ctx)
+{
+    struct outstanding_channel_request *ocr =
+	snew(struct outstanding_channel_request);
+
+    ocr->handler = handler;
+    ocr->ctx = ctx;
+    ocr->next = NULL;
+    if (!c->v.v2.chanreq_head)
+	c->v.v2.chanreq_head = ocr;
+    else
+	c->v.v2.chanreq_tail->next = ocr;
+    c->v.v2.chanreq_tail = ocr;
+}
+
+/*
  * Potentially enlarge the window on an SSH-2 channel.
  */
+static void ssh2_handle_winadj_response(struct ssh_channel *, struct Packet *,
+					void *);
 static void ssh2_set_window(struct ssh_channel *c, int newwin)
 {
     Ssh ssh = c->ssh;
@@ -6609,7 +6644,7 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
      */
     if (newwin / 2 >= c->v.v2.locwindow) {
 	struct Packet *pktout;
-	struct winadj *wa;
+	unsigned *up;
 
 	/*
 	 * In order to keep track of how much window the client
@@ -6620,14 +6655,8 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	 * This is only necessary if we're opening the window wide.
 	 * If we're not, then throughput is being constrained by
 	 * something other than the maximum window size anyway.
-	 *
-	 * We also only send this if the main channel has finished its
-	 * initial CHANNEL_REQUESTs and installed the default
-	 * CHANNEL_FAILURE handler, so as not to risk giving it
-	 * unexpected CHANNEL_FAILUREs.
 	 */
 	if (newwin == c->v.v2.locmaxwin &&
-	    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] &&
             !(ssh->remote_bugs & BUG_CHOKES_ON_WINADJ)) {
 	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
 	    ssh2_pkt_adduint32(pktout, c->remoteid);
@@ -6635,19 +6664,9 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	    ssh2_pkt_addbool(pktout, TRUE);
 	    ssh2_pkt_send(ssh, pktout);
 
-	    /*
-	     * CHANNEL_FAILURE doesn't come with any indication of
-	     * what message caused it, so we have to keep track of the
-	     * outstanding CHANNEL_REQUESTs ourselves.
-	     */
-	    wa = snew(struct winadj);
-	    wa->size = newwin - c->v.v2.locwindow;
-	    wa->next = NULL;
-	    if (!c->v.v2.winadj_head)
-		c->v.v2.winadj_head = wa;
-	    else
-		c->v.v2.winadj_tail->next = wa;
-	    c->v.v2.winadj_tail = wa;
+	    up = snew(unsigned);
+	    *up = newwin - c->v.v2.locwindow;
+	    ssh2_queue_chanreq_handler(c, ssh2_handle_winadj_response, up);
 	    if (c->v.v2.throttle_state != UNTHROTTLED)
 		c->v.v2.throttle_state = UNTHROTTLING;
 	} else {
@@ -6687,14 +6706,21 @@ static struct ssh_channel *ssh2_channel_msg(Ssh ssh, struct Packet *pktin)
     return c;
 }
 
-static int ssh2_handle_winadj_response(struct ssh_channel *c)
+static void ssh2_handle_winadj_response(struct ssh_channel *c,
+					struct Packet *pktin, void *ctx)
 {
-    struct winadj *wa = c->v.v2.winadj_head;
-    if (!wa)
-	return FALSE;
-    c->v.v2.winadj_head = wa->next;
-    c->v.v2.remlocwin += wa->size;
-    sfree(wa);
+    unsigned *sizep = ctx;
+
+    /*
+     * Winadj responses should always be failures. However, at least
+     * one server ("boks_sshd") is known to return SUCCESS for channel
+     * requests it's never heard of, such as "winadj@putty". Raised
+     * with foxt.com as bug 090916-090424, but for the sake of a quiet
+     * life, we don't worry about what kind of response we got.
+     */
+
+    c->v.v2.remlocwin += *sizep;
+    sfree(sizep);
     /*
      * winadj messages are only sent when the window is fully open, so
      * if we get an ack of one, we know any pending unthrottle is
@@ -6702,56 +6728,28 @@ static int ssh2_handle_winadj_response(struct ssh_channel *c)
      */
     if (c->v.v2.throttle_state == UNTHROTTLING)
 	c->v.v2.throttle_state = UNTHROTTLED;
+}
+
+static void ssh2_msg_channel_response(Ssh ssh, struct Packet *pktin)
+{
+    struct ssh_channel *c = ssh2_channel_msg(ssh, pktin);
+    struct outstanding_channel_request *ocr;
+
+    if (!c) return;
+    ocr = c->v.v2.chanreq_head;
+    if (!ocr) {
+	ssh2_msg_unexpected(ssh, pktin);
+	return;
+    }
+    ocr->handler(c, pktin, ocr->ctx);
+    c->v.v2.chanreq_head = ocr->next;
+    sfree(ocr);
     /*
-     * We may now initiate channel-closing procedures, if that winadj
-     * was the last thing outstanding before we send CHANNEL_CLOSE.
+     * We may now initiate channel-closing procedures, if that
+     * CHANNEL_REQUEST was the last thing outstanding before we send
+     * CHANNEL_CLOSE.
      */
     ssh2_channel_check_close(c);
-    return TRUE;
-}
-
-static void ssh2_msg_channel_success(Ssh ssh, struct Packet *pktin)
-{
-    /*
-     * This should never get called.  All channel requests are either
-     * sent with want_reply false, are sent before this handler gets
-     * installed, or are "winadj@putty" requests, which servers should
-     * never respond to with success.
-     *
-     * However, at least one server ("boks_sshd") is known to return
-     * SUCCESS for channel requests it's never heard of, such as
-     * "winadj@putty". Raised with foxt.com as bug 090916-090424, but
-     * for the sake of a quiet life, we handle it just the same as the
-     * expected FAILURE.
-     */
-    struct ssh_channel *c;
-
-    c = ssh2_channel_msg(ssh, pktin);
-    if (!c)
-	return;
-    if (!ssh2_handle_winadj_response(c))
-	ssh_disconnect(ssh, NULL,
-		       "Received unsolicited SSH_MSG_CHANNEL_SUCCESS",
-		       SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
-}
-
-static void ssh2_msg_channel_failure(Ssh ssh, struct Packet *pktin)
-{
-    /*
-     * The only time this should get called is for "winadj@putty"
-     * messages sent above.  All other channel requests are either
-     * sent with want_reply false or are sent before this handler gets
-     * installed.
-     */
-    struct ssh_channel *c;
-
-    c = ssh2_channel_msg(ssh, pktin);
-    if (!c)
-	return;
-    if (!ssh2_handle_winadj_response(c))
-	ssh_disconnect(ssh, NULL,
-		       "Received unsolicited SSH_MSG_CHANNEL_FAILURE",
-		       SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
 }
 
 static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
@@ -6928,7 +6926,7 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     struct Packet *pktout;
 
     if ((c->closes & (CLOSES_SENT_EOF | CLOSES_RCVD_EOF | CLOSES_SENT_CLOSE))
-        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF) && !c->v.v2.winadj_head) {
+        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF) && !c->v.v2.chanreq_head) {
         /*
          * We have both sent and received EOF, and we have no
          * outstanding winadj channel requests, which means the
@@ -9284,10 +9282,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
     /*
      * All the initial channel requests are done, so install the default
-     * failure handler.
+     * response handler.
      */
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_success;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_failure;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_response;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_response;
 
     /*
      * Transfer data!
