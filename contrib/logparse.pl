@@ -172,7 +172,7 @@ my %packets = (
         my ($type, $wantreply) = &parse("sb", $data);
         printf "%s (%s)", $type, $wantreply eq "yes" ? "reply" : "noreply";
         my $request = [$seq, $type];
-        push @{$globalreq{$direction}}, $request if $wantreply;
+        push @{$globalreq{$direction}}, $request if $wantreply eq "yes";
         if ($type eq "tcpip-forward" or $type eq "cancel-tcpip-forward") {
             my ($addr, $port) = &parse("su", $data);
             printf " %s:%s", $addr, $port;
@@ -361,7 +361,8 @@ my %packets = (
         my $chan = $channels[$index];
         printf "ch%d (%s) %s (%s)",
             $index, $chan->{'id'}, $type, $wantreply eq "yes" ? "reply" : "noreply";
-        push @{$chan->{'requests_'.$direction}}, [$seq, $type] if $wantreply;
+        push @{$chan->{'requests_'.$direction}}, [$seq, $type]
+	    if $wantreply eq "yes";
         if ($type eq "pty-req") {
             my ($term, $w, $h, $pw, $ph, $modes) = &parse("suuuus", $data);
             printf " %s %sx%s", &str($term), $w, $h;
