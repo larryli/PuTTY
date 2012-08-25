@@ -217,11 +217,15 @@ my %packets = (
         # opposite to every other message in the protocol, which all
         # quote the _recipient's_ id of the channel.
         $sid = ($direction eq "i" ? "s" : "c") . $sid;
-        my $chan = {'id'=>$sid, 'state'=>'halfopen'};
+        my $chan = {'id'=>$sid, 'state'=>'halfopen',
+		    'i'=>{'win'=>0, 'seq'=>0},
+		    'o'=>{'win'=>0, 'seq'=>0}};
+	$chan->{$direction}{'win'} = $winsize;
         push @channels, $chan;
         my $index = $#channels;
         $chan_by_id{$sid} = $index;
-        printf "ch%d (%s) %s", $index, $chan->{'id'}, $type;
+        printf "ch%d (%s) %s (--%d)", $index, $chan->{'id'}, $type,
+	    $chan->{$direction}{'win'};
         if ($type eq "x11") {
             my ($addr, $port) = &parse("su", $data);
             printf " from %s:%s", $addr, $port;
@@ -245,7 +249,9 @@ my %packets = (
         my $chan = $channels[$index];
         $chan->{'id'} = ($direction eq "i" ? "$rid/$sid" : "$sid/$rid");
         $chan->{'state'} = 'open';
-        printf "ch%d (%s)\n", $index, $chan->{'id'};
+	$chan->{$direction}{'win'} = $winsize;
+        printf "ch%d (%s) (--%d)\n", $index, $chan->{'id'},
+	    $chan->{$direction}{'win'};
     },
 #define SSH2_MSG_CHANNEL_OPEN_FAILURE             92	/* 0x5c */
     'SSH2_MSG_CHANNEL_OPEN_FAILURE' => sub {
@@ -264,7 +270,9 @@ my %packets = (
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
         my $chan = $channels[$index];
-        printf "ch%d (%s) +%s\n", $index, $chan->{'id'}, $bytes;
+	$chan->{$direction}{'win'} += $bytes;
+        printf "ch%d (%s) +%d (--%d)\n", $index, $chan->{'id'}, $bytes,
+	    $chan->{$direction}{'win'};
     },
 #define SSH2_MSG_CHANNEL_DATA                     94	/* 0x5e */
     'SSH2_MSG_CHANNEL_DATA' => sub {
@@ -273,7 +281,9 @@ my %packets = (
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
         my $chan = $channels[$index];
-        printf "ch%d (%s), %s bytes\n", $index, $chan->{'id'}, $bytes;
+	$chan->{$direction}{'seq'} += $bytes;
+        printf "ch%d (%s), %s bytes (%d--%d)\n", $index, $chan->{'id'}, $bytes,
+	    $chan->{$direction}{'seq'}-$bytes, $chan->{$direction}{'seq'};
         my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
             my $filekey = $direction . "file";
@@ -301,6 +311,10 @@ my %packets = (
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
         my $chan = $channels[$index];
+	my $dir = $direction eq "i" ? 'sc' : 'cs';
+	$chan->{$dir}{'seq'} += $bytes;
+        printf "ch%d (%s), %s bytes (%d--%d)\n", $index, $chan->{'id'}, $bytes,
+	    $chan->{$dir}{$seq}-$bytes, $chan->{$dir}{$seq};
         printf "ch%d (%s), %s bytes\n", $index, $chan->{'id'}, $bytes;
         my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
