@@ -116,12 +116,6 @@ char *platform_default_s(const char *name)
 
 int platform_default_i(const char *name, int def)
 {
-    if (!strcmp(name, "TermWidth") ||
-	!strcmp(name, "TermHeight")) {
-	struct winsize size;
-	if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
-	    return (!strcmp(name, "TermWidth") ? size.ws_col : size.ws_row);
-    }
     return def;
 }
 
@@ -600,6 +594,7 @@ int main(int argc, char **argv)
     int use_subsystem = 0;
     int got_host = FALSE;
     long now;
+    struct winsize size;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -902,6 +897,15 @@ int main(int argc, char **argv)
     }
     putty_signal(SIGWINCH, sigwinch);
 
+    /*
+     * Now that we've got the SIGWINCH handler installed, try to find
+     * out the initial terminal size.
+     */
+    if (ioctl(STDIN_FILENO, TIOCGWINSZ, &size) >= 0) {
+	conf_set_int(conf, CONF_width, size.ws_col);
+	conf_set_int(conf, CONF_height, size.ws_row);
+    }
+
     sk_init();
     uxsel_init();
 
@@ -1057,7 +1061,7 @@ int main(int argc, char **argv)
 	    if (read(signalpipe[0], c, 1) <= 0)
 		/* ignore error */;
 	    /* ignore its value; it'll be `x' */
-	    if (ioctl(0, TIOCGWINSZ, (void *)&size) >= 0)
+	    if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
 		back->size(backhandle, size.ws_col, size.ws_row);
 	}
 
