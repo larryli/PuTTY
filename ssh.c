@@ -7490,18 +7490,11 @@ static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to X11 forwarding request:"
-			 " packet type %d", pktin->type));
-		sfree(s);
-		crStopV;
-	    }
-	    logevent("X11 forwarding refused");
-	} else {
+	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
 	    logevent("X11 forwarding enabled");
 	    ssh->X11_fwd_enabled = TRUE;
-	}
+	} else
+	    logevent("X11 forwarding refused");
     }
     sfree(s);
     crFinishV;
@@ -7531,17 +7524,11 @@ static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to agent forwarding request:"
-			 " packet type %d", pktin->type));
-		crStopV;
-	    }
-	    logevent("Agent forwarding refused");
-	} else {
+	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
 	    logevent("Agent forwarding enabled");
 	    ssh->agentfwd_enabled = TRUE;
-	}
+	} else
+	    logevent("Agent forwarding refused");
     }
     sfree(s);
     crFinishV;
@@ -7588,18 +7575,13 @@ static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
 
 	crWaitUntilV(pktin);
 
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to pty request:"
-			 " packet type %d", pktin->type));
-		crStopV;
-	    }
-	    c_write_str(ssh, "Server refused to allocate pty\r\n");
-	    ssh->editing = ssh->echoing = 1;
-	} else {
+	if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
 	    logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
 		      ssh->ospeed, ssh->ispeed);
             ssh->got_pty = TRUE;
+	} else {
+	    c_write_str(ssh, "Server refused to allocate pty\r\n");
+	    ssh->editing = ssh->echoing = 1;
 	}
     } else {
 	ssh->editing = ssh->echoing = 1;
@@ -7655,17 +7637,8 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 
 	while (s->env_left > 0) {
 	    crWaitUntilV(pktin);
-
-	    if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-		if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		    bombout(("Unexpected response to environment request:"
-			     " packet type %d", pktin->type));
-		    crStopV;
-		}
-	    } else {
+	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS)
 		s->env_ok++;
-	    }
-
 	    s->env_left--;
 	}
 
