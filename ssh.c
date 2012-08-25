@@ -6610,6 +6610,27 @@ static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
 }
 
 /*
+ * Construct the common parts of a CHANNEL_REQUEST.  If handler is not
+ * NULL then a reply will be requested and the handler will be called
+ * when it arrives.  The returned packet is ready to have any
+ * request-specific data added and be sent.  Note that if a handler is
+ * provided, it's essential that the request actually be sent.
+ */
+static struct Packet *ssh2_chanreq_init(struct ssh_channel *c, char *type,
+					cchandler_fn_t handler, void *ctx)
+{
+    struct Packet *pktout;
+
+    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+    ssh2_pkt_adduint32(pktout, c->remoteid);
+    ssh2_pkt_addstring(pktout, type);
+    ssh2_pkt_addbool(pktout, handler != NULL);
+    if (handler != NULL)
+	ssh2_queue_chanreq_handler(c, handler, ctx);
+    return pktout;
+}
+
+/*
  * Potentially enlarge the window on an SSH-2 channel.
  */
 static void ssh2_handle_winadj_response(struct ssh_channel *, struct Packet *,
@@ -6658,15 +6679,12 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	 */
 	if (newwin == c->v.v2.locmaxwin &&
             !(ssh->remote_bugs & BUG_CHOKES_ON_WINADJ)) {
-	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	    ssh2_pkt_adduint32(pktout, c->remoteid);
-	    ssh2_pkt_addstring(pktout, "winadj@putty.projects.tartarus.org");
-	    ssh2_pkt_addbool(pktout, TRUE);
-	    ssh2_pkt_send(ssh, pktout);
-
 	    up = snew(unsigned);
 	    *up = newwin - c->v.v2.locwindow;
-	    ssh2_queue_chanreq_handler(c, ssh2_handle_winadj_response, up);
+	    pktout = ssh2_chanreq_init(c, "winadj@putty.projects.tartarus.org",
+				       ssh2_handle_winadj_response, up);
+	    ssh2_pkt_send(ssh, pktout);
+
 	    if (c->v.v2.throttle_state != UNTHROTTLED)
 		c->v.v2.throttle_state = UNTHROTTLING;
 	} else {
@@ -6929,7 +6947,7 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
         == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF) && !c->v.v2.chanreq_head) {
         /*
          * We have both sent and received EOF, and we have no
-         * outstanding winadj channel requests, which means the
+         * outstanding channel requests, which means the
          * channel is in final wind-up. But we haven't sent CLOSE, so
          * let's do so now.
          */
@@ -7467,10 +7485,8 @@ static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
 					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf))) {
 	logevent("Requesting X11 forwarding");
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-	ssh2_pkt_addstring(pktout, "x11-req");
-	ssh2_pkt_addbool(pktout, 1);	       /* want reply */
+	pktout = ssh2_chanreq_init(ssh->mainchan, "x11-req",
+				   ssh2_maybe_setup_x11, s);
 	ssh2_pkt_addbool(pktout, 0);	       /* many connections */
 	ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthprotoname);
 	/*
@@ -7485,8 +7501,6 @@ static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 	end_log_omission(ssh, pktout);
 	ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
 	ssh2_pkt_send(ssh, pktout);
-
-	ssh2_queue_chanreq_handler(ssh->mainchan, ssh2_maybe_setup_x11, s);
 
 	crWaitUntilV(pktin);
 
@@ -7514,13 +7528,9 @@ static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
 
     if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists()) {
 	logevent("Requesting OpenSSH-style agent forwarding");
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-	ssh2_pkt_addstring(pktout, "auth-agent-req@openssh.com");
-	ssh2_pkt_addbool(pktout, 1);	       /* want reply */
+	pktout = ssh2_chanreq_init(ssh->mainchan, "auth-agent-req@openssh.com",
+				   ssh2_maybe_setup_agent, s);
 	ssh2_pkt_send(ssh, pktout);
-
-	ssh2_queue_chanreq_handler(ssh->mainchan, ssh2_maybe_setup_agent, s);
 
 	crWaitUntilV(pktin);
 
@@ -7552,10 +7562,8 @@ static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
         ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
 	sscanf(conf_get_str(ssh->conf, CONF_termspeed), "%d,%d", &ssh->ospeed, &ssh->ispeed);
 	/* Build the pty request. */
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);	/* recipient channel */
-	ssh2_pkt_addstring(pktout, "pty-req");
-	ssh2_pkt_addbool(pktout, 1);	       /* want reply */
+	pktout = ssh2_chanreq_init(ssh->mainchan, "pty-req",
+				   ssh2_maybe_setup_pty, s);
 	ssh2_pkt_addstring(pktout, conf_get_str(ssh->conf, CONF_termtype));
 	ssh2_pkt_adduint32(pktout, ssh->term_width);
 	ssh2_pkt_adduint32(pktout, ssh->term_height);
@@ -7570,8 +7578,6 @@ static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
 	ssh2_pkt_addstring_data(pktout, "\0", 1); /* TTY_OP_END */
 	ssh2_pkt_send(ssh, pktout);
 	ssh->state = SSH_STATE_INTERMED;
-
-	ssh2_queue_chanreq_handler(ssh->mainchan, ssh2_maybe_setup_pty, s);
 
 	crWaitUntilV(pktin);
 
@@ -7616,14 +7622,10 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 	for (val = conf_get_str_strs(ssh->conf, CONF_environmt, NULL, &key);
 	     val != NULL;
 	     val = conf_get_str_strs(ssh->conf, CONF_environmt, key, &key)) {
-	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	    ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-	    ssh2_pkt_addstring(pktout, "env");
-	    ssh2_pkt_addbool(pktout, 1);	       /* want reply */
+	    pktout = ssh2_chanreq_init(ssh->mainchan, "env", ssh2_setup_env, s);
 	    ssh2_pkt_addstring(pktout, key);
 	    ssh2_pkt_addstring(pktout, val);
 	    ssh2_pkt_send(ssh, pktout);
-	    ssh2_queue_chanreq_handler(ssh->mainchan, ssh2_setup_env, s);
 
 	    s->num_env++;
 	}
@@ -9217,10 +9219,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 * this one, so it's safe for it to advertise a very large
 	 * window and leave the flow control to TCP.
 	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);
-	ssh2_pkt_addstring(s->pktout, "simple@putty.projects.tartarus.org");
-	ssh2_pkt_addbool(s->pktout, 0); /* no reply */
+	s->pktout = ssh2_chanreq_init(ssh->mainchan,
+				      "simple@putty.projects.tartarus.org",
+				      NULL, NULL);
 	ssh2_pkt_send(ssh, s->pktout);
     }
 
@@ -9271,22 +9272,19 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    cmd = conf_get_str(ssh->conf, CONF_remote_cmd);
 	}
 
-	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->remoteid);	/* recipient channel */
 	if (subsys) {
-	    ssh2_pkt_addstring(s->pktout, "subsystem");
-	    ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
+	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "subsystem",
+					  ssh2_response_authconn, NULL);
 	    ssh2_pkt_addstring(s->pktout, cmd);
 	} else if (*cmd) {
-	    ssh2_pkt_addstring(s->pktout, "exec");
-	    ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
+	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "exec",
+					  ssh2_response_authconn, NULL);
 	    ssh2_pkt_addstring(s->pktout, cmd);
 	} else {
-	    ssh2_pkt_addstring(s->pktout, "shell");
-	    ssh2_pkt_addbool(s->pktout, 1);	       /* want reply */
+	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "shell",
+					  ssh2_response_authconn, NULL);
 	}
 	ssh2_pkt_send(ssh, s->pktout);
-	ssh2_queue_chanreq_handler(ssh->mainchan, ssh2_response_authconn, NULL);
 
 	crWaitUntilV(pktin);
 
@@ -9912,10 +9910,8 @@ static void ssh_size(void *handle, int width, int height)
 			    PKT_INT, ssh->term_width,
 			    PKT_INT, 0, PKT_INT, 0, PKT_END);
 	    } else if (ssh->mainchan) {
-		pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-		ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-		ssh2_pkt_addstring(pktout, "window-change");
-		ssh2_pkt_addbool(pktout, 0);
+		pktout = ssh2_chanreq_init(ssh->mainchan, "window-change",
+					   NULL, NULL);
 		ssh2_pkt_adduint32(pktout, ssh->term_width);
 		ssh2_pkt_adduint32(pktout, ssh->term_height);
 		ssh2_pkt_adduint32(pktout, 0);
@@ -10051,10 +10047,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	if (ssh->version == 1) {
 	    logevent("Unable to send BREAK signal in SSH-1");
 	} else if (ssh->mainchan) {
-	    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-	    ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-	    ssh2_pkt_addstring(pktout, "break");
-	    ssh2_pkt_addbool(pktout, 0);
+	    pktout = ssh2_chanreq_init(ssh->mainchan, "break", NULL, NULL);
 	    ssh2_pkt_adduint32(pktout, 0);   /* default break length */
 	    ssh2_pkt_send(ssh, pktout);
 	}
@@ -10079,10 +10072,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	if (signame) {
 	    /* It's a signal. */
 	    if (ssh->version == 2 && ssh->mainchan) {
-		pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
-		ssh2_pkt_adduint32(pktout, ssh->mainchan->remoteid);
-		ssh2_pkt_addstring(pktout, "signal");
-		ssh2_pkt_addbool(pktout, 0);
+		pktout = ssh2_chanreq_init(ssh->mainchan, "signal", NULL, NULL);
 		ssh2_pkt_addstring(pktout, signame);
 		ssh2_pkt_send(ssh, pktout);
 		logeventf(ssh, "Sent signal SIG%s", signame);
