@@ -1,4 +1,4 @@
-s\define{versioniderrors} \versionid $Id$
+\define{versioniderrors} \versionid $Id$
 
 \C{errors} Common \i{error messages}
 
