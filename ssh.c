@@ -1019,14 +1019,15 @@ static void logeventf(Ssh ssh, const char *fmt, ...)
     sfree(buf);
 }
 
-#define bombout(msg) \
-    do { \
-        char *text = dupprintf msg; \
-	ssh_do_close(ssh, FALSE); \
-        logevent(text); \
-        connection_fatal(ssh->frontend, "%s", text); \
-        sfree(text); \
-    } while (0)
+static void bomb_out(Ssh ssh, char *text)
+{
+    ssh_do_close(ssh, FALSE);
+    logevent(text);
+    connection_fatal(ssh->frontend, "%s", text);
+    sfree(text);
+}
+
+#define bombout(msg) bomb_out(ssh, dupprintf msg)
 
 /* Functions to leave bits out of the SSH packet log file. */
 
