@@ -4278,25 +4278,19 @@ void sshfwd_write_eof(struct ssh_channel *c)
 void sshfwd_unclean_close(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
-    struct Packet *pktout;
 
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (!(c->closes & CLOSES_SENT_CLOSE)) {
-        pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
-        ssh2_pkt_adduint32(pktout, c->remoteid);
-        ssh2_pkt_send(ssh, pktout);
-        c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
-    }
-
     switch (c->type) {
       case CHAN_X11:
         x11_close(c->u.x11.s);
+        logevent("Forwarded X11 connection terminated due to local error");
         break;
       case CHAN_SOCKDATA:
       case CHAN_SOCKDATA_DORMANT:
         pfd_close(c->u.pfd.s);
+        logevent("Forwarded port closed due to local error");
         break;
     }
     c->type = CHAN_ZOMBIE;
@@ -6946,18 +6940,20 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     Ssh ssh = c->ssh;
     struct Packet *pktout;
 
-    if ((c->closes & (CLOSES_SENT_EOF | CLOSES_RCVD_EOF | CLOSES_SENT_CLOSE))
-        == (CLOSES_SENT_EOF | CLOSES_RCVD_EOF) && !c->v.v2.chanreq_head) {
+    if ((!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes) ||
+	 c->type == CHAN_ZOMBIE) &&
+	!c->v.v2.chanreq_head &&
+	!(c->closes & CLOSES_SENT_CLOSE)) {
         /*
-         * We have both sent and received EOF, and we have no
-         * outstanding channel requests, which means the
-         * channel is in final wind-up. But we haven't sent CLOSE, so
-         * let's do so now.
+         * We have both sent and received EOF (or the channel is a
+         * zombie), and we have no outstanding channel requests, which
+         * means the channel is in final wind-up. But we haven't sent
+         * CLOSE, so let's do so now.
          */
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
 	ssh2_pkt_send(ssh, pktout);
-        c->closes |= CLOSES_SENT_CLOSE;
+        c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
     }
 
     if (!((CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE) & ~c->closes)) {
