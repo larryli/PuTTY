@@ -439,8 +439,8 @@ enum {
 #define crState(t)	crStateP(t, ssh->t)
 #define crFinish(z)	} *crLine = 0; return (z); }
 #define crFinishV	} *crLine = 0; return; }
-#define crFinishFree(z, s)	} *crLine = 0; sfree(s); return (z); }
-#define crFinishFreeV(s)	} *crLine = 0; sfree(s); return; }
+#define crFinishFree(z)	} sfree(s); return (z); }
+#define crFinishFreeV	} sfree(s); return; }
 #define crReturn(z)	\
 	do {\
 	    *crLine =__LINE__; return (z); case __LINE__:;\
@@ -7511,7 +7511,7 @@ static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
 		logevent("X11 forwarding refused");
 	}
     }
-    crFinishFreeV(s);
+    crFinishFreeV;
 }
 
 static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
@@ -7542,7 +7542,7 @@ static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
 		logevent("Agent forwarding refused");
 	}
     }
-    crFinishFreeV(s);
+    crFinishFreeV;
 }
 
 static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
@@ -7595,7 +7595,7 @@ static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
     } else {
 	ssh->editing = ssh->echoing = 1;
     }
-    crFinishFreeV(s);
+    crFinishFreeV;
 }
 
 static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
@@ -7659,7 +7659,7 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 	}
     }
   out:;
-    crFinishFreeV(s);
+    crFinishFreeV;
 }
 
 /*
