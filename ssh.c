@@ -1062,12 +1062,14 @@ static void parse_ttymodes(Ssh ssh,
 	 * follows it, or 'A' indicating that we should pass the
 	 * value through from the local environment via get_ttymode.
 	 */
-	if (val[0] == 'A')
+	if (val[0] == 'A') {
 	    val = get_ttymode(ssh->frontend, key);
-	else
-	    val++;		       /* skip the 'V' */
-	if (val)
-	    do_mode(data, key, val);
+	    if (val) {
+		do_mode(data, key, val);
+		sfree(val);
+	    }
+	} else
+	    do_mode(data, key, val + 1);	       /* skip the 'V' */
     }
 }
 
