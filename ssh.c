@@ -780,8 +780,8 @@ static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, long now);
-static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
-			     struct Packet *pktin);
+static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
+			      struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
 
 struct rdpkt1_state_tag {
@@ -5476,7 +5476,7 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
 /*
  * Handle the SSH-2 transport layer.
  */
-static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
+static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			     struct Packet *pktin)
 {
     unsigned char *in = (unsigned char *)vin;
@@ -5717,7 +5717,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     ssh2_pkt_send_noqueue(ssh, s->pktout);
 
     if (!pktin)
-	crWaitUntil(pktin);
+	crWaitUntilV(pktin);
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -5729,7 +5729,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
 	if (pktin->type != SSH2_MSG_KEXINIT) {
 	    bombout(("expected key exchange packet from server"));
-	    crStop(0);
+	    crStopV;
 	}
 	ssh->kex = NULL;
 	ssh->hostkey = NULL;
@@ -5764,7 +5764,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	if (!ssh->kex) {
 	    bombout(("Couldn't agree a key exchange algorithm (available: %s)",
 		     str ? str : "(null)"));
-	    crStop(0);
+	    crStopV;
 	}
 	/*
 	 * Note that the server's guess is considered wrong if it doesn't match
@@ -5782,7 +5782,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	if (!ssh->hostkey) {
 	    bombout(("Couldn't agree a host key algorithm (available: %s)",
 		     str ? str : "(null)"));
-	    crStop(0);
+	    crStopV;
 	}
 
 	s->guessok = s->guessok &&
@@ -5806,7 +5806,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	if (!s->cscipher_tobe) {
 	    bombout(("Couldn't agree a client-to-server cipher (available: %s)",
 		     str ? str : "(null)"));
-	    crStop(0);
+	    crStopV;
 	}
 
 	ssh_pkt_getstring(pktin, &str, &len);    /* server->client cipher */
@@ -5828,7 +5828,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	if (!s->sccipher_tobe) {
 	    bombout(("Couldn't agree a server-to-client cipher (available: %s)",
 		     str ? str : "(null)"));
-	    crStop(0);
+	    crStopV;
 	}
 
 	ssh_pkt_getstring(pktin, &str, &len);    /* client->server mac */
@@ -5892,11 +5892,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
 		do {
-		    crReturn(0);
+		    crReturnV;
 		    if (pktin) {
 			bombout(("Unexpected data from server while"
 				 " waiting for user response"));
-			crStop(0);
+			crStopV;
 		    }
 		} while (pktin || inlen > 0);
 		s->dlgret = ssh->user_response;
@@ -5905,7 +5905,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at kex warning", NULL,
 			       0, TRUE);
-		crStop(0);
+		crStopV;
 	    }
 	}
 
@@ -5917,11 +5917,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
 		do {
-		    crReturn(0);
+		    crReturnV;
 		    if (pktin) {
 			bombout(("Unexpected data from server while"
 				 " waiting for user response"));
-			crStop(0);
+			crStopV;
 		    }
 		} while (pktin || inlen > 0);
 		s->dlgret = ssh->user_response;
@@ -5930,7 +5930,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
 			       0, TRUE);
-		crStop(0);
+		crStopV;
 	    }
 	}
 
@@ -5942,11 +5942,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
 		do {
-		    crReturn(0);
+		    crReturnV;
 		    if (pktin) {
 			bombout(("Unexpected data from server while"
 				 " waiting for user response"));
-			crStop(0);
+			crStopV;
 		    }
 		} while (pktin || inlen > 0);
 		s->dlgret = ssh->user_response;
@@ -5955,7 +5955,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
 			       0, TRUE);
-		crStop(0);
+		crStopV;
 	    }
 	}
 
@@ -5970,7 +5970,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		pktin->data + 5, pktin->length - 5);
 
 	if (s->ignorepkt) /* first_kex_packet_follows */
-	    crWaitUntil(pktin);                /* Ignore packet */
+	    crWaitUntilV(pktin);                /* Ignore packet */
     }
 
     if (ssh->kex->main_type == KEXTYPE_DH) {
@@ -6007,16 +6007,16 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
             ssh2_pkt_adduint32(s->pktout, s->pbits);
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
-            crWaitUntil(pktin);
+            crWaitUntilV(pktin);
             if (pktin->type != SSH2_MSG_KEX_DH_GEX_GROUP) {
                 bombout(("expected key exchange group packet from server"));
-                crStop(0);
+                crStopV;
             }
             s->p = ssh2_pkt_getmp(pktin);
             s->g = ssh2_pkt_getmp(pktin);
             if (!s->p || !s->g) {
                 bombout(("unable to read mp-ints from incoming group packet"));
-                crStop(0);
+                crStopV;
             }
             ssh->kex_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
@@ -6042,10 +6042,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         ssh2_pkt_send_noqueue(ssh, s->pktout);
 
         set_busy_status(ssh->frontend, BUSY_WAITING); /* wait for server */
-        crWaitUntil(pktin);
+        crWaitUntilV(pktin);
         if (pktin->type != s->kex_reply_value) {
             bombout(("expected key exchange reply packet from server"));
-            crStop(0);
+            crStopV;
         }
         set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
@@ -6053,7 +6053,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         s->f = ssh2_pkt_getmp(pktin);
         if (!s->f) {
             bombout(("unable to parse key exchange reply packet"));
-            crStop(0);
+            crStopV;
         }
         ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
 
@@ -6086,10 +6086,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
          * RSA key exchange. First expect a KEXRSA_PUBKEY packet
          * from the server.
          */
-        crWaitUntil(pktin);
+        crWaitUntilV(pktin);
         if (pktin->type != SSH2_MSG_KEXRSA_PUBKEY) {
             bombout(("expected RSA public key packet from server"));
-            crStop(0);
+            crStopV;
         }
 
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
@@ -6108,7 +6108,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         if (!s->rsakey) {
             sfree(s->rsakeydata);
             bombout(("unable to parse RSA public key from server"));
-            crStop(0);
+            crStopV;
         }
 
         hash_string(ssh->kex->hash, ssh->exhash, s->rsakeydata, s->rsakeylen);
@@ -6168,11 +6168,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         ssh_rsakex_freekey(s->rsakey);
 
-        crWaitUntil(pktin);
+        crWaitUntilV(pktin);
         if (pktin->type != SSH2_MSG_KEXRSA_DONE) {
             sfree(s->rsakeydata);
             bombout(("expected signature packet from server"));
-            crStop(0);
+            crStopV;
         }
 
         ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
@@ -6196,7 +6196,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 				 (char *)s->exchange_hash,
 				 ssh->kex->hash->hlen)) {
 	bombout(("Server's host key did not match the signature supplied"));
-	crStop(0);
+	crStopV;
     }
 
     /*
@@ -6213,11 +6213,11 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                                     ssh_dialog_callback, ssh);
     if (s->dlgret < 0) {
         do {
-            crReturn(0);
+            crReturnV;
             if (pktin) {
                 bombout(("Unexpected data from server while waiting"
                          " for user host key response"));
-                    crStop(0);
+                    crStopV;
             }
         } while (pktin || inlen > 0);
         s->dlgret = ssh->user_response;
@@ -6226,7 +6226,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     if (s->dlgret == 0) {
 	ssh_disconnect(ssh, "User aborted at host key verification", NULL,
 		       0, TRUE);
-        crStop(0);
+        crStopV;
     }
     if (!s->got_session_id) {     /* don't bother logging this in rekeys */
 	logevent("Host key fingerprint is:");
@@ -6316,10 +6316,10 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     /*
      * Expect SSH2_MSG_NEWKEYS from server.
      */
-    crWaitUntil(pktin);
+    crWaitUntilV(pktin);
     if (pktin->type != SSH2_MSG_NEWKEYS) {
 	bombout(("expected new-keys packet from server"));
-	crStop(0);
+	crStopV;
     }
     ssh->incoming_data_size = 0;       /* start counting from here */
 
@@ -6421,7 +6421,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	     */
 	    do_ssh2_authconn(ssh, NULL, 0, NULL);
 	}
-	crReturn(1);
+	crReturnV;
     }
     if (pktin) {
 	logevent("Server initiated key re-exchange");
@@ -6480,7 +6480,7 @@ static int do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     }
     goto begin_key_exchange;
 
-    crFinish(1);
+    crFinishV;
 }
 
 /*
