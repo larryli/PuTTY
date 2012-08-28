@@ -122,9 +122,23 @@ int run_program_in_pty(const struct shell_data *shdata,
             close(fd);
         }
 #endif
+        /*
+         * Make the new pty our controlling terminal. On some OSes
+         * this is done with TIOCSCTTY; Cygwin doesn't have that, so
+         * instead it's done by simply opening the pty without
+         * O_NOCTTY. This code is primarily intended for Cygwin, but
+         * it's useful to have it work in other contexts for testing
+         * purposes, so I leave the TIOCSCTTY here anyway.
+         */
+        if ((fd = open(ptyname, O_RDWR)) >= 0) {
 #ifdef TIOCSCTTY
-        ioctl(0, TIOCSCTTY, &i);
+            ioctl(fd, TIOCSCTTY, &i);
 #endif
+            close(fd);
+        } else {
+            perror("slave pty: open");
+            exit(127);
+        }
 	tcsetpgrp(0, getpgrp());
 
 	for (i = 0; i < shdata->nenvvars; i++)
