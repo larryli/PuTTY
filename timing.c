@@ -62,7 +62,11 @@ static int compare_timers(void *av, void *bv)
      */
 #if defined(__LCC__) || defined(__clang__)
     /* lcc won't let us compare function pointers. Legal, but annoying. */
-    return memcmp(&a->fn, &b->fn, sizeof(a->fn));
+    {
+	int c = memcmp(&a->fn, &b->fn, sizeof(a->fn));
+	if (c)
+	    return c;
+    }
 #else    
     if (a->fn < b->fn)
 	return -1;
