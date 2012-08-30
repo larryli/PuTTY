@@ -592,12 +592,13 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
     
     p = key->keyblob;
 
-    /* Expect the SEQUENCE header. Take its absence as a failure to decrypt. */
+    /* Expect the SEQUENCE header. Take its absence as a failure to
+     * decrypt, if the key was encrypted. */
     ret = ber_read_id_len(p, key->keyblob_len, &id, &len, &flags);
     p += ret;
     if (ret < 0 || id != 16) {
 	errmsg = "ASN.1 decoding failure";
-	retval = SSH2_WRONG_PASSPHRASE;
+        retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
 	goto error;
     }
 
@@ -629,7 +630,7 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
 	if (ret < 0 || id != 2 ||
 	    key->keyblob+key->keyblob_len-p < len) {
 	    errmsg = "ASN.1 decoding failure";
-	    retval = SSH2_WRONG_PASSPHRASE;
+	    retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
 	    goto error;
 	}
 
