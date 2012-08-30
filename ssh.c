@@ -7468,136 +7468,126 @@ static void ssh2_send_ttymode(void *data, char *mode, char *val)
     ssh2_pkt_adduint32(pktout, arg);
 }
 
-static void ssh2_maybe_setup_x11(struct ssh_channel *c, struct Packet *pktin,
-				 void *ctx)
+static void ssh2_setup_x11(struct ssh_channel *c, struct Packet *pktin,
+                           void *ctx)
 {
-    struct ssh2_maybe_setup_x11_state {
+    struct ssh2_setup_x11_state {
 	int crLine;
     };
     Ssh ssh = c->ssh;
     struct Packet *pktout;
-    crStateP(ssh2_maybe_setup_x11_state, ctx);
+    crStateP(ssh2_setup_x11_state, ctx);
 
     crBeginState;
 
+    logevent("Requesting X11 forwarding");
+    pktout = ssh2_chanreq_init(ssh->mainchan, "x11-req",
+                               ssh2_setup_x11, s);
+    ssh2_pkt_addbool(pktout, 0);	       /* many connections */
+    ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthprotoname);
     /*
-     * Potentially enable X11 forwarding.
+     * Note that while we blank the X authentication data here, we don't
+     * take any special action to blank the start of an X11 channel,
+     * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
+     * without having session blanking enabled is likely to leak your
+     * cookie into the log.
      */
-    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_x11_forward) &&
-	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
-					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf))) {
-	logevent("Requesting X11 forwarding");
-	pktout = ssh2_chanreq_init(ssh->mainchan, "x11-req",
-				   ssh2_maybe_setup_x11, s);
-	ssh2_pkt_addbool(pktout, 0);	       /* many connections */
-	ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthprotoname);
-	/*
-	 * Note that while we blank the X authentication data here, we don't
-	 * take any special action to blank the start of an X11 channel,
-	 * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
-	 * without having session blanking enabled is likely to leak your
-	 * cookie into the log.
-	 */
-	dont_log_password(ssh, pktout, PKTLOG_BLANK);
-	ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthdatastring);
-	end_log_omission(ssh, pktout);
-	ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
-	ssh2_pkt_send(ssh, pktout);
+    dont_log_password(ssh, pktout, PKTLOG_BLANK);
+    ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthdatastring);
+    end_log_omission(ssh, pktout);
+    ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
+    ssh2_pkt_send(ssh, pktout);
 
-	crWaitUntilV(pktin);
+    crWaitUntilV(pktin);
 
-	if (pktin) {
-	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-		logevent("X11 forwarding enabled");
-		ssh->X11_fwd_enabled = TRUE;
-	    } else
-		logevent("X11 forwarding refused");
-	}
+    if (pktin) {
+        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+            logevent("X11 forwarding enabled");
+            ssh->X11_fwd_enabled = TRUE;
+        } else
+            logevent("X11 forwarding refused");
     }
+
     crFinishFreeV;
 }
 
-static void ssh2_maybe_setup_agent(struct ssh_channel *c, struct Packet *pktin,
+static void ssh2_setup_agent(struct ssh_channel *c, struct Packet *pktin,
 				   void *ctx)
 {
-    struct ssh2_maybe_setup_agent_state {
+    struct ssh2_setup_agent_state {
 	int crLine;
     };
     Ssh ssh = c->ssh;
     struct Packet *pktout;
-    crStateP(ssh2_maybe_setup_agent_state, ctx);
+    crStateP(ssh2_setup_agent_state, ctx);
 
     crBeginState;
 
-    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists()) {
-	logevent("Requesting OpenSSH-style agent forwarding");
-	pktout = ssh2_chanreq_init(ssh->mainchan, "auth-agent-req@openssh.com",
-				   ssh2_maybe_setup_agent, s);
-	ssh2_pkt_send(ssh, pktout);
+    logevent("Requesting OpenSSH-style agent forwarding");
+    pktout = ssh2_chanreq_init(ssh->mainchan, "auth-agent-req@openssh.com",
+                               ssh2_setup_agent, s);
+    ssh2_pkt_send(ssh, pktout);
 
-	crWaitUntilV(pktin);
+    crWaitUntilV(pktin);
 
-	if (pktin) {
-	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-		logevent("Agent forwarding enabled");
-		ssh->agentfwd_enabled = TRUE;
-	    } else
-		logevent("Agent forwarding refused");
-	}
+    if (pktin) {
+        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+            logevent("Agent forwarding enabled");
+            ssh->agentfwd_enabled = TRUE;
+        } else
+            logevent("Agent forwarding refused");
     }
+
     crFinishFreeV;
 }
 
-static void ssh2_maybe_setup_pty(struct ssh_channel *c, struct Packet *pktin,
+static void ssh2_setup_pty(struct ssh_channel *c, struct Packet *pktin,
 				 void *ctx)
 {
-    struct ssh2_maybe_setup_pty_state {
+    struct ssh2_setup_pty_state {
 	int crLine;
     };
     Ssh ssh = c->ssh;
     struct Packet *pktout;
-    crStateP(ssh2_maybe_setup_pty_state, ctx);
+    crStateP(ssh2_setup_pty_state, ctx);
 
     crBeginState;
 
-    if (ssh->mainchan && !ssh->ncmode && !conf_get_int(ssh->conf, CONF_nopty)) {
-	/* Unpick the terminal-speed string. */
-	/* XXX perhaps we should allow no speeds to be sent. */
-        ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
-	sscanf(conf_get_str(ssh->conf, CONF_termspeed), "%d,%d", &ssh->ospeed, &ssh->ispeed);
-	/* Build the pty request. */
-	pktout = ssh2_chanreq_init(ssh->mainchan, "pty-req",
-				   ssh2_maybe_setup_pty, s);
-	ssh2_pkt_addstring(pktout, conf_get_str(ssh->conf, CONF_termtype));
-	ssh2_pkt_adduint32(pktout, ssh->term_width);
-	ssh2_pkt_adduint32(pktout, ssh->term_height);
-	ssh2_pkt_adduint32(pktout, 0);	       /* pixel width */
-	ssh2_pkt_adduint32(pktout, 0);	       /* pixel height */
-	ssh2_pkt_addstring_start(pktout);
-	parse_ttymodes(ssh, ssh2_send_ttymode, (void *)pktout);
-	ssh2_pkt_addbyte(pktout, SSH2_TTY_OP_ISPEED);
-	ssh2_pkt_adduint32(pktout, ssh->ispeed);
-	ssh2_pkt_addbyte(pktout, SSH2_TTY_OP_OSPEED);
-	ssh2_pkt_adduint32(pktout, ssh->ospeed);
-	ssh2_pkt_addstring_data(pktout, "\0", 1); /* TTY_OP_END */
-	ssh2_pkt_send(ssh, pktout);
-	ssh->state = SSH_STATE_INTERMED;
+    /* Unpick the terminal-speed string. */
+    /* XXX perhaps we should allow no speeds to be sent. */
+    ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
+    sscanf(conf_get_str(ssh->conf, CONF_termspeed), "%d,%d", &ssh->ospeed, &ssh->ispeed);
+    /* Build the pty request. */
+    pktout = ssh2_chanreq_init(ssh->mainchan, "pty-req",
+                               ssh2_setup_pty, s);
+    ssh2_pkt_addstring(pktout, conf_get_str(ssh->conf, CONF_termtype));
+    ssh2_pkt_adduint32(pktout, ssh->term_width);
+    ssh2_pkt_adduint32(pktout, ssh->term_height);
+    ssh2_pkt_adduint32(pktout, 0);	       /* pixel width */
+    ssh2_pkt_adduint32(pktout, 0);	       /* pixel height */
+    ssh2_pkt_addstring_start(pktout);
+    parse_ttymodes(ssh, ssh2_send_ttymode, (void *)pktout);
+    ssh2_pkt_addbyte(pktout, SSH2_TTY_OP_ISPEED);
+    ssh2_pkt_adduint32(pktout, ssh->ispeed);
+    ssh2_pkt_addbyte(pktout, SSH2_TTY_OP_OSPEED);
+    ssh2_pkt_adduint32(pktout, ssh->ospeed);
+    ssh2_pkt_addstring_data(pktout, "\0", 1); /* TTY_OP_END */
+    ssh2_pkt_send(ssh, pktout);
+    ssh->state = SSH_STATE_INTERMED;
 
-	crWaitUntilV(pktin);
+    crWaitUntilV(pktin);
 
-	if (pktin) {
-	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-		logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
-			  ssh->ospeed, ssh->ispeed);
-		ssh->got_pty = TRUE;
-	    } else {
-		c_write_str(ssh, "Server refused to allocate pty\r\n");
-		ssh->editing = ssh->echoing = 1;
-	    }
-	}
-    } else {
-	ssh->editing = ssh->echoing = 1;
+    if (pktin) {
+        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
+            logeventf(ssh, "Allocated pty (ospeed %dbps, ispeed %dbps)",
+                      ssh->ospeed, ssh->ispeed);
+            ssh->got_pty = TRUE;
+        } else {
+            c_write_str(ssh, "Server refused to allocate pty\r\n");
+            ssh->editing = ssh->echoing = 1;
+        }
     }
+
     crFinishFreeV;
 }
 
@@ -7621,7 +7611,7 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
      * then wait for a whole bunch of successes or failures.
      */
     s->num_env = 0;
-    if (ssh->mainchan && !ssh->ncmode) {
+    {
 	char *key, *val;
 
 	for (val = conf_get_str_strs(ssh->conf, CONF_environmt, NULL, &key);
@@ -9244,22 +9234,34 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Potentially enable X11 forwarding.
      */
-    ssh2_maybe_setup_x11(ssh->mainchan, NULL, NULL);
+    /*
+     * Potentially enable X11 forwarding.
+     */
+    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_x11_forward) &&
+	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
+					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf)))
+        ssh2_setup_x11(ssh->mainchan, NULL, NULL);
 
     /*
      * Potentially enable agent forwarding.
      */
-    ssh2_maybe_setup_agent(ssh->mainchan, NULL, NULL);
+    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists())
+        ssh2_setup_agent(ssh->mainchan, NULL, NULL);
 
     /*
      * Now allocate a pty for the session.
      */
-    ssh2_maybe_setup_pty(ssh->mainchan, NULL, NULL);
+    if (ssh->mainchan && !ssh->ncmode && !conf_get_int(ssh->conf, CONF_nopty)) {
+        ssh2_setup_pty(ssh->mainchan, NULL, NULL);
+    } else {
+	ssh->editing = ssh->echoing = 1;
+    }
 
     /*
      * Send environment variables.
      */
-    ssh2_setup_env(ssh->mainchan, NULL, NULL);
+    if (ssh->mainchan && !ssh->ncmode)
+        ssh2_setup_env(ssh->mainchan, NULL, NULL);
 
     /*
      * Start a shell or a remote command. We may have to attempt
