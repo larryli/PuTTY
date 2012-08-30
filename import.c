@@ -321,7 +321,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 					    const char **errmsg_p)
 {
     struct openssh_key *ret;
-    FILE *fp;
+    FILE *fp = NULL;
     char *line = NULL;
     char *errmsg, *p;
     int headers_done;
@@ -453,6 +453,9 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	line = NULL;
     }
 
+    fclose(fp);
+    fp = NULL;
+
     if (ret->keyblob_len == 0 || !ret->keyblob) {
 	errmsg = "key body not present";
 	goto error;
@@ -483,6 +486,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	sfree(ret);
     }
     if (errmsg_p) *errmsg_p = errmsg;
+    if (fp) fclose(fp);
     return NULL;
 }
 
