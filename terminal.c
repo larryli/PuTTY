@@ -1619,9 +1619,13 @@ void term_free(Terminal *term)
     for (i = 0; i < term->bidi_cache_size; i++) {
 	sfree(term->pre_bidi_cache[i].chars);
 	sfree(term->post_bidi_cache[i].chars);
+        sfree(term->post_bidi_cache[i].forward);
+        sfree(term->post_bidi_cache[i].backward);
     }
     sfree(term->pre_bidi_cache);
     sfree(term->post_bidi_cache);
+
+    sfree(term->tabs);
 
     expire_timer_context(term);
 
@@ -1711,7 +1715,8 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     while (term->rows > newrows) {
 	if (term->curs.y < term->rows - 1) {
 	    /* delete bottom row, unless it contains the cursor */
-	    sfree(delpos234(term->screen, term->rows - 1));
+            line = delpos234(term->screen, term->rows - 1);
+            freeline(line);
 	} else {
 	    /* push top row to scrollback */
 	    line = delpos234(term->screen, 0);
