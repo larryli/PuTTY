@@ -589,14 +589,6 @@ struct outstanding_channel_request {
 };
 
 /*
- * little structure to keep track of outstanding WINDOW_ADJUSTs
- */
-struct winadj {
-    struct winadj *next;
-    unsigned size;
-};
-
-/*
  * 2-3-4 tree storing channels.
  */
 struct ssh_channel {
