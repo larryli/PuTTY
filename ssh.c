@@ -9329,13 +9329,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh_special(ssh, TS_EOF);
 
     /*
-     * All the initial channel requests are done, so install the default
-     * response handler.
-     */
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_response;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_response;
-
-    /*
      * Transfer data!
      */
     if (ssh->ldisc)
