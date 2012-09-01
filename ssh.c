@@ -9226,100 +9226,92 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     ssh_setup_portfwd(ssh, ssh->conf);
 
-    /*
-     * Send the CHANNEL_REQUESTS for the main channel.  Each one is
-     * handled by its own little asynchronous co-routine.
-     */
+    if (ssh->mainchan && !ssh->ncmode) {
+	/*
+	 * Send the CHANNEL_REQUESTS for the main session channel.
+	 * Each one is handled by its own little asynchronous
+	 * co-routine.
+	 */
 
-    /*
-     * Potentially enable X11 forwarding.
-     */
-    /*
-     * Potentially enable X11 forwarding.
-     */
-    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_x11_forward) &&
-	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
-					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf)))
-        ssh2_setup_x11(ssh->mainchan, NULL, NULL);
+	/* Potentially enable X11 forwarding. */
+	if (conf_get_int(ssh->conf, CONF_x11_forward) &&
+	    (ssh->x11disp =
+	     x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
+			       conf_get_int(ssh->conf, CONF_x11_auth),
+			       ssh->conf)))
+	    ssh2_setup_x11(ssh->mainchan, NULL, NULL);
 
-    /*
-     * Potentially enable agent forwarding.
-     */
-    if (ssh->mainchan && !ssh->ncmode && conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists())
-        ssh2_setup_agent(ssh->mainchan, NULL, NULL);
+	/* Potentially enable agent forwarding. */
+	if (conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists())
+	    ssh2_setup_agent(ssh->mainchan, NULL, NULL);
 
-    /*
-     * Now allocate a pty for the session.
-     */
-    if (ssh->mainchan && !ssh->ncmode && !conf_get_int(ssh->conf, CONF_nopty)) {
-        ssh2_setup_pty(ssh->mainchan, NULL, NULL);
-    } else {
-	ssh->editing = ssh->echoing = 1;
-    }
+	/* Now allocate a pty for the session. */
+	if (!conf_get_int(ssh->conf, CONF_nopty))
+	    ssh2_setup_pty(ssh->mainchan, NULL, NULL);
 
-    /*
-     * Send environment variables.
-     */
-    if (ssh->mainchan && !ssh->ncmode)
-        ssh2_setup_env(ssh->mainchan, NULL, NULL);
+	/* Send environment variables. */
+	ssh2_setup_env(ssh->mainchan, NULL, NULL);
 
-    /*
-     * Start a shell or a remote command. We may have to attempt
-     * this twice if the config data has provided a second choice
-     * of command.
-     */
-    if (ssh->mainchan && !ssh->ncmode) while (1) {
-	int subsys;
-	char *cmd;
+	/*
+	 * Start a shell or a remote command. We may have to attempt
+	 * this twice if the config data has provided a second choice
+	 * of command.
+	 */
+	while (1) {
+	    int subsys;
+	    char *cmd;
 
-	if (ssh->fallback_cmd) {
-	    subsys = conf_get_int(ssh->conf, CONF_ssh_subsys2);
-	    cmd = conf_get_str(ssh->conf, CONF_remote_cmd2);
-	} else {
-	    subsys = conf_get_int(ssh->conf, CONF_ssh_subsys);
-	    cmd = conf_get_str(ssh->conf, CONF_remote_cmd);
-	}
+	    if (ssh->fallback_cmd) {
+		subsys = conf_get_int(ssh->conf, CONF_ssh_subsys2);
+		cmd = conf_get_str(ssh->conf, CONF_remote_cmd2);
+	    } else {
+		subsys = conf_get_int(ssh->conf, CONF_ssh_subsys);
+		cmd = conf_get_str(ssh->conf, CONF_remote_cmd);
+	    }
 
-	if (subsys) {
-	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "subsystem",
-					  ssh2_response_authconn, NULL);
-	    ssh2_pkt_addstring(s->pktout, cmd);
-	} else if (*cmd) {
-	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "exec",
-					  ssh2_response_authconn, NULL);
-	    ssh2_pkt_addstring(s->pktout, cmd);
-	} else {
-	    s->pktout = ssh2_chanreq_init(ssh->mainchan, "shell",
-					  ssh2_response_authconn, NULL);
-	}
-	ssh2_pkt_send(ssh, s->pktout);
+	    if (subsys) {
+		s->pktout = ssh2_chanreq_init(ssh->mainchan, "subsystem",
+					      ssh2_response_authconn, NULL);
+		ssh2_pkt_addstring(s->pktout, cmd);
+	    } else if (*cmd) {
+		s->pktout = ssh2_chanreq_init(ssh->mainchan, "exec",
+					      ssh2_response_authconn, NULL);
+		ssh2_pkt_addstring(s->pktout, cmd);
+	    } else {
+		s->pktout = ssh2_chanreq_init(ssh->mainchan, "shell",
+					      ssh2_response_authconn, NULL);
+	    }
+	    ssh2_pkt_send(ssh, s->pktout);
 
-	crWaitUntilV(pktin);
+	    crWaitUntilV(pktin);
 
-	if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
-	    if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
-		bombout(("Unexpected response to shell/command request:"
-			 " packet type %d", pktin->type));
+	    if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
+		if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
+		    bombout(("Unexpected response to shell/command request:"
+			     " packet type %d", pktin->type));
+		    crStopV;
+		}
+		/*
+		 * We failed to start the command. If this is the
+		 * fallback command, we really are finished; if it's
+		 * not, and if the fallback command exists, try falling
+		 * back to it before complaining.
+		 */
+		if (!ssh->fallback_cmd &&
+		    *conf_get_str(ssh->conf, CONF_remote_cmd2)) {
+		    logevent("Primary command failed; attempting fallback");
+		    ssh->fallback_cmd = TRUE;
+		    continue;
+		}
+		bombout(("Server refused to start a shell/command"));
 		crStopV;
+	    } else {
+		logevent("Started a shell/command");
 	    }
-	    /*
-	     * We failed to start the command. If this is the
-	     * fallback command, we really are finished; if it's
-	     * not, and if the fallback command exists, try falling
-	     * back to it before complaining.
-	     */
-	    if (!ssh->fallback_cmd &&
-		*conf_get_str(ssh->conf, CONF_remote_cmd2)) {
-		logevent("Primary command failed; attempting fallback");
-		ssh->fallback_cmd = TRUE;
-		continue;
-	    }
-	    bombout(("Server refused to start a shell/command"));
-	    crStopV;
-	} else {
-	    logevent("Started a shell/command");
+	    break;
 	}
-	break;
+    } else {
+	ssh->editing = ssh->echoing = TRUE;
     }
 
     ssh->state = SSH_STATE_SESSION;
