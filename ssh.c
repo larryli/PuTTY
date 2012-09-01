@@ -6572,6 +6572,21 @@ static void ssh2_channel_init(struct ssh_channel *c)
 }
 
 /*
+ * Construct the common parts of a CHANNEL_OPEN.
+ */
+static struct Packet *ssh2_chanopen_init(struct ssh_channel *c, char *type)
+{
+    struct Packet *pktout;
+
+    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
+    ssh2_pkt_addstring(pktout, type);
+    ssh2_pkt_adduint32(pktout, c->localid);
+    ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
+    ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
+    return pktout;
+}
+
+/*
  * CHANNEL_FAILURE doesn't come with any indication of what message
  * caused it, so we have to keep track of the outstanding
  * CHANNEL_REQUESTs ourselves.
@@ -9113,11 +9128,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		  "Opening direct-tcpip channel to %s:%d in place of session",
 		  conf_get_str(ssh->conf, CONF_ssh_nc_host),
 		  conf_get_int(ssh->conf, CONF_ssh_nc_port));
-	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
-	ssh2_pkt_addstring(s->pktout, "direct-tcpip");
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
-	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);      /* our max pkt size */
+	s->pktout = ssh2_chanopen_init(ssh->mainchan, "direct-tcpip");
 	ssh2_pkt_addstring(s->pktout, conf_get_str(ssh->conf, CONF_ssh_nc_host));
 	ssh2_pkt_adduint32(s->pktout, conf_get_int(ssh->conf, CONF_ssh_nc_port));
 	/*
@@ -9152,11 +9163,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
 	ssh2_channel_init(ssh->mainchan);
-	s->pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
-	ssh2_pkt_addstring(s->pktout, "session");
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->localid);
-	ssh2_pkt_adduint32(s->pktout, ssh->mainchan->v.v2.locwindow);/* our window size */
-	ssh2_pkt_adduint32(s->pktout, OUR_V2_MAXPKT);    /* our max pkt size */
+	s->pktout = ssh2_chanopen_init(ssh->mainchan, "session");
 	ssh2_pkt_send(ssh, s->pktout);
 	crWaitUntilV(pktin);
 	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
@@ -10147,11 +10154,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 		    /* PKT_STR, <org:orgport>, */
 		    PKT_END);
     } else {
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
-	ssh2_pkt_addstring(pktout, "direct-tcpip");
-	ssh2_pkt_adduint32(pktout, c->localid);
-	ssh2_pkt_adduint32(pktout, c->v.v2.locwindow);/* our window size */
-	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);      /* our max pkt size */
+	pktout = ssh2_chanopen_init(c, "direct-tcpip");
 	ssh2_pkt_addstring(pktout, hostname);
 	ssh2_pkt_adduint32(pktout, port);
 	/*
