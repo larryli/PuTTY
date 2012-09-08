@@ -666,6 +666,7 @@ struct ssh_channel {
 	    unsigned char *message;
 	    unsigned char msglen[4];
 	    unsigned lensofar, totallen;
+            int outstanding_requests;
 	} a;
 	struct ssh_x11_channel {
 	    Socket s;
@@ -3201,6 +3202,7 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
     Ssh ssh = c->ssh;
     void *sentreply = reply;
 
+    c->u.a.outstanding_requests--;
     if (!sentreply) {
 	/* Fake SSH_AGENT_FAILURE. */
 	sentreply = "\0\0\0\1\5";
@@ -3220,6 +3222,12 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
     }
     if (reply)
 	sfree(reply);
+    /*
+     * If we've already seen an incoming EOF but haven't sent an
+     * outgoing one, this may be the moment to send it.
+     */
+    if (c->u.a.outstanding_requests == 0 && (c->closes & CLOSES_RCVD_EOF))
+        sshfwd_write_eof(c);
 }
 
 /*
@@ -4827,6 +4835,7 @@ static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
 	c->type = CHAN_AGENT;	/* identify channel type */
 	c->u.a.lensofar = 0;
 	c->u.a.message = NULL;
+	c->u.a.outstanding_requests = 0;
 	add234(ssh->channels, c);
 	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
 		    PKT_INT, c->remoteid, PKT_INT, c->localid,
@@ -5052,6 +5061,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		if (c->u.a.lensofar == c->u.a.totallen) {
 		    void *reply;
 		    int replylen;
+                    c->u.a.outstanding_requests++;
 		    if (agent_query(c->u.a.message,
 				    c->u.a.totallen,
 				    &reply, &replylen,
@@ -6847,6 +6857,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 		if (c->u.a.lensofar == c->u.a.totallen) {
 		    void *reply;
 		    int replylen;
+                    c->u.a.outstanding_requests++;
 		    if (agent_query(c->u.a.message,
 				    c->u.a.totallen,
 				    &reply, &replylen,
@@ -6985,8 +6996,10 @@ static void ssh2_channel_got_eof(struct ssh_channel *c)
     if (c->type == CHAN_X11) {
 	x11_send_eof(c->u.x11.s);
     } else if (c->type == CHAN_AGENT) {
-        /* Manufacture an outgoing EOF in response to the incoming one. */
-        sshfwd_write_eof(c);
+        if (c->u.a.outstanding_requests == 0) {
+            /* Manufacture an outgoing EOF in response to the incoming one. */
+            sshfwd_write_eof(c);
+        }
     } else if (c->type == CHAN_SOCKDATA) {
 	pfd_send_eof(c->u.pfd.s);
     } else if (c->type == CHAN_MAINSESSION) {
@@ -7408,6 +7421,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	else {
 	    c->type = CHAN_AGENT;	/* identify channel type */
 	    c->u.a.lensofar = 0;
+            c->u.a.outstanding_requests = 0;
 	}
     } else {
 	error = "Unsupported channel type requested";
