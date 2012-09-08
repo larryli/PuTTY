@@ -9130,58 +9130,30 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      */
     if (conf_get_int(ssh->conf, CONF_ssh_no_shell)) {
 	ssh->mainchan = NULL;
-    } else if (*conf_get_str(ssh->conf, CONF_ssh_nc_host)) {
-	/*
-	 * Just start a direct-tcpip channel and use it as the main
-	 * channel.
-	 */
-	ssh->mainchan = snew(struct ssh_channel);
-	ssh->mainchan->ssh = ssh;
-	ssh2_channel_init(ssh->mainchan);
-	logeventf(ssh,
-		  "Opening direct-tcpip channel to %s:%d in place of session",
-		  conf_get_str(ssh->conf, CONF_ssh_nc_host),
-		  conf_get_int(ssh->conf, CONF_ssh_nc_port));
-	s->pktout = ssh2_chanopen_init(ssh->mainchan, "direct-tcpip");
-	ssh2_pkt_addstring(s->pktout, conf_get_str(ssh->conf, CONF_ssh_nc_host));
-	ssh2_pkt_adduint32(s->pktout, conf_get_int(ssh->conf, CONF_ssh_nc_port));
-	/*
-	 * There's nothing meaningful to put in the originator
-	 * fields, but some servers insist on syntactically correct
-	 * information.
-	 */
-	ssh2_pkt_addstring(s->pktout, "0.0.0.0");
-	ssh2_pkt_adduint32(s->pktout, 0);
-	ssh2_pkt_send(ssh, s->pktout);
-
-	crWaitUntilV(pktin);
-	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-	    bombout(("Server refused to open a direct-tcpip channel"));
-	    crStopV;
-	    /* FIXME: error data comes back in FAILURE packet */
-	}
-	if (ssh_pkt_getuint32(pktin) != ssh->mainchan->localid) {
-	    bombout(("Server's channel confirmation cited wrong channel"));
-	    crStopV;
-	}
-	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
-	ssh->mainchan->halfopen = FALSE;
-	ssh->mainchan->type = CHAN_MAINSESSION;
-	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
-	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
-	add234(ssh->channels, ssh->mainchan);
-	update_specials_menu(ssh->frontend);
-	logevent("Opened direct-tcpip channel");
-	ssh->ncmode = TRUE;
     } else {
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
 	ssh2_channel_init(ssh->mainchan);
-	s->pktout = ssh2_chanopen_init(ssh->mainchan, "session");
-	ssh2_pkt_send(ssh, s->pktout);
+
+	if (*conf_get_str(ssh->conf, CONF_ssh_nc_host)) {
+	    /*
+	     * Just start a direct-tcpip channel and use it as the main
+	     * channel.
+	     */
+	    ssh_send_port_open(ssh->mainchan,
+			       conf_get_str(ssh->conf, CONF_ssh_nc_host),
+			       conf_get_int(ssh->conf, CONF_ssh_nc_port),
+			       "main channel");
+	    ssh->ncmode = TRUE;
+	} else {
+	    s->pktout = ssh2_chanopen_init(ssh->mainchan, "session");
+	    logevent("Opening session as main channel");
+	    ssh2_pkt_send(ssh, s->pktout);
+	    ssh->ncmode = FALSE;
+	}
 	crWaitUntilV(pktin);
 	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-	    bombout(("Server refused to open a session"));
+	    bombout(("Server refused to open channel"));
 	    crStopV;
 	    /* FIXME: error data comes back in FAILURE packet */
 	}
@@ -9196,8 +9168,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
 	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
-	logevent("Opened channel for session");
-	ssh->ncmode = FALSE;
+	logevent("Opened main channel");
     }
 
     /*
@@ -10158,7 +10129,7 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
     Ssh ssh = c->ssh;
     struct Packet *pktout;
 
-    logeventf(ssh, "Opening forwarded connection to %s:%d", hostname, port);
+    logeventf(ssh, "Opening connection to %s:%d for %s", hostname, port, org);
 
     if (ssh->version == 1) {
 	send_packet(ssh, SSH1_MSG_PORT_OPEN,
