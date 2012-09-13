@@ -193,6 +193,7 @@ RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
 # XXX GNU-ism, but it's probably all right for a Cygwin/MinGW Makefile.
+CFLAGS += -DSECURITY_WIN32
 RCFLAGS += $(patsubst -D%,--define %,$(VER))
 !end
 !begin borland vars
