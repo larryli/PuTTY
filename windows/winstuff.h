@@ -75,7 +75,9 @@ struct FontSpec *fontspec_new(const char *name,
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001
 
+#ifndef __WINE__ /* No SecureZeroMemory in Winelib 1.4 */
 #define PLATFORM_HAS_SMEMCLR /* inhibit cross-platform one in misc.c */
+#endif
 
 /*
  * Dynamically linked functions. These come in two flavours:
