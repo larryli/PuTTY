@@ -484,7 +484,7 @@ if (defined $makefiles{'cygwin'}) {
                          join " ", @{$d->{deps}})), "\n";
       }
       if ($d->{obj} =~ /\.res\.o$/) {
-	  print "\t\$(RC) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." ".$d->{obj}."\n\n";
+	  print "\t\$(RC) \$(RCFL) \$(RCFLAGS) ".$d->{deps}->[0]." -o ".$d->{obj}."\n\n";
       } else {
 	  print "\t\$(CC) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) -c ".$d->{deps}->[0]."\n\n";
       }
