@@ -81,7 +81,7 @@ int has_help(void)
      * unrealistic, since even Vista will have it if the user
      * specifically downloads it.
      */
-    return (help_path
+    return (help_path != NULL
 #ifndef NO_HTMLHELP
 	    || chm_path
 #endif /* NO_HTMLHELP */
