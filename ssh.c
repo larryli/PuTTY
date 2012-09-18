@@ -4618,9 +4618,9 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 			/* XXX: rport_acceptall may not represent
 			 * what was used to open the original connection,
 			 * since it's reconfigurable. */
-			ssh2_pkt_addstring(pktout, "0.0.0.0");
+			ssh2_pkt_addstring(pktout, "");
 		    } else {
-			ssh2_pkt_addstring(pktout, "127.0.0.1");
+			ssh2_pkt_addstring(pktout, "localhost");
 		    }
 		    ssh2_pkt_adduint32(pktout, epf->sport);
 		    ssh2_pkt_send(ssh, pktout);
@@ -4733,9 +4733,9 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 			if (epf->saddr) {
 			    ssh2_pkt_addstring(pktout, epf->saddr);
 			} else if (conf_get_int(conf, CONF_rport_acceptall)) {
-			    ssh2_pkt_addstring(pktout, "0.0.0.0");
+			    ssh2_pkt_addstring(pktout, "");
 			} else {
-			    ssh2_pkt_addstring(pktout, "127.0.0.1");
+			    ssh2_pkt_addstring(pktout, "localhost");
 			}
 			ssh2_pkt_adduint32(pktout, epf->sport);
 			ssh2_pkt_send(ssh, pktout);
