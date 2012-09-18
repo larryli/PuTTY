@@ -289,7 +289,7 @@ int main(int argc, char **argv)
     int errors;
     int got_host = FALSE;
     int use_subsystem = 0;
-    long now, next;
+    unsigned long now, next, then;
 
     sklist = NULL;
     skcount = sksize = 0;
@@ -634,8 +634,12 @@ int main(int argc, char **argv)
 	}
 
 	if (run_timers(now, &next)) {
-	    ticks = next - GETTICKCOUNT();
-	    if (ticks < 0) ticks = 0;  /* just in case */
+	then = now;
+	now = GETTICKCOUNT();
+	if (now - then > next - then)
+	    ticks = 0;
+	else
+	    ticks = next - now;
 	} else {
 	    ticks = INFINITE;
 	}

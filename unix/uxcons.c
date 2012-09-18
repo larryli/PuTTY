@@ -70,7 +70,7 @@ void notify_remote_exit(void *frontend)
 {
 }
 
-void timer_change_notify(long next)
+void timer_change_notify(unsigned long next)
 {
 }
 

@@ -36,13 +36,13 @@
 struct timer {
     timer_fn_t fn;
     void *ctx;
-    long now;
-    long when_set;
+    unsigned long now;
+    unsigned long when_set;
 };
 
 static tree234 *timers = NULL;
 static tree234 *timer_contexts = NULL;
-static long now = 0L;
+static unsigned long now = 0L;
 
 static int compare_timers(void *av, void *bv)
 {
@@ -106,9 +106,9 @@ static void init_timers(void)
     }
 }
 
-long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
+unsigned long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
 {
-    long when;
+    unsigned long when;
     struct timer *t, *first;
 
     init_timers();
@@ -153,7 +153,7 @@ long schedule_timer(int ticks, timer_fn_t fn, void *ctx)
  * Returns the time (in ticks) expected until the next timer after
  * that triggers.
  */
-int run_timers(long anow, long *next)
+int run_timers(unsigned long anow, unsigned long *next)
 {
     struct timer *first;
 
@@ -174,8 +174,8 @@ int run_timers(long anow, long *next)
 	     */
 	    delpos234(timers, 0);
 	    sfree(first);
-	} else if (first->now - now <= 0 ||
-	           now - (first->when_set - 10) < 0) {
+	} else if (now - first->when_set - 10 >
+		   first->now - first->when_set - 10) {
 	    /*
 	     * This timer is active and has reached its running
 	     * time. Run it.

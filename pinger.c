@@ -8,18 +8,18 @@
 struct pinger_tag {
     int interval;
     int pending;
-    long next;
+    unsigned long next;
     Backend *back;
     void *backhandle;
 };
 
 static void pinger_schedule(Pinger pinger);
 
-static void pinger_timer(void *ctx, long now)
+static void pinger_timer(void *ctx, unsigned long now)
 {
     Pinger pinger = (Pinger)ctx;
 
-    if (pinger->pending && now - pinger->next >= 0) {
+    if (pinger->pending && now == pinger->next) {
 	pinger->back->special(pinger->backhandle, TS_PING);
 	pinger->pending = FALSE;
 	pinger_schedule(pinger);

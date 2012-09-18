@@ -2012,10 +2012,14 @@ void notify_remote_exit(void *fe)
     }
 }
 
-void timer_change_notify(long next)
+void timer_change_notify(unsigned long next)
 {
-    long ticks = next - GETTICKCOUNT();
-    if (ticks <= 0) ticks = 1;	       /* just in case */
+    unsigned long now = GETTICKCOUNT();
+    long ticks;
+    if (now - next < INT_MAX)
+	ticks = 0;
+    else
+	ticks = next - now;
     KillTimer(hwnd, TIMING_TIMER_ID);
     SetTimer(hwnd, TIMING_TIMER_ID, ticks, NULL);
     timing_next_time = next;
@@ -2042,7 +2046,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     switch (message) {
       case WM_TIMER:
 	if ((UINT_PTR)wParam == TIMING_TIMER_ID) {
-	    long next;
+	    unsigned long next;
 
 	    KillTimer(hwnd, TIMING_TIMER_ID);
 	    if (run_timers(timing_next_time, &next)) {
@@ -5354,9 +5358,9 @@ static int flashing = 0;
  * Timer for platforms where we must maintain window flashing manually
  * (e.g., Win95).
  */
-static void flash_window_timer(void *ctx, long now)
+static void flash_window_timer(void *ctx, unsigned long now)
 {
-    if (flashing && now - next_flash >= 0) {
+    if (flashing && now == next_flash) {
 	flash_window(1);
     }
 }

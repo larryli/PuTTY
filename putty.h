@@ -1383,11 +1383,11 @@ char *get_random_data(int bytes);      /* used in cmdgen.c */
  * GETTICKCOUNT() and compare the result with the returned `next'
  * value to find out how long you have to make your next wait().)
  */
-typedef void (*timer_fn_t)(void *ctx, long now);
-long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
+typedef void (*timer_fn_t)(void *ctx, unsigned long now);
+unsigned long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
 void expire_timer_context(void *ctx);
-int run_timers(long now, long *next);
-void timer_change_notify(long next);
+int run_timers(unsigned long now, unsigned long *next);
+void timer_change_notify(unsigned long next);
 
 /*
  * Define no-op macros for the jump list functions, on platforms that

@@ -1400,13 +1400,18 @@ void notify_remote_exit(void *frontend)
 
 static gint timer_trigger(gpointer data)
 {
-    long now = GPOINTER_TO_LONG(data);
-    long next;
+    unsigned long now = GPOINTER_TO_LONG(data);
+    unsigned long next, then;
     long ticks;
 
     if (run_timers(now, &next)) {
-	ticks = next - GETTICKCOUNT();
-	timer_id = gtk_timeout_add(ticks > 0 ? ticks : 1, timer_trigger,
+	then = now;
+	now = GETTICKCOUNT();
+	if (now - then > next - then)
+	    ticks = 0;
+	else
+	    ticks = next - now;
+	timer_id = gtk_timeout_add(ticks, timer_trigger,
 				   LONG_TO_GPOINTER(next));
     }
 
@@ -1417,7 +1422,7 @@ static gint timer_trigger(gpointer data)
     return FALSE;
 }
 
-void timer_change_notify(long next)
+void timer_change_notify(unsigned long next)
 {
     long ticks;
 

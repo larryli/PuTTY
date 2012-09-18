@@ -331,11 +331,11 @@ static void serial_size(void *handle, int width, int height)
     return;
 }
 
-static void serbreak_timer(void *ctx, long now)
+static void serbreak_timer(void *ctx, unsigned long now)
 {
     Serial serial = (Serial)ctx;
 
-    if (now >= serial->clearbreak_time && serial->port) {
+    if (now == serial->clearbreak_time && serial->port) {
 	ClearCommBreak(serial->port);
 	serial->break_in_progress = FALSE;
 	logevent(serial->frontend, "Finished serial break");

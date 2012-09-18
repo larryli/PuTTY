@@ -1065,32 +1065,32 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
 static void term_schedule_tblink(Terminal *term);
 static void term_schedule_cblink(Terminal *term);
 
-static void term_timer(void *ctx, long now)
+static void term_timer(void *ctx, unsigned long now)
 {
     Terminal *term = (Terminal *)ctx;
     int update = FALSE;
 
-    if (term->tblink_pending && now - term->next_tblink >= 0) {
+    if (term->tblink_pending && now == term->next_tblink) {
 	term->tblinker = !term->tblinker;
 	term->tblink_pending = FALSE;
 	term_schedule_tblink(term);
 	update = TRUE;
     }
 
-    if (term->cblink_pending && now - term->next_cblink >= 0) {
+    if (term->cblink_pending && now == term->next_cblink) {
 	term->cblinker = !term->cblinker;
 	term->cblink_pending = FALSE;
 	term_schedule_cblink(term);
 	update = TRUE;
     }
 
-    if (term->in_vbell && now - term->vbell_end >= 0) {
+    if (term->in_vbell && now == term->vbell_end) {
 	term->in_vbell = FALSE;
 	update = TRUE;
     }
 
     if (update ||
-	(term->window_update_pending && now - term->next_update >= 0))
+	(term->window_update_pending && now == term->next_update))
 	term_update(term);
 }
 

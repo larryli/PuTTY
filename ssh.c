@@ -772,7 +772,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit);
 static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
-static void ssh2_timer(void *ctx, long now);
+static void ssh2_timer(void *ctx, unsigned long now);
 static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 			      struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
@@ -981,7 +981,7 @@ struct ssh_tag {
     unsigned long incoming_data_size, outgoing_data_size, deferred_data_size;
     unsigned long max_data_size;
     int kex_in_progress;
-    long next_rekey, last_rekey;
+    unsigned long next_rekey, last_rekey;
     char *deferred_rekey_reason;    /* points to STATIC string; don't free */
 
     /*
@@ -9482,7 +9482,7 @@ static void ssh2_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
 }
 
-static void ssh2_timer(void *ctx, long now)
+static void ssh2_timer(void *ctx, unsigned long now)
 {
     Ssh ssh = (Ssh)ctx;
 
@@ -9490,7 +9490,7 @@ static void ssh2_timer(void *ctx, long now)
 	return;
 
     if (!ssh->kex_in_progress && conf_get_int(ssh->conf, CONF_ssh_rekey_time) != 0 &&
-	now - ssh->next_rekey >= 0) {
+	now == ssh->next_rekey) {
 	do_ssh2_transport(ssh, "timeout", -1, NULL);
     }
 }
@@ -9773,10 +9773,10 @@ static void ssh_reconfig(void *handle, Conf *conf)
     rekey_time = conf_get_int(conf, CONF_ssh_rekey_time);
     if (conf_get_int(ssh->conf, CONF_ssh_rekey_time) != rekey_time &&
 	rekey_time != 0) {
-	long new_next = ssh->last_rekey + rekey_time*60*TICKSPERSEC;
-	long now = GETTICKCOUNT();
+	unsigned long new_next = ssh->last_rekey + rekey_time*60*TICKSPERSEC;
+	unsigned long now = GETTICKCOUNT();
 
-	if (new_next - now < 0) {
+	if (now - ssh->last_rekey > rekey_time*60*TICKSPERSEC) {
 	    rekeying = "timeout shortened";
 	} else {
 	    ssh->next_rekey = schedule_timer(new_next - now, ssh2_timer, ssh);

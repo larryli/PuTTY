@@ -486,15 +486,20 @@ extern int select_result(WPARAM, LPARAM);
 int do_eventsel_loop(HANDLE other_event)
 {
     int n, nhandles, nallhandles, netindex, otherindex;
-    long next, ticks;
+    unsigned long next, then;
+    long ticks;
     HANDLE *handles;
     SOCKET *sklist;
     int skcount;
-    long now = GETTICKCOUNT();
+    unsigned long now = GETTICKCOUNT();
 
     if (run_timers(now, &next)) {
-	ticks = next - GETTICKCOUNT();
-	if (ticks < 0) ticks = 0;  /* just in case */
+	then = now;
+	now = GETTICKCOUNT();
+	if (now - then > next - then)
+	    ticks = 0;
+	else
+	    ticks = next - now;
     } else {
 	ticks = INFINITE;
     }
