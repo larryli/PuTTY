@@ -40,7 +40,7 @@ For building on Windows:
    Makefile.bor' while in the `windows' subdirectory to build all
    the PuTTY binaries.
 
- - windows/Makefile.cyg is for Cygwin / mingw32 installations. Type
+ - windows/Makefile.cyg is for Cygwin / MinGW installations. Type
    `make -f Makefile.cyg' while in the `windows' subdirectory to
    build all the PuTTY binaries.
 
@@ -105,6 +105,10 @@ For building on Unix:
    it tries to install `man' pages; if you have fetched the source via
    Subversion then you will need to have built these using Halibut
    first - see below.
+
+ - It's also possible to build the Windows version of PuTTY to run
+   on Unix by using Winelib.  To do this, change to the `windows'
+   directory and run `make -f Makefile.cyg CC=winegcc RC=wrc'.
 
 All of the Makefiles are generated automatically from the file
 `Recipe' by the Perl script `mkfiles.pl' (except for the Unix one,
