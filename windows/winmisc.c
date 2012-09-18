@@ -68,7 +68,7 @@ Filename *filename_deserialise(void *vdata, int maxsize, int *used)
     return filename_from_str(data);
 }
 
-#ifndef __WINE__ /* No SecureZeroMemory in Winelib 1.4 */
+#ifndef NO_SECUREZEROMEMORY
 /*
  * Windows implementation of smemclr (see misc.c) using SecureZeroMemory.
  */

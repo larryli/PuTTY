@@ -113,6 +113,11 @@
 #      Cygnus/mingw32, whose resource compiler may have less of a
 #      problem with it.
 #
+#  - COMPAT=/DNO_SECUREZEROMEMORY (Windows only)
+#      Disables PuTTY's use of SecureZeroMemory(), which is missing
+#      from some environments' header files.  This is enabled by
+#      default in the Cygwin Makefile.
+#
 #  - XFLAGS=/DTELNET_DEFAULT
 #      Causes PuTTY to default to the Telnet protocol (in the absence
 #      of Default Settings and so on to the contrary). Normally PuTTY
