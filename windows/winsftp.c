@@ -611,7 +611,7 @@ int ssh_sftp_loop_iteration(void)
     if (p_WSAEventSelect == NULL) {
 	fd_set readfds;
 	int ret;
-	long now = GETTICKCOUNT();
+	unsigned long now = GETTICKCOUNT(), then;
 
 	if (sftp_ssh_socket == INVALID_SOCKET)
 	    return -1;		       /* doom */
@@ -620,13 +620,17 @@ int ssh_sftp_loop_iteration(void)
 	    select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_WRITE);
 
 	do {
-	    long next, ticks;
+	    unsigned long next;
+	    long ticks;
 	    struct timeval tv, *ptv;
 
 	    if (run_timers(now, &next)) {
-		ticks = next - GETTICKCOUNT();
-		if (ticks <= 0)
-		    ticks = 1;	       /* just in case */
+		then = now;
+		now = GETTICKCOUNT();
+		if (now - then > next - then)
+		    ticks = 0;
+		else
+		    ticks = next - now;
 		tv.tv_sec = ticks / 1000;
 		tv.tv_usec = ticks % 1000 * 1000;
 		ptv = &tv;
