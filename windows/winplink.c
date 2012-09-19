@@ -636,12 +636,12 @@ int main(int argc, char **argv)
 	}
 
 	if (run_timers(now, &next)) {
-	then = now;
-	now = GETTICKCOUNT();
-	if (now - then > next - then)
-	    ticks = 0;
-	else
-	    ticks = next - now;
+	    then = now;
+	    now = GETTICKCOUNT();
+	    if (now - then > next - then)
+		ticks = 0;
+	    else
+		ticks = next - now;
 	} else {
 	    ticks = INFINITE;
 	}
