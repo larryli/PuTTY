@@ -2592,6 +2592,13 @@ static void help(FILE *fp) {
     }
 }
 
+static void version(FILE *fp) {
+    if(fprintf(fp, "%s: %s\n", appname, ver) < 0 || fflush(fp) < 0) {
+	perror("output error");
+	exit(1);
+    }
+}
+
 int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
                struct gui_data *inst, Conf *conf)
 {
@@ -2799,6 +2806,10 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 
 	} else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
 	    help(stdout);
+	    exit(0);
+
+	} else if(!strcmp(p, "-version") || !strcmp(p, "--version")) {
+	    version(stdout);
 	    exit(0);
 
         } else if (!strcmp(p, "-pgpfp")) {

@@ -2923,12 +2923,14 @@ int psftp_main(int argc, char *argv[])
 	    if (flags & FLAG_VERBOSE)
 		verbose = 1;
 	} else if (strcmp(argv[i], "-h") == 0 ||
-		   strcmp(argv[i], "-?") == 0) {
+		   strcmp(argv[i], "-?") == 0 ||
+                   strcmp(argv[i], "--help") == 0) {
 	    usage();
         } else if (strcmp(argv[i], "-pgpfp") == 0) {
             pgp_fingerprints();
             return 1;
-	} else if (strcmp(argv[i], "-V") == 0) {
+	} else if (strcmp(argv[i], "-V") == 0 ||
+                   strcmp(argv[i], "--version") == 0) {
 	    version();
 	} else if (strcmp(argv[i], "-batch") == 0) {
 	    console_batch_mode = 1;

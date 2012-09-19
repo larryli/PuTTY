@@ -343,8 +343,10 @@ int main(int argc, char **argv)
 	    } else if (!strcmp(p, "-s")) {
 		/* Save status to write to conf later. */
 		use_subsystem = 1;
-	    } else if (!strcmp(p, "-V")) {
+	    } else if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
                 version();
+	    } else if (!strcmp(p, "--help")) {
+                usage();
             } else if (!strcmp(p, "-pgpfp")) {
                 pgp_fingerprints();
                 exit(1);

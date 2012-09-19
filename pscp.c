@@ -2283,9 +2283,12 @@ int psftp_main(int argc, char *argv[])
 	    preserve = 1;
 	} else if (strcmp(argv[i], "-q") == 0) {
 	    statistics = 0;
-	} else if (strcmp(argv[i], "-h") == 0 || strcmp(argv[i], "-?") == 0) {
+	} else if (strcmp(argv[i], "-h") == 0 ||
+                   strcmp(argv[i], "-?") == 0 ||
+                   strcmp(argv[i], "--help") == 0) {
 	    usage();
-	} else if (strcmp(argv[i], "-V") == 0) {
+	} else if (strcmp(argv[i], "-V") == 0 ||
+                   strcmp(argv[i], "--version") == 0) {
             version();
         } else if (strcmp(argv[i], "-ls") == 0) {
 	    list = 1;
