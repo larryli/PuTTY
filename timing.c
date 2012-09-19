@@ -174,8 +174,8 @@ int run_timers(unsigned long anow, unsigned long *next)
 	     */
 	    delpos234(timers, 0);
 	    sfree(first);
-	} else if (now - first->when_set - 10 >
-		   first->now - first->when_set - 10) {
+	} else if (now - (first->when_set - 10) >
+		   first->now - (first->when_set - 10)) {
 	    /*
 	     * This timer is active and has reached its running
 	     * time. Run it.
