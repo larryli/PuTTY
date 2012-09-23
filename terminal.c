@@ -1978,7 +1978,7 @@ static void check_selection(Terminal *term, pos from, pos to)
 static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 {
     termline *line;
-    int i, seltop;
+    int i, seltop, scrollwinsize;
 #ifdef OPTIMISE_SCROLL
     int olddisptop, shift;
 #endif /* OPTIMISE_SCROLL */
@@ -1990,8 +1990,14 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
     olddisptop = term->disptop;
     shift = lines;
 #endif /* OPTIMISE_SCROLL */
+
+    scrollwinsize = botline - topline + 1;
+
     if (lines < 0) {
-	while (lines < 0) {
+        lines = -lines;
+        if (lines > scrollwinsize)
+            lines = scrollwinsize;
+	while (lines-- > 0) {
 	    line = delpos234(term->screen, botline);
             resizeline(term, line, term->cols);
 	    for (i = 0; i < term->cols; i++)
@@ -2013,11 +2019,11 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 		    term->selend.x = 0;
 		}
 	    }
-
-	    lines++;
 	}
     } else {
-	while (lines > 0) {
+        if (lines > scrollwinsize)
+            lines = scrollwinsize;
+	while (lines-- > 0) {
 	    line = delpos234(term->screen, topline);
 #ifdef TERM_CC_DIAGS
 	    cc_check(line);
@@ -2103,8 +2109,6 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 		    }
 		}
 	    }
-
-	    lines--;
 	}
     }
 #ifdef OPTIMISE_SCROLL
