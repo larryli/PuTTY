@@ -3221,8 +3221,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		} else
 		    break;
 
-		if (send_raw_mouse && shift_pressed &&
-		    !(conf_get_int(conf, CONF_mouse_override))) {
+		if (send_raw_mouse &&
+		    !(conf_get_int(conf, CONF_mouse_override) &&
+                      shift_pressed)) {
 		    /* Mouse wheel position is in screen coordinates for
 		     * some reason */
 		    POINT p;
