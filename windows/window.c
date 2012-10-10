@@ -2156,6 +2156,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		si.lpReserved2 = NULL;
 		CreateProcess(b, cl, NULL, NULL, inherit_handles,
 			      NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
 
 		if (filemap)
 		    CloseHandle(filemap);

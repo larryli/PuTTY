@@ -206,6 +206,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
     CreateProcess(NULL, cmd, NULL, NULL, TRUE,
 		  CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS,
 		  NULL, NULL, &si, &pi);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
 
     sfree(cmd);
 
