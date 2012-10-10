@@ -258,8 +258,21 @@ void log_packet(void *handle, int direction, int type,
 		      type, type, texttype);
 	}
     } else {
-        logprintf(ctx, "%s raw data\r\n",
-                  direction == PKT_INCOMING ? "Incoming" : "Outgoing");
+        /*
+         * Raw data is logged with a timestamp, so that it's possible
+         * to determine whether a mysterious delay occurred at the
+         * client or server end. (Timestamping the raw data avoids
+         * cluttering the normal case of only logging decrypted SSH
+         * messages, and also adds conceptual rigour in the case where
+         * an SSH message arrives in several pieces.)
+         */
+        char buf[256];
+        struct tm tm;
+	tm = ltime();
+	strftime(buf, 24, "%Y-%m-%d %H:%M:%S", &tm);
+        logprintf(ctx, "%s raw data at %s\r\n",
+                  direction == PKT_INCOMING ? "Incoming" : "Outgoing",
+                  buf);
     }
 
     /*
