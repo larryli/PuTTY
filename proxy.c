@@ -750,8 +750,7 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 
 	type = sk_addrtype(p->remote_addr);
 	if (type == ADDRTYPE_IPV6) {
-	    plug_closing(p->plug, "Proxy error: SOCKS version 4 does"
-			 " not support IPv6", PROXY_ERROR_GENERAL, 0);
+            p->error = "Proxy error: SOCKS version 4 does not support IPv6";
 	    return 1;
 	} else if (type == ADDRTYPE_IPV4) {
 	    namelen = 0;
