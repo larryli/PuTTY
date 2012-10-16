@@ -667,6 +667,11 @@ int sk_address_is_local(SockAddr addr)
     }
 }
 
+int sk_address_is_special_local(SockAddr addr)
+{
+    return 0;                /* no Unix-domain socket analogue here */
+}
+
 int sk_addrtype(SockAddr addr)
 {
     SockAddrStep step;

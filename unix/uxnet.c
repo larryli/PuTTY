@@ -390,6 +390,11 @@ int sk_address_is_local(SockAddr addr)
     }
 }
 
+int sk_address_is_special_local(SockAddr addr)
+{
+    return addr->superfamily == UNIX;
+}
+
 int sk_addrtype(SockAddr addr)
 {
     SockAddrStep step;
