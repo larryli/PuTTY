@@ -763,6 +763,9 @@ int main(int argc, char **argv)
 		}
 		ssh1key->comment = dupstr(origcomment);
 		ssh1key->private_exponent = NULL;
+		ssh1key->p = NULL;
+		ssh1key->q = NULL;
+		ssh1key->iqmp = NULL;
 	    } else {
 		ret = loadrsakey(infilename, ssh1key, passphrase, &error);
 	    }
