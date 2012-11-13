@@ -332,8 +332,38 @@ void sk_cleanup(void)
 #endif
 }
 
+struct errstring {
+    int error;
+    char *text;
+};
+
+static int errstring_find(void *av, void *bv)
+{
+    int *a = (int *)av;
+    struct errstring *b = (struct errstring *)bv;
+    if (*a < b->error)
+        return -1;
+    if (*a > b->error)
+        return +1;
+    return 0;
+}
+static int errstring_compare(void *av, void *bv)
+{
+    struct errstring *a = (struct errstring *)av;
+    return errstring_find(&a->error, bv);
+}
+
+static tree234 *errstrings = NULL;
+
 char *winsock_error_string(int error)
 {
+    const char prefix[] = "Network error: ";
+    struct errstring *es;
+
+    /*
+     * Error codes we know about and have historically had reasonably
+     * sensible error messages for.
+     */
     switch (error) {
       case WSAEACCES:
 	return "Network error: Permission denied";
@@ -406,9 +436,53 @@ char *winsock_error_string(int error)
 	return "Network error: Resource temporarily unavailable";
       case WSAEDISCON:
 	return "Network error: Graceful shutdown in progress";
-      default:
-	return "Unknown network error";
     }
+
+    /*
+     * Generic code to handle any other error.
+     *
+     * Slightly nasty hack here: we want to return a static string
+     * which the caller will never have to worry about freeing, but on
+     * the other hand if we call FormatMessage to get it then it will
+     * want to either allocate a buffer or write into one we own.
+     *
+     * So what we do is to maintain a tree234 of error strings we've
+     * already used. New ones are allocated from the heap, but then
+     * put in this tree and kept forever.
+     */
+
+    if (!errstrings)
+        errstrings = newtree234(errstring_compare);
+
+    es = find234(errstrings, &error, errstring_find);
+
+    if (!es) {
+        int bufsize, bufused;
+
+        es = snew(struct errstring);
+        es->error = error;
+        /* maximum size for FormatMessage is 64K */
+        bufsize = 65535 + sizeof(prefix);
+        es->text = snewn(bufsize, char);
+        strcpy(es->text, prefix);
+        bufused = strlen(es->text);
+        if (!FormatMessage((FORMAT_MESSAGE_FROM_SYSTEM |
+                            FORMAT_MESSAGE_IGNORE_INSERTS), NULL, error,
+                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                           es->text + bufused, bufsize - bufused, NULL)) {
+            sprintf(es->text + bufused,
+                    "Windows error code %d (and FormatMessage returned %d)", 
+                    error, GetLastError());
+        } else {
+            int len = strlen(es->text);
+            if (len > 0 && es->text[len-1] == '\n')
+                es->text[len-1] = '\0';
+        }
+        es->text = sresize(es->text, strlen(es->text) + 1, char);
+        add234(errstrings, es);
+    }
+
+    return es->text;
 }
 
 SockAddr sk_namelookup(const char *host, char **canonicalname,
