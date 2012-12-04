@@ -2994,7 +2994,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case SB_THUMBPOSITION:
 	  case SB_THUMBTRACK:
-	    term_scroll(term, 1, HIWORD(wParam));
+	    /*
+	     * Use GetScrollInfo instead of HIWORD(wParam) to get
+	     * 32-bit scroll position.
+	     */
+	    {
+		SCROLLINFO si;
+
+		si.cbSize = sizeof(si);
+		si.fMask = SIF_TRACKPOS;
+		if (GetScrollInfo(hwnd, SB_VERT, &si) == 0)
+		    si.nTrackPos = HIWORD(wParam);
+		term_scroll(term, 1, si.nTrackPos);
+	    }
 	    break;
 	}
 	break;
