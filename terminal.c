@@ -5626,7 +5626,8 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 		    else
 			break;
 		} else {
-		    if (ldata->lattr & LATTR_WRAPPED) {
+		    if (p.y+1 < term->rows && 
+                        (ldata->lattr & LATTR_WRAPPED)) {
 			termline *ldata2;
 			ldata2 = lineptr(p.y+1);
 			if (wordtype(term, UCSGET(ldata2->chars, 0))
