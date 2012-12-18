@@ -748,21 +748,23 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
      * Stamp utmp (that is, tell the utmp helper process to do so),
      * or not.
      */
-    if (!conf_get_int(conf, CONF_stamp_utmp)) {
-	close(pty_utmp_helper_pipe);   /* just let the child process die */
-	pty_utmp_helper_pipe = -1;
-    } else if (pty_utmp_helper_pipe >= 0) {
-	char *location = get_x_display(pty->frontend);
-	int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
-	while (pos < len) {
-	    int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
-	    if (ret < 0) {
-		perror("pterm: writing to utmp helper process");
-		close(pty_utmp_helper_pipe);   /* arrgh, just give up */
-		pty_utmp_helper_pipe = -1;
-		break;
-	    }
-	    pos += ret;
+    if (pty_utmp_helper_pipe >= 0) {   /* if it's < 0, we can't anyway */
+        if (!conf_get_int(conf, CONF_stamp_utmp)) {
+            close(pty_utmp_helper_pipe);   /* just let the child process die */
+            pty_utmp_helper_pipe = -1;
+        } else {
+            char *location = get_x_display(pty->frontend);
+            int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
+            while (pos < len) {
+                int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
+                if (ret < 0) {
+                    perror("pterm: writing to utmp helper process");
+                    close(pty_utmp_helper_pipe);   /* arrgh, just give up */
+                    pty_utmp_helper_pipe = -1;
+                    break;
+                }
+                pos += ret;
+            }
 	}
     }
 #endif
