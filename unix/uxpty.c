@@ -342,12 +342,21 @@ static void pty_open_master(Pty pty)
 #endif
         ;
 
+#ifdef HAVE_POSIX_OPENPT
+    pty->master_fd = posix_openpt(flags);
+
+    if (pty->master_fd < 0) {
+	perror("posix_openpt");
+	exit(1);
+    }
+#else
     pty->master_fd = open("/dev/ptmx", flags);
 
     if (pty->master_fd < 0) {
 	perror("/dev/ptmx: open");
 	exit(1);
     }
+#endif
 
     if (grantpt(pty->master_fd) < 0) {
 	perror("grantpt");

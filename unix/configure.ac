@@ -118,7 +118,7 @@ AC_CHECK_LIB(X11, XOpenDisplay,
              [GTK_LIBS="-lX11 $GTK_LIBS"
               AC_DEFINE([HAVE_LIBX11],[],[Define if libX11.a is available])])
 
-AC_CHECK_FUNCS([getaddrinfo ptsname setresuid strsignal updwtmpx])
+AC_CHECK_FUNCS([getaddrinfo posix_openpt ptsname setresuid strsignal updwtmpx])
 AC_CHECK_DECLS([CLOCK_MONOTONIC], [], [], [[#include <time.h>]])
 AC_SEARCH_LIBS([clock_gettime], [rt], [AC_DEFINE([HAVE_CLOCK_GETTIME],[],[Define if clock_gettime() is available])])
 
