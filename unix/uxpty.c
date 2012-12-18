@@ -335,7 +335,14 @@ static void pty_open_master(Pty pty)
     chown(pty->name, getuid(), gp ? gp->gr_gid : -1);
     chmod(pty->name, 0600);
 #else
-    pty->master_fd = open("/dev/ptmx", O_RDWR);
+
+    const int flags = O_RDWR
+#ifdef O_NOCTTY
+        | O_NOCTTY
+#endif
+        ;
+
+    pty->master_fd = open("/dev/ptmx", flags);
 
     if (pty->master_fd < 0) {
 	perror("/dev/ptmx: open");
