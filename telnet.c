@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "putty.h"
 
@@ -181,6 +182,7 @@ typedef struct telnet_tag {
     /* the above field _must_ be first in the structure */
 
     Socket s;
+    int closed_on_socket_error;
 
     void *frontend;
     void *ldisc;
@@ -676,6 +678,8 @@ static int telnet_closing(Plug plug, const char *error_msg, int error_code,
     if (telnet->s) {
         sk_close(telnet->s);
         telnet->s = NULL;
+        if (error_msg)
+            telnet->closed_on_socket_error = TRUE;
 	notify_remote_exit(telnet->frontend);
     }
     if (error_msg) {
@@ -729,6 +733,7 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->fn = &fn_table;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
+    telnet->closed_on_socket_error = FALSE;
     telnet->echoing = TRUE;
     telnet->editing = TRUE;
     telnet->activated = FALSE;
@@ -1096,6 +1101,8 @@ static int telnet_exitcode(void *handle)
     Telnet telnet = (Telnet) handle;
     if (telnet->s != NULL)
         return -1;                     /* still connected */
+    else if (telnet->closed_on_socket_error)
+        return INT_MAX;     /* a socket error counts as an unclean exit */
     else
         /* Telnet doesn't transmit exit codes back to the client */
         return 0;

@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <ctype.h>
 
 #include "putty.h"
@@ -22,6 +23,7 @@ typedef struct rlogin_tag {
     /* the above field _must_ be first in the structure */
 
     Socket s;
+    int closed_on_socket_error;
     int bufsize;
     int firstbyte;
     int cansize;
@@ -72,6 +74,8 @@ static int rlogin_closing(Plug plug, const char *error_msg, int error_code,
     if (rlogin->s) {
         sk_close(rlogin->s);
         rlogin->s = NULL;
+        if (error_msg)
+            rlogin->closed_on_socket_error = TRUE;
 	notify_remote_exit(rlogin->frontend);
     }
     if (error_msg) {
@@ -175,6 +179,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     rlogin = snew(struct rlogin_tag);
     rlogin->fn = &fn_table;
     rlogin->s = NULL;
+    rlogin->closed_on_socket_error = FALSE;
     rlogin->frontend = frontend_handle;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
@@ -392,6 +397,8 @@ static int rlogin_exitcode(void *handle)
     Rlogin rlogin = (Rlogin) handle;
     if (rlogin->s != NULL)
         return -1;                     /* still connected */
+    else if (rlogin->closed_on_socket_error)
+        return INT_MAX;     /* a socket error counts as an unclean exit */
     else
         /* If we ever implement RSH, we'll probably need to do this properly */
         return 0;

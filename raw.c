@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 #include "putty.h"
 
@@ -21,6 +22,7 @@ typedef struct raw_backend_data {
     /* the above field _must_ be first in the structure */
 
     Socket s;
+    int closed_on_socket_error;
     int bufsize;
     void *frontend;
     int sent_console_eof, sent_socket_eof;
@@ -75,6 +77,7 @@ static int raw_closing(Plug plug, const char *error_msg, int error_code,
         if (raw->s) {
             sk_close(raw->s);
             raw->s = NULL;
+            raw->closed_on_socket_error = TRUE;
             notify_remote_exit(raw->frontend);
         }
         logevent(raw->frontend, error_msg);
@@ -139,6 +142,7 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     raw = snew(struct raw_backend_data);
     raw->fn = &fn_table;
     raw->s = NULL;
+    raw->closed_on_socket_error = FALSE;
     *backend_handle = raw;
     raw->sent_console_eof = raw->sent_socket_eof = FALSE;
 
@@ -306,6 +310,8 @@ static int raw_exitcode(void *handle)
     Raw raw = (Raw) handle;
     if (raw->s != NULL)
         return -1;                     /* still connected */
+    else if (raw->closed_on_socket_error)
+        return INT_MAX;     /* a socket error counts as an unclean exit */
     else
         /* Exit codes are a meaningless concept in the Raw protocol */
         return 0;
