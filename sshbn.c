@@ -1761,7 +1761,7 @@ char *bignum_decimal(Bignum x)
 #include <ctype.h>
 
 /*
- * gcc -g -O0 -DTESTBN -o testbn sshbn.c misc.c -I unix -I charset
+ * gcc -Wall -g -O0 -DTESTBN -o testbn sshbn.c misc.c conf.c tree234.c unix/uxmisc.c -I. -I unix -I charset
  *
  * Then feed to this program's standard input the output of
  * testdata/bignum.py .
