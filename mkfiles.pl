@@ -1155,7 +1155,10 @@ if (defined $makefiles{'am'}) {
       $objtosrc{$d->{obj}} = $d->{deps}->[0];
     }
 
-    @amcflags = ("\$(COMPAT)", "\$(XFLAGS)", "\$(WARNINGOPTS)", map {"-I$dirpfx$_"} @srcdirs);
+    print &splitline(join " ", "AM_CPPFLAGS", "=",
+                     map {"-I$dirpfx$_"} @srcdirs), "\n";
+
+    @amcflags = ("\$(COMPAT)", "\$(XFLAGS)", "\$(WARNINGOPTS)");
     print "if HAVE_GTK\n";
     print &splitline(join " ", "AM_CFLAGS", "=",
                      "\$(GTK_CFLAGS)", @amcflags), "\n";
