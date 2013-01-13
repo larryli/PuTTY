@@ -31,6 +31,8 @@
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 
+#define MAY_REFER_TO_GTK_IN_HEADERS
+
 #include "putty.h"
 #include "terminal.h"
 #include "gtkfont.h"
@@ -2861,67 +2863,72 @@ void frontend_net_error_pending(void)
     }
 }
 
-void setup_fonts_ucs(struct gui_data *inst)
+char *setup_fonts_ucs(struct gui_data *inst)
 {
     int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
     FontSpec *fs;
-
-    if (inst->fonts[0])
-        unifont_destroy(inst->fonts[0]);
-    if (inst->fonts[1])
-        unifont_destroy(inst->fonts[1]);
-    if (inst->fonts[2])
-        unifont_destroy(inst->fonts[2]);
-    if (inst->fonts[3])
-        unifont_destroy(inst->fonts[3]);
+    unifont *fonts[4];
+    int i;
 
     fs = conf_get_fontspec(inst->conf, CONF_font);
-    inst->fonts[0] = multifont_create(inst->area, fs->name, FALSE, FALSE,
-                                      shadowboldoffset, shadowbold);
-    if (!inst->fonts[0]) {
-	fprintf(stderr, "%s: unable to load font \"%s\"\n", appname,
-		fs->name);
-	exit(1);
+    fonts[0] = multifont_create(inst->area, fs->name, FALSE, FALSE,
+                                shadowboldoffset, shadowbold);
+    if (!fonts[0]) {
+        return dupprintf("unable to load font \"%s\"", fs->name);
     }
 
     fs = conf_get_fontspec(inst->conf, CONF_boldfont);
     if (shadowbold || !fs->name[0]) {
-	inst->fonts[1] = NULL;
+	fonts[1] = NULL;
     } else {
-	inst->fonts[1] = multifont_create(inst->area, fs->name, FALSE, TRUE,
-                                          shadowboldoffset, shadowbold);
-	if (!inst->fonts[1]) {
-	    fprintf(stderr, "%s: unable to load bold font \"%s\"\n", appname,
-		    fs->name);
-	    exit(1);
+	fonts[1] = multifont_create(inst->area, fs->name, FALSE, TRUE,
+                                    shadowboldoffset, shadowbold);
+	if (!fonts[1]) {
+            if (fonts[0])
+                unifont_destroy(fonts[0]);
+	    return dupprintf("unable to load bold font \"%s\"", fs->name);
 	}
     }
 
     fs = conf_get_fontspec(inst->conf, CONF_widefont);
     if (fs->name[0]) {
-	inst->fonts[2] = multifont_create(inst->area, fs->name, TRUE, FALSE,
-                                          shadowboldoffset, shadowbold);
-	if (!inst->fonts[2]) {
-	    fprintf(stderr, "%s: unable to load wide font \"%s\"\n", appname,
-		    fs->name);
-	    exit(1);
+	fonts[2] = multifont_create(inst->area, fs->name, TRUE, FALSE,
+                                    shadowboldoffset, shadowbold);
+	if (!fonts[2]) {
+            for (i = 0; i < 2; i++)
+                if (fonts[i])
+                    unifont_destroy(fonts[i]);
+            return dupprintf("%s: unable to load wide font \"%s\"", fs->name);
 	}
     } else {
-	inst->fonts[2] = NULL;
+	fonts[2] = NULL;
     }
 
     fs = conf_get_fontspec(inst->conf, CONF_wideboldfont);
     if (shadowbold || !fs->name[0]) {
-	inst->fonts[3] = NULL;
+	fonts[3] = NULL;
     } else {
-	inst->fonts[3] = multifont_create(inst->area, fs->name, TRUE, TRUE,
-                                          shadowboldoffset, shadowbold);
-	if (!inst->fonts[3]) {
-	    fprintf(stderr, "%s: unable to load wide bold font \"%s\"\n", appname,
-		    fs->name);
-	    exit(1);
+	fonts[3] = multifont_create(inst->area, fs->name, TRUE, TRUE,
+                                    shadowboldoffset, shadowbold);
+	if (!fonts[3]) {
+            for (i = 0; i < 3; i++)
+                if (fonts[i])
+                    unifont_destroy(fonts[i]);
+	    return dupprintf("%s: unable to load wide bold font \"%s\"",
+                             fs->name);
 	}
+    }
+
+    /*
+     * Now we've got past all the possible error conditions, we can
+     * actually update our state.
+     */
+
+    for (i = 0; i < 4; i++) {
+        if (inst->fonts[i])
+            unifont_destroy(inst->fonts[i]);
+        inst->fonts[i] = fonts[i];
     }
 
     inst->font_width = inst->fonts[0]->width;
@@ -2932,6 +2939,8 @@ void setup_fonts_ucs(struct gui_data *inst)
 				    conf_get_int(inst->conf, CONF_utf8_override),
 				    inst->fonts[0]->public_charset,
 				    conf_get_int(inst->conf, CONF_vtmode));
+
+    return NULL;
 }
 
 void set_geom_hints(struct gui_data *inst)
@@ -3097,6 +3106,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          * Redo the whole tangled fonts and Unicode mess if
          * necessary.
          */
+        need_size = FALSE;
         if (strcmp(conf_get_fontspec(oldconf, CONF_font)->name,
 		   conf_get_fontspec(newconf, CONF_font)->name) ||
 	    strcmp(conf_get_fontspec(oldconf, CONF_boldfont)->name,
@@ -3115,10 +3125,20 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	    conf_get_int(newconf, CONF_shadowbold) ||
 	    conf_get_int(oldconf, CONF_shadowboldoffset) !=
 	    conf_get_int(newconf, CONF_shadowboldoffset)) {
-            setup_fonts_ucs(inst);
-            need_size = 1;
-        } else
-            need_size = 0;
+            char *errmsg = setup_fonts_ucs(inst);
+            if (errmsg) {
+                char *msgboxtext =
+                    dupprintf("Could not change fonts in terminal window: %s\n",
+                              errmsg);
+                messagebox(inst->window, "Font setup error", msgboxtext,
+                           string_width("Could not change fonts in terminal window:"),
+                           "OK", 'o', +1, 1,
+                           NULL);
+                sfree(errmsg);
+            } else {
+                need_size = TRUE;
+            }
+        }
 
         /*
          * Resize the window.
@@ -3631,7 +3651,13 @@ int pt_main(int argc, char **argv)
     inst->imc = gtk_im_multicontext_new();
 #endif
 
-    setup_fonts_ucs(inst);
+    {
+        char *errmsg = setup_fonts_ucs(inst);
+        if (errmsg) {
+            fprintf(stderr, "%s: %s\n", appname, errmsg);
+            exit(1);
+        }
+    }
     init_cutbuffers();
 
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

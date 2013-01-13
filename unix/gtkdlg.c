@@ -3262,7 +3262,7 @@ int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
     return dp.retval;
 }
 
-static int string_width(char *text)
+int string_width(char *text)
 {
     GtkWidget *label = gtk_label_new(text);
     GtkRequisition req;

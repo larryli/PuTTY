@@ -93,6 +93,10 @@ void *eventlogstuff_new(void);
 void showeventlog(void *estuff, void *parentwin);
 void logevent_dlg(void *estuff, const char *string);
 int reallyclose(void *frontend);
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...);
+int string_width(char *text);
+#endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
