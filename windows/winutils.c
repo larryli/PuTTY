@@ -170,12 +170,12 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
 }
 
 /*
- * Split a complete command line into argc/argv, attempting to do
- * it exactly the same way Windows itself would do it (so that
- * console utilities, which receive argc and argv from Windows,
- * will have their command lines processed in the same way as GUI
- * utilities which get a whole command line and must break it
- * themselves).
+ * Split a complete command line into argc/argv, attempting to do it
+ * exactly the same way the Visual Studio C library would do it (so
+ * that our console utilities, which receive argc and argv already
+ * broken apart by the C library, will have their command lines
+ * processed in the same way as the GUI utilities which get a whole
+ * command line and must call this function).
  * 
  * Does not modify the input command line.
  * 
@@ -196,7 +196,17 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
     int outputargc;
 
     /*
-     * At first glance the rules appeared to be:
+     * These argument-breaking rules apply to Visual Studio 7, which
+     * is currently the compiler expected to be used for PuTTY. Visual
+     * Studio 10 has different rules, lacking the curious mod 3
+     * behaviour of consecutive quotes described below; I presume they
+     * fixed a bug. As and when we migrate to a newer compiler, we'll
+     * have to adjust this to match; however, for the moment we
+     * faithfully imitate in our GUI utilities what our CLI utilities
+     * can't be prevented from doing.
+     *
+     * When I investigated this, at first glance the rules appeared to
+     * be:
      *
      *  - Single quotes are not special characters.
      *
