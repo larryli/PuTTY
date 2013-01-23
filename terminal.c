@@ -1224,6 +1224,8 @@ static void power_on(Terminal *term, int clear)
     term->alt_which = 0;
     term_print_finish(term);
     term->xterm_mouse = 0;
+    term->xterm_extended_mouse = 0;
+    term->urxvt_extended_mouse = 0;
     set_raw_mouse_mode(term->frontend, FALSE);
     term->bracketed_paste = FALSE;
     {
@@ -2490,6 +2492,12 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	  case 1002:		       /* xterm mouse 2 (inc. button drags) */
 	    term->xterm_mouse = state ? 2 : 0;
 	    set_raw_mouse_mode(term->frontend, state);
+	    break;
+	  case 1006:		       /* xterm extended mouse */
+	    term->xterm_extended_mouse = state ? 1 : 0;
+	    break;
+	  case 1015:		       /* urxvt extended mouse */
+	    term->urxvt_extended_mouse = state ? 1 : 0;
 	    break;
 	  case 1047:                   /* alternate screen */
 	    compatibility(OTHER);
@@ -5818,25 +5826,26 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
     if (raw_mouse &&
 	(term->selstate != ABOUT_TO) && (term->selstate != DRAGGING)) {
 	int encstate = 0, r, c;
-	char abuf[16];
+	char abuf[32];
+	int len = 0;
 
 	if (term->ldisc) {
 
 	    switch (braw) {
 	      case MBT_LEFT:
-		encstate = 0x20;	       /* left button down */
+		encstate = 0x00;	       /* left button down */
 		break;
 	      case MBT_MIDDLE:
-		encstate = 0x21;
+		encstate = 0x01;
 		break;
 	      case MBT_RIGHT:
-		encstate = 0x22;
+		encstate = 0x02;
 		break;
 	      case MBT_WHEEL_UP:
-		encstate = 0x60;
+		encstate = 0x40;
 		break;
 	      case MBT_WHEEL_DOWN:
-		encstate = 0x61;
+		encstate = 0x41;
 		break;
 	      default: break;	       /* placate gcc warning about enum use */
 	    }
@@ -5847,7 +5856,9 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 		encstate += 0x20;
 		break;
 	      case MA_RELEASE:
-		encstate = 0x23;
+		/* If multiple extensions are enabled, the xterm 1006 is used, so it's okay to check for only that */
+		if (!term->xterm_extended_mouse)
+		    encstate = 0x03;
 		term->mouse_is_down = 0;
 		break;
 	      case MA_CLICK:
@@ -5861,11 +5872,18 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 		encstate += 0x04;
 	    if (ctrl)
 		encstate += 0x10;
-	    r = y + 33;
-	    c = x + 33;
+	    r = y + 1;
+	    c = x + 1;
 
-	    sprintf(abuf, "\033[M%c%c%c", encstate, c, r);
-	    ldisc_send(term->ldisc, abuf, 6, 0);
+	    /* Check the extensions in decreasing order of preference. Encoding the release event above assumes that 1006 comes first. */
+	    if (term->xterm_extended_mouse) {
+		len = sprintf(abuf, "\033[<%d;%d;%d%c", encstate, c, r, a == MA_RELEASE ? 'm' : 'M');
+	    } else if (term->urxvt_extended_mouse) {
+		len = sprintf(abuf, "\033[%d;%d;%dM", encstate + 32, c, r);
+	    } else if (c <= 223 && r <= 223) {
+		len = sprintf(abuf, "\033[M%c%c%c", encstate + 32, c + 32, r + 32);
+	    }
+	    ldisc_send(term->ldisc, abuf, len, 0);
 	}
 	return;
     }
