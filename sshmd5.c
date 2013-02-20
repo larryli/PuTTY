@@ -312,11 +312,7 @@ static void hmacmd5_do_hmac_ssh(void *handle, unsigned char const *blk, int len,
 {
     unsigned char seqbuf[16];
 
-    seqbuf[0] = (unsigned char) ((seq >> 24) & 0xFF);
-    seqbuf[1] = (unsigned char) ((seq >> 16) & 0xFF);
-    seqbuf[2] = (unsigned char) ((seq >> 8) & 0xFF);
-    seqbuf[3] = (unsigned char) ((seq) & 0xFF);
-
+    PUT_32BIT_MSB_FIRST(seqbuf, seq);
     hmacmd5_do_hmac_internal(handle, seqbuf, 4, blk, len, hmac);
 }
 
