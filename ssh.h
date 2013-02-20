@@ -297,6 +297,7 @@ extern const struct ssh_mac ssh_hmac_sha1;
 extern const struct ssh_mac ssh_hmac_sha1_buggy;
 extern const struct ssh_mac ssh_hmac_sha1_96;
 extern const struct ssh_mac ssh_hmac_sha1_96_buggy;
+extern const struct ssh_mac ssh_hmac_sha256;
 
 void *aes_make_context(void);
 void aes_free_context(void *handle);

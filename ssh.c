@@ -525,7 +525,7 @@ static void ssh_channel_destroy(struct ssh_channel *c);
 const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
 
 const static struct ssh_mac *macs[] = {
-    &ssh_hmac_sha1, &ssh_hmac_sha1_96, &ssh_hmac_md5
+    &ssh_hmac_sha256, &ssh_hmac_sha1, &ssh_hmac_sha1_96, &ssh_hmac_md5
 };
 const static struct ssh_mac *buggymacs[] = {
     &ssh_hmac_sha1_buggy, &ssh_hmac_sha1_96_buggy, &ssh_hmac_md5
