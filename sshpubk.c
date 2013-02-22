@@ -647,6 +647,11 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	/* this is an old key file; warn and then continue */
 	old_keyfile_warning();
 	old_fmt = 1;
+    } else if (0 == strncmp(header, "PuTTY-User-Key-File-", 20)) {
+	/* this is a key file FROM THE FUTURE; refuse it, but with a
+         * more specific error message than the generic one below */
+	error = "PuTTY key format too new";
+	goto error;
     } else {
 	error = "not a PuTTY SSH-2 private key";
 	goto error;
@@ -891,7 +896,10 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     if (!read_header(fp, header)
 	|| (0 != strcmp(header, "PuTTY-User-Key-File-2") &&
 	    0 != strcmp(header, "PuTTY-User-Key-File-1"))) {
-	error = "not a PuTTY SSH-2 private key";
+        if (0 == strncmp(header, "PuTTY-User-Key-File-", 20))
+            error = "PuTTY key format too new";
+        else
+            error = "not a PuTTY SSH-2 private key";
 	goto error;
     }
     error = "file format error";

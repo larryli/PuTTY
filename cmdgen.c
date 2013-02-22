@@ -779,11 +779,13 @@ int main(int argc, char **argv)
 	    if (!load_encrypted) {
 		ssh2blob = ssh2_userkey_loadpub(infilename, &ssh2alg,
 						&ssh2bloblen, NULL, &error);
-		ssh2algf = find_pubkey_alg(ssh2alg);
-		if (ssh2algf)
-		    bits = ssh2algf->pubkey_bits(ssh2blob, ssh2bloblen);
-		else
-		    bits = -1;
+                if (ssh2blob) {
+                    ssh2algf = find_pubkey_alg(ssh2alg);
+                    if (ssh2algf)
+                        bits = ssh2algf->pubkey_bits(ssh2blob, ssh2bloblen);
+                    else
+                        bits = -1;
+                }
 	    } else {
 		ssh2key = ssh2_load_userkey(infilename, passphrase, &error);
 	    }
