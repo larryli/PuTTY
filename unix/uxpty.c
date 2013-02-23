@@ -531,11 +531,23 @@ void pty_pre_init(void)
 	int gid = getgid(), uid = getuid();
 	int setresgid(gid_t, gid_t, gid_t);
 	int setresuid(uid_t, uid_t, uid_t);
-	setresgid(gid, gid, gid);
-	setresuid(uid, uid, uid);
+	if (setresgid(gid, gid, gid) < 0) {
+            perror("setresgid");
+            exit(1);
+        }
+	if (setresuid(uid, uid, uid) < 0) {
+            perror("setresuid");
+            exit(1);
+        }
 #else
-	setgid(getgid());
-	setuid(getuid());
+	if (setgid(getgid()) < 0) {
+            perror("setgid");
+            exit(1);
+        }
+	if (setuid(getuid()) < 0) {
+            perror("setuid");
+            exit(1);
+        }
 #endif
     }
 }
