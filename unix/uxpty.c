@@ -270,7 +270,6 @@ static void fatal_sig_handler(int signum)
 {
     putty_signal(signum, SIG_DFL);
     cleanup_utmp();
-    setuid(getuid());
     raise(signum);
 }
 #endif
