@@ -6002,6 +6002,13 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	request_paste(term->frontend);
     }
 
+    /*
+     * Since terminal output is suppressed during drag-selects, we
+     * should make sure to write any pending output if one has just
+     * finished.
+     */
+    if (term->selstate != DRAGGING)
+        term_out(term);
     term_update(term);
 }
 
@@ -6101,6 +6108,14 @@ void term_deselect(Terminal *term)
 {
     deselect(term);
     term_update(term);
+
+    /*
+     * Since terminal output is suppressed during drag-selects, we
+     * should make sure to write any pending output if one has just
+     * finished.
+     */
+    if (term->selstate != DRAGGING)
+        term_out(term);
 }
 
 int term_ldisc(Terminal *term, int option)
