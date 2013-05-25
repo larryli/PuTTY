@@ -253,17 +253,19 @@ const char *cp_name(int codepage)
 const char *cp_enumerate(int index)
 {
     int charset;
-    if (index == 0)
-	return "Use font encoding";
-    charset = charset_localenc_nth(index-1);
-    if (charset == CS_NONE)
+    charset = charset_localenc_nth(index);
+    if (charset == CS_NONE) {
+        /* "Use font encoding" comes after all the named charsets */
+        if (charset_localenc_nth(index-1) != CS_NONE)
+            return "Use font encoding";
 	return NULL;
+    }
     return charset_to_localenc(charset);
 }
 
 int decode_codepage(char *cp_name)
 {
     if (!*cp_name)
-	return CS_NONE;		       /* use font encoding */
+	return CS_UTF8;
     return charset_from_localenc(cp_name);
 }

@@ -21,6 +21,7 @@ static const struct {
     int return_in_enum;   /* enumeration misses some charsets */
 } localencs[] = {
     { "<UNKNOWN>", CS_NONE, 0 },
+    { "UTF-8", CS_UTF8, 1 },
     { "ISO-8859-1", CS_ISO8859_1, 1 },
     { "ISO-8859-1 with X11 line drawing", CS_ISO8859_1_X11, 0 },
     { "ISO-8859-2", CS_ISO8859_2, 1 },
@@ -75,7 +76,6 @@ static const struct {
     { "VISCII", CS_VISCII, 1 },
     { "HP ROMAN8", CS_HP_ROMAN8, 1 },
     { "DEC MCS", CS_DEC_MCS, 1 },
-    { "UTF-8", CS_UTF8, 1 },
 };
 
 const char *charset_to_localenc(int charset)
