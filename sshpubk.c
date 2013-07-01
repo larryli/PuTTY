@@ -257,8 +257,8 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
 	    *blob = rsa_public_blob(&key, bloblen);
 	    freersakey(&key);
 	    ret = 1;
-	    fp = NULL;
 	}
+	fp = NULL; /* loadrsakey_main unconditionally closes fp */
     } else {
 	error = "not an SSH-1 RSA file";
     }
@@ -679,7 +679,6 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	cipher = 0;
 	cipherblk = 1;
     } else {
-	sfree(encryption);
 	goto error;
     }
 

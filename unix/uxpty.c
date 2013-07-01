@@ -633,6 +633,7 @@ int pty_real_select_result(Pty pty, int event, int status)
 	if (close_on_exit == FORCE_OFF ||
 	    (close_on_exit == AUTO && pty->exit_code != 0)) {
 	    char message[512];
+            message[0] = '\0';
 	    if (WIFEXITED(pty->exit_code))
 		sprintf(message, "\r\n[pterm: process terminated with exit"
 			" code %d]\r\n", WEXITSTATUS(pty->exit_code));

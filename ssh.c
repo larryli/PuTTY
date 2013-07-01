@@ -9685,7 +9685,7 @@ static void ssh_free(void *handle)
     while (ssh->qhead) {
 	struct queued_handler *qh = ssh->qhead;
 	ssh->qhead = qh->next;
-	sfree(ssh->qhead);
+	sfree(qh);
     }
     ssh->qhead = ssh->qtail = NULL;
 

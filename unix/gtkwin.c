@@ -1597,7 +1597,7 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     struct gui_data *inst = (struct gui_data *)frontend;
     if (n >= 16)
 	n += 256 - 16;
-    if (n > NALLCOLOURS)
+    if (n >= NALLCOLOURS)
 	return;
     real_palette_set(inst, n, r, g, b);
     if (n == 258) {
