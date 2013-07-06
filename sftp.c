@@ -366,7 +366,6 @@ struct sftp_request *sftp_find_request(struct sftp_packet *pktin)
 
     if (!req || !req->registered) {
 	fxp_internal_error("request ID mismatch\n");
-        sftp_pkt_free(pktin);
 	return NULL;
     }
 
@@ -1203,6 +1202,8 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
     struct req *rr;
 
     rreq = sftp_find_request(pktin);
+    if (!rreq)
+        return 0;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
     if (!rr)
 	return 0;		       /* this packet isn't ours */
@@ -1383,6 +1384,8 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
     int ret;
 
     rreq = sftp_find_request(pktin);
+    if (!rreq)
+        return 0;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
     if (!rr)
 	return 0;		       /* this packet isn't ours */
