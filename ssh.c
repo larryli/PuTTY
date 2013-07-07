@@ -3271,7 +3271,6 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 {
     int i, j, ret;
     unsigned char cookie[8], *ptr;
-    struct RSAKey servkey, hostkey;
     struct MD5Context md5c;
     struct do_ssh1_login_state {
 	int crLine;
@@ -3299,6 +3298,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	int commentlen;
         int dlgret;
 	Filename *keyfile;
+        struct RSAKey servkey, hostkey;
     };
     crState(do_ssh1_login_state);
 
@@ -3321,8 +3321,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     }
     memcpy(cookie, ptr, 8);
 
-    if (!ssh1_pkt_getrsakey(pktin, &servkey, &s->keystr1) ||
-	!ssh1_pkt_getrsakey(pktin, &hostkey, &s->keystr2)) {	
+    if (!ssh1_pkt_getrsakey(pktin, &s->servkey, &s->keystr1) ||
+	!ssh1_pkt_getrsakey(pktin, &s->hostkey, &s->keystr2)) {	
 	bombout(("Failed to read SSH-1 public keys from public key packet"));
 	crStop(0);
     }
@@ -3334,9 +3334,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	char logmsg[80];
 	logevent("Host key fingerprint is:");
 	strcpy(logmsg, "      ");
-	hostkey.comment = NULL;
+	s->hostkey.comment = NULL;
 	rsa_fingerprint(logmsg + strlen(logmsg),
-			sizeof(logmsg) - strlen(logmsg), &hostkey);
+			sizeof(logmsg) - strlen(logmsg), &s->hostkey);
 	logevent(logmsg);
     }
 
@@ -3351,8 +3351,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     ssh->v1_local_protoflags |= SSH1_PROTOFLAG_SCREEN_NUMBER;
 
     MD5Init(&md5c);
-    MD5Update(&md5c, s->keystr2, hostkey.bytes);
-    MD5Update(&md5c, s->keystr1, servkey.bytes);
+    MD5Update(&md5c, s->keystr2, s->hostkey.bytes);
+    MD5Update(&md5c, s->keystr1, s->servkey.bytes);
     MD5Update(&md5c, cookie, 8);
     MD5Final(s->session_id, &md5c);
 
@@ -3362,13 +3362,14 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     /*
      * Verify that the `bits' and `bytes' parameters match.
      */
-    if (hostkey.bits > hostkey.bytes * 8 ||
-	servkey.bits > servkey.bytes * 8) {
+    if (s->hostkey.bits > s->hostkey.bytes * 8 ||
+	s->servkey.bits > s->servkey.bytes * 8) {
 	bombout(("SSH-1 public keys were badly formatted"));
 	crStop(0);
     }
 
-    s->len = (hostkey.bytes > servkey.bytes ? hostkey.bytes : servkey.bytes);
+    s->len = (s->hostkey.bytes > s->servkey.bytes ?
+              s->hostkey.bytes : s->servkey.bytes);
 
     s->rsabuf = snewn(s->len, unsigned char);
 
@@ -3379,11 +3380,11 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	/*
 	 * First format the key into a string.
 	 */
-	int len = rsastr_len(&hostkey);
+	int len = rsastr_len(&s->hostkey);
 	char fingerprint[100];
 	char *keystr = snewn(len, char);
-	rsastr_fmt(keystr, &hostkey);
-	rsa_fingerprint(fingerprint, sizeof(fingerprint), &hostkey);
+	rsastr_fmt(keystr, &s->hostkey);
+	rsa_fingerprint(fingerprint, sizeof(fingerprint), &s->hostkey);
 
         ssh_set_frozen(ssh, 1);
 	s->dlgret = verify_ssh_host_key(ssh->frontend,
@@ -3417,14 +3418,14 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    s->rsabuf[i] ^= s->session_id[i];
     }
 
-    if (hostkey.bytes > servkey.bytes) {
-	ret = rsaencrypt(s->rsabuf, 32, &servkey);
+    if (s->hostkey.bytes > s->servkey.bytes) {
+	ret = rsaencrypt(s->rsabuf, 32, &s->servkey);
 	if (ret)
-	    ret = rsaencrypt(s->rsabuf, servkey.bytes, &hostkey);
+	    ret = rsaencrypt(s->rsabuf, s->servkey.bytes, &s->hostkey);
     } else {
-	ret = rsaencrypt(s->rsabuf, 32, &hostkey);
+	ret = rsaencrypt(s->rsabuf, 32, &s->hostkey);
 	if (ret)
-	    ret = rsaencrypt(s->rsabuf, hostkey.bytes, &servkey);
+	    ret = rsaencrypt(s->rsabuf, s->hostkey.bytes, &s->servkey);
     }
     if (!ret) {
 	bombout(("SSH-1 public key encryptions failed due to bad formatting"));
@@ -3527,21 +3528,21 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     ssh->crcda_ctx = crcda_make_context();
     logevent("Installing CRC compensation attack detector");
 
-    if (servkey.modulus) {
-	sfree(servkey.modulus);
-	servkey.modulus = NULL;
+    if (s->servkey.modulus) {
+	sfree(s->servkey.modulus);
+	s->servkey.modulus = NULL;
     }
-    if (servkey.exponent) {
-	sfree(servkey.exponent);
-	servkey.exponent = NULL;
+    if (s->servkey.exponent) {
+	sfree(s->servkey.exponent);
+	s->servkey.exponent = NULL;
     }
-    if (hostkey.modulus) {
-	sfree(hostkey.modulus);
-	hostkey.modulus = NULL;
+    if (s->hostkey.modulus) {
+	sfree(s->hostkey.modulus);
+	s->hostkey.modulus = NULL;
     }
-    if (hostkey.exponent) {
-	sfree(hostkey.exponent);
-	hostkey.exponent = NULL;
+    if (s->hostkey.exponent) {
+	sfree(s->hostkey.exponent);
+	s->hostkey.exponent = NULL;
     }
     crWaitUntil(pktin);
 
