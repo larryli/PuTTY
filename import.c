@@ -290,7 +290,7 @@ static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
     if (len < 4)
         goto error;
     bytes = GET_32BIT(d);
-    if (len < 4+bytes)
+    if (bytes < 0 || len-4 < bytes)
         goto error;
 
     ret->start = d + 4;
