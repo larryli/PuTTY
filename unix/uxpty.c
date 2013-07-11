@@ -411,6 +411,7 @@ void pty_pre_init(void)
 #endif
 
     pty = single_pty = snew(struct pty_tag);
+    pty->conf = NULL;
     bufchain_init(&pty->output_data);
 
     /* set the child signal handler straight away; it needs to be set
@@ -725,6 +726,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 
     if (single_pty) {
 	pty = single_pty;
+        assert(pty->conf == NULL);
     } else {
 	pty = snew(struct pty_tag);
 	pty->master_fd = pty->slave_fd = -1;
@@ -967,7 +969,17 @@ static void pty_free(void *handle)
     del234(ptys_by_pid, pty);
     del234(ptys_by_fd, pty);
 
-    sfree(pty);
+    conf_free(pty->conf);
+    pty->conf = NULL;
+
+    if (pty == single_pty) {
+        /*
+         * Leave this structure around in case we need to Restart
+         * Session.
+         */
+    } else {
+        sfree(pty);
+    }
 }
 
 static void pty_try_write(Pty pty)
