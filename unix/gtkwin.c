@@ -1223,7 +1223,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
+    if (inst->ldisc)
+        lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
     show_mouseptr(inst, 0);
     term_seen_key_event(inst->term);
 }
@@ -3032,9 +3033,10 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          * Flush the line discipline's edit buffer in the case
          * where local editing has just been disabled.
          */
-	ldisc_configure(inst->ldisc, inst->conf);
-        if (inst->ldisc)
+        if (inst->ldisc) {
+            ldisc_configure(inst->ldisc, inst->conf);
 	    ldisc_send(inst->ldisc, NULL, 0, 0);
+        }
         /* Pass new config data to the terminal */
         term_reconfig(inst->term, inst->conf);
         /* Pass new config data to the back end */
