@@ -773,6 +773,8 @@ void scp_sftp_listdir(char *dirname)
 	 */
 	for (i = 0; i < nnames; i++)
 	    printf("%s\n", ournames[i].longname);
+
+        sfree(ournames);
     }
 }
 
@@ -891,6 +893,7 @@ int scp_send_filename(char *name, uint64 size, int permissions)
 	if (!scp_sftp_filehandle) {
 	    tell_user(stderr, "pscp: unable to open %s: %s",
 		      fullname, fxp_error());
+            sfree(fullname);
 	    errs++;
 	    return 1;
 	}
@@ -1059,6 +1062,7 @@ int scp_send_dirname(char *name, int modes)
 	    !(attrs.permissions & 0040000)) {
 	    tell_user(stderr, "unable to create directory %s: %s",
 		      fullname, err);
+            sfree(fullname);
 	    errs++;
 	    return 1;
 	}
@@ -1279,6 +1283,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	if (!ret || !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
 	    tell_user(stderr, "unable to identify %s: %s", fname,
 		      ret ? "file type not supplied" : fxp_error());
+            if (must_free_fname) sfree(fname);
 	    errs++;
 	    return 1;
 	}
@@ -1930,27 +1935,34 @@ static void sink(char *targ, char *src)
 	if (act.action == SCP_SINK_DIR) {
 	    if (exists && attr != FILE_TYPE_DIRECTORY) {
 		run_err("%s: Not a directory", destfname);
+                sfree(destfname);
 		continue;
 	    }
 	    if (!exists) {
 		if (!create_directory(destfname)) {
 		    run_err("%s: Cannot create directory", destfname);
+                    sfree(destfname);
 		    continue;
 		}
 	    }
 	    sink(destfname, NULL);
 	    /* can we set the timestamp for directories ? */
+            sfree(destfname);
 	    continue;
 	}
 
 	f = open_new_file(destfname, act.permissions);
 	if (f == NULL) {
 	    run_err("%s: Cannot create file", destfname);
+            sfree(destfname);
 	    continue;
 	}
 
-	if (scp_accept_filexfer())
+	if (scp_accept_filexfer()) {
+            sfree(destfname);
+            close_wfile(f);
 	    return;
+        }
 
 	stat_bytes = uint64_make(0, 0);
 	stat_starttime = time(NULL);
@@ -1994,9 +2006,11 @@ static void sink(char *targ, char *src)
 	    set_file_times(f, act.mtime, act.atime);
 	}
 
+	sfree(stat_name);
 	close_wfile(f);
 	if (wrerror) {
 	    run_err("%s: Write error", destfname);
+            sfree(destfname);
 	    continue;
 	}
 	(void) scp_finish_filerecv();

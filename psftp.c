@@ -922,6 +922,7 @@ int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
 		printf("%s: canonify: %s\n", newname, fxp_error());
 		ret = 0;
 	    }
+            sfree(newname);
 	    matched = TRUE;
 	    ret &= func(ctx, cname);
 	    sfree(cname);
