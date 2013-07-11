@@ -2288,6 +2288,8 @@ static fontinfo *update_for_intended_size(unifontsel_internal *fs,
      */
     below = findrelpos234(fs->fonts_by_selorder, &info2, NULL,
 			  REL234_LE, &pos);
+    if (!below)
+        pos = -1;
     above = index234(fs->fonts_by_selorder, pos+1);
 
     /*
@@ -2295,7 +2297,7 @@ static fontinfo *update_for_intended_size(unifontsel_internal *fs,
      * case. If we have, it'll be in `below' and not `above',
      * because we did a REL234_LE rather than REL234_LT search.
      */
-    if (!fontinfo_selorder_compare(&info2, below))
+    if (below && !fontinfo_selorder_compare(&info2, below))
 	return below;
 
     /*
