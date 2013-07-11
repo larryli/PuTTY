@@ -291,6 +291,11 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		    if (fxp_error_type() == SSH_FX_EOF)
 			break;
 		    printf("%s: reading directory: %s\n", fname, fxp_error());
+
+                    req = fxp_close_send(dirhandle);
+                    pktin = sftp_wait_for_reply(req);
+                    fxp_close_recv(pktin, req);
+
 		    sfree(ournames);
 		    return 0;
 		}

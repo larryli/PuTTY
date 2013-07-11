@@ -1348,6 +1348,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 			break;
 		    tell_user(stderr, "scp: reading directory %s: %s\n",
 			      fname, fxp_error());
+
+                    req = fxp_close_send(dirhandle);
+                    pktin = sftp_wait_for_reply(req);
+                    fxp_close_recv(pktin, req);
+
 		    if (must_free_fname) sfree(fname);
 		    sfree(ournames);
 		    errs++;
