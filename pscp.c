@@ -765,7 +765,8 @@ void scp_sftp_listdir(char *dirname)
 	 * Now we have our filenames. Sort them by actual file
 	 * name, and then output the longname parts.
 	 */
-	qsort(ournames, nnames, sizeof(*ournames), sftp_ls_compare);
+        if (nnames > 0)
+            qsort(ournames, nnames, sizeof(*ournames), sftp_ls_compare);
 
 	/*
 	 * And print them.

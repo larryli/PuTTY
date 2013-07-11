@@ -327,7 +327,8 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	     * readdirs on the same remote directory return a
 	     * different order.
 	     */
-	    qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
+            if (nnames > 0)
+                qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
 
 	    /*
 	     * If we're in restart mode, find the last filename on
@@ -570,7 +571,8 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	 * same directory, just in case two readdirs on the same
 	 * local directory return a different order.
 	 */
-	qsort(ournames, nnames, sizeof(*ournames), bare_name_compare);
+        if (nnames > 0)
+            qsort(ournames, nnames, sizeof(*ournames), bare_name_compare);
 
 	/*
 	 * If we're in restart mode, find the last filename on this
@@ -1093,7 +1095,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	 * Now we have our filenames. Sort them by actual file
 	 * name, and then output the longname parts.
 	 */
-	qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
+        if (nnames > 0)
+            qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
 
 	/*
 	 * And print them.
