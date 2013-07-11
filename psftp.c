@@ -468,6 +468,8 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		printf("error while reading: %s\n", fxp_error());
 		shown_err = TRUE;
 	    }
+            if (ret == INT_MIN)        /* pktin not even freed */
+                sfree(pktin);
             ret = 0;
 	}
 
@@ -720,9 +722,13 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	if (!xfer_done(xfer)) {
 	    pktin = sftp_recv();
 	    ret = xfer_upload_gotpkt(xfer, pktin);
-	    if (ret <= 0 && !err) {
-		printf("error while writing: %s\n", fxp_error());
-		err = 1;
+	    if (ret <= 0) {
+                if (ret == INT_MIN)        /* pktin not even freed */
+                    sfree(pktin);
+                if (!err) {
+                    printf("error while writing: %s\n", fxp_error());
+                    err = 1;
+                }
 	    }
 	}
     }

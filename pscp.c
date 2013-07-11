@@ -928,6 +928,8 @@ int scp_send_filedata(char *data, int len)
 	    ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
 	    if (ret <= 0) {
 		tell_user(stderr, "error while writing: %s", fxp_error());
+                if (ret == INT_MIN)        /* pktin not even freed */
+                    sfree(pktin);
 		errs++;
 		return 1;
 	    }
@@ -969,6 +971,8 @@ int scp_send_finish(void)
 	    ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
 	    if (ret <= 0) {
 		tell_user(stderr, "error while writing: %s", fxp_error());
+                if (ret == INT_MIN)        /* pktin not even freed */
+                    sfree(pktin);
 		errs++;
 		return 1;
 	    }
@@ -1566,6 +1570,8 @@ int scp_recv_filedata(char *data, int len)
 	ret = xfer_download_gotpkt(scp_sftp_xfer, pktin);
 	if (ret <= 0) {
 	    tell_user(stderr, "pscp: error while reading: %s", fxp_error());
+            if (ret == INT_MIN)        /* pktin not even freed */
+                sfree(pktin);
 	    errs++;
 	    return -1;
 	}
@@ -1611,6 +1617,8 @@ int scp_finish_filerecv(void)
 	    ret = xfer_download_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
                 tell_user(stderr, "pscp: error while reading: %s", fxp_error());
+                if (ret == INT_MIN)        /* pktin not even freed */
+                    sfree(pktin);
                 errs++;
                 return -1;
             }

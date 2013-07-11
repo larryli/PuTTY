@@ -1196,6 +1196,10 @@ struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64 offset)
     return xfer;
 }
 
+/*
+ * Returns INT_MIN to indicate that it didn't even get as far as
+ * fxp_read_recv and hence has not freed pktin.
+ */
 int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 {
     struct sftp_request *rreq;
@@ -1203,10 +1207,12 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 
     rreq = sftp_find_request(pktin);
     if (!rreq)
-        return 0;            /* this packet doesn't even make sense */
+        return INT_MIN;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
-    if (!rr)
-	return 0;		       /* this packet isn't ours */
+    if (!rr) {
+        fxp_internal_error("request ID is not part of the current download");
+	return INT_MIN;		       /* this packet isn't ours */
+    }
     rr->retlen = fxp_read_recv(pktin, rreq, rr->buffer, rr->len);
 #ifdef DEBUG_DOWNLOAD
     printf("read request %p has returned [%d]\n", rr, rr->retlen);
@@ -1377,6 +1383,10 @@ void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len)
 #endif
 }
 
+/*
+ * Returns INT_MIN to indicate that it didn't even get as far as
+ * fxp_write_recv and hence has not freed pktin.
+ */
 int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 {
     struct sftp_request *rreq;
@@ -1385,10 +1395,12 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 
     rreq = sftp_find_request(pktin);
     if (!rreq)
-        return 0;            /* this packet doesn't even make sense */
+        return INT_MIN;            /* this packet doesn't even make sense */
     rr = (struct req *)fxp_get_userdata(rreq);
-    if (!rr)
-	return 0;		       /* this packet isn't ours */
+    if (!rr) {
+        fxp_internal_error("request ID is not part of the current upload");
+	return INT_MIN;		       /* this packet isn't ours */
+    }
     ret = fxp_write_recv(pktin, rreq);
 #ifdef DEBUG_UPLOAD
     printf("write request %p has returned [%d]\n", rr, ret);
