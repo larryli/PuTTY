@@ -1379,13 +1379,11 @@ static gint idle_exit_func(gpointer data)
 	    ldisc_free(inst->ldisc);
 	    inst->ldisc = NULL;
 	}
-	if (inst->back) {
-	    inst->back->free(inst->backhandle);
-	    inst->backhandle = NULL;
-	    inst->back = NULL;
-            term_provide_resize_fn(inst->term, NULL, NULL);
-	    update_specials_menu(inst);
-	}
+        inst->back->free(inst->backhandle);
+        inst->backhandle = NULL;
+        inst->back = NULL;
+        term_provide_resize_fn(inst->term, NULL, NULL);
+        update_specials_menu(inst);
 	gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
 
