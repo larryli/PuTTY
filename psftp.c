@@ -342,11 +342,8 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
                 while (i < nnames) {
                     char *nextoutfname;
                     int ret;
-                    if (outfname)
-                        nextoutfname = dir_file_cat(outfname,
-                                                    ournames[i]->filename);
-                    else
-                        nextoutfname = dupstr(ournames[i]->filename);
+                    nextoutfname = dir_file_cat(outfname,
+                                                ournames[i]->filename);
                     ret = (file_type(nextoutfname) == FILE_TYPE_NONEXISTENT);
                     sfree(nextoutfname);
                     if (ret)
@@ -368,11 +365,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		int ret;
 		
 		nextfname = dupcat(fname, "/", ournames[i]->filename, NULL);
-		if (outfname)
-		    nextoutfname = dir_file_cat(outfname,
-						ournames[i]->filename);
-		else
-		    nextoutfname = dupstr(ournames[i]->filename);
+                nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
 		ret = sftp_get_file(nextfname, nextoutfname, recurse, restart);
 		restart = FALSE;       /* after first partial file, do full */
 		sfree(nextoutfname);
@@ -614,10 +607,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	    char *nextfname, *nextoutfname;
 	    int ret;
 
-	    if (fname)
-		nextfname = dir_file_cat(fname, ournames[i]);
-	    else
-		nextfname = dupstr(ournames[i]);
+            nextfname = dir_file_cat(fname, ournames[i]);
 	    nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
 	    ret = sftp_put_file(nextfname, nextoutfname, recurse, restart);
 	    restart = FALSE;	       /* after first partial file, do full */
