@@ -74,7 +74,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     /* Next, the comment field. */
     j = GET_32BIT(buf + i);
     i += 4;
-    if (len - i < j)
+    if (j < 0 || len - i < j)
 	goto end;
     comment = snewn(j + 1, char);
     if (comment) {
