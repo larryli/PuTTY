@@ -526,7 +526,7 @@ static void do_cmd(char *host, char *user, char *cmd)
     console_provide_logctx(logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL && errs == 0)
-	tell_user(stderr, "Connected to %s\n", realhost);
+	tell_user(stderr, "Connected to %s", realhost);
     sfree(realhost);
 }
 
@@ -675,7 +675,7 @@ static int response(void)
 	} while (p < sizeof(rbuf) && ch != '\n');
 	rbuf[p - 1] = '\0';
 	if (resp == 1)
-	    tell_user(stderr, "%s\n", rbuf);
+	    tell_user(stderr, "%s", rbuf);
 	else
 	    bump("%s", rbuf);
 	errs++;
@@ -927,7 +927,7 @@ int scp_send_filedata(char *data, int len)
 	    pktin = sftp_recv();
 	    ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
 	    if (ret <= 0) {
-		tell_user(stderr, "error while writing: %s\n", fxp_error());
+		tell_user(stderr, "error while writing: %s", fxp_error());
 		errs++;
 		return 1;
 	    }
@@ -968,7 +968,7 @@ int scp_send_finish(void)
 	    pktin = sftp_recv();
 	    ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
 	    if (ret <= 0) {
-		tell_user(stderr, "error while writing: %s\n", fxp_error());
+		tell_user(stderr, "error while writing: %s", fxp_error());
 		errs++;
 		return 1;
 	    }
@@ -986,7 +986,7 @@ int scp_send_finish(void)
             pktin = sftp_wait_for_reply(req);
 	    ret = fxp_fsetstat_recv(pktin, req);
 	    if (!ret) {
-		tell_user(stderr, "unable to set file times: %s\n", fxp_error());
+		tell_user(stderr, "unable to set file times: %s", fxp_error());
 		errs++;
 	    }
 	}
@@ -1328,7 +1328,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    dirhandle = fxp_opendir_recv(pktin, req);
 
 	    if (!dirhandle) {
-		tell_user(stderr, "scp: unable to open directory %s: %s",
+		tell_user(stderr, "pscp: unable to open directory %s: %s",
 			  fname, fxp_error());
 		if (must_free_fname) sfree(fname);
 		errs++;
@@ -1346,7 +1346,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		if (names == NULL) {
 		    if (fxp_error_type() == SSH_FX_EOF)
 			break;
-		    tell_user(stderr, "scp: reading directory %s: %s\n",
+		    tell_user(stderr, "pscp: reading directory %s: %s",
 			      fname, fxp_error());
 
                     req = fxp_close_send(dirhandle);
@@ -1376,7 +1376,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 			 */
 		    } else if (!vet_filename(names->names[i].filename)) {
 			tell_user(stderr, "ignoring potentially dangerous server-"
-				  "supplied filename '%s'\n",
+				  "supplied filename '%s'",
 				  names->names[i].filename);
 		    } else
 			ournames[nnames++] = names->names[i];
@@ -1479,7 +1479,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    act->buf[i - 1] = '\0';
 	    switch (action) {
 	      case '\01':		       /* error */
-		tell_user(stderr, "%s\n", act->buf);
+		tell_user(stderr, "%s", act->buf);
 		errs++;
 		continue;		       /* go round again */
 	      case '\02':		       /* fatal error */
@@ -1640,7 +1640,7 @@ static void run_err(const char *fmt, ...)
     va_start(ap, fmt);
     errs++;
     str = dupvprintf(fmt, ap);
-    str2 = dupcat("scp: ", str, "\n", NULL);
+    str2 = dupcat("pscp: ", str, "\n", NULL);
     sfree(str);
     scp_send_errmsg(str2);
     tell_user(stderr, "%s", str2);
