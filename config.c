@@ -1347,13 +1347,13 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
-    c = ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
-			  HELPCTX(session_coe),
-			  conf_radiobutton_handler,
-			  I(CONF_close_on_exit),
-			  "Always", I(FORCE_ON),
-			  "Never", I(FORCE_OFF),
-			  "Only on clean exit", I(AUTO), NULL);
+    ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
+                      HELPCTX(session_coe),
+                      conf_radiobutton_handler,
+                      I(CONF_close_on_exit),
+                      "Always", I(FORCE_ON),
+                      "Never", I(FORCE_OFF),
+                      "Only on clean exit", I(AUTO), NULL);
 
     /*
      * The Session/Logging panel.
