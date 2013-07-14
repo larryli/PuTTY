@@ -5909,6 +5909,16 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	ssh_pkt_getstring(pktin, &str, &len);  /* server->client language */
 	s->ignorepkt = ssh2_pkt_getbool(pktin) && !s->guessok;
 
+	ssh->exhash = ssh->kex->hash->init();
+	hash_string(ssh->kex->hash, ssh->exhash, ssh->v_c, strlen(ssh->v_c));
+	hash_string(ssh->kex->hash, ssh->exhash, ssh->v_s, strlen(ssh->v_s));
+	hash_string(ssh->kex->hash, ssh->exhash,
+	    s->our_kexinit, s->our_kexinitlen);
+	sfree(s->our_kexinit);
+	if (pktin->length > 5)
+	    hash_string(ssh->kex->hash, ssh->exhash,
+		pktin->data + 5, pktin->length - 5);
+
 	if (s->warn_kex) {
 	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend, "key-exchange algorithm",
@@ -5982,16 +5992,6 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		crStopV;
 	    }
 	}
-
-	ssh->exhash = ssh->kex->hash->init();
-	hash_string(ssh->kex->hash, ssh->exhash, ssh->v_c, strlen(ssh->v_c));
-	hash_string(ssh->kex->hash, ssh->exhash, ssh->v_s, strlen(ssh->v_s));
-	hash_string(ssh->kex->hash, ssh->exhash,
-	    s->our_kexinit, s->our_kexinitlen);
-	sfree(s->our_kexinit);
-	if (pktin->length > 5)
-	    hash_string(ssh->kex->hash, ssh->exhash,
-		pktin->data + 5, pktin->length - 5);
 
 	if (s->ignorepkt) /* first_kex_packet_follows */
 	    crWaitUntilV(pktin);                /* Ignore packet */
