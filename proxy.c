@@ -473,6 +473,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 				   conf_get_int(conf, CONF_addressfamily));
 	if (sk_addr_error(proxy_addr) != NULL) {
 	    ret->error = "Proxy error: Unable to resolve proxy host name";
+            sfree(pplug);
 	    return (Socket)ret;
 	}
 	sfree(proxy_canonical_name);

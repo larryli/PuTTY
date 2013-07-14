@@ -297,6 +297,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 
     if (pid < 0) {
 	ret->error = dupprintf("fork: %s", strerror(errno));
+        sfree(cmd);
 	return (Socket)ret;
     } else if (pid == 0) {
 	close(0);

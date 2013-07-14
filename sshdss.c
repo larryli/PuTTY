@@ -289,6 +289,8 @@ static int dss_verifysig(void *key, char *sig, int siglen,
 
     freebn(w);
     freebn(sha);
+    freebn(u1);
+    freebn(u2);
     freebn(gu1p);
     freebn(yu2p);
     freebn(gu1yu2p);
@@ -404,6 +406,7 @@ static void *dss_createkey(unsigned char *pub_blob, int pub_len,
     ytest = modpow(dss->g, dss->x, dss->p);
     if (0 != bignum_cmp(ytest, dss->y)) {
 	dss_freekey(dss);
+        freebn(ytest);
 	return NULL;
     }
     freebn(ytest);

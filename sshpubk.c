@@ -1008,6 +1008,8 @@ int ssh2_userkey_encrypted(const Filename *filename, char **commentptr)
 
     if (commentptr)
 	*commentptr = comment;
+    else
+        sfree(comment);
 
     fclose(fp);
     if (!strcmp(b, "aes256-cbc"))

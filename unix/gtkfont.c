@@ -191,8 +191,10 @@ static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
 		p++;
 	    }
 
-	    if (nstr < lenof(strings))
+	    if (nstr < lenof(strings)) {
+                sfree(dupname);
 		return NULL;	       /* XLFD was malformed */
+            }
 
 	    if (bold)
 		strings[2] = "bold";

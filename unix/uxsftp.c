@@ -565,6 +565,7 @@ char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
 	ret = ssh_sftp_do_select(TRUE, no_fds_ok);
 	if (ret < 0) {
 	    printf("connection died\n");
+            sfree(buf);
 	    return NULL;	       /* woop woop */
 	}
 	if (ret > 0) {
@@ -575,10 +576,12 @@ char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
 	    ret = read(0, buf+buflen, 1);
 	    if (ret < 0) {
 		perror("read");
+                sfree(buf);
 		return NULL;
 	    }
 	    if (ret == 0) {
 		/* eof on stdin; no error, but no answer either */
+                sfree(buf);
 		return NULL;
 	    }
 

@@ -171,6 +171,7 @@ struct X11Display *x11_setup_display(char *display, int authtype, Conf *conf)
 	    sk_addr_free(disp->addr);
 	    sfree(disp->hostname);
 	    sfree(disp->unixsocketpath);
+	    sfree(disp);
 	    return NULL;	       /* FIXME: report an error */
 	}
     }
@@ -343,7 +344,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
     int len[4];
     int family, protocol;
     int ideal_match = FALSE;
-    char *ourhostname = get_hostname();
+    char *ourhostname;
 
     /*
      * Normally we should look for precisely the details specified in
@@ -371,6 +372,8 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
     authfp = fopen(authfilename, "rb");
     if (!authfp)
 	return;
+
+    ourhostname = get_hostname();
 
     /* Records in .Xauthority contain four strings of up to 64K each */
     buf = snewn(65537 * 4, char);

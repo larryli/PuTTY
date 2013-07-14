@@ -413,6 +413,7 @@ int rsa_verify(struct RSAKey *key)
     pm1 = copybn(key->p);
     decbn(pm1);
     ed = modmul(key->exponent, key->private_exponent, pm1);
+    freebn(pm1);
     cmp = bignum_cmp(ed, One);
     sfree(ed);
     if (cmp != 0)
@@ -421,6 +422,7 @@ int rsa_verify(struct RSAKey *key)
     qm1 = copybn(key->q);
     decbn(qm1);
     ed = modmul(key->exponent, key->private_exponent, qm1);
+    freebn(qm1);
     cmp = bignum_cmp(ed, One);
     sfree(ed);
     if (cmp != 0)

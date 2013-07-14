@@ -386,6 +386,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
 
     pr->s = *s = new_connection(addr, dummy_realhost, port,
 				0, 1, 0, 0, (Plug) pr, conf);
+    sfree(dummy_realhost);
     if ((err = sk_socket_error(*s)) != NULL) {
 	free_portfwd_private(pr);
 	return err;

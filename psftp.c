@@ -1035,6 +1035,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	char *tmpdir;
 	int len, check;
 
+        sfree(unwcdir);
 	wildcard = stripslashes(dir, 0);
 	unwcdir = dupstr(dir);
 	len = wildcard - dir;
@@ -2233,6 +2234,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	cmd->obey = sftp_cmd_quit;
 	if ((mode == 0) || (modeflags & 1))
 	    printf("quit\n");
+        sfree(line);
 	return cmd;		       /* eof */
     }
 

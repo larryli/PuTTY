@@ -308,6 +308,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     {
 	char *msg = dupprintf("Opening serial device %s", line);
 	logevent(serial->frontend, msg);
+        sfree(msg);
     }
 
     serial->fd = open(line, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);

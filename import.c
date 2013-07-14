@@ -370,8 +370,10 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	}
 	strip_crlf(line);
 	if (0 == strncmp(line, "-----END ", 9) &&
-	    0 == strcmp(line+strlen(line)-16, "PRIVATE KEY-----"))
+	    0 == strcmp(line+strlen(line)-16, "PRIVATE KEY-----")) {
+            sfree(line);
 	    break;		       /* done */
+        }
 	if ((p = strchr(line, ':')) != NULL) {
 	    if (headers_done) {
 		errmsg = "header found in body of key data";
@@ -1091,8 +1093,10 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 	    goto error;
 	}
 	strip_crlf(line);
-        if (!strcmp(line, "---- END SSH2 ENCRYPTED PRIVATE KEY ----"))
+        if (!strcmp(line, "---- END SSH2 ENCRYPTED PRIVATE KEY ----")) {
+            sfree(line);
             break;                     /* done */
+        }
 	if ((p = strchr(line, ':')) != NULL) {
 	    if (headers_done) {
 		errmsg = "header found in body of key data";
@@ -1181,10 +1185,14 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 	goto error;
     }
 
+    fclose(fp);
     if (errmsg_p) *errmsg_p = NULL;
     return ret;
 
     error:
+    if (fp)
+        fclose(fp);
+
     if (line) {
 	smemclr(line, strlen(line));
 	sfree(line);
@@ -1207,20 +1215,22 @@ int sshcom_encrypted(const Filename *filename, char **comment)
     struct sshcom_key *key = load_sshcom_key(filename, NULL);
     int pos, len, answer;
 
+    answer = 0;
+
     *comment = NULL;
     if (!key)
-        return 0;
+        goto done;
 
     /*
      * Check magic number.
      */
-    if (GET_32BIT(key->keyblob) != 0x3f6ff9eb)
-        return 0;                      /* key is invalid */
+    if (GET_32BIT(key->keyblob) != 0x3f6ff9eb) {
+        goto done;                     /* key is invalid */
+    }
 
     /*
      * Find the cipher-type string.
      */
-    answer = 0;
     pos = 8;
     if (key->keyblob_len < pos+4)
         goto done;                     /* key is far too short */
@@ -1235,7 +1245,7 @@ int sshcom_encrypted(const Filename *filename, char **comment)
         answer = 1;
 
     done:
-    *comment = dupstr(key->comment);
+    *comment = dupstr(key ? key->comment : "");
     smemclr(key->keyblob, key->keyblob_size);
     sfree(key->keyblob);
     smemclr(key, sizeof(*key));

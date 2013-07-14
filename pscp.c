@@ -1118,6 +1118,9 @@ int scp_sink_setup(char *source, int preserve, int recursive)
 	if (!wc_unescape(newsource, source)) {
 	    /* Yes, here we go; it's a wildcard. Bah. */
 	    char *dupsource, *lastpart, *dirpart, *wildcard;
+
+	    sfree(newsource);
+
 	    dupsource = dupstr(source);
 	    lastpart = stripslashes(dupsource, 0);
 	    wildcard = dupstr(lastpart);
@@ -1722,8 +1725,10 @@ static void source(char *src)
 	return;
     }
     if (preserve) {
-	if (scp_send_filetimes(mtime, atime))
+	if (scp_send_filetimes(mtime, atime)) {
+            close_rfile(f);
 	    return;
+        }
     }
 
     if (verbose) {
@@ -1731,8 +1736,10 @@ static void source(char *src)
 	uint64_decimal(size, sizestr);
 	tell_user(stderr, "Sending file %s, size=%s", last, sizestr);
     }
-    if (scp_send_filename(last, size, permissions))
+    if (scp_send_filename(last, size, permissions)) {
+        close_rfile(f);
 	return;
+    }
 
     stat_bytes = uint64_make(0,0);
     stat_starttime = time(NULL);

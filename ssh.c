@@ -4869,14 +4869,11 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 {
     /* Remote side is trying to open a channel to talk to a
      * forwarded port. Give them back a local channel number. */
-    struct ssh_channel *c;
     struct ssh_rportfwd pf, *pfp;
     int remoteid;
     int hostsize, port;
     char *host;
     const char *e;
-    c = snew(struct ssh_channel);
-    c->ssh = ssh;
 
     remoteid = ssh_pkt_getuint32(pktin);
     ssh_pkt_getstring(pktin, &host, &hostsize);
@@ -4895,6 +4892,9 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 		    PKT_INT, remoteid, PKT_END);
     } else {
+        struct ssh_channel *c = snew(struct ssh_channel);
+        c->ssh = ssh;
+
 	logeventf(ssh, "Received remote port open request for %s:%d",
 		  pf.dhost, port);
 	e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,

@@ -3009,7 +3009,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	4, 12, 5, 13, 6, 14, 7, 15
     };
     struct gui_data *inst = (struct gui_data *)data;
-    char *title = dupcat(appname, " Reconfiguration", NULL);
+    char *title;
     Conf *oldconf, *newconf;
     int i, j, need_size;
 
@@ -3019,6 +3019,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
       return;
     else
       inst->reconfiguring = TRUE;
+
+    title = dupcat(appname, " Reconfiguration", NULL);
 
     oldconf = inst->conf;
     newconf = conf_copy(inst->conf);
@@ -3134,6 +3136,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
                            string_width("Could not change fonts in terminal window:"),
                            "OK", 'o', +1, 1,
                            NULL);
+                sfree(msgboxtext);
                 sfree(errmsg);
             } else {
                 need_size = TRUE;
@@ -3228,6 +3231,7 @@ void fork_and_exec_self(struct gui_data *inst, int fd_to_close, ...)
     pid = fork();
     if (pid < 0) {
 	perror("fork");
+        sfree(args);
 	return;
     }
 
@@ -3261,6 +3265,7 @@ void fork_and_exec_self(struct gui_data *inst, int fd_to_close, ...)
 
     } else {
 	int status;
+        sfree(args);
 	waitpid(pid, &status, 0);
     }
 
@@ -3339,6 +3344,7 @@ int read_dupsession_data(struct gui_data *inst, Conf *conf, char *arg)
     }
 
     size_used = conf_deserialise(conf, data, size);
+    sfree(data);
     if (use_pty_argv && size > size_used) {
 	int n = 0;
 	i = size_used;

@@ -299,8 +299,10 @@ void *open_settings_r(const char *sessionname)
         char *value = strchr(line, '=');
         struct skeyval *kv;
 
-        if (!value)
+        if (!value) {
+            sfree(line);
             continue;
+        }
         *value++ = '\0';
         value[strcspn(value, "\r\n")] = '\0';   /* trim trailing NL */
 
@@ -589,9 +591,6 @@ void store_host_key(const char *hostname, int port,
     int headerlen;
     char *filename, *tmpfilename;
 
-    newtext = dupprintf("%s@%d:%s %s\n", keytype, port, hostname, key);
-    headerlen = 1 + strcspn(newtext, " ");   /* count the space too */
-
     /*
      * Open both the old file and a new file.
      */
@@ -613,6 +612,9 @@ void store_host_key(const char *hostname, int port,
     filename = make_filename(INDEX_HOSTKEYS, NULL);
     rfp = fopen(filename, "r");
 
+    newtext = dupprintf("%s@%d:%s %s\n", keytype, port, hostname, key);
+    headerlen = 1 + strcspn(newtext, " ");   /* count the space too */
+
     /*
      * Copy all lines from the old file to the new one that _don't_
      * involve the same host key identifier as the one we're adding.
@@ -621,6 +623,7 @@ void store_host_key(const char *hostname, int port,
         while ( (line = fgetline(rfp)) ) {
             if (strncmp(line, newtext, headerlen))
                 fputs(line, wfp);
+            sfree(line);
         }
         fclose(rfp);
     }
