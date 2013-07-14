@@ -1473,7 +1473,8 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         pos += put_mp(blob+pos, p.start, p.bytes);
         pos += put_mp(blob+pos, u.start, u.bytes);
         privlen = pos - publen;
-    } else if (type == DSA) {
+    } else {
+        assert(type == DSA); /* the only other option from the if above */
         struct mpint_pos p, q, g, x, y;
         int pos = 4;
         if (GET_32BIT(ciphertext) != 0) {
@@ -1500,8 +1501,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         publen = pos;
         pos += put_mp(blob+pos, x.start, x.bytes);
         privlen = pos - publen;
-    } else
-	return NULL;
+    }
 
     assert(privlen > 0);	       /* should have bombed by now if not */
 
