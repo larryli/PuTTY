@@ -463,7 +463,7 @@ static int read_header(FILE * fp, char *header)
     int len = 39;
     int c;
 
-    while (len > 0) {
+    while (1) {
 	c = fgetc(fp);
 	if (c == '\n' || c == '\r' || c == EOF)
 	    return 0;		       /* failure */
