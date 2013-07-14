@@ -73,7 +73,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     i += j;
 
     /* Next, the comment field. */
-    j = GET_32BIT(buf + i);
+    j = toint(GET_32BIT(buf + i));
     i += 4;
     if (j < 0 || len - i < j)
 	goto end;

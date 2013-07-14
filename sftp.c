@@ -150,7 +150,7 @@ static int sftp_pkt_getstring(struct sftp_packet *pkt,
     *p = NULL;
     if (pkt->length - pkt->savedpos < 4)
 	return 0;
-    *length = GET_32BIT(pkt->data + pkt->savedpos);
+    *length = toint(GET_32BIT(pkt->data + pkt->savedpos));
     pkt->savedpos += 4;
     if ((int)(pkt->length - pkt->savedpos) < *length || *length < 0) {
 	*length = 0;

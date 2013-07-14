@@ -450,7 +450,12 @@ static void add_keyfile(Filename *filename)
 			   MB_OK | MB_ICONERROR);
 		return;
 	    }
-	    nkeys = GET_32BIT(keylist);
+	    nkeys = toint(GET_32BIT(keylist));
+	    if (nkeys < 0) {
+		MessageBox(NULL, "Received broken key list?!", APPNAME,
+			   MB_OK | MB_ICONERROR);
+		return;
+	    }
 	    p = keylist + 4;
 	    keylistlen -= 4;
 
@@ -478,8 +483,8 @@ static void add_keyfile(Filename *filename)
 				   MB_OK | MB_ICONERROR);
 			return;
 		    }
-		    n = 4 + GET_32BIT(p);
-		    if (keylistlen < n) {
+		    n = toint(4 + GET_32BIT(p));
+		    if (n < 0 || keylistlen < n) {
 			MessageBox(NULL, "Received broken key list?!", APPNAME,
 				   MB_OK | MB_ICONERROR);
 			return;
@@ -495,8 +500,8 @@ static void add_keyfile(Filename *filename)
 				   MB_OK | MB_ICONERROR);
 			return;
 		    }
-		    n = 4 + GET_32BIT(p);
-		    if (keylistlen < n) {
+		    n = toint(4 + GET_32BIT(p));
+		    if (n < 0 || keylistlen < n) {
 			MessageBox(NULL, "Received broken key list?!", APPNAME,
 				   MB_OK | MB_ICONERROR);
 			return;
@@ -998,17 +1003,17 @@ static void answer_msg(void *msg)
 
 	    if (msgend < p+4)
 		goto failure;
-	    b.len = GET_32BIT(p);
+	    b.len = toint(GET_32BIT(p));
+            if (b.len < 0 || b.len > msgend - (p+4))
+                goto failure;
 	    p += 4;
-	    if (msgend < p+b.len)
-		goto failure;
 	    b.blob = p;
 	    p += b.len;
 	    if (msgend < p+4)
 		goto failure;
-	    datalen = GET_32BIT(p);
+	    datalen = toint(GET_32BIT(p));
 	    p += 4;
-	    if (msgend < p+datalen)
+	    if (datalen < 0 || datalen > msgend - p)
 		goto failure;
 	    data = p;
 	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
@@ -1081,9 +1086,9 @@ static void answer_msg(void *msg)
 		sfree(key);
 		goto failure;
 	    }
-            commentlen = GET_32BIT(p);
+            commentlen = toint(GET_32BIT(p));
 
-	    if (msgend < p+commentlen) {
+	    if (commentlen < 0 || commentlen > msgend - p) {
 		freersakey(key);
 		sfree(key);
 		goto failure;
@@ -1120,9 +1125,9 @@ static void answer_msg(void *msg)
 
 	    if (msgend < p+4)
 		goto failure;
-	    alglen = GET_32BIT(p);
+	    alglen = toint(GET_32BIT(p));
 	    p += 4;
-	    if (msgend < p+alglen)
+	    if (alglen < 0 || alglen > msgend - p)
 		goto failure;
 	    alg = p;
 	    p += alglen;
@@ -1156,10 +1161,10 @@ static void answer_msg(void *msg)
 		sfree(key);
 		goto failure;
 	    }
-	    commlen = GET_32BIT(p);
+	    commlen = toint(GET_32BIT(p));
 	    p += 4;
 
-	    if (msgend < p+commlen) {
+	    if (commlen < 0 || commlen > msgend - p) {
 		key->alg->freekey(key->data);
 		sfree(key);
 		goto failure;
@@ -1223,10 +1228,10 @@ static void answer_msg(void *msg)
 
 	    if (msgend < p+4)
 		goto failure;
-	    b.len = GET_32BIT(p);
+	    b.len = toint(GET_32BIT(p));
 	    p += 4;
 
-	    if (msgend < p+b.len)
+	    if (b.len < 0 || b.len > msgend - p)
 		goto failure;
 	    b.blob = p;
 	    p += b.len;

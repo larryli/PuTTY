@@ -522,14 +522,15 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
     unsigned char *data = (unsigned char *)vdata;
     unsigned char *start = data;
     struct conf_entry *entry;
-    int primary, used;
+    unsigned primary;
+    int used;
     unsigned char *zero;
 
     while (maxsize >= 4) {
 	primary = GET_32BIT_MSB_FIRST(data);
 	data += 4, maxsize -= 4;
 
-	if ((unsigned)primary >= N_CONFIG_OPTIONS)
+	if (primary >= N_CONFIG_OPTIONS)
 	    break;
 
 	entry = snew(struct conf_entry);
@@ -541,7 +542,7 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
 		sfree(entry);
 		goto done;
 	    }
-	    entry->key.secondary.i = GET_32BIT_MSB_FIRST(data);
+	    entry->key.secondary.i = toint(GET_32BIT_MSB_FIRST(data));
 	    data += 4, maxsize -= 4;
 	    break;
 	  case TYPE_STR:
@@ -564,7 +565,7 @@ int conf_deserialise(Conf *conf, void *vdata, int maxsize)
 		sfree(entry);
 		goto done;
 	    }
-	    entry->value.u.intval = GET_32BIT_MSB_FIRST(data);
+	    entry->value.u.intval = toint(GET_32BIT_MSB_FIRST(data));
 	    data += 4, maxsize -= 4;
 	    break;
 	  case TYPE_STR:

@@ -1449,7 +1449,8 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	    /* See if that gives us a valid packet. */
 	    if (ssh->scmac->verresult(ssh->sc_mac_ctx,
 				      st->pktin->data + st->packetlen) &&
-		(st->len = GET_32BIT(st->pktin->data)) + 4 == st->packetlen)
+		((st->len = toint(GET_32BIT(st->pktin->data))) ==
+                 st->packetlen-4))
 		    break;
 	    if (st->packetlen >= OUR_V2_PACKETLIMIT) {
 		bombout(("No valid incoming packet found"));
@@ -1482,7 +1483,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	/*
 	 * Now get the length figure.
 	 */
-	st->len = GET_32BIT(st->pktin->data);
+	st->len = toint(GET_32BIT(st->pktin->data));
 
 	/*
 	 * _Completely_ silly lengths should be stomped on before they
@@ -2313,7 +2314,7 @@ static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length)
     *length = 0;
     if (pkt->length - pkt->savedpos < 4)
 	return;
-    len = GET_32BIT(pkt->body + pkt->savedpos);
+    len = toint(GET_32BIT(pkt->body + pkt->savedpos));
     if (len < 0)
 	return;
     *length = len;
@@ -2397,7 +2398,7 @@ static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
      * See if this is in fact an ssh-rsa signature and a buggy
      * server; otherwise we can just do this the easy way.
      */
-    if ((ssh->remote_bugs & BUG_SSH2_RSA_PADDING) &&
+    if ((ssh->remote_bugs & BUG_SSH2_RSA_PADDING) && pkblob_len > 4+7+4 &&
 	(GET_32BIT(pkblob) == 7 && !memcmp(pkblob+4, "ssh-rsa", 7))) {
 	int pos, len, siglen;
 
@@ -2406,8 +2407,15 @@ static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
 	 */
 
 	pos = 4+7;		       /* skip over "ssh-rsa" */
-	pos += 4 + GET_32BIT(pkblob+pos);   /* skip over exponent */
-	len = GET_32BIT(pkblob+pos);   /* find length of modulus */
+        len = toint(GET_32BIT(pkblob+pos)); /* get length of exponent */
+        if (len < 0 || len > pkblob_len - pos - 4)
+            goto give_up;
+	pos += 4 + len;                /* skip over exponent */
+        if (pkblob_len - pos < 4)
+            goto give_up;
+	len = toint(GET_32BIT(pkblob+pos)); /* find length of modulus */
+        if (len < 0 || len > pkblob_len - pos - 4)
+            goto give_up;
 	pos += 4;		       /* find modulus itself */
 	while (len > 0 && pkblob[pos] == 0)
 	    len--, pos++;
@@ -2417,7 +2425,11 @@ static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
 	 * Now find the signature integer.
 	 */
 	pos = 4+7;		       /* skip over "ssh-rsa" */
-	siglen = GET_32BIT(sigblob+pos);
+        if (sigblob_len < pos+4)
+            goto give_up;
+	siglen = toint(GET_32BIT(sigblob+pos));
+        if (siglen != sigblob_len - pos - 4)
+            goto give_up;
 	/* debug(("signature length is %d\n", siglen)); */
 
 	if (len != siglen) {
@@ -2439,7 +2451,10 @@ static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
 	    return;
 	}
 
-	/* Otherwise fall through and do it the easy way. */
+	/* Otherwise fall through and do it the easy way. We also come
+         * here as a fallback if we discover above that the key blob
+         * is misformatted in some way. */
+      give_up:;
     }
 
     ssh2_pkt_addstring_start(pkt);
@@ -3677,7 +3692,12 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    if (s->response && s->responselen >= 5 &&
 		s->response[4] == SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
 		s->p = s->response + 5;
-		s->nkeys = GET_32BIT(s->p);
+		s->nkeys = toint(GET_32BIT(s->p));
+                if (s->nkeys < 0) {
+                    logeventf(ssh, "Pageant reported negative key count %d",
+                              s->nkeys);
+                    s->nkeys = 0;
+                }
 		s->p += 4;
 		logeventf(ssh, "Pageant has %d SSH-1 keys", s->nkeys);
 		for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
@@ -3687,22 +3707,23 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 			int n, ok = FALSE;
 			do {	       /* do while (0) to make breaking easy */
 			    n = ssh1_read_bignum
-				(s->p, s->responselen-(s->p-s->response),
+				(s->p, toint(s->responselen-(s->p-s->response)),
 				 &s->key.exponent);
 			    if (n < 0)
 				break;
 			    s->p += n;
 			    n = ssh1_read_bignum
-				(s->p, s->responselen-(s->p-s->response),
+				(s->p, toint(s->responselen-(s->p-s->response)),
 				 &s->key.modulus);
 			    if (n < 0)
-			    break;
+                                break;
 			    s->p += n;
 			    if (s->responselen - (s->p-s->response) < 4)
 				break;
-			    s->commentlen = GET_32BIT(s->p);
+			    s->commentlen = toint(GET_32BIT(s->p));
 			    s->p += 4;
-			    if (s->responselen - (s->p-s->response) <
+			    if (s->commentlen < 0 ||
+                                toint(s->responselen - (s->p-s->response)) <
 				s->commentlen)
 				break;
 			    s->commentp = (char *)s->p;
@@ -7193,16 +7214,18 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 		    is_int = FALSE;
 		} else {
 		    int maybe_int = FALSE, maybe_str = FALSE;
-#define CHECK_HYPOTHESIS(offset, result) \
-    do { \
-	long q = offset; \
-	if (q >= 0 && q+4 <= len) { \
-	    q = q + 4 + GET_32BIT(p+q); \
-	    if (q >= 0 && q+4 <= len && \
-		    ((q = q + 4 + GET_32BIT(p+q))!= 0) && q == len) \
-		result = TRUE; \
-	} \
-    } while(0)
+#define CHECK_HYPOTHESIS(offset, result)                                \
+                    do                                                  \
+                    {                                                   \
+                        int q = toint(offset);                          \
+                        if (q >= 0 && q+4 <= len) {                     \
+                            q = toint(q + 4 + GET_32BIT(p+q));          \
+                            if (q >= 0 && q+4 <= len &&                 \
+                                ((q = toint(q + 4 + GET_32BIT(p+q))) != 0) && \
+                                q == len)                               \
+                                result = TRUE;                          \
+                        }                                               \
+                    } while(0)
 		    CHECK_HYPOTHESIS(4+1, maybe_int);
 		    CHECK_HYPOTHESIS(4+num+1, maybe_str);
 #undef CHECK_HYPOTHESIS
@@ -7896,13 +7919,53 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		int keyi;
 		unsigned char *p;
 		p = s->agent_response + 5;
-		s->nkeys = GET_32BIT(p);
+		s->nkeys = toint(GET_32BIT(p));
+
+                /*
+                 * Vet the Pageant response to ensure that the key
+                 * count and blob lengths make sense.
+                 */
+                if (s->nkeys < 0) {
+                    logeventf(ssh, "Pageant response contained a negative"
+                              " key count %d", s->nkeys);
+                    s->nkeys = 0;
+                    goto done_agent_query;
+                } else {
+                    unsigned char *q = p + 4;
+                    int lenleft = s->agent_responselen - 5 - 4;
+
+                    for (keyi = 0; keyi < s->nkeys; keyi++) {
+                        int bloblen, commentlen;
+                        if (lenleft < 4) {
+                            logeventf(ssh, "Pageant response was truncated");
+                            s->nkeys = 0;
+                            goto done_agent_query;
+                        }
+                        bloblen = toint(GET_32BIT(q));
+                        if (bloblen < 0 || bloblen > lenleft) {
+                            logeventf(ssh, "Pageant response was truncated");
+                            s->nkeys = 0;
+                            goto done_agent_query;
+                        }
+                        lenleft -= 4 + bloblen;
+                        q += 4 + bloblen;
+                        commentlen = toint(GET_32BIT(q));
+                        if (commentlen < 0 || commentlen > lenleft) {
+                            logeventf(ssh, "Pageant response was truncated");
+                            s->nkeys = 0;
+                            goto done_agent_query;
+                        }
+                        lenleft -= 4 + commentlen;
+                        q += 4 + commentlen;
+                    }
+                }
+
 		p += 4;
 		logeventf(ssh, "Pageant has %d SSH-2 keys", s->nkeys);
 		if (s->publickey_blob) {
 		    /* See if configured key is in agent. */
 		    for (keyi = 0; keyi < s->nkeys; keyi++) {
-			s->pklen = GET_32BIT(p);
+			s->pklen = toint(GET_32BIT(p));
 			if (s->pklen == s->publickey_bloblen &&
 			    !memcmp(p+4, s->publickey_blob,
 				    s->publickey_bloblen)) {
@@ -7913,7 +7976,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 			    break;
 			}
 			p += 4 + s->pklen;
-			p += GET_32BIT(p) + 4; /* comment */
+			p += toint(GET_32BIT(p)) + 4; /* comment */
 		    }
 		    if (!s->pkblob_in_agent) {
 			logevent("Configured key file not in Pageant");
@@ -7923,6 +7986,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	    } else {
                 logevent("Failed to get reply from Pageant");
 	    }
+          done_agent_query:;
 	}
 
     }
@@ -8174,13 +8238,13 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 
 		/* Unpack key from agent response */
-		s->pklen = GET_32BIT(s->agentp);
+		s->pklen = toint(GET_32BIT(s->agentp));
 		s->agentp += 4;
 		s->pkblob = (char *)s->agentp;
 		s->agentp += s->pklen;
-		s->alglen = GET_32BIT(s->pkblob);
+		s->alglen = toint(GET_32BIT(s->pkblob));
 		s->alg = s->pkblob + 4;
-		s->commentlen = GET_32BIT(s->agentp);
+		s->commentlen = toint(GET_32BIT(s->agentp));
 		s->agentp += 4;
 		s->commentp = (char *)s->agentp;
 		s->agentp += s->commentlen;
@@ -8284,7 +8348,9 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->ret = vret;
 		    sfree(s->agentreq);
 		    if (s->ret) {
-			if (s->ret[4] == SSH2_AGENT_SIGN_RESPONSE) {
+			if (s->retlen >= 9 &&
+                            s->ret[4] == SSH2_AGENT_SIGN_RESPONSE &&
+                            GET_32BIT(s->ret + 5) <= (unsigned)(s->retlen-9)) {
 			    logevent("Sending Pageant's response");
 			    ssh2_add_sigblob(ssh, s->pktout,
 					     s->pkblob, s->pklen,

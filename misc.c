@@ -208,6 +208,29 @@ void burnstr(char *string)             /* sfree(str), only clear it first */
     }
 }
 
+int toint(unsigned u)
+{
+    /*
+     * Convert an unsigned to an int, without running into the
+     * undefined behaviour which happens by the strict C standard if
+     * the value overflows. You'd hope that sensible compilers would
+     * do the sensible thing in response to a cast, but actually I
+     * don't trust modern compilers not to do silly things like
+     * assuming that _obviously_ you wouldn't have caused an overflow
+     * and so they can elide an 'if (i < 0)' test immediately after
+     * the cast.
+     *
+     * Sensible compilers ought of course to optimise this entire
+     * function into 'just return the input value'!
+     */
+    if (u <= (unsigned)INT_MAX)
+        return (int)u;
+    else if (u >= (unsigned)INT_MIN)   /* wrap in cast _to_ unsigned is OK */
+        return INT_MIN + (int)(u - (unsigned)INT_MIN);
+    else
+        return INT_MIN; /* fallback; should never occur on binary machines */
+}
+
 /*
  * Do an sprintf(), but into a custom-allocated buffer.
  * 
