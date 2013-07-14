@@ -47,6 +47,7 @@ struct controlbox *ctrl_new_box(void)
     ret->ctrlsets = NULL;
     ret->nfrees = ret->freesize = 0;
     ret->frees = NULL;
+    ret->freefuncs = NULL;
 
     return ret;
 }
@@ -59,9 +60,10 @@ void ctrl_free_box(struct controlbox *b)
 	ctrl_free_set(b->ctrlsets[i]);
     }
     for (i = 0; i < b->nfrees; i++)
-	sfree(b->frees[i]);
+	b->freefuncs[i](b->frees[i]);
     sfree(b->ctrlsets);
     sfree(b->frees);
+    sfree(b->freefuncs);
     sfree(b);
 }
 
@@ -181,7 +183,8 @@ struct controlset *ctrl_getset(struct controlbox *b,
 }
 
 /* Allocate some private data in a controlbox. */
-void *ctrl_alloc(struct controlbox *b, size_t size)
+void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
+                           ctrl_freefn_t freefunc)
 {
     void *p;
     /*
@@ -192,9 +195,22 @@ void *ctrl_alloc(struct controlbox *b, size_t size)
     if (b->nfrees >= b->freesize) {
 	b->freesize = b->nfrees + 32;
 	b->frees = sresize(b->frees, b->freesize, void *);
+	b->freefuncs = sresize(b->freefuncs, b->freesize, ctrl_freefn_t);
     }
-    b->frees[b->nfrees++] = p;
+    b->frees[b->nfrees] = p;
+    b->freefuncs[b->nfrees] = freefunc;
+    b->nfrees++;
     return p;
+}
+
+static void ctrl_default_free(void *p)
+{
+    sfree(p);
+}
+
+void *ctrl_alloc(struct controlbox *b, size_t size)
+{
+    return ctrl_alloc_with_free(b, size, ctrl_default_free);
 }
 
 static union control *ctrl_new(struct controlset *s, int type,

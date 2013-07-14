@@ -427,6 +427,8 @@ struct controlset {
     union control **ctrls;	       /* actual array */
 };
 
+typedef void (*ctrl_freefn_t)(void *);    /* used by ctrl_alloc_with_free */
+
 /*
  * This is the container structure which holds a complete set of
  * controls.
@@ -438,6 +440,7 @@ struct controlbox {
     int nfrees;
     int freesize;
     void **frees;		       /* array of aux data areas to free */
+    ctrl_freefn_t *freefuncs;          /* parallel array of free functions */
 };
 
 struct controlbox *ctrl_new_box(void);
@@ -464,8 +467,14 @@ void ctrl_free(union control *);
  * and so data allocated through this function is better not used
  * to hold modifiable per-instance things. It's mostly here for
  * allocating structures to be passed as control handler params.
+ *
+ * ctrl_alloc_with_free also allows you to provide a function to free
+ * the structure, in case there are other dynamically allocated bits
+ * and pieces dangling off it.
  */
 void *ctrl_alloc(struct controlbox *b, size_t size);
+void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
+                           ctrl_freefn_t freefunc);
 
 /*
  * Individual routines to create `union control' structures in a controlset.
