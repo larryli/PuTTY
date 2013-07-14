@@ -3069,7 +3069,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 		 * repaint the space in between the window border
 		 * and the text area.
 		 */
-		if (i == 258) {
+		if (ww[i] == 258) {
 		    set_window_background(inst);
 		    draw_backing_rect(inst);
 		}
