@@ -7543,7 +7543,9 @@ static void ssh2_setup_x11(struct ssh_channel *c, struct Packet *pktin,
     ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
     ssh2_pkt_send(ssh, pktout);
 
-    crWaitUntilV(pktin);
+    /* Wait to be called back with either a response packet, or NULL
+     * meaning clean up and free our data */
+    crReturnV;
 
     if (pktin) {
         if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
@@ -7573,7 +7575,9 @@ static void ssh2_setup_agent(struct ssh_channel *c, struct Packet *pktin,
                                ssh2_setup_agent, s);
     ssh2_pkt_send(ssh, pktout);
 
-    crWaitUntilV(pktin);
+    /* Wait to be called back with either a response packet, or NULL
+     * meaning clean up and free our data */
+    crReturnV;
 
     if (pktin) {
         if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
@@ -7620,7 +7624,9 @@ static void ssh2_setup_pty(struct ssh_channel *c, struct Packet *pktin,
     ssh2_pkt_send(ssh, pktout);
     ssh->state = SSH_STATE_INTERMED;
 
-    crWaitUntilV(pktin);
+    /* Wait to be called back with either a response packet, or NULL
+     * meaning clean up and free our data */
+    crReturnV;
 
     if (pktin) {
         if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
@@ -7678,7 +7684,9 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 	s->env_left = s->num_env;
 
 	while (s->env_left > 0) {
-	    crWaitUntilV(pktin);
+            /* Wait to be called back with either a response packet,
+             * or NULL meaning clean up and free our data */
+            crReturnV;
 	    if (!pktin) goto out;
 	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS)
 		s->env_ok++;
