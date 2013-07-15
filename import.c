@@ -1474,9 +1474,11 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         pos += put_mp(blob+pos, u.start, u.bytes);
         privlen = pos - publen;
     } else {
-        assert(type == DSA); /* the only other option from the if above */
         struct mpint_pos p, q, g, x, y;
         int pos = 4;
+
+        assert(type == DSA); /* the only other option from the if above */
+
         if (GET_32BIT(ciphertext) != 0) {
             errmsg = "predefined DSA parameters not supported";
             goto error;
