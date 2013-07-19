@@ -820,7 +820,11 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	pgrp = getpid();
 	tcsetpgrp(0, pgrp);
 	setpgid(pgrp, pgrp);
-	close(open(pty->name, O_WRONLY, 0));
+        {
+            int ptyfd = open(pty->name, O_WRONLY, 0);
+            if (ptyfd >= 0)
+                close(ptyfd);
+        }
 	setpgid(pgrp, pgrp);
 	{
 	    char *term_env_var = dupprintf("TERM=%s",
