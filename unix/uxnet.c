@@ -540,7 +540,7 @@ static int try_connect(Actual_Socket sock)
     const union sockaddr_union *sa;
     int err = 0;
     short localport;
-    int fl, salen, family;
+    int salen, family;
 
     /*
      * Remove the socket from the tree before we overwrite its
@@ -695,9 +695,7 @@ static int try_connect(Actual_Socket sock)
 	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 
-    fl = fcntl(s, F_GETFL);
-    if (fl != -1)
-	fcntl(s, F_SETFL, fl | O_NONBLOCK);
+    nonblock(s);
 
     if ((connect(s, &(sa->sa), salen)) < 0) {
 	if ( errno != EINPROGRESS ) {
@@ -1255,7 +1253,6 @@ static int net_select_result(int fd, int event)
 	    union sockaddr_union su;
 	    socklen_t addrlen = sizeof(su);
 	    int t;  /* socket of connection */
-            int fl;
 
 	    memset(&su, 0, addrlen);
 	    t = accept(s->s, &su.sa, &addrlen);
@@ -1263,9 +1260,7 @@ static int net_select_result(int fd, int event)
 		break;
 	    }
 
-            fl = fcntl(t, F_GETFL);
-            if (fl != -1)
-                fcntl(t, F_SETFL, fl | O_NONBLOCK);
+            nonblock(t);
 
 	    if (s->localhost_only &&
 		!sockaddr_is_loopback(&su.sa)) {

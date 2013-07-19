@@ -3307,7 +3307,7 @@ void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
     }
 
     sprintf(option, "---[%d,%d]", pipefd[0], size);
-    fcntl(pipefd[0], F_SETFD, 0);
+    noncloexec(pipefd[0]);
     fork_and_exec_self(inst, pipefd[1], option, NULL);
     close(pipefd[0]);
 

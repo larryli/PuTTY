@@ -373,15 +373,7 @@ static void pty_open_master(Pty pty)
     strncpy(pty->name, ptsname(pty->master_fd), FILENAME_MAX-1);
 #endif
 
-    {
-        /*
-         * Set the pty master into non-blocking mode.
-         */
-        int fl;
-	fl = fcntl(pty->master_fd, F_GETFL);
-	if (fl != -1 && !(fl & O_NONBLOCK))
-	    fcntl(pty->master_fd, F_SETFL, fl | O_NONBLOCK);
-    }
+    nonblock(pty->master_fd);
 
     if (!ptys_by_fd)
 	ptys_by_fd = newtree234(pty_compare_by_fd);

@@ -396,20 +396,18 @@ int try_output(int is_stderr)
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
     void *senddata;
-    int sendlen, ret, fl;
+    int sendlen, ret;
 
     if (bufchain_size(chain) > 0) {
-        fl = fcntl(fd, F_GETFL);
-        if (fl != -1 && !(fl & O_NONBLOCK))
-            fcntl(fd, F_SETFL, fl | O_NONBLOCK);
+        int prev_nonblock = nonblock(fd);
         do {
             bufchain_prefix(chain, &senddata, &sendlen);
             ret = write(fd, senddata, sendlen);
             if (ret > 0)
                 bufchain_consume(chain, ret);
         } while (ret == sendlen && bufchain_size(chain) != 0);
-        if (fl != -1 && !(fl & O_NONBLOCK))
-            fcntl(fd, F_SETFL, fl);
+        if (!prev_nonblock)
+            no_nonblock(fd);
         if (ret < 0 && errno != EAGAIN) {
             perror(is_stderr ? "stderr: write" : "stdout: write");
             exit(1);

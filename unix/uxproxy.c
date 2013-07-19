@@ -306,8 +306,8 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	dup2(from_cmd_pipe[1], 1);
 	close(to_cmd_pipe[0]);
 	close(from_cmd_pipe[1]);
-	fcntl(0, F_SETFD, 0);
-	fcntl(1, F_SETFD, 0);
+	noncloexec(0);
+	noncloexec(1);
 	execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);
 	_exit(255);
     }

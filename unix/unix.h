@@ -156,7 +156,10 @@ void (*putty_signal(int sig, void (*func)(int)))(int);
 void block_signal(int sig, int block_it);
 
 /* uxmisc.c */
-int cloexec(int);
+void cloexec(int);
+void noncloexec(int);
+int nonblock(int);
+int no_nonblock(int);
 
 /*
  * Exports from unicode.c.
