@@ -234,6 +234,8 @@ void random_unref(void)
 
 int random_byte(void)
 {
+    assert(random_active);
+
     if (pool.poolpos >= POOLSIZE)
 	random_stir();
 
