@@ -125,6 +125,8 @@ char *platform_get_x_display(void) {
 int main(int argc, char **argv)
 {
     extern int pt_main(int argc, char **argv);
+    int ret;
+
     sk_init();
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
     default_protocol = be_default_protocol;
@@ -135,5 +137,7 @@ int main(int argc, char **argv)
 	if (b)
 	    default_port = b->default_port;
     }
-    return pt_main(argc, argv);
+    ret = pt_main(argc, argv);
+    cleanup_exit(ret);
+    return ret;             /* not reached, but placates optimisers */
 }

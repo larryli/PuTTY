@@ -1361,7 +1361,7 @@ void frontend_keypress(void *handle)
      * any keypress.
      */
     if (inst->exited)
-	exit(0);
+	cleanup_exit(0);
 }
 
 static gint idle_exit_func(gpointer data)

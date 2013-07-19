@@ -57,11 +57,14 @@ int main(int argc, char **argv)
 {
     extern int pt_main(int argc, char **argv);
     extern void pty_pre_init(void);    /* declared in pty.c */
+    int ret;
 
     cmdline_tooltype = TOOLTYPE_NONNETWORK;
     default_protocol = -1;
 
     pty_pre_init();
 
-    return pt_main(argc, argv);
+    ret = pt_main(argc, argv);
+    cleanup_exit(ret);
+    return ret;             /* not reached, but placates optimisers */
 }
