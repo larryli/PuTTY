@@ -166,25 +166,31 @@ void *open_settings_w(const char *sessionname, char **errmsg)
 
     /*
      * Start by making sure the .putty directory and its sessions
-     * subdir actually exist. Ignore error returns from mkdir since
-     * they're perfectly likely to be `already exists', and any
-     * other error will trip us up later on so there's no real need
-     * to catch it now.
+     * subdir actually exist.
      */
+    filename = make_filename(INDEX_DIR, NULL);
+    if (mkdir(filename, 0700) < 0 && errno != EEXIST) {
+        *errmsg = dupprintf("Unable to save session: mkdir(\"%s\") "
+                            "returned '%s'", filename, strerror(errno));
+        sfree(filename);
+        return NULL;
+    }
+    sfree(filename);
+
     filename = make_filename(INDEX_SESSIONDIR, NULL);
-    if (mkdir(filename, 0700) != 0) {
-	char *filename2 = make_filename(INDEX_DIR, NULL);
-	mkdir(filename2, 0700);
-	sfree(filename2);
-	mkdir(filename, 0700);
+    if (mkdir(filename, 0700) < 0 && errno != EEXIST) {
+        *errmsg = dupprintf("Unable to save session: mkdir(\"%s\") "
+                            "returned '%s'", filename, strerror(errno));
+        sfree(filename);
+        return NULL;
     }
     sfree(filename);
 
     filename = make_filename(INDEX_SESSION, sessionname);
     fp = fopen(filename, "w");
     if (!fp) {
-        *errmsg = dupprintf("Unable to create %s: %s",
-                            filename, strerror(errno));
+        *errmsg = dupprintf("Unable to save session: open(\"%s\") "
+                            "returned '%s'", filename, strerror(errno));
 	sfree(filename);
 	return NULL;                   /* can't open */
     }
