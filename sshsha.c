@@ -28,6 +28,21 @@ void SHATransform(word32 * digest, word32 * block)
     word32 a, b, c, d, e;
     int t;
 
+#ifdef RANDOM_DIAGNOSTICS
+    {
+        extern int random_diagnostics;
+        if (random_diagnostics) {
+            int i;
+            printf("SHATransform:");
+            for (i = 0; i < 5; i++)
+                printf(" %08x", digest[i]);
+            printf(" +");
+            for (i = 0; i < 16; i++)
+                printf(" %08x", block[i]);
+        }
+    }
+#endif
+
     for (t = 0; t < 16; t++)
 	w[t] = block[t];
 
@@ -83,6 +98,19 @@ void SHATransform(word32 * digest, word32 * block)
     digest[2] += c;
     digest[3] += d;
     digest[4] += e;
+
+#ifdef RANDOM_DIAGNOSTICS
+    {
+        extern int random_diagnostics;
+        if (random_diagnostics) {
+            int i;
+            printf(" =");
+            for (i = 0; i < 5; i++)
+                printf(" %08x", digest[i]);
+            printf("\n");
+        }
+    }
+#endif
 }
 
 /* ----------------------------------------------------------------------
