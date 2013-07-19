@@ -596,18 +596,28 @@ void store_host_key(const char *hostname, int port,
      */
     tmpfilename = make_filename(INDEX_HOSTKEYS_TMP, NULL);
     wfp = fopen(tmpfilename, "w");
-    if (!wfp) {
+    if (!wfp && errno == ENOENT) {
         char *dir;
 
         dir = make_filename(INDEX_DIR, NULL);
-        mkdir(dir, 0700);
+        if (mkdir(dir, 0700) < 0) {
+            char *msg = dupprintf("Unable to store host key: mkdir(\"%s\") "
+                                  "returned '%s'", dir, strerror(errno));
+            nonfatal(msg);
+            sfree(dir);
+            sfree(tmpfilename);
+            return;
+        }
 	sfree(dir);
 
         wfp = fopen(tmpfilename, "w");
     }
     if (!wfp) {
-	sfree(tmpfilename);
-	return;
+        char *msg = dupprintf("Unable to store host key: open(\"%s\") "
+                              "returned '%s'", tmpfilename, strerror(errno));
+        nonfatal(msg);
+        sfree(tmpfilename);
+        return;
     }
     filename = make_filename(INDEX_HOSTKEYS, NULL);
     rfp = fopen(filename, "r");
