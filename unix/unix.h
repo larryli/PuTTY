@@ -88,6 +88,7 @@ void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 int do_config_box(const char *title, Conf *conf,
 		  int midsession, int protcfginfo);
 void fatal_message_box(void *window, char *msg);
+void nonfatal_message_box(void *window, char *msg);
 void about_box(void *window);
 void *eventlogstuff_new(void);
 void showeventlog(void *estuff, void *parentwin);

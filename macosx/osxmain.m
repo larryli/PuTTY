@@ -85,6 +85,24 @@ static void commonfatalbox(char *p, va_list ap)
     exit(1);
 }
 
+void nonfatal(void *frontend, char *p, ...)
+{
+    char *errorbuf;
+    NSAlert *alert;
+    va_list ap;
+
+    va_start(ap, p);
+    errorbuf = dupvprintf(p, ap);
+    va_end(ap);
+
+    alert = [[[NSAlert alloc] init] autorelease];
+    [alert addButtonWithTitle:@"Error"];
+    [alert setInformativeText:[NSString stringWithCString:errorbuf]];
+    [alert runModal];
+
+    sfree(errorbuf);
+}
+
 void fatalbox(char *p, ...)
 {
     va_list ap;

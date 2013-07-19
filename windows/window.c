@@ -5342,6 +5342,22 @@ void modalfatalbox(char *fmt, ...)
     cleanup_exit(1);
 }
 
+/*
+ * Print a message box and don't close the connection.
+ */
+void nonfatal(char *fmt, ...)
+{
+    va_list ap;
+    char *stuff, morestuff[100];
+
+    va_start(ap, fmt);
+    stuff = dupvprintf(fmt, ap);
+    va_end(ap);
+    sprintf(morestuff, "%.70s Error", appname);
+    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
+    sfree(stuff);
+}
+
 DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
 
 static void init_flashwindow(void)

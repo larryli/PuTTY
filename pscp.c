@@ -129,6 +129,19 @@ void modalfatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
+void nonfatal(char *fmt, ...)
+{
+    char *str, *str2;
+    va_list ap;
+    va_start(ap, fmt);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Error: ", str, "\n", NULL);
+    sfree(str);
+    va_end(ap);
+    tell_str(stderr, str2);
+    sfree(str2);
+    errs++;
+}
 void connection_fatal(void *frontend, char *fmt, ...)
 {
     char *str, *str2;

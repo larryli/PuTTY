@@ -589,6 +589,7 @@ void get_clip(void *frontend, wchar_t **, int *);
 void optimised_move(void *frontend, int, int, int);
 void set_raw_mouse_mode(void *frontend, int);
 void connection_fatal(void *frontend, char *, ...);
+void nonfatal(char *, ...);
 void fatalbox(char *, ...);
 void modalfatalbox(char *, ...);
 #ifdef macintosh

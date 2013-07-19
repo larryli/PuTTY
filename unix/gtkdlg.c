@@ -3389,6 +3389,13 @@ void fatal_message_box(void *window, char *msg)
                "OK", 'o', 1, 1, NULL);
 }
 
+void nonfatal_message_box(void *window, char *msg)
+{
+    messagebox(window, "PuTTY Error", msg,
+               string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+               "OK", 'o', 1, 1, NULL);
+}
+
 void fatalbox(char *p, ...)
 {
     va_list ap;
@@ -3399,6 +3406,17 @@ void fatalbox(char *p, ...)
     fatal_message_box(NULL, msg);
     sfree(msg);
     cleanup_exit(1);
+}
+
+void nonfatal(char *p, ...)
+{
+    va_list ap;
+    char *msg;
+    va_start(ap, p);
+    msg = dupvprintf(p, ap);
+    va_end(ap);
+    fatal_message_box(NULL, msg);
+    sfree(msg);
 }
 
 static GtkWidget *aboutbox = NULL;

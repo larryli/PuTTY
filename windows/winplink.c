@@ -49,6 +49,19 @@ void modalfatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
+void nonfatal(char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "ERROR: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    if (logctx) {
+        log_free(logctx);
+        logctx = NULL;
+    }
+}
 void connection_fatal(void *frontend, char *p, ...)
 {
     va_list ap;

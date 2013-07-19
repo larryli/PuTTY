@@ -2477,6 +2477,18 @@ void modalfatalbox(char *fmt, ...)
 
     cleanup_exit(1);
 }
+void nonfatal(char *fmt, ...)
+{
+    char *str, *str2;
+    va_list ap;
+    va_start(ap, fmt);
+    str = dupvprintf(fmt, ap);
+    str2 = dupcat("Error: ", str, "\n", NULL);
+    sfree(str);
+    va_end(ap);
+    fputs(str2, stderr);
+    sfree(str2);
+}
 void connection_fatal(void *frontend, char *fmt, ...)
 {
     char *str, *str2;
