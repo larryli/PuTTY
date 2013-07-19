@@ -213,23 +213,24 @@ void random_ref(void)
     if (!random_active) {
 	memset(&pool, 0, sizeof(pool));    /* just to start with */
 
+        random_active++;
+
 	noise_get_heavy(random_add_heavynoise_bitbybit);
 	random_stir();
 
 	next_noise_collection =
 	    schedule_timer(NOISE_REGULAR_INTERVAL, random_timer, &pool);
     }
-
-    random_active++;
 }
 
 void random_unref(void)
 {
+    assert(random_active > 0);
+    if (random_active == 1) {
+        random_save_seed();
+        expire_timer_context(&pool);
+    }
     random_active--;
-    assert(random_active >= 0);
-    if (random_active) return;
-
-    expire_timer_context(&pool);
 }
 
 int random_byte(void)
