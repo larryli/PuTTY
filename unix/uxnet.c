@@ -572,17 +572,32 @@ static int try_connect(Actual_Socket sock)
 
     if (sock->oobinline) {
 	int b = TRUE;
-	setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
+	if (setsockopt(s, SOL_SOCKET, SO_OOBINLINE,
+                       (void *) &b, sizeof(b)) < 0) {
+            err = errno;
+            close(s);
+            goto ret;
+        }
     }
 
     if (sock->nodelay) {
 	int b = TRUE;
-	setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
+	if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
+                       (void *) &b, sizeof(b)) < 0) {
+            err = errno;
+            close(s);
+            goto ret;
+        }
     }
 
     if (sock->keepalive) {
 	int b = TRUE;
-	setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
+	if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE,
+                       (void *) &b, sizeof(b)) < 0) {
+            err = errno;
+            close(s);
+            goto ret;
+        }
     }
 
     /*
@@ -835,7 +850,12 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 
     ret->oobinline = 0;
 
-    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
+                   (const char *)&on, sizeof(on)) < 0) {
+        ret->error = strerror(errno);
+        close(s);
+        return (Socket) ret;
+    }
 
     retcode = -1;
     addr = NULL; addrlen = -1;         /* placate optimiser */
