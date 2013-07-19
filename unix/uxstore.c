@@ -672,18 +672,45 @@ void write_random_seed(void *data, int len)
      */
     fd = open(fname, O_CREAT | O_WRONLY, 0600);
     if (fd < 0) {
+        if (errno != ENOENT) {
+            char *msg = dupprintf("Unable to write random seed: open(\"%s\") "
+                                  "returned '%s'", fname, strerror(errno));
+            nonfatal(msg);
+            sfree(msg);
+            return;
+        }
 	char *dir;
 
 	dir = make_filename(INDEX_DIR, NULL);
-	mkdir(dir, 0700);
+	if (mkdir(dir, 0700) < 0) {
+            char *msg = dupprintf("Unable to write random seed: mkdir(\"%s\") "
+                                  "returned '%s'", dir, strerror(errno));
+            nonfatal(msg);
+            sfree(msg);
+            sfree(dir);
+            return;
+        }
 	sfree(dir);
 
 	fd = open(fname, O_CREAT | O_WRONLY, 0600);
+        if (errno != ENOENT) {
+            char *msg = dupprintf("Unable to write random seed: open(\"%s\") "
+                                  "returned '%s'", fname, strerror(errno));
+            nonfatal(msg);
+            sfree(msg);
+            return;
+        }
     }
 
     while (len > 0) {
 	int ret = write(fd, data, len);
-	if (ret <= 0) break;
+	if (ret < 0) {
+            char *msg = dupprintf("Unable to write random seed: write "
+                                  "returned '%s'", strerror(errno));
+            nonfatal(msg);
+            sfree(msg);
+            break;
+        }
 	len -= ret;
 	data = (char *)data + len;
     }
