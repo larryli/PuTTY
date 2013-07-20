@@ -693,6 +693,7 @@ void write_random_seed(void *data, int len)
                                   "returned '%s'", fname, strerror(errno));
             nonfatal(msg);
             sfree(msg);
+            sfree(fname);
             return;
         }
 	char *dir;
@@ -703,6 +704,7 @@ void write_random_seed(void *data, int len)
                                   "returned '%s'", dir, strerror(errno));
             nonfatal(msg);
             sfree(msg);
+            sfree(fname);
             sfree(dir);
             return;
         }
@@ -714,6 +716,7 @@ void write_random_seed(void *data, int len)
                                   "returned '%s'", fname, strerror(errno));
             nonfatal(msg);
             sfree(msg);
+            sfree(fname);
             return;
         }
     }
