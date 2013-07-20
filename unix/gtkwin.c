@@ -3344,7 +3344,6 @@ int read_dupsession_data(struct gui_data *inst, Conf *conf, char *arg)
     }
 
     size_used = conf_deserialise(conf, data, size);
-    sfree(data);
     if (use_pty_argv && size > size_used) {
 	int n = 0;
 	i = size_used;
@@ -3370,6 +3369,8 @@ int read_dupsession_data(struct gui_data *inst, Conf *conf, char *arg)
 	    pty_argv[n++] = dupstr(p);
 	}
     }
+
+    sfree(data);
 
     return 0;
 }
