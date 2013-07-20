@@ -372,6 +372,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	if (0 == strncmp(line, "-----END ", 9) &&
 	    0 == strcmp(line+strlen(line)-16, "PRIVATE KEY-----")) {
             sfree(line);
+            line = NULL;
 	    break;		       /* done */
         }
 	if ((p = strchr(line, ':')) != NULL) {
@@ -1095,6 +1096,7 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
 	strip_crlf(line);
         if (!strcmp(line, "---- END SSH2 ENCRYPTED PRIVATE KEY ----")) {
             sfree(line);
+            line = NULL;
             break;                     /* done */
         }
 	if ((p = strchr(line, ':')) != NULL) {
