@@ -3905,8 +3905,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
-    /* keys is for ToAsciiEx. There's some ick here, see below. */
-    static WORD keys[3];
+    static wchar_t keys_unicode[3];
     static int compose_char = 0;
     static WPARAM compose_keycode = 0;
 
@@ -3958,12 +3957,12 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		else if (ch)
 		    debug((", $%02x", ch));
 
-		if (keys[0])
-		    debug((", KB0=%02x", keys[0]));
-		if (keys[1])
-		    debug((", KB1=%02x", keys[1]));
-		if (keys[2])
-		    debug((", KB2=%02x", keys[2]));
+		if (keys_unicode[0])
+		    debug((", KB0=%04x", keys_unicode[0]));
+		if (keys_unicode[1])
+		    debug((", KB1=%04x", keys_unicode[1]));
+		if (keys_unicode[2])
+		    debug((", KB2=%04x", keys_unicode[2]));
 
 		if ((keystate[VK_SHIFT] & 0x80) != 0)
 		    debug((", S"));
@@ -4579,6 +4578,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	 * be is? There's indication on MS' website of an Inquire/InquireEx
 	 * functioning returning a KBINFO structure which tells us. */
 	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
+	    r = ToUnicodeEx(wParam, scan, keystate, keys_unicode,
+                            lenof(keys_unicode), 0, kbd_layout);
+	} else {
 	    /* XXX 'keys' parameter is declared in MSDN documentation as
 	     * 'LPWORD lpChar'.
 	     * The experience of a French user indicates that on
@@ -4589,12 +4591,17 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	     * Win9x/NT split, but I suspect it's worse than that.
 	     * See wishlist item `win-dead-keys' for more horrible detail
 	     * and speculations. */
-	    BYTE keybs[3];
 	    int i;
-	    r = ToAsciiEx(wParam, scan, keystate, (LPWORD)keybs, 0, kbd_layout);
-	    for (i=0; i<3; i++) keys[i] = keybs[i];
-	} else {
+	    static WORD keys[3];
+	    static BYTE keysb[3];
 	    r = ToAsciiEx(wParam, scan, keystate, keys, 0, kbd_layout);
+	    if (r > 0) {
+	        for (i = 0; i < r; i++) {
+	            keysb[i] = (BYTE)keys[i];
+	        }
+	        MultiByteToWideChar(CP_ACP, 0, (LPCSTR)keysb, r,
+                                    keys_unicode, lenof(keys_unicode));
+	    }
 	}
 #ifdef SHOW_TOASCII_RESULT
 	if (r == 1 && !key_down) {
@@ -4604,13 +4611,13 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		else
 		    debug((", LCH(%d)", alt_sum));
 	    } else {
-		debug((", ACH(%d)", keys[0]));
+		debug((", ACH(%d)", keys_unicode[0]));
 	    }
 	} else if (r > 0) {
 	    int r1;
 	    debug((", ASC("));
 	    for (r1 = 0; r1 < r; r1++) {
-		debug(("%s%d", r1 ? "," : "", keys[r1]));
+		debug(("%s%d", r1 ? "," : "", keys_unicode[r1]));
 	    }
 	    debug((")"));
 	}
@@ -4627,18 +4634,18 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    p = output;
 	    for (i = 0; i < r; i++) {
-		unsigned char ch = (unsigned char) keys[i];
+		wchar_t wch = keys_unicode[i];
 
-		if (compose_state == 2 && (ch & 0x80) == 0 && ch > ' ') {
-		    compose_char = ch;
+		if (compose_state == 2 && wch >= ' ' && wch < 0x80) {
+		    compose_char = wch;
 		    compose_state++;
 		    continue;
 		}
-		if (compose_state == 3 && (ch & 0x80) == 0 && ch > ' ') {
+		if (compose_state == 3 && wch >= ' ' && wch < 0x80) {
 		    int nc;
 		    compose_state = 0;
 
-		    if ((nc = check_compose(compose_char, ch)) == -1) {
+		    if ((nc = check_compose(compose_char, wch)) == -1) {
 			MessageBeep(MB_ICONHAND);
 			return 0;
 		    }
@@ -4659,7 +4666,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			    if (ldisc)
 				luni_send(ldisc, &keybuf, 1, 1);
 			} else {
-			    ch = (char) alt_sum;
+			    char ch = (char) alt_sum;
 			    /*
 			     * We need not bother about stdin
 			     * backlogs here, because in GUI PuTTY
@@ -4677,40 +4684,39 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    } else {
 			term_seen_key_event(term);
 			if (ldisc)
-			    lpage_send(ldisc, kbd_codepage, &ch, 1, 1);
+			    luni_send(ldisc, &wch, 1, 1);
 		    }
 		} else {
-		    if(capsOn && ch < 0x80) {
+		    if(capsOn && wch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
-			cbuf[1] = xlat_uskbd2cyrllic(ch);
+			cbuf[1] = xlat_uskbd2cyrllic(wch);
 			term_seen_key_event(term);
 			if (ldisc)
 			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt, 1);
 		    } else {
-			char cbuf[2];
+			WCHAR cbuf[2];
 			cbuf[0] = '\033';
-			cbuf[1] = ch;
+			cbuf[1] = wch;
 			term_seen_key_event(term);
 			if (ldisc)
-			    lpage_send(ldisc, kbd_codepage,
-				       cbuf+!left_alt, 1+!!left_alt, 1);
+			    luni_send(ldisc, cbuf +!left_alt, 1+!!left_alt, 1);
 		    }
 		}
 		show_mouseptr(0);
 	    }
 
 	    /* This is so the ALT-Numpad and dead keys work correctly. */
-	    keys[0] = 0;
+	    keys_unicode[0] = 0;
 
 	    return p - output;
 	}
 	/* If we're definitly not building up an ALT-54321 then clear it */
 	if (!left_alt)
-	    keys[0] = 0;
+	    keys_unicode[0] = 0;
 	/* If we will be using alt_sum fix the 256s */
-	else if (keys[0] && (in_utf(term) || ucsdata.dbcs_screenfont))
-	    keys[0] = 10;
+	else if (keys_unicode[0] && (in_utf(term) || ucsdata.dbcs_screenfont))
+	    keys_unicode[0] = 10;
     }
 
     /*
