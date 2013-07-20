@@ -1247,11 +1247,15 @@ int sshcom_encrypted(const Filename *filename, char **comment)
         answer = 1;
 
     done:
-    *comment = dupstr(key ? key->comment : "");
-    smemclr(key->keyblob, key->keyblob_size);
-    sfree(key->keyblob);
-    smemclr(key, sizeof(*key));
-    sfree(key);
+    if (key) {
+        *comment = dupstr(key->comment);
+        smemclr(key->keyblob, key->keyblob_size);
+        sfree(key->keyblob);
+        smemclr(key, sizeof(*key));
+        sfree(key);
+    } else {
+        *comment = dupstr("");
+    }
     return answer;
 }
 
