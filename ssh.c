@@ -7094,6 +7094,15 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
         }
 
         /*
+         * Abandon any buffered data we still wanted to send to this
+         * channel. Receiving a CHANNEL_CLOSE is an indication that
+         * the server really wants to get on and _destroy_ this
+         * channel, and it isn't going to send us any further
+         * WINDOW_ADJUSTs to permit us to send pending stuff.
+         */
+        bufchain_clear(&c->v.v2.outbuffer);
+
+        /*
          * Send outgoing EOF.
          */
         sshfwd_write_eof(c);
