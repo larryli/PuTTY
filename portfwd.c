@@ -370,6 +370,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
     addr = name_lookup(hostname, port, &dummy_realhost, conf, addressfamily);
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
+        sfree(dummy_realhost);
 	return err;
     }
 

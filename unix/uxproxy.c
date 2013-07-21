@@ -288,6 +288,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
     if (pipe(to_cmd_pipe) < 0 ||
 	pipe(from_cmd_pipe) < 0) {
 	ret->error = dupprintf("pipe: %s", strerror(errno));
+        sfree(cmd);
 	return (Socket)ret;
     }
     cloexec(to_cmd_pipe[1]);
