@@ -173,6 +173,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 	return 1;		       /* *out == NULL, so failure */
     mapname = dupprintf("PageantRequest%08x", (unsigned)GetCurrentThreadId());
 
+    psa = NULL;
 #ifndef NO_SECURITY
     if (advapi_initialised || init_advapi()) {
         /*
@@ -186,7 +187,6 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
          */
         usersid = get_user_sid();
 
-        psa = NULL;
         if (usersid) {
             psd = (PSECURITY_DESCRIPTOR)
                 LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
