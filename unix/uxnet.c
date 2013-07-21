@@ -80,8 +80,6 @@ struct Socket_tag {
     int connected;		       /* irrelevant for listening sockets */
     int writable;
     int frozen; /* this causes readability notifications to be ignored */
-    int frozen_readable; /* this means we missed at least one readability
-			  * notification while we were frozen */
     int localhost_only;		       /* for listening sockets */
     char oobdata[1];
     int sending_oob;
@@ -507,7 +505,6 @@ Socket sk_register(OSSocket sockfd, Plug plug)
     ret->writable = 1;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 1;
-    ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->oobpending = FALSE;
@@ -743,7 +740,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
-    ret->frozen_readable = 0;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
@@ -797,7 +793,6 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
-    ret->frozen_readable = 0;
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
@@ -1277,10 +1272,8 @@ static int net_select_result(int fd, int event)
 	 */
 
 	/* In the case the socket is still frozen, we don't even bother */
-	if (s->frozen) {
-	    s->frozen_readable = 1;
+	if (s->frozen)
 	    break;
-	}
 
 	/*
 	 * We have received data on the socket. For an oobinline
@@ -1433,11 +1426,6 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
-    if (!is_frozen && s->frozen_readable) {
-	char c;
-	recv(s->s, &c, 1, MSG_PEEK);
-    }
-    s->frozen_readable = 0;
     uxsel_tell(s);
 }
 
