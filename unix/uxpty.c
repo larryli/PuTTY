@@ -800,7 +800,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	}
 
 	close(pty->master_fd);
-	fcntl(slavefd, F_SETFD, 0);    /* don't close on exec */
+	noncloexec(slavefd);
 	dup2(slavefd, 0);
 	dup2(slavefd, 1);
 	dup2(slavefd, 2);
