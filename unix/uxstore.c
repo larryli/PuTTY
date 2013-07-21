@@ -651,7 +651,12 @@ void store_host_key(const char *hostname, int port,
 
     fclose(wfp);
 
-    rename(tmpfilename, filename);
+    if (rename(tmpfilename, filename) < 0) {
+        char *msg = dupprintf("Unable to store host key: rename(\"%s\",\"%s\")"
+                              " returned '%s'", tmpfilename, filename,
+                              strerror(errno));
+        nonfatal(msg);
+    }
 
     sfree(tmpfilename);
     sfree(filename);
@@ -711,7 +716,7 @@ void write_random_seed(void *data, int len)
 	sfree(dir);
 
 	fd = open(fname, O_CREAT | O_WRONLY, 0600);
-        if (errno != ENOENT) {
+        if (fd < 0) {
             char *msg = dupprintf("Unable to write random seed: open(\"%s\") "
                                   "returned '%s'", fname, strerror(errno));
             nonfatal(msg);
