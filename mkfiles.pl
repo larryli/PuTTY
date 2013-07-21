@@ -492,7 +492,7 @@ if (defined $makefiles{'cygwin'}) {
     print "\n";
     print $makefile_extra{'cygwin'}->{'end'};
     print "\nclean:\n".
-    "\trm -f *.o *.exe *.res.o *.map\n".
+    "\trm -f *.o *.exe *.res.o *.so *.map\n".
     "\n".
     "FORCE:\n";
     select STDOUT; close OUT;
