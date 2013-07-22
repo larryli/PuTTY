@@ -749,7 +749,7 @@ static int transform_jumplist_registry
     /*
      * Either return or free the result.
      */
-    if (out)
+    if (out && ret == ERROR_SUCCESS)
         *out = old_value;
     else
         sfree(old_value);
@@ -782,7 +782,7 @@ char *get_jumplist_registry_entries (void)
 {
     char *list_value;
 
-    if (transform_jumplist_registry(NULL,NULL,&list_value) != ERROR_SUCCESS) {
+    if (transform_jumplist_registry(NULL,NULL,&list_value) != JUMPLISTREG_OK) {
 	list_value = snewn(2, char);
         *list_value = '\0';
         *(list_value + 1) = '\0';
