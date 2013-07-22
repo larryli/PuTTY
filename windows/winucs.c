@@ -1016,55 +1016,52 @@ int decode_codepage(char *cp_name)
     int codepage = -1;
     CPINFO cpinfo;
 
-    if (!*cp_name)
+    if (!cp_name || !*cp_name)
         return CP_UTF8;                /* default */
 
-    if (cp_name && *cp_name)
-	for (cpi = cp_list; cpi->name; cpi++) {
-	    s = cp_name;
-	    d = cpi->name;
-	    for (;;) {
-		while (*s && !isalnum(*s) && *s != ':')
-		    s++;
-		while (*d && !isalnum(*d) && *d != ':')
-		    d++;
-		if (*s == 0) {
-		    codepage = cpi->codepage;
-		    if (codepage == CP_UTF8)
-			goto break_break;
-		    if (codepage == -1)
-			return codepage;
-		    if (codepage == 0) {
-			codepage = 65536 + (cpi - cp_list);
-			goto break_break;
-		    }
+    for (cpi = cp_list; cpi->name; cpi++) {
+        s = cp_name;
+        d = cpi->name;
+        for (;;) {
+            while (*s && !isalnum(*s) && *s != ':')
+                s++;
+            while (*d && !isalnum(*d) && *d != ':')
+                d++;
+            if (*s == 0) {
+                codepage = cpi->codepage;
+                if (codepage == CP_UTF8)
+                    goto break_break;
+                if (codepage == -1)
+                    return codepage;
+                if (codepage == 0) {
+                    codepage = 65536 + (cpi - cp_list);
+                    goto break_break;
+                }
 
-		    if (GetCPInfo(codepage, &cpinfo) != 0)
-			goto break_break;
-		}
-		if (tolower(*s++) != tolower(*d++))
-		    break;
-	    }
-	}
-
-    if (cp_name && *cp_name) {
-	d = cp_name;
-	if (tolower(d[0]) == 'c' && tolower(d[1]) == 'p')
-	    d += 2;
-	if (tolower(d[0]) == 'i' && tolower(d[1]) == 'b'
-	    && tolower(d[2]) == 'm')
-	    d += 3;
-	for (s = d; *s >= '0' && *s <= '9'; s++);
-	if (*s == 0 && s != d)
-	    codepage = atoi(d);	       /* CP999 or IBM999 */
-
-	if (codepage == CP_ACP)
-	    codepage = GetACP();
-	if (codepage == CP_OEMCP)
-	    codepage = GetOEMCP();
-	if (codepage > 65535)
-	    codepage = -2;
+                if (GetCPInfo(codepage, &cpinfo) != 0)
+                    goto break_break;
+            }
+            if (tolower(*s++) != tolower(*d++))
+                break;
+        }
     }
+
+    d = cp_name;
+    if (tolower(d[0]) == 'c' && tolower(d[1]) == 'p')
+        d += 2;
+    if (tolower(d[0]) == 'i' && tolower(d[1]) == 'b'
+        && tolower(d[2]) == 'm')
+        d += 3;
+    for (s = d; *s >= '0' && *s <= '9'; s++);
+    if (*s == 0 && s != d)
+        codepage = atoi(d);	       /* CP999 or IBM999 */
+
+    if (codepage == CP_ACP)
+        codepage = GetACP();
+    if (codepage == CP_OEMCP)
+        codepage = GetOEMCP();
+    if (codepage > 65535)
+        codepage = -2;
 
   break_break:;
     if (codepage != -1) {
