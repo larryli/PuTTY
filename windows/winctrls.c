@@ -2366,6 +2366,8 @@ void dlg_set_focus(union control *ctrl, void *dlg)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     int id;
     HWND ctl;
+    if (!c)
+        return;
     switch (ctrl->generic.type) {
       case CTRL_EDITBOX: id = c->base_id + 1; break;
       case CTRL_RADIO:
