@@ -353,28 +353,27 @@ static void keylist_update(void)
 			       0, (LPARAM) listentry);
 	}
 	for (i = 0; NULL != (skey = index234(ssh2keys, i)); i++) {
-	    char listentry[512], *p;
-	    int len;
+	    char *listentry, *p;
+	    int fp_len;
 	    /*
 	     * Replace two spaces in the fingerprint with tabs, for
 	     * nice alignment in the box.
 	     */
 	    p = skey->alg->fingerprint(skey->data);
-	    strncpy(listentry, p, sizeof(listentry));
+            listentry = dupprintf("%s\t%s", p, skey->comment);
+            fp_len = strlen(listentry);
+            sfree(p);
+
 	    p = strchr(listentry, ' ');
-	    if (p)
+	    if (p && p < listentry + fp_len)
 		*p = '\t';
 	    p = strchr(listentry, ' ');
-	    if (p)
+	    if (p && p < listentry + fp_len)
 		*p = '\t';
-	    len = strlen(listentry);
-	    if (len < sizeof(listentry) - 2) {
-		listentry[len] = '\t';
-		strncpy(listentry + len + 1, skey->comment,
-			sizeof(listentry) - len - 1);
-	    }
+
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
 			       (LPARAM) listentry);
+            sfree(listentry);
 	}
 	SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
     }
