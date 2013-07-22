@@ -1293,7 +1293,6 @@ void winctrl_remove(struct winctrls *wc, struct winctrl *c)
 {
     struct winctrl *ret;
     ret = del234(wc->byctrl, c);
-    assert(ret == c);
     ret = del234(wc->byid, c);
     assert(ret == c);
 }
