@@ -210,7 +210,7 @@ const char *win_strerror(int error)
     es = find234(errstrings, &error, errstring_find);
 
     if (!es) {
-        int bufsize, bufused;
+        int bufsize;
 
         es = snew(struct errstring);
         es->error = error;
@@ -220,7 +220,7 @@ const char *win_strerror(int error)
         if (!FormatMessage((FORMAT_MESSAGE_FROM_SYSTEM |
                             FORMAT_MESSAGE_IGNORE_INSERTS), NULL, error,
                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                           es->text + bufused, bufsize - bufused, NULL)) {
+                           es->text, bufsize, NULL)) {
             sprintf(es->text,
                     "Windows error code %d (and FormatMessage returned %d)", 
                     error, GetLastError());
