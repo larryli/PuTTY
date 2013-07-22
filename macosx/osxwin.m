@@ -957,7 +957,7 @@ void palette_set(void *frontend, int n, int r, int g, int b)
 
     if (n >= 16)
 	n += 256 - 16;
-    if (n > NALLCOLOURS)
+    if (n >= NALLCOLOURS)
 	return;
     [win setColour:n r:r/255.0 g:g/255.0 b:b/255.0];
 

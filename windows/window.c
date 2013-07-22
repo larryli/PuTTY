@@ -4805,7 +4805,7 @@ void palette_set(void *frontend, int n, int r, int g, int b)
 {
     if (n >= 16)
 	n += 256 - 16;
-    if (n > NALLCOLOURS)
+    if (n >= NALLCOLOURS)
 	return;
     real_palette_set(n, r, g, b);
     if (pal) {
