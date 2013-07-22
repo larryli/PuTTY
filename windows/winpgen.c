@@ -954,8 +954,11 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	/*
 	 * Load a key file if one was provided on the command line.
 	 */
-	if (cmdline_keyfile)
-	    load_key_file(hwnd, state, filename_from_str(cmdline_keyfile), 0);
+	if (cmdline_keyfile) {
+            Filename *fn = filename_from_str(cmdline_keyfile);
+	    load_key_file(hwnd, state, fn, 0);
+            filename_free(fn);
+        }
 
 	return 1;
       case WM_MOUSEMOVE:

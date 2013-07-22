@@ -1258,7 +1258,9 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	    fname = canonify(origwfname);
 
 	    if (!fname) {
+                sftp_finish_wildcard_matching(swcm);
 		printf("%s: canonify: %s\n", origwfname, fxp_error());
+		sfree(origwfname);
 		sfree(unwcfname);
 		return 0;
 	    }
@@ -2720,6 +2722,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	    /* Use `host' as a bare hostname. */
 	    conf_set_str(conf, CONF_host, host);
 	}
+        conf_free(conf2);
     } else {
 	/* Patch in hostname `host' to session details. */
 	conf_set_str(conf, CONF_host, host);

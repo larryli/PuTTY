@@ -474,6 +474,7 @@ Socket new_connection(SockAddr addr, char *hostname,
 	if (sk_addr_error(proxy_addr) != NULL) {
 	    ret->error = "Proxy error: Unable to resolve proxy host name";
             sfree(pplug);
+            sk_addr_free(proxy_addr);
 	    return (Socket)ret;
 	}
 	sfree(proxy_canonical_name);
