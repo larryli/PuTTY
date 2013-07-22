@@ -1041,16 +1041,18 @@ int decode_codepage(char *cp_name)
                 if (GetCPInfo(codepage, &cpinfo) != 0)
                     goto break_break;
             }
-            if (tolower(*s++) != tolower(*d++))
+            if (tolower((unsigned char)*s++) != tolower((unsigned char)*d++))
                 break;
         }
     }
 
     d = cp_name;
-    if (tolower(d[0]) == 'c' && tolower(d[1]) == 'p')
+    if (tolower((unsigned char)d[0]) == 'c' &&
+        tolower((unsigned char)d[1]) == 'p')
         d += 2;
-    if (tolower(d[0]) == 'i' && tolower(d[1]) == 'b'
-        && tolower(d[2]) == 'm')
+    if (tolower((unsigned char)d[0]) == 'i' &&
+        tolower((unsigned char)d[1]) == 'b' &&
+        tolower((unsigned char)d[2]) == 'm')
         d += 3;
     for (s = d; *s >= '0' && *s <= '9'; s++);
     if (*s == 0 && s != d)
