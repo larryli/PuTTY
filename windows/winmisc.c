@@ -173,6 +173,69 @@ HMODULE load_system32_dll(const char *libname)
     return ret;
 }
 
+/*
+ * A tree234 containing mappings from system error codes to strings.
+ */
+
+struct errstring {
+    int error;
+    char *text;
+};
+
+static int errstring_find(void *av, void *bv)
+{
+    int *a = (int *)av;
+    struct errstring *b = (struct errstring *)bv;
+    if (*a < b->error)
+        return -1;
+    if (*a > b->error)
+        return +1;
+    return 0;
+}
+static int errstring_compare(void *av, void *bv)
+{
+    struct errstring *a = (struct errstring *)av;
+    return errstring_find(&a->error, bv);
+}
+
+static tree234 *errstrings = NULL;
+
+const char *win_strerror(int error)
+{
+    struct errstring *es;
+
+    if (!errstrings)
+        errstrings = newtree234(errstring_compare);
+
+    es = find234(errstrings, &error, errstring_find);
+
+    if (!es) {
+        int bufsize, bufused;
+
+        es = snew(struct errstring);
+        es->error = error;
+        /* maximum size for FormatMessage is 64K */
+        bufsize = 65535;
+        es->text = snewn(bufsize, char);
+        if (!FormatMessage((FORMAT_MESSAGE_FROM_SYSTEM |
+                            FORMAT_MESSAGE_IGNORE_INSERTS), NULL, error,
+                           MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                           es->text + bufused, bufsize - bufused, NULL)) {
+            sprintf(es->text,
+                    "Windows error code %d (and FormatMessage returned %d)", 
+                    error, GetLastError());
+        } else {
+            int len = strlen(es->text);
+            if (len > 0 && es->text[len-1] == '\n')
+                es->text[len-1] = '\0';
+        }
+        es->text = sresize(es->text, strlen(es->text) + 1, char);
+        add234(errstrings, es);
+    }
+
+    return es->text;
+}
+
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
 static HANDLE debug_hdl = INVALID_HANDLE_VALUE;
