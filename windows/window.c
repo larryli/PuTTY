@@ -168,7 +168,7 @@ struct agent_callback {
 #define FONT_OEMUND 	0x22
 #define FONT_OEMBOLDUND 0x23
 
-#define FONT_MAXNO 	0x2F
+#define FONT_MAXNO 	0x40
 #define FONT_SHIFT	5
 static HFONT fonts[FONT_MAXNO];
 static LOGFONT lfont;
