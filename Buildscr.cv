@@ -1,0 +1,39 @@
+# -*- sh -*-
+
+# Build script to scan PuTTY with the downloadable Coverity scanner
+# and generate a tar file to upload to their open-source scanning
+# service.
+
+module putty
+
+# Preparations.
+in putty do ./mkfiles.pl
+in putty do ./mkauto.sh
+in putty/doc do make
+
+# Scan the Unix build, on a 64-bit system to differentiate as much as
+# possible from the other scan of the cross-platform files.
+delegate covscan64
+  in putty do ./configure
+  in putty do cov-build --dir cov-int make
+  in putty do tar czvf cov-int.tar.gz cov-int
+  return putty/cov-int.tar.gz
+enddelegate
+
+# Scan the Windows build, by means of building with Winelib (since as
+# of 2013-07-22, the Coverity Scan website doesn't offer a 32-bit
+# Windows scanner for download).
+delegate covscan32wine
+  in putty do tar xzvf cov-int.tar.gz
+  in putty/windows do cov-build --dir ../cov-int make -f Makefile.cyg CC=winegcc RC=wrc
+  in putty do tar czvf cov-int.tar.gz cov-int
+  return putty/cov-int.tar.gz
+enddelegate
+
+# Provide the revision number as one of the build outputs, to make it
+# easy to construct a curl upload command which will annotate it
+# appropriately when uploaded.
+in putty do echo $(revision) > revision.txt
+
+deliver putty/revision.txt $@
+deliver putty/cov-int.tar.gz $@
