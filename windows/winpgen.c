@@ -41,6 +41,22 @@ void modalfatalbox(char *fmt, ...)
     exit(1);
 }
 
+/*
+ * Print a non-fatal message box and do not exit.
+ */
+void nonfatal(char *fmt, ...)
+{
+    va_list ap;
+    char *stuff;
+
+    va_start(ap, fmt);
+    stuff = dupvprintf(fmt, ap);
+    va_end(ap);
+    MessageBox(NULL, stuff, "PuTTYgen Error",
+	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    sfree(stuff);
+}
+
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */
