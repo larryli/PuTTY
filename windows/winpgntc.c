@@ -209,8 +209,10 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, psa, PAGE_READWRITE,
 				0, AGENT_MAX_MSGLEN, mapname);
-    if (filemap == NULL || filemap == INVALID_HANDLE_VALUE)
+    if (filemap == NULL || filemap == INVALID_HANDLE_VALUE) {
+        sfree(mapname);
 	return 1;		       /* *out == NULL, so failure */
+    }
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
     memcpy(p, in, inlen);
     cds.dwData = AGENT_COPYDATA_ID;
@@ -237,6 +239,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 	data->hwnd = hwnd;
 	if (CreateThread(NULL, 0, agent_query_thread, data, 0, &threadid))
 	    return 0;
+	sfree(mapname);
 	sfree(data);
     }
 #endif
@@ -258,6 +261,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
     }
     UnmapViewOfFile(p);
     CloseHandle(filemap);
+    sfree(mapname);
     if (psd)
         LocalFree(psd);
     sfree(usersid);

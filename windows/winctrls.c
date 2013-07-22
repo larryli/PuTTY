@@ -448,6 +448,8 @@ char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
 
     if (lines) *lines = nlines;
 
+    sfree(pwidths);
+
     return ret;
 }
 
@@ -1665,7 +1667,9 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    winctrl_add_shortcuts(dp, c);
 	    if (actual_base_id == base_id)
 		base_id += num_ids;
-	}
+	} else {
+            sfree(data);
+        }
 
 	if (colstart >= 0) {
 	    /*

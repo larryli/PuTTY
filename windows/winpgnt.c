@@ -811,8 +811,10 @@ static void *get_keylist1(int *length)
 	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
 	assert(retval == 1);
 	response = vresponse;
-	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER)
+	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
+            sfree(response);
 	    return NULL;
+        }
 
 	ret = snewn(resplen-5, unsigned char);
 	memcpy(ret, response+5, resplen-5);
@@ -846,8 +848,10 @@ static void *get_keylist2(int *length)
 	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
 	assert(retval == 1);
 	response = vresponse;
-	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER)
+	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
+            sfree(response);
 	    return NULL;
+        }
 
 	ret = snewn(resplen-5, unsigned char);
 	memcpy(ret, response+5, resplen-5);
@@ -942,12 +946,17 @@ static void answer_msg(void *msg)
 		goto failure;
 	    p += i;
 	    i = ssh1_read_bignum(p, msgend - p, &reqkey.modulus);
-	    if (i < 0)
+	    if (i < 0) {
+                freebn(reqkey.exponent);
 		goto failure;
+            }
 	    p += i;
 	    i = ssh1_read_bignum(p, msgend - p, &challenge);
-	    if (i < 0)
+	    if (i < 0) {
+                freebn(reqkey.exponent);
+                freebn(reqkey.modulus);
 		goto failure;
+            }
 	    p += i;
 	    if (msgend < p+16) {
 		freebn(reqkey.exponent);
@@ -1437,10 +1446,12 @@ static void prompt_add_keyfile(void)
     of.lpstrTitle = "Select Private Key File";
     of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
     if (request_file(keypath, &of, TRUE, FALSE)) {
-	if(strlen(filelist) > of.nFileOffset)
+	if(strlen(filelist) > of.nFileOffset) {
 	    /* Only one filename returned? */
-	    add_keyfile(filename_from_str(filelist));
-	else {
+            Filename *fn = filename_from_str(filelist);
+	    add_keyfile(fn);
+            filename_free(fn);
+        } else {
 	    /* we are returned a bunch of strings, end to
 	     * end. first string is the directory, the
 	     * rest the filenames. terminated with an
@@ -1450,7 +1461,9 @@ static void prompt_add_keyfile(void)
 	    char *filewalker = filelist + strlen(dir) + 1;
 	    while (*filewalker != '\0') {
 		char *filename = dupcat(dir, "\\", filewalker, NULL);
-		add_keyfile(filename_from_str(filename));
+                Filename *fn = filename_from_str(filename);
+		add_keyfile(fn);
+                filename_free(fn);
 		sfree(filename);
 		filewalker += strlen(filewalker) + 1;
 	    }
@@ -1908,6 +1921,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #ifdef DEBUG_IPC
 			debug(("couldn't get user SID\n"));
 #endif
+                        CloseHandle(filemap);
 			return 0;
                     }
 
@@ -1915,6 +1929,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #ifdef DEBUG_IPC
 			debug(("couldn't get default SID\n"));
 #endif
+                        CloseHandle(filemap);
+                        sfree(ourself);
 			return 0;
                     }
 
@@ -1926,6 +1942,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			debug(("couldn't get owner info for filemap: %d\n",
                                rc));
 #endif
+                        CloseHandle(filemap);
+                        sfree(ourself);
+                        sfree(ourself2);
 			return 0;
 		    }
 #ifdef DEBUG_IPC
@@ -1944,6 +1963,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    if (!EqualSid(mapowner, ourself) &&
                         !EqualSid(mapowner, ourself2)) {
                         CloseHandle(filemap);
+                        LocalFree(psd);
+                        sfree(ourself);
+                        sfree(ourself2);
 			return 0;      /* security ID mismatch! */
                     }
 #ifdef DEBUG_IPC
@@ -2127,7 +2149,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		command = "";
 	    break;
 	} else {
-	    add_keyfile(filename_from_str(argv[i]));
+            Filename *fn = filename_from_str(argv[i]);
+	    add_keyfile(fn);
+            filename_free(fn);
 	    added_keys = TRUE;
 	}
     }

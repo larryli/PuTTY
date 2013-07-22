@@ -2197,8 +2197,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		reconfig_result =
 		    do_reconfig(hwnd, back ? back->cfg_info(backhandle) : 0);
 		reconfiguring = FALSE;
-		if (!reconfig_result)
+		if (!reconfig_result) {
+                    conf_free(prev_conf);
 		    break;
+                }
 
 		conf_cache_data();
 
@@ -4903,10 +4905,17 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	    GlobalFree(clipdata2);
 	return;
     }
-    if (!(lock = GlobalLock(clipdata)))
+    if (!(lock = GlobalLock(clipdata))) {
+        GlobalFree(clipdata);
+        GlobalFree(clipdata2);
 	return;
-    if (!(lock2 = GlobalLock(clipdata2)))
+    }
+    if (!(lock2 = GlobalLock(clipdata2))) {
+        GlobalUnlock(clipdata);
+        GlobalFree(clipdata);
+        GlobalFree(clipdata2);
 	return;
+    }
 
     memcpy(lock, data, len * sizeof(wchar_t));
     WideCharToMultiByte(CP_ACP, 0, data, len, lock2, len2, NULL, NULL);

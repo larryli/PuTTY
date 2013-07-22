@@ -180,6 +180,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
     sa.bInheritHandle = TRUE;
     if (!CreatePipe(&us_from_cmd, &cmd_to_us, &sa, 0)) {
 	ret->error = dupprintf("Unable to create pipes for proxy command");
+        sfree(cmd);
 	return (Socket)ret;
     }
 
@@ -187,6 +188,7 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	CloseHandle(us_from_cmd);
 	CloseHandle(cmd_to_us);
 	ret->error = dupprintf("Unable to create pipes for proxy command");
+        sfree(cmd);
 	return (Socket)ret;
     }
 

@@ -410,16 +410,20 @@ static IShellLink *make_shell_link(const char *appname,
     /* Check if this is a valid session, otherwise don't add. */
     if (sessionname) {
         psettings_tmp = open_settings_r(sessionname);
-        if (!psettings_tmp)
+        if (!psettings_tmp) {
+            sfree(app_path);
             return NULL;
+        }
         close_settings_r(psettings_tmp);
     }
 
     /* Create the new item. */
     if (!SUCCEEDED(CoCreateInstance(&CLSID_ShellLink, NULL,
                                     CLSCTX_INPROC_SERVER,
-                                    COMPTR(IShellLink, &ret))))
+                                    COMPTR(IShellLink, &ret)))) {
+        sfree(app_path);
         return NULL;
+    }
 
     /* Set path, parameters, icon and description. */
     ret->lpVtbl->SetPath(ret, app_path);

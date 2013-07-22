@@ -420,11 +420,11 @@ static int save_ssh1_pubkey(char *filename, struct RSAKey *key)
     char *dec1, *dec2;
     FILE *fp;
 
-    dec1 = bignum_decimal(key->exponent);
-    dec2 = bignum_decimal(key->modulus);
     fp = fopen(filename, "wb");
     if (!fp)
 	return 0;
+    dec1 = bignum_decimal(key->exponent);
+    dec2 = bignum_decimal(key->modulus);
     fprintf(fp, "%d %s %s %s\n",
 	    bignum_bitcount(key->modulus), dec1, dec2, key->comment);
     fclose(fp);
@@ -1256,9 +1256,11 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (!state->generation_thread_exists) {
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Load private key:",
-				   filename, 0, LOWORD(wParam)==IDC_LOAD))
-		    load_key_file(hwnd, state, filename_from_str(filename),
-				  LOWORD(wParam) != IDC_LOAD);
+				   filename, 0, LOWORD(wParam)==IDC_LOAD)) {
+                    Filename *fn = filename_from_str(filename);
+		    load_key_file(hwnd, state, fn, LOWORD(wParam) != IDC_LOAD);
+                    filename_free(fn);
+                }
 	    }
 	    break;
 	}

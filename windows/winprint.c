@@ -18,39 +18,39 @@ struct printer_job_tag {
     HANDLE hprinter;
 };
 
-static char *printer_add_enum(int param, DWORD level, char *buffer,
-                              int offset, int *nprinters_ptr)
+static int printer_add_enum(int param, DWORD level, char **buffer,
+                            int offset, int *nprinters_ptr)
 {
     DWORD needed = 0, nprinters = 0;
 
-    buffer = sresize(buffer, offset+512, char);
+    *buffer = sresize(*buffer, offset+512, char);
 
     /*
      * Exploratory call to EnumPrinters to determine how much space
      * we'll need for the output. Discard the return value since it
      * will almost certainly be a failure due to lack of space.
      */
-    EnumPrinters(param, NULL, level, buffer+offset, 512,
+    EnumPrinters(param, NULL, level, (*buffer)+offset, 512,
 		 &needed, &nprinters);
 
     if (needed < 512)
         needed = 512;
 
-    buffer = sresize(buffer, offset+needed, char);
+    *buffer = sresize(*buffer, offset+needed, char);
 
-    if (EnumPrinters(param, NULL, level, buffer+offset,
+    if (EnumPrinters(param, NULL, level, (*buffer)+offset,
                      needed, &needed, &nprinters) == 0)
-        return NULL;
+        return FALSE;
 
     *nprinters_ptr += nprinters;
 
-    return buffer;
+    return TRUE;
 }
 
 printer_enum *printer_start_enum(int *nprinters_ptr)
 {
     printer_enum *ret = snew(printer_enum);
-    char *buffer = NULL, *retval;
+    char *buffer = NULL;
 
     *nprinters_ptr = 0;		       /* default return value */
     buffer = snewn(512, char);
@@ -71,12 +71,9 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 	ret->enum_level = 4;
     }
 
-    retval = printer_add_enum(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
-			      ret->enum_level, buffer, 0, nprinters_ptr);
-    if (!retval)
+    if (!printer_add_enum(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
+                          ret->enum_level, &buffer, 0, nprinters_ptr))
         goto error;
-    else
-        buffer = retval;
 
     switch (ret->enum_level) {
       case 4:
