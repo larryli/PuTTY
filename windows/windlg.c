@@ -42,8 +42,12 @@ static struct controlbox *ctrlbox;
 static struct winctrls ctrls_base, ctrls_panel;
 static struct dlgparam dp;
 
-static char **events = NULL;
-static int nevents = 0, negsize = 0;
+#define LOGEVENT_INITIAL_MAX 128
+#define LOGEVENT_CIRCULAR_MAX 128
+
+static char *events_initial[LOGEVENT_INITIAL_MAX];
+static char *events_circular[LOGEVENT_CIRCULAR_MAX];
+static int ninitial = 0, ncircular = 0, circular_first = 0;
 
 extern Conf *conf;		       /* defined in window.c */
 
@@ -67,6 +71,15 @@ void force_normal(HWND hwnd)
     recurse = 0;
 }
 
+static char *getevent(int i)
+{
+    if (i < ninitial)
+        return events_initial[i];
+    if ((i -= ninitial) < ncircular)
+        return events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX];
+    return NULL;
+}
+
 static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
@@ -84,9 +97,12 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 	    SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
 			       (LPARAM) tabs);
 	}
-	for (i = 0; i < nevents; i++)
+	for (i = 0; i < ninitial; i++)
 	    SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
-			       0, (LPARAM) events[i]);
+			       0, (LPARAM) events_initial[i]);
+	for (i = 0; i < ncircular; i++)
+	    SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
+			       0, (LPARAM) events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX]);
 	return 1;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -127,13 +143,13 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 		    size = 0;
 		    for (i = 0; i < count; i++)
 			size +=
-			    strlen(events[selitems[i]]) + sizeof(sel_nl);
+			    strlen(getevent(selitems[i])) + sizeof(sel_nl);
 
 		    clipdata = snewn(size, char);
 		    if (clipdata) {
 			char *p = clipdata;
 			for (i = 0; i < count; i++) {
-			    char *q = events[selitems[i]];
+			    char *q = getevent(selitems[i]);
 			    int qlen = strlen(q);
 			    memcpy(p, q, qlen);
 			    p += qlen;
@@ -145,7 +161,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 		    }
 		    sfree(selitems);
 
-		    for (i = 0; i < nevents; i++)
+		    for (i = 0; i < (ninitial + ncircular); i++)
 			SendDlgItemMessage(hwnd, IDN_LIST, LB_SETSEL,
 					   FALSE, i);
 		}
@@ -748,29 +764,38 @@ int do_reconfig(HWND hwnd, int protcfginfo)
 void logevent(void *frontend, const char *string)
 {
     char timebuf[40];
+    char **location;
     struct tm tm;
 
     log_eventlog(logctx, string);
 
-    if (nevents >= negsize) {
-	negsize += 64;
-	events = sresize(events, negsize, char *);
-    }
-
     tm=ltime();
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
 
-    events[nevents] = snewn(strlen(timebuf) + strlen(string) + 1, char);
-    strcpy(events[nevents], timebuf);
-    strcat(events[nevents], string);
+    if (ninitial < LOGEVENT_INITIAL_MAX)
+        location = &events_initial[ninitial];
+    else
+        location = &events_circular[(circular_first + ncircular) % LOGEVENT_CIRCULAR_MAX];
+
+    if (*location)
+        sfree(*location);
+    *location = dupcat(timebuf, string, NULL);
     if (logbox) {
 	int count;
 	SendDlgItemMessage(logbox, IDN_LIST, LB_ADDSTRING,
-			   0, (LPARAM) events[nevents]);
+			   0, (LPARAM) *location);
 	count = SendDlgItemMessage(logbox, IDN_LIST, LB_GETCOUNT, 0, 0);
 	SendDlgItemMessage(logbox, IDN_LIST, LB_SETTOPINDEX, count - 1, 0);
     }
-    nevents++;
+    if (ninitial < LOGEVENT_INITIAL_MAX) {
+        ninitial++;
+    } else if (ncircular < LOGEVENT_CIRCULAR_MAX) {
+        ncircular++;
+    } else if (ncircular == LOGEVENT_CIRCULAR_MAX) {
+        circular_first = (circular_first + 1) % LOGEVENT_CIRCULAR_MAX;
+        sfree(events_circular[circular_first]);
+        events_circular[circular_first] = dupstr("..");
+    }
 }
 
 void showeventlog(HWND hwnd)
