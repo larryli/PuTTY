@@ -2039,7 +2039,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;
     MSG msg;
-    HMODULE advapi;
     char *command = NULL;
     int added_keys = 0;
     int argc, i;
@@ -2080,8 +2079,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		   "Pageant Fatal Error", MB_ICONERROR | MB_OK);
 	return 1;
 #endif
-    } else
-	advapi = NULL;
+    }
 
     /*
      * See if we can find our Help file.
@@ -2134,8 +2132,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     for (i = 0; i < argc; i++) {
 	if (!strcmp(argv[i], "-pgpfp")) {
 	    pgp_fingerprints();
-	    if (advapi)
-		FreeLibrary(advapi);
 	    return 1;
 	} else if (!strcmp(argv[i], "-c")) {
 	    /*
@@ -2185,8 +2181,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    MessageBox(NULL, "Pageant is already running", "Pageant Error",
 		       MB_ICONERROR | MB_OK);
 	}
-	if (advapi)
-	    FreeLibrary(advapi);
 	return 0;
     }
 
@@ -2265,9 +2259,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     if (keypath) filereq_free(keypath);
-
-    if (advapi)
-	FreeLibrary(advapi);
 
     cleanup_exit(msg.wParam);
     return msg.wParam;		       /* just in case optimiser complains */
