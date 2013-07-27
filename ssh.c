@@ -460,14 +460,14 @@ struct Packet;
 static struct Packet *ssh1_pkt_init(int pkt_type);
 static struct Packet *ssh2_pkt_init(int pkt_type);
 static void ssh_pkt_ensure(struct Packet *, int length);
-static void ssh_pkt_adddata(struct Packet *, void *data, int len);
+static void ssh_pkt_adddata(struct Packet *, const void *data, int len);
 static void ssh_pkt_addbyte(struct Packet *, unsigned char value);
 static void ssh2_pkt_addbool(struct Packet *, unsigned char value);
 static void ssh_pkt_adduint32(struct Packet *, unsigned long value);
 static void ssh_pkt_addstring_start(struct Packet *);
-static void ssh_pkt_addstring_str(struct Packet *, char *data);
-static void ssh_pkt_addstring_data(struct Packet *, char *data, int len);
-static void ssh_pkt_addstring(struct Packet *, char *data);
+static void ssh_pkt_addstring_str(struct Packet *, const char *data);
+static void ssh_pkt_addstring_data(struct Packet *, const char *data, int len);
+static void ssh_pkt_addstring(struct Packet *, const char *data);
 static unsigned char *ssh2_mpint_fmt(Bignum b, int *len);
 static void ssh1_pkt_addmp(struct Packet *, Bignum b);
 static void ssh2_pkt_addmp(struct Packet *, Bignum b);
@@ -1829,7 +1829,7 @@ static void ssh_pkt_ensure(struct Packet *pkt, int length)
 	if (body) pkt->body = pkt->data + offset;
     }
 }
-static void ssh_pkt_adddata(struct Packet *pkt, void *data, int len)
+static void ssh_pkt_adddata(struct Packet *pkt, const void *data, int len)
 {
     if (pkt->logmode != PKTLOG_EMIT) {
 	pkt->nblanks++;
@@ -1863,17 +1863,18 @@ static void ssh_pkt_addstring_start(struct Packet *pkt)
     ssh_pkt_adduint32(pkt, 0);
     pkt->savedpos = pkt->length;
 }
-static void ssh_pkt_addstring_str(struct Packet *pkt, char *data)
+static void ssh_pkt_addstring_str(struct Packet *pkt, const char *data)
 {
     ssh_pkt_adddata(pkt, data, strlen(data));
     PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
 }
-static void ssh_pkt_addstring_data(struct Packet *pkt, char *data, int len)
+static void ssh_pkt_addstring_data(struct Packet *pkt, const char *data,
+                                   int len)
 {
     ssh_pkt_adddata(pkt, data, len);
     PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
 }
-static void ssh_pkt_addstring(struct Packet *pkt, char *data)
+static void ssh_pkt_addstring(struct Packet *pkt, const char *data)
 {
     ssh_pkt_addstring_start(pkt);
     ssh_pkt_addstring_str(pkt, data);

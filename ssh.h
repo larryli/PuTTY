@@ -133,9 +133,9 @@ typedef struct {
     uint32 lenhi, lenlo;
 } SHA_State;
 void SHA_Init(SHA_State * s);
-void SHA_Bytes(SHA_State * s, void *p, int len);
+void SHA_Bytes(SHA_State * s, const void *p, int len);
 void SHA_Final(SHA_State * s, unsigned char *output);
-void SHA_Simple(void *p, int len, unsigned char *output);
+void SHA_Simple(const void *p, int len, unsigned char *output);
 
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 		      unsigned char *output);

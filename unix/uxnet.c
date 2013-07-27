@@ -341,7 +341,7 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
     }
 }
 
-int sk_hostname_is_local(char *name)
+int sk_hostname_is_local(const char *name)
 {
     return !strcmp(name, "localhost") ||
 	   !strcmp(name, "::1") ||
