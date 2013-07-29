@@ -2026,7 +2026,6 @@ static void sink(char *targ, char *src)
 	    set_file_times(f, act.mtime, act.atime);
 	}
 
-	sfree(stat_name);
 	close_wfile(f);
 	if (wrerror) {
 	    run_err("%s: Write error", destfname);
