@@ -103,6 +103,15 @@ for i in range(1,4200):
     a, b, p = findprod((1<<i)+1, +1, (i, i+1))
     print "mul", hexstr(a), hexstr(b), hexstr(p)
 
+# Simple tests of modmul.
+for ai in range(20, 200, 60):
+    a = sqrt(3<<(2*ai-1))
+    for bi in range(20, 200, 60):
+        b = sqrt(5<<(2*bi-1))
+        for m in range(20, 600, 32):
+            m = sqrt(2**(m+1))
+            print "modmul", hexstr(a), hexstr(b), hexstr(m), hexstr((a*b) % m)
+
 # Simple tests of modpow.
 for i in range(64, 4097, 63):
     modulus = sqrt(1<<(2*i-1)) | 1
@@ -113,3 +122,4 @@ for i in range(64, 4097, 63):
         # Test even moduli, which can't be done by Montgomery.
         modulus = modulus - 1
         print "pow", hexstr(base), hexstr(expt), hexstr(modulus), hexstr(pow(base, expt, modulus))
+        print "pow", hexstr(i), hexstr(expt), hexstr(modulus), hexstr(pow(i, expt, modulus))
