@@ -711,6 +711,11 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len)
 	return NULL;
     }
 
+    if (!rsa_verify(rsa)) {
+	rsa2_freekey(rsa);
+	return NULL;
+    }
+
     return rsa;
 }
 
