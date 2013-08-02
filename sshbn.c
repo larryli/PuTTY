@@ -815,20 +815,15 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
 	result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < 2 * mlen; i++)
-	a[i] = 0;
+    smemclr(a, 2 * mlen * sizeof(*a));
     sfree(a);
-    for (i = 0; i < scratchlen; i++)
-	scratch[i] = 0;
+    smemclr(scratch, scratchlen * sizeof(*scratch));
     sfree(scratch);
-    for (i = 0; i < 2 * mlen; i++)
-	b[i] = 0;
+    smemclr(b, 2 * mlen * sizeof(*b));
     sfree(b);
-    for (i = 0; i < mlen; i++)
-	m[i] = 0;
+    smemclr(m, mlen * sizeof(*m));
     sfree(m);
-    for (i = 0; i < mlen; i++)
-	n[i] = 0;
+    smemclr(n, mlen * sizeof(*n));
     sfree(n);
 
     freebn(base);
@@ -965,23 +960,17 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 	result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < scratchlen; i++)
-	scratch[i] = 0;
+    smemclr(scratch, scratchlen * sizeof(*scratch));
     sfree(scratch);
-    for (i = 0; i < 2 * len; i++)
-	a[i] = 0;
+    smemclr(a, 2 * len * sizeof(*a));
     sfree(a);
-    for (i = 0; i < 2 * len; i++)
-	b[i] = 0;
+    smemclr(b, 2 * len * sizeof(*b));
     sfree(b);
-    for (i = 0; i < len; i++)
-	mninv[i] = 0;
+    smemclr(mninv, len * sizeof(*mninv));
     sfree(mninv);
-    for (i = 0; i < len; i++)
-	n[i] = 0;
+    smemclr(n, len * sizeof(*n));
     sfree(n);
-    for (i = 0; i < len; i++)
-	x[i] = 0;
+    smemclr(x, len * sizeof(*x));
     sfree(x);
 
     return result;
@@ -1071,20 +1060,15 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
 	result[0]--;
 
     /* Free temporary arrays */
-    for (i = 0; i < scratchlen; i++)
-	scratch[i] = 0;
+    smemclr(scratch, scratchlen * sizeof(*scratch));
     sfree(scratch);
-    for (i = 0; i < 2 * pqlen; i++)
-	a[i] = 0;
+    smemclr(a, 2 * pqlen * sizeof(*a));
     sfree(a);
-    for (i = 0; i < mlen; i++)
-	m[i] = 0;
+    smemclr(m, mlen * sizeof(*m));
     sfree(m);
-    for (i = 0; i < pqlen; i++)
-	n[i] = 0;
+    smemclr(n, pqlen * sizeof(*n));
     sfree(n);
-    for (i = 0; i < pqlen; i++)
-	o[i] = 0;
+    smemclr(o, pqlen * sizeof(*o));
     sfree(o);
 
     return result;
@@ -1154,11 +1138,9 @@ static void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     }
 
     /* Free temporary arrays */
-    for (i = 0; i < mlen; i++)
-	m[i] = 0;
+    smemclr(m, mlen * sizeof(*m));
     sfree(m);
-    for (i = 0; i < plen; i++)
-	n[i] = 0;
+    smemclr(n, plen * sizeof(*n));
     sfree(n);
 }
 
@@ -1405,8 +1387,7 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend)
     }
     ret[0] = maxspot;
 
-    for (i = 0; i < wslen; i++)
-        workspace[i] = 0;
+    smemclr(workspace, wslen * sizeof(*workspace));
     sfree(workspace);
     return ret;
 }
@@ -1757,6 +1738,7 @@ char *bignum_decimal(Bignum x)
     /*
      * Done.
      */
+    smemclr(workspace, x[0] * sizeof(*workspace));
     sfree(workspace);
     return ret;
 }
