@@ -842,6 +842,8 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
 	return 0;
     }
     in = getmp(&sig, &siglen);
+    if (!in)
+        return 0;
     out = modpow(in, rsa->exponent, rsa->modulus);
     freebn(in);
 

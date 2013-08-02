@@ -72,6 +72,9 @@ static Bignum get160(char **data, int *datalen)
 {
     Bignum b;
 
+    if (*datalen < 20)
+        return NULL;
+
     b = bignum_from_bytes((unsigned char *)*data, 20);
     *data += 20;
     *datalen -= 20;
