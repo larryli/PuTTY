@@ -433,11 +433,11 @@ static void *dss_openssh_createkey(unsigned char **blob, int *len)
     dss->x = getmp(b, len);
 
     if (!dss->p || !dss->q || !dss->g || !dss->y || !dss->x) {
-	sfree(dss->p);
-	sfree(dss->q);
-	sfree(dss->g);
-	sfree(dss->y);
-	sfree(dss->x);
+	freebn(dss->p);
+	freebn(dss->q);
+	freebn(dss->g);
+	freebn(dss->y);
+	freebn(dss->x);
 	sfree(dss);
 	return NULL;
     }

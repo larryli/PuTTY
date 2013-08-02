@@ -415,7 +415,7 @@ int rsa_verify(struct RSAKey *key)
     ed = modmul(key->exponent, key->private_exponent, pm1);
     freebn(pm1);
     cmp = bignum_cmp(ed, One);
-    sfree(ed);
+    freebn(ed);
     if (cmp != 0)
 	return 0;
 
@@ -424,7 +424,7 @@ int rsa_verify(struct RSAKey *key)
     ed = modmul(key->exponent, key->private_exponent, qm1);
     freebn(qm1);
     cmp = bignum_cmp(ed, One);
-    sfree(ed);
+    freebn(ed);
     if (cmp != 0)
 	return 0;
 
@@ -450,7 +450,7 @@ int rsa_verify(struct RSAKey *key)
      */
     n = modmul(key->iqmp, key->q, key->p);
     cmp = bignum_cmp(n, One);
-    sfree(n);
+    freebn(n);
     if (cmp != 0)
 	return 0;
 
@@ -707,13 +707,7 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len)
 
     if (!rsa->modulus || !rsa->exponent || !rsa->private_exponent ||
 	!rsa->iqmp || !rsa->p || !rsa->q) {
-	sfree(rsa->modulus);
-	sfree(rsa->exponent);
-	sfree(rsa->private_exponent);
-	sfree(rsa->iqmp);
-	sfree(rsa->p);
-	sfree(rsa->q);
-	sfree(rsa);
+        rsa2_freekey(rsa);
 	return NULL;
     }
 
