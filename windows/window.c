@@ -617,10 +617,21 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		}
 	    }
 
-	    /*
-	     * Trim off a colon suffix if it's there.
-	     */
-	    host[strcspn(host, ":")] = '\0';
+            /*
+             * Trim a colon suffix off the hostname if it's there. In
+             * order to protect IPv6 address literals against this
+             * treatment, we do not do this if there's _more_ than one
+             * colon.
+             */
+            {
+                char *c = strchr(host, ':');
+ 
+                if (c) {
+                    char *d = strchr(c+1, ':');
+                    if (!d)
+                        *c = '\0';
+                }
+            }
 
 	    /*
 	     * Remove any remaining whitespace.
