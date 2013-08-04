@@ -869,6 +869,7 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
     len = mod[0];
     r = bn_power_2(BIGNUM_INT_BITS * len);
     inv = modinv(mod, r);
+    assert(inv); /* cannot fail, since mod is odd and r is a power of 2 */
 
     /*
      * Multiply the base by r mod n, to get it into Montgomery
@@ -1634,8 +1635,18 @@ Bignum modinv(Bignum number, Bignum modulus)
     assert(modulus[modulus[0]] != 0);
 
     while (bignum_cmp(b, One) != 0) {
-	Bignum t = newbn(b[0]);
-	Bignum q = newbn(a[0]);
+	Bignum t, q;
+
+        if (bignum_cmp(b, Zero) == 0) {
+            /*
+             * Found a common factor between the inputs, so we cannot
+             * return a modular inverse at all.
+             */
+            return NULL;
+        }
+
+        t = newbn(b[0]);
+	q = newbn(a[0]);
 	bigdivmod(a, b, t, q);
 	while (t[0] > 1 && t[t[0]] == 0)
 	    t[0]--;

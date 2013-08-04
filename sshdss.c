@@ -286,6 +286,11 @@ static int dss_verifysig(void *key, char *sig, int siglen,
      * Step 1. w <- s^-1 mod q.
      */
     w = modinv(s, dss->q);
+    if (!w) {
+        freebn(r);
+        freebn(s);
+        return 0;
+    }
 
     /*
      * Step 2. u1 <- SHA(message) * w mod q.
@@ -609,16 +614,32 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
     SHA512_Init(&ss);
     SHA512_Bytes(&ss, digest512, sizeof(digest512));
     SHA512_Bytes(&ss, digest, sizeof(digest));
-    SHA512_Final(&ss, digest512);
+
+    while (1) {
+        SHA512_State ss2 = ss;         /* structure copy */
+        SHA512_Final(&ss2, digest512);
+
+        smemclr(&ss2, sizeof(ss2));
+
+        /*
+         * Now convert the result into a bignum, and reduce it mod q.
+         */
+        proto_k = bignum_from_bytes(digest512, 64);
+        k = bigmod(proto_k, dss->q);
+        freebn(proto_k);
+        kinv = modinv(k, dss->q);	       /* k^-1 mod q */
+        if (!kinv) {                           /* very unlikely */
+            freebn(k);
+            /* Perturb the hash to think of a different k. */
+            SHA512_Bytes(&ss, "x", 1);
+            /* Go round and try again. */
+            continue;
+        }
+
+        break;
+    }
 
     smemclr(&ss, sizeof(ss));
-
-    /*
-     * Now convert the result into a bignum, and reduce it mod q.
-     */
-    proto_k = bignum_from_bytes(digest512, 64);
-    k = bigmod(proto_k, dss->q);
-    freebn(proto_k);
 
     smemclr(digest512, sizeof(digest512));
 
@@ -630,7 +651,6 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
     freebn(gkp);
 
     hash = bignum_from_bytes(digest, 20);
-    kinv = modinv(k, dss->q);	       /* k^-1 mod q */
     hxr = bigmuladd(dss->x, r, hash);  /* hash + x*r */
     s = modmul(kinv, hxr, dss->q);     /* s = k^-1 * (hash + x*r) mod q */
     freebn(hxr);

@@ -2,6 +2,8 @@
  * RSA key generation.
  */
 
+#include <assert.h>
+
 #include "ssh.h"
 
 #define RSA_EXPONENT 37		       /* we like this prime */
@@ -92,8 +94,10 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
     freebn(pm1);
     freebn(qm1);
     key->private_exponent = modinv(key->exponent, phi_n);
+    assert(key->private_exponent);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 4);
     key->iqmp = modinv(key->q, key->p);
+    assert(key->iqmp);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 5);
 
     /*

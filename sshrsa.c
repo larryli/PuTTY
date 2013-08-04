@@ -273,9 +273,18 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 	    bignum_cmp(random, key->modulus) >= 0) {
 	    freebn(random);
 	    continue;
-	} else {
-	    break;
 	}
+
+        /*
+         * Also, make sure it has an inverse mod modulus.
+         */
+        random_inverse = modinv(random, key->modulus);
+        if (!random_inverse) {
+	    freebn(random);
+	    continue;
+        }
+
+        break;
     }
 
     /*
@@ -294,7 +303,6 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
      */
     random_encrypted = crt_modpow(random, key->exponent,
                                   key->modulus, key->p, key->q, key->iqmp);
-    random_inverse = modinv(random, key->modulus);
     input_blinded = modmul(input, random_encrypted, key->modulus);
     ret_blinded = crt_modpow(input_blinded, key->private_exponent,
                              key->modulus, key->p, key->q, key->iqmp);
@@ -443,6 +451,8 @@ int rsa_verify(struct RSAKey *key)
 
 	freebn(key->iqmp);
 	key->iqmp = modinv(key->q, key->p);
+        if (!key->iqmp)
+            return 0;
     }
 
     /*
