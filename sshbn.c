@@ -624,6 +624,7 @@ static void internal_mod(BignumInt *a, int alen,
     int i, k;
 
     m0 = m[0];
+    assert(m0 >> (BIGNUM_INT_BITS-1) == 1);
     if (mlen > 1)
 	m1 = m[1];
     else
@@ -988,6 +989,12 @@ Bignum modmul(Bignum p, Bignum q, Bignum mod)
     int pqlen, mlen, rlen, i, j;
     Bignum result;
 
+    /*
+     * The most significant word of mod needs to be non-zero. It
+     * should already be, but let's make sure.
+     */
+    assert(mod[mod[0]] != 0);
+
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
     mlen = mod[0];
@@ -1086,6 +1093,12 @@ static void bigdivmod(Bignum p, Bignum mod, Bignum result, Bignum quotient)
     BignumInt *n, *m;
     int mshift;
     int plen, mlen, i, j;
+
+    /*
+     * The most significant word of mod needs to be non-zero. It
+     * should already be, but let's make sure.
+     */
+    assert(mod[mod[0]] != 0);
 
     /* Allocate m of size mlen, copy mod to m */
     /* We use big endian internally */
@@ -1616,6 +1629,9 @@ Bignum modinv(Bignum number, Bignum modulus)
     Bignum xp = copybn(Zero);
     Bignum x = copybn(One);
     int sign = +1;
+
+    assert(number[number[0]] != 0);
+    assert(modulus[modulus[0]] != 0);
 
     while (bignum_cmp(b, One) != 0) {
 	Bignum t = newbn(b[0]);
