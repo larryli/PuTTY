@@ -276,6 +276,12 @@ static int dss_verifysig(void *key, char *sig, int siglen,
 	return 0;
     }
 
+    if (!bignum_cmp(s, Zero)) {
+        freebn(r);
+        freebn(s);
+        return 0;
+    }
+
     /*
      * Step 1. w <- s^-1 mod q.
      */
