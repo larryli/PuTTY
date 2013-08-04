@@ -561,6 +561,8 @@ static Bignum getmp(char **data, int *datalen)
     return b;
 }
 
+static void rsa2_freekey(void *key);   /* forward reference */
+
 static void *rsa2_newkey(char *data, int len)
 {
     char *p;
@@ -579,6 +581,11 @@ static void *rsa2_newkey(char *data, int len)
     rsa->private_exponent = NULL;
     rsa->p = rsa->q = rsa->iqmp = NULL;
     rsa->comment = NULL;
+
+    if (!rsa->exponent || !rsa->modulus) {
+        rsa2_freekey(rsa);
+        return NULL;
+    }
 
     return rsa;
 }
