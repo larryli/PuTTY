@@ -1642,6 +1642,10 @@ Bignum modinv(Bignum number, Bignum modulus)
              * Found a common factor between the inputs, so we cannot
              * return a modular inverse at all.
              */
+            freebn(b);
+            freebn(a);
+            freebn(xp);
+            freebn(x);
             return NULL;
         }
 
