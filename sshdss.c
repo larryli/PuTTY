@@ -268,8 +268,13 @@ static int dss_verifysig(void *key, char *sig, int siglen,
     }
     r = get160(&sig, &siglen);
     s = get160(&sig, &siglen);
-    if (!r || !s)
+    if (!r || !s) {
+        if (r)
+            freebn(r);
+        if (s)
+            freebn(s);
 	return 0;
+    }
 
     /*
      * Step 1. w <- s^-1 mod q.
@@ -624,6 +629,7 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
     s = modmul(kinv, hxr, dss->q);     /* s = k^-1 * (hash + x*r) mod q */
     freebn(hxr);
     freebn(kinv);
+    freebn(k);
     freebn(hash);
 
     /*
