@@ -89,8 +89,6 @@ static void *dss_newkey(char *data, int len)
     struct dss_key *dss;
 
     dss = snew(struct dss_key);
-    if (!dss)
-	return NULL;
     getstring(&data, &len, &p, &slen);
 
 #ifdef DEBUG_DSS
@@ -430,8 +428,6 @@ static void *dss_openssh_createkey(unsigned char **blob, int *len)
     struct dss_key *dss;
 
     dss = snew(struct dss_key);
-    if (!dss)
-	return NULL;
 
     dss->p = getmp(b, len);
     dss->q = getmp(b, len);

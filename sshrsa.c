@@ -558,8 +558,6 @@ static void *rsa2_newkey(char *data, int len)
     struct RSAKey *rsa;
 
     rsa = snew(struct RSAKey);
-    if (!rsa)
-	return NULL;
     getstring(&data, &len, &p, &slen);
 
     if (!p || slen != 7 || memcmp(p, "ssh-rsa", 7)) {
@@ -694,8 +692,6 @@ static void *rsa2_openssh_createkey(unsigned char **blob, int *len)
     struct RSAKey *rsa;
 
     rsa = snew(struct RSAKey);
-    if (!rsa)
-	return NULL;
     rsa->comment = NULL;
 
     rsa->modulus = getmp(b, len);
