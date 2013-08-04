@@ -111,6 +111,7 @@ static void *dss_newkey(char *data, int len)
     dss->q = getmp(&data, &len);
     dss->g = getmp(&data, &len);
     dss->y = getmp(&data, &len);
+    dss->x = NULL;
 
     return dss;
 }
@@ -118,10 +119,16 @@ static void *dss_newkey(char *data, int len)
 static void dss_freekey(void *key)
 {
     struct dss_key *dss = (struct dss_key *) key;
-    freebn(dss->p);
-    freebn(dss->q);
-    freebn(dss->g);
-    freebn(dss->y);
+    if (dss->p)
+        freebn(dss->p);
+    if (dss->q)
+        freebn(dss->q);
+    if (dss->g)
+        freebn(dss->g);
+    if (dss->y)
+        freebn(dss->y);
+    if (dss->x)
+        freebn(dss->x);
     sfree(dss);
 }
 
