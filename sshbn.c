@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 #include "misc.h"
 
@@ -120,7 +121,11 @@ Bignum Zero = bnZero, One = bnOne;
 
 static Bignum newbn(int length)
 {
-    Bignum b = snewn(length + 1, BignumInt);
+    Bignum b;
+
+    assert(length >= 0 && length < INT_MAX / BIGNUM_INT_BITS);
+
+    b = snewn(length + 1, BignumInt);
     if (!b)
 	abort();		       /* FIXME */
     memset(b, 0, (length + 1) * sizeof(*b));
@@ -154,7 +159,11 @@ void freebn(Bignum b)
 
 Bignum bn_power_2(int n)
 {
-    Bignum ret = newbn(n / BIGNUM_INT_BITS + 1);
+    Bignum ret;
+
+    assert(n >= 0);
+
+    ret = newbn(n / BIGNUM_INT_BITS + 1);
     bignum_set_bit(ret, n, 1);
     return ret;
 }
@@ -1174,6 +1183,8 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
     Bignum result;
     int w, i;
 
+    assert(nbytes >= 0 && nbytes < INT_MAX/8);
+
     w = (nbytes + BIGNUM_INT_BYTES - 1) / BIGNUM_INT_BYTES; /* bytes->words */
 
     result = newbn(w);
@@ -1250,7 +1261,7 @@ int ssh2_bignum_length(Bignum bn)
  */
 int bignum_byte(Bignum bn, int i)
 {
-    if (i >= (int)(BIGNUM_INT_BYTES * bn[0]))
+    if (i < 0 || i >= (int)(BIGNUM_INT_BYTES * bn[0]))
 	return 0;		       /* beyond the end */
     else
 	return (bn[i / BIGNUM_INT_BYTES + 1] >>
@@ -1262,7 +1273,7 @@ int bignum_byte(Bignum bn, int i)
  */
 int bignum_bit(Bignum bn, int i)
 {
-    if (i >= (int)(BIGNUM_INT_BITS * bn[0]))
+    if (i < 0 || i >= (int)(BIGNUM_INT_BITS * bn[0]))
 	return 0;		       /* beyond the end */
     else
 	return (bn[i / BIGNUM_INT_BITS + 1] >> (i % BIGNUM_INT_BITS)) & 1;
@@ -1273,7 +1284,7 @@ int bignum_bit(Bignum bn, int i)
  */
 void bignum_set_bit(Bignum bn, int bitnum, int value)
 {
-    if (bitnum >= (int)(BIGNUM_INT_BITS * bn[0]))
+    if (bitnum < 0 || bitnum >= (int)(BIGNUM_INT_BITS * bn[0]))
 	abort();		       /* beyond the end */
     else {
 	int v = bitnum / BIGNUM_INT_BITS + 1;
@@ -1309,7 +1320,12 @@ int ssh1_write_bignum(void *data, Bignum bn)
 int bignum_cmp(Bignum a, Bignum b)
 {
     int amax = a[0], bmax = b[0];
-    int i = (amax > bmax ? amax : bmax);
+    int i;
+
+    assert(amax == 0 || a[amax] != 0);
+    assert(bmax == 0 || b[bmax] != 0);
+
+    i = (amax > bmax ? amax : bmax);
     while (i) {
 	BignumInt aval = (i > amax ? 0 : a[i]);
 	BignumInt bval = (i > bmax ? 0 : b[i]);
@@ -1330,6 +1346,8 @@ Bignum bignum_rshift(Bignum a, int shift)
     Bignum ret;
     int i, shiftw, shiftb, shiftbb, bits;
     BignumInt ai, ai1;
+
+    assert(shift >= 0);
 
     bits = bignum_bitcount(a) - shift;
     ret = newbn((bits + BIGNUM_INT_BITS - 1) / BIGNUM_INT_BITS);
