@@ -41,6 +41,7 @@ static int try_sftp = 1;
 static int main_cmd_is_sftp = 0;
 static int fallback_cmd_is_sftp = 0;
 static int using_sftp = 0;
+static int uploading = 0;
 
 static Backend *back;
 static void *backhandle;
@@ -231,11 +232,12 @@ int from_backend_untrusted(void *frontend_handle, const char *data, int len)
 int from_backend_eof(void *frontend)
 {
     /*
-     * We expect to be the party deciding when to close the
+     * We usually expect to be the party deciding when to close the
      * connection, so if we see EOF before we sent it ourselves, we
-     * should panic.
+     * should panic. The exception is if we're using old-style scp and
+     * downloading rather than uploading.
      */
-    if (!sent_eof) {
+    if ((using_sftp || uploading) && !sent_eof) {
         connection_fatal(frontend,
                          "Received unexpected end-of-file from server");
     }
@@ -2047,6 +2049,8 @@ static void toremote(int argc, char *argv[])
     char *cmd;
     int i, wc_type;
 
+    uploading = 1;
+
     targ = argv[argc - 1];
 
     /* Separate host from filename */
@@ -2135,6 +2139,8 @@ static void tolocal(int argc, char *argv[])
 {
     char *src, *targ, *host, *user;
     char *cmd;
+
+    uploading = 0;
 
     if (argc != 2)
 	bump("More than one remote source not supported");
