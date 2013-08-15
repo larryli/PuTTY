@@ -87,7 +87,17 @@ static int pfd_closing(Plug plug, const char *error_msg, int error_code,
         /*
          * Socket error. Slam the connection instantly shut.
          */
-        sshfwd_unclean_close(pr->c);
+        if (pr->c) {
+            sshfwd_unclean_close(pr->c);
+        } else {
+            /*
+             * We might not have an SSH channel, if a socket error
+             * occurred during SOCKS negotiation. If not, we must
+             * clean ourself up without sshfwd_unclean_close's call
+             * back to pfd_close.
+             */
+            pfd_close(pr->s);
+        }
     } else {
         /*
          * Ordinary EOF received on socket. Send an EOF on the SSH
