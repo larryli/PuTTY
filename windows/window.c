@@ -121,7 +121,7 @@ static Backend *back;
 static void *backhandle;
 
 static struct unicode_data ucsdata;
-static int must_close_session, session_closed;
+static int session_closed;
 static int reconfiguring = FALSE;
 
 static const struct telnet_special *specials = NULL;
@@ -289,11 +289,10 @@ static void start_backend(void)
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
     }
 
-    must_close_session = FALSE;
     session_closed = FALSE;
 }
 
-static void close_session(void)
+static void close_session(void *ignored_context)
 {
     char morestuff[100];
     int i;
@@ -324,15 +323,6 @@ static void close_session(void)
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
 		   IDM_RESTART, "&Restart Session");
     }
-
-    /*
-     * Unset the 'must_close_session' flag, or else we'll come
-     * straight back here the next time we go round the main message
-     * loop - which, worse still, will be immediately (without
-     * blocking) because we've just triggered a WM_SETTEXT by the
-     * window title change above.
-     */
-    must_close_session = FALSE;
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
@@ -864,8 +854,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	    handle_got_event(handles[n - WAIT_OBJECT_0]);
 	    sfree(handles);
-	    if (must_close_session)
-		close_session();
 	} else
 	    sfree(handles);
 
@@ -877,9 +865,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
-
-	    if (must_close_session)
-		close_session();
 
             run_toplevel_callbacks();
 	}
@@ -1113,7 +1098,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     if (conf_get_int(conf, CONF_close_on_exit) == FORCE_ON)
 	PostQuitMessage(1);
     else {
-	must_close_session = TRUE;
+	queue_toplevel_callback(close_session, NULL);
     }
 }
 
@@ -2010,7 +1995,7 @@ void notify_remote_exit(void *fe)
 	    (close_on_exit == AUTO && exitcode != INT_MAX)) {
 	    PostQuitMessage(0);
 	} else {
-	    must_close_session = TRUE;
+            queue_toplevel_callback(close_session, NULL);
 	    session_closed = TRUE;
 	    /* exitcode == INT_MAX indicates that the connection was closed
 	     * by a fatal error, so an error box will be coming our way and
