@@ -93,7 +93,6 @@ struct gui_data {
     int ignore_sbar;
     int mouseptr_visible;
     int busy_status;
-    guint term_exit_idle_id;
     guint toplevel_callback_idle_id;
     int alt_keycode;
     int alt_digits;
@@ -136,6 +135,7 @@ static int send_raw_mouse;
 static char *app_name = "pterm";
 
 static void start_backend(struct gui_data *inst);
+static void exit_callback(void *vinst);
 
 char *x_get_default(const char *key)
 {
@@ -151,11 +151,10 @@ void connection_fatal(void *frontend, char *p, ...)
     va_start(ap, p);
     msg = dupvprintf(p, ap);
     va_end(ap);
-    inst->exited = TRUE;
     fatal_message_box(inst->window, msg);
     sfree(msg);
-    if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON)
-        cleanup_exit(1);
+
+    queue_toplevel_callback(exit_callback, inst);
 }
 
 /*
@@ -1364,9 +1363,9 @@ void frontend_keypress(void *handle)
 	cleanup_exit(0);
 }
 
-static gint idle_exit_func(gpointer data)
+static void exit_callback(void *vinst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    struct gui_data *inst = (struct gui_data *)vinst;
     int exitcode, close_on_exit;
 
     if (!inst->exited &&
@@ -1387,16 +1386,13 @@ static gint idle_exit_func(gpointer data)
         update_specials_menu(inst);
 	gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
-
-    gtk_idle_remove(inst->term_exit_idle_id);
-    return TRUE;
 }
 
 void notify_remote_exit(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
 
-    inst->term_exit_idle_id = gtk_idle_add(idle_exit_func, inst);
+    queue_toplevel_callback(exit_callback, inst);
 }
 
 static gint idle_toplevel_callback_func(gpointer data)
