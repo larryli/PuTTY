@@ -3052,14 +3052,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (len != 0) {
 		    /*
-		     * Interrupt an ongoing paste. I'm not sure
-		     * this is sensible, but for the moment it's
-		     * preferable to having to faff about buffering
-		     * things.
-		     */
-		    term_nopaste(term);
-
-		    /*
 		     * We need not bother about stdin backlogs
 		     * here, because in GUI PuTTY we can't do
 		     * anything about it anyway; there's no means
@@ -4607,13 +4599,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 #endif
 	if (r > 0) {
 	    WCHAR keybuf;
-
-	    /*
-	     * Interrupt an ongoing paste. I'm not sure this is
-	     * sensible, but for the moment it's preferable to
-	     * having to faff about buffering things.
-	     */
-	    term_nopaste(term);
 
 	    p = output;
 	    for (i = 0; i < r; i++) {

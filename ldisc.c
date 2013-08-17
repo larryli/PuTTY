@@ -146,6 +146,18 @@ void ldisc_send(void *handle, char *buf, int len, int interactive)
      */
     frontend_keypress(ldisc->frontend);
 
+    if (interactive && ldisc->term) {
+        /*
+         * Interrupt a paste from the clipboard, if one was in
+         * progress when the user pressed a key. This is easier than
+         * buffering the current piece of data and saving it until the
+         * terminal has finished pasting, and has the potential side
+         * benefit of permitting a user to cancel an accidental huge
+         * paste.
+         */
+        term_nopaste(ldisc->term);
+    }
+
     /*
      * Less than zero means null terminated special string.
      */
