@@ -585,6 +585,8 @@ int do_eventsel_loop(HANDLE other_event)
 
     sfree(handles);
 
+    run_toplevel_callbacks();
+
     if (n == WAIT_TIMEOUT) {
 	now = next;
     } else {

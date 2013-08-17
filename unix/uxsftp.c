@@ -536,6 +536,8 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
 
     sfree(fdlist);
 
+    run_toplevel_callbacks();
+
     return FD_ISSET(0, &rset) ? 1 : 0;
 }
 

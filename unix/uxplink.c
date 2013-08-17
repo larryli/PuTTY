@@ -1118,6 +1118,8 @@ int main(int argc, char **argv)
 
         net_pending_errors();
 
+        run_toplevel_callbacks();
+
 	if ((!connopen || !back->connected(backhandle)) &&
 	    bufchain_size(&stdout_data) == 0 &&
 	    bufchain_size(&stderr_data) == 0)

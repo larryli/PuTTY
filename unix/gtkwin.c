@@ -95,6 +95,7 @@ struct gui_data {
     int busy_status;
     guint term_paste_idle_id;
     guint term_exit_idle_id;
+    guint toplevel_callback_idle_id;
     int alt_keycode;
     int alt_digits;
     char *wintitle;
@@ -1397,6 +1398,25 @@ void notify_remote_exit(void *frontend)
     struct gui_data *inst = (struct gui_data *)frontend;
 
     inst->term_exit_idle_id = gtk_idle_add(idle_exit_func, inst);
+}
+
+static gint idle_toplevel_callback_func(gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    run_toplevel_callbacks();
+
+    gtk_idle_remove(inst->toplevel_callback_idle_id);
+
+    return TRUE;
+}
+
+void notify_toplevel_callback(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+
+    inst->toplevel_callback_idle_id =
+        gtk_idle_add(idle_toplevel_callback_func, inst);
 }
 
 static gint timer_trigger(gpointer data)
@@ -3857,6 +3877,8 @@ int pt_main(int argc, char **argv)
     show_mouseptr(inst, 1);
 
     inst->eventlogstuff = eventlogstuff_new();
+
+    request_callback_notifications(notify_toplevel_callback, inst);
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
     inst->logctx = log_init(inst, inst->conf);

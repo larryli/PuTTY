@@ -1391,6 +1391,31 @@ int run_timers(unsigned long now, unsigned long *next);
 void timer_change_notify(unsigned long next);
 
 /*
+ * Exports from callback.c.
+ *
+ * This provides a method of queuing function calls to be run at the
+ * earliest convenience from the top-level event loop. Use it if
+ * you're deep in a nested chain of calls and want to trigger an
+ * action which will probably lead to your function being re-entered
+ * recursively if you just call the initiating function the normal
+ * way.
+ *
+ * Most front ends run the queued callbacks by simply calling
+ * run_toplevel_callbacks() after handling each event in their
+ * top-level event loop. However, if a front end doesn't have control
+ * over its own event loop (e.g. because it's using GTK) then it can
+ * instead request notifications when a callback is available, so that
+ * it knows to ask its delegate event loop to do the same thing.
+ */
+typedef void (*toplevel_callback_fn_t)(void *ctx);
+void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
+void run_toplevel_callbacks(void);
+
+typedef void (*toplevel_callback_notify_fn_t)(void *frontend);
+void request_callback_notifications(toplevel_callback_notify_fn_t notify,
+                                    void *frontend);
+
+/*
  * Define no-op macros for the jump list functions, on platforms that
  * don't support them. (This is a bit of a hack, and it'd be nicer to
  * localise even the calls to those functions into the Windows front

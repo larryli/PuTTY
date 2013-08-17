@@ -288,7 +288,7 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
          + winutils wincfg sercfg winhelp winjump
 
 # Same thing on Unix.
-UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing
+UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback
 GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols xkeysym
 OSXTERM  = UXTERM osxwin osxdlg osxctrls
 
@@ -308,7 +308,7 @@ SFTP     = sftp int64 logging
 
 # Miscellaneous objects appearing in all the network utilities (not
 # Pageant or PuTTYgen).
-MISC     = timing misc version settings tree234 proxy conf
+MISC     = timing callback misc version settings tree234 proxy conf
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime
 UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time

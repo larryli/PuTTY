@@ -869,6 +869,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	} else
 	    sfree(handles);
 
+        run_toplevel_callbacks();
+
 	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 	    if (msg.message == WM_QUIT)
 		goto finished;	       /* two-level break */
@@ -877,12 +879,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		DispatchMessage(&msg);
 	    /* Send the paste buffer if there's anything to send */
 	    term_paste(term);
-	    /* If there's nothing new in the queue then we can do everything
-	     * we've delayed, reading the socket, writing, and repainting
-	     * the window.
-	     */
+
 	    if (must_close_session)
 		close_session();
+
+            run_toplevel_callbacks();
 	}
 
 	/* The messages seem unreliable; especially if we're being tricky */

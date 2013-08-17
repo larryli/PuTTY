@@ -738,6 +738,8 @@ int main(int argc, char **argv)
 	    }
 	}
 
+        run_toplevel_callbacks();
+
 	if (n == WAIT_TIMEOUT) {
 	    now = next;
 	} else {
