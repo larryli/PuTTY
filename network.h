@@ -191,12 +191,6 @@ const char *sk_addr_error(SockAddr addr);
 #define sk_set_frozen(s, is_frozen) (((*s)->set_frozen) (s, is_frozen))
 
 /*
- * Call this after an operation that might have tried to send on a
- * socket, to clean up any pending network errors.
- */
-void net_pending_errors(void);
-
-/*
  * Simple wrapper on getservbyname(), needed by ssh.c. Returns the
  * port number, in host byte order (suitable for printf and so on).
  * Returns 0 on failure. Any platform not supporting getservbyname

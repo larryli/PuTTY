@@ -17,16 +17,6 @@ Backend *select_backend(Conf *conf)
     return &pty_backend;
 }
 
-void net_pending_errors(void)
-{
-    /*
-     * Stub version of net_pending_errors(), because gtkwin.c has to
-     * be prepared to call it when linked into PuTTY and therefore we
-     * have to avoid a link failure when linking gtkwin.c in turn into
-     * a non-networked application.
-     */
-}
-
 int cfgbox(Conf *conf)
 {
     /*

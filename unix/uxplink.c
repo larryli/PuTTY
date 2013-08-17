@@ -1116,8 +1116,6 @@ int main(int argc, char **argv)
 	    back->unthrottle(backhandle, try_output(TRUE));
 	}
 
-        net_pending_errors();
-
         run_toplevel_callbacks();
 
 	if ((!connopen || !back->connected(backhandle)) &&

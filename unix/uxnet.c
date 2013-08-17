@@ -1026,6 +1026,26 @@ void *sk_getxdmdata(void *sock, int *lenp)
 }
 
 /*
+ * Deal with socket errors detected in try_send().
+ */
+static void socket_error_callback(void *vs)
+{
+    Actual_Socket s = (Actual_Socket)vs;
+
+    /*
+     * Just in case other socket work has caused this socket to vanish
+     * or become somehow non-erroneous before this callback arrived...
+     */
+    if (!find234(sktree, s, NULL) || !s->pending_error)
+        return;
+
+    /*
+     * An error has occurred on this socket. Pass it to the plug.
+     */
+    plug_closing(s->plug, strerror(s->pending_error), s->pending_error, 0);
+}
+
+/*
  * The function which tries to send on a socket once it's deemed
  * writable.
  */
@@ -1073,9 +1093,10 @@ void try_send(Actual_Socket s)
                  */
                 uxsel_tell(s);
                 /*
-                 * Notify the front end that it might want to call us.
+                 * Arrange to be called back from the top level to
+                 * deal with the error condition on this socket.
                  */
-                frontend_net_error_pending();
+                queue_toplevel_callback(socket_error_callback, s);
 		return;
 	    }
 	} else {
@@ -1350,43 +1371,6 @@ static int net_select_result(int fd, int event)
     }
 
     return 1;
-}
-
-/*
- * Deal with socket errors detected in try_send().
- */
-void net_pending_errors(void)
-{
-    int i;
-    Actual_Socket s;
-
-    /*
-     * This might be a fiddly business, because it's just possible
-     * that handling a pending error on one socket might cause
-     * others to be closed. (I can't think of any reason this might
-     * happen in current SSH implementation, but to maintain
-     * generality of this network layer I'll assume the worst.)
-     * 
-     * So what we'll do is search the socket list for _one_ socket
-     * with a pending error, and then handle it, and then search
-     * the list again _from the beginning_. Repeat until we make a
-     * pass with no socket errors present. That way we are
-     * protected against the socket list changing under our feet.
-     */
-
-    do {
-	for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
-	    if (s->pending_error) {
-		/*
-		 * An error has occurred on this socket. Pass it to the
-		 * plug.
-		 */
-		plug_closing(s->plug, strerror(s->pending_error),
-			     s->pending_error, 0);
-		break;
-	    }
-	}
-    } while (s);
 }
 
 /*

@@ -874,8 +874,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	if (pending_netevent)
 	    enact_pending_netevent();
-
-	net_pending_errors();
     }
 
     finished:
@@ -2349,7 +2347,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		InvalidateRect(hwnd, NULL, TRUE);
 		reset_window(init_lvl);
-		net_pending_errors();
 
 		conf_free(prev_conf);
 	    }
@@ -2412,7 +2409,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    break;
 		if (back)
 		    back->special(backhandle, specials[i].code);
-		net_pending_errors();
 	    }
 	}
 	break;
@@ -2705,7 +2701,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	if (WSAGETSELECTEVENT(lParam) != FD_READ)
 	    enact_pending_netevent();
 
-	net_pending_errors();
 	return 0;
       case WM_SETFOCUS:
 	term_set_focus(term, TRUE);
@@ -3087,7 +3082,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		}
 	    }
 	}
-	net_pending_errors();
 	return 0;
       case WM_INPUTLANGCHANGE:
 	/* wParam == Font number */

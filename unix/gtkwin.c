@@ -2843,24 +2843,6 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
-int frontend_net_pending_error_idle_id;
-int frontend_got_net_pending_errors = FALSE;
-gboolean frontend_net_pending_errors(gpointer data)
-{
-    net_pending_errors();
-    gtk_idle_remove(frontend_net_pending_error_idle_id);
-    frontend_got_net_pending_errors = FALSE;
-    return FALSE;
-}
-void frontend_net_error_pending(void)
-{
-    if (!frontend_got_net_pending_errors) {
-        frontend_got_net_pending_errors = TRUE;
-        frontend_net_pending_error_idle_id =
-            gtk_idle_add(frontend_net_pending_errors, NULL);
-    }
-}
-
 char *setup_fonts_ucs(struct gui_data *inst)
 {
     int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);

@@ -174,13 +174,6 @@ int init_ucs(struct unicode_data *ucsdata, char *line_codepage,
 void *sk_getxdmdata(void *sock, int *lenp);
 
 /*
- * Function provided by front ends, and called by uxnet.c to indicate
- * that net_pending_errors() would like to be called back when the
- * front end has a spare moment and isn't deep in any other recursion.
- */
-void frontend_net_error_pending(void);
-
-/*
  * General helpful Unix stuff: more helpful version of the FD_SET
  * macro, which also handles maxfd.
  */
