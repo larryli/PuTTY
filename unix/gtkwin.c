@@ -93,7 +93,6 @@ struct gui_data {
     int ignore_sbar;
     int mouseptr_visible;
     int busy_status;
-    guint term_paste_idle_id;
     guint term_exit_idle_id;
     guint toplevel_callback_idle_id;
     int alt_keycode;
@@ -1999,27 +1998,11 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 
     term_do_paste(inst->term);
 
-    if (term_paste_pending(inst->term))
-	inst->term_paste_idle_id = gtk_idle_add(idle_paste_func, inst);
-
     if (free_list_required)
 	XFreeStringList(list);
     if (free_required)
 	XFree(text);
 }
-
-gint idle_paste_func(gpointer data)
-{
-    struct gui_data *inst = (struct gui_data *)data;
-
-    if (term_paste_pending(inst->term))
-	term_paste(inst->term);
-    else
-	gtk_idle_remove(inst->term_paste_idle_id);
-
-    return TRUE;
-}
-
 
 void get_clip(void *frontend, wchar_t ** p, int *len)
 {

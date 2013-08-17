@@ -977,8 +977,6 @@ void term_update(Terminal *);
 void term_invalidate(Terminal *);
 void term_blink(Terminal *, int set_cursor);
 void term_do_paste(Terminal *);
-int term_paste_pending(Terminal *);
-void term_paste(Terminal *);
 void term_nopaste(Terminal *);
 int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *);

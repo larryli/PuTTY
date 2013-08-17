@@ -109,6 +109,9 @@ static void scroll(Terminal *, int, int, int, int);
 #ifdef OPTIMISE_SCROLL
 static void scroll_display(Terminal *, int, int, int);
 #endif /* OPTIMISE_SCROLL */
+static void term_resume_pasting(Terminal *term);
+static void term_paste_callback(void *vterm);
+static void term_paste_queue(Terminal *term, int timed);
 
 static termline *newline(Terminal *term, int cols, int bce)
 {
@@ -1524,7 +1527,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->cblink_pending = term->tblink_pending = FALSE;
     term->paste_buffer = NULL;
     term->paste_len = 0;
-    term->last_paste = 0;
     bufchain_init(&term->inbuf);
     bufchain_init(&term->printer_buf);
     term->printing = term->only_printing = FALSE;
@@ -2967,7 +2969,7 @@ static void term_out(Terminal *term)
 		term->curs.x = 0;
 		term->wrapnext = FALSE;
 		seen_disp_event(term);
-		term->paste_hold = 0;
+                term_resume_pasting(term);
 
 		if (term->crhaslf) {
 		    if (term->curs.y == term->marg_b)
@@ -2998,7 +3000,7 @@ static void term_out(Terminal *term)
 		    term->curs.x = 0;
 		term->wrapnext = FALSE;
 		seen_disp_event(term);
-		term->paste_hold = 0;
+                term_resume_pasting(term);
 		if (term->logctx)
 		    logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 		break;
@@ -5706,6 +5708,75 @@ static void sel_spread(Terminal *term)
     }
 }
 
+static void term_resume_pasting(Terminal *term)
+{
+    expire_timer_context(&term->paste_timer_ctx);
+    term_paste_queue(term, FALSE);
+}
+
+static void term_paste_timing_callback(void *vterm, unsigned long now)
+{
+    Terminal *term = *(Terminal **)vterm;
+    term_resume_pasting(term);
+}
+
+static void term_paste_queue(Terminal *term, int timed)
+{
+    if (timed) {
+        /*
+         * Delay sending the rest of the paste buffer until we have
+         * seen a newline coming back from the server (indicating that
+         * it's absorbed the data we've sent so far). As a fallback,
+         * continue sending anyway after a longish timeout.
+         *
+         * We use the pointless structure field term->paste_timer_ctx
+         * (which is a Terminal *, and we'll make sure it points
+         * straight back to term) as our timer context, so that it can
+         * be distinguished from term itself. That way, if we see a
+         * reason to continue pasting before the timer goes off, we
+         * can cancel just this timer and none of the other terminal
+         * timers handling display updates, blinking text and cursor,
+         * and visual bells.
+         */
+        term->paste_timer_ctx = term;
+        schedule_timer(450, term_paste_timing_callback,
+                       &term->paste_timer_ctx);
+    } else {
+        /*
+         * Just arrange to call term_paste_callback from the top level
+         * at the next opportunity.
+         */
+        queue_toplevel_callback(term_paste_callback, term);
+    }
+}
+
+static void term_paste_callback(void *vterm)
+{
+    Terminal *term = (Terminal *)vterm;
+
+    if (term->paste_len == 0)
+	return;
+
+    while (term->paste_pos < term->paste_len) {
+	int n = 0;
+	while (n + term->paste_pos < term->paste_len) {
+	    if (term->paste_buffer[term->paste_pos + n++] == '\015')
+		break;
+	}
+	if (term->ldisc)
+	    luni_send(term->ldisc, term->paste_buffer + term->paste_pos, n, 0);
+	term->paste_pos += n;
+
+	if (term->paste_pos < term->paste_len) {
+            term_paste_queue(term, TRUE);
+	    return;
+	}
+    }
+    sfree(term->paste_buffer);
+    term->paste_buffer = NULL;
+    term->paste_len = 0;
+}
+
 void term_do_paste(Terminal *term)
 {
     wchar_t *data;
@@ -5719,7 +5790,7 @@ void term_do_paste(Terminal *term)
 
         if (term->paste_buffer)
             sfree(term->paste_buffer);
-        term->paste_pos = term->paste_hold = term->paste_len = 0;
+        term->paste_pos = term->paste_len = 0;
         term->paste_buffer = snewn(len + 12, wchar_t);
 
         if (term->bracketed_paste) {
@@ -5762,10 +5833,12 @@ void term_do_paste(Terminal *term)
             if (term->paste_buffer)
                 sfree(term->paste_buffer);
             term->paste_buffer = 0;
-            term->paste_pos = term->paste_hold = term->paste_len = 0;
+            term->paste_pos = term->paste_len = 0;
         }
     }
     get_clip(term->frontend, NULL, NULL);
+
+    term_paste_queue(term, FALSE);
 }
 
 void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
@@ -6052,47 +6125,7 @@ void term_nopaste(Terminal *term)
 {
     if (term->paste_len == 0)
 	return;
-    sfree(term->paste_buffer);
-    term->paste_buffer = NULL;
-    term->paste_len = 0;
-}
-
-int term_paste_pending(Terminal *term)
-{
-    return term->paste_len != 0;
-}
-
-void term_paste(Terminal *term)
-{
-    long now, paste_diff;
-
-    if (term->paste_len == 0)
-	return;
-
-    /* Don't wait forever to paste */
-    if (term->paste_hold) {
-	now = GETTICKCOUNT();
-	paste_diff = now - term->last_paste;
-	if (paste_diff >= 0 && paste_diff < 450)
-	    return;
-    }
-    term->paste_hold = 0;
-
-    while (term->paste_pos < term->paste_len) {
-	int n = 0;
-	while (n + term->paste_pos < term->paste_len) {
-	    if (term->paste_buffer[term->paste_pos + n++] == '\015')
-		break;
-	}
-	if (term->ldisc)
-	    luni_send(term->ldisc, term->paste_buffer + term->paste_pos, n, 0);
-	term->paste_pos += n;
-
-	if (term->paste_pos < term->paste_len) {
-	    term->paste_hold = 1;
-	    return;
-	}
-    }
+    expire_timer_context(&term->paste_timer_ctx);
     sfree(term->paste_buffer);
     term->paste_buffer = NULL;
     term->paste_len = 0;

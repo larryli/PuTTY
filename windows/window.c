@@ -877,8 +877,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
-	    /* Send the paste buffer if there's anything to send */
-	    term_paste(term);
 
 	    if (must_close_session)
 		close_session();

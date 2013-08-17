@@ -222,8 +222,8 @@ struct terminal_tag {
     int attr_mask;
 
     wchar_t *paste_buffer;
-    int paste_len, paste_pos, paste_hold;
-    long last_paste;
+    int paste_len, paste_pos;
+    Terminal *paste_timer_ctx;
 
     void (*resize_fn)(void *, int, int);
     void *resize_ctx;
