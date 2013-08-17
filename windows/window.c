@@ -104,10 +104,6 @@ static int offset_width, offset_height;
 static int was_zoomed = 0;
 static int prev_rows, prev_cols;
   
-static int pending_netevent = 0;
-static WPARAM pend_netevent_wParam = 0;
-static LPARAM pend_netevent_lParam = 0;
-static void enact_pending_netevent(void);
 static void flash_window(int mode);
 static void sys_cursor_update(void);
 static int get_fullscreen_rect(RECT * ss);
@@ -139,6 +135,12 @@ static struct {
 } popup_menus[2];
 enum { SYSMENU, CTXMENU };
 static HMENU savedsess_menu;
+
+struct wm_netevent_params {
+    /* Used to pass data to wm_netevent_callback */
+    WPARAM wParam;
+    LPARAM lParam;
+};
 
 Conf *conf;			       /* exported to windlg.c */
 
@@ -871,9 +873,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	/* The messages seem unreliable; especially if we're being tricky */
 	term_set_focus(term, GetForegroundWindow() == hwnd);
-
-	if (pending_netevent)
-	    enact_pending_netevent();
     }
 
     finished:
@@ -1120,19 +1119,11 @@ void cmdline_error(char *fmt, ...)
 /*
  * Actually do the job requested by a WM_NETEVENT
  */
-static void enact_pending_netevent(void)
+static void wm_netevent_callback(void *vctx)
 {
-    static int reentering = 0;
-    extern int select_result(WPARAM, LPARAM);
-
-    if (reentering)
-	return;			       /* don't unpend the pending */
-
-    pending_netevent = FALSE;
-
-    reentering = 1;
-    select_result(pend_netevent_wParam, pend_netevent_lParam);
-    reentering = 0;
+    struct wm_netevent_params *params = (struct wm_netevent_params *)vctx;
+    select_result(params->wParam, params->lParam);
+    sfree(vctx);
 }
 
 /*
@@ -2688,19 +2679,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_NETEVENT:
-	/* Notice we can get multiple netevents, FD_READ, FD_WRITE etc
-	 * but the only one that's likely to try to overload us is FD_READ.
-	 * This means buffering just one is fine.
-	 */
-	if (pending_netevent)
-	    enact_pending_netevent();
-
-	pending_netevent = TRUE;
-	pend_netevent_wParam = wParam;
-	pend_netevent_lParam = lParam;
-	if (WSAGETSELECTEVENT(lParam) != FD_READ)
-	    enact_pending_netevent();
-
+        {
+            /*
+             * To protect against re-entrancy when Windows's recv()
+             * immediately triggers a new WSAAsyncSelect window
+             * message, we don't call select_result directly from this
+             * handler but instead wait until we're back out at the
+             * top level of the message loop.
+             */
+            struct wm_netevent_params *params =
+                snew(struct wm_netevent_params);
+            params->wParam = wParam;
+            params->lParam = lParam;
+            queue_toplevel_callback(wm_netevent_callback, params);
+        }
 	return 0;
       case WM_SETFOCUS:
 	term_set_focus(term, TRUE);

@@ -241,6 +241,11 @@ GLOBAL void *logctx;
 				 "All Files (*.*)\0*\0\0\0")
 
 /*
+ * Exports from winnet.c.
+ */
+extern int select_result(WPARAM, LPARAM);
+
+/*
  * winnet.c dynamically loads WinSock 2 or WinSock 1 depending on
  * what it can get, which means any WinSock routines used outside
  * that module must be exported from it as function pointers. So
