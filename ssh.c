@@ -832,6 +832,7 @@ struct ssh_tag {
     void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
     const struct ssh_signkey *hostkey;
+    char *hostkey_str; /* string representation, for easy checking in rekeys */
     unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
     void *kex_ctx;
@@ -5667,12 +5668,28 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	    }
 	}
 	/* List server host key algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
-	for (i = 0; i < lenof(hostkey_algs); i++) {
-	    ssh2_pkt_addstring_str(s->pktout, hostkey_algs[i]->name);
-	    if (i < lenof(hostkey_algs) - 1)
-		ssh2_pkt_addstring_str(s->pktout, ",");
-	}
+        if (!s->got_session_id) {
+            /*
+             * In the first key exchange, we list all the algorithms
+             * we're prepared to cope with.
+             */
+            ssh2_pkt_addstring_start(s->pktout);
+            for (i = 0; i < lenof(hostkey_algs); i++) {
+                ssh2_pkt_addstring_str(s->pktout, hostkey_algs[i]->name);
+                if (i < lenof(hostkey_algs) - 1)
+                    ssh2_pkt_addstring_str(s->pktout, ",");
+            }
+        } else {
+            /*
+             * In subsequent key exchanges, we list only the kex
+             * algorithm that was selected in the first key exchange,
+             * so that we keep getting the same host key and hence
+             * don't have to interrupt the user's session to ask for
+             * reverification.
+             */
+            assert(ssh->kex);
+            ssh2_pkt_addstring(s->pktout, ssh->hostkey->name);
+        }
 	/* List encryption algorithms (client->server then server->client). */
 	for (k = 0; k < 2; k++) {
 	    ssh2_pkt_addstring_start(s->pktout);
@@ -6224,41 +6241,57 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	crStopV;
     }
 
-    /*
-     * Authenticate remote host: verify host key. (We've already
-     * checked the signature of the exchange hash.)
-     */
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
-    s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
-    ssh_set_frozen(ssh, 1);
-    s->dlgret = verify_ssh_host_key(ssh->frontend,
-                                    ssh->savedhost, ssh->savedport,
-                                    ssh->hostkey->keytype, s->keystr,
-				    s->fingerprint,
-                                    ssh_dialog_callback, ssh);
-    if (s->dlgret < 0) {
-        do {
-            crReturnV;
-            if (pktin) {
-                bombout(("Unexpected data from server while waiting"
-                         " for user host key response"));
+    if (!s->got_session_id) {
+        /*
+         * Authenticate remote host: verify host key. (We've already
+         * checked the signature of the exchange hash.)
+         */
+        s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
+        ssh_set_frozen(ssh, 1);
+        s->dlgret = verify_ssh_host_key(ssh->frontend,
+                                        ssh->savedhost, ssh->savedport,
+                                        ssh->hostkey->keytype, s->keystr,
+                                        s->fingerprint,
+                                        ssh_dialog_callback, ssh);
+        if (s->dlgret < 0) {
+            do {
+                crReturnV;
+                if (pktin) {
+                    bombout(("Unexpected data from server while waiting"
+                             " for user host key response"));
                     crStopV;
-            }
-        } while (pktin || inlen > 0);
-        s->dlgret = ssh->user_response;
+                }
+            } while (pktin || inlen > 0);
+            s->dlgret = ssh->user_response;
+        }
+        ssh_set_frozen(ssh, 0);
+        if (s->dlgret == 0) {
+            ssh_disconnect(ssh, "User aborted at host key verification", NULL,
+                           0, TRUE);
+            crStopV;
+        }
+        logevent("Host key fingerprint is:");
+        logevent(s->fingerprint);
+        sfree(s->fingerprint);
+        /*
+         * Save this host key, to check against the one presented in
+         * subsequent rekeys.
+         */
+        ssh->hostkey_str = s->keystr;
+    } else {
+        /*
+         * In a rekey, we never present an interactive host key
+         * verification request to the user. Instead, we simply
+         * enforce that the key we're seeing this time is identical to
+         * the one we saw before.
+         */
+        if (strcmp(ssh->hostkey_str, s->keystr)) {
+            bombout(("Host key was different in repeat key exchange"));
+            crStopV;
+        }
+        sfree(s->keystr);
     }
-    ssh_set_frozen(ssh, 0);
-    if (s->dlgret == 0) {
-	ssh_disconnect(ssh, "User aborted at host key verification", NULL,
-		       0, TRUE);
-        crStopV;
-    }
-    if (!s->got_session_id) {     /* don't bother logging this in rekeys */
-	logevent("Host key fingerprint is:");
-	logevent(s->fingerprint);
-    }
-    sfree(s->fingerprint);
-    sfree(s->keystr);
     ssh->hostkey->freekey(s->hkey);
 
     /*
@@ -9643,6 +9676,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->kex = NULL;
     ssh->kex_ctx = NULL;
     ssh->hostkey = NULL;
+    ssh->hostkey_str = NULL;
     ssh->exitcode = -1;
     ssh->close_expected = FALSE;
     ssh->clean_exit = FALSE;
@@ -9820,6 +9854,7 @@ static void ssh_free(void *handle)
     sfree(ssh->v_c);
     sfree(ssh->v_s);
     sfree(ssh->fullhostname);
+    sfree(ssh->hostkey_str);
     if (ssh->crcda_ctx) {
 	crcda_free_context(ssh->crcda_ctx);
 	ssh->crcda_ctx = NULL;
