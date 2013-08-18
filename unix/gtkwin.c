@@ -1395,18 +1395,39 @@ void notify_remote_exit(void *frontend)
     queue_toplevel_callback(exit_callback, inst);
 }
 
+static void notify_toplevel_callback(void *frontend);
+
+static gint quit_toplevel_callback_func(gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    notify_toplevel_callback(inst);
+
+    return 0;
+}
+
 static gint idle_toplevel_callback_func(gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    run_toplevel_callbacks();
+    if (gtk_main_level() > 1) {
+        /*
+         * We don't run the callbacks if we're in the middle of a
+         * subsidiary gtk_main. Instead, ask for a callback when we
+         * get back out of the subsidiary main loop, so we can
+         * reschedule ourself then.
+         */
+        gtk_quit_add(2, quit_toplevel_callback_func, inst);
+    } else {
+        run_toplevel_callbacks();
+    }
 
     gtk_idle_remove(inst->toplevel_callback_idle_id);
 
     return TRUE;
 }
 
-void notify_toplevel_callback(void *frontend)
+static void notify_toplevel_callback(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
 
