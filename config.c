@@ -1083,9 +1083,23 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		 val != NULL;
 		 val = conf_get_str_strs(conf, CONF_portfwd, key, &key)) {
 		char *p;
-                if (!strcmp(val, "D"))
-                    p = dupprintf("D%s\t", key+1);
-                else
+                if (!strcmp(val, "D")) {
+                    char *L;
+                    /*
+                     * A dynamic forwarding is stored as L12345=D or
+                     * 6L12345=D (since it's mutually exclusive with
+                     * L12345=anything else), but displayed as D12345
+                     * to match the fiction that 'Local', 'Remote' and
+                     * 'Dynamic' are three distinct modes and also to
+                     * align with OpenSSH's command line option syntax
+                     * that people will already be used to. So, for
+                     * display purposes, find the L in the key string
+                     * and turn it into a D.
+                     */
+                    p = dupprintf("%s\t", key);
+                    L = strchr(p, 'L');
+                    if (L) *L = 'D';
+                } else
                     p = dupprintf("%s\t%s", key, val);
 		dlg_listbox_add(ctrl, dlg, p);
 		sfree(p);

@@ -178,7 +178,7 @@ static int gppmap(void *handle, char *name, Conf *conf, int primary)
 	    val = q;
 	*q = '\0';
 
-        if (primary == CONF_portfwd && buf[0] == 'D') {
+        if (primary == CONF_portfwd && strchr(buf, 'D') != NULL) {
             /*
              * Backwards-compatibility hack: dynamic forwardings are
              * indexed in the data store as a third type letter in the
@@ -188,9 +188,10 @@ static int gppmap(void *handle, char *name, Conf *conf, int primary)
              * _listening_ on a local port, and are hence mutually
              * exclusive on the same port number. So here we translate
              * the legacy storage format into the sensible internal
-             * form.
+             * form, by finding the D and turning it into a L.
              */
-            char *newkey = dupcat("L", buf+1, NULL);
+            char *newkey = dupstr(buf);
+            *strchr(newkey, 'D') = 'L';
             conf_set_str_str(conf, primary, newkey, "D");
             sfree(newkey);
         } else {
@@ -232,9 +233,13 @@ static void wmap(void *handle, char const *outkey, Conf *conf, int primary)
              * conceptually incoherent legacy storage format (key
              * "D<port>", value empty).
              */
+            char *L;
+
             realkey = key;             /* restore it at end of loop */
             val = "";
-            key = dupcat("D", key+1, NULL);
+            key = dupstr(key);
+            L = strchr(key, 'L');
+            if (L) *L = 'D';
         } else {
             realkey = NULL;
         }
