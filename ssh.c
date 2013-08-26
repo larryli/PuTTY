@@ -7488,6 +7488,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	else {
 	    c->type = CHAN_AGENT;	/* identify channel type */
 	    c->u.a.lensofar = 0;
+            c->u.a.message = NULL;
             c->u.a.outstanding_requests = 0;
 	}
     } else {
