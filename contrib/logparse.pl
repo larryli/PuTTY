@@ -244,6 +244,10 @@ my %packets = (
         my ($rid, $sid, $winsize, $packet) = &parse("uuuu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s) (--%d)\n", $rid, $winsize;
+            return;
+        }
         $sid = ($direction eq "i" ? "s" : "c") . $sid;
         $chan_by_id{$sid} = $index;
         my $chan = $channels[$index];
@@ -259,6 +263,10 @@ my %packets = (
         my ($rid, $reason, $desc, $lang) = &parse("uuss", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s) %s\n", $rid, &str($reason);
+            return;
+        }
         my $chan = $channels[$index];
         $chan->{'state'} = 'rejected';
         printf "ch%d (%s) %s\n", $index, $chan->{'id'}, &str($reason);
@@ -269,6 +277,10 @@ my %packets = (
         my ($rid, $bytes) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s) +%d\n", $rid, $bytes;
+            return;
+        }
         my $chan = $channels[$index];
 	$chan->{$direction}{'win'} += $bytes;
         printf "ch%d (%s) +%d (--%d)\n", $index, $chan->{'id'}, $bytes,
@@ -280,6 +292,10 @@ my %packets = (
         my ($rid, $bytes) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s), %s bytes\n", $rid, $bytes;
+            return;
+        }
         my $chan = $channels[$index];
 	$chan->{$direction}{'seq'} += $bytes;
         printf "ch%d (%s), %s bytes (%d--%d)\n", $index, $chan->{'id'}, $bytes,
@@ -310,6 +326,11 @@ my %packets = (
         my ($rid, $bytes) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s), type %s, %s bytes\n", $rid,
+                $type, $bytes;
+            return;
+        }
         my $chan = $channels[$index];
 	my $dir = $direction eq "i" ? 'sc' : 'cs';
 	$chan->{$dir}{'seq'} += $bytes;
@@ -347,6 +368,10 @@ my %packets = (
         my ($rid) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s)\n", $rid;
+            return;
+        }
         my $chan = $channels[$index];
         printf "ch%d (%s)\n", $index, $chan->{'id'};
     },
@@ -356,6 +381,10 @@ my %packets = (
         my ($rid) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s)\n", $rid;
+            return;
+        }
         my $chan = $channels[$index];
         $chan->{'state'} = ($chan->{'state'} eq "open" ? "halfclosed" :
                             $chan->{'state'} eq "halfclosed" ? "closed" :
@@ -372,11 +401,17 @@ my %packets = (
         my ($rid, $type, $wantreply) = &parse("usb", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
-        my $chan = $channels[$index];
-        printf "ch%d (%s) %s (%s)",
-            $index, $chan->{'id'}, $type, $wantreply eq "yes" ? "reply" : "noreply";
-        push @{$chan->{'requests_'.$direction}}, [$seq, $type]
-	    if $wantreply eq "yes";
+        my $chan;
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s) %s (%s)", $rid,
+                $type, $wantreply eq "yes" ? "reply" : "noreply";
+        } else {
+            $chan = $channels[$index];
+            printf "ch%d (%s) %s (%s)", $index, $chan->{'id'},
+                $type, $wantreply eq "yes" ? "reply" : "noreply";
+            push @{$chan->{'requests_'.$direction}}, [$seq, $type]
+	        if $wantreply eq "yes";
+        }
         if ($type eq "pty-req") {
             my ($term, $w, $h, $pw, $ph, $modes) = &parse("suuuus", $data);
             printf " %s %sx%s", &str($term), $w, $h;
@@ -418,6 +453,10 @@ my %packets = (
         my ($rid) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s)\n", $rid;
+            return;
+        }
         my $chan = $channels[$index];
         printf "ch%d (%s)", $index, $chan->{'id'};
         my $otherdir = ($direction eq "i" ? "o" : "i");
@@ -435,6 +474,10 @@ my %packets = (
         my ($rid) = &parse("uu", $data);
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
+        if (!defined $index) {
+            printf "UNKNOWN_CHANNEL (%s)\n", $rid;
+            return;
+        }
         my $chan = $channels[$index];
         printf "ch%d (%s)", $index, $chan->{'id'};
         my $otherdir = ($direction eq "i" ? "o" : "i");
