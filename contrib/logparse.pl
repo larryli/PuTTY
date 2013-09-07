@@ -323,7 +323,10 @@ my %packets = (
 #define SSH2_MSG_CHANNEL_EXTENDED_DATA            95	/* 0x5f */
     'SSH2_MSG_CHANNEL_EXTENDED_DATA' => sub {
         my ($direction, $seq, $data) = @_;
-        my ($rid, $bytes) = &parse("uu", $data);
+        my ($rid, $type, $bytes) = &parse("uuu", $data);
+        if ($type == 1) {
+            $type = "SSH_EXTENDED_DATA_STDERR";
+        }
         $rid = ($direction eq "i" ? "c" : "s") . $rid;
         my $index = $chan_by_id{$rid};
         if (!defined $index) {
@@ -332,11 +335,10 @@ my %packets = (
             return;
         }
         my $chan = $channels[$index];
-	my $dir = $direction eq "i" ? 'sc' : 'cs';
-	$chan->{$dir}{'seq'} += $bytes;
-        printf "ch%d (%s), %s bytes (%d--%d)\n", $index, $chan->{'id'}, $bytes,
-	    $chan->{$dir}{$seq}-$bytes, $chan->{$dir}{$seq};
-        printf "ch%d (%s), %s bytes\n", $index, $chan->{'id'}, $bytes;
+	$chan->{$direction}{'seq'} += $bytes;
+        printf "ch%d (%s), type %s, %s bytes (%d--%d)\n", $index,$chan->{'id'},
+            $type, $bytes, $chan->{$direction}{'seq'}-$bytes,
+            $chan->{$direction}{'seq'};
         my @realdata = splice @$data, 0, $bytes;
         if ($dumpdata) {
             # We treat EXTENDED_DATA as equivalent to DATA, for the
@@ -347,8 +349,8 @@ my %packets = (
             my $filekey = $direction . "file";
             if (!defined $chan->{$filekey}) {
                 my $filename = sprintf "ch%d.%s", $index, $direction;
-                $chan->{$filekey} = FileHandle->new;
-                if (!$chan->{$filekey}->open(">", $filename)) {
+                $chan->{$filekey} = FileHandle->new(">$filename");
+                if (!defined $chan->{$filekey}) {
                     die "$filename: $!\n";
                 }
             }
