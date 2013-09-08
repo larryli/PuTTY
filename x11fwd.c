@@ -510,7 +510,7 @@ static int x11_closing(Plug plug, const char *error_msg, int error_code,
         /*
          * Socket error. Slam the connection instantly shut.
          */
-        sshfwd_unclean_close(pr->c);
+        sshfwd_unclean_close(pr->c, error_msg);
     } else {
         /*
          * Ordinary EOF received on socket. Send an EOF on the SSH

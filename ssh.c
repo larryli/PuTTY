@@ -4302,7 +4302,7 @@ void sshfwd_write_eof(struct ssh_channel *c)
     ssh_channel_try_eof(c);
 }
 
-void sshfwd_unclean_close(struct ssh_channel *c)
+void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
 {
     Ssh ssh = c->ssh;
 
@@ -4312,12 +4312,13 @@ void sshfwd_unclean_close(struct ssh_channel *c)
     switch (c->type) {
       case CHAN_X11:
         x11_close(c->u.x11.s);
-        logevent("Forwarded X11 connection terminated due to local error");
+        logeventf(ssh, "Forwarded X11 connection terminated due to local "
+                  "error: %s", err);
         break;
       case CHAN_SOCKDATA:
       case CHAN_SOCKDATA_DORMANT:
         pfd_close(c->u.pfd.s);
-        logevent("Forwarded port closed due to local error");
+        logeventf(ssh, "Forwarded port closed due to local error: %s", err);
         break;
     }
     c->type = CHAN_ZOMBIE;

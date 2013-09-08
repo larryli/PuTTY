@@ -11,7 +11,7 @@ struct ssh_channel;
 
 extern int sshfwd_write(struct ssh_channel *c, char *, int);
 extern void sshfwd_write_eof(struct ssh_channel *c);
-extern void sshfwd_unclean_close(struct ssh_channel *c);
+extern void sshfwd_unclean_close(struct ssh_channel *c, const char *err);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
 
 /*
