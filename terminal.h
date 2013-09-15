@@ -223,7 +223,6 @@ struct terminal_tag {
 
     wchar_t *paste_buffer;
     int paste_len, paste_pos;
-    Terminal *paste_timer_ctx;
 
     void (*resize_fn)(void *, int, int);
     void *resize_ctx;
