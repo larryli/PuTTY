@@ -1403,11 +1403,16 @@ void timer_change_notify(unsigned long next);
  * top-level event loop. However, if a front end doesn't have control
  * over its own event loop (e.g. because it's using GTK) then it can
  * instead request notifications when a callback is available, so that
- * it knows to ask its delegate event loop to do the same thing.
+ * it knows to ask its delegate event loop to do the same thing. Also,
+ * if a front end needs to know whether a callback is pending without
+ * actually running it (e.g. so as to put a zero timeout on a select()
+ * call) then it can call toplevel_callback_pending(), which will
+ * return true if at least one callback is in the queue.
  */
 typedef void (*toplevel_callback_fn_t)(void *ctx);
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
 void run_toplevel_callbacks(void);
+int toplevel_callback_pending(void);
 
 typedef void (*toplevel_callback_notify_fn_t)(void *frontend);
 void request_callback_notifications(toplevel_callback_notify_fn_t notify,

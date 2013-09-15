@@ -493,7 +493,9 @@ int do_eventsel_loop(HANDLE other_event)
     int skcount;
     unsigned long now = GETTICKCOUNT();
 
-    if (run_timers(now, &next)) {
+    if (toplevel_callback_pending()) {
+        ticks = 0;
+    } else if (run_timers(now, &next)) {
 	then = now;
 	now = GETTICKCOUNT();
 	if (now - then > next - then)

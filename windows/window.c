@@ -847,11 +847,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     while (1) {
 	HANDLE *handles;
 	int nhandles, n;
+        DWORD timeout;
+
+        if (toplevel_callback_pending()) {
+            timeout = 0;
+        } else {
+            timeout = INFINITE;
+            /* The messages seem unreliable; especially if we're being tricky */
+            term_set_focus(term, GetForegroundWindow() == hwnd);
+        }
 
 	handles = handle_get_events(&nhandles);
 
-	n = MsgWaitForMultipleObjects(nhandles, handles, FALSE, INFINITE,
-				      QS_ALLINPUT);
+	n = MsgWaitForMultipleObjects(nhandles, handles, FALSE,
+                                      timeout, QS_ALLINPUT);
 
 	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	    handle_got_event(handles[n - WAIT_OBJECT_0]);
@@ -859,20 +868,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	} else
 	    sfree(handles);
 
-        run_toplevel_callbacks();
-
-	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 	    if (msg.message == WM_QUIT)
 		goto finished;	       /* two-level break */
 
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
-
-            run_toplevel_callbacks();
 	}
 
-	/* The messages seem unreliable; especially if we're being tricky */
-	term_set_focus(term, GetForegroundWindow() == hwnd);
+        run_toplevel_callbacks();
     }
 
     finished:

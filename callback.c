@@ -26,9 +26,27 @@ void request_callback_notifications(toplevel_callback_notify_fn_t fn,
     frontend = fr;
 }
 
+void stoat_callback(void *ctx)
+{
+    static int stoat = 0;
+    if (++stoat % 1000 == 0)
+        debug(("stoat %d\n", stoat));
+    queue_toplevel_callback(stoat_callback, NULL);
+}
+void queue_stoat(void)
+{
+    static int stoat = 0;
+    if (!stoat) {
+        stoat = 1;
+        queue_toplevel_callback(stoat_callback, NULL);
+    }
+}
+
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)
 {
     struct callback *cb;
+
+    queue_stoat();
 
     cb = snew(struct callback);
     cb->fn = fn;
@@ -50,19 +68,27 @@ void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)
 
 void run_toplevel_callbacks(void)
 {
-    while (cbhead) {
+    queue_stoat();
+    if (cbhead) {
         struct callback *cb = cbhead;
         /*
          * Careful ordering here. We call the function _before_
          * advancing cbhead (though, of course, we must free cb
          * _after_ advancing it). This means that if the very last
          * callback schedules another callback, cbhead does not become
-         * NULL at any point in this while loop, and so the frontend
-         * notification function won't be needlessly pestered.
+         * NULL at any point, and so the frontend notification
+         * function won't be needlessly pestered.
          */
         cb->fn(cb->ctx);
         cbhead = cb->next;
         sfree(cb);
+        if (!cbhead)
+            cbtail = NULL;
     }
-    cbtail = NULL;
+}
+
+int toplevel_callback_pending(void)
+{
+    queue_stoat();
+    return cbhead != NULL;
 }

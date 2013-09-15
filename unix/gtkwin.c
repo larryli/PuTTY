@@ -1422,7 +1422,8 @@ static gint idle_toplevel_callback_func(gpointer data)
         run_toplevel_callbacks();
     }
 
-    gtk_idle_remove(inst->toplevel_callback_idle_id);
+    if (!toplevel_callback_pending())
+        gtk_idle_remove(inst->toplevel_callback_idle_id);
 
     return TRUE;
 }

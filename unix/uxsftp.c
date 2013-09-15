@@ -444,6 +444,7 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
     int i, fdcount, fdsize, *fdlist;
     int fd, fdstate, rwx, ret, maxfd;
     unsigned long now = GETTICKCOUNT();
+    unsigned long next;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -488,12 +489,19 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
 	if (include_stdin)
 	    FD_SET_MAX(0, maxfd, rset);
 
-	do {
-	    unsigned long next, then;
-	    long ticks;
-	    struct timeval tv, *ptv;
+        if (toplevel_callback_pending()) {
+            struct timeval tv;
+            tv.tv_sec = 0;
+            tv.tv_usec = 0;
+            ret = select(maxfd, &rset, &wset, &xset, &tv);
+            if (ret == 0)
+                run_toplevel_callbacks();
+        } else if (run_timers(now, &next)) {
+            do {
+                unsigned long then;
+                long ticks;
+                struct timeval tv;
 
-	    if (run_timers(now, &next)) {
 		then = now;
 		now = GETTICKCOUNT();
 		if (now - then > next - then)
@@ -502,16 +510,15 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
 		    ticks = next - now;
 		tv.tv_sec = ticks / 1000;
 		tv.tv_usec = ticks % 1000 * 1000;
-		ptv = &tv;
-	    } else {
-		ptv = NULL;
-	    }
-	    ret = select(maxfd, &rset, &wset, &xset, ptv);
-	    if (ret == 0)
-		now = next;
-	    else
-		now = GETTICKCOUNT();
-	} while (ret < 0 && errno != EINTR);
+                ret = select(maxfd, &rset, &wset, &xset, &tv);
+                if (ret == 0)
+                    now = next;
+                else
+                    now = GETTICKCOUNT();
+            } while (ret < 0 && errno == EINTR);
+        } else {
+            ret = select(maxfd, &rset, &wset, &xset, NULL);
+        }
     } while (ret == 0);
 
     if (ret < 0) {
