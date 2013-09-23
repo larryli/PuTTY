@@ -74,10 +74,6 @@ void nonfatal(char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
     postmsg(&cf);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
 }
 void connection_fatal(void *frontend, char *p, ...)
 {

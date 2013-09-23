@@ -3415,7 +3415,7 @@ void nonfatal(char *p, ...)
     va_start(ap, p);
     msg = dupvprintf(p, ap);
     va_end(ap);
-    fatal_message_box(NULL, msg);
+    nonfatal_message_box(NULL, msg);
     sfree(msg);
 }
 
