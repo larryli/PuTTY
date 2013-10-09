@@ -1362,7 +1362,8 @@ static void socket_error_callback(void *vs)
     /*
      * An error has occurred on this socket. Pass it to the plug.
      */
-    plug_closing(s->plug, strerror(s->pending_error), s->pending_error, 0);
+    plug_closing(s->plug, winsock_error_string(s->pending_error),
+                 s->pending_error, 0);
 }
 
 /*
