@@ -849,7 +849,24 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	int nhandles, n;
         DWORD timeout;
 
-        if (toplevel_callback_pending()) {
+        if (toplevel_callback_pending() || GetQueueStatus(QS_ALLINPUT)) {
+            /*
+             * If we have anything we'd like to do immediately, set
+             * the timeout for MsgWaitForMultipleObjects to zero so
+             * that we'll only do a quick check of our handles and
+             * then get on with whatever that was.
+             *
+             * One such option is a pending toplevel callback. The
+             * other is a non-empty Windows message queue, which you'd
+             * think we could leave to MsgWaitForMultipleObjects to
+             * check for us along with all the handles, but in fact we
+             * can't because once PeekMessage in one iteration of this
+             * loop has removed a message from the queue, the whole
+             * queue is considered uninteresting by the next
+             * invocation of MWFMO. So we check ourselves whether the
+             * message queue is non-empty, and if so, set this timeout
+             * to zero to ensure MWFMO doesn't block.
+             */
             timeout = 0;
         } else {
             timeout = INFINITE;
