@@ -849,7 +849,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	int nhandles, n;
         DWORD timeout;
 
-        if (toplevel_callback_pending() || GetQueueStatus(QS_ALLINPUT)) {
+        if (toplevel_callback_pending() ||
+            PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE)) {
             /*
              * If we have anything we'd like to do immediately, set
              * the timeout for MsgWaitForMultipleObjects to zero so
