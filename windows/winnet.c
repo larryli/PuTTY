@@ -53,7 +53,6 @@ struct Socket_tag {
     char *error;
     SOCKET s;
     Plug plug;
-    void *private_ptr;
     bufchain output_data;
     int connected;
     int writable;
@@ -828,8 +827,6 @@ static void sk_tcp_close(Socket s);
 static int sk_tcp_write(Socket s, const char *data, int len);
 static int sk_tcp_write_oob(Socket s, const char *data, int len);
 static void sk_tcp_write_eof(Socket s);
-static void sk_tcp_set_private_ptr(Socket s, void *ptr);
-static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
 static const char *sk_tcp_socket_error(Socket s);
 
@@ -844,8 +841,6 @@ static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
 	sk_tcp_write_oob,
 	sk_tcp_write_eof,
 	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
 	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
@@ -1094,8 +1089,6 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	sk_tcp_write_oob,
 	sk_tcp_write_eof,
 	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
 	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
@@ -1147,8 +1140,6 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
 	sk_tcp_write_oob,
 	sk_tcp_write_eof,
 	sk_tcp_flush,
-	sk_tcp_set_private_ptr,
-	sk_tcp_get_private_ptr,
 	sk_tcp_set_frozen,
 	sk_tcp_socket_error
     };
@@ -1690,22 +1681,6 @@ int select_result(WPARAM wParam, LPARAM lParam)
     }
 
     return 1;
-}
-
-/*
- * Each socket abstraction contains a `void *' private field in
- * which the client can keep state.
- */
-static void sk_tcp_set_private_ptr(Socket sock, void *ptr)
-{
-    Actual_Socket s = (Actual_Socket) sock;
-    s->private_ptr = ptr;
-}
-
-static void *sk_tcp_get_private_ptr(Socket sock)
-{
-    Actual_Socket s = (Actual_Socket) sock;
-    return s->private_ptr;
 }
 
 /*

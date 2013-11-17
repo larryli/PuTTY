@@ -35,8 +35,6 @@ struct socket_function_table {
     int (*write_oob) (Socket s, const char *data, int len);
     void (*write_eof) (Socket s);
     void (*flush) (Socket s);
-    void (*set_private_ptr) (Socket s, void *ptr);
-    void *(*get_private_ptr) (Socket s);
     void (*set_frozen) (Socket s, int is_frozen);
     /* ignored by tcp, but vital for ssl */
     const char *(*socket_error) (Socket s);
@@ -152,16 +150,6 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
 #define plug_sent(p,bufsize) (((*p)->sent) (p, bufsize))
 #define plug_accepting(p, constructor, ctx) (((*p)->accepting)(p, constructor, ctx))
 #endif
-
-/*
- * Each socket abstraction contains a `void *' private field in
- * which the client can keep state.
- *
- * This is perhaps unnecessary now that we have the notion of a plug,
- * but there is some existing code that uses it, so it stays.
- */
-#define sk_set_private_ptr(s, ptr) (((*s)->set_private_ptr) (s, ptr))
-#define sk_get_private_ptr(s) (((*s)->get_private_ptr) (s))
 
 /*
  * Special error values are returned from sk_namelookup and sk_new

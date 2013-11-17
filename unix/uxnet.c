@@ -75,7 +75,6 @@ struct Socket_tag {
     const char *error;
     int s;
     Plug plug;
-    void *private_ptr;
     bufchain output_data;
     int connected;		       /* irrelevant for listening sockets */
     int writable;
@@ -469,8 +468,6 @@ static void sk_tcp_close(Socket s);
 static int sk_tcp_write(Socket s, const char *data, int len);
 static int sk_tcp_write_oob(Socket s, const char *data, int len);
 static void sk_tcp_write_eof(Socket s);
-static void sk_tcp_set_private_ptr(Socket s, void *ptr);
-static void *sk_tcp_get_private_ptr(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
 static const char *sk_tcp_socket_error(Socket s);
 
@@ -481,8 +478,6 @@ static struct socket_function_table tcp_fn_table = {
     sk_tcp_write_oob,
     sk_tcp_write_eof,
     sk_tcp_flush,
-    sk_tcp_set_private_ptr,
-    sk_tcp_get_private_ptr,
     sk_tcp_set_frozen,
     sk_tcp_socket_error
 };
@@ -1372,22 +1367,6 @@ static int net_select_result(int fd, int event)
     }
 
     return 1;
-}
-
-/*
- * Each socket abstraction contains a `void *' private field in
- * which the client can keep state.
- */
-static void sk_tcp_set_private_ptr(Socket sock, void *ptr)
-{
-    Actual_Socket s = (Actual_Socket) sock;
-    s->private_ptr = ptr;
-}
-
-static void *sk_tcp_get_private_ptr(Socket sock)
-{
-    Actual_Socket s = (Actual_Socket) sock;
-    return s->private_ptr;
 }
 
 /*

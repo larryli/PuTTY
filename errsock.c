@@ -18,7 +18,6 @@ struct Socket_error_tag {
 
     char *error;
     Plug plug;
-    void *privptr;
 };
 
 static Plug sk_error_plug(Socket s, Plug p)
@@ -38,18 +37,6 @@ static void sk_error_close(Socket s)
     sfree(ps);
 }
 
-static void sk_error_set_private_ptr(Socket s, void *ptr)
-{
-    Error_Socket ps = (Error_Socket) s;
-    ps->privptr = ptr;
-}
-
-static void *sk_error_get_private_ptr(Socket s)
-{
-    Error_Socket ps = (Error_Socket) s;
-    return ps->privptr;
-}
-
 static const char *sk_error_socket_error(Socket s)
 {
     Error_Socket ps = (Error_Socket) s;
@@ -65,8 +52,6 @@ Socket new_error_socket(const char *errmsg, Plug plug)
 	NULL /* write_oob */,
 	NULL /* write_eof */,
 	NULL /* flush */,
-	sk_error_set_private_ptr,
-	sk_error_get_private_ptr,
 	NULL /* set_frozen */,
 	sk_error_socket_error
     };

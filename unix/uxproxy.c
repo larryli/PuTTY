@@ -30,8 +30,6 @@ struct Socket_localproxy_tag {
     bufchain pending_output_data;
     bufchain pending_input_data;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
-
-    void *privptr;
 };
 
 static int localproxy_select_result(int fd, int event);
@@ -186,18 +184,6 @@ static void sk_localproxy_flush (Socket s)
     /* do nothing */
 }
 
-static void sk_localproxy_set_private_ptr (Socket s, void *ptr)
-{
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
-    ps->privptr = ptr;
-}
-
-static void * sk_localproxy_get_private_ptr (Socket s)
-{
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
-    return ps->privptr;
-}
-
 static void sk_localproxy_set_frozen (Socket s, int is_frozen)
 {
     Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
@@ -258,8 +244,6 @@ Socket platform_new_connection(SockAddr addr, char *hostname,
 	sk_localproxy_write_oob,
 	sk_localproxy_write_eof,
 	sk_localproxy_flush,
-	sk_localproxy_set_private_ptr,
-	sk_localproxy_get_private_ptr,
 	sk_localproxy_set_frozen,
 	sk_localproxy_socket_error
     };

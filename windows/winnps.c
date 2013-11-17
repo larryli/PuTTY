@@ -37,7 +37,6 @@ struct Socket_named_pipe_server_tag {
     /* PuTTY Socket machinery */
     Plug plug;
     char *error;
-    void *privptr;
 };
 
 static Plug sk_namedpipeserver_plug(Socket s, Plug p)
@@ -64,18 +63,6 @@ static void sk_namedpipeserver_close(Socket s)
     if (ps->psd)
         LocalFree(ps->psd);
     sfree(ps);
-}
-
-static void sk_namedpipeserver_set_private_ptr(Socket s, void *ptr)
-{
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
-    ps->privptr = ptr;
-}
-
-static void *sk_namedpipeserver_get_private_ptr(Socket s)
-{
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
-    return ps->privptr;
 }
 
 static const char *sk_namedpipeserver_socket_error(Socket s)
@@ -217,8 +204,6 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
 	NULL /* write_oob */,
         NULL /* write_eof */,
         NULL /* flush */,
-	sk_namedpipeserver_set_private_ptr,
-	sk_namedpipeserver_get_private_ptr,
         NULL /* set_frozen */,
 	sk_namedpipeserver_socket_error
     };
@@ -231,7 +216,6 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     ret->fn = &socket_fn_table;
     ret->plug = plug;
     ret->error = NULL;
-    ret->privptr = NULL;
     ret->psd = NULL;
     ret->pipename = dupstr(pipename);
     ret->networksid = NULL;

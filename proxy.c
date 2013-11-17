@@ -142,18 +142,6 @@ static void sk_proxy_flush (Socket s)
     sk_flush(ps->sub_socket);
 }
 
-static void sk_proxy_set_private_ptr (Socket s, void *ptr)
-{
-    Proxy_Socket ps = (Proxy_Socket) s;
-    sk_set_private_ptr(ps->sub_socket, ptr);
-}
-
-static void * sk_proxy_get_private_ptr (Socket s)
-{
-    Proxy_Socket ps = (Proxy_Socket) s;
-    return sk_get_private_ptr(ps->sub_socket);
-}
-
 static void sk_proxy_set_frozen (Socket s, int is_frozen)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
@@ -399,8 +387,6 @@ Socket new_connection(SockAddr addr, char *hostname,
 	sk_proxy_write_oob,
 	sk_proxy_write_eof,
 	sk_proxy_flush,
-	sk_proxy_set_private_ptr,
-	sk_proxy_get_private_ptr,
 	sk_proxy_set_frozen,
 	sk_proxy_socket_error
     };

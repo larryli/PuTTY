@@ -42,8 +42,6 @@ struct Socket_handle_tag {
     char *error;
 
     Plug plug;
-
-    void *privptr;
 };
 
 static int handle_gotdata(struct handle *h, void *data, int len)
@@ -134,18 +132,6 @@ static void sk_handle_flush(Socket s)
 {
     /* Handle_Socket ps = (Handle_Socket) s; */
     /* do nothing */
-}
-
-static void sk_handle_set_private_ptr(Socket s, void *ptr)
-{
-    Handle_Socket ps = (Handle_Socket) s;
-    ps->privptr = ptr;
-}
-
-static void *sk_handle_get_private_ptr(Socket s)
-{
-    Handle_Socket ps = (Handle_Socket) s;
-    return ps->privptr;
 }
 
 static void handle_socket_unfreeze(void *psv)
@@ -258,8 +244,6 @@ Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
 	sk_handle_write_oob,
 	sk_handle_write_eof,
 	sk_handle_flush,
-	sk_handle_set_private_ptr,
-	sk_handle_get_private_ptr,
 	sk_handle_set_frozen,
 	sk_handle_socket_error
     };
