@@ -2274,57 +2274,6 @@ If you select \q{1 only} or \q{2 only} here, PuTTY will only connect
 if the server you connect to offers the SSH protocol version you
 have specified.
 
-\S{config-ssh-encryption} \ii{Encryption} algorithm selection
-
-\cfg{winhelp-topic}{ssh.ciphers}
-
-PuTTY supports a variety of different \i{encryption algorithm}s, and
-allows you to choose which one you prefer to use. You can do this by
-dragging the algorithms up and down in the list box (or moving them
-using the Up and Down buttons) to specify a preference order. When
-you make an SSH connection, PuTTY will search down the list from the
-top until it finds an algorithm supported by the server, and then
-use that.
-
-PuTTY currently supports the following algorithms:
-
-\b \i{AES} (Rijndael) - 256, 192, or 128-bit SDCTR or CBC (SSH-2 only)
-
-\b \i{Arcfour} (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
-
-\b \i{Blowfish} - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
-
-\b \ii{Triple-DES} - 168-bit SDCTR (SSH-2 only) or CBC
-
-\b \ii{Single-DES} - 56-bit CBC (see below for SSH-2)
-
-If the algorithm PuTTY finds is below the \q{warn below here} line,
-you will see a warning box when you make the connection:
-
-\c The first cipher supported by the server
-\c is single-DES, which is below the configured
-\c warning threshold.
-\c Do you want to continue with this connection?
-
-This warns you that the first available encryption is not a very
-secure one. Typically you would put the \q{warn below here} line
-between the encryptions you consider secure and the ones you
-consider substandard. By default, PuTTY supplies a preference order
-intended to reflect a reasonable preference in terms of security and
-speed.
-
-In SSH-2, the encryption algorithm is negotiated independently for
-each direction of the connection, although PuTTY does not support
-separate configuration of the preference orders. As a result you may
-get two warnings similar to the one above, possibly with different
-encryptions.
-
-Single-DES is not recommended in the SSH-2 protocol
-standards, but one or two server implementations do support it.
-PuTTY can use single-DES to interoperate with
-these servers if you enable the \q{Enable legacy use of single-DES in
-SSH-2} option; by default this is disabled and PuTTY will stick to
-recommended ciphers.
 
 \H{config-ssh-kex} The Kex panel
 
@@ -2452,6 +2401,58 @@ wraps around.  Unlike time-based rekeys, data-based rekeys won't occur
 when the SSH connection is idle, so they shouldn't cause the same
 problems.  The SSH-1 protocol, incidentally, has even weaker integrity
 protection than SSH-2 without rekeys.
+
+\H{config-ssh-encryption} The Cipher panel
+
+\cfg{winhelp-topic}{ssh.ciphers}
+
+PuTTY supports a variety of different \i{encryption algorithm}s, and
+allows you to choose which one you prefer to use. You can do this by
+dragging the algorithms up and down in the list box (or moving them
+using the Up and Down buttons) to specify a preference order. When
+you make an SSH connection, PuTTY will search down the list from the
+top until it finds an algorithm supported by the server, and then
+use that.
+
+PuTTY currently supports the following algorithms:
+
+\b \i{AES} (Rijndael) - 256, 192, or 128-bit SDCTR or CBC (SSH-2 only)
+
+\b \i{Arcfour} (RC4) - 256 or 128-bit stream cipher (SSH-2 only)
+
+\b \i{Blowfish} - 256-bit SDCTR (SSH-2 only) or 128-bit CBC
+
+\b \ii{Triple-DES} - 168-bit SDCTR (SSH-2 only) or CBC
+
+\b \ii{Single-DES} - 56-bit CBC (see below for SSH-2)
+
+If the algorithm PuTTY finds is below the \q{warn below here} line,
+you will see a warning box when you make the connection:
+
+\c The first cipher supported by the server
+\c is single-DES, which is below the configured
+\c warning threshold.
+\c Do you want to continue with this connection?
+
+This warns you that the first available encryption is not a very
+secure one. Typically you would put the \q{warn below here} line
+between the encryptions you consider secure and the ones you
+consider substandard. By default, PuTTY supplies a preference order
+intended to reflect a reasonable preference in terms of security and
+speed.
+
+In SSH-2, the encryption algorithm is negotiated independently for
+each direction of the connection, although PuTTY does not support
+separate configuration of the preference orders. As a result you may
+get two warnings similar to the one above, possibly with different
+encryptions.
+
+Single-DES is not recommended in the SSH-2 protocol
+standards, but one or two server implementations do support it.
+PuTTY can use single-DES to interoperate with
+these servers if you enable the \q{Enable legacy use of single-DES in
+SSH-2} option; by default this is disabled and PuTTY will stick to
+recommended ciphers.
 
 \H{config-ssh-auth} The Auth panel
 

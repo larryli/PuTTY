@@ -2112,19 +2112,6 @@ void setup_config_box(struct controlbox *b, int midsession,
 			      "2 only", 'y', I(3), NULL);
 	}
 
-	if (!midsession || protcfginfo != 1) {
-	    s = ctrl_getset(b, "Connection/SSH", "encryption", "Encryption options");
-	    c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
-			      HELPCTX(ssh_ciphers),
-			      cipherlist_handler, P(NULL));
-	    c->listbox.height = 6;
-
-	    ctrl_checkbox(s, "Enable legacy use of single-DES in SSH-2", 'i',
-			  HELPCTX(ssh_ciphers),
-			  conf_checkbox_handler,
-			  I(CONF_ssh2_des_cbc));
-	}
-
 	/*
 	 * The Connection/SSH/Kex panel. (Owing to repeat key
 	 * exchange, this is all meaningful in mid-session _if_
@@ -2156,6 +2143,26 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(16));
 	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
 		      HELPCTX(ssh_kex_repeat));
+	}
+
+	if (!midsession || protcfginfo != 1) {
+	    /*
+	     * The Connection/SSH/Cipher panel.
+	     */
+	    ctrl_settitle(b, "Connection/SSH/Cipher",
+			  "Options controlling SSH encryption");
+
+	    s = ctrl_getset(b, "Connection/SSH/Cipher",
+                            "encryption", "Encryption options");
+	    c = ctrl_draglist(s, "Encryption cipher selection policy:", 's',
+			      HELPCTX(ssh_ciphers),
+			      cipherlist_handler, P(NULL));
+	    c->listbox.height = 6;
+
+	    ctrl_checkbox(s, "Enable legacy use of single-DES in SSH-2", 'i',
+			  HELPCTX(ssh_ciphers),
+			  conf_checkbox_handler,
+			  I(CONF_ssh2_des_cbc));
 	}
 
 	if (!midsession) {
