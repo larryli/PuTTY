@@ -24,105 +24,6 @@
 #define TRUE 1
 #endif
 
-#define SSH1_MSG_DISCONNECT                       1	/* 0x1 */
-#define SSH1_SMSG_PUBLIC_KEY                      2	/* 0x2 */
-#define SSH1_CMSG_SESSION_KEY                     3	/* 0x3 */
-#define SSH1_CMSG_USER                            4	/* 0x4 */
-#define SSH1_CMSG_AUTH_RSA                        6	/* 0x6 */
-#define SSH1_SMSG_AUTH_RSA_CHALLENGE              7	/* 0x7 */
-#define SSH1_CMSG_AUTH_RSA_RESPONSE               8	/* 0x8 */
-#define SSH1_CMSG_AUTH_PASSWORD                   9	/* 0x9 */
-#define SSH1_CMSG_REQUEST_PTY                     10	/* 0xa */
-#define SSH1_CMSG_WINDOW_SIZE                     11	/* 0xb */
-#define SSH1_CMSG_EXEC_SHELL                      12	/* 0xc */
-#define SSH1_CMSG_EXEC_CMD                        13	/* 0xd */
-#define SSH1_SMSG_SUCCESS                         14	/* 0xe */
-#define SSH1_SMSG_FAILURE                         15	/* 0xf */
-#define SSH1_CMSG_STDIN_DATA                      16	/* 0x10 */
-#define SSH1_SMSG_STDOUT_DATA                     17	/* 0x11 */
-#define SSH1_SMSG_STDERR_DATA                     18	/* 0x12 */
-#define SSH1_CMSG_EOF                             19	/* 0x13 */
-#define SSH1_SMSG_EXIT_STATUS                     20	/* 0x14 */
-#define SSH1_MSG_CHANNEL_OPEN_CONFIRMATION        21	/* 0x15 */
-#define SSH1_MSG_CHANNEL_OPEN_FAILURE             22	/* 0x16 */
-#define SSH1_MSG_CHANNEL_DATA                     23	/* 0x17 */
-#define SSH1_MSG_CHANNEL_CLOSE                    24	/* 0x18 */
-#define SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION       25	/* 0x19 */
-#define SSH1_SMSG_X11_OPEN                        27	/* 0x1b */
-#define SSH1_CMSG_PORT_FORWARD_REQUEST            28	/* 0x1c */
-#define SSH1_MSG_PORT_OPEN                        29	/* 0x1d */
-#define SSH1_CMSG_AGENT_REQUEST_FORWARDING        30	/* 0x1e */
-#define SSH1_SMSG_AGENT_OPEN                      31	/* 0x1f */
-#define SSH1_MSG_IGNORE                           32	/* 0x20 */
-#define SSH1_CMSG_EXIT_CONFIRMATION               33	/* 0x21 */
-#define SSH1_CMSG_X11_REQUEST_FORWARDING          34	/* 0x22 */
-#define SSH1_CMSG_AUTH_RHOSTS_RSA                 35	/* 0x23 */
-#define SSH1_MSG_DEBUG                            36	/* 0x24 */
-#define SSH1_CMSG_REQUEST_COMPRESSION             37	/* 0x25 */
-#define SSH1_CMSG_AUTH_TIS                        39	/* 0x27 */
-#define SSH1_SMSG_AUTH_TIS_CHALLENGE              40	/* 0x28 */
-#define SSH1_CMSG_AUTH_TIS_RESPONSE               41	/* 0x29 */
-#define SSH1_CMSG_AUTH_CCARD                      70	/* 0x46 */
-#define SSH1_SMSG_AUTH_CCARD_CHALLENGE            71	/* 0x47 */
-#define SSH1_CMSG_AUTH_CCARD_RESPONSE             72	/* 0x48 */
-
-#define SSH1_AUTH_RHOSTS                          1	/* 0x1 */
-#define SSH1_AUTH_RSA                             2	/* 0x2 */
-#define SSH1_AUTH_PASSWORD                        3	/* 0x3 */
-#define SSH1_AUTH_RHOSTS_RSA                      4	/* 0x4 */
-#define SSH1_AUTH_TIS                             5	/* 0x5 */
-#define SSH1_AUTH_CCARD                           16	/* 0x10 */
-
-#define SSH1_PROTOFLAG_SCREEN_NUMBER              1	/* 0x1 */
-/* Mask for protoflags we will echo back to server if seen */
-#define SSH1_PROTOFLAGS_SUPPORTED                 0	/* 0x1 */
-
-#define SSH2_MSG_DISCONNECT                       1	/* 0x1 */
-#define SSH2_MSG_IGNORE                           2	/* 0x2 */
-#define SSH2_MSG_UNIMPLEMENTED                    3	/* 0x3 */
-#define SSH2_MSG_DEBUG                            4	/* 0x4 */
-#define SSH2_MSG_SERVICE_REQUEST                  5	/* 0x5 */
-#define SSH2_MSG_SERVICE_ACCEPT                   6	/* 0x6 */
-#define SSH2_MSG_KEXINIT                          20	/* 0x14 */
-#define SSH2_MSG_NEWKEYS                          21	/* 0x15 */
-#define SSH2_MSG_KEXDH_INIT                       30	/* 0x1e */
-#define SSH2_MSG_KEXDH_REPLY                      31	/* 0x1f */
-#define SSH2_MSG_KEX_DH_GEX_REQUEST               30	/* 0x1e */
-#define SSH2_MSG_KEX_DH_GEX_GROUP                 31	/* 0x1f */
-#define SSH2_MSG_KEX_DH_GEX_INIT                  32	/* 0x20 */
-#define SSH2_MSG_KEX_DH_GEX_REPLY                 33	/* 0x21 */
-#define SSH2_MSG_KEXRSA_PUBKEY                    30    /* 0x1e */
-#define SSH2_MSG_KEXRSA_SECRET                    31    /* 0x1f */
-#define SSH2_MSG_KEXRSA_DONE                      32    /* 0x20 */
-#define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
-#define SSH2_MSG_USERAUTH_FAILURE                 51	/* 0x33 */
-#define SSH2_MSG_USERAUTH_SUCCESS                 52	/* 0x34 */
-#define SSH2_MSG_USERAUTH_BANNER                  53	/* 0x35 */
-#define SSH2_MSG_USERAUTH_PK_OK                   60	/* 0x3c */
-#define SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ        60	/* 0x3c */
-#define SSH2_MSG_USERAUTH_INFO_REQUEST            60	/* 0x3c */
-#define SSH2_MSG_USERAUTH_INFO_RESPONSE           61	/* 0x3d */
-#define SSH2_MSG_GLOBAL_REQUEST                   80	/* 0x50 */
-#define SSH2_MSG_REQUEST_SUCCESS                  81	/* 0x51 */
-#define SSH2_MSG_REQUEST_FAILURE                  82	/* 0x52 */
-#define SSH2_MSG_CHANNEL_OPEN                     90	/* 0x5a */
-#define SSH2_MSG_CHANNEL_OPEN_CONFIRMATION        91	/* 0x5b */
-#define SSH2_MSG_CHANNEL_OPEN_FAILURE             92	/* 0x5c */
-#define SSH2_MSG_CHANNEL_WINDOW_ADJUST            93	/* 0x5d */
-#define SSH2_MSG_CHANNEL_DATA                     94	/* 0x5e */
-#define SSH2_MSG_CHANNEL_EXTENDED_DATA            95	/* 0x5f */
-#define SSH2_MSG_CHANNEL_EOF                      96	/* 0x60 */
-#define SSH2_MSG_CHANNEL_CLOSE                    97	/* 0x61 */
-#define SSH2_MSG_CHANNEL_REQUEST                  98	/* 0x62 */
-#define SSH2_MSG_CHANNEL_SUCCESS                  99	/* 0x63 */
-#define SSH2_MSG_CHANNEL_FAILURE                  100	/* 0x64 */
-#define SSH2_MSG_USERAUTH_GSSAPI_RESPONSE               60
-#define SSH2_MSG_USERAUTH_GSSAPI_TOKEN                  61
-#define SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE      63
-#define SSH2_MSG_USERAUTH_GSSAPI_ERROR                  64
-#define SSH2_MSG_USERAUTH_GSSAPI_ERRTOK                 65
-#define SSH2_MSG_USERAUTH_GSSAPI_MIC                    66
-
 /*
  * Packet type contexts, so that ssh2_pkt_type can correctly decode
  * the ambiguous type numbers back into the correct type strings.
@@ -140,22 +41,6 @@ typedef enum {
     SSH2_PKTCTX_GSSAPI,
     SSH2_PKTCTX_KBDINTER
 } Pkt_ACtx;
-
-#define SSH2_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT 1	/* 0x1 */
-#define SSH2_DISCONNECT_PROTOCOL_ERROR            2	/* 0x2 */
-#define SSH2_DISCONNECT_KEY_EXCHANGE_FAILED       3	/* 0x3 */
-#define SSH2_DISCONNECT_HOST_AUTHENTICATION_FAILED 4	/* 0x4 */
-#define SSH2_DISCONNECT_MAC_ERROR                 5	/* 0x5 */
-#define SSH2_DISCONNECT_COMPRESSION_ERROR         6	/* 0x6 */
-#define SSH2_DISCONNECT_SERVICE_NOT_AVAILABLE     7	/* 0x7 */
-#define SSH2_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED 8	/* 0x8 */
-#define SSH2_DISCONNECT_HOST_KEY_NOT_VERIFIABLE   9	/* 0x9 */
-#define SSH2_DISCONNECT_CONNECTION_LOST           10	/* 0xa */
-#define SSH2_DISCONNECT_BY_APPLICATION            11	/* 0xb */
-#define SSH2_DISCONNECT_TOO_MANY_CONNECTIONS      12	/* 0xc */
-#define SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER    13	/* 0xd */
-#define SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE 14	/* 0xe */
-#define SSH2_DISCONNECT_ILLEGAL_USER_NAME         15	/* 0xf */
 
 static const char *const ssh2_disconnect_reasons[] = {
     NULL,
@@ -175,13 +60,6 @@ static const char *const ssh2_disconnect_reasons[] = {
     "no more auth methods available",
     "illegal user name",
 };
-
-#define SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED     1	/* 0x1 */
-#define SSH2_OPEN_CONNECT_FAILED                  2	/* 0x2 */
-#define SSH2_OPEN_UNKNOWN_CHANNEL_TYPE            3	/* 0x3 */
-#define SSH2_OPEN_RESOURCE_SHORTAGE               4	/* 0x4 */
-
-#define SSH2_EXTENDED_DATA_STDERR                 1	/* 0x1 */
 
 /*
  * Various remote-bug flags.
