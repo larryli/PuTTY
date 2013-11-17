@@ -401,6 +401,10 @@ struct X11FakeAuth {
      */
     struct X11Display *disp;
 };
+void *x11_make_greeting(int endian, int protomajor, int protominor,
+                        int auth_proto, const void *auth_data, int auth_len,
+                        const char *peer_ip, int peer_port,
+                        int *outlen);
 int x11_authcmp(void *av, void *bv); /* for putting X11FakeAuth in a tree234 */
 /*
  * x11_setup_display() parses the display variable and fills in an

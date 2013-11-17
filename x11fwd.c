@@ -38,7 +38,7 @@ struct X11Connection {
     int verified;
     int throttled, throttle_override;
     int no_data_sent_to_x_client;
-    unsigned long peer_ip;
+    char *peer_addr;
     int peer_port;
     struct ssh_channel *c;        /* channel structure held by ssh.c */
     Socket s;
@@ -693,19 +693,10 @@ extern char *x11_init(struct X11Connection **xconnret,
     xconn->s = NULL;
 
     /*
-     * See if we can make sense of the peer address we were given.
+     * Stash the peer address we were given in its original text form.
      */
-    {
-	int i[4];
-	if (peeraddr &&
-	    4 == sscanf(peeraddr, "%d.%d.%d.%d", i+0, i+1, i+2, i+3)) {
-	    xconn->peer_ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
-	    xconn->peer_port = peerport;
-	} else {
-	    xconn->peer_ip = 0;
-	    xconn->peer_port = -1;
-	}
-    }
+    xconn->peer_addr = peeraddr ? dupstr(peeraddr) : NULL;
+    xconn->peer_port = peerport;
 
     return NULL;
 }
@@ -722,6 +713,8 @@ void x11_close(struct X11Connection *xconn)
 
     if (xconn->s)
         sk_close(xconn->s);
+
+    sfree(xconn->peer_addr);
     sfree(xconn);
 }
 
@@ -768,6 +761,23 @@ static void x11_send_init_error(struct X11Connection *xconn,
     xconn->no_data_sent_to_x_client = FALSE;
     sfree(reply);
     sfree(full_message);
+}
+
+static int x11_parse_ip(const char *addr_string, unsigned long *ip)
+{
+
+    /*
+     * See if we can make sense of this string as an IPv4 address, for
+     * XDM-AUTHORIZATION-1 purposes.
+     */
+    int i[4];
+    if (addr_string &&
+        4 == sscanf(addr_string, "%d.%d.%d.%d", i+0, i+1, i+2, i+3)) {
+        *ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
+        return TRUE;
+    } else {
+        return FALSE;
+    }
 }
 
 /*
@@ -819,11 +829,29 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
     if (!xconn->verified) {
 	const char *err;
         struct X11FakeAuth *auth_matched = NULL;
+        unsigned long peer_ip;
+        int peer_port;
+        int protomajor, protominor;
+        void *greeting;
+        int greeting_len;
+        unsigned char *socketdata;
+        int socketdatalen;
+        char new_peer_addr[32];
+        int new_peer_port;
+
+        protomajor = GET_16BIT(xconn->firstpkt[0], xconn->firstpkt + 2);
+        protominor = GET_16BIT(xconn->firstpkt[0], xconn->firstpkt + 4);
 
         assert(!xconn->s);
 
 	xconn->auth_protocol[xconn->auth_plen] = '\0';	/* ASCIZ */
-	err = x11_verify(xconn->peer_ip, xconn->peer_port,
+
+        if (x11_parse_ip(xconn->peer_addr, &peer_ip))
+            peer_port = xconn->peer_port;
+        else
+            peer_port = -1; /* signal no peer address data available */
+
+	err = x11_verify(peer_ip, peer_port,
 			 xconn->authtree, xconn->auth_protocol,
 			 xconn->auth_data, xconn->auth_dlen, &auth_matched);
 	if (err) {
@@ -850,54 +878,36 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
         }
 
         /*
-         * Strip the fake auth data, and optionally put real auth data
-	 * in instead.
+         * Write a new connection header containing our replacement
+         * auth data.
 	 */
-        {
-            char realauthdata[64];
-            int realauthlen = 0;
-            int authstrlen = strlen(x11_authnames[xconn->disp->localauthproto]);
-	    int buflen = 0;	       /* initialise to placate optimiser */
-            static const char zeroes[4] = { 0,0,0,0 };
-	    void *buf;
 
-            if (xconn->disp->localauthproto == X11_MIT) {
-                assert(xconn->disp->localauthdatalen <= lenof(realauthdata));
-                realauthlen = xconn->disp->localauthdatalen;
-                memcpy(realauthdata, xconn->disp->localauthdata, realauthlen);
-            } else if (xconn->disp->localauthproto == X11_XDM &&
-		       xconn->disp->localauthdatalen == 16 &&
-		       ((buf = sk_getxdmdata(xconn->s, &buflen))!=0)) {
-		time_t t;
-                realauthlen = (buflen+12+7) & ~7;
-		assert(realauthlen <= lenof(realauthdata));
-		memset(realauthdata, 0, realauthlen);
-		memcpy(realauthdata, xconn->disp->localauthdata, 8);
-		memcpy(realauthdata+8, buf, buflen);
-		t = time(NULL);
-		PUT_32BIT_MSB_FIRST(realauthdata+8+buflen, t);
-		des_encrypt_xdmauth(xconn->disp->localauthdata+9,
-				    (unsigned char *)realauthdata,
-				    realauthlen);
-		sfree(buf);
-	    }
-            /* implement other auth methods here if required */
-
-            PUT_16BIT(xconn->firstpkt[0], xconn->firstpkt + 6, authstrlen);
-            PUT_16BIT(xconn->firstpkt[0], xconn->firstpkt + 8, realauthlen);
-        
-            sk_write(xconn->s, (char *)xconn->firstpkt, 12);
-
-            if (authstrlen) {
-                sk_write(xconn->s, x11_authnames[xconn->disp->localauthproto],
-			 authstrlen);
-                sk_write(xconn->s, zeroes, 3 & (-authstrlen));
-            }
-            if (realauthlen) {
-                sk_write(xconn->s, realauthdata, realauthlen);
-                sk_write(xconn->s, zeroes, 3 & (-realauthlen));
-            }
+        socketdata = sk_getxdmdata(xconn->s, &socketdatalen);
+        if (socketdata && socketdatalen==6) {
+            sprintf(new_peer_addr, "%d.%d.%d.%d", socketdata[0],
+                    socketdata[1], socketdata[2], socketdata[3]);
+            new_peer_port = GET_16BIT_MSB_FIRST(socketdata + 4);
+        } else {
+            strcpy(new_peer_addr, "0.0.0.0");
+            new_peer_port = 0;
         }
+
+        greeting = x11_make_greeting(xconn->firstpkt[0],
+                                     protomajor, protominor,
+                                     xconn->disp->localauthproto,
+                                     xconn->disp->localauthdata,
+                                     xconn->disp->localauthdatalen,
+                                     new_peer_addr, new_peer_port,
+                                     &greeting_len);
+        
+        sk_write(xconn->s, greeting, greeting_len);
+
+        smemclr(greeting, greeting_len);
+        sfree(greeting);
+
+        /*
+         * Now we're done.
+         */
 	xconn->verified = 1;
     }
 
@@ -922,4 +932,67 @@ void x11_send_eof(struct X11Connection *xconn)
         if (xconn->c)
             sshfwd_write_eof(xconn->c);
     }
+}
+/*
+ * Construct an X11 greeting packet, including making up the right
+ * authorisation data.
+ */
+void *x11_make_greeting(int endian, int protomajor, int protominor,
+                        int auth_proto, const void *auth_data, int auth_len,
+                        const char *peer_addr, int peer_port,
+                        int *outlen)
+{
+    unsigned char *greeting;
+    unsigned char realauthdata[64];
+    const char *authname;
+    const unsigned char *authdata;
+    int authnamelen, authnamelen_pad;
+    int authdatalen, authdatalen_pad;
+    int greeting_len;
+
+    authname = x11_authnames[auth_proto];
+    authnamelen = strlen(authname);
+    authnamelen_pad = (authnamelen + 3) & ~3;
+
+    if (auth_proto == X11_MIT) {
+        authdata = auth_data;
+        authdatalen = auth_len;
+    } else if (auth_proto == X11_XDM && auth_len == 16) {
+        time_t t;
+        unsigned long peer_ip = 0;
+
+        x11_parse_ip(peer_addr, &peer_ip);
+
+        authdata = realauthdata;
+        authdatalen = 24;
+        memset(realauthdata, 0, authdatalen);
+        memcpy(realauthdata, auth_data, 8);
+        PUT_32BIT_MSB_FIRST(realauthdata+8, peer_ip);
+        PUT_16BIT_MSB_FIRST(realauthdata+12, peer_port);
+        t = time(NULL);
+        PUT_32BIT_MSB_FIRST(realauthdata+14, t);
+
+        des_encrypt_xdmauth(auth_data + 9, realauthdata, authdatalen);
+    } else {
+        authdata = realauthdata;
+        authdatalen = 0;
+    }
+
+    authdatalen_pad = (authdatalen + 3) & ~3;
+    greeting_len = 12 + authnamelen_pad + authdatalen_pad;
+
+    greeting = snewn(greeting_len, unsigned char);
+    memset(greeting, 0, greeting_len);
+    greeting[0] = endian;
+    PUT_16BIT(endian, greeting+2, protomajor);
+    PUT_16BIT(endian, greeting+4, protominor);
+    PUT_16BIT(endian, greeting+6, authnamelen);
+    PUT_16BIT(endian, greeting+8, authdatalen);
+    memcpy(greeting+12, authname, authnamelen);
+    memcpy(greeting+12+authnamelen_pad, authdata, authdatalen);
+
+    smemclr(realauthdata, sizeof(realauthdata));
+
+    *outlen = greeting_len;
+    return greeting;
 }
