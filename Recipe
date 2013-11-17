@@ -300,7 +300,7 @@ SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
          + sshgssc pgssapi
-WINSSH   = SSH winnoise winpgntc wingss errsock
+WINSSH   = SSH winnoise winpgntc wingss winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss
 
 # SFTP implementation (pscp, psftp).
@@ -310,7 +310,7 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 MISC     = timing callback misc version settings tree234 proxy conf
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
-         + wintime errsock
+         + wintime winhsock errsock
 UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
 OSXMISC  = MISC uxstore uxsel osxsel uxnet uxmisc uxproxy time
 
