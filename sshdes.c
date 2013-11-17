@@ -906,7 +906,7 @@ void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
     smemclr(ourkeys, sizeof(ourkeys));
 }
 
-static void des_keysetup_xdmauth(unsigned char *keydata, DESContext *dc)
+static void des_keysetup_xdmauth(const unsigned char *keydata, DESContext *dc)
 {
     unsigned char key[8];
     int i, nbits, j;
@@ -929,14 +929,16 @@ static void des_keysetup_xdmauth(unsigned char *keydata, DESContext *dc)
     des_key_setup(GET_32BIT_MSB_FIRST(key), GET_32BIT_MSB_FIRST(key + 4), dc);
 }
 
-void des_encrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
+void des_encrypt_xdmauth(const unsigned char *keydata,
+                         unsigned char *blk, int len)
 {
     DESContext dc;
     des_keysetup_xdmauth(keydata, &dc);
     des_cbc_encrypt(blk, 24, &dc);
 }
 
-void des_decrypt_xdmauth(unsigned char *keydata, unsigned char *blk, int len)
+void des_decrypt_xdmauth(const unsigned char *keydata,
+                         unsigned char *blk, int len)
 {
     DESContext dc;
     des_keysetup_xdmauth(keydata, &dc);
