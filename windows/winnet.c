@@ -835,7 +835,7 @@ static const char *sk_tcp_socket_error(Socket s);
 
 extern char *do_select(SOCKET skt, int startup);
 
-Socket sk_register(void *sock, Plug plug)
+static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
 {
     static const struct socket_function_table fn_table = {
 	sk_tcp_plug,
@@ -872,7 +872,7 @@ Socket sk_register(void *sock, Plug plug)
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
 
-    ret->s = (SOCKET)sock;
+    ret->s = (SOCKET)ctx.p;
 
     if (ret->s == INVALID_SOCKET) {
 	err = p_WSAGetLastError();
@@ -1660,6 +1660,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 #endif
 	    int addrlen = sizeof(isa);
 	    SOCKET t;  /* socket of connection */
+            accept_ctx_t actx;
 
 	    memset(&isa, 0, sizeof(isa));
 	    err = 0;
@@ -1670,6 +1671,9 @@ int select_result(WPARAM wParam, LPARAM lParam)
 		if (err == WSATRY_AGAIN)
 		    break;
 	    }
+
+            actx.p = (void *)t;
+
 #ifndef NO_IPV6
             if (isa.ss_family == AF_INET &&
                 s->localhost_only &&
@@ -1679,7 +1683,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 #endif
 	    {
 		p_closesocket(t);      /* dodgy WinSock let nonlocal through */
-	    } else if (plug_accepting(s->plug, (void*)t)) {
+	    } else if (plug_accepting(s->plug, sk_tcp_accept, actx)) {
 		p_closesocket(t);      /* denied or error */
 	    }
 	}

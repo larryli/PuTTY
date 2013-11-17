@@ -411,7 +411,7 @@ const char *pfd_newconnect(Socket *s, char *hostname, int port,
  called when someone connects to the local port
  */
 
-static int pfd_accepting(Plug p, OSSocket sock)
+static int pfd_accepting(Plug p, accept_fn_t constructor, accept_ctx_t ctx)
 {
     static const struct plug_function_table fn_table = {
 	pfd_log,
@@ -431,7 +431,7 @@ static int pfd_accepting(Plug p, OSSocket sock)
     pr->c = NULL;
     pr->backhandle = org->backhandle;
 
-    pr->s = s = sk_register(sock, (Plug) pr);
+    pr->s = s = constructor(ctx, (Plug) pr);
     if ((err = sk_socket_error(s)) != NULL) {
 	free_portfwd_private(pr);
 	return err != NULL;

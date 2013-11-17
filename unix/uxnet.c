@@ -490,8 +490,9 @@ static struct socket_function_table tcp_fn_table = {
     sk_tcp_socket_error
 };
 
-Socket sk_register(OSSocket sockfd, Plug plug)
+static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
 {
+    int sockfd = ctx.i;
     Actual_Socket ret;
 
     /*
@@ -1268,6 +1269,7 @@ static int net_select_result(int fd, int event)
 	     */
 	    union sockaddr_union su;
 	    socklen_t addrlen = sizeof(su);
+            accept_ctx_t actx;
 	    int t;  /* socket of connection */
 
 	    memset(&su, 0, addrlen);
@@ -1277,11 +1279,12 @@ static int net_select_result(int fd, int event)
 	    }
 
             nonblock(t);
+            actx.i = t;
 
 	    if (s->localhost_only &&
 		!sockaddr_is_loopback(&su.sa)) {
 		close(t);	       /* someone let nonlocal through?! */
-	    } else if (plug_accepting(s->plug, t)) {
+	    } else if (plug_accepting(s->plug, sk_tcp_accept, actx)) {
 		close(t);	       /* denied or error */
 	    }
 	    break;

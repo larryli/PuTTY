@@ -62,7 +62,7 @@ static int dummy_plug_closing
 static int dummy_plug_receive(Plug p, int urgent, char *data, int len)
 { return 1; }
 static void dummy_plug_sent(Plug p, int bufsize) { }
-static int dummy_plug_accepting(Plug p, OSSocket sock) { return 1; }
+static int dummy_plug_accepting(Plug p, accept_fn_t constructor, accept_ctx_t ctx) { return 1; }
 static const struct plug_function_table dummy_plug = {
     dummy_plug_log, dummy_plug_closing, dummy_plug_receive,
     dummy_plug_sent, dummy_plug_accepting
