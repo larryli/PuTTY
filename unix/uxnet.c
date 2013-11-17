@@ -799,6 +799,7 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
     ret->incomingeof = FALSE;
     ret->listener = 1;
     ret->addr = NULL;
+    ret->s = -1;
 
     /*
      * Translate address_family from platform-independent constants
@@ -1544,6 +1545,7 @@ Socket new_unix_listener(SockAddr listenaddr, Plug plug)
     ret->incomingeof = FALSE;
     ret->listener = 1;
     ret->addr = listenaddr;
+    ret->s = -1;
 
     assert(listenaddr->superfamily == UNIX);
 
