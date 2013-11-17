@@ -283,9 +283,6 @@ static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
 /* Enumeration values for fields in SSH-1 packets */
 enum {
     PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM,
-    /* These values are for communicating relevant semantics of
-     * fields to the packet logging code. */
-    PKTT_OTHER, PKTT_PASSWORD, PKTT_DATA
 };
 
 /*
@@ -634,13 +631,6 @@ struct Packet {
     long encrypted_len;	    /* for SSH-2 total-size counting */
 
     /*
-     * State associated with packet logging
-     */
-    int logmode;
-    int nblanks;
-    struct logblank_t *blanks;
-
-    /*
      * A note on the 'length' and 'savedpos' fields above.
      *
      * Incoming packets are set up so that pkt->length is measured
@@ -931,25 +921,6 @@ static void bomb_out(Ssh ssh, char *text)
 
 #define bombout(msg) bomb_out(ssh, dupprintf msg)
 
-/* Functions to leave bits out of the SSH packet log file. */
-
-static void dont_log_password(Ssh ssh, struct Packet *pkt, int blanktype)
-{
-    if (conf_get_int(ssh->conf, CONF_logomitpass))
-	pkt->logmode = blanktype;
-}
-
-static void dont_log_data(Ssh ssh, struct Packet *pkt, int blanktype)
-{
-    if (ssh->logomitdata)
-	pkt->logmode = blanktype;
-}
-
-static void end_log_omission(Ssh ssh, struct Packet *pkt)
-{
-    pkt->logmode = PKTLOG_EMIT;
-}
-
 /* Helper function for common bits of parsing ttymodes. */
 static void parse_ttymodes(Ssh ssh,
 			   void (*do_mode)(void *data, char *mode, char *val),
@@ -1148,11 +1119,116 @@ static struct Packet *ssh_new_packet(void)
 
     pkt->body = pkt->data = NULL;
     pkt->maxlen = 0;
-    pkt->logmode = PKTLOG_EMIT;
-    pkt->nblanks = 0;
-    pkt->blanks = NULL;
 
     return pkt;
+}
+
+static void ssh1_log_incoming_packet(Ssh ssh, struct Packet *pkt)
+{
+    int nblanks = 0;
+    struct logblank_t blanks[4];
+    char *str;
+    int slen;
+
+    pkt->savedpos = 0;
+
+    if (ssh->logomitdata &&
+        (pkt->type == SSH1_SMSG_STDOUT_DATA ||
+         pkt->type == SSH1_SMSG_STDERR_DATA ||
+         pkt->type == SSH1_MSG_CHANNEL_DATA)) {
+        /* "Session data" packets - omit the data string. */
+        if (pkt->type == SSH1_MSG_CHANNEL_DATA)
+            ssh_pkt_getuint32(pkt);    /* skip channel id */
+        blanks[nblanks].offset = pkt->savedpos + 4;
+        blanks[nblanks].type = PKTLOG_OMIT;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (str) {
+            blanks[nblanks].len = slen;
+            nblanks++;
+        }
+    }
+    log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
+               ssh1_pkt_type(pkt->type),
+               pkt->body, pkt->length, nblanks, blanks, NULL);
+}
+
+static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
+{
+    int nblanks = 0;
+    struct logblank_t blanks[4];
+    char *str;
+    int slen;
+
+    /*
+     * For outgoing packets, pkt->length represents the length of the
+     * whole packet starting at pkt->data (including some header), and
+     * pkt->body refers to the point within that where the log-worthy
+     * payload begins. However, incoming packets expect pkt->length to
+     * represent only the payload length (that is, it's measured from
+     * pkt->body not from pkt->data). Temporarily adjust our outgoing
+     * packet to conform to the incoming-packet semantics, so that we
+     * can analyse it with the ssh_pkt_get functions.
+     */
+    pkt->length -= (pkt->body - pkt->data);
+    pkt->savedpos = 0;
+
+    if (ssh->logomitdata &&
+        (pkt->type == SSH1_CMSG_STDIN_DATA ||
+         pkt->type == SSH1_MSG_CHANNEL_DATA)) {
+        /* "Session data" packets - omit the data string. */
+        if (pkt->type == SSH1_MSG_CHANNEL_DATA)
+            ssh_pkt_getuint32(pkt);    /* skip channel id */
+        blanks[nblanks].offset = pkt->savedpos + 4;
+        blanks[nblanks].type = PKTLOG_OMIT;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (str) {
+            blanks[nblanks].len = slen;
+            nblanks++;
+        }
+    }
+
+    if ((pkt->type == SSH1_CMSG_AUTH_PASSWORD ||
+         pkt->type == SSH1_CMSG_AUTH_TIS_RESPONSE ||
+         pkt->type == SSH1_CMSG_AUTH_CCARD_RESPONSE) &&
+        conf_get_int(ssh->conf, CONF_logomitpass)) {
+        /* If this is a password or similar packet, blank the password(s). */
+        blanks[nblanks].offset = 0;
+        blanks[nblanks].len = pkt->length;
+        blanks[nblanks].type = PKTLOG_BLANK;
+        nblanks++;
+    } else if (pkt->type == SSH1_CMSG_X11_REQUEST_FORWARDING &&
+               conf_get_int(ssh->conf, CONF_logomitpass)) {
+        /*
+         * If this is an X forwarding request packet, blank the fake
+         * auth data.
+         *
+         * Note that while we blank the X authentication data here, we
+         * don't take any special action to blank the start of an X11
+         * channel, so using MIT-MAGIC-COOKIE-1 and actually opening
+         * an X connection without having session blanking enabled is
+         * likely to leak your cookie into the log.
+         */
+        pkt->savedpos = 0;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        blanks[nblanks].offset = pkt->savedpos;
+        blanks[nblanks].type = PKTLOG_BLANK;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (str) {
+            blanks[nblanks].len = pkt->savedpos - blanks[nblanks].offset;
+            nblanks++;
+        }
+    }
+
+    log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
+               ssh1_pkt_type(pkt->data[12]),
+               pkt->body, pkt->length,
+               nblanks, blanks, NULL);
+
+    /*
+     * Undo the above adjustment of pkt->length, to put the packet
+     * back in the state we found it.
+     */
+    pkt->length += (pkt->body - pkt->data);
 }
 
 /*
@@ -1228,7 +1304,6 @@ static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     }
 
     st->pktin->body = st->pktin->data + st->pad + 1;
-    st->pktin->savedpos = 0;
 
     if (ssh->v1_compressing) {
 	unsigned char *decompblk;
@@ -1261,36 +1336,159 @@ static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      * of the packet, excluding the initial type byte.
      */
 
-    /*
-     * Log incoming packet, possibly omitting sensitive fields.
-     */
-    if (ssh->logctx) {
-	int nblanks = 0;
-	struct logblank_t blank;
-	if (ssh->logomitdata) {
-	    int do_blank = FALSE, blank_prefix = 0;
-	    /* "Session data" packets - omit the data field */
-	    if ((st->pktin->type == SSH1_SMSG_STDOUT_DATA) ||
-		(st->pktin->type == SSH1_SMSG_STDERR_DATA)) {
-		do_blank = TRUE; blank_prefix = 4;
-	    } else if (st->pktin->type == SSH1_MSG_CHANNEL_DATA) {
-		do_blank = TRUE; blank_prefix = 8;
-	    }
-	    if (do_blank) {
-		blank.offset = blank_prefix;
-		blank.len = st->pktin->length;
-		blank.type = PKTLOG_OMIT;
-		nblanks = 1;
-	    }
-	}
-	log_packet(ssh->logctx,
-		   PKT_INCOMING, st->pktin->type,
-		   ssh1_pkt_type(st->pktin->type),
-		   st->pktin->body, st->pktin->length,
-		   nblanks, &blank, NULL);
-    }
+    if (ssh->logctx)
+        ssh1_log_incoming_packet(ssh, st->pktin);
+
+    st->pktin->savedpos = 0;
 
     crFinish(st->pktin);
+}
+
+static void ssh2_log_incoming_packet(Ssh ssh, struct Packet *pkt)
+{
+    int nblanks = 0;
+    struct logblank_t blanks[4];
+    char *str;
+    int slen;
+
+    pkt->savedpos = 0;
+
+    if (ssh->logomitdata &&
+        (pkt->type == SSH2_MSG_CHANNEL_DATA ||
+         pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)) {
+        /* "Session data" packets - omit the data string. */
+        ssh_pkt_getuint32(pkt);    /* skip channel id */
+        if (pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)
+            ssh_pkt_getuint32(pkt);    /* skip extended data type */
+        blanks[nblanks].offset = pkt->savedpos + 4;
+        blanks[nblanks].type = PKTLOG_OMIT;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (str) {
+            blanks[nblanks].len = slen;
+            nblanks++;
+        }
+    }
+
+    log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
+               ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->type),
+               pkt->body, pkt->length, nblanks, blanks, &pkt->sequence);
+}
+
+static void ssh2_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
+{
+    int nblanks = 0;
+    struct logblank_t blanks[4];
+    char *str;
+    int slen;
+
+    /*
+     * For outgoing packets, pkt->length represents the length of the
+     * whole packet starting at pkt->data (including some header), and
+     * pkt->body refers to the point within that where the log-worthy
+     * payload begins. However, incoming packets expect pkt->length to
+     * represent only the payload length (that is, it's measured from
+     * pkt->body not from pkt->data). Temporarily adjust our outgoing
+     * packet to conform to the incoming-packet semantics, so that we
+     * can analyse it with the ssh_pkt_get functions.
+     */
+    pkt->length -= (pkt->body - pkt->data);
+    pkt->savedpos = 0;
+
+    if (ssh->logomitdata &&
+        (pkt->type == SSH2_MSG_CHANNEL_DATA ||
+         pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)) {
+        /* "Session data" packets - omit the data string. */
+        ssh_pkt_getuint32(pkt);    /* skip channel id */
+        if (pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)
+            ssh_pkt_getuint32(pkt);    /* skip extended data type */
+        blanks[nblanks].offset = pkt->savedpos + 4;
+        blanks[nblanks].type = PKTLOG_OMIT;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (str) {
+            blanks[nblanks].len = slen;
+            nblanks++;
+        }
+    }
+
+    if (pkt->type == SSH2_MSG_USERAUTH_REQUEST &&
+        conf_get_int(ssh->conf, CONF_logomitpass)) {
+        /* If this is a password packet, blank the password(s). */
+        pkt->savedpos = 0;
+        ssh_pkt_getstring(pkt, &str, &slen);
+        ssh_pkt_getstring(pkt, &str, &slen);
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (slen == 8 && !memcmp(str, "password", 8)) {
+            ssh2_pkt_getbool(pkt);
+            /* Blank the password field. */
+            blanks[nblanks].offset = pkt->savedpos;
+            blanks[nblanks].type = PKTLOG_BLANK;
+            ssh_pkt_getstring(pkt, &str, &slen);
+            if (str) {
+                blanks[nblanks].len = pkt->savedpos - blanks[nblanks].offset;
+                nblanks++;
+                /* If there's another password field beyond it (change of
+                 * password), blank that too. */
+                ssh_pkt_getstring(pkt, &str, &slen);
+                if (str)
+                    blanks[nblanks-1].len =
+                        pkt->savedpos - blanks[nblanks].offset;
+            }
+        }
+    } else if (ssh->pkt_actx == SSH2_PKTCTX_KBDINTER &&
+               pkt->type == SSH2_MSG_USERAUTH_INFO_RESPONSE &&
+               conf_get_int(ssh->conf, CONF_logomitpass)) {
+        /* If this is a keyboard-interactive response packet, blank
+         * the responses. */
+        pkt->savedpos = 0;
+        ssh_pkt_getuint32(pkt);
+        blanks[nblanks].offset = pkt->savedpos;
+        blanks[nblanks].type = PKTLOG_BLANK;
+        while (1) {
+            ssh_pkt_getstring(pkt, &str, &slen);
+            if (!str)
+                break;
+        }
+        blanks[nblanks].len = pkt->savedpos - blanks[nblanks].offset;
+        nblanks++;
+    } else if (pkt->type == SSH2_MSG_CHANNEL_REQUEST &&
+               conf_get_int(ssh->conf, CONF_logomitpass)) {
+        /*
+         * If this is an X forwarding request packet, blank the fake
+         * auth data.
+         *
+         * Note that while we blank the X authentication data here, we
+         * don't take any special action to blank the start of an X11
+         * channel, so using MIT-MAGIC-COOKIE-1 and actually opening
+         * an X connection without having session blanking enabled is
+         * likely to leak your cookie into the log.
+         */
+        pkt->savedpos = 0;
+        ssh_pkt_getuint32(pkt);
+        ssh_pkt_getstring(pkt, &str, &slen);
+        if (slen == 7 && !memcmp(str, "x11-req", 0)) {
+            ssh2_pkt_getbool(pkt);
+            ssh2_pkt_getbool(pkt);
+            ssh_pkt_getstring(pkt, &str, &slen);
+            blanks[nblanks].offset = pkt->savedpos;
+            blanks[nblanks].type = PKTLOG_BLANK;
+            ssh_pkt_getstring(pkt, &str, &slen);
+            if (str) {
+                blanks[nblanks].len = pkt->savedpos - blanks[nblanks].offset;
+                nblanks++;
+            }
+        }
+    }
+
+    log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
+               ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
+               pkt->body, pkt->length, nblanks, blanks,
+               &ssh->v2_outgoing_sequence);
+
+    /*
+     * Undo the above adjustment of pkt->length, to put the packet
+     * back in the state we found it.
+     */
+    pkt->length += (pkt->body - pkt->data);
 }
 
 static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
@@ -1498,36 +1696,12 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->pktin->type = st->pktin->data[5];
     st->pktin->body = st->pktin->data + 6;
     st->pktin->length = st->packetlen - 6 - st->pad;
-    st->pktin->savedpos = 0;
     assert(st->pktin->length >= 0);    /* one last double-check */
 
-    /*
-     * Log incoming packet, possibly omitting sensitive fields.
-     */
-    if (ssh->logctx) {
-	int nblanks = 0;
-	struct logblank_t blank;
-	if (ssh->logomitdata) {
-	    int do_blank = FALSE, blank_prefix = 0;
-	    /* "Session data" packets - omit the data field */
-	    if (st->pktin->type == SSH2_MSG_CHANNEL_DATA) {
-		do_blank = TRUE; blank_prefix = 8;
-	    } else if (st->pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA) {
-		do_blank = TRUE; blank_prefix = 12;
-	    }
-	    if (do_blank) {
-		blank.offset = blank_prefix;
-		blank.len = (st->pktin->length-6) - blank_prefix;
-		blank.type = PKTLOG_OMIT;
-		nblanks = 1;
-	    }
-	}
-	log_packet(ssh->logctx, PKT_INCOMING, st->pktin->type,
-		   ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
-				 st->pktin->type),
-		   st->pktin->body, st->pktin->length,
-		   nblanks, &blank, &st->pktin->sequence);
-    }
+    if (ssh->logctx)
+        ssh2_log_incoming_packet(ssh, st->pktin);
+
+    st->pktin->savedpos = 0;
 
     crFinish(st->pktin);
 }
@@ -1548,12 +1722,7 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
     int len;
 
     if (ssh->logctx)
-	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
-		   ssh1_pkt_type(pkt->data[12]),
-		   pkt->body, pkt->length - (pkt->body - pkt->data),
-		   pkt->nblanks, pkt->blanks, NULL);
-    sfree(pkt->blanks); pkt->blanks = NULL;
-    pkt->nblanks = 0;
+        ssh1_log_outgoing_packet(ssh, pkt);
 
     if (ssh->v1_compressing) {
 	unsigned char *compblk;
@@ -1663,16 +1832,6 @@ static struct Packet *construct_packet(Ssh ssh, int pkttype, va_list ap)
 	    bn = va_arg(ap, Bignum);
 	    ssh1_pkt_addmp(pkt, bn);
 	    break;
-	  /* Tokens for modifications to packet logging */
-	  case PKTT_PASSWORD:
-	    dont_log_password(ssh, pkt, PKTLOG_BLANK);
-	    break;
-	  case PKTT_DATA:
-	    dont_log_data(ssh, pkt, PKTLOG_OMIT);
-	    break;
-	  case PKTT_OTHER:
-	    end_log_omission(ssh, pkt);
-	    break;
 	}
     }
 
@@ -1753,15 +1912,6 @@ static void ssh_pkt_ensure(struct Packet *pkt, int length)
 }
 static void ssh_pkt_adddata(struct Packet *pkt, const void *data, int len)
 {
-    if (pkt->logmode != PKTLOG_EMIT) {
-	pkt->nblanks++;
-	pkt->blanks = sresize(pkt->blanks, pkt->nblanks, struct logblank_t);
-	assert(pkt->body);
-	pkt->blanks[pkt->nblanks-1].offset = pkt->length -
-					     (pkt->body - pkt->data);
-	pkt->blanks[pkt->nblanks-1].len = len;
-	pkt->blanks[pkt->nblanks-1].type = pkt->logmode;
-    }
     pkt->length += len;
     ssh_pkt_ensure(pkt, pkt->length);
     memcpy(pkt->data + pkt->length - len, data, len);
@@ -1840,6 +1990,7 @@ static struct Packet *ssh1_pkt_init(int pkt_type)
     pkt->length = 4 + 8;	    /* space for length + max padding */
     ssh_pkt_addbyte(pkt, pkt_type);
     pkt->body = pkt->data + pkt->length;
+    pkt->type = pkt_type;
     return pkt;
 }
 
@@ -1858,6 +2009,7 @@ static struct Packet *ssh2_pkt_init(int pkt_type)
     struct Packet *pkt = ssh_new_packet();
     pkt->length = 5; /* space for packet length + padding length */
     pkt->forcepad = 0;
+    pkt->type = pkt_type;
     ssh_pkt_addbyte(pkt, (unsigned char) pkt_type);
     pkt->body = pkt->data + pkt->length; /* after packet type */
     return pkt;
@@ -1873,12 +2025,7 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     int cipherblk, maclen, padding, i;
 
     if (ssh->logctx)
-	log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
-		   ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
-		   pkt->body, pkt->length - (pkt->body - pkt->data),
-		   pkt->nblanks, pkt->blanks, &ssh->v2_outgoing_sequence);
-    sfree(pkt->blanks); pkt->blanks = NULL;
-    pkt->nblanks = 0;
+        ssh2_log_outgoing_packet(ssh, pkt);
 
     /*
      * Compress packet payload.
@@ -3153,9 +3300,7 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
 		    PKT_INT, replylen,
-		    PKTT_DATA,
 		    PKT_DATA, sentreply, replylen,
-		    PKTT_OTHER,
 		    PKT_END);
     }
     if (reply)
@@ -4100,9 +4245,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		for (i = bottom; i <= top; i++) {
 		    if (i == pwlen) {
 			defer_packet(ssh, s->pwpkt_type,
-				     PKTT_PASSWORD, PKT_STR,
-				     s->cur_prompt->prompts[0]->result,
-				     PKTT_OTHER, PKT_END);
+                                     PKT_STR,s->cur_prompt->prompts[0]->result,
+				     PKT_END);
 		    } else {
 			for (j = 0; j < i; j++) {
 			    do {
@@ -4140,9 +4284,9 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		    ss = s->cur_prompt->prompts[0]->result;
 		}
 		logevent("Sending length-padded password");
-		send_packet(ssh, s->pwpkt_type, PKTT_PASSWORD,
+		send_packet(ssh, s->pwpkt_type,
 			    PKT_INT, len, PKT_DATA, ss, len,
-			    PKTT_OTHER, PKT_END);
+			    PKT_END);
 	    } else {
 		/*
 		 * The server is believed unable to cope with
@@ -4152,14 +4296,14 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		len = strlen(s->cur_prompt->prompts[0]->result);
 		logevent("Sending unpadded password");
 		send_packet(ssh, s->pwpkt_type,
-			    PKTT_PASSWORD, PKT_INT, len,
+                            PKT_INT, len,
 			    PKT_DATA, s->cur_prompt->prompts[0]->result, len,
-			    PKTT_OTHER, PKT_END);
+			    PKT_END);
 	    }
 	} else {
-	    send_packet(ssh, s->pwpkt_type, PKTT_PASSWORD,
+	    send_packet(ssh, s->pwpkt_type,
 			PKT_STR, s->cur_prompt->prompts[0]->result,
-			PKTT_OTHER, PKT_END);
+			PKT_END);
 	}
 	logevent("Sent password");
 	free_prompts(s->cur_prompt);
@@ -4258,8 +4402,8 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
     if (ssh->version == 1) {
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
-		    PKT_INT, len, PKTT_DATA, PKT_DATA, buf, len,
-		    PKTT_OTHER, PKT_END);
+		    PKT_INT, len, PKT_DATA, buf, len,
+		    PKT_END);
 	/*
 	 * In SSH-1 we can return 0 here - implying that forwarded
 	 * connections are never individually throttled - because
@@ -5105,27 +5249,16 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
 					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf))) {
 	logevent("Requesting X11 forwarding");
-	/*
-	 * Note that while we blank the X authentication data here, we don't
-	 * take any special action to blank the start of an X11 channel,
-	 * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
-	 * without having session blanking enabled is likely to leak your
-	 * cookie into the log.
-	 */
 	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, ssh->x11disp->remoteauthprotoname,
-			PKTT_PASSWORD,
 			PKT_STR, ssh->x11disp->remoteauthdatastring,
-			PKTT_OTHER,
 			PKT_INT, ssh->x11disp->screennum,
 			PKT_END);
 	} else {
 	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
 			PKT_STR, ssh->x11disp->remoteauthprotoname,
-			PKTT_PASSWORD,
 			PKT_STR, ssh->x11disp->remoteauthdatastring,
-			PKTT_OTHER,
 			PKT_END);
 	}
 	do {
@@ -5262,8 +5395,8 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	    while (inlen > 0) {
 		int len = min(inlen, 512);
 		send_packet(ssh, SSH1_CMSG_STDIN_DATA,
-			    PKT_INT, len,  PKTT_DATA, PKT_DATA, in, len,
-			    PKTT_OTHER, PKT_END);
+			    PKT_INT, len, PKT_DATA, in, len,
+                            PKT_END);
 		in += len;
 		inlen -= len;
 	    }
@@ -6492,9 +6625,7 @@ static int ssh2_try_send(struct ssh_channel *c)
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
 	ssh2_pkt_addstring_start(pktout);
-	dont_log_data(ssh, pktout, PKTLOG_OMIT);
 	ssh2_pkt_addstring_data(pktout, data, len);
-	end_log_omission(ssh, pktout);
 	ssh2_pkt_send(ssh, pktout);
 	bufchain_consume(&c->v.v2.outbuffer, len);
 	c->v.v2.remwindow -= len;
@@ -7554,16 +7685,7 @@ static void ssh2_setup_x11(struct ssh_channel *c, struct Packet *pktin,
                                ssh2_setup_x11, s);
     ssh2_pkt_addbool(pktout, 0);	       /* many connections */
     ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthprotoname);
-    /*
-     * Note that while we blank the X authentication data here, we don't
-     * take any special action to blank the start of an X11 channel,
-     * so using MIT-MAGIC-COOKIE-1 and actually opening an X connection
-     * without having session blanking enabled is likely to leak your
-     * cookie into the log.
-     */
-    dont_log_password(ssh, pktout, PKTLOG_BLANK);
     ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthdatastring);
-    end_log_omission(ssh, pktout);
     ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
     ssh2_pkt_send(ssh, pktout);
 
@@ -8912,10 +9034,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
 		    ssh2_pkt_adduint32(s->pktout, s->num_prompts);
 		    for (i=0; i < s->num_prompts; i++) {
-			dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 			ssh2_pkt_addstring(s->pktout,
 					   s->cur_prompt->prompts[i]->result);
-			end_log_omission(ssh, s->pktout);
 		    }
 		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 
@@ -8998,9 +9118,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 							/* service requested */
 		ssh2_pkt_addstring(s->pktout, "password");
 		ssh2_pkt_addbool(s->pktout, FALSE);
-		dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 		ssh2_pkt_addstring(s->pktout, s->password);
-		end_log_omission(ssh, s->pktout);
 		ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 		logevent("Sent password");
 		s->type = AUTH_TYPE_PASSWORD;
@@ -9127,12 +9245,10 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 							/* service requested */
 		    ssh2_pkt_addstring(s->pktout, "password");
 		    ssh2_pkt_addbool(s->pktout, TRUE);
-		    dont_log_password(ssh, s->pktout, PKTLOG_BLANK);
 		    ssh2_pkt_addstring(s->pktout, s->password);
 		    ssh2_pkt_addstring(s->pktout,
 				       s->cur_prompt->prompts[1]->result);
 		    free_prompts(s->cur_prompt);
-		    end_log_omission(ssh, s->pktout);
 		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
 		    logevent("Sent new password");
 		    
