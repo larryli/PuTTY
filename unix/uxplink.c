@@ -591,6 +591,9 @@ static void version(void)
 
 void frontend_net_error_pending(void) {}
 
+const int share_can_be_downstream = TRUE;
+const int share_can_be_upstream = TRUE;
+
 int main(int argc, char **argv)
 {
     int sending;

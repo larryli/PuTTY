@@ -81,6 +81,8 @@ struct SockAddr_tag {
     int refcount;
     char *error;
     int resolved;
+    int namedpipe; /* indicates that this SockAddr is phony, holding a Windows
+                    * named pipe pathname instead of a network address */
 #ifndef NO_IPV6
     struct addrinfo *ais;	       /* Addresses IPv6 style. */
 #endif
@@ -504,6 +506,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
+    ret->namedpipe = FALSE;
     ret->addresses = NULL;
     ret->resolved = FALSE;
     ret->refcount = 1;
@@ -610,10 +613,28 @@ SockAddr sk_nonamelookup(const char *host)
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
+    ret->namedpipe = FALSE;
     ret->addresses = NULL;
     ret->naddresses = 0;
     ret->refcount = 1;
     strncpy(ret->hostname, host, lenof(ret->hostname));
+    ret->hostname[lenof(ret->hostname)-1] = '\0';
+    return ret;
+}
+
+SockAddr sk_namedpipe_addr(const char *pipename)
+{
+    SockAddr ret = snew(struct SockAddr_tag);
+    ret->error = NULL;
+    ret->resolved = FALSE;
+#ifndef NO_IPV6
+    ret->ais = NULL;
+#endif
+    ret->namedpipe = TRUE;
+    ret->addresses = NULL;
+    ret->naddresses = 0;
+    ret->refcount = 1;
+    strncpy(ret->hostname, pipename, lenof(ret->hostname));
     ret->hostname[lenof(ret->hostname)-1] = '\0';
     return ret;
 }
@@ -669,6 +690,11 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 	strncpy(buf, addr->hostname, buflen);
 	buf[buflen-1] = '\0';
     }
+}
+
+int sk_addr_needs_port(SockAddr addr)
+{
+    return addr->namedpipe ? FALSE : TRUE;
 }
 
 int sk_hostname_is_local(const char *name)

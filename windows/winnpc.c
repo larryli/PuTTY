@@ -30,15 +30,36 @@ Socket new_named_pipe_client(const char *pipename, Plug plug)
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);
 
-    pipehandle = CreateFile(pipename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                            OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    while (1) {
+        pipehandle = CreateFile(pipename, GENERIC_READ | GENERIC_WRITE,
+                                0, NULL, OPEN_EXISTING,
+                                FILE_FLAG_OVERLAPPED, NULL);
 
-    if (pipehandle == INVALID_HANDLE_VALUE) {
-        err = dupprintf("Unable to open named pipe '%s': %s",
-                        pipename, win_strerror(GetLastError()));
-        ret = new_error_socket(err, plug);
-        sfree(err);
-        return ret;
+        if (pipehandle != INVALID_HANDLE_VALUE)
+            break;
+
+        if (GetLastError() != ERROR_PIPE_BUSY) {
+            err = dupprintf("Unable to open named pipe '%s': %s",
+                            pipename, win_strerror(GetLastError()));
+            ret = new_error_socket(err, plug);
+            sfree(err);
+            return ret;
+        }
+
+        /*
+         * If we got ERROR_PIPE_BUSY, wait for the server to
+         * create a new pipe instance. (Since the server is
+         * expected to be winnps.c, which will do that immediately
+         * after a previous connection is accepted, that shouldn't
+         * take excessively long.)
+         */
+        if (!WaitNamedPipe(pipename, NMPWAIT_USE_DEFAULT_WAIT)) {
+            err = dupprintf("Error waiting for named pipe '%s': %s",
+                            pipename, win_strerror(GetLastError()));
+            ret = new_error_socket(err, plug);
+            sfree(err);
+            return ret;
+        }
     }
 
     if ((usersid = get_user_sid()) == NULL) {
@@ -49,10 +70,10 @@ Socket new_named_pipe_client(const char *pipename, Plug plug)
         return ret;
     }
 
-    if (GetSecurityInfo(pipehandle, SE_KERNEL_OBJECT,
-                        OWNER_SECURITY_INFORMATION,
-                        &pipeowner, NULL, NULL, NULL,
-                        &psd) != ERROR_SUCCESS) {
+    if (p_GetSecurityInfo(pipehandle, SE_KERNEL_OBJECT,
+                          OWNER_SECURITY_INFORMATION,
+                          &pipeowner, NULL, NULL, NULL,
+                          &psd) != ERROR_SUCCESS) {
         err = dupprintf("Unable to get named pipe security information: %s",
                         win_strerror(GetLastError()));
         ret = new_error_socket(err, plug);

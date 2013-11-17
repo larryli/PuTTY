@@ -844,6 +844,9 @@ void cleanup_exit(int);
      * large window in SSH-2.                                         \
      */ \
     X(INT, NONE, ssh_simple) \
+    X(INT, NONE, ssh_connection_sharing) \
+    X(INT, NONE, ssh_connection_sharing_upstream) \
+    X(INT, NONE, ssh_connection_sharing_downstream) \
     /* Options for pterm. Should split out into platform-dependent part. */ \
     X(INT, NONE, stamp_utmp) \
     X(INT, NONE, login_shell) \
@@ -1016,7 +1019,8 @@ struct logblank_t {
 void log_packet(void *logctx, int direction, int type,
 		char *texttype, const void *data, int len,
 		int n_blanks, const struct logblank_t *blanks,
-		const unsigned long *sequence);
+		const unsigned long *sequence,
+                unsigned downstream_id, const char *additional_log_text);
 
 /*
  * Exports from testback.c

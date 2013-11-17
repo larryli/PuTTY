@@ -2274,6 +2274,64 @@ If you select \q{1 only} or \q{2 only} here, PuTTY will only connect
 if the server you connect to offers the SSH protocol version you
 have specified.
 
+\S{config-ssh-sharing} Sharing an SSH connection between PuTTY tools
+
+The controls in this box allow you to configure PuTTY to reuse an
+existing SSH connection, where possible.
+
+The SSH-2 protocol permits you to run multiple data channels over the
+same SSH connection, so that you can log in just once (and do the
+expensive encryption setup just once) and then have more than one
+terminal window open.
+
+Each instance of PuTTY can still run at most one terminal session, but
+using the controls in this box, you can configure PuTTY to check if
+another instance of itself has already connected to the target host,
+and if so, share that instance's SSH connection instead of starting a
+separate new one.
+
+To enable this feature, just tick the box \q{Share SSH connections if
+possible}. Then, whenever you start up a PuTTY session connecting to a
+particular host, it will try to reuse an existing SSH connection if
+one is available. For example, selecting \q{Duplicate Session} from
+the system menu will launch another session on the same host, and if
+sharing is enabled then it will reuse the existing SSH connection.
+
+When this mode is in use, the first PuTTY that connected to a given
+server becomes the \q{upstream}, which means that it is the one
+managing the real SSH connection. All subsequent PuTTYs which reuse
+the connection are referred to as \q{downstreams}: they do not connect
+to the real server at all, but instead connect to the upstream PuTTY
+via local inter-process communication methods.
+
+For this system to be activated, \e{both} the upstream and downstream
+instances of PuTTY must have the sharing option enabled.
+
+The upstream PuTTY can therefore not terminate until all its
+downstreams have closed. This is similar to the effect you get with
+port forwarding or X11 forwarding, in which a PuTTY whose terminal
+session has already finished will still remain open so as to keep
+serving forwarded connections.
+
+In case you need to configure this system in more detail, there are
+two additional checkboxes which allow you to specify whether a
+particular PuTTY can act as an upstream or a downstream or both.
+(These boxes only take effect if the main \q{Share SSH connections if
+possible} box is also ticked.) By default both of these boxes are
+ticked, so that multiple PuTTYs started from the same configuration
+will designate one of themselves as the upstream and share a single
+connection; but if for some reason you need a particular PuTTY
+configuration \e{not} to be an upstream (e.g. because you definitely
+need it to close promptly) or not to be a downstream (e.g. because it
+needs to do its own authentication using a special private key) then
+you can untick one or the other of these boxes.
+
+I have referred to \q{PuTTY} throughout the above discussion, but all
+the other PuTTY tools which make SSH connections can use this
+mechanism too. For example, if PSCP or PSFTP loads a configuration
+with sharing enabled, then it can act as a downstream and use an
+existing SSH connection set up by an instance of GUI PuTTY. The one
+special case is that PSCP and PSFTP will \e{never} act as upstreams.
 
 \H{config-ssh-kex} The Kex panel
 

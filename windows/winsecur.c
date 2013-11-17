@@ -26,7 +26,23 @@ int got_advapi(void)
             GET_WINDOWS_FUNCTION(advapi, OpenProcessToken) &&
             GET_WINDOWS_FUNCTION(advapi, GetTokenInformation) &&
             GET_WINDOWS_FUNCTION(advapi, InitializeSecurityDescriptor) &&
-            GET_WINDOWS_FUNCTION(advapi, SetSecurityDescriptorOwner);
+            GET_WINDOWS_FUNCTION(advapi, SetSecurityDescriptorOwner) &&
+            GET_WINDOWS_FUNCTION(advapi, SetEntriesInAclA);
+    }
+    return successful;
+}
+
+int got_crypt(void)
+{
+    static int attempted = FALSE;
+    static int successful;
+    static HMODULE crypt;
+
+    if (!attempted) {
+        attempted = TRUE;
+        crypt = load_system32_dll("crypt32.dll");
+        successful = crypt &&
+            GET_WINDOWS_FUNCTION(crypt, CryptProtectMemory);
     }
     return successful;
 }
@@ -80,6 +96,100 @@ PSID get_user_sid(void)
     if (sid != NULL)
         sfree(sid);
 
+    return ret;
+}
+
+int make_private_security_descriptor(DWORD permissions,
+                                     PSECURITY_DESCRIPTOR *psd,
+                                     PSID *networksid,
+                                     PACL *acl,
+                                     char **error)
+{
+    SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
+    EXPLICIT_ACCESS ea[3];
+    int ret = FALSE;
+
+    *psd = NULL;
+    *networksid = NULL;
+    *acl = NULL;
+    *error = NULL;
+
+    if (!got_advapi()) {
+        *error = dupprintf("unable to load advapi32.dll");
+        goto cleanup;
+    }
+
+    if (!AllocateAndInitializeSid(&nt_auth, 1, SECURITY_NETWORK_RID,
+                                  0, 0, 0, 0, 0, 0, 0, networksid)) {
+        *error = dupprintf("unable to construct SID for "
+                           "local same-user access only: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+    memset(ea, 0, sizeof(ea));
+    ea[0].grfAccessPermissions = permissions;
+    ea[0].grfAccessMode = REVOKE_ACCESS;
+    ea[0].grfInheritance = NO_INHERITANCE;
+    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_NAME;
+    ea[0].Trustee.ptstrName = "EVERYONE";
+    ea[1].grfAccessPermissions = permissions;
+    ea[1].grfAccessMode = GRANT_ACCESS;
+    ea[1].grfInheritance = NO_INHERITANCE;
+    ea[1].Trustee.TrusteeForm = TRUSTEE_IS_NAME;
+    ea[1].Trustee.ptstrName = "CURRENT_USER";
+    ea[2].grfAccessPermissions = permissions;
+    ea[2].grfAccessMode = REVOKE_ACCESS;
+    ea[2].grfInheritance = NO_INHERITANCE;
+    ea[2].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[2].Trustee.ptstrName = (LPTSTR)*networksid;
+
+    if (p_SetEntriesInAclA(2, ea, NULL, acl) != ERROR_SUCCESS || *acl == NULL) {
+        *error = dupprintf("unable to construct ACL: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+    *psd = (PSECURITY_DESCRIPTOR)
+        LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
+    if (!*psd) {
+        *error = dupprintf("unable to allocate security descriptor: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+    if (!InitializeSecurityDescriptor(*psd, SECURITY_DESCRIPTOR_REVISION)) {
+        *error = dupprintf("unable to initialise security descriptor: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+    if (!SetSecurityDescriptorDacl(*psd, TRUE, *acl, FALSE)) {
+        *error = dupprintf("unable to set DACL in security descriptor: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+    ret = TRUE;
+
+  cleanup:
+    if (!ret) {
+        if (*psd) {
+            LocalFree(*psd);
+            *psd = NULL;
+        }
+        if (*networksid) {
+            LocalFree(*networksid);
+            *networksid = NULL;
+        }
+        if (*acl) {
+            LocalFree(*acl);
+            *acl = NULL;
+        }
+    } else {
+        sfree(*error);
+        *error = NULL;
+    }
     return ret;
 }
 

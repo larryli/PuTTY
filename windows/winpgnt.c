@@ -117,12 +117,6 @@ static void unmungestr(char *in, char *out, int outlen)
 static tree234 *rsakeys, *ssh2keys;
 
 static int has_security;
-#ifndef NO_SECURITY
-DECL_WINDOWS_FUNCTION(extern, DWORD, GetSecurityInfo,
-		      (HANDLE, SE_OBJECT_TYPE, SECURITY_INFORMATION,
-		       PSID *, PSID *, PACL *, PACL *,
-		       PSECURITY_DESCRIPTOR *));
-#endif
 
 /*
  * Forward references

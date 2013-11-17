@@ -299,9 +299,10 @@ NONSSH   = telnet raw rlogin ldisc pinger
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-         + sshgssc pgssapi
-WINSSH   = SSH winnoise winsecur winpgntc wingss winhsock errsock
-UXSSH    = SSH uxnoise uxagentc uxgss
+         + sshgssc pgssapi sshshare
+WINSSH   = SSH winnoise winsecur winpgntc wingss winshare winnps winnpc
+         + winhsock errsock
+UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 
 # SFTP implementation (pscp, psftp).
 SFTP     = sftp int64 logging

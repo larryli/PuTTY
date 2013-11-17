@@ -337,6 +337,15 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
     }
 }
 
+int sk_addr_needs_port(SockAddr addr)
+{
+    if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
+        return FALSE;
+    } else {
+        return TRUE;
+    }
+}
+
 int sk_hostname_is_local(const char *name)
 {
     return !strcmp(name, "localhost") ||

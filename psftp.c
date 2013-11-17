@@ -2885,6 +2885,9 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
+const int share_can_be_downstream = TRUE;
+const int share_can_be_upstream = FALSE;
+
 /*
  * Main program. Parse arguments etc.
  */

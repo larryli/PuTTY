@@ -100,6 +100,8 @@ Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
 		    Conf *conf, int addressfamily);
 SockAddr name_lookup(char *host, int port, char **canonicalname,
 		     Conf *conf, int addressfamily);
+int proxy_for_destination (SockAddr addr, const char *hostname, int port,
+                           Conf *conf);
 
 /* platform-dependent callback from new_connection() */
 /* (same caveat about addr as new_connection()) */
@@ -116,6 +118,7 @@ void sk_cleanup(void);		       /* called just before program exit */
 SockAddr sk_namelookup(const char *host, char **canonicalname, int address_family);
 SockAddr sk_nonamelookup(const char *host);
 void sk_getaddr(SockAddr addr, char *buf, int buflen);
+int sk_addr_needs_port(SockAddr addr);
 int sk_hostname_is_local(const char *name);
 int sk_address_is_local(SockAddr addr);
 int sk_address_is_special_local(SockAddr addr);

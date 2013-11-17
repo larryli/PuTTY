@@ -2099,6 +2099,26 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  I(CONF_compression));
 	}
 
+	if (!midsession || protcfginfo != 1) {
+	    s = ctrl_getset(b, "Connection/SSH", "sharing", "Sharing an SSH connection between PuTTY tools");
+
+	    ctrl_checkbox(s, "Share SSH connections if possible", 's',
+			  HELPCTX(ssh_share),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_connection_sharing));
+
+            ctrl_text(s, "Permitted roles in a shared connection:",
+                      HELPCTX(ssh_share));
+	    ctrl_checkbox(s, "Upstream (connecting to the real server)", 'u',
+			  HELPCTX(ssh_share),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_connection_sharing_upstream));
+	    ctrl_checkbox(s, "Downstream (connecting to the upstream PuTTY)", 'd',
+			  HELPCTX(ssh_share),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_connection_sharing_downstream));
+	}
+
 	if (!midsession) {
 	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
 

@@ -14,7 +14,7 @@
 
 #if !defined NO_SECURITY
 
-#include <aclapi.h>
+#include "winsecur.h"
 
 Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
                           int overlapped);
@@ -118,6 +118,12 @@ static Socket named_pipe_accept(accept_ctx_t ctx, Plug plug)
     return make_handle_socket(conn, conn, plug, TRUE);
 }
 
+/*
+ * Dummy SockAddr type which just holds a named pipe address. Only
+ * used for calling plug_log from named_pipe_accept_loop() here.
+ */
+SockAddr sk_namedpipe_addr(const char *pipename);
+
 static void named_pipe_accept_loop(Named_Pipe_Server_Socket ps,
                                    int got_one_already)
 {
@@ -178,7 +184,7 @@ static void named_pipe_accept_loop(Named_Pipe_Server_Socket ps,
 
         errmsg = dupprintf("Error while listening to named pipe: %s",
                            win_strerror(error));
-        plug_log(ps->plug, 1, NULL /* FIXME: appropriate kind of sockaddr */, 0,
+        plug_log(ps->plug, 1, sk_namedpipe_addr(ps->pipename), 0,
                  errmsg, error);
         sfree(errmsg);
         break;
@@ -209,8 +215,6 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     };
 
     Named_Pipe_Server_Socket ret;
-    SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
-    EXPLICIT_ACCESS ea[2];
 
     ret = snew(struct Socket_named_pipe_server_tag);
     ret->fn = &socket_fn_table;
@@ -224,49 +228,9 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);
 
-    if (!AllocateAndInitializeSid(&nt_auth, 1, SECURITY_NETWORK_RID,
-                                  0, 0, 0, 0, 0, 0, 0, &ret->networksid)) {
-        ret->error = dupprintf("unable to construct SID for rejecting "
-                               "remote pipe connections: %s",
-                               win_strerror(GetLastError()));
-        goto cleanup;
-    }
-
-    memset(ea, 0, sizeof(ea));
-    ea[0].grfAccessPermissions = GENERIC_READ | GENERIC_WRITE;
-    ea[0].grfAccessMode = GRANT_ACCESS;
-    ea[0].grfInheritance = NO_INHERITANCE;
-    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_NAME;
-    ea[0].Trustee.ptstrName = "CURRENT_USER";
-    ea[1].grfAccessPermissions = GENERIC_READ | GENERIC_WRITE;
-    ea[1].grfAccessMode = REVOKE_ACCESS;
-    ea[1].grfInheritance = NO_INHERITANCE;
-    ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
-    ea[1].Trustee.ptstrName = (LPTSTR)ret->networksid;
-
-    if (SetEntriesInAcl(2, ea, NULL, &ret->acl) != ERROR_SUCCESS) {
-        ret->error = dupprintf("unable to construct ACL: %s",
-                               win_strerror(GetLastError()));
-        goto cleanup;
-    }
-
-    ret->psd = (PSECURITY_DESCRIPTOR)
-        LocalAlloc(LPTR, SECURITY_DESCRIPTOR_MIN_LENGTH);
-    if (!ret->psd) {
-        ret->error = dupprintf("unable to allocate security descriptor: %s",
-                               win_strerror(GetLastError()));
-        goto cleanup;
-    }
-
-    if (!InitializeSecurityDescriptor(ret->psd,SECURITY_DESCRIPTOR_REVISION)) {
-        ret->error = dupprintf("unable to initialise security descriptor: %s",
-                               win_strerror(GetLastError()));
-        goto cleanup;
-    }
-
-    if (!SetSecurityDescriptorDacl(ret->psd, TRUE, ret->acl, FALSE)) {
-        ret->error = dupprintf("unable to set DACL in security descriptor: %s",
-                               win_strerror(GetLastError()));
+    if (!make_private_security_descriptor(GENERIC_READ | GENERIC_WRITE,
+                                          &ret->psd, &ret->networksid,
+                                          &ret->acl, &ret->error)) {
         goto cleanup;
     }
 

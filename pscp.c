@@ -2307,6 +2307,9 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
+const int share_can_be_downstream = TRUE;
+const int share_can_be_upstream = FALSE;
+
 /*
  * Main program. (Called `psftp_main' because it gets called from
  * *sftp.c; bit silly, I know, but it had to be called _something_.)

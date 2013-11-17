@@ -122,6 +122,9 @@ char *platform_get_x_display(void) {
     return dupstr(display);
 }
 
+const int share_can_be_downstream = TRUE;
+const int share_can_be_upstream = TRUE;
+
 int main(int argc, char **argv)
 {
     extern int pt_main(int argc, char **argv);

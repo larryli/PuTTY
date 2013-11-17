@@ -75,6 +75,31 @@ struct X11FakeAuth *x11_invent_fake_auth(tree234 *authtree, int authtype)
     struct X11FakeAuth *auth = snew(struct X11FakeAuth);
     int i;
 
+    /*
+     * This function has the job of inventing a set of X11 fake auth
+     * data, and adding it to 'authtree'. We must preserve the
+     * property that for any given actual authorisation attempt, _at
+     * most one_ thing in the tree can possibly match it.
+     *
+     * For MIT-MAGIC-COOKIE-1, that's not too difficult: the match
+     * criterion is simply that the entire cookie is correct, so we
+     * just have to make sure we don't make up two cookies the same.
+     * (Vanishingly unlikely, but we check anyway to be sure, and go
+     * round again inventing a new cookie if add234 tells us the one
+     * we thought of is already in use.)
+     *
+     * For XDM-AUTHORIZATION-1, it's a little more fiddly. The setup
+     * with XA1 is that half the cookie is used as a DES key with
+     * which to CBC-encrypt an assortment of stuff. Happily, the stuff
+     * encrypted _begins_ with the other half of the cookie, and the
+     * IV is always zero, which means that any valid XA1 authorisation
+     * attempt for a given cookie must begin with the same cipher
+     * block, consisting of the DES ECB encryption of the first half
+     * of the cookie using the second half as a key. So we compute
+     * that cipher block here and now, and use it as the sorting key
+     * for distinguishing XA1 entries in the tree.
+     */
+
     if (authtype == X11_MIT) {
 	auth->proto = X11_MIT;
 
@@ -117,6 +142,9 @@ struct X11FakeAuth *x11_invent_fake_auth(tree234 *authtree, int authtype)
     for (i = 0; i < auth->datalen; i++)
 	sprintf(auth->datastring + i*2, "%02x",
 		auth->data[i]);
+
+    auth->disp = NULL;
+    auth->share_cs = auth->share_chan = NULL;
 
     return auth;
 }
@@ -342,10 +370,20 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
      * record that _might_ match.
      */
     if (!strcmp(proto, x11_authnames[X11_MIT])) {
+        /*
+         * Just look up the whole cookie that was presented to us,
+         * which x11_authcmp will compare against the cookies we
+         * currently believe in.
+         */
         match_dummy.proto = X11_MIT;
         match_dummy.datalen = dlen;
         match_dummy.data = data;
     } else if (!strcmp(proto, x11_authnames[X11_XDM])) {
+        /*
+         * Look up the first cipher block, against the stored first
+         * cipher blocks for the XDM-AUTHORIZATION-1 cookies we
+         * currently know. (See comment in x11_invent_fake_auth.)
+         */
         match_dummy.proto = X11_XDM;
         match_dummy.xa1_firstblock = data;
     } else {
@@ -843,6 +881,7 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
 
 	xconn->auth_protocol[xconn->auth_plen] = '\0';	/* ASCIZ */
 
+        peer_ip = 0;                   /* placate optimiser */
         if (x11_parse_ip(xconn->peer_addr, &peer_ip))
             peer_port = xconn->peer_port;
         else
@@ -858,9 +897,24 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
         assert(auth_matched);
 
         /*
+         * If this auth points to a connection-sharing downstream
+         * rather than an X display we know how to connect to
+         * directly, pass it off to the sharing module now.
+         */
+        if (auth_matched->share_cs) {
+            sshfwd_x11_sharing_handover(xconn->c, auth_matched->share_cs,
+                                        auth_matched->share_chan,
+                                        xconn->peer_addr, xconn->peer_port,
+                                        xconn->firstpkt[0],
+                                        protomajor, protominor, data, len);
+            return 0;
+        }
+
+        /*
          * Now we know we're going to accept the connection, and what
          * X display to connect to. Actually connect to it.
          */
+        sshfwd_x11_is_local(xconn->c);
         xconn->disp = auth_matched->disp;
         xconn->s = new_connection(sk_addr_dup(xconn->disp->addr),
                                   xconn->disp->realhost, xconn->disp->port, 
@@ -930,6 +984,44 @@ void x11_send_eof(struct X11Connection *xconn)
             sshfwd_write_eof(xconn->c);
     }
 }
+
+/*
+ * Utility functions used by connection sharing to convert textual
+ * representations of an X11 auth protocol name + hex cookie into our
+ * usual integer protocol id and binary auth data.
+ */
+int x11_identify_auth_proto(const char *protoname)
+{
+    int protocol;
+
+    for (protocol = 1; protocol < lenof(x11_authnames); protocol++)
+        if (!strcmp(protoname, x11_authnames[protocol]))
+            return protocol;
+    return -1;
+}
+
+void *x11_dehexify(const char *hex, int *outlen)
+{
+    int len, i;
+    unsigned char *ret;
+
+    len = strlen(hex) / 2;
+    ret = snewn(len, unsigned char);
+
+    for (i = 0; i < len; i++) {
+        char bytestr[3];
+        unsigned val = 0;
+        bytestr[0] = hex[2*i];
+        bytestr[1] = hex[2*i+1];
+        bytestr[2] = '\0';
+        sscanf(bytestr, "%x", &val);
+        ret[i] = val;
+    }
+
+    *outlen = len;
+    return ret;
+}
+
 /*
  * Construct an X11 greeting packet, including making up the right
  * authorisation data.
@@ -969,7 +1061,8 @@ void *x11_make_greeting(int endian, int protomajor, int protominor,
         t = time(NULL);
         PUT_32BIT_MSB_FIRST(realauthdata+14, t);
 
-        des_encrypt_xdmauth(auth_data + 9, realauthdata, authdatalen);
+        des_encrypt_xdmauth((const unsigned char *)auth_data + 9,
+                            realauthdata, authdatalen);
     } else {
         authdata = realauthdata;
         authdatalen = 0;

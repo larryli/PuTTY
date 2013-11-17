@@ -288,6 +288,9 @@ void stdouterr_sent(struct handle *h, int new_backlog)
     }
 }
 
+const int share_can_be_downstream = TRUE;
+const int share_can_be_upstream = TRUE;
+
 int main(int argc, char **argv)
 {
     int sending;

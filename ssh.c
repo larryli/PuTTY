@@ -329,7 +329,6 @@ enum {
 #define crWaitUntil(c)	do { crReturn(0); } while (!(c))
 #define crWaitUntilV(c)	do { crReturnV; } while (!(c))
 
-typedef struct ssh_tag *Ssh;
 struct Packet;
 
 static struct Packet *ssh1_pkt_init(int pkt_type);
@@ -440,6 +439,14 @@ enum {				       /* channel types */
     CHAN_SOCKDATA,
     CHAN_SOCKDATA_DORMANT,	       /* one the remote hasn't confirmed */
     /*
+     * CHAN_SHARING indicates a channel which is tracked here on
+     * behalf of a connection-sharing downstream. We do almost nothing
+     * with these channels ourselves: all messages relating to them
+     * get thrown straight to sshshare.c and passed on almost
+     * unmodified to downstream.
+     */
+    CHAN_SHARING,
+    /*
      * CHAN_ZOMBIE is used to indicate a channel for which we've
      * already destroyed the local data source: for instance, if a
      * forwarded port experiences a socket error on the local side, we
@@ -545,10 +552,14 @@ struct ssh_channel {
 	} a;
 	struct ssh_x11_channel {
 	    struct X11Connection *xconn;
+            int initial;
 	} x11;
 	struct ssh_pfd_channel {
             struct PortForwarding *pf;
 	} pfd;
+	struct ssh_sharing_channel {
+	    void *ctx;
+	} sharing;
     } u;
 };
 
@@ -585,6 +596,7 @@ struct ssh_rportfwd {
     unsigned sport, dport;
     char *shost, *dhost;
     char *sportdesc;
+    void *share_ctx;
     struct ssh_portfwd *pfrec;
 };
 
@@ -651,14 +663,25 @@ struct Packet {
      * pkt->savedpos stores the offset (again relative to pkt->data)
      * of the start of the string data field.
      */
+
+    /* Extra metadata used in SSH packet logging mode, allowing us to
+     * log in the packet header line that the packet came from a
+     * connection-sharing downstream and what if anything unusual was
+     * done to it. The additional_log_text field is expected to be a
+     * static string - it will not be freed. */
+    unsigned downstream_id;
+    const char *additional_log_text;
 };
 
 static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin);
 static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 			  struct Packet *pktin);
+static void ssh2_bare_connection_protocol(Ssh ssh, void *vin, int inlen,
+                                          struct Packet *pktin);
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
+static void ssh2_bare_connection_protocol_setup(Ssh ssh);
 static void ssh_size(void *handle, int width, int height);
 static void ssh_special(void *handle, Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
@@ -688,6 +711,14 @@ struct rdpkt2_state_tag {
     long len, pad, payload, packetlen, maclen;
     int i;
     int cipherblk;
+    unsigned long incoming_sequence;
+    struct Packet *pktin;
+};
+
+struct rdpkt2_bare_state_tag {
+    char length[4];
+    long packetlen;
+    int i;
     unsigned long incoming_sequence;
     struct Packet *pktin;
 };
@@ -734,6 +765,10 @@ struct ssh_tag {
     unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
     void *kex_ctx;
+
+    int bare_connection;
+    int attempting_connshare;
+    void *connshare;
 
     char *savedhost;
     int savedport;
@@ -798,6 +833,7 @@ struct ssh_tag {
 
     int ssh1_rdpkt_crstate;
     int ssh2_rdpkt_crstate;
+    int ssh2_bare_rdpkt_crstate;
     int ssh_gotdata_crstate;
     int do_ssh1_connection_crstate;
 
@@ -805,9 +841,11 @@ struct ssh_tag {
     void *do_ssh1_login_state;
     void *do_ssh2_transport_state;
     void *do_ssh2_authconn_state;
+    void *do_ssh_connection_init_state;
 
     struct rdpkt1_state_tag rdpkt1_state;
     struct rdpkt2_state_tag rdpkt2_state;
+    struct rdpkt2_bare_state_tag rdpkt2_bare_state;
 
     /* SSH-1 and SSH-2 use this for different things, but both use it */
     int protocol_initial_phase_done;
@@ -815,6 +853,7 @@ struct ssh_tag {
     void (*protocol) (Ssh ssh, void *vin, int inlen,
 		      struct Packet *pkt);
     struct Packet *(*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
+    int (*do_ssh_init)(Ssh ssh, unsigned char c);
 
     /*
      * We maintain our own copy of a Conf structure here. That way,
@@ -1151,7 +1190,8 @@ static void ssh1_log_incoming_packet(Ssh ssh, struct Packet *pkt)
     }
     log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
                ssh1_pkt_type(pkt->type),
-               pkt->body, pkt->length, nblanks, blanks, NULL);
+               pkt->body, pkt->length, nblanks, blanks, NULL,
+               0, NULL);
 }
 
 static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
@@ -1224,7 +1264,7 @@ static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
     log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
                ssh1_pkt_type(pkt->data[12]),
                pkt->body, pkt->length,
-               nblanks, blanks, NULL);
+               nblanks, blanks, NULL, 0, NULL);
 
     /*
      * Undo the above adjustment of pkt->length, to put the packet
@@ -1373,7 +1413,8 @@ static void ssh2_log_incoming_packet(Ssh ssh, struct Packet *pkt)
 
     log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
                ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->type),
-               pkt->body, pkt->length, nblanks, blanks, &pkt->sequence);
+               pkt->body, pkt->length, nblanks, blanks, &pkt->sequence,
+               0, NULL);
 }
 
 static void ssh2_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
@@ -1484,7 +1525,8 @@ static void ssh2_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
     log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
                ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
                pkt->body, pkt->length, nblanks, blanks,
-               &ssh->v2_outgoing_sequence);
+               &ssh->v2_outgoing_sequence,
+               pkt->downstream_id, pkt->additional_log_text);
 
     /*
      * Undo the above adjustment of pkt->length, to put the packet
@@ -1708,6 +1750,65 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     crFinish(st->pktin);
 }
 
+static struct Packet *ssh2_bare_connection_rdpkt(Ssh ssh, unsigned char **data,
+                                                 int *datalen)
+{
+    struct rdpkt2_bare_state_tag *st = &ssh->rdpkt2_bare_state;
+
+    crBegin(ssh->ssh2_bare_rdpkt_crstate);
+
+    /*
+     * Read the packet length field.
+     */
+    for (st->i = 0; st->i < 4; st->i++) {
+        while ((*datalen) == 0)
+            crReturn(NULL);
+        st->length[st->i] = *(*data)++;
+        (*datalen)--;
+    }
+
+    st->packetlen = toint(GET_32BIT_MSB_FIRST(st->length));
+    if (st->packetlen <= 0 || st->packetlen >= OUR_V2_PACKETLIMIT) {
+        bombout(("Invalid packet length received"));
+        crStop(NULL);
+    }
+
+    st->pktin = ssh_new_packet();
+    st->pktin->data = snewn(st->packetlen, unsigned char);
+
+    st->pktin->encrypted_len = st->packetlen;
+
+    st->pktin->sequence = st->incoming_sequence++;
+
+    /*
+     * Read the remainder of the packet.
+     */
+    for (st->i = 0; st->i < st->packetlen; st->i++) {
+        while ((*datalen) == 0)
+            crReturn(NULL);
+        st->pktin->data[st->i] = *(*data)++;
+        (*datalen)--;
+    }
+
+    /*
+     * pktin->body and pktin->length should identify the semantic
+     * content of the packet, excluding the initial type byte.
+     */
+    st->pktin->type = st->pktin->data[0];
+    st->pktin->body = st->pktin->data + 1;
+    st->pktin->length = st->packetlen - 1;
+
+    /*
+     * Log incoming packet, possibly omitting sensitive fields.
+     */
+    if (ssh->logctx)
+        ssh2_log_incoming_packet(ssh, st->pktin);
+
+    st->pktin->savedpos = 0;
+
+    crFinish(st->pktin);
+}
+
 static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 {
     int pad, biglen, i, pktoffs;
@@ -1763,7 +1864,7 @@ static int s_write(Ssh ssh, void *data, int len)
 {
     if (ssh->logctx)
 	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len,
-		   0, NULL, NULL);
+		   0, NULL, NULL, 0, NULL);
     if (!ssh->s)
         return 0;
     return sk_write(ssh->s, (char *)data, len);
@@ -1995,6 +2096,8 @@ static struct Packet *ssh1_pkt_init(int pkt_type)
     ssh_pkt_addbyte(pkt, pkt_type);
     pkt->body = pkt->data + pkt->length;
     pkt->type = pkt_type;
+    pkt->downstream_id = 0;
+    pkt->additional_log_text = NULL;
     return pkt;
 }
 
@@ -2016,6 +2119,8 @@ static struct Packet *ssh2_pkt_init(int pkt_type)
     pkt->type = pkt_type;
     ssh_pkt_addbyte(pkt, (unsigned char) pkt_type);
     pkt->body = pkt->data + pkt->length; /* after packet type */
+    pkt->downstream_id = 0;
+    pkt->additional_log_text = NULL;
     return pkt;
 }
 
@@ -2030,6 +2135,17 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
 
     if (ssh->logctx)
         ssh2_log_outgoing_packet(ssh, pkt);
+
+    if (ssh->bare_connection) {
+        /*
+         * Trivial packet construction for the bare connection
+         * protocol.
+         */
+        PUT_32BIT(pkt->data + 1, pkt->length - 5);
+        pkt->body = pkt->data + 1;
+        ssh->v2_outgoing_sequence++;   /* only for diagnostics, really */
+        return pkt->length - 1;
+    }
 
     /*
      * Compress packet payload.
@@ -2080,6 +2196,7 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     pkt->encrypted_len = pkt->length + padding;
 
     /* Ready-to-send packet starts at pkt->data. We return length. */
+    pkt->body = pkt->data;
     return pkt->length + padding + maclen;
 }
 
@@ -2137,12 +2254,13 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 	return;
     }
     len = ssh2_pkt_construct(ssh, pkt);
-    backlog = s_write(ssh, pkt->data, len);
+    backlog = s_write(ssh, pkt->body, len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 
     ssh->outgoing_data_size += pkt->encrypted_len;
     if (!ssh->kex_in_progress &&
+        !ssh->bare_connection &&
 	ssh->max_data_size != 0 &&
 	ssh->outgoing_data_size > ssh->max_data_size)
 	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
@@ -2174,7 +2292,7 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, struct Packet *pkt, int noignore)
 					  ssh->deferred_size,
 					  unsigned char);
     }
-    memcpy(ssh->deferred_send_data + ssh->deferred_len, pkt->data, len);
+    memcpy(ssh->deferred_send_data + ssh->deferred_len, pkt->body, len);
     ssh->deferred_len += len;
     ssh->deferred_data_size += pkt->encrypted_len;
     ssh_free_packet(pkt);
@@ -2244,6 +2362,7 @@ static void ssh_pkt_defersend(Ssh ssh)
 
     ssh->outgoing_data_size += ssh->deferred_data_size;
     if (!ssh->kex_in_progress &&
+        !ssh->bare_connection &&
 	ssh->max_data_size != 0 &&
 	ssh->outgoing_data_size > ssh->max_data_size)
 	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
@@ -2696,11 +2815,7 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
  */
 static void ssh_fix_verstring(char *str)
 {
-    /* Eat "SSH-<protoversion>-". */
-    assert(*str == 'S'); str++;
-    assert(*str == 'S'); str++;
-    assert(*str == 'H'); str++;
-    assert(*str == '-'); str++;
+    /* Eat "<protoversion>-". */
     while (*str && *str != '-') str++;
     assert(*str == '-'); str++;
 
@@ -2716,7 +2831,7 @@ static void ssh_fix_verstring(char *str)
 /*
  * Send an appropriate SSH version string.
  */
-static void ssh_send_verstring(Ssh ssh, char *svers)
+static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
 {
     char *verstring;
 
@@ -2724,18 +2839,19 @@ static void ssh_send_verstring(Ssh ssh, char *svers)
 	/*
 	 * Construct a v2 version string.
 	 */
-	verstring = dupprintf("SSH-2.0-%s\015\012", sshver);
+	verstring = dupprintf("%s2.0-%s\015\012", protoname, sshver);
     } else {
 	/*
 	 * Construct a v1 version string.
 	 */
+        assert(!strcmp(protoname, "SSH-")); /* no v1 bare connection protocol */
 	verstring = dupprintf("SSH-%s-%s\012",
 			      (ssh_versioncmp(svers, "1.5") <= 0 ?
 			       svers : "1.5"),
 			      sshver);
     }
 
-    ssh_fix_verstring(verstring);
+    ssh_fix_verstring(verstring + strlen(protoname));
 
     if (ssh->version == 2) {
 	size_t len;
@@ -2756,6 +2872,8 @@ static void ssh_send_verstring(Ssh ssh, char *svers)
 
 static int do_ssh_init(Ssh ssh, unsigned char c)
 {
+    static const char protoname[] = "SSH-";
+
     struct do_ssh_init_state {
 	int crLine;
 	int vslen;
@@ -2769,15 +2887,13 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     
     crBeginState;
 
-    /* Search for a line beginning with the string "SSH-" in the input. */
+    /* Search for a line beginning with the protocol name prefix in
+     * the input. */
     for (;;) {
-	if (c != 'S') goto no;
-	crReturn(1);
-	if (c != 'S') goto no;
-	crReturn(1);
-	if (c != 'H') goto no;
-	crReturn(1);
-	if (c != '-') goto no;
+        for (s->i = 0; protoname[s->i]; s->i++) {
+            if ((char)c != protoname[s->i]) goto no;
+            crReturn(1);
+        }
 	break;
       no:
 	while (c != '\012')
@@ -2785,13 +2901,12 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	crReturn(1);
     }
 
-    s->vstrsize = 16;
+    s->vstrsize = sizeof(protoname) + 16;
     s->vstring = snewn(s->vstrsize, char);
-    strcpy(s->vstring, "SSH-");
-    s->vslen = 4;
+    strcpy(s->vstring, protoname);
+    s->vslen = strlen(protoname);
     s->i = 0;
     while (1) {
-	crReturn(1);		       /* get another char */
 	if (s->vslen >= s->vstrsize - 1) {
 	    s->vstrsize += 16;
 	    s->vstring = sresize(s->vstring, s->vstrsize, char);
@@ -2805,6 +2920,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 		s->version[s->i++] = c;
 	} else if (c == '\012')
 	    break;
+	crReturn(1);		       /* get another char */
     }
 
     ssh->agentfwd_enabled = FALSE;
@@ -2842,7 +2958,7 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 
     /* Send the version string, if we haven't already */
     if (conf_get_int(ssh->conf, CONF_sshprot) != 3)
-	ssh_send_verstring(ssh, s->version);
+	ssh_send_verstring(ssh, protoname, s->version);
 
     if (ssh->version == 2) {
 	size_t len;
@@ -2874,6 +2990,117 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
     ssh->pinger = pinger_new(ssh->conf, &ssh_backend, ssh);
+
+    sfree(s->vstring);
+
+    crFinish(0);
+}
+
+static int do_ssh_connection_init(Ssh ssh, unsigned char c)
+{
+    /*
+     * Ordinary SSH begins with the banner "SSH-x.y-...". This is just
+     * the ssh-connection part, extracted and given a trivial binary
+     * packet protocol, so we replace 'SSH-' at the start with a new
+     * name. In proper SSH style (though of course this part of the
+     * proper SSH protocol _isn't_ subject to this kind of
+     * DNS-domain-based extension), we define the new name in our
+     * extension space.
+     */
+    static const char protoname[] =
+        "SSHCONNECTION@putty.projects.tartarus.org-";
+
+    struct do_ssh_connection_init_state {
+	int crLine;
+	int vslen;
+	char version[10];
+	char *vstring;
+	int vstrsize;
+	int i;
+    };
+    crState(do_ssh_connection_init_state);
+    
+    crBeginState;
+
+    /* Search for a line beginning with the protocol name prefix in
+     * the input. */
+    for (;;) {
+        for (s->i = 0; protoname[s->i]; s->i++) {
+            if ((char)c != protoname[s->i]) goto no;
+            crReturn(1);
+        }
+	break;
+      no:
+	while (c != '\012')
+	    crReturn(1);
+	crReturn(1);
+    }
+
+    s->vstrsize = sizeof(protoname) + 16;
+    s->vstring = snewn(s->vstrsize, char);
+    strcpy(s->vstring, protoname);
+    s->vslen = strlen(protoname);
+    s->i = 0;
+    while (1) {
+	if (s->vslen >= s->vstrsize - 1) {
+	    s->vstrsize += 16;
+	    s->vstring = sresize(s->vstring, s->vstrsize, char);
+	}
+	s->vstring[s->vslen++] = c;
+	if (s->i >= 0) {
+	    if (c == '-') {
+		s->version[s->i] = '\0';
+		s->i = -1;
+	    } else if (s->i < sizeof(s->version) - 1)
+		s->version[s->i++] = c;
+	} else if (c == '\012')
+	    break;
+	crReturn(1);		       /* get another char */
+    }
+
+    ssh->agentfwd_enabled = FALSE;
+    ssh->rdpkt2_bare_state.incoming_sequence = 0;
+
+    s->vstring[s->vslen] = 0;
+    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
+    logeventf(ssh, "Server version: %s", s->vstring);
+    ssh_detect_bugs(ssh, s->vstring);
+
+    /*
+     * Decide which SSH protocol version to support. This is easy in
+     * bare ssh-connection mode: only 2.0 is legal.
+     */
+    if (ssh_versioncmp(s->version, "2.0") < 0) {
+	bombout(("Server announces compatibility with SSH-1 in bare ssh-connection protocol"));
+        crStop(0);
+    }
+    if (conf_get_int(ssh->conf, CONF_sshprot) == 0) {
+	bombout(("Bare ssh-connection protocol cannot be run in SSH-1-only mode"));
+	crStop(0);
+    }
+
+    ssh->version = 2;
+
+    logeventf(ssh, "Using bare ssh-connection protocol");
+
+    /* Send the version string, if we haven't already */
+    ssh_send_verstring(ssh, protoname, s->version);
+
+    /*
+     * Initialise bare connection protocol.
+     */
+    ssh->protocol = ssh2_bare_connection_protocol;
+    ssh2_bare_connection_protocol_setup(ssh);
+    ssh->s_rdpkt = ssh2_bare_connection_rdpkt;
+
+    update_specials_menu(ssh->frontend);
+    ssh->state = SSH_STATE_BEFORE_SIZE;
+    ssh->pinger = pinger_new(ssh->conf, &ssh_backend, ssh);
+
+    /*
+     * Get authconn (really just conn) under way.
+     */
+    do_ssh2_authconn(ssh, NULL, 0, NULL);
 
     sfree(s->vstring);
 
@@ -2931,7 +3158,7 @@ static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
     /* Log raw data, if we're in that mode. */
     if (ssh->logctx)
 	log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen,
-		   0, NULL, NULL);
+		   0, NULL, NULL, 0, NULL);
 
     crBegin(ssh->ssh_gotdata_crstate);
 
@@ -2945,7 +3172,7 @@ static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
 	int ret;		       /* need not be kept across crReturn */
 	if (datalen == 0)
 	    crReturnV;		       /* more data please */
-	ret = do_ssh_init(ssh, *data);
+	ret = ssh->do_ssh_init(ssh, *data);
 	data++;
 	datalen--;
 	if (ret == 0)
@@ -3042,21 +3269,71 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
     return ret;
 }
 
-static void ssh_log(Plug plug, int type, SockAddr addr, int port,
-		    const char *error_msg, int error_code)
+static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
+                           const char *error_msg, int error_code)
 {
     Ssh ssh = (Ssh) plug;
     char addrbuf[256], *msg;
 
-    sk_getaddr(addr, addrbuf, lenof(addrbuf));
+    if (ssh->attempting_connshare) {
+        /*
+         * While we're attempting connection sharing, don't loudly log
+         * everything that happens. Real TCP connections need to be
+         * logged when we _start_ trying to connect, because it might
+         * be ages before they respond if something goes wrong; but
+         * connection sharing is local and quick to respond, and it's
+         * sufficient to simply wait and see whether it worked
+         * afterwards.
+         */
+    } else {
+        sk_getaddr(addr, addrbuf, lenof(addrbuf));
 
-    if (type == 0)
-	msg = dupprintf("Connecting to %s port %d", addrbuf, port);
-    else
-	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+        if (type == 0) {
+            if (sk_addr_needs_port(addr)) {
+                msg = dupprintf("Connecting to %s port %d", addrbuf, port);
+            } else {
+                msg = dupprintf("Connecting to %s", addrbuf, port);
+            }
+        } else {
+            msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
+        }
 
-    logevent(msg);
-    sfree(msg);
+        logevent(msg);
+        sfree(msg);
+    }
+}
+
+void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
+                       const char *ds_err, const char *us_err)
+{
+    if (event == SHARE_NONE) {
+        /* In this case, 'logtext' is an error message indicating a
+         * reason why connection sharing couldn't be set up _at all_.
+         * Failing that, ds_err and us_err indicate why we couldn't be
+         * a downstream and an upstream respectively. */
+        if (logtext) {
+            logeventf(ssh, "Could not set up connection sharing: %s", logtext);
+        } else {
+            if (ds_err)
+                logeventf(ssh, "Could not set up connection sharing"
+                          " as downstream: %s", ds_err);
+            if (us_err)
+                logeventf(ssh, "Could not set up connection sharing"
+                          " as upstream: %s", us_err);
+        }
+    } else if (event == SHARE_DOWNSTREAM) {
+        /* In this case, 'logtext' is a local endpoint address */
+        logeventf(ssh, "Using existing shared connection at %s", logtext);
+        /* Also we should mention this in the console window to avoid
+         * confusing users as to why this window doesn't behave the
+         * usual way. */
+        if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
+            c_write_str(ssh,"Reusing a shared connection to this server.\r\n");
+        }
+    } else if (event == SHARE_UPSTREAM) {
+        /* In this case, 'logtext' is a local endpoint address too */
+        logeventf(ssh, "Sharing this connection at %s", logtext);
+    }
 }
 
 static int ssh_closing(Plug plug, const char *error_msg, int error_code,
@@ -3117,7 +3394,7 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 				   char **realhost, int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
-	ssh_log,
+	ssh_socket_log,
 	ssh_closing,
 	ssh_receive,
 	ssh_sent,
@@ -3155,30 +3432,58 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 	ssh->savedport = port;
     }
 
-    /*
-     * Try to find host.
-     */
-    addressfamily = conf_get_int(ssh->conf, CONF_addressfamily);
-    logeventf(ssh, "Looking up host \"%s\"%s", host,
-	      (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
-	       (addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" : "")));
-    addr = name_lookup(host, port, realhost, ssh->conf, addressfamily);
-    if ((err = sk_addr_error(addr)) != NULL) {
-	sk_addr_free(addr);
-	return err;
-    }
-    ssh->fullhostname = dupstr(*realhost);   /* save in case of GSSAPI */
+    ssh->fn = &fn_table;               /* make 'ssh' usable as a Plug */
 
     /*
-     * Open socket.
+     * Try connection-sharing, in case that means we don't open a
+     * socket after all. ssh_connection_sharing_init will connect to a
+     * previously established upstream if it can, and failing that,
+     * establish a listening socket for _us_ to be the upstream. In
+     * the latter case it will return NULL just as if it had done
+     * nothing, because here we only need to care if we're a
+     * downstream and need to do our connection setup differently.
      */
-    ssh->fn = &fn_table;
-    ssh->s = new_connection(addr, *realhost, port,
-			    0, 1, nodelay, keepalive, (Plug) ssh, ssh->conf);
-    if ((err = sk_socket_error(ssh->s)) != NULL) {
-	ssh->s = NULL;
-	notify_remote_exit(ssh->frontend);
-	return err;
+    ssh->connshare = NULL;
+    ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
+    ssh->s = ssh_connection_sharing_init(ssh->savedhost, ssh->savedport,
+                                         ssh->conf, ssh, &ssh->connshare);
+    ssh->attempting_connshare = FALSE;
+    if (ssh->s != NULL) {
+        /*
+         * We are a downstream.
+         */
+        ssh->bare_connection = TRUE;
+        ssh->do_ssh_init = do_ssh_connection_init;
+        ssh->fullhostname = NULL;
+        *realhost = dupstr(host);      /* best we can do */
+    } else {
+        /*
+         * We're not a downstream, so open a normal socket.
+         */
+        ssh->do_ssh_init = do_ssh_init;
+
+        /*
+         * Try to find host.
+         */
+        addressfamily = conf_get_int(ssh->conf, CONF_addressfamily);
+        logeventf(ssh, "Looking up host \"%s\"%s", host,
+                  (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
+                   (addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" : "")));
+        addr = name_lookup(host, port, realhost, ssh->conf, addressfamily);
+        if ((err = sk_addr_error(addr)) != NULL) {
+            sk_addr_free(addr);
+            return err;
+        }
+        ssh->fullhostname = dupstr(*realhost);   /* save in case of GSSAPI */
+
+        ssh->s = new_connection(addr, *realhost, port,
+                                0, 1, nodelay, keepalive,
+                                (Plug) ssh, ssh->conf);
+        if ((err = sk_socket_error(ssh->s)) != NULL) {
+            ssh->s = NULL;
+            notify_remote_exit(ssh->frontend);
+            return err;
+        }
     }
 
     /*
@@ -3188,9 +3493,9 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     sshprot = conf_get_int(ssh->conf, CONF_sshprot);
     if (sshprot == 0)
 	ssh->version = 1;
-    if (sshprot == 3) {
+    if (sshprot == 3 && !ssh->bare_connection) {
 	ssh->version = 2;
-	ssh_send_verstring(ssh, NULL);
+	ssh_send_verstring(ssh, "SSH-", NULL);
     }
 
     /*
@@ -4533,6 +4838,41 @@ static void ssh_rportfwd_succfail(Ssh ssh, struct Packet *pktin, void *ctx)
     }
 }
 
+int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
+                               void *share_ctx)
+{
+    struct ssh_rportfwd *pf = snew(struct ssh_rportfwd);
+    pf->dhost = NULL;
+    pf->dport = 0;
+    pf->share_ctx = share_ctx;
+    pf->shost = dupstr(shost);
+    pf->sport = sport;
+    pf->sportdesc = NULL;
+    if (!ssh->rportfwds) {
+        assert(ssh->version == 2);
+        ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
+    }
+    if (add234(ssh->rportfwds, pf) != pf) {
+        sfree(pf->shost);
+        sfree(pf);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static void ssh_sharing_global_request_response(Ssh ssh, struct Packet *pktin,
+                                                void *ctx)
+{
+    share_got_pkt_from_server(ctx, pktin->type,
+                              pktin->body, pktin->length);
+}
+
+void ssh_sharing_queue_global_request(Ssh ssh, void *share_ctx)
+{
+    ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS, SSH2_MSG_REQUEST_FAILURE,
+                      ssh_sharing_global_request_response, share_ctx);
+}
+
 static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 {
     struct ssh_portfwd *epf;
@@ -4802,6 +5142,7 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 		}
 
 		pf = snew(struct ssh_rportfwd);
+                pf->share_ctx = NULL;
                 pf->dhost = dupstr(epf->daddr);
 		pf->dport = epf->dport;
                 if (epf->saddr) {
@@ -5210,6 +5551,10 @@ static void ssh1_send_ttymode(void *data, char *mode, char *val)
     ssh2_pkt_addbyte(pktout, arg);
 }
 
+int ssh_agent_forwarding_permitted(Ssh ssh)
+{
+    return conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists();
+}
 
 static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 			       struct Packet *pktin)
@@ -5230,7 +5575,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
     ssh->packet_dispatch[SSH1_MSG_CHANNEL_DATA] = ssh1_msg_channel_data;
     ssh->packet_dispatch[SSH1_SMSG_EXIT_STATUS] = ssh1_smsg_exit_status;
 
-    if (conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists()) {
+    if (ssh_agent_forwarding_permitted(ssh)) {
 	logevent("Requesting agent forwarding");
 	send_packet(ssh, SSH1_CMSG_AGENT_REQUEST_FORWARDING, PKT_END);
 	do {
@@ -5610,6 +5955,8 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	int ignorepkt;
     };
     crState(do_ssh2_transport_state);
+
+    assert(!ssh->bare_connection);
 
     crBeginState;
 
@@ -6688,6 +7035,19 @@ static void ssh2_try_send_and_unthrottle(Ssh ssh, struct ssh_channel *c)
     }
 }
 
+static int ssh_is_simple(Ssh ssh)
+{
+    /*
+     * We use the 'simple' variant of the SSH protocol if we're asked
+     * to, except not if we're also doing connection-sharing (either
+     * tunnelling our packets over an upstream or expecting to be
+     * tunnelled over ourselves), since then the assumption that we
+     * have only one channel to worry about is not true after all.
+     */
+    return (conf_get_int(ssh->conf, CONF_ssh_simple) &&
+            !ssh->bare_connection && !ssh->connshare);
+}
+
 /*
  * Set up most of a new ssh_channel for SSH-2.
  */
@@ -6699,7 +7059,7 @@ static void ssh2_channel_init(struct ssh_channel *c)
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
     c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
-	conf_get_int(ssh->conf, CONF_ssh_simple) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
+	ssh_is_simple(ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
     c->v.v2.chanreq_head = NULL;
     c->v.v2.throttle_state = UNTHROTTLED;
     bufchain_init(&c->v.v2.outbuffer);
@@ -6788,6 +7148,14 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	return;
 
     /*
+     * Also, never widen the window for an X11 channel when we're
+     * still waiting to see its initial auth and may yet hand it off
+     * to a downstream.
+     */
+    if (c->type == CHAN_X11 && c->u.x11.initial)
+        return;
+
+    /*
      * If the remote end has a habit of ignoring maxpkt, limit the
      * window so that it has no choice (assuming it doesn't ignore the
      * window as well).
@@ -6850,7 +7218,8 @@ static struct ssh_channel *ssh2_channel_msg(Ssh ssh, struct Packet *pktin)
 
     c = find234(ssh->channels, &localid, ssh_channelfind);
     if (!c ||
-	(c->halfopen && pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
+	(c->type != CHAN_SHARING && c->halfopen &&
+         pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
 	 pktin->type != SSH2_MSG_CHANNEL_OPEN_FAILURE)) {
 	char *buf = dupprintf("Received %s for %s channel %u",
 			      ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
@@ -6893,6 +7262,11 @@ static void ssh2_msg_channel_response(Ssh ssh, struct Packet *pktin)
     struct outstanding_channel_request *ocr;
 
     if (!c) return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     ocr = c->v.v2.chanreq_head;
     if (!ocr) {
 	ssh2_msg_unexpected(ssh, pktin);
@@ -6915,6 +7289,11 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     if (!(c->closes & CLOSES_SENT_EOF)) {
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
 	ssh2_try_send_and_unthrottle(ssh, c);
@@ -6929,6 +7308,11 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
 	ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
 	return;			       /* extended but not stderr */
@@ -7017,13 +7401,57 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	 * buffering anything at all and we're in "simple" mode,
 	 * throttle the whole channel.
 	 */
-	if ((bufsize > c->v.v2.locmaxwin ||
-	     (conf_get_int(ssh->conf, CONF_ssh_simple) && bufsize > 0)) &&
-	    !c->throttling_conn) {
+	if ((bufsize > c->v.v2.locmaxwin || (ssh_is_simple(ssh) && bufsize>0))
+            && !c->throttling_conn) {
 	    c->throttling_conn = 1;
 	    ssh_throttle_conn(ssh, +1);
 	}
     }
+}
+
+static void ssh_check_termination(Ssh ssh)
+{
+    if (ssh->version == 2 &&
+        !conf_get_int(ssh->conf, CONF_ssh_no_shell) &&
+        count234(ssh->channels) == 0 &&
+        !(ssh->connshare && share_ndownstreams(ssh->connshare) > 0)) {
+        /*
+         * We used to send SSH_MSG_DISCONNECT here, because I'd
+         * believed that _every_ conforming SSH-2 connection had to
+         * end with a disconnect being sent by at least one side;
+         * apparently I was wrong and it's perfectly OK to
+         * unceremoniously slam the connection shut when you're done,
+         * and indeed OpenSSH feels this is more polite than sending a
+         * DISCONNECT. So now we don't.
+         */
+        ssh_disconnect(ssh, "All channels closed", NULL, 0, TRUE);
+    }
+}
+
+void ssh_sharing_downstream_connected(Ssh ssh, unsigned id)
+{
+    logeventf(ssh, "Connection sharing downstream #%u connected", id);
+}
+
+void ssh_sharing_downstream_disconnected(Ssh ssh, unsigned id)
+{
+    logeventf(ssh, "Connection sharing downstream #%u disconnected", id);
+    ssh_check_termination(ssh);
+}
+
+void ssh_sharing_logf(Ssh ssh, unsigned id, const char *logfmt, ...)
+{
+    va_list ap;
+    char *buf;
+
+    va_start(ap, logfmt);
+    buf = dupvprintf(logfmt, ap);
+    va_end(ap);
+    if (id)
+        logeventf(ssh, "Connection sharing downstream #%u: %s", id, buf);
+    else
+        logeventf(ssh, "Connection sharing: %s", buf);
+    sfree(buf);
 }
 
 static void ssh_channel_destroy(struct ssh_channel *c)
@@ -7058,26 +7486,10 @@ static void ssh_channel_destroy(struct ssh_channel *c)
     sfree(c);
 
     /*
-     * See if that was the last channel left open.
-     * (This is only our termination condition if we're
-     * not running in -N mode.)
+     * If that was the last channel left open, we might need to
+     * terminate.
      */
-    if (ssh->version == 2 &&
-        !conf_get_int(ssh->conf, CONF_ssh_no_shell) &&
-        count234(ssh->channels) == 0) {
-        /*
-         * We used to send SSH_MSG_DISCONNECT here,
-         * because I'd believed that _every_ conforming
-         * SSH-2 connection had to end with a disconnect
-         * being sent by at least one side; apparently
-         * I was wrong and it's perfectly OK to
-         * unceremoniously slam the connection shut
-         * when you're done, and indeed OpenSSH feels
-         * this is more polite than sending a
-         * DISCONNECT. So now we don't.
-         */
-        ssh_disconnect(ssh, "All channels closed", NULL, 0, TRUE);
-    }
+    ssh_check_termination(ssh);
 }
 
 static void ssh2_channel_check_close(struct ssh_channel *c)
@@ -7163,6 +7575,11 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     ssh2_channel_got_eof(c);
 }
 
@@ -7173,6 +7590,11 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
 
     /*
      * When we receive CLOSE on a channel, we assume it comes with an
@@ -7235,6 +7657,11 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     assert(c->halfopen); /* ssh2_channel_msg will have enforced this */
     c->remoteid = ssh_pkt_getuint32(pktin);
     c->halfopen = FALSE;
@@ -7290,6 +7717,11 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     assert(c->halfopen); /* ssh2_channel_msg will have enforced this */
 
     if (c->type == CHAN_SOCKDATA_DORMANT) {
@@ -7337,6 +7769,11 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
     c = ssh2_channel_msg(ssh, pktin);
     if (!c)
 	return;
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return;
+    }
     ssh_pkt_getstring(pktin, &type, &typelen);
     want_reply = ssh2_pkt_getbool(pktin);
 
@@ -7529,6 +7966,30 @@ static void ssh2_msg_global_request(Ssh ssh, struct Packet *pktin)
     }
 }
 
+struct X11FakeAuth *ssh_sharing_add_x11_display(Ssh ssh, int authtype,
+                                                void *share_cs,
+                                                void *share_chan)
+{
+    struct X11FakeAuth *auth;
+
+    /*
+     * Make up a new set of fake X11 auth data, and add it to the tree
+     * of currently valid ones with an indication of the sharing
+     * context that it's relevant to.
+     */
+    auth = x11_invent_fake_auth(ssh->x11authtree, authtype);
+    auth->share_cs = share_cs;
+    auth->share_chan = share_chan;
+
+    return auth;
+}
+
+void ssh_sharing_remove_x11_display(Ssh ssh, struct X11FakeAuth *auth)
+{
+    del234(ssh->x11authtree, auth);
+    x11_free_fake_auth(auth);
+}
+
 static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 {
     char *type;
@@ -7539,6 +8000,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     char *error = NULL;
     struct ssh_channel *c;
     unsigned remid, winsize, pktsize;
+    unsigned our_winsize_override = 0;
     struct Packet *pktout;
 
     ssh_pkt_getstring(pktin, &type, &typelen);
@@ -7561,12 +8023,24 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	logeventf(ssh, "Received X11 connect request from %s:%d",
 		  addrstr, peerport);
 
-	if (!ssh->X11_fwd_enabled)
+	if (!ssh->X11_fwd_enabled && !ssh->connshare)
 	    error = "X11 forwarding is not enabled";
 	else {
             c->u.x11.xconn = x11_init(ssh->x11authtree, c,
                                       addrstr, peerport);
 	    c->type = CHAN_X11;
+            c->u.x11.initial = TRUE;
+
+            /*
+             * If we are a connection-sharing upstream, then we should
+             * initially present a very small window, adequate to take
+             * the X11 initial authorisation packet but not much more.
+             * Downstream will then present us a larger window (by
+             * fiat of the connection-sharing protocol) and we can
+             * guarantee to send a positive-valued WINDOW_ADJUST.
+             */
+            if (ssh->connshare)
+                our_winsize_override = 128;
 
             logevent("Opened X11 forward channel");
 	}
@@ -7590,11 +8064,23 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	if (realpf == NULL) {
 	    error = "Remote port is not recognised";
 	} else {
-	    char *err = pfd_connect(&c->u.pfd.pf,
-                                    realpf->dhost,
-                                    realpf->dport, c,
-                                    ssh->conf,
-                                    realpf->pfrec->addressfamily);
+            char *err;
+
+            if (realpf->share_ctx) {
+                /*
+                 * This port forwarding is on behalf of a
+                 * connection-sharing downstream, so abandon our own
+                 * channel-open procedure and just pass the message on
+                 * to sshshare.c.
+                 */
+                share_got_pkt_from_server(realpf->share_ctx, pktin->type,
+                                          pktin->body, pktin->length);
+                sfree(c);
+                return;
+            }
+
+            err = pfd_connect(&c->u.pfd.pf, realpf->dhost, realpf->dport,
+                              c, ssh->conf, realpf->pfrec->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
 	    if (err != NULL) {
@@ -7635,6 +8121,10 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	ssh2_channel_init(c);
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
+        if (our_winsize_override) {
+            c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
+                our_winsize_override;
+        }
 	add234(ssh->channels, c);
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
@@ -7643,6 +8133,43 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	ssh2_pkt_adduint32(pktout, OUR_V2_MAXPKT);	/* our max pkt size */
 	ssh2_pkt_send(ssh, pktout);
     }
+}
+
+void sshfwd_x11_sharing_handover(struct ssh_channel *c,
+                                 void *share_cs, void *share_chan,
+                                 const char *peer_addr, int peer_port,
+                                 int endian, int protomajor, int protominor,
+                                 const void *initial_data, int initial_len)
+{
+    /*
+     * This function is called when we've just discovered that an X
+     * forwarding channel on which we'd been handling the initial auth
+     * ourselves turns out to be destined for a connection-sharing
+     * downstream. So we turn the channel into a CHAN_SHARING, meaning
+     * that we completely stop tracking windows and buffering data and
+     * just pass more or less unmodified SSH messages back and forth.
+     */
+    c->type = CHAN_SHARING;
+    c->u.sharing.ctx = share_cs;
+    share_setup_x11_channel(share_cs, share_chan,
+                            c->localid, c->remoteid, c->v.v2.remwindow,
+                            c->v.v2.remmaxpkt, c->v.v2.locwindow,
+                            peer_addr, peer_port, endian,
+                            protomajor, protominor,
+                            initial_data, initial_len);
+}
+
+void sshfwd_x11_is_local(struct ssh_channel *c)
+{
+    /*
+     * This function is called when we've just discovered that an X
+     * forwarding channel is _not_ destined for a connection-sharing
+     * downstream but we're going to handle it ourselves. We stop
+     * presenting a cautiously small window and go into ordinary data
+     * exchange mode.
+     */
+    c->u.x11.initial = FALSE;
+    ssh2_set_window(c, ssh_is_simple(c->ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE);
 }
 
 /*
@@ -7964,35 +8491,40 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     
     s->done_service_req = FALSE;
     s->we_are_in = s->userauth_success = FALSE;
+    s->agent_response = NULL;
 #ifndef NO_GSSAPI
     s->tried_gssapi = FALSE;
 #endif
 
-    if (!conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
-	/*
-	 * Request userauth protocol, and await a response to it.
-	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
-	ssh2_pkt_addstring(s->pktout, "ssh-userauth");
-	ssh2_pkt_send(ssh, s->pktout);
-	crWaitUntilV(pktin);
-	if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
-	    s->done_service_req = TRUE;
-    }
-    if (!s->done_service_req) {
-	/*
-	 * Request connection protocol directly, without authentication.
-	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
-	ssh2_pkt_addstring(s->pktout, "ssh-connection");
-	ssh2_pkt_send(ssh, s->pktout);
-	crWaitUntilV(pktin);
-	if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
-	    s->we_are_in = TRUE; /* no auth required */
-	} else {
-	    bombout(("Server refused service request"));
-	    crStopV;
-	}
+    if (!ssh->bare_connection) {
+        if (!conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
+            /*
+             * Request userauth protocol, and await a response to it.
+             */
+            s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+            ssh2_pkt_addstring(s->pktout, "ssh-userauth");
+            ssh2_pkt_send(ssh, s->pktout);
+            crWaitUntilV(pktin);
+            if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
+                s->done_service_req = TRUE;
+        }
+        if (!s->done_service_req) {
+            /*
+             * Request connection protocol directly, without authentication.
+             */
+            s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+            ssh2_pkt_addstring(s->pktout, "ssh-connection");
+            ssh2_pkt_send(ssh, s->pktout);
+            crWaitUntilV(pktin);
+            if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
+                s->we_are_in = TRUE; /* no auth required */
+            } else {
+                bombout(("Server refused service request"));
+                crStopV;
+            }
+        }
+    } else {
+        s->we_are_in = TRUE;
     }
 
     /* Arrange to be able to deal with any BANNERs that come in.
@@ -9325,7 +9857,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     if (s->agent_response)
 	sfree(s->agent_response);
 
-    if (s->userauth_success) {
+    if (s->userauth_success && !ssh->bare_connection) {
 	/*
 	 * We've just received USERAUTH_SUCCESS, and we haven't sent any
 	 * packets since. Signal the transport layer to consider enacting
@@ -9338,10 +9870,6 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 */
 	do_ssh2_transport(ssh, "enabling delayed compression", -2, NULL);
     }
-
-    /*
-     * Now the connection protocol has started, one way or another.
-     */
 
     ssh->channels = newtree234(ssh_channelcmp);
 
@@ -9420,8 +9948,15 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_response;
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_response;
 
+    /*
+     * Now the connection protocol is properly up and running, with
+     * all those dispatch table entries, so it's safe to let
+     * downstreams start trying to open extra channels through us.
+     */
+    if (ssh->connshare)
+        share_activate(ssh->connshare, ssh->v_s);
 
-    if (ssh->mainchan && conf_get_int(ssh->conf, CONF_ssh_simple)) {
+    if (ssh->mainchan && ssh_is_simple(ssh)) {
 	/*
 	 * This message indicates to the server that we promise
 	 * not to try to run any other channel in parallel with
@@ -9465,7 +10000,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
         }
 
 	/* Potentially enable agent forwarding. */
-	if (conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists())
+	if (ssh_agent_forwarding_permitted(ssh))
 	    ssh2_setup_agent(ssh->mainchan, NULL, NULL);
 
 	/* Now allocate a pty for the session. */
@@ -9721,6 +10256,48 @@ static void ssh2_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
 }
 
+static void ssh2_bare_connection_protocol_setup(Ssh ssh)
+{
+    int i;
+
+    /*
+     * Most messages cause SSH2_MSG_UNIMPLEMENTED.
+     */
+    for (i = 0; i < 256; i++)
+	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
+
+    /*
+     * Initially, we set all ssh-connection messages to 'unexpected';
+     * do_ssh2_authconn will fill things in properly. We also handle a
+     * couple of messages from the transport protocol which aren't
+     * related to key exchange (UNIMPLEMENTED, IGNORE, DEBUG,
+     * DISCONNECT).
+     */
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_unexpected;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_unexpected;
+
+    ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = ssh2_msg_unexpected;
+
+    /*
+     * These messages have a special handler from the start.
+     */
+    ssh->packet_dispatch[SSH2_MSG_DISCONNECT] = ssh2_msg_disconnect;
+    ssh->packet_dispatch[SSH2_MSG_IGNORE] = ssh_msg_ignore;
+    ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
+}
+
 static void ssh2_timer(void *ctx, unsigned long now)
 {
     Ssh ssh = (Ssh)ctx;
@@ -9728,7 +10305,8 @@ static void ssh2_timer(void *ctx, unsigned long now)
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (!ssh->kex_in_progress && conf_get_int(ssh->conf, CONF_ssh_rekey_time) != 0 &&
+    if (!ssh->kex_in_progress && !ssh->bare_connection &&
+        conf_get_int(ssh->conf, CONF_ssh_rekey_time) != 0 &&
 	now == ssh->next_rekey) {
 	do_ssh2_transport(ssh, "timeout", -1, NULL);
     }
@@ -9755,6 +10333,19 @@ static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 	do_ssh2_transport(ssh, in, inlen, pktin);
     else
 	do_ssh2_authconn(ssh, in, inlen, pktin);
+}
+
+static void ssh2_bare_connection_protocol(Ssh ssh, void *vin, int inlen,
+                                          struct Packet *pktin)
+{
+    unsigned char *in = (unsigned char *)vin;
+    if (ssh->state == SSH_STATE_CLOSED)
+	return;
+
+    if (pktin)
+	ssh->packet_dispatch[pktin->type](ssh, pktin);
+    else
+        do_ssh2_authconn(ssh, in, inlen, pktin);
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
@@ -9819,9 +10410,11 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
     ssh->ssh2_rdpkt_crstate = 0;
+    ssh->ssh2_bare_rdpkt_crstate = 0;
     ssh->ssh_gotdata_crstate = 0;
     ssh->do_ssh1_connection_crstate = 0;
     ssh->do_ssh_init_state = NULL;
+    ssh->do_ssh_connection_init_state = NULL;
     ssh->do_ssh1_login_state = NULL;
     ssh->do_ssh2_transport_state = NULL;
     ssh->do_ssh2_authconn_state = NULL;
@@ -9840,6 +10433,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->username = NULL;
     ssh->sent_console_eof = FALSE;
     ssh->got_pty = FALSE;
+    ssh->bare_connection = FALSE;
+    ssh->attempting_connshare = FALSE;
 
     *backend_handle = ssh;
 
@@ -9962,6 +10557,9 @@ static void ssh_free(void *handle)
 	ssh->channels = NULL;
     }
 
+    if (ssh->connshare)
+        sharestate_free(ssh->connshare);
+
     if (ssh->rportfwds) {
 	while ((pf = delpos234(ssh->rportfwds, 0)) != NULL)
 	    free_rportfwd(pf);
@@ -10062,7 +10660,7 @@ static void ssh_reconfig(void *handle, Conf *conf)
     ssh->conf = conf_copy(conf);
     ssh_cache_conf_values(ssh);
 
-    if (rekeying) {
+    if (!ssh->bare_connection && rekeying) {
 	if (!ssh->kex_in_progress) {
 	    do_ssh2_transport(ssh, rekeying, -1, NULL);
 	} else if (rekey_mandatory) {
@@ -10217,7 +10815,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
     } else if (ssh->version == 2) {
 	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE))
 	    ADD_SPECIALS(ssh2_ignore_special);
-	if (!(ssh->remote_bugs & BUG_SSH2_REKEY))
+	if (!(ssh->remote_bugs & BUG_SSH2_REKEY) && !ssh->bare_connection)
 	    ADD_SPECIALS(ssh2_rekey_special);
 	if (ssh->mainchan)
 	    ADD_SPECIALS(ssh2_session_specials);
@@ -10273,7 +10871,8 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    }
 	}
     } else if (code == TS_REKEY) {
-	if (!ssh->kex_in_progress && ssh->version == 2) {
+	if (!ssh->kex_in_progress && !ssh->bare_connection &&
+            ssh->version == 2) {
 	    do_ssh2_transport(ssh, "at user request", -1, NULL);
 	}
     } else if (code == TS_BRK) {
@@ -10333,6 +10932,41 @@ void *new_sock_channel(void *handle, struct PortForwarding *pf)
     return c;
 }
 
+unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
+{
+    struct ssh_channel *c;
+    c = snew(struct ssh_channel);
+
+    c->ssh = ssh;
+    ssh2_channel_init(c);
+    c->type = CHAN_SHARING;
+    c->u.sharing.ctx = sharing_ctx;
+    add234(ssh->channels, c);
+    return c->localid;
+}
+
+void ssh_delete_sharing_channel(Ssh ssh, unsigned localid)
+{
+    struct ssh_channel *c;
+
+    c = find234(ssh->channels, &localid, ssh_channelfind);
+    if (c)
+        ssh_channel_destroy(c);
+}
+
+void ssh_send_packet_from_downstream(Ssh ssh, unsigned id, int type,
+                                     const void *data, int datalen,
+                                     const char *additional_log_text)
+{
+    struct Packet *pkt;
+
+    pkt = ssh2_pkt_init(type);
+    pkt->downstream_id = id;
+    pkt->additional_log_text = additional_log_text;
+    ssh2_pkt_adddata(pkt, data, datalen);
+    ssh2_pkt_send(ssh, pkt);
+}
+
 /*
  * This is called when stdout/stderr (the entity to which
  * from_backend sends data) manages to clear some backlog.
@@ -10352,7 +10986,7 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    ssh2_set_window(ssh->mainchan,
 			    bufsize < ssh->mainchan->v.v2.locmaxwin ?
 			    ssh->mainchan->v.v2.locmaxwin - bufsize : 0);
-	    if (conf_get_int(ssh->conf, CONF_ssh_simple))
+	    if (ssh_is_simple(ssh))
 		buflimit = 0;
 	    else
 		buflimit = ssh->mainchan->v.v2.locmaxwin;
