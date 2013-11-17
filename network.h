@@ -205,6 +205,12 @@ int net_service_lookup(char *service);
  */
 char *get_hostname(void);
 
+/*
+ * Trivial socket implementation which just stores an error. Found in
+ * errsock.c.
+ */
+Socket new_error_socket(const char *errmsg, Plug plug);
+
 /********** SSL stuff **********/
 
 /*
