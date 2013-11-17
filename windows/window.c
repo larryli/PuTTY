@@ -88,7 +88,7 @@ static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
 static void update_savedsess_menu(void);
-static void init_flashwindow(void);
+static void init_winfuncs(void);
 
 static int is_full_screen(void);
 static void make_full_screen(void);
@@ -367,7 +367,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     init_help();
 
-    init_flashwindow();
+    init_winfuncs();
 
     conf = conf_new();
 
@@ -3881,6 +3881,17 @@ int char_width(Context ctx, int uc) {
     return ibuf;
 }
 
+DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
+DECL_WINDOWS_FUNCTION(static, BOOL, ToUnicodeEx,
+                      (UINT, UINT, const BYTE *, LPWSTR, int, UINT, HKL));
+
+static void init_winfuncs(void)
+{
+    HMODULE user32_module = load_system32_dll("user32.dll");
+    GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
+    GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
+}
+
 /*
  * Translate a WM_(SYS)?KEY(UP|DOWN) message into a string of ASCII
  * codes. Returns number of bytes used, zero to drop the message,
@@ -4574,9 +4585,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	/* XXX how do we know what the max size of the keys array should
 	 * be is? There's indication on MS' website of an Inquire/InquireEx
 	 * functioning returning a KBINFO structure which tells us. */
-	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-	    r = ToUnicodeEx(wParam, scan, keystate, keys_unicode,
-                            lenof(keys_unicode), 0, kbd_layout);
+	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT && p_ToUnicodeEx) {
+	    r = p_ToUnicodeEx(wParam, scan, keystate, keys_unicode,
+                              lenof(keys_unicode), 0, kbd_layout);
 	} else {
 	    /* XXX 'keys' parameter is declared in MSDN documentation as
 	     * 'LPWORD lpChar'.
@@ -5359,14 +5370,6 @@ void nonfatal(char *fmt, ...)
     sprintf(morestuff, "%.70s Error", appname);
     MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
     sfree(stuff);
-}
-
-DECL_WINDOWS_FUNCTION(static, BOOL, FlashWindowEx, (PFLASHWINFO));
-
-static void init_flashwindow(void)
-{
-    HMODULE user32_module = load_system32_dll("user32.dll");
-    GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
 }
 
 static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
