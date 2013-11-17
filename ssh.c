@@ -623,13 +623,13 @@ struct ssh_portfwd {
 	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
 struct Packet {
-    long length;	    /* length of `data' actually used */
+    long length;	    /* length of packet: see below */
     long forcepad;	    /* SSH-2: force padding to at least this length */
     int type;		    /* only used for incoming packets */
     unsigned long sequence; /* SSH-2 incoming sequence number */
     unsigned char *data;    /* allocated storage */
     unsigned char *body;    /* offset of payload within `data' */
-    long savedpos;	    /* temporary index into `data' (for strings) */
+    long savedpos;	    /* dual-purpose saved packet position: see below */
     long maxlen;	    /* amount of storage allocated for `data' */
     long encrypted_len;	    /* for SSH-2 total-size counting */
 
@@ -639,6 +639,28 @@ struct Packet {
     int logmode;
     int nblanks;
     struct logblank_t *blanks;
+
+    /*
+     * A note on the 'length' and 'savedpos' fields above.
+     *
+     * Incoming packets are set up so that pkt->length is measured
+     * relative to pkt->body, which itself points to a few bytes after
+     * pkt->data (skipping some uninteresting header fields including
+     * the packet type code). The ssh_pkt_get* functions all expect
+     * this setup, and they also use pkt->savedpos to indicate how far
+     * through the packet being decoded they've got - and that, too,
+     * is an offset from pkt->body rather than pkt->data.
+     *
+     * During construction of an outgoing packet, however, pkt->length
+     * is measured relative to the base pointer pkt->data, and
+     * pkt->body is not really used for anything until the packet is
+     * ready for sending. In this mode, pkt->savedpos is reused as a
+     * temporary variable by the addstring functions, which write out
+     * a string length field and then keep going back and updating it
+     * as more data is appended to the subsequent string data field;
+     * pkt->savedpos stores the offset (again relative to pkt->data)
+     * of the start of the string data field.
+     */
 };
 
 static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
@@ -1235,6 +1257,11 @@ static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->pktin->type = st->pktin->body[-1];
 
     /*
+     * Now pktin->body and pktin->length identify the semantic content
+     * of the packet, excluding the initial type byte.
+     */
+
+    /*
      * Log incoming packet, possibly omitting sensitive fields.
      */
     if (ssh->logctx) {
@@ -1464,9 +1491,15 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	}
     }
 
-    st->pktin->savedpos = 6;
-    st->pktin->body = st->pktin->data;
+    /*
+     * pktin->body and pktin->length should identify the semantic
+     * content of the packet, excluding the initial type byte.
+     */
     st->pktin->type = st->pktin->data[5];
+    st->pktin->body = st->pktin->data + 6;
+    st->pktin->length = st->packetlen - 6 - st->pad;
+    st->pktin->savedpos = 0;
+    assert(st->pktin->length >= 0);    /* one last double-check */
 
     /*
      * Log incoming packet, possibly omitting sensitive fields.
@@ -1492,7 +1525,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	log_packet(ssh->logctx, PKT_INCOMING, st->pktin->type,
 		   ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
 				 st->pktin->type),
-		   st->pktin->data+6, st->pktin->length-6,
+		   st->pktin->body, st->pktin->length,
 		   nblanks, &blank, &st->pktin->sequence);
     }
 
@@ -5822,9 +5855,9 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	hash_string(ssh->kex->hash, ssh->exhash,
 	    s->our_kexinit, s->our_kexinitlen);
 	sfree(s->our_kexinit);
-	if (pktin->length > 5)
-	    hash_string(ssh->kex->hash, ssh->exhash,
-		pktin->data + 5, pktin->length - 5);
+        /* Include the type byte in the hash of server's KEXINIT */
+        hash_string(ssh->kex->hash, ssh->exhash,
+                    pktin->body - 1, pktin->length + 1);
 
 	if (s->warn_kex) {
 	    ssh_set_frozen(ssh, 1);
