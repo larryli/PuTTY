@@ -330,24 +330,27 @@ void random_add_heavynoise(void *noise, int length);
 
 void logevent(void *, const char *);
 
+struct PortForwarding;
+
 /* Allocate and register a new channel for port forwarding */
-void *new_sock_channel(void *handle, Socket s);
+void *new_sock_channel(void *handle, struct PortForwarding *pf);
 void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
 
 /* Exports from portfwd.c */
-extern const char *pfd_newconnect(Socket * s, char *hostname, int port,
-				  void *c, Conf *conf, int addressfamily);
+extern char *pfd_connect(struct PortForwarding **pf, char *hostname, int port,
+                         void *c, Conf *conf, int addressfamily);
+extern void pfd_close(struct PortForwarding *);
+extern int pfd_send(struct PortForwarding *, char *data, int len);
+extern void pfd_send_eof(struct PortForwarding *);
+extern void pfd_confirm(struct PortForwarding *);
+extern void pfd_unthrottle(struct PortForwarding *);
+extern void pfd_override_throttle(struct PortForwarding *, int enable);
+struct PortListener;
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
-extern const char *pfd_addforward(char *desthost, int destport, char *srcaddr,
-				  int port, void *backhandle, Conf *conf,
-				  void **sockdata, int address_family);
-extern void pfd_close(Socket s);
-extern void pfd_terminate(void *sockdata);
-extern int pfd_send(Socket s, char *data, int len);
-extern void pfd_send_eof(Socket s);
-extern void pfd_confirm(Socket s);
-extern void pfd_unthrottle(Socket s);
-extern void pfd_override_throttle(Socket s, int enable);
+extern char *pfl_listen(char *desthost, int destport, char *srcaddr,
+                        int port, void *backhandle, Conf *conf,
+                        struct PortListener **pl, int address_family);
+extern void pfl_terminate(struct PortListener *);
 
 /* Exports from x11fwd.c */
 enum {
@@ -396,13 +399,14 @@ struct X11Display {
 extern struct X11Display *x11_setup_display(char *display, int authtype,
 					    Conf *);
 void x11_free_display(struct X11Display *disp);
-extern const char *x11_init(Socket *, struct X11Display *, void *,
-			    const char *, int, Conf *);
-extern void x11_close(Socket);
-extern int x11_send(Socket, char *, int);
-extern void x11_send_eof(Socket s);
-extern void x11_unthrottle(Socket s);
-extern void x11_override_throttle(Socket s, int enable);
+struct X11Connection;                  /* opaque outside x11fwd.c */
+extern char *x11_init(struct X11Connection **, struct X11Display *,
+                      void *, const char *, int, Conf *);
+extern void x11_close(struct X11Connection *);
+extern int x11_send(struct X11Connection *, char *, int);
+extern void x11_send_eof(struct X11Connection *s);
+extern void x11_unthrottle(struct X11Connection *s);
+extern void x11_override_throttle(struct X11Connection *s, int enable);
 char *x11_display(const char *display);
 /* Platform-dependent X11 functions */
 extern void platform_get_x11_auth(struct X11Display *display, Conf *);

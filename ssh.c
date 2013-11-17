@@ -544,10 +544,10 @@ struct ssh_channel {
             int outstanding_requests;
 	} a;
 	struct ssh_x11_channel {
-	    Socket s;
+	    struct X11Connection *xconn;
 	} x11;
 	struct ssh_pfd_channel {
-	    Socket s;
+            struct PortForwarding *pf;
 	} pfd;
     } u;
 };
@@ -613,7 +613,7 @@ struct ssh_portfwd {
     char *sserv, *dserv;
     struct ssh_rportfwd *remote;
     int addressfamily;
-    void *local;
+    struct PortListener *local;
 };
 #define free_portfwd(pf) ( \
     ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr), \
@@ -3005,11 +3005,11 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 	while (NULL != (c = index234(ssh->channels, 0))) {
 	    switch (c->type) {
 	      case CHAN_X11:
-		x11_close(c->u.x11.s);
+		x11_close(c->u.x11.xconn);
 		break;
 	      case CHAN_SOCKDATA:
 	      case CHAN_SOCKDATA_DORMANT:
-		pfd_close(c->u.pfd.s);
+		pfd_close(c->u.pfd.pf);
 		break;
 	    }
 	    del234(ssh->channels, c); /* moving next one to index 0 */
@@ -3027,7 +3027,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 	while (NULL != (pf = index234(ssh->portfwds, 0))) {
 	    /* Dispose of any listening socket. */
 	    if (pf->local)
-		pfd_terminate(pf->local);
+		pfl_terminate(pf->local);
 	    del234(ssh->portfwds, pf); /* moving next one to index 0 */
 	    free_portfwd(pf);
 	}
@@ -3238,13 +3238,13 @@ static void ssh_throttle_all(Ssh ssh, int enable, int bufsize)
 	     */
 	    break;
 	  case CHAN_X11:
-	    x11_override_throttle(c->u.x11.s, enable);
+	    x11_override_throttle(c->u.x11.xconn, enable);
 	    break;
 	  case CHAN_AGENT:
 	    /* Agent channels require no buffer management. */
 	    break;
 	  case CHAN_SOCKDATA:
-	    pfd_override_throttle(c->u.pfd.s, enable);
+	    pfd_override_throttle(c->u.pfd.pf, enable);
 	    break;
 	}
     }
@@ -4376,13 +4376,13 @@ void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
 
     switch (c->type) {
       case CHAN_X11:
-        x11_close(c->u.x11.s);
+        x11_close(c->u.x11.xconn);
         logeventf(ssh, "Forwarded X11 connection terminated due to local "
                   "error: %s", err);
         break;
       case CHAN_SOCKDATA:
       case CHAN_SOCKDATA_DORMANT:
-        pfd_close(c->u.pfd.s);
+        pfd_close(c->u.pfd.pf);
         logeventf(ssh, "Forwarded port closed due to local error: %s", err);
         break;
     }
@@ -4720,7 +4720,7 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 		del234(ssh->rportfwds, rpf);
 		free_rportfwd(rpf);
 	    } else if (epf->local) {
-		pfd_terminate(epf->local);
+		pfl_terminate(epf->local);
 	    }
 
 	    delpos234(ssh->portfwds, i);
@@ -4753,29 +4753,31 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 	    }
 
 	    if (epf->type == 'L') {
-		const char *err = pfd_addforward(epf->daddr, epf->dport,
-						 epf->saddr, epf->sport,
-						 ssh, conf,
-						 &epf->local,
-						 epf->addressfamily);
+                char *err = pfl_listen(epf->daddr, epf->dport,
+                                       epf->saddr, epf->sport,
+                                       ssh, conf, &epf->local,
+                                       epf->addressfamily);
 
 		logeventf(ssh, "Local %sport %s forwarding to %s%s%s",
 			  epf->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
 			  epf->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
 			  sportdesc, dportdesc,
 			  err ? " failed: " : "", err ? err : "");
+                if (err)
+                    sfree(err);
 	    } else if (epf->type == 'D') {
-		const char *err = pfd_addforward(NULL, -1,
-						 epf->saddr, epf->sport,
-						 ssh, conf,
-						 &epf->local,
-						 epf->addressfamily);
+		char *err = pfl_listen(NULL, -1, epf->saddr, epf->sport,
+                                       ssh, conf, &epf->local,
+                                       epf->addressfamily);
 
 		logeventf(ssh, "Local %sport %s SOCKS dynamic forwarding%s%s",
 			  epf->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
 			  epf->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
 			  sportdesc,
 			  err ? " failed: " : "", err ? err : "");
+
+                if (err)
+                    sfree(err);
 	    } else {
 		struct ssh_rportfwd *pf;
 
@@ -4875,12 +4877,15 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 		    PKT_INT, remoteid, PKT_END);
 	logevent("Rejected X11 connect request");
     } else {
+        char *err;
+
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 
-	if (x11_init(&c->u.x11.s, ssh->x11disp, c,
-		     NULL, -1, ssh->conf) != NULL) {
-	    logevent("Opening X11 forward connection failed");
+	if ((err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
+                            NULL, -1, ssh->conf)) != NULL) {
+	    logeventf(ssh, "Opening X11 forward connection failed: %s", err);
+            sfree(err);
 	    sfree(c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 			PKT_INT, remoteid, PKT_END);
@@ -4942,7 +4947,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     int remoteid;
     int hostsize, port;
     char *host;
-    const char *e;
+    char *err;
 
     remoteid = ssh_pkt_getuint32(pktin);
     ssh_pkt_getstring(pktin, &host, &hostsize);
@@ -4963,10 +4968,11 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 
 	logeventf(ssh, "Received remote port open request for %s:%d",
 		  pf.dhost, port);
-	e = pfd_newconnect(&c->u.pfd.s, pf.dhost, port,
-			   c, ssh->conf, pfp->pfrec->addressfamily);
-	if (e != NULL) {
-	    logeventf(ssh, "Port open failed: %s", e);
+	err = pfd_connect(&c->u.pfd.pf, pf.dhost, port,
+                          c, ssh->conf, pfp->pfrec->addressfamily);
+	if (err != NULL) {
+	    logeventf(ssh, "Port open failed: %s", err);
+            sfree(err);
 	    sfree(c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 			PKT_INT, remoteid, PKT_END);
@@ -5001,7 +5007,7 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 	c->halfopen = FALSE;
 	c->type = CHAN_SOCKDATA;
 	c->throttling_conn = 0;
-	pfd_confirm(c->u.pfd.s);
+	pfd_confirm(c->u.pfd.pf);
     }
 
     if (c && c->pending_eof) {
@@ -5023,7 +5029,7 @@ static void ssh1_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     c = find234(ssh->channels, &remoteid, ssh_channelfind);
     if (c && c->type == CHAN_SOCKDATA_DORMANT) {
 	logevent("Forwarded connection refused by server");
-	pfd_close(c->u.pfd.s);
+	pfd_close(c->u.pfd.pf);
 	del234(ssh->channels, c);
 	sfree(c);
     }
@@ -5049,14 +5055,14 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
 
             switch (c->type) {
               case CHAN_X11:
-                if (c->u.x11.s)
-                    x11_send_eof(c->u.x11.s);
+                if (c->u.x11.xconn)
+                    x11_send_eof(c->u.x11.xconn);
                 else
                     send_close = TRUE;
 		break;
               case CHAN_SOCKDATA:
-                if (c->u.pfd.s)
-                    pfd_send_eof(c->u.pfd.s);
+                if (c->u.pfd.pf)
+                    pfd_send_eof(c->u.pfd.pf);
                 else
                     send_close = TRUE;
 		break;
@@ -5115,10 +5121,10 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	int bufsize = 0;
 	switch (c->type) {
 	  case CHAN_X11:
-	    bufsize = x11_send(c->u.x11.s, p, len);
+	    bufsize = x11_send(c->u.x11.xconn, p, len);
 	    break;
 	  case CHAN_SOCKDATA:
-	    bufsize = pfd_send(c->u.pfd.s, p, len);
+	    bufsize = pfd_send(c->u.pfd.pf, p, len);
 	    break;
 	  case CHAN_AGENT:
 	    /* Data for an agent message. Buffer it. */
@@ -6660,14 +6666,14 @@ static void ssh2_try_send_and_unthrottle(Ssh ssh, struct ssh_channel *c)
 	     * notification since it will be polled */
 	    break;
 	  case CHAN_X11:
-	    x11_unthrottle(c->u.x11.s);
+	    x11_unthrottle(c->u.x11.xconn);
 	    break;
 	  case CHAN_AGENT:
 	    /* agent sockets are request/response and need no
 	     * buffer management */
 	    break;
 	  case CHAN_SOCKDATA:
-	    pfd_unthrottle(c->u.pfd.s);
+	    pfd_unthrottle(c->u.pfd.pf);
 	    break;
 	}
     }
@@ -6930,10 +6936,10 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 			     data, length);
 	    break;
 	  case CHAN_X11:
-	    bufsize = x11_send(c->u.x11.s, data, length);
+	    bufsize = x11_send(c->u.x11.xconn, data, length);
 	    break;
 	  case CHAN_SOCKDATA:
-	    bufsize = pfd_send(c->u.pfd.s, data, length);
+	    bufsize = pfd_send(c->u.pfd.pf, data, length);
 	    break;
 	  case CHAN_AGENT:
 	    while (length > 0) {
@@ -7021,16 +7027,16 @@ static void ssh_channel_destroy(struct ssh_channel *c)
         update_specials_menu(ssh->frontend);
         break;
       case CHAN_X11:
-        if (c->u.x11.s != NULL)
-            x11_close(c->u.x11.s);
+        if (c->u.x11.xconn != NULL)
+            x11_close(c->u.x11.xconn);
         logevent("Forwarded X11 connection terminated");
         break;
       case CHAN_AGENT:
         sfree(c->u.a.message);
         break;
       case CHAN_SOCKDATA:
-        if (c->u.pfd.s != NULL)
-            pfd_close(c->u.pfd.s);
+        if (c->u.pfd.pf != NULL)
+            pfd_close(c->u.pfd.pf);
         logevent("Forwarded port closed");
         break;
     }
@@ -7112,14 +7118,14 @@ static void ssh2_channel_got_eof(struct ssh_channel *c)
     c->closes |= CLOSES_RCVD_EOF;
 
     if (c->type == CHAN_X11) {
-	x11_send_eof(c->u.x11.s);
+	x11_send_eof(c->u.x11.xconn);
     } else if (c->type == CHAN_AGENT) {
         if (c->u.a.outstanding_requests == 0) {
             /* Manufacture an outgoing EOF in response to the incoming one. */
             sshfwd_write_eof(c);
         }
     } else if (c->type == CHAN_SOCKDATA) {
-	pfd_send_eof(c->u.pfd.s);
+	pfd_send_eof(c->u.pfd.pf);
     } else if (c->type == CHAN_MAINSESSION) {
         Ssh ssh = c->ssh;
 
@@ -7182,10 +7188,10 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
             ssh->send_ok = 0;     /* stop trying to read from stdin */
             break;
           case CHAN_X11:
-	    x11_override_throttle(c->u.x11.s, 1);
+	    x11_override_throttle(c->u.x11.xconn, 1);
 	    break;
 	  case CHAN_SOCKDATA:
-	    pfd_override_throttle(c->u.pfd.s, 1);
+	    pfd_override_throttle(c->u.pfd.pf, 1);
 	    break;
         }
 
@@ -7228,8 +7234,8 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 
     if (c->type == CHAN_SOCKDATA_DORMANT) {
         c->type = CHAN_SOCKDATA;
-        if (c->u.pfd.s)
-            pfd_confirm(c->u.pfd.s);
+        if (c->u.pfd.pf)
+            pfd_confirm(c->u.pfd.pf);
     } else if (c->type == CHAN_ZOMBIE) {
         /*
          * This case can occur if a local socket error occurred
@@ -7285,7 +7291,7 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
         logeventf(ssh, "Forwarded connection refused by server: %s [%.*s]",
                   reasons[reason_code], reason_length, reason_string);
 
-        pfd_close(c->u.pfd.s);
+        pfd_close(c->u.pfd.pf);
     } else if (c->type == CHAN_ZOMBIE) {
         /*
          * This case can occur if a local socket error occurred
@@ -7536,7 +7542,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
     if (typelen == 3 && !memcmp(type, "x11", 3)) {
 	char *addrstr;
-	const char *x11err;
+	char *x11err;
 
 	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
 	addrstr = snewn(peeraddrlen+1, char);
@@ -7549,9 +7555,10 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if ((x11err = x11_init(&c->u.x11.s, ssh->x11disp, c,
+	else if ((x11err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
 				    addrstr, peerport, ssh->conf)) != NULL) {
 	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
+            sfree(x11err);
 	    error = "Unable to open an X11 connection";
 	} else {
 	    logevent("Opening X11 forward connection succeeded");
@@ -7577,15 +7584,16 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	if (realpf == NULL) {
 	    error = "Remote port is not recognised";
 	} else {
-	    const char *e = pfd_newconnect(&c->u.pfd.s,
-					   realpf->dhost,
-					   realpf->dport, c,
-					   ssh->conf,
-					   realpf->pfrec->addressfamily);
+	    char *err = pfd_connect(&c->u.pfd.pf,
+                                    realpf->dhost,
+                                    realpf->dport, c,
+                                    ssh->conf,
+                                    realpf->pfrec->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
-	    if (e != NULL) {
-		logeventf(ssh, "Port open failed: %s", e);
+	    if (err != NULL) {
+		logeventf(ssh, "Port open failed: %s", err);
+                sfree(err);
 		error = "Port open failed";
 	    } else {
 		logevent("Forwarded port opened successfully");
@@ -9909,13 +9917,13 @@ static void ssh_free(void *handle)
 	while ((c = delpos234(ssh->channels, 0)) != NULL) {
 	    switch (c->type) {
 	      case CHAN_X11:
-		if (c->u.x11.s != NULL)
-		    x11_close(c->u.x11.s);
+		if (c->u.x11.xconn != NULL)
+		    x11_close(c->u.x11.xconn);
 		break;
 	      case CHAN_SOCKDATA:
 	      case CHAN_SOCKDATA_DORMANT:
-		if (c->u.pfd.s != NULL)
-		    pfd_close(c->u.pfd.s);
+		if (c->u.pfd.pf != NULL)
+		    pfd_close(c->u.pfd.pf);
 		break;
 	    }
 	    if (ssh->version == 2) {
@@ -10288,7 +10296,7 @@ static void ssh_special(void *handle, Telnet_Special code)
     }
 }
 
-void *new_sock_channel(void *handle, Socket s)
+void *new_sock_channel(void *handle, struct PortForwarding *pf)
 {
     Ssh ssh = (Ssh) handle;
     struct ssh_channel *c;
@@ -10298,7 +10306,7 @@ void *new_sock_channel(void *handle, Socket s)
     ssh2_channel_init(c);
     c->halfopen = TRUE;
     c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
-    c->u.pfd.s = s;
+    c->u.pfd.pf = pf;
     add234(ssh->channels, c);
     return c;
 }

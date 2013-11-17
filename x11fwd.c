@@ -26,7 +26,7 @@ struct XDMSeen {
     unsigned char clientid[6];
 };
 
-struct X11Private {
+struct X11Connection {
     const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     unsigned char firstpkt[12];	       /* first X data packet */
@@ -38,7 +38,7 @@ struct X11Private {
     int throttled, throttle_override;
     unsigned long peer_ip;
     int peer_port;
-    void *c;			       /* data used by ssh.c */
+    struct ssh_channel *c;        /* channel structure held by ssh.c */
     Socket s;
 };
 
@@ -504,20 +504,20 @@ static void x11_log(Plug p, int type, SockAddr addr, int port,
 static int x11_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
-    struct X11Private *pr = (struct X11Private *) plug;
+    struct X11Connection *xconn = (struct X11Connection *) plug;
 
     if (error_msg) {
         /*
          * Socket error. Slam the connection instantly shut.
          */
-        sshfwd_unclean_close(pr->c, error_msg);
+        sshfwd_unclean_close(xconn->c, error_msg);
     } else {
         /*
          * Ordinary EOF received on socket. Send an EOF on the SSH
          * channel.
          */
-        if (pr->c)
-            sshfwd_write_eof(pr->c);
+        if (xconn->c)
+            sshfwd_write_eof(xconn->c);
     }
 
     return 1;
@@ -525,11 +525,11 @@ static int x11_closing(Plug plug, const char *error_msg, int error_code,
 
 static int x11_receive(Plug plug, int urgent, char *data, int len)
 {
-    struct X11Private *pr = (struct X11Private *) plug;
+    struct X11Connection *xconn = (struct X11Connection *) plug;
 
-    if (sshfwd_write(pr->c, data, len) > 0) {
-	pr->throttled = 1;
-	sk_set_frozen(pr->s, 1);
+    if (sshfwd_write(xconn->c, data, len) > 0) {
+	xconn->throttled = 1;
+	sk_set_frozen(xconn->s, 1);
     }
 
     return 1;
@@ -537,9 +537,9 @@ static int x11_receive(Plug plug, int urgent, char *data, int len)
 
 static void x11_sent(Plug plug, int bufsize)
 {
-    struct X11Private *pr = (struct X11Private *) plug;
+    struct X11Connection *xconn = (struct X11Connection *) plug;
 
-    sshfwd_unthrottle(pr->c, bufsize);
+    sshfwd_unthrottle(xconn->c, bufsize);
 }
 
 /*
@@ -563,11 +563,12 @@ int x11_get_screen_number(char *display)
 /*
  * Called to set up the raw connection.
  * 
- * Returns an error message, or NULL on success.
- * also, fills the SocketsStructure
+ * On success, returns NULL and fills in *xconnret. On error, returns
+ * a dynamically allocated error message string.
  */
-extern const char *x11_init(Socket *s, struct X11Display *disp, void *c,
-			    const char *peeraddr, int peerport, Conf *conf)
+extern char *x11_init(struct X11Connection **xconnret,
+                      struct X11Display *disp, void *c,
+                      const char *peeraddr, int peerport, Conf *conf)
 {
     static const struct plug_function_table fn_table = {
 	x11_log,
@@ -578,26 +579,29 @@ extern const char *x11_init(Socket *s, struct X11Display *disp, void *c,
     };
 
     const char *err;
-    struct X11Private *pr;
+    struct X11Connection *xconn;
 
     /*
      * Open socket.
      */
-    pr = snew(struct X11Private);
-    pr->fn = &fn_table;
-    pr->auth_protocol = NULL;
-    pr->disp = disp;
-    pr->verified = 0;
-    pr->data_read = 0;
-    pr->throttled = pr->throttle_override = 0;
-    pr->c = c;
+    xconn = *xconnret = snew(struct X11Connection);
+    xconn->fn = &fn_table;
+    xconn->auth_protocol = NULL;
+    xconn->disp = disp;
+    xconn->verified = 0;
+    xconn->data_read = 0;
+    xconn->throttled = xconn->throttle_override = 0;
+    xconn->c = c;
 
-    pr->s = *s = new_connection(sk_addr_dup(disp->addr),
-				disp->realhost, disp->port,
-				0, 1, 0, 0, (Plug) pr, conf);
-    if ((err = sk_socket_error(*s)) != NULL) {
-	sfree(pr);
-	return err;
+    xconn->s = new_connection(sk_addr_dup(disp->addr),
+                           disp->realhost, disp->port,
+                           0, 1, 0, 0, (Plug) xconn, conf);
+    if ((err = sk_socket_error(xconn->s)) != NULL) {
+        char *err_ret = dupstr(err);
+        sk_close(xconn->s);
+	sfree(xconn);
+        *xconnret = NULL;
+	return err_ret;
     }
 
     /*
@@ -607,109 +611,102 @@ extern const char *x11_init(Socket *s, struct X11Display *disp, void *c,
 	int i[4];
 	if (peeraddr &&
 	    4 == sscanf(peeraddr, "%d.%d.%d.%d", i+0, i+1, i+2, i+3)) {
-	    pr->peer_ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
-	    pr->peer_port = peerport;
+	    xconn->peer_ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
+	    xconn->peer_port = peerport;
 	} else {
-	    pr->peer_ip = 0;
-	    pr->peer_port = -1;
+	    xconn->peer_ip = 0;
+	    xconn->peer_port = -1;
 	}
     }
 
-    sk_set_private_ptr(*s, pr);
     return NULL;
 }
 
-void x11_close(Socket s)
+void x11_close(struct X11Connection *xconn)
 {
-    struct X11Private *pr;
-    if (!s)
+    if (!xconn)
 	return;
-    pr = (struct X11Private *) sk_get_private_ptr(s);
-    if (pr->auth_protocol) {
-	sfree(pr->auth_protocol);
-	sfree(pr->auth_data);
+
+    if (xconn->auth_protocol) {
+	sfree(xconn->auth_protocol);
+	sfree(xconn->auth_data);
     }
 
-    sfree(pr);
-
-    sk_close(s);
+    sk_close(xconn->s);
+    sfree(xconn);
 }
 
-void x11_unthrottle(Socket s)
+void x11_unthrottle(struct X11Connection *xconn)
 {
-    struct X11Private *pr;
-    if (!s)
+    if (!xconn)
 	return;
-    pr = (struct X11Private *) sk_get_private_ptr(s);
 
-    pr->throttled = 0;
-    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+    xconn->throttled = 0;
+    sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
 }
 
-void x11_override_throttle(Socket s, int enable)
+void x11_override_throttle(struct X11Connection *xconn, int enable)
 {
-    struct X11Private *pr;
-    if (!s)
+    if (!xconn)
 	return;
-    pr = (struct X11Private *) sk_get_private_ptr(s);
 
-    pr->throttle_override = enable;
-    sk_set_frozen(s, pr->throttled || pr->throttle_override);
+    xconn->throttle_override = enable;
+    sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
 }
 
 /*
  * Called to send data down the raw connection.
  */
-int x11_send(Socket s, char *data, int len)
+int x11_send(struct X11Connection *xconn, char *data, int len)
 {
-    struct X11Private *pr;
-    if (!s)
+    if (!xconn)
 	return 0;
-    pr = (struct X11Private *) sk_get_private_ptr(s);
 
     /*
      * Read the first packet.
      */
-    while (len > 0 && pr->data_read < 12)
-	pr->firstpkt[pr->data_read++] = (unsigned char) (len--, *data++);
-    if (pr->data_read < 12)
+    while (len > 0 && xconn->data_read < 12)
+	xconn->firstpkt[xconn->data_read++] = (unsigned char) (len--, *data++);
+    if (xconn->data_read < 12)
 	return 0;
 
     /*
      * If we have not allocated the auth_protocol and auth_data
      * strings, do so now.
      */
-    if (!pr->auth_protocol) {
-	pr->auth_plen = GET_16BIT(pr->firstpkt[0], pr->firstpkt + 6);
-	pr->auth_dlen = GET_16BIT(pr->firstpkt[0], pr->firstpkt + 8);
-	pr->auth_psize = (pr->auth_plen + 3) & ~3;
-	pr->auth_dsize = (pr->auth_dlen + 3) & ~3;
+    if (!xconn->auth_protocol) {
+	xconn->auth_plen = GET_16BIT(xconn->firstpkt[0], xconn->firstpkt + 6);
+	xconn->auth_dlen = GET_16BIT(xconn->firstpkt[0], xconn->firstpkt + 8);
+	xconn->auth_psize = (xconn->auth_plen + 3) & ~3;
+	xconn->auth_dsize = (xconn->auth_dlen + 3) & ~3;
 	/* Leave room for a terminating zero, to make our lives easier. */
-	pr->auth_protocol = snewn(pr->auth_psize + 1, char);
-	pr->auth_data = snewn(pr->auth_dsize, unsigned char);
+	xconn->auth_protocol = snewn(xconn->auth_psize + 1, char);
+	xconn->auth_data = snewn(xconn->auth_dsize, unsigned char);
     }
 
     /*
      * Read the auth_protocol and auth_data strings.
      */
-    while (len > 0 && pr->data_read < 12 + pr->auth_psize)
-	pr->auth_protocol[pr->data_read++ - 12] = (len--, *data++);
-    while (len > 0 && pr->data_read < 12 + pr->auth_psize + pr->auth_dsize)
-	pr->auth_data[pr->data_read++ - 12 -
-		      pr->auth_psize] = (unsigned char) (len--, *data++);
-    if (pr->data_read < 12 + pr->auth_psize + pr->auth_dsize)
+    while (len > 0 &&
+           xconn->data_read < 12 + xconn->auth_psize)
+	xconn->auth_protocol[xconn->data_read++ - 12] = (len--, *data++);
+    while (len > 0 &&
+           xconn->data_read < 12 + xconn->auth_psize + xconn->auth_dsize)
+	xconn->auth_data[xconn->data_read++ - 12 -
+		      xconn->auth_psize] = (unsigned char) (len--, *data++);
+    if (xconn->data_read < 12 + xconn->auth_psize + xconn->auth_dsize)
 	return 0;
 
     /*
      * If we haven't verified the authorisation, do so now.
      */
-    if (!pr->verified) {
+    if (!xconn->verified) {
 	char *err;
 
-	pr->auth_protocol[pr->auth_plen] = '\0';	/* ASCIZ */
-	err = x11_verify(pr->peer_ip, pr->peer_port,
-			 pr->disp, pr->auth_protocol,
-			 pr->auth_data, pr->auth_dlen);
+	xconn->auth_protocol[xconn->auth_plen] = '\0';	/* ASCIZ */
+	err = x11_verify(xconn->peer_ip, xconn->peer_port,
+			 xconn->disp, xconn->auth_protocol,
+			 xconn->auth_data, xconn->auth_dlen);
 
 	/*
 	 * If authorisation failed, construct and send an error
@@ -726,12 +723,12 @@ int x11_send(Socket s, char *data, int len)
 	    msgsize = (msglen + 3) & ~3;
 	    reply[0] = 0;	       /* failure */
 	    reply[1] = msglen;	       /* length of reason string */
-	    memcpy(reply + 2, pr->firstpkt + 2, 4);	/* major/minor proto vsn */
-	    PUT_16BIT(pr->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
+	    memcpy(reply + 2, xconn->firstpkt + 2, 4);	/* major/minor proto vsn */
+	    PUT_16BIT(xconn->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
 	    memset(reply + 8, 0, msgsize);
 	    memcpy(reply + 8, message, msglen);
-	    sshfwd_write(pr->c, (char *)reply, 8 + msgsize);
-	    sshfwd_write_eof(pr->c);
+	    sshfwd_write(xconn->c, (char *)reply, 8 + msgsize);
+	    sshfwd_write_eof(xconn->c);
 	    sfree(reply);
 	    sfree(message);
 	    return 0;
@@ -745,59 +742,59 @@ int x11_send(Socket s, char *data, int len)
         {
             char realauthdata[64];
             int realauthlen = 0;
-            int authstrlen = strlen(x11_authnames[pr->disp->localauthproto]);
+            int authstrlen = strlen(x11_authnames[xconn->disp->localauthproto]);
 	    int buflen = 0;	       /* initialise to placate optimiser */
             static const char zeroes[4] = { 0,0,0,0 };
 	    void *buf;
 
-            if (pr->disp->localauthproto == X11_MIT) {
-                assert(pr->disp->localauthdatalen <= lenof(realauthdata));
-                realauthlen = pr->disp->localauthdatalen;
-                memcpy(realauthdata, pr->disp->localauthdata, realauthlen);
-            } else if (pr->disp->localauthproto == X11_XDM &&
-		       pr->disp->localauthdatalen == 16 &&
-		       ((buf = sk_getxdmdata(s, &buflen))!=0)) {
+            if (xconn->disp->localauthproto == X11_MIT) {
+                assert(xconn->disp->localauthdatalen <= lenof(realauthdata));
+                realauthlen = xconn->disp->localauthdatalen;
+                memcpy(realauthdata, xconn->disp->localauthdata, realauthlen);
+            } else if (xconn->disp->localauthproto == X11_XDM &&
+		       xconn->disp->localauthdatalen == 16 &&
+		       ((buf = sk_getxdmdata(xconn->s, &buflen))!=0)) {
 		time_t t;
                 realauthlen = (buflen+12+7) & ~7;
 		assert(realauthlen <= lenof(realauthdata));
 		memset(realauthdata, 0, realauthlen);
-		memcpy(realauthdata, pr->disp->localauthdata, 8);
+		memcpy(realauthdata, xconn->disp->localauthdata, 8);
 		memcpy(realauthdata+8, buf, buflen);
 		t = time(NULL);
 		PUT_32BIT_MSB_FIRST(realauthdata+8+buflen, t);
-		des_encrypt_xdmauth(pr->disp->localauthdata+9,
+		des_encrypt_xdmauth(xconn->disp->localauthdata+9,
 				    (unsigned char *)realauthdata,
 				    realauthlen);
 		sfree(buf);
 	    }
             /* implement other auth methods here if required */
 
-            PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 6, authstrlen);
-            PUT_16BIT(pr->firstpkt[0], pr->firstpkt + 8, realauthlen);
+            PUT_16BIT(xconn->firstpkt[0], xconn->firstpkt + 6, authstrlen);
+            PUT_16BIT(xconn->firstpkt[0], xconn->firstpkt + 8, realauthlen);
         
-            sk_write(s, (char *)pr->firstpkt, 12);
+            sk_write(xconn->s, (char *)xconn->firstpkt, 12);
 
             if (authstrlen) {
-                sk_write(s, x11_authnames[pr->disp->localauthproto],
+                sk_write(xconn->s, x11_authnames[xconn->disp->localauthproto],
 			 authstrlen);
-                sk_write(s, zeroes, 3 & (-authstrlen));
+                sk_write(xconn->s, zeroes, 3 & (-authstrlen));
             }
             if (realauthlen) {
-                sk_write(s, realauthdata, realauthlen);
-                sk_write(s, zeroes, 3 & (-realauthlen));
+                sk_write(xconn->s, realauthdata, realauthlen);
+                sk_write(xconn->s, zeroes, 3 & (-realauthlen));
             }
         }
-	pr->verified = 1;
+	xconn->verified = 1;
     }
 
     /*
      * After initialisation, just copy data simply.
      */
 
-    return sk_write(s, data, len);
+    return sk_write(xconn->s, data, len);
 }
 
-void x11_send_eof(Socket s)
+void x11_send_eof(struct X11Connection *xconn)
 {
-    sk_write_eof(s);
+    sk_write_eof(xconn->s);
 }
