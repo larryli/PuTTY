@@ -316,10 +316,7 @@ static int sk_nextaddr(SockAddr addr, SockAddrStep *step)
 
 void sk_getaddr(SockAddr addr, char *buf, int buflen)
 {
-    /* XXX not clear what we should return for Unix-domain sockets; let's
-     * hope the question never arises */
-    assert(addr->superfamily != UNIX);
-    if (addr->superfamily == UNRESOLVED) {
+    if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
 	strncpy(buf, addr->hostname, buflen);
 	buf[buflen-1] = '\0';
     } else {
@@ -1281,8 +1278,8 @@ static int net_select_result(int fd, int event)
             nonblock(t);
             actx.i = t;
 
-	    if (s->localhost_only &&
-		!sockaddr_is_loopback(&su.sa)) {
+	    if ((!s->addr || s->addr->superfamily != UNIX) &&
+                s->localhost_only && !sockaddr_is_loopback(&su.sa)) {
 		close(t);	       /* someone let nonlocal through?! */
 	    } else if (plug_accepting(s->plug, sk_tcp_accept, actx)) {
 		close(t);	       /* denied or error */
@@ -1493,4 +1490,105 @@ SockAddr platform_get_x11_unix_address(const char *sockpath, int displaynum)
 #endif
     ret->refcount = 1;
     return ret;
+}
+
+SockAddr unix_sock_addr(const char *path)
+{
+    SockAddr ret = snew(struct SockAddr_tag);
+    int n;
+
+    memset(ret, 0, sizeof *ret);
+    ret->superfamily = UNIX;
+    n = snprintf(ret->hostname, sizeof ret->hostname, "%s", path);
+
+    if (n < 0)
+	ret->error = "snprintf failed";
+    else if (n >= sizeof ret->hostname)
+	ret->error = "socket pathname too long";
+
+#ifndef NO_IPV6
+    ret->ais = NULL;
+#else
+    ret->addresses = NULL;
+    ret->naddresses = 0;
+#endif
+    ret->refcount = 1;
+    return ret;
+}
+
+Socket new_unix_listener(SockAddr listenaddr, Plug plug)
+{
+    int s;
+    union sockaddr_union u;
+    union sockaddr_union *addr;
+    int addrlen;
+    Actual_Socket ret;
+    int retcode;
+
+    /*
+     * Create Socket structure.
+     */
+    ret = snew(struct Socket_tag);
+    ret->fn = &tcp_fn_table;
+    ret->error = NULL;
+    ret->plug = plug;
+    bufchain_init(&ret->output_data);
+    ret->writable = 0;		       /* to start with */
+    ret->sending_oob = 0;
+    ret->frozen = 0;
+    ret->localhost_only = TRUE;
+    ret->pending_error = 0;
+    ret->parent = ret->child = NULL;
+    ret->oobpending = FALSE;
+    ret->outgoingeof = EOF_NO;
+    ret->incomingeof = FALSE;
+    ret->listener = 1;
+    ret->addr = listenaddr;
+
+    assert(listenaddr->superfamily == UNIX);
+
+    /*
+     * Open socket.
+     */
+    s = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (s < 0) {
+	ret->error = strerror(errno);
+	return (Socket) ret;
+    }
+
+    cloexec(s);
+
+    ret->oobinline = 0;
+
+    memset(&u, '\0', sizeof(u));
+    u.su.sun_family = AF_UNIX;
+    strncpy(u.su.sun_path, listenaddr->hostname, sizeof(u.su.sun_path)-1);
+    addr = &u;
+    addrlen = sizeof(u.su);
+
+    if (unlink(u.su.sun_path) < 0 && errno != ENOENT) {
+        close(s);
+	ret->error = strerror(errno);
+	return (Socket) ret;
+    }
+
+    retcode = bind(s, &addr->sa, addrlen);
+    if (retcode < 0) {
+        close(s);
+	ret->error = strerror(errno);
+	return (Socket) ret;
+    }
+
+    if (listen(s, SOMAXCONN) < 0) {
+        close(s);
+	ret->error = strerror(errno);
+	return (Socket) ret;
+    }
+
+    ret->s = s;
+
+    uxsel_tell(ret);
+    add234(sktree, ret);
+
+    return (Socket) ret;
 }
