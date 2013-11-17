@@ -4355,6 +4355,12 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
     }
 }
 
+Conf *sshfwd_get_conf(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+    return ssh->conf;
+}
+
 void sshfwd_write_eof(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
@@ -4885,7 +4891,7 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	c->ssh = ssh;
 
 	if ((err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
-                            NULL, -1, ssh->conf)) != NULL) {
+                            NULL, -1)) != NULL) {
 	    logeventf(ssh, "Opening X11 forward connection failed: %s", err);
             sfree(err);
 	    sfree(c);
@@ -7558,7 +7564,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
 	else if ((x11err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
-				    addrstr, peerport, ssh->conf)) != NULL) {
+				    addrstr, peerport)) != NULL) {
 	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
             sfree(x11err);
 	    error = "Unable to open an X11 connection";

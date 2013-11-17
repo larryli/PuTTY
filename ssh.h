@@ -13,6 +13,7 @@ extern int sshfwd_write(struct ssh_channel *c, char *, int);
 extern void sshfwd_write_eof(struct ssh_channel *c);
 extern void sshfwd_unclean_close(struct ssh_channel *c, const char *err);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
+Conf *sshfwd_get_conf(struct ssh_channel *c);
 
 /*
  * Useful thing.
@@ -401,7 +402,7 @@ extern struct X11Display *x11_setup_display(char *display, int authtype,
 void x11_free_display(struct X11Display *disp);
 struct X11Connection;                  /* opaque outside x11fwd.c */
 extern char *x11_init(struct X11Connection **, struct X11Display *,
-                      void *, const char *, int, Conf *);
+                      void *, const char *, int);
 extern void x11_close(struct X11Connection *);
 extern int x11_send(struct X11Connection *, char *, int);
 extern void x11_send_eof(struct X11Connection *s);

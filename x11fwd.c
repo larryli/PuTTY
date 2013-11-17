@@ -36,6 +36,7 @@ struct X11Connection {
     int data_read, auth_plen, auth_psize, auth_dlen, auth_dsize;
     int verified;
     int throttled, throttle_override;
+    int no_data_sent_to_x_client;
     unsigned long peer_ip;
     int peer_port;
     struct ssh_channel *c;        /* channel structure held by ssh.c */
@@ -501,6 +502,9 @@ static void x11_log(Plug p, int type, SockAddr addr, int port,
     /* We have no interface to the logging module here, so we drop these. */
 }
 
+static void x11_send_init_error(struct X11Connection *conn,
+                                const char *err_message);
+
 static int x11_closing(Plug plug, const char *error_msg, int error_code,
 		       int calling_back)
 {
@@ -508,7 +512,19 @@ static int x11_closing(Plug plug, const char *error_msg, int error_code,
 
     if (error_msg) {
         /*
-         * Socket error. Slam the connection instantly shut.
+         * Socket error. If we're still at the connection setup stage,
+         * construct an X11 error packet passing on the problem.
+         */
+        if (xconn->no_data_sent_to_x_client) {
+            char *err_message = dupprintf("unable to connect to forwarded "
+                                          "X server: %s", error_msg);
+            x11_send_init_error(xconn, err_message);
+            sfree(err_message);
+        }
+
+        /*
+         * Whether we did that or not, now we slam the connection
+         * shut.
          */
         sshfwd_unclean_close(xconn->c, error_msg);
     } else {
@@ -529,6 +545,7 @@ static int x11_receive(Plug plug, int urgent, char *data, int len)
 
     if (sshfwd_write(xconn->c, data, len) > 0) {
 	xconn->throttled = 1;
+        xconn->no_data_sent_to_x_client = FALSE;
 	sk_set_frozen(xconn->s, 1);
     }
 
@@ -568,7 +585,7 @@ int x11_get_screen_number(char *display)
  */
 extern char *x11_init(struct X11Connection **xconnret,
                       struct X11Display *disp, void *c,
-                      const char *peeraddr, int peerport, Conf *conf)
+                      const char *peeraddr, int peerport)
 {
     static const struct plug_function_table fn_table = {
 	x11_log,
@@ -578,7 +595,6 @@ extern char *x11_init(struct X11Connection **xconnret,
 	NULL
     };
 
-    const char *err;
     struct X11Connection *xconn;
 
     /*
@@ -591,18 +607,17 @@ extern char *x11_init(struct X11Connection **xconnret,
     xconn->verified = 0;
     xconn->data_read = 0;
     xconn->throttled = xconn->throttle_override = 0;
+    xconn->no_data_sent_to_x_client = TRUE;
     xconn->c = c;
 
-    xconn->s = new_connection(sk_addr_dup(disp->addr),
-                           disp->realhost, disp->port,
-                           0, 1, 0, 0, (Plug) xconn, conf);
-    if ((err = sk_socket_error(xconn->s)) != NULL) {
-        char *err_ret = dupstr(err);
-        sk_close(xconn->s);
-	sfree(xconn);
-        *xconnret = NULL;
-	return err_ret;
-    }
+    /*
+     * We don't actually open a local socket to the X server just yet.
+     * Instead, we'll wait until we see the incoming authentication
+     * data, which may tell us we have to divert this X forwarding
+     * channel to a connection-sharing downstream rather than handling
+     * it ourself.
+     */
+    xconn->s = NULL;
 
     /*
      * See if we can make sense of the peer address we were given.
@@ -632,7 +647,8 @@ void x11_close(struct X11Connection *xconn)
 	sfree(xconn->auth_data);
     }
 
-    sk_close(xconn->s);
+    if (xconn->s)
+        sk_close(xconn->s);
     sfree(xconn);
 }
 
@@ -642,7 +658,8 @@ void x11_unthrottle(struct X11Connection *xconn)
 	return;
 
     xconn->throttled = 0;
-    sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
+    if (xconn->s)
+        sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
 }
 
 void x11_override_throttle(struct X11Connection *xconn, int enable)
@@ -651,7 +668,33 @@ void x11_override_throttle(struct X11Connection *xconn, int enable)
 	return;
 
     xconn->throttle_override = enable;
-    sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
+    if (xconn->s)
+        sk_set_frozen(xconn->s, xconn->throttled || xconn->throttle_override);
+}
+
+static void x11_send_init_error(struct X11Connection *xconn,
+                                const char *err_message)
+{
+    char *full_message;
+    int msglen, msgsize;
+    unsigned char *reply;
+
+    full_message = dupprintf("%s X11 proxy: %s\n", appname, err_message);
+
+    msglen = strlen(full_message);
+    reply = snewn(8 + msglen+1 + 4, unsigned char); /* include zero */
+    msgsize = (msglen + 3) & ~3;
+    reply[0] = 0;	       /* failure */
+    reply[1] = msglen;	       /* length of reason string */
+    memcpy(reply + 2, xconn->firstpkt + 2, 4);	/* major/minor proto vsn */
+    PUT_16BIT(xconn->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
+    memset(reply + 8, 0, msgsize);
+    memcpy(reply + 8, full_message, msglen);
+    sshfwd_write(xconn->c, (char *)reply, 8 + msgsize);
+    sshfwd_write_eof(xconn->c);
+    xconn->no_data_sent_to_x_client = FALSE;
+    sfree(reply);
+    sfree(full_message);
 }
 
 /*
@@ -701,43 +744,38 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
      * If we haven't verified the authorisation, do so now.
      */
     if (!xconn->verified) {
-	char *err;
+	const char *err;
+
+        assert(!xconn->s);
 
 	xconn->auth_protocol[xconn->auth_plen] = '\0';	/* ASCIZ */
 	err = x11_verify(xconn->peer_ip, xconn->peer_port,
 			 xconn->disp, xconn->auth_protocol,
 			 xconn->auth_data, xconn->auth_dlen);
-
-	/*
-	 * If authorisation failed, construct and send an error
-	 * packet, then terminate the connection.
-	 */
 	if (err) {
-	    char *message;
-	    int msglen, msgsize;
-	    unsigned char *reply;
+            x11_send_init_error(xconn, err);
+            return 0;
+        }
 
-	    message = dupprintf("%s X11 proxy: %s", appname, err);
-	    msglen = strlen(message);
-	    reply = snewn(8 + msglen+1 + 4, unsigned char); /* include zero */
-	    msgsize = (msglen + 3) & ~3;
-	    reply[0] = 0;	       /* failure */
-	    reply[1] = msglen;	       /* length of reason string */
-	    memcpy(reply + 2, xconn->firstpkt + 2, 4);	/* major/minor proto vsn */
-	    PUT_16BIT(xconn->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
-	    memset(reply + 8, 0, msgsize);
-	    memcpy(reply + 8, message, msglen);
-	    sshfwd_write(xconn->c, (char *)reply, 8 + msgsize);
-	    sshfwd_write_eof(xconn->c);
-	    sfree(reply);
-	    sfree(message);
-	    return 0;
-	}
+        /*
+         * Now we know we're going to accept the connection. Actually
+         * connect to the X server.
+         */
+        xconn->s = new_connection(sk_addr_dup(xconn->disp->addr),
+                                  xconn->disp->realhost, xconn->disp->port, 
+                                  0, 1, 0, 0, (Plug) xconn,
+                                  sshfwd_get_conf(xconn->c));
+        if ((err = sk_socket_error(xconn->s)) != NULL) {
+            char *err_message = dupprintf("unable to connect to"
+                                          " forwarded X server: %s", err);
+            x11_send_init_error(xconn, err_message);
+            sfree(err_message);
+            return 0;
+        }
 
-	/*
-	 * Now we know we're going to accept the connection. Strip
-	 * the fake auth data, and optionally put real auth data in
-	 * instead.
+        /*
+         * Strip the fake auth data, and optionally put real auth data
+	 * in instead.
 	 */
         {
             char realauthdata[64];
@@ -796,5 +834,16 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
 
 void x11_send_eof(struct X11Connection *xconn)
 {
-    sk_write_eof(xconn->s);
+    if (xconn->s) {
+        sk_write_eof(xconn->s);
+    } else {
+        /*
+         * If EOF is received from the X client before we've got to
+         * the point of actually connecting to an X server, then we
+         * should send an EOF back to the client so that the
+         * forwarded channel will be terminated.
+         */
+        if (xconn->c)
+            sshfwd_write_eof(xconn->c);
+    }
 }
