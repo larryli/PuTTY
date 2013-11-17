@@ -934,7 +934,7 @@ void des_encrypt_xdmauth(const unsigned char *keydata,
 {
     DESContext dc;
     des_keysetup_xdmauth(keydata, &dc);
-    des_cbc_encrypt(blk, 24, &dc);
+    des_cbc_encrypt(blk, len, &dc);
 }
 
 void des_decrypt_xdmauth(const unsigned char *keydata,
@@ -942,7 +942,7 @@ void des_decrypt_xdmauth(const unsigned char *keydata,
 {
     DESContext dc;
     des_keysetup_xdmauth(keydata, &dc);
-    des_cbc_decrypt(blk, 24, &dc);
+    des_cbc_decrypt(blk, len, &dc);
 }
 
 static const struct ssh2_cipher ssh_3des_ssh2 = {

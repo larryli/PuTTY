@@ -372,24 +372,36 @@ struct X11Display {
     int port;
     char *realhost;
 
-    /* Auth details we invented for the virtual display on the SSH server. */
-    int remoteauthproto;
-    unsigned char *remoteauthdata;
-    int remoteauthdatalen;
-    char *remoteauthprotoname;
-    char *remoteauthdatastring;
-
     /* Our local auth details for talking to the real X display. */
     int localauthproto;
     unsigned char *localauthdata;
     int localauthdatalen;
+};
+struct X11FakeAuth {
+    /* Auth details we invented for a virtual display on the SSH server. */
+    int proto;
+    unsigned char *data;
+    int datalen;
+    char *protoname;
+    char *datastring;
+
+    /* The encrypted form of the first block, in XDM-AUTHORIZATION-1.
+     * Used as part of the key when these structures are organised
+     * into a tree. See x11_invent_fake_auth for explanation. */
+    unsigned char *xa1_firstblock;
 
     /*
      * Used inside x11fwd.c to remember recently seen
      * XDM-AUTHORIZATION-1 strings, to avoid replay attacks.
      */
     tree234 *xdmseen;
+
+    /*
+     * What to do with an X connection matching this auth data.
+     */
+    struct X11Display *disp;
 };
+int x11_authcmp(void *av, void *bv); /* for putting X11FakeAuth in a tree234 */
 /*
  * x11_setup_display() parses the display variable and fills in an
  * X11Display structure. Some remote auth details are invented;
@@ -397,11 +409,12 @@ struct X11Display {
  * authorisation protocol to use at the remote end. The local auth
  * details are looked up by calling platform_get_x11_auth.
  */
-extern struct X11Display *x11_setup_display(char *display, int authtype,
-					    Conf *);
+extern struct X11Display *x11_setup_display(char *display, Conf *);
 void x11_free_display(struct X11Display *disp);
+struct X11FakeAuth *x11_invent_fake_auth(tree234 *t, int authtype);
+void x11_free_fake_auth(struct X11FakeAuth *auth);
 struct X11Connection;                  /* opaque outside x11fwd.c */
-extern char *x11_init(struct X11Connection **, struct X11Display *,
+extern char *x11_init(struct X11Connection **, tree234 *authtree,
                       void *, const char *, int);
 extern void x11_close(struct X11Connection *);
 extern int x11_send(struct X11Connection *, char *, int);

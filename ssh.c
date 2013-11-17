@@ -786,6 +786,8 @@ struct ssh_tag {
     Pkt_ACtx pkt_actx;
 
     struct X11Display *x11disp;
+    struct X11FakeAuth *x11auth;
+    tree234 *x11authtree;
 
     int version;
     int conn_throttle_count;
@@ -4890,7 +4892,7 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 
-	if ((err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
+	if ((err = x11_init(&c->u.x11.xconn, ssh->x11authtree, c,
                             NULL, -1)) != NULL) {
 	    logeventf(ssh, "Opening X11 forward connection failed: %s", err);
             sfree(err);
@@ -5259,36 +5261,47 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	}
     }
 
-    if (conf_get_int(ssh->conf, CONF_x11_forward) &&
-	(ssh->x11disp = x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
-					  conf_get_int(ssh->conf, CONF_x11_auth), ssh->conf))) {
-	logevent("Requesting X11 forwarding");
-	if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
-	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, ssh->x11disp->remoteauthprotoname,
-			PKT_STR, ssh->x11disp->remoteauthdatastring,
-			PKT_INT, ssh->x11disp->screennum,
-			PKT_END);
-	} else {
-	    send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-			PKT_STR, ssh->x11disp->remoteauthprotoname,
-			PKT_STR, ssh->x11disp->remoteauthdatastring,
-			PKT_END);
-	}
-	do {
-	    crReturnV;
-	} while (!pktin);
-	if (pktin->type != SSH1_SMSG_SUCCESS
-	    && pktin->type != SSH1_SMSG_FAILURE) {
-	    bombout(("Protocol confusion"));
-	    crStopV;
-	} else if (pktin->type == SSH1_SMSG_FAILURE) {
-	    logevent("X11 forwarding refused");
-	} else {
-	    logevent("X11 forwarding enabled");
-	    ssh->X11_fwd_enabled = TRUE;
-	    ssh->packet_dispatch[SSH1_SMSG_X11_OPEN] = ssh1_smsg_x11_open;
-	}
+    if (conf_get_int(ssh->conf, CONF_x11_forward)) {
+        ssh->x11disp =
+            x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
+                              ssh->conf);
+        if (!ssh->x11disp) {
+            /* FIXME: return an error message from x11_setup_display */
+            logevent("X11 forwarding not enabled: unable to"
+                     " initialise X display");
+        } else {
+            ssh->x11auth = x11_invent_fake_auth
+                (ssh->x11authtree, conf_get_int(ssh->conf, CONF_x11_auth));
+            ssh->x11auth->disp = ssh->x11disp;
+
+            logevent("Requesting X11 forwarding");
+            if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
+                send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
+                            PKT_STR, ssh->x11auth->protoname,
+                            PKT_STR, ssh->x11auth->datastring,
+                            PKT_INT, ssh->x11disp->screennum,
+                            PKT_END);
+            } else {
+                send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
+                            PKT_STR, ssh->x11auth->protoname,
+                            PKT_STR, ssh->x11auth->datastring,
+                            PKT_END);
+            }
+            do {
+                crReturnV;
+            } while (!pktin);
+            if (pktin->type != SSH1_SMSG_SUCCESS
+                && pktin->type != SSH1_SMSG_FAILURE) {
+                bombout(("Protocol confusion"));
+                crStopV;
+            } else if (pktin->type == SSH1_SMSG_FAILURE) {
+                logevent("X11 forwarding refused");
+            } else {
+                logevent("X11 forwarding enabled");
+                ssh->X11_fwd_enabled = TRUE;
+                ssh->packet_dispatch[SSH1_SMSG_X11_OPEN] = ssh1_smsg_x11_open;
+            }
+        }
     }
 
     ssh_setup_portfwd(ssh, ssh->conf);
@@ -7563,7 +7576,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if ((x11err = x11_init(&c->u.x11.xconn, ssh->x11disp, c,
+	else if ((x11err = x11_init(&c->u.x11.xconn, ssh->x11authtree, c,
 				    addrstr, peerport)) != NULL) {
 	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
             sfree(x11err);
@@ -7700,8 +7713,8 @@ static void ssh2_setup_x11(struct ssh_channel *c, struct Packet *pktin,
     pktout = ssh2_chanreq_init(ssh->mainchan, "x11-req",
                                ssh2_setup_x11, s);
     ssh2_pkt_addbool(pktout, 0);	       /* many connections */
-    ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthprotoname);
-    ssh2_pkt_addstring(pktout, ssh->x11disp->remoteauthdatastring);
+    ssh2_pkt_addstring(pktout, ssh->x11auth->protoname);
+    ssh2_pkt_addstring(pktout, ssh->x11auth->datastring);
     ssh2_pkt_adduint32(pktout, ssh->x11disp->screennum);
     ssh2_pkt_send(ssh, pktout);
 
@@ -9449,12 +9462,22 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	 */
 
 	/* Potentially enable X11 forwarding. */
-	if (conf_get_int(ssh->conf, CONF_x11_forward) &&
-	    (ssh->x11disp =
-	     x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
-			       conf_get_int(ssh->conf, CONF_x11_auth),
-			       ssh->conf)))
-	    ssh2_setup_x11(ssh->mainchan, NULL, NULL);
+	if (conf_get_int(ssh->conf, CONF_x11_forward)) {
+            ssh->x11disp =
+                x11_setup_display(conf_get_str(ssh->conf, CONF_x11_display),
+                                  ssh->conf);
+            if (!ssh->x11disp) {
+                /* FIXME: return an error message from x11_setup_display */
+                logevent("X11 forwarding not enabled: unable to"
+                         " initialise X display");
+            } else {
+                ssh->x11auth = x11_invent_fake_auth
+                    (ssh->x11authtree, conf_get_int(ssh->conf, CONF_x11_auth));
+                ssh->x11auth->disp = ssh->x11disp;
+
+                ssh2_setup_x11(ssh->mainchan, NULL, NULL);
+            }
+        }
 
 	/* Potentially enable agent forwarding. */
 	if (conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists())
@@ -9805,6 +9828,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
     ssh->x11disp = NULL;
+    ssh->x11auth = NULL;
+    ssh->x11authtree = newtree234(x11_authcmp);
     ssh->v1_compressing = FALSE;
     ssh->v2_outgoing_sequence = 0;
     ssh->ssh1_rdpkt_crstate = 0;
@@ -9883,6 +9908,7 @@ static void ssh_free(void *handle)
     Ssh ssh = (Ssh) handle;
     struct ssh_channel *c;
     struct ssh_rportfwd *pf;
+    struct X11FakeAuth *auth;
 
     if (ssh->v1_cipher_ctx)
 	ssh->cipher->free_context(ssh->v1_cipher_ctx);
@@ -9960,6 +9986,9 @@ static void ssh_free(void *handle)
     sfree(ssh->deferred_send_data);
     if (ssh->x11disp)
 	x11_free_display(ssh->x11disp);
+    while ((auth = delpos234(ssh->x11authtree, 0)) != NULL)
+        x11_free_fake_auth(auth);
+    freetree234(ssh->x11authtree);
     sfree(ssh->do_ssh_init_state);
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);

@@ -30,6 +30,7 @@ struct X11Connection {
     const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
     unsigned char firstpkt[12];	       /* first X data packet */
+    tree234 *authtree;
     struct X11Display *disp;
     char *auth_protocol;
     unsigned char *auth_data;
@@ -69,11 +70,102 @@ static const struct plug_function_table dummy_plug = {
     dummy_plug_sent, dummy_plug_accepting
 };
 
-struct X11Display *x11_setup_display(char *display, int authtype, Conf *conf)
+struct X11FakeAuth *x11_invent_fake_auth(tree234 *authtree, int authtype)
+{
+    struct X11FakeAuth *auth = snew(struct X11FakeAuth);
+    int i;
+
+    if (authtype == X11_MIT) {
+	auth->proto = X11_MIT;
+
+	/* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
+        auth->datalen = 16;
+	auth->data = snewn(auth->datalen, unsigned char);
+        auth->xa1_firstblock = NULL;
+
+        while (1) {
+            for (i = 0; i < auth->datalen; i++)
+                auth->data[i] = random_byte();
+            if (add234(authtree, auth) == auth)
+                break;
+        }
+
+	auth->xdmseen = NULL;
+    } else {
+	assert(authtype == X11_XDM);
+	auth->proto = X11_XDM;
+
+	/* XDM-AUTHORIZATION-1. Cookie size is 16 bytes; byte 8 is zero. */
+	auth->datalen = 16;
+	auth->data = snewn(auth->datalen, unsigned char);
+        auth->xa1_firstblock = snewn(8, unsigned char);
+        memset(auth->xa1_firstblock, 0, 8);
+
+        while (1) {
+            for (i = 0; i < auth->datalen; i++)
+                auth->data[i] = (i == 8 ? 0 : random_byte());
+            memcpy(auth->xa1_firstblock, auth->data, 8);
+            des_encrypt_xdmauth(auth->data + 9, auth->xa1_firstblock, 8);
+            if (add234(authtree, auth) == auth)
+                break;
+        }
+
+        auth->xdmseen = newtree234(xdmseen_cmp);
+    }
+    auth->protoname = dupstr(x11_authnames[auth->proto]);
+    auth->datastring = snewn(auth->datalen * 2 + 1, char);
+    for (i = 0; i < auth->datalen; i++)
+	sprintf(auth->datastring + i*2, "%02x",
+		auth->data[i]);
+
+    return auth;
+}
+
+void x11_free_fake_auth(struct X11FakeAuth *auth)
+{
+    if (auth->data)
+	smemclr(auth->data, auth->datalen);
+    sfree(auth->data);
+    sfree(auth->protoname);
+    sfree(auth->datastring);
+    sfree(auth->xa1_firstblock);
+    if (auth->xdmseen != NULL) {
+	struct XDMSeen *seen;
+	while ((seen = delpos234(auth->xdmseen, 0)) != NULL)
+	    sfree(seen);
+	freetree234(auth->xdmseen);
+    }
+    sfree(auth);
+}
+
+int x11_authcmp(void *av, void *bv)
+{
+    struct X11FakeAuth *a = (struct X11FakeAuth *)av;
+    struct X11FakeAuth *b = (struct X11FakeAuth *)bv;
+
+    if (a->proto < b->proto)
+        return -1;
+    else if (a->proto > b->proto)
+        return +1;
+
+    if (a->proto == X11_MIT) {
+        if (a->datalen < b->datalen)
+            return -1;
+        else if (a->datalen > b->datalen)
+            return +1;
+
+        return memcmp(a->data, b->data, a->datalen);
+    } else {
+        assert(a->proto == X11_XDM);
+
+        return memcmp(a->xa1_firstblock, b->xa1_firstblock, 8);
+    }
+}
+
+struct X11Display *x11_setup_display(char *display, Conf *conf)
 {
     struct X11Display *disp = snew(struct X11Display);
     char *localcopy;
-    int i;
 
     if (!display || !*display) {
 	localcopy = platform_get_x_display();
@@ -214,37 +306,6 @@ struct X11Display *x11_setup_display(char *display, int authtype, Conf *conf)
     }
 
     /*
-     * Invent the remote authorisation details.
-     */
-    if (authtype == X11_MIT) {
-	disp->remoteauthproto = X11_MIT;
-
-	/* MIT-MAGIC-COOKIE-1. Cookie size is 128 bits (16 bytes). */
-	disp->remoteauthdata = snewn(16, unsigned char);
-	for (i = 0; i < 16; i++)
-	    disp->remoteauthdata[i] = random_byte();
-	disp->remoteauthdatalen = 16;
-
-	disp->xdmseen = NULL;
-    } else {
-	assert(authtype == X11_XDM);
-	disp->remoteauthproto = X11_XDM;
-
-	/* XDM-AUTHORIZATION-1. Cookie size is 16 bytes; byte 8 is zero. */
-	disp->remoteauthdata = snewn(16, unsigned char);
-	for (i = 0; i < 16; i++)
-	    disp->remoteauthdata[i] = (i == 8 ? 0 : random_byte());
-	disp->remoteauthdatalen = 16;
-
-	disp->xdmseen = newtree234(xdmseen_cmp);
-    }
-    disp->remoteauthprotoname = dupstr(x11_authnames[disp->remoteauthproto]);
-    disp->remoteauthdatastring = snewn(disp->remoteauthdatalen * 2 + 1, char);
-    for (i = 0; i < disp->remoteauthdatalen; i++)
-	sprintf(disp->remoteauthdatastring + i*2, "%02x",
-		disp->remoteauthdata[i]);
-
-    /*
      * Fetch the local authorisation details.
      */
     disp->localauthproto = X11_NO_AUTH;
@@ -257,22 +318,11 @@ struct X11Display *x11_setup_display(char *display, int authtype, Conf *conf)
 
 void x11_free_display(struct X11Display *disp)
 {
-    if (disp->xdmseen != NULL) {
-	struct XDMSeen *seen;
-	while ((seen = delpos234(disp->xdmseen, 0)) != NULL)
-	    sfree(seen);
-	freetree234(disp->xdmseen);
-    }
     sfree(disp->hostname);
     sfree(disp->unixsocketpath);
     if (disp->localauthdata)
 	smemclr(disp->localauthdata, disp->localauthdatalen);
     sfree(disp->localauthdata);
-    if (disp->remoteauthdata)
-	smemclr(disp->remoteauthdata, disp->remoteauthdatalen);
-    sfree(disp->remoteauthdata);
-    sfree(disp->remoteauthprotoname);
-    sfree(disp->remoteauthdatastring);
     sk_addr_free(disp->addr);
     sfree(disp);
 }
@@ -280,18 +330,37 @@ void x11_free_display(struct X11Display *disp)
 #define XDM_MAXSKEW 20*60      /* 20 minute clock skew should be OK */
 
 static char *x11_verify(unsigned long peer_ip, int peer_port,
-			struct X11Display *disp, char *proto,
-			unsigned char *data, int dlen)
+			tree234 *authtree, char *proto,
+			unsigned char *data, int dlen,
+                        struct X11FakeAuth **auth_ret)
 {
-    if (strcmp(proto, x11_authnames[disp->remoteauthproto]) != 0)
-	return "wrong authorisation protocol attempted";
-    if (disp->remoteauthproto == X11_MIT) {
-        if (dlen != disp->remoteauthdatalen)
-            return "MIT-MAGIC-COOKIE-1 data was wrong length";
-        if (memcmp(disp->remoteauthdata, data, dlen) != 0)
-            return "MIT-MAGIC-COOKIE-1 data did not match";
+    struct X11FakeAuth match_dummy;    /* for passing to find234 */
+    struct X11FakeAuth *auth;
+
+    /*
+     * First, do a lookup in our tree to find the only authorisation
+     * record that _might_ match.
+     */
+    if (!strcmp(proto, x11_authnames[X11_MIT])) {
+        match_dummy.proto = X11_MIT;
+        match_dummy.datalen = dlen;
+        match_dummy.data = data;
+    } else if (!strcmp(proto, x11_authnames[X11_XDM])) {
+        match_dummy.proto = X11_XDM;
+        match_dummy.xa1_firstblock = data;
+    } else {
+        return "Unsupported authorisation protocol";
     }
-    if (disp->remoteauthproto == X11_XDM) {
+
+    if ((auth = find234(authtree, &match_dummy, 0)) == NULL)
+        return "Authorisation not recognised";
+
+    /*
+     * If we're using MIT-MAGIC-COOKIE-1, that was all we needed. If
+     * we're doing XDM-AUTHORIZATION-1, though, we have to check the
+     * rest of the auth data.
+     */
+    if (auth->proto == X11_XDM) {
 	unsigned long t;
 	time_t tim;
 	int i;
@@ -301,8 +370,8 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
             return "XDM-AUTHORIZATION-1 data was wrong length";
 	if (peer_port == -1)
             return "cannot do XDM-AUTHORIZATION-1 without remote address data";
-	des_decrypt_xdmauth(disp->remoteauthdata+9, data, 24);
-        if (memcmp(disp->remoteauthdata, data, 8) != 0)
+	des_decrypt_xdmauth(auth->data+9, data, 24);
+        if (memcmp(auth->data, data, 8) != 0)
             return "XDM-AUTHORIZATION-1 data failed check"; /* cookie wrong */
 	if (GET_32BIT_MSB_FIRST(data+8) != peer_ip)
             return "XDM-AUTHORIZATION-1 data failed check";   /* IP wrong */
@@ -318,22 +387,24 @@ static char *x11_verify(unsigned long peer_ip, int peer_port,
 	seen = snew(struct XDMSeen);
 	seen->time = t;
 	memcpy(seen->clientid, data+8, 6);
-	assert(disp->xdmseen != NULL);
-	ret = add234(disp->xdmseen, seen);
+	assert(auth->xdmseen != NULL);
+	ret = add234(auth->xdmseen, seen);
 	if (ret != seen) {
 	    sfree(seen);
 	    return "XDM-AUTHORIZATION-1 data replayed";
 	}
 	/* While we're here, purge entries too old to be replayed. */
 	for (;;) {
-	    seen = index234(disp->xdmseen, 0);
+	    seen = index234(auth->xdmseen, 0);
 	    assert(seen != NULL);
 	    if (t - seen->time <= XDM_MAXSKEW)
 		break;
-	    sfree(delpos234(disp->xdmseen, 0));
+	    sfree(delpos234(auth->xdmseen, 0));
 	}
     }
     /* implement other protocols here if ever required */
+
+    *auth_ret = auth;
     return NULL;
 }
 
@@ -584,7 +655,7 @@ int x11_get_screen_number(char *display)
  * a dynamically allocated error message string.
  */
 extern char *x11_init(struct X11Connection **xconnret,
-                      struct X11Display *disp, void *c,
+                      tree234 *authtree, void *c,
                       const char *peeraddr, int peerport)
 {
     static const struct plug_function_table fn_table = {
@@ -603,7 +674,7 @@ extern char *x11_init(struct X11Connection **xconnret,
     xconn = *xconnret = snew(struct X11Connection);
     xconn->fn = &fn_table;
     xconn->auth_protocol = NULL;
-    xconn->disp = disp;
+    xconn->authtree = authtree;
     xconn->verified = 0;
     xconn->data_read = 0;
     xconn->throttled = xconn->throttle_override = 0;
@@ -611,12 +682,14 @@ extern char *x11_init(struct X11Connection **xconnret,
     xconn->c = c;
 
     /*
-     * We don't actually open a local socket to the X server just yet.
-     * Instead, we'll wait until we see the incoming authentication
-     * data, which may tell us we have to divert this X forwarding
-     * channel to a connection-sharing downstream rather than handling
-     * it ourself.
+     * We don't actually open a local socket to the X server just yet,
+     * because we don't know which one it is. Instead, we'll wait
+     * until we see the incoming authentication data, which may tell
+     * us what display to connect to, or whether we have to divert
+     * this X forwarding channel to a connection-sharing downstream
+     * rather than handling it ourself.
      */
+    xconn->disp = NULL;
     xconn->s = NULL;
 
     /*
@@ -745,22 +818,25 @@ int x11_send(struct X11Connection *xconn, char *data, int len)
      */
     if (!xconn->verified) {
 	const char *err;
+        struct X11FakeAuth *auth_matched = NULL;
 
         assert(!xconn->s);
 
 	xconn->auth_protocol[xconn->auth_plen] = '\0';	/* ASCIZ */
 	err = x11_verify(xconn->peer_ip, xconn->peer_port,
-			 xconn->disp, xconn->auth_protocol,
-			 xconn->auth_data, xconn->auth_dlen);
+			 xconn->authtree, xconn->auth_protocol,
+			 xconn->auth_data, xconn->auth_dlen, &auth_matched);
 	if (err) {
             x11_send_init_error(xconn, err);
             return 0;
         }
+        assert(auth_matched);
 
         /*
-         * Now we know we're going to accept the connection. Actually
-         * connect to the X server.
+         * Now we know we're going to accept the connection, and what
+         * X display to connect to. Actually connect to it.
          */
+        xconn->disp = auth_matched->disp;
         xconn->s = new_connection(sk_addr_dup(xconn->disp->addr),
                                   xconn->disp->realhost, xconn->disp->port, 
                                   0, 1, 0, 0, (Plug) xconn,
