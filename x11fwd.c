@@ -649,14 +649,11 @@ int x11_get_screen_number(char *display)
 }
 
 /*
- * Called to set up the raw connection.
- * 
- * On success, returns NULL and fills in *xconnret. On error, returns
- * a dynamically allocated error message string.
+ * Called to set up the X11Connection structure, though this does not
+ * yet connect to an actual server.
  */
-extern char *x11_init(struct X11Connection **xconnret,
-                      tree234 *authtree, void *c,
-                      const char *peeraddr, int peerport)
+struct X11Connection *x11_init(tree234 *authtree, void *c,
+                               const char *peeraddr, int peerport)
 {
     static const struct plug_function_table fn_table = {
 	x11_log,
@@ -671,7 +668,7 @@ extern char *x11_init(struct X11Connection **xconnret,
     /*
      * Open socket.
      */
-    xconn = *xconnret = snew(struct X11Connection);
+    xconn = snew(struct X11Connection);
     xconn->fn = &fn_table;
     xconn->auth_protocol = NULL;
     xconn->authtree = authtree;
@@ -698,7 +695,7 @@ extern char *x11_init(struct X11Connection **xconnret,
     xconn->peer_addr = peeraddr ? dupstr(peeraddr) : NULL;
     xconn->peer_port = peerport;
 
-    return NULL;
+    return xconn;
 }
 
 void x11_close(struct X11Connection *xconn)

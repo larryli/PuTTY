@@ -418,8 +418,7 @@ void x11_free_display(struct X11Display *disp);
 struct X11FakeAuth *x11_invent_fake_auth(tree234 *t, int authtype);
 void x11_free_fake_auth(struct X11FakeAuth *auth);
 struct X11Connection;                  /* opaque outside x11fwd.c */
-extern char *x11_init(struct X11Connection **, tree234 *authtree,
-                      void *, const char *, int);
+struct X11Connection *x11_init(tree234 *authtree, void *, const char *, int);
 extern void x11_close(struct X11Connection *);
 extern int x11_send(struct X11Connection *, char *, int);
 extern void x11_send_eof(struct X11Connection *s);

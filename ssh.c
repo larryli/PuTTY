@@ -4887,34 +4887,22 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 		    PKT_INT, remoteid, PKT_END);
 	logevent("Rejected X11 connect request");
     } else {
-        char *err;
-
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 
-	if ((err = x11_init(&c->u.x11.xconn, ssh->x11authtree, c,
-                            NULL, -1)) != NULL) {
-	    logeventf(ssh, "Opening X11 forward connection failed: %s", err);
-            sfree(err);
-	    sfree(c);
-	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-			PKT_INT, remoteid, PKT_END);
-	} else {
-	    logevent
-		("Opening X11 forward connection succeeded");
-	    c->remoteid = remoteid;
-	    c->halfopen = FALSE;
-	    c->localid = alloc_channel_id(ssh);
-	    c->closes = 0;
-	    c->pending_eof = FALSE;
-	    c->throttling_conn = 0;
-	    c->type = CHAN_X11;	/* identify channel type */
-	    add234(ssh->channels, c);
-	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-			PKT_INT, c->remoteid, PKT_INT,
-			c->localid, PKT_END);
-	    logevent("Opened X11 forward channel");
-	}
+	c->u.x11.xconn = x11_init(ssh->x11authtree, c, NULL, -1);
+        c->remoteid = remoteid;
+        c->halfopen = FALSE;
+        c->localid = alloc_channel_id(ssh);
+        c->closes = 0;
+        c->pending_eof = FALSE;
+        c->throttling_conn = 0;
+        c->type = CHAN_X11;	/* identify channel type */
+        add234(ssh->channels, c);
+        send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
+                    PKT_INT, c->remoteid, PKT_INT,
+                    c->localid, PKT_END);
+        logevent("Opened X11 forward channel");
     }
 }
 
@@ -7563,7 +7551,6 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
     if (typelen == 3 && !memcmp(type, "x11", 3)) {
 	char *addrstr;
-	char *x11err;
 
 	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
 	addrstr = snewn(peeraddrlen+1, char);
@@ -7576,14 +7563,12 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 
 	if (!ssh->X11_fwd_enabled)
 	    error = "X11 forwarding is not enabled";
-	else if ((x11err = x11_init(&c->u.x11.xconn, ssh->x11authtree, c,
-				    addrstr, peerport)) != NULL) {
-	    logeventf(ssh, "Local X11 connection failed: %s", x11err);
-            sfree(x11err);
-	    error = "Unable to open an X11 connection";
-	} else {
-	    logevent("Opening X11 forward connection succeeded");
+	else {
+            c->u.x11.xconn = x11_init(ssh->x11authtree, c,
+                                      addrstr, peerport);
 	    c->type = CHAN_X11;
+
+            logevent("Opened X11 forward channel");
 	}
 
 	sfree(addrstr);
