@@ -708,12 +708,20 @@ struct ssh_portfwd; /* forward declaration */
 
 struct ssh_rportfwd {
     unsigned sport, dport;
-    char dhost[256];
+    char *shost, *dhost;
     char *sportdesc;
     struct ssh_portfwd *pfrec;
 };
-#define free_rportfwd(pf) ( \
-    ((pf) ? (sfree((pf)->sportdesc)) : (void)0 ), sfree(pf) )
+
+static void free_rportfwd(struct ssh_rportfwd *pf)
+{
+    if (pf) {
+        sfree(pf->sportdesc);
+        sfree(pf->shost);
+        sfree(pf->dhost);
+        sfree(pf);
+    }
+}
 
 /*
  * Separately to the rportfwd tree (which is for looking up port
@@ -1107,7 +1115,9 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
 {
     struct ssh_rportfwd *a = (struct ssh_rportfwd *) av;
     struct ssh_rportfwd *b = (struct ssh_rportfwd *) bv;
-
+    int i;
+    if ( (i = strcmp(a->shost, b->shost)) != 0)
+	return i < 0 ? -1 : +1;
     if (a->sport > b->sport)
 	return +1;
     if (a->sport < b->sport)
@@ -4725,9 +4735,15 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 		}
 
 		pf = snew(struct ssh_rportfwd);
-		strncpy(pf->dhost, epf->daddr, lenof(pf->dhost)-1);
-		pf->dhost[lenof(pf->dhost)-1] = '\0';
+                pf->dhost = dupstr(epf->daddr);
 		pf->dport = epf->dport;
+                if (epf->saddr) {
+                    pf->shost = dupstr(epf->saddr);
+                } else if (conf_get_int(conf, CONF_rport_acceptall)) {
+                    pf->shost = dupstr("");
+                } else {
+                    pf->shost = dupstr("localhost");
+                }
 		pf->sport = epf->sport;
 		if (add234(ssh->rportfwds, pf) != pf) {
 		    logeventf(ssh, "Duplicate remote port forwarding to %s:%d",
@@ -4756,14 +4772,8 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 			pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
 			ssh2_pkt_addstring(pktout, "tcpip-forward");
 			ssh2_pkt_addbool(pktout, 1);/* want reply */
-			if (epf->saddr) {
-			    ssh2_pkt_addstring(pktout, epf->saddr);
-			} else if (conf_get_int(conf, CONF_rport_acceptall)) {
-			    ssh2_pkt_addstring(pktout, "");
-			} else {
-			    ssh2_pkt_addstring(pktout, "localhost");
-			}
-			ssh2_pkt_adduint32(pktout, epf->sport);
+			ssh2_pkt_addstring(pktout, pf->shost);
+			ssh2_pkt_adduint32(pktout, pf->sport);
 			ssh2_pkt_send(ssh, pktout);
 
 			ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS,
@@ -4883,10 +4893,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     ssh_pkt_getstring(pktin, &host, &hostsize);
     port = ssh_pkt_getuint32(pktin);
 
-    if (hostsize >= lenof(pf.dhost))
-	hostsize = lenof(pf.dhost)-1;
-    memcpy(pf.dhost, host, hostsize);
-    pf.dhost[hostsize] = '\0';
+    pf.dhost = dupprintf(".*s", hostsize, host);
     pf.dport = port;
     pfp = find234(ssh->rportfwds, &pf, NULL);
 
@@ -4923,6 +4930,8 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 	    logevent("Forwarded port opened successfully");
 	}
     }
+
+    sfree(pf.dhost);
 }
 
 static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
@@ -7511,15 +7520,18 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     } else if (typelen == 15 &&
 	       !memcmp(type, "forwarded-tcpip", 15)) {
 	struct ssh_rportfwd pf, *realpf;
-	char *dummy;
-	int dummylen;
-	ssh_pkt_getstring(pktin, &dummy, &dummylen);/* skip address */
+	char *shost;
+	int shostlen;
+	ssh_pkt_getstring(pktin, &shost, &shostlen);/* skip address */
+        pf.shost = dupprintf("%.*s", shostlen, shost);
 	pf.sport = ssh_pkt_getuint32(pktin);
 	ssh_pkt_getstring(pktin, &peeraddr, &peeraddrlen);
 	peerport = ssh_pkt_getuint32(pktin);
 	realpf = find234(ssh->rportfwds, &pf, NULL);
-	logeventf(ssh, "Received remote port %d open request "
-		  "from %s:%d", pf.sport, peeraddr, peerport);
+	logeventf(ssh, "Received remote port %s:%d open request "
+		  "from %s:%d", pf.shost, pf.sport, peeraddr, peerport);
+        sfree(pf.shost);
+
 	if (realpf == NULL) {
 	    error = "Remote port is not recognised";
 	} else {
