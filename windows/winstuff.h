@@ -517,14 +517,6 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
 #define FLAG_SYNCAGENT 0x1000
 
 /*
- * winpgntc.c also exports these two functions which are used by the
- * server side of Pageant as well, to get the user SID for comparing
- * with clients'.
- */
-int init_advapi(void);  /* initialises everything needed by get_user_sid */
-PSID get_user_sid(void);
-
-/*
  * Exports from winser.c.
  */
 extern Backend serial_backend;

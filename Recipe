@@ -300,7 +300,7 @@ SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshsh256 sshsh512 sshbn wildcard pinger ssharcf
          + sshgssc pgssapi
-WINSSH   = SSH winnoise winpgntc wingss winhsock errsock
+WINSSH   = SSH winnoise winsecur winpgntc wingss winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss
 
 # SFTP implementation (pscp, psftp).
@@ -350,8 +350,8 @@ psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + psftp.res winnojmp LIBS
 
 pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha winpgntc sshdss sshsh256 sshsh512 winutils
-         + winmisc winhelp conf pageant.res LIBS
+         + misc sshaes sshsha winsecur winpgntc sshdss sshsh256 sshsh512
+	 + winutils winmisc winhelp conf pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc

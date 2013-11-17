@@ -14,7 +14,7 @@
 
 #if !defined NO_SECURITY
 
-#include <aclapi.h>
+#include "winsecur.h"
 
 Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
                           int overlapped);
@@ -26,9 +26,6 @@ Socket new_named_pipe_client(const char *pipename, Plug plug)
     PSECURITY_DESCRIPTOR psd;
     char *err;
     Socket ret;
-
-    extern int advapi_initialised;
-    init_advapi();           /* for get_user_sid. FIXME: do better. */
 
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);

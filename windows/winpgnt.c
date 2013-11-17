@@ -14,6 +14,7 @@
 #include "ssh.h"
 #include "misc.h"
 #include "tree234.h"
+#include "winsecur.h"
 
 #include <shellapi.h>
 
@@ -2065,7 +2066,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	/*
 	 * Attempt to get the security API we need.
 	 */
-        if (!init_advapi()) {
+        if (!got_advapi()) {
 	    MessageBox(NULL,
 		       "Unable to access security APIs. Pageant will\n"
 		       "not run, in case it causes a security breach.",
