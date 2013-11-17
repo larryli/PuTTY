@@ -501,6 +501,8 @@ void handle_got_event(HANDLE event);
 void handle_unthrottle(struct handle *h, int backlog);
 int handle_backlog(struct handle *h);
 void *handle_get_privdata(struct handle *h);
+struct handle *handle_add_foreign_event(HANDLE event,
+                                        void (*callback)(void *), void *ctx);
 
 /*
  * winpgntc.c needs to schedule callbacks for asynchronous agent
