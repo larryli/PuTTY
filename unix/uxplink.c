@@ -204,7 +204,7 @@ static char *get_ttychar(struct termios *t, int index)
     cc_t c = t->c_cc[index];
 #if defined(_POSIX_VDISABLE)
     if (c == _POSIX_VDISABLE)
-	return dupprintf("");
+	return dupstr("");
 #endif
     return dupprintf("^<%d>", c);
 }

@@ -3292,7 +3292,7 @@ static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
             if (sk_addr_needs_port(addr)) {
                 msg = dupprintf("Connecting to %s port %d", addrbuf, port);
             } else {
-                msg = dupprintf("Connecting to %s", addrbuf, port);
+                msg = dupprintf("Connecting to %s", addrbuf);
             }
         } else {
             msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
@@ -5292,7 +5292,7 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
     ssh_pkt_getstring(pktin, &host, &hostsize);
     port = ssh_pkt_getuint32(pktin);
 
-    pf.dhost = dupprintf(".*s", hostsize, host);
+    pf.dhost = dupprintf("%.*s", hostsize, host);
     pf.dport = port;
     pfp = find234(ssh->rportfwds, &pf, NULL);
 

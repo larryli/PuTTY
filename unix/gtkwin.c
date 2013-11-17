@@ -2901,7 +2901,7 @@ char *setup_fonts_ucs(struct gui_data *inst)
             for (i = 0; i < 2; i++)
                 if (fonts[i])
                     unifont_destroy(fonts[i]);
-            return dupprintf("%s: unable to load wide font \"%s\"", fs->name);
+            return dupprintf("unable to load wide font \"%s\"", fs->name);
 	}
     } else {
 	fonts[2] = NULL;
@@ -2917,8 +2917,7 @@ char *setup_fonts_ucs(struct gui_data *inst)
             for (i = 0; i < 3; i++)
                 if (fonts[i])
                     unifont_destroy(fonts[i]);
-	    return dupprintf("%s: unable to load wide bold font \"%s\"",
-                             fs->name);
+	    return dupprintf("unable to load wide bold font \"%s\"", fs->name);
 	}
     }
 

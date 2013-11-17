@@ -26,7 +26,11 @@ char ctrlparse(char *s, char **next);
 
 char *dupstr(const char *s);
 char *dupcat(const char *s1, ...);
-char *dupprintf(const char *fmt, ...);
+char *dupprintf(const char *fmt, ...)
+#ifdef __GNUC__
+    __attribute__ ((format (printf, 1, 2)))
+#endif
+    ;
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
 

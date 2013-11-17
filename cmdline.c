@@ -275,7 +275,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 		return ret;
 	    }
 
-	    key = dupprintf("%c%.*s", type, q - value, value);
+	    key = dupprintf("%c%.*s", type, (int)(q - value), value);
 	    val = dupstr(q+1);
 	} else {
             /*
@@ -307,7 +307,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 	    return ret;
 	}
 
-	host = dupprintf("%.*s", portp - value, value);
+	host = dupprintf("%.*s", (int)(portp - value), value);
 	conf_set_str(conf, CONF_ssh_nc_host, host);
 	conf_set_int(conf, CONF_ssh_nc_port, atoi(portp + 1));
         sfree(host);
