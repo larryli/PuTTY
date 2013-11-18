@@ -14,7 +14,7 @@ AM_INIT_AUTOMAKE([-Wall -Werror foreign])
 
 AC_PROG_INSTALL
 AC_PROG_RANLIB
-AM_PROG_AR
+ifdef([AM_PROG_AR],[AM_PROG_AR])
 AM_PROG_CC_C_O
 
 # Mild abuse of the '--enable' option format to allow manual
