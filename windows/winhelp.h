@@ -99,7 +99,7 @@
 #define WINHELP_CTX_ssh_protocol "ssh.protocol:config-ssh-prot"
 #define WINHELP_CTX_ssh_command "ssh.command:config-command"
 #define WINHELP_CTX_ssh_compress "ssh.compress:config-ssh-comp"
-#define WINHELP_CTX_ssh_share "ssh.auth.gssapi:config-ssh-share"
+#define WINHELP_CTX_ssh_share "ssh.sharing:config-ssh-sharing"
 #define WINHELP_CTX_ssh_kexlist "ssh.kex.order:config-ssh-kex-order"
 #define WINHELP_CTX_ssh_kex_repeat "ssh.kex.repeat:config-ssh-kex-rekey"
 #define WINHELP_CTX_ssh_auth_bypass "ssh.auth.bypass:config-ssh-noauth"

@@ -2276,6 +2276,8 @@ have specified.
 
 \S{config-ssh-sharing} Sharing an SSH connection between PuTTY tools
 
+\cfg{winhelp-topic}{ssh.sharing}
+
 The controls in this box allow you to configure PuTTY to reuse an
 existing SSH connection, where possible.
 
