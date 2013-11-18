@@ -56,11 +56,17 @@ static char *obfuscate_name(const char *realname)
      * key every time since its API permits returning more data than
      * was input, so calling _that_ and hashing the output would not
      * be stable.)
+     *
+     * We don't worry too much if this doesn't work for some reason.
+     * Omitting this step still has _some_ privacy value (in that
+     * another user can test-hash things to confirm guesses as to
+     * where you might be connecting to, but cannot invert SHA-256 in
+     * the absence of any plausible guess). So we don't abort if we
+     * can't call CryptProtectMemory at all, or if it fails.
      */
-    if (!p_CryptProtectMemory(cryptdata, cryptlen,
-                              CRYPTPROTECTMEMORY_CROSS_PROCESS)) {
-        return NULL;
-    }
+    if (got_crypt())
+        p_CryptProtectMemory(cryptdata, cryptlen,
+                             CRYPTPROTECTMEMORY_CROSS_PROCESS);
 
     /*
      * We don't want to give away the length of the hostname either,
@@ -110,11 +116,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
     PSECURITY_DESCRIPTOR psd;
     PACL acl;
     PSID networksid;
-
-    if (!got_crypt()) {
-        *logtext = dupprintf("Unable to load crypt32.dll");
-        return SHARE_NONE;
-    }
 
     /*
      * Transform the platform-independent version of the connection
