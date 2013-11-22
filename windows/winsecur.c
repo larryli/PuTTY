@@ -144,7 +144,7 @@ int make_private_security_descriptor(DWORD permissions,
     ea[2].Trustee.TrusteeForm = TRUSTEE_IS_SID;
     ea[2].Trustee.ptstrName = (LPTSTR)*networksid;
 
-    if (p_SetEntriesInAclA(2, ea, NULL, acl) != ERROR_SUCCESS || *acl == NULL) {
+    if (p_SetEntriesInAclA(3, ea, NULL, acl) != ERROR_SUCCESS || *acl == NULL) {
         *error = dupprintf("unable to construct ACL: %s",
                            win_strerror(GetLastError()));
         goto cleanup;
