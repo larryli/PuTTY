@@ -107,6 +107,7 @@ int make_private_security_descriptor(DWORD permissions,
 {
     SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
     EXPLICIT_ACCESS ea[3];
+    int acl_err;
     int ret = FALSE;
 
     *psd = NULL;
@@ -144,9 +145,10 @@ int make_private_security_descriptor(DWORD permissions,
     ea[2].Trustee.TrusteeForm = TRUSTEE_IS_SID;
     ea[2].Trustee.ptstrName = (LPTSTR)*networksid;
 
-    if (p_SetEntriesInAclA(3, ea, NULL, acl) != ERROR_SUCCESS || *acl == NULL) {
+    acl_err = p_SetEntriesInAclA(3, ea, NULL, acl);
+    if (acl_err != ERROR_SUCCESS || *acl == NULL) {
         *error = dupprintf("unable to construct ACL: %s",
-                           win_strerror(GetLastError()));
+                           win_strerror(acl_err));
         goto cleanup;
     }
 
