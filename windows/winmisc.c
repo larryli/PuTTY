@@ -210,7 +210,6 @@ const char *win_strerror(int error)
     es = find234(errstrings, &error, errstring_find);
 
     if (!es) {
-        int bufsize;
         char msgtext[65536]; /* maximum size for FormatMessage is 64K */
 
         es = snew(struct errstring);
