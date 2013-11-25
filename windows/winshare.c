@@ -115,7 +115,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
     Socket retsock;
     PSECURITY_DESCRIPTOR psd;
     PACL acl;
-    PSID networksid;
 
     /*
      * Transform the platform-independent version of the connection
@@ -140,8 +139,7 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
 
         mutexname = make_name(CONNSHARE_MUTEX_PREFIX, name);
         if (!make_private_security_descriptor(MUTEX_ALL_ACCESS,
-                                              &psd, &networksid,
-                                              &acl, logtext)) {
+                                              &psd, &acl, logtext)) {
             sfree(mutexname);
             return SHARE_NONE;
         }
@@ -158,14 +156,12 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
                                  mutexname, win_strerror(GetLastError()));
             sfree(mutexname);
             LocalFree(psd);
-            LocalFree(networksid);
             LocalFree(acl);
             return SHARE_NONE;
         }
 
         sfree(mutexname);
         LocalFree(psd);
-        LocalFree(networksid);
         LocalFree(acl);
 
         WaitForSingleObject(mutex, INFINITE);

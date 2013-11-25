@@ -50,15 +50,13 @@ PSID get_user_sid(void);
  * servers, i.e. allowing access only to the current user id and also
  * only local (i.e. not over SMB) connections.
  *
- * If this function returns TRUE, then 'psd', 'networksid' and 'acl'
- * will all have been filled in with memory allocated using LocalAlloc
- * (and hence must be freed later using LocalFree). If it returns
- * FALSE, then instead 'error' has been filled with a dynamically
- * allocated error message.
+ * If this function returns TRUE, then 'psd' and 'acl' will have been
+ * filled in with memory allocated using LocalAlloc (and hence must be
+ * freed later using LocalFree). If it returns FALSE, then instead
+ * 'error' has been filled with a dynamically allocated error message.
  */
 int make_private_security_descriptor(DWORD permissions,
                                      PSECURITY_DESCRIPTOR *psd,
-                                     PSID *networksid,
                                      PACL *acl,
                                      char **error);
 

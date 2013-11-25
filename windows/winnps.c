@@ -26,7 +26,6 @@ struct Socket_named_pipe_server_tag {
 
     /* Parameters for (repeated) creation of named pipe objects */
     PSECURITY_DESCRIPTOR psd;
-    PSID networksid;
     PACL acl;
     char *pipename;
 
@@ -56,8 +55,6 @@ static void sk_namedpipeserver_close(Socket s)
     CloseHandle(ps->connect_ovl.hEvent);
     sfree(ps->error);
     sfree(ps->pipename);
-    if (ps->networksid)
-        LocalFree(ps->networksid);
     if (ps->acl)
         LocalFree(ps->acl);
     if (ps->psd)
@@ -222,15 +219,13 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     ret->error = NULL;
     ret->psd = NULL;
     ret->pipename = dupstr(pipename);
-    ret->networksid = NULL;
     ret->acl = NULL;
 
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);
 
     if (!make_private_security_descriptor(GENERIC_READ | GENERIC_WRITE,
-                                          &ret->psd, &ret->networksid,
-                                          &ret->acl, &ret->error)) {
+                                          &ret->psd, &ret->acl, &ret->error)) {
         goto cleanup;
     }
 
