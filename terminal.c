@@ -2380,16 +2380,51 @@ static void insch(Terminal *term, int n)
 {
     int dir = (n < 0 ? -1 : +1);
     int m, j;
-    pos cursplus;
+    pos eol;
     termline *ldata;
 
     n = (n < 0 ? -n : n);
     if (n > term->cols - term->curs.x)
 	n = term->cols - term->curs.x;
     m = term->cols - term->curs.x - n;
-    cursplus.y = term->curs.y;
-    cursplus.x = term->curs.x + n;
-    check_selection(term, term->curs, cursplus);
+
+    /*
+     * We must de-highlight the selection if it overlaps any part of
+     * the region affected by this operation, i.e. the region from the
+     * current cursor position to end-of-line, _unless_ the entirety
+     * of the selection is going to be moved to the left or right by
+     * this operation but otherwise unchanged, in which case we can
+     * simply move the highlight with the text.
+     */
+    eol.y = term->curs.y;
+    eol.x = term->cols;
+    if (poslt(term->curs, term->selend) && poslt(term->selstart, eol)) {
+        pos okstart = term->curs;
+        pos okend = eol;
+        if (dir > 0) {
+            /* Insertion: n characters at EOL will be splatted. */
+            okend.x -= n;
+        } else {
+            /* Deletion: n characters at cursor position will be splatted. */
+            okstart.x += n;
+        }
+        if (posle(okstart, term->selstart) && posle(term->selend, okend)) {
+            /* Selection is contained entirely in the interval
+             * [okstart,okend), so we need only adjust the selection
+             * bounds. */
+            term->selstart.x += dir * n;
+            term->selend.x += dir * n;
+            assert(term->selstart.x >= term->curs.x);
+            assert(term->selstart.x < term->cols);
+            assert(term->selend.x > term->curs.x);
+            assert(term->selend.x <= term->cols);
+        } else {
+            /* Selection is not wholly contained in that interval, so
+             * we must unhighlight it. */
+            deselect(term);
+        }
+    }
+
     check_boundary(term, term->curs.x, term->curs.y);
     if (dir < 0)
 	check_boundary(term, term->curs.x + n, term->curs.y);
