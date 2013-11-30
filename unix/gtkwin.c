@@ -94,6 +94,7 @@ struct gui_data {
     int mouseptr_visible;
     int busy_status;
     guint toplevel_callback_idle_id;
+    int idle_fn_scheduled, quit_fn_scheduled;
     int alt_keycode;
     int alt_digits;
     char *wintitle;
@@ -1403,6 +1404,8 @@ static gint quit_toplevel_callback_func(gpointer data)
 
     notify_toplevel_callback(inst);
 
+    inst->quit_fn_scheduled = FALSE;
+
     return 0;
 }
 
@@ -1414,16 +1417,36 @@ static gint idle_toplevel_callback_func(gpointer data)
         /*
          * We don't run the callbacks if we're in the middle of a
          * subsidiary gtk_main. Instead, ask for a callback when we
-         * get back out of the subsidiary main loop, so we can
-         * reschedule ourself then.
+         * get back out of the subsidiary main loop (if we haven't
+         * already arranged one), so we can reschedule ourself then.
          */
-        gtk_quit_add(2, quit_toplevel_callback_func, inst);
+        if (!inst->quit_fn_scheduled) {
+            gtk_quit_add(2, quit_toplevel_callback_func, inst);
+            inst->quit_fn_scheduled = TRUE;
+        }
+        /*
+         * And unschedule this idle function, since we've now done
+         * everything we can until the innermost gtk_main has quit and
+         * can reschedule us with a chance of actually taking action.
+         */
+        if (inst->idle_fn_scheduled) { /* double-check, just in case */
+            gtk_idle_remove(inst->toplevel_callback_idle_id);
+            inst->idle_fn_scheduled = FALSE;
+        }
     } else {
         run_toplevel_callbacks();
     }
 
-    if (!toplevel_callback_pending())
+    /*
+     * If we've emptied our toplevel callback queue, unschedule
+     * ourself. Otherwise, leave ourselves pending so we'll be called
+     * again to deal with more callbacks after another round of the
+     * event loop.
+     */
+    if (!toplevel_callback_pending() && inst->idle_fn_scheduled) {
         gtk_idle_remove(inst->toplevel_callback_idle_id);
+        inst->idle_fn_scheduled = FALSE;
+    }
 
     return TRUE;
 }
@@ -1432,8 +1455,11 @@ static void notify_toplevel_callback(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
 
-    inst->toplevel_callback_idle_id =
-        gtk_idle_add(idle_toplevel_callback_func, inst);
+    if (!inst->idle_fn_scheduled) {
+        inst->toplevel_callback_idle_id =
+            gtk_idle_add(idle_toplevel_callback_func, inst);
+        inst->idle_fn_scheduled = TRUE;
+    }
 }
 
 static gint timer_trigger(gpointer data)
@@ -3604,6 +3630,8 @@ int pt_main(int argc, char **argv)
     inst->busy_status = BUSY_NOT;
     inst->conf = conf_new();
     inst->wintitle = inst->icontitle = NULL;
+    inst->quit_fn_scheduled = FALSE;
+    inst->idle_fn_scheduled = FALSE;
 
     /* defer any child exit handling until we're ready to deal with
      * it */
