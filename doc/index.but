@@ -485,6 +485,10 @@ saved sessions from
 \IM{default foreground} foreground colour, default
 \IM{default foreground} colour, foreground, default
 
+\IM{bold black} bold black
+\IM{bold black} black, bold
+\IM{bold black} bright black
+
 \IM{TERM} \cw{TERM} environment variable
 
 \IM{logical palettes} logical palettes

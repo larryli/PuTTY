@@ -1539,7 +1539,7 @@ If you do not see \cq{colors#256} in the output, you may need to
 change your terminal setting. On modern Linux machines, you could
 try \cq{xterm-256color}.
 
-\S{config-boldcolour} \q{Indicate bolded text by changing}
+\S{config-boldcolour} \q{Indicate bolded text by changing...}
 
 \cfg{winhelp-topic}{colours.bold}
 
@@ -1555,6 +1555,10 @@ similarly in other colours). If you change the setting to \q{The font}
 box, bold and non-bold text will be displayed in the same colour, and
 instead the font will change to indicate the difference. If you select
 \q{Both}, the font and the colour will both change.
+
+Some applications rely on \q{\i{bold black}} being distinguishable
+from a black background; if you choose \q{The font}, their text may
+become invisible.
 
 \S{config-logpalette} \q{Attempt to use \i{logical palettes}}
 
@@ -1600,10 +1604,10 @@ and \I{default background}background, and the precise shades of all the
 \I{ANSI colours}ANSI configurable colours (black, red, green, yellow, blue,
 magenta, cyan, and white). You can also modify the precise shades used for
 the \i{bold} versions of these colours; these are used to display bold text
-if you have selected \q{Bolded text is a different colour}, and can also be
-used if the server asks specifically to use them. (Note that \q{Default
-Bold Background} is \e{not} the background colour used for bold text;
-it is only used if the server specifically asks for a bold
+if you have chosen to indicate that by colour (see \k{config-boldcolour}),
+and can also be used if the server asks specifically to use them. (Note
+that \q{Default Bold Background} is \e{not} the background colour used for
+bold text; it is only used if the server specifically asks for a bold
 background.)
 
 \H{config-connection} The Connection panel
