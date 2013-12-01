@@ -28,7 +28,7 @@ endif
 ifdef VERSION
 VERSIONIDS=vstr
 vstr.but: FORCE
-	echo \\versionid $(VERSION) > vstr.but
+	printf '\\versionid $(VERSION)\n' > vstr.but
 FORCE:;
 else
 VERSIONIDS=vids
