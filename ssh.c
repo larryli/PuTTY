@@ -1711,6 +1711,9 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 
     st->pktin->sequence = st->incoming_sequence++;
 
+    st->pktin->length = st->packetlen - st->pad;
+    assert(st->pktin->length >= 0);
+
     /*
      * Decompress packet payload.
      */
@@ -1739,7 +1742,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
      */
     st->pktin->type = st->pktin->data[5];
     st->pktin->body = st->pktin->data + 6;
-    st->pktin->length = st->packetlen - 6 - st->pad;
+    st->pktin->length -= 6;
     assert(st->pktin->length >= 0);    /* one last double-check */
 
     if (ssh->logctx)
