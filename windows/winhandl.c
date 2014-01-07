@@ -65,7 +65,7 @@ struct handle_generic {
     void *privdata;		       /* for client to remember who they are */
 };
 
-typedef enum { INPUT, OUTPUT, FOREIGN } HandleType;
+typedef enum { HT_INPUT, HT_OUTPUT, HT_FOREIGN } HandleType;
 
 /* ----------------------------------------------------------------------
  * Input threads.
@@ -406,7 +406,7 @@ struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
     struct handle *h = snew(struct handle);
     DWORD in_threadid; /* required for Win9x */
 
-    h->type = INPUT;
+    h->type = HT_INPUT;
     h->u.i.h = handle;
     h->u.i.ev_to_main = CreateEvent(NULL, FALSE, FALSE, NULL);
     h->u.i.ev_from_main = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -434,7 +434,7 @@ struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,
     struct handle *h = snew(struct handle);
     DWORD out_threadid; /* required for Win9x */
 
-    h->type = OUTPUT;
+    h->type = HT_OUTPUT;
     h->u.o.h = handle;
     h->u.o.ev_to_main = CreateEvent(NULL, FALSE, FALSE, NULL);
     h->u.o.ev_from_main = CreateEvent(NULL, FALSE, FALSE, NULL);
@@ -463,7 +463,7 @@ struct handle *handle_add_foreign_event(HANDLE event,
 {
     struct handle *h = snew(struct handle);
 
-    h->type = FOREIGN;
+    h->type = HT_FOREIGN;
     h->u.f.h = INVALID_HANDLE_VALUE;
     h->u.f.ev_to_main = event;
     h->u.f.ev_from_main = INVALID_HANDLE_VALUE;
@@ -484,7 +484,7 @@ struct handle *handle_add_foreign_event(HANDLE event,
 
 int handle_write(struct handle *h, const void *data, int len)
 {
-    assert(h->type == OUTPUT);
+    assert(h->type == HT_OUTPUT);
     assert(h->u.o.outgoingeof == EOF_NO);
     bufchain_add(&h->u.o.queued_data, data, len);
     handle_try_output(&h->u.o);
@@ -500,7 +500,7 @@ void handle_write_eof(struct handle *h)
      * bidirectional handle if we're still interested in its incoming
      * direction!
      */
-    assert(h->type == OUTPUT);
+    assert(h->type == HT_OUTPUT);
     if (!h->u.o.outgoingeof == EOF_NO) {
         h->u.o.outgoingeof = EOF_PENDING;
         handle_try_output(&h->u.o);
@@ -537,7 +537,7 @@ HANDLE *handle_get_events(int *nevents)
 
 static void handle_destroy(struct handle *h)
 {
-    if (h->type == OUTPUT)
+    if (h->type == HT_OUTPUT)
 	bufchain_clear(&h->u.o.queued_data);
     CloseHandle(h->u.g.ev_from_main);
     CloseHandle(h->u.g.ev_to_main);
@@ -617,7 +617,7 @@ void handle_got_event(HANDLE event)
     switch (h->type) {
 	int backlog;
 
-      case INPUT:
+      case HT_INPUT:
 	h->u.i.busy = FALSE;
 
 	/*
@@ -635,7 +635,7 @@ void handle_got_event(HANDLE event)
 	}
         break;
 
-      case OUTPUT:
+      case HT_OUTPUT:
 	h->u.o.busy = FALSE;
 
 	/*
@@ -658,7 +658,7 @@ void handle_got_event(HANDLE event)
 	}
         break;
 
-      case FOREIGN:
+      case HT_FOREIGN:
         /* Just call the callback. */
         h->u.f.callback(h->u.f.ctx);
         break;
@@ -667,13 +667,13 @@ void handle_got_event(HANDLE event)
 
 void handle_unthrottle(struct handle *h, int backlog)
 {
-    assert(h->type == INPUT);
+    assert(h->type == HT_INPUT);
     handle_throttle(&h->u.i, backlog);
 }
 
 int handle_backlog(struct handle *h)
 {
-    assert(h->type == OUTPUT);
+    assert(h->type == HT_OUTPUT);
     return bufchain_size(&h->u.o.queued_data);
 }
 
