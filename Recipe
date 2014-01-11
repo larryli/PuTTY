@@ -22,6 +22,8 @@
 !makefile am unix/Makefile.am
 !makefile osx macosx/Makefile
 !makefile devcppproj windows/DEVCPP
+!makefile vstudio10 windows/VS2010
+!makefile vstudio12 windows/VS2012
 # Source directories.
 !srcdir charset/
 !srcdir windows/

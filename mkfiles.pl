@@ -19,6 +19,7 @@ use warnings;
 use FileHandle;
 use File::Basename;
 use Cwd;
+use Digest::SHA qw(sha512_hex);
 
 if ($#ARGV >= 0 and ($ARGV[0] eq "-u" or $ARGV[0] eq "-U")) {
     # Convenience for Unix users: -u means that after we finish what
@@ -258,9 +259,9 @@ sub mfval($) {
     # prints a warning and returns false;
     if (grep { $type eq $_ }
 	("vc","vcproj","cygwin","borland","lcc","devcppproj","gtk","unix",
-	 "am","osx",)) {
-	    return 1;
-	}
+         "am","osx","vstudio10","vstudio12")) {
+        return 1;
+    }
     warn "$.:unknown makefile type '$type'\n";
     return 0;
 }
@@ -962,6 +963,360 @@ if (defined $makefiles{'vcproj'}) {
     }
 }
 
+if (defined $makefiles{'vstudio10'} || defined $makefiles{'vstudio12'}) {
+
+    ##-- Visual Studio 2010+ Solution and Projects
+
+    if (defined $makefiles{'vstudio10'}) {
+        create_vs_solution('vstudio10', "2010", "11.00", "v100");
+    }
+
+    if (defined $makefiles{'vstudio12'}) {
+        create_vs_solution('vstudio12', "2012", "12.00", "v110");
+    }
+
+    sub create_vs_solution {
+        my ($makefilename, $name, $version, $toolsver) = @_;
+
+        $dirpfx = &dirpfx($makefiles{$makefilename}, "\\");
+
+        @deps = &deps("X.obj", "X.res", $dirpfx, "\\", $makefilename);
+        %all_object_deps = map {$_->{obj} => $_->{deps}} @deps;
+
+        my @prognames = &prognames("G:C");
+
+        # Create the solution file.
+        mkdir $makefiles{$makefilename}
+           if(! -f $makefiles{$makefilename});
+        chdir $makefiles{$makefilename};
+
+        open OUT, ">$project_name.sln"; select OUT;
+
+        print
+            "Microsoft Visual Studio Solution File, Format Version $version\n" .
+            "# Visual Studio $name\n";
+
+        my %projguids = ();
+        foreach $progname (@prognames) {
+            ($windows_project, $type) = split ",", $progname;
+
+            $projguids{$windows_project} = $guid =
+                &invent_guid("project:$progname");
+        
+            print
+                "Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\") = \"$windows_project\", \"$windows_project\\$windows_project.vcxproj\", \"{$guid}\"\n" .
+                "EndProject\n";
+        }
+
+        print
+            "Global\n" .
+            "    GlobalSection(SolutionConfigurationPlatforms) = preSolution\n" .
+            "        Debug|Win32 = Debug|Win32\n" .
+            "        Release|Win32 = Release|Win32\n" .
+            "    EndGlobalSection\n" .
+            "    GlobalSection(ProjectConfigurationPlatforms) = postSolution\n" ;
+
+        foreach my $projguid (values %projguids) {
+            print
+                "        {$projguid}.Debug|Win32.ActiveCfg = Debug|Win32\n" .
+                "        {$projguid}.Debug|Win32.Build.0 = Debug|Win32\n" .
+                "        {$projguid}.Release|Win32.ActiveCfg = Release|Win32\n" .
+                "        {$projguid}.Release|Win32.Build.0 = Release|Win32\n";
+        }
+
+        print
+            "    EndGlobalSection\n" .
+            "    GlobalSection(SolutionProperties) = preSolution\n" .
+            "        HideSolutionNode = FALSE\n" .
+            "    EndGlobalSection\n" .
+            "EndGlobal\n";
+
+        select STDOUT; close OUT;
+
+        foreach $progname (@prognames) {
+            ($windows_project, $type) = split ",", $progname;
+            create_vs_project(\%all_object_deps, $windows_project, $type, $projguids{$windows_project}, $toolsver);
+        }
+    
+        chdir $orig_dir;
+    }
+
+    sub create_vs_project {
+        my ($all_object_deps, $windows_project, $type, $projguid, $toolsver) = @_;
+
+        # Break down the project's dependency information into the appropriate
+        # groups.
+        %seen_objects = ();
+        %lib_files = ();
+        %source_files = ();
+        %header_files = ();
+        %resource_files = ();
+        %icon_files = ();
+
+        @object_files = split " ", &objects($progname, "X.obj", "X.res", "X.lib");
+        foreach $object_file (@object_files) {
+            next if defined $seen_objects{$object_file};
+            $seen_objects{$object_file} = 1;
+
+            if($object_file =~ /\.lib$/io) {
+                $lib_files{$object_file} = 1;
+                next;
+            }
+
+            $object_deps = $all_object_deps{$object_file};
+            foreach $object_dep (@$object_deps) {
+                if($object_dep eq $object_deps->[0]) {
+                    if($object_dep =~ /\.c$/io) {
+                        $source_files{$object_dep} = 1;
+                    } elsif($object_dep =~ /\.rc$/io) {
+                        $resource_files{$object_dep} = 1;
+                    }
+                } elsif ($object_dep =~ /\.[ch]$/io) {
+                    $header_files{$object_dep} = 1;
+                } elsif ($object_dep =~ /\.ico$/io) {
+                    $icon_files{$object_dep} = 1;
+                }
+            }
+        }
+
+        $libs = join ";", sort keys %lib_files;
+        @source_files = sort keys %source_files;
+        @header_files = sort keys %header_files;
+        @resources = sort keys %resource_files;
+        @icons = sort keys %icon_files;
+        $subsystem = ($type eq "G") ? "Windows" : "Console";
+
+        mkdir $windows_project
+            if(! -d $windows_project);
+        chdir $windows_project;
+        open OUT, ">$windows_project.vcxproj"; select OUT;
+        open FILTERS, ">$windows_project.vcxproj.filters";
+
+        # The bulk of the project file is just boilerplate stuff, so we
+        # can mostly just dump it out here. Note, buried in the ClCompile
+        # item definition, that we use a debug information format of
+        # ProgramDatabase, which disables the edit-and-continue support
+        # that breaks most of the project builds.
+        print
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" .
+            "<Project DefaultTargets=\"Build\" ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n" .
+            "  <ItemGroup Label=\"ProjectConfigurations\">\n" .
+            "    <ProjectConfiguration Include=\"Debug|Win32\">\n" .
+            "      <Configuration>Debug</Configuration>\n" .
+            "      <Platform>Win32</Platform>\n" .
+            "    </ProjectConfiguration>\n" .
+            "    <ProjectConfiguration Include=\"Release|Win32\">\n" .
+            "      <Configuration>Release</Configuration>\n" .
+            "      <Platform>Win32</Platform>\n" .
+            "    </ProjectConfiguration>\n" .
+            "  </ItemGroup>\n" .
+            "  <PropertyGroup Label=\"Globals\">\n" .
+            "    <SccProjectName />\n" .
+            "    <SccLocalPath />\n" .
+            "    <ProjectGuid>{$projguid}</ProjectGuid>\n" .
+            "  </PropertyGroup>\n" .
+            "  <Import Project=\"\$(VCTargetsPath)\\Microsoft.Cpp.Default.props\" />\n" .
+            "  <PropertyGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Debug|Win32'\" Label=\"Configuration\">\n" .
+            "    <ConfigurationType>Application</ConfigurationType>\n" .
+            "    <UseOfMfc>false</UseOfMfc>\n" .
+            "    <CharacterSet>MultiByte</CharacterSet>\n" .
+            "    <PlatformToolset>$toolsver</PlatformToolset>\n" .
+            "  </PropertyGroup>\n" .
+            "  <PropertyGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Release|Win32'\" Label=\"Configuration\">\n" .
+            "    <ConfigurationType>Application</ConfigurationType>\n" .
+            "    <UseOfMfc>false</UseOfMfc>\n" .
+            "    <CharacterSet>MultiByte</CharacterSet>\n" .
+            "    <PlatformToolset>$toolsver</PlatformToolset>\n" .
+            "  </PropertyGroup>\n" .
+            "  <Import Project=\"\$(VCTargetsPath)\\Microsoft.Cpp.props\" />\n" .
+            "  <ImportGroup Label=\"ExtensionTargets\">\n" .
+            "  </ImportGroup>\n" .
+            "  <ImportGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Debug|Win32'\" Label=\"PropertySheets\">\n" .
+            "    <Import Project=\"\$(UserRootDir)\\Microsoft.Cpp.\$(Platform).user.props\" Condition=\"exists('\$(UserRootDir)\\Microsoft.Cpp.\$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />\n" .
+            "  </ImportGroup>\n" .
+            "  <ImportGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Release|Win32'\" Label=\"PropertySheets\">\n" .
+            "    <Import Project=\"\$(UserRootDir)\\Microsoft.Cpp.\$(Platform).user.props\" Condition=\"exists('\$(UserRootDir)\\Microsoft.Cpp.\$(Platform).user.props')\" Label=\"LocalAppDataPlatform\" />\n" .
+            "  </ImportGroup>\n" .
+            "  <PropertyGroup Label=\"UserMacros\" />\n" .
+            "  <PropertyGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Release|Win32'\">\n" .
+            "    <OutDir>.\\Release\\</OutDir>\n" .
+            "    <IntDir>.\\Release\\</IntDir>\n" .
+            "    <LinkIncremental>false</LinkIncremental>\n" .
+            "  </PropertyGroup>\n" .
+            "  <PropertyGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Debug|Win32'\">\n" .
+            "    <OutDir>.\\Debug\\</OutDir>\n" .
+            "    <IntDir>.\\Debug\\</IntDir>\n" .
+            "    <LinkIncremental>true</LinkIncremental>\n" .
+            "  </PropertyGroup>\n" .
+            "  <ItemDefinitionGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Release|Win32'\">\n" .
+            "    <ClCompile>\n" .
+            "      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>\n" .
+            "      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>\n" .
+            "      <StringPooling>true</StringPooling>\n" .
+            "      <FunctionLevelLinking>true</FunctionLevelLinking>\n" .
+            "      <Optimization>MaxSpeed</Optimization>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <WarningLevel>Level3</WarningLevel>\n" .
+            "      <AdditionalIncludeDirectories>" . (join ";", map {"..\\..\\$dirpfx$_"} @srcdirs) . ";%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
+            "      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;SECURITY_WIN32;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <AssemblerListingLocation>.\\Release\\</AssemblerListingLocation>\n" .
+            "      <PrecompiledHeaderOutputFile>.\\Release\\$windows_project.pch</PrecompiledHeaderOutputFile>\n" .
+            "      <ObjectFileName>.\\Release\\</ObjectFileName>\n" .
+            "      <ProgramDataBaseFileName>.\\Release\\</ProgramDataBaseFileName>\n" .
+            "    </ClCompile>\n" .
+            "    <Midl>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <TypeLibraryName>.\\Release\\$windows_project.tlb</TypeLibraryName>\n" .
+            "      <MkTypLibCompatible>true</MkTypLibCompatible>\n" .
+            "      <TargetEnvironment>Win32</TargetEnvironment>\n" .
+            "    </Midl>\n" .
+            "    <ResourceCompile>\n" .
+            "      <Culture>0x0809</Culture>\n" .
+            "      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "    </ResourceCompile>\n" .
+            "    <Bscmake>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <OutputFile>.\\Release\\$windows_project.bsc</OutputFile>\n" .
+            "    </Bscmake>\n" .
+            "    <Link>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <SubSystem>$subsystem</SubSystem>\n" .
+            "      <OutputFile>.\\Release\\$windows_project.exe</OutputFile>\n" .
+            "      <AdditionalDependencies>$libs;%(AdditionalDependencies)</AdditionalDependencies>\n" .
+            "    </Link>\n" .
+            "  </ItemDefinitionGroup>\n" .
+            "  <ItemDefinitionGroup Condition=\"'\$(Configuration)|\$(Platform)'=='Debug|Win32'\">\n" .
+            "    <ClCompile>\n" .
+            "      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>\n" .
+            "      <InlineFunctionExpansion>Default</InlineFunctionExpansion>\n" .
+            "      <FunctionLevelLinking>false</FunctionLevelLinking>\n" .
+            "      <Optimization>Disabled</Optimization>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <WarningLevel>Level3</WarningLevel>\n" .
+            "      <MinimalRebuild>true</MinimalRebuild>\n" .
+            "      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>\n" .
+            "      <AdditionalIncludeDirectories>" . (join ";", map {"..\\..\\$dirpfx$_"} @srcdirs) . ";%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
+            "      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;SECURITY_WIN32;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <AssemblerListingLocation>.\\Debug\\</AssemblerListingLocation>\n" .
+            "      <PrecompiledHeaderOutputFile>.\\Debug\\$windows_project.pch</PrecompiledHeaderOutputFile>\n" .
+            "      <ObjectFileName>.\\Debug\\</ObjectFileName>\n" .
+            "      <ProgramDataBaseFileName>.\\Debug\\</ProgramDataBaseFileName>\n" .
+            "      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>\n" .
+            "    </ClCompile>\n" .
+            "    <Midl>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <TypeLibraryName>.\\Debug\\$windows_project.tlb</TypeLibraryName>\n" .
+            "      <MkTypLibCompatible>true</MkTypLibCompatible>\n" .
+            "      <TargetEnvironment>Win32</TargetEnvironment>\n" .
+            "    </Midl>\n" .
+            "    <ResourceCompile>\n" .
+            "      <Culture>0x0809</Culture>\n" .
+            "      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "    </ResourceCompile>\n" .
+            "    <Bscmake>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <OutputFile>.\\Debug\\$windows_project.bsc</OutputFile>\n" .
+            "    </Bscmake>\n" .
+            "    <Link>\n" .
+            "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
+            "      <GenerateDebugInformation>true</GenerateDebugInformation>\n" .
+            "      <SubSystem>$subsystem</SubSystem>\n" .
+            "      <OutputFile>\$(TargetPath)</OutputFile>\n" .
+            "      <AdditionalDependencies>$libs;%(AdditionalDependencies)</AdditionalDependencies>\n" .
+            "    </Link>\n" .
+            "  </ItemDefinitionGroup>\n";
+
+        # The VC++ projects don't have physical structure to them, instead
+        # the files are organized by logical "filters" that are stored in
+        # a separate file, so different users can organize things differently.
+        # The filters file contains a copy of the ItemGroup elements from
+        # the main project file that list the included items, but tack
+        # on a filter name where needed.
+        print FILTERS
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" .
+            "<Project ToolsVersion=\"4.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\n";
+
+        print "  <ItemGroup>\n";
+        print FILTERS "  <ItemGroup>\n";
+        foreach $icon_file (@icons) {
+            $icon_file =~ s/..\\windows\\//;
+            print "    <CustomBuild Include=\"..\\..\\$icon_file\" />\n";
+            print FILTERS
+                "    <CustomBuild Include=\"..\\..\\$icon_file\">\n" .
+                "      <Filter>Resource Files</Filter>\n" .
+                "    </CustomBuild>\n";
+        }
+        print FILTERS "  </ItemGroup>\n";
+        print "  </ItemGroup>\n";
+
+        print "  <ItemGroup>\n";
+        print FILTERS "  <ItemGroup>\n";
+        foreach $resource_file (@resources) {
+            $resource_file =~ s/..\\windows\\//;
+            print
+                "    <ResourceCompile Include=\"..\\..\\$resource_file\">\n" .
+                "      <AdditionalIncludeDirectories Condition=\"'\$(Configuration)|\$(Platform)'=='Release|Win32'\">..\\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
+                "      <AdditionalIncludeDirectories Condition=\"'\$(Configuration)|\$(Platform)'=='Debug|Win32'\">..\\..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
+                "    </ResourceCompile>\n";
+            print FILTERS
+                "    <ResourceCompile Include=\"..\\..\\$resource_file\">\n" .
+                "      <Filter>Resource Files</Filter>\n" .
+                "    </ResourceCompile>\n";
+        }
+        print FILTERS "  </ItemGroup>\n";
+        print "  </ItemGroup>\n";
+
+        print "  <ItemGroup>\n";
+        print FILTERS "  <ItemGroup>\n";
+        foreach $source_file (@source_files) {
+            $source_file =~ s/..\\windows\\//;
+            print "    <ClCompile Include=\"..\\..\\$source_file\" />\n";
+            print FILTERS
+                "    <ClCompile Include=\"..\\..\\$source_file\">\n" .
+                "      <Filter>Source Files</Filter>\n" .
+                "    </ClCompile>";
+        }
+        print FILTERS "  </ItemGroup>\n";
+        print "  </ItemGroup>\n";
+
+        print "  <ItemGroup>\n";
+        print FILTERS "  <ItemGroup>\n";
+        foreach $header_file (@header_files) {
+            $header_file  =~ s/..\\windows\\//;
+            print "    <ClInclude Include=\"..\\..\\$header_file\" />\n";
+            print FILTERS
+                "    <ClInclude Include=\"..\\..\\$header_file\">\n" .
+                "      <Filter>Header Files</Filter>\n" .
+                "    </ClInclude>";
+        }
+        print FILTERS "  </ItemGroup>\n";
+        print "  </ItemGroup>\n";
+
+        print
+            "  <Import Project=\"\$(VCTargetsPath)\\Microsoft.Cpp.targets\" />\n" .
+            "</Project>";
+
+        print FILTERS
+            "  <ItemGroup>\n" .
+            "    <Filter Include=\"Source Files\">\n" .
+            "      <UniqueIdentifier>{" . &invent_guid("sources:$windows_project") . "}</UniqueIdentifier>\n" .
+            "    </Filter>\n" .
+            "    <Filter Include=\"Header Files\">\n" .
+            "      <UniqueIdentifier>{" . &invent_guid("headers:$windows_project") . "}</UniqueIdentifier>\n" .
+            "    </Filter>\n" .
+            "    <Filter Include=\"Resource Files\">\n" .
+            "      <UniqueIdentifier>{" . &invent_guid("resources:$windows_project") . "}</UniqueIdentifier>\n" .
+            "    </Filter>\n" .
+            "  </ItemGroup>\n" .
+            "</Project>";
+
+        select STDOUT; close OUT; close FILTERS;
+        chdir "..";
+    }
+}
+
 if (defined $makefiles{'gtk'}) {
     $dirpfx = &dirpfx($makefiles{'gtk'}, "/");
 
@@ -1559,4 +1914,75 @@ if ($do_unix) {
     }
     system "./configure", @confargs;
     die "mkfiles.pl: configure returned $?\n" if $? > 0;
+}
+
+sub invent_guid($) {
+    my ($name) = @_;
+
+    # Invent a GUID for use in Visual Studio project files. We need
+    # a few of these for every executable file we build.
+    #
+    # In order to avoid having to use the non-core Perl module
+    # Data::GUID, and also arrange for GUIDs to be stable, we generate
+    # our GUIDs by hashing a pile of fixed (but originally randomly
+    # generated) data with the filename for which we need an id.
+    #
+    # Hashing _just_ the filenames would clearly be cheating (it's
+    # quite conceivable that someone might hash the same string for
+    # another reason and so generate a colliding GUID), but hashing a
+    # whole SHA-512 data block of random gibberish as well should make
+    # these GUIDs pseudo-random enough to not collide with anyone
+    # else's.
+
+    my $randdata = pack "N*",
+    0xD4AB035F,0x76998BA0,0x2DCCB0BD,0x6D3FA320,0x53638051,0xFE312F35,
+    0xDE1CECC0,0x784DF852,0x6C9F4589,0x54B7AC23,0x14E7A1C4,0xF9BF04DF,
+    0x19C08B6D,0x3FB69EF1,0xB2DA9043,0xDB5362F3,0x25718DB6,0x733560DA,
+    0xFEF871B0,0xFECF7A0C,0x67D19C95,0xB492E911,0xF5D562A3,0xFCE1D478,
+    0x02C50434,0xF7326B7E,0x93D39872,0xCF0D0269,0x9EF24C0F,0x827689AD,
+    0x88BD20BC,0x74EA6AFE,0x29223682,0xB9AB9287,0x7EA7CE4F,0xCF81B379,
+    0x9AE4A954,0x81C7AD97,0x2FF2F031,0xC51DA3C2,0xD311CCE7,0x0A31EB8B,
+    0x1AB04242,0xAF53B714,0xFC574D40,0x8CB4ED01,0x29FEB16F,0x4904D7ED,
+    0xF5C5F5E1,0xF138A4C2,0xA9D881CE,0xCEA65187,0x4421BA97,0x0EE8428E,
+    0x9556E384,0x6D0484C9,0x561BD84B,0xD9516A40,0x6B4FD33F,0xDDFFE4C8,
+    0x3D5DF8A5,0xFE6B7D99,0x3443371B,0xF4E30A3E,0xE62B9FDA,0x6BAA75DB,
+    0x9EF3C2C7,0x6815CA42,0xE6536076,0xF851E6E2,0x39D16E69,0xBCDF3BB6,
+    0x50EFFA41,0x378CDF2A,0xB5EC0D0C,0x1E94C433,0xE818241A,0x2689EB1F,
+    0xB649CEF9,0xD7344D46,0x59C1BB13,0x27511FDF,0x7DAD1768,0xB355E29E,
+    0xDFAE550C,0x2433005B,0x09DE10B0,0xAA00BA6B,0xC144ED2D,0x8513D007,
+    0xB0315232,0x7A10DAB6,0x1D97654E,0xF048214D,0xE3059E75,0x83C225D1,
+    0xFC7AB177,0x83F2B553,0x79F7A0AF,0x1C94582C,0xF5E4AF4B,0xFB39C865,
+    0x58ABEB27,0xAAB28058,0x52C15A89,0x0EBE9741,0x343F4D26,0xF941202A,
+    0xA32FD32F,0xDCC055B8,0x64281BF3,0x468BD7BA,0x0CEE09D3,0xBB5FD2B6,
+    0xA528D412,0xA6A6967E,0xEAAF5DAE,0xDE7B2FAE,0xCA36887B,0x0DE196EB,
+    0x74B95EF0,0x9EB8B7C2,0x020BFC83,0x1445086F,0xBF4B61B2,0x89AFACEC,
+    0x80A5CD69,0xC790F744,0x435A6998,0x8DE7AC48,0x32F31BC9,0x8F760D3D,
+    0xF02A74CB,0xD7B47E20,0x9EC91035,0x70FDE74D,0x9B531362,0x9D81739A,
+    0x59ADC2EB,0x511555B5,0xCA84B8D5,0x3EC325FF,0x2E442A4C,0x82AF30D9,
+    0xBFD3EC87,0x90C59E07,0x1C6DC991,0x2D16B822,0x7EA44EB5,0x3A655A39,
+    0xAB640886,0x09311821,0x777801D9,0x489DBE61,0xA1FFEC65,0x978B49B1,
+    0x7DB700CD,0x263CF3D6,0xF977E89F,0xBA0B3D01,0x6C6CED19,0x1BE6F23A,
+    0x19E0ED98,0x8E71A499,0x70BA3271,0x3FB7EE98,0xABA46848,0x2B797959,
+    0x72C6DE59,0xE08B795C,0x02936C39,0x02185CCB,0xD6F3CE18,0xD0157A40,
+    0x833DEC3F,0x319B00C4,0x97B59513,0x900B81FD,0x9A022379,0x16E44E1A,
+    0x0C4CC540,0xCA98E7F9,0xF9431A26,0x290BCFAC,0x406B82C0,0xBC1C4585,
+    0x55C54528,0x811EBB77,0xD4EDD4F3,0xA70DC02E,0x8AD5C0D1,0x28D64EF4,
+    0xBEFF5C69,0x99852C4A,0xB4BBFF7B,0x069230AC,0xA3E141FA,0x4E99FB0E,
+    0xBC154DAA,0x323C7F15,0x86E0247E,0x2EEA3054,0xC9CA1D32,0x8964A006,
+    0xC93978AC,0xF9B2C159,0x03F2079E,0xB051D284,0x4A7EA9A9,0xF001DA1F,
+    0xD47A0DAA,0xCF7B6B73,0xF18293B2,0x84303E34,0xF8BC76C4,0xAFBEE24F,
+    0xB589CA80,0x77B5BF86,0x21B9FD5B,0x1A5071DF,0xA3863110,0x0E50CA61,
+    0x939151A5,0xD2A59021,0x83A9CDCE,0xCEC69767,0xC906BB16,0x3EE1FF4D,
+    0x1321EAE4,0x0BF940D6,0x52471E61,0x8A087056,0x66E54293,0xF84AAB9B,
+    0x08835EF1,0x8F12B77A,0xD86935A5,0x200281D7,0xCD3C37C9,0x30ABEC05,
+    0x7067E8A0,0x608C4838,0xC9F51CDE,0xA6D318DE,0x41C05B2A,0x694CCE0E,
+    0xC7842451,0xA3194393,0xFBDC2C84,0xA6D2B577,0xC91E7924,0x01EDA708,
+    0x22FBB61E,0x662F9B7B,0xDE3150C3,0x2397058C;
+    my $digest = sha512_hex($name . "\0" . $randdata);
+    return sprintf("%s-%s-%04x-%04x-%s",
+                   substr($digest,0,8),
+                   substr($digest,8,4),
+                   0x4000 | (0xFFF & hex(substr($digest,12,4))),
+                   0x8000 | (0x3FFF & hex(substr($digest,16,4))),
+                   substr($digest,20,12));
 }
