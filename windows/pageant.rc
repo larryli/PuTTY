@@ -45,7 +45,7 @@ BEGIN
     PUSHBUTTON "View &Licence", 101, 6, 52, 70, 14
     CTEXT "Pageant", 102, 10, 6, 120, 8
     CTEXT "", 100, 10, 16, 120, 16
-    CTEXT "\251 1997-2013 Simon Tatham. All rights reserved.",
+    CTEXT "\251 1997-2014 Simon Tatham. All rights reserved.",
           103, 10, 34, 120, 16
 END
 
@@ -57,7 +57,7 @@ FONT 8, "MS Shell Dlg"
 BEGIN
     DEFPUSHBUTTON "OK", IDOK, 98, 243, 44, 14
 
-    LTEXT "Copyright \251 1997-2013 Simon Tatham", 1000, 10, 10, 206, 8
+    LTEXT "Copyright \251 1997-2014 Simon Tatham", 1000, 10, 10, 206, 8
 
     LTEXT "Portions copyright Robert de Bath, Joris van Rantwijk, Delian", 1001, 10, 26, 206, 8
     LTEXT "Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas", 1002, 10, 34, 206, 8
