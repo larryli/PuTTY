@@ -109,12 +109,6 @@
 #      Makes a couple of minor changes so that PuTTY compiles using
 #      MSVC 4. You will also need /DNO_SECURITY and /DNO_MULTIMON.
 #
-#  - RCFL=/DASCIICTLS (Windows only)
-#      Uses ASCII rather than Unicode to specify the tab control in
-#      the resource file. Probably most useful when compiling with
-#      Cygnus/mingw32, whose resource compiler may have less of a
-#      problem with it.
-#
 #  - COMPAT=/DNO_SECUREZEROMEMORY (Windows only)
 #      Disables PuTTY's use of SecureZeroMemory(), which is missing
 #      from some environments' header files.  This is enabled by
