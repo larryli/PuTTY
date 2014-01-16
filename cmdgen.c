@@ -1034,6 +1034,8 @@ int main(int argc, char **argv)
       case SSHCOM:
 	assert(sshver == 2);
 	assert(ssh2key);
+	random_ref(); /* both foreign key types require randomness,
+                       * for IV or padding */
 	ret = export_ssh2(outfilename, outtype, ssh2key, passphrase);
 	if (!ret) {
 	    fprintf(stderr, "puttygen: unable to export key\n");
