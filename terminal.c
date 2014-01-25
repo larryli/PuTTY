@@ -2517,7 +2517,8 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    compatibility(OTHER);
 	    deselect(term);
 	    swap_screen(term, term->no_alt_screen ? 0 : state, FALSE, FALSE);
-	    term->disptop = 0;
+            if (term->scroll_on_disp)
+                term->disptop = 0;
 	    break;
 	  case 1000:		       /* xterm mouse 1 (normal) */
 	    term->xterm_mouse = state ? 1 : 0;
@@ -2537,7 +2538,8 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    compatibility(OTHER);
 	    deselect(term);
 	    swap_screen(term, term->no_alt_screen ? 0 : state, TRUE, TRUE);
-	    term->disptop = 0;
+            if (term->scroll_on_disp)
+                term->disptop = 0;
 	    break;
 	  case 1048:                   /* save/restore cursor */
 	    if (!term->no_alt_screen)
@@ -2553,7 +2555,8 @@ static void toggle_mode(Terminal *term, int mode, int query, int state)
 	    swap_screen(term, term->no_alt_screen ? 0 : state, TRUE, FALSE);
 	    if (!state && !term->no_alt_screen)
 		save_cursor(term, state);
-	    term->disptop = 0;
+            if (term->scroll_on_disp)
+                term->disptop = 0;
 	    break;
 	  case 2004:		       /* xterm bracketed paste */
 	    term->bracketed_paste = state ? TRUE : FALSE;
@@ -3015,7 +3018,8 @@ static void term_out(Terminal *term)
 		if (has_compat(SCOANSI)) {
 		    move(term, 0, 0, 0);
 		    erase_lots(term, FALSE, FALSE, TRUE);
-		    term->disptop = 0;
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
 		    term->wrapnext = FALSE;
 		    seen_disp_event(term);
 		    break;
@@ -3295,7 +3299,8 @@ static void term_out(Terminal *term)
 			    request_resize(term->frontend, 80, term->rows);
 			term->reset_132 = 0;
 		    }
-		    term->disptop = 0;
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
 		    seen_disp_event(term);
 		    break;
 		  case 'H':	       /* HTS: set a tab */
@@ -3319,7 +3324,8 @@ static void term_out(Terminal *term)
 			    }
 			    ldata->lattr = LATTR_NORM;
 			}
-			term->disptop = 0;
+                        if (term->scroll_on_disp)
+                            term->disptop = 0;
 			seen_disp_event(term);
 			scrtop.x = scrtop.y = 0;
 			scrbot.x = 0;
@@ -3517,7 +3523,8 @@ static void term_out(Terminal *term)
 				erase_lots(term, FALSE, !!(i & 2), !!(i & 1));
 			    }
 			}
-			term->disptop = 0;
+			if (term->scroll_on_disp)
+                            term->disptop = 0;
 			seen_disp_event(term);
 			break;
 		      case 'K':       /* EL: erase line or parts of it */
@@ -4424,7 +4431,8 @@ static void term_out(Terminal *term)
 		    break;
 		  case 'J':
 		    erase_lots(term, FALSE, FALSE, TRUE);
-		    term->disptop = 0;
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
 		    break;
 		  case 'K':
 		    erase_lots(term, TRUE, FALSE, TRUE);
@@ -4479,7 +4487,8 @@ static void term_out(Terminal *term)
 		    /* compatibility(ATARI) */
 		    move(term, 0, 0, 0);
 		    erase_lots(term, FALSE, FALSE, TRUE);
-		    term->disptop = 0;
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
 		    break;
 		  case 'L':
 		    /* compatibility(ATARI) */
@@ -4502,7 +4511,8 @@ static void term_out(Terminal *term)
 		  case 'd':
 		    /* compatibility(ATARI) */
 		    erase_lots(term, FALSE, TRUE, FALSE);
-		    term->disptop = 0;
+                    if (term->scroll_on_disp)
+                        term->disptop = 0;
 		    break;
 		  case 'e':
 		    /* compatibility(ATARI) */
