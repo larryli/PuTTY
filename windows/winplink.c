@@ -520,10 +520,21 @@ int main(int argc, char **argv)
 	    }
 	}
 
-	/*
-	 * Trim off a colon suffix if it's there.
-	 */
-	host[host_strcspn(host, ":")] = '\0';
+        /*
+         * Trim a colon suffix off the hostname if it's there. In
+         * order to protect unbracketed IPv6 address literals
+         * against this treatment, we do not do this if there's
+         * _more_ than one colon.
+         */
+        {
+            char *c = host_strchr(host, ':');
+ 
+            if (c) {
+                char *d = host_strchr(c+1, ':');
+                if (!d)
+                    *c = '\0';
+            }
+        }
 
 	/*
 	 * Remove any remaining whitespace.

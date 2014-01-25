@@ -3419,10 +3419,11 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
 
 	/*
 	 * A colon suffix on the hostname string also lets us affect
-	 * savedport.
+	 * savedport. (Unless there are multiple colons, in which case
+	 * we assume this is an unbracketed IPv6 literal.)
 	 */
 	colon = host_strrchr(tmphost, ':');
-	if (colon) {
+	if (colon && colon == host_strchr(tmphost, ':')) {
 	    *colon++ = '\0';
 	    if (*colon)
 		ssh->savedport = atoi(colon);
