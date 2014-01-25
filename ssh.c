@@ -4955,7 +4955,7 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 	    vp = val;
 	    vp2 = vp + host_strcspn(vp, ":");
 	    host = dupprintf("%.*s", (int)(vp2 - vp), vp);
-	    if (vp2)
+	    if (*vp2)
 		vp2++;
 	    dports = vp2;
 	    dport = atoi(dports);
