@@ -221,7 +221,11 @@ SockAddr sk_namelookup(const char *host, char **canonicalname, int address_famil
     hints.ai_addr = NULL;
     hints.ai_canonname = NULL;
     hints.ai_next = NULL;
-    err = getaddrinfo(host, NULL, &hints, &ret->ais);
+    {
+        char *trimmed_host = host_strduptrim(host); /* strip [] on literals */
+        err = getaddrinfo(trimmed_host, NULL, &hints, &ret->ais);
+        sfree(trimmed_host);
+    }
     if (err != 0) {
 	ret->error = gai_strerror(err);
 	return ret;
@@ -868,7 +872,11 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, i
         hints.ai_next = NULL;
 	assert(port >= 0 && port <= 99999);
         sprintf(portstr, "%d", port);
-        retcode = getaddrinfo(srcaddr, portstr, &hints, &ai);
+        {
+            char *trimmed_addr = host_strduptrim(srcaddr);
+            retcode = getaddrinfo(trimmed_addr, portstr, &hints, &ai);
+            sfree(trimmed_addr);
+        }
 	if (retcode == 0) {
 	    addr = (union sockaddr_union *)ai->ai_addr;
 	    addrlen = ai->ai_addrlen;

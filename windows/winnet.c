@@ -527,7 +527,13 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 	    memset(&hints, 0, sizeof(hints));
 	    hints.ai_family = hint_family;
 	    hints.ai_flags = AI_CANONNAME;
-	    if ((err = p_getaddrinfo(host, NULL, &hints, &ret->ais)) == 0)
+            {
+                /* strip [] on IPv6 address literals */
+                char *trimmed_host = host_strduptrim(host);
+                err = p_getaddrinfo(trimmed_host, NULL, &hints, &ret->ais);
+                sfree(trimmed_host);
+            }
+	    if (err == 0)
 		ret->resolved = TRUE;
 	} else
 #endif

@@ -1146,7 +1146,7 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    }
 	    if (*type != 'D') {
 		val = dlg_editbox_get(pfd->destbox, dlg);
-		if (!*val || !strchr(val, ':')) {
+		if (!*val || !host_strchr(val, ':')) {
 		    dlg_error_msg(dlg,
 				  "You need to specify a destination address\n"
 				  "in the form \"host.name:port\"");

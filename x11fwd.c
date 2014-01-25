@@ -230,7 +230,7 @@ struct X11Display *x11_setup_display(char *display, Conf *conf)
 	char *colon, *dot, *slash;
 	char *protocol, *hostname;
 
-	colon = strrchr(localcopy, ':');
+	colon = host_strrchr(localcopy, ':');
 	if (!colon) {
 	    sfree(disp);
 	    sfree(localcopy);
@@ -677,7 +677,7 @@ int x11_get_screen_number(char *display)
 {
     int n;
 
-    n = strcspn(display, ":");
+    n = host_strcspn(display, ":");
     if (!display[n])
 	return 0;
     n = strcspn(display, ".");

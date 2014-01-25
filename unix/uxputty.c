@@ -76,8 +76,7 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
             q += 2;
         conf_set_int(conf, CONF_protocol, PROT_TELNET);
         p = q;
-        while (*p && *p != ':' && *p != '/')
-            p++;
+        p += host_strcspn(p, ":/");
         c = *p;
         if (*p)
             *p++ = '\0';

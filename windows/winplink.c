@@ -382,8 +382,7 @@ int main(int argc, char **argv)
 			q += 2;
 		    conf_set_int(conf, CONF_protocol, PROT_TELNET);
 		    p = q;
-		    while (*p && *p != ':' && *p != '/')
-			p++;
+                    p += host_strcspn(p, ":/");
 		    c = *p;
 		    if (*p)
 			*p++ = '\0';
@@ -524,7 +523,7 @@ int main(int argc, char **argv)
 	/*
 	 * Trim off a colon suffix if it's there.
 	 */
-	host[strcspn(host, ":")] = '\0';
+	host[host_strcspn(host, ":")] = '\0';
 
 	/*
 	 * Remove any remaining whitespace.

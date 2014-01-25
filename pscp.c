@@ -370,15 +370,9 @@ static void do_cmd(char *host, char *user, char *cmd)
 	bump("Empty host name");
 
     /*
-     * Remove fiddly bits of address: remove a colon suffix, and
-     * the square brackets around an IPv6 literal address.
+     * Remove a colon suffix.
      */
-    if (host[0] == '[') {
-	host++;
-	host[strcspn(host, "]")] = '\0';
-    } else {
-	host[strcspn(host, ":")] = '\0';
-    }
+    host[host_strcspn(host, ":")] = '\0';
 
     /*
      * If we haven't loaded session details already (e.g., from -load),
@@ -613,17 +607,7 @@ static char *colon(char *str)
     if (str[0] == '\0' || str[0] == ':' ||
         (str[0] != '[' && str[1] == ':'))
 	return (NULL);
-    while (*str != '\0' && *str != ':' && *str != '/' && *str != '\\') {
-	if (*str == '[') {
-	    /* Skip over IPv6 literal addresses
-	     * (eg: 'jeroen@[2001:db8::1]:myfile.txt') */
-	    char *ipv6_end = strchr(str, ']');
-	    if (ipv6_end) {
-		str = ipv6_end;
-	    }
-	}
-	str++;
-    }
+    str += host_strcspn(str, ":/\\");
     if (*str == ':')
 	return (str);
     else

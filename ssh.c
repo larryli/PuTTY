@@ -3411,25 +3411,27 @@ static const char *connect_to_host(Ssh ssh, char *host, int port,
     
     loghost = conf_get_str(ssh->conf, CONF_loghost);
     if (*loghost) {
-	char *colon;
+	char *tmphost;
+        char *colon;
 
-	ssh->savedhost = dupstr(loghost);
+        tmphost = dupstr(loghost);
 	ssh->savedport = 22;	       /* default ssh port */
 
 	/*
-	 * A colon suffix on savedhost also lets us affect
+	 * A colon suffix on the hostname string also lets us affect
 	 * savedport.
-	 * 
-	 * (FIXME: do something about IPv6 address literals here.)
 	 */
-	colon = strrchr(ssh->savedhost, ':');
+	colon = host_strrchr(tmphost, ':');
 	if (colon) {
 	    *colon++ = '\0';
 	    if (*colon)
 		ssh->savedport = atoi(colon);
 	}
+
+        ssh->savedhost = host_strduptrim(tmphost);
+        sfree(tmphost);
     } else {
-	ssh->savedhost = dupstr(host);
+	ssh->savedhost = host_strduptrim(host);
 	if (port < 0)
 	    port = 22;		       /* default ssh port */
 	ssh->savedport = port;
@@ -4915,13 +4917,15 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 	if (*kp == 'L' || *kp == 'R')
 	    type = *kp++;
 
-	if ((kp2 = strchr(kp, ':')) != NULL) {
+	if ((kp2 = host_strchr(kp, ':')) != NULL) {
 	    /*
 	     * There's a colon in the middle of the source port
 	     * string, which means that the part before it is
 	     * actually a source address.
 	     */
-	    saddr = dupprintf("%.*s", (int)(kp2 - kp), kp);
+	    char *saddr_tmp = dupprintf("%.*s", (int)(kp2 - kp), kp);
+            saddr = host_strduptrim(saddr_tmp);
+            sfree(saddr_tmp);
 	    sports = kp2+1;
 	} else {
 	    saddr = NULL;
@@ -4948,7 +4952,7 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
         } else {
             /* ordinary forwarding */
 	    vp = val;
-	    vp2 = vp + strcspn(vp, ":");
+	    vp2 = vp + host_strcspn(vp, ":");
 	    host = dupprintf("%.*s", (int)(vp2 - vp), vp);
 	    if (vp2)
 		vp2++;
@@ -11024,7 +11028,11 @@ void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
 		    PKT_END);
     } else {
 	pktout = ssh2_chanopen_init(c, "direct-tcpip");
-	ssh2_pkt_addstring(pktout, hostname);
+        {
+            char *trimmed_host = host_strduptrim(hostname);
+            ssh2_pkt_addstring(pktout, trimmed_host);
+            sfree(trimmed_host);
+        }
 	ssh2_pkt_adduint32(pktout, port);
 	/*
 	 * We make up values for the originator data; partly it's

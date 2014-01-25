@@ -261,9 +261,9 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 
             type = p[1];               /* 'L' or 'R' */
 
-	    q = qq = strchr(value, ':');
+	    q = qq = host_strchr(value, ':');
 	    while (qq) {
-		char *qqq = strchr(qq+1, ':');
+		char *qqq = host_strchr(qq+1, ':');
 		if (qqq)
 		    q = qq;
 		qq = qqq;
@@ -301,7 +301,7 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
 
-	portp = strchr(value, ':');
+	portp = host_strchr(value, ':');
 	if (!portp) {
 	    cmdline_error("-nc expects argument of form 'host:port'");
 	    return ret;

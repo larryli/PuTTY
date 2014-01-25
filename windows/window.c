@@ -548,8 +548,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			    q += 2;
 			conf_set_int(conf, CONF_protocol, PROT_TELNET);
 			p = q;
-			while (*p && *p != ':' && *p != '/')
-			    p++;
+                        p += host_strcspn(p, ":/");
 			c = *p;
 			if (*p)
 			    *p++ = '\0';
@@ -614,15 +613,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
             /*
              * Trim a colon suffix off the hostname if it's there. In
-             * order to protect IPv6 address literals against this
-             * treatment, we do not do this if there's _more_ than one
-             * colon.
+             * order to protect unbracketed IPv6 address literals
+             * against this treatment, we do not do this if there's
+             * _more_ than one colon.
              */
             {
-                char *c = strchr(host, ':');
+                char *c = host_strchr(host, ':');
  
                 if (c) {
-                    char *d = strchr(c+1, ':');
+                    char *d = host_strchr(c+1, ':');
                     if (!d)
                         *c = '\0';
                 }

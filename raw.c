@@ -185,15 +185,10 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
 
 	sfree(*realhost);
 	*realhost = dupstr(loghost);
-	colon = strrchr(*realhost, ':');
-	if (colon) {
-	    /*
-	     * FIXME: if we ever update this aspect of ssh.c for
-	     * IPv6 literal management, this should change in line
-	     * with it.
-	     */
+
+	colon = host_strrchr(*realhost, ':');
+	if (colon)
 	    *colon++ = '\0';
-	}
     }
 
     return NULL;
