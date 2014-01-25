@@ -87,6 +87,133 @@ char ctrlparse(char *s, char **next)
     return c;
 }
 
+/*
+ * Find a character in a string, unless it's a colon contained within
+ * square brackets. Used for untangling strings of the form
+ * 'host:port', where host can be an IPv6 literal.
+ *
+ * We provide several variants of this function, with semantics like
+ * various standard string.h functions.
+ */
+static const char *host_strchr_internal(const char *s, const char *set,
+                                        int first)
+{
+    int brackets = 0;
+    const char *ret = NULL;
+
+    while (1) {
+        if (!*s)
+            return ret;
+
+        if (*s == '[')
+            brackets++;
+        else if (*s == ']' && brackets > 0)
+            brackets--;
+        else if (brackets && *s == ':')
+            /* never match */ ;
+        else if (strchr(set, *s)) {
+            ret = s;
+            if (first)
+                return ret;
+        }
+
+        s++;
+    }
+}
+size_t host_strcspn(const char *s, const char *set)
+{
+    const char *answer = host_strchr_internal(s, set, TRUE);
+    if (answer)
+        return answer - s;
+    else
+        return strlen(s);
+}
+char *host_strchr(const char *s, int c)
+{
+    char set[2];
+    set[0] = c;
+    set[1] = '\0';
+    return (char *) host_strchr_internal(s, set, TRUE);
+}
+char *host_strrchr(const char *s, int c)
+{
+    char set[2];
+    set[0] = c;
+    set[1] = '\0';
+    return (char *) host_strchr_internal(s, set, FALSE);
+}
+
+#ifdef TEST_HOST_STRFOO
+int main(void)
+{
+    int passes = 0, fails = 0;
+
+#define TEST1(func, string, arg2, suffix, result) do                    \
+    {                                                                   \
+        const char *str = string;                                       \
+        unsigned ret = func(string, arg2) suffix;                       \
+        if (ret == result) {                                            \
+            passes++;                                                   \
+        } else {                                                        \
+            printf("fail: %s(%s,%s)%s = %u, expected %u\n",             \
+                   #func, #string, #arg2, #suffix, ret, result);        \
+            fails++;                                                    \
+        }                                                               \
+} while (0)
+
+    TEST1(host_strchr, "[1:2:3]:4:5", ':', -str, 7);
+    TEST1(host_strrchr, "[1:2:3]:4:5", ':', -str, 9);
+    TEST1(host_strcspn, "[1:2:3]:4:5", "/:",, 7);
+    TEST1(host_strchr, "[1:2:3]", ':', == NULL, 1);
+    TEST1(host_strrchr, "[1:2:3]", ':', == NULL, 1);
+    TEST1(host_strcspn, "[1:2:3]", "/:",, 7);
+    TEST1(host_strcspn, "[1:2/3]", "/:",, 4);
+    TEST1(host_strcspn, "[1:2:3]/", "/:",, 7);
+
+    printf("passed %d failed %d total %d\n", passes, fails, passes+fails);
+    return fails != 0 ? 1 : 0;
+}
+/* Stubs to stop the rest of this module causing compile failures. */
+void modalfatalbox(char *fmt, ...) {}
+int conf_get_int(Conf *conf, int primary) { return 0; }
+char *conf_get_str(Conf *conf, int primary) { return NULL; }
+#endif /* TEST_HOST_STRFOO */
+
+/*
+ * Trim square brackets off the outside of an IPv6 address literal.
+ * Leave all other strings unchanged. Returns a fresh dynamically
+ * allocated string.
+ */
+char *host_strduptrim(const char *s)
+{
+    if (s[0] == '[') {
+        const char *p = s+1;
+        int colons = 0;
+        while (*p && *p != ']') {
+            if (isxdigit((unsigned char)*p))
+                /* OK */;
+            else if (*p == ':')
+                colons++;
+            else
+                break;
+            p++;
+        }
+        if (*p == ']' && !p[1] && colons > 1) {
+            /*
+             * This looks like an IPv6 address literal (hex digits and
+             * at least two colons, contained in square brackets).
+             * Trim off the brackets.
+             */
+            return dupprintf("%.*s", (int)(p - (s+1)), s+1);
+        }
+    }
+
+    /*
+     * Any other shape of string is simply duplicated.
+     */
+    return dupstr(s);
+}
+
 prompts_t *new_prompts(void *frontend)
 {
     prompts_t *p = snew(prompts_t);

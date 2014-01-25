@@ -24,6 +24,11 @@ typedef struct FontSpec FontSpec;
 unsigned long parse_blocksize(const char *bs);
 char ctrlparse(char *s, char **next);
 
+size_t host_strcspn(const char *s, const char *set);
+char *host_strchr(const char *s, int c);
+char *host_strrchr(const char *s, int c);
+char *host_strduptrim(const char *s);
+
 char *dupstr(const char *s);
 char *dupcat(const char *s1, ...);
 char *dupprintf(const char *fmt, ...)
