@@ -1247,15 +1247,29 @@ Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
 	if (address_family == AF_INET6) {
 	    memset(&a6, 0, sizeof(a6));
 	    a6.sin6_family = AF_INET6;
-	    /* FIXME: srcaddr is ignored for IPv6, because I (SGT) don't
-	     * know how to do it. :-)
-	     * (jeroen:) saddr is specified as an address.. eg 2001:db8::1
-	     * Thus we need either a parser that understands [2001:db8::1]:80
-	     * style addresses and/or enhance this to understand hostnames too. */
 	    if (local_host_only)
 		a6.sin6_addr = in6addr_loopback;
 	    else
 		a6.sin6_addr = in6addr_any;
+            if (srcaddr != NULL && p_getaddrinfo) {
+                struct addrinfo hints;
+                struct addrinfo *ai;
+                int err;
+
+                memset(&hints, 0, sizeof(hints));
+                hints.ai_family = AF_INET6;
+                hints.ai_flags = 0;
+                {
+                    /* strip [] on IPv6 address literals */
+                    char *trimmed_addr = host_strduptrim(srcaddr);
+                    err = p_getaddrinfo(trimmed_addr, NULL, &hints, &ai);
+                    sfree(trimmed_addr);
+                }
+                if (err == 0 && ai->ai_family == AF_INET6) {
+                    a6.sin6_addr =
+                        ((struct sockaddr_in6 *)ai->ai_addr)->sin6_addr;
+                }
+            }
 	    a6.sin6_port = p_htons(port);
 	} else
 #endif
