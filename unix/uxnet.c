@@ -331,9 +331,7 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 	}
 #else
 	struct in_addr a;
-	SockAddrStep step;
-	START_STEP(addr, step);
-	assert(SOCKADDR_FAMILY(addr, step) == AF_INET);
+	assert(SOCKADDR_FAMILY(addr, ignored_macro_parameter) == AF_INET);
 	a.s_addr = htonl(addr->addresses[0]);
 	strncpy(buf, inet_ntoa(a), buflen);
 	buf[buflen-1] = '\0';
@@ -388,9 +386,7 @@ int sk_address_is_local(SockAddr addr)
 	return sockaddr_is_loopback(addr->ais->ai_addr);
 #else
 	struct in_addr a;
-	SockAddrStep step;
-	START_STEP(addr, step);
-	assert(SOCKADDR_FAMILY(addr, step) == AF_INET);
+	assert(SOCKADDR_FAMILY(addr, ignored_macro_parameter) == AF_INET);
 	a.s_addr = htonl(addr->addresses[0]);
 	return ipv4_is_loopback(a);
 #endif
@@ -404,10 +400,8 @@ int sk_address_is_special_local(SockAddr addr)
 
 int sk_addrtype(SockAddr addr)
 {
-    SockAddrStep step;
     int family;
-    START_STEP(addr, step);
-    family = SOCKADDR_FAMILY(addr, step);
+    family = SOCKADDR_FAMILY(addr, ignored_macro_parameter);
 
     return (family == AF_INET ? ADDRTYPE_IPV4 :
 #ifndef NO_IPV6

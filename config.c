@@ -1127,8 +1127,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    else if (whichbutton == 2)
 		family = "6";
 	    else
-		family = "";
 #endif
+		family = "";
 
 	    whichbutton = dlg_radiobutton_get(pfd->direction, dlg);
 	    if (whichbutton == 0)
