@@ -126,9 +126,12 @@ struct SockAddr_tag {
      (addr)->superfamily == UNIX ? AF_UNIX : \
      (step).ai ? (step).ai->ai_family : AF_INET)
 #else
+/* Here we gratuitously reference 'step' to avoid gcc warnings about
+ * 'set but not used' when compiling -DNO_IPV6 */
 #define SOCKADDR_FAMILY(addr, step) \
     ((addr)->superfamily == UNRESOLVED ? AF_UNSPEC : \
-     (addr)->superfamily == UNIX ? AF_UNIX : AF_INET)
+     (addr)->superfamily == UNIX ? AF_UNIX : \
+     (step).curraddr ? AF_INET : AF_INET)
 #endif
 
 /*
@@ -331,7 +334,9 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
 	}
 #else
 	struct in_addr a;
-	assert(SOCKADDR_FAMILY(addr, ignored_macro_parameter) == AF_INET);
+	SockAddrStep step;
+	START_STEP(addr, step);
+	assert(SOCKADDR_FAMILY(addr, step) == AF_INET);
 	a.s_addr = htonl(addr->addresses[0]);
 	strncpy(buf, inet_ntoa(a), buflen);
 	buf[buflen-1] = '\0';
@@ -386,7 +391,9 @@ int sk_address_is_local(SockAddr addr)
 	return sockaddr_is_loopback(addr->ais->ai_addr);
 #else
 	struct in_addr a;
-	assert(SOCKADDR_FAMILY(addr, ignored_macro_parameter) == AF_INET);
+	SockAddrStep step;
+	START_STEP(addr, step);
+	assert(SOCKADDR_FAMILY(addr, step) == AF_INET);
 	a.s_addr = htonl(addr->addresses[0]);
 	return ipv4_is_loopback(a);
 #endif
@@ -400,8 +407,10 @@ int sk_address_is_special_local(SockAddr addr)
 
 int sk_addrtype(SockAddr addr)
 {
+    SockAddrStep step;
     int family;
-    family = SOCKADDR_FAMILY(addr, ignored_macro_parameter);
+    START_STEP(addr, step);
+    family = SOCKADDR_FAMILY(addr, step);
 
     return (family == AF_INET ? ADDRTYPE_IPV4 :
 #ifndef NO_IPV6
