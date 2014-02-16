@@ -5896,7 +5896,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
      */
     if (raw_mouse &&
 	(term->selstate != ABOUT_TO) && (term->selstate != DRAGGING)) {
-	int encstate = 0, r, c;
+	int encstate = 0, r, c, wheel;
 	char abuf[32];
 	int len = 0;
 
@@ -5905,22 +5905,35 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	    switch (braw) {
 	      case MBT_LEFT:
 		encstate = 0x00;	       /* left button down */
+                wheel = FALSE;
 		break;
 	      case MBT_MIDDLE:
 		encstate = 0x01;
+                wheel = FALSE;
 		break;
 	      case MBT_RIGHT:
 		encstate = 0x02;
+                wheel = FALSE;
 		break;
 	      case MBT_WHEEL_UP:
 		encstate = 0x40;
+                wheel = TRUE;
 		break;
 	      case MBT_WHEEL_DOWN:
 		encstate = 0x41;
+                wheel = TRUE;
 		break;
-	      default: break;	       /* placate gcc warning about enum use */
+	      default:
+                return;
 	    }
-	    switch (a) {
+            if (wheel) {
+                /* For mouse wheel buttons, we only ever expect to see
+                 * MA_CLICK actions, and we don't try to keep track of
+                 * the buttons being 'pressed' (since without matching
+                 * click/release pairs that's pointless). */
+                if (a != MA_CLICK)
+                    return;
+            } else switch (a) {
 	      case MA_DRAG:
 		if (term->xterm_mouse == 1)
 		    return;
@@ -5937,7 +5950,8 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 		    return;
 		term->mouse_is_down = braw;
 		break;
-	      default: break;	       /* placate gcc warning about enum use */
+              default:
+                return;
 	    }
 	    if (shift)
 		encstate += 0x04;
