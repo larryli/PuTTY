@@ -1234,25 +1234,31 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 			 GdkEventType type, guint ebutton, guint state,
 			 gdouble ex, gdouble ey)
 {
-    int shift, ctrl, alt, x, y, button, act;
+    int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
 
     /* Remember the timestamp. */
     inst->input_event_time = timestamp;
 
     show_mouseptr(inst, 1);
 
-    if (ebutton == 4 && type == GDK_BUTTON_PRESS) {
-	term_scroll(inst->term, 0, -5);
-	return TRUE;
-    }
-    if (ebutton == 5 && type == GDK_BUTTON_PRESS) {
-	term_scroll(inst->term, 0, +5);
-	return TRUE;
-    }
-
     shift = state & GDK_SHIFT_MASK;
     ctrl = state & GDK_CONTROL_MASK;
     alt = state & GDK_MOD1_MASK;
+
+    raw_mouse_mode =
+        send_raw_mouse && !(shift && conf_get_int(inst->conf,
+                                                  CONF_mouse_override));
+
+    if (!raw_mouse_mode) {
+        if (ebutton == 4 && type == GDK_BUTTON_PRESS) {
+            term_scroll(inst->term, 0, -5);
+            return TRUE;
+        }
+        if (ebutton == 5 && type == GDK_BUTTON_PRESS) {
+            term_scroll(inst->term, 0, +5);
+            return TRUE;
+        }
+    }
 
     if (ebutton == 3 && ctrl) {
 	gtk_menu_popup(GTK_MENU(inst->menu), NULL, NULL, NULL, NULL,
@@ -1266,6 +1272,10 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 	button = MBT_MIDDLE;
     else if (ebutton == 3)
 	button = MBT_RIGHT;
+    else if (ebutton == 4)
+	button = MBT_WHEEL_UP;
+    else if (ebutton == 5)
+	button = MBT_WHEEL_DOWN;
     else
 	return FALSE;		       /* don't even know what button! */
 
@@ -1277,9 +1287,7 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
       default: return FALSE;	       /* don't know this event type */
     }
 
-    if (send_raw_mouse && !(shift && conf_get_int(inst->conf,
-						  CONF_mouse_override)) &&
-	act != MA_CLICK && act != MA_RELEASE)
+    if (raw_mouse_mode && act != MA_CLICK && act != MA_RELEASE)
 	return TRUE;		       /* we ignore these in raw mouse mode */
 
     x = (ex - inst->window_border) / inst->font_width;
