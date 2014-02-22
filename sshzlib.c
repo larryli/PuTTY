@@ -205,9 +205,16 @@ static void lz77_compress(struct LZ77Context *ctx,
     struct Match defermatch, matches[MAXMATCH];
     int deferchr;
 
+    assert(st->npending <= HASHCHARS);
+
     /*
      * Add any pending characters from last time to the window. (We
      * might not be able to.)
+     *
+     * This leaves st->pending empty in the usual case (when len >=
+     * HASHCHARS); otherwise it leaves st->pending empty enough that
+     * adding all the remaining 'len' characters will not push it past
+     * HASHCHARS in size.
      */
     for (i = 0; i < st->npending; i++) {
 	unsigned char foo[HASHCHARS];
@@ -334,6 +341,7 @@ static void lz77_compress(struct LZ77Context *ctx,
 	    if (len >= HASHCHARS) {
 		lz77_advance(st, *data, lz77_hash(data));
 	    } else {
+                assert(st->npending < HASHCHARS);
 		st->pending[st->npending++] = *data;
 	    }
 	    data++;
