@@ -178,6 +178,7 @@ version.o: FORCE
 !cflags am version $(VER) -DINCLUDE_EMPTY_H `if test -z "$(VER)" && (cd $(srcdir)/..; md5sum -c manifest >/dev/null 2>&1); then cat $(srcdir)/../version.def; else echo "$(VER)"; fi`
 !begin am
 BUILT_SOURCES = empty.h
+CLEANFILES = empty.h
 empty.h: $(allsources)
 	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
 
