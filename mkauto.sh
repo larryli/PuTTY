@@ -8,4 +8,4 @@
 test -f unix.h && cd ..
 
 # Run autoconf on our real configure.in.
-(cd unix && autoreconf -i && rm -rf autom4te.cache)
+autoreconf -i && rm -rf autom4te.cache

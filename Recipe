@@ -19,7 +19,7 @@
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile unix unix/Makefile.ux
-!makefile am unix/Makefile.am
+!makefile am Makefile.am
 !makefile osx macosx/Makefile
 !makefile devcppproj windows/DEVCPP
 !makefile vstudio10 windows/VS2010
@@ -247,8 +247,8 @@ CFLAGS += -DMACOSX
 
 # List the man pages for the automake makefile.
 !begin am
-man1_MANS = ../doc/plink.1 ../doc/pscp.1 ../doc/psftp.1 ../doc/pterm.1 \
-            ../doc/putty.1 ../doc/puttygen.1 ../doc/puttytel.1
+man1_MANS = doc/plink.1 doc/pscp.1 doc/psftp.1 doc/pterm.1 \
+            doc/putty.1 doc/puttygen.1 doc/puttytel.1
 !end
 
 # In automake, chgrp/chmod pterm after installation, if configured to.

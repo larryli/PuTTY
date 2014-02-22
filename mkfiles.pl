@@ -1472,7 +1472,8 @@ if (defined $makefiles{'unix'}) {
 }
 
 if (defined $makefiles{'am'}) {
-    $dirpfx = "\$(srcdir)/" . &dirpfx($makefiles{'am'}, "/");
+    die "Makefile.am in a subdirectory is not supported\n"
+        if &dirpfx($makefiles{'am'}, "/") ne "";
 
     ##-- Unix/autoconf Makefile.am
     open OUT, ">$makefiles{'am'}"; select OUT;
@@ -1485,8 +1486,7 @@ if (defined $makefiles{'am'}) {
     # auto-generated parts of this makefile, but Recipe might like to
     # have it available as a variable so that mandatory-rebuild things
     # (version.o) can conveniently be made to depend on it.
-    @sources = ("allsources", "=",
-                map {"${dirpfx}$_"} sort keys %allsourcefiles);
+    @sources = ("allsources", "=", sort keys %allsourcefiles);
     print &splitline(join " ", @sources), "\n\n";
 
     @cliprogs = ("bin_PROGRAMS", "=");
@@ -1506,12 +1506,12 @@ if (defined $makefiles{'am'}) {
     print "endif\n\n";
 
     %objtosrc = ();
-    foreach $d (&deps("X", undef, $dirpfx, "/", "am")) {
+    foreach $d (&deps("X", undef, "", "/", "am")) {
       $objtosrc{$d->{obj}} = $d->{deps}->[0];
     }
 
     print &splitline(join " ", "AM_CPPFLAGS", "=",
-                     map {"-I$dirpfx$_"} @srcdirs), "\n";
+                     map {"-I\$(srcdir)/$_"} @srcdirs), "\n";
 
     @amcflags = ("\$(COMPAT)", "\$(XFLAGS)", "\$(WARNINGOPTS)");
     print "if HAVE_GTK\n";
@@ -1909,7 +1909,7 @@ if ($do_unix) {
     system "./mkauto.sh";
     die "mkfiles.pl: mkauto.sh returned $?\n" if $? > 0;
     if ($do_unix == 1) {
-        chdir ($targetdir = dirname($makefiles{"am"}))
+        chdir ($targetdir = "unix")
             or die "$targetdir: chdir: $!\n";
     }
     system "./configure", @confargs;

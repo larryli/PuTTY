@@ -70,7 +70,7 @@ if test "x$ver" != "x"; then
    md5sum `find . -name '*.[ch]' -print` > manifest;
    echo "$ver" > version.def)
 fi
-sed "s/^AC_INIT(putty,.*/AC_INIT(putty, $autoconfver)/" unix/configure.ac > uxarc/$arcname/unix/configure.ac
+sed "s/^AC_INIT(putty,.*/AC_INIT(putty, $autoconfver)/" configure.ac > uxarc/$arcname/configure.ac
 (cd uxarc/$arcname && sh mkauto.sh) 2>errors || { cat errors >&2; exit 1; }
 
 tar -C uxarc -chzof $arcname.tar.gz $arcname
