@@ -19,6 +19,12 @@ bintext=testdata/*.txt
 # These are actual binary files which we don't want transforming.
 bin=`{ ls -1 windows/*.ico windows/putty.iss windows/website.url macosx/*.icns; \
        find . -name '*.dsp' -print -o -name '*.dsw' -print; }`
-zip -k -l putty-src.zip $text > /dev/null
-zip -k -l putty-src.zip $bintext > /dev/null 2>&1
-zip -k putty-src.zip $bin > /dev/null
+
+verbosely() {
+    echo "$@"
+    "$@"
+}
+
+verbosely zip -k -l putty-src.zip $text
+verbosely zip -k -l putty-src.zip $bintext
+verbosely zip -k putty-src.zip $bin
