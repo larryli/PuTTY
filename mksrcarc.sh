@@ -1,4 +1,7 @@
 #!/bin/sh
+
+set -e
+
 perl mkfiles.pl
 # These are text files.
 text=`{ find . -name CVS -prune -o \
