@@ -1437,6 +1437,57 @@ Similarly, some people have asked us for FIPS certification of the
 PuTTY tools.  Unless someone else is prepared to do the necessary work
 and pay any costs, we can't provide this.
 
+\S{faq-vendor}{Question} As one of our existing software vendors, can
+you just fill in this questionnaire for us?
+
+We periodically receive requests like this, from organisations which
+have apparently sent out a form letter to everyone listed in their big
+spreadsheet of \q{software vendors} requiring them all to answer some
+long list of questions about supported OS versions, paid support
+arrangements, compliance with assorted local regulations we haven't
+heard of, contact phone numbers, and other such administrivia. Many of
+the questions are obviously meaningless when applied to PuTTY (we
+don't provide any paid support in the first place!), most of the rest
+could have been answered with only a very quick look at our website,
+and some we are actively unwilling to answer (we are private
+individuals, why would we want to give out our home phone numbers to
+large corporations?).
+
+We don't make a habit of responding in full to these questionnaires,
+because \e{we are not a software vendor}.
+
+A software \e{vendor} is a company to which you are paying lots of
+money in return for some software. They know who you are, and they
+know you're paying them money; so they have an incentive to fill in
+your forms and questionnaires, to research any local regulations you
+cite if they don't already know about them, and generally to provide
+every scrap of information you might possibly need in the most
+convenient manner for you, because they want to keep being paid.
+
+But we are a team of free software developers, and that means your
+relationship with us is nothing like that at all. If you once
+downloaded our software from our website, that's great and we hope you
+found it useful, but it doesn't mean we have the least idea who you
+are, or any incentive to do lots of unpaid work to support our
+\q{relationship} with you.
+
+It's not that we are unwilling to \e{provide information}. We put as
+much of it as we can on our website for your convenience, and if you
+actually need to know some fact about PuTTY which you haven't been
+able to find on the website (and which is not obviously inapplicable
+to free software in the first place) then please do ask us, and we'll
+try to answer as best we can. But we put up the website and this FAQ
+precisely so that we \e{don't} have to keep answering the same
+questions over and over again, so we aren't prepared to fill in
+completely generic form-letter questionnaires for people who haven't
+done their best to find the answers here first.
+
+If you work for an organisation which you think might be at risk of
+making this mistake, we urge you to reorganise your list of software
+suppliers so that it clearly distinguishes paid vendors who know about
+you from free software developers who don't have any idea who you are.
+Then, only send out these mass mailings to the former.
+
 \H{faq-misc} Miscellaneous questions
 
 \S{faq-openssh}{Question} Is PuTTY a port of \i{OpenSSH}, or based on
