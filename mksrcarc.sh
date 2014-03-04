@@ -28,6 +28,6 @@ verbosely() {
     "$@"
 }
 
-verbosely zip -k -l putty-src.zip $text
-verbosely zip -k -l putty-src.zip $bintext
-verbosely zip -k putty-src.zip $bin
+verbosely zip -l putty-src.zip $text
+verbosely zip -l putty-src.zip $bintext
+verbosely zip putty-src.zip $bin
