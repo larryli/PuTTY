@@ -1763,7 +1763,7 @@ static int share_receive(Plug plug, int urgent, char *data, int len)
         crGetChar(c);
         if (c == '\012')
             break;
-        if (cs->recvlen > sizeof(cs->recvbuf)) {
+        if (cs->recvlen >= sizeof(cs->recvbuf)) {
             char *buf = dupprintf("Version string far too long\n");
             share_disconnect(cs, buf);
             sfree(buf);
