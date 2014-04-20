@@ -1476,6 +1476,14 @@ static gint timer_trigger(gpointer data)
     unsigned long next, then;
     long ticks;
 
+    /*
+     * The timer we last scheduled via gtk_timeout_add has just
+     * triggered, and since we're about to return FALSE, it won't be
+     * resumed. So zero out its id, in case we don't overwrite it in
+     * the next loop.
+     */
+    timer_id = 0;
+
     if (run_timers(now, &next)) {
 	then = now;
 	now = GETTICKCOUNT();
