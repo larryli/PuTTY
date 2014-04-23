@@ -5,14 +5,14 @@
 #include <stdio.h>
 #include <assert.h>
 
+#if !defined NO_SECURITY
+
 #define DEFINE_PLUG_METHOD_MACROS
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"
 #include "proxy.h"
 #include "ssh.h"
-
-#if !defined NO_SECURITY
 
 #include "winsecur.h"
 
