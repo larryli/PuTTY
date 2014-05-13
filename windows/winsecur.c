@@ -187,6 +187,12 @@ int make_private_security_descriptor(DWORD permissions,
         goto cleanup;
     }
 
+    if (!SetSecurityDescriptorOwner(*psd, usersid, FALSE)) {
+        *error = dupprintf("unable to set owner in security descriptor: %s",
+                           win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
     if (!SetSecurityDescriptorDacl(*psd, TRUE, *acl, FALSE)) {
         *error = dupprintf("unable to set DACL in security descriptor: %s",
                            win_strerror(GetLastError()));
