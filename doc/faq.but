@@ -1075,7 +1075,7 @@ actively malicious PC and get away with typing passwords into it.
 If you do trust the PC, then it's probably OK to use PuTTY on it
 (but if you don't trust the network, then the PuTTY download might
 be tampered with, so it would be better to carry PuTTY with you on a
-floppy).
+USB stick).
 
 \S{faq-cleanup}{Question} What does PuTTY leave on a system? How can
 I \i{clean up} after it?

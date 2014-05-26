@@ -3425,5 +3425,5 @@ Here is an example \c{PUTTYRND.REG} file:
 
 You should replace \c{a:\\putty.rnd} with the location where you
 want to store your random number data. If the aim is to carry around
-PuTTY and its settings on one floppy, you probably want to store it
-on the floppy.
+PuTTY and its settings on one USB stick, you probably want to store it
+on the USB stick.
