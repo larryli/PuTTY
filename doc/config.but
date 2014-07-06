@@ -3294,6 +3294,31 @@ believes the server has this bug, it will never send its
 \cq{winadj@putty.projects.tartarus.org} request, and will make do
 without its timing data.
 
+\S{config-ssh-bug-chanreq} \q{Replies to channel requests after channel close}
+
+\cfg{winhelp-topic}{ssh.bugs.chanreq}
+
+The SSH protocol as published in RFC 4254 has an ambiguity which
+arises if one side of a connection tries to close a channel, while the
+other side simultaneously sends a request within the channel and asks
+for a reply. RFC 4254 leaves it unclear whether the closing side
+should reply to the channel request after having announced its
+intention to close the channel.
+
+Discussion on the \cw{ietf-ssh} mailing list in April 2014 formed a
+clear consensus that the right answer is no. However, because of the
+ambiguity in the specification, some SSH servers have implemented the
+other policy; for example,
+\W{https://bugzilla.mindrot.org/show_bug.cgi?id=1818}{OpenSSH used to}
+until it was fixed.
+
+Because PuTTY sends channel requests with the \q{want reply} flag
+throughout channels' lifetime (see \k{config-ssh-bug-winadj}), it's
+possible that when connecting to such a server it might receive a
+reply to a request after it thinks the channel has entirely closed,
+and terminate with an error along the lines of \q{Received
+\cw{SSH2_MSG_CHANNEL_FAILURE} for nonexistent channel 256}.
+
 \H{config-serial} The Serial panel
 
 The \i{Serial} panel allows you to configure options that only apply

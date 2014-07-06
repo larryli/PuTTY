@@ -838,6 +838,7 @@ void cleanup_exit(int);
     X(INT, NONE, sshbug_maxpkt2) \
     X(INT, NONE, sshbug_ignore2) \
     X(INT, NONE, sshbug_winadj) \
+    X(INT, NONE, sshbug_chanreq) \
     /*                                                                \
      * ssh_simple means that we promise never to open any channel     \
      * other than the main one, which means it can safely use a very  \

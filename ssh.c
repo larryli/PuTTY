@@ -75,6 +75,7 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_SSH2_MAXPKT				256
 #define BUG_CHOKES_ON_SSH2_IGNORE               512
 #define BUG_CHOKES_ON_WINADJ                   1024
+#define BUG_SENDS_LATE_REQUEST_REPLY           2048
 
 /*
  * Codes for terminal modes.
@@ -2811,6 +2812,19 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_CHOKES_ON_WINADJ;
 	logevent("We believe remote version has winadj bug");
+    }
+
+    if (conf_get_int(ssh->conf, CONF_sshbug_chanreq) == FORCE_ON ||
+	(conf_get_int(ssh->conf, CONF_sshbug_chanreq) == AUTO &&
+	 (wc_match("OpenSSH_[2-5].*", imp) ||
+	  wc_match("OpenSSH_6.[0-6]*", imp)))) {
+	/*
+	 * These versions have the SSH-2 channel request bug. 6.7 and
+	 * above do not:
+	 * https://bugzilla.mindrot.org/show_bug.cgi?id=1818
+	 */
+	ssh->remote_bugs |= BUG_SENDS_LATE_REQUEST_REPLY;
+	logevent("We believe remote version has SSH-2 channel request bug");
     }
 }
 
@@ -7119,10 +7133,11 @@ static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
  * request-specific data added and be sent.  Note that if a handler is
  * provided, it's essential that the request actually be sent.
  *
- * The handler will usually be passed the response packet in pktin.
- * If pktin is NULL, this means that no reply will ever be forthcoming
- * (e.g. because the entire connection is being destroyed) and the
- * handler should free any storage it's holding.
+ * The handler will usually be passed the response packet in pktin. If
+ * pktin is NULL, this means that no reply will ever be forthcoming
+ * (e.g. because the entire connection is being destroyed, or because
+ * the server initiated channel closure before we saw the response)
+ * and the handler should free any storage it's holding.
  */
 static struct Packet *ssh2_chanreq_init(struct ssh_channel *c, char *type,
 					cchandler_fn_t handler, void *ctx)
@@ -7612,6 +7627,21 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
      */
     ssh2_channel_got_eof(c);
 
+    if (!(ssh->remote_bugs & BUG_SENDS_LATE_REQUEST_REPLY)) {
+        /*
+         * It also means we stop expecting to see replies to any
+         * outstanding channel requests, so clean those up too.
+         * (ssh_chanreq_init will enforce by assertion that we don't
+         * subsequently put anything back on this list.)
+         */
+        while (c->v.v2.chanreq_head) {
+            struct outstanding_channel_request *ocr = c->v.v2.chanreq_head;
+            ocr->handler(c, NULL, ocr->ctx);
+            c->v.v2.chanreq_head = ocr->next;
+            sfree(ocr);
+        }
+    }
+
     /*
      * And we also send an outgoing EOF, if we haven't already, on the
      * assumption that CLOSE is a pretty forceful announcement that
@@ -7786,6 +7816,16 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
     }
     ssh_pkt_getstring(pktin, &type, &typelen);
     want_reply = ssh2_pkt_getbool(pktin);
+
+    if (c->closes & CLOSES_SENT_CLOSE) {
+        /*
+         * We don't reply to channel requests after we've sent
+         * CHANNEL_CLOSE for the channel, because our reply might
+         * cross in the network with the other side's CHANNEL_CLOSE
+         * and arrive after they have wound the channel up completely.
+         */
+        want_reply = FALSE;
+    }
 
     /*
      * Having got the channel number, we now look at
@@ -8416,7 +8456,8 @@ static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin)
 static void ssh2_response_authconn(struct ssh_channel *c, struct Packet *pktin,
 				   void *ctx)
 {
-    do_ssh2_authconn(c->ssh, NULL, 0, pktin);
+    if (pktin)
+        do_ssh2_authconn(c->ssh, NULL, 0, pktin);
 }
 
 static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
