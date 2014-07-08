@@ -1477,12 +1477,13 @@ static gint timer_trigger(gpointer data)
     long ticks;
 
     /*
-     * The timer we last scheduled via gtk_timeout_add has just
-     * triggered, and since we're about to return FALSE, it won't be
-     * resumed. So zero out its id, in case we don't overwrite it in
-     * the next loop.
+     * Remove the timer we got here on; if we need another one, we'll
+     * set it up below.
      */
-    timer_id = 0;
+    if (timer_id) {
+	gtk_timeout_remove(timer_id);
+        timer_id = 0;
+    }
 
     if (run_timers(now, &next)) {
 	then = now;
@@ -1496,8 +1497,9 @@ static gint timer_trigger(gpointer data)
     }
 
     /*
-     * Never let a timer resume. If we need another one, we've
-     * asked for it explicitly above.
+     * Returning FALSE means 'don't call this timer again', which
+     * _should_ be redundant given that we removed it above, but just
+     * in case, return FALSE anyway.
      */
     return FALSE;
 }
