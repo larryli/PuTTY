@@ -1477,15 +1477,20 @@ static gint timer_trigger(gpointer data)
     long ticks;
 
     /*
-     * Remove the timer we got here on; if we need another one, we'll
-     * set it up below.
+     * Destroy the timer we got here on.
      */
     if (timer_id) {
 	gtk_timeout_remove(timer_id);
         timer_id = 0;
     }
 
-    if (run_timers(now, &next)) {
+    /*
+     * run_timers() may cause a call to timer_change_notify, in which
+     * case a new timer will already have been set up and left in
+     * timer_id. If it hasn't, and run_timers reports that some timing
+     * still needs to be done, we do it ourselves.
+     */
+    if (run_timers(now, &next) && !timer_id) {
 	then = now;
 	now = GETTICKCOUNT();
 	if (now - then > next - then)
