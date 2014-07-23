@@ -98,6 +98,7 @@ const wchar_t sel_nl[] = SEL_NL;
 static void resizeline(Terminal *, termline *, int);
 static termline *lineptr(Terminal *, int, int, int);
 static void unlineptr(termline *);
+static void check_line_size(Terminal *, termline *);
 static void do_paint(Terminal *, Context, int);
 static void erase_lots(Terminal *, int, int, int);
 static int find_last_nonempty_line(Terminal *, tree234 *);
@@ -1053,14 +1054,47 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
     }
     assert(line != NULL);
 
-    resizeline(term, line, term->cols);
-    /* FIXME: should we sort the compressed scrollback out here? */
+    /*
+     * Here we resize lines to _at least_ the right length, but we
+     * don't truncate them. Truncation is done as a side effect of
+     * modifying the line.
+     *
+     * The point of this policy is to try to arrange that resizing the
+     * terminal window repeatedly - e.g. successive steps in an X11
+     * opaque window-resize drag, or resizing as a side effect of
+     * retiling by tiling WMs such as xmonad - does not throw away
+     * data gratuitously. Specifically, we want a sequence of resize
+     * operations with no terminal output between them to have the
+     * same effect as a single resize to the ultimate terminal size,
+     * and also (for the case in which xmonad narrows a window that's
+     * scrolling things) we want scrolling up new text at the bottom
+     * of a narrowed window to avoid truncating lines further up when
+     * the window is re-widened.
+     */
+    if (term->cols > line->cols)
+        resizeline(term, line, term->cols);
 
     return line;
 }
 
 #define lineptr(x) (lineptr)(term,x,__LINE__,FALSE)
 #define scrlineptr(x) (lineptr)(term,x,__LINE__,TRUE)
+
+/*
+ * Coerce a termline to the terminal's current width. Unlike the
+ * optional resize in lineptr() above, this is potentially destructive
+ * of text, since it can shrink as well as grow the line.
+ *
+ * We call this whenever a termline is actually going to be modified.
+ * Helpfully, putting a single call to this function in check_boundary
+ * deals with _nearly_ all such cases, leaving only a few things like
+ * bulk erase and ESC#8 to handle separately.
+ */
+static void check_line_size(Terminal *term, termline *line)
+{
+    if (term->cols != line->cols)      /* trivial optimisation */
+        resizeline(term, line, term->cols);
+}
 
 static void term_schedule_tblink(Terminal *term);
 static void term_schedule_cblink(Terminal *term);
@@ -2281,6 +2315,7 @@ static void check_boundary(Terminal *term, int x, int y)
 	return;
 
     ldata = scrlineptr(y);
+    check_line_size(term, ldata);
     if (x == term->cols) {
 	ldata->lattr &= ~LATTR_WRAPPED2;
     } else {
@@ -2351,6 +2386,7 @@ static void erase_lots(Terminal *term,
     } else {
 	termline *ldata = scrlineptr(start.y);
 	while (poslt(start, end)) {
+            check_line_size(term, ldata);
 	    if (start.x == term->cols) {
 		if (!erase_lattr)
 		    ldata->lattr &= ~(LATTR_WRAPPED | LATTR_WRAPPED2);
@@ -3317,6 +3353,7 @@ static void term_out(Terminal *term)
 
 			for (i = 0; i < term->rows; i++) {
 			    ldata = scrlineptr(i);
+                            check_line_size(term, ldata);
 			    for (j = 0; j < term->cols; j++) {
 				copy_termchar(ldata, j,
 					      &term->basic_erase_char);
@@ -3341,6 +3378,7 @@ static void term_out(Terminal *term)
 		    compatibility(VT100);
 		    {
 			int nlattr;
+			termline *ldata;
 
 			switch (ANSI(c, term->esc_query)) {
 			  case ANSI('3', '#'): /* DECDHL: 2*height, top */
@@ -3356,7 +3394,9 @@ static void term_out(Terminal *term)
 			    nlattr = LATTR_WIDE;
 			    break;
 			}
-			scrlineptr(term->curs.y)->lattr = nlattr;
+			ldata = scrlineptr(term->curs.y);
+                        check_line_size(term, ldata);
+                        ldata->lattr = nlattr;
 		    }
 		    break;
 		  /* GZD4: G0 designate 94-set */
