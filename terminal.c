@@ -1527,12 +1527,44 @@ void term_reconfig(Terminal *term, Conf *conf)
 void term_clrsb(Terminal *term)
 {
     unsigned char *line;
+    int i;
+
+    /*
+     * Scroll forward to the current screen, if we were back in the
+     * scrollback somewhere until now.
+     */
     term->disptop = 0;
+
+    /*
+     * Clear the actual scrollback.
+     */
     while ((line = delpos234(term->scrollback, 0)) != NULL) {
 	sfree(line);            /* this is compressed data, not a termline */
     }
+
+    /*
+     * When clearing the scrollback, we also truncate any termlines on
+     * the current screen which have remembered data from a previous
+     * larger window size. Rationale: clearing the scrollback is
+     * sometimes done to protect privacy, so the user intention is
+     * specifically that we should not retain evidence of what
+     * previously happened in the terminal, and that ought to include
+     * evidence to the right as well as evidence above.
+     */
+    for (i = 0; i < term->rows; i++)
+        check_line_size(term, scrlineptr(i));
+
+    /*
+     * There are now no lines of real scrollback which can be pulled
+     * back into the screen by a resize, and no lines of the alternate
+     * screen which should be displayed as if part of the scrollback.
+     */
     term->tempsblines = 0;
     term->alt_sblines = 0;
+
+    /*
+     * Update the scrollbar to reflect the new state of the world.
+     */
     update_sbar(term);
 }
 
