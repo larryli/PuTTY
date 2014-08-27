@@ -2234,9 +2234,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 * Flush the line discipline's edit buffer in the
 		 * case where local editing has just been disabled.
 		 */
-		ldisc_configure(ldisc, conf);
-		if (ldisc)
+		if (ldisc) {
+                    ldisc_configure(ldisc, conf);
 		    ldisc_send(ldisc, NULL, 0, 0);
+                }
 		if (pal)
 		    DeleteObject(pal);
 		logpal = NULL;
