@@ -517,6 +517,10 @@ void sharestate_free(void *v)
         share_connstate_free(cs);
     }
     freetree234(sharestate->connections);
+    if (sharestate->listensock) {
+        sk_close(sharestate->listensock);
+        sharestate->listensock = NULL;
+    }
     sfree(sharestate->server_verstring);
     sfree(sharestate->sockname);
     sfree(sharestate);
@@ -1843,6 +1847,7 @@ static int share_listen_closing(Plug plug, const char *error_msg,
         ssh_sharing_logf(sharestate->ssh, 0,
                          "listening socket: %s", error_msg);
     sk_close(sharestate->listensock);
+    sharestate->listensock = NULL;
     return 1;
 }
 
