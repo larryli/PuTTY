@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <errno.h>
+#include <limits.h>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -20,6 +21,8 @@
 #include "ssh.h"
 
 #define CONNSHARE_SOCKETDIR_PREFIX "/tmp/putty-connshare"
+#define SALT_FILENAME "salt"
+#define SALT_SIZE 64
 
 /*
  * Functions provided by uxnet.c to help connection sharing.
@@ -27,23 +30,16 @@
 SockAddr unix_sock_addr(const char *path);
 Socket new_unix_listener(SockAddr listenaddr, Plug plug);
 
-static char *make_dirname(const char *name, char **parent_out)
+static char *make_parentdir_name(void)
 {
-    char *username, *dirname, *parent;
+    char *username, *parent;
 
     username = get_username();
     parent = dupprintf("%s.%s", CONNSHARE_SOCKETDIR_PREFIX, username);
     sfree(username);
     assert(*parent == '/');
 
-    dirname = dupprintf("%s/%s", parent, name);
-
-    if (parent_out)
-        *parent_out = parent;
-    else
-        sfree(parent);
-
-    return dirname;
+    return parent;
 }
 
 static char *make_dir_and_check_ours(const char *dirname)
@@ -77,55 +73,245 @@ static char *make_dir_and_check_ours(const char *dirname)
     return NULL;
 }
 
+static char *make_dirname(const char *pi_name, char **logtext)
+{
+    char *name, *parentdirname, *dirname, *err;
+
+    /*
+     * First, create the top-level directory for all shared PuTTY
+     * connections owned by this user.
+     */
+    parentdirname = make_parentdir_name();
+    if ((err = make_dir_and_check_ours(parentdirname)) != NULL) {
+        *logtext = err;
+        sfree(parentdirname);
+        return NULL;
+    }
+
+    /*
+     * Transform the platform-independent version of the connection
+     * identifier into the name we'll actually use for the directory
+     * containing the Unix socket.
+     *
+     * We do this by hashing the identifier with some user-specific
+     * secret information, to avoid the privacy leak of having
+     * "user@host" strings show up in 'netstat -x'. (Irritatingly, the
+     * full pathname of a Unix-domain socket _does_ show up in the
+     * 'netstat -x' output, at least on Linux, even if that socket is
+     * in a directory not readable to the user running netstat. You'd
+     * think putting things inside an 0700 directory would hide their
+     * names from other users, but no.)
+     *
+     * The secret information we use to salt the hash lives in a file
+     * inside the top-level directory we just created, so we must
+     * first create that file (with some fresh random data in it) if
+     * it's not already been done by a previous PuTTY.
+     */
+    {
+        unsigned char saltbuf[SALT_SIZE];
+        char *saltname;
+        int saltfd, i, ret;
+
+        saltname = dupprintf("%s/%s", parentdirname, SALT_FILENAME);
+        saltfd = open(saltname, O_RDONLY);
+        if (saltfd < 0) {
+            char *tmpname;
+            int pid;
+
+            if (errno != ENOENT) {
+                *logtext = dupprintf("%s: open: %s", saltname,
+                                     strerror(errno));
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+
+            /*
+             * The salt file doesn't already exist, so try to create
+             * it. Another process may be attempting the same thing
+             * simultaneously, so we must do this carefully: we write
+             * a salt file under a different name, then hard-link it
+             * into place, which guarantees that we won't change the
+             * contents of an existing salt file.
+             */
+            pid = getpid();
+            for (i = 0;; i++) {
+                tmpname = dupprintf("%s/%s.tmp.%d.%d",
+                                    parentdirname, SALT_FILENAME, pid, i);
+                saltfd = open(tmpname, O_WRONLY | O_EXCL | O_CREAT, 0400);
+                if (saltfd >= 0)
+                    break;
+                if (errno != EEXIST) {
+                    *logtext = dupprintf("%s: open: %s", tmpname,
+                                         strerror(errno));
+                    sfree(tmpname);
+                    sfree(saltname);
+                    sfree(parentdirname);
+                    return NULL;
+                }
+                sfree(tmpname);        /* go round and try again with i+1 */
+            }
+            /*
+             * Invent some random data.
+             */
+            for (i = 0; i < SALT_SIZE; i++) {
+                saltbuf[i] = random_byte();
+            }
+            ret = write(saltfd, saltbuf, SALT_SIZE);
+            /* POSIX atomicity guarantee: because we wrote less than
+             * PIPE_BUF bytes, the write either completed in full or
+             * failed. */
+            assert(SALT_SIZE < PIPE_BUF);
+            assert(ret < 0 || ret == SALT_SIZE);
+            if (ret < 0) {
+                close(saltfd);
+                *logtext = dupprintf("%s: write: %s", tmpname,
+                                     strerror(errno));
+                sfree(tmpname);
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+            if (close(saltfd) < 0) {
+                *logtext = dupprintf("%s: close: %s", tmpname,
+                                     strerror(errno));
+                sfree(tmpname);
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+
+            /*
+             * Now attempt to hard-link our temp file into place. We
+             * tolerate EEXIST as an outcome, because that just means
+             * another PuTTY got their attempt in before we did (and
+             * we only care that there is a valid salt file we can
+             * agree on, no matter who created it).
+             */
+            if (link(tmpname, saltname) < 0 && errno != EEXIST) {
+                *logtext = dupprintf("%s: link: %s", saltname,
+                                     strerror(errno));
+                sfree(tmpname);
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+
+            /*
+             * Whether that succeeded or not, get rid of our temp file.
+             */
+            if (unlink(tmpname) < 0) {
+                *logtext = dupprintf("%s: unlink: %s", tmpname,
+                                     strerror(errno));
+                sfree(tmpname);
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+
+            /*
+             * And now we've arranged for there to be a salt file, so
+             * we can try to open it for reading again and this time
+             * expect it to work.
+             */
+            sfree(tmpname);
+
+            saltfd = open(saltname, O_RDONLY);
+            if (saltfd < 0) {
+                *logtext = dupprintf("%s: open: %s", saltname,
+                                     strerror(errno));
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+        }
+
+        for (i = 0; i < SALT_SIZE; i++) {
+            ret = read(saltfd, saltbuf, SALT_SIZE);
+            if (ret <= 0) {
+                close(saltfd);
+                *logtext = dupprintf("%s: read: %s", saltname,
+                                     ret == 0 ? "unexpected EOF" :
+                                     strerror(errno));
+                sfree(saltname);
+                sfree(parentdirname);
+                return NULL;
+            }
+            assert(0 < ret && ret <= SALT_SIZE - i);
+            i += ret;
+        }
+
+        close(saltfd);
+        sfree(saltname);
+
+        /*
+         * Now we've got our salt, hash it with the connection
+         * identifier to produce our actual socket name.
+         */
+        {
+            SHA256_State sha;
+            unsigned len;
+            unsigned char lenbuf[4];
+            unsigned char digest[32];
+            char retbuf[65];
+
+            SHA256_Init(&sha);
+            PUT_32BIT(lenbuf, SALT_SIZE);
+            SHA256_Bytes(&sha, lenbuf, 4);
+            SHA256_Bytes(&sha, saltbuf, SALT_SIZE);
+            len = strlen(pi_name);
+            PUT_32BIT(lenbuf, len);
+            SHA256_Bytes(&sha, lenbuf, 4);
+            SHA256_Bytes(&sha, pi_name, len);
+            SHA256_Final(&sha, digest);
+
+            /*
+             * And make it printable.
+             */
+            for (i = 0; i < 32; i++) {
+                sprintf(retbuf + 2*i, "%02x", digest[i]);
+                /* the last of those will also write the trailing NUL */
+            }
+
+            name = dupstr(retbuf);
+        }
+
+        smemclr(saltbuf, sizeof(saltbuf));
+    }
+
+    dirname = dupprintf("%s/%s", parentdirname, name);
+    sfree(parentdirname);
+    sfree(name);
+
+    return dirname;
+}
+
 int platform_ssh_share(const char *pi_name, Conf *conf,
                        Plug downplug, Plug upplug, Socket *sock,
                        char **logtext, char **ds_err, char **us_err,
                        int can_upstream, int can_downstream)
 {
-    char *name, *parentdirname, *dirname, *lockname, *sockname, *err;
+    char *dirname, *lockname, *sockname, *err;
     int lockfd;
     Socket retsock;
 
     /*
-     * Transform the platform-independent version of the connection
-     * identifier into something valid for a Unix socket, by escaping
-     * slashes (and, while we're here, any control characters).
+     * Sort out what we're going to call the directory in which we
+     * keep the socket. This has the side effect of potentially
+     * creating its top-level containing dir and/or the salt file
+     * within that, if they don't already exist.
      */
-    {
-        const char *p;
-        char *q;
-
-        name = snewn(1+3*strlen(pi_name), char);
-
-        for (p = pi_name, q = name; *p; p++) {
-            if (*p == '/' || *p == '%' ||
-                (unsigned char)*p < 0x20 || *p == 0x7f) {
-                q += sprintf(q, "%%%02x", (unsigned char)*p);
-            } else {
-                *q++ = *p;
-            }
-        }
-        *q = '\0';
+    dirname = make_dirname(pi_name, logtext);
+    if (!dirname) {
+        return SHARE_NONE;
     }
 
     /*
-     * First, make sure our subdirectory exists. We must create two
-     * levels of directory - the one for this particular connection,
-     * and the containing one for our username.
+     * Now make sure the subdirectory exists.
      */
-    dirname = make_dirname(name, &parentdirname);
-    if ((err = make_dir_and_check_ours(parentdirname)) != NULL) {
-        *logtext = err;
-        sfree(dirname);
-        sfree(parentdirname);
-        sfree(name);
-        return SHARE_NONE;
-    }
-    sfree(parentdirname);
     if ((err = make_dir_and_check_ours(dirname)) != NULL) {
         *logtext = err;
         sfree(dirname);
-        sfree(name);
         return SHARE_NONE;
     }
 
@@ -138,7 +324,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
         *logtext = dupprintf("%s: open: %s", lockname, strerror(errno));
         sfree(dirname);
         sfree(lockname);
-        sfree(name);
         return SHARE_NONE;
     }
     if (flock(lockfd, LOCK_EX) < 0) {
@@ -147,7 +332,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
         sfree(dirname);
         sfree(lockname);
         close(lockfd);
-        sfree(name);
         return SHARE_NONE;
     }
 
@@ -165,7 +349,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
             sfree(dirname);
             sfree(lockname);
             close(lockfd);
-            sfree(name);
             return SHARE_DOWNSTREAM;
         }
         sfree(*ds_err);
@@ -182,7 +365,6 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
             sfree(dirname);
             sfree(lockname);
             close(lockfd);
-            sfree(name);
             return SHARE_UPSTREAM;
         }
         sfree(*us_err);
@@ -197,15 +379,18 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
     sfree(lockname);
     sfree(sockname);
     close(lockfd);
-    sfree(name);
     return SHARE_NONE;
 }
 
 void platform_ssh_share_cleanup(const char *name)
 {
-    char *dirname, *filename;
+    char *dirname, *filename, *logtext;
 
-    dirname = make_dirname(name, NULL);
+    dirname = make_dirname(name, &logtext);
+    if (!dirname) {
+        sfree(logtext);                /* we can't do much with this */
+        return;
+    }
 
     filename = dupcat(dirname, "/socket", (char *)NULL);
     remove(filename);
@@ -221,7 +406,8 @@ void platform_ssh_share_cleanup(const char *name)
      * We deliberately _don't_ clean up the parent directory
      * /tmp/putty-connshare.<username>, because if we leave it around
      * then it reduces the ability for other users to be a nuisance by
-     * putting their own directory in the way of it.
+     * putting their own directory in the way of it. Also, the salt
+     * file in it can be reused.
      */
 
     sfree(dirname);

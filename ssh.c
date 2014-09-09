@@ -10625,11 +10625,13 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->gsslibs = NULL;
 #endif
 
-    p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
-    if (p != NULL)
-	return p;
+    random_ref(); /* do this now - may be needed by sharing setup code */
 
-    random_ref();
+    p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
+    if (p != NULL) {
+        random_unref();
+	return p;
+    }
 
     return NULL;
 }
