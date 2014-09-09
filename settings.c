@@ -138,7 +138,8 @@ static void gppi(void *handle, char *name, int def, Conf *conf, int primary)
  * Read a set of name-value pairs in the format we occasionally use:
  *   NAME\tVALUE\0NAME\tVALUE\0\0 in memory
  *   NAME=VALUE,NAME=VALUE, in storage
- * `def' is in the storage format.
+ * If there's no "=VALUE" (e.g. just NAME,NAME,NAME) then those keys
+ * are mapped to the empty string.
  */
 static int gppmap(void *handle, char *name, Conf *conf, int primary)
 {
@@ -204,9 +205,11 @@ static int gppmap(void *handle, char *name, Conf *conf, int primary)
 }
 
 /*
- * Write a set of name/value pairs in the above format.
+ * Write a set of name/value pairs in the above format, or just the
+ * names if include_values is FALSE.
  */
-static void wmap(void *handle, char const *outkey, Conf *conf, int primary)
+static void wmap(void *handle, char const *outkey, Conf *conf, int primary,
+                 int include_values)
 {
     char *buf, *p, *q, *key, *realkey, *val;
     int len;
@@ -251,12 +254,14 @@ static void wmap(void *handle, char const *outkey, Conf *conf, int primary)
 		*p++ = '\\';
 	    *p++ = *q;
 	}
-	*p++ = '=';
-	for (q = val; *q; q++) {
-	    if (*q == '=' || *q == ',' || *q == '\\')
-		*p++ = '\\';
-	    *p++ = *q;
-	}
+        if (include_values) {
+            *p++ = '=';
+            for (q = val; *q; q++) {
+                if (*q == '=' || *q == ',' || *q == '\\')
+                    *p++ = '\\';
+                *p++ = *q;
+            }
+        }
 
         if (realkey) {
             free(key);
@@ -456,7 +461,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "TCPKeepalives", conf_get_int(conf, CONF_tcp_keepalives));
     write_setting_s(sesskey, "TerminalType", conf_get_str(conf, CONF_termtype));
     write_setting_s(sesskey, "TerminalSpeed", conf_get_str(conf, CONF_termspeed));
-    wmap(sesskey, "TerminalModes", conf, CONF_ttymodes);
+    wmap(sesskey, "TerminalModes", conf, CONF_ttymodes, TRUE);
 
     /* Address family selection */
     write_setting_i(sesskey, "AddressFamily", conf_get_int(conf, CONF_addressfamily));
@@ -471,7 +476,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_s(sesskey, "ProxyUsername", conf_get_str(conf, CONF_proxy_username));
     write_setting_s(sesskey, "ProxyPassword", conf_get_str(conf, CONF_proxy_password));
     write_setting_s(sesskey, "ProxyTelnetCommand", conf_get_str(conf, CONF_proxy_telnet_command));
-    wmap(sesskey, "Environment", conf, CONF_environmt);
+    wmap(sesskey, "Environment", conf, CONF_environmt, TRUE);
     write_setting_s(sesskey, "UserName", conf_get_str(conf, CONF_username));
     write_setting_i(sesskey, "UserNameFromEnvironment", conf_get_int(conf, CONF_username_from_env));
     write_setting_s(sesskey, "LocalUserName", conf_get_str(conf, CONF_localusername));
@@ -614,7 +619,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_filename(sesskey, "X11AuthFile", conf_get_filename(conf, CONF_xauthfile));
     write_setting_i(sesskey, "LocalPortAcceptAll", conf_get_int(conf, CONF_lport_acceptall));
     write_setting_i(sesskey, "RemotePortAcceptAll", conf_get_int(conf, CONF_rport_acceptall));
-    wmap(sesskey, "PortForwardings", conf, CONF_portfwd);
+    wmap(sesskey, "PortForwardings", conf, CONF_portfwd, TRUE);
     write_setting_i(sesskey, "BugIgnore1", 2-conf_get_int(conf, CONF_sshbug_ignore1));
     write_setting_i(sesskey, "BugPlainPW1", 2-conf_get_int(conf, CONF_sshbug_plainpw1));
     write_setting_i(sesskey, "BugRSA1", 2-conf_get_int(conf, CONF_sshbug_rsa1));
