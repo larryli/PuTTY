@@ -2485,12 +2485,13 @@ Another reason is if PuTTY's automated host key management is
 completely unavailable, e.g. because PuTTY (or Plink or PSFTP, etc) is
 running in a Windows environment without access to the Registry. In
 that situation, you will probably want to use the \cw{-hostkey}
-command-line option to configure the expected host key(s); see FIXME.
+command-line option to configure the expected host key(s); see
+\k{using-cmdline-hostkey}.
 
 To configure manual host keys via the GUI, enter some text describing
 the host key into the edit box in the \q{Manually configure host keys
 for this connection} container, and press the \q{Add} button. The text
-will appear in the {q Host keys or fingerprints to accept} list box.
+will appear in the \q{Host keys or fingerprints to accept} list box.
 You can remove keys again with the \q{Remove} button.
 
 The text describing a host key can be in one of the following formats:
