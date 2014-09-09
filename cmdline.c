@@ -236,6 +236,21 @@ int cmdline_process_param(char *p, char *value, int need_save, Conf *conf)
 	SAVEABLE(0);
 	conf_set_str(conf, CONF_loghost, value);
     }
+    if (!strcmp(p, "-hostkey")) {
+        char *dup;
+	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+        dup = dupstr(value);
+        if (!validate_manual_hostkey(dup)) {
+            cmdline_error("'%s' is not a valid format for a manual host "
+                          "key specification", value);
+            sfree(dup);
+            return ret;
+        }
+	conf_set_str_str(conf, CONF_ssh_manual_hostkeys, dup, "");
+        sfree(dup);
+    }
     if ((!strcmp(p, "-L") || !strcmp(p, "-R") || !strcmp(p, "-D"))) {
 	char type, *q, *qq, *key, *val;
 	RETURN(2);

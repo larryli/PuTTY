@@ -2466,6 +2466,56 @@ when the SSH connection is idle, so they shouldn't cause the same
 problems.  The SSH-1 protocol, incidentally, has even weaker integrity
 protection than SSH-2 without rekeys.
 
+\S{config-ssh-kex-manual-hostkeys} \ii{Manually configuring host keys}
+
+\cfg{winhelp-topic}{ssh.kex.manualhostkeys}
+
+In some situations, if PuTTY's automated host key management is not
+doing what you need, you might need to manually configure PuTTY to
+accept a specific host key, or one of a specific set of host keys.
+
+One reason why you might want to do this is because the host name
+PuTTY is connecting to is using round-robin DNS to return one of
+multiple actual servers, and they all have different host keys. In
+that situation, you might need to configure PuTTY to accept any of a
+list of host keys for the possible servers, while still rejecting any
+key not in that list.
+
+Another reason is if PuTTY's automated host key management is
+completely unavailable, e.g. because PuTTY (or Plink or PSFTP, etc) is
+running in a Windows environment without access to the Registry. In
+that situation, you will probably want to use the \cw{-hostkey}
+command-line option to configure the expected host key(s); see FIXME.
+
+To configure manual host keys via the GUI, enter some text describing
+the host key into the edit box in the \q{Manually configure host keys
+for this connection} container, and press the \q{Add} button. The text
+will appear in the {q Host keys or fingerprints to accept} list box.
+You can remove keys again with the \q{Remove} button.
+
+The text describing a host key can be in one of the following formats:
+
+\b An MD5-based host key fingerprint of the form displayed in PuTTY's
+Event Log and host key dialog boxes, i.e. sixteen 2-digit hex numbers
+separated by colons.
+
+\b A base64-encoded blob describing an SSH-2 public key in the
+standard way. This can be found in OpenSSH's one-line public key
+format, or by concatenating all the lines of the public key section in
+one of PuTTY's \cw{.ppk} files. Alternatively, you can load a key into
+PuTTYgen, and paste out the OpenSSH-format public key line it
+displays.
+
+If this box contains at least one host key or fingerprint when PuTTY
+makes an SSH connection, then PuTTY's automated host key management is
+completely bypassed: the connection will be permitted if and only if
+the host key presented by the server is one of the keys listed in this
+box, and the host key store in the Registry will be neither read
+\e{nor written}.
+
+If the box is empty (as it usually is), then PuTTY's automated host
+key management will work as normal.
+
 \H{config-ssh-encryption} The Cipher panel
 
 \cfg{winhelp-topic}{ssh.ciphers}

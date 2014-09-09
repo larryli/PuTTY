@@ -3677,6 +3677,59 @@ static void ssh_disconnect(Ssh ssh, char *client_reason, char *wire_reason,
     sfree(error);
 }
 
+int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
+                               const struct ssh_signkey *ssh2keytype,
+                               void *ssh2keydata)
+{
+    if (!conf_get_str_nthstrkey(ssh->conf, CONF_ssh_manual_hostkeys, 0)) {
+        return -1;                     /* no manual keys configured */
+    }
+
+    if (fingerprint) {
+        /*
+         * The fingerprint string we've been given will have things
+         * like 'ssh-rsa 2048' at the front of it. Strip those off and
+         * narrow down to just the colon-separated hex block at the
+         * end of the string.
+         */
+        const char *p = strrchr(fingerprint, ' ');
+        fingerprint = p ? p+1 : fingerprint;
+        /* Quick sanity checks, including making sure it's in lowercase */
+        assert(strlen(fingerprint) == 16*3 - 1);
+        assert(fingerprint[2] == ':');
+        assert(fingerprint[strspn(fingerprint, "0123456789abcdef:")] == 0);
+
+        if (conf_get_str_str_opt(ssh->conf, CONF_ssh_manual_hostkeys,
+                                 fingerprint))
+            return 1;                  /* success */
+    }
+
+    if (ssh2keydata) {
+        /*
+         * Construct the base64-encoded public key blob and see if
+         * that's listed.
+         */
+        unsigned char *binblob;
+        char *base64blob;
+        int binlen, atoms, i;
+        binblob = ssh2keytype->public_blob(ssh2keydata, &binlen);
+        atoms = (binlen + 2) / 3;
+        base64blob = snewn(atoms * 4 + 1, char);
+        for (i = 0; i < atoms; i++)
+            base64_encode_atom(binblob + 3*i, binlen - 3*i, base64blob + 4*i);
+        base64blob[atoms * 4] = '\0';
+        sfree(binblob);
+        if (conf_get_str_str_opt(ssh->conf, CONF_ssh_manual_hostkeys,
+                                 base64blob)) {
+            sfree(base64blob);
+            return 1;                  /* success */
+        }
+        sfree(base64blob);
+    }
+
+    return 0;
+}
+
 /*
  * Handle the key exchange and user authentication phases.
  */
@@ -3800,29 +3853,36 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	rsastr_fmt(keystr, &s->hostkey);
 	rsa_fingerprint(fingerprint, sizeof(fingerprint), &s->hostkey);
 
-        ssh_set_frozen(ssh, 1);
-	s->dlgret = verify_ssh_host_key(ssh->frontend,
-                                        ssh->savedhost, ssh->savedport,
-                                        "rsa", keystr, fingerprint,
-                                        ssh_dialog_callback, ssh);
-	sfree(keystr);
-        if (s->dlgret < 0) {
-            do {
-                crReturn(0);
-                if (pktin) {
-                    bombout(("Unexpected data from server while waiting"
-                             " for user host key response"));
-                    crStop(0);
-                }
-            } while (pktin || inlen > 0);
-            s->dlgret = ssh->user_response;
-        }
-        ssh_set_frozen(ssh, 0);
+        /* First check against manually configured host keys. */
+        s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL, NULL);
+        if (s->dlgret == 0) {          /* did not match */
+            bombout(("Host key did not appear in manually configured list"));
+            crStop(0);
+        } else if (s->dlgret < 0) { /* none configured; use standard handling */
+            ssh_set_frozen(ssh, 1);
+            s->dlgret = verify_ssh_host_key(ssh->frontend,
+                                            ssh->savedhost, ssh->savedport,
+                                            "rsa", keystr, fingerprint,
+                                            ssh_dialog_callback, ssh);
+            sfree(keystr);
+            if (s->dlgret < 0) {
+                do {
+                    crReturn(0);
+                    if (pktin) {
+                        bombout(("Unexpected data from server while waiting"
+                                 " for user host key response"));
+                        crStop(0);
+                    }
+                } while (pktin || inlen > 0);
+                s->dlgret = ssh->user_response;
+            }
+            ssh_set_frozen(ssh, 0);
 
-        if (s->dlgret == 0) {
-	    ssh_disconnect(ssh, "User aborted at host key verification",
-			   NULL, 0, TRUE);
-	    crStop(0);
+            if (s->dlgret == 0) {
+                ssh_disconnect(ssh, "User aborted at host key verification",
+                               NULL, 0, TRUE);
+                crStop(0);
+            }
         }
     }
 
@@ -6721,31 +6781,39 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
          * checked the signature of the exchange hash.)
          */
         s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
-        ssh_set_frozen(ssh, 1);
-        s->dlgret = verify_ssh_host_key(ssh->frontend,
-                                        ssh->savedhost, ssh->savedport,
-                                        ssh->hostkey->keytype, s->keystr,
-                                        s->fingerprint,
-                                        ssh_dialog_callback, ssh);
-        if (s->dlgret < 0) {
-            do {
-                crReturnV;
-                if (pktin) {
-                    bombout(("Unexpected data from server while waiting"
-                             " for user host key response"));
-                    crStopV;
-                }
-            } while (pktin || inlen > 0);
-            s->dlgret = ssh->user_response;
-        }
-        ssh_set_frozen(ssh, 0);
-        if (s->dlgret == 0) {
-            ssh_disconnect(ssh, "User aborted at host key verification", NULL,
-                           0, TRUE);
-            crStopV;
-        }
         logevent("Host key fingerprint is:");
         logevent(s->fingerprint);
+        /* First check against manually configured host keys. */
+        s->dlgret = verify_ssh_manual_host_key(ssh, s->fingerprint,
+                                               ssh->hostkey, s->hkey);
+        if (s->dlgret == 0) {          /* did not match */
+            bombout(("Host key did not appear in manually configured list"));
+            crStopV;
+        } else if (s->dlgret < 0) { /* none configured; use standard handling */
+            ssh_set_frozen(ssh, 1);
+            s->dlgret = verify_ssh_host_key(ssh->frontend,
+                                            ssh->savedhost, ssh->savedport,
+                                            ssh->hostkey->keytype, s->keystr,
+                                            s->fingerprint,
+                                            ssh_dialog_callback, ssh);
+            if (s->dlgret < 0) {
+                do {
+                    crReturnV;
+                    if (pktin) {
+                        bombout(("Unexpected data from server while waiting"
+                                 " for user host key response"));
+                        crStopV;
+                    }
+                } while (pktin || inlen > 0);
+                s->dlgret = ssh->user_response;
+            }
+            ssh_set_frozen(ssh, 0);
+            if (s->dlgret == 0) {
+                ssh_disconnect(ssh, "Aborted at host key verification", NULL,
+                               0, TRUE);
+                crStopV;
+            }
+        }
         sfree(s->fingerprint);
         /*
          * Save this host key, to check against the one presented in

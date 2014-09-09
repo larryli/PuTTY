@@ -848,6 +848,12 @@ void cleanup_exit(int);
     X(INT, NONE, ssh_connection_sharing) \
     X(INT, NONE, ssh_connection_sharing_upstream) \
     X(INT, NONE, ssh_connection_sharing_downstream) \
+    /*
+     * ssh_manual_hostkeys is conceptually a set rather than a
+     * dictionary: the string subkeys are the important thing, and the
+     * actual values to which those subkeys map are all "".
+     */ \
+    X(STR, STR, ssh_manual_hostkeys) \
     /* Options for pterm. Should split out into platform-dependent part. */ \
     X(INT, NONE, stamp_utmp) \
     X(INT, NONE, login_shell) \

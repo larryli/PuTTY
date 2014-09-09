@@ -1225,6 +1225,73 @@ static void portfwd_handler(union control *ctrl, void *dlg,
     }
 }
 
+struct manual_hostkey_data {
+    union control *addbutton, *rembutton, *listbox, *keybox;
+};
+
+static void manual_hostkey_handler(union control *ctrl, void *dlg,
+                                   void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    struct manual_hostkey_data *mh =
+	(struct manual_hostkey_data *)ctrl->generic.context.p;
+
+    if (event == EVENT_REFRESH) {
+	if (ctrl == mh->listbox) {
+	    char *key, *val;
+	    dlg_update_start(ctrl, dlg);
+	    dlg_listbox_clear(ctrl, dlg);
+	    for (val = conf_get_str_strs(conf, CONF_ssh_manual_hostkeys,
+                                         NULL, &key);
+		 val != NULL;
+		 val = conf_get_str_strs(conf, CONF_ssh_manual_hostkeys,
+                                         key, &key)) {
+		dlg_listbox_add(ctrl, dlg, key);
+	    }
+	    dlg_update_done(ctrl, dlg);
+	}
+    } else if (event == EVENT_ACTION) {
+	if (ctrl == mh->addbutton) {
+	    char *key;
+
+	    key = dlg_editbox_get(mh->keybox, dlg);
+	    if (!*key) {
+		dlg_error_msg(dlg, "You need to specify a host key or "
+                              "fingerprint");
+		sfree(key);
+		return;
+	    }
+
+            if (!validate_manual_hostkey(key)) {
+		dlg_error_msg(dlg, "Host key is not in a valid format");
+            } else if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
+                                            key)) {
+		dlg_error_msg(dlg, "Specified host key is already listed");
+	    } else {
+		conf_set_str_str(conf, CONF_ssh_manual_hostkeys, key, "");
+	    }
+
+	    sfree(key);
+	    dlg_refresh(mh->listbox, dlg);
+	} else if (ctrl == mh->rembutton) {
+	    int i = dlg_listbox_index(mh->listbox, dlg);
+	    if (i < 0) {
+		dlg_beep(dlg);
+	    } else {
+		char *key;
+
+		key = conf_get_str_nthstrkey(conf, CONF_ssh_manual_hostkeys, i);
+		if (key) {
+		    dlg_editbox_set(mh->keybox, dlg, key);
+		    /* And delete it */
+		    conf_del_str_str(conf, CONF_ssh_manual_hostkeys, key);
+		}
+	    }
+	    dlg_refresh(mh->listbox, dlg);
+	}
+    }
+}
+
 void setup_config_box(struct controlbox *b, int midsession,
 		      int protocol, int protcfginfo)
 {
@@ -1235,6 +1302,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     struct ttymodes_data *td;
     struct environ_data *ed;
     struct portfwd_data *pfd;
+    struct manual_hostkey_data *mh;
     union control *c;
     char *str;
 
@@ -2163,6 +2231,42 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(16));
 	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
 		      HELPCTX(ssh_kex_repeat));
+
+	    s = ctrl_getset(b, "Connection/SSH/Kex", "hostkeys",
+			    "Manually configure host keys for this connection");
+
+            ctrl_columns(s, 2, 75, 25);
+            c = ctrl_text(s, "Host keys or fingerprints to accept:",
+                          HELPCTX(ssh_kex_manual_hostkeys));
+            c->generic.column = 0;
+            /* You want to select from the list, _then_ hit Remove. So
+             * tab order should be that way round. */
+            mh = (struct manual_hostkey_data *)
+                ctrl_alloc(b,sizeof(struct manual_hostkey_data));
+            mh->rembutton = ctrl_pushbutton(s, "Remove", 'r',
+                                            HELPCTX(ssh_kex_manual_hostkeys),
+                                            manual_hostkey_handler, P(mh));
+            mh->rembutton->generic.column = 1;
+            mh->rembutton->generic.tabdelay = 1;
+            mh->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
+                                       HELPCTX(ssh_kex_manual_hostkeys),
+                                       manual_hostkey_handler, P(mh));
+            /* This list box can't be very tall, because there's not
+             * much room in the pane on Windows at least. This makes
+             * it become really unhelpful if a horizontal scrollbar
+             * appears, so we suppress that. */
+            mh->listbox->listbox.height = 2;
+            mh->listbox->listbox.hscroll = FALSE;
+            ctrl_tabdelay(s, mh->rembutton);
+	    mh->keybox = ctrl_editbox(s, "Key", 'k', 80,
+                                      HELPCTX(ssh_kex_manual_hostkeys),
+                                      manual_hostkey_handler, P(mh), P(NULL));
+            mh->keybox->generic.column = 0;
+            mh->addbutton = ctrl_pushbutton(s, "Add key", 'y',
+                                            HELPCTX(ssh_kex_manual_hostkeys),
+                                            manual_hostkey_handler, P(mh));
+            mh->addbutton->generic.column = 1;
+            ctrl_columns(s, 1, 100);
 	}
 
 	if (!midsession || protcfginfo != 1) {
