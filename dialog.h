@@ -345,6 +345,12 @@ union control {
 	 */
 	int ncols;		       /* number of columns */
 	int *percentages;	       /* % width of each column */
+        /*
+         * Flag which can be set to FALSE to suppress the horizontal
+         * scroll bar if a list box entry goes off the right-hand
+         * side.
+         */
+        int hscroll;
     } listbox;
     struct {
 	STANDARD_PREFIX;

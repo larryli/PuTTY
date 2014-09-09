@@ -2276,15 +2276,22 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		    cols = cols ? cols : 1;
 		    for (i = 0; i < cols; i++) {
 			GtkTreeViewColumn *column;
+                        GtkCellRenderer *cellrend;
 			/*
 			 * It appears that GTK 2 doesn't leave us any
 			 * particularly sensible way to honour the
 			 * "percentages" specification in the ctrl
 			 * structure.
 			 */
+                        cellrend = gtk_cell_renderer_text_new();
+                        if (!ctrl->listbox.hscroll) {
+                            gtk_object_set(GTK_OBJECT(cellrend),
+                                           "ellipsize", PANGO_ELLIPSIZE_END,
+                                           "ellipsize-set", TRUE,
+                                           NULL);
+                        }
 			column = gtk_tree_view_column_new_with_attributes
-			    ("heading", gtk_cell_renderer_text_new(),
-			     "text", i+1, (char *)NULL);
+			    ("heading", cellrend, "text", i+1, (char *)NULL);
 			gtk_tree_view_column_set_sizing
 			    (column, GTK_TREE_VIEW_COLUMN_GROW_ONLY);
 			gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
