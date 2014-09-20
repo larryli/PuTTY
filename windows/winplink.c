@@ -186,6 +186,8 @@ static void usage(void)
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
     printf("  -batch    disable all interactive prompts\n");
+    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
+    printf("            Specify the serial configuration (serial only)\n");
     printf("The following options only apply to SSH connections:\n");
     printf("  -pw passw login with specified password\n");
     printf("  -D [listen-IP:]listen-port\n");
@@ -210,8 +212,6 @@ static void usage(void)
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
     printf("  -nc host:port\n");
     printf("            open tunnel in place of session (SSH-2 only)\n");
-    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
-    printf("            Specify the serial configuration (serial only)\n");
     exit(1);
 }
 
