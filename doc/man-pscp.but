@@ -93,7 +93,17 @@ commands such as \q{\c{w}}).
 
 \dt \cw{-i} \e{path}
 
-\dd Private key file for authentication.
+\dd Private key file for user authentication.
+
+\dt \cw{\-hostkey} \e{key}
+
+\dd Specify an acceptable host public key. This option may be specified
+multiple times; each key can be either a fingerprint (\cw{99:aa:bb:...}) or
+a base64-encoded blob in OpenSSH's one-line format.
+
+\lcont{ Specifying this option overrides automated host key
+management; \e{only} the key(s) specified on the command-line will be
+accepted, and the host's key will not be cached. }
 
 \dt \cw{-scp}
 

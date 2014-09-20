@@ -219,9 +219,19 @@ pseudo-terminal at the server end.
 
 \dt \cw{\-i} \e{keyfile}
 
-\dd Specify a private key file to use for authentication. For SSH-2
+\dd Specify a private key file to use for user authentication. For SSH-2
 keys, this key file must be in PuTTY's format, not OpenSSH's or
 anyone else's.
+
+\dt \cw{\-hostkey} \e{key}
+
+\dd Specify an acceptable host public key. This option may be specified
+multiple times; each key can be either a fingerprint (\cw{99:aa:bb:...}) or
+a base64-encoded blob in OpenSSH's one-line format.
+
+\lcont{ Specifying this option overrides automated host key
+management; \e{only} the key(s) specified on the command-line will be
+accepted, and the host's key will not be cached. }
 
 \dt \cw{\-sercfg} \e{configuration-string}
 
