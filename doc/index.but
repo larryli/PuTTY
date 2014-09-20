@@ -22,6 +22,10 @@
 \IM{host key fingerprint} host key fingerprint (SSH)
 \IM{host key fingerprint} SSH host key fingerprint
 
+\IM{manually configuring host keys} manually configuring host keys
+\IM{manually configuring host keys} overriding host keys
+\IM{manually configuring host keys} host keys, manually configuring
+
 \IM{starting a session} starting a session
 \IM{starting a session} session, starting
 
