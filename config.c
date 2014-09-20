@@ -2167,7 +2167,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  I(CONF_compression));
 	}
 
-	if (!midsession || protcfginfo != 1) {
+	if (!midsession) {
 	    s = ctrl_getset(b, "Connection/SSH", "sharing", "Sharing an SSH connection between PuTTY tools");
 
 	    ctrl_checkbox(s, "Share SSH connections if possible", 's',
