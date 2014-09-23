@@ -16,6 +16,22 @@
 
 #include "winsecur.h"
 
+#ifdef COVERITY
+/*
+ * The hack I use to build for Coverity scanning, using winegcc and
+ * Makefile.cyg, didn't provide some defines in wincrypt.h last time I
+ * looked. Therefore, define them myself here, but enclosed in #ifdef
+ * COVERITY to ensure I don't make up random nonsense values for any
+ * real build.
+ */
+#ifndef CRYPTPROTECTMEMORY_BLOCK_SIZE
+#define CRYPTPROTECTMEMORY_BLOCK_SIZE 16
+#endif
+#ifndef CRYPTPROTECTMEMORY_CROSS_PROCESS
+#define CRYPTPROTECTMEMORY_CROSS_PROCESS 1
+#endif
+#endif
+
 #define CONNSHARE_PIPE_PREFIX "\\\\.\\pipe\\putty-connshare"
 #define CONNSHARE_MUTEX_PREFIX "Local\\putty-connshare-mutex"
 
