@@ -91,7 +91,9 @@ a base64-encoded blob in OpenSSH's one-line format.
 
 \lcont{ Specifying this option overrides automated host key
 management; \e{only} the key(s) specified on the command-line will be
-accepted, and the host's key will not be cached. }
+accepted (unless a saved session also overrides host keys, in which
+case those will be added to), and the host key cache will not be
+written. }
 
 \S{psftp-manpage-commands} COMMANDS
 
