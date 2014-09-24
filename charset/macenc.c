@@ -1,4 +1,3 @@
-/* $Id$ */
 /*
  * Copyright (c) 2003 Ben Harris
  * All rights reserved.

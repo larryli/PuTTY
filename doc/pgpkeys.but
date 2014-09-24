@@ -1,5 +1,3 @@
-\define{versionidpgpkeys} \versionid $Id$
-
 \A{pgpkeys} PuTTY download keys and signatures
 
 \cfg{winhelp-topic}{pgpfingerprints}

@@ -1,5 +1,4 @@
 /************************************************************************
- * $Id$
  *
  * ------------
  * Description:
@@ -10,13 +9,6 @@
  *   http://www.unicode.org/reports/tr9/
  *
  * Author: Ahmad Khalifa
- *
- * -----------------
- * Revision Details:    (Updated by Revision Control System)
- * -----------------
- *  $Date$
- *  $Author$
- *  $Revision$
  *
  * (www.arabeyes.org - under MIT license)
  *

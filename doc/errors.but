@@ -1,5 +1,3 @@
-\define{versioniderrors} \versionid $Id$
-
 \C{errors} Common \i{error messages}
 
 This chapter lists a number of common error messages which PuTTY and

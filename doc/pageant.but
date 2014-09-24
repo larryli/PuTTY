@@ -1,5 +1,3 @@
-\define{versionidpageant} \versionid $Id$
-
 \C{pageant} Using \i{Pageant} for authentication
 
 \cfg{winhelp-topic}{pageant.general}

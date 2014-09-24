@@ -1,5 +1,3 @@
-\define{versionidconfig} \versionid $Id$
-
 \C{config} Configuring PuTTY
 
 This chapter describes all the \i{configuration options} in PuTTY.

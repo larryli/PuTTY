@@ -71,11 +71,6 @@ The Windows installer script (_four_ times, on consecutive lines):
 
  - putty/windows/putty.iss
 
-The Windows resource file (used to generate the binary bit of the
-VERSIONINFO resources -- the strings are supplied by the usual means):
-
- - putty/windows/version.rc2 (BASE_VERSION; NB, _comma_-separated)
-
 It might also be worth going through the documentation looking for
 version numbers - we have a couple of transcripts showing the help
 text from the command-line tools, and it would be nice to ensure the
@@ -86,6 +81,19 @@ it's worth grepping for that too.
  - putty/doc/pscp.but
  - putty/doc/plink.but
  - putty/doc/psftp.but (in case it ever acquires a similar thing)
+
+Finally, reset the epoch used for the $(Days) value computed in
+Buildscr for the Windows binary version resource. It's probably not a
+good idea to set it to _today_ (since it might clash with the
+zero-valued field used in actual releases), so perhaps we should start
+it 1000 days before the release date so as to have a largish number
+recognisable as being the right kind of thing by its order of
+magnitude. So, do this:
+
+  perl -e 'printf "%d\n", time/86400 - 1000'
+
+and then substitute the resulting value into the definition of 'Epoch'
+in Buildscr.
 
 The actual release procedure
 ----------------------------

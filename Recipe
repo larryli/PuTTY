@@ -37,14 +37,6 @@
 #
 # Extra options you can set:
 #
-#  - VER="/DSNAPSHOT=1999-01-25 /DSVN_REV=1234"
-#      Generates executables whose About box report them as being a
-#      development snapshot. SVN_REV is a Subversion revision number.
-#
-#  - VER=/DRELEASE=0.43
-#      Generates executables whose About box report them as being a
-#      release version.
-#
 #  - COMPAT=/DAUTO_WINSOCK (Windows only)
 #      Causes PuTTY to assume that <windows.h> includes its own WinSock
 #      header file, so that it won't try to include <winsock.h>.
@@ -138,80 +130,12 @@
 # ------------------------------------------------------------
 # Additional text added verbatim to each individual Makefile.
 
-# Hack to force version.o to be rebuilt always.
-!begin vc
-version.obj: *.c *.h *.rc
-	cl $(VER) $(CFLAGS) /c ..\version.c
-!end
-!specialobj vc version
-!begin cygwin
-version.o: FORCE
-	$(CC) $(COMPAT) $(XFLAGS) $(CFLAGS) $(VER) -c ../version.c
-!end
-!specialobj cygwin version
-!begin borland
-version.obj: FORCE
-	bcc32 $(VER) $(CFLAGS) /c ..\version.c
-!end
-!specialobj borland version
-!begin lcc
-version.obj: FORCE
-	lcc $(VER) $(CFLAGS) /c ..\version.c
-!end
-!specialobj lcc version
-# For Unix, we also need the gross MD5 hack that causes automatic
-# version number selection in release source archives.
-!begin gtk
-version.o: FORCE
-	if test -z "$(VER)" && (cd ..; md5sum -c manifest); then \
-		$(CC) $(COMPAT) $(XFLAGS) $(CFLAGS) `cat ../version.def` -c ../version.c; \
-	else \
-		$(CC) $(COMPAT) $(XFLAGS) $(CFLAGS) $(VER) -c ../version.c; \
-	fi
-!end
-!specialobj gtk version
-# In the automake build, we have to do the whole job by supplying
-# extra CFLAGS, so we have to put the if statement inside one big
-# backtick expression. We also force rebuilding via a -D option that
-# makes version.o include empty.h, which we construct ourselves and
-# touch whenever any source file is updated.
-!cflags am version $(VER) -DINCLUDE_EMPTY_H `if test -z "$(VER)" && (cd $(srcdir); md5sum -c manifest >/dev/null 2>&1); then cat $(srcdir)/version.def; else echo "$(VER)"; fi`
-!begin am
-BUILT_SOURCES = empty.h
-CLEANFILES = empty.h
-empty.h: $(allsources)
-	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
-
-!end
-!begin >empty.h
-/* Empty file touched by automake makefile to force rebuild of version.o */
-!end
-
-# Add VER to Windows resource targets, and force them to be rebuilt every
-# time, on the assumption that they will contain version information.
 !begin vc vars
 CFLAGS = $(CFLAGS) /DHAS_GSSAPI /DSECURITY_WIN32
-RCFLAGS = $(RCFLAGS) $(VER)
 !end
 !begin cygwin vars
 CFLAGS += -DSECURITY_WIN32
-# XXX GNU-ism, but it's probably all right for a Cygwin/MinGW Makefile.
-RCFLAGS += $(patsubst -D%,--define %,$(VER))
 !end
-!begin borland vars
-# Borland doesn't support +=. This probably shouldn't work, but seems to.
-RCFLAGS = $(RCFLAGS) $(VER)
-!end
-!begin lcc vars
-RCFLAGS += $(VER)
-!end
-!forceobj putty.res
-!forceobj puttytel.res
-!forceobj plink.res
-!forceobj pscp.res
-!forceobj psftp.res
-!forceobj pageant.res
-!forceobj puttygen.res
 
 # `make install' target for Unix.
 !begin gtk

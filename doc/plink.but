@@ -1,5 +1,3 @@
-\define{versionidplink} \versionid $Id$
-
 \C{plink} Using the command-line connection tool \i{Plink}
 
 \i{Plink} (PuTTY Link) is a command-line connection tool similar to

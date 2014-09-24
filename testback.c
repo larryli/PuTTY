@@ -1,4 +1,3 @@
-/* $Id$ */
 /*
  * Copyright (c) 1999 Simon Tatham
  * Copyright (c) 1999 Ben Harris

@@ -1,5 +1,3 @@
-\define{versionidsshnames} \versionid $Id$
-
 \A{sshnames} SSH-2 names specified for PuTTY
 
 There are various parts of the SSH-2 protocol where things are specified

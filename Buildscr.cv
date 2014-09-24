@@ -33,7 +33,7 @@ enddelegate
 # Provide the revision number as one of the build outputs, to make it
 # easy to construct a curl upload command which will annotate it
 # appropriately when uploaded.
-in putty do echo $(revision) > revision.txt
+in putty do echo $(vcsfullid) > revision.txt
 
 deliver putty/revision.txt $@
 deliver putty/cov-int.tar.gz $@

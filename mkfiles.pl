@@ -458,8 +458,8 @@ if (defined $makefiles{'cygwin'}) {
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs)) .
 	       "\n".
     "LDFLAGS = -mno-cygwin -s\n".
-    &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1".
-      " --define WINVER=0x0400")."\n".
+    &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 ".
+      "--define WINVER=0x0400 ".(join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "\n".
     $makefile_extra{'cygwin'}->{'vars'} .
     "\n".
@@ -491,7 +491,7 @@ if (defined $makefiles{'cygwin'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'cygwin'}->{'end'};
+    print $makefile_extra{'cygwin'}->{'end'} if defined $makefile_extra{'cygwin'}->{'end'};
     print "\nclean:\n".
     "\trm -f *.o *.exe *.res.o *.so *.map\n".
     "\n".
@@ -597,7 +597,7 @@ if (defined $makefiles{'borland'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'borland'}->{'end'};
+    print $makefile_extra{'borland'}->{'end'} if defined $makefile_extra{'borland'}->{'end'};
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".
@@ -636,7 +636,8 @@ if (defined $makefiles{'vc'}) {
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500\n".
       "LFLAGS = /incremental:no /fixed\n".
-      "RCFLAGS = -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
+      "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
+      " -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
       "\n".
       $makefile_extra{'vc'}->{'vars'} .
       "\n".
@@ -679,7 +680,7 @@ if (defined $makefiles{'vc'}) {
 	}
     }
     print "\n";
-    print $makefile_extra{'vc'}->{'end'};
+    print $makefile_extra{'vc'}->{'end'} if defined $makefile_extra{'vc'}->{'end'};
     print "\nclean: tidy\n".
       "\t-del *.exe\n\n".
       "tidy:\n".
@@ -1587,7 +1588,7 @@ if (defined $makefiles{'lcc'}) {
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       "\n".
     "# Resource compilation flags\n".
-    "RCFLAGS = \n".
+    "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs)."\n".
     "\n".
     "# Get include directory for resource compiler\n".
     "\n".
@@ -1622,7 +1623,7 @@ if (defined $makefiles{'lcc'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'lcc'}->{'end'};
+    print $makefile_extra{'lcc'}->{'end'} if defined $makefile_extra{'lcc'}->{'end'};
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".

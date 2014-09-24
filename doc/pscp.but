@@ -1,5 +1,3 @@
-\define{versionidpscp} \versionid $Id$
-
 \#FIXME: Need examples
 
 \C{pscp} Using \i{PSCP} to transfer files securely

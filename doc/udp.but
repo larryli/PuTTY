@@ -3,8 +3,6 @@
 \# PuTTY's `unwritten design principles'. It has nothing to do with
 \# the User Datagram Protocol.
 
-\define{versionidudp} \versionid $Id$
-
 \A{udp} PuTTY hacking guide
 
 This appendix lists a selection of the design principles applying to

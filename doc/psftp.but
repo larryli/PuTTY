@@ -1,5 +1,3 @@
-\define{versionidpsftp} \versionid $Id$
-
 \C{psftp} Using \i{PSFTP} to transfer files securely
 
 \i{PSFTP}, the PuTTY SFTP client, is a tool for \i{transferring files}

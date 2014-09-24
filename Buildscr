@@ -3,60 +3,147 @@
 
 module putty
 
-# Set up the arguments for the main make command.
-set Makever -DSVN_REV=$(revision)
-ifneq "$(!numeric $(revision))" "yes" set Makever $(Makever) -DMODIFIED
-ifneq "$(RELEASE)" "" set Makever $(Makever) -DRELEASE=$(RELEASE)
-ifneq "$(PRERELEASE)" "" set Makever $(Makever) -DPRERELEASE=$(PRERELEASE)
-ifneq "$(date)" "" set Makever $(Makever) -DSNAPSHOT=$(date)
-set Makeargs VER="$(Makever)"
+# Start by figuring out what our version information looks like.
+#
+# There are four classes of PuTTY build:
+#  - a release, which just has an X.YY version number
+#  - a prerelease, which has an X.YY version number, plus a date and
+#    version control commit id (and is considered to be 'almost'
+#    version X.YY)
+#  - a development snapshot, which just has a date and commit id
+#  - a custom build, which also has a date and commit id (but is
+#    labelled differently, to stress that development snapshots are
+#    built from the checked-in code by the automated nightly script
+#    whereas custom builds are made manually, perhaps from uncommitted
+#    changes, e.g. to send to a user for diagnostic or testing
+#    purposes).
+#
+# The four classes of build are triggered by invoking bob with
+# different command-line variable definitions:
+#
+#  - RELEASE=X.YY makes a release build
+#  - PRERELEASE=X.YY makes a prerelease build (combined with the build
+#    date and VCS info)
+#  - setting SNAPSHOT to any non-empty string makes a development
+#    snapshot
+#  - setting none of these makes a custom build.
+
+# If we need a date for our build, start by computing it in the
+# various forms we need. $(Ndate) is the date in purely numeric form
+# (YYYYMMDD); $(Date) is separated as YYYY-MM-DD; $(Days) is the
+# number of days since the epoch.
+ifeq "$(RELEASE)" "" set Ndate $(!builddate)
+ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -pe 's/(....)(..)(..)/$$1-$$2-$$3/' > date
+ifneq "$(Ndate)" "" read Date date
+set Epoch 6000 # update this at every release
+ifneq "$(Ndate)" "" in . do echo $(Ndate) | perl -ne 'use Time::Local; /(....)(..)(..)/ and print timegm(0,0,0,$$3,$$2-1,$$1) / 86400 - $(Epoch)' > days
+ifneq "$(Ndate)" "" read Days days
+
+# For any non-release, we're going to need the number of the prior
+# release, for putting in various places so as to get monotonic
+# comparisons with the surrounding actual releases.
+ifeq "$(RELEASE)" "" read Lastver putty/LATEST.VER
+
+# Set up the textual version strings for the docs build and installer.
+# We have one of these including the word 'PuTTY', and one without,
+# which are inconveniently capitalised differently.
+ifneq "$(RELEASE)" "" set Puttytextver PuTTY release $(RELEASE)
+ifneq "$(RELEASE)" "" set Textver Release $(RELEASE)
+ifneq "$(PRERELEASE)" "" set Puttytextver PuTTY pre-release $(PRERELEASE):$(Date).$(vcsid)
+ifneq "$(PRERELEASE)" "" set Textver Pre-release $(PRERELEASE):$(Date).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Puttytextver PuTTY development snapshot $(Date).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Textver Development snapshot $(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Puttytextver PuTTY custom build $(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Textver Custom build $(Date).$(vcsid)
+set Docmakever VERSION="$(Puttytextver)"
+
+# Set up the version string for use in the SSH connection greeting.
+#
+# We use $(Ndate) rather than $(Date) in the pre-release string to
+# make sure it's under 40 characters, which is a hard limit in the SSH
+# protocol spec (and enforced by a compile-time assertion in
+# version.c).
+ifneq "$(RELEASE)" "" set Sshver PuTTY-Release-$(RELEASE)
+ifneq "$(PRERELEASE)" "" set Sshver PuTTY-Prerelease-$(PRERELEASE):$(Ndate).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Sshver PuTTY-Snapshot-$(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Sshver PuTTY-Custom-$(Date).$(vcsid)
+
+# Set up the filename suffix for the Unix source archive.
+ifneq "$(RELEASE)" "" set Uxarcsuffix -$(RELEASE)
+ifneq "$(PRERELEASE)" "" set Uxarcsuffix -$(PRERELEASE)~pre$(Ndate).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Uxarcsuffix -$(Lastver)-$(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Uxarcsuffix -custom-$(Date).$(vcsid)
+
+# Set up the version number for the autoconf system.
+ifneq "$(RELEASE)" "" set Autoconfver $(RELEASE)
+ifneq "$(PRERELEASE)" "" set Autoconfver $(PRERELEASE)~pre$(Ndate).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Autoconfver $(Lastver)-$(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Autoconfver Custom.$(Date).$(vcsid)
+
+# Set up the filename for the Windows installer.
+ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
+ifneq "$(PRERELEASE)" "" set Ifilename putty-$(PRERELEASE)-pre$(Ndate)-installer.exe
+ifneq "$(SNAPSHOT)" "" set Ifilename putty-$(Date)-installer.exe
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Ifilename putty-custom-$(Date)-installer.exe
+
+# Set up the version string for the Windows installer.
+ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
+ifneq "$(PRERELEASE)" "" set Iversion $(PRERELEASE)-pre$(Ndate).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Iversion $(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Iversion Custom-$(Date).$(vcsid)
+
+# Set up the Windows version resource info, for both the installer and
+# the individual programs. This must be a sequence of four 16-bit
+# integers compared lexicographically, and we define it as follows:
+#
+#   For release X.YY:                             X.YY.0.0
+#   For a prerelease before the X.YY release:     (X.YY-1).(DDDDD + 0x8000).0
+#   For a devel snapshot after the X.YY release:  X.YY.DDDDD.0
+#   For a custom build:                           X.YY.DDDDD.1
+#
+# where DDDDD is a representation of the build date, in the form of a
+# number of days since an epoch date. The epoch is reset at every
+# release (which, with 15 bits, gives us a comfortable 80-odd years
+# before it becomes vital to make another release to reset the count
+# :-).
+
+ifneq "$(RELEASE)" "" in . do echo $(RELEASE).0.0 > winver
+ifneq "$(PRERELEASE)" "" in . do perl -e 'printf "%s.%d.0", $$ARGV[0], 0x8000+$$ARGV[1]' $(Lastver) $(Days) > winver
+ifneq "$(SNAPSHOT)" "" in . do perl -e 'printf "%s.%d.0", $$ARGV[0], $$ARGV[1]' $(Lastver) $(Days) > winver
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" in . do perl -e 'printf "%s.%d.1", $$ARGV[0], $$ARGV[1]' $(Lastver) $(Days) > winver
+in . do perl -pe 'y!.!,!' winver > winvercommas
+read Winver winver
+read Winvercommas winvercommas
+
+# Write out a version.h that contains the real version number.
+in putty do echo '/* Generated by automated build script */' > version.h
+ifneq "$(RELEASE)" "" in putty do echo '$#define RELEASE $(RELEASE)' >> version.h
+ifneq "$(PRERELEASE)" "" in putty do echo '$#define PRERELEASE $(PRERELEASE)' >> version.h
+ifneq "$(SNAPSHOT)" "" in putty do echo '$#define SNAPSHOT' >> version.h
+in putty do echo '$#define TEXTVER "$(Textver)"' >> version.h
+in putty do echo '$#define SSHVER "$(Sshver)"' >> version.h
+in putty do echo '$#define BINARY_VERSION $(Winvercommas)' >> version.h
+
+# Set up the extra arguments for the main Windows nmake command. The
+# user can define XFLAGS and MAKEARGS on the bob command line, to pass
+# in extra compile and make options respectively (e.g. to do a
+# debugging or Minefield build).
+set Makeargs
 ifneq "$(XFLAGS)" "" set Makeargs $(Makeargs) XFLAGS="$(XFLAGS)"
 ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
 
-# Set up the version string for the docs build.
-set Docmakeargs VERSION="PuTTY revision $(revision)"
-ifneq "$(RELEASE)" "" set Docmakeargs VERSION="PuTTY release $(RELEASE)"
-ifneq "$(PRERELEASE)" "" set Docmakeargs VERSION="PuTTY pre-release $(PRERELEASE):r$(revision)"
-ifneq "$(date)" "" set Docmakeargs VERSION="PuTTY development snapshot $(date)"
-
-# Set up the version string for the Unix source archive.
-set Unxver r$(revision)
-ifneq "$(RELEASE)" "" set Unxver $(RELEASE)
-ifneq "$(PRERELEASE)" "" set Unxver $(PRERELEASE)pre $(revision)
-ifneq "$(date)" "" set Unxver $(date)
-
-# Set up the various version strings for the installer.
-set Iversion r$(revision)
-set Iname PuTTY revision $(revision)
-set Ivertext Revision $(revision)
-set Irev $(revision)
-set Ifilename putty-$(Iversion)-installer.exe
-ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
-ifneq "$(RELEASE)" "" set Iname PuTTY version $(RELEASE)
-ifneq "$(RELEASE)" "" set Ivertext Release $(RELEASE)
-ifneq "$(RELEASE)" "" set Irev 0
-ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer.exe
-ifneq "$(PRERELEASE)" "" set Iversion $(PRERELEASE):r$(revision)
-ifneq "$(PRERELEASE)" "" set Iname PuTTY pre-release $(PRERELEASE):r$(revision)
-ifneq "$(PRERELEASE)" "" set Ivertext Pre-release $(PRERELEASE):r$(revision)
-ifneq "$(PRERELEASE)" "" set Ifilename putty-$(PRERELEASE)-pre$(revision)-installer.exe
-ifneq "$(date)" "" set Iversion $(date):r$(revision)
-ifneq "$(date)" "" set Iname PuTTY development snapshot $(date):r$(revision)
-ifneq "$(date)" "" set Ivertext Development snapshot $(date):r$(revision)
-ifneq "$(date)" "" set Ifilename putty-$(date)-installer.exe
-
 in putty do ./mksrcarc.sh
-in putty do ./mkunxarc.sh $(Unxver)
+in putty do ./mkunxarc.sh '$(Autoconfver)' '$(Uxarcsuffix)' $(Docmakever)
 in putty do perl mkfiles.pl
-in putty/doc do make $(Docmakeargs) putty.hlp
-in putty/doc do make $(Docmakeargs) chm
+in putty/doc do make $(Docmakever) putty.hlp
+in putty/doc do make $(Docmakever) chm
 
 # Munge the installer script locally so that it reports the version
 # we're really building.
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Iname)' putty.iss
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersion=).*$$/$$1$$a/' '$(Ivertext)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Puttytextver)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoTextVersion=).*$$/$$1$$a/' '$(Textver)' putty.iss
 in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVersion=).*$$/$$1$$a/' '$(Iversion)' putty.iss
-in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;$$a=~s/M//;}s/^(VersionInfoVersion=\d+\.\d+\.)\d+(\.\d+)\r?$$/$$1$$a$$2/' '$(Irev)' putty.iss
+in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoVersion=)\d+\.\d+\.\d+\.\d+\r?$$/$$1$$a/' '$(Winver)' putty.iss
 
 # Windowsify LICENCE, since it's going in the Windows installer.
 in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
@@ -75,7 +162,7 @@ delegate windows
   return putty/windows/Output/setup.exe
 enddelegate
 in putty/doc do make mostlyclean
-in putty/doc do make $(Docmakeargs)
+in putty/doc do make $(Docmakever)
 in putty/windows do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../doc/putty.chm ../doc/putty.hlp ../doc/putty.cnt
 in putty/doc do zip puttydoc.zip *.html
 

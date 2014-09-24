@@ -6,83 +6,7 @@
  * welcome.
  */
 
-/*
- * Binary versions in Windows are major.minor.build.revision. Each
- * component is 16-bit.
- * Here we have:
- *   major.minor
- *     PuTTY version number (e.g. 0.58). (We've made a policy decision
- *     that these will be numeric from now on.)
- *     Present in releases and snapshots (for the sake of monotonicity
- *     in version numbers).
- *   build
- *     In releases, always 0.
- *     In snapshots, nearest Subversion revision. (It shouldn't be
- *     assumed that only one binary will have a given build number, of
- *     course.)
- *   revision
- *     Reserved; always 0.
- *
- * Examples of these version numbers:
- *   Release:  0.58.0.0	    (but 0.58 didn't have a VERSIONINFO resource)
- *   Snapshot: 0.58.6356.0  (between 0.58 and the next release)
- *   Local:    0.0.0.0
- */
-
-/*
- * Mechanics of version naming/numbering.
- * (This is a ripoff of ../version.c.)
- */
-
-#define STR1(x) #x
-#define STR(x) STR1(x)
-
-/* We keep this around even for snapshots, for monotonicity of version
- * numbering. It needs to be kept up to date. NB _comma_-separated. */
-#define BASE_VERSION 0,63
-
-#if defined SNAPSHOT
-
-/* Make SVN_REV mandatory for snapshots, to avoid issuing binary
- * version numbers that look like full releases. */
-#ifndef SVN_REV
-#error SVN_REV not defined/nonzero for snapshot build
-#endif
-
-#define VERSION_TEXT "Development snapshot " STR(SNAPSHOT) ":r" STR(SVN_REV)
-#ifdef MODIFIED
-#define BINARY_VERSION 0,0,0,0
-#else
-#define BINARY_VERSION BASE_VERSION,SVN_REV,0
-#endif
-
-#elif defined RELEASE
-
-#define VERSION_TEXT "Release " STR(RELEASE)
-#define BINARY_VERSION BASE_VERSION,0,0
-
-#elif defined PRERELEASE
-
-#define VERSION_TEXT "Pre-release " STR(PRERELEASE) ":r" STR(SVN_REV);
-#define BINARY_VERSION BASE_VERSION,SVN_REV,0
-
-#elif defined SVN_REV
-
-#define VERSION_TEXT "Custom build r" STR(SVN_REV)
-#ifdef MODIFIED
-#define BINARY_VERSION 0,0,0,0
-#else
-#define BINARY_VERSION BASE_VERSION,SVN_REV,0
-#endif
-
-#else
-
-/* We can't reliably get the same date and time as version.c, so
- * we won't bother trying. */
-#define VERSION_TEXT "Unidentified build"
-#define BINARY_VERSION 0,0,0,0
-
-#endif
+#include "version.h"
 
 /*
  * The actual VERSIONINFO resource.
@@ -97,7 +21,7 @@ FILEFLAGS	0x0L
 #if defined DEBUG
 		| VS_FF_DEBUG
 #endif
-#if defined SNAPSHOT
+#if defined SNAPSHOT || defined PRERELEASE
 		| VS_FF_PRERELEASE
 #elif !defined RELEASE
 		| VS_FF_PRIVATEBUILD
@@ -118,12 +42,12 @@ BEGIN
 	    VALUE "FileDescription",	APPDESC
 	    VALUE "InternalName",	APPNAME
 	    VALUE "OriginalFilename",	APPNAME
-	    VALUE "FileVersion",	VERSION_TEXT
-	    VALUE "ProductVersion",	VERSION_TEXT
+	    VALUE "FileVersion",	TEXTVER
+	    VALUE "ProductVersion",	TEXTVER
 	    VALUE "LegalCopyright",	"Copyright \251 1997-2014 Simon Tatham."
-#if (!defined SNAPSHOT) && (!defined RELEASE)
+#if (!defined SNAPSHOT) && (!defined RELEASE) && (!defined PRERELEASE)
 	    /* Only if VS_FF_PRIVATEBUILD. */
-	    VALUE "PrivateBuild",	VERSION_TEXT /* NBI */
+	    VALUE "PrivateBuild",	TEXTVER /* NBI */
 #endif
 	END
     END
@@ -133,7 +57,3 @@ BEGIN
 	VALUE "Translation", 0x809, 1200
     END
 END
-
-#undef VERSION_TEXT
-#undef BASE_VERSION
-#undef BINARY_VERSION

@@ -3,12 +3,12 @@ all: man index.html
 # Decide on the versionid policy.
 #
 # If the user has passed in $(VERSION) on the command line (`make
-# VERSION="Release 0.56"'), we use that as an explicit version
-# string. Otherwise, we use `svnversion' to examine the checked-out
-# documentation source, and if that returns a single revision
-# number then we invent a version string reflecting just that
-# number. Failing _that_, we resort to versionids.but which shows a
-# $Id for each individual file.
+# VERSION="Release 0.56"'), we use that as an explicit version string.
+# Otherwise, we use `svnversion' to examine the checked-out
+# documentation source, and if that returns a single revision number
+# then we invent a version string reflecting just that number. Failing
+# _that_, we resort to versionids.but which gives 'version
+# unavailable'.
 #
 # So here, we define VERSION using svnversion if it isn't already
 # defined ...
