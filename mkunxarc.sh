@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/sh
 
 # Build a Unix source distribution from the PuTTY CVS area.
 #
