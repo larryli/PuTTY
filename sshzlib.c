@@ -1234,6 +1234,8 @@ int zlib_decompress_block(void *handle, unsigned char *block, int len,
 		goto finished;
 	    if (code == -2)
 		goto decode_error;
+	    if (code >= 30)            /* dist symbols 30 and 31 are invalid */
+		goto decode_error;
 	    dctx->state = GOTDISTSYM;
 	    dctx->sym = code;
 	    break;
