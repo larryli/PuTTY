@@ -111,10 +111,9 @@ of the tag.
    atreus:src/putty/local/announce-<ver> in case it's needed again
    within days of the release going out.
 
- - Build the release: `bob putty-0.XX RELEASE=0.XX'. This should
-   generate a basically valid release directory as
-   `build.out/putty', and provide link maps and sign.sh alongside
-   that in build.out.
+ - Build the release: `bob -b 0.XX putty RELEASE=0.XX'. This should
+   generate a basically valid release directory as `build.out/putty',
+   and provide link maps and sign.sh alongside that in build.out.
 
  - Do a bit of checking that the release binaries basically work,
    report their version numbers accurately, and so on. Test the
