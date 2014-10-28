@@ -779,6 +779,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	}
     }
     sfree(mac);
+    mac = NULL;
 
     /*
      * Create and return the key.
@@ -789,7 +790,6 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     ret->data = alg->createkey(public_blob, public_blob_len,
 			       private_blob, private_blob_len);
     if (!ret->data) {
-	sfree(ret->comment);
 	sfree(ret);
 	ret = NULL;
 	error = "createkey failed";
