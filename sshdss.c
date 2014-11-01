@@ -518,7 +518,8 @@ static int dss_pubkey_bits(void *blob, int len)
     return ret;
 }
 
-static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
+Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
+                  unsigned char *digest, int digest_len)
 {
     /*
      * The basic DSS signing algorithm is:
@@ -591,21 +592,16 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
      * Computer Security Group for helping to argue out all the
      * fine details.
      */
-    struct dss_key *dss = (struct dss_key *) key;
     SHA512_State ss;
-    unsigned char digest[20], digest512[64];
-    Bignum proto_k, k, gkp, hash, kinv, hxr, r, s;
-    unsigned char *bytes;
-    int nbytes, i;
-
-    SHA_Simple(data, datalen, digest);
+    unsigned char digest512[64];
+    Bignum proto_k, k;
 
     /*
      * Hash some identifying text plus x.
      */
     SHA512_Init(&ss);
-    SHA512_Bytes(&ss, "DSA deterministic k generator", 30);
-    sha512_mpint(&ss, dss->x);
+    SHA512_Bytes(&ss, id_string, strlen(id_string) + 1);
+    sha512_mpint(&ss, private_key);
     SHA512_Final(&ss, digest512);
 
     /*
@@ -613,7 +609,7 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
      */
     SHA512_Init(&ss);
     SHA512_Bytes(&ss, digest512, sizeof(digest512));
-    SHA512_Bytes(&ss, digest, sizeof(digest));
+    SHA512_Bytes(&ss, digest, digest_len);
 
     while (1) {
         SHA512_State ss2 = ss;         /* structure copy */
@@ -625,23 +621,37 @@ static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
          * Now convert the result into a bignum, and reduce it mod q.
          */
         proto_k = bignum_from_bytes(digest512, 64);
-        k = bigmod(proto_k, dss->q);
+        k = bigmod(proto_k, modulus);
         freebn(proto_k);
-        kinv = modinv(k, dss->q);	       /* k^-1 mod q */
-        if (!kinv) {                           /* very unlikely */
-            freebn(k);
-            /* Perturb the hash to think of a different k. */
-            SHA512_Bytes(&ss, "x", 1);
-            /* Go round and try again. */
-            continue;
+
+        if (bignum_cmp(k, One) != 0 && bignum_cmp(k, Zero) != 0) {
+            smemclr(&ss, sizeof(ss));
+            smemclr(digest512, sizeof(digest512));
+            return k;
         }
 
-        break;
+        /* Very unlikely we get here, but if so, k was unsuitable. */
+        freebn(k);
+        /* Perturb the hash to think of a different k. */
+        SHA512_Bytes(&ss, "x", 1);
+        /* Go round and try again. */
     }
+}
 
-    smemclr(&ss, sizeof(ss));
+static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
+{
+    struct dss_key *dss = (struct dss_key *) key;
+    Bignum k, gkp, hash, kinv, hxr, r, s;
+    unsigned char digest[20];
+    unsigned char *bytes;
+    int nbytes, i;
 
-    smemclr(digest512, sizeof(digest512));
+    SHA_Simple(data, datalen, digest);
+
+    k = dss_gen_k("DSA deterministic k generator", dss->q, dss->x,
+                  digest, sizeof(digest));
+    kinv = modinv(k, dss->q);	       /* k^-1 mod q */
+    assert(kinv);
 
     /*
      * Now we have k, so just go ahead and compute the signature.
