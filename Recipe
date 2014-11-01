@@ -131,10 +131,7 @@
 # Additional text added verbatim to each individual Makefile.
 
 !begin vc vars
-CFLAGS = $(CFLAGS) /DHAS_GSSAPI /DSECURITY_WIN32
-!end
-!begin cygwin vars
-CFLAGS += -DSECURITY_WIN32
+CFLAGS = $(CFLAGS) /DHAS_GSSAPI
 !end
 
 # `make install' target for Unix.

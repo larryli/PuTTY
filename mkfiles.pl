@@ -1159,7 +1159,7 @@ if (defined $makefiles{'vstudio10'} || defined $makefiles{'vstudio12'}) {
             "      <SuppressStartupBanner>true</SuppressStartupBanner>\n" .
             "      <WarningLevel>Level3</WarningLevel>\n" .
             "      <AdditionalIncludeDirectories>" . (join ";", map {"..\\..\\$dirpfx$_"} @srcdirs) . ";%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
-            "      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;SECURITY_WIN32;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
             "      <AssemblerListingLocation>.\\Release\\</AssemblerListingLocation>\n" .
             "      <PrecompiledHeaderOutputFile>.\\Release\\$windows_project.pch</PrecompiledHeaderOutputFile>\n" .
             "      <ObjectFileName>.\\Release\\</ObjectFileName>\n" .
@@ -1198,7 +1198,7 @@ if (defined $makefiles{'vstudio10'} || defined $makefiles{'vstudio12'}) {
             "      <MinimalRebuild>true</MinimalRebuild>\n" .
             "      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>\n" .
             "      <AdditionalIncludeDirectories>" . (join ";", map {"..\\..\\$dirpfx$_"} @srcdirs) . ";%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n" .
-            "      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;SECURITY_WIN32;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
+            "      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;POSIX;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n" .
             "      <AssemblerListingLocation>.\\Debug\\</AssemblerListingLocation>\n" .
             "      <PrecompiledHeaderOutputFile>.\\Debug\\$windows_project.pch</PrecompiledHeaderOutputFile>\n" .
             "      <ObjectFileName>.\\Debug\\</ObjectFileName>\n" .
