@@ -307,7 +307,7 @@ static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
  * Code to read and write OpenSSH private keys.
  */
 
-enum { OSSH_DSA, OSSH_RSA };
+enum { OSSH_DSA, OSSH_RSA, OSSH_ECDSA };
 enum { OSSH_ENC_3DES, OSSH_ENC_AES };
 struct openssh_key {
     int type;
@@ -354,6 +354,8 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	ret->type = OSSH_RSA;
     else if (!strcmp(line, "-----BEGIN DSA PRIVATE KEY-----"))
 	ret->type = OSSH_DSA;
+    else if (!strcmp(line, "-----BEGIN EC PRIVATE KEY-----"))
+        ret->type = OSSH_ECDSA;
     else {
 	errmsg = "unrecognised key type";
 	goto error;
@@ -591,6 +593,10 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
      *
      *  - For DSA, we expect them to be 0, p, q, g, y, x in that
      *    order.
+     *
+     *  - In ECDSA the format is totally different: we see the
+     *    SEQUENCE, but beneath is an INTEGER 1, OCTET STRING priv
+     *    EXPLICIT [0] OID curve, EXPLICIT [1] BIT STRING pubPoint
      */
     
     p = key->keyblob;
@@ -613,7 +619,122 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
     else
 	num_integers = 0;	       /* placate compiler warnings */
 
-    if (key->type == OSSH_RSA || key->type == OSSH_DSA) {
+
+    if (key->type == OSSH_ECDSA)
+    {
+        /* And now for something completely different */
+        unsigned char *priv;
+        int privlen;
+        struct ec_curve *curve;
+        /* Read INTEGER 1 */
+        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                              &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 2 || key->keyblob+key->keyblob_len-p < len ||
+            len != 1 || p[0] != 1) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+        p += 1;
+        /* Read private key OCTET STRING */
+        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                              &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 4 || key->keyblob+key->keyblob_len-p < len) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+        priv = p;
+        privlen = len;
+        p += len;
+        /* Read curve OID */
+        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                              &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 0 || key->keyblob+key->keyblob_len-p < len) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+	ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+			      &id, &len, &flags);
+	p += ret;
+        if (ret < 0 || id != 6 || key->keyblob+key->keyblob_len-p < len) {
+	    errmsg = "ASN.1 decoding failure";
+	    retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+	    goto error;
+	}
+        if (len == 8 && !memcmp(p, nistp256_oid, nistp256_oid_len)) {
+            curve = ec_p256();
+        } else if (len == 5 && !memcmp(p, nistp384_oid, nistp384_oid_len)) {
+            curve = ec_p384();
+        } else if (len == 5 && !memcmp(p, nistp521_oid, nistp521_oid_len)) {
+            curve = ec_p521();
+        } else {
+            errmsg = "Unsupported ECDSA curve.";
+            retval = NULL;
+            goto error;
+        }
+        p += len;
+        /* Read BIT STRING point */
+        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                              &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 1 || key->keyblob+key->keyblob_len-p < len) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                              &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 3 || key->keyblob+key->keyblob_len-p < len ||
+            len != ((((curve->fieldBits + 7) / 8) * 2) + 2)) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+        p += 1; len -= 1; /* Skip 0x00 before point */
+
+        /* Construct the key */
+        retkey = snew(struct ssh2_userkey);
+        if (!retkey) {
+            errmsg = "out of memory";
+            goto error;
+        }
+        if (curve->fieldBits == 256) {
+            retkey->alg = &ssh_ecdsa_nistp256;
+        } else if (curve->fieldBits == 384) {
+            retkey->alg = &ssh_ecdsa_nistp384;
+        } else {
+            retkey->alg = &ssh_ecdsa_nistp521;
+        }
+        blob = snewn((4+19 + 4+8 + 4+len) + (4+privlen), unsigned char);
+        if (!blob) {
+            sfree(retkey);
+            errmsg = "out of memory";
+            goto error;
+        }
+        PUT_32BIT(blob, 19);
+        sprintf((char*)blob+4, "ecdsa-sha2-nistp%d", curve->fieldBits);
+        PUT_32BIT(blob+4+19, 8);
+        sprintf((char*)blob+4+19+4, "nistp%d", curve->fieldBits);
+        PUT_32BIT(blob+4+19+4+8, len);
+        memcpy(blob+4+19+4+8+4, p, len);
+        PUT_32BIT(blob+4+19+4+8+4+len, privlen);
+        memcpy(blob+4+19+4+8+4+len+4, priv, privlen);
+        retkey->data = retkey->alg->createkey(blob, 4+19+4+8+4+len,
+                                              blob+4+19+4+8+4+len, 4+privlen);
+        if (!retkey->data) {
+            sfree(retkey);
+            errmsg = "unable to create key data structure";
+            goto error;
+        }
+
+    } else if (key->type == OSSH_RSA || key->type == OSSH_DSA) {
+
         /*
          * Space to create key blob in.
          */
@@ -875,6 +996,90 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
             memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
             pos += numbers[i].bytes;
         }
+    } else if (key->alg == &ssh_ecdsa_nistp256 ||
+               key->alg == &ssh_ecdsa_nistp384 ||
+               key->alg == &ssh_ecdsa_nistp521) {
+        unsigned char *oid;
+        int oidlen;
+        int pointlen;
+
+        /*
+         * Structure of asn1:
+         * SEQUENCE
+         *   INTEGER 1
+         *   OCTET STRING (private key)
+         *   [0]
+         *     OID (curve)
+         *   [1]
+         *     BIT STRING (0x00 public key point)
+         */
+        switch (((struct ec_key *)key->data)->publicKey.curve->fieldBits) {
+          case 256:
+            /* OID: 1.2.840.10045.3.1.7 (ansiX9p256r1) */
+            oid = nistp256_oid;
+            oidlen = nistp256_oid_len;
+            pointlen = 32 * 2;
+            break;
+          case 384:
+            /* OID: 1.3.132.0.34 (secp384r1) */
+            oid = nistp384_oid;
+            oidlen = nistp384_oid_len;
+            pointlen = 48 * 2;
+            break;
+          case 521:
+            /* OID: 1.3.132.0.35 (secp521r1) */
+            oid = nistp521_oid;
+            oidlen = nistp521_oid_len;
+            pointlen = 66 * 2;
+            break;
+          default:
+            assert(0);
+        }
+
+        len = ber_write_id_len(NULL, 2, 1, 0);
+        len += 1;
+        len += ber_write_id_len(NULL, 4, privlen - 4, 0);
+        len+= privlen - 4;
+        len += ber_write_id_len(NULL, 0, oidlen +
+                                ber_write_id_len(NULL, 6, oidlen, 0),
+                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        len += ber_write_id_len(NULL, 6, oidlen, 0);
+        len += oidlen;
+        len += ber_write_id_len(NULL, 1, 2 + pointlen +
+                                ber_write_id_len(NULL, 3, 2 + pointlen, 0),
+                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        len += ber_write_id_len(NULL, 3, 2 + pointlen, 0);
+        len += 2 + pointlen;
+
+        seqlen = len;
+        len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
+
+        outblob = snewn(len, unsigned char);
+        assert(outblob);
+
+        pos = 0;
+        pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
+        pos += ber_write_id_len(outblob+pos, 2, 1, 0);
+        outblob[pos++] = 1;
+        pos += ber_write_id_len(outblob+pos, 4, privlen - 4, 0);
+        memcpy(outblob+pos, privblob + 4, privlen - 4);
+        pos += privlen - 4;
+        pos += ber_write_id_len(outblob+pos, 0, oidlen +
+                                ber_write_id_len(NULL, 6, oidlen, 0),
+                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        pos += ber_write_id_len(outblob+pos, 6, oidlen, 0);
+        memcpy(outblob+pos, oid, oidlen);
+        pos += oidlen;
+        pos += ber_write_id_len(outblob+pos, 1, 2 + pointlen +
+                                ber_write_id_len(NULL, 3, 2 + pointlen, 0),
+                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        pos += ber_write_id_len(outblob+pos, 3, 2 + pointlen, 0);
+        outblob[pos++] = 0;
+        memcpy(outblob+pos, pubblob+39, 1 + pointlen);
+        pos += 1 + pointlen;
+
+        header = "-----BEGIN EC PRIVATE KEY-----\n";
+        footer = "-----END EC PRIVATE KEY-----\n";
     } else {
         assert(0);                     /* zoinks! */
 	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */

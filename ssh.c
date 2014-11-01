@@ -32,6 +32,7 @@ typedef enum {
     SSH2_PKTCTX_NOKEX,
     SSH2_PKTCTX_DHGROUP,
     SSH2_PKTCTX_DHGEX,
+    SSH2_PKTCTX_ECDHKEX,
     SSH2_PKTCTX_RSAKEX
 } Pkt_KCtx;
 typedef enum {
@@ -254,6 +255,8 @@ static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
     translatek(SSH2_MSG_KEXRSA_PUBKEY, SSH2_PKTCTX_RSAKEX);
     translatek(SSH2_MSG_KEXRSA_SECRET, SSH2_PKTCTX_RSAKEX);
     translatek(SSH2_MSG_KEXRSA_DONE, SSH2_PKTCTX_RSAKEX);
+    translatek(SSH2_MSG_KEX_ECDH_INIT, SSH2_PKTCTX_ECDHKEX);
+    translatek(SSH2_MSG_KEX_ECDH_REPLY, SSH2_PKTCTX_ECDHKEX);
     translate(SSH2_MSG_USERAUTH_REQUEST);
     translate(SSH2_MSG_USERAUTH_FAILURE);
     translate(SSH2_MSG_USERAUTH_SUCCESS);
@@ -397,7 +400,10 @@ static void ssh_channel_destroy(struct ssh_channel *c);
 #define OUR_V2_MAXPKT 0x4000UL
 #define OUR_V2_PACKETLIMIT 0x9000UL
 
-const static struct ssh_signkey *hostkey_algs[] = { &ssh_rsa, &ssh_dss };
+const static struct ssh_signkey *hostkey_algs[] = {
+    &ssh_ecdsa_nistp256, &ssh_ecdsa_nistp384, &ssh_ecdsa_nistp521,
+    &ssh_rsa, &ssh_dss
+};
 
 const static struct ssh_mac *macs[] = {
     &ssh_hmac_sha256, &ssh_hmac_sha1, &ssh_hmac_sha1_96, &ssh_hmac_md5
@@ -6024,6 +6030,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	int hostkeylen, siglen, rsakeylen;
 	void *hkey;		       /* actual host key */
 	void *rsakey;		       /* for RSA kex */
+        void *eckey;                   /* for ECDH kex */
 	unsigned char exchange_hash[SSH2_KEX_MAX_HASH_LEN];
 	int n_preferred_kex;
 	const struct ssh_kexes *preferred_kex[KEX_MAX];
@@ -6087,6 +6094,10 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 		s->preferred_kex[s->n_preferred_kex++] =
 		    &ssh_rsa_kex;
 		break;
+              case KEX_ECDH:
+                s->preferred_kex[s->n_preferred_kex++] =
+                    &ssh_ecdh_kex;
+                break;
 	      case KEX_WARN:
 		/* Flag for later. Don't bother if it's the last in
 		 * the list. */
@@ -6653,6 +6664,83 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
             freebn(s->g);
             freebn(s->p);
         }
+    } else if (ssh->kex->main_type == KEXTYPE_ECDH) {
+
+        logeventf(ssh, "Doing ECDH key exchange with hash %s",
+                  ssh->kex->hash->text_name);
+        ssh->pkt_kctx = SSH2_PKTCTX_ECDHKEX;
+
+        s->eckey = NULL;
+        if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp256")) {
+            s->eckey = ssh_ecdhkex_newkey(ec_p256());
+        } else if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp384")) {
+            s->eckey = ssh_ecdhkex_newkey(ec_p384());
+        } else if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp521")) {
+            s->eckey = ssh_ecdhkex_newkey(ec_p521());
+        }
+        if (!s->eckey) {
+            bombout(("Unable to generate key for ECDH"));
+            crStopV;
+        }
+
+        {
+            char *publicPoint;
+            int publicPointLength;
+            publicPoint = ssh_ecdhkex_getpublic(s->eckey, &publicPointLength);
+            if (!publicPoint) {
+                ssh_ecdhkex_freekey(s->eckey);
+                bombout(("Unable to encode public key for ECDH"));
+                crStopV;
+            }
+            s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_ECDH_INIT);
+            ssh2_pkt_addstring_start(s->pktout);
+            ssh2_pkt_addstring_data(s->pktout, publicPoint, publicPointLength);
+            sfree(publicPoint);
+        }
+
+        ssh2_pkt_send_noqueue(ssh, s->pktout);
+
+        crWaitUntilV(pktin);
+        if (pktin->type != SSH2_MSG_KEX_ECDH_REPLY) {
+            ssh_ecdhkex_freekey(s->eckey);
+            bombout(("expected ECDH reply packet from server"));
+            crStopV;
+        }
+
+        ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+        hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
+        s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+
+        {
+            char *publicPoint;
+            int publicPointLength;
+            publicPoint = ssh_ecdhkex_getpublic(s->eckey, &publicPointLength);
+            if (!publicPoint) {
+                ssh_ecdhkex_freekey(s->eckey);
+                bombout(("Unable to encode public key for ECDH hash"));
+                crStopV;
+            }
+            hash_string(ssh->kex->hash, ssh->exhash,
+                        publicPoint, publicPointLength);
+            sfree(publicPoint);
+        }
+
+        {
+            char *keydata;
+            int keylen;
+            ssh_pkt_getstring(pktin, &keydata, &keylen);
+            hash_string(ssh->kex->hash, ssh->exhash, keydata, keylen);
+            s->K = ssh_ecdhkex_getkey(s->eckey, keydata, keylen);
+            if (!s->K) {
+                ssh_ecdhkex_freekey(s->eckey);
+                bombout(("point received in ECDH was not valid"));
+                crStopV;
+            }
+        }
+
+        ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
+
+        ssh_ecdhkex_freekey(s->eckey);
     } else {
 	logeventf(ssh, "Doing RSA key exchange with hash %s",
 		  ssh->kex->hash->text_name);

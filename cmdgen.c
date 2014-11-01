@@ -265,7 +265,7 @@ int main(int argc, char **argv)
 {
     char *infile = NULL;
     Filename *infilename = NULL, *outfilename = NULL;
-    enum { NOKEYGEN, RSA1, RSA2, DSA } keytype = NOKEYGEN;    
+    enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH, SSHCOM } outtype = PRIVATE;
     int bits = 2048;
@@ -437,6 +437,8 @@ int main(int argc, char **argv)
 			    keytype = RSA1, sshver = 1;
 			else if (!strcmp(p, "dsa") || !strcmp(p, "dss"))
 			    keytype = DSA, sshver = 2;
+                        else if (!strcmp(p, "ecdsa"))
+                            keytype = ECDSA, sshver = 2;
 			else {
 			    fprintf(stderr,
 				    "puttygen: unknown key type `%s'\n", p);
@@ -495,6 +497,11 @@ int main(int argc, char **argv)
 			" input file\n");
 	    }
 	}
+    }
+
+    if (keytype == ECDSA && (bits != 256 && bits != 384 && bits != 521)) {
+        fprintf(stderr, "puttygen: invalid bits for ECDSA, choose 256, 384 or 521\n");
+        errs = TRUE;
     }
 
     if (errs)
@@ -663,6 +670,8 @@ int main(int argc, char **argv)
 	tm = ltime();
 	if (keytype == DSA)
 	    strftime(default_comment, 30, "dsa-key-%Y%m%d", &tm);
+        else if (keytype == ECDSA)
+            strftime(default_comment, 30, "ecdsa-key-%Y%m%d", &tm);
 	else
 	    strftime(default_comment, 30, "rsa-key-%Y%m%d", &tm);
 
@@ -684,6 +693,19 @@ int main(int argc, char **argv)
 	    ssh2key->data = dsskey;
 	    ssh2key->alg = &ssh_dss;
 	    ssh1key = NULL;
+        } else if (keytype == ECDSA) {
+            struct ec_key *ec = snew(struct ec_key);
+            ec_generate(ec, bits, progressfn, &prog);
+            ssh2key = snew(struct ssh2_userkey);
+            ssh2key->data = ec;
+            if (bits == 256) {
+                ssh2key->alg = &ssh_ecdsa_nistp256;
+            } else if (bits == 384) {
+                ssh2key->alg = &ssh_ecdsa_nistp384;
+            } else {
+                ssh2key->alg = &ssh_ecdsa_nistp521;
+            }
+            ssh1key = NULL;
 	} else {
 	    struct RSAKey *rsakey = snew(struct RSAKey);
 	    rsa_generate(rsakey, bits, progressfn, &prog);

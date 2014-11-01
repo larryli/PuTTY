@@ -1141,6 +1141,12 @@ static void answer_msg(void *msg)
 		key->alg = &ssh_rsa;
 	    else if (alglen == 7 && !memcmp(alg, "ssh-dss", 7))
 		key->alg = &ssh_dss;
+            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp256", 19))
+                key->alg = &ssh_ecdsa_nistp256;
+            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp384", 19))
+                key->alg = &ssh_ecdsa_nistp384;
+            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp521", 19))
+                key->alg = &ssh_ecdsa_nistp521;
 	    else {
 		sfree(key);
 		goto failure;

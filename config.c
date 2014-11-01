@@ -433,6 +433,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
 	    { "RSA-based key exchange", 	KEX_RSA },
+            { "ECDH key exchange",              KEX_ECDH },
 	    { "-- warn below here --",		KEX_WARN }
 	};
 

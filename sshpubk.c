@@ -563,6 +563,12 @@ const struct ssh_signkey *find_pubkey_alg(const char *name)
 	return &ssh_rsa;
     else if (!strcmp(name, "ssh-dss"))
 	return &ssh_dss;
+    else if (!strcmp(name, "ecdsa-sha2-nistp256"))
+        return &ssh_ecdsa_nistp256;
+    else if (!strcmp(name, "ecdsa-sha2-nistp384"))
+        return &ssh_ecdsa_nistp384;
+    else if (!strcmp(name, "ecdsa-sha2-nistp521"))
+        return &ssh_ecdsa_nistp521;
     else
 	return NULL;
 }

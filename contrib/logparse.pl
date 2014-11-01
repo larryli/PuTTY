@@ -115,6 +115,16 @@ my %packets = (
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
+#define SSH2_MSG_KEX_ECDH_INIT                    30    /* 0x1e */
+    'SSH2_MSG_KEX_ECDH_INIT' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEX_ECDH_REPLY                   31    /* 0x1f */
+    'SSH2_MSG_KEX_ECDH_REPLY' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
 #define SSH2_MSG_USERAUTH_REQUEST                 50	/* 0x32 */
     'SSH2_MSG_USERAUTH_REQUEST' => sub {
         my ($direction, $seq, $data) = @_;
