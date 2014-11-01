@@ -918,7 +918,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	{
 	    struct ctlpos cp, cp2;
 
-	    /* Accelerators used: acglops1rbd */
+	    /* Accelerators used: acglops1rbde */
 
 	    ctlposinit(&cp, hwnd, 4, 4, 4);
 	    beginbox(&cp, "Key", IDC_BOX_KEY);
@@ -952,7 +952,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       "&Save private key", IDC_SAVE);
 	    endbox(&cp);
 	    beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
-	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 3,
+	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 4,
 		      "SSH-&1 (RSA)", IDC_KEYSSH1,
 		      "SSH-2 &RSA", IDC_KEYSSH2RSA,
                       "SSH-2 &DSA", IDC_KEYSSH2DSA,

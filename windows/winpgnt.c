@@ -349,27 +349,31 @@ static void keylist_update(void)
 	}
 	for (i = 0; NULL != (skey = index234(ssh2keys, i)); i++) {
 	    char *listentry, *p;
-	    int fp_len;
+	    int pos, fp_len;
 	    /*
-	     * Replace two spaces in the fingerprint with tabs, for
-	     * nice alignment in the box.
+	     * Replace spaces with tabs in the fingerprint prefix, for
+	     * nice alignment in the list box, until we encounter a :
+	     * meaning we're into the fingerprint proper.
 	     */
 	    p = skey->alg->fingerprint(skey->data);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             fp_len = strlen(listentry);
             sfree(p);
 
-	    p = strchr(listentry, ' ');
-	    if (p && p < listentry + fp_len)
-		*p = '\t';
-	    p = strchr(listentry, ' ');
-	    if (p && p < listentry + fp_len)
-		*p = '\t';
+            pos = 0;
+            while (1) {
+                pos += strcspn(listentry + pos, " :");
+                if (listentry[pos] == ':')
+                    break;
+                listentry[pos++] = '\t';
+            }
 
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
 			       (LPARAM) listentry);
             sfree(listentry);
 	}
+        SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
+                           (LPARAM)"0\t1\t2\t3\t4\t5\t6\t7\t8\t9\t10");
 	SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
     }
 }
@@ -1514,7 +1518,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
 	keylist = hwnd;
 	{
-	    static int tabs[] = { 35, 60, 210 };
+	    static int tabs[] = { 35, 75, 250 };
 	    SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
 			       sizeof(tabs) / sizeof(*tabs),
 			       (LPARAM) tabs);
