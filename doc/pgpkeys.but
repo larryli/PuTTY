@@ -71,7 +71,7 @@ human intervention, so nobody would be able to type a passphrase.
 
 The actual snapshots are built on a team member's home Windows box.
 The keys themselves are stored on an independently run Unix box
-(the same one that hosts our Subversion repository). After
+(the same one that hosts our Git repository). After
 being built, the binaries are uploaded to this Unix box and then
 signed automatically.
 
