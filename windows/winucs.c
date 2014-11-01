@@ -441,11 +441,7 @@ void init_ucs(Conf *conf, struct unicode_data *ucsdata)
 {
     int i, j;
     int used_dtf = 0;
-    char tbuf[256];
     int vtmode;
-
-    for (i = 0; i < 256; i++)
-	tbuf[i] = i;
 
     /* Decide on the Line and Font codepages */
     ucsdata->line_codepage = decode_codepage(conf_get_str(conf,
