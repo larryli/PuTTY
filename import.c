@@ -613,91 +613,96 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
     else
 	num_integers = 0;	       /* placate compiler warnings */
 
-    /*
-     * Space to create key blob in.
-     */
-    blobsize = 256+key->keyblob_len;
-    blob = snewn(blobsize, unsigned char);
-    PUT_32BIT(blob, 7);
-    if (key->type == OSSH_DSA)
-	memcpy(blob+4, "ssh-dss", 7);
-    else if (key->type == OSSH_RSA)
-	memcpy(blob+4, "ssh-rsa", 7);
-    blobptr = 4+7;
-    privptr = -1;
+    if (key->type == OSSH_RSA || key->type == OSSH_DSA) {
+        /*
+         * Space to create key blob in.
+         */
+        blobsize = 256+key->keyblob_len;
+        blob = snewn(blobsize, unsigned char);
+        PUT_32BIT(blob, 7);
+        if (key->type == OSSH_DSA)
+            memcpy(blob+4, "ssh-dss", 7);
+        else if (key->type == OSSH_RSA)
+            memcpy(blob+4, "ssh-rsa", 7);
+        blobptr = 4+7;
+        privptr = -1;
 
-    for (i = 0; i < num_integers; i++) {
-	ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-			      &id, &len, &flags);
-	p += ret;
-	if (ret < 0 || id != 2 ||
-	    key->keyblob+key->keyblob_len-p < len) {
-	    errmsg = "ASN.1 decoding failure";
-	    retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-	    goto error;
-	}
-
-	if (i == 0) {
-	    /*
-	     * The first integer should be zero always (I think
-	     * this is some sort of version indication).
-	     */
-	    if (len != 1 || p[0] != 0) {
-		errmsg = "version number mismatch";
+        for (i = 0; i < num_integers; i++) {
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 2 ||
+                key->keyblob+key->keyblob_len-p < len) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
 		goto error;
 	    }
-	} else if (key->type == OSSH_RSA) {
-	    /*
-	     * Integers 1 and 2 go into the public blob but in the
-	     * opposite order; integers 3, 4, 5 and 8 go into the
-	     * private blob. The other two (6 and 7) are ignored.
-	     */
-	    if (i == 1) {
-		/* Save the details for after we deal with number 2. */
-		modptr = (char *)p;
-		modlen = len;
-	    } else if (i != 6 && i != 7) {
+
+            if (i == 0) {
+                /*
+                 * The first integer should be zero always (I think
+                 * this is some sort of version indication).
+                 */
+                if (len != 1 || p[0] != 0) {
+                    errmsg = "version number mismatch";
+                    goto error;
+                }
+            } else if (key->type == OSSH_RSA) {
+                /*
+                 * Integers 1 and 2 go into the public blob but in the
+                 * opposite order; integers 3, 4, 5 and 8 go into the
+                 * private blob. The other two (6 and 7) are ignored.
+                 */
+                if (i == 1) {
+                    /* Save the details for after we deal with number 2. */
+                    modptr = (char *)p;
+                    modlen = len;
+                } else if (i != 6 && i != 7) {
+                    PUT_32BIT(blob+blobptr, len);
+                    memcpy(blob+blobptr+4, p, len);
+                    blobptr += 4+len;
+                    if (i == 2) {
+                        PUT_32BIT(blob+blobptr, modlen);
+                        memcpy(blob+blobptr+4, modptr, modlen);
+                        blobptr += 4+modlen;
+                        privptr = blobptr;
+                    }
+                }
+            } else if (key->type == OSSH_DSA) {
+                /*
+                 * Integers 1-4 go into the public blob; integer 5 goes
+                 * into the private blob.
+                 */
 		PUT_32BIT(blob+blobptr, len);
 		memcpy(blob+blobptr+4, p, len);
 		blobptr += 4+len;
-		if (i == 2) {
-		    PUT_32BIT(blob+blobptr, modlen);
-		    memcpy(blob+blobptr+4, modptr, modlen);
-		    blobptr += 4+modlen;
+                if (i == 4)
 		    privptr = blobptr;
-		}
 	    }
-	} else if (key->type == OSSH_DSA) {
-	    /*
-	     * Integers 1-4 go into the public blob; integer 5 goes
-	     * into the private blob.
-	     */
-	    PUT_32BIT(blob+blobptr, len);
-	    memcpy(blob+blobptr+4, p, len);
-	    blobptr += 4+len;
-	    if (i == 4)
-		privptr = blobptr;
+
+            /* Skip past the number. */
+            p += len;
 	}
 
-	/* Skip past the number. */
-	p += len;
-    }
+        /*
+         * Now put together the actual key. Simplest way to do this is
+         * to assemble our own key blobs and feed them to the createkey
+         * functions; this is a bit faffy but it does mean we get all
+         * the sanity checks for free.
+         */
+        assert(privptr > 0);          /* should have bombed by now if not */
+        retkey = snew(struct ssh2_userkey);
+        retkey->alg = (key->type == OSSH_RSA ? &ssh_rsa : &ssh_dss);
+        retkey->data = retkey->alg->createkey(blob, privptr,
+                                              blob+privptr, blobptr-privptr);
+        if (!retkey->data) {
+            sfree(retkey);
+            errmsg = "unable to create key data structure";
+            goto error;
+        }
 
-    /*
-     * Now put together the actual key. Simplest way to do this is
-     * to assemble our own key blobs and feed them to the createkey
-     * functions; this is a bit faffy but it does mean we get all
-     * the sanity checks for free.
-     */
-    assert(privptr > 0);	       /* should have bombed by now if not */
-    retkey = snew(struct ssh2_userkey);
-    retkey->alg = (key->type == OSSH_RSA ? &ssh_rsa : &ssh_dss);
-    retkey->data = retkey->alg->createkey(blob, privptr,
-					  blob+privptr, blobptr-privptr);
-    if (!retkey->data) {
-	sfree(retkey);
-	errmsg = "unable to create key data structure";
-	goto error;
+    } else {
+        assert(0 && "Bad key type from load_openssh_key");
     }
 
     retkey->comment = dupstr("imported-openssh-key");
@@ -739,155 +744,140 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
     privblob = key->alg->private_blob(key->data, &privlen);
     spareblob = outblob = NULL;
 
+    outblob = NULL;
+    len = 0;
+
     /*
-     * Find the sequence of integers to be encoded into the OpenSSH
-     * key blob, and also decide on the header line.
+     * Encode the OpenSSH key blob, and also decide on the header
+     * line.
      */
-    if (key->alg == &ssh_rsa) {
-        int pos;
-        struct mpint_pos n, e, d, p, q, iqmp, dmp1, dmq1;
-        Bignum bd, bp, bq, bdmp1, bdmq1;
+    if (key->alg == &ssh_rsa || key->alg == &ssh_dss) {
+        /*
+         * The RSA and DSS handlers share some code because the two
+         * key types have very similar ASN.1 representations, as a
+         * plain SEQUENCE of big integers. So we set up a list of
+         * bignums per key type and then construct the actual blob in
+         * common code after that.
+         */
+        if (key->alg == &ssh_rsa) {
+            int pos;
+            struct mpint_pos n, e, d, p, q, iqmp, dmp1, dmq1;
+            Bignum bd, bp, bq, bdmp1, bdmq1;
+
+            /*
+             * These blobs were generated from inside PuTTY, so we needn't
+             * treat them as untrusted.
+             */
+            pos = 4 + GET_32BIT(pubblob);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
+            pos = 0;
+            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
+            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
+            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
+            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
+
+            assert(e.start && iqmp.start); /* can't go wrong */
+
+            /* We also need d mod (p-1) and d mod (q-1). */
+            bd = bignum_from_bytes(d.start, d.bytes);
+            bp = bignum_from_bytes(p.start, p.bytes);
+            bq = bignum_from_bytes(q.start, q.bytes);
+            decbn(bp);
+            decbn(bq);
+            bdmp1 = bigmod(bd, bp);
+            bdmq1 = bigmod(bd, bq);
+            freebn(bd);
+            freebn(bp);
+            freebn(bq);
+
+            dmp1.bytes = (bignum_bitcount(bdmp1)+8)/8;
+            dmq1.bytes = (bignum_bitcount(bdmq1)+8)/8;
+            sparelen = dmp1.bytes + dmq1.bytes;
+            spareblob = snewn(sparelen, unsigned char);
+            dmp1.start = spareblob;
+            dmq1.start = spareblob + dmp1.bytes;
+            for (i = 0; i < dmp1.bytes; i++)
+                spareblob[i] = bignum_byte(bdmp1, dmp1.bytes-1 - i);
+            for (i = 0; i < dmq1.bytes; i++)
+                spareblob[i+dmp1.bytes] = bignum_byte(bdmq1, dmq1.bytes-1 - i);
+            freebn(bdmp1);
+            freebn(bdmq1);
+
+            numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0';
+            numbers[1] = n;
+            numbers[2] = e;
+            numbers[3] = d;
+            numbers[4] = p;
+            numbers[5] = q;
+            numbers[6] = dmp1;
+            numbers[7] = dmq1;
+            numbers[8] = iqmp;
+
+            nnumbers = 9;
+            header = "-----BEGIN RSA PRIVATE KEY-----\n";
+            footer = "-----END RSA PRIVATE KEY-----\n";
+        } else {                       /* ssh-dss */
+            int pos;
+            struct mpint_pos p, q, g, y, x;
+
+            /*
+             * These blobs were generated from inside PuTTY, so we needn't
+             * treat them as untrusted.
+             */
+            pos = 4 + GET_32BIT(pubblob);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
+            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+            pos = 0;
+            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
+
+            assert(y.start && x.start); /* can't go wrong */
+
+            numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0';
+            numbers[1] = p;
+            numbers[2] = q;
+            numbers[3] = g;
+            numbers[4] = y;
+            numbers[5] = x;
+
+            nnumbers = 6;
+            header = "-----BEGIN DSA PRIVATE KEY-----\n";
+            footer = "-----END DSA PRIVATE KEY-----\n";
+        }
 
         /*
-         * These blobs were generated from inside PuTTY, so we needn't
-         * treat them as untrusted.
+         * Now count up the total size of the ASN.1 encoded integers,
+         * so as to determine the length of the containing SEQUENCE.
          */
-        pos = 4 + GET_32BIT(pubblob);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
-        pos = 0;
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
-
-        assert(e.start && iqmp.start); /* can't go wrong */
-
-        /* We also need d mod (p-1) and d mod (q-1). */
-        bd = bignum_from_bytes(d.start, d.bytes);
-        bp = bignum_from_bytes(p.start, p.bytes);
-        bq = bignum_from_bytes(q.start, q.bytes);
-        decbn(bp);
-        decbn(bq);
-        bdmp1 = bigmod(bd, bp);
-        bdmq1 = bigmod(bd, bq);
-        freebn(bd);
-        freebn(bp);
-        freebn(bq);
-
-        dmp1.bytes = (bignum_bitcount(bdmp1)+8)/8;
-        dmq1.bytes = (bignum_bitcount(bdmq1)+8)/8;
-        sparelen = dmp1.bytes + dmq1.bytes;
-        spareblob = snewn(sparelen, unsigned char);
-        dmp1.start = spareblob;
-        dmq1.start = spareblob + dmp1.bytes;
-        for (i = 0; i < dmp1.bytes; i++)
-            spareblob[i] = bignum_byte(bdmp1, dmp1.bytes-1 - i);
-        for (i = 0; i < dmq1.bytes; i++)
-            spareblob[i+dmp1.bytes] = bignum_byte(bdmq1, dmq1.bytes-1 - i);
-        freebn(bdmp1);
-        freebn(bdmq1);
-
-        numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0';
-        numbers[1] = n;
-        numbers[2] = e;
-        numbers[3] = d;
-        numbers[4] = p;
-        numbers[5] = q;
-        numbers[6] = dmp1;
-        numbers[7] = dmq1;
-        numbers[8] = iqmp;
-
-        nnumbers = 9;
-        header = "-----BEGIN RSA PRIVATE KEY-----\n";
-        footer = "-----END RSA PRIVATE KEY-----\n";
-    } else if (key->alg == &ssh_dss) {
-        int pos;
-        struct mpint_pos p, q, g, y, x;
+        len = 0;
+        for (i = 0; i < nnumbers; i++) {
+            len += ber_write_id_len(NULL, 2, numbers[i].bytes, 0);
+            len += numbers[i].bytes;
+        }
+        seqlen = len;
+        /* Now add on the SEQUENCE header. */
+        len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
 
         /*
-         * These blobs were generated from inside PuTTY, so we needn't
-         * treat them as untrusted.
+         * Now we know how big outblob needs to be. Allocate it.
          */
-        pos = 4 + GET_32BIT(pubblob);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+        outblob = snewn(len, unsigned char);
+
+        /*
+         * And write the data into it.
+         */
         pos = 0;
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
-
-        assert(y.start && x.start); /* can't go wrong */
-
-        numbers[0].start = zero; numbers[0].bytes = 1; zero[0] = '\0'; 
-        numbers[1] = p;
-        numbers[2] = q;
-        numbers[3] = g;
-        numbers[4] = y;
-        numbers[5] = x;
-
-        nnumbers = 6;
-        header = "-----BEGIN DSA PRIVATE KEY-----\n";
-        footer = "-----END DSA PRIVATE KEY-----\n";
+        pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
+        for (i = 0; i < nnumbers; i++) {
+            pos += ber_write_id_len(outblob+pos, 2, numbers[i].bytes, 0);
+            memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
+            pos += numbers[i].bytes;
+        }
     } else {
         assert(0);                     /* zoinks! */
 	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
-    }
-
-    /*
-     * Now count up the total size of the ASN.1 encoded integers,
-     * so as to determine the length of the containing SEQUENCE.
-     */
-    len = 0;
-    for (i = 0; i < nnumbers; i++) {
-	len += ber_write_id_len(NULL, 2, numbers[i].bytes, 0);
-	len += numbers[i].bytes;
-    }
-    seqlen = len;
-    /* Now add on the SEQUENCE header. */
-    len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
-    /* Round up to the cipher block size, ensuring we have at least one
-     * byte of padding (see below). */
-    outlen = len;
-    if (passphrase)
-	outlen = (outlen+8) &~ 7;
-
-    /*
-     * Now we know how big outblob needs to be. Allocate it.
-     */
-    outblob = snewn(outlen, unsigned char);
-
-    /*
-     * And write the data into it.
-     */
-    pos = 0;
-    pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
-    for (i = 0; i < nnumbers; i++) {
-	pos += ber_write_id_len(outblob+pos, 2, numbers[i].bytes, 0);
-	memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
-	pos += numbers[i].bytes;
-    }
-
-    /*
-     * Padding on OpenSSH keys is deterministic. The number of
-     * padding bytes is always more than zero, and always at most
-     * the cipher block length. The value of each padding byte is
-     * equal to the number of padding bytes. So a plaintext that's
-     * an exact multiple of the block size will be padded with 08
-     * 08 08 08 08 08 08 08 (assuming a 64-bit block cipher); a
-     * plaintext one byte less than a multiple of the block size
-     * will be padded with just 01.
-     * 
-     * This enables the OpenSSL key decryption function to strip
-     * off the padding algorithmically and return the unpadded
-     * plaintext to the next layer: it looks at the final byte, and
-     * then expects to find that many bytes at the end of the data
-     * with the same value. Those are all removed and the rest is
-     * returned.
-     */
-    assert(pos == len);
-    while (pos < outlen) {
-        outblob[pos++] = outlen - len;
     }
 
     /*
@@ -897,6 +887,44 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
      * old-style 3DES.
      */
     if (passphrase) {
+	struct MD5Context md5c;
+	unsigned char keybuf[32];
+
+        /*
+         * Round up to the cipher block size, ensuring we have at
+         * least one byte of padding (see below).
+         */
+        outlen = (len+8) &~ 7;
+        {
+            unsigned char *tmp = snewn(outlen, unsigned char);
+            memcpy(tmp, outblob, len);
+            smemclr(outblob, len);
+            sfree(outblob);
+            outblob = tmp;
+        }
+
+        /*
+         * Padding on OpenSSH keys is deterministic. The number of
+         * padding bytes is always more than zero, and always at most
+         * the cipher block length. The value of each padding byte is
+         * equal to the number of padding bytes. So a plaintext that's
+         * an exact multiple of the block size will be padded with 08
+         * 08 08 08 08 08 08 08 (assuming a 64-bit block cipher); a
+         * plaintext one byte less than a multiple of the block size
+         * will be padded with just 01.
+         *
+         * This enables the OpenSSL key decryption function to strip
+         * off the padding algorithmically and return the unpadded
+         * plaintext to the next layer: it looks at the final byte, and
+         * then expects to find that many bytes at the end of the data
+         * with the same value. Those are all removed and the rest is
+         * returned.
+         */
+        assert(pos == len);
+        while (pos < outlen) {
+            outblob[pos++] = outlen - len;
+        }
+
 	/*
 	 * Invent an iv. Then derive encryption key from passphrase
 	 * and iv/salt:
@@ -906,9 +934,6 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
 	 *  - block C would be MD5(B || passphrase || iv) and so on
 	 *  - encryption key is the first N bytes of A || B
 	 */
-	struct MD5Context md5c;
-	unsigned char keybuf[32];
-
 	for (i = 0; i < 8; i++) iv[i] = random_byte();
 
 	MD5Init(&md5c);
@@ -929,6 +954,12 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
 
         smemclr(&md5c, sizeof(md5c));
         smemclr(keybuf, sizeof(keybuf));
+    } else {
+        /*
+         * If no encryption, the blob has exactly its original
+         * cleartext size.
+         */
+        outlen = len;
     }
 
     /*
