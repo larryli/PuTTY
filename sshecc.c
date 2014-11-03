@@ -511,17 +511,17 @@ static int ecp_normalise(struct ec_point *a)
     /* In Jacobian Coordinates the triple (X, Y, Z) represents
        the affine point (X / Z^2, Y / Z^3) */
     if (!a) {
-        // No point
+        /* No point */
         return 0;
     }
     if (a->infinity) {
-        // Point is at infinity - i.e. normalised
+        /* Point is at infinity - i.e. normalised */
         return 1;
     } else if (!a->x || !a->y) {
-        // No point defined
+        /* No point defined */
         return 0;
     } else if (!a->z) {
-        // Already normalised
+        /* Already normalised */
         return 1;
     }
 

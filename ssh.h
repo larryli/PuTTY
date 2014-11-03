@@ -104,7 +104,7 @@ struct ec_curve;
 struct ec_point {
     const struct ec_curve *curve;
     Bignum x, y;
-    Bignum z;  // Jacobian denominator
+    Bignum z;  /* Jacobian denominator */
     unsigned char infinity;
 };
 
