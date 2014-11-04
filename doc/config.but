@@ -3343,7 +3343,7 @@ believes the server has this bug, it will never send its
 \cq{winadj@putty.projects.tartarus.org} request, and will make do
 without its timing data.
 
-\S{config-ssh-bug-chanreq} \q{Replies to channel requests after channel close}
+\S{config-ssh-bug-chanreq} \q{Replies to requests on closed channels}
 
 \cfg{winhelp-topic}{ssh.bugs.chanreq}
 
