@@ -2594,8 +2594,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "Ignores SSH-2 maximum packet size", 'x', 20,
 			  HELPCTX(ssh_bugs_maxpkt2),
 			  sshbug_handler, I(CONF_sshbug_maxpkt2));
-	    ctrl_droplist(s, "Replies to channel requests after channel close",
-                          'q', 20, HELPCTX(ssh_bugs_chanreq),
+	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
+			  HELPCTX(ssh_bugs_chanreq),
 			  sshbug_handler, I(CONF_sshbug_chanreq));
 	}
     }
