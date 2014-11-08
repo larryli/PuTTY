@@ -3550,6 +3550,7 @@ static void eventlog_destroy(GtkWidget *widget, gpointer data)
 
     es->window = NULL;
     sfree(es->seldata);
+    es->seldata = NULL;
     dlg_cleanup(&es->dp);
     ctrl_free_box(es->eventbox);
 }
