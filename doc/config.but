@@ -1758,7 +1758,9 @@ logical host name, you can arrange that PuTTY will not keep asking
 you to reconfirm its host key. Conversely, if you expect to use the
 same local port number for port forwardings to lots of different
 servers, you probably didn't want any particular server's host key
-cached under that local port number.
+cached under that local port number. (For this latter case, you
+could also explicitly configure host keys in the relevant sessions;
+see \k{config-ssh-kex-manual-hostkeys}.)
 
 If you just enter a host name for this option, PuTTY will cache the
 SSH host key under the default SSH port for that host, irrespective
@@ -2339,8 +2341,6 @@ special case is that PSCP and PSFTP will \e{never} act as upstreams.
 
 \H{config-ssh-kex} The Kex panel
 
-\# FIXME: This whole section is draft. Feel free to revise.
-
 The Kex panel (short for \q{\i{key exchange}}) allows you to configure
 options related to SSH-2 key exchange.
 
@@ -2485,6 +2485,11 @@ running in a Windows environment without access to the Registry. In
 that situation, you will probably want to use the \cw{-hostkey}
 command-line option to configure the expected host key(s); see
 \k{using-cmdline-hostkey}.
+
+For situations where PuTTY's automated host key management simply
+picks the wrong host name to store a key under, you may want to
+consider setting a \q{logical host name} instead; see
+\k{config-loghost}.
 
 To configure manual host keys via the GUI, enter some text describing
 the host key into the edit box in the \q{Manually configure host keys
