@@ -368,12 +368,12 @@ For more options relating to X11 forwarding, see \k{config-ssh-x11}.
 
 \H{using-port-forwarding} Using \i{port forwarding} in SSH
 
-The SSH protocol has the ability to forward arbitrary \i{network
-connection}s over your encrypted SSH connection, to avoid the network
-traffic being sent in clear. For example, you could use this to
-connect from your home computer to a \i{POP-3} server on a remote
-machine without your POP-3 password being visible to network
-sniffers.
+The SSH protocol has the ability to forward arbitrary \I{network
+connection}network (TCP) connections over your encrypted SSH
+connection, to avoid the network traffic being sent in clear. For
+example, you could use this to connect from your home computer to a
+\i{POP-3} server on a remote machine without your POP-3 password being
+visible to network sniffers.
 
 In order to use port forwarding to \I{local port forwarding}connect
 from your local machine to a port on a remote server, you need to:
