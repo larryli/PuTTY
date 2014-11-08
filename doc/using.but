@@ -89,7 +89,7 @@ and down by pressing \i{Shift-PgUp} and \i{Shift-PgDn}. You can
 scroll a line at a time using \i{Ctrl-PgUp} and \i{Ctrl-PgDn}. These
 are still available if you configure the scrollbar to be invisible.
 
-By default the last 200 lines scrolled off the top are
+By default the last 2000 lines scrolled off the top are
 preserved for you to look at. You can increase (or decrease) this
 value using the configuration box; see \k{config-scrollback}.
 
@@ -328,10 +328,10 @@ information.)
 \H{using-x-forwarding} Using \i{X11 forwarding} in SSH
 
 The SSH protocol has the ability to securely forward X Window System
-applications over your encrypted SSH connection, so that you can run
-an application on the SSH server machine and have it put its windows
-up on your local machine without sending any X network traffic in
-the clear.
+\i{graphical applications} over your encrypted SSH connection, so that
+you can run an application on the SSH server machine and have it put
+its windows up on your local machine without sending any X network
+traffic in the clear.
 
 In order to use this feature, you will need an X display server for
 your Windows machine, such as Cygwin/X, X-Win32, or Exceed. This will probably
@@ -368,12 +368,12 @@ For more options relating to X11 forwarding, see \k{config-ssh-x11}.
 
 \H{using-port-forwarding} Using \i{port forwarding} in SSH
 
-The SSH protocol has the ability to forward arbitrary \i{network
-connection}s over your encrypted SSH connection, to avoid the network
-traffic being sent in clear. For example, you could use this to
-connect from your home computer to a \i{POP-3} server on a remote
-machine without your POP-3 password being visible to network
-sniffers.
+The SSH protocol has the ability to forward arbitrary \I{network
+connection}network (TCP) connections over your encrypted SSH
+connection, to avoid the network traffic being sent in clear. For
+example, you could use this to connect from your home computer to a
+\i{POP-3} server on a remote machine without your POP-3 password being
+visible to network sniffers.
 
 In order to use port forwarding to \I{local port forwarding}connect
 from your local machine to a port on a remote server, you need to:

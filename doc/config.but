@@ -1758,7 +1758,9 @@ logical host name, you can arrange that PuTTY will not keep asking
 you to reconfirm its host key. Conversely, if you expect to use the
 same local port number for port forwardings to lots of different
 servers, you probably didn't want any particular server's host key
-cached under that local port number.
+cached under that local port number. (For this latter case, you
+could also explicitly configure host keys in the relevant sessions;
+see \k{config-ssh-kex-manual-hostkeys}.)
 
 If you just enter a host name for this option, PuTTY will cache the
 SSH host key under the default SSH port for that host, irrespective
@@ -2339,8 +2341,6 @@ special case is that PSCP and PSFTP will \e{never} act as upstreams.
 
 \H{config-ssh-kex} The Kex panel
 
-\# FIXME: This whole section is draft. Feel free to revise.
-
 The Kex panel (short for \q{\i{key exchange}}) allows you to configure
 options related to SSH-2 key exchange.
 
@@ -2485,6 +2485,11 @@ running in a Windows environment without access to the Registry. In
 that situation, you will probably want to use the \cw{-hostkey}
 command-line option to configure the expected host key(s); see
 \k{using-cmdline-hostkey}.
+
+For situations where PuTTY's automated host key management simply
+picks the wrong host name to store a key under, you may want to
+consider setting a \q{logical host name} instead; see
+\k{config-loghost}.
 
 To configure manual host keys via the GUI, enter some text describing
 the host key into the edit box in the \q{Manually configure host keys
@@ -2704,10 +2709,12 @@ This key must be in PuTTY's native format (\c{*.\i{PPK}}). If you have a
 private key in another format that you want to use with PuTTY, see
 \k{puttygen-conversions}.
 
-If a key file is specified here, and \i{Pageant} is running (see
-\k{pageant}), PuTTY will first try asking Pageant to authenticate with
-that key, and ignore any other keys Pageant may have. If that fails,
-PuTTY will ask for a passphrase as normal.
+You can use the authentication agent \i{Pageant} so that you do not
+need to explicitly configure a key here; see \k{pageant}. If a file
+is specified here with Pageant running, PuTTY will first try asking
+Pageant to authenticate with that key, and ignore any other keys
+Pageant may have. If that fails, PuTTY will ask for a passphrase as
+normal.
 
 \H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
 
@@ -2892,8 +2899,8 @@ PuTTY in a variety of ways, such as \cw{true}/\cw{false},
 The X11 panel allows you to configure \i{forwarding of X11} over an
 SSH connection.
 
-If your server lets you run X Window System applications, X11
-forwarding allows you to securely give those applications access to
+If your server lets you run X Window System \i{graphical applications},
+X11 forwarding allows you to securely give those applications access to
 a local X display on your PC.
 
 To enable X11 forwarding, check the \q{Enable X11 forwarding} box.
@@ -3214,6 +3221,29 @@ ignore messages. If this bug is enabled when talking to a correct
 server, the session will succeed, but keepalives will not work and
 the session might be less cryptographically secure than it could be.
 
+\S{config-ssh-bug-winadj} \q{Chokes on PuTTY's SSH-2 \cq{winadj} requests}
+
+\cfg{winhelp-topic}{ssh.bugs.winadj}
+
+PuTTY sometimes sends a special request to SSH servers in the middle
+of channel data, with the name \cw{winadj@putty.projects.tartarus.org}
+(see \k{sshnames-channel}). The purpose of this request is to measure
+the round-trip time to the server, which PuTTY uses to tune its flow
+control. The server does not actually have to \e{understand} the
+message; it is expected to send back a \cw{SSH_MSG_CHANNEL_FAILURE}
+message indicating that it didn't understand it. (All PuTTY needs for
+its timing calculations is \e{some} kind of response.)
+
+It has been known for some SSH servers to get confused by this message
+in one way or another \dash because it has a long name, or because
+they can't cope with unrecognised request names even to the extent of
+sending back the correct failure response, or because they handle it
+sensibly but fill up the server's log file with pointless spam, or
+whatever. PuTTY therefore supports this bug-compatibility flag: if it
+believes the server has this bug, it will never send its
+\cq{winadj@putty.projects.tartarus.org} request, and will make do
+without its timing data.
+
 \S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
 
 \cfg{winhelp-topic}{ssh.bugs.hmac2}
@@ -3319,29 +3349,6 @@ If this bug is detected, PuTTY never allows the channel's
 send an over-sized packet.  If this bug is enabled when talking to a
 correct server, the session will work correctly, but download
 performance will be less than it could be.
-
-\S{config-ssh-bug-winadj} \q{Chokes on PuTTY's SSH-2 \cq{winadj} requests}
-
-\cfg{winhelp-topic}{ssh.bugs.winadj}
-
-PuTTY sometimes sends a special request to SSH servers in the middle
-of channel data, with the name \cw{winadj@putty.projects.tartarus.org}
-(see \k{sshnames-channel}). The purpose of this request is to measure
-the round-trip time to the server, which PuTTY uses to tune its flow
-control. The server does not actually have to \e{understand} the
-message; it is expected to send back a \cw{SSH_MSG_CHANNEL_FAILURE}
-message indicating that it didn't understand it. (All PuTTY needs for
-its timing calculations is \e{some} kind of response.)
-
-It has been known for some SSH servers to get confused by this message
-in one way or another \dash because it has a long name, or because
-they can't cope with unrecognised request names even to the extent of
-sending back the correct failure response, or because they handle it
-sensibly but fill up the server's log file with pointless spam, or
-whatever. PuTTY therefore supports this bug-compatibility flag: if it
-believes the server has this bug, it will never send its
-\cq{winadj@putty.projects.tartarus.org} request, and will make do
-without its timing data.
 
 \S{config-ssh-bug-chanreq} \q{Replies to requests on closed channels}
 
