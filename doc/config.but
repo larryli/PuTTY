@@ -3029,7 +3029,9 @@ needed with \q{Dynamic}), enter a hostname and port number separated
 by a colon, in the \q{Destination} box. Connections received on the
 source port will be directed to this destination. For example, to
 connect to a POP-3 server, you might enter
-\c{popserver.example.com:110}.
+\c{popserver.example.com:110}. (If you need to enter a literal
+\i{IPv6 address}, enclose it in square brackets, for instance
+\cq{[::1]:2200}.)
 
 \b Click the \q{Add} button. Your forwarding details should appear
 in the list box.
