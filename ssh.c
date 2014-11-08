@@ -2966,11 +2966,13 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     s->proto2 = ssh_versioncmp(s->version, "1.99") >= 0;
 
     if (conf_get_int(ssh->conf, CONF_sshprot) == 0 && !s->proto1) {
-	bombout(("SSH protocol version 1 required by user but not provided by server"));
+	bombout(("SSH protocol version 1 required by configuration but "
+		 "not provided by server"));
 	crStop(0);
     }
     if (conf_get_int(ssh->conf, CONF_sshprot) == 3 && !s->proto2) {
-	bombout(("SSH protocol version 2 required by user but not provided by server"));
+	bombout(("SSH protocol version 2 required by configuration but "
+		 "not provided by server"));
 	crStop(0);
     }
 

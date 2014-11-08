@@ -2268,15 +2268,26 @@ make the most of a low-\i{bandwidth} connection.
 
 \cfg{winhelp-topic}{ssh.protocol}
 
-This allows you to select whether you would like to use \i{SSH protocol
-version 1} or \I{SSH-2}version 2. \#{FIXME: say something about this elsewhere?}
+This allows you to select whether you would prefer to use \i{SSH protocol
+version 1} or \I{SSH-2}version 2, and whether to permit falling back
+to the other version.
 
-PuTTY will attempt to use protocol 1 if the server you connect to
-does not offer protocol 2, and vice versa.
+With the settings \q{1} and \q{2}, PuTTY will attempt to use protocol 1
+if the server you connect to does not offer protocol 2, and vice versa.
 
 If you select \q{1 only} or \q{2 only} here, PuTTY will only connect
 if the server you connect to offers the SSH protocol version you
 have specified.
+
+You should normally leave this at the default, \q{2 only}. The older
+SSH-1 protocol is no longer developed, has many known cryptographic
+weaknesses, and is generally not considered to be secure. If you
+permit use of SSH-1 by selecting \q{2} instead of \q{2 only}, an
+active attacker can force downgrade to SSH-1 even if the server
+you're connecting to supports SSH-2.
+
+PuTTY's protocol 1 implementation is provided mainly for
+compatibility, and is no longer being enhanced.
 
 \S{config-ssh-sharing} Sharing an SSH connection between PuTTY tools
 

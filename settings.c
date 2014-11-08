@@ -781,7 +781,8 @@ void load_open_settings(void *sesskey, Conf *conf)
     }
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
     gpps(sesskey, "RekeyBytes", "1G", conf, CONF_ssh_rekey_data);
-    gppi(sesskey, "SshProt", 2, conf, CONF_sshprot);
+    /* SSH-2 only by default */
+    gppi(sesskey, "SshProt", 3, conf, CONF_sshprot);
     gpps(sesskey, "LogHost", "", conf, CONF_loghost);
     gppi(sesskey, "SSH2DES", 0, conf, CONF_ssh2_des_cbc);
     gppi(sesskey, "SshNoAuth", 0, conf, CONF_ssh_no_userauth);
