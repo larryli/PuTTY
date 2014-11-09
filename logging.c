@@ -373,6 +373,7 @@ void log_free(void *handle)
     bufchain_clear(&ctx->queue);
     if (ctx->currlogfilename)
         filename_free(ctx->currlogfilename);
+    conf_free(ctx->conf);
     sfree(ctx);
 }
 
