@@ -2137,7 +2137,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 	ctrl_settitle(b, "Connection/SSH",
 		      "Options controlling SSH connections");
 
-	if (midsession && protcfginfo == 1) {
+	/* SSH-1 or connection-sharing downstream */
+	if (midsession && (protcfginfo == 1 || protcfginfo == -1)) {
 	    s = ctrl_getset(b, "Connection/SSH", "disclaimer", NULL);
 	    ctrl_text(s, "Nothing on this panel may be reconfigured in mid-"
 		      "session; it is only here so that sub-panels of it can "
@@ -2159,7 +2160,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  I(CONF_ssh_no_shell));
 	}
 
-	if (!midsession || protcfginfo != 1) {
+	if (!midsession || !(protcfginfo == 1 || protcfginfo == -1)) {
 	    s = ctrl_getset(b, "Connection/SSH", "protocol", "Protocol options");
 
 	    ctrl_checkbox(s, "Enable compression", 'e',
@@ -2203,10 +2204,11 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	/*
 	 * The Connection/SSH/Kex panel. (Owing to repeat key
-	 * exchange, this is all meaningful in mid-session _if_
-	 * we're using SSH-2 or haven't decided yet.)
+	 * exchange, much of this is meaningful in mid-session _if_
+	 * we're using SSH-2 and are not a connection-sharing
+	 * downstream, or haven't decided yet.)
 	 */
-	if (protcfginfo != 1) {
+	if (protcfginfo != 1 && protcfginfo != -1) {
 	    ctrl_settitle(b, "Connection/SSH/Kex",
 			  "Options controlling SSH key exchange");
 
@@ -2232,7 +2234,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(16));
 	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
 		      HELPCTX(ssh_kex_repeat));
+	}
 
+	/*
+	 * Manual host key configuration is irrelevant mid-session,
+	 * as we enforce that the host key for rekeys is the
+	 * same as that used at the start of the session.
+	 */
+	if (!midsession) {
 	    s = ctrl_getset(b, "Connection/SSH/Kex", "hostkeys",
 			    "Manually configure host keys for this connection");
 
@@ -2270,7 +2279,7 @@ void setup_config_box(struct controlbox *b, int midsession,
             ctrl_columns(s, 1, 100);
 	}
 
-	if (!midsession || protcfginfo != 1) {
+	if (!midsession || !(protcfginfo == 1 || protcfginfo == -1)) {
 	    /*
 	     * The Connection/SSH/Cipher panel.
 	     */
