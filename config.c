@@ -2202,7 +2202,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	/*
 	 * The Connection/SSH/Kex panel. (Owing to repeat key
-	 * exchange, this is all meaningful in mid-session _if_
+	 * exchange, much of this is meaningful in mid-session _if_
 	 * we're using SSH-2 or haven't decided yet.)
 	 */
 	if (protcfginfo != 1) {
@@ -2231,7 +2231,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 I(16));
 	    ctrl_text(s, "(Use 1M for 1 megabyte, 1G for 1 gigabyte etc)",
 		      HELPCTX(ssh_kex_repeat));
+	}
 
+	/*
+	 * Manual host key configuration is irrelevant mid-session,
+	 * as we enforce that the host key for rekeys is the
+	 * same as that used at the start of the session.
+	 */
+	if (!midsession) {
 	    s = ctrl_getset(b, "Connection/SSH/Kex", "hostkeys",
 			    "Manually configure host keys for this connection");
 
