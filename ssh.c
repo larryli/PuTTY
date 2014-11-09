@@ -11241,13 +11241,19 @@ static int ssh_return_exitcode(void *handle)
 }
 
 /*
- * cfg_info for SSH is the currently running version of the
- * protocol. (1 for 1; 2 for 2; 0 for not-decided-yet.)
+ * cfg_info for SSH is the protocol running in this session.
+ * (1 or 2 for the full SSH-1 or SSH-2 protocol; -1 for the bare
+ * SSH-2 connection protocol, i.e. a downstream; 0 for not-decided-yet.)
  */
 static int ssh_cfg_info(void *handle)
 {
     Ssh ssh = (Ssh) handle;
-    return ssh->version;
+    if (ssh->version == 0)
+	return 0; /* don't know yet */
+    else if (ssh->bare_connection)
+	return -1;
+    else
+	return ssh->version;
 }
 
 /*
