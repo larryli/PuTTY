@@ -3293,6 +3293,14 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 	ssh->portfwds = NULL;
     }
 
+    /*
+     * Also stop attempting to connection-share.
+     */
+    if (ssh->connshare) {
+        sharestate_free(ssh->connshare);
+        ssh->connshare = NULL;
+    }
+
     return ret;
 }
 
