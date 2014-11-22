@@ -172,7 +172,7 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  */
 static void usage(void)
 {
-    printf("PuTTY Link: command-line connection utility\n");
+    printf("Plink: command-line connection utility\n");
     printf("%s\n", ver);
     printf("Usage: plink [options] [user@]host [command]\n");
     printf("       (\"host\" can also be a PuTTY saved session name)\n");

@@ -1,8 +1,8 @@
 \C{plink} Using the command-line connection tool \i{Plink}
 
-\i{Plink} (PuTTY Link) is a command-line connection tool similar to
-UNIX \c{ssh}. It is mostly used for \i{automated operations}, such as
-making CVS access a repository on a remote server.
+\i{Plink} is a command-line connection tool similar to UNIX \c{ssh}.
+It is mostly used for \i{automated operations}, such as making CVS
+access a repository on a remote server.
 
 Plink is probably not what you want if you want to run an
 \i{interactive session} in a console window.
@@ -40,7 +40,7 @@ version of Plink you're using, and gives you a brief summary of how to
 use Plink:
 
 \c Z:\sysosd>plink
-\c PuTTY Link: command-line connection utility
+\c Plink: command-line connection utility
 \c Release 0.XX
 \c Usage: plink [options] [user@]host [command]
 \c        ("host" can also be a PuTTY saved session name)
