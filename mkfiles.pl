@@ -461,7 +461,7 @@ if (defined $makefiles{'cygwin'}) {
     &splitline("RCFLAGS = \$(RCINC) --define WIN32=1 --define _WIN32=1 ".
       "--define WINVER=0x0400 ".(join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "\n".
-    $makefile_extra{'cygwin'}->{'vars'} .
+    &def($makefile_extra{'cygwin'}->{'vars'}) .
     "\n".
     ".SUFFIXES:\n".
     "\n";
@@ -491,7 +491,7 @@ if (defined $makefiles{'cygwin'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'cygwin'}->{'end'} if defined $makefile_extra{'cygwin'}->{'end'};
+    print &def($makefile_extra{'cygwin'}->{'end'});
     print "\nclean:\n".
     "\trm -f *.o *.exe *.res.o *.so *.map\n".
     "\n".
@@ -540,7 +540,7 @@ if (defined $makefiles{'borland'}) {
     "BCB = \$(MAKEDIR)\\..\n".
     "!endif\n".
     "\n".
-    $makefile_extra{'borland'}->{'vars'} .
+    &def($makefile_extra{'borland'}->{'vars'}) .
     "\n".
     ".c.obj:\n".
     &splitline("\tbcc32 -w-aus -w-ccc -w-par -w-pia \$(COMPAT)".
@@ -597,7 +597,7 @@ if (defined $makefiles{'borland'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'borland'}->{'end'} if defined $makefile_extra{'borland'}->{'end'};
+    print &def($makefile_extra{'borland'}->{'end'});
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".
@@ -639,7 +639,7 @@ if (defined $makefiles{'vc'}) {
       "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
       " -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
       "\n".
-      $makefile_extra{'vc'}->{'vars'} .
+      &def($makefile_extra{'vc'}->{'vars'}) .
       "\n".
       "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
@@ -680,7 +680,7 @@ if (defined $makefiles{'vc'}) {
 	}
     }
     print "\n";
-    print $makefile_extra{'vc'}->{'end'} if defined $makefile_extra{'vc'}->{'end'};
+    print &def($makefile_extra{'vc'}->{'end'});
     print "\nclean: tidy\n".
       "\t-del *.exe\n\n".
       "tidy:\n".
@@ -1398,7 +1398,7 @@ if (defined $makefiles{'gtk'}) {
       print &splitline("\t\$(CC) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) -c $d->{deps}->[0]\n");
     }
     print "\n";
-    print $makefile_extra{'gtk'}->{'end'};
+    print &def($makefile_extra{'gtk'}->{'end'});
     print "\nclean:\n".
     "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U")) . "\n";
     print "\nFORCE:\n";
@@ -1561,7 +1561,7 @@ if (defined $makefiles{'am'}) {
       print "endif\n" if $type eq "X";
       print "\n";
     }
-    print $makefile_extra{'am'}->{'end'};
+    print &def($makefile_extra{'am'}->{'end'});
     select STDOUT; close OUT;
 }
 
@@ -1592,7 +1592,7 @@ if (defined $makefiles{'lcc'}) {
     "\n".
     "# Get include directory for resource compiler\n".
     "\n".
-    $makefile_extra{'lcc'}->{'vars'} .
+    &def($makefile_extra{'lcc'}->{'vars'}) .
     "\n";
     print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
     print "\n\n";
@@ -1623,7 +1623,7 @@ if (defined $makefiles{'lcc'}) {
       }
     }
     print "\n";
-    print $makefile_extra{'lcc'}->{'end'} if defined $makefile_extra{'lcc'}->{'end'};
+    print &def($makefile_extra{'lcc'}->{'end'});
     print "\nclean:\n".
     "\t-del *.obj\n".
     "\t-del *.exe\n".
@@ -1654,7 +1654,7 @@ if (defined $makefiles{'osx'}) {
     "MLDFLAGS = -framework Cocoa\n".
     "ULDFLAGS =\n".
     "\n" .
-    $makefile_extra{'osx'}->{'vars'} .
+    &def($makefile_extra{'osx'}->{'vars'}) .
     "\n" .
     &splitline("all:" . join "", map { " $_" } &progrealnames("MX:U")) .
     "\n";
