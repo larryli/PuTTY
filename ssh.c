@@ -5832,7 +5832,7 @@ static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
 	ssh_special(ssh, TS_EOF);
 
     if (ssh->ldisc)
-	ldisc_send(ssh->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
+	ldisc_echoedit_update(ssh->ldisc);  /* cause ldisc to notice changes */
     ssh->send_ok = 1;
     ssh->channels = newtree234(ssh_channelcmp);
     while (1) {
@@ -10326,7 +10326,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
      * Transfer data!
      */
     if (ssh->ldisc)
-	ldisc_send(ssh->ldisc, NULL, 0, 0);/* cause ldisc to notice changes */
+	ldisc_echoedit_update(ssh->ldisc);  /* cause ldisc to notice changes */
     if (ssh->mainchan)
 	ssh->send_ok = 1;
     while (1) {

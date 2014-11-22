@@ -264,7 +264,7 @@ static void option_side_effects(Telnet telnet, const struct Opt *o, int enabled)
     else if (o->option == TELOPT_SGA && o->send == DO)
 	telnet->editing = !enabled;
     if (telnet->ldisc)		       /* cause ldisc to notice the change */
-	ldisc_send(telnet->ldisc, NULL, 0, 0);
+	ldisc_echoedit_update(telnet->ldisc);
 
     /* Ensure we get the minimum options */
     if (!telnet->activated) {

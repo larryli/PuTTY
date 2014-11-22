@@ -907,7 +907,7 @@ void notify_remote_exit(void *frontend)
     [win notifyRemoteExit];
 }
 
-void ldisc_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
     //SessionWindow *win = (SessionWindow *)frontend;
     /*

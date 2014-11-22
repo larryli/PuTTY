@@ -60,16 +60,7 @@ const char *const appname = "PSCP";
  */
 #define MAX_SCP_BUFSIZE 16384
 
-void ldisc_send(void *handle, char *buf, int len, int interactive)
-{
-    /*
-     * This is only here because of the calls to ldisc_send(NULL,
-     * 0) in ssh.c. Nothing in PSCP actually needs to use the ldisc
-     * as an ldisc. So if we get called with any real data, I want
-     * to know about it.
-     */
-    assert(len == 0);
-}
+void ldisc_echoedit_update(void *handle) { }
 
 static void tell_char(FILE * stream, char c)
 {

@@ -98,7 +98,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void ldisc_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     DWORD mode;

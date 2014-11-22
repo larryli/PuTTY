@@ -2506,16 +2506,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
     cleanup_exit(1);
 }
 
-void ldisc_send(void *handle, char *buf, int len, int interactive)
-{
-    /*
-     * This is only here because of the calls to ldisc_send(NULL,
-     * 0) in ssh.c. Nothing in PSFTP actually needs to use the
-     * ldisc as an ldisc. So if we get called with any real data, I
-     * want to know about it.
-     */
-    assert(len == 0);
-}
+void ldisc_echoedit_update(void *handle) { }
 
 /*
  * In psftp, all agent requests should be synchronous, so this is a
