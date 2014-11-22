@@ -146,6 +146,7 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     raw->closed_on_socket_error = FALSE;
     *backend_handle = raw;
     raw->sent_console_eof = raw->sent_socket_eof = FALSE;
+    raw->bufsize = 0;
 
     raw->frontend = frontend_handle;
 
