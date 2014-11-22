@@ -10598,6 +10598,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sent_console_eof = FALSE;
     ssh->got_pty = FALSE;
     ssh->bare_connection = FALSE;
+    ssh->X11_fwd_enabled = FALSE;
+    ssh->connshare = NULL;
     ssh->attempting_connshare = FALSE;
 
     *backend_handle = ssh;
