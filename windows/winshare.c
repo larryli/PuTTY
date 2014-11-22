@@ -157,6 +157,7 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
         if (!make_private_security_descriptor(MUTEX_ALL_ACCESS,
                                               &psd, &acl, logtext)) {
             sfree(mutexname);
+            sfree(name);
             return SHARE_NONE;
         }
 
@@ -171,6 +172,7 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
             *logtext = dupprintf("CreateMutex(\"%s\") failed: %s",
                                  mutexname, win_strerror(GetLastError()));
             sfree(mutexname);
+            sfree(name);
             LocalFree(psd);
             LocalFree(acl);
             return SHARE_NONE;

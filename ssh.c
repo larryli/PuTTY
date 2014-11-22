@@ -3873,6 +3873,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
         s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL, NULL);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
+            sfree(keystr);
             crStop(0);
         } else if (s->dlgret < 0) { /* none configured; use standard handling */
             ssh_set_frozen(ssh, 1);
@@ -3899,6 +3900,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
                                NULL, 0, TRUE);
                 crStop(0);
             }
+        } else {
+            sfree(keystr);
         }
     }
 
@@ -10675,6 +10678,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sent_console_eof = FALSE;
     ssh->got_pty = FALSE;
     ssh->bare_connection = FALSE;
+    ssh->X11_fwd_enabled = FALSE;
+    ssh->connshare = NULL;
     ssh->attempting_connshare = FALSE;
 
     *backend_handle = ssh;
