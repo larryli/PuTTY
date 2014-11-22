@@ -1672,6 +1672,8 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
                     PUT_32BIT(recipient_id, chan->downstream_id);
                     send_packet_to_downstream(cs, SSH2_MSG_CHANNEL_FAILURE,
                                               recipient_id, 4, NULL);
+                    sfree(auth_data);
+                    break;
                 }
 
                 chan->x11_auth_proto = auth_proto;
