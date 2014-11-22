@@ -943,7 +943,7 @@ int validate_manual_hostkey(char *key)
     while ((p += strspn(p, " \t"))[0]) {
         q = p;
         p += strcspn(p, " \t");
-        if (p) *p++ = '\0';
+        if (*p) *p++ = '\0';
 
         /*
          * Now q is our word.
