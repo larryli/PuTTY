@@ -661,6 +661,7 @@ int main(int argc, char **argv)
 
         if (toplevel_callback_pending()) {
             ticks = 0;
+            next = now;
         } else if (run_timers(now, &next)) {
 	    then = now;
 	    now = GETTICKCOUNT();
@@ -670,6 +671,8 @@ int main(int argc, char **argv)
 		ticks = next - now;
 	} else {
 	    ticks = INFINITE;
+            /* no need to initialise next here because we can never
+             * get WAIT_TIMEOUT */
 	}
 
 	handles = handle_get_events(&nhandles);
