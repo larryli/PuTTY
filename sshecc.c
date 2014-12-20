@@ -628,7 +628,7 @@ static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
         }
         XmZ2 = modsub(a->x, Z2, a->curve->p);
         freebn(Z2);
-        if (!XpZ2) {
+        if (!XmZ2) {
             freebn(S);
             freebn(XpZ2);
             return NULL;
@@ -1434,7 +1434,10 @@ static int decodepoint(char *p, int length, struct ec_point *point)
 
     /* Verify the point is on the curve */
     if (!ec_point_verify(point)) {
-        ec_point_free(point);
+        freebn(point->x);
+        point->x = NULL;
+        freebn(point->y);
+        point->y = NULL;
         return 0;
     }
 
@@ -1714,6 +1717,7 @@ static void *ecdsa_openssh_createkey(unsigned char **blob, int *len)
         /* Private key doesn't make the public key on the given curve */
         ecdsa_freekey(ec);
         ec_point_free(publicKey);
+        return NULL;
     }
 
     ec_point_free(publicKey);
@@ -1946,6 +1950,9 @@ static unsigned char *ecdsa_sign(void *key, char *data, int datalen,
     p += 4;
     for (i = slen; i--;)
         *p++ = bignum_byte(s, i);
+
+    freebn(r);
+    freebn(s);
 
     return buf;
 }
