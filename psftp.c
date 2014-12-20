@@ -668,21 +668,19 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	char decbuf[30];
 	struct fxp_attrs attrs;
-	int ret;
 
 	req = fxp_fstat_send(fh);
         pktin = sftp_wait_for_reply(req);
 	ret = fxp_fstat_recv(pktin, req, &attrs);
 
 	if (!ret) {
-	    close_rfile(file);
 	    printf("read size of %s: %s\n", outfname, fxp_error());
-	    return 0;
+            goto cleanup;
 	}
 	if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
-	    close_rfile(file);
 	    printf("read size of %s: size was not given\n", outfname);
-	    return 0;
+            ret = 0;
+            goto cleanup;
 	}
 	offset = attrs.size;
 	uint64_decimal(offset, decbuf);
@@ -735,6 +733,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 
     xfer_cleanup(xfer);
 
+  cleanup:
     req = fxp_close_send(fh);
     pktin = sftp_wait_for_reply(req);
     fxp_close_recv(pktin, req);
