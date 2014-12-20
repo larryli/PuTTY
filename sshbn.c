@@ -1236,18 +1236,18 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
 Bignum bignum_random_in_range(const Bignum lower, const Bignum upper)
 {
     Bignum ret = NULL;
+    unsigned char *bytes;
     int upper_len = bignum_bitcount(upper);
     int upper_bytes = upper_len / 8;
     int upper_bits = upper_len % 8;
     if (upper_bits) ++upper_bytes;
 
+    bytes = snewn(upper_bytes, unsigned char);
     do {
-        unsigned char *bytes;
         int i;
 
         if (ret) freebn(ret);
 
-        bytes = snewn(upper_bytes, unsigned char);
         for (i = 0; i < upper_bytes; ++i)
         {
             bytes[i] = (unsigned char)random_byte();
@@ -1260,6 +1260,7 @@ Bignum bignum_random_in_range(const Bignum lower, const Bignum upper)
 
         ret = bignum_from_bytes(bytes, upper_bytes);
     } while (bignum_cmp(ret, lower) < 0 || bignum_cmp(ret, upper) > 0);
+    sfree(bytes);
 
     return ret;
 }
