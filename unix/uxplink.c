@@ -113,7 +113,7 @@ static void *backhandle;
 static Conf *conf;
 
 /*
- * Default settings that are specific to pterm.
+ * Default settings that are specific to Unix plink.
  */
 char *platform_default_s(const char *name)
 {
