@@ -119,8 +119,6 @@ char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "TermType"))
 	return dupstr(getenv("TERM"));
-     if (!strcmp(name, "UserName"))
- 	return get_username();
     if (!strcmp(name, "SerialLine"))
 	return dupstr("/dev/ttyS0");
     return NULL;
@@ -882,6 +880,18 @@ int main(int argc, char **argv)
      * Perform command-line overrides on session configuration.
      */
     cmdline_run_saved(conf);
+
+    /*
+     * If we have no better ideas for the remote username, use the local
+     * one, as 'ssh' does.
+     */
+    if (conf_get_str(conf, CONF_username)[0] == '\0') {
+	char *user = get_username();
+	if (user) {
+	    conf_set_str(conf, CONF_username, user);
+	    sfree(user);
+	}
+    }
 
     /*
      * Apply subsystem status.
