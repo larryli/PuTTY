@@ -2514,12 +2514,10 @@ The text describing a host key can be in one of the following formats:
 Event Log and host key dialog boxes, i.e. sixteen 2-digit hex numbers
 separated by colons.
 
-\b A base64-encoded blob describing an SSH-2 public key in the
-standard way. This can be found in OpenSSH's one-line public key
-format, or by concatenating all the lines of the public key section in
-one of PuTTY's \cw{.ppk} files. Alternatively, you can load a key into
-PuTTYgen, and paste out the OpenSSH-format public key line it
-displays.
+\b A base64-encoded blob describing an SSH-2 public key in
+OpenSSH's one-line public key format. How you acquire a public key in
+this format is server-dependent; on an OpenSSH server it can typically
+be found in a location like \c{/etc/ssh/ssh_host_rsa_key.pub}.
 
 If this box contains at least one host key or fingerprint when PuTTY
 makes an SSH connection, then PuTTY's automated host key management is
