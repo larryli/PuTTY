@@ -167,13 +167,27 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 
 	SetEvent(ctx->ev_to_main);
 
-	if (!ctx->len)
+	if (!ctx->len) {
+            /*
+             * The read operation has returned end-of-file. Telling
+             * that to the main thread will cause it to set its
+             * 'defunct' flag and dispose of the handle structure at
+             * the next opportunity, so we must not touch ctx at all
+             * after this.
+             */
 	    break;
+        }
 
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
 	if (ctx->done) {
+            /*
+             * The main thread has asked us to shut down. Send back an
+             * event indicating that we've done so. Hereafter we must
+             * not touch ctx at all, because the main thread might
+             * have freed it.
+             */
             SetEvent(ctx->ev_to_main);
-	    break;		       /* main thread told us to shut down */
+            break;
         }
     }
 
@@ -280,6 +294,12 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
     while (1) {
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
 	if (ctx->done) {
+            /*
+             * The main thread has asked us to shut down. Send back an
+             * event indicating that we've done so. Hereafter we must
+             * not touch ctx at all, because the main thread might
+             * have freed it.
+             */
 	    SetEvent(ctx->ev_to_main);
 	    break;
 	}
@@ -304,8 +324,16 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 	}
 
 	SetEvent(ctx->ev_to_main);
-	if (!writeret)
+	if (!writeret) {
+            /*
+             * The write operation has suffered an error. Telling that
+             * to the main thread will cause it to set its 'defunct'
+             * flag and dispose of the handle structure at the next
+             * opportunity, so we must not touch ctx at all after
+             * this.
+             */
 	    break;
+        }
     }
 
     if (povl)
@@ -601,10 +629,12 @@ void handle_got_event(HANDLE event)
 
     if (h->u.g.moribund) {
 	/*
-	 * A moribund handle is already treated as dead from the
-	 * external user's point of view, so do nothing with the
-	 * actual event. Just signal the thread to die if
-	 * necessary, or destroy the handle if not.
+	 * A moribund handle is one which we have either already
+	 * signalled to die, or are waiting until its current I/O op
+	 * completes to do so. Either way, it's treated as already
+	 * dead from the external user's point of view, so we ignore
+	 * the actual I/O result. We just signal the thread to die if
+	 * we haven't yet done so, or destroy the handle if not.
 	 */
 	if (h->u.g.done) {
 	    handle_destroy(h);
