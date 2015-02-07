@@ -171,8 +171,10 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	    break;
 
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
-	if (ctx->done)
+	if (ctx->done) {
+            SetEvent(ctx->ev_to_main);
 	    break;		       /* main thread told us to shut down */
+        }
     }
 
     if (povl)
