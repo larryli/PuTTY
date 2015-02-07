@@ -171,8 +171,10 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	    break;
 
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
-	if (ctx->done)
+	if (ctx->done) {
+            SetEvent(ctx->ev_to_main);
 	    break;		       /* main thread told us to shut down */
+        }
     }
 
     if (povl)
@@ -627,8 +629,8 @@ void handle_got_event(HANDLE event)
 	    /*
 	     * EOF, or (nearly equivalently) read error.
 	     */
-	    h->u.i.gotdata(h, NULL, -h->u.i.readerr);
 	    h->u.i.defunct = TRUE;
+	    h->u.i.gotdata(h, NULL, -h->u.i.readerr);
 	} else {
 	    backlog = h->u.i.gotdata(h, h->u.i.buffer, h->u.i.len);
 	    handle_throttle(&h->u.i, backlog);
@@ -649,8 +651,8 @@ void handle_got_event(HANDLE event)
 	     * and mark the thread as defunct (because the output
 	     * thread is terminating by now).
 	     */
-	    h->u.o.sentdata(h, -h->u.o.writeerr);
 	    h->u.o.defunct = TRUE;
+	    h->u.o.sentdata(h, -h->u.o.writeerr);
 	} else {
 	    bufchain_consume(&h->u.o.queued_data, h->u.o.lenwritten);
 	    h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data));
