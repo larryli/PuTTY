@@ -67,7 +67,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     i += 4;
 
     /* Now the serious stuff. An ordinary SSH-1 public key. */
-    j = makekey(buf + i, len, key, NULL, 1);
+    j = makekey(buf + i, len - i, key, NULL, 1);
     if (j < 0)
 	goto end;		       /* overran */
     i += j;
