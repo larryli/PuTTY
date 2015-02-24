@@ -8,7 +8,8 @@
 #     kh2reg.py --unix    known_hosts1 2 3 4 ... > sshhostkeys
 #       Creates data suitable for storing in ~/.putty/sshhostkeys (Unix).
 # Line endings are someone else's problem as is traditional.
-# Developed for Python 1.5.2.
+# Originally developed for Python 1.5.2, but probably won't run on that
+# any more.
 
 import fileinput
 import base64
@@ -63,6 +64,13 @@ if output_type == 'windows':
 [HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\SshHostKeys]
 """)
 
+class BlankInputLine(Exception):
+    pass
+
+class UnknownKeyType(Exception):
+   def __init__(self, keytype):
+       self.keytype = keytype
+
 # Now process all known_hosts input.
 for line in fileinput.input(args):
 
@@ -72,7 +80,7 @@ for line in fileinput.input(args):
 
         # Skip blanks and comments
         if line == '' or line[0] == '#':
-            raise "Skipping input line"
+            raise BlankInputLine
 
         # Split line on spaces.
         fields = string.split (line, ' ')
@@ -119,7 +127,7 @@ for line in fileinput.input(args):
             if   sshkeytype == "ssh-rsa":   keytype = "rsa2"
             elif sshkeytype == "ssh-dss":   keytype = "dss"
             else:
-                raise "Unknown SSH key type", sshkeytype
+                raise UnknownKeyType(sshkeytype)
 
         # Now print out one line per host pattern, discarding wildcards.
         for host in string.split (hostpat, ','):
@@ -150,7 +158,7 @@ for line in fileinput.input(args):
                     sys.stdout.write("\"%s\"=\"%s\"\n"
                                      % (winmungestr(key), value))
 
-    except "Unknown SSH key type", k:
-        sys.stderr.write("Unknown SSH key type '%s', skipping\n" % k)
-    except "Skipping input line":
+    except UnknownKeyType, k:
+        sys.stderr.write("Unknown SSH key type '%s', skipping\n" % k.keytype)
+    except BlankInputLine:
         pass
