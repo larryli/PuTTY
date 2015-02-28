@@ -126,6 +126,9 @@ for it:
    `build.out/putty', and provide link maps and sign.sh alongside that
    in build.out.
 
+ - Double-check in build.log that the release was built from the right
+   git commit.
+
  - Do a bit of checking that the release binaries basically work,
    report their version numbers accurately, and so on. Test the
    installer and the Unix source tarball.
