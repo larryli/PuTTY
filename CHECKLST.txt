@@ -121,7 +121,7 @@ for it:
 
  - Build the release, by checking out the release tag:
      git checkout 0.XX
-     bob -F . RELEASE=0.XX'
+     bob -F . RELEASE=0.XX
    This should generate a basically valid release directory as
    `build.out/putty', and provide link maps and sign.sh alongside that
    in build.out.
