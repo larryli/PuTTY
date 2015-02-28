@@ -55,9 +55,9 @@ disk. Many people feel this is a good compromise between security
 and convenience. See \k{pageant} for further details.
 
 There is more than one \i{public-key algorithm} available. The most
-common is \i{RSA}, but others exist, notably \i{DSA} (otherwise known as
-DSS), the USA's federal Digital Signature Standard. The key types
-supported by PuTTY are described in \k{puttygen-keytype}.
+common are \i{RSA} and \i{ECDSA}, but others exist, notably \i{DSA}
+(otherwise known as DSS), the USA's federal Digital Signature Standard.
+The key types supported by PuTTY are described in \k{puttygen-keytype}.
 
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
 
@@ -66,7 +66,7 @@ supported by PuTTY are described in \k{puttygen-keytype}.
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
 public and private keys to be used with PuTTY, PSCP, and Plink, as well
 as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
-generates RSA and DSA keys.
+generates RSA, DSA, and ECDSA keys.
 
 When you run PuTTYgen you will see a window where you have two
 choices: \q{Generate}, to generate a new public/private key pair, or
@@ -118,14 +118,17 @@ of key:
 
 \b A \i{DSA} key for use with the SSH-2 protocol.
 
+\b An \i{ECDSA} (\i{elliptic curve} DSA) key for use with the
+SSH-2 protocol.
+
 The SSH-1 protocol only supports RSA keys; if you will be connecting
 using the SSH-1 protocol, you must select the first key type or your
 key will be completely useless.
 
-The SSH-2 protocol supports more than one key type. The two types
-supported by PuTTY are RSA and DSA.
+The SSH-2 protocol supports more than one key type. The types
+supported by PuTTY are RSA, DSA, and ECDSA.
 
-The PuTTY developers \e{strongly} recommend you use RSA.
+The PuTTY developers \e{strongly} recommend you use RSA. \#{FIXME: ECDSA!}
 \I{security risk}\i{DSA} has an intrinsic weakness which makes it very
 easy to create a signature which contains enough information to give
 away the \e{private} key!
@@ -147,7 +150,10 @@ more than one server.
 The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
-Currently 1024 bits should be sufficient for most purposes.
+For RSA, 2048 bits should currently be sufficient for most purposes.
+\#{FIXME: DSA}
+For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
+equivalent security to RSA with smaller key sizes.)
 
 \S{puttygen-generate} The \q{Generate} button
 

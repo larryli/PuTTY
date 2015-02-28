@@ -71,7 +71,8 @@ For each key, the list box will tell you:
 
 \b The type of the key. Currently, this can be \c{ssh1} (an RSA key
 for use with the SSH-1 protocol), \c{ssh-rsa} (an RSA key for use
-with the SSH-2 protocol), or \c{ssh-dss} (a DSA key for use with
+with the SSH-2 protocol), \c{ssh-dss} (a DSA key for use with
+the SSH-2 protocol), or \c{ecdsa-sha2-*} (an ECDSA key for use with
 the SSH-2 protocol).
 
 \b The size (in bits) of the key.

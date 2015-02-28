@@ -2382,15 +2382,17 @@ PuTTY supports a variety of SSH-2 key exchange methods, and allows you
 to choose which one you prefer to use; configuration is similar to
 cipher selection (see \k{config-ssh-encryption}).
 
-PuTTY currently supports the following varieties of \i{Diffie-Hellman key
-exchange}:
+PuTTY currently supports the following key exchange methods:
 
-\b \q{Group 14}: a well-known 2048-bit group.
+\b \q{ECDH}: \i{elliptic curve} \i{Diffie-Hellman key exchange}.
 
-\b \q{Group 1}: a well-known 1024-bit group. This is less secure
-\#{FIXME better words} than group 14, but may be faster with slow
-client or server machines, and may be the only method supported by
-older server software.
+\b \q{Group 14}: Diffie-Hellman key exchange with a well-known
+2048-bit group.
+
+\b \q{Group 1}: Diffie-Hellman key exchange with a well-known
+1024-bit group. This is less secure \#{FIXME better words} than
+group 14, but may be faster with slow client or server machines,
+and may be the only method supported by older server software.
 
 \b \q{\ii{Group exchange}}: with this method, instead of using a fixed
 group, PuTTY requests that the server suggest a group to use for key
@@ -2398,9 +2400,9 @@ exchange; the server can avoid groups known to be weak, and possibly
 invent new ones over time, without any changes required to PuTTY's
 configuration. We recommend use of this method, if possible.
 
-In addition, PuTTY supports \i{RSA key exchange}, which requires much less
-computational effort on the part of the client, and somewhat less on
-the part of the server, than Diffie-Hellman key exchange.
+\b \q{\i{RSA key exchange}}: this requires much less computational
+effort on the part of the client, and somewhat less on the part of
+the server, than Diffie-Hellman key exchange.
 
 If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
