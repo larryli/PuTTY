@@ -888,12 +888,34 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	} else
 	    sfree(handles);
 
-	if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+	while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
 	    if (msg.message == WM_QUIT)
 		goto finished;	       /* two-level break */
 
 	    if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
 		DispatchMessage(&msg);
+
+            /*
+             * WM_NETEVENT messages seem to jump ahead of others in
+             * the message queue. I'm not sure why; the docs for
+             * PeekMessage mention that messages are prioritised in
+             * some way, but I'm unclear on which priorities go where.
+             *
+             * Anyway, in practice I observe that WM_NETEVENT seems to
+             * jump to the head of the queue, which means that if we
+             * were to only process one message every time round this
+             * loop, we'd get nothing but NETEVENTs if the server
+             * flooded us with data, and stop responding to any other
+             * kind of window message. So instead, we keep on round
+             * this loop until we've consumed at least one message
+             * that _isn't_ a NETEVENT, or run out of messages
+             * completely (whichever comes first). And we don't go to
+             * run_toplevel_callbacks (which is where the netevents
+             * are actually processed, causing fresh NETEVENT messages
+             * to appear) until we've done this.
+             */
+            if (msg.message != WM_NETEVENT)
+                break;
 	}
 
         run_toplevel_callbacks();
