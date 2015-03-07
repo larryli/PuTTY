@@ -3995,7 +3995,9 @@ static void term_out(Terminal *term)
 			      case 13:
 				if (term->ldisc) {
 				    get_window_pos(term->frontend, &x, &y);
-				    len = sprintf(buf, "\033[3;%d;%dt", x, y);
+				    len = sprintf(buf, "\033[3;%u;%ut",
+                                                  (unsigned)x,
+                                                  (unsigned)y);
 				    ldisc_send(term->ldisc, buf, len, 0);
 				}
 				break;
