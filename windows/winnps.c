@@ -32,6 +32,7 @@ struct Socket_named_pipe_server_tag {
     /* The current named pipe object + attempt to connect to it */
     HANDLE pipehandle;
     OVERLAPPED connect_ovl;
+    struct handle *callback_handle;    /* winhandl.c's reference */
 
     /* PuTTY Socket machinery */
     Plug plug;
@@ -51,6 +52,8 @@ static void sk_namedpipeserver_close(Socket s)
 {
     Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
 
+    if (ps->callback_handle)
+        handle_free(ps->callback_handle);
     CloseHandle(ps->pipehandle);
     CloseHandle(ps->connect_ovl.hEvent);
     sfree(ps->error);
@@ -220,6 +223,7 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     ret->psd = NULL;
     ret->pipename = dupstr(pipename);
     ret->acl = NULL;
+    ret->callback_handle = NULL;
 
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);
@@ -237,8 +241,9 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
 
     memset(&ret->connect_ovl, 0, sizeof(ret->connect_ovl));
     ret->connect_ovl.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
-    handle_add_foreign_event(ret->connect_ovl.hEvent,
-                             named_pipe_connect_callback, ret);
+    ret->callback_handle =
+        handle_add_foreign_event(ret->connect_ovl.hEvent,
+                                 named_pipe_connect_callback, ret);
     named_pipe_accept_loop(ret, FALSE);
 
   cleanup:
