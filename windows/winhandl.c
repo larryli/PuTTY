@@ -115,7 +115,7 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
     struct handle_input *ctx = (struct handle_input *) param;
     OVERLAPPED ovl, *povl;
     HANDLE oev;
-    int readret, readlen;
+    int readret, readlen, finished;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED) {
 	povl = &ovl;
@@ -165,18 +165,20 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
 	    (ctx->flags & HANDLE_FLAG_IGNOREEOF))
 	    continue;
 
+        /*
+         * If we just set ctx->len to 0, that means the read operation
+         * has returned end-of-file. Telling that to the main thread
+         * will cause it to set its 'defunct' flag and dispose of the
+         * handle structure at the next opportunity, in which case we
+         * mustn't touch ctx at all after the SetEvent. (Hence we do
+         * even _this_ check before the SetEvent.)
+         */
+        finished = (ctx->len == 0);
+
 	SetEvent(ctx->ev_to_main);
 
-	if (!ctx->len) {
-            /*
-             * The read operation has returned end-of-file. Telling
-             * that to the main thread will cause it to set its
-             * 'defunct' flag and dispose of the handle structure at
-             * the next opportunity, so we must not touch ctx at all
-             * after this.
-             */
+	if (finished)
 	    break;
-        }
 
 	WaitForSingleObject(ctx->ev_from_main, INFINITE);
 	if (ctx->done) {
