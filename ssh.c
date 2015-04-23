@@ -2823,11 +2823,15 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
     if (conf_get_int(ssh->conf, CONF_sshbug_chanreq) == FORCE_ON ||
 	(conf_get_int(ssh->conf, CONF_sshbug_chanreq) == AUTO &&
 	 (wc_match("OpenSSH_[2-5].*", imp) ||
-	  wc_match("OpenSSH_6.[0-6]*", imp)))) {
+	  wc_match("OpenSSH_6.[0-6]*", imp) ||
+	  wc_match("dropbear_0.[2-4][0-9]*", imp) ||
+	  wc_match("dropbear_0.5[01]*", imp)))) {
 	/*
-	 * These versions have the SSH-2 channel request bug. 6.7 and
-	 * above do not:
+	 * These versions have the SSH-2 channel request bug.
+	 * OpenSSH 6.7 and above do not:
 	 * https://bugzilla.mindrot.org/show_bug.cgi?id=1818
+	 * dropbear_0.52 and above do not:
+	 * https://secure.ucc.asn.au/hg/dropbear/rev/cd02449b709c
 	 */
 	ssh->remote_bugs |= BUG_SENDS_LATE_REQUEST_REPLY;
 	logevent("We believe remote version has SSH-2 channel request bug");
