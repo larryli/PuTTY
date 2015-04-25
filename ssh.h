@@ -720,7 +720,8 @@ void platform_ssh_share_cleanup(const char *name);
 #define SSH2_MSG_NEWKEYS                          21	/* 0x15 */
 #define SSH2_MSG_KEXDH_INIT                       30	/* 0x1e */
 #define SSH2_MSG_KEXDH_REPLY                      31	/* 0x1f */
-#define SSH2_MSG_KEX_DH_GEX_REQUEST               30	/* 0x1e */
+#define SSH2_MSG_KEX_DH_GEX_REQUEST_OLD           30	/* 0x1e */
+#define SSH2_MSG_KEX_DH_GEX_REQUEST               34	/* 0x1e */
 #define SSH2_MSG_KEX_DH_GEX_GROUP                 31	/* 0x1f */
 #define SSH2_MSG_KEX_DH_GEX_INIT                  32	/* 0x20 */
 #define SSH2_MSG_KEX_DH_GEX_REPLY                 33	/* 0x21 */
