@@ -77,6 +77,10 @@ static const char *const ssh2_disconnect_reasons[] = {
 #define BUG_CHOKES_ON_SSH2_IGNORE               512
 #define BUG_CHOKES_ON_WINADJ                   1024
 #define BUG_SENDS_LATE_REQUEST_REPLY           2048
+#define BUG_SSH2_OLDGEX                        4096
+
+#define DH_MIN_SIZE 1024
+#define DH_MAX_SIZE 8192
 
 /*
  * Codes for terminal modes.
@@ -248,6 +252,7 @@ static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
     translate(SSH2_MSG_NEWKEYS);
     translatek(SSH2_MSG_KEXDH_INIT, SSH2_PKTCTX_DHGROUP);
     translatek(SSH2_MSG_KEXDH_REPLY, SSH2_PKTCTX_DHGROUP);
+    translatek(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD, SSH2_PKTCTX_DHGEX);
     translatek(SSH2_MSG_KEX_DH_GEX_REQUEST, SSH2_PKTCTX_DHGEX);
     translatek(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
     translatek(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
@@ -2809,6 +2814,17 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 */
 	ssh->remote_bugs |= BUG_CHOKES_ON_SSH2_IGNORE;
 	logevent("We believe remote version has SSH-2 ignore bug");
+    }
+
+    if (conf_get_int(ssh->conf, CONF_sshbug_oldgex2) == FORCE_ON ||
+	(conf_get_int(ssh->conf, CONF_sshbug_oldgex2) == AUTO &&
+	 (wc_match("OpenSSH_2.[235]*", imp)))) {
+	/*
+	 * These versions only support the original (pre-RFC4419)
+	 * SSH-2 GEX request.
+	 */
+	ssh->remote_bugs |= BUG_SSH2_OLDGEX;
+	logevent("We believe remote version has outdated SSH-2 GEX");
     }
 
     if (conf_get_int(ssh->conf, CONF_sshbug_winadj) == FORCE_ON) {
@@ -6598,8 +6614,19 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
              * much data.
              */
             s->pbits = 512 << ((s->nbits - 1) / 64);
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
-            ssh2_pkt_adduint32(s->pktout, s->pbits);
+            if (s->pbits < DH_MIN_SIZE)
+                s->pbits = DH_MIN_SIZE;
+            if (s->pbits > DH_MAX_SIZE)
+                s->pbits = DH_MAX_SIZE;
+            if ((ssh->remote_bugs & BUG_SSH2_OLDGEX)) {
+                s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD);
+                ssh2_pkt_adduint32(s->pktout, s->pbits);
+            } else {
+                s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
+                ssh2_pkt_adduint32(s->pktout, DH_MIN_SIZE);
+                ssh2_pkt_adduint32(s->pktout, s->pbits);
+                ssh2_pkt_adduint32(s->pktout, DH_MAX_SIZE);
+            }
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
             crWaitUntilV(pktin);
@@ -6667,7 +6694,11 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
         if (!ssh->kex->pdata) {
+            if (!(ssh->remote_bugs & BUG_SSH2_OLDGEX))
+                hash_uint32(ssh->kex->hash, ssh->exhash, DH_MIN_SIZE);
             hash_uint32(ssh->kex->hash, ssh->exhash, s->pbits);
+            if (!(ssh->remote_bugs & BUG_SSH2_OLDGEX))
+                hash_uint32(ssh->kex->hash, ssh->exhash, DH_MAX_SIZE);
             hash_mpint(ssh->kex->hash, ssh->exhash, s->p);
             hash_mpint(ssh->kex->hash, ssh->exhash, s->g);
         }
