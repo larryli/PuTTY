@@ -3130,7 +3130,7 @@ you do the same on Linux, you can also use it with IPv4. However,
 ticking \q{Auto} should always give you a port which you can connect
 to using either protocol.
 
-\H{config-ssh-bugs} \I{SSH server bugs}The Bugs panel
+\H{config-ssh-bugs} \I{SSH server bugs}The Bugs and More Bugs panels
 
 Not all SSH servers work properly. Various existing servers have
 bugs in them, which can make it impossible for a client to talk to
@@ -3144,9 +3144,10 @@ has been deliberately configured to conceal its version number, or
 if the server is a version which PuTTY's bug database does not know
 about, then PuTTY will not know what bugs to expect.
 
-The Bugs panel allows you to manually configure the bugs PuTTY
-expects to see in the server. Each bug can be configured in three
-states:
+The Bugs and More Bugs panels (there are two because we have so many
+bug compatibility modes) allow you to manually configure the bugs
+PuTTY expects to see in the server. Each bug can be configured in
+three states:
 
 \b \q{Off}: PuTTY will assume the server does not have the bug.
 
