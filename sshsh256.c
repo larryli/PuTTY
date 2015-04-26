@@ -307,7 +307,7 @@ static int hmacsha256_verresult(void *handle, unsigned char const *hmac)
 {
     unsigned char correct[32];
     hmacsha256_genresult(handle, correct);
-    return !memcmp(correct, hmac, 32);
+    return smemeq(correct, hmac, 32);
 }
 
 static int sha256_verify(void *handle, unsigned char *blk, int len,
@@ -315,7 +315,7 @@ static int sha256_verify(void *handle, unsigned char *blk, int len,
 {
     unsigned char correct[32];
     sha256_do_hmac(handle, blk, len, seq, correct);
-    return !memcmp(correct, blk + len, 32);
+    return smemeq(correct, blk + len, 32);
 }
 
 const struct ssh_mac ssh_hmac_sha256 = {
