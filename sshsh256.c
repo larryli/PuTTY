@@ -184,6 +184,7 @@ void SHA256_Simple(const void *p, int len, unsigned char *output) {
     SHA256_Init(&s);
     SHA256_Bytes(&s, p, len);
     SHA256_Final(&s, output);
+    smemclr(&s, sizeof(s));
 }
 
 /*
@@ -211,6 +212,7 @@ static void sha256_final(void *handle, unsigned char *output)
     SHA256_State *s = handle;
 
     SHA256_Final(s, output);
+    smemclr(s, sizeof(*s));
     sfree(s);
 }
 
@@ -230,6 +232,7 @@ static void *sha256_make_context(void)
 
 static void sha256_free_context(void *handle)
 {
+    smemclr(handle, 3 * sizeof(SHA256_State));
     sfree(handle);
 }
 

@@ -214,6 +214,7 @@ void SHA_Simple(const void *p, int len, unsigned char *output)
     SHA_Init(&s);
     SHA_Bytes(&s, p, len);
     SHA_Final(&s, output);
+    smemclr(&s, sizeof(s));
 }
 
 /*
@@ -241,6 +242,7 @@ static void sha1_final(void *handle, unsigned char *output)
     SHA_State *s = handle;
 
     SHA_Final(s, output);
+    smemclr(s, sizeof(*s));
     sfree(s);
 }
 
@@ -260,6 +262,7 @@ static void *sha1_make_context(void)
 
 static void sha1_free_context(void *handle)
 {
+    smemclr(handle, 3 * sizeof(SHA_State));
     sfree(handle);
 }
 
