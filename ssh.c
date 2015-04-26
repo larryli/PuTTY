@@ -9538,6 +9538,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
                     logevent("Sent public key signature");
 		    s->type = AUTH_TYPE_PUBLICKEY;
 		    key->alg->freekey(key->data);
+                    sfree(key->comment);
+                    sfree(key);
 		}
 
 #ifndef NO_GSSAPI
