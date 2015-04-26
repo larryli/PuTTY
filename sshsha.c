@@ -400,7 +400,7 @@ const struct ssh_mac ssh_hmac_sha1 = {
     sha1_make_context, sha1_free_context, sha1_key,
     sha1_generate, sha1_verify,
     hmacsha1_start, hmacsha1_bytes, hmacsha1_genresult, hmacsha1_verresult,
-    "hmac-sha1",
+    "hmac-sha1", "hmac-sha1-etm@openssh.com",
     20,
     "HMAC-SHA1"
 };
@@ -410,7 +410,7 @@ const struct ssh_mac ssh_hmac_sha1_96 = {
     sha1_96_generate, sha1_96_verify,
     hmacsha1_start, hmacsha1_bytes,
     hmacsha1_96_genresult, hmacsha1_96_verresult,
-    "hmac-sha1-96",
+    "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
     12,
     "HMAC-SHA1-96"
 };
@@ -419,7 +419,7 @@ const struct ssh_mac ssh_hmac_sha1_buggy = {
     sha1_make_context, sha1_free_context, sha1_key_buggy,
     sha1_generate, sha1_verify,
     hmacsha1_start, hmacsha1_bytes, hmacsha1_genresult, hmacsha1_verresult,
-    "hmac-sha1",
+    "hmac-sha1", NULL,
     20,
     "bug-compatible HMAC-SHA1"
 };
@@ -429,7 +429,7 @@ const struct ssh_mac ssh_hmac_sha1_96_buggy = {
     sha1_96_generate, sha1_96_verify,
     hmacsha1_start, hmacsha1_bytes,
     hmacsha1_96_genresult, hmacsha1_96_verresult,
-    "hmac-sha1-96",
+    "hmac-sha1-96", NULL,
     12,
     "bug-compatible HMAC-SHA1-96"
 };

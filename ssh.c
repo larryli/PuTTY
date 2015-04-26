@@ -768,6 +768,7 @@ struct ssh_tag {
     const struct ssh2_cipher *cscipher, *sccipher;
     void *cs_cipher_ctx, *sc_cipher_ctx;
     const struct ssh_mac *csmac, *scmac;
+    int csmac_etm, scmac_etm;
     void *cs_mac_ctx, *sc_mac_ctx;
     const struct ssh_compress *cscomp, *sccomp;
     void *cs_comp_ctx, *sc_comp_ctx;
@@ -1566,7 +1567,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     st->maclen = ssh->scmac ? ssh->scmac->len : 0;
 
     if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_IS_CBC) &&
-	ssh->scmac) {
+	ssh->scmac && !ssh->scmac_etm) {
 	/*
 	 * When dealing with a CBC-mode cipher, we want to avoid the
 	 * possibility of an attacker's tweaking the ciphertext stream
@@ -1578,6 +1579,11 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	 * length, so we just read data and check the MAC repeatedly,
 	 * and when the MAC passes, see if the length we've got is
 	 * plausible.
+         *
+         * This defence is unnecessary in OpenSSH ETM mode, because
+         * the whole point of ETM mode is that the attacker can't
+         * tweak the ciphertext stream at all without the MAC
+         * detecting it before we decrypt anything.
 	 */
 
 	/* May as well allocate the whole lot now. */
@@ -1632,6 +1638,71 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
 	st->pktin->data = sresize(st->pktin->data,
 				  st->pktin->maxlen + APIEXTRA,
 				  unsigned char);
+    } else if (ssh->scmac && ssh->scmac_etm) {
+	st->pktin->data = snewn(4 + APIEXTRA, unsigned char);
+
+        /*
+         * OpenSSH encrypt-then-MAC mode: the packet length is
+         * unencrypted.
+         */
+	for (st->i = st->len = 0; st->i < 4; st->i++) {
+	    while ((*datalen) == 0)
+		crReturn(NULL);
+	    st->pktin->data[st->i] = *(*data)++;
+	    (*datalen)--;
+	}
+	st->len = toint(GET_32BIT(st->pktin->data));
+
+	/*
+	 * _Completely_ silly lengths should be stomped on before they
+	 * do us any more damage.
+	 */
+	if (st->len < 0 || st->len > OUR_V2_PACKETLIMIT ||
+	    st->len % st->cipherblk != 0) {
+	    bombout(("Incoming packet length field was garbled"));
+	    ssh_free_packet(st->pktin);
+	    crStop(NULL);
+	}
+
+	/*
+	 * So now we can work out the total packet length.
+	 */
+	st->packetlen = st->len + 4;
+
+	/*
+	 * Allocate memory for the rest of the packet.
+	 */
+	st->pktin->maxlen = st->packetlen + st->maclen;
+	st->pktin->data = sresize(st->pktin->data,
+				  st->pktin->maxlen + APIEXTRA,
+				  unsigned char);
+
+	/*
+	 * Read the remainder of the packet.
+	 */
+	for (st->i = 4; st->i < st->packetlen + st->maclen; st->i++) {
+	    while ((*datalen) == 0)
+		crReturn(NULL);
+	    st->pktin->data[st->i] = *(*data)++;
+	    (*datalen)--;
+	}
+
+	/*
+	 * Check the MAC.
+	 */
+	if (ssh->scmac
+	    && !ssh->scmac->verify(ssh->sc_mac_ctx, st->pktin->data,
+				   st->len + 4, st->incoming_sequence)) {
+	    bombout(("Incorrect MAC received on packet"));
+	    ssh_free_packet(st->pktin);
+	    crStop(NULL);
+	}
+
+	/* Decrypt everything between the length field and the MAC. */
+	if (ssh->sccipher)
+	    ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
+				   st->pktin->data + 4,
+				   st->packetlen - 4);
     } else {
 	st->pktin->data = snewn(st->cipherblk + APIEXTRA, unsigned char);
 
@@ -2146,7 +2217,7 @@ static struct Packet *ssh2_pkt_init(int pkt_type)
  */
 static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
 {
-    int cipherblk, maclen, padding, i;
+    int cipherblk, maclen, padding, unencrypted_prefix, i;
 
     if (ssh->logctx)
         ssh2_log_outgoing_packet(ssh, pkt);
@@ -2187,10 +2258,12 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     cipherblk = ssh->cscipher ? ssh->cscipher->blksize : 8;  /* block size */
     cipherblk = cipherblk < 8 ? 8 : cipherblk;	/* or 8 if blksize < 8 */
     padding = 4;
+    unencrypted_prefix = (ssh->csmac && ssh->csmac_etm) ? 4 : 0;
     if (pkt->length + padding < pkt->forcepad)
 	padding = pkt->forcepad - pkt->length;
     padding +=
-	(cipherblk - (pkt->length + padding) % cipherblk) % cipherblk;
+	(cipherblk - (pkt->length - unencrypted_prefix + padding) % cipherblk)
+        % cipherblk;
     assert(padding <= 255);
     maclen = ssh->csmac ? ssh->csmac->len : 0;
     ssh2_pkt_ensure(pkt, pkt->length + padding + maclen);
@@ -2198,16 +2271,30 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     for (i = 0; i < padding; i++)
 	pkt->data[pkt->length + i] = random_byte();
     PUT_32BIT(pkt->data, pkt->length + padding - 4);
-    if (ssh->csmac)
-	ssh->csmac->generate(ssh->cs_mac_ctx, pkt->data,
-			     pkt->length + padding,
-			     ssh->v2_outgoing_sequence);
+    if (ssh->csmac && ssh->csmac_etm) {
+        /*
+         * OpenSSH-defined encrypt-then-MAC protocol.
+         */
+        if (ssh->cscipher)
+            ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
+                                   pkt->data + 4, pkt->length + padding - 4);
+        ssh->csmac->generate(ssh->cs_mac_ctx, pkt->data,
+                             pkt->length + padding,
+                             ssh->v2_outgoing_sequence);
+    } else {
+        /*
+         * SSH-2 standard protocol.
+         */
+        if (ssh->csmac)
+            ssh->csmac->generate(ssh->cs_mac_ctx, pkt->data,
+                                 pkt->length + padding,
+                                 ssh->v2_outgoing_sequence);
+        if (ssh->cscipher)
+            ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
+                                   pkt->data, pkt->length + padding);
+    }
+
     ssh->v2_outgoing_sequence++;       /* whether or not we MACed */
-
-    if (ssh->cscipher)
-	ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
-			       pkt->data, pkt->length + padding);
-
     pkt->encrypted_len = pkt->length + padding;
 
     /* Ready-to-send packet starts at pkt->data. We return length. */
@@ -6072,6 +6159,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	const struct ssh2_cipher *sccipher_tobe;
 	const struct ssh_mac *csmac_tobe;
 	const struct ssh_mac *scmac_tobe;
+        int csmac_etm_tobe, scmac_etm_tobe;
 	const struct ssh_compress *cscomp_tobe;
 	const struct ssh_compress *sccomp_tobe;
 	char *hostkeydata, *sigdata, *rsakeydata, *keystr, *fingerprint;
@@ -6255,8 +6343,15 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	/* List MAC algorithms (client->server then server->client). */
 	for (j = 0; j < 2; j++) {
 	    ssh2_pkt_addstring_start(s->pktout);
-	    for (i = 0; i < s->nmacs; i++)
+	    for (i = 0; i < s->nmacs; i++) {
 		ssh2_pkt_addstring_commasep(s->pktout, s->maclist[i]->name);
+            }
+	    for (i = 0; i < s->nmacs; i++) {
+                /* For each MAC, there may also be an ETM version,
+                 * which we list second. */
+                if (s->maclist[i]->etm_name)
+                    ssh2_pkt_addstring_commasep(s->pktout, s->maclist[i]->etm_name);
+            }
 	}
 	/* List client->server compression algorithms,
 	 * then server->client compression algorithms. (We use the
@@ -6434,9 +6529,25 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	for (i = 0; i < s->nmacs; i++) {
 	    if (in_commasep_string(s->maclist[i]->name, str, len)) {
 		s->csmac_tobe = s->maclist[i];
-		break;
+		s->csmac_etm_tobe = FALSE;
+                break;
 	    }
 	}
+        if (!s->csmac_tobe) {
+            for (i = 0; i < s->nmacs; i++) {
+                if (s->maclist[i]->etm_name &&
+                    in_commasep_string(s->maclist[i]->etm_name, str, len)) {
+                    s->csmac_tobe = s->maclist[i];
+                    s->csmac_etm_tobe = TRUE;
+                    break;
+                }
+            }
+        }
+        if (!s->csmac_tobe) {
+            bombout(("Couldn't agree a client-to-server MAC"
+                     " (available: %.*s)", len, str));
+	    crStopV;
+        }
 	ssh_pkt_getstring(pktin, &str, &len);    /* server->client mac */
         if (!str) {
             bombout(("KEXINIT packet was incomplete"));
@@ -6445,9 +6556,25 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 	for (i = 0; i < s->nmacs; i++) {
 	    if (in_commasep_string(s->maclist[i]->name, str, len)) {
 		s->scmac_tobe = s->maclist[i];
-		break;
+		s->scmac_etm_tobe = FALSE;
+                break;
 	    }
 	}
+        if (!s->scmac_tobe) {
+            for (i = 0; i < s->nmacs; i++) {
+                if (s->maclist[i]->etm_name &&
+                    in_commasep_string(s->maclist[i]->etm_name, str, len)) {
+                    s->scmac_tobe = s->maclist[i];
+                    s->scmac_etm_tobe = TRUE;
+                    break;
+                }
+            }
+        }
+        if (!s->scmac_tobe) {
+            bombout(("Couldn't agree a server-to-client MAC"
+                     " (available: %.*s)", len, str));
+	    crStopV;
+        }
 	ssh_pkt_getstring(pktin, &str, &len);  /* client->server compression */
         if (!str) {
             bombout(("KEXINIT packet was incomplete"));
@@ -7003,6 +7130,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     if (ssh->cs_mac_ctx)
 	ssh->csmac->free_context(ssh->cs_mac_ctx);
     ssh->csmac = s->csmac_tobe;
+    ssh->csmac_etm = s->csmac_etm_tobe;
     ssh->cs_mac_ctx = ssh->csmac->make_context();
 
     if (ssh->cs_comp_ctx)
@@ -7034,8 +7162,9 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
     logeventf(ssh, "Initialised %.200s client->server encryption",
 	      ssh->cscipher->text_name);
-    logeventf(ssh, "Initialised %.200s client->server MAC algorithm",
-	      ssh->csmac->text_name);
+    logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s",
+	      ssh->csmac->text_name,
+              ssh->csmac_etm ? " (in ETM mode)" : "");
     if (ssh->cscomp->text_name)
 	logeventf(ssh, "Initialised %s compression",
 		  ssh->cscomp->text_name);
@@ -7069,6 +7198,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     if (ssh->sc_mac_ctx)
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
     ssh->scmac = s->scmac_tobe;
+    ssh->scmac_etm = s->scmac_etm_tobe;
     ssh->sc_mac_ctx = ssh->scmac->make_context();
 
     if (ssh->sc_comp_ctx)
@@ -7099,8 +7229,9 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
     }
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
-    logeventf(ssh, "Initialised %.200s server->client MAC algorithm",
-	      ssh->scmac->text_name);
+    logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s",
+	      ssh->scmac->text_name,
+              ssh->scmac_etm ? " (in ETM mode)" : "");
     if (ssh->sccomp->text_name)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);

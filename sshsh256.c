@@ -323,7 +323,7 @@ const struct ssh_mac ssh_hmac_sha256 = {
     sha256_generate, sha256_verify,
     hmacsha256_start, hmacsha256_bytes,
     hmacsha256_genresult, hmacsha256_verresult,
-    "hmac-sha2-256",
+    "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
     32,
     "HMAC-SHA-256"
 };

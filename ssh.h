@@ -296,7 +296,7 @@ struct ssh_mac {
     void (*bytes) (void *, unsigned char const *, int);
     void (*genresult) (void *, unsigned char *);
     int (*verresult) (void *, unsigned char const *);
-    char *name;
+    char *name, *etm_name;
     int len;
     char *text_name;
 };
