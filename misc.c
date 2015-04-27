@@ -9,6 +9,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include "putty.h"
+#include "misc.h"
 
 /*
  * Parse a string block size specification. This is approximately a
@@ -1034,4 +1035,37 @@ int smemeq(const void *av, const void *bv, size_t len)
      * will clear bit 8 iff we want to return 0, and leave it set iff
      * we want to return 1, so then we can just shift down. */
     return (0x100 - val) >> 8;
+}
+
+int match_ssh_id(int stringlen, const void *string, const char *id)
+{
+    int idlen = strlen(id);
+    return (idlen == stringlen && !memcmp(string, id, idlen));
+}
+
+void *get_ssh_string(int *datalen, const void **data, int *stringlen)
+{
+    void *ret;
+    int len;
+
+    if (*datalen < 4)
+        return NULL;
+    len = GET_32BIT_MSB_FIRST((const unsigned char *)*data);
+    if (*datalen < len+4)
+        return NULL;
+    ret = (void *)((const char *)*data + 4);
+    *datalen -= len + 4;
+    *data = (const char *)*data + len + 4;
+    *stringlen = len;
+    return ret;
+}
+
+int get_ssh_uint32(int *datalen, const void **data, unsigned *ret)
+{
+    if (*datalen < 4)
+        return FALSE;
+    *ret = GET_32BIT_MSB_FIRST((const unsigned char *)*data);
+    *datalen -= 4;
+    *data = (const char *)*data + 4;
+    return TRUE;
 }
