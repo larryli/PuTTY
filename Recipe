@@ -233,6 +233,10 @@ WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
 UXMISC   = MISC uxstore uxsel uxnet cmdline uxmisc uxproxy time
 OSXMISC  = MISC uxstore uxsel osxsel uxnet uxmisc uxproxy time
 
+# import.c and dependencies, for PuTTYgen-like utilities that have to
+# load foreign key files.
+IMPORT   = import sshbcrypt sshblowf
+
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
 
@@ -274,7 +278,7 @@ pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
-         + sshpubk sshaes sshsh256 sshsh512 import winutils puttygen.res
+         + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp conf LIBS wintime sshecc
          + sshecdsag
 
@@ -293,7 +297,7 @@ plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
 
 puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
-         + sshpubk sshaes sshsh256 sshsh512 import puttygen.res time tree234
+         + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming conf sshecc sshecdsag
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC

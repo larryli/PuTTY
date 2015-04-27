@@ -307,15 +307,165 @@ static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
  * Code to read and write OpenSSH private keys.
  */
 
-enum { OSSH_DSA, OSSH_RSA, OSSH_ECDSA };
-enum { OSSH_ENC_3DES, OSSH_ENC_AES };
+typedef enum {
+    OSSH_DSA, OSSH_RSA, OSSH_ECDSA, OSSH_DUNNO_YET
+} openssh_keytype;
+typedef enum {
+    OSSH_FMT_OLD, OSSH_FMT_NEW
+} openssh_keyfmt;
+typedef enum {
+    OSSH_ENC_3DES, OSSH_ENC_AES
+} openssh_old_enc;
+typedef enum {
+    OSSH_E_NONE, OSSH_E_AES256CBC
+} openssh_new_cipher;
+typedef enum {
+    OSSH_K_NONE, OSSH_K_BCRYPT
+} openssh_new_kdf;
+
 struct openssh_key {
-    int type;
-    int encrypted, encryption;
-    char iv[32];
+    openssh_keytype keytype;
+    openssh_keyfmt keyfmt;
+    int encrypted;
+    union {
+        struct {
+            openssh_old_enc encryption;
+            char iv[32];
+        } old;
+        struct {
+            openssh_new_cipher cipher;
+            openssh_new_kdf kdf;
+            union {
+                struct {
+                    int rounds;
+                    /* This points to a position within keyblob, not a
+                     * separately allocated thing */
+                    const unsigned char *salt;
+                    int saltlen;
+                } bcrypt;
+            } kdfopts;
+            int nkeys, key_wanted;
+            /* This too points to a position within keyblob */
+            unsigned char *privatestr;
+            int privatelen;
+        } new;
+    } u;
     unsigned char *keyblob;
     int keyblob_len, keyblob_size;
 };
+
+static int decrypt_openssh_key(struct openssh_key *key,
+                               const char *passphrase,
+                               char **errmsg)
+{
+    assert(key->encrypted);
+    if (key->keyfmt == OSSH_FMT_OLD) {
+	/*
+	 * Derive encryption key from passphrase and iv/salt:
+	 * 
+	 *  - let block A equal MD5(passphrase || iv)
+	 *  - let block B equal MD5(A || passphrase || iv)
+	 *  - block C would be MD5(B || passphrase || iv) and so on
+	 *  - encryption key is the first N bytes of A || B
+	 *
+	 * (Note that only 8 bytes of the iv are used for key
+	 * derivation, even when the key is encrypted with AES and
+	 * hence there are 16 bytes available.)
+	 */
+	struct MD5Context md5c;
+	unsigned char keybuf[32];
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)key->u.old.iv, 8);
+	MD5Final(keybuf, &md5c);
+
+	MD5Init(&md5c);
+	MD5Update(&md5c, keybuf, 16);
+	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	MD5Update(&md5c, (unsigned char *)key->u.old.iv, 8);
+	MD5Final(keybuf+16, &md5c);
+
+	/*
+	 * Now decrypt the key blob.
+	 */
+	if (key->u.old.encryption == OSSH_ENC_3DES)
+	    des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->u.old.iv,
+				     key->keyblob, key->keyblob_len);
+	else {
+	    void *ctx;
+	    assert(key->u.old.encryption == OSSH_ENC_AES);
+	    ctx = aes_make_context();
+	    aes128_key(ctx, keybuf);
+	    aes_iv(ctx, (unsigned char *)key->u.old.iv);
+	    aes_ssh2_decrypt_blk(ctx, key->keyblob, key->keyblob_len);
+	    aes_free_context(ctx);
+	}
+
+        smemclr(&md5c, sizeof(md5c));
+        smemclr(keybuf, sizeof(keybuf));
+
+        return TRUE;
+    }
+
+    if (key->keyfmt == OSSH_FMT_NEW) {
+        unsigned char keybuf[48];
+        int keysize;
+
+        /*
+         * Construct the decryption key, and decrypt the string.
+         */
+        switch (key->u.new.cipher) {
+          case OSSH_E_NONE:
+            keysize = 0;
+            break;
+          case OSSH_E_AES256CBC:
+            keysize = 48;              /* 32 byte key + 16 byte IV */
+            break;
+          default:
+            assert(0 && "Bad cipher enumeration value");
+        }
+        assert(keysize <= sizeof(keybuf));
+        switch (key->u.new.kdf) {
+          case OSSH_K_NONE:
+            memset(keybuf, 0, keysize);
+            break;
+          case OSSH_K_BCRYPT:
+            openssh_bcrypt(passphrase,
+                           key->u.new.kdfopts.bcrypt.salt,
+                           key->u.new.kdfopts.bcrypt.saltlen,
+                           key->u.new.kdfopts.bcrypt.rounds,
+                           keybuf, keysize);
+            break;
+          default:
+            assert(0 && "Bad kdf enumeration value");
+        }
+        switch (key->u.new.cipher) {
+          case OSSH_E_NONE:
+            break;
+          case OSSH_E_AES256CBC:
+            if (key->u.new.privatelen % 16 != 0) {
+                *errmsg = "private key container length is not a"
+                    " multiple of AES block size\n";
+                return FALSE;
+            }
+            {
+                void *ctx = aes_make_context();
+                aes256_key(ctx, keybuf);
+                aes_iv(ctx, keybuf + 32);
+                aes_ssh2_decrypt_blk(ctx, key->u.new.privatestr,
+                                     key->u.new.privatelen);
+                aes_free_context(ctx);
+            }
+            break;
+          default:
+            assert(0 && "Bad cipher enumeration value");
+        }
+        return TRUE;
+    }
+
+    assert(0 && "Bad key format in decrypt_openssh_key");
+}
 
 static struct openssh_key *load_openssh_key(const Filename *filename,
 					    const char **errmsg_p)
@@ -331,8 +481,6 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
     ret = snew(struct openssh_key);
     ret->keyblob = NULL;
     ret->keyblob_len = ret->keyblob_size = 0;
-    ret->encrypted = 0;
-    memset(ret->iv, 0, sizeof(ret->iv));
 
     fp = f_open(filename, "r", FALSE);
     if (!fp) {
@@ -350,19 +498,36 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	errmsg = "file does not begin with OpenSSH key header";
 	goto error;
     }
-    if (!strcmp(line, "-----BEGIN RSA PRIVATE KEY-----"))
-	ret->type = OSSH_RSA;
-    else if (!strcmp(line, "-----BEGIN DSA PRIVATE KEY-----"))
-	ret->type = OSSH_DSA;
-    else if (!strcmp(line, "-----BEGIN EC PRIVATE KEY-----"))
-        ret->type = OSSH_ECDSA;
-    else {
+    /*
+     * Parse the BEGIN line. For old-format keys, this tells us the
+     * type of the key; for new-format keys, all it tells us is the
+     * format, and we'll find out the key type once we parse the
+     * base64.
+     */
+    if (!strcmp(line, "-----BEGIN RSA PRIVATE KEY-----")) {
+        ret->keyfmt = OSSH_FMT_OLD;
+	ret->keytype = OSSH_RSA;
+    } else if (!strcmp(line, "-----BEGIN DSA PRIVATE KEY-----")) {
+        ret->keyfmt = OSSH_FMT_OLD;
+	ret->keytype = OSSH_DSA;
+    } else if (!strcmp(line, "-----BEGIN EC PRIVATE KEY-----")) {
+        ret->keyfmt = OSSH_FMT_OLD;
+        ret->keytype = OSSH_ECDSA;
+    } else if (!strcmp(line, "-----BEGIN OPENSSH PRIVATE KEY-----")) {
+        ret->keyfmt = OSSH_FMT_NEW;
+        ret->keytype = OSSH_DUNNO_YET;
+    } else {
 	errmsg = "unrecognised key type";
 	goto error;
     }
     smemclr(line, strlen(line));
     sfree(line);
     line = NULL;
+
+    if (ret->keyfmt == OSSH_FMT_OLD) {
+        ret->encrypted = FALSE;
+        memset(ret->u.old.iv, 0, sizeof(ret->u.old.iv));
+    }
 
     headers_done = 0;
     while (1) {
@@ -378,6 +543,10 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	    break;		       /* done */
         }
 	if ((p = strchr(line, ':')) != NULL) {
+            if (ret->keyfmt != OSSH_FMT_OLD) {
+		errmsg = "expected no headers in new-style OpenSSH key format";
+		goto error;
+            }
 	    if (headers_done) {
 		errmsg = "header found in body of key data";
 		goto error;
@@ -391,15 +560,15 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 		}
 		p += 2;
 		if (!strcmp(p, "ENCRYPTED"))
-		    ret->encrypted = 1;
+		    ret->encrypted = TRUE;
 	    } else if (!strcmp(line, "DEK-Info")) {
 		int i, j, ivlen;
 
 		if (!strncmp(p, "DES-EDE3-CBC,", 13)) {
-		    ret->encryption = OSSH_ENC_3DES;
+		    ret->u.old.encryption = OSSH_ENC_3DES;
 		    ivlen = 8;
 		} else if (!strncmp(p, "AES-128-CBC,", 12)) {
-		    ret->encryption = OSSH_ENC_AES;
+		    ret->u.old.encryption = OSSH_ENC_AES;
 		    ivlen = 16;
 		} else {
 		    errmsg = "unsupported cipher";
@@ -411,7 +580,7 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 			errmsg = "expected more iv data in DEK-Info";
 			goto error;
 		    }
-		    ret->iv[i] = j;
+		    ret->u.old.iv[i] = j;
 		    p += 2;
 		}
 		if (*p) {
@@ -466,9 +635,162 @@ static struct openssh_key *load_openssh_key(const Filename *filename,
 	goto error;
     }
 
-    if (ret->encrypted && ret->keyblob_len % 8 != 0) {
-	errmsg = "encrypted key blob is not a multiple of cipher block size";
-	goto error;
+    if (ret->keyfmt == OSSH_FMT_NEW) {
+        /*
+         * If we get here, then we haven't boiled down to a private
+         * key blob after all; we've merely stripped the base64
+         * wrapping from a new-style OpenSSH private key file. Now we
+         * have to parse that in turn, or at least get as far as the
+         * encrypted section.
+         */
+        const void *filedata = ret->keyblob;
+        int filelen = ret->keyblob_len;
+        const void *string, *kdfopts, *bcryptsalt, *pubkey;
+        int stringlen, kdfoptlen, bcryptsaltlen, pubkeylen;
+        unsigned bcryptrounds, nkeys, key_index;
+
+        if (filelen < 15 || 0 != memcmp(filedata, "openssh-key-v1\0", 15)) {
+            errmsg = "new-style OpenSSH magic number missing\n";
+            goto error;
+        }
+        filedata = (const char *)filedata + 15;
+        filelen -= 15;
+
+        if (!(string = get_ssh_string(&filelen, &filedata, &stringlen))) {
+            errmsg = "encountered EOF before cipher name\n";
+            goto error;
+        }
+        if (match_ssh_id(stringlen, string, "none")) {
+            ret->u.new.cipher = OSSH_E_NONE;
+        } else if (match_ssh_id(stringlen, string, "aes256-cbc")) {
+            ret->u.new.cipher = OSSH_E_AES256CBC;
+        } else {
+            errmsg = "unrecognised cipher name\n";
+            goto error;
+        }
+
+        if (!(string = get_ssh_string(&filelen, &filedata, &stringlen))) {
+            errmsg = "encountered EOF before kdf name\n";
+            goto error;
+        }
+        if (match_ssh_id(stringlen, string, "none")) {
+            ret->u.new.kdf = OSSH_K_NONE;
+        } else if (match_ssh_id(stringlen, string, "bcrypt")) {
+            ret->u.new.kdf = OSSH_K_BCRYPT;
+        } else {
+            errmsg = "unrecognised kdf name\n";
+            goto error;
+        }
+
+        if (!(kdfopts = get_ssh_string(&filelen, &filedata, &kdfoptlen))) {
+            errmsg = "encountered EOF before kdf options\n";
+            goto error;
+        }
+        switch (ret->u.new.kdf) {
+          case OSSH_K_NONE:
+            if (kdfoptlen != 0) {
+                errmsg = "expected empty options string for 'none' kdf";
+                goto error;
+            }
+            break;
+          case OSSH_K_BCRYPT:
+            if (!(bcryptsalt = get_ssh_string(&kdfoptlen, &kdfopts,
+                                              &bcryptsaltlen))) {
+                errmsg = "bcrypt options string did not contain salt\n";
+                goto error;
+            }
+            if (!get_ssh_uint32(&kdfoptlen, &kdfopts, &bcryptrounds)) {
+                errmsg = "bcrypt options string did not contain round count\n";
+                goto error;
+            }
+            ret->u.new.kdfopts.bcrypt.salt = bcryptsalt;
+            ret->u.new.kdfopts.bcrypt.saltlen = bcryptsaltlen;
+            ret->u.new.kdfopts.bcrypt.rounds = bcryptrounds;
+            break;
+        }
+
+        ret->encrypted = (ret->u.new.cipher != OSSH_E_NONE);
+
+        /*
+         * At this point we expect a uint32 saying how many keys are
+         * stored in this file. OpenSSH new-style key files can
+         * contain more than one. Currently we don't have any user
+         * interface to specify which one we're trying to extract, so
+         * we just bomb out with an error if more than one is found in
+         * the file. However, I've put in all the mechanism here to
+         * extract the nth one for a given n, in case we later connect
+         * up some UI to that mechanism. Just arrange that the
+         * 'key_wanted' field is set to a value in the range [0,
+         * nkeys) by some mechanism.
+         */
+        if (!get_ssh_uint32(&filelen, &filedata, &nkeys)) {
+            errmsg = "encountered EOF before key count\n";
+            goto error;
+        }
+        if (nkeys != 1) {
+            errmsg = "multiple keys in new-style OpenSSH key file "
+                "not supported\n";
+            goto error;
+        }
+        ret->u.new.nkeys = nkeys;
+        ret->u.new.key_wanted = 0;
+
+        for (key_index = 0; key_index < nkeys; key_index++) {
+            int this_keytype;
+            if (!(pubkey = get_ssh_string(&filelen, &filedata, &pubkeylen))) {
+                errmsg = "encountered EOF before kdf options\n";
+                goto error;
+            }
+            /*
+             * Check the key type, and make sure it's something we
+             * understand.
+             */
+            if (!(string = get_ssh_string(&pubkeylen, &pubkey,
+                                          &stringlen))) {
+                errmsg = "public key did not start with type string\n";
+                goto error;
+            }
+            if (match_ssh_id(stringlen, string, "ssh-rsa")) {
+                this_keytype = OSSH_RSA;
+            } else if (match_ssh_id(stringlen, string, "ssh-dss")) {
+                this_keytype = OSSH_DSA;
+            } else if (match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp256") ||
+                       match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp384") ||
+                       match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp521")) {
+                this_keytype = OSSH_ECDSA;
+            } else {
+                errmsg = "public key did not start with type string\n";
+                goto error;
+            }
+            if (key_index == ret->u.new.key_wanted)
+                ret->keytype = this_keytype;
+        }
+
+        /*
+         * Now we expect a string containing the encrypted part of the
+         * key file.
+         */
+        if (!(string = get_ssh_string(&filelen, &filedata, &stringlen))) {
+            errmsg = "encountered EOF before private key container\n";
+            goto error;
+        }
+        ret->u.new.privatestr = (unsigned char *)string;
+        ret->u.new.privatelen = stringlen;
+
+        /*
+         * And now we're done, until asked to actually decrypt.
+         */
+    }
+
+    if (ret->keyfmt == OSSH_FMT_OLD) {
+        if (ret->encrypted && ret->keyblob_len % 8 != 0) {
+            errmsg = "encrypted key blob is not a multiple of "
+                "cipher block size";
+            goto error;
+        }
     }
 
     smemclr(base64_bit, sizeof(base64_bit));
@@ -531,302 +853,400 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
 	return NULL;
 
     if (key->encrypted) {
-	/*
-	 * Derive encryption key from passphrase and iv/salt:
-	 * 
-	 *  - let block A equal MD5(passphrase || iv)
-	 *  - let block B equal MD5(A || passphrase || iv)
-	 *  - block C would be MD5(B || passphrase || iv) and so on
-	 *  - encryption key is the first N bytes of A || B
-	 *
-	 * (Note that only 8 bytes of the iv are used for key
-	 * derivation, even when the key is encrypted with AES and
-	 * hence there are 16 bytes available.)
-	 */
-	struct MD5Context md5c;
-	unsigned char keybuf[32];
-
-	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, (unsigned char *)key->iv, 8);
-	MD5Final(keybuf, &md5c);
-
-	MD5Init(&md5c);
-	MD5Update(&md5c, keybuf, 16);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, (unsigned char *)key->iv, 8);
-	MD5Final(keybuf+16, &md5c);
-
-	/*
-	 * Now decrypt the key blob.
-	 */
-	if (key->encryption == OSSH_ENC_3DES)
-	    des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->iv,
-				     key->keyblob, key->keyblob_len);
-	else {
-	    void *ctx;
-	    assert(key->encryption == OSSH_ENC_AES);
-	    ctx = aes_make_context();
-	    aes128_key(ctx, keybuf);
-	    aes_iv(ctx, (unsigned char *)key->iv);
-	    aes_ssh2_decrypt_blk(ctx, key->keyblob, key->keyblob_len);
-	    aes_free_context(ctx);
-	}
-
-        smemclr(&md5c, sizeof(md5c));
-        smemclr(keybuf, sizeof(keybuf));
+        if (!decrypt_openssh_key(key, passphrase, &errmsg))
+            goto error;
     }
 
-    /*
-     * Now we have a decrypted key blob, which contains an ASN.1
-     * encoded private key. We must now untangle the ASN.1.
-     *
-     * We expect the whole key blob to be formatted as a SEQUENCE
-     * (0x30 followed by a length code indicating that the rest of
-     * the blob is part of the sequence). Within that SEQUENCE we
-     * expect to see a bunch of INTEGERs. What those integers mean
-     * depends on the key type:
-     *
-     *  - For RSA, we expect the integers to be 0, n, e, d, p, q,
-     *    dmp1, dmq1, iqmp in that order. (The last three are d mod
-     *    (p-1), d mod (q-1), inverse of q mod p respectively.)
-     *
-     *  - For DSA, we expect them to be 0, p, q, g, y, x in that
-     *    order.
-     *
-     *  - In ECDSA the format is totally different: we see the
-     *    SEQUENCE, but beneath is an INTEGER 1, OCTET STRING priv
-     *    EXPLICIT [0] OID curve, EXPLICIT [1] BIT STRING pubPoint
-     */
-    
-    p = key->keyblob;
-
-    /* Expect the SEQUENCE header. Take its absence as a failure to
-     * decrypt, if the key was encrypted. */
-    ret = ber_read_id_len(p, key->keyblob_len, &id, &len, &flags);
-    p += ret;
-    if (ret < 0 || id != 16) {
-	errmsg = "ASN.1 decoding failure";
-        retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-	goto error;
-    }
-
-    /* Expect a load of INTEGERs. */
-    if (key->type == OSSH_RSA)
-	num_integers = 9;
-    else if (key->type == OSSH_DSA)
-	num_integers = 6;
-    else
-	num_integers = 0;	       /* placate compiler warnings */
-
-
-    if (key->type == OSSH_ECDSA)
-    {
-        /* And now for something completely different */
-        unsigned char *priv;
-        int privlen;
-        struct ec_curve *curve;
-        /* Read INTEGER 1 */
-        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-                              &id, &len, &flags);
-        p += ret;
-        if (ret < 0 || id != 2 || key->keyblob+key->keyblob_len-p < len ||
-            len != 1 || p[0] != 1) {
-            errmsg = "ASN.1 decoding failure";
-            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-            goto error;
-        }
-        p += 1;
-        /* Read private key OCTET STRING */
-        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-                              &id, &len, &flags);
-        p += ret;
-        if (ret < 0 || id != 4 || key->keyblob+key->keyblob_len-p < len) {
-            errmsg = "ASN.1 decoding failure";
-            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-            goto error;
-        }
-        priv = p;
-        privlen = len;
-        p += len;
-        /* Read curve OID */
-        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-                              &id, &len, &flags);
-        p += ret;
-        if (ret < 0 || id != 0 || key->keyblob+key->keyblob_len-p < len) {
-            errmsg = "ASN.1 decoding failure";
-            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-            goto error;
-        }
-	ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-			      &id, &len, &flags);
-	p += ret;
-        if (ret < 0 || id != 6 || key->keyblob+key->keyblob_len-p < len) {
-	    errmsg = "ASN.1 decoding failure";
-	    retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-	    goto error;
-	}
-        if (len == 8 && !memcmp(p, nistp256_oid, nistp256_oid_len)) {
-            curve = ec_p256();
-        } else if (len == 5 && !memcmp(p, nistp384_oid, nistp384_oid_len)) {
-            curve = ec_p384();
-        } else if (len == 5 && !memcmp(p, nistp521_oid, nistp521_oid_len)) {
-            curve = ec_p521();
-        } else {
-            errmsg = "Unsupported ECDSA curve.";
-            retval = NULL;
-            goto error;
-        }
-        p += len;
-        /* Read BIT STRING point */
-        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-                              &id, &len, &flags);
-        p += ret;
-        if (ret < 0 || id != 1 || key->keyblob+key->keyblob_len-p < len) {
-            errmsg = "ASN.1 decoding failure";
-            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-            goto error;
-        }
-        ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
-                              &id, &len, &flags);
-        p += ret;
-        if (ret < 0 || id != 3 || key->keyblob+key->keyblob_len-p < len ||
-            len != ((((curve->fieldBits + 7) / 8) * 2) + 2)) {
-            errmsg = "ASN.1 decoding failure";
-            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-            goto error;
-        }
-        p += 1; len -= 1; /* Skip 0x00 before point */
-
-        /* Construct the key */
-        retkey = snew(struct ssh2_userkey);
-        if (!retkey) {
-            errmsg = "out of memory";
-            goto error;
-        }
-        if (curve->fieldBits == 256) {
-            retkey->alg = &ssh_ecdsa_nistp256;
-        } else if (curve->fieldBits == 384) {
-            retkey->alg = &ssh_ecdsa_nistp384;
-        } else {
-            retkey->alg = &ssh_ecdsa_nistp521;
-        }
-        blob = snewn((4+19 + 4+8 + 4+len) + (4+privlen), unsigned char);
-        if (!blob) {
-            sfree(retkey);
-            errmsg = "out of memory";
-            goto error;
-        }
-        PUT_32BIT(blob, 19);
-        sprintf((char*)blob+4, "ecdsa-sha2-nistp%d", curve->fieldBits);
-        PUT_32BIT(blob+4+19, 8);
-        sprintf((char*)blob+4+19+4, "nistp%d", curve->fieldBits);
-        PUT_32BIT(blob+4+19+4+8, len);
-        memcpy(blob+4+19+4+8+4, p, len);
-        PUT_32BIT(blob+4+19+4+8+4+len, privlen);
-        memcpy(blob+4+19+4+8+4+len+4, priv, privlen);
-        retkey->data = retkey->alg->createkey(blob, 4+19+4+8+4+len,
-                                              blob+4+19+4+8+4+len, 4+privlen);
-        if (!retkey->data) {
-            sfree(retkey);
-            errmsg = "unable to create key data structure";
-            goto error;
-        }
-
-    } else if (key->type == OSSH_RSA || key->type == OSSH_DSA) {
-
+    if (key->keyfmt == OSSH_FMT_OLD) {
         /*
-         * Space to create key blob in.
+         * Now we have a decrypted key blob, which contains an ASN.1
+         * encoded private key. We must now untangle the ASN.1.
+         *
+         * We expect the whole key blob to be formatted as a SEQUENCE
+         * (0x30 followed by a length code indicating that the rest of
+         * the blob is part of the sequence). Within that SEQUENCE we
+         * expect to see a bunch of INTEGERs. What those integers mean
+         * depends on the key type:
+         *
+         *  - For RSA, we expect the integers to be 0, n, e, d, p, q,
+         *    dmp1, dmq1, iqmp in that order. (The last three are d mod
+         *    (p-1), d mod (q-1), inverse of q mod p respectively.)
+         *
+         *  - For DSA, we expect them to be 0, p, q, g, y, x in that
+         *    order.
+         *
+         *  - In ECDSA the format is totally different: we see the
+         *    SEQUENCE, but beneath is an INTEGER 1, OCTET STRING priv
+         *    EXPLICIT [0] OID curve, EXPLICIT [1] BIT STRING pubPoint
          */
-        blobsize = 256+key->keyblob_len;
-        blob = snewn(blobsize, unsigned char);
-        PUT_32BIT(blob, 7);
-        if (key->type == OSSH_DSA)
-            memcpy(blob+4, "ssh-dss", 7);
-        else if (key->type == OSSH_RSA)
-            memcpy(blob+4, "ssh-rsa", 7);
-        blobptr = 4+7;
-        privptr = -1;
+    
+        p = key->keyblob;
 
-        for (i = 0; i < num_integers; i++) {
+        /* Expect the SEQUENCE header. Take its absence as a failure to
+         * decrypt, if the key was encrypted. */
+        ret = ber_read_id_len(p, key->keyblob_len, &id, &len, &flags);
+        p += ret;
+        if (ret < 0 || id != 16) {
+            errmsg = "ASN.1 decoding failure";
+            retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+            goto error;
+        }
+
+        /* Expect a load of INTEGERs. */
+        if (key->keytype == OSSH_RSA)
+            num_integers = 9;
+        else if (key->keytype == OSSH_DSA)
+            num_integers = 6;
+        else
+            num_integers = 0;	       /* placate compiler warnings */
+
+
+        if (key->keytype == OSSH_ECDSA) {
+            /* And now for something completely different */
+            unsigned char *priv;
+            int privlen;
+            struct ec_curve *curve;
+            /* Read INTEGER 1 */
             ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                                   &id, &len, &flags);
             p += ret;
-            if (ret < 0 || id != 2 ||
-                key->keyblob+key->keyblob_len-p < len) {
+            if (ret < 0 || id != 2 || key->keyblob+key->keyblob_len-p < len ||
+                len != 1 || p[0] != 1) {
                 errmsg = "ASN.1 decoding failure";
                 retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
-		goto error;
-	    }
+                goto error;
+            }
+            p += 1;
+            /* Read private key OCTET STRING */
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 4 || key->keyblob+key->keyblob_len-p < len) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+                goto error;
+            }
+            priv = p;
+            privlen = len;
+            p += len;
+            /* Read curve OID */
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 0 || key->keyblob+key->keyblob_len-p < len) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+                goto error;
+            }
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 6 || key->keyblob+key->keyblob_len-p < len) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+                goto error;
+            }
+            if (len == 8 && !memcmp(p, nistp256_oid, nistp256_oid_len)) {
+                curve = ec_p256();
+            } else if (len == 5 && !memcmp(p, nistp384_oid,
+                                           nistp384_oid_len)) {
+                curve = ec_p384();
+            } else if (len == 5 && !memcmp(p, nistp521_oid,
+                                           nistp521_oid_len)) {
+                curve = ec_p521();
+            } else {
+                errmsg = "Unsupported ECDSA curve.";
+                retval = NULL;
+                goto error;
+            }
+            p += len;
+            /* Read BIT STRING point */
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 1 || key->keyblob+key->keyblob_len-p < len) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+                goto error;
+            }
+            ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                  &id, &len, &flags);
+            p += ret;
+            if (ret < 0 || id != 3 || key->keyblob+key->keyblob_len-p < len ||
+                len != ((((curve->fieldBits + 7) / 8) * 2) + 2)) {
+                errmsg = "ASN.1 decoding failure";
+                retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
+                goto error;
+            }
+            p += 1; len -= 1; /* Skip 0x00 before point */
 
-            if (i == 0) {
-                /*
-                 * The first integer should be zero always (I think
-                 * this is some sort of version indication).
-                 */
-                if (len != 1 || p[0] != 0) {
-                    errmsg = "version number mismatch";
+            /* Construct the key */
+            retkey = snew(struct ssh2_userkey);
+            if (!retkey) {
+                errmsg = "out of memory";
+                goto error;
+            }
+            if (curve->fieldBits == 256) {
+                retkey->alg = &ssh_ecdsa_nistp256;
+            } else if (curve->fieldBits == 384) {
+                retkey->alg = &ssh_ecdsa_nistp384;
+            } else {
+                retkey->alg = &ssh_ecdsa_nistp521;
+            }
+            blob = snewn((4+19 + 4+8 + 4+len) + (4+privlen), unsigned char);
+            if (!blob) {
+                sfree(retkey);
+                errmsg = "out of memory";
+                goto error;
+            }
+            PUT_32BIT(blob, 19);
+            sprintf((char*)blob+4, "ecdsa-sha2-nistp%d", curve->fieldBits);
+            PUT_32BIT(blob+4+19, 8);
+            sprintf((char*)blob+4+19+4, "nistp%d", curve->fieldBits);
+            PUT_32BIT(blob+4+19+4+8, len);
+            memcpy(blob+4+19+4+8+4, p, len);
+            PUT_32BIT(blob+4+19+4+8+4+len, privlen);
+            memcpy(blob+4+19+4+8+4+len+4, priv, privlen);
+            retkey->data = retkey->alg->createkey(blob, 4+19+4+8+4+len,
+                                                  blob+4+19+4+8+4+len,
+                                                  4+privlen);
+            if (!retkey->data) {
+                sfree(retkey);
+                errmsg = "unable to create key data structure";
+                goto error;
+            }
+
+        } else if (key->keytype == OSSH_RSA || key->keytype == OSSH_DSA) {
+
+            /*
+             * Space to create key blob in.
+             */
+            blobsize = 256+key->keyblob_len;
+            blob = snewn(blobsize, unsigned char);
+            PUT_32BIT(blob, 7);
+            if (key->keytype == OSSH_DSA)
+                memcpy(blob+4, "ssh-dss", 7);
+            else if (key->keytype == OSSH_RSA)
+                memcpy(blob+4, "ssh-rsa", 7);
+            blobptr = 4+7;
+            privptr = -1;
+
+            for (i = 0; i < num_integers; i++) {
+                ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
+                                      &id, &len, &flags);
+                p += ret;
+                if (ret < 0 || id != 2 ||
+                    key->keyblob+key->keyblob_len-p < len) {
+                    errmsg = "ASN.1 decoding failure";
+                    retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
                     goto error;
                 }
-            } else if (key->type == OSSH_RSA) {
-                /*
-                 * Integers 1 and 2 go into the public blob but in the
-                 * opposite order; integers 3, 4, 5 and 8 go into the
-                 * private blob. The other two (6 and 7) are ignored.
-                 */
-                if (i == 1) {
-                    /* Save the details for after we deal with number 2. */
-                    modptr = (char *)p;
-                    modlen = len;
-                } else if (i != 6 && i != 7) {
+
+                if (i == 0) {
+                    /*
+                     * The first integer should be zero always (I think
+                     * this is some sort of version indication).
+                     */
+                    if (len != 1 || p[0] != 0) {
+                        errmsg = "version number mismatch";
+                        goto error;
+                    }
+                } else if (key->keytype == OSSH_RSA) {
+                    /*
+                     * Integers 1 and 2 go into the public blob but in the
+                     * opposite order; integers 3, 4, 5 and 8 go into the
+                     * private blob. The other two (6 and 7) are ignored.
+                     */
+                    if (i == 1) {
+                        /* Save the details for after we deal with number 2. */
+                        modptr = (char *)p;
+                        modlen = len;
+                    } else if (i != 6 && i != 7) {
+                        PUT_32BIT(blob+blobptr, len);
+                        memcpy(blob+blobptr+4, p, len);
+                        blobptr += 4+len;
+                        if (i == 2) {
+                            PUT_32BIT(blob+blobptr, modlen);
+                            memcpy(blob+blobptr+4, modptr, modlen);
+                            blobptr += 4+modlen;
+                            privptr = blobptr;
+                        }
+                    }
+                } else if (key->keytype == OSSH_DSA) {
+                    /*
+                     * Integers 1-4 go into the public blob; integer 5 goes
+                     * into the private blob.
+                     */
                     PUT_32BIT(blob+blobptr, len);
                     memcpy(blob+blobptr+4, p, len);
                     blobptr += 4+len;
-                    if (i == 2) {
-                        PUT_32BIT(blob+blobptr, modlen);
-                        memcpy(blob+blobptr+4, modptr, modlen);
-                        blobptr += 4+modlen;
+                    if (i == 4)
                         privptr = blobptr;
-                    }
                 }
-            } else if (key->type == OSSH_DSA) {
-                /*
-                 * Integers 1-4 go into the public blob; integer 5 goes
-                 * into the private blob.
-                 */
-		PUT_32BIT(blob+blobptr, len);
-		memcpy(blob+blobptr+4, p, len);
-		blobptr += 4+len;
-                if (i == 4)
-		    privptr = blobptr;
-	    }
 
-            /* Skip past the number. */
-            p += len;
-	}
+                /* Skip past the number. */
+                p += len;
+            }
+
+            /*
+             * Now put together the actual key. Simplest way to do this is
+             * to assemble our own key blobs and feed them to the createkey
+             * functions; this is a bit faffy but it does mean we get all
+             * the sanity checks for free.
+             */
+            assert(privptr > 0);          /* should have bombed by now if not */
+            retkey = snew(struct ssh2_userkey);
+            retkey->alg = (key->keytype == OSSH_RSA ? &ssh_rsa : &ssh_dss);
+            retkey->data = retkey->alg->createkey(blob, privptr,
+                                                  blob+privptr,
+                                                  blobptr-privptr);
+            if (!retkey->data) {
+                sfree(retkey);
+                errmsg = "unable to create key data structure";
+                goto error;
+            }
+
+        } else {
+            assert(0 && "Bad key type from load_openssh_key");
+        }
 
         /*
-         * Now put together the actual key. Simplest way to do this is
-         * to assemble our own key blobs and feed them to the createkey
-         * functions; this is a bit faffy but it does mean we get all
-         * the sanity checks for free.
+         * The old key format doesn't include a comment in the private
+         * key file.
          */
-        assert(privptr > 0);          /* should have bombed by now if not */
-        retkey = snew(struct ssh2_userkey);
-        retkey->alg = (key->type == OSSH_RSA ? &ssh_rsa : &ssh_dss);
-        retkey->data = retkey->alg->createkey(blob, privptr,
-                                              blob+privptr, blobptr-privptr);
-        if (!retkey->data) {
-            sfree(retkey);
-            errmsg = "unable to create key data structure";
+        retkey->comment = dupstr("imported-openssh-key");
+    } else if (key->keyfmt == OSSH_FMT_NEW) {
+        unsigned checkint0, checkint1;
+        const void *priv, *string;
+        int privlen, stringlen, key_index;
+        const struct ssh_signkey *alg;
+
+        /*
+         * OpenSSH's new key format. Here we must parse the entire
+         * encrypted section, and extract the key identified by
+         * key_wanted.
+         */
+        priv = key->u.new.privatestr;
+        privlen = key->u.new.privatelen;
+
+        if (!get_ssh_uint32(&privlen, &priv, &checkint0) ||
+            !get_ssh_uint32(&privlen, &priv, &checkint1) ||
+            checkint0 != checkint1) {
+            errmsg = "decryption check failed";
             goto error;
         }
 
+        retkey = NULL;
+        for (key_index = 0; key_index < key->u.new.nkeys; key_index++) {
+            unsigned char *thiskey;
+            openssh_keytype this_keytype;
+            int thiskeylen, npieces;
+
+            /*
+             * Read the key type, which will tell us how to scan over
+             * the key to get to the next one.
+             */
+            if (!(string = get_ssh_string(&privlen, &priv, &stringlen))) {
+                errmsg = "expected key type in private string";
+                goto error;
+            }
+
+            /*
+             * Preliminary key type identification, and decide how
+             * many pieces of key we expect to see. Currently
+             * (conveniently) all key types can be seen as some number
+             * of strings, so we just need to know how many of them to
+             * skip over. (The numbers below exclude the key comment.)
+             */
+            if (match_ssh_id(stringlen, string, "ssh-rsa")) {
+                this_keytype = OSSH_RSA;
+                alg = &ssh_rsa;
+                npieces = 6;           /* n,e,d,iqmp,q,p */
+            } else if (match_ssh_id(stringlen, string, "ssh-dss")) {
+                this_keytype = OSSH_DSA;
+                alg = &ssh_dss;
+                npieces = 5;           /* p,q,g,y,x */
+            } else if (match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp256")) {
+                this_keytype = OSSH_ECDSA;
+                alg = &ssh_ecdsa_nistp256;
+                npieces = 3;      /* curve name, point, private exponent */
+            } else if (match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp384")) {
+                this_keytype = OSSH_ECDSA;
+                alg = &ssh_ecdsa_nistp384;
+                npieces = 3;      /* curve name, point, private exponent */
+            } else if (match_ssh_id(stringlen, string,
+                                    "ecdsa-sha2-nistp521")) {
+                this_keytype = OSSH_ECDSA;
+                alg = &ssh_ecdsa_nistp521;
+                npieces = 3;      /* curve name, point, private exponent */
+            } else {
+                errmsg = "private key did not start with type string\n";
+                goto error;
+            }
+
+            thiskey = (unsigned char *)priv;
+
+            /*
+             * Skip over the pieces of key.
+             */
+            for (i = 0; i < npieces; i++) {
+                if (!(string = get_ssh_string(&privlen, &priv, &stringlen))) {
+                    errmsg = "ran out of data in mid-private-key";
+                    goto error;
+                }
+            }
+
+            thiskeylen = (int)((const unsigned char *)priv -
+                               (const unsigned char *)thiskey);
+            if (key_index == key->u.new.key_wanted) {
+                if (this_keytype != key->keytype) {
+                    errmsg = "public and private key types did not match";
+                    goto error;
+                }
+                retkey = snew(struct ssh2_userkey);
+                retkey->alg = alg;
+                retkey->data = alg->openssh_createkey(&thiskey, &thiskeylen);
+                if (!retkey->data) {
+                    sfree(retkey);
+                    errmsg = "unable to create key data structure";
+                    goto error;
+                }
+            }
+
+            /*
+             * Read the key comment.
+             */
+            if (!(string = get_ssh_string(&privlen, &priv, &stringlen))) {
+                errmsg = "ran out of data at key comment";
+                goto error;
+            }
+            if (key_index == key->u.new.key_wanted) {
+                assert(retkey);
+                retkey->comment = dupprintf("%.*s", stringlen,
+                                            (const char *)string);
+            }
+        }
+
+        if (!retkey) {
+            errmsg = "key index out of range";
+            goto error;
+        }
+
+        /*
+         * Now we expect nothing left but padding.
+         */
+        for (i = 0; i < privlen; i++) {
+            if (((const unsigned char *)priv)[i] != (unsigned char)(i+1)) {
+                errmsg = "padding at end of private string did not match";
+                goto error;
+            }
+        }
     } else {
-        assert(0 && "Bad key type from load_openssh_key");
+        assert(0 && "Bad key format from load_openssh_key");
     }
 
-    retkey->comment = dupstr("imported-openssh-key");
     errmsg = NULL;                     /* no error */
     retval = retkey;
 
