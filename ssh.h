@@ -663,6 +663,10 @@ void des_encrypt_xdmauth(const unsigned char *key,
 void des_decrypt_xdmauth(const unsigned char *key,
                          unsigned char *blk, int len);
 
+void openssh_bcrypt(const char *passphrase,
+                    const unsigned char *salt, int saltbytes,
+                    int rounds, unsigned char *out, int outbytes);
+
 /*
  * For progress updates in the key generation utility.
  */
