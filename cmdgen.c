@@ -920,7 +920,7 @@ int main(int argc, char **argv)
 	outfilename = filename_from_str(outfile ? outfile : "");
 
     switch (outtype) {
-	int ret;
+	int ret, real_outtype;
 
       case PRIVATE:
 	if (sshver == 1) {
@@ -1058,7 +1058,15 @@ int main(int argc, char **argv)
 	assert(ssh2key);
 	random_ref(); /* both foreign key types require randomness,
                        * for IV or padding */
-	ret = export_ssh2(outfilename, outtype, ssh2key, passphrase);
+        switch (outtype) {
+          case OPENSSH:
+            real_outtype = SSH_KEYTYPE_OPENSSH;
+            break;
+          case SSHCOM:
+            real_outtype = SSH_KEYTYPE_SSHCOM;
+            break;
+        }
+	ret = export_ssh2(outfilename, real_outtype, ssh2key, passphrase);
 	if (!ret) {
 	    fprintf(stderr, "puttygen: unable to export key\n");
 	    return 1;
