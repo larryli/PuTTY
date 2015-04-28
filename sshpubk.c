@@ -1157,6 +1157,7 @@ int key_type(const Filename *filename)
     char buf[32];
     const char putty2_sig[] = "PuTTY-User-Key-File-";
     const char sshcom_sig[] = "---- BEGIN SSH2 ENCRYPTED PRIVAT";
+    const char openssh_new_sig[] = "-----BEGIN OPENSSH PRIVATE KEY";
     const char openssh_sig[] = "-----BEGIN ";
     int i;
 
@@ -1173,8 +1174,10 @@ int key_type(const Filename *filename)
 	return SSH_KEYTYPE_SSH1;
     if (!memcmp(buf, putty2_sig, sizeof(putty2_sig)-1))
 	return SSH_KEYTYPE_SSH2;
+    if (!memcmp(buf, openssh_new_sig, sizeof(openssh_new_sig)-1))
+	return SSH_KEYTYPE_OPENSSH_NEW;
     if (!memcmp(buf, openssh_sig, sizeof(openssh_sig)-1))
-	return SSH_KEYTYPE_OPENSSH;
+	return SSH_KEYTYPE_OPENSSH_PEM;
     if (!memcmp(buf, sshcom_sig, sizeof(sshcom_sig)-1))
 	return SSH_KEYTYPE_SSHCOM;
     return SSH_KEYTYPE_UNKNOWN;	       /* unrecognised or EOF */
@@ -1191,7 +1194,8 @@ char *key_type_to_str(int type)
       case SSH_KEYTYPE_UNKNOWN: return "not a private key"; break;
       case SSH_KEYTYPE_SSH1: return "SSH-1 private key"; break;
       case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 private key"; break;
-      case SSH_KEYTYPE_OPENSSH: return "OpenSSH SSH-2 private key"; break;
+      case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 private key (old PEM format)"; break;
+      case SSH_KEYTYPE_OPENSSH_NEW: return "OpenSSH SSH-2 private key (new format)"; break;
       case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 private key"; break;
       default: return "INTERNAL ERROR"; break;
     }

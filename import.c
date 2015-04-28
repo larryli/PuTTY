@@ -15,8 +15,10 @@
 int openssh_encrypted(const Filename *filename);
 struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
 				  const char **errmsg_p);
-int openssh_write(const Filename *filename, struct ssh2_userkey *key,
-		  char *passphrase);
+int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
+                      char *passphrase);
+int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
+                      char *passphrase);
 
 int sshcom_encrypted(const Filename *filename, char **comment);
 struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
@@ -29,7 +31,9 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
  */
 int import_possible(int type)
 {
-    if (type == SSH_KEYTYPE_OPENSSH)
+    if (type == SSH_KEYTYPE_OPENSSH_PEM)
+	return 1;
+    if (type == SSH_KEYTYPE_OPENSSH_NEW)
 	return 1;
     if (type == SSH_KEYTYPE_SSHCOM)
 	return 1;
@@ -54,7 +58,7 @@ int import_target_type(int type)
  */
 int import_encrypted(const Filename *filename, int type, char **comment)
 {
-    if (type == SSH_KEYTYPE_OPENSSH) {
+    if (type == SSH_KEYTYPE_OPENSSH_PEM || type == SSH_KEYTYPE_OPENSSH_NEW) {
 	/* OpenSSH doesn't do key comments */
 	*comment = dupstr(filename_to_str(filename));
 	return openssh_encrypted(filename);
@@ -80,7 +84,7 @@ int import_ssh1(const Filename *filename, int type,
 struct ssh2_userkey *import_ssh2(const Filename *filename, int type,
 				 char *passphrase, const char **errmsg_p)
 {
-    if (type == SSH_KEYTYPE_OPENSSH)
+    if (type == SSH_KEYTYPE_OPENSSH_PEM || type == SSH_KEYTYPE_OPENSSH_NEW)
 	return openssh_read(filename, passphrase, errmsg_p);
     if (type == SSH_KEYTYPE_SSHCOM)
 	return sshcom_read(filename, passphrase, errmsg_p);
@@ -102,8 +106,10 @@ int export_ssh1(const Filename *filename, int type, struct RSAKey *key,
 int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase)
 {
-    if (type == SSH_KEYTYPE_OPENSSH)
-	return openssh_write(filename, key, passphrase);
+    if (type == SSH_KEYTYPE_OPENSSH_PEM)
+	return openssh_pem_write(filename, key, passphrase);
+    if (type == SSH_KEYTYPE_OPENSSH_NEW)
+	return openssh_new_write(filename, key, passphrase);
     if (type == SSH_KEYTYPE_SSHCOM)
 	return sshcom_write(filename, key, passphrase);
     return 0;
@@ -305,6 +311,11 @@ static int ssh2_read_mpint(void *data, int len, struct mpint_pos *ret)
 
 /* ----------------------------------------------------------------------
  * Code to read and write OpenSSH private keys.
+ *
+ * These come in two more or less entirely different formats, except
+ * that the base64 wrapper is similar enough to handle with the same
+ * code. Accordingly, there's just one function to load OpenSSH keys
+ * in both formats, but separate functions to write the two formats.
  */
 
 typedef enum {
@@ -1263,8 +1274,8 @@ struct ssh2_userkey *openssh_read(const Filename *filename, char *passphrase,
     return retval;
 }
 
-int openssh_write(const Filename *filename, struct ssh2_userkey *key,
-		  char *passphrase)
+int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
+                      char *passphrase)
 {
     unsigned char *pubblob, *privblob, *spareblob;
     int publen, privlen, sparelen = 0;
@@ -1624,6 +1635,12 @@ int openssh_write(const Filename *filename, struct ssh2_userkey *key,
         sfree(pubblob);
     }
     return ret;
+}
+
+int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
+                      char *passphrase)
+{
+    return FALSE;
 }
 
 /* ----------------------------------------------------------------------

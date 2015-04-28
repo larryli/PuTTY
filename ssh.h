@@ -630,7 +630,9 @@ enum {
     SSH_KEYTYPE_UNOPENABLE,
     SSH_KEYTYPE_UNKNOWN,
     SSH_KEYTYPE_SSH1, SSH_KEYTYPE_SSH2,
-    SSH_KEYTYPE_OPENSSH, SSH_KEYTYPE_SSHCOM
+    SSH_KEYTYPE_OPENSSH_PEM,
+    SSH_KEYTYPE_OPENSSH_NEW,
+    SSH_KEYTYPE_SSHCOM
 };
 int key_type(const Filename *filename);
 char *key_type_to_str(int type);
