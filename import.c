@@ -270,13 +270,26 @@ static int ber_write_id_len(void *dest, int id, int length, int flags)
     return len;
 }
 
-static int put_string(void *target, void *data, int len)
+static int put_uint32(void *target, unsigned val)
+{
+    unsigned char *d = (unsigned char *)target;
+
+    PUT_32BIT(d, val);
+    return 4;
+}
+
+static int put_string(void *target, const void *data, int len)
 {
     unsigned char *d = (unsigned char *)target;
 
     PUT_32BIT(d, len);
     memcpy(d+4, data, len);
     return len+4;
+}
+
+static int put_string_z(void *target, const char *string)
+{
+    return put_string(target, string, strlen(string));
 }
 
 static int put_mp(void *target, void *data, int len)
@@ -1730,7 +1743,159 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
 int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase)
 {
-    return FALSE;
+    unsigned char *pubblob, *privblob, *outblob, *p;
+    unsigned char *private_section_start, *private_section_length_field;
+    int publen, privlen, commentlen, maxsize, padvalue, i;
+    unsigned checkint;
+    int ret = 0;
+    unsigned char bcrypt_salt[16];
+    const int bcrypt_rounds = 16;
+    FILE *fp;
+
+    /*
+     * Fetch the key blobs and find out the lengths of things.
+     */
+    pubblob = key->alg->public_blob(key->data, &publen);
+    i = key->alg->openssh_fmtkey(key->data, NULL, 0);
+    privblob = snewn(i, unsigned char);
+    privlen = key->alg->openssh_fmtkey(key->data, privblob, i);
+    assert(privlen == i);
+    commentlen = strlen(key->comment);
+
+    /*
+     * Allocate enough space for the full binary key format. No need
+     * to be absolutely precise here.
+     */
+    maxsize = (16 +                    /* magic number */
+               32 +                    /* cipher name string */
+               32 +                    /* kdf name string */
+               64 +                    /* kdf options string */
+               4 +                     /* key count */
+               4+publen +              /* public key string */
+               4 +                     /* string header for private section */
+               8 +                     /* checkint x 2 */
+               4+strlen(key->alg->name) + /* key type string */
+               privlen +               /* private blob */
+               4+commentlen +          /* comment string */
+               16);                    /* padding at end of private section */
+    outblob = snewn(maxsize, unsigned char);
+
+    /*
+     * Construct the cleartext version of the blob.
+     */
+    p = outblob;
+
+    /* Magic number. */
+    memcpy(p, "openssh-key-v1\0", 15);
+    p += 15;
+
+    /* Cipher and kdf names, and kdf options. */
+    if (!passphrase) {
+        memset(bcrypt_salt, 0, sizeof(bcrypt_salt)); /* prevent warnings */
+        p += put_string_z(p, "none");
+        p += put_string_z(p, "none");
+        p += put_string_z(p, "");
+    } else {
+        unsigned char *q;
+        for (i = 0; i < (int)sizeof(bcrypt_salt); i++)
+            bcrypt_salt[i] = random_byte();
+        p += put_string_z(p, "aes256-cbc");
+        p += put_string_z(p, "bcrypt");
+        q = p;
+        p += 4;
+        p += put_string(p, bcrypt_salt, sizeof(bcrypt_salt));
+        p += put_uint32(p, bcrypt_rounds);
+        PUT_32BIT_MSB_FIRST(q, (unsigned)(p - (q+4)));
+    }
+
+    /* Number of keys. */
+    p += put_uint32(p, 1);
+
+    /* Public blob. */
+    p += put_string(p, pubblob, publen);
+
+    /* Begin private section. */
+    private_section_length_field = p;
+    p += 4;
+    private_section_start = p;
+
+    /* checkint. */
+    checkint = 0;
+    for (i = 0; i < 4; i++)
+        checkint = (checkint << 8) + random_byte();
+    p += put_uint32(p, checkint);
+    p += put_uint32(p, checkint);
+
+    /* Private key. The main private blob goes inline, with no string
+     * wrapper. */
+    p += put_string_z(p, key->alg->name);
+    memcpy(p, privblob, privlen);
+    p += privlen;
+
+    /* Comment. */
+    p += put_string_z(p, key->comment);
+
+    /* Pad out the encrypted section. */
+    padvalue = 1;
+    do {
+        *p++ = padvalue++;
+    } while ((p - private_section_start) & 15);
+
+    assert(p - outblob < maxsize);
+
+    /* Go back and fill in the length field for the private section. */
+    PUT_32BIT_MSB_FIRST(private_section_length_field,
+                        p - private_section_start);
+
+    if (passphrase) {
+        /*
+         * Encrypt the private section. We need 48 bytes of key
+         * material: 32 bytes AES key + 16 bytes iv.
+         */
+        unsigned char keybuf[48];
+        void *ctx;
+
+        openssh_bcrypt(passphrase,
+                       bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
+                       keybuf, sizeof(keybuf));
+
+        ctx = aes_make_context();
+        aes256_key(ctx, keybuf);
+        aes_iv(ctx, keybuf + 32);
+        aes_ssh2_encrypt_blk(ctx, private_section_start,
+                             p - private_section_start);
+        aes_free_context(ctx);
+
+        smemclr(keybuf, sizeof(keybuf));
+    }
+
+    /*
+     * And save it. We'll use Unix line endings just in case it's
+     * subsequently transferred in binary mode.
+     */
+    fp = f_open(filename, "wb", TRUE);      /* ensure Unix line endings */
+    if (!fp)
+	goto error;
+    fputs("-----BEGIN OPENSSH PRIVATE KEY-----\n", fp);
+    base64_encode(fp, outblob, p - outblob, 64);
+    fputs("-----END OPENSSH PRIVATE KEY-----\n", fp);
+    fclose(fp);
+    ret = 1;
+
+    error:
+    if (outblob) {
+        smemclr(outblob, maxsize);
+        sfree(outblob);
+    }
+    if (privblob) {
+        smemclr(privblob, privlen);
+        sfree(privblob);
+    }
+    if (pubblob) {
+        smemclr(pubblob, publen);
+        sfree(pubblob);
+    }
+    return ret;
 }
 
 /* ----------------------------------------------------------------------
