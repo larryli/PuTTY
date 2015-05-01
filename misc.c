@@ -755,7 +755,7 @@ void *safemalloc(size_t n, size_t size)
 #else
 	strcpy(str, "Out of memory!");
 #endif
-	modalfatalbox(str);
+	modalfatalbox("%s", str);
     }
 #ifdef MALLOC_LOG
     if (fp)
@@ -797,7 +797,7 @@ void *saferealloc(void *ptr, size_t n, size_t size)
 #else
 	strcpy(str, "Out of memory!");
 #endif
-	modalfatalbox(str);
+	modalfatalbox("%s", str);
     }
 #ifdef MALLOC_LOG
     if (fp)
