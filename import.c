@@ -1629,7 +1629,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     retkey = NULL;
     for (key_index = 0; key_index < key->nkeys; key_index++) {
         unsigned char *thiskey;
-        int thiskeylen, npieces;
+        int thiskeylen;
 
         /*
          * Read the key type, which will tell us how to scan over
@@ -1647,26 +1647,16 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
          * of strings, so we just need to know how many of them to
          * skip over. (The numbers below exclude the key comment.)
          */
-        if (match_ssh_id(stringlen, string, "ssh-rsa")) {
-            alg = &ssh_rsa;
-            npieces = 6;           /* n,e,d,iqmp,q,p */
-        } else if (match_ssh_id(stringlen, string, "ssh-dss")) {
-            alg = &ssh_dss;
-            npieces = 5;           /* p,q,g,y,x */
-        } else if (match_ssh_id(stringlen, string,
-                                "ecdsa-sha2-nistp256")) {
-            alg = &ssh_ecdsa_nistp256;
-            npieces = 3;      /* curve name, point, private exponent */
-        } else if (match_ssh_id(stringlen, string,
-                                "ecdsa-sha2-nistp384")) {
-            alg = &ssh_ecdsa_nistp384;
-            npieces = 3;      /* curve name, point, private exponent */
-        } else if (match_ssh_id(stringlen, string,
-                                "ecdsa-sha2-nistp521")) {
-            alg = &ssh_ecdsa_nistp521;
-            npieces = 3;      /* curve name, point, private exponent */
-        } else {
-            errmsg = "private key did not start with type string\n";
+        {
+            /* find_pubkey_alg needs a zero-terminated copy of the
+             * algorithm name */
+            char *name_zt = dupprintf("%.*s", stringlen, (char *)string);
+            alg = find_pubkey_alg(name_zt);
+            sfree(name_zt);
+        }
+
+        if (!alg) {
+            errmsg = "private key type not recognised\n";
             goto error;
         }
 
@@ -1675,7 +1665,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
         /*
          * Skip over the pieces of key.
          */
-        for (i = 0; i < npieces; i++) {
+        for (i = 0; i < alg->openssh_private_npieces; i++) {
             if (!(string = get_ssh_string(&privlen, &priv, &stringlen))) {
                 errmsg = "ran out of data in mid-private-key";
                 goto error;

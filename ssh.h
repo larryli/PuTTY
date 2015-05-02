@@ -333,6 +333,15 @@ struct ssh_signkey {
 			unsigned char *priv_blob, int priv_len);
     void *(*openssh_createkey) (unsigned char **blob, int *len);
     int (*openssh_fmtkey) (void *key, unsigned char *blob, int len);
+    /* OpenSSH private key blobs, as created by openssh_fmtkey and
+     * consumed by openssh_createkey, always (at least so far...) take
+     * the form of a number of SSH-2 strings / mpints concatenated
+     * end-to-end. Because the new-style OpenSSH private key format
+     * stores those blobs without a containing string wrapper, we need
+     * to know how many strings each one consists of, so that we can
+     * skip over the right number to find the next key in the file.
+     * openssh_private_npieces gives that information. */
+    int openssh_private_npieces;
     int (*pubkey_bits) (void *blob, int len);
     char *(*fingerprint) (void *key);
     int (*verifysig) (void *key, char *sig, int siglen,

@@ -701,6 +701,7 @@ const struct ssh_signkey ssh_dss = {
     dss_createkey,
     dss_openssh_createkey,
     dss_openssh_fmtkey,
+    5 /* p,q,g,y,x */,
     dss_pubkey_bits,
     dss_fingerprint,
     dss_verifysig,

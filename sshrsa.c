@@ -942,6 +942,7 @@ const struct ssh_signkey ssh_rsa = {
     rsa2_createkey,
     rsa2_openssh_createkey,
     rsa2_openssh_fmtkey,
+    6 /* n,e,d,iqmp,q,p */,
     rsa2_pubkey_bits,
     rsa2_fingerprint,
     rsa2_verifysig,
