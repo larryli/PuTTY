@@ -765,3 +765,186 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
     assert(deleted == skey);
     return TRUE;
 }
+
+/* ----------------------------------------------------------------------
+ * The agent plug.
+ */
+
+/*
+ * Coroutine macros similar to, but simplified from, those in ssh.c.
+ */
+#define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
+#define crFinish(z)	} *crLine = 0; return (z); }
+#define crGetChar(c) do                                         \
+    {                                                           \
+        while (len == 0) {                                      \
+            *crLine =__LINE__; return 1; case __LINE__:;        \
+        }                                                       \
+        len--;                                                  \
+        (c) = (unsigned char)*data++;                           \
+    } while (0)
+
+struct pageant_conn_state {
+    const struct plug_function_table *fn;
+    /* the above variable absolutely *must* be the first in this structure */
+
+    Socket connsock;
+    void *logctx;
+    void (*logfn)(void *logctx, const char *fmt, ...);
+    unsigned char lenbuf[4], pktbuf[AGENT_MAX_MSGLEN];
+    unsigned len, got;
+    int real_packet;
+    int crLine;            /* for coroutine in pageant_conn_receive */
+};
+
+static int pageant_conn_closing(Plug plug, const char *error_msg,
+                                int error_code, int calling_back)
+{
+    struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
+    if (error_msg && pc->logfn)
+        pc->logfn(pc->logctx, "Pageant connection socket: %s", error_msg);
+    sk_close(pc->connsock);
+    sfree(pc);
+    return 1;
+}
+
+static void pageant_conn_sent(Plug plug, int bufsize)
+{
+    /* struct pageant_conn_state *pc = (struct pageant_conn_state *)plug; */
+
+    /*
+     * We do nothing here, because we expect that there won't be a
+     * need to throttle and unthrottle the connection to an agent -
+     * clients will typically not send many requests, and will wait
+     * until they receive each reply before sending a new request.
+     */
+}
+
+static int pageant_conn_receive(Plug plug, int urgent, char *data, int len)
+{
+    struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
+    char c;
+
+    crBegin(pc->crLine);
+
+    while (len > 0) {
+        pc->got = 0;
+        while (pc->got < 4) {
+            crGetChar(c);
+            pc->lenbuf[pc->got++] = c;
+        }
+
+        pc->len = GET_32BIT(pc->lenbuf);
+        pc->got = 0;
+        pc->real_packet = (pc->len < AGENT_MAX_MSGLEN-4);
+
+        while (pc->got < pc->len) {
+            crGetChar(c);
+            if (pc->real_packet)
+                pc->pktbuf[pc->got] = c;
+            pc->got++;
+        }
+
+        {
+            void *reply;
+            int replylen;
+
+            if (pc->real_packet) {
+                reply = pageant_handle_msg(pc->pktbuf, pc->len, &replylen);
+            } else {
+                reply = pageant_failure_msg(&replylen);
+            }
+            sk_write(pc->connsock, reply, replylen);
+            smemclr(reply, replylen);
+        }
+    }
+
+    crFinish(1);
+}
+
+struct pageant_listen_state {
+    const struct plug_function_table *fn;
+    /* the above variable absolutely *must* be the first in this structure */
+
+    Socket listensock;
+    void *logctx;
+    void (*logfn)(void *logctx, const char *fmt, ...);
+};
+
+static int pageant_listen_closing(Plug plug, const char *error_msg,
+                                  int error_code, int calling_back)
+{
+    struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
+    if (error_msg && pl->logfn)
+        pl->logfn(pl->logctx, "Pageant listening socket: %s", error_msg);
+    sk_close(pl->listensock);
+    pl->listensock = NULL;
+    return 1;
+}
+
+static int pageant_listen_accepting(Plug plug,
+                                    accept_fn_t constructor, accept_ctx_t ctx)
+{
+    static const struct plug_function_table connection_fn_table = {
+	NULL, /* no log function, because that's for outgoing connections */
+	pageant_conn_closing,
+        pageant_conn_receive,
+        pageant_conn_sent,
+	NULL /* no accepting function, because we've already done it */
+    };
+    struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
+    struct pageant_conn_state *pc;
+    const char *err;
+
+    pc = snew(struct pageant_conn_state);
+    pc->fn = &connection_fn_table;
+    pc->logfn = pl->logfn;
+    pc->logctx = pl->logctx;
+    pc->crLine = 0;
+
+    pc->connsock = constructor(ctx, (Plug) pc);
+    if ((err = sk_socket_error(pc->connsock)) != NULL) {
+        sk_close(pc->connsock);
+        sfree(pc);
+	return TRUE;
+    }
+
+    sk_set_frozen(pc->connsock, 0);
+
+    /* FIXME: can we get any useful peer id info? */
+    if (pl->logfn)
+        pl->logfn(pl->logctx, "Pageant socket connected");
+
+    return 0;
+}
+
+struct pageant_listen_state *pageant_listener_new
+(void *logctx, void (*logfn)(void *logctx, const char *fmt, ...))
+{
+    static const struct plug_function_table listener_fn_table = {
+        NULL, /* no log function, because that's for outgoing connections */
+        pageant_listen_closing,
+        NULL, /* no receive function on a listening socket */
+        NULL, /* no sent function on a listening socket */
+        pageant_listen_accepting
+    };
+
+    struct pageant_listen_state *pl = snew(struct pageant_listen_state);
+    pl->fn = &listener_fn_table;
+    pl->logctx = logctx;
+    pl->logfn = logfn;
+    pl->listensock = NULL;
+    return pl;
+}
+
+void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket sock)
+{
+    pl->listensock = sock;
+}
+
+void pageant_listener_free(struct pageant_listen_state *pl)
+{
+    if (pl->listensock)
+        sk_close(pl->listensock);
+    sfree(pl);
+}

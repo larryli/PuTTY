@@ -65,3 +65,16 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey);
  * empty.
  */
 void keylist_update(void);
+
+/*
+ * Functions to establish a listening socket speaking the SSH agent
+ * protocol. Call pageant_listener_new() to set up a state; then
+ * create a socket using the returned pointer as a Plug; then call
+ * pageant_listener_got_socket() to give the listening state its own
+ * socket pointer.
+ */
+struct pageant_listen_state;
+struct pageant_listen_state *pageant_listener_new
+(void *logctx, void (*logfn)(void *logctx, const char *fmt, ...));
+void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket sock);
+void pageant_listener_free(struct pageant_listen_state *pl);
