@@ -190,7 +190,7 @@ int x11_authcmp(void *av, void *bv)
     }
 }
 
-struct X11Display *x11_setup_display(char *display, Conf *conf)
+struct X11Display *x11_setup_display(const char *display, Conf *conf)
 {
     struct X11Display *disp = snew(struct X11Display);
     char *localcopy;
