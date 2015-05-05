@@ -272,9 +272,9 @@ pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + psftp.res winnojmp LIBS
 
-pageant  : [G] winpgnt sshrsa sshpubk sshdes sshbn sshmd5 version tree234
-         + misc sshaes sshsha winsecur winpgntc sshdss sshsh256 sshsh512
-         + winutils sshecc winmisc winhelp conf pageant.res LIBS
+pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes sshbn sshmd5 version
+	 + tree234 misc sshaes sshsha winsecur winpgntc sshdss sshsh256
+	 + sshsh512 winutils sshecc winmisc winhelp conf pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
