@@ -157,6 +157,7 @@ void cloexec(int);
 void noncloexec(int);
 int nonblock(int);
 int no_nonblock(int);
+char *make_dir_and_check_ours(const char *dirname);
 
 /*
  * Exports from unicode.c.
