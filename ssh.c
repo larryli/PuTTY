@@ -2627,7 +2627,7 @@ static void *ssh_pkt_getdata(struct Packet *pkt, int length)
     return pkt->body + (pkt->savedpos - length);
 }
 static int ssh1_pkt_getrsakey(struct Packet *pkt, struct RSAKey *key,
-			      unsigned char **keystr)
+			      const unsigned char **keystr)
 {
     int j;
 
@@ -3865,7 +3865,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     struct do_ssh1_login_state {
 	int crLine;
 	int len;
-	unsigned char *rsabuf, *keystr1, *keystr2;
+	unsigned char *rsabuf;
+        const unsigned char *keystr1, *keystr2;
 	unsigned long supported_ciphers_mask, supported_auths_mask;
 	int tried_publickey, tried_agent;
 	int tis_auth_refused, ccard_auth_refused;

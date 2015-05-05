@@ -10,10 +10,10 @@
 #include "ssh.h"
 #include "misc.h"
 
-int makekey(unsigned char *data, int len, struct RSAKey *result,
-	    unsigned char **keystr, int order)
+int makekey(const unsigned char *data, int len, struct RSAKey *result,
+	    const unsigned char **keystr, int order)
 {
-    unsigned char *p = data;
+    const unsigned char *p = data;
     int i, n;
 
     if (len < 4)
@@ -59,7 +59,7 @@ int makekey(unsigned char *data, int len, struct RSAKey *result,
     return p - data;
 }
 
-int makeprivate(unsigned char *data, int len, struct RSAKey *result)
+int makeprivate(const unsigned char *data, int len, struct RSAKey *result)
 {
     return ssh1_read_bignum(data, len, &result->private_exponent);
 }
@@ -533,7 +533,8 @@ void freersakey(struct RSAKey *key)
  * Implementation of the ssh-rsa signing key type. 
  */
 
-static void getstring(char **data, int *datalen, char **p, int *length)
+static void getstring(const char **data, int *datalen,
+                      const char **p, int *length)
 {
     *p = NULL;
     if (*datalen < 4)
@@ -549,9 +550,9 @@ static void getstring(char **data, int *datalen, char **p, int *length)
     *data += *length;
     *datalen -= *length;
 }
-static Bignum getmp(char **data, int *datalen)
+static Bignum getmp(const char **data, int *datalen)
 {
-    char *p;
+    const char *p;
     int length;
     Bignum b;
 
@@ -564,9 +565,9 @@ static Bignum getmp(char **data, int *datalen)
 
 static void rsa2_freekey(void *key);   /* forward reference */
 
-static void *rsa2_newkey(char *data, int len)
+static void *rsa2_newkey(const char *data, int len)
 {
-    char *p;
+    const char *p;
     int slen;
     struct RSAKey *rsa;
 
@@ -684,11 +685,11 @@ static unsigned char *rsa2_private_blob(void *key, int *len)
     return blob;
 }
 
-static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
-			    unsigned char *priv_blob, int priv_len)
+static void *rsa2_createkey(const unsigned char *pub_blob, int pub_len,
+			    const unsigned char *priv_blob, int priv_len)
 {
     struct RSAKey *rsa;
-    char *pb = (char *) priv_blob;
+    const char *pb = (const char *) priv_blob;
 
     rsa = rsa2_newkey((char *) pub_blob, pub_len);
     rsa->private_exponent = getmp(&pb, &priv_len);
@@ -704,9 +705,9 @@ static void *rsa2_createkey(unsigned char *pub_blob, int pub_len,
     return rsa;
 }
 
-static void *rsa2_openssh_createkey(unsigned char **blob, int *len)
+static void *rsa2_openssh_createkey(const unsigned char **blob, int *len)
 {
-    char **b = (char **) blob;
+    const char **b = (const char **) blob;
     struct RSAKey *rsa;
 
     rsa = snew(struct RSAKey);
@@ -762,12 +763,12 @@ static int rsa2_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static int rsa2_pubkey_bits(void *blob, int len)
+static int rsa2_pubkey_bits(const void *blob, int len)
 {
     struct RSAKey *rsa;
     int ret;
 
-    rsa = rsa2_newkey((char *) blob, len);
+    rsa = rsa2_newkey((const char *) blob, len);
     ret = bignum_bitcount(rsa->modulus);
     rsa2_freekey(rsa);
 
@@ -840,12 +841,12 @@ static const unsigned char asn1_weird_stuff[] = {
 
 #define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
 
-static int rsa2_verifysig(void *key, char *sig, int siglen,
-			  char *data, int datalen)
+static int rsa2_verifysig(void *key, const char *sig, int siglen,
+			  const char *data, int datalen)
 {
     struct RSAKey *rsa = (struct RSAKey *) key;
     Bignum in, out;
-    char *p;
+    const char *p;
     int slen;
     int bytes, i, j, ret;
     unsigned char hash[20];
@@ -890,7 +891,7 @@ static int rsa2_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-static unsigned char *rsa2_sign(void *key, char *data, int datalen,
+static unsigned char *rsa2_sign(void *key, const char *data, int datalen,
 				int *siglen)
 {
     struct RSAKey *rsa = (struct RSAKey *) key;

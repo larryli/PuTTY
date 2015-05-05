@@ -131,9 +131,9 @@ struct ec_key {
     Bignum privateKey;
 };
 
-int makekey(unsigned char *data, int len, struct RSAKey *result,
-	    unsigned char **keystr, int order);
-int makeprivate(unsigned char *data, int len, struct RSAKey *result);
+int makekey(const unsigned char *data, int len, struct RSAKey *result,
+	    const unsigned char **keystr, int order);
+int makeprivate(const unsigned char *data, int len, struct RSAKey *result);
 int rsaencrypt(unsigned char *data, int length, struct RSAKey *key);
 Bignum rsadecrypt(Bignum input, struct RSAKey *key);
 void rsasign(unsigned char *data, int length, struct RSAKey *key);
@@ -324,14 +324,14 @@ struct ssh_kexes {
 };
 
 struct ssh_signkey {
-    void *(*newkey) (char *data, int len);
+    void *(*newkey) (const char *data, int len);
     void (*freekey) (void *key);
     char *(*fmtkey) (void *key);
     unsigned char *(*public_blob) (void *key, int *len);
     unsigned char *(*private_blob) (void *key, int *len);
-    void *(*createkey) (unsigned char *pub_blob, int pub_len,
-			unsigned char *priv_blob, int priv_len);
-    void *(*openssh_createkey) (unsigned char **blob, int *len);
+    void *(*createkey) (const unsigned char *pub_blob, int pub_len,
+			const unsigned char *priv_blob, int priv_len);
+    void *(*openssh_createkey) (const unsigned char **blob, int *len);
     int (*openssh_fmtkey) (void *key, unsigned char *blob, int len);
     /* OpenSSH private key blobs, as created by openssh_fmtkey and
      * consumed by openssh_createkey, always (at least so far...) take
@@ -342,11 +342,11 @@ struct ssh_signkey {
      * skip over the right number to find the next key in the file.
      * openssh_private_npieces gives that information. */
     int openssh_private_npieces;
-    int (*pubkey_bits) (void *blob, int len);
+    int (*pubkey_bits) (const void *blob, int len);
     char *(*fingerprint) (void *key);
-    int (*verifysig) (void *key, char *sig, int siglen,
-		      char *data, int datalen);
-    unsigned char *(*sign) (void *key, char *data, int datalen,
+    int (*verifysig) (void *key, const char *sig, int siglen,
+		      const char *data, int datalen);
+    unsigned char *(*sign) (void *key, const char *data, int datalen,
 			    int *siglen);
     char *name;
     char *keytype;		       /* for host key cache */

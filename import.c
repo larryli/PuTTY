@@ -1628,7 +1628,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
 
     retkey = NULL;
     for (key_index = 0; key_index < key->nkeys; key_index++) {
-        unsigned char *thiskey;
+        const unsigned char *thiskey;
         int thiskeylen;
 
         /*
@@ -1660,7 +1660,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
             goto error;
         }
 
-        thiskey = (unsigned char *)priv;
+        thiskey = priv;
 
         /*
          * Skip over the pieces of key.

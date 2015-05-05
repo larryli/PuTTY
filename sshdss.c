@@ -37,7 +37,8 @@ static void sha512_mpint(SHA512_State * s, Bignum b)
     smemclr(lenbuf, sizeof(lenbuf));
 }
 
-static void getstring(char **data, int *datalen, char **p, int *length)
+static void getstring(const char **data, int *datalen,
+                      const char **p, int *length)
 {
     *p = NULL;
     if (*datalen < 4)
@@ -53,9 +54,9 @@ static void getstring(char **data, int *datalen, char **p, int *length)
     *data += *length;
     *datalen -= *length;
 }
-static Bignum getmp(char **data, int *datalen)
+static Bignum getmp(const char **data, int *datalen)
 {
-    char *p;
+    const char *p;
     int length;
     Bignum b;
 
@@ -64,18 +65,18 @@ static Bignum getmp(char **data, int *datalen)
 	return NULL;
     if (p[0] & 0x80)
 	return NULL;		       /* negative mp */
-    b = bignum_from_bytes((unsigned char *)p, length);
+    b = bignum_from_bytes((const unsigned char *)p, length);
     return b;
 }
 
-static Bignum get160(char **data, int *datalen)
+static Bignum get160(const char **data, int *datalen)
 {
     Bignum b;
 
     if (*datalen < 20)
         return NULL;
 
-    b = bignum_from_bytes((unsigned char *)*data, 20);
+    b = bignum_from_bytes((const unsigned char *)*data, 20);
     *data += 20;
     *datalen -= 20;
 
@@ -84,9 +85,9 @@ static Bignum get160(char **data, int *datalen)
 
 static void dss_freekey(void *key);    /* forward reference */
 
-static void *dss_newkey(char *data, int len)
+static void *dss_newkey(const char *data, int len)
 {
-    char *p;
+    const char *p;
     int slen;
     struct dss_key *dss;
 
@@ -226,11 +227,11 @@ static char *dss_fingerprint(void *key)
     return ret;
 }
 
-static int dss_verifysig(void *key, char *sig, int siglen,
-			 char *data, int datalen)
+static int dss_verifysig(void *key, const char *sig, int siglen,
+			 const char *data, int datalen)
 {
     struct dss_key *dss = (struct dss_key *) key;
-    char *p;
+    const char *p;
     int slen;
     char hash[20];
     Bignum r, s, w, gu1p, yu2p, gu1yu2p, u1, u2, sha, v;
@@ -402,12 +403,12 @@ static unsigned char *dss_private_blob(void *key, int *len)
     return blob;
 }
 
-static void *dss_createkey(unsigned char *pub_blob, int pub_len,
-			   unsigned char *priv_blob, int priv_len)
+static void *dss_createkey(const unsigned char *pub_blob, int pub_len,
+			   const unsigned char *priv_blob, int priv_len)
 {
     struct dss_key *dss;
-    char *pb = (char *) priv_blob;
-    char *hash;
+    const char *pb = (const char *) priv_blob;
+    const char *hash;
     int hashlen;
     SHA_State s;
     unsigned char digest[20];
@@ -453,9 +454,9 @@ static void *dss_createkey(unsigned char *pub_blob, int pub_len,
     return dss;
 }
 
-static void *dss_openssh_createkey(unsigned char **blob, int *len)
+static void *dss_openssh_createkey(const unsigned char **blob, int *len)
 {
-    char **b = (char **) blob;
+    const char **b = (const char **) blob;
     struct dss_key *dss;
 
     dss = snew(struct dss_key);
@@ -504,12 +505,12 @@ static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static int dss_pubkey_bits(void *blob, int len)
+static int dss_pubkey_bits(const void *blob, int len)
 {
     struct dss_key *dss;
     int ret;
 
-    dss = dss_newkey((char *) blob, len);
+    dss = dss_newkey((const char *) blob, len);
     if (!dss)
         return -1;
     ret = bignum_bitcount(dss->p);
@@ -638,7 +639,8 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
     }
 }
 
-static unsigned char *dss_sign(void *key, char *data, int datalen, int *siglen)
+static unsigned char *dss_sign(void *key, const char *data, int datalen,
+                               int *siglen)
 {
     struct dss_key *dss = (struct dss_key *) key;
     Bignum k, gkp, hash, kinv, hxr, r, s;

@@ -276,7 +276,7 @@ struct ec_curve *ec_p521(void)
     return &curve;
 }
 
-static struct ec_curve *ec_name_to_curve(char *name, int len) {
+static struct ec_curve *ec_name_to_curve(const char *name, int len) {
     if (len == 8 && !memcmp(name, "nistp", 5)) {
         name += 5;
         if (!memcmp(name, "256", 3)) {
@@ -1376,7 +1376,8 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
  * Misc functions
  */
 
-static void getstring(char **data, int *datalen, char **p, int *length)
+static void getstring(const char **data, int *datalen,
+                      const char **p, int *length)
 {
     *p = NULL;
     if (*datalen < 4)
@@ -1393,9 +1394,9 @@ static void getstring(char **data, int *datalen, char **p, int *length)
     *datalen -= *length;
 }
 
-static Bignum getmp(char **data, int *datalen)
+static Bignum getmp(const char **data, int *datalen)
 {
-    char *p;
+    const char *p;
     int length;
 
     getstring(data, datalen, &p, &length);
@@ -1406,7 +1407,7 @@ static Bignum getmp(char **data, int *datalen)
     return bignum_from_bytes((unsigned char *)p, length);
 }
 
-static int decodepoint(char *p, int length, struct ec_point *point)
+static int decodepoint(const char *p, int length, struct ec_point *point)
 {
     if (length < 1 || p[0] != 0x04) /* Only support uncompressed point */
         return 0;
@@ -1444,9 +1445,9 @@ static int decodepoint(char *p, int length, struct ec_point *point)
     return 1;
 }
 
-static int getmppoint(char **data, int *datalen, struct ec_point *point)
+static int getmppoint(const char **data, int *datalen, struct ec_point *point)
 {
-    char *p;
+    const char *p;
     int length;
 
     getstring(data, datalen, &p, &length);
@@ -1474,9 +1475,9 @@ static void ecdsa_freekey(void *key)
     sfree(ec);
 }
 
-static void *ecdsa_newkey(char *data, int len)
+static void *ecdsa_newkey(const char *data, int len)
 {
-    char *p;
+    const char *p;
     int slen;
     struct ec_key *ec;
     struct ec_curve *curve;
@@ -1625,14 +1626,14 @@ static unsigned char *ecdsa_private_blob(void *key, int *len)
     return blob;
 }
 
-static void *ecdsa_createkey(unsigned char *pub_blob, int pub_len,
-                             unsigned char *priv_blob, int priv_len)
+static void *ecdsa_createkey(const unsigned char *pub_blob, int pub_len,
+                             const unsigned char *priv_blob, int priv_len)
 {
     struct ec_key *ec;
     struct ec_point *publicKey;
-    char *pb = (char *) priv_blob;
+    const char *pb = (const char *) priv_blob;
 
-    ec = (struct ec_key*)ecdsa_newkey((char *) pub_blob, pub_len);
+    ec = (struct ec_key*)ecdsa_newkey((const char *) pub_blob, pub_len);
     if (!ec) {
         return NULL;
     }
@@ -1658,10 +1659,10 @@ static void *ecdsa_createkey(unsigned char *pub_blob, int pub_len,
     return ec;
 }
 
-static void *ecdsa_openssh_createkey(unsigned char **blob, int *len)
+static void *ecdsa_openssh_createkey(const unsigned char **blob, int *len)
 {
-    char **b = (char **) blob;
-    char *p;
+    const char **b = (const char **) blob;
+    const char *p;
     int slen;
     struct ec_key *ec;
     struct ec_curve *curve;
@@ -1767,12 +1768,12 @@ static int ecdsa_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static int ecdsa_pubkey_bits(void *blob, int len)
+static int ecdsa_pubkey_bits(const void *blob, int len)
 {
     struct ec_key *ec;
     int ret;
 
-    ec = (struct ec_key*)ecdsa_newkey((char *) blob, len);
+    ec = (struct ec_key*)ecdsa_newkey((const char *) blob, len);
     if (!ec)
         return -1;
     ret = ec->publicKey.curve->fieldBits;
@@ -1834,11 +1835,11 @@ static char *ecdsa_fingerprint(void *key)
     return ret;
 }
 
-static int ecdsa_verifysig(void *key, char *sig, int siglen,
-                           char *data, int datalen)
+static int ecdsa_verifysig(void *key, const char *sig, int siglen,
+                           const char *data, int datalen)
 {
     struct ec_key *ec = (struct ec_key *) key;
-    char *p;
+    const char *p;
     int slen;
     unsigned char digest[512 / 8];
     int digestLen;
@@ -1891,7 +1892,7 @@ static int ecdsa_verifysig(void *key, char *sig, int siglen,
     return ret;
 }
 
-static unsigned char *ecdsa_sign(void *key, char *data, int datalen,
+static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
                                  int *siglen)
 {
     struct ec_key *ec = (struct ec_key *) key;
