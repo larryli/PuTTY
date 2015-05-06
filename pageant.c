@@ -257,20 +257,67 @@ void *pageant_make_keylist2(int *length)
     return ret;
 }
 
-void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
+char *fingerprint_ssh2_blob(const void *blob, int bloblen)
+{
+    unsigned char digest[16];
+    char fingerprint_str[16*3];
+    unsigned stringlen;
+    int i;
+
+    MD5Simple(blob, bloblen, digest);
+    for (i = 0; i < 16; i++)
+        sprintf(fingerprint_str + i*3, "%02x%s", digest[i], i==15 ? "" : ":");
+
+    stringlen = GET_32BIT((const unsigned char *)blob);
+    if (stringlen < bloblen-4)
+        return dupprintf("%.*s %s", (int)stringlen, (const char *)blob + 4,
+                         fingerprint_str);
+    else
+        return dupstr(fingerprint_str);        
+}
+
+static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
+#ifdef __GNUC__
+__attribute__ ((format (printf, 3, 4)))
+#endif
+    ;
+
+static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
+{
+    /*
+     * This is the wrapper that takes a variadic argument list and
+     * turns it into the va_list that the log function really expects.
+     * It's safe to call this with logfn==NULL, because we
+     * double-check that below; but if you're going to do lots of work
+     * before getting here (such as looping, or hashing things) then
+     * you should probably check logfn manually before doing that.
+     */
+    if (logfn) {
+        va_list ap;
+        va_start(ap, fmt);
+        logfn(logctx, fmt, ap);
+        va_end(ap);
+    }
+}
+
+void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
+                         void *logctx, pageant_logfn_t logfn)
 {
     const unsigned char *p = msg;
     const unsigned char *msgend;
     unsigned char *ret = snewn(AGENT_MAX_MSGLEN, unsigned char);
     int type;
+    const char *fail_reason;
 
     msgend = p + msglen;
 
     /*
      * Get the message type.
      */
-    if (msgend < p+1)
+    if (msgend < p+1) {
+        fail_reason = "message contained no type code";
 	goto failure;
+    }
     type = *p++;
 
     switch (type) {
@@ -282,14 +329,28 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    int len;
 	    void *keylist;
 
+            plog(logctx, logfn, "request: SSH1_AGENTC_REQUEST_RSA_IDENTITIES");
+
 	    ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
 	    keylist = pageant_make_keylist1(&len);
 	    if (len + 5 > AGENT_MAX_MSGLEN) {
 		sfree(keylist);
+                fail_reason = "output would exceed max msglen";
 		goto failure;
 	    }
 	    PUT_32BIT(ret, len + 1);
 	    memcpy(ret + 5, keylist, len);
+
+            plog(logctx, logfn, "reply: SSH1_AGENT_RSA_IDENTITIES_ANSWER");
+            if (logfn) {               /* skip this loop if not logging */
+                int i;
+                struct RSAKey *rkey;
+                for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
+                    char fingerprint[128];
+                    rsa_fingerprint(fingerprint, sizeof(fingerprint), rkey);
+                    plog(logctx, logfn, "returned key: %s", fingerprint);
+                }
+            }
 	    sfree(keylist);
 	}
 	break;
@@ -301,14 +362,30 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    int len;
 	    void *keylist;
 
+            plog(logctx, logfn, "request: SSH2_AGENTC_REQUEST_IDENTITIES");
+
 	    ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
 	    keylist = pageant_make_keylist2(&len);
 	    if (len + 5 > AGENT_MAX_MSGLEN) {
 		sfree(keylist);
+                fail_reason = "output would exceed max msglen";
 		goto failure;
 	    }
 	    PUT_32BIT(ret, len + 1);
 	    memcpy(ret + 5, keylist, len);
+
+            plog(logctx, logfn, "reply: SSH2_AGENT_IDENTITIES_ANSWER");
+            if (logfn) {               /* skip this loop if not logging */
+                int i;
+                struct ssh2_userkey *skey;
+                for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
+                    char *fingerprint = skey->alg->fingerprint(skey->data);
+                    plog(logctx, logfn, "returned key: %s %s",
+                         fingerprint, skey->comment);
+                    sfree(fingerprint);
+                }
+            }
+
 	    sfree(keylist);
 	}
 	break;
@@ -325,14 +402,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    struct MD5Context md5c;
 	    int i, len;
 
+            plog(logctx, logfn, "request: SSH1_AGENTC_RSA_CHALLENGE");
+
 	    p += 4;
 	    i = ssh1_read_bignum(p, msgend - p, &reqkey.exponent);
-	    if (i < 0)
+	    if (i < 0) {
+                fail_reason = "request truncated before key exponent";
 		goto failure;
+            }
 	    p += i;
 	    i = ssh1_read_bignum(p, msgend - p, &reqkey.modulus);
 	    if (i < 0) {
                 freebn(reqkey.exponent);
+                fail_reason = "request truncated before key modulus";
 		goto failure;
             }
 	    p += i;
@@ -340,6 +422,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (i < 0) {
                 freebn(reqkey.exponent);
                 freebn(reqkey.modulus);
+                fail_reason = "request truncated before challenge";
 		goto failure;
             }
 	    p += i;
@@ -347,16 +430,36 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 		freebn(reqkey.exponent);
 		freebn(reqkey.modulus);
 		freebn(challenge);
+                fail_reason = "request truncated before session id";
 		goto failure;
 	    }
 	    memcpy(response_source + 32, p, 16);
 	    p += 16;
-	    if (msgend < p+4 ||
-		GET_32BIT(p) != 1 ||
-		(key = find234(rsakeys, &reqkey, NULL)) == NULL) {
+	    if (msgend < p+4) {
 		freebn(reqkey.exponent);
 		freebn(reqkey.modulus);
 		freebn(challenge);
+                fail_reason = "request truncated before response type";
+		goto failure;
+            }
+            if (GET_32BIT(p) != 1) {
+		freebn(reqkey.exponent);
+		freebn(reqkey.modulus);
+		freebn(challenge);
+                fail_reason = "response type other than 1 not supported";
+		goto failure;
+            }
+            if (logfn) {
+                char fingerprint[128];
+                reqkey.comment = NULL;
+                rsa_fingerprint(fingerprint, sizeof(fingerprint), &reqkey);
+                plog(logctx, logfn, "requested key: %s", fingerprint);
+            }
+            if ((key = find234(rsakeys, &reqkey, NULL)) == NULL) {
+		freebn(reqkey.exponent);
+		freebn(reqkey.modulus);
+		freebn(challenge);
+                fail_reason = "key not found";
 		goto failure;
 	    }
 	    response = rsadecrypt(challenge, key);
@@ -380,6 +483,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    PUT_32BIT(ret, len - 4);
 	    ret[4] = SSH1_AGENT_RSA_RESPONSE;
 	    memcpy(ret + 5, response_md5, 16);
+
+            plog(logctx, logfn, "reply: SSH1_AGENT_RSA_RESPONSE");
 	}
 	break;
       case SSH2_AGENTC_SIGN_REQUEST:
@@ -395,24 +500,41 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
             unsigned char *signature;
 	    int datalen, siglen, len;
 
-	    if (msgend < p+4)
+            plog(logctx, logfn, "request: SSH2_AGENTC_SIGN_REQUEST");
+
+	    if (msgend < p+4) {
+                fail_reason = "request truncated before public key";
 		goto failure;
+            }
 	    b.len = toint(GET_32BIT(p));
-            if (b.len < 0 || b.len > msgend - (p+4))
+            if (b.len < 0 || b.len > msgend - (p+4)) {
+                fail_reason = "request truncated before public key";
                 goto failure;
+            }
 	    p += 4;
 	    b.blob = p;
 	    p += b.len;
-	    if (msgend < p+4)
+	    if (msgend < p+4) {
+                fail_reason = "request truncated before string to sign";
 		goto failure;
+            }
 	    datalen = toint(GET_32BIT(p));
 	    p += 4;
-	    if (datalen < 0 || datalen > msgend - p)
+	    if (datalen < 0 || datalen > msgend - p) {
+                fail_reason = "request truncated before string to sign";
 		goto failure;
+            }
 	    data = p;
+            if (logfn) {
+                char *fingerprint = fingerprint_ssh2_blob(b.blob, b.len);
+                plog(logctx, logfn, "requested key: %s", fingerprint);
+                sfree(fingerprint);
+            }
 	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
-	    if (!key)
+	    if (!key) {
+                fail_reason = "key not found";
 		goto failure;
+            }
 	    signature = key->alg->sign(key->data, (const char *)data,
                                        datalen, &siglen);
 	    len = 5 + 4 + siglen;
@@ -421,6 +543,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    PUT_32BIT(ret + 5, siglen);
 	    memcpy(ret + 5 + 4, signature, siglen);
 	    sfree(signature);
+
+            plog(logctx, logfn, "reply: SSH2_AGENT_SIGN_RESPONSE");
 	}
 	break;
       case SSH1_AGENTC_ADD_RSA_IDENTITY:
@@ -433,6 +557,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    char *comment;
             int n, commentlen;
 
+            plog(logctx, logfn, "request: SSH1_AGENTC_ADD_RSA_IDENTITY");
+
 	    key = snew(struct RSAKey);
 	    memset(key, 0, sizeof(struct RSAKey));
 
@@ -440,6 +566,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before public key";
 		goto failure;
 	    }
 	    p += n;
@@ -448,6 +575,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before private key";
 		goto failure;
 	    }
 	    p += n;
@@ -456,6 +584,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before iqmp";
 		goto failure;
 	    }
 	    p += n;
@@ -464,6 +593,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before p";
 		goto failure;
 	    }
 	    p += n;
@@ -472,6 +602,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before q";
 		goto failure;
 	    }
 	    p += n;
@@ -479,6 +610,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (msgend < p+4) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before key comment";
 		goto failure;
 	    }
             commentlen = toint(GET_32BIT(p));
@@ -486,6 +618,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (commentlen < 0 || commentlen > msgend - p) {
 		freersakey(key);
 		sfree(key);
+                fail_reason = "request truncated before key comment";
 		goto failure;
 	    }
 
@@ -495,14 +628,25 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
                 comment[commentlen] = '\0';
 		key->comment = comment;
 	    }
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
+
+            if (logfn) {
+                char fingerprint[128];
+                rsa_fingerprint(fingerprint, sizeof(fingerprint), key);
+                plog(logctx, logfn, "submitted key: %s", fingerprint);
+            }
+
 	    if (add234(rsakeys, key) == key) {
 		keylist_update();
+                PUT_32BIT(ret, 1);
 		ret[4] = SSH_AGENT_SUCCESS;
+
+                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	    } else {
 		freersakey(key);
 		sfree(key);
+
+                fail_reason = "key already present";
+                goto failure;
 	    }
 	}
 	break;
@@ -518,13 +662,18 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    int alglen, commlen;
 	    int bloblen;
 
+            plog(logctx, logfn, "request: SSH2_AGENTC_ADD_IDENTITY");
 
-	    if (msgend < p+4)
+	    if (msgend < p+4) {
+                fail_reason = "request truncated before key algorithm";
 		goto failure;
+            }
 	    alglen = toint(GET_32BIT(p));
 	    p += 4;
-	    if (alglen < 0 || alglen > msgend - p)
+	    if (alglen < 0 || alglen > msgend - p) {
+                fail_reason = "request truncated before key algorithm";
 		goto failure;
+            }
 	    alg = (const char *)p;
 	    p += alglen;
 
@@ -542,6 +691,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
                 key->alg = &ssh_ecdsa_nistp521;
 	    else {
 		sfree(key);
+                fail_reason = "algorithm unknown";
 		goto failure;
 	    }
 
@@ -549,6 +699,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    key->data = key->alg->openssh_createkey(&p, &bloblen);
 	    if (!key->data) {
 		sfree(key);
+                fail_reason = "key setup failed";
 		goto failure;
 	    }
 
@@ -561,6 +712,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (msgend < p+4) {
 		key->alg->freekey(key->data);
 		sfree(key);
+                fail_reason = "request truncated before key comment";
 		goto failure;
 	    }
 	    commlen = toint(GET_32BIT(p));
@@ -569,6 +721,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    if (commlen < 0 || commlen > msgend - p) {
 		key->alg->freekey(key->data);
 		sfree(key);
+                fail_reason = "request truncated before key comment";
 		goto failure;
 	    }
 	    comment = snewn(commlen + 1, char);
@@ -578,15 +731,26 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    }
 	    key->comment = comment;
 
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
+            if (logfn) {
+                char *fingerprint = key->alg->fingerprint(key->data);
+                plog(logctx, logfn, "submitted key: %s %s",
+                     fingerprint, key->comment);
+                sfree(fingerprint);
+            }
+
 	    if (add234(ssh2keys, key) == key) {
 		keylist_update();
+                PUT_32BIT(ret, 1);
 		ret[4] = SSH_AGENT_SUCCESS;
+
+                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	    } else {
 		key->alg->freekey(key->data);
 		sfree(key->comment);
 		sfree(key);
+
+                fail_reason = "key already present";
+                goto failure;
 	    }
 	}
 	break;
@@ -600,22 +764,39 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    struct RSAKey reqkey, *key;
 	    int n;
 
+            plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
+
 	    n = makekey(p, msgend - p, &reqkey, NULL, 0);
-	    if (n < 0)
+	    if (n < 0) {
+                fail_reason = "request truncated before public key";
 		goto failure;
+            }
+
+            if (logfn) {
+                char fingerprint[128];
+                reqkey.comment = NULL;
+                rsa_fingerprint(fingerprint, sizeof(fingerprint), &reqkey);
+                plog(logctx, logfn, "unwanted key: %s", fingerprint);
+            }
 
 	    key = find234(rsakeys, &reqkey, NULL);
 	    freebn(reqkey.exponent);
 	    freebn(reqkey.modulus);
 	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
 	    if (key) {
+                plog(logctx, logfn, "found with comment: %s", key->comment);
+
 		del234(rsakeys, key);
 		keylist_update();
 		freersakey(key);
 		sfree(key);
 		ret[4] = SSH_AGENT_SUCCESS;
-	    }
+
+                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+	    } else {
+                fail_reason = "key not found";
+                goto failure;
+            }
 	}
 	break;
       case SSH2_AGENTC_REMOVE_IDENTITY:
@@ -628,29 +809,44 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	    struct ssh2_userkey *key;
 	    struct blob b;
 
-	    if (msgend < p+4)
+            plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_IDENTITY");
+
+	    if (msgend < p+4) {
+                fail_reason = "request truncated before public key";
 		goto failure;
+            }
 	    b.len = toint(GET_32BIT(p));
 	    p += 4;
 
-	    if (b.len < 0 || b.len > msgend - p)
+	    if (b.len < 0 || b.len > msgend - p) {
+                fail_reason = "request truncated before public key";
 		goto failure;
+            }
 	    b.blob = p;
 	    p += b.len;
 
-	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
-	    if (!key)
-		goto failure;
+            if (logfn) {
+                char *fingerprint = fingerprint_ssh2_blob(b.blob, b.len);
+                plog(logctx, logfn, "unwanted key: %s", fingerprint);
+                sfree(fingerprint);
+            }
 
+	    key = find234(ssh2keys, &b, cmpkeys_ssh2_asymm);
+	    if (!key) {
+                fail_reason = "key not found";
+		goto failure;
+            }
+
+            plog(logctx, logfn, "found with comment: %s", key->comment);
+
+            del234(ssh2keys, key);
+            keylist_update();
+            key->alg->freekey(key->data);
+            sfree(key);
 	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_FAILURE;
-	    if (key) {
-		del234(ssh2keys, key);
-		keylist_update();
-		key->alg->freekey(key->data);
-		sfree(key);
-		ret[4] = SSH_AGENT_SUCCESS;
-	    }
+            ret[4] = SSH_AGENT_SUCCESS;
+
+            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
 	break;
       case SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES:
@@ -659,6 +855,9 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	 */
 	{
 	    struct RSAKey *rkey;
+
+            plog(logctx, logfn, "request:"
+                " SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES");
 
 	    while ((rkey = index234(rsakeys, 0)) != NULL) {
 		del234(rsakeys, rkey);
@@ -669,6 +868,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 
 	    PUT_32BIT(ret, 1);
 	    ret[4] = SSH_AGENT_SUCCESS;
+
+            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
 	break;
       case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
@@ -677,6 +878,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 	 */
 	{
 	    struct ssh2_userkey *skey;
+
+            plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_ALL_IDENTITIES");
 
 	    while ((skey = index234(ssh2keys, 0)) != NULL) {
 		del234(ssh2keys, skey);
@@ -687,15 +890,22 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen)
 
 	    PUT_32BIT(ret, 1);
 	    ret[4] = SSH_AGENT_SUCCESS;
+
+            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
 	break;
       default:
+        plog(logctx, logfn, "request: unknown message type %d", type);
+
+        fail_reason = "unrecognised message";
+        /* fall through */
       failure:
 	/*
 	 * Unrecognised message. Return SSH_AGENT_FAILURE.
 	 */
 	PUT_32BIT(ret, 1);
 	ret[4] = SSH_AGENT_FAILURE;
+        plog(logctx, logfn, "reply: SSH_AGENT_FAILURE (%s)", fail_reason);
 	break;
     }
 
@@ -790,7 +1000,7 @@ struct pageant_conn_state {
 
     Socket connsock;
     void *logctx;
-    void (*logfn)(void *logctx, const char *fmt, ...);
+    pageant_logfn_t logfn;
     unsigned char lenbuf[4], pktbuf[AGENT_MAX_MSGLEN];
     unsigned len, got;
     int real_packet;
@@ -801,8 +1011,10 @@ static int pageant_conn_closing(Plug plug, const char *error_msg,
                                 int error_code, int calling_back)
 {
     struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
-    if (error_msg && pc->logfn)
-        pc->logfn(pc->logctx, "Pageant connection socket: %s", error_msg);
+    if (error_msg)
+        plog(pc->logctx, pc->logfn, "%p: error: %s", pc, error_msg);
+    else
+        plog(pc->logctx, pc->logfn, "%p: connection closed", pc);
     sk_close(pc->connsock);
     sfree(pc);
     return 1;
@@ -818,6 +1030,15 @@ static void pageant_conn_sent(Plug plug, int bufsize)
      * clients will typically not send many requests, and will wait
      * until they receive each reply before sending a new request.
      */
+}
+
+static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
+{
+    /* Wrapper on pc->logfn that prefixes the connection identifier */
+    struct pageant_conn_state *pc = (struct pageant_conn_state *)logctx;
+    char *formatted = dupvprintf(fmt, ap);
+    plog(pc->logctx, pc->logfn, "%p: %s", pc, formatted);
+    sfree(formatted);
 }
 
 static int pageant_conn_receive(Plug plug, int urgent, char *data, int len)
@@ -850,8 +1071,13 @@ static int pageant_conn_receive(Plug plug, int urgent, char *data, int len)
             int replylen;
 
             if (pc->real_packet) {
-                reply = pageant_handle_msg(pc->pktbuf, pc->len, &replylen);
+                reply = pageant_handle_msg(pc->pktbuf, pc->len, &replylen, pc,
+                                           pc->logfn?pageant_conn_log:NULL);
             } else {
+                plog(pc->logctx, pc->logfn, "%p: overlong message (%u)",
+                     pc, pc->len);
+                plog(pc->logctx, pc->logfn, "%p: reply: SSH_AGENT_FAILURE "
+                     "(message too long)", pc);
                 reply = pageant_failure_msg(&replylen);
             }
             sk_write(pc->connsock, reply, replylen);
@@ -868,15 +1094,15 @@ struct pageant_listen_state {
 
     Socket listensock;
     void *logctx;
-    void (*logfn)(void *logctx, const char *fmt, ...);
+    pageant_logfn_t logfn;
 };
 
 static int pageant_listen_closing(Plug plug, const char *error_msg,
                                   int error_code, int calling_back)
 {
     struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
-    if (error_msg && pl->logfn)
-        pl->logfn(pl->logctx, "Pageant listening socket: %s", error_msg);
+    if (error_msg)
+        plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
     sk_close(pl->listensock);
     pl->listensock = NULL;
     return 1;
@@ -912,14 +1138,13 @@ static int pageant_listen_accepting(Plug plug,
     sk_set_frozen(pc->connsock, 0);
 
     /* FIXME: can we get any useful peer id info? */
-    if (pl->logfn)
-        pl->logfn(pl->logctx, "Pageant socket connected");
+    plog(pl->logctx, pl->logfn, "%p: new connection", pc);
 
     return 0;
 }
 
-struct pageant_listen_state *pageant_listener_new
-(void *logctx, void (*logfn)(void *logctx, const char *fmt, ...))
+struct pageant_listen_state *pageant_listener_new(void *logctx,
+                                                  pageant_logfn_t logfn)
 {
     static const struct plug_function_table listener_fn_table = {
         NULL, /* no log function, because that's for outgoing connections */

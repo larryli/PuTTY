@@ -2,6 +2,8 @@
  * pageant.h: header for pageant.c.
  */
 
+#include <stdarg.h>
+
 /*
  * FIXME: it would be nice not to have this arbitrary limit. It's
  * currently needed because the Windows Pageant IPC system needs an
@@ -9,6 +11,8 @@
  * sanity check on incoming messages' length fields.
  */
 #define AGENT_MAX_MSGLEN  8192
+
+typedef void (*pageant_logfn_t)(void *logctx, const char *fmt, va_list ap);
 
 /*
  * Initial setup.
@@ -24,7 +28,8 @@ void pageant_init(void);
  * Returns a fully formatted message as output, *with* its initial
  * length field, and sets *outlen to the full size of that message.
  */
-void *pageant_handle_msg(const void *msg, int msglen, int *outlen);
+void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
+                         void *logctx, pageant_logfn_t logfn);
 
 /*
  * Construct a failure response. Useful for agent front ends which
@@ -74,7 +79,7 @@ void keylist_update(void);
  * socket pointer.
  */
 struct pageant_listen_state;
-struct pageant_listen_state *pageant_listener_new
-(void *logctx, void (*logfn)(void *logctx, const char *fmt, ...));
+struct pageant_listen_state *pageant_listener_new(void *logctx,
+                                                  pageant_logfn_t logfn);
 void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket sock);
 void pageant_listener_free(struct pageant_listen_state *pl);

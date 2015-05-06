@@ -742,7 +742,7 @@ static void answer_msg(void *msgv)
     if (msglen > AGENT_MAX_MSGLEN) {
         reply = pageant_failure_msg(&replylen);
     } else {
-        reply = pageant_handle_msg(msg + 4, msglen, &replylen);
+        reply = pageant_handle_msg(msg + 4, msglen, &replylen, NULL, NULL);
         if (replylen > AGENT_MAX_MSGLEN) {
             smemclr(reply, replylen);
             sfree(reply);

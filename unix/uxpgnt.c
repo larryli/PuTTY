@@ -71,18 +71,15 @@ void cmdline_error(char *p, ...)
     exit(1);
 }
 
-int pageant_logging = FALSE;
-void pageant_log(void *ctx, const char *fmt, ...)
+FILE *pageant_logfp = NULL;
+void pageant_log(void *ctx, const char *fmt, va_list ap)
 {
-    va_list ap;
-
-    if (!pageant_logging)
+    if (!pageant_logfp)
         return;
 
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    va_end(ap);
+    fprintf(pageant_logfp, "pageant: ");
+    vfprintf(pageant_logfp, fmt, ap);
+    fprintf(pageant_logfp, "\n");
 }
 
 /*
@@ -243,6 +240,8 @@ int main(int argc, char **argv)
 	    } else if (!strcmp(p, "--help")) {
                 usage();
                 exit(0);
+            } else if (!strcmp(p, "-v")) {
+                pageant_logfp = stderr;
             } else if (!strcmp(p, "-X")) {
                 life = LIFE_X11;
             } else if (!strcmp(p, "--debug")) {
@@ -299,15 +298,6 @@ int main(int argc, char **argv)
     }
     socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
 
-    pageant_init();
-    pl = pageant_listener_new(NULL, pageant_log);
-    sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
-    if ((err = sk_socket_error(sock)) != NULL) {
-        fprintf(stderr, "pageant: %s: %s\n", socketname, err);
-        exit(1);
-    }
-    pageant_listener_got_socket(pl, sock);
-
     conf = conf_new();
     conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
 
@@ -360,7 +350,7 @@ int main(int argc, char **argv)
         pageant_fork_and_print_env();
     } else if (life == LIFE_DEBUG) {
         pageant_print_env(getpid());
-        pageant_logging = TRUE;
+        pageant_logfp = stdout;
     } else if (life == LIFE_EXEC) {
         pid_t agentpid, pid;
 
@@ -389,6 +379,15 @@ int main(int argc, char **argv)
             termination_pid = pid;
         }
     }
+
+    pageant_init();
+    pl = pageant_listener_new(NULL, pageant_logfp ? pageant_log : NULL);
+    sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
+    if ((err = sk_socket_error(sock)) != NULL) {
+        fprintf(stderr, "pageant: %s: %s\n", socketname, err);
+        exit(1);
+    }
+    pageant_listener_got_socket(pl, sock);
 
     now = GETTICKCOUNT();
 
