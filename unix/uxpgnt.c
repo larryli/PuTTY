@@ -389,15 +389,6 @@ int main(int argc, char **argv)
             termination_pid = pid;
         }
     }
-    /*
-     * FIXME: and if life == LIFE_EXEC, then we use our own pid, but
-     * don't print_env - instead, fork, stuff it in the real
-     * environment, and exec our child.
-     *
-     * FIXME: and hang on, perhaps LIFE_PARENT won't work after all,
-     * because after we fork, of course, our ppid _isn't_ an indicator
-     * of whether the target process has gone away.
-     */
 
     now = GETTICKCOUNT();
 
