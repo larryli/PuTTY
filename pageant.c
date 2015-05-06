@@ -580,6 +580,10 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    p += n;
 
+            /* SSH-1 names p and q the other way round, i.e. we have
+             * the inverse of p mod q and not of q mod p. We swap the
+             * names, because our internal RSA wants iqmp. */
+
 	    n = ssh1_read_bignum(p, msgend - p, &key->iqmp);  /* p^-1 mod q */
 	    if (n < 0) {
 		freersakey(key);
@@ -589,7 +593,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    p += n;
 
-	    n = ssh1_read_bignum(p, msgend - p, &key->p);  /* p */
+	    n = ssh1_read_bignum(p, msgend - p, &key->q);  /* p */
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
@@ -598,7 +602,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    p += n;
 
-	    n = ssh1_read_bignum(p, msgend - p, &key->q);  /* q */
+	    n = ssh1_read_bignum(p, msgend - p, &key->p);  /* q */
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
