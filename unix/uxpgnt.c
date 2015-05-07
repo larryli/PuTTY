@@ -130,28 +130,44 @@ void keylist_update(void)
 
 const char *const appname = "Pageant";
 
-Conf *conf;
-
 char *platform_get_x_display(void) {
     return dupstr(getenv("DISPLAY"));
 }
+
+static int time_to_die = FALSE;
+
+/* Stub functions to permit linking against x11fwd.c. These never get
+ * used, because in LIFE_X11 mode we connect to the X server using a
+ * straightforward Socket and don't try to create an ersatz SSH
+ * forwarding too. */
 int sshfwd_write(struct ssh_channel *c, char *data, int len) { return 0; }
-void sshfwd_write_eof(struct ssh_channel *c) { /* FIXME: notify main loop instead */ exit(0); }
-void sshfwd_unclean_close(struct ssh_channel *c, const char *err) { /* FIXME: notify main loop instead */ exit(1); }
+void sshfwd_write_eof(struct ssh_channel *c) { }
+void sshfwd_unclean_close(struct ssh_channel *c, const char *err) { }
 void sshfwd_unthrottle(struct ssh_channel *c, int bufsize) {}
-Conf *sshfwd_get_conf(struct ssh_channel *c) { return conf; }
+Conf *sshfwd_get_conf(struct ssh_channel *c) { return NULL; }
 void sshfwd_x11_sharing_handover(struct ssh_channel *c,
                                  void *share_cs, void *share_chan,
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len) {}
 void sshfwd_x11_is_local(struct ssh_channel *c) {}
+
+/*
+ * These functions are part of the plug for our connection to the X
+ * display, so they do get called. They needn't actually do anything,
+ * except that x11_closing has to signal back to the main loop that
+ * it's time to terminate.
+ */
 static void x11_log(Plug p, int type, SockAddr addr, int port,
 		    const char *error_msg, int error_code) {}
-static int x11_closing(Plug plug, const char *error_msg, int error_code,
-		       int calling_back) { /* FIXME: notify main loop instead */ exit(0); }
-static int x11_receive(Plug plug, int urgent, char *data, int len) { return 0; }
+static int x11_receive(Plug plug, int urgent, char *data, int len) {return 0;}
 static void x11_sent(Plug plug, int bufsize) {}
+static int x11_closing(Plug plug, const char *error_msg, int error_code,
+		       int calling_back)
+{
+    time_to_die = TRUE;
+    return 1;
+}
 struct X11Connection {
     const struct plug_function_table *fn;
 };
@@ -224,6 +240,7 @@ int main(int argc, char **argv)
     int doing_opts = TRUE;
     char **exec_args = NULL;
     int termination_pid = -1;
+    Conf *conf;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -297,6 +314,14 @@ int main(int argc, char **argv)
         exit(1);
     }
     socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
+    pageant_init();
+    pl = pageant_listener_new();
+    sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
+    if ((err = sk_socket_error(sock)) != NULL) {
+        fprintf(stderr, "pageant: %s: %s\n", socketname, err);
+        exit(1);
+    }
+    pageant_listener_got_socket(pl, sock);
 
     conf = conf_new();
     conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
@@ -380,18 +405,15 @@ int main(int argc, char **argv)
         }
     }
 
-    pageant_init();
-    pl = pageant_listener_new(NULL, pageant_logfp ? pageant_log : NULL);
-    sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
-    if ((err = sk_socket_error(sock)) != NULL) {
-        fprintf(stderr, "pageant: %s: %s\n", socketname, err);
-        exit(1);
-    }
-    pageant_listener_got_socket(pl, sock);
+    /*
+     * Now we've decided on our logging arrangements, pass them on to
+     * pageant.c.
+     */
+    pageant_listener_set_logfn(pl, NULL, pageant_logfp ? pageant_log : NULL);
 
     now = GETTICKCOUNT();
 
-    while (1) {
+    while (!time_to_die) {
 	fd_set rset, wset, xset;
 	int maxfd;
 	int rwx;
@@ -493,14 +515,23 @@ int main(int argc, char **argv)
                 int status;
                 pid_t pid;
                 pid = waitpid(-1, &status, WNOHANG);
-                if (pid == 0)
+                if (pid <= 0)
                     break;
                 if (pid == termination_pid)
-                    exit(0);
+                    time_to_die = TRUE;
             }
         }
 
         run_toplevel_callbacks();
+    }
+
+    /*
+     * When we come here, we're terminating, and should clean up our
+     * Unix socket file if possible.
+     */
+    if (unlink(socketname) < 0) {
+        fprintf(stderr, "pageant: %s: %s\n", socketname, strerror(errno));
+        exit(1);
     }
 
     return 0;

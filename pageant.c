@@ -1147,8 +1147,7 @@ static int pageant_listen_accepting(Plug plug,
     return 0;
 }
 
-struct pageant_listen_state *pageant_listener_new(void *logctx,
-                                                  pageant_logfn_t logfn)
+struct pageant_listen_state *pageant_listener_new(void)
 {
     static const struct plug_function_table listener_fn_table = {
         NULL, /* no log function, because that's for outgoing connections */
@@ -1160,8 +1159,8 @@ struct pageant_listen_state *pageant_listener_new(void *logctx,
 
     struct pageant_listen_state *pl = snew(struct pageant_listen_state);
     pl->fn = &listener_fn_table;
-    pl->logctx = logctx;
-    pl->logfn = logfn;
+    pl->logctx = NULL;
+    pl->logfn = NULL;
     pl->listensock = NULL;
     return pl;
 }
@@ -1169,6 +1168,13 @@ struct pageant_listen_state *pageant_listener_new(void *logctx,
 void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket sock)
 {
     pl->listensock = sock;
+}
+
+void pageant_listener_set_logfn(struct pageant_listen_state *pl,
+                                void *logctx, pageant_logfn_t logfn)
+{
+    pl->logctx = logctx;
+    pl->logfn = logfn;
 }
 
 void pageant_listener_free(struct pageant_listen_state *pl)
