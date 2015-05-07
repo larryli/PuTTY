@@ -954,12 +954,12 @@ int pageant_count_ssh2_keys(void)
 
 int pageant_add_ssh1_key(struct RSAKey *rkey)
 {
-    return add234(rsakeys, rkey) != rkey;
+    return add234(rsakeys, rkey) == rkey;
 }
 
 int pageant_add_ssh2_key(struct ssh2_userkey *skey)
 {
-    return add234(ssh2keys, skey) != skey;
+    return add234(ssh2keys, skey) == skey;
 }
 
 int pageant_delete_ssh1_key(struct RSAKey *rkey)
