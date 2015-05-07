@@ -557,20 +557,25 @@ struct ssh2_userkey ssh2_wrong_passphrase = {
     NULL, NULL, NULL
 };
 
-const struct ssh_signkey *find_pubkey_alg(const char *name)
+const struct ssh_signkey *find_pubkey_alg_len(int namelen, const char *name)
 {
-    if (!strcmp(name, "ssh-rsa"))
+    if (match_ssh_id(namelen, name, "ssh-rsa"))
 	return &ssh_rsa;
-    else if (!strcmp(name, "ssh-dss"))
+    else if (match_ssh_id(namelen, name, "ssh-dss"))
 	return &ssh_dss;
-    else if (!strcmp(name, "ecdsa-sha2-nistp256"))
+    else if (match_ssh_id(namelen, name, "ecdsa-sha2-nistp256"))
         return &ssh_ecdsa_nistp256;
-    else if (!strcmp(name, "ecdsa-sha2-nistp384"))
+    else if (match_ssh_id(namelen, name, "ecdsa-sha2-nistp384"))
         return &ssh_ecdsa_nistp384;
-    else if (!strcmp(name, "ecdsa-sha2-nistp521"))
+    else if (match_ssh_id(namelen, name, "ecdsa-sha2-nistp521"))
         return &ssh_ecdsa_nistp521;
     else
 	return NULL;
+}
+
+const struct ssh_signkey *find_pubkey_alg(const char *name)
+{
+    return find_pubkey_alg_len(strlen(name), name);
 }
 
 struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,

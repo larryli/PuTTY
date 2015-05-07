@@ -682,18 +682,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    p += alglen;
 
 	    key = snew(struct ssh2_userkey);
-	    /* Add further algorithm names here. */
-	    if (alglen == 7 && !memcmp(alg, "ssh-rsa", 7))
-		key->alg = &ssh_rsa;
-	    else if (alglen == 7 && !memcmp(alg, "ssh-dss", 7))
-		key->alg = &ssh_dss;
-            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp256", 19))
-                key->alg = &ssh_ecdsa_nistp256;
-            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp384", 19))
-                key->alg = &ssh_ecdsa_nistp384;
-            else if (alglen == 19 && memcmp(alg, "ecdsa-sha2-nistp521", 19))
-                key->alg = &ssh_ecdsa_nistp521;
-	    else {
+            key->alg = find_pubkey_alg_len(alglen, alg);
+	    if (!key->alg) {
 		sfree(key);
                 fail_reason = "algorithm unknown";
 		goto failure;

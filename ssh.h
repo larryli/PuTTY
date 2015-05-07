@@ -634,6 +634,7 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase);
 const struct ssh_signkey *find_pubkey_alg(const char *name);
+const struct ssh_signkey *find_pubkey_alg_len(int namelen, const char *name);
 
 enum {
     SSH_KEYTYPE_UNOPENABLE,
