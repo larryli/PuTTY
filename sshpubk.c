@@ -1178,12 +1178,12 @@ int key_type(const Filename *filename)
 char *key_type_to_str(int type)
 {
     switch (type) {
-      case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;
-      case SSH_KEYTYPE_UNKNOWN: return "not a private key"; break;
-      case SSH_KEYTYPE_SSH1: return "SSH-1 private key"; break;
-      case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 private key"; break;
-      case SSH_KEYTYPE_OPENSSH: return "OpenSSH SSH-2 private key"; break;
-      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 private key"; break;
+      case SSH_KEYTYPE_UNOPENABLE: return "无法打开文件"; break;
+      case SSH_KEYTYPE_UNKNOWN: return "不是私钥"; break;
+      case SSH_KEYTYPE_SSH1: return "SSH-1 私钥"; break;
+      case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 私钥"; break;
+      case SSH_KEYTYPE_OPENSSH: return "OpenSSH SSH-2 私钥"; break;
+      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 私钥"; break;
       default: return "INTERNAL ERROR"; break;
     }
 }

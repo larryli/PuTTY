@@ -256,7 +256,7 @@ static void start_backend(void)
 		       conf_get_int(conf, CONF_tcp_keepalives));
     back->provide_logctx(backhandle, logctx);
     if (error) {
-	char *str = dupprintf("%s Error", appname);
+	char *str = dupprintf("%s 错误", appname);
 	sprintf(msg, "Unable to open connection to\n"
 		"%.800s\n" "%s", conf_dest(conf), error);
 	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
@@ -326,7 +326,7 @@ static void close_session(void *ignored_context)
     for (i = 0; i < lenof(popup_menus); i++) {
 	DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
-		   IDM_RESTART, "&Restart Session");
+		   IDM_RESTART, "重启会话(&R)");
     }
 }
 
@@ -351,7 +351,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     if (!init_winver())
     {
-	char *str = dupprintf("%s Fatal Error", appname);
+	char *str = dupprintf("%s 致命错误", appname);
 	MessageBox(NULL, "Windows refuses to report a version",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
@@ -379,7 +379,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     hr = CoInitialize(NULL);
     if (hr != S_OK && hr != S_FALSE) {
-        char *str = dupprintf("%s Fatal Error", appname);
+        char *str = dupprintf("%s 致命错误", appname);
 	MessageBox(NULL, "Failed to initialize COM subsystem",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
@@ -508,9 +508,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 				       "currently logged-in user.)\n"
 				       "\n"
 				       "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
-				       "Are you really sure you want to continue?",
+				       "真的确定要继续么？",
 				       appname);
-			s2 = dupprintf("%s Warning", appname);
+			s2 = dupprintf("%s 警告", appname);
 		    }
 		    if (message_box(s1, s2,
 				    MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
@@ -789,7 +789,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, FALSE);
 	popup_menus[CTXMENU].menu = CreatePopupMenu();
-	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "粘贴(&P)");
 
 	savedsess_menu = CreateMenu();
 	get_sesslist(&sesslist, TRUE);
@@ -799,25 +799,25 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    m = popup_menus[j].menu;
 
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "&Event Log");
+	    AppendMenu(m, MF_ENABLED, IDM_SHOWLOG, "事件日志记录(&E)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "Ne&w Session...");
-	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "&Duplicate Session");
+	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "新会话(&W)...");
+	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "复制会话(&D)");
 	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT) savedsess_menu,
-		       "Sa&ved Sessions");
-	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "Chan&ge Settings...");
+		       "保存会话(&V)");
+	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
-	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "C&opy All to Clipboard");
-	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "C&lear Scrollback");
-	    AppendMenu(m, MF_ENABLED, IDM_RESET, "Rese&t Terminal");
+	    AppendMenu(m, MF_ENABLED, IDM_COPYALL, "复制所有内容到剪贴板(&O)");
+	    AppendMenu(m, MF_ENABLED, IDM_CLRSB, "清除滚动条(&L)");
+	    AppendMenu(m, MF_ENABLED, IDM_RESET, "重启终端(&T)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, (conf_get_int(conf, CONF_resize_action)
 			   == RESIZE_DISABLED) ? MF_GRAYED : MF_ENABLED,
-		       IDM_FULLSCREEN, "&Full Screen");
+		       IDM_FULLSCREEN, "全屏(&F)");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    if (has_help())
-		AppendMenu(m, MF_ENABLED, IDM_HELP, "&Help");
-	    str = dupprintf("&About %s", appname);
+		AppendMenu(m, MF_ENABLED, IDM_HELP, "帮助(&H)");
+	    str = dupprintf("关于 %s(&A)", appname);
 	    AppendMenu(m, MF_ENABLED, IDM_ABOUT, str);
 	    sfree(str);
 	}
@@ -974,7 +974,7 @@ static void update_savedsess_menu(void)
 		   IDM_SAVED_MIN + (i-1)*MENU_SAVED_STEP,
 		   sesslist.sessions[i]);
     if (sesslist.nsessions <= 1)
-	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(No sessions)");
+	AppendMenu(savedsess_menu, MF_GRAYED, IDM_SAVED_MIN, "(没有会话)");
 }
 
 /*
@@ -1039,7 +1039,7 @@ void update_specials_menu(void *frontend)
 	if (new_menu) {
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_POPUP | MF_ENABLED,
-		       (UINT) new_menu, "S&pecial Command");
+		       (UINT) new_menu, "指定命令(&P)");
 	    InsertMenu(popup_menus[j].menu, IDM_SHOWLOG,
 		       MF_BYCOMMAND | MF_SEPARATOR, IDM_SPECIALSEP, 0);
 	}
@@ -2069,10 +2069,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	{
 	    char *str;
 	    show_mouseptr(1);
-	    str = dupprintf("%s Exit Confirmation", appname);
+	    str = dupprintf("%s 退出确认", appname);
 	    if (session_closed || !conf_get_int(conf, CONF_warn_on_close) ||
 		MessageBox(hwnd,
-			   "Are you sure you want to close this session?",
+			   "确定要关闭本会话么？",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);

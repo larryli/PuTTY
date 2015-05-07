@@ -35,16 +35,16 @@ BEGIN
     BLOCK "StringFileInfo"
     BEGIN
 	/* "lang-charset" LLLLCCCC = (UK English, Unicode) */
-	BLOCK "080904B0"
+	BLOCK "080404B0"
 	BEGIN
 	    VALUE "CompanyName",	"Simon Tatham"  /* required :/ */
-	    VALUE "ProductName",	"PuTTY suite"
+	    VALUE "ProductName",	"PuTTY 套件"
 	    VALUE "FileDescription",	APPDESC
 	    VALUE "InternalName",	APPNAME
 	    VALUE "OriginalFilename",	APPNAME
 	    VALUE "FileVersion",	TEXTVER
 	    VALUE "ProductVersion",	TEXTVER
-	    VALUE "LegalCopyright",	"Copyright \251 1997-2015 Simon Tatham."
+	    VALUE "LegalCopyright",	"版权所有(C) 1997-2015 Simon Tatham."
 #if (!defined SNAPSHOT) && (!defined RELEASE) && (!defined PRERELEASE)
 	    /* Only if VS_FF_PRIVATEBUILD. */
 	    VALUE "PrivateBuild",	TEXTVER /* NBI */
@@ -54,6 +54,6 @@ BEGIN
     BLOCK "VarFileInfo"
     BEGIN
 	/* Once again -- same meanings -- apparently necessary */
-	VALUE "Translation", 0x809, 1200
+	VALUE "Translation", 0x804, 0x4B0
     END
 END

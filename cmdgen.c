@@ -134,9 +134,9 @@ void showversion(void)
 void usage(int standalone)
 {
     fprintf(stderr,
-	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
-	    "                [ -C comment ] [ -P ] [ -q ]\n"
-	    "                [ -o output-keyfile ] [ -O type | -l | -L"
+	    "用法: puttygen ( 密钥文件 | -t 类型 [ -b 位数 ] )\n"
+	    "               [ -C 注释 ] [ -P ] [ -q ]\n"
+	    "               [ -o 输出密钥文件 ] [ -O 类型 | -l | -L"
 	    " | -p ]\n");
     if (standalone)
 	fprintf(stderr,
@@ -153,11 +153,11 @@ void help(void)
     usage(FALSE);
     fprintf(stderr,
 	    "  -t    specify key type when generating (rsa, dsa, rsa1)\n"
-	    "  -b    specify number of bits when generating key\n"
-	    "  -C    change or specify key comment\n"
-	    "  -P    change key passphrase\n"
+	    "  -b    指定生成密钥的位数\n"
+	    "  -C    修改或指定密钥注释\n"
+	    "  -P    修改密钥密码\n"
 	    "  -q    quiet: do not display progress bar\n"
-	    "  -O    specify output type:\n"
+	    "  -O    指定输出类型:\n"
 	    "           private             output PuTTY private key format\n"
 	    "           private-openssh     export OpenSSH private key\n"
 	    "           private-sshcom      export ssh.com private key\n"

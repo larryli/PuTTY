@@ -2484,7 +2484,7 @@ void nonfatal(char *fmt, ...)
     va_list ap;
     va_start(ap, fmt);
     str = dupvprintf(fmt, ap);
-    str2 = dupcat("Error: ", str, "\n", NULL);
+    str2 = dupcat("错误：", str, "\n", NULL);
     sfree(str);
     va_end(ap);
     fputs(str2, stderr);
@@ -2653,26 +2653,26 @@ static void usage(void)
     printf("PuTTY Secure File Transfer (SFTP) client\n");
     printf("%s\n", ver);
     printf("Usage: psftp [options] [user@]host\n");
-    printf("Options:\n");
-    printf("  -V        print version information and exit\n");
-    printf("  -pgpfp    print PGP key fingerprints and exit\n");
+    printf("选项:\n");
+    printf("  -V        显示版本信息后退出\n");
+    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
     printf("  -b file   use specified batchfile\n");
     printf("  -bc       output batchfile commands\n");
     printf("  -be       don't stop batchfile processing if errors\n");
-    printf("  -v        show verbose messages\n");
-    printf("  -load sessname  Load settings from saved session\n");
-    printf("  -l user   connect with specified username\n");
-    printf("  -P port   connect to specified port\n");
-    printf("  -pw passw login with specified password\n");
-    printf("  -1 -2     force use of particular SSH protocol version\n");
-    printf("  -4 -6     force use of IPv4 or IPv6\n");
-    printf("  -C        enable compression\n");
-    printf("  -i key    private key file for user authentication\n");
+    printf("  -v        显示详细信息\n");
+    printf("  -load 会话名  载入保存的会话信息\n");
+    printf("  -l 用户名 使用指定的用户名连接\n");
+    printf("  -P 端口   连接指定的端口\n");
+    printf("  -pw 密码  使用指定的密码登录\n");
+    printf("  -1 -2     强制使用 SSH 协议版本\n");
+    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
+    printf("  -C        允许压缩\n");
+    printf("  -i 密钥   认证使用的密钥文件\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            manually specify a host key (may be repeated)\n");
-    printf("  -batch    disable all interactive prompts\n");
+    printf("  -batch    禁止所有交互提示\n");
     cleanup_exit(1);
 }
 
