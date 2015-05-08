@@ -635,21 +635,6 @@ int dlg_coloursel_results(union control *ctrl, void *dlg,
 void dlg_refresh(union control *ctrl, void *dlg);
 
 /*
- * It's perfectly possible that individual controls might need to
- * allocate or store per-dialog-instance data, so here's a
- * mechanism.
- * 
- * `dlg_get_privdata' and `dlg_set_privdata' allow the user to get
- * and set a void * pointer associated with the control in
- * question. `dlg_alloc_privdata' will allocate memory, store a
- * pointer to that memory in the private data field, and arrange
- * for it to be automatically deallocated on dialog cleanup.
- */
-void *dlg_get_privdata(union control *ctrl, void *dlg);
-void dlg_set_privdata(union control *ctrl, void *dlg, void *ptr);
-void *dlg_alloc_privdata(union control *ctrl, void *dlg, size_t size);
-
-/*
  * Standard helper functions for reading a controlbox structure.
  */
 
