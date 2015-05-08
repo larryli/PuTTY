@@ -568,6 +568,7 @@ struct sessionsaver_data {
 static void sessionsaver_data_free(void *ssdv)
 {
     struct sessionsaver_data *ssd = (struct sessionsaver_data *)ssdv;
+    get_sesslist(&ssd->sesslist, FALSE);
     sfree(ssd->savedsession);
     sfree(ssd);
 }
