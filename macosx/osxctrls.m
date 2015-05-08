@@ -243,8 +243,6 @@ struct fe_ctrl {
     NSTableView *tableview;
     NSScrollView *scrollview;
     int nradiobuttons;
-    void *privdata;
-    int privdata_needs_free;
 };
 
 static int fe_ctrl_cmp_by_ctrl(void *av, void *bv)
@@ -346,16 +344,12 @@ static struct fe_ctrl *fe_ctrl_new(union control *ctrl)
     c->scrollview = nil;
     c->radiobuttons = NULL;
     c->nradiobuttons = 0;
-    c->privdata = NULL;
-    c->privdata_needs_free = FALSE;
 
     return c;
 }
 
 static void fe_ctrl_free(struct fe_ctrl *c)
 {
-    if (c->privdata_needs_free)
-	sfree(c->privdata);
     sfree(c->radiobuttons);
     sfree(c);
 }
@@ -1784,32 +1778,4 @@ void dlg_refresh(union control *ctrl, void *dv)
 					 d->data, EVENT_REFRESH);
 	}
     }
-}
-
-void *dlg_get_privdata(union control *ctrl, void *dv)
-{
-    struct fe_dlg *d = (struct fe_dlg *)dv;
-    struct fe_ctrl *c = fe_ctrl_byctrl(d, ctrl);
-    return c->privdata;
-}
-
-void dlg_set_privdata(union control *ctrl, void *dv, void *ptr)
-{
-    struct fe_dlg *d = (struct fe_dlg *)dv;
-    struct fe_ctrl *c = fe_ctrl_byctrl(d, ctrl);
-    c->privdata = ptr;
-    c->privdata_needs_free = FALSE;
-}
-
-void *dlg_alloc_privdata(union control *ctrl, void *dv, size_t size)
-{
-    struct fe_dlg *d = (struct fe_dlg *)dv;
-    struct fe_ctrl *c = fe_ctrl_byctrl(d, ctrl);
-    /*
-     * This is an internal allocation routine, so it's allowed to
-     * use smalloc directly.
-     */
-    c->privdata = smalloc(size);
-    c->privdata_needs_free = TRUE;
-    return c->privdata;
 }
