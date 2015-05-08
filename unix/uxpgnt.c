@@ -10,6 +10,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
@@ -180,7 +181,7 @@ void pageant_print_env(int pid)
            socketname, (int)pid);
 }
 
-void pageant_fork_and_print_env(void)
+void pageant_fork_and_print_env(int retain_tty)
 {
     pid_t pid = fork();
     if (pid == -1) {
@@ -211,7 +212,16 @@ void pageant_fork_and_print_env(void)
     }
     close(0);
     close(1);
-    setsid();
+    if (retain_tty) {
+        /* Get out of our previous process group, to avoid being
+         * blasted by passing signals. But keep our controlling tty,
+         * so we can keep checking to see if we still have one. */
+        setpgrp();
+    } else {
+        /* Do that, but also leave our entire session and detach from
+         * the controlling tty (if any). */
+        setsid();
+    }
 }
 
 int signalpipe[2];
@@ -220,6 +230,13 @@ void sigchld(int signum)
 {
     if (write(signalpipe[1], "x", 1) <= 0)
         /* not much we can do about it */;
+}
+
+#define TTY_LIFE_POLL_INTERVAL (TICKSPERSEC * 30)
+void *dummy_timer_ctx;
+static void tty_life_timer(void *ctx, unsigned long now)
+{
+    schedule_timer(TTY_LIFE_POLL_INTERVAL, tty_life_timer, &dummy_timer_ctx);
 }
 
 int main(int argc, char **argv)
@@ -234,7 +251,7 @@ int main(int argc, char **argv)
     struct pageant_listen_state *pl;
     Socket sock;
     enum {
-        LIFE_UNSPEC, LIFE_X11, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
+        LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
     } life = LIFE_UNSPEC;
     const char *display = NULL;
     int doing_opts = TRUE;
@@ -261,6 +278,8 @@ int main(int argc, char **argv)
                 pageant_logfp = stderr;
             } else if (!strcmp(p, "-X")) {
                 life = LIFE_X11;
+            } else if (!strcmp(p, "-T")) {
+                life = LIFE_TTY;
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
             } else if (!strcmp(p, "--permanent")) {
@@ -370,9 +389,13 @@ int main(int argc, char **argv)
         smemclr(greeting, greetinglen);
         sfree(greeting);
 
-        pageant_fork_and_print_env();
+        pageant_fork_and_print_env(FALSE);
+    } else if (life == LIFE_TTY) {
+        schedule_timer(TTY_LIFE_POLL_INTERVAL,
+                       tty_life_timer, &dummy_timer_ctx);
+        pageant_fork_and_print_env(TRUE);
     } else if (life == LIFE_PERM) {
-        pageant_fork_and_print_env();
+        pageant_fork_and_print_env(FALSE);
     } else if (life == LIFE_DEBUG) {
         pageant_print_env(getpid());
         pageant_logfp = stdout;
@@ -490,6 +513,27 @@ int main(int argc, char **argv)
 	    perror("select");
 	    exit(1);
 	}
+
+        if (life == LIFE_TTY) {
+            /*
+             * Every time we wake up (whether it was due to tty_timer
+             * elapsing or for any other reason), poll to see if we
+             * still have a controlling terminal. If we don't, then
+             * our containing tty session has ended, so it's time to
+             * clean up and leave.
+             */
+            int fd = open("/dev/tty", O_RDONLY);
+            if (fd < 0) {
+                if (errno != ENXIO) {
+                    perror("/dev/tty: open");
+                    exit(1);
+                }
+                time_to_die = TRUE;
+                break;
+            } else {
+                close(fd);
+            }
+        }
 
 	for (i = 0; i < fdcount; i++) {
 	    fd = fdlist[i];
