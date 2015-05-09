@@ -1233,6 +1233,28 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
     return result;
 }
 
+Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes)
+{
+    Bignum result;
+    int w, i;
+
+    assert(nbytes >= 0 && nbytes < INT_MAX/8);
+
+    w = (nbytes + BIGNUM_INT_BYTES - 1) / BIGNUM_INT_BYTES; /* bytes->words */
+
+    result = newbn(w);
+    for (i = 1; i <= w; i++)
+        result[i] = 0;
+    for (i = 0; i < nbytes; ++i) {
+        unsigned char byte = *data++;
+        result[1 + i / BIGNUM_INT_BYTES] |= byte << (8*i % BIGNUM_INT_BITS);
+    }
+
+    while (result[0] > 1 && result[result[0]] == 0)
+        result[0]--;
+    return result;
+}
+
 Bignum bignum_random_in_range(const Bignum lower, const Bignum upper)
 {
     Bignum ret = NULL;

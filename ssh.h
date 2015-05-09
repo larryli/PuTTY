@@ -572,6 +572,7 @@ Bignum modsub(const Bignum a, const Bignum b, const Bignum n);
 void decbn(Bignum n);
 extern Bignum Zero, One;
 Bignum bignum_from_bytes(const unsigned char *data, int nbytes);
+Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes);
 Bignum bignum_random_in_range(const Bignum lower, const Bignum upper);
 int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result);
 int bignum_bitcount(Bignum bn);
