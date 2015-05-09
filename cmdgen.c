@@ -273,7 +273,7 @@ int main(int argc, char **argv)
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_PEM,
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
-    int bits = 2048;
+    int bits = -1;
     char *comment = NULL, *origcomment = NULL;
     int change_passphrase = FALSE;
     int errs = FALSE, nogo = FALSE;
@@ -505,6 +505,21 @@ int main(int argc, char **argv)
 			" input file\n");
 	    }
 	}
+    }
+
+    if (bits == -1) {
+        /*
+         * No explicit key size was specified. Default varies
+         * depending on key type.
+         */
+        switch (keytype) {
+          case ECDSA:
+            bits = 384;
+            break;
+          default:
+            bits = 2048;
+            break;
+        }
     }
 
     if (keytype == ECDSA && (bits != 256 && bits != 384 && bits != 521)) {
