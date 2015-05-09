@@ -1,7 +1,11 @@
 /*
  * Elliptic-curve crypto module for PuTTY
  * Implements the three required curves, no optional curves
+ *
  * NOTE: Only curves on prime field are handled by the maths functions
+ *       in Weierstrass form using Jacobian co-ordinates.
+ *
+ *       Montgomery form curves are supported for DH. (Curve25519)
  */
 
 /*
@@ -13,6 +17,10 @@
  * That specification delegates details of public key formatting and a
  * lot of underlying mechanism to SEC 1:
  *   http://www.secg.org/sec1-v2.pdf
+ *
+ * Montgomery maths from:
+ * Handbook of elliptic and hyperelliptic curve cryptography, Chapter 13
+ *   http://cs.ucsb.edu/~koc/ccs130h/2013/EllipticHyperelliptic-CohenFrey.pdf
  */
 
 #include <stdlib.h>
@@ -24,41 +32,78 @@
  * Elliptic curve definitions
  */
 
-static int initialise_curve(struct ec_curve *curve, int bits, unsigned char *p,
-                            unsigned char *a, unsigned char *b,
-                            unsigned char *n, unsigned char *Gx,
-                            unsigned char *Gy)
+static int initialise_wcurve(struct ec_curve *curve, int bits, unsigned char *p,
+                             unsigned char *a, unsigned char *b,
+                             unsigned char *n, unsigned char *Gx,
+                             unsigned char *Gy)
 {
     int length = bits / 8;
     if (bits % 8) ++length;
+
+    curve->type = EC_WEIERSTRASS;
 
     curve->fieldBits = bits;
     curve->p = bignum_from_bytes(p, length);
     if (!curve->p) goto error;
 
     /* Curve co-efficients */
-    curve->a = bignum_from_bytes(a, length);
-    if (!curve->a) goto error;
-    curve->b = bignum_from_bytes(b, length);
-    if (!curve->b) goto error;
+    curve->w.a = bignum_from_bytes(a, length);
+    if (!curve->w.a) goto error;
+    curve->w.b = bignum_from_bytes(b, length);
+    if (!curve->w.b) goto error;
 
     /* Group order and generator */
-    curve->n = bignum_from_bytes(n, length);
-    if (!curve->n) goto error;
-    curve->G.x = bignum_from_bytes(Gx, length);
-    if (!curve->G.x) goto error;
-    curve->G.y = bignum_from_bytes(Gy, length);
-    if (!curve->G.y) goto error;
-    curve->G.curve = curve;
-    curve->G.infinity = 0;
+    curve->w.n = bignum_from_bytes(n, length);
+    if (!curve->w.n) goto error;
+    curve->w.G.x = bignum_from_bytes(Gx, length);
+    if (!curve->w.G.x) goto error;
+    curve->w.G.y = bignum_from_bytes(Gy, length);
+    if (!curve->w.G.y) goto error;
+    curve->w.G.curve = curve;
+    curve->w.G.infinity = 0;
 
     return 1;
   error:
     if (curve->p) freebn(curve->p);
-    if (curve->a) freebn(curve->a);
-    if (curve->b) freebn(curve->b);
-    if (curve->n) freebn(curve->n);
-    if (curve->G.x) freebn(curve->G.x);
+    if (curve->w.a) freebn(curve->w.a);
+    if (curve->w.b) freebn(curve->w.b);
+    if (curve->w.n) freebn(curve->w.n);
+    if (curve->w.G.x) freebn(curve->w.G.x);
+    return 0;
+}
+
+static int initialise_mcurve(struct ec_curve *curve, int bits, unsigned char *p,
+                             unsigned char *a, unsigned char *b,
+                             unsigned char *Gx)
+{
+    int length = bits / 8;
+    if (bits % 8) ++length;
+
+    curve->type = EC_MONTGOMERY;
+
+    curve->fieldBits = bits;
+    curve->p = bignum_from_bytes(p, length);
+    if (!curve->p) goto error;
+
+    /* Curve co-efficients */
+    curve->m.a = bignum_from_bytes(a, length);
+    if (!curve->m.a) goto error;
+    curve->m.b = bignum_from_bytes(b, length);
+    if (!curve->m.b) goto error;
+
+    /* Generator */
+    curve->m.G.x = bignum_from_bytes(Gx, length);
+    if (!curve->m.G.x) goto error;
+    curve->m.G.y = NULL;
+    curve->m.G.z = NULL;
+    curve->m.G.curve = curve;
+    curve->m.G.infinity = 0;
+
+    return 1;
+  error:
+    if (curve->p) freebn(curve->p);
+    if (curve->m.a) freebn(curve->m.a);
+    if (curve->m.b) freebn(curve->m.b);
     return 0;
 }
 
@@ -68,6 +113,8 @@ unsigned char nistp384_oid[] = {0x2b, 0x81, 0x04, 0x00, 0x22};
 int nistp384_oid_len = 5;
 unsigned char nistp521_oid[] = {0x2b, 0x81, 0x04, 0x00, 0x23};
 int nistp521_oid_len = 5;
+unsigned char curve25519_oid[] = {0x06, 0x0A, 0x2B, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01};
+int curve25519_oid_len = 12;
 
 struct ec_curve *ec_p256(void)
 {
@@ -113,7 +160,7 @@ struct ec_curve *ec_p256(void)
             0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5
         };
 
-        if (!initialise_curve(&curve, 256, p, a, b, n, Gx, Gy)) {
+        if (!initialise_wcurve(&curve, 256, p, a, b, n, Gx, Gy)) {
             return NULL;
         }
 
@@ -180,7 +227,7 @@ struct ec_curve *ec_p384(void)
             0x7a, 0x43, 0x1d, 0x7c, 0x90, 0xea, 0x0e, 0x5f
         };
 
-        if (!initialise_curve(&curve, 384, p, a, b, n, Gx, Gy)) {
+        if (!initialise_wcurve(&curve, 384, p, a, b, n, Gx, Gy)) {
             return NULL;
         }
 
@@ -265,7 +312,50 @@ struct ec_curve *ec_p521(void)
             0x66, 0x50
         };
 
-        if (!initialise_curve(&curve, 521, p, a, b, n, Gx, Gy)) {
+        if (!initialise_wcurve(&curve, 521, p, a, b, n, Gx, Gy)) {
+            return NULL;
+        }
+
+        /* Now initialised, no need to do it again */
+        initialised = 1;
+    }
+
+    return &curve;
+}
+
+struct ec_curve *ec_curve25519(void)
+{
+    static struct ec_curve curve = { 0 };
+    static unsigned char initialised = 0;
+
+    if (!initialised)
+    {
+        unsigned char p[] = {
+            0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xed
+        };
+        unsigned char a[] = {
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x6d, 0x06
+        };
+        unsigned char b[] = {
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
+        };
+        unsigned char gx[32] = {
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09
+        };
+
+        if (!initialise_mcurve(&curve, 256, p, a, b, gx)) {
             return NULL;
         }
 
@@ -277,6 +367,14 @@ struct ec_curve *ec_p521(void)
 }
 
 static struct ec_curve *ec_name_to_curve(const char *name, int len) {
+    if (len > 11 && !memcmp(name, "ecdsa-sha2-", 11)) {
+        name += 11;
+        len -= 11;
+    } else if (len > 10 && !memcmp(name, "ecdh-sha2-", 10)) {
+        name += 10;
+        len -= 10;
+    }
+
     if (len == 8 && !memcmp(name, "nistp", 5)) {
         name += 5;
         if (!memcmp(name, "256", 3)) {
@@ -288,33 +386,77 @@ static struct ec_curve *ec_name_to_curve(const char *name, int len) {
         }
     }
 
+    if (len == 28 && !memcmp(name, "curve25519-sha256@libssh.org", 28)) {
+        return ec_curve25519();
+    }
+
     return NULL;
 }
 
-static int ec_curve_to_name(const struct ec_curve *curve, unsigned char *name, int len) {
-    /* Return length of string */
-    if (name == NULL) return 8;
+/* Type enumeration for specifying the curve name */
+enum ec_name_type { EC_TYPE_DSA, EC_TYPE_DH, EC_TYPE_CURVE };
 
-    /* Not enough space for the name */
-    if (len < 8) return 0;
+static int ec_curve_to_name(enum ec_name_type type, const struct ec_curve *curve,
+                            unsigned char *name, int len) {
+    if (curve->type == EC_WEIERSTRASS) {
+        int length, loc;
+        if (type == EC_TYPE_DSA) {
+            length = 19;
+            loc = 16;
+        } else if (type == EC_TYPE_DH) {
+            length = 18;
+            loc = 15;
+        } else {
+            length = 8;
+            loc = 5;
+        }
 
-    /* Put the name in the buffer */
-    switch (curve->fieldBits) {
-      case 256:
-        memcpy(name+5, "256", 3);
-        break;
-      case 384:
-        memcpy(name+5, "384", 3);
-        break;
-      case 521:
-        memcpy(name+5, "521", 3);
-        break;
-      default:
-        return 0;
+        /* Return length of string */
+        if (name == NULL) return length;
+
+        /* Not enough space for the name */
+        if (len < length) return 0;
+
+        /* Put the name in the buffer */
+        switch (curve->fieldBits) {
+          case 256:
+            memcpy(name+loc, "256", 3);
+            break;
+          case 384:
+            memcpy(name+loc, "384", 3);
+            break;
+          case 521:
+            memcpy(name+loc, "521", 3);
+            break;
+          default:
+            return 0;
+        }
+
+        if (type == EC_TYPE_DSA) {
+            memcpy(name, "ecdsa-sha2-nistp", 16);
+        } else if (type == EC_TYPE_DH) {
+            memcpy(name, "ecdh-sha2-nistp", 15);
+        } else {
+            memcpy(name, "nistp", 5);
+        }
+
+        return length;
+    } else {
+        /* No DSA for curve25519 */
+        if (type == EC_TYPE_DSA || type == EC_TYPE_CURVE) return 0;
+
+        /* Return length of string */
+        if (name == NULL) return 28;
+
+        /* Not enough space for the name */
+        if (len < 28) return 0;
+
+        /* Unknown curve field */
+        if (curve->fieldBits != 256) return 0;
+
+        memcpy(name, "curve25519-sha256@libssh.org", 28);
+        return 28;
     }
-
-    memcpy(name, "nistp", 5);
-    return 8;
 }
 
 /* Return 1 if a is -3 % p, otherwise return 0
@@ -324,7 +466,11 @@ static int ec_aminus3(const struct ec_curve *curve)
     int ret;
     Bignum _p;
 
-    _p = bignum_add_long(curve->a, 3);
+    if (curve->type != EC_WEIERSTRASS) {
+        return 0;
+    }
+
+    _p = bignum_add_long(curve->w.a, 3);
     if (!_p) return 0;
 
     ret = !bignum_cmp(curve->p, _p);
@@ -445,12 +591,9 @@ static struct ec_point *ec_point_copy(const struct ec_point *a)
 
 static int ec_point_verify(const struct ec_point *a)
 {
-    if (a->infinity)
-    {
+    if (a->infinity) {
         return 1;
-    }
-    else
-    {
+    } else if (a->curve->type == EC_WEIERSTRASS) {
         /* Verify y^2 = x^3 + ax + b */
         int ret = 0;
 
@@ -466,7 +609,7 @@ static int ec_point_verify(const struct ec_point *a)
         x3 = modpow(a->x, Three, a->curve->p);
         freebn(Three);
         if (!x3) goto error;
-        ax = modmul(a->curve->a, a->x, a->curve->p);
+        ax = modmul(a->curve->w.a, a->x, a->curve->p);
         if (!ax) goto error;
         x3ax = bigadd(x3, ax);
         if (!x3ax) goto error;
@@ -475,7 +618,7 @@ static int ec_point_verify(const struct ec_point *a)
         x3axm = bigmod(x3ax, a->curve->p);
         if (!x3axm) goto error;
         freebn(x3ax); x3ax = NULL;
-        x3axb = bigadd(x3axm, a->curve->b);
+        x3axb = bigadd(x3axm, a->curve->w.b);
         if (!x3axb) goto error;
         freebn(x3axm); x3axm = NULL;
         rhs = bigmod(x3axb, a->curve->p);
@@ -496,6 +639,8 @@ static int ec_point_verify(const struct ec_point *a)
         if (x3axb) freebn(x3axb);
         if (lhs) freebn(lhs);
         return 0;
+    } else {
+        return 0;
     }
 }
 
@@ -506,74 +651,110 @@ static int ec_point_verify(const struct ec_point *a)
 /* Returns 1 on success and 0 on memory error */
 static int ecp_normalise(struct ec_point *a)
 {
-    Bignum Z2, Z2inv, Z3, Z3inv, tx, ty;
-
-    /* In Jacobian Coordinates the triple (X, Y, Z) represents
-       the affine point (X / Z^2, Y / Z^3) */
     if (!a) {
         /* No point */
         return 0;
     }
+
     if (a->infinity) {
         /* Point is at infinity - i.e. normalised */
         return 1;
-    } else if (!a->x || !a->y) {
-        /* No point defined */
-        return 0;
-    } else if (!a->z) {
-        /* Already normalised */
+    }
+
+    if (a->curve->type == EC_WEIERSTRASS) {
+        /* In Jacobian Coordinates the triple (X, Y, Z) represents
+           the affine point (X / Z^2, Y / Z^3) */
+
+        Bignum Z2, Z2inv, Z3, Z3inv, tx, ty;
+
+        if (!a->x || !a->y) {
+            /* No point defined */
+            return 0;
+        } else if (!a->z) {
+            /* Already normalised */
+            return 1;
+        }
+
+        Z2 = ecf_square(a->z, a->curve);
+        if (!Z2) {
+            return 0;
+        }
+        Z2inv = modinv(Z2, a->curve->p);
+        if (!Z2inv) {
+            freebn(Z2);
+            return 0;
+        }
+        tx = modmul(a->x, Z2inv, a->curve->p);
+        freebn(Z2inv);
+        if (!tx) {
+            freebn(Z2);
+            return 0;
+        }
+
+        Z3 = modmul(Z2, a->z, a->curve->p);
+        freebn(Z2);
+        if (!Z3) {
+            freebn(tx);
+            return 0;
+        }
+        Z3inv = modinv(Z3, a->curve->p);
+        freebn(Z3);
+        if (!Z3inv) {
+            freebn(tx);
+            return 0;
+        }
+        ty = modmul(a->y, Z3inv, a->curve->p);
+        freebn(Z3inv);
+        if (!ty) {
+            freebn(tx);
+            return 0;
+        }
+
+        freebn(a->x);
+        a->x = tx;
+        freebn(a->y);
+        a->y = ty;
+        freebn(a->z);
+        a->z = NULL;
         return 1;
-    }
+    } else if (a->curve->type == EC_MONTGOMERY) {
+        /* In Montgomery (X : Z) represents the x co-ord (X / Z, ?) */
 
-    Z2 = ecf_square(a->z, a->curve);
-    if (!Z2) {
-        return 0;
-    }
-    Z2inv = modinv(Z2, a->curve->p);
-    if (!Z2inv) {
-        freebn(Z2);
-        return 0;
-    }
-    tx = modmul(a->x, Z2inv, a->curve->p);
-    freebn(Z2inv);
-    if (!tx) {
-        freebn(Z2);
-        return 0;
-    }
+        Bignum tmp, tmp2;
 
-    Z3 = modmul(Z2, a->z, a->curve->p);
-    freebn(Z2);
-    if (!Z3) {
-        freebn(tx);
-        return 0;
-    }
-    Z3inv = modinv(Z3, a->curve->p);
-    freebn(Z3);
-    if (!Z3inv) {
-        freebn(tx);
-        return 0;
-    }
-    ty = modmul(a->y, Z3inv, a->curve->p);
-    freebn(Z3inv);
-    if (!ty) {
-        freebn(tx);
-        return 0;
-    }
+        if (!a->x) {
+            /* No point defined */
+            return 0;
+        } else if (!a->z) {
+            /* Already normalised */
+            return 1;
+        }
 
-    freebn(a->x);
-    a->x = tx;
-    freebn(a->y);
-    a->y = ty;
-    freebn(a->z);
-    a->z = NULL;
-    return 1;
+        tmp = modinv(a->z, a->curve->p);
+        if (!tmp) {
+            return 0;
+        }
+        tmp2 = modmul(a->x, tmp, a->curve->p);
+        freebn(tmp);
+        if (!tmp2) {
+            return 0;
+        }
+
+        freebn(a->z);
+        a->z = NULL;
+        freebn(a->x);
+        a->x = tmp2;
+        return 1;
+    } else {
+        return 0;
+    }
 }
 
-static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
+static struct ec_point *ecp_doublew(const struct ec_point *a, const int aminus3)
 {
     Bignum S, M, outx, outy, outz;
 
-    if (a->infinity || bignum_cmp(a->y, Zero) == 0)
+    if (bignum_cmp(a->y, Zero) == 0)
     {
         /* Identity */
         return ec_point_new(a->curve, NULL, NULL, NULL, 1);
@@ -653,7 +834,7 @@ static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
         Bignum _3X2, X2, aZ4;
 
         if (a->z == NULL) {
-            aZ4 = copybn(a->curve->a);
+            aZ4 = copybn(a->curve->w.a);
         } else {
             Bignum Z2, Z4;
 
@@ -668,7 +849,7 @@ static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
                 freebn(S);
                 return NULL;
             }
-            aZ4 = modmul(a->curve->a, Z4, a->curve->p);
+            aZ4 = modmul(a->curve->w.a, Z4, a->curve->p);
             freebn(Z4);
         }
         if (!aZ4) {
@@ -809,15 +990,157 @@ static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
     return ec_point_new(a->curve, outx, outy, outz, 0);
 }
 
-static struct ec_point *ecp_add(const struct ec_point *a,
-                                const struct ec_point *b,
-                                const int aminus3)
+static struct ec_point *ecp_doublem(const struct ec_point *a)
+{
+    Bignum z, outx, outz, xpz, xmz;
+
+    z = a->z;
+    if (!z) {
+        z = One;
+    }
+
+    /* 4xz = (x + z)^2 - (x - z)^2 */
+    {
+        Bignum tmp;
+
+        tmp = ecf_add(a->x, z, a->curve);
+        if (!tmp) {
+            return NULL;
+        }
+        xpz = ecf_square(tmp, a->curve);
+        freebn(tmp);
+        if (!xpz) {
+            return NULL;
+        }
+
+        tmp = modsub(a->x, z, a->curve->p);
+        if (!tmp) {
+            freebn(xpz);
+            return NULL;
+        }
+        xmz = ecf_square(tmp, a->curve);
+        freebn(tmp);
+        if (!xmz) {
+            freebn(xpz);
+            return NULL;
+        }
+    }
+
+    /* outx = (x + z)^2 * (x - z)^2 */
+    outx = modmul(xpz, xmz, a->curve->p);
+    if (!outx) {
+        freebn(xpz);
+        freebn(xmz);
+        return NULL;
+    }
+
+    /* outz = 4xz * ((x - z)^2 + ((A + 2) / 4)*4xz) */
+    {
+        Bignum _4xz, tmp, tmp2, tmp3;
+
+        tmp = bignum_from_long(2);
+        if (!tmp) {
+            freebn(xpz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+        tmp2 = ecf_add(a->curve->m.a, tmp, a->curve);
+        freebn(tmp);
+        if (!tmp2) {
+            freebn(xpz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+
+        _4xz = modsub(xpz, xmz, a->curve->p);
+        freebn(xpz);
+        if (!_4xz) {
+            freebn(tmp2);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+        tmp = modmul(tmp2, _4xz, a->curve->p);
+        freebn(tmp2);
+        if (!tmp) {
+            freebn(_4xz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+
+        tmp2 = bignum_from_long(4);
+        if (!tmp2) {
+            freebn(tmp);
+            freebn(_4xz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+        tmp3 = modinv(tmp2, a->curve->p);
+        freebn(tmp2);
+        if (!tmp3) {
+            freebn(tmp);
+            freebn(_4xz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+        tmp2 = modmul(tmp, tmp3, a->curve->p);
+        freebn(tmp);
+        freebn(tmp3);
+        if (!tmp2) {
+            freebn(_4xz);
+            freebn(outx);
+            freebn(xmz);
+            return NULL;
+        }
+
+        tmp = ecf_add(xmz, tmp2, a->curve);
+        freebn(xmz);
+        freebn(tmp2);
+        if (!tmp) {
+            freebn(_4xz);
+            freebn(outx);
+            return NULL;
+        }
+        outz = modmul(_4xz, tmp, a->curve->p);
+        freebn(_4xz);
+        freebn(tmp);
+        if (!outz) {
+            freebn(outx);
+            return NULL;
+        }
+    }
+
+    return ec_point_new(a->curve, outx, NULL, outz, 0);
+}
+
+static struct ec_point *ecp_double(const struct ec_point *a, const int aminus3)
+{
+    if (a->infinity)
+    {
+        /* Identity */
+        return ec_point_new(a->curve, NULL, NULL, NULL, 1);
+    }
+
+    if (a->curve->type == EC_WEIERSTRASS)
+    {
+        return ecp_doublew(a, aminus3);
+    }
+    else
+    {
+        return ecp_doublem(a);
+    }
+}
+
+static struct ec_point *ecp_addw(const struct ec_point *a,
+                                 const struct ec_point *b,
+                                 const int aminus3)
 {
     Bignum U1, U2, S1, S2, outx, outy, outz;
-
-    /* Check if multiplying by infinity */
-    if (a->infinity) return ec_point_copy(b);
-    if (b->infinity) return ec_point_copy(a);
 
     /* U1 = X1*Z2^2 */
     /* S1 = Y1*Z2^3 */
@@ -1110,6 +1433,122 @@ static struct ec_point *ecp_add(const struct ec_point *a,
     return ec_point_new(a->curve, outx, outy, outz, 0);
 }
 
+static struct ec_point *ecp_addm(const struct ec_point *a,
+                                 const struct ec_point *b,
+                                 const struct ec_point *base)
+{
+    Bignum outx, outz, az, bz;
+
+    az = a->z;
+    if (!az) {
+        az = One;
+    }
+    bz = b->z;
+    if (!bz) {
+        bz = One;
+    }
+
+    /* a-b is maintained at 1 due to Montgomery ladder implementation */
+    /* Xa+b = Za-b * ((Xa - Za)*(Xb + Zb) + (Xa + Za)*(Xb - Zb))^2 */
+    /* Za+b = Xa-b * ((Xa - Za)*(Xb + Zb) - (Xa + Za)*(Xb - Zb))^2 */
+    {
+        Bignum tmp, tmp2, tmp3, tmp4;
+
+        /* (Xa + Za) * (Xb - Zb) */
+        tmp = ecf_add(a->x, az, a->curve);
+        if (!tmp) {
+            return NULL;
+        }
+        tmp2 = modsub(b->x, bz, a->curve->p);
+        if (!tmp2) {
+            freebn(tmp);
+            return NULL;
+        }
+        tmp3 = modmul(tmp, tmp2, a->curve->p);
+        freebn(tmp);
+        freebn(tmp2);
+        if (!tmp3) {
+            return NULL;
+        }
+
+        /* (Xa - Za) * (Xb + Zb) */
+        tmp = modsub(a->x, az, a->curve->p);
+        if (!tmp) {
+            freebn(tmp3);
+            return NULL;
+        }
+        tmp2 = ecf_add(b->x, bz, a->curve);
+        if (!tmp2) {
+            freebn(tmp);
+            freebn(tmp3);
+            return NULL;
+        }
+        tmp4 = modmul(tmp, tmp2, a->curve->p);
+        freebn(tmp);
+        freebn(tmp2);
+        if (!tmp4) {
+            freebn(tmp3);
+            return NULL;
+        }
+
+        tmp = ecf_add(tmp3, tmp4, a->curve);
+        if (!tmp) {
+            freebn(tmp3);
+            freebn(tmp4);
+            return NULL;
+        }
+        outx = ecf_square(tmp, a->curve);
+        freebn(tmp);
+        if (!outx) {
+            freebn(tmp3);
+            freebn(tmp4);
+            return NULL;
+        }
+
+        tmp = modsub(tmp3, tmp4, a->curve->p);
+        freebn(tmp3);
+        freebn(tmp4);
+        if (!tmp) {
+            freebn(outx);
+            return NULL;
+        }
+        tmp2 = ecf_square(tmp, a->curve);
+        freebn(tmp);
+        if (!tmp2) {
+            freebn(outx);
+            return NULL;
+        }
+        outz = modmul(base->x, tmp2, a->curve->p);
+        freebn(tmp2);
+        if (!outz) {
+            freebn(outx);
+            return NULL;
+        }
+    }
+
+    return ec_point_new(a->curve, outx, NULL, outz, 0);
+}
+
+static struct ec_point *ecp_add(const struct ec_point *a,
+                                const struct ec_point *b,
+                                const int aminus3)
+{
+    if (a->curve != b->curve) {
+        return NULL;
+    }
+
+    /* Check if multiplying by infinity */
+    if (a->infinity) return ec_point_copy(b);
+    if (b->infinity) return ec_point_copy(a);
+
+    if (a->curve->type == EC_WEIERSTRASS)
+    {
+        return ecp_addw(a, b, aminus3);
+    }
+
+    return NULL;
+}
+
 static struct ec_point *ecp_mul_(const struct ec_point *a, const Bignum b, int aminus3)
 {
     struct ec_point *A, *ret;
@@ -1145,8 +1584,7 @@ static struct ec_point *ecp_mul_(const struct ec_point *a, const Bignum b, int a
     return ret;
 }
 
-/* Not static because it is used by sshecdsag.c to generate a new key */
-struct ec_point *ecp_mul(const struct ec_point *a, const Bignum b)
+static struct ec_point *ecp_mulw(const struct ec_point *a, const Bignum b)
 {
     struct ec_point *ret = ecp_mul_(a, b, ec_aminus3(a->curve));
 
@@ -1158,13 +1596,90 @@ struct ec_point *ecp_mul(const struct ec_point *a, const Bignum b)
     return ret;
 }
 
+static struct ec_point *ecp_mulm(const struct ec_point *p, const Bignum n)
+{
+    struct ec_point *P1, *P2;
+    int bits, i;
+
+    /* P1 <- P and P2 <- [2]P */
+    P2 = ecp_double(p, 0);
+    if (!P2) {
+        return NULL;
+    }
+    P1 = ec_point_copy(p);
+    if (!P1) {
+        ec_point_free(P2);
+        return NULL;
+    }
+
+    /* for i = bits − 2 down to 0 */
+    bits = bignum_bitcount(n);
+    for (i = bits - 2; P1 != NULL && P2 != NULL && i >= 0; --i)
+    {
+        if (!bignum_bit(n, i))
+        {
+            /* P2 <- P1 + P2 */
+            struct ec_point *tmp = ecp_addm(P1, P2, p);
+            ec_point_free(P2);
+            P2 = tmp;
+
+            /* P1 <- [2]P1 */
+            tmp = ecp_double(P1, 0);
+            ec_point_free(P1);
+            P1 = tmp;
+        }
+        else
+        {
+            /* P1 <- P1 + P2 */
+            struct ec_point *tmp = ecp_addm(P1, P2, p);
+            ec_point_free(P1);
+            P1 = tmp;
+
+            /* P2 <- [2]P2 */
+            tmp = ecp_double(P2, 0);
+            ec_point_free(P2);
+            P2 = tmp;
+        }
+    }
+
+    if (!P2) {
+        if (P1) ec_point_free(P1);
+        P1 = NULL;
+    } else {
+        ec_point_free(P2);
+    }
+
+    if (!ecp_normalise(P1)) {
+        ec_point_free(P1);
+        return NULL;
+    }
+
+    return P1;
+}
+
+/* Not static because it is used by sshecdsag.c to generate a new key */
+struct ec_point *ecp_mul(const struct ec_point *a, const Bignum b)
+{
+    if (a->curve->type == EC_WEIERSTRASS) {
+        return ecp_mulw(a, b);
+    } else {
+        return ecp_mulm(a, b);
+    }
+}
+
 static struct ec_point *ecp_summul(const Bignum a, const Bignum b,
                                    const struct ec_point *point)
 {
     struct ec_point *aG, *bP, *ret;
-    int aminus3 = ec_aminus3(point->curve);
+    int aminus3;
 
-    aG = ecp_mul_(&point->curve->G, a, aminus3);
+    if (point->curve->type != EC_WEIERSTRASS) {
+        return NULL;
+    }
+
+    aminus3 = ec_aminus3(point->curve);
+
+    aG = ecp_mul_(&point->curve->w.G, a, aminus3);
     if (!aG) return NULL;
     bP = ecp_mul_(point, b, aminus3);
     if (!bP) {
@@ -1186,6 +1701,19 @@ static struct ec_point *ecp_summul(const Bignum a, const Bignum b,
 }
 
 /* ----------------------------------------------------------------------
+ * Public point from private
+ */
+
+struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve)
+{
+    if (curve->type == EC_WEIERSTRASS) {
+        return ecp_mul(&curve->w.G, privateKey);
+    } else {
+        return NULL;
+    }
+}
+
+/* ----------------------------------------------------------------------
  * Basic sign and verify routines
  */
 
@@ -1197,9 +1725,13 @@ static int _ecdsa_verify(const struct ec_point *publicKey,
     Bignum z;
     int valid = 0;
 
+    if (publicKey->curve->type != EC_WEIERSTRASS) {
+        return 0;
+    }
+
     /* Sanity checks */
-    if (bignum_cmp(r, Zero) == 0 || bignum_cmp(r, publicKey->curve->n) >= 0
-        || bignum_cmp(s, Zero) == 0 || bignum_cmp(s, publicKey->curve->n) >= 0)
+    if (bignum_cmp(r, Zero) == 0 || bignum_cmp(r, publicKey->curve->w.n) >= 0
+        || bignum_cmp(s, Zero) == 0 || bignum_cmp(s, publicKey->curve->w.n) >= 0)
     {
         return 0;
     }
@@ -1207,7 +1739,7 @@ static int _ecdsa_verify(const struct ec_point *publicKey,
     /* z = left most bitlen(curve->n) of data */
     z = bignum_from_bytes(data, dataLen);
     if (!z) return 0;
-    n_bits = bignum_bitcount(publicKey->curve->n);
+    n_bits = bignum_bitcount(publicKey->curve->w.n);
     z_bits = bignum_bitcount(z);
     if (z_bits > n_bits)
     {
@@ -1219,7 +1751,7 @@ static int _ecdsa_verify(const struct ec_point *publicKey,
 
     /* Ensure z in range of n */
     {
-        Bignum tmp = bigmod(z, publicKey->curve->n);
+        Bignum tmp = bigmod(z, publicKey->curve->w.n);
         freebn(z);
         z = tmp;
         if (!z) return 0;
@@ -1230,18 +1762,18 @@ static int _ecdsa_verify(const struct ec_point *publicKey,
         Bignum w, x, u1, u2;
         struct ec_point *tmp;
 
-        w = modinv(s, publicKey->curve->n);
+        w = modinv(s, publicKey->curve->w.n);
         if (!w) {
             freebn(z);
             return 0;
         }
-        u1 = modmul(z, w, publicKey->curve->n);
+        u1 = modmul(z, w, publicKey->curve->w.n);
         if (!u1) {
             freebn(z);
             freebn(w);
             return 0;
         }
-        u2 = modmul(r, w, publicKey->curve->n);
+        u2 = modmul(r, w, publicKey->curve->w.n);
         freebn(w);
         if (!u2) {
             freebn(z);
@@ -1257,7 +1789,7 @@ static int _ecdsa_verify(const struct ec_point *publicKey,
             return 0;
         }
 
-        x = bigmod(tmp->x, publicKey->curve->n);
+        x = bigmod(tmp->x, publicKey->curve->w.n);
         ec_point_free(tmp);
         if (!x) {
             freebn(z);
@@ -1285,10 +1817,14 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
     *r = NULL;
     *s = NULL;
 
+    if (curve->type != EC_WEIERSTRASS) {
+        return;
+    }
+
     /* z = left most bitlen(curve->n) of data */
     z = bignum_from_bytes(data, dataLen);
     if (!z) return;
-    n_bits = bignum_bitcount(curve->n);
+    n_bits = bignum_bitcount(curve->w.n);
     z_bits = bignum_bitcount(z);
     if (z_bits > n_bits)
     {
@@ -1302,11 +1838,11 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
     /* Generate k between 1 and curve->n, using the same deterministic
      * k generation system we use for conventional DSA. */
     SHA_Simple(data, dataLen, digest);
-    k = dss_gen_k("ECDSA deterministic k generator", curve->n, privateKey,
+    k = dss_gen_k("ECDSA deterministic k generator", curve->w.n, privateKey,
                   digest, sizeof(digest));
     if (!k) return;
 
-    kG = ecp_mul(&curve->G, k);
+    kG = ecp_mul(&curve->w.G, k);
     if (!kG) {
         freebn(z);
         freebn(k);
@@ -1314,7 +1850,7 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
     }
 
     /* r = kG.x mod n */
-    *r = bigmod(kG->x, curve->n);
+    *r = bigmod(kG->x, curve->w.n);
     ec_point_free(kG);
     if (!*r) {
         freebn(z);
@@ -1325,14 +1861,14 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
     /* s = (z + r * priv)/k mod n */
     {
         Bignum rPriv, zMod, first, firstMod, kInv;
-        rPriv = modmul(*r, privateKey, curve->n);
+        rPriv = modmul(*r, privateKey, curve->w.n);
         if (!rPriv) {
             freebn(*r);
             freebn(z);
             freebn(k);
             return;
         }
-        zMod = bigmod(z, curve->n);
+        zMod = bigmod(z, curve->w.n);
         freebn(z);
         if (!zMod) {
             freebn(rPriv);
@@ -1348,21 +1884,21 @@ static void _ecdsa_sign(const Bignum privateKey, const struct ec_curve *curve,
             freebn(k);
             return;
         }
-        firstMod = bigmod(first, curve->n);
+        firstMod = bigmod(first, curve->w.n);
         freebn(first);
         if (!firstMod) {
             freebn(*r);
             freebn(k);
             return;
         }
-        kInv = modinv(k, curve->n);
+        kInv = modinv(k, curve->w.n);
         freebn(k);
         if (!kInv) {
             freebn(firstMod);
             freebn(*r);
             return;
         }
-        *s = modmul(firstMod, kInv, curve->n);
+        *s = modmul(firstMod, kInv, curve->w.n);
         freebn(firstMod);
         freebn(kInv);
         if (!*s) {
@@ -1484,15 +2020,21 @@ static void *ecdsa_newkey(const char *data, int len)
 
     getstring(&data, &len, &p, &slen);
 
-    if (!p || slen < 11 || memcmp(p, "ecdsa-sha2-", 11)) {
+    if (!p) {
         return NULL;
     }
-    curve = ec_name_to_curve(p+11, slen-11);
+    curve = ec_name_to_curve(p, slen);
     if (!curve) return NULL;
 
-    getstring(&data, &len, &p, &slen);
+    if (curve->type != EC_WEIERSTRASS) {
+        return NULL;
+    }
 
-    if (curve != ec_name_to_curve(p, slen)) return NULL;
+    /* Curve name is duplicated for Weierstrass form */
+    if (curve->type == EC_WEIERSTRASS) {
+        getstring(&data, &len, &p, &slen);
+        if (curve != ec_name_to_curve(p, slen)) return NULL;
+    }
 
     ec = snew(struct ec_key);
 
@@ -1527,7 +2069,7 @@ static char *ecdsa_fmtkey(void *key)
     if (!ec->publicKey.x || !ec->publicKey.y || !ec->publicKey.curve)
         return NULL;
 
-    pos = ec_curve_to_name(ec->publicKey.curve, NULL, 0);
+    pos = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, NULL, 0);
     if (pos == 0) return NULL;
 
     len = 4 + 2 + 1;                  /* 2 x "0x", punctuation, \0 */
@@ -1536,7 +2078,7 @@ static char *ecdsa_fmtkey(void *key)
     len += 4 * (bignum_bitcount(ec->publicKey.y) + 15) / 16;
     p = snewn(len, char);
 
-    pos = ec_curve_to_name(ec->publicKey.curve, (unsigned char*)p, pos);
+    pos = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, (unsigned char*)p, pos);
     pos += sprintf(p + pos, ",0x");
     nibbles = (3 + bignum_bitcount(ec->publicKey.x)) / 4;
     if (nibbles < 1)
@@ -1560,37 +2102,43 @@ static char *ecdsa_fmtkey(void *key)
 static unsigned char *ecdsa_public_blob(void *key, int *len)
 {
     struct ec_key *ec = (struct ec_key *) key;
-    int pointlen, bloblen, namelen;
+    int pointlen, bloblen, fullnamelen, namelen;
     int i;
     unsigned char *blob, *p;
 
-    namelen = ec_curve_to_name(ec->publicKey.curve, NULL, 0);
-    if (namelen == 0) return NULL;
+    if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
+        fullnamelen = ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, NULL, 0);
+        if (fullnamelen == 0) return NULL;
+        namelen = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, NULL, 0);
+        if (namelen == 0) return NULL;
 
-    pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+        pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
 
-    /*
-     * string "ecdsa-sha2-<name>", string "<name>", 0x04 point x, y.
-     */
-    bloblen = 4 + 11 + namelen + 4 + namelen + 4 + 1 + (pointlen * 2);
-    blob = snewn(bloblen, unsigned char);
+        /*
+         * string "ecdsa-sha2-<name>", string "<name>", 0x04 point x, y.
+         */
+        bloblen = 4 + fullnamelen + 4 + namelen + 4 + 1 + (pointlen * 2);
+        blob = snewn(bloblen, unsigned char);
 
-    p = blob;
-    PUT_32BIT(p, 11 + namelen);
-    p += 4;
-    memcpy(p, "ecdsa-sha2-", 11);
-    p += 11;
-    p += ec_curve_to_name(ec->publicKey.curve, p, namelen);
-    PUT_32BIT(p, namelen);
-    p += 4;
-    p += ec_curve_to_name(ec->publicKey.curve, p, namelen);
-    PUT_32BIT(p, (2 * pointlen) + 1);
-    p += 4;
-    *p++ = 0x04;
-    for (i = pointlen; i--;)
-        *p++ = bignum_byte(ec->publicKey.x, i);
-    for (i = pointlen; i--;)
-        *p++ = bignum_byte(ec->publicKey.y, i);
+        p = blob;
+        PUT_32BIT(p, fullnamelen);
+        p += 4;
+        p += ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, p, fullnamelen);
+        PUT_32BIT(p, namelen);
+        p += 4;
+        p += ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, p, namelen);
+        PUT_32BIT(p, (2 * pointlen) + 1);
+        p += 4;
+        *p++ = 0x04;
+        for (i = pointlen; i--;) {
+            *p++ = bignum_byte(ec->publicKey.x, i);
+        }
+        for (i = pointlen; i--;) {
+            *p++ = bignum_byte(ec->publicKey.y, i);
+        }
+    } else {
+        return NULL;
+    }
 
     assert(p == blob + bloblen);
     *len = bloblen;
@@ -1645,7 +2193,7 @@ static void *ecdsa_createkey(const unsigned char *pub_blob, int pub_len,
     }
 
     /* Check that private key generates public key */
-    publicKey = ecp_mul(&ec->publicKey.curve->G, ec->privateKey);
+    publicKey = ec_public(ec->privateKey, ec->publicKey.curve);
 
     if (!publicKey ||
         bignum_cmp(publicKey->x, ec->publicKey.x) ||
@@ -1705,7 +2253,7 @@ static void *ecdsa_openssh_createkey(const unsigned char **blob, int *len)
     }
 
     /* Now check that the private key makes the public key */
-    publicKey = ecp_mul(&ec->publicKey.curve->G, ec->privateKey);
+    publicKey = ec_public(ec->privateKey, ec->publicKey.curve);
     if (!publicKey)
     {
         ecdsa_freekey(ec);
@@ -1730,16 +2278,22 @@ static int ecdsa_openssh_fmtkey(void *key, unsigned char *blob, int len)
 {
     struct ec_key *ec = (struct ec_key *) key;
 
-    int pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+    int pointlen;
+    int namelen;
+    int bloblen;
+    int i;
 
-    int namelen = ec_curve_to_name(ec->publicKey.curve, NULL, 0);
 
-    int bloblen =
+    if (ec->publicKey.curve->type != EC_WEIERSTRASS) {
+        return 0;
+    }
+
+    pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+    namelen = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, NULL, 0);
+    bloblen =
         4 + namelen /* <LEN> nistpXXX */
         + 4 + 1 + (pointlen * 2) /* <LEN> 0x04 pX pY */
         + ssh2_bignum_length(ec->privateKey);
-
-    int i;
 
     if (bloblen > len)
         return bloblen;
@@ -1749,7 +2303,7 @@ static int ecdsa_openssh_fmtkey(void *key, unsigned char *blob, int len)
     PUT_32BIT(blob+bloblen, namelen);
     bloblen += 4;
 
-    bloblen += ec_curve_to_name(ec->publicKey.curve, blob+bloblen, namelen);
+    bloblen += ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, blob+bloblen, namelen);
 
     PUT_32BIT(blob+bloblen, 1 + (pointlen * 2));
     bloblen += 4;
@@ -1788,49 +2342,58 @@ static char *ecdsa_fingerprint(void *key)
     struct MD5Context md5c;
     unsigned char digest[16], lenbuf[4];
     char *ret;
-    unsigned char *name;
-    int pointlen, namelen, i, j;
-
-    namelen = ec_curve_to_name(ec->publicKey.curve, NULL, 0);
-    name = snewn(namelen, unsigned char);
-    ec_curve_to_name(ec->publicKey.curve, name, namelen);
+    unsigned char *name, *fullname;
+    int pointlen, namelen, fullnamelen, i, j;
 
     MD5Init(&md5c);
 
-    PUT_32BIT(lenbuf, namelen + 11);
-    MD5Update(&md5c, lenbuf, 4);
-    MD5Update(&md5c, (const unsigned char *)"ecdsa-sha2-", 11);
-    MD5Update(&md5c, name, namelen);
+    namelen = ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, NULL, 0);
+    name = snewn(namelen, unsigned char);
+    ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, name, namelen);
 
-    PUT_32BIT(lenbuf, namelen);
-    MD5Update(&md5c, lenbuf, 4);
-    MD5Update(&md5c, name, namelen);
+    if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
+        fullnamelen = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, NULL, 0);
+        fullname = snewn(namelen, unsigned char);
+        ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, fullname, fullnamelen);
 
-    pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
-    PUT_32BIT(lenbuf, 1 + (pointlen * 2));
-    MD5Update(&md5c, lenbuf, 4);
-    MD5Update(&md5c, (const unsigned char *)"\x04", 1);
-    for (i = pointlen; i--; ) {
-        unsigned char c = bignum_byte(ec->publicKey.x, i);
-        MD5Update(&md5c, &c, 1);
-    }
-    for (i = pointlen; i--; ) {
-        unsigned char c = bignum_byte(ec->publicKey.y, i);
-        MD5Update(&md5c, &c, 1);
+        PUT_32BIT(lenbuf, fullnamelen);
+        MD5Update(&md5c, lenbuf, 4);
+        MD5Update(&md5c, fullname, fullnamelen);
+        sfree(fullname);
+
+        PUT_32BIT(lenbuf, namelen);
+        MD5Update(&md5c, lenbuf, 4);
+        MD5Update(&md5c, name, namelen);
+
+        pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+        PUT_32BIT(lenbuf, 1 + (pointlen * 2));
+        MD5Update(&md5c, lenbuf, 4);
+        MD5Update(&md5c, (const unsigned char *)"\x04", 1);
+        for (i = pointlen; i--; ) {
+            unsigned char c = bignum_byte(ec->publicKey.x, i);
+            MD5Update(&md5c, &c, 1);
+        }
+        for (i = pointlen; i--; ) {
+            unsigned char c = bignum_byte(ec->publicKey.y, i);
+            MD5Update(&md5c, &c, 1);
+        }
+    } else {
+        sfree(name);
+        return NULL;
     }
 
     MD5Final(digest, &md5c);
 
-    ret = snewn(11 + namelen + 1 + (16 * 3), char);
+    ret = snewn(namelen + 1 + (16 * 3), char);
 
-    i = 11;
-    memcpy(ret, "ecdsa-sha2-", 11);
-    memcpy(ret+i, name, namelen);
+    i = 0;
+    memcpy(ret, name, namelen);
     i += namelen;
     sfree(name);
     ret[i++] = ' ';
-    for (j = 0; j < 16; j++)
+    for (j = 0; j < 16; j++) {
         i += sprintf(ret + i, "%s%02x", j ? ":" : "", digest[j]);
+    }
 
     return ret;
 }
@@ -1843,22 +2406,24 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     int slen;
     unsigned char digest[512 / 8];
     int digestLen;
-    Bignum r, s;
     int ret;
+    Bignum r, s;
 
     if (!ec->publicKey.x || !ec->publicKey.y || !ec->publicKey.curve)
         return 0;
 
     /* Check the signature curve matches the key curve */
     getstring(&sig, &siglen, &p, &slen);
-    if (!p || slen < 11 || memcmp(p, "ecdsa-sha2-", 11)) {
+    if (!p) {
         return 0;
     }
-    if (ec->publicKey.curve != ec_name_to_curve(p+11, slen-11)) {
+    if (ec->publicKey.curve != ec_name_to_curve(p, slen)) {
         return 0;
     }
 
     getstring(&sig, &siglen, &p, &slen);
+
+
     r = getmp(&p, &slen);
     if (!r) return 0;
     s = getmp(&p, &slen);
@@ -1880,11 +2445,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     }
 
     /* Verify the signature */
-    if (!_ecdsa_verify(&ec->publicKey, digest, digestLen, r, s)) {
-        ret = 0;
-    } else {
-        ret = 1;
-    }
+    ret = _ecdsa_verify(&ec->publicKey, digest, digestLen, r, s);
 
     freebn(r);
     freebn(s);
@@ -1930,17 +2491,15 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
     rlen = (bignum_bitcount(r) + 8) / 8;
     slen = (bignum_bitcount(s) + 8) / 8;
 
-    namelen = ec_curve_to_name(ec->publicKey.curve, NULL, 0);
+    namelen = ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, NULL, 0);
 
     /* Format the output */
-    *siglen = 8+11+namelen+rlen+slen+8;
+    *siglen = 8+namelen+rlen+slen+8;
     buf = snewn(*siglen, unsigned char);
     p = buf;
-    PUT_32BIT(p, 11+namelen);
+    PUT_32BIT(p, namelen);
     p += 4;
-    memcpy(p, "ecdsa-sha2-", 11);
-    p += 11;
-    p += ec_curve_to_name(ec->publicKey.curve, p, namelen);
+    p += ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, p, namelen);
     PUT_32BIT(p, rlen + slen + 8);
     p += 4;
     PUT_32BIT(p, rlen);
@@ -2025,30 +2584,91 @@ static Bignum ecdh_calculate(const Bignum private,
     if (!p) return NULL;
     ret = p->x;
     p->x = NULL;
+
+    if (p->curve->type == EC_MONTGOMERY) {
+        /* Do conversion in network byte order */
+        int i;
+        int bytes = (bignum_bitcount(ret)+7) / 8;
+        unsigned char *byteorder = snewn(bytes, unsigned char);
+        if (!byteorder) {
+            ec_point_free(p);
+            freebn(ret);
+            return NULL;
+        }
+        for (i = 0; i < bytes; ++i) {
+            byteorder[i] = bignum_byte(ret, i);
+        }
+        freebn(ret);
+        ret = bignum_from_bytes(byteorder, bytes);
+        sfree(byteorder);
+    }
+
     ec_point_free(p);
     return ret;
 }
 
-void *ssh_ecdhkex_newkey(struct ec_curve *curve)
+void *ssh_ecdhkex_newkey(const char *name)
 {
-    struct ec_key *key = snew(struct ec_key);
+    struct ec_curve *curve;
+    struct ec_key *key;
     struct ec_point *publicKey;
+
+    curve = ec_name_to_curve(name, strlen(name));
+
+    key = snew(struct ec_key);
+    if (!key) {
+        return NULL;
+    }
+
     key->publicKey.curve = curve;
-    key->privateKey = bignum_random_in_range(One, key->publicKey.curve->n);
-    if (!key->privateKey) {
-        sfree(key);
-        return NULL;
+
+    if (curve->type == EC_MONTGOMERY) {
+        unsigned char bytes[32] = {0};
+        int i;
+
+        for (i = 0; i < sizeof(bytes); ++i)
+        {
+            bytes[i] = (unsigned char)random_byte();
+        }
+        bytes[0] &= 248;
+        bytes[31] &= 127;
+        bytes[31] |= 64;
+        key->privateKey = bignum_from_bytes(bytes, sizeof(bytes));
+        for (i = 0; i < sizeof(bytes); ++i)
+        {
+            ((volatile char*)bytes)[i] = 0;
+        }
+        if (!key->privateKey) {
+            sfree(key);
+            return NULL;
+        }
+        publicKey = ecp_mul(&key->publicKey.curve->m.G, key->privateKey);
+        if (!publicKey) {
+            freebn(key->privateKey);
+            sfree(key);
+            return NULL;
+        }
+        key->publicKey.x = publicKey->x;
+        key->publicKey.y = publicKey->y;
+        key->publicKey.z = NULL;
+        sfree(publicKey);
+    } else {
+        key->privateKey = bignum_random_in_range(One, key->publicKey.curve->w.n);
+        if (!key->privateKey) {
+            sfree(key);
+            return NULL;
+        }
+        publicKey = ecp_mul(&key->publicKey.curve->w.G, key->privateKey);
+        if (!publicKey) {
+            freebn(key->privateKey);
+            sfree(key);
+            return NULL;
+        }
+        key->publicKey.x = publicKey->x;
+        key->publicKey.y = publicKey->y;
+        key->publicKey.z = NULL;
+        sfree(publicKey);
     }
-    publicKey = ecp_mul(&key->publicKey.curve->G, key->privateKey);
-    if (!publicKey) {
-        freebn(key->privateKey);
-        sfree(key);
-        return NULL;
-    }
-    key->publicKey.x = publicKey->x;
-    key->publicKey.y = publicKey->y;
-    key->publicKey.z = NULL;
-    sfree(publicKey);
     return key;
 }
 
@@ -2057,17 +2677,34 @@ char *ssh_ecdhkex_getpublic(void *key, int *len)
     struct ec_key *ec = (struct ec_key*)key;
     char *point, *p;
     int i;
-    int pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+    int pointlen;
 
-    *len = 1 + pointlen * 2;
+    pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
+
+    if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
+        *len = 1 + pointlen * 2;
+    } else {
+        *len = pointlen;
+    }
     point = (char*)snewn(*len, char);
+    if (!point) {
+        return NULL;
+    }
 
     p = point;
-    *p++ = 0x04;
-    for (i = pointlen; i--;)
-        *p++ = bignum_byte(ec->publicKey.x, i);
-    for (i = pointlen; i--;)
-        *p++ = bignum_byte(ec->publicKey.y, i);
+    if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
+        *p++ = 0x04;
+        for (i = pointlen; i--;) {
+            *p++ = bignum_byte(ec->publicKey.x, i);
+        }
+        for (i = pointlen; i--;) {
+            *p++ = bignum_byte(ec->publicKey.y, i);
+        }
+    } else {
+        for (i = 0; i < pointlen; ++i) {
+            *p++ = bignum_byte(ec->publicKey.x, i);
+        }
+    }
 
     return point;
 }
@@ -2076,20 +2713,41 @@ Bignum ssh_ecdhkex_getkey(void *key, char *remoteKey, int remoteKeyLen)
 {
     struct ec_key *ec = (struct ec_key*) key;
     struct ec_point remote;
+    Bignum ret;
 
-    remote.curve = ec->publicKey.curve;
-    remote.infinity = 0;
-    if (!decodepoint(remoteKey, remoteKeyLen, &remote)) {
-        return NULL;
+    if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
+        remote.curve = ec->publicKey.curve;
+        remote.infinity = 0;
+        if (!decodepoint(remoteKey, remoteKeyLen, &remote)) {
+            return NULL;
+        }
+    } else {
+        /* Point length has to be the same length */
+        if (remoteKeyLen != (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8) {
+            return NULL;
+        }
+
+        remote.curve = ec->publicKey.curve;
+        remote.infinity = 0;
+        remote.x = bignum_from_bytes_le((unsigned char*)remoteKey, remoteKeyLen);
+        remote.y = NULL;
+        remote.z = NULL;
     }
 
-    return ecdh_calculate(ec->privateKey, &remote);
+    ret = ecdh_calculate(ec->privateKey, &remote);
+    if (remote.x) freebn(remote.x);
+    if (remote.y) freebn(remote.y);
+    return ret;
 }
 
 void ssh_ecdhkex_freekey(void *key)
 {
     ecdsa_freekey(key);
 }
+
+static const struct ssh_kex ssh_ec_kex_curve25519 = {
+    "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha256
+};
 
 static const struct ssh_kex ssh_ec_kex_nistp256 = {
     "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha256
@@ -2104,6 +2762,7 @@ static const struct ssh_kex ssh_ec_kex_nistp521 = {
 };
 
 static const struct ssh_kex *const ec_kex_list[] = {
+    &ssh_ec_kex_curve25519,
     &ssh_ec_kex_nistp256,
     &ssh_ec_kex_nistp384,
     &ssh_ec_kex_nistp521

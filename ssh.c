@@ -6845,14 +6845,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                   ssh->kex->hash->text_name);
         ssh->pkt_kctx = SSH2_PKTCTX_ECDHKEX;
 
-        s->eckey = NULL;
-        if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp256")) {
-            s->eckey = ssh_ecdhkex_newkey(ec_p256());
-        } else if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp384")) {
-            s->eckey = ssh_ecdhkex_newkey(ec_p384());
-        } else if (!strcmp(ssh->kex->name, "ecdh-sha2-nistp521")) {
-            s->eckey = ssh_ecdhkex_newkey(ec_p521());
-        }
+        s->eckey = ssh_ecdhkex_newkey(ssh->kex->name);
         if (!s->eckey) {
             bombout(("Unable to generate key for ECDH"));
             crStopV;

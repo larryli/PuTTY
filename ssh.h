@@ -110,26 +110,50 @@ struct ec_point {
 
 void ec_point_free(struct ec_point *point);
 
-struct ec_curve {
-    unsigned int fieldBits;
-    Bignum p, a, b, n;
+/* Weierstrass form curve */
+struct ec_wcurve
+{
+    Bignum a, b, n;
     struct ec_point G;
+};
+
+/* Montgomery form curve */
+struct ec_mcurve
+{
+    Bignum a, b;
+    struct ec_point G;
+};
+
+struct ec_curve {
+    enum { EC_WEIERSTRASS, EC_MONTGOMERY } type;
+    unsigned int fieldBits;
+    Bignum p;
+    union {
+        struct ec_wcurve w;
+        struct ec_mcurve m;
+    };
 };
 
 extern unsigned char nistp256_oid[];
 extern unsigned char nistp384_oid[];
 extern unsigned char nistp521_oid[];
+extern unsigned char curve25519_oid[];
 extern int nistp256_oid_len;
 extern int nistp384_oid_len;
 extern int nistp521_oid_len;
+extern int curve25519_oid_len;
 struct ec_curve *ec_p256(void);
 struct ec_curve *ec_p384(void);
 struct ec_curve *ec_p521(void);
+struct ec_curve *ec_ed25519(void);
+struct ec_curve *ec_curve25519(void);
 
 struct ec_key {
     struct ec_point publicKey;
     Bignum privateKey;
 };
+
+struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve);
 
 int makekey(const unsigned char *data, int len, struct RSAKey *result,
 	    const unsigned char **keystr, int order);
@@ -176,7 +200,7 @@ void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
 /*
  * SSH2 ECDH key exchange functions
  */
-void *ssh_ecdhkex_newkey(struct ec_curve *curve);
+void *ssh_ecdhkex_newkey(const char *name);
 void ssh_ecdhkex_freekey(void *key);
 char *ssh_ecdhkex_getpublic(void *key, int *len);
 Bignum ssh_ecdhkex_getkey(void *key, char *remoteKey, int remoteKeyLen);

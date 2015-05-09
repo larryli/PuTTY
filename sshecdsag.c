@@ -22,10 +22,10 @@ int ec_generate(struct ec_key *key, int bits, progfn_t pfn,
         return 0;
     }
 
-    key->privateKey = bignum_random_in_range(One, key->publicKey.curve->n);
+    key->privateKey = bignum_random_in_range(One, key->publicKey.curve->w.n);
     if (!key->privateKey) return 0;
 
-    publicKey = ecp_mul(&key->publicKey.curve->G, key->privateKey);
+    publicKey = ec_public(key->privateKey, key->publicKey.curve);
     if (!publicKey) {
         freebn(key->privateKey);
         key->privateKey = NULL;
