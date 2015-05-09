@@ -269,7 +269,7 @@ int main(int argc, char **argv)
 {
     char *infile = NULL;
     Filename *infilename = NULL, *outfilename = NULL;
-    enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA } keytype = NOKEYGEN;
+    enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, ED25519 } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_PEM,
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
@@ -444,6 +444,8 @@ int main(int argc, char **argv)
 			    keytype = DSA, sshver = 2;
                         else if (!strcmp(p, "ecdsa"))
                             keytype = ECDSA, sshver = 2;
+                        else if (!strcmp(p, "ed25519"))
+                            keytype = ED25519, sshver = 2;
 			else {
 			    fprintf(stderr,
 				    "puttygen: unknown key type `%s'\n", p);
@@ -516,6 +518,9 @@ int main(int argc, char **argv)
           case ECDSA:
             bits = 384;
             break;
+          case ED25519:
+            bits = 256;
+            break;
           default:
             bits = 2048;
             break;
@@ -524,6 +529,11 @@ int main(int argc, char **argv)
 
     if (keytype == ECDSA && (bits != 256 && bits != 384 && bits != 521)) {
         fprintf(stderr, "puttygen: invalid bits for ECDSA, choose 256, 384 or 521\n");
+        errs = TRUE;
+    }
+
+    if (keytype == ED25519 && (bits != 256)) {
+        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 256\n");
         errs = TRUE;
     }
 
@@ -702,6 +712,8 @@ int main(int argc, char **argv)
 	    strftime(default_comment, 30, "dsa-key-%Y%m%d", &tm);
         else if (keytype == ECDSA)
             strftime(default_comment, 30, "ecdsa-key-%Y%m%d", &tm);
+        else if (keytype == ED25519)
+            strftime(default_comment, 30, "ed25519-key-%Y%m%d", &tm);
 	else
 	    strftime(default_comment, 30, "rsa-key-%Y%m%d", &tm);
 
@@ -735,6 +747,13 @@ int main(int argc, char **argv)
             } else {
                 ssh2key->alg = &ssh_ecdsa_nistp521;
             }
+            ssh1key = NULL;
+        } else if (keytype == ED25519) {
+            struct ec_key *ec = snew(struct ec_key);
+            ec_edgenerate(ec, bits, progressfn, &prog);
+            ssh2key = snew(struct ssh2_userkey);
+            ssh2key->data = ec;
+            ssh2key->alg = &ssh_ecdsa_ed25519;
             ssh1key = NULL;
 	} else {
 	    struct RSAKey *rsakey = snew(struct RSAKey);

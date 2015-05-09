@@ -124,13 +124,21 @@ struct ec_mcurve
     struct ec_point G;
 };
 
+/* Edwards form curve */
+struct ec_ecurve
+{
+    Bignum l, d;
+    struct ec_point B;
+};
+
 struct ec_curve {
-    enum { EC_WEIERSTRASS, EC_MONTGOMERY } type;
+    enum { EC_WEIERSTRASS, EC_MONTGOMERY, EC_EDWARDS } type;
     unsigned int fieldBits;
     Bignum p;
     union {
         struct ec_wcurve w;
         struct ec_mcurve m;
+        struct ec_ecurve e;
     };
 };
 
@@ -421,6 +429,7 @@ extern const struct ssh_kexes ssh_rsa_kex;
 extern const struct ssh_kexes ssh_ecdh_kex;
 extern const struct ssh_signkey ssh_dss;
 extern const struct ssh_signkey ssh_rsa;
+extern const struct ssh_signkey ssh_ecdsa_ed25519;
 extern const struct ssh_signkey ssh_ecdsa_nistp256;
 extern const struct ssh_signkey ssh_ecdsa_nistp384;
 extern const struct ssh_signkey ssh_ecdsa_nistp521;
@@ -721,6 +730,8 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
 		 void *pfnparam);
 int ec_generate(struct ec_key *key, int bits, progfn_t pfn,
                 void *pfnparam);
+int ec_edgenerate(struct ec_key *key, int bits, progfn_t pfn,
+                  void *pfnparam);
 Bignum primegen(int bits, int modulus, int residue, Bignum factor,
 		int phase, progfn_t pfn, void *pfnparam, unsigned firstbits);
 void invent_firstbits(unsigned *one, unsigned *two);

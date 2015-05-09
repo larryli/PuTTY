@@ -406,6 +406,7 @@ static void ssh_channel_destroy(struct ssh_channel *c);
 #define OUR_V2_PACKETLIMIT 0x9000UL
 
 const static struct ssh_signkey *hostkey_algs[] = {
+    &ssh_ecdsa_ed25519,
     &ssh_ecdsa_nistp256, &ssh_ecdsa_nistp384, &ssh_ecdsa_nistp521,
     &ssh_rsa, &ssh_dss
 };

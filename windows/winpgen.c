@@ -315,7 +315,7 @@ static int CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-typedef enum {RSA, DSA, ECDSA} keytype;
+typedef enum {RSA, DSA, ECDSA, ED25519} keytype;
 
 /*
  * Thread to generate a key.
@@ -344,6 +344,8 @@ static DWORD WINAPI generate_rsa_key_thread(void *param)
 	dsa_generate(params->dsskey, params->keysize, progress_update, &prog);
     else if (params->keytype == ECDSA)
         ec_generate(params->eckey, params->keysize, progress_update, &prog);
+    else if (params->keytype == ED25519)
+        ec_edgenerate(params->eckey, params->keysize, progress_update, &prog);
     else
 	rsa_generate(params->key, params->keysize, progress_update, &prog);
 
@@ -530,7 +532,7 @@ enum {
     IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
     IDC_BOX_PARAMS,
     IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
-    IDC_KEYSSH2ECDSA,
+    IDC_KEYSSH2ECDSA, IDC_KEYSSH2ED25519,
     IDC_BITSSTATIC, IDC_BITS,
     IDC_ABOUT,
     IDC_GIVEHELP,
@@ -570,6 +572,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 1);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
@@ -579,6 +582,8 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
+                       MF_ENABLED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
                        MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_PEM,
@@ -600,6 +605,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 0);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 0);
 	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
 	EnableMenuItem(state->filemenu, IDC_LOAD, MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
@@ -609,6 +615,8 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA, MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
+                       MF_GRAYED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
                        MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_PEM,
@@ -630,6 +638,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 1);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
 	EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->filemenu, IDC_SAVE, MF_ENABLED|MF_BYCOMMAND);
@@ -639,6 +648,8 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2RSA,MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA,MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
+                       MF_ENABLED|MF_BYCOMMAND);
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
                        MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
 	/*
@@ -884,6 +895,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA key");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ED25519, "SSH-2 ED&25519 key");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Key");
 	    state->keymenu = menu1;
 
@@ -965,7 +977,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		      "SSH-&1 (RSA)", IDC_KEYSSH1,
 		      "SSH-2 &RSA", IDC_KEYSSH2RSA,
                       "SSH-2 &DSA", IDC_KEYSSH2DSA,
-                      "SSH-2 &ECDSA", IDC_KEYSSH2ECDSA, NULL);
+                      "SSH-2 &ECDSA", IDC_KEYSSH2ECDSA,
+                      "SSH-2 ED&25519", IDC_KEYSSH2ED25519, NULL);
 	    staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
 	    endbox(&cp);
@@ -1044,6 +1057,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	  case IDC_KEYSSH2RSA:
 	  case IDC_KEYSSH2DSA:
           case IDC_KEYSSH2ECDSA:
+          case IDC_KEYSSH2ED25519:
 	    {
 		state = (struct MainDlgState *)
 		    GetWindowLongPtr(hwnd, GWLP_USERDATA);
@@ -1113,6 +1127,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     state->keytype = DSA;
                 } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ECDSA)) {
                     state->keytype = ECDSA;
+                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ED25519)) {
+                    state->keytype = ED25519;
                 }
 		if (state->keysize < 256) {
 		    int ret = MessageBox(hwnd,
@@ -1131,6 +1147,18 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                                  state->keysize == 521)) {
                     int ret = MessageBox(hwnd,
                                          "Only 256, 384 and 521 bit elliptic"
+                                         " curves are supported.\n"
+                                         "Key length reset to 256. Continue?",
+                                         "PuTTYgen Warning",
+                                         MB_ICONWARNING | MB_OKCANCEL);
+                    if (ret != IDOK)
+                        break;
+                    state->keysize = 256;
+                    SetDlgItemInt(hwnd, IDC_BITS, 256, FALSE);
+                }
+                if (state->keytype == ED25519 && state->keysize != 256) {
+                    int ret = MessageBox(hwnd,
+                                         "Only 256 bit Edwards elliptic"
                                          " curves are supported.\n"
                                          "Key length reset to 256. Continue?",
                                          "PuTTYgen Warning",
@@ -1347,6 +1375,9 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     state->ssh2key.alg = &ssh_ecdsa_nistp384;
                 else
                     state->ssh2key.alg = &ssh_ecdsa_nistp521;
+            } else if (state->keytype == ED25519) {
+                state->ssh2key.data = &state->eckey;
+                state->ssh2key.alg = &ssh_ecdsa_ed25519;
 	    } else {
 		state->ssh2key.data = &state->key;
 		state->ssh2key.alg = &ssh_rsa;
@@ -1369,6 +1400,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		strftime(*state->commentptr, 30, "dsa-key-%Y%m%d", &tm);
             else if (state->keytype == ECDSA)
                 strftime(*state->commentptr, 30, "ecdsa-key-%Y%m%d", &tm);
+            else if (state->keytype == ED25519)
+                strftime(*state->commentptr, 30, "ed25519-key-%Y%m%d", &tm);
 	    else
 		strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", &tm);
 	}
@@ -1460,6 +1493,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
               case IDC_KEYSSH2RSA:
               case IDC_KEYSSH2DSA:
               case IDC_KEYSSH2ECDSA:
+              case IDC_KEYSSH2ED25519:
                 topic = WINHELP_CTX_puttygen_keytype; break;
               case IDC_BITSSTATIC:
               case IDC_BITS:
