@@ -109,8 +109,8 @@ int match_ssh_id(int stringlen, const void *string, const char *id);
  */
 
 #ifdef DEBUG
-void debug_printf(char *fmt, ...);
-void debug_memdump(void *buf, int len, int L);
+void debug_printf(const char *fmt, ...);
+void debug_memdump(const void *buf, int len, int L);
 #define debug(x) (debug_printf x)
 #define dmemdump(buf,len) debug_memdump (buf, len, 0);
 #define dmemdumpl(buf,len) debug_memdump (buf, len, 1);

@@ -814,7 +814,7 @@ void safefree(void *ptr)
 #ifdef DEBUG
 extern void dputs(char *);             /* defined in per-platform *misc.c */
 
-void debug_printf(char *fmt, ...)
+void debug_printf(const char *fmt, ...)
 {
     char *buf;
     va_list ap;
@@ -827,10 +827,10 @@ void debug_printf(char *fmt, ...)
 }
 
 
-void debug_memdump(void *buf, int len, int L)
+void debug_memdump(const void *buf, int len, int L)
 {
     int i;
-    unsigned char *p = buf;
+    const unsigned char *p = buf;
     char foo[17];
     if (L) {
 	int delta;
