@@ -1204,6 +1204,13 @@ char *key_type_to_str(int type)
       case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 private key (old PEM format)"; break;
       case SSH_KEYTYPE_OPENSSH_NEW: return "OpenSSH SSH-2 private key (new format)"; break;
       case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 private key"; break;
+        /*
+         * This function is called with a key type derived from
+         * looking at an actual key file, so the output-only type
+         * OPENSSH_AUTO should never get here, and is much an INTERNAL
+         * ERROR as a code we don't even understand.
+         */
+      case SSH_KEYTYPE_OPENSSH_AUTO: return "INTERNAL ERROR (OPENSSH_AUTO)"; break;
       default: return "INTERNAL ERROR"; break;
     }
 }

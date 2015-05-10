@@ -537,7 +537,7 @@ enum {
     IDC_ABOUT,
     IDC_GIVEHELP,
     IDC_IMPORT,
-    IDC_EXPORT_OPENSSH_PEM, IDC_EXPORT_OPENSSH_NEW,
+    IDC_EXPORT_OPENSSH_AUTO, IDC_EXPORT_OPENSSH_NEW,
     IDC_EXPORT_SSHCOM
 };
 
@@ -586,7 +586,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
                        MF_ENABLED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
-	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_PEM,
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_AUTO,
 		       MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_NEW,
 		       MF_GRAYED|MF_BYCOMMAND);
@@ -619,7 +619,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
                        MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_GRAYED|MF_BYCOMMAND);
-	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_PEM,
+	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_AUTO,
 		       MF_GRAYED|MF_BYCOMMAND);
 	EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_NEW,
 		       MF_GRAYED|MF_BYCOMMAND);
@@ -660,7 +660,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 #define do_export_menuitem(x,y) \
     EnableMenuItem(state->cvtmenu, x, MF_BYCOMMAND | \
 		       (import_target_type(y)==type?MF_ENABLED:MF_GRAYED))
-	do_export_menuitem(IDC_EXPORT_OPENSSH_PEM, SSH_KEYTYPE_OPENSSH_PEM);
+	do_export_menuitem(IDC_EXPORT_OPENSSH_AUTO, SSH_KEYTYPE_OPENSSH_AUTO);
 	do_export_menuitem(IDC_EXPORT_OPENSSH_NEW, SSH_KEYTYPE_OPENSSH_NEW);
 	do_export_menuitem(IDC_EXPORT_SSHCOM, SSH_KEYTYPE_SSHCOM);
 #undef do_export_menuitem
@@ -902,10 +902,10 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    menu1 = CreateMenu();
 	    AppendMenu(menu1, MF_ENABLED, IDC_IMPORT, "&Import key");
 	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
-	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_PEM,
-		       "Export &OpenSSH key (old PEM format)");
+	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_AUTO,
+		       "Export &OpenSSH key");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_NEW,
-		       "Export &OpenSSH key (new format)");
+		       "Export &OpenSSH key (force new file format)");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
@@ -1198,7 +1198,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    }
 	    break;
 	  case IDC_SAVE:
-          case IDC_EXPORT_OPENSSH_PEM:
+          case IDC_EXPORT_OPENSSH_AUTO:
           case IDC_EXPORT_OPENSSH_NEW:
           case IDC_EXPORT_SSHCOM:
 	    if (HIWORD(wParam) != BN_CLICKED)
@@ -1215,8 +1215,8 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 else
                     realtype = SSH_KEYTYPE_SSH1;
 
-                if (LOWORD(wParam) == IDC_EXPORT_OPENSSH_PEM)
-                    type = SSH_KEYTYPE_OPENSSH_PEM;
+                if (LOWORD(wParam) == IDC_EXPORT_OPENSSH_AUTO)
+                    type = SSH_KEYTYPE_OPENSSH_AUTO;
                 else if (LOWORD(wParam) == IDC_EXPORT_OPENSSH_NEW)
                     type = SSH_KEYTYPE_OPENSSH_NEW;
                 else if (LOWORD(wParam) == IDC_EXPORT_SSHCOM)
@@ -1499,7 +1499,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
               case IDC_BITS:
                 topic = WINHELP_CTX_puttygen_bits; break;
               case IDC_IMPORT:
-              case IDC_EXPORT_OPENSSH_PEM:
+              case IDC_EXPORT_OPENSSH_AUTO:
               case IDC_EXPORT_OPENSSH_NEW:
               case IDC_EXPORT_SSHCOM:
                 topic = WINHELP_CTX_puttygen_conversions; break;

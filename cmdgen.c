@@ -160,10 +160,8 @@ void help(void)
 	    "  -O    specify output type:\n"
 	    "           private             output PuTTY private key format\n"
 	    "           private-openssh     export OpenSSH private key\n"
-	    "           private-openssh-pem export OpenSSH private key "
-                                             "(force old PEM format)\n"
 	    "           private-openssh-new export OpenSSH private key "
-                                             "(force new format)\n"
+                                             "(force new file format)\n"
 	    "           private-sshcom      export ssh.com private key\n"
 	    "           public              standard / ssh.com public key\n"
 	    "           public-openssh      OpenSSH public key\n"
@@ -271,7 +269,7 @@ int main(int argc, char **argv)
     Filename *infilename = NULL, *outfilename = NULL;
     enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, ED25519 } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
-    enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_PEM,
+    enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
     int bits = -1;
     char *comment = NULL, *origcomment = NULL;
@@ -467,9 +465,8 @@ int main(int argc, char **argv)
 			    outtype = PRIVATE;
 			else if (!strcmp(p, "fingerprint"))
 			    outtype = FP;
-			else if (!strcmp(p, "private-openssh") ||
-                                 !strcmp(p, "private-openssh-pem"))
-			    outtype = OPENSSH_PEM, sshver = 2;
+			else if (!strcmp(p, "private-openssh"))
+			    outtype = OPENSSH_AUTO, sshver = 2;
 			else if (!strcmp(p, "private-openssh-new"))
 			    outtype = OPENSSH_NEW, sshver = 2;
 			else if (!strcmp(p, "private-sshcom"))
@@ -569,7 +566,7 @@ int main(int argc, char **argv)
      * We must save the private part when generating a new key.
      */
     if (keytype != NOKEYGEN &&
-	(outtype != PRIVATE && outtype != OPENSSH_PEM &&
+	(outtype != PRIVATE && outtype != OPENSSH_AUTO &&
          outtype != OPENSSH_NEW && outtype != SSHCOM)) {
 	fprintf(stderr, "puttygen: this would generate a new key but "
 		"discard the private part\n");
@@ -634,6 +631,10 @@ int main(int argc, char **argv)
 	    }
 	    sshver = 2;
 	    break;
+
+	  case SSH_KEYTYPE_OPENSSH_AUTO:
+          default:
+            assert(0 && "Should never see these types on an input file");
 	}
     }
 
@@ -649,7 +650,7 @@ int main(int argc, char **argv)
      */
     if ((intype == SSH_KEYTYPE_SSH1 && outtype == PRIVATE) ||
 	(intype == SSH_KEYTYPE_SSH2 && outtype == PRIVATE) ||
-	(intype == SSH_KEYTYPE_OPENSSH_PEM && outtype == OPENSSH_PEM) ||
+	(intype == SSH_KEYTYPE_OPENSSH_PEM && outtype == OPENSSH_AUTO) ||
 	(intype == SSH_KEYTYPE_OPENSSH_NEW && outtype == OPENSSH_NEW) ||
 	(intype == SSH_KEYTYPE_SSHCOM && outtype == SSHCOM)) {
 	if (!outfile) {
@@ -668,7 +669,7 @@ int main(int argc, char **argv)
 	     * Bomb out rather than automatically choosing to write
 	     * a private key file to stdout.
 	     */
-	    if (outtype == PRIVATE || outtype == OPENSSH_PEM ||
+	    if (outtype == PRIVATE || outtype == OPENSSH_AUTO ||
                 outtype == OPENSSH_NEW || outtype == SSHCOM) {
 		fprintf(stderr, "puttygen: need to specify an output file\n");
 		return 1;
@@ -682,7 +683,7 @@ int main(int argc, char **argv)
      * out a private key format, or (b) the entire input key file
      * is encrypted.
      */
-    if (outtype == PRIVATE || outtype == OPENSSH_PEM ||
+    if (outtype == PRIVATE || outtype == OPENSSH_AUTO ||
         outtype == OPENSSH_NEW || outtype == SSHCOM ||
 	intype == SSH_KEYTYPE_OPENSSH_PEM ||
 	intype == SSH_KEYTYPE_OPENSSH_NEW ||
@@ -1102,7 +1103,7 @@ int main(int argc, char **argv)
 	}
 	break;
 	
-      case OPENSSH_PEM:
+      case OPENSSH_AUTO:
       case OPENSSH_NEW:
       case SSHCOM:
 	assert(sshver == 2);
@@ -1110,8 +1111,8 @@ int main(int argc, char **argv)
 	random_ref(); /* both foreign key types require randomness,
                        * for IV or padding */
         switch (outtype) {
-          case OPENSSH_PEM:
-            real_outtype = SSH_KEYTYPE_OPENSSH_PEM;
+          case OPENSSH_AUTO:
+            real_outtype = SSH_KEYTYPE_OPENSSH_AUTO;
             break;
           case OPENSSH_NEW:
             real_outtype = SSH_KEYTYPE_OPENSSH_NEW;

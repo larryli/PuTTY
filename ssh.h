@@ -674,6 +674,34 @@ enum {
     SSH_KEYTYPE_UNOPENABLE,
     SSH_KEYTYPE_UNKNOWN,
     SSH_KEYTYPE_SSH1, SSH_KEYTYPE_SSH2,
+    /*
+     * The OpenSSH key types deserve a little explanation. OpenSSH has
+     * two physical formats for private key storage: an old PEM-based
+     * one largely dictated by their use of OpenSSL and full of ASN.1,
+     * and a new one using the same private key formats used over the
+     * wire for talking to ssh-agent. The old format can only support
+     * a subset of the key types, because it needs redesign for each
+     * key type, and after a while they decided to move to the new
+     * format so as not to have to do that.
+     *
+     * On input, key files are identified as either
+     * SSH_KEYTYPE_OPENSSH_PEM or SSH_KEYTYPE_OPENSSH_NEW, describing
+     * accurately which actual format the keys are stored in.
+     *
+     * On output, however, we default to following OpenSSH's own
+     * policy of writing out PEM-style keys for maximum backwards
+     * compatibility if the key type supports it, and otherwise
+     * switching to the new format. So the formats you can select for
+     * output are SSH_KEYTYPE_OPENSSH_NEW (forcing the new format for
+     * any key type), and SSH_KEYTYPE_OPENSSH_AUTO to use the oldest
+     * format supported by whatever key type you're writing out.
+     *
+     * So we have three type codes, but only two of them usable in any
+     * given circumstance. An input key file will never be identified
+     * as AUTO, only PEM or NEW; key export UIs should not be able to
+     * select PEM, only AUTO or NEW.
+     */
+    SSH_KEYTYPE_OPENSSH_AUTO,
     SSH_KEYTYPE_OPENSSH_PEM,
     SSH_KEYTYPE_OPENSSH_NEW,
     SSH_KEYTYPE_SSHCOM

@@ -20,6 +20,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 struct ssh2_userkey *openssh_new_read(const Filename *filename,
                                       char *passphrase,
                                       const char **errmsg_p);
+int openssh_auto_write(const Filename *filename, struct ssh2_userkey *key,
+                       char *passphrase);
 int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase);
 int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
@@ -117,8 +119,8 @@ int export_ssh1(const Filename *filename, int type, struct RSAKey *key,
 int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase)
 {
-    if (type == SSH_KEYTYPE_OPENSSH_PEM)
-	return openssh_pem_write(filename, key, passphrase);
+    if (type == SSH_KEYTYPE_OPENSSH_AUTO)
+	return openssh_auto_write(filename, key, passphrase);
     if (type == SSH_KEYTYPE_OPENSSH_NEW)
 	return openssh_new_write(filename, key, passphrase);
     if (type == SSH_KEYTYPE_SSHCOM)
@@ -1886,6 +1888,28 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
         sfree(pubblob);
     }
     return ret;
+}
+
+/* ----------------------------------------------------------------------
+ * The switch function openssh_auto_write(), which chooses one of the
+ * concrete OpenSSH output formats based on the key type.
+ */
+int openssh_auto_write(const Filename *filename, struct ssh2_userkey *key,
+                       char *passphrase)
+{
+    /*
+     * The old OpenSSH format supports a fixed list of key types. We
+     * assume that anything not in that fixed list is newer, and hence
+     * will use the new format.
+     */
+    if (key->alg == &ssh_dss ||
+        key->alg == &ssh_rsa ||
+        key->alg == &ssh_ecdsa_nistp256 ||
+        key->alg == &ssh_ecdsa_nistp384 ||
+        key->alg == &ssh_ecdsa_nistp521)
+        return openssh_pem_write(filename, key, passphrase);
+    else
+        return openssh_new_write(filename, key, passphrase);
 }
 
 /* ----------------------------------------------------------------------
