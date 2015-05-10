@@ -2127,16 +2127,15 @@ static void ssh_pkt_addstring_start(struct Packet *pkt)
     ssh_pkt_adduint32(pkt, 0);
     pkt->savedpos = pkt->length;
 }
-static void ssh_pkt_addstring_str(struct Packet *pkt, const char *data)
-{
-    ssh_pkt_adddata(pkt, data, strlen(data));
-    PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
-}
 static void ssh_pkt_addstring_data(struct Packet *pkt, const char *data,
                                    int len)
 {
     ssh_pkt_adddata(pkt, data, len);
     PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
+}
+static void ssh_pkt_addstring_str(struct Packet *pkt, const char *data)
+{
+  ssh_pkt_addstring_data(pkt, data, strlen(data));
 }
 static void ssh_pkt_addstring(struct Packet *pkt, const char *data)
 {
