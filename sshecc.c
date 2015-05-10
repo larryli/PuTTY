@@ -2204,9 +2204,10 @@ struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve
         }
         SHA512_Final(&s, hash);
 
-        /* The second part is simply turning the hash into a Bignum, however
-         * the 2^(b-2) bit *must* be set, and the bottom 2 bits *must* not be */
-        hash[0] &= 0xfc; /* Unset bottom two bits (if set) */
+        /* The second part is simply turning the hash into a Bignum,
+         * however the 2^(b-2) bit *must* be set, and the bottom 3
+         * bits *must* not be */
+        hash[0] &= 0xf8; /* Unset bottom 3 bits (if set) */
         hash[31] &= 0x7f; /* Unset above (b-2) */
         hash[31] |= 0x40; /* Set 2^(b-2) */
         /* Chop off the top part and convert to int */
@@ -3364,9 +3365,10 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
 
             SHA512_Final(&hs, hash);
 
-            /* The second part is simply turning the hash into a Bignum, however
-             * the 2^(b-2) bit *must* be set, and the bottom 2 bits *must* not be */
-            hash[0] &= 0xfc; /* Unset bottom two bits (if set) */
+            /* The second part is simply turning the hash into a
+             * Bignum, however the 2^(b-2) bit *must* be set, and the
+             * bottom 3 bits *must* not be */
+            hash[0] &= 0xf8; /* Unset bottom 3 bits (if set) */
             hash[31] &= 0x7f; /* Unset above (b-2) */
             hash[31] |= 0x40; /* Set 2^(b-2) */
             /* Chop off the top part and convert to int */
