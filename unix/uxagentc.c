@@ -53,9 +53,45 @@ static int agent_connfind(void *av, void *bv)
     return 0;
 }
 
-static int agent_select_result(int fd, int event)
+/*
+ * Attempt to read from an agent socket fd. Returns 0 if the expected
+ * response is as yet incomplete; returns 1 if it's either complete
+ * (conn->retbuf non-NULL and filled with something useful) or has
+ * failed totally (conn->retbuf is NULL).
+ */
+static int agent_try_read(struct agent_connection *conn)
 {
     int ret;
+
+    ret = read(conn->fd, conn->retbuf+conn->retlen,
+               conn->retsize-conn->retlen);
+    if (ret <= 0) {
+	if (conn->retbuf != conn->sizebuf) sfree(conn->retbuf);
+	conn->retbuf = NULL;
+	conn->retlen = 0;
+        return 1;
+    }
+    conn->retlen += ret;
+    if (conn->retsize == 4 && conn->retlen == 4) {
+	conn->retsize = toint(GET_32BIT(conn->retbuf) + 4);
+	if (conn->retsize <= 0) {
+	    conn->retbuf = NULL;
+	    conn->retlen = 0;
+            return -1;                 /* way too large */
+	}
+	assert(conn->retbuf == conn->sizebuf);
+	conn->retbuf = snewn(conn->retsize, char);
+	memcpy(conn->retbuf, conn->sizebuf, 4);
+    }
+
+    if (conn->retlen < conn->retsize)
+	return 0;		       /* more data to come */
+
+    return 1;
+}
+
+static int agent_select_result(int fd, int event)
+{
     struct agent_connection *conn;
 
     assert(event == 1);		       /* not selecting for anything but R */
@@ -66,30 +102,9 @@ static int agent_select_result(int fd, int event)
 	return 1;
     }
 
-    ret = read(fd, conn->retbuf+conn->retlen, conn->retsize-conn->retlen);
-    if (ret <= 0) {
-	if (conn->retbuf != conn->sizebuf) sfree(conn->retbuf);
-	conn->retbuf = NULL;
-	conn->retlen = 0;
-	goto done;
-    }
-    conn->retlen += ret;
-    if (conn->retsize == 4 && conn->retlen == 4) {
-	conn->retsize = toint(GET_32BIT(conn->retbuf) + 4);
-	if (conn->retsize <= 0) {
-	    conn->retbuf = NULL;
-	    conn->retlen = 0;
-	    goto done;
-	}
-	assert(conn->retbuf == conn->sizebuf);
-	conn->retbuf = snewn(conn->retsize, char);
-	memcpy(conn->retbuf, conn->sizebuf, 4);
-    }
-
-    if (conn->retlen < conn->retsize)
+    if (!agent_try_read(conn))
 	return 0;		       /* more data to come */
 
-    done:
     /*
      * We have now completed the agent query. Do the callback, and
      * clean up. (Of course we don't free retbuf, since ownership
@@ -140,9 +155,6 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 	done += ret;
     }
 
-    if (!agent_connections)
-	agent_connections = newtree234(agent_conncmp);
-
     conn = snew(struct agent_connection);
     conn->fd = sock;
     conn->retbuf = conn->sizebuf;
@@ -150,6 +162,34 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
     conn->retlen = 0;
     conn->callback = callback;
     conn->callback_ctx = callback_ctx;
+
+    if (!callback) {
+        /*
+         * Bodge to permit making deliberately synchronous agent
+         * requests. Used by Unix Pageant in command-line client mode,
+         * which is legit because it really is true that no other part
+         * of the program is trying to get anything useful done
+         * simultaneously. But this special case shouldn't be used in
+         * any more general program.
+         */
+        no_nonblock(conn->fd);
+        while (!agent_try_read(conn))
+            /* empty loop body */;
+
+        *out = conn->retbuf;
+        *outlen = conn->retlen;
+        sfree(conn);
+        return 1;
+    }
+
+    /*
+     * Otherwise do it properly: add conn to the tree of agent
+     * connections currently in flight, return 0 to indicate that the
+     * response hasn't been received yet, and call the callback when
+     * select_result comes back to us.
+     */
+    if (!agent_connections)
+	agent_connections = newtree234(agent_conncmp);
     add234(agent_connections, conn);
 
     uxsel_set(sock, 1, agent_select_result);
