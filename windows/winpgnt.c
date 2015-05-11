@@ -112,32 +112,10 @@ static void unmungestr(char *in, char *out, int outlen)
 
 static int has_security;
 
-/*
- * Forward references
- */
-static void *get_keylist1(int *length);
-static void *get_keylist2(int *length);
-
 struct PassphraseProcStruct {
     char **passphrase;
     char *comment;
 };
-
-static tree234 *passphrases = NULL;
-
-/* 
- * After processing a list of filenames, we want to forget the
- * passphrases.
- */
-static void forget_passphrases(void)
-{
-    while (count234(passphrases) > 0) {
-	char *pp = index234(passphrases, 0);
-	smemclr(pp, strlen(pp));
-	delpos234(passphrases, 0);
-	free(pp);
-    }
-}
 
 /*
  * Dialog-box function for the Licence box.
@@ -340,397 +318,6 @@ void keylist_update(void)
     }
 }
 
-/*
- * This function loads a key from a file and adds it.
- */
-static void add_keyfile(Filename *filename)
-{
-    char *passphrase;
-    struct RSAKey *rkey = NULL;
-    struct ssh2_userkey *skey = NULL;
-    int needs_pass;
-    int ret;
-    int attempts;
-    char *comment;
-    const char *error = NULL;
-    int type;
-    int original_pass;
-	
-    type = key_type(filename);
-    if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-	char *msg = dupprintf("Couldn't load this key (%s)",
-			      key_type_to_str(type));
-	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-		    HELPCTXID(errors_cantloadkey));
-	sfree(msg);
-	return;
-    }
-
-    /*
-     * See if the key is already loaded (in the primary Pageant,
-     * which may or may not be us).
-     */
-    {
-	void *blob;
-	unsigned char *keylist, *p;
-	int i, nkeys, bloblen, keylistlen;
-
-	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(filename, &blob, &bloblen, NULL, &error)) {
-		char *msg = dupprintf("Couldn't load private key (%s)", error);
-		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-			    HELPCTXID(errors_cantloadkey));
-		sfree(msg);
-		return;
-	    }
-	    keylist = get_keylist1(&keylistlen);
-	} else {
-	    unsigned char *blob2;
-	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen,
-					NULL, &error);
-	    if (!blob) {
-		char *msg = dupprintf("Couldn't load private key (%s)", error);
-		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-			    HELPCTXID(errors_cantloadkey));
-		sfree(msg);
-		return;
-	    }
-	    /* For our purposes we want the blob prefixed with its length */
-	    blob2 = snewn(bloblen+4, unsigned char);
-	    PUT_32BIT(blob2, bloblen);
-	    memcpy(blob2 + 4, blob, bloblen);
-	    sfree(blob);
-	    blob = blob2;
-
-	    keylist = get_keylist2(&keylistlen);
-	}
-	if (keylist) {
-	    if (keylistlen < 4) {
-		MessageBox(NULL, "Received broken key list?!", APPNAME,
-			   MB_OK | MB_ICONERROR);
-		return;
-	    }
-	    nkeys = toint(GET_32BIT(keylist));
-	    if (nkeys < 0) {
-		MessageBox(NULL, "Received broken key list?!", APPNAME,
-			   MB_OK | MB_ICONERROR);
-		return;
-	    }
-	    p = keylist + 4;
-	    keylistlen -= 4;
-
-	    for (i = 0; i < nkeys; i++) {
-		if (!memcmp(blob, p, bloblen)) {
-		    /* Key is already present; we can now leave. */
-		    sfree(keylist);
-		    sfree(blob);
-		    return;
-		}
-		/* Now skip over public blob */
-		if (type == SSH_KEYTYPE_SSH1) {
-		    int n = rsa_public_blob_len(p, keylistlen);
-		    if (n < 0) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		} else {
-		    int n;
-		    if (keylistlen < 4) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		}
-		/* Now skip over comment field */
-		{
-		    int n;
-		    if (keylistlen < 4) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
-			MessageBox(NULL, "Received broken key list?!", APPNAME,
-				   MB_OK | MB_ICONERROR);
-			return;
-		    }
-		    p += n;
-		    keylistlen -= n;
-		}
-	    }
-
-	    sfree(keylist);
-	}
-
-	sfree(blob);
-    }
-
-    error = NULL;
-    if (type == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
-    else
-	needs_pass = ssh2_userkey_encrypted(filename, &comment);
-    attempts = 0;
-    if (type == SSH_KEYTYPE_SSH1)
-	rkey = snew(struct RSAKey);
-    passphrase = NULL;
-    original_pass = 0;
-    do {
-        burnstr(passphrase);
-        passphrase = NULL;
-
-	if (needs_pass) {
-	    /* try all the remembered passphrases first */
-	    char *pp = index234(passphrases, attempts);
-	    if(pp) {
-		passphrase = dupstr(pp);
-	    } else {
-		int dlgret;
-                struct PassphraseProcStruct pps;
-
-                pps.passphrase = &passphrase;
-                pps.comment = comment;
-
-		original_pass = 1;
-		dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
-					NULL, PassphraseProc, (LPARAM) &pps);
-		passphrase_box = NULL;
-		if (!dlgret) {
-		    if (comment)
-			sfree(comment);
-		    if (type == SSH_KEYTYPE_SSH1)
-			sfree(rkey);
-		    return;		       /* operation cancelled */
-		}
-
-                assert(passphrase != NULL);
-	    }
-	} else
-	    passphrase = dupstr("");
-
-	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(filename, rkey, passphrase, &error);
-	else {
-	    skey = ssh2_load_userkey(filename, passphrase, &error);
-	    if (skey == SSH2_WRONG_PASSPHRASE)
-		ret = -1;
-	    else if (!skey)
-		ret = 0;
-	    else
-		ret = 1;
-	}
-	attempts++;
-    } while (ret == -1);
-
-    if(original_pass && ret) {
-        /* If they typed in an ok passphrase, remember it */
-	addpos234(passphrases, passphrase, 0);
-    } else {
-        /* Otherwise, destroy it */
-        burnstr(passphrase);
-    }
-    passphrase = NULL;
-
-    if (comment)
-	sfree(comment);
-    if (ret == 0) {
-	char *msg = dupprintf("Couldn't load private key (%s)", error);
-	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
-		    HELPCTXID(errors_cantloadkey));
-	sfree(msg);
-	if (type == SSH_KEYTYPE_SSH1)
-	    sfree(rkey);
-	return;
-    }
-    if (type == SSH_KEYTYPE_SSH1) {
-	if (already_running) {
-	    unsigned char *request, *response;
-	    void *vresponse;
-	    int reqlen, clen, resplen, ret;
-
-	    clen = strlen(rkey->comment);
-
-	    reqlen = 4 + 1 +	       /* length, message type */
-		4 +		       /* bit count */
-		ssh1_bignum_length(rkey->modulus) +
-		ssh1_bignum_length(rkey->exponent) +
-		ssh1_bignum_length(rkey->private_exponent) +
-		ssh1_bignum_length(rkey->iqmp) +
-		ssh1_bignum_length(rkey->p) +
-		ssh1_bignum_length(rkey->q) + 4 + clen	/* comment */
-		;
-
-	    request = snewn(reqlen, unsigned char);
-
-	    request[4] = SSH1_AGENTC_ADD_RSA_IDENTITY;
-	    reqlen = 5;
-	    PUT_32BIT(request + reqlen, bignum_bitcount(rkey->modulus));
-	    reqlen += 4;
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->modulus);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->exponent);
-	    reqlen +=
-		ssh1_write_bignum(request + reqlen,
-				  rkey->private_exponent);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->iqmp);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->p);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->q);
-	    PUT_32BIT(request + reqlen, clen);
-	    memcpy(request + reqlen + 4, rkey->comment, clen);
-	    reqlen += 4 + clen;
-	    PUT_32BIT(request, reqlen - 4);
-
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
-	    response = vresponse;
-	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "The already running Pageant "
-			   "refused to add the key.", APPNAME,
-			   MB_OK | MB_ICONERROR);
-
-	    sfree(request);
-	    sfree(response);
-	} else {
-	    if (!pageant_add_ssh1_key(rkey))
-		sfree(rkey);	       /* already present, don't waste RAM */
-	}
-    } else {
-	if (already_running) {
-	    unsigned char *request, *response;
-	    void *vresponse;
-	    int reqlen, alglen, clen, keybloblen, resplen, ret;
-	    alglen = strlen(skey->alg->name);
-	    clen = strlen(skey->comment);
-
-	    keybloblen = skey->alg->openssh_fmtkey(skey->data, NULL, 0);
-
-	    reqlen = 4 + 1 +	       /* length, message type */
-		4 + alglen +	       /* algorithm name */
-		keybloblen +	       /* key data */
-		4 + clen	       /* comment */
-		;
-
-	    request = snewn(reqlen, unsigned char);
-
-	    request[4] = SSH2_AGENTC_ADD_IDENTITY;
-	    reqlen = 5;
-	    PUT_32BIT(request + reqlen, alglen);
-	    reqlen += 4;
-	    memcpy(request + reqlen, skey->alg->name, alglen);
-	    reqlen += alglen;
-	    reqlen += skey->alg->openssh_fmtkey(skey->data,
-						request + reqlen,
-						keybloblen);
-	    PUT_32BIT(request + reqlen, clen);
-	    memcpy(request + reqlen + 4, skey->comment, clen);
-	    reqlen += clen + 4;
-	    PUT_32BIT(request, reqlen - 4);
-
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
-	    response = vresponse;
-	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "The already running Pageant "
-			   "refused to add the key.", APPNAME,
-			   MB_OK | MB_ICONERROR);
-
-	    sfree(request);
-	    sfree(response);
-	} else {
-	    if (!pageant_add_ssh2_key(skey)) {
-		skey->alg->freekey(skey->data);
-		sfree(skey);	       /* already present, don't waste RAM */
-	    }
-	}
-    }
-}
-
-/*
- * Acquire a keylist1 from the primary Pageant; this means either
- * calling pageant_make_keylist1 (if that's us) or sending a message
- * to the primary Pageant (if it's not).
- */
-static void *get_keylist1(int *length)
-{
-    void *ret;
-
-    if (already_running) {
-	unsigned char request[5], *response;
-	void *vresponse;
-	int resplen, retval;
-	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
-	PUT_32BIT(request, 4);
-
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
-	response = vresponse;
-	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
-            sfree(response);
-	    return NULL;
-        }
-
-	ret = snewn(resplen-5, unsigned char);
-	memcpy(ret, response+5, resplen-5);
-	sfree(response);
-
-	if (length)
-	    *length = resplen-5;
-    } else {
-	ret = pageant_make_keylist1(length);
-    }
-    return ret;
-}
-
-/*
- * Acquire a keylist2 from the primary Pageant; this means either
- * calling pageant_make_keylist2 (if that's us) or sending a message
- * to the primary Pageant (if it's not).
- */
-static void *get_keylist2(int *length)
-{
-    void *ret;
-
-    if (already_running) {
-	unsigned char request[5], *response;
-	void *vresponse;
-	int resplen, retval;
-
-	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
-	PUT_32BIT(request, 4);
-
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
-	response = vresponse;
-	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
-            sfree(response);
-	    return NULL;
-        }
-
-	ret = snewn(resplen-5, unsigned char);
-	memcpy(ret, response+5, resplen-5);
-	sfree(response);
-
-	if (length)
-	    *length = resplen-5;
-    } else {
-	ret = pageant_make_keylist2(length);
-    }
-    return ret;
-}
-
 static void answer_msg(void *msgv)
 {
     unsigned char *msg = (unsigned char *)msgv;
@@ -759,6 +346,69 @@ static void answer_msg(void *msgv)
     sfree(reply);
 }
 
+static void win_add_keyfile(Filename *filename)
+{
+    char *err;
+    int ret;
+    char *passphrase = NULL;
+
+    /*
+     * Try loading the key without a passphrase. (Or rather, without a
+     * _new_ passphrase; pageant_add_keyfile will take care of trying
+     * all the passphrases we've already stored.)
+     */
+    ret = pageant_add_keyfile(filename, NULL, &err);
+    if (ret == PAGEANT_ACTION_OK) {
+        goto done;
+    } else if (ret == PAGEANT_ACTION_FAILURE) {
+        goto error;
+    }
+
+    /*
+     * OK, a passphrase is needed, and we've been given the key
+     * comment to use in the passphrase prompt.
+     */
+    while (1) {
+        int dlgret;
+        struct PassphraseProcStruct pps;
+
+        pps.passphrase = &passphrase;
+        pps.comment = err;
+        dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
+                                NULL, PassphraseProc, (LPARAM) &pps);
+        passphrase_box = NULL;
+
+        sfree(err);
+
+        if (!dlgret)
+            goto done;		       /* operation cancelled */
+
+        assert(passphrase != NULL);
+
+        ret = pageant_add_keyfile(filename, passphrase, &err);
+        if (ret == PAGEANT_ACTION_OK) {
+            goto done;
+        } else if (ret == PAGEANT_ACTION_FAILURE) {
+            goto error;
+        }
+
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
+        passphrase = NULL;
+    }
+
+  error:
+    message_box(err, APPNAME, MB_OK | MB_ICONERROR,
+                HELPCTXID(errors_cantloadkey));
+  done:
+    if (passphrase) {
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
+    }
+    sfree(err);
+    return;
+}
+
 /*
  * Prompt for a key file to add, and add it.
  */
@@ -783,7 +433,7 @@ static void prompt_add_keyfile(void)
 	if(strlen(filelist) > of.nFileOffset) {
 	    /* Only one filename returned? */
             Filename *fn = filename_from_str(filelist);
-	    add_keyfile(fn);
+	    win_add_keyfile(fn);
             filename_free(fn);
         } else {
 	    /* we are returned a bunch of strings, end to
@@ -796,7 +446,7 @@ static void prompt_add_keyfile(void)
 	    while (*filewalker != '\0') {
 		char *filename = dupcat(dir, "\\", filewalker, NULL);
                 Filename *fn = filename_from_str(filename);
-		add_keyfile(fn);
+		win_add_keyfile(fn);
                 filename_free(fn);
 		sfree(filename);
 		filewalker += strlen(filewalker) + 1;
@@ -804,7 +454,7 @@ static void prompt_add_keyfile(void)
 	}
 
 	keylist_update();
-	forget_passphrases();
+	pageant_forget_passphrases();
     }
     sfree(filelist);
 }
@@ -1454,11 +1104,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     /*
-     * Initialise storage for short-term passphrase cache.
-     */
-    passphrases = newtree234(NULL);
-
-    /*
      * Process the command line and add keys as listed on it.
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
@@ -1479,7 +1124,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    break;
 	} else {
             Filename *fn = filename_from_str(argv[i]);
-	    add_keyfile(fn);
+	    win_add_keyfile(fn);
             filename_free(fn);
 	    added_keys = TRUE;
 	}
@@ -1489,7 +1134,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Forget any passphrase that we retained while going over
      * command line keyfiles.
      */
-    forget_passphrases();
+    pageant_forget_passphrases();
 
     if (command) {
 	char *args;
