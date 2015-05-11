@@ -1582,3 +1582,140 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
     }
     return PAGEANT_ACTION_OK;
 }
+
+int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
+                      char **retstr)
+{
+    unsigned char *keylist, *p;
+    int i, nkeys, keylistlen;
+    char *comment;
+
+    keylist = pageant_get_keylist1(&keylistlen);
+    if (keylistlen < 4) {
+        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        sfree(keylist);
+        return PAGEANT_ACTION_FAILURE;
+    }
+    nkeys = toint(GET_32BIT(keylist));
+    if (nkeys < 0) {
+        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        sfree(keylist);
+        return PAGEANT_ACTION_FAILURE;
+    }
+    p = keylist + 4;
+    keylistlen -= 4;
+
+    for (i = 0; i < nkeys; i++) {
+        struct RSAKey rkey;
+        char fingerprint[128];
+        int n;
+
+        /* public blob and fingerprint */
+        memset(&rkey, 0, sizeof(rkey));
+        n = makekey(p, keylistlen, &rkey, NULL, 0);
+        if (n < 0 || n > keylistlen) {
+            freersakey(&rkey);
+            *retstr = dupstr("Received broken SSH-1 key list from agent");
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        p += n, keylistlen -= n;
+        rsa_fingerprint(fingerprint, sizeof(fingerprint), &rkey);
+
+        /* comment */
+        if (keylistlen < 4) {
+            *retstr = dupstr("Received broken SSH-1 key list from agent");
+            freersakey(&rkey);
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        n = toint(GET_32BIT(p));
+        p += 4, keylistlen -= 4;
+        if (n < 0 || keylistlen < n) {
+            *retstr = dupstr("Received broken SSH-1 key list from agent");
+            freersakey(&rkey);
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        comment = dupprintf("%.*s", (int)n, (const char *)p);
+        p += n, keylistlen -= n;
+
+        callback(callback_ctx, fingerprint, comment);
+        freersakey(&rkey);
+        sfree(comment);
+    }
+
+    sfree(keylist);
+
+    if (keylistlen != 0) {
+        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        return PAGEANT_ACTION_FAILURE;
+    }
+
+    keylist = pageant_get_keylist2(&keylistlen);
+    if (keylistlen < 4) {
+        *retstr = dupstr("Received broken SSH-2 key list from agent");
+        sfree(keylist);
+        return PAGEANT_ACTION_FAILURE;
+    }
+    nkeys = toint(GET_32BIT(keylist));
+    if (nkeys < 0) {
+        *retstr = dupstr("Received broken SSH-2 key list from agent");
+        sfree(keylist);
+        return PAGEANT_ACTION_FAILURE;
+    }
+    p = keylist + 4;
+    keylistlen -= 4;
+
+    for (i = 0; i < nkeys; i++) {
+        char *fingerprint;
+        int n;
+
+        /* public blob */
+        if (keylistlen < 4) {
+            *retstr = dupstr("Received broken SSH-2 key list from agent");
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        n = toint(GET_32BIT(p));
+        p += 4, keylistlen -= 4;
+        if (n < 0 || keylistlen < n) {
+            *retstr = dupstr("Received broken SSH-2 key list from agent");
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        fingerprint = fingerprint_ssh2_blob(p, n);
+        p += n, keylistlen -= n;
+
+        /* comment */
+        if (keylistlen < 4) {
+            *retstr = dupstr("Received broken SSH-2 key list from agent");
+            sfree(fingerprint);
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        n = toint(GET_32BIT(p));
+        p += 4, keylistlen -= 4;
+        if (n < 0 || keylistlen < n) {
+            *retstr = dupstr("Received broken SSH-2 key list from agent");
+            sfree(fingerprint);
+            sfree(keylist);
+            return PAGEANT_ACTION_FAILURE;
+        }
+        comment = dupprintf("%.*s", (int)n, (const char *)p);
+        p += n, keylistlen -= n;
+
+        callback(callback_ctx, fingerprint, comment);
+        sfree(fingerprint);
+        sfree(comment);
+    }
+
+    sfree(keylist);
+
+    if (keylistlen != 0) {
+        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        return PAGEANT_ACTION_FAILURE;
+    }
+
+    return PAGEANT_ACTION_OK;
+}

@@ -120,3 +120,8 @@ enum {
 int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         char **retstr);
 void pageant_forget_passphrases(void);
+typedef void (*pageant_key_enum_fn_t)(void *ctx,
+                                      const char *fingerprint,
+                                      const char *comment);
+int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
+                      char **retstr);

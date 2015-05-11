@@ -354,10 +354,16 @@ static int unix_add_keyfile(const char *filename_str)
     return ret;
 }
 
+void key_list_callback(void *ctx, const char *fingerprint, const char *comment)
+{
+    printf("%s %s\n", fingerprint, comment);
+}
+
 void run_client(void)
 {
     const struct cmdline_key_action *act;
     int errors = FALSE;
+    char *retstr;
 
     if (!agent_exists()) {
         fprintf(stderr, "pageant: no agent running to talk to\n");
@@ -370,9 +376,16 @@ void run_client(void)
             if (!unix_add_keyfile(act->filename))
                 errors = TRUE;
             break;
+          case KEYACT_CLIENT_LIST:
+            if (pageant_enum_keys(key_list_callback, NULL, &retstr) ==
+                PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: listing keys: %s\n", retstr);
+                sfree(retstr);
+                errors = TRUE;
+            }
+            break;
           case KEYACT_CLIENT_DEL:
           case KEYACT_CLIENT_DEL_ALL:
-          case KEYACT_CLIENT_LIST:
           case KEYACT_CLIENT_LIST_FULL:
             fprintf(stderr, "NYI\n");
             errors = TRUE;
