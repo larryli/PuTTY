@@ -1207,7 +1207,7 @@ void *pageant_get_keylist1(int *length)
 	void *vresponse;
 	int resplen, retval;
 	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
-	PUT_32BIT(request, 4);
+	PUT_32BIT(request, 1);
 
 	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
 	assert(retval == 1);
@@ -1239,7 +1239,7 @@ void *pageant_get_keylist2(int *length)
 	int resplen, retval;
 
 	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
-	PUT_32BIT(request, 4);
+	PUT_32BIT(request, 1);
 
 	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
 	assert(retval == 1);
