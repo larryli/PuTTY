@@ -239,91 +239,67 @@ static void tty_life_timer(void *ctx, unsigned long now)
     schedule_timer(TTY_LIFE_POLL_INTERVAL, tty_life_timer, &dummy_timer_ctx);
 }
 
-int main(int argc, char **argv)
+typedef enum {
+    KEYACT_AGENT_LOAD,
+    KEYACT_CLIENT_ADD,
+    KEYACT_CLIENT_DEL,
+    KEYACT_CLIENT_DEL_ALL,
+    KEYACT_CLIENT_LIST,
+    KEYACT_CLIENT_LIST_FULL,
+} keyact;
+struct cmdline_key_action {
+    struct cmdline_key_action *next;
+    keyact action;
+    const char *filename;
+};
+
+int is_agent_action(keyact action)
 {
+    return action == KEYACT_AGENT_LOAD;
+}
+
+struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
+
+void add_keyact(keyact action, const char *filename)
+{
+    struct cmdline_key_action *a = snew(struct cmdline_key_action);
+    a->action = action;
+    a->filename = filename;
+    a->next = NULL;
+    if (keyact_tail)
+        keyact_tail->next = a;
+    else
+        keyact_head = a;
+    keyact_tail = a;
+}
+
+char **exec_args = NULL;
+enum {
+    LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
+} life = LIFE_UNSPEC;
+const char *display = NULL;
+
+void run_client(void)
+{
+    fprintf(stderr, "NYI\n");
+    exit(1);
+}
+
+void run_agent(void)
+{
+    const char *err;
+    char *username, *socketdir;
+    struct pageant_listen_state *pl;
+    Socket sock;
+    unsigned long now;
     int *fdlist;
     int fd;
     int i, fdcount, fdsize, fdstate;
-    int errors;
-    unsigned long now;
-    char *username, *socketdir;
-    const char *err;
-    struct pageant_listen_state *pl;
-    Socket sock;
-    enum {
-        LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
-    } life = LIFE_UNSPEC;
-    const char *display = NULL;
-    int doing_opts = TRUE;
-    char **exec_args = NULL;
     int termination_pid = -1;
     Conf *conf;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
-    errors = FALSE;
-
-    /*
-     * Process the command line.
-     */
-    while (--argc > 0) {
-	char *p = *++argv;
-	if (*p == '-' && doing_opts) {
-            if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
-                version();
-	    } else if (!strcmp(p, "--help")) {
-                usage();
-                exit(0);
-            } else if (!strcmp(p, "-v")) {
-                pageant_logfp = stderr;
-            } else if (!strcmp(p, "-X")) {
-                life = LIFE_X11;
-            } else if (!strcmp(p, "-T")) {
-                life = LIFE_TTY;
-            } else if (!strcmp(p, "--debug")) {
-                life = LIFE_DEBUG;
-            } else if (!strcmp(p, "--permanent")) {
-                life = LIFE_PERM;
-            } else if (!strcmp(p, "--exec")) {
-                life = LIFE_EXEC;
-                /* Now all subsequent arguments go to the exec command. */
-                if (--argc > 0) {
-                    exec_args = ++argv;
-                    argc = 0;          /* force end of option processing */
-                } else {
-                    fprintf(stderr, "pageant: expected a command "
-                            "after --exec\n");
-                    exit(1);
-                }
-            } else if (!strcmp(p, "--")) {
-                doing_opts = FALSE;
-            }
-        } else {
-            fprintf(stderr, "pageant: unexpected argument '%s'\n", p);
-            exit(1);
-        }
-    }
-
-    if (errors)
-	return 1;
-
-    if (life == LIFE_UNSPEC) {
-        fprintf(stderr, "pageant: expected a lifetime option\n");
-        exit(1);
-    }
-    if (life == LIFE_EXEC && !exec_args) {
-        fprintf(stderr, "pageant: expected a command with --exec\n");
-        exit(1);
-    }
-
-    /*
-     * Block SIGPIPE, so that we'll get EPIPE individually on
-     * particular network connections that go wrong.
-     */
-    putty_signal(SIGPIPE, SIG_IGN);
-
-    sk_init();
-    uxsel_init();
 
     /*
      * Set up a listening socket and run Pageant on it.
@@ -580,6 +556,128 @@ int main(int argc, char **argv)
     if (unlink(socketname) < 0) {
         fprintf(stderr, "pageant: %s: %s\n", socketname, strerror(errno));
         exit(1);
+    }
+}
+
+int main(int argc, char **argv)
+{
+    int doing_opts = TRUE;
+    keyact curr_keyact = KEYACT_AGENT_LOAD;
+
+    /*
+     * Process the command line.
+     */
+    while (--argc > 0) {
+	char *p = *++argv;
+	if (*p == '-' && doing_opts) {
+            if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
+                version();
+	    } else if (!strcmp(p, "--help")) {
+                usage();
+                exit(0);
+            } else if (!strcmp(p, "-v")) {
+                pageant_logfp = stderr;
+            } else if (!strcmp(p, "-a")) {
+                curr_keyact = KEYACT_CLIENT_ADD;
+            } else if (!strcmp(p, "-d")) {
+                curr_keyact = KEYACT_CLIENT_DEL;
+            } else if (!strcmp(p, "-D")) {
+                add_keyact(KEYACT_CLIENT_DEL_ALL, NULL);
+            } else if (!strcmp(p, "-l")) {
+                add_keyact(KEYACT_CLIENT_LIST, NULL);
+            } else if (!strcmp(p, "-L")) {
+                add_keyact(KEYACT_CLIENT_LIST_FULL, NULL);
+            } else if (!strcmp(p, "-X")) {
+                life = LIFE_X11;
+            } else if (!strcmp(p, "-T")) {
+                life = LIFE_TTY;
+            } else if (!strcmp(p, "--debug")) {
+                life = LIFE_DEBUG;
+            } else if (!strcmp(p, "--permanent")) {
+                life = LIFE_PERM;
+            } else if (!strcmp(p, "--exec")) {
+                life = LIFE_EXEC;
+                /* Now all subsequent arguments go to the exec command. */
+                if (--argc > 0) {
+                    exec_args = ++argv;
+                    argc = 0;          /* force end of option processing */
+                } else {
+                    fprintf(stderr, "pageant: expected a command "
+                            "after --exec\n");
+                    exit(1);
+                }
+            } else if (!strcmp(p, "--")) {
+                doing_opts = FALSE;
+            }
+        } else {
+            /*
+             * Non-option arguments (apart from those after --exec,
+             * which are treated specially above) are interpreted as
+             * the names of private key files to either add or delete
+             * from an agent.
+             */
+            add_keyact(curr_keyact, p);
+        }
+    }
+
+    if (life == LIFE_EXEC && !exec_args) {
+        fprintf(stderr, "pageant: expected a command with --exec\n");
+        exit(1);
+    }
+
+    /*
+     * Block SIGPIPE, so that we'll get EPIPE individually on
+     * particular network connections that go wrong.
+     */
+    putty_signal(SIGPIPE, SIG_IGN);
+
+    sk_init();
+    uxsel_init();
+
+    /*
+     * Now distinguish our two main running modes. Either we're
+     * actually starting up an agent, in which case we should have a
+     * lifetime mode, and no key actions of KEYACT_CLIENT_* type; or
+     * else we're contacting an existing agent to add or remove keys,
+     * in which case we should have no lifetime mode, and no key
+     * actions of KEYACT_AGENT_* type.
+     */
+    {
+        int has_agent_actions = FALSE;
+        int has_client_actions = FALSE;
+        int has_lifetime = FALSE;
+        const struct cmdline_key_action *act;
+
+        for (act = keyact_head; act; act = act->next) {
+            if (is_agent_action(act->action))
+                has_agent_actions = TRUE;
+            else
+                has_client_actions = TRUE;
+        }
+        if (life != LIFE_UNSPEC)
+            has_lifetime = TRUE;
+
+        if (has_lifetime && has_client_actions) {
+            fprintf(stderr, "pageant: client key actions (-a, -d, -D, -l, -L)"
+                    " do not go with an agent lifetime option\n");
+            exit(1);
+        }
+        if (!has_lifetime && has_agent_actions) {
+            fprintf(stderr, "pageant: expected an agent lifetime option with"
+                    " bare key file arguments\n");
+            exit(1);
+        }
+        if (!has_lifetime && !has_client_actions) {
+            fprintf(stderr, "pageant: expected an agent lifetime option"
+                    " or a client key action\n");
+            exit(1);
+        }
+
+        if (has_lifetime) {
+            run_agent();
+        } else if (has_client_actions) {
+            run_client();
+        }
     }
 
     return 0;
