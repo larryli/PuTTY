@@ -93,7 +93,6 @@ void uxsel_input_remove(int id) { }
 /*
  * More stubs.
  */
-void logevent(void *frontend, const char *string) {}
 void random_save_seed(void) {}
 void random_destroy_seed(void) {}
 void noise_ultralight(unsigned long data) {}
@@ -102,8 +101,7 @@ int platform_default_i(const char *name, int def) { return def; }
 FontSpec *platform_default_fontspec(const char *name) { return fontspec_new(""); }
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
-void old_keyfile_warning(void) {}
-void timer_change_notify(unsigned long next) {}
+void log_eventlog(void *handle, const char *event) {}
 
 /*
  * Short description of parameters.
@@ -130,10 +128,6 @@ void keylist_update(void)
 #define PAGEANT_DIR_PREFIX "/tmp/pageant"
 
 const char *const appname = "Pageant";
-
-char *platform_get_x_display(void) {
-    return dupstr(getenv("DISPLAY"));
-}
 
 static int time_to_die = FALSE;
 
@@ -281,6 +275,10 @@ const char *display = NULL;
 
 void run_client(void)
 {
+    if (!agent_exists()) {
+        fprintf(stderr, "pageant: no agent running to talk to\n");
+        exit(1);
+    }
     fprintf(stderr, "NYI\n");
     exit(1);
 }
