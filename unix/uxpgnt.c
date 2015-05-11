@@ -266,7 +266,7 @@ int main(int argc, char **argv)
     /*
      * Process the command line.
      */
-    while (--argc) {
+    while (--argc > 0) {
 	char *p = *++argv;
 	if (*p == '-' && doing_opts) {
             if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
@@ -286,17 +286,21 @@ int main(int argc, char **argv)
                 life = LIFE_PERM;
             } else if (!strcmp(p, "--exec")) {
                 life = LIFE_EXEC;
+                /* Now all subsequent arguments go to the exec command. */
+                if (--argc > 0) {
+                    exec_args = ++argv;
+                    argc = 0;          /* force end of option processing */
+                } else {
+                    fprintf(stderr, "pageant: expected a command "
+                            "after --exec\n");
+                    exit(1);
+                }
             } else if (!strcmp(p, "--")) {
                 doing_opts = FALSE;
             }
         } else {
-            if (life == LIFE_EXEC) {
-                exec_args = argv;
-                break; /* everything else is now args to the exec command */
-            } else {
-                fprintf(stderr, "pageant: unexpected argument '%s'\n", p);
-                exit(1);
-            }
+            fprintf(stderr, "pageant: unexpected argument '%s'\n", p);
+            exit(1);
         }
     }
 
