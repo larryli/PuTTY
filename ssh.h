@@ -643,7 +643,7 @@ const char *dh_validate_f(void *handle, Bignum f);
 Bignum dh_find_K(void *, Bignum f);
 
 int loadrsakey(const Filename *filename, struct RSAKey *key,
-	       char *passphrase, const char **errorstr);
+	       const char *passphrase, const char **errorstr);
 int rsakey_encrypted(const Filename *filename, char **comment);
 int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
 		   char **commentptr, const char **errorstr);
@@ -661,7 +661,8 @@ extern struct ssh2_userkey ssh2_wrong_passphrase;
 
 int ssh2_userkey_encrypted(const Filename *filename, char **comment);
 struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
-				       char *passphrase, const char **errorstr);
+				       const char *passphrase,
+                                       const char **errorstr);
 unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 				    int *pub_blob_len, char **commentptr,
 				    const char **errorstr);

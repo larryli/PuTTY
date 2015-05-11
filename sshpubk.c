@@ -22,7 +22,7 @@
                           (x)=='/' ? 63 : 0 )
 
 static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
-			   char **commentptr, char *passphrase,
+			   char **commentptr, const char *passphrase,
 			   const char **error)
 {
     unsigned char buf[16384];
@@ -155,8 +155,8 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     return ret;
 }
 
-int loadrsakey(const Filename *filename, struct RSAKey *key, char *passphrase,
-	       const char **errorstr)
+int loadrsakey(const Filename *filename, struct RSAKey *key,
+               const char *passphrase, const char **errorstr)
 {
     FILE *fp;
     char buf[64];
@@ -581,7 +581,8 @@ const struct ssh_signkey *find_pubkey_alg(const char *name)
 }
 
 struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
-				       char *passphrase, const char **errorstr)
+				       const char *passphrase,
+                                       const char **errorstr)
 {
     FILE *fp;
     char header[40], *b, *encryption, *comment, *mac;
