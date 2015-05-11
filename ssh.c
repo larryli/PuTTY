@@ -2908,7 +2908,8 @@ static void ssh_detect_bugs(Ssh ssh, char *vstring)
 	 (wc_match("OpenSSH_2.[235]*", imp)))) {
 	/*
 	 * These versions only support the original (pre-RFC4419)
-	 * SSH-2 GEX request.
+	 * SSH-2 GEX request, and disconnect with a protocol error if
+	 * we use the newer version.
 	 */
 	ssh->remote_bugs |= BUG_SSH2_OLDGEX;
 	logevent("We believe remote version has outdated SSH-2 GEX");
