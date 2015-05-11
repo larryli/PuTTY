@@ -273,14 +273,117 @@ enum {
 } life = LIFE_UNSPEC;
 const char *display = NULL;
 
+static char *askpass(const char *comment)
+{
+    prompts_t *p = new_prompts(NULL);
+    int ret;
+
+    /*
+     * FIXME: if we don't have a terminal, and have to do this by X11,
+     * there's a big missing piece.
+     */
+
+    p->to_server = FALSE;
+    p->name = dupstr("Pageant passphrase prompt");
+    add_prompt(p,
+               dupprintf("Enter passphrase to load key '%s': ", comment),
+               FALSE);
+    ret = console_get_userpass_input(p, NULL, 0);
+    assert(ret >= 0);
+
+    if (!ret) {
+        perror("pageant: unable to read passphrase");
+        free_prompts(p);
+        return NULL;
+    } else {
+        char *passphrase = dupstr(p->prompts[0]->result);
+        free_prompts(p);
+        return passphrase;
+    }
+}
+
+static int unix_add_keyfile(const char *filename_str)
+{
+    Filename *filename = filename_from_str(filename_str);
+    int status, ret;
+    char *err;
+
+    ret = TRUE;
+
+    /*
+     * Try without a passphrase.
+     */
+    status = pageant_add_keyfile(filename, NULL, &err);
+    if (status == PAGEANT_ACTION_OK) {
+        goto cleanup;
+    } else if (status == PAGEANT_ACTION_FAILURE) {
+        fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
+        sfree(err);
+        ret = FALSE;
+        goto cleanup;
+    }
+
+    /*
+     * And now try prompting for a passphrase.
+     */
+    while (1) {
+        char *passphrase = askpass(err);
+        sfree(err);
+        if (!passphrase)
+            break;
+
+        status = pageant_add_keyfile(filename, passphrase, &err);
+
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
+        passphrase = NULL;
+
+        if (status == PAGEANT_ACTION_OK) {
+            goto cleanup;
+        } else if (status == PAGEANT_ACTION_FAILURE) {
+            fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
+            sfree(err);
+            ret = FALSE;
+            goto cleanup;
+        }
+    }
+
+  cleanup:
+    sfree(err);
+    filename_free(filename);
+    return ret;
+}
+
 void run_client(void)
 {
+    const struct cmdline_key_action *act;
+    int errors = FALSE;
+
     if (!agent_exists()) {
         fprintf(stderr, "pageant: no agent running to talk to\n");
         exit(1);
     }
-    fprintf(stderr, "NYI\n");
-    exit(1);
+
+    for (act = keyact_head; act; act = act->next) {
+        switch (act->action) {
+          case KEYACT_CLIENT_ADD:
+            if (!unix_add_keyfile(act->filename))
+                errors = TRUE;
+            break;
+          case KEYACT_CLIENT_DEL:
+          case KEYACT_CLIENT_DEL_ALL:
+          case KEYACT_CLIENT_LIST:
+          case KEYACT_CLIENT_LIST_FULL:
+            fprintf(stderr, "NYI\n");
+            errors = TRUE;
+            break;
+          default:
+            assert(0 && "Invalid client action found");
+        }
+    }
+
+    if (errors)
+        exit(1);
 }
 
 void run_agent(void)
@@ -294,10 +397,25 @@ void run_agent(void)
     int fd;
     int i, fdcount, fdsize, fdstate;
     int termination_pid = -1;
+    int errors = FALSE;
     Conf *conf;
+    const struct cmdline_key_action *act;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
+
+    pageant_init();
+
+    /*
+     * Start by loading any keys provided on the command line.
+     */
+    for (act = keyact_head; act; act = act->next) {
+        assert(act->action == KEYACT_AGENT_LOAD);
+        if (!unix_add_keyfile(act->filename))
+            errors = TRUE;
+    }
+    if (errors)
+        exit(1);
 
     /*
      * Set up a listening socket and run Pageant on it.
@@ -311,7 +429,6 @@ void run_agent(void)
         exit(1);
     }
     socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
-    pageant_init();
     pl = pageant_listener_new();
     sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
     if ((err = sk_socket_error(sock)) != NULL) {
