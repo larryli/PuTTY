@@ -3876,7 +3876,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	void *publickey_blob;
 	int publickey_bloblen;
 	char *publickey_comment;
-	int publickey_encrypted;
+	int privatekey_available, privatekey_encrypted;
 	prompts_t *cur_prompt;
 	char c;
 	int pwpkt_type;
@@ -4210,20 +4210,24 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
     s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
     if (!filename_is_null(s->keyfile)) {
 	int keytype;
-	logeventf(ssh, "Reading private key file \"%.150s\"",
+	logeventf(ssh, "Reading key file \"%.150s\"",
 		  filename_to_str(s->keyfile));
 	keytype = key_type(s->keyfile);
-	if (keytype == SSH_KEYTYPE_SSH1) {
+	if (keytype == SSH_KEYTYPE_SSH1 ||
+            keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
 	    const char *error;
 	    if (rsakey_pubblob(s->keyfile,
 			       &s->publickey_blob, &s->publickey_bloblen,
 			       &s->publickey_comment, &error)) {
-		s->publickey_encrypted = rsakey_encrypted(s->keyfile,
-							  NULL);
+                s->privatekey_available = (keytype == SSH_KEYTYPE_SSH1);
+                if (!s->privatekey_available)
+                    logeventf(ssh, "Key file contains public key only");
+		s->privatekey_encrypted = rsakey_encrypted(s->keyfile,
+                                                           NULL);
 	    } else {
 		char *msgbuf;
-		logeventf(ssh, "Unable to load private key (%s)", error);
-		msgbuf = dupprintf("Unable to load private key file "
+		logeventf(ssh, "Unable to load key (%s)", error);
+		msgbuf = dupprintf("Unable to load key file "
 				   "\"%.150s\" (%s)\r\n",
 				   filename_to_str(s->keyfile),
 				   error);
@@ -4431,7 +4435,8 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 	    if (s->authed)
 		break;
 	}
-	if (s->publickey_blob && !s->tried_publickey) {
+	if (s->publickey_blob && s->privatekey_available &&
+            !s->tried_publickey) {
 	    /*
 	     * Try public key authentication with the specified
 	     * key file.
@@ -4450,7 +4455,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 		 */
 		char *passphrase = NULL;    /* only written after crReturn */
 		const char *error;
-		if (!s->publickey_encrypted) {
+		if (!s->privatekey_encrypted) {
 		    if (flags & FLAG_VERBOSE)
 			c_write_str(ssh, "No passphrase required.\r\n");
 		    passphrase = NULL;
@@ -8852,7 +8857,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	int got_username;
 	void *publickey_blob;
 	int publickey_bloblen;
-	int publickey_encrypted;
+	int privatekey_available, privatekey_encrypted;
 	char *publickey_algorithm;
 	char *publickey_comment;
 	unsigned char agent_request[5], *agent_response, *agentp;
@@ -8958,10 +8963,12 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
 	if (!filename_is_null(s->keyfile)) {
 	    int keytype;
-	    logeventf(ssh, "Reading private key file \"%.150s\"",
+	    logeventf(ssh, "Reading key file \"%.150s\"",
 		      filename_to_str(s->keyfile));
 	    keytype = key_type(s->keyfile);
-	    if (keytype == SSH_KEYTYPE_SSH2) {
+	    if (keytype == SSH_KEYTYPE_SSH2 ||
+                keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
+                keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
 		const char *error;
 		s->publickey_blob =
 		    ssh2_userkey_loadpub(s->keyfile,
@@ -8969,13 +8976,16 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 					 &s->publickey_bloblen, 
 					 &s->publickey_comment, &error);
 		if (s->publickey_blob) {
-		    s->publickey_encrypted =
+		    s->privatekey_available = (keytype == SSH_KEYTYPE_SSH2);
+                    if (!s->privatekey_available)
+                        logeventf(ssh, "Key file contains public key only");
+		    s->privatekey_encrypted =
 			ssh2_userkey_encrypted(s->keyfile, NULL);
 		} else {
 		    char *msgbuf;
-		    logeventf(ssh, "Unable to load private key (%s)", 
+		    logeventf(ssh, "Unable to load key (%s)", 
 			      error);
-		    msgbuf = dupprintf("Unable to load private key file "
+		    msgbuf = dupprintf("Unable to load key file "
 				       "\"%.150s\" (%s)\r\n",
 				       filename_to_str(s->keyfile),
 				       error);
@@ -9489,7 +9499,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		}
 
 	    } else if (s->can_pubkey && s->publickey_blob &&
-		       !s->tried_pubkey_config) {
+		       s->privatekey_available && !s->tried_pubkey_config) {
 
 		struct ssh2_userkey *key;   /* not live over crReturn */
 		char *passphrase;	    /* not live over crReturn */
@@ -9540,7 +9550,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		key = NULL;
 		while (!key) {
 		    const char *error;  /* not live over crReturn */
-		    if (s->publickey_encrypted) {
+		    if (s->privatekey_encrypted) {
 			/*
 			 * Get a passphrase from the user.
 			 */
