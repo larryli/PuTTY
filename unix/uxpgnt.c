@@ -593,8 +593,11 @@ void run_client(void)
             }
             break;
           case KEYACT_CLIENT_DEL_ALL:
-            fprintf(stderr, "NYI\n");
-            errors = TRUE;
+            if (pageant_delete_all_keys(&retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: deleting all keys: %s\n", retstr);
+                sfree(retstr);
+                errors = TRUE;
+            }
             break;
           default:
             assert(0 && "Invalid client action found");

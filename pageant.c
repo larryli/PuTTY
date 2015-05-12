@@ -1747,6 +1747,42 @@ int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
     return ret;
 }
 
+int pageant_delete_all_keys(char **retstr)
+{
+    unsigned char request[5], *response;
+    int reqlen, resplen, success, ret;
+    void *vresponse;
+
+    PUT_32BIT(request, 1);
+    request[4] = SSH2_AGENTC_REMOVE_ALL_IDENTITIES;
+    reqlen = 5;
+    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
+    assert(ret == 1);
+    response = vresponse;
+    success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
+    sfree(response);
+    if (!success) {
+        *retstr = dupstr("Agent failed to delete SSH-2 keys");
+        return PAGEANT_ACTION_FAILURE;
+    }
+
+    PUT_32BIT(request, 1);
+    request[4] = SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES;
+    reqlen = 5;
+    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
+    assert(ret == 1);
+    response = vresponse;
+    success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
+    sfree(response);
+    if (!success) {
+        *retstr = dupstr("Agent failed to delete SSH-1 keys");
+        return PAGEANT_ACTION_FAILURE;
+    }
+
+    *retstr = NULL;
+    return PAGEANT_ACTION_OK;
+}
+
 struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
 {
     struct pageant_pubkey *ret = snew(struct pageant_pubkey);

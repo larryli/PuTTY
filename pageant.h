@@ -140,3 +140,4 @@ typedef void (*pageant_key_enum_fn_t)(void *ctx,
 int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr);
 int pageant_delete_key(struct pageant_pubkey *key, char **retstr);
+int pageant_delete_all_keys(char **retstr);
