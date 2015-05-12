@@ -383,67 +383,21 @@ static void hidemany(HWND hwnd, const int *ids, int hideit)
 
 static void setupbigedit1(HWND hwnd, int id, int idstatic, struct RSAKey *key)
 {
-    char *buffer;
-    char *dec1, *dec2;
-
-    dec1 = bignum_decimal(key->exponent);
-    dec2 = bignum_decimal(key->modulus);
-    buffer = dupprintf("%d %s %s %s", bignum_bitcount(key->modulus),
-		       dec1, dec2, key->comment);
+    char *buffer = ssh1_pubkey_str(key);
     SetDlgItemText(hwnd, id, buffer);
     SetDlgItemText(hwnd, idstatic,
 		   "&Public key for pasting into authorized_keys file:");
-    sfree(dec1);
-    sfree(dec2);
     sfree(buffer);
 }
 
 static void setupbigedit2(HWND hwnd, int id, int idstatic,
 			  struct ssh2_userkey *key)
 {
-    unsigned char *pub_blob;
-    char *buffer, *p;
-    int pub_len;
-    int i;
-
-    pub_blob = key->alg->public_blob(key->data, &pub_len);
-    buffer = snewn(strlen(key->alg->name) + 4 * ((pub_len + 2) / 3) +
-		   strlen(key->comment) + 3, char);
-    strcpy(buffer, key->alg->name);
-    p = buffer + strlen(buffer);
-    *p++ = ' ';
-    i = 0;
-    while (i < pub_len) {
-	int n = (pub_len - i < 3 ? pub_len - i : 3);
-	base64_encode_atom(pub_blob + i, n, p);
-	i += n;
-	p += 4;
-    }
-    *p++ = ' ';
-    strcpy(p, key->comment);
+    char *buffer = ssh2_pubkey_openssh_str(key);
     SetDlgItemText(hwnd, id, buffer);
     SetDlgItemText(hwnd, idstatic, "&Public key for pasting into "
 		   "OpenSSH authorized_keys file:");
-    sfree(pub_blob);
     sfree(buffer);
-}
-
-static int save_ssh1_pubkey(char *filename, struct RSAKey *key)
-{
-    char *dec1, *dec2;
-    FILE *fp;
-
-    fp = fopen(filename, "wb");
-    if (!fp)
-	return 0;
-    dec1 = bignum_decimal(key->exponent);
-    dec2 = bignum_decimal(key->modulus);
-    fprintf(fp, "%d %s %s %s\n",
-	    bignum_bitcount(key->modulus), dec1, dec2, key->comment);
-    fclose(fp);
-    sfree(dec1);
-    sfree(dec2);
-    return 1;
 }
 
 /*
@@ -1326,15 +1280,27 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			if (ret != IDYES)
 			    break;
 		    }
-		    if (state->ssh2) {
-			ret = save_ssh2_pubkey(filename, &state->ssh2key);
-		    } else {
-			ret = save_ssh1_pubkey(filename, &state->key);
-		    }
-		    if (ret <= 0) {
-			MessageBox(hwnd, "Unable to save key file",
-				   "PuTTYgen Error", MB_OK | MB_ICONERROR);
-		    }
+                    fp = fopen(filename, "w");
+                    if (!fp) {
+                        MessageBox(hwnd, "Unable to open key file",
+                                   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                    } else {
+                        if (state->ssh2) {
+                            int bloblen;
+                            unsigned char *blob;
+                            blob = state->ssh2key.alg->public_blob
+                                (state->ssh2key.data, &bloblen);
+                            ssh2_write_pubkey(fp, state->ssh2key.comment,
+                                              blob, bloblen,
+                                              SSH_KEYTYPE_SSH2_PUBLIC_RFC4716);
+                        } else {
+                            ssh1_write_pubkey(fp, &state->key);
+                        }
+                        if (fclose(fp) < 0) {
+                            MessageBox(hwnd, "Unable to save key file",
+                                       "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                        }
+                    }
 		}
 	    }
 	    break;

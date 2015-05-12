@@ -716,6 +716,12 @@ enum {
     SSH_KEYTYPE_SSH2_PUBLIC_RFC4716,
     SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH
 };
+char *ssh1_pubkey_str(struct RSAKey *ssh1key);
+void ssh1_write_pubkey(FILE *fp, struct RSAKey *ssh1key);
+char *ssh2_pubkey_openssh_str(struct ssh2_userkey *key);
+void ssh2_write_pubkey(FILE *fp, const char *comment,
+                       const void *v_pub_blob, int pub_len,
+                       int keytype);
 int key_type(const Filename *filename);
 char *key_type_to_str(int type);
 

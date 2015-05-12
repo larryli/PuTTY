@@ -173,56 +173,6 @@ void help(void)
 	    );
 }
 
-static int save_ssh2_pubkey(char *filename, char *comment,
-			    void *v_pub_blob, int pub_len)
-{
-    unsigned char *pub_blob = (unsigned char *)v_pub_blob;
-    char *p;
-    int i, column;
-    FILE *fp;
-
-    if (filename) {
-	fp = fopen(filename, "wb");
-	if (!fp)
-	    return 0;
-    } else
-	fp = stdout;
-
-    fprintf(fp, "---- BEGIN SSH2 PUBLIC KEY ----\n");
-
-    if (comment) {
-	fprintf(fp, "Comment: \"");
-	for (p = comment; *p; p++) {
-	    if (*p == '\\' || *p == '\"')
-		fputc('\\', fp);
-	    fputc(*p, fp);
-	}
-	fprintf(fp, "\"\n");
-    }
-
-    i = 0;
-    column = 0;
-    while (i < pub_len) {
-	char buf[5];
-	int n = (pub_len - i < 3 ? pub_len - i : 3);
-	base64_encode_atom(pub_blob + i, n, buf);
-	i += n;
-	buf[4] = '\0';
-	fputs(buf, fp);
-	if (++column >= 16) {
-	    fputc('\n', fp);
-	    column = 0;
-	}
-    }
-    if (column > 0)
-	fputc('\n', fp);
-    
-    fprintf(fp, "---- END SSH2 PUBLIC KEY ----\n");
-    if (filename)
-	fclose(fp);
-    return 1;
-}
-
 static int move(char *from, char *to)
 {
     int ret;
@@ -990,80 +940,33 @@ int main(int argc, char **argv)
 
       case PUBLIC:
       case PUBLICO:
-	if (sshver == 1) {
-	    FILE *fp;
-	    char *dec1, *dec2;
+        {
+            FILE *fp;
 
-	    assert(ssh1key);
+            if (outfile)
+                fp = f_open(outfilename, "w", FALSE);
+            else
+                fp = stdout;
 
-	    if (outfile)
-		fp = f_open(outfilename, "w", FALSE);
-	    else
-		fp = stdout;
-	    dec1 = bignum_decimal(ssh1key->exponent);
-	    dec2 = bignum_decimal(ssh1key->modulus);
-	    fprintf(fp, "%d %s %s %s\n", bignum_bitcount(ssh1key->modulus),
-		    dec1, dec2, ssh1key->comment);
-	    sfree(dec1);
-	    sfree(dec2);
+            if (sshver == 1) {
+                ssh1_write_pubkey(fp, ssh1key);
+            } else {
+                if (!ssh2blob) {
+                    assert(ssh2key);
+                    ssh2blob = ssh2key->alg->public_blob(ssh2key->data,
+                                                         &ssh2bloblen);
+                }
+
+                ssh2_write_pubkey(fp, ssh2key ? ssh2key->comment : origcomment,
+                                  ssh2blob, ssh2bloblen,
+                                  (outtype == PUBLIC ?
+                                   SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
+                                   SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));
+            }
+
 	    if (outfile)
 		fclose(fp);
-	} else if (outtype == PUBLIC) {
-	    if (!ssh2blob) {
-		assert(ssh2key);
-		ssh2blob = ssh2key->alg->public_blob(ssh2key->data,
-						     &ssh2bloblen);
-	    }
-	    save_ssh2_pubkey(outfile, ssh2key ? ssh2key->comment : origcomment,
-			     ssh2blob, ssh2bloblen);
-	} else if (outtype == PUBLICO) {
-	    char *buffer, *p;
-	    int i;
-	    FILE *fp;
-
-	    if (!ssh2blob) {
-		assert(ssh2key);
-		ssh2blob = ssh2key->alg->public_blob(ssh2key->data,
-						     &ssh2bloblen);
-	    }
-	    if (!ssh2alg) {
-		assert(ssh2key);
-		ssh2alg = ssh2key->alg->name;
-	    }
-	    if (ssh2key)
-		comment = ssh2key->comment;
-	    else
-		comment = origcomment;
-
-	    buffer = snewn(strlen(ssh2alg) +
-			   4 * ((ssh2bloblen+2) / 3) +
-			   strlen(comment) + 3, char);
-	    strcpy(buffer, ssh2alg);
-	    p = buffer + strlen(buffer);
-	    *p++ = ' ';
-	    i = 0;
-	    while (i < ssh2bloblen) {
-		int n = (ssh2bloblen - i < 3 ? ssh2bloblen - i : 3);
-		base64_encode_atom(ssh2blob + i, n, p);
-		i += n;
-		p += 4;
-	    }
-	    if (*comment) {
-		*p++ = ' ';
-		strcpy(p, comment);
-	    } else
-		*p++ = '\0';
-
-	    if (outfile)
-		fp = f_open(outfilename, "w", FALSE);
-	    else
-		fp = stdout;
-	    fprintf(fp, "%s\n", buffer);
-	    if (outfile)
-		fclose(fp);
-
-	    sfree(buffer);
-	}
+        }
 	break;
 
       case FP:
