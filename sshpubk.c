@@ -21,6 +21,8 @@
                           (x)=='+' ? 62 : \
                           (x)=='/' ? 63 : 0 )
 
+static int key_type_fp(FILE *fp);
+
 static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
 			   char **commentptr, const char *passphrase,
 			   const char **error)
@@ -261,6 +263,56 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
 	}
 	fp = NULL; /* loadrsakey_main unconditionally closes fp */
     } else {
+        /*
+         * Try interpreting the file as an SSH-1 public key.
+         */
+        char *line, *p, *bitsp, *expp, *modp, *commentp;
+
+        rewind(fp);
+        line = chomp(fgetline(fp));
+        p = line;
+
+        bitsp = p;
+        p += strspn(p, "0123456789");
+        if (*p != ' ')
+            goto not_public_either;
+        *p++ = '\0';
+
+        expp = p;
+        p += strspn(p, "0123456789");
+        if (*p != ' ')
+            goto not_public_either;
+        *p++ = '\0';
+
+        modp = p;
+        p += strspn(p, "0123456789");
+        if (*p) {
+            if (*p != ' ')
+                goto not_public_either;
+            *p++ = '\0';
+            commentp = p;
+        } else {
+            commentp = NULL;
+        }
+
+	memset(&key, 0, sizeof(key));
+        key.exponent = bignum_from_decimal(expp);
+        key.modulus = bignum_from_decimal(modp);
+        if (atoi(bitsp) != bignum_bitcount(key.modulus)) {
+            freebn(key.exponent);
+            freebn(key.modulus);
+            sfree(line);
+            error = "key bit count does not match in SSH-1 public key file";
+            goto end;
+        }
+        if (commentptr)
+            *commentptr = commentp ? dupstr(commentp) : NULL;
+        *blob = rsa_public_blob(&key, bloblen);
+        freersakey(&key);
+        return 1;
+
+      not_public_either:
+        sfree(line);
 	error = "not an SSH-1 RSA file";
     }
 
@@ -840,6 +892,214 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     return ret;
 }
 
+unsigned char *rfc4716_loadpub(FILE *fp, char **algorithm,
+                               int *pub_blob_len, char **commentptr,
+                               const char **errorstr)
+{
+    const char *error;
+    char *line, *colon, *value;
+    char *comment = NULL;
+    unsigned char *pubblob = NULL;
+    int pubbloblen, pubblobsize;
+    char base64in[4];
+    unsigned char base64out[3];
+    int base64bytes;
+    int alglen;
+
+    line = chomp(fgetline(fp));
+    if (!line || 0 != strcmp(line, "---- BEGIN SSH2 PUBLIC KEY ----")) {
+        error = "invalid begin line in SSH-2 public key file";
+        goto error;
+    }
+    sfree(line); line = NULL;
+
+    while (1) {
+        line = chomp(fgetline(fp));
+        if (!line) {
+            error = "truncated SSH-2 public key file";
+            goto error;
+        }
+        colon = strstr(line, ": ");
+        if (!colon)
+            break;
+        *colon = '\0';
+        value = colon + 2;
+
+        if (!strcmp(line, "Comment")) {
+            char *p, *q;
+
+            /* Remove containing double quotes, if present */
+            p = value;
+            if (*p == '"' && p[strlen(p)-1] == '"') {
+                p[strlen(p)-1] = '\0';
+                p++;
+            }
+
+            /* Remove \-escaping, not in RFC4716 but seen in the wild
+             * in practice. */
+            for (q = line; *p; p++) {
+                if (*p == '\\' && p[1])
+                    p++;
+                *q++ = *p;
+            }
+
+            *q = '\0';
+            comment = dupstr(line);
+        } else if (!strcmp(line, "Subject") ||
+                   !strncmp(line, "x-", 2)) {
+            /* Headers we recognise and ignore. Do nothing. */
+        } else {
+            error = "unrecognised header in SSH-2 public key file";
+            goto error;
+        }
+
+        sfree(line); line = NULL;
+    }
+
+    /*
+     * Now line contains the initial line of base64 data. Loop round
+     * while it still does contain base64.
+     */
+    pubblobsize = 4096;
+    pubblob = snewn(pubblobsize, unsigned char);
+    pubbloblen = 0;
+    base64bytes = 0;
+    while (line && line[0] != '-') {
+        char *p;
+        for (p = line; *p; p++) {
+            base64in[base64bytes++] = *p;
+            if (base64bytes == 4) {
+                int n = base64_decode_atom(base64in, base64out);
+                if (pubbloblen + n > pubblobsize) {
+                    pubblobsize = (pubbloblen + n) * 5 / 4 + 1024;
+                    pubblob = sresize(pubblob, pubblobsize, unsigned char);
+                }
+                memcpy(pubblob + pubbloblen, base64out, n);
+                pubbloblen += n;
+                base64bytes = 0;
+            }
+        }
+        sfree(line); line = NULL;
+        line = chomp(fgetline(fp));
+    }
+
+    /*
+     * Finally, check the END line makes sense.
+     */
+    if (!line || 0 != strcmp(line, "---- END SSH2 PUBLIC KEY ----")) {
+        error = "invalid end line in SSH-2 public key file";
+        goto error;
+    }
+    sfree(line); line = NULL;
+
+    /*
+     * OK, we now have a public blob and optionally a comment. We must
+     * return the key algorithm string too, so look for that at the
+     * start of the public blob.
+     */
+    if (pubbloblen < 4) {
+        error = "not enough data in SSH-2 public key file";
+        goto error;
+    }
+    alglen = toint(GET_32BIT(pubblob));
+    if (alglen < 0 || alglen > pubbloblen-4) {
+        error = "invalid algorithm prefix in SSH-2 public key file";
+        goto error;
+    }
+    if (algorithm)
+        *algorithm = dupprintf("%.*s", alglen, pubblob+4);
+    if (pub_blob_len)
+        *pub_blob_len = pubbloblen;
+    if (commentptr)
+        *commentptr = comment;
+    else
+        sfree(comment);
+    return pubblob;
+
+  error:
+    sfree(line);
+    sfree(comment);
+    sfree(pubblob);
+    if (errorstr)
+        *errorstr = error;
+    return NULL;
+}
+
+unsigned char *openssh_loadpub(FILE *fp, char **algorithm,
+                               int *pub_blob_len, char **commentptr,
+                               const char **errorstr)
+{
+    const char *error;
+    char *line, *base64;
+    char *comment = NULL;
+    unsigned char *pubblob = NULL;
+    int pubbloblen, pubblobsize;
+    int alglen;
+
+    line = chomp(fgetline(fp));
+
+    base64 = strchr(line, ' ');
+    if (!base64) {
+        error = "no key blob in OpenSSH public key file";
+        goto error;
+    }
+    *base64++ = '\0';
+
+    comment = strchr(base64, ' ');
+    if (comment) {
+        *comment++ = '\0';
+        comment = dupstr(comment);
+    }
+
+    pubblobsize = strlen(base64) / 4 * 3;
+    pubblob = snewn(pubblobsize, unsigned char);
+    pubbloblen = 0;
+
+    while (!memchr(base64, '\0', 4)) {
+        assert(pubbloblen + 3 <= pubblobsize);
+        pubbloblen += base64_decode_atom(base64, pubblob + pubbloblen);
+        base64 += 4;
+    }
+    if (*base64) {
+        error = "invalid length for base64 data in OpenSSH public key file";
+        goto error;
+    }
+
+    /*
+     * Sanity check: the first word on the line should be the key
+     * algorithm, and should match the encoded string at the start of
+     * the public blob.
+     */
+    alglen = strlen(line);
+    if (pubbloblen < alglen + 4 ||
+        GET_32BIT(pubblob) != alglen ||
+        0 != memcmp(pubblob + 4, line, alglen)) {
+        error = "key algorithms do not match in OpenSSH public key file";
+        goto error;
+    }
+
+    /*
+     * Done.
+     */
+    if (algorithm)
+        *algorithm = dupstr(line);
+    if (pub_blob_len)
+        *pub_blob_len = pubbloblen;
+    if (commentptr)
+        *commentptr = comment;
+    else
+        sfree(comment);
+    return pubblob;
+
+  error:
+    sfree(line);
+    sfree(comment);
+    sfree(pubblob);
+    if (errorstr)
+        *errorstr = error;
+    return NULL;
+}
+
 unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 				    int *pub_blob_len, char **commentptr,
 				    const char **errorstr)
@@ -849,7 +1109,7 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     const struct ssh_signkey *alg;
     unsigned char *public_blob;
     int public_blob_len;
-    int i;
+    int type, i;
     const char *error = NULL;
     char *comment = NULL;
 
@@ -859,6 +1119,24 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     if (!fp) {
 	error = "can't open file";
 	goto error;
+    }
+
+    /* Initially, check if this is a public-only key file. Sometimes
+     * we'll be asked to read a public blob from one of those. */
+    type = key_type_fp(fp);
+    if (type == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716) {
+        unsigned char *ret = rfc4716_loadpub(fp, algorithm, pub_blob_len,
+                                             commentptr, errorstr);
+        fclose(fp);
+        return ret;
+    } else if (type == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
+        unsigned char *ret = openssh_loadpub(fp, algorithm, pub_blob_len,
+                                             commentptr, errorstr);
+        fclose(fp);
+        return ret;
+    } else if (type != SSH_KEYTYPE_SSH2) {
+        error = "not a PuTTY SSH-2 private key";
+        goto error;
     }
 
     /* Read the first header line which contains the key type. */
@@ -1156,30 +1434,32 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 }
 
 /* ----------------------------------------------------------------------
- * A function to determine the type of a private key file. Returns
- * 0 on failure, 1 or 2 on success.
+ * Determine the type of a private key file.
  */
-int key_type(const Filename *filename)
+static int key_type_fp(FILE *fp)
 {
-    FILE *fp;
-    char buf[32];
+    char buf[1024];
+    const char public_std_sig[] = "---- BEGIN SSH2 PUBLIC KEY";
     const char putty2_sig[] = "PuTTY-User-Key-File-";
     const char sshcom_sig[] = "---- BEGIN SSH2 ENCRYPTED PRIVAT";
     const char openssh_new_sig[] = "-----BEGIN OPENSSH PRIVATE KEY";
     const char openssh_sig[] = "-----BEGIN ";
     int i;
+    char *p;
 
-    fp = f_open(filename, "r", FALSE);
-    if (!fp)
-	return SSH_KEYTYPE_UNOPENABLE;
-    i = fread(buf, 1, sizeof(buf), fp);
-    fclose(fp);
+    i = fread(buf, 1, sizeof(buf)-1, fp);
+    rewind(fp);
+
     if (i < 0)
 	return SSH_KEYTYPE_UNOPENABLE;
     if (i < 32)
 	return SSH_KEYTYPE_UNKNOWN;
+    assert(i > 0 && i < sizeof(buf));
+    buf[i] = '\0';
     if (!memcmp(buf, rsa_signature, sizeof(rsa_signature)-1))
 	return SSH_KEYTYPE_SSH1;
+    if (!memcmp(buf, public_std_sig, sizeof(public_std_sig)-1))
+	return SSH_KEYTYPE_SSH2_PUBLIC_RFC4716;
     if (!memcmp(buf, putty2_sig, sizeof(putty2_sig)-1))
 	return SSH_KEYTYPE_SSH2;
     if (!memcmp(buf, openssh_new_sig, sizeof(openssh_new_sig)-1))
@@ -1188,7 +1468,29 @@ int key_type(const Filename *filename)
 	return SSH_KEYTYPE_OPENSSH_PEM;
     if (!memcmp(buf, sshcom_sig, sizeof(sshcom_sig)-1))
 	return SSH_KEYTYPE_SSHCOM;
+    if ((p = buf + strspn(buf, "0123456789"), *p == ' ') &&
+        (p = p+1 + strspn(p+1, "0123456789"), *p == ' ') &&
+        (p = p+1 + strspn(p+1, "0123456789"), *p == ' ' || *p == '\n' || !*p))
+	return SSH_KEYTYPE_SSH1_PUBLIC;
+    if ((p = buf + strcspn(buf, " "), find_pubkey_alg_len(p-buf, buf)) &&
+        (p = p+1 + strspn(p+1, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij"
+                          "klmnopqrstuvwxyz+/="),
+         *p == ' ' || *p == '\n' || !*p))
+	return SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH;
     return SSH_KEYTYPE_UNKNOWN;	       /* unrecognised or EOF */
+}
+
+int key_type(const Filename *filename)
+{
+    FILE *fp;
+    int ret;
+
+    fp = f_open(filename, "r", FALSE);
+    if (!fp)
+	return SSH_KEYTYPE_UNOPENABLE;
+    ret = key_type_fp(fp);
+    fclose(fp);
+    return ret;
 }
 
 /*
@@ -1199,7 +1501,10 @@ char *key_type_to_str(int type)
 {
     switch (type) {
       case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;
-      case SSH_KEYTYPE_UNKNOWN: return "not a private key"; break;
+      case SSH_KEYTYPE_UNKNOWN: return "not a recognised key file format"; break;
+      case SSH_KEYTYPE_SSH1_PUBLIC: return "SSH-1 public key"; break;
+      case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716: return "SSH-2 public key (RFC 4716 format)"; break;
+      case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH: return "SSH-2 public key (OpenSSH format)"; break;
       case SSH_KEYTYPE_SSH1: return "SSH-1 private key"; break;
       case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 private key"; break;
       case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 private key (old PEM format)"; break;

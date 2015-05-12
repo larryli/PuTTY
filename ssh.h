@@ -706,7 +706,14 @@ enum {
     SSH_KEYTYPE_OPENSSH_AUTO,
     SSH_KEYTYPE_OPENSSH_PEM,
     SSH_KEYTYPE_OPENSSH_NEW,
-    SSH_KEYTYPE_SSHCOM
+    SSH_KEYTYPE_SSHCOM,
+    /*
+     * Public-key-only formats, which we still want to be able to read
+     * for various purposes.
+     */
+    SSH_KEYTYPE_SSH1_PUBLIC,
+    SSH_KEYTYPE_SSH2_PUBLIC_RFC4716,
+    SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH
 };
 int key_type(const Filename *filename);
 char *key_type_to_str(int type);

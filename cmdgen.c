@@ -163,7 +163,7 @@ void help(void)
 	    "           private-openssh-new export OpenSSH private key "
                                              "(force new file format)\n"
 	    "           private-sshcom      export ssh.com private key\n"
-	    "           public              standard / ssh.com public key\n"
+	    "           public              RFC 4716 / ssh.com public key\n"
 	    "           public-openssh      OpenSSH public key\n"
 	    "           fingerprint         output the key fingerprint\n"
 	    "  -o    specify output file\n"
@@ -583,28 +583,6 @@ int main(int argc, char **argv)
 	intype = key_type(infilename);
 
 	switch (intype) {
-	    /*
-	     * It would be nice here to be able to load _public_
-	     * key files, in any of a number of forms, and (a)
-	     * convert them to other public key types, (b) print
-	     * out their fingerprints. Or, I suppose, for real
-	     * orthogonality, (c) change their comment!
-	     * 
-	     * In fact this opens some interesting possibilities.
-	     * Suppose ssh2_userkey_loadpub() were able to load
-	     * public key files as well as extracting the public
-	     * key from private ones. And suppose I did the thing
-	     * I've been wanting to do, where specifying a
-	     * particular private key file for authentication
-	     * causes any _other_ key in the agent to be discarded.
-	     * Then, if you had an agent forwarded to the machine
-	     * you were running Unix PuTTY or Plink on, and you
-	     * needed to specify which of the keys in the agent it
-	     * should use, you could do that by supplying a
-	     * _public_ key file, thus not needing to trust even
-	     * your encrypted private key file to the network. Ooh!
-	     */
-
 	  case SSH_KEYTYPE_UNOPENABLE:
 	  case SSH_KEYTYPE_UNKNOWN:
 	    fprintf(stderr, "puttygen: unable to load file `%s': %s\n",
@@ -612,6 +590,7 @@ int main(int argc, char **argv)
 	    return 1;
 
 	  case SSH_KEYTYPE_SSH1:
+          case SSH_KEYTYPE_SSH1_PUBLIC:
 	    if (sshver == 2) {
 		fprintf(stderr, "puttygen: conversion from SSH-1 to SSH-2 keys"
 			" not supported\n");
@@ -621,6 +600,8 @@ int main(int argc, char **argv)
 	    break;
 
 	  case SSH_KEYTYPE_SSH2:
+          case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716:
+          case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH:
 	  case SSH_KEYTYPE_OPENSSH_PEM:
 	  case SSH_KEYTYPE_OPENSSH_NEW:
 	  case SSH_KEYTYPE_SSHCOM:
@@ -691,6 +672,14 @@ int main(int argc, char **argv)
 	load_encrypted = TRUE;
     else
 	load_encrypted = FALSE;
+
+    if (load_encrypted && (intype == SSH_KEYTYPE_SSH1_PUBLIC ||
+                           intype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
+                           intype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH)) {
+        fprintf(stderr, "puttygen: cannot perform this action on a "
+                "public-key-only input file\n");
+        return 1;
+    }
 
     /* ------------------------------------------------------------------
      * Now we're ready to actually do some stuff.
@@ -818,6 +807,7 @@ int main(int argc, char **argv)
 	    int ret;
 
 	  case SSH_KEYTYPE_SSH1:
+          case SSH_KEYTYPE_SSH1_PUBLIC:
 	    ssh1key = snew(struct RSAKey);
 	    if (!load_encrypted) {
 		void *vblob;
@@ -858,9 +848,12 @@ int main(int argc, char **argv)
 	    break;
 
 	  case SSH_KEYTYPE_SSH2:
+          case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716:
+          case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH:
 	    if (!load_encrypted) {
 		ssh2blob = ssh2_userkey_loadpub(infilename, &ssh2alg,
-						&ssh2bloblen, NULL, &error);
+						&ssh2bloblen, &origcomment,
+                                                &error);
                 if (ssh2blob) {
                     ssh2algf = find_pubkey_alg(ssh2alg);
                     if (ssh2algf)
