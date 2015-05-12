@@ -42,6 +42,7 @@ void burnstr(char *string);
 int toint(unsigned);
 
 char *fgetline(FILE *fp);
+char *chomp(char *str);
 
 void base64_encode_atom(unsigned char *data, int n, char *out);
 int base64_decode_atom(char *atom, unsigned char *out);
