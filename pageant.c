@@ -259,25 +259,6 @@ void *pageant_make_keylist2(int *length)
     return ret;
 }
 
-char *fingerprint_ssh2_blob(const void *blob, int bloblen)
-{
-    unsigned char digest[16];
-    char fingerprint_str[16*3];
-    unsigned stringlen;
-    int i;
-
-    MD5Simple(blob, bloblen, digest);
-    for (i = 0; i < 16; i++)
-        sprintf(fingerprint_str + i*3, "%02x%s", digest[i], i==15 ? "" : ":");
-
-    stringlen = GET_32BIT((const unsigned char *)blob);
-    if (stringlen < bloblen-4)
-        return dupprintf("%.*s %s", (int)stringlen, (const char *)blob + 4,
-                         fingerprint_str);
-    else
-        return dupstr(fingerprint_str);        
-}
-
 static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
 #ifdef __GNUC__
 __attribute__ ((format (printf, 3, 4)))
@@ -381,7 +362,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 int i;
                 struct ssh2_userkey *skey;
                 for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-                    char *fingerprint = skey->alg->fingerprint(skey->data);
+                    char *fingerprint = ssh2_fingerprint(skey->alg,
+                                                         skey->data);
                     plog(logctx, logfn, "returned key: %s %s",
                          fingerprint, skey->comment);
                     sfree(fingerprint);
@@ -528,7 +510,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             }
 	    data = p;
             if (logfn) {
-                char *fingerprint = fingerprint_ssh2_blob(b.blob, b.len);
+                char *fingerprint = ssh2_fingerprint_blob(b.blob, b.len);
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
@@ -728,7 +710,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    key->comment = comment;
 
             if (logfn) {
-                char *fingerprint = key->alg->fingerprint(key->data);
+                char *fingerprint = ssh2_fingerprint(key->alg, key->data);
                 plog(logctx, logfn, "submitted key: %s %s",
                      fingerprint, key->comment);
                 sfree(fingerprint);
@@ -822,7 +804,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    p += b.len;
 
             if (logfn) {
-                char *fingerprint = fingerprint_ssh2_blob(b.blob, b.len);
+                char *fingerprint = ssh2_fingerprint_blob(b.blob, b.len);
                 plog(logctx, logfn, "unwanted key: %s", fingerprint);
                 sfree(fingerprint);
             }
@@ -1688,7 +1670,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             sfree(keylist);
             return PAGEANT_ACTION_FAILURE;
         }
-        fingerprint = fingerprint_ssh2_blob(p, n);
+        fingerprint = ssh2_fingerprint_blob(p, n);
         cbkey.blob = p;
         cbkey.bloblen = n;
         p += n, keylistlen -= n;

@@ -192,27 +192,6 @@ static int move(char *from, char *to)
     return TRUE;
 }
 
-static char *blobfp(char *alg, int bits, unsigned char *blob, int bloblen)
-{
-    char buffer[128];
-    unsigned char digest[16];
-    struct MD5Context md5c;
-    int i;
-
-    MD5Init(&md5c);
-    MD5Update(&md5c, blob, bloblen);
-    MD5Final(digest, &md5c);
-
-    sprintf(buffer, "%s ", alg);
-    if (bits > 0)
-	sprintf(buffer + strlen(buffer), "%d ", bits);
-    for (i = 0; i < 16; i++)
-	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
-		digest[i]);
-
-    return dupstr(buffer);
-}
-
 int main(int argc, char **argv)
 {
     char *infile = NULL;
@@ -980,10 +959,11 @@ int main(int argc, char **argv)
 		rsa_fingerprint(fingerprint, 128, ssh1key);
 	    } else {
 		if (ssh2key) {
-		    fingerprint = ssh2key->alg->fingerprint(ssh2key->data);
+		    fingerprint = ssh2_fingerprint(ssh2key->alg,
+                                                   ssh2key->data);
 		} else {
 		    assert(ssh2blob);
-		    fingerprint = blobfp(ssh2alg, bits, ssh2blob, ssh2bloblen);
+		    fingerprint = ssh2_fingerprint_blob(ssh2blob, ssh2bloblen);
 		}
 	    }
 

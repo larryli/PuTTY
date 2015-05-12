@@ -297,7 +297,7 @@ void keylist_update(void)
 	     * nice alignment in the list box, until we encounter a :
 	     * meaning we're into the fingerprint proper.
 	     */
-	    p = skey->alg->fingerprint(skey->data);
+	    p = ssh2_fingerprint(skey->alg, skey->data);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             fp_len = strlen(listentry);
             sfree(p);

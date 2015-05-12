@@ -3082,87 +3082,6 @@ static int ecdsa_pubkey_bits(const void *blob, int len)
     return ret;
 }
 
-static char *ecdsa_fingerprint(void *key)
-{
-    struct ec_key *ec = (struct ec_key *) key;
-    struct MD5Context md5c;
-    unsigned char digest[16], lenbuf[4];
-    char *ret;
-    unsigned char *name, *fullname;
-    int pointlen, namelen, fullnamelen, i, j;
-
-    MD5Init(&md5c);
-
-    namelen = ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, NULL, 0);
-    name = snewn(namelen, unsigned char);
-    ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, name, namelen);
-
-    if (ec->publicKey.curve->type == EC_EDWARDS) {
-        unsigned char b;
-
-        /* Do it with the weird encoding */
-        PUT_32BIT(lenbuf, namelen);
-        MD5Update(&md5c, lenbuf, 4);
-        MD5Update(&md5c, name, namelen);
-
-        pointlen = ec->publicKey.curve->fieldBits / 8;
-        PUT_32BIT(lenbuf, pointlen);
-        MD5Update(&md5c, lenbuf, 4);
-        for (i = 0; i < pointlen - 1; ++i) {
-            b = bignum_byte(ec->publicKey.y, i);
-            MD5Update(&md5c, &b, 1);
-        }
-        /* Unset last bit of y and set first bit of x in its place */
-        b = bignum_byte(ec->publicKey.y, i) & 0x7f;
-        b |= bignum_bit(ec->publicKey.x, 0) << 7;
-        MD5Update(&md5c, &b, 1);
-    } else if (ec->publicKey.curve->type == EC_WEIERSTRASS) {
-        fullnamelen = ec_curve_to_name(EC_TYPE_CURVE, ec->publicKey.curve, NULL, 0);
-        fullname = snewn(namelen, unsigned char);
-        ec_curve_to_name(EC_TYPE_DSA, ec->publicKey.curve, fullname, fullnamelen);
-
-        PUT_32BIT(lenbuf, fullnamelen);
-        MD5Update(&md5c, lenbuf, 4);
-        MD5Update(&md5c, fullname, fullnamelen);
-        sfree(fullname);
-
-        PUT_32BIT(lenbuf, namelen);
-        MD5Update(&md5c, lenbuf, 4);
-        MD5Update(&md5c, name, namelen);
-
-        pointlen = (bignum_bitcount(ec->publicKey.curve->p) + 7) / 8;
-        PUT_32BIT(lenbuf, 1 + (pointlen * 2));
-        MD5Update(&md5c, lenbuf, 4);
-        MD5Update(&md5c, (const unsigned char *)"\x04", 1);
-        for (i = pointlen; i--; ) {
-            unsigned char c = bignum_byte(ec->publicKey.x, i);
-            MD5Update(&md5c, &c, 1);
-        }
-        for (i = pointlen; i--; ) {
-            unsigned char c = bignum_byte(ec->publicKey.y, i);
-            MD5Update(&md5c, &c, 1);
-        }
-    } else {
-        sfree(name);
-        return NULL;
-    }
-
-    MD5Final(digest, &md5c);
-
-    ret = snewn(namelen + 1 + (16 * 3), char);
-
-    i = 0;
-    memcpy(ret, name, namelen);
-    i += namelen;
-    sfree(name);
-    ret[i++] = ' ';
-    for (j = 0; j < 16; j++) {
-        i += sprintf(ret + i, "%s%02x", j ? ":" : "", digest[j]);
-    }
-
-    return ret;
-}
-
 static int ecdsa_verifysig(void *key, const char *sig, int siglen,
                            const char *data, int datalen)
 {
@@ -3545,7 +3464,6 @@ const struct ssh_signkey ssh_ecdsa_ed25519 = {
     ed25519_openssh_fmtkey,
     2 /* point, private exponent */,
     ecdsa_pubkey_bits,
-    ecdsa_fingerprint,
     ecdsa_verifysig,
     ecdsa_sign,
     "ssh-ed25519",
@@ -3563,7 +3481,6 @@ const struct ssh_signkey ssh_ecdsa_nistp256 = {
     ecdsa_openssh_fmtkey,
     3 /* curve name, point, private exponent */,
     ecdsa_pubkey_bits,
-    ecdsa_fingerprint,
     ecdsa_verifysig,
     ecdsa_sign,
     "ecdsa-sha2-nistp256",
@@ -3581,7 +3498,6 @@ const struct ssh_signkey ssh_ecdsa_nistp384 = {
     ecdsa_openssh_fmtkey,
     3 /* curve name, point, private exponent */,
     ecdsa_pubkey_bits,
-    ecdsa_fingerprint,
     ecdsa_verifysig,
     ecdsa_sign,
     "ecdsa-sha2-nistp384",
@@ -3599,7 +3515,6 @@ const struct ssh_signkey ssh_ecdsa_nistp521 = {
     ecdsa_openssh_fmtkey,
     3 /* curve name, point, private exponent */,
     ecdsa_pubkey_bits,
-    ecdsa_fingerprint,
     ecdsa_verifysig,
     ecdsa_sign,
     "ecdsa-sha2-nistp521",

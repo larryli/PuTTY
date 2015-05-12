@@ -753,9 +753,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 
 		savecomment = state->ssh2key.comment;
 		state->ssh2key.comment = NULL;
-		fp =
-		    state->ssh2key.alg->
-		    fingerprint(state->ssh2key.data);
+		fp = ssh2_fingerprint(state->ssh2key.alg, state->ssh2key.data);
 		state->ssh2key.comment = savecomment;
 
 		SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
@@ -1395,7 +1393,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    *state->commentptr = NULL;
 	    if (state->ssh2) {
 		char *fp;
-		fp = state->ssh2key.alg->fingerprint(state->ssh2key.data);
+		fp = ssh2_fingerprint(state->ssh2key.alg, state->ssh2key.data);
 		SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
 		sfree(fp);
 	    } else {

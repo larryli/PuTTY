@@ -375,7 +375,6 @@ struct ssh_signkey {
      * openssh_private_npieces gives that information. */
     int openssh_private_npieces;
     int (*pubkey_bits) (const void *blob, int len);
-    char *(*fingerprint) (void *key);
     int (*verifysig) (void *key, const char *sig, int siglen,
 		      const char *data, int datalen);
     unsigned char *(*sign) (void *key, const char *data, int datalen,
@@ -722,6 +721,8 @@ char *ssh2_pubkey_openssh_str(struct ssh2_userkey *key);
 void ssh2_write_pubkey(FILE *fp, const char *comment,
                        const void *v_pub_blob, int pub_len,
                        int keytype);
+char *ssh2_fingerprint_blob(const void *blob, int bloblen);
+char *ssh2_fingerprint(const struct ssh_signkey *alg, void *data);
 int key_type(const Filename *filename);
 char *key_type_to_str(int type);
 

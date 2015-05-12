@@ -190,43 +190,6 @@ static char *dss_fmtkey(void *key)
     return p;
 }
 
-static char *dss_fingerprint(void *key)
-{
-    struct dss_key *dss = (struct dss_key *) key;
-    struct MD5Context md5c;
-    unsigned char digest[16], lenbuf[4];
-    char buffer[16 * 3 + 40];
-    char *ret;
-    int numlen, i;
-
-    MD5Init(&md5c);
-    MD5Update(&md5c, (unsigned char *)"\0\0\0\7ssh-dss", 11);
-
-#define ADD_BIGNUM(bignum) \
-    numlen = (bignum_bitcount(bignum)+8)/8; \
-    PUT_32BIT(lenbuf, numlen); MD5Update(&md5c, lenbuf, 4); \
-    for (i = numlen; i-- ;) { \
-        unsigned char c = bignum_byte(bignum, i); \
-        MD5Update(&md5c, &c, 1); \
-    }
-    ADD_BIGNUM(dss->p);
-    ADD_BIGNUM(dss->q);
-    ADD_BIGNUM(dss->g);
-    ADD_BIGNUM(dss->y);
-#undef ADD_BIGNUM
-
-    MD5Final(digest, &md5c);
-
-    sprintf(buffer, "ssh-dss %d ", bignum_bitcount(dss->p));
-    for (i = 0; i < 16; i++)
-	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
-		digest[i]);
-    ret = snewn(strlen(buffer) + 1, char);
-    if (ret)
-	strcpy(ret, buffer);
-    return ret;
-}
-
 static int dss_verifysig(void *key, const char *sig, int siglen,
 			 const char *data, int datalen)
 {
@@ -705,7 +668,6 @@ const struct ssh_signkey ssh_dss = {
     dss_openssh_fmtkey,
     5 /* p,q,g,y,x */,
     dss_pubkey_bits,
-    dss_fingerprint,
     dss_verifysig,
     dss_sign,
     "ssh-dss",

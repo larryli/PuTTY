@@ -1569,6 +1569,62 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
 }
 
 /* ----------------------------------------------------------------------
+ * Utility functions to compute SSH-2 fingerprints in a uniform way.
+ */
+char *ssh2_fingerprint_blob(const void *blob, int bloblen)
+{
+    unsigned char digest[16];
+    char fingerprint_str[16*3];
+    const char *algstr;
+    int alglen;
+    const struct ssh_signkey *alg;
+    int i;
+
+    /*
+     * The fingerprint hash itself is always just the MD5 of the blob.
+     */
+    MD5Simple(blob, bloblen, digest);
+    for (i = 0; i < 16; i++)
+        sprintf(fingerprint_str + i*3, "%02x%s", digest[i], i==15 ? "" : ":");
+
+    /*
+     * Identify the key algorithm, if possible.
+     */
+    alglen = toint(GET_32BIT((const unsigned char *)blob));
+    if (alglen > 0 && alglen < bloblen-4) {
+        algstr = (const char *)blob + 4;
+
+        /*
+         * If we can actually identify the algorithm as one we know
+         * about, get hold of the key's bit count too.
+         */
+        alg = find_pubkey_alg_len(alglen, algstr);
+        if (alg) {
+            int bits = alg->pubkey_bits(blob, bloblen);
+            return dupprintf("%.*s %d %s", alglen, algstr,
+                             bits, fingerprint_str);
+        } else {
+            return dupprintf("%.*s %s", alglen, algstr, fingerprint_str);
+        }
+    } else {
+        /*
+         * No algorithm available (which means a seriously confused
+         * key blob, but there we go). Return only the hash.
+         */
+        return dupstr(fingerprint_str);
+    }
+}
+
+char *ssh2_fingerprint(const struct ssh_signkey *alg, void *data)
+{
+    int len;
+    unsigned char *blob = alg->public_blob(data, &len);
+    char *ret = ssh2_fingerprint_blob(blob, len);
+    sfree(blob);
+    return ret;
+}
+
+/* ----------------------------------------------------------------------
  * Determine the type of a private key file.
  */
 static int key_type_fp(FILE *fp)

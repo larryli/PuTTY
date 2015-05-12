@@ -7042,7 +7042,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
          * Authenticate remote host: verify host key. (We've already
          * checked the signature of the exchange hash.)
          */
-        s->fingerprint = ssh->hostkey->fingerprint(s->hkey);
+        s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
         logevent("Host key fingerprint is:");
         logevent(s->fingerprint);
         /* First check against manually configured host keys. */
