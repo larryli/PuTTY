@@ -630,6 +630,7 @@ Bignum bignum_rshift(Bignum number, int shift);
 Bignum bignum_lshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
+Bignum bignum_from_decimal(const char *decimal);
 
 #ifdef DEBUG
 void diagbn(char *prefix, Bignum md);

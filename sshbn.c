@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include "misc.h"
 
@@ -102,6 +103,7 @@ typedef BignumInt *Bignum;
 
 BignumInt bnZero[1] = { 0 };
 BignumInt bnOne[2] = { 1, 1 };
+BignumInt bnTen[2] = { 1, 10 };
 
 /*
  * The Bignum format is an array of `BignumInt'. The first
@@ -117,7 +119,7 @@ BignumInt bnOne[2] = { 1, 1 };
  * nonzero.
  */
 
-Bignum Zero = bnZero, One = bnOne;
+Bignum Zero = bnZero, One = bnOne, Ten = bnTen;
 
 static Bignum newbn(int length)
 {
@@ -1252,6 +1254,30 @@ Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes)
 
     while (result[0] > 1 && result[result[0]] == 0)
         result[0]--;
+    return result;
+}
+
+Bignum bignum_from_decimal(const char *decimal)
+{
+    Bignum result = copybn(Zero);
+
+    while (*decimal) {
+        Bignum tmp, tmp2;
+
+        if (!isdigit((unsigned char)*decimal)) {
+            freebn(result);
+            return 0;
+        }
+
+        tmp = bigmul(result, Ten);
+        tmp2 = bignum_from_long(*decimal - '0');
+        result = bigadd(tmp, tmp2);
+        freebn(tmp);
+        freebn(tmp2);
+
+        decimal++;
+    }
+
     return result;
 }
 
