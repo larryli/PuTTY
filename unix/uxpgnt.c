@@ -240,7 +240,8 @@ typedef enum {
     KEYACT_CLIENT_DEL,
     KEYACT_CLIENT_DEL_ALL,
     KEYACT_CLIENT_LIST,
-    KEYACT_CLIENT_LIST_FULL,
+    KEYACT_CLIENT_PUBLIC_OPENSSH,
+    KEYACT_CLIENT_PUBLIC
 } keyact;
 struct cmdline_key_action {
     struct cmdline_key_action *next;
@@ -564,8 +565,34 @@ void run_client(void)
             if (key)
                 pageant_pubkey_free(key);
             break;
+          case KEYACT_CLIENT_PUBLIC_OPENSSH:
+          case KEYACT_CLIENT_PUBLIC:
+            key = NULL;
+            if (!(key = find_key(act->filename, &retstr))) {
+                fprintf(stderr, "pageant: finding key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = TRUE;
+            } else {
+                FILE *fp = stdout;     /* FIXME: add a -o option? */
+
+                if (key->ssh_version == 1) {
+                    struct RSAKey rkey;
+                    memset(&rkey, 0, sizeof(rkey));
+                    rkey.comment = dupstr(key->comment);
+                    makekey(key->blob, key->bloblen, &rkey, NULL, 0);
+                    ssh1_write_pubkey(fp, &rkey);
+                    freersakey(&rkey);
+                } else {
+                    ssh2_write_pubkey(fp, key->comment, key->blob,key->bloblen,
+                                      (act->action == KEYACT_CLIENT_PUBLIC ?
+                                       SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
+                                       SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));
+                }
+                pageant_pubkey_free(key);
+            }
+            break;
           case KEYACT_CLIENT_DEL_ALL:
-          case KEYACT_CLIENT_LIST_FULL:
             fprintf(stderr, "NYI\n");
             errors = TRUE;
             break;
@@ -892,8 +919,10 @@ int main(int argc, char **argv)
                 add_keyact(KEYACT_CLIENT_DEL_ALL, NULL);
             } else if (!strcmp(p, "-l")) {
                 add_keyact(KEYACT_CLIENT_LIST, NULL);
-            } else if (!strcmp(p, "-L")) {
-                add_keyact(KEYACT_CLIENT_LIST_FULL, NULL);
+            } else if (!strcmp(p, "--public")) {
+                curr_keyact = KEYACT_CLIENT_PUBLIC;
+            } else if (!strcmp(p, "--public-openssh")) {
+                curr_keyact = KEYACT_CLIENT_PUBLIC_OPENSSH;
             } else if (!strcmp(p, "-X")) {
                 life = LIFE_X11;
             } else if (!strcmp(p, "-T")) {

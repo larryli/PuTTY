@@ -127,6 +127,7 @@ struct pageant_pubkey {
      * later */
     void *blob;
     int bloblen;
+    char *comment;
     int ssh_version;
 };
 struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key);

@@ -1624,6 +1624,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         p += n, keylistlen -= n;
 
         cbkey.blob = rsa_public_blob(&rkey, &cbkey.bloblen);
+        cbkey.comment = comment;
         cbkey.ssh_version = 1;
         callback(callback_ctx, fingerprint, comment, &cbkey);
         sfree(cbkey.blob);
@@ -1694,6 +1695,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         p += n, keylistlen -= n;
 
         cbkey.ssh_version = 2;
+        cbkey.comment = comment;
         callback(callback_ctx, fingerprint, comment, &cbkey);
         sfree(fingerprint);
         sfree(comment);
@@ -1751,12 +1753,14 @@ struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
     ret->blob = snewn(key->bloblen, unsigned char);
     memcpy(ret->blob, key->blob, key->bloblen);
     ret->bloblen = key->bloblen;
+    ret->comment = key->comment ? dupstr(key->comment) : NULL;
     ret->ssh_version = key->ssh_version;
     return ret;
 }
 
 void pageant_pubkey_free(struct pageant_pubkey *key)
 {
+    sfree(key->comment);
     sfree(key->blob);
     sfree(key);
 }
