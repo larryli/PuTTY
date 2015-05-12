@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <signal.h>
+#include <ctype.h>
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -354,14 +355,181 @@ static int unix_add_keyfile(const char *filename_str)
     return ret;
 }
 
-void key_list_callback(void *ctx, const char *fingerprint, const char *comment)
+void key_list_callback(void *ctx, const char *fingerprint,
+                       const char *comment, struct pageant_pubkey *key)
 {
     printf("%s %s\n", fingerprint, comment);
+}
+
+struct key_find_ctx {
+    const char *string;
+    int match_fp, match_comment;
+    struct pageant_pubkey *found;
+    int nfound;
+};
+
+int match_fingerprint_string(const char *string, const char *fingerprint)
+{
+    const char *hash;
+
+    /* Find the hash in the fingerprint string. It'll be the word at the end. */
+    hash = strrchr(fingerprint, ' ');
+    assert(hash);
+    hash++;
+
+    /* Now see if the search string is a prefix of the full hash,
+     * neglecting colons and case differences. */
+    while (1) {
+        while (*string == ':') string++;
+        while (*hash == ':') hash++;
+        if (!*string)
+            return TRUE;
+        if (tolower((unsigned char)*string) != tolower((unsigned char)*hash))
+            return FALSE;
+        string++;
+        hash++;
+    }
+}
+
+void key_find_callback(void *vctx, const char *fingerprint,
+                       const char *comment, struct pageant_pubkey *key)
+{
+    struct key_find_ctx *ctx = (struct key_find_ctx *)vctx;
+
+    if ((ctx->match_comment && !strcmp(ctx->string, comment)) ||
+        (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprint)))
+    {
+        if (!ctx->found)
+            ctx->found = pageant_pubkey_copy(key);
+        ctx->nfound++;
+    }
+}
+
+struct pageant_pubkey *find_key(const char *string, char **retstr)
+{
+    struct key_find_ctx actx, *ctx = &actx;
+    struct pageant_pubkey key_in, *key_ret;
+    int try_file = TRUE, try_fp = TRUE, try_comment = TRUE;
+    int file_errors = FALSE;
+
+    /*
+     * Trim off disambiguating prefixes telling us how to interpret
+     * the provided string.
+     */
+    if (!strncmp(string, "file:", 5)) {
+        string += 5;
+        try_fp = try_comment = FALSE;
+        file_errors = TRUE; /* also report failure to load the file */
+    } else if (!strncmp(string, "comment:", 8)) {
+        string += 8;
+        try_file = try_fp = FALSE;
+    } else if (!strncmp(string, "fp:", 3)) {
+        string += 3;
+        try_file = try_comment = FALSE;
+    } else if (!strncmp(string, "fingerprint:", 12)) {
+        string += 12;
+        try_file = try_comment = FALSE;
+    }
+
+    /*
+     * Try interpreting the string as a key file name.
+     */
+    if (try_file) {
+        Filename *fn = filename_from_str(string);
+        int keytype = key_type(fn);
+        if (keytype == SSH_KEYTYPE_SSH1 ||
+            keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
+            const char *error;
+
+            if (!rsakey_pubblob(fn, &key_in.blob, &key_in.bloblen,
+                                NULL, &error)) {
+                if (file_errors) {
+                    *retstr = dupprintf("unable to load file '%s': %s",
+                                        string, error);
+                    filename_free(fn);
+                    return NULL;
+                }
+            }
+
+            /*
+             * If we've successfully loaded the file, stop here - we
+             * already have a key blob and need not go to the agent to
+             * list things.
+             */
+            key_in.ssh_version = 1;
+            key_ret = pageant_pubkey_copy(&key_in);
+            sfree(key_in.blob);
+            filename_free(fn);
+            return key_ret;
+        } else if (keytype == SSH_KEYTYPE_SSH2 ||
+                   keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
+                   keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
+            const char *error;
+
+            if ((key_in.blob = ssh2_userkey_loadpub(fn, NULL,
+                                                    &key_in.bloblen,
+                                                    NULL, &error)) == NULL) {
+                if (file_errors) {
+                    *retstr = dupprintf("unable to load file '%s': %s",
+                                        string, error);
+                    filename_free(fn);
+                    return NULL;
+                }
+            }
+
+            /*
+             * If we've successfully loaded the file, stop here - we
+             * already have a key blob and need not go to the agent to
+             * list things.
+             */
+            key_in.ssh_version = 2;
+            key_ret = pageant_pubkey_copy(&key_in);
+            sfree(key_in.blob);
+            filename_free(fn);
+            return key_ret;
+        } else {
+            if (file_errors) {
+                *retstr = dupprintf("unable to load key file '%s': %s",
+                                    string, key_type_to_str(keytype));
+                filename_free(fn);
+                return NULL;
+            }
+        }
+        filename_free(fn);
+    }
+
+    /*
+     * Failing that, go through the keys in the agent, and match
+     * against fingerprints and comments as appropriate.
+     */
+    ctx->string = string;
+    ctx->match_fp = try_fp;
+    ctx->match_comment = try_comment;
+    ctx->found = NULL;
+    ctx->nfound = 0;
+    if (pageant_enum_keys(key_find_callback, ctx, retstr) ==
+        PAGEANT_ACTION_FAILURE)
+        return NULL;
+
+    if (ctx->nfound == 0) {
+        *retstr = dupstr("no key matched");
+        assert(!ctx->found);
+        return NULL;
+    } else if (ctx->nfound > 1) {
+        *retstr = dupstr("multiple keys matched");
+        assert(ctx->found);
+        pageant_pubkey_free(ctx->found);
+        return NULL;
+    }
+
+    assert(ctx->found);
+    return ctx->found;
 }
 
 void run_client(void)
 {
     const struct cmdline_key_action *act;
+    struct pageant_pubkey *key;
     int errors = FALSE;
     char *retstr;
 
@@ -385,6 +553,17 @@ void run_client(void)
             }
             break;
           case KEYACT_CLIENT_DEL:
+            key = NULL;
+            if (!(key = find_key(act->filename, &retstr)) ||
+                pageant_delete_key(key, &retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: deleting key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = TRUE;
+            }
+            if (key)
+                pageant_pubkey_free(key);
+            break;
           case KEYACT_CLIENT_DEL_ALL:
           case KEYACT_CLIENT_LIST_FULL:
             fprintf(stderr, "NYI\n");

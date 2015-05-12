@@ -120,8 +120,22 @@ enum {
 int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         char **retstr);
 void pageant_forget_passphrases(void);
+
+struct pageant_pubkey {
+    /* Everything needed to identify a public key found by
+     * pageant_enum_keys and pass it back to the agent or other code
+     * later */
+    void *blob;
+    int bloblen;
+    int ssh_version;
+};
+struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key);
+void pageant_pubkey_free(struct pageant_pubkey *key);
+
 typedef void (*pageant_key_enum_fn_t)(void *ctx,
                                       const char *fingerprint,
-                                      const char *comment);
+                                      const char *comment,
+                                      struct pageant_pubkey *key);
 int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr);
+int pageant_delete_key(struct pageant_pubkey *key, char **retstr);

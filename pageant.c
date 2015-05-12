@@ -1589,6 +1589,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
     unsigned char *keylist, *p;
     int i, nkeys, keylistlen;
     char *comment;
+    struct pageant_pubkey cbkey;
 
     keylist = pageant_get_keylist1(&keylistlen);
     if (keylistlen < 4) {
@@ -1640,7 +1641,10 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         comment = dupprintf("%.*s", (int)n, (const char *)p);
         p += n, keylistlen -= n;
 
-        callback(callback_ctx, fingerprint, comment);
+        cbkey.blob = rsa_public_blob(&rkey, &cbkey.bloblen);
+        cbkey.ssh_version = 1;
+        callback(callback_ctx, fingerprint, comment, &cbkey);
+        sfree(cbkey.blob);
         freersakey(&rkey);
         sfree(comment);
     }
@@ -1685,6 +1689,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             return PAGEANT_ACTION_FAILURE;
         }
         fingerprint = fingerprint_ssh2_blob(p, n);
+        cbkey.blob = p;
+        cbkey.bloblen = n;
         p += n, keylistlen -= n;
 
         /* comment */
@@ -1705,7 +1711,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         comment = dupprintf("%.*s", (int)n, (const char *)p);
         p += n, keylistlen -= n;
 
-        callback(callback_ctx, fingerprint, comment);
+        cbkey.ssh_version = 2;
+        callback(callback_ctx, fingerprint, comment, &cbkey);
         sfree(fingerprint);
         sfree(comment);
     }
@@ -1718,4 +1725,56 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
     }
 
     return PAGEANT_ACTION_OK;
+}
+
+int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
+{
+    unsigned char *request, *response;
+    int reqlen, resplen, ret;
+    void *vresponse;
+
+    if (key->ssh_version == 1) {
+        reqlen = 5 + key->bloblen;
+        request = snewn(reqlen, unsigned char);
+        PUT_32BIT(request, reqlen - 4);
+        request[4] = SSH1_AGENTC_REMOVE_RSA_IDENTITY;
+        memcpy(request + 5, key->blob, key->bloblen);
+    } else {
+        reqlen = 9 + key->bloblen;
+        request = snewn(reqlen, unsigned char);
+        PUT_32BIT(request, reqlen - 4);
+        request[4] = SSH2_AGENTC_REMOVE_IDENTITY;
+        PUT_32BIT(request + 5, key->bloblen);
+        memcpy(request + 9, key->blob, key->bloblen);
+    }
+
+    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
+    assert(ret == 1);
+    response = vresponse;
+    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
+        *retstr = dupstr("Agent failed to delete key");
+        ret = PAGEANT_ACTION_FAILURE;
+    } else {
+        *retstr = NULL;
+        ret = PAGEANT_ACTION_OK;
+    }
+    sfree(request);
+    sfree(response);
+    return ret;
+}
+
+struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
+{
+    struct pageant_pubkey *ret = snew(struct pageant_pubkey);
+    ret->blob = snewn(key->bloblen, unsigned char);
+    memcpy(ret->blob, key->blob, key->bloblen);
+    ret->bloblen = key->bloblen;
+    ret->ssh_version = key->ssh_version;
+    return ret;
+}
+
+void pageant_pubkey_free(struct pageant_pubkey *key)
+{
+    sfree(key->blob);
+    sfree(key);
 }
