@@ -44,8 +44,8 @@ int toint(unsigned);
 char *fgetline(FILE *fp);
 char *chomp(char *str);
 
-void base64_encode_atom(unsigned char *data, int n, char *out);
-int base64_decode_atom(char *atom, unsigned char *out);
+void base64_encode_atom(const unsigned char *data, int n, char *out);
+int base64_decode_atom(const char *atom, unsigned char *out);
 
 struct bufchain_granule;
 typedef struct bufchain_tag {

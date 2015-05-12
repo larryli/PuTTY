@@ -651,10 +651,11 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
 
 int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase);
 
-extern int base64_decode_atom(char *atom, unsigned char *out);
+extern int base64_decode_atom(const char *atom, unsigned char *out);
 extern int base64_lines(int datalen);
-extern void base64_encode_atom(unsigned char *data, int n, char *out);
-extern void base64_encode(FILE *fp, unsigned char *data, int datalen, int cpl);
+extern void base64_encode_atom(const unsigned char *data, int n, char *out);
+extern void base64_encode(FILE *fp, const unsigned char *data, int datalen,
+                          int cpl);
 
 /* ssh2_load_userkey can return this as an error */
 extern struct ssh2_userkey ssh2_wrong_passphrase;

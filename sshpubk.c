@@ -1276,7 +1276,7 @@ int base64_lines(int datalen)
     return (datalen + 47) / 48;
 }
 
-void base64_encode(FILE * fp, unsigned char *data, int datalen, int cpl)
+void base64_encode(FILE *fp, const unsigned char *data, int datalen, int cpl)
 {
     int linelen = 0;
     char out[4];

@@ -495,7 +495,7 @@ char *chomp(char *str)
  * Core base64 encoding and decoding routines.
  */
 
-void base64_encode_atom(unsigned char *data, int n, char *out)
+void base64_encode_atom(const unsigned char *data, int n, char *out)
 {
     static const char base64_chars[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -519,7 +519,7 @@ void base64_encode_atom(unsigned char *data, int n, char *out)
 	out[3] = '=';
 }
 
-int base64_decode_atom(char *atom, unsigned char *out)
+int base64_decode_atom(const char *atom, unsigned char *out)
 {
     int vals[4];
     int i, v, len;
