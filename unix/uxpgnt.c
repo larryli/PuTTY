@@ -269,6 +269,21 @@ void add_keyact(keyact action, const char *filename)
     keyact_tail = a;
 }
 
+int have_controlling_tty(void)
+{
+    int fd = open("/dev/tty", O_RDONLY);
+    if (fd < 0) {
+        if (errno != ENXIO) {
+            perror("/dev/tty: open");
+            exit(1);
+        }
+        return FALSE;
+    } else {
+        close(fd);
+        return TRUE;
+    }
+}
+
 char **exec_args = NULL;
 enum {
     LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
@@ -840,16 +855,9 @@ void run_agent(void)
              * our containing tty session has ended, so it's time to
              * clean up and leave.
              */
-            int fd = open("/dev/tty", O_RDONLY);
-            if (fd < 0) {
-                if (errno != ENXIO) {
-                    perror("/dev/tty: open");
-                    exit(1);
-                }
+            if (!have_controlling_tty()) {
                 time_to_die = TRUE;
                 break;
-            } else {
-                close(fd);
             }
         }
 
