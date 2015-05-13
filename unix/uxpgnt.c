@@ -292,30 +292,50 @@ const char *display = NULL;
 
 static char *askpass(const char *comment)
 {
-    prompts_t *p = new_prompts(NULL);
-    int ret;
+    if (have_controlling_tty()) {
+        int ret;
+        prompts_t *p = new_prompts(NULL);
+        p->to_server = FALSE;
+        p->name = dupstr("Pageant passphrase prompt");
+        add_prompt(p,
+                   dupprintf("Enter passphrase to load key '%s': ", comment),
+                   FALSE);
+        ret = console_get_userpass_input(p, NULL, 0);
+        assert(ret >= 0);
 
-    /*
-     * FIXME: if we don't have a terminal, and have to do this by X11,
-     * there's a big missing piece.
-     */
+        if (!ret) {
+            perror("pageant: unable to read passphrase");
+            free_prompts(p);
+            return NULL;
+        } else {
+            char *passphrase = dupstr(p->prompts[0]->result);
+            free_prompts(p);
+            return passphrase;
+        }
+    } else if (display) {
+        char *prompt, *passphrase;
+        int success;
 
-    p->to_server = FALSE;
-    p->name = dupstr("Pageant passphrase prompt");
-    add_prompt(p,
-               dupprintf("Enter passphrase to load key '%s': ", comment),
-               FALSE);
-    ret = console_get_userpass_input(p, NULL, 0);
-    assert(ret >= 0);
+        /* in gtkask.c */
+        char *gtk_askpass_main(const char *display, const char *wintitle,
+                               const char *prompt, int *success);
 
-    if (!ret) {
-        perror("pageant: unable to read passphrase");
-        free_prompts(p);
-        return NULL;
-    } else {
-        char *passphrase = dupstr(p->prompts[0]->result);
-        free_prompts(p);
+        prompt = dupprintf("Enter passphrase to load key '%s': ", comment);
+        passphrase = gtk_askpass_main(display,
+                                      "Pageant passphrase prompt",
+                                      prompt, &success);
+        sfree(prompt);
+        if (!success) {
+            /* return value is error message */
+            fprintf(stderr, "%s\n", passphrase);
+            sfree(passphrase);
+            passphrase = NULL;
+        }
         return passphrase;
+    } else {
+        fprintf(stderr, "no way to read a passphrase without tty or "
+                "X display\n");
+        return NULL;
     }
 }
 
@@ -697,8 +717,6 @@ void run_agent(void)
             NULL
         };
 
-        if (!display)
-            display = getenv("DISPLAY");
         if (!display) {
             fprintf(stderr, "pageant: no DISPLAY for -X mode\n");
             exit(1);
@@ -981,6 +999,12 @@ int main(int argc, char **argv)
 
     sk_init();
     uxsel_init();
+
+    if (!display) {
+        display = getenv("DISPLAY");
+        if (display && !*display)
+            display = NULL;
+    }
 
     /*
      * Now distinguish our two main running modes. Either we're

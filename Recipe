@@ -303,9 +303,9 @@ puttygen : [U] cmdgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 
-pageant  : [U] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
+pageant  : [X] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
 	 + version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512 sshecc
-	 + conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
+	 + conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons gtkask
 	 + UXMISC LIBS
 
 PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
