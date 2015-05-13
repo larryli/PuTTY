@@ -331,6 +331,7 @@ static int unix_add_keyfile(const char *filename_str)
     while (1) {
         char *passphrase = askpass(err);
         sfree(err);
+        err = NULL;
         if (!passphrase)
             break;
 
