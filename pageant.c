@@ -1172,6 +1172,9 @@ static tree234 *passphrases = NULL;
  */
 void pageant_forget_passphrases(void)
 {
+    if (!passphrases)                  /* in case we never set it up at all */
+        return;
+
     while (count234(passphrases) > 0) {
 	char *pp = index234(passphrases, 0);
 	smemclr(pp, strlen(pp));
