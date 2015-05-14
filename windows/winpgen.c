@@ -925,12 +925,13 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       "&Save private key", IDC_SAVE);
 	    endbox(&cp);
 	    beginbox(&cp, "Parameters", IDC_BOX_PARAMS);
-	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 4,
+	    radioline(&cp, "Type of key to generate:", IDC_TYPESTATIC, 5,
+		      "&RSA", IDC_KEYSSH2RSA,
+                      "&DSA", IDC_KEYSSH2DSA,
+                      "&ECDSA", IDC_KEYSSH2ECDSA,
+                      "ED&25519", IDC_KEYSSH2ED25519,
 		      "SSH-&1 (RSA)", IDC_KEYSSH1,
-		      "SSH-2 &RSA", IDC_KEYSSH2RSA,
-                      "SSH-2 &DSA", IDC_KEYSSH2DSA,
-                      "SSH-2 &ECDSA", IDC_KEYSSH2ECDSA,
-                      "SSH-2 ED&25519", IDC_KEYSSH2ED25519, NULL);
+                      NULL);
 	    staticedit(&cp, "Number of &bits in a generated key:",
 		       IDC_BITSSTATIC, IDC_BITS, 20);
 	    endbox(&cp);
