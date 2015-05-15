@@ -355,7 +355,6 @@ static int unix_add_keyfile(const char *filename_str)
         goto cleanup;
     } else if (status == PAGEANT_ACTION_FAILURE) {
         fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
-        sfree(err);
         ret = FALSE;
         goto cleanup;
     }
@@ -380,7 +379,6 @@ static int unix_add_keyfile(const char *filename_str)
             goto cleanup;
         } else if (status == PAGEANT_ACTION_FAILURE) {
             fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
-            sfree(err);
             ret = FALSE;
             goto cleanup;
         }
