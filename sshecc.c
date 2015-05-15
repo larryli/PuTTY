@@ -2451,6 +2451,7 @@ static int getmppoint(const char **data, int *datalen, struct ec_point *point)
 
 struct ecsign_extra {
     struct ec_curve *(*curve)(void);
+    const struct ssh_hash *hash;
 
     /* These fields are used by the OpenSSH PEM format importer/exporter */
     const unsigned char *oid;
@@ -2979,6 +2980,8 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
                            const char *data, int datalen)
 {
     struct ec_key *ec = (struct ec_key *) key;
+    const struct ecsign_extra *extra =
+        (const struct ecsign_extra *)ec->signalg->extra;
     const char *p;
     int slen;
     int digestLen;
@@ -3107,6 +3110,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     } else {
         Bignum r, s;
         unsigned char digest[512 / 8];
+        void *hashctx;
 
         r = getmp(&p, &slen);
         if (!r) return 0;
@@ -3116,17 +3120,11 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
             return 0;
         }
 
-        /* Perform correct hash function depending on curve size */
-        if (ec->publicKey.curve->fieldBits <= 256) {
-            SHA256_Simple(data, datalen, digest);
-            digestLen = 256 / 8;
-        } else if (ec->publicKey.curve->fieldBits <= 384) {
-            SHA384_Simple(data, datalen, digest);
-            digestLen = 384 / 8;
-        } else {
-            SHA512_Simple(data, datalen, digest);
-            digestLen = 512 / 8;
-        }
+        digestLen = extra->hash->hlen;
+        assert(digestLen <= sizeof(digest));
+        hashctx = extra->hash->init();
+        extra->hash->bytes(hashctx, data, datalen);
+        extra->hash->final(hashctx, digest);
 
         /* Verify the signature */
         ret = _ecdsa_verify(&ec->publicKey, digest, digestLen, r, s);
@@ -3142,6 +3140,8 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
                                  int *siglen)
 {
     struct ec_key *ec = (struct ec_key *) key;
+    const struct ecsign_extra *extra =
+        (const struct ecsign_extra *)ec->signalg->extra;
     unsigned char digest[512 / 8];
     int digestLen;
     Bignum r = NULL, s = NULL;
@@ -3297,17 +3297,13 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
         }
         freebn(s);
     } else {
-        /* Perform correct hash function depending on curve size */
-        if (ec->publicKey.curve->fieldBits <= 256) {
-            SHA256_Simple(data, datalen, digest);
-            digestLen = 256 / 8;
-        } else if (ec->publicKey.curve->fieldBits <= 384) {
-            SHA384_Simple(data, datalen, digest);
-            digestLen = 384 / 8;
-        } else {
-            SHA512_Simple(data, datalen, digest);
-            digestLen = 512 / 8;
-        }
+        void *hashctx;
+
+        digestLen = extra->hash->hlen;
+        assert(digestLen <= sizeof(digest));
+        hashctx = extra->hash->init();
+        extra->hash->bytes(hashctx, data, datalen);
+        extra->hash->final(hashctx, digest);
 
         /* Do the signature */
         _ecdsa_sign(ec->privateKey, ec->publicKey.curve, digest, digestLen, &r, &s);
@@ -3349,7 +3345,7 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
 }
 
 const struct ecsign_extra sign_extra_ed25519 = {
-    ec_ed25519,
+    ec_ed25519, NULL,
     NULL, 0,
 };
 const struct ssh_signkey ssh_ecdsa_ed25519 = {
@@ -3375,7 +3371,7 @@ static const unsigned char nistp256_oid[] = {
     0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
 };
 const struct ecsign_extra sign_extra_nistp256 = {
-    ec_p256,
+    ec_p256, &ssh_sha256,
     nistp256_oid, lenof(nistp256_oid),
 };
 const struct ssh_signkey ssh_ecdsa_nistp256 = {
@@ -3401,7 +3397,7 @@ static const unsigned char nistp384_oid[] = {
     0x2b, 0x81, 0x04, 0x00, 0x22
 };
 const struct ecsign_extra sign_extra_nistp384 = {
-    ec_p384,
+    ec_p384, &ssh_sha384,
     nistp384_oid, lenof(nistp384_oid),
 };
 const struct ssh_signkey ssh_ecdsa_nistp384 = {
@@ -3427,7 +3423,7 @@ static const unsigned char nistp521_oid[] = {
     0x2b, 0x81, 0x04, 0x00, 0x23
 };
 const struct ecsign_extra sign_extra_nistp521 = {
-    ec_p521,
+    ec_p521, &ssh_sha512,
     nistp521_oid, lenof(nistp521_oid),
 };
 const struct ssh_signkey ssh_ecdsa_nistp521 = {
