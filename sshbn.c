@@ -128,8 +128,6 @@ static Bignum newbn(int length)
     assert(length >= 0 && length < INT_MAX / BIGNUM_INT_BITS);
 
     b = snewn(length + 1, BignumInt);
-    if (!b)
-	abort();		       /* FIXME */
     memset(b, 0, (length + 1) * sizeof(*b));
     b[0] = length;
     return b;
@@ -1112,12 +1110,9 @@ Bignum modsub(const Bignum a, const Bignum b, const Bignum n)
         /* Handle going round the corner of the modulus without having
          * negative support in Bignum */
         Bignum tmp = bigsub(n, b1);
-        if (tmp) {
-            ret = bigadd(tmp, a1);
-            freebn(tmp);
-        } else {
-            ret = NULL;
-        }
+        assert(tmp);
+        ret = bigadd(tmp, a1);
+        freebn(tmp);
     }
 
     if (a != a1) freebn(a1);
@@ -1500,7 +1495,6 @@ Bignum bignum_lshift(Bignum a, int shift)
 
     bits = bignum_bitcount(a) + shift;
     ret = newbn((bits + BIGNUM_INT_BITS - 1) / BIGNUM_INT_BITS);
-    if (!ret) return NULL;
 
     shiftWords = shift / BIGNUM_INT_BITS;
     shiftBits = shift % BIGNUM_INT_BITS;
