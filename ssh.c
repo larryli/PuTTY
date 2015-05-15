@@ -6805,7 +6805,8 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         }
         set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
-        s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+        s->hkey = ssh->hostkey->newkey(ssh->hostkey,
+                                       s->hostkeydata, s->hostkeylen);
         s->f = ssh2_pkt_getmp(pktin);
         if (!s->f) {
             bombout(("unable to parse key exchange reply packet"));
@@ -6883,7 +6884,8 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
         hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
-        s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+        s->hkey = ssh->hostkey->newkey(ssh->hostkey,
+                                       s->hostkeydata, s->hostkeylen);
 
         {
             char *publicPoint;
@@ -6932,7 +6934,8 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
         hash_string(ssh->kex->hash, ssh->exhash,
 		    s->hostkeydata, s->hostkeylen);
-	s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
+	s->hkey = ssh->hostkey->newkey(ssh->hostkey,
+                                       s->hostkeydata, s->hostkeylen);
 
         {
             char *keydata;

@@ -786,7 +786,8 @@ int main(int argc, char **argv)
                 if (ssh2blob) {
                     ssh2algf = find_pubkey_alg(ssh2alg);
                     if (ssh2algf)
-                        bits = ssh2algf->pubkey_bits(ssh2blob, ssh2bloblen);
+                        bits = ssh2algf->pubkey_bits(ssh2algf,
+                                                     ssh2blob, ssh2bloblen);
                     else
                         bits = -1;
                 }

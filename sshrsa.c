@@ -565,7 +565,8 @@ static Bignum getmp(const char **data, int *datalen)
 
 static void rsa2_freekey(void *key);   /* forward reference */
 
-static void *rsa2_newkey(const char *data, int len)
+static void *rsa2_newkey(const struct ssh_signkey *self,
+                         const char *data, int len)
 {
     const char *p;
     int slen;
@@ -685,13 +686,14 @@ static unsigned char *rsa2_private_blob(void *key, int *len)
     return blob;
 }
 
-static void *rsa2_createkey(const unsigned char *pub_blob, int pub_len,
+static void *rsa2_createkey(const struct ssh_signkey *self,
+                            const unsigned char *pub_blob, int pub_len,
 			    const unsigned char *priv_blob, int priv_len)
 {
     struct RSAKey *rsa;
     const char *pb = (const char *) priv_blob;
 
-    rsa = rsa2_newkey((char *) pub_blob, pub_len);
+    rsa = rsa2_newkey(self, (char *) pub_blob, pub_len);
     rsa->private_exponent = getmp(&pb, &priv_len);
     rsa->p = getmp(&pb, &priv_len);
     rsa->q = getmp(&pb, &priv_len);
@@ -705,7 +707,8 @@ static void *rsa2_createkey(const unsigned char *pub_blob, int pub_len,
     return rsa;
 }
 
-static void *rsa2_openssh_createkey(const unsigned char **blob, int *len)
+static void *rsa2_openssh_createkey(const struct ssh_signkey *self,
+                                    const unsigned char **blob, int *len)
 {
     const char **b = (const char **) blob;
     struct RSAKey *rsa;
@@ -763,12 +766,13 @@ static int rsa2_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static int rsa2_pubkey_bits(const void *blob, int len)
+static int rsa2_pubkey_bits(const struct ssh_signkey *self,
+                            const void *blob, int len)
 {
     struct RSAKey *rsa;
     int ret;
 
-    rsa = rsa2_newkey((const char *) blob, len);
+    rsa = rsa2_newkey(self, (const char *) blob, len);
     ret = bignum_bitcount(rsa->modulus);
     rsa2_freekey(rsa);
 
@@ -918,7 +922,7 @@ const struct ssh_signkey ssh_rsa = {
 
 void *ssh_rsakex_newkey(char *data, int len)
 {
-    return rsa2_newkey(data, len);
+    return rsa2_newkey(&ssh_rsa, data, len);
 }
 
 void ssh_rsakex_freekey(void *key)

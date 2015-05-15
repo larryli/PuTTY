@@ -2585,7 +2585,8 @@ static void ecdsa_freekey(void *key)
     sfree(ec);
 }
 
-static void *ecdsa_newkey(const char *data, int len)
+static void *ecdsa_newkey(const struct ssh_signkey *self,
+                          const char *data, int len)
 {
     const char *p;
     int slen;
@@ -2788,14 +2789,15 @@ static unsigned char *ecdsa_private_blob(void *key, int *len)
     return blob;
 }
 
-static void *ecdsa_createkey(const unsigned char *pub_blob, int pub_len,
+static void *ecdsa_createkey(const struct ssh_signkey *self,
+                             const unsigned char *pub_blob, int pub_len,
                              const unsigned char *priv_blob, int priv_len)
 {
     struct ec_key *ec;
     struct ec_point *publicKey;
     const char *pb = (const char *) priv_blob;
 
-    ec = (struct ec_key*)ecdsa_newkey((const char *) pub_blob, pub_len);
+    ec = (struct ec_key*)ecdsa_newkey(self, (const char *) pub_blob, pub_len);
     if (!ec) {
         return NULL;
     }
@@ -2831,7 +2833,8 @@ static void *ecdsa_createkey(const unsigned char *pub_blob, int pub_len,
     return ec;
 }
 
-static void *ed25519_openssh_createkey(const unsigned char **blob, int *len)
+static void *ed25519_openssh_createkey(const struct ssh_signkey *self,
+                                       const unsigned char **blob, int *len)
 {
     struct ec_key *ec;
     struct ec_point *publicKey;
@@ -2950,7 +2953,8 @@ static int ed25519_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static void *ecdsa_openssh_createkey(const unsigned char **blob, int *len)
+static void *ecdsa_openssh_createkey(const struct ssh_signkey *self,
+                                     const unsigned char **blob, int *len)
 {
     const char **b = (const char **) blob;
     const char *p;
@@ -3068,12 +3072,13 @@ static int ecdsa_openssh_fmtkey(void *key, unsigned char *blob, int len)
     return bloblen;
 }
 
-static int ecdsa_pubkey_bits(const void *blob, int len)
+static int ecdsa_pubkey_bits(const struct ssh_signkey *self,
+                             const void *blob, int len)
 {
     struct ec_key *ec;
     int ret;
 
-    ec = (struct ec_key*)ecdsa_newkey((const char *) blob, len);
+    ec = (struct ec_key*)ecdsa_newkey(self, (const char *) blob, len);
     if (!ec)
         return -1;
     ret = ec->publicKey.curve->fieldBits;

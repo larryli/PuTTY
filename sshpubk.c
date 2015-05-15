@@ -853,7 +853,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     ret = snew(struct ssh2_userkey);
     ret->alg = alg;
     ret->comment = comment;
-    ret->data = alg->createkey(public_blob, public_blob_len,
+    ret->data = alg->createkey(alg, public_blob, public_blob_len,
 			       private_blob, private_blob_len);
     if (!ret->data) {
 	sfree(ret);
@@ -1600,7 +1600,7 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
          */
         alg = find_pubkey_alg_len(alglen, algstr);
         if (alg) {
-            int bits = alg->pubkey_bits(blob, bloblen);
+            int bits = alg->pubkey_bits(alg, blob, bloblen);
             return dupprintf("%.*s %d %s", alglen, algstr,
                              bits, fingerprint_str);
         } else {

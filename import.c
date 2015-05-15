@@ -777,7 +777,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         memcpy(blob+4+19+4+8+4, p, len);
         PUT_32BIT(blob+4+19+4+8+4+len, privlen);
         memcpy(blob+4+19+4+8+4+len+4, priv, privlen);
-        retkey->data = retkey->alg->createkey(blob, 4+19+4+8+4+len,
+        retkey->data = retkey->alg->createkey(retkey->alg,
+                                              blob, 4+19+4+8+4+len,
                                               blob+4+19+4+8+4+len,
                                               4+privlen);
         if (!retkey->data) {
@@ -867,7 +868,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         assert(privptr > 0);          /* should have bombed by now if not */
         retkey = snew(struct ssh2_userkey);
         retkey->alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
-        retkey->data = retkey->alg->createkey(blob, privptr,
+        retkey->data = retkey->alg->createkey(retkey->alg, blob, privptr,
                                               blob+privptr,
                                               blobptr-privptr);
         if (!retkey->data) {
@@ -1679,7 +1680,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
         if (key_index == key->key_wanted) {
             retkey = snew(struct ssh2_userkey);
             retkey->alg = alg;
-            retkey->data = alg->openssh_createkey(&thiskey, &thiskeylen);
+            retkey->data = alg->openssh_createkey(alg, &thiskey, &thiskeylen);
             if (!retkey->data) {
                 sfree(retkey);
                 errmsg = "unable to create key data structure";
@@ -2457,7 +2458,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 
     retkey = snew(struct ssh2_userkey);
     retkey->alg = alg;
-    retkey->data = alg->createkey(blob, publen, blob+publen, privlen);
+    retkey->data = alg->createkey(alg, blob, publen, blob+publen, privlen);
     if (!retkey->data) {
 	sfree(retkey);
 	errmsg = "unable to create key data structure";

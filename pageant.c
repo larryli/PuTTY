@@ -674,7 +674,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 
 	    bloblen = msgend - p;
-	    key->data = key->alg->openssh_createkey(&p, &bloblen);
+	    key->data = key->alg->openssh_createkey(key->alg, &p, &bloblen);
 	    if (!key->data) {
 		sfree(key);
                 fail_reason = "key setup failed";
