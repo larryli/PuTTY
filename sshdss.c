@@ -675,5 +675,6 @@ const struct ssh_signkey ssh_dss = {
     dss_verifysig,
     dss_sign,
     "ssh-dss",
-    "dss"
+    "dss",
+    NULL,
 };

@@ -344,10 +344,8 @@ struct ssh_hash {
 struct ssh_kex {
     char *name, *groupname;
     enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH } main_type;
-    /* For DH */
-    const unsigned char *pdata, *gdata; /* NULL means group exchange */
-    int plen, glen;
     const struct ssh_hash *hash;
+    const void *extra;                 /* private to the kex methods */
 };
 
 struct ssh_kexes {
@@ -385,6 +383,7 @@ struct ssh_signkey {
 			    int *siglen);
     const char *name;
     const char *keytype;               /* for host key cache */
+    const void *extra;                 /* private to the public key methods */
 };
 
 struct ssh_compress {
@@ -639,6 +638,7 @@ Bignum bignum_from_decimal(const char *decimal);
 void diagbn(char *prefix, Bignum md);
 #endif
 
+int dh_is_gex(const struct ssh_kex *kex);
 void *dh_setup_group(const struct ssh_kex *kex);
 void *dh_setup_gex(Bignum pval, Bignum gval);
 void dh_cleanup(void *);

@@ -917,7 +917,8 @@ const struct ssh_signkey ssh_rsa = {
     rsa2_verifysig,
     rsa2_sign,
     "ssh-rsa",
-    "rsa2"
+    "rsa2",
+    NULL,
 };
 
 void *ssh_rsakex_newkey(char *data, int len)
@@ -1057,11 +1058,11 @@ void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
 }
 
 static const struct ssh_kex ssh_rsa_kex_sha1 = {
-    "rsa1024-sha1", NULL, KEXTYPE_RSA, NULL, NULL, 0, 0, &ssh_sha1
+    "rsa1024-sha1", NULL, KEXTYPE_RSA, &ssh_sha1, NULL,
 };
 
 static const struct ssh_kex ssh_rsa_kex_sha256 = {
-    "rsa2048-sha256", NULL, KEXTYPE_RSA, NULL, NULL, 0, 0, &ssh_sha256
+    "rsa2048-sha256", NULL, KEXTYPE_RSA, &ssh_sha256, NULL,
 };
 
 static const struct ssh_kex *const rsa_kex_list[] = {

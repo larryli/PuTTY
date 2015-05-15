@@ -6740,7 +6740,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
          * If we're doing Diffie-Hellman group exchange, start by
          * requesting a group.
          */
-        if (!ssh->kex->pdata) {
+        if (dh_is_gex(ssh->kex)) {
             logevent("Doing Diffie-Hellman group exchange");
             ssh->pkt_kctx = SSH2_PKTCTX_DHGEX;
             /*
@@ -6828,7 +6828,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
         set_busy_status(ssh->frontend, BUSY_NOT);
 
         hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
-        if (!ssh->kex->pdata) {
+        if (dh_is_gex(ssh->kex)) {
             if (!(ssh->remote_bugs & BUG_SSH2_OLDGEX))
                 hash_uint32(ssh->kex->hash, ssh->exhash, DH_MIN_SIZE);
             hash_uint32(ssh->kex->hash, ssh->exhash, s->pbits);
@@ -6842,7 +6842,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 
         dh_cleanup(ssh->kex_ctx);
         freebn(s->f);
-        if (!ssh->kex->pdata) {
+        if (dh_is_gex(ssh->kex)) {
             freebn(s->g);
             freebn(s->p);
         }

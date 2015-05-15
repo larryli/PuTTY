@@ -3473,6 +3473,7 @@ const struct ssh_signkey ssh_ecdsa_ed25519 = {
     ecdsa_sign,
     "ssh-ed25519",
     "ssh-ed25519",
+    NULL,
 };
 
 const struct ssh_signkey ssh_ecdsa_nistp256 = {
@@ -3490,6 +3491,7 @@ const struct ssh_signkey ssh_ecdsa_nistp256 = {
     ecdsa_sign,
     "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp256",
+    NULL,
 };
 
 const struct ssh_signkey ssh_ecdsa_nistp384 = {
@@ -3507,6 +3509,7 @@ const struct ssh_signkey ssh_ecdsa_nistp384 = {
     ecdsa_sign,
     "ecdsa-sha2-nistp384",
     "ecdsa-sha2-nistp384",
+    NULL,
 };
 
 const struct ssh_signkey ssh_ecdsa_nistp521 = {
@@ -3524,6 +3527,7 @@ const struct ssh_signkey ssh_ecdsa_nistp521 = {
     ecdsa_sign,
     "ecdsa-sha2-nistp521",
     "ecdsa-sha2-nistp521",
+    NULL,
 };
 
 /* ----------------------------------------------------------------------
@@ -3701,19 +3705,19 @@ void ssh_ecdhkex_freekey(void *key)
 }
 
 static const struct ssh_kex ssh_ec_kex_curve25519 = {
-    "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha256
+    "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH, &ssh_sha256, NULL
 };
 
 static const struct ssh_kex ssh_ec_kex_nistp256 = {
-    "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha256
+    "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH, &ssh_sha256, NULL
 };
 
 static const struct ssh_kex ssh_ec_kex_nistp384 = {
-    "ecdh-sha2-nistp384", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha384
+    "ecdh-sha2-nistp384", NULL, KEXTYPE_ECDH, &ssh_sha384, NULL
 };
 
 static const struct ssh_kex ssh_ec_kex_nistp521 = {
-    "ecdh-sha2-nistp521", NULL, KEXTYPE_ECDH, NULL, NULL, 0, 0, &ssh_sha512
+    "ecdh-sha2-nistp521", NULL, KEXTYPE_ECDH, &ssh_sha512, NULL
 };
 
 static const struct ssh_kex *const ec_kex_list[] = {
