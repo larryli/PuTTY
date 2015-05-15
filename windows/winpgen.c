@@ -968,15 +968,12 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		state = (struct MainDlgState *)
 		    GetWindowLongPtr(hwnd, GWLP_USERDATA);
 		if (!IsDlgButtonChecked(hwnd, LOWORD(wParam)))
-		    CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2DSA,
+		    CheckRadioButton(hwnd,
+                                     IDC_KEYSSH1, IDC_KEYSSH2ED25519,
 				     LOWORD(wParam));
-		CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2DSA,
+		CheckMenuRadioItem(state->keymenu,
+                                   IDC_KEYSSH1, IDC_KEYSSH2ED25519,
 				   LOWORD(wParam), MF_BYCOMMAND);
-                CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2ECDSA,
-                                 LOWORD(wParam));
-                CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1,
-                                   IDC_KEYSSH2ECDSA,
-                                   LOWORD(wParam), MF_BYCOMMAND);
 	    }
 	    break;
 	  case IDC_QUIT:
