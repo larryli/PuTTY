@@ -293,7 +293,7 @@ struct ssh_cipher {
     void (*encrypt) (void *, unsigned char *blk, int len);
     void (*decrypt) (void *, unsigned char *blk, int len);
     int blksize;
-    char *text_name;
+    const char *text_name;
 };
 
 struct ssh2_cipher {
@@ -308,7 +308,7 @@ struct ssh2_cipher {
     int keylen;
     unsigned int flags;
 #define SSH_CIPHER_IS_CBC	1
-    char *text_name;
+    const char *text_name;
 };
 
 struct ssh2_ciphers {
@@ -328,9 +328,9 @@ struct ssh_mac {
     void (*bytes) (void *, unsigned char const *, int);
     void (*genresult) (void *, unsigned char *);
     int (*verresult) (void *, unsigned char const *);
-    char *name, *etm_name;
+    const char *name, *etm_name;
     int len;
-    char *text_name;
+    const char *text_name;
 };
 
 struct ssh_hash {
@@ -338,7 +338,7 @@ struct ssh_hash {
     void (*bytes)(void *, const void *, int);
     void (*final)(void *, unsigned char *); /* also frees context */
     int hlen; /* output length in bytes */
-    char *text_name;
+    const char *text_name;
 };   
 
 struct ssh_kex {
@@ -379,8 +379,8 @@ struct ssh_signkey {
 		      const char *data, int datalen);
     unsigned char *(*sign) (void *key, const char *data, int datalen,
 			    int *siglen);
-    char *name;
-    char *keytype;		       /* for host key cache */
+    const char *name;
+    const char *keytype;               /* for host key cache */
 };
 
 struct ssh_compress {
@@ -397,7 +397,7 @@ struct ssh_compress {
     int (*decompress) (void *, unsigned char *block, int len,
 		       unsigned char **outblock, int *outlen);
     int (*disable_compression) (void *);
-    char *text_name;
+    const char *text_name;
 };
 
 struct ssh2_userkey {

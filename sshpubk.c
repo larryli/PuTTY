@@ -1191,7 +1191,7 @@ unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
     if (pub_blob_len)
 	*pub_blob_len = public_blob_len;
     if (algorithm)
-	*algorithm = alg->name;
+	*algorithm = dupstr(alg->name);
     return public_blob;
 
     /*

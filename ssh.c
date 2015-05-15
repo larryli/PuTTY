@@ -10275,6 +10275,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 
     /* Clear up various bits and pieces from authentication. */
     if (s->publickey_blob) {
+	sfree(s->publickey_algorithm);
 	sfree(s->publickey_blob);
 	sfree(s->publickey_comment);
     }

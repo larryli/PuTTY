@@ -790,6 +790,7 @@ int main(int argc, char **argv)
                     else
                         bits = -1;
                 }
+                sfree(ssh2alg);
 	    } else {
 		ssh2key = ssh2_load_userkey(infilename, passphrase, &error);
 	    }
