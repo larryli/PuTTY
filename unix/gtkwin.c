@@ -133,7 +133,7 @@ struct draw_ctx {
 
 static int send_raw_mouse;
 
-static char *app_name = "pterm";
+static const char *app_name = "pterm";
 
 static void start_backend(struct gui_data *inst);
 static void exit_callback(void *vinst);
@@ -143,7 +143,7 @@ char *x_get_default(const char *key)
     return XGetDefault(GDK_DISPLAY(), app_name, key);
 }
 
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
 
@@ -221,7 +221,7 @@ int from_backend_eof(void *frontend)
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     struct gui_data *inst = (struct gui_data *)p->frontend;
     int ret;
@@ -885,7 +885,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * NetHack keypad mode.
 	 */
 	if (nethack_mode) {
-	    char *keys = NULL;
+	    const char *keys = NULL;
 	    switch (event->keyval) {
 	      case GDK_KP_1: case GDK_KP_End: keys = "bB\002"; break;
 	      case GDK_KP_2: case GDK_KP_Down: keys = "jJ\012"; break;
@@ -2603,7 +2603,7 @@ GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
     return ret;
 }
 
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -2614,7 +2614,7 @@ void modalfatalbox(char *p, ...)
     exit(1);
 }
 
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "%s: ", appname);
@@ -2695,7 +2695,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 #define SECOND_PASS_ONLY { if (!do_everything) continue; }
 
     while (--argc > 0) {
-	char *p = *++argv;
+	const char *p = *++argv;
         int ret;
 
 	/*

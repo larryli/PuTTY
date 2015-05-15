@@ -342,7 +342,7 @@ char *gtk_askpass_main(const char *display, const char *wintitle,
 }
 
 #ifdef TEST_ASKPASS
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");

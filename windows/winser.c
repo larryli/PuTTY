@@ -199,7 +199,7 @@ static const char *serial_configure(Serial serial, HANDLE serport, Conf *conf)
  * freed by the caller.
  */
 static const char *serial_init(void *frontend_handle, void **backend_handle,
-			       Conf *conf, char *host, int port,
+			       Conf *conf, const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
     Serial serial;
@@ -302,7 +302,7 @@ static void serial_reconfig(void *handle, Conf *conf)
 /*
  * Called to send data down the serial connection.
  */
-static int serial_send(void *handle, char *buf, int len)
+static int serial_send(void *handle, const char *buf, int len)
 {
     Serial serial = (Serial) handle;
 

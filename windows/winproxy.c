@@ -16,7 +16,7 @@
 Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
                           int overlapped);
 
-Socket platform_new_connection(SockAddr addr, char *hostname,
+Socket platform_new_connection(SockAddr addr, const char *hostname,
 			       int port, int privport,
 			       int oobinline, int nodelay, int keepalive,
 			       Plug plug, Conf *conf)

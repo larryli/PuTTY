@@ -23,7 +23,7 @@
 SockAddr unix_sock_addr(const char *path);
 Socket new_unix_listener(SockAddr listenaddr, Plug plug);
 
-void fatalbox(char *p, ...)
+void fatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -33,7 +33,7 @@ void fatalbox(char *p, ...)
     fputc('\n', stderr);
     exit(1);
 }
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -43,7 +43,7 @@ void modalfatalbox(char *p, ...)
     fputc('\n', stderr);
     exit(1);
 }
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "ERROR: ");
@@ -52,7 +52,7 @@ void nonfatal(char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
 }
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -62,7 +62,7 @@ void connection_fatal(void *frontend, char *p, ...)
     fputc('\n', stderr);
     exit(1);
 }
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "pageant: ");

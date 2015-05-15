@@ -189,7 +189,7 @@ static unsigned int ssh_tty_parse_boolean(char *s)
 #define translate(x) if (type == x) return #x
 #define translatek(x,ctx) if (type == x && (pkt_kctx == ctx)) return #x
 #define translatea(x,ctx) if (type == x && (pkt_actx == ctx)) return #x
-static char *ssh1_pkt_type(int type)
+static const char *ssh1_pkt_type(int type)
 {
     translate(SSH1_MSG_DISCONNECT);
     translate(SSH1_SMSG_PUBLIC_KEY);
@@ -234,7 +234,8 @@ static char *ssh1_pkt_type(int type)
     translate(SSH1_CMSG_AUTH_CCARD_RESPONSE);
     return "unknown";
 }
-static char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
+static const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx,
+                                 int type)
 {
     translatea(SSH2_MSG_USERAUTH_GSSAPI_RESPONSE,SSH2_PKTCTX_GSSAPI);
     translatea(SSH2_MSG_USERAUTH_GSSAPI_TOKEN,SSH2_PKTCTX_GSSAPI);
@@ -357,9 +358,9 @@ static void ssh2_pkt_addmp(struct Packet *, Bignum b);
 static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
-static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
+static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 			 struct Packet *pktin);
-static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
+static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
 static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_destroy(struct ssh_channel *c);
@@ -686,11 +687,11 @@ struct Packet {
     const char *additional_log_text;
 };
 
-static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh1_protocol(Ssh ssh, const void *vin, int inlen,
 			  struct Packet *pktin);
-static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
 			  struct Packet *pktin);
-static void ssh2_bare_connection_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen,
                                           struct Packet *pktin);
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
@@ -698,7 +699,8 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh);
 static void ssh_size(void *handle, int width, int height);
 static void ssh_special(void *handle, Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
-static void ssh2_add_channel_data(struct ssh_channel *c, char *buf, int len);
+static void ssh2_add_channel_data(struct ssh_channel *c,
+                                  const char *buf, int len);
 static void ssh_throttle_all(Ssh ssh, int enable, int bufsize);
 static void ssh2_set_window(struct ssh_channel *c, int newwin);
 static int ssh_sendbuffer(void *handle);
@@ -707,7 +709,7 @@ static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, unsigned long now);
-static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
+static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			      struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
 
@@ -864,9 +866,10 @@ struct ssh_tag {
     /* SSH-1 and SSH-2 use this for different things, but both use it */
     int protocol_initial_phase_done;
 
-    void (*protocol) (Ssh ssh, void *vin, int inlen,
+    void (*protocol) (Ssh ssh, const void *vin, int inlen,
 		      struct Packet *pkt);
-    struct Packet *(*s_rdpkt) (Ssh ssh, unsigned char **data, int *datalen);
+    struct Packet *(*s_rdpkt) (Ssh ssh, const unsigned char **data,
+                               int *datalen);
     int (*do_ssh_init)(Ssh ssh, unsigned char c);
 
     /*
@@ -936,7 +939,7 @@ struct ssh_tag {
     unsigned long max_data_size;
     int kex_in_progress;
     unsigned long next_rekey, last_rekey;
-    char *deferred_rekey_reason;    /* points to STATIC string; don't free */
+    const char *deferred_rekey_reason;
 
     /*
      * Fully qualified host name, which we need if doing GSSAPI.
@@ -1294,7 +1297,8 @@ static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
  * Update the *data and *datalen variables.
  * Return a Packet structure when a packet is completed.
  */
-static struct Packet *ssh1_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
+static struct Packet *ssh1_rdpkt(Ssh ssh, const unsigned char **data,
+                                 int *datalen)
 {
     struct rdpkt1_state_tag *st = &ssh->rdpkt1_state;
 
@@ -1549,7 +1553,8 @@ static void ssh2_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
     pkt->length += (pkt->body - pkt->data);
 }
 
-static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
+static struct Packet *ssh2_rdpkt(Ssh ssh, const unsigned char **data,
+                                 int *datalen)
 {
     struct rdpkt2_state_tag *st = &ssh->rdpkt2_state;
 
@@ -1837,7 +1842,8 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, unsigned char **data, int *datalen)
     crFinish(st->pktin);
 }
 
-static struct Packet *ssh2_bare_connection_rdpkt(Ssh ssh, unsigned char **data,
+static struct Packet *ssh2_bare_connection_rdpkt(Ssh ssh,
+                                                 const unsigned char **data,
                                                  int *datalen)
 {
     struct rdpkt2_bare_state_tag *st = &ssh->rdpkt2_bare_state;
@@ -2050,7 +2056,7 @@ static void defer_packet(Ssh ssh, int pkttype, ...)
     s_wrpkt_defer(ssh, pkt);
 }
 
-static int ssh_versioncmp(char *a, char *b)
+static int ssh_versioncmp(const char *a, const char *b)
 {
     char *ae, *be;
     unsigned long av, bv;
@@ -3243,7 +3249,7 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
 }
 
 static void ssh_process_incoming_data(Ssh ssh,
-				      unsigned char **data, int *datalen)
+				      const unsigned char **data, int *datalen)
 {
     struct Packet *pktin;
 
@@ -3255,7 +3261,7 @@ static void ssh_process_incoming_data(Ssh ssh,
 }
 
 static void ssh_queue_incoming_data(Ssh ssh,
-				    unsigned char **data, int *datalen)
+				    const unsigned char **data, int *datalen)
 {
     bufchain_add(&ssh->queued_incoming_data, *data, *datalen);
     *data += *datalen;
@@ -3265,7 +3271,7 @@ static void ssh_queue_incoming_data(Ssh ssh,
 static void ssh_process_queued_incoming_data(Ssh ssh)
 {
     void *vdata;
-    unsigned char *data;
+    const unsigned char *data;
     int len, origlen;
 
     while (!ssh->frozen && bufchain_size(&ssh->queued_incoming_data)) {
@@ -3288,7 +3294,7 @@ static void ssh_set_frozen(Ssh ssh, int frozen)
     ssh->frozen = frozen;
 }
 
-static void ssh_gotdata(Ssh ssh, unsigned char *data, int datalen)
+static void ssh_gotdata(Ssh ssh, const unsigned char *data, int datalen)
 {
     /* Log raw data, if we're in that mode. */
     if (ssh->logctx)
@@ -3533,7 +3539,7 @@ static void ssh_sent(Plug plug, int bufsize)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *connect_to_host(Ssh ssh, char *host, int port,
+static const char *connect_to_host(Ssh ssh, const char *host, int port,
 				   char **realhost, int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
@@ -3740,7 +3746,7 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 {
     struct ssh_channel *c = (struct ssh_channel *)cv;
     Ssh ssh = c->ssh;
-    void *sentreply = reply;
+    const void *sentreply = reply;
 
     c->u.a.outstanding_requests--;
     if (!sentreply) {
@@ -3773,7 +3779,8 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
  * non-NULL, otherwise just close the connection. `client_reason' == NULL
  * => log `wire_reason'.
  */
-static void ssh_disconnect(Ssh ssh, char *client_reason, char *wire_reason,
+static void ssh_disconnect(Ssh ssh, const char *client_reason,
+                           const char *wire_reason,
 			   int code, int clean_exit)
 {
     char *error;
@@ -3857,7 +3864,7 @@ int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
 /*
  * Handle the key exchange and user authentication phases.
  */
-static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
+static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 			 struct Packet *pktin)
 {
     int i, j, ret;
@@ -4038,7 +4045,7 @@ static int do_ssh1_login(Ssh ssh, unsigned char *in, int inlen,
 
     {
 	int cipher_chosen = 0, warn = 0;
-	char *cipher_string = NULL;
+	const char *cipher_string = NULL;
 	int i;
 	for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
 	    int next_cipher = conf_get_int_int(ssh->conf,
@@ -5773,7 +5780,7 @@ int ssh_agent_forwarding_permitted(Ssh ssh)
     return conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists();
 }
 
-static void do_ssh1_connection(Ssh ssh, unsigned char *in, int inlen,
+static void do_ssh1_connection(Ssh ssh, const unsigned char *in, int inlen,
 			       struct Packet *pktin)
 {
     crBegin(ssh->do_ssh1_connection_crstate);
@@ -6028,10 +6035,10 @@ static void ssh1_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH1_MSG_DEBUG] = ssh1_msg_debug;
 }
 
-static void ssh1_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh1_protocol(Ssh ssh, const void *vin, int inlen,
 			  struct Packet *pktin)
 {
-    unsigned char *in=(unsigned char*)vin;
+    const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
@@ -6149,10 +6156,10 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
 /*
  * Handle the SSH-2 transport layer.
  */
-static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
+static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			     struct Packet *pktin)
 {
-    unsigned char *in = (unsigned char *)vin;
+    const unsigned char *in = (const unsigned char *)vin;
     struct do_ssh2_transport_state {
 	int crLine;
 	int nbits, pbits, warn_kex, warn_cscipher, warn_sccipher;
@@ -6405,7 +6412,8 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
      * to.
      */
     {
-	char *str, *preferred;
+	char *str;
+        const char *preferred;
 	int i, j, len;
 
 	if (pktin->type != SSH2_MSG_KEXINIT) {
@@ -7354,7 +7362,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
 /*
  * Add data to an SSH-2 channel output buffer.
  */
-static void ssh2_add_channel_data(struct ssh_channel *c, char *buf,
+static void ssh2_add_channel_data(struct ssh_channel *c, const char *buf,
 				  int len)
 {
     bufchain_add(&c->v.v2.outbuffer, buf, len);
@@ -7461,7 +7469,8 @@ static void ssh2_channel_init(struct ssh_channel *c)
 /*
  * Construct the common parts of a CHANNEL_OPEN.
  */
-static struct Packet *ssh2_chanopen_init(struct ssh_channel *c, char *type)
+static struct Packet *ssh2_chanopen_init(struct ssh_channel *c,
+                                         const char *type)
 {
     struct Packet *pktout;
 
@@ -7508,7 +7517,8 @@ static void ssh2_queue_chanreq_handler(struct ssh_channel *c,
  * the server initiated channel closure before we saw the response)
  * and the handler should free any storage it's holding.
  */
-static struct Packet *ssh2_chanreq_init(struct ssh_channel *c, char *type,
+static struct Packet *ssh2_chanreq_init(struct ssh_channel *c,
+                                        const char *type,
 					cchandler_fn_t handler, void *ctx)
 {
     struct Packet *pktout;
@@ -8218,7 +8228,7 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 		   !memcmp(type, "exit-signal", 11)) {
 
 	    int is_plausible = TRUE, is_int = FALSE;
-	    char *fmt_sig = "", *fmt_msg = "";
+            char *fmt_sig = NULL, *fmt_msg = NULL;
 	    char *msg;
 	    int msglen = 0, core = FALSE;
 	    /* ICK: older versions of OpenSSH (e.g. 3.4p1)
@@ -8341,10 +8351,11 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
 		/* ignore lang tag */
 	    } /* else don't attempt to parse */
 	    logeventf(ssh, "Server exited on signal%s%s%s",
-		      fmt_sig, core ? " (core dumped)" : "",
-		      fmt_msg);
-	    if (*fmt_sig) sfree(fmt_sig);
-	    if (*fmt_msg) sfree(fmt_msg);
+		      fmt_sig ? fmt_sig : "",
+                      core ? " (core dumped)" : "",
+		      fmt_msg ? fmt_msg : "");
+	    sfree(fmt_sig);
+            sfree(fmt_msg);
 	    reply = SSH2_MSG_CHANNEL_SUCCESS;
 
 	}
@@ -8416,7 +8427,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
     char *peeraddr;
     int peeraddrlen;
     int peerport;
-    char *error = NULL;
+    const char *error = NULL;
     struct ssh_channel *c;
     unsigned remid, winsize, pktsize;
     unsigned our_winsize_override = 0;
@@ -8829,7 +8840,7 @@ static void ssh2_response_authconn(struct ssh_channel *c, struct Packet *pktin,
         do_ssh2_authconn(c->ssh, NULL, 0, pktin);
 }
 
-static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
+static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin)
 {
     struct do_ssh2_authconn_state {
@@ -10116,7 +10127,7 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 		    int prompt_len; /* not live over crReturn */
 		    
 		    {
-			char *msg;
+			const char *msg;
 			if (changereq_first_time)
 			    msg = "Server requested password change";
 			else
@@ -10740,10 +10751,10 @@ static void ssh2_timer(void *ctx, unsigned long now)
     }
 }
 
-static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
 			  struct Packet *pktin)
 {
-    unsigned char *in = (unsigned char *)vin;
+    const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
@@ -10763,10 +10774,10 @@ static void ssh2_protocol(Ssh ssh, void *vin, int inlen,
 	do_ssh2_authconn(ssh, in, inlen, pktin);
 }
 
-static void ssh2_bare_connection_protocol(Ssh ssh, void *vin, int inlen,
+static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen,
                                           struct Packet *pktin)
 {
-    unsigned char *in = (unsigned char *)vin;
+    const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
@@ -10787,7 +10798,8 @@ static void ssh_cache_conf_values(Ssh ssh)
  * Returns an error message, or NULL on success.
  */
 static const char *ssh_init(void *frontend_handle, void **backend_handle,
-			    Conf *conf, char *host, int port, char **realhost,
+			    Conf *conf,
+                            const char *host, int port, char **realhost,
 			    int nodelay, int keepalive)
 {
     const char *p;
@@ -11039,7 +11051,8 @@ static void ssh_free(void *handle)
 static void ssh_reconfig(void *handle, Conf *conf)
 {
     Ssh ssh = (Ssh) handle;
-    char *rekeying = NULL, rekey_mandatory = FALSE;
+    const char *rekeying = NULL;
+    int rekey_mandatory = FALSE;
     unsigned long old_max_data_size;
     int i, rekey_time;
 
@@ -11104,14 +11117,14 @@ static void ssh_reconfig(void *handle, Conf *conf)
 /*
  * Called to send data down the SSH connection.
  */
-static int ssh_send(void *handle, char *buf, int len)
+static int ssh_send(void *handle, const char *buf, int len)
 {
     Ssh ssh = (Ssh) handle;
 
     if (ssh == NULL || ssh->s == NULL || ssh->protocol == NULL)
 	return 0;
 
-    ssh->protocol(ssh, (unsigned char *)buf, len, 0);
+    ssh->protocol(ssh, (const unsigned char *)buf, len, 0);
 
     return ssh_sendbuffer(ssh);
 }
@@ -11319,7 +11332,7 @@ static void ssh_special(void *handle, Telnet_Special code)
 	}
     } else {
 	/* Is is a POSIX signal? */
-	char *signame = NULL;
+	const char *signame = NULL;
 	if (code == TS_SIGABRT) signame = "ABRT";
 	if (code == TS_SIGALRM) signame = "ALRM";
 	if (code == TS_SIGFPE)  signame = "FPE";
@@ -11436,7 +11449,8 @@ static void ssh_unthrottle(void *handle, int bufsize)
     ssh_process_queued_incoming_data(ssh);
 }
 
-void ssh_send_port_open(void *channel, char *hostname, int port, char *org)
+void ssh_send_port_open(void *channel, const char *hostname, int port,
+                        const char *org)
 {
     struct ssh_channel *c = (struct ssh_channel *)channel;
     Ssh ssh = c->ssh;

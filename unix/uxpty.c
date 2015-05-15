@@ -706,8 +706,8 @@ static void pty_uxsel_setup(Pty pty)
  * freed by the caller.
  */
 static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
-			    char *host, int port, char **realhost, int nodelay,
-			    int keepalive)
+			    const char *host, int port, char **realhost,
+                            int nodelay, int keepalive)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -1008,7 +1008,7 @@ static void pty_try_write(Pty pty)
 /*
  * Called to send data down the pty.
  */
-static int pty_send(void *handle, char *buf, int len)
+static int pty_send(void *handle, const char *buf, int len)
 {
     Pty pty = (Pty)handle;
 

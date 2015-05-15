@@ -362,7 +362,7 @@ int proxy_for_destination (SockAddr addr, const char *hostname,
     return 1;
 }
 
-SockAddr name_lookup(char *host, int port, char **canonicalname,
+SockAddr name_lookup(const char *host, int port, char **canonicalname,
 		     Conf *conf, int addressfamily)
 {
     if (conf_get_int(conf, CONF_proxy_type) != PROXY_NONE &&
@@ -375,7 +375,7 @@ SockAddr name_lookup(char *host, int port, char **canonicalname,
     return sk_namelookup(host, canonicalname, addressfamily);
 }
 
-Socket new_connection(SockAddr addr, char *hostname,
+Socket new_connection(SockAddr addr, const char *hostname,
 		      int port, int privport,
 		      int oobinline, int nodelay, int keepalive,
 		      Plug plug, Conf *conf)
@@ -488,8 +488,8 @@ Socket new_connection(SockAddr addr, char *hostname,
     return sk_new(addr, port, privport, oobinline, nodelay, keepalive, plug);
 }
 
-Socket new_listener(char *srcaddr, int port, Plug plug, int local_host_only,
-		    Conf *conf, int addressfamily)
+Socket new_listener(const char *srcaddr, int port, Plug plug,
+                    int local_host_only, Conf *conf, int addressfamily)
 {
     /* TODO: SOCKS (and potentially others) support inbound
      * TODO: connections via the proxy. support them.

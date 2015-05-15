@@ -356,7 +356,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int c; } ciphers[] = {
+	static const struct { const char *s; int c; } ciphers[] = {
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
@@ -372,7 +372,7 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < CIPHER_MAX; i++) {
 	    int c = conf_get_int_int(conf, CONF_ssh_cipherlist, i);
 	    int j;
-	    char *cstr = NULL;
+	    const char *cstr = NULL;
 	    for (j = 0; j < (sizeof ciphers) / (sizeof ciphers[0]); j++) {
 		if (ciphers[j].c == c) {
 		    cstr = ciphers[j].s;
@@ -428,7 +428,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int i;
 
-	static const struct { char *s; int k; } kexes[] = {
+	static const struct { const char *s; int k; } kexes[] = {
 	    { "Diffie-Hellman group 1",		KEX_DHGROUP1 },
 	    { "Diffie-Hellman group 14",	KEX_DHGROUP14 },
 	    { "Diffie-Hellman group exchange",	KEX_DHGEX },
@@ -444,7 +444,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	for (i = 0; i < KEX_MAX; i++) {
 	    int k = conf_get_int_int(conf, CONF_ssh_kexlist, i);
 	    int j;
-	    char *kstr = NULL;
+	    const char *kstr = NULL;
 	    for (j = 0; j < (sizeof kexes) / (sizeof kexes[0]); j++) {
 		if (kexes[j].k == k) {
 		    kstr = kexes[j].s;
@@ -472,7 +472,7 @@ static void printerbox_handler(union control *ctrl, void *dlg,
     if (event == EVENT_REFRESH) {
 	int nprinters, i;
 	printer_enum *pe;
-	char *printer;
+	const char *printer;
 
 	dlg_update_start(ctrl, dlg);
 	/*
@@ -1119,7 +1119,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	}
     } else if (event == EVENT_ACTION) {
 	if (ctrl == pfd->addbutton) {
-	    char *family, *type, *src, *key, *val;
+	    const char *family, *type;
+            char *src, *key, *val;
 	    int whichbutton;
 
 #ifndef NO_IPV6
@@ -1178,7 +1179,8 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 	    if (i < 0) {
 		dlg_beep(dlg);
 	    } else {
-		char *key, *val, *p;
+		char *key, *p;
+                const char *val;
 
 		key = conf_get_str_nthstrkey(conf, CONF_portfwd, i);
 		if (key) {
@@ -1450,7 +1452,7 @@ void setup_config_box(struct controlbox *b, int midsession,
      * logging can sensibly be available.
      */
     {
-	char *sshlogname, *sshrawlogname;
+	const char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
 	    (!midsession && backend_from_proto(PROT_SSH))) {
 	    sshlogname = "SSH packets";
@@ -1927,7 +1929,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 #endif
 
 	    {
-		char *label = backend_from_proto(PROT_SSH) ?
+		const char *label = backend_from_proto(PROT_SSH) ?
 		    "Logical name of remote host (e.g. for SSH key lookup):" :
 		    "Logical name of remote host:";
 		s = ctrl_getset(b, "Connection", "identity",

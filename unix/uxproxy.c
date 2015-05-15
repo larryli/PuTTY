@@ -230,7 +230,7 @@ static int localproxy_select_result(int fd, int event)
     return 1;
 }
 
-Socket platform_new_connection(SockAddr addr, char *hostname,
+Socket platform_new_connection(SockAddr addr, const char *hostname,
 			       int port, int privport,
 			       int oobinline, int nodelay, int keepalive,
 			       Plug plug, Conf *conf)

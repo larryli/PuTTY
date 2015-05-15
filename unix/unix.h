@@ -84,21 +84,22 @@ void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 /* Things pterm.c needs from gtkdlg.c */
 int do_config_box(const char *title, Conf *conf,
 		  int midsession, int protcfginfo);
-void fatal_message_box(void *window, char *msg);
-void nonfatal_message_box(void *window, char *msg);
+void fatal_message_box(void *window, const char *msg);
+void nonfatal_message_box(void *window, const char *msg);
 void about_box(void *window);
 void *eventlogstuff_new(void);
 void showeventlog(void *estuff, void *parentwin);
 void logevent_dlg(void *estuff, const char *string);
 int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...);
-int string_width(char *text);
+int messagebox(GtkWidget *parentwin, const char *title,
+               const char *msg, int minwid, ...);
+int string_width(const char *text);
 #endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
-int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch);
+int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch);
 
 /* pterm.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);

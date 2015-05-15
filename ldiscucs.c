@@ -13,7 +13,7 @@
 #include "ldisc.h"
 
 void lpage_send(void *handle,
-		int codepage, char *buf, int len, int interactive)
+		int codepage, const char *buf, int len, int interactive)
 {
     Ldisc ldisc = (Ldisc)handle;
     wchar_t *widebuffer = 0;
@@ -34,7 +34,7 @@ void lpage_send(void *handle,
     sfree(widebuffer);
 }
 
-void luni_send(void *handle, wchar_t * widebuf, int len, int interactive)
+void luni_send(void *handle, const wchar_t *widebuf, int len, int interactive)
 {
     Ldisc ldisc = (Ldisc)handle;
     int ratio = (in_utf(ldisc->term))?3:1;

@@ -50,7 +50,7 @@ struct SockAddrStep_tag {
 struct Socket_tag {
     const struct socket_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
-    char *error;
+    const char *error;
     SOCKET s;
     Plug plug;
     bufchain output_data;
@@ -356,7 +356,7 @@ static int errstring_compare(void *av, void *bv)
 
 static tree234 *errstrings = NULL;
 
-char *winsock_error_string(int error)
+const char *winsock_error_string(int error)
 {
     const char prefix[] = "Network error: ";
     struct errstring *es;
@@ -1162,8 +1162,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only,
-		      int orig_address_family)
+Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
+                      int local_host_only, int orig_address_family)
 {
     static const struct socket_function_table fn_table = {
 	sk_tcp_plug,

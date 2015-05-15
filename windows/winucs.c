@@ -1161,7 +1161,7 @@ void get_unitab(int codepage, wchar_t * unitab, int ftype)
 }
 
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused,
+	     char *mbstr, int mblen, const char *defchr, int *defused,
 	     struct unicode_data *ucsdata)
 {
     char *p;

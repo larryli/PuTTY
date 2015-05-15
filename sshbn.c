@@ -1970,7 +1970,7 @@ char *bignum_decimal(Bignum x)
  * testdata/bignum.py .
  */
 
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");

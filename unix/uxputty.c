@@ -50,9 +50,11 @@ static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 
-int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
+int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch)
 {
-    char *p, *q = arg;
+    char *argdup, *p, *q;
+    argdup = dupstr(arg);
+    q = argdup;
 
     if (got_host) {
         /*
@@ -61,7 +63,7 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
          * argument, so that it will be deferred until it's a good
          * moment to run it.
          */
-        int ret = cmdline_process_param("-P", arg, 1, conf);
+        int ret = cmdline_process_param("-P", argdup, 1, conf);
         assert(ret == 2);
     } else if (!strncmp(q, "telnet:", 7)) {
         /*
@@ -90,7 +92,7 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
         /*
          * Otherwise, treat this argument as a host name.
          */
-        p = arg;
+        p = argdup;
         while (*p && !isspace((unsigned char)*p))
             p++;
         if (*p)
@@ -100,6 +102,9 @@ int process_nonoption_arg(char *arg, Conf *conf, int *allow_launch)
     }
     if (got_host)
 	*allow_launch = TRUE;
+
+    sfree(argdup);
+
     return 1;
 }
 

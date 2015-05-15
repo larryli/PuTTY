@@ -65,7 +65,7 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
-char *EMPTY_WINDOW_TITLE = "";
+const char *EMPTY_WINDOW_TITLE = "";
 
 const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
@@ -3940,7 +3940,8 @@ static void term_out(Terminal *term)
 
 			    switch (term->esc_args[0]) {
 				int x, y, len;
-				char buf[80], *p;
+				char buf[80];
+                                const char *p;
 			      case 1:
 				set_iconic(term->frontend, FALSE);
 				break;
@@ -6319,7 +6320,7 @@ void term_set_focus(Terminal *term, int has_focus)
  */
 char *term_get_ttymode(Terminal *term, const char *mode)
 {
-    char *val = NULL;
+    const char *val = NULL;
     if (strcmp(mode, "ERASE") == 0) {
 	val = term->bksp_is_delete ? "^?" : "^H";
     }
@@ -6339,7 +6340,7 @@ struct term_userpass_state {
  * input.
  */
 int term_get_userpass_input(Terminal *term, prompts_t *p,
-			    unsigned char *in, int inlen)
+			    const unsigned char *in, int inlen)
 {
     struct term_userpass_state *s = (struct term_userpass_state *)p->data;
     if (!s) {

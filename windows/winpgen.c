@@ -27,7 +27,7 @@ static char *cmdline_keyfile = NULL;
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *stuff;
@@ -44,7 +44,7 @@ void modalfatalbox(char *fmt, ...)
 /*
  * Print a non-fatal message box and do not exit.
  */
-void nonfatal(char *fmt, ...)
+void nonfatal(const char *fmt, ...)
 {
     va_list ap;
     char *stuff;
@@ -1372,7 +1372,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
       case WM_HELP:
         {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
-            char *topic = NULL;
+            const char *topic = NULL;
             switch (id) {
               case IDC_GENERATING:
               case IDC_PROGRESS:

@@ -2406,7 +2406,7 @@ void dlg_beep(void *dlg)
     MessageBeep(0);
 }
 
-void dlg_error_msg(void *dlg, char *msg)
+void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     MessageBox(dp->hwnd, msg,

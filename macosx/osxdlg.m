@@ -490,7 +490,7 @@ static void connection_fatal_callback(void *ctx, int result)
     [win endSession:FALSE];
 }
 
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     SessionWindow *win = (SessionWindow *)frontend;
     va_list ap;

@@ -304,7 +304,7 @@ struct ssh2_cipher {
     void (*setkey) (void *, unsigned char *key);/* for SSH-2 */
     void (*encrypt) (void *, unsigned char *blk, int len);
     void (*decrypt) (void *, unsigned char *blk, int len);
-    char *name;
+    const char *name;
     int blksize;
     int keylen;
     unsigned int flags;
@@ -343,7 +343,7 @@ struct ssh_hash {
 };   
 
 struct ssh_kex {
-    char *name, *groupname;
+    const char *name, *groupname;
     enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH } main_type;
     const struct ssh_hash *hash;
     const void *extra;                 /* private to the kex methods */
@@ -388,10 +388,10 @@ struct ssh_signkey {
 };
 
 struct ssh_compress {
-    char *name;
+    const char *name;
     /* For zlib@openssh.com: if non-NULL, this name will be considered once
      * userauth has completed successfully. */
-    char *delayed_name;
+    const char *delayed_name;
     void *(*compress_init) (void);
     void (*compress_cleanup) (void *);
     int (*compress) (void *, unsigned char *block, int len,
@@ -478,7 +478,8 @@ struct PortForwarding;
 
 /* Allocate and register a new channel for port forwarding */
 void *new_sock_channel(void *handle, struct PortForwarding *pf);
-void ssh_send_port_open(void *channel, char *hostname, int port, char *org);
+void ssh_send_port_open(void *channel, const char *hostname, int port,
+                        const char *org);
 
 /* Exports from portfwd.c */
 extern char *pfd_connect(struct PortForwarding **pf, char *hostname, int port,
@@ -729,7 +730,7 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
 char *ssh2_fingerprint_blob(const void *blob, int bloblen);
 char *ssh2_fingerprint(const struct ssh_signkey *alg, void *data);
 int key_type(const Filename *filename);
-char *key_type_to_str(int type);
+const char *key_type_to_str(int type);
 
 int import_possible(int type);
 int import_target_type(int type);

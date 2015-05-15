@@ -29,7 +29,7 @@ void *logctx;
 
 static struct termios orig_termios;
 
-void fatalbox(char *p, ...)
+void fatalbox(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -46,7 +46,7 @@ void fatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -63,7 +63,7 @@ void modalfatalbox(char *p, ...)
     }
     cleanup_exit(1);
 }
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -75,7 +75,7 @@ void nonfatal(char *p, ...)
     fputc('\n', stderr);
     postmsg(&cf);
 }
-void connection_fatal(void *frontend, char *p, ...)
+void connection_fatal(void *frontend, const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -92,7 +92,7 @@ void connection_fatal(void *frontend, char *p, ...)
     }
     cleanup_exit(1);
 }
-void cmdline_error(char *p, ...)
+void cmdline_error(const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -446,7 +446,7 @@ int from_backend_eof(void *frontend_handle)
     return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);

@@ -1308,7 +1308,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
     int passlen;
     int cipherblk;
     int i;
-    char *cipherstr;
+    const char *cipherstr;
     unsigned char priv_mac[20];
 
     /*
@@ -1688,7 +1688,7 @@ int key_type(const Filename *filename)
  * Convert the type word to a string, for `wrong type' error
  * messages.
  */
-char *key_type_to_str(int type)
+const char *key_type_to_str(int type)
 {
     switch (type) {
       case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;

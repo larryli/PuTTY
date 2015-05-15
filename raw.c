@@ -125,8 +125,8 @@ static void raw_sent(Plug plug, int bufsize)
  */
 static const char *raw_init(void *frontend_handle, void **backend_handle,
 			    Conf *conf,
-			    char *host, int port, char **realhost, int nodelay,
-			    int keepalive)
+			    const char *host, int port, char **realhost,
+                            int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
 	raw_log,
@@ -214,7 +214,7 @@ static void raw_reconfig(void *handle, Conf *conf)
 /*
  * Called to send data down the raw connection.
  */
-static int raw_send(void *handle, char *buf, int len)
+static int raw_send(void *handle, const char *buf, int len)
 {
     Raw raw = (Raw) handle;
 

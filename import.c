@@ -362,7 +362,8 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
     struct openssh_pem_key *ret;
     FILE *fp = NULL;
     char *line = NULL;
-    char *errmsg, *p;
+    const char *errmsg;
+    char *p;
     int headers_done;
     char base64_bit[4];
     int base64_chars = 0;
@@ -570,7 +571,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
     int ret, id, len, flags;
     int i, num_integers;
     struct ssh2_userkey *retval = NULL;
-    char *errmsg;
+    const char *errmsg;
     unsigned char *blob;
     int blobsize = 0, blobptr, privptr;
     char *modptr = NULL;
@@ -910,7 +911,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
     int outlen;
     struct mpint_pos numbers[9];
     int nnumbers, pos, len, seqlen, i;
-    char *header, *footer;
+    const char *header, *footer;
     char zero[1];
     unsigned char iv[8];
     int ret = 0;
@@ -1283,7 +1284,8 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
     struct openssh_new_key *ret;
     FILE *fp = NULL;
     char *line = NULL;
-    char *errmsg, *p;
+    const char *errmsg;
+    char *p;
     char base64_bit[4];
     int base64_chars = 0;
     const void *filedata;
@@ -1526,7 +1528,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     struct ssh2_userkey *retkey;
     int i;
     struct ssh2_userkey *retval = NULL;
-    char *errmsg;
+    const char *errmsg;
     unsigned char *blob;
     int blobsize = 0;
     unsigned checkint0, checkint1;
@@ -1981,7 +1983,8 @@ static struct sshcom_key *load_sshcom_key(const Filename *filename,
     FILE *fp;
     char *line = NULL;
     int hdrstart, len;
-    char *errmsg, *p;
+    const char *errmsg;
+    char *p;
     int headers_done;
     char base64_bit[4];
     int base64_chars = 0;
@@ -2226,7 +2229,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 				 const char **errmsg_p)
 {
     struct sshcom_key *key = load_sshcom_key(filename, errmsg_p);
-    char *errmsg;
+    const char *errmsg;
     int pos, len;
     const char prefix_rsa[] = "if-modn{sign{rsa";
     const char prefix_dsa[] = "dl-modp{sign{dsa";
@@ -2470,7 +2473,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
     int outlen;
     struct mpint_pos numbers[6];
     int nnumbers, initial_zero, pos, lenpos, i;
-    char *type;
+    const char *type;
     char *ciphertext;
     int cipherlen;
     int ret = 0;
@@ -2566,7 +2569,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
     pos += 4;			       /* length field, fill in later */
     pos += put_string(outblob+pos, type, strlen(type));
     {
-	char *ciphertype = passphrase ? "3des-cbc" : "none";
+	const char *ciphertype = passphrase ? "3des-cbc" : "none";
 	pos += put_string(outblob+pos, ciphertype, strlen(ciphertype));
     }
     lenpos = pos;		       /* remember this position */

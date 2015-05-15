@@ -161,7 +161,7 @@ static void rlogin_startup(Rlogin rlogin, const char *ruser)
  */
 static const char *rlogin_init(void *frontend_handle, void **backend_handle,
 			       Conf *conf,
-			       char *host, int port, char **realhost,
+			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
 {
     static const struct plug_function_table fn_table = {
@@ -279,7 +279,7 @@ static void rlogin_reconfig(void *handle, Conf *conf)
 /*
  * Called to send data down the rlogin connection.
  */
-static int rlogin_send(void *handle, char *buf, int len)
+static int rlogin_send(void *handle, const char *buf, int len)
 {
     Rlogin rlogin = (Rlogin) handle;
 

@@ -1126,7 +1126,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
 /*
  * Print a message box and close the connection.
  */
-void connection_fatal(void *frontend, char *fmt, ...)
+void connection_fatal(void *frontend, const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -1148,7 +1148,7 @@ void connection_fatal(void *frontend, char *fmt, ...)
 /*
  * Report an error at the command-line parsing stage.
  */
-void cmdline_error(char *fmt, ...)
+void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -2165,7 +2165,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
 					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < (unsigned)sesslist.nsessions) {
-			char *session = sesslist.sessions[sessno];
+			const char *session = sesslist.sessions[sessno];
 			cl = dupprintf("putty @%s", session);
 			inherit_handles = FALSE;
 			freecl = TRUE;
@@ -5345,7 +5345,7 @@ void optimised_move(void *frontend, int to, int from, int lines)
 /*
  * Print a message box and perform a fatal exit.
  */
-void fatalbox(char *fmt, ...)
+void fatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5362,7 +5362,7 @@ void fatalbox(char *fmt, ...)
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5380,7 +5380,7 @@ void modalfatalbox(char *fmt, ...)
 /*
  * Print a message box and don't close the connection.
  */
-void nonfatal(char *fmt, ...)
+void nonfatal(const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -5787,7 +5787,7 @@ int from_backend_eof(void *frontend)
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);

@@ -175,7 +175,7 @@ int main(void)
     return fails != 0 ? 1 : 0;
 }
 /* Stubs to stop the rest of this module causing compile failures. */
-void modalfatalbox(char *fmt, ...) {}
+void modalfatalbox(const char *fmt, ...) {}
 int conf_get_int(Conf *conf, int primary) { return 0; }
 char *conf_get_str(Conf *conf, int primary) { return NULL; }
 #endif /* TEST_HOST_STRFOO */
@@ -830,7 +830,7 @@ void safefree(void *ptr)
  */
 
 #ifdef DEBUG
-extern void dputs(char *);             /* defined in per-platform *misc.c */
+extern void dputs(const char *); /* defined in per-platform *misc.c */
 
 void debug_printf(const char *fmt, ...)
 {

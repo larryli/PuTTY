@@ -357,10 +357,10 @@ void x11_free_display(struct X11Display *disp)
 
 #define XDM_MAXSKEW 20*60      /* 20 minute clock skew should be OK */
 
-static char *x11_verify(unsigned long peer_ip, int peer_port,
-			tree234 *authtree, char *proto,
-			unsigned char *data, int dlen,
-                        struct X11FakeAuth **auth_ret)
+static const char *x11_verify(unsigned long peer_ip, int peer_port,
+                              tree234 *authtree, char *proto,
+                              unsigned char *data, int dlen,
+                              struct X11FakeAuth **auth_ret)
 {
     struct X11FakeAuth match_dummy;    /* for passing to find234 */
     struct X11FakeAuth *auth;

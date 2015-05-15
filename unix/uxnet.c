@@ -776,7 +776,8 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
     return (Socket) ret;
 }
 
-Socket sk_newlistener(char *srcaddr, int port, Plug plug, int local_host_only, int orig_address_family)
+Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
+                      int local_host_only, int orig_address_family)
 {
     int s;
 #ifndef NO_IPV6

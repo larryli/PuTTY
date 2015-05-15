@@ -70,7 +70,7 @@ static int initial_menuitems_count;
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
-void modalfatalbox(char *fmt, ...)
+void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
     char *buf;
@@ -594,7 +594,7 @@ static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
       case WM_HELP:
         {
             int id = ((LPHELPINFO)lParam)->iCtrlId;
-            char *topic = NULL;
+            const char *topic = NULL;
             switch (id) {
               case 100: topic = WINHELP_CTX_pageant_keylist; break;
               case 101: topic = WINHELP_CTX_pageant_addkey; break;
@@ -989,7 +989,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 /*
  * Fork and Exec the command in cmdline. [DBW]
  */
-void spawn_cmd(char *cmdline, char * args, int show)
+void spawn_cmd(const char *cmdline, const char *args, int show)
 {
     if (ShellExecute(NULL, _T("open"), cmdline,
 		     args, NULL, show) <= (HINSTANCE) 32) {
@@ -1023,7 +1023,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     WNDCLASS wndclass;
     MSG msg;
-    char *command = NULL;
+    const char *command = NULL;
     int added_keys = 0;
     int argc, i;
     char **argv, **argstart;

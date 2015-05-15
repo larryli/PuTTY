@@ -239,7 +239,7 @@ static FILE *debug_fp = NULL;
 static HANDLE debug_hdl = INVALID_HANDLE_VALUE;
 static int debug_got_console = 0;
 
-void dputs(char *buf)
+void dputs(const char *buf)
 {
     DWORD dw;
 

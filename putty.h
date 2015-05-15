@@ -139,7 +139,7 @@ typedef struct terminal_tag Terminal;
 
 struct sesslist {
     int nsessions;
-    char **sessions;
+    const char **sessions;
     char *buffer;		       /* so memory can be freed later */
 };
 
@@ -359,7 +359,7 @@ struct keyvalwhere {
      * Two fields which define a string and enum value to be
      * equivalent to each other.
      */
-    char *s;
+    const char *s;
     int v;
 
     /*
@@ -416,13 +416,13 @@ enum {
 
 struct backend_tag {
     const char *(*init) (void *frontend_handle, void **backend_handle,
-			 Conf *conf, char *host, int port, char **realhost,
-			 int nodelay, int keepalive);
+			 Conf *conf, const char *host, int port,
+                         char **realhost, int nodelay, int keepalive);
     void (*free) (void *handle);
     /* back->reconfig() passes in a replacement configuration. */
     void (*reconfig) (void *handle, Conf *conf);
     /* back->send() returns the current amount of buffered data. */
-    int (*send) (void *handle, char *buf, int len);
+    int (*send) (void *handle, const char *buf, int len);
     /* back->sendbuffer() does the same thing but without attempting a send */
     int (*sendbuffer) (void *handle);
     void (*size) (void *handle, int width, int height);
@@ -442,7 +442,7 @@ struct backend_tag {
      */
     void (*unthrottle) (void *handle, int);
     int (*cfg_info) (void *handle);
-    char *name;
+    const char *name;
     int protocol;
     int default_port;
 };
@@ -589,10 +589,10 @@ void write_clip(void *frontend, wchar_t *, int *, int, int);
 void get_clip(void *frontend, wchar_t **, int *);
 void optimised_move(void *frontend, int, int, int);
 void set_raw_mouse_mode(void *frontend, int);
-void connection_fatal(void *frontend, char *, ...);
-void nonfatal(char *, ...);
-void fatalbox(char *, ...);
-void modalfatalbox(char *, ...);
+void connection_fatal(void *frontend, const char *, ...);
+void nonfatal(const char *, ...);
+void fatalbox(const char *, ...);
+void modalfatalbox(const char *, ...);
 #ifdef macintosh
 #pragma noreturn(fatalbox)
 #pragma noreturn(modalfatalbox)
@@ -624,7 +624,7 @@ char *get_ttymode(void *frontend, const char *mode);
  * 0  = `user cancelled' (FIXME distinguish "give up entirely" and "next auth"?)
  * <0 = `please call back later with more in/inlen'
  */
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen);
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);
@@ -940,12 +940,12 @@ void random_destroy_seed(void);
 Backend *backend_from_name(const char *name);
 Backend *backend_from_proto(int proto);
 char *get_remote_username(Conf *conf); /* dynamically allocated */
-char *save_settings(char *section, Conf *conf);
+char *save_settings(const char *section, Conf *conf);
 void save_open_settings(void *sesskey, Conf *conf);
-void load_settings(char *section, Conf *conf);
+void load_settings(const char *section, Conf *conf);
 void load_open_settings(void *sesskey, Conf *conf);
 void get_sesslist(struct sesslist *, int allocate);
-void do_defaults(char *, Conf *);
+void do_defaults(const char *, Conf *);
 void registry_cleanup(void);
 
 /*
@@ -1003,7 +1003,7 @@ void term_provide_logctx(Terminal *term, void *logctx);
 void term_set_focus(Terminal *term, int has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
 int term_get_userpass_input(Terminal *term, prompts_t *p,
-			    unsigned char *in, int inlen);
+			    const unsigned char *in, int inlen);
 
 int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
 
@@ -1026,7 +1026,7 @@ struct logblank_t {
     int type;
 };
 void log_packet(void *logctx, int direction, int type,
-		char *texttype, const void *data, int len,
+		const char *texttype, const void *data, int len,
 		int n_blanks, const struct logblank_t *blanks,
 		const unsigned long *sequence,
                 unsigned downstream_id, const char *additional_log_text);
@@ -1067,14 +1067,15 @@ extern Backend ssh_backend;
 void *ldisc_create(Conf *, Terminal *, Backend *, void *, void *);
 void ldisc_configure(void *, Conf *);
 void ldisc_free(void *);
-void ldisc_send(void *handle, char *buf, int len, int interactive);
+void ldisc_send(void *handle, const char *buf, int len, int interactive);
 void ldisc_echoedit_update(void *handle);
 
 /*
  * Exports from ldiscucs.c.
  */
-void lpage_send(void *, int codepage, char *buf, int len, int interactive);
-void luni_send(void *, wchar_t * widebuf, int len, int interactive);
+void lpage_send(void *, int codepage, const char *buf, int len,
+                int interactive);
+void luni_send(void *, const wchar_t * widebuf, int len, int interactive);
 
 /*
  * Exports from sshrand.c.
@@ -1128,7 +1129,7 @@ int is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen);
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, char *defchr, int *defused,
+	     char *mbstr, int mblen, const char *defchr, int *defused,
 	     struct unicode_data *ucsdata);
 wchar_t xlat_uskbd2cyrllic(int ch);
 int check_compose(int first, int second);
@@ -1217,7 +1218,8 @@ int askappend(void *frontend, Filename *filename,
  * that aren't equivalents to things in windlg.c et al.
  */
 extern int console_batch_mode;
-int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen);
+int console_get_userpass_input(prompts_t *p, const unsigned char *in,
+                               int inlen);
 void console_provide_logctx(void *logctx);
 int is_interactive(void);
 
@@ -1237,16 +1239,21 @@ void printer_finish_job(printer_job *);
  * Exports from cmdline.c (and also cmdline_error(), which is
  * defined differently in various places and required _by_
  * cmdline.c).
+ *
+ * Note that cmdline_process_param takes a const option string, but a
+ * writable argument string. That's not a mistake - that's so it can
+ * zero out password arguments in the hope of not having them show up
+ * avoidably in Unix 'ps'.
  */
-int cmdline_process_param(char *, char *, int, Conf *);
+int cmdline_process_param(const char *, char *, int, Conf *);
 void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
-int cmdline_get_passwd_input(prompts_t *p, unsigned char *in, int inlen);
+int cmdline_get_passwd_input(prompts_t *p, const unsigned char *in, int inlen);
 #define TOOLTYPE_FILETRANSFER 1
 #define TOOLTYPE_NONNETWORK 2
 extern int cmdline_tooltype;
 
-void cmdline_error(char *, ...);
+void cmdline_error(const char *, ...);
 
 /*
  * Exports from config.c.

@@ -94,7 +94,7 @@ void filereq_free(filereq *state)
 /* Callback function to launch context help. */
 static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 {
-    char *context = NULL;
+    const char *context = NULL;
 #define CHECK_CTX(name) \
     do { \
 	if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \

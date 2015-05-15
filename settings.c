@@ -124,13 +124,14 @@ static void gppfile(void *handle, const char *name, Conf *conf, int primary)
     filename_free(result);
 }
 
-static int gppi_raw(void *handle, char *name, int def)
+static int gppi_raw(void *handle, const char *name, int def)
 {
     def = platform_default_i(name, def);
     return read_setting_i(handle, name, def);
 }
 
-static void gppi(void *handle, char *name, int def, Conf *conf, int primary)
+static void gppi(void *handle, const char *name, int def,
+                 Conf *conf, int primary)
 {
     conf_set_int(conf, primary, gppi_raw(handle, name, def));
 }
@@ -142,7 +143,7 @@ static void gppi(void *handle, char *name, int def, Conf *conf, int primary)
  * If there's no "=VALUE" (e.g. just NAME,NAME,NAME) then those keys
  * are mapped to the empty string.
  */
-static int gppmap(void *handle, char *name, Conf *conf, int primary)
+static int gppmap(void *handle, const char *name, Conf *conf, int primary)
 {
     char *buf, *p, *q, *key, *val;
 
@@ -212,7 +213,8 @@ static int gppmap(void *handle, char *name, Conf *conf, int primary)
 static void wmap(void *handle, char const *outkey, Conf *conf, int primary,
                  int include_values)
 {
-    char *buf, *p, *q, *key, *realkey, *val;
+    char *buf, *p, *key, *realkey;
+    const char *val, *q;
     int len;
 
     len = 1;			       /* allow for NUL */
@@ -298,7 +300,7 @@ static const char *val2key(const struct keyvalwhere *mapping,
  * to the end and duplicates are weeded.
  * XXX: assumes vals in 'mapping' are small +ve integers
  */
-static void gprefs(void *sesskey, char *name, char *def,
+static void gprefs(void *sesskey, const char *name, const char *def,
 		   const struct keyvalwhere *mapping, int nvals,
 		   Conf *conf, int primary)
 {
@@ -384,7 +386,7 @@ static void gprefs(void *sesskey, char *name, char *def,
 /* 
  * Write out a preference list.
  */
-static void wprefs(void *sesskey, char *name,
+static void wprefs(void *sesskey, const char *name,
 		   const struct keyvalwhere *mapping, int nvals,
 		   Conf *conf, int primary)
 {
@@ -418,7 +420,7 @@ static void wprefs(void *sesskey, char *name,
     sfree(buf);
 }
 
-char *save_settings(char *section, Conf *conf)
+char *save_settings(const char *section, Conf *conf)
 {
     void *sesskey;
     char *errmsg;
@@ -434,7 +436,7 @@ char *save_settings(char *section, Conf *conf)
 void save_open_settings(void *sesskey, Conf *conf)
 {
     int i;
-    char *p;
+    const char *p;
 
     write_setting_i(sesskey, "Present", 1);
     write_setting_s(sesskey, "HostName", conf_get_str(conf, CONF_host));
@@ -655,7 +657,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, FALSE);
 }
 
-void load_settings(char *section, Conf *conf)
+void load_settings(const char *section, Conf *conf)
 {
     void *sesskey;
 
@@ -769,7 +771,7 @@ void load_open_settings(void *sesskey, Conf *conf)
 	 * disable gex under the "bugs" panel after one report of
 	 * a server which offered it then choked, but we never got
 	 * a server version string or any other reports. */
-	char *default_kexes;
+	const char *default_kexes;
 	i = 2 - gppi_raw(sesskey, "BugDHGEx2", 0);
 	if (i == FORCE_ON)
             default_kexes = "ecdh,dh-group14-sha1,dh-group1-sha1,rsa,"
@@ -1006,7 +1008,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
 }
 
-void do_defaults(char *session, Conf *conf)
+void do_defaults(const char *session, Conf *conf)
 {
     load_settings(session, conf);
 }
@@ -1076,7 +1078,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 	    p++;
 	}
 
-	list->sessions = snewn(list->nsessions + 1, char *);
+	list->sessions = snewn(list->nsessions + 1, const char *);
 	list->sessions[0] = "Default Settings";
 	p = list->buffer;
 	i = 1;
@@ -1088,7 +1090,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 	    p++;
 	}
 
-	qsort(list->sessions, i, sizeof(char *), sessioncmp);
+	qsort(list->sessions, i, sizeof(const char *), sessioncmp);
     } else {
 	sfree(list->buffer);
 	sfree(list->sessions);

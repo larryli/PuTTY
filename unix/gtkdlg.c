@@ -1055,7 +1055,7 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
     gtk_widget_set_uposition(GTK_WIDGET(child), dx, dy);
 }
 
-void dlg_error_msg(void *dlg, char *msg)
+void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     GtkWidget *window, *hbox, *text, *ok;
@@ -1998,7 +1998,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             {
                 GtkWidget *ww;
                 GtkRequisition req;
-                char *browsebtn =
+                const char *browsebtn =
                     (ctrl->generic.type == CTRL_FILESELECT ?
                      "Browse..." : "Change...");
 
@@ -3138,7 +3138,8 @@ static void messagebox_handler(union control *ctrl, void *dlg,
     if (event == EVENT_ACTION)
 	dlg_end(dlg, ctrl->generic.context.i);
 }
-int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
+int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
+               int minwid, ...)
 {
     GtkWidget *window, *w0, *w1;
     struct controlbox *ctrlbox;
@@ -3235,7 +3236,7 @@ int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...)
     return dp.retval;
 }
 
-int string_width(char *text)
+int string_width(const char *text)
 {
     GtkWidget *label = gtk_label_new(text);
     GtkRequisition req;
@@ -3355,21 +3356,21 @@ void old_keyfile_warning(void)
      */
 }
 
-void fatal_message_box(void *window, char *msg)
+void fatal_message_box(void *window, const char *msg)
 {
     messagebox(window, "PuTTY Fatal Error", msg,
                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
                "OK", 'o', 1, 1, NULL);
 }
 
-void nonfatal_message_box(void *window, char *msg)
+void nonfatal_message_box(void *window, const char *msg)
 {
     messagebox(window, "PuTTY Error", msg,
                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
                "OK", 'o', 1, 1, NULL);
 }
 
-void fatalbox(char *p, ...)
+void fatalbox(const char *p, ...)
 {
     va_list ap;
     char *msg;
@@ -3381,7 +3382,7 @@ void fatalbox(char *p, ...)
     cleanup_exit(1);
 }
 
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     va_list ap;
     char *msg;
@@ -3404,7 +3405,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 {
     char *title;
 
-    char *licence =
+    const char *licence =
 	"Copyright 1997-2015 Simon Tatham.\n\n"
 
 	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "

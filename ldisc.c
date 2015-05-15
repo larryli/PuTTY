@@ -22,7 +22,7 @@
                       (ldisc->back->ldisc(ldisc->backhandle, LD_EDIT) || \
 			   term_ldisc(ldisc->term, LD_EDIT))))
 
-static void c_write(Ldisc ldisc, char *buf, int len)
+static void c_write(Ldisc ldisc, const char *buf, int len)
 {
     from_backend(ldisc->frontend, 0, buf, len);
 }
@@ -134,7 +134,7 @@ void ldisc_echoedit_update(void *handle)
     frontend_echoedit_update(ldisc->frontend, ECHOING, EDITING);
 }
 
-void ldisc_send(void *handle, char *buf, int len, int interactive)
+void ldisc_send(void *handle, const char *buf, int len, int interactive)
 {
     Ldisc ldisc = (Ldisc) handle;
     int keyflag = 0;

@@ -11,7 +11,7 @@
 
 char *get_ttymode(void *frontend, const char *mode) { return NULL; }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     int ret;
     ret = cmdline_get_passwd_input(p, in, inlen);
@@ -87,7 +87,7 @@ struct RFile {
     HANDLE h;
 };
 
-RFile *open_existing_file(char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64 *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms)
 {
@@ -141,7 +141,7 @@ struct WFile {
     HANDLE h;
 };
 
-WFile *open_new_file(char *name, long perms)
+WFile *open_new_file(const char *name, long perms)
 {
     HANDLE h;
     WFile *ret;
@@ -157,7 +157,7 @@ WFile *open_new_file(char *name, long perms)
     return ret;
 }
 
-WFile *open_existing_wfile(char *name, uint64 *size)
+WFile *open_existing_wfile(const char *name, uint64 *size)
 {
     HANDLE h;
     WFile *ret;
@@ -239,7 +239,7 @@ uint64 get_file_posn(WFile *f)
     return ret;
 }
 
-int file_type(char *name)
+int file_type(const char *name)
 {
     DWORD attr;
     attr = GetFileAttributes(name);
@@ -257,7 +257,7 @@ struct DirHandle {
     char *name;
 };
 
-DirHandle *open_directory(char *name)
+DirHandle *open_directory(const char *name)
 {
     HANDLE h;
     WIN32_FIND_DATA fdat;
@@ -316,7 +316,7 @@ void close_directory(DirHandle *dir)
     sfree(dir);
 }
 
-int test_wildcard(char *name, int cmdline)
+int test_wildcard(const char *name, int cmdline)
 {
     HANDLE fh;
     WIN32_FIND_DATA fdat;
@@ -364,7 +364,7 @@ static char *stripslashes(char *str, int local)
     return str;
 }
 
-WildcardMatcher *begin_wildcard_matching(char *name)
+WildcardMatcher *begin_wildcard_matching(const char *name)
 {
     HANDLE h;
     WIN32_FIND_DATA fdat;
@@ -424,7 +424,7 @@ void finish_wildcard_matching(WildcardMatcher *dir)
     sfree(dir);
 }
 
-int vet_filename(char *name)
+int vet_filename(const char *name)
 {
     if (strchr(name, '/') || strchr(name, '\\') || strchr(name, ':'))
 	return FALSE;
@@ -435,12 +435,12 @@ int vet_filename(char *name)
     return TRUE;
 }
 
-int create_directory(char *name)
+int create_directory(const char *name)
 {
     return CreateDirectory(name, NULL) != 0;
 }
 
-char *dir_file_cat(char *dir, char *file)
+char *dir_file_cat(const char *dir, const char *file)
 {
     return dupcat(dir, "\\", file, NULL);
 }
@@ -691,7 +691,7 @@ static DWORD WINAPI command_read_thread(void *param)
     return 0;
 }
 
-char *ssh_sftp_get_cmdline(char *prompt, int no_fds_ok)
+char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
 {
     int ret;
     struct command_read_ctx actx, *ctx = &actx;

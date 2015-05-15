@@ -175,7 +175,7 @@ static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
     if (XGetFontProperty(xfs, fontprop, &ret)) {
 	char *name = XGetAtomName(disp, (Atom)ret);
 	if (name && name[0] == '-') {
-	    char *strings[13];
+	    const char *strings[13];
 	    char *dupname, *extrafree = NULL, *ret;
 	    char *p, *q;
 	    int nstr;

@@ -91,7 +91,7 @@ static void no_progress(void *param, int action, int phase, int iprogress)
 {
 }
 
-void modalfatalbox(char *p, ...)
+void modalfatalbox(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -102,7 +102,7 @@ void modalfatalbox(char *p, ...)
     cleanup_exit(1);
 }
 
-void nonfatal(char *p, ...)
+void nonfatal(const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "ERROR: ");

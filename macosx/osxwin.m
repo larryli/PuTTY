@@ -888,7 +888,7 @@ int from_backend_untrusted(void *frontend, const char *data, int len)
     return [win fromBackendUntrusted:data len:len];
 }
 
-int get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
 {
     SessionWindow *win = (SessionWindow *)p->frontend;
     Terminal *term = [win term];

@@ -1736,7 +1736,7 @@ void dlg_beep(void *dv)
     NSBeep();
 }
 
-void dlg_error_msg(void *dv, char *msg)
+void dlg_error_msg(void *dv, const char *msg)
 {
     /* FIXME */
 }

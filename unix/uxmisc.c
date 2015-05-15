@@ -98,7 +98,7 @@ Filename *filename_deserialise(void *vdata, int maxsize, int *used)
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
 
-void dputs(char *buf)
+void dputs(const char *buf)
 {
     if (!debug_fp) {
 	debug_fp = fopen("debug.log", "w");
