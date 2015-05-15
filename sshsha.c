@@ -230,7 +230,7 @@ static void *sha1_init(void)
     return s;
 }
 
-static void sha1_bytes(void *handle, void *p, int len)
+static void sha1_bytes(void *handle, const void *p, int len)
 {
     SHA_State *s = handle;
 

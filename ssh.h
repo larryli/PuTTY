@@ -335,7 +335,7 @@ struct ssh_mac {
 
 struct ssh_hash {
     void *(*init)(void); /* also allocates context */
-    void (*bytes)(void *, void *, int);
+    void (*bytes)(void *, const void *, int);
     void (*final)(void *, unsigned char *); /* also frees context */
     int hlen; /* output length in bytes */
     char *text_name;

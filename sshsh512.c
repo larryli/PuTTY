@@ -331,7 +331,7 @@ static void *sha512_init(void)
     return s;
 }
 
-static void sha512_bytes(void *handle, void *p, int len)
+static void sha512_bytes(void *handle, const void *p, int len)
 {
     SHA512_State *s = handle;
 
