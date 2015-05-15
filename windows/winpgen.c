@@ -420,53 +420,6 @@ void old_keyfile_warning(void)
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
 
-static int save_ssh2_pubkey(char *filename, struct ssh2_userkey *key)
-{
-    unsigned char *pub_blob;
-    char *p;
-    int pub_len;
-    int i, column;
-    FILE *fp;
-
-    pub_blob = key->alg->public_blob(key->data, &pub_len);
-
-    fp = fopen(filename, "wb");
-    if (!fp)
-	return 0;
-
-    fprintf(fp, "---- BEGIN SSH2 PUBLIC KEY ----\n");
-
-    fprintf(fp, "Comment: \"");
-    for (p = key->comment; *p; p++) {
-	if (*p == '\\' || *p == '\"')
-	    fputc('\\', fp);
-	fputc(*p, fp);
-    }
-    fprintf(fp, "\"\n");
-
-    i = 0;
-    column = 0;
-    while (i < pub_len) {
-	char buf[5];
-	int n = (pub_len - i < 3 ? pub_len - i : 3);
-	base64_encode_atom(pub_blob + i, n, buf);
-	i += n;
-	buf[4] = '\0';
-	fputs(buf, fp);
-	if (++column >= 16) {
-	    fputc('\n', fp);
-	    column = 0;
-	}
-    }
-    if (column > 0)
-	fputc('\n', fp);
-    
-    fprintf(fp, "---- END SSH2 PUBLIC KEY ----\n");
-    fclose(fp);
-    sfree(pub_blob);
-    return 1;
-}
-
 enum {
     controlidstart = 100,
     IDC_QUIT,
