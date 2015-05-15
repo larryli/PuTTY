@@ -566,7 +566,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 {
     struct openssh_pem_key *key = load_openssh_pem_key(filename, errmsg_p);
     struct ssh2_userkey *retkey;
-    unsigned char *p;
+    unsigned char *p, *q;
     int ret, id, len, flags;
     int i, num_integers;
     struct ssh2_userkey *retval = NULL;
@@ -675,7 +675,9 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         /* And now for something completely different */
         unsigned char *priv;
         int privlen;
-        struct ec_curve *curve;
+        const struct ssh_signkey *alg;
+        const struct ec_curve *curve;
+        int algnamelen, curvenamelen;
         /* Read INTEGER 1 */
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
@@ -716,15 +718,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
         }
-        if (len == 8 && !memcmp(p, nistp256_oid, nistp256_oid_len)) {
-            curve = ec_p256();
-        } else if (len == 5 && !memcmp(p, nistp384_oid,
-                                       nistp384_oid_len)) {
-            curve = ec_p384();
-        } else if (len == 5 && !memcmp(p, nistp521_oid,
-                                       nistp521_oid_len)) {
-            curve = ec_p521();
-        } else {
+        alg = ec_alg_by_oid(len, p, &curve);
+        if (!alg) {
             errmsg = "Unsupported ECDSA curve.";
             retval = NULL;
             goto error;
@@ -756,31 +751,34 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
             errmsg = "out of memory";
             goto error;
         }
-        if (curve->fieldBits == 256) {
-            retkey->alg = &ssh_ecdsa_nistp256;
-        } else if (curve->fieldBits == 384) {
-            retkey->alg = &ssh_ecdsa_nistp384;
-        } else {
-            retkey->alg = &ssh_ecdsa_nistp521;
-        }
+        retkey->alg = alg;
         blob = snewn((4+19 + 4+8 + 4+len) + (4+privlen), unsigned char);
         if (!blob) {
             sfree(retkey);
             errmsg = "out of memory";
             goto error;
         }
-        PUT_32BIT(blob, 19);
-        sprintf((char*)blob+4, "ecdsa-sha2-nistp%d", curve->fieldBits);
-        PUT_32BIT(blob+4+19, 8);
-        sprintf((char*)blob+4+19+4, "nistp%d", curve->fieldBits);
-        PUT_32BIT(blob+4+19+4+8, len);
-        memcpy(blob+4+19+4+8+4, p, len);
-        PUT_32BIT(blob+4+19+4+8+4+len, privlen);
-        memcpy(blob+4+19+4+8+4+len+4, priv, privlen);
+
+        q = blob;
+
+        algnamelen = strlen(alg->name);
+        PUT_32BIT(q, algnamelen); q += 4;
+        memcpy(q, alg->name, algnamelen); q += algnamelen;
+
+        curvenamelen = strlen(curve->name);
+        PUT_32BIT(q, curvenamelen); q += 4;
+        memcpy(q, curve->name, curvenamelen); q += curvenamelen;
+
+        PUT_32BIT(q, len); q += 4;
+        memcpy(q, p, len); q += len;
+
+        PUT_32BIT(q, privlen);
+        memcpy(q+4, priv, privlen);
+
         retkey->data = retkey->alg->createkey(retkey->alg,
-                                              blob, 4+19+4+8+4+len,
-                                              blob+4+19+4+8+4+len,
-                                              4+privlen);
+                                              blob, q-blob,
+                                              q, 4+privlen);
+
         if (!retkey->data) {
             sfree(retkey);
             errmsg = "unable to create key data structure";
@@ -1059,7 +1057,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
     } else if (key->alg == &ssh_ecdsa_nistp256 ||
                key->alg == &ssh_ecdsa_nistp384 ||
                key->alg == &ssh_ecdsa_nistp521) {
-        unsigned char *oid;
+        const unsigned char *oid;
         int oidlen;
         int pointlen;
 
@@ -1073,28 +1071,9 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
          *   [1]
          *     BIT STRING (0x00 public key point)
          */
-        switch (((struct ec_key *)key->data)->publicKey.curve->fieldBits) {
-          case 256:
-            /* OID: 1.2.840.10045.3.1.7 (ansiX9p256r1) */
-            oid = nistp256_oid;
-            oidlen = nistp256_oid_len;
-            pointlen = 32 * 2;
-            break;
-          case 384:
-            /* OID: 1.3.132.0.34 (secp384r1) */
-            oid = nistp384_oid;
-            oidlen = nistp384_oid_len;
-            pointlen = 48 * 2;
-            break;
-          case 521:
-            /* OID: 1.3.132.0.35 (secp521r1) */
-            oid = nistp521_oid;
-            oidlen = nistp521_oid_len;
-            pointlen = 66 * 2;
-            break;
-          default:
-            assert(0);
-        }
+        oid = ec_alg_oid(key->alg, &oidlen);
+        pointlen = (((struct ec_key *)key->data)->publicKey.curve->fieldBits
+                    + 7) / 8 * 2;
 
         len = ber_write_id_len(NULL, 2, 1, 0);
         len += 1;

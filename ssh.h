@@ -133,6 +133,7 @@ struct ec_ecurve
 
 struct ec_curve {
     enum { EC_WEIERSTRASS, EC_MONTGOMERY, EC_EDWARDS } type;
+    const char *name;
     unsigned int fieldBits;
     Bignum p;
     union {
@@ -142,21 +143,20 @@ struct ec_curve {
     };
 };
 
-extern unsigned char nistp256_oid[];
-extern unsigned char nistp384_oid[];
-extern unsigned char nistp521_oid[];
-extern unsigned char curve25519_oid[];
-extern int nistp256_oid_len;
-extern int nistp384_oid_len;
-extern int nistp521_oid_len;
-extern int curve25519_oid_len;
-struct ec_curve *ec_p256(void);
-struct ec_curve *ec_p384(void);
-struct ec_curve *ec_p521(void);
-struct ec_curve *ec_ed25519(void);
-struct ec_curve *ec_curve25519(void);
+const struct ssh_signkey *ec_alg_by_oid(int len, const void *oid,
+                                        const struct ec_curve **curve);
+const unsigned char *ec_alg_oid(const struct ssh_signkey *alg, int *oidlen);
+const int ec_nist_alg_and_curve_by_bits(int bits,
+                                        const struct ec_curve **curve,
+                                        const struct ssh_signkey **alg);
+const int ec_ed_alg_and_curve_by_bits(int bits,
+                                      const struct ec_curve **curve,
+                                      const struct ssh_signkey **alg);
+
+struct ssh_signkey;
 
 struct ec_key {
+    const struct ssh_signkey *signalg;
     struct ec_point publicKey;
     Bignum privateKey;
 };
@@ -208,7 +208,8 @@ void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
 /*
  * SSH2 ECDH key exchange functions
  */
-void *ssh_ecdhkex_newkey(const char *name);
+struct ssh_kex;
+void *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
 void ssh_ecdhkex_freekey(void *key);
 char *ssh_ecdhkex_getpublic(void *key, int *len);
 Bignum ssh_ecdhkex_getkey(void *key, char *remoteKey, int remoteKeyLen);

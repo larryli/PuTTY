@@ -6852,7 +6852,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
                   ssh->kex->hash->text_name);
         ssh->pkt_kctx = SSH2_PKTCTX_ECDHKEX;
 
-        s->eckey = ssh_ecdhkex_newkey(ssh->kex->name);
+        s->eckey = ssh_ecdhkex_newkey(ssh->kex);
         if (!s->eckey) {
             bombout(("Unable to generate key for ECDH"));
             crStopV;

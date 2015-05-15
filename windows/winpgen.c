@@ -1334,12 +1334,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		state->ssh2key.alg = &ssh_dss;
             } else if (state->keytype == ECDSA) {
                 state->ssh2key.data = &state->eckey;
-                if (state->eckey.publicKey.curve->fieldBits == 256)
-                    state->ssh2key.alg = &ssh_ecdsa_nistp256;
-                else if (state->eckey.publicKey.curve->fieldBits == 384)
-                    state->ssh2key.alg = &ssh_ecdsa_nistp384;
-                else
-                    state->ssh2key.alg = &ssh_ecdsa_nistp521;
+                state->ssh2key.alg = state->eckey.signalg;
             } else if (state->keytype == ED25519) {
                 state->ssh2key.data = &state->eckey;
                 state->ssh2key.alg = &ssh_ecdsa_ed25519;

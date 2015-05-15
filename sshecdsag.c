@@ -12,15 +12,9 @@ int ec_generate(struct ec_key *key, int bits, progfn_t pfn,
 {
     struct ec_point *publicKey;
 
-    if (bits == 256) {
-        key->publicKey.curve = ec_p256();
-    } else if (bits == 384) {
-        key->publicKey.curve = ec_p384();
-    } else if (bits == 521) {
-        key->publicKey.curve = ec_p521();
-    } else {
+    if (!ec_nist_alg_and_curve_by_bits(bits, &key->publicKey.curve,
+                                       &key->signalg))
         return 0;
-    }
 
     key->privateKey = bignum_random_in_range(One, key->publicKey.curve->w.n);
     if (!key->privateKey) return 0;
@@ -45,11 +39,9 @@ int ec_edgenerate(struct ec_key *key, int bits, progfn_t pfn,
 {
     struct ec_point *publicKey;
 
-    if (bits == 256) {
-        key->publicKey.curve = ec_ed25519();
-    } else {
+    if (!ec_ed_alg_and_curve_by_bits(bits, &key->publicKey.curve,
+                                     &key->signalg))
         return 0;
-    }
 
     {
         /* EdDSA secret keys are just 32 bytes of hash preimage; the

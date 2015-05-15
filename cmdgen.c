@@ -659,13 +659,7 @@ int main(int argc, char **argv)
             ec_generate(ec, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
             ssh2key->data = ec;
-            if (bits == 256) {
-                ssh2key->alg = &ssh_ecdsa_nistp256;
-            } else if (bits == 384) {
-                ssh2key->alg = &ssh_ecdsa_nistp384;
-            } else {
-                ssh2key->alg = &ssh_ecdsa_nistp521;
-            }
+            ssh2key->alg = ec->signalg;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
             struct ec_key *ec = snew(struct ec_key);
