@@ -753,7 +753,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
             goto error;
         }
         retkey->alg = alg;
-        blob = snewn((4+19 + 4+8 + 4+len) + (4+privlen), unsigned char);
+        blob = snewn((4+19 + 4+8 + 4+len) + (4+1+privlen), unsigned char);
         if (!blob) {
             sfree(retkey);
             errmsg = "out of memory";
@@ -773,12 +773,20 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         PUT_32BIT(q, len); q += 4;
         memcpy(q, p, len); q += len;
 
-        PUT_32BIT(q, privlen);
-        memcpy(q+4, priv, privlen);
+        /*
+         * To be acceptable to our createkey(), the private blob must
+         * contain a valid mpint, i.e. without the top bit set. But
+         * the input private string may have the top bit set, so we
+         * prefix a zero byte to ensure createkey() doesn't fail for
+         * that reason.
+         */
+        PUT_32BIT(q, privlen+1);
+        q[4] = 0;
+        memcpy(q+5, priv, privlen);
 
         retkey->data = retkey->alg->createkey(retkey->alg,
                                               blob, q-blob,
-                                              q, 4+privlen);
+                                              q, 5+privlen);
 
         if (!retkey->data) {
             sfree(retkey);
