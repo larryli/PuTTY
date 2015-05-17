@@ -6160,6 +6160,17 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			     struct Packet *pktin)
 {
     const unsigned char *in = (const unsigned char *)vin;
+    enum kexlist {
+	KEXLIST_KEX, KEXLIST_HOSTKEY, KEXLIST_CSCIPHER, KEXLIST_SCCIPHER,
+	KEXLIST_CSMAC, KEXLIST_SCMAC, KEXLIST_CSCOMP, KEXLIST_SCCOMP,
+	NKEXLIST
+    };
+    const char * kexlist_descr[NKEXLIST] = {
+	"key exchange algorithm", "host key algorithm",
+	"client-to-server cipher", "server-to-client cipher",
+	"client-to-server MAC", "server-to-client MAC",
+	"client-to-server compression method",
+	"server-to-client compression method" };
     struct do_ssh2_transport_state {
 	int crLine;
 	int nbits, pbits, warn_kex, warn_cscipher, warn_sccipher;
@@ -6194,6 +6205,26 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         int dlgret;
 	int guessok;
 	int ignorepkt;
+#define MAXKEXLIST 16
+	struct kexinit_algorithm {
+	    const char *name;
+	    union {
+	        struct {
+		    const struct ssh_kex *kex;
+		    int warn;
+		} kex;
+	        const struct ssh_signkey *hostkey;
+		struct {
+		    const struct ssh2_cipher *cipher;
+		    int warn;
+		} cipher;
+	        struct {
+		    const struct ssh_mac *mac;
+		    int etm;
+		} mac;
+	        const struct ssh_compress *comp;
+            } u;
+        } kexlists[NKEXLIST][MAXKEXLIST];
     };
     crState(do_ssh2_transport_state);
 
@@ -6220,7 +6251,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
   begin_key_exchange:
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     {
-	int i, j, k;
+	int i, j, k, n, warn;
 
 	/*
 	 * Set up the preferred key exchange. (NULL => warn below here)
@@ -6310,19 +6341,22 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	 */
 	ssh->kex_in_progress = TRUE;
 
-	/*
-	 * Construct and send our key exchange packet.
-	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_KEXINIT);
-	for (i = 0; i < 16; i++)
-	    ssh2_pkt_addbyte(s->pktout, (unsigned char) random_byte());
+	for (i = 0; i < NKEXLIST; i++)
+	    for (j = 0; j < MAXKEXLIST; j++)
+	        s->kexlists[i][j].name = NULL;
 	/* List key exchange algorithms. */
-	ssh2_pkt_addstring_start(s->pktout);
+	n = 0;
+	warn = FALSE;
 	for (i = 0; i < s->n_preferred_kex; i++) {
 	    const struct ssh_kexes *k = s->preferred_kex[i];
-	    if (!k) continue;	       /* warning flag */
-	    for (j = 0; j < k->nkexes; j++)
-		ssh2_pkt_addstring_commasep(s->pktout, k->list[j]->name);
+	    if (!k) warn = TRUE;
+	    else for (j = 0; j < k->nkexes; j++) {
+	        assert(n < MAXKEXLIST);
+	        s->kexlists[KEXLIST_KEX][n].name = k->list[j]->name;
+		s->kexlists[KEXLIST_KEX][n].u.kex.kex = k->list[j];
+		s->kexlists[KEXLIST_KEX][n].u.kex.warn = warn;
+		n++;
+	    }
 	}
 	/* List server host key algorithms. */
         if (!s->got_session_id) {
@@ -6330,9 +6364,13 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
              * In the first key exchange, we list all the algorithms
              * we're prepared to cope with.
              */
-            ssh2_pkt_addstring_start(s->pktout);
-            for (i = 0; i < lenof(hostkey_algs); i++)
-                ssh2_pkt_addstring_commasep(s->pktout, hostkey_algs[i]->name);
+	    n = 0;
+            for (i = 0; i < lenof(hostkey_algs); i++) {
+	        assert(n < MAXKEXLIST);
+		s->kexlists[KEXLIST_HOSTKEY][n].name = hostkey_algs[i]->name;
+		s->kexlists[KEXLIST_HOSTKEY][n].u.hostkey = hostkey_algs[i];
+		n++;
+	    }
         } else {
             /*
              * In subsequent key exchanges, we list only the kex
@@ -6342,50 +6380,86 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
              * reverification.
              */
             assert(ssh->kex);
-            ssh2_pkt_addstring(s->pktout, ssh->hostkey->name);
+	    s->kexlists[KEXLIST_HOSTKEY][0].name = ssh->hostkey->name;
+	    s->kexlists[KEXLIST_HOSTKEY][0].u.hostkey = ssh->hostkey;
         }
 	/* List encryption algorithms (client->server then server->client). */
-	for (k = 0; k < 2; k++) {
-	    ssh2_pkt_addstring_start(s->pktout);
+	for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
+	    n = 0;
+	    warn = FALSE;
 	    for (i = 0; i < s->n_preferred_ciphers; i++) {
 		const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-		if (!c) continue;	       /* warning flag */
-		for (j = 0; j < c->nciphers; j++)
-		    ssh2_pkt_addstring_commasep(s->pktout, c->list[j]->name);
+		if (!c) warn = TRUE;
+		else for (j = 0; j < c->nciphers; j++) {
+		    assert(n < MAXKEXLIST);
+		    s->kexlists[k][n].name =  c->list[j]->name;
+		    s->kexlists[k][n].u.cipher.cipher = c->list[j];
+		    s->kexlists[k][n].u.cipher.warn = warn;
+		    n++;
+		}
 	    }
 	}
 	/* List MAC algorithms (client->server then server->client). */
-	for (j = 0; j < 2; j++) {
-	    ssh2_pkt_addstring_start(s->pktout);
+	for (j = KEXLIST_CSMAC; j <= KEXLIST_SCMAC; j++) {
+	    n = 0;
 	    for (i = 0; i < s->nmacs; i++) {
-		ssh2_pkt_addstring_commasep(s->pktout, s->maclist[i]->name);
+		assert(n < MAXKEXLIST);
+		s->kexlists[j][n].name =  s->maclist[i]->name;
+		s->kexlists[j][n].u.mac.mac = s->maclist[i];
+		s->kexlists[j][n].u.mac.etm = FALSE;
+		n++;
             }
-	    for (i = 0; i < s->nmacs; i++) {
+	    for (i = 0; i < s->nmacs; i++)
                 /* For each MAC, there may also be an ETM version,
                  * which we list second. */
-                if (s->maclist[i]->etm_name)
-                    ssh2_pkt_addstring_commasep(s->pktout, s->maclist[i]->etm_name);
-            }
+                if (s->maclist[i]->etm_name) {
+		    assert(n < MAXKEXLIST);
+		    s->kexlists[j][n].name =  s->maclist[i]->etm_name;
+		    s->kexlists[j][n].u.mac.mac = s->maclist[i];
+		    s->kexlists[j][n].u.mac.etm = TRUE;
+		    n++;
+		}
 	}
 	/* List client->server compression algorithms,
 	 * then server->client compression algorithms. (We use the
 	 * same set twice.) */
-	for (j = 0; j < 2; j++) {
-	    ssh2_pkt_addstring_start(s->pktout);
+	for (j = KEXLIST_CSCOMP; j <= KEXLIST_SCCOMP; j++) {
 	    assert(lenof(compressions) > 1);
 	    /* Prefer non-delayed versions */
-	    ssh2_pkt_addstring_commasep(s->pktout, s->preferred_comp->name);
+	    s->kexlists[j][0].name = s->preferred_comp->name;
+	    s->kexlists[j][0].u.comp = s->preferred_comp;
 	    /* We don't even list delayed versions of algorithms until
 	     * they're allowed to be used, to avoid a race. See the end of
 	     * this function. */
-	    if (s->userauth_succeeded && s->preferred_comp->delayed_name)
-		ssh2_pkt_addstring_commasep(s->pktout,
-					    s->preferred_comp->delayed_name);
+	    n = 1;
+	    if (s->userauth_succeeded && s->preferred_comp->delayed_name) {
+		s->kexlists[j][1].name = s->preferred_comp->delayed_name;
+		s->kexlists[j][1].u.comp = s->preferred_comp;
+		n = 2;
+	    }
 	    for (i = 0; i < lenof(compressions); i++) {
 		const struct ssh_compress *c = compressions[i];
-		ssh2_pkt_addstring_commasep(s->pktout, c->name);
-		if (s->userauth_succeeded && c->delayed_name)
-		    ssh2_pkt_addstring_commasep(s->pktout, c->delayed_name);
+		s->kexlists[j][n].name = c->name;
+		s->kexlists[j][n].u.comp = c;
+		n++;
+		if (s->userauth_succeeded && c->delayed_name) {
+		    s->kexlists[j][n].name = c->delayed_name;
+		    s->kexlists[j][n].u.comp = c;
+		    n++;
+		}
+	    }
+	}
+	/*
+	 * Construct and send our key exchange packet.
+	 */
+	s->pktout = ssh2_pkt_init(SSH2_MSG_KEXINIT);
+	for (i = 0; i < 16; i++)
+	    ssh2_pkt_addbyte(s->pktout, (unsigned char) random_byte());
+	for (i = 0; i < NKEXLIST; i++) {
+	    ssh2_pkt_addstring_start(s->pktout);
+	    for (j = 0; j < MAXKEXLIST; j++) {
+		if (s->kexlists[i][j].name == NULL) break;
+		ssh2_pkt_addstring_commasep(s->pktout, s->kexlists[i][j].name);
 	    }
 	}
 	/* List client->server languages. Empty list. */
@@ -6413,7 +6487,6 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      */
     {
 	char *str;
-        const char *preferred;
 	int i, j, len;
 
 	if (pktin->type != SSH2_MSG_KEXINIT) {
@@ -6431,204 +6504,57 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	s->warn_kex = s->warn_cscipher = s->warn_sccipher = FALSE;
 
 	pktin->savedpos += 16;	        /* skip garbage cookie */
-	ssh_pkt_getstring(pktin, &str, &len);    /* key exchange algorithms */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
 
-	preferred = NULL;
-	for (i = 0; i < s->n_preferred_kex; i++) {
-	    const struct ssh_kexes *k = s->preferred_kex[i];
-	    if (!k) {
-		s->warn_kex = TRUE;
-	    } else {
-		for (j = 0; j < k->nkexes; j++) {
-		    if (!preferred) preferred = k->list[j]->name;
-		    if (in_commasep_string(k->list[j]->name, str, len)) {
-			ssh->kex = k->list[j];
-			break;
+	s->guessok = FALSE;
+	for (i = 0; i < NKEXLIST; i++) {
+	    ssh_pkt_getstring(pktin, &str, &len);
+	    if (!str) {
+		bombout(("KEXINIT packet was incomplete"));
+		crStopV;
+	    }
+	    for (j = 0; j < MAXKEXLIST; j++) {
+		struct kexinit_algorithm *alg = &s->kexlists[i][j];
+		if (alg->name == NULL) break;
+		if (in_commasep_string(alg->name, str, len)) {
+		    /* We've found a matching algorithm. */
+		    if (i == KEXLIST_KEX || i == KEXLIST_HOSTKEY) {
+			/* Check if we might need to ignore first kex pkt */
+			if (j != 0 ||
+			    !first_in_commasep_string(alg->name, str, len))
+			    s->guessok = FALSE;
 		    }
-		}
-	    }
-	    if (ssh->kex)
-		break;
-	}
-	if (!ssh->kex) {
-            bombout(("Couldn't agree a key exchange algorithm"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-	}
-	/*
-	 * Note that the server's guess is considered wrong if it doesn't match
-	 * the first algorithm in our list, even if it's still the algorithm
-	 * we end up using.
-	 */
-	s->guessok = first_in_commasep_string(preferred, str, len);
-	ssh_pkt_getstring(pktin, &str, &len);    /* host key algorithms */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < lenof(hostkey_algs); i++) {
-	    if (in_commasep_string(hostkey_algs[i]->name, str, len)) {
-		ssh->hostkey = hostkey_algs[i];
-		break;
-	    }
-	}
-	if (!ssh->hostkey) {
-            bombout(("Couldn't agree a host key algorithm"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-	}
-
-	s->guessok = s->guessok &&
-	    first_in_commasep_string(hostkey_algs[0]->name, str, len);
-	ssh_pkt_getstring(pktin, &str, &len);    /* client->server cipher */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < s->n_preferred_ciphers; i++) {
-	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-	    if (!c) {
-		s->warn_cscipher = TRUE;
-	    } else {
-		for (j = 0; j < c->nciphers; j++) {
-		    if (in_commasep_string(c->list[j]->name, str, len)) {
-			s->cscipher_tobe = c->list[j];
-			break;
+		    if (i == KEXLIST_KEX) {
+			ssh->kex = alg->u.kex.kex;
+			s->warn_kex = alg->u.kex.warn;
+		    } else if (i == KEXLIST_HOSTKEY) {
+			ssh->hostkey = alg->u.hostkey;
+		    } else if (i == KEXLIST_CSCIPHER) {
+			s->cscipher_tobe = alg->u.cipher.cipher;
+			s->warn_cscipher = alg->u.cipher.warn;
+		    } else if (i == KEXLIST_SCCIPHER) {
+			s->sccipher_tobe = alg->u.cipher.cipher;
+			s->warn_sccipher = alg->u.cipher.warn;
+		    } else if (i == KEXLIST_CSMAC) {
+			s->csmac_tobe = alg->u.mac.mac;
+			s->csmac_etm_tobe = alg->u.mac.etm;
+		    } else if (i == KEXLIST_SCMAC) {
+			s->scmac_tobe = alg->u.mac.mac;
+			s->scmac_etm_tobe = alg->u.mac.etm;
+		    } else if (i == KEXLIST_CSCOMP) {
+			s->cscomp_tobe = alg->u.comp;
+		    } else if (i == KEXLIST_SCCOMP) {
+			s->sccomp_tobe = alg->u.comp;
 		    }
+		    goto matched;
 		}
-	    }
-	    if (s->cscipher_tobe)
-		break;
-	}
-	if (!s->cscipher_tobe) {
-            bombout(("Couldn't agree a client-to-server cipher"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-	}
-
-	ssh_pkt_getstring(pktin, &str, &len);    /* server->client cipher */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < s->n_preferred_ciphers; i++) {
-	    const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-	    if (!c) {
-		s->warn_sccipher = TRUE;
-	    } else {
-		for (j = 0; j < c->nciphers; j++) {
-		    if (in_commasep_string(c->list[j]->name, str, len)) {
-			s->sccipher_tobe = c->list[j];
-			break;
-		    }
-		}
-	    }
-	    if (s->sccipher_tobe)
-		break;
-	}
-	if (!s->sccipher_tobe) {
-            bombout(("Couldn't agree a server-to-client cipher"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-	}
-
-	ssh_pkt_getstring(pktin, &str, &len);    /* client->server mac */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < s->nmacs; i++) {
-	    if (in_commasep_string(s->maclist[i]->name, str, len)) {
-		s->csmac_tobe = s->maclist[i];
-		s->csmac_etm_tobe = FALSE;
-                break;
-	    }
-	}
-        if (!s->csmac_tobe) {
-            for (i = 0; i < s->nmacs; i++) {
-                if (s->maclist[i]->etm_name &&
-                    in_commasep_string(s->maclist[i]->etm_name, str, len)) {
-                    s->csmac_tobe = s->maclist[i];
-                    s->csmac_etm_tobe = TRUE;
-                    break;
-                }
-            }
-        }
-        if (!s->csmac_tobe) {
-            bombout(("Couldn't agree a client-to-server MAC"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-        }
-	ssh_pkt_getstring(pktin, &str, &len);    /* server->client mac */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < s->nmacs; i++) {
-	    if (in_commasep_string(s->maclist[i]->name, str, len)) {
-		s->scmac_tobe = s->maclist[i];
-		s->scmac_etm_tobe = FALSE;
-                break;
-	    }
-	}
-        if (!s->scmac_tobe) {
-            for (i = 0; i < s->nmacs; i++) {
-                if (s->maclist[i]->etm_name &&
-                    in_commasep_string(s->maclist[i]->etm_name, str, len)) {
-                    s->scmac_tobe = s->maclist[i];
-                    s->scmac_etm_tobe = TRUE;
-                    break;
-                }
-            }
-        }
-        if (!s->scmac_tobe) {
-            bombout(("Couldn't agree a server-to-client MAC"
-                     " (available: %.*s)", len, str));
-	    crStopV;
-        }
-	ssh_pkt_getstring(pktin, &str, &len);  /* client->server compression */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < lenof(compressions) + 1; i++) {
-	    const struct ssh_compress *c =
-		i == 0 ? s->preferred_comp : compressions[i - 1];
-	    if (in_commasep_string(c->name, str, len)) {
-		s->cscomp_tobe = c;
-		break;
-	    } else if (in_commasep_string(c->delayed_name, str, len)) {
-		if (s->userauth_succeeded) {
-		    s->cscomp_tobe = c;
-		    break;
-		} else {
+		if ((i == KEXLIST_CSCOMP || i == KEXLIST_SCCOMP) &&
+		    in_commasep_string(alg->u.comp->delayed_name, str, len))
 		    s->pending_compression = TRUE;  /* try this later */
-		}
 	    }
-	}
-	ssh_pkt_getstring(pktin, &str, &len);  /* server->client compression */
-        if (!str) {
-            bombout(("KEXINIT packet was incomplete"));
-            crStopV;
-        }
-	for (i = 0; i < lenof(compressions) + 1; i++) {
-	    const struct ssh_compress *c =
-		i == 0 ? s->preferred_comp : compressions[i - 1];
-	    if (in_commasep_string(c->name, str, len)) {
-		s->sccomp_tobe = c;
-		break;
-	    } else if (in_commasep_string(c->delayed_name, str, len)) {
-		if (s->userauth_succeeded) {
-		    s->sccomp_tobe = c;
-		    break;
-		} else {
-		    s->pending_compression = TRUE;  /* try this later */
-		}
-	    }
+	    bombout(("Couldn't agree a %s ((available: %.*s)",
+		     kexlist_descr[i], len, str));
+	    crStopV;
+	  matched:;
 	}
 	if (s->pending_compression) {
 	    logevent("Server supports delayed compression; "
