@@ -61,9 +61,9 @@ static int last_char_len(struct askpass_ctx *ctx)
 static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct askpass_ctx *ctx = (struct askpass_ctx *)data;
-    if (event->keyval == GDK_Return) {
+    if (event->keyval == GDK_Return && event->type == GDK_KEY_PRESS) {
         gtk_main_quit();
-    } else if (event->keyval == GDK_Escape) {
+    } else if (event->keyval == GDK_Escape && event->type == GDK_KEY_PRESS) {
         smemclr(ctx->passphrase, ctx->passsize);
         ctx->passphrase = NULL;
         gtk_main_quit();
