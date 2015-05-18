@@ -104,7 +104,7 @@ void dputs(const char *buf)
 	debug_fp = fopen("debug.log", "w");
     }
 
-    write(1, buf, strlen(buf));
+    if (write(1, buf, strlen(buf)) < 0) {} /* 'error check' to placate gcc */
 
     fputs(buf, debug_fp);
     fflush(debug_fp);
