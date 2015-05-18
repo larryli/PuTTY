@@ -234,6 +234,11 @@ static const char *sk_handle_socket_error(Socket s)
     return ps->error;
 }
 
+static char *sk_handle_peer_info(Socket s)
+{
+    return NULL;
+}
+
 Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
                           int overlapped)
 {
@@ -245,7 +250,8 @@ Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
 	sk_handle_write_eof,
 	sk_handle_flush,
 	sk_handle_set_frozen,
-	sk_handle_socket_error
+	sk_handle_socket_error,
+        sk_handle_peer_info,
     };
 
     Handle_Socket ret;

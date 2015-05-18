@@ -71,6 +71,11 @@ static const char *sk_namedpipeserver_socket_error(Socket s)
     return ps->error;
 }
 
+static char *sk_namedpipeserver_peer_info(Socket s)
+{
+    return NULL;
+}
+
 static int create_named_pipe(Named_Pipe_Server_Socket ps, int first_instance)
 {
     SECURITY_ATTRIBUTES sa;
@@ -211,7 +216,8 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
         NULL /* write_eof */,
         NULL /* flush */,
         NULL /* set_frozen */,
-	sk_namedpipeserver_socket_error
+	sk_namedpipeserver_socket_error,
+	sk_namedpipeserver_peer_info,
     };
 
     Named_Pipe_Server_Socket ret;

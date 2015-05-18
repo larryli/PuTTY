@@ -7746,9 +7746,14 @@ static void ssh_check_termination(Ssh ssh)
     }
 }
 
-void ssh_sharing_downstream_connected(Ssh ssh, unsigned id)
+void ssh_sharing_downstream_connected(Ssh ssh, unsigned id,
+                                      const char *peerinfo)
 {
-    logeventf(ssh, "Connection sharing downstream #%u connected", id);
+    if (peerinfo)
+        logeventf(ssh, "Connection sharing downstream #%u connected from %s",
+                  id, peerinfo);
+    else
+        logeventf(ssh, "Connection sharing downstream #%u connected", id);
 }
 
 void ssh_sharing_downstream_disconnected(Ssh ssh, unsigned id)

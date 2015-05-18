@@ -1100,6 +1100,7 @@ static int pageant_listen_accepting(Plug plug,
     struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
     struct pageant_conn_state *pc;
     const char *err;
+    char *peerinfo;
 
     pc = snew(struct pageant_conn_state);
     pc->fn = &connection_fn_table;
@@ -1116,8 +1117,13 @@ static int pageant_listen_accepting(Plug plug,
 
     sk_set_frozen(pc->connsock, 0);
 
-    /* FIXME: can we get any useful peer id info? */
-    plog(pl->logctx, pl->logfn, "%p: new connection", pc);
+    peerinfo = sk_peer_info(pc->connsock);
+    if (peerinfo) {
+        plog(pl->logctx, pl->logfn, "%p: new connection from %s",
+             pc, peerinfo);
+    } else {
+        plog(pl->logctx, pl->logfn, "%p: new connection", pc);
+    }
 
     return 0;
 }
