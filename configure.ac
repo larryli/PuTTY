@@ -132,6 +132,28 @@ AC_CHECK_FUNCS([getaddrinfo posix_openpt ptsname setresuid strsignal updwtmpx])
 AC_CHECK_DECLS([CLOCK_MONOTONIC], [], [], [[#include <time.h>]])
 AC_SEARCH_LIBS([clock_gettime], [rt], [AC_DEFINE([HAVE_CLOCK_GETTIME],[],[Define if clock_gettime() is available])])
 
+AC_CACHE_CHECK([for SO_PEERCRED and dependencies], [x_cv_linux_so_peercred], [
+    AC_COMPILE_IFELSE([
+        AC_LANG_PROGRAM([[
+            #define _GNU_SOURCE
+            #include <features.h>
+            #include <sys/socket.h>
+          ]],[[
+            struct ucred cr;
+            socklen_t crlen = sizeof(cr);
+            return getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cr, &crlen) +
+            cr.pid + cr.uid + cr.gid;
+          ]]
+        )],
+        AS_VAR_SET(x_cv_linux_so_peercred, yes),
+        AS_VAR_SET(x_cv_linux_so_peercred, no)
+    )
+])
+AS_IF([test AS_VAR_GET(x_cv_linux_so_peercred) = yes],
+    [AC_DEFINE([HAVE_SO_PEERCRED], [1],
+     [Define if SO_PEERCRED works in the Linux fashion.])]
+)
+
 if test "x$GCC" = "xyes"; then
   :
   AC_SUBST(WARNINGOPTS, ['-Wall -Werror'])
