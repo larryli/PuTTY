@@ -111,7 +111,29 @@ static void usage(void)
 {
     printf("Pageant: SSH agent\n");
     printf("%s\n", ver);
-    printf("FIXME\n");
+    printf("Usage: pageant <lifetime> [key files]\n");
+    printf("       pageant [key files] --exec <command> [args]\n");
+    printf("       pageant -a [key files]\n");
+    printf("       pageant -d [key identifiers]\n");
+    printf("       pageant --public [key identifiers]\n");
+    printf("       pageant --public-openssh [key identifiers]\n");
+    printf("       pageant -l\n");
+    printf("       pageant -D\n");
+    printf("Lifetime options, for running Pageant as an agent:\n");
+    printf("  -X           run with the lifetime of the X server\n");
+    printf("  -T           run with the lifetime of the controlling tty\n");
+    printf("  --permanent  run permanently\n");
+    printf("  --debug      run in debugging mode, without forking\n");
+    printf("  --exec <command>   run with the lifetime of that command\n");
+    printf("Client options, for talking to an existing agent:\n");
+    printf("  -a           add key(s) to the existing agent\n");
+    printf("  -l           list currently loaded key fingerprints and comments\n");
+    printf("  --public     print public keys in RFC 4716 format\n");
+    printf("  --public-openssh   print public keys in OpenSSH format\n");
+    printf("  -d           delete key(s) from the agent\n");
+    printf("  -D           delete all keys from the agent\n");
+    printf("Other options:\n");
+    printf("  -v           verbose mode (in agent mode)\n");
     exit(1);
 }
 
