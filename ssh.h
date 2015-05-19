@@ -134,7 +134,14 @@ struct ec_ecurve
 
 struct ec_curve {
     enum { EC_WEIERSTRASS, EC_MONTGOMERY, EC_EDWARDS } type;
-    const char *name;
+    /* 'name' is the identifier of the curve when it has to appear in
+     * wire protocol encodings, as it does in e.g. the public key and
+     * signature formats for NIST curves. Curves which do not format
+     * their keys or signatures in this way just have name==NULL.
+     *
+     * 'textname' is non-NULL for all curves, and is a human-readable
+     * identification suitable for putting in log messages. */
+    const char *name, *textname;
     unsigned int fieldBits;
     Bignum p;
     union {
@@ -210,6 +217,7 @@ void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
  * SSH2 ECDH key exchange functions
  */
 struct ssh_kex;
+const char *ssh_ecdhkex_curve_textname(const struct ssh_kex *kex);
 void *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
 void ssh_ecdhkex_freekey(void *key);
 char *ssh_ecdhkex_getpublic(void *key, int *len);

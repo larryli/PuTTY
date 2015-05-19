@@ -157,7 +157,7 @@ static struct ec_curve *ec_p256(void)
         };
 
         initialise_wcurve(&curve, 256, p, a, b, n, Gx, Gy);
-        curve.name = "nistp256";
+        curve.textname = curve.name = "nistp256";
 
         /* Now initialised, no need to do it again */
         initialised = 1;
@@ -223,7 +223,7 @@ static struct ec_curve *ec_p384(void)
         };
 
         initialise_wcurve(&curve, 384, p, a, b, n, Gx, Gy);
-        curve.name = "nistp384";
+        curve.textname = curve.name = "nistp384";
 
         /* Now initialised, no need to do it again */
         initialised = 1;
@@ -307,7 +307,7 @@ static struct ec_curve *ec_p521(void)
         };
 
         initialise_wcurve(&curve, 521, p, a, b, n, Gx, Gy);
-        curve.name = "nistp521";
+        curve.textname = curve.name = "nistp521";
 
         /* Now initialised, no need to do it again */
         initialised = 1;
@@ -352,6 +352,7 @@ static struct ec_curve *ec_curve25519(void)
         /* This curve doesn't need a name, because it's never used in
          * any format that embeds the curve name */
         curve.name = NULL;
+        curve.textname = "Curve25519";
 
         /* Now initialised, no need to do it again */
         initialised = 1;
@@ -403,6 +404,7 @@ static struct ec_curve *ec_ed25519(void)
         curve.name = NULL;
 
         initialise_ecurve(&curve, 256, q, l, d, Bx, By);
+        curve.textname = "Ed25519";
 
         /* Now initialised, no need to do it again */
         initialised = 1;
@@ -2702,6 +2704,13 @@ static Bignum ecdh_calculate(const Bignum private,
 
     ec_point_free(p);
     return ret;
+}
+
+const char *ssh_ecdhkex_curve_textname(const struct ssh_kex *kex)
+{
+    const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
+    struct ec_curve *curve = extra->curve();
+    return curve->textname;
 }
 
 void *ssh_ecdhkex_newkey(const struct ssh_kex *kex)

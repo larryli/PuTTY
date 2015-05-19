@@ -6770,7 +6770,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
     } else if (ssh->kex->main_type == KEXTYPE_ECDH) {
 
-        logeventf(ssh, "Doing ECDH key exchange with hash %s",
+        logeventf(ssh, "Doing ECDH key exchange with curve %s and hash %s",
+                  ssh_ecdhkex_curve_textname(ssh->kex),
                   ssh->kex->hash->text_name);
         ssh->pkt_kctx = SSH2_PKTCTX_ECDHKEX;
 
