@@ -24,6 +24,10 @@
  * Handbook of elliptic and hyperelliptic curve cryptography, Chapter 13
  *   http://cs.ucsb.edu/~koc/ccs130h/2013/EllipticHyperelliptic-CohenFrey.pdf
  *
+ * Curve25519 spec from libssh (with reference to other things in the
+ * libssh code):
+ *   https://git.libssh.org/users/aris/libssh.git/tree/doc/curve25519-sha256@libssh.org.txt
+ *
  * Edwards DSA:
  *   http://ed25519.cr.yp.to/ed25519-20110926.pdf
  */
