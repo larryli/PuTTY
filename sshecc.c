@@ -2690,15 +2690,30 @@ static Bignum ecdh_calculate(const Bignum private,
     p->x = NULL;
 
     if (p->curve->type == EC_MONTGOMERY) {
-        /* Do conversion in network byte order */
+        /*
+         * Endianness-swap. The Curve25519 algorithm definition
+         * assumes you were doing your computation in arrays of 32
+         * little-endian bytes, and now specifies that you take your
+         * final one of those and convert it into a bignum in
+         * _network_ byte order, i.e. big-endian.
+         *
+         * In particular, the spec says, you convert the _whole_ 32
+         * bytes into a bignum. That is, on the rare occasions that
+         * p->x has come out with the most significant 8 bits zero, we
+         * have to imagine that being represented by a 32-byte string
+         * with the last byte being zero, so that has to be converted
+         * into an SSH-2 bignum with the _low_ byte zero, i.e. a
+         * multiple of 256.
+         */
         int i;
-        int bytes = (bignum_bitcount(ret)+7) / 8;
+        int bytes = (p->curve->fieldBits+7) / 8;
         unsigned char *byteorder = snewn(bytes, unsigned char);
         for (i = 0; i < bytes; ++i) {
             byteorder[i] = bignum_byte(ret, i);
         }
         freebn(ret);
         ret = bignum_from_bytes(byteorder, bytes);
+        smemclr(byteorder, bytes);
         sfree(byteorder);
     }
 
