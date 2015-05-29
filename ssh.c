@@ -6350,9 +6350,20 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         if (!s->got_session_id) {
             /*
              * In the first key exchange, we list all the algorithms
-             * we're prepared to cope with.
+             * we're prepared to cope with, but prefer those algorithms
+	     * for which we have a host key for this host.
              */
 	    n = 0;
+            for (i = 0; i < lenof(hostkey_algs); i++) {
+		if (have_ssh_host_key(ssh->savedhost, ssh->savedport,
+				      hostkey_algs[i]->keytype)) {
+		    assert(n < MAXKEXLIST);
+		    s->kexlists[KEXLIST_HOSTKEY][n].name =
+			hostkey_algs[i]->name;
+		    s->kexlists[KEXLIST_HOSTKEY][n].u.hostkey = hostkey_algs[i];
+		    n++;
+		}
+	    }
             for (i = 0; i < lenof(hostkey_algs); i++) {
 	        assert(n < MAXKEXLIST);
 		s->kexlists[KEXLIST_HOSTKEY][n].name = hostkey_algs[i]->name;
