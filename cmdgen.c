@@ -152,7 +152,8 @@ void help(void)
     showversion();
     usage(FALSE);
     fprintf(stderr,
-	    "  -t    specify key type when generating (rsa, dsa, rsa1)\n"
+	    "  -t    specify key type when generating (ed25519, ecdsa, rsa, "
+							"dsa, rsa1)\n"
 	    "  -b    specify number of bits when generating key\n"
 	    "  -C    change or specify key comment\n"
 	    "  -P    change key passphrase\n"
