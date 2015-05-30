@@ -6101,12 +6101,9 @@ static int in_commasep_string(char const *needle, char const *haystack,
 
 /*
  * Add a value to the comma-separated string at the end of the packet.
- * If the value is already in the string, don't bother adding it again.
  */
 static void ssh2_pkt_addstring_commasep(struct Packet *pkt, const char *data)
 {
-    if (in_commasep_string(data, (char *)pkt->data + pkt->savedpos,
-			   pkt->length - pkt->savedpos)) return;
     if (pkt->length - pkt->savedpos > 0)
 	ssh_pkt_addstring_str(pkt, ",");
     ssh_pkt_addstring_str(pkt, data);
@@ -6139,6 +6136,51 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
     h->bytes(s, H, h->hlen);
     h->bytes(s, keyspace, h->hlen);
     h->final(s, keyspace + h->hlen);
+}
+
+/*
+ * Structure for constructing KEXINIT algorithm lists.
+ */
+#define MAXKEXLIST 16
+struct kexinit_algorithm {
+    const char *name;
+    union {
+	struct {
+	    const struct ssh_kex *kex;
+	    int warn;
+	} kex;
+	const struct ssh_signkey *hostkey;
+	struct {
+	    const struct ssh2_cipher *cipher;
+	    int warn;
+	} cipher;
+	struct {
+	    const struct ssh_mac *mac;
+	    int etm;
+	} mac;
+	const struct ssh_compress *comp;
+    } u;
+};
+
+/*
+ * Find a slot in a KEXINIT algorithm list to use for a new algorithm.
+ * If the algorithm is already in the list, return a pointer to its
+ * entry, otherwise return an entry from the end of the list.
+ * This assumes that every time a particular name is passed in, it
+ * comes from the same string constant.  If this isn't true, this
+ * function may need to be rewritten to use strcmp() instead.
+ */
+static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
+						     *list, const char *name)
+{
+    int i;
+
+    for (i = 0; i < MAXKEXLIST; i++)
+	if (list[i].name == NULL || list[i].name == name) {
+	    list[i].name = name;
+	    return &list[i];
+	}
+    assert(!"No space in KEXINIT list");
 }
 
 /*
@@ -6193,26 +6235,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         int dlgret;
 	int guessok;
 	int ignorepkt;
-#define MAXKEXLIST 16
-	struct kexinit_algorithm {
-	    const char *name;
-	    union {
-	        struct {
-		    const struct ssh_kex *kex;
-		    int warn;
-		} kex;
-	        const struct ssh_signkey *hostkey;
-		struct {
-		    const struct ssh2_cipher *cipher;
-		    int warn;
-		} cipher;
-	        struct {
-		    const struct ssh_mac *mac;
-		    int etm;
-		} mac;
-	        const struct ssh_compress *comp;
-            } u;
-        } kexlists[NKEXLIST][MAXKEXLIST];
+	struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST];
     };
     crState(do_ssh2_transport_state);
 
@@ -6239,7 +6262,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
   begin_key_exchange:
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     {
-	int i, j, k, n, warn;
+	int i, j, k, warn;
+	struct kexinit_algorithm *alg;
 
 	/*
 	 * Set up the preferred key exchange. (NULL => warn below here)
@@ -6333,17 +6357,15 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    for (j = 0; j < MAXKEXLIST; j++)
 	        s->kexlists[i][j].name = NULL;
 	/* List key exchange algorithms. */
-	n = 0;
 	warn = FALSE;
 	for (i = 0; i < s->n_preferred_kex; i++) {
 	    const struct ssh_kexes *k = s->preferred_kex[i];
 	    if (!k) warn = TRUE;
 	    else for (j = 0; j < k->nkexes; j++) {
-	        assert(n < MAXKEXLIST);
-	        s->kexlists[KEXLIST_KEX][n].name = k->list[j]->name;
-		s->kexlists[KEXLIST_KEX][n].u.kex.kex = k->list[j];
-		s->kexlists[KEXLIST_KEX][n].u.kex.warn = warn;
-		n++;
+		alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_KEX],
+					  k->list[j]->name);
+	        alg->u.kex.kex = k->list[j];
+		alg->u.kex.warn = warn;
 	    }
 	}
 	/* List server host key algorithms. */
@@ -6353,22 +6375,18 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
              * we're prepared to cope with, but prefer those algorithms
 	     * for which we have a host key for this host.
              */
-	    n = 0;
             for (i = 0; i < lenof(hostkey_algs); i++) {
 		if (have_ssh_host_key(ssh->savedhost, ssh->savedport,
 				      hostkey_algs[i]->keytype)) {
-		    assert(n < MAXKEXLIST);
-		    s->kexlists[KEXLIST_HOSTKEY][n].name =
-			hostkey_algs[i]->name;
-		    s->kexlists[KEXLIST_HOSTKEY][n].u.hostkey = hostkey_algs[i];
-		    n++;
+		    alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
+					      hostkey_algs[i]->name);
+		    alg->u.hostkey = hostkey_algs[i];
 		}
 	    }
             for (i = 0; i < lenof(hostkey_algs); i++) {
-	        assert(n < MAXKEXLIST);
-		s->kexlists[KEXLIST_HOSTKEY][n].name = hostkey_algs[i]->name;
-		s->kexlists[KEXLIST_HOSTKEY][n].u.hostkey = hostkey_algs[i];
-		n++;
+		alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
+					  hostkey_algs[i]->name);
+		alg->u.hostkey = hostkey_algs[i];
 	    }
         } else {
             /*
@@ -6379,44 +6397,39 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
              * reverification.
              */
             assert(ssh->kex);
-	    s->kexlists[KEXLIST_HOSTKEY][0].name = ssh->hostkey->name;
-	    s->kexlists[KEXLIST_HOSTKEY][0].u.hostkey = ssh->hostkey;
+	    alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
+				      ssh->hostkey->name);
+	    alg->u.hostkey = ssh->hostkey;
         }
 	/* List encryption algorithms (client->server then server->client). */
 	for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
-	    n = 0;
 	    warn = FALSE;
 	    for (i = 0; i < s->n_preferred_ciphers; i++) {
 		const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 		if (!c) warn = TRUE;
 		else for (j = 0; j < c->nciphers; j++) {
-		    assert(n < MAXKEXLIST);
-		    s->kexlists[k][n].name =  c->list[j]->name;
-		    s->kexlists[k][n].u.cipher.cipher = c->list[j];
-		    s->kexlists[k][n].u.cipher.warn = warn;
-		    n++;
+		    alg = ssh2_kexinit_addalg(s->kexlists[k],
+					      c->list[j]->name);
+		    alg->u.cipher.cipher = c->list[j];
+		    alg->u.cipher.warn = warn;
 		}
 	    }
 	}
 	/* List MAC algorithms (client->server then server->client). */
 	for (j = KEXLIST_CSMAC; j <= KEXLIST_SCMAC; j++) {
-	    n = 0;
 	    for (i = 0; i < s->nmacs; i++) {
-		assert(n < MAXKEXLIST);
-		s->kexlists[j][n].name =  s->maclist[i]->name;
-		s->kexlists[j][n].u.mac.mac = s->maclist[i];
-		s->kexlists[j][n].u.mac.etm = FALSE;
-		n++;
+		alg = ssh2_kexinit_addalg(s->kexlists[j], s->maclist[i]->name);
+		alg->u.mac.mac = s->maclist[i];
+		alg->u.mac.etm = FALSE;
             }
 	    for (i = 0; i < s->nmacs; i++)
                 /* For each MAC, there may also be an ETM version,
                  * which we list second. */
                 if (s->maclist[i]->etm_name) {
-		    assert(n < MAXKEXLIST);
-		    s->kexlists[j][n].name =  s->maclist[i]->etm_name;
-		    s->kexlists[j][n].u.mac.mac = s->maclist[i];
-		    s->kexlists[j][n].u.mac.etm = TRUE;
-		    n++;
+		    alg = ssh2_kexinit_addalg(s->kexlists[j],
+					      s->maclist[i]->etm_name);
+		    alg->u.mac.mac = s->maclist[i];
+		    alg->u.mac.etm = TRUE;
 		}
 	}
 	/* List client->server compression algorithms,
@@ -6425,26 +6438,23 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	for (j = KEXLIST_CSCOMP; j <= KEXLIST_SCCOMP; j++) {
 	    assert(lenof(compressions) > 1);
 	    /* Prefer non-delayed versions */
-	    s->kexlists[j][0].name = s->preferred_comp->name;
-	    s->kexlists[j][0].u.comp = s->preferred_comp;
+	    alg = ssh2_kexinit_addalg(s->kexlists[j], s->preferred_comp->name);
+	    alg->u.comp = s->preferred_comp;
 	    /* We don't even list delayed versions of algorithms until
 	     * they're allowed to be used, to avoid a race. See the end of
 	     * this function. */
-	    n = 1;
 	    if (s->userauth_succeeded && s->preferred_comp->delayed_name) {
-		s->kexlists[j][1].name = s->preferred_comp->delayed_name;
-		s->kexlists[j][1].u.comp = s->preferred_comp;
-		n = 2;
+		alg = ssh2_kexinit_addalg(s->kexlists[j],
+					  s->preferred_comp->delayed_name);
+		alg->u.comp = s->preferred_comp;
 	    }
 	    for (i = 0; i < lenof(compressions); i++) {
 		const struct ssh_compress *c = compressions[i];
-		s->kexlists[j][n].name = c->name;
-		s->kexlists[j][n].u.comp = c;
-		n++;
+		alg = ssh2_kexinit_addalg(s->kexlists[j], c->name);
+		alg->u.comp = c;
 		if (s->userauth_succeeded && c->delayed_name) {
-		    s->kexlists[j][n].name = c->delayed_name;
-		    s->kexlists[j][n].u.comp = c;
-		    n++;
+		    alg = ssh2_kexinit_addalg(s->kexlists[j], c->delayed_name);
+		    alg->u.comp = c;
 		}
 	    }
 	}
