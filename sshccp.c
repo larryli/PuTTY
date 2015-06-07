@@ -30,6 +30,7 @@
  */
 
 #include "ssh.h"
+#include "sshbn.h"
 
 #ifndef INLINE
 #define INLINE
@@ -179,44 +180,746 @@ static INLINE void chacha20_decrypt(struct chacha20 *ctx,
 
 /* Poly1305 implementation (no AES, nonce is not encrypted) */
 
+#define NWORDS ((130 + BIGNUM_INT_BITS-1) / BIGNUM_INT_BITS)
+typedef struct bigval {
+    BignumInt w[NWORDS];
+} bigval;
+
+static void bigval_clear(bigval *r)
+{
+    int i;
+    for (i = 0; i < NWORDS; i++)
+        r->w[i] = 0;
+}
+
+static void bigval_import_le(bigval *r, const void *vdata, int len)
+{
+    const unsigned char *data = (const unsigned char *)vdata;
+    int i;
+    bigval_clear(r);
+    for (i = 0; i < len; i++)
+        r->w[i / BIGNUM_INT_BYTES] |= data[i] << (8 * (i % BIGNUM_INT_BYTES));
+}
+
+static void bigval_export_le(const bigval *r, void *vdata, int len)
+{
+    unsigned char *data = (unsigned char *)vdata;
+    int i;
+    for (i = 0; i < len; i++)
+        data[i] = r->w[i / BIGNUM_INT_BYTES] >> (8 * (i % BIGNUM_INT_BYTES));
+}
+
+/*
+ * Addition of bigvals, not mod p.
+ */
+static void bigval_add(bigval *r, const bigval *a, const bigval *b)
+{
+#if BIGNUM_INT_BITS == 32
+    /* ./contrib/make1305.py add 32 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += a->w[0];
+    acclo += b->w[0];
+    r->w[0] = acclo;
+    acclo >>= 32;
+    acclo += a->w[1];
+    acclo += b->w[1];
+    r->w[1] = acclo;
+    acclo >>= 32;
+    acclo += a->w[2];
+    acclo += b->w[2];
+    r->w[2] = acclo;
+    acclo >>= 32;
+    acclo += a->w[3];
+    acclo += b->w[3];
+    r->w[3] = acclo;
+    acclo >>= 32;
+    acclo += a->w[4];
+    acclo += b->w[4];
+    r->w[4] = acclo;
+    acclo >>= 32;
+#elif BIGNUM_INT_BITS == 16
+    /* ./contrib/make1305.py add 16 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += a->w[0];
+    acclo += b->w[0];
+    r->w[0] = acclo;
+    acclo >>= 16;
+    acclo += a->w[1];
+    acclo += b->w[1];
+    r->w[1] = acclo;
+    acclo >>= 16;
+    acclo += a->w[2];
+    acclo += b->w[2];
+    r->w[2] = acclo;
+    acclo >>= 16;
+    acclo += a->w[3];
+    acclo += b->w[3];
+    r->w[3] = acclo;
+    acclo >>= 16;
+    acclo += a->w[4];
+    acclo += b->w[4];
+    r->w[4] = acclo;
+    acclo >>= 16;
+    acclo += a->w[5];
+    acclo += b->w[5];
+    r->w[5] = acclo;
+    acclo >>= 16;
+    acclo += a->w[6];
+    acclo += b->w[6];
+    r->w[6] = acclo;
+    acclo >>= 16;
+    acclo += a->w[7];
+    acclo += b->w[7];
+    r->w[7] = acclo;
+    acclo >>= 16;
+    acclo += a->w[8];
+    acclo += b->w[8];
+    r->w[8] = acclo;
+    acclo >>= 16;
+#else
+#error Run contrib/make1305.py again with a different bit count
+#endif
+}
+
+/*
+ * Multiplication of bigvals mod p. Uses r as temporary storage, so
+ * don't pass r aliasing a or b.
+ */
+static void bigval_mul_mod_p(bigval *r, const bigval *a, const bigval *b)
+{
+#if BIGNUM_INT_BITS == 32
+    /* ./contrib/make1305.py mul 32 */
+    BignumDblInt tmp;
+    BignumDblInt acclo;
+    BignumDblInt acchi;
+    BignumDblInt acc2lo;
+    acclo = 0;
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    r->w[0] = acclo;
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    r->w[1] = acclo;
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    r->w[2] = acclo;
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    r->w[3] = acclo;
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    r->w[4] = acclo & (((BignumInt)1 << 2)-1);
+    acc2lo = 0;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 30)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 30);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 30)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 30);
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 30)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 30);
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 30)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 32;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 30);
+    acc2lo += r->w[3];
+    r->w[3] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 0);
+    acc2lo += r->w[4];
+    r->w[4] = acc2lo;
+    acc2lo = 0;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 28)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    acc2lo += (acclo & (((BignumInt)1 << 4)-1)) * ((BignumDblInt)25 << 28);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 28)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 32);
+    acchi = 0;
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += r->w[3];
+    r->w[3] = acc2lo;
+    acc2lo >>= 32;
+    acc2lo += r->w[4];
+    r->w[4] = acc2lo;
+    acc2lo >>= 32;
+#elif BIGNUM_INT_BITS == 16
+    /* ./contrib/make1305.py mul 16 */
+    BignumDblInt tmp;
+    BignumDblInt acclo;
+    BignumDblInt acchi;
+    BignumDblInt acc2lo;
+    acclo = 0;
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[0] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[1] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[2] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[3] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[4] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[5] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[6] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[7] = acclo;
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    r->w[8] = acclo & (((BignumInt)1 << 2)-1);
+    acc2lo = 0;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[3]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[3]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[4]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[4]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[3];
+    r->w[3] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[5]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[5]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[4];
+    r->w[4] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[6]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[6]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[5];
+    r->w[5] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[7]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[7]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[6];
+    r->w[6] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 14)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[8]) * (b->w[8]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 16;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 14);
+    acc2lo += r->w[7];
+    r->w[7] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 0);
+    acc2lo += r->w[8];
+    r->w[8] = acc2lo;
+    acc2lo = 0;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 12)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    acc2lo += (acclo & (((BignumInt)1 << 4)-1)) * ((BignumDblInt)25 << 12);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 12)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 16);
+    acchi = 0;
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[3];
+    r->w[3] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[4];
+    r->w[4] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[5];
+    r->w[5] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[6];
+    r->w[6] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[7];
+    r->w[7] = acc2lo;
+    acc2lo >>= 16;
+    acc2lo += r->w[8];
+    r->w[8] = acc2lo;
+    acc2lo >>= 16;
+#else
+#error Run contrib/make1305.py again with a different bit count
+#endif
+}
+
+static void bigval_final_reduce(bigval *n)
+{
+#if BIGNUM_INT_BITS == 32
+    /* ./contrib/make1305.py final_reduce 32 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += 5 * ((n->w[4] >> 2) + 1);
+    acclo += n->w[0];
+    acclo >>= 32;
+    acclo += n->w[1];
+    acclo >>= 32;
+    acclo += n->w[2];
+    acclo >>= 32;
+    acclo += n->w[3];
+    acclo >>= 32;
+    acclo += n->w[4];
+    acclo = 5 * (acclo >> 2);
+    acclo += n->w[0];
+    n->w[0] = acclo;
+    acclo >>= 32;
+    acclo += n->w[1];
+    n->w[1] = acclo;
+    acclo >>= 32;
+    acclo += n->w[2];
+    n->w[2] = acclo;
+    acclo >>= 32;
+    acclo += n->w[3];
+    n->w[3] = acclo;
+    acclo >>= 32;
+    acclo += n->w[4];
+    n->w[4] = acclo;
+    acclo >>= 32;
+    n->w[4] &= (1 << 2) - 1;
+#elif BIGNUM_INT_BITS == 16
+    /* ./contrib/make1305.py final_reduce 16 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += 5 * ((n->w[8] >> 2) + 1);
+    acclo += n->w[0];
+    acclo >>= 16;
+    acclo += n->w[1];
+    acclo >>= 16;
+    acclo += n->w[2];
+    acclo >>= 16;
+    acclo += n->w[3];
+    acclo >>= 16;
+    acclo += n->w[4];
+    acclo >>= 16;
+    acclo += n->w[5];
+    acclo >>= 16;
+    acclo += n->w[6];
+    acclo >>= 16;
+    acclo += n->w[7];
+    acclo >>= 16;
+    acclo += n->w[8];
+    acclo = 5 * (acclo >> 2);
+    acclo += n->w[0];
+    n->w[0] = acclo;
+    acclo >>= 16;
+    acclo += n->w[1];
+    n->w[1] = acclo;
+    acclo >>= 16;
+    acclo += n->w[2];
+    n->w[2] = acclo;
+    acclo >>= 16;
+    acclo += n->w[3];
+    n->w[3] = acclo;
+    acclo >>= 16;
+    acclo += n->w[4];
+    n->w[4] = acclo;
+    acclo >>= 16;
+    acclo += n->w[5];
+    n->w[5] = acclo;
+    acclo >>= 16;
+    acclo += n->w[6];
+    n->w[6] = acclo;
+    acclo >>= 16;
+    acclo += n->w[7];
+    n->w[7] = acclo;
+    acclo >>= 16;
+    acclo += n->w[8];
+    n->w[8] = acclo;
+    acclo >>= 16;
+    n->w[8] &= (1 << 2) - 1;
+#else
+#error Run contrib/make1305.py again with a different bit count
+#endif
+}
+
 struct poly1305 {
     unsigned char nonce[16];
-    Bignum modulo;
-    Bignum r;
-    Bignum h;
+    bigval r;
+    bigval h;
 
     /* Buffer in case we get less that a multiple of 16 bytes */
     unsigned char buffer[16];
     int bufferIndex;
 };
 
-static void poly1305_make(struct poly1305 *ctx)
+static void poly1305_init(struct poly1305 *ctx)
 {
-    static const unsigned char p[] = {
-        0x03,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfb
-    };
-
-    ctx->modulo = bignum_from_bytes(p, sizeof(p));
-    ctx->r = NULL;
-    ctx->h = NULL;
     memset(ctx->nonce, 0, 16);
     ctx->bufferIndex = 0;
-}
-
-static void poly1305_free(struct poly1305 *ctx)
-{
-    if (ctx->modulo) {
-        freebn(ctx->modulo);
-    }
-    if (ctx->r) {
-        freebn(ctx->r);
-    }
-    if (ctx->h) {
-        freebn(ctx->h);
-    }
-    smemclr(ctx, sizeof(struct poly1305));
+    bigval_clear(&ctx->h);
 }
 
 /* Takes a 256 bit key */
@@ -235,10 +938,7 @@ static void poly1305_key(struct poly1305 *ctx, const unsigned char *key)
     key_copy[4] &= 0xfc;
     key_copy[8] &= 0xfc;
     key_copy[12] &= 0xfc;
-    if (ctx->r) {
-        freebn(ctx->r);
-    }
-    ctx->r = bignum_from_bytes_le(key_copy, 16);
+    bigval_import_le(&ctx->r, key_copy, 16);
     smemclr(key_copy, sizeof(key_copy));
 
     /* Use second 128 bits are the nonce */
@@ -249,21 +949,11 @@ static void poly1305_key(struct poly1305 *ctx, const unsigned char *key)
 static void poly1305_feed_chunk(struct poly1305 *ctx,
                                 const unsigned char *chunk, int len)
 {
-    Bignum tmp, tmp2;
-    Bignum c = bignum_from_bytes_le(chunk, len);
-    tmp = bignum_lshift(One, 8 * len);
-    tmp2 = bigadd(c, tmp);
-    freebn(tmp);
-    freebn(c);
-    if (ctx->h) {
-        tmp = bigadd(ctx->h, tmp2);
-        freebn(tmp2);
-        freebn(ctx->h);
-    } else {
-        tmp = tmp2;
-    }
-    ctx->h = modmul(tmp, ctx->r, ctx->modulo);
-    freebn(tmp);
+    bigval c;
+    bigval_import_le(&c, chunk, len);
+    c.w[len / BIGNUM_INT_BYTES] |= 1 << (8 * (len % BIGNUM_INT_BYTES));
+    bigval_add(&c, &c, &ctx->h);
+    bigval_mul_mod_p(&ctx->h, &c, &ctx->r);
 }
 
 static void poly1305_feed(struct poly1305 *ctx,
@@ -299,21 +989,16 @@ static void poly1305_feed(struct poly1305 *ctx,
 /* Finalise and populate buffer with 16 byte with MAC */
 static void poly1305_finalise(struct poly1305 *ctx, unsigned char *mac)
 {
-    Bignum tmp, tmp2;
-    int i;
+    bigval tmp;
 
     if (ctx->bufferIndex) {
         poly1305_feed_chunk(ctx, ctx->buffer, ctx->bufferIndex);
     }
 
-    tmp = bignum_from_bytes_le(ctx->nonce, 16);
-
-    tmp2 = bigadd(ctx->h, tmp);
-    freebn(tmp);
-    for (i = 0; i < 16; ++i) {
-        mac[i] = bignum_byte(tmp2, i);
-    }
-    freebn(tmp2);
+    bigval_import_le(&tmp, ctx->nonce, 16);
+    bigval_final_reduce(&ctx->h);
+    bigval_add(&tmp, &tmp, &ctx->h);
+    bigval_export_le(&tmp, mac, 16);
 }
 
 /* SSH-2 wrapper */
@@ -351,8 +1036,7 @@ static void poly_start(void *handle)
 
     ctx->mac_initialised = 0;
     memset(ctx->mac_iv, 0, 8);
-    poly1305_free(&ctx->mac);
-    poly1305_make(&ctx->mac);
+    poly1305_init(&ctx->mac);
 }
 
 static void poly_bytes(void *handle, unsigned char const *blk, int len)
@@ -445,7 +1129,7 @@ static void *ccp_make_context(void)
 {
     struct ccp_context *ctx = snew(struct ccp_context);
     if (ctx) {
-        poly1305_make(&ctx->mac);
+        poly1305_init(&ctx->mac);
     }
     return ctx;
 }
@@ -455,7 +1139,7 @@ static void ccp_free_context(void *vctx)
     struct ccp_context *ctx = (struct ccp_context *)vctx;
     smemclr(&ctx->a_cipher, sizeof(ctx->a_cipher));
     smemclr(&ctx->b_cipher, sizeof(ctx->b_cipher));
-    poly1305_free(&ctx->mac);
+    smemclr(&ctx->mac, sizeof(ctx->mac));
     sfree(ctx);
 }
 
