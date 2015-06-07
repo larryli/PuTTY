@@ -7139,9 +7139,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 
     logeventf(ssh, "Initialised %.200s client->server encryption",
 	      ssh->cscipher->text_name);
-    logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s",
+    logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s%s",
 	      ssh->csmac->text_name,
-              ssh->csmac_etm ? " (in ETM mode)" : "");
+              ssh->csmac_etm ? " (in ETM mode)" : "",
+              ssh->cscipher->required_mac ? " (required by cipher)" : "");
     if (ssh->cscomp->text_name)
 	logeventf(ssh, "Initialised %s compression",
 		  ssh->cscomp->text_name);
@@ -7206,9 +7207,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     }
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
-    logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s",
+    logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s%s",
 	      ssh->scmac->text_name,
-              ssh->scmac_etm ? " (in ETM mode)" : "");
+              ssh->scmac_etm ? " (in ETM mode)" : "",
+              ssh->sccipher->required_mac ? " (required by cipher)" : "");
     if (ssh->sccomp->text_name)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);
