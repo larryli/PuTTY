@@ -10325,7 +10325,8 @@ static void do_ssh2_authconn(Ssh ssh, unsigned char *in, int inlen,
 	     * Try to send data on all channels if we can.
 	     */
 	    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++)
-		ssh2_try_send_and_unthrottle(ssh, c);
+                if (c->type != CHAN_SHARING)
+                    ssh2_try_send_and_unthrottle(ssh, c);
 	}
     }
 
