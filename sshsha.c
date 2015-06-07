@@ -255,7 +255,7 @@ const struct ssh_hash ssh_sha1 = {
  * HMAC wrapper on it.
  */
 
-static void *sha1_make_context(void)
+static void *sha1_make_context(void *cipher_ctx)
 {
     return snewn(3, SHA_State);
 }

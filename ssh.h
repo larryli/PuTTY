@@ -250,7 +250,7 @@ void MD5Update(struct MD5Context *context, unsigned char const *buf,
 void MD5Final(unsigned char digest[16], struct MD5Context *context);
 void MD5Simple(void const *p, unsigned len, unsigned char output[16]);
 
-void *hmacmd5_make_context(void);
+void *hmacmd5_make_context(void *);
 void hmacmd5_free_context(void *handle);
 void hmacmd5_key(void *handle, void const *key, int len);
 void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
@@ -296,6 +296,7 @@ void SHA384_Init(SHA384_State * s);
 void SHA384_Final(SHA384_State * s, unsigned char *output);
 void SHA384_Simple(const void *p, int len, unsigned char *output);
 
+struct ssh_mac;
 struct ssh_cipher {
     void *(*make_context)(void);
     void (*free_context)(void *);
@@ -319,6 +320,8 @@ struct ssh2_cipher {
     unsigned int flags;
 #define SSH_CIPHER_IS_CBC	1
     const char *text_name;
+    /* If set, this takes priority over other MAC. */
+    const struct ssh_mac *required_mac;
 };
 
 struct ssh2_ciphers {
@@ -327,7 +330,8 @@ struct ssh2_ciphers {
 };
 
 struct ssh_mac {
-    void *(*make_context)(void);
+    /* Passes in the cipher context */
+    void *(*make_context)(void *);
     void (*free_context)(void *);
     void (*setkey) (void *, unsigned char *key);
     /* whole-packet operations */

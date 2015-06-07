@@ -225,7 +225,7 @@ const struct ssh_hash ssh_sha256 = {
  * HMAC wrapper on it.
  */
 
-static void *sha256_make_context(void)
+static void *sha256_make_context(void *cipher_ctx)
 {
     return snewn(3, SHA256_State);
 }

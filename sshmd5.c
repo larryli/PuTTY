@@ -221,7 +221,7 @@ void MD5Simple(void const *p, unsigned len, unsigned char output[16])
  * useful elsewhere (SOCKS5 CHAP authentication uses HMAC-MD5).
  */
 
-void *hmacmd5_make_context(void)
+void *hmacmd5_make_context(void *cipher_ctx)
 {
     return snewn(3, struct MD5Context);
 }

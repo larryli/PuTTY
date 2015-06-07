@@ -949,14 +949,16 @@ static const struct ssh2_cipher ssh_3des_ssh2 = {
     des3_make_context, des3_free_context, des3_iv, des3_key,
     des3_ssh2_encrypt_blk, des3_ssh2_decrypt_blk,
     "3des-cbc",
-    8, 168, SSH_CIPHER_IS_CBC, "triple-DES CBC"
+    8, 168, SSH_CIPHER_IS_CBC, "triple-DES CBC",
+    NULL
 };
 
 static const struct ssh2_cipher ssh_3des_ssh2_ctr = {
     des3_make_context, des3_free_context, des3_iv, des3_key,
     des3_ssh2_sdctr, des3_ssh2_sdctr,
     "3des-ctr",
-    8, 168, 0, "triple-DES SDCTR"
+    8, 168, 0, "triple-DES SDCTR",
+    NULL
 };
 
 /*
@@ -971,14 +973,16 @@ static const struct ssh2_cipher ssh_des_ssh2 = {
     des_make_context, des3_free_context, des3_iv, des_key,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk,
     "des-cbc",
-    8, 56, SSH_CIPHER_IS_CBC, "single-DES CBC"
+    8, 56, SSH_CIPHER_IS_CBC, "single-DES CBC",
+    NULL
 };
 
 static const struct ssh2_cipher ssh_des_sshcom_ssh2 = {
     des_make_context, des3_free_context, des3_iv, des_key,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk,
     "des-cbc@ssh.com",
-    8, 56, SSH_CIPHER_IS_CBC, "single-DES CBC"
+    8, 56, SSH_CIPHER_IS_CBC, "single-DES CBC",
+    NULL
 };
 
 static const struct ssh2_cipher *const des3_list[] = {

@@ -6565,6 +6565,17 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    crStopV;
 	  matched:;
 	}
+
+        /* If the cipher over-rides the mac, then pick it */
+        if (s->cscipher_tobe && s->cscipher_tobe->required_mac) {
+            s->csmac_tobe = s->cscipher_tobe->required_mac;
+	    s->csmac_etm_tobe = !!(s->csmac_tobe->etm_name);
+        }
+        if (s->sccipher_tobe && s->sccipher_tobe->required_mac) {
+            s->scmac_tobe = s->sccipher_tobe->required_mac;
+	    s->scmac_etm_tobe = !!(s->scmac_tobe->etm_name);
+        }
+
 	if (s->pending_compression) {
 	    logevent("Server supports delayed compression; "
 		     "will try this later");
@@ -7078,7 +7089,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	ssh->csmac->free_context(ssh->cs_mac_ctx);
     ssh->csmac = s->csmac_tobe;
     ssh->csmac_etm = s->csmac_etm_tobe;
-    ssh->cs_mac_ctx = ssh->csmac->make_context();
+    ssh->cs_mac_ctx = ssh->csmac->make_context(ssh->cs_cipher_ctx);
 
     if (ssh->cs_comp_ctx)
 	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
@@ -7146,7 +7157,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
     ssh->scmac = s->scmac_tobe;
     ssh->scmac_etm = s->scmac_etm_tobe;
-    ssh->sc_mac_ctx = ssh->scmac->make_context();
+    ssh->sc_mac_ctx = ssh->scmac->make_context(ssh->sc_cipher_ctx);
 
     if (ssh->sc_comp_ctx)
 	ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
