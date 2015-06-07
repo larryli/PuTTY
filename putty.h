@@ -267,6 +267,7 @@ enum {
     CIPHER_AES,			       /* (SSH-2 only) */
     CIPHER_DES,
     CIPHER_ARCFOUR,
+    CIPHER_CHACHA20,
     CIPHER_MAX			       /* no. ciphers (inc warn) */
 };
 

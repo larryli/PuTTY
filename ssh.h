@@ -438,6 +438,7 @@ extern const struct ssh2_ciphers ssh2_des;
 extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh2_ciphers ssh2_arcfour;
+extern const struct ssh2_ciphers ssh2_ccp;
 extern const struct ssh_hash ssh_sha1;
 extern const struct ssh_hash ssh_sha256;
 extern const struct ssh_hash ssh_sha384;

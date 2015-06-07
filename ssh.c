@@ -6340,6 +6340,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	      case CIPHER_ARCFOUR:
 		s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_arcfour;
 		break;
+              case CIPHER_CHACHA20:
+                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_ccp;
+                break;
 	      case CIPHER_WARN:
 		/* Flag for later. Don't bother if it's the last in
 		 * the list. */
