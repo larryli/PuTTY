@@ -502,6 +502,9 @@ static void share_connstate_free(struct ssh_sharing_connstate *cs)
         sfree(globreq);
     }
 
+    if (cs->sock)
+        sk_close(cs->sock);
+
     sfree(cs);
 }
 
