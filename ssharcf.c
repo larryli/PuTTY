@@ -100,7 +100,7 @@ static void arcfour_iv(void *handle, unsigned char *key)
 
 const struct ssh2_cipher ssh_arcfour128_ssh2 = {
     arcfour_make_context, arcfour_free_context, arcfour_iv, arcfour128_key,
-    arcfour_block, arcfour_block,
+    arcfour_block, arcfour_block, NULL, NULL,
     "arcfour128",
     1, 128, 0, "Arcfour-128",
     NULL
@@ -108,7 +108,7 @@ const struct ssh2_cipher ssh_arcfour128_ssh2 = {
 
 const struct ssh2_cipher ssh_arcfour256_ssh2 = {
     arcfour_make_context, arcfour_free_context, arcfour_iv, arcfour256_key,
-    arcfour_block, arcfour_block,
+    arcfour_block, arcfour_block, NULL, NULL,
     "arcfour256",
     1, 256, 0, "Arcfour-256",
     NULL

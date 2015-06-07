@@ -1649,7 +1649,7 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, const unsigned char **data,
 
         /*
          * OpenSSH encrypt-then-MAC mode: the packet length is
-         * unencrypted.
+         * unencrypted, unless the cipher supports length encryption.
          */
 	for (st->i = st->len = 0; st->i < 4; st->i++) {
 	    while ((*datalen) == 0)
@@ -1657,7 +1657,16 @@ static struct Packet *ssh2_rdpkt(Ssh ssh, const unsigned char **data,
 	    st->pktin->data[st->i] = *(*data)++;
 	    (*datalen)--;
 	}
-	st->len = toint(GET_32BIT(st->pktin->data));
+        /* Cipher supports length decryption, so do it */
+        if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_SEPARATE_LENGTH)) {
+            /* Keep the packet the same though, so the MAC passes */
+            unsigned char len[4];
+            memcpy(len, st->pktin->data, 4);
+            ssh->sccipher->decrypt_length(ssh->sc_cipher_ctx, len, 4, st->incoming_sequence);
+            st->len = toint(GET_32BIT(len));
+        } else {
+            st->len = toint(GET_32BIT(st->pktin->data));
+        }
 
 	/*
 	 * _Completely_ silly lengths should be stomped on before they
@@ -2277,6 +2286,13 @@ static int ssh2_pkt_construct(Ssh ssh, struct Packet *pkt)
     for (i = 0; i < padding; i++)
 	pkt->data[pkt->length + i] = random_byte();
     PUT_32BIT(pkt->data, pkt->length + padding - 4);
+
+    /* Encrypt length if the scheme requires it */
+    if (ssh->cscipher && (ssh->cscipher->flags & SSH_CIPHER_SEPARATE_LENGTH)) {
+        ssh->cscipher->encrypt_length(ssh->cs_cipher_ctx, pkt->data, 4,
+                                      ssh->v2_outgoing_sequence);
+    }
+
     if (ssh->csmac && ssh->csmac_etm) {
         /*
          * OpenSSH-defined encrypt-then-MAC protocol.

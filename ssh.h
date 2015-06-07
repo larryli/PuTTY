@@ -314,11 +314,15 @@ struct ssh2_cipher {
     void (*setkey) (void *, unsigned char *key);/* for SSH-2 */
     void (*encrypt) (void *, unsigned char *blk, int len);
     void (*decrypt) (void *, unsigned char *blk, int len);
+    /* Ignored unless SSH_CIPHER_SEPARATE_LENGTH flag set */
+    void (*encrypt_length) (void *, unsigned char *blk, int len, unsigned long seq);
+    void (*decrypt_length) (void *, unsigned char *blk, int len, unsigned long seq);
     const char *name;
     int blksize;
     int keylen;
     unsigned int flags;
 #define SSH_CIPHER_IS_CBC	1
+#define SSH_CIPHER_SEPARATE_LENGTH      2
     const char *text_name;
     /* If set, this takes priority over other MAC. */
     const struct ssh_mac *required_mac;
