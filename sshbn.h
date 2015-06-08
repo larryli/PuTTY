@@ -20,7 +20,24 @@
  *    The C variant won't give the right answer, either.
  */
 
-#if defined __GNUC__ && defined __i386__
+#if defined __SIZEOF_INT128__
+/* gcc and clang both provide a __uint128_t type on 64-bit targets
+ * (and, when they do, indicate its presence by the above macro),
+ * using the same 'two machine registers' kind of code generation that
+ * 32-bit targets use for 64-bit ints. If we have one of these, we can
+ * use a 64-bit BignumInt and a 128-bit BignumDblInt. */
+typedef __uint64_t BignumInt;
+typedef __uint128_t BignumDblInt;
+#define BIGNUM_INT_MASK  0xFFFFFFFFFFFFFFFFULL
+#define BIGNUM_TOP_BIT   0x8000000000000000ULL
+#define BIGNUM_INT_BITS  64
+#define MUL_WORD(w1, w2) ((BignumDblInt)w1 * w2)
+#define DIVMOD_WORD(q, r, hi, lo, w) do { \
+    BignumDblInt n = (((BignumDblInt)hi) << BIGNUM_INT_BITS) | lo; \
+    q = n / w; \
+    r = n % w; \
+} while (0)
+#elif defined __GNUC__ && defined __i386__
 typedef unsigned long BignumInt;
 typedef unsigned long long BignumDblInt;
 #define BIGNUM_INT_MASK  0xFFFFFFFFUL

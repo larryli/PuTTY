@@ -215,7 +215,23 @@ static void bigval_export_le(const bigval *r, void *vdata, int len)
  */
 static void bigval_add(bigval *r, const bigval *a, const bigval *b)
 {
-#if BIGNUM_INT_BITS == 32
+#if BIGNUM_INT_BITS == 64
+    /* ./contrib/make1305.py add 64 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += a->w[0];
+    acclo += b->w[0];
+    r->w[0] = acclo;
+    acclo >>= 64;
+    acclo += a->w[1];
+    acclo += b->w[1];
+    r->w[1] = acclo;
+    acclo >>= 64;
+    acclo += a->w[2];
+    acclo += b->w[2];
+    r->w[2] = acclo;
+    acclo >>= 64;
+#elif BIGNUM_INT_BITS == 32
     /* ./contrib/make1305.py add 32 */
     BignumDblInt acclo;
     acclo = 0;
@@ -290,7 +306,84 @@ static void bigval_add(bigval *r, const bigval *a, const bigval *b)
  */
 static void bigval_mul_mod_p(bigval *r, const bigval *a, const bigval *b)
 {
-#if BIGNUM_INT_BITS == 32
+#if BIGNUM_INT_BITS == 64
+    /* ./contrib/make1305.py mul 64 */
+    BignumDblInt tmp;
+    BignumDblInt acclo;
+    BignumDblInt acchi;
+    BignumDblInt acc2lo;
+    acclo = 0;
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    r->w[0] = acclo;
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    r->w[1] = acclo;
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[0]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[0]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    r->w[2] = acclo & (((BignumInt)1 << 2)-1);
+    acc2lo = 0;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 62)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[1]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[1]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 62);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 64;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 62)-1)) * ((BignumDblInt)5 << 0);
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    tmp = (BignumDblInt)(a->w[2]) * (b->w[2]);
+    acclo += tmp & BIGNUM_INT_MASK;
+    acchi += tmp >> 64;
+    acc2lo += (acclo & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 62);
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 64;
+    acc2lo += ((acclo >> 2) & (((BignumInt)1 << 2)-1)) * ((BignumDblInt)5 << 0);
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo = 0;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 60)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    acc2lo += (acclo & (((BignumInt)1 << 4)-1)) * ((BignumDblInt)25 << 60);
+    acc2lo += r->w[0];
+    r->w[0] = acc2lo;
+    acc2lo >>= 64;
+    acc2lo += ((acclo >> 4) & (((BignumInt)1 << 60)-1)) * ((BignumDblInt)25 << 0);
+    acclo = acchi + (acclo >> 64);
+    acchi = 0;
+    acc2lo += r->w[1];
+    r->w[1] = acc2lo;
+    acc2lo >>= 64;
+    acc2lo += r->w[2];
+    r->w[2] = acc2lo;
+    acc2lo >>= 64;
+#elif BIGNUM_INT_BITS == 32
     /* ./contrib/make1305.py mul 32 */
     BignumDblInt tmp;
     BignumDblInt acclo;
@@ -819,7 +912,28 @@ static void bigval_mul_mod_p(bigval *r, const bigval *a, const bigval *b)
 
 static void bigval_final_reduce(bigval *n)
 {
-#if BIGNUM_INT_BITS == 32
+#if BIGNUM_INT_BITS == 64
+    /* ./contrib/make1305.py final_reduce 64 */
+    BignumDblInt acclo;
+    acclo = 0;
+    acclo += 5 * ((n->w[2] >> 2) + 1);
+    acclo += n->w[0];
+    acclo >>= 64;
+    acclo += n->w[1];
+    acclo >>= 64;
+    acclo += n->w[2];
+    acclo = 5 * (acclo >> 2);
+    acclo += n->w[0];
+    n->w[0] = acclo;
+    acclo >>= 64;
+    acclo += n->w[1];
+    n->w[1] = acclo;
+    acclo >>= 64;
+    acclo += n->w[2];
+    n->w[2] = acclo;
+    acclo >>= 64;
+    n->w[2] &= (1 << 2) - 1;
+#elif BIGNUM_INT_BITS == 32
     /* ./contrib/make1305.py final_reduce 32 */
     BignumDblInt acclo;
     acclo = 0;
