@@ -515,7 +515,7 @@ static void monty_reduce(BignumInt *x, const BignumInt *n,
 }
 
 static void internal_add_shifted(BignumInt *number,
-				 unsigned n, int shift)
+				 BignumInt n, int shift)
 {
     int word = 1 + (shift / BIGNUM_INT_BITS);
     int bshift = shift % BIGNUM_INT_BITS;
@@ -546,8 +546,7 @@ static void internal_mod(BignumInt *a, int alen,
 			 BignumInt *m, int mlen,
 			 BignumInt *quot, int qshift)
 {
-    BignumInt m0, m1;
-    unsigned int h;
+    BignumInt m0, m1, h;
     int i, k;
 
     m0 = m[0];
@@ -559,7 +558,7 @@ static void internal_mod(BignumInt *a, int alen,
 
     for (i = 0; i <= alen - mlen; i++) {
 	BignumDblInt t;
-	unsigned int q, r, c, ai1;
+        BignumInt q, r, c, ai1;
 
 	if (i == 0) {
 	    h = 0;
@@ -614,7 +613,7 @@ static void internal_mod(BignumInt *a, int alen,
 	for (k = mlen - 1; k >= 0; k--) {
 	    t = MUL_WORD(q, m[k]);
 	    t += c;
-	    c = (unsigned)(t >> BIGNUM_INT_BITS);
+	    c = (BignumInt)(t >> BIGNUM_INT_BITS);
 	    if ((BignumInt) t > a[i + k])
 		c++;
 	    a[i + k] -= (BignumInt) t;
@@ -697,7 +696,7 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
     /* Skip leading zero bits of exp. */
     i = 0;
     j = BIGNUM_INT_BITS-1;
-    while (i < (int)exp[0] && (exp[exp[0] - i] & (1 << j)) == 0) {
+    while (i < (int)exp[0] && (exp[exp[0] - i] & ((BignumInt)1 << j)) == 0) {
 	j--;
 	if (j < 0) {
 	    i++;
@@ -710,7 +709,7 @@ Bignum modpow_simple(Bignum base_in, Bignum exp, Bignum mod)
 	while (j >= 0) {
 	    internal_mul(a + mlen, a + mlen, b, mlen, scratch);
 	    internal_mod(b, mlen * 2, m, mlen, NULL, 0);
-	    if ((exp[exp[0] - i] & (1 << j)) != 0) {
+	    if ((exp[exp[0] - i] & ((BignumInt)1 << j)) != 0) {
 		internal_mul(b + mlen, n, a, mlen, scratch);
 		internal_mod(a, mlen * 2, m, mlen, NULL, 0);
 	    } else {
@@ -847,7 +846,7 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
     /* Skip leading zero bits of exp. */
     i = 0;
     j = BIGNUM_INT_BITS-1;
-    while (i < (int)exp[0] && (exp[exp[0] - i] & (1 << j)) == 0) {
+    while (i < (int)exp[0] && (exp[exp[0] - i] & ((BignumInt)1 << j)) == 0) {
 	j--;
 	if (j < 0) {
 	    i++;
@@ -860,7 +859,7 @@ Bignum modpow(Bignum base_in, Bignum exp, Bignum mod)
 	while (j >= 0) {
 	    internal_mul(a + len, a + len, b, len, scratch);
             monty_reduce(b, n, mninv, scratch, len);
-	    if ((exp[exp[0] - i] & (1 << j)) != 0) {
+	    if ((exp[exp[0] - i] & ((BignumInt)1 << j)) != 0) {
                 internal_mul(b + len, x, a, len,  scratch);
                 monty_reduce(a, n, mninv, scratch, len);
 	    } else {
@@ -1110,7 +1109,8 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
 	result[i] = 0;
     for (i = nbytes; i--;) {
 	unsigned char byte = *data++;
-	result[1 + i / BIGNUM_INT_BYTES] |= byte << (8*i % BIGNUM_INT_BITS);
+	result[1 + i / BIGNUM_INT_BYTES] |=
+            (BignumInt)byte << (8*i % BIGNUM_INT_BITS);
     }
 
     while (result[0] > 1 && result[result[0]] == 0)
@@ -1206,7 +1206,7 @@ void bignum_set_bit(Bignum bn, int bitnum, int value)
 	abort();		       /* beyond the end */
     else {
 	int v = bitnum / BIGNUM_INT_BITS + 1;
-	int mask = 1 << (bitnum % BIGNUM_INT_BITS);
+	BignumInt mask = (BignumInt)1 << (bitnum % BIGNUM_INT_BITS);
 	if (value)
 	    bn[v] |= mask;
 	else
