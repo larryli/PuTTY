@@ -1746,6 +1746,12 @@ void modalfatalbox(char *p, ...)
     exit(1);
 }
 
+int random_byte(void)
+{
+    modalfatalbox("random_byte called in testbn");
+    return 0;
+}
+
 #define fromxdigit(c) ( (c)>'9' ? ((c)&0xDF) - 'A' + 10 : (c) - '0' )
 
 int main(int argc, char **argv)
