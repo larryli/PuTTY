@@ -198,7 +198,8 @@ static void bigval_import_le(bigval *r, const void *vdata, int len)
     int i;
     bigval_clear(r);
     for (i = 0; i < len; i++)
-        r->w[i / BIGNUM_INT_BYTES] |= data[i] << (8 * (i % BIGNUM_INT_BYTES));
+        r->w[i / BIGNUM_INT_BYTES] |=
+            (BignumInt)data[i] << (8 * (i % BIGNUM_INT_BYTES));
 }
 
 static void bigval_export_le(const bigval *r, void *vdata, int len)
@@ -951,7 +952,8 @@ static void poly1305_feed_chunk(struct poly1305 *ctx,
 {
     bigval c;
     bigval_import_le(&c, chunk, len);
-    c.w[len / BIGNUM_INT_BYTES] |= 1 << (8 * (len % BIGNUM_INT_BYTES));
+    c.w[len / BIGNUM_INT_BYTES] |=
+        (BignumInt)1 << (8 * (len % BIGNUM_INT_BYTES));
     bigval_add(&c, &c, &ctx->h);
     bigval_mul_mod_p(&ctx->h, &c, &ctx->r);
 }
