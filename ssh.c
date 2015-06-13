@@ -6778,6 +6778,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
         set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+        if (!s->hostkeydata) {
+            bombout(("unable to parse key exchange reply packet"));
+            crStopV;
+        }
         s->hkey = ssh->hostkey->newkey(ssh->hostkey,
                                        s->hostkeydata, s->hostkeylen);
         s->f = ssh2_pkt_getmp(pktin);
@@ -6786,6 +6790,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
             crStopV;
         }
         ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
+        if (!s->sigdata) {
+            bombout(("unable to parse key exchange reply packet"));
+            crStopV;
+        }
 
         {
             const char *err = dh_validate_f(ssh->kex_ctx, s->f);
@@ -6857,6 +6865,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
 
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+        if (!s->hostkeydata) {
+            bombout(("unable to parse ECDH reply packet"));
+            crStopV;
+        }
         hash_string(ssh->kex->hash, ssh->exhash, s->hostkeydata, s->hostkeylen);
         s->hkey = ssh->hostkey->newkey(ssh->hostkey,
                                        s->hostkeydata, s->hostkeylen);
@@ -6879,6 +6891,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
             char *keydata;
             int keylen;
             ssh_pkt_getstring(pktin, &keydata, &keylen);
+            if (!keydata) {
+                bombout(("unable to parse ECDH reply packet"));
+                crStopV;
+            }
             hash_string(ssh->kex->hash, ssh->exhash, keydata, keylen);
             s->K = ssh_ecdhkex_getkey(s->eckey, keydata, keylen);
             if (!s->K) {
@@ -6889,6 +6905,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
 
         ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
+        if (!s->sigdata) {
+            bombout(("unable to parse key exchange reply packet"));
+            crStopV;
+        }
 
         ssh_ecdhkex_freekey(s->eckey);
     } else {
@@ -6906,6 +6926,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
 
         ssh_pkt_getstring(pktin, &s->hostkeydata, &s->hostkeylen);
+        if (!s->hostkeydata) {
+            bombout(("unable to parse RSA public key packet"));
+            crStopV;
+        }
         hash_string(ssh->kex->hash, ssh->exhash,
 		    s->hostkeydata, s->hostkeylen);
 	s->hkey = ssh->hostkey->newkey(ssh->hostkey,
@@ -6914,6 +6938,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         {
             char *keydata;
             ssh_pkt_getstring(pktin, &keydata, &s->rsakeylen);
+            if (!keydata) {
+                bombout(("unable to parse RSA public key packet"));
+                crStopV;
+            }
             s->rsakeydata = snewn(s->rsakeylen, char);
             memcpy(s->rsakeydata, keydata, s->rsakeylen);
         }
@@ -6990,6 +7018,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         }
 
         ssh_pkt_getstring(pktin, &s->sigdata, &s->siglen);
+        if (!s->sigdata) {
+            bombout(("unable to parse signature packet"));
+            crStopV;
+        }
 
         sfree(s->rsakeydata);
     }
