@@ -6672,6 +6672,7 @@ static void do_ssh2_transport(Ssh ssh, void *vin, int inlen,
             bombout(("unable to parse key exchange reply packet"));
             crStopV;
         }
+        s->hkey = ssh->hostkey->newkey(s->hostkeydata, s->hostkeylen);
         s->f = ssh2_pkt_getmp(pktin);
         if (!s->f) {
             bombout(("unable to parse key exchange reply packet"));
