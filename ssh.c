@@ -7817,7 +7817,7 @@ static void ssh_check_termination(Ssh ssh)
 {
     if (ssh->version == 2 &&
         !conf_get_int(ssh->conf, CONF_ssh_no_shell) &&
-        count234(ssh->channels) == 0 &&
+        (ssh->channels && count234(ssh->channels) == 0) &&
         !(ssh->connshare && share_ndownstreams(ssh->connshare) > 0)) {
         /*
          * We used to send SSH_MSG_DISCONNECT here, because I'd
