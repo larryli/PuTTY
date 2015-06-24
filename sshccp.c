@@ -1290,7 +1290,11 @@ static void ccp_length_op(struct ccp_context *ctx, unsigned char *blk, int len,
                           unsigned long seq)
 {
     unsigned char iv[8];
-    PUT_32BIT_LSB_FIRST(iv, seq >> 32);
+    /*
+     * According to RFC 4253 (section 6.4), the packet sequence number wraps
+     * at 2^32, so its 32 high-order bits will always be zero.
+     */
+    PUT_32BIT_LSB_FIRST(iv, 0);
     PUT_32BIT_LSB_FIRST(iv + 4, seq);
     chacha20_iv(&ctx->a_cipher, iv);
     chacha20_iv(&ctx->b_cipher, iv);
