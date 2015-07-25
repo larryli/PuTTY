@@ -505,6 +505,7 @@ static int CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
              * And create the actual control set for that panel, to
              * match the initial treeview selection.
              */
+            assert(firstpath);   /* config.c must have given us _something_ */
             create_controls(hwnd, firstpath);
 	    dlg_refresh(NULL, &dp);    /* and set up control values */
 	}
