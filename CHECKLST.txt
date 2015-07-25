@@ -93,7 +93,7 @@ for it:
 
  - Write a release announcement (basically a summary of the changes
    since the last release). Squirrel it away in
-   atreus:src/putty/local/announce-<ver> in case it's needed again
+   atreus:src/putty-local/announce-<ver> in case it's needed again
    within days of the release going out.
 
  - Update the web site, in a local checkout.
@@ -106,6 +106,7 @@ for it:
      pre-releases, if there were any before this release. Comment out
      the big pre-release section at the top, and also adjust the
      sections about source archives at the bottom.
+   + Do the same on the Docs page.
    + Adjust header text on Changelog page. (That includes changing
      `are new' in previous version to `were new'!)
    + .htaccess has an individual redirect for each version number. Add
@@ -121,7 +122,7 @@ for it:
 
  - Build the release, by checking out the release tag:
      git checkout 0.XX
-     bob -F . RELEASE=0.XX
+     bob . RELEASE=0.XX
    This should generate a basically valid release directory as
    `build.out/putty', and provide link maps and sign.sh alongside that
    in build.out.
