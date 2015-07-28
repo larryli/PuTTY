@@ -176,11 +176,10 @@ static int repeatedly_try_grab(struct askpass_ctx *ctx, try_grab_fn_t fn)
     const useconds_t ms_step = 1000000/8;   /* at 1/8 second intervals */
     useconds_t ms;
 
-    for (ms = 0; ms < ms_limit; ms++) {
+    for (ms = 0; ms < ms_limit; ms += ms_step) {
         if (fn(ctx))
             return TRUE;
         usleep(ms_step);
-        ms += ms_step;
     }
     return FALSE;
 }
