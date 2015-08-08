@@ -1242,7 +1242,7 @@ static gboolean editbox_key(GtkWidget *widget, GdkEventKey *event,
      * in the dialog just like it will everywhere else.
      */
     GtkWidget *parent = gtk_widget_get_parent(widget);
-    if (event->keyval == GDK_Return && parent != NULL) {
+    if (event->keyval == GDK_KEY_Return && parent != NULL) {
 	gboolean return_val;
 	gtk_signal_emit_stop_by_name(GTK_OBJECT(widget), "key_press_event");
 	gtk_signal_emit_by_name(GTK_OBJECT(parent), "key_press_event",
@@ -2487,7 +2487,7 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
 
-    if (event->keyval == GDK_Escape && dp->cancelbutton) {
+    if (event->keyval == GDK_KEY_Escape && dp->cancelbutton) {
 	gtk_signal_emit_by_name(GTK_OBJECT(dp->cancelbutton), "clicked");
 	return TRUE;
     }

@@ -95,9 +95,11 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct askpass_ctx *ctx = (struct askpass_ctx *)data;
 
-    if (event->keyval == GDK_Return && event->type == GDK_KEY_PRESS) {
+    if (event->keyval == GDK_KEY_Return &&
+        event->type == GDK_KEY_PRESS) {
         gtk_main_quit();
-    } else if (event->keyval == GDK_Escape && event->type == GDK_KEY_PRESS) {
+    } else if (event->keyval == GDK_KEY_Escape &&
+               event->type == GDK_KEY_PRESS) {
         smemclr(ctx->passphrase, ctx->passsize);
         ctx->passphrase = NULL;
         gtk_main_quit();
@@ -128,7 +130,7 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                         break;
                 }
                 visually_acknowledge_keypress(ctx);
-            } else if (event->keyval == GDK_BackSpace) {
+            } else if (event->keyval == GDK_KEY_BackSpace) {
                 /* Backspace. Delete one character. */
                 if (ctx->passlen > 0)
                     ctx->passlen -= last_char_len(ctx);

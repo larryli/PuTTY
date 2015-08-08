@@ -563,8 +563,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
      * character code.
      */
     if (event->type == GDK_KEY_RELEASE) {
-        if ((event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
-             event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R) &&
+        if ((event->keyval == GDK_KEY_Meta_L ||
+             event->keyval == GDK_KEY_Meta_R ||
+             event->keyval == GDK_KEY_Alt_L ||
+             event->keyval == GDK_KEY_Alt_R) &&
             inst->alt_keycode >= 0 && inst->alt_digits > 1) {
 #ifdef KEY_DEBUGGING
             printf("Alt key up, keycode = %d\n", inst->alt_keycode);
@@ -605,8 +607,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * accumulating an Alt+numberpad code. We do this by
 	 * setting alt_keycode to -1 (nothing yet but plausible).
 	 */
-	if ((event->keyval == GDK_Meta_L || event->keyval == GDK_Alt_L ||
-	     event->keyval == GDK_Meta_R || event->keyval == GDK_Alt_R)) {
+	if ((event->keyval == GDK_KEY_Meta_L ||
+	     event->keyval == GDK_KEY_Meta_R ||
+             event->keyval == GDK_KEY_Alt_L ||
+             event->keyval == GDK_KEY_Alt_R)) {
 	    inst->alt_keycode = -1;
             inst->alt_digits = 0;
 	    goto done;		       /* this generates nothing else */
@@ -621,16 +625,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if ((event->state & GDK_MOD1_MASK) && inst->alt_keycode != -2) {
 	    int digit = -1;
 	    switch (event->keyval) {
-	      case GDK_KP_0: case GDK_KP_Insert: digit = 0; break;
-	      case GDK_KP_1: case GDK_KP_End: digit = 1; break;
-	      case GDK_KP_2: case GDK_KP_Down: digit = 2; break;
-	      case GDK_KP_3: case GDK_KP_Page_Down: digit = 3; break;
-	      case GDK_KP_4: case GDK_KP_Left: digit = 4; break;
-	      case GDK_KP_5: case GDK_KP_Begin: digit = 5; break;
-	      case GDK_KP_6: case GDK_KP_Right: digit = 6; break;
-	      case GDK_KP_7: case GDK_KP_Home: digit = 7; break;
-	      case GDK_KP_8: case GDK_KP_Up: digit = 8; break;
-	      case GDK_KP_9: case GDK_KP_Page_Up: digit = 9; break;
+	      case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: digit = 0; break;
+	      case GDK_KEY_KP_1: case GDK_KEY_KP_End: digit = 1; break;
+	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down: digit = 2; break;
+	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down: digit = 3; break;
+	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left: digit = 4; break;
+	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin: digit = 5; break;
+	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right: digit = 6; break;
+	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home: digit = 7; break;
+	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up: digit = 8; break;
+	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up: digit = 9; break;
 	    }
 	    if (digit < 0)
 		inst->alt_keycode = -2;   /* it's invalid */
@@ -656,19 +660,23 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
 	 * at all.
 	 */
-	if (event->keyval == GDK_Page_Up && (event->state & GDK_SHIFT_MASK)) {
+	if (event->keyval == GDK_KEY_Page_Up &&
+            (event->state & GDK_SHIFT_MASK)) {
 	    term_scroll(inst->term, 0, -inst->height/2);
 	    return TRUE;
 	}
-	if (event->keyval == GDK_Page_Up && (event->state & GDK_CONTROL_MASK)) {
+	if (event->keyval == GDK_KEY_Page_Up &&
+            (event->state & GDK_CONTROL_MASK)) {
 	    term_scroll(inst->term, 0, -1);
 	    return TRUE;
 	}
-	if (event->keyval == GDK_Page_Down && (event->state & GDK_SHIFT_MASK)) {
+	if (event->keyval == GDK_KEY_Page_Down &&
+            (event->state & GDK_SHIFT_MASK)) {
 	    term_scroll(inst->term, 0, +inst->height/2);
 	    return TRUE;
 	}
-	if (event->keyval == GDK_Page_Down && (event->state & GDK_CONTROL_MASK)) {
+	if (event->keyval == GDK_KEY_Page_Down &&
+            (event->state & GDK_CONTROL_MASK)) {
 	    term_scroll(inst->term, 0, +1);
 	    return TRUE;
 	}
@@ -676,7 +684,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Neither does Shift-Ins.
 	 */
-	if (event->keyval == GDK_Insert && (event->state & GDK_SHIFT_MASK)) {
+	if (event->keyval == GDK_KEY_Insert &&
+            (event->state & GDK_SHIFT_MASK)) {
 	    request_paste(inst);
 	    return TRUE;
 	}
@@ -710,54 +719,54 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * it to.
          */
 	if (app_keypad_mode &&
-            (event->keyval == GDK_Num_Lock ||
-             event->keyval == GDK_KP_Divide ||
-             event->keyval == GDK_KP_Multiply ||
-             event->keyval == GDK_KP_Subtract ||
-             event->keyval == GDK_KP_Add ||
-             event->keyval == GDK_KP_Enter ||
-             event->keyval == GDK_KP_0 ||
-             event->keyval == GDK_KP_Insert ||
-             event->keyval == GDK_KP_1 ||
-             event->keyval == GDK_KP_End ||
-             event->keyval == GDK_KP_2 ||
-             event->keyval == GDK_KP_Down ||
-             event->keyval == GDK_KP_3 ||
-             event->keyval == GDK_KP_Page_Down ||
-             event->keyval == GDK_KP_4 ||
-             event->keyval == GDK_KP_Left ||
-             event->keyval == GDK_KP_5 ||
-             event->keyval == GDK_KP_Begin ||
-             event->keyval == GDK_KP_6 ||
-             event->keyval == GDK_KP_Right ||
-             event->keyval == GDK_KP_7 ||
-             event->keyval == GDK_KP_Home ||
-             event->keyval == GDK_KP_8 ||
-             event->keyval == GDK_KP_Up ||
-             event->keyval == GDK_KP_9 ||
-             event->keyval == GDK_KP_Page_Up ||
-             event->keyval == GDK_KP_Decimal ||
-             event->keyval == GDK_KP_Delete)) {
+            (event->keyval == GDK_KEY_Num_Lock ||
+             event->keyval == GDK_KEY_KP_Divide ||
+             event->keyval == GDK_KEY_KP_Multiply ||
+             event->keyval == GDK_KEY_KP_Subtract ||
+             event->keyval == GDK_KEY_KP_Add ||
+             event->keyval == GDK_KEY_KP_Enter ||
+             event->keyval == GDK_KEY_KP_0 ||
+             event->keyval == GDK_KEY_KP_Insert ||
+             event->keyval == GDK_KEY_KP_1 ||
+             event->keyval == GDK_KEY_KP_End ||
+             event->keyval == GDK_KEY_KP_2 ||
+             event->keyval == GDK_KEY_KP_Down ||
+             event->keyval == GDK_KEY_KP_3 ||
+             event->keyval == GDK_KEY_KP_Page_Down ||
+             event->keyval == GDK_KEY_KP_4 ||
+             event->keyval == GDK_KEY_KP_Left ||
+             event->keyval == GDK_KEY_KP_5 ||
+             event->keyval == GDK_KEY_KP_Begin ||
+             event->keyval == GDK_KEY_KP_6 ||
+             event->keyval == GDK_KEY_KP_Right ||
+             event->keyval == GDK_KEY_KP_7 ||
+             event->keyval == GDK_KEY_KP_Home ||
+             event->keyval == GDK_KEY_KP_8 ||
+             event->keyval == GDK_KEY_KP_Up ||
+             event->keyval == GDK_KEY_KP_9 ||
+             event->keyval == GDK_KEY_KP_Page_Up ||
+             event->keyval == GDK_KEY_KP_Decimal ||
+             event->keyval == GDK_KEY_KP_Delete)) {
             /* app keypad; do nothing */
         } else if (nethack_mode &&
-                   (event->keyval == GDK_KP_1 ||
-                    event->keyval == GDK_KP_End ||
-                    event->keyval == GDK_KP_2 ||
-                    event->keyval == GDK_KP_Down ||
-                    event->keyval == GDK_KP_3 ||
-                    event->keyval == GDK_KP_Page_Down ||
-                    event->keyval == GDK_KP_4 ||
-                    event->keyval == GDK_KP_Left ||
-                    event->keyval == GDK_KP_5 ||
-                    event->keyval == GDK_KP_Begin ||
-                    event->keyval == GDK_KP_6 ||
-                    event->keyval == GDK_KP_Right ||
-                    event->keyval == GDK_KP_7 ||
-                    event->keyval == GDK_KP_Home ||
-                    event->keyval == GDK_KP_8 ||
-                    event->keyval == GDK_KP_Up ||
-                    event->keyval == GDK_KP_9 ||
-                    event->keyval == GDK_KP_Page_Up)) {
+                   (event->keyval == GDK_KEY_KP_1 ||
+                    event->keyval == GDK_KEY_KP_End ||
+                    event->keyval == GDK_KEY_KP_2 ||
+                    event->keyval == GDK_KEY_KP_Down ||
+                    event->keyval == GDK_KEY_KP_3 ||
+                    event->keyval == GDK_KEY_KP_Page_Down ||
+                    event->keyval == GDK_KEY_KP_4 ||
+                    event->keyval == GDK_KEY_KP_Left ||
+                    event->keyval == GDK_KEY_KP_5 ||
+                    event->keyval == GDK_KEY_KP_Begin ||
+                    event->keyval == GDK_KEY_KP_6 ||
+                    event->keyval == GDK_KEY_KP_Right ||
+                    event->keyval == GDK_KEY_KP_7 ||
+                    event->keyval == GDK_KEY_KP_Home ||
+                    event->keyval == GDK_KEY_KP_8 ||
+                    event->keyval == GDK_KEY_KP_Up ||
+                    event->keyval == GDK_KEY_KP_9 ||
+                    event->keyval == GDK_KEY_KP_Page_Up)) {
             /* nethack mode; do nothing */
         } else {
             if (gtk_im_context_filter_keypress(inst->imc, event))
@@ -819,7 +828,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Control-Break sends a Break special to the backend */
-	if (event->keyval == GDK_Break &&
+	if (event->keyval == GDK_KEY_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
 	    if (inst->back)
 		inst->back->special(inst->backhandle, TS_BRK);
@@ -828,7 +837,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 	/* We handle Return ourselves, because it needs to be flagged as
 	 * special to ldisc. */
-	if (event->keyval == GDK_Return) {
+	if (event->keyval == GDK_KEY_Return) {
 	    output[1] = '\015';
 	    use_ucsoutput = FALSE;
 	    end = 2;
@@ -857,7 +866,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* We don't let GTK tell us what Backspace is! We know better. */
-	if (event->keyval == GDK_BackSpace &&
+	if (event->keyval == GDK_KEY_BackSpace &&
 	    !(event->state & GDK_SHIFT_MASK)) {
 	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
 		'\x7F' : '\x08';
@@ -866,7 +875,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    special = TRUE;
 	}
 	/* For Shift Backspace, do opposite of what is configured. */
-	if (event->keyval == GDK_BackSpace &&
+	if (event->keyval == GDK_KEY_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
 	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
 		'\x08' : '\x7F';
@@ -876,15 +885,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/* Shift-Tab is ESC [ Z */
-	if (event->keyval == GDK_ISO_Left_Tab ||
-	    (event->keyval == GDK_Tab && (event->state & GDK_SHIFT_MASK))) {
+	if (event->keyval == GDK_KEY_ISO_Left_Tab ||
+	    (event->keyval == GDK_KEY_Tab &&
+             (event->state & GDK_SHIFT_MASK))) {
 	    end = 1 + sprintf(output+1, "\033[Z");
 	    use_ucsoutput = FALSE;
 	}
 	/* And normal Tab is Tab, if the keymap hasn't already told us.
 	 * (Curiously, at least one version of the MacOS 10.5 X server
 	 * doesn't translate Tab for us. */
-	if (event->keyval == GDK_Tab && end <= 1) {
+	if (event->keyval == GDK_KEY_Tab && end <= 1) {
 	    output[1] = '\t';
 	    end = 2;
 	}
@@ -895,15 +905,24 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (nethack_mode) {
 	    const char *keys = NULL;
 	    switch (event->keyval) {
-	      case GDK_KP_1: case GDK_KP_End: keys = "bB\002"; break;
-	      case GDK_KP_2: case GDK_KP_Down: keys = "jJ\012"; break;
-	      case GDK_KP_3: case GDK_KP_Page_Down: keys = "nN\016"; break;
-	      case GDK_KP_4: case GDK_KP_Left: keys = "hH\010"; break;
-	      case GDK_KP_5: case GDK_KP_Begin: keys = "..."; break;
-	      case GDK_KP_6: case GDK_KP_Right: keys = "lL\014"; break;
-	      case GDK_KP_7: case GDK_KP_Home: keys = "yY\031"; break;
-	      case GDK_KP_8: case GDK_KP_Up: keys = "kK\013"; break;
-	      case GDK_KP_9: case GDK_KP_Page_Up: keys = "uU\025"; break;
+	      case GDK_KEY_KP_1: case GDK_KEY_KP_End:
+                keys = "bB\002"; break;
+	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down:
+                keys = "jJ\012"; break;
+	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down:
+                keys = "nN\016"; break;
+	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left:
+                keys = "hH\010"; break;
+	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin:
+                keys = "..."; break;
+	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right:
+                keys = "lL\014"; break;
+	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home:
+                keys = "yY\031"; break;
+	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up:
+                keys = "kK\013"; break;
+	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up:
+                keys = "uU\025"; break;
 	    }
 	    if (keys) {
 		end = 2;
@@ -924,17 +943,17 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (app_keypad_mode) {
 	    int xkey = 0;
 	    switch (event->keyval) {
-	      case GDK_Num_Lock: xkey = 'P'; break;
-	      case GDK_KP_Divide: xkey = 'Q'; break;
-	      case GDK_KP_Multiply: xkey = 'R'; break;
-	      case GDK_KP_Subtract: xkey = 'S'; break;
+	      case GDK_KEY_Num_Lock: xkey = 'P'; break;
+	      case GDK_KEY_KP_Divide: xkey = 'Q'; break;
+	      case GDK_KEY_KP_Multiply: xkey = 'R'; break;
+	      case GDK_KEY_KP_Subtract: xkey = 'S'; break;
 		/*
 		 * Keypad + is tricky. It covers a space that would
 		 * be taken up on the VT100 by _two_ keys; so we
 		 * let Shift select between the two. Worse still,
 		 * in xterm function key mode we change which two...
 		 */
-	      case GDK_KP_Add:
+	      case GDK_KEY_KP_Add:
 		if (conf_get_int(inst->conf, CONF_funky_type) == FUNKY_XTERM) {
 		    if (event->state & GDK_SHIFT_MASK)
 			xkey = 'l';
@@ -945,18 +964,19 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		else
 		    xkey = 'l';
 		break;
-	      case GDK_KP_Enter: xkey = 'M'; break;
-	      case GDK_KP_0: case GDK_KP_Insert: xkey = 'p'; break;
-	      case GDK_KP_1: case GDK_KP_End: xkey = 'q'; break;
-	      case GDK_KP_2: case GDK_KP_Down: xkey = 'r'; break;
-	      case GDK_KP_3: case GDK_KP_Page_Down: xkey = 's'; break;
-	      case GDK_KP_4: case GDK_KP_Left: xkey = 't'; break;
-	      case GDK_KP_5: case GDK_KP_Begin: xkey = 'u'; break;
-	      case GDK_KP_6: case GDK_KP_Right: xkey = 'v'; break;
-	      case GDK_KP_7: case GDK_KP_Home: xkey = 'w'; break;
-	      case GDK_KP_8: case GDK_KP_Up: xkey = 'x'; break;
-	      case GDK_KP_9: case GDK_KP_Page_Up: xkey = 'y'; break;
-	      case GDK_KP_Decimal: case GDK_KP_Delete: xkey = 'n'; break;
+	      case GDK_KEY_KP_Enter: xkey = 'M'; break;
+	      case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: xkey = 'p'; break;
+	      case GDK_KEY_KP_1: case GDK_KEY_KP_End: xkey = 'q'; break;
+	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down: xkey = 'r'; break;
+	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down: xkey = 's'; break;
+	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left: xkey = 't'; break;
+	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin: xkey = 'u'; break;
+	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right: xkey = 'v'; break;
+	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home: xkey = 'w'; break;
+	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up: xkey = 'x'; break;
+	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up: xkey = 'y'; break;
+	      case GDK_KEY_KP_Decimal: case GDK_KEY_KP_Delete:
+                xkey = 'n'; break;
 	    }
 	    if (xkey) {
 		if (inst->term->vt52_mode) {
@@ -984,84 +1004,84 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    int code = 0;
 	    int funky_type = conf_get_int(inst->conf, CONF_funky_type);
 	    switch (event->keyval) {
-	      case GDK_F1:
+	      case GDK_KEY_F1:
 		code = (event->state & GDK_SHIFT_MASK ? 23 : 11);
 		break;
-	      case GDK_F2:
+	      case GDK_KEY_F2:
 		code = (event->state & GDK_SHIFT_MASK ? 24 : 12);
 		break;
-	      case GDK_F3:
+	      case GDK_KEY_F3:
 		code = (event->state & GDK_SHIFT_MASK ? 25 : 13);
 		break;
-	      case GDK_F4:
+	      case GDK_KEY_F4:
 		code = (event->state & GDK_SHIFT_MASK ? 26 : 14);
 		break;
-	      case GDK_F5:
+	      case GDK_KEY_F5:
 		code = (event->state & GDK_SHIFT_MASK ? 28 : 15);
 		break;
-	      case GDK_F6:
+	      case GDK_KEY_F6:
 		code = (event->state & GDK_SHIFT_MASK ? 29 : 17);
 		break;
-	      case GDK_F7:
+	      case GDK_KEY_F7:
 		code = (event->state & GDK_SHIFT_MASK ? 31 : 18);
 		break;
-	      case GDK_F8:
+	      case GDK_KEY_F8:
 		code = (event->state & GDK_SHIFT_MASK ? 32 : 19);
 		break;
-	      case GDK_F9:
+	      case GDK_KEY_F9:
 		code = (event->state & GDK_SHIFT_MASK ? 33 : 20);
 		break;
-	      case GDK_F10:
+	      case GDK_KEY_F10:
 		code = (event->state & GDK_SHIFT_MASK ? 34 : 21);
 		break;
-	      case GDK_F11:
+	      case GDK_KEY_F11:
 		code = 23;
 		break;
-	      case GDK_F12:
+	      case GDK_KEY_F12:
 		code = 24;
 		break;
-	      case GDK_F13:
+	      case GDK_KEY_F13:
 		code = 25;
 		break;
-	      case GDK_F14:
+	      case GDK_KEY_F14:
 		code = 26;
 		break;
-	      case GDK_F15:
+	      case GDK_KEY_F15:
 		code = 28;
 		break;
-	      case GDK_F16:
+	      case GDK_KEY_F16:
 		code = 29;
 		break;
-	      case GDK_F17:
+	      case GDK_KEY_F17:
 		code = 31;
 		break;
-	      case GDK_F18:
+	      case GDK_KEY_F18:
 		code = 32;
 		break;
-	      case GDK_F19:
+	      case GDK_KEY_F19:
 		code = 33;
 		break;
-	      case GDK_F20:
+	      case GDK_KEY_F20:
 		code = 34;
 		break;
 	    }
 	    if (!(event->state & GDK_CONTROL_MASK)) switch (event->keyval) {
-	      case GDK_Home: case GDK_KP_Home:
+	      case GDK_KEY_Home: case GDK_KEY_KP_Home:
 		code = 1;
 		break;
-	      case GDK_Insert: case GDK_KP_Insert:
+	      case GDK_KEY_Insert: case GDK_KEY_KP_Insert:
 		code = 2;
 		break;
-	      case GDK_Delete: case GDK_KP_Delete:
+	      case GDK_KEY_Delete: case GDK_KEY_KP_Delete:
 		code = 3;
 		break;
-	      case GDK_End: case GDK_KP_End:
+	      case GDK_KEY_End: case GDK_KEY_KP_End:
 		code = 4;
 		break;
-	      case GDK_Page_Up: case GDK_KP_Page_Up:
+	      case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up:
 		code = 5;
 		break;
-	      case GDK_Page_Down: case GDK_KP_Page_Down:
+	      case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down:
 		code = 6;
 		break;
 	    }
@@ -1080,18 +1100,18 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
 		int index = 0;
 		switch (event->keyval) {
-		  case GDK_F1: index = 0; break;
-		  case GDK_F2: index = 1; break;
-		  case GDK_F3: index = 2; break;
-		  case GDK_F4: index = 3; break;
-		  case GDK_F5: index = 4; break;
-		  case GDK_F6: index = 5; break;
-		  case GDK_F7: index = 6; break;
-		  case GDK_F8: index = 7; break;
-		  case GDK_F9: index = 8; break;
-		  case GDK_F10: index = 9; break;
-		  case GDK_F11: index = 10; break;
-		  case GDK_F12: index = 11; break;
+		  case GDK_KEY_F1: index = 0; break;
+		  case GDK_KEY_F2: index = 1; break;
+		  case GDK_KEY_F3: index = 2; break;
+		  case GDK_KEY_F4: index = 3; break;
+		  case GDK_KEY_F5: index = 4; break;
+		  case GDK_KEY_F6: index = 5; break;
+		  case GDK_KEY_F7: index = 6; break;
+		  case GDK_KEY_F8: index = 7; break;
+		  case GDK_KEY_F9: index = 8; break;
+		  case GDK_KEY_F10: index = 9; break;
+		  case GDK_KEY_F11: index = 10; break;
+		  case GDK_KEY_F12: index = 11; break;
 		}
 		if (event->state & GDK_SHIFT_MASK) index += 12;
 		if (event->state & GDK_CONTROL_MASK) index += 24;
@@ -1163,11 +1183,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	{
 	    int xkey = 0;
 	    switch (event->keyval) {
-	      case GDK_Up: case GDK_KP_Up: xkey = 'A'; break;
-	      case GDK_Down: case GDK_KP_Down: xkey = 'B'; break;
-	      case GDK_Right: case GDK_KP_Right: xkey = 'C'; break;
-	      case GDK_Left: case GDK_KP_Left: xkey = 'D'; break;
-	      case GDK_Begin: case GDK_KP_Begin: xkey = 'G'; break;
+	      case GDK_KEY_Up: case GDK_KEY_KP_Up: xkey = 'A'; break;
+	      case GDK_KEY_Down: case GDK_KEY_KP_Down: xkey = 'B'; break;
+	      case GDK_KEY_Right: case GDK_KEY_KP_Right: xkey = 'C'; break;
+	      case GDK_KEY_Left: case GDK_KEY_KP_Left: xkey = 'D'; break;
+	      case GDK_KEY_Begin: case GDK_KEY_KP_Begin: xkey = 'G'; break;
 	    }
 	    if (xkey) {
 		end = 1 + format_arrow_key(output+1, inst->term, xkey,
