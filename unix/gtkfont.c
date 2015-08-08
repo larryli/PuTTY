@@ -2045,7 +2045,8 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 				       42, FALSE, FALSE, font->width);
 	}
 	gdk_gc_unref(gc);
-	gdk_window_invalidate_rect(fs->preview_area->window, NULL, FALSE);
+        gdk_window_invalidate_rect(gtk_widget_get_window(fs->preview_area),
+                                   NULL, FALSE);
     }
     if (font)
 	info->fontclass->destroy(font);
@@ -2478,8 +2479,9 @@ static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
     unifontsel_internal *fs = (unifontsel_internal *)data;
 
     if (fs->preview_pixmap) {
-	gdk_draw_pixmap(widget->window,
-			widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
+        gdk_draw_pixmap(gtk_widget_get_window(widget),
+			(gtk_widget_get_style(widget)->fg_gc
+                         [gtk_widget_get_state(widget)]),
 			fs->preview_pixmap,
 			event->area.x, event->area.y,
 			event->area.x, event->area.y,
@@ -2507,14 +2509,15 @@ static gint unifontsel_configure_area(GtkWidget *widget,
 	
 	nx = (x > ox ? x : ox);
 	ny = (y > oy ? y : oy);
-	fs->preview_pixmap = gdk_pixmap_new(widget->window, nx, ny, -1);
+	fs->preview_pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
+                                            nx, ny, -1);
 	fs->preview_width = nx;
 	fs->preview_height = ny;
 
 	unifontsel_draw_preview_text(fs);
     }
 
-    gdk_window_invalidate_rect(widget->window, NULL, FALSE);
+    gdk_window_invalidate_rect(gtk_widget_get_window(widget), NULL, FALSE);
 
     return TRUE;
 }
@@ -2584,7 +2587,8 @@ unifontsel *unifontsel_new(const char *wintitle)
 #else
     w = table;
 #endif
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(fs->u.window)->vbox),
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area
+                               (GTK_DIALOG(fs->u.window))),
 		       w, TRUE, TRUE, 0);
 
     label = gtk_label_new_with_mnemonic("_Font:");

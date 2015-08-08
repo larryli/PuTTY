@@ -14,6 +14,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include "gtkcompat.h"
+
 #include "gtkcols.h"
 #include "gtkfont.h"
 
@@ -221,7 +223,7 @@ static struct uctrl *dlg_find_bywidget(struct dlgparam *dp, GtkWidget *w)
 	ret = find234(dp->bywidget, w, uctrl_cmp_bywidget_find);
 	if (ret)
 	    return ret;
-	w = w->parent;
+	w = gtk_widget_get_parent(w);
     } while (w);
     return ret;
 }
@@ -1035,8 +1037,8 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
     gtk_window_set_position(GTK_WINDOW(child), GTK_WIN_POS_NONE);
     gtk_widget_size_request(GTK_WIDGET(child), &req);
 
-    gdk_window_get_origin(GTK_WIDGET(parent)->window, &x, &y);
-    gdk_window_get_size(GTK_WIDGET(parent)->window, &w, &h);
+    gdk_window_get_origin(gtk_widget_get_window(GTK_WIDGET(parent)), &x, &y);
+    gdk_window_get_size(gtk_widget_get_window(GTK_WIDGET(parent)), &w, &h);
 
     /*
      * One corner of the transient will be offset inwards, by 1/4
@@ -1067,17 +1069,17 @@ void dlg_error_msg(void *dlg, const char *msg)
     gtk_misc_set_alignment(GTK_MISC(text), 0.0, 0.0);
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), text, FALSE, FALSE, 20);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
+    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
                        hbox, FALSE, FALSE, 20);
     gtk_widget_show(text);
     gtk_widget_show(hbox);
     gtk_window_set_title(GTK_WINDOW(window), "Error");
     gtk_label_set_line_wrap(GTK_LABEL(text), TRUE);
     ok = gtk_button_new_with_label("OK");
-    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(window)->action_area),
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(window))),
                      ok, FALSE, FALSE, 0);
     gtk_widget_show(ok);
-    GTK_WIDGET_SET_FLAGS(ok, GTK_CAN_DEFAULT);
+    gtk_widget_set_can_default(ok, TRUE);
     gtk_window_set_default(GTK_WINDOW(window), ok);
     gtk_signal_connect(GTK_OBJECT(ok), "clicked",
                        GTK_SIGNAL_FUNC(errmsg_button_clicked), window);
@@ -1127,38 +1129,50 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     gdouble cvals[4];
+    GtkWidget *okbutton, *cancelbutton;
 
     GtkWidget *coloursel =
 	gtk_color_selection_dialog_new("Select a colour");
     GtkColorSelectionDialog *ccs = GTK_COLOR_SELECTION_DIALOG(coloursel);
+    GtkColorSelection *cs = GTK_COLOR_SELECTION
+        (gtk_color_selection_dialog_get_color_selection(ccs));
 
     dp->coloursel_result.ok = FALSE;
 
     gtk_window_set_modal(GTK_WINDOW(coloursel), TRUE);
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_color_selection_set_has_opacity_control(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+    gtk_color_selection_set_has_opacity_control(cs, FALSE);
 #else
-    gtk_color_selection_set_opacity(GTK_COLOR_SELECTION(ccs->colorsel), FALSE);
+    gtk_color_selection_set_opacity(cs, FALSE);
 #endif
     cvals[0] = r / 255.0;
     cvals[1] = g / 255.0;
     cvals[2] = b / 255.0;
     cvals[3] = 1.0;		       /* fully opaque! */
-    gtk_color_selection_set_color(GTK_COLOR_SELECTION(ccs->colorsel), cvals);
+    gtk_color_selection_set_color(cs, cvals);
 
-    gtk_object_set_data(GTK_OBJECT(ccs->ok_button), "user-data",
+#if GTK_CHECK_VERSION(2,0,0)
+    g_object_get(G_OBJECT(ccs),
+                 "ok-button", &okbutton,
+                 "cancel-button", &cancelbutton,
+                 (const char *)NULL);
+#else
+    okbutton = ccs->ok_button;
+    cancelbutton = ccs->cancel_button;
+#endif
+    g_object_set_data(G_OBJECT(okbutton), "user-data",
 			(gpointer)coloursel);
-    gtk_object_set_data(GTK_OBJECT(ccs->cancel_button), "user-data",
+    g_object_set_data(G_OBJECT(cancelbutton), "user-data",
 			(gpointer)coloursel);
     gtk_object_set_data(GTK_OBJECT(coloursel), "user-data", (gpointer)uc);
-    gtk_signal_connect(GTK_OBJECT(ccs->ok_button), "clicked",
+    gtk_signal_connect(GTK_OBJECT(okbutton), "clicked",
 		       GTK_SIGNAL_FUNC(coloursel_ok), (gpointer)dp);
-    gtk_signal_connect(GTK_OBJECT(ccs->cancel_button), "clicked",
+    gtk_signal_connect(GTK_OBJECT(cancelbutton), "clicked",
 		       GTK_SIGNAL_FUNC(coloursel_cancel), (gpointer)dp);
-    gtk_signal_connect_object(GTK_OBJECT(ccs->ok_button), "clicked",
+    gtk_signal_connect_object(GTK_OBJECT(okbutton), "clicked",
 			      GTK_SIGNAL_FUNC(gtk_widget_destroy),
 			      (gpointer)coloursel);
-    gtk_signal_connect_object(GTK_OBJECT(ccs->cancel_button), "clicked",
+    gtk_signal_connect_object(GTK_OBJECT(cancelbutton), "clicked",
 			      GTK_SIGNAL_FUNC(gtk_widget_destroy),
 			      (gpointer)coloursel);
     gtk_widget_show(coloursel);
@@ -1227,11 +1241,12 @@ static gboolean editbox_key(GtkWidget *widget, GdkEventKey *event,
      * Return in an edit box will now activate the default button
      * in the dialog just like it will everywhere else.
      */
-    if (event->keyval == GDK_Return && widget->parent != NULL) {
+    GtkWidget *parent = gtk_widget_get_parent(widget);
+    if (event->keyval == GDK_Return && parent != NULL) {
 	gboolean return_val;
 	gtk_signal_emit_stop_by_name(GTK_OBJECT(widget), "key_press_event");
-	gtk_signal_emit_by_name(GTK_OBJECT(widget->parent), "key_press_event",
-				event, &return_val);
+	gtk_signal_emit_by_name(GTK_OBJECT(parent), "key_press_event",
+                                event, &return_val);
 	return return_val;
     }
     return FALSE;
@@ -1585,10 +1600,11 @@ static void coloursel_ok(GtkButton *button, gpointer data)
     struct dlgparam *dp = (struct dlgparam *)data;
     gpointer coloursel = gtk_object_get_data(GTK_OBJECT(button), "user-data");
     struct uctrl *uc = gtk_object_get_data(GTK_OBJECT(coloursel), "user-data");
+    GtkColorSelection *cs = GTK_COLOR_SELECTION
+        (gtk_color_selection_dialog_get_color_selection
+         (GTK_COLOR_SELECTION_DIALOG(coloursel)));
     gdouble cvals[4];
-    gtk_color_selection_get_color
-	(GTK_COLOR_SELECTION(GTK_COLOR_SELECTION_DIALOG(coloursel)->colorsel),
-	 cvals);
+    gtk_color_selection_get_color(cs, cvals);
     dp->coloursel_result.r = (int) (255 * cvals[0]);
     dp->coloursel_result.g = (int) (255 * cvals[1]);
     dp->coloursel_result.b = (int) (255 * cvals[2]);
@@ -1821,7 +1837,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
           case CTRL_BUTTON:
             w = gtk_button_new_with_label(ctrl->generic.label);
 	    if (win) {
-		GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
+		gtk_widget_set_can_default(w, TRUE);
 		if (ctrl->button.isdefault)
 		    gtk_window_set_default(win, w);
 		if (ctrl->button.iscancel)
@@ -1831,8 +1847,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 			       GTK_SIGNAL_FUNC(button_clicked), dp);
             gtk_signal_connect(GTK_OBJECT(w), "focus_in_event",
                                GTK_SIGNAL_FUNC(widget_focus), dp);
-	    shortcut_add(scs, GTK_BIN(w)->child, ctrl->button.shortcut,
-			 SHORTCUT_UCTRL, uc);
+            shortcut_add(scs, gtk_bin_get_child(GTK_BIN(w)),
+                         ctrl->button.shortcut, SHORTCUT_UCTRL, uc);
             break;
           case CTRL_CHECKBOX:
             w = gtk_check_button_new_with_label(ctrl->generic.label);
@@ -1840,8 +1856,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 			       GTK_SIGNAL_FUNC(button_toggled), dp);
             gtk_signal_connect(GTK_OBJECT(w), "focus_in_event",
                                GTK_SIGNAL_FUNC(widget_focus), dp);
-	    shortcut_add(scs, GTK_BIN(w)->child, ctrl->checkbox.shortcut,
-			 SHORTCUT_UCTRL, uc);
+            shortcut_add(scs, gtk_bin_get_child(GTK_BIN(w)),
+                         ctrl->checkbox.shortcut, SHORTCUT_UCTRL, uc);
 	    left = TRUE;
             break;
           case CTRL_RADIO:
@@ -1896,7 +1912,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                     gtk_signal_connect(GTK_OBJECT(b), "focus_in_event",
                                        GTK_SIGNAL_FUNC(widget_focus), dp);
 		    if (ctrl->radio.shortcuts) {
-			shortcut_add(scs, GTK_BIN(b)->child,
+			shortcut_add(scs, gtk_bin_get_child(GTK_BIN(b)),
 				     ctrl->radio.shortcuts[i],
 				     SHORTCUT_UCTRL, uc);
 		    }
@@ -2786,11 +2802,13 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
     gtk_alignment_set_padding(GTK_ALIGNMENT(align), 8, 8, 8, 8);
 #endif
     gtk_widget_show(align);
-    gtk_box_pack_end(GTK_BOX(dlg->vbox), align, FALSE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
+                     align, FALSE, TRUE, 0);
     w = gtk_hseparator_new();
-    gtk_box_pack_end(GTK_BOX(dlg->vbox), w, FALSE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
+                     w, FALSE, TRUE, 0);
     gtk_widget_show(w);
-    gtk_widget_hide(dlg->action_area);
+    gtk_widget_hide(gtk_dialog_get_action_area(dlg));
     gtk_dialog_set_has_separator(dlg, FALSE);
 #endif
 }
@@ -2835,7 +2853,9 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 
     gtk_window_set_title(GTK_WINDOW(window), title);
     hbox = gtk_hbox_new(FALSE, 4);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox), hbox, TRUE, TRUE, 0);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
+         hbox, TRUE, TRUE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
     gtk_widget_show(hbox);
     vbox = gtk_vbox_new(FALSE, 4);
@@ -3207,8 +3227,9 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     w1 = layout_ctrls(&dp, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_usize(w1, minwid+20, -1);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
-		       w1, TRUE, TRUE, 0);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
+         w1, TRUE, TRUE, 0);
     gtk_widget_show(w1);
 
     dp.shortcuts = &scs;
@@ -3463,35 +3484,38 @@ void about_box(void *window)
     sfree(title);
 
     w = gtk_button_new_with_label("Close");
-    GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
+    gtk_widget_set_can_default(w, TRUE);
     gtk_window_set_default(GTK_WINDOW(aboutbox), w);
-    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(aboutbox)->action_area),
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(aboutbox))),
 		     w, FALSE, FALSE, 0);
     gtk_signal_connect(GTK_OBJECT(w), "clicked",
 		       GTK_SIGNAL_FUNC(about_close_clicked), NULL);
     gtk_widget_show(w);
 
     w = gtk_button_new_with_label("View Licence");
-    GTK_WIDGET_SET_FLAGS(w, GTK_CAN_DEFAULT);
-    gtk_box_pack_end(GTK_BOX(GTK_DIALOG(aboutbox)->action_area),
+    gtk_widget_set_can_default(w, TRUE);
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(aboutbox))),
 		     w, FALSE, FALSE, 0);
     gtk_signal_connect(GTK_OBJECT(w), "clicked",
 		       GTK_SIGNAL_FUNC(licence_clicked), NULL);
     gtk_widget_show(w);
 
     w = gtk_label_new(appname);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
-		       w, FALSE, FALSE, 0);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
+         w, FALSE, FALSE, 0);
     gtk_widget_show(w);
 
     w = gtk_label_new(ver);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
-		       w, FALSE, FALSE, 5);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
+         w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
     w = gtk_label_new("Copyright 1997-2015 Simon Tatham. All rights reserved");
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(aboutbox)->vbox),
-		       w, FALSE, FALSE, 5);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
+         w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
@@ -3595,7 +3619,7 @@ void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 {
     struct eventlog_stuff *es = (struct eventlog_stuff *)data;
 
-    gtk_selection_data_set(seldata, seldata->target, 8,
+    gtk_selection_data_set(seldata, gtk_selection_data_get_target(seldata), 8,
                            (unsigned char *)es->seldata, es->sellen);
 }
 
@@ -3680,8 +3704,9 @@ void showeventlog(void *estuff, void *parentwin)
 			 string_width("LINE OF TEXT GIVING WIDTH OF EVENT LOG"
 				      " IS QUITE LONG 'COS SSH LOG ENTRIES"
 				      " ARE WIDE"), -1);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(window)->vbox),
-		       w1, TRUE, TRUE, 0);
+    gtk_box_pack_start
+        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
+         w1, TRUE, TRUE, 0);
     gtk_widget_show(w1);
 
     es->dp.data = es;

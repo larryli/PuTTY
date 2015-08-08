@@ -37,6 +37,7 @@
 
 #include "putty.h"
 #include "terminal.h"
+#include "gtkcompat.h"
 #include "gtkfont.h"
 
 #define CAT2(x,y) x ## y
@@ -316,7 +317,7 @@ void move_window(void *frontend, int x, int y)
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_window_move(GTK_WINDOW(inst->window), x, y);
 #else
-    gdk_window_move(inst->window->window, x, y);
+    gdk_window_move(gtk_widget_get_window(inst->window), x, y);
 #endif
 }
 
@@ -328,9 +329,9 @@ void set_zorder(void *frontend, int top)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     if (top)
-	gdk_window_raise(inst->window->window);
+	gdk_window_raise(gtk_widget_get_window(inst->window));
     else
-	gdk_window_lower(inst->window->window);
+	gdk_window_lower(gtk_widget_get_window(inst->window));
 }
 
 /*
@@ -366,7 +367,7 @@ void set_zoomed(void *frontend, int zoomed)
 int is_iconic(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    return !gdk_window_is_viewable(inst->window->window);
+    return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
 }
 
 /*
@@ -383,7 +384,7 @@ void get_window_pos(void *frontend, int *x, int *y)
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_window_get_position(GTK_WINDOW(inst->window), x, y);
 #else
-    gdk_window_get_position(inst->window->window, x, y);
+    gdk_window_get_position(gtk_widget_get_window(inst->window), x, y);
 #endif
 }
 
@@ -401,7 +402,7 @@ void get_window_pixels(void *frontend, int *x, int *y)
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_window_get_size(GTK_WINDOW(inst->window), x, y);
 #else
-    gdk_window_get_size(inst->window->window, x, y);
+    gdk_window_get_size(gtk_widget_get_window(inst->window), x, y);
 #endif
 }
 
@@ -429,17 +430,21 @@ static void update_mouseptr(struct gui_data *inst)
     switch (inst->busy_status) {
       case BUSY_NOT:
 	if (!inst->mouseptr_visible) {
-	    gdk_window_set_cursor(inst->area->window, inst->blankcursor);
+	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
+                                  inst->blankcursor);
 	} else if (send_raw_mouse) {
-	    gdk_window_set_cursor(inst->area->window, inst->rawcursor);
+	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
+                                  inst->rawcursor);
 	} else {
-	    gdk_window_set_cursor(inst->area->window, inst->textcursor);
+	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
+                                  inst->textcursor);
 	}
 	break;
       case BUSY_WAITING:    /* XXX can we do better? */
       case BUSY_CPU:
 	/* We always display these cursors. */
-	gdk_window_set_cursor(inst->area->window, inst->waitcursor);
+	gdk_window_set_cursor(gtk_widget_get_window(inst->area),
+                              inst->waitcursor);
 	break;
       default:
 	assert(0);
@@ -456,7 +461,7 @@ static void show_mouseptr(struct gui_data *inst, int show)
 
 void draw_backing_rect(struct gui_data *inst)
 {
-    GdkGC *gc = gdk_gc_new(inst->area->window);
+    GdkGC *gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     gdk_gc_set_foreground(gc, &inst->cols[258]);    /* default background */
     gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
 		       inst->width * inst->font_width + 2*inst->window_border,
@@ -488,7 +493,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	inst->pixmap = NULL;
     }
 
-    inst->pixmap = gdk_pixmap_new(widget->window,
+    inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
 				  (w * inst->font_width + 2*inst->window_border),
 				  (h * inst->font_height + 2*inst->window_border), -1);
 
@@ -502,7 +507,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	term_invalidate(inst->term);
 
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_im_context_set_client_window(inst->imc, widget->window);
+    gtk_im_context_set_client_window(inst->imc, gtk_widget_get_window(widget));
 #endif
 
     return TRUE;
@@ -517,8 +522,9 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
      * back to do the actual painting.
      */
     if (inst->pixmap) {
-	gdk_draw_pixmap(widget->window,
-			widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
+	gdk_draw_pixmap(gtk_widget_get_window(widget),
+			(gtk_widget_get_style(widget)->fg_gc
+                         [gtk_widget_get_state(widget)]),
 			inst->pixmap,
 			event->area.x, event->area.y,
 			event->area.x, event->area.y,
@@ -1650,7 +1656,7 @@ void request_resize(void *frontend, int w, int h)
      * above.
      */
     gtk_container_dequeue_resize_handler(GTK_CONTAINER(inst->window));
-    gdk_window_resize(inst->window->window,
+    gdk_window_resize(gtk_widget_get_window(inst->window),
 		      area_x + offset_x, area_y + offset_y);
 #endif
 }
@@ -1673,10 +1679,12 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 
 void set_window_background(struct gui_data *inst)
 {
-    if (inst->area && inst->area->window)
-	gdk_window_set_background(inst->area->window, &inst->cols[258]);
-    if (inst->window && inst->window->window)
-	gdk_window_set_background(inst->window->window, &inst->cols[258]);
+    if (inst->area && gtk_widget_get_window(inst->area))
+	gdk_window_set_background(gtk_widget_get_window(inst->area),
+                                  &inst->cols[258]);
+    if (inst->window && gtk_widget_get_window(inst->window))
+	gdk_window_set_background(gtk_widget_get_window(inst->window),
+                                  &inst->cols[258]);
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
@@ -1753,7 +1761,7 @@ void palette_reset(void *frontend)
     /* Since Default Background may have changed, ensure that space
      * between text area and window border is refreshed. */
     set_window_background(inst);
-    if (inst->area && inst->area->window) {
+    if (inst->area && gtk_widget_get_window(inst->area)) {
 	draw_backing_rect(inst);
 	gtk_widget_queue_draw(inst->area);
     }
@@ -1901,17 +1909,18 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 		   guint info, guint time_stamp, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    if (seldata->target == utf8_string_atom)
-	gtk_selection_data_set(seldata, seldata->target, 8,
-			       (unsigned char *)inst->pasteout_data_utf8,
+    GdkAtom target = gtk_selection_data_get_target(seldata);
+    if (target == utf8_string_atom)
+	gtk_selection_data_set(seldata, target, 8,
+                               (unsigned char *)inst->pasteout_data_utf8,
 			       inst->pasteout_data_utf8_len);
-    else if (seldata->target == compound_text_atom)
-	gtk_selection_data_set(seldata, seldata->target, 8,
-			       (unsigned char *)inst->pasteout_data_ctext,
+    else if (target == compound_text_atom)
+	gtk_selection_data_set(seldata, target, 8,
+                               (unsigned char *)inst->pasteout_data_ctext,
 			       inst->pasteout_data_ctext_len);
     else
-	gtk_selection_data_set(seldata, seldata->target, 8,
-			       (unsigned char *)inst->pasteout_data,
+	gtk_selection_data_set(seldata, target, 8,
+                               (unsigned char *)inst->pasteout_data,
 			       inst->pasteout_data_len);
 }
 
@@ -1980,8 +1989,13 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     int free_list_required = 0;
     int free_required = 0;
     int charset;
+    GdkAtom seldata_target = gtk_selection_data_get_target(seldata);
+    GdkAtom seldata_type = gtk_selection_data_get_data_type(seldata);
+    const guchar *seldata_data = gtk_selection_data_get_data(seldata);
+    gint seldata_length = gtk_selection_data_get_length(seldata);
+    gint seldata_format = gtk_selection_data_get_format(seldata);
 
-    if (seldata->target == utf8_string_atom && seldata->length <= 0) {
+    if (seldata_target == utf8_string_atom && seldata_length <= 0) {
 	/*
 	 * Failed to get a UTF-8 selection string. Try compound
 	 * text next.
@@ -1992,7 +2006,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	return;
     }
 
-    if (seldata->target == compound_text_atom && seldata->length <= 0) {
+    if (seldata_target == compound_text_atom && seldata_length <= 0) {
 	/*
 	 * Failed to get UTF-8 or compound text. Try an ordinary
 	 * string.
@@ -2007,16 +2021,16 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      * If we have data, but it's not of a type we can deal with,
      * we have to ignore the data.
      */
-    if (seldata->length > 0 &&
-	seldata->type != GDK_SELECTION_TYPE_STRING &&
-	seldata->type != compound_text_atom &&
-	seldata->type != utf8_string_atom)
+    if (seldata_length > 0 &&
+	seldata_type != GDK_SELECTION_TYPE_STRING &&
+	seldata_type != compound_text_atom &&
+	seldata_type != utf8_string_atom)
 	return;
 
     /*
      * If we have no data, try looking in a cut buffer.
      */
-    if (seldata->length <= 0) {
+    if (seldata_length <= 0) {
 	text = retrieve_cutbuffer(&length);
 	if (length == 0)
 	    return;
@@ -2028,11 +2042,11 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	/*
 	 * Convert COMPOUND_TEXT into UTF-8.
 	 */
-	if (seldata->type == compound_text_atom) {
-	    tp.value = seldata->data;
-	    tp.encoding = (Atom) seldata->type;
-	    tp.format = seldata->format;
-	    tp.nitems = seldata->length;
+	if (seldata_type == compound_text_atom) {
+	    tp.value = (unsigned char *)seldata_data;
+	    tp.encoding = (Atom) seldata_type;
+	    tp.format = seldata_format;
+	    tp.nitems = seldata_length;
 	    ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp,
 					      &list, &count);
 	    if (ret != 0 || count != 1) {
@@ -2049,9 +2063,9 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	    charset = CS_UTF8;
 	    free_list_required = 1;
 	} else {
-	    text = (char *)seldata->data;
-	    length = seldata->length;
-	    charset = (seldata->type == utf8_string_atom ?
+	    text = (char *)seldata_data;
+	    length = seldata_length;
+	    charset = (seldata_type == utf8_string_atom ?
 		       CS_UTF8 : inst->ucsdata.line_codepage);
 	}
     }
@@ -2092,7 +2106,8 @@ static void set_window_titles(struct gui_data *inst)
      */
     gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
     if (!conf_get_int(inst->conf, CONF_win_name_always))
-	gdk_window_set_icon_name(inst->window->window, inst->icontitle);
+	gdk_window_set_icon_name(gtk_widget_get_window(inst->window),
+                                 inst->icontitle);
 }
 
 void set_title(void *frontend, char *title)
@@ -2126,12 +2141,12 @@ void set_sbar(void *frontend, int total, int start, int page)
     struct gui_data *inst = (struct gui_data *)frontend;
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
-    inst->sbar_adjust->lower = 0;
-    inst->sbar_adjust->upper = total;
-    inst->sbar_adjust->value = start;
-    inst->sbar_adjust->page_size = page;
-    inst->sbar_adjust->step_increment = 1;
-    inst->sbar_adjust->page_increment = page/2;
+    gtk_adjustment_set_lower(inst->sbar_adjust, 0);
+    gtk_adjustment_set_upper(inst->sbar_adjust, total);
+    gtk_adjustment_set_value(inst->sbar_adjust, start);
+    gtk_adjustment_set_page_size(inst->sbar_adjust, page);
+    gtk_adjustment_set_step_increment(inst->sbar_adjust, 1);
+    gtk_adjustment_set_page_increment(inst->sbar_adjust, page/2);
     inst->ignore_sbar = TRUE;
     gtk_adjustment_changed(inst->sbar_adjust);
     inst->ignore_sbar = FALSE;
@@ -2144,7 +2159,7 @@ void scrollbar_moved(GtkAdjustment *adj, gpointer data)
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
     if (!inst->ignore_sbar)
-	term_scroll(inst->term, 1, (int)adj->value);
+	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
 }
 
 void sys_cursor(void *frontend, int x, int y)
@@ -2183,12 +2198,12 @@ Context get_ctx(void *frontend)
     struct gui_data *inst = (struct gui_data *)frontend;
     struct draw_ctx *dctx;
 
-    if (!inst->area->window)
+    if (!gtk_widget_get_window(inst->area))
 	return NULL;
 
     dctx = snew(struct draw_ctx);
     dctx->inst = inst;
-    dctx->gc = gdk_gc_new(inst->area->window);
+    dctx->gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     return dctx;
 }
 
@@ -2215,7 +2230,8 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     GdkGC *gc = dctx->gc;
     int ncombining, combining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
-    int monochrome = gtk_widget_get_visual(inst->area)->depth == 1;
+    int monochrome =
+        gdk_visual_get_depth(gtk_widget_get_visual(inst->area)) == 1;
 
     if (attr & TATTR_COMBINING) {
 	ncombining = len;
@@ -2384,7 +2400,7 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	len *= 2;
     }
 
-    gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
+    gdk_draw_pixmap(gtk_widget_get_window(inst->area), gc, inst->pixmap,
 		    x*inst->font_width+inst->window_border,
 		    y*inst->font_height+inst->window_border,
 		    x*inst->font_width+inst->window_border,
@@ -2491,7 +2507,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	} /* else no cursor (e.g., blinked off) */
     }
 
-    gdk_draw_pixmap(inst->area->window, gc, inst->pixmap,
+    gdk_draw_pixmap(gtk_widget_get_window(inst->area), gc, inst->pixmap,
 		    x*inst->font_width+inst->window_border,
 		    y*inst->font_height+inst->window_border,
 		    x*inst->font_width+inst->window_border,
@@ -2635,7 +2651,7 @@ char *get_x_display(void *frontend)
 long get_windowid(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    return (long)GDK_WINDOW_XWINDOW(inst->area->window);
+    return (long)GDK_WINDOW_XWINDOW(gtk_widget_get_window(inst->area));
 }
 
 static void help(FILE *fp) {
@@ -3511,9 +3527,9 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 	return;
 
     gtk_widget_realize(window);
-    iconpm = gdk_pixmap_create_from_xpm_d(window->window, &iconmask,
-					  NULL, (gchar **)icon[0]);
-    gdk_window_set_icon(window->window, NULL, iconpm, iconmask);
+    iconpm = gdk_pixmap_create_from_xpm_d(gtk_widget_get_window(window),
+                                          &iconmask, NULL, (gchar **)icon[0]);
+    gdk_window_set_icon(gtk_widget_get_window(window), NULL, iconpm, iconmask);
 
 #if GTK_CHECK_VERSION(2,0,0)
     iconlist = NULL;
@@ -3523,7 +3539,7 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 			  gdk_pixbuf_new_from_xpm_data((const gchar **)
 						       icon[n]));
     }
-    gdk_window_set_icon_list(window->window, iconlist);
+    gdk_window_set_icon_list(gtk_widget_get_window(window), iconlist);
 #endif
 }
 

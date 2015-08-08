@@ -167,9 +167,9 @@ static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
 {
     struct drawing_area_ctx *ctx = (struct drawing_area_ctx *)data;
 
-    GdkGC *gc = gdk_gc_new(ctx->area->window);
+    GdkGC *gc = gdk_gc_new(gtk_widget_get_window(ctx->area));
     gdk_gc_set_foreground(gc, &ctx->cols[ctx->current]);
-    gdk_draw_rectangle(widget->window, gc, TRUE,
+    gdk_draw_rectangle(gtk_widget_get_window(widget), gc, TRUE,
                        0, 0, ctx->width, ctx->height);
     gdk_gc_unref(gc);
     return TRUE;
@@ -177,7 +177,8 @@ static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
 
 static int try_grab_keyboard(struct askpass_ctx *ctx)
 {
-    int ret = gdk_keyboard_grab(ctx->dialog->window, FALSE, GDK_CURRENT_TIME);
+    int ret = gdk_keyboard_grab(gtk_widget_get_window(ctx->dialog),
+                                FALSE, GDK_CURRENT_TIME);
     return ret == GDK_GRAB_SUCCESS;
 }
 
@@ -302,7 +303,8 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_signal_connect(GTK_OBJECT(ctx->promptlabel), "key_release_event",
 		       GTK_SIGNAL_FUNC(key_event), ctx);
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_im_context_set_client_window(ctx->imc, ctx->dialog->window);
+    gtk_im_context_set_client_window(ctx->imc,
+                                     gtk_widget_get_window(ctx->dialog));
 #endif
     gtk_widget_show(ctx->promptlabel);
 

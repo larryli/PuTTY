@@ -4,6 +4,7 @@
 
 #include "gtkcols.h"
 #include <gtk/gtk.h>
+#include "gtkcompat.h"
 
 static void columns_init(Columns *cols);
 static void columns_class_init(ColumnsClass *klass);
@@ -120,7 +121,7 @@ static void columns_class_init(ColumnsClass *klass)
 
 static void columns_init(Columns *cols)
 {
-    GTK_WIDGET_SET_FLAGS(cols, GTK_NO_WINDOW);
+    gtk_widget_set_has_window(GTK_WIDGET(cols), FALSE);
 
     cols->children = NULL;
     cols->spacing = 0;
@@ -141,14 +142,14 @@ static void columns_map(GtkWidget *widget)
     g_return_if_fail(IS_COLUMNS(widget));
 
     cols = COLUMNS(widget);
-    GTK_WIDGET_SET_FLAGS(cols, GTK_MAPPED);
+    gtk_widget_set_mapped(GTK_WIDGET(cols), TRUE);
 
     for (children = cols->children;
          children && (child = children->data);
          children = children->next) {
         if (child->widget &&
-	    GTK_WIDGET_VISIBLE(child->widget) &&
-            !GTK_WIDGET_MAPPED(child->widget))
+	    gtk_widget_get_visible(child->widget) &&
+            !gtk_widget_get_mapped(child->widget))
             gtk_widget_map(child->widget);
     }
 }
@@ -162,14 +163,14 @@ static void columns_unmap(GtkWidget *widget)
     g_return_if_fail(IS_COLUMNS(widget));
 
     cols = COLUMNS(widget);
-    GTK_WIDGET_UNSET_FLAGS(cols, GTK_MAPPED);
+    gtk_widget_set_mapped(GTK_WIDGET(cols), FALSE);
 
     for (children = cols->children;
          children && (child = children->data);
          children = children->next) {
         if (child->widget &&
-	    GTK_WIDGET_VISIBLE(child->widget) &&
-            GTK_WIDGET_MAPPED(child->widget))
+	    gtk_widget_get_visible(child->widget) &&
+            gtk_widget_get_mapped(child->widget))
             gtk_widget_unmap(child->widget);
     }
 }
@@ -263,7 +264,7 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
         if (child->widget != widget)
             continue;
 
-        was_visible = GTK_WIDGET_VISIBLE(widget);
+        was_visible = gtk_widget_get_visible(widget);
         gtk_widget_unparent(widget);
         cols->children = g_list_remove_link(cols->children, children);
         g_list_free(children);
@@ -367,7 +368,7 @@ void columns_add(Columns *cols, GtkWidget *child,
     g_return_if_fail(cols != NULL);
     g_return_if_fail(IS_COLUMNS(cols));
     g_return_if_fail(child != NULL);
-    g_return_if_fail(child->parent == NULL);
+    g_return_if_fail(gtk_widget_get_parent(child) == NULL);
 
     childdata = g_new(ColumnsChild, 1);
     childdata->widget = child;
@@ -384,11 +385,12 @@ void columns_add(Columns *cols, GtkWidget *child,
     gtk_container_set_focus_chain(GTK_CONTAINER(cols), cols->taborder);
 #endif
 
-    if (GTK_WIDGET_REALIZED(cols))
+    if (gtk_widget_get_realized(GTK_WIDGET(cols)))
         gtk_widget_realize(child);
 
-    if (GTK_WIDGET_VISIBLE(cols) && GTK_WIDGET_VISIBLE(child)) {
-        if (GTK_WIDGET_MAPPED(cols))
+    if (gtk_widget_get_visible(GTK_WIDGET(cols)) &&
+        gtk_widget_get_visible(child)) {
+        if (gtk_widget_get_mapped(GTK_WIDGET(cols)))
             gtk_widget_map(child);
         gtk_widget_queue_resize(child);
     }
@@ -410,7 +412,7 @@ void columns_force_left_align(Columns *cols, GtkWidget *widget)
             continue;
 
 	child->force_left = TRUE;
-        if (GTK_WIDGET_VISIBLE(widget))
+        if (gtk_widget_get_visible(widget))
             gtk_widget_queue_resize(GTK_WIDGET(cols));
         break;
     }
@@ -565,7 +567,7 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
 	}
 
         /* Only take visible widgets into account. */
-        if (!GTK_WIDGET_VISIBLE(child->widget))
+        if (!gtk_widget_get_visible(child->widget))
             continue;
 
         gtk_widget_size_request(child->widget, &creq);
@@ -634,8 +636,8 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
         }
     }
 
-    req->width += 2*GTK_CONTAINER(cols)->border_width;
-    req->height += 2*GTK_CONTAINER(cols)->border_width;
+    req->width += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
+    req->height += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
 
     g_free(colypos);
 }
@@ -654,8 +656,8 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
     g_return_if_fail(alloc != NULL);
 
     cols = COLUMNS(widget);
-    widget->allocation = *alloc;
-    border = GTK_CONTAINER(cols)->border_width;
+    gtk_widget_set_allocation(widget, alloc);
+    border = gtk_container_get_border_width(GTK_CONTAINER(cols));
 
     ncols = 1;
     percentages = onecol;
@@ -701,7 +703,7 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
 	}
 
         /* Only take visible widgets into account. */
-        if (!GTK_WIDGET_VISIBLE(child->widget))
+        if (!gtk_widget_get_visible(child->widget))
             continue;
 
         gtk_widget_get_child_requisition(child->widget, &creq);
