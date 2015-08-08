@@ -22,7 +22,8 @@ struct LogContext {
     int logtype;		       /* cached out of conf */
 };
 
-static Filename *xlatlognam(Filename *s, char *hostname, struct tm *tm);
+static Filename *xlatlognam(Filename *s, char *hostname, int port,
+                            struct tm *tm);
 
 /*
  * Internal wrapper function which must be called for _all_ output
@@ -159,7 +160,8 @@ void logfopen(void *handle)
         filename_free(ctx->currlogfilename);
     ctx->currlogfilename = 
         xlatlognam(conf_get_filename(ctx->conf, CONF_logfilename),
-                   conf_get_str(ctx->conf, CONF_host), &tm);
+                   conf_get_str(ctx->conf, CONF_host),
+                   conf_get_int(ctx->conf, CONF_port), &tm);
 
     ctx->lgfp = f_open(ctx->currlogfilename, "r", FALSE);  /* file already present? */
     if (ctx->lgfp) {
@@ -408,9 +410,10 @@ void log_reconfig(void *handle, Conf *conf)
  *
  * "&Y":YYYY   "&m":MM   "&d":DD   "&T":hhmmss   "&h":<hostname>   "&&":&
  */
-static Filename *xlatlognam(Filename *src, char *hostname, struct tm *tm)
+static Filename *xlatlognam(Filename *src, char *hostname, int port,
+                            struct tm *tm)
 {
-    char buf[10], *bufp;
+    char buf[32], *bufp;
     int size;
     char *buffer;
     int buflen, bufsize;
@@ -445,6 +448,9 @@ static Filename *xlatlognam(Filename *src, char *hostname, struct tm *tm)
 	      case 'h':
 		bufp = hostname;
 		size = strlen(bufp);
+		break;
+	      case 'p':
+                size = sprintf(buf, "%d", port);
 		break;
 	      default:
 		buf[0] = '&';
