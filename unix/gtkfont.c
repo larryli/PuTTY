@@ -2190,7 +2190,8 @@ static void unifontsel_select_font(unifontsel_internal *fs,
      * Grey out the font size edit box if we're not using a
      * scalable font.
      */
-    gtk_entry_set_editable(GTK_ENTRY(fs->size_entry), fs->selected->size == 0);
+    gtk_editable_set_editable(GTK_EDITABLE(fs->size_entry),
+                              fs->selected->size == 0);
     gtk_widget_set_sensitive(fs->size_entry, fs->selected->size == 0);
 
     unifontsel_draw_preview_text(fs);

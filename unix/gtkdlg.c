@@ -330,12 +330,8 @@ char *dlg_editbox_get(union control *ctrl, void *dlg)
 
 #if GTK_CHECK_VERSION(2,4,0)
     if (uc->combo) {
-#if GTK_CHECK_VERSION(2,6,0)
-	return dupstr(gtk_combo_box_get_active_text(GTK_COMBO_BOX(uc->combo)));
-#else
 	return dupstr(gtk_entry_get_text
 		      (GTK_ENTRY(gtk_bin_get_child(GTK_BIN(uc->combo)))));
-#endif
     }
 #endif
 
@@ -1038,6 +1034,7 @@ static void errmsg_button_clicked(GtkButton *button, gpointer data)
 
 static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 {
+#if !GTK_CHECK_VERSION(2,0,0)
     gint x, y, w, h, dx, dy;
     GtkRequisition req;
     gtk_window_set_position(GTK_WINDOW(child), GTK_WIN_POS_NONE);
@@ -1063,6 +1060,7 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
     else
         dy = y + 3*h/4 - req.height;   /* work from bottom edges */
     gtk_widget_set_uposition(GTK_WIDGET(child), dx, dy);
+#endif
 }
 
 void dlg_error_msg(void *dlg, const char *msg)
@@ -1802,7 +1800,7 @@ static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
     struct dlgparam *dp = (struct dlgparam *)data;
     struct uctrl *uc = dlg_find_bywidget(dp, widget);
 
-    gtk_widget_set_usize(uc->text, alloc->width, -1);
+    gtk_widget_set_size_request(uc->text, alloc->width, -1);
     gtk_label_set_text(GTK_LABEL(uc->text), uc->ctrl->generic.label);
     g_signal_handler_disconnect(G_OBJECT(uc->text), uc->textsig);
 }
@@ -1962,7 +1960,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                     b = (gtk_radio_button_new_with_label
                          (group, ctrl->radio.buttons[i]));
 		    uc->buttons[i] = b;
-                    group = gtk_radio_button_group(GTK_RADIO_BUTTON(b));
+                    group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(b));
                     colstart = i % ctrl->radio.ncolumns;
                     columns_add(COLUMNS(w), b, colstart,
                                 (i == ctrl->radio.nbuttons-1 ?
@@ -2002,8 +2000,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		     */
 		    uc->listmodel = gtk_list_store_new(2, G_TYPE_INT,
 						       G_TYPE_STRING);
-		    w = gtk_combo_box_entry_new_with_model
-			(GTK_TREE_MODEL(uc->listmodel), 1);
+		    w = gtk_combo_box_new_with_model_and_entry
+			(GTK_TREE_MODEL(uc->listmodel));
 		    /* We cannot support password combo boxes. */
 		    assert(!ctrl->editbox.password);
 		    uc->combo = w;
@@ -2038,7 +2036,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		 * label vertically beside it.
 		 */
                 gtk_widget_size_request(w, &req);
-                gtk_widget_set_usize(w, 10, req.height);
+                gtk_widget_set_size_request(w, 10, req.height);
 
 		if (ctrl->generic.label) {
 		    GtkWidget *label, *container;
@@ -2062,7 +2060,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 			columns_force_left_align(COLUMNS(container), label);
 			columns_add(COLUMNS(container), w, 1, 1);
 			/* Centre the label vertically. */
-			gtk_widget_set_usize(label, -1, req.height);
+			gtk_widget_set_size_request(label, -1, req.height);
 			gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		    }
 		    gtk_widget_show(label);
@@ -2101,7 +2099,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
                 uc->entry = ww = gtk_entry_new();
                 gtk_widget_size_request(ww, &req);
-                gtk_widget_set_usize(ww, 10, req.height);
+                gtk_widget_set_size_request(ww, 10, req.height);
                 columns_add(COLUMNS(w), ww, 0, 1);
                 gtk_widget_show(ww);
 
@@ -2246,7 +2244,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		{
 		    int edge;
 		    edge = GTK_WIDGET(uc->list)->style->klass->ythickness;
-                    gtk_widget_set_usize(w, 10,
+                    gtk_widget_set_size_request(w, 10,
                                          2*edge + (ctrl->listbox.height *
 						   get_listitemheight(w)));
 		}
@@ -2388,7 +2386,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		    columns_add(COLUMNS(container), w, 1, 1);
 		    /* Centre the label vertically. */
 		    gtk_widget_size_request(w, &req);
-		    gtk_widget_set_usize(label, -1, req.height);
+		    gtk_widget_set_size_request(label, -1, req.height);
 		    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
 		}
 		gtk_widget_show(label);
@@ -2480,7 +2478,7 @@ static void treeselection_changed(GtkTreeSelection *treeselection,
     sp = &sps[spindex];
 
     page_num = gtk_notebook_page_num(sp->panels, sp->panel);
-    gtk_notebook_set_page(sp->panels, page_num);
+    gtk_notebook_set_current_page(sp->panels, page_num);
 
     dlg_refresh(NULL, sp->dp);
 
@@ -2740,10 +2738,20 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 static void shortcut_highlight(GtkWidget *labelw, int chr)
 {
     GtkLabel *label = GTK_LABEL(labelw);
-    gchar *currstr, *pattern;
+    const gchar *currstr;
+    gchar *pattern;
     int i;
 
-    gtk_label_get(label, &currstr);
+#if !GTK_CHECK_VERSION(2,0,0)
+    {
+        gchar *currstr_nonconst;
+        gtk_label_get(label, &currstr_nonconst);
+        currstr = currstr_nonconst;
+    }
+#else
+    currstr = gtk_label_get_text(label);
+#endif
+
     for (i = 0; currstr[i]; i++)
 	if (tolower((unsigned char)currstr[i]) == chr) {
 	    GtkRequisition req;
@@ -2752,7 +2760,7 @@ static void shortcut_highlight(GtkWidget *labelw, int chr)
 
 	    gtk_widget_size_request(GTK_WIDGET(label), &req);
 	    gtk_label_set_pattern(label, pattern);
-	    gtk_widget_set_usize(GTK_WIDGET(label), -1, req.height);
+	    gtk_widget_set_size_request(GTK_WIDGET(label), -1, req.height);
 
 	    sfree(pattern);
 	    break;
@@ -2866,7 +2874,7 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
                      w, FALSE, TRUE, 0);
     gtk_widget_show(w);
     gtk_widget_hide(gtk_dialog_get_action_area(dlg));
-    gtk_dialog_set_has_separator(dlg, FALSE);
+    g_object_set(G_OBJECT(dlg), "has-separator", TRUE, (const char *)NULL);
 #endif
 }
 
@@ -3009,7 +3017,8 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 
 		    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(panels),
 						     panelvbox);
-		    gtk_notebook_set_page(GTK_NOTEBOOK(panels), page_num);
+		    gtk_notebook_set_current_page(GTK_NOTEBOOK(panels),
+                                                  page_num);
 		}
 
 		if (nselparams >= selparamsize) {
@@ -3283,7 +3292,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     gtk_widget_show(w0);
     w1 = layout_ctrls(&dp, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
-    gtk_widget_set_usize(w1, minwid+20, -1);
+    gtk_widget_set_size_request(w1, minwid+20, -1);
     gtk_box_pack_start
         (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
          w1, TRUE, TRUE, 0);
@@ -3757,10 +3766,10 @@ void showeventlog(void *estuff, void *parentwin)
     gtk_widget_show(w0);
     w1 = layout_ctrls(&es->dp, &es->scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
-    gtk_widget_set_usize(w1, 20 +
-			 string_width("LINE OF TEXT GIVING WIDTH OF EVENT LOG"
-				      " IS QUITE LONG 'COS SSH LOG ENTRIES"
-				      " ARE WIDE"), -1);
+    gtk_widget_set_size_request(w1, 20 + string_width
+                                ("LINE OF TEXT GIVING WIDTH OF EVENT LOG IS "
+                                 "QUITE LONG 'COS SSH LOG ENTRIES ARE WIDE"),
+                                -1);
     gtk_box_pack_start
         (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
          w1, TRUE, TRUE, 0);

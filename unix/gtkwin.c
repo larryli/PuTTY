@@ -1476,7 +1476,7 @@ static gint idle_toplevel_callback_func(gpointer data)
          * can reschedule us with a chance of actually taking action.
          */
         if (inst->idle_fn_scheduled) { /* double-check, just in case */
-            gtk_idle_remove(inst->toplevel_callback_idle_id);
+            g_source_remove(inst->toplevel_callback_idle_id);
             inst->idle_fn_scheduled = FALSE;
         }
     } else {
@@ -1490,7 +1490,7 @@ static gint idle_toplevel_callback_func(gpointer data)
      * event loop.
      */
     if (!toplevel_callback_pending() && inst->idle_fn_scheduled) {
-        gtk_idle_remove(inst->toplevel_callback_idle_id);
+        g_source_remove(inst->toplevel_callback_idle_id);
         inst->idle_fn_scheduled = FALSE;
     }
 
@@ -1503,7 +1503,7 @@ static void notify_toplevel_callback(void *frontend)
 
     if (!inst->idle_fn_scheduled) {
         inst->toplevel_callback_idle_id =
-            gtk_idle_add(idle_toplevel_callback_func, inst);
+            g_idle_add(idle_toplevel_callback_func, inst);
         inst->idle_fn_scheduled = TRUE;
     }
 }
@@ -1518,7 +1518,7 @@ static gint timer_trigger(gpointer data)
      * Destroy the timer we got here on.
      */
     if (timer_id) {
-	gtk_timeout_remove(timer_id);
+	g_source_remove(timer_id);
         timer_id = 0;
     }
 
@@ -1535,8 +1535,7 @@ static gint timer_trigger(gpointer data)
 	    ticks = 0;
 	else
 	    ticks = next - now;
-	timer_id = gtk_timeout_add(ticks, timer_trigger,
-				   LONG_TO_GPOINTER(next));
+	timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
     }
 
     /*
@@ -1552,14 +1551,13 @@ void timer_change_notify(unsigned long next)
     long ticks;
 
     if (timer_id)
-	gtk_timeout_remove(timer_id);
+	g_source_remove(timer_id);
 
     ticks = next - GETTICKCOUNT();
     if (ticks <= 0)
 	ticks = 1;		       /* just in case */
 
-    timer_id = gtk_timeout_add(ticks, timer_trigger,
-			       LONG_TO_GPOINTER(next));
+    timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
 }
 
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
@@ -3820,9 +3818,15 @@ int pt_main(int argc, char **argv)
     inst->height = conf_get_int(inst->conf, CONF_height);
     cache_conf_values(inst);
 
-    gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area),
-			  inst->font_width * inst->width + 2*inst->window_border,
-			  inst->font_height * inst->height + 2*inst->window_border);
+    {
+        int w = inst->font_width * inst->width + 2*inst->window_border;
+        int h = inst->font_height * inst->height + 2*inst->window_border;
+#if GTK_CHECK_VERSION(2,0,0)
+        gtk_widget_set_size_request(inst->area, w, h);
+#else
+        gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), w, h);
+#endif
+    }
     inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
     inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
