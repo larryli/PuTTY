@@ -84,7 +84,11 @@ struct gui_data {
     GtkIMContext *imc;
 #endif
     unifont *fonts[4];                 /* normal, bold, wide, widebold */
+#if GTK_CHECK_VERSION(2,0,0)
+    const char *geometry;
+#else
     int xpos, ypos, gotpos, gravity;
+#endif
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
     GdkColormap *colmap;
@@ -2830,25 +2834,30 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    SECOND_PASS_ONLY;
 	    conf_set_str(conf, CONF_line_codepage, val);
 
-#ifndef NOT_X_WINDOWS
 	} else if (!strcmp(p, "-geometry")) {
-	    int flags, x, y;
-	    unsigned int w, h;
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
 
-	    flags = XParseGeometry(val, &x, &y, &w, &h);
-	    if (flags & WidthValue)
-		conf_set_int(conf, CONF_width, w);
-	    if (flags & HeightValue)
-		conf_set_int(conf, CONF_height, h);
+#if GTK_CHECK_VERSION(2,0,0)
+            inst->geometry = val;
+#else
+            /* On GTK 1, we have to do this using raw Xlib */
+            {
+                int flags, x, y;
+                unsigned int w, h;
+                flags = XParseGeometry(val, &x, &y, &w, &h);
+                if (flags & WidthValue)
+                    conf_set_int(conf, CONF_width, w);
+                if (flags & HeightValue)
+                    conf_set_int(conf, CONF_height, h);
 
-            if (flags & (XValue | YValue)) {
-                inst->xpos = x;
-                inst->ypos = y;
-                inst->gotpos = TRUE;
-                inst->gravity = ((flags & XNegative ? 1 : 0) |
-                                 (flags & YNegative ? 2 : 0));
+                if (flags & (XValue | YValue)) {
+                    inst->xpos = x;
+                    inst->ypos = y;
+                    inst->gotpos = TRUE;
+                    inst->gravity = ((flags & XNegative ? 1 : 0) |
+                                     (flags & YNegative ? 2 : 0));
+                }
             }
 #endif
 
@@ -3839,6 +3848,11 @@ int pt_main(int argc, char **argv)
 	gtk_widget_hide(inst->sbar);
     gtk_widget_show(GTK_WIDGET(inst->hbox));
 
+#if GTK_CHECK_VERSION(2,0,0)
+    if (inst->geometry) {
+        gtk_window_parse_geometry(GTK_WINDOW(inst->window), inst->geometry);
+    }
+#else
     if (inst->gotpos) {
         int x = inst->xpos, y = inst->ypos;
         GtkRequisition req;
@@ -3848,6 +3862,7 @@ int pt_main(int argc, char **argv)
 	gtk_window_set_position(GTK_WINDOW(inst->window), GTK_WIN_POS_NONE);
 	gtk_widget_set_uposition(GTK_WIDGET(inst->window), x, y);
     }
+#endif
 
     g_signal_connect(G_OBJECT(inst->window), "destroy",
                      G_CALLBACK(destroy), inst);
