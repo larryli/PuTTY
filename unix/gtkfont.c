@@ -16,10 +16,12 @@
 #if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
 #endif
+#ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#endif
 
 #include "putty.h"
 #include "gtkfont.h"
@@ -97,8 +99,12 @@ struct unifont_vtable {
     const char *prefix;
 };
 
+#ifndef NOT_X_WINDOWS
+
 /* ----------------------------------------------------------------------
- * X11 font implementation, directly using Xlib calls.
+ * X11 font implementation, directly using Xlib calls. Conditioned out
+ * if X11 fonts aren't available at all (e.g. building with GTK3 for a
+ * back end other than X).
  */
 
 static int x11font_has_glyph(unifont *font, wchar_t glyph);
@@ -828,6 +834,8 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
     return NULL;		       /* shan't */
 }
 
+#endif /* NOT_X_WINDOWS */
+
 #if GTK_CHECK_VERSION(2,0,0)
 
 /* ----------------------------------------------------------------------
@@ -1449,7 +1457,9 @@ static const struct unifont_vtable *unifont_types[] = {
 #if GTK_CHECK_VERSION(2,0,0)
     &pangofont_vtable,
 #endif
+#ifndef NOT_X_WINDOWS
     &x11font_vtable,
+#endif
 };
 
 /*
@@ -1660,6 +1670,7 @@ typedef struct unifontsel_internal {
     GtkListStore *family_model, *style_model, *size_model;
     GtkWidget *family_list, *style_list, *size_entry, *size_list;
     GtkWidget *filter_buttons[4];
+    int n_filter_buttons;
     GtkWidget *preview_area;
     GdkPixmap *preview_pixmap;
     int preview_width, preview_height;
@@ -1967,7 +1978,7 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
 {
     int i;
 
-    for (i = 0; i < lenof(fs->filter_buttons); i++) {
+    for (i = 0; i < fs->n_filter_buttons; i++) {
 	int flagbit = GPOINTER_TO_INT(gtk_object_get_data
 				      (GTK_OBJECT(fs->filter_buttons[i]),
 				       "user-data"));
@@ -2747,14 +2758,21 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 3, 4,
 		     GTK_EXPAND | GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 8);
 
-    i = 0;
+    /*
+     * We only provide the checkboxes for client- and server-side
+     * fonts if we have the X11 back end available, because that's the
+     * only situation in which more than one class of font is
+     * available anyway.
+     */
+    fs->n_filter_buttons = 0;
+#ifndef NOT_X_WINDOWS
     w = gtk_check_button_new_with_label("Show client-side fonts");
     gtk_object_set_data(GTK_OBJECT(w), "user-data",
 			GINT_TO_POINTER(FONTFLAG_CLIENTSIDE));
     gtk_signal_connect(GTK_OBJECT(w), "toggled",
 		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
-    fs->filter_buttons[i++] = w;
+    fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 4, 5, GTK_FILL, 0, 0, 0);
     w = gtk_check_button_new_with_label("Show server-side fonts");
     gtk_object_set_data(GTK_OBJECT(w), "user-data",
@@ -2762,7 +2780,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_signal_connect(GTK_OBJECT(w), "toggled",
 		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
-    fs->filter_buttons[i++] = w;
+    fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 5, 6, GTK_FILL, 0, 0, 0);
     w = gtk_check_button_new_with_label("Show server-side font aliases");
     gtk_object_set_data(GTK_OBJECT(w), "user-data",
@@ -2770,18 +2788,19 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_signal_connect(GTK_OBJECT(w), "toggled",
 		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
-    fs->filter_buttons[i++] = w;
+    fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 6, 7, GTK_FILL, 0, 0, 0);
+#endif
     w = gtk_check_button_new_with_label("Show non-monospaced fonts");
     gtk_object_set_data(GTK_OBJECT(w), "user-data",
 			GINT_TO_POINTER(FONTFLAG_NONMONOSPACED));
     gtk_signal_connect(GTK_OBJECT(w), "toggled",
 		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
-    fs->filter_buttons[i++] = w;
+    fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 7, 8, GTK_FILL, 0, 0, 0);
 
-    assert(i == lenof(fs->filter_buttons));
+    assert(fs->n_filter_buttons <= lenof(fs->filter_buttons));
     fs->filter_flags = FONTFLAG_CLIENTSIDE | FONTFLAG_SERVERSIDE |
 	FONTFLAG_SERVERALIAS;
     unifontsel_set_filter_buttons(fs);

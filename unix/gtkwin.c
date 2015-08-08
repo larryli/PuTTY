@@ -22,10 +22,12 @@
 #if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
 #endif
+#ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
 #include <gtk/gtkimmodule.h>
@@ -143,7 +145,11 @@ static void exit_callback(void *vinst);
 
 char *x_get_default(const char *key)
 {
+#ifndef NOT_X_WINDOWS
     return XGetDefault(GDK_DISPLAY(), app_name, key);
+#else
+    return NULL;
+#endif
 }
 
 void connection_fatal(void *frontend, const char *p, ...)
@@ -1792,6 +1798,7 @@ void palette_reset(void *frontend)
  */
 void init_cutbuffers()
 {
+#ifndef NOT_X_WINDOWS
     unsigned char empty[] = "";
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
@@ -1809,14 +1816,17 @@ void init_cutbuffers()
 		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
     XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
+#endif
 }
 
 /* Store the data in a cut-buffer. */
 void store_cutbuffer(char * ptr, int len)
 {
+#ifndef NOT_X_WINDOWS
     /* ICCCM says we must rotate the buffers before storing to buffer 0. */
     XRotateBuffers(GDK_DISPLAY(), 1);
     XStoreBytes(GDK_DISPLAY(), ptr, len);
+#endif
 }
 
 /* Retrieve data from a cut-buffer.
@@ -1824,6 +1834,7 @@ void store_cutbuffer(char * ptr, int len)
  */
 char * retrieve_cutbuffer(int * nbytes)
 {
+#ifndef NOT_X_WINDOWS
     char * ptr;
     ptr = XFetchBytes(GDK_DISPLAY(), nbytes);
     if (*nbytes <= 0 && ptr != 0) {
@@ -1831,6 +1842,9 @@ char * retrieve_cutbuffer(int * nbytes)
 	ptr = 0;
     }
     return ptr;
+#else
+    return NULL;
+#endif
 }
 
 void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_deselect)
@@ -1850,8 +1864,10 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
     if (!inst->direct_to_font) {
 	const wchar_t *tmp = data;
 	int tmplen = len;
+#ifndef NOT_X_WINDOWS
 	XTextProperty tp;
 	char *list[1];
+#endif
 
 	inst->pasteout_data_utf8 = snewn(len*6, char);
 	inst->pasteout_data_utf8_len = len*6;
@@ -1872,6 +1888,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	/*
 	 * Now let Xlib convert our UTF-8 data into compound text.
 	 */
+#ifndef NOT_X_WINDOWS
 	list[0] = inst->pasteout_data_utf8;
 	if (Xutf8TextListToTextProperty(GDK_DISPLAY(), list, 1,
 					XCompoundTextStyle, &tp) == 0) {
@@ -1879,7 +1896,9 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	    memcpy(inst->pasteout_data_ctext, tp.value, tp.nitems);
 	    inst->pasteout_data_ctext_len = tp.nitems;
 	    XFree(tp.value);
-	} else {
+	} else
+#endif
+        {
             inst->pasteout_data_ctext = NULL;
             inst->pasteout_data_ctext_len = 0;
         }
@@ -2002,18 +2021,18 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 			guint time, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    XTextProperty tp;
-    char **list;
     char *text;
-    int length, count, ret;
+    int length;
+#ifndef NOT_X_WINDOWS
+    char **list;
     int free_list_required = 0;
     int free_required = 0;
+#endif
     int charset;
     GdkAtom seldata_target = gtk_selection_data_get_target(seldata);
     GdkAtom seldata_type = gtk_selection_data_get_data_type(seldata);
     const guchar *seldata_data = gtk_selection_data_get_data(seldata);
     gint seldata_length = gtk_selection_data_get_length(seldata);
-    gint seldata_format = gtk_selection_data_get_format(seldata);
 
     if (seldata_target == utf8_string_atom && seldata_length <= 0) {
 	/*
@@ -2051,6 +2070,7 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      * If we have no data, try looking in a cut buffer.
      */
     if (seldata_length <= 0) {
+#ifndef NOT_X_WINDOWS
 	text = retrieve_cutbuffer(&length);
 	if (length == 0)
 	    return;
@@ -2058,18 +2078,32 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	 * source, so use that as a de-facto standard. */
 	charset = CS_ISO8859_1;
 	free_required = 1;
+#else
+        return;
+#endif
     } else {
 	/*
 	 * Convert COMPOUND_TEXT into UTF-8.
 	 */
 	if (seldata_type == compound_text_atom) {
+#ifndef NOT_X_WINDOWS
+            XTextProperty tp;
+            int ret, count;
+
 	    tp.value = (unsigned char *)seldata_data;
 	    tp.encoding = (Atom) seldata_type;
-	    tp.format = seldata_format;
+	    tp.format = gtk_selection_data_get_format(seldata);
 	    tp.nitems = seldata_length;
 	    ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp,
 					      &list, &count);
-	    if (ret != 0 || count != 1) {
+	    if (ret == 0 && count == 1) {
+                text = list[0];
+                length = strlen(list[0]);
+                charset = CS_UTF8;
+                free_list_required = 1;
+            } else
+#endif
+            {
 		/*
 		 * Compound text failed; fall back to STRING.
 		 */
@@ -2078,10 +2112,6 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 				      inst->input_event_time);
 		return;
 	    }
-	    text = list[0];
-	    length = strlen(list[0]);
-	    charset = CS_UTF8;
-	    free_list_required = 1;
 	} else {
 	    text = (char *)seldata_data;
 	    length = seldata_length;
@@ -2101,10 +2131,12 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 
     term_do_paste(inst->term);
 
+#ifndef NOT_X_WINDOWS
     if (free_list_required)
 	XFreeStringList(list);
     if (free_required)
 	XFree(text);
+#endif
 }
 
 void get_clip(void *frontend, wchar_t ** p, int *len)
@@ -2668,11 +2700,13 @@ char *get_x_display(void *frontend)
     return gdk_get_display();
 }
 
+#ifndef NOT_X_WINDOWS
 long get_windowid(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     return (long)GDK_WINDOW_XWINDOW(gtk_widget_get_window(inst->area));
 }
+#endif
 
 static void help(FILE *fp) {
     if(fprintf(fp,
@@ -2796,6 +2830,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	    SECOND_PASS_ONLY;
 	    conf_set_str(conf, CONF_line_codepage, val);
 
+#ifndef NOT_X_WINDOWS
 	} else if (!strcmp(p, "-geometry")) {
 	    int flags, x, y;
 	    unsigned int w, h;
@@ -2815,6 +2850,7 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
                 inst->gravity = ((flags & XNegative ? 1 : 0) |
                                  (flags & YNegative ? 2 : 0));
             }
+#endif
 
 	} else if (!strcmp(p, "-sl")) {
 	    EXPECTS_ARG;
