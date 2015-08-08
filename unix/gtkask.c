@@ -9,7 +9,10 @@
 #include <unistd.h>
 
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
+#endif
 
 #include "gtkcompat.h"
 

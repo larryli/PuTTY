@@ -7,7 +7,9 @@
 #include <ctype.h>
 #include <time.h>
 #include <gtk/gtk.h>
+#if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
+#endif
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
