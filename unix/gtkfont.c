@@ -1979,8 +1979,8 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
     int i;
 
     for (i = 0; i < fs->n_filter_buttons; i++) {
-	int flagbit = GPOINTER_TO_INT(gtk_object_get_data
-				      (GTK_OBJECT(fs->filter_buttons[i]),
+        int flagbit = GPOINTER_TO_INT(g_object_get_data
+                                      (G_OBJECT(fs->filter_buttons[i]),
 				       "user-data"));
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fs->filter_buttons[i]),
 				     !!(fs->filter_flags & flagbit));
@@ -2203,8 +2203,8 @@ static void unifontsel_button_toggled(GtkToggleButton *tb, gpointer data)
     unifontsel_internal *fs = (unifontsel_internal *)data;
     int newstate = gtk_toggle_button_get_active(tb);
     int newflags;
-    int flagbit = GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(tb),
-						      "user-data"));
+    int flagbit = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(tb),
+                                                    "user-data"));
 
     if (newstate)
 	newflags = fs->filter_flags | flagbit;
@@ -2565,7 +2565,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 	g_object_ref_sink(label);
 	g_object_unref(label);
 #else
-        gtk_object_sink(GTK_OBJECT(label));
+        g_object_ref_sink(G_OBJECT(label));
 #endif
     }
 
@@ -2733,10 +2733,10 @@ unifontsel *unifontsel_new(const char *wintitle)
 			     FALSE, FALSE);
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_bg,
 			     FALSE, FALSE);
-    gtk_signal_connect(GTK_OBJECT(fs->preview_area), "expose_event",
-		       GTK_SIGNAL_FUNC(unifontsel_expose_area), fs);
-    gtk_signal_connect(GTK_OBJECT(fs->preview_area), "configure_event",
-		       GTK_SIGNAL_FUNC(unifontsel_configure_area), fs);
+    g_signal_connect(G_OBJECT(fs->preview_area), "expose_event",
+                     G_CALLBACK(unifontsel_expose_area), fs);
+    g_signal_connect(G_OBJECT(fs->preview_area), "configure_event",
+                     G_CALLBACK(unifontsel_configure_area), fs);
     gtk_widget_set_size_request(fs->preview_area, 1, preview_height);
     gtk_widget_show(fs->preview_area);
     ww = fs->preview_area;
@@ -2767,35 +2767,35 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->n_filter_buttons = 0;
 #ifndef NOT_X_WINDOWS
     w = gtk_check_button_new_with_label("Show client-side fonts");
-    gtk_object_set_data(GTK_OBJECT(w), "user-data",
-			GINT_TO_POINTER(FONTFLAG_CLIENTSIDE));
-    gtk_signal_connect(GTK_OBJECT(w), "toggled",
-		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
+    g_object_set_data(G_OBJECT(w), "user-data",
+                      GINT_TO_POINTER(FONTFLAG_CLIENTSIDE));
+    g_signal_connect(G_OBJECT(w), "toggled",
+                     G_CALLBACK(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
     fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 4, 5, GTK_FILL, 0, 0, 0);
     w = gtk_check_button_new_with_label("Show server-side fonts");
-    gtk_object_set_data(GTK_OBJECT(w), "user-data",
-			GINT_TO_POINTER(FONTFLAG_SERVERSIDE));
-    gtk_signal_connect(GTK_OBJECT(w), "toggled",
-		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
+    g_object_set_data(G_OBJECT(w), "user-data",
+                      GINT_TO_POINTER(FONTFLAG_SERVERSIDE));
+    g_signal_connect(G_OBJECT(w), "toggled",
+                     G_CALLBACK(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
     fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 5, 6, GTK_FILL, 0, 0, 0);
     w = gtk_check_button_new_with_label("Show server-side font aliases");
-    gtk_object_set_data(GTK_OBJECT(w), "user-data",
-			GINT_TO_POINTER(FONTFLAG_SERVERALIAS));
-    gtk_signal_connect(GTK_OBJECT(w), "toggled",
-		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
+    g_object_set_data(G_OBJECT(w), "user-data",
+                      GINT_TO_POINTER(FONTFLAG_SERVERALIAS));
+    g_signal_connect(G_OBJECT(w), "toggled",
+                     G_CALLBACK(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
     fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 6, 7, GTK_FILL, 0, 0, 0);
 #endif
     w = gtk_check_button_new_with_label("Show non-monospaced fonts");
-    gtk_object_set_data(GTK_OBJECT(w), "user-data",
-			GINT_TO_POINTER(FONTFLAG_NONMONOSPACED));
-    gtk_signal_connect(GTK_OBJECT(w), "toggled",
-		       GTK_SIGNAL_FUNC(unifontsel_button_toggled), fs);
+    g_object_set_data(G_OBJECT(w), "user-data",
+                      GINT_TO_POINTER(FONTFLAG_NONMONOSPACED));
+    g_signal_connect(G_OBJECT(w), "toggled",
+                     G_CALLBACK(unifontsel_button_toggled), fs);
     gtk_widget_show(w);
     fs->filter_buttons[fs->n_filter_buttons++] = w;
     gtk_table_attach(GTK_TABLE(table), w, 0, 3, 7, 8, GTK_FILL, 0, 0, 0);

@@ -2,9 +2,9 @@
  * gtkcols.c - implementation of the `Columns' GTK layout container.
  */
 
-#include "gtkcols.h"
 #include <gtk/gtk.h>
 #include "gtkcompat.h"
+#include "gtkcols.h"
 
 static void columns_init(Columns *cols);
 static void columns_class_init(ColumnsClass *klass);
@@ -21,16 +21,16 @@ static void columns_forall(GtkContainer *container, gboolean include_internals,
 #if !GTK_CHECK_VERSION(2,0,0)
 static gint columns_focus(GtkContainer *container, GtkDirectionType dir);
 #endif
-static GtkType columns_child_type(GtkContainer *container);
+static GType columns_child_type(GtkContainer *container);
 static void columns_size_request(GtkWidget *widget, GtkRequisition *req);
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc);
 
 static GtkContainerClass *parent_class = NULL;
 
 #if !GTK_CHECK_VERSION(2,0,0)
-GtkType columns_get_type(void)
+GType columns_get_type(void)
 {
-    static GtkType columns_type = 0;
+    static GType columns_type = 0;
 
     if (!columns_type) {
         static const GtkTypeInfo columns_info = {
@@ -319,7 +319,7 @@ static void columns_forall(GtkContainer *container, gboolean include_internals,
     }
 }
 
-static GtkType columns_child_type(GtkContainer *container)
+static GType columns_child_type(GtkContainer *container)
 {
     return GTK_TYPE_WIDGET;
 }

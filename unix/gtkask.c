@@ -254,14 +254,14 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
         gtk_container_add(GTK_CONTAINER(gtk_dialog_get_action_area
                                         (GTK_DIALOG(ctx->dialog))),
                           ctx->drawingareas[i].area);
-        gtk_signal_connect(GTK_OBJECT(ctx->drawingareas[i].area),
-                           "configure_event",
-                           GTK_SIGNAL_FUNC(configure_area),
-                           &ctx->drawingareas[i]);
-        gtk_signal_connect(GTK_OBJECT(ctx->drawingareas[i].area),
-                           "expose_event",
-                           GTK_SIGNAL_FUNC(expose_area),
-                           &ctx->drawingareas[i]);
+        g_signal_connect(G_OBJECT(ctx->drawingareas[i].area),
+                         "configure_event",
+                         G_CALLBACK(configure_area),
+                         &ctx->drawingareas[i]);
+        g_signal_connect(G_OBJECT(ctx->drawingareas[i].area),
+                         "expose_event",
+                         G_CALLBACK(expose_area),
+                         &ctx->drawingareas[i]);
         gtk_widget_show(ctx->drawingareas[i].area);
     }
     ctx->active_area = rand() % N_DRAWING_AREAS;
@@ -300,10 +300,10 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     g_signal_connect(G_OBJECT(ctx->imc), "commit",
                      G_CALLBACK(input_method_commit_event), ctx);
 #endif
-    gtk_signal_connect(GTK_OBJECT(ctx->promptlabel), "key_press_event",
-		       GTK_SIGNAL_FUNC(key_event), ctx);
-    gtk_signal_connect(GTK_OBJECT(ctx->promptlabel), "key_release_event",
-		       GTK_SIGNAL_FUNC(key_event), ctx);
+    g_signal_connect(G_OBJECT(ctx->promptlabel), "key_press_event",
+                     G_CALLBACK(key_event), ctx);
+    g_signal_connect(G_OBJECT(ctx->promptlabel), "key_release_event",
+                     G_CALLBACK(key_event), ctx);
 #if GTK_CHECK_VERSION(2,0,0)
     gtk_im_context_set_client_window(ctx->imc,
                                      gtk_widget_get_window(ctx->dialog));

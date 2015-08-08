@@ -16,12 +16,24 @@
 #define gtk1_widget_set_unset_flag(w, flag, b)                    \
     ((b) ? GTK_WIDGET_SET_FLAGS(w, flag) : GTK_WIDGET_UNSET_FLAGS(w, flag))
 
+#define GType GtkType
+#define GObject GtkObject
 #define G_CALLBACK(x) GTK_SIGNAL_FUNC(x)
 #define G_OBJECT(x) GTK_OBJECT(x)
+#define G_TYPE_CHECK_INSTANCE_TYPE GTK_CHECK_TYPE
+#define G_TYPE_CHECK_INSTANCE_CAST GTK_CHECK_CAST
+#define G_TYPE_CHECK_CLASS_TYPE GTK_CHECK_CLASS_TYPE
+#define G_TYPE_CHECK_CLASS_CAST GTK_CHECK_CLASS_CAST
 
 #define g_ascii_isspace(x) (isspace((unsigned char)(x)))
 #define g_signal_connect gtk_signal_connect
+#define g_signal_connect_swapped gtk_signal_connect_object
+#define g_signal_stop_emission_by_name gtk_signal_emit_stop_by_name
+#define g_signal_emit_by_name gtk_signal_emit_by_name
+#define g_signal_handler_disconnect gtk_signal_disconnect
+#define g_object_get_data gtk_object_get_data
 #define g_object_set_data gtk_object_set_data
+#define g_object_ref_sink gtk_object_sink
 
 #define GDK_GRAB_SUCCESS GrabSuccess
 

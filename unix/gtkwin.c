@@ -3106,8 +3106,8 @@ void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    int code = GPOINTER_TO_INT(gtk_object_get_data(GTK_OBJECT(item),
-						   "user-data"));
+    int code = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),
+                                                 "user-data"));
 
     if (inst->back)
 	inst->back->special(inst->backhandle, code);
@@ -3522,14 +3522,14 @@ void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 void saved_session_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    char *str = (char *)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+    char *str = (char *)g_object_get_data(G_OBJECT(item), "user-data");
 
     fork_and_exec_self(inst, -1, "-load", str, NULL);
 }
 
 void saved_session_freedata(GtkMenuItem *item, gpointer data)
 {
-    char *str = (char *)gtk_object_get_data(GTK_OBJECT(item), "user-data");
+    char *str = (char *)g_object_get_data(G_OBJECT(item), "user-data");
 
     sfree(str);
 }
@@ -3550,14 +3550,14 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 	    gtk_menu_item_new_with_label(sesslist.sessions[i]);
 	gtk_container_add(GTK_CONTAINER(inst->sessionsmenu), menuitem);
 	gtk_widget_show(menuitem);
-	gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
-			    dupstr(sesslist.sessions[i]));
-	gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
-			   GTK_SIGNAL_FUNC(saved_session_menuitem),
-			   inst);
-	gtk_signal_connect(GTK_OBJECT(menuitem), "destroy",
-			   GTK_SIGNAL_FUNC(saved_session_freedata),
-			   inst);
+        g_object_set_data(G_OBJECT(menuitem), "user-data",
+                          dupstr(sesslist.sessions[i]));
+        g_signal_connect(G_OBJECT(menuitem), "activate",
+                         G_CALLBACK(saved_session_menuitem),
+                         inst);
+        g_signal_connect(G_OBJECT(menuitem), "destroy",
+                         G_CALLBACK(saved_session_freedata),
+                         inst);
     }
     if (sesslist.nsessions <= 1) {
 	GtkWidget *menuitem =
@@ -3645,10 +3645,10 @@ void update_specials_menu(void *frontend)
 		break;
 	      default:
 		menuitem = gtk_menu_item_new_with_label(specials[i].name);
-		gtk_object_set_data(GTK_OBJECT(menuitem), "user-data",
-				    GINT_TO_POINTER(specials[i].code));
-		gtk_signal_connect(GTK_OBJECT(menuitem), "activate",
-				   GTK_SIGNAL_FUNC(special_menuitem), inst);
+                g_object_set_data(G_OBJECT(menuitem), "user-data",
+                                  GINT_TO_POINTER(specials[i].code));
+                g_signal_connect(G_OBJECT(menuitem), "activate",
+                                 G_CALLBACK(special_menuitem), inst);
 		break;
 	    }
 	    if (menuitem) {
@@ -3849,45 +3849,45 @@ int pt_main(int argc, char **argv)
 	gtk_widget_set_uposition(GTK_WIDGET(inst->window), x, y);
     }
 
-    gtk_signal_connect(GTK_OBJECT(inst->window), "destroy",
-		       GTK_SIGNAL_FUNC(destroy), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->window), "delete_event",
-		       GTK_SIGNAL_FUNC(delete_window), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->window), "key_press_event",
-		       GTK_SIGNAL_FUNC(key_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->window), "key_release_event",
-		       GTK_SIGNAL_FUNC(key_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->window), "focus_in_event",
-		       GTK_SIGNAL_FUNC(focus_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->window), "focus_out_event",
-		       GTK_SIGNAL_FUNC(focus_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "configure_event",
-		       GTK_SIGNAL_FUNC(configure_area), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "expose_event",
-		       GTK_SIGNAL_FUNC(expose_area), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "button_press_event",
-		       GTK_SIGNAL_FUNC(button_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "button_release_event",
-		       GTK_SIGNAL_FUNC(button_event), inst);
+    g_signal_connect(G_OBJECT(inst->window), "destroy",
+                     G_CALLBACK(destroy), inst);
+    g_signal_connect(G_OBJECT(inst->window), "delete_event",
+                     G_CALLBACK(delete_window), inst);
+    g_signal_connect(G_OBJECT(inst->window), "key_press_event",
+                     G_CALLBACK(key_event), inst);
+    g_signal_connect(G_OBJECT(inst->window), "key_release_event",
+                     G_CALLBACK(key_event), inst);
+    g_signal_connect(G_OBJECT(inst->window), "focus_in_event",
+                     G_CALLBACK(focus_event), inst);
+    g_signal_connect(G_OBJECT(inst->window), "focus_out_event",
+                     G_CALLBACK(focus_event), inst);
+    g_signal_connect(G_OBJECT(inst->area), "configure_event",
+                     G_CALLBACK(configure_area), inst);
+    g_signal_connect(G_OBJECT(inst->area), "expose_event",
+                     G_CALLBACK(expose_area), inst);
+    g_signal_connect(G_OBJECT(inst->area), "button_press_event",
+                     G_CALLBACK(button_event), inst);
+    g_signal_connect(G_OBJECT(inst->area), "button_release_event",
+                     G_CALLBACK(button_event), inst);
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_signal_connect(GTK_OBJECT(inst->area), "scroll_event",
-		       GTK_SIGNAL_FUNC(scroll_event), inst);
+    g_signal_connect(G_OBJECT(inst->area), "scroll_event",
+                     G_CALLBACK(scroll_event), inst);
 #endif
-    gtk_signal_connect(GTK_OBJECT(inst->area), "motion_notify_event",
-		       GTK_SIGNAL_FUNC(motion_event), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_received",
-		       GTK_SIGNAL_FUNC(selection_received), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_get",
-		       GTK_SIGNAL_FUNC(selection_get), inst);
-    gtk_signal_connect(GTK_OBJECT(inst->area), "selection_clear_event",
-		       GTK_SIGNAL_FUNC(selection_clear), inst);
+    g_signal_connect(G_OBJECT(inst->area), "motion_notify_event",
+                     G_CALLBACK(motion_event), inst);
+    g_signal_connect(G_OBJECT(inst->area), "selection_received",
+                     G_CALLBACK(selection_received), inst);
+    g_signal_connect(G_OBJECT(inst->area), "selection_get",
+                     G_CALLBACK(selection_get), inst);
+    g_signal_connect(G_OBJECT(inst->area), "selection_clear_event",
+                     G_CALLBACK(selection_clear), inst);
 #if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(inst->imc), "commit",
                      G_CALLBACK(input_method_commit_event), inst);
 #endif
     if (conf_get_int(inst->conf, CONF_scrollbar))
-	gtk_signal_connect(GTK_OBJECT(inst->sbar_adjust), "value_changed",
-			   GTK_SIGNAL_FUNC(scrollbar_moved), inst);
+        g_signal_connect(G_OBJECT(inst->sbar_adjust), "value_changed",
+                         G_CALLBACK(scrollbar_moved), inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
@@ -3918,8 +3918,8 @@ int pt_main(int argc, char **argv)
             menuitem = gtk_menu_item_new_with_label(title);             \
             gtk_container_add(GTK_CONTAINER(inst->menu), menuitem);     \
             gtk_widget_show(menuitem);                                  \
-            gtk_signal_connect(GTK_OBJECT(menuitem), "activate",        \
-                               GTK_SIGNAL_FUNC(func), inst);            \
+            g_signal_connect(G_OBJECT(menuitem), "activate",            \
+                             G_CALLBACK(func), inst);                   \
         } while (0)
 
 #define MKSUBMENU(title) do                                             \
