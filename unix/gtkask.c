@@ -5,8 +5,13 @@
 #include <assert.h>
 #include <time.h>
 #include <stdlib.h>
+
+#include <unistd.h>
+
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+
+#include "gtkcompat.h"
 
 #include "misc.h"
 
@@ -22,7 +27,9 @@ struct askpass_ctx {
     GtkWidget *dialog, *promptlabel;
     struct drawing_area_ctx drawingareas[N_DRAWING_AREAS];
     int active_area;
+#if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
+#endif
     GdkColormap *colmap;
     GdkColor cols[2];
     char *passphrase;
@@ -58,9 +65,33 @@ static int last_char_len(struct askpass_ctx *ctx)
     return ctx->passlen - i;
 }
 
+static void add_text_to_passphrase(struct askpass_ctx *ctx, gchar *str)
+{
+    int len = strlen(str);
+    if (ctx->passlen + len >= ctx->passsize) {
+        /* Take some care with buffer expansion, because there are
+         * pieces of passphrase in the old buffer so we should ensure
+         * realloc doesn't leave a copy lying around in the address
+         * space. */
+        int oldsize = ctx->passsize;
+        char *newbuf;
+
+        ctx->passsize = (ctx->passlen + len) * 5 / 4 + 1024;
+        newbuf = snewn(ctx->passsize, char);
+        memcpy(newbuf, ctx->passphrase, oldsize);
+        smemclr(ctx->passphrase, oldsize);
+        sfree(ctx->passphrase);
+        ctx->passphrase = newbuf;
+    }
+    strcpy(ctx->passphrase + ctx->passlen, str);
+    ctx->passlen += len;
+    visually_acknowledge_keypress(ctx);
+}
+
 static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct askpass_ctx *ctx = (struct askpass_ctx *)data;
+
     if (event->keyval == GDK_Return && event->type == GDK_KEY_PRESS) {
         gtk_main_quit();
     } else if (event->keyval == GDK_Escape && event->type == GDK_KEY_PRESS) {
@@ -68,8 +99,10 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         ctx->passphrase = NULL;
         gtk_main_quit();
     } else {
+#if GTK_CHECK_VERSION(2,0,0)
         if (gtk_im_context_filter_keypress(ctx->imc, event))
             return TRUE;
+#endif
 
         if (event->type == GDK_KEY_PRESS) {
             if (!strcmp(event->string, "\x15")) {
@@ -97,36 +130,24 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 if (ctx->passlen > 0)
                     ctx->passlen -= last_char_len(ctx);
                 visually_acknowledge_keypress(ctx);
+#if !GTK_CHECK_VERSION(2,0,0)
+            } else if (event->string[0]) {
+                add_text_to_passphrase(ctx, event->string);
+#endif
             }
         }
     }
     return TRUE;
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
 static void input_method_commit_event(GtkIMContext *imc, gchar *str,
                                       gpointer data)
 {
     struct askpass_ctx *ctx = (struct askpass_ctx *)data;
-    int len = strlen(str);
-    if (ctx->passlen + len >= ctx->passsize) {
-        /* Take some care with buffer expansion, because there are
-         * pieces of passphrase in the old buffer so we should ensure
-         * realloc doesn't leave a copy lying around in the address
-         * space. */
-        int oldsize = ctx->passsize;
-        char *newbuf;
-
-        ctx->passsize = (ctx->passlen + len) * 5 / 4 + 1024;
-        newbuf = snewn(ctx->passsize, char);
-        memcpy(newbuf, ctx->passphrase, oldsize);
-        smemclr(ctx->passphrase, oldsize);
-        sfree(ctx->passphrase);
-        ctx->passphrase = newbuf;
-    }
-    strcpy(ctx->passphrase + ctx->passlen, str);
-    ctx->passlen += len;
-    visually_acknowledge_keypress(ctx);
+    add_text_to_passphrase(ctx, str);
 }
+#endif
 
 static gint configure_area(GtkWidget *widget, GdkEventConfigure *event,
                            gpointer data)
@@ -205,7 +226,9 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area
                                     (GTK_DIALOG(ctx->dialog))),
                       ctx->promptlabel);
+#if GTK_CHECK_VERSION(2,0,0)
     ctx->imc = gtk_im_multicontext_new();
+#endif
     ctx->colmap = gdk_colormap_get_system();
     ctx->cols[0].red = ctx->cols[0].green = ctx->cols[0].blue = 0xFFFF;
     ctx->cols[1].red = ctx->cols[1].green = ctx->cols[1].blue = 0;
@@ -246,7 +269,10 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
      * ensure key events go to it.
      */
     gtk_widget_set_sensitive(ctx->promptlabel, TRUE);
+
+#if GTK_CHECK_VERSION(2,0,0)
     gtk_window_set_keep_above(GTK_WINDOW(ctx->dialog), TRUE);
+#endif
 
     /*
      * Actually show the window, and wait for it to be shown.
@@ -264,13 +290,17 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
      * And now that we've got the keyboard grab, connect up our
      * keyboard handlers, and display the prompt.
      */
+#if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(ctx->imc), "commit",
                      G_CALLBACK(input_method_commit_event), ctx);
+#endif
     gtk_signal_connect(GTK_OBJECT(ctx->promptlabel), "key_press_event",
 		       GTK_SIGNAL_FUNC(key_event), ctx);
     gtk_signal_connect(GTK_OBJECT(ctx->promptlabel), "key_release_event",
 		       GTK_SIGNAL_FUNC(key_event), ctx);
+#if GTK_CHECK_VERSION(2,0,0)
     gtk_im_context_set_client_window(ctx->imc, ctx->dialog->window);
+#endif
     gtk_widget_show(ctx->promptlabel);
 
     return NULL;
