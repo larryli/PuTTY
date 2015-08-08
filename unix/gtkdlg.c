@@ -1129,7 +1129,6 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    gdouble cvals[4];
     GtkWidget *okbutton, *cancelbutton;
 
     GtkWidget *coloursel =
@@ -1146,11 +1145,25 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
 #else
     gtk_color_selection_set_opacity(cs, FALSE);
 #endif
-    cvals[0] = r / 255.0;
-    cvals[1] = g / 255.0;
-    cvals[2] = b / 255.0;
-    cvals[3] = 1.0;		       /* fully opaque! */
-    gtk_color_selection_set_color(cs, cvals);
+
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+        GdkColor col;
+        col.red = r * 0x0101;
+        col.green = g * 0x0101;
+        col.blue = b * 0x0101;
+        gtk_color_selection_set_current_color(cs, &col);
+    }
+#else
+    {
+        gdouble cvals[4];
+        cvals[0] = r / 255.0;
+        cvals[1] = g / 255.0;
+        cvals[2] = b / 255.0;
+        cvals[3] = 1.0;		       /* fully opaque! */
+        gtk_color_selection_set_color(cs, cvals);
+    }
+#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
     g_object_get(G_OBJECT(ccs),
@@ -1604,11 +1617,23 @@ static void coloursel_ok(GtkButton *button, gpointer data)
     GtkColorSelection *cs = GTK_COLOR_SELECTION
         (gtk_color_selection_dialog_get_color_selection
          (GTK_COLOR_SELECTION_DIALOG(coloursel)));
-    gdouble cvals[4];
-    gtk_color_selection_get_color(cs, cvals);
-    dp->coloursel_result.r = (int) (255 * cvals[0]);
-    dp->coloursel_result.g = (int) (255 * cvals[1]);
-    dp->coloursel_result.b = (int) (255 * cvals[2]);
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+        GdkColor col;
+        gtk_color_selection_get_current_color(cs, &col);
+        dp->coloursel_result.r = col.red / 0x0100;
+        dp->coloursel_result.g = col.green / 0x0100;
+        dp->coloursel_result.b = col.blue / 0x0100;
+    }
+#else
+    {
+        gdouble cvals[4];
+        gtk_color_selection_get_color(cs, cvals);
+        dp->coloursel_result.r = (int) (255 * cvals[0]);
+        dp->coloursel_result.g = (int) (255 * cvals[1]);
+        dp->coloursel_result.b = (int) (255 * cvals[2]);
+    }
+#endif
     dp->coloursel_result.ok = TRUE;
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
 }
