@@ -30,6 +30,11 @@
 #include "dialog.h"
 #include "tree234.h"
 
+#if GTK_CHECK_VERSION(2,0,0)
+/* Decide which of GtkFileChooserDialog and GtkFileSelection to use */
+#define USE_GTK_FILE_CHOOSER_DIALOG
+#endif
+
 struct Shortcut {
     GtkWidget *widget;
     struct uctrl *uc;
@@ -1574,6 +1579,20 @@ static void droplist_selchange(GtkComboBox *combo, gpointer data)
 
 #endif /* !GTK_CHECK_VERSION(2,4,0) */
 
+#ifdef USE_GTK_FILE_CHOOSER_DIALOG
+static void filechoose_response(GtkDialog *dialog, gint response,
+                                gpointer data)
+{
+    /* struct dlgparam *dp = (struct dlgparam *)data; */
+    struct uctrl *uc = g_object_get_data(G_OBJECT(dialog), "user-data");
+    if (response == GTK_RESPONSE_ACCEPT) {
+        gchar *name = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+    gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
+        g_free(name);
+    }
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+#else
 static void filesel_ok(GtkButton *button, gpointer data)
 {
     /* struct dlgparam *dp = (struct dlgparam *)data; */
@@ -1583,6 +1602,7 @@ static void filesel_ok(GtkButton *button, gpointer data)
 	(GTK_FILE_SELECTION(filesel));
     gtk_entry_set_text(GTK_ENTRY(uc->entry), name);
 }
+#endif
 
 static void fontsel_ok(GtkButton *button, gpointer data)
 {
@@ -1653,6 +1673,21 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     struct uctrl *uc = dlg_find_bywidget(dp, GTK_WIDGET(button));
 
     if (uc->ctrl->generic.type == CTRL_FILESELECT) {
+#ifdef USE_GTK_FILE_CHOOSER_DIALOG
+        GtkWidget *filechoose = gtk_file_chooser_dialog_new
+            (uc->ctrl->fileselect.title, GTK_WINDOW(dp->window),
+             (uc->ctrl->fileselect.for_writing ?
+              GTK_FILE_CHOOSER_ACTION_SAVE :
+              GTK_FILE_CHOOSER_ACTION_OPEN),
+             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+             GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+             (const gchar *)NULL);
+	gtk_window_set_modal(GTK_WINDOW(filechoose), TRUE);
+	g_object_set_data(G_OBJECT(filechoose), "user-data", (gpointer)uc);
+	g_signal_connect(G_OBJECT(filechoose), "response",
+                         G_CALLBACK(filechoose_response), (gpointer)dp);
+	gtk_widget_show(filechoose);
+#else
 	GtkWidget *filesel =
 	    gtk_file_selection_new(uc->ctrl->fileselect.title);
 	gtk_window_set_modal(GTK_WINDOW(filesel), TRUE);
@@ -1670,6 +1705,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
             (G_OBJECT(GTK_FILE_SELECTION(filesel)->cancel_button), "clicked",
              G_CALLBACK(gtk_widget_destroy), (gpointer)filesel);
 	gtk_widget_show(filesel);
+#endif
     }
 
     if (uc->ctrl->generic.type == CTRL_FONTSELECT) {
