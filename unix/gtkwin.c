@@ -1639,11 +1639,7 @@ void request_resize(void *frontend, int w, int h)
     large_x += 32;
     large_y += 32;
 
-#if GTK_CHECK_VERSION(2,0,0)
     gtk_widget_set_size_request(inst->area, large_x, large_y);
-#else
-    gtk_widget_set_usize(inst->area, large_x, large_y);
-#endif
     gtk_widget_size_request(inst->area, &inner);
     gtk_widget_size_request(inst->window, &outer);
 
@@ -1659,12 +1655,11 @@ void request_resize(void *frontend, int w, int h)
      * way to do this, I think, is to set it to what the size is
      * really going to end up being.
      */
-#if GTK_CHECK_VERSION(2,0,0)
     gtk_widget_set_size_request(inst->area, area_x, area_y);
+#if GTK_CHECK_VERSION(2,0,0)
     gtk_window_resize(GTK_WINDOW(inst->window),
 		      area_x + offset_x, area_y + offset_y);
 #else
-    gtk_widget_set_usize(inst->area, area_x, area_y);
     gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), area_x, area_y);
     /*
      * I can no longer remember what this call to

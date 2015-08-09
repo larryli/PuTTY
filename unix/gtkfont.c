@@ -2562,11 +2562,9 @@ unifontsel *unifontsel_new(const char *wintitle)
 	gtk_label_set_text(GTK_LABEL(label), "48000");
 	gtk_widget_size_request(label, &req);
 	size_width = req.width;
-#if GTK_CHECK_VERSION(2,10,0)
-	g_object_ref_sink(label);
-	g_object_unref(label);
-#else
         g_object_ref_sink(G_OBJECT(label));
+#if GTK_CHECK_VERSION(2,10,0)
+	g_object_unref(label);
 #endif
     }
 

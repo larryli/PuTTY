@@ -40,6 +40,8 @@
 #define gtk_widget_set_size_request gtk_widget_set_usize
 #define gtk_radio_button_get_group gtk_radio_button_group
 #define gtk_notebook_set_current_page gtk_notebook_set_page
+#define gtk_color_selection_set_has_opacity_control \
+    gtk_color_selection_set_opacity
 
 #define gtk_dialog_get_content_area(dlg) ((dlg)->vbox)
 #define gtk_dialog_get_action_area(dlg) ((dlg)->action_area)

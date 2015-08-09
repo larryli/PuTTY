@@ -1143,11 +1143,7 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     dp->coloursel_result.ok = FALSE;
 
     gtk_window_set_modal(GTK_WINDOW(coloursel), TRUE);
-#if GTK_CHECK_VERSION(2,0,0)
     gtk_color_selection_set_has_opacity_control(cs, FALSE);
-#else
-    gtk_color_selection_set_opacity(cs, FALSE);
-#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
     {
