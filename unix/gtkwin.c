@@ -1497,8 +1497,6 @@ static void inst_post_main(struct gui_data *inst)
          * when we get out of the next one. */
         request_post_main(inst);
     }
-
-    return 0;
 }
 
 static gint idle_toplevel_callback_func(gpointer data)
