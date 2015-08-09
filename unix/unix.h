@@ -80,6 +80,7 @@ long get_windowid(void *frontend);
 
 /* Things gtkdlg.c needs from pterm.c */
 void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
+void post_main(void);     /* called after any subsidiary gtk_main() */
 
 /* Things pterm.c needs from gtkdlg.c */
 int do_config_box(const char *title, Conf *conf,

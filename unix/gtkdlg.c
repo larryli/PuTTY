@@ -1094,6 +1094,7 @@ void dlg_error_msg(void *dlg, const char *msg)
     set_transient_window_pos(dp->window, window);
     gtk_widget_show(window);
     gtk_main();
+    post_main();
 }
 
 /*
@@ -3209,6 +3210,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
                      G_CALLBACK(win_key_press), &dp);
 
     gtk_main();
+    post_main();
 
     dlg_cleanup(&dp);
     sfree(selparams);
@@ -3314,6 +3316,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
                      G_CALLBACK(win_key_press), &dp);
 
     gtk_main();
+    post_main();
 
     dlg_cleanup(&dp);
     ctrl_free_box(ctrlbox);

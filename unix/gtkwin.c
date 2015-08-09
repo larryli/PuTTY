@@ -1435,6 +1435,48 @@ static void exit_callback(void *vinst)
     }
 }
 
+/*
+ * Replacement code for the gtk_quit_add() function, which GTK2 - in
+ * their unbounded wisdom - deprecated without providing any usable
+ * replacement, and which we were using to ensure that our idle
+ * function for toplevel callbacks was only run from the outermost
+ * gtk_main().
+ *
+ * We maintain a global variable with a list of 'struct gui_data'
+ * instances on which we should call inst_post_main() when a
+ * subsidiary gtk_main() terminates; then we must make sure that all
+ * our subsidiary calls to gtk_main() are followed by a call to
+ * post_main().
+ *
+ * This is kind of overkill in the sense that at the time of writing
+ * we don't actually ever run more than one 'struct gui_data' instance
+ * in the same process, but we're _so nearly_ prepared to do that that
+ * I want to remain futureproof against the possibility of doing so in
+ * future.
+ */
+struct post_main_context {
+    struct post_main_context *next;
+    struct gui_data *inst;
+};
+struct post_main_context *post_main_list_head = NULL;
+static void request_post_main(struct gui_data *inst)
+{
+    struct post_main_context *node = snew(struct post_main_context);
+    node->next = post_main_list_head;
+    node->inst = inst;
+    post_main_list_head = node;
+}
+static void inst_post_main(struct gui_data *inst);
+void post_main(void)
+{
+    while (post_main_list_head) {
+        struct post_main_context *node = post_main_list_head;
+        post_main_list_head = node->next;
+        inst_post_main(node->inst);
+        sfree(node);
+    }
+}
+
 void notify_remote_exit(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -1444,13 +1486,17 @@ void notify_remote_exit(void *frontend)
 
 static void notify_toplevel_callback(void *frontend);
 
-static gint quit_toplevel_callback_func(gpointer data)
+static void inst_post_main(struct gui_data *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-
-    notify_toplevel_callback(inst);
-
-    inst->quit_fn_scheduled = FALSE;
+    if (gtk_main_level() == 1) {
+        notify_toplevel_callback(inst);
+        inst->quit_fn_scheduled = FALSE;
+    } else {
+        /* Apparently we're _still_ more than one level deep in
+         * gtk_main() instances, so we'll need another callback for
+         * when we get out of the next one. */
+        request_post_main(inst);
+    }
 
     return 0;
 }
@@ -1467,7 +1513,7 @@ static gint idle_toplevel_callback_func(gpointer data)
          * already arranged one), so we can reschedule ourself then.
          */
         if (!inst->quit_fn_scheduled) {
-            gtk_quit_add(2, quit_toplevel_callback_func, inst);
+            request_post_main(inst);
             inst->quit_fn_scheduled = TRUE;
         }
         /*
