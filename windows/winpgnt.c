@@ -744,7 +744,6 @@ PSID get_default_sid(void)
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
-    int ret;
     static int menuinprogress;
     static UINT msgTaskbarCreated = 0;
 
@@ -779,10 +778,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    menuinprogress = 1;
 	    update_sessions();
 	    SetForegroundWindow(hwnd);
-	    ret = TrackPopupMenu(systray_menu,
-				 TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
-				 TPM_RIGHTBUTTON,
-				 wParam, lParam, 0, hwnd, NULL);
+	    TrackPopupMenu(systray_menu,
+			   TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
+			   TPM_RIGHTBUTTON,
+			   wParam, lParam, 0, hwnd, NULL);
 	    menuinprogress = 0;
 	}
 	break;
