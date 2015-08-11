@@ -372,7 +372,6 @@ void checkbox(struct ctlpos *cp, char *text, int id)
 char *staticwrap(struct ctlpos *cp, HWND hwnd, char *text, int *lines)
 {
     HDC hdc = GetDC(hwnd);
-    int lpx = GetDeviceCaps(hdc, LOGPIXELSX);
     int width, nlines, j;
     INT *pwidths, nfit;
     SIZE size;
