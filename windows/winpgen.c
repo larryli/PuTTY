@@ -790,7 +790,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_SAVE, "&Save private key");
 	    AppendMenu(menu1, MF_SEPARATOR, 0, 0);
 	    AppendMenu(menu1, MF_ENABLED, IDC_QUIT, "E&xit");
-	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&File");
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&File");
 	    state->filemenu = menu1;
 
 	    menu1 = CreateMenu();
@@ -801,7 +801,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ED25519, "SSH-2 ED&25519 key");
-	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Key");
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
 	    state->keymenu = menu1;
 
 	    menu1 = CreateMenu();
@@ -813,7 +813,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       "Export &OpenSSH key (force new file format)");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "Export &ssh.com key");
-	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1,
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1,
 		       "Con&versions");
 	    state->cvtmenu = menu1;
 
@@ -821,7 +821,7 @@ static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_ABOUT, "&About");
 	    if (has_help())
 		AppendMenu(menu1, MF_ENABLED, IDC_GIVEHELP, "&Help");
-	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT) menu1, "&Help");
+	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Help");
 
 	    SetMenu(hwnd, menu);
 	}

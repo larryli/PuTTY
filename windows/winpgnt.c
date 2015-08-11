@@ -1191,7 +1191,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	session_menu = CreateMenu();
 	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
 	AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-		   (UINT) session_menu, "&Saved Sessions");
+		   (UINT_PTR) session_menu, "&Saved Sessions");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
