@@ -368,7 +368,7 @@ static void win_add_keyfile(Filename *filename)
      * comment to use in the passphrase prompt.
      */
     while (1) {
-        int dlgret;
+        INT_PTR dlgret;
         struct PassphraseProcStruct pps;
 
         pps.passphrase = &passphrase;
