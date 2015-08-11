@@ -657,7 +657,7 @@ static int transform_jumplist_registry
     int ret;
     HKEY pjumplist_key, psettings_tmp;
     DWORD type;
-    int value_length;
+    DWORD value_length;
     char *old_value, *new_value;
     char *piterator_old, *piterator_new, *piterator_tmp;
 
