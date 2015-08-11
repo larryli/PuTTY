@@ -1658,7 +1658,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	ret = p_recv(s->s, buf, sizeof(buf), MSG_OOB);
 	noise_ultralight(ret);
 	if (ret <= 0) {
-	    char *str = (ret == 0 ? "Internal networking trouble" :
+	    const char *str = (ret == 0 ? "Internal networking trouble" :
 			 winsock_error_string(p_WSAGetLastError()));
 	    /* We're inside the Windows frontend here, so we know
 	     * that the frontend handle is unnecessary. */
