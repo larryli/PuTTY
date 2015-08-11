@@ -886,6 +886,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 
     } else {
         assert(0 && "Bad key type from load_openssh_pem_key");
+	errmsg = "Bad key type from load_openssh_pem_key";
+	goto error;
     }
 
     /*
