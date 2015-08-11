@@ -5,7 +5,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "putty.h"
+#ifndef SECURITY_WIN32
 #define SECURITY_WIN32
+#endif
 #include <security.h>
 
 OSVERSIONINFO osVersion;
