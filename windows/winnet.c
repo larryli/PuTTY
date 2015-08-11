@@ -478,8 +478,8 @@ const char *winsock_error_string(int error)
                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                            es->text + bufused, bufsize - bufused, NULL)) {
             sprintf(es->text + bufused,
-                    "Windows error code %d (and FormatMessage returned %d)", 
-                    error, GetLastError());
+                    "Windows error code %d (and FormatMessage returned %u)",
+                    error, (unsigned int)GetLastError());
         } else {
             int len = strlen(es->text);
             if (len > 0 && es->text[len-1] == '\n')

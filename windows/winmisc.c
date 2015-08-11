@@ -222,8 +222,8 @@ const char *win_strerror(int error)
                            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                            msgtext, lenof(msgtext)-1, NULL)) {
             sprintf(msgtext,
-                    "(unable to format: FormatMessage returned %d)",
-                    GetLastError());
+                    "(unable to format: FormatMessage returned %u)",
+                    (unsigned int)GetLastError());
         } else {
             int len = strlen(msgtext);
             if (len > 0 && msgtext[len-1] == '\n')
