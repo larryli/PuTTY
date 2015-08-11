@@ -291,7 +291,7 @@ void keylist_update(void)
 	}
 	for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
 	    char *listentry, *p;
-	    int pos, fp_len;
+	    int pos;
 	    /*
 	     * Replace spaces with tabs in the fingerprint prefix, for
 	     * nice alignment in the list box, until we encounter a :
@@ -299,7 +299,6 @@ void keylist_update(void)
 	     */
 	    p = ssh2_fingerprint(skey->alg, skey->data);
             listentry = dupprintf("%s\t%s", p, skey->comment);
-            fp_len = strlen(listentry);
             sfree(p);
 
             pos = 0;
