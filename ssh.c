@@ -6197,6 +6197,7 @@ static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
 	    return &list[i];
 	}
     assert(!"No space in KEXINIT list");
+    return NULL;
 }
 
 /*
