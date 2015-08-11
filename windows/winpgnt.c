@@ -304,7 +304,7 @@ void keylist_update(void)
             pos = 0;
             while (1) {
                 pos += strcspn(listentry + pos, " :");
-                if (listentry[pos] == ':')
+                if (listentry[pos] == ':' || !listentry[pos])
                     break;
                 listentry[pos++] = '\t';
             }
