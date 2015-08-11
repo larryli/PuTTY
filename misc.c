@@ -853,7 +853,7 @@ void debug_memdump(const void *buf, int len, int L)
     if (L) {
 	int delta;
 	debug_printf("\t%d (0x%x) bytes:\n", len, len);
-	delta = 15 & (unsigned long int) p;
+	delta = 15 & (uintptr_t)p;
 	p -= delta;
 	len += delta;
     }

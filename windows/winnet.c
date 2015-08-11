@@ -138,7 +138,7 @@ static int cmpfortree(void *av, void *bv)
 static int cmpforsearch(void *av, void *bv)
 {
     Actual_Socket b = (Actual_Socket) bv;
-    unsigned long as = (unsigned long) av, bs = (unsigned long) b->s;
+    uintptr_t as = (uintptr_t) av, bs = (uintptr_t) b->s;
     if (as < bs)
 	return -1;
     if (as > bs)
