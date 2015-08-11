@@ -141,7 +141,7 @@ struct PassphraseProcStruct {
 /*
  * Dialog-box function for the passphrase box.
  */
-static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam)
 {
     static char **passphrase = NULL;
@@ -233,7 +233,7 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
 /*
  * Dialog-box function for the Licence box.
  */
-static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -272,7 +272,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 /*
  * Dialog-box function for the About box.
  */
-static int CALLBACK AboutProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 			      WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -749,7 +749,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 /*
  * Dialog-box function for the main PuTTYgen dialog box.
  */
-static int CALLBACK MainDlgProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     static const char generating_msg[] =

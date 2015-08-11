@@ -120,7 +120,7 @@ struct PassphraseProcStruct {
 /*
  * Dialog-box function for the Licence box.
  */
-static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -144,7 +144,7 @@ static int CALLBACK LicenceProc(HWND hwnd, UINT msg,
 /*
  * Dialog-box function for the About box.
  */
-static int CALLBACK AboutProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 			      WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
@@ -179,7 +179,7 @@ static HWND passphrase_box;
 /*
  * Dialog-box function for the passphrase box.
  */
-static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 				   WPARAM wParam, LPARAM lParam)
 {
     static char **passphrase = NULL;
@@ -461,7 +461,7 @@ static void prompt_add_keyfile(void)
 /*
  * Dialog-box function for the key list box.
  */
-static int CALLBACK KeyListProc(HWND hwnd, UINT msg,
+static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     struct RSAKey *rkey;
