@@ -1631,6 +1631,7 @@ static void multifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
 				int wide, int bold, int cellwidth)
 {
     struct multifont *mfont = (struct multifont *)font;
+    unifont *f;
     int ok, i;
 
     while (len > 0) {
@@ -1647,8 +1648,10 @@ static void multifont_draw_text(GdkDrawable *target, GdkGC *gc, unifont *font,
         /*
          * Now display it.
          */
-        unifont_draw_text(target, gc, ok ? mfont->main : mfont->fallback,
-                          x, y, string, i, wide, bold, cellwidth);
+        f = ok ? mfont->main : mfont->fallback;
+        if (f)
+            unifont_draw_text(target, gc, f, x, y, string, i, wide, bold,
+                              cellwidth);
         string += i;
         len -= i;
         x += i * cellwidth;
