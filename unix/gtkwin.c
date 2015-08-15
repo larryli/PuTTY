@@ -126,6 +126,7 @@ struct gui_data {
     int bold_style;
     int window_border;
     int cursor_type;
+    int drawtype;
 };
 
 static void cache_conf_values(struct gui_data *inst)
@@ -136,8 +137,8 @@ static void cache_conf_values(struct gui_data *inst)
 }
 
 struct draw_ctx {
-    GdkGC *gc;
     struct gui_data *inst;
+    unifont_drawctx uctx;
 };
 
 static int send_raw_mouse;
@@ -469,15 +470,7 @@ static void show_mouseptr(struct gui_data *inst, int show)
     update_mouseptr(inst);
 }
 
-void draw_backing_rect(struct gui_data *inst)
-{
-    GdkGC *gc = gdk_gc_new(gtk_widget_get_window(inst->area));
-    gdk_gc_set_foreground(gc, &inst->cols[258]);    /* default background */
-    gdk_draw_rectangle(inst->pixmap, gc, 1, 0, 0,
-		       inst->width * inst->font_width + 2*inst->window_border,
-		       inst->height * inst->font_height + 2*inst->window_border);
-    gdk_gc_unref(gc);
-}
+static void draw_backing_rect(struct gui_data *inst);
 
 gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
@@ -2296,7 +2289,29 @@ Context get_ctx(void *frontend)
 
     dctx = snew(struct draw_ctx);
     dctx->inst = inst;
-    dctx->gc = gdk_gc_new(gtk_widget_get_window(inst->area));
+    dctx->uctx.type = inst->drawtype;
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        dctx->uctx.u.gdk.target = inst->pixmap;
+        dctx->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
+        dctx->uctx.u.cairo.cr = gdk_cairo_create(inst->pixmap);
+        cairo_get_matrix(dctx->uctx.u.cairo.cr,
+                         &dctx->uctx.u.cairo.origmatrix);
+        cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
+        cairo_set_line_cap(dctx->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
+        cairo_set_line_join(dctx->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
+        /* This antialiasing setting appears to be ignored for Pango
+         * font rendering but honoured for stroking and filling paths;
+         * I don't quite understand the logic of that, but I won't
+         * complain since it's exactly what I happen to want */
+        cairo_set_antialias(dctx->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
+    }
+#endif
     return dctx;
 }
 
@@ -2304,9 +2319,235 @@ void free_ctx(Context ctx)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     /* struct gui_data *inst = dctx->inst; */
-    GdkGC *gc = dctx->gc;
-    gdk_gc_unref(gc);
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_gc_unref(dctx->uctx.u.gdk.gc);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_destroy(dctx->uctx.u.cairo.cr);
+    }
+#endif
     sfree(dctx);
+}
+
+
+static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_pixmap(gtk_widget_get_window(dctx->inst->area),
+                        dctx->uctx.u.gdk.gc, dctx->inst->pixmap,
+                        x, y, x, y, w, h);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO /* FIXME: and not GTK3 where a cairo_t is all we have */
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        GdkGC *gc = gdk_gc_new(gtk_widget_get_window(dctx->inst->area));
+        gdk_draw_pixmap(gtk_widget_get_window(dctx->inst->area),
+                        gc, dctx->inst->pixmap, x, y, x, y, w, h);
+        gdk_gc_unref(gc);
+    }
+#endif
+}
+
+static void draw_set_colour(struct draw_ctx *dctx, int col)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
+                             dctx->inst->cols[col].red / 65535.0,
+                             dctx->inst->cols[col].green / 65535.0,
+                             dctx->inst->cols[col].blue / 65535.0);
+    }
+#endif
+}
+
+static void draw_rectangle(struct draw_ctx *dctx, int filled,
+                           int x, int y, int w, int h)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_rectangle(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+                           filled, x, y, w, h);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(dctx->uctx.u.cairo.cr);
+        if (filled) {
+            cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
+            cairo_fill(dctx->uctx.u.cairo.cr);
+        } else {
+            cairo_rectangle(dctx->uctx.u.cairo.cr,
+                            x + 0.5, y + 0.5, w, h);
+            cairo_close_path(dctx->uctx.u.cairo.cr);
+            cairo_stroke(dctx->uctx.u.cairo.cr);
+        }
+    }
+#endif
+}
+
+static void draw_clip(struct draw_ctx *dctx, int x, int y, int w, int h)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+	GdkRectangle r;
+
+	r.x = x;
+	r.y = y;
+	r.width = w;
+	r.height = h;
+
+        gdk_gc_set_clip_rectangle(dctx->uctx.u.gdk.gc, &r);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_reset_clip(dctx->uctx.u.cairo.cr);
+        cairo_new_path(dctx->uctx.u.cairo.cr);
+        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
+        cairo_clip(dctx->uctx.u.cairo.cr);
+    }
+#endif
+}
+
+static void draw_point(struct draw_ctx *dctx, int x, int y)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_point(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc, x, y);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(dctx->uctx.u.cairo.cr);
+        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, 1, 1);
+        cairo_fill(dctx->uctx.u.cairo.cr);
+    }
+#endif
+}
+
+static void draw_line(struct draw_ctx *dctx, int x0, int y0, int x1, int y1)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_line(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+                      x0, y0, x1, y1);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(dctx->uctx.u.cairo.cr);
+        cairo_move_to(dctx->uctx.u.cairo.cr, x0 + 0.5, y0 + 0.5);
+        cairo_line_to(dctx->uctx.u.cairo.cr, x1 + 0.5, y1 + 0.5);
+        cairo_stroke(dctx->uctx.u.cairo.cr);
+    }
+#endif
+}
+
+static void draw_stretch_before(struct draw_ctx *dctx, int x, int y,
+                                int w, int wdouble,
+                                int h, int hdouble, int hbothalf)
+{
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_matrix_t matrix;
+
+        matrix.xy = 0;
+        matrix.yx = 0;
+
+        if (wdouble) {
+            matrix.xx = 2;
+            matrix.x0 = -x;
+        } else {
+            matrix.xx = 1;
+            matrix.x0 = 0;
+        }
+
+        if (hdouble) {
+            matrix.yy = 2;
+            if (hbothalf) {
+                matrix.y0 = -(y+h);
+            } else {
+                matrix.y0 = -y;
+            }
+        } else {
+            matrix.yy = 1;
+            matrix.y0 = 0;
+        }
+        cairo_transform(dctx->uctx.u.cairo.cr, &matrix);
+    }
+#endif
+}
+
+static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
+                               int w, int wdouble,
+                               int h, int hdouble, int hbothalf)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+	/*
+	 * I can't find any plausible StretchBlt equivalent in the X
+	 * server, so I'm going to do this the slow and painful way.
+	 * This will involve repeated calls to gdk_draw_pixmap() to
+	 * stretch the text horizontally. It's O(N^2) in time and O(N)
+	 * in network bandwidth, but you try thinking of a better way.
+	 * :-(
+	 */
+	int i;
+        if (wdouble) {
+            for (i = 0; i < w; i++) {
+                gdk_draw_pixmap(dctx->uctx.u.gdk.target,
+                                dctx->uctx.u.gdk.gc,
+                                dctx->uctx.u.gdk.target,
+                                x + 2*i, y,
+                                x + 2*i+1, y,
+                                w - i, h);
+            }
+            w *= 2;
+        }
+
+	if (hdouble) {
+	    int dt, db;
+	    /* Now stretch vertically, in the same way. */
+	    if (hbothalf)
+		dt = 0, db = 1;
+	    else
+		dt = 1, db = 0;
+	    for (i = 0; i < h; i += 2) {
+		gdk_draw_pixmap(dctx->uctx.u.gdk.target,
+                                dctx->uctx.u.gdk.gc,
+                                dctx->uctx.u.gdk.target,
+                                x, y + dt*i + db,
+				x, y + dt*(i+1),
+				w, h-i-1);
+	    }
+	}
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_matrix(dctx->uctx.u.cairo.cr,
+                         &dctx->uctx.u.cairo.origmatrix);
+    }
+#endif
+}
+
+static void draw_backing_rect(struct gui_data *inst)
+{
+    struct draw_ctx *dctx = get_ctx(inst);
+    draw_set_colour(dctx, 258);
+    draw_rectangle(dctx, 1, 0, 0,
+                   inst->width * inst->font_width + 2*inst->window_border,
+                   inst->height * inst->font_height + 2*inst->window_border);
+    free_ctx(dctx);
 }
 
 /*
@@ -2320,7 +2561,6 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
-    GdkGC *gc = dctx->gc;
     int ncombining, combining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome =
@@ -2395,25 +2635,31 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     } else
 	rlen = len;
 
-    {
-	GdkRectangle r;
-
-	r.x = x*inst->font_width+inst->window_border;
-	r.y = y*inst->font_height+inst->window_border;
-	r.width = rlen*widefactor*inst->font_width;
-	r.height = inst->font_height;
-	gdk_gc_set_clip_rectangle(gc, &r);
+    if ((lattr & LATTR_MODE) != LATTR_NORM) {
+        draw_stretch_before(dctx,
+                            x*inst->font_width+inst->window_border,
+                            y*inst->font_height+inst->window_border,
+                            rlen*widefactor*inst->font_width, TRUE,
+                            inst->font_height,
+                            ((lattr & LATTR_MODE) != LATTR_WIDE),
+                            ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 
-    gdk_gc_set_foreground(gc, &inst->cols[nbg]);
-    gdk_draw_rectangle(inst->pixmap, gc, 1,
-		       x*inst->font_width+inst->window_border,
-		       y*inst->font_height+inst->window_border,
-		       rlen*widefactor*inst->font_width, inst->font_height);
+    draw_clip(dctx,
+              x*inst->font_width+inst->window_border,
+              y*inst->font_height+inst->window_border,
+              rlen*widefactor*inst->font_width,
+              inst->font_height);
 
-    gdk_gc_set_foreground(gc, &inst->cols[nfg]);
+    draw_set_colour(dctx, nbg);
+    draw_rectangle(dctx, TRUE,
+                   x*inst->font_width+inst->window_border,
+                   y*inst->font_height+inst->window_border,
+                   rlen*widefactor*inst->font_width, inst->font_height);
+
+    draw_set_colour(dctx, nfg);
     for (combining = 0; combining < ncombining; combining++) {
-        unifont_draw_text(inst->pixmap, gc, inst->fonts[fontid],
+        unifont_draw_text(&dctx->uctx, inst->fonts[fontid],
                           x*inst->font_width+inst->window_border,
                           y*inst->font_height+inst->window_border+inst->fonts[0]->ascent,
                           text + combining, len, widefactor > 1,
@@ -2424,47 +2670,20 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	int uheight = inst->fonts[0]->ascent + 1;
 	if (uheight >= inst->font_height)
 	    uheight = inst->font_height - 1;
-	gdk_draw_line(inst->pixmap, gc, x*inst->font_width+inst->window_border,
-		      y*inst->font_height + uheight + inst->window_border,
-		      (x+len)*widefactor*inst->font_width-1+inst->window_border,
-		      y*inst->font_height + uheight + inst->window_border);
+        draw_line(dctx, x*inst->font_width+inst->window_border,
+                  y*inst->font_height + uheight + inst->window_border,
+                  (x+len)*widefactor*inst->font_width-1+inst->window_border,
+                  y*inst->font_height + uheight + inst->window_border);
     }
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
-	/*
-	 * I can't find any plausible StretchBlt equivalent in the
-	 * X server, so I'm going to do this the slow and painful
-	 * way. This will involve repeated calls to
-	 * gdk_draw_pixmap() to stretch the text horizontally. It's
-	 * O(N^2) in time and O(N) in network bandwidth, but you
-	 * try thinking of a better way. :-(
-	 */
-	int i;
-	for (i = 0; i < len * widefactor * inst->font_width; i++) {
-	    gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
-			    x*inst->font_width+inst->window_border + 2*i,
-			    y*inst->font_height+inst->window_border,
-			    x*inst->font_width+inst->window_border + 2*i+1,
-			    y*inst->font_height+inst->window_border,
-			    len * widefactor * inst->font_width - i, inst->font_height);
-	}
-	len *= 2;
-	if ((lattr & LATTR_MODE) != LATTR_WIDE) {
-	    int dt, db;
-	    /* Now stretch vertically, in the same way. */
-	    if ((lattr & LATTR_MODE) == LATTR_BOT)
-		dt = 0, db = 1;
-	    else
-		dt = 1, db = 0;
-	    for (i = 0; i < inst->font_height; i+=2) {
-		gdk_draw_pixmap(inst->pixmap, gc, inst->pixmap,
-				x*inst->font_width+inst->window_border,
-				y*inst->font_height+inst->window_border+dt*i+db,
-				x*inst->font_width+inst->window_border,
-				y*inst->font_height+inst->window_border+dt*(i+1),
-				len * widefactor * inst->font_width, inst->font_height-i-1);
-	    }
-	}
+        draw_stretch_after(dctx,
+                           x*inst->font_width+inst->window_border,
+                           y*inst->font_height+inst->window_border,
+                           rlen*widefactor*inst->font_width, TRUE,
+                           inst->font_height,
+                           ((lattr & LATTR_MODE) != LATTR_WIDE),
+                           ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 }
 
@@ -2473,7 +2692,6 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
-    GdkGC *gc = dctx->gc;
     int widefactor;
 
     do_text_internal(ctx, x, y, text, len, attr, lattr);
@@ -2493,12 +2711,10 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	len *= 2;
     }
 
-    gdk_draw_pixmap(gtk_widget_get_window(inst->area), gc, inst->pixmap,
-		    x*inst->font_width+inst->window_border,
-		    y*inst->font_height+inst->window_border,
-		    x*inst->font_width+inst->window_border,
-		    y*inst->font_height+inst->window_border,
-		    len*widefactor*inst->font_width, inst->font_height);
+    draw_update(dctx,
+                x*inst->font_width+inst->window_border,
+                y*inst->font_height+inst->window_border,
+                len*widefactor*inst->font_width, inst->font_height);
 }
 
 void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
@@ -2506,7 +2722,6 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
-    GdkGC *gc = dctx->gc;
 
     int active, passive, widefactor;
 
@@ -2547,11 +2762,12 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	 * if it's passive.
 	 */
 	if (passive) {
-	    gdk_gc_set_foreground(gc, &inst->cols[261]);
-	    gdk_draw_rectangle(inst->pixmap, gc, 0,
-			       x*inst->font_width+inst->window_border,
-			       y*inst->font_height+inst->window_border,
-			       len*widefactor*inst->font_width-1, inst->font_height-1);
+            draw_set_colour(dctx, 261);
+            draw_rectangle(dctx, FALSE,
+                           x*inst->font_width+inst->window_border,
+                           y*inst->font_height+inst->window_border,
+                           len*widefactor*inst->font_width-1,
+                           inst->font_height-1);
 	}
     } else {
 	int uheight;
@@ -2585,27 +2801,25 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-	gdk_gc_set_foreground(gc, &inst->cols[261]);
+        draw_set_colour(dctx, 261);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
-		    gdk_draw_point(inst->pixmap, gc, startx, starty);
+		    draw_point(dctx, startx, starty);
 		}
 		startx += dx;
 		starty += dy;
 	    }
 	} else if (active) {
-	    gdk_draw_line(inst->pixmap, gc, startx, starty,
-			  startx + (length-1) * dx, starty + (length-1) * dy);
+	    draw_line(dctx, startx, starty,
+                      startx + (length-1) * dx, starty + (length-1) * dy);
 	} /* else no cursor (e.g., blinked off) */
     }
 
-    gdk_draw_pixmap(gtk_widget_get_window(inst->area), gc, inst->pixmap,
-		    x*inst->font_width+inst->window_border,
-		    y*inst->font_height+inst->window_border,
-		    x*inst->font_width+inst->window_border,
-		    y*inst->font_height+inst->window_border,
-		    len*widefactor*inst->font_width, inst->font_height);
+    draw_update(dctx,
+                x*inst->font_width+inst->window_border,
+                y*inst->font_height+inst->window_border,
+                len*widefactor*inst->font_width, inst->font_height);
 
 #if GTK_CHECK_VERSION(2,0,0)
     {
@@ -3109,6 +3323,8 @@ char *setup_fonts_ucs(struct gui_data *inst)
 				    conf_get_int(inst->conf, CONF_utf8_override),
 				    inst->fonts[0]->public_charset,
 				    conf_get_int(inst->conf, CONF_vtmode));
+
+    inst->drawtype = inst->fonts[0]->preferred_drawtype;
 
     return NULL;
 }
@@ -3775,6 +3991,7 @@ int pt_main(int argc, char **argv)
     inst->wintitle = inst->icontitle = NULL;
     inst->quit_fn_scheduled = FALSE;
     inst->idle_fn_scheduled = FALSE;
+    inst->drawtype = DRAWTYPE_DEFAULT;
 
     /* defer any child exit handling until we're ready to deal with
      * it */

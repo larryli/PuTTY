@@ -14,6 +14,7 @@
 #include <gdk/gdkkeysyms.h>
 #endif
 
+#include "gtkfont.h"
 #include "gtkcompat.h"
 
 #include "misc.h"
@@ -22,7 +23,9 @@
 
 struct drawing_area_ctx {
     GtkWidget *area;
+#ifndef DRAW_DEFAULT_CAIRO
     GdkColor *cols;
+#endif
     int width, height, current;
 };
 
@@ -33,8 +36,10 @@ struct askpass_ctx {
 #if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
 #endif
+#ifndef DRAW_DEFAULT_CAIRO
     GdkColormap *colmap;
     GdkColor cols[2];
+#endif
     char *passphrase;
     int passlen, passsize;
 };
@@ -164,16 +169,35 @@ static gint configure_area(GtkWidget *widget, GdkEventConfigure *event,
     return TRUE;
 }
 
+#ifdef DRAW_DEFAULT_CAIRO
+static void askpass_redraw_cairo(cairo_t *cr, struct drawing_area_ctx *ctx)
+{
+    cairo_set_source_rgb(cr, 1-ctx->current, 1-ctx->current, 1-ctx->current);
+    cairo_paint(cr);
+}
+#else
+static void askpass_redraw_gdk(GdkWindow *win, struct drawing_area_ctx *ctx)
+{
+    GdkGC *gc = gdk_gc_new(win);
+    gdk_gc_set_foreground(gc, &ctx->cols[ctx->current]);
+    gdk_draw_rectangle(win, gc, TRUE, 0, 0, ctx->width, ctx->height);
+    gdk_gc_unref(gc);
+}
+#endif
+
 static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
                         gpointer data)
 {
     struct drawing_area_ctx *ctx = (struct drawing_area_ctx *)data;
 
-    GdkGC *gc = gdk_gc_new(gtk_widget_get_window(ctx->area));
-    gdk_gc_set_foreground(gc, &ctx->cols[ctx->current]);
-    gdk_draw_rectangle(gtk_widget_get_window(widget), gc, TRUE,
-                       0, 0, ctx->width, ctx->height);
-    gdk_gc_unref(gc);
+#ifdef DRAW_DEFAULT_CAIRO
+    cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(ctx->area));
+    askpass_redraw_cairo(cr, ctx);
+    cairo_destroy(cr);
+#else
+    askpass_redraw_gdk(gtk_widget_get_window(ctx->area), ctx);
+#endif
+
     return TRUE;
 }
 
@@ -216,7 +240,6 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
                                      const char *prompt_text)
 {
     int i;
-    gboolean success[2];
 
     ctx->passlen = 0;
     ctx->passsize = 2048;
@@ -235,16 +258,23 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
 #if GTK_CHECK_VERSION(2,0,0)
     ctx->imc = gtk_im_multicontext_new();
 #endif
-    ctx->colmap = gdk_colormap_get_system();
-    ctx->cols[0].red = ctx->cols[0].green = ctx->cols[0].blue = 0xFFFF;
-    ctx->cols[1].red = ctx->cols[1].green = ctx->cols[1].blue = 0;
-    gdk_colormap_alloc_colors(ctx->colmap, ctx->cols, 2,
-                              FALSE, TRUE, success);
-    if (!success[0] | !success[1])
-        return "unable to allocate colours";
+#ifndef DRAW_DEFAULT_CAIRO
+    {
+        gboolean success[2];
+        ctx->colmap = gdk_colormap_get_system();
+        ctx->cols[0].red = ctx->cols[0].green = ctx->cols[0].blue = 0xFFFF;
+        ctx->cols[1].red = ctx->cols[1].green = ctx->cols[1].blue = 0;
+        gdk_colormap_alloc_colors(ctx->colmap, ctx->cols, 2,
+                                  FALSE, TRUE, success);
+        if (!success[0] | !success[1])
+            return "unable to allocate colours";
+    }
+#endif
     for (i = 0; i < N_DRAWING_AREAS; i++) {
         ctx->drawingareas[i].area = gtk_drawing_area_new();
+#ifndef DRAW_DEFAULT_CAIRO
         ctx->drawingareas[i].cols = ctx->cols;
+#endif
         ctx->drawingareas[i].current = 0;
         ctx->drawingareas[i].width = ctx->drawingareas[i].height = 0;
         /* It would be nice to choose this size in some more
