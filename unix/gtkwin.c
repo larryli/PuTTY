@@ -79,7 +79,9 @@ struct gui_data {
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
 	*restartitem;
     GtkWidget *sessionsmenu;
+#ifndef NO_BACKING_PIXMAPS
     GdkPixmap *pixmap;
+#endif
 #if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
 #endif
@@ -491,6 +493,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	need_size = 1;
     }
 
+#ifndef NO_BACKING_PIXMAPS
     if (inst->pixmap) {
 	gdk_pixmap_unref(inst->pixmap);
 	inst->pixmap = NULL;
@@ -499,6 +502,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
 				  (w * inst->font_width + 2*inst->window_border),
 				  (h * inst->font_height + 2*inst->window_border), -1);
+#endif
 
     draw_backing_rect(inst);
 
@@ -520,6 +524,7 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
+#ifndef NO_BACKING_PIXMAPS
     /*
      * Pass the exposed rectangle to terminal.c, which will call us
      * back to do the actual painting.
@@ -533,6 +538,35 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 			event->area.x, event->area.y,
 			event->area.width, event->area.height);
     }
+#else
+    if (inst->term) {
+        Context ctx = get_ctx(inst);
+        /*
+         * As in window.c, we clear the 'immediately' flag in the
+         * term_paint() call if the terminal has an update pending, in
+         * case we're constrained within this event to only draw on
+         * the exposed rectangle of the window. (Because if the whole
+         * of a character cell needs a redraw due to a terminal
+         * contents change, the last thing we want is to give it a
+         * _partial_ redraw here due to system-imposed clipping, and
+         * then have the next main terminal update believe it's been
+         * redrawn in full.)
+         *
+         * I don't actually know if GTK expose events will constrain
+         * us in this way, but it's best to be careful...
+         */
+        term_paint(inst->term, ctx,
+                   (event->area.x - inst->window_border) / inst->font_width,
+                   (event->area.y - inst->window_border) / inst->font_height,
+                   (event->area.x + event->area.width -
+                    inst->window_border) / inst->font_width,
+                   (event->area.y + event->area.height -
+                    inst->window_border) / inst->font_height,
+                   !inst->term->window_update_pending);
+        free_ctx(ctx);
+    }
+#endif
+
     return TRUE;
 }
 
@@ -2283,23 +2317,30 @@ Context get_ctx(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     struct draw_ctx *dctx;
+    GdkWindow *target;
 
     if (!gtk_widget_get_window(inst->area))
 	return NULL;
+
+#ifndef NO_BACKING_PIXMAPS
+    target = inst->pixmap;
+#else
+    target = gtk_widget_get_window(inst->area);
+#endif
 
     dctx = snew(struct draw_ctx);
     dctx->inst = inst;
     dctx->uctx.type = inst->drawtype;
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
-        dctx->uctx.u.gdk.target = inst->pixmap;
+        dctx->uctx.u.gdk.target = target;
         dctx->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
         dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
-        dctx->uctx.u.cairo.cr = gdk_cairo_create(inst->pixmap);
+        dctx->uctx.u.cairo.cr = gdk_cairo_create(target);
         cairo_get_matrix(dctx->uctx.u.cairo.cr,
                          &dctx->uctx.u.cairo.origmatrix);
         cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
@@ -2335,6 +2376,7 @@ void free_ctx(Context ctx)
 
 static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
 {
+#ifndef NO_BACKING_PIXMAPS
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
         gdk_draw_pixmap(gtk_widget_get_window(dctx->inst->area),
@@ -2349,6 +2391,7 @@ static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
                         gc, dctx->inst->pixmap, x, y, x, y, w, h);
         gdk_gc_unref(gc);
     }
+#endif
 #endif
 }
 
@@ -2492,6 +2535,7 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
                                int h, int hdouble, int hbothalf)
 {
 #ifdef DRAW_TEXT_GDK
+#ifndef NO_BACKING_PIXMAPS
     if (dctx->uctx.type == DRAWTYPE_GDK) {
 	/*
 	 * I can't find any plausible StretchBlt equivalent in the X
@@ -2531,7 +2575,10 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 	    }
 	}
     }
+#else
+#error No way to implement stretching in GDK without a reliable backing pixmap
 #endif
+#endif /* DRAW_TEXT_GDK */
 #ifdef DRAW_TEXT_CAIRO
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
         cairo_set_matrix(dctx->uctx.u.cairo.cr,

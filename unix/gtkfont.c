@@ -1970,7 +1970,9 @@ typedef struct unifontsel_internal {
     GtkWidget *filter_buttons[4];
     int n_filter_buttons;
     GtkWidget *preview_area;
+#ifndef NO_BACKING_PIXMAPS
     GdkPixmap *preview_pixmap;
+#endif
     int preview_width, preview_height;
     GdkColor preview_fg, preview_bg;
     int filter_flags;
@@ -2379,21 +2381,27 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
 static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 {
     unifont_drawctx dctx;
+    GdkWindow *target;
 
-    if (!fs->preview_pixmap)
+#ifndef NO_BACKING_PIXMAPS
+    target = fs->preview_pixmap;
+#else
+    target = gtk_widget_get_window(fs->preview_area);
+#endif
+    if (!target) /* we may be called when we haven't created everything yet */
         return;
 
     dctx.type = DRAWTYPE_DEFAULT;
 #ifdef DRAW_TEXT_GDK
     if (dctx.type == DRAWTYPE_GDK) {
-        dctx.u.gdk.target = fs->preview_pixmap;
-        dctx.u.gdk.gc = gdk_gc_new(fs->preview_pixmap);
+        dctx.u.gdk.target = target;
+        dctx.u.gdk.gc = gdk_gc_new(target);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx.type == DRAWTYPE_CAIRO) {
         dctx.u.cairo.widget = GTK_WIDGET(fs->preview_area);
-        dctx.u.cairo.cr = gdk_cairo_create(fs->preview_pixmap);
+        dctx.u.cairo.cr = gdk_cairo_create(target);
     }
 #endif
 
@@ -2839,6 +2847,7 @@ static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
 {
     unifontsel_internal *fs = (unifontsel_internal *)data;
 
+#ifndef NO_BACKING_PIXMAPS
     if (fs->preview_pixmap) {
         gdk_draw_pixmap(gtk_widget_get_window(widget),
 			(gtk_widget_get_style(widget)->fg_gc
@@ -2848,12 +2857,17 @@ static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
 			event->area.x, event->area.y,
 			event->area.width, event->area.height);
     }
+#else
+    unifontsel_draw_preview_text(fs);
+#endif
+
     return TRUE;
 }
 
 static gint unifontsel_configure_area(GtkWidget *widget,
 				      GdkEventConfigure *event, gpointer data)
 {
+#ifndef NO_BACKING_PIXMAPS
     unifontsel_internal *fs = (unifontsel_internal *)data;
     int ox, oy, nx, ny, x, y;
 
@@ -2877,6 +2891,7 @@ static gint unifontsel_configure_area(GtkWidget *widget,
 
 	unifontsel_draw_preview_text(fs);
     }
+#endif
 
     gdk_window_invalidate_rect(gtk_widget_get_window(widget), NULL, FALSE);
 
@@ -3071,7 +3086,9 @@ unifontsel *unifontsel_new(const char *wintitle)
      * Preview widget.
      */
     fs->preview_area = gtk_drawing_area_new();
+#ifndef NO_BACKING_PIXMAPS
     fs->preview_pixmap = NULL;
+#endif
     fs->preview_width = 0;
     fs->preview_height = 0;
     fs->preview_fg.pixel = fs->preview_bg.pixel = 0;
@@ -3179,8 +3196,10 @@ void unifontsel_destroy(unifontsel *fontsel)
     unifontsel_internal *fs = (unifontsel_internal *)fontsel;
     fontinfo *info;
 
+#ifndef NO_BACKING_PIXMAPS
     if (fs->preview_pixmap)
 	gdk_pixmap_unref(fs->preview_pixmap);
+#endif
 
     freetree234(fs->fonts_by_selorder);
     while ((info = delpos234(fs->fonts_by_realname, 0)) != NULL)

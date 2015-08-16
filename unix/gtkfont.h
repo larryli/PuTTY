@@ -29,6 +29,23 @@
 #define DRAW_TEXT_CAIRO
 #endif
 
+#if GTK_CHECK_VERSION(3,0,0) || defined GDK_DISABLE_DEPRECATED
+/*
+ * Where the facility is available, we prefer to render text on to a
+ * persistent server-side pixmap, and redraw windows by simply
+ * blitting rectangles of that pixmap into them as needed. This is
+ * better for performance since we avoid expensive font rendering
+ * calls where possible, and it's particularly good over a non-local X
+ * connection because the response to an expose event can now be a
+ * very simple rectangle-copy operation rather than a lot of fiddly
+ * drawing or bitmap transfer.
+ *
+ * However, GTK is deprecating the use of server-side pixmaps, so we
+ * have to disable this mode under some circumstances.
+ */
+#define NO_BACKING_PIXMAPS
+#endif
+
 /*
  * Exports from gtkfont.c.
  */
