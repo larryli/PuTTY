@@ -3817,20 +3817,26 @@ static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 void set_window_icon(GtkWidget *window, const char *const *const *icon,
 		     int n_icon)
 {
-    GdkPixmap *iconpm;
-    GdkBitmap *iconmask;
 #if GTK_CHECK_VERSION(2,0,0)
     GList *iconlist;
     int n;
+#else
+    GdkPixmap *iconpm;
+    GdkBitmap *iconmask;
 #endif
 
     if (!n_icon)
 	return;
 
     gtk_widget_realize(window);
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_set_icon(GTK_WINDOW(window),
+                        gdk_pixbuf_new_from_xpm_data((const gchar **)icon[0]));
+#else
     iconpm = gdk_pixmap_create_from_xpm_d(gtk_widget_get_window(window),
                                           &iconmask, NULL, (gchar **)icon[0]);
     gdk_window_set_icon(gtk_widget_get_window(window), NULL, iconpm, iconmask);
+#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
     iconlist = NULL;
@@ -3840,7 +3846,7 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 			  gdk_pixbuf_new_from_xpm_data((const gchar **)
 						       icon[n]));
     }
-    gdk_window_set_icon_list(gtk_widget_get_window(window), iconlist);
+    gtk_window_set_icon_list(GTK_WINDOW(window), iconlist);
 #endif
 }
 
