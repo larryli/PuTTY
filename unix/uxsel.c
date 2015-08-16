@@ -19,7 +19,7 @@ struct fd {
     int fd;
     int rwx;			       /* 4=except 2=write 1=read */
     uxsel_callback_fn callback;
-    int id;			       /* for uxsel_input_remove */
+    uxsel_id *id;                      /* for uxsel_input_remove */
 };
 
 static tree234 *fds;
@@ -80,7 +80,8 @@ void uxsel_del(int fd)
 {
     struct fd *oldfd = find234(fds, &fd, uxsel_fd_findcmp);
     if (oldfd) {
-	uxsel_input_remove(oldfd->id);
+	if (oldfd->id)
+            uxsel_input_remove(oldfd->id);
 	del234(fds, oldfd);
 	sfree(oldfd);
     }

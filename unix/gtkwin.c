@@ -3218,17 +3218,26 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
     return err;
 }
 
-int uxsel_input_add(int fd, int rwx) {
+struct uxsel_id {
+    int id;
+};
+
+uxsel_id *uxsel_input_add(int fd, int rwx) {
+    uxsel_id *id = snew(uxsel_id);
+
     int flags = 0;
     if (rwx & 1) flags |= GDK_INPUT_READ;
     if (rwx & 2) flags |= GDK_INPUT_WRITE;
     if (rwx & 4) flags |= GDK_INPUT_EXCEPTION;
     assert(flags);
-    return gdk_input_add(fd, flags, fd_input_func, NULL);
+    id->id = gdk_input_add(fd, flags, fd_input_func, NULL);
+
+    return id;
 }
 
-void uxsel_input_remove(int id) {
-    gdk_input_remove(id);
+void uxsel_input_remove(uxsel_id *id) {
+    gdk_input_remove(id->id);
+    sfree(id);
 }
 
 char *setup_fonts_ucs(struct gui_data *inst)

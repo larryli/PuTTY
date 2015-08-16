@@ -88,8 +88,8 @@ void pageant_log(void *ctx, const char *fmt, va_list ap)
  * In Pageant our selects are synchronous, so these functions are
  * empty stubs.
  */
-int uxsel_input_add(int fd, int rwx) { return 0; }
-void uxsel_input_remove(int id) { }
+uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
+void uxsel_input_remove(uxsel_id *id) { }
 
 /*
  * More stubs.
