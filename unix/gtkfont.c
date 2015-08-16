@@ -2285,7 +2285,8 @@ static void unifontsel_set_filter_buttons(unifontsel_internal *fs)
     }
 }
 
-static void unifontsel_draw_preview_text(unifontsel_internal *fs)
+static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
+                                               unifontsel_internal *fs)
 {
     unifont *font;
     char *sizename = NULL;
@@ -2300,100 +2301,117 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
     } else
 	font = NULL;
 
-    if (fs->preview_pixmap) {
-        unifont_drawctx dctx;
-        dctx.type = DRAWTYPE_DEFAULT;
+    if (font) {
 #ifdef DRAW_TEXT_GDK
-        if (dctx.type == DRAWTYPE_GDK) {
-            dctx.u.gdk.target = fs->preview_pixmap;
-            dctx.u.gdk.gc = gdk_gc_new(fs->preview_pixmap);
-            gdk_gc_set_foreground(dctx.u.gdk.gc, &fs->preview_bg);
-            gdk_draw_rectangle(fs->preview_pixmap, dctx.u.gdk.gc, 1, 0, 0,
+        if (dctx->type == DRAWTYPE_GDK) {
+            gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_bg);
+            gdk_draw_rectangle(dctx->u.gdk.target, dctx->u.gdk.gc, 1, 0, 0,
                                fs->preview_width, fs->preview_height);
-            gdk_gc_set_foreground(dctx.u.gdk.gc, &fs->preview_fg);
+            gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_fg);
         }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-        if (dctx.type == DRAWTYPE_CAIRO) {
-            dctx.u.cairo.widget = GTK_WIDGET(fs->preview_area);
-            dctx.u.cairo.cr = gdk_cairo_create(fs->preview_pixmap);
-            cairo_set_source_rgb(dctx.u.cairo.cr,
+        if (dctx->type == DRAWTYPE_CAIRO) {
+            cairo_set_source_rgb(dctx->u.cairo.cr,
                                  fs->preview_bg.red / 65535.0,
                                  fs->preview_bg.green / 65535.0,
                                  fs->preview_bg.blue / 65535.0);
-            cairo_paint(dctx.u.cairo.cr);
-            cairo_set_source_rgb(dctx.u.cairo.cr,
+            cairo_paint(dctx->u.cairo.cr);
+            cairo_set_source_rgb(dctx->u.cairo.cr,
                                  fs->preview_fg.red / 65535.0,
                                  fs->preview_fg.green / 65535.0,
                                  fs->preview_fg.blue / 65535.0);
         }
 #endif
-	if (font) {
-	    /*
-	     * The pangram used here is rather carefully
-	     * constructed: it contains a sequence of very narrow
-	     * letters (`jil') and a pair of adjacent very wide
-	     * letters (`wm').
-	     *
-	     * If the user selects a proportional font, it will be
-	     * coerced into fixed-width character cells when used
-	     * in the actual terminal window. We therefore display
-	     * it the same way in the preview pane, so as to show
-	     * it the way it will actually be displayed - and we
-	     * deliberately pick a pangram which will show the
-	     * resulting miskerning at its worst.
-	     *
-	     * We aren't trying to sell people these fonts; we're
-	     * trying to let them make an informed choice. Better
-	     * that they find out the problems with using
-	     * proportional fonts in terminal windows here than
-	     * that they go to the effort of selecting their font
-	     * and _then_ realise it was a mistake.
-	     */
-	    info->fontclass->draw_text(&dctx, font,
-                                       0, font->ascent,
-                                       L"bankrupt jilted showmen quiz convex fogey",
-                                       41, FALSE, FALSE, font->width);
-	    info->fontclass->draw_text(&dctx, font,
-                                       0, font->ascent + font->height,
-                                       L"BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
-                                       41, FALSE, FALSE, font->width);
-	    /*
-	     * The ordering of punctuation here is also selected
-	     * with some specific aims in mind. I put ` and '
-	     * together because some software (and people) still
-	     * use them as matched quotes no matter what Unicode
-	     * might say on the matter, so people can quickly
-	     * check whether they look silly in a candidate font.
-	     * The sequence #_@ is there to let people judge the
-	     * suitability of the underscore as an effectively
-	     * alphabetic character (since that's how it's often
-	     * used in practice, at least by programmers).
-	     */
-	    info->fontclass->draw_text(&dctx, font,
-                                       0, font->ascent + font->height * 2,
-                                       L"0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
-                                       42, FALSE, FALSE, font->width);
-	}
 
-#ifdef DRAW_TEXT_GDK
-        if (dctx.type == DRAWTYPE_GDK) {
-            gdk_gc_unref(dctx.u.gdk.gc);
-        }
-#endif
-#ifdef DRAW_TEXT_CAIRO
-        if (dctx.type == DRAWTYPE_CAIRO) {
-            cairo_destroy(dctx.u.cairo.cr);
-        }
-#endif
+        /*
+         * The pangram used here is rather carefully
+         * constructed: it contains a sequence of very narrow
+         * letters (`jil') and a pair of adjacent very wide
+         * letters (`wm').
+         *
+         * If the user selects a proportional font, it will be
+         * coerced into fixed-width character cells when used
+         * in the actual terminal window. We therefore display
+         * it the same way in the preview pane, so as to show
+         * it the way it will actually be displayed - and we
+         * deliberately pick a pangram which will show the
+         * resulting miskerning at its worst.
+         *
+         * We aren't trying to sell people these fonts; we're
+         * trying to let them make an informed choice. Better
+         * that they find out the problems with using
+         * proportional fonts in terminal windows here than
+         * that they go to the effort of selecting their font
+         * and _then_ realise it was a mistake.
+         */
+        info->fontclass->draw_text(dctx, font,
+                                   0, font->ascent,
+                                   L"bankrupt jilted showmen quiz convex fogey",
+                                   41, FALSE, FALSE, font->width);
+        info->fontclass->draw_text(dctx, font,
+                                   0, font->ascent + font->height,
+                                   L"BANKRUPT JILTED SHOWMEN QUIZ CONVEX FOGEY",
+                                   41, FALSE, FALSE, font->width);
+        /*
+         * The ordering of punctuation here is also selected
+         * with some specific aims in mind. I put ` and '
+         * together because some software (and people) still
+         * use them as matched quotes no matter what Unicode
+         * might say on the matter, so people can quickly
+         * check whether they look silly in a candidate font.
+         * The sequence #_@ is there to let people judge the
+         * suitability of the underscore as an effectively
+         * alphabetic character (since that's how it's often
+         * used in practice, at least by programmers).
+         */
+        info->fontclass->draw_text(dctx, font,
+                                   0, font->ascent + font->height * 2,
+                                   L"0123456789!?,.:;<>()[]{}\\/`'\"+*-=~#_@|%&^$",
+                                   42, FALSE, FALSE, font->width);
 
-        gdk_window_invalidate_rect(gtk_widget_get_window(fs->preview_area),
-                                   NULL, FALSE);
-    }
-    if (font)
 	info->fontclass->destroy(font);
+    }
 
     sfree(sizename);
+}
+
+static void unifontsel_draw_preview_text(unifontsel_internal *fs)
+{
+    unifont_drawctx dctx;
+
+    if (!fs->preview_pixmap)
+        return;
+
+    dctx.type = DRAWTYPE_DEFAULT;
+#ifdef DRAW_TEXT_GDK
+    if (dctx.type == DRAWTYPE_GDK) {
+        dctx.u.gdk.target = fs->preview_pixmap;
+        dctx.u.gdk.gc = gdk_gc_new(fs->preview_pixmap);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx.type == DRAWTYPE_CAIRO) {
+        dctx.u.cairo.widget = GTK_WIDGET(fs->preview_area);
+        dctx.u.cairo.cr = gdk_cairo_create(fs->preview_pixmap);
+    }
+#endif
+
+    unifontsel_draw_preview_text_inner(&dctx, fs);
+
+#ifdef DRAW_TEXT_GDK
+    if (dctx.type == DRAWTYPE_GDK) {
+        gdk_gc_unref(dctx.u.gdk.gc);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx.type == DRAWTYPE_CAIRO) {
+        cairo_destroy(dctx.u.cairo.cr);
+    }
+#endif
+
+    gdk_window_invalidate_rect(gtk_widget_get_window(fs->preview_area),
+                               NULL, FALSE);
 }
 
 static void unifontsel_select_font(unifontsel_internal *fs,
