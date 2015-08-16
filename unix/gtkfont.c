@@ -34,16 +34,6 @@
  *  - it would be nice to have a display of the current font name,
  *    and in particular whether it's client- or server-side,
  *    during the progress of the font selector.
- * 
- *  - it would be nice if we could move the processing of
- *    underline and VT100 double width into this module, so that
- *    instead of using the ghastly pixmap-stretching technique
- *    everywhere we could tell the Pango backend to scale its
- *    fonts to double size properly and at full resolution.
- *    However, this requires me to learn how to make Pango stretch
- *    text to an arbitrary aspect ratio (for double-width only
- *    text, which perversely is harder than DW+DH), and right now
- *    I haven't the energy.
  */
 
 #if !GLIB_CHECK_VERSION(1,3,7)
