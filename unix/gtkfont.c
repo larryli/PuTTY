@@ -3110,10 +3110,12 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->preview_fg.pixel = fs->preview_bg.pixel = 0;
     fs->preview_fg.red = fs->preview_fg.green = fs->preview_fg.blue = 0x0000;
     fs->preview_bg.red = fs->preview_bg.green = fs->preview_bg.blue = 0xFFFF;
+#if !GTK_CHECK_VERSION(3,0,0)
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_fg,
 			     FALSE, FALSE);
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_bg,
 			     FALSE, FALSE);
+#endif
 #if GTK_CHECK_VERSION(3,0,0)
     g_signal_connect(G_OBJECT(fs->preview_area), "draw",
                      G_CALLBACK(unifontsel_draw_area), fs);

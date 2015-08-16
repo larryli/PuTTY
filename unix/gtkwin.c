@@ -93,7 +93,9 @@ struct gui_data {
 #endif
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
+#if !GTK_CHECK_VERSION(3,0,0)
     GdkColormap *colmap;
+#endif
     wchar_t *pastein_data;
     int direct_to_font;
     int pastein_data_len;
@@ -1821,18 +1823,21 @@ void request_resize(void *frontend, int w, int h)
 
 static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 {
-    gboolean success[1];
-
     inst->cols[n].red = r * 0x0101;
     inst->cols[n].green = g * 0x0101;
     inst->cols[n].blue = b * 0x0101;
 
-    gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
-    gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
-			      FALSE, TRUE, success);
-    if (!success[0])
-	g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n", appname,
-		n, r, g, b);
+#if !GTK_CHECK_VERSION(3,0,0)
+    {
+        gboolean success[1];
+        gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
+        gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
+                                  FALSE, TRUE, success);
+        if (!success[0])
+            g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
+                    appname, n, r, g, b);
+    }
+#endif
 }
 
 void set_window_background(struct gui_data *inst)
@@ -1871,16 +1876,17 @@ void palette_reset(void *frontend)
 	0, 8, 1, 9, 2, 10, 3, 11,
 	4, 12, 5, 13, 6, 14, 7, 15
     };
-    gboolean success[NALLCOLOURS];
     int i;
 
     assert(lenof(ww) == NCFGCOLOURS);
 
+#if !GTK_CHECK_VERSION(3,0,0)
     if (!inst->colmap) {
 	inst->colmap = gdk_colormap_get_system();
     } else {
 	gdk_colormap_free_colors(inst->colmap, inst->cols, NALLCOLOURS);
     }
+#endif
 
     for (i = 0; i < NCFGCOLOURS; i++) {
 	inst->cols[ww[i]].red =
@@ -1905,16 +1911,21 @@ void palette_reset(void *frontend)
 	}
     }
 
-    gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
-			      FALSE, TRUE, success);
-    for (i = 0; i < NALLCOLOURS; i++) {
-	if (!success[i])
-	    g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
-                    appname, i,
-		    conf_get_int_int(inst->conf, CONF_colours, i*3+0),
-		    conf_get_int_int(inst->conf, CONF_colours, i*3+1),
-		    conf_get_int_int(inst->conf, CONF_colours, i*3+2));
+#if !GTK_CHECK_VERSION(3,0,0)
+    {
+        gboolean success[NALLCOLOURS];
+        gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
+                                  FALSE, TRUE, success);
+        for (i = 0; i < NALLCOLOURS; i++) {
+            if (!success[i])
+                g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
+                        appname, i,
+                        conf_get_int_int(inst->conf, CONF_colours, i*3+0),
+                        conf_get_int_int(inst->conf, CONF_colours, i*3+1),
+                        conf_get_int_int(inst->conf, CONF_colours, i*3+2));
+        }
     }
+#endif
 
     /* Since Default Background may have changed, ensure that space
      * between text area and window border is refreshed. */
