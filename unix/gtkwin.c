@@ -153,7 +153,8 @@ static void exit_callback(void *vinst);
 char *x_get_default(const char *key)
 {
 #ifndef NOT_X_WINDOWS
-    return XGetDefault(GDK_DISPLAY(), app_name, key);
+    return XGetDefault(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()),
+                       app_name, key);
 #else
     return NULL;
 #endif
@@ -1868,21 +1869,22 @@ void init_cutbuffers()
 {
 #ifndef NOT_X_WINDOWS
     unsigned char empty[] = "";
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(GDK_DISPLAY(), GDK_ROOT_WINDOW(),
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
 #endif
 }
@@ -1891,9 +1893,10 @@ void init_cutbuffers()
 void store_cutbuffer(char * ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
+    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     /* ICCCM says we must rotate the buffers before storing to buffer 0. */
-    XRotateBuffers(GDK_DISPLAY(), 1);
-    XStoreBytes(GDK_DISPLAY(), ptr, len);
+    XRotateBuffers(disp, 1);
+    XStoreBytes(disp, ptr, len);
 #endif
 }
 
@@ -1903,8 +1906,9 @@ void store_cutbuffer(char * ptr, int len)
 char * retrieve_cutbuffer(int * nbytes)
 {
 #ifndef NOT_X_WINDOWS
+    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     char * ptr;
-    ptr = XFetchBytes(GDK_DISPLAY(), nbytes);
+    ptr = XFetchBytes(disp, nbytes);
     if (*nbytes <= 0 && ptr != 0) {
 	XFree(ptr);
 	ptr = 0;
@@ -1935,6 +1939,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 #ifndef NOT_X_WINDOWS
 	XTextProperty tp;
 	char *list[1];
+        Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 #endif
 
 	inst->pasteout_data_utf8 = snewn(len*6, char);
@@ -1958,7 +1963,7 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	 */
 #ifndef NOT_X_WINDOWS
 	list[0] = inst->pasteout_data_utf8;
-	if (Xutf8TextListToTextProperty(GDK_DISPLAY(), list, 1,
+	if (Xutf8TextListToTextProperty(disp, list, 1,
 					XCompoundTextStyle, &tp) == 0) {
 	    inst->pasteout_data_ctext = snewn(tp.nitems+1, char);
 	    memcpy(inst->pasteout_data_ctext, tp.value, tp.nitems);
@@ -2157,13 +2162,13 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #ifndef NOT_X_WINDOWS
             XTextProperty tp;
             int ret, count;
+            Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 
 	    tp.value = (unsigned char *)seldata_data;
 	    tp.encoding = (Atom) seldata_type;
 	    tp.format = gtk_selection_data_get_format(seldata);
 	    tp.nitems = seldata_length;
-	    ret = Xutf8TextPropertyToTextList(GDK_DISPLAY(), &tp,
-					      &list, &count);
+	    ret = Xutf8TextPropertyToTextList(disp, &tp, &list, &count);
 	    if (ret == 0 && count == 1) {
                 text = list[0];
                 length = strlen(list[0]);

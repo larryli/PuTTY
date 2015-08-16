@@ -76,6 +76,12 @@
 #define gtk_widget_get_realized(w) GTK_WIDGET_REALIZED(w)
 #define gtk_widget_get_state(w) GTK_WIDGET_STATE(w)
 
+/* This is a bit of a bodge because it relies on us only calling this
+ * macro as GDK_DISPLAY_XDISPLAY(gdk_display_get_default()), so under
+ * GTK1 it makes sense to omit the contained function call and just
+ * return the GDK default display. */
+#define GDK_DISPLAY_XDISPLAY(x) GDK_DISPLAY()
+
 #define GDK_KEY_Alt_L                GDK_Alt_L
 #define GDK_KEY_Alt_R                GDK_Alt_R
 #define GDK_KEY_BackSpace            GDK_BackSpace
