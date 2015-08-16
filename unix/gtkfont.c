@@ -511,6 +511,8 @@ static int x11font_has_glyph(unifont *font, wchar_t glyph)
 
 #if !GTK_CHECK_VERSION(2,0,0)
 #define GDK_DRAWABLE_XID(d) GDK_WINDOW_XWINDOW(d) /* GTK1's name for this */
+#elif GTK_CHECK_VERSION(3,0,0)
+#define GDK_DRAWABLE_XID(d) GDK_WINDOW_XID(d) /* GTK3's name for this */
 #endif
 
 static int x11font_width_16(unifont_drawctx *ctx, x11font_individual *xfi,

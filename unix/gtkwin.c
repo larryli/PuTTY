@@ -2996,7 +2996,7 @@ char *get_x_display(void *frontend)
 long get_windowid(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    return (long)GDK_WINDOW_XWINDOW(gtk_widget_get_window(inst->area));
+    return (long)GDK_WINDOW_XID(gtk_widget_get_window(inst->area));
 }
 #endif
 

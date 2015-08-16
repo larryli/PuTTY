@@ -37,6 +37,8 @@
 
 #define GDK_GRAB_SUCCESS GrabSuccess
 
+#define GDK_WINDOW_XID GDK_WINDOW_XWINDOW
+
 #define gtk_widget_set_size_request gtk_widget_set_usize
 #define gtk_radio_button_get_group gtk_radio_button_group
 #define gtk_notebook_set_current_page gtk_notebook_set_page
