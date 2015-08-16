@@ -2841,6 +2841,20 @@ static void alias_resolve(GtkTreeView *treeview, GtkTreePath *path,
     }
 }
 
+#if GTK_CHECK_VERSION(3,0,0)
+static gint unifontsel_draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+    unifontsel_internal *fs = (unifontsel_internal *)data;
+    unifont_drawctx dctx;
+
+    dctx.type = DRAWTYPE_CAIRO;
+    dctx.u.cairo.widget = widget;
+    dctx.u.cairo.cr = cr;
+    unifontsel_draw_preview_text_inner(&dctx, fs);
+
+    return TRUE;
+}
+#else
 static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
 				   gpointer data)
 {
@@ -2862,6 +2876,7 @@ static gint unifontsel_expose_area(GtkWidget *widget, GdkEventExpose *event,
 
     return TRUE;
 }
+#endif
 
 static gint unifontsel_configure_area(GtkWidget *widget,
 				      GdkEventConfigure *event, gpointer data)
@@ -3097,8 +3112,13 @@ unifontsel *unifontsel_new(const char *wintitle)
 			     FALSE, FALSE);
     gdk_colormap_alloc_color(gdk_colormap_get_system(), &fs->preview_bg,
 			     FALSE, FALSE);
+#if GTK_CHECK_VERSION(3,0,0)
+    g_signal_connect(G_OBJECT(fs->preview_area), "draw",
+                     G_CALLBACK(unifontsel_draw_area), fs);
+#else
     g_signal_connect(G_OBJECT(fs->preview_area), "expose_event",
                      G_CALLBACK(unifontsel_expose_area), fs);
+#endif
     g_signal_connect(G_OBJECT(fs->preview_area), "configure_event",
                      G_CALLBACK(unifontsel_configure_area), fs);
     gtk_widget_set_size_request(fs->preview_area, 1, preview_height);

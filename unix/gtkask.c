@@ -185,6 +185,14 @@ static void askpass_redraw_gdk(GdkWindow *win, struct drawing_area_ctx *ctx)
 }
 #endif
 
+#if GTK_CHECK_VERSION(3,0,0)
+static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+    struct drawing_area_ctx *ctx = (struct drawing_area_ctx *)data;
+    askpass_redraw_cairo(cr, ctx);
+    return TRUE;
+}
+#else
 static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
                         gpointer data)
 {
@@ -200,6 +208,7 @@ static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
 
     return TRUE;
 }
+#endif
 
 static int try_grab_keyboard(struct askpass_ctx *ctx)
 {
@@ -288,10 +297,17 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
                          "configure_event",
                          G_CALLBACK(configure_area),
                          &ctx->drawingareas[i]);
+#if GTK_CHECK_VERSION(3,0,0)
+        g_signal_connect(G_OBJECT(ctx->drawingareas[i].area),
+                         "draw",
+                         G_CALLBACK(draw_area),
+                         &ctx->drawingareas[i]);
+#else
         g_signal_connect(G_OBJECT(ctx->drawingareas[i].area),
                          "expose_event",
                          G_CALLBACK(expose_area),
                          &ctx->drawingareas[i]);
+#endif
         gtk_widget_show(ctx->drawingareas[i].area);
     }
     ctx->active_area = rand() % N_DRAWING_AREAS;

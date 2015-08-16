@@ -521,6 +521,66 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
     return TRUE;
 }
 
+#ifdef DRAW_TEXT_CAIRO
+static void cairo_setup_dctx(struct draw_ctx *dctx)
+{
+    cairo_get_matrix(dctx->uctx.u.cairo.cr,
+                     &dctx->uctx.u.cairo.origmatrix);
+    cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
+    cairo_set_line_cap(dctx->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_set_line_join(dctx->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
+    /* This antialiasing setting appears to be ignored for Pango
+     * font rendering but honoured for stroking and filling paths;
+     * I don't quite understand the logic of that, but I won't
+     * complain since it's exactly what I happen to want */
+    cairo_set_antialias(dctx->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
+}
+#endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    if (inst->term) {
+        struct draw_ctx adctx, *dctx = &adctx;
+        GdkRectangle dirtyrect;
+
+        dctx->inst = inst;
+        dctx->uctx.type = DRAWTYPE_CAIRO;
+        dctx->uctx.u.cairo.widget = widget;
+        dctx->uctx.u.cairo.cr = cr;
+        cairo_setup_dctx(dctx);
+
+        gdk_cairo_get_clip_rectangle(cr, &dirtyrect);
+
+        /*
+         * As in window.c, we clear the 'immediately' flag in the
+         * term_paint() call if the terminal has an update pending, in
+         * case we're constrained within this event to only draw on
+         * the exposed rectangle of the window. (Because if the whole
+         * of a character cell needs a redraw due to a terminal
+         * contents change, the last thing we want is to give it a
+         * _partial_ redraw here due to system-imposed clipping, and
+         * then have the next main terminal update believe it's been
+         * redrawn in full.)
+         *
+         * I don't actually know if GTK draw events will constrain us
+         * in this way, but it's best to be careful...
+         */
+        term_paint(inst->term, dctx,
+                   (dirtyrect.x - inst->window_border) / inst->font_width,
+                   (dirtyrect.y - inst->window_border) / inst->font_height,
+                   (dirtyrect.x + dirtyrect.width -
+                    inst->window_border) / inst->font_width,
+                   (dirtyrect.y + dirtyrect.height -
+                    inst->window_border) / inst->font_height,
+                   !inst->term->window_update_pending);
+    }
+
+    return TRUE;
+}
+#else
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
@@ -542,20 +602,6 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 #else
     if (inst->term) {
         Context ctx = get_ctx(inst);
-        /*
-         * As in window.c, we clear the 'immediately' flag in the
-         * term_paint() call if the terminal has an update pending, in
-         * case we're constrained within this event to only draw on
-         * the exposed rectangle of the window. (Because if the whole
-         * of a character cell needs a redraw due to a terminal
-         * contents change, the last thing we want is to give it a
-         * _partial_ redraw here due to system-imposed clipping, and
-         * then have the next main terminal update believe it's been
-         * redrawn in full.)
-         *
-         * I don't actually know if GTK expose events will constrain
-         * us in this way, but it's best to be careful...
-         */
         term_paint(inst->term, ctx,
                    (event->area.x - inst->window_border) / inst->font_width,
                    (event->area.y - inst->window_border) / inst->font_height,
@@ -570,6 +616,7 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
     return TRUE;
 }
+#endif
 
 #define KEY_PRESSED(k) \
     (inst->keystate[(k) / 32] & (1 << ((k) % 32)))
@@ -2362,16 +2409,7 @@ Context get_ctx(void *frontend)
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
         dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
         dctx->uctx.u.cairo.cr = gdk_cairo_create(target);
-        cairo_get_matrix(dctx->uctx.u.cairo.cr,
-                         &dctx->uctx.u.cairo.origmatrix);
-        cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
-        cairo_set_line_cap(dctx->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
-        cairo_set_line_join(dctx->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
-        /* This antialiasing setting appears to be ignored for Pango
-         * font rendering but honoured for stroking and filling paths;
-         * I don't quite understand the logic of that, but I won't
-         * complain since it's exactly what I happen to want */
-        cairo_set_antialias(dctx->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
+        cairo_setup_dctx(dctx);
     }
 #endif
     return dctx;
@@ -4172,8 +4210,13 @@ int pt_main(int argc, char **argv)
                      G_CALLBACK(focus_event), inst);
     g_signal_connect(G_OBJECT(inst->area), "configure_event",
                      G_CALLBACK(configure_area), inst);
+#if GTK_CHECK_VERSION(3,0,0)
+    g_signal_connect(G_OBJECT(inst->area), "draw",
+                     G_CALLBACK(draw_area), inst);
+#else
     g_signal_connect(G_OBJECT(inst->area), "expose_event",
                      G_CALLBACK(expose_area), inst);
+#endif
     g_signal_connect(G_OBJECT(inst->area), "button_press_event",
                      G_CALLBACK(button_event), inst);
     g_signal_connect(G_OBJECT(inst->area), "button_release_event",
