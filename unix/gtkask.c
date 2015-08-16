@@ -42,6 +42,9 @@ struct askpass_ctx {
 #endif
     char *passphrase;
     int passlen, passsize;
+#if GTK_CHECK_VERSION(3,0,0)
+    GdkDevice *keyboard;               /* for gdk_device_grab */
+#endif
 };
 
 static void visually_acknowledge_keypress(struct askpass_ctx *ctx)
@@ -212,8 +215,45 @@ static gint expose_area(GtkWidget *widget, GdkEventExpose *event,
 
 static int try_grab_keyboard(struct askpass_ctx *ctx)
 {
-    int ret = gdk_keyboard_grab(gtk_widget_get_window(ctx->dialog),
-                                FALSE, GDK_CURRENT_TIME);
+    int ret;
+
+#if GTK_CHECK_VERSION(3,0,0)
+    /*
+     * Grabbing the keyboard is quite complicated in GTK 3.
+     */
+    GdkDeviceManager *dm;
+    GdkDevice *pointer, *keyboard;
+
+    dm = gdk_display_get_device_manager
+        (gtk_widget_get_display(ctx->dialog));
+    if (!dm)
+        return FALSE;
+
+    pointer = gdk_device_manager_get_client_pointer(dm);
+    if (!pointer)
+        return FALSE;
+    keyboard = gdk_device_get_associated_device(pointer);
+    if (!keyboard)
+        return FALSE;
+    if (gdk_device_get_source(keyboard) != GDK_SOURCE_KEYBOARD)
+        return FALSE;
+
+    ctx->keyboard = keyboard;
+    ret = gdk_device_grab(ctx->keyboard,
+                          gtk_widget_get_window(ctx->dialog),
+                          GDK_OWNERSHIP_NONE,
+                          TRUE,
+                          GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK,
+                          NULL,
+                          GDK_CURRENT_TIME);
+#else
+    /*
+     * It's much simpler in GTK 1 and 2!
+     */
+    ret = gdk_keyboard_grab(gtk_widget_get_window(ctx->dialog),
+                            FALSE, GDK_CURRENT_TIME);
+#endif
+
     return ret == GDK_GRAB_SUCCESS;
 }
 
@@ -361,7 +401,11 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
 
 static void gtk_askpass_cleanup(struct askpass_ctx *ctx)
 {
+#if GTK_CHECK_VERSION(3,0,0)
+    gdk_device_ungrab(ctx->keyboard, GDK_CURRENT_TIME);
+#else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
+#endif
     gtk_grab_remove(ctx->promptlabel);
 
     if (ctx->passphrase) {
