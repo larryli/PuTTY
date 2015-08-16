@@ -22,6 +22,12 @@ static void columns_forall(GtkContainer *container, gboolean include_internals,
 static gint columns_focus(GtkContainer *container, GtkDirectionType dir);
 #endif
 static GType columns_child_type(GtkContainer *container);
+#if GTK_CHECK_VERSION(3,0,0)
+static void columns_get_preferred_width(GtkWidget *widget,
+                                        gint *min, gint *nat);
+static void columns_get_preferred_height(GtkWidget *widget,
+                                         gint *min, gint *nat);
+#endif
 static void columns_size_request(GtkWidget *widget, GtkRequisition *req);
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc);
 
@@ -104,7 +110,12 @@ static void columns_class_init(ColumnsClass *klass)
     widget_class->draw = columns_draw;
     widget_class->expose_event = columns_expose;
 #endif
+#if GTK_CHECK_VERSION(3,0,0)
+    widget_class->get_preferred_width = columns_get_preferred_width;
+    widget_class->get_preferred_height = columns_get_preferred_height;
+#else
     widget_class->size_request = columns_size_request;
+#endif
     widget_class->size_allocate = columns_size_allocate;
 
     container_class->add = columns_base_add;
@@ -641,6 +652,24 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
 
     g_free(colypos);
 }
+
+#if GTK_CHECK_VERSION(3,0,0)
+static void columns_get_preferred_width(GtkWidget *widget,
+                                        gint *min, gint *nat)
+{
+    GtkRequisition req;
+    columns_size_request(widget, &req);
+    *min = *nat = req.width;
+}
+
+static void columns_get_preferred_height(GtkWidget *widget,
+                                        gint *min, gint *nat)
+{
+    GtkRequisition req;
+    columns_size_request(widget, &req);
+    *min = *nat = req.height;
+}
+#endif
 
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
 {
