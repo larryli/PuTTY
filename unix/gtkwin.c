@@ -2635,6 +2635,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     } else
 	rlen = len;
 
+    draw_clip(dctx,
+              x*inst->font_width+inst->window_border,
+              y*inst->font_height+inst->window_border,
+              rlen*widefactor*inst->font_width,
+              inst->font_height);
+
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
         draw_stretch_before(dctx,
                             x*inst->font_width+inst->window_border,
@@ -2644,12 +2650,6 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                             ((lattr & LATTR_MODE) != LATTR_WIDE),
                             ((lattr & LATTR_MODE) == LATTR_BOT));
     }
-
-    draw_clip(dctx,
-              x*inst->font_width+inst->window_border,
-              y*inst->font_height+inst->window_border,
-              rlen*widefactor*inst->font_width,
-              inst->font_height);
 
     draw_set_colour(dctx, nbg);
     draw_rectangle(dctx, TRUE,
