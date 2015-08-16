@@ -1632,13 +1632,28 @@ void timer_change_notify(unsigned long next)
     timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
 }
 
-void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
+#if GTK_CHECK_VERSION(2,0,0)
+gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
+                       gpointer data)
 {
+    int sourcefd = g_io_channel_unix_get_fd(source);
     /*
      * We must process exceptional notifications before ordinary
      * readability ones, or we may go straight past the urgent
      * marker.
      */
+    if (condition & G_IO_PRI)
+        select_result(sourcefd, 4);
+    if (condition & G_IO_IN)
+        select_result(sourcefd, 1);
+    if (condition & G_IO_OUT)
+        select_result(sourcefd, 2);
+
+    return TRUE;
+}
+#else
+void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
+{
     if (condition & GDK_INPUT_EXCEPTION)
         select_result(sourcefd, 4);
     if (condition & GDK_INPUT_READ)
@@ -1646,6 +1661,7 @@ void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
     if (condition & GDK_INPUT_WRITE)
         select_result(sourcefd, 2);
 }
+#endif
 
 void destroy(GtkWidget *widget, gpointer data)
 {
@@ -3219,24 +3235,44 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 }
 
 struct uxsel_id {
+#if GTK_CHECK_VERSION(2,0,0)
+    GIOChannel *chan;
+    guint watch_id;
+#else
     int id;
+#endif
 };
 
 uxsel_id *uxsel_input_add(int fd, int rwx) {
     uxsel_id *id = snew(uxsel_id);
 
+#if GTK_CHECK_VERSION(2,0,0)
+    int flags = 0;
+    if (rwx & 1) flags |= G_IO_IN;
+    if (rwx & 2) flags |= G_IO_OUT;
+    if (rwx & 4) flags |= G_IO_PRI;
+    id->chan = g_io_channel_unix_new(fd);
+    g_io_channel_set_encoding(id->chan, NULL, NULL);
+    id->watch_id = g_io_add_watch(id->chan, flags, fd_input_func, NULL);
+#else
     int flags = 0;
     if (rwx & 1) flags |= GDK_INPUT_READ;
     if (rwx & 2) flags |= GDK_INPUT_WRITE;
     if (rwx & 4) flags |= GDK_INPUT_EXCEPTION;
     assert(flags);
     id->id = gdk_input_add(fd, flags, fd_input_func, NULL);
+#endif
 
     return id;
 }
 
 void uxsel_input_remove(uxsel_id *id) {
+#if GTK_CHECK_VERSION(2,0,0)
+    g_source_remove(id->watch_id);
+    g_io_channel_unref(id->chan);
+#else
     gdk_input_remove(id->id);
+#endif
     sfree(id);
 }
 
