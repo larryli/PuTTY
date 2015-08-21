@@ -6127,16 +6127,24 @@ static void ssh2_pkt_addstring_commasep(struct Packet *pkt, const char *data)
 
 
 /*
- * SSH-2 key creation method.
- * (Currently assumes 2 lots of any hash are sufficient to generate
- * keys/IVs for any cipher/MAC. SSH2_MKKEY_ITERS documents this assumption.)
+ * SSH-2 key derivation (RFC 4253 section 7.2).
  */
-#define SSH2_MKKEY_ITERS (2)
-static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
-		       unsigned char *keyspace)
+static unsigned char *ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
+                                 char chr, int keylen)
 {
     const struct ssh_hash *h = ssh->kex->hash;
-    void *s;
+    int keylen_padded;
+    unsigned char *key;
+    void *s, *s2;
+
+    if (keylen == 0)
+        return NULL;
+
+    /* Round up to the next multiple of hash length. */
+    keylen_padded = ((keylen + h->hlen - 1) / h->hlen) * h->hlen;
+
+    key = snewn(keylen_padded, unsigned char);
+
     /* First hlen bytes. */
     s = h->init();
     if (!(ssh->remote_bugs & BUG_SSH2_DERIVEKEY))
@@ -6144,14 +6152,33 @@ static void ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H, char chr,
     h->bytes(s, H, h->hlen);
     h->bytes(s, &chr, 1);
     h->bytes(s, ssh->v2_session_id, ssh->v2_session_id_len);
-    h->final(s, keyspace);
-    /* Next hlen bytes. */
-    s = h->init();
-    if (!(ssh->remote_bugs & BUG_SSH2_DERIVEKEY))
-	hash_mpint(h, s, K);
-    h->bytes(s, H, h->hlen);
-    h->bytes(s, keyspace, h->hlen);
-    h->final(s, keyspace + h->hlen);
+    h->final(s, key);
+
+    /* Subsequent blocks of hlen bytes. */
+    if (keylen_padded > h->hlen) {
+        int offset;
+
+        s = h->init();
+        if (!(ssh->remote_bugs & BUG_SSH2_DERIVEKEY))
+            hash_mpint(h, s, K);
+        h->bytes(s, H, h->hlen);
+
+        for (offset = h->hlen; offset < keylen_padded; offset += h->hlen) {
+            h->bytes(s, key + offset - h->hlen, h->hlen);
+            s2 = h->copy(s);
+            h->final(s2, key + offset);
+        }
+
+        h->free(s);
+    }
+
+    /* Now clear any extra bytes of key material beyond the length
+     * we're officially returning, because the caller won't know to
+     * smemclr those. */
+    if (keylen_padded > keylen)
+        smemclr(key + keylen, keylen_padded - keylen);
+
+    return key;
 }
 
 /*
@@ -7153,21 +7180,25 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * hash from the _first_ key exchange.
      */
     {
-	unsigned char keyspace[SSH2_KEX_MAX_HASH_LEN * SSH2_MKKEY_ITERS];
-	assert(sizeof(keyspace) >= ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'C',keyspace);
-	assert((ssh->cscipher->keylen+7) / 8 <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->cscipher->setkey(ssh->cs_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'A',keyspace);
-	assert(ssh->cscipher->blksize <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'E',keyspace);
-	assert(ssh->csmac->keylen <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
-	smemclr(keyspace, sizeof(keyspace));
+	unsigned char *key;
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'C',
+                         (ssh->cscipher->keylen+7) / 8);
+	ssh->cscipher->setkey(ssh->cs_cipher_ctx, key);
+        smemclr(key, (ssh->cscipher->keylen+7) / 8);
+        sfree(key);
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'A',
+                         ssh->cscipher->blksize);
+	ssh->cscipher->setiv(ssh->cs_cipher_ctx, key);
+        smemclr(key, ssh->cscipher->blksize);
+        sfree(key);
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'E',
+                         ssh->csmac->keylen);
+	ssh->csmac->setkey(ssh->cs_mac_ctx, key);
+        smemclr(key, ssh->csmac->keylen);
+        sfree(key);
     }
 
     logeventf(ssh, "Initialised %.200s client->server encryption",
@@ -7222,21 +7253,25 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * hash from the _first_ key exchange.
      */
     {
-	unsigned char keyspace[SSH2_KEX_MAX_HASH_LEN * SSH2_MKKEY_ITERS];
-	assert(sizeof(keyspace) >= ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'D',keyspace);
-	assert((ssh->sccipher->keylen+7) / 8 <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->sccipher->setkey(ssh->sc_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'B',keyspace);
-	assert(ssh->sccipher->blksize <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
-	ssh2_mkkey(ssh,s->K,s->exchange_hash,'F',keyspace);
-	assert(ssh->scmac->keylen <=
-	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
-	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
-	smemclr(keyspace, sizeof(keyspace));
+	unsigned char *key;
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'D',
+                         (ssh->sccipher->keylen + 7) / 8);
+	ssh->sccipher->setkey(ssh->sc_cipher_ctx, key);
+        smemclr(key, (ssh->sccipher->keylen + 7) / 8);
+        sfree(key);
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'B',
+                         ssh->sccipher->blksize);
+	ssh->sccipher->setiv(ssh->sc_cipher_ctx, key);
+        smemclr(key, ssh->sccipher->blksize);
+        sfree(key);
+
+	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'F',
+                         ssh->scmac->keylen);
+	ssh->scmac->setkey(ssh->sc_mac_ctx, key);
+        smemclr(key, ssh->scmac->keylen);
+        sfree(key);
     }
     logeventf(ssh, "Initialised %.200s server->client encryption",
 	      ssh->sccipher->text_name);
