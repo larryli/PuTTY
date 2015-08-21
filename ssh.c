@@ -7164,7 +7164,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->cscipher->setiv(ssh->cs_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'E',keyspace);
-	assert(ssh->csmac->len <=
+	assert(ssh->csmac->keylen <=
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->csmac->setkey(ssh->cs_mac_ctx, keyspace);
 	smemclr(keyspace, sizeof(keyspace));
@@ -7233,7 +7233,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->sccipher->setiv(ssh->sc_cipher_ctx, keyspace);
 	ssh2_mkkey(ssh,s->K,s->exchange_hash,'F',keyspace);
-	assert(ssh->scmac->len <=
+	assert(ssh->scmac->keylen <=
 	       ssh->kex->hash->hlen * SSH2_MKKEY_ITERS);
 	ssh->scmac->setkey(ssh->sc_mac_ctx, keyspace);
 	smemclr(keyspace, sizeof(keyspace));

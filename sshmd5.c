@@ -337,6 +337,6 @@ const struct ssh_mac ssh_hmac_md5 = {
     hmacmd5_generate, hmacmd5_verify,
     hmacmd5_start, hmacmd5_bytes, hmacmd5_genresult, hmacmd5_verresult,
     "hmac-md5", "hmac-md5-etm@openssh.com",
-    16,
+    16, 16,
     "HMAC-MD5"
 };

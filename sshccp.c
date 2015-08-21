@@ -1238,7 +1238,7 @@ static const struct ssh_mac ssh2_poly1305 = {
     poly_start, poly_bytes, poly_genresult, poly_verresult,
 
     "", "", /* Not selectable individually, just part of ChaCha20-Poly1305 */
-    16, "Poly1305"
+    16, 0, "Poly1305"
 };
 
 static void *ccp_make_context(void)
