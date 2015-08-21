@@ -331,6 +331,24 @@ static void *sha512_init(void)
     return s;
 }
 
+static void *sha512_copy(const void *vold)
+{
+    const SHA512_State *old = (const SHA512_State *)vold;
+    SHA512_State *s;
+
+    s = snew(SHA512_State);
+    *s = *old;
+    return s;
+}
+
+static void sha512_free(void *handle)
+{
+    SHA512_State *s = handle;
+
+    smemclr(s, sizeof(*s));
+    sfree(s);
+}
+
 static void sha512_bytes(void *handle, const void *p, int len)
 {
     SHA512_State *s = handle;
@@ -343,12 +361,12 @@ static void sha512_final(void *handle, unsigned char *output)
     SHA512_State *s = handle;
 
     SHA512_Final(s, output);
-    smemclr(s, sizeof(*s));
-    sfree(s);
+    sha512_free(s);
 }
 
 const struct ssh_hash ssh_sha512 = {
-    sha512_init, sha512_bytes, sha512_final, 64, "SHA-512"
+    sha512_init, sha512_copy, sha512_bytes, sha512_final, sha512_free,
+    64, "SHA-512"
 };
 
 static void *sha384_init(void)
@@ -370,7 +388,8 @@ static void sha384_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha384 = {
-    sha384_init, sha512_bytes, sha384_final, 48, "SHA-384"
+    sha384_init, sha512_copy, sha512_bytes, sha384_final, sha512_free,
+    48, "SHA-384"
 };
 
 #ifdef TEST

@@ -230,6 +230,24 @@ static void *sha1_init(void)
     return s;
 }
 
+static void *sha1_copy(const void *vold)
+{
+    const SHA_State *old = (const SHA_State *)vold;
+    SHA_State *s;
+
+    s = snew(SHA_State);
+    *s = *old;
+    return s;
+}
+
+static void sha1_free(void *handle)
+{
+    SHA_State *s = handle;
+
+    smemclr(s, sizeof(*s));
+    sfree(s);
+}
+
 static void sha1_bytes(void *handle, const void *p, int len)
 {
     SHA_State *s = handle;
@@ -242,12 +260,11 @@ static void sha1_final(void *handle, unsigned char *output)
     SHA_State *s = handle;
 
     SHA_Final(s, output);
-    smemclr(s, sizeof(*s));
-    sfree(s);
+    sha1_free(s);
 }
 
 const struct ssh_hash ssh_sha1 = {
-    sha1_init, sha1_bytes, sha1_final, 20, "SHA-1"
+    sha1_init, sha1_copy, sha1_bytes, sha1_final, sha1_free, 20, "SHA-1"
 };
 
 /* ----------------------------------------------------------------------
