@@ -127,8 +127,13 @@ static gboolean listitem_button_release(GtkWidget *item, GdkEventButton *event,
 #if !GTK_CHECK_VERSION(2,4,0)
 static void menuitem_activate(GtkMenuItem *item, gpointer data);
 #endif
+#if GTK_CHECK_VERSION(3,0,0)
+static void colourchoose_response(GtkDialog *dialog,
+                                  gint response_id, gpointer data);
+#else
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
+#endif
 static void window_destroy(GtkWidget *widget, gpointer data);
 int get_listitemheight(GtkWidget *widget);
 
@@ -1133,20 +1138,36 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
-    GtkWidget *okbutton, *cancelbutton;
 
+#if GTK_CHECK_VERSION(3,0,0)
+    GtkWidget *coloursel =
+	gtk_color_chooser_dialog_new("Select a colour",
+                                     GTK_WINDOW(dp->window));
+    gtk_color_chooser_set_use_alpha(GTK_COLOR_CHOOSER(coloursel), FALSE);
+#else
+    GtkWidget *okbutton, *cancelbutton;
     GtkWidget *coloursel =
 	gtk_color_selection_dialog_new("Select a colour");
     GtkColorSelectionDialog *ccs = GTK_COLOR_SELECTION_DIALOG(coloursel);
     GtkColorSelection *cs = GTK_COLOR_SELECTION
         (gtk_color_selection_dialog_get_color_selection(ccs));
+    gtk_color_selection_set_has_opacity_control(cs, FALSE);
+#endif
 
     dp->coloursel_result.ok = FALSE;
 
     gtk_window_set_modal(GTK_WINDOW(coloursel), TRUE);
-    gtk_color_selection_set_has_opacity_control(cs, FALSE);
 
-#if GTK_CHECK_VERSION(2,0,0)
+#if GTK_CHECK_VERSION(3,0,0)
+    {
+        GdkRGBA rgba;
+        rgba.red = r / 255.0;
+        rgba.green = g / 255.0;
+        rgba.blue = b / 255.0;
+        rgba.alpha = 1.0;              /* fully opaque! */
+        gtk_color_chooser_set_rgba(GTK_COLOR_CHOOSER(coloursel), &rgba);
+    }
+#elif GTK_CHECK_VERSION(2,0,0)
     {
         GdkColor col;
         col.red = r * 0x0101;
@@ -1165,6 +1186,13 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     }
 #endif
 
+    g_object_set_data(G_OBJECT(coloursel), "user-data", (gpointer)uc);
+
+#if GTK_CHECK_VERSION(3,0,0)
+    g_signal_connect(G_OBJECT(coloursel), "response",
+                     G_CALLBACK(colourchoose_response), (gpointer)dp);
+#else
+
 #if GTK_CHECK_VERSION(2,0,0)
     g_object_get(G_OBJECT(ccs),
                  "ok-button", &okbutton,
@@ -1178,7 +1206,6 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
 			(gpointer)coloursel);
     g_object_set_data(G_OBJECT(cancelbutton), "user-data",
 			(gpointer)coloursel);
-    g_object_set_data(G_OBJECT(coloursel), "user-data", (gpointer)uc);
     g_signal_connect(G_OBJECT(okbutton), "clicked",
                      G_CALLBACK(coloursel_ok), (gpointer)dp);
     g_signal_connect(G_OBJECT(cancelbutton), "clicked",
@@ -1189,6 +1216,7 @@ void dlg_coloursel_start(union control *ctrl, void *dlg, int r, int g, int b)
     g_signal_connect_swapped(G_OBJECT(cancelbutton), "clicked",
                              G_CALLBACK(gtk_widget_destroy),
                              (gpointer)coloursel);
+#endif
     gtk_widget_show(coloursel);
 }
 
@@ -1624,16 +1652,43 @@ static void fontsel_ok(GtkButton *button, gpointer data)
 #endif
 }
 
+#if GTK_CHECK_VERSION(3,0,0)
+
+static void colourchoose_response(GtkDialog *dialog,
+                                  gint response_id, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    struct uctrl *uc = g_object_get_data(G_OBJECT(dialog), "user-data");
+
+    if (response_id == GTK_RESPONSE_OK) {
+        GdkRGBA rgba;
+        gtk_color_chooser_get_rgba(GTK_COLOR_CHOOSER(dialog), &rgba);
+        dp->coloursel_result.r = (int) (255 * rgba.red);
+        dp->coloursel_result.g = (int) (255 * rgba.green);
+        dp->coloursel_result.b = (int) (255 * rgba.blue);
+        dp->coloursel_result.ok = TRUE;
+    } else {
+        dp->coloursel_result.ok = FALSE;
+    }
+
+    uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
+
+    gtk_widget_destroy(GTK_WIDGET(dialog));
+}
+
+#else /* GTK 1/2 coloursel response handlers */
+
 static void coloursel_ok(GtkButton *button, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
     gpointer coloursel = g_object_get_data(G_OBJECT(button), "user-data");
     struct uctrl *uc = g_object_get_data(G_OBJECT(coloursel), "user-data");
-    GtkColorSelection *cs = GTK_COLOR_SELECTION
-        (gtk_color_selection_dialog_get_color_selection
-         (GTK_COLOR_SELECTION_DIALOG(coloursel)));
+
 #if GTK_CHECK_VERSION(2,0,0)
     {
+        GtkColorSelection *cs = GTK_COLOR_SELECTION
+            (gtk_color_selection_dialog_get_color_selection
+             (GTK_COLOR_SELECTION_DIALOG(coloursel)));
         GdkColor col;
         gtk_color_selection_get_current_color(cs, &col);
         dp->coloursel_result.r = col.red / 0x0100;
@@ -1642,6 +1697,9 @@ static void coloursel_ok(GtkButton *button, gpointer data)
     }
 #else
     {
+        GtkColorSelection *cs = GTK_COLOR_SELECTION
+            (gtk_color_selection_dialog_get_color_selection
+             (GTK_COLOR_SELECTION_DIALOG(coloursel)));
         gdouble cvals[4];
         gtk_color_selection_get_color(cs, cvals);
         dp->coloursel_result.r = (int) (255 * cvals[0]);
@@ -1661,6 +1719,8 @@ static void coloursel_cancel(GtkButton *button, gpointer data)
     dp->coloursel_result.ok = FALSE;
     uc->ctrl->generic.handler(uc->ctrl, dp, dp->data, EVENT_CALLBACK);
 }
+
+#endif /* end of coloursel response handlers */
 
 static void filefont_clicked(GtkButton *button, gpointer data)
 {
