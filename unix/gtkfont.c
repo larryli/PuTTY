@@ -2109,6 +2109,8 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
     int currflags = -1;
     fontinfo *info;
 
+    fs->inhibit_response = TRUE;
+
     gtk_list_store_clear(fs->family_model);
     listindex = 0;
 
@@ -2159,6 +2161,8 @@ static void unifontsel_setup_familylist(unifontsel_internal *fs)
      */
     if (fs->selected && fs->selected->familyindex < 0)
 	unifontsel_deselect(fs);
+
+    fs->inhibit_response = FALSE;
 }
 
 static void unifontsel_setup_stylelist(unifontsel_internal *fs,
@@ -2429,6 +2433,7 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 {
     int index;
     int minval, maxval;
+    gboolean success;
     GtkTreePath *treepath;
     GtkTreeIter iter;
 
@@ -2469,7 +2474,9 @@ static void unifontsel_select_font(unifontsel_internal *fs,
 	 treepath);
     gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(fs->family_list),
 				 treepath, NULL, FALSE, 0.0, 0.0);
-    gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->family_model), &iter, treepath);
+    success = gtk_tree_model_get_iter(GTK_TREE_MODEL(fs->family_model),
+                                      &iter, treepath);
+    assert(success);
     gtk_tree_path_free(treepath);
 
     /*
