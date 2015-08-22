@@ -2092,6 +2092,8 @@ static int fontinfo_selorder_compare(void *av, void *bv)
     return 0;
 }
 
+static void unifontsel_draw_preview_text(unifontsel_internal *fs);
+
 static void unifontsel_deselect(unifontsel_internal *fs)
 {
     fs->selected = NULL;
@@ -2099,6 +2101,7 @@ static void unifontsel_deselect(unifontsel_internal *fs)
     gtk_list_store_clear(fs->size_model);
     gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
     gtk_widget_set_sensitive(fs->size_entry, FALSE);
+    unifontsel_draw_preview_text(fs);
 }
 
 static void unifontsel_setup_familylist(unifontsel_internal *fs)
@@ -2308,29 +2311,29 @@ static void unifontsel_draw_preview_text_inner(unifont_drawctx *dctx,
     } else
 	font = NULL;
 
-    if (font) {
 #ifdef DRAW_TEXT_GDK
-        if (dctx->type == DRAWTYPE_GDK) {
-            gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_bg);
-            gdk_draw_rectangle(dctx->u.gdk.target, dctx->u.gdk.gc, 1, 0, 0,
-                               fs->preview_width, fs->preview_height);
-            gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_fg);
-        }
+    if (dctx->type == DRAWTYPE_GDK) {
+        gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_bg);
+        gdk_draw_rectangle(dctx->u.gdk.target, dctx->u.gdk.gc, 1, 0, 0,
+                           fs->preview_width, fs->preview_height);
+        gdk_gc_set_foreground(dctx->u.gdk.gc, &fs->preview_fg);
+    }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-        if (dctx->type == DRAWTYPE_CAIRO) {
-            cairo_set_source_rgb(dctx->u.cairo.cr,
-                                 fs->preview_bg.red / 65535.0,
-                                 fs->preview_bg.green / 65535.0,
-                                 fs->preview_bg.blue / 65535.0);
-            cairo_paint(dctx->u.cairo.cr);
-            cairo_set_source_rgb(dctx->u.cairo.cr,
-                                 fs->preview_fg.red / 65535.0,
-                                 fs->preview_fg.green / 65535.0,
-                                 fs->preview_fg.blue / 65535.0);
-        }
+    if (dctx->type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb(dctx->u.cairo.cr,
+                             fs->preview_bg.red / 65535.0,
+                             fs->preview_bg.green / 65535.0,
+                             fs->preview_bg.blue / 65535.0);
+        cairo_paint(dctx->u.cairo.cr);
+        cairo_set_source_rgb(dctx->u.cairo.cr,
+                             fs->preview_fg.red / 65535.0,
+                             fs->preview_fg.green / 65535.0,
+                             fs->preview_fg.blue / 65535.0);
+    }
 #endif
 
+    if (font) {
         /*
          * The pangram used here is rather carefully
          * constructed: it contains a sequence of very narrow
