@@ -1,7 +1,7 @@
 /*
  * Header file to make compatibility with older GTK versions less
  * painful, by #defining various things that are pure spelling changes
- * between GTK1 and GTK2.
+ * between GTK1 and GTK2, or between 2 and 3.
  */
 
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -156,3 +156,12 @@
 
 #endif
 
+#if GTK_CHECK_VERSION(3,0,0)
+#define STANDARD_OK_LABEL "_OK"
+#define STANDARD_OPEN_LABEL "_Open"
+#define STANDARD_CANCEL_LABEL "_Cancel"
+#else
+#define STANDARD_OK_LABEL GTK_STOCK_OK
+#define STANDARD_OPEN_LABEL GTK_STOCK_OPEN
+#define STANDARD_CANCEL_LABEL GTK_STOCK_CANCEL
+#endif

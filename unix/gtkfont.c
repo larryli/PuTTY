@@ -2996,9 +2996,9 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->u.window = GTK_WINDOW(gtk_dialog_new());
     gtk_window_set_title(fs->u.window, wintitle);
     fs->u.cancel_button = gtk_dialog_add_button
-	(GTK_DIALOG(fs->u.window), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL);
+	(GTK_DIALOG(fs->u.window), STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL);
     fs->u.ok_button = gtk_dialog_add_button
-	(GTK_DIALOG(fs->u.window), GTK_STOCK_OK, GTK_RESPONSE_OK);
+	(GTK_DIALOG(fs->u.window), STANDARD_OK_LABEL, GTK_RESPONSE_OK);
     gtk_widget_grab_default(fs->u.ok_button);
 
     /*

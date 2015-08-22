@@ -1674,8 +1674,8 @@ static void filefont_clicked(GtkButton *button, gpointer data)
              (uc->ctrl->fileselect.for_writing ?
               GTK_FILE_CHOOSER_ACTION_SAVE :
               GTK_FILE_CHOOSER_ACTION_OPEN),
-             GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-             GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+             STANDARD_CANCEL_LABEL, GTK_RESPONSE_CANCEL,
+             STANDARD_OPEN_LABEL, GTK_RESPONSE_ACCEPT,
              (const gchar *)NULL);
 	gtk_window_set_modal(GTK_WINDOW(filechoose), TRUE);
 	g_object_set_data(G_OBJECT(filechoose), "user-data", (gpointer)uc);
