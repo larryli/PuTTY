@@ -2914,6 +2914,39 @@ static gint unifontsel_configure_area(GtkWidget *widget,
     return TRUE;
 }
 
+static void get_label_text_dimensions(const char *text,
+                                      int *width, int *height)
+{
+    /*
+     * Determine the dimensions of a piece of text in the standard
+     * font used in GTK interface elements like labels. We do this by
+     * instantiating an actual GtkLabel, and then querying its size.
+     *
+     * But GTK2 and GTK3 require us to query the size completely
+     * differently. I'm sure there ought to be an easier approach than
+     * the way I'm doing this in GTK3, too!
+     */
+    GtkWidget *label = gtk_label_new(text);
+
+#if GTK_CHECK_VERSION(3,0,0)
+    PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
+    PangoRectangle logrect;
+    pango_layout_get_extents(layout, NULL, &logrect);
+    *width = logrect.width / PANGO_SCALE;
+    *height = logrect.height / PANGO_SCALE;
+#else
+    GtkRequisition req;
+    gtk_widget_size_request(label, &req);
+    *width = req.width;
+    *height = req.height;
+#endif
+
+    g_object_ref_sink(G_OBJECT(label));
+#if GTK_CHECK_VERSION(2,10,0)
+    g_object_unref(label);
+#endif
+}
+
 unifontsel *unifontsel_new(const char *wintitle)
 {
     unifontsel_internal *fs = snew(unifontsel_internal);
@@ -2927,25 +2960,22 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->selected = NULL;
 
     {
+        int width, height;
+
 	/*
 	 * Invent some magic size constants.
 	 */
-	GtkRequisition req;
-	label = gtk_label_new("Quite Long Font Name (Foundry)");
-	gtk_widget_size_request(label, &req);
-	font_width = req.width;
-	lists_height = 14 * req.height;
-	preview_height = 5 * req.height;
-	gtk_label_set_text(GTK_LABEL(label), "Italic Extra Condensed");
-	gtk_widget_size_request(label, &req);
-	style_width = req.width;
-	gtk_label_set_text(GTK_LABEL(label), "48000");
-	gtk_widget_size_request(label, &req);
-	size_width = req.width;
-        g_object_ref_sink(G_OBJECT(label));
-#if GTK_CHECK_VERSION(2,10,0)
-	g_object_unref(label);
-#endif
+	get_label_text_dimensions("Quite Long Font Name (Foundry)",
+                                  &width, &height);
+	font_width = width;
+	lists_height = 14 * height;
+	preview_height = 5 * height;
+
+	get_label_text_dimensions("Italic Extra Condensed", &width, &height);
+	style_width = width;
+
+	get_label_text_dimensions("48000", &width, &height);
+	size_width = width;
     }
 
     /*
