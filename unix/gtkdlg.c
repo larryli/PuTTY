@@ -2810,7 +2810,21 @@ int get_listitemheight(GtkWidget *w)
 #else
     int height;
     GtkCellRenderer *cr = gtk_cell_renderer_text_new();
+#if GTK_CHECK_VERSION(3,0,0)
+    {
+        GtkRequisition req;
+        /*
+         * Since none of my list items wraps in this GUI, no
+         * interesting width-for-height behaviour should be happening,
+         * so I don't think it should matter here whether I ask for
+         * the minimum or natural height.
+         */
+        gtk_cell_renderer_get_preferred_size(cr, w, &req, NULL);
+        height = req.height;
+    }
+#else
     gtk_cell_renderer_get_size(cr, w, NULL, NULL, NULL, NULL, &height);
+#endif
     g_object_ref(G_OBJECT(cr));
     g_object_ref_sink(G_OBJECT(cr));
     g_object_unref(G_OBJECT(cr));
