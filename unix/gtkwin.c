@@ -1840,13 +1840,29 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 #endif
 }
 
+void set_gdk_window_background(GdkWindow *win, const GdkColor *col)
+{
+#if GTK_CHECK_VERSION(3,0,0)
+    /* gdk_window_set_background is deprecated; work around its
+     * absence. */
+    GdkRGBA rgba;
+    rgba.red = col->red / 65535.0;
+    rgba.green = col->green / 65535.0;
+    rgba.blue = col->blue / 65535.0;
+    rgba.alpha = 1.0;
+    gdk_window_set_background_rgba(win, &rgba);
+#else
+    gdk_window_set_background(win, col);
+#endif
+}
+
 void set_window_background(struct gui_data *inst)
 {
     if (inst->area && gtk_widget_get_window(inst->area))
-	gdk_window_set_background(gtk_widget_get_window(inst->area),
+	set_gdk_window_background(gtk_widget_get_window(inst->area),
                                   &inst->cols[258]);
     if (inst->window && gtk_widget_get_window(inst->window))
-	gdk_window_set_background(gtk_widget_get_window(inst->window),
+	set_gdk_window_background(gtk_widget_get_window(inst->window),
                                   &inst->cols[258]);
 }
 
