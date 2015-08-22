@@ -834,6 +834,19 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	     * environment in place.
 	     */
 	}
+        {
+            /*
+             * In case we were invoked with a --display argument that
+             * doesn't match DISPLAY in our actual environment, we
+             * should set DISPLAY for processes running inside the
+             * terminal to match the display the terminal itself is
+             * on.
+             */
+            const char *x_display = get_x_display(pty->frontend);
+            char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
+            putenv(x_display_env_var);
+            /* As above, we don't free this. */
+        }
 #endif
 	{
 	    char *key, *val;
