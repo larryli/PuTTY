@@ -2883,7 +2883,10 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
                      w, FALSE, TRUE, 0);
     gtk_widget_show(w);
     gtk_widget_hide(gtk_dialog_get_action_area(dlg));
+#if !GTK_CHECK_VERSION(3,0,0)
+    /* This cosmetic property is withdrawn in GTK 3's GtkDialog */
     g_object_set(G_OBJECT(dlg), "has-separator", TRUE, (const char *)NULL);
+#endif
 #endif
 }
 
