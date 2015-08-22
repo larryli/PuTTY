@@ -759,7 +759,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
             close(pty_utmp_helper_pipe);   /* just let the child process die */
             pty_utmp_helper_pipe = -1;
         } else {
-            char *location = get_x_display(pty->frontend);
+            const char *location = get_x_display(pty->frontend);
             int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
             while (pos < len) {
                 int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);

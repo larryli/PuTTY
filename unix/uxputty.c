@@ -7,10 +7,13 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
+#include <gtk/gtk.h>
 #include <gdk/gdk.h>
 
 #include "putty.h"
 #include "storage.h"
+
+#include "gtkcompat.h"
 
 /*
  * Stubs to avoid uxpty.c needing to be linked in.

@@ -177,4 +177,7 @@
     gtk_box_new(GTK_ORIENTATION_VERTICAL, spacing)
 #define gtk_vscrollbar_new(adjust) \
     gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, adjust)
+
+#define gdk_get_display() gdk_display_get_name(gdk_display_get_default())
+
 #endif

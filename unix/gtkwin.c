@@ -2998,7 +2998,7 @@ void cmdline_error(const char *p, ...)
     exit(1);
 }
 
-char *get_x_display(void *frontend)
+const char *get_x_display(void *frontend)
 {
     return gdk_get_display();
 }

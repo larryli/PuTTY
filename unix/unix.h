@@ -74,7 +74,7 @@ unsigned long getticks(void);	       /* based on gettimeofday(2) */
 #define FLAG_STDERR_TTY 0x1000
 
 /* Things pty.c needs from pterm.c */
-char *get_x_display(void *frontend);
+const char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 long get_windowid(void *frontend);
 
