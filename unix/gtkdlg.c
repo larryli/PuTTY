@@ -2022,18 +2022,30 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                                  G_CALLBACK(editbox_lostfocus), dp);
                 g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
                                  G_CALLBACK(editbox_lostfocus), dp);
+
+                /*
+                 * Find out the edit box's height, which we'll need
+                 * for vertical centring below (and, in GTK2, size
+                 * tweaking as well).
+                 */
+                gtk_widget_size_request(w, &req);
+
+#if !GTK_CHECK_VERSION(3,0,0)
 		/*
 		 * Edit boxes, for some strange reason, have a minimum
 		 * width of 150 in GTK 1.2. We don't want this - we'd
 		 * rather the edit boxes acquired their natural width
 		 * from the column layout of the rest of the box.
-		 *
-		 * Also, while we're here, we'll squirrel away the
-		 * edit box height so we can use that to centre its
-		 * label vertically beside it.
 		 */
-                gtk_widget_size_request(w, &req);
                 gtk_widget_set_size_request(w, 10, req.height);
+#else
+                /*
+                 * In GTK 3, this is still true, but there's a special
+                 * method for GtkEntry in particular to fix it.
+                 */
+                if (GTK_IS_ENTRY(w))
+                    gtk_entry_set_width_chars(GTK_ENTRY(w), 1);
+#endif
 
 		if (ctrl->generic.label) {
 		    GtkWidget *label, *container;
