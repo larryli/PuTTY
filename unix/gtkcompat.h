@@ -165,3 +165,16 @@
 #define STANDARD_OPEN_LABEL GTK_STOCK_OPEN
 #define STANDARD_CANCEL_LABEL GTK_STOCK_CANCEL
 #endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+#define gtk_hseparator_new() gtk_separator_new(GTK_ORIENTATION_HORIZONTAL)
+/* Fortunately, my hboxes and vboxes never actually set homogeneous to
+ * TRUE, so I can just wrap these deprecated constructors with a macro
+ * without also having to arrange a call to gtk_box_set_homogeneous. */
+#define gtk_hbox_new(homogeneous, spacing) \
+    gtk_box_new(GTK_ORIENTATION_HORIZONTAL, spacing)
+#define gtk_vbox_new(homogeneous, spacing) \
+    gtk_box_new(GTK_ORIENTATION_VERTICAL, spacing)
+#define gtk_vscrollbar_new(adjust) \
+    gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, adjust)
+#endif
