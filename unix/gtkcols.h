@@ -45,6 +45,7 @@ struct ColumnsChild_tag {
     /* Otherwise, this entry represents a change in the column setup. */
     gint ncols;
     gint *percentages;
+    gint x, y, w, h;           /* used during an individual size computation */
 };
 
 GType columns_get_type(void);

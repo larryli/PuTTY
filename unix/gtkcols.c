@@ -521,47 +521,169 @@ static gint columns_focus(GtkContainer *container, GtkDirectionType dir)
 #endif
 
 /*
- * Now here comes the interesting bit. The actual layout part is
- * done in the following two functions:
- * 
- * columns_size_request() examines the list of widgets held in the
- * Columns, and returns a requisition stating the absolute minimum
- * size it can bear to be.
- * 
- * columns_size_allocate() is given an allocation telling it what
- * size the whole container is going to be, and it calls
- * gtk_widget_size_allocate() on all of its (visible) children to
- * set their size and position relative to the top left of the
- * container.
+ * Underlying parts of the layout algorithm, to compute the Columns
+ * container's width or height given the widths or heights of its
+ * children. These will be called in various ways with different
+ * notions of width and height in use, so we abstract them out and
+ * pass them a 'get width' or 'get height' function pointer.
  */
 
-static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
+typedef gint (*widget_dim_fn_t)(ColumnsChild *child);
+
+static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
 {
-    Columns *cols;
     ColumnsChild *child;
     GList *children;
-    gint i, ncols, colspan, *colypos;
+    gint i, ncols, colspan, retwidth, childwidth;
     const gint *percentages;
     static const gint onecol[] = { 100 };
 
-    g_return_if_fail(widget != NULL);
-    g_return_if_fail(IS_COLUMNS(widget));
-    g_return_if_fail(req != NULL);
-
-    cols = COLUMNS(widget);
-
-    req->width = 0;
-    req->height = cols->spacing;
+    retwidth = 0;
 
     ncols = 1;
-    colypos = g_new(gint, 1);
-    colypos[0] = 0;
     percentages = onecol;
 
     for (children = cols->children;
          children && (child = children->data);
          children = children->next) {
-        GtkRequisition creq;
+
+	if (!child->widget) {
+	    /* Column reconfiguration. */
+	    ncols = child->ncols;
+	    percentages = child->percentages;
+	    continue;
+	}
+
+        /* Only take visible widgets into account. */
+        if (!gtk_widget_get_visible(child->widget))
+            continue;
+
+        childwidth = get_width(child);
+	colspan = child->colspan ? child->colspan : ncols-child->colstart;
+
+        /*
+         * To compute width: we know that childwidth + cols->spacing
+         * needs to equal a certain percentage of the full width of
+         * the container. So we work this value out, figure out how
+         * wide the container will need to be to make that percentage
+         * of it equal to that width, and ensure our returned width is
+         * at least that much. Very simple really.
+         */
+        {
+            int percent, thiswid, fullwid;
+
+            percent = 0;
+            for (i = 0; i < colspan; i++)
+                percent += percentages[child->colstart+i];
+
+            thiswid = childwidth + cols->spacing;
+            /*
+             * Since childwidth is (at least sometimes) the _minimum_
+             * size the child needs, we must ensure that it gets _at
+             * least_ that size. Hence, when scaling thiswid up to
+             * fullwid, we must round up, which means adding percent-1
+             * before dividing by percent.
+             */
+            fullwid = (thiswid * 100 + percent - 1) / percent;
+
+            /*
+             * The above calculation assumes every widget gets
+             * cols->spacing on the right. So we subtract
+             * cols->spacing here to account for the extra load of
+             * spacing on the right.
+             */
+            if (retwidth < fullwid - cols->spacing)
+                retwidth = fullwid - cols->spacing;
+        }
+    }
+
+    retwidth += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
+
+    return retwidth;
+}
+
+static void columns_alloc_horiz(Columns *cols, gint ourwidth,
+                                widget_dim_fn_t get_width)
+{
+    ColumnsChild *child;
+    GList *children;
+    gint i, ncols, colspan, border, *colxpos, childwidth;
+    const gint *percentages;
+    static const gint onecol[] = { 100 };
+
+    border = gtk_container_get_border_width(GTK_CONTAINER(cols));
+
+    ncols = 1;
+    percentages = onecol;
+    /* colxpos gives the starting x position of each column.
+     * We supply n+1 of them, so that we can find the RH edge easily.
+     * All ending x positions are expected to be adjusted afterwards by
+     * subtracting the spacing. */
+    colxpos = g_new(gint, 2);
+    colxpos[0] = 0;
+    colxpos[1] = ourwidth - 2*border + cols->spacing;
+
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+
+	if (!child->widget) {
+	    gint percent;
+
+	    /* Column reconfiguration. */
+	    ncols = child->ncols;
+	    percentages = child->percentages;
+	    colxpos = g_renew(gint, colxpos, ncols + 1);
+	    colxpos[0] = 0;
+	    percent = 0;
+	    for (i = 0; i < ncols; i++) {
+		percent += percentages[i];
+		colxpos[i+1] = (((ourwidth - 2*border) + cols->spacing)
+				* percent / 100);
+	    }
+	    continue;
+	}
+
+        /* Only take visible widgets into account. */
+        if (!gtk_widget_get_visible(child->widget))
+            continue;
+
+        childwidth = get_width(child);
+	colspan = child->colspan ? child->colspan : ncols-child->colstart;
+
+        /*
+         * Starting x position is cols[colstart].
+         * Ending x position is cols[colstart+colspan] - spacing.
+	 * 
+	 * Unless we're forcing left, in which case the width is
+	 * exactly the requisition width.
+         */
+        child->x = colxpos[child->colstart];
+	if (child->force_left)
+	    child->w = childwidth;
+	else
+	    child->w = (colxpos[child->colstart+colspan] -
+                        colxpos[child->colstart] - cols->spacing);
+    }
+
+    g_free(colxpos);
+}
+
+static gint columns_compute_height(Columns *cols, widget_dim_fn_t get_height)
+{
+    ColumnsChild *child;
+    GList *children;
+    gint i, ncols, colspan, *colypos, retheight, childheight;
+
+    retheight = cols->spacing;
+
+    ncols = 1;
+    colypos = g_new(gint, 1);
+    colypos[0] = 0;
+
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
 
 	if (!child->widget) {
 	    /* Column reconfiguration. */
@@ -570,7 +692,6 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
 		    colypos[0] = colypos[i];
 	    }
 	    ncols = child->ncols;
-	    percentages = child->percentages;
 	    colypos = g_renew(gint, colypos, ncols);
 	    for (i = 1; i < ncols; i++)
 		colypos[i] = colypos[0];
@@ -581,53 +702,16 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
         if (!gtk_widget_get_visible(child->widget))
             continue;
 
-        gtk_widget_size_request(child->widget, &creq);
+        childheight = get_height(child);
 	colspan = child->colspan ? child->colspan : ncols-child->colstart;
 
         /*
-         * To compute width: we know that creq.width plus
-         * cols->spacing needs to equal a certain percentage of the
-         * full width of the container. So we work this value out,
-         * figure out how wide the container will need to be to
-         * make that percentage of it equal to that width, and
-         * ensure our returned width is at least that much. Very
-         * simple really.
-         */
-        {
-            int percent, thiswid, fullwid;
-
-            percent = 0;
-            for (i = 0; i < colspan; i++)
-                percent += percentages[child->colstart+i];
-
-            thiswid = creq.width + cols->spacing;
-            /*
-             * Since creq is the _minimum_ size the child needs, we
-             * must ensure that it gets _at least_ that size.
-             * Hence, when scaling thiswid up to fullwid, we must
-             * round up, which means adding percent-1 before
-             * dividing by percent.
-             */
-            fullwid = (thiswid * 100 + percent - 1) / percent;
-
-            /*
-             * The above calculation assumes every widget gets
-             * cols->spacing on the right. So we subtract
-             * cols->spacing here to account for the extra load of
-             * spacing on the right.
-             */
-            if (req->width < fullwid - cols->spacing)
-                req->width = fullwid - cols->spacing;
-        }
-
-        /*
-         * To compute height: the widget's top will be positioned
-         * at the largest y value so far reached in any of the
-         * columns it crosses. Then it will go down by creq.height
-         * plus padding; and the point it reaches at the bottom is
-         * the new y value in all those columns, and minus the
-         * padding it is also a lower bound on our own size
-         * request.
+         * To compute height: the widget's top will be positioned at
+         * the largest y value so far reached in any of the columns it
+         * crosses. Then it will go down by childheight plus padding;
+         * and the point it reaches at the bottom is the new y value
+         * in all those columns, and minus the padding it is also a
+         * lower bound on our own height.
          */
         {
             int topy, boty;
@@ -637,20 +721,126 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
                 if (topy < colypos[child->colstart+i])
                     topy = colypos[child->colstart+i];
             }
-            boty = topy + creq.height + cols->spacing;
+            boty = topy + childheight + cols->spacing;
             for (i = 0; i < colspan; i++) {
                 colypos[child->colstart+i] = boty;
             }
 
-            if (req->height < boty - cols->spacing)
-                req->height = boty - cols->spacing;
+            if (retheight < boty - cols->spacing)
+                retheight = boty - cols->spacing;
         }
     }
 
-    req->width += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
-    req->height += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
+    retheight += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
 
     g_free(colypos);
+
+    return retheight;
+}
+
+static void columns_alloc_vert(Columns *cols, gint ourheight,
+                               widget_dim_fn_t get_height)
+{
+    ColumnsChild *child;
+    GList *children;
+    gint i, ncols, colspan, *colypos, childheight;
+
+    ncols = 1;
+    /* As in size_request, colypos is the lowest y reached in each column. */
+    colypos = g_new(gint, 1);
+    colypos[0] = 0;
+
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+	if (!child->widget) {
+	    /* Column reconfiguration. */
+	    for (i = 1; i < ncols; i++) {
+		if (colypos[0] < colypos[i])
+		    colypos[0] = colypos[i];
+	    }
+	    ncols = child->ncols;
+	    colypos = g_renew(gint, colypos, ncols);
+	    for (i = 1; i < ncols; i++)
+		colypos[i] = colypos[0];
+	    continue;
+	}
+
+        /* Only take visible widgets into account. */
+        if (!gtk_widget_get_visible(child->widget))
+            continue;
+
+        childheight = get_height(child);
+	colspan = child->colspan ? child->colspan : ncols-child->colstart;
+
+        /*
+         * To compute height: the widget's top will be positioned
+         * at the largest y value so far reached in any of the
+         * columns it crosses. Then it will go down by creq.height
+         * plus padding; and the point it reaches at the bottom is
+         * the new y value in all those columns.
+         */
+        {
+            int topy, boty;
+
+            topy = 0;
+            for (i = 0; i < colspan; i++) {
+                if (topy < colypos[child->colstart+i])
+                    topy = colypos[child->colstart+i];
+            }
+            child->y = topy;
+            child->h = childheight;
+            boty = topy + childheight + cols->spacing;
+            for (i = 0; i < colspan; i++) {
+                colypos[child->colstart+i] = boty;
+            }
+        }
+    }
+
+    g_free(colypos);    
+}
+
+/*
+ * Now here comes the interesting bit. The actual layout part is
+ * done in the following two functions:
+ *
+ * columns_size_request() examines the list of widgets held in the
+ * Columns, and returns a requisition stating the absolute minimum
+ * size it can bear to be.
+ *
+ * columns_size_allocate() is given an allocation telling it what
+ * size the whole container is going to be, and it calls
+ * gtk_widget_size_allocate() on all of its (visible) children to
+ * set their size and position relative to the top left of the
+ * container.
+ */
+
+static gint columns_gtk2_get_width(ColumnsChild *child)
+{
+    GtkRequisition creq;
+    gtk_widget_size_request(child->widget, &creq);
+    return creq.width;
+}
+
+static gint columns_gtk2_get_height(ColumnsChild *child)
+{
+    GtkRequisition creq;
+    gtk_widget_size_request(child->widget, &creq);
+    return creq.height;
+}
+
+static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
+{
+    Columns *cols;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+    g_return_if_fail(req != NULL);
+
+    cols = COLUMNS(widget);
+
+    req->width = columns_compute_width(cols, columns_gtk2_get_width);
+    req->height = columns_compute_height(cols, columns_gtk2_get_height);
 }
 
 #if GTK_CHECK_VERSION(3,0,0)
@@ -676,9 +866,7 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
     Columns *cols;
     ColumnsChild *child;
     GList *children;
-    gint i, ncols, colspan, border, *colxpos, *colypos;
-    const gint *percentages;
-    static const gint onecol[] = { 100 };
+    gint border;
 
     g_return_if_fail(widget != NULL);
     g_return_if_fail(IS_COLUMNS(widget));
@@ -686,98 +874,22 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
 
     cols = COLUMNS(widget);
     gtk_widget_set_allocation(widget, alloc);
+
     border = gtk_container_get_border_width(GTK_CONTAINER(cols));
 
-    ncols = 1;
-    percentages = onecol;
-    /* colxpos gives the starting x position of each column.
-     * We supply n+1 of them, so that we can find the RH edge easily.
-     * All ending x positions are expected to be adjusted afterwards by
-     * subtracting the spacing. */
-    colxpos = g_new(gint, 2);
-    colxpos[0] = 0;
-    colxpos[1] = alloc->width - 2*border + cols->spacing;
-    /* As in size_request, colypos is the lowest y reached in each column. */
-    colypos = g_new(gint, 1);
-    colypos[0] = 0;
+    columns_alloc_horiz(cols, alloc->width, columns_gtk2_get_width);
+    columns_alloc_vert(cols, alloc->height, columns_gtk2_get_height);
 
     for (children = cols->children;
          children && (child = children->data);
          children = children->next) {
-        GtkRequisition creq;
-        GtkAllocation call;
-
-	if (!child->widget) {
-	    gint percent;
-
-	    /* Column reconfiguration. */
-	    for (i = 1; i < ncols; i++) {
-		if (colypos[0] < colypos[i])
-		    colypos[0] = colypos[i];
-	    }
-	    ncols = child->ncols;
-	    percentages = child->percentages;
-	    colypos = g_renew(gint, colypos, ncols);
-	    for (i = 1; i < ncols; i++)
-		colypos[i] = colypos[0];
-	    colxpos = g_renew(gint, colxpos, ncols + 1);
-	    colxpos[0] = 0;
-	    percent = 0;
-	    for (i = 0; i < ncols; i++) {
-		percent += percentages[i];
-		colxpos[i+1] = (((alloc->width - 2*border) + cols->spacing)
-				* percent / 100);
-	    }
-	    continue;
-	}
-
-        /* Only take visible widgets into account. */
-        if (!gtk_widget_get_visible(child->widget))
-            continue;
-
-        gtk_widget_get_child_requisition(child->widget, &creq);
-	colspan = child->colspan ? child->colspan : ncols-child->colstart;
-
-        /*
-         * Starting x position is cols[colstart].
-         * Ending x position is cols[colstart+colspan] - spacing.
-	 * 
-	 * Unless we're forcing left, in which case the width is
-	 * exactly the requisition width.
-         */
-        call.x = alloc->x + border + colxpos[child->colstart];
-	if (child->force_left)
-	    call.width = creq.width;
-	else
-	    call.width = (colxpos[child->colstart+colspan] -
-			  colxpos[child->colstart] - cols->spacing);
-
-        /*
-         * To compute height: the widget's top will be positioned
-         * at the largest y value so far reached in any of the
-         * columns it crosses. Then it will go down by creq.height
-         * plus padding; and the point it reaches at the bottom is
-         * the new y value in all those columns.
-         */
-        {
-            int topy, boty;
-
-            topy = 0;
-            for (i = 0; i < colspan; i++) {
-                if (topy < colypos[child->colstart+i])
-                    topy = colypos[child->colstart+i];
-            }
-            call.y = alloc->y + border + topy;
-            call.height = creq.height;
-            boty = topy + creq.height + cols->spacing;
-            for (i = 0; i < colspan; i++) {
-                colypos[child->colstart+i] = boty;
-            }
+        if (child->widget && gtk_widget_get_visible(child->widget)) {
+            GtkAllocation call;
+            call.x = alloc->x + border + child->x;
+            call.y = alloc->y + border + child->y;
+            call.width = child->w;
+            call.height = child->h;
+            gtk_widget_size_allocate(child->widget, &call);
         }
-
-        gtk_widget_size_allocate(child->widget, &call);
     }
-
-    g_free(colxpos);
-    g_free(colypos);    
 }
