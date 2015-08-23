@@ -27,8 +27,15 @@ static void columns_get_preferred_width(GtkWidget *widget,
                                         gint *min, gint *nat);
 static void columns_get_preferred_height(GtkWidget *widget,
                                          gint *min, gint *nat);
-#endif
+static void columns_get_preferred_width_for_height(GtkWidget *widget,
+                                                   gint height,
+                                                   gint *min, gint *nat);
+static void columns_get_preferred_height_for_width(GtkWidget *widget,
+                                                   gint width,
+                                                   gint *min, gint *nat);
+#else
 static void columns_size_request(GtkWidget *widget, GtkRequisition *req);
+#endif
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc);
 
 static GtkContainerClass *parent_class = NULL;
@@ -113,6 +120,10 @@ static void columns_class_init(ColumnsClass *klass)
 #if GTK_CHECK_VERSION(3,0,0)
     widget_class->get_preferred_width = columns_get_preferred_width;
     widget_class->get_preferred_height = columns_get_preferred_height;
+    widget_class->get_preferred_width_for_height =
+        columns_get_preferred_width_for_height;
+    widget_class->get_preferred_height_for_width =
+        columns_get_preferred_height_for_width;
 #else
     widget_class->size_request = columns_size_request;
 #endif
@@ -815,6 +826,8 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
  * container.
  */
 
+#if !GTK_CHECK_VERSION(3,0,0)
+
 static gint columns_gtk2_get_width(ColumnsChild *child)
 {
     GtkRequisition creq;
@@ -842,24 +855,6 @@ static void columns_size_request(GtkWidget *widget, GtkRequisition *req)
     req->width = columns_compute_width(cols, columns_gtk2_get_width);
     req->height = columns_compute_height(cols, columns_gtk2_get_height);
 }
-
-#if GTK_CHECK_VERSION(3,0,0)
-static void columns_get_preferred_width(GtkWidget *widget,
-                                        gint *min, gint *nat)
-{
-    GtkRequisition req;
-    columns_size_request(widget, &req);
-    *min = *nat = req.width;
-}
-
-static void columns_get_preferred_height(GtkWidget *widget,
-                                        gint *min, gint *nat)
-{
-    GtkRequisition req;
-    columns_size_request(widget, &req);
-    *min = *nat = req.height;
-}
-#endif
 
 static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
 {
@@ -893,3 +888,185 @@ static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
         }
     }
 }
+
+#else /* GTK_CHECK_VERSION(3,0,0) */
+
+static gint columns_gtk3_get_min_width(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_width(child->widget, &ret, NULL);
+    return ret;
+}
+
+static gint columns_gtk3_get_nat_width(ColumnsChild *child)
+{
+    gint ret;
+
+    if (GTK_IS_LABEL(child->widget) &&
+        gtk_label_get_line_wrap(GTK_LABEL(child->widget))) {
+        /*
+         * We treat wrapping GtkLabels as a special case in this
+         * layout class, because the whole point of those is that I
+         * _don't_ want them to take up extra horizontal space for
+         * long text, but instead to wrap it to whatever size is used
+         * by the rest of the layout.
+         */
+        gtk_widget_get_preferred_width(child->widget, &ret, NULL);
+    } else {
+        gtk_widget_get_preferred_width(child->widget, NULL, &ret);
+    }
+    return ret;
+}
+
+static gint columns_gtk3_get_minfh_width(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_width_for_height(child->widget, child->h,
+                                              &ret, NULL);
+    return ret;
+}
+
+static gint columns_gtk3_get_natfh_width(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_width_for_height(child->widget, child->h,
+                                              NULL, &ret);
+    return ret;
+}
+
+static gint columns_gtk3_get_min_height(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_height(child->widget, &ret, NULL);
+    return ret;
+}
+
+static gint columns_gtk3_get_nat_height(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_height(child->widget, NULL, &ret);
+    return ret;
+}
+
+static gint columns_gtk3_get_minfw_height(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_height_for_width(child->widget, child->w,
+                                              &ret, NULL);
+    return ret;
+}
+
+static gint columns_gtk3_get_natfw_height(ColumnsChild *child)
+{
+    gint ret;
+    gtk_widget_get_preferred_height_for_width(child->widget, child->w,
+                                              NULL, &ret);
+    return ret;
+}
+
+static void columns_get_preferred_width(GtkWidget *widget,
+                                        gint *min, gint *nat)
+{
+    Columns *cols;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+
+    cols = COLUMNS(widget);
+
+    if (min)
+        *min = columns_compute_width(cols, columns_gtk3_get_min_width);
+    if (nat)
+        *nat = columns_compute_width(cols, columns_gtk3_get_nat_width);
+}
+
+static void columns_get_preferred_height(GtkWidget *widget,
+                                         gint *min, gint *nat)
+{
+    Columns *cols;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+
+    cols = COLUMNS(widget);
+
+    if (min)
+        *min = columns_compute_height(cols, columns_gtk3_get_min_height);
+    if (nat)
+        *nat = columns_compute_height(cols, columns_gtk3_get_nat_height);
+}
+
+static void columns_get_preferred_width_for_height(GtkWidget *widget,
+                                                   gint height,
+                                                   gint *min, gint *nat)
+{
+    Columns *cols;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+
+    cols = COLUMNS(widget);
+
+    /* FIXME: which one should the get-height function here be? */
+    columns_alloc_vert(cols, height, columns_gtk3_get_nat_height);
+
+    if (min)
+        *min = columns_compute_width(cols, columns_gtk3_get_minfh_width);
+    if (nat)
+        *nat = columns_compute_width(cols, columns_gtk3_get_natfh_width);
+}
+
+static void columns_get_preferred_height_for_width(GtkWidget *widget,
+                                                   gint width,
+                                                   gint *min, gint *nat)
+{
+    Columns *cols;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+
+    cols = COLUMNS(widget);
+
+    /* FIXME: which one should the get-height function here be? */
+    columns_alloc_horiz(cols, width, columns_gtk3_get_nat_width);
+
+    if (min)
+        *min = columns_compute_height(cols, columns_gtk3_get_minfw_height);
+    if (nat)
+        *nat = columns_compute_height(cols, columns_gtk3_get_natfw_height);
+}
+
+static void columns_size_allocate(GtkWidget *widget, GtkAllocation *alloc)
+{
+    Columns *cols;
+    ColumnsChild *child;
+    GList *children;
+    gint border;
+
+    g_return_if_fail(widget != NULL);
+    g_return_if_fail(IS_COLUMNS(widget));
+    g_return_if_fail(alloc != NULL);
+
+    cols = COLUMNS(widget);
+    gtk_widget_set_allocation(widget, alloc);
+
+    border = gtk_container_get_border_width(GTK_CONTAINER(cols));
+
+    columns_alloc_horiz(cols, alloc->width, columns_gtk3_get_min_width);
+    columns_alloc_vert(cols, alloc->height, columns_gtk3_get_minfw_height);
+
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+        if (child->widget && gtk_widget_get_visible(child->widget)) {
+            GtkAllocation call;
+            call.x = alloc->x + border + child->x;
+            call.y = alloc->y + border + child->y;
+            call.width = child->w;
+            call.height = child->h;
+            gtk_widget_size_allocate(child->widget, &call);
+        }
+    }
+}
+
+#endif
