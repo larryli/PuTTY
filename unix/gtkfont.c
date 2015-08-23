@@ -634,7 +634,7 @@ static void x11font_cairo_cache_glyph(x11font_individual *xfi, int glyphindex)
          * principle that Unicode characters come in contiguous blocks
          * often used together */
         int old_nglyphs = xfi->nglyphs;
-        xfi->nglyphs = (glyphindex + 0xFF) & ~0xFF;
+        xfi->nglyphs = (glyphindex + 0x100) & ~0xFF;
         xfi->glyphcache = sresize(xfi->glyphcache, xfi->nglyphs,
                                   struct cairo_cached_glyph);
 
