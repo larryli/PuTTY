@@ -1851,6 +1851,7 @@ static void filefont_clicked(GtkButton *button, gpointer data)
     }
 }
 
+#if !GTK_CHECK_VERSION(3,0,0)
 static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
 			    gpointer data)
 {
@@ -1861,6 +1862,7 @@ static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
     gtk_label_set_text(GTK_LABEL(uc->text), uc->ctrl->generic.label);
     g_signal_handler_disconnect(G_OBJECT(uc->text), uc->textsig);
 }
+#endif
 
 /* ----------------------------------------------------------------------
  * This function does the main layout work: it reads a controlset,
@@ -2436,6 +2438,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 GtkRequisition req;
 
 		label = gtk_label_new(ctrl->generic.label);
+                gtk_label_set_width_chars(GTK_LABEL(label), 3);
 
 		shortcut_add(scs, label, ctrl->listbox.shortcut,
 			     SHORTCUT_FOCUS, w);
@@ -2467,8 +2470,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
 	    break;
           case CTRL_TEXT:
+#if !GTK_CHECK_VERSION(3,0,0)
 	    /*
-	     * Wrapping text widgets don't sit well with the GTK
+	     * Wrapping text widgets don't sit well with the GTK2
 	     * layout model, in which widgets state a minimum size
 	     * and the whole window then adjusts to the smallest
 	     * size it can sensibly take given its contents. A
@@ -2493,11 +2497,20 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	     * than one line).
 	     */
             uc->text = w = gtk_label_new("X");
-            gtk_misc_set_alignment(GTK_MISC(w), 0.0, 0.0);
-            gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
 	    uc->textsig =
                 g_signal_connect(G_OBJECT(w), "size-allocate",
                                  G_CALLBACK(label_sizealloc), dp);
+#else
+            /*
+             * In GTK3, this is all fixed, because the main aim of the
+             * new 'height-for-width' geometry management is to make
+             * wrapping labels behave sensibly. So now we can just do
+             * the obvious thing.
+             */
+            uc->text = w = gtk_label_new(uc->ctrl->generic.label);
+#endif
+            gtk_misc_set_alignment(GTK_MISC(w), 0.0, 0.0);
+            gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
             break;
         }
 
