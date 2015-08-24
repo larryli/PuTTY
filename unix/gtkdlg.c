@@ -2146,7 +2146,6 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
           case CTRL_FONTSELECT:
             {
                 GtkWidget *ww;
-                GtkRequisition req;
                 const char *browsebtn =
                     (ctrl->generic.type == CTRL_FILESELECT ?
                      "Browse..." : "Change...");
@@ -2169,8 +2168,15 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 }
 
                 uc->entry = ww = gtk_entry_new();
-                gtk_widget_size_request(ww, &req);
-                gtk_widget_set_size_request(ww, 10, req.height);
+#if !GTK_CHECK_VERSION(3,0,0)
+                {
+                    GtkRequisition req;
+                    gtk_widget_size_request(ww, &req);
+                    gtk_widget_set_size_request(ww, 10, req.height);
+                }
+#else
+                gtk_entry_set_width_chars(GTK_ENTRY(ww), 1);
+#endif
                 columns_add(COLUMNS(w), ww, 0, 1);
                 gtk_widget_show(ww);
 
