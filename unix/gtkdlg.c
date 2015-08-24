@@ -3428,11 +3428,9 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
 
 int string_width(const char *text)
 {
-    GtkWidget *label = gtk_label_new(text);
-    GtkRequisition req;
-    gtk_widget_size_request(label, &req);
-    g_object_ref_sink(G_OBJECT(label));
-    return req.width;
+    int ret;
+    get_label_text_dimensions(text, &ret, NULL);
+    return ret;
 }
 
 int reallyclose(void *frontend)

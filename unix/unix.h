@@ -137,6 +137,9 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol);
 /* gtkcfg.c */
 void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
 
+/* Helper function which happens to be in gtkfont.c at the moment */
+void get_label_text_dimensions(const char *text, int *width, int *height);
+
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
  * which causes mb_to_wc and wc_to_mb to call _libc_ rather than

@@ -2958,8 +2958,7 @@ static gint unifontsel_configure_area(GtkWidget *widget,
     return TRUE;
 }
 
-static void get_label_text_dimensions(const char *text,
-                                      int *width, int *height)
+void get_label_text_dimensions(const char *text, int *width, int *height)
 {
     /*
      * Determine the dimensions of a piece of text in the standard
@@ -2976,13 +2975,17 @@ static void get_label_text_dimensions(const char *text,
     PangoLayout *layout = gtk_label_get_layout(GTK_LABEL(label));
     PangoRectangle logrect;
     pango_layout_get_extents(layout, NULL, &logrect);
-    *width = logrect.width / PANGO_SCALE;
-    *height = logrect.height / PANGO_SCALE;
+    if (width)
+        *width = logrect.width / PANGO_SCALE;
+    if (height)
+        *height = logrect.height / PANGO_SCALE;
 #else
     GtkRequisition req;
     gtk_widget_size_request(label, &req);
-    *width = req.width;
-    *height = req.height;
+    if (width)
+        *width = req.width;
+    if (height)
+        *height = req.height;
 #endif
 
     g_object_ref_sink(G_OBJECT(label));
