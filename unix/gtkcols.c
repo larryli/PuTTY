@@ -290,6 +290,14 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
         gtk_widget_unparent(widget);
         cols->children = g_list_remove_link(cols->children, children);
         g_list_free(children);
+
+        if (child->same_height_as) {
+            g_return_if_fail(child->same_height_as->same_height_as == child);
+            child->same_height_as->same_height_as = NULL;
+            if (gtk_widget_get_visible(child->same_height_as->widget))
+                gtk_widget_queue_resize(GTK_WIDGET(container));
+        }
+
         g_free(child);
         if (was_visible)
             gtk_widget_queue_resize(GTK_WIDGET(container));
@@ -397,6 +405,7 @@ void columns_add(Columns *cols, GtkWidget *child,
     childdata->colstart = colstart;
     childdata->colspan = colspan;
     childdata->force_left = FALSE;
+    childdata->same_height_as = NULL;
 
     cols->children = g_list_append(cols->children, childdata);
     cols->taborder = g_list_append(cols->taborder, child);
@@ -447,6 +456,26 @@ void columns_force_left_align(Columns *cols, GtkWidget *widget)
 
     child->force_left = TRUE;
     if (gtk_widget_get_visible(widget))
+        gtk_widget_queue_resize(GTK_WIDGET(cols));
+}
+
+void columns_force_same_height(Columns *cols, GtkWidget *cw1, GtkWidget *cw2)
+{
+    ColumnsChild *child1, *child2;
+
+    g_return_if_fail(cols != NULL);
+    g_return_if_fail(IS_COLUMNS(cols));
+    g_return_if_fail(cw1 != NULL);
+    g_return_if_fail(cw2 != NULL);
+
+    child1 = columns_find_child(cols, cw1);
+    g_return_if_fail(child1 != NULL);
+    child2 = columns_find_child(cols, cw2);
+    g_return_if_fail(child2 != NULL);
+
+    child1->same_height_as = child2;
+    child2->same_height_as = child1;
+    if (gtk_widget_get_visible(cw1) || gtk_widget_get_visible(cw2))
         gtk_widget_queue_resize(GTK_WIDGET(cols));
 }
 
@@ -724,6 +753,11 @@ static gint columns_compute_height(Columns *cols, widget_dim_fn_t get_height)
             continue;
 
         childheight = get_height(child);
+        if (child->same_height_as) {
+            gint childheight2 = get_height(child->same_height_as);
+            if (childheight < childheight2)
+                childheight = childheight2;
+        }
 	colspan = child->colspan ? child->colspan : ncols-child->colstart;
 
         /*
@@ -764,7 +798,7 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
 {
     ColumnsChild *child;
     GList *children;
-    gint i, ncols, colspan, *colypos, childheight;
+    gint i, ncols, colspan, *colypos, realheight, fakeheight;
 
     ncols = 1;
     /* As in size_request, colypos is the lowest y reached in each column. */
@@ -791,7 +825,12 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
         if (!gtk_widget_get_visible(child->widget))
             continue;
 
-        childheight = get_height(child);
+        realheight = fakeheight = get_height(child);
+        if (child->same_height_as) {
+            gint childheight2 = get_height(child->same_height_as);
+            if (fakeheight < childheight2)
+                fakeheight = childheight2;
+        }
 	colspan = child->colspan ? child->colspan : ncols-child->colstart;
 
         /*
@@ -809,9 +848,9 @@ static void columns_alloc_vert(Columns *cols, gint ourheight,
                 if (topy < colypos[child->colstart+i])
                     topy = colypos[child->colstart+i];
             }
-            child->y = topy;
-            child->h = childheight;
-            boty = topy + childheight + cols->spacing;
+            child->y = topy + fakeheight/2 - realheight/2;
+            child->h = realheight;
+            boty = topy + fakeheight + cols->spacing;
             for (i = 0; i < colspan; i++) {
                 colypos[child->colstart+i] = boty;
             }
