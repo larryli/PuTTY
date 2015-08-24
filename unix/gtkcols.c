@@ -418,26 +418,36 @@ void columns_add(Columns *cols, GtkWidget *child,
     }
 }
 
+static ColumnsChild *columns_find_child(Columns *cols, GtkWidget *widget)
+{
+    GList *children;
+    ColumnsChild *child;
+
+    for (children = cols->children;
+         children && (child = children->data);
+         children = children->next) {
+
+        if (child->widget == widget)
+            return child;
+    }
+
+    return NULL;
+}
+
 void columns_force_left_align(Columns *cols, GtkWidget *widget)
 {
     ColumnsChild *child;
-    GList *children;
 
     g_return_if_fail(cols != NULL);
     g_return_if_fail(IS_COLUMNS(cols));
     g_return_if_fail(widget != NULL);
 
-    for (children = cols->children;
-         children && (child = children->data);
-         children = children->next) {
-        if (child->widget != widget)
-            continue;
+    child = columns_find_child(cols, widget);
+    g_return_if_fail(child != NULL);
 
-	child->force_left = TRUE;
-        if (gtk_widget_get_visible(widget))
-            gtk_widget_queue_resize(GTK_WIDGET(cols));
-        break;
-    }
+    child->force_left = TRUE;
+    if (gtk_widget_get_visible(widget))
+        gtk_widget_queue_resize(GTK_WIDGET(cols));
 }
 
 void columns_taborder_last(Columns *cols, GtkWidget *widget)
