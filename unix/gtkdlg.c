@@ -2040,7 +2040,6 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
             break;
           case CTRL_EDITBOX:
 	    {
-                GtkRequisition req;
 		GtkWidget *signalobject;
 
 		if (ctrl->editbox.has_list) {
@@ -2085,13 +2084,6 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 g_signal_connect(G_OBJECT(signalobject), "focus_out_event",
                                  G_CALLBACK(editbox_lostfocus), dp);
 
-                /*
-                 * Find out the edit box's height, which we'll need
-                 * for vertical centring below (and, in GTK2, size
-                 * tweaking as well).
-                 */
-                gtk_widget_size_request(w, &req);
-
 #if !GTK_CHECK_VERSION(3,0,0)
 		/*
 		 * Edit boxes, for some strange reason, have a minimum
@@ -2099,7 +2091,11 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		 * rather the edit boxes acquired their natural width
 		 * from the column layout of the rest of the box.
 		 */
-                gtk_widget_set_size_request(w, 10, req.height);
+                {
+                    GtkRequisition req;
+                    gtk_widget_size_request(w, &req);
+                    gtk_widget_set_size_request(w, 10, req.height);
+                }
 #else
                 /*
                  * In GTK 3, this is still true, but there's a special
@@ -2130,9 +2126,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 			columns_add(COLUMNS(container), label, 0, 1);
 			columns_force_left_align(COLUMNS(container), label);
 			columns_add(COLUMNS(container), w, 1, 1);
-			/* Centre the label vertically. */
-			gtk_widget_set_size_request(label, -1, req.height);
-			gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+                        columns_force_same_height(COLUMNS(container),
+                                                  label, w);
 		    }
 		    gtk_widget_show(label);
 		    gtk_widget_show(w);
@@ -2183,6 +2178,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                 uc->button = ww = gtk_button_new_with_label(browsebtn);
                 columns_add(COLUMNS(w), ww, 1, 1);
                 gtk_widget_show(ww);
+
+                columns_force_same_height(COLUMNS(w), uc->entry, uc->button);
 
                 g_signal_connect(G_OBJECT(uc->entry), "key_press_event",
                                  G_CALLBACK(editbox_key), dp);
@@ -2441,7 +2438,6 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 
 	    if (ctrl->generic.label) {
 		GtkWidget *label, *container;
-                GtkRequisition req;
 
 		label = gtk_label_new(ctrl->generic.label);
                 gtk_label_set_width_chars(GTK_LABEL(label), 3);
@@ -2462,10 +2458,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		    columns_add(COLUMNS(container), label, 0, 1);
 		    columns_force_left_align(COLUMNS(container), label);
 		    columns_add(COLUMNS(container), w, 1, 1);
-		    /* Centre the label vertically. */
-		    gtk_widget_size_request(w, &req);
-		    gtk_widget_set_size_request(label, -1, req.height);
-		    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+                    columns_force_same_height(COLUMNS(container),
+                                              label, w);
 		}
 		gtk_widget_show(label);
 		gtk_widget_show(w);
