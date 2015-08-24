@@ -1747,6 +1747,9 @@ void set_raw_mouse_mode(void *frontend, int activate)
 void request_resize(void *frontend, int w, int h)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
+
+#if !GTK_CHECK_VERSION(3,0,0)
+
     int large_x, large_y;
     int offset_x, offset_y;
     int area_x, area_y;
@@ -1819,6 +1822,20 @@ void request_resize(void *frontend, int w, int h)
     gdk_window_resize(gtk_widget_get_window(inst->window),
 		      area_x + offset_x, area_y + offset_y);
 #endif
+
+#else /* GTK_CHECK_VERSION(3,0,0) */
+
+    /*
+     * In GTK3, we can do this by using gtk_window_resize_to_geometry,
+     * which uses the fact that we've already set up the main window's
+     * WM hints to reflect the terminal drawing area's resize
+     * increment (i.e. character cell) and the fixed amount of stuff
+     * round the edges.
+     */
+    gtk_window_resize_to_geometry(GTK_WINDOW(inst->window), w, h);
+
+#endif
+
 }
 
 static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
