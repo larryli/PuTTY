@@ -83,6 +83,9 @@ struct dlgparam {
 #if !GTK_CHECK_VERSION(2,0,0)
     GtkWidget *currtreeitem, **treeitems;
     int ntreeitems;
+#else
+    int nselparams;
+    struct selparam *selparams;
 #endif
     int retval;
 };
@@ -2977,6 +2980,32 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
 #endif
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
+void initial_treeview_collapse(struct dlgparam *dp, GtkWidget *tree)
+{
+    /*
+     * Collapse the deeper branches of the treeview into the state we
+     * like them to start off in. See comment below in do_config_box.
+     */
+    int i;
+    for (i = 0; i < dp->nselparams; i++)
+        if (dp->selparams[i].depth >= 2)
+            gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree),
+                                       dp->selparams[i].treepath);
+}
+#endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+void treeview_map_event(GtkWidget *tree, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    GtkAllocation alloc;
+    gtk_widget_get_allocation(tree, &alloc);
+    gtk_widget_set_size_request(tree, alloc.width, -1);
+    initial_treeview_collapse(dp, tree);
+}
+#endif
+
 int do_config_box(const char *title, Conf *conf, int midsession,
 		  int protcfginfo)
 {
@@ -3207,33 +3236,43 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     }
 
 #if GTK_CHECK_VERSION(2,0,0)
+    /*
+     * We want our tree view to come up with all branches at depth 2
+     * or more collapsed. However, if we start off with those branches
+     * collapsed, then the tree view's size request will be calculated
+     * based on the width of the collapsed tree, and then when the
+     * collapsed branches are expanded later, the tree view will
+     * jarringly change size.
+     *
+     * So instead we start with everything expanded; then, once the
+     * tree view has computed its resulting width requirement, we
+     * collapse the relevant rows, but force the width to be the value
+     * we just retrieved. This arranges that the tree view is wide
+     * enough to have all branches expanded without further resizing.
+     */
+
+    dp.nselparams = nselparams;
+    dp.selparams = selparams;
+
+#if !GTK_CHECK_VERSION(3,0,0)
     {
+        /*
+         * In GTK2, we can just do the job right now.
+         */
 	GtkRequisition req;
-	int i;
-
-	/*
-	 * We want our tree view to come up with all branches at
-	 * depth 2 or more collapsed. However, if we start off
-	 * with those branches collapsed, then the tree view's
-	 * size request will be calculated based on the width of
-	 * the collapsed tree. So instead we start with them all
-	 * expanded; then we ask for the current size request,
-	 * collapse the relevant rows, and force the width to the
-	 * value we just computed. This arranges that the tree
-	 * view is wide enough to have all branches expanded
-	 * safely.
-	 */
-
 	gtk_widget_size_request(tree, &req);
-
-	for (i = 0; i < nselparams; i++)
-	    if (selparams[i].depth >= 2)
-		gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree),
-					   selparams[i].treepath);
-
+        initial_treeview_collapse(&dp, tree);
 	gtk_widget_set_size_request(tree, req.width, -1);
     }
-#endif
+#else
+    /*
+     * But in GTK3, we have to wait until the widget is about to be
+     * mapped, because the size computation won't have been done yet.
+     */
+    g_signal_connect(G_OBJECT(tree), "map",
+                     G_CALLBACK(treeview_map_event), &dp);
+#endif /* GTK 2 vs 3 */
+#endif /* GTK 2+ vs 1 */
 
 #if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(treeselection), "changed",
@@ -3241,7 +3280,6 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 #else
     dp.ntreeitems = nselparams;
     dp.treeitems = snewn(dp.ntreeitems, GtkWidget *);
-
     for (index = 0; index < nselparams; index++) {
         g_signal_connect(G_OBJECT(selparams[index].treeitem), "select",
                          G_CALLBACK(treeitem_sel),
