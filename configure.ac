@@ -93,10 +93,7 @@ esac
 case "$gtk_version_desired:$gtk" in
   3:none | any:none)
     ifdef([AM_PATH_GTK_3_0],[
-    AM_PATH_GTK_3_0([3.0.0], [
-    gtk=3
-    GTK_CFLAGS="$GTK_CFLAGS -Wno-deprecated-declarations"
-    ], [])
+    AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])
     ],[AC_WARNING([generating configure script without GTK 3 autodetection])])
     ;;
 esac
@@ -201,8 +198,7 @@ EOF
 elif test "$gtk" = "3"; then cat <<EOF
 
 PuTTY will be built with GTK 3. Be aware that the GTK 3 support in
-this codebase is UNFINISHED AND EXPERIMENTAL! Many deprecated
-functions are used, and there are known layout bugs.
+this codebase is UNFINISHED AND EXPERIMENTAL!
 
 EOF
 fi
