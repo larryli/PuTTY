@@ -2841,14 +2841,8 @@ static void shortcut_highlight(GtkWidget *labelw, int chr)
 
     for (i = 0; currstr[i]; i++)
 	if (tolower((unsigned char)currstr[i]) == chr) {
-	    GtkRequisition req;
-
 	    pattern = dupprintf("%*s_", i, "");
-
-	    gtk_widget_size_request(GTK_WIDGET(label), &req);
 	    gtk_label_set_pattern(label, pattern);
-	    gtk_widget_set_size_request(GTK_WIDGET(label), -1, req.height);
-
 	    sfree(pattern);
 	    break;
 	}
