@@ -2443,7 +2443,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		GtkWidget *label, *container;
 
 		label = gtk_label_new(ctrl->generic.label);
+#if GTK_CHECK_VERSION(3,0,0)
                 gtk_label_set_width_chars(GTK_LABEL(label), 3);
+#endif
 
 		shortcut_add(scs, label, ctrl->listbox.shortcut,
 			     SHORTCUT_FOCUS, w);

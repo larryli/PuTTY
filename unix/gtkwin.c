@@ -1869,7 +1869,12 @@ void set_gdk_window_background(GdkWindow *win, const GdkColor *col)
     rgba.alpha = 1.0;
     gdk_window_set_background_rgba(win, &rgba);
 #else
-    gdk_window_set_background(win, col);
+    {
+        /* For GTK1, which doesn't have a 'const' on
+         * gdk_window_set_background's second parameter type. */
+        GdkColor col_mutable = *col;
+        gdk_window_set_background(win, &col_mutable);
+    }
 #endif
 }
 
