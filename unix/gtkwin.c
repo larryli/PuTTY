@@ -639,6 +639,134 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     special = use_ucsoutput = FALSE;
     output_charset = CS_ISO8859_1;
 
+#ifdef KEY_EVENT_DIAGNOSTICS
+    /*
+     * Condition this mess in if you want to debug keyboard events as
+     * they come in to this function (e.g. because some particular
+     * port of GDK is producing an unexpected arrangement of
+     * modifiers).
+     */
+#define TRY(val, prefix, string)                                \
+    if ((val) == prefix ## string) printf("%s", #string); else
+#define GIVE_UP(val)                            \
+    printf("%d", (int)(val))
+#define TRY_MASK(val, prefix, string, suffix)           \
+        if ((val) & prefix ## string ## suffix) {       \
+            (val) &= ~ prefix ## string ## suffix;      \
+            printf("%s", #string);                      \
+            if (val) printf("|");                       \
+        }
+#define GIVE_UP_MASK(val)                               \
+        do                                              \
+        {                                               \
+            if ((val)) printf("%d", (int)(val));        \
+        } while (0)
+
+    printf("key_event: type=");
+    TRY(event->type, GDK_KEY_, PRESS)
+    TRY(event->type, GDK_KEY_, RELEASE)
+    GIVE_UP(event->type);
+    printf(" keyval=");
+    TRY(event->keyval, GDK_KEY_, Alt_L)
+    TRY(event->keyval, GDK_KEY_, Alt_R)
+    TRY(event->keyval, GDK_KEY_, BackSpace)
+    TRY(event->keyval, GDK_KEY_, Begin)
+    TRY(event->keyval, GDK_KEY_, Break)
+    TRY(event->keyval, GDK_KEY_, Delete)
+    TRY(event->keyval, GDK_KEY_, Down)
+    TRY(event->keyval, GDK_KEY_, End)
+    TRY(event->keyval, GDK_KEY_, Escape)
+    TRY(event->keyval, GDK_KEY_, F10)
+    TRY(event->keyval, GDK_KEY_, F11)
+    TRY(event->keyval, GDK_KEY_, F12)
+    TRY(event->keyval, GDK_KEY_, F13)
+    TRY(event->keyval, GDK_KEY_, F14)
+    TRY(event->keyval, GDK_KEY_, F15)
+    TRY(event->keyval, GDK_KEY_, F16)
+    TRY(event->keyval, GDK_KEY_, F17)
+    TRY(event->keyval, GDK_KEY_, F18)
+    TRY(event->keyval, GDK_KEY_, F19)
+    TRY(event->keyval, GDK_KEY_, F1)
+    TRY(event->keyval, GDK_KEY_, F20)
+    TRY(event->keyval, GDK_KEY_, F2)
+    TRY(event->keyval, GDK_KEY_, F3)
+    TRY(event->keyval, GDK_KEY_, F4)
+    TRY(event->keyval, GDK_KEY_, F5)
+    TRY(event->keyval, GDK_KEY_, F6)
+    TRY(event->keyval, GDK_KEY_, F7)
+    TRY(event->keyval, GDK_KEY_, F8)
+    TRY(event->keyval, GDK_KEY_, F9)
+    TRY(event->keyval, GDK_KEY_, Home)
+    TRY(event->keyval, GDK_KEY_, Insert)
+    TRY(event->keyval, GDK_KEY_, ISO_Left_Tab)
+    TRY(event->keyval, GDK_KEY_, KP_0)
+    TRY(event->keyval, GDK_KEY_, KP_1)
+    TRY(event->keyval, GDK_KEY_, KP_2)
+    TRY(event->keyval, GDK_KEY_, KP_3)
+    TRY(event->keyval, GDK_KEY_, KP_4)
+    TRY(event->keyval, GDK_KEY_, KP_5)
+    TRY(event->keyval, GDK_KEY_, KP_6)
+    TRY(event->keyval, GDK_KEY_, KP_7)
+    TRY(event->keyval, GDK_KEY_, KP_8)
+    TRY(event->keyval, GDK_KEY_, KP_9)
+    TRY(event->keyval, GDK_KEY_, KP_Add)
+    TRY(event->keyval, GDK_KEY_, KP_Begin)
+    TRY(event->keyval, GDK_KEY_, KP_Decimal)
+    TRY(event->keyval, GDK_KEY_, KP_Delete)
+    TRY(event->keyval, GDK_KEY_, KP_Divide)
+    TRY(event->keyval, GDK_KEY_, KP_Down)
+    TRY(event->keyval, GDK_KEY_, KP_End)
+    TRY(event->keyval, GDK_KEY_, KP_Enter)
+    TRY(event->keyval, GDK_KEY_, KP_Home)
+    TRY(event->keyval, GDK_KEY_, KP_Insert)
+    TRY(event->keyval, GDK_KEY_, KP_Left)
+    TRY(event->keyval, GDK_KEY_, KP_Multiply)
+    TRY(event->keyval, GDK_KEY_, KP_Page_Down)
+    TRY(event->keyval, GDK_KEY_, KP_Page_Up)
+    TRY(event->keyval, GDK_KEY_, KP_Right)
+    TRY(event->keyval, GDK_KEY_, KP_Subtract)
+    TRY(event->keyval, GDK_KEY_, KP_Up)
+    TRY(event->keyval, GDK_KEY_, Left)
+    TRY(event->keyval, GDK_KEY_, Meta_L)
+    TRY(event->keyval, GDK_KEY_, Meta_R)
+    TRY(event->keyval, GDK_KEY_, Num_Lock)
+    TRY(event->keyval, GDK_KEY_, Page_Down)
+    TRY(event->keyval, GDK_KEY_, Page_Up)
+    TRY(event->keyval, GDK_KEY_, Return)
+    TRY(event->keyval, GDK_KEY_, Right)
+    TRY(event->keyval, GDK_KEY_, Tab)
+    TRY(event->keyval, GDK_KEY_, Up)
+    TRY(event->keyval, GDK_KEY_, Shift_L)
+    TRY(event->keyval, GDK_KEY_, Shift_R)
+    TRY(event->keyval, GDK_KEY_, Control_L)
+    TRY(event->keyval, GDK_KEY_, Control_R)
+    TRY(event->keyval, GDK_KEY_, Caps_Lock)
+    TRY(event->keyval, GDK_KEY_, Shift_Lock)
+    TRY(event->keyval, GDK_KEY_, Super_L)
+    TRY(event->keyval, GDK_KEY_, Super_R)
+    TRY(event->keyval, GDK_KEY_, Hyper_L)
+    TRY(event->keyval, GDK_KEY_, Hyper_R)
+    GIVE_UP(event->keyval);
+    printf(" state=");
+    {
+        int val = event->state;
+        TRY_MASK(val, GDK_, SHIFT, _MASK)
+        TRY_MASK(val, GDK_, LOCK, _MASK)
+        TRY_MASK(val, GDK_, CONTROL, _MASK)
+        TRY_MASK(val, GDK_, MOD1, _MASK)
+        TRY_MASK(val, GDK_, MOD2, _MASK)
+        TRY_MASK(val, GDK_, MOD3, _MASK)
+        TRY_MASK(val, GDK_, MOD4, _MASK)
+        TRY_MASK(val, GDK_, MOD5, _MASK)
+        TRY_MASK(val, GDK_, SUPER, _MASK)
+        TRY_MASK(val, GDK_, HYPER, _MASK)
+        TRY_MASK(val, GDK_, META, _MASK)
+        GIVE_UP_MASK(val);
+    }
+    printf(" hardware_keycode=%d is_modifier=%s\n",
+           (int)event->hardware_keycode, event->is_modifier ? "TRUE" : "FALSE");
+#endif /* KEY_EVENT_DIAGNOSTICS */
+
     /*
      * If Alt is being released after typing an Alt+numberpad
      * sequence, we should generate the code that was typed.
