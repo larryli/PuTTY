@@ -980,14 +980,19 @@ static gint columns_gtk3_get_nat_width(ColumnsChild *child)
 {
     gint ret;
 
-    if (GTK_IS_LABEL(child->widget) &&
-        gtk_label_get_line_wrap(GTK_LABEL(child->widget))) {
+    if ((GTK_IS_LABEL(child->widget) &&
+         gtk_label_get_line_wrap(GTK_LABEL(child->widget))) ||
+        GTK_IS_ENTRY(child->widget)) {
         /*
          * We treat wrapping GtkLabels as a special case in this
          * layout class, because the whole point of those is that I
          * _don't_ want them to take up extra horizontal space for
          * long text, but instead to wrap it to whatever size is used
          * by the rest of the layout.
+         *
+         * GtkEntry gets similar treatment, because in OS X GTK I've
+         * found that it requests a natural width regardless of the
+         * output of gtk_entry_set_width_chars.
          */
         gtk_widget_get_preferred_width(child->widget, &ret, NULL);
     } else {
