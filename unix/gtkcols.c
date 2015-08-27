@@ -588,6 +588,10 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
     const gint *percentages;
     static const gint onecol[] = { 100 };
 
+#ifdef COLUMNS_WIDTH_DIAGNOSTICS
+    printf("compute_width(%p): start\n", cols);
+#endif
+
     retwidth = 0;
 
     ncols = 1;
@@ -610,6 +614,23 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
 
         childwidth = get_width(child);
 	colspan = child->colspan ? child->colspan : ncols-child->colstart;
+
+#ifdef COLUMNS_WIDTH_DIAGNOSTICS
+        printf("compute_width(%p): ", cols);
+        if (GTK_IS_LABEL(child->widget))
+            printf("label %p '%s' wrap=%s: ", child->widget,
+                   gtk_label_get_text(GTK_LABEL(child->widget)),
+                   (gtk_label_get_line_wrap(GTK_LABEL(child->widget))
+                    ? "TRUE" : "FALSE"));
+        else
+            printf("widget %p: ", child->widget);
+        {
+            gint min, nat;
+            gtk_widget_get_preferred_width(child->widget, &min, &nat);
+            printf("minwidth=%d natwidth=%d ", min, nat);
+        }
+        printf("thiswidth=%d span=%d\n", childwidth, colspan);
+#endif
 
         /*
          * To compute width: we know that childwidth + cols->spacing
@@ -635,6 +656,10 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
              * before dividing by percent.
              */
             fullwid = (thiswid * 100 + percent - 1) / percent;
+#ifdef COLUMNS_WIDTH_DIAGNOSTICS
+            printf("compute_width(%p): after %p, thiswid=%d fullwid=%d\n",
+                   cols, child->widget, thiswid, fullwid);
+#endif
 
             /*
              * The above calculation assumes every widget gets
@@ -648,6 +673,10 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
     }
 
     retwidth += 2*gtk_container_get_border_width(GTK_CONTAINER(cols));
+
+#ifdef COLUMNS_WIDTH_DIAGNOSTICS
+    printf("compute_width(%p): done, returning %d\n", cols, retwidth);
+#endif
 
     return retwidth;
 }
