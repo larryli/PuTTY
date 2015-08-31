@@ -16,6 +16,7 @@
 
 #include "gtkfont.h"
 #include "gtkcompat.h"
+#include "gtkmisc.h"
 
 #include "misc.h"
 
@@ -289,6 +290,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
                                      const char *prompt_text)
 {
     int i;
+    GtkBox *action_area;
 
     ctx->passlen = 0;
     ctx->passsize = 2048;
@@ -297,13 +299,13 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     /*
      * Create widgets.
      */
-    ctx->dialog = gtk_dialog_new();
+    ctx->dialog = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(ctx->dialog), window_title);
+    gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
     ctx->promptlabel = gtk_label_new(prompt_text);
     gtk_label_set_line_wrap(GTK_LABEL(ctx->promptlabel), TRUE);
-    gtk_container_add(GTK_CONTAINER(gtk_dialog_get_content_area
-                                    (GTK_DIALOG(ctx->dialog))),
-                      ctx->promptlabel);
+    our_dialog_add_to_content_area(GTK_WINDOW(ctx->dialog),
+                                   ctx->promptlabel, TRUE, TRUE, 0);
 #if GTK_CHECK_VERSION(2,0,0)
     ctx->imc = gtk_im_multicontext_new();
 #endif
@@ -319,6 +321,9 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
             return "unable to allocate colours";
     }
 #endif
+
+    action_area = our_dialog_make_action_hbox(GTK_WINDOW(ctx->dialog));
+
     for (i = 0; i < N_DRAWING_AREAS; i++) {
         ctx->drawingareas[i].area = gtk_drawing_area_new();
 #ifndef DRAW_DEFAULT_CAIRO
@@ -330,9 +335,8 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
          * context-sensitive way, like measuring the size of some
          * piece of template text. */
         gtk_widget_set_size_request(ctx->drawingareas[i].area, 32, 32);
-        gtk_container_add(GTK_CONTAINER(gtk_dialog_get_action_area
-                                        (GTK_DIALOG(ctx->dialog))),
-                          ctx->drawingareas[i].area);
+        gtk_box_pack_end(action_area, ctx->drawingareas[i].area,
+                         TRUE, TRUE, 5);
         g_signal_connect(G_OBJECT(ctx->drawingareas[i].area),
                          "configure_event",
                          G_CALLBACK(configure_area),

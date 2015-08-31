@@ -12,10 +12,13 @@
 #include <gdk/gdkkeysyms.h>
 #endif
 
+#define MAY_REFER_TO_GTK_IN_HEADERS
+
 #include "putty.h"
 #include "gtkcompat.h"
 #include "gtkcols.h"
 #include "gtkfont.h"
+#include "gtkmisc.h"
 
 #ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
@@ -2930,84 +2933,6 @@ int get_listitemheight(GtkWidget *w)
 #endif
 }
 
-void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
-{
-#if !GTK_CHECK_VERSION(2,0,0)
-
-    /*
-     * In GTK 1, laying out the buttons at the bottom of the
-     * configuration box is nice and easy, because a GtkDialog's
-     * action_area is a GtkHBox which stretches to cover the full
-     * width of the dialog. So we just put our Columns widget
-     * straight into that hbox, and it ends up just where we want
-     * it.
-     */
-    gtk_box_pack_start(GTK_BOX(dlg->action_area), w, TRUE, TRUE, 0);
-
-#else
-    /*
-     * In GTK 2, the action area is now a GtkHButtonBox and its
-     * layout behaviour seems to be different: it doesn't stretch
-     * to cover the full width of the window, but instead finds its
-     * own preferred width and right-aligns that within the window.
-     * This isn't what we want, because we have both left-aligned
-     * and right-aligned buttons coming out of the above call to
-     * layout_ctrls(), and right-aligning the whole thing will
-     * result in the former being centred and looking weird.
-     *
-     * So instead we abandon the dialog's action area completely:
-     * we gtk_widget_hide() it in the below code, and we also call
-     * gtk_dialog_set_has_separator() to remove the separator above
-     * it. We then insert our own action area into the end of the
-     * dialog's main vbox, and add our own separator above that.
-     *
-     * (Ideally, if we were a native GTK app, we would use the
-     * GtkHButtonBox's _own_ innate ability to support one set of
-     * buttons being right-aligned and one left-aligned. But to do
-     * that here, we would have to either (a) pick apart our cross-
-     * platform layout structures and treat them specially for this
-     * particular set of controls, which would be painful, or else
-     * (b) develop a special and simpler cross-platform
-     * representation for these particular controls, and introduce
-     * special-case code into all the _other_ platforms to handle
-     * it. Neither appeals. Therefore, I regretfully discard the
-     * GTKHButtonBox and go it alone.)
-     */
-
-#if GTK_CHECK_VERSION(3,0,0)
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
-                     w, FALSE, TRUE, 0);
-#else
-    GtkWidget *align;
-    align = gtk_alignment_new(0, 0, 1, 1);
-    gtk_container_add(GTK_CONTAINER(align), w);
-    /*
-     * The purpose of this GtkAlignment is to provide padding
-     * around the buttons. The padding we use is twice the padding
-     * used in our GtkColumns, because we nest two GtkColumns most
-     * of the time (one separating the tree view from the main
-     * controls, and another for the main controls themselves).
-     */
-#if GTK_CHECK_VERSION(2,4,0)
-    gtk_alignment_set_padding(GTK_ALIGNMENT(align), 8, 8, 8, 8);
-#endif
-    gtk_widget_show(align);
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
-                     align, FALSE, TRUE, 0);
-#endif
-
-    w = gtk_hseparator_new();
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
-                     w, FALSE, TRUE, 0);
-    gtk_widget_show(w);
-    gtk_widget_hide(gtk_dialog_get_action_area(dlg));
-#if !GTK_CHECK_VERSION(3,0,0)
-    /* This cosmetic property is withdrawn in GTK 3's GtkDialog */
-    g_object_set(G_OBJECT(dlg), "has-separator", TRUE, (const char *)NULL);
-#endif
-#endif
-}
-
 #if GTK_CHECK_VERSION(2,0,0)
 void initial_treeview_collapse(struct dlgparam *dp, GtkWidget *tree)
 {
@@ -3064,7 +2989,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 	scs.sc[index].action = SHORTCUT_EMPTY;
     }
 
-    window = gtk_dialog_new();
+    window = our_dialog_new();
 
     ctrlbox = ctrl_new_box();
     protocol = conf_get_int(conf, CONF_protocol);
@@ -3074,9 +2999,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 
     gtk_window_set_title(GTK_WINDOW(window), title);
     hbox = gtk_hbox_new(FALSE, 4);
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
-         hbox, TRUE, TRUE, 0);
+    our_dialog_add_to_content_area(GTK_WINDOW(window), hbox, TRUE, TRUE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
     gtk_widget_show(hbox);
     vbox = gtk_vbox_new(FALSE, 4);
@@ -3130,7 +3053,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 	if (!*s->pathname) {
 	    w = layout_ctrls(&dp, &scs, s, GTK_WINDOW(window));
 
-	    set_dialog_action_area(GTK_DIALOG(window), w);
+	    our_dialog_set_action_area(GTK_WINDOW(window), w);
 	} else {
 	    int j = path ? ctrl_path_compare(s->pathname, path) : 0;
 	    if (j != INT_MAX) {        /* add to treeview, start new panel */
@@ -3451,17 +3374,15 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     s1 = ctrl_getset(ctrlbox, "x", "", "");
     ctrl_text(s1, msg, HELPCTX(no_help));
 
-    window = gtk_dialog_new();
+    window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
     w0 = layout_ctrls(&dp, &scs, s0, GTK_WINDOW(window));
-    set_dialog_action_area(GTK_DIALOG(window), w0);
+    our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(&dp, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_size_request(w1, minwid+20, -1);
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
-         w1, TRUE, TRUE, 0);
+    our_dialog_add_to_content_area(GTK_WINDOW(window), w1, TRUE, TRUE, 0);
     gtk_widget_show(w1);
 
     dp.shortcuts = &scs;
@@ -3701,6 +3622,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 void about_box(void *window)
 {
     GtkWidget *w;
+    GtkBox *action_area;
     char *title;
 
     if (aboutbox) {
@@ -3708,7 +3630,7 @@ void about_box(void *window)
 	return;
     }
 
-    aboutbox = gtk_dialog_new();
+    aboutbox = our_dialog_new();
     gtk_container_set_border_width(GTK_CONTAINER(aboutbox), 10);
     title = dupcat("About ", appname, NULL);
     gtk_window_set_title(GTK_WINDOW(aboutbox), title);
@@ -3717,36 +3639,29 @@ void about_box(void *window)
     w = gtk_button_new_with_label("Close");
     gtk_widget_set_can_default(w, TRUE);
     gtk_window_set_default(GTK_WINDOW(aboutbox), w);
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(aboutbox))),
-		     w, FALSE, FALSE, 0);
+    action_area = our_dialog_make_action_hbox(GTK_WINDOW(aboutbox));
+    gtk_box_pack_end(action_area, w, FALSE, FALSE, 0);
     g_signal_connect(G_OBJECT(w), "clicked",
                      G_CALLBACK(about_close_clicked), NULL);
     gtk_widget_show(w);
 
     w = gtk_button_new_with_label("View Licence");
     gtk_widget_set_can_default(w, TRUE);
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(aboutbox))),
-		     w, FALSE, FALSE, 0);
+    gtk_box_pack_end(action_area, w, FALSE, FALSE, 0);
     g_signal_connect(G_OBJECT(w), "clicked",
                      G_CALLBACK(licence_clicked), NULL);
     gtk_widget_show(w);
 
     w = gtk_label_new(appname);
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
-         w, FALSE, FALSE, 0);
+    our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 0);
     gtk_widget_show(w);
 
     w = gtk_label_new(ver);
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
-         w, FALSE, FALSE, 5);
+    our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
     w = gtk_label_new("Copyright 1997-2015 Simon Tatham. All rights reserved");
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(aboutbox))),
-         w, FALSE, FALSE, 5);
+    our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 5);
     gtk_widget_show(w);
 
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
@@ -3922,12 +3837,12 @@ void showeventlog(void *estuff, void *parentwin)
     c->listbox.percentages[1] = 10;
     c->listbox.percentages[2] = 65;
 
-    es->window = window = gtk_dialog_new();
+    es->window = window = our_dialog_new();
     title = dupcat(appname, " Event Log", NULL);
     gtk_window_set_title(GTK_WINDOW(window), title);
     sfree(title);
     w0 = layout_ctrls(&es->dp, &es->scs, s0, GTK_WINDOW(window));
-    set_dialog_action_area(GTK_DIALOG(window), w0);
+    our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(&es->dp, &es->scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
@@ -3935,9 +3850,7 @@ void showeventlog(void *estuff, void *parentwin)
                                 ("LINE OF TEXT GIVING WIDTH OF EVENT LOG IS "
                                  "QUITE LONG 'COS SSH LOG ENTRIES ARE WIDE"),
                                 -1);
-    gtk_box_pack_start
-        (GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
-         w1, TRUE, TRUE, 0);
+    our_dialog_add_to_content_area(GTK_WINDOW(window), w1, TRUE, TRUE, 0);
     gtk_widget_show(w1);
 
     es->dp.data = es;
