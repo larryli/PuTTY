@@ -2435,7 +2435,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
                             g_object_set(G_OBJECT(cellrend),
                                          "ellipsize", PANGO_ELLIPSIZE_END,
                                          "ellipsize-set", TRUE,
-                                         NULL);
+                                         (const char *)NULL);
                         }
 			column = gtk_tree_view_column_new_with_attributes
 			    ("heading", cellrend, "text", i+1, (char *)NULL);
