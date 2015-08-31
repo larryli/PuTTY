@@ -1072,6 +1072,15 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 #endif
 }
 
+void align_label_left(GtkLabel *label)
+{
+#if GTK_CHECK_VERSION(3,16,0)
+    gtk_label_set_xalign(label, 0.0);
+#else
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+#endif
+}
+
 void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
@@ -1079,7 +1088,7 @@ void dlg_error_msg(void *dlg, const char *msg)
 
     window = gtk_dialog_new();
     text = gtk_label_new(msg);
-    gtk_misc_set_alignment(GTK_MISC(text), 0.0, 0.0);
+    align_label_left(GTK_LABEL(text));
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), text, FALSE, FALSE, 20);
     gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
@@ -2515,7 +2524,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
              */
             uc->text = w = gtk_label_new(uc->ctrl->generic.label);
 #endif
-            gtk_misc_set_alignment(GTK_MISC(w), 0.0, 0.0);
+            align_label_left(GTK_LABEL(w));
             gtk_label_set_line_wrap(GTK_LABEL(w), TRUE);
             break;
         }

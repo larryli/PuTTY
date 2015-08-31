@@ -18,6 +18,8 @@
 #include <gdk/gdkkeysyms.h>
 #endif
 
+#define MAY_REFER_TO_GTK_IN_HEADERS
+
 #include "putty.h"
 #include "gtkfont.h"
 #include "gtkcompat.h"
@@ -3071,7 +3073,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 
     label = gtk_label_new_with_mnemonic("_Font:");
     gtk_widget_show(label);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+    align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 0, 0, 1, 1);
     g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
@@ -3119,7 +3121,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 
     label = gtk_label_new_with_mnemonic("_Style:");
     gtk_widget_show(label);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+    align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 1, 0, 1, 1);
     g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
@@ -3166,7 +3168,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 
     label = gtk_label_new_with_mnemonic("Si_ze:");
     gtk_widget_show(label);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
+    align_label_left(GTK_LABEL(label));
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_grid_attach(GTK_GRID(table), label, 2, 0, 1, 1);
     g_object_set(G_OBJECT(label), "hexpand", TRUE, (const char *)NULL);
