@@ -2958,6 +2958,10 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
      * GTKHButtonBox and go it alone.)
      */
 
+#if GTK_CHECK_VERSION(3,0,0)
+    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
+                     w, FALSE, TRUE, 0);
+#else
     GtkWidget *align;
     align = gtk_alignment_new(0, 0, 1, 1);
     gtk_container_add(GTK_CONTAINER(align), w);
@@ -2974,6 +2978,8 @@ void set_dialog_action_area(GtkDialog *dlg, GtkWidget *w)
     gtk_widget_show(align);
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
                      align, FALSE, TRUE, 0);
+#endif
+
     w = gtk_hseparator_new();
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(dlg)),
                      w, FALSE, TRUE, 0);

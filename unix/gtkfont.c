@@ -3058,15 +3058,23 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_table_set_col_spacings(GTK_TABLE(table), 8);
 #endif
     gtk_widget_show(table);
-#if GTK_CHECK_VERSION(2,4,0)
+
+#if GTK_CHECK_VERSION(3,0,0)
+    /* GtkAlignment has become deprecated and we use the "margin"
+     * property */
+    w = table;
+    g_object_set(G_OBJECT(w), "margin", 8, (const char *)NULL);
+#elif GTK_CHECK_VERSION(2,4,0)
     /* GtkAlignment seems to be the simplest way to put padding round things */
     w = gtk_alignment_new(0, 0, 1, 1);
     gtk_alignment_set_padding(GTK_ALIGNMENT(w), 8, 8, 8, 8);
     gtk_container_add(GTK_CONTAINER(w), table);
     gtk_widget_show(w);
 #else
+    /* In GTK < 2.4, even that isn't available */
     w = table;
 #endif
+
     gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area
                                (GTK_DIALOG(fs->u.window))),
 		       w, TRUE, TRUE, 0);
@@ -3256,7 +3264,12 @@ unifontsel *unifontsel_new(const char *wintitle)
     w = gtk_frame_new(NULL);
     gtk_container_add(GTK_CONTAINER(w), ww);
     gtk_widget_show(w);
-#if GTK_CHECK_VERSION(2,4,0)
+
+#if GTK_CHECK_VERSION(3,0,0)
+    /* GtkAlignment has become deprecated and we use the "margin"
+     * property */
+    g_object_set(G_OBJECT(w), "margin", 8, (const char *)NULL);
+#elif GTK_CHECK_VERSION(2,4,0)
     ww = w;
     /* GtkAlignment seems to be the simplest way to put padding round things */
     w = gtk_alignment_new(0, 0, 1, 1);
@@ -3264,6 +3277,7 @@ unifontsel *unifontsel_new(const char *wintitle)
     gtk_container_add(GTK_CONTAINER(w), ww);
     gtk_widget_show(w);
 #endif
+
     ww = w;
     w = gtk_frame_new("Preview of font");
     gtk_container_add(GTK_CONTAINER(w), ww);
