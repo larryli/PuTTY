@@ -210,4 +210,13 @@ extern Backend serial_backend;
  */
 int so_peercred(int fd, int *pid, int *uid, int *gid);
 
+/*
+ * Default font setting, which can vary depending on NOT_X_WINDOWS.
+ */
+#ifdef NOT_X_WINDOWS
+#define DEFAULT_GTK_FONT "client:Monospace 12"
+#else
+#define DEFAULT_GTK_FONT "server:fixed"
+#endif
+
 #endif

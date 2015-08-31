@@ -3392,7 +3392,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
      * Provide a default if given an empty or null font name.
      */
     if (!fontname || !*fontname)
-	fontname = "server:fixed";
+	fontname = DEFAULT_GTK_FONT;
 
     /*
      * Call the canonify_fontname function.

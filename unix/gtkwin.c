@@ -184,7 +184,7 @@ void connection_fatal(void *frontend, const char *p, ...)
 FontSpec *platform_default_fontspec(const char *name)
 {
     if (!strcmp(name, "Font"))
-	return fontspec_new("server:fixed");
+	return fontspec_new(DEFAULT_GTK_FONT);
     else
         return fontspec_new("");
 }
