@@ -303,7 +303,11 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_window_set_title(GTK_WINDOW(ctx->dialog), window_title);
     gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
     ctx->promptlabel = gtk_label_new(prompt_text);
+    align_label_left(GTK_LABEL(ctx->promptlabel));
     gtk_label_set_line_wrap(GTK_LABEL(ctx->promptlabel), TRUE);
+#if GTK_CHECK_VERSION(3,0,0)
+    gtk_label_set_width_chars(GTK_LABEL(ctx->promptlabel), 48);
+#endif
     our_dialog_add_to_content_area(GTK_WINDOW(ctx->dialog),
                                    ctx->promptlabel, TRUE, TRUE, 0);
 #if GTK_CHECK_VERSION(2,0,0)
