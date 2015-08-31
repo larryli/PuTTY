@@ -3362,27 +3362,47 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 	} else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
 		   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
 		   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
-	    GdkColor col;
-
 	    EXPECTS_ARG;
 	    SECOND_PASS_ONLY;
-	    if (!gdk_color_parse(val, &col)) {
-		err = 1;
-		fprintf(stderr, "%s: unable to parse colour \"%s\"\n",
-                        appname, val);
-	    } else {
-		int index;
-		index = (!strcmp(p, "-fg") ? 0 :
-			 !strcmp(p, "-bg") ? 2 :
-			 !strcmp(p, "-bfg") ? 1 :
-			 !strcmp(p, "-bbg") ? 3 :
-			 !strcmp(p, "-cfg") ? 4 :
-			 !strcmp(p, "-cbg") ? 5 : -1);
-		assert(index != -1);
-		conf_set_int_int(conf, CONF_colours, index*3+0, col.red / 256);
-		conf_set_int_int(conf, CONF_colours, index*3+1,col.green/ 256);
-		conf_set_int_int(conf, CONF_colours, index*3+2, col.blue/ 256);
-	    }
+
+            {
+#if GTK_CHECK_VERSION(3,0,0)
+                GdkRGBA rgba;
+                int success = gdk_rgba_parse(&rgba, val);
+#else
+                GdkColor col;
+                int success = gdk_color_parse(val, &col);
+#endif
+
+                if (!success) {
+                    err = 1;
+                    fprintf(stderr, "%s: unable to parse colour \"%s\"\n",
+                            appname, val);
+                } else {
+#if GTK_CHECK_VERSION(3,0,0)
+                    int r = rgba.red * 255;
+                    int g = rgba.green * 255;
+                    int b = rgba.blue * 255;
+#else
+                    int r = col.red / 256;
+                    int g = col.green / 256;
+                    int b = col.blue / 256;
+#endif
+
+                    int index;
+                    index = (!strcmp(p, "-fg") ? 0 :
+                             !strcmp(p, "-bg") ? 2 :
+                             !strcmp(p, "-bfg") ? 1 :
+                             !strcmp(p, "-bbg") ? 3 :
+                             !strcmp(p, "-cfg") ? 4 :
+                             !strcmp(p, "-cbg") ? 5 : -1);
+                    assert(index != -1);
+
+                    conf_set_int_int(conf, CONF_colours, index*3+0, r);
+                    conf_set_int_int(conf, CONF_colours, index*3+1, g);
+                    conf_set_int_int(conf, CONF_colours, index*3+2, b);
+                }
+            }
 
 	} else if (use_pty_argv && !strcmp(p, "-e")) {
 	    /* This option swallows all further arguments. */
