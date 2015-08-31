@@ -259,11 +259,13 @@ static void cleanup_utmp(void)
 }
 #endif
 
+#ifndef NO_PTY_PRE_INIT
 static void sigchld_handler(int signum)
 {
     if (write(pty_signal_pipe[1], "x", 1) <= 0)
 	/* not much we can do about it */;
 }
+#endif
 
 #ifndef OMIT_UTMP
 static void fatal_sig_handler(int signum)
@@ -395,6 +397,8 @@ static void pty_open_master(Pty pty)
  */
 void pty_pre_init(void)
 {
+#ifndef NO_PTY_PRE_INIT
+
     Pty pty;
 
 #ifndef OMIT_UTMP
@@ -542,6 +546,9 @@ void pty_pre_init(void)
         }
 #endif
     }
+
+#endif /* NO_PTY_PRE_INIT */
+
 }
 
 int pty_real_select_result(Pty pty, int event, int status)
