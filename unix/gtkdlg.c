@@ -1036,10 +1036,12 @@ void dlg_beep(void *dlg)
     gdk_beep();
 }
 
+#if !GTK_CHECK_VERSION(3,0,0)
 static void errmsg_button_clicked(GtkButton *button, gpointer data)
 {
     gtk_widget_destroy(GTK_WIDGET(data));
 }
+#endif
 
 static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 {
@@ -1084,7 +1086,19 @@ void align_label_left(GtkLabel *label)
 void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
-    GtkWidget *window, *hbox, *text, *ok;
+    GtkWidget *window;
+
+#if GTK_CHECK_VERSION(3,0,0)
+    window = gtk_message_dialog_new(GTK_WINDOW(dp->window),
+                                    (GTK_DIALOG_MODAL |
+                                     GTK_DIALOG_DESTROY_WITH_PARENT),
+                                    GTK_MESSAGE_ERROR,
+                                    GTK_BUTTONS_CLOSE,
+                                    "%s", msg);
+    gtk_dialog_run(GTK_DIALOG(window));
+    gtk_widget_destroy(window);
+#else
+    GtkWidget *hbox, *text, *ok;
 
     window = gtk_dialog_new();
     text = gtk_label_new(msg);
@@ -1112,6 +1126,8 @@ void dlg_error_msg(void *dlg, const char *msg)
     set_transient_window_pos(dp->window, window);
     gtk_widget_show(window);
     gtk_main();
+#endif
+
     post_main();
 }
 
