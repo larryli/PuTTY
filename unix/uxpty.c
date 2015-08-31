@@ -344,7 +344,18 @@ static void pty_open_master(Pty pty)
         ;
 
 #ifdef HAVE_POSIX_OPENPT
+#ifdef SET_NONBLOCK_VIA_OPENPT
+    /*
+     * OS X, as of 10.10 at least, doesn't permit me to set O_NONBLOCK
+     * on pty master fds via the usual fcntl mechanism. Fortunately,
+     * it does let me work around this by adding O_NONBLOCK to the
+     * posix_openpt flags parameter, which isn't a documented use of
+     * the API but seems to work. So we'll do that for now.
+     */
+    pty->master_fd = posix_openpt(flags | O_NONBLOCK);
+#else
     pty->master_fd = posix_openpt(flags);
+#endif
 
     if (pty->master_fd < 0) {
 	perror("posix_openpt");
@@ -375,7 +386,9 @@ static void pty_open_master(Pty pty)
     strncpy(pty->name, ptsname(pty->master_fd), FILENAME_MAX-1);
 #endif
 
+#ifndef SET_NONBLOCK_VIA_OPENPT
     nonblock(pty->master_fd);
+#endif
 
     if (!ptys_by_fd)
 	ptys_by_fd = newtree234(pty_compare_by_fd);
