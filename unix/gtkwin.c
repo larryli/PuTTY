@@ -1042,6 +1042,33 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    end = 2;
 	}
 
+        /* Some GTK backends (e.g. Quartz) do not change event->string
+         * in response to the Control modifier. So we do it ourselves
+         * here, if it's not already happened.
+         *
+         * The translations below are in line with X11 policy as far
+         * as I know. */
+        if ((event->state & GDK_CONTROL_MASK) && end == 2) {
+            if (output[1] >= '3' && output[1] <= '7') {
+                /* ^3,...,^7 map to 0x1B,...,0x1F */
+                output[1] += '\x1B' - '3';
+            } else if (output[1] == '2') {
+                /* ^2 is ^@, i.e. \0 */
+                output[1] = '\0';
+            } else if (output[1] == '8') {
+                /* ^8 is DEL */
+                output[1] = '\x7F';
+            } else if (output[1] == '/') {
+                /* ^/ is the same as ^_ */
+                output[1] = '\x1F';
+            } else if (output[1] >= 0x40 && output[1] < 0x7F) {
+                /* Everything anywhere near the alphabetics just gets
+                 * masked. */
+                output[1] &= 0x1F;
+            }
+            /* Anything else, e.g. '0', is unchanged. */
+        }
+
 	/* Control-Break sends a Break special to the backend */
 	if (event->keyval == GDK_KEY_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
