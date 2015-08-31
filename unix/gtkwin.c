@@ -35,6 +35,7 @@
 #include "terminal.h"
 #include "gtkcompat.h"
 #include "gtkfont.h"
+#include "gtkmisc.h"
 
 #ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>

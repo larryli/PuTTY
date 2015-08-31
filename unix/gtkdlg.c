@@ -1077,15 +1077,6 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 #endif
 }
 
-void align_label_left(GtkLabel *label)
-{
-#if GTK_CHECK_VERSION(3,16,0)
-    gtk_label_set_xalign(label, 0.0);
-#else
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
-#endif
-}
-
 void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
@@ -3411,13 +3402,6 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     ctrl_free_box(ctrlbox);
 
     return dp.retval;
-}
-
-int string_width(const char *text)
-{
-    int ret;
-    get_label_text_dimensions(text, &ret, NULL);
-    return ret;
 }
 
 int reallyclose(void *frontend)

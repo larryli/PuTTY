@@ -109,7 +109,6 @@ int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 int messagebox(GtkWidget *parentwin, const char *title,
                const char *msg, int minwid, ...);
-int string_width(const char *text);
 #endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
@@ -150,13 +149,6 @@ void unix_setup_config_box(struct controlbox *b, int midsession, int protocol);
 
 /* gtkcfg.c */
 void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
-
-/* General GTK helper functions, which could be in any source file and
- * it doesn't really matter */
-void get_label_text_dimensions(const char *text, int *width, int *height);
-#ifdef MAY_REFER_TO_GTK_IN_HEADERS
-void align_label_left(GtkLabel *label);
-#endif
 
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
