@@ -6,26 +6,27 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
+
 #include <gtk/gtk.h>
 #if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
 #endif
+
+#include "putty.h"
+#include "gtkcompat.h"
+#include "gtkcols.h"
+#include "gtkfont.h"
+
 #ifndef NOT_X_WINDOWS
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #endif
 
-#include "gtkcompat.h"
-
-#include "gtkcols.h"
-#include "gtkfont.h"
-
 #ifdef TESTMODE
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #endif
 
-#include "putty.h"
 #include "storage.h"
 #include "dialog.h"
 #include "tree234.h"

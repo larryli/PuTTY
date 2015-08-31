@@ -12,21 +12,23 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
 #include <gtk/gtk.h>
 #if !GTK_CHECK_VERSION(3,0,0)
 #include <gdk/gdkkeysyms.h>
-#endif
-#ifndef NOT_X_WINDOWS
-#include <gdk/gdkx.h>
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xatom.h>
 #endif
 
 #include "putty.h"
 #include "gtkfont.h"
 #include "gtkcompat.h"
 #include "tree234.h"
+
+#ifndef NOT_X_WINDOWS
+#include <gdk/gdkx.h>
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xatom.h>
+#endif
 
 /*
  * Future work:

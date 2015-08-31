@@ -12,6 +12,20 @@
 #endif /*  NO_LIBDL */
 #include "charset.h"
 
+#ifdef OSX_GTK
+/*
+ * Assorted tweaks to various parts of the GTK front end which all
+ * need to be enabled when compiling on OS X. Because I might need the
+ * same tweaks on other systems in future, I don't want to
+ * conditionalise all of them on OSX_GTK directly, so instead, each
+ * one has its own name and we enable them all centrally here if
+ * OSX_GTK is defined at configure time.
+ */
+#define NOT_X_WINDOWS /* of course, all the X11 stuff should be disabled */
+#define NO_PTY_PRE_INIT /* OS X gets very huffy if we try to set[ug]id */
+#define SET_NONBLOCK_VIA_OPENPT /* work around missing fcntl functionality */
+#endif
+
 struct Filename {
     char *path;
 };
