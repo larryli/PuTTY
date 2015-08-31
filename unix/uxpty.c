@@ -395,6 +395,14 @@ static void pty_open_master(Pty pty)
     add234(ptys_by_fd, pty);
 }
 
+static Pty new_pty_struct(void)
+{
+    Pty pty = snew(struct pty_tag);
+    pty->conf = NULL;
+    bufchain_init(&pty->output_data);
+    return pty;
+}
+
 /*
  * Pre-initialisation. This is here to get around the fact that GTK
  * doesn't like being run in setuid/setgid programs (probably
@@ -419,9 +427,7 @@ void pty_pre_init(void)
     int pipefd[2];
 #endif
 
-    pty = single_pty = snew(struct pty_tag);
-    pty->conf = NULL;
-    bufchain_init(&pty->output_data);
+    pty = single_pty = new_pty_struct();
 
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
@@ -740,7 +746,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	pty = single_pty;
         assert(pty->conf == NULL);
     } else {
-	pty = snew(struct pty_tag);
+	pty = new_pty_struct();
 	pty->master_fd = pty->slave_fd = -1;
 #ifndef OMIT_UTMP
 	pty_stamped_utmp = FALSE;
@@ -997,6 +1003,8 @@ static void pty_free(void *handle)
     /* Either of these may fail `not found'. That's fine with us. */
     del234(ptys_by_pid, pty);
     del234(ptys_by_fd, pty);
+
+    bufchain_clear(&pty->output_data);
 
     conf_free(pty->conf);
     pty->conf = NULL;
