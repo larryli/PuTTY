@@ -180,4 +180,7 @@
 
 #define gdk_get_display() gdk_display_get_name(gdk_display_get_default())
 
+#define gdk_cursor_new(cur) \
+    gdk_cursor_new_for_display(gdk_display_get_default(), cur)
+
 #endif
