@@ -1338,10 +1338,10 @@ static int pangofont_char_width(PangoLayout *layout, struct pangofont *pfont,
     /*
      * Here we check whether a character has the same width as the
      * character cell it'll be drawn in. Because profiling showed that
-     * pango_layout_get_pixel_extents() was a huge bottleneck when we
-     * were calling it every time we needed to know this, we instead
-     * call it only on characters we don't already know about, and
-     * cache the results.
+     * asking Pango for text sizes was a huge bottleneck when we were
+     * calling it every time we needed to know this, we instead call
+     * it only on characters we don't already know about, and cache
+     * the results.
      */
 
     if ((unsigned)uchr >= pfont->nwidthcache) {
@@ -1354,7 +1354,7 @@ static int pangofont_char_width(PangoLayout *layout, struct pangofont *pfont,
     if (pfont->widthcache[uchr] < 0) {
         PangoRectangle rect;
         pango_layout_set_text(layout, utfchr, utflen);
-        pango_layout_get_pixel_extents(layout, NULL, &rect);
+        pango_layout_get_extents(layout, NULL, &rect);
         pfont->widthcache[uchr] = rect.width;
     }
 
@@ -1437,6 +1437,7 @@ static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
     utfptr = utfstring;
     while (utflen > 0) {
 	int clen, n;
+        int desired = cellwidth * PANGO_SCALE;
 
 	/*
 	 * We want to display every character from this string in
@@ -1475,7 +1476,7 @@ static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
 
         if (is_rtl(string[0]) ||
             pangofont_char_width(layout, pfont, string[n-1],
-                                 utfptr, clen) != cellwidth) {
+                                 utfptr, clen) != desired) {
             /*
              * If this character is a right-to-left one, or has an
              * unusual width, then we must display it on its own.
@@ -1497,7 +1498,7 @@ static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
                 n++;
                 if (pangofont_char_width(layout, pfont,
                                          string[n-1], utfptr + oldclen,
-                                         clen - oldclen) != cellwidth) {
+                                         clen - oldclen) != desired) {
                     clen = oldclen;
                     n--;
                     break;
