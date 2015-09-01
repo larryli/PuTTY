@@ -1102,8 +1102,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             if (output[1] >= '3' && output[1] <= '7') {
                 /* ^3,...,^7 map to 0x1B,...,0x1F */
                 output[1] += '\x1B' - '3';
-            } else if (output[1] == '2') {
-                /* ^2 is ^@, i.e. \0 */
+            } else if (output[1] == '2' || output[1] == ' ') {
+                /* ^2 and ^Space are both ^@, i.e. \0 */
                 output[1] = '\0';
             } else if (output[1] == '8') {
                 /* ^8 is DEL */
