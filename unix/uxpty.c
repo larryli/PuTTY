@@ -764,14 +764,29 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	pty_open_master(pty);
 
     /*
-     * Set the backspace character to be whichever of ^H and ^? is
-     * specified by bksp_is_delete.
+     * Set up configuration-dependent termios settings on the new pty.
      */
     {
 	struct termios attrs;
 	tcgetattr(pty->master_fd, &attrs);
+
+        /*
+         * Set the backspace character to be whichever of ^H and ^? is
+         * specified by bksp_is_delete.
+         */
 	attrs.c_cc[VERASE] = conf_get_int(conf, CONF_bksp_is_delete)
 	    ? '\177' : '\010';
+
+        /*
+         * Set the IUTF8 bit iff the character set is UTF-8.
+         */
+#ifdef IUTF8
+        if (frontend_is_utf8(frontend))
+            attrs.c_iflag |= IUTF8;
+        else
+            attrs.c_iflag &= ~IUTF8;
+#endif
+
 	tcsetattr(pty->master_fd, TCSANOW, &attrs);
     }
 
