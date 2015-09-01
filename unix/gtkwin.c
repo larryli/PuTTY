@@ -2914,6 +2914,12 @@ void uxsel_input_remove(int id) {
     gdk_input_remove(id);
 }
 
+int frontend_is_utf8(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    return inst->ucsdata.line_codepage == CS_UTF8;
+}
+
 char *setup_fonts_ucs(struct gui_data *inst)
 {
     int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
