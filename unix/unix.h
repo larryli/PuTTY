@@ -24,6 +24,7 @@
 #define NOT_X_WINDOWS /* of course, all the X11 stuff should be disabled */
 #define NO_PTY_PRE_INIT /* OS X gets very huffy if we try to set[ug]id */
 #define SET_NONBLOCK_VIA_OPENPT /* work around missing fcntl functionality */
+#define OSX_META_KEY_CONFIG /* two possible Meta keys to choose from */
 #endif
 
 struct Filename {

@@ -133,6 +133,7 @@ struct gui_data {
     int window_border;
     int cursor_type;
     int drawtype;
+    int meta_mod_mask;
 };
 
 static void cache_conf_values(struct gui_data *inst)
@@ -140,6 +141,15 @@ static void cache_conf_values(struct gui_data *inst)
     inst->bold_style = conf_get_int(inst->conf, CONF_bold_style);
     inst->window_border = conf_get_int(inst->conf, CONF_window_border);
     inst->cursor_type = conf_get_int(inst->conf, CONF_cursor_type);
+#ifdef OSX_META_KEY_CONFIG
+    inst->meta_mod_mask = 0;
+    if (conf_get_int(inst->conf, CONF_osx_option_meta))
+        inst->meta_mod_mask |= GDK_MOD1_MASK;
+    if (conf_get_int(inst->conf, CONF_osx_command_meta))
+        inst->meta_mod_mask |= GDK_MOD2_MASK;
+#else
+    inst->meta_mod_mask = GDK_MOD1_MASK;
+#endif
 }
 
 struct draw_ctx {
@@ -834,12 +844,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/*
-	 * If we're seeing a numberpad key press with Mod1 down,
+	 * If we're seeing a numberpad key press with Meta down,
 	 * consider adding it to alt_keycode if that's sensible.
-	 * Anything _else_ with Mod1 down cancels any possibility
+	 * Anything _else_ with Meta down cancels any possibility
 	 * of an ALT keycode: we set alt_keycode to -2.
 	 */
-	if ((event->state & GDK_MOD1_MASK) && inst->alt_keycode != -2) {
+	if ((event->state & inst->meta_mod_mask) && inst->alt_keycode != -2) {
 	    int digit = -1;
 	    switch (event->keyval) {
 	      case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: digit = 0; break;
@@ -1030,7 +1040,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[lenof(output)-1] = '\0';
 	    end = strlen(output);
 	}
-	if (event->state & GDK_MOD1_MASK) {
+	if (event->state & inst->meta_mod_mask) {
 	    start = 0;
 	    if (end == 1) end = 0;
 	} else
@@ -1515,7 +1525,7 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 
     shift = state & GDK_SHIFT_MASK;
     ctrl = state & GDK_CONTROL_MASK;
-    alt = state & GDK_MOD1_MASK;
+    alt = state & inst->meta_mod_mask;
 
     raw_mouse_mode =
         send_raw_mouse && !(shift && conf_get_int(inst->conf,
@@ -1613,7 +1623,7 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
-    alt = event->state & GDK_MOD1_MASK;
+    alt = event->state & inst->meta_mod_mask;
     if (event->state & GDK_BUTTON1_MASK)
 	button = MBT_LEFT;
     else if (event->state & GDK_BUTTON2_MASK)

@@ -531,6 +531,10 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "AltOnly", conf_get_int(conf, CONF_alt_only));
     write_setting_i(sesskey, "ComposeKey", conf_get_int(conf, CONF_compose_key));
     write_setting_i(sesskey, "CtrlAltKeys", conf_get_int(conf, CONF_ctrlaltkeys));
+#ifdef OSX_META_KEY_CONFIG
+    write_setting_i(sesskey, "OSXOptionMeta", conf_get_int(conf, CONF_osx_option_meta));
+    write_setting_i(sesskey, "OSXCommandMeta", conf_get_int(conf, CONF_osx_command_meta));
+#endif
     write_setting_i(sesskey, "TelnetKey", conf_get_int(conf, CONF_telnet_keyboard));
     write_setting_i(sesskey, "TelnetRet", conf_get_int(conf, CONF_telnet_newline));
     write_setting_i(sesskey, "LocalEcho", conf_get_int(conf, CONF_localecho));
@@ -833,6 +837,10 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "AltOnly", 0, conf, CONF_alt_only);
     gppi(sesskey, "ComposeKey", 0, conf, CONF_compose_key);
     gppi(sesskey, "CtrlAltKeys", 1, conf, CONF_ctrlaltkeys);
+#ifdef OSX_META_KEY_CONFIG
+    gppi(sesskey, "OSXOptionMeta", 1, conf, CONF_osx_option_meta);
+    gppi(sesskey, "OSXCommandMeta", 0, conf, CONF_osx_command_meta);
+#endif
     gppi(sesskey, "TelnetKey", 0, conf, CONF_telnet_keyboard);
     gppi(sesskey, "TelnetRet", 1, conf, CONF_telnet_newline);
     gppi(sesskey, "LocalEcho", AUTO, conf, CONF_localecho);
