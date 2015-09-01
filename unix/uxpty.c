@@ -763,33 +763,6 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     if (pty->master_fd < 0)
 	pty_open_master(pty);
 
-    /*
-     * Set up configuration-dependent termios settings on the new pty.
-     */
-    {
-	struct termios attrs;
-	tcgetattr(pty->master_fd, &attrs);
-
-        /*
-         * Set the backspace character to be whichever of ^H and ^? is
-         * specified by bksp_is_delete.
-         */
-	attrs.c_cc[VERASE] = conf_get_int(conf, CONF_bksp_is_delete)
-	    ? '\177' : '\010';
-
-        /*
-         * Set the IUTF8 bit iff the character set is UTF-8.
-         */
-#ifdef IUTF8
-        if (frontend_is_utf8(frontend))
-            attrs.c_iflag |= IUTF8;
-        else
-            attrs.c_iflag &= ~IUTF8;
-#endif
-
-	tcsetattr(pty->master_fd, TCSANOW, &attrs);
-    }
-
 #ifndef OMIT_UTMP
     /*
      * Stamp utmp (that is, tell the utmp helper process to do so),
@@ -830,6 +803,8 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     }
 
     if (pid == 0) {
+        struct termios attrs;
+
 	/*
 	 * We are the child.
 	 */
@@ -852,6 +827,34 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 #endif
 	pgrp = getpid();
 	tcsetpgrp(0, pgrp);
+
+        /*
+         * Set up configuration-dependent termios settings on the new
+         * pty. Linux would have let us do this on the pty master
+         * before we forked, but that fails on OS X, so we do it here
+         * instead.
+         */
+	if (tcgetattr(0, &attrs) == 0) {
+            /*
+             * Set the backspace character to be whichever of ^H and
+             * ^? is specified by bksp_is_delete.
+             */
+            attrs.c_cc[VERASE] = conf_get_int(conf, CONF_bksp_is_delete)
+                ? '\177' : '\010';
+
+            /*
+             * Set the IUTF8 bit iff the character set is UTF-8.
+             */
+#ifdef IUTF8
+            if (frontend_is_utf8(frontend))
+                attrs.c_iflag |= IUTF8;
+            else
+                attrs.c_iflag &= ~IUTF8;
+#endif
+
+            tcsetattr(0, TCSANOW, &attrs);
+        }
+
 	setpgid(pgrp, pgrp);
         {
             int ptyfd = open(pty->name, O_WRONLY, 0);
