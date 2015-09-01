@@ -996,8 +996,19 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     event->keyval == GDK_KEY_KP_Page_Up)) {
             /* nethack mode; do nothing */
         } else {
-            if (gtk_im_context_filter_keypress(inst->imc, event))
-                return TRUE;
+#ifdef META_MANUAL_MASK
+            if (event->state & META_MANUAL_MASK & inst->meta_mod_mask) {
+                /*
+                 * If this key event had a Meta modifier bit set which
+                 * is also in META_MANUAL_MASK, that means passing
+                 * such an event to the GtkIMContext will be unhelpful
+                 * (it will eat the keystroke and turn it into
+                 * something not what we wanted).
+                 */
+            } else
+#endif
+                if (gtk_im_context_filter_keypress(inst->imc, event))
+                    return TRUE;
         }
 
 	/*
@@ -1043,6 +1054,33 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->state & inst->meta_mod_mask) {
 	    start = 0;
 	    if (end == 1) end = 0;
+
+#ifdef META_MANUAL_MASK
+            if (event->state & META_MANUAL_MASK) {
+                /*
+                 * Key events which have a META_MANUAL_MASK meta bit
+                 * set may have a keyval reflecting that, e.g. on OS X
+                 * the Option key acts as an AltGr-like modifier and
+                 * causes different Unicode characters to be output.
+                 *
+                 * To work around this, we clear the dangerous
+                 * modifier bit and retranslate from the hardware
+                 * keycode as if the key had been pressed without that
+                 * modifier. Then we prefix Esc to *that*.
+                 */
+                guint new_keyval;
+                GdkModifierType consumed;
+                if (gdk_keymap_translate_keyboard_state
+                    (gdk_keymap_get_for_display(gdk_display_get_default()),
+                     event->hardware_keycode, event->state & ~META_MANUAL_MASK,
+                     0, &new_keyval, NULL, NULL, &consumed)) {
+                    ucsoutput[0] = '\033';
+                    ucsoutput[1] = gdk_keyval_to_unicode(new_keyval);
+                    use_ucsoutput = TRUE;
+                    end = 2;
+                }
+            }
+#endif
 	} else
 	    start = 1;
 

@@ -25,6 +25,8 @@
 #define NO_PTY_PRE_INIT /* OS X gets very huffy if we try to set[ug]id */
 #define SET_NONBLOCK_VIA_OPENPT /* work around missing fcntl functionality */
 #define OSX_META_KEY_CONFIG /* two possible Meta keys to choose from */
+/* this potential one of the Meta keys needs manual handling */
+#define META_MANUAL_MASK (GDK_MOD1_MASK)
 #endif
 
 struct Filename {
