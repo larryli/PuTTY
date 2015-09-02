@@ -135,7 +135,7 @@ for it:
    installer and the Unix source tarball.
 
  - Sign the release: in the `build.out' directory, type
-     sh sign.sh putty Releases
+     sh sign.sh -r putty
    and enter the passphrases a lot of times.
 
 The actual release procedure
@@ -151,7 +151,7 @@ locally, this is the procedure for putting it up on the web.
 
  - Do final checks on the release directory in its new location:
     + verify all the signatures:
-      for i in `find . -name '*.*SA'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.?SA};; esac; done
+      for i in `find . -name '*.gpg'`; do case $i in *sums*) gpg --verify $i;; *) gpg --verify $i ${i%%.gpg};; esac; done
     + check the checksum files:
       md5sum -c md5sums
       sha1sum -c sha1sums
