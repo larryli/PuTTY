@@ -74,6 +74,8 @@ extern int use_pty_argv;
  */
 static guint timer_id = 0;
 
+struct clipboard_data_instance;
+
 struct gui_data {
     GtkWidget *window, *area, *sbar;
     GtkBox *hbox;
@@ -98,11 +100,16 @@ struct gui_data {
 #if !GTK_CHECK_VERSION(3,0,0)
     GdkColormap *colmap;
 #endif
-    wchar_t *pastein_data;
     int direct_to_font;
+    wchar_t *pastein_data;
     int pastein_data_len;
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    GtkClipboard *clipboard;
+    struct clipboard_data_instance *current_cdi;
+#else
     char *pasteout_data, *pasteout_data_ctext, *pasteout_data_utf8;
     int pasteout_data_len, pasteout_data_ctext_len, pasteout_data_utf8_len;
+#endif
     int font_width, font_height;
     int width, height;
     int ignore_sbar;
@@ -911,7 +918,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Neither does Shift-Ins.
 	 */
-	if (event->keyval == GDK_KEY_Insert &&
+	if (event->keyval == GDK_KEY_Return &&
             (event->state & GDK_SHIFT_MASK)) {
 	    request_paste(inst);
 	    return TRUE;
@@ -2179,35 +2186,164 @@ void palette_reset(void *frontend)
     }
 }
 
-/* Ensure that all the cut buffers exist - according to the ICCCM, we must
- * do this before we start using cut buffers.
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+
+/* ----------------------------------------------------------------------
+ * Clipboard handling, using the high-level GtkClipboard interface in
+ * as hands-off a way as possible. We write and read the clipboard as
+ * UTF-8 text, and let GTK deal with converting to any other text
+ * formats it feels like.
  */
-void init_cutbuffers()
+
+void init_clipboard(struct gui_data *inst)
 {
-#ifndef NOT_X_WINDOWS
-    unsigned char empty[] = "";
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
-#endif
+    inst->clipboard = gtk_clipboard_get_for_display(gdk_display_get_default(),
+                                                    DEFAULT_CLIPBOARD);
 }
 
+/*
+ * Because calling gtk_clipboard_set_with_data triggers a call to the
+ * clipboard_clear function from the last time, we need to arrange a
+ * way to distinguish a real call to clipboard_clear for the _new_
+ * instance of the clipboard data from the leftover call for the
+ * outgoing one. We do this by setting the user data field in our
+ * gtk_clipboard_set_with_data() call, instead of the obvious pointer
+ * to 'inst', to one of these.
+ */
+struct clipboard_data_instance {
+    struct gui_data *inst;
+    char *pasteout_data_utf8;
+    int pasteout_data_utf8_len;
+};
+
+static void clipboard_provide_data(GtkClipboard *clipboard,
+                                   GtkSelectionData *selection_data,
+                                   guint info, gpointer data)
+{
+    struct clipboard_data_instance *cdi =
+        (struct clipboard_data_instance *)data;
+    struct gui_data *inst = cdi->inst;
+
+    if (inst->current_cdi == cdi) {
+        gtk_selection_data_set_text(selection_data, cdi->pasteout_data_utf8,
+                                    cdi->pasteout_data_utf8_len);
+    }
+}
+
+static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
+{
+    struct clipboard_data_instance *cdi =
+        (struct clipboard_data_instance *)data;
+    struct gui_data *inst = cdi->inst;
+
+    if (inst->current_cdi == cdi) {
+        term_deselect(inst->term);
+        inst->current_cdi = NULL;
+    }
+    sfree(cdi->pasteout_data_utf8);
+    sfree(cdi);
+}
+
+void write_clip(void *frontend, wchar_t *data, int *attr, int len,
+                int must_deselect)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    struct clipboard_data_instance *cdi;
+
+    if (inst->direct_to_font) {
+        /* In this clipboard mode, we just can't paste if we're in
+         * direct-to-font mode. Fortunately, that shouldn't be
+         * important, because we'll only use this clipboard handling
+         * code on systems where that kind of font doesn't exist
+         * anyway. */
+        return;
+    }
+
+    cdi = snew(struct clipboard_data_instance);
+    cdi->inst = inst;
+    inst->current_cdi = cdi;
+    cdi->pasteout_data_utf8 = snewn(len*6, char);
+    {
+        const wchar_t *tmp = data;
+        int tmplen = len;
+        cdi->pasteout_data_utf8_len =
+            charset_from_unicode(&tmp, &tmplen, cdi->pasteout_data_utf8,
+                                 len*6, CS_UTF8, NULL, NULL, 0);
+    }
+
+    /*
+     * It would be nice to just call gtk_clipboard_set_text() in place
+     * of all of the faffing below. Unfortunately, that won't give me
+     * access to the clipboard-clear event, which we use to visually
+     * deselect text in the terminal.
+     */
+    {
+        GtkTargetList *targetlist;
+        GtkTargetEntry *targettable;
+        gint n_targets;
+
+        targetlist = gtk_target_list_new(NULL, 0);
+        gtk_target_list_add_text_targets(targetlist, 0);
+        targettable = gtk_target_table_new_from_list(targetlist, &n_targets);
+        gtk_clipboard_set_with_data(inst->clipboard, targettable, n_targets,
+                                    clipboard_provide_data, clipboard_clear,
+                                    cdi);
+        gtk_target_table_free(targettable, n_targets);
+        gtk_target_list_unref(targetlist);
+    }
+}
+
+static void clipboard_text_received(GtkClipboard *clipboard,
+                                    const gchar *text, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    int length;
+
+    if (!text)
+        return;
+
+    length = strlen(text);
+
+    if (inst->pastein_data)
+	sfree(inst->pastein_data);
+
+    inst->pastein_data = snewn(length, wchar_t);
+    inst->pastein_data_len = mb_to_wc(CS_UTF8, 0, text, length,
+                                      inst->pastein_data, length);
+
+    term_do_paste(inst->term);
+}
+
+void request_paste(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    gtk_clipboard_request_text(inst->clipboard, clipboard_text_received, inst);
+}
+
+#else /* JUST_USE_GTK_CLIPBOARD_UTF8 */
+
+/* ----------------------------------------------------------------------
+ * Clipboard handling for X, using the low-level gtk_selection_*
+ * interface, handling conversions to fiddly things like compound text
+ * ourselves, and storing in X cut buffers too.
+ *
+ * This version of the clipboard code has to be kept around for GTK1,
+ * which doesn't have the higher-level GtkClipboard interface at all.
+ * And since it works on GTK2 and GTK3 too and has had a good few
+ * years of shakedown and bug fixing, we might as well keep using it
+ * where it's applicable.
+ *
+ * It's _possible_ that we might be able to replicate all the
+ * important wrinkles of this code in GtkClipboard. (In particular,
+ * cut buffers or local analogue look as if they might be accessible
+ * via gtk_clipboard_set_can_store(), and delivering text in
+ * non-Unicode formats only in the direct-to-font case ought to be
+ * possible if we can figure out the right set of things to put in the
+ * GtkTargetList.) But that work can wait until there's a need for it!
+ */
+
 /* Store the data in a cut-buffer. */
-void store_cutbuffer(char * ptr, int len)
+static void store_cutbuffer(char * ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
     Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
@@ -2220,7 +2356,7 @@ void store_cutbuffer(char * ptr, int len)
 /* Retrieve data from a cut-buffer.
  * Returned data needs to be freed with XFree().
  */
-char * retrieve_cutbuffer(int * nbytes)
+static char *retrieve_cutbuffer(int *nbytes)
 {
 #ifndef NOT_X_WINDOWS
     Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
@@ -2236,7 +2372,8 @@ char * retrieve_cutbuffer(int * nbytes)
 #endif
 }
 
-void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_deselect)
+void write_clip(void *frontend, wchar_t *data, int *attr, int len,
+                int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)
@@ -2334,8 +2471,8 @@ void write_clip(void *frontend, wchar_t * data, int *attr, int len, int must_des
 	term_deselect(inst->term);
 }
 
-void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
-		   guint info, guint time_stamp, gpointer data)
+static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
+                          guint info, guint time_stamp, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     GdkAtom target = gtk_selection_data_get_target(seldata);
@@ -2353,8 +2490,8 @@ void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 			       inst->pasteout_data_len);
 }
 
-gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
-		     gpointer data)
+static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
+                            gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
@@ -2405,10 +2542,8 @@ void request_paste(void *frontend)
     }
 }
 
-gint idle_paste_func(gpointer data);   /* forward ref */
-
-void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
-			guint time, gpointer data)
+static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
+                               guint time, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     char *text;
@@ -2528,6 +2663,48 @@ void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	XFree(text);
 #endif
 }
+
+void init_clipboard(struct gui_data *inst)
+{
+#ifndef NOT_X_WINDOWS
+    /*
+     * Ensure that all the cut buffers exist - according to the ICCCM,
+     * we must do this before we start using cut buffers.
+     */
+    unsigned char empty[] = "";
+    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
+    XChangeProperty(disp, GDK_ROOT_WINDOW(),
+		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
+#endif
+
+    g_signal_connect(G_OBJECT(inst->area), "selection_received",
+                     G_CALLBACK(selection_received), inst);
+    g_signal_connect(G_OBJECT(inst->area), "selection_get",
+                     G_CALLBACK(selection_get), inst);
+    g_signal_connect(G_OBJECT(inst->area), "selection_clear_event",
+                     G_CALLBACK(selection_clear), inst);
+}
+
+/*
+ * End of selection/clipboard handling.
+ * ----------------------------------------------------------------------
+ */
+
+#endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
 void get_clip(void *frontend, wchar_t ** p, int *len)
 {
@@ -4407,8 +4584,6 @@ int pt_main(int argc, char **argv)
             exit(1);
         }
     }
-    init_cutbuffers();
-
     inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
@@ -4425,6 +4600,8 @@ int pt_main(int argc, char **argv)
     inst->width = conf_get_int(inst->conf, CONF_width);
     inst->height = conf_get_int(inst->conf, CONF_height);
     cache_conf_values(inst);
+
+    init_clipboard(inst);
 
     {
         int w = inst->font_width * inst->width + 2*inst->window_border;
@@ -4507,12 +4684,6 @@ int pt_main(int argc, char **argv)
 #endif
     g_signal_connect(G_OBJECT(inst->area), "motion_notify_event",
                      G_CALLBACK(motion_event), inst);
-    g_signal_connect(G_OBJECT(inst->area), "selection_received",
-                     G_CALLBACK(selection_received), inst);
-    g_signal_connect(G_OBJECT(inst->area), "selection_get",
-                     G_CALLBACK(selection_get), inst);
-    g_signal_connect(G_OBJECT(inst->area), "selection_clear_event",
-                     G_CALLBACK(selection_clear), inst);
 #if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(inst->imc), "commit",
                      G_CALLBACK(input_method_commit_event), inst);

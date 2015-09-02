@@ -27,6 +27,8 @@
 #define OSX_META_KEY_CONFIG /* two possible Meta keys to choose from */
 /* this potential one of the Meta keys needs manual handling */
 #define META_MANUAL_MASK (GDK_MOD1_MASK)
+#define JUST_USE_GTK_CLIPBOARD_UTF8 /* low-level gdk_selection_* fails */
+#define DEFAULT_CLIPBOARD GDK_SELECTION_CLIPBOARD /* OS X has no PRIMARY */
 #endif
 
 struct Filename {
