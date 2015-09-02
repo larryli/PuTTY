@@ -843,8 +843,9 @@ saved sessions from
 
 \IM{version of PuTTY} version, of PuTTY
 
-\IM{PGP signatures} PGP signatures, of PuTTY binaries
-\IM{PGP signatures} signatures, of PuTTY binaries
+\IM{GPG signatures} PGP signatures, of PuTTY binaries
+\IM{GPG signatures} GPG signatures, of PuTTY binaries
+\IM{GPG signatures} signatures, of PuTTY binaries
 
 \IM{logical host name} logical host name
 \IM{logical host name} host name, logical
