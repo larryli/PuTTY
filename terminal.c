@@ -6043,7 +6043,8 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	    } else if (c <= 223 && r <= 223) {
 		len = sprintf(abuf, "\033[M%c%c%c", encstate + 32, c + 32, r + 32);
 	    }
-	    ldisc_send(term->ldisc, abuf, len, 0);
+            if (len > 0)
+                ldisc_send(term->ldisc, abuf, len, 0);
 	}
 	return;
     }
