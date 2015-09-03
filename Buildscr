@@ -202,6 +202,6 @@ in-dest putty do a=`\find * -type f -print`; md5sum $$a > md5sums && sha1sum $$a
 in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
-in-dest putty do set -- putty*.tar.gz; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty do set -- putty*.tar.gz; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
 # And one in the x86 directory, providing a link for the installer.
-in-dest putty/x86 do set -- putty*installer.exe; for k in '' .DSA .RSA; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
+in-dest putty/x86 do set -- putty*installer.exe; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty-installer.exe$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
