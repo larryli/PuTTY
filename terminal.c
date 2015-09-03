@@ -6078,6 +6078,18 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	sel_spread(term);
     } else if ((bcooked == MBT_SELECT && a == MA_DRAG) ||
 	       (bcooked == MBT_EXTEND && a != MA_RELEASE)) {
+        if (term->selstate == NO_SELECTION || term->selstate == SELECTED) {
+            /*
+             * This can happen if a front end has passed us a MA_DRAG
+             * without a prior MA_CLICK. OS X GTK does so, for
+             * example, if the initial button press was eaten by the
+             * WM when it activated the window in the first place. The
+             * nicest thing to do in this situation is to ignore
+             * further drags, and wait for the user to click in the
+             * window again properly if they want to select.
+             */
+            return;
+        }
 	if (term->selstate == ABOUT_TO && poseq(term->selanchor, selpoint))
 	    return;
 	if (bcooked == MBT_EXTEND && a != MA_DRAG &&
