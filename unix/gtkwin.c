@@ -918,7 +918,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/*
 	 * Neither does Shift-Ins.
 	 */
-	if (event->keyval == GDK_KEY_Return &&
+	if (event->keyval == GDK_KEY_Insert &&
             (event->state & GDK_SHIFT_MASK)) {
 	    request_paste(inst);
 	    return TRUE;
