@@ -1,7 +1,7 @@
 # Makefile for the PuTTY icon suite.
 
 ICONS = putty puttycfg puttygen pscp pageant pterm ptermcfg puttyins
-SIZES = 16 32 48
+SIZES = 16 32 48 128
 
 MODE = # override to -it on command line for opaque testing
 
@@ -11,17 +11,19 @@ TRUEPNGS = $(foreach I,$(ICONS),$(foreach S,$(SIZES),$(I)-$(S)-true.png))
 
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
        puttyins.ico
+ICNS = PuTTY.icns
 CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
 
 base: icos cicons
 
-all: pngs monopngs base # truepngs currently disabled by default
+all: pngs monopngs base icns # truepngs currently disabled by default
 
 pngs: $(PNGS)
 monopngs: $(MONOPNGS)
 truepngs: $(TRUEPNGS)
 
 icos: $(ICOS)
+icns: $(ICNS)
 cicons: $(CICONS)
 
 install: icos cicons
@@ -88,5 +90,15 @@ xpmpterm.c: pterm-16.png pterm-32.png pterm-48.png
 xpmptcfg.c: ptermcfg-16.png ptermcfg-32.png ptermcfg-48.png
 	./cicon.pl cfg_icon $^ > $@
 
+PuTTY.icns: putty-16-mono.png putty-16.png \
+	    putty-32-mono.png putty-32.png \
+	    putty-48-mono.png putty-48.png \
+	    putty-128.png
+	./macicon.py mono:putty-16-mono.png colour:putty-16.png \
+	             mono:putty-32-mono.png colour:putty-32.png \
+	             mono:putty-48-mono.png colour:putty-48.png \
+	                                    colour:putty-128.png \
+		output:$@
+
 clean:
-	rm -f *.png *.ico *.c
+	rm -f *.png *.ico *.icns *.c

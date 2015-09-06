@@ -80,6 +80,7 @@
 /doc/*.hhk
 /icons/*.png
 /icons/*.ico
+/icons/*.icns
 /icons/*.xpm
 /icons/*.c
 /macosx/Makefile
