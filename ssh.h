@@ -319,7 +319,19 @@ struct ssh2_cipher {
     void (*decrypt_length) (void *, unsigned char *blk, int len, unsigned long seq);
     const char *name;
     int blksize;
-    int keylen;
+    /* real_keybits is the number of bits of entropy genuinely used by
+     * the cipher scheme; it's used for deciding how big a
+     * Diffie-Hellman group is needed to exchange a key for the
+     * cipher. */
+    int real_keybits;
+    /* padded_keybytes is the number of bytes of key data expected as
+     * input to the setkey function; it's used for deciding how much
+     * data needs to be generated from the post-kex generation of key
+     * material. In a sensible cipher which uses all its key bytes for
+     * real work, this will just be real_keybits/8, but in DES-type
+     * ciphers which ignore one bit in each byte, it'll be slightly
+     * different. */
+    int padded_keybytes;
     unsigned int flags;
 #define SSH_CIPHER_IS_CBC	1
 #define SSH_CIPHER_SEPARATE_LENGTH      2

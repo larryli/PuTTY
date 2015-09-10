@@ -1331,7 +1331,7 @@ static const struct ssh2_cipher ssh2_chacha20_poly1305 = {
     ccp_decrypt_length,
 
     "chacha20-poly1305@openssh.com",
-    1, 512, SSH_CIPHER_SEPARATE_LENGTH, "ChaCha20",
+    1, 512, 64, SSH_CIPHER_SEPARATE_LENGTH, "ChaCha20",
 
     &ssh2_poly1305
 };

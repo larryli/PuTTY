@@ -6728,8 +6728,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         {
             int csbits, scbits;
 
-            csbits = s->cscipher_tobe->keylen;
-            scbits = s->sccipher_tobe->keylen;
+            csbits = s->cscipher_tobe->real_keybits;
+            scbits = s->sccipher_tobe->real_keybits;
             s->nbits = (csbits > scbits ? csbits : scbits);
         }
         /* The keys only have hlen-bit entropy, since they're based on
@@ -7183,9 +7183,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'C',
-                         (ssh->cscipher->keylen+7) / 8);
+                         ssh->cscipher->padded_keybytes);
 	ssh->cscipher->setkey(ssh->cs_cipher_ctx, key);
-        smemclr(key, (ssh->cscipher->keylen+7) / 8);
+        smemclr(key, ssh->cscipher->padded_keybytes);
         sfree(key);
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'A',
@@ -7256,9 +7256,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'D',
-                         (ssh->sccipher->keylen + 7) / 8);
+                         ssh->sccipher->padded_keybytes);
 	ssh->sccipher->setkey(ssh->sc_cipher_ctx, key);
-        smemclr(key, (ssh->sccipher->keylen + 7) / 8);
+        smemclr(key, ssh->sccipher->padded_keybytes);
         sfree(key);
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'B',
