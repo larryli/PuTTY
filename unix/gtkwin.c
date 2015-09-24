@@ -84,7 +84,32 @@ struct gui_data {
 	*restartitem;
     GtkWidget *sessionsmenu;
 #ifndef NO_BACKING_PIXMAPS
+    /*
+     * Server-side pixmap which we use to cache the terminal window's
+     * contents. When we draw text in the terminal, we draw it to this
+     * pixmap first, and then blit from there to the actual window;
+     * this way, X expose events can be handled with an absolute
+     * minimum of network traffic, by just sending a command to
+     * re-blit an appropriate rectangle from this pixmap.
+     */
     GdkPixmap *pixmap;
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    /*
+     * If we're drawing using Cairo, we cache the same image on the
+     * client side in a Cairo surface.
+     *
+     * In GTK2+Cairo, this happens _as well_ as having the server-side
+     * pixmap cache above; in GTK3+Cairo, server-side pixmaps are
+     * deprecated, so we _just_ have this client-side cache. In the
+     * latter case that means we have to transmit a big wodge of
+     * bitmap data over the X connection on every expose event; but
+     * GTK3 apparently deliberately provides no way to avoid that
+     * inefficiency, and at least this way we don't _also_ have to
+     * redo any font rendering just because the window was temporarily
+     * covered.
+     */
+    cairo_surface_t *surface;
 #endif
 #if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
@@ -515,16 +540,30 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	need_size = 1;
     }
 
-#ifndef NO_BACKING_PIXMAPS
-    if (inst->pixmap) {
-	gdk_pixmap_unref(inst->pixmap);
-	inst->pixmap = NULL;
-    }
+    {
+        int backing_w = w * inst->font_width + 2*inst->window_border;
+        int backing_h = h * inst->font_height + 2*inst->window_border;
 
-    inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
-				  (w * inst->font_width + 2*inst->window_border),
-				  (h * inst->font_height + 2*inst->window_border), -1);
+#ifndef NO_BACKING_PIXMAPS
+        if (inst->pixmap) {
+            gdk_pixmap_unref(inst->pixmap);
+            inst->pixmap = NULL;
+        }
+
+        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
+                                      backing_w, backing_h, -1);
 #endif
+
+#ifdef DRAW_TEXT_CAIRO
+        if (inst->surface) {
+            cairo_surface_destroy(inst->surface);
+            inst->surface = NULL;
+        }
+
+        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+                                                   backing_w, backing_h);
+#endif
+    }
 
     draw_backing_rect(inst);
 
@@ -563,40 +602,21 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (inst->term) {
-        struct draw_ctx adctx, *dctx = &adctx;
+    /*
+     * GTK3 window redraw: we always expect Cairo to be enabled, so
+     * that inst->surface exists, and pixmaps to be disabled, so that
+     * inst->pixmap does not exist. Hence, we just blit from
+     * inst->surface to the window.
+     */
+    if (inst->surface) {
         GdkRectangle dirtyrect;
-
-        dctx->inst = inst;
-        dctx->uctx.type = DRAWTYPE_CAIRO;
-        dctx->uctx.u.cairo.widget = widget;
-        dctx->uctx.u.cairo.cr = cr;
-        cairo_setup_dctx(dctx);
 
         gdk_cairo_get_clip_rectangle(cr, &dirtyrect);
 
-        /*
-         * As in window.c, we clear the 'immediately' flag in the
-         * term_paint() call if the terminal has an update pending, in
-         * case we're constrained within this event to only draw on
-         * the exposed rectangle of the window. (Because if the whole
-         * of a character cell needs a redraw due to a terminal
-         * contents change, the last thing we want is to give it a
-         * _partial_ redraw here due to system-imposed clipping, and
-         * then have the next main terminal update believe it's been
-         * redrawn in full.)
-         *
-         * I don't actually know if GTK draw events will constrain us
-         * in this way, but it's best to be careful...
-         */
-        term_paint(inst->term, dctx,
-                   (dirtyrect.x - inst->window_border) / inst->font_width,
-                   (dirtyrect.y - inst->window_border) / inst->font_height,
-                   (dirtyrect.x + dirtyrect.width -
-                    inst->window_border) / inst->font_width,
-                   (dirtyrect.y + dirtyrect.height -
-                    inst->window_border) / inst->font_height,
-                   !inst->term->window_update_pending);
+        cairo_set_source_surface(cr, inst->surface, 0, 0);
+        cairo_rectangle(cr, dirtyrect.x, dirtyrect.y,
+                        dirtyrect.width, dirtyrect.height);
+        cairo_fill(cr);
     }
 
     return TRUE;
@@ -608,8 +628,8 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
 #ifndef NO_BACKING_PIXMAPS
     /*
-     * Pass the exposed rectangle to terminal.c, which will call us
-     * back to do the actual painting.
+     * Draw to the exposed part of the window from the server-side
+     * backing pixmap.
      */
     if (inst->pixmap) {
 	gdk_draw_pixmap(gtk_widget_get_window(widget),
@@ -621,17 +641,18 @@ gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 			event->area.width, event->area.height);
     }
 #else
-    if (inst->term) {
-        Context ctx = get_ctx(inst);
-        term_paint(inst->term, ctx,
-                   (event->area.x - inst->window_border) / inst->font_width,
-                   (event->area.y - inst->window_border) / inst->font_height,
-                   (event->area.x + event->area.width -
-                    inst->window_border) / inst->font_width,
-                   (event->area.y + event->area.height -
-                    inst->window_border) / inst->font_height,
-                   !inst->term->window_update_pending);
-        free_ctx(ctx);
+    /*
+     * Failing that, draw from the client-side Cairo surface. (We
+     * should never be compiled in a context where we have _neither_
+     * inst->surface nor inst->pixmap.)
+     */
+    if (inst->surface) {
+        cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(widget));
+        cairo_set_source_surface(cr, inst->surface, 0, 0);
+        cairo_rectangle(cr, event->area.x, event->area.y,
+			event->area.width, event->area.height);
+        cairo_fill(cr);
+        cairo_destroy(cr);
     }
 #endif
 
@@ -3021,30 +3042,28 @@ Context get_ctx(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     struct draw_ctx *dctx;
-    GdkWindow *target;
 
     if (!gtk_widget_get_window(inst->area))
 	return NULL;
-
-#ifndef NO_BACKING_PIXMAPS
-    target = inst->pixmap;
-#else
-    target = gtk_widget_get_window(inst->area);
-#endif
 
     dctx = snew(struct draw_ctx);
     dctx->inst = inst;
     dctx->uctx.type = inst->drawtype;
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
-        dctx->uctx.u.gdk.target = target;
+        /* If we're doing GDK-based drawing, then we also expect
+         * inst->pixmap to exist. */
+        dctx->uctx.u.gdk.target = inst->pixmap;
         dctx->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
         dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
-        dctx->uctx.u.cairo.cr = gdk_cairo_create(target);
+        /* If we're doing Cairo drawing, we expect inst->surface to
+         * exist, and we draw to that first, regardless of whether we
+         * subsequently copy the results to inst->pixmap. */
+        dctx->uctx.u.cairo.cr = cairo_create(inst->surface);
         cairo_setup_dctx(dctx);
     }
 #endif
@@ -3071,23 +3090,31 @@ void free_ctx(Context ctx)
 
 static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
 {
-#ifndef NO_BACKING_PIXMAPS
-#ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_pixmap(gtk_widget_get_window(dctx->inst->area),
-                        dctx->uctx.u.gdk.gc, dctx->inst->pixmap,
-                        x, y, x, y, w, h);
-    }
-#endif
-#ifdef DRAW_TEXT_CAIRO /* FIXME: and not GTK3 where a cairo_t is all we have */
+#if defined DRAW_TEXT_CAIRO && !defined NO_BACKING_PIXMAPS
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        GdkGC *gc = gdk_gc_new(gtk_widget_get_window(dctx->inst->area));
-        gdk_draw_pixmap(gtk_widget_get_window(dctx->inst->area),
-                        gc, dctx->inst->pixmap, x, y, x, y, w, h);
-        gdk_gc_unref(gc);
+        /*
+         * If inst->surface and inst->pixmap both exist, then we've
+         * just drawn new content to the former which we must copy to
+         * the latter.
+         */
+        cairo_t *cr = gdk_cairo_create(dctx->inst->pixmap);
+        cairo_set_source_surface(cr, dctx->inst->surface, 0, 0);
+        cairo_rectangle(cr, x, y, w, h);
+        cairo_fill(cr);
+        cairo_destroy(cr);
     }
 #endif
-#endif
+
+    /*
+     * Now we just queue a window redraw, which will cause
+     * inst->surface or inst->pixmap (whichever is appropriate for our
+     * compile mode) to be copied to the real window when we receive
+     * the resulting "expose" or "draw" event.
+     *
+     * Amazingly, this one API call is actually valid in all versions
+     * of GTK :-)
+     */
+    gtk_widget_queue_draw_area(dctx->inst->area, x, y, w, h);
 }
 
 static void draw_set_colour(struct draw_ctx *dctx, int col)
@@ -3285,10 +3312,11 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 static void draw_backing_rect(struct gui_data *inst)
 {
     struct draw_ctx *dctx = get_ctx(inst);
+    int w = inst->width * inst->font_width + 2*inst->window_border;
+    int h = inst->height * inst->font_height + 2*inst->window_border;
     draw_set_colour(dctx, 258);
-    draw_rectangle(dctx, 1, 0, 0,
-                   inst->width * inst->font_width + 2*inst->window_border,
-                   inst->height * inst->font_height + 2*inst->window_border);
+    draw_rectangle(dctx, 1, 0, 0, w, h);
+    draw_update(dctx, 0, 0, w, h);
     free_ctx(dctx);
 }
 
