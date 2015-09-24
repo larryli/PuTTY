@@ -574,6 +574,23 @@ int cmdline_process_param(const char *p, char *value,
 	    nextitem += length + skip;
 	}
     }
+
+    if (!strcmp(p, "-sessionlog") ||
+        !strcmp(p, "-sshlog") ||
+        !strcmp(p, "-sshrawlog")) {
+	Filename *fn;
+	RETURN(2);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	fn = filename_from_str(value);
+	conf_set_filename(conf, CONF_logfilename, fn);
+	conf_set_int(conf, CONF_logtype,
+                     !strcmp(p, "-sessionlog") ? LGTYP_DEBUG :
+                     !strcmp(p, "-sshlog") ? LGTYP_PACKETS :
+                     /* !strcmp(p, "-sshrawlog") ? */ LGTYP_SSHRAW);
+        filename_free(fn);
+    }
+
     return ret;			       /* unrecognised */
 }
 
