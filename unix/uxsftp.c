@@ -413,6 +413,20 @@ void finish_wildcard_matching(WildcardMatcher *dir) {
     sfree(dir);
 }
 
+char *stripslashes(const char *str, int local)
+{
+    char *p;
+
+    /*
+     * On Unix, we do the same thing regardless of the 'local'
+     * parameter.
+     */
+    p = strrchr(str, '/');
+    if (p) str = p+1;
+
+    return (char *)str;
+}
+
 int vet_filename(const char *name)
 {
     if (strchr(name, '/'))

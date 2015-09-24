@@ -340,13 +340,13 @@ struct WildcardMatcher {
     char *srcpath;
 };
 
-/*
- * Return a pointer to the portion of str that comes after the last
- * slash (or backslash or colon, if `local' is TRUE).
- */
-static char *stripslashes(char *str, int local)
+char *stripslashes(const char *str, int local)
 {
     char *p;
+
+    /*
+     * On Windows, \ / : are all path component separators.
+     */
 
     if (local) {
         p = strchr(str, ':');
@@ -361,7 +361,7 @@ static char *stripslashes(char *str, int local)
 	if (p) str = p+1;
     }
 
-    return str;
+    return (char *)str;
 }
 
 WildcardMatcher *begin_wildcard_matching(const char *name)
