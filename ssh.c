@@ -6568,6 +6568,24 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 		bombout(("KEXINIT packet was incomplete"));
 		crStopV;
 	    }
+
+            /* If we've already selected a cipher which requires a
+             * particular MAC, then just select that, and don't even
+             * bother looking through the server's KEXINIT string for
+             * MACs. */
+            if (i == KEXLIST_CSMAC && s->cscipher_tobe &&
+                s->cscipher_tobe->required_mac) {
+                s->csmac_tobe = s->cscipher_tobe->required_mac;
+                s->csmac_etm_tobe = !!(s->csmac_tobe->etm_name);
+                goto matched;
+            }
+            if (i == KEXLIST_SCMAC && s->sccipher_tobe &&
+                s->sccipher_tobe->required_mac) {
+                s->scmac_tobe = s->sccipher_tobe->required_mac;
+                s->scmac_etm_tobe = !!(s->scmac_tobe->etm_name);
+                goto matched;
+            }
+
 	    for (j = 0; j < MAXKEXLIST; j++) {
 		struct kexinit_algorithm *alg = &s->kexlists[i][j];
 		if (alg->name == NULL) break;
@@ -6612,16 +6630,6 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    crStopV;
 	  matched:;
 	}
-
-        /* If the cipher over-rides the mac, then pick it */
-        if (s->cscipher_tobe && s->cscipher_tobe->required_mac) {
-            s->csmac_tobe = s->cscipher_tobe->required_mac;
-	    s->csmac_etm_tobe = !!(s->csmac_tobe->etm_name);
-        }
-        if (s->sccipher_tobe && s->sccipher_tobe->required_mac) {
-            s->scmac_tobe = s->sccipher_tobe->required_mac;
-	    s->scmac_etm_tobe = !!(s->scmac_tobe->etm_name);
-        }
 
 	if (s->pending_compression) {
 	    logevent("Server supports delayed compression; "
