@@ -1810,6 +1810,7 @@ static int share_receive(Plug plug, int urgent, char *data, int len)
     ssh_sharing_logf(cs->parent->ssh, cs->id,
                      "Downstream version string: %.*s",
                      cs->recvlen, cs->recvbuf);
+    cs->got_verstring = TRUE;
 
     /*
      * Loop round reading packets.
