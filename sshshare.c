@@ -1983,6 +1983,50 @@ extern const int share_can_be_downstream;
 extern const int share_can_be_upstream;
 
 /*
+ * Decide on the string used to identify the connection point between
+ * upstream and downstream (be it a Windows named pipe or a
+ * Unix-domain socket or whatever else).
+ *
+ * I wondered about making this a SHA hash of all sorts of pieces of
+ * the PuTTY configuration - essentially everything PuTTY uses to know
+ * where and how to make a connection, including all the proxy details
+ * (or rather, all the _relevant_ ones - only including settings that
+ * other settings didn't prevent from having any effect), plus the
+ * username. However, I think it's better to keep it really simple:
+ * the connection point identifier is derived from the hostname and
+ * port used to index the host-key cache (not necessarily where we
+ * _physically_ connected to, in cases involving proxies or
+ * CONF_loghost), plus the username if one is specified.
+ *
+ * The per-platform code will quite likely hash or obfuscate this name
+ * in turn, for privacy from other users; failing that, it might
+ * transform it to avoid dangerous filename characters and so on. But
+ * that doesn't matter to us: for us, the point is that two session
+ * configurations which return the same string from this function will
+ * be treated as potentially shareable with each other.
+ */
+char *ssh_share_sockname(const char *host, int port, Conf *conf)
+{
+    char *username = get_remote_username(conf);
+    char *sockname;
+
+    if (port == 22) {
+        if (username)
+            sockname = dupprintf("%s@%s", username, host);
+        else
+            sockname = dupprintf("%s", host);
+    } else {
+        if (username)
+            sockname = dupprintf("%s@%s:%d", username, host, port);
+        else
+            sockname = dupprintf("%s:%d", host, port);
+    }
+
+    sfree(username);
+    return sockname;
+}
+
+/*
  * Init function for connection sharing. We either open a listening
  * socket and become an upstream, or connect to an existing one and
  * become a downstream, or do neither. We are responsible for deciding
@@ -2018,47 +2062,7 @@ Socket ssh_connection_sharing_init(const char *host, int port,
     if (!can_upstream && !can_downstream)
         return NULL;
 
-    /*
-     * Decide on the string used to identify the connection point
-     * between upstream and downstream (be it a Windows named pipe or
-     * a Unix-domain socket or whatever else).
-     *
-     * I wondered about making this a SHA hash of all sorts of pieces
-     * of the PuTTY configuration - essentially everything PuTTY uses
-     * to know where and how to make a connection, including all the
-     * proxy details (or rather, all the _relevant_ ones - only
-     * including settings that other settings didn't prevent from
-     * having any effect), plus the username. However, I think it's
-     * better to keep it really simple: the connection point
-     * identifier is derived from the hostname and port used to index
-     * the host-key cache (not necessarily where we _physically_
-     * connected to, in cases involving proxies or CONF_loghost), plus
-     * the username if one is specified.
-     */
-    {
-        char *username = get_remote_username(conf);
-
-        if (port == 22) {
-            if (username)
-                sockname = dupprintf("%s@%s", username, host);
-            else
-                sockname = dupprintf("%s", host);
-        } else {
-            if (username)
-                sockname = dupprintf("%s@%s:%d", username, host, port);
-            else
-                sockname = dupprintf("%s:%d", host, port);
-        }
-
-        sfree(username);
-
-        /*
-         * The platform-specific code may transform this further in
-         * order to conform to local namespace conventions (e.g. not
-         * using slashes in filenames), but that's its job and not
-         * ours.
-         */
-    }
+    sockname = ssh_share_sockname(host, port, conf);
 
     /*
      * Create a data structure for the listening plug if we turn out
