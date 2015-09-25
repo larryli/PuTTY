@@ -156,13 +156,14 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
     /* GtkWindow is a GtkBin, hence contains exactly one child, which
      * here we always expect to be a vbox */
     GtkBox *vbox = GTK_BOX(gtk_bin_get_child(GTK_BIN(dlg)));
-
-    GtkWidget *sep = gtk_hseparator_new();
-    gtk_box_pack_end(vbox, sep, FALSE, TRUE, 0);
-    gtk_widget_show(sep);
+    GtkWidget *sep;
 
     g_object_set(G_OBJECT(w), "margin", 8, (const char *)NULL);
     gtk_box_pack_end(vbox, w, FALSE, TRUE, 0);
+
+    sep = gtk_hseparator_new();
+    gtk_box_pack_end(vbox, sep, FALSE, TRUE, 0);
+    gtk_widget_show(sep);
 
 #endif
 }
