@@ -4836,6 +4836,12 @@ int pt_main(int argc, char **argv)
 
     init_clipboard(inst);
 
+    set_geom_hints(inst);
+
+#if GTK_CHECK_VERSION(3,0,0)
+    gtk_window_set_default_geometry(GTK_WINDOW(inst->window),
+                                    inst->width, inst->height);
+#else
     {
         int w = inst->font_width * inst->width + 2*inst->window_border;
         int h = inst->font_height * inst->height + 2*inst->window_border;
@@ -4845,6 +4851,8 @@ int pt_main(int argc, char **argv)
         gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), w, h);
 #endif
     }
+#endif
+
     inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
     inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
@@ -4860,8 +4868,6 @@ int pt_main(int argc, char **argv)
         gtk_box_pack_start(inst->hbox, inst->sbar, FALSE, FALSE, 0);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
-
-    set_geom_hints(inst);
 
     gtk_widget_show(inst->area);
     if (conf_get_int(inst->conf, CONF_scrollbar))
