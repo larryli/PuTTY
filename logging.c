@@ -446,6 +446,7 @@ static Filename *xlatlognam(Filename *src, char *hostname, int port,
     s = filename_to_str(src);
 
     while (*s) {
+        int sanitise = FALSE;
 	/* Let (bufp, len) be the string to append. */
 	bufp = buf;		       /* don't usually override this */
 	if (*s == '&') {
@@ -478,6 +479,12 @@ static Filename *xlatlognam(Filename *src, char *hostname, int port,
 		if (c != '&')
 		    buf[size++] = c;
 	    }
+            /* Never allow path separators - or any other illegal
+             * filename character - to come out of any of these
+             * auto-format directives. E.g. 'hostname' can contain
+             * colons, if it's an IPv6 address, and colons aren't
+             * legal in filenames on Windows. */
+            sanitise = TRUE;
 	} else {
 	    buf[0] = *s++;
 	    size = 1;
@@ -486,8 +493,12 @@ static Filename *xlatlognam(Filename *src, char *hostname, int port,
             bufsize = (buflen + size) * 5 / 4 + 512;
             buffer = sresize(buffer, bufsize, char);
         }
-	memcpy(buffer + buflen, bufp, size);
-	buflen += size;
+        while (size-- > 0) {
+            char c = *bufp++;
+            if (sanitise)
+                c = filename_char_sanitise(c);
+            buffer[buflen++] = c;
+        }
     }
     buffer[buflen] = '\0';
 

@@ -95,6 +95,13 @@ Filename *filename_deserialise(void *vdata, int maxsize, int *used)
     return filename_from_str(data);
 }
 
+char filename_char_sanitise(char c)
+{
+    if (c == '/')
+        return '.';
+    return c;
+}
+
 #ifdef DEBUG
 static FILE *debug_fp = NULL;
 
