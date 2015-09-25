@@ -160,6 +160,9 @@ struct gui_data {
     int ngtkargs;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
     int reconfiguring;
+#if GTK_CHECK_VERSION(3,4,0)
+    gdouble cumulative_scroll;
+#endif
     /* Cached things out of conf that we refer to a lot */
     int bold_style;
     int window_border;
@@ -1783,6 +1786,61 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 }
 #endif
 
+#define SCROLL_INCREMENT_LINES 5
+
+#if GTK_CHECK_VERSION(3,4,0)
+gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
+			 gdouble ex, gdouble ey)
+{
+    int shift, ctrl, alt, x, y, raw_mouse_mode;
+
+    show_mouseptr(inst, 1);
+
+    shift = state & GDK_SHIFT_MASK;
+    ctrl = state & GDK_CONTROL_MASK;
+    alt = state & inst->meta_mod_mask;
+
+    x = (ex - inst->window_border) / inst->font_width;
+    y = (ey - inst->window_border) / inst->font_height;
+
+    raw_mouse_mode =
+        send_raw_mouse && !(shift && conf_get_int(inst->conf,
+                                                  CONF_mouse_override));
+
+    inst->cumulative_scroll += delta * SCROLL_INCREMENT_LINES;
+
+    if (!raw_mouse_mode) {
+        int scroll_lines = (int)inst->cumulative_scroll; /* rounds toward 0 */
+        if (scroll_lines) {
+            term_scroll(inst->term, 0, scroll_lines);
+            inst->cumulative_scroll -= scroll_lines;
+        }
+        return TRUE;
+    } else {
+        int scroll_events = (int)(inst->cumulative_scroll /
+                                  SCROLL_INCREMENT_LINES);
+        if (scroll_events) {
+            int button;
+
+            inst->cumulative_scroll -= scroll_events * SCROLL_INCREMENT_LINES;
+
+            if (scroll_events > 0) {
+                button = MBT_WHEEL_DOWN;
+            } else {
+                button = MBT_WHEEL_UP;
+                scroll_events = -scroll_events;
+            }
+
+            while (scroll_events-- > 0) {
+                term_mouse(inst->term, button, translate_button(button),
+                           MA_CLICK, x, y, shift, ctrl, alt);
+            }
+        }
+        return TRUE;
+    }
+}
+#endif
+
 gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 			 GdkEventType type, guint ebutton, guint state,
 			 gdouble ex, gdouble ey)
@@ -1804,11 +1862,11 @@ gboolean button_internal(struct gui_data *inst, guint32 timestamp,
 
     if (!raw_mouse_mode) {
         if (ebutton == 4 && type == GDK_BUTTON_PRESS) {
-            term_scroll(inst->term, 0, -5);
+            term_scroll(inst->term, 0, -SCROLL_INCREMENT_LINES);
             return TRUE;
         }
         if (ebutton == 5 && type == GDK_BUTTON_PRESS) {
-            term_scroll(inst->term, 0, +5);
+            term_scroll(inst->term, 0, +SCROLL_INCREMENT_LINES);
             return TRUE;
         }
     }
@@ -1868,8 +1926,15 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    guint button;
 
+#if GTK_CHECK_VERSION(3,4,0)
+    gdouble dx, dy;
+    if (gdk_event_get_scroll_deltas((GdkEvent *)event, &dx, &dy)) {
+        return scroll_internal(inst, dy, event->state, event->x, event->y);
+    } else
+        return FALSE;
+#else
+    guint button;
     if (event->direction == GDK_SCROLL_UP)
 	button = 4;
     else if (event->direction == GDK_SCROLL_DOWN)
@@ -1879,6 +1944,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 
     return button_internal(inst, event->time, GDK_BUTTON_PRESS,
 			   button, event->state, event->x, event->y);
+#endif
 }
 #endif
 
@@ -4754,6 +4820,9 @@ int pt_main(int argc, char **argv)
     inst->quit_fn_scheduled = FALSE;
     inst->idle_fn_scheduled = FALSE;
     inst->drawtype = DRAWTYPE_DEFAULT;
+#if GTK_CHECK_VERSION(3,4,0)
+    inst->cumulative_scroll = 0.0;
+#endif
 
     /* defer any child exit handling until we're ready to deal with
      * it */
