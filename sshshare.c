@@ -927,7 +927,6 @@ static int share_closing(Plug plug, const char *error_msg, int error_code,
          * closing it again without bothering to read our version string).
          * So that one case is not treated as a log-worthy error.
          */
-        printf("%d %d\n", error_code, cs->got_verstring);
         if (error_code == BROKEN_PIPE_ERROR_CODE && !cs->got_verstring)
             /* do nothing */;
         else
