@@ -425,6 +425,7 @@ Backend rlogin_backend = {
     rlogin_provide_logctx,
     rlogin_unthrottle,
     rlogin_cfg_info,
+    NULL /* test_for_upstream */,
     "rlogin",
     PROT_RLOGIN,
     513

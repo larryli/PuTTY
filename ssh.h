@@ -24,6 +24,7 @@ void sshfwd_x11_is_local(struct ssh_channel *c);
 
 extern Socket ssh_connection_sharing_init(const char *host, int port,
                                           Conf *conf, Ssh ssh, void **state);
+int ssh_share_test_for_upstream(const char *host, int port, Conf *conf);
 void share_got_pkt_from_server(void *ctx, int type,
                                unsigned char *pkt, int pktlen);
 void share_activate(void *state, const char *server_verstring);

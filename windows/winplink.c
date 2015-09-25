@@ -303,6 +303,7 @@ int main(int argc, char **argv)
     int errors;
     int got_host = FALSE;
     int use_subsystem = 0;
+    int just_test_share_exists = FALSE;
     unsigned long now, next, then;
 
     sklist = NULL;
@@ -364,6 +365,8 @@ int main(int argc, char **argv)
             } else if (!strcmp(p, "-pgpfp")) {
                 pgp_fingerprints();
                 exit(1);
+	    } else if (!strcmp(p, "-shareexists")) {
+                just_test_share_exists = TRUE;
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
@@ -595,6 +598,19 @@ int main(int argc, char **argv)
 
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
+
+    if (just_test_share_exists) {
+        if (!back->test_for_upstream) {
+            fprintf(stderr, "Connection sharing not supported for connection "
+                    "type '%s'\n", back->name);
+            return 1;
+        }
+        if (back->test_for_upstream(conf_get_str(conf, CONF_host),
+                                    conf_get_int(conf, CONF_port), conf))
+            return 0;
+        else
+            return 1;
+    }
 
     /*
      * Start up the connection.

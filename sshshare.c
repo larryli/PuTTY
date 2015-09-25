@@ -2027,6 +2027,55 @@ char *ssh_share_sockname(const char *host, int port, Conf *conf)
     return sockname;
 }
 
+static void nullplug_socket_log(Plug plug, int type, SockAddr addr, int port,
+                                const char *error_msg, int error_code) {}
+static int nullplug_closing(Plug plug, const char *error_msg, int error_code,
+                            int calling_back) { return 0; }
+static int nullplug_receive(Plug plug, int urgent, char *data,
+                            int len) { return 0; }
+static void nullplug_sent(Plug plug, int bufsize) {}
+
+int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
+{
+    static const struct plug_function_table fn_table = {
+	nullplug_socket_log,
+	nullplug_closing,
+	nullplug_receive,
+	nullplug_sent,
+	NULL
+    };
+    struct nullplug {
+        const struct plug_function_table *fn;
+    } np;
+
+    char *sockname, *logtext, *ds_err, *us_err;
+    int result;
+    Socket sock;
+
+    np.fn = &fn_table;
+
+    sockname = ssh_share_sockname(host, port, conf);
+
+    sock = NULL;
+    logtext = ds_err = us_err = NULL;
+    result = platform_ssh_share(sockname, conf, (Plug)&np, (Plug)NULL, &sock,
+                                &logtext, &ds_err, &us_err, FALSE, TRUE);
+
+    sfree(logtext);
+    sfree(ds_err);
+    sfree(us_err);
+    sfree(sockname);
+
+    if (result == SHARE_NONE) {
+        assert(sock == NULL);
+        return FALSE;
+    } else {
+        assert(result == SHARE_DOWNSTREAM);
+        sk_close(sock);
+        return TRUE;
+    }
+}
+
 /*
  * Init function for connection sharing. We either open a listening
  * socket and become an upstream, or connect to an existing one and

@@ -607,6 +607,7 @@ int main(int argc, char **argv)
     int errors;
     int use_subsystem = 0;
     int got_host = FALSE;
+    int just_test_share_exists = FALSE;
     unsigned long now;
     struct winsize size;
 
@@ -685,6 +686,8 @@ int main(int argc, char **argv)
                     --argc;
 		    provide_xrm_string(*++argv);
 		}
+	    } else if (!strcmp(p, "-shareexists")) {
+                just_test_share_exists = TRUE;
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
@@ -958,6 +961,19 @@ int main(int argc, char **argv)
 	!conf_get_int(conf, CONF_agentfwd) &&
 	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
 	conf_set_int(conf, CONF_ssh_simple, TRUE);
+
+    if (just_test_share_exists) {
+        if (!back->test_for_upstream) {
+            fprintf(stderr, "Connection sharing not supported for connection "
+                    "type '%s'\n", back->name);
+            return 1;
+        }
+        if (back->test_for_upstream(conf_get_str(conf, CONF_host),
+                                    conf_get_int(conf, CONF_port), conf))
+            return 0;
+        else
+            return 1;
+    }
 
     /*
      * Start up the connection.

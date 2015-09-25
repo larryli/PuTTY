@@ -3586,6 +3586,19 @@ static void ssh_hostport_setup(const char *host, int port, Conf *conf,
     }
 }
 
+static int ssh_test_for_upstream(const char *host, int port, Conf *conf)
+{
+    char *savedhost;
+    int savedport;
+    int ret;
+
+    ssh_hostport_setup(host, port, conf, &savedhost, &savedport, NULL);
+    ret = ssh_share_test_for_upstream(savedhost, savedport, conf);
+    sfree(savedhost);
+
+    return ret;
+}
+
 /*
  * Connect to specified host and port.
  * Returns an error message, or NULL on success.
@@ -11645,6 +11658,7 @@ Backend ssh_backend = {
     ssh_provide_logctx,
     ssh_unthrottle,
     ssh_cfg_info,
+    ssh_test_for_upstream,
     "ssh",
     PROT_SSH,
     22

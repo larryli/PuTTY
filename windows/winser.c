@@ -453,6 +453,7 @@ Backend serial_backend = {
     serial_provide_logctx,
     serial_unthrottle,
     serial_cfg_info,
+    NULL /* test_for_upstream */,
     "serial",
     PROT_SERIAL,
     0

@@ -445,6 +445,9 @@ struct backend_tag {
      */
     void (*unthrottle) (void *handle, int);
     int (*cfg_info) (void *handle);
+    /* Only implemented in the SSH protocol: check whether a
+     * connection-sharing upstream exists for a given configuration. */
+    int (*test_for_upstream)(const char *host, int port, Conf *conf);
     const char *name;
     int protocol;
     int default_port;

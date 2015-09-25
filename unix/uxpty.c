@@ -1218,6 +1218,7 @@ Backend pty_backend = {
     pty_provide_logctx,
     pty_unthrottle,
     pty_cfg_info,
+    NULL /* test_for_upstream */,
     "pty",
     -1,
     0
