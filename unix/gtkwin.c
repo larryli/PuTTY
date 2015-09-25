@@ -4933,7 +4933,11 @@ int pt_main(int argc, char **argv)
     gtk_widget_add_events(GTK_WIDGET(inst->area),
 			  GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK |
 			  GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK);
+			  GDK_POINTER_MOTION_MASK | GDK_BUTTON_MOTION_MASK
+#if GTK_CHECK_VERSION(3,4,0)
+                          | GDK_SMOOTH_SCROLL_MASK
+#endif
+        );
 
     {
 	extern const char *const *const main_icon[];
