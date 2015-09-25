@@ -88,16 +88,19 @@ static void logfopen_callback(void *handle, int mode)
     char buf[256], *event;
     struct tm tm;
     const char *fmode;
+    int shout = FALSE;
 
     if (mode == 0) {
 	ctx->state = L_ERROR;	       /* disable logging */
     } else {
 	fmode = (mode == 1 ? "ab" : "wb");
 	ctx->lgfp = f_open(ctx->currlogfilename, fmode, FALSE);
-	if (ctx->lgfp)
+	if (ctx->lgfp) {
 	    ctx->state = L_OPEN;
-	else
+        } else {
 	    ctx->state = L_ERROR;
+            shout = TRUE;
+        }
     }
 
     if (ctx->state == L_OPEN) {
@@ -119,6 +122,23 @@ static void logfopen_callback(void *handle, int mode)
 		       "unknown"),
 		      filename_to_str(ctx->currlogfilename));
     logevent(ctx->frontend, event);
+    if (shout) {
+        /*
+         * If we failed to open the log file due to filesystem error
+         * (as opposed to user action such as clicking Cancel in the
+         * askappend box), we should log it more prominently. We do
+         * this by sending it to the same place that stderr output
+         * from the main session goes (so, either a console tool's
+         * actual stderr, or a terminal window).
+         *
+         * Of course this is one case in which that policy won't cause
+         * it to turn up embarrassingly in a log file of real server
+         * output, because the whole point is that we haven't managed
+         * to open any such log file :-)
+         */
+        from_backend(ctx->frontend, 1, event, strlen(event));
+        from_backend(ctx->frontend, 1, "\r\n", 2);
+    }
     sfree(event);
 
     /*
