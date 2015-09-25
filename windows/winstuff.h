@@ -79,6 +79,8 @@ struct FontSpec *fontspec_new(const char *name,
 #define PLATFORM_HAS_SMEMCLR /* inhibit cross-platform one in misc.c */
 #endif
 
+#define BROKEN_PIPE_ERROR_CODE ERROR_BROKEN_PIPE   /* used in sshshare.c */
+
 /*
  * Dynamically linked functions. These come in two flavours:
  *

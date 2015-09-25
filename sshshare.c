@@ -133,6 +133,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
+#include <errno.h>
 
 #include "putty.h"
 #include "tree234.h"
@@ -914,8 +915,26 @@ static int share_closing(Plug plug, const char *error_msg, int error_code,
                          int calling_back)
 {
     struct ssh_sharing_connstate *cs = (struct ssh_sharing_connstate *)plug;
-    if (error_msg)
-        ssh_sharing_logf(cs->parent->ssh, cs->id, "%s", error_msg);
+
+    if (error_msg) {
+#ifdef BROKEN_PIPE_ERROR_CODE
+        /*
+         * Most of the time, we log what went wrong when a downstream
+         * disappears with a socket error. One exception, though, is
+         * receiving EPIPE when we haven't received a protocol version
+         * string from the downstream, because that can happen as a result
+         * of plink -shareexists (opening the connection and instantly
+         * closing it again without bothering to read our version string).
+         * So that one case is not treated as a log-worthy error.
+         */
+        printf("%d %d\n", error_code, cs->got_verstring);
+        if (error_code == BROKEN_PIPE_ERROR_CODE && !cs->got_verstring)
+            /* do nothing */;
+        else
+#endif
+            ssh_sharing_logf(cs->parent->ssh, cs->id,
+                             "Socket error: %s", error_msg);
+    }
     share_begin_cleanup(cs);
     return 1;
 }

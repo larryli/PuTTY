@@ -45,6 +45,8 @@ typedef void *Context;                 /* FIXME: probably needs changing */
 
 extern Backend pty_backend;
 
+#define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
+
 typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
 #define PUTTY_UINT32_DEFINED
 
