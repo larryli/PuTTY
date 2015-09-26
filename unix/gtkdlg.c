@@ -3320,7 +3320,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     union control *c;
     struct dlgparam dp;
     struct Shortcuts scs;
-    int index, ncols;
+    int index, ncols, min_type;
     va_list ap;
 
     dlg_init(&dp);
@@ -3331,13 +3331,23 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
 
     ctrlbox = ctrl_new_box();
 
+    /*
+     * Preliminary pass over the va_list, to count up the number of
+     * buttons and find out what kinds there are.
+     */
     ncols = 0;
     va_start(ap, minwid);
+    min_type = +1;
     while (va_arg(ap, char *) != NULL) {
-	ncols++;
+        int type;
+
 	(void) va_arg(ap, int);	       /* shortcut */
-	(void) va_arg(ap, int);	       /* normal/default/cancel */
+	type = va_arg(ap, int);	       /* normal/default/cancel */
 	(void) va_arg(ap, int);	       /* end value */
+
+	ncols++;
+        if (min_type > type)
+            min_type = type;
     }
     va_end(ap);
 
@@ -3362,7 +3372,17 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
 	c->generic.column = index++;
 	if (type > 0)
 	    c->button.isdefault = TRUE;
-	else if (type < 0)
+
+        /* We always arrange that _some_ button is labelled as
+         * 'iscancel', so that pressing Escape will always cause
+         * win_key_press to do something. The button we choose is
+         * whichever has the smallest type value: this means that real
+         * cancel buttons (labelled -1) will be picked if one is
+         * there, or in cases where the options are yes/no (1,0) then
+         * no will be picked, and if there's only one option (a box
+         * that really is just showing a _message_ and not even asking
+         * a question) then that will be picked. */
+	if (type == min_type)
 	    c->button.iscancel = TRUE;
     }
     va_end(ap);
