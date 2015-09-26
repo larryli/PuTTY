@@ -3520,7 +3520,8 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     text = dupprintf(msg, algtype, algname);
     ret = messagebox(GTK_WIDGET(get_window(frontend)),
 		     "PuTTY Security Alert", text,
-		     string_width("Continue with connection?"),
+		     string_width("Reasonably long line of text as a width"
+                                  " template"),
 		     "Yes", 'y', 0, 1,
 		     "No", 'n', 0, 0,
 		     NULL);
