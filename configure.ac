@@ -76,31 +76,24 @@ AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 
-# Look for GTK 2, GTK 3 and GTK 1, in descending order of preference.
-#
-# (I like GTK 2 for its faster support for X server-side fonts due to
-# not being required to do all its drawing via Cairo; GTK 3 is
-# tolerable if GTK 2 can't be had, and GTK 1 is an extreme fallback
-# for platforms - of which I've heard of at least one - to which
-# nothing newer has ever been ported.)
-#
+# Look for GTK 3, GTK 2 and GTK 1, in descending order of preference.
 # If we can't find any, have the makefile only build the CLI programs.
 
 gtk=none
-
-case "$gtk_version_desired:$gtk" in
-  2:none | any:none)
-    ifdef([AM_PATH_GTK_2_0],[
-    AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
-    ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
-    ;;
-esac
 
 case "$gtk_version_desired:$gtk" in
   3:none | any:none)
     ifdef([AM_PATH_GTK_3_0],[
     AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])
     ],[AC_WARNING([generating configure script without GTK 3 autodetection])])
+    ;;
+esac
+
+case "$gtk_version_desired:$gtk" in
+  2:none | any:none)
+    ifdef([AM_PATH_GTK_2_0],[
+    AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
+    ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
     ;;
 esac
 
@@ -199,12 +192,6 @@ elif test "$gtk" = "none"; then cat <<EOF
 your system. Therefore, PuTTY itself and the other GUI utilities will
 not be built by the generated Makefile: only the command-line tools
 such as puttygen, plink and psftp will be built.
-
-EOF
-elif test "$gtk" = "3"; then cat <<EOF
-
-PuTTY will be built with GTK 3. Be aware that the GTK 3 support in
-this codebase is UNFINISHED AND EXPERIMENTAL!
 
 EOF
 fi
