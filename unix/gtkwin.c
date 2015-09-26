@@ -820,10 +820,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
     if (event->type == GDK_KEY_PRESS) {
 	/*
-	 * NYI: Compose key (!!! requires Unicode faff before even trying)
-	 */
-
-	/*
 	 * If Alt has just been pressed, we start potentially
 	 * accumulating an Alt+numberpad code. We do this by
 	 * setting alt_keycode to -1 (nothing yet but plausible).
@@ -3095,11 +3091,8 @@ void do_beep(void *frontend, int mode)
 int char_width(Context ctx, int uc)
 {
     /*
-     * Under X, any fixed-width font really _is_ fixed-width.
-     * Double-width characters will be dealt with using a separate
-     * font. For the moment we can simply return 1.
-     * 
-     * FIXME: but is that also true of Pango?
+     * In this front end, double-width characters are handled using a
+     * separate font, so this can safely just return 1 always.
      */
     return 1;
 }
