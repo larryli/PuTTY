@@ -2294,6 +2294,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		 */
 		g_signal_connect(G_OBJECT(w), "changed",
 				 G_CALLBACK(droplist_selchange), dp);
+
+                g_signal_connect(G_OBJECT(w), "focus_in_event",
+                                 G_CALLBACK(widget_focus), dp);
 #endif
             } else {
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -2400,6 +2403,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 		uc->treeview = w;
                 g_signal_connect(G_OBJECT(w), "row-activated",
                                  G_CALLBACK(listbox_doubleclick), dp);
+                g_signal_connect(G_OBJECT(w), "focus_in_event",
+                                 G_CALLBACK(widget_focus), dp);
 		g_signal_connect(G_OBJECT(sel), "changed",
 				 G_CALLBACK(listbox_selchange), dp);
 
