@@ -499,7 +499,7 @@ int main(int argc, char **argv)
         ret = dupprintf("usage: %s <prompt text>", argv[0]);
     } else {
         srand(time(NULL));
-        ret = gtk_askpass_main(argv[1], &success);
+        ret = gtk_askpass_main(NULL, "Enter passphrase", argv[1], &success);
     }
 
     if (!success) {
