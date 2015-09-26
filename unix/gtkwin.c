@@ -3397,7 +3397,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
-    int ncombining, combining;
+    int ncombining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome =
         gdk_visual_get_depth(gtk_widget_get_visual(inst->area)) == 1;
@@ -3494,11 +3494,20 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
     draw_set_colour(dctx, nfg);
-    for (combining = 0; combining < ncombining; combining++) {
+    if (ncombining > 1) {
+        assert(len == 1);
+        unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
+                               x*inst->font_width+inst->window_border,
+                               (y*inst->font_height+inst->window_border+
+                                inst->fonts[0]->ascent),
+                               text, ncombining, widefactor > 1,
+                               bold, inst->font_width);
+    } else {
         unifont_draw_text(&dctx->uctx, inst->fonts[fontid],
                           x*inst->font_width+inst->window_border,
-                          y*inst->font_height+inst->window_border+inst->fonts[0]->ascent,
-                          text + combining, len, widefactor > 1,
+                          (y*inst->font_height+inst->window_border+
+                           inst->fonts[0]->ascent),
+                          text, len, widefactor > 1,
                           bold, inst->font_width);
     }
 

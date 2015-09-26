@@ -83,6 +83,9 @@ struct unifont_vtable {
     void (*draw_text)(unifont_drawctx *ctx, unifont *font,
                       int x, int y, const wchar_t *string, int len,
                       int wide, int bold, int cellwidth);
+    void (*draw_combining)(unifont_drawctx *ctx, unifont *font,
+                           int x, int y, const wchar_t *string, int len,
+                           int wide, int bold, int cellwidth);
     void (*enum_fonts)(GtkWidget *widget,
 		       fontsel_add_entry callback, void *callback_ctx);
     char *(*canonify_fontname)(GtkWidget *widget, const char *name, int *size,
@@ -107,6 +110,9 @@ static int x11font_has_glyph(unifont *font, wchar_t glyph);
 static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
                               int x, int y, const wchar_t *string, int len,
                               int wide, int bold, int cellwidth);
+static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                   int x, int y, const wchar_t *string,
+                                   int len, int wide, int bold, int cellwidth);
 static unifont *x11font_create(GtkWidget *widget, const char *name,
 			       int wide, int bold,
 			       int shadowoffset, int shadowalways);
@@ -206,6 +212,7 @@ static const struct unifont_vtable x11font_vtable = {
     x11font_destroy,
     x11font_has_glyph,
     x11font_draw_text,
+    x11font_draw_combining,
     x11font_enum_fonts,
     x11font_canonify_fontname,
     x11font_scale_fontname,
@@ -868,6 +875,20 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
     }
 }
 
+static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                   int x, int y, const wchar_t *string,
+                                   int len, int wide, int bold, int cellwidth)
+{
+    /*
+     * For server-side fonts, there's no sophisticated system for
+     * combining characters intelligently, so the best we can do is to
+     * overprint them on each other in the obvious way.
+     */
+    int i;
+    for (i = 0; i < len; i++)
+        x11font_draw_text(ctx, font, x, y, string+i, 1, wide, bold, cellwidth);
+}
+
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx)
 {
@@ -1112,6 +1133,10 @@ static int pangofont_has_glyph(unifont *font, wchar_t glyph);
 static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
                                 int x, int y, const wchar_t *string, int len,
                                 int wide, int bold, int cellwidth);
+static void pangofont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                     int x, int y, const wchar_t *string,
+                                     int len, int wide, int bold,
+                                     int cellwidth);
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
 				 int wide, int bold,
 				 int shadowoffset, int shadowalways);
@@ -1157,6 +1182,7 @@ static const struct unifont_vtable pangofont_vtable = {
     pangofont_destroy,
     pangofont_has_glyph,
     pangofont_draw_text,
+    pangofont_draw_combining,
     pangofont_enum_fonts,
     pangofont_canonify_fontname,
     pangofont_scale_fontname,
@@ -1384,9 +1410,10 @@ static void pango_cairo_draw_layout(unifont_drawctx *ctx,
 }
 #endif
 
-static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
-                                int x, int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth)
+static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
+                                    int x, int y, const wchar_t *string,
+                                    int len, int wide, int bold, int cellwidth,
+                                    int combining)
 {
     struct pangofont *pfont = (struct pangofont *)font;
     PangoLayout *layout;
@@ -1463,45 +1490,55 @@ static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
 	 * them to do that.
 	 */
 
-	/*
-	 * Start by extracting a single UTF-8 character from the
-	 * string.
-	 */
-	clen = 1;
-	while (clen < utflen &&
-	       (unsigned char)utfptr[clen] >= 0x80 &&
-	       (unsigned char)utfptr[clen] < 0xC0)
-	    clen++;
-	n = 1;
-
-        if (is_rtl(string[0]) ||
-            pangofont_char_width(layout, pfont, string[n-1],
-                                 utfptr, clen) != desired) {
+        if (combining) {
             /*
-             * If this character is a right-to-left one, or has an
-             * unusual width, then we must display it on its own.
+             * For a character with combining stuff, we just dump the
+             * whole lot in one go, and expect it to take up just one
+             * character cell.
              */
+            clen = utflen;
+            n = 1;
         } else {
             /*
-             * Try to amalgamate a contiguous string of characters
-             * with the expected sensible width, for the common case
-             * in which we're using a monospaced font and everything
-             * works as expected.
+             * Start by extracting a single UTF-8 character from the
+             * string.
              */
-            while (clen < utflen) {
-                int oldclen = clen;
-                clen++;		       /* skip UTF-8 introducer byte */
-                while (clen < utflen &&
-                       (unsigned char)utfptr[clen] >= 0x80 &&
-                       (unsigned char)utfptr[clen] < 0xC0)
-                    clen++;
-                n++;
-                if (pangofont_char_width(layout, pfont,
-                                         string[n-1], utfptr + oldclen,
-                                         clen - oldclen) != desired) {
-                    clen = oldclen;
-                    n--;
-                    break;
+            clen = 1;
+            while (clen < utflen &&
+                   (unsigned char)utfptr[clen] >= 0x80 &&
+                   (unsigned char)utfptr[clen] < 0xC0)
+                clen++;
+            n = 1;
+
+            if (is_rtl(string[0]) ||
+                pangofont_char_width(layout, pfont, string[n-1],
+                                     utfptr, clen) != desired) {
+                /*
+                 * If this character is a right-to-left one, or has an
+                 * unusual width, then we must display it on its own.
+                 */
+            } else {
+                /*
+                 * Try to amalgamate a contiguous string of characters
+                 * with the expected sensible width, for the common case
+                 * in which we're using a monospaced font and everything
+                 * works as expected.
+                 */
+                while (clen < utflen) {
+                    int oldclen = clen;
+                    clen++;		       /* skip UTF-8 introducer byte */
+                    while (clen < utflen &&
+                           (unsigned char)utfptr[clen] >= 0x80 &&
+                           (unsigned char)utfptr[clen] < 0xC0)
+                        clen++;
+                    n++;
+                    if (pangofont_char_width(layout, pfont,
+                                             string[n-1], utfptr + oldclen,
+                                             clen - oldclen) != desired) {
+                        clen = oldclen;
+                        n--;
+                        break;
+                    }
                 }
             }
         }
@@ -1526,6 +1563,37 @@ static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
     sfree(utfstring);
 
     g_object_unref(layout);
+}
+
+static void pangofont_draw_text(unifont_drawctx *ctx, unifont *font,
+                                int x, int y, const wchar_t *string, int len,
+                                int wide, int bold, int cellwidth)
+{
+    pangofont_draw_internal(ctx, font, x, y, string, len, wide, bold,
+                            cellwidth, FALSE);
+}
+
+static void pangofont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                     int x, int y, const wchar_t *string,
+                                     int len, int wide, int bold,
+                                     int cellwidth)
+{
+    wchar_t *tmpstring = NULL;
+    if (mk_wcwidth(string[0]) == 0) {
+        /*
+         * If we've been told to draw a sequence of _only_ combining
+         * characters, prefix a space so that they have something to
+         * combine with.
+         */
+        tmpstring = snewn(len+1, wchar_t);
+        memcpy(tmpstring+1, string, len * sizeof(wchar_t));
+        tmpstring[0] = L' ';
+        string = tmpstring;
+        len++;
+    }
+    pangofont_draw_internal(ctx, font, x, y, string, len, wide, bold,
+                            cellwidth, TRUE);
+    sfree(tmpstring);
 }
 
 /*
@@ -1873,6 +1941,14 @@ void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
     font->vt->draw_text(ctx, font, x, y, string, len, wide, bold, cellwidth);
 }
 
+void unifont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                            int x, int y, const wchar_t *string, int len,
+                            int wide, int bold, int cellwidth)
+{
+    font->vt->draw_combining(ctx, font, x, y, string, len, wide, bold,
+                             cellwidth);
+}
+
 /* ----------------------------------------------------------------------
  * Multiple-font wrapper. This is a type of unifont which encapsulates
  * up to two other unifonts, permitting missing glyphs in the main
@@ -1889,6 +1965,10 @@ void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
 static void multifont_draw_text(unifont_drawctx *ctx, unifont *font,
                                 int x, int y, const wchar_t *string, int len,
                                 int wide, int bold, int cellwidth);
+static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                     int x, int y, const wchar_t *string,
+                                     int len, int wide, int bold,
+                                     int cellwidth);
 static void multifont_destroy(unifont *font);
 
 struct multifont {
@@ -1903,6 +1983,7 @@ static const struct unifont_vtable multifont_vtable = {
     multifont_destroy,
     NULL,
     multifont_draw_text,
+    multifont_draw_combining,
     NULL,
     NULL,
     NULL,
@@ -1963,9 +2044,15 @@ static void multifont_destroy(unifont *font)
     sfree(font);
 }
 
-static void multifont_draw_text(unifont_drawctx *ctx, unifont *font, int x,
+typedef void (*unifont_draw_func_t)(unifont_drawctx *ctx, unifont *font,
+                                    int x, int y, const wchar_t *string,
+                                    int len, int wide, int bold,
+                                    int cellwidth);
+
+static void multifont_draw_main(unifont_drawctx *ctx, unifont *font, int x,
                                 int y, const wchar_t *string, int len,
-                                int wide, int bold, int cellwidth)
+                                int wide, int bold, int cellwidth,
+                                int cellinc, unifont_draw_func_t draw)
 {
     struct multifont *mfont = (struct multifont *)font;
     unifont *f;
@@ -1987,11 +2074,28 @@ static void multifont_draw_text(unifont_drawctx *ctx, unifont *font, int x,
          */
         f = ok ? mfont->main : mfont->fallback;
         if (f)
-            unifont_draw_text(ctx, f, x, y, string, i, wide, bold, cellwidth);
+            draw(ctx, f, x, y, string, i, wide, bold, cellwidth);
         string += i;
         len -= i;
-        x += i * cellwidth;
+        x += i * cellinc;
     }
+}
+
+static void multifont_draw_text(unifont_drawctx *ctx, unifont *font, int x,
+                                int y, const wchar_t *string, int len,
+                                int wide, int bold, int cellwidth)
+{
+    multifont_draw_main(ctx, font, x, y, string, len, wide, bold,
+                        cellwidth, cellwidth, unifont_draw_text);
+}
+
+static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                                     int x, int y, const wchar_t *string,
+                                     int len, int wide, int bold,
+                                     int cellwidth)
+{
+    multifont_draw_main(ctx, font, x, y, string, len, wide, bold,
+                        cellwidth, 0, unifont_draw_combining);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)

@@ -136,6 +136,12 @@ void unifont_destroy(unifont *font);
 void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
                        int x, int y, const wchar_t *string, int len,
                        int wide, int bold, int cellwidth);
+/* Same as unifont_draw_text, but expects 'string' to contain one
+ * normal char plus combining chars, and overdraws them all in the
+ * same character cell. */
+void unifont_draw_combining(unifont_drawctx *ctx, unifont *font,
+                            int x, int y, const wchar_t *string, int len,
+                            int wide, int bold, int cellwidth);
 
 /*
  * This function behaves exactly like the low-level unifont_create,
