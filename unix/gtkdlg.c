@@ -2885,7 +2885,7 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
 
     scs->sc[chr].action = action;
 
-    if (action == SHORTCUT_FOCUS) {
+    if (action == SHORTCUT_FOCUS || action == SHORTCUT_TREE) {
 	scs->sc[chr].uc = NULL;
 	scs->sc[chr].widget = (GtkWidget *)ptr;
     } else {
