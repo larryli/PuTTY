@@ -2473,7 +2473,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 #endif
 
 		shortcut_add(scs, label, ctrl->listbox.shortcut,
-			     SHORTCUT_FOCUS, w);
+			     SHORTCUT_UCTRL, uc);
 
 		container = columns_new(4);
 		if (ctrl->listbox.percentwidth == 100) {
