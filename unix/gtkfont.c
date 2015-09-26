@@ -2355,7 +2355,7 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
 		gtk_list_store_append(fs->style_model, &iter);
 		gtk_list_store_set(fs->style_model, &iter,
 				   0, currstyle, 1, minpos, 2, maxpos+1,
-				   3, TRUE, -1);
+				   3, TRUE, 4, PANGO_WEIGHT_NORMAL, -1);
 		listindex++;
 	    }
 	    if (info) {
@@ -2364,7 +2364,7 @@ static void unifontsel_setup_stylelist(unifontsel_internal *fs,
 		    gtk_list_store_append(fs->style_model, &iter);
 		    gtk_list_store_set(fs->style_model, &iter,
 				       0, info->charset, 1, -1, 2, -1,
-				       3, FALSE, -1);
+				       3, FALSE, 4, PANGO_WEIGHT_BOLD, -1);
 		    listindex++;
 		}
 		currcs = info->charset;
@@ -3204,19 +3204,21 @@ unifontsel *unifontsel_new(const char *wintitle)
 #endif
 
     /*
-     * The Style list box can contain insensitive elements
-     * (character set headings for server-side fonts), so we add
-     * an extra column to the list store to hold that information.
+     * The Style list box can contain insensitive elements (character
+     * set headings for server-side fonts), so we add an extra column
+     * to the list store to hold that information. Also, since GTK3 at
+     * least doesn't seem to display insensitive elements differently
+     * by default, we add a further column to change their style.
      */
-    model = gtk_list_store_new(4, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT,
-			       G_TYPE_BOOLEAN);
+    model = gtk_list_store_new(5, G_TYPE_STRING, G_TYPE_INT, G_TYPE_INT,
+			       G_TYPE_BOOLEAN, G_TYPE_INT);
     w = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
     gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(w), FALSE);
     gtk_label_set_mnemonic_widget(GTK_LABEL(label), w);
     gtk_widget_show(w);
     column = gtk_tree_view_column_new_with_attributes
 	("Style", gtk_cell_renderer_text_new(),
-	 "text", 0, "sensitive", 3, (char *)NULL);
+	 "text", 0, "sensitive", 3, "weight", 4, (char *)NULL);
     gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_AUTOSIZE);
     gtk_tree_view_append_column(GTK_TREE_VIEW(w), column);
     g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(w))),
