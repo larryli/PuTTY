@@ -304,6 +304,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
     ctx->promptlabel = gtk_label_new(prompt_text);
     align_label_left(GTK_LABEL(ctx->promptlabel));
+    gtk_widget_show(ctx->promptlabel);
     gtk_label_set_line_wrap(GTK_LABEL(ctx->promptlabel), TRUE);
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_label_set_width_chars(GTK_LABEL(ctx->promptlabel), 48);
@@ -388,7 +389,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
 
     /*
      * And now that we've got the keyboard grab, connect up our
-     * keyboard handlers, and display the prompt.
+     * keyboard handlers.
      */
 #if GTK_CHECK_VERSION(2,0,0)
     g_signal_connect(G_OBJECT(ctx->imc), "commit",
@@ -402,7 +403,6 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     gtk_im_context_set_client_window(ctx->imc,
                                      gtk_widget_get_window(ctx->dialog));
 #endif
-    gtk_widget_show(ctx->promptlabel);
 
     return NULL;
 }
