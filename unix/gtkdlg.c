@@ -3585,6 +3585,15 @@ static void about_close_clicked(GtkButton *button, gpointer data)
     aboutbox = NULL;
 }
 
+static void about_key_press(GtkWidget *widget, GdkEventKey *event,
+                            gpointer data)
+{
+    if (event->keyval == GDK_KEY_Escape && aboutbox) {
+        gtk_widget_destroy(aboutbox);
+        aboutbox = NULL;
+    }
+}
+
 static void licence_clicked(GtkButton *button, gpointer data)
 {
     char *title;
@@ -3672,6 +3681,9 @@ void about_box(void *window)
     w = gtk_label_new("Copyright 1997-2015 Simon Tatham. All rights reserved");
     our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 5);
     gtk_widget_show(w);
+
+    g_signal_connect(G_OBJECT(aboutbox), "key_press_event",
+                     G_CALLBACK(about_key_press), NULL);
 
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
     gtk_window_set_transient_for(GTK_WINDOW(aboutbox),
