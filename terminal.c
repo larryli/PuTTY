@@ -6078,7 +6078,8 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	sel_spread(term);
     } else if ((bcooked == MBT_SELECT && a == MA_DRAG) ||
 	       (bcooked == MBT_EXTEND && a != MA_RELEASE)) {
-        if (term->selstate == NO_SELECTION || term->selstate == SELECTED) {
+        if (a == MA_DRAG &&
+            (term->selstate == NO_SELECTION || term->selstate == SELECTED)) {
             /*
              * This can happen if a front end has passed us a MA_DRAG
              * without a prior MA_CLICK. OS X GTK does so, for
