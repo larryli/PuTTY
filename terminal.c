@@ -4688,7 +4688,7 @@ static void term_out(Terminal *term)
     }
 
     term_print_flush(term);
-    if (term->logflush)
+    if (term->logflush && term->logctx)
 	logflush(term->logctx);
 }
 
