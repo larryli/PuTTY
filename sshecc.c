@@ -1770,6 +1770,7 @@ static void *ecdsa_newkey(const struct ssh_signkey *self,
     /* Curve name is duplicated for Weierstrass form */
     if (curve->type == EC_WEIERSTRASS) {
         getstring(&data, &len, &p, &slen);
+	if (!p) return NULL;
         if (!match_ssh_id(slen, p, curve->name)) return NULL;
     }
 
