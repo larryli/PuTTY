@@ -1782,11 +1782,11 @@ static void *ecdsa_newkey(const struct ssh_signkey *self,
     ec->publicKey.x = NULL;
     ec->publicKey.y = NULL;
     ec->publicKey.z = NULL;
+    ec->privateKey = NULL;
     if (!getmppoint(&data, &len, &ec->publicKey)) {
         ecdsa_freekey(ec);
         return NULL;
     }
-    ec->privateKey = NULL;
 
     if (!ec->publicKey.x || !ec->publicKey.y ||
         bignum_cmp(ec->publicKey.x, curve->p) >= 0 ||
