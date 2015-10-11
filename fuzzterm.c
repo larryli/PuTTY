@@ -23,6 +23,10 @@ int main(int argc, char **argv)
 	term = term_init(conf, &ucsdata, NULL);
 	term_size(term, 24, 80, 10000);
 	term->ldisc = NULL;
+	/* Tell american fuzzy lop that this is a good place to fork. */
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+	__AFL_INIT();
+#endif
 	while (!feof(stdin)) {
 		len = fread(blk, 1, sizeof(blk), stdin);
 		term_data(term, 0, blk, len);
