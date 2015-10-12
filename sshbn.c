@@ -1142,8 +1142,7 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
             (BignumInt)byte << (8*i % BIGNUM_INT_BITS);
     }
 
-    while (result[0] > 1 && result[result[0]] == 0)
-	result[0]--;
+    bn_restore_invariant(result);
     return result;
 }
 
@@ -1165,8 +1164,7 @@ Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes)
             (BignumInt)byte << (8*i % BIGNUM_INT_BITS);
     }
 
-    while (result[0] > 1 && result[result[0]] == 0)
-        result[0]--;
+    bn_restore_invariant(result);
     return result;
 }
 
