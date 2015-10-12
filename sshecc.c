@@ -1648,6 +1648,7 @@ static int decodepoint_ed(const char *p, int length, struct ec_point *point)
     /* Read x bit and then reset it */
     negative = bignum_bit(point->y, point->curve->fieldBits - 1);
     bignum_set_bit(point->y, point->curve->fieldBits - 1, 0);
+    bn_restore_invariant(point->y);
 
     /* Get the x from the y */
     point->x = ecp_edx(point->curve, point->y);
