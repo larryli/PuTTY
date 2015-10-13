@@ -2344,7 +2344,7 @@ static void check_boundary(Terminal *term, int x, int y)
     termline *ldata;
 
     /* Validate input coordinates, just in case. */
-    if (x == 0 || x > term->cols)
+    if (x <= 0 || x > term->cols)
 	return;
 
     ldata = scrlineptr(y);
