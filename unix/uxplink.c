@@ -690,6 +690,10 @@ int main(int argc, char **argv)
 		}
 	    } else if (!strcmp(p, "-shareexists")) {
                 just_test_share_exists = TRUE;
+	    } else if (!strcmp(p, "-fuzznet")) {
+		conf_set_int(conf, CONF_proxy_type, PROXY_CMD);
+		conf_set_str(conf, CONF_proxy_telnet_command,
+			     "cat %host");
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
