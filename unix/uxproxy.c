@@ -250,12 +250,11 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     };
 
     Local_Proxy_Socket ret;
-    int to_cmd_pipe[2], from_cmd_pipe[2], pid;
+    int to_cmd_pipe[2], from_cmd_pipe[2], pid, proxytype;
 
-    if (conf_get_int(conf, CONF_proxy_type) != PROXY_CMD)
+    proxytype = conf_get_int(conf, CONF_proxy_type);
+    if (proxytype != PROXY_CMD && proxytype != PROXY_FUZZ)
 	return NULL;
-
-    cmd = format_telnet_command(addr, port, conf);
 
     ret = snew(struct Socket_localproxy_tag);
     ret->fn = &socket_fn_table;
@@ -266,45 +265,64 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     bufchain_init(&ret->pending_input_data);
     bufchain_init(&ret->pending_output_data);
 
-    /*
-     * Create the pipes to the proxy command, and spawn the proxy
-     * command process.
-     */
-    if (pipe(to_cmd_pipe) < 0 ||
-	pipe(from_cmd_pipe) < 0) {
-	ret->error = dupprintf("pipe: %s", strerror(errno));
-        sfree(cmd);
-	return (Socket)ret;
-    }
-    cloexec(to_cmd_pipe[1]);
-    cloexec(from_cmd_pipe[0]);
+    if (proxytype == PROXY_CMD) {
+	cmd = format_telnet_command(addr, port, conf);
 
-    pid = fork();
+	/*
+	 * Create the pipes to the proxy command, and spawn the proxy
+	 * command process.
+	 */
+	if (pipe(to_cmd_pipe) < 0 ||
+	    pipe(from_cmd_pipe) < 0) {
+	    ret->error = dupprintf("pipe: %s", strerror(errno));
+	    sfree(cmd);
+	    return (Socket)ret;
+	}
+	cloexec(to_cmd_pipe[1]);
+	cloexec(from_cmd_pipe[0]);
 
-    if (pid < 0) {
-	ret->error = dupprintf("fork: %s", strerror(errno));
-        sfree(cmd);
-	return (Socket)ret;
-    } else if (pid == 0) {
-	close(0);
-	close(1);
-	dup2(to_cmd_pipe[0], 0);
-	dup2(from_cmd_pipe[1], 1);
+	pid = fork();
+
+	if (pid < 0) {
+	    ret->error = dupprintf("fork: %s", strerror(errno));
+	    sfree(cmd);
+	    return (Socket)ret;
+	} else if (pid == 0) {
+	    close(0);
+	    close(1);
+	    dup2(to_cmd_pipe[0], 0);
+	    dup2(from_cmd_pipe[1], 1);
+	    close(to_cmd_pipe[0]);
+	    close(from_cmd_pipe[1]);
+	    noncloexec(0);
+	    noncloexec(1);
+	    execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);
+	    _exit(255);
+	}
+
+	sfree(cmd);
+
 	close(to_cmd_pipe[0]);
 	close(from_cmd_pipe[1]);
-	noncloexec(0);
-	noncloexec(1);
-	execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);
-	_exit(255);
+
+	ret->to_cmd = to_cmd_pipe[1];
+	ret->from_cmd = from_cmd_pipe[0];
+    } else {
+	cmd = format_telnet_command(addr, port, conf);
+	ret->to_cmd = open("/dev/null", O_WRONLY);
+	if (ret->to_cmd == -1) {
+	    ret->error = dupprintf("/dev/null: %s", strerror(errno));
+	    sfree(cmd);
+	    return (Socket)ret;
+	}
+	ret->from_cmd = open(cmd, O_RDONLY);
+	if (ret->from_cmd == -1) {
+	    ret->error = dupprintf("%s: %s", cmd, strerror(errno));
+	    sfree(cmd);
+	    return (Socket)ret;
+	}
+	sfree(cmd);
     }
-
-    sfree(cmd);
-
-    close(to_cmd_pipe[0]);
-    close(from_cmd_pipe[1]);
-
-    ret->to_cmd = to_cmd_pipe[1];
-    ret->from_cmd = from_cmd_pipe[0];
 
     if (!localproxy_by_fromfd)
 	localproxy_by_fromfd = newtree234(localproxy_fromfd_cmp);
