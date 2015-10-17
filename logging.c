@@ -164,6 +164,7 @@ void logfopen(void *handle)
 {
     struct LogContext *ctx = (struct LogContext *)handle;
     struct tm tm;
+    FILE *fp;
     int mode;
 
     /* Prevent repeat calls */
@@ -183,10 +184,10 @@ void logfopen(void *handle)
                    conf_get_str(ctx->conf, CONF_host),
                    conf_get_int(ctx->conf, CONF_port), &tm);
 
-    ctx->lgfp = f_open(ctx->currlogfilename, "r", FALSE);  /* file already present? */
-    if (ctx->lgfp) {
+    fp = f_open(ctx->currlogfilename, "r", FALSE);  /* file already present? */
+    if (fp) {
 	int logxfovr = conf_get_int(ctx->conf, CONF_logxfovr);
-	fclose(ctx->lgfp);
+	fclose(fp);
 	if (logxfovr != LGXF_ASK) {
 	    mode = ((logxfovr == LGXF_OVR) ? 2 : 1);
 	} else
