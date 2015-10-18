@@ -2268,6 +2268,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     }
 
     getstring(&sig, &siglen, &p, &slen);
+    if (!p) return 0;
     if (ec->publicKey.curve->type == EC_EDWARDS) {
         struct ec_point *r;
         Bignum s, h;
