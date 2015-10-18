@@ -3017,6 +3017,10 @@ static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
     }
 
     ssh_fix_verstring(verstring + strlen(protoname));
+#ifdef FUZZING
+    /* FUZZING make PuTTY insecure, so make live use difficult. */
+    verstring[0] = 'I';
+#endif
 
     if (ssh->version == 2) {
 	size_t len;
@@ -4050,6 +4054,9 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
                                             "rsa", keystr, fingerprint,
                                             ssh_dialog_callback, ssh);
             sfree(keystr);
+#ifdef FUZZING
+	    s->dlgret = 1;
+#endif
             if (s->dlgret < 0) {
                 do {
                     crReturn(0);
@@ -6487,6 +6494,11 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	/* List encryption algorithms (client->server then server->client). */
 	for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
 	    warn = FALSE;
+#ifdef FUZZING
+	    alg = ssh2_kexinit_addalg(s->kexlists[k], "none");
+	    alg->u.cipher.cipher = NULL;
+	    alg->u.cipher.warn = warn;
+#endif /* FUZZING */
 	    for (i = 0; i < s->n_preferred_ciphers; i++) {
 		const struct ssh2_ciphers *c = s->preferred_ciphers[i];
 		if (!c) warn = TRUE;
@@ -6500,6 +6512,11 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	}
 	/* List MAC algorithms (client->server then server->client). */
 	for (j = KEXLIST_CSMAC; j <= KEXLIST_SCMAC; j++) {
+#ifdef FUZZING
+	    alg = ssh2_kexinit_addalg(s->kexlists[j], "none");
+	    alg->u.mac.mac = NULL;
+	    alg->u.mac.etm = FALSE;
+#endif /* FUZZING */
 	    for (i = 0; i < s->nmacs; i++) {
 		alg = ssh2_kexinit_addalg(s->kexlists[j], s->maclist[i]->name);
 		alg->u.mac.mac = s->maclist[i];
@@ -6772,8 +6789,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         {
             int csbits, scbits;
 
-            csbits = s->cscipher_tobe->real_keybits;
-            scbits = s->sccipher_tobe->real_keybits;
+            csbits = s->cscipher_tobe ? s->cscipher_tobe->real_keybits : 0;
+            scbits = s->sccipher_tobe ? s->sccipher_tobe->real_keybits : 0;
             s->nbits = (csbits > scbits ? csbits : scbits);
         }
         /* The keys only have hlen-bit entropy, since they're based on
@@ -7113,8 +7130,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
 				 (char *)s->exchange_hash,
 				 ssh->kex->hash->hlen)) {
+#ifndef FUZZING
 	bombout(("Server's host key did not match the signature supplied"));
 	crStopV;
+#endif
     }
 
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
@@ -7139,6 +7158,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
                                             ssh->hostkey->keytype, s->keystr,
                                             s->fingerprint,
                                             ssh_dialog_callback, ssh);
+#ifdef FUZZING
+	    s->dlgret = 1;
+#endif
             if (s->dlgret < 0) {
                 do {
                     crReturnV;
@@ -7171,8 +7193,10 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
          * the one we saw before.
          */
         if (strcmp(ssh->hostkey_str, s->keystr)) {
+#ifndef FUZZING
             bombout(("Host key was different in repeat key exchange"));
             crStopV;
+#endif
         }
         sfree(s->keystr);
     }
@@ -7206,13 +7230,14 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     if (ssh->cs_cipher_ctx)
 	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
     ssh->cscipher = s->cscipher_tobe;
-    ssh->cs_cipher_ctx = ssh->cscipher->make_context();
+    if (ssh->cscipher) ssh->cs_cipher_ctx = ssh->cscipher->make_context();
 
     if (ssh->cs_mac_ctx)
 	ssh->csmac->free_context(ssh->cs_mac_ctx);
     ssh->csmac = s->csmac_tobe;
     ssh->csmac_etm = s->csmac_etm_tobe;
-    ssh->cs_mac_ctx = ssh->csmac->make_context(ssh->cs_cipher_ctx);
+    if (ssh->csmac)
+        ssh->cs_mac_ctx = ssh->csmac->make_context(ssh->cs_cipher_ctx);
 
     if (ssh->cs_comp_ctx)
 	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
@@ -7223,7 +7248,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * Set IVs on client-to-server keys. Here we use the exchange
      * hash from the _first_ key exchange.
      */
-    {
+    if (ssh->cscipher) {
 	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'C',
@@ -7237,6 +7262,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	ssh->cscipher->setiv(ssh->cs_cipher_ctx, key);
         smemclr(key, ssh->cscipher->blksize);
         sfree(key);
+    }
+    if (ssh->csmac) {
+	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'E',
                          ssh->csmac->keylen);
@@ -7245,12 +7273,14 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         sfree(key);
     }
 
-    logeventf(ssh, "Initialised %.200s client->server encryption",
-	      ssh->cscipher->text_name);
-    logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s%s",
-	      ssh->csmac->text_name,
-              ssh->csmac_etm ? " (in ETM mode)" : "",
-              ssh->cscipher->required_mac ? " (required by cipher)" : "");
+    if (ssh->cscipher)
+	logeventf(ssh, "Initialised %.200s client->server encryption",
+		  ssh->cscipher->text_name);
+    if (ssh->csmac)
+	logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s%s",
+		  ssh->csmac->text_name,
+		  ssh->csmac_etm ? " (in ETM mode)" : "",
+		  ssh->cscipher->required_mac ? " (required by cipher)" : "");
     if (ssh->cscomp->text_name)
 	logeventf(ssh, "Initialised %s compression",
 		  ssh->cscomp->text_name);
@@ -7278,14 +7308,18 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      */
     if (ssh->sc_cipher_ctx)
 	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
-    ssh->sccipher = s->sccipher_tobe;
-    ssh->sc_cipher_ctx = ssh->sccipher->make_context();
+    if (ssh->sccipher) {
+	ssh->sccipher = s->sccipher_tobe;
+	ssh->sc_cipher_ctx = ssh->sccipher->make_context();
+    }
 
     if (ssh->sc_mac_ctx)
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
-    ssh->scmac = s->scmac_tobe;
-    ssh->scmac_etm = s->scmac_etm_tobe;
-    ssh->sc_mac_ctx = ssh->scmac->make_context(ssh->sc_cipher_ctx);
+    if (ssh->scmac) {
+	ssh->scmac = s->scmac_tobe;
+	ssh->scmac_etm = s->scmac_etm_tobe;
+	ssh->sc_mac_ctx = ssh->scmac->make_context(ssh->sc_cipher_ctx);
+    }
 
     if (ssh->sc_comp_ctx)
 	ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
@@ -7296,7 +7330,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * Set IVs on server-to-client keys. Here we use the exchange
      * hash from the _first_ key exchange.
      */
-    {
+    if (ssh->sccipher) {
 	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'D',
@@ -7310,6 +7344,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	ssh->sccipher->setiv(ssh->sc_cipher_ctx, key);
         smemclr(key, ssh->sccipher->blksize);
         sfree(key);
+    }
+    if (ssh->scmac) {
+	unsigned char *key;
 
 	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'F',
                          ssh->scmac->keylen);
@@ -7317,12 +7354,14 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         smemclr(key, ssh->scmac->keylen);
         sfree(key);
     }
-    logeventf(ssh, "Initialised %.200s server->client encryption",
-	      ssh->sccipher->text_name);
-    logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s%s",
-	      ssh->scmac->text_name,
-              ssh->scmac_etm ? " (in ETM mode)" : "",
-              ssh->sccipher->required_mac ? " (required by cipher)" : "");
+    if (ssh->sccipher)
+	logeventf(ssh, "Initialised %.200s server->client encryption",
+		  ssh->sccipher->text_name);
+    if (ssh->scmac)
+	logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s%s",
+		  ssh->scmac->text_name,
+		  ssh->scmac_etm ? " (in ETM mode)" : "",
+		  ssh->sccipher->required_mac ? " (required by cipher)" : "");
     if (ssh->sccomp->text_name)
 	logeventf(ssh, "Initialised %s decompression",
 		  ssh->sccomp->text_name);
