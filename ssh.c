@@ -7126,13 +7126,17 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     dmemdump(s->exchange_hash, ssh->kex->hash->hlen);
 #endif
 
-    if (!s->hkey ||
-	!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
+    if (!s->hkey) {
+	bombout(("Server's host key is invalid"));
+	crStopV;
+    }
+
+    if (!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
 				 (char *)s->exchange_hash,
 				 ssh->kex->hash->hlen)) {
 #ifndef FUZZING
 	bombout(("Server's host key did not match the signature supplied"));
-	crStopV;
+	crStopV;f 
 #endif
     }
 
