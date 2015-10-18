@@ -377,10 +377,10 @@ static void win_add_keyfile(Filename *filename)
                                 NULL, PassphraseProc, (LPARAM) &pps);
         passphrase_box = NULL;
 
-        sfree(err);
-
         if (!dlgret)
             goto done;		       /* operation cancelled */
+
+        sfree(err);
 
         assert(passphrase != NULL);
 
