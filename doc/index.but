@@ -766,6 +766,7 @@ saved sessions from
 
 \IM{-batch-plink} \c{-batch} Plink command-line option
 \IM{-s-plink} \c{-s} Plink command-line option
+\IM{-shareexists-plink} \c{-shareexists} Plink command-line option
 
 \IM{subsystem} subsystem, SSH
 \IM{subsystem} SSH subsystem

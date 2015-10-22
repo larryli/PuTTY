@@ -2353,6 +2353,9 @@ with sharing enabled, then it can act as a downstream and use an
 existing SSH connection set up by an instance of GUI PuTTY. The one
 special case is that PSCP and PSFTP will \e{never} act as upstreams.
 
+It is possible to test programmatically for the existence of a live
+upstream using Plink. See \k{plink-option-shareexists}.
+
 \H{config-ssh-kex} The Kex panel
 
 The Kex panel (short for \q{\i{key exchange}}) allows you to configure
