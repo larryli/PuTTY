@@ -31,6 +31,7 @@ int main(int argc, char **argv)
 		len = fread(blk, 1, sizeof(blk), stdin);
 		term_data(term, 0, blk, len);
 	}
+	term_update(term);
 	return 0;
 }
 
@@ -40,8 +41,16 @@ int from_backend(void *frontend, int is_stderr, const char *data, int len)
 /* functions required by terminal.c */
 
 void request_resize(void *frontend, int x, int y) { }
-void do_text(Context a, int b, int c, wchar_t * d, int e, unsigned long f, int g) { }
-void do_cursor(Context a, int b, int c, wchar_t * d, int e, unsigned long f, int g) { }
+void do_text(Context ctx, int x, int y, wchar_t * text, int len,
+	     unsigned long attr, int lattr)
+{
+    printf("TEXT[attr=%08lx,lattr=%02x]@(%d,%d): %d\n", attr, lattr, x, y, len);
+}
+void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
+	     unsigned long attr, int lattr)
+{
+    printf("CURS[attr=%08lx,lattr=%02x]@(%d,%d): %d\n", attr, lattr, x, y, len);
+}
 int char_width(Context ctx, int uc) { return 1; }
 void set_title(void *frontend, char *t) { }
 void set_icon(void *frontend, char *t) { }
@@ -49,7 +58,11 @@ void set_sbar(void *frontend, int a, int b, int c) { }
 
 void ldisc_send(void *handle, const char *buf, int len, int interactive) {}
 void ldisc_echoedit_update(void *handle) {}
-Context get_ctx(void *frontend) { return NULL; }
+Context get_ctx(void *frontend) { 
+    static char x;
+
+    return &x;
+}
 void free_ctx(Context ctx) { }
 void palette_set(void *frontend, int a, int b, int c, int d) { }
 void palette_reset(void *frontend) { }
