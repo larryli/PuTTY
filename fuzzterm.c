@@ -44,12 +44,24 @@ void request_resize(void *frontend, int x, int y) { }
 void do_text(Context ctx, int x, int y, wchar_t * text, int len,
 	     unsigned long attr, int lattr)
 {
-    printf("TEXT[attr=%08lx,lattr=%02x]@(%d,%d): %d\n", attr, lattr, x, y, len);
+    int i;
+
+    printf("TEXT[attr=%08lx,lattr=%02x]@(%d,%d):", attr, lattr, x, y);
+    for (i = 0; i < len; i++) {
+	printf(" %x", (unsigned)text[i]);
+    }
+    printf("\n");
 }
 void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
 	     unsigned long attr, int lattr)
 {
-    printf("CURS[attr=%08lx,lattr=%02x]@(%d,%d): %d\n", attr, lattr, x, y, len);
+    int i;
+
+    printf("CURS[attr=%08lx,lattr=%02x]@(%d,%d):", attr, lattr, x, y);
+    for (i = 0; i < len; i++) {
+	printf(" %x", (unsigned)text[i]);
+    }
+    printf("\n");
 }
 int char_width(Context ctx, int uc) { return 1; }
 void set_title(void *frontend, char *t) { }
