@@ -174,8 +174,8 @@ locally, this is the procedure for putting it up on the web.
    should do this automatically, owing to the `latest' HTTP
    redirect.)
 
- - Check that the web server attaches the right content type to .HLP
-   and .CNT files.
+ - Check that the web server attaches the right content type to .HLP,
+   .CNT and .CHM files.
 
  - Run 'git push' in the website checkout, and then 'git pull' in
    ~/www/putty on atreus to fetch the website updates.
