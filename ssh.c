@@ -7136,7 +7136,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 				 ssh->kex->hash->hlen)) {
 #ifndef FUZZING
 	bombout(("Server's host key did not match the signature supplied"));
-	crStopV;f 
+	crStopV;
 #endif
     }
 
