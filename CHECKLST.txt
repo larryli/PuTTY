@@ -112,11 +112,6 @@ for it:
    + .htaccess has an individual redirect for each version number. Add
      a new one.
 
- - For 0.66 only: if it's not already done, switch the remaining
-   signature links on the Download page over to using the new
-   signature style. Then remove this checklist item, since it'll only
-   need doing this once.
-
  - If there are any last-minute wishlist entries (e.g. security
    vulnerabilities fixed in the new release), write entries for them
    in a local checkout of putty-wishlist.
