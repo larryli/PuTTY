@@ -7312,14 +7312,14 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      */
     if (ssh->sc_cipher_ctx)
 	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
-    if (ssh->sccipher) {
+    if (s->sccipher_tobe) {
 	ssh->sccipher = s->sccipher_tobe;
 	ssh->sc_cipher_ctx = ssh->sccipher->make_context();
     }
 
     if (ssh->sc_mac_ctx)
 	ssh->scmac->free_context(ssh->sc_mac_ctx);
-    if (ssh->scmac) {
+    if (s->scmac_tobe) {
 	ssh->scmac = s->scmac_tobe;
 	ssh->scmac_etm = s->scmac_etm_tobe;
 	ssh->sc_mac_ctx = ssh->scmac->make_context(ssh->sc_cipher_ctx);
