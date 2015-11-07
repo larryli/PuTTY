@@ -64,29 +64,25 @@ for it:
    XXX-REVIEW-BEFORE-RELEASE. ('git grep XXX-RE' should only show up
    hits in this file itself.)
 
- - Now update version numbers in
+ - Now update the version numbers and the transcripts in the docs, by
+   checking out the release branch and running
+
+      make distclean
+      ./release.pl --set-version=X.YZ
+
+   Then check that the resulting automated git commit has updated the
+   version number in the following places:
+
     * putty/LATEST.VER
+    * putty/doc/plink.but
+    * putty/doc/pscp.but
     * putty/windows/putty.iss (four times, on consecutive lines)
-    * putty/doc/pscp.but (and make sure the rest of the transcript is
-      up to date)
-    * putty/doc/plink.but (likewise)
 
- - Reset the epoch used for the $(Days) value computed in Buildscr for
-   the Windows binary version resource. It's probably not a good idea
-   to set it to _today_ (since it might clash with the zero-valued
-   field used in actual releases), so perhaps we should start it 1000
-   days before the release date so as to have a largish number
-   recognisable as being the right kind of thing by its order of
-   magnitude. So, do this:
+   and also check that it has reset the definition of 'Epoch' in
+   Buildscr.
 
-     perl -e 'printf "%d\n", time/86400 - 1000'
-
-   and then substitute the resulting value into the definition of
-   'Epoch' in Buildscr.
-
- - Commit those version number and epoch changes (on the appropriate
-   branch, of course!), and then make the release tag pointing at the
-   resulting commit.
+ - Make the release tag, pointing at the version-update commit we just
+   generated.
 
  - If the release is on a branch (which I expect it generally will
    be), merge that branch to master.
@@ -146,8 +142,10 @@ locally, this is the procedure for putting it up on the web.
 
  - Save the link maps. Currently I keep these on atreus, in
    src/putty-local/maps-<version>.
+      rsync -av maps-x86/ atreus:src/putty-local/maps-X.YZ
 
  - Upload the entire release directory to atreus:www/putty/<version>.
+      rsync -av putty/ atreus:www/putty/X.YZ
 
  - Do final checks on the release directory in its new location:
     + verify all the signatures:
@@ -160,6 +158,8 @@ locally, this is the procedure for putting it up on the web.
 
  - Having double-checked the release, copy it from atreus to
    chiark:ftp/putty-<ver> and to the:www/putty/<ver>.
+      rsync -av putty/ chiark:ftp/putty-X.YZ
+      rsync -av putty/ the:www/putty/X.YZ
 
  - Check the permissions! Actually try downloading from the, to make
    sure it really works.
@@ -175,7 +175,9 @@ locally, this is the procedure for putting it up on the web.
    redirect.)
 
  - Check that the web server attaches the right content type to .HLP,
-   .CNT and .CHM files.
+   .CNT and .CHM files, by downloading one of each and checking
+   they're all application/octet-stream.
+     for ext in hlp cnt chm; do curl -v http://the.earth.li/~sgtatham/putty/X.YZ/putty.$ext 2>&1 >/dev/null | grep Content-Type; done
 
  - Run 'git push' in the website checkout, and then 'git pull' in
    ~/www/putty on atreus to fetch the website updates.
