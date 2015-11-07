@@ -131,9 +131,10 @@ while (<IN>) {
     $i = shift @objs;
     if ($groups{$i}) {
       foreach $j (@{$groups{$i}}) { unshift @objs, $j; }
-    } elsif (($i eq "[G]" or $i eq "[C]" or $i eq "[M]" or
-              $i eq "[X]" or $i eq "[U]" or $i eq "[MX]") and defined $prog) {
+    } elsif (($i =~ /^\[([A-Z]*)\]$/) and defined $prog) {
       $type = substr($i,1,(length $i)-2);
+      die "unrecognised program type for $prog [$type]\n"
+          if ! grep { $type eq $_ } qw(G C X U MX UT);
     } else {
       push @$listref, $i;
     }
@@ -1378,9 +1379,9 @@ if (defined $makefiles{'gtk'}) {
     ".SUFFIXES:\n".
     "\n".
     "\n";
-    print &splitline("all:" . join "", map { " $_" } &progrealnames("X:U"));
+    print &splitline("all:" . join "", map { " $_" } &progrealnames("X:U:UT"));
     print "\n\n";
-    foreach $p (&prognames("X:U")) {
+    foreach $p (&prognames("X:U:UT")) {
       ($prog, $type) = split ",", $p;
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
@@ -1400,7 +1401,7 @@ if (defined $makefiles{'gtk'}) {
     print "\n";
     print &def($makefile_extra{'gtk'}->{'end'});
     print "\nclean:\n".
-    "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U")) . "\n";
+    "\trm -f *.o". (join "", map { " $_" } &progrealnames("X:U:UT")) . "\n";
     print "\nFORCE:\n";
     select STDOUT; close OUT;
 }
@@ -1445,9 +1446,9 @@ if (defined $makefiles{'unix'}) {
     ".SUFFIXES:\n".
     "\n".
     "\n";
-    print &splitline("all:" . join "", map { " $_" } &progrealnames("U"));
+    print &splitline("all:" . join "", map { " $_" } &progrealnames("U:UT"));
     print "\n\n";
-    foreach $p (&prognames("U")) {
+    foreach $p (&prognames("U:UT")) {
       ($prog, $type) = split ",", $p;
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
@@ -1467,7 +1468,7 @@ if (defined $makefiles{'unix'}) {
     print "\n";
     print &def($makefile_extra{'unix'}->{'end'});
     print "\nclean:\n".
-    "\trm -f *.o". (join "", map { " $_" } &progrealnames("U")) . "\n";
+    "\trm -f *.o". (join "", map { " $_" } &progrealnames("U:UT")) . "\n";
     print "\nFORCE:\n";
     select STDOUT; close OUT;
 }
@@ -1510,6 +1511,13 @@ if (defined $makefiles{'am'}) {
     print &splitline(join " ", @cliprogs), "\n";
     print "endif\n\n";
 
+    @noinstcliprogs = ("noinst_PROGRAMS", "=");
+    foreach $p (&prognames("UT")) {
+      ($prog, $type) = split ",", $p;
+      push @noinstcliprogs, $prog;
+    }
+    print &splitline(join " ", @noinstcliprogs), "\n";
+
     %objtosrc = ();
     foreach $d (&deps("X", undef, "", "/", "am")) {
       $objtosrc{$d->{obj}} = $d->{deps}->[0];
@@ -1536,7 +1544,7 @@ if (defined $makefiles{'am'}) {
     print &splitline(join " ", "noinst_LIBRARIES", "=",
                      sort { $a cmp $b } values %amspeciallibs), "\n\n";
 
-    foreach $p (&prognames("X:U")) {
+    foreach $p (&prognames("X:U:UT")) {
       ($prog, $type) = split ",", $p;
       print "if HAVE_GTK\n" if $type eq "X";
       @progsources = ("${prog}_SOURCES", "=");
@@ -1656,7 +1664,7 @@ if (defined $makefiles{'osx'}) {
     "\n" .
     &def($makefile_extra{'osx'}->{'vars'}) .
     "\n" .
-    &splitline("all:" . join "", map { " $_" } &progrealnames("MX:U")) .
+    &splitline("all:" . join "", map { " $_" } &progrealnames("MX:U:UT")) .
     "\n";
     foreach $p (&prognames("MX")) {
       ($prog, $type) = split ",", $p;
@@ -1684,7 +1692,7 @@ if (defined $makefiles{'osx'}) {
       print &splitline("\t\$(CC) \$(MLDFLAGS) -o \$@ " .
                        $objstr . " $libstr", 69), "\n\n";
     }
-    foreach $p (&prognames("U")) {
+    foreach $p (&prognames("U:UT")) {
       ($prog, $type) = split ",", $p;
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
@@ -1708,7 +1716,7 @@ if (defined $makefiles{'osx'}) {
     }
     print "\n".&def($makefile_extra{'osx'}->{'end'});
     print "\nclean:\n".
-    "\trm -f *.o *.dmg". (join "", map { " $_" } &progrealnames("U")) . "\n".
+    "\trm -f *.o *.dmg". (join "", map { " $_" } &progrealnames("U:UT")) . "\n".
     "\trm -rf *.app\n".
     "\n".
     "FORCE:\n";
