@@ -1064,7 +1064,7 @@ int match_ssh_id(int stringlen, const void *string, const char *id)
 void *get_ssh_string(int *datalen, const void **data, int *stringlen)
 {
     void *ret;
-    int len;
+    unsigned int len;
 
     if (*datalen < 4)
         return NULL;

@@ -291,7 +291,7 @@ enum {
      * Proxy types.
      */
     PROXY_NONE, PROXY_SOCKS4, PROXY_SOCKS5,
-    PROXY_HTTP, PROXY_TELNET, PROXY_CMD
+    PROXY_HTTP, PROXY_TELNET, PROXY_CMD, PROXY_FUZZ
 };
 
 enum {

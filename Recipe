@@ -125,6 +125,12 @@
 #      show up as GPFs at the point of failure rather than appearing
 #      later on as second-level damage.
 #
+#  - XFLAGS=/DFUZZING
+#      Builds a version of PuTTY with some tweaks to make fuzz testing
+#      easier: the SSH random number generator is replaced by one that
+#      always returns the same thing.  Note that this makes SSH
+#      completely insecure -- a FUZZING build should never be used to
+#      connect to a real server.
 !end
 
 # ------------------------------------------------------------
@@ -310,3 +316,6 @@ pageant  : [X] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
 
 PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
          + ux_x11 uxpty uxsignal testback putty.icns info.plist
+
+fuzzterm : [U] UXTERM CHARSET misc uxmisc uxucs fuzzterm time settings
+	 + uxstore be_none

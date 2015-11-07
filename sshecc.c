@@ -1648,6 +1648,7 @@ static int decodepoint_ed(const char *p, int length, struct ec_point *point)
     /* Read x bit and then reset it */
     negative = bignum_bit(point->y, point->curve->fieldBits - 1);
     bignum_set_bit(point->y, point->curve->fieldBits - 1, 0);
+    bn_restore_invariant(point->y);
 
     /* Get the x from the y */
     point->x = ecp_edx(point->curve, point->y);
@@ -1770,6 +1771,7 @@ static void *ecdsa_newkey(const struct ssh_signkey *self,
     /* Curve name is duplicated for Weierstrass form */
     if (curve->type == EC_WEIERSTRASS) {
         getstring(&data, &len, &p, &slen);
+	if (!p) return NULL;
         if (!match_ssh_id(slen, p, curve->name)) return NULL;
     }
 
@@ -1781,11 +1783,11 @@ static void *ecdsa_newkey(const struct ssh_signkey *self,
     ec->publicKey.x = NULL;
     ec->publicKey.y = NULL;
     ec->publicKey.z = NULL;
+    ec->privateKey = NULL;
     if (!getmppoint(&data, &len, &ec->publicKey)) {
         ecdsa_freekey(ec);
         return NULL;
     }
-    ec->privateKey = NULL;
 
     if (!ec->publicKey.x || !ec->publicKey.y ||
         bignum_cmp(ec->publicKey.x, curve->p) >= 0 ||
@@ -2266,6 +2268,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     }
 
     getstring(&sig, &siglen, &p, &slen);
+    if (!p) return 0;
     if (ec->publicKey.curve->type == EC_EDWARDS) {
         struct ec_point *r;
         Bignum s, h;

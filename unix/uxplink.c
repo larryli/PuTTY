@@ -25,7 +25,7 @@
 
 #define MAX_STDIN_BACKLOG 4096
 
-void *logctx;
+static void *logctx;
 
 static struct termios orig_termios;
 
@@ -690,6 +690,10 @@ int main(int argc, char **argv)
 		}
 	    } else if (!strcmp(p, "-shareexists")) {
                 just_test_share_exists = TRUE;
+	    } else if (!strcmp(p, "-fuzznet")) {
+		conf_set_int(conf, CONF_proxy_type, PROXY_FUZZ);
+		conf_set_str(conf, CONF_proxy_telnet_command,
+			     "%host");
 	    } else {
 		fprintf(stderr, "plink: unknown option \"%s\"\n", p);
 		errors = 1;
@@ -987,6 +991,11 @@ int main(int argc, char **argv)
 	char *realhost;
 	/* nodelay is only useful if stdin is a terminal device */
 	int nodelay = conf_get_int(conf, CONF_tcp_nodelay) && isatty(0);
+
+	/* This is a good place for a fuzzer to fork us. */
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+	__AFL_INIT();
+#endif
 
 	error = back->init(NULL, &backhandle, conf,
 			   conf_get_str(conf, CONF_host),
