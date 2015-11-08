@@ -35,6 +35,7 @@
 /puttytel
 /puttygen
 /pterm
+/fuzzterm
 /*.DSA
 /*.RSA
 /*.cnt
