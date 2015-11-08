@@ -95,6 +95,20 @@ accepted (unless a saved session also overrides host keys, in which
 case those will be added to), and the host key cache will not be
 written. }
 
+\dt \cw{\-sshlog} \e{logfile}
+
+\dt \cw{\-sshrawlog} \e{logfile}
+
+\dd These options make \cw{psftp} log protocol details to a file.
+(Some of these may be sensitive, although by default an effort is made
+to suppress obvious passwords.)
+
+\lcont{
+\cw{\-sshlog} logs decoded SSH packets and other events (those that
+\cw{\-v} would print). \cw{\-sshrawlog} additionally logs the raw
+encrypted packet data.
+}
+
 \S{psftp-manpage-commands} COMMANDS
 
 For a list of commands available inside \cw{psftp}, type \cw{help}

@@ -108,11 +108,24 @@ changed under control of the server.)
 to specify it explicitly if you have changed the default using the
 \cw{ScrollBar} resource.
 
-\dt \cw{\-log} \e{filename}
+\dt \cw{\-log} \e{logfile}, \cw{\-sessionlog} \e{logfile}
 
 \dd This option makes \cw{putty} log all the terminal output to a file
 as well as displaying it in the terminal.
 
+\dt \cw{\-sshlog} \e{logfile}
+
+\dt \cw{\-sshrawlog} \e{logfile}
+
+\dd For SSH connections, these options make \cw{putty} log protocol
+details to a file. (Some of these may be sensitive, although by default
+an effort is made to suppress obvious passwords.)
+
+\lcont{
+\cw{\-sshlog} logs decoded SSH packets and other events (those that
+\cw{\-v} would print). \cw{\-sshrawlog} additionally logs the raw
+encrypted packet data.
+}
 
 \dt \cw{\-cs} \e{charset}
 

@@ -109,7 +109,7 @@ changed under control of the server.)
 to specify it explicitly if you have changed the default using the
 \cw{ScrollBar} resource.
 
-\dt \cw{\-log} \e{filename}
+\dt \cw{\-log} \e{logfile}, \cw{\-sessionlog} \e{logfile}
 
 \dd This option makes \cw{puttytel} log all the terminal output to a file
 as well as displaying it in the terminal.
