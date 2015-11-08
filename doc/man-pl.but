@@ -184,6 +184,20 @@ DSR/DTR.
 
 }
 
+\dt \cw{\-sshlog} \e{logfile}
+
+\dt \cw{\-sshrawlog} \e{logfile}
+
+\dd For SSH connections, these options make \cw{plink} log protocol
+details to a file. (Some of these may be sensitive, although by default
+an effort is made to suppress obvious passwords.)
+
+\lcont{
+\cw{\-sshlog} logs decoded SSH packets and other events (those that
+\cw{\-v} would print). \cw{\-sshrawlog} additionally logs the raw
+encrypted packet data.
+}
+
 \S{plink-manpage-more-information} MORE INFORMATION
 
 For more information on plink, it's probably best to go and look at

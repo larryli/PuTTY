@@ -212,6 +212,9 @@ static void usage(void)
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
     printf("  -nc host:port\n");
     printf("            open tunnel in place of session (SSH-2 only)\n");
+    printf("  -sshlog file\n");
+    printf("  -sshrawlog file\n");
+    printf("            log protocol details to a file\n");
     exit(1);
 }
 
