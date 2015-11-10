@@ -52,6 +52,8 @@ int toint(unsigned);
 
 char *fgetline(FILE *fp);
 char *chomp(char *str);
+int strstartswith(const char *s, const char *t);
+int strendswith(const char *s, const char *t);
 
 void base64_encode_atom(const unsigned char *data, int n, char *out);
 int base64_decode_atom(const char *atom, unsigned char *out);

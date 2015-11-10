@@ -383,8 +383,8 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
 	goto error;
     }
     strip_crlf(line);
-    if (0 != strncmp(line, "-----BEGIN ", 11) ||
-	0 != strcmp(line+strlen(line)-16, "PRIVATE KEY-----")) {
+    if (!strstartswith(line, "-----BEGIN ") ||
+        !strendswith(line, "PRIVATE KEY-----")) {
 	errmsg = "file does not begin with OpenSSH key header";
 	goto error;
     }
@@ -421,8 +421,8 @@ static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
 	    goto error;
 	}
 	strip_crlf(line);
-	if (0 == strncmp(line, "-----END ", 9) &&
-	    0 == strcmp(line+strlen(line)-16, "PRIVATE KEY-----")) {
+	if (strstartswith(line, "-----END ") &&
+	    strendswith(line, "PRIVATE KEY-----")) {
             sfree(line);
             line = NULL;
 	    break;		       /* done */

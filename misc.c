@@ -1087,3 +1087,14 @@ int get_ssh_uint32(int *datalen, const void **data, unsigned *ret)
     *data = (const char *)*data + 4;
     return TRUE;
 }
+
+int strstartswith(const char *s, const char *t)
+{
+    return !memcmp(s, t, strlen(t));
+}
+
+int strendswith(const char *s, const char *t)
+{
+    size_t slen = strlen(s), tlen = strlen(t);
+    return slen >= tlen && !strcmp(s + (slen - tlen), t);
+}
