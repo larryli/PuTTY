@@ -195,14 +195,16 @@ static int ber_read_id_len(void *source, int sourcelen,
 	return -1;
 
     if (*p & 0x80) {
+        unsigned len;
 	int n = *p & 0x7F;
 	p++, sourcelen--;
 	if (sourcelen < n)
 	    return -1;
-	*length = 0;
+	len = 0;
 	while (n--)
-	    *length = (*length << 8) | (*p++);
+	    len = (len << 8) | (*p++);
 	sourcelen -= n;
+        *length = toint(len);
     } else {
 	*length = *p;
 	p++, sourcelen--;
@@ -657,7 +659,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
      * decrypt, if the key was encrypted. */
     ret = ber_read_id_len(p, key->keyblob_len, &id, &len, &flags);
     p += ret;
-    if (ret < 0 || id != 16) {
+    if (ret < 0 || id != 16 || len < 0 ||
+        key->keyblob+key->keyblob_len-p < len) {
         errmsg = "ASN.1 decoding failure";
         retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
         goto error;
@@ -683,8 +686,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 2 || key->keyblob+key->keyblob_len-p < len ||
-            len != 1 || p[0] != 1) {
+        if (ret < 0 || id != 2 || len != 1 ||
+            key->keyblob+key->keyblob_len-p < len || p[0] != 1) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
@@ -694,7 +697,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 4 || key->keyblob+key->keyblob_len-p < len) {
+        if (ret < 0 || id != 4 || len < 0 ||
+            key->keyblob+key->keyblob_len-p < len) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
@@ -706,7 +710,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 0 || key->keyblob+key->keyblob_len-p < len) {
+        if (ret < 0 || id != 0 || len < 0 ||
+            key->keyblob+key->keyblob_len-p < len) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
@@ -714,7 +719,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 6 || key->keyblob+key->keyblob_len-p < len) {
+        if (ret < 0 || id != 6 || len < 0 ||
+            key->keyblob+key->keyblob_len-p < len) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
@@ -730,7 +736,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 1 || key->keyblob+key->keyblob_len-p < len) {
+        if (ret < 0 || id != 1 || len < 0 ||
+            key->keyblob+key->keyblob_len-p < len) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
             goto error;
@@ -738,7 +745,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
         p += ret;
-        if (ret < 0 || id != 3 || key->keyblob+key->keyblob_len-p < len ||
+        if (ret < 0 || id != 3 || len < 0 ||
+            key->keyblob+key->keyblob_len-p < len ||
             len != ((((curve->fieldBits + 7) / 8) * 2) + 2)) {
             errmsg = "ASN.1 decoding failure";
             retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
@@ -813,7 +821,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
             ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                                   &id, &len, &flags);
             p += ret;
-            if (ret < 0 || id != 2 ||
+            if (ret < 0 || id != 2 || len < 0 ||
                 key->keyblob+key->keyblob_len-p < len) {
                 errmsg = "ASN.1 decoding failure";
                 retval = key->encrypted ? SSH2_WRONG_PASSPHRASE : NULL;
