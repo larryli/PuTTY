@@ -460,7 +460,7 @@ char *fgetline(FILE *fp)
     int size = 512, len = 0;
     while (fgets(ret + len, size - len, fp)) {
 	len += strlen(ret + len);
-	if (ret[len-1] == '\n')
+	if (len > 0 && ret[len-1] == '\n')
 	    break;		       /* got a newline, we're done */
 	size = len + 512;
 	ret = sresize(ret, size, char);
