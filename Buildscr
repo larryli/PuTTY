@@ -150,12 +150,12 @@ in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 delegate windows
   # FIXME: Cygwin alternative?
-  in putty/windows do cmd /c vcvars32 \& nmake -f Makefile.vc $(Makeargs)
+  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs)
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
   # exit codes on whim.)
-  in putty/doc do hhc putty.hhp; test -f putty.chm
-  in putty/windows do iscc putty.iss
+  in putty/doc do/win hhc putty.hhp & type putty.chm >nul
+  in putty/windows do/win iscc putty.iss
   return putty/windows/*.exe
   return putty/windows/*.map
   return putty/doc/putty.chm
