@@ -212,4 +212,16 @@ char *get_hostname(void);
  */
 Socket new_error_socket(const char *errmsg, Plug plug);
 
+/* ----------------------------------------------------------------------
+ * Functions defined outside the network code, which have to be
+ * declared in this header file rather than the main putty.h because
+ * they use types defined here.
+ */
+
+/*
+ * Exports from be_misc.c.
+ */
+void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
+                        const char *error_msg, int error_code);
+
 #endif

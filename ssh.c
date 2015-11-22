@@ -3452,34 +3452,19 @@ static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
                            const char *error_msg, int error_code)
 {
     Ssh ssh = (Ssh) plug;
-    char addrbuf[256], *msg;
 
-    if (ssh->attempting_connshare) {
-        /*
-         * While we're attempting connection sharing, don't loudly log
-         * everything that happens. Real TCP connections need to be
-         * logged when we _start_ trying to connect, because it might
-         * be ages before they respond if something goes wrong; but
-         * connection sharing is local and quick to respond, and it's
-         * sufficient to simply wait and see whether it worked
-         * afterwards.
-         */
-    } else {
-        sk_getaddr(addr, addrbuf, lenof(addrbuf));
+    /*
+     * While we're attempting connection sharing, don't loudly log
+     * everything that happens. Real TCP connections need to be logged
+     * when we _start_ trying to connect, because it might be ages
+     * before they respond if something goes wrong; but connection
+     * sharing is local and quick to respond, and it's sufficient to
+     * simply wait and see whether it worked afterwards.
+     */
 
-        if (type == 0) {
-            if (sk_addr_needs_port(addr)) {
-                msg = dupprintf("Connecting to %s port %d", addrbuf, port);
-            } else {
-                msg = dupprintf("Connecting to %s", addrbuf);
-            }
-        } else {
-            msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
-        }
-
-        logevent(msg);
-        sfree(msg);
-    }
+    if (!ssh->attempting_connshare)
+        backend_socket_log(ssh->frontend, type, addr, port,
+                           error_msg, error_code);
 }
 
 void ssh_connshare_log(Ssh ssh, int event, const char *logtext,

@@ -652,17 +652,8 @@ static void telnet_log(Plug plug, int type, SockAddr addr, int port,
 		       const char *error_msg, int error_code)
 {
     Telnet telnet = (Telnet) plug;
-    char addrbuf[256], *msg;
-
-    sk_getaddr(addr, addrbuf, lenof(addrbuf));
-
-    if (type == 0)
-	msg = dupprintf("Connecting to %s port %d", addrbuf, port);
-    else
-	msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
-
-    logevent(telnet->frontend, msg);
-    sfree(msg);
+    backend_socket_log(telnet->frontend, type, addr, port,
+                       error_msg, error_code);
 }
 
 static int telnet_closing(Plug plug, const char *error_msg, int error_code,
