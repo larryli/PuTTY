@@ -100,7 +100,8 @@ Socket new_connection(SockAddr addr, const char *hostname,
 Socket new_listener(const char *srcaddr, int port, Plug plug,
                     int local_host_only, Conf *conf, int addressfamily);
 SockAddr name_lookup(const char *host, int port, char **canonicalname,
-		     Conf *conf, int addressfamily);
+		     Conf *conf, int addressfamily, void *frontend_for_logging,
+                     const char *lookup_reason_for_logging);
 int proxy_for_destination (SockAddr addr, const char *hostname, int port,
                            Conf *conf);
 

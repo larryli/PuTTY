@@ -3674,10 +3674,8 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
          * Try to find host.
          */
         addressfamily = conf_get_int(ssh->conf, CONF_addressfamily);
-        logeventf(ssh, "Looking up host \"%s\"%s", host,
-                  (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
-                   (addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" : "")));
-        addr = name_lookup(host, port, realhost, ssh->conf, addressfamily);
+        addr = name_lookup(host, port, realhost, ssh->conf, addressfamily,
+                           ssh->frontend, "SSH connection");
         if ((err = sk_addr_error(addr)) != NULL) {
             sk_addr_free(addr);
             return err;

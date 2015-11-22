@@ -751,17 +751,9 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     /*
      * Try to find host.
      */
-    {
-	char *buf;
-	addressfamily = conf_get_int(telnet->conf, CONF_addressfamily);
-	buf = dupprintf("Looking up host \"%s\"%s", host,
-			(addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
-			 (addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
-			  "")));
-	logevent(telnet->frontend, buf);
-	sfree(buf);
-    }
-    addr = name_lookup(host, port, realhost, telnet->conf, addressfamily);
+    addressfamily = conf_get_int(telnet->conf, CONF_addressfamily);
+    addr = name_lookup(host, port, realhost, telnet->conf, addressfamily,
+                       telnet->frontend, "Telnet connection");
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;

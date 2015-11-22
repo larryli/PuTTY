@@ -286,7 +286,8 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf)
 
 	disp->port = 6000 + disp->displaynum;
 	disp->addr = name_lookup(disp->hostname, disp->port,
-				 &disp->realhost, conf, ADDRTYPE_UNSPEC);
+				 &disp->realhost, conf, ADDRTYPE_UNSPEC,
+                                 NULL, NULL);
     
 	if ((err = sk_addr_error(disp->addr)) != NULL) {
 	    sk_addr_free(disp->addr);

@@ -363,16 +363,35 @@ int proxy_for_destination (SockAddr addr, const char *hostname,
 }
 
 SockAddr name_lookup(const char *host, int port, char **canonicalname,
-		     Conf *conf, int addressfamily)
+		     Conf *conf, int addressfamily, void *frontend,
+                     const char *reason)
 {
+    char *logmsg;
     if (conf_get_int(conf, CONF_proxy_type) != PROXY_NONE &&
 	do_proxy_dns(conf) &&
 	proxy_for_destination(NULL, host, port, conf)) {
+
+        if (frontend) {
+            logmsg = dupprintf("Leaving host lookup to proxy of \"%s\""
+                               " (for %s)", host, reason);
+            logevent(frontend, logmsg);
+            sfree(logmsg);
+        }
+
 	*canonicalname = dupstr(host);
 	return sk_nonamelookup(host);
-    }
+    } else {
+        if (frontend) {
+            logmsg = dupprintf("Looking up host \"%s\"%s for %s", host,
+                               (addressfamily == ADDRTYPE_IPV4 ? " (IPv4)" :
+                                addressfamily == ADDRTYPE_IPV6 ? " (IPv6)" :
+                                ""), reason);
+            logevent(frontend, logmsg);
+            sfree(logmsg);
+        }
 
-    return sk_namelookup(host, canonicalname, addressfamily);
+        return sk_namelookup(host, canonicalname, addressfamily);
+    }
 }
 
 Socket new_connection(SockAddr addr, const char *hostname,
