@@ -2,6 +2,7 @@
  * be_misc.c: helper functions shared between main network backends.
  */
 
+#define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 
@@ -39,3 +40,53 @@ void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
     }
 }
 
+void log_proxy_stderr(Plug plug, bufchain *buf, const void *vdata, int len)
+{
+    const char *data = (const char *)vdata;
+    int pos = 0;
+    int msglen;
+    char *nlpos, *msg, *fullmsg;
+
+    /*
+     * This helper function allows us to collect the data written to a
+     * local proxy command's standard error in whatever size chunks we
+     * happen to get from its pipe, and whenever we have a complete
+     * line, we pass it to plug_log.
+     *
+     * Prerequisites: a plug to log to, and a bufchain stored
+     * somewhere to collect the data in.
+     */
+
+    while (pos < len && (nlpos = memchr(data+pos, '\n', len-pos)) != NULL) {
+        /*
+         * Found a newline in the current input buffer. Append it to
+         * the bufchain (which may contain a partial line from last
+         * time).
+         */
+        bufchain_add(buf, data + pos, nlpos - (data + pos));
+
+        /*
+         * Collect the resulting line of data and pass it to plug_log.
+         */
+        msglen = bufchain_size(buf);
+        msg = snewn(msglen+1, char);
+        bufchain_fetch(buf, msg, msglen);
+        bufchain_consume(buf, msglen);
+        msg[msglen] = '\0';
+        fullmsg = dupprintf("proxy: %s", msg);
+        plug_log(plug, 2, NULL, 0, fullmsg, 0);
+        sfree(fullmsg);
+        sfree(msg);
+
+        /*
+         * Advance past the newline.
+         */
+        pos += nlpos+1 - (data + pos);
+    }
+
+    /*
+     * Now any remaining data is a partial line, which we save for
+     * next time.
+     */
+    bufchain_add(buf, data + pos, len - pos);
+}
