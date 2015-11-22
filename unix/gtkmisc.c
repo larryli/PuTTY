@@ -62,6 +62,8 @@ void align_label_left(GtkLabel *label)
 {
 #if GTK_CHECK_VERSION(3,16,0)
     gtk_label_set_xalign(label, 0.0);
+#elif GTK_CHECK_VERSION(3,14,0)
+    gtk_widget_set_halign(GTK_WIDGET(label), GTK_ALIGN_START);
 #else
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.0);
 #endif
