@@ -270,6 +270,12 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     if (proxytype == PROXY_CMD) {
 	cmd = format_telnet_command(addr, port, conf);
 
+        {
+            char *logmsg = dupprintf("Starting local proxy command: %s", cmd);
+            plug_log(plug, 2, NULL, 0, logmsg, 0);
+            sfree(logmsg);
+        }
+
 	/*
 	 * Create the pipes to the proxy command, and spawn the proxy
 	 * command process.

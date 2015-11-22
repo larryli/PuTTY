@@ -37,9 +37,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 
     {
 	char *msg = dupprintf("Starting local proxy command: %s", cmd);
-	/* We're allowed to pass NULL here, because we're part of the Windows
-	 * front end so we know logevent doesn't expect any data. */
-	logevent(NULL, msg);
+	plug_log(plug, 2, NULL, 0, msg, 0);
 	sfree(msg);
     }
 

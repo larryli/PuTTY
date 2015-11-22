@@ -23,6 +23,11 @@ void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
         msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
         break;
+      case 2:
+        /* Proxy-related log messages have their own identifying
+         * prefix already, put on by our caller. */
+        msg = dupstr(error_msg);
+        break;
       default:
         msg = NULL;  /* shouldn't happen, but placate optimiser */
         break;

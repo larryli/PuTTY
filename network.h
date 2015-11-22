@@ -58,6 +58,11 @@ struct plug_function_table {
      * 	  fatal error - we may well have other candidate addresses
      * 	  to fall back to. When it _is_ fatal, the closing()
      * 	  function will be called.
+     *  - type==2 means that error_msg contains a line of generic
+     *    logging information about setting up the connection. This
+     *    will typically be a wodge of standard-error output from a
+     *    proxy command, so the receiver should probably prefix it to
+     *    indicate this.
      */
     int (*closing)
      (Plug p, const char *error_msg, int error_code, int calling_back);
