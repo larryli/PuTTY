@@ -13,8 +13,8 @@
 #include "network.h"
 #include "proxy.h"
 
-Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, Plug plug,
-                          int overlapped);
+Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
+                          Plug plug, int overlapped);
 
 Socket platform_new_connection(SockAddr addr, const char *hostname,
 			       int port, int privport,
