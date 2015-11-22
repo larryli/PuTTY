@@ -49,7 +49,8 @@ static void rlogin_log(Plug plug, int type, SockAddr addr, int port,
 {
     Rlogin rlogin = (Rlogin) plug;
     backend_socket_log(rlogin->frontend, type, addr, port,
-                       error_msg, error_code);
+                       error_msg, error_code,
+                       rlogin->conf, !rlogin->firstbyte);
 }
 
 static int rlogin_closing(Plug plug, const char *error_msg, int error_code,

@@ -792,6 +792,7 @@ struct ssh_tag {
     int send_ok;
     int echoing, editing;
 
+    int session_started;
     void *frontend;
 
     int ospeed, ispeed;		       /* temporaries */
@@ -3070,6 +3071,8 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	crReturn(1);
     }
 
+    ssh->session_started = TRUE;
+
     s->vstrsize = sizeof(protoname) + 16;
     s->vstring = snewn(s->vstrsize, char);
     strcpy(s->vstring, protoname);
@@ -3464,7 +3467,8 @@ static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
 
     if (!ssh->attempting_connshare)
         backend_socket_log(ssh->frontend, type, addr, port,
-                           error_msg, error_code);
+                           error_msg, error_code, ssh->conf,
+                           ssh->session_started);
 }
 
 void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
@@ -10998,6 +11002,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->X11_fwd_enabled = FALSE;
     ssh->connshare = NULL;
     ssh->attempting_connshare = FALSE;
+    ssh->session_started = FALSE;
 
     *backend_handle = ssh;
 

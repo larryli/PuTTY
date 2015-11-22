@@ -197,6 +197,7 @@ typedef struct telnet_tag {
     int sb_opt, sb_len;
     unsigned char *sb_buf;
     int sb_size;
+    int session_started;
 
     enum {
 	TOP_LEVEL, SEENIAC, SEENWILL, SEENWONT, SEENDO, SEENDONT,
@@ -653,7 +654,8 @@ static void telnet_log(Plug plug, int type, SockAddr addr, int port,
 {
     Telnet telnet = (Telnet) plug;
     backend_socket_log(telnet->frontend, type, addr, port,
-                       error_msg, error_code);
+                       error_msg, error_code, telnet->conf,
+                       telnet->session_started);
 }
 
 static int telnet_closing(Plug plug, const char *error_msg, int error_code,
@@ -687,6 +689,7 @@ static int telnet_receive(Plug plug, int urgent, char *data, int len)
     Telnet telnet = (Telnet) plug;
     if (urgent)
 	telnet->in_synch = TRUE;
+    telnet->session_started = TRUE;
     do_telnet_read(telnet, data, len);
     return 1;
 }
@@ -737,6 +740,7 @@ static const char *telnet_init(void *frontend_handle, void **backend_handle,
     telnet->state = TOP_LEVEL;
     telnet->ldisc = NULL;
     telnet->pinger = NULL;
+    telnet->session_started = TRUE;
     *backend_handle = telnet;
 
     /*

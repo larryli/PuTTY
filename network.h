@@ -227,7 +227,8 @@ Socket new_error_socket(const char *errmsg, Plug plug);
  * Exports from be_misc.c.
  */
 void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
-                        const char *error_msg, int error_code);
+                        const char *error_msg, int error_code, Conf *conf,
+                        int session_started);
 typedef struct bufchain_tag bufchain;  /* rest of declaration in misc.c */
 void log_proxy_stderr(Plug plug, bufchain *buf, const void *vdata, int len);
 

@@ -279,9 +279,9 @@ enum {
      * three-way settings whose values are `always yes', `always
      * no', and `decide by some more complex automated means'. This
      * is true of line discipline options (local echo and line
-     * editing), proxy DNS, Close On Exit, and SSH server bug
-     * workarounds. Accordingly I supply a single enum here to deal
-     * with them all.
+     * editing), proxy DNS, proxy terminal logging, Close On Exit, and
+     * SSH server bug workarounds. Accordingly I supply a single enum
+     * here to deal with them all.
      */
     FORCE_ON, FORCE_OFF, AUTO
 };
@@ -681,6 +681,7 @@ void cleanup_exit(int);
     X(STR, NONE, proxy_username) \
     X(STR, NONE, proxy_password) \
     X(STR, NONE, proxy_telnet_command) \
+    X(INT, NONE, proxy_log_to_term) \
     /* SSH options */ \
     X(STR, NONE, remote_cmd) \
     X(STR, NONE, remote_cmd2) /* fallback if remote_cmd fails; never loaded or saved */ \

@@ -2,12 +2,16 @@
  * be_misc.c: helper functions shared between main network backends.
  */
 
+#include <assert.h>
+#include <string.h>
+
 #define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 
 void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
-                        const char *error_msg, int error_code)
+                        const char *error_msg, int error_code, Conf *conf,
+                        int session_started)
 {
     char addrbuf[256], *msg;
 
@@ -27,7 +31,22 @@ void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
       case 2:
         /* Proxy-related log messages have their own identifying
          * prefix already, put on by our caller. */
-        msg = dupstr(error_msg);
+        {
+            int len, log_to_term;
+
+            /* Suffix \r\n temporarily, so we can log to the terminal. */
+            msg = dupprintf("%s\r\n", error_msg);
+            len = strlen(msg);
+            assert(len >= 2);
+
+            log_to_term = conf_get_int(conf, CONF_proxy_log_to_term);
+            if (log_to_term == AUTO)
+                log_to_term = session_started ? FORCE_OFF : FORCE_ON;
+            if (log_to_term == FORCE_ON)
+                from_backend(frontend, TRUE, msg, len);
+
+            msg[len-2] = '\0';         /* remove the \r\n again */
+        }
         break;
       default:
         msg = NULL;  /* shouldn't happen, but placate optimiser */

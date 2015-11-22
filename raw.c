@@ -25,7 +25,9 @@ typedef struct raw_backend_data {
     int closed_on_socket_error;
     int bufsize;
     void *frontend;
-    int sent_console_eof, sent_socket_eof;
+    int sent_console_eof, sent_socket_eof, session_started;
+
+    Conf *conf;
 } *Raw;
 
 static void raw_size(void *handle, int width, int height);
@@ -41,7 +43,7 @@ static void raw_log(Plug plug, int type, SockAddr addr, int port,
 {
     Raw raw = (Raw) plug;
     backend_socket_log(raw->frontend, type, addr, port,
-                       error_msg, error_code);
+                       error_msg, error_code, raw->conf, raw->session_started);
 }
 
 static void raw_check_close(Raw raw)
@@ -97,6 +99,9 @@ static int raw_receive(Plug plug, int urgent, char *data, int len)
 {
     Raw raw = (Raw) plug;
     c_write(raw, data, len);
+    /* We count 'session start', for proxy logging purposes, as being
+     * when data is received from the network and printed. */
+    raw->session_started = TRUE;
     return 1;
 }
 
@@ -138,6 +143,8 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     *backend_handle = raw;
     raw->sent_console_eof = raw->sent_socket_eof = FALSE;
     raw->bufsize = 0;
+    raw->session_started = FALSE;
+    raw->conf = conf_copy(conf);
 
     raw->frontend = frontend_handle;
 
@@ -184,6 +191,7 @@ static void raw_free(void *handle)
 
     if (raw->s)
 	sk_close(raw->s);
+    conf_free(raw->conf);
     sfree(raw);
 }
 

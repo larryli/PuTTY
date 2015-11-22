@@ -2072,6 +2072,15 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     HELPCTX(proxy_command),
 		     conf_editbox_handler,
 		     I(CONF_proxy_telnet_command), I(1));
+
+	ctrl_radiobuttons(s, "Print proxy diagnostics "
+                          "in the terminal window", 'r', 5,
+			  HELPCTX(proxy_main),
+			  conf_radiobutton_handler,
+			  I(CONF_proxy_log_to_term),
+			  "No", I(FORCE_OFF),
+			  "Yes", I(FORCE_ON),
+			  "Only until session starts", I(AUTO), NULL);
     }
 
     /*
