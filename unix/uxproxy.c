@@ -104,6 +104,8 @@ static void sk_localproxy_close (Socket s)
     uxsel_del(ps->from_cmd);
     close(ps->from_cmd);
 
+    bufchain_clear(&ps->pending_input_data);
+    bufchain_clear(&ps->pending_output_data);
     sfree(ps);
 }
 
