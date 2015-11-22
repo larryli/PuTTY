@@ -211,40 +211,4 @@ char *get_hostname(void);
  */
 Socket new_error_socket(const char *errmsg, Plug plug);
 
-/********** SSL stuff **********/
-
-/*
- * This section is subject to change, but you get the general idea
- * of what it will eventually look like.
- */
-
-typedef struct certificate *Certificate;
-typedef struct our_certificate *Our_Certificate;
-    /* to be defined somewhere else, somehow */
-
-typedef struct ssl_client_socket_function_table **SSL_Client_Socket;
-typedef struct ssl_client_plug_function_table **SSL_Client_Plug;
-
-struct ssl_client_socket_function_table {
-    struct socket_function_table base;
-    void (*renegotiate) (SSL_Client_Socket s);
-    /* renegotiate the cipher spec */
-};
-
-struct ssl_client_plug_function_table {
-    struct plug_function_table base;
-    int (*refuse_cert) (SSL_Client_Plug p, Certificate cert[]);
-    /* do we accept this certificate chain?  If not, why not? */
-    /* cert[0] is the server's certificate, cert[] is NULL-terminated */
-    /* the last certificate may or may not be the root certificate */
-     Our_Certificate(*client_cert) (SSL_Client_Plug p);
-    /* the server wants us to identify ourselves */
-    /* may return NULL if we want anonymity */
-};
-
-SSL_Client_Socket sk_ssl_client_over(Socket s,	/* pre-existing (tcp) connection */
-				     SSL_Client_Plug p);
-
-#define sk_renegotiate(s) (((*s)->renegotiate) (s))
-
 #endif
