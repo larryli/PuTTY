@@ -114,6 +114,10 @@
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
 #
+#  - XFLAGS=/DUNPROTECT
+#      Disable tightened ACL on PuTTY process so that e.g. debuggers
+#      can attach to it.
+#
 #  - XFLAGS=/DMALLOC_LOG
 #      Causes PuTTY to emit a file called putty_mem.log, logging every
 #      memory allocation and free, so you can track memory leaks.
