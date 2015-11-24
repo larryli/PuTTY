@@ -36,21 +36,6 @@ int got_advapi(void)
     return successful;
 }
 
-int got_crypt(void)
-{
-    static int attempted = FALSE;
-    static int successful;
-    static HMODULE crypt;
-
-    if (!attempted) {
-        attempted = TRUE;
-        crypt = load_system32_dll("crypt32.dll");
-        successful = crypt &&
-            GET_WINDOWS_FUNCTION(crypt, CryptProtectMemory);
-    }
-    return successful;
-}
-
 PSID get_user_sid(void)
 {
     HANDLE proc = NULL, tok = NULL;
@@ -237,7 +222,7 @@ int make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
-int protectprocess(char *error)
+int setprocessacl(char *error)
 {
     SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
     SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
