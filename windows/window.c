@@ -395,15 +395,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Protect our process
      */
     {
-      char *error = NULL;
-
-      if (! setprocessacl(error)) {
-	/* FIXME: prepare to stuff this into event log somehow */
-    	MessageBox(NULL, "Process protection",
-    		   error, MB_OK | MB_ICONEXCLAMATION);
-      }
-      sfree(error);
-
+#ifndef UNPROTECT
+        char *error = NULL;
+        if (! setprocessacl(error)) {
+	    logevent(NULL, "Could not restrict process ACL: %s",
+		     error);
+	}
+        sfree(error);
+#endif
     }
     /*
      * Process the command line.
