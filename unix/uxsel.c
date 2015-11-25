@@ -64,6 +64,8 @@ void uxsel_set(int fd, int rwx, uxsel_callback_fn callback)
 {
     struct fd *newfd;
 
+    assert(fd >= 0);
+
     uxsel_del(fd);
 
     if (rwx) {

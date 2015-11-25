@@ -405,7 +405,8 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
         add234(localproxy_by_errfd, ret);
 
     uxsel_set(ret->from_cmd, 1, localproxy_select_result);
-    uxsel_set(ret->cmd_err, 1, localproxy_select_result);
+    if (ret->cmd_err >= 0)
+        uxsel_set(ret->cmd_err, 1, localproxy_select_result);
 
     /* We are responsible for this and don't need it any more */
     sk_addr_free(addr);
