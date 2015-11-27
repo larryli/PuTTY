@@ -398,8 +398,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 #ifndef UNPROTECT
         char *error = NULL;
         if (! setprocessacl(error)) {
-	    logevent(NULL, "Could not restrict process ACL: %s",
-		     error);
+            char *message = dupprintf("Could not restrict process ACL: %s",
+                                      error);
+	    logevent(NULL, message);
+            sfree(message);
 	    sfree(error);
 	}
 #endif
