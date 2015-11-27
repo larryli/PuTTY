@@ -400,8 +400,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         if (! setprocessacl(error)) {
 	    logevent(NULL, "Could not restrict process ACL: %s",
 		     error);
+	    sfree(error);
 	}
-        sfree(error);
 #endif
     }
     /*
