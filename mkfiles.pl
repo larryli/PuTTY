@@ -636,7 +636,7 @@ if (defined $makefiles{'vc'}) {
       "CFLAGS = /nologo /W3 /O1 " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
       " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500\n".
-      "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
+      "LFLAGS = /incremental:no /fixed\n".
       "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
       " -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
       "\n".
