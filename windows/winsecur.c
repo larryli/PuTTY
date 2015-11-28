@@ -27,6 +27,7 @@ int got_advapi(void)
         advapi = load_system32_dll("advapi32.dll");
         successful = advapi &&
             GET_WINDOWS_FUNCTION(advapi, GetSecurityInfo) &&
+            GET_WINDOWS_FUNCTION(advapi, SetSecurityInfo) &&
             GET_WINDOWS_FUNCTION(advapi, OpenProcessToken) &&
             GET_WINDOWS_FUNCTION(advapi, GetTokenInformation) &&
             GET_WINDOWS_FUNCTION(advapi, InitializeSecurityDescriptor) &&
@@ -265,16 +266,10 @@ int setprocessacl(char *error)
         goto cleanup;
     }
 
-    if (ERROR_SUCCESS !=
-	SetSecurityInfo(
-			GetCurrentProcess(),
-			SE_KERNEL_OBJECT,
-			OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
-			usersid,
-			NULL,
-			acl,
-			NULL
-			)) {
+    if (ERROR_SUCCESS != p_SetSecurityInfo
+        (GetCurrentProcess(), SE_KERNEL_OBJECT,
+         OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
+         usersid, NULL, acl, NULL)) {
 	error=dupprintf("Unable to set process ACL: %s",
 			win_strerror(GetLastError()));
 	goto cleanup;
