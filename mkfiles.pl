@@ -648,27 +648,25 @@ if (defined $makefiles{'vc'}) {
     foreach $p (&prognames("G:C")) {
 	($prog, $type) = split ",", $p;
 	$objstr = &objects($p, "X.obj", "X.res", undef);
-	print &splitline("$prog.exe: " . $objstr . " $prog.rsp"), "\n";
-	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:$prog.exe -map:$prog.map \@$prog.rsp\n\n";
-    }
-    foreach $p (&prognames("G:C")) {
-	($prog, $type) = split ",", $p;
-	print $prog, ".rsp: \$(MAKEFILE)\n";
+	print &splitline("$prog.exe: " . $objstr), "\n";
+
 	$objstr = &objects($p, "X.obj", "X.res", "X.lib");
+	$subsys = ($type eq "G") ? "windows" : "console";
+        $inlinefilename = "link_$prog";
+        print "\ttype <<$inlinefilename\n";
 	@objlist = split " ", $objstr;
 	@objlines = ("");
 	foreach $i (@objlist) {
-	    if (length($objlines[$#objlines] . " $i") > 50) {
+	    if (length($objlines[$#objlines] . " $i") > 72) {
 		push @objlines, "";
 	    }
 	    $objlines[$#objlines] .= " $i";
 	}
-	$subsys = ($type eq "G") ? "windows" : "console";
-	print "\techo /nologo /subsystem:$subsys > $prog.rsp\n";
 	for ($i=0; $i<=$#objlines; $i++) {
-	    print "\techo$objlines[$i] >> $prog.rsp\n";
+	    print "$objlines[$i]\n";
 	}
-	print "\n";
+	print "<<\n";
+	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:$prog.exe -map:$prog.map -nologo -subsystem:$subsys \@$inlinefilename\n\n";
     }
     foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "vc")) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
