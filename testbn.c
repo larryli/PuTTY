@@ -12,6 +12,7 @@
 #include <ctype.h>
 
 #include "ssh.h"
+#include "sshbn.h"
 
 void modalfatalbox(const char *p, ...)
 {
@@ -37,6 +38,8 @@ int main(int argc, char **argv)
     char *buf;
     int line = 0;
     int passes = 0, fails = 0;
+
+    printf("BIGNUM_INT_BITS = %d\n", (int)BIGNUM_INT_BITS);
 
     while ((buf = fgetline(stdin)) != NULL) {
         int maxlen = strlen(buf);
