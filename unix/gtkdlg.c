@@ -2083,6 +2083,8 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 						       G_TYPE_STRING);
 		    w = gtk_combo_box_new_with_model_and_entry
 			(GTK_TREE_MODEL(uc->listmodel));
+                    g_object_set(G_OBJECT(w), "entry-text-column", 1,
+                                 (const char *)NULL);
 		    /* We cannot support password combo boxes. */
 		    assert(!ctrl->editbox.password);
 		    uc->combo = w;
