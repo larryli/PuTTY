@@ -2059,6 +2059,65 @@ int main(int argc, char **argv)
             freebn(modulus);
             freebn(expected);
             freebn(answer);
+        } else if (!strcmp(buf, "divmod")) {
+            Bignum n, d, expect_q, expect_r, answer_q, answer_r;
+            int fail;
+
+            if (ptrnum != 4) {
+                printf("%d: divmod with %d parameters, expected 4\n", line, ptrnum);
+                exit(1);
+            }
+
+            n = bignum_from_bytes(ptrs[0], ptrs[1]-ptrs[0]);
+            d = bignum_from_bytes(ptrs[1], ptrs[2]-ptrs[1]);
+            expect_q = bignum_from_bytes(ptrs[2], ptrs[3]-ptrs[2]);
+            expect_r = bignum_from_bytes(ptrs[3], ptrs[4]-ptrs[3]);
+            answer_q = bigdiv(n, d);
+            answer_r = bigmod(n, d);
+
+            fail = FALSE;
+            if (bignum_cmp(expect_q, answer_q) != 0) {
+                char *as = bignum_decimal(n);
+                char *bs = bignum_decimal(d);
+                char *cs = bignum_decimal(answer_q);
+                char *ds = bignum_decimal(expect_q);
+
+                printf("%d: fail: %s / %s gave %s expected %s\n",
+                       line, as, bs, cs, ds);
+                fail = TRUE;
+
+                sfree(as);
+                sfree(bs);
+                sfree(cs);
+                sfree(ds);
+            }
+            if (bignum_cmp(expect_r, answer_r) != 0) {
+                char *as = bignum_decimal(n);
+                char *bs = bignum_decimal(d);
+                char *cs = bignum_decimal(answer_r);
+                char *ds = bignum_decimal(expect_r);
+
+                printf("%d: fail: %s mod %s gave %s expected %s\n",
+                       line, as, bs, cs, ds);
+                fail = TRUE;
+
+                sfree(as);
+                sfree(bs);
+                sfree(cs);
+                sfree(ds);
+            }
+
+            freebn(n);
+            freebn(d);
+            freebn(expect_q);
+            freebn(expect_r);
+            freebn(answer_q);
+            freebn(answer_r);
+
+            if (fail)
+                fails++;
+            else
+                passes++;
         } else {
             printf("%d: unrecognised test keyword: '%s'\n", line, buf);
             exit(1);
