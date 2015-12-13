@@ -2025,7 +2025,7 @@ int main(int argc, char **argv)
             Bignum base, expt, modulus, expected, answer;
 
             if (ptrnum != 4) {
-                printf("%d: mul with %d parameters, expected 4\n", line, ptrnum);
+                printf("%d: pow with %d parameters, expected 4\n", line, ptrnum);
                 exit(1);
             }
 
