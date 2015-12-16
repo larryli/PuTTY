@@ -323,3 +323,14 @@ PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
 
 fuzzterm : [UT] UXTERM CHARSET misc uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none
+testbn   : [UT] testbn sshbn misc conf tree234 uxmisc
+testbn   : [C] testbn sshbn misc conf tree234 winmisc LIBS
+
+# ----------------------------------------------------------------------
+# On Windows, provide a means of removing local test binaries that we
+# aren't going to actually ship. (I prefer this to not building them
+# in the first place, so that we find out about build breakage early.)
+!begin vc
+cleantestprogs:
+	-del testbn.exe
+!end

@@ -150,7 +150,7 @@ in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 delegate windows
   # FIXME: Cygwin alternative?
-  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs)
+  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs) all cleantestprogs
   # Code-sign the binaries, if the local bob config provides a script
   # to do so. We assume here that the script accepts an -i option to
   # provide a 'more info' URL, and an optional -n option to provide a
