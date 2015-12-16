@@ -87,20 +87,17 @@ Bignum bn_power_2(int n)
 
 /*
  * Internal addition. Sets c = a - b, where 'a', 'b' and 'c' are all
- * big-endian arrays of 'len' BignumInts. Returns a BignumInt carried
- * off the top.
+ * big-endian arrays of 'len' BignumInts. Returns the carry off the
+ * top.
  */
-static BignumInt internal_add(const BignumInt *a, const BignumInt *b,
-                              BignumInt *c, int len)
+static BignumCarry internal_add(const BignumInt *a, const BignumInt *b,
+                                BignumInt *c, int len)
 {
     int i;
-    BignumDblInt carry = 0;
+    BignumCarry carry = 0;
 
-    for (i = len-1; i >= 0; i--) {
-        carry += (BignumDblInt)a[i] + b[i];
-        c[i] = (BignumInt)carry;
-        carry >>= BIGNUM_INT_BITS;
-    }
+    for (i = len-1; i >= 0; i--)
+        BignumADC(c[i], carry, a[i], b[i], carry);
 
     return (BignumInt)carry;
 }
@@ -114,13 +111,10 @@ static void internal_sub(const BignumInt *a, const BignumInt *b,
                          BignumInt *c, int len)
 {
     int i;
-    BignumDblInt carry = 1;
+    BignumCarry carry = 1;
 
-    for (i = len-1; i >= 0; i--) {
-        carry += (BignumDblInt)a[i] + (b[i] ^ BIGNUM_INT_MASK);
-        c[i] = (BignumInt)carry;
-        carry >>= BIGNUM_INT_BITS;
-    }
+    for (i = len-1; i >= 0; i--)
+        BignumADC(c[i], carry, a[i], ~b[i], carry);
 }
 
 /*
@@ -184,7 +178,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 
         int toplen = len/2, botlen = len - toplen; /* botlen is the bigger */
         int midlen = botlen + 1;
-        BignumDblInt carry;
+        BignumCarry carry;
 #ifdef KARA_DEBUG
         int i;
 #endif
@@ -313,9 +307,7 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
         i = 2*len - botlen - 2*midlen - 1;
         while (carry) {
             assert(i >= 0);
-            carry += c[i];
-            c[i] = (BignumInt)carry;
-            carry >>= BIGNUM_INT_BITS;
+            BignumADC(c[i], carry, c[i], 0, carry);
             i--;
         }
 #ifdef KARA_DEBUG
@@ -329,7 +321,6 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
     } else {
         int i;
         BignumInt carry;
-        BignumDblInt t;
         const BignumInt *ap, *bp;
         BignumInt *cp, *cps;
 
@@ -342,11 +333,8 @@ static void internal_mul(const BignumInt *a, const BignumInt *b,
 
         for (cps = c + 2*len, ap = a + len; ap-- > a; cps--) {
             carry = 0;
-            for (cp = cps, bp = b + len; cp--, bp-- > b ;) {
-                t = (MUL_WORD(*ap, *bp) + carry) + *cp;
-                *cp = (BignumInt) t;
-                carry = (BignumInt)(t >> BIGNUM_INT_BITS);
-            }
+            for (cp = cps, bp = b + len; cp--, bp-- > b ;)
+                BignumMULADD2(carry, *cp, *ap, *bp, *cp, carry);
             *cp = carry;
         }
     }
@@ -431,7 +419,6 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
     } else {
         int i;
         BignumInt carry;
-        BignumDblInt t;
         const BignumInt *ap, *bp;
         BignumInt *cp, *cps;
 
@@ -444,11 +431,8 @@ static void internal_mul_low(const BignumInt *a, const BignumInt *b,
 
         for (cps = c + len, ap = a + len; ap-- > a; cps--) {
             carry = 0;
-            for (cp = cps, bp = b + len; bp--, cp-- > c ;) {
-                t = (MUL_WORD(*ap, *bp) + carry) + *cp;
-                *cp = (BignumInt) t;
-                carry = (BignumInt)(t >> BIGNUM_INT_BITS);
-            }
+            for (cp = cps, bp = b + len; bp--, cp-- > c ;)
+                BignumMULADD2(carry, *cp, *ap, *bp, *cp, carry);
         }
     }
 }
@@ -519,15 +503,23 @@ static void internal_add_shifted(BignumInt *number,
 {
     int word = 1 + (shift / BIGNUM_INT_BITS);
     int bshift = shift % BIGNUM_INT_BITS;
-    BignumDblInt addend;
+    BignumInt addendh, addendl;
+    BignumCarry carry;
 
-    addend = (BignumDblInt)n << bshift;
+    addendl = n << bshift;
+    addendh = (bshift == 0 ? 0 : n >> (BIGNUM_INT_BITS - bshift));
 
-    while (addend) {
+    assert(word <= number[0]);
+    BignumADC(number[word], carry, number[word], addendl, 0);
+    word++;
+    if (!addendh && !carry)
+        return;
+    assert(word <= number[0]);
+    BignumADC(number[word], carry, number[word], addendh, carry);
+    word++;
+    while (carry) {
         assert(word <= number[0]);
-	addend += number[word];
-	number[word] = (BignumInt) addend & BIGNUM_INT_MASK;
-	addend >>= BIGNUM_INT_BITS;
+        BignumADC(number[word], carry, number[word], 0, carry);
 	word++;
     }
 }
@@ -555,8 +547,7 @@ static int bn_clz(BignumInt x)
 
 static BignumInt reciprocal_word(BignumInt d)
 {
-    BignumInt dshort, recip;
-    BignumDblInt product;
+    BignumInt dshort, recip, prodh, prodl;
     int corrections;
 
     /*
@@ -600,15 +591,16 @@ static BignumInt reciprocal_word(BignumInt d)
      * iteration, and the initial division above already gave us half
      * the output word, so it's only worth doing one iteration.
      */
-    product = MUL_WORD(recip, d);
-    product += recip;
-    product = -product;                /* the 2K shifts just off the top */
-    product &= (((BignumDblInt)BIGNUM_INT_MASK << BIGNUM_INT_BITS) +
-                BIGNUM_INT_MASK);
-    product >>= BIGNUM_INT_BITS;
-    product = MUL_WORD(product, recip);
-    product >>= (BIGNUM_INT_BITS-1);
-    recip = (BignumInt)product;
+    BignumMULADD(prodh, prodl, recip, d, recip);
+    prodl = ~prodl;
+    prodh = ~prodh;
+    {
+        BignumCarry c;
+        BignumADC(prodl, c, prodl, 1, 0);
+        prodh += c;
+    }
+    BignumMUL(prodh, prodl, prodh, recip);
+    recip = (prodh << 1) | (prodl >> (BIGNUM_INT_BITS-1));
 
     /*
      * Now make sure we have the best possible reciprocal estimate,
@@ -616,18 +608,24 @@ static BignumInt reciprocal_word(BignumInt d)
      * way - not enough to bother with any better-thought-out kind of
      * correction loop.
      */
-    product = MUL_WORD(recip, d);
-    product += recip;
+    BignumMULADD(prodh, prodl, recip, d, recip);
     corrections = 0;
-    if (product >= ((BignumDblInt)1 << (2*BIGNUM_INT_BITS-1))) {
+    if (prodh >= BIGNUM_TOP_BIT) {
         do {
-            product -= d;
+            BignumCarry c = 1;
+            BignumADC(prodl, c, prodl, ~d, c); prodh += BIGNUM_INT_MASK + c;
             recip--;
             corrections++;
-        } while (product >= ((BignumDblInt)1 << (2*BIGNUM_INT_BITS-1)));
+        } while (prodh >= ((BignumInt)1 << (BIGNUM_INT_BITS-1)));
     } else {
-        while (product < ((BignumDblInt)1 << (2*BIGNUM_INT_BITS-1)) - d) {
-            product += d;
+        while (1) {
+            BignumInt newprodh, newprodl;
+            BignumCarry c = 0;
+            BignumADC(newprodl, c, prodl, d, c); newprodh = prodh + c;
+            if (newprodh >= BIGNUM_TOP_BIT)
+                break;
+            prodh = newprodh;
+            prodl = newprodl;
             recip++;
             corrections++;
         }
@@ -679,7 +677,7 @@ static void internal_mod(BignumInt *a, int alen,
      * here.
      */
     for (i = 0; i <= alen - mlen ;) {
-	BignumDblInt product, subtmp, t;
+	BignumInt product;
         BignumInt aword, q;
         int shift, full_bitoffset, bitoffset, wordoffset;
 
@@ -707,8 +705,11 @@ static void internal_mod(BignumInt *a, int alen,
         if (shift > 0 && i+1 < alen)
             aword |= a[i+1] >> (BIGNUM_INT_BITS - shift);
 
-        t = MUL_WORD(recip, aword);
-        q = (BignumInt)(t >> BIGNUM_INT_BITS);
+        {
+            BignumInt unused;
+            BignumMUL(q, unused, recip, aword);
+            (void)unused;
+        }
 
 #ifdef DIVISION_DEBUG
         printf("i=%d, aword=%#0*llx, shift=%d, q=%#0*llx\n",
@@ -784,27 +785,22 @@ static void internal_mod(BignumInt *a, int alen,
         wordoffset = alen - mlen - wordoffset;
 
         if (bitoffset == 0) {
-            BignumInt c = 1;
+            BignumCarry c = 1;
             BignumInt prev_hi_word = 0;
             for (k = mlen - 1; wordoffset+k >= i; k--) {
                 BignumInt mword = k<0 ? 0 : m[k];
-                product = MUL_WORD(q, mword);
-                product += prev_hi_word;
-                prev_hi_word = product >> BIGNUM_INT_BITS;
+                BignumMULADD(prev_hi_word, product, q, mword, prev_hi_word);
 #ifdef DIVISION_DEBUG
                 printf("  aligned sub: product word for m[%d] = %#0*llx\n",
                        k, BIGNUM_INT_BITS/4,
-                       (unsigned long long)(BignumInt)product);
+                       (unsigned long long)product);
 #endif
 #ifdef DIVISION_DEBUG
                 printf("  aligned sub: subtrahend for a[%d] = %#0*llx\n",
                        wordoffset+k, BIGNUM_INT_BITS/4,
-                       (unsigned long long)(BignumInt)product);
+                       (unsigned long long)product);
 #endif
-                subtmp = (BignumDblInt)a[wordoffset+k] +
-                    ((BignumInt)product ^ BIGNUM_INT_MASK) + c;
-                a[wordoffset+k] = (BignumInt)subtmp;
-                c = subtmp >> BIGNUM_INT_BITS;
+                BignumADC(a[wordoffset+k], c, a[wordoffset+k], ~product, c);
             }
         } else {
             BignumInt add_word = 0;
@@ -812,28 +808,23 @@ static void internal_mod(BignumInt *a, int alen,
             BignumInt prev_hi_word = 0;
             for (k = mlen - 1; wordoffset+k >= i; k--) {
                 BignumInt mword = k<0 ? 0 : m[k];
-                product = MUL_WORD(q, mword);
-                product += prev_hi_word;
-                prev_hi_word = product >> BIGNUM_INT_BITS;
+                BignumMULADD(prev_hi_word, product, q, mword, prev_hi_word);
 #ifdef DIVISION_DEBUG
                 printf("  unaligned sub: product word for m[%d] = %#0*llx\n",
                        k, BIGNUM_INT_BITS/4,
-                       (unsigned long long)(BignumInt)product);
+                       (unsigned long long)product);
 #endif
 
-                add_word |= (BignumInt)product << bitoffset;
+                add_word |= product << bitoffset;
 
 #ifdef DIVISION_DEBUG
                 printf("  unaligned sub: subtrahend for a[%d] = %#0*llx\n",
                        wordoffset+k,
                        BIGNUM_INT_BITS/4, (unsigned long long)add_word);
 #endif
-                subtmp = (BignumDblInt)a[wordoffset+k] +
-                    (add_word ^ BIGNUM_INT_MASK) + c;
-                a[wordoffset+k] = (BignumInt)subtmp;
-                c = subtmp >> BIGNUM_INT_BITS;
+                BignumADC(a[wordoffset+k], c, a[wordoffset+k], ~add_word, c);
 
-                add_word = (BignumInt)product >> (BIGNUM_INT_BITS - bitoffset);
+                add_word = product >> (BIGNUM_INT_BITS - bitoffset);
             }
         }
 
@@ -917,14 +908,11 @@ static void internal_mod(BignumInt *a, int alen,
      * subtract m, and increment the quotient.
      */
     {
-        BignumInt c = 1;
+        BignumCarry c = 1;
         for (i = alen - 1; i >= 0; i--) {
             int mindex = mlen-alen+i;
             BignumInt mword = mindex < 0 ? 0 : m[mindex];
-            BignumDblInt subtmp = (BignumDblInt)a[i] +
-                ((BignumInt)mword ^ BIGNUM_INT_MASK) + c;
-            a[i] = (BignumInt)subtmp;
-            c = subtmp >> BIGNUM_INT_BITS;
+            BignumADC(a[i], c, a[i], ~mword, c);
         }
     }
     if (quot)
@@ -1767,12 +1755,11 @@ Bignum bigmuladd(Bignum a, Bignum b, Bignum addend)
 
     /* now add in the addend, if any */
     if (addend) {
-	BignumDblInt carry = 0;
+	BignumCarry carry = 0;
 	for (i = 1; i <= rlen; i++) {
-	    carry += (i <= (int)ret[0] ? ret[i] : 0);
-	    carry += (i <= (int)addend[0] ? addend[i] : 0);
-	    ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
-	    carry >>= BIGNUM_INT_BITS;
+            BignumInt retword = (i <= (int)ret[0] ? ret[i] : 0);
+            BignumInt addword = (i <= (int)addend[0] ? addend[i] : 0);
+            BignumADC(ret[i], carry, retword, addword, carry);
 	    if (ret[i] != 0 && i > maxspot)
 		maxspot = i;
 	}
@@ -1801,17 +1788,16 @@ Bignum bigadd(Bignum a, Bignum b)
     int rlen = (alen > blen ? alen : blen) + 1;
     int i, maxspot;
     Bignum ret;
-    BignumDblInt carry;
+    BignumCarry carry;
 
     ret = newbn(rlen);
 
     carry = 0;
     maxspot = 0;
     for (i = 1; i <= rlen; i++) {
-        carry += (i <= (int)a[0] ? a[i] : 0);
-        carry += (i <= (int)b[0] ? b[i] : 0);
-        ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
-        carry >>= BIGNUM_INT_BITS;
+        BignumInt aword = (i <= (int)a[0] ? a[i] : 0);
+        BignumInt bword = (i <= (int)b[0] ? b[i] : 0);
+        BignumADC(ret[i], carry, aword, bword, carry);
         if (ret[i] != 0 && i > maxspot)
             maxspot = i;
     }
@@ -1831,17 +1817,16 @@ Bignum bigsub(Bignum a, Bignum b)
     int rlen = (alen > blen ? alen : blen);
     int i, maxspot;
     Bignum ret;
-    BignumDblInt carry;
+    BignumCarry carry;
 
     ret = newbn(rlen);
 
     carry = 1;
     maxspot = 0;
     for (i = 1; i <= rlen; i++) {
-        carry += (i <= (int)a[0] ? a[i] : 0);
-        carry += (i <= (int)b[0] ? b[i] ^ BIGNUM_INT_MASK : BIGNUM_INT_MASK);
-        ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
-        carry >>= BIGNUM_INT_BITS;
+        BignumInt aword = (i <= (int)a[0] ? a[i] : 0);
+        BignumInt bword = (i <= (int)b[0] ? b[i] : 0);
+        BignumADC(ret[i], carry, aword, ~bword, carry);
         if (ret[i] != 0 && i > maxspot)
             maxspot = i;
     }
@@ -1881,40 +1866,52 @@ Bignum bignum_bitmask(Bignum n)
 }
 
 /*
- * Convert a (max 32-bit) long into a bignum.
+ * Convert an unsigned long into a bignum.
  */
-Bignum bignum_from_long(unsigned long nn)
+Bignum bignum_from_long(unsigned long n)
 {
+    const int maxwords =
+        (sizeof(unsigned long) + sizeof(BignumInt) - 1) / sizeof(BignumInt);
     Bignum ret;
-    BignumDblInt n = nn;
+    int i;
 
-    ret = newbn(3);
-    ret[1] = (BignumInt)(n & BIGNUM_INT_MASK);
-    ret[2] = (BignumInt)((n >> BIGNUM_INT_BITS) & BIGNUM_INT_MASK);
-    ret[3] = 0;
-    ret[0] = (ret[2]  ? 2 : 1);
+    ret = newbn(maxwords);
+    ret[0] = 0;
+    for (i = 0; i < maxwords; i++) {
+        ret[i+1] = n >> (i * BIGNUM_INT_BITS);
+        if (ret[i+1] != 0)
+            ret[0] = i+1;
+    }
+
     return ret;
 }
 
 /*
  * Add a long to a bignum.
  */
-Bignum bignum_add_long(Bignum number, unsigned long addendx)
+Bignum bignum_add_long(Bignum number, unsigned long n)
 {
-    Bignum ret = newbn(number[0] + 1);
-    int i, maxspot = 0;
-    BignumDblInt carry = 0, addend = addendx;
+    const int maxwords =
+        (sizeof(unsigned long) + sizeof(BignumInt) - 1) / sizeof(BignumInt);
+    Bignum ret;
+    int words, i;
+    BignumCarry carry;
 
-    for (i = 1; i <= (int)ret[0]; i++) {
-	carry += addend & BIGNUM_INT_MASK;
-	carry += (i <= (int)number[0] ? number[i] : 0);
-	addend >>= BIGNUM_INT_BITS;
-	ret[i] = (BignumInt) carry & BIGNUM_INT_MASK;
-	carry >>= BIGNUM_INT_BITS;
-	if (ret[i] != 0)
-	    maxspot = i;
+    words = number[0];
+    if (words < maxwords)
+        words = maxwords;
+    words++;
+    ret = newbn(words);
+
+    carry = 0;
+    ret[0] = 0;
+    for (i = 0; i < words; i++) {
+        BignumInt nword = (i < maxwords ? n >> (i * BIGNUM_INT_BITS) : 0);
+        BignumInt numword = (i < number[0] ? number[i+1] : 0);
+        BignumADC(ret[i+1], carry, numword, nword, carry);
+	if (ret[i+1] != 0)
+            ret[0] = i+1;
     }
-    ret[0] = maxspot;
     return ret;
 }
 
@@ -1923,13 +1920,17 @@ Bignum bignum_add_long(Bignum number, unsigned long addendx)
  */
 unsigned short bignum_mod_short(Bignum number, unsigned short modulus)
 {
-    BignumDblInt mod, r;
+    unsigned long mod = modulus, r = 0;
+    /* Precompute (BIGNUM_INT_MASK+1) % mod */
+    unsigned long base_r = (BIGNUM_INT_MASK - modulus + 1) % mod;
     int i;
 
-    r = 0;
-    mod = modulus;
-    for (i = number[0]; i > 0; i--)
-	r = (r * (BIGNUM_TOP_BIT % mod) * 2 + number[i] % mod) % mod;
+    for (i = number[0]; i > 0; i--) {
+        /*
+         * Conceptually, ((r << BIGNUM_INT_BITS) + number[i]) % mod
+         */
+        r = ((r * base_r) + (number[i] % mod)) % mod;
+    }
     return (unsigned short) r;
 }
 
@@ -2087,7 +2088,7 @@ char *bignum_decimal(Bignum x)
 {
     int ndigits, ndigit;
     int i, iszero;
-    BignumDblInt carry;
+    BignumInt carry;
     char *ret;
     BignumInt *workspace;
 
@@ -2134,11 +2135,33 @@ char *bignum_decimal(Bignum x)
 	iszero = 1;
 	carry = 0;
 	for (i = 0; i < (int)x[0]; i++) {
-	    carry = (carry << BIGNUM_INT_BITS) + workspace[i];
-	    workspace[i] = (BignumInt) (carry / 10);
+            /*
+             * Conceptually, we want to compute
+             *
+             *   (carry << BIGNUM_INT_BITS) + workspace[i]
+             *   -----------------------------------------
+             *                      10
+             *
+             * but we don't have an integer type longer than BignumInt
+             * to work with. So we have to do it in pieces.
+             */
+
+            BignumInt q, r;
+            q = workspace[i] / 10;
+            r = workspace[i] % 10;
+
+            /* I want (BIGNUM_INT_MASK+1)/10 but can't say so directly! */
+            q += carry * ((BIGNUM_INT_MASK-9) / 10 + 1);
+            r += carry * ((BIGNUM_INT_MASK-9) % 10);
+
+            q += r / 10;
+            r %= 10;
+
+	    workspace[i] = q;
+	    carry = r;
+
 	    if (workspace[i])
 		iszero = 0;
-	    carry %= 10;
 	}
 	ret[--ndigit] = (char) (carry + '0');
     } while (!iszero);
