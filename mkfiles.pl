@@ -643,14 +643,14 @@ if (defined $makefiles{'vc'}) {
       &def($makefile_extra{'vc'}->{'vars'}) .
       "\n".
       "\n";
-    print &splitline("all:" . join "", map { " $_.exe" } &progrealnames("G:C"));
+    print &splitline("all:" . join "", map { " \$(BUILDDIR)$_.exe" } &progrealnames("G:C"));
     print "\n\n";
     foreach $p (&prognames("G:C")) {
 	($prog, $type) = split ",", $p;
-	$objstr = &objects($p, "X.obj", "X.res", undef);
-	print &splitline("$prog.exe: " . $objstr), "\n";
+	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", undef);
+	print &splitline("\$(BUILDDIR)$prog.exe: " . $objstr), "\n";
 
-	$objstr = &objects($p, "X.obj", "X.res", "X.lib");
+	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", "X.lib");
 	$subsys = ($type eq "G") ? "windows" : "console";
         $inlinefilename = "link_$prog";
         print "\ttype <<$inlinefilename\n";
@@ -666,9 +666,9 @@ if (defined $makefiles{'vc'}) {
 	    print "$objlines[$i]\n";
 	}
 	print "<<\n";
-	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:$prog.exe -map:$prog.map -nologo -subsystem:$subsys \@$inlinefilename\n\n";
+	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:\$(BUILDDIR)$prog.exe -map:\$(BUILDDIR)$prog.map -nologo -subsystem:$subsys \@$inlinefilename\n\n";
     }
-    foreach $d (&deps("X.obj", "X.res", $dirpfx, "\\", "vc")) {
+    foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", $dirpfx, "\\", "vc")) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @$extradeps, @{$d->{deps}})), "\n";
@@ -695,23 +695,23 @@ if (defined $makefiles{'vc'}) {
     }
     print &def($makefile_extra{'vc'}->{'end'});
     print "\nclean: tidy\n".
-      "\t-del *.exe\n\n".
+      "\t-del \$(BUILDDIR)*.exe\n\n".
       "tidy:\n".
-      "\t-del *.obj\n".
-      "\t-del *.res\n".
-      "\t-del *.pch\n".
-      "\t-del *.aps\n".
-      "\t-del *.ilk\n".
-      "\t-del *.pdb\n".
-      "\t-del *.rsp\n".
-      "\t-del *.dsp\n".
-      "\t-del *.dsw\n".
-      "\t-del *.ncb\n".
-      "\t-del *.opt\n".
-      "\t-del *.plg\n".
-      "\t-del *.map\n".
-      "\t-del *.idb\n".
-      "\t-del debug.log\n";
+      "\t-del \$(BUILDDIR)*.obj\n".
+      "\t-del \$(BUILDDIR)*.res\n".
+      "\t-del \$(BUILDDIR)*.pch\n".
+      "\t-del \$(BUILDDIR)*.aps\n".
+      "\t-del \$(BUILDDIR)*.ilk\n".
+      "\t-del \$(BUILDDIR)*.pdb\n".
+      "\t-del \$(BUILDDIR)*.rsp\n".
+      "\t-del \$(BUILDDIR)*.dsp\n".
+      "\t-del \$(BUILDDIR)*.dsw\n".
+      "\t-del \$(BUILDDIR)*.ncb\n".
+      "\t-del \$(BUILDDIR)*.opt\n".
+      "\t-del \$(BUILDDIR)*.plg\n".
+      "\t-del \$(BUILDDIR)*.map\n".
+      "\t-del \$(BUILDDIR)*.idb\n".
+      "\t-del \$(BUILDDIR)debug.log\n";
     select STDOUT; close OUT;
 }
 

@@ -332,5 +332,5 @@ testbn   : [C] testbn sshbn misc conf tree234 winmisc LIBS
 # in the first place, so that we find out about build breakage early.)
 !begin vc
 cleantestprogs:
-	-del testbn.exe
+	-del $(BUILDDIR)testbn.exe
 !end
