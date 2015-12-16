@@ -672,13 +672,27 @@ if (defined $makefiles{'vc'}) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @$extradeps, @{$d->{deps}})), "\n";
-        if ($d->{obj} =~ /.obj$/) {
-	    print "\tcl \$(COMPAT) \$(CFLAGS) \$(XFLAGS) /c ".$d->{deps}->[0],"\n\n";
-	} else {
-	    print "\trc \$(RCFL) -r \$(RCFLAGS) ".$d->{deps}->[0],"\n\n";
+        if ($d->{obj} =~ /.res$/) {
+	    print "\trc /Fo@{[$d->{obj}]} \$(RCFL) -r \$(RCFLAGS) ".$d->{deps}->[0],"\n\n";
 	}
     }
     print "\n";
+    foreach $srcdir ("", @srcdirs) {
+        if ($srcdir ne "") {
+            $srcdir =~ s!/!\\!g;
+            $srcdir = $dirpfx . $srcdir;
+            $srcdir =~ s!\\\.\\!\\!;
+            $srcdir = "{$srcdir}"
+        }
+        # The double colon at the end of the line makes this a
+        # 'batch-mode inference rule', which means that nmake will
+        # aggregate multiple invocations of the rule and issue just
+        # one cl command with multiple source-file arguments. That
+        # noticeably speeds up builds, since starting up the cl
+        # process is a noticeable overhead and now has to be done far
+        # fewer times.
+        print "${srcdir}.c.obj::\n\tcl /Fo\$(BUILDDIR) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) /c \$<\n\n";
+    }
     print &def($makefile_extra{'vc'}->{'end'});
     print "\nclean: tidy\n".
       "\t-del *.exe\n\n".
