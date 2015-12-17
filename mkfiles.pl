@@ -677,12 +677,13 @@ if (defined $makefiles{'vc'}) {
 	}
     }
     print "\n";
-    foreach $srcdir ("", @srcdirs) {
+    foreach $real_srcdir ("", @srcdirs) {
+        $srcdir = $real_srcdir;
         if ($srcdir ne "") {
             $srcdir =~ s!/!\\!g;
             $srcdir = $dirpfx . $srcdir;
             $srcdir =~ s!\\\.\\!\\!;
-            $srcdir = "{$srcdir}"
+            $srcdir = "{$srcdir}";
         }
         # The double colon at the end of the line makes this a
         # 'batch-mode inference rule', which means that nmake will
