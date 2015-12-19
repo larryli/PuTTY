@@ -412,7 +412,7 @@ char *dupvprintf(const char *fmt, va_list ap)
     size = 512;
 
     while (1) {
-#ifdef _WINDOWS
+#if defined _WINDOWS && _MSC_VER < 1900 /* 1900 == VS2015 has real snprintf */
 #define vsnprintf _vsnprintf
 #endif
 #ifdef va_copy
