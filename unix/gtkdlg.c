@@ -33,6 +33,7 @@
 #include "storage.h"
 #include "dialog.h"
 #include "tree234.h"
+#include "licence.h"
 
 #if GTK_CHECK_VERSION(2,0,0)
 /* Decide which of GtkFileChooserDialog and GtkFileSelection to use */
@@ -3626,39 +3627,9 @@ static void licence_clicked(GtkButton *button, gpointer data)
 {
     char *title;
 
-    const char *licence =
-	"Copyright 1997-2015 Simon Tatham.\n\n"
-
-	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
-	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
-	"Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, "
-	"Markus Kuhn, Colin Watson, Christopher Staite, and CORE SDI S.A.\n\n"
-
-	"Permission is hereby granted, free of charge, to any person "
-	"obtaining a copy of this software and associated documentation "
-	"files (the ""Software""), to deal in the Software without restriction, "
-	"including without limitation the rights to use, copy, modify, merge, "
-	"publish, distribute, sublicense, and/or sell copies of the Software, "
-	"and to permit persons to whom the Software is furnished to do so, "
-	"subject to the following conditions:\n\n"
-
-	"The above copyright notice and this permission notice shall be "
-	"included in all copies or substantial portions of the Software.\n\n"
-
-	"THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT "
-	"WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, "
-	"INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF "
-	"MERCHANTABILITY, FITNESS FOR A PARTICULAR "
-	"PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE "
-	"COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES "
-	"OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, "
-	"TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN "
-	"CONNECTION WITH THE SOFTWARE OR THE USE OR "
-	"OTHER DEALINGS IN THE SOFTWARE.";
-
     title = dupcat(appname, " Licence", NULL);
     assert(aboutbox != NULL);
-    messagebox(aboutbox, title, licence,
+    messagebox(aboutbox, title, LICENCE_TEXT("\n\n"),
 	       string_width("LONGISH LINE OF TEXT SO THE LICENCE"
 			    " BOX ISN'T EXCESSIVELY TALL AND THIN"),
                TRUE, "OK", 'o', 1, 1, NULL);
@@ -3702,7 +3673,7 @@ void about_box(void *window)
         char *label_text = dupprintf
             ("%s\n\n%s\n\n%s",
              appname, ver,
-             "Copyright 1997-2015 Simon Tatham. All rights reserved");
+             "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
 #if GTK_CHECK_VERSION(2,0,0)

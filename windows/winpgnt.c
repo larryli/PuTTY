@@ -16,6 +16,7 @@
 #include "tree234.h"
 #include "winsecur.h"
 #include "pageant.h"
+#include "licence.h"
 
 #include <shellapi.h>
 
@@ -125,36 +126,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG:
-            SetDlgItemText(hwnd, 1000,
-	"Copyright 1997-2015 Simon Tatham.\r\n\r\n"
-
-	"Portions copyright Robert de Bath, Joris van Rantwijk, Delian "
-	"Delchev, Andreas Schultz, Jeroen Massar, Wez Furlong, Nicolas "
-	"Barry, Justin Bradford, Ben Harris, Malcolm Smith, Ahmad Khalifa, "
-	"Markus Kuhn, Colin Watson, Christopher Staite, and CORE SDI S.A.\r\n\r\n"
-
-	"Permission is hereby granted, free of charge, to any person "
-	"obtaining a copy of this software and associated documentation "
-	"files (the ""Software""), to deal in the Software without restriction, "
-	"including without limitation the rights to use, copy, modify, merge, "
-	"publish, distribute, sublicense, and/or sell copies of the Software, "
-	"and to permit persons to whom the Software is furnished to do so, "
-	"subject to the following conditions:\r\n\r\n"
-
-	"The above copyright notice and this permission notice shall be "
-	"included in all copies or substantial portions of the Software.\r\n\r\n"
-
-	"THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT "
-	"WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, "
-	"INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF "
-	"MERCHANTABILITY, FITNESS FOR A PARTICULAR "
-	"PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE "
-	"COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES "
-	"OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, "
-	"TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN "
-	"CONNECTION WITH THE SOFTWARE OR THE USE OR "
-	"OTHER DEALINGS IN THE SOFTWARE."
-);
+        SetDlgItemText(hwnd, 1000, LICENCE_TEXT("\r\n\r\n"));
 	return 1;
       case WM_COMMAND:
 	switch (LOWORD(wParam)) {
@@ -183,7 +155,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             char *text = dupprintf
                 ("Pageant\r\n\r\n%s\r\n\r\n%s",
                  ver,
-                 "\251 1997-2015 Simon Tatham. All rights reserved.");
+                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
             SetDlgItemText(hwnd, 1000, text);
             sfree(text);
         }

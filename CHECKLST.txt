@@ -4,7 +4,7 @@ Checklists for PuTTY administrative procedures
 Locations of the licence
 ------------------------
 
-The PuTTY copyright notice and licence are stored in quite a few
+The PuTTY copyright notice and licence are stored in multiple
 places. At the start of a new year, the copyright year needs
 updating in all of them; and when someone sends a massive patch,
 their name needs adding in all of them too.
@@ -12,23 +12,6 @@ their name needs adding in all of them too.
 The LICENCE file in the main source distribution:
 
  - putty/LICENCE
-
-The various About and Licence boxes:
-
- - putty/windows/winpgnt.c
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
- - putty/windows/winpgen.c
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
- - putty/windows/windlg.c
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
- - putty/windows/version.rc2
-    + the copyright date appears once only.
- - putty/unix/gtkdlg.c
-    + the copyright date appears twice, once in the About box and
-      once in the Licence box. Don't forget to change both!
 
 The documentation (both the preamble blurb and the licence appendix):
 
