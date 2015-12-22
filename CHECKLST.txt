@@ -13,15 +13,15 @@ The LICENCE file in the main source distribution:
 
  - putty/LICENCE
 
-The resource files:
+The various About and Licence boxes:
 
- - putty/windows/pageant.rc
+ - putty/windows/winpgnt.c
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
- - putty/windows/puttygen.rc
+ - putty/windows/winpgen.c
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
- - putty/windows/win_res.rc2
+ - putty/windows/windlg.c
     + the copyright date appears twice, once in the About box and
       once in the Licence box. Don't forget to change both!
  - putty/windows/version.rc2
