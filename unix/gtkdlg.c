@@ -3314,12 +3314,12 @@ static void messagebox_handler(union control *ctrl, void *dlg,
 	dlg_end(dlg, ctrl->generic.context.i);
 }
 int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
-               int minwid, ...)
+               int minwid, int selectable, ...)
 {
     GtkWidget *window, *w0, *w1;
     struct controlbox *ctrlbox;
     struct controlset *s0, *s1;
-    union control *c;
+    union control *c, *textctrl;
     struct dlgparam dp;
     struct Shortcuts scs;
     int index, ncols, min_type;
@@ -3338,7 +3338,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
      * buttons and find out what kinds there are.
      */
     ncols = 0;
-    va_start(ap, minwid);
+    va_start(ap, selectable);
     min_type = +1;
     while (va_arg(ap, char *) != NULL) {
         int type;
@@ -3359,7 +3359,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     c->columns.percentages = sresize(c->columns.percentages, ncols, int);
     for (index = 0; index < ncols; index++)
 	c->columns.percentages[index] = (index+1)*100/ncols - index*100/ncols;
-    va_start(ap, minwid);
+    va_start(ap, selectable);
     index = 0;
     while (1) {
 	char *title = va_arg(ap, char *);
@@ -3390,7 +3390,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     va_end(ap);
 
     s1 = ctrl_getset(ctrlbox, "x", "", "");
-    ctrl_text(s1, msg, HELPCTX(no_help));
+    textctrl = ctrl_text(s1, msg, HELPCTX(no_help));
 
     window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
@@ -3408,6 +3408,26 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     dp.retval = 0;
     dp.window = window;
 
+    if (selectable) {
+#if GTK_CHECK_VERSION(2,0,0)
+        struct uctrl *uc = dlg_find_byctrl(&dp, textctrl);
+        gtk_label_set_selectable(GTK_LABEL(uc->text), TRUE);
+
+        /*
+         * GTK selectable labels have a habit of selecting their
+         * entire contents when they gain focus. It's ugly to have
+         * text in a message box start up all selected, so we suppress
+         * this by manually selecting none of it - but we must do this
+         * when the widget _already has_ focus, otherwise our work
+         * will be undone when it gains it shortly.
+         */
+        gtk_widget_grab_focus(uc->text);
+        gtk_label_select_region(GTK_LABEL(uc->text), 0, 0);
+#else
+        (void)textctrl;                /* placate warning */
+#endif
+    }
+
     gtk_window_set_modal(GTK_WINDOW(window), TRUE);
     if (parentwin) {
         set_transient_window_pos(parentwin, window);
@@ -3415,7 +3435,9 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
 				     GTK_WINDOW(parentwin));
     } else
 	gtk_window_set_position(GTK_WINDOW(window), GTK_WIN_POS_CENTER);
+    gtk_container_set_focus_child(GTK_CONTAINER(window), NULL);
     gtk_widget_show(window);
+    gtk_window_set_focus(GTK_WINDOW(window), NULL);
 
     g_signal_connect(G_OBJECT(window), "destroy",
                      G_CALLBACK(window_destroy), NULL);
@@ -3437,6 +3459,7 @@ int reallyclose(void *frontend)
     int ret = messagebox(GTK_WIDGET(get_window(frontend)),
 			 title, "Are you sure you want to close this session?",
 			 string_width("Most of the width of the above text"),
+                         FALSE,
 			 "Yes", 'y', +1, 1,
 			 "No", 'n', -1, 0,
 			 NULL);
@@ -3490,6 +3513,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
     ret = messagebox(GTK_WIDGET(get_window(frontend)),
 		     "PuTTY Security Alert", text,
 		     string_width(fingerprint),
+                     TRUE,
 		     "Accept", 'a', 0, 2,
 		     "Connect Once", 'o', 0, 1,
 		     "Cancel", 'c', -1, 0,
@@ -3524,6 +3548,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 		     "PuTTY Security Alert", text,
 		     string_width("Reasonably long line of text as a width"
                                   " template"),
+                     FALSE,
 		     "Yes", 'y', 0, 1,
 		     "No", 'n', 0, 0,
 		     NULL);
@@ -3547,14 +3572,14 @@ void fatal_message_box(void *window, const char *msg)
 {
     messagebox(window, "PuTTY Fatal Error", msg,
                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-               "OK", 'o', 1, 1, NULL);
+               FALSE, "OK", 'o', 1, 1, NULL);
 }
 
 void nonfatal_message_box(void *window, const char *msg)
 {
     messagebox(window, "PuTTY Error", msg,
                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-               "OK", 'o', 1, 1, NULL);
+               FALSE, "OK", 'o', 1, 1, NULL);
 }
 
 void fatalbox(const char *p, ...)
@@ -3636,7 +3661,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
     messagebox(aboutbox, title, licence,
 	       string_width("LONGISH LINE OF TEXT SO THE LICENCE"
 			    " BOX ISN'T EXCESSIVELY TALL AND THIN"),
-	       "OK", 'o', 1, 1, NULL);
+               TRUE, "OK", 'o', 1, 1, NULL);
     sfree(title);
 }
 
@@ -3673,16 +3698,26 @@ void about_box(void *window)
                      G_CALLBACK(licence_clicked), NULL);
     gtk_widget_show(w);
 
-    w = gtk_label_new(appname);
+    {
+        char *label_text = dupprintf
+            ("%s\n\n%s\n\n%s",
+             appname, ver,
+             "Copyright 1997-2015 Simon Tatham. All rights reserved");
+        w = gtk_label_new(label_text);
+        gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);
+#if GTK_CHECK_VERSION(2,0,0)
+        gtk_label_set_selectable(GTK_LABEL(w), TRUE);
+#endif
+        sfree(label_text);
+    }
     our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 0);
-    gtk_widget_show(w);
-
-    w = gtk_label_new(ver);
-    our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 5);
-    gtk_widget_show(w);
-
-    w = gtk_label_new("Copyright 1997-2015 Simon Tatham. All rights reserved");
-    our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 5);
+#if GTK_CHECK_VERSION(2,0,0)
+    /*
+     * Same precautions against initial select-all as in messagebox().
+     */
+    gtk_widget_grab_focus(w);
+    gtk_label_select_region(GTK_LABEL(w), 0, 0);
+#endif
     gtk_widget_show(w);
 
     g_signal_connect(G_OBJECT(aboutbox), "key_press_event",
@@ -3691,7 +3726,9 @@ void about_box(void *window)
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
     gtk_window_set_transient_for(GTK_WINDOW(aboutbox),
 				 GTK_WINDOW(window));
+    gtk_container_set_focus_child(GTK_CONTAINER(aboutbox), NULL);
     gtk_widget_show(aboutbox);
+    gtk_window_set_focus(GTK_WINDOW(aboutbox), NULL);
 }
 
 struct eventlog_stuff {
@@ -3953,6 +3990,7 @@ int askappend(void *frontend, Filename *filename,
     mbret = messagebox(get_window(frontend), mbtitle, message,
 		       string_width("LINE OF TEXT SUITABLE FOR THE"
 				    " ASKAPPEND WIDTH"),
+                       FALSE,
 		       "Overwrite", 'o', 1, 2,
 		       "Append", 'a', 0, 1,
 		       "Disable", 'd', -1, 0,

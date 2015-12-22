@@ -4345,7 +4345,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
                               errmsg);
                 messagebox(inst->window, "Font setup error", msgboxtext,
                            string_width("Could not change fonts in terminal window:"),
-                           "OK", 'o', +1, 1,
+                           FALSE, "OK", 'o', +1, 1,
                            NULL);
                 sfree(msgboxtext);
                 sfree(errmsg);

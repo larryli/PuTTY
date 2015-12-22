@@ -116,7 +116,7 @@ void logevent_dlg(void *estuff, const char *string);
 int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 int messagebox(GtkWidget *parentwin, const char *title,
-               const char *msg, int minwid, ...);
+               const char *msg, int minwid, int selectable, ...);
 #endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
