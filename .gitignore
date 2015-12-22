@@ -82,6 +82,7 @@
 /doc/*.hhc
 /doc/*.hhk
 /doc/licence.but
+/doc/copy.but
 /icons/*.png
 /icons/*.ico
 /icons/*.icns
