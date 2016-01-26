@@ -198,7 +198,6 @@ static const unsigned long crc32_table[256] = {
 #ifdef GENPROGRAM
 int main(void)
 {
-    unsigned long crcword;
     int i;
 
     crc32_init();

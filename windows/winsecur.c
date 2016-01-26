@@ -140,8 +140,6 @@ int make_private_security_descriptor(DWORD permissions,
                                      PACL *acl,
                                      char **error)
 {
-    SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
-    SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
     EXPLICIT_ACCESS ea[3];
     int acl_err;
     int ret = FALSE;
@@ -225,8 +223,6 @@ int make_private_security_descriptor(DWORD permissions,
 
 int setprocessacl(char *error)
 {
-    SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
-    SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
     EXPLICIT_ACCESS ea[2];
     int acl_err;
     int ret=FALSE;
