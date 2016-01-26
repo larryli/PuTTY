@@ -325,9 +325,7 @@ static void proc_rec_opt(Telnet telnet, int cmd, int option)
 
 static void process_subneg(Telnet telnet)
 {
-    unsigned char b[2048], *p, *q;
     int var, value, n;
-    char *e;
 
     switch (telnet->sb_opt) {
       case TELOPT_OLD_ENVIRON:
