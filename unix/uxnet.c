@@ -37,14 +37,12 @@
  * Access to sockaddr types without breaking C strict aliasing rules.
  */
 union sockaddr_union {
-#ifdef NO_IPV6
-    struct sockaddr_in storage;
-#else
     struct sockaddr_storage storage;
-    struct sockaddr_in6 sin6;
-#endif
     struct sockaddr sa;
     struct sockaddr_in sin;
+#ifndef NO_IPV6
+    struct sockaddr_in6 sin6;
+#endif
     struct sockaddr_un su;
 };
 
@@ -1426,26 +1424,27 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 static char *sk_tcp_peer_info(Socket sock)
 {
     Actual_Socket s = (Actual_Socket) sock;
-    struct sockaddr_storage addr;
+    union sockaddr_union addr;
     socklen_t addrlen = sizeof(addr);
+#ifndef NO_IPV6
     char buf[INET6_ADDRSTRLEN];
+#endif
 
-    if (getpeername(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
+    if (getpeername(s->s, &addr.sa, &addrlen) < 0)
         return NULL;
-    if (addr.ss_family == AF_INET) {
+    if (addr.storage.ss_family == AF_INET) {
         return dupprintf
             ("%s:%d",
-             inet_ntoa(((struct sockaddr_in *)&addr)->sin_addr),
-             (int)ntohs(((struct sockaddr_in *)&addr)->sin_port));
+             inet_ntoa(addr.sin.sin_addr),
+             (int)ntohs(addr.sin.sin_port));
 #ifndef NO_IPV6
-    } else if (addr.ss_family == AF_INET6) {
+    } else if (addr.storage.ss_family == AF_INET6) {
         return dupprintf
             ("[%s]:%d",
-             inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&addr)->sin6_addr,
-                       buf, sizeof(buf)),
-             (int)ntohs(((struct sockaddr_in6 *)&addr)->sin6_port));
+             inet_ntop(AF_INET6, &addr.sin6.sin6_addr, buf, sizeof(buf)),
+             (int)ntohs(addr.sin6.sin6_port));
 #endif
-    } else if (addr.ss_family == AF_UNIX) {
+    } else if (addr.storage.ss_family == AF_UNIX) {
         /*
          * For Unix sockets, the source address is unlikely to be
          * helpful. Instead, we try SO_PEERCRED and try to get the
