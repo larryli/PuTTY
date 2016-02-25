@@ -1035,3 +1035,14 @@ int smemeq(const void *av, const void *bv, size_t len)
      * we want to return 1, so then we can just shift down. */
     return (0x100 - val) >> 8;
 }
+
+int strstartswith(const char *s, const char *t)
+{
+    return !memcmp(s, t, strlen(t));
+}
+
+int strendswith(const char *s, const char *t)
+{
+    size_t slen = strlen(s), tlen = strlen(t);
+    return slen >= tlen && !strcmp(s + (slen - tlen), t);
+}

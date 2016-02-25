@@ -51,6 +51,8 @@ wchar_t *dup_mb_to_wc(int codepage, int flags, const char *string);
 int toint(unsigned);
 
 char *fgetline(FILE *fp);
+int strstartswith(const char *s, const char *t);
+int strendswith(const char *s, const char *t);
 
 void base64_encode_atom(unsigned char *data, int n, char *out);
 int base64_decode_atom(char *atom, unsigned char *out);
