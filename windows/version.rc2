@@ -7,6 +7,7 @@
  */
 
 #include "version.h"
+#include "licence.h"
 
 /*
  * The actual VERSIONINFO resource.
@@ -44,7 +45,7 @@ BEGIN
 	    VALUE "OriginalFilename",	APPNAME
 	    VALUE "FileVersion",	TEXTVER
 	    VALUE "ProductVersion",	TEXTVER
-	    VALUE "LegalCopyright",	"Copyright \251 1997-2015 Simon Tatham."
+	    VALUE "LegalCopyright",	"Copyright \251 " SHORT_COPYRIGHT_DETAILS "."
 #if (!defined SNAPSHOT) && (!defined RELEASE) && (!defined PRERELEASE)
 	    /* Only if VS_FF_PRIVATEBUILD. */
 	    VALUE "PrivateBuild",	TEXTVER /* NBI */

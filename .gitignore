@@ -61,6 +61,7 @@
 /missing
 /uxconfig.in
 /uxconfig.h
+/licence.h
 /*.a
 /charset/sbcsdat.c
 /contrib/cygtermd/cygtermd.exe
