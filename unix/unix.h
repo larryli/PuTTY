@@ -93,7 +93,8 @@ void showeventlog(void *estuff, void *parentwin);
 void logevent_dlg(void *estuff, const char *string);
 int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-int messagebox(GtkWidget *parentwin, char *title, char *msg, int minwid, ...);
+int messagebox(GtkWidget *parentwin, char *title,
+               char *msg, int minwid, int selectable, ...);
 int string_width(char *text);
 #endif
 
