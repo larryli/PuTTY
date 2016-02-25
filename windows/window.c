@@ -19,6 +19,7 @@
 #include "terminal.h"
 #include "storage.h"
 #include "win_res.h"
+#include "winsecur.h"
 
 #ifndef NO_MULTIMON
 #include <multimon.h>
@@ -390,6 +391,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	return 1;
     }
 
+    /*
+     * Protect our process
+     */
+    {
+      char *error = NULL;
+
+      if (! setprocessacl(error)) {
+	/* FIXME: prepare to stuff this into event log somehow */
+    	MessageBox(NULL, "Process protection",
+    		   error, MB_OK | MB_ICONEXCLAMATION);
+      }
+      sfree(error);
+
+    }
     /*
      * Process the command line.
      */
