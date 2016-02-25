@@ -79,6 +79,7 @@
 /doc/*.hhp
 /doc/*.hhc
 /doc/*.hhk
+/doc/licence.but
 /icons/*.png
 /icons/*.ico
 /icons/*.xpm

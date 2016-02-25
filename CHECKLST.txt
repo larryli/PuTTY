@@ -1,23 +1,6 @@
 Checklists for PuTTY administrative procedures
 ==============================================
 
-Locations of the licence
-------------------------
-
-The PuTTY copyright notice and licence are stored in multiple
-places. At the start of a new year, the copyright year needs
-updating in all of them; and when someone sends a massive patch,
-their name needs adding in all of them too.
-
-The LICENCE file in the main source distribution:
-
- - putty/LICENCE
-
-The documentation (both the preamble blurb and the licence appendix):
-
- - putty/doc/blurb.but
- - putty/doc/licence.but
-
 Preparing to make a release
 ---------------------------
 
