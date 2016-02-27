@@ -44,6 +44,9 @@ PSID get_user_sid(void)
     DWORD toklen, sidlen;
     PSID sid = NULL, ret = NULL;
 
+    if (usersid)
+        return usersid;
+
     if (!got_advapi())
         goto cleanup;
 
@@ -73,7 +76,7 @@ PSID get_user_sid(void)
 
     /* Success. Move sid into the return value slot, and null it out
      * to stop the cleanup code freeing it. */
-    ret = sid;
+    ret = usersid = sid;
     sid = NULL;
 
   cleanup:
