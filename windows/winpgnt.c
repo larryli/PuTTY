@@ -921,7 +921,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			debug(("couldn't get default SID\n"));
 #endif
                         CloseHandle(filemap);
-                        sfree(ourself);
 			return 0;
                     }
 
@@ -934,7 +933,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                rc));
 #endif
                         CloseHandle(filemap);
-                        sfree(ourself);
                         sfree(ourself2);
 			return 0;
 		    }
@@ -955,7 +953,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                         !EqualSid(mapowner, ourself2)) {
                         CloseHandle(filemap);
                         LocalFree(psd);
-                        sfree(ourself);
                         sfree(ourself2);
 			return 0;      /* security ID mismatch! */
                     }
@@ -963,7 +960,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    debug(("security stuff matched\n"));
 #endif
                     LocalFree(psd);
-                    sfree(ourself);
                     sfree(ourself2);
 		} else {
 #ifdef DEBUG_IPC

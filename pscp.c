@@ -1495,7 +1495,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	{
 	    char sizestr[40];
 	
-	    if (sscanf(act->buf, "%lo %s %n", &act->permissions,
+            if (sscanf(act->buf, "%lo %39s %n", &act->permissions,
                        sizestr, &i) != 2)
 		bump("Protocol error: Illegal file descriptor format");
 	    act->size = uint64_from_decimal(sizestr);
