@@ -150,7 +150,7 @@ in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 delegate windows
   # FIXME: Cygwin alternative?
-  in putty/windows do/win vcvars32 && nmake -f Makefile.vc $(Makeargs) all cleantestprogs
+  in putty/windows with visualstudio do/win nmake -f Makefile.vc $(Makeargs) all cleantestprogs
   # Code-sign the binaries, if the local bob config provides a script
   # to do so. We assume here that the script accepts an -i option to
   # provide a 'more info' URL, and an optional -n option to provide a
@@ -160,8 +160,8 @@ delegate windows
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
   # exit codes on whim.)
-  in putty/doc do/win hhc putty.hhp & type putty.chm >nul
-  in putty/windows do/win iscc putty.iss
+  in putty/doc with htmlhelp do/win hhc putty.hhp & type putty.chm >nul
+  in putty/windows with innosetup do/win iscc putty.iss
   ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" Output/setup.exe
   return putty/windows/*.exe
   return putty/windows/*.map
