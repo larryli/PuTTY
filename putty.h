@@ -1208,7 +1208,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
                         void (*callback)(void *ctx, int result), void *ctx);
 /*
  * have_ssh_host_key() just returns true if a key of that type is
- * already chached and false otherwise.
+ * already cached and false otherwise.
  */
 int have_ssh_host_key(const char *host, int port, const char *keytype);
 /*
