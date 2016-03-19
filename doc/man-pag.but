@@ -71,9 +71,9 @@ extra command-line arguments, e.g.
 
 in which case Pageant will prompt for the keys' passphrases (if any)
 and start the agent with those keys already loaded. Passphrase prompts
-will use the controlling terminal if one is available, or the GUI if
-one of those is available. If neither is available, no passphrase
-prompting can be done.
+will use the controlling terminal if one is available, or failing that
+the GUI if one of those is available. If neither is available, no
+passphrase prompting can be done.
 
 To use Pageant to talk to an existing agent, you can add new keys
 using \cw{-a}, list the current set of keys' fingerprints and comments
