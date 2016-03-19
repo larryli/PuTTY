@@ -4,7 +4,7 @@
 
 \S{pageant-manpage-name} NAME
 
-\cw{pageant} - SSH authentication agent for the PuTTY tools
+\cw{pageant} - PuTTY SSH authentication agent
 
 \S{pageant-manpage-synopsis} SYNOPSIS
 
@@ -36,6 +36,10 @@ that the server they are connecting to will accept.
 \c{pageant} can also act as a client program itself, communicating
 with an already-running agent to add or remove keys, list the keys, or
 extract their public half.
+
+The agent protocol used by \c{pageant} is compatible with the PuTTY
+tools and also with other implementations such as OpenSSH's SSH client
+and \e{ssh-agent(1)}.
 
 To run \c{pageant} as an agent, you must provide an option to tell it
 what its \e{lifetime} should be. Typically you would probably want
