@@ -894,6 +894,10 @@ The \c{-i} option allows you to specify the name of a private key
 file in \c{*.\i{PPK}} format which PuTTY will use to authenticate with the
 server. This option is only meaningful if you are using SSH.
 
+If you are using Pageant, you can also specify a \e{public} key file
+(in RFC 4716 or OpenSSH format) to identify a specific key file to use.
+(This won't work if you're not running Pageant, of course.)
+
 For general information on \i{public-key authentication}, see
 \k{pubkey}.
 

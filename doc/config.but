@@ -2729,11 +2729,15 @@ private key in another format that you want to use with PuTTY, see
 \k{puttygen-conversions}.
 
 You can use the authentication agent \i{Pageant} so that you do not
-need to explicitly configure a key here; see \k{pageant}. If a file
-is specified here with Pageant running, PuTTY will first try asking
-Pageant to authenticate with that key, and ignore any other keys
-Pageant may have. If that fails, PuTTY will ask for a passphrase as
-normal.
+need to explicitly configure a key here; see \k{pageant}.
+
+If a private key file is specified here with Pageant running, PuTTY
+will first try asking Pageant to authenticate with that key, and
+ignore any other keys Pageant may have. If that fails, PuTTY will ask
+for a passphrase as normal. You can also specify a \e{public} key file
+in this case (in RFC 4716 or OpenSSH format), as that's sufficient to
+identify the key to Pageant, but of course if Pageant isn't present
+PuTTY can't fall back to using this file itself.
 
 \H{config-ssh-auth-gssapi} The \i{GSSAPI} panel
 
