@@ -391,7 +391,7 @@ OpenSSH; for newer key types like Ed25519, it will use the newer
 format as that is the only legal option. If you have some specific
 reason for wanting to use OpenSSH's newer format even for RSA, DSA,
 or ECDSA keys, you can choose \q{Export OpenSSH key (force new file
-format}.
+format)}.
 
 Note that since only SSH-2 keys come in different formats, the export
 options are not available if you have generated an SSH-1 key.
