@@ -155,7 +155,7 @@ before it manages to happen.
 \dt \cw{--debug}
 
 \dd Pageant will run in the foreground, without forking. It will print
-its enviroment variable setup commands on standard output, and then it
+its environment variable setup commands on standard output, and then it
 will log all agent activity to standard output as well. This is useful
 for debugging what Pageant itself is doing, or what another process is
 doing to it.
