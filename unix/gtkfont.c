@@ -1543,7 +1543,8 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
                            (unsigned char)utfptr[clen] < 0xC0)
                         clen++;
                     n++;
-                    if (pangofont_char_width(layout, pfont,
+                    if (is_rtl(string[n-1]) ||
+                        pangofont_char_width(layout, pfont,
                                              string[n-1], utfptr + oldclen,
                                              clen - oldclen) != desired) {
                         clen = oldclen;
