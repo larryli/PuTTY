@@ -448,5 +448,14 @@
     <WixVariable Id="WixUIDialogBmp" Value="msidialog.bmp" />
     <WixVariable Id="WixUIBannerBmp" Value="msibanner.bmp" />
 
+    <!--
+        Set the icon that will show up in Add/Remove Programs.
+
+        http://www.codeproject.com/Articles/43564/WiX-Tricks says that
+        for some weird reason the Id of this icon has to end in .exe.
+    -->
+    <Icon Id="installericon.exe" SourceFile="puttyins.ico" />
+    <Property Id="ARPPRODUCTICON" Value="installericon.exe" />
+
   </Product>
 </Wix>
