@@ -284,22 +284,12 @@ static int x11_font_width(XFontStruct *xfs, int sixteen_bit)
     }
 }
 
-static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
+static const XCharStruct *x11_char_struct(XFontStruct *xfs,
+                                          int byte1, int byte2)
 {
     int index;
 
     /*
-     * Not to be confused with x11font_has_glyph, which is a method of
-     * the x11font 'class' and hence takes a unifont as argument. This
-     * is the low-level function which grubs about in an actual
-     * XFontStruct to see if a given glyph exists.
-     *
-     * We must do this ourselves rather than letting Xlib's
-     * XTextExtents16 do the job, because XTextExtents will helpfully
-     * substitute the font's default_char for any missing glyph and
-     * not tell us it did so, which precisely won't help us find out
-     * which glyphs _are_ missing.
-     *
      * The man page for XQueryFont is rather confusing about how the
      * per_char array in the XFontStruct is laid out, because it gives
      * formulae for determining the two-byte X character code _from_
@@ -340,10 +330,27 @@ static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
     }
 
     if (!xfs->per_char)   /* per_char NULL => everything in range exists */
-        return TRUE;
+        return &xfs->max_bounds;
 
-    return (xfs->per_char[index].ascent + xfs->per_char[index].descent > 0 ||
-            xfs->per_char[index].width > 0);
+    return &xfs->per_char[index];
+}
+
+static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
+{
+    /*
+     * Not to be confused with x11font_has_glyph, which is a method of
+     * the x11font 'class' and hence takes a unifont as argument. This
+     * is the low-level function which grubs about in an actual
+     * XFontStruct to see if a given glyph exists.
+     *
+     * We must do this ourselves rather than letting Xlib's
+     * XTextExtents16 do the job, because XTextExtents will helpfully
+     * substitute the font's default_char for any missing glyph and
+     * not tell us it did so, which precisely won't help us find out
+     * which glyphs _are_ missing.
+     */
+    const XCharStruct *xcs = x11_char_struct(xfs, byte1, byte2);
+    return (xcs->ascent + xcs->descent > 0 || xcs->width > 0);
 }
 
 static unifont *x11font_create(GtkWidget *widget, const char *name,
@@ -623,14 +630,18 @@ static void x11font_cairo_cache_glyph(x11font_individual *xfi, int glyphindex)
     int x, y;
     unsigned char *bitmap;
     Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    const XCharStruct *xcs = x11_char_struct(xfi->xfs, glyphindex >> 8,
+                                             glyphindex & 0xFF);
 
     bitmap = snewn(xfi->allsize, unsigned char);
     memset(bitmap, 0, xfi->allsize);
 
     image = XGetImage(disp, xfi->pixmap, 0, 0,
                       xfi->pixwidth, xfi->pixheight, AllPlanes, XYPixmap);
-    for (y = 0; y < xfi->pixheight; y++) {
-        for (x = 0; x < xfi->pixwidth; x++) {
+    for (y = xfi->pixoriginy - xcs->ascent;
+         y < xfi->pixoriginy + xcs->descent; y++) {
+        for (x = xfi->pixoriginx + xcs->lbearing;
+             x < xfi->pixoriginx + xcs->rbearing; x++) {
             unsigned long pixel = XGetPixel(image, x, y);
             if (pixel) {
                 int byteindex = y * xfi->rowsize + x/8;
