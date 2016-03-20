@@ -44,6 +44,8 @@
 #include <X11/Xatom.h>
 #endif
 
+#include "x11misc.h"
+
 #define CAT2(x,y) x ## y
 #define CAT(x,y) CAT2(x,y)
 #define ASSERT(x) enum {CAT(assertion_,__LINE__) = 1 / (x)}
@@ -2961,20 +2963,28 @@ void init_clipboard(struct gui_data *inst)
      */
     unsigned char empty[] = "";
     Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
+    x11_ignore_error(disp, BadMatch);
     XChangeProperty(disp, GDK_ROOT_WINDOW(),
 		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
 #endif
