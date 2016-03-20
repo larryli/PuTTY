@@ -4053,7 +4053,8 @@ uxsel_id *uxsel_input_add(int fd, int rwx) {
     if (rwx & 4) flags |= G_IO_PRI;
     id->chan = g_io_channel_unix_new(fd);
     g_io_channel_set_encoding(id->chan, NULL, NULL);
-    id->watch_id = g_io_add_watch(id->chan, flags, fd_input_func, NULL);
+    id->watch_id = g_io_add_watch_full(id->chan, GDK_PRIORITY_REDRAW+1, flags,
+                                       fd_input_func, NULL, NULL);
 #else
     int flags = 0;
     if (rwx & 1) flags |= GDK_INPUT_READ;
