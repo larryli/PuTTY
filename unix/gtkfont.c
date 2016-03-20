@@ -350,7 +350,7 @@ static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
      * which glyphs _are_ missing.
      */
     const XCharStruct *xcs = x11_char_struct(xfs, byte1, byte2);
-    return (xcs->ascent + xcs->descent > 0 || xcs->width > 0);
+    return xcs && (xcs->ascent + xcs->descent > 0 || xcs->width > 0);
 }
 
 static unifont *x11font_create(GtkWidget *widget, const char *name,
