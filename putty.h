@@ -182,7 +182,14 @@ typedef enum {
     /* Pseudo-specials used for constructing the specials menu. */
     TS_SEP,	    /* Separator */
     TS_SUBMENU,	    /* Start a new submenu with specified name */
-    TS_EXITMENU	    /* Exit current submenu or end of specials */
+    TS_EXITMENU,    /* Exit current submenu or end of specials */
+    /* Starting point for protocols to invent special-action codes
+     * that can't live in this enum at all, e.g. because they change
+     * with every session.
+     *
+     * Of course, this must remain the last value in this
+     * enumeration. */
+    TS_LOCALSTART
 } Telnet_Special;
 
 struct telnet_special {
