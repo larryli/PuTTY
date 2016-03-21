@@ -6699,11 +6699,16 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
                  * host keys offered by the server which we _don't_
                  * have cached. These will be offered as cross-
                  * certification options by ssh_get_specials.
+                 *
+                 * We also count the key we're currently using for KEX
+                 * as one we've already got, because by the time this
+                 * menu becomes visible, it will be.
                  */
                 ssh->n_uncert_hostkeys = 0;
 
                 for (j = 0; j < lenof(hostkey_algs); j++) {
-                    if (in_commasep_string(hostkey_algs[j]->name, str, len) &&
+                    if (hostkey_algs[j] != ssh->hostkey &&
+                        in_commasep_string(hostkey_algs[j]->name, str, len) &&
                         !have_ssh_host_key(ssh->savedhost, ssh->savedport,
                                            hostkey_algs[j]->keytype)) {
                         ssh->uncert_hostkeys[ssh->n_uncert_hostkeys++] = j;
@@ -7414,6 +7419,12 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * Free shared secret.
      */
     freebn(s->K);
+
+    /*
+     * Update the specials menu to list the remaining uncertified host
+     * keys.
+     */
+    update_specials_menu(ssh->frontend);
 
     /*
      * Key exchange is over. Loop straight back round if we have a
