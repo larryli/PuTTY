@@ -144,3 +144,6 @@
 /windows/.bmake
 /windows/*.sln
 /windows/*.suo
+/windows/*.msi
+/windows/*.wixobj
+/windows/*.wixpdb
