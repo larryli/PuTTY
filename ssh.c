@@ -954,6 +954,11 @@ struct ssh_tag {
      */
     struct ssh_gss_liblist *gsslibs;
 #endif
+
+    /*
+     * The last list returned from get_specials.
+     */
+    struct telnet_special *specials;
 };
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -11004,6 +11009,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->connshare = NULL;
     ssh->attempting_connshare = FALSE;
     ssh->session_started = FALSE;
+    ssh->specials = NULL;
 
     *backend_handle = ssh;
 
@@ -11151,6 +11157,7 @@ static void ssh_free(void *handle)
     sfree(ssh->v_s);
     sfree(ssh->fullhostname);
     sfree(ssh->hostkey_str);
+    sfree(ssh->specials);
     if (ssh->crcda_ctx) {
 	crcda_free_context(ssh->crcda_ctx);
 	ssh->crcda_ctx = NULL;
@@ -11364,19 +11371,24 @@ static const struct telnet_special *ssh_get_specials(void *handle)
     static const struct telnet_special specials_end[] = {
 	{NULL, TS_EXITMENU}
     };
-    /* XXX review this length for any changes: */
-    static struct telnet_special ssh_specials[lenof(ssh2_ignore_special) +
-					      lenof(ssh2_rekey_special) +
-					      lenof(ssh2_session_specials) +
-					      lenof(specials_end)];
+
+    struct telnet_special *specials = NULL;
+    int nspecials = 0, specialsize = 0;
+
     Ssh ssh = (Ssh) handle;
-    int i = 0;
-#define ADD_SPECIALS(name) \
-    do { \
-	assert((i + lenof(name)) <= lenof(ssh_specials)); \
-	memcpy(&ssh_specials[i], name, sizeof name); \
-	i += lenof(name); \
-    } while(0)
+
+    sfree(ssh->specials);
+
+#define ADD_SPECIALS(name) do                                           \
+    {                                                                   \
+        int len = lenof(name);                                          \
+        if (nspecials + len > specialsize) {                            \
+            specialsize = (nspecials + len) * 5 / 4 + 32;               \
+            specials = sresize(specials, specialsize, struct telnet_special); \
+        }                                                               \
+	memcpy(specials+nspecials, name, len*sizeof(struct telnet_special)); \
+        nspecials += len;                                               \
+    } while (0)
 
     if (ssh->version == 1) {
 	/* Don't bother offering IGNORE if we've decided the remote
@@ -11393,9 +11405,13 @@ static const struct telnet_special *ssh_get_specials(void *handle)
 	    ADD_SPECIALS(ssh2_session_specials);
     } /* else we're not ready yet */
 
-    if (i) {
+    if (nspecials)
 	ADD_SPECIALS(specials_end);
-	return ssh_specials;
+
+    ssh->specials = specials;
+
+    if (nspecials) {
+        return specials;
     } else {
 	return NULL;
     }
