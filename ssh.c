@@ -11469,7 +11469,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
                 const struct ssh_signkey *alg =
                     hostkey_algs[ssh->uncert_hostkeys[i]];
                 uncert[0].name = alg->name;
-                uncert[0].code = TS_LOCALSTART + i;
+                uncert[0].code = TS_LOCALSTART + ssh->uncert_hostkeys[i];
                 ADD_SPECIALS(uncert);
             }
             ADD_SPECIALS(uncert_end);
