@@ -217,7 +217,8 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
-GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym x11misc
+GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
+	 + x11misc gtkcomm
 OSXTERM  = UXTERM osxwin osxdlg osxctrls
 
 # Non-SSH back ends (putty, puttytel, plink).
@@ -294,13 +295,13 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
-	 + nogss
+	 + nogss gtkmain
 putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
-         + xpmpucfg
+         + xpmpucfg gtkmain
 puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC xpmputty xpmpucfg
-	 + nogss
+	 + nogss gtkmain
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11 noterm

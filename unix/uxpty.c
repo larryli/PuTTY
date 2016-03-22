@@ -912,14 +912,14 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	/*
 	 * SIGINT, SIGQUIT and SIGPIPE may have been set to ignored by
 	 * our parent, particularly by things like sh -c 'pterm &' and
-	 * some window or session managers. SIGCHLD, meanwhile, was
-	 * blocked during pt_main() startup. Reverse all this for our
-	 * child process.
+	 * some window or session managers. SIGPIPE was also
+	 * (potentially) blocked by us during startup. Reverse all
+	 * this for our child process.
 	 */
 	putty_signal(SIGINT, SIG_DFL);
 	putty_signal(SIGQUIT, SIG_DFL);
 	putty_signal(SIGPIPE, SIG_DFL);
-	block_signal(SIGCHLD, 0);
+	block_signal(SIGPIPE, 0);
 	if (pty_argv) {
             /*
              * Exec the exact argument list we were given.
