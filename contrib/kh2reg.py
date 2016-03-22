@@ -47,6 +47,11 @@ def longtohex(n):
     plain=string.lower(re.match(r"0x([0-9A-Fa-f]*)l?$", hex(n), re.I).group(1))
     return "0x" + plain
 
+def warn(s):
+    "Warning with file/line number"
+    sys.stderr.write("%s:%d: %s\n"
+	             % (fileinput.filename(), fileinput.filelineno(), s))
+
 output_type = 'windows'
 
 try:
@@ -68,8 +73,12 @@ class BlankInputLine(Exception):
     pass
 
 class UnknownKeyType(Exception):
-   def __init__(self, keytype):
-       self.keytype = keytype
+    def __init__(self, keytype):
+        self.keytype = keytype
+
+class KeyFormatError(Exception):
+    def __init__(self, msg):
+	self.msg = msg
 
 # Now process all known_hosts input.
 for line in fileinput.input(args):
@@ -87,7 +96,7 @@ for line in fileinput.input(args):
 
         # Common fields
         hostpat = fields[0]
-        magicnumbers = []   # placeholder
+        keyparams = []      # placeholder
         keytype = ""        # placeholder
 
         # Grotty heuristic to distinguish known_hosts from known_hosts2:
@@ -97,7 +106,7 @@ for line in fileinput.input(args):
             # Treat as SSH-1-type host key.
             # Format: hostpat bits10 exp10 mod10 comment...
             # (PuTTY doesn't store the number of bits.)
-            magicnumbers = map (long, fields[2:4])
+            keyparams = map (long, fields[2:4])
             keytype = "rsa"
 
         else:
@@ -118,25 +127,66 @@ for line in fileinput.input(args):
                 subfields.append(data)
                 blob = blob [struct.calcsize(sizefmt) + size : ]
 
-            # The first field is keytype again, and the rest we can treat as
-            # an opaque list of bignums (same numbers and order as stored
-            # by PuTTY). (currently embedded keytype is ignored entirely)
-            magicnumbers = map (strtolong, subfields[1:])
+            # The first field is keytype again.
+	    if subfields[0] != sshkeytype:
+		raise KeyFormatError("""
+		    outer and embedded key types do not match: '%s', '%s'
+		    """ % (sshkeytype, subfields[1]))
 
-            # Translate key type into something PuTTY can use.
-            if   sshkeytype == "ssh-rsa":   keytype = "rsa2"
-            elif sshkeytype == "ssh-dss":   keytype = "dss"
+            # Translate key type string into something PuTTY can use, and
+	    # munge the rest of the data.
+	    if sshkeytype == "ssh-rsa":
+		keytype = "rsa2"
+		# The rest of the subfields we can treat as an opaque list
+		# of bignums (same numbers and order as stored by PuTTY).
+		keyparams = map (strtolong, subfields[1:])
+
+	    elif sshkeytype == "ssh-dss":
+		keytype = "dss"
+		# Same again.
+		keyparams = map (strtolong, subfields[1:])
+
+	    elif sshkeytype == "ecdsa-sha2-nistp256" \
+	      or sshkeytype == "ecdsa-sha2-nistp384" \
+	      or sshkeytype == "ecdsa-sha2-nistp521":
+		keytype = sshkeytype
+		# Have to parse this a bit.
+		if len(subfields) > 3:
+		    raise KeyFormatError("too many subfields in blob")
+		(curvename, Q) = subfields[1:]
+		# First is yet another copy of the key name.
+		if not re.match("ecdsa-sha2-" + re.escape(curvename),
+				sshkeytype):
+		    raise KeyFormatError("key type mismatch ('%s' vs '%s')"
+			    % (sshkeytype, curvename))
+		# Second contains key material X and Y (hopefully).
+		# First a magic octet indicating point compression.
+		if struct.unpack("B", Q[0])[0] != 4:
+		    # No-one seems to use this.
+		    raise KeyFormatError("can't convert point-compressed ECDSA")
+		# Then two equal-length bignums (X and Y).
+		bnlen = len(Q)-1
+		if (bnlen % 1) != 0:
+		    raise KeyFormatError("odd-length X+Y")
+		bnlen = bnlen / 2
+		(x,y) = Q[1:bnlen+1], Q[bnlen+1:2*bnlen+1]
+		keyparams = [curvename] + map (strtolong, [x,y])
+
+	    elif sshkeytype == "ssh-ed25519":
+		# FIXME: these are always stored point-compressed, which
+		# requires actual maths
+		raise KeyFormatError("can't convert ssh-ed25519 yet, sorry")
+
             else:
                 raise UnknownKeyType(sshkeytype)
 
         # Now print out one line per host pattern, discarding wildcards.
         for host in string.split (hostpat, ','):
             if re.search (r"[*?!]", host):
-                sys.stderr.write("Skipping wildcard host pattern '%s'\n"
-                                 % host)
+		warn("skipping wildcard host pattern '%s'" % host)
                 continue
             elif re.match (r"\|", host):
-                sys.stderr.write("Skipping hashed hostname '%s'\n" % host)
+		warn("skipping hashed hostname '%s'" % host)
                 continue
             else:
                 m = re.match (r"\[([^]]*)\]:(\d*)$", host)
@@ -148,7 +198,11 @@ for line in fileinput.input(args):
                 # Slightly bizarre output key format: 'type@port:hostname'
                 # XXX: does PuTTY do anything useful with literal IP[v4]s?
                 key = keytype + ("@%d:%s" % (port, host))
-                value = string.join (map (longtohex, magicnumbers), ',')
+		# Most of these are numbers, but there's the occasional
+		# string that needs passing through
+                value = string.join (map (
+		    lambda x: x if isinstance(x, basestring) else longtohex(x),
+		    keyparams), ',')
                 if output_type == 'unix':
                     # Unix format.
                     sys.stdout.write('%s %s\n' % (key, value))
@@ -159,6 +213,8 @@ for line in fileinput.input(args):
                                      % (winmungestr(key), value))
 
     except UnknownKeyType, k:
-        sys.stderr.write("Unknown SSH key type '%s', skipping\n" % k.keytype)
+	warn("unknown SSH key type '%s', skipping" % k.keytype)
+    except KeyFormatError, k:
+	warn("trouble parsing key (%s), skipping" % k.msg)
     except BlankInputLine:
         pass
