@@ -132,11 +132,8 @@ char *platform_get_x_display(void) {
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
-int main(int argc, char **argv)
+void setup(int single)
 {
-    extern int pt_main(int argc, char **argv);
-    int ret;
-
     sk_init();
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
     default_protocol = be_default_protocol;
@@ -147,7 +144,4 @@ int main(int argc, char **argv)
 	if (b)
 	    default_port = b->default_port;
     }
-    ret = pt_main(argc, argv);
-    cleanup_exit(ret);
-    return ret;             /* not reached, but placates optimisers */
 }

@@ -534,12 +534,19 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
 
 extern int cfgbox(Conf *conf);
 
-int pt_main(int argc, char **argv)
+int main(int argc, char **argv)
 {
     Conf *conf;
     int need_config_box;
 
     setlocale(LC_CTYPE, "");
+
+    {
+        /* Call the function in ux{putty,pterm}.c to do app-type
+         * specific setup */
+        extern void setup(int);
+        setup(TRUE);     /* TRUE means we are a one-session process */
+    }
 
     progname = argv[0];
 
