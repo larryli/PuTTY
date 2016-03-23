@@ -23,6 +23,97 @@ and you should get unix/PuTTY.app and unix/PTerm.app as output.
 
 */
 
+/*
+
+TODO list for a sensible GTK3 PuTTY/pterm on OS X:
+
+Menu items' keyboard shortcuts (Command-Q for Quit, Command-V for
+Paste) do not currently work. It's intentional that if you turn on
+'Command key acts as Meta' in the configuration then those shortcuts
+should be superseded by the Meta-key functionality (e.g. Cmd-Q should
+send ESC Q to the session), for the benefit of people whose non-Mac
+keyboard reflexes expect the Meta key to be in that position; but if
+you don't turn that option on, then these shortcuts should work as an
+ordinary Mac user expects, and currently they don't.
+
+Windows don't close sensibly when their sessions terminate. This is
+because until now I've relied on calling cleanup_exit() or
+gtk_main_quit() in gtkwin.c to terminate the program, which is
+conceptually wrong in this situation (we don't want to quit the whole
+application when just one window closes) and also doesn't reliably
+work anyway (GtkApplication doesn't seem to have a gtk_main invocation
+in it at all, so those calls to gtk_main_quit produce a GTK assertion
+failure message on standard error). Need to introduce a proper 'clean
+up this struct gui_data' function (including finalising other stuff
+dangling off it like the backend), call that, and delete just that one
+window. (And then work out a replacement mechanism for having the
+ordinary Unix-style gtkmain.c based programs terminate when their
+session does.) connection_fatal() in particular should invoke this
+mechanism, and terminate just the connection that had trouble.
+
+Mouse wheel events and trackpad scrolling gestures don't work quite
+right in the terminal drawing area.
+
+There doesn't seem to be a resize handle on terminal windows. I don't
+think this is a fundamental limitation of OS X GTK (their demo app has
+one), so perhaps I need to do something to make sure it appears?
+
+A slight oddity with menus that pop up directly under the mouse
+pointer: mousing over the menu items doesn't highlight them initially,
+but if I mouse off the menu and back on (without un-popping-it-up)
+then suddenly that does work. I don't know if this is something I can
+fix, though; it might very well be a quirk of the underlying GTK.
+
+I want to arrange *some* way to paste efficiently using my Apple
+wireless keyboard and trackpad. The trackpad doesn't provide a middle
+button; I can't use the historic Shift-Ins shortcut because the
+keyboard has no Ins key; I configure the Command key to be Meta, so
+Command-V is off the table too. I can always use the menu, but I'd
+prefer there to be _some_ easily reachable mouse or keyboard gesture.
+
+Revamping the clipboard handling in general is going to be needed, as
+well. Not everybody will want the current auto-copy-on-select
+behaviour inherited from ordinary Unix PuTTY. Should arrange to have a
+mode in which you have to take an explicit Copy action, and then
+arrange that the Edit menu includes one of those.
+
+Dialog boxes shouldn't be modal. I think this is a good policy change
+in general, and the required infrastructure changes will benefit the
+Windows front end too, but for a multi-session process it's even more
+critical - you need to be able to type into one session window while
+setting up the configuration for launching another. So everywhere we
+currently run a sub-instance of gtk_main, or call any API function
+that implicitly does that (like gtk_dialog_run), we should switch to
+putting up the dialog box and going back to our ordinary main loop,
+and whatever we were going to do after the dialog closed we should
+remember to do it when that happens later on. Also then we can remove
+the post_main() horror from gtkcomm.c.
+
+The application menu bar is very minimal at the moment. Should include
+all the usual stuff from the Ctrl-right-click menu - saved sessions,
+mid-session special commands, Duplicate Session, Change Settings,
+Event Log, clear scrollback, reset terminal, about box, anything else
+I can think of.
+
+Does OS X have a standard system of online help that I could tie into?
+
+Need to work out what if anything we can do with Pageant on OS X.
+Perhaps it's too much bother and we should just talk to the
+system-provided SSH agent? Or perhaps not.
+
+Nice-to-have: a custom right-click menu from the application's dock
+tile, listing the saved sessions for quick launch. As far as I know
+there's nothing built in to GtkApplication that can produce this, but
+it's possible we might be able to drop a piece of native Cocoa code in
+under ifdef, substituting an application delegate of our own which
+forwards all methods we're not interested in to the GTK-provided one?
+
+At the point where this becomes polished enough to publish pre-built,
+I suppose I'll have to look into OS X code signing.
+https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
+
+ */
+
 #include <assert.h>
 #include <stdlib.h>
 
