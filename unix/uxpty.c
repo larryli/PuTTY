@@ -180,6 +180,8 @@ static struct utmpx utmp_entry;
  */
 char **pty_argv;
 
+char *pty_osx_envrestore_prefix;
+
 static void pty_close(Pty pty);
 static void pty_try_write(Pty pty);
 
@@ -808,6 +810,34 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	/*
 	 * We are the child.
 	 */
+
+        if (pty_osx_envrestore_prefix) {
+            int plen = strlen(pty_osx_envrestore_prefix);
+            extern char **environ;
+            char **ep;
+
+          restart_osx_env_restore:
+            for (ep = environ; *ep; ep++) {
+                char *e = *ep;
+
+                if (!strncmp(e, pty_osx_envrestore_prefix, plen)) {
+                    int unset = (e[plen] == 'u');
+                    char *pname = dupprintf("%.*s", (int)strcspn(e, "="), e);
+                    char *name = pname + plen + 1;
+                    char *value = e + strcspn(e, "=");
+                    if (*value) value++;
+                    value = dupstr(value);
+                    if (unset)
+                        unsetenv(name);
+                    else
+                        setenv(name, value, 1);
+                    unsetenv(pname);
+                    sfree(pname);
+                    sfree(value);
+                    goto restart_osx_env_restore;
+                }
+            }
+        }
 
 	slavefd = pty_open_slave(pty);
 	if (slavefd < 0) {

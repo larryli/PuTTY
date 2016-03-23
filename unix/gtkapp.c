@@ -148,6 +148,11 @@ int main(int argc, char **argv)
         setup(FALSE);     /* FALSE means we are not a one-session process */
     }
 
+    if (argc > 1) {
+        extern char *pty_osx_envrestore_prefix;
+        pty_osx_envrestore_prefix = argv[--argc];
+    }
+
     {
         const char *home = getenv("HOME");
         if (home) {

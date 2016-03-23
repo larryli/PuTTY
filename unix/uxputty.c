@@ -20,6 +20,7 @@
  */
 const int use_pty_argv = FALSE;
 char **pty_argv;		       /* never used */
+char *pty_osx_envrestore_prefix;
 
 /*
  * Clean up and exit.

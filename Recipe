@@ -328,6 +328,8 @@ ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
 puttyapp : [XT] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
          + xpmpucfg gtkapp
+osxlaunch : [UT] osxlaunch
+
 fuzzterm : [UT] UXTERM CHARSET misc uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none
 testbn   : [UT] testbn sshbn misc conf tree234 uxmisc
