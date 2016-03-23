@@ -15,7 +15,7 @@ TRUEPNGS = $(patsubst %.pam,%.png,$(TRUEPAMS))
 
 ICOS = putty.ico puttygen.ico pscp.ico pageant.ico pageants.ico puttycfg.ico \
        puttyins.ico
-ICNS = PuTTY.icns
+ICNS = PuTTY.icns Pterm.icns
 CICONS = xpmputty.c xpmpucfg.c xpmpterm.c xpmptcfg.c
 
 base: icos cicons
@@ -105,6 +105,16 @@ PuTTY.icns: putty-16-mono.pam putty-16.pam \
 	             mono:putty-32-mono.pam colour:putty-32.pam \
 	             mono:putty-48-mono.pam colour:putty-48.pam \
 	                                    colour:putty-128.pam \
+		output:$@
+
+Pterm.icns: pterm-16-mono.pam pterm-16.pam \
+	    pterm-32-mono.pam pterm-32.pam \
+	    pterm-48-mono.pam pterm-48.pam \
+	    pterm-128.pam
+	./macicon.py mono:pterm-16-mono.pam colour:pterm-16.pam \
+	             mono:pterm-32-mono.pam colour:pterm-32.pam \
+	             mono:pterm-48-mono.pam colour:pterm-48.pam \
+	                                    colour:pterm-128.pam \
 		output:$@
 
 clean:
