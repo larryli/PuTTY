@@ -38,6 +38,8 @@
 /puttyapp
 /ptermapp
 /osxlaunch
+/unix/PuTTY.app
+/unix/Pterm.app
 /fuzzterm
 /testbn
 /*.DSA

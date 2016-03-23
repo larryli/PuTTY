@@ -51,8 +51,11 @@ AC_ARG_WITH([gssapi],
 AC_ARG_WITH([quartz],
   [AS_HELP_STRING([--with-quartz],
                   [build for the MacOS Quartz GTK back end])],
-  [AC_DEFINE([OSX_GTK], [1], [Define if building with GTK for MacOS.])],
-  [])
+  [AC_DEFINE([OSX_GTK], [1], [Define if building with GTK for MacOS.])
+   with_quartz=yes],
+  [with_quartz=no])
+
+AM_CONDITIONAL([HAVE_QUARTZ],[test "x$with_quartz" = "xyes"])
 
 WITH_GSSAPI=
 AS_IF([test "x$with_gssapi" != xno],

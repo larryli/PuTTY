@@ -192,6 +192,18 @@ install-exec-local:
 endif
 !end
 
+# In automake makefile, build the OS X app bundle, if configured in
+# Quartz mode.
+!begin am
+if HAVE_QUARTZ
+noinst_SCRIPTS = unix/PuTTY.app unix/Pterm.app
+unix/PuTTY.app: unix/putty.bundle puttyapp osxlaunch
+	rm -rf $@ && gtk-mac-bundler $<
+unix/Pterm.app: unix/pterm.bundle ptermapp osxlaunch
+	rm -rf $@ && gtk-mac-bundler $<
+endif
+!end
+
 # Random symbols.
 !begin cygwin vars
 # _WIN32_IE is required to expose identifiers that only make sense on

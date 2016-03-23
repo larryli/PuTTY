@@ -7,6 +7,22 @@
  * it's fully working.)
  */
 
+/*
+
+To build on OS X, you will need a build environment with GTK 3 and
+gtk-mac-bundler, and also Halibut on the path (to build the man pages,
+without which the standard Makefile will complain). Then, from a clean
+checkout, do this:
+
+./mkfiles.pl -U --with-quartz
+make -C icons icns
+make -C doc
+make
+
+and you should get unix/PuTTY.app and unix/PTerm.app as output.
+
+*/
+
 #include <assert.h>
 #include <stdlib.h>
 
