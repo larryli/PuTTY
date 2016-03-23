@@ -532,6 +532,11 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
     return err;
 }
 
+GtkWidget *make_gtk_toplevel_window(void *frontend)
+{
+    return gtk_window_new(GTK_WINDOW_TOPLEVEL);
+}
+
 extern int cfgbox(Conf *conf);
 
 int main(int argc, char **argv)

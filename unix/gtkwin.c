@@ -4120,7 +4120,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
             exit(1);
         }
     }
-    inst->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    inst->window = make_gtk_toplevel_window(inst);
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
         if (*winclass)

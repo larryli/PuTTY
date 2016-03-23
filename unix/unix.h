@@ -102,6 +102,9 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string);
 void launch_duplicate_session(Conf *conf);
 void launch_new_session(void);
 void launch_saved_session(const char *str);
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+GtkWidget *make_gtk_toplevel_window(void *frontend);
+#endif
 
 /* Defined in gtkcomm.c */
 void gtkcomm_setup(void);
