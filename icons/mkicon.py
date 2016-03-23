@@ -893,17 +893,18 @@ def testrun(func, fname):
     for canvas in canvases:
         minx, miny, maxx, maxy = bbox(canvas)
         block.extend(render(canvas, minx-2, miny-2, minx-2+wid, maxy+2))
-    p = os.popen("convert -depth 8 -size %dx%d rgb:- %s" % (wid,ht,fname), "w")
-    assert len(block) == ht
-    for line in block:
-        assert len(line) == wid
-        for r, g, b, a in line:
-            # Composite on to orange.
-            r = int(round((r * a + 255 * (255-a)) / 255.0))
-            g = int(round((g * a + 128 * (255-a)) / 255.0))
-            b = int(round((b * a +   0 * (255-a)) / 255.0))
-            p.write("%c%c%c" % (r,g,b))
-    p.close()
+    with open(fname, "w") as f:
+        f.write(("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 3\nMAXVAL 255\n" +
+                 "TUPLTYPE RGB\nENDHDR\n") % (wid, ht))
+        assert len(block) == ht
+        for line in block:
+            assert len(line) == wid
+            for r, g, b, a in line:
+                # Composite on to orange.
+                r = int(round((r * a + 255 * (255-a)) / 255.0))
+                g = int(round((g * a + 128 * (255-a)) / 255.0))
+                b = int(round((b * a +   0 * (255-a)) / 255.0))
+                f.write("%c%c%c" % (r,g,b))
 
 def drawicon(func, width, fname, orangebackground = 0):
     canvas = func(width / 32.0)
@@ -912,19 +913,20 @@ def drawicon(func, width, fname, orangebackground = 0):
     assert minx >= 0 and miny >= 0 and maxx <= width and maxy <= width
 
     block = render(canvas, 0, 0, width, width)
-    p = os.popen("convert -depth 8 -size %dx%d rgba:- %s" % (width,width,fname), "w")
-    assert len(block) == width
-    for line in block:
-        assert len(line) == width
-        for r, g, b, a in line:
-            if orangebackground:
-                # Composite on to orange.
-                r = int(round((r * a + 255 * (255-a)) / 255.0))
-                g = int(round((g * a + 128 * (255-a)) / 255.0))
-                b = int(round((b * a +   0 * (255-a)) / 255.0))
-                a = 255
-            p.write("%c%c%c%c" % (r,g,b,a))
-    p.close()
+    with open(fname, "w") as f:
+        f.write(("P7\nWIDTH %d\nHEIGHT %d\nDEPTH 4\nMAXVAL 255\n" +
+                 "TUPLTYPE RGB_ALPHA\nENDHDR\n") % (width, width))
+        assert len(block) == width
+        for line in block:
+            assert len(line) == width
+            for r, g, b, a in line:
+                if orangebackground:
+                    # Composite on to orange.
+                    r = int(round((r * a + 255 * (255-a)) / 255.0))
+                    g = int(round((g * a + 128 * (255-a)) / 255.0))
+                    b = int(round((b * a +   0 * (255-a)) / 255.0))
+                    a = 255
+                f.write("%c%c%c%c" % (r,g,b,a))
 
 args = sys.argv[1:]
 

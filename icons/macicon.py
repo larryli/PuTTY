@@ -112,18 +112,31 @@ def make_colour_icon(size, rgba):
 # Load an image file from disk and turn it into a simple list of
 # 4-tuples giving 8-bit R,G,B,A values for each pixel.
 #
-# My icon-building makefile already depends on ImageMagick, so I use
-# identify and convert here in place of more sensible Python libraries
-# so as to add no build dependency that wasn't already needed.
+# To avoid adding any build dependency on ImageMagick or Python
+# imaging libraries, none of which comes as standard on OS X, I insist
+# here that the file is in RGBA .pam format (as mkicon.py will have
+# generated it).
 def load_rgba(filename):
-    size = subprocess.check_output(["identify", "-format", "%wx%h", filename])
-    width, height = map(int, size.split("x"))
-    assert width == height
-    data = subprocess.check_output(["convert", "-depth", "8",
-                                    filename, "rgba:-"])
-    assert len(data) == width*height*4
-    rgba = [map(ord, data[i:i+4]) for i in range(0, len(data), 4)]
-    return width, rgba
+    with open(filename) as f:
+        assert f.readline() == "P7\n"
+        for line in iter(f.readline, ''):
+            words = line.rstrip("\n").split()
+            if words[0] == "WIDTH":
+                width = int(words[1])
+            elif words[0] == "HEIGHT":
+                height = int(words[1])
+            elif words[0] == "DEPTH":
+                assert int(words[1]) == 4
+            elif words[0] == "TUPLTYPE":
+                assert words[1] == "RGB_ALPHA"
+            elif words[0] == "ENDHDR":
+                break
+
+        assert width == height
+        data = f.read()
+        assert len(data) == width*height*4
+        rgba = [map(ord, data[i:i+4]) for i in range(0, len(data), 4)]
+        return width, rgba
 
 data = ""
 
