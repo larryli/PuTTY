@@ -2,6 +2,7 @@
 *.pyc
 .dirstamp
 .deps
+.DS_Store
 /*.pdb
 /*.ilk
 /*.res
