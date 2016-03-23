@@ -322,6 +322,12 @@ pageant  : [X] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
 PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
          + ux_x11 uxpty uxsignal testback putty.icns info.plist
 
+ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
+         + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
+         + nogss gtkapp
+puttyapp : [XT] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
+         + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
+         + xpmpucfg gtkapp
 fuzzterm : [UT] UXTERM CHARSET misc uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none
 testbn   : [UT] testbn sshbn misc conf tree234 uxmisc
