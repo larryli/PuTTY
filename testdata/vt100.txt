@@ -10,3 +10,7 @@ VT100 line drawing characters, actually using the VT100 escapes
 x     stuff down here         x       is quite inane        x
 x                             x                             x
 mqqqqqqqqqqpoopqrssrqqqqqqqqqqvqqqqqqqqqqpoopqrssrqqqqqqqqqqj
+
+(This won't do the right thing in PuTTY's default UTF-8 translation;
+you'll just see lqqqk letters. It should work with a character set
+like ISO8859-1.)
