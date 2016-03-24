@@ -175,6 +175,8 @@ GtkBox *our_dialog_make_action_hbox(GtkWindow *dlg)
 #if GTK_CHECK_VERSION(3,0,0)
     GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     our_dialog_set_action_area(dlg, hbox);
+    g_object_set(G_OBJECT(hbox), "margin", 0, (const char *)NULL);
+    g_object_set(G_OBJECT(hbox), "spacing", 8, (const char *)NULL);
     gtk_widget_show(hbox);
     return GTK_BOX(hbox);
 #else /* not GTK 3 */
