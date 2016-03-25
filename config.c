@@ -2321,14 +2321,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "Options controlling SSH authentication");
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "main", NULL);
-	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
-			  HELPCTX(ssh_auth_bypass),
-			  conf_checkbox_handler,
-			  I(CONF_ssh_no_userauth));
 	    ctrl_checkbox(s, "Display pre-authentication banner (SSH-2 only)",
 			  'd', HELPCTX(ssh_auth_banner),
 			  conf_checkbox_handler,
 			  I(CONF_ssh_show_banner));
+	    ctrl_checkbox(s, "Bypass authentication entirely (SSH-2 only)", 'b',
+			  HELPCTX(ssh_auth_bypass),
+			  conf_checkbox_handler,
+			  I(CONF_ssh_no_userauth));
 
 	    s = ctrl_getset(b, "Connection/SSH/Auth", "methods",
 			    "Authentication methods");
