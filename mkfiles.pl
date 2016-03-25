@@ -1357,7 +1357,7 @@ if (defined $makefiles{'gtk'}) {
     "# building with GTK 1.2, or you can set it to `pkg-config gtk+-2.0 x11'\n".
     "# if you want to enforce 2.0. The default is to try 2.0 and fall back\n".
     "# to 1.2 if it isn't found.\n".
-    "GTK_CONFIG = sh -c 'pkg-config gtk+-2.0 x11 \$\$0 2>/dev/null || gtk-config \$\$0'\n".
+    "GTK_CONFIG = sh -c 'pkg-config gtk+-3.0 x11 \$\$0 2>/dev/null || pkg-config gtk+-2.0 x11 \$\$0 2>/dev/null || gtk-config \$\$0'\n".
     "\n".
     "-include Makefile.local\n".
     "\n".
