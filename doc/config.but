@@ -2483,6 +2483,47 @@ when the SSH connection is idle, so they shouldn't cause the same
 problems.  The SSH-1 protocol, incidentally, has even weaker integrity
 protection than SSH-2 without rekeys.
 
+\H{config-ssh-hostkey} The Host Keys panel
+
+The Host Keys panel allows you to configure options related to SSH-2
+host key management.
+
+Host keys are used to prove the server's identity, and assure you that
+the server is not being spoofed (either by a man-in-the-middle attack
+or by completely replacing it on the network).
+
+This entire panel is only relevant to SSH protocol version 2; none of
+these settings affect SSH-1 at all.
+
+\S{config-ssh-hostkey-order} \ii{Host key type} selection
+
+\cfg{winhelp-topic}{ssh.hostkey.order}
+
+PuTTY supports a variety of SSH-2 host key types, and allows you to
+choose which one you prefer to use to identify the server.
+Configuration is similar to cipher selection (see
+\k{config-ssh-encryption}).
+
+PuTTY currently supports the following host key types:
+
+\b \q{Ed25519}: \i{Edwards-curve} \i{DSA} using a twisted Edwards
+curve with modulus \cw{2^255-19}.
+
+\b \q{ECDSA}: \i{elliptic curve} \i{DSA} using one of the
+NIST-standardised elliptic curves.
+
+\b \q{DSA}: straightforward \i{DSA} using modular exponentiation.
+
+\b \q{RSA}: the ordinary \i{RSA} algorithm.
+
+If PuTTY already has a host key stored for the server, it will prefer
+to use the one it already has. If not, it will choose an algorithm
+based on the preference order you specify in the configuration.
+
+If the first algorithm PuTTY finds is below the \q{warn below here}
+line, you will see a warning box when you make the connection, similar
+to that for cipher selection (see \k{config-ssh-encryption}).
+
 \S{config-ssh-kex-manual-hostkeys} \ii{Manually configuring host keys}
 
 \cfg{winhelp-topic}{ssh.kex.manualhostkeys}

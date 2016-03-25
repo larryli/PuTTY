@@ -28,6 +28,14 @@ static const struct keyvalwhere kexnames[] = {
     { "WARN",               KEX_WARN,       -1, -1 }
 };
 
+static const struct keyvalwhere hknames[] = {
+    { "ed25519",    HK_ED25519,             -1, +1 },
+    { "ecdsa",      HK_ECDSA,               -1, -1 },
+    { "dsa",        HK_DSA,                 -1, -1 },
+    { "rsa",        HK_RSA,                 -1, -1 },
+    { "WARN",       HK_WARN,                -1, -1 },
+};
+
 /*
  * All the terminal modes that we know about for the "TerminalModes"
  * setting. (Also used by config.c for the drop-down list.)
@@ -493,6 +501,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "ChangeUsername", conf_get_int(conf, CONF_change_username));
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
     wprefs(sesskey, "KEX", kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
+    wprefs(sesskey, "HostKey", hknames, HK_MAX, conf, CONF_ssh_hklist);
     write_setting_i(sesskey, "RekeyTime", conf_get_int(conf, CONF_ssh_rekey_time));
     write_setting_s(sesskey, "RekeyBytes", conf_get_str(conf, CONF_ssh_rekey_data));
     write_setting_i(sesskey, "SshNoAuth", conf_get_int(conf, CONF_ssh_no_userauth));
@@ -789,6 +798,8 @@ void load_open_settings(void *sesskey, Conf *conf)
 	gprefs(sesskey, "KEX", default_kexes,
 	       kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
     }
+    gprefs(sesskey, "HostKey", "ed25519,ecdsa,rsa,dsa,WARN",
+           hknames, HK_MAX, conf, CONF_ssh_hklist);
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
     gpps(sesskey, "RekeyBytes", "1G", conf, CONF_ssh_rekey_data);
     /* SSH-2 only by default */

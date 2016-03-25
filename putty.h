@@ -268,6 +268,18 @@ enum {
 
 enum {
     /*
+     * SSH-2 host key algorithms
+     */
+    HK_WARN,
+    HK_RSA,
+    HK_DSA,
+    HK_ECDSA,
+    HK_ED25519,
+    HK_MAX
+};
+
+enum {
+    /*
      * SSH ciphers (both SSH-1 and SSH-2)
      */
     CIPHER_WARN,		       /* pseudo 'cipher' */
@@ -695,6 +707,7 @@ void cleanup_exit(int);
     X(INT, NONE, nopty) \
     X(INT, NONE, compression) \
     X(INT, INT, ssh_kexlist) \
+    X(INT, INT, ssh_hklist) \
     X(INT, NONE, ssh_rekey_time) /* in minutes */ \
     X(STR, NONE, ssh_rekey_data) /* string encoding e.g. "100K", "2M", "1G" */ \
     X(INT, NONE, tryagent) \

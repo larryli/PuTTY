@@ -466,6 +466,49 @@ static void kexlist_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void hklist_handler(union control *ctrl, void *dlg,
+                            void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    if (event == EVENT_REFRESH) {
+        int i;
+
+        static const struct { const char *s; int k; } hks[] = {
+            { "Ed25519",               HK_ED25519 },
+            { "ECDSA",                 HK_ECDSA },
+            { "DSA",                   HK_DSA },
+            { "RSA",                   HK_RSA },
+            { "-- warn below here --", HK_WARN }
+        };
+
+        /* Set up the "host key preference" box. */
+        /* (hklist assumed to contain all algorithms) */
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (i = 0; i < HK_MAX; i++) {
+            int k = conf_get_int_int(conf, CONF_ssh_hklist, i);
+            int j;
+            const char *kstr = NULL;
+            for (j = 0; j < lenof(hks); j++) {
+                if (hks[j].k == k) {
+                    kstr = hks[j].s;
+                    break;
+                }
+            }
+            dlg_listbox_addwithid(ctrl, dlg, kstr, k);
+        }
+        dlg_update_done(ctrl, dlg);
+
+    } else if (event == EVENT_VALCHANGE) {
+        int i;
+
+        /* Update array to match the list box. */
+        for (i=0; i < HK_MAX; i++)
+            conf_set_int_int(conf, CONF_ssh_hklist, i,
+                             dlg_listbox_getid(ctrl, dlg, i));
+    }
+}
+
 static void printerbox_handler(union control *ctrl, void *dlg,
 			       void *data, int event)
 {
@@ -2250,12 +2293,27 @@ void setup_config_box(struct controlbox *b, int midsession,
 	}
 
 	/*
+	 * The 'Connection/SSH/Host keys' panel.
+	 */
+	if (protcfginfo != 1 && protcfginfo != -1) {
+	    ctrl_settitle(b, "Connection/SSH/Host keys",
+			  "Options controlling SSH host keys");
+
+	    s = ctrl_getset(b, "Connection/SSH/Host keys", "main",
+			    "Host key algorithm preference");
+	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
+			      HELPCTX(ssh_hklist),
+			      hklist_handler, P(NULL));
+	    c->listbox.height = 5;
+	}
+
+	/*
 	 * Manual host key configuration is irrelevant mid-session,
 	 * as we enforce that the host key for rekeys is the
 	 * same as that used at the start of the session.
 	 */
 	if (!midsession) {
-	    s = ctrl_getset(b, "Connection/SSH/Kex", "hostkeys",
+	    s = ctrl_getset(b, "Connection/SSH/Host keys", "hostkeys",
 			    "Manually configure host keys for this connection");
 
             ctrl_columns(s, 2, 75, 25);
