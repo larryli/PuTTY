@@ -301,11 +301,32 @@ void keylist_update(void)
 	for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
 	    char *listentry, *p;
 	    int pos;
-	    /*
-	     * Replace spaces with tabs in the fingerprint prefix, for
-	     * nice alignment in the list box, until we encounter a :
-	     * meaning we're into the fingerprint proper.
-	     */
+
+            /*
+             * For nice alignment in the list box, we would ideally
+             * want every entry to align to the tab stop settings, and
+             * have a column for algorithm name, one for bit count,
+             * one for hex fingerprint, and one for key comment.
+             *
+             * Unfortunately, some of the algorithm names are so long
+             * that they overflow into the bit-count field.
+             * Fortunately, at the moment, those are _precisely_ the
+             * algorithm names that don't need a bit count displayed
+             * anyway (because for NIST-style ECDSA the bit count is
+             * mentioned in the algorithm name, and for ssh-ed25519
+             * there is only one possible value anyway). So we fudge
+             * this by simply omitting the bit count field in that
+             * situation.
+             *
+             * This is fragile not only in the face of further key
+             * types that don't follow this pattern, but also in the
+             * face of font metrics changes - the Windows semantics
+             * for list box tab stops is that \t aligns to the next
+             * one you haven't already exceeded, so I have to guess
+             * when the key type will overflow past the bit-count tab
+             * stop and leave out a tab character. Urgh.
+             */
+
 	    p = ssh2_fingerprint(skey->alg, skey->data);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             sfree(p);
@@ -316,6 +337,26 @@ void keylist_update(void)
                 if (listentry[pos] == ':' || !listentry[pos])
                     break;
                 listentry[pos++] = '\t';
+            }
+            if (skey->alg != &ssh_dss && skey->alg != &ssh_rsa) {
+                /*
+                 * Remove the bit-count field, which is between the
+                 * first and second \t.
+                 */
+                int outpos;
+                pos = 0;
+                while (listentry[pos] && listentry[pos] != '\t')
+                    pos++;
+                outpos = pos;
+                pos++;
+                while (listentry[pos] && listentry[pos] != '\t')
+                    pos++;
+                while (1) {
+                    if ((listentry[outpos] = listentry[pos]) == '\0')
+                        break;
+                    outpos++;
+                    pos++;
+                }
             }
 
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
