@@ -319,8 +319,9 @@ If you find that special characters (\i{accented characters}, for
 example, or \i{line-drawing characters}) are not being displayed
 correctly in your PuTTY session, it may be that PuTTY is interpreting
 the characters sent by the server according to the wrong \e{character
-set}. There are a lot of different character sets available, so it's
-entirely possible for this to happen.
+set}. There are a lot of different character sets available, and no
+good way for PuTTY to know which to use, so it's entirely possible
+for this to happen.
 
 If you click \q{Change Settings} and look at the \q{Translation}
 panel, you should see a large number of character sets which you can
