@@ -1762,7 +1762,7 @@ you to reconfirm its host key. Conversely, if you expect to use the
 same local port number for port forwardings to lots of different
 servers, you probably didn't want any particular server's host key
 cached under that local port number. (For this latter case, you
-could also explicitly configure host keys in the relevant sessions;
+could instead explicitly configure host keys in the relevant sessions;
 see \k{config-ssh-kex-manual-hostkeys}.)
 
 If you just enter a host name for this option, PuTTY will cache the
