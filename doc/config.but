@@ -1747,7 +1747,7 @@ arbitrary port (say, \cw{localhost} port 10022) were forwarded to a
 second machine's SSH port (say, \cw{foovax} port 22), and then
 started a second PuTTY connecting to the forwarded port.
 
-In normal usage, the second PuTTY will access the host key cache
+In normal usage, the second PuTTY will access the \i{host key cache}
 under the host name and port it actually connected to (i.e.
 \cw{localhost} port 10022 in this example). Using the logical host
 name option, however, you can configure the second PuTTY to cache
@@ -2531,8 +2531,8 @@ If this box contains at least one host key or fingerprint when PuTTY
 makes an SSH connection, then PuTTY's automated host key management is
 completely bypassed: the connection will be permitted if and only if
 the host key presented by the server is one of the keys listed in this
-box, and the host key store in the Registry will be neither read
-\e{nor written}.
+box, and the \I{host key cache}host key store in the Registry will be
+neither read \e{nor written}, unless you explicitly do so.
 
 If the box is empty (as it usually is), then PuTTY's automated host
 key management will work as normal.
