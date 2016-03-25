@@ -121,6 +121,9 @@ and hit the Copy button to copy them to the \i{clipboard}. If you
 are reporting a bug, it's often useful to paste the contents of the
 Event Log into your bug report.
 
+(The Event Log is not the same as the facility to create a log file
+of your session; that's described in \k{using-logging}.)
+
 \S2{using-specials} \ii{Special commands}
 
 Depending on the protocol used for the current session, there may be
