@@ -36,6 +36,11 @@ def strtolong(s):
     bytes = struct.unpack(">%luB" % len(s), s)
     return reduce ((lambda a, b: (long(a) << 8) + long(b)), bytes)
 
+def strtolong_le(s):
+    "Convert arbitrary-length little-endian binary data to a Python long"
+    bytes = reversed(struct.unpack(">%luB" % len(s), s))
+    return reduce ((lambda a, b: (long(a) << 8) + long(b)), bytes)
+
 def longtohex(n):
     """Convert long int to lower-case hex.
 
@@ -173,10 +178,44 @@ for line in fileinput.input(args):
                 keyparams = [curvename] + map (strtolong, [x,y])
 
             elif sshkeytype == "ssh-ed25519":
-                # FIXME: these are always stored point-compressed, which
-                # requires actual maths
-                raise KeyFormatError("can't convert ssh-ed25519 yet, sorry")
+                keytype = sshkeytype
 
+                if len(subfields) != 2:
+                    raise KeyFormatError("wrong number of subfields in blob")
+                if subfields[0] != sshkeytype:
+                    raise KeyFormatError("key type mismatch ('%s' vs '%s')"
+                            % (sshkeytype, subfields[0]))
+                # Key material y, with the top bit being repurposed as
+                # the expected parity of the associated x (point
+                # compression).
+                y = strtolong_le(subfields[1])
+                x_parity = y >> 255
+                y &= ~(1 << 255)
+
+                # Standard Ed25519 parameters.
+                p = 2**255 - 19
+                d = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3
+
+                # Recover x^2 = (y^2 - 1) / (d y^2 + 1).
+                #
+                # With no real time constraints here, it's easier to
+                # take the inverse of the denominator by raising it to
+                # the power p-2 (by Fermat's Little Theorem) than
+                # faffing about with the properly efficient Euclid
+                # method.
+                xx = (y*y - 1) * pow(d*y*y + 1, p-2, p) % p
+
+                # Take the square root, which may require trying twice.
+                x = pow(xx, (p+3)/8, p)
+                if pow(x, 2, p) != xx:
+                    x = x * pow(2, (p-1)/4, p) % p
+                    assert pow(x, 2, p) == xx
+
+                # Pick the square root of the correct parity.
+                if (x % 2) != x_parity:
+                    x = p - x
+
+                keyparams = [x, y]
             else:
                 raise UnknownKeyType(sshkeytype)
 
