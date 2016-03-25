@@ -6685,7 +6685,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 		    in_commasep_string(alg->u.comp->delayed_name, str, len))
 		    s->pending_compression = TRUE;  /* try this later */
 	    }
-	    bombout(("Couldn't agree a %s ((available: %.*s)",
+	    bombout(("Couldn't agree a %s (available: %.*s)",
 		     kexlist_descr[i], len, str));
 	    crStopV;
 	  matched:;
@@ -7175,6 +7175,46 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
     if (!s->got_session_id) {
+	/*
+	 * Make a note of any host key format we'd have preferred to use,
+	 * had we already known the corresponding keys.
+	 */
+	{
+	    int i, j = 0;
+	    char *list = NULL;
+	    for (i = 0; i < lenof(hostkey_algs); i++) {
+		if (hostkey_algs[i] == ssh->hostkey)
+		    /* Not worth mentioning key types we wouldn't use */
+		    break;
+		else if (ssh->uncert_hostkeys[j] == i) {
+		    char *newlist;
+		    if (list)
+			newlist = dupprintf("%s/%s", list,
+					    hostkey_algs[i]->name);
+		    else
+			newlist = dupprintf("%s", hostkey_algs[i]->name);
+		    sfree(list);
+		    list = newlist;
+		    j++;
+		    /* Assumes that hostkey_algs and uncert_hostkeys are
+		     * sorted in the same order */
+		    if (j == ssh->n_uncert_hostkeys)
+			break;
+		    else
+			assert(ssh->uncert_hostkeys[j] >
+			       ssh->uncert_hostkeys[j-1]);
+		}
+	    }
+	    if (list) {
+		logeventf(ssh,
+			  "Server has %s host key%s, but we don't know %s; "
+			  "using %s instead",
+			  list, j ? "s" : "", j ? "any of them" : "it",
+			  ssh->hostkey->name);
+		sfree(list);
+	    }
+	}
+
         /*
          * Authenticate remote host: verify host key. (We've already
          * checked the signature of the exchange hash.)
