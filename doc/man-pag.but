@@ -260,6 +260,14 @@ output.
 
 }
 
+\dt \cw{-s}, \cw{-c}
+
+\dd Force Pageant to output its environment setup commands in the
+style of POSIX / Bourne shells (\cw{-s}) or C shells (\cw{-c})
+respectively. If neither option is given, Pageant will guess based on
+whether the environment variable \cw{SHELL} has a value ending in
+\cq{csh}.
+
 \dt \cw{--help}
 
 \dd Print a brief summary of command-line options and terminate.
