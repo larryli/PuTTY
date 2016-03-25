@@ -95,12 +95,6 @@
 /icons/*.icns
 /icons/*.xpm
 /icons/*.c
-/macosx/Makefile
-/macosx/*.app
-/macosx/puttygen
-/macosx/plink
-/macosx/psftp
-/macosx/pscp
 /testdata/bignum.txt
 /unix/Makefile.gtk
 /unix/Makefile.ux

@@ -20,7 +20,6 @@
 !makefile gtk unix/Makefile.gtk
 !makefile unix unix/Makefile.ux
 !makefile am Makefile.am
-!makefile osx macosx/Makefile
 !makefile devcppproj windows/DEVCPP
 !makefile vstudio10 windows/VS2010
 !makefile vstudio12 windows/VS2012
@@ -28,7 +27,6 @@
 !srcdir charset/
 !srcdir windows/
 !srcdir unix/
-!srcdir macosx/
 
 # Help text added to the top of each Makefile, with /D converted
 # into -D as appropriate for the particular Makefile.
@@ -173,9 +171,6 @@ install:
 install-strip:
 	$(MAKE) install INSTALL_PROGRAM="$(INSTALL_PROGRAM) -s"
 !end
-!begin osx vars
-CFLAGS += -DMACOSX
-!end
 
 # List the man pages for the automake makefile.
 !begin am
@@ -231,7 +226,6 @@ GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
 GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
 	 + x11misc gtkcomm
-OSXTERM  = UXTERM osxwin osxdlg osxctrls
 
 # Non-SSH back ends (putty, puttytel, plink).
 NONSSH   = telnet raw rlogin ldisc pinger
@@ -254,7 +248,6 @@ MISC     = timing callback misc version settings tree234 proxy conf be_misc
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur
 UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
-OSXMISC  = MISC uxstore uxsel osxsel uxnet uxpeer uxmisc uxproxy time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.
@@ -330,9 +323,6 @@ pageant  : [X] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
 	 + version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512 sshecc
 	 + conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons gtkask
 	 + gtkmisc UXMISC
-
-PuTTY    : [MX] osxmain OSXTERM OSXMISC CHARSET U_BE_ALL NONSSH UXSSH
-         + ux_x11 uxpty uxsignal testback putty.icns info.plist
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
