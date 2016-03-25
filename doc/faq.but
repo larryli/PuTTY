@@ -306,18 +306,22 @@ testing in this area would be very welcome!
 
 \S{faq-mac-port}{Question} Will there be a port to the \I{Mac OS}Mac?
 
-There are several answers to this question:
+We hope so!
 
-\b The Unix/Gtk port is already fully working under Mac OS X as an X11
-application.
+We attempted one around 2005, written as a native Cocoa application,
+but it turned out to be very slow to redraw its window for some reason
+we never got to the bottom of.
 
-\b A native (Cocoa) Mac OS X port has been started. It's just about
-usable, but is of nowhere near release quality yet, and is likely to
-behave in unexpected ways. Currently it's unlikely to be completed
-unless someone steps in to help.
+In 2015, after porting the GTK front end to work with GTK 3, we began
+another attempt based on making small changes to the GTK code and
+building it against the OS X Quartz version of GTK 3. This doesn't
+seem to have the window redrawing problem any more, so it's already
+got further than the last effort, but it is still substantially
+unfinished.
 
-\b A separate port to the classic Mac OS (pre-OSX) is also in
-progress; it too is not ready yet.
+If any OS X and/or GTK programming experts are keen to have a finished
+version of this, we urge them to help out with some of the remaining
+problems!
 
 \S{faq-epoc}{Question} Will there be a port to EPOC?
 
