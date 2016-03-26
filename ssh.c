@@ -7253,16 +7253,14 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     s->keystr = ssh->hostkey->fmtkey(s->hkey);
     if (!s->got_session_id) {
 	/*
-	 * Make a note of any host key format we'd have preferred to use,
-	 * had we already known the corresponding keys.
+	 * Make a note of any other host key formats that are available.
 	 */
 	{
 	    int i, j = 0;
 	    char *list = NULL;
 	    for (i = 0; i < lenof(hostkey_algs); i++) {
 		if (hostkey_algs[i].alg == ssh->hostkey)
-		    /* Not worth mentioning key types we wouldn't use */
-		    break;
+		    continue;
 		else if (ssh->uncert_hostkeys[j] == i) {
 		    char *newlist;
 		    if (list)
@@ -7284,10 +7282,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    }
 	    if (list) {
 		logeventf(ssh,
-			  "Server has %s host key%s, but we don't know %s; "
-			  "using %s instead",
-			  list, j ? "s" : "", j ? "any of them" : "it",
-			  ssh->hostkey->name);
+			  "Server also has %s host key%s, but we "
+			  "don't know %s", list,
+			  j > 1 ? "s" : "", j > 1 ? "any of them" : "it");
 		sfree(list);
 	    }
 	}
