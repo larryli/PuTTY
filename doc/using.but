@@ -934,22 +934,22 @@ authentication} box in the Auth panel of the PuTTY configuration box
 \S2{using-cmdline-loghost} \i\c{-loghost}: specify a \i{logical host
 name}
 
-This option overrides PuTTY's normal SSH \i{host key caching policy} by
-telling it the name of the host you expect your connection to end up
-at (in cases where this differs from the location PuTTY thinks it's
-connecting to). It can be a plain host name, or a host name followed
-by a colon and a port number. See \k{config-loghost} for more detail
-on this.
+This option overrides PuTTY's normal SSH \I{host key cache}host key
+caching policy by telling it the name of the host you expect your
+connection to end up at (in cases where this differs from the location
+PuTTY thinks it's connecting to). It can be a plain host name, or a
+host name followed by a colon and a port number. See
+\k{config-loghost} for more detail on this.
 
 \S2{using-cmdline-hostkey} \i\c{-hostkey}: \I{manually configuring
 host keys}manually specify an expected host key
 
-This option overrides PuTTY's normal SSH \i{host key caching policy} by
-telling it exactly what host key to expect, which can be useful if the
-normal automatic host key store in the Registry is unavailable. The
-argument to this option should be either a host key fingerprint, or an
-SSH-2 public key blob. See \k{config-ssh-kex-manual-hostkeys} for more
-information.
+This option overrides PuTTY's normal SSH \I{host key cache}host key
+caching policy by telling it exactly what host key to expect, which
+can be useful if the normal automatic host key store in the Registry
+is unavailable. The argument to this option should be either a host key
+fingerprint, or an SSH-2 public key blob. See
+\k{config-ssh-kex-manual-hostkeys} for more information.
 
 You can specify this option more than once if you want to configure
 more than one key to be accepted.

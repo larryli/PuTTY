@@ -102,6 +102,8 @@ host key. If the system administrator sends you more than one
 \I{host key fingerprint}fingerprint, you should make sure the one
 PuTTY shows you is on the list, but it doesn't matter which one it is.)
 
+See \k{config-ssh-hostkey} for advanced options for managing host keys.
+
 \# FIXME: this is all very fine but of course in practice the world
 doesn't work that way. Ask the team if they have any good ideas for
 changes to this section!
