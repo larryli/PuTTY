@@ -386,6 +386,7 @@ static void gprefs(void *sesskey, const char *name, const char *def,
                     conf_set_int_int(conf, primary, j+1,
                                      conf_get_int_int(conf, primary, j));
                 conf_set_int_int(conf, primary, pos, mapping[i].v);
+                seen |= (1 << mapping[i].v);
                 n++;
             }
         }
