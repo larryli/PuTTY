@@ -66,10 +66,6 @@ For building on Unix:
    a normal Unix source archive but doesn't do so well at keeping the
    per-platform stuff in each platform's subdirectory; it's up to you.
 
-   Note that Unix PuTTY has mostly only been tested on Linux so far;
-   portability problems such as BSD-style ptys or different header file
-   requirements are expected.
-
  - unix/Makefile.gtk and unix/Makefile.ux are for non-autoconfigured
    builds. These makefiles expect you to change into the `unix'
    subdirectory, then run `make -f Makefile.gtk' or `make -f
