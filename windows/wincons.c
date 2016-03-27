@@ -197,6 +197,53 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     }
 }
 
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    HANDLE hin;
+    DWORD savemode, i;
+
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Continue with connection? (y/n) ";
+    static const char msg_batch[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Connection abandoned.\n";
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+
+    if (console_batch_mode) {
+	fprintf(stderr, msg_batch, algname, betteralgs);
+	return 0;
+    }
+
+    fprintf(stderr, msg, algname, betteralgs);
+    fflush(stderr);
+
+    hin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hin, &savemode);
+    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+			 ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+    SetConsoleMode(hin, savemode);
+
+    if (line[0] == 'y' || line[0] == 'Y') {
+	return 1;
+    } else {
+	fprintf(stderr, abandoned);
+	return 0;
+    }
+}
+
 /*
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).

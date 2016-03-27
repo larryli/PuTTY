@@ -895,6 +895,33 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 	return 0;
 }
 
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char mbtitle[] = "%s Security Alert";
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Do you want to continue with this connection?\n";
+    char *message, *title;
+    int mbret;
+
+    message = dupprintf(msg, algname, betteralgs);
+    title = dupprintf(mbtitle, appname);
+    mbret = MessageBox(NULL, message, title,
+		       MB_ICONWARNING | MB_YESNO | MB_DEFBUTTON2);
+    socket_reselect_all();
+    sfree(message);
+    sfree(title);
+    if (mbret == IDYES)
+	return 1;
+    else
+	return 0;
+}
+
 /*
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).

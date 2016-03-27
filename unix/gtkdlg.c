@@ -3562,6 +3562,37 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     }
 }
 
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Continue with connection?";
+    char *text;
+    int ret;
+
+    text = dupprintf(msg, algname, betteralgs);
+    ret = messagebox(GTK_WIDGET(get_window(frontend)),
+		     "PuTTY Security Alert", text,
+		     string_width("is ecdsa-nistp521, which is"
+                                  " below the configured warning threshold."),
+                     FALSE,
+		     "Yes", 'y', 0, 1,
+		     "No", 'n', 0, 0,
+		     NULL);
+    sfree(text);
+
+    if (ret) {
+	return 1;
+    } else {
+	return 0;
+    }
+}
+
 void old_keyfile_warning(void)
 {
     /*

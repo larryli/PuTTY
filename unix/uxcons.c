@@ -264,6 +264,59 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     }
 }
 
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx)
+{
+    static const char msg[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Continue with connection? (y/n) ";
+    static const char msg_batch[] =
+	"The first host key type we have stored for this server\n"
+	"is %s, which is below the configured warning threshold.\n"
+	"The server also provides the following types of host key\n"
+        "above the threshold, which we do not have stored:\n"
+        "%s\n"
+	"Connection abandoned.\n";
+    static const char abandoned[] = "Connection abandoned.\n";
+
+    char line[32];
+    struct termios cf;
+
+    premsg(&cf);
+    if (console_batch_mode) {
+	fprintf(stderr, msg_batch, algname, betteralgs);
+	return 0;
+    }
+
+    fprintf(stderr, msg, algname, betteralgs);
+    fflush(stderr);
+
+    {
+	struct termios oldmode, newmode;
+	tcgetattr(0, &oldmode);
+	newmode = oldmode;
+	newmode.c_lflag |= ECHO | ISIG | ICANON;
+	tcsetattr(0, TCSANOW, &newmode);
+	line[0] = '\0';
+	if (block_and_read(0, line, sizeof(line) - 1) <= 0)
+	    /* handled below */;
+	tcsetattr(0, TCSANOW, &oldmode);
+    }
+
+    if (line[0] == 'y' || line[0] == 'Y') {
+	postmsg(&cf);
+	return 1;
+    } else {
+	fprintf(stderr, abandoned);
+	postmsg(&cf);
+	return 0;
+    }
+}
+
 /*
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).

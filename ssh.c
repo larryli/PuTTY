@@ -6813,10 +6813,53 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	}
 
 	if (s->warn_hk) {
+            int j, k;
+            char *betteralgs;
+
 	    ssh_set_frozen(ssh, 1);
-	    s->dlgret = askalg(ssh->frontend, "host key type",
-			       ssh->hostkey->name,
-			       ssh_dialog_callback, ssh);
+
+            /*
+             * Change warning box wording depending on why we chose a
+             * warning-level host key algorithm. If it's because
+             * that's all we have *cached*, use the askhk mechanism,
+             * and list the host keys we could usefully cross-certify.
+             * Otherwise, use askalg for the standard wording.
+             */
+            betteralgs = NULL;
+            for (j = 0; j < ssh->n_uncert_hostkeys; j++) {
+                const struct ssh_signkey_with_user_pref_id *hktype =
+                    &hostkey_algs[ssh->uncert_hostkeys[j]];
+                int better = FALSE;
+                for (k = 0; k < HK_MAX; k++) {
+                    int id = conf_get_int_int(ssh->conf, CONF_ssh_hklist, k);
+                    if (id == HK_WARN) {
+                        break;
+                    } else if (id == hktype->id) {
+                        better = TRUE;
+                        break;
+                    }
+                }
+                if (better) {
+                    if (betteralgs) {
+                        char *old_ba = betteralgs;
+                        betteralgs = dupcat(betteralgs, ",",
+                                            hktype->alg->name,
+                                            (const char *)NULL);
+                        sfree(old_ba);
+                    } else {
+                        betteralgs = dupstr(hktype->alg->name);
+                    }
+                }
+            }
+            if (betteralgs) {
+                s->dlgret = askhk(ssh->frontend, ssh->hostkey->name,
+                                  betteralgs, ssh_dialog_callback, ssh);
+                sfree(betteralgs);
+            } else {
+                s->dlgret = askalg(ssh->frontend, "host key type",
+                                   ssh->hostkey->name,
+                                   ssh_dialog_callback, ssh);
+            }
 	    if (s->dlgret < 0) {
 		do {
 		    crReturnV;

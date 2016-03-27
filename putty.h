@@ -1232,10 +1232,17 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
  */
 int have_ssh_host_key(const char *host, int port, const char *keytype);
 /*
- * askalg has the same set of return values as verify_ssh_host_key.
+ * askalg and askhk have the same set of return values as
+ * verify_ssh_host_key.
+ *
+ * (askhk is used in the case where we're using a host key below the
+ * warning threshold because that's all we have cached, but at least
+ * one acceptable algorithm is available that we don't have cached.)
  */
 int askalg(void *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx);
+int askhk(void *frontend, const char *algname, const char *betteralgs,
+          void (*callback)(void *ctx, int result), void *ctx);
 /*
  * askappend can return four values:
  * 
