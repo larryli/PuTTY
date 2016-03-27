@@ -1110,8 +1110,13 @@ The PuTTY policy changed because the developers were informed of
 ways to implement DSA which do not suffer nearly as badly from this
 weakness, and indeed which don't need to rely on random numbers at
 all. For this reason we now believe PuTTY's DSA implementation is
-probably OK. However, if you have the choice, we still recommend you
-use RSA instead.
+probably OK.
+
+The recently added elliptic-curve signature methods are also DSA-style
+algorithms, so they have this same weakness in principle. Our ECDSA
+implementation uses the same defence as DSA, while our Ed25519
+implementation uses the similar system (but different in details) that
+the Ed25519 spec mandates.
 
 \S{faq-virtuallock}{Question} Couldn't Pageant use
 \cw{VirtualLock()} to stop private keys being written to disk?
