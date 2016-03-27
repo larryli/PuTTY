@@ -10,8 +10,8 @@
 
 /* The cipher order given here is the default order. */
 static const struct keyvalwhere ciphernames[] = {
-    { "chacha20",   CIPHER_CHACHA20,        -1, -1 },
     { "aes",        CIPHER_AES,             -1, -1 },
+    { "chacha20",   CIPHER_CHACHA20,        CIPHER_AES, +1 },
     { "blowfish",   CIPHER_BLOWFISH,        -1, -1 },
     { "3des",       CIPHER_3DES,            -1, -1 },
     { "WARN",       CIPHER_WARN,            -1, -1 },
