@@ -582,11 +582,13 @@ int main(int argc, char **argv)
     block_signal(SIGPIPE, 1);
 
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
+        extern const int dup_check_launchable;
+
 	read_dupsession_data(conf, argv[1]);
 	/* Splatter this argument so it doesn't clutter a ps listing */
 	smemclr(argv[1], strlen(argv[1]));
 
-        assert(conf_launchable(conf));
+        assert(!dup_check_launchable || conf_launchable(conf));
         need_config_box = FALSE;
     } else {
 	/* By default, we bring up the config dialog, rather than launching

@@ -53,6 +53,7 @@ int cfgbox(Conf *conf)
 static int got_host = 0;
 
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
+const int dup_check_launchable = 1;
 
 int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch)
 {

@@ -192,7 +192,8 @@ extern int cfgbox(Conf *conf);
 
 void launch_duplicate_session(Conf *conf)
 {
-    assert(conf_launchable(conf));
+    extern const int dup_check_launchable;
+    assert(!dup_check_launchable || conf_launchable(conf));
     new_session_window(conf, NULL);
 }
 
