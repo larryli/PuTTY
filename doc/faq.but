@@ -222,7 +222,7 @@ processors that are backward-compatible with that architecture.
 (We used to also provide executables for Windows for the Alpha
 processor, but stopped after 0.58 due to lack of interest.)
 
-In the development code, partial ports to the Mac OSes exist (see
+In the development code, a partial port to Mac OS exists (see
 \k{faq-mac-port}).
 
 Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}).
@@ -334,8 +334,7 @@ for various third-party ports.
 
 We have no plans to write such a port ourselves; none of us has an
 iPhone, and developing and publishing applications for it looks
-awkward and expensive. Such a port would probably depend upon the
-stalled Mac OS X port (see \k{faq-mac-port}).
+awkward and expensive.
 
 However, there is a third-party SSH client for the iPhone and
 iPod\_Touch called \W{http://www.instantcocoa.com/products/pTerm/}{pTerm},
