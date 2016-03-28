@@ -252,10 +252,6 @@ Pageant.
 If you don't have \i{Gtk}, you should still be able to build the
 command-line tools.
 
-Note that Unix PuTTY has mostly only been tested on Linux so far;
-portability problems such as BSD-style ptys or different header file
-requirements are expected.
-
 \S{faq-unix-why}{Question} What's the point of the Unix port? Unix
 has OpenSSH.
 
