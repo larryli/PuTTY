@@ -297,9 +297,6 @@ you'll need the right kind of C compiler - modern versions of Visual
 C at least have stopped being backwards compatible to Win32s. Also,
 the last time we tried this it didn't work very well.
 
-If you're interested in running PuTTY under Windows 3.1, help and
-testing in this area would be very welcome!
-
 \S{faq-mac-port}{Question} Will there be a port to the \I{Mac OS}Mac?
 
 We hope so!
