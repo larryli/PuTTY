@@ -228,8 +228,8 @@ In the development code, a partial port to Mac OS exists (see
 Currently PuTTY does \e{not} run on Windows CE (see \k{faq-wince}).
 
 We do not have release-quality ports for any other systems at the
-present time. If anyone told you we had an EPOC port, or an iPaq port,
-or any other port of PuTTY, they were mistaken. We don't.
+present time. If anyone told you we had an Android port, or an iOS
+port, or any other port of PuTTY, they were mistaken. We don't.
 
 There are some third-party ports to various platforms, mentioned
 on the 
