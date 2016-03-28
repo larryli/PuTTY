@@ -246,8 +246,8 @@ including the usual \c{configure}/\c{make}; see the file \c{README}
 in the source distribution. This should build you Unix
 ports of Plink, PuTTY itself, PuTTYgen, PSCP, PSFTP, and also
 \i\c{pterm} - an \cw{xterm}-type program which supports the same
-terminal emulation as PuTTY. We do not yet have a Unix port of
-Pageant.
+terminal emulation as PuTTY. \#{XXX-REVIEW-BEFORE-RELEASE:}
+We do not yet have a Unix port of Pageant.
 
 If you don't have \i{Gtk}, you should still be able to build the
 command-line tools.
