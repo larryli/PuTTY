@@ -803,8 +803,15 @@ void load_open_settings(void *sesskey, Conf *conf)
            hknames, HK_MAX, conf, CONF_ssh_hklist);
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
     gpps(sesskey, "RekeyBytes", "1G", conf, CONF_ssh_rekey_data);
-    /* SSH-2 only by default */
-    gppi(sesskey, "SshProt", 3, conf, CONF_sshprot);
+    {
+	/* SSH-2 only by default */
+	int sshprot = gppi_raw(sesskey, "SshProt", 3);
+	/* Old sessions may contain the values correponding to the fallbacks
+	 * we used to allow; migrate them */
+	if (sshprot == 1)      sshprot = 0; /* => "SSH-1 only" */
+	else if (sshprot == 2) sshprot = 3; /* => "SSH-2 only" */
+	conf_set_int(conf, CONF_sshprot, sshprot);
+    }
     gpps(sesskey, "LogHost", "", conf, CONF_loghost);
     gppi(sesskey, "SSH2DES", 0, conf, CONF_ssh2_des_cbc);
     gppi(sesskey, "SshNoAuth", 0, conf, CONF_ssh_no_userauth);
