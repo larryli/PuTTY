@@ -56,6 +56,7 @@ struct clipboard_data_instance;
 
 struct gui_data {
     GtkWidget *window, *area, *sbar;
+    gboolean sbar_visible;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
@@ -2846,6 +2847,15 @@ void scrollbar_moved(GtkAdjustment *adj, gpointer data)
 	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
 }
 
+static void show_scrollbar(struct gui_data *inst, gboolean visible)
+{
+    inst->sbar_visible = visible;
+    if (visible)
+        gtk_widget_show(inst->sbar);
+    else
+        gtk_widget_hide(inst->sbar);
+}
+
 void sys_cursor(void *frontend, int x, int y)
 {
     /*
@@ -3599,17 +3609,65 @@ char *setup_fonts_ucs(struct gui_data *inst)
 void set_geom_hints(struct gui_data *inst)
 {
     GdkGeometry geom;
+    gint flags;
+
+    /*
+     * Unused fields in geom.
+     */
+    geom.max_width = geom.max_height = -1;
+    geom.min_aspect = geom.max_aspect = 0;
+
+    /*
+     * Set up the geometry fields we care about, with reference to
+     * just the drawing area. We'll correct for the scrollbar in a
+     * moment.
+     */
+    flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
     geom.min_width = inst->font_width + 2*inst->window_border;
     geom.min_height = inst->font_height + 2*inst->window_border;
-    geom.max_width = geom.max_height = -1;
     geom.base_width = 2*inst->window_border;
     geom.base_height = 2*inst->window_border;
     geom.width_inc = inst->font_width;
     geom.height_inc = inst->font_height;
-    geom.min_aspect = geom.max_aspect = 0;
-    gtk_window_set_geometry_hints(GTK_WINDOW(inst->window), inst->area, &geom,
-                                  GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE |
-                                  GDK_HINT_RESIZE_INC);
+
+    /*
+     * If we've got a scrollbar visible, then we must include its
+     * width as part of the base and min width, and also ensure that
+     * our window's minimum height is at least the height required by
+     * the scrollbar.
+     *
+     * In the latter case, we must also take care to arrange that
+     * (geom.min_height - geom.base_height) is an integer multiple of
+     * geom.height_inc, because if it's not, then some window managers
+     * (we know of xfwm4) get confused, with the effect that they
+     * resize our window to a height based on min_height instead of
+     * base_height, which we then round down and the window ends up
+     * too short.
+     */
+    if (inst->sbar_visible) {
+        GtkRequisition req;
+        int min_sb_height;
+
+#if GTK_CHECK_VERSION(3,0,0)
+        gtk_widget_get_preferred_size(inst->sbar, &req, NULL);
+#else
+        gtk_widget_size_request(inst->sbar, &req);
+#endif
+
+        /* Compute rounded-up scrollbar height. */
+        min_sb_height = req.height;
+        min_sb_height += geom.height_inc - 1;
+        min_sb_height -= ((min_sb_height - geom.base_height % geom.height_inc)
+                          % geom.height_inc);
+
+        geom.min_width += req.width;
+        geom.base_width += req.width;
+        if (geom.min_height < min_sb_height)
+            geom.min_height = min_sb_height;
+    }
+
+    gtk_window_set_geometry_hints(GTK_WINDOW(inst->window),
+                                  NULL, &geom, flags);
 }
 
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
@@ -3732,16 +3790,16 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	    }
         }
 
+        need_size = FALSE;
+
         /*
          * If the scrollbar needs to be shown, hidden, or moved
          * from one end to the other of the window, do so now.
          */
         if (conf_get_int(oldconf, CONF_scrollbar) !=
 	    conf_get_int(newconf, CONF_scrollbar)) {
-            if (conf_get_int(newconf, CONF_scrollbar))
-                gtk_widget_show(inst->sbar);
-            else
-                gtk_widget_hide(inst->sbar);
+            show_scrollbar(inst, conf_get_int(newconf, CONF_scrollbar));
+            need_size = TRUE;
         }
         if (conf_get_int(oldconf, CONF_scrollbar_on_left) !=
 	    conf_get_int(newconf, CONF_scrollbar_on_left)) {
@@ -3762,7 +3820,6 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
          * Redo the whole tangled fonts and Unicode mess if
          * necessary.
          */
-        need_size = FALSE;
         if (strcmp(conf_get_fontspec(oldconf, CONF_font)->name,
 		   conf_get_fontspec(newconf, CONF_font)->name) ||
 	    strcmp(conf_get_fontspec(oldconf, CONF_boldfont)->name,
@@ -4139,23 +4196,6 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 
     init_clipboard(inst);
 
-    set_geom_hints(inst);
-
-#if GTK_CHECK_VERSION(3,0,0)
-    gtk_window_set_default_geometry(GTK_WINDOW(inst->window),
-                                    inst->width, inst->height);
-#else
-    {
-        int w = inst->font_width * inst->width + 2*inst->window_border;
-        int h = inst->font_height * inst->height + 2*inst->window_border;
-#if GTK_CHECK_VERSION(2,0,0)
-        gtk_widget_set_size_request(inst->area, w, h);
-#else
-        gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), w, h);
-#endif
-    }
-#endif
-
     inst->sbar_adjust = GTK_ADJUSTMENT(gtk_adjustment_new(0,0,0,0,0,0));
     inst->sbar = gtk_vscrollbar_new(inst->sbar_adjust);
     inst->hbox = GTK_BOX(gtk_hbox_new(FALSE, 0));
@@ -4173,11 +4213,25 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
     gtk_widget_show(inst->area);
-    if (conf_get_int(inst->conf, CONF_scrollbar))
-	gtk_widget_show(inst->sbar);
-    else
-	gtk_widget_hide(inst->sbar);
+    show_scrollbar(inst, conf_get_int(inst->conf, CONF_scrollbar));
     gtk_widget_show(GTK_WIDGET(inst->hbox));
+
+    set_geom_hints(inst);
+
+#if GTK_CHECK_VERSION(3,0,0)
+    gtk_window_set_default_geometry(GTK_WINDOW(inst->window),
+                                    inst->width, inst->height);
+#else
+    {
+        int w = inst->font_width * inst->width + 2*inst->window_border;
+        int h = inst->font_height * inst->height + 2*inst->window_border;
+#if GTK_CHECK_VERSION(2,0,0)
+        gtk_widget_set_size_request(inst->area, w, h);
+#else
+        gtk_drawing_area_size(GTK_DRAWING_AREA(inst->area), w, h);
+#endif
+    }
+#endif
 
 #if GTK_CHECK_VERSION(2,0,0)
     if (inst->geometry) {
