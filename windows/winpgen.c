@@ -342,7 +342,7 @@ struct rsa_key_thread_params {
         struct ec_key *eckey;
     };
 };
-static DWORD WINAPI generate_rsa_key_thread(void *param)
+static DWORD WINAPI generate_key_thread(void *param)
 {
     struct rsa_key_thread_params *params =
 	(struct rsa_key_thread_params *) param;
@@ -1025,7 +1025,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		params->key = &state->key;
 		params->dsskey = &state->dsskey;
 
-		if (!CreateThread(NULL, 0, generate_rsa_key_thread,
+		if (!CreateThread(NULL, 0, generate_key_thread,
 				  params, 0, &threadid)) {
 		    MessageBox(hwnd, "Out of thread resources",
 			       "Key generation error",
