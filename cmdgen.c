@@ -19,7 +19,7 @@
 #ifdef TEST_CMDGEN
 /*
  * This section overrides some definitions below for test purposes.
- * When compiled with -DTEST_CMDGEN:
+ * When compiled with -DTEST_CMDGEN (as cgtest.c will do):
  * 
  *  - Calls to get_random_data() are replaced with the diagnostic
  *    function below (I #define the name so that I can still link
@@ -52,8 +52,7 @@ int console_get_userpass_input(prompts_t *p, unsigned char *in, int inlen)
     int ret = 1;
     for (i = 0; i < p->n_prompts; i++) {
 	if (promptsgot < nprompts) {
-	    assert(strlen(prompts[promptsgot]) < p->prompts[i]->result_len);
-	    strcpy(p->prompts[i]->result, prompts[promptsgot++]);
+	    p->prompts[i]->result = dupstr(prompts[promptsgot++]);
 	} else {
 	    promptsgot++;	    /* track number of requests anyway */
 	    ret = 0;
@@ -1193,7 +1192,7 @@ char *cleanup_fp(char *s)
     s += strspn(s, " \n\t");
     s += strcspn(s, " \n\t");
 
-    return dupprintf("%.*s", s - p, p);
+    return dupprintf("%.*s", (int)(s - p), p);
 }
 
 char *get_fp(char *filename)
