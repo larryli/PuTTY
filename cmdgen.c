@@ -515,6 +515,14 @@ int main(int argc, char **argv)
         errs = TRUE;
     }
 
+    if (keytype == RSA2 || keytype == RSA1 || keytype == DSA) {
+        if (bits < 256) {
+            fprintf(stderr, "puttygen: cannot generate %s keys shorter than"
+                    " 256 bits\n", (keytype == DSA ? "DSA" : "RSA"));
+            errs = TRUE;
+        }
+    }
+
     if (errs)
 	return 1;
 
