@@ -37,7 +37,7 @@
  *    run tests.
  */
 #define get_random_data get_random_data_diagnostic
-char *get_random_data(int len)
+char *get_random_data(int len, const char *device)
 {
     char *buf = snewn(len, char);
     memset(buf, 'x', len);
@@ -177,6 +177,8 @@ void help(void)
 	    "        specify file containing old key passphrase\n"
 	    "  --new-passphrase file\n"
 	    "        specify file containing new key passphrase\n"
+	    "  --random-device device\n"
+	    "        specify device to read entropy from (e.g. /dev/urandom)\n"
 	    );
 }
 
@@ -245,6 +247,7 @@ int main(int argc, char **argv)
     char *old_passphrase = NULL, *new_passphrase = NULL;
     int load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
+    const char *random_device = NULL;
 
     /* ------------------------------------------------------------------
      * Parse the command line to figure out what we've been asked to do.
@@ -337,6 +340,16 @@ int main(int argc, char **argv)
 				new_passphrase = readpassphrase(val);
 				if (!new_passphrase)
 				    errs = TRUE;
+			    }
+			} else if (!strcmp(opt, "-random-device")) {
+			    if (!val && argc > 1)
+				--argc, val = *++argv;
+			    if (!val) {
+				errs = TRUE;
+				fprintf(stderr, "puttygen: option `-%s'"
+					" expects an argument\n", opt);
+			    } else {
+                                random_device = val;
 			    }
 			} else {
 			    errs = TRUE;
@@ -677,7 +690,7 @@ int main(int argc, char **argv)
 	    strftime(default_comment, 30, "rsa-key-%Y%m%d", &tm);
 
 	random_ref();
-	entropy = get_random_data(bits / 8);
+	entropy = get_random_data(bits / 8, random_device);
 	if (!entropy) {
 	    fprintf(stderr, "puttygen: failed to collect entropy, "
 		    "could not generate key\n");
