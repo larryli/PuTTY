@@ -1450,6 +1450,7 @@ unsigned long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
 void expire_timer_context(void *ctx);
 int run_timers(unsigned long now, unsigned long *next);
 void timer_change_notify(unsigned long next);
+unsigned long timing_last_clock(void);
 
 /*
  * Exports from callback.c.
