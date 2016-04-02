@@ -162,7 +162,7 @@
           <Component Id="README_Component"
                      Guid="0AB63F2A-0FD9-4961-B8F7-AB85C22D9986">
             <File Id="README_File"
-                  Source="README.txt" KeyPath="yes" />
+                  Source="README-msi.txt" Name="README.txt" KeyPath="yes" />
           </Component>
 
           <!--
