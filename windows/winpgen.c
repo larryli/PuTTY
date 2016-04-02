@@ -1543,7 +1543,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-#ifndef UNPROTECT
+#if !defined UNPROTECT && !defined NO_SECURITY
     /*
      * Protect our process.
      */

@@ -735,7 +735,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
 
 void platform_psftp_post_option_setup(void)
 {
-#ifndef UNPROTECT
+#if !defined UNPROTECT && !defined NO_SECURITY
     /*
      * Protect our process.
      */

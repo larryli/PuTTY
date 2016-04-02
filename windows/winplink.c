@@ -498,7 +498,7 @@ int main(int argc, char **argv)
 	}
     }
 
-#ifndef UNPROTECT
+#if !defined UNPROTECT && !defined NO_SECURITY
     /*
      * Protect our process.
      */
