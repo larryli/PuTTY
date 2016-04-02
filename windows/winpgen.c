@@ -1115,6 +1115,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ED25519)) {
                     state->keytype = ED25519;
                 }
+
 		if ((state->keytype == RSA || state->keytype == DSA) &&
                     state->key_bits < 256) {
                     char *message = dupprintf
@@ -1128,7 +1129,18 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			break;
 		    state->key_bits = DEFAULT_KEY_BITS;
 		    SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, FALSE);
-		}
+		} else if ((state->keytype == RSA || state->keytype == DSA) &&
+                           state->key_bits < DEFAULT_KEY_BITS) {
+                    char *message = dupprintf
+                        ("Keys shorter than %d bits are not recommended. "
+                         "Really generate this key?", DEFAULT_KEY_BITS);
+		    int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
+					 MB_ICONWARNING | MB_OKCANCEL);
+                    sfree(message);
+		    if (ret != IDOK)
+			break;
+                }
+
 		ui_set_state(hwnd, state, 1);
 		SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
 		state->key_exists = FALSE;

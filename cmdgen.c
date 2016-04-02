@@ -223,6 +223,8 @@ static char *readpassphrase(const char *filename)
     return line;
 }
 
+#define DEFAULT_RSADSA_BITS 2048
+
 int main(int argc, char **argv)
 {
     char *infile = NULL;
@@ -500,7 +502,7 @@ int main(int argc, char **argv)
             bits = 256;
             break;
           default:
-            bits = 2048;
+            bits = DEFAULT_RSADSA_BITS;
             break;
         }
     }
@@ -520,6 +522,11 @@ int main(int argc, char **argv)
             fprintf(stderr, "puttygen: cannot generate %s keys shorter than"
                     " 256 bits\n", (keytype == DSA ? "DSA" : "RSA"));
             errs = TRUE;
+        } else if (bits < DEFAULT_RSADSA_BITS) {
+            fprintf(stderr, "puttygen: warning: %s keys shorter than"
+                    " %d bits are probably not secure\n",
+                    (keytype == DSA ? "DSA" : "RSA"), DEFAULT_RSADSA_BITS);
+            /* but this is just a warning, so proceed anyway */
         }
     }
 
