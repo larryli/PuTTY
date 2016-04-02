@@ -445,7 +445,8 @@ static IShellLink *make_shell_link(const char *appname,
                              sessionname, "'", NULL);
     } else {
         assert(appname);
-        desc_string = dupprintf("Run %.*s", strcspn(appname, "."), appname);
+        desc_string = dupprintf("Run %.*s",
+                                (int)strcspn(appname, "."), appname);
     }
     ret->lpVtbl->SetDescription(ret, desc_string);
     sfree(desc_string);
@@ -461,7 +462,8 @@ static IShellLink *make_shell_link(const char *appname,
             pv.pszVal = dupstr(sessionname);
         } else {
             assert(appname);
-            pv.pszVal = dupprintf("Run %.*s", strcspn(appname, "."), appname);
+            pv.pszVal = dupprintf("Run %.*s",
+                                  (int)strcspn(appname, "."), appname);
         }
         pPS->lpVtbl->SetValue(pPS, &PKEY_Title, &pv);
         sfree(pv.pszVal);
