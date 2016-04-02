@@ -420,6 +420,9 @@
       <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
 
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" 
+               Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+
       <!--
           This ARPNOMODIFY flag prohibits changing the set of
           installed features, which would otherwise be possible by
@@ -443,6 +446,16 @@
       -->
       <Property Id="ARPNOMODIFY" Value="1" />
     </UI>
+
+    <!--
+        Offer to display README after installation.
+    -->
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT"
+              Value="View README file" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#README_File]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA"
+                  DllEntry="WixShellExec" Impersonate="yes" />
 
     <!-- Glue: tell the install dir part of the UI what id my actual
          install dir is known by. Otherwise the former won't know how

@@ -171,7 +171,7 @@ delegate windows
   in putty/doc with htmlhelp do/win hhc putty.hhp & type putty.chm >nul
 
   # Build the WiX MSI installer.
-  in putty/windows with wix do/win candle -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -sval installer.wixobj
+  in putty/windows with wix do/win candle -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj
 
   # Build the old Inno Setup installer.
   in putty/windows with innosetup do/win iscc putty.iss
