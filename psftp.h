@@ -48,6 +48,13 @@ int ssh_sftp_loop_iteration(void);
 char *ssh_sftp_get_cmdline(const char *prompt, int backend_required);
 
 /*
+ * Platform-specific function called after the command line has been
+ * processed, so that any per-platform initialisation such as process
+ * ACL setup can be done.
+ */
+void platform_psftp_post_option_setup(void);
+
+/*
  * The main program in psftp.c. Called from main() in the platform-
  * specific code, after doing any platform-specific initialisation.
  */

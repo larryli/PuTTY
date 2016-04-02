@@ -2349,6 +2349,8 @@ int psftp_main(int argc, char *argv[])
     argv += i;
     back = NULL;
 
+    platform_psftp_post_option_setup();
+
     if (list) {
 	if (argc != 1)
 	    usage();

@@ -296,7 +296,7 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp conf LIBS wintime sshecc
-         + sshecdsag
+         + sshecdsag winsecur
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg

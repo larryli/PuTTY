@@ -2941,6 +2941,8 @@ int psftp_main(int argc, char *argv[])
     argv += i;
     back = NULL;
 
+    platform_psftp_post_option_setup();
+
     /*
      * If the loaded session provides a hostname, and a hostname has not
      * otherwise been specified, pop it in `userhost' so that

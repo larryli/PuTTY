@@ -12,6 +12,7 @@
 #include "putty.h"
 #include "ssh.h"
 #include "licence.h"
+#include "winsecur.h"
 
 #include <commctrl.h>
 
@@ -1529,6 +1530,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    cmdline_keyfile = argv[0];
 	}
     }
+
+#ifndef UNPROTECT
+    /*
+     * Protect our process.
+     */
+    {
+        char *error = NULL;
+        if (!setprocessacl(error)) {
+            char *message = dupprintf("Could not restrict process ACL: %s",
+                                      error);
+            MessageBox(NULL, message, "PuTTYgen Warning",
+                       MB_ICONWARNING | MB_OK);
+            sfree(message);
+            sfree(error);
+        }
+    }
+#endif
 
     random_ref();
     ret = DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;

@@ -1174,6 +1174,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
+#ifndef UNPROTECT
+    /*
+     * Protect our process.
+     */
+    {
+        char *error = NULL;
+        if (!setprocessacl(error)) {
+            char *message = dupprintf("Could not restrict process ACL: %s",
+                                      error);
+            MessageBox(NULL, message, "Pageant Warning",
+                       MB_ICONWARNING | MB_OK);
+            sfree(message);
+            sfree(error);
+        }
+    }
+#endif
+
     /*
      * Forget any passphrase that we retained while going over
      * command line keyfiles.

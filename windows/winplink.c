@@ -11,6 +11,7 @@
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
+#include "winsecur.h"
 
 #define WM_AGENT_CALLBACK (WM_APP + 4)
 
@@ -496,6 +497,22 @@ int main(int argc, char **argv)
 	    }
 	}
     }
+
+#ifndef UNPROTECT
+    /*
+     * Protect our process.
+     */
+    {
+        char *error = NULL;
+        if (!setprocessacl(error)) {
+            char *message = dupprintf("Could not restrict process ACL: %s",
+                                      error);
+            logevent(NULL, message);
+            sfree(message);
+            sfree(error);
+        }
+    }
+#endif
 
     if (errors)
 	return 1;
