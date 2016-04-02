@@ -298,12 +298,19 @@
         separately disableable are the auxiliary ones for desktop
         shortcuts, .PPK file extension and modifying PATH.
 
-        (And even those are mostly historical - the first two were
-        checkbox options in Inno Setup, and the third was not done at
-        all by Inno Setup so people might be surprised by it when
-        switching to this installer. I don't actually know for sure
-        that anyone _wants_ to be without these pieces. So all of them
-        are enabled by default.)
+        DesktopFeature (the desktop icon) is disabled by default, on
+        the basis of not cluttering up desktops too much unless
+        someone actually wants it. The .PPK association and PATH are
+        behind-the-scenes sorts of thing, so they're on by default.
+
+        (The old Inno Setup installer also made it optional whether
+        PuTTY got a Start Menu subfolder. That seems to be harder in
+        WiX, because the Start Menu shortcuts are tied in to the
+        installation of the files themselves, so the Start Menu
+        subfolder is mandatory if you're using this installer at all.
+        That doesn't seem unreasonable to me - if you don't want
+        _that_, you might as well just unpack the zip file and not
+        bother with an installer at all.)
     -->
     <Feature Id="FilesFeature" Level="1" Absent="disallow" AllowAdvertise="no"
              Title="Install PuTTY files">
@@ -319,7 +326,7 @@
       <ComponentRef Id="README_Component" />
       <ComponentRef Id="ProgramMenuDir" />
     </Feature>
-    <Feature Id="DesktopFeature" Level="1" Absent="allow" AllowAdvertise="no"
+    <Feature Id="DesktopFeature" Level="2" Absent="allow" AllowAdvertise="no"
              Title="Add shortcut to PuTTY on the Desktop">
       <ComponentRef Id="Desktop_Shortcut_Component" />
     </Feature>
