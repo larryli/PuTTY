@@ -2833,7 +2833,9 @@ void set_sbar(void *frontend, int total, int start, int page)
     gtk_adjustment_set_step_increment(inst->sbar_adjust, 1);
     gtk_adjustment_set_page_increment(inst->sbar_adjust, page/2);
     inst->ignore_sbar = TRUE;
+#if !GTK_CHECK_VERSION(3,18,0)
     gtk_adjustment_changed(inst->sbar_adjust);
+#endif
     inst->ignore_sbar = FALSE;
 }
 
