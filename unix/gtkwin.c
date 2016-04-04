@@ -2014,6 +2014,8 @@ void set_raw_mouse_mode(void *frontend, int activate)
     update_mouseptr(inst);
 }
 
+static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom);
+
 void request_resize(void *frontend, int w, int h)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
@@ -3608,29 +3610,25 @@ char *setup_fonts_ucs(struct gui_data *inst)
     return NULL;
 }
 
-void set_geom_hints(struct gui_data *inst)
+static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 {
-    GdkGeometry geom;
-    gint flags;
-
     /*
      * Unused fields in geom.
      */
-    geom.max_width = geom.max_height = -1;
-    geom.min_aspect = geom.max_aspect = 0;
+    geom->max_width = geom->max_height = -1;
+    geom->min_aspect = geom->max_aspect = 0;
 
     /*
      * Set up the geometry fields we care about, with reference to
      * just the drawing area. We'll correct for the scrollbar in a
      * moment.
      */
-    flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
-    geom.min_width = inst->font_width + 2*inst->window_border;
-    geom.min_height = inst->font_height + 2*inst->window_border;
-    geom.base_width = 2*inst->window_border;
-    geom.base_height = 2*inst->window_border;
-    geom.width_inc = inst->font_width;
-    geom.height_inc = inst->font_height;
+    geom->min_width = inst->font_width + 2*inst->window_border;
+    geom->min_height = inst->font_height + 2*inst->window_border;
+    geom->base_width = 2*inst->window_border;
+    geom->base_height = 2*inst->window_border;
+    geom->width_inc = inst->font_width;
+    geom->height_inc = inst->font_height;
 
     /*
      * If we've got a scrollbar visible, then we must include its
@@ -3639,8 +3637,8 @@ void set_geom_hints(struct gui_data *inst)
      * the scrollbar.
      *
      * In the latter case, we must also take care to arrange that
-     * (geom.min_height - geom.base_height) is an integer multiple of
-     * geom.height_inc, because if it's not, then some window managers
+     * (geom->min_height - geom->base_height) is an integer multiple of
+     * geom->height_inc, because if it's not, then some window managers
      * (we know of xfwm4) get confused, with the effect that they
      * resize our window to a height based on min_height instead of
      * base_height, which we then round down and the window ends up
@@ -3658,18 +3656,24 @@ void set_geom_hints(struct gui_data *inst)
 
         /* Compute rounded-up scrollbar height. */
         min_sb_height = req.height;
-        min_sb_height += geom.height_inc - 1;
-        min_sb_height -= ((min_sb_height - geom.base_height % geom.height_inc)
-                          % geom.height_inc);
+        min_sb_height += geom->height_inc - 1;
+        min_sb_height -= ((min_sb_height - geom->base_height%geom->height_inc)
+                          % geom->height_inc);
 
-        geom.min_width += req.width;
-        geom.base_width += req.width;
-        if (geom.min_height < min_sb_height)
-            geom.min_height = min_sb_height;
+        geom->min_width += req.width;
+        geom->base_width += req.width;
+        if (geom->min_height < min_sb_height)
+            geom->min_height = min_sb_height;
     }
+}
 
-    gtk_window_set_geometry_hints(GTK_WINDOW(inst->window),
-                                  NULL, &geom, flags);
+void set_geom_hints(struct gui_data *inst)
+{
+    GdkGeometry geom;
+    compute_geom_hints(inst, &geom);
+    gtk_window_set_geometry_hints
+        (GTK_WINDOW(inst->window), NULL, &geom,
+         GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC);
 }
 
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
