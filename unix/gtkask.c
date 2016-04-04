@@ -375,6 +375,12 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
                          G_CALLBACK(expose_area),
                          &ctx->drawingareas[i]);
 #endif
+
+#if GTK_CHECK_VERSION(3,0,0)
+        g_object_set(G_OBJECT(ctx->drawingareas[i].area),
+                     "margin-bottom", 8, (const char *)NULL);
+#endif
+
         gtk_widget_show(ctx->drawingareas[i].area);
     }
     ctx->active_area = rand() % N_DRAWING_AREAS;
