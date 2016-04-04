@@ -2014,7 +2014,11 @@ void set_raw_mouse_mode(void *frontend, int activate)
     update_mouseptr(inst);
 }
 
-static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom);
+#if GTK_CHECK_VERSION(2,0,0)
+static void compute_whole_window_size(struct gui_data *inst,
+                                      int wchars, int hchars,
+                                      int *wpix, int *hpix);
+#endif
 
 void request_resize(void *frontend, int w, int h)
 {
@@ -2097,14 +2101,9 @@ void request_resize(void *frontend, int w, int h)
 
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
-    /*
-     * In GTK3, we can do this by using gtk_window_resize_to_geometry,
-     * which uses the fact that we've already set up the main window's
-     * WM hints to reflect the terminal drawing area's resize
-     * increment (i.e. character cell) and the fixed amount of stuff
-     * round the edges.
-     */
-    gtk_window_resize_to_geometry(GTK_WINDOW(inst->window), w, h);
+    int wp, hp;
+    compute_whole_window_size(inst, w, h, &wp, &hp);
+    gtk_window_resize(GTK_WINDOW(inst->window), wp, hp);
 
 #endif
 
@@ -3676,6 +3675,18 @@ void set_geom_hints(struct gui_data *inst)
          GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC);
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
+static void compute_whole_window_size(struct gui_data *inst,
+                                      int wchars, int hchars,
+                                      int *wpix, int *hpix)
+{
+    GdkGeometry geom;
+    compute_geom_hints(inst, &geom);
+    if (wpix) *wpix = geom.base_width + wchars * geom.width_inc;
+    if (hpix) *hpix = geom.base_height + hchars * geom.height_inc;
+}
+#endif
+
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
@@ -4225,8 +4236,11 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     set_geom_hints(inst);
 
 #if GTK_CHECK_VERSION(3,0,0)
-    gtk_window_set_default_geometry(GTK_WINDOW(inst->window),
-                                    inst->width, inst->height);
+    {
+        int wp, hp;
+        compute_whole_window_size(inst, inst->width, inst->height, &wp, &hp);
+        gtk_window_set_default_size(GTK_WINDOW(inst->window), wp, hp);
+    }
 #else
     {
         int w = inst->font_width * inst->width + 2*inst->window_border;
