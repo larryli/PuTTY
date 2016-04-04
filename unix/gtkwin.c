@@ -3607,6 +3607,18 @@ char *setup_fonts_ucs(struct gui_data *inst)
     return NULL;
 }
 
+#if GTK_CHECK_VERSION(3,0,0)
+struct find_app_menu_bar_ctx {
+    GtkWidget *area, *menubar;
+};
+static void find_app_menu_bar(GtkWidget *widget, gpointer data)
+{
+    struct find_app_menu_bar_ctx *ctx = (struct find_app_menu_bar_ctx *)data;
+    if (widget != ctx->area && GTK_IS_MENU_BAR(widget))
+        ctx->menubar = widget;
+}
+#endif
+
 static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 {
     /*
@@ -3617,7 +3629,7 @@ static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 
     /*
      * Set up the geometry fields we care about, with reference to
-     * just the drawing area. We'll correct for the scrollbar in a
+     * just the drawing area. We'll correct for other widgets in a
      * moment.
      */
     geom->min_width = inst->font_width + 2*inst->window_border;
@@ -3662,6 +3674,50 @@ static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
         if (geom->min_height < min_sb_height)
             geom->min_height = min_sb_height;
     }
+
+#if GTK_CHECK_VERSION(3,0,0)
+    /*
+     * And if we're running a gtkapp.c based program and
+     * GtkApplicationWindow has given us a menu bar inside the window,
+     * then we must take that into account as well.
+     *
+     * In its unbounded wisdom, GtkApplicationWindow doesn't actually
+     * give us a direct function call to _find_ the menu bar widget.
+     * Fortunately, we can find it by enumerating the children of the
+     * top-level window and looking for one we didn't put there
+     * ourselves.
+     */
+    {
+        struct find_app_menu_bar_ctx actx, *ctx = &actx;
+        ctx->area = inst->area;
+        ctx->menubar = NULL;
+        gtk_container_foreach(GTK_CONTAINER(inst->window),
+                              find_app_menu_bar, ctx);
+
+        if (ctx->menubar) {
+            GtkRequisition req;
+            int min_menu_width;
+            gtk_widget_get_preferred_size(ctx->menubar, NULL, &req);
+
+            /*
+             * This time, the height adjustment is easy (the menu bar
+             * sits above everything), but we have to take care with
+             * the _width_ to ensure we keep min_width and base_width
+             * congruent modulo width_inc.
+             */
+            geom->min_height += req.height;
+            geom->base_height += req.height;
+
+            min_menu_width = req.width;
+            min_menu_width += geom->width_inc - 1;
+            min_menu_width -=
+                ((min_menu_width - geom->base_width%geom->width_inc)
+                 % geom->width_inc);
+            if (geom->min_width < min_menu_width)
+                geom->min_width = min_menu_width;
+        }
+    }
+#endif
 }
 
 void set_geom_hints(struct gui_data *inst)
@@ -4232,6 +4288,13 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     show_scrollbar(inst, conf_get_int(inst->conf, CONF_scrollbar));
     gtk_widget_show(GTK_WIDGET(inst->hbox));
 
+    /*
+     * We must call gtk_widget_realize before setting up the geometry
+     * hints, so that GtkApplicationWindow will have actually created
+     * its menu bar (if it's going to) and hence compute_geom_hints
+     * can find it to take its size into account.
+     */
+    gtk_widget_realize(inst->window);
     set_geom_hints(inst);
 
 #if GTK_CHECK_VERSION(3,0,0)
