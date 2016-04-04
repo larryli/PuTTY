@@ -94,11 +94,7 @@ struct gui_data {
     GtkIMContext *imc;
 #endif
     unifont *fonts[4];                 /* normal, bold, wide, widebold */
-#if GTK_CHECK_VERSION(2,0,0)
-    const char *geometry;
-#else
     int xpos, ypos, gotpos, gravity;
-#endif
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
 #if !GTK_CHECK_VERSION(3,0,0)
@@ -341,6 +337,8 @@ void move_window(void *frontend, int x, int y)
      * though.
      */
 #if GTK_CHECK_VERSION(2,0,0)
+    /* in case we reset this at startup due to a geometry string */
+    gtk_window_set_gravity(GTK_WINDOW(inst->window), GDK_GRAVITY_NORTH_EAST);
     gtk_window_move(GTK_WINDOW(inst->window), x, y);
 #else
     gdk_window_move(gtk_widget_get_window(inst->window), x, y);
@@ -3669,10 +3667,14 @@ static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 void set_geom_hints(struct gui_data *inst)
 {
     GdkGeometry geom;
+    gint flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
     compute_geom_hints(inst, &geom);
-    gtk_window_set_geometry_hints
-        (GTK_WINDOW(inst->window), NULL, &geom,
-         GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC);
+#if GTK_CHECK_VERSION(2,0,0)
+    if (inst->gotpos)
+        flags |= GDK_HINT_USER_POS;
+#endif
+    gtk_window_set_geometry_hints(GTK_WINDOW(inst->window),
+                                  NULL, &geom, flags);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
@@ -4153,11 +4155,8 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     inst->cumulative_scroll = 0.0;
 #endif
 
+#ifndef NOT_X_WINDOWS
     if (geometry_string) {
-#if GTK_CHECK_VERSION(2,0,0)
-        inst->geometry = geometry_string;
-#else
-        /* On GTK 1, we have to do this using raw Xlib */
         int flags, x, y;
         unsigned int w, h;
         flags = XParseGeometry(geometry_string, &x, &y, &w, &h);
@@ -4173,8 +4172,8 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
             inst->gravity = ((flags & XNegative ? 1 : 0) |
                              (flags & YNegative ? 2 : 0));
         }
-#endif
     }
+#endif
 
     if (!compound_text_atom)
         compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
@@ -4254,8 +4253,21 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 #endif
 
 #if GTK_CHECK_VERSION(2,0,0)
-    if (inst->geometry) {
-        gtk_window_parse_geometry(GTK_WINDOW(inst->window), inst->geometry);
+    if (inst->gotpos) {
+        static const GdkGravity gravities[] = {
+            GDK_GRAVITY_NORTH_WEST,
+            GDK_GRAVITY_NORTH_EAST,
+            GDK_GRAVITY_SOUTH_WEST,
+            GDK_GRAVITY_SOUTH_EAST,
+        };
+        int x = inst->xpos, y = inst->ypos;
+        int wp, hp;
+        compute_whole_window_size(inst, inst->width, inst->height, &wp, &hp);
+        if (inst->gravity & 1) x += (gdk_screen_width() - wp);
+        if (inst->gravity & 2) y += (gdk_screen_height() - hp);
+        gtk_window_set_gravity(GTK_WINDOW(inst->window),
+                               gravities[inst->gravity & 3]);
+	gtk_window_move(GTK_WINDOW(inst->window), x, y);
     }
 #else
     if (inst->gotpos) {
