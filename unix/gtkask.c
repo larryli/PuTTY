@@ -43,7 +43,9 @@ struct askpass_ctx {
 #endif
     char *passphrase;
     int passlen, passsize;
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,20,0)
+    GdkSeat *seat;                     /* for gdk_seat_grab */
+#elif GTK_CHECK_VERSION(3,0,0)
     GdkDevice *keyboard;               /* for gdk_device_grab */
 #endif
 };
@@ -218,9 +220,25 @@ static int try_grab_keyboard(struct askpass_ctx *ctx)
 {
     int ret;
 
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,20,0)
     /*
-     * Grabbing the keyboard is quite complicated in GTK 3.
+     * Grabbing the keyboard in GTK 3.20 requires the new notion of
+     * GdkSeat.
+     */
+    GdkSeat *seat;
+
+    seat = gdk_display_get_default_seat
+        (gtk_widget_get_display(ctx->dialog));
+    if (!seat)
+        return FALSE;
+
+    ctx->seat = seat;
+    ret = gdk_seat_grab(seat, gtk_widget_get_window(ctx->dialog),
+                        GDK_SEAT_CAPABILITY_KEYBOARD,
+                        TRUE, NULL, NULL, NULL, NULL);
+#elif GTK_CHECK_VERSION(3,0,0)
+    /*
+     * And it has to be done differently again prior to GTK 3.20.
      */
     GdkDeviceManager *dm;
     GdkDevice *pointer, *keyboard;
@@ -409,7 +427,9 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
 
 static void gtk_askpass_cleanup(struct askpass_ctx *ctx)
 {
-#if GTK_CHECK_VERSION(3,0,0)
+#if GTK_CHECK_VERSION(3,20,0)
+    gdk_seat_ungrab(ctx->seat);
+#elif GTK_CHECK_VERSION(3,0,0)
     gdk_device_ungrab(ctx->keyboard, GDK_CURRENT_TIME);
 #else
     gdk_keyboard_ungrab(GDK_CURRENT_TIME);
