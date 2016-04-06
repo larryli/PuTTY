@@ -298,7 +298,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
         {
             char *text = dupprintf
-                ("Pageant\r\n\r\n%s\r\n\r\n%s",
+                ("PuTTYgen\r\n\r\n%s\r\n\r\n%s",
                  ver,
                  "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
             SetDlgItemText(hwnd, 1000, text);
