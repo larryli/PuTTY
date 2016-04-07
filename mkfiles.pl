@@ -84,7 +84,15 @@ while (<IN>) {
   if ($_[0] eq "!specialobj" and &mfval($_[1])) { $specialobj{$_[1]}->{$_[2]} = 1; next;}
   if ($_[0] eq "!cflags" and &mfval($_[1])) {
       ($rest = $_) =~ s/^\s*\S+\s+\S+\s+\S+\s*//; # find rest of input line
-      $rest = 1 if $rest eq "";
+      if ($rest eq "") {
+          # Make sure this file doesn't get lumped together with any
+          # other file's cflags.
+          $rest = "F" . $_[2];
+      } else {
+          # Give this file a specific set of cflags, but permit it to
+          # go together with other files using the same set.
+          $rest = "C" . $rest;
+      }
       $cflags{$_[1]}->{$_[2]} = $rest;
       next;
   }
@@ -1552,9 +1560,11 @@ if (defined $makefiles{'am'}) {
 
     %amspeciallibs = ();
     foreach $obj (sort { $a cmp $b } keys %{$cflags{'am'}}) {
+      my $flags = $cflags{'am'}->{$obj};
+      $flags = "" if $flags !~ s/^C//;
       print "lib${obj}_a_SOURCES = ", $objtosrc{$obj}, "\n";
       print &splitline(join " ", "lib${obj}_a_CFLAGS", "=", @amcflags,
-                       $cflags{'am'}->{$obj}), "\n";
+                       $flags), "\n";
       $amspeciallibs{$obj} = "lib${obj}.a";
     }
     print &splitline(join " ", "noinst_LIBRARIES", "=",
