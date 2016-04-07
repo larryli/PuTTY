@@ -134,7 +134,7 @@ static void progress_update(void *param, int action, int phase, int iprogress)
     }
 }
 
-extern char ver[];
+extern const char ver[];
 
 struct PassphraseProcStruct {
     char **passphrase;

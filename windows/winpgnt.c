@@ -49,7 +49,7 @@
 
 #define APPNAME "Pageant"
 
-extern char ver[];
+extern const char ver[];
 
 static HWND keylist;
 static HWND aboutbox;
