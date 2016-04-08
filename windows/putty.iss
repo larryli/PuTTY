@@ -28,6 +28,7 @@ ChangesAssociations=yes
 ;ChangesEnvironment=yes -- when PATH munging is sorted (probably)
 Compression=zip/9
 AllowNoIcons=yes
+OutputBaseFilename=installer
 
 [Files]
 ; We flag all files with "restartreplace" et al primarily for the benefit

@@ -177,14 +177,14 @@ delegate windows
   in putty/windows with innosetup do/win iscc putty.iss
 
   # Sign the installers.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer.msi Output/setup.exe
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer.msi Output/installer.exe
 
   # Finished Windows builds.
   return putty/windows/*.exe
   return putty/windows/*.map
   return putty/doc/putty.chm
   return putty/windows/installer.msi
-  return putty/windows/Output/setup.exe
+  return putty/windows/Output/installer.exe
 enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
@@ -195,7 +195,7 @@ in putty/doc do zip puttydoc.zip *.html
 deliver putty/windows/*.exe putty/x86/$@
 deliver putty/windows/putty.zip putty/x86/$@
 deliver putty/windows/installer.msi putty/x86/$(Ifilename).msi
-deliver putty/windows/Output/setup.exe putty/x86/$(Ifilename).exe
+deliver putty/windows/Output/installer.exe putty/x86/$(Ifilename).exe
 deliver putty/doc/puttydoc.zip putty/$@
 deliver putty/doc/putty.chm putty/$@
 deliver putty/doc/putty.hlp putty/$@
