@@ -1711,11 +1711,12 @@ static void source(const char *src)
     stat_starttime = time(NULL);
     stat_lasttime = 0;
 
+#define PSCP_SEND_BLOCK 4096
     for (i = uint64_make(0,0);
 	 uint64_compare(i,size) < 0;
-	 i = uint64_add32(i,4096)) {
-	char transbuf[4096];
-	int j, k = 4096;
+	 i = uint64_add32(i,PSCP_SEND_BLOCK)) {
+	char transbuf[PSCP_SEND_BLOCK];
+	int j, k = PSCP_SEND_BLOCK;
 
 	if (uint64_compare(uint64_add32(i, k),size) > 0) /* i + k > size */ 
 	    k = (uint64_subtract(size, i)).lo; 	/* k = size - i; */
