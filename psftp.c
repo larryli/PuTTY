@@ -2618,6 +2618,10 @@ int sftp_senddata(char *buf, int len)
     back->send(backhandle, buf, len);
     return 1;
 }
+int sftp_sendbuffer(void)
+{
+    return back->sendbuffer(backhandle);
+}
 
 /*
  *  Short description of parameters.

@@ -63,8 +63,12 @@
  * until len is available, or it returns failure.
  * 
  * Both functions return 1 on success, 0 on failure.
+ *
+ * sftp_sendbuffer returns the size of the backlog of data in the
+ * transmit queue.
  */
 int sftp_senddata(char *data, int len);
+int sftp_sendbuffer(void);
 int sftp_recvdata(char *data, int len);
 
 /*

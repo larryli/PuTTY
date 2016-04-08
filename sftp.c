@@ -1349,7 +1349,7 @@ struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64 offset)
 
 int xfer_upload_ready(struct fxp_xfer *xfer)
 {
-    if (xfer->req_totalsize < xfer->req_maxsize)
+    if (sftp_sendbuffer() == 0)
 	return 1;
     else
 	return 0;
