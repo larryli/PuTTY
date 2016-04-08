@@ -384,7 +384,7 @@ static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin);
  *    ensure that the server never has any need to throttle its end
  *    of the connection), so we set this high as well.
  * 
- *  - OUR_V2_WINSIZE is the maximum window size we present on SSH-2
+ *  - OUR_V2_WINSIZE is the default window size we present on SSH-2
  *    channels.
  *
  *  - OUR_V2_BIGWIN is the window size we advertise for the only
