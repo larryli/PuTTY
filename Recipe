@@ -45,14 +45,17 @@
 #      does this.
 #
 #  - COMPAT=/DNO_SECURITY (Windows only)
-#      Disables Pageant's use of <aclapi.h>, which is not available
-#      with some development environments (such as very old versions
-#      of the mingw/Cygwin GNU toolchain). This means that Pageant
-#      won't care about the local user ID of processes accessing it; a
-#      version of Pageant built with this option will therefore refuse
-#      to run under NT-series OSes on security grounds (although it
-#      will run fine on Win95-series OSes where there is no access
-#      control anyway).
+#      Disables use of <aclapi.h>, which is not available with some
+#      development environments (such as very old versions of the
+#      mingw/Cygwin GNU toolchain). This has the following effects:
+#       - Pageant won't care about the local user ID of processes
+#         accessing it; a version of Pageant built with this option
+#         will therefore refuse to run under NT-series OSes on
+#         security grounds (although it will run fine on Win95-series
+#         OSes where there is no access control anyway).
+#       - SSH connection sharing is disabled.
+#       - There is no restriction of the process ACLs (on all versions
+#         of Windows, without warning), as if UNPROTECT below were set.
 #
 #  - COMPAT=/DNO_MULTIMON (Windows only)
 #      Disables PuTTY's use of <multimon.h>, which is not available
