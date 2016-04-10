@@ -20,7 +20,7 @@
 /*.td2
 /*.map
 /Makefile.bor
-/Makefile.cyg
+/Makefile.mgw
 /Makefile.vc
 /Makefile.lcc
 /MSVC
@@ -128,7 +128,7 @@
 /windows/*.td2
 /windows/*.map
 /windows/Makefile.bor
-/windows/Makefile.cyg
+/windows/Makefile.mgw
 /windows/Makefile.vc
 /windows/Makefile.lcc
 /windows/MSVC

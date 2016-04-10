@@ -14,7 +14,7 @@
 # Locations and types of output Makefiles.
 !makefile vc windows/Makefile.vc
 !makefile vcproj windows/MSVC
-!makefile cygwin windows/Makefile.cyg
+!makefile cygwin windows/Makefile.mgw
 !makefile borland windows/Makefile.bor
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
@@ -46,8 +46,8 @@
 #
 #  - COMPAT=/DNO_SECURITY (Windows only)
 #      Disables Pageant's use of <aclapi.h>, which is not available
-#      with some development environments (such as older versions of
-#      the Cygwin/mingw GNU toolchain). This means that Pageant
+#      with some development environments (such as very old versions
+#      of the mingw/Cygwin GNU toolchain). This means that Pageant
 #      won't care about the local user ID of processes accessing it; a
 #      version of Pageant built with this option will therefore refuse
 #      to run under NT-series OSes on security grounds (although it
