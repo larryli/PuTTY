@@ -38,10 +38,13 @@ For building on Windows:
    `make -f Makefile.mgw' while in the `windows' subdirectory to
    build all the PuTTY binaries.
 
-   You'll probably need quite a recent version of the w32api package.
-   Note that by default the multiple monitor and HTML Help support are
-   excluded from the Cygwin build, since at the time of writing Cygwin
-   doesn't include the necessary headers.
+   MinGW and friends can lag behind other toolchains in their support
+   for the Windows API. Compile-time levers are provided to exclude
+   some features; the defaults are set appropriately for the
+   'mingw-w64' cross-compiler provided with Ubuntu 14.04. If you are
+   using an older toolchain, you may need to exclude more features;
+   alternatively, you may find that upgrading to a recent version of
+   the 'w32api' package helps.
 
  - windows/Makefile.lcc is for lcc-win32. Type `make -f
    Makefile.lcc' while in the `windows' subdirectory. (You will
