@@ -8,6 +8,7 @@
 #include "psftp.h"
 #include "ssh.h"
 #include "int64.h"
+#include "winsecur.h"
 
 char *get_ttymode(void *frontend, const char *mode) { return NULL; }
 
