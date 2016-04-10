@@ -122,12 +122,12 @@ static const char *serial_configure(Serial serial, HANDLE serport, Conf *conf)
 	 * Configurable parameters.
 	 */
 	dcb.BaudRate = conf_get_int(conf, CONF_serspeed);
-	msg = dupprintf("Configuring baud rate %d", dcb.BaudRate);
+	msg = dupprintf("Configuring baud rate %lu", dcb.BaudRate);
 	logevent(serial->frontend, msg);
 	sfree(msg);
 
 	dcb.ByteSize = conf_get_int(conf, CONF_serdatabits);
-	msg = dupprintf("Configuring %d data bits", dcb.ByteSize);
+	msg = dupprintf("Configuring %u data bits", dcb.ByteSize);
 	logevent(serial->frontend, msg);
 	sfree(msg);
 
