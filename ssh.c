@@ -7309,7 +7309,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	 * Make a note of any other host key formats that are available.
 	 */
 	{
-	    int i, j;
+	    int i, j, nkeys = 0;
 	    char *list = NULL;
 	    for (i = 0; i < lenof(hostkey_algs); i++) {
 		if (hostkey_algs[i].alg == ssh->hostkey)
@@ -7328,13 +7328,15 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			newlist = dupprintf("%s", hostkey_algs[i].alg->name);
 		    sfree(list);
 		    list = newlist;
+		    nkeys++;
 		}
 	    }
 	    if (list) {
 		logeventf(ssh,
 			  "Server also has %s host key%s, but we "
 			  "don't know %s", list,
-			  j > 1 ? "s" : "", j > 1 ? "any of them" : "it");
+			  nkeys > 1 ? "s" : "",
+			  nkeys > 1 ? "any of them" : "it");
 		sfree(list);
 	    }
 	}
