@@ -961,7 +961,7 @@ int main(int argc, char **argv)
     uxsel_init();
 
     /*
-     * Unix Plink doesn't provide any way to add forwardings after the
+     * Plink doesn't provide any way to add forwardings after the
      * connection is set up, so if there are none now, we can safely set
      * the "simple" flag.
      */

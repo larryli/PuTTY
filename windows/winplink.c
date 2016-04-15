@@ -618,6 +618,17 @@ int main(int argc, char **argv)
 	return 1;
     }
 
+    /*
+     * Plink doesn't provide any way to add forwardings after the
+     * connection is set up, so if there are none now, we can safely set
+     * the "simple" flag.
+     */
+    if (conf_get_int(conf, CONF_protocol) == PROT_SSH &&
+	!conf_get_int(conf, CONF_x11_forward) &&
+	!conf_get_int(conf, CONF_agentfwd) &&
+	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
+	conf_set_int(conf, CONF_ssh_simple, TRUE);
+
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
 
