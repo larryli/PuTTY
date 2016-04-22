@@ -5751,6 +5751,48 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
     }
 }
 
+/*
+ * Handle incoming data on an SSH-1 or SSH-2 agent-forwarding channel.
+ */
+static int ssh_agent_channel_data(struct ssh_channel *c, char *data,
+				  int length)
+{
+    while (length > 0) {
+	if (c->u.a.lensofar < 4) {
+	    unsigned int l = min(4 - c->u.a.lensofar, (unsigned)length);
+	    memcpy(c->u.a.msglen + c->u.a.lensofar, data, l);
+	    data += l;
+	    length -= l;
+	    c->u.a.lensofar += l;
+	}
+	if (c->u.a.lensofar == 4) {
+	    c->u.a.totallen = 4 + GET_32BIT(c->u.a.msglen);
+	    c->u.a.message = snewn(c->u.a.totallen, unsigned char);
+	    memcpy(c->u.a.message, c->u.a.msglen, 4);
+	}
+	if (c->u.a.lensofar >= 4 && length > 0) {
+	    unsigned int l = min(c->u.a.totallen - c->u.a.lensofar,
+				 (unsigned)length);
+	    memcpy(c->u.a.message + c->u.a.lensofar, data, l);
+	    data += l;
+	    length -= l;
+	    c->u.a.lensofar += l;
+	}
+	if (c->u.a.lensofar == c->u.a.totallen) {
+	    void *reply;
+	    int replylen;
+            c->u.a.outstanding_requests++;
+	    if (agent_query(c->u.a.message, c->u.a.totallen, &reply, &replylen,
+			    ssh_agentf_callback, c))
+		ssh_agentf_callback(c, reply, replylen);
+	    sfree(c->u.a.message);
+            c->u.a.message = NULL;
+	    c->u.a.lensofar = 0;
+	}
+    }
+    return 0;   /* agent channels never back up */
+}
+
 static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     /* Data sent down one of our channels. */
@@ -5772,47 +5814,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	    bufsize = pfd_send(c->u.pfd.pf, p, len);
 	    break;
 	  case CHAN_AGENT:
-	    /* Data for an agent message. Buffer it. */
-	    while (len > 0) {
-		if (c->u.a.lensofar < 4) {
-		    unsigned int l = min(4 - c->u.a.lensofar, (unsigned)len);
-		    memcpy(c->u.a.msglen + c->u.a.lensofar, p,
-			   l);
-		    p += l;
-		    len -= l;
-		    c->u.a.lensofar += l;
-		}
-		if (c->u.a.lensofar == 4) {
-		    c->u.a.totallen =
-			4 + GET_32BIT(c->u.a.msglen);
-		    c->u.a.message = snewn(c->u.a.totallen,
-					   unsigned char);
-		    memcpy(c->u.a.message, c->u.a.msglen, 4);
-		}
-		if (c->u.a.lensofar >= 4 && len > 0) {
-		    unsigned int l =
-			min(c->u.a.totallen - c->u.a.lensofar,
-			    (unsigned)len);
-		    memcpy(c->u.a.message + c->u.a.lensofar, p,
-			   l);
-		    p += l;
-		    len -= l;
-		    c->u.a.lensofar += l;
-		}
-		if (c->u.a.lensofar == c->u.a.totallen) {
-		    void *reply;
-		    int replylen;
-                    c->u.a.outstanding_requests++;
-		    if (agent_query(c->u.a.message,
-				    c->u.a.totallen,
-				    &reply, &replylen,
-				    ssh_agentf_callback, c))
-			ssh_agentf_callback(c, reply, replylen);
-		    sfree(c->u.a.message);
-		    c->u.a.lensofar = 0;
-		}
-	    }
-	    bufsize = 0;   /* agent channels never back up */
+	    bufsize = ssh_agent_channel_data(c, p, len);
 	    break;
 	}
 	if (!c->throttling_conn && bufsize > SSH1_BUFFER_LIMIT) {
@@ -8079,48 +8081,7 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	    bufsize = pfd_send(c->u.pfd.pf, data, length);
 	    break;
 	  case CHAN_AGENT:
-	    while (length > 0) {
-		if (c->u.a.lensofar < 4) {
-		    unsigned int l = min(4 - c->u.a.lensofar,
-					 (unsigned)length);
-		    memcpy(c->u.a.msglen + c->u.a.lensofar,
-			   data, l);
-		    data += l;
-		    length -= l;
-		    c->u.a.lensofar += l;
-		}
-		if (c->u.a.lensofar == 4) {
-		    c->u.a.totallen =
-			4 + GET_32BIT(c->u.a.msglen);
-		    c->u.a.message = snewn(c->u.a.totallen,
-					   unsigned char);
-		    memcpy(c->u.a.message, c->u.a.msglen, 4);
-		}
-		if (c->u.a.lensofar >= 4 && length > 0) {
-		    unsigned int l =
-			min(c->u.a.totallen - c->u.a.lensofar,
-			    (unsigned)length);
-		    memcpy(c->u.a.message + c->u.a.lensofar,
-			   data, l);
-		    data += l;
-		    length -= l;
-		    c->u.a.lensofar += l;
-		}
-		if (c->u.a.lensofar == c->u.a.totallen) {
-		    void *reply;
-		    int replylen;
-                    c->u.a.outstanding_requests++;
-		    if (agent_query(c->u.a.message,
-				    c->u.a.totallen,
-				    &reply, &replylen,
-				    ssh_agentf_callback, c))
-			ssh_agentf_callback(c, reply, replylen);
-		    sfree(c->u.a.message);
-                    c->u.a.message = NULL;
-		    c->u.a.lensofar = 0;
-		}
-	    }
-	    bufsize = 0;
+	    bufsize = ssh_agent_channel_data(c, data, length);
 	    break;
 	}
 	/*
