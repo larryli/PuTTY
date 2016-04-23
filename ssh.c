@@ -9188,7 +9188,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	int pklen, alglen, commentlen;
 	int siglen, retlen, len;
 	char *q, *agentreq, *ret;
-	int try_send;
 	struct Packet *pktout;
 	Filename *keyfile;
 #ifndef NO_GSSAPI
@@ -10841,7 +10840,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	ssh->send_ok = 1;
     while (1) {
 	crReturnV;
-	s->try_send = FALSE;
 	if (pktin) {
 
 	    /*
@@ -10857,17 +10855,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	     * We have spare data. Add it to the channel buffer.
 	     */
 	    ssh2_add_channel_data(ssh->mainchan, (char *)in, inlen);
-	    s->try_send = TRUE;
-	}
-	if (s->try_send) {
-	    int i;
-	    struct ssh_channel *c;
-	    /*
-	     * Try to send data on all channels if we can.
-	     */
-	    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++)
-                if (c->type != CHAN_SHARING)
-                    ssh2_try_send_and_unthrottle(ssh, c);
+	    ssh2_try_send(ssh->mainchan);
 	}
     }
 
