@@ -708,8 +708,8 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh);
 static void ssh_size(void *handle, int width, int height);
 static void ssh_special(void *handle, Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
-static int ssh2_send_channel_data(struct ssh_channel *c,
-				  const char *buf, int len);
+static int ssh_send_channel_data(struct ssh_channel *c,
+				 const char *buf, int len);
 static void ssh_throttle_all(Ssh ssh, int enable, int bufsize);
 static void ssh2_set_window(struct ssh_channel *c, int newwin);
 static int ssh_sendbuffer(void *handle);
@@ -3824,7 +3824,6 @@ static void ssh_dialog_callback(void *sshv, int ret)
 static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 {
     struct ssh_channel *c = (struct ssh_channel *)cv;
-    Ssh ssh = c->ssh;
     const void *sentreply = reply;
 
     c->u.a.outstanding_requests--;
@@ -3833,15 +3832,7 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 	sentreply = "\0\0\0\1\5";
 	replylen = 5;
     }
-    if (ssh->version == 2) {
-	ssh2_send_channel_data(c, sentreply, replylen);
-    } else {
-	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
-		    PKT_INT, c->remoteid,
-		    PKT_INT, replylen,
-		    PKT_DATA, sentreply, replylen,
-		    PKT_END);
-    }
+    ssh_send_channel_data(c, sentreply, replylen);
     if (reply)
 	sfree(reply);
     /*
@@ -5017,22 +5008,7 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
     if (ssh->state == SSH_STATE_CLOSED)
 	return 0;
 
-    if (ssh->version == 1) {
-	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
-		    PKT_INT, c->remoteid,
-		    PKT_INT, len, PKT_DATA, buf, len,
-		    PKT_END);
-	/*
-	 * In SSH-1 we can return 0 here - implying that forwarded
-	 * connections are never individually throttled - because
-	 * the only circumstance that can cause throttling will be
-	 * the whole SSH connection backing up, in which case
-	 * _everything_ will be throttled as a whole.
-	 */
-	return 0;
-    } else {
-	return ssh2_send_channel_data(c, buf, len);
-    }
+    return ssh_send_channel_data(c, buf, len);
 }
 
 void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
@@ -7700,13 +7676,30 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 }
 
 /*
- * Add data to an SSH-2 channel output buffer and send it if possible.
+ * Send data on an SSH channel.  In SSH-2, this involves buffering it
+ * first.
  */
-static int ssh2_send_channel_data(struct ssh_channel *c, const char *buf,
+static int ssh_send_channel_data(struct ssh_channel *c, const char *buf,
 				   int len)
 {
-    bufchain_add(&c->v.v2.outbuffer, buf, len);
-    return ssh2_try_send(c);
+    if (c->ssh->version == 2) {
+	bufchain_add(&c->v.v2.outbuffer, buf, len);
+	return ssh2_try_send(c);
+    } else {
+	send_packet(c->ssh, SSH1_MSG_CHANNEL_DATA,
+		    PKT_INT, c->remoteid,
+		    PKT_INT, len,
+		    PKT_DATA, buf, len,
+		    PKT_END);
+	/*
+	 * In SSH-1 we can return 0 here - implying that channels are
+	 * never individually throttled - because the only
+	 * circumstance that can cause throttling will be the whole
+	 * SSH connection backing up, in which case _everything_ will
+	 * be throttled as a whole.
+	 */
+	return 0;
+    }
 }
 
 /*
@@ -10853,7 +10846,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	    /*
 	     * We have spare data. Add it to the channel buffer.
 	     */
-	    ssh2_send_channel_data(ssh->mainchan, (char *)in, inlen);
+	    ssh_send_channel_data(ssh->mainchan, (char *)in, inlen);
 	}
     }
 
