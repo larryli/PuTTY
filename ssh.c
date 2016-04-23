@@ -708,8 +708,8 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh);
 static void ssh_size(void *handle, int width, int height);
 static void ssh_special(void *handle, Telnet_Special);
 static int ssh2_try_send(struct ssh_channel *c);
-static void ssh2_add_channel_data(struct ssh_channel *c,
-                                  const char *buf, int len);
+static int ssh2_send_channel_data(struct ssh_channel *c,
+				  const char *buf, int len);
 static void ssh_throttle_all(Ssh ssh, int enable, int bufsize);
 static void ssh2_set_window(struct ssh_channel *c, int newwin);
 static int ssh_sendbuffer(void *handle);
@@ -3834,8 +3834,7 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen)
 	replylen = 5;
     }
     if (ssh->version == 2) {
-	ssh2_add_channel_data(c, sentreply, replylen);
-	ssh2_try_send(c);
+	ssh2_send_channel_data(c, sentreply, replylen);
     } else {
 	send_packet(ssh, SSH1_MSG_CHANNEL_DATA,
 		    PKT_INT, c->remoteid,
@@ -5032,8 +5031,7 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
 	 */
 	return 0;
     } else {
-	ssh2_add_channel_data(c, buf, len);
-	return ssh2_try_send(c);
+	return ssh2_send_channel_data(c, buf, len);
     }
 }
 
@@ -7702,12 +7700,13 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 }
 
 /*
- * Add data to an SSH-2 channel output buffer.
+ * Add data to an SSH-2 channel output buffer and send it if possible.
  */
-static void ssh2_add_channel_data(struct ssh_channel *c, const char *buf,
-				  int len)
+static int ssh2_send_channel_data(struct ssh_channel *c, const char *buf,
+				   int len)
 {
     bufchain_add(&c->v.v2.outbuffer, buf, len);
+    return ssh2_try_send(c);
 }
 
 /*
@@ -10854,8 +10853,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	    /*
 	     * We have spare data. Add it to the channel buffer.
 	     */
-	    ssh2_add_channel_data(ssh->mainchan, (char *)in, inlen);
-	    ssh2_try_send(ssh->mainchan);
+	    ssh2_send_channel_data(ssh->mainchan, (char *)in, inlen);
 	}
     }
 
