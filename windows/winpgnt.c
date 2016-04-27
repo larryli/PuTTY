@@ -83,7 +83,7 @@ void modalfatalbox(char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, buf, "Pageant Fatal Error",
+    MessageBox(hwnd, buf, "Pageant 致命错误",
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -139,7 +139,7 @@ static void *get_keylist2(int *length);
  */
 int random_byte(void)
 {
-    MessageBox(hwnd, "Internal Error", APPNAME, MB_OK | MB_ICONERROR);
+    MessageBox(hwnd, "内部错误", APPNAME, MB_OK | MB_ICONERROR);
     exit(0);
     /* this line can't be reached but it placates MSVC's warnings :-) */
     return 0;
@@ -312,17 +312,17 @@ static int CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "PuTTY 密钥文件警告";
     static const char message[] =
-	"You are loading an SSH-2 private key which has an\n"
-	"old version of the file format. This means your key\n"
-	"file is not fully tamperproof. Future versions of\n"
-	"PuTTY may stop supporting this private key format,\n"
-	"so we recommend you convert your key to the new\n"
-	"format.\n"
+	"现在载入的是一个旧版本文件格式的 SSH2\n"
+	" 私钥格式。这意味着该私钥文件不是\n"
+	"足够的安全。未来版本的 PuTTY 可能会\n"
+	"停止对该私钥格式的支持。\n"
+	"建议将其转换为新的\n"
+	"格式。\n"
 	"\n"
-	"You can perform this conversion by loading the key\n"
-	"into PuTTYgen and then saving it again.";
+	"请使用 PuTTYgen 载入该密钥进行转换\n"
+	"然后保存。";
 
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
@@ -401,7 +401,7 @@ static void add_keyfile(Filename *filename)
 	
     type = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
-	char *msg = dupprintf("Couldn't load this key (%s)",
+	char *msg = dupprintf("无法载入该密钥 (%S)",
 			      key_type_to_str(type));
 	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 		    HELPCTXID(errors_cantloadkey));
@@ -420,7 +420,7 @@ static void add_keyfile(Filename *filename)
 
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (!rsakey_pubblob(filename, &blob, &bloblen, NULL, &error)) {
-		char *msg = dupprintf("Couldn't load private key (%s)", error);
+		char *msg = dupprintf("无法载入私钥 (%s)", error);
 		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 			    HELPCTXID(errors_cantloadkey));
 		sfree(msg);
@@ -432,7 +432,7 @@ static void add_keyfile(Filename *filename)
 	    blob = ssh2_userkey_loadpub(filename, NULL, &bloblen,
 					NULL, &error);
 	    if (!blob) {
-		char *msg = dupprintf("Couldn't load private key (%s)", error);
+		char *msg = dupprintf("无法载入私钥 (%s)", error);
 		message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 			    HELPCTXID(errors_cantloadkey));
 		sfree(msg);
@@ -589,7 +589,7 @@ static void add_keyfile(Filename *filename)
     if (comment)
 	sfree(comment);
     if (ret == 0) {
-	char *msg = dupprintf("Couldn't load private key (%s)", error);
+	char *msg = dupprintf("无法载入私钥 (%s)", error);
 	message_box(msg, APPNAME, MB_OK | MB_ICONERROR,
 		    HELPCTXID(errors_cantloadkey));
 	sfree(msg);
@@ -639,8 +639,8 @@ static void add_keyfile(Filename *filename)
 	    assert(ret == 1);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "The already running Pageant "
-			   "refused to add the key.", APPNAME,
+		MessageBox(NULL, "Pageant 已经运行"
+			   "不能增加该密钥。", APPNAME,
 			   MB_OK | MB_ICONERROR);
 
 	    sfree(request);
@@ -686,8 +686,8 @@ static void add_keyfile(Filename *filename)
 	    assert(ret == 1);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS)
-		MessageBox(NULL, "The already running Pageant "
-			   "refused to add the key.", APPNAME,
+		MessageBox(NULL, "Pageant 已经运行"
+			   "不能增加该密钥。", APPNAME,
 			   MB_OK | MB_ICONERROR);
 
 	    sfree(request);
@@ -1447,7 +1447,7 @@ static void prompt_add_keyfile(void)
     *filelist = '\0';
     of.nMaxFile = 8192;
     of.lpstrFileTitle = NULL;
-    of.lpstrTitle = "Select Private Key File";
+    of.lpstrTitle = "选择私钥文件";
     of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
     if (request_file(keypath, &of, TRUE, FALSE)) {
 	if(strlen(filelist) > of.nFileOffset) {
@@ -1653,7 +1653,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
     tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
-    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+    strcpy(tnid.szTip, "Pageant (PuTTY 认证代理)");
 
     res = Shell_NotifyIcon(NIM_ADD, &tnid);
 
@@ -1710,7 +1710,7 @@ static void update_sessions(void)
 	mii.fMask = MIIM_TYPE | MIIM_STATE;
 	mii.fType = MFT_STRING;
 	mii.fState = MFS_GRAYED;
-	mii.dwTypeData = _T("(No sessions)");
+	mii.dwTypeData = _T("(没有会话)");
 	InsertMenuItem(session_menu, index_menu, TRUE, &mii);
     }
 }
@@ -1814,7 +1814,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    if((int)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
 				 SW_SHOW) <= 32) {
 		MessageBox(NULL, "Unable to execute PuTTY!",
-			   "Error", MB_OK | MB_ICONERROR);
+			   "错误", MB_OK | MB_ICONERROR);
 	    }
 	    break;
 	  case IDM_CLOSE:
@@ -1880,7 +1880,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    strcat(param, mii.dwTypeData);
 		    if((int)ShellExecute(hwnd, NULL, putty_path, param,
 					 _T(""), SW_SHOW) <= 32) {
-			MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+			MessageBox(NULL, "Unable to execute PuTTY!", "错误",
 				   MB_OK | MB_ICONERROR);
 		    }
 		}
@@ -2067,16 +2067,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 */
         if (!got_advapi()) {
 	    MessageBox(NULL,
-		       "Unable to access security APIs. Pageant will\n"
-		       "not run, in case it causes a security breach.",
-		       "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+		       "无法访问安全认证 API 函数。\nPageant"
+		       "无法运行，因为存在安全隐患。",
+		       "Pageant 致命错误", MB_ICONERROR | MB_OK);
 	    return 1;
 	}
 #else
 	MessageBox(NULL,
-		   "This program has been compiled for Win9X and will\n"
-		   "not run on NT, in case it causes a security breach.",
-		   "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+		   "本程序在 Win9x 下编译，无法运行在 NT 系统。\n"
+		   "因为存在安全隐患。",
+		   "Pageant 致命错误", MB_ICONERROR | MB_OK);
 	return 1;
 #endif
     }
@@ -2178,7 +2178,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (already_running) {
 	if (!command && !added_keys) {
-	    MessageBox(NULL, "Pageant is already running", "Pageant Error",
+	    MessageBox(NULL, "Pageant 已经运行了", "Pageant 错误",
 		       MB_ICONERROR | MB_OK);
 	}
 	return 0;
@@ -2213,20 +2213,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     systray_menu = CreatePopupMenu();
     if (putty_path) {
 	session_menu = CreateMenu();
-	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "新会话(&N)");
 	AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-		   (UINT) session_menu, "&Saved Sessions");
+		   (UINT) session_menu, "保存会话(&S)");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-	   "&View Keys");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+	   "查看密钥(&V)");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "增加密钥(&K)");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
-	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "帮助(&H)");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "关于(&A)");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "退出(&X)");
     initial_menuitems_count = GetMenuItemCount(session_menu);
 
     /* Set the default menu item. */
