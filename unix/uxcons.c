@@ -12,6 +12,7 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/select.h>
 
 #include "putty.h"
 #include "storage.h"
