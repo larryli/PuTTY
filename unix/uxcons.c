@@ -12,7 +12,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#ifndef HAVE_NO_SYS_SELECT_H
 #include <sys/select.h>
+#endif
 
 #include "putty.h"
 #include "storage.h"
