@@ -949,6 +949,8 @@ int main(int argc, char **argv)
     /* We don't want the signal handler to block if the pipe's full. */
     nonblock(signalpipe[0]);
     nonblock(signalpipe[1]);
+    cloexec(signalpipe[0]);
+    cloexec(signalpipe[1]);
     putty_signal(SIGWINCH, sigwinch);
 
     /*
