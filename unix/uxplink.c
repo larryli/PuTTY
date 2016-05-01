@@ -946,6 +946,9 @@ int main(int argc, char **argv)
 	perror("pipe");
 	exit(1);
     }
+    /* We don't want the signal handler to block if the pipe's full. */
+    nonblock(signalpipe[0]);
+    nonblock(signalpipe[1]);
     putty_signal(SIGWINCH, sigwinch);
 
     /*
