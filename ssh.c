@@ -2521,13 +2521,15 @@ static void ssh_pkt_defersend(Ssh ssh)
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 
-    ssh->outgoing_data_size += ssh->deferred_data_size;
-    if (!ssh->kex_in_progress &&
-        !ssh->bare_connection &&
-	ssh->max_data_size != 0 &&
-	ssh->outgoing_data_size > ssh->max_data_size)
-	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
-    ssh->deferred_data_size = 0;
+    if (ssh->version == 2) {
+	ssh->outgoing_data_size += ssh->deferred_data_size;
+	ssh->deferred_data_size = 0;
+	if (!ssh->kex_in_progress &&
+	    !ssh->bare_connection &&
+	    ssh->max_data_size != 0 &&
+	    ssh->outgoing_data_size > ssh->max_data_size)
+	    do_ssh2_transport(ssh, "too much data sent", -1, NULL);
+    }
 }
 
 /*
@@ -6332,6 +6334,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     crState(do_ssh2_transport_state);
 
     assert(!ssh->bare_connection);
+    assert(ssh->version == 2);
 
     crBeginState;
 
