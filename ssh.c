@@ -89,7 +89,7 @@ static const char *const ssh2_disconnect_reasons[] = {
  * This list is derived from RFC 4254 and
  * SSH-1 RFC-1.2.31.
  */
-static const struct {
+static const struct ssh_ttymode {
     const char* const mode;
     int opcode;
     enum { TTY_OP_CHAR, TTY_OP_BOOL } type;
@@ -1009,27 +1009,37 @@ static void bomb_out(Ssh ssh, char *text)
 
 /* Helper function for common bits of parsing ttymodes. */
 static void parse_ttymodes(Ssh ssh,
-			   void (*do_mode)(void *data, char *mode, char *val),
+                           void (*do_mode)(void *data,
+                                           const struct ssh_ttymode *mode,
+                                           char *val),
 			   void *data)
 {
-    char *key, *val;
+    int i;
+    const struct ssh_ttymode *mode;
+    char *val;
+    char default_val[2];
 
-    for (val = conf_get_str_strs(ssh->conf, CONF_ttymodes, NULL, &key);
-	 val != NULL;
-	 val = conf_get_str_strs(ssh->conf, CONF_ttymodes, key, &key)) {
+    strcpy(default_val, "A");
+
+    for (i = 0; i < lenof(ssh_ttymodes); i++) {
+        mode = ssh_ttymodes + i;
+        val = conf_get_str_str_opt(ssh->conf, CONF_ttymodes, mode->mode);
+        if (!val)
+            val = default_val;
+
 	/*
 	 * val[0] is either 'V', indicating that an explicit value
 	 * follows it, or 'A' indicating that we should pass the
 	 * value through from the local environment via get_ttymode.
 	 */
 	if (val[0] == 'A') {
-	    val = get_ttymode(ssh->frontend, key);
+	    val = get_ttymode(ssh->frontend, mode->mode);
 	    if (val) {
-		do_mode(data, key, val);
+		do_mode(data, mode, val);
 		sfree(val);
 	    }
 	} else
-	    do_mode(data, key, val + 1);	       /* skip the 'V' */
+            do_mode(data, mode, val + 1);              /* skip the 'V' */
     }
 }
 
@@ -5816,14 +5826,13 @@ static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
 }
 
 /* Helper function to deal with sending tty modes for REQUEST_PTY */
-static void ssh1_send_ttymode(void *data, char *mode, char *val)
+static void ssh1_send_ttymode(void *data,
+                              const struct ssh_ttymode *mode, char *val)
 {
     struct Packet *pktout = (struct Packet *)data;
-    int i = 0;
     unsigned int arg = 0;
-    while (strcmp(mode, ssh_ttymodes[i].mode) != 0) i++;
-    if (i == lenof(ssh_ttymodes)) return;
-    switch (ssh_ttymodes[i].type) {
+
+    switch (mode->type) {
       case TTY_OP_CHAR:
 	arg = ssh_tty_parse_specchar(val);
 	break;
@@ -5831,7 +5840,7 @@ static void ssh1_send_ttymode(void *data, char *mode, char *val)
 	arg = ssh_tty_parse_boolean(val);
 	break;
     }
-    ssh2_pkt_addbyte(pktout, ssh_ttymodes[i].opcode);
+    ssh2_pkt_addbyte(pktout, mode->opcode);
     ssh2_pkt_addbyte(pktout, arg);
 }
 
@@ -8921,14 +8930,13 @@ static void ssh2_msg_userauth_banner(Ssh ssh, struct Packet *pktin)
 }
 
 /* Helper function to deal with sending tty modes for "pty-req" */
-static void ssh2_send_ttymode(void *data, char *mode, char *val)
+static void ssh2_send_ttymode(void *data,
+                              const struct ssh_ttymode *mode, char *val)
 {
     struct Packet *pktout = (struct Packet *)data;
-    int i = 0;
     unsigned int arg = 0;
-    while (strcmp(mode, ssh_ttymodes[i].mode) != 0) i++;
-    if (i == lenof(ssh_ttymodes)) return;
-    switch (ssh_ttymodes[i].type) {
+
+    switch (mode->type) {
       case TTY_OP_CHAR:
 	arg = ssh_tty_parse_specchar(val);
 	break;
@@ -8936,7 +8944,7 @@ static void ssh2_send_ttymode(void *data, char *mode, char *val)
 	arg = ssh_tty_parse_boolean(val);
 	break;
     }
-    ssh2_pkt_addbyte(pktout, ssh_ttymodes[i].opcode);
+    ssh2_pkt_addbyte(pktout, mode->opcode);
     ssh2_pkt_adduint32(pktout, arg);
 }
 
