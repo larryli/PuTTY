@@ -97,6 +97,7 @@ int is_iconic(void *frontend) { return 0; }
 void get_window_pos(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
 void get_window_pixels(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
 char *get_window_title(void *frontend, int icon) { return "moo"; }
+int frontend_is_utf8(void *frontend) { return TRUE; }
 
 /* needed by timing.c */
 void timer_change_notify(unsigned long next) { }

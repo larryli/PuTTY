@@ -229,6 +229,11 @@ void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
 }
 
+int frontend_is_utf8(void *frontend)
+{
+    return ucsdata.line_codepage == CP_UTF8;
+}
+
 char *get_ttymode(void *frontend, const char *mode)
 {
     return term_get_ttymode(term, mode);
