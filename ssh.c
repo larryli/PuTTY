@@ -125,6 +125,7 @@ static const struct ssh_ttymode {
     { "IXANY",	     39, TTY_OP_BOOL },
     { "IXOFF",	     40, TTY_OP_BOOL },
     { "IMAXBEL",     41, TTY_OP_BOOL },
+    { "IUTF8",       42, TTY_OP_BOOL },
     { "ISIG",	     50, TTY_OP_BOOL },
     { "ICANON",	     51, TTY_OP_BOOL },
     { "XCASE",	     52, TTY_OP_BOOL },

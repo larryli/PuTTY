@@ -54,11 +54,11 @@ const char *const ttymodes[] = {
     "SWTCH",	"STATUS",   "DISCARD",	"IGNPAR",   "PARMRK",
     "INPCK",	"ISTRIP",   "INLCR",	"IGNCR",    "ICRNL",
     "IUCLC",	"IXON",     "IXANY",	"IXOFF",    "IMAXBEL",
-    "ISIG",	"ICANON",   "XCASE",	"ECHO",     "ECHOE",
-    "ECHOK",	"ECHONL",   "NOFLSH",	"TOSTOP",   "IEXTEN",
-    "ECHOCTL",	"ECHOKE",   "PENDIN",	"OPOST",    "OLCUC",
-    "ONLCR",	"OCRNL",    "ONOCR",	"ONLRET",   "CS7",
-    "CS8",	"PARENB",   "PARODD",	NULL
+    "IUTF8",    "ISIG",     "ICANON",   "XCASE",    "ECHO",
+    "ECHOE",    "ECHOK",    "ECHONL",   "NOFLSH",   "TOSTOP",
+    "IEXTEN",   "ECHOCTL",  "ECHOKE",   "PENDIN",   "OPOST",
+    "OLCUC",    "ONLCR",    "OCRNL",    "ONOCR",    "ONLRET",
+    "CS7",      "CS8",      "PARENB",   "PARODD",   NULL
 };
 
 /*
