@@ -306,6 +306,9 @@ char *get_ttymode(void *frontend, const char *mode)
 #if defined(XCASE)
     GET_BOOL("XCASE", XCASE, c_lflag, );
 #endif
+#if defined(IUTF8)
+    GET_BOOL("IUTF8", IUTF8, c_iflag, );
+#endif
     /* Configuration of ECHO */
 #if defined(ECHOCTL)
     GET_BOOL("ECHOCTL", ECHOCTL, c_lflag, );
