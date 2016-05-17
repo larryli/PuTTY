@@ -74,7 +74,7 @@ typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
 #define SEL_NL { 10 }
 
 /* Simple wraparound timer function */
-unsigned long getticks(void);	       /* based on gettimeofday(2) */
+unsigned long getticks(void);
 #define GETTICKCOUNT getticks
 #define TICKSPERSEC    1000	       /* we choose to use milliseconds */
 #define CURSORBLINK     450	       /* no standard way to set this */
