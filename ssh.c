@@ -7883,7 +7883,8 @@ static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize)
 	    buflimit = 0;
 	else
 	    buflimit = c->v.v2.locmaxwin;
-	ssh2_set_window(c, bufsize < buflimit ? buflimit - bufsize : 0);
+	if (bufsize < buflimit)
+	    ssh2_set_window(c, buflimit - bufsize);
     }
     if (c->throttling_conn && bufsize <= buflimit) {
 	c->throttling_conn = 0;
@@ -8115,8 +8116,8 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	 * need to adjust the window if the server's
 	 * sent excess data.
 	 */
-	ssh2_set_window(c, bufsize < c->v.v2.locmaxwin ?
-			c->v.v2.locmaxwin - bufsize : 0);
+	if (bufsize < c->v.v2.locmaxwin)
+	    ssh2_set_window(c, c->v.v2.locmaxwin - bufsize);
 	/*
 	 * If we're either buffering way too much data, or if we're
 	 * buffering anything at all and we're in "simple" mode,
