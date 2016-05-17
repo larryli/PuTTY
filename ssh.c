@@ -366,6 +366,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
 static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_destroy(struct ssh_channel *c);
+static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin);
 
 /*
@@ -5027,21 +5028,11 @@ int sshfwd_write(struct ssh_channel *c, char *buf, int len)
 void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
 {
     Ssh ssh = c->ssh;
-    int buflimit;
 
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (ssh->version == 1) {
-	buflimit = SSH1_BUFFER_LIMIT;
-    } else {
-	buflimit = c->v.v2.locmaxwin;
-	ssh2_set_window(c, bufsize < buflimit ? buflimit - bufsize : 0);
-    }
-    if (c->throttling_conn && bufsize <= buflimit) {
-	c->throttling_conn = 0;
-	ssh_throttle_conn(ssh, -1);
-    }
+    ssh_channel_unthrottle(c, bufsize);
 }
 
 static void ssh_queueing_handler(Ssh ssh, struct Packet *pktin)
@@ -7878,6 +7869,26 @@ static struct Packet *ssh2_chanreq_init(struct ssh_channel *c,
     if (handler != NULL)
 	ssh2_queue_chanreq_handler(c, handler, ctx);
     return pktout;
+}
+
+static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize)
+{
+    Ssh ssh = c->ssh;
+    int buflimit;
+
+    if (ssh->version == 1) {
+	buflimit = SSH1_BUFFER_LIMIT;
+    } else {
+	if (ssh_is_simple(ssh))
+	    buflimit = 0;
+	else
+	    buflimit = c->v.v2.locmaxwin;
+	ssh2_set_window(c, bufsize < buflimit ? buflimit - bufsize : 0);
+    }
+    if (c->throttling_conn && bufsize <= buflimit) {
+	c->throttling_conn = 0;
+	ssh_throttle_conn(ssh, -1);
+    }
 }
 
 /*
@@ -11769,7 +11780,6 @@ void ssh_send_packet_from_downstream(Ssh ssh, unsigned id, int type,
 static void ssh_unthrottle(void *handle, int bufsize)
 {
     Ssh ssh = (Ssh) handle;
-    int buflimit;
 
     if (ssh->version == 1) {
 	if (ssh->v1_stdout_throttling && bufsize < SSH1_BUFFER_LIMIT) {
@@ -11777,19 +11787,8 @@ static void ssh_unthrottle(void *handle, int bufsize)
 	    ssh_throttle_conn(ssh, -1);
 	}
     } else {
-	if (ssh->mainchan) {
-	    ssh2_set_window(ssh->mainchan,
-			    bufsize < ssh->mainchan->v.v2.locmaxwin ?
-			    ssh->mainchan->v.v2.locmaxwin - bufsize : 0);
-	    if (ssh_is_simple(ssh))
-		buflimit = 0;
-	    else
-		buflimit = ssh->mainchan->v.v2.locmaxwin;
-	    if (ssh->mainchan->throttling_conn && bufsize <= buflimit) {
-		ssh->mainchan->throttling_conn = 0;
-		ssh_throttle_conn(ssh, -1);
-	    }
-	}
+	if (ssh->mainchan)
+	    ssh_channel_unthrottle(ssh->mainchan, bufsize);
     }
 
     /*
