@@ -364,6 +364,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 			 struct Packet *pktin);
 static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
+static void ssh_channel_init(struct ssh_channel *c);
 static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_destroy(struct ssh_channel *c);
 static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
@@ -5515,13 +5516,10 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
 
+	ssh_channel_init(c);
 	c->u.x11.xconn = x11_init(ssh->x11authtree, c, NULL, -1);
         c->remoteid = remoteid;
         c->halfopen = FALSE;
-        c->localid = alloc_channel_id(ssh);
-        c->closes = 0;
-        c->pending_eof = FALSE;
-        c->throttling_conn = 0;
         c->type = CHAN_X11;	/* identify channel type */
         add234(ssh->channels, c);
         send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
@@ -5545,12 +5543,9 @@ static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
     } else {
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
+	ssh_channel_init(c);
 	c->remoteid = remoteid;
 	c->halfopen = FALSE;
-	c->localid = alloc_channel_id(ssh);
-	c->closes = 0;
-	c->pending_eof = FALSE;
-	c->throttling_conn = 0;
 	c->type = CHAN_AGENT;	/* identify channel type */
 	c->u.a.lensofar = 0;
 	c->u.a.message = NULL;
@@ -5600,12 +5595,9 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
 			PKT_INT, remoteid, PKT_END);
 	} else {
+	    ssh_channel_init(c);
 	    c->remoteid = remoteid;
 	    c->halfopen = FALSE;
-	    c->localid = alloc_channel_id(ssh);
-	    c->closes = 0;
-	    c->pending_eof = FALSE;
-	    c->throttling_conn = 0;
 	    c->type = CHAN_SOCKDATA;	/* identify channel type */
 	    add234(ssh->channels, c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
@@ -7793,20 +7785,22 @@ static int ssh_is_simple(Ssh ssh)
 }
 
 /*
- * Set up most of a new ssh_channel for SSH-2.
+ * Set up most of a new ssh_channel.
  */
-static void ssh2_channel_init(struct ssh_channel *c)
+static void ssh_channel_init(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
     c->localid = alloc_channel_id(ssh);
     c->closes = 0;
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
-    c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
-	ssh_is_simple(ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
-    c->v.v2.chanreq_head = NULL;
-    c->v.v2.throttle_state = UNTHROTTLED;
-    bufchain_init(&c->v.v2.outbuffer);
+    if (ssh->version == 2) {
+	c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
+	    ssh_is_simple(ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
+	c->v.v2.chanreq_head = NULL;
+	c->v.v2.throttle_state = UNTHROTTLED;
+	bufchain_init(&c->v.v2.outbuffer);
+    }
 }
 
 /*
@@ -8862,7 +8856,7 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
 	logeventf(ssh, "Rejected channel open: %s", error);
 	sfree(c);
     } else {
-	ssh2_channel_init(c);
+	ssh_channel_init(c);
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
         if (our_winsize_override) {
@@ -10650,7 +10644,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
     } else {
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
-	ssh2_channel_init(ssh->mainchan);
+	ssh_channel_init(ssh->mainchan);
 
 	if (*conf_get_str(ssh->conf, CONF_ssh_nc_host)) {
 	    /*
@@ -11722,7 +11716,7 @@ void *new_sock_channel(void *handle, struct PortForwarding *pf)
     c = snew(struct ssh_channel);
 
     c->ssh = ssh;
-    ssh2_channel_init(c);
+    ssh_channel_init(c);
     c->halfopen = TRUE;
     c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
     c->u.pfd.pf = pf;
@@ -11736,7 +11730,7 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
     c = snew(struct ssh_channel);
 
     c->ssh = ssh;
-    ssh2_channel_init(c);
+    ssh_channel_init(c);
     c->type = CHAN_SHARING;
     c->u.sharing.ctx = sharing_ctx;
     add234(ssh->channels, c);
