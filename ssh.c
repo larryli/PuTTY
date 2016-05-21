@@ -5521,7 +5521,6 @@ static void ssh1_smsg_x11_open(Ssh ssh, struct Packet *pktin)
         c->remoteid = remoteid;
         c->halfopen = FALSE;
         c->type = CHAN_X11;	/* identify channel type */
-        add234(ssh->channels, c);
         send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
                     PKT_INT, c->remoteid, PKT_INT,
                     c->localid, PKT_END);
@@ -5550,7 +5549,6 @@ static void ssh1_smsg_agent_open(Ssh ssh, struct Packet *pktin)
 	c->u.a.lensofar = 0;
 	c->u.a.message = NULL;
 	c->u.a.outstanding_requests = 0;
-	add234(ssh->channels, c);
 	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
 		    PKT_INT, c->remoteid, PKT_INT, c->localid,
 		    PKT_END);
@@ -5599,7 +5597,6 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 	    c->remoteid = remoteid;
 	    c->halfopen = FALSE;
 	    c->type = CHAN_SOCKDATA;	/* identify channel type */
-	    add234(ssh->channels, c);
 	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
 			PKT_INT, c->remoteid, PKT_INT,
 			c->localid, PKT_END);
@@ -7801,6 +7798,7 @@ static void ssh_channel_init(struct ssh_channel *c)
 	c->v.v2.throttle_state = UNTHROTTLED;
 	bufchain_init(&c->v.v2.outbuffer);
     }
+    add234(ssh->channels, c);
 }
 
 /*
@@ -8863,7 +8861,6 @@ static void ssh2_msg_channel_open(Ssh ssh, struct Packet *pktin)
             c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
                 our_winsize_override;
         }
-	add234(ssh->channels, c);
 	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
 	ssh2_pkt_adduint32(pktout, c->remoteid);
 	ssh2_pkt_adduint32(pktout, c->localid);
@@ -10677,7 +10674,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	ssh->mainchan->type = CHAN_MAINSESSION;
 	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
-	add234(ssh->channels, ssh->mainchan);
 	update_specials_menu(ssh->frontend);
 	logevent("Opened main channel");
     }
@@ -11720,7 +11716,6 @@ void *new_sock_channel(void *handle, struct PortForwarding *pf)
     c->halfopen = TRUE;
     c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
     c->u.pfd.pf = pf;
-    add234(ssh->channels, c);
     return c;
 }
 
@@ -11733,7 +11728,6 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
     ssh_channel_init(c);
     c->type = CHAN_SHARING;
     c->u.sharing.ctx = sharing_ctx;
-    add234(ssh->channels, c);
     return c->localid;
 }
 
