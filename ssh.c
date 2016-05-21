@@ -5771,6 +5771,22 @@ static int ssh_agent_channel_data(struct ssh_channel *c, char *data,
     return 0;   /* agent channels never back up */
 }
 
+static int ssh_channel_data(struct ssh_channel *c, int is_stderr,
+			    char *data,  int length)
+{
+    switch (c->type) {
+      case CHAN_MAINSESSION:
+	return from_backend(c->ssh->frontend, is_stderr, data, length);
+      case CHAN_X11:
+	return x11_send(c->u.x11.xconn, data, length);
+      case CHAN_SOCKDATA:
+	return pfd_send(c->u.pfd.pf, data, length);
+      case CHAN_AGENT:
+	return ssh_agent_channel_data(c, data, length);
+    }
+    return 0;
+}
+
 static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     /* Data sent down one of our channels. */
@@ -5783,18 +5799,7 @@ static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 
     c = find234(ssh->channels, &i, ssh_channelfind);
     if (c) {
-	int bufsize = 0;
-	switch (c->type) {
-	  case CHAN_X11:
-	    bufsize = x11_send(c->u.x11.xconn, p, len);
-	    break;
-	  case CHAN_SOCKDATA:
-	    bufsize = pfd_send(c->u.pfd.pf, p, len);
-	    break;
-	  case CHAN_AGENT:
-	    bufsize = ssh_agent_channel_data(c, p, len);
-	    break;
-	}
+	int bufsize = ssh_channel_data(c, FALSE, p, len);
 	if (!c->throttling_conn && bufsize > SSH1_BUFFER_LIMIT) {
 	    c->throttling_conn = 1;
 	    ssh_throttle_conn(ssh, +1);
@@ -8081,26 +8086,12 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 	return;			       /* extended but not stderr */
     ssh_pkt_getstring(pktin, &data, &length);
     if (data) {
-	int bufsize = 0;
+	int bufsize;
 	c->v.v2.locwindow -= length;
 	c->v.v2.remlocwin -= length;
-	switch (c->type) {
-	  case CHAN_MAINSESSION:
-	    bufsize =
-		from_backend(ssh->frontend, pktin->type ==
-			     SSH2_MSG_CHANNEL_EXTENDED_DATA,
-			     data, length);
-	    break;
-	  case CHAN_X11:
-	    bufsize = x11_send(c->u.x11.xconn, data, length);
-	    break;
-	  case CHAN_SOCKDATA:
-	    bufsize = pfd_send(c->u.pfd.pf, data, length);
-	    break;
-	  case CHAN_AGENT:
-	    bufsize = ssh_agent_channel_data(c, data, length);
-	    break;
-	}
+	bufsize = ssh_channel_data(c, pktin->type ==
+				   SSH2_MSG_CHANNEL_EXTENDED_DATA,
+				   data, length);
 	/*
 	 * If it looks like the remote end hit the end of its window,
 	 * and we didn't want it to do that, think about using a
