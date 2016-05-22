@@ -7971,6 +7971,8 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 /*
  * Find the channel associated with a message.  If there's no channel,
  * or it's not properly open, make a noise about it and return NULL.
+ * If the channel is shared, pass the message on to downstream and
+ * also return NULL (meaning the caller should ignore this message).
  */
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin)
 {
@@ -7995,6 +7997,11 @@ static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin)
 	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
 	sfree(buf);
 	return NULL;
+    }
+    if (c->type == CHAN_SHARING) {
+        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
+                                  pktin->body, pktin->length);
+        return NULL;
     }
     return c;
 }
@@ -8029,11 +8036,6 @@ static void ssh2_msg_channel_response(Ssh ssh, struct Packet *pktin)
     struct outstanding_channel_request *ocr;
 
     if (!c) return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     ocr = c->v.v2.chanreq_head;
     if (!ocr) {
 	ssh2_msg_unexpected(ssh, pktin);
@@ -8056,11 +8058,6 @@ static void ssh2_msg_channel_window_adjust(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     if (!(c->closes & CLOSES_SENT_EOF)) {
 	c->v.v2.remwindow += ssh_pkt_getuint32(pktin);
 	ssh2_try_send_and_unthrottle(ssh, c);
@@ -8075,11 +8072,6 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
 	ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
 	return;			       /* extended but not stderr */
@@ -8293,11 +8285,6 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     ssh2_channel_got_eof(c);
 }
 
@@ -8308,11 +8295,6 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
 
     /*
      * When we receive CLOSE on a channel, we assume it comes with an
@@ -8390,11 +8372,6 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     assert(c->halfopen); /* ssh_channel_msg will have enforced this */
     c->remoteid = ssh_pkt_getuint32(pktin);
     c->halfopen = FALSE;
@@ -8450,11 +8427,6 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     assert(c->halfopen); /* ssh_channel_msg will have enforced this */
 
     if (c->type == CHAN_SOCKDATA_DORMANT) {
@@ -8503,11 +8475,6 @@ static void ssh2_msg_channel_request(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
-        return;
-    }
     ssh_pkt_getstring(pktin, &type, &typelen);
     want_reply = ssh2_pkt_getbool(pktin);
 
