@@ -8207,6 +8207,7 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     Ssh ssh = c->ssh;
     struct Packet *pktout;
 
+    assert(ssh->version == 2);
     if (c->halfopen) {
         /*
          * If we've sent out our own CHANNEL_OPEN but not yet seen
