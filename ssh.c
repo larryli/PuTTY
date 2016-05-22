@@ -7986,10 +7986,12 @@ static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin)
 	halfopen_ok = (pktin->type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION ||
 		       pktin->type == SSH2_MSG_CHANNEL_OPEN_FAILURE);
     c = find234(ssh->channels, &localid, ssh_channelfind);
-    if (!c || (c->type != CHAN_SHARING && c->halfopen && !halfopen_ok)) {
+    if (!c || (c->type != CHAN_SHARING && (c->halfopen != halfopen_ok))) {
 	char *buf = dupprintf("Received %s for %s channel %u",
 			      ssh_pkt_type(ssh, pktin->type),
-			      c ? "half-open" : "nonexistent", localid);
+			      !c ? "nonexistent" :
+			      c->halfopen ? "half-open" : "open",
+			      localid);
 	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
 	sfree(buf);
 	return NULL;
