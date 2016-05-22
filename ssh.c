@@ -5618,13 +5618,11 @@ static void ssh1_msg_port_open(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 {
-    unsigned int remoteid = ssh_pkt_getuint32(pktin);
-    unsigned int localid = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
 
-    c = find234(ssh->channels, &remoteid, ssh_channelfind);
+    c = ssh_channel_msg(ssh, pktin);
     if (c && c->type == CHAN_SOCKDATA_DORMANT) {
-	c->remoteid = localid;
+	c->remoteid = ssh_pkt_getuint32(pktin);
 	c->halfopen = FALSE;
 	c->type = CHAN_SOCKDATA;
 	c->throttling_conn = 0;
@@ -5644,10 +5642,9 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
 {
-    unsigned int remoteid = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
 
-    c = find234(ssh->channels, &remoteid, ssh_channelfind);
+    c = ssh_channel_msg(ssh, pktin);
     if (c && c->type == CHAN_SOCKDATA_DORMANT) {
 	logevent("Forwarded connection refused by server");
 	pfd_close(c->u.pfd.pf);
@@ -5659,10 +5656,10 @@ static void ssh1_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
 static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
 {
     /* Remote side closes a channel. */
-    unsigned i = ssh_pkt_getuint32(pktin);
     struct ssh_channel *c;
-    c = find234(ssh->channels, &i, ssh_channelfind);
-    if (c && !c->halfopen) {
+
+    c = ssh_channel_msg(ssh, pktin);
+    if (c) {
 
         if (pktin->type == SSH1_MSG_CHANNEL_CLOSE &&
             !(c->closes & CLOSES_RCVD_EOF)) {
@@ -5703,8 +5700,9 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
             !(c->closes & CLOSES_RCVD_CLOSE)) {
 
             if (!(c->closes & CLOSES_SENT_EOF)) {
-                bombout(("Received CHANNEL_CLOSE_CONFIRMATION for channel %d"
-                         " for which we never sent CHANNEL_CLOSE\n", i));
+                bombout(("Received CHANNEL_CLOSE_CONFIRMATION for channel %u"
+                         " for which we never sent CHANNEL_CLOSE\n",
+			 c->localid));
             }
 
             c->closes |= CLOSES_RCVD_CLOSE;
@@ -5719,11 +5717,6 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
 
 	if (!((CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE) & ~c->closes))
             ssh_channel_destroy(c);
-    } else {
-	bombout(("Received CHANNEL_CLOSE%s for %s channel %d\n",
-		 pktin->type == SSH1_MSG_CHANNEL_CLOSE ? "" :
-		 "_CONFIRMATION", c ? "half-open" : "nonexistent",
-		 i));
     }
 }
 
@@ -5788,14 +5781,13 @@ static int ssh_channel_data(struct ssh_channel *c, int is_stderr,
 static void ssh1_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     /* Data sent down one of our channels. */
-    int i = ssh_pkt_getuint32(pktin);
     char *p;
     int len;
     struct ssh_channel *c;
 
+    c = ssh_channel_msg(ssh, pktin);
     ssh_pkt_getstring(pktin, &p, &len);
 
-    c = find234(ssh->channels, &i, ssh_channelfind);
     if (c) {
 	int bufsize = ssh_channel_data(c, FALSE, p, len);
 	if (!c->throttling_conn && bufsize > SSH1_BUFFER_LIMIT) {
