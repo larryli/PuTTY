@@ -464,7 +464,6 @@ enum {				       /* channel types */
     CHAN_X11,
     CHAN_AGENT,
     CHAN_SOCKDATA,
-    CHAN_SOCKDATA_DORMANT,	       /* one the remote hasn't confirmed */
     /*
      * CHAN_SHARING indicates a channel which is tracked here on
      * behalf of a connection-sharing downstream. We do almost nothing
@@ -3469,7 +3468,6 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 		x11_close(c->u.x11.xconn);
 		break;
 	      case CHAN_SOCKDATA:
-	      case CHAN_SOCKDATA_DORMANT:
 		pfd_close(c->u.pfd.pf);
 		break;
 	    }
@@ -5014,7 +5012,6 @@ void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
                   "error: %s", err);
         break;
       case CHAN_SOCKDATA:
-      case CHAN_SOCKDATA_DORMANT:
         pfd_close(c->u.pfd.pf);
         logeventf(ssh, "Forwarded port closed due to local error: %s", err);
         break;
@@ -5621,10 +5618,9 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     struct ssh_channel *c;
 
     c = ssh_channel_msg(ssh, pktin);
-    if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+    if (c && c->type == CHAN_SOCKDATA) {
 	c->remoteid = ssh_pkt_getuint32(pktin);
 	c->halfopen = FALSE;
-	c->type = CHAN_SOCKDATA;
 	c->throttling_conn = 0;
 	pfd_confirm(c->u.pfd.pf);
     }
@@ -5645,7 +5641,7 @@ static void ssh1_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     struct ssh_channel *c;
 
     c = ssh_channel_msg(ssh, pktin);
-    if (c && c->type == CHAN_SOCKDATA_DORMANT) {
+    if (c && c->type == CHAN_SOCKDATA) {
 	logevent("Forwarded connection refused by server");
 	pfd_close(c->u.pfd.pf);
 	del234(ssh->channels, c);
@@ -8378,8 +8374,7 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c->v.v2.remwindow = ssh_pkt_getuint32(pktin);
     c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
 
-    if (c->type == CHAN_SOCKDATA_DORMANT) {
-        c->type = CHAN_SOCKDATA;
+    if (c->type == CHAN_SOCKDATA) {
         if (c->u.pfd.pf)
             pfd_confirm(c->u.pfd.pf);
     } else if (c->type == CHAN_ZOMBIE) {
@@ -8429,7 +8424,7 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
 	return;
     assert(c->halfopen); /* ssh_channel_msg will have enforced this */
 
-    if (c->type == CHAN_SOCKDATA_DORMANT) {
+    if (c->type == CHAN_SOCKDATA) {
         reason_code = ssh_pkt_getuint32(pktin);
         if (reason_code >= lenof(reasons))
             reason_code = 0; /* ensure reasons[reason_code] in range */
@@ -11258,7 +11253,6 @@ static void ssh_free(void *handle)
 		    x11_close(c->u.x11.xconn);
 		break;
 	      case CHAN_SOCKDATA:
-	      case CHAN_SOCKDATA_DORMANT:
 		if (c->u.pfd.pf != NULL)
 		    pfd_close(c->u.pfd.pf);
 		break;
@@ -11689,7 +11683,7 @@ void *new_sock_channel(void *handle, struct PortForwarding *pf)
     c->ssh = ssh;
     ssh_channel_init(c);
     c->halfopen = TRUE;
-    c->type = CHAN_SOCKDATA_DORMANT;/* identify channel type */
+    c->type = CHAN_SOCKDATA;/* identify channel type */
     c->u.pfd.pf = pf;
     return c;
 }
