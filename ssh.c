@@ -8064,20 +8064,21 @@ static void ssh2_msg_channel_data(Ssh ssh, struct Packet *pktin)
 {
     char *data;
     int length;
+    unsigned ext_type = 0; /* 0 means not extended */
     struct ssh_channel *c;
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA &&
-	ssh_pkt_getuint32(pktin) != SSH2_EXTENDED_DATA_STDERR)
-	return;			       /* extended but not stderr */
+    if (pktin->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)
+	ext_type = ssh_pkt_getuint32(pktin);
     ssh_pkt_getstring(pktin, &data, &length);
     if (data) {
 	int bufsize;
 	c->v.v2.locwindow -= length;
 	c->v.v2.remlocwin -= length;
-	bufsize = ssh_channel_data(c, pktin->type ==
-				   SSH2_MSG_CHANNEL_EXTENDED_DATA,
+	if (ext_type != 0 && ext_type != SSH2_EXTENDED_DATA_STDERR)
+	    length = 0; /* Don't do anything with unknown extended data. */
+	bufsize = ssh_channel_data(c, ext_type == SSH2_EXTENDED_DATA_STDERR,
 				   data, length);
 	/*
 	 * If it looks like the remote end hit the end of its window,
