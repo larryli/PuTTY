@@ -8267,8 +8267,6 @@ static void ssh2_channel_got_eof(struct ssh_channel *c)
         }
         ssh->sent_console_eof = TRUE;
     }
-
-    ssh2_channel_check_close(c);
 }
 
 static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
@@ -8279,6 +8277,7 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
     if (!c)
 	return;
     ssh2_channel_got_eof(c);
+    ssh2_channel_check_close(c);
 }
 
 static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
