@@ -366,6 +366,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
 static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
+static void ssh_channel_got_eof(struct ssh_channel *c);
 static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_destroy(struct ssh_channel *c);
 static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
@@ -5657,35 +5658,12 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (c) {
 
-        if (pktin->type == SSH1_MSG_CHANNEL_CLOSE &&
-            !(c->closes & CLOSES_RCVD_EOF)) {
+        if (pktin->type == SSH1_MSG_CHANNEL_CLOSE) {
             /*
              * Received CHANNEL_CLOSE, which we translate into
              * outgoing EOF.
              */
-            int send_close = FALSE;
-
-            c->closes |= CLOSES_RCVD_EOF;
-
-            switch (c->type) {
-              case CHAN_X11:
-                assert(c->u.x11.xconn != NULL);
-		x11_send_eof(c->u.x11.xconn);
-		break;
-              case CHAN_SOCKDATA:
-		assert(c->u.pfd.pf != NULL);
-		pfd_send_eof(c->u.pfd.pf);
-		break;
-              case CHAN_AGENT:
-                send_close = TRUE;
-		break;
-            }
-
-            if (send_close && !(c->closes & CLOSES_SENT_EOF)) {
-                send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
-                            PKT_END);
-                c->closes |= CLOSES_SENT_EOF;
-            }
+	    ssh_channel_got_eof(c);
         }
 
         if (pktin->type == SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION &&
@@ -8235,13 +8213,14 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     }
 }
 
-static void ssh2_channel_got_eof(struct ssh_channel *c)
+static void ssh_channel_got_eof(struct ssh_channel *c)
 {
     if (c->closes & CLOSES_RCVD_EOF)
         return;                        /* already seen EOF */
     c->closes |= CLOSES_RCVD_EOF;
 
     if (c->type == CHAN_X11) {
+	assert(c->u.x11.xconn != NULL);
 	x11_send_eof(c->u.x11.xconn);
     } else if (c->type == CHAN_AGENT) {
         if (c->u.a.outstanding_requests == 0) {
@@ -8249,6 +8228,7 @@ static void ssh2_channel_got_eof(struct ssh_channel *c)
             sshfwd_write_eof(c);
         }
     } else if (c->type == CHAN_SOCKDATA) {
+	assert(c->u.pfd.pf != NULL);
 	pfd_send_eof(c->u.pfd.pf);
     } else if (c->type == CHAN_MAINSESSION) {
         Ssh ssh = c->ssh;
@@ -8276,7 +8256,7 @@ static void ssh2_msg_channel_eof(Ssh ssh, struct Packet *pktin)
     c = ssh_channel_msg(ssh, pktin);
     if (!c)
 	return;
-    ssh2_channel_got_eof(c);
+    ssh_channel_got_eof(c);
     ssh2_channel_check_close(c);
 }
 
@@ -8292,7 +8272,7 @@ static void ssh2_msg_channel_close(Ssh ssh, struct Packet *pktin)
      * When we receive CLOSE on a channel, we assume it comes with an
      * implied EOF if we haven't seen EOF yet.
      */
-    ssh2_channel_got_eof(c);
+    ssh_channel_got_eof(c);
 
     if (!(ssh->remote_bugs & BUG_SENDS_LATE_REQUEST_REPLY)) {
         /*
