@@ -5669,16 +5669,12 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
 
             switch (c->type) {
               case CHAN_X11:
-                if (c->u.x11.xconn)
-                    x11_send_eof(c->u.x11.xconn);
-                else
-                    send_close = TRUE;
+                assert(c->u.x11.xconn != NULL);
+		x11_send_eof(c->u.x11.xconn);
 		break;
               case CHAN_SOCKDATA:
-                if (c->u.pfd.pf)
-                    pfd_send_eof(c->u.pfd.pf);
-                else
-                    send_close = TRUE;
+		assert(c->u.pfd.pf != NULL);
+		pfd_send_eof(c->u.pfd.pf);
 		break;
               case CHAN_AGENT:
                 send_close = TRUE;
@@ -8170,16 +8166,16 @@ static void ssh_channel_destroy(struct ssh_channel *c)
         update_specials_menu(ssh->frontend);
         break;
       case CHAN_X11:
-        if (c->u.x11.xconn != NULL)
-            x11_close(c->u.x11.xconn);
+        assert(c->u.x11.xconn != NULL);
+	x11_close(c->u.x11.xconn);
         logevent("Forwarded X11 connection terminated");
         break;
       case CHAN_AGENT:
         sfree(c->u.a.message);
         break;
       case CHAN_SOCKDATA:
-        if (c->u.pfd.pf != NULL)
-            pfd_close(c->u.pfd.pf);
+        assert(c->u.pfd.pf != NULL);
+	pfd_close(c->u.pfd.pf);
         logevent("Forwarded port closed");
         break;
     }
@@ -8376,8 +8372,8 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
     c->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
 
     if (c->type == CHAN_SOCKDATA) {
-        if (c->u.pfd.pf)
-            pfd_confirm(c->u.pfd.pf);
+	assert(c->u.pfd.pf != NULL);
+	pfd_confirm(c->u.pfd.pf);
     } else if (c->type == CHAN_ZOMBIE) {
         /*
          * This case can occur if a local socket error occurred
@@ -11250,12 +11246,12 @@ static void ssh_free(void *handle)
 	while ((c = delpos234(ssh->channels, 0)) != NULL) {
 	    switch (c->type) {
 	      case CHAN_X11:
-		if (c->u.x11.xconn != NULL)
-		    x11_close(c->u.x11.xconn);
+		assert(c->u.x11.xconn != NULL);
+		x11_close(c->u.x11.xconn);
 		break;
 	      case CHAN_SOCKDATA:
-		if (c->u.pfd.pf != NULL)
-		    pfd_close(c->u.pfd.pf);
+		assert(c->u.pfd.pf != NULL);
+		pfd_close(c->u.pfd.pf);
 		break;
 	    }
 	    if (ssh->version == 2) {
