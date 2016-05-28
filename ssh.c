@@ -368,6 +368,7 @@ static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
 static void ssh_channel_got_eof(struct ssh_channel *c);
 static void ssh2_channel_check_close(struct ssh_channel *c);
+static void ssh_channel_close_local(struct ssh_channel *c, char const *reason);
 static void ssh_channel_destroy(struct ssh_channel *c);
 static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin);
@@ -3464,14 +3465,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
      */
     if (ssh->channels) {
 	while (NULL != (c = index234(ssh->channels, 0))) {
-	    switch (c->type) {
-	      case CHAN_X11:
-		x11_close(c->u.x11.xconn);
-		break;
-	      case CHAN_SOCKDATA:
-		pfd_close(c->u.pfd.pf);
-		break;
-	    }
+	    ssh_channel_close_local(c, NULL);
 	    del234(ssh->channels, c); /* moving next one to index 0 */
 	    if (ssh->version == 2)
 		bufchain_clear(&c->v.v2.outbuffer);
@@ -5002,22 +4996,14 @@ void sshfwd_write_eof(struct ssh_channel *c)
 void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
 {
     Ssh ssh = c->ssh;
+    char *reason;
 
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    switch (c->type) {
-      case CHAN_X11:
-        x11_close(c->u.x11.xconn);
-        logeventf(ssh, "Forwarded X11 connection terminated due to local "
-                  "error: %s", err);
-        break;
-      case CHAN_SOCKDATA:
-        pfd_close(c->u.pfd.pf);
-        logeventf(ssh, "Forwarded port closed due to local error: %s", err);
-        break;
-    }
-    c->type = CHAN_ZOMBIE;
+    reason = dupprintf("due to local error: %s", err);
+    ssh_channel_close_local(c, reason);
+    sfree(reason);
     c->pending_eof = FALSE;   /* this will confuse a zombie channel */
 
     ssh2_channel_check_close(c);
@@ -8134,9 +8120,14 @@ void ssh_sharing_logf(Ssh ssh, unsigned id, const char *logfmt, ...)
     sfree(buf);
 }
 
-static void ssh_channel_destroy(struct ssh_channel *c)
+/*
+ * Close any local socket and free any local resources associated with
+ * a channel.  This converts the channel into a CHAN_ZOMBIE.
+ */
+static void ssh_channel_close_local(struct ssh_channel *c, char const *reason)
 {
     Ssh ssh = c->ssh;
+    char const *msg = NULL;
 
     switch (c->type) {
       case CHAN_MAINSESSION:
@@ -8146,7 +8137,7 @@ static void ssh_channel_destroy(struct ssh_channel *c)
       case CHAN_X11:
         assert(c->u.x11.xconn != NULL);
 	x11_close(c->u.x11.xconn);
-        logevent("Forwarded X11 connection terminated");
+        msg = "Forwarded X11 connection terminated";
         break;
       case CHAN_AGENT:
         sfree(c->u.a.message);
@@ -8154,9 +8145,23 @@ static void ssh_channel_destroy(struct ssh_channel *c)
       case CHAN_SOCKDATA:
         assert(c->u.pfd.pf != NULL);
 	pfd_close(c->u.pfd.pf);
-        logevent("Forwarded port closed");
+	msg = "Forwarded port closed";
         break;
     }
+    c->type = CHAN_ZOMBIE;
+    if (msg != NULL) {
+	if (reason != NULL)
+	    logeventf(ssh, "%s %s", msg, reason);
+	else
+	    logevent(msg);
+    }
+}
+
+static void ssh_channel_destroy(struct ssh_channel *c)
+{
+    Ssh ssh = c->ssh;
+
+    ssh_channel_close_local(c, NULL);
 
     del234(ssh->channels, c);
     if (ssh->version == 2) {
@@ -11223,16 +11228,7 @@ static void ssh_free(void *handle)
 
     if (ssh->channels) {
 	while ((c = delpos234(ssh->channels, 0)) != NULL) {
-	    switch (c->type) {
-	      case CHAN_X11:
-		assert(c->u.x11.xconn != NULL);
-		x11_close(c->u.x11.xconn);
-		break;
-	      case CHAN_SOCKDATA:
-		assert(c->u.pfd.pf != NULL);
-		pfd_close(c->u.pfd.pf);
-		break;
-	    }
+	    ssh_channel_close_local(c, NULL);
 	    if (ssh->version == 2) {
 		struct outstanding_channel_request *ocr, *nocr;
 		ocr = c->v.v2.chanreq_head;
