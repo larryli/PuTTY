@@ -572,7 +572,7 @@ void pty_pre_init(void)
 
 }
 
-int pty_real_select_result(Pty pty, int event, int status)
+void pty_real_select_result(Pty pty, int event, int status)
 {
     char buf[4096];
     int ret;
@@ -672,13 +672,10 @@ int pty_real_select_result(Pty pty, int event, int status)
 
 	notify_remote_exit(pty->frontend);
     }
-
-    return !finished;
 }
 
-int pty_select_result(int fd, int event)
+void pty_select_result(int fd, int event)
 {
-    int ret = TRUE;
     Pty pty;
 
     if (fd == pty_signal_pipe[0]) {
@@ -696,16 +693,14 @@ int pty_select_result(int fd, int event)
 	    pty = find234(ptys_by_pid, &pid, pty_find_by_pid);
 
 	    if (pty)
-		ret = ret && pty_real_select_result(pty, -1, status);
+		pty_real_select_result(pty, -1, status);
 	} while (pid > 0);
     } else {
 	pty = find234(ptys_by_fd, &fd, pty_find_by_fd);
 
 	if (pty)
-	    ret = ret && pty_real_select_result(pty, event, 0);
+	    pty_real_select_result(pty, event, 0);
     }
-
-    return ret;
 }
 
 static void pty_uxsel_setup(Pty pty)

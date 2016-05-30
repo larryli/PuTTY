@@ -33,7 +33,7 @@ struct Socket_localproxy_tag {
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 };
 
-static int localproxy_select_result(int fd, int event);
+static void localproxy_select_result(int fd, int event);
 
 /*
  * Trees to look up the pipe fds in.
@@ -229,7 +229,7 @@ static const char * sk_localproxy_socket_error (Socket s)
     return ps->error;
 }
 
-static int localproxy_select_result(int fd, int event)
+static void localproxy_select_result(int fd, int event)
 {
     Local_Proxy_Socket s;
     char buf[20480];
@@ -238,7 +238,7 @@ static int localproxy_select_result(int fd, int event)
     if (!(s = find234(localproxy_by_fromfd, &fd, localproxy_fromfd_find)) &&
 	!(s = find234(localproxy_by_fromfd, &fd, localproxy_errfd_find)) &&
 	!(s = find234(localproxy_by_tofd, &fd, localproxy_tofd_find)) )
-	return 1;		       /* boggle */
+	return;		       /* boggle */
 
     if (event == 1) {
         if (fd == s->cmd_err) {
@@ -249,21 +249,18 @@ static int localproxy_select_result(int fd, int event)
             assert(fd == s->from_cmd);
             ret = read(fd, buf, sizeof(buf));
             if (ret < 0) {
-                return plug_closing(s->plug, strerror(errno), errno, 0);
+                plug_closing(s->plug, strerror(errno), errno, 0);
             } else if (ret == 0) {
-                return plug_closing(s->plug, NULL, 0, 0);
+                plug_closing(s->plug, NULL, 0, 0);
             } else {
-                return plug_receive(s->plug, 0, buf, ret);
+                plug_receive(s->plug, 0, buf, ret);
             }
         }
     } else if (event == 2) {
 	assert(fd == s->to_cmd);
 	if (localproxy_try_send(s))
 	    plug_sent(s->plug, bufchain_size(&s->pending_output_data));
-	return 1;
     }
-
-    return 1;
 }
 
 Socket platform_new_connection(SockAddr addr, const char *hostname,

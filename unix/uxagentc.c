@@ -98,7 +98,7 @@ void agent_cancel_query(agent_pending_query *conn)
     sfree(conn);
 }
 
-static int agent_select_result(int fd, int event)
+static void agent_select_result(int fd, int event)
 {
     agent_pending_query *conn;
 
@@ -107,11 +107,11 @@ static int agent_select_result(int fd, int event)
     conn = find234(agent_pending_queries, &fd, agent_connfind);
     if (!conn) {
 	uxsel_del(fd);
-	return 1;
+	return;
     }
 
     if (!agent_try_read(conn))
-	return 0;		       /* more data to come */
+	return;		       /* more data to come */
 
     /*
      * We have now completed the agent query. Do the callback, and
@@ -120,7 +120,6 @@ static int agent_select_result(int fd, int event)
      */
     conn->callback(conn->callback_ctx, conn->retbuf, conn->retlen);
     agent_cancel_query(conn);
-    return 0;
 }
 
 agent_pending_query *agent_query(

@@ -1266,7 +1266,7 @@ static void sk_tcp_write_eof(Socket sock)
     uxsel_tell(s);
 }
 
-static int net_select_result(int fd, int event)
+static void net_select_result(int fd, int event)
 {
     int ret;
     char buf[20480];		       /* nice big buffer for plenty of speed */
@@ -1276,7 +1276,7 @@ static int net_select_result(int fd, int event)
     /* Find the Socket structure */
     s = find234(sktree, &fd, cmpforsearch);
     if (!s)
-	return 1;		       /* boggle */
+	return;		       /* boggle */
 
     noise_ultralight(event);
 
@@ -1292,9 +1292,9 @@ static int net_select_result(int fd, int event)
 	    ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
 	    noise_ultralight(ret);
 	    if (ret <= 0) {
-                return plug_closing(s->plug,
-				    ret == 0 ? "Internal networking trouble" :
-				    strerror(errno), errno, 0);
+                plug_closing(s->plug,
+			     ret == 0 ? "Internal networking trouble" :
+			     strerror(errno), errno, 0);
 	    } else {
                 /*
                  * Receiving actual data on a socket means we can
@@ -1305,7 +1305,7 @@ static int net_select_result(int fd, int event)
                     sk_addr_free(s->addr);
                     s->addr = NULL;
                 }
-		return plug_receive(s->plug, 2, buf, ret);
+		plug_receive(s->plug, 2, buf, ret);
 	    }
 	    break;
 	}
@@ -1377,11 +1377,11 @@ static int net_select_result(int fd, int event)
 	    }
 	}
 	if (ret < 0) {
-            return plug_closing(s->plug, strerror(errno), errno, 0);
+            plug_closing(s->plug, strerror(errno), errno, 0);
 	} else if (0 == ret) {
             s->incomingeof = TRUE;     /* stop trying to read now */
             uxsel_tell(s);
-	    return plug_closing(s->plug, NULL, 0, 0);
+	    plug_closing(s->plug, NULL, 0, 0);
 	} else {
             /*
              * Receiving actual data on a socket means we can
@@ -1392,7 +1392,7 @@ static int net_select_result(int fd, int event)
                 sk_addr_free(s->addr);
                 s->addr = NULL;
             }
-	    return plug_receive(s->plug, atmark ? 0 : 1, buf, ret);
+	    plug_receive(s->plug, atmark ? 0 : 1, buf, ret);
 	}
 	break;
       case 2:			       /* writable */
@@ -1430,9 +1430,9 @@ static int net_select_result(int fd, int event)
                         err = try_connect(s);
                     }
                     if (err)
-                        return plug_closing(s->plug, strerror(err), err, 0);
+                        plug_closing(s->plug, strerror(err), err, 0);
                     if (!s->connected)
-                        return 0;      /* another async attempt in progress */
+                        return;      /* another async attempt in progress */
                 }
             }
 
@@ -1456,8 +1456,6 @@ static int net_select_result(int fd, int event)
 	}
 	break;
     }
-
-    return 1;
 }
 
 /*

@@ -180,7 +180,7 @@ void postmsg(struct termios *);
 /* The interface used by uxsel.c */
 typedef struct uxsel_id uxsel_id;
 void uxsel_init(void);
-typedef int (*uxsel_callback_fn)(int fd, int event);
+typedef void (*uxsel_callback_fn)(int fd, int event);
 void uxsel_set(int fd, int rwx, uxsel_callback_fn callback);
 void uxsel_del(int fd);
 void select_result(int fd, int event);
