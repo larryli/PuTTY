@@ -183,7 +183,7 @@ void uxsel_init(void);
 typedef int (*uxsel_callback_fn)(int fd, int event);
 void uxsel_set(int fd, int rwx, uxsel_callback_fn callback);
 void uxsel_del(int fd);
-int select_result(int fd, int event);
+void select_result(int fd, int event);
 int first_fd(int *state, int *rwx);
 int next_fd(int *state, int *rwx);
 /* The following are expected to be provided _to_ uxsel.c by the frontend */

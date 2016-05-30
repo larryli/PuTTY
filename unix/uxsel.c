@@ -111,7 +111,7 @@ int first_fd(int *state, int *rwx)
     return next_fd(state, rwx);
 }
 
-int select_result(int fd, int event)
+void select_result(int fd, int event)
 {
     struct fd *fdstruct = find234(fds, &fd, uxsel_fd_findcmp);
     /*
@@ -120,7 +120,5 @@ int select_result(int fd, int event)
      * fd I've stopped being interested in. Sigh.
      */
     if (fdstruct)
-        return fdstruct->callback(fd, event);
-    else
-        return 1;
+        fdstruct->callback(fd, event);
 }
