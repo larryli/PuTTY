@@ -727,7 +727,6 @@ int main(int argc, char **argv)
 	    WSANETWORKEVENTS things;
 	    SOCKET socket;
 	    extern SOCKET first_socket(int *), next_socket(int *);
-	    extern int select_result(WPARAM, LPARAM);
 	    int i, socketstate;
 
 	    /*
