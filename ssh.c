@@ -3560,8 +3560,8 @@ void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
     }
 }
 
-static int ssh_closing(Plug plug, const char *error_msg, int error_code,
-		       int calling_back)
+static void ssh_closing(Plug plug, const char *error_msg, int error_code,
+			int calling_back)
 {
     Ssh ssh = (Ssh) plug;
     int need_notify = ssh_do_close(ssh, FALSE);
@@ -3583,18 +3583,15 @@ static int ssh_closing(Plug plug, const char *error_msg, int error_code,
 	logevent(error_msg);
     if (!ssh->close_expected || !ssh->clean_exit)
 	connection_fatal(ssh->frontend, "%s", error_msg);
-    return 0;
 }
 
-static int ssh_receive(Plug plug, int urgent, char *data, int len)
+static void ssh_receive(Plug plug, int urgent, char *data, int len)
 {
     Ssh ssh = (Ssh) plug;
     ssh_gotdata(ssh, (unsigned char *)data, len);
     if (ssh->state == SSH_STATE_CLOSED) {
 	ssh_do_close(ssh, TRUE);
-	return 0;
     }
-    return 1;
 }
 
 static void ssh_sent(Plug plug, int bufsize)
