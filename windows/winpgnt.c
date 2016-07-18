@@ -1072,6 +1072,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     int argc, i;
     char **argv, **argstart;
 
+    dll_hijacking_protection();
+
     hinst = inst;
     hwnd = NULL;
 

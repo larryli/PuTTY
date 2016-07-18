@@ -347,6 +347,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     HRESULT hr;
     int guess_width, guess_height;
 
+    dll_hijacking_protection();
+
     hinst = inst;
     hwnd = NULL;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;

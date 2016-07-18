@@ -312,6 +312,8 @@ int main(int argc, char **argv)
     int just_test_share_exists = FALSE;
     unsigned long now, next, then;
 
+    dll_hijacking_protection();
+
     sklist = NULL;
     skcount = sksize = 0;
     /*

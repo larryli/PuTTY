@@ -773,6 +773,8 @@ int main(int argc, char *argv[])
 {
     int ret;
 
+    dll_hijacking_protection();
+
     ret = psftp_main(argc, argv);
 
     return ret;
