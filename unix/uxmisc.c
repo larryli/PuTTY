@@ -322,3 +322,28 @@ char *make_dir_and_check_ours(const char *dirname)
 
     return NULL;
 }
+
+char *make_dir_path(const char *path, mode_t mode)
+{
+    int pos = 0;
+    char *prefix;
+
+    while (1) {
+        pos += strcspn(path + pos, "/");
+
+        if (pos > 0) {
+            prefix = dupprintf("%.*s", pos, path);
+
+            if (mkdir(prefix, mode) < 0 && errno != EEXIST) {
+                char *ret = dupprintf("%s: mkdir: %s",
+                                      prefix, strerror(errno));
+                sfree(prefix);
+                return ret;
+            }
+        }
+
+        if (!path[pos])
+            return NULL;
+        pos += strspn(path + pos, "/");
+    }
+}
