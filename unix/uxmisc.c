@@ -340,6 +340,8 @@ char *make_dir_path(const char *path, mode_t mode)
                 sfree(prefix);
                 return ret;
             }
+
+            sfree(prefix);
         }
 
         if (!path[pos])
