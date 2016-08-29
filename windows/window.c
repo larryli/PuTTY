@@ -357,6 +357,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     InitCommonControls();
 
+    /* Set Explicit App User Model Id so that jump lists don't cause
+       PuTTY to hang on to removable media. */
+
+    set_explicit_app_user_model_id();
+
     /* Ensure a Maximize setting in Explorer doesn't maximise the
      * config box. */
     defuse_showwindow();
