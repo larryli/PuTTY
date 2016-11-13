@@ -117,7 +117,7 @@ if ($precheck || $postcheck) {
     # downloaded files against the exact contents they should have.
     -d "putty" or die "no putty directory in cwd";
 
-    my $httpprefix = "http://the.earth.li/~sgtatham/putty/";
+    my $httpprefix = "https://the.earth.li/~sgtatham/putty/";
     my $ftpprefix = "ftp://ftp.chiark.greenend.org.uk/users/sgtatham/putty-";
 
     # Go through all the files in build.out.
