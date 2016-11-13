@@ -638,6 +638,8 @@ char *dup_keyval_name(guint keyval)
 }
 #endif
 
+static void change_font_size(struct gui_data *inst, int increment);
+
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
@@ -837,6 +839,23 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 	}
+
+        if (event->keyval == GDK_KEY_greater &&
+            (event->state & GDK_CONTROL_MASK)) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - Ctrl->: increase font size\n"));
+#endif
+            change_font_size(inst, +1);
+            return TRUE;
+        }
+        if (event->keyval == GDK_KEY_less &&
+            (event->state & GDK_CONTROL_MASK)) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - Ctrl-<: increase font size\n"));
+#endif
+            change_font_size(inst, -1);
+            return TRUE;
+        }
 
 	/*
 	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
@@ -3970,6 +3989,67 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     }
     sfree(title);
     inst->reconfiguring = FALSE;
+}
+
+static void change_font_size(struct gui_data *inst, int increment)
+{
+    static const int conf_keys[lenof(inst->fonts)] = {
+        CONF_font, CONF_boldfont, CONF_widefont, CONF_wideboldfont,
+    };
+    FontSpec *oldfonts[lenof(inst->fonts)];
+    FontSpec *newfonts[lenof(inst->fonts)];
+    char *errmsg = NULL;
+    int i;
+
+    for (i = 0; i < lenof(newfonts); i++)
+        oldfonts[i] = newfonts[i] = NULL;
+
+    for (i = 0; i < lenof(inst->fonts); i++) {
+        if (inst->fonts[i]) {
+            char *newname = unifont_size_increment(inst->fonts[i], increment);
+            if (!newname)
+                goto cleanup;
+            newfonts[i] = fontspec_new(newname);
+            sfree(newname);
+        }
+    }
+
+    for (i = 0; i < lenof(newfonts); i++) {
+        if (newfonts[i]) {
+            oldfonts[i] = fontspec_copy(
+                conf_get_fontspec(inst->conf, conf_keys[i]));
+            conf_set_fontspec(inst->conf, conf_keys[i], newfonts[i]);
+        }
+    }
+
+    errmsg = setup_fonts_ucs(inst);
+    if (errmsg)
+        goto cleanup;
+
+    /* Success, so suppress putting everything back */
+    for (i = 0; i < lenof(newfonts); i++) {
+        if (oldfonts[i]) {
+            fontspec_free(oldfonts[i]);
+            oldfonts[i] = NULL;
+        }
+    }
+
+    set_geom_hints(inst);
+    request_resize(inst, conf_get_int(inst->conf, CONF_width),
+                   conf_get_int(inst->conf, CONF_height));
+    term_invalidate(inst->term);
+    gtk_widget_queue_draw(inst->area);
+
+  cleanup:
+    for (i = 0; i < lenof(oldfonts); i++) {
+        if (oldfonts[i]) {
+            conf_set_fontspec(inst->conf, conf_keys[i], oldfonts[i]);
+            fontspec_free(oldfonts[i]);
+        }
+        if (newfonts[i])
+            fontspec_free(newfonts[i]);
+    }
+    sfree(errmsg);
 }
 
 void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)

@@ -142,6 +142,9 @@ void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
 void unifont_draw_combining(unifont_drawctx *ctx, unifont *font,
                             int x, int y, const wchar_t *string, int len,
                             int wide, int bold, int cellwidth);
+/* Return a name that will select a bigger/smaller font than this one,
+ * or NULL if no such name is available. */
+char *unifont_size_increment(unifont *font, int increment);
 
 /*
  * This function behaves exactly like the low-level unifont_create,

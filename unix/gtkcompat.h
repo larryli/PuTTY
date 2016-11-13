@@ -153,6 +153,8 @@
 #define GDK_KEY_Right                GDK_Right
 #define GDK_KEY_Tab                  GDK_Tab
 #define GDK_KEY_Up                   GDK_Up
+#define GDK_KEY_greater              GDK_greater
+#define GDK_KEY_less                 GDK_less
 
 #endif
 
