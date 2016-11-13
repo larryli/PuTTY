@@ -219,6 +219,86 @@ static const struct unifont_vtable x11font_vtable = {
     "server",
 };
 
+#define XLFD_STRING_PARTS_LIST(S,I)             \
+    S(foundry)                                  \
+    S(family_name)                              \
+    S(weight_name)                              \
+    S(slant)                                    \
+    S(setwidth_name)                            \
+    S(add_style_name)                           \
+    I(pixel_size)                               \
+    I(point_size)                               \
+    I(resolution_x)                             \
+    I(resolution_y)                             \
+    S(spacing)                                  \
+    I(average_width)                            \
+    S(charset_registry)                         \
+    S(charset_encoding)                         \
+    /* end of list */
+
+struct xlfd_decomposed {
+#define STR_FIELD(f) const char *f;
+#define INT_FIELD(f) int f;
+    XLFD_STRING_PARTS_LIST(STR_FIELD, INT_FIELD)
+#undef STR_FIELD
+#undef INT_FIELD
+};
+
+static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
+{
+    void *mem;
+    char *p, *components[14];
+    struct xlfd_decomposed *dec;
+    int i;
+
+    if (!xlfd)
+        return NULL;
+
+    mem = smalloc(sizeof(struct xlfd_decomposed) + strlen(xlfd) + 1);
+    p = ((char *)mem) + sizeof(struct xlfd_decomposed);
+    strcpy(p, xlfd);
+    dec = (struct xlfd_decomposed *)mem;
+
+    for (i = 0; i < 14; i++) {
+        if (*p != '-') {
+            /* Malformed XLFD: not enough '-' */
+            sfree(mem);
+            return NULL;
+        }
+        *p++ = '\0';
+        components[i] = p;
+        p += strcspn(p, "-");
+    }
+    if (*p) {
+        /* Malformed XLFD: too many '-' */
+        sfree(mem);
+        return NULL;
+    }
+
+    i = 0;
+#define STORE_STR(f) dec->f = components[i++];
+#define STORE_INT(f) dec->f = atoi(components[i++]);
+    XLFD_STRING_PARTS_LIST(STORE_STR, STORE_INT)
+#undef STORE_STR
+#undef STORE_INT
+
+    return dec;
+}
+
+static char *xlfd_recompose(const struct xlfd_decomposed *dec)
+{
+#define FMT_STR(f) "-%s"
+#define ARG_STR(f) , dec->f
+#define FMT_INT(f) "-%d"
+#define ARG_INT(f) , dec->f
+    return dupprintf(XLFD_STRING_PARTS_LIST(FMT_STR, FMT_INT)
+                     XLFD_STRING_PARTS_LIST(ARG_STR, ARG_INT));
+#undef FMT_STR
+#undef ARG_STR
+#undef FMT_INT
+#undef ARG_INT
+}
+
 static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
 {
     Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
@@ -226,48 +306,27 @@ static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
     unsigned long ret;
     if (XGetFontProperty(xfs, fontprop, &ret)) {
 	char *name = XGetAtomName(disp, (Atom)ret);
-	if (name && name[0] == '-') {
-	    const char *strings[13];
-	    char *dupname, *extrafree = NULL, *ret;
-	    char *p, *q;
-	    int nstr;
+        struct xlfd_decomposed *xlfd = xlfd_decompose(name);
+        if (!xlfd)
+            return NULL;
 
-	    p = q = dupname = dupstr(name); /* skip initial minus */
-	    nstr = 0;
+        if (bold)
+            xlfd->weight_name = "bold";
 
-	    while (*p && nstr < lenof(strings)) {
-		if (*p == '-') {
-		    *p = '\0';
-		    strings[nstr++] = p+1;
-		}
-		p++;
-	    }
+        if (wide) {
+            /* Width name obviously may have changed. */
+            /* Additional style may now become e.g. `ja' or `ko'. */
+            xlfd->setwidth_name = xlfd->add_style_name = "*";
 
-	    if (nstr < lenof(strings)) {
-                sfree(dupname);
-		return NULL;	       /* XLFD was malformed */
-            }
+            /* Expect to double the average width. */
+            xlfd->average_width *= 2;
+        }
 
-	    if (bold)
-		strings[2] = "bold";
-
-	    if (wide) {
-		/* 4 is `wideness', which obviously may have changed. */
-		/* 5 is additional style, which may be e.g. `ja' or `ko'. */
-		strings[4] = strings[5] = "*";
-		strings[11] = extrafree = dupprintf("%d", 2*atoi(strings[11]));
-	    }
-
-	    ret = dupcat("-", strings[ 0], "-", strings[ 1], "-", strings[ 2],
-			 "-", strings[ 3], "-", strings[ 4], "-", strings[ 5],
-			 "-", strings[ 6], "-", strings[ 7], "-", strings[ 8],
-			 "-", strings[ 9], "-", strings[10], "-", strings[11],
-			 "-", strings[12], NULL);
-	    sfree(extrafree);
-	    sfree(dupname);
-
-	    return ret;
-	}
+        {
+            char *ret = xlfd_recompose(xlfd);
+            sfree(xlfd);
+            return ret;
+        }
     }
     return NULL;
 }
@@ -921,73 +980,65 @@ static void x11font_enum_fonts(GtkWidget *widget,
     tmpsize = 0;
 
     for (i = 0; i < nnames; i++) {
-	if (fontnames[i][0] == '-') {
+        struct xlfd_decomposed *xlfd = xlfd_decompose(fontnames[i]);
+	if (xlfd) {
+            char *p, *font, *style, *stylekey, *charset;
+            int weightkey, slantkey, setwidthkey;
+            int thistmpsize;
+
 	    /*
-	     * Dismember an XLFD and convert it into the format
-	     * we'll be using in the font selector.
+	     * Convert a dismembered XLFD into the format we'll be
+	     * using in the font selector.
 	     */
-	    char *components[14];
-	    char *p, *font, *style, *stylekey, *charset;
-	    int j, weightkey, slantkey, setwidthkey;
-	    int thistmpsize, fontsize, flags;
 
-	    thistmpsize = 4 * strlen(fontnames[i]) + 256;
-	    if (tmpsize < thistmpsize) {
-		tmpsize = thistmpsize;
-		tmp = sresize(tmp, tmpsize, char);
-	    }
-	    strcpy(tmp, fontnames[i]);
-
+            thistmpsize = 4 * strlen(fontnames[i]) + 256;
+            if (tmpsize < thistmpsize) {
+                tmpsize = thistmpsize;
+                tmp = sresize(tmp, tmpsize, char);
+            }
 	    p = tmp;
-	    for (j = 0; j < 14; j++) {
-		if (*p)
-		    *p++ = '\0';
-		components[j] = p;
-		while (*p && *p != '-')
-		    p++;
-	    }
-	    *p++ = '\0';
 
 	    /*
-	     * Font name is made up of fields 0 and 1, in reverse
-	     * order with parentheses. (This is what the GTK 1.2 X
-	     * font selector does, and it seems to come out
-	     * looking reasonably sensible.)
+	     * Font name is in the form "family (foundry)". (This is
+	     * what the GTK 1.2 X font selector does, and it seems to
+	     * come out looking reasonably sensible.)
 	     */
 	    font = p;
-	    p += 1 + sprintf(p, "%s (%s)", components[1], components[0]);
+	    p += 1 + sprintf(p, "%s (%s)", xlfd->family_name, xlfd->foundry);
 
 	    /*
-	     * Charset is made up of fields 12 and 13.
+	     * Character set.
 	     */
 	    charset = p;
-	    p += 1 + sprintf(p, "%s-%s", components[12], components[13]);
+	    p += 1 + sprintf(p, "%s-%s", xlfd->charset_registry,
+                             xlfd->charset_encoding);
 
 	    /*
 	     * Style is a mixture of quite a lot of the fields,
 	     * with some strange formatting.
 	     */
 	    style = p;
-	    p += sprintf(p, "%s", components[2][0] ? components[2] :
+	    p += sprintf(p, "%s", xlfd->weight_name[0] ? xlfd->weight_name :
 			 "regular");
-	    if (!g_ascii_strcasecmp(components[3], "i"))
+	    if (!g_ascii_strcasecmp(xlfd->slant, "i"))
 		p += sprintf(p, " italic");
-	    else if (!g_ascii_strcasecmp(components[3], "o"))
+	    else if (!g_ascii_strcasecmp(xlfd->slant, "o"))
 		p += sprintf(p, " oblique");
-	    else if (!g_ascii_strcasecmp(components[3], "ri"))
+	    else if (!g_ascii_strcasecmp(xlfd->slant, "ri"))
 		p += sprintf(p, " reverse italic");
-	    else if (!g_ascii_strcasecmp(components[3], "ro"))
+	    else if (!g_ascii_strcasecmp(xlfd->slant, "ro"))
 		p += sprintf(p, " reverse oblique");
-	    else if (!g_ascii_strcasecmp(components[3], "ot"))
+	    else if (!g_ascii_strcasecmp(xlfd->slant, "ot"))
 		p += sprintf(p, " other-slant");
-	    if (components[4][0] && g_ascii_strcasecmp(components[4], "normal"))
-		p += sprintf(p, " %s", components[4]);
-	    if (!g_ascii_strcasecmp(components[10], "m"))
+	    if (xlfd->setwidth_name[0] &&
+                g_ascii_strcasecmp(xlfd->setwidth_name, "normal"))
+		p += sprintf(p, " %s", xlfd->setwidth_name);
+	    if (!g_ascii_strcasecmp(xlfd->spacing, "m"))
 		p += sprintf(p, " [M]");
-	    if (!g_ascii_strcasecmp(components[10], "c"))
+	    if (!g_ascii_strcasecmp(xlfd->spacing, "c"))
 		p += sprintf(p, " [C]");
-	    if (components[5][0])
-		p += sprintf(p, " %s", components[5]);
+	    if (xlfd->add_style_name[0])
+		p += sprintf(p, " %s", xlfd->add_style_name);
 
 	    /*
 	     * Style key is the same stuff as above, but with a
@@ -996,45 +1047,37 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     */
 	    p++;
 	    stylekey = p;
-	    if (!g_ascii_strcasecmp(components[2], "medium") ||
-		!g_ascii_strcasecmp(components[2], "regular") ||
-		!g_ascii_strcasecmp(components[2], "normal") ||
-		!g_ascii_strcasecmp(components[2], "book"))
+	    if (!g_ascii_strcasecmp(xlfd->weight_name, "medium") ||
+		!g_ascii_strcasecmp(xlfd->weight_name, "regular") ||
+		!g_ascii_strcasecmp(xlfd->weight_name, "normal") ||
+		!g_ascii_strcasecmp(xlfd->weight_name, "book"))
 		weightkey = 0;
-	    else if (!g_ascii_strncasecmp(components[2], "demi", 4) ||
-		     !g_ascii_strncasecmp(components[2], "semi", 4))
+	    else if (!g_ascii_strncasecmp(xlfd->weight_name, "demi", 4) ||
+		     !g_ascii_strncasecmp(xlfd->weight_name, "semi", 4))
 		weightkey = 1;
 	    else
 		weightkey = 2;
-	    if (!g_ascii_strcasecmp(components[3], "r"))
+	    if (!g_ascii_strcasecmp(xlfd->slant, "r"))
 		slantkey = 0;
-	    else if (!g_ascii_strncasecmp(components[3], "r", 1))
+	    else if (!g_ascii_strncasecmp(xlfd->slant, "r", 1))
 		slantkey = 2;
 	    else
 		slantkey = 1;
-	    if (!g_ascii_strcasecmp(components[4], "normal"))
+	    if (!g_ascii_strcasecmp(xlfd->setwidth_name, "normal"))
 		setwidthkey = 0;
 	    else
 		setwidthkey = 1;
 
-	    p += sprintf(p, "%04d%04d%s%04d%04d%s%04d%04d%s%04d%s%04d%s",
-			 weightkey,
-			 (int)strlen(components[2]), components[2],
-			 slantkey,
-			 (int)strlen(components[3]), components[3],
-			 setwidthkey,
-			 (int)strlen(components[4]), components[4],
-			 (int)strlen(components[10]), components[10],
-			 (int)strlen(components[5]), components[5]);
+	    p += sprintf(
+                p, "%04d%04d%s%04d%04d%s%04d%04d%s%04d%s%04d%s",
+                weightkey, (int)strlen(xlfd->weight_name), xlfd->weight_name,
+                slantkey, (int)strlen(xlfd->slant), xlfd->slant,
+                setwidthkey,
+                (int)strlen(xlfd->setwidth_name), xlfd->setwidth_name,
+                (int)strlen(xlfd->spacing), xlfd->spacing,
+                (int)strlen(xlfd->add_style_name), xlfd->add_style_name);
 
 	    assert(p - tmp < thistmpsize);
-
-	    /*
-	     * Size is in pixels, for our application, so we
-	     * derive it directly from the pixel size field,
-	     * number 6.
-	     */
-	    fontsize = atoi(components[6]);
 
 	    /*
 	     * Flags: we need to know whether this is a monospaced
@@ -1042,17 +1085,21 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     * again.
 	     */
 	    flags = FONTFLAG_SERVERSIDE;
-	    if (!strchr("CcMm", components[10][0]))
+	    if (!strchr("CcMm", xlfd->spacing[0]))
 		flags |= FONTFLAG_NONMONOSPACED;
 
 	    /*
-	     * Not sure why, but sometimes the X server will
-	     * deliver dummy font types in which fontsize comes
-	     * out as zero. Filter those out.
+	     * Some fonts have a pixel size of zero, meaning they're
+	     * treated as scalable. For these purposes, we only want
+	     * fonts whose pixel size we actually know, so filter
+	     * those out.
 	     */
-	    if (fontsize)
-		callback(callback_ctx, fontnames[i], font, charset,
-			 style, stylekey, fontsize, flags, &x11font_vtable);
+	    if (xlfd->pixel_size)
+                callback(callback_ctx, fontnames[i], font, charset,
+                         style, stylekey, xlfd->pixel_size, flags,
+                         &x11font_vtable);
+
+            sfree(xlfd);
 	} else {
 	    /*
 	     * This isn't an XLFD, so it must be an alias.
@@ -1064,6 +1111,8 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	     */
 	    callback(callback_ctx, fontnames[i], fontnames[i], NULL,
 		     NULL, NULL, 0, FONTFLAG_SERVERALIAS, &x11font_vtable);
+
+            sfree(xlfd);
 	}
     }
     XFreeFontNames(fontnames);
