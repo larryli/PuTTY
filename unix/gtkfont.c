@@ -1259,8 +1259,13 @@ static char *x11font_size_increment(unifont *font, int increment)
 
 #undef FLIPPED_SIZE
 
-        if (xlfd_best)
-            returned_name = xlfd_recompose(xlfd_best);
+        if (xlfd_best) {
+            char *bare_returned_name = xlfd_recompose(xlfd_best);
+            returned_name = dupcat(
+                xfont->u.vt->prefix, ":", bare_returned_name,
+                (const char *)NULL);
+            sfree(bare_returned_name);
+        }
 
         XFreeFontNames(fontnames);
         sfree(xlfd);
@@ -2015,7 +2020,8 @@ static char *pangofont_size_increment(unifont *font, int increment)
     } else {
         pango_font_description_set_size(desc, size);
         newname = pango_font_description_to_string(desc);
-        retname = dupstr(newname);
+        retname = dupcat(pfont->u.vt->prefix, ":",
+                         newname, (const char *)NULL);
         g_free(newname);
     }
 
