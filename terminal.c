@@ -1403,6 +1403,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->no_remote_charset = conf_get_int(term->conf, CONF_no_remote_charset);
     term->no_remote_resize = conf_get_int(term->conf, CONF_no_remote_resize);
     term->no_remote_wintitle = conf_get_int(term->conf, CONF_no_remote_wintitle);
+    term->no_remote_clearscroll = conf_get_int(term->conf, CONF_no_remote_clearscroll);
     term->rawcnp = conf_get_int(term->conf, CONF_rawcnp);
     term->rect_select = conf_get_int(term->conf, CONF_rect_select);
     term->remote_qtitle_action = conf_get_int(term->conf, CONF_remote_qtitle_action);
@@ -3606,7 +3607,8 @@ static void term_out(Terminal *term)
 			    if (i == 3) {
 				/* Erase Saved Lines (xterm)
 				 * This follows Thomas Dickey's xterm. */
-				term_clrsb(term);
+                                if (!term->no_remote_clearscroll)
+                                    term_clrsb(term);
 			    } else {
 				i++;
 				if (i > 3)

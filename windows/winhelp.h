@@ -41,6 +41,7 @@
 #define WINHELP_CTX_features_qtitle "features.qtitle:config-features-qtitle"
 #define WINHELP_CTX_features_dbackspace "features.dbackspace:config-features-dbackspace"
 #define WINHELP_CTX_features_charset "features.charset:config-features-charset"
+#define WINHELP_CTX_features_clearscroll "features.clearscroll:config-features-clearscroll"
 #define WINHELP_CTX_features_arabicshaping "features.arabicshaping:config-features-shaping"
 #define WINHELP_CTX_features_bidi "features.bidi:config-features-bidi"
 #define WINHELP_CTX_terminal_autowrap "terminal.autowrap:config-autowrap"

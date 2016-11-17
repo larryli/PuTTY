@@ -545,6 +545,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "NoRemoteResize", conf_get_int(conf, CONF_no_remote_resize));
     write_setting_i(sesskey, "NoAltScreen", conf_get_int(conf, CONF_no_alt_screen));
     write_setting_i(sesskey, "NoRemoteWinTitle", conf_get_int(conf, CONF_no_remote_wintitle));
+    write_setting_i(sesskey, "NoRemoteClearScroll", conf_get_int(conf, CONF_no_remote_clearscroll));
     write_setting_i(sesskey, "RemoteQTitleAction", conf_get_int(conf, CONF_remote_qtitle_action));
     write_setting_i(sesskey, "NoDBackspace", conf_get_int(conf, CONF_no_dbackspace));
     write_setting_i(sesskey, "NoRemoteCharset", conf_get_int(conf, CONF_no_remote_charset));
@@ -876,6 +877,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "NoRemoteResize", 0, conf, CONF_no_remote_resize);
     gppi(sesskey, "NoAltScreen", 0, conf, CONF_no_alt_screen);
     gppi(sesskey, "NoRemoteWinTitle", 0, conf, CONF_no_remote_wintitle);
+    gppi(sesskey, "NoRemoteClearScroll", 0, conf, CONF_no_remote_clearscroll);
     {
 	/* Backward compatibility */
 	int no_remote_qtitle = gppi_raw(sesskey, "NoRemoteQTitle", 1);

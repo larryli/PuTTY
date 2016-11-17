@@ -1690,6 +1690,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(features_retitle),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_wintitle));
+    ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
+		  HELPCTX(features_clearscroll),
+		  conf_checkbox_handler,
+		  I(CONF_no_remote_clearscroll));
     ctrl_radiobuttons(s, "Response to remote title query (SECURITY):", 'q', 3,
 		      HELPCTX(features_qtitle),
 		      conf_radiobutton_handler,

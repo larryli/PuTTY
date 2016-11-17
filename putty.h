@@ -770,6 +770,7 @@ void cleanup_exit(int);
     X(INT, NONE, no_remote_resize) /* disable remote resizing */ \
     X(INT, NONE, no_alt_screen) /* disable alternate screen */ \
     X(INT, NONE, no_remote_wintitle) /* disable remote retitling */ \
+    X(INT, NONE, no_remote_clearscroll) /* disable ESC[3J */ \
     X(INT, NONE, no_dbackspace) /* disable destructive backspace */ \
     X(INT, NONE, no_remote_charset) /* disable remote charset config */ \
     X(INT, NONE, remote_qtitle_action) /* remote win title query action */ \
