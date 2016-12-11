@@ -1761,9 +1761,9 @@ static char *sk_tcp_peer_info(Socket sock)
     struct sockaddr_in addr;
 #else
     struct sockaddr_storage addr;
+    char buf[INET6_ADDRSTRLEN];
 #endif
     int addrlen = sizeof(addr);
-    char buf[INET6_ADDRSTRLEN];
 
     if (p_getpeername(s->s, (struct sockaddr *)&addr, &addrlen) < 0)
         return NULL;
