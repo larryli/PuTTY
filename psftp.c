@@ -491,7 +491,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_request *req;
     uint64 offset;
     RFile *file;
-    int ret, err, eof;
+    int ret, err = 0, eof;
     struct fxp_attrs attrs;
     long permissions;
 
@@ -651,11 +651,12 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 
 	if (!ret) {
 	    printf("read size of %s: %s\n", outfname, fxp_error());
+	    err = 1;
             goto cleanup;
 	}
 	if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
 	    printf("read size of %s: size was not given\n", outfname);
-            ret = 0;
+	    err = 1;
             goto cleanup;
 	}
 	offset = attrs.size;
@@ -674,9 +675,8 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
      * FIXME: we can use FXP_FSTAT here to get the file size, and
      * thus put up a progress bar.
      */
-    ret = 1;
     xfer = xfer_upload_init(fh, offset);
-    err = eof = 0;
+    eof = 0;
     while ((!err && !eof) || !xfer_done(xfer)) {
 	char buffer[4096];
 	int len, ret;
@@ -716,7 +716,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 
     close_rfile(file);
 
-    return ret;
+    return (err == 0) ? 1 : 0;
 }
 
 /* ----------------------------------------------------------------------
