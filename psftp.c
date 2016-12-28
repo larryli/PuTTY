@@ -712,7 +712,13 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
   cleanup:
     req = fxp_close_send(fh);
     pktin = sftp_wait_for_reply(req);
-    fxp_close_recv(pktin, req);
+    ret = fxp_close_recv(pktin, req);
+    if (!ret) {
+	if (!err) {
+	    printf("error while closing: %s", fxp_error());
+	    err = 1;
+	}
+    }
 
     close_rfile(file);
 

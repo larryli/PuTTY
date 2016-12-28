@@ -149,10 +149,10 @@ struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin,
 				    struct sftp_request *req);
 
 /*
- * Close a file/dir.
+ * Close a file/dir. Returns 1 on success, 0 on error.
  */
 struct sftp_request *fxp_close_send(struct fxp_handle *handle);
-void fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
+int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Make a directory.

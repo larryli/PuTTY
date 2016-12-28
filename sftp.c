@@ -658,11 +658,12 @@ struct sftp_request *fxp_close_send(struct fxp_handle *handle)
     return req;
 }
 
-void fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req)
+int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     sfree(req);
     fxp_got_status(pktin);
     sftp_pkt_free(pktin);
+    return fxp_errtype == SSH_FX_OK;
 }
 
 struct sftp_request *fxp_mkdir_send(const char *path)
