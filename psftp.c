@@ -433,7 +433,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     xfer = xfer_download_init(fh, offset);
     while (!xfer_done(xfer)) {
 	void *vbuf;
-	int ret, len;
+	int len;
 	int wpos, wlen;
 
 	xfer_download_queue(xfer);
