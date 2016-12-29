@@ -491,7 +491,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_request *req;
     uint64 offset;
     RFile *file;
-    int ret, err = 0, eof;
+    int err = 0, eof;
     struct fxp_attrs attrs;
     long permissions;
 
@@ -644,6 +644,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	char decbuf[30];
 	struct fxp_attrs attrs;
+        int ret;
 
 	req = fxp_fstat_send(fh);
         pktin = sftp_wait_for_reply(req);
@@ -712,8 +713,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
   cleanup:
     req = fxp_close_send(fh);
     pktin = sftp_wait_for_reply(req);
-    ret = fxp_close_recv(pktin, req);
-    if (!ret) {
+    if (!fxp_close_recv(pktin, req)) {
 	if (!err) {
 	    printf("error while closing: %s", fxp_error());
 	    err = 1;
