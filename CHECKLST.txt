@@ -1,6 +1,29 @@
 Checklists for PuTTY administrative procedures
 ==============================================
 
+Going into pre-release stabilisation
+------------------------------------
+
+When we begin to work towards a release and want to enabling
+pre-releases on the website:
+
+ - Make a branch whose tip will be the current state of the
+   pre-release. Regardless of whether the branch is from master or
+   from a prior release branch, the name of the branch must now be in
+   the form 'pre-X.YZ', or else the website will fail to link to it
+   properly in gitweb and the build script will check out the wrong
+   thing.
+
+ - Edit ~/adm/puttysnap.sh on my build machine to set $prerelver correctly.
+
+ - Edit ~/adm/puttysnap.sh on the master machine to enable pre-release
+   builds, by changing the 'if false' to 'if true'.
+
+ - Put the website into pre-release mode, by defining prerel_version()
+   in components/Base.mc to return the upcoming version number. Also
+   add a news announcement in components/news. (Previous naming
+   convention has been to name it in the form 'X.YZ-pre.mi'.)
+
 Preparing to make a release
 ---------------------------
 
@@ -150,7 +173,7 @@ locally, this is the procedure for putting it up on the web.
     + Post it to comp.security.ssh.
     + Mention it in <TDHTT> on mono.
 
- - Edit ~/adm/puttysnap.sh to disable pre-release builds, if they were
-   previously enabled.
+ - Edit the master ~/adm/puttysnap.sh to disable pre-release builds,
+   if they were previously enabled.
 
  - Relax (slightly).
