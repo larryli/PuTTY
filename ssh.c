@@ -7323,6 +7323,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
         logevent("Storing additional host key for this host:");
         logevent(s->fingerprint);
+        sfree(s->fingerprint);
         store_host_key(ssh->savedhost, ssh->savedport,
                        ssh->hostkey->keytype, s->keystr);
         ssh->cross_certifying = FALSE;
