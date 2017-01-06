@@ -1122,6 +1122,9 @@ int main(int argc, char **argv)
             ret = select(maxfd, &rset, &wset, &xset, NULL);
         }
 
+        if (ret < 0 && errno == EINTR)
+            continue;
+
 	if (ret < 0) {
 	    perror("select");
 	    exit(1);

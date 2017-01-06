@@ -531,7 +531,9 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
                     now = GETTICKCOUNT();
             } while (ret < 0 && errno == EINTR);
         } else {
-            ret = select(maxfd, &rset, &wset, &xset, NULL);
+            do {
+                ret = select(maxfd, &rset, &wset, &xset, NULL);
+            } while (ret < 0 && errno == EINTR);
         }
     } while (ret == 0);
 

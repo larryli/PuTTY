@@ -101,7 +101,9 @@ static int block_and_read(int fd, void *buf, size_t len)
         fd_set rfds;
         FD_ZERO(&rfds);
         FD_SET(fd, &rfds);
-        ret = select(fd+1, &rfds, NULL, NULL, NULL);
+        do {
+            ret = select(fd+1, &rfds, NULL, NULL, NULL);
+        } while (ret < 0 && errno == EINTR);
         assert(ret != 0);
         if (ret < 0)
             return ret;
