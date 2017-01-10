@@ -352,8 +352,8 @@ static int x11_font_width(XFontStruct *xfs, int sixteen_bit)
     }
 }
 
-static const XCharStruct *x11_char_struct(XFontStruct *xfs,
-                                          int byte1, int byte2)
+static const XCharStruct *x11_char_struct(
+    XFontStruct *xfs, unsigned char byte1, unsigned char byte2)
 {
     int index;
 
@@ -403,7 +403,8 @@ static const XCharStruct *x11_char_struct(XFontStruct *xfs,
     return &xfs->per_char[index];
 }
 
-static int x11_font_has_glyph(XFontStruct *xfs, int byte1, int byte2)
+static int x11_font_has_glyph(
+    XFontStruct *xfs, unsigned char byte1, unsigned char byte2)
 {
     /*
      * Not to be confused with x11font_has_glyph, which is a method of
