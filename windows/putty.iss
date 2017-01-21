@@ -87,13 +87,6 @@ Root: HKCR; Subkey: "PuTTYPrivateKey\shell\edit"; ValueType: string; ValueName: 
 Root: HKCR; Subkey: "PuTTYPrivateKey\shell\edit\command"; ValueType: string; ValueName: ""; ValueData: """{app}\puttygen.exe"" ""%1"""; Tasks: associate
 ; Add to PATH on NT-class OS?
 
-[UninstallRun]
-; -cleanup-during-uninstall is an undocumented option that tailors the
-; message displayed.
-; XXX: it would be nice if this task weren't run if a silent uninstall is
-;      requested, but "skipifsilent" is disallowed.
-Filename: "{app}\putty.exe"; Parameters: "-cleanup-during-uninstall"; RunOnceId: "PuTTYCleanup"; StatusMsg: "Cleaning up saved sessions etc (optional)..."
-
 [Messages]
 ; Since it's possible for the user to be asked to restart their computer,
 ; we should override the default messages to explain exactly why, so they
