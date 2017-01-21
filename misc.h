@@ -38,6 +38,13 @@ char *dupprintf(const char *fmt, ...)
     ;
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
+typedef struct strbuf strbuf;
+strbuf *strbuf_new(void);
+void strbuf_free(strbuf *buf);
+char *strbuf_str(strbuf *buf);         /* does not free buf */
+char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
+void strbuf_catf(strbuf *buf, const char *fmt, ...);
+void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap);
 
 /* String-to-Unicode converters that auto-allocate the destination and
  * work around the rather deficient interface of mb_to_wc.

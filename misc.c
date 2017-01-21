@@ -394,22 +394,16 @@ int toint(unsigned u)
  *    directive we don't know about, we should panic and die rather
  *    than run any risk.
  */
-char *dupprintf(const char *fmt, ...)
+static char *dupvprintf_inner(char *buf, int oldlen, int oldsize,
+                              const char *fmt, va_list ap)
 {
-    char *ret;
-    va_list ap;
-    va_start(ap, fmt);
-    ret = dupvprintf(fmt, ap);
-    va_end(ap);
-    return ret;
-}
-char *dupvprintf(const char *fmt, va_list ap)
-{
-    char *buf;
     int len, size;
 
-    buf = snewn(512, char);
-    size = 512;
+    size = oldsize - oldlen;
+    if (size == 0) {
+        size = 512;
+        buf = sresize(buf, oldlen + size, char);
+    }
 
     while (1) {
 #if defined _WINDOWS && _MSC_VER < 1900 /* 1900 == VS2015 has real snprintf */
@@ -420,7 +414,7 @@ char *dupvprintf(const char *fmt, va_list ap)
 	 * XXX some environments may have this as __va_copy() */
 	va_list aq;
 	va_copy(aq, ap);
-	len = vsnprintf(buf, size, fmt, aq);
+	len = vsnprintf(buf + oldlen, size, fmt, aq);
 	va_end(aq);
 #else
 	/* Ugh. No va_copy macro, so do something nasty.
@@ -431,7 +425,7 @@ char *dupvprintf(const char *fmt, va_list ap)
 	 * (indeed, it has been observed to).
 	 * XXX the autoconf manual suggests that using memcpy() will give
 	 *     "maximum portability". */
-	len = vsnprintf(buf, size, fmt, ap);
+	len = vsnprintf(buf + oldlen, size, fmt, ap);
 #endif
 	if (len >= 0 && len < size) {
 	    /* This is the C99-specified criterion for snprintf to have
@@ -446,8 +440,63 @@ char *dupvprintf(const char *fmt, va_list ap)
 	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
 	    size += 512;
 	}
-	buf = sresize(buf, size, char);
+	buf = sresize(buf, oldlen + size, char);
     }
+}
+
+char *dupvprintf(const char *fmt, va_list ap)
+{
+    return dupvprintf_inner(NULL, 0, 0, fmt, ap);
+}
+char *dupprintf(const char *fmt, ...)
+{
+    char *ret;
+    va_list ap;
+    va_start(ap, fmt);
+    ret = dupvprintf(fmt, ap);
+    va_end(ap);
+    return ret;
+}
+
+struct strbuf {
+    char *s;
+    int len, size;
+};
+strbuf *strbuf_new(void)
+{
+    strbuf *buf = snew(strbuf);
+    buf->len = 0;
+    buf->size = 512;
+    buf->s = snewn(buf->size, char);
+    *buf->s = '\0';
+    return buf;
+}
+void strbuf_free(strbuf *buf)
+{
+    sfree(buf->s);
+    sfree(buf);
+}
+char *strbuf_str(strbuf *buf)
+{
+    return buf->s;
+}
+char *strbuf_to_str(strbuf *buf)
+{
+    char *ret = buf->s;
+    sfree(buf);
+    return ret;
+}
+void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap)
+{
+    buf->s = dupvprintf_inner(buf->s, buf->len, buf->size, fmt, ap);
+    buf->len += strlen(buf->s + buf->len);
+}
+void strbuf_catf(strbuf *buf, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    strbuf_catfv(buf, fmt, ap);
+    va_end(ap);
 }
 
 /*
