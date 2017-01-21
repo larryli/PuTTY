@@ -156,7 +156,7 @@ in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +4
 
 delegate windows
   # Build the main binaries.
-  in putty/windows with visualstudio do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ $(Makeargs) all cleantestprogs
+  in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ $(Makeargs) all cleantestprogs
 
   # Code-sign the binaries, if the local bob config provides a script
   # to do so. We assume here that the script accepts an -i option to
