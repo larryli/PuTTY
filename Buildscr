@@ -157,6 +157,7 @@ in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +4
 delegate windows
   # Build the main binaries.
   in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ $(Makeargs) all cleantestprogs
+  in putty/windows with visualstudio2015_64bit do/win mkdir build64 && nmake -f Makefile.vc BUILDDIR=build64\ $(Makeargs) all cleantestprogs
 
   # Code-sign the binaries, if the local bob config provides a script
   # to do so. We assume here that the script accepts an -i option to
@@ -182,6 +183,8 @@ delegate windows
   # Finished Windows builds.
   return putty/windows/build32/*.exe
   return putty/windows/build32/*.map
+  return putty/windows/build64/*.exe
+  return putty/windows/build64/*.map
   return putty/doc/putty.chm
   return putty/windows/installer.msi
   return putty/windows/Output/installer.exe
@@ -189,11 +192,14 @@ enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
 in putty/windows/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
+in putty/windows/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/doc do zip puttydoc.zip *.html
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.
 deliver putty/windows/build32/*.exe putty/w32/$@
 deliver putty/windows/build32/putty.zip putty/w32/$@
+deliver putty/windows/build64/*.exe putty/w64/$@
+deliver putty/windows/build64/putty.zip putty/w64/$@
 deliver putty/windows/installer.msi putty/w32/$(Ifilename).msi
 deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename).exe
 deliver putty/doc/puttydoc.zip putty/$@
@@ -207,6 +213,7 @@ deliver putty/*.tar.gz putty/$@
 
 # Deliver the map files alongside the `proper' release deliverables.
 deliver putty/windows/build32/*.map maps/w32/$@
+deliver putty/windows/build64/*.map maps/w64/$@
 
 # Deliver sign.sh, so that whoever has just built PuTTY (the
 # snapshot scripts or me, depending) can conveniently sign it with
