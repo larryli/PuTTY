@@ -134,13 +134,15 @@
 # ------------------------------------------------------------
 # Additional text added verbatim to each individual Makefile.
 
-!cflags am version -DSOURCE_COMMIT=\"`git rev-parse HEAD 2>/dev/null`\"
+!cflags am version
 !begin am
+if AUTO_GIT_COMMIT
 BUILT_SOURCES = empty.h
 CLEANFILES = empty.h
+libversion_a_CFLAGS += -DSOURCE_COMMIT=\"`git --git-dir=$(srcdir)/.git rev-parse HEAD 2>/dev/null`\"
 empty.h: $(allsources)
 	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
-
+endif
 !end
 !begin >empty.h
 /* Empty file touched by automake makefile to force rebuild of version.o */
