@@ -68,10 +68,10 @@ if ($upload) {
     defined $version or die "use --version";
 
     # Run this inside the build.out directory.
-    -d "maps-x86" or die "no maps-x86 directory in cwd";
+    -d "maps" or die "no maps directory in cwd";
     -d "putty" or die "no putty directory in cwd";
 
-    0 == system("rsync", "-av", "maps-x86/",
+    0 == system("rsync", "-av", "maps/",
                 "atreus:src/putty-local/maps-$version")
         or die "could not upload link maps";
 
