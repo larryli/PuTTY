@@ -160,8 +160,10 @@ delegate windows
   # Build the original binaries.
   in putty/windows with visualstudio do/win mkdir buildold && nmake -f Makefile.vc BUILDDIR=buildold\ $(Makeargs) all cleantestprogs
 
-  # Build the VS2015 binaries.
-  in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ $(Makeargs) all cleantestprogs
+  # Build the VS2015 binaries. For the 32-bit ones, we set a subsystem
+  # version of 5.01, which allows the resulting files to still run on
+  # Windows XP.
+  in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
   in putty/windows with visualstudio2015_64bit do/win mkdir build64 && nmake -f Makefile.vc BUILDDIR=build64\ $(Makeargs) all cleantestprogs
 
   # Code-sign the binaries, if the local bob config provides a script

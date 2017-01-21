@@ -676,7 +676,7 @@ if (defined $makefiles{'vc'}) {
 	    print "$objlines[$i]\n";
 	}
 	print "<<\n";
-	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:\$(BUILDDIR)$prog.exe -map:\$(BUILDDIR)$prog.map -nologo -subsystem:$subsys \@$inlinefilename\n\n";
+	print "\tlink \$(LFLAGS) \$(XLFLAGS) -out:\$(BUILDDIR)$prog.exe -map:\$(BUILDDIR)$prog.map -nologo -subsystem:$subsys\$(SUBSYSVER) \@$inlinefilename\n\n";
     }
     foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", $dirpfx, "\\", "vc")) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
