@@ -180,7 +180,7 @@ delegate windows
   in putty/windows with wix do/win candle -arch x86 -dWin64=no -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi
   in putty/windows with wix do/win candle -arch x64 -dWin64=yes -dBuilddir=build64\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi
 
-  # Build the old Inno Setup installer.
+  # Build the old Inno Setup installer, for 32-bit only.
   in putty/windows with innosetup do/win iscc putty.iss
 
   # Sign the installers.
