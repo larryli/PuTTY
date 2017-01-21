@@ -126,6 +126,7 @@ ifneq "$(SNAPSHOT)" "" in putty do echo '$#define SNAPSHOT' >> version.h
 in putty do echo '$#define TEXTVER "$(Textver)"' >> version.h
 in putty do echo '$#define SSHVER "$(Sshver)"' >> version.h
 in putty do echo '$#define BINARY_VERSION $(Winvercommas)' >> version.h
+in putty do echo '$#define SOURCE_COMMIT "$(vcsfullid)"' >> version.h
 
 # Set up the extra arguments for the main Windows nmake command. The
 # user can define XFLAGS and MAKEARGS on the bob command line, to pass

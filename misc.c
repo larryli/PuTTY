@@ -1151,6 +1151,7 @@ int strendswith(const char *s, const char *t)
 char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
+    extern const char commitid[];      /* in commitid.c */
 
     strbuf_catf(buf, "Build platform: %d-bit %s",
                 (int)(CHAR_BIT * sizeof(void *)),
@@ -1206,6 +1207,8 @@ char *buildinfo(const char *newline)
 #ifdef DEBUG
     strbuf_catf(buf, "%sBuild option: DEBUG", newline);
 #endif
+
+    strbuf_catf(buf, "%sSource commit: %s", newline, commitid);
 
     return strbuf_to_str(buf);
 }

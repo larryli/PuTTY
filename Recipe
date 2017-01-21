@@ -330,10 +330,10 @@ puttyapp : [XT] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + xpmpucfg gtkapp
 osxlaunch : [UT] osxlaunch
 
-fuzzterm : [UT] UXTERM CHARSET misc uxmisc uxucs fuzzterm time settings
+fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none
-testbn   : [UT] testbn sshbn misc conf tree234 uxmisc
-testbn   : [C] testbn sshbn misc conf tree234 winmisc LIBS
+testbn   : [UT] testbn sshbn misc version conf tree234 uxmisc
+testbn   : [C] testbn sshbn misc version conf tree234 winmisc LIBS
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we
