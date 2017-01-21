@@ -80,12 +80,14 @@ ifneq "$(PRERELEASE)" "" set Autoconfver $(PRERELEASE)~pre$(Ndate).$(vcsid)
 ifneq "$(SNAPSHOT)" "" set Autoconfver $(Lastver)-$(Date).$(vcsid)
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Autoconfver Custom.$(Date).$(vcsid)
 
-# Set up the filename for the Windows installer (minus extension,
+# Set up the filenames for the Windows installer (minus extension,
 # which goes on later).
-ifneq "$(RELEASE)" "" set Ifilename putty-$(RELEASE)-installer
-ifneq "$(PRERELEASE)" "" set Ifilename putty-$(PRERELEASE)-pre$(Ndate)-installer
-ifneq "$(SNAPSHOT)" "" set Ifilename putty-$(Date)-installer
-ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Ifilename putty-custom-$(Date)-installer
+ifneq "$(RELEASE)" "" set Isuffix $(RELEASE)-installer
+ifneq "$(PRERELEASE)" "" set Isuffix $(PRERELEASE)-pre$(Ndate)-installer
+ifneq "$(SNAPSHOT)" "" set Isuffix $(Date)-installer
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Isuffix custom-$(Date)-installer
+set Ifilename32 putty-$(Isuffix)
+set Ifilename64 putty-64bit-$(Isuffix)
 
 # Set up the version string for the Windows installer.
 ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
@@ -210,9 +212,9 @@ deliver putty/windows/build32/*.exe putty/w32/$@
 deliver putty/windows/build32/putty.zip putty/w32/$@
 deliver putty/windows/build64/*.exe putty/w64/$@
 deliver putty/windows/build64/putty.zip putty/w64/$@
-deliver putty/windows/installer32.msi putty/w32/$(Ifilename).msi
-deliver putty/windows/installer64.msi putty/w64/$(Ifilename).msi
-deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename).exe
+deliver putty/windows/installer32.msi putty/w32/$(Ifilename32).msi
+deliver putty/windows/installer64.msi putty/w64/$(Ifilename64).msi
+deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename32).exe
 deliver putty/doc/puttydoc.zip putty/$@
 deliver putty/doc/putty.chm putty/$@
 deliver putty/doc/putty.hlp putty/$@
