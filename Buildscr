@@ -155,7 +155,10 @@ in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 
 in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
 
 delegate windows
-  # Build the main binaries.
+  # Build the original binaries.
+  in putty/windows with visualstudio do/win mkdir buildold && nmake -f Makefile.vc BUILDDIR=buildold\ $(Makeargs) all cleantestprogs
+
+  # Build the VS2015 binaries.
   in putty/windows with visualstudio2015_32bit do/win mkdir build32 && nmake -f Makefile.vc BUILDDIR=build32\ $(Makeargs) all cleantestprogs
   in putty/windows with visualstudio2015_64bit do/win mkdir build64 && nmake -f Makefile.vc BUILDDIR=build64\ $(Makeargs) all cleantestprogs
 
@@ -181,6 +184,8 @@ delegate windows
   ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer.msi Output/installer.exe
 
   # Finished Windows builds.
+  return putty/windows/buildold/*.exe
+  return putty/windows/buildold/*.map
   return putty/windows/build32/*.exe
   return putty/windows/build32/*.map
   return putty/windows/build64/*.exe
@@ -191,11 +196,14 @@ delegate windows
 enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
+in putty/windows/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/windows/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/windows/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/doc do zip puttydoc.zip *.html
 
 # Deliver the actual PuTTY release directory into a subdir `putty'.
+deliver putty/windows/buildold/*.exe putty/w32old/$@
+deliver putty/windows/buildold/putty.zip putty/w32old/$@
 deliver putty/windows/build32/*.exe putty/w32/$@
 deliver putty/windows/build32/putty.zip putty/w32/$@
 deliver putty/windows/build64/*.exe putty/w64/$@
@@ -212,6 +220,7 @@ deliver putty/putty-src.zip putty/$@
 deliver putty/*.tar.gz putty/$@
 
 # Deliver the map files alongside the `proper' release deliverables.
+deliver putty/windows/buildold/*.map maps/w32old/$@
 deliver putty/windows/build32/*.map maps/w32/$@
 deliver putty/windows/build64/*.map maps/w64/$@
 
