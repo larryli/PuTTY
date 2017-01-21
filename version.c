@@ -8,6 +8,10 @@
  * to do here is to drop it into variables of the right names.
  */
 
+#ifdef SOURCE_COMMIT
+#include "empty.h"
+#endif
+
 #include "version.h"
 
 const char ver[] = TEXTVER;

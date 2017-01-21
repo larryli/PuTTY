@@ -134,6 +134,18 @@
 # ------------------------------------------------------------
 # Additional text added verbatim to each individual Makefile.
 
+!cflags am version -DSOURCE_COMMIT=\"`git rev-parse HEAD 2>/dev/null`\"
+!begin am
+BUILT_SOURCES = empty.h
+CLEANFILES = empty.h
+empty.h: $(allsources)
+	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
+
+!end
+!begin >empty.h
+/* Empty file touched by automake makefile to force rebuild of version.o */
+!end
+
 !begin vc vars
 CFLAGS = $(CFLAGS) /DHAS_GSSAPI
 !end
