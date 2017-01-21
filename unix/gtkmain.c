@@ -287,10 +287,13 @@ static void help(FILE *fp) {
 }
 
 static void version(FILE *fp) {
-    if(fprintf(fp, "%s: %s\n", appname, ver) < 0 || fflush(fp) < 0) {
+    char *buildinfo_text = buildinfo("\n");
+    if(fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
+       fflush(fp) < 0) {
 	perror("output error");
 	exit(1);
     }
+    sfree(buildinfo_text);
 }
 
 static struct gui_data *the_inst;

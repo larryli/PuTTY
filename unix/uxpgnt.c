@@ -141,7 +141,9 @@ static void usage(void)
 
 static void version(void)
 {
-    printf("pageant: %s\n", ver);
+    char *buildinfo_text = buildinfo("\n");
+    printf("pageant: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
     exit(1);
 }
 

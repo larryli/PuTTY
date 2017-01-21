@@ -297,10 +297,12 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	}
 
         {
+            char *buildinfo_text = buildinfo("\r\n");
             char *text = dupprintf
-                ("PuTTYgen\r\n\r\n%s\r\n\r\n%s",
-                 ver,
+                ("PuTTYgen\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+                 ver, buildinfo_text,
                  "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+            sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             sfree(text);
         }

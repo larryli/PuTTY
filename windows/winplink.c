@@ -223,7 +223,9 @@ static void usage(void)
 
 static void version(void)
 {
-    printf("plink: %s\n", ver);
+    char *buildinfo_text = buildinfo("\n");
+    printf("plink: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
     exit(1);
 }
 

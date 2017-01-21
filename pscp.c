@@ -2263,7 +2263,9 @@ static void usage(void)
 
 void version(void)
 {
-    printf("pscp: %s\n", ver);
+    char *buildinfo_text = buildinfo("\n");
+    printf("pscp: %s\n%s\n", ver, buildinfo_text);
+    sfree(buildinfo_text);
     cleanup_exit(1);
 }
 

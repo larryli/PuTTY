@@ -1147,3 +1147,65 @@ int strendswith(const char *s, const char *t)
     size_t slen = strlen(s), tlen = strlen(t);
     return slen >= tlen && !strcmp(s + (slen - tlen), t);
 }
+
+char *buildinfo(const char *newline)
+{
+    strbuf *buf = strbuf_new();
+
+    strbuf_catf(buf, "Build platform: %d-bit %s",
+                (int)(CHAR_BIT * sizeof(void *)),
+                BUILDINFO_PLATFORM);
+
+#ifdef __clang_version__
+    strbuf_catf(buf, "%sCompiler: clang %s", newline, __clang_version__);
+#elif defined __GNUC__ && defined __VERSION__
+    strbuf_catf(buf, "%sCompiler: gcc %s", newline, __VERSION__);
+#elif defined _MSC_VER
+    strbuf_catf(buf, "%sCompiler: Visual Studio", newline);
+#if _MSC_VER == 1900
+    strbuf_catf(buf, " 2015 / MSVC++ 14.0");
+#elif _MSC_VER == 1800
+    strbuf_catf(buf, " 2013 / MSVC++ 12.0");
+#elif _MSC_VER == 1700
+    strbuf_catf(buf, " 2012 / MSVC++ 11.0");
+#elif _MSC_VER == 1600
+    strbuf_catf(buf, " 2010 / MSVC++ 10.0");
+#elif  _MSC_VER == 1500
+    strbuf_catf(buf, " 2008 / MSVC++ 9.0");
+#elif  _MSC_VER == 1400
+    strbuf_catf(buf, " 2005 / MSVC++ 8.0");
+#elif  _MSC_VER == 1310
+    strbuf_catf(buf, " 2003 / MSVC++ 7.1");
+#else
+    strbuf_catf(buf, ", unrecognised version");
+#endif
+    strbuf_catf(buf, " (_MSC_VER=%d)", (int)_MSC_VER);
+#endif
+
+#ifdef NO_SECURITY
+    strbuf_catf(buf, "%sBuild option: NO_SECURITY", newline);
+#endif
+#ifdef NO_SECUREZEROMEMORY
+    strbuf_catf(buf, "%sBuild option: NO_SECUREZEROMEMORY", newline);
+#endif
+#ifdef NO_IPV6
+    strbuf_catf(buf, "%sBuild option: NO_IPV6", newline);
+#endif
+#ifdef NO_GSSAPI
+    strbuf_catf(buf, "%sBuild option: NO_GSSAPI", newline);
+#endif
+#ifdef STATIC_GSSAPI
+    strbuf_catf(buf, "%sBuild option: STATIC_GSSAPI", newline);
+#endif
+#ifdef UNPROTECT
+    strbuf_catf(buf, "%sBuild option: UNPROTECT", newline);
+#endif
+#ifdef FUZZING
+    strbuf_catf(buf, "%sBuild option: FUZZING", newline);
+#endif
+#ifdef DEBUG
+    strbuf_catf(buf, "%sBuild option: DEBUG", newline);
+#endif
+
+    return strbuf_to_str(buf);
+}

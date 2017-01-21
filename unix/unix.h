@@ -30,6 +30,17 @@
 #define META_MANUAL_MASK (GDK_MOD1_MASK)
 #define JUST_USE_GTK_CLIPBOARD_UTF8 /* low-level gdk_selection_* fails */
 #define DEFAULT_CLIPBOARD GDK_SELECTION_CLIPBOARD /* OS X has no PRIMARY */
+
+#define BUILDINFO_PLATFORM "OS X (GTK)"
+
+#elif defined NOT_X_WINDOWS
+
+#define BUILDINFO_PLATFORM "Unix (pure GTK)"
+
+#else
+
+#define BUILDINFO_PLATFORM "Unix (GTK + X11)"
+
 #endif
 
 struct Filename {

@@ -3701,9 +3701,10 @@ void about_box(void *window)
     gtk_widget_show(w);
 
     {
+        char *buildinfo_text = buildinfo("\n");
         char *label_text = dupprintf
-            ("%s\n\n%s\n\n%s",
-             appname, ver,
+            ("%s\n\n%s\n\n%s\n\n%s",
+             appname, ver, buildinfo_text,
              "Copyright " SHORT_COPYRIGHT_DETAILS ". All rights reserved");
         w = gtk_label_new(label_text);
         gtk_label_set_justify(GTK_LABEL(w), GTK_JUSTIFY_CENTER);

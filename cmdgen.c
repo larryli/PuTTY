@@ -129,7 +129,9 @@ void sk_cleanup(void)
 
 void showversion(void)
 {
-    printf("puttygen: %s\n", ver);
+    char *buildinfo_text = buildinfo("\n");
+    printf("puttygen: %s\n%s", ver, buildinfo_text);
+    sfree(buildinfo_text);
 }
 
 void usage(int standalone)
