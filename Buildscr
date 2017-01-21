@@ -174,14 +174,15 @@ delegate windows
   # exit codes on whim.)
   in putty/doc with htmlhelp do/win hhc putty.hhp & type putty.chm >nul
 
-  # Build the WiX MSI installer.
-  in putty/windows with wix do/win candle -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj
+  # Build a WiX MSI installer, for each of build32 and build64.
+  in putty/windows with wix do/win candle -arch x86 -dWin64=no -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi
+  in putty/windows with wix do/win candle -arch x64 -dWin64=yes -dBuilddir=build64\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi
 
   # Build the old Inno Setup installer.
   in putty/windows with innosetup do/win iscc putty.iss
 
   # Sign the installers.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer.msi Output/installer.exe
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi Output/installer.exe
 
   # Finished Windows builds.
   return putty/windows/buildold/*.exe
@@ -191,7 +192,8 @@ delegate windows
   return putty/windows/build64/*.exe
   return putty/windows/build64/*.map
   return putty/doc/putty.chm
-  return putty/windows/installer.msi
+  return putty/windows/installer32.msi
+  return putty/windows/installer64.msi
   return putty/windows/Output/installer.exe
 enddelegate
 in putty/doc do make mostlyclean
@@ -208,7 +210,8 @@ deliver putty/windows/build32/*.exe putty/w32/$@
 deliver putty/windows/build32/putty.zip putty/w32/$@
 deliver putty/windows/build64/*.exe putty/w64/$@
 deliver putty/windows/build64/putty.zip putty/w64/$@
-deliver putty/windows/installer.msi putty/w32/$(Ifilename).msi
+deliver putty/windows/installer32.msi putty/w32/$(Ifilename).msi
+deliver putty/windows/installer64.msi putty/w64/$(Ifilename).msi
 deliver putty/windows/Output/installer.exe putty/w32/$(Ifilename).exe
 deliver putty/doc/puttydoc.zip putty/$@
 deliver putty/doc/putty.chm putty/$@
@@ -245,5 +248,5 @@ in-dest putty do echo "AddType application/octet-stream .chm" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
 in-dest putty do set -- putty*.tar.gz; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
-# And one in the w32 directory, providing links for the installers.
-in-dest putty/w32 do for ext in msi exe; do set -- putty*installer.$$ext; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty-installer.$$ext$$k\$$ '$$1'"$$1$$k" >> .htaccess; done; done
+# And one in each binary directory, providing links for the installers.
+in-dest putty do for subdir in w32 w64; do (cd $$subdir && for ext in msi exe; do set -- putty*installer.$$ext; if test -f $$1; then for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty-installer.$$ext$$k\$$ '$$1'"$$1$$k" >> .htaccess; done; fi; done); done

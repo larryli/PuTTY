@@ -2,6 +2,48 @@
 
 <!-- WiX source code for the PuTTY installer. -->
 
+<?if $(var.Win64) = yes ?>
+  <?define ProgramName = "PuTTY (64-bit)" ?>
+  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY64" ?>
+  <?define InstallerVersion = "200" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?define UpgradeCode_GUID = "C9EAA861-2B72-4FAF-9FEE-EEB1AD5FD15E" ?>
+  <?define PuTTY_Component_GUID = "C673C970-25AE-4659-9621-A1FE0598E9DC" ?>
+  <?define Pageant_Component_GUID = "BA37328A-9A9C-4912-B84D-9C4A21B4E79A" ?>
+  <?define PSFTP_Component_GUID = "8BC2740F-CD4A-4076-8C33-2847ECA17B4E" ?>
+  <?define PuTTYgen_Component_GUID = "4E3F554E-C9C9-419B-9816-94135D1F6EFF" ?>
+  <?define Plink_Component_GUID = "72C38830-1C06-40D5-B2C5-BE21F4C9D529" ?>
+  <?define PSCP_Component_GUID = "58FCAA52-CEF9-4665-B95E-7695FCF8F0A9" ?>
+  <?define HelpFile_Component_GUID = "B880CECB-2CDA-4DB1-8EB3-1627D29394FB" ?>
+  <?define Website_Component_GUID = "08A334E8-D376-438A-98C7-4E65BE09A335" ?>
+  <?define LICENCE_Component_GUID = "D15E5FA9-C912-4F7A-A663-9FE3CFD5FB01" ?>
+  <?define README_Component_GUID = "B8F2F9DE-0311-436E-86A4-BEFED84968C0" ?>
+  <?define PPK_Assoc_Component_GUID = "70B4360C-7A2E-4C9E-9135-289C5467CB04" ?>
+  <?define Path_Component_GUID = "A0CFC986-489D-452B-8A8F-F9DBEF6916F4" ?>
+  <?define ProgramMenuDir_GUID = "3B2B7A2B-25F1-4EC4-987F-75BFD038632E" ?>
+  <?define Desktop_Shortcut_Component_GUID = "0A715416-EA6E-4A1C-8670-838307083EE5" ?>
+<?else ?>
+  <?define ProgramName = "PuTTY" ?>
+  <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
+  <?define InstallerVersion = "100" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?define UpgradeCode_GUID = "DCE70C63-8808-4646-B16B-A677BD298385" ?>
+  <?define PuTTY_Component_GUID = "07ACF511-6DF6-4883-AABA-33BC14901324" ?>
+  <?define Pageant_Component_GUID = "649F963E-21C4-4755-8CE4-D80598DCEE6D" ?>
+  <?define PSFTP_Component_GUID = "3D7B9536-EC0E-4A6A-A3DF-8D285474391A" ?>
+  <?define PuTTYgen_Component_GUID = "4774F6B3-8A07-42A5-9F4D-E7FE6AA78B84" ?>
+  <?define Plink_Component_GUID = "7D96F9BB-4154-49D6-86AE-0D8F1379ACBC" ?>
+  <?define PSCP_Component_GUID = "71519D4A-3ED5-4A46-A7E4-B6E4600A8684" ?>
+  <?define HelpFile_Component_GUID = "72806A73-9D4D-49BF-8CAA-E90B0D83AEED" ?>
+  <?define Website_Component_GUID = "7DAD6536-C1A7-430C-BC8A-90176CCB78D0" ?>
+  <?define LICENCE_Component_GUID = "6AB710C0-F7A1-4B7A-AC2E-6993D6E98332" ?>
+  <?define README_Component_GUID = "0AB63F2A-0FD9-4961-B8F7-AB85C22D9986" ?>
+  <?define PPK_Assoc_Component_GUID = "13BBF036-F4C0-4F5B-9167-7BA35C673AAB" ?>
+  <?define Path_Component_GUID = "D1F68AAA-D20D-4047-828F-D0AC443FAF64" ?>
+  <?define ProgramMenuDir_GUID = "C12C3BB3-EC24-4883-8349-4AC8017C9E6A" ?>
+  <?define Desktop_Shortcut_Component_GUID = "D039E3D1-CE42-488D-96CC-90E1DE3796F8" ?>
+<?endif ?>
+
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
   <!--
@@ -19,10 +61,10 @@
       Buildscr.
   -->
   <Product
-      Name="PuTTY"
+      Name="$(var.ProgramName)"
       Manufacturer="Simon Tatham"
       Id="*"
-      UpgradeCode="dce70c63-8808-4646-b16b-a677bd298385"
+      UpgradeCode="$(var.UpgradeCode_GUID)"
       Language="1033" Codepage="1252" Version="$(var.Winver)">
 
     <!--
@@ -39,7 +81,7 @@
     <Package Id="*" Keywords="Installer"
              Description="$(var.Puttytextver) installer"
              Manufacturer="Simon Tatham"
-             InstallerVersion="100" Languages="1033"
+             InstallerVersion="$(var.InstallerVersion)" Languages="1033"
              Compressed="yes" SummaryCodepage="1252"
              InstallScope="perMachine" />
 
@@ -78,7 +120,7 @@
         well...
     -->
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFilesFolder" Name="PFiles">
+      <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
         <Directory Id="INSTALLDIR" Name="PuTTY">
 
           <!--
@@ -90,7 +132,7 @@
               the sake of being _somewhere_ and don't rate a shortcut.
           -->
           <Component Id="PuTTY_Component"
-                     Guid="07ACF511-6DF6-4883-AABA-33BC14901324">
+                     Guid="$(var.PuTTY_Component_GUID)">
             <File Id="PuTTY_File"
                   Source="$(var.Builddir)putty.exe" KeyPath="yes">
               <Shortcut Id="startmenuPuTTY" Directory="ProgramMenuDir"
@@ -99,7 +141,7 @@
             </File>
           </Component>
           <Component Id="Pageant_Component"
-                     Guid="649F963E-21C4-4755-8CE4-D80598DCEE6D">
+                     Guid="$(var.Pageant_Component_GUID)">
             <File Id="Pageant_File"
                   Source="$(var.Builddir)pageant.exe" KeyPath="yes">
               <Shortcut Id="startmenuPageant" Directory="ProgramMenuDir"
@@ -108,7 +150,7 @@
             </File>
           </Component>
           <Component Id="PSFTP_Component"
-                     Guid="3D7B9536-EC0E-4A6A-A3DF-8D285474391A">
+                     Guid="$(var.PSFTP_Component_GUID)">
             <File Id="PSFTP_File"
                   Source="$(var.Builddir)psftp.exe" KeyPath="yes">
               <Shortcut Id="startmenuPSFTP" Directory="ProgramMenuDir"
@@ -117,7 +159,7 @@
             </File>
           </Component>
           <Component Id="PuTTYgen_Component"
-                     Guid="4774F6B3-8A07-42A5-9F4D-E7FE6AA78B84">
+                     Guid="$(var.PuTTYgen_Component_GUID)">
             <File Id="PuTTYgen_File"
                   Source="$(var.Builddir)puttygen.exe" KeyPath="yes">
               <Shortcut Id="startmenuPuTTYgen" Directory="ProgramMenuDir"
@@ -126,18 +168,18 @@
             </File>
           </Component>
           <Component Id="Plink_Component"
-                     Guid="7D96F9BB-4154-49D6-86AE-0D8F1379ACBC">
+                     Guid="$(var.Plink_Component_GUID)">
             <File Id="Plink_File"
                   Source="$(var.Builddir)plink.exe" KeyPath="yes" />
           </Component>
           <Component Id="PSCP_Component"
-                     Guid="71519D4A-3ED5-4A46-A7E4-B6E4600A8684">
+                     Guid="$(var.PSCP_Component_GUID)">
             <File Id="PSCP_File"
                   Source="$(var.Builddir)pscp.exe" KeyPath="yes" />
           </Component>
 
           <Component Id="HelpFile_Component"
-                     Guid="72806A73-9D4D-49BF-8CAA-E90B0D83AEED">
+                     Guid="$(var.HelpFile_Component_GUID)">
             <File Id="HelpFile_File"
                   Source="..\doc\putty.chm" KeyPath="yes">
               <Shortcut Id="startmenuManual" Directory="ProgramMenuDir"
@@ -146,7 +188,7 @@
             </File>
           </Component>
           <Component Id="Website_Component"
-                     Guid="7DAD6536-C1A7-430C-BC8A-90176CCB78D0">
+                     Guid="$(var.Website_Component_GUID)">
             <File Id="Website_File"
                   Source="website.url" KeyPath="yes">
               <Shortcut Id="startmenuWebsite" Directory="ProgramMenuDir"
@@ -155,12 +197,12 @@
             </File>
           </Component>
           <Component Id="LICENCE_Component"
-                     Guid="6AB710C0-F7A1-4B7A-AC2E-6993D6E98332">
+                     Guid="$(var.LICENCE_Component_GUID)">
             <File Id="LICENCE_File"
                   Source="..\LICENCE" KeyPath="yes" />
           </Component>
           <Component Id="README_Component"
-                     Guid="0AB63F2A-0FD9-4961-B8F7-AB85C22D9986">
+                     Guid="$(var.README_Component_GUID)">
             <File Id="README_File"
                   Source="README-msi.txt" Name="README.txt" KeyPath="yes" />
           </Component>
@@ -181,7 +223,7 @@
               invent a spurious extra thing to be the key path.
           -->
           <Component Id="PPK_Assoc_Component"
-                     Guid="13BBF036-F4C0-4F5B-9167-7BA35C673AAB">
+                     Guid="$(var.PPK_Assoc_Component_GUID)">
             <ProgId Id="PPK_Assoc_ProgId"
                     Description="PuTTY Private Key File">
               <Extension Id="ppk"
@@ -193,7 +235,7 @@
               </Extension>
             </ProgId>
             <RegistryValue Root="HKLM"
-                           Key="Software\SimonTatham\PuTTY\PPKAssociation"
+                           Key="$(var.RegKeyPathLocation)\PPKAssociation"
                            Type="string" Value="" KeyPath="yes" />
           </Component>
 
@@ -206,7 +248,7 @@
               act as a key path.
           -->
           <Component Id="Path_Component"
-                     Guid="D1F68AAA-D20D-4047-828F-D0AC443FAF64">
+                     Guid="$(var.Path_Component_GUID)">
             <Environment Id="Path_Environment"
                          Name="PATH"
                          Value="[INSTALLDIR]"
@@ -215,7 +257,7 @@
                          Action="set"
                          System="yes"/>
             <RegistryValue Root="HKLM"
-                           Key="Software\SimonTatham\PuTTY\PathEntry"
+                           Key="$(var.RegKeyPathLocation)\PathEntry"
                            Type="string" Value="" KeyPath="yes" />
           </Component>
         </Directory>
@@ -228,12 +270,12 @@
           are placed by code above here.
       -->
       <Directory Id="ProgramMenuFolder" Name="Programs">
-        <Directory Id="ProgramMenuDir" Name="PuTTY">
+        <Directory Id="ProgramMenuDir" Name="$(var.ProgramName)">
           <Component Id="ProgramMenuDir"
-                     Guid="C12C3BB3-EC24-4883-8349-4AC8017C9E6A">
+                     Guid="$(var.ProgramMenuDir_GUID)">
             <RemoveFolder Id="ProgramMenuDir" On="uninstall" />
             <RegistryValue Root="HKLM"
-                           Key="Software\SimonTatham\PuTTY\StartMenu"
+                           Key="$(var.RegKeyPathLocation)\StartMenu"
                            Type="string" Value="" KeyPath="yes" />
           </Component>
         </Directory>
@@ -245,12 +287,12 @@
       -->
       <Directory Id="DesktopFolder" Name="Desktop">
         <Component Id="Desktop_Shortcut_Component"
-                   Guid="D039E3D1-CE42-488D-96CC-90E1DE3796F8">
+                   Guid="$(var.Desktop_Shortcut_Component_GUID)">
           <Shortcut Id="DesktopPuTTY"
                     WorkingDirectory="INSTALLDIR" Target="[INSTALLDIR]putty.exe"
-                    Name="PuTTY" Advertise="no" />
+                    Name="$(var.ProgramName)" Advertise="no" />
           <RegistryValue Root="HKLM"
-                         Key="Software\SimonTatham\PuTTY\DesktopEntry"
+                         Key="$(var.RegKeyPathLocation)\DesktopEntry"
                          Type="string" Value="" KeyPath="yes" />
         </Component>
       </Directory>
