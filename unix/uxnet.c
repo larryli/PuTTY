@@ -1351,7 +1351,7 @@ static int net_select_result(int fd, int event)
             int err = errno;
 	    if (s->addr) {
 		plug_log(s->plug, 1, s->addr, s->port, strerror(err), err);
-		while (s->addr && sk_nextaddr(s->addr, &s->step)) {
+		while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
 		    err = try_connect(s);
 		}
 	    }

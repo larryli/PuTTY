@@ -1580,7 +1580,7 @@ int select_result(WPARAM wParam, LPARAM lParam)
 	if (s->addr) {
 	    plug_log(s->plug, 1, s->addr, s->port,
 		     winsock_error_string(err), err);
-	    while (s->addr && sk_nextaddr(s->addr, &s->step)) {
+	    while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
 		err = try_connect(s);
 	    }
 	}
