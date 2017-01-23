@@ -17,7 +17,7 @@ For building on Windows:
    systems. Change into the `windows' subdirectory and type `nmake
    -f Makefile.vc' to build all the PuTTY binaries.
 
-   As of 2016, we successfully compiled PuTTY with both Visual Studio
+   As of 2017, we successfully compile PuTTY with both Visual Studio
    7 (2003) and Visual Studio 14 (2015), so our guess is that it will
    probably build with versions in between those as well.
 
