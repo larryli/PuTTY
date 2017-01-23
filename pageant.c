@@ -1344,8 +1344,11 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         *retstr = dupstr("Received broken key list from agent");
                         return PAGEANT_ACTION_FAILURE;
 		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
+		    n = GET_32BIT(p);
+                    p += 4;
+                    keylistlen -= 4;
+
+		    if (n < 0 || n > keylistlen) {
                         *retstr = dupstr("Received broken key list from agent");
                         return PAGEANT_ACTION_FAILURE;
 		    }
@@ -1359,8 +1362,11 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         *retstr = dupstr("Received broken key list from agent");
                         return PAGEANT_ACTION_FAILURE;
 		    }
-		    n = toint(4 + GET_32BIT(p));
-		    if (n < 0 || keylistlen < n) {
+		    n = GET_32BIT(p);
+                    p += 4;
+                    keylistlen -= 4;
+
+		    if (n < 0 || n > keylistlen) {
                         *retstr = dupstr("Received broken key list from agent");
                         return PAGEANT_ACTION_FAILURE;
 		    }
