@@ -1342,21 +1342,7 @@ static int net_select_result(int fd, int event)
 	    }
 	}
 	if (ret < 0) {
-            /*
-             * An error at this point _might_ be an error reported
-             * by a non-blocking connect(). So before we return a
-             * panic status to the user, let's just see whether
-             * that's the case.
-             */
-            int err = errno;
-	    if (s->addr) {
-		plug_log(s->plug, 1, s->addr, s->port, strerror(err), err);
-		while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
-		    err = try_connect(s);
-		}
-	    }
-            if (err != 0)
-                return plug_closing(s->plug, strerror(err), err, 0);
+            return plug_closing(s->plug, strerror(errno), errno, 0);
 	} else if (0 == ret) {
             s->incomingeof = TRUE;     /* stop trying to read now */
             uxsel_tell(s);
@@ -1378,11 +1364,48 @@ static int net_select_result(int fd, int event)
 	if (!s->connected) {
 	    /*
 	     * select() reports a socket as _writable_ when an
-	     * asynchronous connection is completed.
+	     * asynchronous connect() attempt either completes or
+	     * fails. So first we must find out which.
 	     */
+            {
+                int err;
+                socklen_t errlen = sizeof(err);
+                char *errmsg = NULL;
+                if (getsockopt(s->s, SOL_SOCKET, SO_ERROR, &err, &errlen)<0) {
+                    errmsg = dupprintf("getsockopt(SO_ERROR): %s",
+                                       strerror(errno));
+                    err = errno;       /* got to put something in here */
+                } else if (err != 0) {
+                    errmsg = dupstr(strerror(err));
+                }
+                if (errmsg) {
+                    /*
+                     * The asynchronous connection attempt failed.
+                     * Report the problem via plug_log, and try again
+                     * with the next candidate address, if we have
+                     * more than one.
+                     */
+                    assert(s->addr);
+                    plug_log(s->plug, 1, s->addr, s->port, errmsg, err);
+                    while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
+                        err = try_connect(s);
+                    }
+                    if (err)
+                        return plug_closing(s->plug, strerror(err), err, 0);
+                    if (!s->connected)
+                        return 0;      /* another async attempt in progress */
+                }
+            }
+
+            /*
+             * If we get here, we've managed to make a connection.
+             */
+            if (s->addr) {
+                sk_addr_free(s->addr);
+                s->addr = NULL;
+            }
 	    s->connected = s->writable = 1;
 	    uxsel_tell(s);
-	    break;
 	} else {
 	    int bufsize_before, bufsize_after;
 	    s->writable = 1;
