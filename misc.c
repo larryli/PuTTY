@@ -1118,7 +1118,7 @@ void *get_ssh_string(int *datalen, const void **data, int *stringlen)
     if (*datalen < 4)
         return NULL;
     len = GET_32BIT_MSB_FIRST((const unsigned char *)*data);
-    if (*datalen < len+4)
+    if (*datalen - 4 < len)
         return NULL;
     ret = (void *)((const char *)*data + 4);
     *datalen -= len + 4;
