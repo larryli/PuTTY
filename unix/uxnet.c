@@ -344,6 +344,34 @@ void sk_getaddr(SockAddr addr, char *buf, int buflen)
     }
 }
 
+/*
+ * This constructs a SockAddr that points at one specific sub-address
+ * of a parent SockAddr. The returned SockAddr does not own all its
+ * own memory: it points into the old one's data structures, so it
+ * MUST NOT be used after the old one is freed, and it MUST NOT be
+ * passed to sk_addr_free. (The latter is why it's returned by value
+ * rather than dynamically allocated - that should clue in anyone
+ * writing a call to it that something is weird about it.)
+ */
+static struct SockAddr_tag sk_extractaddr_tmp(
+    SockAddr addr, const SockAddrStep *step)
+{
+    struct SockAddr_tag toret;
+    toret = *addr;                    /* structure copy */
+    toret.refcount = 1;
+
+    if (addr->superfamily == IP) {
+#ifndef NO_IPV6
+        toret.ais = step->ai;
+#else
+	assert(SOCKADDR_FAMILY(addr, *step) == AF_INET);
+        toret.addresses += step->curraddr;
+#endif
+    }
+
+    return toret;
+}
+
 int sk_addr_needs_port(SockAddr addr)
 {
     if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
@@ -561,7 +589,11 @@ static int try_connect(Actual_Socket sock)
     if (sock->s >= 0)
         close(sock->s);
 
-    plug_log(sock->plug, 0, sock->addr, sock->port, NULL, 0);
+    {
+        struct SockAddr_tag thisaddr = sk_extractaddr_tmp(
+            sock->addr, &sock->step);
+        plug_log(sock->plug, 0, &thisaddr, sock->port, NULL, 0);
+    }
 
     /*
      * Open socket.
@@ -728,8 +760,11 @@ static int try_connect(Actual_Socket sock)
      */
     add234(sktree, sock);
 
-    if (err)
-	plug_log(sock->plug, 1, sock->addr, sock->port, strerror(err), err);
+    if (err) {
+        struct SockAddr_tag thisaddr = sk_extractaddr_tmp(
+            sock->addr, &sock->step);
+	plug_log(sock->plug, 1, &thisaddr, sock->port, strerror(err), err);
+    }
     return err;
 }
 
@@ -1385,8 +1420,12 @@ static int net_select_result(int fd, int event)
                      * with the next candidate address, if we have
                      * more than one.
                      */
+                    struct SockAddr_tag thisaddr;
                     assert(s->addr);
-                    plug_log(s->plug, 1, s->addr, s->port, errmsg, err);
+
+                    thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
+                    plug_log(s->plug, 1, &thisaddr, s->port, errmsg, err);
+
                     while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
                         err = try_connect(s);
                     }
