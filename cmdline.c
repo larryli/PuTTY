@@ -609,6 +609,17 @@ int cmdline_process_param(const char *p, char *value,
 	conf_set_str(conf, CONF_proxy_telnet_command, value);
     }
 
+#ifdef _WINDOWS
+    /*
+     * Cross-tool options only available on Windows.
+     */
+    if (!strcmp(p, "-restrict-acl") || !strcmp(p, "-restrict_acl") ||
+        !strcmp(p, "-restrictacl")) {
+	RETURN(1);
+        restrict_process_acl();
+    }
+#endif
+
     return ret;			       /* unrecognised */
 }
 

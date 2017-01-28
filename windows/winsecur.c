@@ -224,7 +224,7 @@ int make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
-int setprocessacl(char *error)
+static int really_restrict_process_acl(char *error)
 {
     EXPLICIT_ACCESS ea[2];
     int acl_err;
@@ -287,3 +287,35 @@ int setprocessacl(char *error)
     return ret;
 }  
 #endif /* !defined NO_SECURITY */
+
+/*
+ * Lock down our process's ACL, to present an obstacle to malware
+ * trying to write into its memory. This can't be a full defence,
+ * because well timed malware could attack us before this code runs -
+ * even if it was unconditionally run at the very start of main(),
+ * which we wouldn't want to do anyway because it turns out in practie
+ * that interfering with other processes in this way has significant
+ * non-infringing uses on Windows (e.g. screen reader software).
+ *
+ * If we've been requested to do this and are unsuccessful, bomb out
+ * via modalfatalbox rather than continue in a less protected mode.
+ *
+ * This function is intentionally outside the #ifndef NO_SECURITY that
+ * covers the rest of this file, because when PuTTY is compiled
+ * without the ability to restrict its ACL, we don't want it to
+ * silently pretend to honour the instruction to do so.
+ */
+void restrict_process_acl(void)
+{
+    char *error = NULL;
+    int ret;
+
+#if !defined NO_SECURITY
+    ret = really_restrict_process_acl(error);
+#else
+    ret = FALSE;
+    error = dupstr("ACL restrictions not compiled into this binary");
+#endif
+    if (!ret)
+        modalfatalbox("Could not restrict process ACL: %s", error);
+}

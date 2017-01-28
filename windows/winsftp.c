@@ -749,21 +749,6 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
 
 void platform_psftp_post_option_setup(void)
 {
-#if !defined UNPROTECT && !defined NO_SECURITY
-    /*
-     * Protect our process.
-     */
-    {
-        char *error = NULL;
-        if (!setprocessacl(error)) {
-            char *message = dupprintf("Could not restrict process ACL: %s",
-                                      error);
-            logevent(NULL, message);
-            sfree(message);
-            sfree(error);
-        }
-    }
-#endif
 }
 
 /* ----------------------------------------------------------------------

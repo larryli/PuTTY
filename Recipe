@@ -54,8 +54,7 @@
 #         security grounds (although it will run fine on Win95-series
 #         OSes where there is no access control anyway).
 #       - SSH connection sharing is disabled.
-#       - There is no restriction of the process ACLs (on all versions
-#         of Windows, without warning), as if UNPROTECT below were set.
+#       - There is no support for restriction of the process ACLs.
 #
 #  - COMPAT=/DNO_MULTIMON (Windows only)
 #      Disables PuTTY's use of <multimon.h>, which is not available
@@ -107,10 +106,6 @@
 #
 #  - XFLAGS=/DDEBUG
 #      Causes PuTTY to enable internal debugging.
-#
-#  - XFLAGS=/DUNPROTECT
-#      Disable tightened ACL on PuTTY process so that e.g. debuggers
-#      can attach to it.
 #
 #  - XFLAGS=/DMALLOC_LOG
 #      Causes PuTTY to emit a file called putty_mem.log, logging every

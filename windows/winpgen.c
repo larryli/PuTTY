@@ -1517,7 +1517,7 @@ void cleanup_exit(int code)
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    int argc;
+    int argc, i;
     char **argv;
     int ret;
 
@@ -1534,35 +1534,23 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     split_into_argv(cmdline, &argc, &argv, NULL);
 
-    if (argc > 0) {
-	if (!strcmp(argv[0], "-pgpfp")) {
+    for (i = 0; i < argc; i++) {
+	if (!strcmp(argv[i], "-pgpfp")) {
 	    pgp_fingerprints();
-	    exit(1);
+	    return 1;
+        } else if (!strcmp(argv[i], "-restrict-acl") ||
+                   !strcmp(argv[i], "-restrict_acl") ||
+                   !strcmp(argv[i], "-restrictacl")) {
+            restrict_process_acl();
 	} else {
 	    /*
 	     * Assume the first argument to be a private key file, and
 	     * attempt to load it.
 	     */
-	    cmdline_keyfile = argv[0];
+	    cmdline_keyfile = argv[i];
+            break;
 	}
     }
-
-#if !defined UNPROTECT && !defined NO_SECURITY
-    /*
-     * Protect our process.
-     */
-    {
-        char *error = NULL;
-        if (!setprocessacl(error)) {
-            char *message = dupprintf("Could not restrict process ACL: %s",
-                                      error);
-            MessageBox(NULL, message, "PuTTYgen Warning",
-                       MB_ICONWARNING | MB_OK);
-            sfree(message);
-            sfree(error);
-        }
-    }
-#endif
 
     random_ref();
     ret = DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;
