@@ -1196,12 +1196,12 @@ void *pageant_get_keylist1(int *length)
     if (!pageant_local) {
 	unsigned char request[5], *response;
 	void *vresponse;
-	int resplen, retval;
+	int resplen;
+
 	request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
 	PUT_32BIT(request, 1);
 
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
+        agent_query_synchronous(request, 5, &vresponse, &resplen);
 	response = vresponse;
 	if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
             sfree(response);
@@ -1227,13 +1227,12 @@ void *pageant_get_keylist2(int *length)
     if (!pageant_local) {
 	unsigned char request[5], *response;
 	void *vresponse;
-	int resplen, retval;
+	int resplen;
 
 	request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
 	PUT_32BIT(request, 1);
 
-	retval = agent_query(request, 5, &vresponse, &resplen, NULL, NULL);
-	assert(retval == 1);
+	agent_query_synchronous(request, 5, &vresponse, &resplen);
 	response = vresponse;
 	if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
             sfree(response);
@@ -1471,7 +1470,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	if (!pageant_local) {
 	    unsigned char *request, *response;
 	    void *vresponse;
-	    int reqlen, clen, resplen, ret;
+	    int reqlen, clen, resplen;
 
 	    clen = strlen(rkey->comment);
 
@@ -1504,9 +1503,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    reqlen += 4 + clen;
 	    PUT_32BIT(request, reqlen - 4);
 
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
+	    agent_query_synchronous(request, reqlen, &vresponse, &resplen);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
 		*retstr = dupstr("The already running Pageant "
@@ -1524,7 +1521,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	if (!pageant_local) {
 	    unsigned char *request, *response;
 	    void *vresponse;
-	    int reqlen, alglen, clen, keybloblen, resplen, ret;
+	    int reqlen, alglen, clen, keybloblen, resplen;
 	    alglen = strlen(skey->alg->name);
 	    clen = strlen(skey->comment);
 
@@ -1552,9 +1549,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    reqlen += clen + 4;
 	    PUT_32BIT(request, reqlen - 4);
 
-	    ret = agent_query(request, reqlen, &vresponse, &resplen,
-			      NULL, NULL);
-	    assert(ret == 1);
+	    agent_query_synchronous(request, reqlen, &vresponse, &resplen);
 	    response = vresponse;
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
 		*retstr = dupstr("The already running Pageant "
@@ -1741,8 +1736,7 @@ int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
         memcpy(request + 9, key->blob, key->bloblen);
     }
 
-    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
-    assert(ret == 1);
+    agent_query_synchronous(request, reqlen, &vresponse, &resplen);
     response = vresponse;
     if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
         *retstr = dupstr("Agent failed to delete key");
@@ -1759,14 +1753,13 @@ int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
 int pageant_delete_all_keys(char **retstr)
 {
     unsigned char request[5], *response;
-    int reqlen, resplen, success, ret;
+    int reqlen, resplen, success;
     void *vresponse;
 
     PUT_32BIT(request, 1);
     request[4] = SSH2_AGENTC_REMOVE_ALL_IDENTITIES;
     reqlen = 5;
-    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
-    assert(ret == 1);
+    agent_query_synchronous(request, reqlen, &vresponse, &resplen);
     response = vresponse;
     success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
     sfree(response);
@@ -1778,8 +1771,7 @@ int pageant_delete_all_keys(char **retstr)
     PUT_32BIT(request, 1);
     request[4] = SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES;
     reqlen = 5;
-    ret = agent_query(request, reqlen, &vresponse, &resplen, NULL, NULL);
-    assert(ret == 1);
+    agent_query_synchronous(request, reqlen, &vresponse, &resplen);
     response = vresponse;
     success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
     sfree(response);

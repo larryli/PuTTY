@@ -24,8 +24,14 @@ int agent_exists(void)
 	return TRUE;
 }
 
-int agent_query(void *in, int inlen, void **out, int *outlen,
-		void (*callback)(void *, void *, int), void *callback_ctx)
+void agent_cancel_query(agent_pending_query *q)
+{
+    assert(0 && "Windows agent queries are never asynchronous!");
+}
+
+agent_pending_query *agent_query(
+    void *in, int inlen, void **out, int *outlen,
+    void (*callback)(void *, void *, int), void *callback_ctx)
 {
     HWND hwnd;
     char *mapname;
@@ -42,7 +48,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 
     hwnd = FindWindow("Pageant", "Pageant");
     if (!hwnd)
-	return 1;		       /* *out == NULL, so failure */
+	return NULL;		       /* *out == NULL, so failure */
     mapname = dupprintf("PageantRequest%08x", (unsigned)GetCurrentThreadId());
 
     psa = NULL;
@@ -83,7 +89,7 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
 				0, AGENT_MAX_MSGLEN, mapname);
     if (filemap == NULL || filemap == INVALID_HANDLE_VALUE) {
         sfree(mapname);
-	return 1;		       /* *out == NULL, so failure */
+	return NULL;		       /* *out == NULL, so failure */
     }
     p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
     memcpy(p, in, inlen);
@@ -111,5 +117,5 @@ int agent_query(void *in, int inlen, void **out, int *outlen,
     sfree(mapname);
     if (psd)
         LocalFree(psd);
-    return 1;
+    return NULL;
 }

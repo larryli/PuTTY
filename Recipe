@@ -244,7 +244,7 @@ NONSSH   = telnet raw rlogin ldisc pinger
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshccp sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-         + sshgssc pgssapi sshshare sshecc
+         + sshgssc pgssapi sshshare sshecc aqsync
 WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
@@ -299,7 +299,7 @@ psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + psftp.res winnojmp LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes sshbn sshmd5 version
-	 + tree234 misc sshaes sshsha winsecur winpgntc sshdss sshsh256
+	 + tree234 misc sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
 	 + sshsh512 winutils sshecc winmisc winhelp conf pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
@@ -331,10 +331,10 @@ cgtest   : [UT] cgtest PUTTYGEN_UNIX
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC
 
-pageant  : [X] uxpgnt uxagentc pageant sshrsa sshpubk sshdes sshbn sshmd5
-	 + version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512 sshecc
-	 + conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons gtkask
-	 + gtkmisc UXMISC
+pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes sshbn
+	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
+	 + sshecc conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
+	 + gtkask gtkmisc UXMISC
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
