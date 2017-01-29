@@ -1517,7 +1517,8 @@ if (defined $makefiles{'am'}) {
     # auto-generated parts of this makefile, but Recipe might like to
     # have it available as a variable so that mandatory-rebuild things
     # (version.o) can conveniently be made to depend on it.
-    @sources = ("allsources", "=", sort keys %allsourcefiles);
+    @sources = ("allsources", "=",
+                sort grep {$_ ne "empty.h"} keys %allsourcefiles);
     print &splitline(join " ", @sources), "\n\n";
 
     @cliprogs = ("bin_PROGRAMS", "=");
