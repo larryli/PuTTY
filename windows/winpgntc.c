@@ -7,13 +7,13 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "pageant.h" /* for AGENT_MAX_MSGLEN */
 
 #ifndef NO_SECURITY
 #include "winsecur.h"
 #endif
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
-#define AGENT_MAX_MSGLEN  8192
 
 int agent_exists(void)
 {
