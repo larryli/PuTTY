@@ -10,6 +10,7 @@
 #include <signal.h>
 
 #include "putty.h"
+#include "pageant.h" /* for AGENT_MAX_MSGLEN */
 #include "tree234.h"
 #include "storage.h"
 #include "ssh.h"
@@ -3857,6 +3858,8 @@ static void ssh_agentf_got_response(struct ssh_channel *c,
 {
     c->u.a.pending = NULL;
 
+    assert(!(c->closes & CLOSES_SENT_EOF));
+
     if (!reply) {
 	/* The real agent didn't send any kind of reply at all for
          * some reason, so fake an SSH_AGENT_FAILURE. */
@@ -3897,6 +3900,15 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
         (c->ssh->version == 2 && c->v.v2.remwindow == 0))
         return;
 
+    if (c->closes & CLOSES_SENT_EOF) {
+        /*
+         * If we've already sent outgoing EOF, there's nothing we can
+         * do with incoming data except consume it and throw it away.
+         */
+        bufchain_clear(&c->u.a.inbuffer);
+        return;
+    }
+
     while (1) {
         /*
          * Try to extract a complete message from the input buffer.
@@ -3907,6 +3919,21 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
 
         bufchain_fetch(&c->u.a.inbuffer, msglen, 4);
         lengthfield = GET_32BIT(msglen);
+
+        if (lengthfield > AGENT_MAX_MSGLEN) {
+            /*
+             * If the remote has sent a message that's just _too_
+             * long, we should reject it in advance of seeing the rest
+             * of the incoming message, and also close the connection
+             * for good measure (which avoids us having to faff about
+             * with carefully ignoring just the right number of bytes
+             * from the overlong message).
+             */
+            ssh_agentf_got_response(c, NULL, 0);
+            sshfwd_write_eof(c);
+            return;
+        }
+
         if (lengthfield > datalen - 4)
             break;          /* a whole message is not yet available */
 
