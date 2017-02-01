@@ -92,17 +92,17 @@ PSID get_user_sid(void)
     return ret;
 }
 
-int getsids(char *error)
+int getsids(char **error)
 {
     SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
     SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
     int ret;
 
-    error=NULL;
+    *error = NULL;
 
     if (!usersid) {
         if ((usersid = get_user_sid()) == NULL) {
-            error = dupprintf("unable to construct SID for current user: %s",
+            *error = dupprintf("unable to construct SID for current user: %s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
@@ -111,7 +111,7 @@ int getsids(char *error)
     if (!worldsid) {
         if (!AllocateAndInitializeSid(&world_auth, 1, SECURITY_WORLD_RID,
                                       0, 0, 0, 0, 0, 0, 0, &worldsid)) {
-            error = dupprintf("unable to construct SID for world: %s",
+            *error = dupprintf("unable to construct SID for world: %s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
@@ -120,20 +120,16 @@ int getsids(char *error)
     if (!networksid) {
         if (!AllocateAndInitializeSid(&nt_auth, 1, SECURITY_NETWORK_RID,
                                       0, 0, 0, 0, 0, 0, 0, &networksid)) {
-            error = dupprintf("unable to construct SID for "
+            *error = dupprintf("unable to construct SID for "
                                "local same-user access only: %s",
                                win_strerror(GetLastError()));
             goto cleanup;
         }
     }
 
-    ret=TRUE;
+    ret = TRUE;
 
  cleanup:
-    if (ret) {
-      sfree(error);
-      error = NULL;
-    }
     return ret;
 }
   
@@ -152,7 +148,7 @@ int make_private_security_descriptor(DWORD permissions,
     *acl = NULL;
     *error = NULL;
 
-    if (!getsids(*error))
+    if (!getsids(error))
       goto cleanup;
 
     memset(ea, 0, sizeof(ea));
@@ -224,7 +220,7 @@ int make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
-static int really_restrict_process_acl(char *error)
+static int really_restrict_process_acl(char **error)
 {
     EXPLICIT_ACCESS ea[2];
     int acl_err;
@@ -260,8 +256,8 @@ static int really_restrict_process_acl(char *error)
     acl_err = p_SetEntriesInAclA(2, ea, NULL, &acl);
 
     if (acl_err != ERROR_SUCCESS || acl == NULL) {
-	error = dupprintf("unable to construct ACL: %s",
-			  win_strerror(acl_err));
+	*error = dupprintf("unable to construct ACL: %s",
+                           win_strerror(acl_err));
         goto cleanup;
     }
 
@@ -269,8 +265,8 @@ static int really_restrict_process_acl(char *error)
         (GetCurrentProcess(), SE_KERNEL_OBJECT,
          OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION,
          usersid, NULL, acl, NULL)) {
-	error=dupprintf("Unable to set process ACL: %s",
-			win_strerror(GetLastError()));
+	*error = dupprintf("Unable to set process ACL: %s",
+                           win_strerror(GetLastError()));
 	goto cleanup;
     }
 		      
@@ -285,7 +281,7 @@ static int really_restrict_process_acl(char *error)
         }
     }
     return ret;
-}  
+}
 #endif /* !defined NO_SECURITY */
 
 /*
@@ -311,7 +307,7 @@ void restrict_process_acl(void)
     int ret;
 
 #if !defined NO_SECURITY
-    ret = really_restrict_process_acl(error);
+    ret = really_restrict_process_acl(&error);
 #else
     ret = FALSE;
     error = dupstr("ACL restrictions not compiled into this binary");
