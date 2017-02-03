@@ -96,7 +96,7 @@ int getsids(char **error)
 {
     SID_IDENTIFIER_AUTHORITY world_auth = SECURITY_WORLD_SID_AUTHORITY;
     SID_IDENTIFIER_AUTHORITY nt_auth = SECURITY_NT_AUTHORITY;
-    int ret;
+    int ret = FALSE;
 
     *error = NULL;
 
