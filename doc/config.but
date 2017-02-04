@@ -1955,6 +1955,9 @@ If you want your local proxy command to make a secondary SSH
 connection to a proxy host and then tunnel the primary connection
 over that, you might well want the \c{-nc} command-line option in
 Plink. See \k{using-cmdline-ncmode} for more information.
+
+You can also enable this mode on the command line; see
+\k{using-cmdline-proxycmd}.
 }
 
 \S{config-proxy-exclude} Excluding parts of the network from proxying
