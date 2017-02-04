@@ -432,11 +432,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 * Process a couple of command-line options which are more
 	 * easily dealt with before the line is broken up into words.
 	 * These are the old-fashioned but convenient @sessionname and
-	 * the internal-use-only &sharedmemoryhandle, neither of which
-	 * are combined with anything else.
+	 * the internal-use-only &sharedmemoryhandle, plus the &R
+	 * prefix for -restrict-acl, all of which are used by PuTTYs
+	 * auto-launching each other via System-menu options.
 	 */
 	while (*p && isspace(*p))
 	    p++;
+        if (*p == '&' && p[1] == 'R' &&
+            (!p[2] || p[2] == '@' || p[2] == '&')) {
+            /* &R restrict-acl prefix */
+            restrict_process_acl();
+            restricted_acl = TRUE;
+            p += 2;
+        }
+
 	if (*p == '@') {
             /*
              * An initial @ means that the whole of the rest of the
@@ -474,7 +483,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		cleanup_exit(0);
 	    }
 	    allow_launch = TRUE;
-	} else {
+	} else if (!*p) {
+            /* Do-nothing case for an empty command line - or rather,
+             * for a command line that's empty _after_ we strip off
+             * the &R prefix. */
+        } else {
 	    /*
 	     * Otherwise, break up the command line and deal with
 	     * it sensibly.
@@ -2148,12 +2161,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_SAVEDSESS:
 	    {
 		char b[2048];
-		char c[30], *cl;
-		int freecl = FALSE;
+		char *cl;
+                const char *argprefix;
 		BOOL inherit_handles;
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 		HANDLE filemap = NULL;
+
+                if (restricted_acl)
+                    argprefix = "&R";
+                else
+                    argprefix = "";
 
 		if (wParam == IDM_DUPSESS) {
 		    /*
@@ -2181,20 +2199,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			}
 		    }
 		    inherit_handles = TRUE;
-		    sprintf(c, "putty &%p:%u", filemap, (unsigned)size);
-		    cl = c;
+		    cl = dupprintf("putty %s&%p:%u", argprefix,
+                                   filemap, (unsigned)size);
 		} else if (wParam == IDM_SAVEDSESS) {
 		    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
 					   / MENU_SAVED_STEP) + 1;
 		    if (sessno < (unsigned)sesslist.nsessions) {
 			const char *session = sesslist.sessions[sessno];
-			cl = dupprintf("putty @%s", session);
+			cl = dupprintf("putty %s@%s", argprefix, session);
 			inherit_handles = FALSE;
-			freecl = TRUE;
 		    } else
 			break;
 		} else /* IDM_NEWSESS */ {
-		    cl = NULL;
+                    cl = dupprintf("putty%s%s",
+                                   *argprefix ? " " : "",
+                                   argprefix);
 		    inherit_handles = FALSE;
 		}
 
@@ -2213,8 +2232,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		if (filemap)
 		    CloseHandle(filemap);
-		if (freecl)
-		    sfree(cl);
+                sfree(cl);
 	    }
 	    break;
 	  case IDM_RESTART:

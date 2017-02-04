@@ -485,6 +485,7 @@ BOOL init_winver(void);
 HMODULE load_system32_dll(const char *libname);
 const char *win_strerror(int error);
 void restrict_process_acl(void);
+GLOBAL int restricted_acl;
 
 /*
  * Exports from sizetip.c.
