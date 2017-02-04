@@ -1,7 +1,8 @@
 ; -*- no -*-
 ;
-; -- Inno Setup installer script for PuTTY and its related tools.
-;    Last tested with Inno Setup 5.0.8.
+; -- Legacy Inno Setup installer script for PuTTY and its related tools.
+;    Last tested with Inno Setup 5.5.9.
+;    (New work should go to the MSI installer; see installer.wxs.)
 ;
 ; TODO for future releases:
 ;
