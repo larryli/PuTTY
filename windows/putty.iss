@@ -98,3 +98,7 @@ FinishedRestartLabel=One or more [name] programs are still running. Setup will n
 FinishedRestartMessage=One or more [name] programs are still running.%nSetup will not replace these program files until you restart your computer.%n%nWould you like to restart now?
 ; ...and this comes up if you try to uninstall.
 UninstalledAndNeedsRestart=One or more %1 programs are still running.%nThe program files will not be removed until your computer is restarted.%n%nWould you like to restart now?
+; Old versions of this installer used to prompt to remove saved settings
+; and the like after the point this message was printed, so it seems
+; polite to warn people that that no longer happens.
+ConfirmUninstall=Are you sure you want to completely remove %1 and all of its components?%n%nNote that this will not remove any saved sessions or random seed file that %1 has created. These are harmless to leave on your system, but if you want to remove them, you should answer No here and run 'putty.exe -cleanup' before you uninstall.
