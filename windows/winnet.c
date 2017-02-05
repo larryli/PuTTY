@@ -17,8 +17,15 @@
 #include <ws2tcpip.h>
 
 #ifndef NO_IPV6
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-braces"
+#endif
 const struct in6_addr in6addr_any = IN6ADDR_ANY_INIT;
 const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #endif
 
 #define ipv4_is_loopback(addr) \
