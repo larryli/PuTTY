@@ -127,6 +127,7 @@
 /windows/*.tds
 /windows/*.td2
 /windows/*.map
+/windows/Makefile.clangcl
 /windows/Makefile.bor
 /windows/Makefile.mgw
 /windows/Makefile.vc
