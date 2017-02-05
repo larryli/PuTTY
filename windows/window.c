@@ -1543,7 +1543,8 @@ static void init_fonts(int pick_width, int pick_height)
 	if (cset == OEM_CHARSET)
 	    ucsdata.font_codepage = GetOEMCP();
 	else
-	    if (TranslateCharsetInfo ((DWORD *) cset, &info, TCI_SRCCHARSET))
+	    if (TranslateCharsetInfo ((DWORD *)(ULONG_PTR)cset,
+                                      &info, TCI_SRCCHARSET))
 		ucsdata.font_codepage = info.ciACP;
 	else
 	    ucsdata.font_codepage = -1;
