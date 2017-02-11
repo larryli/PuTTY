@@ -2837,6 +2837,9 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     back = &ssh_backend;
 
+    logctx = log_init(NULL, conf);
+    console_provide_logctx(logctx);
+
     err = back->init(NULL, &backhandle, conf,
 		     conf_get_str(conf, CONF_host),
 		     conf_get_int(conf, CONF_port),
@@ -2846,9 +2849,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
-    logctx = log_init(NULL, conf);
     back->provide_logctx(backhandle, logctx);
-    console_provide_logctx(logctx);
     while (!back->sendok(backhandle)) {
 	if (back->exitcode(backhandle) >= 0)
 	    return 1;

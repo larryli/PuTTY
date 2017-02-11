@@ -514,6 +514,9 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     back = &ssh_backend;
 
+    logctx = log_init(NULL, conf);
+    console_provide_logctx(logctx);
+
     err = back->init(NULL, &backhandle, conf,
 		     conf_get_str(conf, CONF_host),
 		     conf_get_int(conf, CONF_port),
@@ -521,9 +524,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 		     conf_get_int(conf, CONF_tcp_keepalives));
     if (err != NULL)
 	bump("ssh_init: %s", err);
-    logctx = log_init(NULL, conf);
     back->provide_logctx(backhandle, logctx);
-    console_provide_logctx(logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL && errs == 0)
 	tell_user(stderr, "Connected to %s", realhost);
