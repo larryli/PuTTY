@@ -136,6 +136,7 @@ static void usage(void)
     printf("  -D           delete all keys from the agent\n");
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
+    printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
     exit(1);
 }
 
