@@ -75,6 +75,10 @@ commands such as \q{\c{w}}).
 
 \dd Force use of SSH protocol version 2.
 
+\dt \cw{-4}, \cw{-6}
+
+\dd Force use of IPv4 or IPv6 for network connections.
+
 \dt \cw{-C}
 
 \dd Enable SSH compression.
@@ -88,6 +92,15 @@ else's.
 \lcont{ If you are using an authentication agent, you can also specify
 a \e{public} key here (in RFC 4716 or OpenSSH format), to identify
 which of the agent's keys to use. }
+
+\dt \cw{\-noagent}
+
+\dd Don't try to use an authentication agent.
+
+\dt \cw{\-agent}
+
+\dd Allow use of an authentication agent. (This option is only necessary
+to override a setting in a saved session.)
 
 \dt \cw{\-hostkey} \e{key}
 

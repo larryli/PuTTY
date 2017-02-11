@@ -173,6 +173,10 @@ configuration box first.
 
 \dd Specify the port to connect to the server on.
 
+\dt \cw{-4}, \cw{-6}
+
+\dd Force use of IPv4 or IPv6 for network connections.
+
 \S{puttytel-manpage-saved-sessions} SAVED SESSIONS
 
 Saved sessions are stored in a \cw{.putty/sessions} subdirectory in
