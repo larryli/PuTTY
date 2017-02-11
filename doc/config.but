@@ -2103,6 +2103,25 @@ port. Note that if you do not include the \c{%user} or \c{%pass}
 tokens in the Telnet command, then the \q{Username} and \q{Password}
 configuration fields will be ignored.
 
+\S{config-proxy-logging} Controlling \i{proxy logging}
+
+\cfg{winhelp-topic}{proxy.logging}
+
+Often the proxy interaction has its own diagnostic output; this is
+particularly the case for local proxy commands.
+
+The setting \q{Print proxy diagnostics in the terminal window} lets
+you control how much of the proxy's diagnostics are printed to the main
+terminal window, along with output from your main session.
+
+By default (\q{No}), proxy diagnostics are only sent to the Event Log;
+with \q{Yes} they are also printed to the terminal, where they may get
+mixed up with your main session. \q{Only until session starts} is a
+compromise; proxy messages will go to the terminal window until the main
+session is deemed to have started (in a protocol-dependent way), which
+is when they're most likely to be interesting; any further proxy-related
+messages during the session will only go to the Event Log.
+
 \H{config-telnet} The \i{Telnet} panel
 
 The Telnet panel allows you to configure options that only apply to

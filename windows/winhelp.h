@@ -87,6 +87,7 @@
 #define WINHELP_CTX_proxy_dns "proxy.dns:config-proxy-dns"
 #define WINHELP_CTX_proxy_auth "proxy.auth:config-proxy-auth"
 #define WINHELP_CTX_proxy_command "proxy.command:config-proxy-command"
+#define WINHELP_CTX_proxy_logging "proxy.logging:config-proxy-logging"
 #define WINHELP_CTX_telnet_environ "telnet.environ:config-environ"
 #define WINHELP_CTX_telnet_oldenviron "telnet.oldenviron:config-oldenviron"
 #define WINHELP_CTX_telnet_passive "telnet.passive:config-ptelnet"

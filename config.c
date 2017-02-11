@@ -2122,7 +2122,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	ctrl_radiobuttons(s, "Print proxy diagnostics "
                           "in the terminal window", 'r', 5,
-			  HELPCTX(proxy_main),
+			  HELPCTX(proxy_logging),
 			  conf_radiobutton_handler,
 			  I(CONF_proxy_log_to_term),
 			  "No", I(FORCE_OFF),
