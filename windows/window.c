@@ -840,6 +840,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
+    if (restricted_acl) {
+	logevent(NULL, "Running with restricted process ACL");
+    }
+
     start_backend();
 
     /*

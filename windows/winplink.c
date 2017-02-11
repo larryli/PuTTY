@@ -633,6 +633,10 @@ int main(int argc, char **argv)
             return 1;
     }
 
+    if (restricted_acl) {
+	logevent(NULL, "Running with restricted process ACL");
+    }
+
     /*
      * Start up the connection.
      */

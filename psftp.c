@@ -2840,6 +2840,8 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
 
+    platform_psftp_pre_conn_setup();
+
     err = back->init(NULL, &backhandle, conf,
 		     conf_get_str(conf, CONF_host),
 		     conf_get_int(conf, CONF_port),
@@ -2953,8 +2955,6 @@ int psftp_main(int argc, char *argv[])
     argc -= i;
     argv += i;
     back = NULL;
-
-    platform_psftp_post_option_setup();
 
     /*
      * If the loaded session provides a hostname, and a hostname has not

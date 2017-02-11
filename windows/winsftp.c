@@ -747,8 +747,11 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
     return ctx->line;
 }
 
-void platform_psftp_post_option_setup(void)
+void platform_psftp_pre_conn_setup(void)
 {
+    if (restricted_acl) {
+	logevent(NULL, "Running with restricted process ACL");
+    }
 }
 
 /* ----------------------------------------------------------------------

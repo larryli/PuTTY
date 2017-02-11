@@ -620,7 +620,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
 
 void frontend_net_error_pending(void) {}
 
-void platform_psftp_post_option_setup(void) {}
+void platform_psftp_pre_conn_setup(void) {}
 
 /*
  * Main program: do platform-specific initialisation and then call
