@@ -1009,7 +1009,10 @@ on the local machine and using it as a proxy for the network
 connection. It expects a shell command string as an argument.
 
 See \k{config-proxy-type} for more information on this, and on other
-proxy settings.
+proxy settings. In particular, note that since the special sequences
+described there are understood in the argument string, literal
+backslashes must be doubled (if you want \c{\\} in your command, you
+must put \c{\\\\} on the command line).
 
 \S2{using-cmdline-restrict-acl} \i\c{-restrict-acl}: restrict the
 \i{Windows process ACL}

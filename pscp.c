@@ -2244,6 +2244,8 @@ static void usage(void)
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -batch    disable all interactive prompts\n");
+    printf("  -proxycmd command\n");
+    printf("            use 'command' as local proxy\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
     printf("  -sftp     force use of SFTP protocol\n");
     printf("  -scp      force use of SCP protocol\n");
