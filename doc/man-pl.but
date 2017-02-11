@@ -223,6 +223,17 @@ an effort is made to suppress obvious passwords.)
 encrypted packet data.
 }
 
+\dt \cw{\-shareexists}
+
+\dd Instead of making a new connection, test for the presence of an
+existing connection that can be shared. The desired session can be
+specified in any of the usual ways.
+
+\lcont{
+Returns immediately with a zero exit status if a suitable \q{upstream}
+exists, nonzero otherwise.
+}
+
 \S{plink-manpage-more-information} MORE INFORMATION
 
 For more information on plink, it's probably best to go and look at
