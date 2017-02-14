@@ -978,6 +978,8 @@ void run_agent(void)
         fprintf(stderr, "pageant: %s: %s\n", socketname, strerror(errno));
         exit(1);
     }
+
+    conf_free(conf);
 }
 
 int main(int argc, char **argv)

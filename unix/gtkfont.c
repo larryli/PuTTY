@@ -1126,6 +1126,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
 	}
     }
     XFreeFontNames(fontnames);
+    sfree(tmp);
 }
 
 static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,

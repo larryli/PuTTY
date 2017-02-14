@@ -220,6 +220,7 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     {
 	char *msg = dupprintf("Opening serial device %s", serline);
 	logevent(serial->frontend, msg);
+        sfree(msg);
     }
 
     {

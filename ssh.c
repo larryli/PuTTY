@@ -3954,6 +3954,7 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
          * straight on and go round this loop again.
          */
         ssh_agentf_got_response(c, reply, replylen);
+        sfree(reply);
     }
 
     /*

@@ -1162,6 +1162,8 @@ void test(int retval, ...)
     } else {
 	passes++;
     }
+
+    sfree(argv);
 }
 
 void filecmp(char *file1, char *file2, char *fmt, ...)

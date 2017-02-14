@@ -58,6 +58,7 @@ void init_help(void)
 	HINSTANCE dllHH = load_system32_dll("hhctrl.ocx");
 	GET_WINDOWS_FUNCTION(dllHH, HtmlHelpA);
 	if (!p_HtmlHelpA) {
+            sfree(chm_path);
 	    chm_path = NULL;
 	    if (dllHH)
 		FreeLibrary(dllHH);

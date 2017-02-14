@@ -383,6 +383,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 	    /* Use `host' as a bare hostname. */
 	    conf_set_str(conf, CONF_host, host);
 	}
+        conf_free(conf2);
     } else {
 	/* Patch in hostname `host' to session details. */
 	conf_set_str(conf, CONF_host, host);

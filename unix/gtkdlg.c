@@ -3304,6 +3304,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 
     dlg_cleanup(&dp);
     sfree(selparams);
+    ctrl_free_box(ctrlbox);
 
     return dp.retval;
 }

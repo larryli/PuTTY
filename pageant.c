@@ -406,6 +406,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    if (i < 0) {
                 freebn(reqkey.exponent);
                 freebn(reqkey.modulus);
+		freebn(challenge);
                 fail_reason = "request truncated before challenge";
 		goto failure;
             }
@@ -1334,6 +1335,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		    int n = rsa_public_blob_len(p, keylistlen);
 		    if (n < 0) {
                         *retstr = dupstr("Received broken key list from agent");
+                        sfree(keylist);
+                        sfree(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
 		    p += n;
@@ -1342,6 +1345,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		    int n;
 		    if (keylistlen < 4) {
                         *retstr = dupstr("Received broken key list from agent");
+                        sfree(keylist);
+                        sfree(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
 		    n = GET_32BIT(p);
@@ -1350,6 +1355,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 		    if (n < 0 || n > keylistlen) {
                         *retstr = dupstr("Received broken key list from agent");
+                        sfree(keylist);
+                        sfree(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
 		    p += n;
@@ -1360,6 +1367,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		    int n;
 		    if (keylistlen < 4) {
                         *retstr = dupstr("Received broken key list from agent");
+                        sfree(keylist);
+                        sfree(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
 		    n = GET_32BIT(p);
@@ -1368,6 +1377,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 		    if (n < 0 || n > keylistlen) {
                         *retstr = dupstr("Received broken key list from agent");
+                        sfree(keylist);
+                        sfree(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
 		    p += n;
@@ -1414,6 +1425,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                  * Run out of passphrases to try.
                  */
                 *retstr = comment;
+                sfree(rkey);
                 return PAGEANT_ACTION_NEED_PP;
             }
 	} else
@@ -1437,6 +1449,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
              * a bad passphrase.
              */
             *retstr = dupstr(error);
+            sfree(rkey);
             return PAGEANT_ACTION_FAILURE;
         } else if (ret == 1) {
             /*
@@ -1514,12 +1527,19 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
 		*retstr = dupstr("The already running Pageant "
                                  "refused to add the key.");
+                freersakey(rkey);
+                sfree(rkey);
+                sfree(request);
+                sfree(response);
                 return PAGEANT_ACTION_FAILURE;
             }
+            freersakey(rkey);
+            sfree(rkey);
 	    sfree(request);
 	    sfree(response);
 	} else {
 	    if (!pageant_add_ssh1_key(rkey)) {
+                freersakey(rkey);
 		sfree(rkey);	       /* already present, don't waste RAM */
             }
 	}
@@ -1560,6 +1580,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
 		*retstr = dupstr("The already running Pageant "
                                  "refused to add the key.");
+                sfree(request);
+                sfree(response);
                 return PAGEANT_ACTION_FAILURE;
             }
 
