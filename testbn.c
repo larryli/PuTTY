@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
         while (*bufp && !isspace((unsigned char)*bufp))
             bufp++;
-        if (bufp)
+        if (*bufp)
             *bufp++ = '\0';
 
         while (*bufp) {
