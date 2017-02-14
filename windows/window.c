@@ -10,6 +10,10 @@
 #include <limits.h>
 #include <assert.h>
 
+#ifdef __WINE__
+#define NO_MULTIMON                    /* winelib doesn't have this */
+#endif
+
 #ifndef NO_MULTIMON
 #define COMPILE_MULTIMON_STUBS
 #endif

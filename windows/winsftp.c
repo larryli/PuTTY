@@ -2,7 +2,10 @@
  * winsftp.c: the Windows-specific parts of PSFTP and PSCP.
  */
 
+#include <winsock2.h> /* need to put this first, for winelib builds */
 #include <assert.h>
+
+#define NEED_DECLARATION_OF_SELECT
 
 #include "putty.h"
 #include "psftp.h"

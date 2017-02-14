@@ -406,7 +406,7 @@ static char *dupvprintf_inner(char *buf, int oldlen, int oldsize,
     }
 
     while (1) {
-#if defined _WINDOWS && _MSC_VER < 1900 /* 1900 == VS2015 has real snprintf */
+#if defined _WINDOWS && !defined __WINE__ && _MSC_VER < 1900 /* 1900 == VS2015 has real snprintf */
 #define vsnprintf _vsnprintf
 #endif
 #ifdef va_copy
