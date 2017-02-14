@@ -551,6 +551,7 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
              * list things.
              */
             key_in.ssh_version = 1;
+            key_in.comment = NULL;
             key_ret = pageant_pubkey_copy(&key_in);
             sfree(key_in.blob);
             filename_free(fn);
@@ -577,6 +578,7 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
              * list things.
              */
             key_in.ssh_version = 2;
+            key_in.comment = NULL;
             key_ret = pageant_pubkey_copy(&key_in);
             sfree(key_in.blob);
             filename_free(fn);
