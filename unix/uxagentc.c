@@ -134,7 +134,7 @@ agent_pending_query *agent_query(
     agent_pending_query *conn;
 
     name = getenv("SSH_AUTH_SOCK");
-    if (!name)
+    if (!name || strlen(name) >= sizeof(addr.sun_path))
 	goto failure;
 
     sock = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -146,7 +146,7 @@ agent_pending_query *agent_query(
     cloexec(sock);
 
     addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, name, sizeof(addr.sun_path));
+    strcpy(addr.sun_path, name);
     if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
 	close(sock);
 	goto failure;

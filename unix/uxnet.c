@@ -1620,7 +1620,8 @@ SockAddr unix_sock_addr(const char *path)
 
     if (n < 0)
 	ret->error = "snprintf failed";
-    else if (n >= sizeof ret->hostname)
+    else if (n >= sizeof ret->hostname ||
+             n >= sizeof(((struct sockaddr_un *)0)->sun_path))
 	ret->error = "socket pathname too long";
 
 #ifndef NO_IPV6
