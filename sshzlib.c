@@ -267,7 +267,6 @@ static void lz77_compress(struct LZ77Context *ctx,
 	    }
 	} else {
 	    nmatch = 0;
-	    hash = INVALID;
 	}
 
 	if (nmatch > 0) {

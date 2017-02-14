@@ -1547,14 +1547,10 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     int i;
     struct ssh2_userkey *retval = NULL;
     const char *errmsg;
-    unsigned char *blob;
-    int blobsize = 0;
     unsigned checkint0, checkint1;
     const void *priv, *string;
     int privlen, stringlen, key_index;
     const struct ssh_signkey *alg = NULL;
-
-    blob = NULL;
 
     if (!key)
 	return NULL;
@@ -1721,10 +1717,6 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     retkey = NULL;                     /* prevent the free */
 
     error:
-    if (blob) {
-        smemclr(blob, blobsize);
-        sfree(blob);
-    }
     if (retkey) {
         sfree(retkey->comment);
         if (retkey->data) {

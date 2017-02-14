@@ -365,7 +365,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 
 		    if (quotes > 0) {
 			/* Outside a quote segment, a quote starts one. */
-			if (!quote) quotes--, quote = 1;
+			if (!quote) quotes--;
 
 			/* Now we produce (n+1)/3 literal quotes... */
 			for (i = 3; i <= quotes+1; i += 3) *q++ = '"';

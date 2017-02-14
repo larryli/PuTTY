@@ -82,8 +82,6 @@ int main(int argc, char **argv)
                 val = val * 16 + fromxdigit(start[i+1]);
                 *q++ = val;
             }
-
-            ptrs[ptrnum] = q;
         }
 
         if (!strcmp(buf, "mul")) {
