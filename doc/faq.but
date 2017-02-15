@@ -213,16 +213,24 @@ seems to be working so far.
 
 \S{faq-ports-general}{Question} What ports of PuTTY exist?
 
-Currently, release versions of PuTTY tools only run on full Win32
-systems and Unix. \q{\i{Win32}} includes versions of Windows from
-Windows 95 onwards (as opposed to the 16-bit Windows 3.1; see
-\k{faq-win31}), up to and including Windows 7; and we know of no
-reason why PuTTY should not continue to work on future versions
-of Windows.
+Currently, release versions of PuTTY tools only run on Windows
+systems and Unix.
 
-The Windows executables we provide are for the 32-bit \q{\i{x86}}
-processor architecture, but they should work fine on 64-bit
-processors that are backward-compatible with that architecture.
+PuTTY runs on versions of Windows from Windows 95 onwards (but not
+the 16-bit Windows 3.1; see \k{faq-win31}), up to and including
+Windows 10; and we know of no reason why PuTTY should not continue
+to work on future versions of Windows.
+\#{XXX-REVIEW-BEFORE-RELEASE: should say something about w32old for
+pre-XP Windows}
+
+The 32-bit Windows executables we provide for the \q{\i{x86}}
+processor architecture should also work fine on 64-bit processors
+that are backward-compatible with that architecture.
+\#{XXX-REVIEW-BEFORE-RELEASE: The 64-bit executables will only
+work on 64-bit versions of Windows. They will run somewhat faster
+than 32-bit executables would on the same processor, but will
+consume slightly more memory.}
+
 (We used to also provide executables for Windows for the Alpha
 processor, but stopped after 0.58 due to lack of interest.)
 
@@ -1045,7 +1053,8 @@ is triggered by PuTTY 0.58. This was fixed in 0.59. The
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
 entry in PuTTY's wishlist has more details.
 
-\S{faq-system32}{Question} When I put PuTTY in
+\S{faq-system32}{Question} When I put
+\#{XXX-REVIEW-BEFORE-RELEASE 32-bit} PuTTY in
 \cw{C:\\WINDOWS\\\i{SYSTEM32}} on my \i{64-bit Windows} system,
 \i{\q{Duplicate Session}} doesn't work.
 
@@ -1053,7 +1062,7 @@ The short answer is not to put the PuTTY executables in that location.
 
 On 64-bit systems, \cw{C:\\WINDOWS\\SYSTEM32} is intended to contain
 only 64-bit binaries; Windows' 32-bit binaries live in
-\cw{C:\\WINDOWS\\SYSWOW64}. When a 32-bit program such as PuTTY runs
+\cw{C:\\WINDOWS\\SYSWOW64}. When a 32-bit PuTTY executable runs
 on a 64-bit system, it cannot by default see the \q{real}
 \cw{C:\\WINDOWS\\SYSTEM32} at all, because the
 \W{http://msdn.microsoft.com/en-us/library/aa384187(v=vs.85).aspx}{File
