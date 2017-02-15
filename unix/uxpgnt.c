@@ -145,7 +145,7 @@ static void version(void)
     char *buildinfo_text = buildinfo("\n");
     printf("pageant: %s\n%s\n", ver, buildinfo_text);
     sfree(buildinfo_text);
-    exit(1);
+    exit(0);
 }
 
 void keylist_update(void)

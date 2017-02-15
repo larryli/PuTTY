@@ -599,7 +599,7 @@ static void version(void)
     char *buildinfo_text = buildinfo("\n");
     printf("plink: %s\n%s\n", ver, buildinfo_text);
     sfree(buildinfo_text);
-    exit(1);
+    exit(0);
 }
 
 void frontend_net_error_pending(void) {}
