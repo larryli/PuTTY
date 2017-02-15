@@ -4249,7 +4249,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		*p++ = "hH\010\010"[shift_state & 3];
 		return p - output;
 	      case VK_NUMPAD5:
-		*p++ = shift_state ? '.' : '.';
+		*p++ = '.';
 		return p - output;
 	      case VK_NUMPAD6:
 		*p++ = "lL\014\014"[shift_state & 3];
