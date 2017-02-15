@@ -1183,6 +1183,17 @@ char *buildinfo(const char *newline)
     strbuf_catf(buf, " (_MSC_VER=%d)", (int)_MSC_VER);
 #endif
 
+#ifdef BUILDINFO_GTK
+    {
+        char *gtk_buildinfo = buildinfo_gtk_version();
+        if (gtk_buildinfo) {
+            strbuf_catf(buf, "%sCompiled against GTK version %s",
+                        newline, gtk_buildinfo);
+            sfree(gtk_buildinfo);
+        }
+    }
+#endif
+
 #ifdef NO_SECURITY
     strbuf_catf(buf, "%sBuild option: NO_SECURITY", newline);
 #endif

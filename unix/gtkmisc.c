@@ -200,3 +200,9 @@ void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
          w, expand, fill, padding);
 #endif
 }
+
+char *buildinfo_gtk_version(void)
+{
+    return dupprintf("%d.%d.%d",
+                     GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION);
+}

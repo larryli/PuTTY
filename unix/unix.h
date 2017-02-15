@@ -32,16 +32,21 @@
 #define DEFAULT_CLIPBOARD GDK_SELECTION_CLIPBOARD /* OS X has no PRIMARY */
 
 #define BUILDINFO_PLATFORM "OS X (GTK)"
+#define BUILDINFO_GTK
 
 #elif defined NOT_X_WINDOWS
 
 #define BUILDINFO_PLATFORM "Unix (pure GTK)"
+#define BUILDINFO_GTK
 
 #else
 
 #define BUILDINFO_PLATFORM "Unix (GTK + X11)"
+#define BUILDINFO_GTK
 
 #endif
+
+char *buildinfo_gtk_version(void);
 
 struct Filename {
     char *path;
