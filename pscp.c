@@ -1560,6 +1560,13 @@ int scp_recv_filedata(char *data, int len)
 	}
 
 	if (xfer_download_data(scp_sftp_xfer, &vbuf, &actuallen)) {
+            if (actuallen <= 0) {
+                tell_user(stderr, "pscp: %s while reading",
+                          actuallen < 0 ? "error" : "end of file");
+                errs++;
+                sfree(vbuf);
+                return -1;
+            }
 	    /*
 	     * This assertion relies on the fact that the natural
 	     * block size used in the xfer manager is at most that

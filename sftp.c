@@ -1226,6 +1226,7 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 
     if ((rr->retlen < 0 && fxp_error_type()==SSH_FX_EOF) || rr->retlen == 0) {
 	xfer->eof = TRUE;
+        rr->retlen = 0;
 	rr->complete = -1;
 #ifdef DEBUG_DOWNLOAD
 	printf("setting eof\n");
