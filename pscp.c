@@ -699,7 +699,8 @@ void scp_sftp_listdir(const char *dirname)
     dirh = fxp_opendir_recv(pktin, req);
 
     if (dirh == NULL) {
-	printf("Unable to open %s: %s\n", dirname, fxp_error());
+		tell_user(stderr, "Unable to open %s: %s\n", dirname, fxp_error());
+		errs++;
     } else {
 	nnames = namesize = 0;
 	ournames = NULL;
