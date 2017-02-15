@@ -1561,8 +1561,7 @@ int scp_recv_filedata(char *data, int len)
 
 	if (xfer_download_data(scp_sftp_xfer, &vbuf, &actuallen)) {
             if (actuallen <= 0) {
-                tell_user(stderr, "pscp: %s while reading",
-                          actuallen < 0 ? "error" : "end of file");
+                tell_user(stderr, "pscp: end of file while reading");
                 errs++;
                 sfree(vbuf);
                 return -1;
@@ -1970,8 +1969,10 @@ static void sink(const char *targ, const char *src)
 	    read = scp_recv_filedata(transbuf, (int)blksize.lo);
 	    if (read <= 0)
 		bump("Lost connection");
-	    if (wrerror)
+	    if (wrerror) {
+                received = uint64_add32(received, read);
 		continue;
+            }
 	    if (write_to_file(f, transbuf, read) != (int)read) {
 		wrerror = 1;
 		/* FIXME: in sftp we can actually abort the transfer */
@@ -1979,6 +1980,7 @@ static void sink(const char *targ, const char *src)
 		    printf("\r%-25.25s | %50s\n",
 			   stat_name,
 			   "Write error.. waiting for end of file");
+                received = uint64_add32(received, read);
 		continue;
 	    }
 	    if (statistics) {
