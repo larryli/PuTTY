@@ -131,6 +131,8 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 	fflush(stderr);
     }
 
+    line[0] = '\0';         /* fail safe if ReadFile returns no data */
+
     hin = GetStdHandle(STD_INPUT_HANDLE);
     GetConsoleMode(hin, &savemode);
     SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
