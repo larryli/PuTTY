@@ -1313,11 +1313,15 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	if (keylist) {
 	    if (keylistlen < 4) {
 		*retstr = dupstr("Received broken key list from agent");
+                sfree(keylist);
+                sfree(blob);
 		return PAGEANT_ACTION_FAILURE;
 	    }
 	    nkeys = toint(GET_32BIT(keylist));
 	    if (nkeys < 0) {
 		*retstr = dupstr("Received broken key list from agent");
+                sfree(keylist);
+                sfree(blob);
 		return PAGEANT_ACTION_FAILURE;
 	    }
 	    p = keylist + 4;
