@@ -3,7 +3,7 @@
 <!-- WiX source code for the PuTTY installer. -->
 
 <?if $(var.Win64) = yes ?>
-  <?define ProgramName = "PuTTY (64-bit)" ?>
+  <?define Bitness = " (64-bit)" ?>
   <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY64" ?>
   <?define InstallerVersion = "200" ?>
   <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
@@ -23,7 +23,7 @@
   <?define ProgramMenuDir_GUID = "3B2B7A2B-25F1-4EC4-987F-75BFD038632E" ?>
   <?define Desktop_Shortcut_Component_GUID = "0A715416-EA6E-4A1C-8670-838307083EE5" ?>
 <?else ?>
-  <?define ProgramName = "PuTTY" ?>
+  <?define Bitness = "" ?>
   <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
   <?define InstallerVersion = "100" ?>
   <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
@@ -44,6 +44,8 @@
   <?define Desktop_Shortcut_Component_GUID = "D039E3D1-CE42-488D-96CC-90E1DE3796F8" ?>
 <?endif ?>
 
+<?define ProgramName = "PuTTY$(var.Bitness)" ?>
+
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
   <!--
@@ -61,7 +63,7 @@
       Buildscr.
   -->
   <Product
-      Name="$(var.ProgramName)"
+      Name="$(var.Puttytextver)$(var.Bitness)"
       Manufacturer="Simon Tatham"
       Id="*"
       UpgradeCode="$(var.UpgradeCode_GUID)"
