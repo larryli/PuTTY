@@ -216,12 +216,13 @@ seems to be working so far.
 Currently, release versions of PuTTY tools only run on Windows
 systems and Unix.
 
+\#{XXX-REVIEW-BEFORE-RELEASE: replace following two lines with:
+As of 0.68, the supplied PuTTY executables run on versions of
+Windows from XP onwards,}
 PuTTY runs on versions of Windows from Windows 95 onwards (but not
-the 16-bit Windows 3.1; see \k{faq-win31}), up to and including
-Windows 10; and we know of no reason why PuTTY should not continue
-to work on future versions of Windows.
-\#{XXX-REVIEW-BEFORE-RELEASE: should say something about w32old for
-pre-XP Windows}
+the 16-bit Windows 3.1; see \k{faq-win31}),
+up to and including Windows 10; and we know of no reason why PuTTY
+should not continue to work on future versions of Windows.
 
 The 32-bit Windows executables we provide for the \q{\i{x86}}
 processor architecture should also work fine on 64-bit processors
