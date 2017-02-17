@@ -1093,15 +1093,21 @@ USB stick).
 I \i{clean up} after it?
 
 PuTTY will leave some Registry entries, and a random seed file, on
-the PC (see \k{faq-settings}). If you are using PuTTY on a public
-PC, or somebody else's PC, you might want to clean these up when you
-leave. You can do that automatically, by running the command
-\c{putty -cleanup}. (Note that this only removes settings for
-the currently logged-in user on \i{multi-user systems}.)
+the PC (see \k{faq-settings}). Windows 7 and up also remember some
+information about recently launched sessions for the \q{jump list}
+feature.
+
+If you are using PuTTY on a public PC, or somebody else's PC, you
+might want to clean this information up when you leave. You can do
+that automatically, by running the command \c{putty -cleanup}. See
+\k{using-cleanup} in the documentation for more detail. (Note that
+this only removes settings for the currently logged-in user on
+\i{multi-user systems}.)
 
 If PuTTY was installed from the installer package, it will also
-appear in \q{Add/Remove Programs}. Older versions of the uninstaller
-do not remove the above-mentioned registry entries and file.
+appear in \q{Add/Remove Programs}. Current versions of the installer
+do not offer to remove the above-mentioned items, so if you want them
+removed you should run \c{putty -cleanup} before uninstalling.
 
 \S{faq-dsa}{Question} How come PuTTY now supports \i{DSA}, when the
 website used to say how insecure it was?
