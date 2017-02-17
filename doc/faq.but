@@ -215,21 +215,17 @@ seems to be working so far.
 Currently, release versions of PuTTY tools only run on Windows
 systems and Unix.
 
-\#{XXX-REVIEW-BEFORE-RELEASE: replace following two lines with:
 As of 0.68, the supplied PuTTY executables run on versions of
-Windows from XP onwards,}
-PuTTY runs on versions of Windows from Windows 95 onwards (but not
-the 16-bit Windows 3.1; see \k{faq-win31}),
-up to and including Windows 10; and we know of no reason why PuTTY
-should not continue to work on future versions of Windows.
+Windows from XP onwards, up to and including Windows 10; and we
+know of no reason why PuTTY should not continue to work on
+future versions of Windows.
 
 The 32-bit Windows executables we provide for the \q{\i{x86}}
 processor architecture should also work fine on 64-bit processors
-that are backward-compatible with that architecture.
-\#{XXX-REVIEW-BEFORE-RELEASE: The 64-bit executables will only
-work on 64-bit versions of Windows. They will run somewhat faster
-than 32-bit executables would on the same processor, but will
-consume slightly more memory.}
+that are backward-compatible with that architecture. The 64-bit
+executables will only work on 64-bit versions of Windows. They
+will run somewhat faster than 32-bit executables would on the
+same processor, but will consume slightly more memory.
 
 (We used to also provide executables for Windows for the Alpha
 processor, but stopped after 0.58 due to lack of interest.)
@@ -1052,8 +1048,7 @@ is triggered by PuTTY 0.58. This was fixed in 0.59. The
 \W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
 entry in PuTTY's wishlist has more details.
 
-\S{faq-system32}{Question} When I put
-\#{XXX-REVIEW-BEFORE-RELEASE 32-bit} PuTTY in
+\S{faq-system32}{Question} When I put 32-bit PuTTY in
 \cw{C:\\WINDOWS\\\i{SYSTEM32}} on my \i{64-bit Windows} system,
 \i{\q{Duplicate Session}} doesn't work.
 
