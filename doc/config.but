@@ -2898,6 +2898,13 @@ the \q{User-supplied GSSAPI library path} field, and move the
 \q{User-supplied GSSAPI library} option in the preference list to
 make sure it is selected before anything else.
 
+On Windows, such libraries are files with a \I{DLL}\cw{.dll}
+extension, and must have been built in the same way as the PuTTY
+executable you're running; if you have a 32-bit DLL, you must run a
+32-bit version of PuTTY, and the same with 64-bit (see
+\k{faq-32bit-64bit}). On Unix, shared libraries generally have a
+\cw{.so} extension.
+
 \H{config-ssh-tty} The TTY panel
 
 The TTY panel lets you configure the remote pseudo-terminal.

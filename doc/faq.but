@@ -223,14 +223,9 @@ PuTTY runs on versions of Windows from Windows 95 onwards (but not
 the 16-bit Windows 3.1; see \k{faq-win31}),
 up to and including Windows 10; and we know of no reason why PuTTY
 should not continue to work on future versions of Windows.
-
-The 32-bit Windows executables we provide for the \q{\i{x86}}
-processor architecture should also work fine on 64-bit processors
-that are backward-compatible with that architecture.
-\#{XXX-REVIEW-BEFORE-RELEASE: The 64-bit executables will only
-work on 64-bit versions of Windows. They will run somewhat faster
-than 32-bit executables would on the same processor, but will
-consume slightly more memory.}
+\#{XXX-REVIEW-BEFORE-RELEASE: We provide 32-bit and 64-bit Windows
+executables; see \k{faq-32bit-64bit} for discussion of the
+compatibility issues around that.}
 
 (We used to also provide executables for Windows for the Alpha
 processor, but stopped after 0.58 due to lack of interest.)
@@ -587,6 +582,29 @@ of quotes in the obvious way:
 
 \c pscp "local file" user@host:
 \c pscp user@host:"remote file" .
+
+\S{faq-32bit-64bit}{Question} Should I run the 32-bit or the
+64-bit version?
+
+If you're not sure, the \I{32-bit Windows}32-bit version is generally
+the safe option. It will run perfectly well on all processors and on
+all versions of Windows that PuTTY supports. PuTTY doesn't require to
+run as a 64-bit application to work well, and having a 32-bit PuTTY on
+a 64-bit system isn't likely to cause you any trouble.
+
+The 64-bit version
+\#{XXX-REVIEW-BEFORE-RELEASE (first released in 0.XX)}
+will only run if you have a 64-bit processor \e{and} a \I{64-bit
+Windows}64-bit edition of Windows (both of these things are likely to
+be true of any recent Windows PC). It will run somewhat faster (in
+particular, the cryptography will be faster, especially during link
+setup), but it will consume slightly more memory.
+
+If you need to use an external \i{DLL} for GSSAPI authentication, that
+DLL may only be available in a 32-bit or 64-bit form, and that will
+dictate the version of PuTTY you need to use. (You will probably know
+if you're doing this; see \k{config-ssh-auth-gssapi-libraries} in the
+documentation.)
 
 \H{faq-trouble} Troubleshooting
 
