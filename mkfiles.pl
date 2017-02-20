@@ -1660,11 +1660,20 @@ if (defined $makefiles{'am'}) {
     print "endif\n\n";
 
     @noinstcliprogs = ("noinst_PROGRAMS", "=");
-    foreach $p (&prognames("XT:UT")) {
+    foreach $p (&prognames("UT")) {
       ($prog, $type) = split ",", $p;
       push @noinstcliprogs, $prog;
     }
+    @noinstallprogs = @noinstcliprogs;
+    foreach $p (&prognames("XT")) {
+      ($prog, $type) = split ",", $p;
+      push @noinstallprogs, $prog;
+    }
+    print "if HAVE_GTK\n";
+    print &splitline(join " ", @noinstallprogs), "\n";
+    print "else\n";
     print &splitline(join " ", @noinstcliprogs), "\n";
+    print "endif\n\n";
 
     %objtosrc = ();
     foreach $d (&deps("X", undef, "", "/", "am")) {
