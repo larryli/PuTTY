@@ -170,7 +170,8 @@ locally, this is the procedure for putting it up on the web.
 
  - After running webupdate, run update-rsync on chiark and verify that
    the rsync mirror package (~/ftp/putty-website-mirror) contains a
-   subdirectory for the new version and mentions it in its .htaccess.
+   subdirectory for the new version and that the links from its
+   latest.html point into that subdirectory.
 
  - Announce the release!
     + Construct a release announcement email whose message body is the
