@@ -149,10 +149,8 @@ static int localproxy_try_send(Local_Proxy_Socket ps)
 	bufchain_prefix(&ps->pending_output_data, &data, &len);
 	ret = write(ps->to_cmd, data, len);
 	if (ret < 0 && errno != EWOULDBLOCK) {
-	    /* We're inside the Unix frontend here, so we know
-	     * that the frontend handle is unnecessary. */
-	    logevent(NULL, strerror(errno));
-	    fatalbox("%s", strerror(errno));
+            plug_closing(ps->plug, strerror(errno), errno, 0);
+            return 0;
 	} else if (ret <= 0) {
 	    break;
 	} else {
