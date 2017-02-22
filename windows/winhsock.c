@@ -94,7 +94,15 @@ static int handle_stderr(struct handle *h, void *data, int len)
 static void handle_sentdata(struct handle *h, int new_backlog)
 {
     Handle_Socket ps = (Handle_Socket) handle_get_privdata(h);
-    
+
+    if (new_backlog < 0) {
+        /* Special case: this is actually reporting an error writing
+         * to the underlying handle, and our input value is the error
+         * code itself, negated. */
+        plug_closing(ps->plug, win_strerror(-new_backlog), -new_backlog, 0);
+        return;
+    }
+
     plug_sent(ps->plug, new_backlog);
 }
 
