@@ -33,6 +33,9 @@ int random_byte(void)
 
 #define fromxdigit(c) ( (c)>'9' ? ((c)&0xDF) - 'A' + 10 : (c) - '0' )
 
+/* For Unix in particular, but harmless if this main() is reused elsewhere */
+const int buildinfo_gtk_relevant = FALSE;
+
 int main(int argc, char **argv)
 {
     char *buf;

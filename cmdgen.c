@@ -227,6 +227,9 @@ static char *readpassphrase(const char *filename)
 
 #define DEFAULT_RSADSA_BITS 2048
 
+/* For Unix in particular, but harmless if this main() is reused elsewhere */
+const int buildinfo_gtk_relevant = FALSE;
+
 int main(int argc, char **argv)
 {
     char *infile = NULL;
