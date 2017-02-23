@@ -58,7 +58,7 @@ Source: "..\LICENCE"; DestDir: "{app}"; Flags: restartreplace uninsrestartdelete
 Source: "README.txt"; DestDir: "{app}"; Flags: isreadme restartreplace uninsrestartdelete
 
 [Icons]
-Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"
+Name: "{group}\PuTTY"; Filename: "{app}\putty.exe"; AppUserModelID: "SimonTatham.PuTTY"
 ; We have to fall back from the .chm to the older .hlp file on some Windows
 ; versions.
 Name: "{group}\PuTTY Manual"; Filename: "{app}\putty.chm"; MinVersion: 4.1,5.0
@@ -67,8 +67,8 @@ Name: "{group}\PuTTY Web Site"; Filename: "{app}\website.url"
 Name: "{group}\PSFTP"; Filename: "{app}\psftp.exe"
 Name: "{group}\PuTTYgen"; Filename: "{app}\puttygen.exe"
 Name: "{group}\Pageant"; Filename: "{app}\pageant.exe"
-Name: "{commondesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\common
-Name: "{userdesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\user
+Name: "{commondesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\common; AppUserModelID: "SimonTatham.PuTTY"
+Name: "{userdesktop}\PuTTY"; Filename: "{app}\putty.exe"; Tasks: desktopicon\user; AppUserModelID: "SimonTatham.PuTTY"
 ; Putting this in {commonappdata} doesn't seem to work, on 98SE at least.
 Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\PuTTY"; Filename: "{app}\putty.exe"; Tasks: quicklaunchicon
 
