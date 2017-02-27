@@ -2753,8 +2753,23 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx.type == DRAWTYPE_CAIRO) {
+#if GTK_CHECK_VERSION(3,22,0)
+        cairo_region_t *region;
+#endif
+
         dctx.u.cairo.widget = GTK_WIDGET(fs->preview_area);
+
+#if GTK_CHECK_VERSION(3,22,0)
+        dctx.u.cairo.gdkwin = gtk_widget_get_window(dctx.u.cairo.widget);
+        region = gdk_window_get_clip_region(dctx.u.cairo.gdkwin);
+        dctx.u.cairo.drawctx = gdk_window_begin_draw_frame(
+            dctx.u.cairo.gdkwin, region);
+        dctx.u.cairo.cr = gdk_drawing_context_get_cairo_context(
+            dctx.u.cairo.drawctx);
+        cairo_region_destroy(region);
+#else
         dctx.u.cairo.cr = gdk_cairo_create(target);
+#endif
     }
 #endif
 
@@ -2767,7 +2782,11 @@ static void unifontsel_draw_preview_text(unifontsel_internal *fs)
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx.type == DRAWTYPE_CAIRO) {
+#if GTK_CHECK_VERSION(3,22,0)
+        gdk_window_end_draw_frame(dctx.u.cairo.gdkwin, dctx.u.cairo.drawctx);
+#else
         cairo_destroy(dctx.u.cairo.cr);
+#endif
     }
 #endif
 

@@ -124,6 +124,10 @@ typedef struct unifont_drawctx {
             GtkWidget *widget;
             cairo_t *cr;
             cairo_matrix_t origmatrix;
+#if GTK_CHECK_VERSION(3,22,0)
+            GdkWindow *gdkwin;
+            GdkDrawingContext *drawctx;
+#endif
         } cairo;
 #endif
     } u;
