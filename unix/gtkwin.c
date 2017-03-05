@@ -4302,6 +4302,30 @@ static void start_backend(struct gui_data *inst)
     gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
+static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
+{
+#if GTK_CHECK_VERSION(3,4,0)
+    GdkDisplay *display = gtk_widget_get_display(widget);
+    GdkWindow *gdkwindow = gtk_widget_get_window(widget);
+# if GTK_CHECK_VERSION(3,22,0)
+    GdkMonitor *monitor;
+    if (gdkwindow)
+	monitor = gdk_display_get_monitor_at_window(display, gdkwindow);
+    else
+	monitor = gdk_display_get_monitor(display, 0);
+    gdk_monitor_get_geometry(monitor, geometry);
+# else
+    GdkScreen *screen = gdk_display_get_default_screen(display);
+    gint monitor_num = gdk_screen_get_monitor_at_window(screen, gdkwindow);
+    gdk_screen_get_monitor_geometry(screen, monitor_num, geometry);
+# endif
+#else
+    geometry->x = geometry->y = 0;
+    geometry->width = gdk_screen_width();
+    geometry->height = gdk_screen_height();
+#endif
+}
+
 struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 {
     struct gui_data *inst;
@@ -4436,9 +4460,11 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         };
         int x = inst->xpos, y = inst->ypos;
         int wp, hp;
+        GdkRectangle monitor_geometry;
         compute_whole_window_size(inst, inst->width, inst->height, &wp, &hp);
-        if (inst->gravity & 1) x += (gdk_screen_width() - wp);
-        if (inst->gravity & 2) y += (gdk_screen_height() - hp);
+        get_monitor_geometry(GTK_WIDGET(inst->window), &monitor_geometry);
+        if (inst->gravity & 1) x += (monitor_geometry.width - wp);
+        if (inst->gravity & 2) y += (monitor_geometry.height - hp);
         gtk_window_set_gravity(GTK_WINDOW(inst->window),
                                gravities[inst->gravity & 3]);
 	gtk_window_move(GTK_WINDOW(inst->window), x, y);
