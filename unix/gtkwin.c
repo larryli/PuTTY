@@ -2162,35 +2162,47 @@ static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
 #endif
 }
 
-void set_gdk_window_background(GdkWindow *win, const GdkColor *col)
-{
 #if GTK_CHECK_VERSION(3,0,0)
-    /* gdk_window_set_background is deprecated; work around its
-     * absence. */
+char *colour_to_css(const GdkColor *col)
+{
     GdkRGBA rgba;
     rgba.red = col->red / 65535.0;
     rgba.green = col->green / 65535.0;
     rgba.blue = col->blue / 65535.0;
     rgba.alpha = 1.0;
-    gdk_window_set_background_rgba(win, &rgba);
+    return gdk_rgba_to_string(&rgba);
+}
+#endif
+
+void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
+{
+#if GTK_CHECK_VERSION(3,0,0)
+    GtkCssProvider *provider = gtk_css_provider_new();
+    char *col_css = colour_to_css(col);
+    char *data = dupprintf(
+	"#drawing-area, #top-level { background-color: %s; }\n", col_css);
+    gtk_css_provider_load_from_data(provider, data, -1, NULL);
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider),
+				   GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    free(data);
+    free(col_css);
 #else
-    {
+    if (gtk_widget_get_window(win)) {
         /* For GTK1, which doesn't have a 'const' on
          * gdk_window_set_background's second parameter type. */
         GdkColor col_mutable = *col;
-        gdk_window_set_background(win, &col_mutable);
+        gdk_window_set_background(gtk_widget_get_window(win), &col_mutable);
     }
 #endif
 }
 
 void set_window_background(struct gui_data *inst)
 {
-    if (inst->area && gtk_widget_get_window(inst->area))
-	set_gdk_window_background(gtk_widget_get_window(inst->area),
-                                  &inst->cols[258]);
-    if (inst->window && gtk_widget_get_window(inst->window))
-	set_gdk_window_background(gtk_widget_get_window(inst->window),
-                                  &inst->cols[258]);
+    if (inst->area)
+	set_gtk_widget_background(GTK_WIDGET(inst->area), &inst->cols[258]);
+    if (inst->window)
+	set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
@@ -4334,6 +4346,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
 
     inst->area = gtk_drawing_area_new();
+    gtk_widget_set_name(GTK_WIDGET(inst->area), "drawing-area");
 
 #if GTK_CHECK_VERSION(2,0,0)
     inst->imc = gtk_im_multicontext_new();
@@ -4347,6 +4360,7 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
         }
     }
     inst->window = make_gtk_toplevel_window(inst);
+    gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
         if (*winclass)
