@@ -946,8 +946,7 @@ static void colour_handler(union control *ctrl, void *dlg,
 }
 
 struct ttymodes_data {
-    union control *modelist, *valradio, *valbox;
-    union control *addbutton, *rembutton, *listbox;
+    union control *valradio, *valbox, *setbutton, *listbox;
 };
 
 static void ttymodes_handler(union control *ctrl, void *dlg,
@@ -966,69 +965,67 @@ static void ttymodes_handler(union control *ctrl, void *dlg,
 		 val != NULL;
 		 val = conf_get_str_strs(conf, CONF_ttymodes, key, &key)) {
 		char *disp = dupprintf("%s\t%s", key,
-				       (val[0] == 'A') ? "(auto)" : val+1);
+				       (val[0] == 'A') ? "(auto)" :
+				       ((val[0] == 'N') ? "(don't send)"
+							: val+1));
 		dlg_listbox_add(ctrl, dlg, disp);
 		sfree(disp);
 	    }
 	    dlg_update_done(ctrl, dlg);
-	} else if (ctrl == td->modelist) {
-	    int i;
-	    dlg_update_start(ctrl, dlg);
-	    dlg_listbox_clear(ctrl, dlg);
-	    for (i = 0; ttymodes[i]; i++)
-		dlg_listbox_add(ctrl, dlg, ttymodes[i]);
-	    dlg_listbox_select(ctrl, dlg, 0); /* *shrug* */
-	    dlg_update_done(ctrl, dlg);
 	} else if (ctrl == td->valradio) {
 	    dlg_radiobutton_set(ctrl, dlg, 0);
 	}
+    } else if (event == EVENT_SELCHANGE) {
+	if (ctrl == td->listbox) {
+	    int ind = dlg_listbox_index(td->listbox, dlg);
+	    char *val;
+	    if (ind < 0) {
+		return; /* no item selected */
+	    }
+	    val = conf_get_str_str(conf, CONF_ttymodes,
+				   conf_get_str_nthstrkey(conf, CONF_ttymodes,
+							  ind));
+	    assert(val != NULL);
+	    /* Do this first to defuse side-effects on radio buttons: */
+	    dlg_editbox_set(td->valbox, dlg, val+1);
+	    dlg_radiobutton_set(td->valradio, dlg,
+				val[0] == 'A' ? 0 : (val[0] == 'N' ? 1 : 2));
+	}
+    } else if (event == EVENT_VALCHANGE) {
+	if (ctrl == td->valbox) {
+	    /* If they're editing the text box, we assume they want its
+	     * value to be used. */
+	    dlg_radiobutton_set(td->valradio, dlg, 2);
+	}
     } else if (event == EVENT_ACTION) {
-	if (ctrl == td->addbutton) {
-	    int ind = dlg_listbox_index(td->modelist, dlg);
+	if (ctrl == td->setbutton) {
+	    int ind = dlg_listbox_index(td->listbox, dlg);
+	    const char *key;
+	    char *str, *val;
+	    char type;
+
+	    {
+		const char *types = "ANV";
+		int button = dlg_radiobutton_get(td->valradio, dlg);
+		assert(button >= 0 && button < lenof(types));
+		type = types[button];
+	    }
+
+	    /* Construct new entry */
 	    if (ind >= 0) {
-		char type = dlg_radiobutton_get(td->valradio, dlg) ? 'V' : 'A';
-		const char *key;
-		char *str, *val;
-		/* Construct new entry */
-		key = ttymodes[ind];
-		str = dlg_editbox_get(td->valbox, dlg);
+		key = conf_get_str_nthstrkey(conf, CONF_ttymodes, ind);
+		str = (type == 'V' ? dlg_editbox_get(td->valbox, dlg)
+				   : dupstr(""));
 		val = dupprintf("%c%s", type, str);
 		sfree(str);
 		conf_set_str_str(conf, CONF_ttymodes, key, val);
 		sfree(val);
 		dlg_refresh(td->listbox, dlg);
-	    } else
+		dlg_listbox_select(td->listbox, dlg, ind);
+	    } else {
+		/* Not a multisel listbox, so this means nothing selected */
 		dlg_beep(dlg);
-	} else if (ctrl == td->rembutton) {
-	    int i = 0;
-	    char *key, *val;
-	    int multisel = dlg_listbox_index(td->listbox, dlg) < 0;
-	    for (val = conf_get_str_strs(conf, CONF_ttymodes, NULL, &key);
-		 val != NULL;
-		 val = conf_get_str_strs(conf, CONF_ttymodes, key, &key)) {
-		if (dlg_listbox_issel(td->listbox, dlg, i)) {
-		    if (!multisel) {
-			/* Populate controls with entry we're about to
-			 * delete, for ease of editing.
-			 * (If multiple entries were selected, don't
-			 * touch the controls.) */
-			int ind = 0;
-			val++;
-			while (ttymodes[ind]) {
-			    if (!strcmp(ttymodes[ind], key))
-				break;
-			    ind++;
-			}
-			dlg_listbox_select(td->modelist, dlg, ind);
-			dlg_radiobutton_set(td->valradio, dlg,
-					    (*val == 'V'));
-			dlg_editbox_set(td->valbox, dlg, val+1);
-		    }
-		    conf_del_str_str(conf, CONF_ttymodes, key);
-		}
-		i++;
 	    }
-	    dlg_refresh(td->listbox, dlg);
 	}
     }
 }
@@ -2491,54 +2488,40 @@ void setup_config_box(struct controlbox *b, int midsession,
 			    "Terminal modes");
 	    td = (struct ttymodes_data *)
 		ctrl_alloc(b, sizeof(struct ttymodes_data));
-	    ctrl_columns(s, 2, 75, 25);
 	    c = ctrl_text(s, "Terminal modes to send:", HELPCTX(ssh_ttymodes));
-	    c->generic.column = 0;
-	    td->rembutton = ctrl_pushbutton(s, "Remove", 'r',
-					    HELPCTX(ssh_ttymodes),
-					    ttymodes_handler, P(td));
-	    td->rembutton->generic.column = 1;
-	    td->rembutton->generic.tabdelay = 1;
-	    ctrl_columns(s, 1, 100);
 	    td->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
 				       HELPCTX(ssh_ttymodes),
 				       ttymodes_handler, P(td));
-	    td->listbox->listbox.multisel = 1;
-	    td->listbox->listbox.height = 4;
+	    td->listbox->listbox.height = 8;
 	    td->listbox->listbox.ncols = 2;
 	    td->listbox->listbox.percentages = snewn(2, int);
 	    td->listbox->listbox.percentages[0] = 40;
 	    td->listbox->listbox.percentages[1] = 60;
-	    ctrl_tabdelay(s, td->rembutton);
 	    ctrl_columns(s, 2, 75, 25);
-	    td->modelist = ctrl_droplist(s, "Mode:", 'm', 67,
-					 HELPCTX(ssh_ttymodes),
-					 ttymodes_handler, P(td));
-	    td->modelist->generic.column = 0;
-	    td->addbutton = ctrl_pushbutton(s, "Add", 'd',
+	    c = ctrl_text(s, "For selected mode, send:", HELPCTX(ssh_ttymodes));
+	    c->generic.column = 0;
+	    td->setbutton = ctrl_pushbutton(s, "Set", 's',
 					    HELPCTX(ssh_ttymodes),
 					    ttymodes_handler, P(td));
-	    td->addbutton->generic.column = 1;
-	    td->addbutton->generic.tabdelay = 1;
+	    td->setbutton->generic.column = 1;
+	    td->setbutton->generic.tabdelay = 1;
 	    ctrl_columns(s, 1, 100);	    /* column break */
 	    /* Bit of a hack to get the value radio buttons and
 	     * edit-box on the same row. */
-	    ctrl_columns(s, 3, 25, 50, 25);
-	    c = ctrl_text(s, "Value:", HELPCTX(ssh_ttymodes));
-	    c->generic.column = 0;
-	    td->valradio = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 2,
+	    ctrl_columns(s, 2, 75, 25);
+	    td->valradio = ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 					     HELPCTX(ssh_ttymodes),
 					     ttymodes_handler, P(td),
 					     "Auto", NO_SHORTCUT, P(NULL),
+					     "Nothing", NO_SHORTCUT, P(NULL),
 					     "This:", NO_SHORTCUT, P(NULL),
 					     NULL);
-	    td->valradio->generic.column = 1;
+	    td->valradio->generic.column = 0;
 	    td->valbox = ctrl_editbox(s, NULL, NO_SHORTCUT, 100,
 				      HELPCTX(ssh_ttymodes),
 				      ttymodes_handler, P(td), P(NULL));
-	    td->valbox->generic.column = 2;
-	    ctrl_tabdelay(s, td->addbutton);
-
+	    td->valbox->generic.column = 1;
+	    ctrl_tabdelay(s, td->setbutton);
 	}
 
 	if (!midsession) {
