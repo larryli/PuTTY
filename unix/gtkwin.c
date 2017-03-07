@@ -4387,9 +4387,34 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {
         const char *winclass = conf_get_str(inst->conf, CONF_winclass);
-        if (*winclass)
+        if (*winclass) {
+#if GTK_CHECK_VERSION(3,22,0)
+#ifndef NOT_X_WINDOWS
+            GdkWindow *gdkwin;
+            gtk_widget_realize(GTK_WIDGET(inst->window));
+            gdkwin = gtk_widget_get_window(GTK_WIDGET(inst->window));
+            if (gdk_window_ensure_native(gdkwin)) {
+                Display *disp =
+                    GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gdkwin));
+                XClassHint *xch = XAllocClassHint();
+                xch->res_name = (char *)winclass;
+                xch->res_class = (char *)winclass;
+                XSetClassHint(disp, GDK_WINDOW_XID(gdkwin), xch);
+                XFree(xch);
+            }
+#endif
+            /*
+             * If we do have NOT_X_WINDOWS set, then we don't have any
+             * function in GTK 3.22 equivalent to the above. But then,
+             * surely in that situation the deprecated
+             * gtk_window_set_wmclass wouldn't have done anything
+             * meaningful in previous GTKs either.
+             */
+#else
             gtk_window_set_wmclass(GTK_WINDOW(inst->window),
                                    winclass, winclass);
+#endif
+        }
     }
 
     /*
