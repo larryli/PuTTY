@@ -524,7 +524,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
             inst->surface = NULL;
         }
 
-        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_RGB24,
+        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
                                                    backing_w, backing_h);
 #endif
     }
