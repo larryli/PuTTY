@@ -359,7 +359,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     sk_init();
 
-    InitCommonControls();
+    init_common_controls();
 
     /* Set Explicit App User Model Id so that jump lists don't cause
        PuTTY to hang on to removable media. */

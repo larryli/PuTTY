@@ -1529,7 +1529,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     dll_hijacking_protection();
 
-    InitCommonControls();
+    init_common_controls();
     hinst = inst;
     hwnd = NULL;
 

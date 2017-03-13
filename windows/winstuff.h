@@ -329,6 +329,7 @@ struct ctlpos {
     int boxystart, boxid;
     char *boxtext;
 };
+void init_common_controls(void);       /* also does some DLL-loading */
 
 /*
  * Exports from winutils.c.
