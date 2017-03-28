@@ -8,7 +8,6 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define RELEASE "0.68cn"
 #define TEXTVER "·¢²¼°æ 0.68cn"
 #define SSHVER "PuTTY-0-68-CN-Build"
 #define BINARY_VERSION 0,68,0,0
