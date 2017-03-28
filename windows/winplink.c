@@ -173,26 +173,26 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  */
 static void usage(void)
 {
-    printf("Plink: command-line connection utility\n");
+    printf("Plink: 命令行连接工具\n");
     printf("%s\n", ver);
-    printf("Usage: plink [options] [user@]host [command]\n");
-    printf("       (\"host\" can also be a PuTTY saved session name)\n");
-    printf("Options:\n");
-    printf("  -V        print version information and exit\n");
-    printf("  -pgpfp    print PGP key fingerprints and exit\n");
-    printf("  -v        show verbose messages\n");
-    printf("  -load sessname  Load settings from saved session\n");
+    printf("用法: plink [选项] [用户名@]主机 [命令]\n");
+    printf("       (\"主机\" 也可以是 PuTTY 已有的会话名称)\n");
+    printf("选项:\n");
+    printf("  -V        显示版本信息后退出\n");
+    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
+    printf("  -v        显示详细信息\n");
+    printf("  -load 会话名  载入保存的会话信息\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
     printf("            force use of a particular protocol\n");
-    printf("  -P port   connect to specified port\n");
-    printf("  -l user   connect with specified username\n");
-    printf("  -batch    disable all interactive prompts\n");
+    printf("  -P 端口   连接指定的端口\n");
+    printf("  -l 用户名 使用指定的用户名连接\n");
+    printf("  -batch    禁止所有交互提示\n");
     printf("  -proxycmd command\n");
     printf("            use 'command' as local proxy\n");
     printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
     printf("            Specify the serial configuration (serial only)\n");
     printf("The following options only apply to SSH connections:\n");
-    printf("  -pw passw login with specified password\n");
+    printf("  -pw 密码  使用指定的密码登录\n");
     printf("  -D [listen-IP:]listen-port\n");
     printf("            Dynamic SOCKS-based port forwarding\n");
     printf("  -L [listen-IP:]listen-port:host:port\n");
@@ -203,9 +203,9 @@ static void usage(void)
     printf("  -A -a     enable / disable agent forwarding\n");
     printf("  -t -T     enable / disable pty allocation\n");
     printf("  -1 -2     force use of particular protocol version\n");
-    printf("  -4 -6     force use of IPv4 or IPv6\n");
-    printf("  -C        enable compression\n");
-    printf("  -i key    private key file for user authentication\n");
+    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
+    printf("  -C        允许压缩\n");
+    printf("  -i 密钥   认证使用的密钥文件\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
     printf("  -hostkey aa:bb:cc:...\n");
