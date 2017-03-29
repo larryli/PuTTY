@@ -19,7 +19,7 @@
 #endif
 
 static const char *const reg_jumplist_key = PUTTY_REG_POS "\\Jumplist";
-static const char *const reg_jumplist_value = "Recent sessions";
+static const char *const reg_jumplist_value = "最近会话";
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static const char hex[16] = "0123456789ABCDEF";
