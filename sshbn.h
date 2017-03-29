@@ -69,50 +69,11 @@
 
 #elif defined _MSC_VER && defined _M_AMD64
 
-  /*
-   * 64-bit BignumInt, using Visual Studio x86-64 compiler intrinsics.
-   *
-   * 64-bit Visual Studio doesn't provide very much in the way of help
-   * here: there's no int128 type, and also no inline assembler giving
-   * us direct access to the x86-64 MUL or ADC instructions. However,
-   * there are compiler intrinsics giving us that access, so we can
-   * use those - though it turns out we have to be a little careful,
-   * since they seem to generate wrong code if their pointer-typed
-   * output parameters alias their inputs. Hence all the internal temp
-   * variables inside the macros.
-   */
+  /* 32-bit BignumInt, using Visual Studio __int64 as BignumDblInt */
 
-  #include <intrin.h>
-  typedef unsigned char BignumCarry; /* the type _addcarry_u64 likes to use */
-  typedef unsigned __int64 BignumInt;
-  #define BIGNUM_INT_BITS 64
-  #define BignumADC(ret, retc, a, b, c) do                \
-      {                                                   \
-          BignumInt ADC_tmp;                              \
-          (retc) = _addcarry_u64(c, a, b, &ADC_tmp);      \
-          (ret) = ADC_tmp;                                \
-      } while (0)
-  #define BignumMUL(rh, rl, a, b) do              \
-      {                                           \
-          BignumInt MULADD_hi;                    \
-          (rl) = _umul128(a, b, &MULADD_hi);      \
-          (rh) = MULADD_hi;                       \
-      } while (0)
-  #define BignumMULADD(rh, rl, a, b, addend) do                           \
-      {                                                                   \
-          BignumInt MULADD_lo, MULADD_hi;                                 \
-          MULADD_lo = _umul128(a, b, &MULADD_hi);                         \
-          MULADD_hi += _addcarry_u64(0, MULADD_lo, (addend), &(rl));     \
-          (rh) = MULADD_hi;                                               \
-      } while (0)
-  #define BignumMULADD2(rh, rl, a, b, addend1, addend2) do                \
-      {                                                                   \
-          BignumInt MULADD_lo1, MULADD_lo2, MULADD_hi;                    \
-          MULADD_lo1 = _umul128(a, b, &MULADD_hi);                        \
-          MULADD_hi += _addcarry_u64(0, MULADD_lo1, (addend1), &MULADD_lo2); \
-          MULADD_hi += _addcarry_u64(0, MULADD_lo2, (addend2), &(rl));    \
-          (rh) = MULADD_hi;                                               \
-      } while (0)
+  typedef unsigned int BignumInt;
+  #define BIGNUM_INT_BITS  32
+  #define DEFINE_BIGNUMDBLINT typedef unsigned __int64 BignumDblInt
 
 #elif defined __GNUC__ || defined _LLP64 || __STDC__ >= 199901L
 

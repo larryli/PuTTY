@@ -870,8 +870,8 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "PassiveTelnet", 0, conf, CONF_passive_telnet);
     gppi(sesskey, "BackspaceIsDelete", 1, conf, CONF_bksp_is_delete);
     gppi(sesskey, "RXVTHomeEnd", 0, conf, CONF_rxvt_homeend);
-    gppi(sesskey, "LinuxFunctionKeys", 0, conf, CONF_funky_type);
-    gppi(sesskey, "NoApplicationKeys", 0, conf, CONF_no_applic_k);
+    gppi(sesskey, "LinuxFunctionKeys", 2, conf, CONF_funky_type);
+    gppi(sesskey, "NoApplicationKeys", 1, conf, CONF_no_applic_k);
     gppi(sesskey, "NoApplicationCursors", 0, conf, CONF_no_applic_c);
     gppi(sesskey, "NoMouseReporting", 0, conf, CONF_no_mouse_rep);
     gppi(sesskey, "NoRemoteResize", 0, conf, CONF_no_remote_resize);
@@ -940,7 +940,7 @@ void load_open_settings(void *sesskey, Conf *conf)
 		 / 1000
 #endif
 		 );
-    gppi(sesskey, "ScrollbackLines", 2000, conf, CONF_savelines);
+    gppi(sesskey, "ScrollbackLines", 9999, conf, CONF_savelines);
     gppi(sesskey, "DECOriginMode", 0, conf, CONF_dec_om);
     gppi(sesskey, "AutoWrapMode", 1, conf, CONF_wrap_mode);
     gppi(sesskey, "LFImpliesCR", 0, conf, CONF_lfhascr);
@@ -1092,9 +1092,9 @@ static int sessioncmp(const void *av, const void *bv)
      * Alphabetical order, except that "Default Settings" is a
      * special case and comes first.
      */
-    if (!strcmp(a, "Default Settings"))
+    if (!strcmp(a, "默认设置"))
 	return -1;		       /* a comes first */
-    if (!strcmp(b, "Default Settings"))
+    if (!strcmp(b, "默认设置"))
 	return +1;		       /* b comes first */
     /*
      * FIXME: perhaps we should ignore the first & in determining
@@ -1141,7 +1141,7 @@ void get_sesslist(struct sesslist *list, int allocate)
 	p = list->buffer;
 	list->nsessions = 1;	       /* "Default Settings" counts as one */
 	while (*p) {
-	    if (strcmp(p, "Default Settings"))
+	    if (strcmp(p, "默认设置"))
 		list->nsessions++;
 	    while (*p)
 		p++;
@@ -1149,11 +1149,11 @@ void get_sesslist(struct sesslist *list, int allocate)
 	}
 
 	list->sessions = snewn(list->nsessions + 1, const char *);
-	list->sessions[0] = "Default Settings";
+	list->sessions[0] = "默认设置";
 	p = list->buffer;
 	i = 1;
 	while (*p) {
-	    if (strcmp(p, "Default Settings"))
+	    if (strcmp(p, "默认设置"))
 		list->sessions[i++] = p;
 	    while (*p)
 		p++;
