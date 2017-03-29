@@ -2657,8 +2657,8 @@ static void usage(void)
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            手工指定主机密钥指纹 (可能是重复的)\n");
     printf("  -batch    禁止所有交互提示\n");
-    printf("  -proxycmd command\n");
-    printf("            use 'command' as local proxy\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
     printf("  -sshlog 文件\n");
     printf("  -sshrawlog 文件\n");
     printf("            日志协议明细输出到文件\n");

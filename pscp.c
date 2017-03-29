@@ -2250,19 +2250,19 @@ static void usage(void)
     printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
     printf("  -C        允许压缩\n");
     printf("  -i 密钥   认证使用的密钥文件\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+    printf("  -noagent  禁用 Pageant 认证代理\n");
+    printf("  -agent    启用 Pageant 认证代理\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            manually specify a host key (may be repeated)\n");
+    printf("            手动指定主机密钥(可能重复)\n");
     printf("  -batch    禁止所有交互提示\n");
-    printf("  -proxycmd command\n");
-    printf("            use 'command' as local proxy\n");
-    printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
-    printf("  -sftp     force use of SFTP protocol\n");
-    printf("  -scp      force use of SCP protocol\n");
-    printf("  -sshlog file\n");
-    printf("  -sshrawlog file\n");
-    printf("            log protocol details to a file\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
+    printf("  -unsafe   允许服务端通配符(危险操作)\n");
+    printf("  -sftp     强制使用 SFTP 协议\n");
+    printf("  -scp      强制使用 SCP 协议\n");
+    printf("  -sshlog 文件\n");
+    printf("  -sshrawlog 文件\n");
+    printf("            记录协议详细日志到指定文件\n");
 #if 0
     /*
      * -gui is an internal option, used by GUI front ends to get
