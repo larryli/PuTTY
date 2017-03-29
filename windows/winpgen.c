@@ -428,8 +428,8 @@ void old_keyfile_warning(void)
 	"建议将其转换为新的\n"
 	"格式。\n"
 	"\n"
-	"Once the key is loaded into PuTTYgen, you can perform\n"
-	"this conversion simply by saving it again.";
+	"一旦密钥被载入到 PuTTYgen，你可以简单的\n"
+	"使用保存文件来进行转换。";
 
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
@@ -867,7 +867,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_AUTO,
 		       "导出 OpenSSH 密钥(&O)");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_OPENSSH_NEW,
-		       "导出 OpenSSH 密钥 (force new file format)");
+		       "导出 OpenSSH 密钥(强制新文件格式)");
 	    AppendMenu(menu1, MF_ENABLED, IDC_EXPORT_SSHCOM,
 		       "导出 ssh.com 密钥(&S)");
 	    AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1,
@@ -948,7 +948,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		       IDC_BITSSTATIC, IDC_BITS, 20);
             ymax = cp2.ypos;
             cp2 = cp;
-	    staticddl(&cp2, "Cur&ve to use for generating this key:",
+	    staticddl(&cp2, "用于生成此密钥的曲线(&V)：",
                       IDC_CURVESTATIC, IDC_CURVE, 20);
             SendDlgItemMessage(hwnd, IDC_CURVE, CB_RESETCONTENT, 0, 0);
             {
@@ -965,7 +965,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             }
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
             cp2 = cp;
-	    statictext(&cp2, "(nothing to configure for this key type)",
+	    statictext(&cp2, "（此密钥类型无需配置）",
 		       1, IDC_NOTHINGSTATIC);
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
             cp.ypos = ymax;
@@ -1134,9 +1134,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		} else if ((state->keytype == RSA || state->keytype == DSA) &&
                            state->key_bits < DEFAULT_KEY_BITS) {
                     char *message = dupprintf
-                        ("Keys shorter than %d bits are not recommended. "
-                         "Really generate this key?", DEFAULT_KEY_BITS);
-		    int ret = MessageBox(hwnd, message, "PuTTYgen Warning",
+                        ("不建议使用少于 %d 位密钥。"
+                         "真的要生成此密钥？", DEFAULT_KEY_BITS);
+		    int ret = MessageBox(hwnd, message, "PuTTYgen 警告",
 					 MB_ICONWARNING | MB_OKCANCEL);
                     sfree(message);
 		    if (ret != IDOK)
@@ -1309,7 +1309,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    }
                     fp = fopen(filename, "w");
                     if (!fp) {
-                        MessageBox(hwnd, "Unable to open key file",
+                        MessageBox(hwnd, "无法打开密钥文件",
                                    "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     } else {
                         if (state->ssh2) {

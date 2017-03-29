@@ -843,7 +843,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	  case IDM_PUTTY:
 	    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
 				 SW_SHOW) <= 32) {
-		MessageBox(NULL, "Unable to execute PuTTY!",
+		MessageBox(NULL, "无法执行 PuTTY！",
 			   "错误", MB_OK | MB_ICONERROR);
 	    }
 	    break;
@@ -910,7 +910,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    strcat(param, mii.dwTypeData);
 		    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
 					 _T(""), SW_SHOW) <= 32) {
-			MessageBox(NULL, "Unable to execute PuTTY!", "错误",
+			MessageBox(NULL, "无法执行 PuTTY！", "错误",
 				   MB_OK | MB_ICONERROR);
 		    }
 		}
@@ -1085,7 +1085,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (!init_winver())
     {
-	modalfatalbox("Windows refuses to report a version");
+	modalfatalbox("Windows 拒绝报告版本");
     }
     if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
 	has_security = TRUE;

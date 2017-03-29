@@ -256,8 +256,8 @@ static void start_backend(void)
      */
     back = backend_from_proto(conf_get_int(conf, CONF_protocol));
     if (back == NULL) {
-	char *str = dupprintf("%s Internal Error", appname);
-	MessageBox(NULL, "Unsupported protocol number found",
+	char *str = dupprintf("%s 内部错误", appname);
+	MessageBox(NULL, "发现不支持的协议号",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	cleanup_exit(1);
@@ -272,8 +272,8 @@ static void start_backend(void)
     back->provide_logctx(backhandle, logctx);
     if (error) {
 	char *str = dupprintf("%s 错误", appname);
-	sprintf(msg, "Unable to open connection to\n"
-		"%.800s\n" "%s", conf_dest(conf), error);
+	sprintf(msg, "无法打开到\n"
+		"%.800s 的连接\n" "%s", conf_dest(conf), error);
 	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
 	sfree(str);
 	exit(0);
@@ -318,7 +318,7 @@ static void close_session(void *ignored_context)
     int i;
 
     session_closed = TRUE;
-    sprintf(morestuff, "%.70s (inactive)", appname);
+    sprintf(morestuff, "%.70s (不活动的)", appname);
     set_icon(NULL, morestuff);
     set_title(NULL, morestuff);
 
@@ -373,7 +373,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     if (!init_winver())
     {
 	char *str = dupprintf("%s 致命错误", appname);
-	MessageBox(NULL, "Windows refuses to report a version",
+	MessageBox(NULL, "Windows 拒绝报告版本",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	return 1;
@@ -401,7 +401,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     hr = CoInitialize(NULL);
     if (hr != S_OK && hr != S_FALSE) {
         char *str = dupprintf("%s 致命错误", appname);
-	MessageBox(NULL, "Failed to initialize COM subsystem",
+	MessageBox(NULL, "初始化 COM 子系统失败",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	return 1;
@@ -520,12 +520,12 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		     * and delete the random seed file.
 		     */
 		    char *s1, *s2;
-		    s1 = dupprintf("This procedure will remove ALL Registry entries\n"
-				   "associated with %s, and will also remove\n"
-				   "the random seed file. (This only affects the\n"
-				   "currently logged-in user.)\n"
+		    s1 = dupprintf("此过程将删除所有与 %s 相关联\n"
+				   "注册表项目，并且还将删除随机\n"
+				   "种子文件。（这只会影响到当前\n"
+				   "登录的用户。）\n"
 				   "\n"
-				   "THIS PROCESS WILL DESTROY YOUR SAVED SESSIONS.\n"
+				   "此操作将会摧毁你保存的会话。\n"
 				   "真的确定要继续么？",
 				   appname);
 		    s2 = dupprintf("%s 警告", appname);
@@ -588,7 +588,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 			got_host = 1;
 		    }
 		} else {
-		    cmdline_error("unknown option \"%s\"", p);
+		    cmdline_error("未知选项 \"%s\"", p);
 		}
 	    }
 	}

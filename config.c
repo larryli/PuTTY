@@ -357,12 +357,12 @@ static void cipherlist_handler(union control *ctrl, void *dlg,
 	int i;
 
 	static const struct { const char *s; int c; } ciphers[] = {
-            { "ChaCha20 (SSH-2 only)",  CIPHER_CHACHA20 },
+            { "ChaCha20 (只限 SSH-2)",  CIPHER_CHACHA20 },
 	    { "3DES",			CIPHER_3DES },
 	    { "Blowfish",		CIPHER_BLOWFISH },
 	    { "DES",			CIPHER_DES },
 	    { "AES (只限 SSH-2)",	CIPHER_AES },
-	    { "Arcfour (SSH-2 only)",	CIPHER_ARCFOUR },
+	    { "Arcfour (只限 SSH-2)",	CIPHER_ARCFOUR },
 	    { "-- 下面为警告选项 --",	CIPHER_WARN }
 	};
 
@@ -478,7 +478,7 @@ static void hklist_handler(union control *ctrl, void *dlg,
             { "ECDSA",                 HK_ECDSA },
             { "DSA",                   HK_DSA },
             { "RSA",                   HK_RSA },
-            { "-- warn below here --", HK_WARN }
+            { "-- 下面为警告选项 --", HK_WARN }
         };
 
         /* Set up the "host key preference" box. */
@@ -828,17 +828,17 @@ struct colour_data {
 };
 
 static const char *const colours[] = {
-    "默认前景", "默认前景（粗）",
-    "默认背景", "默认背景（粗）",
+    "默认前景", "默认前景(粗)",
+    "默认背景", "默认背景(粗)",
     "光标文本", "光标颜色",
-    "ANSI 黑", "ANSI 黑（粗）",
-    "ANSI 红", "ANSI 红（粗）",
-    "ANSI 绿", "ANSI 绿（粗）",
-    "ANSI 黄", "ANSI 黄（粗）",
-    "ANSI 蓝", "ANSI 蓝（粗）",
-    "ANSI 紫", "ANSI 紫（粗）",
-    "ANSI 青", "ANSI 青（粗）",
-    "ANSI 白", "ANSI 白（粗）"
+    "ANSI 黑", "ANSI 黑(粗)",
+    "ANSI 红", "ANSI 红(粗)",
+    "ANSI 绿", "ANSI 绿(粗)",
+    "ANSI 黄", "ANSI 黄(粗)",
+    "ANSI 蓝", "ANSI 蓝(粗)",
+    "ANSI 紫", "ANSI 紫(粗)",
+    "ANSI 青", "ANSI 青(粗)",
+    "ANSI 白", "ANSI 白(粗)"
 };
 
 static void colour_handler(union control *ctrl, void *dlg,
@@ -1690,7 +1690,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		  HELPCTX(features_retitle),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_wintitle));
-    ctrl_checkbox(s, "Disable remote-controlled clearing of scrollback", 'e',
+    ctrl_checkbox(s, "禁止远程控制清除回滚(E)", 'e',
 		  HELPCTX(features_clearscroll),
 		  conf_checkbox_handler,
 		  I(CONF_no_remote_clearscroll));
@@ -1979,7 +1979,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    {
 		const char *label = backend_from_proto(PROT_SSH) ?
 		    "远程主机的注册名字（如：使用 ssh 密钥寻找）：" :
-		    "Logical远程主机的注册名字：";
+		    "Logical 远程主机的注册名字：";
 		s = ctrl_getset(b, "连接", "identity",
 				"远程主机的注册名字");
 		ctrl_editbox(s, label, 'm', 100,
@@ -2120,14 +2120,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     conf_editbox_handler,
 		     I(CONF_proxy_telnet_command), I(1));
 
-	ctrl_radiobuttons(s, "Print proxy diagnostics "
-                          "in the terminal window", 'r', 5,
+	ctrl_radiobuttons(s, "在终端窗口"
+                          "输出代理诊断信息", 'r', 5,
 			  HELPCTX(proxy_logging),
 			  conf_radiobutton_handler,
 			  I(CONF_proxy_log_to_term),
-			  "No", I(FORCE_OFF),
-			  "Yes", I(FORCE_ON),
-			  "Only until session starts", I(AUTO), NULL);
+			  "否", I(FORCE_OFF),
+			  "是", I(FORCE_ON),
+			  "只在会话开始时", I(AUTO), NULL);
     }
 
     /*
@@ -2298,12 +2298,12 @@ void setup_config_box(struct controlbox *b, int midsession,
 	 * The 'Connection/SSH/Host keys' panel.
 	 */
 	if (protcfginfo != 1 && protcfginfo != -1) {
-	    ctrl_settitle(b, "Connection/SSH/Host keys",
-			  "Options controlling SSH host keys");
+	    ctrl_settitle(b, "连接/SSH/主机密钥",
+			  "控制 SSH 主机密钥选项");
 
-	    s = ctrl_getset(b, "Connection/SSH/Host keys", "main",
-			    "Host key algorithm preference");
-	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
+	    s = ctrl_getset(b, "连接/SSH/主机密钥", "main",
+			    "主机密钥算法偏好");
+	    c = ctrl_draglist(s, "算法选择优先级：", 's',
 			      HELPCTX(ssh_hklist),
 			      hklist_handler, P(NULL));
 	    c->listbox.height = 5;
@@ -2650,10 +2650,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "严格 SSH-2 密钥再次验证操作(K)", 'k', 20,
 			  HELPCTX(ssh_bugs_rekey2),
 			  sshbug_handler, I(CONF_sshbug_rekey2));
-	    ctrl_droplist(s, "Chokes on PuTTY's SSH-2 'winadj' requests", 'j',
+	    ctrl_droplist(s, "阻塞 PuTTY's SSH-2 'winadj' 请求", 'j',
                           20, HELPCTX(ssh_bugs_winadj),
 			  sshbug_handler, I(CONF_sshbug_winadj));
-	    ctrl_droplist(s, "Replies to requests on closed channels", 'q', 20,
+	    ctrl_droplist(s, "回复已关闭通道的请求(Q)", 'q', 20,
 			  HELPCTX(ssh_bugs_chanreq),
 			  sshbug_handler, I(CONF_sshbug_chanreq));
 	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
@@ -2668,7 +2668,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "SSH-2 RSA 签名附加请求(P)", 'p', 20,
 			  HELPCTX(ssh_bugs_rsapad2),
 			  sshbug_handler, I(CONF_sshbug_rsapad2));
-	    ctrl_droplist(s, "Only supports pre-RFC4419 SSH-2 DH GEX", 'd', 20,
+	    ctrl_droplist(s, "只支持 pre-RFC4419 SSH-2 DH GEX", 'd', 20,
 			  HELPCTX(ssh_bugs_oldgex2),
 			  sshbug_handler, I(CONF_sshbug_oldgex2));
 	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥(M)", 'm', 20,

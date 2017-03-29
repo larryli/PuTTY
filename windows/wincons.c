@@ -165,12 +165,12 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     DWORD savemode, i;
 
     static const char msg[] =
-	"The first %s supported by the server is\n"
-	"%s, which is below the configured warning threshold.\n"
+	"服务器支持的第一个 %s 是\n"
+	"%s，其低于配置的警告阀值。\n"
 	"继续连接？(y/n) ";
     static const char msg_batch[] =
-	"The first %s supported by the server is\n"
-	"%s, which is below the configured warning threshold.\n"
+	"服务器支持的第一个 %s 是\n"
+	"%s，其低于配置的警告阀值。\n"
 	"放弃连接。\n";
     static const char abandoned[] = "放弃连接。\n";
 
@@ -206,20 +206,20 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
     DWORD savemode, i;
 
     static const char msg[] =
-	"The first host key type we have stored for this server\n"
-	"is %s, which is below the configured warning threshold.\n"
-	"The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
+	"我们储存的此服务器第一个主机密钥类型\n"
+	"为 %s，其低于配置的警告阀值。\n"
+	"此服务器同时也提供有我们没有储存的高\n"
+        "于阀值的下列主机密钥类型：\n"
         "%s\n"
-	"Continue with connection? (y/n) ";
+	"继续连接？(y/n) ";
     static const char msg_batch[] =
-	"The first host key type we have stored for this server\n"
-	"is %s, which is below the configured warning threshold.\n"
-	"The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
+	"我们储存的此服务器第一个主机密钥类型\n"
+	"为 %s，其低于配置的警告阀值。\n"
+	"此服务器同时也提供有我们没有储存的高\n"
+        "于阀值的下列主机密钥类型：\n"
         "%s\n"
-	"Connection abandoned.\n";
-    static const char abandoned[] = "Connection abandoned.\n";
+	"放弃连接。\n";
+    static const char abandoned[] = "放弃连接。\n";
 
     char line[32];
 
@@ -257,17 +257,17 @@ int askappend(void *frontend, Filename *filename,
     DWORD savemode, i;
 
     static const char msgtemplate[] =
-	"The session log file \"%.*s\" already exists.\n"
-	"You can overwrite it with a new session log,\n"
-	"append your session log to the end of it,\n"
-	"or disable session logging for this session.\n"
-	"Enter \"y\" to wipe the file, \"n\" to append to it,\n"
-	"or just press Return to disable logging.\n"
-	"Wipe the log file? (y/n, Return cancels logging) ";
+	"会话日志文件 \"%.*s\" 已经存在。\n"
+	"你可以使用新会话日志覆盖旧文件，\n"
+	"或者在旧日志文件结尾增加新日志，\n"
+	"或在此会话中禁止日志记录。\n"
+	"输入 \"y\" 覆盖为新文件，\"n\" 附加到旧文件，\n"
+	"或者直接回车禁止日志记录。\n"
+	"要覆盖为新文件么？(y/n，回车取消日志记录) ";
 
     static const char msgtemplate_batch[] =
-	"The session log file \"%.*s\" already exists.\n"
-	"Logging will not be enabled.\n";
+	"会话日志文件 \"%.*s\" 已经存在。\n"
+	"日志功能未被启用。\n";
 
     char line[32];
 
@@ -314,8 +314,8 @@ void old_keyfile_warning(void)
 	"建议将其转换为新的\n"
 	"格式。\n"
 	"\n"
-	"Once the key is loaded into PuTTYgen, you can perform\n"
-	"this conversion simply by saving it again.\n";
+	"一旦密钥被载入到 PuTTYgen，你可以简单的\n"
+	"使用保存文件来进行转换。\n";
 
     fputs(message, stderr);
 }
@@ -381,7 +381,7 @@ int console_get_userpass_input(prompts_t *p,
 	    return 0;
 	hin = GetStdHandle(STD_INPUT_HANDLE);
 	if (hin == INVALID_HANDLE_VALUE) {
-	    fprintf(stderr, "Cannot get standard input handle\n");
+	    fprintf(stderr, "无法获取标准输入句柄\n");
 	    cleanup_exit(1);
 	}
     }
@@ -392,7 +392,7 @@ int console_get_userpass_input(prompts_t *p,
     if ((p->name_reqd && p->name) || p->instruction || p->n_prompts) {
 	hout = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (hout == INVALID_HANDLE_VALUE) {
-	    fprintf(stderr, "Cannot get standard output handle\n");
+	    fprintf(stderr, "无法获取标准输出句柄\n");
 	    cleanup_exit(1);
 	}
     }
