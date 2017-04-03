@@ -235,8 +235,8 @@ TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
          + config dialog conf
 
 # GUI front end and terminal emulator (putty, puttytel).
-GUITERM  = TERMINAL window windlg winctrls sizetip winucs winprint
-         + winutils wincfg sercfg winhelp winjump miscucs
+GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
+	 + wincfg sercfg winhelp winjump
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
@@ -262,7 +262,7 @@ SFTP     = sftp int64 logging
 # Pageant or PuTTYgen).
 MISC     = timing callback misc version settings tree234 proxy conf be_misc
 WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
-         + wintime winhsock errsock winsecur
+         + wintime winhsock errsock winsecur winucs miscucs
 UXMISC   = MISC uxstore uxsel uxnet uxpeer cmdline uxmisc uxproxy time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to

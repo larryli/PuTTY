@@ -176,8 +176,10 @@ void dll_hijacking_protection(void)
     }
 
     if (p_SetDefaultDllDirectories) {
-        /* LOAD_LIBRARY_SEARCH_SYSTEM32 only */
-        p_SetDefaultDllDirectories(0x800);
+        /* LOAD_LIBRARY_SEARCH_SYSTEM32 and explicitly specified
+         * directories only */
+        p_SetDefaultDllDirectories(LOAD_LIBRARY_SEARCH_SYSTEM32 |
+                                   LOAD_LIBRARY_SEARCH_USER_DIRS);
     }
 }
 
