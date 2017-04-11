@@ -282,7 +282,15 @@ static char *sk_handle_peer_info(Socket s)
 
     if (!kernel32_module) {
         kernel32_module = load_system32_dll("kernel32.dll");
-        GET_WINDOWS_FUNCTION(kernel32_module, GetNamedPipeClientProcessId);
+#if defined _MSC_VER && _MSC_VER < 1900
+        /* For older Visual Studio, this function isn't available in
+         * the header files to type-check */
+        GET_WINDOWS_FUNCTION_NO_TYPECHECK(
+            kernel32_module, GetNamedPipeClientProcessId);
+#else
+        GET_WINDOWS_FUNCTION(
+            kernel32_module, GetNamedPipeClientProcessId);
+#endif
     }
 
     /*

@@ -128,15 +128,24 @@ struct FontSpec *fontspec_new(const char *name,
  *
  * (DECL_WINDOWS_FUNCTION works with both these variants.)
  */
-#define DECL_WINDOWS_FUNCTION(linkage, rettype, name, params) \
-    typedef rettype (WINAPI *t_##name) params; \
+#define TYPECHECK(to_check, to_return)          \
+    (sizeof(to_check) ? to_return : to_return)
+#define DECL_WINDOWS_FUNCTION(linkage, rettype, name, params)   \
+    typedef rettype (WINAPI *t_##name) params;                  \
     linkage t_##name p_##name
 #define STR1(x) #x
 #define STR(x) STR1(x)
-#define GET_WINDOWS_FUNCTION_PP(module, name) \
-    (p_##name = module ? (t_##name) GetProcAddress(module, STR(name)) : NULL)
-#define GET_WINDOWS_FUNCTION(module, name) \
-    (p_##name = module ? (t_##name) GetProcAddress(module, #name) : NULL)
+#define GET_WINDOWS_FUNCTION_PP(module, name)                           \
+    TYPECHECK((t_##name)NULL == name,                                   \
+              (p_##name = module ?                                      \
+               (t_##name) GetProcAddress(module, STR(name)) : NULL))
+#define GET_WINDOWS_FUNCTION(module, name)                              \
+    TYPECHECK((t_##name)NULL == name,                                   \
+              (p_##name = module ?                                      \
+               (t_##name) GetProcAddress(module, #name) : NULL))
+#define GET_WINDOWS_FUNCTION_NO_TYPECHECK(module, name) \
+    (p_##name = module ?                                \
+     (t_##name) GetProcAddress(module, #name) : NULL)
 
 /*
  * Global variables. Most modules declare these `extern', but
