@@ -101,6 +101,11 @@ char *get_username(void)
 	if (!tried_usernameex) {
 	    /* Not available on Win9x, so load dynamically */
 	    HMODULE secur32 = load_system32_dll("secur32.dll");
+	    /* If MIT Kerberos is installed, the following call to
+	       GET_WINDOWS_FUNCTION makes Windows implicitly load
+	       sspicli.dll WITHOUT proper path sanitizing, so better
+	       load it properly before */
+	    HMODULE sspicli = load_system32_dll("sspicli.dll");
 	    GET_WINDOWS_FUNCTION(secur32, GetUserNameExA);
 	    tried_usernameex = TRUE;
 	}
