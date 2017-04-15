@@ -314,9 +314,9 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, getservbyname);
     GET_WINDOWS_FUNCTION(winsock_module, inet_addr);
     GET_WINDOWS_FUNCTION(winsock_module, inet_ntoa);
-#if defined _MSC_VER && _MSC_VER < 1900
-    /* Older Visual Studio doesn't know about this function at all, so
-     * can't type-check it */
+#if (defined _MSC_VER && _MSC_VER < 1900) || defined __MINGW32__
+    /* Older Visual Studio, and MinGW as of Ubuntu 16.04, don't know
+     * about this function at all, so can't type-check it */
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, inet_ntop);
 #else
     GET_WINDOWS_FUNCTION(winsock_module, inet_ntop);

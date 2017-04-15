@@ -282,9 +282,10 @@ static char *sk_handle_peer_info(Socket s)
 
     if (!kernel32_module) {
         kernel32_module = load_system32_dll("kernel32.dll");
-#if defined _MSC_VER && _MSC_VER < 1900
-        /* For older Visual Studio, this function isn't available in
-         * the header files to type-check */
+#if (defined _MSC_VER && _MSC_VER < 1900) || defined __MINGW32__
+        /* For older Visual Studio, and MinGW too (at least as of
+         * Ubuntu 16.04), this function isn't available in the header
+         * files to type-check */
         GET_WINDOWS_FUNCTION_NO_TYPECHECK(
             kernel32_module, GetNamedPipeClientProcessId);
 #else
