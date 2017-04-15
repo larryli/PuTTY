@@ -1700,7 +1700,7 @@ void request_resize(void *frontend, int w, int h)
 {
     int width, height;
 
-    /* If the window is maximized supress resizing attempts */
+    /* If the window is maximized suppress resizing attempts */
     if (IsZoomed(hwnd)) {
 	if (conf_get_int(conf, CONF_resize_action) == RESIZE_TERM)
 	    return;
@@ -4777,7 +4777,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    return p - output;
 	}
-	/* If we're definitly not building up an ALT-54321 then clear it */
+	/* If we're definitely not building up an ALT-54321 then clear it */
 	if (!left_alt)
 	    keys_unicode[0] = 0;
 	/* If we will be using alt_sum fix the 256s */

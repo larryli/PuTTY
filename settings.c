@@ -892,7 +892,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     {
 	/* SSH-2 only by default */
 	int sshprot = gppi_raw(sesskey, "SshProt", 3);
-	/* Old sessions may contain the values correponding to the fallbacks
+	/* Old sessions may contain the values corresponding to the fallbacks
 	 * we used to allow; migrate them */
 	if (sshprot == 1)      sshprot = 0; /* => "SSH-1 only" */
 	else if (sshprot == 2) sshprot = 3; /* => "SSH-2 only" */

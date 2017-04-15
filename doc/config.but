@@ -2507,7 +2507,7 @@ used:
 
 Disabling data-based rekeys entirely is a bad idea.  The \i{integrity},
 and to a lesser extent, \i{confidentiality} of the SSH-2 protocol depend
-in part on rekeys occuring before a 32-bit packet sequence number
+in part on rekeys occurring before a 32-bit packet sequence number
 wraps around.  Unlike time-based rekeys, data-based rekeys won't occur
 when the SSH connection is idle, so they shouldn't cause the same
 problems.  The SSH-1 protocol, incidentally, has even weaker integrity
