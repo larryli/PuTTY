@@ -2959,7 +2959,7 @@ modes from the local terminal, if any.
 
 }
 
-\b If \q{Nothing} is selected, no value for the mode will not be
+\b If \q{Nothing} is selected, no value for the mode will be
 specified to the server under any circumstances.
 
 \b If a value is specified, it will be sent to the server under all
