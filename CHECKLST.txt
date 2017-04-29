@@ -96,7 +96,6 @@ for it:
       branch (so that the wishlist mechanism can't automatically mark
       them as fixed in the new release), add appropriate Fixed-in
       headers for those.
-    * Add an entry to the @releases array in control/bugs2html.
 
  - Make a release-candidate build from the release tag, and put the
    build.out and build.log dfiles somewhere safe. Normally I store
