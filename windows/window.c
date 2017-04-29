@@ -3956,6 +3956,7 @@ static void init_winfuncs(void)
     HMODULE user32_module = load_system32_dll("user32.dll");
     HMODULE winmm_module = load_system32_dll("winmm.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
+    GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
     GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
 }
 
