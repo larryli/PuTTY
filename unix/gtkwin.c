@@ -1935,7 +1935,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     event_button->x_root = event->x_root;
     event_button->y_root = event->y_root;
     ret = button_internal(inst, event_button);
-    gdk_event_free(event_button);
+    gdk_event_free((GdkEvent *)event_button);
     return ret;
 #endif
 }
