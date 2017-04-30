@@ -2188,11 +2188,11 @@ void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
     free(data);
     free(col_css);
 #else
-    if (gtk_widget_get_window(win)) {
+    if (gtk_widget_get_window(widget)) {
         /* For GTK1, which doesn't have a 'const' on
          * gdk_window_set_background's second parameter type. */
         GdkColor col_mutable = *col;
-        gdk_window_set_background(gtk_widget_get_window(win), &col_mutable);
+        gdk_window_set_background(gtk_widget_get_window(widget), &col_mutable);
     }
 #endif
 }
