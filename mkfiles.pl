@@ -364,7 +364,7 @@ sub splitline {
   $len = (defined $width ? $width : 76);
   $splitchar = (defined $splitchar ? $splitchar : '\\');
   while (length $line > $len) {
-    $line =~ /^(.{0,$len})\s(.*)$/ or $line =~ /^(.{$len,}?\s(.*)$/;
+    $line =~ /^(.{0,$len})\s(.*)$/ or $line =~ /^(.{$len,})?\s(.*)$/;
     $result .= $1;
     $result .= " ${splitchar}\n\t\t" if $2 ne '';
     $line = $2;
