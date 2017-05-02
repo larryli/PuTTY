@@ -19,7 +19,7 @@
 #endif
 
 static const char *const reg_jumplist_key = PUTTY_REG_POS "\\Jumplist";
-static const char *const reg_jumplist_value = "Recent sessions";
+static const char *const reg_jumplist_value = "最近会话";
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static const char hex[16] = "0123456789ABCDEF";
@@ -83,7 +83,7 @@ void *open_settings_w(const char *sessionname, char **errmsg)
     *errmsg = NULL;
 
     if (!sessionname || !*sessionname)
-	sessionname = "Default Settings";
+	sessionname = "默认设置";
 
     p = snewn(3 * strlen(sessionname) + 1, char);
     mungestr(sessionname, p);
@@ -132,7 +132,7 @@ void *open_settings_r(const char *sessionname)
     char *p;
 
     if (!sessionname || !*sessionname)
-	sessionname = "Default Settings";
+	sessionname = "默认设置";
 
     p = snewn(3 * strlen(sessionname) + 1, char);
     mungestr(sessionname, p);
