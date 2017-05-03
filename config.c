@@ -1474,7 +1474,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "会话", "otheropts", NULL);
-    ctrl_radiobuttons(s, "退出时关闭窗口(W)：", 'x', 4,
+    ctrl_radiobuttons(s, "退出时关闭窗口(X)：", 'x', 4,
                       HELPCTX(session_coe),
                       conf_radiobutton_handler,
                       I(CONF_close_on_exit),
@@ -1783,7 +1783,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
     s = ctrl_getset(b, "窗口/外观", "border",
 		    "调整窗口边框");
-    ctrl_editbox(s, "文本与窗口边界的距离：", 'e', 20,
+    ctrl_editbox(s, "文本与窗口边界的距离(E)：", 'e', 20,
 		 HELPCTX(appearance_border),
 		 conf_editbox_handler,
 		 I(CONF_window_border), I(-1));
@@ -1857,7 +1857,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      HELPCTX(selection_rect),
 		      conf_radiobutton_handler,
 		      I(CONF_rect_select),
-		      "常规", 'n', I(0),
+		      "常规(N)", 'n', I(0),
 		      "矩形框(R)", 'r', I(1), NULL);
 
     s = ctrl_getset(b, "窗口/选择", "charclass",
@@ -1967,7 +1967,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(connection_ipversion),
 			  conf_radiobutton_handler,
 			  I(CONF_addressfamily),
-			  "自动", 'u', I(ADDRTYPE_UNSPEC),
+			  "自动(U)", 'u', I(ADDRTYPE_UNSPEC),
 			  "IPv4", '4', I(ADDRTYPE_IPV4),
 			  "IPv6", '6', I(ADDRTYPE_IPV6),
 			  NULL);
@@ -1975,8 +1975,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    {
 		const char *label = backend_from_proto(PROT_SSH) ?
-		    "远程主机的注册名字（如：使用 ssh 密钥寻找）：" :
-		    "Logical 远程主机的注册名字：";
+		    "远程主机的注册名字（比如用 ssh 密钥寻找）(M)：" :
+		    "Logical 远程主机的注册名字(M)：";
 		s = ctrl_getset(b, "连接", "identity",
 				"远程主机的注册名字");
 		ctrl_editbox(s, label, 'm', 100,
@@ -2004,7 +2004,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		char *userlabel = dupprintf("使用系统用户名 (%s)",
 					    user ? user : "");
 		sfree(user);
-		ctrl_radiobuttons(s, "未指定用户名时：", 'n', 4,
+		ctrl_radiobuttons(s, "未指定用户名时(N)：", 'n', 4,
 				  HELPCTX(connection_username_from_env),
 				  conf_radiobutton_handler,
 				  I(CONF_username_from_env),
@@ -2040,7 +2040,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 					    HELPCTX(telnet_environ),
 					    environ_handler, P(ed));
 	    ed->addbutton->generic.column = 1;
-	    ed->rembutton = ctrl_pushbutton(s, "删除(E)", 'r',
+	    ed->rembutton = ctrl_pushbutton(s, "删除(R)", 'r',
 					    HELPCTX(telnet_environ),
 					    environ_handler, P(ed));
 	    ed->rembutton->generic.column = 1;
@@ -2107,7 +2107,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     HELPCTX(proxy_auth),
 		     conf_editbox_handler,
 		     I(CONF_proxy_username), I(1));
-	c = ctrl_editbox(s, "密码(P)：", 'w', 60,
+	c = ctrl_editbox(s, "密码(W)：", 'w', 60,
 			 HELPCTX(proxy_auth),
 			 conf_editbox_handler,
 			 I(CONF_proxy_password), I(1));
@@ -2118,7 +2118,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		     I(CONF_proxy_telnet_command), I(1));
 
 	ctrl_radiobuttons(s, "在终端窗口"
-                          "输出代理诊断信息", 'r', 5,
+                          "输出代理诊断信息(R)", 'r', 5,
 			  HELPCTX(proxy_logging),
 			  conf_radiobutton_handler,
 			  I(CONF_proxy_log_to_term),
@@ -2300,7 +2300,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "连接/SSH/主机密钥", "main",
 			    "主机密钥算法偏好");
-	    c = ctrl_draglist(s, "算法选择优先级：", 's',
+	    c = ctrl_draglist(s, "算法选择优先级(S)：", 's',
 			      HELPCTX(ssh_hklist),
 			      hklist_handler, P(NULL));
 	    c->listbox.height = 5;
@@ -2312,7 +2312,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	 * same as that used at the start of the session.
 	 */
 	if (!midsession) {
-	    s = ctrl_getset(b, "连接/SSH/密钥", "hostkeys",
+	    s = ctrl_getset(b, "连接/SSH/主机密钥", "hostkeys",
 			    "手动配置本连接的主机密钥");
 
             ctrl_columns(s, 2, 75, 25);
@@ -2407,7 +2407,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_checkbox(s, "允许代理映射(F)", 'f',
 			  HELPCTX(ssh_auth_agentfwd),
 			  conf_checkbox_handler, I(CONF_agentfwd));
-	    ctrl_checkbox(s, "允许尝试在 SSH-2 中修改用户名(U)", NO_SHORTCUT,
+	    ctrl_checkbox(s, "允许尝试在 SSH-2 中修改用户名", NO_SHORTCUT,
 			  HELPCTX(ssh_auth_changeuser),
 			  conf_checkbox_handler,
 			  I(CONF_change_username));
@@ -2425,7 +2425,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  "控制 GSSAPI 认证选项");
 	    s = ctrl_getset(b, "连接/SSH/认证/GSSAPI", "gssapi", NULL);
 
-	    ctrl_checkbox(s, "尝试使用 GSSAPI 认证，只限于 SSH-2",
+	    ctrl_checkbox(s, "尝试使用 GSSAPI 认证，只限于 SSH-2(T)",
 			  't', HELPCTX(ssh_gssapi),
 			  conf_checkbox_handler,
 			  I(CONF_try_gssapi_auth));
@@ -2439,7 +2439,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	     * GSSAPI library selection.
 	     */
 	    if (ngsslibs > 1) {
-		c = ctrl_draglist(s, "GSSAPI 库优先级(P)：",
+		c = ctrl_draglist(s, "GSSAPI 库优先级：",
 				  'p', HELPCTX(ssh_gssapi_libraries),
 				  gsslist_handler, P(NULL));
 		c->listbox.height = ngsslibs;
@@ -2463,7 +2463,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 * displayed. 
 		 */
 
-		ctrl_filesel(s, "用户支持的 GSSAPI 库路径(S)：", 's',
+		ctrl_filesel(s, "用户支持的 GSSAPI 库路径：", 's',
 			     FILTER_DYNLIB_FILES, FALSE, "选择库文件",
 			     HELPCTX(ssh_gssapi_libraries),
 			     conf_filesel_handler,
@@ -2538,7 +2538,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_editbox(s, "X 显示位置：", 'x', 50,
 			 HELPCTX(ssh_tunnels_x11),
 			 conf_editbox_handler, I(CONF_x11_display), I(1));
-	    ctrl_radiobuttons(s, "远程 X11 认证协议", 'u', 2,
+	    ctrl_radiobuttons(s, "远程 X11 认证协议(U)", 'u', 2,
 			      HELPCTX(ssh_tunnels_x11auth),
 			      conf_radiobutton_handler,
 			      I(CONF_x11_auth),
@@ -2569,7 +2569,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	/* You want to select from the list, _then_ hit Remove. So tab order
 	 * should be that way round. */
 	pfd = (struct portfwd_data *)ctrl_alloc(b,sizeof(struct portfwd_data));
-	pfd->rembutton = ctrl_pushbutton(s, "删除(E)", 'r',
+	pfd->rembutton = ctrl_pushbutton(s, "删除(R)", 'r',
 					 HELPCTX(ssh_tunnels_portfwd),
 					 portfwd_handler, P(pfd));
 	pfd->rembutton->generic.column = 2;
@@ -2610,7 +2610,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, NULL, NO_SHORTCUT, 3,
 			      HELPCTX(ssh_tunnels_portfwd_ipversion),
 			      portfwd_handler, P(pfd),
-			      "自动", 'u', I(ADDRTYPE_UNSPEC),
+			      "自动(U)", 'u', I(ADDRTYPE_UNSPEC),
 			      "IPv4", '4', I(ADDRTYPE_IPV4),
 			      "IPv6", '6', I(ADDRTYPE_IPV6),
 			      NULL);
@@ -2627,7 +2627,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 
 	    s = ctrl_getset(b, "连接/SSH/查错", "main",
 			    "检测已知的 SSH 服务器错误");
-	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息(2)", '2', 20,
+	    ctrl_droplist(s, "阻塞 SSH-2 忽略信息", '2', 20,
 			  HELPCTX(ssh_bugs_ignore2),
 			  sshbug_handler, I(CONF_sshbug_ignore2));
 	    ctrl_droplist(s, "严格 SSH-2 密钥再次验证操作(K)", 'k', 20,
@@ -2639,7 +2639,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "回复已关闭通道的请求(Q)", 'q', 20,
 			  HELPCTX(ssh_bugs_chanreq),
 			  sshbug_handler, I(CONF_sshbug_chanreq));
-	    ctrl_droplist(s, "忽略 SSH-2 最大包大小", 'x', 20,
+	    ctrl_droplist(s, "忽略 SSH-2 最大包大小(X)", 'x', 20,
 			  HELPCTX(ssh_bugs_maxpkt2),
 			  sshbug_handler, I(CONF_sshbug_maxpkt2));
 
@@ -2654,7 +2654,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "只支持 pre-RFC4419 SSH-2 DH GEX", 'd', 20,
 			  HELPCTX(ssh_bugs_oldgex2),
 			  sshbug_handler, I(CONF_sshbug_oldgex2));
-	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥(M)", 'm', 20,
+	    ctrl_droplist(s, "混算 SSH-2 HMAC 密钥", 'm', 20,
 			  HELPCTX(ssh_bugs_hmac2),
 			  sshbug_handler, I(CONF_sshbug_hmac2));
 	    ctrl_droplist(s, "错误 SSH-2 PK 认证会话 ID(N)", 'n', 20,
@@ -2666,10 +2666,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_droplist(s, "阻塞 SSH-1 忽略信息(I)", 'i', 20,
 			  HELPCTX(ssh_bugs_ignore1),
 			  sshbug_handler, I(CONF_sshbug_ignore1));
-	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装(S)", 's', 20,
+	    ctrl_droplist(s, "拒绝所有 SSH-1 密码伪装", 's', 20,
 			  HELPCTX(ssh_bugs_plainpw1),
 			  sshbug_handler, I(CONF_sshbug_plainpw1));
-	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证(R)", 'r', 20,
+	    ctrl_droplist(s, "阻塞 SSH-1 RSA 认证", 'r', 20,
 			  HELPCTX(ssh_bugs_rsa1),
 			  sshbug_handler, I(CONF_sshbug_rsa1));
 	}

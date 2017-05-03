@@ -270,7 +270,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
      */
     s = ctrl_getset(b, "窗口/选择", "format",
 		    "格式化要传送的字符");
-    ctrl_checkbox(s, "粘贴 RTF 文本到剪贴板(F)", 'f',
+    ctrl_checkbox(s, "粘贴 RTF 文本到剪贴板", 'f',
 		  HELPCTX(selection_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
@@ -362,7 +362,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("本地(L)");
+		    dupstr("本地");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(PROXY_CMD);
