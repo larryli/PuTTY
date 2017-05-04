@@ -274,12 +274,12 @@ GLOBAL void *logctx;
  * these strings are of exactly the type needed to go in
  * `lpstrFilter' in an OPENFILENAME structure.
  */
-#define FILTER_KEY_FILES ("PuTTY Private Key Files (*.ppk)\0*.ppk\0" \
-			      "All Files (*.*)\0*\0\0\0")
-#define FILTER_WAVE_FILES ("Wave Files (*.wav)\0*.WAV\0" \
-			       "All Files (*.*)\0*\0\0\0")
-#define FILTER_DYNLIB_FILES ("Dynamic Library Files (*.dll)\0*.dll\0" \
-				 "All Files (*.*)\0*\0\0\0")
+#define FILTER_KEY_FILES ("PuTTY 私钥文件 (*.ppk)\0*.ppk\0" \
+			      "所有文件 (*.*)\0*\0\0\0")
+#define FILTER_WAVE_FILES ("声音文件 (*.wav)\0*.WAV\0" \
+			       "所有文件 (*.*)\0*\0\0\0")
+#define FILTER_DYNLIB_FILES ("动态链接库文件 (*.dll)\0*.dll\0" \
+				 "所有文件 (*.*)\0*\0\0\0")
 
 /*
  * Exports from winnet.c.
@@ -533,7 +533,7 @@ GLOBAL int restricted_acl;
 #ifndef LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR
 #define LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR 0x00000100
 #endif
-#if _MSC_VER < 1400
+#if _MSC_VER < 1900
 typedef PVOID DLL_DIRECTORY_COOKIE;
 #endif
 

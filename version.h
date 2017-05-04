@@ -8,9 +8,9 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define TEXTVER "Unidentified build"
-#define SSHVER "PuTTY-Unidentified-Local-Build"
-#define BINARY_VERSION 0,0,0,0
+#define TEXTVER "·¢²¼°æ 0.69cn"
+#define SSHVER "PuTTY-0-69-CN-Build"
+#define BINARY_VERSION 0,69,0,0
 
 #ifndef SOURCE_COMMIT
 /*
