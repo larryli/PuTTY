@@ -415,8 +415,8 @@ static void setupbigedit2(HWND hwnd, int id, int idstatic,
 {
     char *buffer = ssh2_pubkey_openssh_str(key);
     SetDlgItemText(hwnd, id, buffer);
-    SetDlgItemText(hwnd, idstatic, "显示的公钥(&P)由 "
-		   "OpenSSH 认可：");
+    SetDlgItemText(hwnd, idstatic, "显示的公钥由 "
+		   "OpenSSH 认可(&P)：");
     sfree(buffer);
 }
 

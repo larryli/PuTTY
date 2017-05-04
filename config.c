@@ -1365,7 +1365,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     s = ctrl_getset(b, "", "", "");
     ctrl_columns(s, 5, 20, 20, 20, 20, 20);
     ssd->okbutton = ctrl_pushbutton(s,
-				    (midsession ? "应用" : "打开(O)"),
+				    (midsession ? "应用(A)" : "打开(O)"),
 				    (char)(midsession ? 'a' : 'o'),
 				    HELPCTX(no_help),
 				    sessionsaver_handler, P(ssd));
@@ -1506,7 +1506,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  HELPCTX(logging_main),
 			  loggingbuttons_handler,
 			  I(CONF_logtype),
-			  "无", 't', I(LGTYP_NONE),
+			  "无(T)", 't', I(LGTYP_NONE),
 			  "可打印输出(P)", 'p', I(LGTYP_ASCII),
 			  "所有会话输出(L)", 'l', I(LGTYP_DEBUG),
 			  sshlogname, 's', I(LGTYP_PACKETS),
@@ -1637,7 +1637,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_radiobuttons(s, "发生响铃时动作(B)：", 'b', 1,
 		      HELPCTX(bell_style),
 		      conf_radiobutton_handler, I(CONF_beep),
-		      "无 (禁止)", I(BELL_DISABLED),
+		      "无 (禁止响铃)", I(BELL_DISABLED),
 		      "使用系统默认警告声音", I(BELL_DEFAULT),
 		      "可视响铃 (闪动窗口)", I(BELL_VISUAL), NULL);
 
@@ -2488,7 +2488,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			    "终端模式");
 	    td = (struct ttymodes_data *)
 		ctrl_alloc(b, sizeof(struct ttymodes_data));
-	    c = ctrl_text(s, "发送的终端模式：", HELPCTX(ssh_ttymodes));
+	    c = ctrl_text(s, "终端模式用于发送：", HELPCTX(ssh_ttymodes));
 	    td->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
 				       HELPCTX(ssh_ttymodes),
 				       ttymodes_handler, P(td));

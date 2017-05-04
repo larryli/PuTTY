@@ -189,7 +189,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 		    "字体设置");
     ctrl_checkbox(s, "允许选择可变宽度字体", NO_SHORTCUT,
                   HELPCTX(appearance_font), variable_pitch_handler, I(0));
-    ctrl_radiobuttons(s, "字体品质：", 'q', 2,
+    ctrl_radiobuttons(s, "字体品质(Q)：", 'q', 2,
 		      HELPCTX(appearance_font),
 		      conf_radiobutton_handler,
 		      I(CONF_font_quality),
@@ -335,7 +335,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     ctrl_checkbox(s, "Alt+空格显示系统菜单(Y)", 'y',
 		  HELPCTX(behaviour_altspace),
 		  conf_checkbox_handler, I(CONF_alt_space));
-    ctrl_checkbox(s, "Alt键显示系统菜单", 'l',
+    ctrl_checkbox(s, "Alt 键显示系统菜单", 'l',
 		  HELPCTX(behaviour_altonly),
 		  conf_checkbox_handler, I(CONF_alt_only));
     ctrl_checkbox(s, "窗口总在最上层(E)", 'e',
