@@ -2338,11 +2338,11 @@ void setup_config_box(struct controlbox *b, int midsession,
             mh->listbox->listbox.height = 2;
             mh->listbox->listbox.hscroll = FALSE;
             ctrl_tabdelay(s, mh->rembutton);
-	    mh->keybox = ctrl_editbox(s, "密钥(K)", 'k', 80,
+	    mh->keybox = ctrl_editbox(s, "密钥(K)", 'k', 75,
                                       HELPCTX(ssh_kex_manual_hostkeys),
                                       manual_hostkey_handler, P(mh), P(NULL));
             mh->keybox->generic.column = 0;
-            mh->addbutton = ctrl_pushbutton(s, "增加密钥(Y)", 'y',
+            mh->addbutton = ctrl_pushbutton(s, "增加(Y)", 'y',
                                             HELPCTX(ssh_kex_manual_hostkeys),
                                             manual_hostkey_handler, P(mh));
             mh->addbutton->generic.column = 1;
@@ -2538,7 +2538,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_editbox(s, "X 显示位置：", 'x', 50,
 			 HELPCTX(ssh_tunnels_x11),
 			 conf_editbox_handler, I(CONF_x11_display), I(1));
-	    ctrl_radiobuttons(s, "远程 X11 认证协议(U)", 'u', 2,
+	    ctrl_radiobuttons(s, "远程 X11 认证协议(U)", 'u', 1,
 			      HELPCTX(ssh_tunnels_x11auth),
 			      conf_radiobutton_handler,
 			      I(CONF_x11_auth),
