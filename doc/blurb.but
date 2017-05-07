@@ -7,7 +7,7 @@
 \cfg{xhtml-leaf-contains-contents}{true}
 \cfg{xhtml-body-end}{<p>If you want to provide feedback on this manual
 or on the PuTTY tools themselves, see the
-<a href="http://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback
+<a href="https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html">Feedback
 page</a>.</p>}
 
 \cfg{html-template-fragment}{%k}{%b}

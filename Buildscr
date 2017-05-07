@@ -172,7 +172,7 @@ delegate windows
   # provide a 'more info' URL, and an optional -n option to provide a
   # program name, and that it can take multiple .exe filename
   # arguments and sign them all in place.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
 
   # Ignore exit code from hhc, in favour of seeing whether the .chm
   # file was created. (Yuck; but hhc appears to return non-zero
@@ -187,7 +187,7 @@ delegate windows
   in putty/windows with innosetup do/win iscc putty.iss
 
   # Sign the installers.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i http://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi Output/installer.exe
+  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi Output/installer.exe
 
   # Finished Windows builds.
   return putty/windows/buildold/*.exe

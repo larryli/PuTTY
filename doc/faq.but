@@ -27,18 +27,18 @@ else.
 
 \I{supported features}In general, if you want to know if PuTTY supports
 a particular feature, you should look for it on the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/}{PuTTY web site}.
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/}{PuTTY web site}.
 In particular:
 
 \b try the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{changes
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/changes.html}{changes
 page}, and see if you can find the feature on there. If a feature is
 listed there, it's been implemented. If it's listed as a change made
 \e{since} the latest version, it should be available in the
 development snapshots, in which case testing will be very welcome.
 
 \b try the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/}{Wishlist
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/}{Wishlist
 page}, and see if you can find the feature there. If it's on there,
 and not in the \q{Recently fixed} section, it probably \e{hasn't} been
 implemented.
@@ -54,7 +54,7 @@ version 0.52.
 \cw{ssh.com} SSH-2 private key files?
 
 PuTTY doesn't support this natively (see
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/key-formats-natively.html}{the wishlist entry}
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/key-formats-natively.html}{the wishlist entry}
 for reasons why not), but as of 0.53
 PuTTYgen can convert both OpenSSH and \cw{ssh.com} private key
 files into PuTTY's format.
@@ -236,7 +236,7 @@ port, or any other port of PuTTY, they were mistaken. We don't.
 
 There are some third-party ports to various platforms, mentioned
 on the 
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}.
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}.
 
 \S{faq-unix}{Question} \I{Unix version}Is there a port to Unix?
 
@@ -323,7 +323,7 @@ for, it might be a long time before any of us get round to learning
 a new system and doing the port for that.
 
 However, some of the work has been done by other people; see the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/links.html}{Links page of our website}
 for various third-party ports.
 
 \S{faq-iphone}{Question} Will there be a port to the iPhone?
@@ -351,7 +351,7 @@ Most of the code cleanup work would be a good thing to happen in
 general, so if anyone feels like helping, we wouldn't say no.
 
 See also
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/dll-frontend.html}{the wishlist entry}.
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/dll-frontend.html}{the wishlist entry}.
 
 \S{faq-vb}{Question} Is the SSH or Telnet code available as a Visual
 Basic component?
@@ -891,7 +891,7 @@ us \q{I wanted the F1 key to send \c{^[[11~}, but instead it's
 sending \c{^[OP}, can this be done?}, or something similar.
 
 You should still read the
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html}{Feedback
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/feedback.html}{Feedback
 page} on the PuTTY website (also provided as \k{feedback} in the
 manual), and follow the guidelines contained in that.
 
@@ -1060,7 +1060,7 @@ still. We do not recommend it.)
 
 This is caused by a bug in certain versions of \i{Windows XP} which
 is triggered by PuTTY 0.58. This was fixed in 0.59. The
-\W{http://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
+\W{https://www.chiark.greenend.org.uk/~sgtatham/putty/wishlist/xp-wont-run}{\q{xp-wont-run}}
 entry in PuTTY's wishlist has more details.
 
 \S{faq-system32}{Question} When I put 32-bit PuTTY in

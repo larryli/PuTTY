@@ -303,7 +303,7 @@ enum {
  * macros look impenetrable to you, you might find it helpful to
  * read
  * 
- *   http://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
+ *   https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
  * 
  * which explains the theory behind these macros.
  * 
