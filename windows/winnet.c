@@ -1765,6 +1765,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
 		    plug_closing(s->plug, NULL, 0, 0);
 	    }
 	} while (ret > 0);
+	return;
        case FD_ACCEPT:
 	{
 #ifdef NO_IPV6
