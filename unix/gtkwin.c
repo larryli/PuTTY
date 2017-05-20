@@ -1923,7 +1923,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 	return FALSE;
 
     event_button = (GdkEventButton *)gdk_event_new(GDK_BUTTON_PRESS);
-    event_button->window = event->window;
+    event_button->window = g_object_ref(event->window);
     event_button->send_event = event->send_event;
     event_button->time = event->time;
     event_button->x = event->x;
@@ -1931,7 +1931,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     event_button->axes = NULL;
     event_button->state = event->state;
     event_button->button = button;
-    event_button->device = event->device;
+    event_button->device = g_object_ref(event->device);
     event_button->x_root = event->x_root;
     event_button->y_root = event->y_root;
     ret = button_internal(inst, event_button);
