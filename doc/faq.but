@@ -636,21 +636,6 @@ Clicking on \q{ANSI Green} won't turn your session green; it will
 only allow you to adjust the \e{shade} of green used when PuTTY is
 instructed by the server to display green text.
 
-\S{faq-winsock2}{Question} Plink on \i{Windows 95} says it can't find
-\i\cw{WS2_32.DLL}.
-
-Plink requires the extended Windows network library, WinSock version
-2. This is installed as standard on Windows 98 and above, and on
-Windows NT, and even on later versions of Windows 95; but early
-Win95 installations don't have it.
-
-In order to use Plink on these systems, you will need to download
-the
-\W{http://www.microsoft.com/windows95/downloads/contents/wuadmintools/s_wunetworkingtools/w95sockets2/}{WinSock 2 upgrade}:
-
-\c http://www.microsoft.com/windows95/downloads/contents/
-\c   wuadmintools/s_wunetworkingtools/w95sockets2/
-
 \S{faq-outofmem}{Question} After trying to establish an SSH-2
 connection, PuTTY says \q{\ii{Out of memory}} and dies.
 

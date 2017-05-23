@@ -829,9 +829,6 @@ saved sessions from
 \IM{login scripts}{startup scripts} login scripts
 \IM{login scripts}{startup scripts} startup scripts
 
-\IM{WS2_32.DLL} \cw{WS2_32.DLL}
-\IM{WS2_32.DLL} WinSock version 2
-
 \IM{Red Hat Linux} Red Hat Linux
 \IM{Red Hat Linux} Linux, Red Hat
 
