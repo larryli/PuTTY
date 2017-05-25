@@ -191,7 +191,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
           <Component Id="HelpFile_Component"
                      Guid="$(var.HelpFile_Component_GUID)">
             <File Id="HelpFile_File"
-                  Source="..\doc\putty.chm" KeyPath="yes">
+                  Source="../doc/putty.chm" KeyPath="yes">
               <Shortcut Id="startmenuManual" Directory="ProgramMenuDir"
                         Name="PuTTY Manual"
                         Advertise="no" />
@@ -209,7 +209,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
           <Component Id="LICENCE_Component"
                      Guid="$(var.LICENCE_Component_GUID)">
             <File Id="LICENCE_File"
-                  Source="..\LICENCE" KeyPath="yes" />
+                  Source="../LICENCE" KeyPath="yes" />
           </Component>
           <Component Id="README_Component"
                      Guid="$(var.README_Component_GUID)">
