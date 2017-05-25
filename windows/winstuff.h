@@ -19,7 +19,7 @@
  * stddef.h. So here we try to make sure _some_ standard header is
  * included which defines uintptr_t. */
 #include <stddef.h>
-#if !defined _MSC_VER || _MSC_VER >= 1600
+#if !defined _MSC_VER || _MSC_VER >= 1600 || defined __clang__
 #include <stdint.h>
 #endif
 
