@@ -181,20 +181,13 @@ in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f M
 # all in place.
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe
 
-delegate windows
-  # Build a WiX MSI installer, for each of build32 and build64.
-  in putty/windows with wix do/win candle -arch x86 -dWin64=no -dBuilddir=build32\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi
-  in putty/windows with wix do/win candle -arch x64 -dWin64=yes -dBuilddir=build64\ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi
+# Build a WiX MSI installer, for each of build32 and build64.
+in putty/windows with wixonlinux do candle -arch x86 -dWin64=no -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
 
-  # Sign the installers, if the local bob config provides
-  # $(winsigncode) that can run in a Windows delegation and behaves
-  # the same as $(cross_winsigncode) used above.
-  ifneq "$(winsigncode)" "" in putty/windows do $(winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
+# Sign the Windows installers.
+ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
 
-  # Finished Windows builds.
-  return putty/windows/installer32.msi
-  return putty/windows/installer64.msi
-enddelegate
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever)
 in putty/windows/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
