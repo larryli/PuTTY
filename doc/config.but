@@ -499,8 +499,8 @@ instead of relying on the automatic detection.
 \cfg{winhelp-topic}{terminal.printing}
 
 A lot of VT100-compatible terminals support printing under control
-of the remote server. PuTTY supports this feature as well, but it is
-turned off by default.
+of the remote server (sometimes called \q{passthrough printing}).
+PuTTY supports this feature as well, but it is turned off by default.
 
 To enable remote-controlled printing, choose a printer from the
 \q{Printer to send ANSI printer output to} drop-down list box. This
