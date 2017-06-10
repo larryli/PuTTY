@@ -4274,7 +4274,7 @@ static void start_backend(struct gui_data *inst)
 
     if (error) {
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
-			      conf_get_str(inst->conf, CONF_host), error);
+			      conf_dest(inst->conf), error);
 	inst->exited = TRUE;
 	fatal_message_box(inst->window, msg);
 	sfree(msg);
