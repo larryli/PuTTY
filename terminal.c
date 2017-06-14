@@ -5616,9 +5616,11 @@ typedef struct {
     wchar_t *textptr;	    /* = textbuf + bufpos (current insertion point) */
     int *attrbuf;	    /* buffer for copied attributes */
     int *attrptr;	    /* = attrbuf + bufpos */
+    truecolour *tcbuf;	    /* buffer for copied colours */
+    truecolour *tcptr;	    /* = tcbuf + bufpos */
 } clip_workbuf;
 
-static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
+static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr, truecolour tc)
 {
     if (b->bufpos >= b->buflen) {
 	b->buflen *= 2;
@@ -5626,9 +5628,12 @@ static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr)
 	b->textptr = b->textbuf + b->bufpos;
 	b->attrbuf = sresize(b->attrbuf, b->buflen, int);
 	b->attrptr = b->attrbuf + b->bufpos;
+	b->tcbuf = sresize(b->tcbuf, b->buflen, truecolour);
+	b->tcptr = b->tcbuf + b->bufpos;
     }
     *b->textptr++ = chr;
     *b->attrptr++ = attr;
+    *b->tcptr++ = tc;
     b->bufpos++;
 }
 
@@ -5637,11 +5642,13 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
     clip_workbuf buf;
     int old_top_x;
     int attr;
+    truecolour tc;
 
     buf.buflen = 5120;			
     buf.bufpos = 0;
     buf.textptr = buf.textbuf = snewn(buf.buflen, wchar_t);
     buf.attrptr = buf.attrbuf = snewn(buf.buflen, int);
+    buf.tcptr = buf.tcbuf = snewn(buf.buflen, truecolour);
 
     old_top_x = top.x;		       /* needed for rect==1 */
 
@@ -5707,6 +5714,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	    while (1) {
 		int uc = ldata->chars[x].chr;
                 attr = ldata->chars[x].attr;
+		tc = ldata->chars[x].truecolour;
 
 		switch (uc & CSET_MASK) {
 		  case CSET_LINEDRW:
@@ -5767,7 +5775,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 #endif
 
 		for (p = cbuf; *p; p++)
-		    clip_addchar(&buf, *p, attr);
+		    clip_addchar(&buf, *p, attr, tc);
 
 		if (ldata->chars[x].cc_next)
 		    x += ldata->chars[x].cc_next;
@@ -5779,7 +5787,7 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	if (nl) {
 	    int i;
 	    for (i = 0; i < sel_nl_sz; i++)
-		clip_addchar(&buf, sel_nl[i], 0);
+		clip_addchar(&buf, sel_nl[i], 0, term->basic_erase_char.truecolour);
 	}
 	top.y++;
 	top.x = rect ? old_top_x : 0;
@@ -5787,12 +5795,13 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
 	unlineptr(ldata);
     }
 #if SELECTION_NUL_TERMINATED
-    clip_addchar(&buf, 0, 0);
+    clip_addchar(&buf, 0, 0, term->basic_erase_char.truecolour);
 #endif
     /* Finally, transfer all that to the clipboard. */
-    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.bufpos, desel);
+    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.tcbuf, buf.bufpos, desel);
     sfree(buf.textbuf);
     sfree(buf.attrbuf);
+    sfree(buf.tcbuf);
 }
 
 void term_copyall(Terminal *term)

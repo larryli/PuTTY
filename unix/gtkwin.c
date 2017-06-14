@@ -2360,8 +2360,8 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
     sfree(cdi);
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
-                int must_deselect)
+void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour,
+                int len, int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_data_instance *cdi;
@@ -2488,8 +2488,8 @@ static char *retrieve_cutbuffer(int *nbytes)
 #endif
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, int len,
-                int must_deselect)
+void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour,
+                int len, int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)
