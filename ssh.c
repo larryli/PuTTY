@@ -8496,18 +8496,37 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, struct Packet *pktin)
         ssh_channel_try_eof(c);        /* in case we had a pending EOF */
 }
 
-static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
+static char *ssh2_channel_open_failure_error_text(struct Packet *pktin)
 {
     static const char *const reasons[] = {
-	"<unknown reason code>",
-	    "Administratively prohibited",
-	    "Connect failed",
-	    "Unknown channel type",
-	    "Resource shortage",
+        NULL,
+        "Administratively prohibited",
+        "Connect failed",
+        "Unknown channel type",
+        "Resource shortage",
     };
     unsigned reason_code;
+    const char *reason_code_string;
+    char reason_code_buf[256];
     char *reason_string;
     int reason_length;
+
+    reason_code = ssh_pkt_getuint32(pktin);
+    if (reason_code < lenof(reasons) && reasons[reason_code]) {
+        reason_code_string = reasons[reason_code];
+    } else {
+        reason_code_string = reason_code_buf;
+        sprintf(reason_code_buf, "unknown reason code %#x", reason_code);
+    }
+
+    ssh_pkt_getstring(pktin, &reason_string, &reason_length);
+
+    return dupprintf("%s [%.*s]", reason_code_string,
+                     reason_length, NULLTOEMPTY(reason_string));
+}
+
+static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
+{
     struct ssh_channel *c;
 
     c = ssh_channel_msg(ssh, pktin);
@@ -8516,14 +8535,9 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, struct Packet *pktin)
     assert(c->halfopen); /* ssh_channel_msg will have enforced this */
 
     if (c->type == CHAN_SOCKDATA) {
-        reason_code = ssh_pkt_getuint32(pktin);
-        if (reason_code >= lenof(reasons))
-            reason_code = 0; /* ensure reasons[reason_code] in range */
-        ssh_pkt_getstring(pktin, &reason_string, &reason_length);
-        logeventf(ssh, "Forwarded connection refused by server: %s [%.*s]",
-                  reasons[reason_code], reason_length,
-                  NULLTOEMPTY(reason_string));
-
+        char *errtext = ssh2_channel_open_failure_error_text(pktin);
+        logeventf(ssh, "Forwarded connection refused by server: %s", errtext);
+        sfree(errtext);
         pfd_close(c->u.pfd.pf);
     } else if (c->type == CHAN_ZOMBIE) {
         /*
@@ -10727,15 +10741,24 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	    ssh->ncmode = FALSE;
 	}
 	crWaitUntilV(pktin);
-	if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION) {
-	    bombout(("Server refused to open channel"));
+        if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
+            pktin->type != SSH2_MSG_CHANNEL_OPEN_FAILURE) {
+            bombout(("Server sent strange packet %d in response to main "
+                     "channel open request", pktin->type));
 	    crStopV;
-	    /* FIXME: error data comes back in FAILURE packet */
-	}
+        }
 	if (ssh_pkt_getuint32(pktin) != ssh->mainchan->localid) {
-	    bombout(("Server's channel confirmation cited wrong channel"));
+	    bombout(("Server's response to main channel open cited wrong"
+                     " channel number"));
 	    crStopV;
 	}
+	if (pktin->type == SSH2_MSG_CHANNEL_OPEN_FAILURE) {
+            char *errtext = ssh2_channel_open_failure_error_text(pktin);
+            bombout(("Server refused to open main channel: %s", errtext));
+            sfree(errtext);
+	    crStopV;
+	}
+
 	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->halfopen = FALSE;
 	ssh->mainchan->type = CHAN_MAINSESSION;
