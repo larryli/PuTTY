@@ -408,6 +408,9 @@ int main(int argc, char **argv)
 
     execv(realbin, new_argv);
     perror("execv");
+    free(new_argv);
+    free(contents);
+    free(macos);
     return 127;
 }
 
