@@ -359,6 +359,7 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 	     * close the connection rudely.
 	     */
 	    pfd_close(pf);
+            break;
 	}
 	return;
 
