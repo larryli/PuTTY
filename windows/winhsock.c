@@ -284,10 +284,11 @@ static char *sk_handle_peer_info(Socket s)
 
     if (!kernel32_module) {
         kernel32_module = load_system32_dll("kernel32.dll");
-#if (defined _MSC_VER && _MSC_VER < 1900) || defined __MINGW32__
+#if (defined _MSC_VER && _MSC_VER < 1900) || defined __MINGW32__ || defined COVERITY
         /* For older Visual Studio, and MinGW too (at least as of
          * Ubuntu 16.04), this function isn't available in the header
-         * files to type-check */
+         * files to type-check. Ditto the toolchain I use for
+         * Coveritying the Windows code. */
         GET_WINDOWS_FUNCTION_NO_TYPECHECK(
             kernel32_module, GetNamedPipeClientProcessId);
 #else
