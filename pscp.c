@@ -1476,7 +1476,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->action = SCP_SINK_ENDDIR;
 		return 0;
 	      case 'T':
-		if (sscanf(act->buf, "%ld %*d %ld %*d",
+		if (sscanf(act->buf, "%lu %*d %lu %*d",
 			   &act->mtime, &act->atime) == 2) {
 		    act->settime = 1;
 		    back->send(backhandle, "", 1);
