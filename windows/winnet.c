@@ -548,7 +548,7 @@ SockAddr sk_namelookup(const char *host, char **canonicalname,
 
     if ((a = p_inet_addr(host)) == (unsigned long) INADDR_NONE) {
 	struct hostent *h = NULL;
-	int err;
+	int err = 0;
 #ifndef NO_IPV6
 	/*
 	 * Use getaddrinfo when it's available

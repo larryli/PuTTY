@@ -130,11 +130,11 @@ char *get_unused_env_prefix(void)
     char **e;
 
     qhead = (struct bucket *)malloc(sizeof(struct bucket));
-    qhead->prefixlen = 0;
     if (!qhead) {
         fprintf(stderr, "out of memory\n");
         exit(1);
     }
+    qhead->prefixlen = 0;
     for (e = environ; *e; e++)
         qhead->first_node = new_node(qhead->first_node, *e, strcspn(*e, "="));
 
@@ -408,6 +408,9 @@ int main(int argc, char **argv)
 
     execv(realbin, new_argv);
     perror("execv");
+    free(new_argv);
+    free(contents);
+    free(macos);
     return 127;
 }
 
