@@ -52,7 +52,6 @@ for it:
  - Now update the version numbers and the transcripts in the docs, by
    checking out the release branch and running
 
-      make distclean
       ./release.pl --version=X.YZ --setver
 
    Then check that the resulting automated git commit has updated the
