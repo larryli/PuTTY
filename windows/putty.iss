@@ -14,10 +14,10 @@
 
 [Setup]
 AppName=PuTTY
-AppVerName=PuTTY version 0.69
-VersionInfoTextVersion=Release 0.69
-AppVersion=0.69
-VersionInfoVersion=0.69.0.0
+AppVerName=PuTTY version 0.70
+VersionInfoTextVersion=Release 0.70
+AppVersion=0.70
+VersionInfoVersion=0.70.0.0
 AppPublisher=Simon Tatham
 AppPublisherURL=https://www.chiark.greenend.org.uk/~sgtatham/putty/
 AppReadmeFile={app}\README.txt
