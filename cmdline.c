@@ -403,7 +403,18 @@ int cmdline_process_param(const char *p, char *value,
 	SAVEABLE(0);
 	conf_set_int(conf, CONF_tryagent, FALSE);
     }
-
+    if (!strcmp(p, "-share")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	conf_set_int(conf, CONF_ssh_connection_sharing, TRUE);
+    }
+    if (!strcmp(p, "-noshare")) {
+	RETURN(1);
+	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+	SAVEABLE(0);
+	conf_set_int(conf, CONF_ssh_connection_sharing, FALSE);
+    }
     if (!strcmp(p, "-A")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);

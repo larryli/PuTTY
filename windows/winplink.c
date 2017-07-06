@@ -207,6 +207,8 @@ static void usage(void)
     printf("  -i key    private key file for user authentication\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
+    printf("  -noshare  disable use of connection sharing\n");
+    printf("  -share    enable use of connection sharing\n");
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -m file   read remote command(s) from file\n");
