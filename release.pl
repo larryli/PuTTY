@@ -29,7 +29,6 @@ if ($setver) {
     0 == system "git", "diff-index", "--quiet", "--cached", "HEAD"
         or die "index is dirty";
     0 == system "git", "diff-files", "--quiet" or die "working tree is dirty";
-    -f "Makefile" and die "run 'make distclean' first";
     my $builddir = tempdir(DIR => ".", CLEANUP => 1);
     0 == system "git archive --format=tar HEAD | ( cd $builddir && tar xf - )"
         or die;
