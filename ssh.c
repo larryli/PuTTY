@@ -10722,6 +10722,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
     } else {
 	ssh->mainchan = snew(struct ssh_channel);
 	ssh->mainchan->ssh = ssh;
+	ssh->mainchan->type = CHAN_MAINSESSION;
 	ssh_channel_init(ssh->mainchan);
 
 	if (*conf_get_str(ssh->conf, CONF_ssh_nc_host)) {
@@ -10761,7 +10762,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 
 	ssh->mainchan->remoteid = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->halfopen = FALSE;
-	ssh->mainchan->type = CHAN_MAINSESSION;
 	ssh->mainchan->v.v2.remwindow = ssh_pkt_getuint32(pktin);
 	ssh->mainchan->v.v2.remmaxpkt = ssh_pkt_getuint32(pktin);
 	update_specials_menu(ssh->frontend);
