@@ -293,7 +293,7 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock2_module, WSAAddressToStringA);
 #else
 #ifdef NET_SETUP_DIAGNOSTICS
-    logevent(NULL, "PuTTY was built without IPv6 support");
+    logevent(NULL, "PuTTY Œﬁ IPv6 ÷ß≥÷±‡“Î∞Ê");
 #endif
 #endif
 

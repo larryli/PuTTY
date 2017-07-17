@@ -1161,22 +1161,22 @@ char *buildinfo(const char *newline)
     strbuf *buf = strbuf_new();
     extern const char commitid[];      /* in commitid.c */
 
-    strbuf_catf(buf, "Build platform: %d-bit %s",
+    strbuf_catf(buf, "构建平台: %d 位 %s",
                 (int)(CHAR_BIT * sizeof(void *)),
                 BUILDINFO_PLATFORM);
 
 #ifdef __clang_version__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: clang %s", newline, __clang_version__);
+    strbuf_catf(buf, "%s编译器: clang %s", newline, __clang_version__);
 #elif defined __GNUC__ && defined __VERSION__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: gcc %s", newline, __VERSION__);
+    strbuf_catf(buf, "%s编译器: gcc %s", newline, __VERSION__);
 #endif
 
 #if defined _MSC_VER
 #ifndef FOUND_COMPILER
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: ", newline);
+    strbuf_catf(buf, "%s编译器: ", newline);
 #else
     strbuf_catf(buf, ", emulating ");
 #endif
@@ -1198,7 +1198,7 @@ char *buildinfo(const char *newline)
 #elif _MSC_VER == 1300
     strbuf_catf(buf, " 2003 / MSVC++ 7.0");
 #else
-    strbuf_catf(buf, ", unrecognised version");
+    strbuf_catf(buf, ", 未知版本");
 #endif
     strbuf_catf(buf, " (_MSC_VER=%d)", (int)_MSC_VER);
 #endif
@@ -1218,31 +1218,31 @@ char *buildinfo(const char *newline)
     strbuf_catf(buf, "%sBuild option: MINEFIELD", newline);
 #endif
 #ifdef NO_SECURITY
-    strbuf_catf(buf, "%sBuild option: NO_SECURITY", newline);
+    strbuf_catf(buf, "%s构建选项: NO_SECURITY", newline);
 #endif
 #ifdef NO_SECUREZEROMEMORY
-    strbuf_catf(buf, "%sBuild option: NO_SECUREZEROMEMORY", newline);
+    strbuf_catf(buf, "%s构建选项: NO_SECUREZEROMEMORY", newline);
 #endif
 #ifdef NO_IPV6
-    strbuf_catf(buf, "%sBuild option: NO_IPV6", newline);
+    strbuf_catf(buf, "%s构建选项: NO_IPV6", newline);
 #endif
 #ifdef NO_GSSAPI
-    strbuf_catf(buf, "%sBuild option: NO_GSSAPI", newline);
+    strbuf_catf(buf, "%s构建选项: NO_GSSAPI", newline);
 #endif
 #ifdef STATIC_GSSAPI
-    strbuf_catf(buf, "%sBuild option: STATIC_GSSAPI", newline);
+    strbuf_catf(buf, "%s构建选项: STATIC_GSSAPI", newline);
 #endif
 #ifdef UNPROTECT
-    strbuf_catf(buf, "%sBuild option: UNPROTECT", newline);
+    strbuf_catf(buf, "%s构建选项: UNPROTECT", newline);
 #endif
 #ifdef FUZZING
-    strbuf_catf(buf, "%sBuild option: FUZZING", newline);
+    strbuf_catf(buf, "%s构建选项: FUZZING", newline);
 #endif
 #ifdef DEBUG
-    strbuf_catf(buf, "%sBuild option: DEBUG", newline);
+    strbuf_catf(buf, "%s构建选项: DEBUG", newline);
 #endif
 
-    strbuf_catf(buf, "%sSource commit: %s", newline, commitid);
+    strbuf_catf(buf, "%s源代码提交: %s", newline, commitid);
 
     return strbuf_to_str(buf);
 }
