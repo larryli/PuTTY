@@ -8105,6 +8105,8 @@ static void ssh2_msg_channel_response(Ssh ssh, struct Packet *pktin)
 	return;
     }
     ocr->handler(c, pktin, ocr->ctx);
+    if (ssh->state == SSH_STATE_CLOSED)
+        return; /* in case the handler called bomb_out(), which some can */
     c->v.v2.chanreq_head = ocr->next;
     sfree(ocr);
     /*
