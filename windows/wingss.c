@@ -13,9 +13,15 @@
 
 /* Windows code to set up the GSSAPI library list. */
 
+#ifdef _WIN64
+#define MIT_KERB_SUFFIX "64"
+#else
+#define MIT_KERB_SUFFIX "32"
+#endif
+
 const int ngsslibs = 3;
 const char *const gsslibnames[3] = {
-    "MIT Kerberos GSSAPI32.DLL",
+    "MIT Kerberos GSSAPI"MIT_KERB_SUFFIX".DLL",
     "Microsoft SSPI SECUR32.DLL",
     "User-specified GSSAPI DLL",
 };
@@ -90,7 +96,6 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
     list->nlibraries = 0;
 
     /* MIT Kerberos GSSAPI implementation */
-    /* TODO: For 64-bit builds, check for gssapi64.dll */
     module = NULL;
     if (RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE\\MIT\\Kerberos", &regkey)
 	== ERROR_SUCCESS) {
@@ -115,7 +120,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
                     p_AddDllDirectory(dllPath);
                     sfree(dllPath);
                 }
-                strcat (buffer, "\\gssapi32.dll");
+                strcat (buffer, "\\gssapi"MIT_KERB_SUFFIX".dll");
                 module = LoadLibraryEx (buffer, NULL,
                                         LOAD_LIBRARY_SEARCH_SYSTEM32 |
                                         LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR |
@@ -130,7 +135,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 	    &list->libraries[list->nlibraries++];
 
 	lib->id = 0;
-	lib->gsslogmsg = "Using GSSAPI from GSSAPI32.DLL";
+	lib->gsslogmsg = "Using GSSAPI from GSSAPI"MIT_KERB_SUFFIX".DLL";
 	lib->handle = (void *)module;
 
 #define BIND_GSS_FN(name) \
