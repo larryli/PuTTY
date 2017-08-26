@@ -556,10 +556,10 @@ if (defined $makefiles{'clangcl'}) {
     print "\n\n";
     foreach $p (&prognames("G:C")) {
 	($prog, $type) = split ",", $p;
-	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res.o", undef);
+	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", undef);
 	print &splitline("\$(BUILDDIR)$prog.exe: " . $objstr), "\n";
 
-	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res.o", "X.lib");
+	$objstr = &objects($p, "\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", "X.lib");
 	$subsys = ($type eq "G") ? "windows" : "console";
 	print &splitline("\t\$(LD) \$(LFLAGS) \$(XLFLAGS) ".
                          "/out:\$(BUILDDIR)$prog.exe ".
@@ -567,11 +567,11 @@ if (defined $makefiles{'clangcl'}) {
                          "/subsystem:$subsys\$(SUBSYSVER) ".
                          "\$(EXTRA_$subsys) $objstr")."\n\n";
     }
-    foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res.o", $dirpfx, "/", "vc")) {
+    foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", $dirpfx, "/", "vc")) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
         print &splitline(sprintf("%s: %s", $d->{obj},
                                  join " ", @$extradeps, @{$d->{deps}})), "\n";
-        if ($d->{obj} =~ /\.res\.o$/) {
+        if ($d->{obj} =~ /\.res$/) {
             print "\t\$(RC) \$(RCFLAGS) ".$d->{deps}->[0]." -o ".$d->{obj}."\n\n";
 	} else {
             print "\t\$(CC) /Fo\$(BUILDDIR) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) /c \$<\n\n";
@@ -581,7 +581,7 @@ if (defined $makefiles{'clangcl'}) {
     print &def($makefile_extra{'clangcl'}->{'end'});
     print "\nclean:\n".
         &splitline("\trm -f \$(BUILDDIR)*.obj \$(BUILDDIR)*.exe ".
-                   "\$(BUILDDIR)*.res.o \$(BUILDDIR)*.map ".
+                   "\$(BUILDDIR)*.res \$(BUILDDIR)*.map ".
                    "\$(BUILDDIR)*.exe.manifest")."\n";
     select STDOUT; close OUT;
 }
