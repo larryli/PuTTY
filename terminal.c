@@ -3355,7 +3355,7 @@ static void term_out(Terminal *term)
 		    break;
 		  case 'Z':	       /* DECID: terminal type query */
 		    compatibility(VT100);
-		    if (term->ldisc)
+		    if (term->ldisc && term->id_string[0])
 			ldisc_send(term->ldisc, term->id_string,
 				   strlen(term->id_string), 0);
 		    break;
@@ -3662,7 +3662,7 @@ static void term_out(Terminal *term)
 		      case 'c':       /* DA: terminal type query */
 			compatibility(VT100);
 			/* This is the response for a VT102 */
-			if (term->ldisc)
+			if (term->ldisc && term->id_string[0])
 			    ldisc_send(term->ldisc, term->id_string,
  				       strlen(term->id_string), 0);
 			break;
@@ -4069,7 +4069,8 @@ static void term_out(Terminal *term)
 					p = EMPTY_WINDOW_TITLE;
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]L", 3, 0);
-				    ldisc_send(term->ldisc, p, len, 0);
+                                    if (len > 0)
+                                        ldisc_send(term->ldisc, p, len, 0);
 				    ldisc_send(term->ldisc, "\033\\", 2, 0);
 				}
 				break;
@@ -4082,7 +4083,8 @@ static void term_out(Terminal *term)
 					p = EMPTY_WINDOW_TITLE;
 				    len = strlen(p);
 				    ldisc_send(term->ldisc, "\033]l", 3, 0);
-				    ldisc_send(term->ldisc, p, len, 0);
+                                    if (len > 0)
+                                        ldisc_send(term->ldisc, p, len, 0);
 				    ldisc_send(term->ldisc, "\033\\", 2, 0);
 				}
 				break;
