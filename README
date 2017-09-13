@@ -34,10 +34,6 @@ For building on Windows:
    MSVC/putty/putty.dsp builds PuTTY itself, MSVC/plink/plink.dsp
    builds Plink, and so on.
 
- - windows/Makefile.bor is for the Borland C compiler. Type `make -f
-   Makefile.bor' while in the `windows' subdirectory to build all
-   the PuTTY binaries.
-
  - windows/Makefile.mgw is for MinGW / Cygwin installations. Type
    `make -f Makefile.mgw' while in the `windows' subdirectory to
    build all the PuTTY binaries.

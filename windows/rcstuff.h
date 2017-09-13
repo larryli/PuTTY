@@ -9,7 +9,7 @@
 #include <win.h>
 #else
 
-/* Some compilers, like Borland, don't have winresrc.h */
+/* Some compilers don't have winresrc.h */
 #ifndef NO_WINRESRC_H
 #ifndef MSVC4
 #include <winresrc.h>

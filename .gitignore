@@ -19,7 +19,6 @@
 /*.tds
 /*.td2
 /*.map
-/Makefile.bor
 /Makefile.mgw
 /Makefile.vc
 /Makefile.lcc
@@ -128,7 +127,6 @@
 /windows/*.td2
 /windows/*.map
 /windows/Makefile.clangcl
-/windows/Makefile.bor
 /windows/Makefile.mgw
 /windows/Makefile.vc
 /windows/Makefile.lcc

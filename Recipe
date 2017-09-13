@@ -16,7 +16,6 @@
 !makefile vc windows/Makefile.vc
 !makefile vcproj windows/MSVC
 !makefile cygwin windows/Makefile.mgw
-!makefile borland windows/Makefile.bor
 !makefile lcc windows/Makefile.lcc
 !makefile gtk unix/Makefile.gtk
 !makefile unix unix/Makefile.ux
