@@ -46,6 +46,7 @@
 #define IDM_RECONF    0x0050
 #define IDM_CLRSB     0x0060
 #define IDM_RESET     0x0070
+#define IDM_AUTORECONNECT 0x0080
 #define IDM_HELP      0x0140
 #define IDM_ABOUT     0x0150
 #define IDM_SAVEDSESS 0x0160
@@ -228,8 +229,9 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
-ACCEL acce_keys[] = { { FVIRTKEY , VK_F11, IDM_RESTART} };
-HACCEL hAccel;
+static ACCEL acce_keys[] = { { FVIRTKEY , VK_F11, IDM_RESTART} };
+static HACCEL hAccel;
+static int auto_reconnect = 0;
 /* Dummy routine, only required in plink. */
 void frontend_echoedit_update(void *frontend, int echo, int edit)
 {
@@ -345,6 +347,8 @@ static void close_session(void *ignored_context)
 	InsertMenu(popup_menus[i].menu, IDM_DUPSESS, MF_BYCOMMAND | MF_ENABLED,
 		   IDM_RESTART, "重启会话(&R)\tF11");
     }
+	if(auto_reconnect)
+		PostMessage(hwnd, WM_COMMAND, IDM_RESTART, 0);
 }
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
@@ -826,7 +830,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
 	    AppendMenu(m, MF_ENABLED, IDM_NEWSESS, "新会话(&W)...");
 	    AppendMenu(m, MF_ENABLED, IDM_DUPSESS, "复制会话(&D)");
-	    AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR) savedsess_menu,
+		AppendMenu(m, MF_ENABLED, IDM_AUTORECONNECT, "自动重连");
+		AppendMenu(m, MF_POPUP | MF_ENABLED, (UINT_PTR)savedsess_menu,
 		       "保存会话(&V)");
 	    AppendMenu(m, MF_ENABLED, IDM_RECONF, "修改设置(&G)...");
 	    AppendMenu(m, MF_SEPARATOR, 0, 0);
@@ -1166,7 +1171,8 @@ void connection_fatal(void *frontend, const char *fmt, ...)
     stuff = dupvprintf(fmt, ap);
     va_end(ap);
     sprintf(morestuff, "%.70s Fatal Error", appname);
-    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
+	if(!auto_reconnect)
+	 MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
     sfree(stuff);
 
     if (conf_get_int(conf, CONF_close_on_exit) == FORCE_ON)
@@ -2240,6 +2246,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 
 	    break;
+	  case IDM_AUTORECONNECT:
+	  {
+		  int i = 0;
+		  auto_reconnect = !auto_reconnect;
+		  for (i = 0; i < lenof(popup_menus); i++)
+			  CheckMenuItem(popup_menus[i].menu, IDM_AUTORECONNECT, auto_reconnect?MF_CHECKED:MF_UNCHECKED);
+	  }
+	  break;
 	  case IDM_RECONF:
 	    {
 		Conf *prev_conf;
