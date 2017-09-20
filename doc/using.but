@@ -1042,3 +1042,15 @@ any processes started with Duplicate Session, New Session etc.
 (However, if you're invoking PuTTY tools explicitly, for instance as a
 proxy command, you'll need to arrange to pass them the
 \c{-restrict-acl} option yourself, if that's what you want.)
+
+If Pageant is started with the \c{-restrict-acl} option, and you use
+it to launch a PuTTY session from its System Tray submenu, then
+Pageant will \e{not} default to starting the PuTTY subprocess with a
+restricted ACL. This is because PuTTY is more likely to suffer reduced
+functionality as a result of restricted ACLs (e.g. screen reader
+software will have a greater need to interact with it), whereas
+Pageant stores the more critical information (hence benefits more from
+the extra protection), so it's reasonable to want to run Pageant but
+not PuTTY with the ACL restrictions. You can force Pageant to start
+subsidiary PuTTY processes with a restricted ACL if you also pass the
+\c{-restrict-putty-acl} option.

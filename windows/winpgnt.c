@@ -57,6 +57,7 @@ static HMENU systray_menu, session_menu;
 static int already_running;
 
 static char *putty_path;
+static int restrict_putty_acl = FALSE;
 
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
@@ -847,11 +848,18 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOMMAND:
 	switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
 	  case IDM_PUTTY:
-	    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, _T(""), _T(""),
-				 SW_SHOW) <= 32) {
-		MessageBox(NULL, "Unable to execute PuTTY!",
-			   "Error", MB_OK | MB_ICONERROR);
-	    }
+            {
+                TCHAR cmdline[10];
+                cmdline[0] = '\0';
+                if (restrict_putty_acl)
+                    strcat(cmdline, "&R");
+
+                if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
+                                         _T(""), SW_SHOW) <= 32) {
+                    MessageBox(NULL, "Unable to execute PuTTY!",
+                               "Error", MB_OK | MB_ICONERROR);
+                }
+            }
 	    break;
 	  case IDM_CLOSE:
 	    if (passphrase_box)
@@ -912,7 +920,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    mii.cch = MAX_PATH;
 		    mii.dwTypeData = buf;
 		    GetMenuItemInfo(session_menu, wParam, FALSE, &mii);
-		    strcpy(param, "@");
+                    param[0] = '\0';
+                    if (restrict_putty_acl)
+                        strcat(param, "&R");
+		    strcat(param, "@");
 		    strcat(param, mii.dwTypeData);
 		    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
 					 _T(""), SW_SHOW) <= 32) {
@@ -1169,6 +1180,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                    !strcmp(argv[i], "-restrict_acl") ||
                    !strcmp(argv[i], "-restrictacl")) {
             restrict_process_acl();
+        } else if (!strcmp(argv[i], "-restrict-putty-acl") ||
+                   !strcmp(argv[i], "-restrict_putty_acl")) {
+            restrict_putty_acl = TRUE;
 	} else if (!strcmp(argv[i], "-c")) {
 	    /*
 	     * If we see `-c', then the rest of the
