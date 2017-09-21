@@ -6,8 +6,8 @@
  * welcome.
  */
 
-#include "version.h"
-#include "licence.h"
+#include "../version.h"
+#include "../licence.h"
 
 /*
  * The actual VERSIONINFO resource.
