@@ -593,11 +593,35 @@ void prompt_ensure_result_size(prompt_t *pr, int len);
 void free_prompts(prompts_t *p);
 
 /*
+ * Data type definitions for true-colour terminal display.
+ * 'optionalrgb' describes a single RGB colour, which overrides the
+ * other colour settings if 'enabled' is nonzero, and is ignored
+ * otherwise. 'truecolour' contains a pair of those for foreground and
+ * background.
+ */
+typedef struct optionalrgb {
+    unsigned char enabled;
+    unsigned char r, g, b;
+} optionalrgb;
+extern const optionalrgb optionalrgb_none;
+typedef struct truecolour {
+    optionalrgb fg, bg;
+} truecolour;
+#define optionalrgb_equal(r1,r2) (                              \
+        (r1).enabled==(r2).enabled &&                           \
+        (r1).r==(r2).r && (r1).g==(r2).g && (r1).b==(r2).b)
+#define truecolour_equal(c1,c2) (               \
+        optionalrgb_equal((c1).fg, (c2).fg) &&  \
+        optionalrgb_equal((c1).bg, (c2).bg))
+
+/*
  * Exports from the front end.
  */
 void request_resize(void *frontend, int, int);
-void do_text(Context, int, int, wchar_t *, int, unsigned long, int);
-void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int);
+void do_text(Context, int, int, wchar_t *, int, unsigned long, int,
+             truecolour);
+void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int,
+               truecolour);
 int char_width(Context ctx, int uc);
 #ifdef OPTIMISE_SCROLL
 void do_scroll(Context, int, int, int);

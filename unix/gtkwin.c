@@ -3029,6 +3029,24 @@ static void draw_set_colour(struct draw_ctx *dctx, int col)
 #endif
 }
 
+static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb)
+{
+#ifdef DRAW_TEXT_GDK
+    if (dctx->uctx.type == DRAWTYPE_GDK) {
+	GdkColor color;
+	color.red =   orgb.r * 256;
+	color.green = orgb.g * 256;
+	color.blue =  orgb.b * 256;
+	gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (dctx->uctx.type == DRAWTYPE_CAIRO)
+        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
+                             orgb.r / 255.0, orgb.g / 255.0, orgb.b / 255.0);
+#endif
+}
+
 static void draw_rectangle(struct draw_ctx *dctx, int filled,
                            int x, int y, int w, int h)
 {
@@ -3222,7 +3240,7 @@ static void draw_backing_rect(struct gui_data *inst)
  * We are allowed to fiddle with the contents of `text'.
  */
 void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr)
+		      unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
@@ -3316,13 +3334,19 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                             ((lattr & LATTR_MODE) == LATTR_BOT));
     }
 
-    draw_set_colour(dctx, nbg);
+    if (truecolour.bg.enabled)
+	draw_set_colour_rgb(dctx, truecolour.bg);
+    else
+	draw_set_colour(dctx, nbg);
     draw_rectangle(dctx, TRUE,
                    x*inst->font_width+inst->window_border,
                    y*inst->font_height+inst->window_border,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
-    draw_set_colour(dctx, nfg);
+    if (truecolour.fg.enabled)
+	draw_set_colour_rgb(dctx, truecolour.fg);
+    else
+	draw_set_colour(dctx, nfg);
     if (ncombining > 1) {
         assert(len == 1);
         unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
@@ -3362,13 +3386,13 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 }
 
 void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr)
+	     unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
     int widefactor;
 
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+    do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3392,7 +3416,7 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 }
 
 void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
-	       unsigned long attr, int lattr)
+	       unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     struct gui_data *inst = dctx->inst;
@@ -3409,7 +3433,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
         active = 1;
     } else
         active = 0;
-    do_text_internal(ctx, x, y, text, len, attr, lattr);
+    do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & TATTR_COMBINING)
 	len = 1;

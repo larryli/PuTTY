@@ -3395,7 +3395,7 @@ static void sys_cursor_update(void)
  * We are allowed to fiddle with the contents of `text'.
  */
 void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr)
+		      unsigned long attr, int lattr, truecolour truecolour)
 {
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
@@ -3522,8 +3522,16 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
-    fg = colours[nfg];
-    bg = colours[nbg];
+    if (truecolour.fg.enabled)
+	fg = RGB(truecolour.fg.r, truecolour.fg.g, truecolour.fg.b);
+    else
+	fg = colours[nfg];
+
+    if (truecolour.bg.enabled)
+	bg = RGB(truecolour.bg.r, truecolour.bg.g, truecolour.bg.b);
+    else
+	bg = colours[nbg];
+
     SelectObject(hdc, fonts[nfont]);
     SetTextColor(hdc, fg);
     SetBkColor(hdc, bg);
@@ -3768,7 +3776,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
  * Wrapper that handles combining characters.
  */
 void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr)
+	     unsigned long attr, int lattr, truecolour truecolour)
 {
     if (attr & TATTR_COMBINING) {
 	unsigned long a = 0;
@@ -3778,13 +3786,13 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	    len0 = 2;
 	if (len-len0 >= 1 && IS_LOW_VARSEL(text[len0])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr);
+	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr, truecolour);
 	    text += len0+1;
 	    len -= len0+1;
 	    a = TATTR_COMBINING;
 	} else if (len-len0 >= 2 && IS_HIGH_VARSEL(text[len0], text[len0+1])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr);
+	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr, truecolour);
 	    text += len0+2;
 	    len -= len0+2;
 	    a = TATTR_COMBINING;
@@ -3794,22 +3802,21 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 
 	while (len--) {
 	    if (len >= 1 && IS_SURROGATE_PAIR(text[0], text[1])) {
-		do_text_internal(ctx, x, y, text, 2, attr | a, lattr);
+		do_text_internal(ctx, x, y, text, 2, attr | a, lattr, truecolour);
 		len--;
 		text++;
-	    } else {
-                do_text_internal(ctx, x, y, text, 1, attr | a, lattr);
-            }
+	    } else
+                do_text_internal(ctx, x, y, text, 1, attr | a, lattr, truecolour);
 
 	    text++;
 	    a = TATTR_COMBINING;
 	}
     } else
-	do_text_internal(ctx, x, y, text, len, attr, lattr);
+	do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
 }
 
 void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
-	       unsigned long attr, int lattr)
+	       unsigned long attr, int lattr, truecolour truecolour)
 {
 
     int fnt_width;
@@ -3821,7 +3828,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 
     if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
 	if (*text != UCSWIDE) {
-	    do_text(ctx, x, y, text, len, attr, lattr);
+	    do_text(ctx, x, y, text, len, attr, lattr, truecolour);
 	    return;
 	}
 	ctype = 2;
