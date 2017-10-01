@@ -6088,7 +6088,18 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	    term_scroll(term, 0, +1);
     }
     if (x < 0) {
-	if (y > 0) {
+	if (y > 0 && !raw_mouse && term->seltype != RECTANGULAR) {
+            /*
+             * When we're using the mouse for normal raster-based
+             * selection, dragging off the left edge of a terminal row
+             * is treated the same as the right-hand end of the
+             * previous row, in that it's considered to identify a
+             * point _before_ the first character on row y.
+             *
+             * But if the mouse action is going to be used for
+             * anything else - rectangular selection, or xterm mouse
+             * tracking - then we disable this special treatment.
+             */
 	    x = term->cols - 1;
 	    y--;
 	} else
