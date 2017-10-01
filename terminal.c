@@ -1296,6 +1296,7 @@ static void power_on(Terminal *term, int clear)
     term->big_cursor = 0;
     term->default_attr = term->save_attr =
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
+    term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
     term->term_editing = term->term_echoing = FALSE;
     term->app_cursor_keys = conf_get_int(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_int(term->conf, CONF_app_keypad);
