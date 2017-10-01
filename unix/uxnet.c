@@ -1023,9 +1023,11 @@ static void sk_tcp_close(Socket sock)
     if (s->child)
         sk_tcp_close((Socket)s->child);
 
-    uxsel_del(s->s);
     del234(sktree, s);
-    close(s->s);
+    if (s->s >= 0) {
+        uxsel_del(s->s);
+        close(s->s);
+    }
     if (s->addr)
         sk_addr_free(s->addr);
     sfree(s);
