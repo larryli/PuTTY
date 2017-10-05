@@ -3274,6 +3274,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	else if (nbg >= 256) nbg |= 1;
     }
     if ((attr & TATTR_ACTCURS) && !monochrome) {
+        truecolour.fg = truecolour.bg = optionalrgb_none;
 	nfg = 260;
 	nbg = 261;
     }

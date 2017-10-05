@@ -3429,6 +3429,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     y += offset_height;
 
     if ((attr & TATTR_ACTCURS) && (cursor_type == 0 || term->big_cursor)) {
+        truecolour.fg = truecolour.bg = optionalrgb_none;
 	attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS);
 	/* cursor fg and bg */
 	attr |= (260 << ATTR_FGSHIFT) | (261 << ATTR_BGSHIFT);
