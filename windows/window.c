@@ -3522,12 +3522,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (nbg < 16) nbg |= 8;
 	else if (nbg >= 256) nbg |= 1;
     }
-    if (truecolour.fg.enabled)
+    if (!pal && truecolour.fg.enabled)
 	fg = RGB(truecolour.fg.r, truecolour.fg.g, truecolour.fg.b);
     else
 	fg = colours[nfg];
 
-    if (truecolour.bg.enabled)
+    if (!pal && truecolour.bg.enabled)
 	bg = RGB(truecolour.bg.r, truecolour.bg.g, truecolour.bg.b);
     else
 	bg = colours[nbg];

@@ -3255,6 +3255,9 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     } else
 	ncombining = 1;
 
+    if (monochrome)
+        truecolour.fg = truecolour.bg = optionalrgb_none;
+
     nfg = ((monochrome ? ATTR_DEFFG : (attr & ATTR_FGMASK)) >> ATTR_FGSHIFT);
     nbg = ((monochrome ? ATTR_DEFBG : (attr & ATTR_BGMASK)) >> ATTR_BGSHIFT);
     if (!!(attr & ATTR_REVERSE) ^ (monochrome && (attr & TATTR_ACTCURS))) {
