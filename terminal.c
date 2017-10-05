@@ -3881,6 +3881,10 @@ static void term_out(Terminal *term)
 				    compatibility(VT100AVO);
 				    term->curr_attr |= ATTR_BOLD;
 				    break;
+				  case 2:	/* enable dim */
+				    compatibility(OTHER);
+				    term->curr_attr |= ATTR_DIM;
+				    break;
 				  case 21:	/* (enable double underline) */
 				    compatibility(OTHER);
 				  case 4:	/* enable underline */
@@ -3912,9 +3916,9 @@ static void term_out(Terminal *term)
 				    compatibility(SCOANSI);
 				    if (term->no_remote_charset) break;
 				    term->sco_acs = 2; break;
-				  case 22:	/* disable bold */
+				  case 22:	/* disable bold and dim */
 				    compatibility2(OTHER, VT220);
-				    term->curr_attr &= ~ATTR_BOLD;
+				    term->curr_attr &= ~(ATTR_BOLD | ATTR_DIM);
 				    break;
 				  case 24:	/* disable underline */
 				    compatibility2(OTHER, VT220);

@@ -3440,7 +3440,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 
     if ((attr & TATTR_ACTCURS) && (cursor_type == 0 || term->big_cursor)) {
         truecolour.fg = truecolour.bg = optionalrgb_none;
-	attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS);
+	attr &= ~(ATTR_REVERSE|ATTR_BLINK|ATTR_COLOURS|ATTR_DIM);
 	/* cursor fg and bg */
 	attr |= (260 << ATTR_FGSHIFT) | (261 << ATTR_BGSHIFT);
         is_cursor = TRUE;
@@ -3542,6 +3542,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	bg = RGB(truecolour.bg.r, truecolour.bg.g, truecolour.bg.b);
     else
 	bg = colours[nbg];
+
+    if (!pal && (attr & ATTR_DIM)) {
+        fg = RGB(GetRValue(fg) * 2 / 3,
+                 GetGValue(fg) * 2 / 3,
+                 GetBValue(fg) * 2 / 3);
+    }
 
     SelectObject(hdc, fonts[nfont]);
     SetTextColor(hdc, fg);

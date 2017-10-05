@@ -3023,24 +3023,44 @@ static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
     gtk_widget_queue_draw_area(dctx->inst->area, x, y, w, h);
 }
 
-static void draw_set_colour(struct draw_ctx *dctx, int col)
+#ifdef DRAW_TEXT_CAIRO
+static void cairo_set_source_rgb_dim(cairo_t *cr, double r, double g, double b,
+                                     int dim)
+{
+    if (dim)
+        cairo_set_source_rgb(cr, r * 2 / 3, g * 2 / 3, b * 2 / 3);
+    else
+        cairo_set_source_rgb(cr, r, g, b);
+}
+#endif
+
+static void draw_set_colour(struct draw_ctx *dctx, int col, int dim)
 {
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+        if (dim) {
+            GdkColor color;
+            color.red =   dctx->inst->cols[col].red   * 2 / 3;
+            color.green = dctx->inst->cols[col].green * 2 / 3;
+            color.blue =  dctx->inst->cols[col].blue  * 2 / 3;
+            gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+        } else {
+            gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+        }
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
     if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
-                             dctx->inst->cols[col].red / 65535.0,
-                             dctx->inst->cols[col].green / 65535.0,
-                             dctx->inst->cols[col].blue / 65535.0);
+        cairo_set_source_rgb_dim(dctx->uctx.u.cairo.cr,
+                                 dctx->inst->cols[col].red / 65535.0,
+                                 dctx->inst->cols[col].green / 65535.0,
+                                 dctx->inst->cols[col].blue / 65535.0, dim);
     }
 #endif
 }
 
-static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb)
+static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb,
+                                int dim)
 {
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
@@ -3048,13 +3068,19 @@ static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb)
 	color.red =   orgb.r * 256;
 	color.green = orgb.g * 256;
 	color.blue =  orgb.b * 256;
+        if (dim) {
+            color.red   = color.red   * 2 / 3;
+            color.green = color.green * 2 / 3;
+            color.blue  = color.blue  * 2 / 3;
+        }
 	gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO)
-        cairo_set_source_rgb(dctx->uctx.u.cairo.cr,
-                             orgb.r / 255.0, orgb.g / 255.0, orgb.b / 255.0);
+    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb_dim(dctx->uctx.u.cairo.cr, orgb.r / 255.0,
+                                 orgb.g / 255.0, orgb.b / 255.0, dim);
+    }
 #endif
 }
 
@@ -3238,7 +3264,7 @@ static void draw_backing_rect(struct gui_data *inst)
     struct draw_ctx *dctx = get_ctx(inst);
     int w = inst->width * inst->font_width + 2*inst->window_border;
     int h = inst->height * inst->font_height + 2*inst->window_border;
-    draw_set_colour(dctx, 258);
+    draw_set_colour(dctx, 258, FALSE);
     draw_rectangle(dctx, 1, 0, 0, w, h);
     draw_update(dctx, 0, 0, w, h);
     free_ctx(dctx);
@@ -3288,6 +3314,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
         truecolour.fg = truecolour.bg = optionalrgb_none;
 	nfg = 260;
 	nbg = 261;
+        attr &= ~ATTR_DIM;             /* don't dim the cursor */
     }
 
     fontid = shadow = 0;
@@ -3350,18 +3377,18 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     }
 
     if (truecolour.bg.enabled)
-	draw_set_colour_rgb(dctx, truecolour.bg);
+	draw_set_colour_rgb(dctx, truecolour.bg, attr & ATTR_DIM);
     else
-	draw_set_colour(dctx, nbg);
+	draw_set_colour(dctx, nbg, attr & ATTR_DIM);
     draw_rectangle(dctx, TRUE,
                    x*inst->font_width+inst->window_border,
                    y*inst->font_height+inst->window_border,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
     if (truecolour.fg.enabled)
-	draw_set_colour_rgb(dctx, truecolour.fg);
+	draw_set_colour_rgb(dctx, truecolour.fg, attr & ATTR_DIM);
     else
-	draw_set_colour(dctx, nfg);
+	draw_set_colour(dctx, nfg, attr & ATTR_DIM);
     if (ncombining > 1) {
         assert(len == 1);
         unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
@@ -3475,7 +3502,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	 * if it's passive.
 	 */
 	if (passive) {
-            draw_set_colour(dctx, 261);
+            draw_set_colour(dctx, 261, FALSE);
             draw_rectangle(dctx, FALSE,
                            x*inst->font_width+inst->window_border,
                            y*inst->font_height+inst->window_border,
@@ -3514,7 +3541,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-        draw_set_colour(dctx, 261);
+        draw_set_colour(dctx, 261, FALSE);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
