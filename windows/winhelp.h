@@ -125,6 +125,7 @@
 #define WINHELP_CTX_selection_rtf "selection.rtf:config-rtfpaste"
 #define WINHELP_CTX_colours_ansi "colours.ansi:config-ansicolour"
 #define WINHELP_CTX_colours_xterm256 "colours.xterm256:config-xtermcolour"
+#define WINHELP_CTX_colours_truecolour "colours.truecolour:config-truecolour"
 #define WINHELP_CTX_colours_bold "colours.bold:config-boldcolour"
 #define WINHELP_CTX_colours_system "colours.system:config-syscolour"
 #define WINHELP_CTX_colours_logpal "colours.logpal:config-logpalette"

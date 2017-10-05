@@ -859,6 +859,7 @@ void cleanup_exit(int);
     /* Colour options */ \
     X(INT, NONE, ansi_colour) \
     X(INT, NONE, xterm_256_colour) \
+    X(INT, NONE, true_colour) \
     X(INT, NONE, system_colour) \
     X(INT, NONE, try_palette) \
     X(INT, NONE, bold_style) \

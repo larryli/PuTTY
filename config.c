@@ -1898,6 +1898,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_checkbox(s, "Allow terminal to use xterm 256-colour mode", '2',
 		  HELPCTX(colours_xterm256), conf_checkbox_handler,
 		  I(CONF_xterm_256_colour));
+    ctrl_checkbox(s, "Allow terminal to use 24-bit colours", '4',
+		  HELPCTX(colours_truecolour), conf_checkbox_handler,
+		  I(CONF_true_colour));
     ctrl_radiobuttons(s, "Indicate bolded text by changing:", 'b', 3,
                       HELPCTX(colours_bold),
                       conf_radiobutton_handler, I(CONF_bold_style),

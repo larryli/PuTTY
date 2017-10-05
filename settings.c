@@ -609,6 +609,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "TryPalette", conf_get_int(conf, CONF_try_palette));
     write_setting_i(sesskey, "ANSIColour", conf_get_int(conf, CONF_ansi_colour));
     write_setting_i(sesskey, "Xterm256Colour", conf_get_int(conf, CONF_xterm_256_colour));
+    write_setting_i(sesskey, "TrueColour", conf_get_int(conf, CONF_true_colour));
     write_setting_i(sesskey, "BoldAsColour", conf_get_int(conf, CONF_bold_style)-1);
 
     for (i = 0; i < 22; i++) {
@@ -1005,6 +1006,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "TryPalette", 0, conf, CONF_try_palette);
     gppi(sesskey, "ANSIColour", 1, conf, CONF_ansi_colour);
     gppi(sesskey, "Xterm256Colour", 1, conf, CONF_xterm_256_colour);
+    gppi(sesskey, "TrueColour", 1, conf, CONF_true_colour);
     i = gppi_raw(sesskey, "BoldAsColour", 1); conf_set_int(conf, CONF_bold_style, i+1);
 
     for (i = 0; i < 22; i++) {
