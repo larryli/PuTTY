@@ -198,6 +198,9 @@ static int descent;
 #define NEXTCOLOURS 240
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 static COLORREF colours[NALLCOLOURS];
+struct rgb {
+    int r, g, b;
+} colours_rgb[NALLCOLOURS];
 static HPALETTE pal;
 static LPLOGPALETTE logpal;
 static RGBTRIPLE defpal[NALLCOLOURS];
@@ -1264,6 +1267,19 @@ static void systopalette(void)
     }
 }
 
+static void internal_set_colour(int i, int r, int g, int b)
+{
+    assert(i >= 0);
+    assert(i < NALLCOLOURS);
+    if (pal)
+        colours[i] = PALETTERGB(r, g, b);
+    else
+        colours[i] = RGB(r, g, b);
+    colours_rgb[i].r = r;
+    colours_rgb[i].g = g;
+    colours_rgb[i].b = b;
+}
+
 /*
  * Set up the colour palette.
  */
@@ -1298,15 +1314,9 @@ static void init_palette(void)
 	}
 	ReleaseDC(hwnd, hdc);
     }
-    if (pal)
-	for (i = 0; i < NALLCOLOURS; i++)
-	    colours[i] = PALETTERGB(defpal[i].rgbtRed,
-				    defpal[i].rgbtGreen,
-				    defpal[i].rgbtBlue);
-    else
-	for (i = 0; i < NALLCOLOURS; i++)
-	    colours[i] = RGB(defpal[i].rgbtRed,
-			     defpal[i].rgbtGreen, defpal[i].rgbtBlue);
+    for (i = 0; i < NALLCOLOURS; i++)
+        internal_set_colour(i, defpal[i].rgbtRed,
+                            defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 }
 
 /*
@@ -4865,15 +4875,24 @@ void free_ctx(Context ctx)
 
 static void real_palette_set(int n, int r, int g, int b)
 {
+    internal_set_colour(n, r, g, b);
     if (pal) {
 	logpal->palPalEntry[n].peRed = r;
 	logpal->palPalEntry[n].peGreen = g;
 	logpal->palPalEntry[n].peBlue = b;
 	logpal->palPalEntry[n].peFlags = PC_NOCOLLAPSE;
-	colours[n] = PALETTERGB(r, g, b);
 	SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
-    } else
-	colours[n] = RGB(r, g, b);
+    }
+}
+
+int palette_get(void *frontend, int n, int *r, int *g, int *b)
+{
+    if (n < 0 || n >= NALLCOLOURS)
+	return FALSE;
+    *r = colours_rgb[n].r;
+    *g = colours_rgb[n].g;
+    *b = colours_rgb[n].b;
+    return TRUE;
 }
 
 void palette_set(void *frontend, int n, int r, int g, int b)
@@ -4903,17 +4922,14 @@ void palette_reset(void *frontend)
 
     /* And this */
     for (i = 0; i < NALLCOLOURS; i++) {
+        internal_set_colour(i, defpal[i].rgbtRed,
+                            defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 	if (pal) {
 	    logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
 	    logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
 	    logpal->palPalEntry[i].peBlue = defpal[i].rgbtBlue;
 	    logpal->palPalEntry[i].peFlags = 0;
-	    colours[i] = PALETTERGB(defpal[i].rgbtRed,
-				    defpal[i].rgbtGreen,
-				    defpal[i].rgbtBlue);
-	} else
-	    colours[i] = RGB(defpal[i].rgbtRed,
-			     defpal[i].rgbtGreen, defpal[i].rgbtBlue);
+	}
     }
 
     if (pal) {

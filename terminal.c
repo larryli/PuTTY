@@ -2727,6 +2727,22 @@ static void do_osc(Terminal *term)
 	    if (!term->no_remote_wintitle)
 		set_title(term->frontend, term->osc_string);
 	    break;
+          case 4:
+            if (term->ldisc && !strcmp(term->osc_string, "?")) {
+                int r, g, b;
+                if (palette_get(term->frontend, toint(term->esc_args[1]),
+                                &r, &g, &b)) {
+                    char *reply_buf = dupprintf(
+                        "\033]4;%u;rgb:%04x/%04x/%04x\007",
+                        term->esc_args[1],
+                        (unsigned)r * 0x0101,
+                        (unsigned)g * 0x0101,
+                        (unsigned)b * 0x0101);
+                    ldisc_send(term->ldisc, reply_buf, strlen(reply_buf), 0);
+                    sfree(reply_buf);
+                }
+            }
+            break;
 	}
     }
 }
@@ -3365,6 +3381,7 @@ static void term_out(Terminal *term)
 		    compatibility(OTHER);
 		    term->termstate = SEEN_OSC;
 		    term->esc_args[0] = 0;
+                    term->esc_nargs = 1;
 		    break;
 		  case '7':		/* DECSC: save cursor */
 		    compatibility(VT100);
@@ -4470,25 +4487,40 @@ static void term_out(Terminal *term)
 		  case '7':
 		  case '8':
 		  case '9':
-		    if (term->esc_args[0] <= UINT_MAX / 10 &&
-			term->esc_args[0] * 10 <= UINT_MAX - c - '0')
-			term->esc_args[0] = 10 * term->esc_args[0] + c - '0';
+		    if (term->esc_args[term->esc_nargs-1] <= UINT_MAX / 10 &&
+			term->esc_args[term->esc_nargs-1] * 10 <= UINT_MAX - c - '0')
+			term->esc_args[term->esc_nargs-1] =
+                            10 * term->esc_args[term->esc_nargs-1] + c - '0';
 		    else
-			term->esc_args[0] = UINT_MAX;
+			term->esc_args[term->esc_nargs-1] = UINT_MAX;
 		    break;
-		  case 'L':
-		    /*
-		     * Grotty hack to support xterm and DECterm title
-		     * sequences concurrently.
-		     */
-		    if (term->esc_args[0] == 2) {
-			term->esc_args[0] = 1;
-			break;
-		    }
-		    /* else fall through */
-		  default:
-		    term->termstate = OSC_STRING;
-		    term->osc_strlen = 0;
+                  default:
+                    /*
+                     * _Most_ other characters here terminate the
+                     * immediate parsing of the OSC sequence and go
+                     * into OSC_STRING state, but we deal with a
+                     * couple of exceptions first.
+                     */
+                    if (c == 'L' && term->esc_args[0] == 2) {
+                        /*
+                         * Grotty hack to support xterm and DECterm title
+                         * sequences concurrently.
+                         */
+                        term->esc_args[0] = 1;
+                    } else if (c == ';' && term->esc_nargs == 1 &&
+                               term->esc_args[0] == 4) {
+                        /*
+                         * xterm's OSC 4 sequence to query the current
+                         * RGB value of a colour takes a second
+                         * numeric argument which is easiest to parse
+                         * using the existing system rather than in
+                         * do_osc.
+                         */
+                        term->esc_args[term->esc_nargs++] = 0;
+                    } else {
+                        term->termstate = OSC_STRING;
+                        term->osc_strlen = 0;
+                    }
 		}
 		break;
 	      case OSC_STRING:

@@ -2222,6 +2222,17 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     }
 }
 
+int palette_get(void *frontend, int n, int *r, int *g, int *b)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    if (n < 0 || n >= NALLCOLOURS)
+	return FALSE;
+    *r = inst->cols[n].red >> 8;
+    *g = inst->cols[n].green >> 8;
+    *b = inst->cols[n].blue >> 8;
+    return TRUE;
+}
+
 void palette_reset(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;

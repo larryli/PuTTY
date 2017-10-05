@@ -633,6 +633,7 @@ Context get_ctx(void *frontend);
 void free_ctx(Context);
 void palette_set(void *frontend, int, int, int, int);
 void palette_reset(void *frontend);
+int palette_get(void *frontend, int n, int *r, int *g, int *b);
 void write_aclip(void *frontend, char *, int, int);
 void write_clip(void *frontend, wchar_t *, int *, int, int);
 void get_clip(void *frontend, wchar_t **, int *);
