@@ -1407,9 +1407,11 @@ void term_pwron(Terminal *term, int clear)
 static void set_erase_char(Terminal *term)
 {
     term->erase_char = term->basic_erase_char;
-    if (term->use_bce)
+    if (term->use_bce) {
 	term->erase_char.attr = (term->curr_attr &
 				 (ATTR_FGMASK | ATTR_BGMASK));
+        term->erase_char.truecolour.bg = term->curr_truecolour.bg;
+    }
 }
 
 /*
