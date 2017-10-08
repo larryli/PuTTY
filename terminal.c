@@ -4370,6 +4370,7 @@ static void term_out(Terminal *term)
 				ATTR_FGSHIFT;
 			    term->curr_attr &= ~ATTR_FGMASK;
 			    term->curr_attr |= colour;
+                            term->curr_truecolour.fg = optionalrgb_none;
 			    term->default_attr &= ~ATTR_FGMASK;
 			    term->default_attr |= colour;
 			    set_erase_char(term);
@@ -4384,6 +4385,7 @@ static void term_out(Terminal *term)
 				ATTR_BGSHIFT;
 			    term->curr_attr &= ~ATTR_BGMASK;
 			    term->curr_attr |= colour;
+                            term->curr_truecolour.bg = optionalrgb_none;
 			    term->default_attr &= ~ATTR_BGMASK;
 			    term->default_attr |= colour;
 			    set_erase_char(term);
@@ -4811,6 +4813,8 @@ static void term_out(Terminal *term)
 		    /* compatibility(OTHER) */
 		    term->vt52_bold = FALSE;
 		    term->curr_attr = ATTR_DEFAULT;
+                    term->curr_truecolour.fg = optionalrgb_none;
+                    term->curr_truecolour.bg = optionalrgb_none;
 		    set_erase_char(term);
 		    break;
 		  case 'S':
