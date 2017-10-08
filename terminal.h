@@ -140,6 +140,7 @@ struct terminal_tag {
     /* ESC 7 saved state for the alternate screen */
     pos alt_savecurs;
     int alt_save_attr;
+    truecolour alt_save_truecolour;
     int alt_save_cset, alt_save_csattr;
     int alt_save_utf, alt_save_wnext;
     int alt_save_sco_acs;

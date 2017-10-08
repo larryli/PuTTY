@@ -1297,6 +1297,7 @@ static void power_on(Terminal *term, int clear)
     term->default_attr = term->save_attr =
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
     term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
+    term->save_truecolour = term->alt_save_truecolour = term->curr_truecolour;
     term->term_editing = term->term_echoing = FALSE;
     term->app_cursor_keys = conf_get_int(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_int(term->conf, CONF_app_keypad);
@@ -1987,6 +1988,7 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
 {
     int t;
     pos tp;
+    truecolour ttc;
     tree234 *ttr;
 
     if (!which)
@@ -2051,6 +2053,10 @@ static void swap_screen(Terminal *term, int which, int reset, int keep_cur_pos)
         if (!reset && !keep_cur_pos)
             term->save_attr = term->alt_save_attr;
         term->alt_save_attr = t;
+        ttc = term->save_truecolour;
+        if (!reset && !keep_cur_pos)
+            term->save_truecolour = term->alt_save_truecolour;
+        term->alt_save_truecolour = ttc;
         t = term->save_utf;
         if (!reset && !keep_cur_pos)
             term->save_utf = term->alt_save_utf;
@@ -2346,6 +2352,7 @@ static void save_cursor(Terminal *term, int save)
     if (save) {
 	term->savecurs = term->curs;
 	term->save_attr = term->curr_attr;
+	term->save_truecolour = term->curr_truecolour;
 	term->save_cset = term->cset;
 	term->save_utf = term->utf;
 	term->save_wnext = term->wrapnext;
@@ -2360,6 +2367,7 @@ static void save_cursor(Terminal *term, int save)
 	    term->curs.y = term->rows - 1;
 
 	term->curr_attr = term->save_attr;
+	term->curr_truecolour = term->save_truecolour;
 	term->cset = term->save_cset;
 	term->utf = term->save_utf;
 	term->wrapnext = term->save_wnext;
