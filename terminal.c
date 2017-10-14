@@ -4031,6 +4031,8 @@ static void term_out(Terminal *term)
 					term->curr_attr |=
 					    ((term->esc_args[i+2] & 0xFF)
 					     << ATTR_FGSHIFT);
+                                        term->curr_truecolour.fg =
+                                            optionalrgb_none;
 					i += 2;
 					}
 				    if (i + 4 < term->esc_nargs &&
@@ -4048,6 +4050,8 @@ static void term_out(Terminal *term)
 					term->curr_attr |=
 					    ((term->esc_args[i+2] & 0xFF)
 					     << ATTR_BGSHIFT);
+                                        term->curr_truecolour.bg =
+                                            optionalrgb_none;
 					i += 2;
 				    }
 				    if (i + 4 < term->esc_nargs &&
