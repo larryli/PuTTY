@@ -1,5 +1,5 @@
 /*
- * aes.c - implementation of AES / Rijndael
+ * sshaes.c - implementation of AES / Rijndael
  * 
  * AES is a flexible algorithm as regards endianness: it has no
  * inherent preference as to which way round you should form words
