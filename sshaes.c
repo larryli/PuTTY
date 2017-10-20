@@ -40,8 +40,9 @@
 typedef struct AESContext AESContext;
 
 struct AESContext {
-    word32 keysched[(MAX_NR + 1) * NB];
-    word32 invkeysched[(MAX_NR + 1) * NB];
+    word32 keysched_buf[(MAX_NR + 1) * NB + 3];
+    word32 invkeysched_buf[(MAX_NR + 1) * NB + 3];
+    word32 *keysched, *invkeysched;
     word32 iv[NB];
     int Nr; /* number of rounds */
 };
@@ -653,8 +654,19 @@ static const word32 D3[256] = {
 static void aes_setup(AESContext * ctx, unsigned char *key, int keylen)
 {
     int i, j, Nk, rconst;
+    size_t bufaddr;
 
     ctx->Nr = 6 + (keylen / 4); /* Number of rounds */
+
+    /* Ensure the key schedule arrays are 16-byte aligned */
+    bufaddr = (size_t)ctx->keysched_buf;
+    ctx->keysched = ctx->keysched_buf +
+        (0xF & -bufaddr) / sizeof(word32);
+    assert((size_t)ctx->keysched % 16 == 0);
+    bufaddr = (size_t)ctx->invkeysched_buf;
+    ctx->invkeysched = ctx->invkeysched_buf +
+        (0xF & -bufaddr) / sizeof(word32);
+    assert((size_t)ctx->invkeysched % 16 == 0);
 
     assert(keylen == 16 || keylen == 24 || keylen == 32);
 
