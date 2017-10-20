@@ -33,19 +33,17 @@
 #include "ssh.h"
 
 #define MAX_NR 14		       /* max no of rounds */
-#define MAX_NB 8		       /* max no of words in cipher blk */
+#define NB 4                          /* no of words in cipher blk */
 
 #define mulby2(x) ( ((x&0x7F) << 1) ^ (x & 0x80 ? 0x1B : 0) )
 
 typedef struct AESContext AESContext;
 
 struct AESContext {
-    word32 keysched[(MAX_NR + 1) * MAX_NB];
-    word32 invkeysched[(MAX_NR + 1) * MAX_NB];
-    void (*encrypt) (AESContext * ctx, word32 * block);
-    void (*decrypt) (AESContext * ctx, word32 * block);
-    word32 iv[MAX_NB];
-    int Nb, Nr;
+    word32 keysched[(MAX_NR + 1) * NB];
+    word32 invkeysched[(MAX_NR + 1) * NB];
+    word32 iv[NB];
+    int Nr; /* number of rounds */
 };
 
 static const unsigned char Sbox[256] = {
@@ -652,36 +650,28 @@ static const word32 D3[256] = {
  */
 #define ADD_ROUND_KEY_4 (block[0]^=*keysched++, block[1]^=*keysched++, \
 		         block[2]^=*keysched++, block[3]^=*keysched++)
-#define ADD_ROUND_KEY_6 (block[0]^=*keysched++, block[1]^=*keysched++, \
-		         block[2]^=*keysched++, block[3]^=*keysched++, \
-		         block[4]^=*keysched++, block[5]^=*keysched++)
-#define ADD_ROUND_KEY_8 (block[0]^=*keysched++, block[1]^=*keysched++, \
-		         block[2]^=*keysched++, block[3]^=*keysched++, \
-		         block[4]^=*keysched++, block[5]^=*keysched++, \
-		         block[6]^=*keysched++, block[7]^=*keysched++)
 #define MOVEWORD(i) ( block[i] = newstate[i] )
 
 /*
- * Macros for the encryption routine. There are three encryption
- * cores, for Nb=4,6,8.
+ * Macros for the encryption routine.
  */
 #define MAKEWORD(i) ( newstate[i] = (E0[(block[i] >> 24) & 0xFF] ^ \
-				     E1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
-				     E2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
-				     E3[block[(i+C3)%Nb] & 0xFF]) )
+				     E1[(block[(i+C1)%NB] >> 16) & 0xFF] ^ \
+				     E2[(block[(i+C2)%NB] >> 8) & 0xFF] ^ \
+				     E3[block[(i+C3)%NB] & 0xFF]) )
 #define LASTWORD(i) ( newstate[i] = (Sbox[(block[i] >> 24) & 0xFF] << 24) | \
-			    (Sbox[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
-			    (Sbox[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
-			    (Sbox[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
+			    (Sbox[(block[(i+C1)%NB] >> 16) & 0xFF] << 16) | \
+			    (Sbox[(block[(i+C2)%NB] >>  8) & 0xFF] <<  8) | \
+			    (Sbox[(block[(i+C3)%NB]      ) & 0xFF]      ) )
 
 /*
- * Core encrypt routines, expecting word32 inputs read big-endian
+ * Core encrypt routine, expecting word32 inputs read big-endian
  * from the byte-oriented input stream.
  */
-static void aes_encrypt_nb_4(AESContext * ctx, word32 * block)
+static void aes_encrypt(AESContext * ctx, word32 * block)
 {
     int i;
-    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 4;
+    static const int C1 = 1, C2 = 2, C3 = 3;
     word32 *keysched = ctx->keysched;
     word32 newstate[4];
     for (i = 0; i < ctx->Nr - 1; i++) {
@@ -706,111 +696,30 @@ static void aes_encrypt_nb_4(AESContext * ctx, word32 * block)
     MOVEWORD(3);
     ADD_ROUND_KEY_4;
 }
-static void aes_encrypt_nb_6(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 1, C2 = 2, C3 = 3, Nb = 6;
-    word32 *keysched = ctx->keysched;
-    word32 newstate[6];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_6;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-    }
-    ADD_ROUND_KEY_6;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    ADD_ROUND_KEY_6;
-}
-static void aes_encrypt_nb_8(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 1, C2 = 3, C3 = 4, Nb = 8;
-    word32 *keysched = ctx->keysched;
-    word32 newstate[8];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_8;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MAKEWORD(6);
-	MAKEWORD(7);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-	MOVEWORD(6);
-	MOVEWORD(7);
-    }
-    ADD_ROUND_KEY_8;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    LASTWORD(6);
-    LASTWORD(7);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    MOVEWORD(6);
-    MOVEWORD(7);
-    ADD_ROUND_KEY_8;
-}
 
 #undef MAKEWORD
 #undef LASTWORD
 
 /*
- * Macros for the decryption routine. There are three decryption
- * cores, for Nb=4,6,8.
+ * Macros for the decryption routine.
  */
 #define MAKEWORD(i) ( newstate[i] = (D0[(block[i] >> 24) & 0xFF] ^ \
-				     D1[(block[(i+C1)%Nb] >> 16) & 0xFF] ^ \
-				     D2[(block[(i+C2)%Nb] >> 8) & 0xFF] ^ \
-				     D3[block[(i+C3)%Nb] & 0xFF]) )
+				     D1[(block[(i+C1)%NB] >> 16) & 0xFF] ^ \
+				     D2[(block[(i+C2)%NB] >> 8) & 0xFF] ^ \
+				     D3[block[(i+C3)%NB] & 0xFF]) )
 #define LASTWORD(i) (newstate[i] = (Sboxinv[(block[i] >> 24) & 0xFF] << 24) | \
-			   (Sboxinv[(block[(i+C1)%Nb] >> 16) & 0xFF] << 16) | \
-			   (Sboxinv[(block[(i+C2)%Nb] >>  8) & 0xFF] <<  8) | \
-			   (Sboxinv[(block[(i+C3)%Nb]      ) & 0xFF]      ) )
+			   (Sboxinv[(block[(i+C1)%NB] >> 16) & 0xFF] << 16) | \
+			   (Sboxinv[(block[(i+C2)%NB] >>  8) & 0xFF] <<  8) | \
+			   (Sboxinv[(block[(i+C3)%NB]      ) & 0xFF]      ) )
 
 /*
- * Core decrypt routines, expecting word32 inputs read big-endian
+ * Core decrypt routine, expecting word32 inputs read big-endian
  * from the byte-oriented input stream.
  */
-static void aes_decrypt_nb_4(AESContext * ctx, word32 * block)
+static void aes_decrypt(AESContext * ctx, word32 * block)
 {
     int i;
-    static const int C1 = 4 - 1, C2 = 4 - 2, C3 = 4 - 3, Nb = 4;
+    static const int C1 = 4 - 1, C2 = 4 - 2, C3 = 4 - 3;
     word32 *keysched = ctx->invkeysched;
     word32 newstate[4];
     for (i = 0; i < ctx->Nr - 1; i++) {
@@ -835,126 +744,30 @@ static void aes_decrypt_nb_4(AESContext * ctx, word32 * block)
     MOVEWORD(3);
     ADD_ROUND_KEY_4;
 }
-static void aes_decrypt_nb_6(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 6 - 1, C2 = 6 - 2, C3 = 6 - 3, Nb = 6;
-    word32 *keysched = ctx->invkeysched;
-    word32 newstate[6];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_6;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-    }
-    ADD_ROUND_KEY_6;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    ADD_ROUND_KEY_6;
-}
-static void aes_decrypt_nb_8(AESContext * ctx, word32 * block)
-{
-    int i;
-    static const int C1 = 8 - 1, C2 = 8 - 3, C3 = 8 - 4, Nb = 8;
-    word32 *keysched = ctx->invkeysched;
-    word32 newstate[8];
-    for (i = 0; i < ctx->Nr - 1; i++) {
-	ADD_ROUND_KEY_8;
-	MAKEWORD(0);
-	MAKEWORD(1);
-	MAKEWORD(2);
-	MAKEWORD(3);
-	MAKEWORD(4);
-	MAKEWORD(5);
-	MAKEWORD(6);
-	MAKEWORD(7);
-	MOVEWORD(0);
-	MOVEWORD(1);
-	MOVEWORD(2);
-	MOVEWORD(3);
-	MOVEWORD(4);
-	MOVEWORD(5);
-	MOVEWORD(6);
-	MOVEWORD(7);
-    }
-    ADD_ROUND_KEY_8;
-    LASTWORD(0);
-    LASTWORD(1);
-    LASTWORD(2);
-    LASTWORD(3);
-    LASTWORD(4);
-    LASTWORD(5);
-    LASTWORD(6);
-    LASTWORD(7);
-    MOVEWORD(0);
-    MOVEWORD(1);
-    MOVEWORD(2);
-    MOVEWORD(3);
-    MOVEWORD(4);
-    MOVEWORD(5);
-    MOVEWORD(6);
-    MOVEWORD(7);
-    ADD_ROUND_KEY_8;
-}
 
 #undef MAKEWORD
 #undef LASTWORD
 
 
 /*
- * Set up an AESContext. `keylen' and `blocklen' are measured in
- * bytes; each can be either 16 (128-bit), 24 (192-bit), or 32
+ * Set up an AESContext. `keylen' is measured in
+ * bytes; it can be either 16 (128-bit), 24 (192-bit), or 32
  * (256-bit).
  */
-static void aes_setup(AESContext * ctx, int blocklen,
-	       unsigned char *key, int keylen)
+static void aes_setup(AESContext * ctx, unsigned char *key, int keylen)
 {
     int i, j, Nk, rconst;
 
-    assert(blocklen == 16 || blocklen == 24 || blocklen == 32);
+    ctx->Nr = 6 + (keylen / 4); /* Number of rounds */
+
     assert(keylen == 16 || keylen == 24 || keylen == 32);
-
-    /*
-     * Basic parameters. Words per block, words in key, rounds.
-     */
-    Nk = keylen / 4;
-    ctx->Nb = blocklen / 4;
-    ctx->Nr = 6 + (ctx->Nb > Nk ? ctx->Nb : Nk);
-
-    /*
-     * Assign core-function pointers.
-     */
-    if (ctx->Nb == 8)
-	ctx->encrypt = aes_encrypt_nb_8, ctx->decrypt = aes_decrypt_nb_8;
-    else if (ctx->Nb == 6)
-	ctx->encrypt = aes_encrypt_nb_6, ctx->decrypt = aes_decrypt_nb_6;
-    else if (ctx->Nb == 4)
-	ctx->encrypt = aes_encrypt_nb_4, ctx->decrypt = aes_decrypt_nb_4;
 
     /*
      * Now do the key setup itself.
      */
+    Nk = keylen / 4;
     rconst = 1;
-    for (i = 0; i < (ctx->Nr + 1) * ctx->Nb; i++) {
+    for (i = 0; i < (ctx->Nr + 1) * NB; i++) {
 	if (i < Nk)
 	    ctx->keysched[i] = GET_32BIT_MSB_FIRST(key + 4 * i);
 	else {
@@ -989,9 +802,9 @@ static void aes_setup(AESContext * ctx, int blocklen,
      * Now prepare the modified keys for the inverse cipher.
      */
     for (i = 0; i <= ctx->Nr; i++) {
-	for (j = 0; j < ctx->Nb; j++) {
+        for (j = 0; j < NB; j++) {
 	    word32 temp;
-	    temp = ctx->keysched[(ctx->Nr - i) * ctx->Nb + j];
+            temp = ctx->keysched[(ctx->Nr - i) * NB + j];
 	    if (i != 0 && i != ctx->Nr) {
 		/*
 		 * Perform the InvMixColumn operation on i. The D
@@ -1009,19 +822,9 @@ static void aes_setup(AESContext * ctx, int blocklen,
 		temp ^= D2[Sbox[c]];
 		temp ^= D3[Sbox[d]];
 	    }
-	    ctx->invkeysched[i * ctx->Nb + j] = temp;
+            ctx->invkeysched[i * NB + j] = temp;
 	}
     }
-}
-
-static void aes_encrypt(AESContext * ctx, word32 * block)
-{
-    ctx->encrypt(ctx, block);
-}
-
-static void aes_decrypt(AESContext * ctx, word32 * block)
-{
-    ctx->decrypt(ctx, block);
 }
 
 static void aes_encrypt_cbc(unsigned char *blk, int len, AESContext * ctx)
@@ -1109,19 +912,19 @@ void aes_free_context(void *handle)
 void aes128_key(void *handle, unsigned char *key)
 {
     AESContext *ctx = (AESContext *)handle;
-    aes_setup(ctx, 16, key, 16);
+    aes_setup(ctx, key, 16);
 }
 
 void aes192_key(void *handle, unsigned char *key)
 {
     AESContext *ctx = (AESContext *)handle;
-    aes_setup(ctx, 16, key, 24);
+    aes_setup(ctx, key, 24);
 }
 
 void aes256_key(void *handle, unsigned char *key)
 {
     AESContext *ctx = (AESContext *)handle;
-    aes_setup(ctx, 16, key, 32);
+    aes_setup(ctx, key, 32);
 }
 
 void aes_iv(void *handle, unsigned char *iv)
@@ -1153,7 +956,7 @@ static void aes_ssh2_sdctr(void *handle, unsigned char *blk, int len)
 void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
 {
     AESContext ctx;
-    aes_setup(&ctx, 16, key, 32);
+    aes_setup(&ctx, key, 32);
     memset(ctx.iv, 0, sizeof(ctx.iv));
     aes_encrypt_cbc(blk, len, &ctx);
     smemclr(&ctx, sizeof(ctx));
@@ -1162,7 +965,7 @@ void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
 void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
 {
     AESContext ctx;
-    aes_setup(&ctx, 16, key, 32);
+    aes_setup(&ctx, key, 32);
     memset(ctx.iv, 0, sizeof(ctx.iv));
     aes_decrypt_cbc(blk, len, &ctx);
     smemclr(&ctx, sizeof(ctx));
