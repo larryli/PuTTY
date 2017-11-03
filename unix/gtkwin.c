@@ -965,6 +965,15 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * Shift-PgUp and Shift-PgDn don't even generate keystrokes
 	 * at all.
 	 */
+        if (event->keyval == GDK_KEY_Page_Up &&
+            ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
+             (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - Ctrl-Shift-PgUp scroll\n"));
+#endif
+            term_scroll(inst->term, 1, 0);
+            return TRUE;
+        }
 	if (event->keyval == GDK_KEY_Page_Up &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -981,6 +990,15 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    term_scroll(inst->term, 0, -1);
 	    return TRUE;
 	}
+        if (event->keyval == GDK_KEY_Page_Down &&
+            ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
+             (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - Ctrl-shift-PgDn scroll\n"));
+#endif
+            term_scroll(inst->term, -1, 0);
+            return TRUE;
+        }
 	if (event->keyval == GDK_KEY_Page_Down &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS

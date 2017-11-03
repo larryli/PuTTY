@@ -4170,6 +4170,15 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    SendMessage(hwnd, WM_VSCROLL, SB_PAGEUP, 0);
 	    return 0;
 	}
+        if (wParam == VK_PRIOR && shift_state == 3) { /* ctrl-shift-pageup */
+            SendMessage(hwnd, WM_VSCROLL, SB_TOP, 0);
+            return 0;
+        }
+        if (wParam == VK_NEXT && shift_state == 3) { /* ctrl-shift-pagedown */
+            SendMessage(hwnd, WM_VSCROLL, SB_BOTTOM, 0);
+            return 0;
+        }
+
 	if (wParam == VK_PRIOR && shift_state == 2) {
 	    SendMessage(hwnd, WM_VSCROLL, SB_LINEUP, 0);
 	    return 0;
