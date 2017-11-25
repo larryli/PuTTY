@@ -1534,6 +1534,7 @@ typedef void (*toplevel_callback_fn_t)(void *ctx);
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
 void run_toplevel_callbacks(void);
 int toplevel_callback_pending(void);
+void delete_callbacks_for_context(void *ctx);
 
 typedef void (*toplevel_callback_notify_fn_t)(void *frontend);
 void request_callback_notifications(toplevel_callback_notify_fn_t notify,
