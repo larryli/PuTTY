@@ -261,13 +261,20 @@ static void cleanup_utmp(void)
 }
 #endif
 
-#ifndef NO_PTY_PRE_INIT
 static void sigchld_handler(int signum)
 {
     if (write(pty_signal_pipe[1], "x", 1) <= 0)
 	/* not much we can do about it */;
 }
-#endif
+
+static void pty_setup_sigchld_handler(void)
+{
+    static int setup = FALSE;
+    if (!setup) {
+        putty_signal(SIGCHLD, sigchld_handler);
+        setup = TRUE;
+    }
+}
 
 #ifndef OMIT_UTMP
 static void fatal_sig_handler(int signum)
@@ -433,7 +440,7 @@ void pty_pre_init(void)
 
     /* set the child signal handler straight away; it needs to be set
      * before we ever fork. */
-    putty_signal(SIGCHLD, sigchld_handler);
+    pty_setup_sigchld_handler();
     pty->master_fd = pty->slave_fd = -1;
 #ifndef OMIT_UTMP
     pty_stamped_utmp = FALSE;
@@ -789,6 +796,12 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
     windowid = get_windowid(pty->frontend);
 #endif
+
+    /*
+     * Set up the signal handler to catch SIGCHLD, if pty_pre_init
+     * didn't already do it.
+     */
+    pty_setup_sigchld_handler();
 
     /*
      * Fork and execute the command.
