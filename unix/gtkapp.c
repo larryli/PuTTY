@@ -135,7 +135,7 @@ const int buildinfo_gtk_relevant = TRUE;
  * in the source than it is to remove it in the makefile edifice. */
 int main(int argc, char **argv)
 {
-    fprintf(stderr, "launcher does nothing on non-OSX platforms\n");
+    fprintf(stderr, "GtkApplication frontend doesn't work pre-GTK3\n");
     return 1;
 }
 GtkWidget *make_gtk_toplevel_window(void *frontend) { return NULL; }
