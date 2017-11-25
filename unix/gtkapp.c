@@ -196,7 +196,7 @@ void launch_duplicate_session(Conf *conf)
 {
     extern const int dup_check_launchable;
     assert(!dup_check_launchable || conf_launchable(conf));
-    new_session_window(conf, NULL);
+    new_session_window(conf_copy(conf), NULL);
 }
 
 void launch_new_session(void)
