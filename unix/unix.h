@@ -154,6 +154,7 @@ enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
     DIALOG_SLOT_NETWORK_PROMPT,
     DIALOG_SLOT_LOGFILE_PROMPT,
+    DIALOG_SLOT_WARN_ON_CLOSE,
     DIALOG_SLOT_LIMIT /* must remain last */
 };
 void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);
@@ -173,7 +174,6 @@ void about_box(void *window);
 void *eventlogstuff_new(void);
 void showeventlog(void *estuff, void *parentwin);
 void logevent_dlg(void *estuff, const char *string);
-int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 struct message_box_button {
     const char *title;

@@ -451,6 +451,25 @@ void get_window_pixels(void *frontend, int *x, int *y)
 }
 
 /*
+ * Find out whether a dialog box already exists for this window in a
+ * particular DialogSlot. If it does, uniconify it (if we can) and
+ * raise it, so that the user realises they've already been asked this
+ * question.
+ */
+static int find_and_raise_dialog(struct gui_data *inst, enum DialogSlot slot)
+{
+    GtkWidget *dialog = inst->dialogs[slot];
+    if (!dialog)
+        return FALSE;
+
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_deiconify(GTK_WINDOW(dialog));
+#endif
+    gdk_window_raise(gtk_widget_get_window(dialog));
+    return TRUE;
+}
+
+/*
  * Return the window or icon title.
  */
 char *get_window_title(void *frontend, int icon)
@@ -459,12 +478,44 @@ char *get_window_title(void *frontend, int icon)
     return icon ? inst->icontitle : inst->wintitle;
 }
 
+static void warn_on_close_callback(void *vctx, int result)
+{
+    struct gui_data *inst = (struct gui_data *)vctx;
+    unregister_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE);
+    if (result)
+        gtk_widget_destroy(inst->window);
+}
+
+/*
+ * Handle the 'delete window' event (e.g. user clicking the WM close
+ * button). The return value FALSE means the window should close, and
+ * TRUE means it shouldn't.
+ *
+ * (That's counterintuitive, but really, in GTK terms, TRUE means 'I
+ * have done everything necessary to handle this event, so the default
+ * handler need not do anything', i.e. 'suppress default handler',
+ * i.e. 'do not close the window'.)
+ */
 gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     if (!inst->exited && conf_get_int(inst->conf, CONF_warn_on_close)) {
-	if (!reallyclose(inst))
-	    return TRUE;
+        /*
+         * We're not going to exit right now. We must put up a
+         * warn-on-close dialog, unless one already exists, in which
+         * case we'll just re-emphasise that one.
+         */
+        if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
+            char *title = dupcat(appname, " Exit Confirmation", NULL);
+            GtkWidget *dialog = create_message_box(
+                inst->window, title,
+                "Are you sure you want to close this session?",
+                string_width("Most of the width of the above text"),
+                FALSE, &buttons_yn, warn_on_close_callback, inst);
+            register_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE, dialog);
+            sfree(title);
+        }
+        return TRUE;
     }
     return FALSE;
 }
@@ -4008,17 +4059,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     GtkWidget *dialog;
     char *title;
 
-    if ((dialog = inst->dialogs[DIALOG_SLOT_RECONFIGURE]) != NULL) {
-        /*
-         * If this window already had a Change Settings box open, just
-         * find it and try to make it more prominent.
-         */
-#if GTK_CHECK_VERSION(2,0,0)
-        gtk_window_deiconify(GTK_WINDOW(dialog));
-#endif
-	gdk_window_raise(gtk_widget_get_window(dialog));
+    if (find_and_raise_dialog(inst, DIALOG_SLOT_RECONFIGURE))
         return;
-    }
 
     title = dupcat(appname, " Reconfiguration", NULL);
 

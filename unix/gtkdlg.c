@@ -3467,17 +3467,6 @@ int message_box(
     return retval;
 }
 
-int reallyclose(void *frontend)
-{
-    char *title = dupcat(appname, " Exit Confirmation", NULL);
-    int ret = message_box(GTK_WIDGET(get_window(frontend)), title,
-                          "Are you sure you want to close this session?",
-                          string_width("Most of the width of the above text"),
-                          FALSE, &buttons_yn);
-    sfree(title);
-    return ret;
-}
-
 struct verify_ssh_host_key_result_ctx {
     char *host;
     int port;
