@@ -1739,6 +1739,7 @@ void term_free(Terminal *term)
     sfree(term->ltemp);
     sfree(term->wcFrom);
     sfree(term->wcTo);
+    sfree(term->answerback);
 
     for (i = 0; i < term->bidi_cache_size; i++) {
 	sfree(term->pre_bidi_cache[i].chars);
