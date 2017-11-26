@@ -3700,9 +3700,12 @@ void fatal_message_box(void *window, const char *msg)
 
 void nonfatal_message_box(void *window, const char *msg)
 {
-    message_box(window, "PuTTY Error", msg,
-                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-                FALSE, &buttons_ok);
+    char *title = dupcat(appname, " Error", NULL);
+    create_message_box(
+        window, title, msg,
+        string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+        FALSE, &buttons_ok, trivial_post_dialog_fn, NULL);
+    sfree(title);
 }
 
 void nonfatal(const char *p, ...)
