@@ -185,6 +185,10 @@ struct message_box_buttons {
     int nbuttons;
 };
 extern const struct message_box_buttons buttons_yn, buttons_ok;
+GtkWidget *create_message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    int selectable, const struct message_box_buttons *buttons,
+    post_dialog_fn_t after, void *afterctx);
 int message_box(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
     int selectable, const struct message_box_buttons *buttons);

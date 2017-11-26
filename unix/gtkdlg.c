@@ -1084,52 +1084,17 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 #endif
 }
 
+static void trivial_post_dialog_fn(void *vctx, int result)
+{
+}
+
 void dlg_error_msg(void *dlg, const char *msg)
 {
     struct dlgparam *dp = (struct dlgparam *)dlg;
-    GtkWidget *window;
-
-#if GTK_CHECK_VERSION(3,0,0)
-    window = gtk_message_dialog_new(GTK_WINDOW(dp->window),
-                                    (GTK_DIALOG_MODAL |
-                                     GTK_DIALOG_DESTROY_WITH_PARENT),
-                                    GTK_MESSAGE_ERROR,
-                                    GTK_BUTTONS_CLOSE,
-                                    "%s", msg);
-    gtk_dialog_run(GTK_DIALOG(window));
-    gtk_widget_destroy(window);
-#else
-    GtkWidget *hbox, *text, *ok;
-
-    window = gtk_dialog_new();
-    text = gtk_label_new(msg);
-    align_label_left(GTK_LABEL(text));
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), text, FALSE, FALSE, 20);
-    gtk_box_pack_start(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(window))),
-                       hbox, FALSE, FALSE, 20);
-    gtk_widget_show(text);
-    gtk_widget_show(hbox);
-    gtk_window_set_title(GTK_WINDOW(window), "Error");
-    gtk_label_set_line_wrap(GTK_LABEL(text), TRUE);
-    ok = gtk_button_new_with_label("OK");
-    gtk_box_pack_end(GTK_BOX(gtk_dialog_get_action_area(GTK_DIALOG(window))),
-                     ok, FALSE, FALSE, 0);
-    gtk_widget_show(ok);
-    gtk_widget_set_can_default(ok, TRUE);
-    gtk_window_set_default(GTK_WINDOW(window), ok);
-    g_signal_connect(G_OBJECT(ok), "clicked",
-                     G_CALLBACK(errmsg_button_clicked), window);
-    g_signal_connect(G_OBJECT(window), "destroy",
-                     G_CALLBACK(window_destroy), NULL);
-    gtk_window_set_modal(GTK_WINDOW(window), TRUE);
-    gtk_window_set_transient_for(GTK_WINDOW(window), GTK_WINDOW(dp->window));
-    set_transient_window_pos(dp->window, window);
-    gtk_widget_show(window);
-    gtk_main();
-#endif
-
-    post_main();
+    create_message_box(
+        dp->window, "Error", msg,
+        string_width("Some sort of text about a config-box error message"),
+        FALSE, &buttons_ok, trivial_post_dialog_fn, NULL);
 }
 
 /*
