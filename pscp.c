@@ -91,21 +91,6 @@ static void tell_user(FILE *stream, const char *fmt, ...)
 /*
  *  Print an error message and perform a fatal exit.
  */
-void fatalbox(const char *fmt, ...)
-{
-    char *str, *str2;
-    va_list ap;
-    va_start(ap, fmt);
-    str = dupvprintf(fmt, ap);
-    str2 = dupcat("Fatal: ", str, "\n", NULL);
-    sfree(str);
-    va_end(ap);
-    tell_str(stderr, str2);
-    sfree(str2);
-    errs++;
-
-    cleanup_exit(1);
-}
 void modalfatalbox(const char *fmt, ...)
 {
     char *str, *str2;

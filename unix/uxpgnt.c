@@ -23,16 +23,6 @@
 SockAddr unix_sock_addr(const char *path);
 Socket new_unix_listener(SockAddr listenaddr, Plug plug);
 
-void fatalbox(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
 void modalfatalbox(const char *p, ...)
 {
     va_list ap;

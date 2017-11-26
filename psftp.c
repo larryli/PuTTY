@@ -2442,20 +2442,6 @@ static int verbose = 0;
 /*
  *  Print an error message and perform a fatal exit.
  */
-void fatalbox(const char *fmt, ...)
-{
-    char *str, *str2;
-    va_list ap;
-    va_start(ap, fmt);
-    str = dupvprintf(fmt, ap);
-    str2 = dupcat("Fatal: ", str, "\n", NULL);
-    sfree(str);
-    va_end(ap);
-    fputs(str2, stderr);
-    sfree(str2);
-
-    cleanup_exit(1);
-}
 void modalfatalbox(const char *fmt, ...)
 {
     char *str, *str2;

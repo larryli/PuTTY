@@ -3705,18 +3705,6 @@ void nonfatal_message_box(void *window, const char *msg)
                 FALSE, &buttons_ok);
 }
 
-void fatalbox(const char *p, ...)
-{
-    va_list ap;
-    char *msg;
-    va_start(ap, p);
-    msg = dupvprintf(p, ap);
-    va_end(ap);
-    fatal_message_box(NULL, msg);
-    sfree(msg);
-    cleanup_exit(1);
-}
-
 void nonfatal(const char *p, ...)
 {
     va_list ap;

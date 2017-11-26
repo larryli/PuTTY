@@ -22,20 +22,6 @@ struct agent_callback {
     int len;
 };
 
-void fatalbox(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
 void modalfatalbox(const char *p, ...)
 {
     va_list ap;

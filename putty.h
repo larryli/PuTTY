@@ -642,10 +642,8 @@ void optimised_move(void *frontend, int, int, int);
 void set_raw_mouse_mode(void *frontend, int);
 void connection_fatal(void *frontend, const char *, ...);
 void nonfatal(const char *, ...);
-void fatalbox(const char *, ...);
 void modalfatalbox(const char *, ...);
 #ifdef macintosh
-#pragma noreturn(fatalbox)
 #pragma noreturn(modalfatalbox)
 #endif
 void do_beep(void *frontend, int);

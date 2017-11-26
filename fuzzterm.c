@@ -88,7 +88,6 @@ void set_raw_mouse_mode(void *frontend, int m) { }
 void request_paste(void *frontend) { }
 void do_beep(void *frontend, int a) { }
 void sys_cursor(void *frontend, int x, int y) { }
-void fatalbox(const char *fmt, ...) { exit(0); }
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }
 

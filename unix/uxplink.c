@@ -29,23 +29,6 @@ static void *logctx;
 
 static struct termios orig_termios;
 
-void fatalbox(const char *p, ...)
-{
-    struct termios cf;
-    va_list ap;
-    premsg(&cf);
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    postmsg(&cf);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
 void modalfatalbox(const char *p, ...)
 {
     struct termios cf;

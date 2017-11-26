@@ -5523,23 +5523,6 @@ void optimised_move(void *frontend, int to, int from, int lines)
 #endif
 
 /*
- * Print a message box and perform a fatal exit.
- */
-void fatalbox(const char *fmt, ...)
-{
-    va_list ap;
-    char *stuff, morestuff[100];
-
-    va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
-    va_end(ap);
-    sprintf(morestuff, "%.70s Fatal Error", appname);
-    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
-    sfree(stuff);
-    cleanup_exit(1);
-}
-
-/*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
 void modalfatalbox(const char *fmt, ...)
