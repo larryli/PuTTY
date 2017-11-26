@@ -122,8 +122,9 @@ unsigned long getticks(void);
 /* The per-session frontend structure managed by gtkwin.c */
 struct gui_data;
 
-/* Callback when a dialog box finishes */
+/* Callback when a dialog box finishes, and a no-op implementation of it */
 typedef void (*post_dialog_fn_t)(void *ctx, int result);
+void trivial_post_dialog_fn(void *vctx, int result);
 
 /* Start up a session window, with or without a preliminary config box */
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx);
@@ -189,9 +190,6 @@ GtkWidget *create_message_box(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
     int selectable, const struct message_box_buttons *buttons,
     post_dialog_fn_t after, void *afterctx);
-int message_box(
-    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
-    int selectable, const struct message_box_buttons *buttons);
 #endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */

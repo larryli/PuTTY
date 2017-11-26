@@ -1084,7 +1084,7 @@ static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 #endif
 }
 
-static void trivial_post_dialog_fn(void *vctx, int result)
+void trivial_post_dialog_fn(void *vctx, int result)
 {
 }
 
