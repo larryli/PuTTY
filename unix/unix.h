@@ -161,7 +161,6 @@ enum DialogSlot {
 void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);
 void unregister_dialog(void *frontend, enum DialogSlot slot);
 #endif
-void post_main(void);     /* called after any subsidiary gtk_main() */
 
 /* Things pterm.c needs from gtkdlg.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS

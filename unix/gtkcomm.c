@@ -203,40 +203,9 @@ static int idle_fn_scheduled;
 
 static void notify_toplevel_callback(void *);
 
-/*
- * Replacement code for the gtk_quit_add() function, which GTK2 - in
- * their unbounded wisdom - deprecated without providing any usable
- * replacement, and which we were using to ensure that our idle
- * function for toplevel callbacks was only run from the outermost
- * gtk_main().
- *
- * We must make sure that all our subsidiary calls to gtk_main() are
- * followed by a call to post_main(), so that the idle function can be
- * re-established when we end up back at the top level.
- */
-void post_main(void)
-{
-    if (gtk_main_level() == 1)
-        notify_toplevel_callback(NULL);
-}
-
 static gint idle_toplevel_callback_func(gpointer data)
 {
-    if (gtk_main_level() > 1) {
-        /*
-         * We don't run callbacks if we're in the middle of a
-         * subsidiary gtk_main. So unschedule this idle function; it
-         * will be rescheduled by post_main() when we come back up a
-         * level, which is the earliest we might actually do
-         * something.
-         */
-        if (idle_fn_scheduled) {      /* double-check, just in case */
-            g_source_remove(toplevel_callback_idle_id);
-            idle_fn_scheduled = FALSE;
-        }
-    } else {
-        run_toplevel_callbacks();
-    }
+    run_toplevel_callbacks();
 
     /*
      * If we've emptied our toplevel callback queue, unschedule
