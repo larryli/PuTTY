@@ -3635,6 +3635,28 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
     return -1;                         /* dialog still in progress */
 }
 
+struct simple_network_prompt_result_ctx {
+    void (*callback)(void *callback_ctx, int result);
+    void *callback_ctx;
+    void *frontend;
+};
+
+static void simple_network_prompt_result_callback(void *vctx, int result)
+{
+    struct simple_network_prompt_result_ctx *ctx =
+        (struct simple_network_prompt_result_ctx *)vctx;
+
+    if (result >= 0)
+        ctx->callback(ctx->callback_ctx, result);
+
+    /*
+     * Clean up this context structure, whether or not a result was
+     * ever actually delivered from the dialog box.
+     */
+    unregister_network_prompt_dialog(ctx->frontend);
+    sfree(ctx);
+}
+
 /*
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
@@ -3646,22 +3668,28 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 	"The first %s supported by the server is "
 	"%s, which is below the configured warning threshold.\n"
 	"Continue with connection?";
+
     char *text;
-    int ret;
+    struct simple_network_prompt_result_ctx *result_ctx;
+    GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algtype, algname);
-    ret = message_box(GTK_WIDGET(get_window(frontend)),
-                      "PuTTY Security Alert", text,
-                      string_width("Reasonably long line of text as a width"
-                                   " template"),
-                      FALSE, &buttons_yn);
+
+    result_ctx = snew(struct simple_network_prompt_result_ctx);
+    result_ctx->callback = callback;
+    result_ctx->callback_ctx = ctx;
+    result_ctx->frontend = frontend;
+
+    mainwin = GTK_WIDGET(get_window(frontend));
+    msgbox = create_message_box(
+        mainwin, "PuTTY Security Alert", text,
+        string_width("Reasonably long line of text as a width template"),
+        FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
+    register_network_prompt_dialog(frontend, msgbox);
+
     sfree(text);
 
-    if (ret) {
-	return 1;
-    } else {
-	return 0;
-    }
+    return -1;                         /* dialog still in progress */
 }
 
 int askhk(void *frontend, const char *algname, const char *betteralgs,
@@ -3674,22 +3702,29 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
         "above the threshold, which we do not have stored:\n"
         "%s\n"
 	"Continue with connection?";
+
     char *text;
-    int ret;
+    struct simple_network_prompt_result_ctx *result_ctx;
+    GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algname, betteralgs);
-    ret = message_box(GTK_WIDGET(get_window(frontend)),
-                      "PuTTY Security Alert", text,
-                      string_width("is ecdsa-nistp521, which is"
-                                   " below the configured warning threshold."),
-                      FALSE, &buttons_yn);
+
+    result_ctx = snew(struct simple_network_prompt_result_ctx);
+    result_ctx->callback = callback;
+    result_ctx->callback_ctx = ctx;
+    result_ctx->frontend = frontend;
+
+    mainwin = GTK_WIDGET(get_window(frontend));
+    msgbox = create_message_box(
+        mainwin, "PuTTY Security Alert", text,
+        string_width("is ecdsa-nistp521, which is below the configured"
+                     " warning threshold."),
+        FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
+    register_network_prompt_dialog(frontend, msgbox);
+
     sfree(text);
 
-    if (ret) {
-	return 1;
-    } else {
-	return 0;
-    }
+    return -1;                         /* dialog still in progress */
 }
 
 void old_keyfile_warning(void)
