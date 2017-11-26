@@ -167,6 +167,38 @@ static int send_raw_mouse;
 
 static void start_backend(struct gui_data *inst);
 static void exit_callback(void *vinst);
+static void destroy_inst_connection(struct gui_data *inst);
+static void delete_inst(struct gui_data *inst);
+
+static void post_fatal_message_box_toplevel(void *vctx)
+{
+    struct gui_data *inst = (struct gui_data *)vctx;
+    gtk_widget_destroy(inst->window);
+}
+
+static void post_fatal_message_box(void *vctx, int result)
+{
+    struct gui_data *inst = (struct gui_data *)vctx;
+    unregister_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL);
+    queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
+}
+
+void fatal_message_box(struct gui_data *inst, const char *msg)
+{
+    char *title = dupcat(appname, " Fatal Error", NULL);
+    GtkWidget *dialog = create_message_box(
+        inst->window, title, msg,
+        string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+        FALSE, &buttons_ok, post_fatal_message_box, inst);
+    register_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL, dialog);
+    sfree(title);
+}
+
+static void connection_fatal_callback(void *vinst)
+{
+    struct gui_data *inst = (struct gui_data *)vinst;
+    destroy_inst_connection(inst);
+}
 
 void connection_fatal(void *frontend, const char *p, ...)
 {
@@ -177,10 +209,11 @@ void connection_fatal(void *frontend, const char *p, ...)
     va_start(ap, p);
     msg = dupvprintf(p, ap);
     va_end(ap);
-    fatal_message_box(inst->window, msg);
+    fatal_message_box(inst, msg);
     sfree(msg);
 
-    queue_toplevel_callback(exit_callback, inst);
+    inst->exited = TRUE;   /* suppress normal exit handling */
+    queue_toplevel_callback(connection_fatal_callback, frontend);
 }
 
 /*
@@ -2062,19 +2095,9 @@ static void exit_callback(void *vinst)
 
     if (!inst->exited &&
         (exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
-	inst->exited = TRUE;
-	close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
-	if (inst->ldisc) {
-	    ldisc_free(inst->ldisc);
-	    inst->ldisc = NULL;
-	}
-        inst->back->free(inst->backhandle);
-        inst->backhandle = NULL;
-        inst->back = NULL;
-        term_provide_resize_fn(inst->term, NULL, NULL);
-        update_specials_menu(inst);
-	gtk_widget_set_sensitive(inst->restartitem, TRUE);
+        destroy_inst_connection(inst);
 
+	close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
 	if (close_on_exit == FORCE_ON ||
 	    (close_on_exit == AUTO && exitcode == 0)) {
             gtk_widget_destroy(inst->window);
@@ -2087,6 +2110,26 @@ void notify_remote_exit(void *frontend)
     struct gui_data *inst = (struct gui_data *)frontend;
 
     queue_toplevel_callback(exit_callback, inst);
+}
+
+static void destroy_inst_connection(struct gui_data *inst)
+{
+    inst->exited = TRUE;
+    if (inst->ldisc) {
+        ldisc_free(inst->ldisc);
+        inst->ldisc = NULL;
+    }
+    if (inst->backhandle) {
+        inst->back->free(inst->backhandle);
+        inst->backhandle = NULL;
+        inst->back = NULL;
+    }
+    if (inst->term)
+        term_provide_resize_fn(inst->term, NULL, NULL);
+    if (inst->menu) {
+        update_specials_menu(inst);
+        gtk_widget_set_sensitive(inst->restartitem, TRUE);
+    }
 }
 
 static void delete_inst(struct gui_data *inst)
@@ -2106,18 +2149,10 @@ static void delete_inst(struct gui_data *inst)
         gtk_widget_destroy(inst->menu);
         inst->menu = NULL;
     }
-    if (inst->backhandle) {
-        inst->back->free(inst->backhandle);
-        inst->backhandle = NULL;
-        inst->back = NULL;
-    }
+    destroy_inst_connection(inst);
     if (inst->term) {
         term_free(inst->term);
         inst->term = NULL;
-    }
-    if (inst->ldisc) {
-        ldisc_free(inst->ldisc);
-        inst->ldisc = NULL;
     }
     if (inst->conf) {
         conf_free(inst->conf);
@@ -4517,7 +4552,7 @@ static void start_backend(struct gui_data *inst)
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
 			      conf_dest(inst->conf), error);
 	inst->exited = TRUE;
-	fatal_message_box(inst->window, msg);
+	fatal_message_box(inst, msg);
 	sfree(msg);
 	exit(0);
     }

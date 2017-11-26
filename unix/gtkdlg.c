@@ -3691,13 +3691,6 @@ void old_keyfile_warning(void)
      */
 }
 
-void fatal_message_box(void *window, const char *msg)
-{
-    message_box(window, "PuTTY Fatal Error", msg,
-                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-                FALSE, &buttons_ok);
-}
-
 void nonfatal_message_box(void *window, const char *msg)
 {
     char *title = dupcat(appname, " Error", NULL);

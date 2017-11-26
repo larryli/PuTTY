@@ -155,6 +155,7 @@ enum DialogSlot {
     DIALOG_SLOT_NETWORK_PROMPT,
     DIALOG_SLOT_LOGFILE_PROMPT,
     DIALOG_SLOT_WARN_ON_CLOSE,
+    DIALOG_SLOT_CONNECTION_FATAL,
     DIALOG_SLOT_LIMIT /* must remain last */
 };
 void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);
@@ -168,7 +169,6 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
                              int midsession, int protcfginfo,
                              post_dialog_fn_t after, void *afterctx);
 #endif
-void fatal_message_box(void *window, const char *msg);
 void nonfatal_message_box(void *window, const char *msg);
 void about_box(void *window);
 void *eventlogstuff_new(void);
