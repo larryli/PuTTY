@@ -3039,11 +3039,16 @@ static void draw_set_colour(struct draw_ctx *dctx, int col, int dim)
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
         if (dim) {
+#if GTK_CHECK_VERSION(2,0,0)
             GdkColor color;
             color.red =   dctx->inst->cols[col].red   * 2 / 3;
             color.green = dctx->inst->cols[col].green * 2 / 3;
             color.blue =  dctx->inst->cols[col].blue  * 2 / 3;
             gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+#else
+            /* Poor GTK1 fallback */
+            gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+#endif
         } else {
             gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
         }
@@ -3064,6 +3069,7 @@ static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb,
 {
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
+#if GTK_CHECK_VERSION(2,0,0)
 	GdkColor color;
 	color.red =   orgb.r * 256;
 	color.green = orgb.g * 256;
@@ -3074,6 +3080,10 @@ static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb,
             color.blue  = color.blue  * 2 / 3;
         }
 	gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+#else
+        /* Poor GTK1 fallback */
+        gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[256]);
+#endif
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
@@ -4374,6 +4384,7 @@ static void start_backend(struct gui_data *inst)
     gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
 
+#if GTK_CHECK_VERSION(2,0,0)
 static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
 {
 #if GTK_CHECK_VERSION(3,4,0)
@@ -4397,6 +4408,7 @@ static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
     geometry->height = gdk_screen_height();
 #endif
 }
+#endif
 
 struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
 {
