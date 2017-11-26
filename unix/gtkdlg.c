@@ -3443,30 +3443,6 @@ GtkWidget *create_message_box(
     return window;
 }
 
-static void modal_message_box_after(void *ctx, int result)
-{
-    *(int *)ctx = result;
-    gtk_main_quit();
-}
-
-int message_box(
-    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
-    int selectable, const struct message_box_buttons *buttons)
-{
-    int retval = INT_MIN;
-    GtkWidget *dialog;
-
-    dialog = create_message_box(parentwin, title, msg, minwid, selectable,
-                                buttons, modal_message_box_after, &retval);
-    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
-
-    gtk_main();
-    post_main();
-
-    assert(retval != INT_MIN);
-    return retval;
-}
-
 struct verify_ssh_host_key_result_ctx {
     char *host;
     int port;
@@ -3791,7 +3767,8 @@ void about_box(void *window)
     our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 0);
 #if GTK_CHECK_VERSION(2,0,0)
     /*
-     * Same precautions against initial select-all as in message_box().
+     * Same precautions against initial select-all as in
+     * create_message_box().
      */
     gtk_widget_grab_focus(w);
     gtk_label_select_region(GTK_LABEL(w), 0, 0);
