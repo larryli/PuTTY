@@ -1431,8 +1431,10 @@ static void net_select_result(int fd, int event)
                     while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
                         err = try_connect(s);
                     }
-                    if (err)
+                    if (err) {
                         plug_closing(s->plug, strerror(err), err, 0);
+                        return;      /* socket is now presumably defunct */
+                    }
                     if (!s->connected)
                         return;      /* another async attempt in progress */
                 }

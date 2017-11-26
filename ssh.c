@@ -7784,6 +7784,8 @@ static int ssh2_try_send(struct ssh_channel *c)
 	ssh2_pkt_addstring_start(pktout);
 	ssh2_pkt_addstring_data(pktout, data, len);
 	ssh2_pkt_send(ssh, pktout);
+        if (!ssh->s)   /* a network error might have closed the socket */
+            break;
 	bufchain_consume(&c->v.v2.outbuffer, len);
 	c->v.v2.remwindow -= len;
     }
