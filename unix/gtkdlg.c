@@ -3513,6 +3513,54 @@ int reallyclose(void *frontend)
     return ret;
 }
 
+struct verify_ssh_host_key_result_ctx {
+    char *host;
+    int port;
+    char *keytype;
+    char *keystr;
+    void (*callback)(void *callback_ctx, int result);
+    void *callback_ctx;
+    void *frontend;
+};
+
+static void verify_ssh_host_key_result_callback(void *vctx, int result)
+{
+    struct verify_ssh_host_key_result_ctx *ctx =
+        (struct verify_ssh_host_key_result_ctx *)vctx;
+
+    if (result >= 0) {
+        int logical_result;
+
+        /*
+         * Convert the dialog-box return value (one of three
+         * possibilities) into the return value we pass back to the SSH
+         * code (one of only two possibilities, because the SSH code
+         * doesn't care whether we saved the host key or not).
+         */
+        if (result == 2) {
+            store_host_key(ctx->host, ctx->port, ctx->keytype, ctx->keystr);
+            logical_result = 1;      /* continue with connection */
+        } else if (result == 1) {
+            logical_result = 1;      /* continue with connection */
+        } else {
+            logical_result = 0;      /* do not continue with connection */
+        }
+
+        ctx->callback(ctx->callback_ctx, logical_result);
+    }
+
+    /*
+     * Clean up this context structure, whether or not a result was
+     * ever actually delivered from the dialog box.
+     */
+    unregister_network_prompt_dialog(ctx->frontend);
+
+    sfree(ctx->host);
+    sfree(ctx->keytype);
+    sfree(ctx->keystr);
+    sfree(ctx);
+}
+
 int verify_ssh_host_key(void *frontend, char *host, int port,
                         const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
@@ -3554,6 +3602,8 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 
     char *text;
     int ret;
+    struct verify_ssh_host_key_result_ctx *result_ctx;
+    GtkWidget *mainwin, *msgbox;
 
     /*
      * Verify the key.
@@ -3565,19 +3615,24 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 
     text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
 
-    ret = message_box(GTK_WIDGET(get_window(frontend)),
-                      "PuTTY Security Alert", text,
-                      string_width(fingerprint),
-                      TRUE, &buttons_hostkey);
+    result_ctx = snew(struct verify_ssh_host_key_result_ctx);
+    result_ctx->callback = callback;
+    result_ctx->callback_ctx = ctx;
+    result_ctx->host = dupstr(host);
+    result_ctx->port = port;
+    result_ctx->keytype = dupstr(keytype);
+    result_ctx->keystr = dupstr(keystr);
+    result_ctx->frontend = frontend;
+
+    mainwin = GTK_WIDGET(get_window(frontend));
+    msgbox = create_message_box(
+        mainwin, "PuTTY Security Alert", text, string_width(fingerprint), TRUE,
+        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
+    register_network_prompt_dialog(frontend, msgbox);
 
     sfree(text);
 
-    if (ret == 2) {
-	store_host_key(host, port, keytype, keystr);
-	return 1;		       /* continue with connection */
-    } else if (ret == 1)
-	return 1;		       /* continue with connection */
-    return 0;			       /* do not continue with connection */
+    return -1;                         /* dialog still in progress */
 }
 
 /*
