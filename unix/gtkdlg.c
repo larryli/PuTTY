@@ -3751,10 +3751,10 @@ static void licence_clicked(GtkButton *button, gpointer data)
 
     title = dupcat(appname, " Licence", NULL);
     assert(aboutbox != NULL);
-    message_box(aboutbox, title, LICENCE_TEXT("\n\n"),
-                string_width("LONGISH LINE OF TEXT SO THE LICENCE"
-                             " BOX ISN'T EXCESSIVELY TALL AND THIN"),
-                TRUE, &buttons_ok);
+    create_message_box(aboutbox, title, LICENCE_TEXT("\n\n"),
+                       string_width("LONGISH LINE OF TEXT SO THE LICENCE"
+                                    " BOX ISN'T EXCESSIVELY TALL AND THIN"),
+                       TRUE, &buttons_ok, trivial_post_dialog_fn, NULL);
     sfree(title);
 }
 
