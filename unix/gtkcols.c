@@ -8,6 +8,11 @@
 
 static void columns_init(Columns *cols);
 static void columns_class_init(ColumnsClass *klass);
+#if !GTK_CHECK_VERSION(2,0,0)
+static void columns_finalize(GtkObject *object);
+#else
+static void columns_finalize(GObject *object);
+#endif
 static void columns_map(GtkWidget *widget);
 static void columns_unmap(GtkWidget *widget);
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -96,11 +101,11 @@ static gint (*columns_inherited_focus)(GtkContainer *container,
 static void columns_class_init(ColumnsClass *klass)
 {
 #if !GTK_CHECK_VERSION(2,0,0)
-    /* GtkObjectClass *object_class = (GtkObjectClass *)klass; */
+    GtkObjectClass *object_class = (GtkObjectClass *)klass;
     GtkWidgetClass *widget_class = (GtkWidgetClass *)klass;
     GtkContainerClass *container_class = (GtkContainerClass *)klass;
 #else
-    /* GObjectClass *object_class = G_OBJECT_CLASS(klass); */
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
     GtkWidgetClass *widget_class = GTK_WIDGET_CLASS(klass);
     GtkContainerClass *container_class = GTK_CONTAINER_CLASS(klass);
 #endif
@@ -111,6 +116,7 @@ static void columns_class_init(ColumnsClass *klass)
     parent_class = g_type_class_peek_parent(klass);
 #endif
 
+    object_class->finalize = columns_finalize;
     widget_class->map = columns_map;
     widget_class->unmap = columns_unmap;
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -147,6 +153,50 @@ static void columns_init(Columns *cols)
 
     cols->children = NULL;
     cols->spacing = 0;
+}
+
+static void columns_child_free(gpointer vchild)
+{
+    ColumnsChild *child = (ColumnsChild *)vchild;
+    if (child->percentages)
+        g_free(child->percentages);
+    g_free(child);
+}
+
+static void columns_finalize(
+#if !GTK_CHECK_VERSION(2,0,0)
+    GtkObject *object
+#else
+    GObject *object
+#endif
+    )
+{
+    Columns *cols;
+
+    g_return_if_fail(object != NULL);
+    g_return_if_fail(IS_COLUMNS(object));
+
+    cols = COLUMNS(object);
+
+#if !GTK_CHECK_VERSION(2,0,0)
+    {
+        GList *node;
+        for (node = cols->children; node; node = node->next)
+            if (node->data)
+                columns_child_free(node->data);
+    }
+    g_list_free(cols->children);
+#else
+    g_list_free_full(cols->children, columns_child_free);
+#endif
+
+    cols->children = NULL;
+
+#if !GTK_CHECK_VERSION(2,0,0)
+    GTK_OBJECT_CLASS(parent_class)->finalize(object);
+#else
+    G_OBJECT_CLASS(parent_class)->finalize(object);
+#endif
 }
 
 /*
@@ -406,6 +456,7 @@ void columns_add(Columns *cols, GtkWidget *child,
     childdata->colspan = colspan;
     childdata->force_left = FALSE;
     childdata->same_height_as = NULL;
+    childdata->percentages = NULL;
 
     cols->children = g_list_append(cols->children, childdata);
     cols->taborder = g_list_append(cols->taborder, child);
