@@ -152,6 +152,7 @@ GtkWidget *get_window(void *frontend);
 enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
     DIALOG_SLOT_NETWORK_PROMPT,
+    DIALOG_SLOT_LOGFILE_PROMPT,
     DIALOG_SLOT_LIMIT /* must remain last */
 };
 void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);

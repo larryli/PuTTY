@@ -3635,16 +3635,17 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
     return -1;                         /* dialog still in progress */
 }
 
-struct simple_network_prompt_result_ctx {
+struct simple_prompt_result_ctx {
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
     void *frontend;
+    enum DialogSlot dialog_slot;
 };
 
-static void simple_network_prompt_result_callback(void *vctx, int result)
+static void simple_prompt_result_callback(void *vctx, int result)
 {
-    struct simple_network_prompt_result_ctx *ctx =
-        (struct simple_network_prompt_result_ctx *)vctx;
+    struct simple_prompt_result_ctx *ctx =
+        (struct simple_prompt_result_ctx *)vctx;
 
     if (result >= 0)
         ctx->callback(ctx->callback_ctx, result);
@@ -3653,7 +3654,7 @@ static void simple_network_prompt_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_dialog(ctx->frontend, DIALOG_SLOT_NETWORK_PROMPT);
+    unregister_dialog(ctx->frontend, ctx->dialog_slot);
     sfree(ctx);
 }
 
@@ -3670,22 +3671,23 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 	"Continue with connection?";
 
     char *text;
-    struct simple_network_prompt_result_ctx *result_ctx;
+    struct simple_prompt_result_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algtype, algname);
 
-    result_ctx = snew(struct simple_network_prompt_result_ctx);
+    result_ctx = snew(struct simple_prompt_result_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->frontend = frontend;
+    result_ctx->dialog_slot = DIALOG_SLOT_NETWORK_PROMPT;
 
     mainwin = GTK_WIDGET(get_window(frontend));
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text,
         string_width("Reasonably long line of text as a width template"),
-        FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
-    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
+        FALSE, &buttons_yn, simple_prompt_result_callback, result_ctx);
+    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
@@ -3704,23 +3706,24 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
 	"Continue with connection?";
 
     char *text;
-    struct simple_network_prompt_result_ctx *result_ctx;
+    struct simple_prompt_result_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     text = dupprintf(msg, algname, betteralgs);
 
-    result_ctx = snew(struct simple_network_prompt_result_ctx);
+    result_ctx = snew(struct simple_prompt_result_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->frontend = frontend;
+    result_ctx->dialog_slot = DIALOG_SLOT_NETWORK_PROMPT;
 
     mainwin = GTK_WIDGET(get_window(frontend));
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text,
         string_width("is ecdsa-nistp521, which is below the configured"
                      " warning threshold."),
-        FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
-    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
+        FALSE, &buttons_yn, simple_prompt_result_callback, result_ctx);
+    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
@@ -4128,18 +4131,27 @@ int askappend(void *frontend, Filename *filename,
 
     char *message;
     char *mbtitle;
-    int mbret;
+    struct simple_prompt_result_ctx *result_ctx;
+    GtkWidget *mainwin, *msgbox;
 
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
     mbtitle = dupprintf("%s Log to File", appname);
 
-    mbret = message_box(get_window(frontend), mbtitle, message,
-                        string_width("LINE OF TEXT SUITABLE FOR THE"
-                                     " ASKAPPEND WIDTH"),
-                        FALSE, &buttons_append);
+    result_ctx = snew(struct simple_prompt_result_ctx);
+    result_ctx->callback = callback;
+    result_ctx->callback_ctx = ctx;
+    result_ctx->frontend = frontend;
+    result_ctx->dialog_slot = DIALOG_SLOT_LOGFILE_PROMPT;
+
+    mainwin = GTK_WIDGET(get_window(frontend));
+    msgbox = create_message_box(
+        mainwin, mbtitle, message,
+        string_width("LINE OF TEXT SUITABLE FOR THE ASKAPPEND WIDTH"),
+        FALSE, &buttons_append, simple_prompt_result_callback, result_ctx);
+    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
 
     sfree(message);
     sfree(mbtitle);
 
-    return mbret;
+    return -1;                         /* dialog still in progress */
 }
