@@ -2884,13 +2884,13 @@ void set_sbar(void *frontend, int total, int start, int page)
     struct gui_data *inst = (struct gui_data *)frontend;
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
+    inst->ignore_sbar = TRUE;
     gtk_adjustment_set_lower(inst->sbar_adjust, 0);
     gtk_adjustment_set_upper(inst->sbar_adjust, total);
     gtk_adjustment_set_value(inst->sbar_adjust, start);
     gtk_adjustment_set_page_size(inst->sbar_adjust, page);
     gtk_adjustment_set_step_increment(inst->sbar_adjust, 1);
     gtk_adjustment_set_page_increment(inst->sbar_adjust, page/2);
-    inst->ignore_sbar = TRUE;
 #if !GTK_CHECK_VERSION(3,18,0)
     gtk_adjustment_changed(inst->sbar_adjust);
 #endif
