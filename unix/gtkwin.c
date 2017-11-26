@@ -131,6 +131,7 @@ struct gui_data {
     void *eventlogstuff;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
     GtkWidget *reconfigure_dialog;
+    GtkWidget *network_prompt_dialog;
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble cumulative_scroll;
 #endif
@@ -301,10 +302,28 @@ static Mouse_Button translate_button(Mouse_Button button)
  * Return the top-level GtkWindow associated with a particular
  * front end instance.
  */
-void *get_window(void *frontend)
+GtkWidget *get_window(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     return inst->window;
+}
+
+/*
+ * Set and clear a pointer to a dialog box created as a result of the
+ * network code wanting to ask an asynchronous user question (e.g.
+ * 'what about this dodgy host key, then?').
+ */
+void register_network_prompt_dialog(void *frontend, GtkWidget *dialog)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    assert(!inst->network_prompt_dialog);
+    inst->network_prompt_dialog = dialog;
+}
+void unregister_network_prompt_dialog(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    assert(inst->network_prompt_dialog);
+    inst->network_prompt_dialog = NULL;
 }
 
 /*
@@ -2024,6 +2043,10 @@ static void delete_inst(struct gui_data *inst)
     if (inst->reconfigure_dialog) {
         gtk_widget_destroy(inst->reconfigure_dialog);
         inst->reconfigure_dialog = NULL;
+    }
+    if (inst->network_prompt_dialog) {
+        gtk_widget_destroy(inst->network_prompt_dialog);
+        inst->network_prompt_dialog = NULL;
     }
     if (inst->window) {
         gtk_widget_destroy(inst->window);

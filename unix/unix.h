@@ -147,7 +147,11 @@ int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
 long get_windowid(void *frontend);
 
 /* Things gtkdlg.c needs from pterm.c */
-void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+GtkWidget *get_window(void *frontend);
+void register_network_prompt_dialog(void *frontend, GtkWidget *dialog);
+void unregister_network_prompt_dialog(void *frontend);
+#endif
 void post_main(void);     /* called after any subsidiary gtk_main() */
 
 /* Things pterm.c needs from gtkdlg.c */
