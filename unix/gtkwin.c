@@ -2039,7 +2039,6 @@ void notify_remote_exit(void *frontend)
 
 static void delete_inst(struct gui_data *inst)
 {
-    delete_callbacks_for_context(inst);
     if (inst->reconfigure_dialog) {
         gtk_widget_destroy(inst->reconfigure_dialog);
         inst->reconfigure_dialog = NULL;
@@ -2077,6 +2076,17 @@ static void delete_inst(struct gui_data *inst)
         log_free(inst->logctx);
         inst->logctx = NULL;
     }
+
+    /*
+     * Delete any top-level callbacks associated with inst, which
+     * would otherwise become stale-pointer dereferences waiting to
+     * happen. We do this last, because some of the above cleanups
+     * (notably shutting down the backend) might themelves queue such
+     * callbacks, so we need to make sure they don't do that _after_
+     * we're supposed to have cleaned everything up.
+     */
+    delete_callbacks_for_context(inst);
+
     sfree(inst);
 }
 
