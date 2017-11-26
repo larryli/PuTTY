@@ -208,9 +208,9 @@ endif
 if HAVE_QUARTZ
 noinst_SCRIPTS = unix/PuTTY.app unix/Pterm.app
 unix/PuTTY.app: unix/putty.bundle puttyapp osxlaunch
-	rm -rf $@ && gtk-mac-bundler $<
+	rm -rf $@ && PUTTY_GTK_PREFIX_FROM_MAKEFILE=$$(pkg-config --variable=prefix gtk+-3.0) gtk-mac-bundler $<
 unix/Pterm.app: unix/pterm.bundle ptermapp osxlaunch
-	rm -rf $@ && gtk-mac-bundler $<
+	rm -rf $@ && PUTTY_GTK_PREFIX_FROM_MAKEFILE=$$(pkg-config --variable=prefix gtk+-3.0) gtk-mac-bundler $<
 endif
 !end
 

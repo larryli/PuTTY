@@ -2,7 +2,41 @@
 <app-bundle>
 
   <meta>
-    <prefix name="default">${env:JHBUILD_PREFIX}</prefix>
+    <!--
+        Set up the pathname prefix where the bundler will look for GTK
+        components such as themes and input method modules.
+
+        This is more of a pain than it ought to be. The example bundle
+        files that come with gtk-mac-bundler set this up by writing
+
+            <prefix name="default">${env:JHBUILD_PREFIX}</prefix>
+
+        which works provided your OS X GTK dev environment was set up
+        by jhbuild. But not everybody's is: some people prefer
+        alternative packaging systems. So that environment variable
+        won't be reliably set in everyone's world.
+
+        The gtk-mac-bundler README suggests that you _ought_ to be
+        able to write this instead:
+
+            <prefix name="default">${pkg:gtk+-3.0:prefix}</prefix>
+
+        which uses pkg-config from $PATH to get the 'prefix' variable.
+        That's surely exactly what you want - except that it doesn't
+        work, because ${pkg:...} is not expanded when processing
+        <prefix> directives in particular!
+
+        So instead, to make this work sensibly whether or not
+        someone's using jhbuild, I work around it by inventing an
+        environment variable of my own and setting that in the
+        Makefile to the value given by the above pkg-config command.
+        It's absurd that I have to, but there we go. As a result, if
+        you try to run the bundler command standalone, you'll find you
+        have to set that variable up manually before you run it.
+
+    -->
+    <prefix name="default">${env:PUTTY_GTK_PREFIX_FROM_MAKEFILE}</prefix>
+
     <run-install-name-tool/>
     <gtk>gtk+-3.0</gtk>
     <!-- Optionally specify a launcher script to use. If the
