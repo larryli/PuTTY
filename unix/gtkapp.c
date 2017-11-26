@@ -192,9 +192,9 @@ static void post_initial_config_box(void *vctx, int result)
 {
     Conf *conf = (Conf *)vctx;
 
-    if (result) {
+    if (result > 0) {
         new_session_window(conf, NULL);
-    } else {
+    } else if (result == 0) {
         conf_free(conf);
         g_application_release(G_APPLICATION(app));
     }

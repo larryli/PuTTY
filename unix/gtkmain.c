@@ -551,9 +551,9 @@ static void post_initial_config_box(void *vctx, int result)
         *(struct post_initial_config_box_ctx *)vctx;
     sfree(vctx);
 
-    if (result) {
+    if (result > 0) {
         new_session_window(ctx.conf, ctx.geometry_string);
-    } else {
+    } else if (result == 0) {
         /* In this main(), which only runs one session in total, a
          * negative result from the initial config box means we simply
          * terminate. */

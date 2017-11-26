@@ -3316,8 +3316,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 static void dlgparam_destroy(GtkWidget *widget, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
-    if (dp->retval >= 0)
-        dp->after(dp->afterctx, dp->retval);
+    dp->after(dp->afterctx, dp->retval);
     dlg_cleanup(dp);
     ctrl_free_box(dp->ctrlbox);
 #if GTK_CHECK_VERSION(2,0,0)

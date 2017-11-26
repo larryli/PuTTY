@@ -4016,6 +4016,13 @@ static void after_change_settings_dialog(void *vctx, int retval)
 
     sfree(vctx); /* we've copied this already */
 
+    if (retval < 0) {
+        /* If the dialog box was aborted without giving a result
+         * (probably because the whole session window closed), we have
+         * nothing further to do. */
+        return;
+    }
+
     assert(lenof(ww) == NCFGCOLOURS);
 
     inst->reconfigure_dialog = NULL;
