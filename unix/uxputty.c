@@ -10,6 +10,8 @@
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 
+#define MAY_REFER_TO_GTK_IN_HEADERS
+
 #include "putty.h"
 #include "storage.h"
 
@@ -42,12 +44,11 @@ Backend *select_backend(Conf *conf)
     return back;
 }
 
-int cfgbox(Conf *conf)
+void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 {
     char *title = dupcat(appname, " Configuration", NULL);
-    int ret = do_config_box(title, conf, 0, 0);
+    create_config_box(title, conf, FALSE, 0, after, afterctx);
     sfree(title);
-    return ret;
 }
 
 static int got_host = 0;

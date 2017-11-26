@@ -130,7 +130,7 @@ struct gui_data {
     Conf *conf;
     void *eventlogstuff;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
-    int reconfiguring;
+    GtkWidget *reconfigure_dialog;
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble cumulative_scroll;
 #endif
@@ -2007,7 +2007,6 @@ static void exit_callback(void *vinst)
 	if (close_on_exit == FORCE_ON ||
 	    (close_on_exit == AUTO && exitcode == 0)) {
             gtk_widget_destroy(inst->window);
-            gtk_main_quit();
         }
     }
 }
@@ -2022,6 +2021,10 @@ void notify_remote_exit(void *frontend)
 static void delete_inst(struct gui_data *inst)
 {
     delete_callbacks_for_context(inst);
+    if (inst->reconfigure_dialog) {
+        gtk_widget_destroy(inst->reconfigure_dialog);
+        inst->reconfigure_dialog = NULL;
+    }
     if (inst->window) {
         gtk_widget_destroy(inst->window);
         inst->window = NULL;
@@ -2059,7 +2062,7 @@ void destroy(GtkWidget *widget, gpointer data)
     struct gui_data *inst = (struct gui_data *)data;
     inst->window = NULL;
     delete_inst(inst);
-    gtk_main_quit();
+    session_window_closed();
 }
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
@@ -3958,7 +3961,46 @@ void event_log_menuitem(GtkMenuItem *item, gpointer data)
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
+struct after_change_settings_dialog_ctx {
+    struct gui_data *inst;
+    Conf *newconf;
+};
+
+static void after_change_settings_dialog(void *vctx, int retval);
+
 void change_settings_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    struct after_change_settings_dialog_ctx *ctx;
+    char *title;
+
+    if (inst->reconfigure_dialog) {
+        /*
+         * If this window already had a Change Settings box open, just
+         * find it and try to make it more prominent.
+         */
+#if GTK_CHECK_VERSION(2,0,0)
+        gtk_window_deiconify(GTK_WINDOW(inst->reconfigure_dialog));
+#endif
+	gdk_window_raise(gtk_widget_get_window(inst->reconfigure_dialog));
+        return;
+    }
+
+    title = dupcat(appname, " Reconfiguration", NULL);
+
+    ctx = snew(struct after_change_settings_dialog_ctx);
+    ctx->inst = inst;
+    ctx->newconf = conf_copy(inst->conf);
+
+    inst->reconfigure_dialog = create_config_box(
+        title, ctx->newconf, 1,
+        inst->back ? inst->back->cfg_info(inst->backhandle) : 0,
+        after_change_settings_dialog, ctx);
+
+    sfree(title);
+}
+
+static void after_change_settings_dialog(void *vctx, int retval)
 {
     /* This maps colour indices in inst->conf to those used in inst->cols. */
     static const int ww[] = {
@@ -3966,25 +4008,19 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 	0, 8, 1, 9, 2, 10, 3, 11,
 	4, 12, 5, 13, 6, 14, 7, 15
     };
-    struct gui_data *inst = (struct gui_data *)data;
-    char *title;
-    Conf *oldconf, *newconf;
+    struct after_change_settings_dialog_ctx ctx =
+        *(struct after_change_settings_dialog_ctx *)vctx;
+    struct gui_data *inst = ctx.inst;
+    Conf *oldconf = inst->conf, *newconf = ctx.newconf;
     int i, j, need_size;
+
+    sfree(vctx); /* we've copied this already */
 
     assert(lenof(ww) == NCFGCOLOURS);
 
-    if (inst->reconfiguring)
-      return;
-    else
-      inst->reconfiguring = TRUE;
+    inst->reconfigure_dialog = NULL;
 
-    title = dupcat(appname, " Reconfiguration", NULL);
-
-    oldconf = inst->conf;
-    newconf = conf_copy(inst->conf);
-
-    if (do_config_box(title, newconf, 1,
-		      inst->back?inst->back->cfg_info(inst->backhandle):0)) {
+    if (retval) {
         inst->conf = newconf;
 
         /* Pass new config data to the logging module */
@@ -4139,8 +4175,6 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     } else {
 	conf_free(newconf);
     }
-    sfree(title);
-    inst->reconfiguring = FALSE;
 }
 
 static void change_font_size(struct gui_data *inst, int increment)
@@ -4451,7 +4485,7 @@ static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
 }
 #endif
 
-struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
+void new_session_window(Conf *conf, const char *geometry_string)
 {
     struct gui_data *inst;
 
@@ -4781,6 +4815,4 @@ struct gui_data *new_session_window(Conf *conf, const char *geometry_string)
     ldisc_echoedit_update(inst->ldisc);     /* cause ldisc to notice changes */
 
     inst->exited = FALSE;
-
-    return inst;
 }

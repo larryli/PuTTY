@@ -121,12 +121,19 @@ unsigned long getticks(void);
 
 /* The per-session frontend structure managed by gtkwin.c */
 struct gui_data;
-struct gui_data *new_session_window(Conf *conf, const char *geometry_string);
+
+/* Callback when a dialog box finishes */
+typedef void (*post_dialog_fn_t)(void *ctx, int result);
+
+/* Start up a session window, with or without a preliminary config box */
+void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx);
+void new_session_window(Conf *conf, const char *geometry_string);
 
 /* Defined in gtkmain.c */
 void launch_duplicate_session(Conf *conf);
 void launch_new_session(void);
 void launch_saved_session(const char *str);
+void session_window_closed(void);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *make_gtk_toplevel_window(void *frontend);
 #endif
@@ -144,8 +151,11 @@ void *get_window(void *frontend);      /* void * to avoid depending on gtk.h */
 void post_main(void);     /* called after any subsidiary gtk_main() */
 
 /* Things pterm.c needs from gtkdlg.c */
-int do_config_box(const char *title, Conf *conf,
-		  int midsession, int protcfginfo);
+#ifdef MAY_REFER_TO_GTK_IN_HEADERS
+GtkWidget *create_config_box(const char *title, Conf *conf,
+                             int midsession, int protcfginfo,
+                             post_dialog_fn_t after, void *afterctx);
+#endif
 void fatal_message_box(void *window, const char *msg);
 void nonfatal_message_box(void *window, const char *msg);
 void about_box(void *window);

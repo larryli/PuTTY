@@ -296,8 +296,6 @@ static void version(FILE *fp) {
     sfree(buildinfo_text);
 }
 
-static struct gui_data *the_inst;
-
 static const char *geometry_string;
 
 int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
@@ -540,9 +538,34 @@ GtkWidget *make_gtk_toplevel_window(void *frontend)
     return gtk_window_new(GTK_WINDOW_TOPLEVEL);
 }
 
-extern int cfgbox(Conf *conf);
-
 const int buildinfo_gtk_relevant = TRUE;
+
+struct post_initial_config_box_ctx {
+    Conf *conf;
+    const char *geometry_string;
+};
+
+static void post_initial_config_box(void *vctx, int result)
+{
+    struct post_initial_config_box_ctx ctx =
+        *(struct post_initial_config_box_ctx *)vctx;
+    sfree(vctx);
+
+    if (result) {
+        new_session_window(ctx.conf, ctx.geometry_string);
+    } else {
+        /* In this main(), which only runs one session in total, a
+         * negative result from the initial config box means we simply
+         * terminate. */
+        conf_free(ctx.conf);
+        gtk_main_quit();
+    }
+}
+
+void session_window_closed(void)
+{
+    gtk_main_quit();
+}
 
 int main(int argc, char **argv)
 {
@@ -614,21 +637,28 @@ int main(int argc, char **argv)
         need_config_box = (!allow_launch || !conf_launchable(conf));
     }
 
-    /*
-     * Put up the config box.
-     */
-    if (need_config_box && !cfgbox(conf))
-        exit(0);		       /* config box hit Cancel */
-
-    /*
-     * Create the main session window. We don't really need to keep
-     * the return value - the fact that it'll be linked from a zillion
-     * GTK and glib bits and bobs known to the main loop will be
-     * sufficient to make everything actually happen - but we stash it
-     * in a global variable anyway, so that it'll be easy to find in a
-     * debugger.
-     */
-    the_inst = new_session_window(conf, geometry_string);
+    if (need_config_box) {
+        /*
+         * Put up the initial config box, which will pass the provided
+         * parameters (with conf updated) to new_session_window() when
+         * (if) the user selects Open. Or it might close without
+         * creating a session window, if the user selects Cancel. Or
+         * it might just create the session window immediately if this
+         * is a pterm-style app which doesn't have an initial config
+         * box at all.
+         */
+        struct post_initial_config_box_ctx *ctx =
+            snew(struct post_initial_config_box_ctx);
+        ctx->conf = conf;
+        ctx->geometry_string = geometry_string;
+        initial_config_box(conf, post_initial_config_box, ctx);
+    } else {
+        /*
+         * No initial config needed; just create the session window
+         * now.
+         */
+        new_session_window(conf, geometry_string);
+    }
 
     gtk_main();
 

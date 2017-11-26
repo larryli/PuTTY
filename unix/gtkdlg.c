@@ -92,7 +92,10 @@ struct dlgparam {
     int nselparams;
     struct selparam *selparams;
 #endif
+    struct controlbox *ctrlbox;
     int retval;
+    post_dialog_fn_t after;
+    void *afterctx;
 };
 #define FLAG_UPDATING_COMBO_LIST 1
 #define FLAG_UPDATING_LISTBOX    2
@@ -143,6 +146,7 @@ static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
 #endif
 static void window_destroy(GtkWidget *widget, gpointer data);
+static void dlgparam_destroy(GtkWidget *widget, gpointer data);
 int get_listitemheight(GtkWidget *widget);
 
 static int uctrl_cmp_byctrl(void *av, void *bv)
@@ -2958,13 +2962,13 @@ void treeview_map_event(GtkWidget *tree, gpointer data)
 }
 #endif
 
-int do_config_box(const char *title, Conf *conf, int midsession,
-		  int protcfginfo)
+GtkWidget *create_config_box(const char *title, Conf *conf,
+                             int midsession, int protcfginfo,
+                             post_dialog_fn_t after, void *afterctx)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
 	*tree, *treescroll, *panels, *panelvbox;
     int index, level, protocol;
-    struct controlbox *ctrlbox;
     char *path;
 #if GTK_CHECK_VERSION(2,0,0)
     GtkTreeStore *treestore;
@@ -2976,13 +2980,17 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     GtkTreeItem *treeitemlevels[8];
     GtkTree *treelevels[8];
 #endif
-    struct dlgparam dp;
+    struct dlgparam *dp;
     struct Shortcuts scs;
 
     struct selparam *selparams = NULL;
     int nselparams = 0, selparamsize = 0;
 
-    dlg_init(&dp);
+    dp = snew(struct dlgparam);
+    dp->after = after;
+    dp->afterctx = afterctx;
+
+    dlg_init(dp);
 
     for (index = 0; index < lenof(scs.sc); index++) {
 	scs.sc[index].action = SHORTCUT_EMPTY;
@@ -2990,11 +2998,11 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 
     window = our_dialog_new();
 
-    ctrlbox = ctrl_new_box();
+    dp->ctrlbox = ctrl_new_box();
     protocol = conf_get_int(conf, CONF_protocol);
-    setup_config_box(ctrlbox, midsession, protocol, protcfginfo);
-    unix_setup_config_box(ctrlbox, midsession, protocol);
-    gtk_setup_config_box(ctrlbox, midsession, window);
+    setup_config_box(dp->ctrlbox, midsession, protocol, protcfginfo);
+    unix_setup_config_box(dp->ctrlbox, midsession, protocol);
+    gtk_setup_config_box(dp->ctrlbox, midsession, window);
 
     gtk_window_set_title(GTK_WINDOW(window), title);
     hbox = gtk_hbox_new(FALSE, 4);
@@ -3028,11 +3036,10 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     tree = gtk_tree_new();
     gtk_tree_set_view_mode(GTK_TREE(tree), GTK_TREE_VIEW_ITEM);
     gtk_tree_set_selection_mode(GTK_TREE(tree), GTK_SELECTION_BROWSE);
-    g_signal_connect(G_OBJECT(tree), "focus",
-                     G_CALLBACK(tree_focus), &dp);
+    g_signal_connect(G_OBJECT(tree), "focus", G_CALLBACK(tree_focus), dp);
 #endif
     g_signal_connect(G_OBJECT(tree), "focus_in_event",
-                     G_CALLBACK(widget_focus), &dp);
+                     G_CALLBACK(widget_focus), dp);
     shortcut_add(&scs, label, 'g', SHORTCUT_TREE, tree);
     gtk_widget_show(treescroll);
     gtk_box_pack_start(GTK_BOX(vbox), treescroll, TRUE, TRUE, 0);
@@ -3045,12 +3052,12 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     panelvbox = NULL;
     path = NULL;
     level = 0;
-    for (index = 0; index < ctrlbox->nctrlsets; index++) {
-	struct controlset *s = ctrlbox->ctrlsets[index];
+    for (index = 0; index < dp->ctrlbox->nctrlsets; index++) {
+	struct controlset *s = dp->ctrlbox->ctrlsets[index];
 	GtkWidget *w;
 
 	if (!*s->pathname) {
-	    w = layout_ctrls(&dp, &scs, s, GTK_WINDOW(window));
+	    w = layout_ctrls(dp, &scs, s, GTK_WINDOW(window));
 
 	    our_dialog_set_action_area(GTK_WINDOW(window), w);
 	} else {
@@ -3104,7 +3111,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 		    selparams = sresize(selparams, selparamsize,
 					struct selparam);
 		}
-		selparams[nselparams].dp = &dp;
+		selparams[nselparams].dp = dp;
 		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
 		selparams[nselparams].panel = panelvbox;
 		selparams[nselparams].shortcuts = scs;   /* structure copy */
@@ -3164,9 +3171,9 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 		treelevels[j] = NULL;
 
                 g_signal_connect(G_OBJECT(treeitem), "key_press_event",
-                                 G_CALLBACK(tree_key_press), &dp);
+                                 G_CALLBACK(tree_key_press), dp);
                 g_signal_connect(G_OBJECT(treeitem), "focus_in_event",
-                                 G_CALLBACK(widget_focus), &dp);
+                                 G_CALLBACK(widget_focus), dp);
 
 		gtk_widget_show(treeitem);
 
@@ -3179,7 +3186,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
 		nselparams++;
 	    }
 
-	    w = layout_ctrls(&dp, &selparams[nselparams-1].shortcuts, s, NULL);
+	    w = layout_ctrls(dp, &selparams[nselparams-1].shortcuts, s, NULL);
 	    gtk_box_pack_start(GTK_BOX(panelvbox), w, FALSE, FALSE, 0);
             gtk_widget_show(w);
 	}
@@ -3201,8 +3208,8 @@ int do_config_box(const char *title, Conf *conf, int midsession,
      * enough to have all branches expanded without further resizing.
      */
 
-    dp.nselparams = nselparams;
-    dp.selparams = selparams;
+    dp->nselparams = nselparams;
+    dp->selparams = selparams;
 
 #if !GTK_CHECK_VERSION(3,0,0)
     {
@@ -3211,7 +3218,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
          */
 	GtkRequisition req;
 	gtk_widget_size_request(tree, &req);
-        initial_treeview_collapse(&dp, tree);
+        initial_treeview_collapse(dp, tree);
 	gtk_widget_set_size_request(tree, req.width, -1);
     }
 #else
@@ -3220,7 +3227,7 @@ int do_config_box(const char *title, Conf *conf, int midsession,
      * mapped, because the size computation won't have been done yet.
      */
     g_signal_connect(G_OBJECT(tree), "map",
-                     G_CALLBACK(treeview_map_event), &dp);
+                     G_CALLBACK(treeview_map_event), dp);
 #endif /* GTK 2 vs 3 */
 #endif /* GTK 2+ vs 1 */
 
@@ -3228,26 +3235,26 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     g_signal_connect(G_OBJECT(treeselection), "changed",
 		     G_CALLBACK(treeselection_changed), selparams);
 #else
-    dp.ntreeitems = nselparams;
-    dp.treeitems = snewn(dp.ntreeitems, GtkWidget *);
+    dp->ntreeitems = nselparams;
+    dp->treeitems = snewn(dp->ntreeitems, GtkWidget *);
     for (index = 0; index < nselparams; index++) {
         g_signal_connect(G_OBJECT(selparams[index].treeitem), "select",
                          G_CALLBACK(treeitem_sel),
                          &selparams[index]);
-        dp.treeitems[index] = selparams[index].treeitem;
+        dp->treeitems[index] = selparams[index].treeitem;
     }
 #endif
 
-    dp.data = conf;
-    dlg_refresh(NULL, &dp);
+    dp->data = conf;
+    dlg_refresh(NULL, dp);
 
-    dp.shortcuts = &selparams[0].shortcuts;
+    dp->shortcuts = &selparams[0].shortcuts;
 #if !GTK_CHECK_VERSION(2,0,0)
-    dp.currtreeitem = dp.treeitems[0];
+    dp->currtreeitem = dp->treeitems[0];
 #endif
-    dp.lastfocus = NULL;
-    dp.retval = 0;
-    dp.window = window;
+    dp->lastfocus = NULL;
+    dp->retval = -1;
+    dp->window = window;
 
     {
 	/* in gtkwin.c */
@@ -3274,8 +3281,8 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     /*
      * Set focus into the first available control.
      */
-    for (index = 0; index < ctrlbox->nctrlsets; index++) {
-	struct controlset *s = ctrlbox->ctrlsets[index];
+    for (index = 0; index < dp->ctrlbox->nctrlsets; index++) {
+	struct controlset *s = dp->ctrlbox->ctrlsets[index];
         int done = 0;
         int j;
 
@@ -3284,8 +3291,8 @@ int do_config_box(const char *title, Conf *conf, int midsession,
                 if (s->ctrls[j]->generic.type != CTRL_TABDELAY &&
                     s->ctrls[j]->generic.type != CTRL_COLUMNS &&
                     s->ctrls[j]->generic.type != CTRL_TEXT) {
-                    dlg_set_focus(s->ctrls[j], &dp);
-                    dp.lastfocus = s->ctrls[j];
+                    dlg_set_focus(s->ctrls[j], dp);
+                    dp->lastfocus = s->ctrls[j];
                     done = 1;
                     break;
                 }
@@ -3295,18 +3302,30 @@ int do_config_box(const char *title, Conf *conf, int midsession,
     }
 
     g_signal_connect(G_OBJECT(window), "destroy",
-                     G_CALLBACK(window_destroy), NULL);
+                     G_CALLBACK(dlgparam_destroy), dp);
     g_signal_connect(G_OBJECT(window), "key_press_event",
-                     G_CALLBACK(win_key_press), &dp);
+                     G_CALLBACK(win_key_press), dp);
 
-    gtk_main();
-    post_main();
+    return window;
+}
 
-    dlg_cleanup(&dp);
-    sfree(selparams);
-    ctrl_free_box(ctrlbox);
-
-    return dp.retval;
+static void dlgparam_destroy(GtkWidget *widget, gpointer data)
+{
+    struct dlgparam *dp = (struct dlgparam *)data;
+    if (dp->retval >= 0)
+        dp->after(dp->afterctx, dp->retval);
+    dlg_cleanup(dp);
+    ctrl_free_box(dp->ctrlbox);
+#if GTK_CHECK_VERSION(2,0,0)
+    {
+        int i;
+        for (i = 0; i < dp->nselparams; i++)
+            if (dp->selparams[i].treepath)
+                gtk_tree_path_free(dp->selparams[i].treepath);
+    }
+    sfree(dp->selparams);
+#endif
+    sfree(dp);
 }
 
 static void messagebox_handler(union control *ctrl, void *dlg,

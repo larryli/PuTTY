@@ -142,6 +142,7 @@ GtkWidget *make_gtk_toplevel_window(void *frontend) { return NULL; }
 void launch_duplicate_session(Conf *conf) {}
 void launch_new_session(void) {}
 void launch_saved_session(const char *str) {}
+void session_window_closed(void) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
 static void startup(GApplication *app, gpointer user_data)
@@ -190,8 +191,6 @@ GtkWidget *make_gtk_toplevel_window(void *frontend)
     return win;
 }
 
-extern int cfgbox(Conf *conf);
-
 void launch_duplicate_session(Conf *conf)
 {
     extern const int dup_check_launchable;
@@ -199,12 +198,20 @@ void launch_duplicate_session(Conf *conf)
     new_session_window(conf_copy(conf), NULL);
 }
 
-void launch_new_session(void)
+void session_window_closed(void)
 {
-    Conf *conf = conf_new();
-    do_defaults(NULL, conf);
-    if (conf_launchable(conf) || cfgbox(conf)) {
+    g_application_release(G_APPLICATION(app));
+}
+
+static void post_initial_config_box(void *vctx, int result)
+{
+    Conf *conf = (Conf *)vctx;
+
+    if (result) {
         new_session_window(conf, NULL);
+    } else {
+        conf_free(conf);
+        g_application_release(G_APPLICATION(app));
     }
 }
 
@@ -212,9 +219,21 @@ void launch_saved_session(const char *str)
 {
     Conf *conf = conf_new();
     do_defaults(str, conf);
-    if (conf_launchable(conf) || cfgbox(conf)) {
+
+    g_application_hold(G_APPLICATION(app));
+
+    if (!conf_launchable(conf)) {
+        initial_config_box(conf, post_initial_config_box, conf);
+    } else {
         new_session_window(conf, NULL);
     }
+}
+
+void launch_new_session(void)
+{
+    /* Same as launch_saved_session except that we pass NULL to
+     * do_defaults. */
+    launch_saved_session(NULL);
 }
 
 void new_app_win(GtkApplication *app)
