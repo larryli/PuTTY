@@ -145,7 +145,9 @@ static void colourchoose_response(GtkDialog *dialog,
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
 #endif
+#if !GTK_CHECK_VERSION(3,0,0)
 static void window_destroy(GtkWidget *widget, gpointer data);
+#endif
 static void dlgparam_destroy(GtkWidget *widget, gpointer data);
 int get_listitemheight(GtkWidget *widget);
 
@@ -2619,10 +2621,12 @@ static void treeitem_sel(GtkItem *item, gpointer data)
 }
 #endif
 
+#if !GTK_CHECK_VERSION(3,0,0)
 static void window_destroy(GtkWidget *widget, gpointer data)
 {
     gtk_main_quit();
 }
+#endif
 
 #if !GTK_CHECK_VERSION(2,0,0)
 static int tree_grab_focus(struct dlgparam *dp)
@@ -3317,13 +3321,13 @@ static void dlgparam_destroy(GtkWidget *widget, gpointer data)
     dlg_cleanup(dp);
     ctrl_free_box(dp->ctrlbox);
 #if GTK_CHECK_VERSION(2,0,0)
-    {
+    if (dp->selparams) {
         int i;
         for (i = 0; i < dp->nselparams; i++)
             if (dp->selparams[i].treepath)
                 gtk_tree_path_free(dp->selparams[i].treepath);
+        sfree(dp->selparams);
     }
-    sfree(dp->selparams);
 #endif
     sfree(dp);
 }
@@ -3349,25 +3353,29 @@ const struct message_box_buttons buttons_ok = {
     button_array_ok, lenof(button_array_ok),
 };
 
-int message_box(
+GtkWidget *create_message_box(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
-    int selectable, const struct message_box_buttons *buttons)
+    int selectable, const struct message_box_buttons *buttons,
+    post_dialog_fn_t after, void *afterctx)
 {
     GtkWidget *window, *w0, *w1;
-    struct controlbox *ctrlbox;
     struct controlset *s0, *s1;
     union control *c, *textctrl;
-    struct dlgparam dp;
+    struct dlgparam *dp;
     struct Shortcuts scs;
     int i, index, ncols, min_type;
 
-    dlg_init(&dp);
+    dp = snew(struct dlgparam);
+    dp->after = after;
+    dp->afterctx = afterctx;
+
+    dlg_init(dp);
 
     for (index = 0; index < lenof(scs.sc); index++) {
 	scs.sc[index].action = SHORTCUT_EMPTY;
     }
 
-    ctrlbox = ctrl_new_box();
+    dp->ctrlbox = ctrl_new_box();
 
     /*
      * Count up the number of buttons and find out what kinds there
@@ -3380,9 +3388,10 @@ int message_box(
 	ncols++;
         if (min_type > button->type)
             min_type = button->type;
+        assert(button->value >= 0);    /* <0 means no return value available */
     }
 
-    s0 = ctrl_getset(ctrlbox, "", "", "");
+    s0 = ctrl_getset(dp->ctrlbox, "", "", "");
     c = ctrl_columns(s0, 2, 50, 50);
     c->columns.ncols = s0->ncolumns = ncols;
     c->columns.percentages = sresize(c->columns.percentages, ncols, int);
@@ -3411,28 +3420,28 @@ int message_box(
 	    c->button.iscancel = TRUE;
     }
 
-    s1 = ctrl_getset(ctrlbox, "x", "", "");
+    s1 = ctrl_getset(dp->ctrlbox, "x", "", "");
     textctrl = ctrl_text(s1, msg, HELPCTX(no_help));
 
     window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
-    w0 = layout_ctrls(&dp, &scs, s0, GTK_WINDOW(window));
+    w0 = layout_ctrls(dp, &scs, s0, GTK_WINDOW(window));
     our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
-    w1 = layout_ctrls(&dp, &scs, s1, GTK_WINDOW(window));
+    w1 = layout_ctrls(dp, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_size_request(w1, minwid+20, -1);
     our_dialog_add_to_content_area(GTK_WINDOW(window), w1, TRUE, TRUE, 0);
     gtk_widget_show(w1);
 
-    dp.shortcuts = &scs;
-    dp.lastfocus = NULL;
-    dp.retval = 0;
-    dp.window = window;
+    dp->shortcuts = &scs;
+    dp->lastfocus = NULL;
+    dp->retval = 0;
+    dp->window = window;
 
     if (selectable) {
 #if GTK_CHECK_VERSION(2,0,0)
-        struct uctrl *uc = dlg_find_byctrl(&dp, textctrl);
+        struct uctrl *uc = dlg_find_byctrl(dp, textctrl);
         gtk_label_set_selectable(GTK_LABEL(uc->text), TRUE);
 
         /*
@@ -3450,7 +3459,6 @@ int message_box(
 #endif
     }
 
-    gtk_window_set_modal(GTK_WINDOW(window), TRUE);
     if (parentwin) {
         set_transient_window_pos(parentwin, window);
 	gtk_window_set_transient_for(GTK_WINDOW(window),
@@ -3461,18 +3469,38 @@ int message_box(
     gtk_widget_show(window);
     gtk_window_set_focus(GTK_WINDOW(window), NULL);
 
+    dp->selparams = NULL;
+
     g_signal_connect(G_OBJECT(window), "destroy",
-                     G_CALLBACK(window_destroy), NULL);
+                     G_CALLBACK(dlgparam_destroy), dp);
     g_signal_connect(G_OBJECT(window), "key_press_event",
-                     G_CALLBACK(win_key_press), &dp);
+                     G_CALLBACK(win_key_press), dp);
+
+    return window;
+}
+
+static void modal_message_box_after(void *ctx, int result)
+{
+    *(int *)ctx = result;
+    gtk_main_quit();
+}
+
+int message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    int selectable, const struct message_box_buttons *buttons)
+{
+    int retval = INT_MIN;
+    GtkWidget *dialog;
+
+    dialog = create_message_box(parentwin, title, msg, minwid, selectable,
+                                buttons, modal_message_box_after, &retval);
+    gtk_window_set_modal(GTK_WINDOW(dialog), TRUE);
 
     gtk_main();
     post_main();
 
-    dlg_cleanup(&dp);
-    ctrl_free_box(ctrlbox);
-
-    return dp.retval;
+    assert(retval != INT_MIN);
+    return retval;
 }
 
 int reallyclose(void *frontend)
