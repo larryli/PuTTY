@@ -1351,7 +1351,6 @@ static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
 /*
  * Collect incoming data in the incoming packet buffer.
  * Decipher and verify the packet when it is completely read.
- * Drop SSH1_MSG_DEBUG and SSH1_MSG_IGNORE packets.
  * Update the *data and *datalen variables.
  * Return a Packet structure when a packet is completed.
  */
