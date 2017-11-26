@@ -3553,7 +3553,7 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_network_prompt_dialog(ctx->frontend);
+    unregister_dialog(ctx->frontend, DIALOG_SLOT_NETWORK_PROMPT);
 
     sfree(ctx->host);
     sfree(ctx->keytype);
@@ -3628,7 +3628,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text, string_width(fingerprint), TRUE,
         &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
-    register_network_prompt_dialog(frontend, msgbox);
+    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);
 
@@ -3653,7 +3653,7 @@ static void simple_network_prompt_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_network_prompt_dialog(ctx->frontend);
+    unregister_dialog(ctx->frontend, DIALOG_SLOT_NETWORK_PROMPT);
     sfree(ctx);
 }
 
@@ -3685,7 +3685,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
         mainwin, "PuTTY Security Alert", text,
         string_width("Reasonably long line of text as a width template"),
         FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
-    register_network_prompt_dialog(frontend, msgbox);
+    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);
 
@@ -3720,7 +3720,7 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
         string_width("is ecdsa-nistp521, which is below the configured"
                      " warning threshold."),
         FALSE, &buttons_yn, simple_network_prompt_result_callback, result_ctx);
-    register_network_prompt_dialog(frontend, msgbox);
+    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);
 

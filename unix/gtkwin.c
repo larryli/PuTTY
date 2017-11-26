@@ -130,8 +130,7 @@ struct gui_data {
     Conf *conf;
     void *eventlogstuff;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
-    GtkWidget *reconfigure_dialog;
-    GtkWidget *network_prompt_dialog;
+    GtkWidget *dialogs[DIALOG_SLOT_LIMIT];
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble cumulative_scroll;
 #endif
@@ -313,17 +312,19 @@ GtkWidget *get_window(void *frontend)
  * network code wanting to ask an asynchronous user question (e.g.
  * 'what about this dodgy host key, then?').
  */
-void register_network_prompt_dialog(void *frontend, GtkWidget *dialog)
+void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    assert(!inst->network_prompt_dialog);
-    inst->network_prompt_dialog = dialog;
+    assert(slot < DIALOG_SLOT_LIMIT);
+    assert(!inst->dialogs[slot]);
+    inst->dialogs[slot] = dialog;
 }
-void unregister_network_prompt_dialog(void *frontend)
+void unregister_dialog(void *frontend, enum DialogSlot slot)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    assert(inst->network_prompt_dialog);
-    inst->network_prompt_dialog = NULL;
+    assert(slot < DIALOG_SLOT_LIMIT);
+    assert(inst->dialogs[slot]);
+    inst->dialogs[slot] = NULL;
 }
 
 /*
@@ -2039,13 +2040,12 @@ void notify_remote_exit(void *frontend)
 
 static void delete_inst(struct gui_data *inst)
 {
-    if (inst->reconfigure_dialog) {
-        gtk_widget_destroy(inst->reconfigure_dialog);
-        inst->reconfigure_dialog = NULL;
-    }
-    if (inst->network_prompt_dialog) {
-        gtk_widget_destroy(inst->network_prompt_dialog);
-        inst->network_prompt_dialog = NULL;
+    int dialog_slot;
+    for (dialog_slot = 0; dialog_slot < DIALOG_SLOT_LIMIT; dialog_slot++) {
+        if (inst->dialogs[dialog_slot]) {
+            gtk_widget_destroy(inst->dialogs[dialog_slot]);
+            inst->dialogs[dialog_slot] = NULL;
+        }
     }
     if (inst->window) {
         gtk_widget_destroy(inst->window);
@@ -4005,17 +4005,18 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
     struct after_change_settings_dialog_ctx *ctx;
+    GtkWidget *dialog;
     char *title;
 
-    if (inst->reconfigure_dialog) {
+    if ((dialog = inst->dialogs[DIALOG_SLOT_RECONFIGURE]) != NULL) {
         /*
          * If this window already had a Change Settings box open, just
          * find it and try to make it more prominent.
          */
 #if GTK_CHECK_VERSION(2,0,0)
-        gtk_window_deiconify(GTK_WINDOW(inst->reconfigure_dialog));
+        gtk_window_deiconify(GTK_WINDOW(dialog));
 #endif
-	gdk_window_raise(gtk_widget_get_window(inst->reconfigure_dialog));
+	gdk_window_raise(gtk_widget_get_window(dialog));
         return;
     }
 
@@ -4025,10 +4026,11 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     ctx->inst = inst;
     ctx->newconf = conf_copy(inst->conf);
 
-    inst->reconfigure_dialog = create_config_box(
+    dialog = create_config_box(
         title, ctx->newconf, 1,
         inst->back ? inst->back->cfg_info(inst->backhandle) : 0,
         after_change_settings_dialog, ctx);
+    register_dialog(inst, DIALOG_SLOT_RECONFIGURE, dialog);
 
     sfree(title);
 }
@@ -4058,7 +4060,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
 
     assert(lenof(ww) == NCFGCOLOURS);
 
-    inst->reconfigure_dialog = NULL;
+    unregister_dialog(inst, DIALOG_SLOT_RECONFIGURE);
 
     if (retval) {
         inst->conf = newconf;

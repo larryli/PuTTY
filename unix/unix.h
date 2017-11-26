@@ -149,8 +149,13 @@ long get_windowid(void *frontend);
 /* Things gtkdlg.c needs from pterm.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *get_window(void *frontend);
-void register_network_prompt_dialog(void *frontend, GtkWidget *dialog);
-void unregister_network_prompt_dialog(void *frontend);
+enum DialogSlot {
+    DIALOG_SLOT_RECONFIGURE,
+    DIALOG_SLOT_NETWORK_PROMPT,
+    DIALOG_SLOT_LIMIT /* must remain last */
+};
+void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);
+void unregister_dialog(void *frontend, enum DialogSlot slot);
 #endif
 void post_main(void);     /* called after any subsidiary gtk_main() */
 
