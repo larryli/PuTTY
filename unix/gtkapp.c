@@ -36,21 +36,6 @@ keyboard reflexes expect the Meta key to be in that position; but if
 you don't turn that option on, then these shortcuts should work as an
 ordinary Mac user expects, and currently they don't.
 
-Windows don't close sensibly when their sessions terminate. This is
-because until now I've relied on calling cleanup_exit() or
-gtk_main_quit() in gtkwin.c to terminate the program, which is
-conceptually wrong in this situation (we don't want to quit the whole
-application when just one window closes) and also doesn't reliably
-work anyway (GtkApplication doesn't seem to have a gtk_main invocation
-in it at all, so those calls to gtk_main_quit produce a GTK assertion
-failure message on standard error). Need to introduce a proper 'clean
-up this struct gui_data' function (including finalising other stuff
-dangling off it like the backend), call that, and delete just that one
-window. (And then work out a replacement mechanism for having the
-ordinary Unix-style gtkmain.c based programs terminate when their
-session does.) connection_fatal() in particular should invoke this
-mechanism, and terminate just the connection that had trouble.
-
 Mouse wheel events and trackpad scrolling gestures don't work quite
 right in the terminal drawing area.
 
