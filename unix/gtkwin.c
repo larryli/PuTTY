@@ -1993,9 +1993,6 @@ static void exit_callback(void *vinst)
         (exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
 	inst->exited = TRUE;
 	close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
-	if (close_on_exit == FORCE_ON ||
-	    (close_on_exit == AUTO && exitcode == 0))
-	    gtk_main_quit();	       /* just go */
 	if (inst->ldisc) {
 	    ldisc_free(inst->ldisc);
 	    inst->ldisc = NULL;
@@ -2006,6 +2003,12 @@ static void exit_callback(void *vinst)
         term_provide_resize_fn(inst->term, NULL, NULL);
         update_specials_menu(inst);
 	gtk_widget_set_sensitive(inst->restartitem, TRUE);
+
+	if (close_on_exit == FORCE_ON ||
+	    (close_on_exit == AUTO && exitcode == 0)) {
+            gtk_widget_destroy(inst->window);
+            gtk_main_quit();
+        }
     }
 }
 
@@ -2016,8 +2019,46 @@ void notify_remote_exit(void *frontend)
     queue_toplevel_callback(exit_callback, inst);
 }
 
+static void delete_inst(struct gui_data *inst)
+{
+    delete_callbacks_for_context(inst);
+    if (inst->window) {
+        gtk_widget_destroy(inst->window);
+        inst->window = NULL;
+    }
+    if (inst->menu) {
+        gtk_widget_destroy(inst->menu);
+        inst->menu = NULL;
+    }
+    if (inst->backhandle) {
+        inst->back->free(inst->backhandle);
+        inst->backhandle = NULL;
+        inst->back = NULL;
+    }
+    if (inst->term) {
+        term_free(inst->term);
+        inst->term = NULL;
+    }
+    if (inst->ldisc) {
+        ldisc_free(inst->ldisc);
+        inst->ldisc = NULL;
+    }
+    if (inst->conf) {
+        conf_free(inst->conf);
+        inst->conf = NULL;
+    }
+    if (inst->logctx) {
+        log_free(inst->logctx);
+        inst->logctx = NULL;
+    }
+    sfree(inst);
+}
+
 void destroy(GtkWidget *widget, gpointer data)
 {
+    struct gui_data *inst = (struct gui_data *)data;
+    inst->window = NULL;
+    delete_inst(inst);
     gtk_main_quit();
 }
 
