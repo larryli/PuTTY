@@ -164,8 +164,20 @@ void showeventlog(void *estuff, void *parentwin);
 void logevent_dlg(void *estuff, const char *string);
 int reallyclose(void *frontend);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-int messagebox(GtkWidget *parentwin, const char *title,
-               const char *msg, int minwid, int selectable, ...);
+struct message_box_button {
+    const char *title;
+    char shortcut;
+    int type; /* more negative means more appropriate to be the Esc action */
+    int value;     /* message box's return value if this is pressed */
+};
+struct message_box_buttons {
+    const struct message_box_button *buttons;
+    int nbuttons;
+};
+extern const struct message_box_buttons buttons_yn, buttons_ok;
+int message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    int selectable, const struct message_box_buttons *buttons);
 #endif
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */

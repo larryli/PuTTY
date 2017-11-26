@@ -3334,8 +3334,24 @@ static void messagebox_handler(union control *ctrl, void *dlg,
     if (event == EVENT_ACTION)
 	dlg_end(dlg, ctrl->generic.context.i);
 }
-int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
-               int minwid, int selectable, ...)
+
+const struct message_box_button button_array_yn[] = {
+    {"Yes", 'y', +1, 1},
+    {"No", 'n', -1, 0},
+};
+const struct message_box_buttons buttons_yn = {
+    button_array_yn, lenof(button_array_yn),
+};
+const struct message_box_button button_array_ok[] = {
+    {"OK", 'o', 1, 1},
+};
+const struct message_box_buttons buttons_ok = {
+    button_array_ok, lenof(button_array_ok),
+};
+
+int message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    int selectable, const struct message_box_buttons *buttons)
 {
     GtkWidget *window, *w0, *w1;
     struct controlbox *ctrlbox;
@@ -3343,8 +3359,7 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     union control *c, *textctrl;
     struct dlgparam dp;
     struct Shortcuts scs;
-    int index, ncols, min_type;
-    va_list ap;
+    int i, index, ncols, min_type;
 
     dlg_init(&dp);
 
@@ -3355,24 +3370,17 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     ctrlbox = ctrl_new_box();
 
     /*
-     * Preliminary pass over the va_list, to count up the number of
-     * buttons and find out what kinds there are.
+     * Count up the number of buttons and find out what kinds there
+     * are.
      */
     ncols = 0;
-    va_start(ap, selectable);
     min_type = +1;
-    while (va_arg(ap, char *) != NULL) {
-        int type;
-
-	(void) va_arg(ap, int);	       /* shortcut */
-	type = va_arg(ap, int);	       /* normal/default/cancel */
-	(void) va_arg(ap, int);	       /* end value */
-
+    for (i = 0; i < buttons->nbuttons; i++) {
+        const struct message_box_button *button = &buttons->buttons[i];
 	ncols++;
-        if (min_type > type)
-            min_type = type;
+        if (min_type > button->type)
+            min_type = button->type;
     }
-    va_end(ap);
 
     s0 = ctrl_getset(ctrlbox, "", "", "");
     c = ctrl_columns(s0, 2, 50, 50);
@@ -3380,20 +3388,14 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
     c->columns.percentages = sresize(c->columns.percentages, ncols, int);
     for (index = 0; index < ncols; index++)
 	c->columns.percentages[index] = (index+1)*100/ncols - index*100/ncols;
-    va_start(ap, selectable);
     index = 0;
-    while (1) {
-	char *title = va_arg(ap, char *);
-	int shortcut, type, value;
-	if (title == NULL)
-	    break;
-	shortcut = va_arg(ap, int);
-	type = va_arg(ap, int);
-	value = va_arg(ap, int);
-	c = ctrl_pushbutton(s0, title, shortcut, HELPCTX(no_help),
-			    messagebox_handler, I(value));
+    for (i = 0; i < buttons->nbuttons; i++) {
+        const struct message_box_button *button = &buttons->buttons[i];
+	c = ctrl_pushbutton(s0, button->title, button->shortcut,
+                            HELPCTX(no_help), messagebox_handler,
+                            I(button->value));
 	c->generic.column = index++;
-	if (type > 0)
+	if (button->type > 0)
 	    c->button.isdefault = TRUE;
 
         /* We always arrange that _some_ button is labelled as
@@ -3405,10 +3407,9 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
          * no will be picked, and if there's only one option (a box
          * that really is just showing a _message_ and not even asking
          * a question) then that will be picked. */
-	if (type == min_type)
+	if (button->type == min_type)
 	    c->button.iscancel = TRUE;
     }
-    va_end(ap);
 
     s1 = ctrl_getset(ctrlbox, "x", "", "");
     textctrl = ctrl_text(s1, msg, HELPCTX(no_help));
@@ -3477,13 +3478,10 @@ int messagebox(GtkWidget *parentwin, const char *title, const char *msg,
 int reallyclose(void *frontend)
 {
     char *title = dupcat(appname, " Exit Confirmation", NULL);
-    int ret = messagebox(GTK_WIDGET(get_window(frontend)),
-			 title, "Are you sure you want to close this session?",
-			 string_width("Most of the width of the above text"),
-                         FALSE,
-			 "Yes", 'y', +1, 1,
-			 "No", 'n', -1, 0,
-			 NULL);
+    int ret = message_box(GTK_WIDGET(get_window(frontend)), title,
+                          "Are you sure you want to close this session?",
+                          string_width("Most of the width of the above text"),
+                          FALSE, &buttons_yn);
     sfree(title);
     return ret;
 }
@@ -3518,6 +3516,15 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 	"If you want to abandon the connection completely, press "
 	"\"Cancel\" to cancel. Pressing \"Cancel\" is the ONLY guaranteed "
 	"safe choice.";
+    static const struct message_box_button button_array_hostkey[] = {
+        {"Accept", 'a', 0, 2},
+        {"Connect Once", 'o', 0, 1},
+        {"Cancel", 'c', -1, 0},
+    };
+    static const struct message_box_buttons buttons_hostkey = {
+        button_array_hostkey, lenof(button_array_hostkey),
+    };
+
     char *text;
     int ret;
 
@@ -3531,14 +3538,10 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 
     text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
 
-    ret = messagebox(GTK_WIDGET(get_window(frontend)),
-		     "PuTTY Security Alert", text,
-		     string_width(fingerprint),
-                     TRUE,
-		     "Accept", 'a', 0, 2,
-		     "Connect Once", 'o', 0, 1,
-		     "Cancel", 'c', -1, 0,
-		     NULL);
+    ret = message_box(GTK_WIDGET(get_window(frontend)),
+                      "PuTTY Security Alert", text,
+                      string_width(fingerprint),
+                      TRUE, &buttons_hostkey);
 
     sfree(text);
 
@@ -3565,14 +3568,11 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     int ret;
 
     text = dupprintf(msg, algtype, algname);
-    ret = messagebox(GTK_WIDGET(get_window(frontend)),
-		     "PuTTY Security Alert", text,
-		     string_width("Reasonably long line of text as a width"
-                                  " template"),
-                     FALSE,
-		     "Yes", 'y', 0, 1,
-		     "No", 'n', 0, 0,
-		     NULL);
+    ret = message_box(GTK_WIDGET(get_window(frontend)),
+                      "PuTTY Security Alert", text,
+                      string_width("Reasonably long line of text as a width"
+                                   " template"),
+                      FALSE, &buttons_yn);
     sfree(text);
 
     if (ret) {
@@ -3596,14 +3596,11 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
     int ret;
 
     text = dupprintf(msg, algname, betteralgs);
-    ret = messagebox(GTK_WIDGET(get_window(frontend)),
-		     "PuTTY Security Alert", text,
-		     string_width("is ecdsa-nistp521, which is"
-                                  " below the configured warning threshold."),
-                     FALSE,
-		     "Yes", 'y', 0, 1,
-		     "No", 'n', 0, 0,
-		     NULL);
+    ret = message_box(GTK_WIDGET(get_window(frontend)),
+                      "PuTTY Security Alert", text,
+                      string_width("is ecdsa-nistp521, which is"
+                                   " below the configured warning threshold."),
+                      FALSE, &buttons_yn);
     sfree(text);
 
     if (ret) {
@@ -3622,16 +3619,16 @@ void old_keyfile_warning(void)
 
 void fatal_message_box(void *window, const char *msg)
 {
-    messagebox(window, "PuTTY Fatal Error", msg,
-               string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-               FALSE, "OK", 'o', 1, 1, NULL);
+    message_box(window, "PuTTY Fatal Error", msg,
+                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+                FALSE, &buttons_ok);
 }
 
 void nonfatal_message_box(void *window, const char *msg)
 {
-    messagebox(window, "PuTTY Error", msg,
-               string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-               FALSE, "OK", 'o', 1, 1, NULL);
+    message_box(window, "PuTTY Error", msg,
+                string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
+                FALSE, &buttons_ok);
 }
 
 void fatalbox(const char *p, ...)
@@ -3680,10 +3677,10 @@ static void licence_clicked(GtkButton *button, gpointer data)
 
     title = dupcat(appname, " Licence", NULL);
     assert(aboutbox != NULL);
-    messagebox(aboutbox, title, LICENCE_TEXT("\n\n"),
-	       string_width("LONGISH LINE OF TEXT SO THE LICENCE"
-			    " BOX ISN'T EXCESSIVELY TALL AND THIN"),
-               TRUE, "OK", 'o', 1, 1, NULL);
+    message_box(aboutbox, title, LICENCE_TEXT("\n\n"),
+                string_width("LONGISH LINE OF TEXT SO THE LICENCE"
+                             " BOX ISN'T EXCESSIVELY TALL AND THIN"),
+                TRUE, &buttons_ok);
     sfree(title);
 }
 
@@ -3736,7 +3733,7 @@ void about_box(void *window)
     our_dialog_add_to_content_area(GTK_WINDOW(aboutbox), w, FALSE, FALSE, 0);
 #if GTK_CHECK_VERSION(2,0,0)
     /*
-     * Same precautions against initial select-all as in messagebox().
+     * Same precautions against initial select-all as in message_box().
      */
     gtk_widget_grab_focus(w);
     gtk_label_select_region(GTK_LABEL(w), 0, 0);
@@ -4003,6 +4000,15 @@ int askappend(void *frontend, Filename *filename,
 	"You can overwrite it with a new session log, "
 	"append your session log to the end of it, "
 	"or disable session logging for this session.";
+    static const struct message_box_button button_array_append[] = {
+        {"Overwrite", 'o', 1, 2},
+        {"Append", 'a', 0, 1},
+        {"Disable", 'd', -1, 0},
+    };
+    static const struct message_box_buttons buttons_append = {
+        button_array_append, lenof(button_array_append),
+    };
+
     char *message;
     char *mbtitle;
     int mbret;
@@ -4010,14 +4016,10 @@ int askappend(void *frontend, Filename *filename,
     message = dupprintf(msgtemplate, FILENAME_MAX, filename->path);
     mbtitle = dupprintf("%s Log to File", appname);
 
-    mbret = messagebox(get_window(frontend), mbtitle, message,
-		       string_width("LINE OF TEXT SUITABLE FOR THE"
-				    " ASKAPPEND WIDTH"),
-                       FALSE,
-		       "Overwrite", 'o', 1, 2,
-		       "Append", 'a', 0, 1,
-		       "Disable", 'd', -1, 0,
-		       NULL);
+    mbret = message_box(get_window(frontend), mbtitle, message,
+                        string_width("LINE OF TEXT SUITABLE FOR THE"
+                                     " ASKAPPEND WIDTH"),
+                        FALSE, &buttons_append);
 
     sfree(message);
     sfree(mbtitle);

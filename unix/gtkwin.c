@@ -4125,10 +4125,10 @@ static void after_change_settings_dialog(void *vctx, int retval)
                 char *msgboxtext =
                     dupprintf("Could not change fonts in terminal window: %s\n",
                               errmsg);
-                messagebox(inst->window, "Font setup error", msgboxtext,
-                           string_width("Could not change fonts in terminal window:"),
-                           FALSE, "OK", 'o', +1, 1,
-                           NULL);
+                message_box(inst->window, "Font setup error", msgboxtext,
+                            string_width("Could not change fonts in terminal"
+                                         " window:"),
+                            FALSE, &buttons_ok);
                 sfree(msgboxtext);
                 sfree(errmsg);
             } else {
