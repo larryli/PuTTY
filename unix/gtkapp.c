@@ -62,18 +62,6 @@ behaviour inherited from ordinary Unix PuTTY. Should arrange to have a
 mode in which you have to take an explicit Copy action, and then
 arrange that the Edit menu includes one of those.
 
-Dialog boxes shouldn't be modal. I think this is a good policy change
-in general, and the required infrastructure changes will benefit the
-Windows front end too, but for a multi-session process it's even more
-critical - you need to be able to type into one session window while
-setting up the configuration for launching another. So everywhere we
-currently run a sub-instance of gtk_main, or call any API function
-that implicitly does that (like gtk_dialog_run), we should switch to
-putting up the dialog box and going back to our ordinary main loop,
-and whatever we were going to do after the dialog closed we should
-remember to do it when that happens later on. Also then we can remove
-the post_main() horror from gtkcomm.c.
-
 The application menu bar is very minimal at the moment. Should include
 all the usual stuff from the Ctrl-right-click menu - saved sessions,
 mid-session special commands, Duplicate Session, Change Settings,
