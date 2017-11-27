@@ -4639,17 +4639,21 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->area = gtk_drawing_area_new();
     gtk_widget_set_name(GTK_WIDGET(inst->area), "drawing-area");
 
+    {
+        char *errmsg = setup_fonts_ucs(inst);
+        if (errmsg) {
+            window_setup_error(errmsg);
+            sfree(errmsg);
+            gtk_widget_destroy(inst->area);
+            sfree(inst);
+            return;
+        }
+    }
+
 #if GTK_CHECK_VERSION(2,0,0)
     inst->imc = gtk_im_multicontext_new();
 #endif
 
-    {
-        char *errmsg = setup_fonts_ucs(inst);
-        if (errmsg) {
-            fprintf(stderr, "%s: %s\n", appname, errmsg);
-            exit(1);
-        }
-    }
     inst->window = make_gtk_toplevel_window(inst);
     gtk_widget_set_name(GTK_WIDGET(inst->window), "top-level");
     {

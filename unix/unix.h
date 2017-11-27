@@ -135,6 +135,7 @@ void launch_duplicate_session(Conf *conf);
 void launch_new_session(void);
 void launch_saved_session(const char *str);
 void session_window_closed(void);
+void window_setup_error(const char *errmsg);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *make_gtk_toplevel_window(void *frontend);
 #endif

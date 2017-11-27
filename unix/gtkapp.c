@@ -109,6 +109,7 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "gtkmisc.h"
 
 char *x_get_default(const char *key) { return NULL; }
 
@@ -224,6 +225,19 @@ void launch_new_session(void)
 void new_app_win(GtkApplication *app)
 {
     launch_new_session();
+}
+
+static void window_setup_error_callback(void *vctx, int result)
+{
+    g_application_release(G_APPLICATION(app));
+}
+
+void window_setup_error(const char *errmsg)
+{
+    create_message_box(NULL, "Error creating session window", errmsg,
+                       string_width("Some sort of fiddly error message that "
+                                    "might be technical"),
+                       TRUE, &buttons_ok, window_setup_error_callback, NULL);
 }
 
 static void activate(GApplication *app,

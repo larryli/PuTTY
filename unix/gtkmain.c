@@ -309,6 +309,12 @@ void cmdline_error(const char *p, ...)
     exit(1);
 }
 
+void window_setup_error(const char *errmsg)
+{
+    fprintf(stderr, "%s: %s\n", appname, errmsg);
+    exit(1);
+}
+
 int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
                Conf *conf)
 {
