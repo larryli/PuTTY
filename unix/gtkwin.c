@@ -3789,17 +3789,6 @@ void modalfatalbox(const char *p, ...)
     exit(1);
 }
 
-void cmdline_error(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "%s: ", appname);
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-
 const char *get_x_display(void *frontend)
 {
     return gdk_get_display();

@@ -298,6 +298,17 @@ static void version(FILE *fp) {
 
 static const char *geometry_string;
 
+void cmdline_error(const char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "%s: ", appname);
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
 int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
                Conf *conf)
 {
