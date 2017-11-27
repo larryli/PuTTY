@@ -4552,9 +4552,9 @@ static void start_backend(struct gui_data *inst)
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
 			      conf_dest(inst->conf), error);
 	inst->exited = TRUE;
-	fatal_message_box(inst, msg);
+	connection_fatal(inst, msg);
 	sfree(msg);
-	exit(0);
+        return;
     }
 
     s = conf_get_str(inst->conf, CONF_wintitle);
@@ -4929,9 +4929,10 @@ void new_session_window(Conf *conf, const char *geometry_string)
     term_size(inst->term, inst->height, inst->width,
 	      conf_get_int(inst->conf, CONF_savelines));
 
+    inst->exited = FALSE;
+
     start_backend(inst);
 
-    ldisc_echoedit_update(inst->ldisc);     /* cause ldisc to notice changes */
-
-    inst->exited = FALSE;
+    if (inst->ldisc) /* early backend failure might make this NULL already */
+        ldisc_echoedit_update(inst->ldisc); /* cause ldisc to notice changes */
 }
