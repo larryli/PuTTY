@@ -2085,7 +2085,7 @@ void frontend_keypress(void *handle)
      * any keypress.
      */
     if (inst->exited)
-	cleanup_exit(0);
+        gtk_widget_destroy(inst->window);
 }
 
 static void exit_callback(void *vinst)
