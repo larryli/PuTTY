@@ -823,63 +823,7 @@ int main(int argc, char **argv)
 	usage();
     }
 
-    /*
-     * Muck about with the hostname in various ways.
-     */
-    {
-	char *hostbuf = dupstr(conf_get_str(conf, CONF_host));
-	char *host = hostbuf;
-	char *p, *q;
-
-	/*
-	 * Trim leading whitespace.
-	 */
-	host += strspn(host, " \t");
-
-	/*
-	 * See if host is of the form user@host, and separate out
-	 * the username if so.
-	 */
-	if (host[0] != '\0') {
-	    char *atsign = strrchr(host, '@');
-	    if (atsign) {
-		*atsign = '\0';
-		conf_set_str(conf, CONF_username, host);
-		host = atsign + 1;
-	    }
-	}
-
-        /*
-         * Trim a colon suffix off the hostname if it's there. In
-         * order to protect unbracketed IPv6 address literals
-         * against this treatment, we do not do this if there's
-         * _more_ than one colon.
-         */
-        {
-            char *c = host_strchr(host, ':');
- 
-            if (c) {
-                char *d = host_strchr(c+1, ':');
-                if (!d)
-                    *c = '\0';
-            }
-        }
-
-	/*
-	 * Remove any remaining whitespace.
-	 */
-	p = hostbuf;
-	q = host;
-	while (*q) {
-	    if (*q != ' ' && *q != '\t')
-		*p++ = *q;
-	    q++;
-	}
-	*p = '\0';
-
-	conf_set_str(conf, CONF_host, hostbuf);
-	sfree(hostbuf);
-    }
+    prepare_session(conf);
 
     /*
      * Perform command-line overrides on session configuration.

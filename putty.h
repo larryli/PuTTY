@@ -1177,6 +1177,11 @@ int conf_launchable(Conf *conf);
 char const *conf_dest(Conf *conf);
 
 /*
+ * Exports from sessprep.c.
+ */
+void prepare_session(Conf *conf);
+
+/*
  * Exports from sercfg.c.
  */
 void ser_setup_config_box(struct controlbox *b, int midsession,
