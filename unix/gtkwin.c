@@ -4597,6 +4597,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
 {
     struct gui_data *inst;
 
+    prepare_session(conf);
+
     /*
      * Create an instance structure and initialise to zeroes
      */
