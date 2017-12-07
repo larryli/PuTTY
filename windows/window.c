@@ -360,6 +360,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     hinst = inst;
     hwnd = NULL;
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
+    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG;
 
     sk_init();
 
@@ -416,11 +417,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     {
 	char *p;
-	int got_host = 0;
-	/* By default, we bring up the config dialog, rather than launching
-	 * a session. This gets set to TRUE if something happens to change
-	 * that (e.g., a hostname is specified on the command-line). */
-	int allow_launch = FALSE;
+        int special_launchable_argument = FALSE;
 
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
@@ -470,7 +467,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (!conf_launchable(conf) && !do_config()) {
 		cleanup_exit(0);
 	    }
-	    allow_launch = TRUE;    /* allow it to be launched directly */
+            special_launchable_argument = TRUE;
 	} else if (*p == '&') {
 	    /*
 	     * An initial & means we've been given a command line
@@ -490,7 +487,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    } else if (!do_config()) {
 		cleanup_exit(0);
 	    }
-	    allow_launch = TRUE;
+            special_launchable_argument = TRUE;
 	} else if (!*p) {
             /* Do-nothing case for an empty command line - or rather,
              * for a command line that's empty _after_ we strip off
@@ -545,52 +542,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    pgp_fingerprints();
 		    exit(1);
 		} else if (*p != '-') {
-		    char *q = p;
-		    if (got_host) {
-			/*
-			 * If we already have a host name, treat
-			 * this argument as a port number. NB we
-			 * have to treat this as a saved -P
-			 * argument, so that it will be deferred
-			 * until it's a good moment to run it.
-			 */
-			int ret = cmdline_process_param("-P", p, 1, conf);
-			assert(ret == 2);
-		    } else if (!strncmp(q, "telnet:", 7)) {
-			/*
-			 * If the hostname starts with "telnet:",
-			 * set the protocol to Telnet and process
-			 * the string as a Telnet URL.
-			 */
-			char c;
-
-			q += 7;
-			if (q[0] == '/' && q[1] == '/')
-			    q += 2;
-			conf_set_int(conf, CONF_protocol, PROT_TELNET);
-			p = q;
-                        p += host_strcspn(p, ":/");
-			c = *p;
-			if (*p)
-			    *p++ = '\0';
-			if (c == ':')
-			    conf_set_int(conf, CONF_port, atoi(p));
-			else
-			    conf_set_int(conf, CONF_port, -1);
-			conf_set_str(conf, CONF_host, q);
-			got_host = 1;
-		    } else {
-			/*
-			 * Otherwise, treat this argument as a host
-			 * name.
-			 */
-			while (*p && !isspace(*p))
-			    p++;
-			if (*p)
-			    *p++ = '\0';
-			conf_set_str(conf, CONF_host, q);
-			got_host = 1;
-		    }
+		    cmdline_error("unexpected argument \"%s\"", p);
 		} else {
 		    cmdline_error("unknown option \"%s\"", p);
 		}
@@ -599,11 +551,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	cmdline_run_saved(conf);
 
-	if (loaded_session || got_host)
-	    allow_launch = TRUE;
-
-	if ((!allow_launch || !conf_launchable(conf)) && !do_config()) {
-	    cleanup_exit(0);
+	/*
+         * Bring up the config dialog if the command line hasn't
+         * (explicitly) specified a launchable configuration.
+         */
+        if (!(special_launchable_argument || cmdline_host_ok(conf))) {
+            if (!do_config())
+                cleanup_exit(0);
 	}
 
         prepare_session(conf);

@@ -315,8 +315,7 @@ void window_setup_error(const char *errmsg)
     exit(1);
 }
 
-int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
-               Conf *conf)
+int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
 {
     int err = 0;
     char *val;
@@ -536,10 +535,13 @@ int do_cmdline(int argc, char **argv, int do_everything, int *allow_launch,
             pgp_fingerprints();
             exit(1);
 
-	} else if(p[0] != '-' && (!do_everything ||
-                                  process_nonoption_arg(p, conf,
-							allow_launch))) {
-            /* do nothing */
+	} else if (p[0] != '-') {
+            /* Non-option arguments not handled by cmdline.c are errors. */
+            if (do_everything) {
+                err = 1;
+                fprintf(stderr, "%s: unexpected non-option argument '%s'\n",
+                        appname, p);
+            }
 
 	} else {
 	    err = 1;
@@ -636,22 +638,15 @@ int main(int argc, char **argv)
         assert(!dup_check_launchable || conf_launchable(conf));
         need_config_box = FALSE;
     } else {
-	/* By default, we bring up the config dialog, rather than launching
-	 * a session. This gets set to TRUE if something happens to change
-	 * that (e.g., a hostname is specified on the command-line). */
-	int allow_launch = FALSE;
-	if (do_cmdline(argc, argv, 0, &allow_launch, conf))
+	if (do_cmdline(argc, argv, 0, conf))
 	    exit(1);		       /* pre-defaults pass to get -class */
 	do_defaults(NULL, conf);
-	if (do_cmdline(argc, argv, 1, &allow_launch, conf))
+	if (do_cmdline(argc, argv, 1, conf))
 	    exit(1);		       /* post-defaults, do everything */
 
 	cmdline_run_saved(conf);
 
-	if (loaded_session)
-	    allow_launch = TRUE;
-
-        need_config_box = (!allow_launch || !conf_launchable(conf));
+        need_config_box = !cmdline_host_ok(conf);
     }
 
     if (need_config_box) {

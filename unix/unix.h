@@ -194,7 +194,6 @@ GtkWidget *create_message_box(
 
 /* Things pterm.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
-int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch);
 
 /* pterm.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);

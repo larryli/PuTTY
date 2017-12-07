@@ -51,68 +51,8 @@ void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
     sfree(title);
 }
 
-static int got_host = 0;
-
 const int use_event_log = 1, new_session = 1, saved_sessions = 1;
 const int dup_check_launchable = 1;
-
-int process_nonoption_arg(const char *arg, Conf *conf, int *allow_launch)
-{
-    char *argdup, *p, *q;
-    argdup = dupstr(arg);
-    q = argdup;
-
-    if (got_host) {
-        /*
-         * If we already have a host name, treat this argument as a
-         * port number. NB we have to treat this as a saved -P
-         * argument, so that it will be deferred until it's a good
-         * moment to run it.
-         */
-        int ret = cmdline_process_param("-P", argdup, 1, conf);
-        assert(ret == 2);
-    } else if (!strncmp(q, "telnet:", 7)) {
-        /*
-         * If the hostname starts with "telnet:",
-         * set the protocol to Telnet and process
-         * the string as a Telnet URL.
-         */
-        char c;
-
-        q += 7;
-        if (q[0] == '/' && q[1] == '/')
-            q += 2;
-        conf_set_int(conf, CONF_protocol, PROT_TELNET);
-        p = q;
-        p += host_strcspn(p, ":/");
-        c = *p;
-        if (*p)
-            *p++ = '\0';
-        if (c == ':')
-            conf_set_int(conf, CONF_port, atoi(p));
-        else
-            conf_set_int(conf, CONF_port, -1);
-	conf_set_str(conf, CONF_host, q);
-        got_host = 1;
-    } else {
-        /*
-         * Otherwise, treat this argument as a host name.
-         */
-        p = argdup;
-        while (*p && !isspace((unsigned char)*p))
-            p++;
-        if (*p)
-            *p++ = '\0';
-        conf_set_str(conf, CONF_host, q);
-        got_host = 1;
-    }
-    if (got_host)
-	*allow_launch = TRUE;
-
-    sfree(argdup);
-
-    return 1;
-}
 
 char *make_default_wintitle(char *hostname)
 {
@@ -139,6 +79,7 @@ void setup(int single)
 {
     sk_init();
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
+    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG;
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {
