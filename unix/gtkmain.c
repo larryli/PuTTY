@@ -646,7 +646,10 @@ int main(int argc, char **argv)
 
 	cmdline_run_saved(conf);
 
-        need_config_box = !cmdline_host_ok(conf);
+        if (cmdline_tooltype & TOOLTYPE_HOST_ARG)
+            need_config_box = !cmdline_host_ok(conf);
+        else
+            need_config_box = FALSE;
     }
 
     if (need_config_box) {
