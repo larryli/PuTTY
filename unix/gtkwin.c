@@ -101,8 +101,6 @@ struct gui_data {
     GdkColormap *colmap;
 #endif
     int direct_to_font;
-    wchar_t *pastein_data;
-    int pastein_data_len;
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     GtkClipboard *clipboard;
     struct clipboard_data_instance *current_cdi;
@@ -2594,6 +2592,8 @@ static void clipboard_text_received(GtkClipboard *clipboard,
                                     const gchar *text, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
+    wchar_t *paste;
+    int paste_len;
     int length;
 
     if (!text)
@@ -2601,14 +2601,12 @@ static void clipboard_text_received(GtkClipboard *clipboard,
 
     length = strlen(text);
 
-    if (inst->pastein_data)
-	sfree(inst->pastein_data);
+    paste = snewn(length, wchar_t);
+    paste_len = mb_to_wc(CS_UTF8, 0, text, length, paste, length);
 
-    inst->pastein_data = snewn(length, wchar_t);
-    inst->pastein_data_len = mb_to_wc(CS_UTF8, 0, text, length,
-                                      inst->pastein_data, length);
+    term_do_paste(inst->term, paste, paste_len);
 
-    term_do_paste(inst->term);
+    sfree(paste);
 }
 
 void request_paste(void *frontend)
@@ -2855,6 +2853,8 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     GdkAtom seldata_type = gtk_selection_data_get_data_type(seldata);
     const guchar *seldata_data = gtk_selection_data_get_data(seldata);
     gint seldata_length = gtk_selection_data_get_length(seldata);
+    wchar_t *paste;
+    int paste_len;
 
     if (seldata_target == utf8_string_atom && seldata_length <= 0) {
 	/*
@@ -2942,16 +2942,12 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	}
     }
 
-    if (inst->pastein_data)
-	sfree(inst->pastein_data);
+    paste = snewn(length, wchar_t);
+    paste_len = mb_to_wc(charset, 0, text, length, paste, length);
 
-    inst->pastein_data = snewn(length, wchar_t);
-    inst->pastein_data_len = length;
-    inst->pastein_data_len =
-	mb_to_wc(charset, 0, text, length,
-		 inst->pastein_data, inst->pastein_data_len);
+    term_do_paste(inst->term, paste, paste_len);
 
-    term_do_paste(inst->term);
+    sfree(paste);
 
 #ifndef NOT_X_WINDOWS
     if (free_list_required)
@@ -3010,16 +3006,6 @@ void init_clipboard(struct gui_data *inst)
  */
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
-
-void get_clip(void *frontend, wchar_t ** p, int *len)
-{
-    struct gui_data *inst = (struct gui_data *)frontend;
-
-    if (p) {
-	*p = inst->pastein_data;
-	*len = inst->pastein_data_len;
-    }
-}
 
 static void set_window_titles(struct gui_data *inst)
 {

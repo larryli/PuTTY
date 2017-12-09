@@ -83,7 +83,6 @@ void palette_set(void *frontend, int a, int b, int c, int d) { }
 void palette_reset(void *frontend) { }
 int palette_get(void *frontend, int n, int *r, int *g, int *b) {return FALSE;}
 void write_clip(void *frontend, wchar_t *a, int *b, truecolour *c, int d, int e) { }
-void get_clip(void *frontend, wchar_t **w, int *i) { }
 void set_raw_mouse_mode(void *frontend, int m) { }
 void request_paste(void *frontend) { }
 void do_beep(void *frontend, int a) { }

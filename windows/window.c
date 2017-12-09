@@ -105,7 +105,7 @@ static int is_full_screen(void);
 static void make_full_screen(void);
 static void clear_full_screen(void);
 static void flip_full_screen(void);
-static int process_clipdata(HGLOBAL clipdata, int unicode);
+static void process_clipdata(HGLOBAL clipdata, int unicode);
 
 /* Window layout information */
 static void reset_window(int);
@@ -134,9 +134,6 @@ static int reconfiguring = FALSE;
 static const struct telnet_special *specials = NULL;
 static HMENU specials_menu = NULL;
 static int n_specials = 0;
-
-static wchar_t *clipboard_contents;
-static size_t clipboard_length;
 
 #define TIMING_TIMER_ID 1234
 static long timing_next_time;
@@ -3176,8 +3173,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_GOT_CLIPDATA:
-	if (process_clipdata((HGLOBAL)lParam, wParam))
-	    term_do_paste(term);
+	process_clipdata((HGLOBAL)lParam, wParam);
 	return 0;
       default:
 	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
@@ -5340,11 +5336,10 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
     return 0;
 }
 
-static int process_clipdata(HGLOBAL clipdata, int unicode)
+static void process_clipdata(HGLOBAL clipdata, int unicode)
 {
-    sfree(clipboard_contents);
-    clipboard_contents = NULL;
-    clipboard_length = 0;
+    wchar_t *clipboard_contents = NULL;
+    size_t clipboard_length = 0;
 
     if (unicode) {
 	wchar_t *p = GlobalLock(clipdata);
@@ -5357,7 +5352,7 @@ static int process_clipdata(HGLOBAL clipdata, int unicode)
 	    clipboard_contents = snewn(clipboard_length + 1, wchar_t);
 	    memcpy(clipboard_contents, p, clipboard_length * sizeof(wchar_t));
 	    clipboard_contents[clipboard_length] = L'\0';
-	    return TRUE;
+	    term_do_paste(term, clipboard_contents, clipboard_length);
 	}
     } else {
 	char *s = GlobalLock(clipdata);
@@ -5370,11 +5365,11 @@ static int process_clipdata(HGLOBAL clipdata, int unicode)
 				clipboard_contents, i);
 	    clipboard_length = i - 1;
 	    clipboard_contents[clipboard_length] = L'\0';
-	    return TRUE;
+	    term_do_paste(term, clipboard_contents, clipboard_length);
 	}
     }
 
-    return FALSE;
+    sfree(clipboard_contents);
 }
 
 void request_paste(void *frontend)
@@ -5398,14 +5393,6 @@ void request_paste(void *frontend)
     DWORD in_threadid; /* required for Win9x */
     CreateThread(NULL, 0, clipboard_read_threadfunc,
 		 hwnd, 0, &in_threadid);
-}
-
-void get_clip(void *frontend, wchar_t **p, int *len)
-{
-    if (p) {
-	*p = clipboard_contents;
-	*len = clipboard_length;
-    }
 }
 
 #if 0
