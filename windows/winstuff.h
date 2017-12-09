@@ -55,6 +55,10 @@ struct FontSpec *fontspec_new(const char *name,
 #define PLATFORM_IS_UTF16 /* enable UTF-16 processing when exchanging
 			   * wchar_t strings with environment */
 
+#define PLATFORM_CLIPBOARDS(X)                      \
+    X(CLIP_SYSTEM, "system clipboard")              \
+    /* end of list */
+
 /*
  * Where we can, we use GetWindowLongPtr and friends because they're
  * more useful on 64-bit platforms, but they're a relatively recent
@@ -247,7 +251,7 @@ GLOBAL void *logctx;
  * which takes the data string in the system code page instead of
  * Unicode.
  */
-void write_aclip(void *frontend, char *, int, int);
+void write_aclip(void *frontend, int clipboard, char *, int, int);
 
 #define WM_NETEVENT  (WM_APP + 5)
 

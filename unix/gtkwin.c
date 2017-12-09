@@ -1022,7 +1022,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug((" - Shift-Insert paste\n"));
 #endif
-	    request_paste(inst);
+	    term_request_paste(inst->term, CLIP_SYSTEM);
 	    return TRUE;
 	}
 
@@ -2532,15 +2532,16 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
     struct gui_data *inst = cdi->inst;
 
     if (inst->current_cdi == cdi) {
-        term_deselect(inst->term);
+        term_lost_clipboard_ownership(inst->term, CLIP_SYSTEM);
         inst->current_cdi = NULL;
     }
     sfree(cdi->pasteout_data_utf8);
     sfree(cdi);
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour,
-                int len, int must_deselect)
+void write_clip(void *frontend, int clipboard,
+                char_t *data, int *attr, truecolour *truecolour, int len,
+                int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_data_instance *cdi;
@@ -2609,9 +2610,10 @@ static void clipboard_text_received(GtkClipboard *clipboard,
     sfree(paste);
 }
 
-void request_paste(void *frontend)
+void frontend_request_paste(void *frontend, int clipboard)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
+    assert(clipboard == CLIP_SYSTEM);
     gtk_clipboard_request_text(inst->clipboard, clipboard_text_received, inst);
 }
 
@@ -2667,8 +2669,9 @@ static char *retrieve_cutbuffer(int *nbytes)
 #endif
 }
 
-void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour,
-                int len, int must_deselect)
+void write_clip(void *frontend, int clipboard,
+                wchar_t *data, int *attr, truecolour *truecolour, int len,
+                int must_deselect)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     if (inst->pasteout_data)
@@ -2763,7 +2766,7 @@ void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour
     }
 
     if (must_deselect)
-	term_deselect(inst->term);
+	term_lost_clipboard_ownership(inst->term, clipboard);
 }
 
 static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
@@ -2790,7 +2793,7 @@ static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    term_deselect(inst->term);
+    term_lost_clipboard_ownership(inst->term, CLIP_SYSTEM);
     if (inst->pasteout_data)
 	sfree(inst->pasteout_data);
     if (inst->pasteout_data_ctext)
@@ -2806,9 +2809,12 @@ static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     return TRUE;
 }
 
-void request_paste(void *frontend)
+void frontend_request_paste(void *frontend, int clipboard)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
+
+    assert(clipboard == CLIP_SYSTEM);
+
     /*
      * In Unix, pasting is asynchronous: all we can do at the
      * moment is to call gtk_selection_convert(), and when the data
@@ -3006,6 +3012,12 @@ void init_clipboard(struct gui_data *inst)
  */
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
+
+void paste_menu_action(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    term_request_paste(inst->term, CLIP_SYSTEM);
+}
 
 static void set_window_titles(struct gui_data *inst)
 {
@@ -4048,7 +4060,7 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    term_copyall(inst->term);
+    term_copyall(inst->term, CLIP_SYSTEM);
 }
 
 void special_menuitem(GtkMenuItem *item, gpointer data)
@@ -4922,6 +4934,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->eventlogstuff = eventlogstuff_new();
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
+    inst->term->mouse_select_clipboard = CLIP_SYSTEM;
+    inst->term->mouse_paste_clipboard = CLIP_SYSTEM;
     inst->logctx = log_init(inst, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
 

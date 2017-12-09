@@ -147,7 +147,7 @@ static void paste_cb(GSimpleAction *action,
                      GVariant      *parameter,
                      gpointer       user_data)
 {
-    request_paste(user_data);
+    paste_menu_action(user_data);
 }
 
 static const GActionEntry win_actions[] = {

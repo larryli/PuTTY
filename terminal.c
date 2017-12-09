@@ -1703,6 +1703,11 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->basic_erase_char.truecolour.bg = optionalrgb_none;
     term->erase_char = term->basic_erase_char;
 
+    /* frontends will typically overwrite these with clipboard ids they
+     * know about */
+    term->mouse_select_clipboard = CLIP_NULL;
+    term->mouse_paste_clipboard = CLIP_NULL;
+
     return term;
 }
 
@@ -5638,7 +5643,8 @@ static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr, truecolour tc)
     b->bufpos++;
 }
 
-static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
+static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel,
+                   int clipboard)
 {
     clip_workbuf buf;
     int old_top_x;
@@ -5799,13 +5805,14 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel)
     clip_addchar(&buf, 0, 0, term->basic_erase_char.truecolour);
 #endif
     /* Finally, transfer all that to the clipboard. */
-    write_clip(term->frontend, buf.textbuf, buf.attrbuf, buf.tcbuf, buf.bufpos, desel);
+    write_clip(term->frontend, clipboard,
+               buf.textbuf, buf.attrbuf, buf.tcbuf, buf.bufpos, desel);
     sfree(buf.textbuf);
     sfree(buf.attrbuf);
     sfree(buf.tcbuf);
 }
 
-void term_copyall(Terminal *term)
+void term_copyall(Terminal *term, int clipboard)
 {
     pos top;
     pos bottom;
@@ -5814,7 +5821,14 @@ void term_copyall(Terminal *term)
     top.x = 0;
     bottom.y = find_last_nonempty_line(term, screen);
     bottom.x = term->cols;
-    clipme(term, top, bottom, 0, TRUE);
+    clipme(term, top, bottom, 0, TRUE, clipboard);
+}
+
+void term_request_paste(Terminal *term, int clipboard)
+{
+    if (clipboard == CLIP_NULL)
+        return;
+    frontend_request_paste(term->frontend, clipboard);
 }
 
 /*
@@ -6397,7 +6411,8 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 	     * data to the clipboard.
 	     */
 	    clipme(term, term->selstart, term->selend,
-		   (term->seltype == RECTANGULAR), FALSE);
+		   (term->seltype == RECTANGULAR), FALSE,
+                   term->mouse_select_clipboard);
 	    term->selstate = SELECTED;
 	} else
 	    term->selstate = NO_SELECTION;
@@ -6407,7 +6422,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
 		   || a == MA_2CLK || a == MA_3CLK
 #endif
 		   )) {
-	request_paste(term->frontend);
+	term_request_paste(term, term->mouse_paste_clipboard);
     }
 
     /*
@@ -6471,8 +6486,11 @@ static void deselect(Terminal *term)
     term->selstart.x = term->selstart.y = term->selend.x = term->selend.y = 0;
 }
 
-void term_deselect(Terminal *term)
+void term_lost_clipboard_ownership(Terminal *term, int clipboard)
 {
+    if (clipboard != term->mouse_select_clipboard)
+        return;
+
     deselect(term);
     term_update(term);
 

@@ -327,6 +327,9 @@ struct terminal_tag {
     int scroll_on_key;
     int xterm_256_colour;
     int true_colour;
+
+    int mouse_select_clipboard;
+    int mouse_paste_clipboard;
 };
 
 #define in_utf(term) ((term)->utf || (term)->ucsdata->line_codepage==CP_UTF8)

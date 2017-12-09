@@ -637,6 +637,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * timer_change_notify() which will expect hwnd to exist.)
      */
     term = term_init(conf, &ucsdata, NULL);
+    term->mouse_select_clipboard = CLIP_SYSTEM;
+    term->mouse_paste_clipboard = CLIP_SYSTEM;
     logctx = log_init(NULL, conf);
     term_provide_logctx(term, logctx);
     term_size(term, conf_get_int(conf, CONF_height),
@@ -2328,10 +2330,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_COPYALL:
-	    term_copyall(term);
+	    term_copyall(term, CLIP_SYSTEM);
 	    break;
 	  case IDM_PASTE:
-	    request_paste(NULL);
+	    term_request_paste(term, CLIP_SYSTEM);
 	    break;
 	  case IDM_CLRSB:
 	    term_clrsb(term);
@@ -2563,7 +2565,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_DESTROYCLIPBOARD:
 	if (!ignore_clip)
-	    term_deselect(term);
+	    term_lost_clipboard_ownership(term, CLIP_SYSTEM);
 	ignore_clip = FALSE;
 	return 0;
       case WM_PAINT:
@@ -4146,7 +4148,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    request_paste(NULL);
+	    term_request_paste(term, CLIP_SYSTEM);
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && conf_get_int(conf, CONF_alt_f4)) {
@@ -4861,10 +4863,14 @@ void palette_reset(void *frontend)
     }
 }
 
-void write_aclip(void *frontend, char *data, int len, int must_deselect)
+void write_aclip(void *frontend, int clipboard,
+                 char *data, int len, int must_deselect)
 {
     HGLOBAL clipdata;
     void *lock;
+
+    if (clipboard != CLIP_SYSTEM)
+        return;
 
     clipdata = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, len + 1);
     if (!clipdata)
@@ -4905,12 +4911,16 @@ int cmpCOLORREF(void *va, void *vb)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(void *frontend, wchar_t *data, int *attr, truecolour *truecolour,
-                int len, int must_deselect)
+void write_clip(void *frontend, int clipboard,
+                wchar_t *data, int *attr, truecolour *truecolour, int len,
+                int must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
     void *lock, *lock2, *lock3;
+
+    if (clipboard != CLIP_SYSTEM)
+        return;
 
     len2 = WideCharToMultiByte(CP_ACP, 0, data, len, 0, 0, NULL, NULL);
 
@@ -5372,8 +5382,10 @@ static void process_clipdata(HGLOBAL clipdata, int unicode)
     sfree(clipboard_contents);
 }
 
-void request_paste(void *frontend)
+void frontend_request_paste(void *frontend, int clipboard)
 {
+    assert(clipboard == CLIP_SYSTEM);
+
     /*
      * I always thought pasting was synchronous in Windows; the
      * clipboard access functions certainly _look_ synchronous,

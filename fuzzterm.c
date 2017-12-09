@@ -82,9 +82,10 @@ void free_ctx(Context ctx) { }
 void palette_set(void *frontend, int a, int b, int c, int d) { }
 void palette_reset(void *frontend) { }
 int palette_get(void *frontend, int n, int *r, int *g, int *b) {return FALSE;}
-void write_clip(void *frontend, wchar_t *a, int *b, truecolour *c, int d, int e) { }
+void write_clip(void *frontend, int clipboard,
+                wchar_t *a, int *b, truecolour *c, int d, int e) { }
 void set_raw_mouse_mode(void *frontend, int m) { }
-void request_paste(void *frontend) { }
+void frontend_request_paste(void *frontend, int clipboard) { }
 void do_beep(void *frontend, int a) { }
 void sys_cursor(void *frontend, int x, int y) { }
 void modalfatalbox(const char *fmt, ...) { exit(0); }

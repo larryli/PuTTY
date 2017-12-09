@@ -119,6 +119,10 @@ unsigned long getticks(void);
  */
 #define FLAG_STDERR_TTY 0x1000
 
+#define PLATFORM_CLIPBOARDS(X)                      \
+    X(CLIP_SYSTEM, "system clipboard")              \
+    /* end of list */
+
 /* The per-session frontend structure managed by gtkwin.c */
 struct gui_data;
 
@@ -142,6 +146,9 @@ GtkWidget *make_gtk_toplevel_window(void *frontend);
 
 /* Defined in gtkcomm.c */
 void gtkcomm_setup(void);
+
+/* Defined in gtkwin.c */
+void paste_menu_action(void *frontend);
 
 /* Things pty.c needs from pterm.c */
 const char *get_x_display(void *frontend);
