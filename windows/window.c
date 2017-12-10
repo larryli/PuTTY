@@ -637,7 +637,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * timer_change_notify() which will expect hwnd to exist.)
      */
     term = term_init(conf, &ucsdata, NULL);
-    term->mouse_select_clipboard = CLIP_SYSTEM;
+    term->mouse_select_clipboards[
+        term->n_mouse_select_clipboards++] = CLIP_SYSTEM;
     term->mouse_paste_clipboard = CLIP_SYSTEM;
     logctx = log_init(NULL, conf);
     term_provide_logctx(term, logctx);
@@ -2330,7 +2331,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_COPYALL:
-	    term_copyall(term, CLIP_SYSTEM);
+            {
+                static const int clips[] = { CLIP_SYSTEM };
+                term_copyall(term, clips, lenof(clips));
+            }
 	    break;
 	  case IDM_PASTE:
 	    term_request_paste(term, CLIP_SYSTEM);

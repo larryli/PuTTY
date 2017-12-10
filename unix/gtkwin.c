@@ -4130,7 +4130,8 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    term_copyall(inst->term, CLIP_SYSTEM);
+    static const int clips[] = { CLIP_PRIMARY, CLIP_CLIPBOARD };
+    term_copyall(inst->term, clips, lenof(clips));
 }
 
 void special_menuitem(GtkMenuItem *item, gpointer data)
@@ -5004,7 +5005,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->eventlogstuff = eventlogstuff_new();
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
-    inst->term->mouse_select_clipboard = MOUSE_SELECT_CLIPBOARD;
+    inst->term->mouse_select_clipboards[
+        inst->term->n_mouse_select_clipboards++] = MOUSE_SELECT_CLIPBOARD;
     inst->term->mouse_paste_clipboard = MOUSE_PASTE_CLIPBOARD;
     inst->logctx = log_init(inst, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
