@@ -125,15 +125,31 @@ unsigned long getticks(void);
 
 #ifdef OSX_GTK
 /* OS X has no PRIMARY selection */
-#define SHIFT_INS_CLIPBOARD CLIP_CLIPBOARD
-#define MOUSE_SELECT_CLIPBOARD CLIP_CLIPBOARD
-#define MOUSE_PASTE_CLIPBOARD CLIP_CLIPBOARD
+#define MOUSE_SELECT_CLIPBOARD CLIP_NULL
+#define MOUSE_PASTE_CLIPBOARD CLIP_LOCAL
+#define CLIPNAME_IMPLICIT "Last selected text"
+#define CLIPNAME_EXPLICIT "System clipboard"
+#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+/* These defaults are the ones that more or less comply with the OS X
+ * Human Interface Guidelines, i.e. copy/paste to the system clipboard
+ * is _not_ implicit but requires a specific UI action. This is at
+ * odds with all other PuTTY front ends' defaults, but on OS X there
+ * is no multi-decade precedent for PuTTY working the other way. */
+#define CLIPUI_DEFAULT_AUTOCOPY FALSE
+#define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
+#define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
 #else
-#define SHIFT_INS_CLIPBOARD CLIP_PRIMARY
 #define MOUSE_SELECT_CLIPBOARD CLIP_PRIMARY
 #define MOUSE_PASTE_CLIPBOARD CLIP_PRIMARY
+#define CLIPNAME_IMPLICIT "PRIMARY"
+#define CLIPNAME_EXPLICIT "CLIPBOARD"
+#define CLIPNAME_EXPLICIT_OBJECT "CLIPBOARD"
+/* These defaults are the ones Unix PuTTY has historically had since
+ * it was first thought of in 2002 */
+#define CLIPUI_DEFAULT_AUTOCOPY FALSE
+#define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
+#define CLIPUI_DEFAULT_INS CLIPUI_IMPLICIT
 #endif
-#define MENU_PASTE_CLIPBOARD CLIP_CLIPBOARD
 
 /* The per-session frontend structure managed by gtkwin.c */
 struct gui_data;

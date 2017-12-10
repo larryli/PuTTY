@@ -1022,15 +1022,98 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	}
 
 	/*
-	 * Neither does Shift-Ins.
+	 * Neither do Shift-Ins or Ctrl-Ins (if enabled).
 	 */
 	if (event->keyval == GDK_KEY_Insert &&
             (event->state & GDK_SHIFT_MASK)) {
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftins);
+
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Insert paste\n"));
+                debug((" - Shift-Insert: paste from PRIMARY\n"));
 #endif
-	    term_request_paste(inst->term, SHIFT_INS_CLIPBOARD);
-	    return TRUE;
+                term_request_paste(inst->term, CLIP_PRIMARY);
+                return TRUE;
+              case CLIPUI_EXPLICIT:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Shift-Insert: paste from CLIPBOARD\n"));
+#endif
+                term_request_paste(inst->term, CLIP_CLIPBOARD);
+                return TRUE;
+              default:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Shift-Insert: no paste action\n"));
+#endif
+                break;
+            }
+	}
+	if (event->keyval == GDK_KEY_Insert &&
+            (event->state & GDK_CONTROL_MASK)) {
+            static const int clips_clipboard[] = { CLIP_CLIPBOARD };
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftins);
+
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
+                /* do nothing; re-copy to PRIMARY is not needed */
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Ctrl-Insert: non-copy to PRIMARY\n"));
+#endif
+                return TRUE;
+              case CLIPUI_EXPLICIT:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Ctrl-Insert: copy to CLIPBOARD\n"));
+#endif
+                term_request_copy(inst->term,
+                                  clips_clipboard, lenof(clips_clipboard));
+                return TRUE;
+              default:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Ctrl-Insert: no copy action\n"));
+#endif
+                break;
+            }
+	}
+
+        /*
+         * Another pair of copy-paste keys.
+         */
+	if ((event->state & GDK_SHIFT_MASK) &&
+            (event->state & GDK_CONTROL_MASK) &&
+            (event->keyval == GDK_KEY_C || event->keyval == GDK_KEY_c ||
+             event->keyval == GDK_KEY_V || event->keyval == GDK_KEY_v)) {
+            int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftcv);
+            int paste = (event->keyval == GDK_KEY_V ||
+                         event->keyval == GDK_KEY_v);
+
+            switch (cfgval) {
+              case CLIPUI_IMPLICIT:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-V: paste from PRIMARY\n"));
+#endif
+                    term_request_paste(inst->term, CLIP_PRIMARY);
+                } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-C: non-copy to PRIMARY\n"));
+#endif
+                }
+                return TRUE;
+              case CLIPUI_EXPLICIT:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-V: paste from CLIPBOARD\n"));
+#endif
+                    term_request_paste(inst->term, CLIP_CLIPBOARD);
+                } else {
+                    static const int clips[] = { CLIP_CLIPBOARD };
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-C: copy to CLIPBOARD\n"));
+#endif
+                    term_request_copy(inst->term, clips, lenof(clips));
+                }
+                return TRUE;
+            }
 	}
 
 	special = FALSE;
@@ -3086,7 +3169,7 @@ void init_clipboard(struct gui_data *inst)
 void paste_menu_action(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    term_request_paste(inst->term, MENU_PASTE_CLIPBOARD);
+    term_request_paste(inst->term, CLIP_CLIPBOARD);
 }
 
 static void set_window_titles(struct gui_data *inst)
@@ -4169,6 +4252,32 @@ void event_log_menuitem(GtkMenuItem *item, gpointer data)
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
+void setup_clipboards(Terminal *term, Conf *conf)
+{
+    assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
+
+    term->n_mouse_select_clipboards = 1;
+    term->mouse_select_clipboards[
+        term->n_mouse_select_clipboards++] = MOUSE_SELECT_CLIPBOARD;
+
+    if (conf_get_int(conf, CONF_mouseautocopy)) {
+        term->mouse_select_clipboards[
+            term->n_mouse_select_clipboards++] = CLIP_CLIPBOARD;
+    }
+
+    switch (conf_get_int(conf, CONF_mousepaste)) {
+      case CLIPUI_IMPLICIT:
+        term->mouse_paste_clipboard = MOUSE_PASTE_CLIPBOARD;
+        break;
+      case CLIPUI_EXPLICIT:
+        term->mouse_paste_clipboard = CLIP_CLIPBOARD;
+        break;
+      default:
+        term->mouse_paste_clipboard = CLIP_NULL;
+        break;
+    }
+}
+
 struct after_change_settings_dialog_ctx {
     struct gui_data *inst;
     Conf *newconf;
@@ -4243,6 +4352,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
         }
         /* Pass new config data to the terminal */
         term_reconfig(inst->term, inst->conf);
+        setup_clipboards(inst->term, inst->conf);
         /* Pass new config data to the back end */
         if (inst->back)
 	    inst->back->reconfig(inst->backhandle, inst->conf);
@@ -5021,9 +5131,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->eventlogstuff = eventlogstuff_new();
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
-    inst->term->mouse_select_clipboards[
-        inst->term->n_mouse_select_clipboards++] = MOUSE_SELECT_CLIPBOARD;
-    inst->term->mouse_paste_clipboard = MOUSE_PASTE_CLIPBOARD;
+    setup_clipboards(inst->term, inst->conf);
     inst->logctx = log_init(inst, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
 

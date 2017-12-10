@@ -899,6 +899,10 @@ void cleanup_exit(int);
     X(INT, NONE, rtf_paste) \
     X(INT, NONE, mouse_override) \
     X(INT, INT, wordness) \
+    X(INT, NONE, mouseautocopy) \
+    X(INT, NONE, mousepaste) \
+    X(INT, NONE, ctrlshiftins) \
+    X(INT, NONE, ctrlshiftcv) \
     /* translations */ \
     X(INT, NONE, vtmode) \
     X(STR, NONE, line_codepage) \
@@ -1432,6 +1436,16 @@ enum {
     X11_NAUTHS
 };
 extern const char *const x11_authnames[];  /* declared in x11fwd.c */
+
+/*
+ * An enum for the copy-paste UI action configuration.
+ */
+enum {
+    CLIPUI_NONE,     /* UI action has no copy/paste effect */
+    CLIPUI_IMPLICIT, /* use the default clipboard implicit in mouse actions  */
+    CLIPUI_EXPLICIT, /* use the default clipboard for explicit Copy/Paste */
+    CLIPUI_CUSTOM,   /* use a named clipboard (on systems that support it) */
+};
 
 /*
  * Miscellaneous exports from the platform-specific code.

@@ -1337,6 +1337,34 @@ static void manual_hostkey_handler(union control *ctrl, void *dlg,
     }
 }
 
+static void clipboard_selector_handler(union control *ctrl, void *dlg,
+                                       void *data, int event)
+{
+    Conf *conf = (Conf *)data;
+    int setting = ctrl->generic.context.i;
+
+    if (event == EVENT_REFRESH) {
+        int i, val = conf_get_int(conf, setting);
+
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        dlg_listbox_addwithid(ctrl, dlg, "No action", CLIPUI_NONE);
+        dlg_listbox_addwithid(ctrl, dlg, CLIPNAME_IMPLICIT, CLIPUI_IMPLICIT);
+        dlg_listbox_addwithid(ctrl, dlg, CLIPNAME_EXPLICIT, CLIPUI_EXPLICIT);
+        dlg_listbox_select(ctrl, dlg, 0); /* fallback */
+        for (i = 0; i < 3; i++)
+            if (val == dlg_listbox_getid(ctrl, dlg, i))
+                dlg_listbox_select(ctrl, dlg, i);
+	dlg_update_done(ctrl, dlg);
+    } else if (event == EVENT_SELCHANGE) {
+        int index = dlg_listbox_index(ctrl, dlg);
+        if (index >= 0) {
+            int val = dlg_listbox_getid(ctrl, dlg, index);
+            conf_set_int(conf, setting, val);
+        }
+    }
+}
+
 void setup_config_box(struct controlbox *b, int midsession,
 		      int protocol, int protcfginfo)
 {
@@ -1859,6 +1887,25 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      I(CONF_rect_select),
 		      "Normal", 'n', I(0),
 		      "Rectangular block", 'r', I(1), NULL);
+
+    s = ctrl_getset(b, "Window/Selection", "clipboards",
+                    "Assign copy/paste actions to clipboards");
+    ctrl_checkbox(s, "Auto-copy selected text to "
+                  CLIPNAME_EXPLICIT_OBJECT,
+                  NO_SHORTCUT, HELPCTX(selection_autocopy),
+                  conf_checkbox_handler, I(CONF_mouseautocopy));
+    ctrl_droplist(s, "Mouse paste action:", NO_SHORTCUT, 60,
+                  HELPCTX(selection_clipactions),
+                  clipboard_selector_handler,
+                  I(CONF_mousepaste));
+    ctrl_droplist(s, "{Ctrl,Shift} + Ins:", NO_SHORTCUT, 60,
+                  HELPCTX(selection_clipactions),
+                  clipboard_selector_handler,
+                  I(CONF_ctrlshiftins));
+    ctrl_droplist(s, "Ctrl + Shift + {C,V}:", NO_SHORTCUT, 60,
+                  HELPCTX(selection_clipactions),
+                  clipboard_selector_handler,
+                  I(CONF_ctrlshiftcv));
 
     /*
      * The Window/Selection/Words panel.

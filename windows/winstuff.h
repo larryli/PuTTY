@@ -634,4 +634,15 @@ int remove_from_jumplist_registry(const char *item);
  * empty one. */
 char *get_jumplist_registry_entries(void);
 
+/*
+ * Windows clipboard-UI wording.
+ */
+#define CLIPNAME_IMPLICIT "Last selected text"
+#define CLIPNAME_EXPLICIT "System clipboard"
+#define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
+/* These defaults are the ones PuTTY has historically had */
+#define CLIPUI_DEFAULT_AUTOCOPY TRUE
+#define CLIPUI_DEFAULT_MOUSE CLIPUI_EXPLICIT
+#define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
+
 #endif

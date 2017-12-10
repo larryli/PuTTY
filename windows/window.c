@@ -52,7 +52,8 @@
 #define IDM_SAVEDSESS 0x0160
 #define IDM_COPYALL   0x0170
 #define IDM_FULLSCREEN	0x0180
-#define IDM_PASTE     0x0190
+#define IDM_COPY      0x0190
+#define IDM_PASTE     0x01A0
 #define IDM_SPECIALSEP 0x0200
 
 #define IDM_SPECIAL_MIN 0x0400
@@ -106,6 +107,7 @@ static void make_full_screen(void);
 static void clear_full_screen(void);
 static void flip_full_screen(void);
 static void process_clipdata(HGLOBAL clipdata, int unicode);
+static void setup_clipboards(Terminal *, Conf *);
 
 /* Window layout information */
 static void reset_window(int);
@@ -637,9 +639,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * timer_change_notify() which will expect hwnd to exist.)
      */
     term = term_init(conf, &ucsdata, NULL);
-    term->mouse_select_clipboards[
-        term->n_mouse_select_clipboards++] = CLIP_SYSTEM;
-    term->mouse_paste_clipboard = CLIP_SYSTEM;
+    setup_clipboards(term, conf);
     logctx = log_init(NULL, conf);
     term_provide_logctx(term, logctx);
     term_size(term, conf_get_int(conf, CONF_height),
@@ -712,6 +712,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, FALSE);
 	popup_menus[CTXMENU].menu = CreatePopupMenu();
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_COPY, "&Copy");
 	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
 
 	savedsess_menu = CreateMenu();
@@ -851,6 +852,30 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     finished:
     cleanup_exit(msg.wParam);	       /* this doesn't return... */
     return msg.wParam;		       /* ... but optimiser doesn't know */
+}
+
+static void setup_clipboards(Terminal *term, Conf *conf)
+{
+    assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
+
+    term->n_mouse_select_clipboards = 1;
+
+    if (conf_get_int(conf, CONF_mouseautocopy)) {
+        term->mouse_select_clipboards[
+            term->n_mouse_select_clipboards++] = CLIP_SYSTEM;
+    }
+
+    switch (conf_get_int(conf, CONF_mousepaste)) {
+      case CLIPUI_IMPLICIT:
+        term->mouse_paste_clipboard = CLIP_LOCAL;
+        break;
+      case CLIPUI_EXPLICIT:
+        term->mouse_paste_clipboard = CLIP_SYSTEM;
+        break;
+      default:
+        term->mouse_paste_clipboard = CLIP_NULL;
+        break;
+    }
 }
 
 /*
@@ -1998,6 +2023,8 @@ static void conf_cache_data(void)
     vtmode = conf_get_int(conf, CONF_vtmode);
 }
 
+static const int clips_system[] = { CLIP_SYSTEM };
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -2210,6 +2237,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 		/* Pass new config data to the terminal */
 		term_reconfig(term, conf);
+                setup_clipboards(term, conf);
 
 		/* Pass new config data to the back end */
 		if (back)
@@ -2331,10 +2359,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_COPYALL:
-            {
-                static const int clips[] = { CLIP_SYSTEM };
-                term_copyall(term, clips, lenof(clips));
-            }
+            term_copyall(term, clips_system, lenof(clips_system));
+	    break;
+	  case IDM_COPY:
+            term_request_copy(term, clips_system, lenof(clips_system));
 	    break;
 	  case IDM_PASTE:
 	    term_request_paste(term, CLIP_SYSTEM);
@@ -4151,8 +4179,54 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    term_scroll_to_selection(term, (wParam == VK_PRIOR ? 0 : 1));
 	    return 0;
 	}
+	if (wParam == VK_INSERT && shift_state == 2) {
+            switch (conf_get_int(conf, CONF_ctrlshiftins)) {
+              case CLIPUI_IMPLICIT:
+                break;          /* no need to re-copy to CLIP_LOCAL */
+              case CLIPUI_EXPLICIT:
+                term_request_copy(term, clips_system, lenof(clips_system));
+                break;
+              default:
+                break;
+            }
+	    return 0;
+	}
 	if (wParam == VK_INSERT && shift_state == 1) {
-	    term_request_paste(term, CLIP_SYSTEM);
+            switch (conf_get_int(conf, CONF_ctrlshiftins)) {
+              case CLIPUI_IMPLICIT:
+                term_request_paste(term, CLIP_LOCAL);
+                break;
+              case CLIPUI_EXPLICIT:
+                term_request_paste(term, CLIP_SYSTEM);
+                break;
+              default:
+                break;
+            }
+	    return 0;
+	}
+	if (wParam == 'C' && shift_state == 3) {
+            switch (conf_get_int(conf, CONF_ctrlshiftcv)) {
+              case CLIPUI_IMPLICIT:
+                break;          /* no need to re-copy to CLIP_LOCAL */
+              case CLIPUI_EXPLICIT:
+                term_request_copy(term, clips_system, lenof(clips_system));
+                break;
+              default:
+                break;
+            }
+	    return 0;
+	}
+	if (wParam == 'V' && shift_state == 3) {
+            switch (conf_get_int(conf, CONF_ctrlshiftcv)) {
+              case CLIPUI_IMPLICIT:
+                term_request_paste(term, CLIP_LOCAL);
+                break;
+              case CLIPUI_EXPLICIT:
+                term_request_paste(term, CLIP_SYSTEM);
+                break;
+              default:
+                break;
+            }
 	    return 0;
 	}
 	if (left_alt && wParam == VK_F4 && conf_get_int(conf, CONF_alt_f4)) {

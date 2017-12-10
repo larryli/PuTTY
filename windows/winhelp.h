@@ -123,6 +123,8 @@
 #define WINHELP_CTX_selection_charclasses "selection.charclasses:config-charclasses"
 #define WINHELP_CTX_selection_linedraw "selection.linedraw:config-linedrawpaste"
 #define WINHELP_CTX_selection_rtf "selection.rtf:config-rtfpaste"
+#define WINHELP_CTX_selection_autocopy "selection.autocopy:config-selection-autocopy"
+#define WINHELP_CTX_selection_clipactions "selection.clipactions:config-selection-clipactions"
 #define WINHELP_CTX_colours_ansi "colours.ansi:config-ansicolour"
 #define WINHELP_CTX_colours_xterm256 "colours.xterm256:config-xtermcolour"
 #define WINHELP_CTX_colours_truecolour "colours.truecolour:config-truecolour"
