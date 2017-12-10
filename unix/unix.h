@@ -29,7 +29,6 @@
 /* this potential one of the Meta keys needs manual handling */
 #define META_MANUAL_MASK (GDK_MOD1_MASK)
 #define JUST_USE_GTK_CLIPBOARD_UTF8 /* low-level gdk_selection_* fails */
-#define DEFAULT_CLIPBOARD GDK_SELECTION_CLIPBOARD /* OS X has no PRIMARY */
 
 #define BUILDINFO_PLATFORM_GTK "OS X (GTK)"
 #define BUILDINFO_GTK
@@ -119,9 +118,22 @@ unsigned long getticks(void);
  */
 #define FLAG_STDERR_TTY 0x1000
 
-#define PLATFORM_CLIPBOARDS(X)                      \
-    X(CLIP_SYSTEM, "system clipboard")              \
+#define PLATFORM_CLIPBOARDS(X)                            \
+    X(CLIP_PRIMARY, "X11 primary selection")              \
+    X(CLIP_CLIPBOARD, "XDG clipboard")                    \
     /* end of list */
+
+#ifdef OSX_GTK
+/* OS X has no PRIMARY selection */
+#define SHIFT_INS_CLIPBOARD CLIP_CLIPBOARD
+#define MOUSE_SELECT_CLIPBOARD CLIP_CLIPBOARD
+#define MOUSE_PASTE_CLIPBOARD CLIP_CLIPBOARD
+#else
+#define SHIFT_INS_CLIPBOARD CLIP_PRIMARY
+#define MOUSE_SELECT_CLIPBOARD CLIP_PRIMARY
+#define MOUSE_PASTE_CLIPBOARD CLIP_PRIMARY
+#endif
+#define MENU_PASTE_CLIPBOARD CLIP_CLIPBOARD
 
 /* The per-session frontend structure managed by gtkwin.c */
 struct gui_data;
