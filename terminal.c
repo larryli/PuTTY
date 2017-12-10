@@ -1703,6 +1703,10 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->basic_erase_char.truecolour.bg = optionalrgb_none;
     term->erase_char = term->basic_erase_char;
 
+    term->last_selected_text = NULL;
+    term->last_selected_attr = NULL;
+    term->last_selected_tc = NULL;
+    term->last_selected_len = 0;
     /* frontends will typically overwrite these with clipboard ids they
      * know about */
     term->mouse_select_clipboard = CLIP_NULL;
@@ -5805,11 +5809,15 @@ static void clipme(Terminal *term, pos top, pos bottom, int rect, int desel,
     clip_addchar(&buf, 0, 0, term->basic_erase_char.truecolour);
 #endif
     /* Finally, transfer all that to the clipboard. */
+    sfree(term->last_selected_text);
+    sfree(term->last_selected_attr);
+    sfree(term->last_selected_tc);
+    term->last_selected_text = buf.textbuf;
+    term->last_selected_attr = buf.attrbuf;
+    term->last_selected_tc = buf.tcbuf;
+    term->last_selected_len = buf.bufpos;
     write_clip(term->frontend, clipboard,
                buf.textbuf, buf.attrbuf, buf.tcbuf, buf.bufpos, desel);
-    sfree(buf.textbuf);
-    sfree(buf.attrbuf);
-    sfree(buf.tcbuf);
 }
 
 void term_copyall(Terminal *term, int clipboard)
@@ -5824,11 +5832,38 @@ void term_copyall(Terminal *term, int clipboard)
     clipme(term, top, bottom, 0, TRUE, clipboard);
 }
 
+static void paste_from_clip_local(void *vterm)
+{
+    Terminal *term = (Terminal *)vterm;
+    term_do_paste(term, term->last_selected_text, term->last_selected_len);
+}
+
+void term_request_copy(Terminal *term, int clipboard)
+{
+    assert(clipboard != CLIP_LOCAL);
+    if (clipboard != CLIP_NULL) {
+        write_clip(term->frontend, clipboard,
+                   term->last_selected_text,
+                   term->last_selected_attr,
+                   term->last_selected_tc,
+                   term->last_selected_len,
+                   FALSE);
+    }
+}
+
 void term_request_paste(Terminal *term, int clipboard)
 {
-    if (clipboard == CLIP_NULL)
-        return;
-    frontend_request_paste(term->frontend, clipboard);
+    switch (clipboard) {
+      case CLIP_NULL:
+        /* Do nothing: CLIP_NULL never has data in it. */
+        break;
+      case CLIP_LOCAL:
+        queue_toplevel_callback(paste_from_clip_local, term);
+        break;
+      default:
+        frontend_request_paste(term->frontend, clipboard);
+        break;
+    }
 }
 
 /*

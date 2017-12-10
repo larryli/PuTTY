@@ -616,13 +616,23 @@ typedef struct truecolour {
         optionalrgb_equal((c1).bg, (c2).bg))
 
 /*
- * Enumeration of clipboards. CLIP_NULL is the only one provided
- * systemwide: it's a non=clipboard, writes to which are ignored and
- * reads from which return no data. Each platform front end extends
- * this enumeration in its own way.
+ * Enumeration of clipboards. We provide some standard ones cross-
+ * platform, and then permit each platform to extend this enumeration
+ * further by defining PLATFORM_CLIPBOARDS in its own header file.
+ *
+ * CLIP_NULL is a non-clipboard, writes to which are ignored and reads
+ * from which return no data.
+ *
+ * CLIP_LOCAL refers to a buffer within terminal.c, which
+ * unconditionally saves the last data selected in the terminal. In
+ * configurations where a system clipboard is not written
+ * automatically on selection but instead by an explicit UI action,
+ * this is where the code responding to that action can find the data
+ * to write to the clipboard in question.
  */
-#define CROSS_PLATFORM_CLIPBOARDS(X)            \
-    X(CLIP_NULL, "null clipboard")              \
+#define CROSS_PLATFORM_CLIPBOARDS(X)                    \
+    X(CLIP_NULL, "null clipboard")                      \
+    X(CLIP_LOCAL, "last text selected in terminal")     \
     /* end of list */
 
 #define ALL_CLIPBOARDS(X)                       \
@@ -1080,6 +1090,7 @@ void term_nopaste(Terminal *);
 int term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *, int clipboard);
 void term_reconfig(Terminal *, Conf *);
+void term_request_copy(Terminal *, int clipboard);
 void term_request_paste(Terminal *, int clipboard);
 void term_seen_key_event(Terminal *); 
 int term_data(Terminal *, int is_stderr, const char *data, int len);

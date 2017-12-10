@@ -328,6 +328,10 @@ struct terminal_tag {
     int xterm_256_colour;
     int true_colour;
 
+    wchar_t *last_selected_text;
+    int *last_selected_attr;
+    truecolour *last_selected_tc;
+    size_t last_selected_len;
     int mouse_select_clipboard;
     int mouse_paste_clipboard;
 };
