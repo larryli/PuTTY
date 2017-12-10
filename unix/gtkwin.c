@@ -4127,6 +4127,19 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 	ldisc_echoedit_update(inst->ldisc);
 }
 
+void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    static const int clips[] = { CLIP_CLIPBOARD };
+    term_request_copy(inst->term, clips, lenof(clips));
+}
+
+void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    term_request_paste(inst->term, CLIP_CLIPBOARD);
+}
+
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
@@ -4985,6 +4998,9 @@ void new_session_window(Conf *conf, const char *geometry_string)
 	gtk_widget_hide(inst->specialsitem2);
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
+	MKSEP();
+	MKMENUITEM("Copy to CLIPBOARD", copy_clipboard_menuitem);
+	MKMENUITEM("Paste from CLIPBOARD", paste_clipboard_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
 	MKSEP();
 	s = dupcat("About ", appname, NULL);
