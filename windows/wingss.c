@@ -33,7 +33,7 @@ const struct keyvalwhere gsslibkeywords[] = {
 
 DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
 		      AcquireCredentialsHandleA,
-		      (SEC_CHAR *, SEC_CHAR *, ULONG, PLUID,
+		      (SEC_CHAR *, SEC_CHAR *, ULONG, PVOID,
 		       PVOID, SEC_GET_KEY_FN, PVOID, PCredHandle, PTimeStamp));
 DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
 		      InitializeSecurityContextA,

@@ -194,7 +194,7 @@ static void handle_socket_unfreeze(void *psv)
     bufchain_consume(&ps->inputdata, len);
     ps->defer_close = FALSE;
     if (ps->deferred_close) {
-        sk_handle_close(ps);
+        sk_handle_close((Socket)ps);
         return;
     }
 

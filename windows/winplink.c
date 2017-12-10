@@ -297,7 +297,6 @@ int main(int argc, char **argv)
     int skcount, sksize;
     int exitcode;
     int errors;
-    int got_host = FALSE;
     int use_subsystem = 0;
     int just_test_share_exists = FALSE;
     unsigned long now, next, then;

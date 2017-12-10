@@ -19,7 +19,7 @@ static int requested_help;
 static char *help_path;
 static int help_has_contents;
 #ifndef NO_HTMLHELP
-DECL_WINDOWS_FUNCTION(static, HWND, HtmlHelpA, (HWND, LPCSTR, UINT, DWORD));
+DECL_WINDOWS_FUNCTION(static, HWND, HtmlHelpA, (HWND, LPCSTR, UINT, DWORD_PTR));
 static char *chm_path;
 #endif /* NO_HTMLHELP */
 

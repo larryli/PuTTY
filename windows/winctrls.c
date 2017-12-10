@@ -41,7 +41,7 @@
 DECL_WINDOWS_FUNCTION(static, void, InitCommonControls, (void));
 DECL_WINDOWS_FUNCTION(static, BOOL, MakeDragList, (HWND));
 DECL_WINDOWS_FUNCTION(static, int, LBItemFromPt, (HWND, POINT, BOOL));
-DECL_WINDOWS_FUNCTION(static, int, DrawInsert, (HWND, HWND, int));
+DECL_WINDOWS_FUNCTION(static, void, DrawInsert, (HWND, HWND, int));
 
 void init_common_controls(void)
 {

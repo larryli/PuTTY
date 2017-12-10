@@ -106,6 +106,7 @@ char *get_username(void)
 	       sspicli.dll WITHOUT proper path sanitizing, so better
 	       load it properly before */
 	    HMODULE sspicli = load_system32_dll("sspicli.dll");
+            (void)sspicli; /* squash compiler warning about unused variable */
 	    GET_WINDOWS_FUNCTION(secur32, GetUserNameExA);
 	    tried_usernameex = TRUE;
 	}
