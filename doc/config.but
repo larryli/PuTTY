@@ -1469,13 +1469,15 @@ select a rectangular block. Using the \q{Default selection mode}
 control, you can set \i{rectangular selection} as the default, and then
 you have to hold down Alt to get the \e{normal} behaviour.
 
-\S{config-charclasses} Configuring \i{word-by-word selection}
+\H{config-selection-words} The Words panel
+
+PuTTY will \I{word-by-word selection}select a word at a time in the
+terminal window if you \i{double-click} to begin the drag. This panel
+allows you to control precisely what is considered to be a word.
+
+\S{config-charclasses} Character classes
 
 \cfg{winhelp-topic}{selection.charclasses}
-
-PuTTY will select a word at a time in the terminal window if you
-\i{double-click} to begin the drag. This panel allows you to control
-precisely what is considered to be a word.
 
 Each character is given a \e{class}, which is a small number
 (typically 0, 1 or 2). PuTTY considers a single word to be any

@@ -1860,8 +1860,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "Normal", 'n', I(0),
 		      "Rectangular block", 'r', I(1), NULL);
 
-    s = ctrl_getset(b, "Window/Selection", "charclass",
-		    "Control the select-one-word-at-a-time mode");
+    /*
+     * The Window/Selection/Words panel.
+     */
+    ctrl_settitle(b, "Window/Selection/Words",
+                  "Options controlling word-by-word selection");
+
+    s = ctrl_getset(b, "Window/Selection/Words", "charclass",
+		    "Classes of character that group together");
     ccd = (struct charclass_data *)
 	ctrl_alloc(b, sizeof(struct charclass_data));
     ccd->listbox = ctrl_listbox(s, "Character classes:", 'e',
