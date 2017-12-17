@@ -49,19 +49,6 @@ but if I mouse off the menu and back on (without un-popping-it-up)
 then suddenly that does work. I don't know if this is something I can
 fix, though; it might very well be a quirk of the underlying GTK.
 
-I want to arrange *some* way to paste efficiently using my Apple
-wireless keyboard and trackpad. The trackpad doesn't provide a middle
-button; I can't use the historic Shift-Ins shortcut because the
-keyboard has no Ins key; I configure the Command key to be Meta, so
-Command-V is off the table too. I can always use the menu, but I'd
-prefer there to be _some_ easily reachable mouse or keyboard gesture.
-
-Revamping the clipboard handling in general is going to be needed, as
-well. Not everybody will want the current auto-copy-on-select
-behaviour inherited from ordinary Unix PuTTY. Should arrange to have a
-mode in which you have to take an explicit Copy action, and then
-arrange that the Edit menu includes one of those.
-
 The application menu bar is very minimal at the moment. Should include
 all the usual stuff from the Ctrl-right-click menu - saved sessions,
 mid-session special commands, Duplicate Session, Change Settings,
