@@ -3243,10 +3243,17 @@ void init_clipboard(struct gui_data *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
+void copy_menu_action(void *frontend)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    static const int clips[] = { MENU_CLIPBOARD };
+    term_request_copy(inst->term, clips, lenof(clips));
+}
+
 void paste_menu_action(void *frontend)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    term_request_paste(inst->term, CLIP_CLIPBOARD);
+    term_request_paste(inst->term, MENU_CLIPBOARD);
 }
 
 static void set_window_titles(struct gui_data *inst)
@@ -4290,20 +4297,20 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    static const int clips[] = { CLIP_CLIPBOARD };
+    static const int clips[] = { MENU_CLIPBOARD };
     term_request_copy(inst->term, clips, lenof(clips));
 }
 
 void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    term_request_paste(inst->term, CLIP_CLIPBOARD);
+    term_request_paste(inst->term, MENU_CLIPBOARD);
 }
 
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
-    static const int clips[] = { CLIP_PRIMARY, CLIP_CLIPBOARD };
+    static const int clips[] = { COPYALL_CLIPBOARDS };
     term_copyall(inst->term, clips, lenof(clips));
 }
 
@@ -5224,8 +5231,10 @@ void new_session_window(Conf *conf, const char *geometry_string)
 	MKMENUITEM("Clear Scrollback", clear_scrollback_menuitem);
 	MKMENUITEM("Reset Terminal", reset_terminal_menuitem);
 	MKSEP();
-	MKMENUITEM("Copy to CLIPBOARD", copy_clipboard_menuitem);
-	MKMENUITEM("Paste from CLIPBOARD", paste_clipboard_menuitem);
+	MKMENUITEM("Copy to " CLIPNAME_EXPLICIT_OBJECT,
+                   copy_clipboard_menuitem);
+	MKMENUITEM("Paste from " CLIPNAME_EXPLICIT_OBJECT,
+                   paste_clipboard_menuitem);
 	MKMENUITEM("Copy All", copy_all_menuitem);
 	MKSEP();
 	s = dupcat("About ", appname, NULL);

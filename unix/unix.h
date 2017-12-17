@@ -141,6 +141,8 @@ unsigned long getticks(void);
 #define CLIPUI_DEFAULT_AUTOCOPY FALSE
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
+#define MENU_CLIPBOARD CLIP_SYSTEM
+#define COPYALL_CLIPBOARDS CLIP_SYSTEM
 #else
 #define MOUSE_SELECT_CLIPBOARD CLIP_PRIMARY
 #define MOUSE_PASTE_CLIPBOARD CLIP_PRIMARY
@@ -152,6 +154,8 @@ unsigned long getticks(void);
 #define CLIPUI_DEFAULT_AUTOCOPY FALSE
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_IMPLICIT
+#define MENU_CLIPBOARD CLIP_CLIPBOARD
+#define COPYALL_CLIPBOARDS CLIP_PRIMARY, CLIP_CLIPBOARD
 /* X11 supports arbitrary named clipboards */
 #define NAMED_CLIPBOARDS
 #endif
@@ -181,6 +185,7 @@ GtkWidget *make_gtk_toplevel_window(void *frontend);
 void gtkcomm_setup(void);
 
 /* Defined in gtkwin.c */
+void copy_menu_action(void *frontend);
 void paste_menu_action(void *frontend);
 
 /* Things pty.c needs from pterm.c */

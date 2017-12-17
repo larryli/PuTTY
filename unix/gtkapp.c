@@ -124,10 +124,18 @@ static void startup(GApplication *app, gpointer user_data)
 
     section = g_menu_new();
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Copy", "win.copy");
     g_menu_append(section, "Paste", "win.paste");
 
     gtk_application_set_menubar(GTK_APPLICATION(app),
                                 G_MENU_MODEL(menubar));
+}
+
+static void copy_cb(GSimpleAction *action,
+                    GVariant      *parameter,
+                    gpointer       user_data)
+{
+    copy_menu_action(user_data);
 }
 
 static void paste_cb(GSimpleAction *action,
@@ -138,6 +146,7 @@ static void paste_cb(GSimpleAction *action,
 }
 
 static const GActionEntry win_actions[] = {
+    { "copy", copy_cb },
     { "paste", paste_cb },
 };
 
