@@ -2710,8 +2710,8 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
         cdi->state->current_cdi = NULL;
     }
     sfree(cdi->pasteout_data_utf8);
-    cdi->next->prev = cdi->next;
-    cdi->prev->next = cdi->prev;
+    cdi->next->prev = cdi->prev;
+    cdi->prev->next = cdi->next;
     sfree(cdi);
 }
 
