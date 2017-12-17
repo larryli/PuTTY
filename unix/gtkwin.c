@@ -52,7 +52,23 @@
 
 GdkAtom compound_text_atom, utf8_string_atom;
 
-struct clipboard_data_instance;
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+/*
+ * Because calling gtk_clipboard_set_with_data triggers a call to the
+ * clipboard_clear function from the last time, we need to arrange a
+ * way to distinguish a real call to clipboard_clear for the _new_
+ * instance of the clipboard data from the leftover call for the
+ * outgoing one. We do this by setting the user data field in our
+ * gtk_clipboard_set_with_data() call, instead of the obvious pointer
+ * to 'inst', to one of these.
+ */
+struct clipboard_data_instance {
+    char *pasteout_data_utf8;
+    int pasteout_data_utf8_len;
+    struct clipboard_state *state;
+    struct clipboard_data_instance *next, *prev;
+};
+#endif
 
 struct clipboard_state {
     struct gui_data *inst;
@@ -115,6 +131,12 @@ struct gui_data {
 #endif
     int direct_to_font;
     struct clipboard_state clipstates[N_CLIPBOARDS];
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    /* Remember all clipboard_data_instance structures currently
+     * associated with this gui_data, in case they're still around
+     * when it gets destroyed */
+    struct clipboard_data_instance cdi_headtail;
+#endif
     int clipboard_ctrlshiftins, clipboard_ctrlshiftcv;
     int font_width, font_height;
     int width, height;
@@ -2298,6 +2320,21 @@ static void delete_inst(struct gui_data *inst)
         inst->logctx = NULL;
     }
 
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    /*
+     * Clear up any in-flight clipboard_data_instances. We can't
+     * actually _free_ them, but we detach them from the inst that's
+     * about to be destroyed.
+     */
+    while (inst->cdi_headtail.next != &inst->cdi_headtail) {
+        struct clipboard_data_instance *cdi = inst->cdi_headtail.next;
+        cdi->state = NULL;
+        cdi->next->prev = cdi->prev;
+        cdi->prev->next = cdi->next;
+        cdi->next = cdi->prev = cdi;
+    }
+#endif
+
     /*
      * Delete any top-level callbacks associated with inst, which
      * would otherwise become stale-pointer dereferences waiting to
@@ -2647,30 +2684,14 @@ int init_clipboard(struct gui_data *inst)
     return TRUE;
 }
 
-/*
- * Because calling gtk_clipboard_set_with_data triggers a call to the
- * clipboard_clear function from the last time, we need to arrange a
- * way to distinguish a real call to clipboard_clear for the _new_
- * instance of the clipboard data from the leftover call for the
- * outgoing one. We do this by setting the user data field in our
- * gtk_clipboard_set_with_data() call, instead of the obvious pointer
- * to 'inst', to one of these.
- */
-struct clipboard_data_instance {
-    char *pasteout_data_utf8;
-    int pasteout_data_utf8_len;
-};
-
 static void clipboard_provide_data(GtkClipboard *clipboard,
                                    GtkSelectionData *selection_data,
                                    guint info, gpointer data)
 {
     struct clipboard_data_instance *cdi =
         (struct clipboard_data_instance *)data;
-    struct clipboard_state *state = (struct clipboard_state *)
-        g_object_get_data(G_OBJECT(clipboard), "user-data");
 
-    if (state->current_cdi == cdi) {
+    if (cdi->state && cdi->state->current_cdi == cdi) {
         gtk_selection_data_set_text(selection_data, cdi->pasteout_data_utf8,
                                     cdi->pasteout_data_utf8_len);
     }
@@ -2680,14 +2701,17 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
 {
     struct clipboard_data_instance *cdi =
         (struct clipboard_data_instance *)data;
-    struct clipboard_state *state = (struct clipboard_state *)
-        g_object_get_data(G_OBJECT(clipboard), "user-data");
 
-    if (state->current_cdi == cdi) {
-        term_lost_clipboard_ownership(state->inst->term, state->clipboard);
-        state->current_cdi = NULL;
+    if (cdi->state && cdi->state->current_cdi == cdi) {
+        if (cdi->state->inst && cdi->state->inst->term) {
+            term_lost_clipboard_ownership(cdi->state->inst->term,
+                                          cdi->state->clipboard);
+        }
+        cdi->state->current_cdi = NULL;
     }
     sfree(cdi->pasteout_data_utf8);
+    cdi->next->prev = cdi->next;
+    cdi->prev->next = cdi->prev;
     sfree(cdi);
 }
 
@@ -2712,8 +2736,13 @@ void write_clip(void *frontend, int clipboard,
         return;
 
     cdi = snew(struct clipboard_data_instance);
+    cdi->state = state;
     state->current_cdi = cdi;
     cdi->pasteout_data_utf8 = snewn(len*6, char);
+    cdi->prev = inst->cdi_headtail.prev;
+    cdi->next = &inst->cdi_headtail;
+    cdi->next->prev = cdi;
+    cdi->prev->next = cdi;
     {
         const wchar_t *tmp = data;
         int tmplen = len;
@@ -4897,6 +4926,9 @@ void new_session_window(Conf *conf, const char *geometry_string)
      */
     inst = snew(struct gui_data);
     memset(inst, 0, sizeof(*inst));
+#ifdef JUST_USE_GTK_CLIPBOARD_UTF8
+    inst->cdi_headtail.next = inst->cdi_headtail.prev = &inst->cdi_headtail;
+#endif
     inst->alt_keycode = -1;            /* this one needs _not_ to be zero */
     inst->busy_status = BUSY_NOT;
     inst->conf = conf;
