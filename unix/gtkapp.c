@@ -156,6 +156,7 @@ void launch_duplicate_session(Conf *conf)
 {
     extern const int dup_check_launchable;
     assert(!dup_check_launchable || conf_launchable(conf));
+    g_application_hold(G_APPLICATION(app));
     new_session_window(conf_copy(conf), NULL);
 }
 
