@@ -903,6 +903,9 @@ void cleanup_exit(int);
     X(INT, NONE, mousepaste) \
     X(INT, NONE, ctrlshiftins) \
     X(INT, NONE, ctrlshiftcv) \
+    X(STR, NONE, mousepaste_custom) \
+    X(STR, NONE, ctrlshiftins_custom) \
+    X(STR, NONE, ctrlshiftcv_custom) \
     /* translations */ \
     X(INT, NONE, vtmode) \
     X(STR, NONE, line_codepage) \

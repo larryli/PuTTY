@@ -121,6 +121,9 @@ unsigned long getticks(void);
 #define PLATFORM_CLIPBOARDS(X)                            \
     X(CLIP_PRIMARY, "X11 primary selection")              \
     X(CLIP_CLIPBOARD, "XDG clipboard")                    \
+    X(CLIP_CUSTOM_1, "<custom#1>")                        \
+    X(CLIP_CUSTOM_2, "<custom#2>")                        \
+    X(CLIP_CUSTOM_3, "<custom#3>")                        \
     /* end of list */
 
 #ifdef OSX_GTK
@@ -149,6 +152,8 @@ unsigned long getticks(void);
 #define CLIPUI_DEFAULT_AUTOCOPY FALSE
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_IMPLICIT
+/* X11 supports arbitrary named clipboards */
+#define NAMED_CLIPBOARDS
 #endif
 
 /* The per-session frontend structure managed by gtkwin.c */

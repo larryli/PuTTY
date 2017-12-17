@@ -1520,7 +1520,7 @@ actions pastes from (including turning the paste action off
 completely). On platforms with a single system clipboard, the
 available options are to paste from that clipboard or to paste from
 PuTTY's internal memory of the last selected text within that window.
-On X, the options are \cw{CLIPBOARD} or \cw{PRIMARY}.
+On X, the standard options are \cw{CLIPBOARD} or \cw{PRIMARY}.
 
 (\cw{PRIMARY} is conceptually similar in that it \e{also} refers to
 the last selected text \dash just across all applications instead of
@@ -1530,6 +1530,16 @@ The two keyboard options each come with a corresponding key to copy
 \e{to} the same clipboard. Whatever you configure Shift-Ins to paste
 from, Ctrl-Ins will copy to the same location; similarly, Ctrl-Shift-C
 will copy to whatever Ctrl-Shift-V pastes from.
+
+On X, you can also enter a selection name of your choice. For example,
+there is a rarely-used standard selection called \cq{SECONDARY}, which
+Emacs (for example) can work with if you hold down the Meta key while
+dragging to select or clicking to paste; if you configure a PuTTY
+keyboard action to access this clipboard, then you can interoperate
+with other applications' use of it. Another thing you could do would
+be to invent a clipboard name yourself, to create a special clipboard
+shared \e{only} between instances of PuTTY, or between just instances
+configured in that particular way.
 
 \H{config-selection-words} The Words panel
 

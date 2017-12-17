@@ -115,6 +115,7 @@ struct gui_data {
 #endif
     int direct_to_font;
     struct clipboard_state clipstates[N_CLIPBOARDS];
+    int clipboard_ctrlshiftins, clipboard_ctrlshiftcv;
     int font_width, font_height;
     int width, height;
     int ignore_sbar;
@@ -1041,6 +1042,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #endif
                 term_request_paste(inst->term, CLIP_CLIPBOARD);
                 return TRUE;
+              case CLIPUI_CUSTOM:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Shift-Insert: paste from custom clipboard\n"));
+#endif
+                term_request_paste(inst->term, inst->clipboard_ctrlshiftins);
+                return TRUE;
               default:
 #ifdef KEY_EVENT_DIAGNOSTICS
                 debug((" - Shift-Insert: no paste action\n"));
@@ -1066,6 +1073,13 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #endif
                 term_request_copy(inst->term,
                                   clips_clipboard, lenof(clips_clipboard));
+                return TRUE;
+              case CLIPUI_CUSTOM:
+#ifdef KEY_EVENT_DIAGNOSTICS
+                debug((" - Ctrl-Insert: copy to custom clipboard\n"));
+#endif
+                term_request_copy(inst->term,
+                                  &inst->clipboard_ctrlshiftins, 1);
                 return TRUE;
               default:
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -1111,6 +1125,21 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     debug((" - Ctrl-Shift-C: copy to CLIPBOARD\n"));
 #endif
                     term_request_copy(inst->term, clips, lenof(clips));
+                }
+                return TRUE;
+              case CLIPUI_CUSTOM:
+                if (paste) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-V: paste from custom clipboard\n"));
+#endif
+                    term_request_paste(inst->term,
+                                       inst->clipboard_ctrlshiftcv);
+                } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
+                    debug((" - Ctrl-Shift-C: copy to custom clipboard\n"));
+#endif
+                    term_request_copy(inst->term,
+                                      &inst->clipboard_ctrlshiftcv, 1);
                 }
                 return TRUE;
             }
@@ -2571,6 +2600,20 @@ void palette_reset(void *frontend)
     }
 }
 
+static struct clipboard_state *clipboard_from_atom(
+    struct gui_data *inst, GdkAtom atom)
+{
+    int i;
+
+    for (i = 0; i < N_CLIPBOARDS; i++) {
+        struct clipboard_state *state = &inst->clipstates[i];
+        if (state->inst == inst && state->atom == atom)
+            return state;
+    }
+
+    return NULL;
+}
+
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
 
 /* ----------------------------------------------------------------------
@@ -2580,25 +2623,27 @@ void palette_reset(void *frontend)
  * formats it feels like.
  */
 
-static void init_one_clipboard(struct gui_data *inst, int clipboard,
-                               GdkAtom atom)
+void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     state->inst = inst;
-    state->atom = atom;
     state->clipboard = clipboard;
+    state->atom = atom;
 
-    state->gtkclipboard = gtk_clipboard_get_for_display(
-        gdk_display_get_default(), atom);
-
-    g_object_set_data(G_OBJECT(state->gtkclipboard), "user-data", state);
+    if (state->atom != GDK_NONE) {
+        state->gtkclipboard = gtk_clipboard_get_for_display(
+            gdk_display_get_default(), state->atom);
+        g_object_set_data(G_OBJECT(state->gtkclipboard), "user-data", state);
+    } else {
+        state->gtkclipboard = NULL;
+    }
 }
 
 int init_clipboard(struct gui_data *inst)
 {
-    init_one_clipboard(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
-    init_one_clipboard(inst, CLIP_CLIPBOARD, GDK_SELECTION_CLIPBOARD);
+    set_clipboard_atom(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
+    set_clipboard_atom(inst, CLIP_CLIPBOARD, GDK_SELECTION_CLIPBOARD);
     return TRUE;
 }
 
@@ -2663,6 +2708,9 @@ void write_clip(void *frontend, int clipboard,
         return;
     }
 
+    if (!state->gtkclipboard)
+        return;
+
     cdi = snew(struct clipboard_data_instance);
     state->current_cdi = cdi;
     cdi->pasteout_data_utf8 = snewn(len*6, char);
@@ -2721,6 +2769,10 @@ void frontend_request_paste(void *frontend, int clipboard)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    if (!state->gtkclipboard)
+        return;
+
     gtk_clipboard_request_text(state->gtkclipboard,
                                clipboard_text_received, inst);
 }
@@ -2879,20 +2931,6 @@ void write_clip(void *frontend, int clipboard,
 
     if (must_deselect)
 	term_lost_clipboard_ownership(inst->term, clipboard);
-}
-
-static struct clipboard_state *clipboard_from_atom(
-    struct gui_data *inst, GdkAtom atom)
-{
-    int i;
-
-    for (i = 0; i < N_CLIPBOARDS; i++) {
-        struct clipboard_state *state = &inst->clipstates[i];
-        if (state->inst == inst && state->atom == atom)
-            return state;
-    }
-
-    return NULL;
 }
 
 static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
@@ -3103,14 +3141,22 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #endif
 }
 
-static void init_one_clipboard(struct gui_data *inst, int clipboard,
-                               GdkAtom atom)
+static void init_one_clipboard(struct gui_data *inst, int clipboard)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     state->inst = inst;
-    state->atom = atom;
     state->clipboard = clipboard;
+}
+
+void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
+{
+    struct clipboard_state *state = &inst->clipstates[clipboard];
+
+    state->inst = inst;
+    state->clipboard = clipboard;
+
+    state->atom = atom;
 }
 
 void init_clipboard(struct gui_data *inst)
@@ -3148,8 +3194,10 @@ void init_clipboard(struct gui_data *inst)
 		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
 #endif
 
-    init_one_clipboard(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
-    init_one_clipboard(inst, CLIP_CLIPBOARD, GDK_SELECTION_CLIPBOARD);
+    inst->clipstates[CLIP_PRIMARY].atom = GDK_SELECTION_PRIMARY;
+    inst->clipstates[CLIP_CLIPBOARD].atom = GDK_SELECTION_CLIPBOARD;
+    init_one_clipboard(inst, CLIP_PRIMARY);
+    init_one_clipboard(inst, CLIP_CLIPBOARD);
 
     g_signal_connect(G_OBJECT(inst->area), "selection_received",
                      G_CALLBACK(selection_received), inst);
@@ -4252,7 +4300,7 @@ void event_log_menuitem(GtkMenuItem *item, gpointer data)
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
-void setup_clipboards(Terminal *term, Conf *conf)
+void setup_clipboards(struct gui_data *inst, Terminal *term, Conf *conf)
 {
     assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
 
@@ -4265,6 +4313,10 @@ void setup_clipboards(Terminal *term, Conf *conf)
             term->n_mouse_select_clipboards++] = CLIP_CLIPBOARD;
     }
 
+    set_clipboard_atom(inst, CLIP_CUSTOM_1, GDK_NONE);
+    set_clipboard_atom(inst, CLIP_CUSTOM_2, GDK_NONE);
+    set_clipboard_atom(inst, CLIP_CUSTOM_3, GDK_NONE);
+
     switch (conf_get_int(conf, CONF_mousepaste)) {
       case CLIPUI_IMPLICIT:
         term->mouse_paste_clipboard = MOUSE_PASTE_CLIPBOARD;
@@ -4272,9 +4324,40 @@ void setup_clipboards(Terminal *term, Conf *conf)
       case CLIPUI_EXPLICIT:
         term->mouse_paste_clipboard = CLIP_CLIPBOARD;
         break;
+      case CLIPUI_CUSTOM:
+        term->mouse_paste_clipboard = CLIP_CUSTOM_1;
+        set_clipboard_atom(inst, CLIP_CUSTOM_1,
+                           gdk_atom_intern(
+                               conf_get_str(conf, CONF_mousepaste_custom),
+                               FALSE));
+        break;
       default:
         term->mouse_paste_clipboard = CLIP_NULL;
         break;
+    }
+
+    if (conf_get_int(conf, CONF_ctrlshiftins) == CLIPUI_CUSTOM) {
+        GdkAtom atom = gdk_atom_intern(
+            conf_get_str(conf, CONF_ctrlshiftins_custom), FALSE);
+        struct clipboard_state *state = clipboard_from_atom(inst, atom);
+        if (state) {
+            inst->clipboard_ctrlshiftins = state->clipboard;
+        } else {
+            inst->clipboard_ctrlshiftins = CLIP_CUSTOM_2;
+            set_clipboard_atom(inst, CLIP_CUSTOM_2, atom);
+        }
+    }
+
+    if (conf_get_int(conf, CONF_ctrlshiftcv) == CLIPUI_CUSTOM) {
+        GdkAtom atom = gdk_atom_intern(
+            conf_get_str(conf, CONF_ctrlshiftcv_custom), FALSE);
+        struct clipboard_state *state = clipboard_from_atom(inst, atom);
+        if (state) {
+            inst->clipboard_ctrlshiftins = state->clipboard;
+        } else {
+            inst->clipboard_ctrlshiftcv = CLIP_CUSTOM_3;
+            set_clipboard_atom(inst, CLIP_CUSTOM_3, atom);
+        }
     }
 }
 
@@ -4352,7 +4435,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
         }
         /* Pass new config data to the terminal */
         term_reconfig(inst->term, inst->conf);
-        setup_clipboards(inst->term, inst->conf);
+        setup_clipboards(inst, inst->term, inst->conf);
         /* Pass new config data to the back end */
         if (inst->back)
 	    inst->back->reconfig(inst->backhandle, inst->conf);
@@ -5131,7 +5214,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->eventlogstuff = eventlogstuff_new();
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
-    setup_clipboards(inst->term, inst->conf);
+    setup_clipboards(inst, inst->term, inst->conf);
     inst->logctx = log_init(inst, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
 
