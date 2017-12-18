@@ -27,15 +27,6 @@ and you should get unix/PuTTY.app and unix/PTerm.app as output.
 
 TODO list for a sensible GTK3 PuTTY/pterm on OS X:
 
-Menu items' keyboard shortcuts (Command-Q for Quit, Command-V for
-Paste) do not currently work. It's intentional that if you turn on
-'Command key acts as Meta' in the configuration then those shortcuts
-should be superseded by the Meta-key functionality (e.g. Cmd-Q should
-send ESC Q to the session), for the benefit of people whose non-Mac
-keyboard reflexes expect the Meta key to be in that position; but if
-you don't turn that option on, then these shortcuts should work as an
-ordinary Mac user expects, and currently they don't.
-
 Mouse wheel events and trackpad scrolling gestures don't work quite
 right in the terminal drawing area.
 

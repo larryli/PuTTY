@@ -168,6 +168,9 @@ struct gui_data {
     int cursor_type;
     int drawtype;
     int meta_mod_mask;
+#ifdef OSX_META_KEY_CONFIG
+    int system_mod_mask;
+#endif
 };
 
 static void cache_conf_values(struct gui_data *inst)
@@ -181,6 +184,7 @@ static void cache_conf_values(struct gui_data *inst)
         inst->meta_mod_mask |= GDK_MOD1_MASK;
     if (conf_get_int(inst->conf, CONF_osx_command_meta))
         inst->meta_mod_mask |= GDK_MOD2_MASK;
+    inst->system_mod_mask = GDK_MOD2_MASK & ~inst->meta_mod_mask;
 #else
     inst->meta_mod_mask = GDK_MOD1_MASK;
 #endif
@@ -779,6 +783,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, output_charset, use_ucsoutput;
     int nethack_mode, app_keypad_mode;
+
+#ifdef OSX_META_KEY_CONFIG
+    if (event->state & inst->system_mod_mask)
+        return FALSE;                  /* let GTK process OS X Command key */
+#endif
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
