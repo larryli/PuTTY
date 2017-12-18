@@ -135,23 +135,21 @@ static void startup(GApplication *app, gpointer user_data)
                                 G_MENU_MODEL(menubar));
 }
 
-static void copy_cb(GSimpleAction *action,
-                    GVariant      *parameter,
-                    gpointer       user_data)
-{
-    copy_menu_action(user_data);
-}
+#define WIN_ACTION_LIST(X)                      \
+    X("copy", MA_COPY)                          \
+    X("paste", MA_PASTE)                        \
+    /* end of list */
 
-static void paste_cb(GSimpleAction *action,
-                     GVariant      *parameter,
-                     gpointer       user_data)
-{
-    paste_menu_action(user_data);
-}
+#define WIN_ACTION_CALLBACK(name, id) \
+static void win_action_cb_ ## id(GSimpleAction *a, GVariant *p, gpointer d) \
+{ app_menu_action(d, id); }
+WIN_ACTION_LIST(WIN_ACTION_CALLBACK)
+#undef WIN_ACTION_CALLBACK
 
 static const GActionEntry win_actions[] = {
-    { "copy", copy_cb },
-    { "paste", paste_cb },
+#define WIN_ACTION_ENTRY(name, id) { name, win_action_cb_ ## id },
+WIN_ACTION_LIST(WIN_ACTION_ENTRY)
+#undef WIN_ACTION_ENTRY
 };
 
 static GtkApplication *app;

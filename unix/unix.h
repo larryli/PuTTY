@@ -184,9 +184,11 @@ GtkWidget *make_gtk_toplevel_window(void *frontend);
 /* Defined in gtkcomm.c */
 void gtkcomm_setup(void);
 
-/* Defined in gtkwin.c */
-void copy_menu_action(void *frontend);
-void paste_menu_action(void *frontend);
+/* Used to pass application-menu operations from gtkapp.c to gtkwin.c */
+enum MenuAction {
+    MA_COPY, MA_PASTE,
+};
+void app_menu_action(void *frontend, enum MenuAction);
 
 /* Things pty.c needs from pterm.c */
 const char *get_x_display(void *frontend);

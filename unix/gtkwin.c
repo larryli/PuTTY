@@ -3252,17 +3252,20 @@ void init_clipboard(struct gui_data *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
-void copy_menu_action(void *frontend)
+void app_menu_action(void *frontend, enum MenuAction action)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    static const int clips[] = { MENU_CLIPBOARD };
-    term_request_copy(inst->term, clips, lenof(clips));
-}
-
-void paste_menu_action(void *frontend)
-{
-    struct gui_data *inst = (struct gui_data *)frontend;
-    term_request_paste(inst->term, MENU_CLIPBOARD);
+    switch (action) {
+      case MA_COPY:
+        {
+            static const int clips[] = { MENU_CLIPBOARD };
+            term_request_copy(inst->term, clips, lenof(clips));
+        }
+        break;
+      case MA_PASTE:
+        term_request_paste(inst->term, MENU_CLIPBOARD);
+        break;
+    }
 }
 
 static void set_window_titles(struct gui_data *inst)
