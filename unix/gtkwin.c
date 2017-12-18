@@ -3252,22 +3252,6 @@ void init_clipboard(struct gui_data *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
-void app_menu_action(void *frontend, enum MenuAction action)
-{
-    struct gui_data *inst = (struct gui_data *)frontend;
-    switch (action) {
-      case MA_COPY:
-        {
-            static const int clips[] = { MENU_CLIPBOARD };
-            term_request_copy(inst->term, clips, lenof(clips));
-        }
-        break;
-      case MA_PASTE:
-        term_request_paste(inst->term, MENU_CLIPBOARD);
-        break;
-    }
-}
-
 static void set_window_titles(struct gui_data *inst)
 {
     /*
@@ -4723,6 +4707,40 @@ void saved_session_freedata(GtkMenuItem *item, gpointer data)
     char *str = (char *)g_object_get_data(G_OBJECT(item), "user-data");
 
     sfree(str);
+}
+
+void app_menu_action(void *frontend, enum MenuAction action)
+{
+    struct gui_data *inst = (struct gui_data *)frontend;
+    switch (action) {
+      case MA_COPY:
+        copy_clipboard_menuitem(NULL, inst);
+        break;
+      case MA_PASTE:
+        paste_clipboard_menuitem(NULL, inst);
+        break;
+      case MA_COPY_ALL:
+        copy_all_menuitem(NULL, inst);
+        break;
+      case MA_DUPLICATE_SESSION:
+        dup_session_menuitem(NULL, inst);
+        break;
+      case MA_RESTART_SESSION:
+        restart_session_menuitem(NULL, inst);
+        break;
+      case MA_CHANGE_SETTINGS:
+        change_settings_menuitem(NULL, inst);
+        break;
+      case MA_CLEAR_SCROLLBACK:
+        clear_scrollback_menuitem(NULL, inst);
+        break;
+      case MA_RESET_TERMINAL:
+        reset_terminal_menuitem(NULL, inst);
+        break;
+      case MA_EVENT_LOG:
+        event_log_menuitem(NULL, inst);
+        break;
+    }
 }
 
 static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)

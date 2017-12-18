@@ -186,7 +186,9 @@ void gtkcomm_setup(void);
 
 /* Used to pass application-menu operations from gtkapp.c to gtkwin.c */
 enum MenuAction {
-    MA_COPY, MA_PASTE,
+    MA_COPY, MA_PASTE, MA_COPY_ALL, MA_DUPLICATE_SESSION,
+    MA_RESTART_SESSION, MA_CHANGE_SETTINGS, MA_CLEAR_SCROLLBACK,
+    MA_RESET_TERMINAL, MA_EVENT_LOG
 };
 void app_menu_action(void *frontend, enum MenuAction);
 

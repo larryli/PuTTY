@@ -40,11 +40,10 @@ but if I mouse off the menu and back on (without un-popping-it-up)
 then suddenly that does work. I don't know if this is something I can
 fix, though; it might very well be a quirk of the underlying GTK.
 
-The application menu bar is very minimal at the moment. Should include
-all the usual stuff from the Ctrl-right-click menu - saved sessions,
-mid-session special commands, Duplicate Session, Change Settings,
-Event Log, clear scrollback, reset terminal, about box, anything else
-I can think of.
+Still to do on the application menu bar: items that have to vary with
+context or user action (saved sessions and mid-session special
+commands), and disabling/enabling the main actions in parallel with
+their counterparts in the Ctrl-rightclick context menu.
 
 Does OS X have a standard system of online help that I could tie into?
 
@@ -97,6 +96,8 @@ void launch_saved_session(const char *str) {}
 void session_window_closed(void) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
+extern const int use_event_log;
+
 static void startup(GApplication *app, gpointer user_data)
 {
     GMenu *menubar, *menu, *section;
@@ -117,6 +118,30 @@ static void startup(GApplication *app, gpointer user_data)
     g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
     g_menu_append(section, "Copy", "win.copy");
     g_menu_append(section, "Paste", "win.paste");
+    g_menu_append(section, "Copy All", "win.copyall");
+
+    menu = g_menu_new();
+    g_menu_append_submenu(menubar, "Window", G_MENU_MODEL(menu));
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Restart Session", "win.restart");
+    g_menu_append(section, "Duplicate Session", "win.duplicate");
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Change Settings", "win.changesettings");
+
+    if (use_event_log) {
+        section = g_menu_new();
+        g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+        g_menu_append(section, "Event Log", "win.eventlog");
+    }
+
+    section = g_menu_new();
+    g_menu_append_section(menu, NULL, G_MENU_MODEL(section));
+    g_menu_append(section, "Clear Scrollback", "win.clearscrollback");
+    g_menu_append(section, "Reset Terminal", "win.resetterm");
 
 #define SET_ACCEL(app, command, accel) do                       \
     {                                                           \
@@ -138,6 +163,13 @@ static void startup(GApplication *app, gpointer user_data)
 #define WIN_ACTION_LIST(X)                      \
     X("copy", MA_COPY)                          \
     X("paste", MA_PASTE)                        \
+    X("copyall", MA_COPY_ALL)                   \
+    X("duplicate", MA_DUPLICATE_SESSION)        \
+    X("restart", MA_RESTART_SESSION)            \
+    X("changesettings", MA_CHANGE_SETTINGS)     \
+    X("clearscrollback", MA_CLEAR_SCROLLBACK)   \
+    X("resetterm", MA_RESET_TERMINAL)           \
+    X("eventlog", MA_EVENT_LOG)                 \
     /* end of list */
 
 #define WIN_ACTION_CALLBACK(name, id) \
@@ -247,8 +279,16 @@ static void quit_cb(GSimpleAction *action,
     g_application_quit(G_APPLICATION(user_data));
 }
 
+static void about_cb(GSimpleAction *action,
+                     GVariant      *parameter,
+                     gpointer       user_data)
+{
+    about_box(NULL);
+}
+
 static const GActionEntry app_actions[] = {
     { "newwin", newwin_cb },
+    { "about", about_cb },
     { "quit", quit_cb },
 };
 

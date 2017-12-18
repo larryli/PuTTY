@@ -3779,8 +3779,9 @@ void about_box(void *window)
                      G_CALLBACK(about_key_press), NULL);
 
     set_transient_window_pos(GTK_WIDGET(window), aboutbox);
-    gtk_window_set_transient_for(GTK_WINDOW(aboutbox),
-				 GTK_WINDOW(window));
+    if (window)
+        gtk_window_set_transient_for(GTK_WINDOW(aboutbox),
+                                     GTK_WINDOW(window));
     gtk_container_set_focus_child(GTK_CONTAINER(aboutbox), NULL);
     gtk_widget_show(aboutbox);
     gtk_window_set_focus(GTK_WINDOW(aboutbox), NULL);
