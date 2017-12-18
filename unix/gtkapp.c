@@ -27,23 +27,33 @@ and you should get unix/PuTTY.app and unix/PTerm.app as output.
 
 TODO list for a sensible GTK3 PuTTY/pterm on OS X:
 
-Mouse wheel events and trackpad scrolling gestures don't work quite
-right in the terminal drawing area.
+Still to do on the application menu bar: items that have to vary with
+context or user action (saved sessions and mid-session special
+commands), and disabling/enabling the main actions in parallel with
+their counterparts in the Ctrl-rightclick context menu.
 
-There doesn't seem to be a resize handle on terminal windows. I don't
-think this is a fundamental limitation of OS X GTK (their demo app has
-one), so perhaps I need to do something to make sure it appears?
+Mouse wheel events and trackpad scrolling gestures don't work quite
+right in the terminal drawing area. This seems to be a combination of
+two things, neither of which I completely understand yet. Firstly, on
+OS X GTK my trackpad seems to generate GDK scroll events for which
+gdk_event_get_scroll_deltas returns integers rather than integer
+multiples of 1/30, so we end up scrolling by very large amounts;
+secondly, the window doesn't seem to receive a GTK "draw" event until
+after the entire scroll gesture is complete, which means we don't get
+constant visual feedback on how much we're scrolling by.
+
+There doesn't seem to be a resize handle on terminal windows. Then
+again, they do seem to _be_ resizable; the handle just isn't shown.
+Perhaps that's a feature (certainly in a scrollbarless configuration
+the handle gets in the way of the bottom right character cell in the
+terminal itself), but it would be nice to at least understand _why_ it
+happens and perhaps include an option to put it back again.
 
 A slight oddity with menus that pop up directly under the mouse
 pointer: mousing over the menu items doesn't highlight them initially,
 but if I mouse off the menu and back on (without un-popping-it-up)
 then suddenly that does work. I don't know if this is something I can
 fix, though; it might very well be a quirk of the underlying GTK.
-
-Still to do on the application menu bar: items that have to vary with
-context or user action (saved sessions and mid-session special
-commands), and disabling/enabling the main actions in parallel with
-their counterparts in the Ctrl-rightclick context menu.
 
 Does OS X have a standard system of online help that I could tie into?
 
