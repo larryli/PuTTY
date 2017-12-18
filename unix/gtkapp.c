@@ -118,6 +118,19 @@ static void startup(GApplication *app, gpointer user_data)
     g_menu_append(section, "Copy", "win.copy");
     g_menu_append(section, "Paste", "win.paste");
 
+#define SET_ACCEL(app, command, accel) do                       \
+    {                                                           \
+        static const char *const accels[] = { accel, NULL };    \
+        gtk_application_set_accels_for_action(                  \
+            GTK_APPLICATION(app), command, accels);             \
+    } while (0)
+
+    SET_ACCEL(app, "app.newwin", "<Primary>n");
+    SET_ACCEL(app, "win.copy", "<Primary>c");
+    SET_ACCEL(app, "win.paste", "<Primary>v");
+
+#undef SET_ACCEL
+
     gtk_application_set_menubar(GTK_APPLICATION(app),
                                 G_MENU_MODEL(menubar));
 }
