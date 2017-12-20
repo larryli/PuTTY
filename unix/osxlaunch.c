@@ -10,8 +10,8 @@
  *
  * But the GTK program won't start up unless all those shared
  * libraries etc are already pointed to by environment variables like
- * DYLD_LIBRARY_PATH, which won't be set up when the bundle is
- * launched.
+ * GTK_PATH and PANGO_LIBDIR and things like that, which won't be set
+ * up when the bundle is launched.
  *
  * Hence, gtk-mac-bundler expects to install the program in the bundle
  * under a name like 'Contents/MacOS/Program-bin'; and the file called
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
     char *locale = alloc_cat(share, "/locale");
     char *realbin = alloc_cat(prog_path, "-bin");
 
-    overwrite_env("DYLD_LIBRARY_PATH", lib);
+//    overwrite_env("DYLD_LIBRARY_PATH", lib);
     overwrite_env("XDG_CONFIG_DIRS", xdg);
     overwrite_env("XDG_DATA_DIRS", share);
     overwrite_env("GTK_DATA_PREFIX", resources);
