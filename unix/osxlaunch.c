@@ -48,7 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef __APPLE__
+#if !defined __APPLE__ && !defined TEST_COMPILE_ON_LINUX
 /* When we're not compiling for OS X, it's easier to just turn this
  * program into a trivial hello-world by ifdef in the source than it
  * is to remove it in the makefile edifice. */
@@ -61,7 +61,24 @@ int main(int argc, char **argv)
 
 #include <unistd.h>
 #include <libgen.h>
+
+#ifdef __APPLE__
 #include <mach-o/dyld.h>
+#else
+/* For Linux, a bodge to let as much of this code still run as
+ * possible, so that you can run it under friendly debugging tools
+ * like valgrind. */
+int _NSGetExecutablePath(char *out, uint32_t *outlen)
+{
+    static const char toret[] = "/proc/self/exe";
+    if (out != NULL && *outlen < sizeof(toret))
+        return -1;
+    *outlen = sizeof(toret);
+    if (out)
+        memcpy(out, toret, sizeof(toret));
+    return 0;
+}
+#endif
 
 /* ----------------------------------------------------------------------
  * Find an alphabetic prefix unused by any environment variable name.
