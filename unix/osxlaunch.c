@@ -152,6 +152,8 @@ char *get_unused_env_prefix(void)
         exit(1);
     }
     qhead->prefixlen = 0;
+    qhead->first_node = NULL;
+    qhead->next_bucket = NULL;
     for (e = environ; *e; e++)
         qhead->first_node = new_node(qhead->first_node, *e, strcspn(*e, "="));
 
@@ -168,6 +170,7 @@ char *get_unused_env_prefix(void)
                 exit(1);
             }
             buckets[i]->prefixlen = qhead->prefixlen + 1;
+            buckets[i]->first_node = NULL;
             qtail->next_bucket = buckets[i];
             qtail = buckets[i];
         }
