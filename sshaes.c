@@ -1151,6 +1151,14 @@ const struct ssh2_ciphers ssh2_aes = {
 #   undef COMPILER_SUPPORTS_AES_NI
 #endif
 
+#if defined(__clang__)
+#   if !__has_attribute(target)
+/* If clang is old enough not to support __attribute__((target(...)))
+ * as used below, then we can't use this code after all. */
+#      undef COMPILER_SUPPORTS_AES_NI
+#   endif
+#endif
+
 #ifdef COMPILER_SUPPORTS_AES_NI
 
 /*
