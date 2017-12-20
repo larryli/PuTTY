@@ -153,12 +153,20 @@ static void startup(GApplication *app, gpointer user_data)
     g_menu_append(section, "Clear Scrollback", "win.clearscrollback");
     g_menu_append(section, "Reset Terminal", "win.resetterm");
 
+#if GTK_CHECK_VERSION(3,12,0)
 #define SET_ACCEL(app, command, accel) do                       \
     {                                                           \
         static const char *const accels[] = { accel, NULL };    \
         gtk_application_set_accels_for_action(                  \
             GTK_APPLICATION(app), command, accels);             \
     } while (0)
+#else
+    /* The Gtk function used above was new in 3.12; the one below
+     * was deprecated from 3.14. */
+#define SET_ACCEL(app, command, accel) \
+    gtk_application_add_accelerator(GTK_APPLICATION(app), accel, \
+                                    command, NULL)
+#endif
 
     SET_ACCEL(app, "app.newwin", "<Primary>n");
     SET_ACCEL(app, "win.copy", "<Primary>c");
