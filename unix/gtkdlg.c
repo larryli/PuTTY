@@ -145,9 +145,6 @@ static void colourchoose_response(GtkDialog *dialog,
 static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
 #endif
-#if !GTK_CHECK_VERSION(3,0,0)
-static void window_destroy(GtkWidget *widget, gpointer data);
-#endif
 static void dlgparam_destroy(GtkWidget *widget, gpointer data);
 int get_listitemheight(GtkWidget *widget);
 
@@ -1045,13 +1042,6 @@ void dlg_beep(void *dlg)
 {
     gdk_beep();
 }
-
-#if !GTK_CHECK_VERSION(3,0,0)
-static void errmsg_button_clicked(GtkButton *button, gpointer data)
-{
-    gtk_widget_destroy(GTK_WIDGET(data));
-}
-#endif
 
 static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
 {
@@ -2583,13 +2573,6 @@ static void treeitem_sel(GtkItem *item, gpointer data)
 
     sp->dp->shortcuts = &sp->shortcuts;
     sp->dp->currtreeitem = sp->treeitem;
-}
-#endif
-
-#if !GTK_CHECK_VERSION(3,0,0)
-static void window_destroy(GtkWidget *widget, gpointer data)
-{
-    gtk_main_quit();
 }
 #endif
 

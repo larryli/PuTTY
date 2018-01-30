@@ -104,6 +104,7 @@ void launch_duplicate_session(Conf *conf) {}
 void launch_new_session(void) {}
 void launch_saved_session(const char *str) {}
 void session_window_closed(void) {}
+void window_setup_error(const char *errmsg) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
 extern const int use_event_log;
