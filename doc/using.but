@@ -102,8 +102,10 @@ window to look back up the session \i{history} and find it again.
 
 As well as using the scrollbar, you can also page the scrollback up
 and down by pressing \i{Shift-PgUp} and \i{Shift-PgDn}. You can
-scroll a line at a time using \i{Ctrl-PgUp} and \i{Ctrl-PgDn}. These
-are still available if you configure the scrollbar to be invisible.
+scroll a line at a time using \i{Ctrl-PgUp} and \i{Ctrl-PgDn}, or
+to the top/bottom of the scrollback with \i{Ctrl-Shift-PgUp} and
+\i{Ctrl-Shift-PgDn}. These are still available if you configure the
+scrollbar to be invisible.
 
 By default the last 2000 lines scrolled off the top are
 preserved for you to look at. You can increase (or decrease) this
