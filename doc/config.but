@@ -1405,7 +1405,7 @@ disabled.
 \cfg{winhelp-topic}{selection.buttons}
 
 PuTTY's copy and paste mechanism is by default modelled on the Unix
-\c{xterm} application. The X Window System uses a three-button mouse,
+\i\c{xterm} application. The X Window System uses a three-button mouse,
 and the convention is that the \i{left button} \I{selecting text}selects,
 the \i{right button} extends an existing selection, and the
 \i{middle button} pastes.
@@ -1474,21 +1474,24 @@ you have to hold down Alt to get the \e{normal} behaviour.
 Here you can configure which clipboard(s) are written or read by
 PuTTY's various copy and paste actions.
 
-The X Window System provides multiple clipboards (or \q{selections}),
-and many applications support more than one of them by a different
-user interface mechanism.
+The X Window System (which underlies most Unix graphical interfaces)
+provides multiple clipboards (or \q{\i{selections}}), and many
+applications support more than one of them by a different user
+interface mechanism.
 
-The two most commonly used selections are called \cq{PRIMARY} and
-\cq{CLIPBOARD}; in applications supporting both, the usual behaviour
-is that \cw{PRIMARY} is used by mouse-only actions (selecting text
-automatically copies it to \cw{PRIMARY}, and middle-clicking pastes
-from \cw{PRIMARY}), whereas \cw{CLIPBOARD} is used by explicit Copy
-and Paste menu items or keypresses such as Ctrl-C and Ctrl-V.
+The two most commonly used selections are called \cq{\i{PRIMARY}} and
+\cq{\I{CLIPBOARD selection}CLIPBOARD}; in applications supporting both,
+the usual behaviour is that \cw{PRIMARY} is used by mouse-only actions
+(selecting text automatically copies it to \cw{PRIMARY}, and
+\i{middle-clicking} pastes from \cw{PRIMARY}), whereas \cw{CLIPBOARD}
+is used by explicit Copy and Paste menu items or keypresses such as
+\i{Ctrl-C} and \i{Ctrl-V}.
 
-On other platforms, where there is a single system clipboard, PuTTY
-provides a second clipboard-like facility by permitting you to paste
-the text you last selected in \e{this window}, whether or not it is
-currently also in the system clipboard.
+On other platforms such as Windows, where there is a single system
+clipboard, PuTTY provides a second clipboard-like facility by permitting
+you to paste the text you last selected in \e{this window}, whether or
+not it is currently also in the system clipboard. This is not enabled
+by default.
 
 \S2{config-selection-autocopy} \q{Auto-copy selected text}
 
@@ -1512,15 +1515,15 @@ will \e{also} be placed in \cq{CLIPBOARD} at the same time.
 PuTTY has three user-interface actions which can be configured to
 paste into the terminal (not counting menu items). You can click
 whichever mouse button (if any) is configured to paste (see
-\k{config-mouse}); you can press Shift-Ins; or you can press
-Ctrl-Shift-V, although that action is not enabled by default.
+\k{config-mouse}); you can press \i{Shift-Ins}; or you can press
+\i{Ctrl-Shift-V}, although that action is not enabled by default.
 
 You can configure which of the available clipboards each of these
 actions pastes from (including turning the paste action off
 completely). On platforms with a single system clipboard, the
 available options are to paste from that clipboard or to paste from
-PuTTY's internal memory of the last selected text within that window.
-On X, the standard options are \cw{CLIPBOARD} or \cw{PRIMARY}.
+PuTTY's internal memory of the \i{last selected text} within that
+window. On X, the standard options are \cw{CLIPBOARD} or \cw{PRIMARY}.
 
 (\cw{PRIMARY} is conceptually similar in that it \e{also} refers to
 the last selected text \dash just across all applications instead of
@@ -1528,11 +1531,11 @@ just this window.)
 
 The two keyboard options each come with a corresponding key to copy
 \e{to} the same clipboard. Whatever you configure Shift-Ins to paste
-from, Ctrl-Ins will copy to the same location; similarly, Ctrl-Shift-C
-will copy to whatever Ctrl-Shift-V pastes from.
+from, \i{Ctrl-Ins} will copy to the same location; similarly,
+\i{Ctrl-Shift-C} will copy to whatever Ctrl-Shift-V pastes from.
 
 On X, you can also enter a selection name of your choice. For example,
-there is a rarely-used standard selection called \cq{SECONDARY}, which
+there is a rarely-used standard selection called \cq{\i{SECONDARY}}, which
 Emacs (for example) can work with if you hold down the Meta key while
 dragging to select or clicking to paste; if you configure a PuTTY
 keyboard action to access this clipboard, then you can interoperate
