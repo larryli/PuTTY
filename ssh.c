@@ -2032,7 +2032,7 @@ static int s_wrpkt_prepare(Ssh ssh, struct Packet *pkt, int *offset_p)
 
 static int s_write(Ssh ssh, void *data, int len)
 {
-    if (ssh->logctx)
+    if (len && ssh->logctx)
 	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len,
 		   0, NULL, NULL, 0, NULL);
     if (!ssh->s)
