@@ -587,3 +587,14 @@ FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
                         GET_32BIT_MSB_FIRST(end + 4),
                         GET_32BIT_MSB_FIRST(end + 8));
 }
+
+int open_for_write_would_lose_data(const Filename *fn)
+{
+    FILE *fp;
+    if ((fp = f_open(fn, "r", FALSE)) != NULL) {
+        fclose(fp);
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}

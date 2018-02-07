@@ -349,3 +349,14 @@ char *make_dir_path(const char *path, mode_t mode)
         pos += strspn(path + pos, "/");
     }
 }
+
+int open_for_write_would_lose_data(const Filename *fn)
+{
+    FILE *fp;
+    if ((fp = f_open(fn, "r", FALSE)) != NULL) {
+        fclose(fp);
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
