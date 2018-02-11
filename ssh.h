@@ -258,11 +258,12 @@ void hmacmd5_key(void *handle, void const *key, int len);
 void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
 		     unsigned char *hmac);
 
-typedef struct {
+typedef struct SHA_State {
     uint32 h[5];
     unsigned char block[64];
     int blkused;
     uint32 lenhi, lenlo;
+    void (*sha1)(struct SHA_State * s, const unsigned char *p, int len);
 } SHA_State;
 void SHA_Init(SHA_State * s);
 void SHA_Bytes(SHA_State * s, const void *p, int len);
@@ -271,11 +272,12 @@ void SHA_Simple(const void *p, int len, unsigned char *output);
 
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 		      unsigned char *output);
-typedef struct {
+typedef struct SHA256_State {
     uint32 h[8];
     unsigned char block[64];
     int blkused;
     uint32 lenhi, lenlo;
+    void (*sha256)(struct SHA256_State * s, const unsigned char *p, int len);
 } SHA256_State;
 void SHA256_Init(SHA256_State * s);
 void SHA256_Bytes(SHA256_State * s, const void *p, int len);

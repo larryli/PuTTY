@@ -13,6 +13,8 @@
 
 #define rol(x,y) ( ((x) << (y)) | (((uint32)x) >> (32-y)) )
 
+static void sha1_sw(SHA_State * s, const unsigned char *q, int len);
+
 static void SHA_Core_Init(uint32 h[5])
 {
     h[0] = 0x67452301;
@@ -124,20 +126,26 @@ void SHA_Init(SHA_State * s)
     SHA_Core_Init(s->h);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
+    s->sha1 = &sha1_sw;
 }
 
 void SHA_Bytes(SHA_State * s, const void *p, int len)
 {
     const unsigned char *q = (const unsigned char *) p;
-    uint32 wordblock[16];
     uint32 lenw = len;
-    int i;
 
     /*
      * Update the length field.
      */
     s->lenlo += lenw;
     s->lenhi += (s->lenlo < lenw);
+    (*(s->sha1))(s, q, len);
+}
+
+static void sha1_sw(SHA_State * s, const unsigned char *q, int len)
+{
+    uint32 wordblock[16];
+    int i;
 
     if (s->blkused && s->blkused + len < 64) {
 	/*

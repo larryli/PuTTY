@@ -19,6 +19,8 @@
 #define smallsigma0(x) ( ror((x),7) ^ ror((x),18) ^ shr((x),3) )
 #define smallsigma1(x) ( ror((x),17) ^ ror((x),19) ^ shr((x),10) )
 
+static void SHA256_sw(SHA256_State *s, const unsigned char *q, int len);
+
 void SHA256_Core_Init(SHA256_State *s) {
     s->h[0] = 0x6a09e667;
     s->h[1] = 0xbb67ae85;
@@ -97,19 +99,24 @@ void SHA256_Init(SHA256_State *s) {
     SHA256_Core_Init(s);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
+    s->sha256 = &SHA256_sw;
 }
 
 void SHA256_Bytes(SHA256_State *s, const void *p, int len) {
     unsigned char *q = (unsigned char *)p;
-    uint32 wordblock[16];
     uint32 lenw = len;
-    int i;
 
     /*
      * Update the length field.
      */
     s->lenlo += lenw;
     s->lenhi += (s->lenlo < lenw);
+    (*(s->sha256))(s, q, len);
+}
+
+static void SHA256_sw(SHA256_State *s, const unsigned char *q, int len) {
+    uint32 wordblock[16];
+    int i;
 
     if (s->blkused && s->blkused+len < BLKSIZE) {
         /*
