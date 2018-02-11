@@ -502,6 +502,37 @@ extern int ssh_fallback_cmd(void *handle);
 void SHATransform(word32 * digest, word32 * data);
 #endif
 
+/*
+ * Check of compiler version
+ */
+#ifdef _FORCE_SHA_NI
+#   define COMPILER_SUPPORTS_SHA_NI
+#elif defined(__clang__)
+#   if (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 8)) && (defined(__x86_64__) || defined(__i386))
+#       define COMPILER_SUPPORTS_SHA_NI
+#   endif
+#elif defined(__GNUC__)
+#    if ((__GNUC__ >= 5) && (defined(__x86_64__) || defined(__i386)))
+#       define COMPILER_SUPPORTS_SHA_NI
+#    endif
+#elif defined (_MSC_VER)
+#   if (defined(_M_X64) || defined(_M_IX86)) && _MSC_VER >= 1900
+#      define COMPILER_SUPPORTS_SHA_NI
+#   endif
+#endif
+
+#ifdef _FORCE_SOFTWARE_SHA
+#   undef COMPILER_SUPPORTS_SHA_NI
+#endif
+
+#if defined(__clang__)
+#   if !__has_attribute(target)
+/* If clang is old enough not to support __attribute__((target(...)))
+ * as used below, then we can't use this code after all. */
+#      undef COMPILER_SUPPORTS_SHA_NI
+#   endif
+#endif
+
 int random_byte(void);
 void random_add_noise(void *noise, int length);
 void random_add_heavynoise(void *noise, int length);
