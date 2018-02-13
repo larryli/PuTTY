@@ -779,7 +779,7 @@ void logevent(void *frontend, const char *string)
 
     if (*location)
         sfree(*location);
-    *location = dupcat(timebuf, string, NULL);
+    *location = dupcat(timebuf, string, (const char *)NULL);
     if (logbox) {
 	int count;
 	SendDlgItemMessage(logbox, IDN_LIST, LB_ADDSTRING,
