@@ -521,7 +521,7 @@ int supports_sha_ni(void)
    https://github.com/noloader/SHA-Intrinsics
 */
 FUNC_ISA
-static void sha1_ni(SHA_State * s, const unsigned char *q, int len)
+static void sha1_ni_(SHA_State * s, const unsigned char *q, int len)
 {
     if (s->blkused && s->blkused + len < 64) {
       /*
@@ -723,6 +723,14 @@ static void sha1_ni(SHA_State * s, const unsigned char *q, int len)
         memcpy(s->block, q, len);
         s->blkused = len;
     }
+}
+
+/*
+ * Workaround LLVM bug https://bugs.llvm.org/show_bug.cgi?id=34980
+ */
+static void sha1_ni(SHA_State * s, const unsigned char *q, int len)
+{
+    sha1_ni_(s, q, len);
 }
 
 #else /* COMPILER_SUPPORTS_AES_NI */

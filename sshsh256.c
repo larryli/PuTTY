@@ -440,7 +440,7 @@ int main(void) {
    https://github.com/noloader/SHA-Intrinsics
 */
 FUNC_ISA
-static void SHA256_ni(SHA256_State * s, const unsigned char *q, int len) {
+static void SHA256_ni_(SHA256_State * s, const unsigned char *q, int len) {
     if (s->blkused && s->blkused+len < BLKSIZE) {
         /*
          * Trivial case: just add to the block.
@@ -645,6 +645,14 @@ static void SHA256_ni(SHA256_State * s, const unsigned char *q, int len) {
         memcpy(s->block, q, len);
         s->blkused = len;
     }
+}
+
+/*
+ * Workaround LLVM bug https://bugs.llvm.org/show_bug.cgi?id=34980
+ */
+static void SHA256_ni(SHA256_State * s, const unsigned char *q, int len)
+{
+    SHA256_ni_(s, q, len);
 }
 
 #else /* COMPILER_SUPPORTS_AES_NI */
