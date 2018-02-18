@@ -461,3 +461,52 @@ const struct ssh_mac ssh_hmac_sha1_96_buggy = {
     12, 16,
     "bug-compatible HMAC-SHA1-96"
 };
+
+#ifdef COMPILER_SUPPORTS_SHA_NI
+
+/*
+ * Set target architecture for Clang and GCC
+ */
+#if !defined(__clang__) && defined(__GNUC__)
+#    pragma GCC target("sha")
+#    pragma GCC target("sse4.1")
+#endif
+
+#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 5))
+#    define FUNC_ISA __attribute__ ((target("sse4.1,sha")))
+#else
+#    define FUNC_ISA
+#endif
+
+/*
+ * Determinators of CPU type
+ */
+#if defined(__clang__) || defined(__GNUC__)
+
+#include <cpuid.h>
+int supports_sha_ni(void)
+{
+    unsigned int CPUInfo[4];
+    __cpuid_count(7, 0, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+    return CPUInfo[1] & (1 << 29); /* SHA */
+}
+
+#else /* defined(__clang__) || defined(__GNUC__) */
+
+int supports_sha_ni(void)
+{
+    unsigned int CPUInfo[4];
+    __cpuidex(CPUInfo, 7, 0);
+    return CPUInfo[1] & (1 << 29); /* Check SHA */
+}
+
+#endif /* defined(__clang__) || defined(__GNUC__) */
+
+#else /* COMPILER_SUPPORTS_AES_NI */
+
+int supports_sha_ni(void)
+{
+    return 0;
+}
+
+#endif  /* COMPILER_SUPPORTS_AES_NI */

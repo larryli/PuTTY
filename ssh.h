@@ -258,6 +258,8 @@ void hmacmd5_key(void *handle, void const *key, int len);
 void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
 		     unsigned char *hmac);
 
+int supports_sha_ni(void);
+
 typedef struct SHA_State {
     uint32 h[5];
     unsigned char block[64];
