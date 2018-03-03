@@ -1040,7 +1040,7 @@ void dlg_set_focus(union control *ctrl, void *dlg)
  */
 void dlg_beep(void *dlg)
 {
-    gdk_beep();
+    gdk_display_beep(gdk_display_get_default());
 }
 
 static void set_transient_window_pos(GtkWidget *parent, GtkWidget *child)
@@ -1452,7 +1452,7 @@ static void draglist_move(struct dlgparam *dp, struct uctrl *uc, int direction)
     if ((index < 0) ||
 	(index == 0 && direction < 0) ||
 	(index == g_list_length(children)-1 && direction > 0)) {
-	gdk_beep();
+	gdk_display_beep(gdk_display_get_default());
 	return;
     }
 

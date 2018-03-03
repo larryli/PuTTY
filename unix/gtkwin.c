@@ -3349,7 +3349,7 @@ void sys_cursor(void *frontend, int x, int y)
 void do_beep(void *frontend, int mode)
 {
     if (mode == BELL_DEFAULT)
-	gdk_beep();
+        gdk_display_beep(gdk_display_get_default());
 }
 
 int char_width(Context ctx, int uc)
