@@ -51,6 +51,11 @@
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 
 GdkAtom compound_text_atom, utf8_string_atom;
+GdkAtom clipboard_atom
+#if GTK_CHECK_VERSION(2,0,0) /* GTK1 will have to fill this in at startup */
+    = GDK_SELECTION_CLIPBOARD
+#endif
+    ;
 
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
 /*
@@ -2689,7 +2694,7 @@ void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
 int init_clipboard(struct gui_data *inst)
 {
     set_clipboard_atom(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
-    set_clipboard_atom(inst, CLIP_CLIPBOARD, GDK_SELECTION_CLIPBOARD);
+    set_clipboard_atom(inst, CLIP_CLIPBOARD, clipboard_atom);
     return TRUE;
 }
 
@@ -3233,7 +3238,7 @@ void init_clipboard(struct gui_data *inst)
 #endif
 
     inst->clipstates[CLIP_PRIMARY].atom = GDK_SELECTION_PRIMARY;
-    inst->clipstates[CLIP_CLIPBOARD].atom = GDK_SELECTION_CLIPBOARD;
+    inst->clipstates[CLIP_CLIPBOARD].atom = clipboard_atom;
     init_one_clipboard(inst, CLIP_PRIMARY);
     init_one_clipboard(inst, CLIP_CLIPBOARD);
 
@@ -4999,6 +5004,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
         compound_text_atom = gdk_atom_intern("COMPOUND_TEXT", FALSE);
     if (!utf8_string_atom)
         utf8_string_atom = gdk_atom_intern("UTF8_STRING", FALSE);
+    if (!clipboard_atom)
+        clipboard_atom = gdk_atom_intern("CLIPBOARD", FALSE);
 
     inst->area = gtk_drawing_area_new();
     gtk_widget_set_name(GTK_WIDGET(inst->area), "drawing-area");

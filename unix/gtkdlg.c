@@ -3416,7 +3416,12 @@ GtkWidget *create_message_box(
     gtk_widget_show(window);
     gtk_window_set_focus(GTK_WINDOW(window), NULL);
 
+#if !GTK_CHECK_VERSION(2,0,0)
+    dp->currtreeitem = NULL;
+    dp->treeitems = NULL;
+#else
     dp->selparams = NULL;
+#endif
 
     g_signal_connect(G_OBJECT(window), "destroy",
                      G_CALLBACK(dlgparam_destroy), dp);
