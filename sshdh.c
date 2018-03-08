@@ -77,12 +77,18 @@ static const struct dh_extra extra_group14 = {
     P14, G, lenof(P14), lenof(G),
 };
 
+static const struct ssh_kex ssh_diffiehellman_group14_sha256 = {
+    "diffie-hellman-group14-sha256", "group14",
+    KEXTYPE_DH, &ssh_sha256, &extra_group14,
+};
+
 static const struct ssh_kex ssh_diffiehellman_group14_sha1 = {
     "diffie-hellman-group14-sha1", "group14",
     KEXTYPE_DH, &ssh_sha1, &extra_group14,
 };
 
 static const struct ssh_kex *const group14_list[] = {
+    &ssh_diffiehellman_group14_sha256,
     &ssh_diffiehellman_group14_sha1
 };
 
