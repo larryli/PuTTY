@@ -1975,6 +1975,12 @@ void setup_config_box(struct controlbox *b, int midsession,
                       HELPCTX(selection_clipactions),
                       CONF_ctrlshiftcv, CONF_ctrlshiftcv_custom);
 
+    s = ctrl_getset(b, "Window/Selection", "paste",
+                    "Control pasting of text");
+    ctrl_checkbox(s, "Permit control characters in pasted text",
+                  NO_SHORTCUT, HELPCTX(no_help),
+                  conf_checkbox_handler, I(CONF_paste_controls));
+
     /*
      * The Window/Selection/Words panel.
      */

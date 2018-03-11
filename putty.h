@@ -895,6 +895,7 @@ void cleanup_exit(int);
     /* Selection options */ \
     X(INT, NONE, mouse_is_xterm) \
     X(INT, NONE, rect_select) \
+    X(INT, NONE, paste_controls) \
     X(INT, NONE, rawcnp) \
     X(INT, NONE, rtf_paste) \
     X(INT, NONE, mouse_override) \
