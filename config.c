@@ -1976,18 +1976,18 @@ void setup_config_box(struct controlbox *b, int midsession,
                       CONF_ctrlshiftcv, CONF_ctrlshiftcv_custom);
 
     s = ctrl_getset(b, "Window/Selection", "paste",
-                    "Control pasting of text");
+                    "Control pasting of text from clipboard to terminal");
     ctrl_checkbox(s, "Permit control characters in pasted text",
                   NO_SHORTCUT, HELPCTX(no_help),
                   conf_checkbox_handler, I(CONF_paste_controls));
 
     /*
-     * The Window/Selection/Words panel.
+     * The Window/Selection/Copy panel.
      */
-    ctrl_settitle(b, "Window/Selection/Words",
-                  "Options controlling word-by-word selection");
+    ctrl_settitle(b, "Window/Selection/Copy",
+                  "Options controlling copying from terminal to clipboard");
 
-    s = ctrl_getset(b, "Window/Selection/Words", "charclass",
+    s = ctrl_getset(b, "Window/Selection/Copy", "charclass",
 		    "Classes of character that group together");
     ccd = (struct charclass_data *)
 	ctrl_alloc(b, sizeof(struct charclass_data));
