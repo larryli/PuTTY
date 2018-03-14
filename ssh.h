@@ -512,7 +512,7 @@ void SHATransform(word32 * digest, word32 * data);
 #ifdef _FORCE_SHA_NI
 #   define COMPILER_SUPPORTS_SHA_NI
 #elif defined(__clang__)
-#   if (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 8)) && (defined(__x86_64__) || defined(__i386))
+#   if __has_attribute(target) && __has_include(<shaintrin.h>) && (defined(__x86_64__) || defined(__i386))
 #       define COMPILER_SUPPORTS_SHA_NI
 #   endif
 #elif defined(__GNUC__)
@@ -527,14 +527,6 @@ void SHATransform(word32 * digest, word32 * data);
 
 #ifdef _FORCE_SOFTWARE_SHA
 #   undef COMPILER_SUPPORTS_SHA_NI
-#endif
-
-#if defined(__clang__)
-#   if !__has_attribute(target)
-/* If clang is old enough not to support __attribute__((target(...)))
- * as used below, then we can't use this code after all. */
-#      undef COMPILER_SUPPORTS_SHA_NI
-#   endif
 #endif
 
 int random_byte(void);

@@ -1134,7 +1134,7 @@ const struct ssh2_ciphers ssh2_aes = {
 #ifdef _FORCE_AES_NI
 #   define COMPILER_SUPPORTS_AES_NI
 #elif defined(__clang__)
-#   if (__clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 8)) && (defined(__x86_64__) || defined(__i386))
+#   if __has_attribute(target) && __has_include(<wmmintrin.h>) && (defined(__x86_64__) || defined(__i386))
 #       define COMPILER_SUPPORTS_AES_NI
 #   endif
 #elif defined(__GNUC__)
@@ -1149,14 +1149,6 @@ const struct ssh2_ciphers ssh2_aes = {
 
 #ifdef _FORCE_SOFTWARE_AES
 #   undef COMPILER_SUPPORTS_AES_NI
-#endif
-
-#if defined(__clang__)
-#   if !__has_attribute(target)
-/* If clang is old enough not to support __attribute__((target(...)))
- * as used below, then we can't use this code after all. */
-#      undef COMPILER_SUPPORTS_AES_NI
-#   endif
 #endif
 
 #ifdef COMPILER_SUPPORTS_AES_NI
