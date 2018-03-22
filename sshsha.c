@@ -501,6 +501,10 @@ const struct ssh_mac ssh_hmac_sha1_96_buggy = {
 int supports_sha_ni(void)
 {
     unsigned int CPUInfo[4];
+    __cpuid(0, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
+    if (CPUInfo[0] < 7)
+        return 0;
+
     __cpuid_count(7, 0, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
     return CPUInfo[1] & (1 << 29); /* SHA */
 }
@@ -510,6 +514,10 @@ int supports_sha_ni(void)
 int supports_sha_ni(void)
 {
     unsigned int CPUInfo[4];
+    __cpuid(CPUInfo, 0);  
+    if (CPUInfo[0] < 7)
+        return 0;
+
     __cpuidex(CPUInfo, 7, 0);
     return CPUInfo[1] & (1 << 29); /* Check SHA */
 }
