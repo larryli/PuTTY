@@ -271,7 +271,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     s = ctrl_getset(b, "Window/Selection/Copy", "format",
 		    "Formatting of copied characters");
     ctrl_checkbox(s, "Copy to clipboard in RTF as well as plain text", 'f',
-		  HELPCTX(selection_rtf),
+		  HELPCTX(copy_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
     /*

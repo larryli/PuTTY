@@ -1386,20 +1386,6 @@ Unicode always.
 The Selection panel allows you to control the way \i{copy and paste}
 work in the PuTTY window.
 
-\S{config-rtfpaste} Pasting in \i{Rich Text Format}
-
-\cfg{winhelp-topic}{selection.rtf}
-
-If you enable \q{Paste to clipboard in RTF as well as plain text},
-PuTTY will write formatting information to the clipboard as well as
-the actual text you copy. The effect of this is
-that if you paste into (say) a word processor, the text will appear
-in the word processor in the same \i{font}, \i{colour}, and style 
-(e.g. bold, underline) PuTTY was using to display it.
-
-This option can easily be inconvenient, so by default it is
-disabled.
-
 \S{config-mouse} Changing the actions of the mouse buttons
 
 \cfg{winhelp-topic}{selection.buttons}
@@ -1544,15 +1530,37 @@ be to invent a clipboard name yourself, to create a special clipboard
 shared \e{only} between instances of PuTTY, or between just instances
 configured in that particular way.
 
-\H{config-selection-words} The Words panel
+\S{config-paste-ctrl-char} \q{Permit control characters in pasted text}
 
-PuTTY will \I{word-by-word selection}select a word at a time in the
-terminal window if you \i{double-click} to begin the drag. This panel
-allows you to control precisely what is considered to be a word.
+\cfg{winhelp-topic}{selection.pastectrl}
+
+It is possible for the clipboard to contain not just text (with
+newlines and tabs) but also control characters such as ESC which could
+have surprising effects if pasted into a terminal session, depending
+on what program is running on the server side. Copying text from a
+mischievous web page could put such characters onto the clipboard.
+
+By default, PuTTY filters out the more unusual control characters,
+only letting through the more obvious text-formatting characters
+(newlines, tab, backspace, and DEL).
+
+Setting this option stops this filtering; on paste, any character on
+the clipboard is sent to the session uncensored. This might be useful
+if you are deliberately using control character pasting as a simple
+form of scripting, for instance.
+
+\H{config-selection-copy} The Copy panel
+
+The Copy configuration panel controls behaviour specifically related to
+copying from the terminal window to the clipboard.
 
 \S{config-charclasses} Character classes
 
-\cfg{winhelp-topic}{selection.charclasses}
+\cfg{winhelp-topic}{copy.charclasses}
+
+PuTTY will \I{word-by-word selection}select a word at a time in the
+terminal window if you \i{double-click} to begin the drag. This section
+allows you to control precisely what is considered to be a word.
 
 Each character is given a \e{class}, which is a small number
 (typically 0, 1 or 2). PuTTY considers a single word to be any
@@ -1587,6 +1595,20 @@ sent by the server. This configuration option controls the
 terminal (see \k{reset-terminal}). However, if you modify this
 option in mid-session using \q{Change Settings}, it will take effect
 immediately.
+
+\S{config-rtfcopy} Copying in \i{Rich Text Format}
+
+\cfg{winhelp-topic}{copy.rtf}
+
+If you enable \q{Copy to clipboard in RTF as well as plain text},
+PuTTY will write formatting information to the clipboard as well as
+the actual text you copy. The effect of this is
+that if you paste into (say) a word processor, the text will appear
+in the word processor in the same \i{font}, \i{colour}, and style 
+(e.g. bold, underline) PuTTY was using to display it.
+
+This option can easily be inconvenient, so by default it is
+disabled.
 
 \H{config-colours} The Colours panel
 
