@@ -1978,7 +1978,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     s = ctrl_getset(b, "Window/Selection", "paste",
                     "Control pasting of text from clipboard to terminal");
     ctrl_checkbox(s, "Permit control characters in pasted text",
-                  NO_SHORTCUT, HELPCTX(no_help),
+                  NO_SHORTCUT, HELPCTX(selection_pastectrl),
                   conf_checkbox_handler, I(CONF_paste_controls));
 
     /*
