@@ -1524,7 +1524,7 @@ static void aes_decrypt_cbc_ni(unsigned char *blk, int len, AESContext * ctx)
     }
 
     /* Update IV */
-    _mm_storeu_si128((__m128i*)(ctx->iv), dec);
+    _mm_storeu_si128((__m128i*)(ctx->iv), iv);
 }
 
 FUNC_ISA
