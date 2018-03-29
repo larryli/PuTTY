@@ -123,7 +123,7 @@
 #define WINHELP_CTX_selection_linedraw "selection.linedraw:config-linedrawpaste"
 #define WINHELP_CTX_selection_autocopy "selection.autocopy:config-selection-autocopy"
 #define WINHELP_CTX_selection_clipactions "selection.clipactions:config-selection-clipactions"
-#define WINHELP_CTX_selection_pastectrl "selection.pastectrl:config-selection-paste-ctrl-char"
+#define WINHELP_CTX_selection_pastectrl "selection.pastectrl:config-paste-ctrl-char"
 #define WINHELP_CTX_copy_charclasses "copy.charclasses:config-charclasses"
 #define WINHELP_CTX_copy_rtf "copy.rtf:config-rtfcopy"
 #define WINHELP_CTX_colours_ansi "colours.ansi:config-ansicolour"
