@@ -1,22 +1,25 @@
 #!/usr/bin/perl
 
+use Getopt::Long;
 use strict;
 use warnings;
 use FileHandle;
 
 my $dumpchannels = 0;
 my $dumpdata = 0;
-while ($ARGV[0] =~ /^-/) {
-    my $opt = shift @ARGV;
-    if ($opt eq "--") {
-        last; # stop processing options
-    } elsif ($opt eq "-c") {
-        $dumpchannels = 1;
-    } elsif ($opt eq "-d") {
-        $dumpdata = 1;
-    } else {
-        die "unrecognised option '$opt'\n";
-    }
+GetOptions("dump-channels|c" => \$dumpchannels,
+           "dump-data|d" => \$dumpdata,
+           "help" => sub { &usage(\*STDOUT, 0); })
+    or &usage(\*STDERR, 1);
+
+sub usage {
+    my ($fh, $exitstatus) = @_;
+    print $fh <<'EOF';
+usage:   logparse.pl [ options ] [ input-log-file ]
+options: --dump-channels, -c  dump the final state of every channel
+         --dump-data, -d      save data of every channel to ch0.i, ch0.o, ...
+EOF
+    exit $exitstatus;
 }
 
 my @channels = (); # ultimate channel ids are indices in this array
