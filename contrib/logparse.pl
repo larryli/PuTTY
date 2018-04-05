@@ -881,7 +881,7 @@ sub parseone {
         my $len = unpack "N", pack "C*", @bytes;
         @bytes = splice @$data, 0, $len;
         return "<missing>" if @bytes < $len or grep { $_<0 } @bytes;
-        if ($type eq "mpint") {
+        if ($type eq "m") {
             my $str = "";
             if ($bytes[0] >= 128) {
                 # Take two's complement.
