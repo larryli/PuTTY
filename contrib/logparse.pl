@@ -112,6 +112,41 @@ my %packets = (
         my ($direction, $seq, $data) = @_;
         print "\n";
     },
+#define SSH2_MSG_KEXGSS_INIT                      30  /* 0x1e */
+    'SSH2_MSG_KEXGSS_INIT' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_CONTINUE                  31  /* 0x1f */
+    'SSH2_MSG_KEXGSS_CONTINUE' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_COMPLETE                  32  /* 0x20 */
+    'SSH2_MSG_KEXGSS_COMPLETE' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_HOSTKEY                   33  /* 0x21 */
+    'SSH2_MSG_KEXGSS_HOSTKEY' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_ERROR                     34  /* 0x22 */
+    'SSH2_MSG_KEXGSS_ERROR' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_GROUPREQ                  40  /* 0x28 */
+    'SSH2_MSG_KEXGSS_GROUPREQ' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
+#define SSH2_MSG_KEXGSS_GROUP                     41  /* 0x29 */
+    'SSH2_MSG_KEXGSS_GROUP' => sub {
+        my ($direction, $seq, $data) = @_;
+        print "\n";
+    },
 #define SSH2_MSG_KEXRSA_PUBKEY                    30    /* 0x1e */
     'SSH2_MSG_KEXRSA_PUBKEY' => sub {
         my ($direction, $seq, $data) = @_;
@@ -709,6 +744,54 @@ my %verbose_packet_dump_functions = (
         my ($data) = @_;
         my ($seq) = &parse("u", $data);
         printf "  sequence number: %d\n", $seq;
+    },
+    'SSH2_MSG_KEXGSS_INIT' => sub {
+        my ($data) = @_;
+        my ($token, $e) = &parse("sm", $data);
+        printf "  output token: %s\n", unpack "H*", $token;
+        printf "  e: %s\n", $e;
+    },
+    'SSH2_MSG_KEXGSS_CONTINUE' => sub {
+        my ($data) = @_;
+        my ($token) = &parse("s", $data);
+        printf "  output token: %s\n", unpack "H*", $token;
+    },
+    'SSH2_MSG_KEXGSS_COMPLETE' => sub {
+        my ($data) = @_;
+        my ($f, $permsgtoken, $got_output) = &parse("msb", $data);
+        printf "  f: %s\n", $f;
+        printf "  per-message token: %s\n", unpack "H*", $permsgtoken;
+        printf "  output token present: %s\n", $got_output;
+        if ($got_output eq "yes") {
+            my ($token) = &parse("s", $data);
+            printf "  output token: %s\n", unpack "H*", $token;
+        }
+    },
+    'SSH2_MSG_KEXGSS_HOSTKEY' => sub {
+        my ($data) = @_;
+        my ($hostkey) = &parse("s", $data);
+        printf "  host key: %s\n", unpack "H*", $hostkey;
+    },
+    'SSH2_MSG_KEXGSS_ERROR' => sub {
+        my ($data) = @_;
+        my ($maj, $min, $msg, $lang) = &parse("uuss", $data);
+        printf "  major status: %d\n", $maj;
+        printf "  minor status: %d\n", $min;
+        printf "  message: '%s'\n", $msg;
+        printf "  language tag: '%s'\n", $lang;
+    },
+    'SSH2_MSG_KEXGSS_GROUPREQ' => sub {
+        my ($data) = @_;
+        my ($min, $pref, $max) = &parse("uuu", $data);
+        printf "  min bits: %d\n", $min;
+        printf "  preferred bits: %d\n", $pref;
+        printf "  max bits: %d\n", $max;
+    },
+    'SSH2_MSG_KEXGSS_GROUP' => sub {
+        my ($data) = @_;
+        my ($p, $g) = &parse("mm", $data);
+        printf "  p: %s\n", $p;
+        printf "  g: %s\n", $g;
     },
 );
 
