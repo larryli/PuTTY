@@ -7,8 +7,12 @@ use FileHandle;
 
 my $dumpchannels = 0;
 my $dumpdata = 0;
+my $verbose_all;
+my %verbose_packet;
 GetOptions("dump-channels|c" => \$dumpchannels,
            "dump-data|d" => \$dumpdata,
+           "verbose|v" => \$verbose_all,
+           "full|f=s" => sub { $verbose_packet{$_[1]} = 1; },
            "help" => sub { &usage(\*STDOUT, 0); })
     or &usage(\*STDERR, 1);
 
@@ -18,6 +22,8 @@ sub usage {
 usage:   logparse.pl [ options ] [ input-log-file ]
 options: --dump-channels, -c  dump the final state of every channel
          --dump-data, -d      save data of every channel to ch0.i, ch0.o, ...
+         --full=PKT, -f PKT   print extra detail for packets of type PKT
+         --verbose, -v        print extra detail for all packets if available
 EOF
     exit $exitstatus;
 }
@@ -536,6 +542,34 @@ my %packets = (
     },
 );
 
+my %verbose_packet_dump_functions = (
+    'SSH2_MSG_KEXINIT' => sub {
+        my ($data) = @_;
+        my ($cookie0, $cookie1, $cookie2, $cookie3,
+            $kex, $hostkey, $cscipher, $sccipher, $csmac, $scmac,
+            $cscompress, $sccompress, $cslang, $sclang, $guess) =
+                &parse("uuuussssssssssb", $data);
+        printf("  cookie: %08x%08x%08x%08x\n",
+               $cookie0, $cookie1, $cookie2, $cookie3);
+        my $print_namelist = sub {
+            my @names = split /,/, $_[1];
+            printf "  %s: name-list with %d items%s\n", $_[0], (scalar @names),
+            join "", map { "\n    $_" } @names;
+        };
+        $print_namelist->("kex", $kex);
+        $print_namelist->("host key", $hostkey);
+        $print_namelist->("client->server cipher", $cscipher);
+        $print_namelist->("server->client cipher", $sccipher);
+        $print_namelist->("client->server MAC", $csmac);
+        $print_namelist->("server->client MAC", $scmac);
+        $print_namelist->("client->server compression", $cscompress);
+        $print_namelist->("server->client compression", $sccompress);
+        $print_namelist->("client->server language", $cslang);
+        $print_namelist->("server->client language", $sclang);
+        printf "  first kex packet follows: %s\n", $guess;
+    },
+);
+
 my %sftp_packets = (
 #define SSH_FXP_INIT                              1	/* 0x1 */
     0x1 => sub {
@@ -763,6 +797,12 @@ my %sftp_packets = (
     },
 );
 
+for my $type (keys %verbose_packet) {
+    if (!defined $verbose_packet_dump_functions{$type}) {
+        die "no verbose dump available for packet type $type\n";
+    }
+}
+
 my ($direction, $seq, $ourseq, $type, $data, $recording);
 my %ourseqs = ('i'=>0, 'o'=>0);
 
@@ -779,6 +819,10 @@ while (<>) {
                 $packets{$type}->($direction, $fullseq, $data);
             } else {
                 printf "raw %s\n", join "", map { sprintf "%02x", $_ } @$data;
+            }
+            if (defined $verbose_packet_dump_functions{$type} &&
+                ($verbose_all || defined $verbose_packet{$type})) {
+                $verbose_packet_dump_functions{$type}->($data);
             }
         }
     }
