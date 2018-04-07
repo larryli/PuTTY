@@ -1227,7 +1227,7 @@ static void portfwd_handler(union control *ctrl, void *dlg,
 		if (key) {
 		    static const char *const afs = "A46";
 		    static const char *const dirs = "LRD";
-		    char *afp;
+		    const char *afp;
 		    int dir;
 #ifndef NO_IPV6
 		    int idx;
