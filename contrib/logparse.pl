@@ -542,13 +542,31 @@ my %packets = (
     },
 );
 
+our %disc_reasons = {
+    1 => "SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT",
+    2 => "SSH_DISCONNECT_PROTOCOL_ERROR",
+    3 => "SSH_DISCONNECT_KEY_EXCHANGE_FAILED",
+    4 => "SSH_DISCONNECT_RESERVED",
+    5 => "SSH_DISCONNECT_MAC_ERROR",
+    6 => "SSH_DISCONNECT_COMPRESSION_ERROR",
+    7 => "SSH_DISCONNECT_SERVICE_NOT_AVAILABLE",
+    8 => "SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED",
+    9 => "SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE",
+    10 => "SSH_DISCONNECT_CONNECTION_LOST",
+    11 => "SSH_DISCONNECT_BY_APPLICATION",
+    12 => "SSH_DISCONNECT_TOO_MANY_CONNECTIONS",
+    13 => "SSH_DISCONNECT_AUTH_CANCELLED_BY_USER",
+    14 => "SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE",
+    15 => "SSH_DISCONNECT_ILLEGAL_USER_NAME",
+};
+
 my %verbose_packet_dump_functions = (
     'SSH2_MSG_KEXINIT' => sub {
         my ($data) = @_;
         my ($cookie0, $cookie1, $cookie2, $cookie3,
             $kex, $hostkey, $cscipher, $sccipher, $csmac, $scmac,
-            $cscompress, $sccompress, $cslang, $sclang, $guess) =
-                &parse("uuuussssssssssb", $data);
+            $cscompress, $sccompress, $cslang, $sclang, $guess, $reserved) =
+                &parse("uuuussssssssssbu", $data);
         printf("  cookie: %08x%08x%08x%08x\n",
                $cookie0, $cookie1, $cookie2, $cookie3);
         my $print_namelist = sub {
@@ -567,6 +585,127 @@ my %verbose_packet_dump_functions = (
         $print_namelist->("client->server language", $cslang);
         $print_namelist->("server->client language", $sclang);
         printf "  first kex packet follows: %s\n", $guess;
+        printf "  reserved field: %#x\n", $reserved;
+    },
+    'SSH2_MSG_KEXDH_INIT' => sub {
+        my ($data) = @_;
+        my ($e) = &parse("m", $data);
+        printf "  e: %s\n", $e;
+    },
+    'SSH2_MSG_KEX_DH_GEX_REQUEST' => sub {
+        my ($data) = @_;
+        my ($min, $pref, $max) = &parse("uuu", $data);
+        printf "  min bits: %d\n", $min;
+        printf "  preferred bits: %d\n", $pref;
+        printf "  max bits: %d\n", $max;
+    },
+    'SSH2_MSG_KEX_DH_GEX_GROUP' => sub {
+        my ($data) = @_;
+        my ($p, $g) = &parse("mm", $data);
+        printf "  p: %s\n", $p;
+        printf "  g: %s\n", $g;
+    },
+    'SSH2_MSG_KEX_DH_GEX_INIT' => sub {
+        my ($data) = @_;
+        my ($e) = &parse("m", $data);
+        printf "  e: %s\n", $e;
+    },
+    'SSH2_MSG_KEX_ECDH_INIT' => sub {
+        my ($data) = @_;
+        my ($cpv) = &parse("s", $data);
+        # Public values in ECDH depend for their interpretation on the
+        # selected curve, and this script doesn't cross-analyse the
+        # two KEXINIT packets to independently figure out what that
+        # curve is. So the best we can do is just dump the raw data.
+        printf "  client public value: %s\n", (unpack "H*", $cpv);
+    },
+    'SSH2_MSG_KEXDH_REPLY' => sub {
+        my ($data) = @_;
+        my ($hostkeyblob, $f, $sigblob) = &parse("sms", $data);
+        my ($hktype, @hostkey) = &parse_public_key($hostkeyblob);
+        printf "  host key: %s\n", $hktype;
+        while (@hostkey) {
+            my ($key, $value) = splice @hostkey, 0, 2;
+            printf "    $key: $value\n";
+        }
+        printf "  f: %s\n", $f;
+        printf "  signature:\n";
+        my @signature = &parse_signature($sigblob, $hktype);
+        while (@signature) {
+            my ($key, $value) = splice @signature, 0, 2;
+            printf "    $key: $value\n";
+        }
+    },
+    'SSH2_MSG_KEX_DH_GEX_REPLY' => sub {
+        my ($data) = @_;
+        my ($hostkeyblob, $f, $sigblob) = &parse("sms", $data);
+        my ($hktype, @hostkey) = &parse_public_key($hostkeyblob);
+        printf "  host key: %s\n", $hktype;
+        while (@hostkey) {
+            my ($key, $value) = splice @hostkey, 0, 2;
+            printf "    $key: $value\n";
+        }
+        printf "  f: %s\n", $f;
+        printf "  signature:\n";
+        my @signature = &parse_signature($sigblob, $hktype);
+        while (@signature) {
+            my ($key, $value) = splice @signature, 0, 2;
+            printf "    $key: $value\n";
+        }
+    },
+    'SSH2_MSG_KEX_ECDH_REPLY' => sub {
+        my ($data) = @_;
+        my ($hostkeyblob, $spv, $sigblob) = &parse("sss", $data);
+        my ($hktype, @hostkey) = &parse_public_key($hostkeyblob);
+        printf "  host key: %s\n", $hktype;
+        while (@hostkey) {
+            my ($key, $value) = splice @hostkey, 0, 2;
+            printf "    $key: $value\n";
+        }
+        printf "  server public value: %s\n", (unpack "H*", $spv);
+        printf "  signature:\n";
+        my @signature = &parse_signature($sigblob, $hktype);
+        while (@signature) {
+            my ($key, $value) = splice @signature, 0, 2;
+            printf "    $key: $value\n";
+        }
+    },
+    'SSH2_MSG_NEWKEYS' => sub {},
+    'SSH2_MSG_SERVICE_REQUEST' => sub {
+        my ($data) = @_;
+        my ($servname) = &parse("s", $data);
+        printf "  service name: %s\n", $servname;
+    },
+    'SSH2_MSG_SERVICE_ACCEPT' => sub {
+        my ($data) = @_;
+        my ($servname) = &parse("s", $data);
+        printf "  service name: %s\n", $servname;
+    },
+    'SSH2_MSG_DISCONNECT' => sub {
+        my ($data) = @_;
+        my ($reason, $desc, $lang) = &parse("uss", $data);
+        printf("  reason code: %d%s\n", $reason,
+               defined $disc_reasons{$reason} ?
+               " ($disc_reasons{$reason})" : "" );
+        printf "  description: '%s'\n", $desc;
+        printf "  language tag: '%s'\n", $lang;
+    },
+    'SSH2_MSG_DEBUG' => sub {
+        my ($data) = @_;
+        my ($display, $desc, $lang) = &parse("bss", $data);
+        printf "  always display: %s\n", $display;
+        printf "  description: '%s'\n", $desc;
+        printf "  language tag: '%s'\n", $lang;
+    },
+    'SSH2_MSG_IGNORE' => sub {
+        my ($data) = @_;
+        my ($payload) = &parse("s", $data);
+        printf "  data: %s\n", unpack "H*", $payload;
+    },
+    'SSH2_MSG_UNIMPLEMENTED' => sub {
+        my ($data) = @_;
+        my ($seq) = &parse("u", $data);
+        printf "  sequence number: %d\n", $seq;
     },
 );
 
@@ -815,14 +954,25 @@ while (<>) {
             $recording = 0;
             my $fullseq = "$direction$ourseq";
             print "$fullseq: $type ";
+
+            my ($verbose_dump, $verbose_data) = undef;
+            if (defined $verbose_packet_dump_functions{$type} &&
+                ($verbose_all || defined $verbose_packet{$type})) {
+                $verbose_dump = $verbose_packet_dump_functions{$type};
+                $verbose_data = [ @$data ];
+            }
+
             if (defined $packets{$type}) {
                 $packets{$type}->($direction, $fullseq, $data);
             } else {
                 printf "raw %s\n", join "", map { sprintf "%02x", $_ } @$data;
             }
-            if (defined $verbose_packet_dump_functions{$type} &&
-                ($verbose_all || defined $verbose_packet{$type})) {
-                $verbose_packet_dump_functions{$type}->($data);
+            if (defined $verbose_dump) {
+                $verbose_dump->($verbose_data);
+                if (@$verbose_data) {
+                    printf("  trailing bytes: %s\n",
+                           unpack "H*", pack "C*", @$verbose_data);
+                }
             }
         }
     }
@@ -854,6 +1004,13 @@ if ($dumpchannels) {
     for my $chan (@sortedchannels) {
         printf "%s (%s): %s\n", $chan->{'index'}, $chan->{'id'}, $chan->{'state'};
     }
+}
+
+sub format_unsigned_hex_integer {
+    my $abs = join "", map { sprintf "%02x", $_ } @_;
+    $abs =~ s!^0*!!g;
+    $abs = "0" if $abs eq "";
+    return "0x" . $abs;
 }
 
 sub parseone {
@@ -896,7 +1053,7 @@ sub parseone {
                 }
                 $str = "-";
             }
-            $str .= "0x" . join "", map { sprintf "%02x", $_ } @bytes;
+            $str .= &format_unsigned_hex_integer(@bytes);
             return $str;
         } else {
             return pack "C*", @bytes;
@@ -1000,6 +1157,80 @@ sub sftp_parse_attrs {
     $out .= "}";
     return $out;
 }
+
+sub parse_public_key {
+    my ($blob) = @_;
+    my $data = [ unpack "C*", $blob ];
+    my @toret;
+    my ($type) = &parse("s", $data);
+    push @toret, $type;
+    if ($type eq "ssh-rsa") {
+        my ($e, $n) = &parse("mm", $data);
+        push @toret, "e", $e, "n", $n;
+    } elsif ($type eq "ssh-dss") {
+        my ($p, $q, $g, $y) = &parse("mmmm", $data);
+        push @toret, "p", $p, "q", $q, "g", $g, "y", $y;
+    } elsif ($type eq "ssh-ed25519") {
+        my ($xyblob) = &parse("s", $data);
+        my @y = unpack "C*", $xyblob;
+        push @toret, "hibit(x)", $y[$#y] & 1;
+        $y[$#y] &= ~1;
+        push @toret, "y & ~1", &format_unsigned_hex_integer(@y);
+    } elsif ($type =~ m!^ecdsa-sha2-nistp(256|384|521)$!) {
+        my ($curvename, $blob) = &parse("ss", $data);
+        push @toret, "curve name", $curvename;
+        my @blobdata = unpack "C*", $blob;
+        my ($fmt) = &parse("B", \@blobdata);
+        push @toret, "format byte", $fmt;
+        if ($fmt == 4) {
+            push @toret, "x", &format_unsigned_hex_integer(
+                @blobdata[0..($#blobdata+1)/2-1]);
+            push @toret, "y", &format_unsigned_hex_integer(
+                @blobdata[($#blobdata+1)/2..$#blobdata]);
+        }
+    } else {
+        push @toret, "undecoded data", unpack "H*", pack "C*", @$data;
+    }
+    return @toret;
+};
+
+sub parse_signature {
+    my ($blob, $keytype) = @_;
+    my $data = [ unpack "C*", $blob ];
+    my @toret;
+    if ($keytype eq "ssh-rsa") {
+        my ($type, $s) = &parse("ss", $data);
+        push @toret, "sig type", $type;
+        push @toret, "s", &format_unsigned_hex_integer(unpack "C*", $s);
+    } elsif ($keytype eq "ssh-dss") {
+        my ($type, $subblob) = &parse("ss", $data);
+        push @toret, "sig type", $type;
+        push @toret, "r", &format_unsigned_hex_integer(
+            unpack "C*", substr($subblob, 0, 20));
+        push @toret, "s", &format_unsigned_hex_integer(
+            unpack "C*", substr($subblob, 20, 40));
+    } elsif ($keytype eq "ssh-ed25519") {
+        my ($type, $rsblob) = &parse("ss", $data);
+        push @toret, "sig type", $type;
+        my @ry = unpack "C*", $rsblob;
+        my @sy = splice @ry, 32, 32;
+        push @toret, "hibit(r.x)", $ry[$#ry] & 1;
+        $ry[$#ry] &= ~1;
+        push @toret, "r.y & ~1", &format_unsigned_hex_integer(@ry);
+        push @toret, "hibit(s.x)", $sy[$#sy] & 1;
+        $sy[$#sy] &= ~1;
+        push @toret, "s.y & ~1", &format_unsigned_hex_integer(@sy);
+    } elsif ($keytype =~ m!^ecdsa-sha2-nistp(256|384|521)$!) {
+        my ($sigtype, $subblob) = &parse("ss", $data);
+        push @toret, "sig type", $sigtype;
+        my @sbdata = unpack "C*", $subblob;
+        my ($r, $s) = &parse("mm", \@sbdata);
+        push @toret, "r", $r, "s", $s;
+    } else {
+        push @toret, "undecoded data", unpack "H*", pack "C*", @$data;
+    }
+    return @toret;
+};
 
 sub stringescape {
     my ($str) = @_;
