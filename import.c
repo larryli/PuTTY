@@ -1803,7 +1803,7 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
         unsigned char *q;
         for (i = 0; i < (int)sizeof(bcrypt_salt); i++)
             bcrypt_salt[i] = random_byte();
-        p += put_string_z(p, "aes256-cbc");
+        p += put_string_z(p, "aes256-ctr");
         p += put_string_z(p, "bcrypt");
         q = p;
         p += 4;
@@ -1866,8 +1866,8 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
         ctx = aes_make_context();
         aes256_key(ctx, keybuf);
         aes_iv(ctx, keybuf + 32);
-        aes_ssh2_encrypt_blk(ctx, private_section_start,
-                             p - private_section_start);
+        aes_ssh2_sdctr(ctx, private_section_start,
+                       p - private_section_start);
         aes_free_context(ctx);
 
         smemclr(keybuf, sizeof(keybuf));
