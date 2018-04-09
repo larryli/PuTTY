@@ -7,12 +7,14 @@ use FileHandle;
 
 my $dumpchannels = 0;
 my $dumpdata = 0;
+my $pass_through_events = 0;
 my $verbose_all;
 my %verbose_packet;
 GetOptions("dump-channels|c" => \$dumpchannels,
            "dump-data|d" => \$dumpdata,
            "verbose|v" => \$verbose_all,
            "full|f=s" => sub { $verbose_packet{$_[1]} = 1; },
+           "events|e" => \$pass_through_events,
            "help" => sub { &usage(\*STDOUT, 0); })
     or &usage(\*STDERR, 1);
 
@@ -987,6 +989,9 @@ while (<>) {
         $type = $3;
         $data = [];
         $recording = 1;
+    }
+    if ($pass_through_events && m/^Event Log: ([^\n]*)$/) {
+        printf "event: $1\n";
     }
 }
 
