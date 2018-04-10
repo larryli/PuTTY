@@ -26,6 +26,7 @@ options: --dump-channels, -c  dump the final state of every channel
          --dump-data, -d      save data of every channel to ch0.i, ch0.o, ...
          --full=PKT, -f PKT   print extra detail for packets of type PKT
          --verbose, -v        print extra detail for all packets if available
+         --events, -e         copy Event Log messages from input log file
 EOF
     exit $exitstatus;
 }
