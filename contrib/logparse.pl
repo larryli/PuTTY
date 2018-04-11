@@ -545,7 +545,7 @@ my %packets = (
     },
 );
 
-our %disc_reasons = {
+our %disc_reasons = (
     1 => "SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT",
     2 => "SSH_DISCONNECT_PROTOCOL_ERROR",
     3 => "SSH_DISCONNECT_KEY_EXCHANGE_FAILED",
@@ -561,7 +561,7 @@ our %disc_reasons = {
     13 => "SSH_DISCONNECT_AUTH_CANCELLED_BY_USER",
     14 => "SSH_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE",
     15 => "SSH_DISCONNECT_ILLEGAL_USER_NAME",
-};
+);
 
 my %verbose_packet_dump_functions = (
     'SSH2_MSG_KEXINIT' => sub {
