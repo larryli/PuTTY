@@ -470,6 +470,10 @@ const struct ssh_mac ssh_hmac_sha1_96_buggy = {
 
 #ifdef COMPILER_SUPPORTS_SHA_NI
 
+#if defined _MSC_VER && defined _M_AMD64
+# include <intrin.h>
+#endif
+
 /*
  * Set target architecture for Clang and GCC
  */

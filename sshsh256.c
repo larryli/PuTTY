@@ -413,6 +413,10 @@ int main(void) {
 
 #ifdef COMPILER_SUPPORTS_SHA_NI
 
+#if defined _MSC_VER && defined _M_AMD64
+# include <intrin.h>
+#endif
+
 /*
  * Set target architecture for Clang and GCC
  */
