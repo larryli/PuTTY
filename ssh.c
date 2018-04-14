@@ -189,6 +189,14 @@ static unsigned int ssh_tty_parse_boolean(char *s)
 	return (atoi(s) != 0);
 }
 
+/* Safely convert rekey_time to unsigned long minutes */
+static unsigned long rekey_mins(int rekey_time, unsigned long def)
+{
+    if (rekey_time < 0 || rekey_time > MAX_TICK_MINS)
+        rekey_time = def;
+    return (unsigned long)rekey_time;
+}
+
 #define translate(x) if (type == x) return #x
 #define translatek(x,ctx) if (type == x && (pkt_kctx == ctx)) return #x
 #define translatea(x,ctx) if (type == x && (pkt_actx == ctx)) return #x
@@ -722,6 +730,7 @@ static unsigned long ssh_pkt_getuint32(struct Packet *pkt);
 static int ssh2_pkt_getbool(struct Packet *pkt);
 static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, unsigned long now);
+static int ssh2_timer_update(Ssh ssh, unsigned long rekey_time);
 static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			      struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
@@ -7646,9 +7655,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      */
     ssh->kex_in_progress = FALSE;
     ssh->last_rekey = GETTICKCOUNT();
-    if (conf_get_int(ssh->conf, CONF_ssh_rekey_time) != 0)
-	ssh->next_rekey = schedule_timer(conf_get_int(ssh->conf, CONF_ssh_rekey_time)*60*TICKSPERSEC,
-					 ssh2_timer, ssh);
+    (void) ssh2_timer_update(ssh, 0);
 
     /*
      * Now we're encrypting. Begin returning 1 to the protocol main
@@ -7722,11 +7729,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
              * hit the event log _too_ often. */
             ssh->outgoing_data_size = 0;
             ssh->incoming_data_size = 0;
-            if (conf_get_int(ssh->conf, CONF_ssh_rekey_time) != 0) {
-                ssh->next_rekey =
-                    schedule_timer(conf_get_int(ssh->conf, CONF_ssh_rekey_time)*60*TICKSPERSEC,
-                                   ssh2_timer, ssh);
-            }
+            (void) ssh2_timer_update(ssh, 0);
             goto wait_for_rekey;       /* this is still utterly horrid */
         } else {
             logeventf(ssh, "Initiating key re-exchange (%s)", (char *)in);
@@ -11132,6 +11135,41 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;
 }
 
+/*
+ * The rekey_time is zero except when re-configuring.
+ *
+ * We either schedule the next timer and return 0, or return 1 to run the
+ * callback now, which will call us again to re-schedule on completion.
+ */
+static int ssh2_timer_update(Ssh ssh, unsigned long rekey_time)
+{
+    unsigned long mins;
+    unsigned long ticks;
+
+    mins = conf_get_int(ssh->conf, CONF_ssh_rekey_time);
+    mins = rekey_mins(mins, 60);
+    ticks = mins * 60 * TICKSPERSEC;
+
+    /* Handle change from previous setting */
+    if (rekey_time != 0 && rekey_time != mins) {
+	unsigned long next;
+	unsigned long now = GETTICKCOUNT();
+
+	mins = rekey_time;
+	ticks = mins * 60 * TICKSPERSEC;
+	next = ssh->last_rekey + ticks;
+
+	/* If overdue, caller will rekey synchronously now */
+	if (now - ssh->last_rekey > ticks)
+	    return 1;
+	ticks = next - now;
+    }
+
+    /* Schedule the next timer */
+    ssh->next_rekey = schedule_timer(ticks, ssh2_timer, ssh);
+    return 0;
+}
+
 static void ssh2_timer(void *ctx, unsigned long now)
 {
     Ssh ssh = (Ssh)ctx;
@@ -11466,17 +11504,8 @@ static void ssh_reconfig(void *handle, Conf *conf)
 	ssh_setup_portfwd(ssh, conf);
 
     rekey_time = conf_get_int(conf, CONF_ssh_rekey_time);
-    if (conf_get_int(ssh->conf, CONF_ssh_rekey_time) != rekey_time &&
-	rekey_time != 0) {
-	unsigned long new_next = ssh->last_rekey + rekey_time*60*TICKSPERSEC;
-	unsigned long now = GETTICKCOUNT();
-
-	if (now - ssh->last_rekey > rekey_time*60*TICKSPERSEC) {
-	    rekeying = "timeout shortened";
-	} else {
-	    ssh->next_rekey = schedule_timer(new_next - now, ssh2_timer, ssh);
-	}
-    }
+    if (ssh2_timer_update(ssh, rekey_mins(rekey_time, 60)))
+        rekeying = "timeout shortened";
 
     old_max_data_size = ssh->max_data_size;
     ssh->max_data_size = parse_blocksize(conf_get_str(ssh->conf,
