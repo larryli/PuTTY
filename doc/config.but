@@ -3038,11 +3038,11 @@ method to be accessed through the same interface. Therefore, more
 than one authentication library may exist on your system which can
 be accessed using GSSAPI.
 
-PuTTY contains native support for a few well-known such libraries,
-and will look for all of them on your system and use whichever it
-finds. If more than one exists on your system and you need to use a
-specific one, you can adjust the order in which it will search using
-this preference list control.
+PuTTY contains native support for a few well-known such libraries
+(including Windows' SSPI), and will look for all of them on your system
+and use whichever it finds. If more than one exists on your system and
+you need to use a specific one, you can adjust the order in which it
+will search using this preference list control.
 
 One of the options in the preference list is to use a user-specified
 GSSAPI library. If the library you want to use is not mentioned by
