@@ -2581,6 +2581,13 @@ you to delegate the credentials that are active at the beginning of
 the session; they can't be refreshed automatically later, in a
 long-running session.
 
+Another effect of GSSAPI key exchange is that it replaces the usual
+SSH mechanism of permanent host keys. So if you use this method, then
+you won't be asked any interactive questions about whether to accept
+the server's host key. Instead, the Kerberos exchange will verify the
+identity of the host you connect to, at the same time as verifying
+your identity to it.
+
 \S{config-ssh-kex-rekey} \ii{Repeat key exchange}
 
 \cfg{winhelp-topic}{ssh.kex.repeat}
@@ -2988,19 +2995,23 @@ GSSAPI authentication is only available in the SSH-2 protocol.
 
 PuTTY supports two forms of GSSAPI-based authentication. In one of
 them, the SSH key exchange happens in the normal way, and GSSAPI is
-only involved in authenticating the user. In the other, GSSAPI-based
-authentication is combined with the key exchange phase, and the SSH
-authentication step has nothing left to do. If you enable GSSAPI
-authentication, PuTTY will attempt both of these methods, and use
-whichever the server supports.
+only involved in authenticating the user. The checkbox labelled
+\q{Attempt GSSAPI authentication} controls this form.
 
-The topmost control on the GSSAPI subpanel is the checkbox labelled
-\q{Attempt GSSAPI authentication}. If this is disabled, GSSAPI will
-not be attempted at all and the rest of this panel is unused. If it
-is enabled, GSSAPI authentication will be attempted, and (typically)
-if your client machine has valid Kerberos credentials loaded, then
-PuTTY should be able to authenticate automatically to servers that
-support Kerberos logins.
+In the other method, GSSAPI-based authentication is combined with the
+SSH key exchange phase. If this succeeds, then the SSH authentication
+step has nothing left to do. See \k{config-ssh-gssapi-kex} for more
+information about this method. The checkbox labelled \q{Attempt GSSAPI
+key exchange} controls this form.
+
+If one or both of these controls is enabled, then GSSAPI
+authentication will be attempted in one form or the other, and
+(typically) if your client machine has valid Kerberos credentials
+loaded, then PuTTY should be able to authenticate automatically to
+servers that support Kerberos logins.
+
+If both of those checkboxes are disabled, PuTTY will not try any form
+of GSSAPI at all, and the rest of this panel will be unused.
 
 \S{config-ssh-auth-gssapi-delegation} \q{Allow GSSAPI credential
 delegation}

@@ -6595,7 +6595,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
          * where the flag was set on the previous key exchange.)
          */
         s->can_gssapi_keyex = FALSE;
-    } else {
+    } else if (conf_get_int(ssh->conf, CONF_try_gssapi_kex)) {
         /*
          * We always check if we have GSS creds before we come up with
          * the kex algorithm list, otherwise future rekeys will fail
@@ -6629,6 +6629,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         if (!s->got_session_id && (ssh->gss_status & GSS_CTXT_MAYFAIL) != 0)
             s->can_gssapi_keyex = 0;
         s->gss_delegate = conf_get_int(ssh->conf, CONF_gssapifwd);
+    } else {
+        s->can_gssapi_keyex = FALSE;
     }
 #endif
 
@@ -10429,7 +10431,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
                     in_commasep_string("gssapi-with-mic", methods, methlen) &&
                     ssh->gsslibs->nlibraries > 0;
                 s->can_gssapi_keyex_auth =
-                    conf_get_int(ssh->conf, CONF_try_gssapi_auth) &&
+                    conf_get_int(ssh->conf, CONF_try_gssapi_kex) &&
                     in_commasep_string("gssapi-keyex", methods, methlen) &&
                     ssh->gsslibs->nlibraries > 0 &&
                     ssh->gss_ctx;
@@ -11903,7 +11905,8 @@ static void ssh2_gss_update(Ssh ssh)
      */
     if (ssh->gsslibs->nlibraries == 0)
         return;
-    if (!conf_get_int(ssh->conf, CONF_try_gssapi_auth))
+    if (!conf_get_int(ssh->conf, CONF_try_gssapi_auth) &&
+        !conf_get_int(ssh->conf, CONF_try_gssapi_kex))
         return;
 
     /* Import server name and cache it */

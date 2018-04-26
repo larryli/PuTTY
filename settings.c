@@ -581,6 +581,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "AuthTIS", conf_get_int(conf, CONF_try_tis_auth));
     write_setting_i(sesskey, "AuthKI", conf_get_int(conf, CONF_try_ki_auth));
     write_setting_i(sesskey, "AuthGSSAPI", conf_get_int(conf, CONF_try_gssapi_auth));
+    write_setting_i(sesskey, "AuthGSSAPIKEX", conf_get_int(conf, CONF_try_gssapi_kex));
 #ifndef NO_GSSAPI
     wprefs(sesskey, "GSSLibs", gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);
     write_setting_filename(sesskey, "GSSCustom", conf_get_filename(conf, CONF_ssh_gss_custom));
@@ -970,6 +971,7 @@ void load_open_settings(void *sesskey, Conf *conf)
     gppi(sesskey, "AuthTIS", 0, conf, CONF_try_tis_auth);
     gppi(sesskey, "AuthKI", 1, conf, CONF_try_ki_auth);
     gppi(sesskey, "AuthGSSAPI", 1, conf, CONF_try_gssapi_auth);
+    gppi(sesskey, "AuthGSSAPIKEX", 1, conf, CONF_try_gssapi_kex);
 #ifndef NO_GSSAPI
     gprefs(sesskey, "GSSLibs", "\0",
 	   gsslibkeywords, ngsslibs, conf, CONF_ssh_gsslist);

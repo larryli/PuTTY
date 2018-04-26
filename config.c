@@ -2403,6 +2403,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 			      HELPCTX(ssh_kexlist),
 			      kexlist_handler, P(NULL));
             c->listbox.height = KEX_MAX_CONF;
+	    ctrl_checkbox(s, "Attempt GSSAPI key exchange",
+			  'k', HELPCTX(ssh_gssapi),
+			  conf_checkbox_handler,
+			  I(CONF_try_gssapi_kex));
 
 	    s = ctrl_getset(b, "Connection/SSH/Kex", "repeat",
 			    "Options controlling key re-exchange");
@@ -2564,6 +2568,11 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  't', HELPCTX(ssh_gssapi),
 			  conf_checkbox_handler,
 			  I(CONF_try_gssapi_auth));
+
+	    ctrl_checkbox(s, "Attempt GSSAPI key exchange (SSH-2 only)",
+			  'k', HELPCTX(ssh_gssapi),
+			  conf_checkbox_handler,
+			  I(CONF_try_gssapi_kex));
 
 	    ctrl_checkbox(s, "Allow GSSAPI credential delegation", 'l',
 			  HELPCTX(ssh_gssapi_delegation),
