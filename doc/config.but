@@ -1929,9 +1929,10 @@ PuTTY will prompt for a username at the time you make a connection.
 In some environments, such as the networks of large organisations
 implementing \i{single sign-on}, a more sensible default may be to use
 the name of the user logged in to the local operating system (if any);
-this is particularly likely to be useful with \i{GSSAPI} authentication
-(see \k{config-ssh-auth-gssapi}). This control allows you to change
-the default behaviour.
+this is particularly likely to be useful with \i{GSSAPI} key exchange
+and user authentication (see \k{config-ssh-auth-gssapi} and
+\k{config-ssh-kex}). This control allows you to change the default
+behaviour.
 
 The current system username is displayed in the dialog as a
 convenience. It is not saved in the configuration; if a saved session
@@ -2552,6 +2553,34 @@ If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
 to that for cipher selection (see \k{config-ssh-encryption}).
 
+\S2{config-ssh-gssapi-kex} GSSAPI-based key exchange
+
+PuTTY supports a set of key exchange methods that also incorporates
+GSSAPI-based authentication.
+
+PuTTY can only perform the GSSAPI-authenticated key exchange methods
+when using Kerberos V5, and not other GSSAPI mechanisms. PuTTY will
+attempt to select these methods if it is configured to use GSSAPI
+authentication (\k{config-ssh-auth-gssapi}), and if the user running
+it has current Kerberos V5 credentials. If both of those are true,
+then PuTTY will select the GSSAPI key exchange methods in preference
+to any of the ordinary SSH key exchange methods configured in the
+preference list.
+
+The advantage of doing GSSAPI authentication as part of the SSH key
+exchange is that the SSH key exchange can be repeated later in the
+session, and this allows your Kerberos V5 credentials (which are
+typically short-lived) to be automatically re-delegated to the server
+when they are refreshed on the client. (This feature is commonly
+referred to as \q{cascading credentials}.)
+
+If your server doesn't support GSSAPI key exchange, it may still
+support GSSAPI in the SSH user authentication phase. This will still
+let you log in using your Kerberos credentials, but will only allow
+you to delegate the credentials that are active at the beginning of
+the session; they can't be refreshed automatically later, in a
+long-running session.
+
 \S{config-ssh-kex-rekey} \ii{Repeat key exchange}
 
 \cfg{winhelp-topic}{ssh.kex.repeat}
@@ -2593,6 +2622,14 @@ purposes, rekeys have much the same properties as keepalives.
 (Except that rekeys have cryptographic value in themselves, so you
 should bear that in mind when deciding whether to turn them off.)
 Note, however, the the SSH \e{server} can still initiate rekeys.
+
+\b \q{Minutes between GSSAPI cache checks}, if you're using GSSAPI key
+exchange, specifies how often the GSSAPI credential cache is checked
+to see whether new tickets are available for delegation, or current
+ones are near expiration. If forwarding of GSSAPI credentials is
+enabled, PuTTY will try to rekey as necessary to keep the delegated
+credentials from expiring. Frequent checks are recommended; rekeying
+only happens when needed.
 
 \b \q{Max data before rekey} specifies the amount of data (in bytes)
 that is permitted to flow in either direction before a rekey is
@@ -2947,7 +2984,15 @@ machine, which in principle can authenticate in many different ways
 but in practice is usually used with the \i{Kerberos} \i{single sign-on}
 protocol to implement \i{passwordless login}.
 
-GSSAPI is only available in the SSH-2 protocol.
+GSSAPI authentication is only available in the SSH-2 protocol.
+
+PuTTY supports two forms of GSSAPI-based authentication. In one of
+them, the SSH key exchange happens in the normal way, and GSSAPI is
+only involved in authenticating the user. In the other, GSSAPI-based
+authentication is combined with the key exchange phase, and the SSH
+authentication step has nothing left to do. If you enable GSSAPI
+authentication, PuTTY will attempt both of these methods, and use
+whichever the server supports.
 
 The topmost control on the GSSAPI subpanel is the checkbox labelled
 \q{Attempt GSSAPI authentication}. If this is disabled, GSSAPI will

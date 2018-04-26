@@ -7,6 +7,11 @@
 #include <stdlib.h>
 #include "putty.h"
 #include "storage.h"
+#ifndef NO_GSSAPI
+#include "sshgssc.h"
+#include "sshgss.h"
+#endif
+
 
 /* The cipher order given here is the default order. */
 static const struct keyvalwhere ciphernames[] = {
@@ -566,9 +571,10 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "GssapiFwd", conf_get_int(conf, CONF_gssapifwd));
     write_setting_i(sesskey, "ChangeUsername", conf_get_int(conf, CONF_change_username));
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
-    wprefs(sesskey, "KEX", kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
+    wprefs(sesskey, "KEX", kexnames, KEX_MAX_CONF, conf, CONF_ssh_kexlist);
     wprefs(sesskey, "HostKey", hknames, HK_MAX, conf, CONF_ssh_hklist);
     write_setting_i(sesskey, "RekeyTime", conf_get_int(conf, CONF_ssh_rekey_time));
+    write_setting_i(sesskey, "GssapiRekey", conf_get_int(conf, CONF_gssapirekey));
     write_setting_s(sesskey, "RekeyBytes", conf_get_str(conf, CONF_ssh_rekey_data));
     write_setting_i(sesskey, "SshNoAuth", conf_get_int(conf, CONF_ssh_no_userauth));
     write_setting_i(sesskey, "SshBanner", conf_get_int(conf, CONF_ssh_show_banner));
@@ -910,10 +916,10 @@ void load_open_settings(void *sesskey, Conf *conf)
 	 * a server which offered it then choked, but we never got
 	 * a server version string or any other reports. */
 	const char *default_kexes,
-	           *normal_default = "ecdh,dh-gex-sha1,dh-group14-sha1,rsa,"
-		       "WARN,dh-group1-sha1",
-		   *bugdhgex2_default = "ecdh,dh-group14-sha1,rsa,"
-		       "WARN,dh-group1-sha1,dh-gex-sha1";
+                   *normal_default = "gss-sha1-krb5,ecdh,dh-gex-sha1,"
+                       "dh-group14-sha1,rsa,WARN,dh-group1-sha1",
+                   *bugdhgex2_default = "gss-sha1-krb5,ecdh,dh-group14-sha1,"
+                       "rsa,WARN,dh-group1-sha1,dh-gex-sha1";
 	char *raw;
 	i = 2 - gppi_raw(sesskey, "BugDHGEx2", 0);
 	if (i == FORCE_ON)
@@ -940,12 +946,13 @@ void load_open_settings(void *sesskey, Conf *conf)
 	    sfree(raw);
 	    raw = dupstr(normal_default);
 	}
-	gprefs_from_str(raw, kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
+        gprefs_from_str(raw, kexnames, KEX_MAX_CONF, conf, CONF_ssh_kexlist);
 	sfree(raw);
     }
     gprefs(sesskey, "HostKey", "ed25519,ecdsa,rsa,dsa,WARN",
            hknames, HK_MAX, conf, CONF_ssh_hklist);
     gppi(sesskey, "RekeyTime", 60, conf, CONF_ssh_rekey_time);
+    gppi(sesskey, "GssapiRekey", 2, conf, CONF_gssapirekey);
     gpps(sesskey, "RekeyBytes", "1G", conf, CONF_ssh_rekey_data);
     {
 	/* SSH-2 only by default */

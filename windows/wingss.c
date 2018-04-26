@@ -1,5 +1,6 @@
 #ifndef NO_GSSAPI
 
+#include <limits.h>
 #include "putty.h"
 
 #define SECURITY_WIN32
@@ -10,6 +11,22 @@
 #include "sshgssc.h"
 
 #include "misc.h"
+
+#define UNIX_EPOCH	11644473600ULL	/* Seconds from Windows epoch */
+#define CNS_PERSEC	10000000ULL	/* # 100ns per second */
+
+/*
+ * Note, as a special case, 0 relative to the Windows epoch (unspecified) maps
+ * to 0 relative to the POSIX epoch (unspecified)!
+ */
+#define TIME_WIN_TO_POSIX(ft, t) do { \
+    ULARGE_INTEGER uli; \
+    uli.LowPart  = (ft).dwLowDateTime; \
+    uli.HighPart = (ft).dwHighDateTime; \
+    if (uli.QuadPart != 0) \
+        uli.QuadPart = uli.QuadPart / CNS_PERSEC - UNIX_EPOCH; \
+    (t) = (time_t) uli.QuadPart; \
+} while(0)
 
 /* Windows code to set up the GSSAPI library list. */
 
@@ -55,6 +72,9 @@ DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
 DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
 		      MakeSignature,
 		      (PCtxtHandle, ULONG, PSecBufferDesc, ULONG));
+DECL_WINDOWS_FUNCTION(static, SECURITY_STATUS,
+                      VerifySignature,
+                      (PCtxtHandle, PSecBufferDesc, ULONG, PULONG));
 DECL_WINDOWS_FUNCTION(static, DLL_DIRECTORY_COOKIE,
                       AddDllDirectory,
                       (PCWSTR));
@@ -144,6 +164,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
         BIND_GSS_FN(delete_sec_context);
         BIND_GSS_FN(display_status);
         BIND_GSS_FN(get_mic);
+        BIND_GSS_FN(verify_mic);
         BIND_GSS_FN(import_name);
         BIND_GSS_FN(init_sec_context);
         BIND_GSS_FN(release_buffer);
@@ -172,6 +193,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 	GET_WINDOWS_FUNCTION(module, DeleteSecurityContext);
 	GET_WINDOWS_FUNCTION(module, QueryContextAttributesA);
 	GET_WINDOWS_FUNCTION(module, MakeSignature);
+        GET_WINDOWS_FUNCTION(module, VerifySignature);
 
 	ssh_sspi_bind_fns(lib);
     }
@@ -224,6 +246,7 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
         BIND_GSS_FN(delete_sec_context);
         BIND_GSS_FN(display_status);
         BIND_GSS_FN(get_mic);
+        BIND_GSS_FN(verify_mic);
         BIND_GSS_FN(import_name);
         BIND_GSS_FN(init_sec_context);
         BIND_GSS_FN(release_buffer);
@@ -289,7 +312,8 @@ static Ssh_gss_stat ssh_sspi_import_name(struct ssh_gss_library *lib,
 }
 
 static Ssh_gss_stat ssh_sspi_acquire_cred(struct ssh_gss_library *lib,
-					  Ssh_gss_ctx *ctx)
+                                          Ssh_gss_ctx *ctx,
+                                          time_t *expiry)
 {
     winSsh_gss_ctx *winctx = snew(winSsh_gss_ctx);
     memset(winctx, 0, sizeof(winSsh_gss_ctx));
@@ -309,21 +333,68 @@ static Ssh_gss_stat ssh_sspi_acquire_cred(struct ssh_gss_library *lib,
 						   NULL,
 						   NULL,
 						   &winctx->cred_handle,
-						   &winctx->expiry);
+                                                   NULL);
 
-    if (winctx->maj_stat != SEC_E_OK) return SSH_GSS_FAILURE;
-    
+    if (winctx->maj_stat != SEC_E_OK) {
+        p_FreeCredentialsHandle(&winctx->cred_handle);
+        sfree(winctx);
+        return SSH_GSS_FAILURE;
+    }
+
+    /* Windows does not return a valid expiration from AcquireCredentials */
+    if (expiry)
+        *expiry = GSS_NO_EXPIRATION;
+
     *ctx = (Ssh_gss_ctx) winctx;
     return SSH_GSS_OK;
 }
 
+static void localexp_to_exp_lifetime(TimeStamp *localexp,
+                                     time_t *expiry, unsigned long *lifetime)
+{
+    FILETIME nowUTC;
+    FILETIME expUTC;
+    time_t now;
+    time_t exp;
+    time_t delta;
+
+    if (!lifetime && !expiry)
+        return;
+
+    GetSystemTimeAsFileTime(&nowUTC);
+    TIME_WIN_TO_POSIX(nowUTC, now);
+
+    if (lifetime)
+        *lifetime = 0;
+    if (expiry)
+        *expiry = GSS_NO_EXPIRATION;
+
+    if (!LocalFileTimeToFileTime(localexp, &expUTC))
+        return;
+
+    TIME_WIN_TO_POSIX(expUTC, exp);
+    delta = exp - now;
+    if (exp == 0 || delta <= 0)
+        return;
+
+    if (expiry)
+        *expiry = exp;
+    if (lifetime) {
+        if (delta <= ULONG_MAX)
+            *lifetime = (unsigned long)delta;
+        else
+            *lifetime = ULONG_MAX;
+    }
+}
 
 static Ssh_gss_stat ssh_sspi_init_sec_context(struct ssh_gss_library *lib,
 					      Ssh_gss_ctx *ctx,
 					      Ssh_gss_name srv_name,
 					      int to_deleg,
 					      Ssh_gss_buf *recv_tok,
-					      Ssh_gss_buf *send_tok)
+                                              Ssh_gss_buf *send_tok,
+                                              time_t *expiry,
+                                              unsigned long *lifetime)
 {
     winSsh_gss_ctx *winctx = (winSsh_gss_ctx *) *ctx;
     SecBuffer wsend_tok = {send_tok->length,SECBUFFER_TOKEN,send_tok->value};
@@ -333,6 +404,7 @@ static Ssh_gss_stat ssh_sspi_init_sec_context(struct ssh_gss_library *lib,
     unsigned long flags=ISC_REQ_MUTUAL_AUTH|ISC_REQ_REPLAY_DETECT|
 	ISC_REQ_CONFIDENTIALITY|ISC_REQ_ALLOCATE_MEMORY;
     unsigned long ret_flags=0;
+    TimeStamp localexp;
     
     /* check if we have to delegate ... */
     if (to_deleg) flags |= ISC_REQ_DELEGATE;
@@ -347,8 +419,10 @@ static Ssh_gss_stat ssh_sspi_init_sec_context(struct ssh_gss_library *lib,
 						    &winctx->context,
 						    &output_desc,
 						    &ret_flags,
-						    &winctx->expiry);
-  
+                                                    &localexp);
+
+    localexp_to_exp_lifetime(&localexp, expiry, lifetime);
+
     /* prepare for the next round */
     winctx->context_handle = &winctx->context;
     send_tok->value = wsend_tok.pvBuffer;
@@ -503,6 +577,36 @@ static Ssh_gss_stat ssh_sspi_get_mic(struct ssh_gss_library *lib,
     return winctx->maj_stat;
 }
 
+static Ssh_gss_stat ssh_sspi_verify_mic(struct ssh_gss_library *lib,
+                                        Ssh_gss_ctx ctx,
+                                        Ssh_gss_buf *buf,
+                                        Ssh_gss_buf *mic)
+{
+    winSsh_gss_ctx *winctx= (winSsh_gss_ctx *) ctx;
+    SecBufferDesc InputBufferDescriptor;
+    SecBuffer InputSecurityToken[2];
+    ULONG qop;
+
+    if (winctx == NULL) return SSH_GSS_FAILURE;
+
+    winctx->maj_stat = 0;
+
+    InputBufferDescriptor.cBuffers = 2;
+    InputBufferDescriptor.pBuffers = InputSecurityToken;
+    InputBufferDescriptor.ulVersion = SECBUFFER_VERSION;
+    InputSecurityToken[0].BufferType = SECBUFFER_DATA;
+    InputSecurityToken[0].cbBuffer = buf->length;
+    InputSecurityToken[0].pvBuffer = buf->value;
+    InputSecurityToken[1].BufferType = SECBUFFER_TOKEN;
+    InputSecurityToken[1].cbBuffer = mic->length;
+    InputSecurityToken[1].pvBuffer = mic->value;
+
+    winctx->maj_stat = p_VerifySignature(&winctx->context,
+                                       &InputBufferDescriptor,
+                                       0, &qop);
+    return winctx->maj_stat;
+}
+
 static Ssh_gss_stat ssh_sspi_free_mic(struct ssh_gss_library *lib,
 				      Ssh_gss_buf *hash)
 {
@@ -520,6 +624,7 @@ static void ssh_sspi_bind_fns(struct ssh_gss_library *lib)
     lib->acquire_cred = ssh_sspi_acquire_cred;
     lib->release_cred = ssh_sspi_release_cred;
     lib->get_mic = ssh_sspi_get_mic;
+    lib->verify_mic = ssh_sspi_verify_mic;
     lib->free_mic = ssh_sspi_free_mic;
     lib->display_status = ssh_sspi_display_status;
 }
