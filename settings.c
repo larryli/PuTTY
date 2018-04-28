@@ -917,10 +917,10 @@ void load_open_settings(void *sesskey, Conf *conf)
 	 * a server which offered it then choked, but we never got
 	 * a server version string or any other reports. */
 	const char *default_kexes,
-                   *normal_default = "gss-sha1-krb5,ecdh,dh-gex-sha1,"
-                       "dh-group14-sha1,rsa,WARN,dh-group1-sha1",
-                   *bugdhgex2_default = "gss-sha1-krb5,ecdh,dh-group14-sha1,"
-                       "rsa,WARN,dh-group1-sha1,dh-gex-sha1";
+		   *normal_default = "ecdh,dh-gex-sha1,dh-group14-sha1,rsa,"
+		       "WARN,dh-group1-sha1",
+		   *bugdhgex2_default = "ecdh,dh-group14-sha1,rsa,"
+		       "WARN,dh-group1-sha1,dh-gex-sha1";
 	char *raw;
 	i = 2 - gppi_raw(sesskey, "BugDHGEx2", 0);
 	if (i == FORCE_ON)
@@ -947,6 +947,13 @@ void load_open_settings(void *sesskey, Conf *conf)
 	    sfree(raw);
 	    raw = dupstr(normal_default);
 	}
+	/* (For the record: after 0.70, the default algorithm list
+	 * very briefly contained the string 'gss-sha1-krb5'; this was
+	 * never used in any committed version of code, but was left
+	 * over from a pre-commit version of GSS key exchange.
+	 * Mentioned here as it is remotely possible that it will turn
+	 * up in someone's saved settings in future.) */
+	
         gprefs_from_str(raw, kexnames, KEX_MAX_CONF, conf, CONF_ssh_kexlist);
 	sfree(raw);
     }
