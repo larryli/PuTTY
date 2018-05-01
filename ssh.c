@@ -12030,7 +12030,12 @@ static int ssh2_timer_update(Ssh ssh, unsigned long rekey_time)
     }
 
 #ifndef NO_GSSAPI
-    {
+    if (ssh->gss_kex_used) {
+        /*
+         * If we've used GSSAPI key exchange, then we should
+         * periodically check whether we need to do another one to
+         * pass new credentials to the server.
+         */
         unsigned long gssmins;
 
         /* Check cascade conditions more frequently if configured */
