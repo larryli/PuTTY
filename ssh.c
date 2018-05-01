@@ -746,7 +746,7 @@ static void ssh_pkt_getstring(struct Packet *pkt, char **p, int *length);
 static void ssh2_timer(void *ctx, unsigned long now);
 static int ssh2_timer_update(Ssh ssh, unsigned long rekey_time);
 #ifndef NO_GSSAPI
-static void ssh2_gss_update(Ssh ssh);
+static void ssh2_gss_update(Ssh ssh, int definitely_rekeying);
 static struct Packet *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
                                           const char *authtype);
 #endif
@@ -6609,7 +6609,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
          * state is "fresh".
          */
         if (!vin || strcmp(vin, GSS_UPDATE_REKEY_REASON) != 0)
-            ssh2_gss_update(ssh);
+            ssh2_gss_update(ssh, TRUE);
 
         /* Do GSSAPI KEX when capable */
         s->can_gssapi_keyex = ssh->gss_status & GSS_KEX_CAPABLE;
@@ -11888,7 +11888,7 @@ static struct Packet *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
  * we use the expiration of a newly obtained context as a proxy for the
  * expiration of the TGT.
  */
-static void ssh2_gss_update(Ssh ssh)
+static void ssh2_gss_update(Ssh ssh, int definitely_rekeying)
 {
     int gss_stat;
     time_t gss_cred_expiry;
@@ -11954,8 +11954,17 @@ static void ssh2_gss_update(Ssh ssh)
 
     if (gss_stat != SSH_GSS_OK &&
         gss_stat != SSH_GSS_S_CONTINUE_NEEDED) {
-        logeventf(ssh, "GSSAPI init sec context failed;"
-                  " won't use GSS key exchange");
+        /*
+         * No point in verbosely interrupting the user to tell them we
+         * couldn't get GSS credentials, if this was only a check
+         * between key exchanges to see if fresh ones were available.
+         * When we do do a rekey, this message (if displayed) will
+         * appear among the standard rekey blurb, but when we're not,
+         * it shouldn't pop up all the time regardless.
+         */
+        if (definitely_rekeying)
+            logeventf(ssh, "No GSSAPI security context available");
+
         return;
     }
 
@@ -12079,7 +12088,7 @@ static void ssh2_timer(void *ctx, unsigned long now)
      * this is unsafe.
      */
     if (conf_get_int(ssh->conf, CONF_gssapirekey)) {
-        ssh2_gss_update(ssh);
+        ssh2_gss_update(ssh, FALSE);
         if ((ssh->gss_status & GSS_KEX_CAPABLE) != 0 &&
             (ssh->gss_status & GSS_CTXT_MAYFAIL) == 0 &&
             (ssh->gss_status & (GSS_CRED_UPDATED|GSS_CTXT_EXPIRES)) != 0) {
