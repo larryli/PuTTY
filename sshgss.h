@@ -30,6 +30,8 @@ typedef gss_name_t Ssh_gss_name;
 
 #define GSS_NO_EXPIRATION ((time_t)-1)
 
+#define GSS_DEF_REKEY_MINS 2	/* Default minutes between GSS cache checks */
+
 /* Functions, provided by either wingss.c or sshgssc.c */
 
 struct ssh_gss_library;

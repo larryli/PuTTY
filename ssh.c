@@ -17,7 +17,6 @@
 #ifndef NO_GSSAPI
 #include "sshgssc.h"
 #include "sshgss.h"
-#define GSS_DEF_REKEY_MINS 2	/* Default minutes between GSS cache checks */
 #define MIN_CTXT_LIFETIME 5	/* Avoid rekey with short lifetime (seconds) */
 #define GSS_KEX_CAPABLE	(1<<0)	/* Can do GSS KEX */
 #define GSS_CRED_UPDATED (1<<1) /* Cred updated since previous delegation */
