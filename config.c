@@ -442,7 +442,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	/* (kexlist assumed to contain all algorithms) */
 	dlg_update_start(ctrl, dlg);
 	dlg_listbox_clear(ctrl, dlg);
-        for (i = 0; i < KEX_MAX_CONF; i++) {
+        for (i = 0; i < KEX_MAX; i++) {
 	    int k = conf_get_int_int(conf, CONF_ssh_kexlist, i);
 	    int j;
 	    const char *kstr = NULL;
@@ -460,7 +460,7 @@ static void kexlist_handler(union control *ctrl, void *dlg,
 	int i;
 
 	/* Update array to match the list box. */
-        for (i=0; i < KEX_MAX_CONF; i++)
+        for (i=0; i < KEX_MAX; i++)
 	    conf_set_int_int(conf, CONF_ssh_kexlist, i,
 			     dlg_listbox_getid(ctrl, dlg, i));
     }
@@ -2402,7 +2402,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    c = ctrl_draglist(s, "Algorithm selection policy:", 's',
 			      HELPCTX(ssh_kexlist),
 			      kexlist_handler, P(NULL));
-            c->listbox.height = KEX_MAX_CONF;
+            c->listbox.height = KEX_MAX;
 	    ctrl_checkbox(s, "Attempt GSSAPI key exchange",
 			  'k', HELPCTX(ssh_gssapi),
 			  conf_checkbox_handler,

@@ -271,14 +271,6 @@ enum {
     KEX_DHGEX,
     KEX_RSA,
     KEX_ECDH,
-    /*
-     * KEX_MAX_CONF is a boundary between statically and dynamically configured
-     * KEXes, without creating a gap in the numbering, allowing easy addition
-     * of vaues on either side
-     */
-    KEX_MAX_CONF, KEX_DUMMY = KEX_MAX_CONF-1,
-    /* Kexes from here to KEX_MAX are not explicitly configurable */
-    KEX_GSS_SHA1_K5,
     KEX_MAX
 };
 

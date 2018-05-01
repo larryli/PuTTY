@@ -571,7 +571,7 @@ void save_open_settings(void *sesskey, Conf *conf)
     write_setting_i(sesskey, "GssapiFwd", conf_get_int(conf, CONF_gssapifwd));
     write_setting_i(sesskey, "ChangeUsername", conf_get_int(conf, CONF_change_username));
     wprefs(sesskey, "Cipher", ciphernames, CIPHER_MAX, conf, CONF_ssh_cipherlist);
-    wprefs(sesskey, "KEX", kexnames, KEX_MAX_CONF, conf, CONF_ssh_kexlist);
+    wprefs(sesskey, "KEX", kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
     wprefs(sesskey, "HostKey", hknames, HK_MAX, conf, CONF_ssh_hklist);
     write_setting_i(sesskey, "RekeyTime", conf_get_int(conf, CONF_ssh_rekey_time));
     write_setting_i(sesskey, "GssapiRekey", conf_get_int(conf, CONF_gssapirekey));
@@ -953,8 +953,8 @@ void load_open_settings(void *sesskey, Conf *conf)
 	 * over from a pre-commit version of GSS key exchange.
 	 * Mentioned here as it is remotely possible that it will turn
 	 * up in someone's saved settings in future.) */
-	
-        gprefs_from_str(raw, kexnames, KEX_MAX_CONF, conf, CONF_ssh_kexlist);
+
+        gprefs_from_str(raw, kexnames, KEX_MAX, conf, CONF_ssh_kexlist);
 	sfree(raw);
     }
     gprefs(sesskey, "HostKey", "ed25519,ecdsa,rsa,dsa,WARN",

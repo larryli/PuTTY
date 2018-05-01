@@ -6534,7 +6534,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
         int can_gssapi_keyex;
         int need_gss_transient_hostkey;
         int warned_about_no_gss_transient_hostkey;
-	const struct ssh_kexes *preferred_kex[KEX_MAX];
+        const struct ssh_kexes *preferred_kex[KEX_MAX + 1]; /* +1 for GSSAPI */
 	int n_preferred_hk;
 	int preferred_hk[HK_MAX];
 	int n_preferred_ciphers;
@@ -6645,7 +6645,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	s->n_preferred_kex = 0;
         if (s->can_gssapi_keyex)
             s->preferred_kex[s->n_preferred_kex++] = &ssh_gssk5_sha1_kex;
-        for (i = 0; i < KEX_MAX_CONF; i++) {
+        for (i = 0; i < KEX_MAX; i++) {
 	    switch (conf_get_int_int(ssh->conf, CONF_ssh_kexlist, i)) {
 	      case KEX_DHGEX:
 		s->preferred_kex[s->n_preferred_kex++] =
