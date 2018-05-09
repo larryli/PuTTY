@@ -41,6 +41,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include "x11misc.h"
 #endif
 
 static char *progname, **gtkargvstart;
@@ -54,8 +55,10 @@ static const char *app_name = "pterm";
 char *x_get_default(const char *key)
 {
 #ifndef NOT_X_WINDOWS
-    return XGetDefault(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()),
-                       app_name, key);
+    Display *disp;
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
+    return XGetDefault(disp, app_name, key);
 #else
     return NULL;
 #endif

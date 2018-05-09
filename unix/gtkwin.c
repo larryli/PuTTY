@@ -97,6 +97,9 @@ struct gui_data {
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
 	*restartitem;
     GtkWidget *sessionsmenu;
+#ifndef NOT_X_WINDOWS
+    Display *disp;
+#endif
 #ifndef NO_BACKING_PIXMAPS
     /*
      * Server-side pixmap which we use to cache the terminal window's
@@ -2854,31 +2857,36 @@ void frontend_request_paste(void *frontend, int clipboard)
  */
 
 /* Store the data in a cut-buffer. */
-static void store_cutbuffer(char * ptr, int len)
+static void store_cutbuffer(struct gui_data *inst, char *ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    /* ICCCM says we must rotate the buffers before storing to buffer 0. */
-    XRotateBuffers(disp, 1);
-    XStoreBytes(disp, ptr, len);
+    if (inst->disp) {
+        /* ICCCM says we must rotate the buffers before storing to buffer 0. */
+        XRotateBuffers(inst->disp, 1);
+        XStoreBytes(inst->disp, ptr, len);
+    }
 #endif
 }
 
 /* Retrieve data from a cut-buffer.
  * Returned data needs to be freed with XFree().
  */
-static char *retrieve_cutbuffer(int *nbytes)
+static char *retrieve_cutbuffer(struct gui_data *inst, int *nbytes)
 {
 #ifndef NOT_X_WINDOWS
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    char * ptr;
-    ptr = XFetchBytes(disp, nbytes);
+    char *ptr;
+    if (!inst->disp) {
+        *nbytes = 0;
+        return NULL;
+    }
+    ptr = XFetchBytes(inst->disp, nbytes);
     if (*nbytes <= 0 && ptr != 0) {
 	XFree(ptr);
 	ptr = 0;
     }
     return ptr;
 #else
+    *nbytes = 0;
     return NULL;
 #endif
 }
@@ -2907,7 +2915,6 @@ void write_clip(void *frontend, int clipboard,
 #ifndef NOT_X_WINDOWS
 	XTextProperty tp;
 	char *list[1];
-        Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 #endif
 
 	state->pasteout_data_utf8 = snewn(len*6, char);
@@ -2931,8 +2938,8 @@ void write_clip(void *frontend, int clipboard,
 	 */
 #ifndef NOT_X_WINDOWS
 	list[0] = state->pasteout_data_utf8;
-	if (Xutf8TextListToTextProperty(disp, list, 1,
-					XCompoundTextStyle, &tp) == 0) {
+	if (inst->disp && Xutf8TextListToTextProperty(
+                inst->disp, list, 1, XCompoundTextStyle, &tp) == 0) {
 	    state->pasteout_data_ctext = snewn(tp.nitems+1, char);
 	    memcpy(state->pasteout_data_ctext, tp.value, tp.nitems);
 	    state->pasteout_data_ctext_len = tp.nitems;
@@ -2966,7 +2973,7 @@ void write_clip(void *frontend, int clipboard,
 
     /* The legacy X cut buffers go with PRIMARY, not any other clipboard */
     if (state->atom == GDK_SELECTION_PRIMARY)
-        store_cutbuffer(state->pasteout_data, state->pasteout_data_len);
+        store_cutbuffer(inst, state->pasteout_data, state->pasteout_data_len);
 
     if (gtk_selection_owner_set(inst->area, state->atom,
 				inst->input_event_time)) {
@@ -3131,7 +3138,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
      */
     if (seldata_length <= 0) {
 #ifndef NOT_X_WINDOWS
-	text = retrieve_cutbuffer(&length);
+	text = retrieve_cutbuffer(inst, &length);
 	if (length == 0)
 	    return;
 	/* Xterm is rumoured to expect Latin-1, though I havn't checked the
@@ -3149,13 +3156,13 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #ifndef NOT_X_WINDOWS
             XTextProperty tp;
             int ret, count;
-            Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
 
 	    tp.value = (unsigned char *)seldata_data;
 	    tp.encoding = (Atom) seldata_type;
 	    tp.format = gtk_selection_data_get_format(seldata);
 	    tp.nitems = seldata_length;
-	    ret = Xutf8TextPropertyToTextList(disp, &tp, &list, &count);
+	    ret = inst->disp == NULL ? -1 :
+                Xutf8TextPropertyToTextList(inst->disp, &tp, &list, &count);
 	    if (ret == 0 && count == 1) {
                 text = list[0];
                 length = strlen(list[0]);
@@ -3220,32 +3227,33 @@ void init_clipboard(struct gui_data *inst)
      * Ensure that all the cut buffers exist - according to the ICCCM,
      * we must do this before we start using cut buffers.
      */
-    unsigned char empty[] = "";
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER0, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER1, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER2, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER3, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER4, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER5, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER6, XA_STRING, 8, PropModeAppend, empty, 0);
-    x11_ignore_error(disp, BadMatch);
-    XChangeProperty(disp, GDK_ROOT_WINDOW(),
-		    XA_CUT_BUFFER7, XA_STRING, 8, PropModeAppend, empty, 0);
+    if (inst->disp) {
+        unsigned char empty[] = "";
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER0,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER1,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER2,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER3,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER4,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER5,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER6,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+        x11_ignore_error(inst->disp, BadMatch);
+        XChangeProperty(inst->disp, GDK_ROOT_WINDOW(), XA_CUT_BUFFER7,
+                        XA_STRING, 8, PropModeAppend, empty, 0);
+    }
 #endif
 
     inst->clipstates[CLIP_PRIMARY].atom = GDK_SELECTION_PRIMARY;
@@ -4060,10 +4068,14 @@ const char *get_x_display(void *frontend)
 }
 
 #ifndef NOT_X_WINDOWS
-long get_windowid(void *frontend)
+int get_windowid(void *frontend, long *id)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
-    return (long)GDK_WINDOW_XID(gtk_widget_get_window(inst->area));
+    GdkWindow *window = gtk_widget_get_window(inst->area);
+    if (!GDK_IS_X11_WINDOW(window))
+        return FALSE;
+    *id = GDK_WINDOW_XID(window);
+    return TRUE;
 }
 #endif
 
@@ -4992,6 +5004,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
 
 #ifndef NOT_X_WINDOWS
+    inst->disp = get_x11_display();
     if (geometry_string) {
         int flags, x, y;
         unsigned int w, h;
@@ -5046,13 +5059,11 @@ void new_session_window(Conf *conf, const char *geometry_string)
             GdkWindow *gdkwin;
             gtk_widget_realize(GTK_WIDGET(inst->window));
             gdkwin = gtk_widget_get_window(GTK_WIDGET(inst->window));
-            if (gdk_window_ensure_native(gdkwin)) {
-                Display *disp =
-                    GDK_DISPLAY_XDISPLAY(gdk_window_get_display(gdkwin));
+            if (inst->disp && gdk_window_ensure_native(gdkwin)) {
                 XClassHint *xch = XAllocClassHint();
                 xch->res_name = (char *)winclass;
                 xch->res_class = (char *)winclass;
-                XSetClassHint(disp, GDK_WINDOW_XID(gdkwin), xch);
+                XSetClassHint(inst->disp, GDK_WINDOW_XID(gdkwin), xch);
                 XFree(xch);
             }
 #endif

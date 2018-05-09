@@ -742,6 +742,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     int slavefd;
     pid_t pid, pgrp;
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
+    int got_windowid;
     long windowid;
 #endif
     Pty pty;
@@ -794,7 +795,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 #endif
 
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
-    windowid = get_windowid(pty->frontend);
+    got_windowid = get_windowid(pty->frontend, &windowid);
 #endif
 
     /*
@@ -909,7 +910,7 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
 	     */
 	}
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
-	{
+	if (got_windowid) {
 	    char *windowid_env_var = dupprintf("WINDOWID=%ld", windowid);
 	    putenv(windowid_env_var);
 	    /* We mustn't free windowid_env_var, as putenv links it into the

@@ -15,6 +15,11 @@
 #include "putty.h"
 #include "gtkcompat.h"
 
+#ifndef NOT_X_WINDOWS
+#include <gdk/gdkx.h>
+#include <X11/Xlib.h>
+#endif
+
 void get_label_text_dimensions(const char *text, int *width, int *height)
 {
     /*
@@ -206,3 +211,14 @@ char *buildinfo_gtk_version(void)
     return dupprintf("%d.%d.%d",
                      GTK_MAJOR_VERSION, GTK_MINOR_VERSION, GTK_MICRO_VERSION);
 }
+
+#ifndef NOT_X_WINDOWS
+Display *get_x11_display(void)
+{
+#if GTK_CHECK_VERSION(3,0,0)
+    if (!GDK_IS_X11_DISPLAY(gdk_display_get_default()))
+        return NULL;
+#endif
+    return GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+}
+#endif

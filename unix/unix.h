@@ -195,7 +195,7 @@ void app_menu_action(void *frontend, enum MenuAction);
 /* Things pty.c needs from pterm.c */
 const char *get_x_display(void *frontend);
 int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
-long get_windowid(void *frontend);
+int get_windowid(void *frontend, long *id);
 
 /* Things gtkdlg.c needs from pterm.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS

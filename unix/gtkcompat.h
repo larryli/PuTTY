@@ -177,6 +177,10 @@
 
 #endif /* 2.24 */
 
+#if !GTK_CHECK_VERSION(3,0,0)
+#define GDK_IS_X11_WINDOW(window) (1)
+#endif
+
 #if GTK_CHECK_VERSION(3,0,0)
 #define STANDARD_OK_LABEL "_OK"
 #define STANDARD_OPEN_LABEL "_Open"

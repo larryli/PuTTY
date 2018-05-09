@@ -24,6 +24,7 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include "x11misc.h"
 #endif
 
 #ifdef TESTMODE
@@ -1776,9 +1777,12 @@ static void filefont_clicked(GtkButton *button, gpointer data)
             GdkFont *font = gdk_font_load(fontname);
             if (font) {
                 XFontStruct *xfs = GDK_FONT_XFONT(font);
-                Display *disp = GDK_FONT_XDISPLAY(font);
+                Display *disp = get_x11_display();
                 Atom fontprop = XInternAtom(disp, "FONT", False);
                 unsigned long ret;
+
+                assert(disp); /* this is GTK1! */
+
 		gdk_font_ref(font);
                 if (XGetFontProperty(xfs, fontprop, &ret)) {
                     char *name = XGetAtomName(disp, (Atom)ret);

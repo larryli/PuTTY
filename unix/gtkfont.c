@@ -31,6 +31,7 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+#include "x11misc.h"
 #endif
 
 /*
@@ -178,6 +179,11 @@ typedef struct x11font_individual {
 struct x11font {
     struct unifont u;
     /*
+     * Copy of the X display handle, so we don't have to keep
+     * extracting it from GDK.
+     */
+    Display *disp;
+    /*
      * Individual physical X fonts. We store a number of these, for
      * automatically guessed bold and wide variants.
      */
@@ -308,9 +314,9 @@ static char *xlfd_recompose(const struct xlfd_decomposed *dec)
 #undef ARG_INT
 }
 
-static char *x11_guess_derived_font_name(XFontStruct *xfs, int bold, int wide)
+static char *x11_guess_derived_font_name(Display *disp, XFontStruct *xfs,
+                                         int bold, int wide)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     Atom fontprop = XInternAtom(disp, "FONT", False);
     unsigned long ret;
     if (XGetFontProperty(xfs, fontprop, &ret)) {
@@ -428,11 +434,14 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 {
     struct x11font *xfont;
     XFontStruct *xfs;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     Atom charset_registry, charset_encoding, spacing;
     unsigned long registry_ret, encoding_ret, spacing_ret;
     int pubcs, realcs, sixteen_bit, variable;
     int i;
+
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
 
     xfs = XLoadQueryFont(disp, name);
     if (!xfs)
@@ -508,6 +517,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 #else
 #error No drawtype available at all
 #endif
+    xfont->disp = disp;
     xfont->real_charset = realcs;
     xfont->sixteen_bit = sixteen_bit;
     xfont->variable = variable;
@@ -534,8 +544,8 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 
 static void x11font_destroy(unifont *font)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     struct x11font *xfont = (struct x11font *)font;
+    Display *disp = xfont->disp;
     int i;
 
     for (i = 0; i < lenof(xfont->fonts); i++) {
@@ -561,9 +571,9 @@ static void x11font_destroy(unifont *font)
 
 static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp = xfont->disp;
     char *derived_name = x11_guess_derived_font_name
-	(xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
+	(disp, xfont->fonts[0].xfs, sfid & 1, !!(sfid & 2));
     xfont->fonts[sfid].xfs = XLoadQueryFont(disp, derived_name);
     xfont->fonts[sfid].allocated = TRUE;
     sfree(derived_name);
@@ -618,27 +628,25 @@ static int x11font_width_8(unifont_drawctx *ctx, x11font_individual *xfi,
 }
 
 #ifdef DRAW_TEXT_GDK
-static void x11font_gdk_setup(unifont_drawctx *ctx, x11font_individual *xfi)
+static void x11font_gdk_setup(unifont_drawctx *ctx, x11font_individual *xfi,
+                              Display *disp)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     XSetFont(disp, GDK_GC_XGC(ctx->u.gdk.gc), xfi->xfs->fid);
 }
 
-static void x11font_gdk_draw_16(unifont_drawctx *ctx,
-                                x11font_individual *xfi, int x, int y,
+static void x11font_gdk_draw_16(unifont_drawctx *ctx, x11font_individual *xfi,
+                                Display *disp, int x, int y,
                                 const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XChar2b *string = (const XChar2b *)vstring;
     XDrawString16(disp, GDK_DRAWABLE_XID(ctx->u.gdk.target),
                   GDK_GC_XGC(ctx->u.gdk.gc), x, y, string+start, length);
 }
 
-static void x11font_gdk_draw_8(unifont_drawctx *ctx,
-                               x11font_individual *xfi, int x, int y,
+static void x11font_gdk_draw_8(unifont_drawctx *ctx, x11font_individual *xfi,
+                               Display *disp, int x, int y,
                                const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const char *string = (const char *)vstring;
     XDrawString(disp, GDK_DRAWABLE_XID(ctx->u.gdk.target),
                 GDK_GC_XGC(ctx->u.gdk.gc), x, y, string+start, length);
@@ -646,10 +654,10 @@ static void x11font_gdk_draw_8(unifont_drawctx *ctx,
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
-static void x11font_cairo_setup(unifont_drawctx *ctx, x11font_individual *xfi)
+static void x11font_cairo_setup(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp)
 {
     if (xfi->pixmap == None) {
-        Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
         XGCValues gcvals;
         GdkWindow *widgetwin = gtk_widget_get_window(ctx->u.cairo.widget);
         int widgetscr = GDK_SCREEN_XNUMBER(gdk_window_get_screen(widgetwin));
@@ -693,12 +701,12 @@ static void x11font_cairo_setup(unifont_drawctx *ctx, x11font_individual *xfi)
     }
 }
 
-static void x11font_cairo_cache_glyph(x11font_individual *xfi, int glyphindex)
+static void x11font_cairo_cache_glyph(
+    Display *disp, x11font_individual *xfi, int glyphindex)
 {
     XImage *image;
     int x, y;
     unsigned char *bitmap;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XCharStruct *xcs = x11_char_struct(xfi->xfs, glyphindex >> 8,
                                              glyphindex & 0xFF);
 
@@ -752,11 +760,10 @@ static void x11font_cairo_draw_glyph(unifont_drawctx *ctx,
     }
 }
 
-static void x11font_cairo_draw_16(unifont_drawctx *ctx,
-                                  x11font_individual *xfi, int x, int y,
-                                  const void *vstring, int start, int length)
+static void x11font_cairo_draw_16(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+    int x, int y, const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const XChar2b *string = (const XChar2b *)vstring + start;
     int i;
     for (i = 0; i < length; i++) {
@@ -768,7 +775,7 @@ static void x11font_cairo_draw_16(unifont_drawctx *ctx,
                 XDrawImageString16(disp, xfi->pixmap, xfi->gc,
                                    xfi->pixoriginx, xfi->pixoriginy,
                                    string+i, 1);
-                x11font_cairo_cache_glyph(xfi, glyphindex);
+                x11font_cairo_cache_glyph(disp, xfi, glyphindex);
             }
             x11font_cairo_draw_glyph(ctx, xfi, x, y, glyphindex);
             x += XTextWidth16(xfi->xfs, string+i, 1);
@@ -776,11 +783,10 @@ static void x11font_cairo_draw_16(unifont_drawctx *ctx,
     }
 }
 
-static void x11font_cairo_draw_8(unifont_drawctx *ctx,
-                                 x11font_individual *xfi, int x, int y,
-                                 const void *vstring, int start, int length)
+static void x11font_cairo_draw_8(
+    unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+    int x, int y, const void *vstring, int start, int length)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
     const char *string = (const char *)vstring + start;
     int i;
     for (i = 0; i < length; i++) {
@@ -791,7 +797,7 @@ static void x11font_cairo_draw_8(unifont_drawctx *ctx,
                 XDrawImageString(disp, xfi->pixmap, xfi->gc,
                                  xfi->pixoriginx, xfi->pixoriginy,
                                  string+i, 1);
-                x11font_cairo_cache_glyph(xfi, glyphindex);
+                x11font_cairo_cache_glyph(disp, xfi, glyphindex);
             }
             x11font_cairo_draw_glyph(ctx, xfi, x, y, glyphindex);
             x += XTextWidth(xfi->xfs, string+i, 1);
@@ -803,9 +809,10 @@ static void x11font_cairo_draw_8(unifont_drawctx *ctx,
 struct x11font_drawfuncs {
     int (*width)(unifont_drawctx *ctx, x11font_individual *xfi,
                  const void *vstring, int start, int length);
-    void (*setup)(unifont_drawctx *ctx, x11font_individual *xfi);
-    void (*draw)(unifont_drawctx *ctx, x11font_individual *xfi, int x, int y,
-                 const void *vstring, int start, int length);
+    void (*setup)(unifont_drawctx *ctx, x11font_individual *xfi,
+                  Display *disp);
+    void (*draw)(unifont_drawctx *ctx, x11font_individual *xfi, Display *disp,
+                 int x, int y, const void *vstring, int start, int length);
 };
 
 /*
@@ -843,12 +850,11 @@ static const struct x11font_drawfuncs x11font_drawfuncs[2*DRAWTYPE_NTYPES] = {
 #endif
 };
 
-static void x11font_really_draw_text(const struct x11font_drawfuncs *dfns,
-                                     unifont_drawctx *ctx,
-                                     x11font_individual *xfi, int x, int y,
-                                     const void *string, int nchars,
-                                     int shadowoffset,
-                                     int fontvariable, int cellwidth)
+static void x11font_really_draw_text(
+    const struct x11font_drawfuncs *dfns, unifont_drawctx *ctx,
+    x11font_individual *xfi, Display *disp,
+    int x, int y, const void *string, int nchars,
+    int shadowoffset, int fontvariable, int cellwidth)
 {
     int start = 0, step, nsteps, centre;
 
@@ -869,16 +875,17 @@ static void x11font_really_draw_text(const struct x11font_drawfuncs *dfns,
         centre = FALSE;
     }
 
-    dfns->setup(ctx, xfi);
+    dfns->setup(ctx, xfi, disp);
 
     while (nsteps-- > 0) {
 	int X = x;
 	if (centre)
 	    X += (cellwidth - dfns->width(ctx, xfi, string, start, step)) / 2;
 
-        dfns->draw(ctx, xfi, X, y, string, start, step);
+        dfns->draw(ctx, xfi, disp, X, y, string, start, step);
 	if (shadowoffset)
-            dfns->draw(ctx, xfi, X + shadowoffset, y, string, start, step);
+            dfns->draw(ctx, xfi, disp, X + shadowoffset, y,
+                       string, start, step);
 
 	x += cellwidth;
         start += step;
@@ -935,7 +942,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 	}
 
 	x11font_really_draw_text(x11font_drawfuncs + index + 1, ctx,
-                                 &xfont->fonts[sfid], x, y,
+                                 &xfont->fonts[sfid], xfont->disp, x, y,
                                  xcs, len, shadowoffset,
                                  xfont->variable, cellwidth * mult);
 	sfree(xcs);
@@ -948,7 +955,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
         int sblen = wc_to_mb(xfont->real_charset, 0, string, len,
                              sbstring, len+1, ".", NULL, NULL);
 	x11font_really_draw_text(x11font_drawfuncs + index + 0, ctx,
-                                 &xfont->fonts[sfid], x, y,
+                                 &xfont->fonts[sfid], xfont->disp, x, y,
 				 sbstring, sblen, shadowoffset,
 				 xfont->variable, cellwidth * mult);
         sfree(sbstring);
@@ -972,10 +979,13 @@ static void x11font_draw_combining(unifont_drawctx *ctx, unifont *font,
 static void x11font_enum_fonts(GtkWidget *widget,
 			       fontsel_add_entry callback, void *callback_ctx)
 {
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     char **fontnames;
     char *tmp = NULL;
     int nnames, i, max, tmpsize;
+
+    if ((disp = get_x11_display()) == NULL)
+        return;
 
     max = 32768;
     while (1) {
@@ -1145,9 +1155,12 @@ static char *x11font_canonify_fontname(GtkWidget *widget, const char *name,
      * selector treats them as worthwhile in their own right.
      */
     XFontStruct *xfs;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp;
     Atom fontprop, fontprop2;
     unsigned long ret;
+
+    if ((disp = get_x11_display()) == NULL)
+        return NULL;
 
     xfs = XLoadQueryFont(disp, name);
 
@@ -1191,7 +1204,7 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 static char *x11font_size_increment(unifont *font, int increment)
 {
     struct x11font *xfont = (struct x11font *)font;
-    Display *disp = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+    Display *disp = xfont->disp;
     Atom fontprop = XInternAtom(disp, "FONT", False);
     char *returned_name = NULL;
     unsigned long ret;
