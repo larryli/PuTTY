@@ -91,7 +91,8 @@ struct clipboard_state {
 struct gui_data {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
-    gboolean area_configured;
+    gboolean drawing_area_got_size, drawing_area_realised;
+    gboolean drawing_area_setup_done;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
@@ -630,17 +631,16 @@ static void show_mouseptr(struct gui_data *inst, int show)
 
 static void draw_backing_rect(struct gui_data *inst);
 
-gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+static void drawing_area_setup(struct gui_data *inst, int width, int height)
 {
-    struct gui_data *inst = (struct gui_data *)data;
     int w, h, need_size = 0;
 
     /*
      * See if the terminal size has changed, in which case we must
      * let the terminal know.
      */
-    w = (event->width - 2*inst->window_border) / inst->font_width;
-    h = (event->height - 2*inst->window_border) / inst->font_height;
+    w = (width - 2*inst->window_border) / inst->font_width;
+    h = (height - 2*inst->window_border) / inst->font_height;
     if (w != inst->width || h != inst->height) {
 	inst->width = w;
 	inst->height = h;
@@ -655,9 +655,9 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
      * previous call to this function), then, we can assume this event
      * is spurious and do nothing further.
      */
-    if (!need_size && inst->area_configured)
-        return TRUE;
-    inst->area_configured = TRUE;
+    if (!need_size && inst->drawing_area_setup_done)
+        return;
+    inst->drawing_area_setup_done = TRUE;
 
     {
         int backing_w = w * inst->font_width + 2*inst->window_border;
@@ -669,7 +669,7 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
             inst->pixmap = NULL;
         }
 
-        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(widget),
+        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
                                       backing_w, backing_h, -1);
 #endif
 
@@ -694,10 +694,36 @@ gint configure_area(GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 	term_invalidate(inst->term);
 
 #if GTK_CHECK_VERSION(2,0,0)
-    gtk_im_context_set_client_window(inst->imc, gtk_widget_get_window(widget));
+    gtk_im_context_set_client_window(
+        inst->imc, gtk_widget_get_window(inst->area));
 #endif
+}
 
-    return TRUE;
+static void area_realised(GtkWidget *widget, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    inst->drawing_area_realised = TRUE;
+    if (inst->drawing_area_realised && inst->drawing_area_got_size &&
+        !inst->drawing_area_setup_done) {
+#if GTK_CHECK_VERSION(2,0,0)
+        GdkRectangle alloc;
+        gtk_widget_get_allocation(inst->area, &alloc);
+#else
+        GtkAllocation alloc = inst->area->allocation;
+#endif
+        drawing_area_setup(inst, alloc.width, alloc.height);
+    }
+}
+
+static void area_size_allocate(
+    GtkWidget *widget, GdkRectangle *alloc, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+
+    inst->drawing_area_got_size = TRUE;
+    if (inst->drawing_area_realised && inst->drawing_area_got_size)
+        drawing_area_setup(inst, alloc->width, alloc->height);
 }
 
 #ifdef DRAW_TEXT_CAIRO
@@ -3707,9 +3733,14 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 
 static void draw_backing_rect(struct gui_data *inst)
 {
+    int w, h;
     struct draw_ctx *dctx = get_ctx(inst);
-    int w = inst->width * inst->font_width + 2*inst->window_border;
-    int h = inst->height * inst->font_height + 2*inst->window_border;
+
+    if (!dctx)
+        return;
+
+    w = inst->width * inst->font_width + 2*inst->window_border;
+    h = inst->height * inst->font_height + 2*inst->window_border;
     draw_set_colour(dctx, 258, FALSE);
     draw_rectangle(dctx, 1, 0, 0, w, h);
     draw_update(dctx, 0, 0, w, h);
@@ -5182,8 +5213,10 @@ void new_session_window(Conf *conf, const char *geometry_string)
                      G_CALLBACK(focus_event), inst);
     g_signal_connect(G_OBJECT(inst->window), "focus_out_event",
                      G_CALLBACK(focus_event), inst);
-    g_signal_connect(G_OBJECT(inst->area), "configure_event",
-                     G_CALLBACK(configure_area), inst);
+    g_signal_connect(G_OBJECT(inst->area), "realize",
+                     G_CALLBACK(area_realised), inst);
+    g_signal_connect(G_OBJECT(inst->area), "size_allocate",
+                     G_CALLBACK(area_size_allocate), inst);
 #if GTK_CHECK_VERSION(3,0,0)
     g_signal_connect(G_OBJECT(inst->area), "draw",
                      G_CALLBACK(draw_area), inst);
