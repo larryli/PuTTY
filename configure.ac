@@ -120,7 +120,10 @@ case "$gtk_version_desired:$gtk" in
     # manual check for gtk1
     AC_PATH_PROG(GTK1_CONFIG, gtk-config, absent)
     if test "$GTK1_CONFIG" != "absent"; then
-      GTK_CFLAGS=`"$GTK1_CONFIG" --cflags`
+      # the gtk1 headers need -std=gnu89, which flips round the
+      # definitions of 'inline' and 'extern inline' to their old GNU
+      # semantics before C99 chose different ones
+      GTK_CFLAGS="`"$GTK1_CONFIG" --cflags` -std=gnu89"
       GTK_LIBS=`"$GTK1_CONFIG" --libs`
       gtk=1
     fi
