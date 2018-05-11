@@ -699,21 +699,31 @@ static void drawing_area_setup(struct gui_data *inst, int width, int height)
 #endif
 }
 
+static void drawing_area_setup_simple(struct gui_data *inst)
+{
+    /*
+     * Wrapper on drawing_area_setup which fetches the width and
+     * height of the drawing area. We go directly to the inner version
+     * in the case where a new size allocation comes in (just in case
+     * GTK hasn't installed it in the normal place yet).
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    GdkRectangle alloc;
+    gtk_widget_get_allocation(inst->area, &alloc);
+#else
+    GtkAllocation alloc = inst->area->allocation;
+#endif
+    drawing_area_setup(inst, alloc.width, alloc.height);
+}
+
 static void area_realised(GtkWidget *widget, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
     inst->drawing_area_realised = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size &&
-        !inst->drawing_area_setup_done) {
-#if GTK_CHECK_VERSION(2,0,0)
-        GdkRectangle alloc;
-        gtk_widget_get_allocation(inst->area, &alloc);
-#else
-        GtkAllocation alloc = inst->area->allocation;
-#endif
-        drawing_area_setup(inst, alloc.width, alloc.height);
-    }
+        !inst->drawing_area_setup_done)
+        drawing_area_setup_simple(inst);
 }
 
 static void area_size_allocate(
