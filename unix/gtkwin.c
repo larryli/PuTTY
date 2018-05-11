@@ -149,7 +149,7 @@ struct gui_data {
 #endif
     int clipboard_ctrlshiftins, clipboard_ctrlshiftcv;
     int font_width, font_height;
-    int width, height;
+    int width, height, scale;
     int ignore_sbar;
     int mouseptr_visible;
     int busy_status;
@@ -633,7 +633,7 @@ static void draw_backing_rect(struct gui_data *inst);
 
 static void drawing_area_setup(struct gui_data *inst, int width, int height)
 {
-    int w, h, need_size = 0;
+    int w, h, new_scale, need_size = 0;
 
     /*
      * See if the terminal size has changed, in which case we must
@@ -649,19 +649,31 @@ static void drawing_area_setup(struct gui_data *inst, int width, int height)
 	need_size = 1;
     }
 
+#if GTK_CHECK_VERSION(3,10,0)
+    new_scale = gtk_widget_get_scale_factor(inst->area);
+#else
+    new_scale = 1;
+#endif
+
     /*
-     * If the terminal size hasn't changed since the previous call to
-     * this function (in particular, if there has at least _been_ a
-     * previous call to this function), then, we can assume this event
-     * is spurious and do nothing further.
+     * If neither the terminal size nor the HiDPI scale factor has
+     * changed since the previous call to this function (and, in
+     * particular, if there has at least _been_ a previous call to
+     * this function), then, we can assume this event is spurious and
+     * do nothing further.
      */
-    if (!need_size && inst->drawing_area_setup_done)
+    if (inst->drawing_area_setup_done &&
+        !need_size && new_scale == inst->scale)
         return;
     inst->drawing_area_setup_done = TRUE;
+    inst->scale = new_scale;
 
     {
         int backing_w = w * inst->font_width + 2*inst->window_border;
         int backing_h = h * inst->font_height + 2*inst->window_border;
+
+        backing_w *= inst->scale;
+        backing_h *= inst->scale;
 
 #ifndef NO_BACKING_PIXMAPS
         if (inst->pixmap) {
@@ -736,6 +748,30 @@ static void area_size_allocate(
         drawing_area_setup(inst, alloc->width, alloc->height);
 }
 
+#if GTK_CHECK_VERSION(3,10,0)
+static void area_check_scale(struct gui_data *inst)
+{
+    if (inst->drawing_area_setup_done &&
+        inst->scale != gtk_widget_get_scale_factor(inst->area)) {
+        drawing_area_setup_simple(inst);
+        if (inst->term) {
+            term_invalidate(inst->term);
+            term_update(inst->term);
+        }
+    }
+}
+#endif
+
+#if GTK_CHECK_VERSION(3,10,0)
+static gboolean area_configured(
+    GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+{
+    struct gui_data *inst = (struct gui_data *)data;
+    area_check_scale(inst);
+    return FALSE;
+}
+#endif
+
 #ifdef DRAW_TEXT_CAIRO
 static void cairo_setup_dctx(struct draw_ctx *dctx)
 {
@@ -757,6 +793,16 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
+#if GTK_CHECK_VERSION(3,10,0)
+    /*
+     * This may be the first we hear of the window scale having
+     * changed, in which case we must hastily reconstruct our backing
+     * surface before we copy the wrong one into the newly resized
+     * real window.
+     */
+    area_check_scale(inst);
+#endif
+
     /*
      * GTK3 window redraw: we always expect Cairo to be enabled, so
      * that inst->surface exists, and pixmaps to be disabled, so that
@@ -765,6 +811,33 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
      */
     if (inst->surface) {
         GdkRectangle dirtyrect;
+        cairo_surface_t *target_surface;
+        double orig_sx, orig_sy;
+        cairo_matrix_t m;
+
+        /*
+         * Furtle around in the Cairo setup to force the device scale
+         * back to 1, so that when we blit a collection of pixels from
+         * our backing surface into the window, they really are
+         * _pixels_ and not some confusing antialiased slightly-offset
+         * 2x2 rectangle of pixeloids.
+         *
+         * I have no idea whether GTK expects me not to mess with the
+         * device scale in the cairo_surface_t backing its window, so
+         * I carefully put it back when I've finished.
+         *
+         * In some GTK setups, the Cairo context we're given may not
+         * have a zero translation offset in its matrix, in which case
+         * we have to adjust that to compensate for the change of
+         * scale, or else the old translation offset (designed for the
+         * old scale) will be multiplied by the new scale instead and
+         * put everything in the wrong place.
+         */
+        target_surface = cairo_get_target(cr);
+        cairo_get_matrix(cr, &m);
+        cairo_surface_get_device_scale(target_surface, &orig_sx, &orig_sy);
+        cairo_surface_set_device_scale(target_surface, 1.0, 1.0);
+        cairo_translate(cr, m.x0 * (orig_sx - 1.0), m.y0 * (orig_sy - 1.0));
 
         gdk_cairo_get_clip_rectangle(cr, &dirtyrect);
 
@@ -772,6 +845,8 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
         cairo_rectangle(cr, dirtyrect.x, dirtyrect.y,
                         dirtyrect.width, dirtyrect.height);
         cairo_fill(cr);
+
+        cairo_surface_set_device_scale(target_surface, orig_sx, orig_sy);
     }
 
     return TRUE;
@@ -3442,6 +3517,7 @@ Context get_ctx(void *frontend)
          * exist, and we draw to that first, regardless of whether we
          * subsequently copy the results to inst->pixmap. */
         dctx->uctx.u.cairo.cr = cairo_create(inst->surface);
+        cairo_scale(dctx->uctx.u.cairo.cr, inst->scale, inst->scale);
         cairo_setup_dctx(dctx);
     }
 #endif
@@ -5227,6 +5303,10 @@ void new_session_window(Conf *conf, const char *geometry_string)
                      G_CALLBACK(area_realised), inst);
     g_signal_connect(G_OBJECT(inst->area), "size_allocate",
                      G_CALLBACK(area_size_allocate), inst);
+#if GTK_CHECK_VERSION(3,10,0)
+    g_signal_connect(G_OBJECT(inst->area), "configure_event",
+                     G_CALLBACK(area_configured), inst);
+#endif
 #if GTK_CHECK_VERSION(3,0,0)
     g_signal_connect(G_OBJECT(inst->area), "draw",
                      G_CALLBACK(draw_area), inst);
