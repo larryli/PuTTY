@@ -1381,6 +1381,36 @@ Note that this option only applies to line-drawing characters which
 characters that were received as Unicode code points will paste as
 Unicode always.
 
+\S{config-utf8linedraw} Combining VT100 line-drawing with UTF-8
+
+\cfg{winhelp-topic}{translation.utf8linedraw}
+
+If PuTTY is configured to treat data from the server as encoded in
+UTF-8, then by default it disables the older VT100-style system of
+control sequences that cause the lower-case letters to be temporarily
+replaced by line drawing characters.
+
+The rationale is that in UTF-8 mode you don't need those control
+sequences anyway, because all the line-drawing characters they access
+are available as Unicode characters already, so there's no need for
+applications to put the terminal into a special state to get at them.
+
+Also, it removes a risk of the terminal \e{accidentally} getting into
+that state: if you accidentally write uncontrolled binary data to a
+non-UTF-8 terminal, it can be surprisingly common to find that your
+next shell prompt appears as a sequence of line-drawing characters and
+then you have to remember or look up how to get out of that mode. So
+by default, UTF-8 mode simply doesn't \e{have} a confusing mode like
+that to get into, accidentally or on purpose.
+
+However, not all applications will see it that way. Even UTF-8
+terminal users will still sometimes have to run software that tries to
+print line-drawing characters in the old-fashioned way. So the
+configuration option \q{Enable VT100 line drawing even in UTF-8 mode}
+puts PuTTY into a hybrid mode in which it understands the VT100-style
+control sequences that change the meaning of the ASCII lower case
+letters, \e{and} understands UTF-8.
+
 \H{config-selection} The Selection panel
 
 The Selection panel allows you to control the way \i{copy and paste}

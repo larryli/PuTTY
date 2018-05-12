@@ -1939,6 +1939,9 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_checkbox(s, "Copy and paste line drawing characters as lqqqk",'d',
 		  HELPCTX(selection_linedraw),
 		  conf_checkbox_handler, I(CONF_rawcnp));
+    ctrl_checkbox(s, "Enable VT100 line drawing even in UTF-8 mode",'8',
+                  HELPCTX(translation_utf8linedraw),
+                  conf_checkbox_handler, I(CONF_utf8linedraw));
 
     /*
      * The Window/Selection panel.

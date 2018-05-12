@@ -320,6 +320,7 @@ struct terminal_tag {
     int no_remote_wintitle;
     int no_remote_clearscroll;
     int rawcnp;
+    int utf8linedraw;
     int rect_select;
     int remote_qtitle_action;
     int rxvt_homeend;

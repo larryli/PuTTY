@@ -906,6 +906,7 @@ void cleanup_exit(int);
     X(INT, NONE, rect_select) \
     X(INT, NONE, paste_controls) \
     X(INT, NONE, rawcnp) \
+    X(INT, NONE, utf8linedraw) \
     X(INT, NONE, rtf_paste) \
     X(INT, NONE, mouse_override) \
     X(INT, INT, wordness) \

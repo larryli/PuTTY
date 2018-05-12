@@ -138,6 +138,7 @@
 #define WINHELP_CTX_translation_cjk_ambig_wide "translation.cjkambigwide:config-cjk-ambig-wide"
 #define WINHELP_CTX_translation_cyrillic "translation.cyrillic:config-cyr"
 #define WINHELP_CTX_translation_linedraw "translation.linedraw:config-linedraw"
+#define WINHELP_CTX_translation_utf8linedraw "translation.utf8linedraw:config-utf8linedraw"
 #define WINHELP_CTX_ssh_tunnels_x11 "ssh.tunnels.x11:config-ssh-x11"
 #define WINHELP_CTX_ssh_tunnels_x11auth "ssh.tunnels.x11auth:config-ssh-x11auth"
 #define WINHELP_CTX_ssh_tunnels_xauthority "ssh.tunnels.xauthority:config-ssh-xauthority"

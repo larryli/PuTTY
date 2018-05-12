@@ -677,6 +677,7 @@ void save_open_settings(void *sesskey, Conf *conf)
 	write_setting_s(sesskey, buf, buf2);
     }
     write_setting_i(sesskey, "RawCNP", conf_get_int(conf, CONF_rawcnp));
+    write_setting_i(sesskey, "UTF8linedraw", conf_get_int(conf, CONF_utf8linedraw));
     write_setting_i(sesskey, "PasteRTF", conf_get_int(conf, CONF_rtf_paste));
     write_setting_i(sesskey, "MouseIsXterm", conf_get_int(conf, CONF_mouse_is_xterm));
     write_setting_i(sesskey, "RectSelect", conf_get_int(conf, CONF_rect_select));
@@ -1102,6 +1103,7 @@ void load_open_settings(void *sesskey, Conf *conf)
 	sfree(buf2);
     }
     gppi(sesskey, "RawCNP", 0, conf, CONF_rawcnp);
+    gppi(sesskey, "UTF8linedraw", 0, conf, CONF_utf8linedraw);
     gppi(sesskey, "PasteRTF", 0, conf, CONF_rtf_paste);
     gppi(sesskey, "MouseIsXterm", 0, conf, CONF_mouse_is_xterm);
     gppi(sesskey, "RectSelect", 0, conf, CONF_rect_select);

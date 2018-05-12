@@ -1466,6 +1466,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->no_remote_wintitle = conf_get_int(term->conf, CONF_no_remote_wintitle);
     term->no_remote_clearscroll = conf_get_int(term->conf, CONF_no_remote_clearscroll);
     term->rawcnp = conf_get_int(term->conf, CONF_rawcnp);
+    term->utf8linedraw = conf_get_int(term->conf, CONF_utf8linedraw);
     term->rect_select = conf_get_int(term->conf, CONF_rect_select);
     term->remote_qtitle_action = conf_get_int(term->conf, CONF_remote_qtitle_action);
     term->rxvt_homeend = conf_get_int(term->conf, CONF_rxvt_homeend);
@@ -2913,6 +2914,10 @@ static void term_out(Terminal *term)
 			/* UTF-8 must be stateless so we ignore iso2022. */
 			if (term->ucsdata->unitab_ctrl[c] != 0xFF) 
 			     c = term->ucsdata->unitab_ctrl[c];
+                        else if ((term->utf8linedraw) &&
+                                 (term->cset_attr[term->cset] == CSET_LINEDRW))
+                            /* Linedraw characters are explicitly enabled */
+                            c = ((unsigned char) c) | CSET_LINEDRW;
 			else c = ((unsigned char)c) | CSET_ASCII;
 			break;
 		    } else if ((c & 0xe0) == 0xc0) {
