@@ -127,6 +127,8 @@ static void usage(void)
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
+    printf("  --tty-prompt force tty-based passphrase prompt (in -a mode)\n");
+    printf("  --gui-prompt force GUI-based passphrase prompt (in -a mode)\n");
     exit(1);
 }
 
@@ -337,49 +339,80 @@ enum {
     LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
 } life = LIFE_UNSPEC;
 const char *display = NULL;
+enum {
+    PROMPT_UNSPEC, PROMPT_TTY, PROMPT_GUI
+} prompt_type = PROMPT_UNSPEC;
+
+static char *askpass_tty(const char *comment)
+{
+    int ret;
+    prompts_t *p = new_prompts(NULL);
+    p->to_server = FALSE;
+    p->name = dupstr("Pageant passphrase prompt");
+    add_prompt(p,
+               dupprintf("Enter passphrase to load key '%s': ", comment),
+               FALSE);
+    ret = console_get_userpass_input(p, NULL, 0);
+    assert(ret >= 0);
+
+    if (!ret) {
+        perror("pageant: unable to read passphrase");
+        free_prompts(p);
+        return NULL;
+    } else {
+        char *passphrase = dupstr(p->prompts[0]->result);
+        free_prompts(p);
+        return passphrase;
+    }
+}
+
+static char *askpass_gui(const char *comment)
+{
+    char *prompt, *passphrase;
+    int success;
+
+    /* in gtkask.c */
+    char *gtk_askpass_main(const char *display, const char *wintitle,
+                           const char *prompt, int *success);
+
+    prompt = dupprintf("Enter passphrase to load key '%s': ", comment);
+    passphrase = gtk_askpass_main(display,
+                                  "Pageant passphrase prompt",
+                                  prompt, &success);
+    sfree(prompt);
+    if (!success) {
+        /* return value is error message */
+        fprintf(stderr, "%s\n", passphrase);
+        sfree(passphrase);
+        passphrase = NULL;
+    }
+    return passphrase;
+}
 
 static char *askpass(const char *comment)
 {
-    if (have_controlling_tty()) {
-        int ret;
-        prompts_t *p = new_prompts(NULL);
-        p->to_server = FALSE;
-        p->name = dupstr("Pageant passphrase prompt");
-        add_prompt(p,
-                   dupprintf("Enter passphrase to load key '%s': ", comment),
-                   FALSE);
-        ret = console_get_userpass_input(p, NULL, 0);
-        assert(ret >= 0);
-
-        if (!ret) {
-            perror("pageant: unable to read passphrase");
-            free_prompts(p);
+    if (prompt_type == PROMPT_TTY) {
+        if (!have_controlling_tty()) {
+            fprintf(stderr, "no controlling terminal available "
+                    "for passphrase prompt\n");
             return NULL;
-        } else {
-            char *passphrase = dupstr(p->prompts[0]->result);
-            free_prompts(p);
-            return passphrase;
         }
+        return askpass_tty(comment);
+    }
+
+    if (prompt_type == PROMPT_GUI) {
+        if (!display) {
+            fprintf(stderr, "no graphical display available "
+                    "for passphrase prompt\n");
+            return NULL;
+        }
+        return askpass_gui(comment);
+    }
+
+    if (have_controlling_tty()) {
+        return askpass_tty(comment);
     } else if (display) {
-        char *prompt, *passphrase;
-        int success;
-
-        /* in gtkask.c */
-        char *gtk_askpass_main(const char *display, const char *wintitle,
-                               const char *prompt, int *success);
-
-        prompt = dupprintf("Enter passphrase to load key '%s': ", comment);
-        passphrase = gtk_askpass_main(display,
-                                      "Pageant passphrase prompt",
-                                      prompt, &success);
-        sfree(prompt);
-        if (!success) {
-            /* return value is error message */
-            fprintf(stderr, "%s\n", passphrase);
-            sfree(passphrase);
-            passphrase = NULL;
-        }
-        return passphrase;
+        return askpass_gui(comment);
     } else {
         fprintf(stderr, "no way to read a passphrase without tty or "
                 "X display\n");
@@ -1026,6 +1059,10 @@ int main(int argc, char **argv)
                             "after --exec\n");
                     exit(1);
                 }
+            } else if (!strcmp(p, "--tty-prompt")) {
+                prompt_type = PROMPT_TTY;
+            } else if (!strcmp(p, "--gui-prompt")) {
+                prompt_type = PROMPT_GUI;
             } else if (!strcmp(p, "--")) {
                 doing_opts = FALSE;
             }
