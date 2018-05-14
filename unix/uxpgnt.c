@@ -129,6 +129,7 @@ static void usage(void)
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
     printf("  --tty-prompt force tty-based passphrase prompt (in -a mode)\n");
     printf("  --gui-prompt force GUI-based passphrase prompt (in -a mode)\n");
+    printf("  --askpass <prompt>   behave like a standalone askpass program\n");
     exit(1);
 }
 
@@ -343,15 +344,13 @@ enum {
     PROMPT_UNSPEC, PROMPT_TTY, PROMPT_GUI
 } prompt_type = PROMPT_UNSPEC;
 
-static char *askpass_tty(const char *comment)
+static char *askpass_tty(const char *prompt)
 {
     int ret;
     prompts_t *p = new_prompts(NULL);
     p->to_server = FALSE;
     p->name = dupstr("Pageant passphrase prompt");
-    add_prompt(p,
-               dupprintf("Enter passphrase to load key '%s': ", comment),
-               FALSE);
+    add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), FALSE);
     ret = console_get_userpass_input(p, NULL, 0);
     assert(ret >= 0);
 
@@ -366,20 +365,17 @@ static char *askpass_tty(const char *comment)
     }
 }
 
-static char *askpass_gui(const char *comment)
+static char *askpass_gui(const char *prompt)
 {
-    char *prompt, *passphrase;
+    char *passphrase;
     int success;
 
     /* in gtkask.c */
     char *gtk_askpass_main(const char *display, const char *wintitle,
                            const char *prompt, int *success);
 
-    prompt = dupprintf("Enter passphrase to load key '%s': ", comment);
-    passphrase = gtk_askpass_main(display,
-                                  "Pageant passphrase prompt",
-                                  prompt, &success);
-    sfree(prompt);
+    passphrase = gtk_askpass_main(
+        display, "Pageant passphrase prompt", prompt, &success);
     if (!success) {
         /* return value is error message */
         fprintf(stderr, "%s\n", passphrase);
@@ -389,7 +385,7 @@ static char *askpass_gui(const char *comment)
     return passphrase;
 }
 
-static char *askpass(const char *comment)
+static char *askpass(const char *prompt)
 {
     if (prompt_type == PROMPT_TTY) {
         if (!have_controlling_tty()) {
@@ -397,7 +393,7 @@ static char *askpass(const char *comment)
                     "for passphrase prompt\n");
             return NULL;
         }
-        return askpass_tty(comment);
+        return askpass_tty(prompt);
     }
 
     if (prompt_type == PROMPT_GUI) {
@@ -406,13 +402,13 @@ static char *askpass(const char *comment)
                     "for passphrase prompt\n");
             return NULL;
         }
-        return askpass_gui(comment);
+        return askpass_gui(prompt);
     }
 
     if (have_controlling_tty()) {
-        return askpass_tty(comment);
+        return askpass_tty(prompt);
     } else if (display) {
-        return askpass_gui(comment);
+        return askpass_gui(prompt);
     } else {
         fprintf(stderr, "no way to read a passphrase without tty or "
                 "X display\n");
@@ -444,8 +440,11 @@ static int unix_add_keyfile(const char *filename_str)
      * And now try prompting for a passphrase.
      */
     while (1) {
-        char *passphrase = askpass(err);
+        char *prompt = dupprintf(
+            "Enter passphrase to load key '%s'", err);
+        char *passphrase = askpass(prompt);
         sfree(err);
+        sfree(prompt);
         err = NULL;
         if (!passphrase)
             break;
@@ -1010,6 +1009,7 @@ int main(int argc, char **argv)
 {
     int doing_opts = TRUE;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
+    const char *standalone_askpass_prompt = NULL;
 
     /*
      * Process the command line.
@@ -1063,6 +1063,14 @@ int main(int argc, char **argv)
                 prompt_type = PROMPT_TTY;
             } else if (!strcmp(p, "--gui-prompt")) {
                 prompt_type = PROMPT_GUI;
+            } else if (!strcmp(p, "--askpass")) {
+                if (--argc > 0) {
+                    standalone_askpass_prompt = *++argv;
+                } else {
+                    fprintf(stderr, "pageant: expected a prompt message "
+                            "after --askpass\n");
+                    exit(1);
+                }
             } else if (!strcmp(p, "--")) {
                 doing_opts = FALSE;
             }
@@ -1082,6 +1090,27 @@ int main(int argc, char **argv)
         exit(1);
     }
 
+    if (!display) {
+        display = getenv("DISPLAY");
+        if (display && !*display)
+            display = NULL;
+    }
+
+    /*
+     * Deal with standalone-askpass mode.
+     */
+    if (standalone_askpass_prompt) {
+        char *passphrase = askpass(standalone_askpass_prompt);
+
+        if (!passphrase)
+            return 1;
+
+        puts(passphrase);
+        smemclr(passphrase, strlen(passphrase));
+        sfree(passphrase);
+        return 0;
+    }
+
     /*
      * Block SIGPIPE, so that we'll get EPIPE individually on
      * particular network connections that go wrong.
@@ -1090,12 +1119,6 @@ int main(int argc, char **argv)
 
     sk_init();
     uxsel_init();
-
-    if (!display) {
-        display = getenv("DISPLAY");
-        if (display && !*display)
-            display = NULL;
-    }
 
     /*
      * Now distinguish our two main running modes. Either we're
