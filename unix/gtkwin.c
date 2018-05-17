@@ -92,7 +92,7 @@ struct gui_data {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
-    gboolean drawing_area_setup_done;
+    gboolean drawing_area_setup_needed;
     GtkBox *hbox;
     GtkAdjustment *sbar_adjust;
     GtkWidget *menu, *specialsmenu, *specialsitem1, *specialsitem2,
@@ -646,26 +646,26 @@ static void drawing_area_setup(struct gui_data *inst, int width, int height)
 	inst->height = h;
 	conf_set_int(inst->conf, CONF_width, inst->width);
 	conf_set_int(inst->conf, CONF_height, inst->height);
-	need_size = 1;
+	inst->drawing_area_setup_needed = TRUE;
     }
 
 #if GTK_CHECK_VERSION(3,10,0)
     new_scale = gtk_widget_get_scale_factor(inst->area);
+    if (new_scale != inst->scale)
+	inst->drawing_area_setup_needed = TRUE;
 #else
     new_scale = 1;
 #endif
 
     /*
-     * If neither the terminal size nor the HiDPI scale factor has
-     * changed since the previous call to this function (and, in
-     * particular, if there has at least _been_ a previous call to
-     * this function), then, we can assume this event is spurious and
-     * do nothing further.
+     * This event might be spurious; some GTK setups have been known
+     * to call it when nothing at all has changed. Check if we have
+     * any reason to proceed.
      */
-    if (inst->drawing_area_setup_done &&
-        !need_size && new_scale == inst->scale)
+    if (!inst->drawing_area_setup_needed)
         return;
-    inst->drawing_area_setup_done = TRUE;
+
+    inst->drawing_area_setup_needed = FALSE;
     inst->scale = new_scale;
 
     {
@@ -734,7 +734,7 @@ static void area_realised(GtkWidget *widget, gpointer data)
 
     inst->drawing_area_realised = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size &&
-        !inst->drawing_area_setup_done)
+        inst->drawing_area_setup_needed)
         drawing_area_setup_simple(inst);
 }
 
@@ -751,7 +751,7 @@ static void area_size_allocate(
 #if GTK_CHECK_VERSION(3,10,0)
 static void area_check_scale(struct gui_data *inst)
 {
-    if (inst->drawing_area_setup_done &&
+    if (!inst->drawing_area_setup_needed &&
         inst->scale != gtk_widget_get_scale_factor(inst->area)) {
         drawing_area_setup_simple(inst);
         if (inst->term) {
@@ -4269,8 +4269,18 @@ char *setup_fonts_ucs(struct gui_data *inst)
         inst->fonts[i] = fonts[i];
     }
 
-    inst->font_width = inst->fonts[0]->width;
-    inst->font_height = inst->fonts[0]->height;
+    if (inst->font_width != inst->fonts[0]->width ||
+        inst->font_height != inst->fonts[0]->height) {
+
+        inst->font_width = inst->fonts[0]->width;
+        inst->font_height = inst->fonts[0]->height;
+
+        /*
+         * The font size has changed, so force the next call to
+         * drawing_area_setup to regenerate the backing surface.
+         */
+        inst->drawing_area_setup_needed = TRUE;
+    }
 
     inst->direct_to_font = init_ucs(&inst->ucsdata,
 				    conf_get_str(inst->conf, CONF_line_codepage),
@@ -5119,6 +5129,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #if GTK_CHECK_VERSION(3,4,0)
     inst->cumulative_scroll = 0.0;
 #endif
+    inst->drawing_area_setup_needed = TRUE;
 
 #ifndef NOT_X_WINDOWS
     inst->disp = get_x11_display();
