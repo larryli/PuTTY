@@ -6541,7 +6541,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	const struct ssh_compress *preferred_comp;
 	int userauth_succeeded;	    /* for delayed compression */
 	int pending_compression;
-	int got_session_id, activated_authconn;
+	int got_session_id;
 	struct Packet *pktout;
         int dlgret;
 	int guessok;
@@ -6570,7 +6570,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     s->csmac_tobe = s->scmac_tobe = NULL;
     s->cscomp_tobe = s->sccomp_tobe = NULL;
 
-    s->got_session_id = s->activated_authconn = FALSE;
+    s->got_session_id = FALSE;
     s->userauth_succeeded = FALSE;
     s->pending_compression = FALSE;
     s->need_gss_transient_hostkey = FALSE;
