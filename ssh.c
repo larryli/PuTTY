@@ -4119,7 +4119,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 			 struct Packet *pktin)
 {
     int i, j, ret;
-    unsigned char cookie[8], *ptr;
+    unsigned char *ptr;
     struct MD5Context md5c;
     struct do_ssh1_login_state {
 	int crLine;
@@ -4129,6 +4129,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	unsigned long supported_ciphers_mask, supported_auths_mask;
 	int tried_publickey, tried_agent;
 	int tis_auth_refused, ccard_auth_refused;
+        unsigned char cookie[8];
 	unsigned char session_id[16];
 	int cipher_type;
 	void *publickey_blob;
@@ -4169,7 +4170,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	bombout(("SSH-1 public key packet stopped before random cookie"));
 	crStop(0);
     }
-    memcpy(cookie, ptr, 8);
+    memcpy(s->cookie, ptr, 8);
 
     if (!ssh1_pkt_getrsakey(pktin, &s->servkey, &s->keystr1) ||
 	!ssh1_pkt_getrsakey(pktin, &s->hostkey, &s->keystr2)) {	
@@ -4203,7 +4204,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
     MD5Init(&md5c);
     MD5Update(&md5c, s->keystr2, s->hostkey.bytes);
     MD5Update(&md5c, s->keystr1, s->servkey.bytes);
-    MD5Update(&md5c, cookie, 8);
+    MD5Update(&md5c, s->cookie, 8);
     MD5Final(s->session_id, &md5c);
 
     for (i = 0; i < 32; i++)
@@ -4372,7 +4373,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 
     send_packet(ssh, SSH1_CMSG_SESSION_KEY,
 		PKT_CHAR, s->cipher_type,
-		PKT_DATA, cookie, 8,
+		PKT_DATA, s->cookie, 8,
 		PKT_CHAR, (s->len * 8) >> 8, PKT_CHAR, (s->len * 8) & 0xFF,
 		PKT_DATA, s->rsabuf, s->len,
 		PKT_INT, ssh->v1_local_protoflags, PKT_END);
