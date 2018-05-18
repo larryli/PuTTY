@@ -10018,7 +10018,7 @@ static void do_ssh2_authconn(void *vctx)
 		AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET
 	} type;
 	int done_service_req;
-	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
+	int need_pw, can_pubkey, can_passwd, can_keyb_inter;
         int userpass_ret;
 	int tried_pubkey_config, done_agent;
 #ifndef NO_GSSAPI
@@ -10375,7 +10375,6 @@ static void do_ssh2_authconn(void *vctx)
 	ssh2_pkt_addstring(s->pktout, "none");    /* method */
 	ssh2_pkt_send(ssh, s->pktout);
 	s->type = AUTH_TYPE_NONE;
-	s->gotit = FALSE;
 	s->we_are_in = FALSE;
 
 	s->tried_pubkey_config = FALSE;
@@ -10399,8 +10398,8 @@ static void do_ssh2_authconn(void *vctx)
 	    /*
 	     * Wait for the result of the last authentication request.
 	     */
-	    if (!s->gotit)
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+
 	    /*
 	     * Now is a convenient point to spew any banner material
 	     * that we've accumulated. (This should ensure that when
@@ -10436,8 +10435,6 @@ static void do_ssh2_authconn(void *vctx)
 			 "type %d", pktin->type));
 		crStopV;
 	    }
-
-	    s->gotit = FALSE;
 
 	    /*
 	     * OK, we're now sitting on a USERAUTH_FAILURE message, so
@@ -10597,8 +10594,9 @@ static void do_ssh2_authconn(void *vctx)
 		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 
-		    /* Offer of key refused. */
-		    s->gotit = TRUE;
+		    /* Offer of key refused, presumably via
+                     * USERAUTH_FAILURE. Requeue for the next iteration. */
+		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 
 		} else {
 		    
@@ -10733,7 +10731,7 @@ static void do_ssh2_authconn(void *vctx)
 		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 		    /* Key refused. Give up. */
-		    s->gotit = TRUE; /* reconsider message next loop */
+		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 		    s->type = AUTH_TYPE_PUBLICKEY_OFFER_LOUD;
 		    continue; /* process this new message */
 		}
@@ -10892,7 +10890,6 @@ static void do_ssh2_authconn(void *vctx)
 
 		s->type = AUTH_TYPE_GSSAPI;
 		s->tried_gssapi = TRUE;
-		s->gotit = TRUE;
 		ssh->pkt_actx = SSH2_PKTCTX_GSSAPI;
 
                 if (ssh->gsslib->gsslogmsg)
@@ -10925,6 +10922,7 @@ static void do_ssh2_authconn(void *vctx)
 		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_RESPONSE) {
 		    logevent("GSSAPI authentication request refused");
+		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 		    continue;
 		}
 
@@ -11019,6 +11017,7 @@ static void do_ssh2_authconn(void *vctx)
                             logevent("GSSAPI authentication -"
                                      " bad server response");
 			    s->gss_stat = SSH_GSS_FAILURE;
+                            pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 			    break;
 			}
 			ssh_pkt_getstring(pktin, &data, &len);
@@ -11038,8 +11037,6 @@ static void do_ssh2_authconn(void *vctx)
                 s->pktout =
                     ssh2_gss_authpacket(ssh, s->gss_ctx, "gssapi-with-mic");
 		ssh2_pkt_send(ssh, s->pktout);
-
-		s->gotit = FALSE;
 
                 ssh->gsslib->release_cred(ssh->gsslib, &s->gss_ctx);
 		continue;
@@ -11072,7 +11069,7 @@ static void do_ssh2_authconn(void *vctx)
 		     * at all (or, bizarrely but legally, accepts the
 		     * user without actually issuing any prompts).
 		     * Give up on it entirely. */
-		    s->gotit = TRUE;
+                    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 		    s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
 		    s->kbd_inter_refused = TRUE; /* don't try it again */
 		    continue;
@@ -11201,7 +11198,7 @@ static void do_ssh2_authconn(void *vctx)
 		/*
 		 * We should have SUCCESS or FAILURE now.
 		 */
-		s->gotit = TRUE;
+                pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 
 	    } else if (s->can_passwd) {
 
@@ -11428,7 +11425,7 @@ static void do_ssh2_authconn(void *vctx)
 		 * In any of these cases, we go back to the top of
 		 * the loop and start again.
 		 */
-		s->gotit = TRUE;
+                pq_push_front(&ssh->pq_ssh2_authconn, pktin);
 
 		/*
 		 * We don't need the old password any more, in any
