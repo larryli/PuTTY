@@ -752,6 +752,72 @@ static struct Packet *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
 static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			      struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
+static void ssh_free_packet(struct Packet *pkt);
+
+struct PacketQueueNode {
+    struct PacketQueueNode *next, *prev;
+    struct Packet *pkt;
+};
+
+struct PacketQueue {
+    struct PacketQueueNode end;
+};
+
+static void pq_init(struct PacketQueue *pq)
+{
+    pq->end.next = pq->end.prev = &pq->end;
+    pq->end.pkt = NULL;
+}
+
+static void pq_push(struct PacketQueue *pq, struct Packet *pkt)
+{
+    struct PacketQueueNode *node = snew(struct PacketQueueNode);
+    node->pkt = pkt;
+    node->next = &pq->end;
+    node->prev = pq->end.prev;
+    node->next->prev = node;
+    node->prev->next = node;
+}
+
+static void pq_push_front(struct PacketQueue *pq, struct Packet *pkt)
+{
+    struct PacketQueueNode *node = snew(struct PacketQueueNode);
+    node->pkt = pkt;
+    node->prev = &pq->end;
+    node->next = pq->end.next;
+    node->next->prev = node;
+    node->prev->next = node;
+}
+
+static struct Packet *pq_peek(struct PacketQueue *pq)
+{
+    return pq->end.next->pkt; /* works even if next == &end, because
+                               * end.pkt is NULL */
+}
+
+static struct Packet *pq_pop(struct PacketQueue *pq)
+{
+    struct Packet *pkt;
+    struct PacketQueueNode *node;
+
+    node = pq->end.next;
+    if (node == &pq->end)
+        return NULL;
+
+    pkt = node->pkt;
+    node->next->prev = node->prev;
+    node->prev->next = node->next;
+    sfree(node);
+
+    return pkt;
+}
+
+static void pq_clear(struct PacketQueue *pq)
+{
+    struct Packet *pkt;
+    while ((pkt = pq_pop(pq)) != NULL)
+        ssh_free_packet(pkt);
+}
 
 struct rdpkt1_state_tag {
     long len, pad, biglen, to_read;
