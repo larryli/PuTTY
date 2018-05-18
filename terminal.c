@@ -3379,6 +3379,7 @@ static void term_out(Terminal *term)
 		/* Only graphic characters get this far;
 		 * ctrls are stripped above */
 		term_display_graphic_char(term, c);
+                term->last_graphic_char = c;
 		break;
 
 	      case OSC_MAYBE_ST:
@@ -3644,6 +3645,15 @@ static void term_out(Terminal *term)
 			     term->curs.y + def(term->esc_args[0], 1), 1);
 			seen_disp_event(term);
 			break;
+                      case 'b':        /* REP: repeat previous grap */
+                        CLAMP(term->esc_args[0], term->rows * term->cols);
+                        {
+                            unsigned i;
+                            for (i = 0; i < term->esc_args[0]; i++)
+                                term_display_graphic_char(
+                                    term, term->last_graphic_char);
+                        }
+                        break;
 		      case ANSI('c', '>'):	/* DA: report xterm version */
 			compatibility(OTHER);
 			/* this reports xterm version 136 so that VIM can
