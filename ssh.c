@@ -384,8 +384,7 @@ static void ssh2_pkt_addmp(struct Packet *, Bignum b);
 static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
-static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
-			 struct Packet *pktin);
+static int do_ssh1_login(Ssh ssh, struct Packet *pktin);
 static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
 static void ssh_channel_init(struct ssh_channel *c);
@@ -3953,7 +3952,7 @@ static void ssh_agent_callback(void *sshv, void *reply, int replylen)
     ssh->agent_response_len = replylen;
 
     if (ssh->version == 1)
-	do_ssh1_login(ssh, NULL, -1, NULL);
+	do_ssh1_login(ssh, NULL);
     else
 	do_ssh2_authconn(ssh, NULL, -1, NULL);
 }
@@ -3965,7 +3964,7 @@ static void ssh_dialog_callback(void *sshv, int ret)
     ssh->user_response = ret;
 
     if (ssh->version == 1)
-	do_ssh1_login(ssh, NULL, -1, NULL);
+	do_ssh1_login(ssh, NULL);
     else
 	do_ssh2_transport(ssh, NULL, -1, NULL);
 
@@ -4199,8 +4198,7 @@ int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
 /*
  * Handle the key exchange and user authentication phases.
  */
-static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
-			 struct Packet *pktin)
+static int do_ssh1_login(Ssh ssh, struct Packet *pktin)
 {
     int i, j, ret;
     unsigned char *ptr;
@@ -4338,6 +4336,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    s->dlgret = 1;
 #endif
             if (s->dlgret < 0) {
+                ssh->user_response = -1;
                 do {
                     crReturn(0);
                     if (pktin) {
@@ -4345,7 +4344,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
                                  " for user host key response"));
                         crStop(0);
                     }
-                } while (pktin || inlen > 0);
+                } while (ssh->user_response < 0);
                 s->dlgret = ssh->user_response;
             }
             ssh_set_frozen(ssh, 0);
@@ -4424,6 +4423,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    s->dlgret = askalg(ssh->frontend, "cipher", cipher_string,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
+                ssh->user_response = -1;
 		do {
 		    crReturn(0);
 		    if (pktin) {
@@ -4431,7 +4431,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 				 " for user response"));
 			crStop(0);
 		    }
-		} while (pktin || inlen > 0);
+		} while (ssh->user_response < 0);
 		s->dlgret = ssh->user_response;
 	    }
             ssh_set_frozen(ssh, 0);
@@ -4511,13 +4511,9 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
 	    ret = get_userpass_input(s->cur_prompt, NULL);
 	    while (ret < 0) {
-                bufchain tmp_user_input;
 		ssh->send_ok = 1;
 		crWaitUntil(!pktin);
-                bufchain_init(&tmp_user_input);
-                bufchain_add(&tmp_user_input, in, inlen);
-		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
-                bufchain_clear(&tmp_user_input);
+		ret = get_userpass_input(s->cur_prompt, &ssh->user_input);
 		ssh->send_ok = 0;
 	    }
 	    if (!ret) {
@@ -4619,6 +4615,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
             ssh->auth_agent_query = agent_query(
                 s->request, 5, &r, &s->responselen, ssh_agent_callback, ssh);
 	    if (ssh->auth_agent_query) {
+                ssh->agent_response = NULL;
 		do {
 		    crReturn(0);
 		    if (pktin) {
@@ -4626,7 +4623,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 				 " for agent response"));
 			crStop(0);
 		    }
-		} while (pktin || inlen > 0);
+		} while (!ssh->agent_response);
 		r = ssh->agent_response;
 		s->responselen = ssh->agent_response_len;
 	    }
@@ -4728,6 +4725,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
                             ssh_agent_callback, ssh);
 			if (ssh->auth_agent_query) {
 			    sfree(agentreq);
+                            ssh->agent_response = NULL;
 			    do {
 				crReturn(0);
 				if (pktin) {
@@ -4736,7 +4734,7 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 					     " response"));
 				    crStop(0);
 				}
-			    } while (pktin || inlen > 0);
+			    } while (!ssh->agent_response);
 			    vret = ssh->agent_response;
 			    retlen = ssh->agent_response_len;
 			} else
@@ -4822,14 +4820,10 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 					 s->publickey_comment), FALSE);
 		    ret = get_userpass_input(s->cur_prompt, NULL);
 		    while (ret < 0) {
-                        bufchain tmp_user_input;
 			ssh->send_ok = 1;
 			crWaitUntil(!pktin);
-                        bufchain_init(&tmp_user_input);
-                        bufchain_add(&tmp_user_input, in, inlen);
-                        ret = get_userpass_input(s->cur_prompt,
-                                                 &tmp_user_input);
-                        bufchain_clear(&tmp_user_input);
+			ret = get_userpass_input(s->cur_prompt,
+                                                 &ssh->user_input);
 			ssh->send_ok = 0;
 		    }
 		    if (!ret) {
@@ -5047,13 +5041,9 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    int ret; /* need not be kept over crReturn */
 	    ret = get_userpass_input(s->cur_prompt, NULL);
 	    while (ret < 0) {
-                bufchain tmp_user_input;
 		ssh->send_ok = 1;
 		crWaitUntil(!pktin);
-                bufchain_init(&tmp_user_input);
-                bufchain_add(&tmp_user_input, in, inlen);
-		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
-                bufchain_clear(&tmp_user_input);
+		ret = get_userpass_input(s->cur_prompt, &ssh->user_input);
 		ssh->send_ok = 0;
 	    }
 	    if (!ret) {
@@ -6275,13 +6265,7 @@ static void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_login_input(Ssh ssh)
 {
-    while (bufchain_size(&ssh->user_input) > 0) {
-        void *data;
-        int len;
-        bufchain_prefix(&ssh->user_input, &data, &len);
-        do_ssh1_login(ssh, data, len, NULL);
-        bufchain_consume(&ssh->user_input, len);
-    }
+    do_ssh1_login(ssh, NULL);
 }
 
 static void ssh1_connection_input(Ssh ssh)
@@ -6299,7 +6283,7 @@ static void ssh1_coro_wrapper_session(Ssh ssh, struct Packet *pktin);
 
 static void ssh1_coro_wrapper_initial(Ssh ssh, struct Packet *pktin)
 {
-    if (do_ssh1_login(ssh, NULL, 0, pktin)) {
+    if (do_ssh1_login(ssh, pktin)) {
         int i;
         for (i = 0; i < 256; i++)
             if (ssh->packet_dispatch[i] == ssh1_coro_wrapper_initial)
