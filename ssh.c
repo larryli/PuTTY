@@ -3405,6 +3405,7 @@ static void do_ssh_init(Ssh ssh)
 	ssh->current_user_input_fn = ssh1_login_input;
     }
     queue_idempotent_callback(&ssh->incoming_data_consumer);
+    queue_idempotent_callback(&ssh->user_input_consumer);
     if (ssh->version == 2)
         queue_idempotent_callback(&ssh->ssh2_transport_icb);
 
@@ -3554,6 +3555,7 @@ static void do_ssh_connection_init(Ssh ssh)
     ssh->current_incoming_data_fn = ssh2_bare_connection_rdpkt;
     queue_idempotent_callback(&ssh->incoming_data_consumer);
     ssh->current_user_input_fn = ssh2_connection_input;
+    queue_idempotent_callback(&ssh->user_input_consumer);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
@@ -5255,6 +5257,7 @@ static void do_ssh1_login(void *vctx)
             if (ssh->packet_dispatch[i] == ssh1_coro_wrapper_initial)
                 ssh->packet_dispatch[i] = ssh1_coro_wrapper_session;
         ssh->current_user_input_fn = ssh1_connection_input;
+        queue_idempotent_callback(&ssh->user_input_consumer);
     }
 
     crFinishV;
@@ -11493,6 +11496,7 @@ static void do_ssh2_userauth(void *vctx)
      */
     do_ssh2_connection(ssh);
     ssh->current_user_input_fn = ssh2_connection_input;
+    queue_idempotent_callback(&ssh->user_input_consumer);
 
     crFinishV;
 }
