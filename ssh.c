@@ -12409,6 +12409,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->user_input_consumer.fn = ssh_process_user_input;
     ssh->user_input_consumer.ctx = ssh;
     ssh->user_input_consumer.queued = FALSE;
+    ssh->current_user_input_fn = NULL;
     ssh->pending_newkeys = FALSE;
     ssh->rekey_reason = NULL;
     ssh->rekey_class = RK_INITIAL;
@@ -12563,8 +12564,10 @@ static void ssh_free(void *handle)
 	ssh->channels = NULL;
     }
 
-    if (ssh->connshare)
+    if (ssh->connshare) {
         sharestate_free(ssh->connshare);
+        ssh->connshare = NULL;
+    }
 
     if (ssh->rportfwds) {
 	while ((pf = delpos234(ssh->rportfwds, 0)) != NULL)
