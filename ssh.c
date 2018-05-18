@@ -4551,13 +4551,17 @@ static void do_ssh1_login(void *vctx)
         s->cur_prompt->name = dupstr("SSH login name");
         add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
         s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-        while (s->userpass_ret < 0) {
-            ssh->send_ok = 1;
-            crReturnV;
+        while (1) {
             while (s->userpass_ret < 0 &&
                    bufchain_size(&ssh->user_input) > 0)
                 s->userpass_ret = get_userpass_input(
                     s->cur_prompt, &ssh->user_input);
+
+            if (s->userpass_ret >= 0)
+                break;
+
+            ssh->send_ok = 1;
+            crReturnV;
             ssh->send_ok = 0;
         }
         if (!s->userpass_ret) {
@@ -4849,13 +4853,17 @@ static void do_ssh1_login(void *vctx)
 			       dupprintf("Passphrase for key \"%.100s\": ",
 					 s->publickey_comment), FALSE);
                     s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-                    while (s->userpass_ret < 0) {
-                        ssh->send_ok = 1;
-                        crReturnV;
+                    while (1) {
                         while (s->userpass_ret < 0 &&
                                bufchain_size(&ssh->user_input) > 0)
                             s->userpass_ret = get_userpass_input(
                                 s->cur_prompt, &ssh->user_input);
+
+                        if (s->userpass_ret >= 0)
+                            break;
+
+                        ssh->send_ok = 1;
+                        crReturnV;
                         ssh->send_ok = 0;
                     }
 		    if (!s->userpass_ret) {
@@ -5072,13 +5080,17 @@ static void do_ssh1_login(void *vctx)
 	 * authentication.
 	 */
         s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-        while (s->userpass_ret < 0) {
-            ssh->send_ok = 1;
-            crReturnV;
+        while (1) {
             while (s->userpass_ret < 0 &&
                    bufchain_size(&ssh->user_input) > 0)
                 s->userpass_ret = get_userpass_input(
                     s->cur_prompt, &ssh->user_input);
+
+            if (s->userpass_ret >= 0)
+                break;
+
+            ssh->send_ok = 1;
+            crReturnV;
             ssh->send_ok = 0;
         }
         if (!s->userpass_ret) {
@@ -10315,13 +10327,17 @@ static void do_ssh2_userauth(void *vctx)
 	    s->cur_prompt->name = dupstr("SSH login name");
 	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE); 
 	    s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-	    while (s->userpass_ret < 0) {
-		ssh->send_ok = 1;
-		crReturnV;
+	    while (1) {
                 while (s->userpass_ret < 0 &&
                        bufchain_size(&ssh->user_input) > 0)
                     s->userpass_ret = get_userpass_input(
                         s->cur_prompt, &ssh->user_input);
+
+                if (s->userpass_ret >= 0)
+                    break;
+
+		ssh->send_ok = 1;
+		crReturnV;
 		ssh->send_ok = 0;
 	    }
 	    if (!s->userpass_ret) {
@@ -10745,14 +10761,17 @@ static void do_ssh2_userauth(void *vctx)
 				   FALSE);
 			s->userpass_ret = get_userpass_input(
                             s->cur_prompt, NULL);
-			while (s->userpass_ret < 0) {
-			    ssh->send_ok = 1;
-                            crReturnV;
+			while (1) {
                             while (s->userpass_ret < 0 &&
-                                   bufchain_size(&ssh->user_input) > 0) {
+                                   bufchain_size(&ssh->user_input) > 0)
                                 s->userpass_ret = get_userpass_input(
                                     s->cur_prompt, &ssh->user_input);
-                            }
+
+                            if (s->userpass_ret >= 0)
+                                break;
+
+			    ssh->send_ok = 1;
+                            crReturnV;
 			    ssh->send_ok = 0;
 			}
 			if (!s->userpass_ret) {
@@ -11131,14 +11150,17 @@ static void do_ssh2_userauth(void *vctx)
                      * response(s).
 		     */
                     s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-                    while (s->userpass_ret < 0) {
-                        ssh->send_ok = 1;
-                        crReturnV;
+                    while (1) {
                         while (s->userpass_ret < 0 &&
-                               bufchain_size(&ssh->user_input) > 0) {
+                               bufchain_size(&ssh->user_input) > 0)
                             s->userpass_ret = get_userpass_input(
                                 s->cur_prompt, &ssh->user_input);
-                        }
+
+                        if (s->userpass_ret >= 0)
+                            break;
+
+                        ssh->send_ok = 1;
+                        crReturnV;
                         ssh->send_ok = 0;
                     }
                     if (!s->userpass_ret) {
@@ -11201,14 +11223,17 @@ static void do_ssh2_userauth(void *vctx)
 			   FALSE);
 
 		s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
-		while (s->userpass_ret < 0) {
-		    ssh->send_ok = 1;
-                    crReturnV;
+		while (1) {
                     while (s->userpass_ret < 0 &&
-                           bufchain_size(&ssh->user_input) > 0) {
+                           bufchain_size(&ssh->user_input) > 0)
                         s->userpass_ret = get_userpass_input(
                             s->cur_prompt, &ssh->user_input);
-                    }
+
+                    if (s->userpass_ret >= 0)
+                        break;
+
+		    ssh->send_ok = 1;
+                    crReturnV;
 		    ssh->send_ok = 0;
 		}
 		if (!s->userpass_ret) {
@@ -11315,16 +11340,17 @@ static void do_ssh2_userauth(void *vctx)
 		    while (!got_new) {
 			s->userpass_ret = get_userpass_input(
                             s->cur_prompt, NULL);
-			while (s->userpass_ret < 0) {
-			    ssh->send_ok = 1;
-                            crReturnV;
+			while (1) {
                             while (s->userpass_ret < 0 &&
-                                   bufchain_size(&ssh->user_input) > 0) {
+                                   bufchain_size(&ssh->user_input) > 0)
                                 s->userpass_ret = get_userpass_input(
                                     s->cur_prompt, &ssh->user_input);
-                                if (s->userpass_ret >= 0)
-                                    break;
-                            }
+
+                            if (s->userpass_ret >= 0)
+                                break;
+
+			    ssh->send_ok = 1;
+                            crReturnV;
 			    ssh->send_ok = 0;
 			}
 			if (!s->userpass_ret) {
@@ -11743,7 +11769,6 @@ static void do_ssh2_connection(void *vctx)
     if (ssh->mainchan)
 	ssh->send_ok = 1;
     while (1) {
-	crReturnV;
 	if ((pktin = pq_pop(&ssh->pq_ssh2_connection)) != NULL) {
 
 	    /*
@@ -11765,6 +11790,7 @@ static void do_ssh2_connection(void *vctx)
 	    ssh_send_channel_data(ssh->mainchan, data, len);
             bufchain_consume(&ssh->user_input, len);
 	}
+	crReturnV;
     }
 
     crFinishV;
