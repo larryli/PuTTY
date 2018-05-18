@@ -1602,7 +1602,6 @@ static void ssh1_rdpkt(Ssh ssh)
 
         pq_push(&ssh->pq_full, st->pktin);
         queue_idempotent_callback(&ssh->pq_full_consumer);
-        crReturnV;
     }
     crFinishV;
 }
