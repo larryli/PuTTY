@@ -727,9 +727,6 @@ struct Packet {
     const char *additional_log_text;
 };
 
-static void ssh1_protocol(Ssh ssh, const void *vin, int inlen);
-static void ssh2_protocol(Ssh ssh, const void *vin, int inlen);
-static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen);
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
 static void ssh2_bare_connection_protocol_setup(Ssh ssh);
@@ -978,10 +975,6 @@ struct ssh_tag {
     struct rdpkt2_state_tag rdpkt2_state;
     struct rdpkt2_bare_state_tag rdpkt2_bare_state;
 
-    /* Only used by SSH-2 */
-    int protocol_initial_phase_done;
-
-    void (*protocol) (Ssh ssh, const void *vin, int inlen);
     void (*general_packet_processing)(Ssh ssh, struct Packet *pkt);
     void (*current_incoming_data_fn) (Ssh ssh);
     void (*current_user_input_fn) (Ssh ssh);
@@ -3351,7 +3344,6 @@ static void do_ssh_init(Ssh ssh)
 	/*
 	 * Initialise SSH-2 protocol.
 	 */
-	ssh->protocol = ssh2_protocol;
 	ssh2_protocol_setup(ssh);
 	ssh->general_packet_processing = ssh2_general_packet_processing;
 	ssh->current_incoming_data_fn = ssh2_rdpkt;
@@ -3360,7 +3352,6 @@ static void do_ssh_init(Ssh ssh)
 	/*
 	 * Initialise SSH-1 protocol.
 	 */
-	ssh->protocol = ssh1_protocol;
 	ssh1_protocol_setup(ssh);
 	ssh->current_incoming_data_fn = ssh1_rdpkt;
 	ssh->current_user_input_fn = ssh1_login_input;
@@ -3511,7 +3502,6 @@ static void do_ssh_connection_init(Ssh ssh)
     /*
      * Initialise bare connection protocol.
      */
-    ssh->protocol = ssh2_bare_connection_protocol;
     ssh2_bare_connection_protocol_setup(ssh);
     ssh->current_incoming_data_fn = ssh2_bare_connection_rdpkt;
     queue_idempotent_callback(&ssh->incoming_data_consumer);
@@ -6341,24 +6331,6 @@ static void ssh1_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH1_MSG_DEBUG] = ssh1_msg_debug;
 }
 
-static void ssh1_protocol(Ssh ssh, const void *vin, int inlen)
-{
-    const unsigned char *in = (const unsigned char *)vin;
-    if (ssh->state == SSH_STATE_CLOSED)
-	return;
-
-    if (!ssh->protocol_initial_phase_done) {
-	if (do_ssh1_login(ssh, in, inlen, NULL)) {
-	    ssh->protocol_initial_phase_done = TRUE;
-            ssh->current_user_input_fn = ssh1_connection_input;
-        } else {
-	    return;
-        }
-    }
-
-    do_ssh1_connection(ssh, in, inlen, NULL);
-}
-
 /*
  * Utility routines for decoding comma-separated strings in KEXINIT.
  */
@@ -8483,8 +8455,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
 	     (!pktin && inlen < 0))) {
         wait_for_rekey:
-	if (!ssh->protocol_initial_phase_done) {
-	    ssh->protocol_initial_phase_done = TRUE;
+	if (!ssh->current_user_input_fn) {
 	    /*
 	     * Allow authconn to initialise itself.
 	     */
@@ -12283,18 +12254,6 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
         do_ssh2_transport(ssh, "too much data received", -1, NULL);
 }
 
-static void ssh2_protocol(Ssh ssh, const void *vin, int inlen)
-{
-    const unsigned char *in = (const unsigned char *)vin;
-    if (ssh->state == SSH_STATE_CLOSED)
-	return;
-
-    if (!ssh->protocol_initial_phase_done)
-	do_ssh2_transport(ssh, in, inlen, NULL);
-    else
-	do_ssh2_authconn(ssh, in, inlen, NULL);
-}
-
 static void ssh2_authconn_input(Ssh ssh)
 {
     while (bufchain_size(&ssh->user_input) > 0) {
@@ -12304,15 +12263,6 @@ static void ssh2_authconn_input(Ssh ssh)
 	do_ssh2_authconn(ssh, data, len, NULL);
         bufchain_consume(&ssh->user_input, len);
     }
-}
-
-static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen)
-{
-    const unsigned char *in = (const unsigned char *)vin;
-    if (ssh->state == SSH_STATE_CLOSED)
-	return;
-
-    do_ssh2_authconn(ssh, in, inlen, NULL);
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
@@ -12453,10 +12403,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->overall_bufsize = 0;
     ssh->fallback_cmd = 0;
 
-    ssh->protocol = NULL;
     ssh->general_packet_processing = NULL;
-
-    ssh->protocol_initial_phase_done = FALSE;
 
     ssh->pinger = NULL;
 
@@ -12680,7 +12627,7 @@ static int ssh_send(void *handle, const char *buf, int len)
 {
     Ssh ssh = (Ssh) handle;
 
-    if (ssh == NULL || ssh->s == NULL || ssh->protocol == NULL)
+    if (ssh == NULL || ssh->s == NULL)
 	return 0;
 
     bufchain_add(&ssh->user_input, buf, len);
@@ -12697,7 +12644,7 @@ static int ssh_sendbuffer(void *handle)
     Ssh ssh = (Ssh) handle;
     int override_value;
 
-    if (ssh == NULL || ssh->s == NULL || ssh->protocol == NULL)
+    if (ssh == NULL || ssh->s == NULL)
 	return 0;
 
     /*
