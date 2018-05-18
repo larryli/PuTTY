@@ -1367,8 +1367,7 @@ int askappend(void *frontend, Filename *filename,
  * that aren't equivalents to things in windlg.c et al.
  */
 extern int console_batch_mode;
-int console_get_userpass_input(prompts_t *p, const unsigned char *in,
-                               int inlen);
+int console_get_userpass_input(prompts_t *p);
 void console_provide_logctx(void *logctx);
 int is_interactive(void);
 

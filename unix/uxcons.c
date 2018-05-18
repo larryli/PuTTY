@@ -456,8 +456,7 @@ static void console_prompt_text(FILE *outfp, const char *data, int len)
     fflush(outfp);
 }
 
-int console_get_userpass_input(prompts_t *p, const unsigned char *in,
-                               int inlen)
+int console_get_userpass_input(prompts_t *p)
 {
     size_t curr_prompt;
     FILE *outfp = NULL;
