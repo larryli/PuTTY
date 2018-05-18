@@ -384,7 +384,7 @@ static void ssh2_pkt_addmp(struct Packet *, Bignum b);
 static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
-static void do_ssh1_login(Ssh ssh, struct Packet *pktin);
+static void do_ssh1_login(void *vctx);
 static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			     struct Packet *pktin);
 static void ssh_channel_init(struct ssh_channel *c);
@@ -966,6 +966,9 @@ struct ssh_tag {
 
     struct PacketQueue pq_full;
     struct IdempotentCallback pq_full_consumer;
+
+    struct PacketQueue pq_ssh1_login;
+    struct IdempotentCallback ssh1_login_icb;
 
     bufchain user_input;
     struct IdempotentCallback user_input_consumer;
@@ -3952,7 +3955,7 @@ static void ssh_agent_callback(void *sshv, void *reply, int replylen)
     ssh->agent_response_len = replylen;
 
     if (ssh->version == 1)
-	do_ssh1_login(ssh, NULL);
+	do_ssh1_login(ssh);
     else
 	do_ssh2_authconn(ssh, NULL, -1, NULL);
 }
@@ -3964,7 +3967,7 @@ static void ssh_dialog_callback(void *sshv, int ret)
     ssh->user_response = ret;
 
     if (ssh->version == 1)
-	do_ssh1_login(ssh, NULL);
+	do_ssh1_login(ssh);
     else
 	do_ssh2_transport(ssh, NULL, -1, NULL);
 
@@ -4202,8 +4205,11 @@ static void ssh1_connection_input(Ssh ssh);
 /*
  * Handle the key exchange and user authentication phases.
  */
-static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
+static void do_ssh1_login(void *vctx)
 {
+    Ssh ssh = (Ssh)vctx;
+    struct Packet *pktin;
+
     int i, j, ret;
     unsigned char *ptr;
     struct MD5Context md5c;
@@ -4223,6 +4229,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	char *publickey_comment;
 	int privatekey_available, privatekey_encrypted;
 	prompts_t *cur_prompt;
+        int userpass_ret;
 	char c;
 	int pwpkt_type;
 	unsigned char request[5], *response, *p;
@@ -4241,8 +4248,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 
     crBeginState;
 
-    if (!pktin)
-	crWaitUntilV(pktin);
+    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 
     if (pktin->type != SSH1_SMSG_PUBLIC_KEY) {
 	bombout(("Public key packet not received"));
@@ -4341,14 +4347,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 #endif
             if (s->dlgret < 0) {
                 ssh->user_response = -1;
-                do {
-                    crReturnV;
-                    if (pktin) {
-                        bombout(("Unexpected data from server while waiting"
-                                 " for user host key response"));
-                        crStop(0);
-                    }
-                } while (ssh->user_response < 0);
+                crWaitUntilV(ssh->user_response >= 0);
                 s->dlgret = ssh->user_response;
             }
             ssh_set_frozen(ssh, 0);
@@ -4428,14 +4427,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
                 ssh->user_response = -1;
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while waiting"
-				 " for user response"));
-			crStop(0);
-		    }
-		} while (ssh->user_response < 0);
+                crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
             ssh_set_frozen(ssh, 0);
@@ -4496,7 +4488,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	sfree(s->hostkey.exponent);
 	s->hostkey.exponent = NULL;
     }
-    crWaitUntilV(pktin);
+    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 
     if (pktin->type != SSH1_SMSG_SUCCESS) {
 	bombout(("Encryption not successfully enabled"));
@@ -4506,46 +4498,46 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
     logevent("Successfully started encryption");
 
     fflush(stdout); /* FIXME eh? */
-    {
-	if ((ssh->username = get_remote_username(ssh->conf)) == NULL) {
-	    int ret; /* need not be kept over crReturn */
-	    s->cur_prompt = new_prompts(ssh->frontend);
-	    s->cur_prompt->to_server = TRUE;
-	    s->cur_prompt->name = dupstr("SSH login name");
-	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
-	    ret = get_userpass_input(s->cur_prompt, NULL);
-	    while (ret < 0) {
-		ssh->send_ok = 1;
-		crWaitUntilV(!pktin);
-		ret = get_userpass_input(s->cur_prompt, &ssh->user_input);
-		ssh->send_ok = 0;
-	    }
-	    if (!ret) {
-		/*
-		 * Failed to get a username. Terminate.
-		 */
-		free_prompts(s->cur_prompt);
-		ssh_disconnect(ssh, "No username provided", NULL, 0, TRUE);
-		crStopV;
-	    }
-	    ssh->username = dupstr(s->cur_prompt->prompts[0]->result);
-	    free_prompts(s->cur_prompt);
-	}
-
-	send_packet(ssh, SSH1_CMSG_USER, PKT_STR, ssh->username, PKT_END);
-	{
-	    char *userlog = dupprintf("Sent username \"%s\"", ssh->username);
-	    logevent(userlog);
-	    if (flags & FLAG_INTERACTIVE &&
-		(!((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)))) {
-		c_write_str(ssh, userlog);
-		c_write_str(ssh, "\r\n");
-	    }
-	    sfree(userlog);
-	}
+    if ((ssh->username = get_remote_username(ssh->conf)) == NULL) {
+        s->cur_prompt = new_prompts(ssh->frontend);
+        s->cur_prompt->to_server = TRUE;
+        s->cur_prompt->name = dupstr("SSH login name");
+        add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
+        s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+        while (s->userpass_ret < 0) {
+            ssh->send_ok = 1;
+            crReturnV;
+            while (s->userpass_ret < 0 &&
+                   bufchain_size(&ssh->user_input) > 0)
+                s->userpass_ret = get_userpass_input(
+                    s->cur_prompt, &ssh->user_input);
+            ssh->send_ok = 0;
+        }
+        if (!s->userpass_ret) {
+            /*
+             * Failed to get a username. Terminate.
+             */
+            free_prompts(s->cur_prompt);
+            ssh_disconnect(ssh, "No username provided", NULL, 0, TRUE);
+            crStopV;
+        }
+        ssh->username = dupstr(s->cur_prompt->prompts[0]->result);
+        free_prompts(s->cur_prompt);
     }
 
-    crWaitUntilV(pktin);
+    send_packet(ssh, SSH1_CMSG_USER, PKT_STR, ssh->username, PKT_END);
+    {
+        char *userlog = dupprintf("Sent username \"%s\"", ssh->username);
+        logevent(userlog);
+        if (flags & FLAG_INTERACTIVE &&
+            (!((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)))) {
+            c_write_str(ssh, userlog);
+            c_write_str(ssh, "\r\n");
+        }
+        sfree(userlog);
+    }
+
+    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 
     if ((s->supported_auths_mask & (1 << SSH1_AUTH_RSA)) == 0) {
 	/* We must not attempt PK auth. Pretend we've already tried it. */
@@ -4620,14 +4612,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
                 s->request, 5, &r, &s->responselen, ssh_agent_callback, ssh);
 	    if (ssh->auth_agent_query) {
                 ssh->agent_response = NULL;
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while waiting"
-				 " for agent response"));
-			crStop(0);
-		    }
-		} while (!ssh->agent_response);
+                crWaitUntilV(ssh->agent_response);
 		r = ssh->agent_response;
 		s->responselen = ssh->agent_response_len;
 	    }
@@ -4691,7 +4676,8 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 		    send_packet(ssh, SSH1_CMSG_AUTH_RSA,
 				PKT_BIGNUM, s->key.modulus, PKT_END);
-		    crWaitUntilV(pktin);
+		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login))
+                                      != NULL);
 		    if (pktin->type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {
 			logevent("Key refused");
 			continue;
@@ -4730,15 +4716,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 			if (ssh->auth_agent_query) {
 			    sfree(agentreq);
                             ssh->agent_response = NULL;
-			    do {
-				crReturnV;
-				if (pktin) {
-				    bombout(("Unexpected data from server"
-					     " while waiting for agent"
-					     " response"));
-				    crStop(0);
-				}
-			    } while (!ssh->agent_response);
+                            crWaitUntilV(ssh->agent_response);
 			    vret = ssh->agent_response;
 			    retlen = ssh->agent_response_len;
 			} else
@@ -4751,7 +4729,9 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 					    PKT_DATA, ret + 5, 16,
 					    PKT_END);
 				sfree(ret);
-				crWaitUntilV(pktin);
+				crMaybeWaitUntilV(
+                                    (pktin = pq_pop(&ssh->pq_ssh1_login))
+                                    != NULL);
 				if (pktin->type == SSH1_SMSG_SUCCESS) {
 				    logevent
 					("Pageant's response accepted");
@@ -4815,22 +4795,23 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 			c_write_str(ssh, "No passphrase required.\r\n");
 		    passphrase = NULL;
 		} else {
-		    int ret; /* need not be kept over crReturn */
 		    s->cur_prompt = new_prompts(ssh->frontend);
 		    s->cur_prompt->to_server = FALSE;
 		    s->cur_prompt->name = dupstr("SSH key passphrase");
 		    add_prompt(s->cur_prompt,
 			       dupprintf("Passphrase for key \"%.100s\": ",
 					 s->publickey_comment), FALSE);
-		    ret = get_userpass_input(s->cur_prompt, NULL);
-		    while (ret < 0) {
-			ssh->send_ok = 1;
-			crWaitUntilV(!pktin);
-			ret = get_userpass_input(s->cur_prompt,
-                                                 &ssh->user_input);
-			ssh->send_ok = 0;
-		    }
-		    if (!ret) {
+                    s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+                    while (s->userpass_ret < 0) {
+                        ssh->send_ok = 1;
+                        crReturnV;
+                        while (s->userpass_ret < 0 &&
+                               bufchain_size(&ssh->user_input) > 0)
+                            s->userpass_ret = get_userpass_input(
+                                s->cur_prompt, &ssh->user_input);
+                        ssh->send_ok = 0;
+                    }
+		    if (!s->userpass_ret) {
 			/* Failed to get a passphrase. Terminate. */
 			free_prompts(s->cur_prompt);
 			ssh_disconnect(ssh, NULL, "Unable to authenticate",
@@ -4879,7 +4860,8 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 		send_packet(ssh, SSH1_CMSG_AUTH_RSA,
 			    PKT_BIGNUM, s->key.modulus, PKT_END);
 
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login))
+                                  != NULL);
 		if (pktin->type == SSH1_SMSG_FAILURE) {
 		    c_write_str(ssh, "Server refused our public key.\r\n");
 		    continue;	       /* go and try something else */
@@ -4917,7 +4899,8 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 		    freebn(response);
 		}
 
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login))
+                                  != NULL);
 		if (pktin->type == SSH1_SMSG_FAILURE) {
 		    if (flags & FLAG_VERBOSE)
 			c_write_str(ssh, "Failed to authenticate with"
@@ -4944,7 +4927,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	    s->pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
 	    logevent("Requested TIS authentication");
 	    send_packet(ssh, SSH1_CMSG_AUTH_TIS, PKT_END);
-	    crWaitUntilV(pktin);
+	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 	    if (pktin->type != SSH1_SMSG_AUTH_TIS_CHALLENGE) {
 		logevent("TIS authentication declined");
 		if (flags & FLAG_INTERACTIVE)
@@ -4987,7 +4970,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	    s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
 	    logevent("Requested CryptoCard authentication");
 	    send_packet(ssh, SSH1_CMSG_AUTH_CCARD, PKT_END);
-	    crWaitUntilV(pktin);
+	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 	    if (pktin->type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 		logevent("CryptoCard authentication declined");
 		c_write_str(ssh, "CryptoCard authentication refused.\r\n");
@@ -5041,26 +5024,26 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	 * or CryptoCard exchange if we're doing TIS or CryptoCard
 	 * authentication.
 	 */
-	{
-	    int ret; /* need not be kept over crReturn */
-	    ret = get_userpass_input(s->cur_prompt, NULL);
-	    while (ret < 0) {
-		ssh->send_ok = 1;
-		crWaitUntilV(!pktin);
-		ret = get_userpass_input(s->cur_prompt, &ssh->user_input);
-		ssh->send_ok = 0;
-	    }
-	    if (!ret) {
-		/*
-		 * Failed to get a password (for example
-		 * because one was supplied on the command line
-		 * which has already failed to work). Terminate.
-		 */
-		free_prompts(s->cur_prompt);
-		ssh_disconnect(ssh, NULL, "Unable to authenticate", 0, TRUE);
-		crStopV;
-	    }
-	}
+        s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+        while (s->userpass_ret < 0) {
+            ssh->send_ok = 1;
+            crReturnV;
+            while (s->userpass_ret < 0 &&
+                   bufchain_size(&ssh->user_input) > 0)
+                s->userpass_ret = get_userpass_input(
+                    s->cur_prompt, &ssh->user_input);
+            ssh->send_ok = 0;
+        }
+        if (!s->userpass_ret) {
+            /*
+             * Failed to get a password (for example
+             * because one was supplied on the command line
+             * which has already failed to work). Terminate.
+             */
+            free_prompts(s->cur_prompt);
+            ssh_disconnect(ssh, NULL, "Unable to authenticate", 0, TRUE);
+            crStopV;
+        }
 
 	if (s->pwpkt_type == SSH1_CMSG_AUTH_PASSWORD) {
 	    /*
@@ -5187,7 +5170,7 @@ static void do_ssh1_login(Ssh ssh, struct Packet *pktin)
 	}
 	logevent("Sent password");
 	free_prompts(s->cur_prompt);
-	crWaitUntilV(pktin);
+	crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 	if (pktin->type == SSH1_SMSG_FAILURE) {
 	    if (flags & FLAG_VERBOSE)
 		c_write_str(ssh, "Access denied\r\n");
@@ -6278,7 +6261,7 @@ static void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_login_input(Ssh ssh)
 {
-    do_ssh1_login(ssh, NULL);
+    do_ssh1_login(ssh);
 }
 
 static void ssh1_connection_input(Ssh ssh)
@@ -6294,7 +6277,9 @@ static void ssh1_connection_input(Ssh ssh)
 
 static void ssh1_coro_wrapper_initial(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh1_login(ssh, pktin);
+    pktin->refcount++;   /* avoid packet being freed when we return */
+    pq_push(&ssh->pq_ssh1_login, pktin);
+    queue_idempotent_callback(&ssh->ssh1_login_icb);
 }
 
 static void ssh1_coro_wrapper_session(Ssh ssh, struct Packet *pktin)
@@ -12334,6 +12319,10 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->pq_full_consumer.fn = ssh_process_pq_full;
     ssh->pq_full_consumer.ctx = ssh;
     ssh->pq_full_consumer.queued = FALSE;
+    pq_init(&ssh->pq_ssh1_login);
+    ssh->ssh1_login_icb.fn = do_ssh1_login;
+    ssh->ssh1_login_icb.ctx = ssh;
+    ssh->ssh1_login_icb.queued = FALSE;
     bufchain_init(&ssh->user_input);
     ssh->user_input_consumer.fn = ssh_process_user_input;
     ssh->user_input_consumer.ctx = ssh;
@@ -12512,6 +12501,7 @@ static void ssh_free(void *handle)
     bufchain_clear(&ssh->incoming_data);
     sfree(ssh->incoming_data_eof_message);
     pq_clear(&ssh->pq_full);
+    pq_clear(&ssh->pq_ssh1_login);
     bufchain_clear(&ssh->user_input);
     sfree(ssh->v_c);
     sfree(ssh->v_s);
