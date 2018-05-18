@@ -385,7 +385,7 @@ static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
 static void do_ssh1_login(void *vctx);
-static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin);
+static void do_ssh2_authconn(void *vctx);
 static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
 static void ssh_channel_got_eof(struct ssh_channel *c);
@@ -968,6 +968,9 @@ struct ssh_tag {
 
     struct PacketQueue pq_ssh1_login;
     struct IdempotentCallback ssh1_login_icb;
+
+    struct PacketQueue pq_ssh2_authconn;
+    struct IdempotentCallback ssh2_authconn_icb;
 
     bufchain user_input;
     struct IdempotentCallback user_input_consumer;
@@ -3514,7 +3517,7 @@ static void do_ssh_connection_init(Ssh ssh)
     /*
      * Get authconn (really just conn) under way.
      */
-    do_ssh2_authconn(ssh, NULL);
+    do_ssh2_authconn(ssh);
 
     sfree(s->vstring);
 
@@ -3956,7 +3959,7 @@ static void ssh_agent_callback(void *sshv, void *reply, int replylen)
     if (ssh->version == 1)
 	do_ssh1_login(ssh);
     else
-	do_ssh2_authconn(ssh, NULL);
+	do_ssh2_authconn(ssh);
 }
 
 static void ssh_dialog_callback(void *sshv, int ret)
@@ -8432,8 +8435,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    /*
 	     * Allow authconn to initialise itself.
 	     */
-	    do_ssh2_authconn(ssh, NULL);
 	    ssh->current_user_input_fn = ssh2_authconn_input;
+	    do_ssh2_authconn(ssh);
 	}
 	crReturnV;
     }
@@ -9985,18 +9988,23 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
  */
 static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh2_authconn(ssh, pktin);
+    pktin->refcount++;   /* avoid packet being freed when we return */
+    pq_push(&ssh->pq_ssh2_authconn, pktin);
+    queue_idempotent_callback(&ssh->ssh2_authconn_icb);
 }
 
 static void ssh2_response_authconn(struct ssh_channel *c, struct Packet *pktin,
 				   void *ctx)
 {
     if (pktin)
-        do_ssh2_authconn(c->ssh, pktin);
+        ssh2_msg_authconn(c->ssh, pktin);
 }
 
-static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
+static void do_ssh2_authconn(void *vctx)
 {
+    Ssh ssh = (Ssh)vctx;
+    struct Packet *pktin;
+
     struct do_ssh2_authconn_state {
 	int crLine;
 	enum {
@@ -10091,7 +10099,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
             s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
             ssh2_pkt_addstring(s->pktout, "ssh-userauth");
             ssh2_pkt_send(ssh, s->pktout);
-            crWaitUntilV(pktin);
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
             if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
                 s->done_service_req = TRUE;
         }
@@ -10102,7 +10110,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
             s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
             ssh2_pkt_addstring(s->pktout, "ssh-connection");
             ssh2_pkt_send(ssh, s->pktout);
-            crWaitUntilV(pktin);
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
             if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
                 s->we_are_in = TRUE; /* no auth required */
             } else {
@@ -10197,14 +10205,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
                 ssh_agent_callback, ssh);
 	    if (ssh->auth_agent_query) {
                 ssh->agent_response = NULL;
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while"
-				 " waiting for agent response"));
-			crStopV;
-		    }
-		} while (!ssh->agent_response);
+		crWaitUntilV(ssh->agent_response);
 		r = ssh->agent_response;
 		s->agent_responselen = ssh->agent_response_len;
 	    }
@@ -10399,7 +10400,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 	     * Wait for the result of the last authentication request.
 	     */
 	    if (!s->gotit)
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 	    /*
 	     * Now is a convenient point to spew any banner material
 	     * that we've accumulated. (This should ensure that when
@@ -10593,7 +10594,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		ssh2_pkt_send(ssh, s->pktout);
 		s->type = AUTH_TYPE_PUBLICKEY_OFFER_QUIET;
 
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 
 		    /* Offer of key refused. */
@@ -10663,15 +10664,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
                         ssh_agent_callback, ssh);
                     if (ssh->auth_agent_query) {
                         ssh->agent_response = NULL;
-			do {
-			    crReturnV;
-			    if (pktin) {
-				bombout(("Unexpected data from server"
-					 " while waiting for agent"
-					 " response"));
-				crStopV;
-			    }
-			} while (!ssh->agent_response);
+                        crWaitUntilV(ssh->agent_response);
 			vret = ssh->agent_response;
 			s->retlen = ssh->agent_response_len;
 		    }
@@ -10737,7 +10730,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Offered public key");
 
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 		    /* Key refused. Give up. */
 		    s->gotit = TRUE; /* reconsider message next loop */
@@ -10929,7 +10922,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		ssh_pkt_adddata(s->pktout, s->gss_buf.value,
 				s->gss_buf.length);
 		ssh2_pkt_send(ssh, s->pktout);
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_RESPONSE) {
 		    logevent("GSSAPI authentication request refused");
 		    continue;
@@ -11021,7 +11014,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		    }
 
 		    if (s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED) {
-			crWaitUntilV(pktin);
+			crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 			if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_TOKEN) {
                             logevent("GSSAPI authentication -"
                                      " bad server response");
@@ -11073,7 +11066,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
                 
                 logevent("Attempting keyboard-interactive authentication");
 
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
 		    /* Server is not willing to do keyboard-interactive
 		     * at all (or, bizarrely but legally, accepts the
@@ -11201,7 +11194,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		     * Get the next packet in case it's another
 		     * INFO_REQUEST.
 		     */
-		    crWaitUntilV(pktin);
+		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 
 		}
 
@@ -11281,7 +11274,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		 * Wait for next packet, in case it's a password change
 		 * request.
 		 */
-		crWaitUntilV(pktin);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		changereq_first_time = TRUE;
 
 		while (pktin->type == SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ) {
@@ -11417,7 +11410,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 		     * (If it's CHANGEREQ again, it's not happy with the
 		     * new password.)
 		     */
-		    crWaitUntilV(pktin);
+		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 		    changereq_first_time = FALSE;
 
 		}
@@ -11525,7 +11518,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 	    ssh2_pkt_send(ssh, s->pktout);
 	    ssh->ncmode = FALSE;
 	}
-	crWaitUntilV(pktin);
+	crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
         if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
             pktin->type != SSH2_MSG_CHANNEL_OPEN_FAILURE) {
             bombout(("Server sent strange packet %d in response to main "
@@ -11665,7 +11658,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 	    }
 	    ssh2_pkt_send(ssh, s->pktout);
 
-	    crWaitUntilV(pktin);
+	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
 
 	    if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
 		if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
@@ -11711,7 +11704,7 @@ static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 	ssh->send_ok = 1;
     while (1) {
 	crReturnV;
-	if (pktin) {
+	if ((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL) {
 
 	    /*
 	     * _All_ the connection-layer packets we expect to
@@ -12229,7 +12222,7 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_authconn_input(Ssh ssh)
 {
-    do_ssh2_authconn(ssh, NULL);
+    do_ssh2_authconn(ssh);
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
@@ -12316,6 +12309,10 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->ssh1_login_icb.fn = do_ssh1_login;
     ssh->ssh1_login_icb.ctx = ssh;
     ssh->ssh1_login_icb.queued = FALSE;
+    pq_init(&ssh->pq_ssh2_authconn);
+    ssh->ssh2_authconn_icb.fn = do_ssh2_authconn;
+    ssh->ssh2_authconn_icb.ctx = ssh;
+    ssh->ssh2_authconn_icb.queued = FALSE;
     bufchain_init(&ssh->user_input);
     ssh->user_input_consumer.fn = ssh_process_user_input;
     ssh->user_input_consumer.ctx = ssh;
@@ -12495,6 +12492,7 @@ static void ssh_free(void *handle)
     sfree(ssh->incoming_data_eof_message);
     pq_clear(&ssh->pq_full);
     pq_clear(&ssh->pq_ssh1_login);
+    pq_clear(&ssh->pq_ssh2_authconn);
     bufchain_clear(&ssh->user_input);
     sfree(ssh->v_c);
     sfree(ssh->v_s);
