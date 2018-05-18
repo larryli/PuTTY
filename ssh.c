@@ -973,7 +973,7 @@ struct ssh_tag {
     struct rdpkt2_state_tag rdpkt2_state;
     struct rdpkt2_bare_state_tag rdpkt2_bare_state;
 
-    /* SSH-1 and SSH-2 use this for different things, but both use it */
+    /* Only used by SSH-2 */
     int protocol_initial_phase_done;
 
     void (*protocol) (Ssh ssh, const void *vin, int inlen);
@@ -6268,14 +6268,21 @@ static void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
     /* Do nothing, because we're ignoring it! Duhh. */
 }
 
-static void ssh1_coro_wrapper(Ssh ssh, struct Packet *pktin)
+static void ssh1_coro_wrapper_session(Ssh ssh, struct Packet *pktin);
+
+static void ssh1_coro_wrapper_initial(Ssh ssh, struct Packet *pktin)
 {
-    if (!ssh->protocol_initial_phase_done) {
-	if (do_ssh1_login(ssh, NULL, 0, pktin))
-	    ssh->protocol_initial_phase_done = TRUE;
-    } else {
-        do_ssh1_connection(ssh, NULL, 0, pktin);
+    if (do_ssh1_login(ssh, NULL, 0, pktin)) {
+        int i;
+        for (i = 0; i < 256; i++)
+            if (ssh->packet_dispatch[i] == ssh1_coro_wrapper_initial)
+                ssh->packet_dispatch[i] = ssh1_coro_wrapper_session;
     }
+}
+
+static void ssh1_coro_wrapper_session(Ssh ssh, struct Packet *pktin)
+{
+    do_ssh1_connection(ssh, NULL, 0, pktin);
 }
 
 static void ssh1_protocol_setup(Ssh ssh)
@@ -6286,7 +6293,7 @@ static void ssh1_protocol_setup(Ssh ssh)
      * Most messages are handled by the main protocol routine.
      */
     for (i = 0; i < 256; i++)
-	ssh->packet_dispatch[i] = ssh1_coro_wrapper;
+	ssh->packet_dispatch[i] = ssh1_coro_wrapper_initial;
 
     /*
      * These special message types we install handlers for.
