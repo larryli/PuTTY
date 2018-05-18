@@ -82,6 +82,8 @@ void bufchain_add(bufchain *ch, const void *data, int len);
 void bufchain_prefix(bufchain *ch, void **data, int *len);
 void bufchain_consume(bufchain *ch, int len);
 void bufchain_fetch(bufchain *ch, void *data, int len);
+void bufchain_fetch_consume(bufchain *ch, void *data, int len);
+int bufchain_try_fetch_consume(bufchain *ch, void *data, int len);
 
 int validate_manual_hostkey(char *key);
 

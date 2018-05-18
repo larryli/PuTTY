@@ -751,6 +751,22 @@ void bufchain_fetch(bufchain *ch, void *data, int len)
     }
 }
 
+void bufchain_fetch_consume(bufchain *ch, void *data, int len)
+{
+    bufchain_fetch(ch, data, len);
+    bufchain_consume(ch, len);
+}
+
+int bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
+{
+    if (ch->buffersize >= len) {
+        bufchain_fetch_consume(ch, data, len);
+        return TRUE;
+    } else {
+        return FALSE;
+    }
+}
+
 /* ----------------------------------------------------------------------
  * My own versions of malloc, realloc and free. Because I want
  * malloc and realloc to bomb out and exit the program if they run
