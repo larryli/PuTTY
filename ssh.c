@@ -725,12 +725,9 @@ struct Packet {
     const char *additional_log_text;
 };
 
-static void ssh1_protocol(Ssh ssh, const void *vin, int inlen,
-			  struct Packet *pktin);
-static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
-			  struct Packet *pktin);
-static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen,
-                                          struct Packet *pktin);
+static void ssh1_protocol(Ssh ssh, const void *vin, int inlen);
+static void ssh2_protocol(Ssh ssh, const void *vin, int inlen);
+static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen);
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
 static void ssh2_bare_connection_protocol_setup(Ssh ssh);
@@ -979,8 +976,8 @@ struct ssh_tag {
     /* SSH-1 and SSH-2 use this for different things, but both use it */
     int protocol_initial_phase_done;
 
-    void (*protocol) (Ssh ssh, const void *vin, int inlen,
-		      struct Packet *pkt);
+    void (*protocol) (Ssh ssh, const void *vin, int inlen);
+    void (*general_packet_processing)(Ssh ssh, struct Packet *pkt);
     void (*current_incoming_data_fn) (Ssh ssh);
 
     /*
@@ -3350,6 +3347,7 @@ static void do_ssh_init(Ssh ssh)
 	 */
 	ssh->protocol = ssh2_protocol;
 	ssh2_protocol_setup(ssh);
+	ssh->general_packet_processing = ssh2_general_packet_processing;
 	ssh->current_incoming_data_fn = ssh2_rdpkt;
     } else {
 	/*
@@ -3574,7 +3572,9 @@ static void ssh_process_pq_full(void *ctx)
     struct Packet *pktin;
 
     while ((pktin = pq_pop(&ssh->pq_full)) != NULL) {
-	ssh->protocol(ssh, NULL, 0, pktin);
+        if (ssh->general_packet_processing)
+            ssh->general_packet_processing(ssh, pktin);
+	ssh->packet_dispatch[pktin->type](ssh, pktin);
 	ssh_unref_packet(pktin);
     }
 }
@@ -6296,26 +6296,20 @@ static void ssh1_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH1_MSG_DEBUG] = ssh1_msg_debug;
 }
 
-static void ssh1_protocol(Ssh ssh, const void *vin, int inlen,
-			  struct Packet *pktin)
+static void ssh1_protocol(Ssh ssh, const void *vin, int inlen)
 {
     const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (pktin) {
-	ssh->packet_dispatch[pktin->type](ssh, pktin);
-	return;
-    }
-
     if (!ssh->protocol_initial_phase_done) {
-	if (do_ssh1_login(ssh, in, inlen, pktin))
+	if (do_ssh1_login(ssh, in, inlen, NULL))
 	    ssh->protocol_initial_phase_done = TRUE;
 	else
 	    return;
     }
 
-    do_ssh1_connection(ssh, in, inlen, pktin);
+    do_ssh1_connection(ssh, in, inlen, NULL);
 }
 
 /*
@@ -12241,34 +12235,25 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
         do_ssh2_transport(ssh, "too much data received", -1, NULL);
 }
 
-static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
-			  struct Packet *pktin)
+static void ssh2_protocol(Ssh ssh, const void *vin, int inlen)
 {
     const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    ssh2_general_packet_processing(ssh, pktin);
-
-    if (pktin)
-	ssh->packet_dispatch[pktin->type](ssh, pktin);
-    else if (!ssh->protocol_initial_phase_done)
-	do_ssh2_transport(ssh, in, inlen, pktin);
+    if (!ssh->protocol_initial_phase_done)
+	do_ssh2_transport(ssh, in, inlen, NULL);
     else
-	do_ssh2_authconn(ssh, in, inlen, pktin);
+	do_ssh2_authconn(ssh, in, inlen, NULL);
 }
 
-static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen,
-                                          struct Packet *pktin)
+static void ssh2_bare_connection_protocol(Ssh ssh, const void *vin, int inlen)
 {
     const unsigned char *in = (const unsigned char *)vin;
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (pktin)
-	ssh->packet_dispatch[pktin->type](ssh, pktin);
-    else
-        do_ssh2_authconn(ssh, in, inlen, pktin);
+    do_ssh2_authconn(ssh, in, inlen, NULL);
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
@@ -12406,6 +12391,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->fallback_cmd = 0;
 
     ssh->protocol = NULL;
+    ssh->general_packet_processing = NULL;
 
     ssh->protocol_initial_phase_done = FALSE;
 
