@@ -6268,15 +6268,25 @@ static void ssh_msg_ignore(Ssh ssh, struct Packet *pktin)
     /* Do nothing, because we're ignoring it! Duhh. */
 }
 
+static void ssh1_coro_wrapper(Ssh ssh, struct Packet *pktin)
+{
+    if (!ssh->protocol_initial_phase_done) {
+	if (do_ssh1_login(ssh, NULL, 0, pktin))
+	    ssh->protocol_initial_phase_done = TRUE;
+    } else {
+        do_ssh1_connection(ssh, NULL, 0, pktin);
+    }
+}
+
 static void ssh1_protocol_setup(Ssh ssh)
 {
     int i;
 
     /*
-     * Most messages are handled by the coroutines.
+     * Most messages are handled by the main protocol routine.
      */
     for (i = 0; i < 256; i++)
-	ssh->packet_dispatch[i] = NULL;
+	ssh->packet_dispatch[i] = ssh1_coro_wrapper;
 
     /*
      * These special message types we install handlers for.
@@ -6293,7 +6303,7 @@ static void ssh1_protocol(Ssh ssh, const void *vin, int inlen,
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (pktin && ssh->packet_dispatch[pktin->type]) {
+    if (pktin) {
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
 	return;
     }
