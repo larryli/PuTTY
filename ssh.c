@@ -747,7 +747,6 @@ static void ssh2_gss_update(Ssh ssh, int definitely_rekeying);
 static struct Packet *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
                                           const char *authtype);
 #endif
-static void do_ssh2_transport(Ssh ssh, struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
 static void ssh_unref_packet(struct Packet *pkt);
 
@@ -995,6 +994,9 @@ struct ssh_tag {
 
     struct PacketQueue pq_ssh1_connection;
     struct IdempotentCallback ssh1_connection_icb;
+
+    struct PacketQueue pq_ssh2_transport;
+    struct IdempotentCallback ssh2_transport_icb;
 
     struct PacketQueue pq_ssh2_authconn;
     struct IdempotentCallback ssh2_authconn_icb;
@@ -2585,7 +2587,7 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
 	ssh->outgoing_data_size > ssh->max_data_size) {
         ssh->rekey_reason = "too much data sent";
         ssh->rekey_class = RK_NORMAL;
-	do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
     }
 
     ssh_unref_packet(pkt);
@@ -2692,7 +2694,7 @@ static void ssh_pkt_defersend(Ssh ssh)
 	    ssh->outgoing_data_size > ssh->max_data_size) {
             ssh->rekey_reason = "too much data sent";
             ssh->rekey_class = RK_NORMAL;
-	    do_ssh2_transport(ssh, NULL);
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
         }
     }
 }
@@ -3398,7 +3400,7 @@ static void do_ssh_init(Ssh ssh)
     }
     queue_idempotent_callback(&ssh->incoming_data_consumer);
     if (ssh->version == 2)
-	do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
@@ -4007,7 +4009,7 @@ static void ssh_dialog_callback(void *sshv, int ret)
     if (ssh->version == 1)
 	do_ssh1_login(ssh);
     else
-	do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
 
     /*
      * This may have unfrozen the SSH connection.
@@ -6611,8 +6613,11 @@ static int ssh_have_any_transient_hostkey(Ssh ssh)
 /*
  * Handle the SSH-2 transport layer.
  */
-static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
+static void do_ssh2_transport(void *vctx)
 {
+    Ssh ssh = (Ssh)vctx;
+    struct Packet *pktin;
+
     enum kexlist {
 	KEXLIST_KEX, KEXLIST_HOSTKEY, KEXLIST_CSCIPHER, KEXLIST_SCCIPHER,
 	KEXLIST_CSMAC, KEXLIST_SCMAC, KEXLIST_CSCOMP, KEXLIST_SCCOMP,
@@ -7064,8 +7069,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 
     ssh2_pkt_send_noqueue(ssh, s->pktout);
 
-    if (!pktin)
-	crWaitUntilV(pktin);
+    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -7337,7 +7341,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 	}
 
 	if (s->ignorepkt) /* first_kex_packet_follows */
-	    crWaitUntilV(pktin);                /* Ignore packet */
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
     }
 
     if (ssh->kex->main_type == KEXTYPE_DH) {
@@ -7385,7 +7389,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
             }
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
-            crWaitUntilV(pktin);
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
             if (pktin->type != SSH2_MSG_KEX_DH_GEX_GROUP) {
                 bombout(("expected key exchange group packet from server"));
                 crStopV;
@@ -7420,7 +7424,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
         ssh2_pkt_send_noqueue(ssh, s->pktout);
 
         set_busy_status(ssh->frontend, BUSY_WAITING); /* wait for server */
-        crWaitUntilV(pktin);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
         if (pktin->type != s->kex_reply_value) {
             bombout(("expected key exchange reply packet from server"));
             crStopV;
@@ -7506,7 +7510,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 
         ssh2_pkt_send_noqueue(ssh, s->pktout);
 
-        crWaitUntilV(pktin);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
         if (pktin->type != SSH2_MSG_KEX_ECDH_REPLY) {
             ssh_ecdhkex_freekey(s->eckey);
             bombout(("expected ECDH reply packet from server"));
@@ -7607,7 +7611,8 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
             ssh2_pkt_adduint32(s->pktout, s->pbits * 2); /* max */
             ssh2_pkt_send_noqueue(ssh, s->pktout);
 
-            crWaitUntilV(pktin);
+            crMaybeWaitUntilV(
+                (pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
             if (pktin->type != SSH2_MSG_KEXGSS_GROUP) {
                 bombout(("expected key exchange group packet from server"));
                 crStopV;
@@ -7714,7 +7719,8 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
                 break;
 
           wait_for_gss_token:
-            crWaitUntilV(pktin);
+            crMaybeWaitUntilV(
+                (pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
             switch (pktin->type) {
               case SSH2_MSG_KEXGSS_CONTINUE:
                 ssh_pkt_getstring(pktin, &data, &len);
@@ -7827,7 +7833,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
          * RSA key exchange. First expect a KEXRSA_PUBKEY packet
          * from the server.
          */
-        crWaitUntilV(pktin);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
         if (pktin->type != SSH2_MSG_KEXRSA_PUBKEY) {
             bombout(("expected RSA public key packet from server"));
             crStopV;
@@ -7918,7 +7924,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 
         ssh_rsakex_freekey(s->rsakey);
 
-        crWaitUntilV(pktin);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
         if (pktin->type != SSH2_MSG_KEXRSA_DONE) {
             sfree(s->rsakeydata);
             bombout(("expected signature packet from server"));
@@ -8307,7 +8313,7 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
     /*
      * Expect SSH2_MSG_NEWKEYS from server.
      */
-    crWaitUntilV(pktin);
+    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
     if (pktin->type != SSH2_MSG_NEWKEYS) {
 	bombout(("expected new-keys packet from server"));
 	crStopV;
@@ -8409,17 +8415,14 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
     (void) ssh2_timer_update(ssh, 0);
 
     /*
-     * Now we're encrypting. Begin returning 1 to the protocol main
-     * function so that other things can run on top of the
-     * transport. If we ever see a KEXINIT, we must go back to the
-     * start.
-     * 
-     * We _also_ go back to the start if ssh->rekey_reason is
-     * non-NULL, i.e. we've decided to initiate a rekey ourselves for
-     * some reason.
+     * Now we're encrypting. Get the next-layer protocol started if it
+     * hasn't already, and then sit here waiting for reasons to go
+     * back to the start and do a repeat key exchange. One of those
+     * reasons is that we receive KEXINIT from the other end; the
+     * other is if we find ssh->rekey_reason is non-NULL, i.e. we've
+     * decided to initiate a rekey ourselves for some reason.
      */
-    while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
-	     ssh->rekey_reason != NULL)) {
+    while (!pq_peek(&ssh->pq_ssh2_transport) && !ssh->rekey_reason) {
         wait_for_rekey:
 	if (!ssh->current_user_input_fn) {
 	    /*
@@ -8430,7 +8433,11 @@ static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 	}
 	crReturnV;
     }
-    if (pktin) {
+    if ((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL) {
+        if (pktin->type != SSH2_MSG_KEXINIT) {
+            bombout(("unexpected key exchange packet, type %d", pktin->type));
+            crStopV;
+        }
 	logevent("Server initiated key re-exchange");
     } else {
 	if (ssh->rekey_class == RK_POST_USERAUTH) {
@@ -11467,7 +11474,7 @@ static void do_ssh2_authconn(void *vctx)
 	 */
         ssh->rekey_reason = NULL;      /* will be filled in later */
         ssh->rekey_class = RK_POST_USERAUTH;
-	do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
     }
 
     ssh->channels = newtree234(ssh_channelcmp);
@@ -11767,7 +11774,9 @@ static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_transport(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh2_transport(ssh, pktin);
+    pktin->refcount++;   /* avoid packet being freed when we return */
+    pq_push(&ssh->pq_ssh2_transport, pktin);
+    queue_idempotent_callback(&ssh->ssh2_transport_icb);
 }
 
 /*
@@ -12179,7 +12188,7 @@ static void ssh2_timer(void *ctx, unsigned long now)
     if (now - ssh->last_rekey > ticks - 30*TICKSPERSEC) {
         ssh->rekey_reason = "timeout";
         ssh->rekey_class = RK_NORMAL;
-	do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
         return;
     }
 
@@ -12195,7 +12204,7 @@ static void ssh2_timer(void *ctx, unsigned long now)
             (ssh->gss_status & (GSS_CRED_UPDATED|GSS_CTXT_EXPIRES)) != 0) {
             ssh->rekey_reason = "GSS credentials updated";
             ssh->rekey_class = RK_GSS_UPDATE;
-            do_ssh2_transport(ssh, NULL);
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
             return;
         }
     }
@@ -12213,7 +12222,7 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
         ssh->incoming_data_size > ssh->max_data_size) {
         ssh->rekey_reason = "too much data received";
         ssh->rekey_class = RK_NORMAL;
-        do_ssh2_transport(ssh, NULL);
+        queue_idempotent_callback(&ssh->ssh2_transport_icb);
     }
 }
 
@@ -12310,6 +12319,10 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->ssh1_connection_icb.fn = do_ssh1_connection;
     ssh->ssh1_connection_icb.ctx = ssh;
     ssh->ssh1_connection_icb.queued = FALSE;
+    pq_init(&ssh->pq_ssh2_transport);
+    ssh->ssh2_transport_icb.fn = do_ssh2_transport;
+    ssh->ssh2_transport_icb.ctx = ssh;
+    ssh->ssh2_transport_icb.queued = FALSE;
     pq_init(&ssh->pq_ssh2_authconn);
     ssh->ssh2_authconn_icb.fn = do_ssh2_authconn;
     ssh->ssh2_authconn_icb.ctx = ssh;
@@ -12496,6 +12509,7 @@ static void ssh_free(void *handle)
     pq_clear(&ssh->pq_full);
     pq_clear(&ssh->pq_ssh1_login);
     pq_clear(&ssh->pq_ssh1_connection);
+    pq_clear(&ssh->pq_ssh2_transport);
     pq_clear(&ssh->pq_ssh2_authconn);
     bufchain_clear(&ssh->user_input);
     sfree(ssh->v_c);
@@ -12589,7 +12603,7 @@ static void ssh_reconfig(void *handle, Conf *conf)
 	if (!ssh->kex_in_progress) {
             ssh->rekey_reason = rekeying;
             ssh->rekey_class = RK_NORMAL;
-	    do_ssh2_transport(ssh, NULL);
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	} else if (rekey_mandatory) {
 	    ssh->deferred_rekey_reason = rekeying;
 	}
@@ -12834,7 +12848,7 @@ static void ssh_special(void *handle, Telnet_Special code)
             ssh->version == 2) {
             ssh->rekey_reason = "at user request";
             ssh->rekey_class = RK_NORMAL;
-	    do_ssh2_transport(ssh, NULL);
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	}
     } else if (code >= TS_LOCALSTART) {
         ssh->hostkey = hostkey_algs[code - TS_LOCALSTART].alg;
@@ -12843,7 +12857,7 @@ static void ssh_special(void *handle, Telnet_Special code)
             ssh->version == 2) {
             ssh->rekey_reason = "cross-certifying new host key";
             ssh->rekey_class = RK_NORMAL;
-	    do_ssh2_transport(ssh, NULL);
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	}
     } else if (code == TS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED
