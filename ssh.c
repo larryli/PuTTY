@@ -385,7 +385,8 @@ static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
 static void do_ssh1_login(void *vctx);
-static void do_ssh2_authconn(void *vctx);
+static void do_ssh2_userauth(void *vctx);
+static void do_ssh2_connection(void *vctx);
 static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
 static void ssh_channel_got_eof(struct ssh_channel *c);
@@ -396,7 +397,8 @@ static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin);
 static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin);
 static void ssh1_login_input(Ssh ssh);
-static void ssh2_authconn_input(Ssh ssh);
+static void ssh2_userauth_input(Ssh ssh);
+static void ssh2_connection_input(Ssh ssh);
 
 /*
  * Buffer management constants. There are several of these for
@@ -954,7 +956,7 @@ struct ssh_tag {
      */
     int fallback_cmd;
 
-    bufchain banner;	/* accumulates banners during do_ssh2_authconn */
+    bufchain banner;	/* accumulates banners during do_ssh2_userauth */
 
     Pkt_KCtx pkt_kctx;
     Pkt_ACtx pkt_actx;
@@ -978,7 +980,8 @@ struct ssh_tag {
     void *do_ssh_init_state;
     void *do_ssh1_login_state;
     void *do_ssh2_transport_state;
-    void *do_ssh2_authconn_state;
+    void *do_ssh2_userauth_state;
+    void *do_ssh2_connection_state;
     void *do_ssh_connection_init_state;
 
     bufchain incoming_data;
@@ -998,8 +1001,11 @@ struct ssh_tag {
     struct PacketQueue pq_ssh2_transport;
     struct IdempotentCallback ssh2_transport_icb;
 
-    struct PacketQueue pq_ssh2_authconn;
-    struct IdempotentCallback ssh2_authconn_icb;
+    struct PacketQueue pq_ssh2_userauth;
+    struct IdempotentCallback ssh2_userauth_icb;
+
+    struct PacketQueue pq_ssh2_connection;
+    struct IdempotentCallback ssh2_connection_icb;
 
     bufchain user_input;
     struct IdempotentCallback user_input_consumer;
@@ -3547,15 +3553,16 @@ static void do_ssh_connection_init(Ssh ssh)
     ssh2_bare_connection_protocol_setup(ssh);
     ssh->current_incoming_data_fn = ssh2_bare_connection_rdpkt;
     queue_idempotent_callback(&ssh->incoming_data_consumer);
+    ssh->current_user_input_fn = ssh2_connection_input;
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
     ssh->pinger = pinger_new(ssh->conf, &ssh_backend, ssh);
 
     /*
-     * Get authconn (really just conn) under way.
+     * Get connection protocol under way.
      */
-    do_ssh2_authconn(ssh);
+    do_ssh2_connection(ssh);
 
     sfree(s->vstring);
 
@@ -3997,7 +4004,7 @@ static void ssh_agent_callback(void *sshv, void *reply, int replylen)
     if (ssh->version == 1)
 	do_ssh1_login(ssh);
     else
-	do_ssh2_authconn(ssh);
+	do_ssh2_userauth(ssh);
 }
 
 static void ssh_dialog_callback(void *sshv, int ret)
@@ -8426,10 +8433,10 @@ static void do_ssh2_transport(void *vctx)
         wait_for_rekey:
 	if (!ssh->current_user_input_fn) {
 	    /*
-	     * Allow authconn to initialise itself.
+	     * Allow userauth to initialise itself.
 	     */
-	    ssh->current_user_input_fn = ssh2_authconn_input;
-	    do_ssh2_authconn(ssh);
+	    do_ssh2_userauth(ssh);
+	    ssh->current_user_input_fn = ssh2_userauth_input;
 	}
 	crReturnV;
     }
@@ -8442,7 +8449,7 @@ static void do_ssh2_transport(void *vctx)
     } else {
 	if (ssh->rekey_class == RK_POST_USERAUTH) {
 	    /* 
-             * authconn has seen a USERAUTH_SUCCEEDED. For a couple of
+             * userauth has seen a USERAUTH_SUCCEEDED. For a couple of
              * reasons, this may be the moment to do an immediate
              * rekey with different parameters.
 	     *
@@ -9982,28 +9989,21 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
 }
 
 /*
- * Handle the SSH-2 userauth and connection layers.
+ * Handle the SSH-2 userauth layer.
  */
-static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin)
+static void ssh2_msg_userauth(Ssh ssh, struct Packet *pktin)
 {
     pktin->refcount++;   /* avoid packet being freed when we return */
-    pq_push(&ssh->pq_ssh2_authconn, pktin);
-    queue_idempotent_callback(&ssh->ssh2_authconn_icb);
+    pq_push(&ssh->pq_ssh2_userauth, pktin);
+    queue_idempotent_callback(&ssh->ssh2_userauth_icb);
 }
 
-static void ssh2_response_authconn(struct ssh_channel *c, struct Packet *pktin,
-				   void *ctx)
-{
-    if (pktin)
-        ssh2_msg_authconn(c->ssh, pktin);
-}
-
-static void do_ssh2_authconn(void *vctx)
+static void do_ssh2_userauth(void *vctx)
 {
     Ssh ssh = (Ssh)vctx;
     struct Packet *pktin;
 
-    struct do_ssh2_authconn_state {
+    struct do_ssh2_userauth_state {
 	int crLine;
 	enum {
 	    AUTH_TYPE_NONE,
@@ -10055,31 +10055,20 @@ static void do_ssh2_authconn(void *vctx)
 	Ssh_gss_stat gss_stat;
 #endif
     };
-    crState(do_ssh2_authconn_state);
+    crState(do_ssh2_userauth_state);
 
     crBeginState;
 
     /* Register as a handler for all the messages this coroutine handles. */
-    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = ssh2_msg_authconn;
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = ssh2_msg_authconn; duplicate case value */
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = ssh2_msg_authconn; duplicate case value */
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_authconn;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_authconn;
+    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = ssh2_msg_userauth;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = ssh2_msg_userauth;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = ssh2_msg_userauth;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = ssh2_msg_userauth;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = ssh2_msg_userauth;
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = ssh2_msg_userauth;
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = ssh2_msg_userauth; duplicate case value */
+    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = ssh2_msg_userauth; duplicate case value */
+    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = ssh2_msg_userauth;
     
     s->done_service_req = FALSE;
     s->we_are_in = s->userauth_success = FALSE;
@@ -10089,35 +10078,31 @@ static void do_ssh2_authconn(void *vctx)
     s->tried_gssapi_keyex_auth = FALSE;
 #endif
 
-    if (!ssh->bare_connection) {
-        if (!conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
-            /*
-             * Request userauth protocol, and await a response to it.
-             */
-            s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
-            ssh2_pkt_addstring(s->pktout, "ssh-userauth");
-            ssh2_pkt_send(ssh, s->pktout);
-            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
-            if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
-                s->done_service_req = TRUE;
+    if (!conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
+        /*
+         * Request userauth protocol, and await a response to it.
+         */
+        s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+        ssh2_pkt_addstring(s->pktout, "ssh-userauth");
+        ssh2_pkt_send(ssh, s->pktout);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
+        if (pktin->type == SSH2_MSG_SERVICE_ACCEPT)
+            s->done_service_req = TRUE;
+    }
+    if (!s->done_service_req) {
+        /*
+         * Request connection protocol directly, without authentication.
+         */
+        s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+        ssh2_pkt_addstring(s->pktout, "ssh-connection");
+        ssh2_pkt_send(ssh, s->pktout);
+        crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
+        if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
+            s->we_are_in = TRUE; /* no auth required */
+        } else {
+            bombout(("Server refused service request"));
+            crStopV;
         }
-        if (!s->done_service_req) {
-            /*
-             * Request connection protocol directly, without authentication.
-             */
-            s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
-            ssh2_pkt_addstring(s->pktout, "ssh-connection");
-            ssh2_pkt_send(ssh, s->pktout);
-            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
-            if (pktin->type == SSH2_MSG_SERVICE_ACCEPT) {
-                s->we_are_in = TRUE; /* no auth required */
-            } else {
-                bombout(("Server refused service request"));
-                crStopV;
-            }
-        }
-    } else {
-        s->we_are_in = TRUE;
     }
 
     /* Arrange to be able to deal with any BANNERs that come in.
@@ -10396,7 +10381,7 @@ static void do_ssh2_authconn(void *vctx)
 	    /*
 	     * Wait for the result of the last authentication request.
 	     */
-            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+            crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 
 	    /*
 	     * Now is a convenient point to spew any banner material
@@ -10589,12 +10574,12 @@ static void do_ssh2_authconn(void *vctx)
 		ssh2_pkt_send(ssh, s->pktout);
 		s->type = AUTH_TYPE_PUBLICKEY_OFFER_QUIET;
 
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 
 		    /* Offer of key refused, presumably via
                      * USERAUTH_FAILURE. Requeue for the next iteration. */
-		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+		    pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 
 		} else {
 		    
@@ -10726,10 +10711,10 @@ static void do_ssh2_authconn(void *vctx)
 		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Offered public key");
 
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
 		    /* Key refused. Give up. */
-		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+		    pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 		    s->type = AUTH_TYPE_PUBLICKEY_OFFER_LOUD;
 		    continue; /* process this new message */
 		}
@@ -10917,10 +10902,10 @@ static void do_ssh2_authconn(void *vctx)
 		ssh_pkt_adddata(s->pktout, s->gss_buf.value,
 				s->gss_buf.length);
 		ssh2_pkt_send(ssh, s->pktout);
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_RESPONSE) {
 		    logevent("GSSAPI authentication request refused");
-		    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+		    pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 		    continue;
 		}
 
@@ -11010,12 +10995,12 @@ static void do_ssh2_authconn(void *vctx)
 		    }
 
 		    if (s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED) {
-			crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+			crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 			if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_TOKEN) {
                             logevent("GSSAPI authentication -"
                                      " bad server response");
 			    s->gss_stat = SSH_GSS_FAILURE;
-                            pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+                            pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 			    break;
 			}
 			ssh_pkt_getstring(pktin, &data, &len);
@@ -11061,13 +11046,13 @@ static void do_ssh2_authconn(void *vctx)
                 
                 logevent("Attempting keyboard-interactive authentication");
 
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		if (pktin->type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
 		    /* Server is not willing to do keyboard-interactive
 		     * at all (or, bizarrely but legally, accepts the
 		     * user without actually issuing any prompts).
 		     * Give up on it entirely. */
-                    pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+                    pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 		    s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET;
 		    s->kbd_inter_refused = TRUE; /* don't try it again */
 		    continue;
@@ -11189,14 +11174,14 @@ static void do_ssh2_authconn(void *vctx)
 		     * Get the next packet in case it's another
 		     * INFO_REQUEST.
 		     */
-		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 
 		}
 
 		/*
 		 * We should have SUCCESS or FAILURE now.
 		 */
-                pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+                pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 
 	    } else if (s->can_passwd) {
 
@@ -11269,7 +11254,7 @@ static void do_ssh2_authconn(void *vctx)
 		 * Wait for next packet, in case it's a password change
 		 * request.
 		 */
-		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		changereq_first_time = TRUE;
 
 		while (pktin->type == SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ) {
@@ -11405,7 +11390,7 @@ static void do_ssh2_authconn(void *vctx)
 		     * (If it's CHANGEREQ again, it's not happy with the
 		     * new password.)
 		     */
-		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
 		    changereq_first_time = FALSE;
 
 		}
@@ -11423,7 +11408,7 @@ static void do_ssh2_authconn(void *vctx)
 		 * In any of these cases, we go back to the top of
 		 * the loop and start again.
 		 */
-                pq_push_front(&ssh->pq_ssh2_authconn, pktin);
+                pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 
 		/*
 		 * We don't need the old password any more, in any
@@ -11460,7 +11445,7 @@ static void do_ssh2_authconn(void *vctx)
     if (s->agent_response)
 	sfree(s->agent_response);
 
-    if (s->userauth_success && !ssh->bare_connection) {
+    if (s->userauth_success) {
 	/*
          * We've just received USERAUTH_SUCCESS, and we haven't sent
          * any packets since. Signal the transport layer to consider
@@ -11476,6 +11461,64 @@ static void do_ssh2_authconn(void *vctx)
         ssh->rekey_class = RK_POST_USERAUTH;
         queue_idempotent_callback(&ssh->ssh2_transport_icb);
     }
+
+    /*
+     * Finally, hand over to the connection layer.
+     */
+    do_ssh2_connection(ssh);
+    ssh->current_user_input_fn = ssh2_connection_input;
+
+    crFinishV;
+}
+
+static void ssh2_userauth_input(Ssh ssh)
+{
+    do_ssh2_userauth(ssh);
+}
+
+/*
+ * Handle the SSH-2 connection layer.
+ */
+static void ssh2_msg_connection(Ssh ssh, struct Packet *pktin)
+{
+    pktin->refcount++;   /* avoid packet being freed when we return */
+    pq_push(&ssh->pq_ssh2_connection, pktin);
+    queue_idempotent_callback(&ssh->ssh2_connection_icb);
+}
+
+static void ssh2_response_connection(struct ssh_channel *c,
+                                     struct Packet *pktin, void *ctx)
+{
+    if (pktin)
+        ssh2_msg_connection(c->ssh, pktin);
+}
+
+static void do_ssh2_connection(void *vctx)
+{
+    Ssh ssh = (Ssh)vctx;
+    struct Packet *pktin;
+
+    struct do_ssh2_connection_state {
+	int crLine;
+	struct Packet *pktout;
+    };
+
+    crState(do_ssh2_connection_state);
+
+    crBeginState;
+
+    /* Register as a handler for all the messages this coroutine handles. */
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_connection;
 
     ssh->channels = newtree234(ssh_channelcmp);
 
@@ -11515,7 +11558,7 @@ static void do_ssh2_authconn(void *vctx)
 	    ssh2_pkt_send(ssh, s->pktout);
 	    ssh->ncmode = FALSE;
 	}
-	crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+	crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_connection)) != NULL);
         if (pktin->type != SSH2_MSG_CHANNEL_OPEN_CONFIRMATION &&
             pktin->type != SSH2_MSG_CHANNEL_OPEN_FAILURE) {
             bombout(("Server sent strange packet %d in response to main "
@@ -11643,19 +11686,19 @@ static void do_ssh2_authconn(void *vctx)
 
 	    if (subsys) {
 		s->pktout = ssh2_chanreq_init(ssh->mainchan, "subsystem",
-					      ssh2_response_authconn, NULL);
+					      ssh2_response_connection, NULL);
 		ssh2_pkt_addstring(s->pktout, cmd);
 	    } else if (*cmd) {
 		s->pktout = ssh2_chanreq_init(ssh->mainchan, "exec",
-					      ssh2_response_authconn, NULL);
+					      ssh2_response_connection, NULL);
 		ssh2_pkt_addstring(s->pktout, cmd);
 	    } else {
 		s->pktout = ssh2_chanreq_init(ssh->mainchan, "shell",
-					      ssh2_response_authconn, NULL);
+					      ssh2_response_connection, NULL);
 	    }
 	    ssh2_pkt_send(ssh, s->pktout);
 
-	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL);
+	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_connection)) != NULL);
 
 	    if (pktin->type != SSH2_MSG_CHANNEL_SUCCESS) {
 		if (pktin->type != SSH2_MSG_CHANNEL_FAILURE) {
@@ -11701,7 +11744,7 @@ static void do_ssh2_authconn(void *vctx)
 	ssh->send_ok = 1;
     while (1) {
 	crReturnV;
-	if ((pktin = pq_pop(&ssh->pq_ssh2_authconn)) != NULL) {
+	if ((pktin = pq_pop(&ssh->pq_ssh2_connection)) != NULL) {
 
 	    /*
 	     * _All_ the connection-layer packets we expect to
@@ -11725,6 +11768,11 @@ static void do_ssh2_authconn(void *vctx)
     }
 
     crFinishV;
+}
+
+static void ssh2_connection_input(Ssh ssh)
+{
+    do_ssh2_connection(ssh);
 }
 
 /*
@@ -11848,9 +11896,9 @@ static void ssh2_protocol_setup(Ssh ssh)
 
     /*
      * Initially, we only accept transport messages (and a few generic
-     * ones).  do_ssh2_authconn will add more when it starts.
-     * Messages that are understood but not currently acceptable go to
-     * ssh2_msg_unexpected.
+     * ones). do_ssh2_userauth and do_ssh2_connection will each add
+     * more when they start. Messages that are understood but not
+     * currently acceptable go to ssh2_msg_unexpected.
      */
     ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = ssh2_msg_unexpected;
     ssh->packet_dispatch[SSH2_MSG_SERVICE_REQUEST] = ssh2_msg_unexpected;
@@ -11907,8 +11955,8 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh)
 
     /*
      * Initially, we set all ssh-connection messages to 'unexpected';
-     * do_ssh2_authconn will fill things in properly. We also handle a
-     * couple of messages from the transport protocol which aren't
+     * do_ssh2_connection will fill things in properly. We also handle
+     * a couple of messages from the transport protocol which aren't
      * related to key exchange (UNIMPLEMENTED, IGNORE, DEBUG,
      * DISCONNECT).
      */
@@ -12226,11 +12274,6 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
     }
 }
 
-static void ssh2_authconn_input(Ssh ssh)
-{
-    do_ssh2_authconn(ssh);
-}
-
 static void ssh_cache_conf_values(Ssh ssh)
 {
     ssh->logomitdata = conf_get_int(ssh->conf, CONF_logomitdata);
@@ -12300,7 +12343,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->do_ssh_connection_init_state = NULL;
     ssh->do_ssh1_login_state = NULL;
     ssh->do_ssh2_transport_state = NULL;
-    ssh->do_ssh2_authconn_state = NULL;
+    ssh->do_ssh2_userauth_state = NULL;
+    ssh->do_ssh2_connection_state = NULL;
     bufchain_init(&ssh->incoming_data);
     ssh->incoming_data_seen_eof = FALSE;
     ssh->incoming_data_eof_message = NULL;
@@ -12323,10 +12367,14 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->ssh2_transport_icb.fn = do_ssh2_transport;
     ssh->ssh2_transport_icb.ctx = ssh;
     ssh->ssh2_transport_icb.queued = FALSE;
-    pq_init(&ssh->pq_ssh2_authconn);
-    ssh->ssh2_authconn_icb.fn = do_ssh2_authconn;
-    ssh->ssh2_authconn_icb.ctx = ssh;
-    ssh->ssh2_authconn_icb.queued = FALSE;
+    pq_init(&ssh->pq_ssh2_userauth);
+    ssh->ssh2_userauth_icb.fn = do_ssh2_userauth;
+    ssh->ssh2_userauth_icb.ctx = ssh;
+    ssh->ssh2_userauth_icb.queued = FALSE;
+    pq_init(&ssh->pq_ssh2_connection);
+    ssh->ssh2_connection_icb.fn = do_ssh2_connection;
+    ssh->ssh2_connection_icb.ctx = ssh;
+    ssh->ssh2_connection_icb.queued = FALSE;
     bufchain_init(&ssh->user_input);
     ssh->user_input_consumer.fn = ssh_process_user_input;
     ssh->user_input_consumer.ctx = ssh;
@@ -12503,14 +12551,16 @@ static void ssh_free(void *handle)
     sfree(ssh->do_ssh_init_state);
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);
-    sfree(ssh->do_ssh2_authconn_state);
+    sfree(ssh->do_ssh2_userauth_state);
+    sfree(ssh->do_ssh2_connection_state);
     bufchain_clear(&ssh->incoming_data);
     sfree(ssh->incoming_data_eof_message);
     pq_clear(&ssh->pq_full);
     pq_clear(&ssh->pq_ssh1_login);
     pq_clear(&ssh->pq_ssh1_connection);
     pq_clear(&ssh->pq_ssh2_transport);
-    pq_clear(&ssh->pq_ssh2_authconn);
+    pq_clear(&ssh->pq_ssh2_userauth);
+    pq_clear(&ssh->pq_ssh2_connection);
     bufchain_clear(&ssh->user_input);
     sfree(ssh->v_c);
     sfree(ssh->v_s);
