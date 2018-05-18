@@ -823,26 +823,21 @@ static void pq_clear(struct PacketQueue *pq)
 }
 
 struct rdpkt1_state_tag {
-    long len, pad, biglen, to_read;
+    long len, pad, biglen;
     unsigned long realcrc, gotcrc;
-    unsigned char *p;
-    int i;
     int chunk;
     struct Packet *pktin;
 };
 
 struct rdpkt2_state_tag {
     long len, pad, payload, packetlen, maclen;
-    int i;
     int cipherblk;
     unsigned long incoming_sequence;
     struct Packet *pktin;
 };
 
 struct rdpkt2_bare_state_tag {
-    char length[4];
     long packetlen;
-    int i;
     unsigned long incoming_sequence;
     struct Packet *pktin;
 };
@@ -960,7 +955,6 @@ struct ssh_tag {
     int ssh1_rdpkt_crstate;
     int ssh2_rdpkt_crstate;
     int ssh2_bare_rdpkt_crstate;
-    int ssh_gotdata_crstate;
     int do_ssh1_connection_crstate;
 
     void *do_ssh_init_state;
@@ -968,6 +962,11 @@ struct ssh_tag {
     void *do_ssh2_transport_state;
     void *do_ssh2_authconn_state;
     void *do_ssh_connection_init_state;
+
+    bufchain incoming_data;
+    struct IdempotentCallback incoming_data_consumer;
+    int incoming_data_seen_eof;
+    char *incoming_data_eof_message;
 
     struct PacketQueue pq_full;
     struct IdempotentCallback pq_full_consumer;
@@ -981,8 +980,7 @@ struct ssh_tag {
 
     void (*protocol) (Ssh ssh, const void *vin, int inlen,
 		      struct Packet *pkt);
-    void (*s_rdpkt) (Ssh ssh, const unsigned char **data, int *datalen);
-    int (*do_ssh_init)(Ssh ssh, unsigned char c);
+    void (*current_incoming_data_fn) (Ssh ssh);
 
     /*
      * We maintain our own copy of a Conf structure here. That way,
@@ -1015,15 +1013,9 @@ struct ssh_tag {
 
     /*
      * The SSH connection can be set as `frozen', meaning we are
-     * not currently accepting incoming data from the network. This
-     * is slightly more serious than setting the _socket_ as
-     * frozen, because we may already have had data passed to us
-     * from the network which we need to delay processing until
-     * after the freeze is lifted, so we also need a bufchain to
-     * store that data.
+     * not currently accepting incoming data from the network.
      */
     int frozen;
-    bufchain queued_incoming_data;
 
     /*
      * Dispatch table for packet types that we may have to deal
@@ -1476,7 +1468,7 @@ static void ssh1_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
  * Update the *data and *datalen variables.
  * Return a Packet structure when a packet is completed.
  */
-static void ssh1_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
+static void ssh1_rdpkt(Ssh ssh)
 {
     struct rdpkt1_state_tag *st = &ssh->rdpkt1_state;
 
@@ -1488,11 +1480,11 @@ static void ssh1_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
         st->pktin->type = 0;
         st->pktin->length = 0;
 
-        for (st->i = st->len = 0; st->i < 4; st->i++) {
-            while ((*datalen) == 0)
-                crReturnV;
-            st->len = (st->len << 8) + **data;
-            (*data)++, (*datalen)--;
+        {
+            unsigned char lenbuf[4];
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data, lenbuf, 4));
+            st->len = toint(GET_32BIT_MSB_FIRST(lenbuf));
         }
 
         st->pad = 8 - (st->len % 8);
@@ -1509,20 +1501,9 @@ static void ssh1_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
         st->pktin->maxlen = st->biglen;
         st->pktin->data = snewn(st->biglen + APIEXTRA, unsigned char);
 
-        st->to_read = st->biglen;
-        st->p = st->pktin->data;
-        while (st->to_read > 0) {
-            st->chunk = st->to_read;
-            while ((*datalen) == 0)
-                crReturnV;
-            if (st->chunk > (*datalen))
-                st->chunk = (*datalen);
-            memcpy(st->p, *data, st->chunk);
-            *data += st->chunk;
-            *datalen -= st->chunk;
-            st->p += st->chunk;
-            st->to_read -= st->chunk;
-        }
+        crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                              &ssh->incoming_data,
+                              st->pktin->data, st->biglen));
 
         if (ssh->cipher && detect_attack(ssh->crcda_ctx, st->pktin->data,
                                          st->biglen, NULL)) {
@@ -1736,7 +1717,7 @@ static void ssh2_log_outgoing_packet(Ssh ssh, struct Packet *pkt)
     pkt->length += (pkt->body - pkt->data);
 }
 
-static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
+static void ssh2_rdpkt(Ssh ssh)
 {
     struct rdpkt2_state_tag *st = &ssh->rdpkt2_state;
 
@@ -1780,12 +1761,9 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
                                     unsigned char);
 
             /* Read an amount corresponding to the MAC. */
-            for (st->i = 0; st->i < st->maclen; st->i++) {
-                while ((*datalen) == 0)
-                    crReturnV;
-                st->pktin->data[st->i] = *(*data)++;
-                (*datalen)--;
-            }
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data,
+                                  st->pktin->data, st->maclen));
 
             st->packetlen = 0;
             {
@@ -1797,12 +1775,11 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
 
             for (;;) { /* Once around this loop per cipher block. */
                 /* Read another cipher-block's worth, and tack it onto the end. */
-                for (st->i = 0; st->i < st->cipherblk; st->i++) {
-                    while ((*datalen) == 0)
-                        crReturnV;
-                    st->pktin->data[st->packetlen+st->maclen+st->i] = *(*data)++;
-                    (*datalen)--;
-                }
+                crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                      &ssh->incoming_data,
+                                      st->pktin->data + (st->packetlen +
+                                                         st->maclen),
+                                      st->cipherblk));
                 /* Decrypt one more block (a little further back in the stream). */
                 ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
                                        st->pktin->data + st->packetlen,
@@ -1834,12 +1811,9 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
              * OpenSSH encrypt-then-MAC mode: the packet length is
              * unencrypted, unless the cipher supports length encryption.
              */
-            for (st->i = st->len = 0; st->i < 4; st->i++) {
-                while ((*datalen) == 0)
-                    crReturnV;
-                st->pktin->data[st->i] = *(*data)++;
-                (*datalen)--;
-            }
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data, st->pktin->data, 4));
+
             /* Cipher supports length decryption, so do it */
             if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_SEPARATE_LENGTH)) {
                 /* Keep the packet the same though, so the MAC passes */
@@ -1878,12 +1852,9 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
             /*
              * Read the remainder of the packet.
              */
-            for (st->i = 4; st->i < st->packetlen + st->maclen; st->i++) {
-                while ((*datalen) == 0)
-                    crReturnV;
-                st->pktin->data[st->i] = *(*data)++;
-                (*datalen)--;
-            }
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data, st->pktin->data + 4,
+                                  st->packetlen + st->maclen - 4));
 
             /*
              * Check the MAC.
@@ -1908,12 +1879,9 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
              * Acquire and decrypt the first block of the packet. This will
              * contain the length and padding details.
              */
-            for (st->i = st->len = 0; st->i < st->cipherblk; st->i++) {
-                while ((*datalen) == 0)
-                    crReturnV;
-                st->pktin->data[st->i] = *(*data)++;
-                (*datalen)--;
-            }
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data,
+                                  st->pktin->data, st->cipherblk));
 
             if (ssh->sccipher)
                 ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
@@ -1951,13 +1919,11 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
             /*
              * Read and decrypt the remainder of the packet.
              */
-            for (st->i = st->cipherblk; st->i < st->packetlen + st->maclen;
-                 st->i++) {
-                while ((*datalen) == 0)
-                    crReturnV;
-                st->pktin->data[st->i] = *(*data)++;
-                (*datalen)--;
-            }
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data,
+                                  st->pktin->data + st->cipherblk,
+                                  st->packetlen + st->maclen - st->cipherblk));
+
             /* Decrypt everything _except_ the MAC. */
             if (ssh->sccipher)
                 ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
@@ -2054,25 +2020,21 @@ static void ssh2_rdpkt(Ssh ssh, const unsigned char **data, int *datalen)
     crFinishV;
 }
 
-static void ssh2_bare_connection_rdpkt(
-    Ssh ssh, const unsigned char **data, int *datalen)
+static void ssh2_bare_connection_rdpkt(Ssh ssh)
 {
     struct rdpkt2_bare_state_tag *st = &ssh->rdpkt2_bare_state;
 
     crBegin(ssh->ssh2_bare_rdpkt_crstate);
 
     while (1) {
-        /*
-         * Read the packet length field.
-         */
-        for (st->i = 0; st->i < 4; st->i++) {
-            while ((*datalen) == 0)
-                crReturnV;
-            st->length[st->i] = *(*data)++;
-            (*datalen)--;
+        /* Read the length field. */
+        {
+            unsigned char lenbuf[4];
+            crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                                  &ssh->incoming_data, lenbuf, 4));
+            st->packetlen = toint(GET_32BIT_MSB_FIRST(lenbuf));
         }
 
-        st->packetlen = toint(GET_32BIT_MSB_FIRST(st->length));
         if (st->packetlen <= 0 || st->packetlen >= OUR_V2_PACKETLIMIT) {
             bombout(("Invalid packet length received"));
             crStopV;
@@ -2088,12 +2050,9 @@ static void ssh2_bare_connection_rdpkt(
         /*
          * Read the remainder of the packet.
          */
-        for (st->i = 0; st->i < st->packetlen; st->i++) {
-            while ((*datalen) == 0)
-                crReturnV;
-            st->pktin->data[st->i] = *(*data)++;
-            (*datalen)--;
-        }
+        crMaybeWaitUntilV(bufchain_try_fetch_consume(
+                              &ssh->incoming_data,
+                              st->pktin->data, st->packetlen));
 
         /*
          * pktin->body and pktin->length should identify the semantic
@@ -3237,15 +3196,15 @@ static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
     sfree(verstring);
 }
 
-static int do_ssh_init(Ssh ssh, unsigned char c)
+static void do_ssh_init(Ssh ssh)
 {
     static const char protoname[] = "SSH-";
 
     struct do_ssh_init_state {
 	int crLine;
 	int vslen;
-	char version[10];
 	char *vstring;
+	char *version;
 	int vstrsize;
 	int i;
 	int proto1, proto2;
@@ -3254,55 +3213,91 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     
     crBeginState;
 
-    /* Search for a line beginning with the protocol name prefix in
-     * the input. */
-    for (;;) {
-        for (s->i = 0; protoname[s->i]; s->i++) {
-            if ((char)c != protoname[s->i]) goto no;
-            crReturn(1);
+    /*
+     * Search for a line beginning with the protocol name prefix in
+     * the input.
+     */
+    s->i = 0;
+    while (1) {
+        char prefix[sizeof(protoname)-1];
+
+        /*
+         * Every time round this loop, we're at the start of a new
+         * line, so look for the prefix.
+         */
+        crMaybeWaitUntilV(
+            bufchain_size(&ssh->incoming_data) >= sizeof(prefix));
+        bufchain_fetch(&ssh->incoming_data, prefix, sizeof(prefix));
+        if (!memcmp(prefix, protoname, sizeof(prefix))) {
+            bufchain_consume(&ssh->incoming_data, sizeof(prefix));
+            break;
         }
-	break;
-      no:
-	while (c != '\012')
-	    crReturn(1);
-	crReturn(1);
+
+        /*
+         * If we didn't find it, consume data until we see a newline.
+         */
+        while (1) {
+            int len;
+            void *data;
+            char *nl;
+
+            crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
+            bufchain_prefix(&ssh->incoming_data, &data, &len);
+            if ((nl = memchr(data, '\012', len)) != NULL) {
+                bufchain_consume(&ssh->incoming_data, nl - (char *)data + 1);
+                break;
+            } else {
+                bufchain_consume(&ssh->incoming_data, len);
+            }
+        }
     }
 
     ssh->session_started = TRUE;
+    ssh->agentfwd_enabled = FALSE;
+    ssh->rdpkt2_state.incoming_sequence = 0;
 
+    /*
+     * Now read the rest of the greeting line.
+     */
     s->vstrsize = sizeof(protoname) + 16;
     s->vstring = snewn(s->vstrsize, char);
     strcpy(s->vstring, protoname);
     s->vslen = strlen(protoname);
     s->i = 0;
-    while (1) {
-	if (s->vslen >= s->vstrsize - 1) {
-	    s->vstrsize += 16;
+    do {
+        int len;
+        void *data;
+        char *nl;
+
+        crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
+        bufchain_prefix(&ssh->incoming_data, &data, &len);
+        if ((nl = memchr(data, '\012', len)) != NULL) {
+            len = nl - (char *)data + 1;
+        }
+
+	if (s->vslen + len >= s->vstrsize - 1) {
+	    s->vstrsize = (s->vslen + len) * 5 / 4 + 32;
 	    s->vstring = sresize(s->vstring, s->vstrsize, char);
 	}
-	s->vstring[s->vslen++] = c;
-	if (s->i >= 0) {
-	    if (c == '-') {
-		s->version[s->i] = '\0';
-		s->i = -1;
-	    } else if (s->i < sizeof(s->version) - 1)
-		s->version[s->i++] = c;
-	} else if (c == '\012')
-	    break;
-	crReturn(1);		       /* get another char */
-    }
 
-    ssh->agentfwd_enabled = FALSE;
-    ssh->rdpkt2_state.incoming_sequence = 0;
+	memcpy(s->vstring + s->vslen, data, len);
+        s->vslen += len;
+        bufchain_consume(&ssh->incoming_data, len);
+
+    } while (s->vstring[s->vslen-1] != '\012');
 
     s->vstring[s->vslen] = 0;
     s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
+
     logeventf(ssh, "Server version: %s", s->vstring);
     ssh_detect_bugs(ssh, s->vstring);
 
     /*
      * Decide which SSH protocol version to support.
      */
+    s->version = dupprintf(
+        "%.*s", (int)strcspn(s->vstring + strlen(protoname), "-"),
+        s->vstring + strlen(protoname));
 
     /* Anything strictly below "2.0" means protocol 1 is supported. */
     s->proto1 = ssh_versioncmp(s->version, "2.0") < 0;
@@ -3313,13 +3308,13 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	if (!s->proto1) {
 	    bombout(("SSH protocol version 1 required by our configuration "
 		     "but not provided by server"));
-	    crStop(0);
+	    crStopV;
 	}
     } else if (conf_get_int(ssh->conf, CONF_sshprot) == 3) {
 	if (!s->proto2) {
 	    bombout(("SSH protocol version 2 required by our configuration "
 		     "but server only provides (old, insecure) SSH-1"));
-	    crStop(0);
+	    crStopV;
 	}
     } else {
 	/* No longer support values 1 or 2 for CONF_sshprot */
@@ -3337,6 +3332,8 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
     if (conf_get_int(ssh->conf, CONF_sshprot) != 3)
 	ssh_send_verstring(ssh, protoname, s->version);
 
+    sfree(s->version);
+
     if (ssh->version == 2) {
 	size_t len;
 	/*
@@ -3352,15 +3349,16 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 	 */
 	ssh->protocol = ssh2_protocol;
 	ssh2_protocol_setup(ssh);
-	ssh->s_rdpkt = ssh2_rdpkt;
+	ssh->current_incoming_data_fn = ssh2_rdpkt;
     } else {
 	/*
 	 * Initialise SSH-1 protocol.
 	 */
 	ssh->protocol = ssh1_protocol;
 	ssh1_protocol_setup(ssh);
-	ssh->s_rdpkt = ssh1_rdpkt;
+	ssh->current_incoming_data_fn = ssh1_rdpkt;
     }
+    queue_idempotent_callback(&ssh->incoming_data_consumer);
     if (ssh->version == 2)
 	do_ssh2_transport(ssh, NULL, -1, NULL);
 
@@ -3370,10 +3368,10 @@ static int do_ssh_init(Ssh ssh, unsigned char c)
 
     sfree(s->vstring);
 
-    crFinish(0);
+    crFinishV;
 }
 
-static int do_ssh_connection_init(Ssh ssh, unsigned char c)
+static void do_ssh_connection_init(Ssh ssh)
 {
     /*
      * Ordinary SSH begins with the banner "SSH-x.y-...". This is just
@@ -3390,8 +3388,8 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
     struct do_ssh_connection_init_state {
 	int crLine;
 	int vslen;
-	char version[10];
 	char *vstring;
+	char *version;
 	int vstrsize;
 	int i;
     };
@@ -3399,47 +3397,81 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
     
     crBeginState;
 
-    /* Search for a line beginning with the protocol name prefix in
-     * the input. */
-    for (;;) {
-        for (s->i = 0; protoname[s->i]; s->i++) {
-            if ((char)c != protoname[s->i]) goto no;
-            crReturn(1);
+    /*
+     * Search for a line beginning with the protocol name prefix in
+     * the input.
+     */
+    s->i = 0;
+    while (1) {
+        char prefix[sizeof(protoname)-1];
+
+        /*
+         * Every time round this loop, we're at the start of a new
+         * line, so look for the prefix.
+         */
+        crMaybeWaitUntilV(
+            bufchain_size(&ssh->incoming_data) >= sizeof(prefix));
+        bufchain_fetch(&ssh->incoming_data, prefix, sizeof(prefix));
+        if (!memcmp(prefix, protoname, sizeof(prefix))) {
+            bufchain_consume(&ssh->incoming_data, sizeof(prefix));
+            break;
         }
-	break;
-      no:
-	while (c != '\012')
-	    crReturn(1);
-	crReturn(1);
+
+        /*
+         * If we didn't find it, consume data until we see a newline.
+         */
+        while (1) {
+            int len;
+            void *data;
+            char *nl;
+
+            crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
+            bufchain_prefix(&ssh->incoming_data, &data, &len);
+            if ((nl = memchr(data, '\012', len)) != NULL) {
+                bufchain_consume(&ssh->incoming_data, nl - (char *)data + 1);
+                break;
+            } else {
+                bufchain_consume(&ssh->incoming_data, len);
+            }
+        }
     }
 
+    /*
+     * Now read the rest of the greeting line.
+     */
     s->vstrsize = sizeof(protoname) + 16;
     s->vstring = snewn(s->vstrsize, char);
     strcpy(s->vstring, protoname);
     s->vslen = strlen(protoname);
     s->i = 0;
-    while (1) {
-	if (s->vslen >= s->vstrsize - 1) {
-	    s->vstrsize += 16;
+    do {
+        int len;
+        void *data;
+        char *nl;
+
+        crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
+        bufchain_prefix(&ssh->incoming_data, &data, &len);
+        if ((nl = memchr(data, '\012', len)) != NULL) {
+            len = nl - (char *)data + 1;
+        }
+
+	if (s->vslen + len >= s->vstrsize - 1) {
+	    s->vstrsize = (s->vslen + len) * 5 / 4 + 32;
 	    s->vstring = sresize(s->vstring, s->vstrsize, char);
 	}
-	s->vstring[s->vslen++] = c;
-	if (s->i >= 0) {
-	    if (c == '-') {
-		s->version[s->i] = '\0';
-		s->i = -1;
-	    } else if (s->i < sizeof(s->version) - 1)
-		s->version[s->i++] = c;
-	} else if (c == '\012')
-	    break;
-	crReturn(1);		       /* get another char */
-    }
+
+	memcpy(s->vstring + s->vslen, data, len);
+        s->vslen += len;
+        bufchain_consume(&ssh->incoming_data, len);
+
+    } while (s->vstring[s->vslen-1] != '\012');
+
+    s->vstring[s->vslen] = 0;
+    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
 
     ssh->agentfwd_enabled = FALSE;
     ssh->rdpkt2_bare_state.incoming_sequence = 0;
 
-    s->vstring[s->vslen] = 0;
-    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
     logeventf(ssh, "Server version: %s", s->vstring);
     ssh_detect_bugs(ssh, s->vstring);
 
@@ -3447,13 +3479,17 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
      * Decide which SSH protocol version to support. This is easy in
      * bare ssh-connection mode: only 2.0 is legal.
      */
+    s->version = dupprintf(
+        "%.*s", (int)strcspn(s->vstring + strlen(protoname), "-"),
+        s->vstring + strlen(protoname));
+
     if (ssh_versioncmp(s->version, "2.0") < 0) {
 	bombout(("Server announces compatibility with SSH-1 in bare ssh-connection protocol"));
-        crStop(0);
+        crStopV;
     }
     if (conf_get_int(ssh->conf, CONF_sshprot) == 0) {
 	bombout(("Bare ssh-connection protocol cannot be run in SSH-1-only mode"));
-	crStop(0);
+	crStopV;
     }
 
     ssh->version = 2;
@@ -3463,12 +3499,15 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
     /* Send the version string, if we haven't already */
     ssh_send_verstring(ssh, protoname, s->version);
 
+    sfree(s->version);
+
     /*
      * Initialise bare connection protocol.
      */
     ssh->protocol = ssh2_bare_connection_protocol;
     ssh2_bare_connection_protocol_setup(ssh);
-    ssh->s_rdpkt = ssh2_bare_connection_rdpkt;
+    ssh->current_incoming_data_fn = ssh2_bare_connection_rdpkt;
+    queue_idempotent_callback(&ssh->incoming_data_consumer);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
@@ -3481,46 +3520,7 @@ static int do_ssh_connection_init(Ssh ssh, unsigned char c)
 
     sfree(s->vstring);
 
-    crFinish(0);
-}
-
-static void ssh_process_incoming_data(Ssh ssh,
-				      const unsigned char **data, int *datalen)
-{
-    struct Packet *pktin;
-
-    ssh->s_rdpkt(ssh, data, datalen);
-    while ((pktin = pq_pop(&ssh->pq_full)) != NULL) {
-	ssh->protocol(ssh, NULL, 0, pktin);
-	ssh_unref_packet(pktin);
-    }
-}
-
-static void ssh_queue_incoming_data(Ssh ssh,
-				    const unsigned char **data, int *datalen)
-{
-    bufchain_add(&ssh->queued_incoming_data, *data, *datalen);
-    *data += *datalen;
-    *datalen = 0;
-}
-
-static void ssh_process_queued_incoming_data(Ssh ssh)
-{
-    void *vdata;
-    const unsigned char *data;
-    int len, origlen;
-
-    while (!ssh->frozen && bufchain_size(&ssh->queued_incoming_data)) {
-	bufchain_prefix(&ssh->queued_incoming_data, &vdata, &len);
-	data = vdata;
-	origlen = len;
-
-	while (!ssh->frozen && len > 0)
-	    ssh_process_incoming_data(ssh, &data, &len);
-
-	if (origlen > len)
-	    bufchain_consume(&ssh->queued_incoming_data, origlen - len);
-    }
+    crFinishV;
 }
 
 static void ssh_set_frozen(Ssh ssh, int frozen)
@@ -3528,6 +3528,43 @@ static void ssh_set_frozen(Ssh ssh, int frozen)
     if (ssh->s)
 	sk_set_frozen(ssh->s, frozen);
     ssh->frozen = frozen;
+}
+
+static void ssh_process_incoming_data(void *ctx)
+{
+    Ssh ssh = (Ssh)ctx;
+
+    if (ssh->state == SSH_STATE_CLOSED)
+        return;
+
+    if (!ssh->frozen && !ssh->pending_newkeys)
+        ssh->current_incoming_data_fn(ssh);
+
+    if (ssh->state == SSH_STATE_CLOSED) /* yes, check _again_ */
+        return;
+
+    if (ssh->incoming_data_seen_eof) {
+        int need_notify = ssh_do_close(ssh, FALSE);
+        const char *error_msg = ssh->incoming_data_eof_message;
+
+        if (!error_msg) {
+            if (!ssh->close_expected)
+                error_msg = "Server unexpectedly closed network connection";
+            else
+                error_msg = "Server closed network connection";
+        }
+
+        if (ssh->close_expected && ssh->clean_exit && ssh->exitcode < 0)
+            ssh->exitcode = 0;
+
+        if (need_notify)
+            notify_remote_exit(ssh->frontend);
+
+        if (error_msg)
+            logevent(error_msg);
+        if (!ssh->close_expected || !ssh->clean_exit)
+            connection_fatal(ssh->frontend, "%s", error_msg);
+    }
 }
 
 static void ssh_process_pq_full(void *ctx)
@@ -3539,66 +3576,6 @@ static void ssh_process_pq_full(void *ctx)
 	ssh->protocol(ssh, NULL, 0, pktin);
 	ssh_unref_packet(pktin);
     }
-}
-
-static void ssh_gotdata(Ssh ssh, const unsigned char *data, int datalen)
-{
-    /* Log raw data, if we're in that mode. */
-    if (ssh->logctx)
-	log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, datalen,
-		   0, NULL, NULL, 0, NULL);
-
-    crBegin(ssh->ssh_gotdata_crstate);
-
-    /*
-     * To begin with, feed the characters one by one to the
-     * protocol initialisation / selection function do_ssh_init().
-     * When that returns 0, we're done with the initial greeting
-     * exchange and can move on to packet discipline.
-     */
-    while (1) {
-	int ret;		       /* need not be kept across crReturn */
-	if (datalen == 0)
-	    crReturnV;		       /* more data please */
-	ret = ssh->do_ssh_init(ssh, *data);
-	data++;
-	datalen--;
-	if (ret == 0)
-	    break;
-    }
-
-    /*
-     * We emerge from that loop when the initial negotiation is
-     * over and we have selected an s_rdpkt function. Now pass
-     * everything to s_rdpkt, and then pass the resulting packets
-     * to the proper protocol handler.
-     */
-
-    while (1) {
-	while (bufchain_size(&ssh->queued_incoming_data) > 0 || datalen > 0) {
-	    if (ssh->frozen) {
-		ssh_queue_incoming_data(ssh, &data, &datalen);
-		/* This uses up all data and cannot cause anything interesting
-		 * to happen; indeed, for anything to happen at all, we must
-		 * return, so break out. */
-		break;
-	    } else if (bufchain_size(&ssh->queued_incoming_data) > 0) {
-		/* This uses up some or all data, and may freeze the
-		 * session. */
-		ssh_process_queued_incoming_data(ssh);
-	    } else {
-		/* This uses up some or all data, and may freeze the
-		 * session. */
-		ssh_process_incoming_data(ssh, &data, &datalen);
-	    }
-	    /* FIXME this is probably EBW. */
-	    if (ssh->state == SSH_STATE_CLOSED)
-		return;
-	}
-	/* We're out of data. Go and get some more. */
-	crReturnV;
-    }
-    crFinishV;
 }
 
 static int ssh_do_close(Ssh ssh, int notify_exit)
@@ -3714,31 +3691,23 @@ static void ssh_closing(Plug plug, const char *error_msg, int error_code,
 			int calling_back)
 {
     Ssh ssh = (Ssh) plug;
-    int need_notify = ssh_do_close(ssh, FALSE);
-
-    if (!error_msg) {
-	if (!ssh->close_expected)
-	    error_msg = "Server unexpectedly closed network connection";
-	else
-	    error_msg = "Server closed network connection";
-    }
-
-    if (ssh->close_expected && ssh->clean_exit && ssh->exitcode < 0)
-	ssh->exitcode = 0;
-
-    if (need_notify)
-        notify_remote_exit(ssh->frontend);
-
-    if (error_msg)
-	logevent(error_msg);
-    if (!ssh->close_expected || !ssh->clean_exit)
-	connection_fatal(ssh->frontend, "%s", error_msg);
+    ssh->incoming_data_seen_eof = TRUE;
+    ssh->incoming_data_eof_message = dupstr(error_msg);
+    queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
 static void ssh_receive(Plug plug, int urgent, char *data, int len)
 {
     Ssh ssh = (Ssh) plug;
-    ssh_gotdata(ssh, (unsigned char *)data, len);
+
+    /* Log raw data, if we're in that mode. */
+    if (ssh->logctx)
+	log_packet(ssh->logctx, PKT_INCOMING, -1, NULL, data, len,
+		   0, NULL, NULL, 0, NULL);
+
+    bufchain_add(&ssh->incoming_data, data, len);
+    queue_idempotent_callback(&ssh->incoming_data_consumer);
+
     if (ssh->state == SSH_STATE_CLOSED) {
 	ssh_do_close(ssh, TRUE);
     }
@@ -3853,14 +3822,14 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
          * We are a downstream.
          */
         ssh->bare_connection = TRUE;
-        ssh->do_ssh_init = do_ssh_connection_init;
+        ssh->current_incoming_data_fn = do_ssh_connection_init;
         ssh->fullhostname = NULL;
         *realhost = dupstr(host);      /* best we can do */
     } else {
         /*
          * We're not a downstream, so open a normal socket.
          */
-        ssh->do_ssh_init = do_ssh_init;
+        ssh->current_incoming_data_fn = do_ssh_init;
 
         /*
          * Try to find host.
@@ -3995,10 +3964,10 @@ static void ssh_dialog_callback(void *sshv, int ret)
 	do_ssh2_transport(ssh, NULL, -1, NULL);
 
     /*
-     * This may have unfrozen the SSH connection, so do a
-     * queued-data run.
+     * This may have unfrozen the SSH connection.
      */
-    ssh_process_queued_incoming_data(ssh);
+    if (!ssh->frozen)
+        queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
 static void ssh_agentf_got_response(struct ssh_channel *c,
@@ -4088,8 +4057,7 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
         messagelen = lengthfield + 4;
 
         message = snewn(messagelen, unsigned char);
-        bufchain_fetch(&c->u.a.inbuffer, message, messagelen);
-        bufchain_consume(&c->u.a.inbuffer, messagelen);
+        bufchain_fetch_consume(&c->u.a.inbuffer, message, messagelen);
         c->u.a.pending = agent_query(
             message, messagelen, &reply, &replylen, ssh_agentf_callback, c);
         sfree(message);
@@ -12353,13 +12321,18 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->ssh1_rdpkt_crstate = 0;
     ssh->ssh2_rdpkt_crstate = 0;
     ssh->ssh2_bare_rdpkt_crstate = 0;
-    ssh->ssh_gotdata_crstate = 0;
     ssh->do_ssh1_connection_crstate = 0;
     ssh->do_ssh_init_state = NULL;
     ssh->do_ssh_connection_init_state = NULL;
     ssh->do_ssh1_login_state = NULL;
     ssh->do_ssh2_transport_state = NULL;
     ssh->do_ssh2_authconn_state = NULL;
+    bufchain_init(&ssh->incoming_data);
+    ssh->incoming_data_seen_eof = FALSE;
+    ssh->incoming_data_eof_message = NULL;
+    ssh->incoming_data_consumer.fn = ssh_process_incoming_data;
+    ssh->incoming_data_consumer.ctx = ssh;
+    ssh->incoming_data_consumer.queued = FALSE;
     pq_init(&ssh->pq_full);
     ssh->pq_full_consumer.fn = ssh_process_pq_full;
     ssh->pq_full_consumer.ctx = ssh;
@@ -12375,7 +12348,6 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->queueing = FALSE;
     ssh->qhead = ssh->qtail = NULL;
     ssh->deferred_rekey_reason = NULL;
-    bufchain_init(&ssh->queued_incoming_data);
     ssh->frozen = FALSE;
     ssh->username = NULL;
     ssh->sent_console_eof = FALSE;
@@ -12538,6 +12510,8 @@ static void ssh_free(void *handle)
     sfree(ssh->do_ssh1_login_state);
     sfree(ssh->do_ssh2_transport_state);
     sfree(ssh->do_ssh2_authconn_state);
+    bufchain_clear(&ssh->incoming_data);
+    sfree(ssh->incoming_data_eof_message);
     pq_clear(&ssh->pq_full);
     sfree(ssh->v_c);
     sfree(ssh->v_s);
@@ -12553,7 +12527,6 @@ static void ssh_free(void *handle)
     expire_timer_context(ssh);
     if (ssh->pinger)
 	pinger_free(ssh->pinger);
-    bufchain_clear(&ssh->queued_incoming_data);
     sfree(ssh->username);
     conf_free(ssh->conf);
 
@@ -12992,7 +12965,7 @@ static void ssh_unthrottle(void *handle, int bufsize)
      * Now process any SSH connection data that was stashed in our
      * queue while we were frozen.
      */
-    ssh_process_queued_incoming_data(ssh);
+    queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
 void ssh_send_port_open(void *channel, const char *hostname, int port,
