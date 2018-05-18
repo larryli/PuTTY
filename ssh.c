@@ -6023,8 +6023,7 @@ int ssh_agent_forwarding_permitted(Ssh ssh)
     return conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists();
 }
 
-static void do_ssh1_connection(Ssh ssh, const unsigned char *in, int inlen,
-			       struct Packet *pktin)
+static void do_ssh1_connection(Ssh ssh, struct Packet *pktin)
 {
     crBegin(ssh->do_ssh1_connection_crstate);
 
@@ -6219,13 +6218,16 @@ static void do_ssh1_connection(Ssh ssh, const unsigned char *in, int inlen,
 		crStopV;
 	    }
 	} else {
-	    while (inlen > 0) {
-		int len = min(inlen, 512);
+            while (bufchain_size(&ssh->user_input) > 0) {
+                void *data;
+                int len;
+                bufchain_prefix(&ssh->user_input, &data, &len);
+                if (len > 512)
+                    len = 512;
 		send_packet(ssh, SSH1_CMSG_STDIN_DATA,
-			    PKT_INT, len, PKT_DATA, in, len,
+			    PKT_INT, len, PKT_DATA, data, len,
                             PKT_END);
-		in += len;
-		inlen -= len;
+                bufchain_consume(&ssh->user_input, len);
 	    }
 	}
     }
@@ -6268,13 +6270,7 @@ static void ssh1_login_input(Ssh ssh)
 
 static void ssh1_connection_input(Ssh ssh)
 {
-    while (bufchain_size(&ssh->user_input) > 0) {
-        void *data;
-        int len;
-        bufchain_prefix(&ssh->user_input, &data, &len);
-        do_ssh1_connection(ssh, data, len, NULL);
-        bufchain_consume(&ssh->user_input, len);
-    }
+    do_ssh1_connection(ssh, NULL);
 }
 
 static void ssh1_coro_wrapper_initial(Ssh ssh, struct Packet *pktin)
@@ -6286,7 +6282,7 @@ static void ssh1_coro_wrapper_initial(Ssh ssh, struct Packet *pktin)
 
 static void ssh1_coro_wrapper_session(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh1_connection(ssh, NULL, 0, pktin);
+    do_ssh1_connection(ssh, pktin);
 }
 
 static void ssh1_protocol_setup(Ssh ssh)
