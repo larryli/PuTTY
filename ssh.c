@@ -747,8 +747,7 @@ static void ssh2_gss_update(Ssh ssh, int definitely_rekeying);
 static struct Packet *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
                                           const char *authtype);
 #endif
-static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
-			      struct Packet *pktin);
+static void do_ssh2_transport(Ssh ssh, struct Packet *pktin);
 static void ssh2_msg_unexpected(Ssh ssh, struct Packet *pktin);
 static void ssh_unref_packet(struct Packet *pkt);
 
@@ -844,6 +843,31 @@ struct queued_handler {
     void *ctx;
     struct queued_handler *next;
 };
+
+/*
+ * Enumeration of high-level classes of reason why we might need to do
+ * a repeat key exchange. The full detailed reason in human-readable
+ * form for the Event Log is kept in ssh->rekey_reason, but
+ * ssh->rekey_class is a variable with this enum type which is used to
+ * discriminate between classes of reason that the code needs to treat
+ * differently.
+ *
+ * RK_INITIAL is a dummy value indicating that we haven't even done
+ * the _first_ key exchange yet. RK_NORMAL is the usual case.
+ * RK_GSS_UPDATE indicates that we're rekeying because we've just got
+ * new GSSAPI credentials (hence there's no point in doing a
+ * preliminary check for new GSS creds, because we already know the
+ * answer); RK_POST_USERAUTH indicates that _if_ we're going to need a
+ * post-userauth immediate rekey for any reason, this is the moment to
+ * do it.
+ *
+ * So RK_POST_USERAUTH only tells the transport layer to _consider_
+ * rekeying, not to definitely do it. Also, that one enum value is
+ * special in that do_ssh2_transport fills in the reason text after it
+ * decides whether it needs a rekey at all. In the other cases,
+ * rekey_reason is set up at the same time as rekey_class.
+ */
+enum RekeyClass { RK_INITIAL, RK_NORMAL, RK_POST_USERAUTH, RK_GSS_UPDATE };
 
 struct ssh_tag {
     const struct plug_function_table *fn;
@@ -977,6 +1001,9 @@ struct ssh_tag {
 
     bufchain user_input;
     struct IdempotentCallback user_input_consumer;
+
+    const char *rekey_reason;
+    enum RekeyClass rekey_class;
 
     struct rdpkt1_state_tag rdpkt1_state;
     struct rdpkt2_state_tag rdpkt2_state;
@@ -2555,8 +2582,11 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, struct Packet *pkt)
     if (!ssh->kex_in_progress &&
         !ssh->bare_connection &&
 	ssh->max_data_size != 0 &&
-	ssh->outgoing_data_size > ssh->max_data_size)
-	do_ssh2_transport(ssh, "too much data sent", -1, NULL);
+	ssh->outgoing_data_size > ssh->max_data_size) {
+        ssh->rekey_reason = "too much data sent";
+        ssh->rekey_class = RK_NORMAL;
+	do_ssh2_transport(ssh, NULL);
+    }
 
     ssh_unref_packet(pkt);
 }
@@ -2659,8 +2689,11 @@ static void ssh_pkt_defersend(Ssh ssh)
 	if (!ssh->kex_in_progress &&
 	    !ssh->bare_connection &&
 	    ssh->max_data_size != 0 &&
-	    ssh->outgoing_data_size > ssh->max_data_size)
-	    do_ssh2_transport(ssh, "too much data sent", -1, NULL);
+	    ssh->outgoing_data_size > ssh->max_data_size) {
+            ssh->rekey_reason = "too much data sent";
+            ssh->rekey_class = RK_NORMAL;
+	    do_ssh2_transport(ssh, NULL);
+        }
     }
 }
 
@@ -3365,7 +3398,7 @@ static void do_ssh_init(Ssh ssh)
     }
     queue_idempotent_callback(&ssh->incoming_data_consumer);
     if (ssh->version == 2)
-	do_ssh2_transport(ssh, NULL, -1, NULL);
+	do_ssh2_transport(ssh, NULL);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
@@ -3974,7 +4007,7 @@ static void ssh_dialog_callback(void *sshv, int ret)
     if (ssh->version == 1)
 	do_ssh1_login(ssh);
     else
-	do_ssh2_transport(ssh, NULL, -1, NULL);
+	do_ssh2_transport(ssh, NULL);
 
     /*
      * This may have unfrozen the SSH connection.
@@ -6575,15 +6608,11 @@ static int ssh_have_any_transient_hostkey(Ssh ssh)
 
 #endif /* NO_GSSAPI */
 
-#define GSS_UPDATE_REKEY_REASON "GSS credentials updated"
-
 /*
  * Handle the SSH-2 transport layer.
  */
-static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
-			     struct Packet *pktin)
+static void do_ssh2_transport(Ssh ssh, struct Packet *pktin)
 {
-    const unsigned char *in = (const unsigned char *)vin;
     enum kexlist {
 	KEXLIST_KEX, KEXLIST_HOSTKEY, KEXLIST_CSCIPHER, KEXLIST_SCCIPHER,
 	KEXLIST_CSMAC, KEXLIST_SCMAC, KEXLIST_CSCOMP, KEXLIST_SCCOMP,
@@ -6695,7 +6724,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
          * rekey to update delegated credentials. In that case, the
          * state is "fresh".
          */
-        if (!vin || strcmp(vin, GSS_UPDATE_REKEY_REASON) != 0)
+        if (ssh->rekey_class != RK_GSS_UPDATE)
             ssh2_gss_update(ssh, TRUE);
 
         /* Do GSSAPI KEX when capable */
@@ -7196,14 +7225,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			       ssh->kex->name,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while"
-				 " waiting for user response"));
-			crStopV;
-		    }
-		} while (pktin || inlen > 0);
+                ssh->user_response = -1;
+		crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
 	    ssh_set_frozen(ssh, 0);
@@ -7263,14 +7286,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
                                    ssh_dialog_callback, ssh);
             }
 	    if (s->dlgret < 0) {
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while"
-				 " waiting for user response"));
-			crStopV;
-		    }
-		} while (pktin || inlen > 0);
+                ssh->user_response = -1;
+                crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
 	    ssh_set_frozen(ssh, 0);
@@ -7288,14 +7305,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			       s->cscipher_tobe->name,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while"
-				 " waiting for user response"));
-			crStopV;
-		    }
-		} while (pktin || inlen > 0);
+                ssh->user_response = -1;
+                crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
 	    ssh_set_frozen(ssh, 0);
@@ -7313,14 +7324,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 			       s->sccipher_tobe->name,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
-		do {
-		    crReturnV;
-		    if (pktin) {
-			bombout(("Unexpected data from server while"
-				 " waiting for user response"));
-			crStopV;
-		    }
-		} while (pktin || inlen > 0);
+                ssh->user_response = -1;
+                crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
 	    ssh_set_frozen(ssh, 0);
@@ -8156,17 +8161,11 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 #ifdef FUZZING
 	    s->dlgret = 1;
 #endif
-            if (s->dlgret < 0) {
-                do {
-                    crReturnV;
-                    if (pktin) {
-                        bombout(("Unexpected data from server while waiting"
-                                 " for user host key response"));
-                        crStopV;
-                    }
-                } while (pktin || inlen > 0);
-                s->dlgret = ssh->user_response;
-            }
+	    if (s->dlgret < 0) {
+                ssh->user_response = -1;
+                crWaitUntilV(ssh->user_response >= 0);
+		s->dlgret = ssh->user_response;
+	    }
             ssh_set_frozen(ssh, 0);
             if (s->dlgret == 0) {
                 ssh_disconnect(ssh, "Aborted at host key verification", NULL,
@@ -8415,17 +8414,12 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
      * transport. If we ever see a KEXINIT, we must go back to the
      * start.
      * 
-     * We _also_ go back to the start if we see pktin==NULL and
-     * inlen negative, because this is a special signal meaning
-     * `initiate client-driven rekey', and `in' contains a message
-     * giving the reason for the rekey.
-     *
-     * inlen==-1 means always initiate a rekey;
-     * inlen==-2 means that userauth has completed successfully and
-     *   we should consider rekeying (for delayed compression).
+     * We _also_ go back to the start if ssh->rekey_reason is
+     * non-NULL, i.e. we've decided to initiate a rekey ourselves for
+     * some reason.
      */
     while (!((pktin && pktin->type == SSH2_MSG_KEXINIT) ||
-	     (!pktin && inlen < 0))) {
+	     ssh->rekey_reason != NULL)) {
         wait_for_rekey:
 	if (!ssh->current_user_input_fn) {
 	    /*
@@ -8439,7 +8433,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
     if (pktin) {
 	logevent("Server initiated key re-exchange");
     } else {
-	if (inlen == -2) {
+	if (ssh->rekey_class == RK_POST_USERAUTH) {
 	    /* 
              * authconn has seen a USERAUTH_SUCCEEDED. For a couple of
              * reasons, this may be the moment to do an immediate
@@ -8471,9 +8465,9 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    assert(!s->userauth_succeeded); /* should only happen once */
 	    s->userauth_succeeded = TRUE;
             if (s->pending_compression) {
-                in = (void *)"enabling delayed compression";
+                ssh->rekey_reason = "enabling delayed compression";
             } else if (s->need_gss_transient_hostkey) {
-                in = (void *)"populating transient host key cache";
+                ssh->rekey_reason = "populating transient host key cache";
             } else {
 		/* Can't see any point rekeying. */
 		goto wait_for_rekey;       /* this is utterly horrid */
@@ -8492,7 +8486,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
          */
         if ((ssh->remote_bugs & BUG_SSH2_REKEY)) {
             logeventf(ssh, "Server bug prevents key re-exchange (%s)",
-                      (char *)in);
+                      ssh->rekey_reason);
             /* Reset the counters, so that at least this message doesn't
              * hit the event log _too_ often. */
             ssh->outgoing_data_size = 0;
@@ -8500,7 +8494,8 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
             (void) ssh2_timer_update(ssh, 0);
             goto wait_for_rekey;       /* this is still utterly horrid */
         } else {
-            logeventf(ssh, "Initiating key re-exchange (%s)", (char *)in);
+            logeventf(ssh, "Initiating key re-exchange (%s)",
+                      ssh->rekey_reason);
         }
     }
     goto begin_key_exchange;
@@ -11470,7 +11465,9 @@ static void do_ssh2_authconn(void *vctx)
          * that triggers on USERAUTH_SUCCESS specifically, and
          * we_are_in can become set for other reasons.)
 	 */
-        do_ssh2_transport(ssh, NULL, -2, NULL);
+        ssh->rekey_reason = NULL;      /* will be filled in later */
+        ssh->rekey_class = RK_POST_USERAUTH;
+	do_ssh2_transport(ssh, NULL);
     }
 
     ssh->channels = newtree234(ssh_channelcmp);
@@ -11770,7 +11767,7 @@ static void ssh2_msg_debug(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_msg_transport(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh2_transport(ssh, NULL, 0, pktin);
+    do_ssh2_transport(ssh, pktin);
 }
 
 /*
@@ -12180,7 +12177,9 @@ static void ssh2_timer(void *ctx, unsigned long now)
     /* Rekey if enough time has elapsed */
     ticks = mins * 60 * TICKSPERSEC;
     if (now - ssh->last_rekey > ticks - 30*TICKSPERSEC) {
-	do_ssh2_transport(ssh, "timeout", -1, NULL);
+        ssh->rekey_reason = "timeout";
+        ssh->rekey_class = RK_NORMAL;
+	do_ssh2_transport(ssh, NULL);
         return;
     }
 
@@ -12194,7 +12193,9 @@ static void ssh2_timer(void *ctx, unsigned long now)
         if ((ssh->gss_status & GSS_KEX_CAPABLE) != 0 &&
             (ssh->gss_status & GSS_CTXT_MAYFAIL) == 0 &&
             (ssh->gss_status & (GSS_CRED_UPDATED|GSS_CTXT_EXPIRES)) != 0) {
-            do_ssh2_transport(ssh, GSS_UPDATE_REKEY_REASON, -1, NULL);
+            ssh->rekey_reason = "GSS credentials updated";
+            ssh->rekey_class = RK_GSS_UPDATE;
+            do_ssh2_transport(ssh, NULL);
             return;
         }
     }
@@ -12209,8 +12210,11 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
     ssh->incoming_data_size += pktin->encrypted_len;
     if (!ssh->kex_in_progress &&
         ssh->max_data_size != 0 &&
-        ssh->incoming_data_size > ssh->max_data_size)
-        do_ssh2_transport(ssh, "too much data received", -1, NULL);
+        ssh->incoming_data_size > ssh->max_data_size) {
+        ssh->rekey_reason = "too much data received";
+        ssh->rekey_class = RK_NORMAL;
+        do_ssh2_transport(ssh, NULL);
+    }
 }
 
 static void ssh2_authconn_input(Ssh ssh)
@@ -12315,6 +12319,8 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->user_input_consumer.ctx = ssh;
     ssh->user_input_consumer.queued = FALSE;
     ssh->pending_newkeys = FALSE;
+    ssh->rekey_reason = NULL;
+    ssh->rekey_class = RK_INITIAL;
     ssh->v_c = NULL;
     ssh->v_s = NULL;
     ssh->mainchan = NULL;
@@ -12581,7 +12587,9 @@ static void ssh_reconfig(void *handle, Conf *conf)
 
     if (!ssh->bare_connection && rekeying) {
 	if (!ssh->kex_in_progress) {
-	    do_ssh2_transport(ssh, rekeying, -1, NULL);
+            ssh->rekey_reason = rekeying;
+            ssh->rekey_class = RK_NORMAL;
+	    do_ssh2_transport(ssh, NULL);
 	} else if (rekey_mandatory) {
 	    ssh->deferred_rekey_reason = rekeying;
 	}
@@ -12824,14 +12832,18 @@ static void ssh_special(void *handle, Telnet_Special code)
     } else if (code == TS_REKEY) {
 	if (!ssh->kex_in_progress && !ssh->bare_connection &&
             ssh->version == 2) {
-	    do_ssh2_transport(ssh, "at user request", -1, NULL);
+            ssh->rekey_reason = "at user request";
+            ssh->rekey_class = RK_NORMAL;
+	    do_ssh2_transport(ssh, NULL);
 	}
     } else if (code >= TS_LOCALSTART) {
         ssh->hostkey = hostkey_algs[code - TS_LOCALSTART].alg;
         ssh->cross_certifying = TRUE;
 	if (!ssh->kex_in_progress && !ssh->bare_connection &&
             ssh->version == 2) {
-	    do_ssh2_transport(ssh, "cross-certifying new host key", -1, NULL);
+            ssh->rekey_reason = "cross-certifying new host key";
+            ssh->rekey_class = RK_NORMAL;
+	    do_ssh2_transport(ssh, NULL);
 	}
     } else if (code == TS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED
