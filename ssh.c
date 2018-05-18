@@ -362,6 +362,8 @@ enum {
 #define crStopV		do{ *crLine = 0; return; }while(0)
 #define crWaitUntil(c)	do { crReturn(0); } while (!(c))
 #define crWaitUntilV(c)	do { crReturnV; } while (!(c))
+#define crMaybeWaitUntil(c) do { while (!(c)) crReturn(0); } while (0)
+#define crMaybeWaitUntilV(c) do { while (!(c)) crReturnV; } while (0)
 
 struct Packet;
 
