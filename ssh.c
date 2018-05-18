@@ -385,8 +385,7 @@ static int ssh2_pkt_construct(Ssh, struct Packet *);
 static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
 static void do_ssh1_login(void *vctx);
-static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
-			     struct Packet *pktin);
+static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin);
 static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
 static void ssh_channel_got_eof(struct ssh_channel *c);
@@ -3515,7 +3514,7 @@ static void do_ssh_connection_init(Ssh ssh)
     /*
      * Get authconn (really just conn) under way.
      */
-    do_ssh2_authconn(ssh, NULL, 0, NULL);
+    do_ssh2_authconn(ssh, NULL);
 
     sfree(s->vstring);
 
@@ -3957,7 +3956,7 @@ static void ssh_agent_callback(void *sshv, void *reply, int replylen)
     if (ssh->version == 1)
 	do_ssh1_login(ssh);
     else
-	do_ssh2_authconn(ssh, NULL, -1, NULL);
+	do_ssh2_authconn(ssh, NULL);
 }
 
 static void ssh_dialog_callback(void *sshv, int ret)
@@ -8433,7 +8432,7 @@ static void do_ssh2_transport(Ssh ssh, const void *vin, int inlen,
 	    /*
 	     * Allow authconn to initialise itself.
 	     */
-	    do_ssh2_authconn(ssh, NULL, 0, NULL);
+	    do_ssh2_authconn(ssh, NULL);
 	    ssh->current_user_input_fn = ssh2_authconn_input;
 	}
 	crReturnV;
@@ -9986,18 +9985,17 @@ static void ssh2_setup_env(struct ssh_channel *c, struct Packet *pktin,
  */
 static void ssh2_msg_authconn(Ssh ssh, struct Packet *pktin)
 {
-    do_ssh2_authconn(ssh, NULL, 0, pktin);
+    do_ssh2_authconn(ssh, pktin);
 }
 
 static void ssh2_response_authconn(struct ssh_channel *c, struct Packet *pktin,
 				   void *ctx)
 {
     if (pktin)
-        do_ssh2_authconn(c->ssh, NULL, 0, pktin);
+        do_ssh2_authconn(c->ssh, pktin);
 }
 
-static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
-			     struct Packet *pktin)
+static void do_ssh2_authconn(Ssh ssh, struct Packet *pktin)
 {
     struct do_ssh2_authconn_state {
 	int crLine;
@@ -10013,6 +10011,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	} type;
 	int done_service_req;
 	int gotit, need_pw, can_pubkey, can_passwd, can_keyb_inter;
+        int userpass_ret;
 	int tried_pubkey_config, done_agent;
 #ifndef NO_GSSAPI
 	int can_gssapi;
@@ -10197,6 +10196,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
                 s->agent_request, 5, &r, &s->agent_responselen,
                 ssh_agent_callback, ssh);
 	    if (ssh->auth_agent_query) {
+                ssh->agent_response = NULL;
 		do {
 		    crReturnV;
 		    if (pktin) {
@@ -10204,7 +10204,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 				 " waiting for agent response"));
 			crStopV;
 		    }
-		} while (pktin || inlen > 0);
+		} while (!ssh->agent_response);
 		r = ssh->agent_response;
 		s->agent_responselen = ssh->agent_response_len;
 	    }
@@ -10326,23 +10326,21 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	     * it again.
 	     */
 	} else if ((ssh->username = get_remote_username(ssh->conf)) == NULL) {
-	    int ret; /* need not be kept over crReturn */
 	    s->cur_prompt = new_prompts(ssh->frontend);
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH login name");
 	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE); 
-	    ret = get_userpass_input(s->cur_prompt, NULL);
-	    while (ret < 0) {
-                bufchain tmp_user_input;
+	    s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+	    while (s->userpass_ret < 0) {
 		ssh->send_ok = 1;
-		crWaitUntilV(!pktin);
-                bufchain_init(&tmp_user_input);
-                bufchain_add(&tmp_user_input, in, inlen);
-		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
-                bufchain_clear(&tmp_user_input);
+		crReturnV;
+                while (s->userpass_ret < 0 &&
+                       bufchain_size(&ssh->user_input) > 0)
+                    s->userpass_ret = get_userpass_input(
+                        s->cur_prompt, &ssh->user_input);
 		ssh->send_ok = 0;
 	    }
-	    if (!ret) {
+	    if (!s->userpass_ret) {
 		/*
 		 * get_userpass_input() failed to get a username.
 		 * Terminate.
@@ -10664,6 +10662,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
                         s->agentreq, s->len + 4, &vret, &s->retlen,
                         ssh_agent_callback, ssh);
                     if (ssh->auth_agent_query) {
+                        ssh->agent_response = NULL;
 			do {
 			    crReturnV;
 			    if (pktin) {
@@ -10672,7 +10671,7 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 					 " response"));
 				crStopV;
 			    }
-			} while (pktin || inlen > 0);
+			} while (!ssh->agent_response);
 			vret = ssh->agent_response;
 			s->retlen = ssh->agent_response_len;
 		    }
@@ -10763,7 +10762,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 			/*
 			 * Get a passphrase from the user.
 			 */
-			int ret; /* need not be kept over crReturn */
 			s->cur_prompt = new_prompts(ssh->frontend);
 			s->cur_prompt->to_server = FALSE;
 			s->cur_prompt->name = dupstr("SSH key passphrase");
@@ -10771,19 +10769,19 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 				   dupprintf("Passphrase for key \"%.100s\": ",
 					     s->publickey_comment),
 				   FALSE);
-			ret = get_userpass_input(s->cur_prompt, NULL);
-			while (ret < 0) {
-                            bufchain tmp_user_input;
+			s->userpass_ret = get_userpass_input(
+                            s->cur_prompt, NULL);
+			while (s->userpass_ret < 0) {
 			    ssh->send_ok = 1;
-			    crWaitUntilV(!pktin);
-                            bufchain_init(&tmp_user_input);
-                            bufchain_add(&tmp_user_input, in, inlen);
-                            ret = get_userpass_input(s->cur_prompt,
-                                                     &tmp_user_input);
-                            bufchain_clear(&tmp_user_input);
+                            crReturnV;
+                            while (s->userpass_ret < 0 &&
+                                   bufchain_size(&ssh->user_input) > 0) {
+                                s->userpass_ret = get_userpass_input(
+                                    s->cur_prompt, &ssh->user_input);
+                            }
 			    ssh->send_ok = 0;
 			}
-			if (!ret) {
+			if (!s->userpass_ret) {
 			    /* Failed to get a passphrase. Terminate. */
 			    free_prompts(s->cur_prompt);
 			    ssh_disconnect(ssh, NULL,
@@ -11159,31 +11157,27 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
                      * Display any instructions, and get the user's
                      * response(s).
 		     */
-		    {
-			int ret; /* not live over crReturn */
-			ret = get_userpass_input(s->cur_prompt, NULL);
-			while (ret < 0) {
-                            bufchain tmp_user_input;
-			    ssh->send_ok = 1;
-			    crWaitUntilV(!pktin);
-                            bufchain_init(&tmp_user_input);
-                            bufchain_add(&tmp_user_input, in, inlen);
-                            ret = get_userpass_input(s->cur_prompt,
-                                                     &tmp_user_input);
-                            bufchain_clear(&tmp_user_input);
-			    ssh->send_ok = 0;
-			}
-			if (!ret) {
-			    /*
-			     * Failed to get responses. Terminate.
-			     */
-			    free_prompts(s->cur_prompt);
-			    ssh_disconnect(ssh, NULL, "Unable to authenticate",
-					   SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
-					   TRUE);
-			    crStopV;
-			}
-		    }
+                    s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+                    while (s->userpass_ret < 0) {
+                        ssh->send_ok = 1;
+                        crReturnV;
+                        while (s->userpass_ret < 0 &&
+                               bufchain_size(&ssh->user_input) > 0) {
+                            s->userpass_ret = get_userpass_input(
+                                s->cur_prompt, &ssh->user_input);
+                        }
+                        ssh->send_ok = 0;
+                    }
+                    if (!s->userpass_ret) {
+                        /*
+                         * Failed to get responses. Terminate.
+                         */
+                        free_prompts(s->cur_prompt);
+                        ssh_disconnect(ssh, NULL, "Unable to authenticate",
+                                       SSH2_DISCONNECT_AUTH_CANCELLED_BY_USER,
+                                       TRUE);
+                        crStopV;
+                    }
 
 		    /*
 		     * Send the response(s) to the server.
@@ -11221,7 +11215,6 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		/*
 		 * Plain old password authentication.
 		 */
-		int ret; /* not live over crReturn */
 		int changereq_first_time; /* not live over crReturn */
 
 		ssh->pkt_actx = SSH2_PKTCTX_PASSWORD;
@@ -11234,18 +11227,18 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 						    ssh->savedhost),
 			   FALSE);
 
-		ret = get_userpass_input(s->cur_prompt, NULL);
-		while (ret < 0) {
-                    bufchain tmp_user_input;
+		s->userpass_ret = get_userpass_input(s->cur_prompt, NULL);
+		while (s->userpass_ret < 0) {
 		    ssh->send_ok = 1;
-		    crWaitUntilV(!pktin);
-                    bufchain_init(&tmp_user_input);
-                    bufchain_add(&tmp_user_input, in, inlen);
-                    ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
-                    bufchain_clear(&tmp_user_input);
+                    crReturnV;
+                    while (s->userpass_ret < 0 &&
+                           bufchain_size(&ssh->user_input) > 0) {
+                        s->userpass_ret = get_userpass_input(
+                            s->cur_prompt, &ssh->user_input);
+                    }
 		    ssh->send_ok = 0;
 		}
-		if (!ret) {
+		if (!s->userpass_ret) {
 		    /*
 		     * Failed to get responses. Terminate.
 		     */
@@ -11347,20 +11340,21 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		     * password twice.
 		     */
 		    while (!got_new) {
-
-			ret = get_userpass_input(s->cur_prompt, NULL);
-			while (ret < 0) {
-                            bufchain tmp_user_input;
+			s->userpass_ret = get_userpass_input(
+                            s->cur_prompt, NULL);
+			while (s->userpass_ret < 0) {
 			    ssh->send_ok = 1;
-			    crWaitUntilV(!pktin);
-                            bufchain_init(&tmp_user_input);
-                            bufchain_add(&tmp_user_input, in, inlen);
-                            ret = get_userpass_input(s->cur_prompt,
-                                                     &tmp_user_input);
-                            bufchain_clear(&tmp_user_input);
+                            crReturnV;
+                            while (s->userpass_ret < 0 &&
+                                   bufchain_size(&ssh->user_input) > 0) {
+                                s->userpass_ret = get_userpass_input(
+                                    s->cur_prompt, &ssh->user_input);
+                                if (s->userpass_ret >= 0)
+                                    break;
+                            }
 			    ssh->send_ok = 0;
 			}
-			if (!ret) {
+			if (!s->userpass_ret) {
 			    /*
 			     * Failed to get responses. Terminate.
 			     */
@@ -11727,11 +11721,16 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 
 	    bombout(("Strange packet received: type %d", pktin->type));
 	    crStopV;
-	} else if (ssh->mainchan) {
+	}
+        while (ssh->mainchan && bufchain_size(&ssh->user_input) > 0) {
 	    /*
-	     * We have spare data. Add it to the channel buffer.
+	     * Add user input to the main channel's buffer.
 	     */
-	    ssh_send_channel_data(ssh->mainchan, (char *)in, inlen);
+            void *data;
+            int len;
+            bufchain_prefix(&ssh->user_input, &data, &len);
+	    ssh_send_channel_data(ssh->mainchan, data, len);
+            bufchain_consume(&ssh->user_input, len);
 	}
     }
 
@@ -12230,13 +12229,7 @@ static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
 
 static void ssh2_authconn_input(Ssh ssh)
 {
-    while (bufchain_size(&ssh->user_input) > 0) {
-        void *data;
-        int len;
-        bufchain_prefix(&ssh->user_input, &data, &len);
-	do_ssh2_authconn(ssh, data, len, NULL);
-        bufchain_consume(&ssh->user_input, len);
-    }
+    do_ssh2_authconn(ssh, NULL);
 }
 
 static void ssh_cache_conf_values(Ssh ssh)
