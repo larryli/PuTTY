@@ -85,7 +85,7 @@ void cmdline_cleanup(void)
  * return means that we aren't capable of processing the prompt and
  * someone else should do it.
  */
-int cmdline_get_passwd_input(prompts_t *p, const unsigned char *in, int inlen)
+int cmdline_get_passwd_input(prompts_t *p)
 {
     static int tried_once = 0;
 
@@ -94,7 +94,7 @@ int cmdline_get_passwd_input(prompts_t *p, const unsigned char *in, int inlen)
      * passwords), and (currently) we only cope with a password prompt
      * that comes in a prompt-set on its own.
      */
-    if (!cmdline_password || in || p->n_prompts != 1 || p->prompts[0]->echo) {
+    if (!cmdline_password || p->n_prompts != 1 || p->prompts[0]->echo) {
 	return -1;
     }
 

@@ -15,7 +15,7 @@
  * handling, then there is no such option, so that function always
  * returns failure.
  */
-int cmdline_get_passwd_input(prompts_t *p, const unsigned char *in, int inlen)
+int cmdline_get_passwd_input(prompts_t *p)
 {
     return -1;
 }
