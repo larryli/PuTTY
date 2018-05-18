@@ -706,9 +706,9 @@ char *get_ttymode(void *frontend, const char *mode);
 /*
  * >0 = `got all results, carry on'
  * 0  = `user cancelled' (FIXME distinguish "give up entirely" and "next auth"?)
- * <0 = `please call back later with more in/inlen'
+ * <0 = `please call back later with a fuller bufchain'
  */
-int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen);
+int get_userpass_input(prompts_t *p, bufchain *input);
 #define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(void *frontend, int iconic);
@@ -1119,8 +1119,7 @@ void term_provide_resize_fn(Terminal *term,
 void term_provide_logctx(Terminal *term, void *logctx);
 void term_set_focus(Terminal *term, int has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
-int term_get_userpass_input(Terminal *term, prompts_t *p,
-			    const unsigned char *in, int inlen);
+int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
 
 int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
 

@@ -4497,11 +4497,15 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH login name");
 	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE);
-	    ret = get_userpass_input(s->cur_prompt, NULL, 0);
+	    ret = get_userpass_input(s->cur_prompt, NULL);
 	    while (ret < 0) {
+                bufchain tmp_user_input;
 		ssh->send_ok = 1;
 		crWaitUntil(!pktin);
-		ret = get_userpass_input(s->cur_prompt, in, inlen);
+                bufchain_init(&tmp_user_input);
+                bufchain_add(&tmp_user_input, in, inlen);
+		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
+                bufchain_clear(&tmp_user_input);
 		ssh->send_ok = 0;
 	    }
 	    if (!ret) {
@@ -4804,11 +4808,16 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 		    add_prompt(s->cur_prompt,
 			       dupprintf("Passphrase for key \"%.100s\": ",
 					 s->publickey_comment), FALSE);
-		    ret = get_userpass_input(s->cur_prompt, NULL, 0);
+		    ret = get_userpass_input(s->cur_prompt, NULL);
 		    while (ret < 0) {
+                        bufchain tmp_user_input;
 			ssh->send_ok = 1;
 			crWaitUntil(!pktin);
-			ret = get_userpass_input(s->cur_prompt, in, inlen);
+                        bufchain_init(&tmp_user_input);
+                        bufchain_add(&tmp_user_input, in, inlen);
+                        ret = get_userpass_input(s->cur_prompt,
+                                                 &tmp_user_input);
+                        bufchain_clear(&tmp_user_input);
 			ssh->send_ok = 0;
 		    }
 		    if (!ret) {
@@ -5024,11 +5033,15 @@ static int do_ssh1_login(Ssh ssh, const unsigned char *in, int inlen,
 	 */
 	{
 	    int ret; /* need not be kept over crReturn */
-	    ret = get_userpass_input(s->cur_prompt, NULL, 0);
+	    ret = get_userpass_input(s->cur_prompt, NULL);
 	    while (ret < 0) {
+                bufchain tmp_user_input;
 		ssh->send_ok = 1;
 		crWaitUntil(!pktin);
-		ret = get_userpass_input(s->cur_prompt, in, inlen);
+                bufchain_init(&tmp_user_input);
+                bufchain_add(&tmp_user_input, in, inlen);
+		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
+                bufchain_clear(&tmp_user_input);
 		ssh->send_ok = 0;
 	    }
 	    if (!ret) {
@@ -10313,11 +10326,15 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 	    s->cur_prompt->to_server = TRUE;
 	    s->cur_prompt->name = dupstr("SSH login name");
 	    add_prompt(s->cur_prompt, dupstr("login as: "), TRUE); 
-	    ret = get_userpass_input(s->cur_prompt, NULL, 0);
+	    ret = get_userpass_input(s->cur_prompt, NULL);
 	    while (ret < 0) {
+                bufchain tmp_user_input;
 		ssh->send_ok = 1;
 		crWaitUntilV(!pktin);
-		ret = get_userpass_input(s->cur_prompt, in, inlen);
+                bufchain_init(&tmp_user_input);
+                bufchain_add(&tmp_user_input, in, inlen);
+		ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
+                bufchain_clear(&tmp_user_input);
 		ssh->send_ok = 0;
 	    }
 	    if (!ret) {
@@ -10749,12 +10766,16 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 				   dupprintf("Passphrase for key \"%.100s\": ",
 					     s->publickey_comment),
 				   FALSE);
-			ret = get_userpass_input(s->cur_prompt, NULL, 0);
+			ret = get_userpass_input(s->cur_prompt, NULL);
 			while (ret < 0) {
+                            bufchain tmp_user_input;
 			    ssh->send_ok = 1;
 			    crWaitUntilV(!pktin);
-			    ret = get_userpass_input(s->cur_prompt,
-						     in, inlen);
+                            bufchain_init(&tmp_user_input);
+                            bufchain_add(&tmp_user_input, in, inlen);
+                            ret = get_userpass_input(s->cur_prompt,
+                                                     &tmp_user_input);
+                            bufchain_clear(&tmp_user_input);
 			    ssh->send_ok = 0;
 			}
 			if (!ret) {
@@ -11135,11 +11156,16 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		     */
 		    {
 			int ret; /* not live over crReturn */
-			ret = get_userpass_input(s->cur_prompt, NULL, 0);
+			ret = get_userpass_input(s->cur_prompt, NULL);
 			while (ret < 0) {
+                            bufchain tmp_user_input;
 			    ssh->send_ok = 1;
 			    crWaitUntilV(!pktin);
-			    ret = get_userpass_input(s->cur_prompt, in, inlen);
+                            bufchain_init(&tmp_user_input);
+                            bufchain_add(&tmp_user_input, in, inlen);
+                            ret = get_userpass_input(s->cur_prompt,
+                                                     &tmp_user_input);
+                            bufchain_clear(&tmp_user_input);
 			    ssh->send_ok = 0;
 			}
 			if (!ret) {
@@ -11203,11 +11229,15 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 						    ssh->savedhost),
 			   FALSE);
 
-		ret = get_userpass_input(s->cur_prompt, NULL, 0);
+		ret = get_userpass_input(s->cur_prompt, NULL);
 		while (ret < 0) {
+                    bufchain tmp_user_input;
 		    ssh->send_ok = 1;
 		    crWaitUntilV(!pktin);
-		    ret = get_userpass_input(s->cur_prompt, in, inlen);
+                    bufchain_init(&tmp_user_input);
+                    bufchain_add(&tmp_user_input, in, inlen);
+                    ret = get_userpass_input(s->cur_prompt, &tmp_user_input);
+                    bufchain_clear(&tmp_user_input);
 		    ssh->send_ok = 0;
 		}
 		if (!ret) {
@@ -11313,11 +11343,16 @@ static void do_ssh2_authconn(Ssh ssh, const unsigned char *in, int inlen,
 		     */
 		    while (!got_new) {
 
-			ret = get_userpass_input(s->cur_prompt, NULL, 0);
+			ret = get_userpass_input(s->cur_prompt, NULL);
 			while (ret < 0) {
+                            bufchain tmp_user_input;
 			    ssh->send_ok = 1;
 			    crWaitUntilV(!pktin);
-			    ret = get_userpass_input(s->cur_prompt, in, inlen);
+                            bufchain_init(&tmp_user_input);
+                            bufchain_add(&tmp_user_input, in, inlen);
+                            ret = get_userpass_input(s->cur_prompt,
+                                                     &tmp_user_input);
+                            bufchain_clear(&tmp_user_input);
 			    ssh->send_ok = 0;
 			}
 			if (!ret) {

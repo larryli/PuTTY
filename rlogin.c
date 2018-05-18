@@ -230,7 +230,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
         rlogin->prompt->to_server = TRUE;
         rlogin->prompt->name = dupstr("Rlogin login name");
         add_prompt(rlogin->prompt, dupstr("rlogin username: "), TRUE); 
-        ret = get_userpass_input(rlogin->prompt, NULL, 0);
+        ret = get_userpass_input(rlogin->prompt, NULL);
         if (ret >= 0) {
             rlogin_startup(rlogin, rlogin->prompt->prompts[0]->result);
         }
@@ -264,25 +264,38 @@ static void rlogin_reconfig(void *handle, Conf *conf)
 static int rlogin_send(void *handle, const char *buf, int len)
 {
     Rlogin rlogin = (Rlogin) handle;
+    bufchain bc;
 
     if (rlogin->s == NULL)
 	return 0;
+
+    bufchain_init(&bc);
+    bufchain_add(&bc, buf, len);
 
     if (rlogin->prompt) {
         /*
          * We're still prompting for a username, and aren't talking
          * directly to the network connection yet.
          */
-        int ret = get_userpass_input(rlogin->prompt,
-                                     (unsigned char *)buf, len);
+        int ret = get_userpass_input(rlogin->prompt, &bc);
         if (ret >= 0) {
             rlogin_startup(rlogin, rlogin->prompt->prompts[0]->result);
             /* that nulls out rlogin->prompt, so then we'll start sending
              * data down the wire in the obvious way */
         }
-    } else {
-        rlogin->bufsize = sk_write(rlogin->s, buf, len);
     }
+
+    if (!rlogin->prompt) {
+        while (bufchain_size(&bc) > 0) {
+            void *data;
+            int len;
+            bufchain_prefix(&bc, &data, &len);
+            rlogin->bufsize = sk_write(rlogin->s, data, len);
+            bufchain_consume(&bc, len);
+        }
+    }
+
+    bufchain_clear(&bc);
 
     return rlogin->bufsize;
 }

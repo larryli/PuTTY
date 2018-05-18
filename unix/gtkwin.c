@@ -321,13 +321,13 @@ int from_backend_eof(void *frontend)
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, const unsigned char *in, int inlen)
+int get_userpass_input(prompts_t *p, bufchain *input)
 {
     struct gui_data *inst = (struct gui_data *)p->frontend;
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
-	ret = term_get_userpass_input(inst->term, p, in, inlen);
+	ret = term_get_userpass_input(inst->term, p, input);
     return ret;
 }
 

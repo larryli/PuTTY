@@ -6718,8 +6718,7 @@ struct term_userpass_state {
  * Process some terminal data in the course of username/password
  * input.
  */
-int term_get_userpass_input(Terminal *term, prompts_t *p,
-			    const unsigned char *in, int inlen)
+int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 {
     struct term_userpass_state *s = (struct term_userpass_state *)p->data;
     if (!s) {
@@ -6766,12 +6765,12 @@ int term_get_userpass_input(Terminal *term, prompts_t *p,
 
 	/* Breaking out here ensures that the prompt is printed even
 	 * if we're now waiting for user data. */
-	if (!in || !inlen) break;
+	if (!input || !bufchain_size(input)) break;
 
 	/* FIXME: should we be using local-line-editing code instead? */
-	while (!finished_prompt && inlen) {
-	    char c = *in++;
-	    inlen--;
+	while (!finished_prompt && bufchain_size(input) > 0) {
+	    char c;
+            bufchain_fetch_consume(input, &c, 1);
 	    switch (c) {
 	      case 10:
 	      case 13:
