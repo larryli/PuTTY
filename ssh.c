@@ -396,6 +396,7 @@ static void ssh_channel_close_local(struct ssh_channel *c, char const *reason);
 static void ssh_channel_destroy(struct ssh_channel *c);
 static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
 static void ssh2_msg_something_unimplemented(Ssh ssh, struct Packet *pktin);
+static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin);
 
 /*
  * Buffer management constants. There are several of these for
@@ -12221,6 +12222,15 @@ static void ssh2_timer(void *ctx, unsigned long now)
     (void) ssh2_timer_update(ssh, 0);
 }
 
+static void ssh2_general_packet_processing(Ssh ssh, struct Packet *pktin)
+{
+    ssh->incoming_data_size += pktin->encrypted_len;
+    if (!ssh->kex_in_progress &&
+        ssh->max_data_size != 0 &&
+        ssh->incoming_data_size > ssh->max_data_size)
+        do_ssh2_transport(ssh, "too much data received", -1, NULL);
+}
+
 static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
 			  struct Packet *pktin)
 {
@@ -12228,13 +12238,7 @@ static void ssh2_protocol(Ssh ssh, const void *vin, int inlen,
     if (ssh->state == SSH_STATE_CLOSED)
 	return;
 
-    if (pktin) {
-	ssh->incoming_data_size += pktin->encrypted_len;
-	if (!ssh->kex_in_progress &&
-	    ssh->max_data_size != 0 &&
-	    ssh->incoming_data_size > ssh->max_data_size)
-	    do_ssh2_transport(ssh, "too much data received", -1, NULL);
-    }
+    ssh2_general_packet_processing(ssh, pktin);
 
     if (pktin)
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
