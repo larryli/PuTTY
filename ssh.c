@@ -853,8 +853,9 @@ struct queued_handler {
  * discriminate between classes of reason that the code needs to treat
  * differently.
  *
- * RK_INITIAL is a dummy value indicating that we haven't even done
- * the _first_ key exchange yet. RK_NORMAL is the usual case.
+ * RK_NONE == 0 is the value indicating that no rekey is currently
+ * needed at all. RK_INITIAL indicates that we haven't even done the
+ * _first_ key exchange yet. RK_NORMAL is the usual case.
  * RK_GSS_UPDATE indicates that we're rekeying because we've just got
  * new GSSAPI credentials (hence there's no point in doing a
  * preliminary check for new GSS creds, because we already know the
@@ -868,7 +869,13 @@ struct queued_handler {
  * decides whether it needs a rekey at all. In the other cases,
  * rekey_reason is set up at the same time as rekey_class.
  */
-enum RekeyClass { RK_INITIAL, RK_NORMAL, RK_POST_USERAUTH, RK_GSS_UPDATE };
+enum RekeyClass {
+    RK_NONE = 0,
+    RK_INITIAL,
+    RK_NORMAL,
+    RK_POST_USERAUTH,
+    RK_GSS_UPDATE
+};
 
 struct ssh_tag {
     const struct plug_function_table *fn;
@@ -8443,7 +8450,8 @@ static void do_ssh2_transport(void *vctx)
      * other is if we find ssh->rekey_reason is non-NULL, i.e. we've
      * decided to initiate a rekey ourselves for some reason.
      */
-    while (!pq_peek(&ssh->pq_ssh2_transport) && !ssh->rekey_reason) {
+    ssh->rekey_class = RK_NONE;
+    while (!pq_peek(&ssh->pq_ssh2_transport) && !ssh->rekey_class) {
         wait_for_rekey:
 	if (!ssh->current_user_input_fn) {
 	    /*
