@@ -636,16 +636,25 @@ static void drawing_area_setup(struct gui_data *inst, int width, int height)
     int w, h, new_scale, need_size = 0;
 
     /*
-     * See if the terminal size has changed, in which case we must
-     * let the terminal know.
+     * See if the terminal size has changed.
      */
     w = (width - 2*inst->window_border) / inst->font_width;
     h = (height - 2*inst->window_border) / inst->font_height;
     if (w != inst->width || h != inst->height) {
+        /*
+         * Update conf.
+         */
 	inst->width = w;
 	inst->height = h;
 	conf_set_int(inst->conf, CONF_width, inst->width);
 	conf_set_int(inst->conf, CONF_height, inst->height);
+        /*
+         * We'll need to tell terminal.c about the resize below.
+         */
+        need_size = TRUE;
+        /*
+         * And we must refresh the window's backing image.
+         */
 	inst->drawing_area_setup_needed = TRUE;
     }
 
