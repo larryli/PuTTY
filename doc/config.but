@@ -1961,7 +1961,7 @@ implementing \i{single sign-on}, a more sensible default may be to use
 the name of the user logged in to the local operating system (if any);
 this is particularly likely to be useful with \i{GSSAPI} key exchange
 and user authentication (see \k{config-ssh-auth-gssapi} and
-\k{config-ssh-kex}). This control allows you to change the default
+\k{config-ssh-gssapi-kex}). This control allows you to change the default
 behaviour.
 
 The current system username is displayed in the dialog as a
@@ -2579,6 +2579,8 @@ well-known groups, if possible.
 effort on the part of the client, and somewhat less on the part of
 the server, than Diffie-Hellman key exchange.
 
+\b \q{GSSAPI key exchange}: see \k{config-ssh-gssapi-kex}.
+
 If the first algorithm PuTTY finds is below the \q{warn below here}
 line, you will see a warning box when you make the connection, similar
 to that for cipher selection (see \k{config-ssh-encryption}).
@@ -2586,23 +2588,23 @@ to that for cipher selection (see \k{config-ssh-encryption}).
 \S2{config-ssh-gssapi-kex} GSSAPI-based key exchange
 
 PuTTY supports a set of key exchange methods that also incorporates
-GSSAPI-based authentication.
+GSSAPI-based authentication. They are enabled with the
+\q{Attempt GSSAPI key exchange} checkbox (which also appears on the
+\q{GSSAPI} panel).
 
 PuTTY can only perform the GSSAPI-authenticated key exchange methods
-when using Kerberos V5, and not other GSSAPI mechanisms. PuTTY will
-attempt to select these methods if it is configured to use GSSAPI
-authentication (\k{config-ssh-auth-gssapi}), and if the user running
-it has current Kerberos V5 credentials. If both of those are true,
-then PuTTY will select the GSSAPI key exchange methods in preference
-to any of the ordinary SSH key exchange methods configured in the
-preference list.
+when using Kerberos V5, and not other GSSAPI mechanisms. If the user
+running PuTTY has current Kerberos V5 credentials, then PuTTY will
+select the GSSAPI key exchange methods in preference to any of the
+ordinary SSH key exchange methods configured in the preference list.
 
 The advantage of doing GSSAPI authentication as part of the SSH key
-exchange is that the SSH key exchange can be repeated later in the
-session, and this allows your Kerberos V5 credentials (which are
-typically short-lived) to be automatically re-delegated to the server
-when they are refreshed on the client. (This feature is commonly
-referred to as \q{cascading credentials}.)
+exchange is apparent when you are using credential delegation (see
+\k{config-ssh-auth-gssapi-delegation}). The SSH key exchange can be
+repeated later in the session, and this allows your Kerberos V5
+credentials (which are typically short-lived) to be automatically
+re-delegated to the server when they are refreshed on the client.
+(This feature is commonly referred to as \q{\i{cascading credentials}}.)
 
 If your server doesn't support GSSAPI key exchange, it may still
 support GSSAPI in the SSH user authentication phase. This will still
@@ -2612,11 +2614,11 @@ the session; they can't be refreshed automatically later, in a
 long-running session.
 
 Another effect of GSSAPI key exchange is that it replaces the usual
-SSH mechanism of permanent host keys. So if you use this method, then
-you won't be asked any interactive questions about whether to accept
-the server's host key. Instead, the Kerberos exchange will verify the
-identity of the host you connect to, at the same time as verifying
-your identity to it.
+SSH mechanism of permanent host keys described in \k{gs-hostkey}.
+So if you use this method, then you won't be asked any interactive
+questions about whether to accept the server's host key. Instead, the
+Kerberos exchange will verify the identity of the host you connect to,
+at the same time as verifying your identity to it.
 
 \S{config-ssh-kex-rekey} \ii{Repeat key exchange}
 
@@ -2660,7 +2662,7 @@ purposes, rekeys have much the same properties as keepalives.
 should bear that in mind when deciding whether to turn them off.)
 Note, however, the the SSH \e{server} can still initiate rekeys.
 
-\b \q{Minutes between GSSAPI cache checks}, if you're using GSSAPI key
+\b \q{Minutes between GSSAPI checks}, if you're using GSSAPI key
 exchange, specifies how often the GSSAPI credential cache is checked
 to see whether new tickets are available for delegation, or current
 ones are near expiration. If forwarding of GSSAPI credentials is
@@ -3032,7 +3034,8 @@ In the other method, GSSAPI-based authentication is combined with the
 SSH key exchange phase. If this succeeds, then the SSH authentication
 step has nothing left to do. See \k{config-ssh-gssapi-kex} for more
 information about this method. The checkbox labelled \q{Attempt GSSAPI
-key exchange} controls this form.
+key exchange} controls this form. (The same checkbox appears on the
+\q{Kex} panel.)
 
 If one or both of these controls is enabled, then GSSAPI
 authentication will be attempted in one form or the other, and
@@ -3069,6 +3072,10 @@ administrator of one server is likely to already have access to the
 other services too; so this would typically be less of a risk than
 SSH agent forwarding.
 
+If your connection is not using GSSAPI key exchange, it is possible
+for the delegation to expire during your session. See
+\k{config-ssh-gssapi-kex} for more information.
+
 \S{config-ssh-auth-gssapi-libraries} Preference order for GSSAPI
 libraries
 
@@ -3080,7 +3087,7 @@ than one authentication library may exist on your system which can
 be accessed using GSSAPI.
 
 PuTTY contains native support for a few well-known such libraries
-(including Windows' SSPI), and will look for all of them on your system
+(including Windows' \i{SSPI}), and will look for all of them on your system
 and use whichever it finds. If more than one exists on your system and
 you need to use a specific one, you can adjust the order in which it
 will search using this preference list control.
