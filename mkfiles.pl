@@ -122,12 +122,12 @@ while (<IN>) {
     $listref = $lastlistref;
     $prog = undef;
     die "$.: unexpected + line\n" if !defined $lastlistref;
-  } elsif ($_[1] eq "=") {
+  } elsif ($#_ >= 1 && $_[1] eq "=") {
     $groups{$_[0]} = [] if !defined $groups{$_[0]};
     $listref = $groups{$_[0]};
     $prog = undef;
     shift @objs; # eat the group name
-  } elsif ($_[1] eq ":") {
+  } elsif ($#_ >= 1 && $_[1] eq ":") {
     $listref = [];
     $prog = $_[0];
     shift @objs; # eat the program name
