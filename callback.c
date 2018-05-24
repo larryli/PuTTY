@@ -97,8 +97,10 @@ void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)
     cb->next = NULL;
 }
 
-void run_toplevel_callbacks(void)
+int run_toplevel_callbacks(void)
 {
+    int done_something = FALSE;
+
     if (cbhead) {
         /*
          * Transfer the head callback into cbcurr to indicate that
@@ -117,7 +119,10 @@ void run_toplevel_callbacks(void)
         cbcurr->fn(cbcurr->ctx);
         sfree(cbcurr);
         cbcurr = NULL;
+
+        done_something = TRUE;
     }
+    return done_something;
 }
 
 int toplevel_callback_pending(void)

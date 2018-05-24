@@ -1595,10 +1595,15 @@ unsigned long timing_last_clock(void);
  * actually running it (e.g. so as to put a zero timeout on a select()
  * call) then it can call toplevel_callback_pending(), which will
  * return true if at least one callback is in the queue.
+ *
+ * run_toplevel_callbacks() returns TRUE if it ran any actual code.
+ * This can be used as a means of speculatively terminating a select
+ * loop, as in PSFTP, for example - if a callback has run then perhaps
+ * it might have done whatever the loop's caller was waiting for.
  */
 typedef void (*toplevel_callback_fn_t)(void *ctx);
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
-void run_toplevel_callbacks(void);
+int run_toplevel_callbacks(void);
 int toplevel_callback_pending(void);
 void delete_callbacks_for_context(void *ctx);
 
