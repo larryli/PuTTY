@@ -219,7 +219,7 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 		 */
 		if (digestused >= lenof(digest512)) {
 		    SHA512_Init(&ss);
-		    SHA512_Bytes(&ss, "RSA deterministic blinding", 26);
+		    put_data(&ss, "RSA deterministic blinding", 26);
 		    put_uint32(&ss, hashseq);
 		    put_mp_ssh2(&ss, key->private_exponent);
 		    SHA512_Final(&ss, digest512);
@@ -230,7 +230,7 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 		     * input.
 		     */
 		    SHA512_Init(&ss);
-		    SHA512_Bytes(&ss, digest512, sizeof(digest512));
+		    put_data(&ss, digest512, sizeof(digest512));
 		    put_mp_ssh2(&ss, input);
 		    SHA512_Final(&ss, digest512);
 
@@ -351,19 +351,11 @@ void rsa_fingerprint(char *str, int len, struct RSAKey *key)
     struct MD5Context md5c;
     unsigned char digest[16];
     char buffer[16 * 3 + 40];
-    int numlen, slen, i;
+    int slen, i;
 
     MD5Init(&md5c);
-    numlen = ssh1_bignum_length(key->modulus) - 2;
-    for (i = numlen; i--;) {
-	unsigned char c = bignum_byte(key->modulus, i);
-	MD5Update(&md5c, &c, 1);
-    }
-    numlen = ssh1_bignum_length(key->exponent) - 2;
-    for (i = numlen; i--;) {
-	unsigned char c = bignum_byte(key->exponent, i);
-	MD5Update(&md5c, &c, 1);
-    }
+    put_mp_ssh1(&md5c, key->modulus);
+    put_mp_ssh1(&md5c, key->exponent);
     MD5Final(digest, &md5c);
 
     sprintf(buffer, "%d ", bignum_bitcount(key->modulus));

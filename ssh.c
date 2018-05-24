@@ -4349,9 +4349,9 @@ static void do_ssh1_login(void *vctx)
     ssh->v1_local_protoflags |= SSH1_PROTOFLAG_SCREEN_NUMBER;
 
     MD5Init(&md5c);
-    MD5Update(&md5c, s->keystr2, s->hostkey.bytes);
-    MD5Update(&md5c, s->keystr1, s->servkey.bytes);
-    MD5Update(&md5c, s->cookie, 8);
+    put_data(&md5c, s->keystr2, s->hostkey.bytes);
+    put_data(&md5c, s->keystr1, s->servkey.bytes);
+    put_data(&md5c, s->cookie, 8);
     MD5Final(s->session_id, &md5c);
 
     for (i = 0; i < 32; i++)
@@ -4950,8 +4950,8 @@ static void do_ssh1_login(void *vctx)
 		    }
 
 		    MD5Init(&md5c);
-		    MD5Update(&md5c, buffer, 32);
-		    MD5Update(&md5c, s->session_id, 16);
+		    put_data(&md5c, buffer, 32);
+		    put_data(&md5c, s->session_id, 16);
 		    MD5Final(buffer, &md5c);
 
 		    send_packet(ssh, SSH1_CMSG_AUTH_RSA_RESPONSE,

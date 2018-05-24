@@ -108,7 +108,7 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
      */
     if (ciphertype) {
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_decrypt_pubkey(keybuf, buf + i, (len - i + 7) & ~7);
 	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
@@ -412,7 +412,7 @@ int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
      */
     if (passphrase) {
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 	des3_encrypt_pubkey(keybuf, estart, p - estart);
 	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
@@ -761,12 +761,12 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	    goto error;
 
 	SHA_Init(&s);
-	SHA_Bytes(&s, "\0\0\0\0", 4);
-	SHA_Bytes(&s, passphrase, passlen);
+	put_uint32(&s, 0);
+	put_data(&s, passphrase, passlen);
 	SHA_Final(&s, key + 0);
 	SHA_Init(&s);
-	SHA_Bytes(&s, "\0\0\0\1", 4);
-	SHA_Bytes(&s, passphrase, passlen);
+	put_uint32(&s, 1);
+	put_data(&s, passphrase, passlen);
 	SHA_Final(&s, key + 20);
 	aes256_decrypt_pubkey(key, private_blob, private_blob_len);
     }
@@ -814,9 +814,9 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	    char header[] = "putty-private-key-file-mac-key";
 
 	    SHA_Init(&s);
-	    SHA_Bytes(&s, header, sizeof(header)-1);
+	    put_data(&s, header, sizeof(header)-1);
 	    if (cipher && passphrase)
-		SHA_Bytes(&s, passphrase, passlen);
+		put_data(&s, passphrase, passlen);
 	    SHA_Final(&s, mackey);
 
 	    hmac_sha1_simple(mackey, 20, macdata, maclen, binary);
@@ -1377,9 +1377,9 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 	DO_STR(priv_blob_encrypted, priv_encrypted_len);
 
 	SHA_Init(&s);
-	SHA_Bytes(&s, header, sizeof(header)-1);
+	put_data(&s, header, sizeof(header)-1);
 	if (passphrase)
-	    SHA_Bytes(&s, passphrase, strlen(passphrase));
+	    put_data(&s, passphrase, strlen(passphrase));
 	SHA_Final(&s, mackey);
 	hmac_sha1_simple(mackey, 20, macdata, maclen, priv_mac);
 	smemclr(macdata, maclen);
@@ -1395,12 +1395,12 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 	passlen = strlen(passphrase);
 
 	SHA_Init(&s);
-	SHA_Bytes(&s, "\0\0\0\0", 4);
-	SHA_Bytes(&s, passphrase, passlen);
+	put_uint32(&s, 0);
+	put_data(&s, passphrase, passlen);
 	SHA_Final(&s, key + 0);
 	SHA_Init(&s);
-	SHA_Bytes(&s, "\0\0\0\1", 4);
-	SHA_Bytes(&s, passphrase, passlen);
+	put_uint32(&s, 1);
+	put_data(&s, passphrase, passlen);
 	SHA_Final(&s, key + 20);
 	aes256_encrypt_pubkey(key, priv_blob_encrypted,
 			      priv_encrypted_len);

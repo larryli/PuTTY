@@ -219,19 +219,12 @@ static char *make_dirname(const char *pi_name, char **logtext)
          */
         {
             SHA256_State sha;
-            unsigned len;
-            unsigned char lenbuf[4];
             unsigned char digest[32];
             char retbuf[65];
 
             SHA256_Init(&sha);
-            PUT_32BIT(lenbuf, SALT_SIZE);
-            SHA256_Bytes(&sha, lenbuf, 4);
-            SHA256_Bytes(&sha, saltbuf, SALT_SIZE);
-            len = strlen(pi_name);
-            PUT_32BIT(lenbuf, len);
-            SHA256_Bytes(&sha, lenbuf, 4);
-            SHA256_Bytes(&sha, pi_name, len);
+            put_string(&sha, saltbuf, SALT_SIZE);
+            put_stringz(&sha, pi_name);
             SHA256_Final(&sha, digest);
 
             /*

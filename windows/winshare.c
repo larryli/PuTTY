@@ -49,7 +49,6 @@ static char *obfuscate_name(const char *realname)
     char *cryptdata;
     int cryptlen;
     SHA256_State sha;
-    unsigned char lenbuf[4];
     unsigned char digest[32];
     char retbuf[65];
     int i;
@@ -90,9 +89,7 @@ static char *obfuscate_name(const char *realname)
      * so having got it back out of CryptProtectMemory we now hash it.
      */
     SHA256_Init(&sha);
-    PUT_32BIT_MSB_FIRST(lenbuf, cryptlen);
-    SHA256_Bytes(&sha, lenbuf, 4);
-    SHA256_Bytes(&sha, cryptdata, cryptlen);
+    put_string(&sha, cryptdata, cryptlen);
     SHA256_Final(&sha, digest);
 
     sfree(cryptdata);

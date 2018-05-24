@@ -98,11 +98,7 @@ void SHA256_Block(SHA256_State *s, uint32 *block) {
 #define BLKSIZE 64
 
 static void SHA256_BinarySink_write(BinarySink *bs,
-                                 const void *data, size_t len)
-{
-    struct SHA256_State *s = BinarySink_DOWNCAST(bs, struct SHA256_State);
-    SHA256_Bytes(s, data, len);
-}
+                                    const void *p, size_t len);
 
 void SHA256_Init(SHA256_State *s) {
     SHA256_Core_Init(s);
@@ -115,9 +111,14 @@ void SHA256_Init(SHA256_State *s) {
     BinarySink_INIT(s, SHA256_BinarySink_write);
 }
 
-void SHA256_Bytes(SHA256_State *s, const void *p, int len) {
+static void SHA256_BinarySink_write(BinarySink *bs,
+                                    const void *p, size_t len)
+{
+    struct SHA256_State *s = BinarySink_DOWNCAST(bs, struct SHA256_State);
     unsigned char *q = (unsigned char *)p;
+
     uint32 lenw = len;
+    assert(len == lenw);
 
     /*
      * Update the length field.
@@ -177,18 +178,10 @@ void SHA256_Final(SHA256_State *s, unsigned char *digest) {
 
     memset(c, 0, pad);
     c[0] = 0x80;
-    SHA256_Bytes(s, &c, pad);
+    put_data(s, &c, pad);
 
-    c[0] = (lenhi >> 24) & 0xFF;
-    c[1] = (lenhi >> 16) & 0xFF;
-    c[2] = (lenhi >>  8) & 0xFF;
-    c[3] = (lenhi >>  0) & 0xFF;
-    c[4] = (lenlo >> 24) & 0xFF;
-    c[5] = (lenlo >> 16) & 0xFF;
-    c[6] = (lenlo >>  8) & 0xFF;
-    c[7] = (lenlo >>  0) & 0xFF;
-
-    SHA256_Bytes(s, &c, 8);
+    put_uint32(s, lenhi);
+    put_uint32(s, lenlo);
 
     for (i = 0; i < 8; i++) {
 	digest[i*4+0] = (s->h[i] >> 24) & 0xFF;
@@ -202,7 +195,7 @@ void SHA256_Simple(const void *p, int len, unsigned char *output) {
     SHA256_State s;
 
     SHA256_Init(&s);
-    SHA256_Bytes(&s, p, len);
+    put_data(&s, p, len);
     SHA256_Final(&s, output);
     smemclr(&s, sizeof(s));
 }
@@ -243,7 +236,7 @@ static void sha256_bytes(void *handle, const void *p, int len)
 {
     SHA256_State *s = handle;
 
-    SHA256_Bytes(s, p, len);
+    put_data(s, p, len);
 }
 
 static void sha256_final(void *handle, unsigned char *output)
@@ -285,13 +278,13 @@ static void sha256_key_internal(void *handle, unsigned char *key, int len)
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
     SHA256_Init(&keys[0]);
-    SHA256_Bytes(&keys[0], foo, 64);
+    put_data(&keys[0], foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
     SHA256_Init(&keys[1]);
-    SHA256_Bytes(&keys[1], foo, 64);
+    put_data(&keys[1], foo, 64);
 
     smemclr(foo, 64);		       /* burn the evidence */
 }
@@ -312,7 +305,7 @@ static void hmacsha256_start(void *handle)
 static void hmacsha256_bytes(void *handle, unsigned char const *blk, int len)
 {
     SHA256_State *keys = (SHA256_State *)handle;
-    SHA256_Bytes(&keys[2], (void *)blk, len);
+    put_data(&keys[2], blk, len);
 }
 
 static void hmacsha256_genresult(void *handle, unsigned char *hmac)
@@ -326,7 +319,7 @@ static void hmacsha256_genresult(void *handle, unsigned char *hmac)
     SHA256_Final(&s, intermediate);
     s = keys[1];		       /* structure copy */
     BinarySink_COPIED(&s);
-    SHA256_Bytes(&s, intermediate, 32);
+    put_data(&s, intermediate, 32);
     SHA256_Final(&s, hmac);
 }
 

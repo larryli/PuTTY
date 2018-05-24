@@ -540,7 +540,7 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
      * Hash some identifying text plus x.
      */
     SHA512_Init(&ss);
-    SHA512_Bytes(&ss, id_string, strlen(id_string) + 1);
+    put_asciz(&ss, id_string);
     put_mp_ssh2(&ss, private_key);
     SHA512_Final(&ss, digest512);
 
@@ -548,8 +548,8 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
      * Now hash that digest plus the message hash.
      */
     SHA512_Init(&ss);
-    SHA512_Bytes(&ss, digest512, sizeof(digest512));
-    SHA512_Bytes(&ss, digest, digest_len);
+    put_data(&ss, digest512, sizeof(digest512));
+    put_data(&ss, digest, digest_len);
 
     while (1) {
         SHA512_State ss2 = ss;         /* structure copy */
@@ -573,7 +573,7 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
         /* Very unlikely we get here, but if so, k was unsuitable. */
         freebn(k);
         /* Perturb the hash to think of a different k. */
-        SHA512_Bytes(&ss, "x", 1);
+        put_byte(&ss, 'x');
         /* Go round and try again. */
     }
 }

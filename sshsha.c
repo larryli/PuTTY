@@ -124,12 +124,7 @@ void SHATransform(word32 * digest, word32 * block)
  * the end, and pass those blocks to the core SHA algorithm.
  */
 
-static void SHA_BinarySink_write(BinarySink *bs,
-                              const void *data, size_t len)
-{
-    struct SHA_State *s = BinarySink_DOWNCAST(bs, struct SHA_State);
-    SHA_Bytes(s, data, len);
-}
+static void SHA_BinarySink_write(BinarySink *bs, const void *p, size_t len);
 
 void SHA_Init(SHA_State * s)
 {
@@ -143,10 +138,12 @@ void SHA_Init(SHA_State * s)
     BinarySink_INIT(s, SHA_BinarySink_write);
 }
 
-void SHA_Bytes(SHA_State * s, const void *p, int len)
+static void SHA_BinarySink_write(BinarySink *bs, const void *p, size_t len)
 {
+    struct SHA_State *s = BinarySink_DOWNCAST(bs, struct SHA_State);
     const unsigned char *q = (const unsigned char *) p;
     uint32 lenw = len;
+    assert(lenw == len);
 
     /*
      * Update the length field.
@@ -208,18 +205,10 @@ void SHA_Final(SHA_State * s, unsigned char *output)
 
     memset(c, 0, pad);
     c[0] = 0x80;
-    SHA_Bytes(s, &c, pad);
+    put_data(s, &c, pad);
 
-    c[0] = (lenhi >> 24) & 0xFF;
-    c[1] = (lenhi >> 16) & 0xFF;
-    c[2] = (lenhi >> 8) & 0xFF;
-    c[3] = (lenhi >> 0) & 0xFF;
-    c[4] = (lenlo >> 24) & 0xFF;
-    c[5] = (lenlo >> 16) & 0xFF;
-    c[6] = (lenlo >> 8) & 0xFF;
-    c[7] = (lenlo >> 0) & 0xFF;
-
-    SHA_Bytes(s, &c, 8);
+    put_uint32(s, lenhi);
+    put_uint32(s, lenlo);
 
     for (i = 0; i < 5; i++) {
 	output[i * 4] = (s->h[i] >> 24) & 0xFF;
@@ -234,7 +223,7 @@ void SHA_Simple(const void *p, int len, unsigned char *output)
     SHA_State s;
 
     SHA_Init(&s);
-    SHA_Bytes(&s, p, len);
+    put_data(&s, p, len);
     SHA_Final(&s, output);
     smemclr(&s, sizeof(s));
 }
@@ -275,7 +264,7 @@ static void sha1_bytes(void *handle, const void *p, int len)
 {
     SHA_State *s = handle;
 
-    SHA_Bytes(s, p, len);
+    put_data(s, p, len);
 }
 
 static void sha1_final(void *handle, unsigned char *output)
@@ -316,13 +305,13 @@ static void sha1_key_internal(void *handle, unsigned char *key, int len)
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
     SHA_Init(&keys[0]);
-    SHA_Bytes(&keys[0], foo, 64);
+    put_data(&keys[0], foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
     SHA_Init(&keys[1]);
-    SHA_Bytes(&keys[1], foo, 64);
+    put_data(&keys[1], foo, 64);
 
     smemclr(foo, 64);		       /* burn the evidence */
 }
@@ -348,7 +337,7 @@ static void hmacsha1_start(void *handle)
 static void hmacsha1_bytes(void *handle, unsigned char const *blk, int len)
 {
     SHA_State *keys = (SHA_State *)handle;
-    SHA_Bytes(&keys[2], (void *)blk, len);
+    put_data(&keys[2], blk, len);
 }
 
 static void hmacsha1_genresult(void *handle, unsigned char *hmac)
@@ -362,7 +351,7 @@ static void hmacsha1_genresult(void *handle, unsigned char *hmac)
     SHA_Final(&s, intermediate);
     s = keys[1];		       /* structure copy */
     BinarySink_COPIED(&s);
-    SHA_Bytes(&s, intermediate, 20);
+    put_data(&s, intermediate, 20);
     SHA_Final(&s, hmac);
 }
 
@@ -435,10 +424,10 @@ void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
     unsigned char intermediate[20];
 
     sha1_key_internal(states, key, keylen);
-    SHA_Bytes(&states[0], data, datalen);
+    put_data(&states[0], data, datalen);
     SHA_Final(&states[0], intermediate);
 
-    SHA_Bytes(&states[1], intermediate, 20);
+    put_data(&states[1], intermediate, 20);
     SHA_Final(&states[1], output);
 }
 

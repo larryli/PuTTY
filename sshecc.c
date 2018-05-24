@@ -1421,10 +1421,8 @@ struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve
         SHA512_Init(&s);
 
         keylen = curve->fieldBits / 8;
-        for (i = 0; i < keylen; ++i) {
-            unsigned char b = bignum_byte(privateKey, i);
-            SHA512_Bytes(&s, &b, 1);
-        }
+        for (i = 0; i < keylen; ++i)
+            put_byte(&s, bignum_byte(privateKey, i));
         SHA512_Final(&s, hash);
 
         /* The second part is simply turning the hash into a Bignum,
@@ -2298,27 +2296,25 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
         /* Get the hash of the encoded value of R + encoded value of pk + message */
         {
             int i, pointlen;
-            unsigned char b;
             unsigned char digest[512 / 8];
             SHA512_State hs;
             SHA512_Init(&hs);
 
-            /* Add encoded r (no need to encode it again, it was in the signature) */
-            SHA512_Bytes(&hs, p, ec->publicKey.curve->fieldBits / 8);
+            pointlen = ec->publicKey.curve->fieldBits / 8;
+
+            /* Add encoded r (no need to encode it again, it was in
+             * the signature) */
+            put_data(&hs, p, pointlen);
 
             /* Encode pk and add it */
-            pointlen = ec->publicKey.curve->fieldBits / 8;
-            for (i = 0; i < pointlen - 1; ++i) {
-                b = bignum_byte(ec->publicKey.y, i);
-                SHA512_Bytes(&hs, &b, 1);
-            }
+            for (i = 0; i < pointlen - 1; ++i)
+                put_byte(&hs, bignum_byte(ec->publicKey.y, i));
             /* Unset last bit of y and set first bit of x in its place */
-            b = bignum_byte(ec->publicKey.y, i) & 0x7f;
-            b |= bignum_bit(ec->publicKey.x, 0) << 7;
-            SHA512_Bytes(&hs, &b, 1);
+            put_byte(&hs, ((bignum_byte(ec->publicKey.y, i) & 0x7f) |
+                           (bignum_bit(ec->publicKey.x, 0) << 7)));
 
             /* Add the message itself */
-            SHA512_Bytes(&hs, data, datalen);
+            put_data(&hs, data, datalen);
 
             /* Get the hash */
             SHA512_Final(&hs, digest);
@@ -2425,15 +2421,12 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
          * S = (r + H(encodepoint(R) + encodepoint(pk) + m) * a) % l */
         {
             unsigned char hash[512/8];
-            unsigned char b;
             Bignum a;
             SHA512_State hs;
             SHA512_Init(&hs);
 
-            for (i = 0; i < pointlen; ++i) {
-                unsigned char b = (unsigned char)bignum_byte(ec->privateKey, i);
-                SHA512_Bytes(&hs, &b, 1);
-            }
+            for (i = 0; i < pointlen; ++i)
+                put_byte(&hs, bignum_byte(ec->privateKey, i));
 
             SHA512_Final(&hs, hash);
 
@@ -2447,11 +2440,10 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
             a = bignum_from_bytes_le(hash, 32);
 
             SHA512_Init(&hs);
-            SHA512_Bytes(&hs,
-                         hash+(ec->publicKey.curve->fieldBits / 8),
-                         (ec->publicKey.curve->fieldBits / 4)
-                         - (ec->publicKey.curve->fieldBits / 8));
-            SHA512_Bytes(&hs, data, datalen);
+            put_data(&hs, hash+(ec->publicKey.curve->fieldBits / 8),
+                     ((ec->publicKey.curve->fieldBits / 4) -
+                      (ec->publicKey.curve->fieldBits / 8)));
+            put_data(&hs, data, datalen);
             SHA512_Final(&hs, hash);
 
             r = bignum_from_bytes_le(hash, 512/8);
@@ -2465,27 +2457,21 @@ static unsigned char *ecdsa_sign(void *key, const char *data, int datalen,
             /* Now calculate s */
             SHA512_Init(&hs);
             /* Encode the point R */
-            for (i = 0; i < pointlen - 1; ++i) {
-                b = bignum_byte(rp->y, i);
-                SHA512_Bytes(&hs, &b, 1);
-            }
+            for (i = 0; i < pointlen - 1; ++i)
+                put_byte(&hs, bignum_byte(rp->y, i));
             /* Unset last bit of y and set first bit of x in its place */
-            b = bignum_byte(rp->y, i) & 0x7f;
-            b |= bignum_bit(rp->x, 0) << 7;
-            SHA512_Bytes(&hs, &b, 1);
+            put_byte(&hs, ((bignum_byte(rp->y, i) & 0x7f) |
+                           (bignum_bit(rp->x, 0) << 7)));
 
             /* Encode the point pk */
-            for (i = 0; i < pointlen - 1; ++i) {
-                b = bignum_byte(ec->publicKey.y, i);
-                SHA512_Bytes(&hs, &b, 1);
-            }
+            for (i = 0; i < pointlen - 1; ++i)
+                put_byte(&hs, bignum_byte(ec->publicKey.y, i));
             /* Unset last bit of y and set first bit of x in its place */
-            b = bignum_byte(ec->publicKey.y, i) & 0x7f;
-            b |= bignum_bit(ec->publicKey.x, 0) << 7;
-            SHA512_Bytes(&hs, &b, 1);
+            put_byte(&hs, ((bignum_byte(ec->publicKey.y, i) & 0x7f) |
+                           (bignum_bit(ec->publicKey.x, 0) << 7)));
 
             /* Add the message */
-            SHA512_Bytes(&hs, data, datalen);
+            put_data(&hs, data, datalen);
             SHA512_Final(&hs, hash);
 
             {

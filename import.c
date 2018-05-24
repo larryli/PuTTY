@@ -602,14 +602,14 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         unsigned char keybuf[32];
 
         MD5Init(&md5c);
-        MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-        MD5Update(&md5c, (unsigned char *)key->iv, 8);
+        put_data(&md5c, passphrase, strlen(passphrase));
+        put_data(&md5c, key->iv, 8);
         MD5Final(keybuf, &md5c);
 
         MD5Init(&md5c);
-        MD5Update(&md5c, keybuf, 16);
-        MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-        MD5Update(&md5c, (unsigned char *)key->iv, 8);
+        put_data(&md5c, keybuf, 16);
+        put_data(&md5c, passphrase, strlen(passphrase));
+        put_data(&md5c, key->iv, 8);
         MD5Final(keybuf+16, &md5c);
 
         /*
@@ -1201,14 +1201,14 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
 	for (i = 0; i < 8; i++) iv[i] = random_byte();
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, iv, 8);
+	put_data(&md5c, passphrase, strlen(passphrase));
+	put_data(&md5c, iv, 8);
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, keybuf, 16);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, iv, 8);
+	put_data(&md5c, keybuf, 16);
+	put_data(&md5c, passphrase, strlen(passphrase));
+	put_data(&md5c, iv, 8);
 	MD5Final(keybuf+16, &md5c);
 
 	/*
@@ -2362,12 +2362,12 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         }
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, keybuf, 16);
+	put_data(&md5c, passphrase, strlen(passphrase));
+	put_data(&md5c, keybuf, 16);
 	MD5Final(keybuf+16, &md5c);
 
 	/*
@@ -2646,12 +2646,12 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	unsigned char keybuf[32], iv[8];
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
+	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
 
 	MD5Init(&md5c);
-	MD5Update(&md5c, (unsigned char *)passphrase, strlen(passphrase));
-	MD5Update(&md5c, keybuf, 16);
+	put_data(&md5c, passphrase, strlen(passphrase));
+	put_data(&md5c, keybuf, 16);
 	MD5Final(keybuf+16, &md5c);
 
 	/*

@@ -452,7 +452,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 		response_source[i] = bignum_byte(response, 31 - i);
 
 	    MD5Init(&md5c);
-	    MD5Update(&md5c, response_source, 48);
+	    put_data(&md5c, response_source, 48);
 	    MD5Final(response_md5, &md5c);
 	    smemclr(response_source, 48);	/* burn the evidence */
 	    freebn(response);	       /* and that evidence */

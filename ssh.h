@@ -254,8 +254,6 @@ struct MD5Context {
 };
 
 void MD5Init(struct MD5Context *context);
-void MD5Update(struct MD5Context *context, unsigned char const *buf,
-	       unsigned len);
 void MD5Final(unsigned char digest[16], struct MD5Context *context);
 void MD5Simple(void const *p, unsigned len, unsigned char output[16]);
 
@@ -276,7 +274,6 @@ typedef struct SHA_State {
     BinarySink_IMPLEMENTATION;
 } SHA_State;
 void SHA_Init(SHA_State * s);
-void SHA_Bytes(SHA_State * s, const void *p, int len);
 void SHA_Final(SHA_State * s, unsigned char *output);
 void SHA_Simple(const void *p, int len, unsigned char *output);
 
@@ -291,7 +288,6 @@ typedef struct SHA256_State {
     BinarySink_IMPLEMENTATION;
 } SHA256_State;
 void SHA256_Init(SHA256_State * s);
-void SHA256_Bytes(SHA256_State * s, const void *p, int len);
 void SHA256_Final(SHA256_State * s, unsigned char *output);
 void SHA256_Simple(const void *p, int len, unsigned char *output);
 
@@ -304,11 +300,9 @@ typedef struct {
 } SHA512_State;
 #define SHA384_State SHA512_State
 void SHA512_Init(SHA512_State * s);
-void SHA512_Bytes(SHA512_State * s, const void *p, int len);
 void SHA512_Final(SHA512_State * s, unsigned char *output);
 void SHA512_Simple(const void *p, int len, unsigned char *output);
 void SHA384_Init(SHA384_State * s);
-#define SHA384_Bytes(s, p, len) SHA512_Bytes(s, p, len)
 void SHA384_Final(SHA384_State * s, unsigned char *output);
 void SHA384_Simple(const void *p, int len, unsigned char *output);
 
