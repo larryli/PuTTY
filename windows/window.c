@@ -2107,10 +2107,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * config structure.
 		     */
 		    SECURITY_ATTRIBUTES sa;
+                    strbuf *serbuf;
 		    void *p;
 		    int size;
 
-		    size = conf_serialised_size(conf);
+                    serbuf = strbuf_new();
+		    conf_serialise(BinarySink_UPCAST(serbuf), conf);
+                    size = serbuf->len;
 
 		    sa.nLength = sizeof(sa);
 		    sa.lpSecurityDescriptor = NULL;
@@ -2122,10 +2125,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    if (filemap && filemap != INVALID_HANDLE_VALUE) {
 			p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, size);
 			if (p) {
-			    conf_serialise(conf, p);
+			    memcpy(p, serbuf->s, size);
 			    UnmapViewOfFile(p);
 			}
 		    }
+
+                    strbuf_free(serbuf);
 		    inherit_handles = TRUE;
 		    cl = dupprintf("putty %s&%p:%u", argprefix,
                                    filemap, (unsigned)size);

@@ -229,9 +229,12 @@ CFLAGS += -DWINVER=0x0500 -D_WIN32_WINDOWS=0x0410 -D_WIN32_WINNT=0x0500
 # names. A line beginning `+' is assumed to continue the previous
 # line.
 
+# conf.c and its dependencies.
+CONF     = conf marshal
+
 # Terminal emulator and its (platform-independent) dependencies.
 TERMINAL = terminal wcwidth ldiscucs logging tree234 minibidi
-         + config dialog conf
+         + config dialog CONF
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
@@ -261,7 +264,7 @@ SFTP     = sftp int64 logging cmdline
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
 MISC     = misc marshal
-MISCNET  = timing callback MISC version settings tree234 proxy conf be_misc
+MISCNET  = timing callback MISC version settings tree234 proxy CONF be_misc
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs
 UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc uxproxy time
@@ -312,7 +315,7 @@ pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes sshbn sshmd5 version
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
-         + tree234 notiming winhelp winnojmp conf LIBS wintime sshecc
+         + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc
          + sshecdsag winsecur
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
@@ -331,7 +334,7 @@ plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
 PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
-         + uxgen notiming conf sshecc sshecdsag uxnogtk
+         + uxgen notiming CONF sshecc sshecdsag uxnogtk
 puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
@@ -340,7 +343,7 @@ psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
 
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes sshbn
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
-	 + sshecc conf uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
+	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
 	 + gtkask gtkmisc UXMISC
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
@@ -353,8 +356,8 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk
-testbn   : [UT] testbn sshbn MISC version conf tree234 uxmisc uxnogtk
-testbn   : [C] testbn sshbn MISC version conf tree234 winmisc LIBS
+testbn   : [UT] testbn sshbn MISC version CONF tree234 uxmisc uxnogtk
+testbn   : [C] testbn sshbn MISC version CONF tree234 winmisc LIBS
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

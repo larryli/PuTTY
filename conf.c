@@ -469,86 +469,39 @@ void conf_set_fontspec(Conf *conf, int primary, const FontSpec *value)
     conf_insert(conf, entry);
 }
 
-int conf_serialised_size(Conf *conf)
+void conf_serialise(BinarySink *bs, Conf *conf)
 {
     int i;
     struct conf_entry *entry;
-    int size = 0;
 
     for (i = 0; (entry = index234(conf->tree, i)) != NULL; i++) {
-	size += 4;   /* primary key */
+	put_uint32(bs, entry->key.primary);
+
 	switch (subkeytypes[entry->key.primary]) {
 	  case TYPE_INT:
-	    size += 4;
+	    put_uint32(bs, entry->key.secondary.i);
 	    break;
 	  case TYPE_STR:
-	    size += 1 + strlen(entry->key.secondary.s);
+            put_asciz(bs, entry->key.secondary.s);
 	    break;
 	}
 	switch (valuetypes[entry->key.primary]) {
 	  case TYPE_INT:
-	    size += 4;
+	    put_uint32(bs, entry->value.u.intval);
 	    break;
 	  case TYPE_STR:
-	    size += 1 + strlen(entry->value.u.stringval);
+	    put_asciz(bs, entry->value.u.stringval);
 	    break;
 	  case TYPE_FILENAME:
-	    size += filename_serialise(entry->value.u.fileval, NULL);
+            filename_serialise(bs, entry->value.u.fileval);
 	    break;
 	  case TYPE_FONT:
-	    size += fontspec_serialise(entry->value.u.fontval, NULL);
+            fontspec_serialise(bs, entry->value.u.fontval);
 	    break;
 	}
     }
 
-    size += 4;			       /* terminator value */
-
-    return size;
-}
-
-void conf_serialise(Conf *conf, void *vdata)
-{
-    unsigned char *data = (unsigned char *)vdata;
-    int i, len;
-    struct conf_entry *entry;
-
-    for (i = 0; (entry = index234(conf->tree, i)) != NULL; i++) {
-	PUT_32BIT_MSB_FIRST(data, entry->key.primary);
-	data += 4;
-
-	switch (subkeytypes[entry->key.primary]) {
-	  case TYPE_INT:
-	    PUT_32BIT_MSB_FIRST(data, entry->key.secondary.i);
-	    data += 4;
-	    break;
-	  case TYPE_STR:
-	    len = strlen(entry->key.secondary.s);
-	    memcpy(data, entry->key.secondary.s, len);
-	    data += len;
-	    *data++ = 0;
-	    break;
-	}
-	switch (valuetypes[entry->key.primary]) {
-	  case TYPE_INT:
-	    PUT_32BIT_MSB_FIRST(data, entry->value.u.intval);
-	    data += 4;
-	    break;
-	  case TYPE_STR:
-	    len = strlen(entry->value.u.stringval);
-	    memcpy(data, entry->value.u.stringval, len);
-	    data += len;
-	    *data++ = 0;
-	    break;
-	  case TYPE_FILENAME:
-            data += filename_serialise(entry->value.u.fileval, data);
-	    break;
-	  case TYPE_FONT:
-            data += fontspec_serialise(entry->value.u.fontval, data);
-	    break;
-	}
-    }
-
-    PUT_32BIT_MSB_FIRST(data, 0xFFFFFFFFU);
+    put_uint32(bs, 0xFFFFFFFFU);
 }
 
 int conf_deserialise(Conf *conf, void *vdata, int maxsize)

@@ -74,14 +74,9 @@ void filename_free(Filename *fn)
     sfree(fn);
 }
 
-int filename_serialise(const Filename *f, void *vdata)
+void filename_serialise(BinarySink *bs, const Filename *f)
 {
-    char *data = (char *)vdata;
-    int len = strlen(f->path) + 1;     /* include trailing NUL */
-    if (data) {
-        strcpy(data, f->path);
-    }
-    return len;
+    put_asciz(bs, f->path);
 }
 Filename *filename_deserialise(void *vdata, int maxsize, int *used)
 {
@@ -275,12 +270,9 @@ void fontspec_free(FontSpec *f)
     sfree(f->name);
     sfree(f);
 }
-int fontspec_serialise(FontSpec *f, void *data)
+void fontspec_serialise(BinarySink *bs, FontSpec *f)
 {
-    int len = strlen(f->name);
-    if (data)
-        strcpy(data, f->name);
-    return len + 1;                    /* include trailing NUL */
+    put_asciz(bs, f->name);
 }
 FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
 {

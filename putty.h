@@ -20,6 +20,7 @@
 #include "puttyps.h"
 #include "network.h"
 #include "misc.h"
+#include "marshal.h"
 
 /*
  * We express various time intervals in unsigned long minutes, but may need to
@@ -1013,8 +1014,7 @@ void conf_del_str_str(Conf *conf, int key, const char *subkey);
 void conf_set_filename(Conf *conf, int key, const Filename *val);
 void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
 /* Serialisation functions for Duplicate Session */
-int conf_serialised_size(Conf *conf);
-void conf_serialise(Conf *conf, void *data);
+void conf_serialise(BinarySink *bs, Conf *conf);
 int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
 
 /*
@@ -1028,7 +1028,7 @@ int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
  */
 FontSpec *fontspec_copy(const FontSpec *f);
 void fontspec_free(FontSpec *f);
-int fontspec_serialise(FontSpec *f, void *data);
+void fontspec_serialise(BinarySink *bs, FontSpec *f);
 FontSpec *fontspec_deserialise(void *data, int maxsize, int *used);
 
 /*
@@ -1463,7 +1463,7 @@ int filename_equal(const Filename *f1, const Filename *f2);
 int filename_is_null(const Filename *fn);
 Filename *filename_copy(const Filename *fn);
 void filename_free(Filename *fn);
-int filename_serialise(const Filename *f, void *data);
+void filename_serialise(BinarySink *bs, const Filename *f);
 Filename *filename_deserialise(void *data, int maxsize, int *used);
 char *get_username(void);	       /* return value needs freeing */
 char *get_random_data(int bytes, const char *device); /* used in cmdgen.c */

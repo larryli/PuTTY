@@ -156,8 +156,8 @@ void launch_duplicate_session(Conf *conf)
      * into a byte stream, create a pipe, and send this byte stream
      * to the child through the pipe.
      */
-    int i, ret, sersize, size;
-    char *data;
+    int i, ret;
+    strbuf *serialised;
     char option[80];
     int pipefd[2];
 
@@ -166,35 +166,27 @@ void launch_duplicate_session(Conf *conf)
 	return;
     }
 
-    size = sersize = conf_serialised_size(conf);
-    if (use_pty_argv && pty_argv) {
+    serialised = strbuf_new();
+
+    conf_serialise(BinarySink_UPCAST(serialised), conf);
+    if (use_pty_argv && pty_argv)
 	for (i = 0; pty_argv[i]; i++)
-	    size += strlen(pty_argv[i]) + 1;
-    }
+            put_asciz(serialised, pty_argv[i]);
 
-    data = snewn(size, char);
-    conf_serialise(conf, data);
-    if (use_pty_argv && pty_argv) {
-	int p = sersize;
-	for (i = 0; pty_argv[i]; i++) {
-	    strcpy(data + p, pty_argv[i]);
-	    p += strlen(pty_argv[i]) + 1;
-	}
-	assert(p == size);
-    }
-
-    sprintf(option, "---[%d,%d]", pipefd[0], size);
+    sprintf(option, "---[%d,%d]", pipefd[0], serialised->len);
     noncloexec(pipefd[0]);
     fork_and_exec_self(pipefd[1], option, NULL);
     close(pipefd[0]);
 
     i = ret = 0;
-    while (i < size && (ret = write(pipefd[1], data + i, size - i)) > 0)
+    while (i < serialised->len &&
+           (ret = write(pipefd[1], serialised->s + i,
+                        serialised->len - i)) > 0)
 	i += ret;
     if (ret < 0)
 	perror("write to pipe");
     close(pipefd[1]);
-    sfree(data);
+    strbuf_free(serialised);
 }
 
 void launch_new_session(void)
