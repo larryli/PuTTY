@@ -124,6 +124,13 @@ void SHATransform(word32 * digest, word32 * block)
  * the end, and pass those blocks to the core SHA algorithm.
  */
 
+static void SHA_BinarySink_write(BinarySink *bs,
+                              const void *data, size_t len)
+{
+    struct SHA_State *s = BinarySink_DOWNCAST(bs, struct SHA_State);
+    SHA_Bytes(s, data, len);
+}
+
 void SHA_Init(SHA_State * s)
 {
     SHA_Core_Init(s->h);
@@ -133,6 +140,7 @@ void SHA_Init(SHA_State * s)
         s->sha1 = &sha1_ni;
     else
         s->sha1 = &sha1_sw;
+    BinarySink_INIT(s, SHA_BinarySink_write);
 }
 
 void SHA_Bytes(SHA_State * s, const void *p, int len)
@@ -251,6 +259,7 @@ static void *sha1_copy(const void *vold)
 
     s = snew(SHA_State);
     *s = *old;
+    BinarySink_COPIED(s);
     return s;
 }
 
@@ -333,6 +342,7 @@ static void hmacsha1_start(void *handle)
     SHA_State *keys = (SHA_State *)handle;
 
     keys[2] = keys[0];		      /* structure copy */
+    BinarySink_COPIED(&keys[2]);
 }
 
 static void hmacsha1_bytes(void *handle, unsigned char const *blk, int len)
@@ -348,8 +358,10 @@ static void hmacsha1_genresult(void *handle, unsigned char *hmac)
     unsigned char intermediate[20];
 
     s = keys[2];		       /* structure copy */
+    BinarySink_COPIED(&s);
     SHA_Final(&s, intermediate);
     s = keys[1];		       /* structure copy */
+    BinarySink_COPIED(&s);
     SHA_Bytes(&s, intermediate, 20);
     SHA_Final(&s, hmac);
 }

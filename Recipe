@@ -250,7 +250,7 @@ NONSSH   = telnet raw rlogin ldisc pinger
 SSH      = ssh sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshccp sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-         + sshgssc pgssapi sshshare sshecc aqsync
+         + sshgssc pgssapi sshshare sshecc aqsync marshal
 WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
@@ -258,12 +258,13 @@ UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 # SFTP implementation (pscp, psftp).
 SFTP     = sftp int64 logging cmdline
 
-# Miscellaneous objects appearing in all the network utilities (not
-# Pageant or PuTTYgen).
-MISC     = timing callback misc version settings tree234 proxy conf be_misc
-WINMISC  = MISC winstore winnet winhandl cmdline windefs winmisc winproxy
+# Miscellaneous objects appearing in all the utilities, or all the
+# network ones, or the Unix or Windows subsets of those in turn.
+MISC     = misc marshal
+MISCNET  = timing callback MISC version settings tree234 proxy conf be_misc
+WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs
-UXMISC   = MISC uxstore uxsel uxnet uxpeer uxmisc uxproxy time
+UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc uxproxy time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.
@@ -305,11 +306,11 @@ psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
          + psftp.res winnojmp LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes sshbn sshmd5 version
-	 + tree234 misc sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
+	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
 	 + sshsh512 winutils sshecc winmisc winhelp conf pageant.res LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
-         + sshrand winnoise sshsha winstore misc winctrls sshrsa sshdss winmisc
+         + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp conf LIBS wintime sshecc
          + sshecdsag winsecur
@@ -328,7 +329,7 @@ plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11 noterm uxnogtk sessprep cmdline
 
 PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
-         + sshrand uxnoise sshsha misc sshrsa sshdss uxcons uxstore uxmisc
+         + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming conf sshecc sshecdsag uxnogtk
 puttygen : [U] cmdgen PUTTYGEN_UNIX
@@ -352,8 +353,8 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk
-testbn   : [UT] testbn sshbn misc version conf tree234 uxmisc uxnogtk
-testbn   : [C] testbn sshbn misc version conf tree234 winmisc LIBS
+testbn   : [UT] testbn sshbn MISC version conf tree234 uxmisc uxnogtk
+testbn   : [C] testbn sshbn MISC version conf tree234 winmisc LIBS
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

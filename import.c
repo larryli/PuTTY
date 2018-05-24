@@ -274,7 +274,7 @@ static int ber_write_id_len(void *dest, int id, int length, int flags)
     return len;
 }
 
-static int put_uint32(void *target, unsigned val)
+static int write_uint32(void *target, unsigned val)
 {
     unsigned char *d = (unsigned char *)target;
 
@@ -282,7 +282,7 @@ static int put_uint32(void *target, unsigned val)
     return 4;
 }
 
-static int put_string(void *target, const void *data, int len)
+static int write_string(void *target, const void *data, int len)
 {
     unsigned char *d = (unsigned char *)target;
 
@@ -291,9 +291,9 @@ static int put_string(void *target, const void *data, int len)
     return len+4;
 }
 
-static int put_string_z(void *target, const char *string)
+static int write_string_z(void *target, const char *string)
 {
-    return put_string(target, string, strlen(string));
+    return write_string(target, string, strlen(string));
 }
 
 static int put_mp(void *target, void *data, int len)
@@ -1796,27 +1796,27 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     /* Cipher and kdf names, and kdf options. */
     if (!passphrase) {
         memset(bcrypt_salt, 0, sizeof(bcrypt_salt)); /* prevent warnings */
-        p += put_string_z(p, "none");
-        p += put_string_z(p, "none");
-        p += put_string_z(p, "");
+        p += write_string_z(p, "none");
+        p += write_string_z(p, "none");
+        p += write_string_z(p, "");
     } else {
         unsigned char *q;
         for (i = 0; i < (int)sizeof(bcrypt_salt); i++)
             bcrypt_salt[i] = random_byte();
-        p += put_string_z(p, "aes256-ctr");
-        p += put_string_z(p, "bcrypt");
+        p += write_string_z(p, "aes256-ctr");
+        p += write_string_z(p, "bcrypt");
         q = p;
         p += 4;
-        p += put_string(p, bcrypt_salt, sizeof(bcrypt_salt));
-        p += put_uint32(p, bcrypt_rounds);
+        p += write_string(p, bcrypt_salt, sizeof(bcrypt_salt));
+        p += write_uint32(p, bcrypt_rounds);
         PUT_32BIT_MSB_FIRST(q, (unsigned)(p - (q+4)));
     }
 
     /* Number of keys. */
-    p += put_uint32(p, 1);
+    p += write_uint32(p, 1);
 
     /* Public blob. */
-    p += put_string(p, pubblob, publen);
+    p += write_string(p, pubblob, publen);
 
     /* Begin private section. */
     private_section_length_field = p;
@@ -1827,17 +1827,17 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     checkint = 0;
     for (i = 0; i < 4; i++)
         checkint = (checkint << 8) + random_byte();
-    p += put_uint32(p, checkint);
-    p += put_uint32(p, checkint);
+    p += write_uint32(p, checkint);
+    p += write_uint32(p, checkint);
 
     /* Private key. The main private blob goes inline, with no string
      * wrapper. */
-    p += put_string_z(p, key->alg->name);
+    p += write_string_z(p, key->alg->name);
     memcpy(p, privblob, privlen);
     p += privlen;
 
     /* Comment. */
-    p += put_string_z(p, key->comment);
+    p += write_string_z(p, key->comment);
 
     /* Pad out the encrypted section. */
     padvalue = 1;
@@ -2425,11 +2425,11 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 
         alg = &ssh_rsa;
         pos = 0;
-        pos += put_string(blob+pos, "ssh-rsa", 7);
+        pos += write_string(blob+pos, "ssh-rsa", 7);
         pos += put_mp(blob+pos, e.start, e.bytes);
         pos += put_mp(blob+pos, n.start, n.bytes);
         publen = pos;
-        pos += put_string(blob+pos, d.start, d.bytes);
+        pos += write_string(blob+pos, d.start, d.bytes);
         pos += put_mp(blob+pos, q.start, q.bytes);
         pos += put_mp(blob+pos, p.start, p.bytes);
         pos += put_mp(blob+pos, u.start, u.bytes);
@@ -2456,7 +2456,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 
         alg = &ssh_dss;
         pos = 0;
-        pos += put_string(blob+pos, "ssh-dss", 7);
+        pos += write_string(blob+pos, "ssh-dss", 7);
         pos += put_mp(blob+pos, p.start, p.bytes);
         pos += put_mp(blob+pos, q.start, q.bytes);
         pos += put_mp(blob+pos, g.start, g.bytes);
@@ -2597,10 +2597,10 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
     pos = 0;
     PUT_32BIT(outblob+pos, SSHCOM_MAGIC_NUMBER); pos += 4;
     pos += 4;			       /* length field, fill in later */
-    pos += put_string(outblob+pos, type, strlen(type));
+    pos += write_string(outblob+pos, type, strlen(type));
     {
 	const char *ciphertype = passphrase ? "3des-cbc" : "none";
-	pos += put_string(outblob+pos, ciphertype, strlen(ciphertype));
+	pos += write_string(outblob+pos, ciphertype, strlen(ciphertype));
     }
     lenpos = pos;		       /* remember this position */
     pos += 4;			       /* encrypted-blob size */

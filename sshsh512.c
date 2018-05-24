@@ -185,12 +185,20 @@ static void SHA512_Block(SHA512_State *s, uint64 *block) {
  * at the end, and pass those blocks to the core SHA512 algorithm.
  */
 
+static void SHA512_BinarySink_write(BinarySink *bs,
+                                 const void *data, size_t len)
+{
+    SHA512_State *s = BinarySink_DOWNCAST(bs, SHA512_State);
+    SHA512_Bytes(s, data, len);
+}
+
 void SHA512_Init(SHA512_State *s) {
     int i;
     SHA512_Core_Init(s);
     s->blkused = 0;
     for (i = 0; i < 4; i++)
 	s->len[i] = 0;
+    BinarySink_INIT(s, SHA512_BinarySink_write);
 }
 
 void SHA384_Init(SHA512_State *s) {
@@ -199,6 +207,7 @@ void SHA384_Init(SHA512_State *s) {
     s->blkused = 0;
     for (i = 0; i < 4; i++)
         s->len[i] = 0;
+    BinarySink_INIT(s, SHA512_BinarySink_write);
 }
 
 void SHA512_Bytes(SHA512_State *s, const void *p, int len) {
@@ -338,6 +347,7 @@ static void *sha512_copy(const void *vold)
 
     s = snew(SHA512_State);
     *s = *old;
+    BinarySink_COPIED(s);
     return s;
 }
 

@@ -27,6 +27,8 @@ struct RSAKey;
 #include <stdint.h>
 typedef uint32_t uint32;
 
+typedef struct BinarySink BinarySink;
+
 /* Do a compile-time type-check of 'to_check' (without evaluating it),
  * as a side effect of returning the value 'to_return'. Note that
  * although this macro double-*expands* to_return, it always

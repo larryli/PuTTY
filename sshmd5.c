@@ -115,11 +115,19 @@ static void MD5_Block(MD5_Core_State * s, uint32 * block)
 
 #define BLKSIZE 64
 
+static void MD5_BinarySink_write(BinarySink *bs,
+                              const void *data, size_t len)
+{
+    struct MD5Context *s = BinarySink_DOWNCAST(bs, struct MD5Context);
+    MD5Update(s, data, len);
+}
+
 void MD5Init(struct MD5Context *s)
 {
     MD5_Core_Init(&s->core);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
+    BinarySink_INIT(s, MD5_BinarySink_write);
 }
 
 void MD5Update(struct MD5Context *s, unsigned char const *p, unsigned len)
@@ -264,6 +272,7 @@ static void hmacmd5_start(void *handle)
     struct MD5Context *keys = (struct MD5Context *)handle;
 
     keys[2] = keys[0];		      /* structure copy */
+    BinarySink_COPIED(&keys[2]);
 }
 
 static void hmacmd5_bytes(void *handle, unsigned char const *blk, int len)
@@ -279,8 +288,10 @@ static void hmacmd5_genresult(void *handle, unsigned char *hmac)
     unsigned char intermediate[16];
 
     s = keys[2];		       /* structure copy */
+    BinarySink_COPIED(&s);
     MD5Final(intermediate, &s);
     s = keys[1];		       /* structure copy */
+    BinarySink_COPIED(&s);
     MD5Update(&s, intermediate, 16);
     MD5Final(hmac, &s);
 }

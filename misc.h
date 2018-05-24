@@ -7,6 +7,7 @@
 
 #include "defs.h"
 #include "puttymem.h"
+#include "marshal.h"
 
 #include <stdio.h>		       /* for FILE * */
 #include <stdarg.h>		       /* for va_list */
@@ -41,6 +42,7 @@ struct strbuf {
     char *s;
     unsigned char *u;
     int len;
+    BinarySink_IMPLEMENTATION;
     /* (also there's a surrounding implementation struct in misc.c) */
 };
 strbuf *strbuf_new(void);

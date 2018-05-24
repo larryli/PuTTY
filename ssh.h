@@ -250,6 +250,7 @@ struct MD5Context {
     int blkused;
     uint32 lenhi, lenlo;
 #endif
+    BinarySink_IMPLEMENTATION;
 };
 
 void MD5Init(struct MD5Context *context);
@@ -272,6 +273,7 @@ typedef struct SHA_State {
     int blkused;
     uint32 lenhi, lenlo;
     void (*sha1)(struct SHA_State * s, const unsigned char *p, int len);
+    BinarySink_IMPLEMENTATION;
 } SHA_State;
 void SHA_Init(SHA_State * s);
 void SHA_Bytes(SHA_State * s, const void *p, int len);
@@ -286,6 +288,7 @@ typedef struct SHA256_State {
     int blkused;
     uint32 lenhi, lenlo;
     void (*sha256)(struct SHA256_State * s, const unsigned char *p, int len);
+    BinarySink_IMPLEMENTATION;
 } SHA256_State;
 void SHA256_Init(SHA256_State * s);
 void SHA256_Bytes(SHA256_State * s, const void *p, int len);
@@ -297,6 +300,7 @@ typedef struct {
     unsigned char block[128];
     int blkused;
     uint32 len[4];
+    BinarySink_IMPLEMENTATION;
 } SHA512_State;
 #define SHA384_State SHA512_State
 void SHA512_Init(SHA512_State * s);
@@ -704,6 +708,9 @@ Bignum bignum_lshift(Bignum number, int shift);
 int bignum_cmp(Bignum a, Bignum b);
 char *bignum_decimal(Bignum x);
 Bignum bignum_from_decimal(const char *decimal);
+
+void BinarySink_put_mp_ssh1(BinarySink *, Bignum);
+void BinarySink_put_mp_ssh2(BinarySink *, Bignum);
 
 #ifdef DEBUG
 void diagbn(char *prefix, Bignum md);

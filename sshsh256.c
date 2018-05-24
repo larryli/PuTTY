@@ -97,6 +97,13 @@ void SHA256_Block(SHA256_State *s, uint32 *block) {
 
 #define BLKSIZE 64
 
+static void SHA256_BinarySink_write(BinarySink *bs,
+                                 const void *data, size_t len)
+{
+    struct SHA256_State *s = BinarySink_DOWNCAST(bs, struct SHA256_State);
+    SHA256_Bytes(s, data, len);
+}
+
 void SHA256_Init(SHA256_State *s) {
     SHA256_Core_Init(s);
     s->blkused = 0;
@@ -105,6 +112,7 @@ void SHA256_Init(SHA256_State *s) {
         s->sha256 = &SHA256_ni;
     else
         s->sha256 = &SHA256_sw;
+    BinarySink_INIT(s, SHA256_BinarySink_write);
 }
 
 void SHA256_Bytes(SHA256_State *s, const void *p, int len) {
@@ -219,6 +227,7 @@ static void *sha256_copy(const void *vold)
 
     s = snew(SHA256_State);
     *s = *old;
+    BinarySink_COPIED(s);
     return s;
 }
 
@@ -297,6 +306,7 @@ static void hmacsha256_start(void *handle)
     SHA256_State *keys = (SHA256_State *)handle;
 
     keys[2] = keys[0];		      /* structure copy */
+    BinarySink_COPIED(&keys[2]);
 }
 
 static void hmacsha256_bytes(void *handle, unsigned char const *blk, int len)
@@ -312,8 +322,10 @@ static void hmacsha256_genresult(void *handle, unsigned char *hmac)
     unsigned char intermediate[32];
 
     s = keys[2];		       /* structure copy */
+    BinarySink_COPIED(&s);
     SHA256_Final(&s, intermediate);
     s = keys[1];		       /* structure copy */
+    BinarySink_COPIED(&s);
     SHA256_Bytes(&s, intermediate, 32);
     SHA256_Final(&s, hmac);
 }

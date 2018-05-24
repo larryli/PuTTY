@@ -489,9 +489,17 @@ char *strbuf_append(strbuf *buf_o, size_t len)
     return toret;
 }
 
+static void strbuf_BinarySink_write(
+    BinarySink *bs, const void *data, size_t len)
+{
+    strbuf *buf_o = BinarySink_DOWNCAST(bs, strbuf);
+    memcpy(strbuf_append(buf_o, len), data, len);
+}
+
 strbuf *strbuf_new(void)
 {
     struct strbuf_impl *buf = snew(struct strbuf_impl);
+    BinarySink_INIT(&buf->visible, strbuf_BinarySink_write);
     buf->visible.len = 0;
     buf->size = 512;
     STRBUF_SET_PTR(buf, snewn(buf->size, char));
