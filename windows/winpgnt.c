@@ -376,22 +376,46 @@ void keylist_update(void)
     }
 }
 
+struct PageantReply {
+    char buf[AGENT_MAX_MSGLEN - 4];
+    int len, overflowed;
+    BinarySink_IMPLEMENTATION;
+};
+
+static void pageant_reply_BinarySink_write(
+    BinarySink *bs, const void *data, size_t len)
+{
+    struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
+    if (!rep->overflowed && len <= sizeof(rep->buf) - rep->len) {
+        memcpy(rep->buf + rep->len, data, len);
+        rep->len += len;
+    } else {
+        rep->overflowed = TRUE;
+    }
+}
+
 static void answer_msg(void *msgv)
 {
     unsigned char *msg = (unsigned char *)msgv;
     unsigned msglen;
-    void *reply;
-    int replylen;
+    struct PageantReply reply;
+
+    reply.len = 0;
+    reply.overflowed = FALSE;
+    BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
 
     msglen = GET_32BIT(msg);
     if (msglen > AGENT_MAX_MSGLEN) {
-        reply = pageant_failure_msg(&replylen);
+        pageant_failure_msg(BinarySink_UPCAST(&reply),
+                            "incoming length field too large", NULL, NULL);
     } else {
-        reply = pageant_handle_msg(msg + 4, msglen, &replylen, NULL, NULL);
-        if (replylen > AGENT_MAX_MSGLEN) {
-            smemclr(reply, replylen);
-            sfree(reply);
-            reply = pageant_failure_msg(&replylen);
+        pageant_handle_msg(BinarySink_UPCAST(&reply),
+                           msg + 4, msglen, NULL, NULL);
+        if (reply.len > AGENT_MAX_MSGLEN) {
+            reply.len = 0;
+            reply.overflowed = FALSE;
+            pageant_failure_msg(BinarySink_UPCAST(&reply),
+                                "output would exceed max msglen", NULL, NULL);
         }
     }
 
@@ -399,9 +423,10 @@ static void answer_msg(void *msgv)
      * Windows Pageant answers messages in place, by overwriting the
      * input message buffer.
      */
-    memcpy(msg, reply, replylen);
-    smemclr(reply, replylen);
-    sfree(reply);
+    assert(4 + reply.len <= AGENT_MAX_MSGLEN);
+    PUT_32BIT(msg, reply.len);
+    memcpy(msg + 4, reply.buf, reply.len);
+    smemclr(reply.buf, sizeof(reply.buf));
 }
 
 static void win_add_keyfile(Filename *filename)

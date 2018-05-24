@@ -28,21 +28,26 @@ void pageant_init(void);
  * Returns a fully formatted message as output, *with* its initial
  * length field, and sets *outlen to the full size of that message.
  */
-void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
-                         void *logctx, pageant_logfn_t logfn);
+void pageant_handle_msg(BinarySink *bs,
+                        const void *msg, int msglen,
+                        void *logctx, pageant_logfn_t logfn);
 
 /*
  * Construct a failure response. Useful for agent front ends which
  * suffer a problem before they even get to pageant_handle_msg.
+ *
+ * 'log_reason' is only used if logfn is not NULL.
  */
-void *pageant_failure_msg(int *outlen);
+void pageant_failure_msg(BinarySink *bs,
+                         const char *log_reason,
+                         void *logctx, pageant_logfn_t logfn);
 
 /*
  * Construct a list of public keys, just as the two LIST_IDENTITIES
  * requests would have returned them.
  */
-void *pageant_make_keylist1(int *length);
-void *pageant_make_keylist2(int *length);
+void pageant_make_keylist1(BinarySink *);
+void pageant_make_keylist2(BinarySink *);
 
 /*
  * Accessor functions for Pageant's internal key lists. Fetch the nth

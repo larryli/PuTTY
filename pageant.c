@@ -127,14 +127,8 @@ static int cmpkeys_ssh2(void *av, void *bv)
     return toret;
 }
 
-/*
- * Create an SSH-1 key list in a malloc'ed buffer; return its
- * length.
- */
-void *pageant_make_keylist1(int *length)
+void pageant_make_keylist1(BinarySink *bs)
 {
-    strbuf *buf = strbuf_new();
-    BinarySink *bs = BinarySink_UPCAST(buf);
     int i;
     struct RSAKey *key;
 
@@ -143,18 +137,10 @@ void *pageant_make_keylist1(int *length)
         rsa_ssh1_public_blob(bs, key, RSA_SSH1_EXPONENT_FIRST);
 	put_stringz(bs, key->comment);
     }
-
-    return strbuf_to_str(buf);
 }
 
-/*
- * Create an SSH-2 key list in a malloc'ed buffer; return its
- * length.
- */
-void *pageant_make_keylist2(int *length)
+void pageant_make_keylist2(BinarySink *bs)
 {
-    strbuf *buf = strbuf_new();
-    BinarySink *bs = BinarySink_UPCAST(buf);
     int i;
     struct ssh2_userkey *key;
 
@@ -165,8 +151,6 @@ void *pageant_make_keylist2(int *length)
         put_stringsb(bs, blob);
 	put_stringz(bs, key->comment);
     }
-
-    return strbuf_to_str(buf);
 }
 
 static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
@@ -193,14 +177,13 @@ static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
     }
 }
 
-void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
-                         void *logctx, pageant_logfn_t logfn)
+void pageant_handle_msg(BinarySink *bs,
+                        const void *msg, int msglen,
+                        void *logctx, pageant_logfn_t logfn)
 {
     const unsigned char *p = msg;
     const unsigned char *msgend;
-    unsigned char *ret = snewn(AGENT_MAX_MSGLEN, unsigned char);
     int type;
-    const char *fail_reason;
 
     msgend = p + msglen;
 
@@ -208,8 +191,9 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
      * Get the message type.
      */
     if (msgend < p+1) {
-        fail_reason = "message contained no type code";
-	goto failure;
+        pageant_failure_msg(bs, "message contained no type code",
+                            logctx, logfn);
+        return;
     }
     type = *p++;
 
@@ -219,20 +203,10 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	 * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
 	 */
 	{
-	    int len;
-	    void *keylist;
-
             plog(logctx, logfn, "request: SSH1_AGENTC_REQUEST_RSA_IDENTITIES");
 
-	    ret[4] = SSH1_AGENT_RSA_IDENTITIES_ANSWER;
-	    keylist = pageant_make_keylist1(&len);
-	    if (len + 5 > AGENT_MAX_MSGLEN) {
-		sfree(keylist);
-                fail_reason = "output would exceed max msglen";
-		goto failure;
-	    }
-	    PUT_32BIT(ret, len + 1);
-	    memcpy(ret + 5, keylist, len);
+	    put_byte(bs, SSH1_AGENT_RSA_IDENTITIES_ANSWER);
+            pageant_make_keylist1(bs);
 
             plog(logctx, logfn, "reply: SSH1_AGENT_RSA_IDENTITIES_ANSWER");
             if (logfn) {               /* skip this loop if not logging */
@@ -244,7 +218,6 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                     plog(logctx, logfn, "returned key: %s", fingerprint);
                 }
             }
-	    sfree(keylist);
 	}
 	break;
       case SSH2_AGENTC_REQUEST_IDENTITIES:
@@ -252,20 +225,10 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	 * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
 	 */
 	{
-	    int len;
-	    void *keylist;
-
             plog(logctx, logfn, "request: SSH2_AGENTC_REQUEST_IDENTITIES");
 
-	    ret[4] = SSH2_AGENT_IDENTITIES_ANSWER;
-	    keylist = pageant_make_keylist2(&len);
-	    if (len + 5 > AGENT_MAX_MSGLEN) {
-		sfree(keylist);
-                fail_reason = "output would exceed max msglen";
-		goto failure;
-	    }
-	    PUT_32BIT(ret, len + 1);
-	    memcpy(ret + 5, keylist, len);
+	    put_byte(bs, SSH2_AGENT_IDENTITIES_ANSWER);
+            pageant_make_keylist2(bs);
 
             plog(logctx, logfn, "reply: SSH2_AGENT_IDENTITIES_ANSWER");
             if (logfn) {               /* skip this loop if not logging */
@@ -279,8 +242,6 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                     sfree(fingerprint);
                 }
             }
-
-	    sfree(keylist);
 	}
 	break;
       case SSH1_AGENTC_RSA_CHALLENGE:
@@ -294,55 +255,56 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    Bignum challenge, response;
 	    unsigned char response_source[48], response_md5[16];
 	    struct MD5Context md5c;
-	    int i, len;
+	    int i;
 
             plog(logctx, logfn, "request: SSH1_AGENTC_RSA_CHALLENGE");
+
+            reqkey.exponent = reqkey.modulus = challenge = response = NULL;
 
 	    p += 4;
 	    i = ssh1_read_bignum(p, msgend - p, &reqkey.exponent);
 	    if (i < 0) {
-                fail_reason = "request truncated before key exponent";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key exponent",
+                    logctx, logfn);
+                goto challenge1_cleanup;
             }
 	    p += i;
 	    i = ssh1_read_bignum(p, msgend - p, &reqkey.modulus);
 	    if (i < 0) {
-                freebn(reqkey.exponent);
-                fail_reason = "request truncated before key modulus";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key modulus",
+                    logctx, logfn);
+                goto challenge1_cleanup;
             }
 	    p += i;
 	    i = ssh1_read_bignum(p, msgend - p, &challenge);
 	    if (i < 0) {
-                freebn(reqkey.exponent);
-                freebn(reqkey.modulus);
-		freebn(challenge);
-                fail_reason = "request truncated before challenge";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before challenge",
+                    logctx, logfn);
+                goto challenge1_cleanup;
             }
 	    p += i;
 	    if (msgend < p+16) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-                fail_reason = "request truncated before session id";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before session id",
+                    logctx, logfn);
+                goto challenge1_cleanup;
 	    }
 	    memcpy(response_source + 32, p, 16);
 	    p += 16;
 	    if (msgend < p+4) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-                fail_reason = "request truncated before response type";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before response type",
+                    logctx, logfn);
+                goto challenge1_cleanup;
             }
             if (GET_32BIT(p) != 1) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-                fail_reason = "response type other than 1 not supported";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "response type other than 1 not supported",
+                    logctx, logfn);
+                goto challenge1_cleanup;
             }
             if (logfn) {
                 char fingerprint[128];
@@ -351,11 +313,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 plog(logctx, logfn, "requested key: %s", fingerprint);
             }
             if ((key = find234(rsakeys, &reqkey, NULL)) == NULL) {
-		freebn(reqkey.exponent);
-		freebn(reqkey.modulus);
-		freebn(challenge);
-                fail_reason = "key not found";
-		goto failure;
+                pageant_failure_msg(bs, "key not found", logctx, logfn);
+                goto challenge1_cleanup;
 	    }
 	    response = rsa_ssh1_decrypt(challenge, key);
 	    for (i = 0; i < 32; i++)
@@ -365,21 +324,17 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    put_data(&md5c, response_source, 48);
 	    MD5Final(response_md5, &md5c);
 	    smemclr(response_source, 48);	/* burn the evidence */
-	    freebn(response);	       /* and that evidence */
-	    freebn(challenge);	       /* yes, and that evidence */
-	    freebn(reqkey.exponent);   /* and free some memory ... */
-	    freebn(reqkey.modulus);    /* ... while we're at it. */
 
-	    /*
-	     * Packet is the obvious five byte header, plus sixteen
-	     * bytes of MD5.
-	     */
-	    len = 5 + 16;
-	    PUT_32BIT(ret, len - 4);
-	    ret[4] = SSH1_AGENT_RSA_RESPONSE;
-	    memcpy(ret + 5, response_md5, 16);
+	    put_byte(bs, SSH1_AGENT_RSA_RESPONSE);
+	    put_data(bs, response_md5, 16);
 
             plog(logctx, logfn, "reply: SSH1_AGENT_RSA_RESPONSE");
+
+          challenge1_cleanup:
+	    if (response) freebn(response);
+	    if (challenge) freebn(challenge);
+            if (reqkey.exponent) freebn(reqkey.exponent);
+            if (reqkey.modulus) freebn(reqkey.modulus);
 	}
 	break;
       case SSH2_AGENTC_SIGN_REQUEST:
@@ -394,31 +349,39 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             int bloblen;
 	    const unsigned char *data;
             strbuf *signature;
-	    int datalen, len;
+	    int datalen;
 
             plog(logctx, logfn, "request: SSH2_AGENTC_SIGN_REQUEST");
 
 	    if (msgend < p+4) {
-                fail_reason = "request truncated before public key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+                return;
             }
 	    bloblen = toint(GET_32BIT(p));
             if (bloblen < 0 || bloblen > msgend - (p+4)) {
-                fail_reason = "request truncated before public key";
-                goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+                return;
             }
 	    p += 4;
 	    blobp = p;
 	    p += bloblen;
 	    if (msgend < p+4) {
-                fail_reason = "request truncated before string to sign";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before string to sign",
+                    logctx, logfn);
+                return;
             }
 	    datalen = toint(GET_32BIT(p));
 	    p += 4;
 	    if (datalen < 0 || datalen > msgend - p) {
-                fail_reason = "request truncated before string to sign";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before string to sign",
+                    logctx, logfn);
+                return;
             }
 	    data = p;
             if (logfn) {
@@ -433,18 +396,16 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 strbuf_free(blob);
             }
 	    if (!key) {
-                fail_reason = "key not found";
-		goto failure;
+                pageant_failure_msg(bs, "key not found", logctx, logfn);
+                return;
             }
+
+            put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
+
             signature = strbuf_new();
             key->alg->sign(key->data, (const char *)data, datalen,
                            BinarySink_UPCAST(signature));
-	    len = 5 + 4 + signature->len;
-	    PUT_32BIT(ret, len - 4);
-	    ret[4] = SSH2_AGENT_SIGN_RESPONSE;
-	    PUT_32BIT(ret + 5, signature->len);
-	    memcpy(ret + 5 + 4, signature->s, signature->len);
-	    strbuf_free(signature);
+            put_stringsb(bs, signature);
 
             plog(logctx, logfn, "reply: SSH2_AGENT_SIGN_RESPONSE");
 	}
@@ -467,19 +428,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    n = rsa_ssh1_readpub(p, msgend - p, key, NULL,
                                  RSA_SSH1_MODULUS_FIRST);
 	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before public key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+		goto add1_cleanup;
 	    }
 	    p += n;
 
 	    n = rsa_ssh1_readpriv(p, msgend - p, key);
 	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before private key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before private key",
+                    logctx, logfn);
+		goto add1_cleanup;
 	    }
 	    p += n;
 
@@ -489,44 +450,41 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 
 	    n = ssh1_read_bignum(p, msgend - p, &key->iqmp);  /* p^-1 mod q */
 	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before iqmp";
-		goto failure;
+                pageant_failure_msg(bs, "request truncated before iqmp",
+                                    logctx, logfn);
+		goto add1_cleanup;
 	    }
 	    p += n;
 
 	    n = ssh1_read_bignum(p, msgend - p, &key->q);  /* p */
 	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before p";
-		goto failure;
+                pageant_failure_msg(bs, "request truncated before p",
+                                    logctx, logfn);
+		goto add1_cleanup;
 	    }
 	    p += n;
 
 	    n = ssh1_read_bignum(p, msgend - p, &key->p);  /* q */
 	    if (n < 0) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before q";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before q", logctx, logfn);
+		goto add1_cleanup;
 	    }
 	    p += n;
 
 	    if (msgend < p+4) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before key comment";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key comment",
+                    logctx, logfn);
+		goto add1_cleanup;
 	    }
             commentlen = toint(GET_32BIT(p));
 
 	    if (commentlen < 0 || commentlen > msgend - p) {
-		freersakey(key);
-		sfree(key);
-                fail_reason = "request truncated before key comment";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key comment",
+                    logctx, logfn);
+		goto add1_cleanup;
 	    }
 
 	    comment = snewn(commentlen+1, char);
@@ -544,17 +502,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 
 	    if (add234(rsakeys, key) == key) {
 		keylist_update();
-                PUT_32BIT(ret, 1);
-		ret[4] = SSH_AGENT_SUCCESS;
-
+		put_byte(bs, SSH_AGENT_SUCCESS);
                 plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+                key = NULL;            /* don't free it in cleanup */
 	    } else {
+                pageant_failure_msg(bs, "key already present",
+                                    logctx, logfn);
+	    }
+
+          add1_cleanup:
+            if (key) {
 		freersakey(key);
 		sfree(key);
-
-                fail_reason = "key already present";
-                goto failure;
-	    }
+            }
 	}
 	break;
       case SSH2_AGENTC_ADD_IDENTITY:
@@ -563,7 +523,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	 * SSH_AGENT_FAILURE if the key was malformed.
 	 */
 	{
-	    struct ssh2_userkey *key;
+	    struct ssh2_userkey *key = NULL;
 	    char *comment;
             const char *alg;
 	    int alglen, commlen;
@@ -572,32 +532,36 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             plog(logctx, logfn, "request: SSH2_AGENTC_ADD_IDENTITY");
 
 	    if (msgend < p+4) {
-                fail_reason = "request truncated before key algorithm";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key algorithm",
+                    logctx, logfn);
+		goto add2_cleanup;
             }
 	    alglen = toint(GET_32BIT(p));
 	    p += 4;
 	    if (alglen < 0 || alglen > msgend - p) {
-                fail_reason = "request truncated before key algorithm";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key algorithm",
+                    logctx, logfn);
+		goto add2_cleanup;
             }
 	    alg = (const char *)p;
 	    p += alglen;
 
 	    key = snew(struct ssh2_userkey);
+            key->data = NULL;
+            key->comment = NULL;
             key->alg = find_pubkey_alg_len(alglen, alg);
 	    if (!key->alg) {
-		sfree(key);
-                fail_reason = "algorithm unknown";
-		goto failure;
+                pageant_failure_msg(bs, "algorithm unknown", logctx, logfn);
+		goto add2_cleanup;
 	    }
 
 	    bloblen = msgend - p;
 	    key->data = key->alg->openssh_createkey(key->alg, &p, &bloblen);
 	    if (!key->data) {
-		sfree(key);
-                fail_reason = "key setup failed";
-		goto failure;
+                pageant_failure_msg(bs, "key setup failed", logctx, logfn);
+		goto add2_cleanup;
 	    }
 
 	    /*
@@ -607,19 +571,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    assert(p <= msgend);
 
 	    if (msgend < p+4) {
-		key->alg->freekey(key->data);
-		sfree(key);
-                fail_reason = "request truncated before key comment";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key comment",
+                    logctx, logfn);
+		goto add2_cleanup;
 	    }
 	    commlen = toint(GET_32BIT(p));
 	    p += 4;
 
 	    if (commlen < 0 || commlen > msgend - p) {
-		key->alg->freekey(key->data);
-		sfree(key);
-                fail_reason = "request truncated before key comment";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before key comment",
+                    logctx, logfn);
+		goto add2_cleanup;
 	    }
 	    comment = snewn(commlen + 1, char);
 	    if (comment) {
@@ -637,18 +601,24 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 
 	    if (add234(ssh2keys, key) == key) {
 		keylist_update();
-                PUT_32BIT(ret, 1);
-		ret[4] = SSH_AGENT_SUCCESS;
+		put_byte(bs, SSH_AGENT_SUCCESS);
 
                 plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
-	    } else {
-		key->alg->freekey(key->data);
-		sfree(key->comment);
-		sfree(key);
 
-                fail_reason = "key already present";
-                goto failure;
+                key = NULL;            /* don't clean it up */
+	    } else {
+                pageant_failure_msg(bs, "key already present",
+                                    logctx, logfn);
 	    }
+
+          add2_cleanup:
+            if (key) {
+                if (key->data)
+                    key->alg->freekey(key->data);
+                if (key->comment)
+                    sfree(key->comment);
+		sfree(key);
+            }
 	}
 	break;
       case SSH1_AGENTC_REMOVE_RSA_IDENTITY:
@@ -666,8 +636,10 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    n = rsa_ssh1_readpub(p, msgend - p, &reqkey, NULL,
                                  RSA_SSH1_EXPONENT_FIRST);
 	    if (n < 0) {
-                fail_reason = "request truncated before public key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+		return;
             }
 
             if (logfn) {
@@ -680,7 +652,6 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    key = find234(rsakeys, &reqkey, NULL);
 	    freebn(reqkey.exponent);
 	    freebn(reqkey.modulus);
-	    PUT_32BIT(ret, 1);
 	    if (key) {
                 plog(logctx, logfn, "found with comment: %s", key->comment);
 
@@ -688,12 +659,11 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 		keylist_update();
 		freersakey(key);
 		sfree(key);
-		ret[4] = SSH_AGENT_SUCCESS;
+		put_byte(bs, SSH_AGENT_SUCCESS);
 
                 plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	    } else {
-                fail_reason = "key not found";
-                goto failure;
+                pageant_failure_msg(bs, "key not found", logctx, logfn);
             }
 	}
 	break;
@@ -711,15 +681,19 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_IDENTITY");
 
 	    if (msgend < p+4) {
-                fail_reason = "request truncated before public key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+                return;
             }
 	    bloblen = toint(GET_32BIT(p));
 	    p += 4;
 
 	    if (bloblen < 0 || bloblen > msgend - p) {
-                fail_reason = "request truncated before public key";
-		goto failure;
+                pageant_failure_msg(
+                    bs, "request truncated before public key",
+                    logctx, logfn);
+                return;
             }
 	    blobp = p;
 	    p += bloblen;
@@ -737,8 +711,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 strbuf_free(blob);
             }
 	    if (!key) {
-                fail_reason = "key not found";
-		goto failure;
+                pageant_failure_msg(bs, "key not found", logctx, logfn);
+                return;
             }
 
             plog(logctx, logfn, "found with comment: %s", key->comment);
@@ -747,8 +721,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
             keylist_update();
             key->alg->freekey(key->data);
             sfree(key);
-	    PUT_32BIT(ret, 1);
-            ret[4] = SSH_AGENT_SUCCESS;
+            put_byte(bs, SSH_AGENT_SUCCESS);
 
             plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
@@ -770,8 +743,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    keylist_update();
 
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_SUCCESS;
+            put_byte(bs, SSH_AGENT_SUCCESS);
 
             plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
@@ -792,38 +764,24 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    keylist_update();
 
-	    PUT_32BIT(ret, 1);
-	    ret[4] = SSH_AGENT_SUCCESS;
+            put_byte(bs, SSH_AGENT_SUCCESS);
 
             plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
 	}
 	break;
       default:
         plog(logctx, logfn, "request: unknown message type %d", type);
-
-        fail_reason = "unrecognised message";
-        /* fall through */
-      failure:
-	/*
-	 * Unrecognised message. Return SSH_AGENT_FAILURE.
-	 */
-	PUT_32BIT(ret, 1);
-	ret[4] = SSH_AGENT_FAILURE;
-        plog(logctx, logfn, "reply: SSH_AGENT_FAILURE (%s)", fail_reason);
+        pageant_failure_msg(bs, "unrecognised message", logctx, logfn);
 	break;
     }
-
-    *outlen = 4 + GET_32BIT(ret);
-    return ret;
 }
 
-void *pageant_failure_msg(int *outlen)
+void pageant_failure_msg(BinarySink *bs,
+                         const char *log_reason,
+                         void *logctx, pageant_logfn_t logfn)
 {
-    unsigned char *ret = snewn(5, unsigned char);
-    PUT_32BIT(ret, 1);
-    ret[4] = SSH_AGENT_FAILURE;
-    *outlen = 5;
-    return ret;
+    put_byte(bs, SSH_AGENT_FAILURE);
+    plog(logctx, logfn, "reply: SSH_AGENT_FAILURE (%s)", log_reason);
 }
 
 void pageant_init(void)
@@ -971,21 +929,24 @@ static void pageant_conn_receive(Plug plug, int urgent, char *data, int len)
         }
 
         {
-            void *reply;
-            int replylen;
+            strbuf *reply = strbuf_new();
+
+            put_uint32(reply, 0);      /* length field to fill in later */
 
             if (pc->real_packet) {
-                reply = pageant_handle_msg(pc->pktbuf, pc->len, &replylen, pc,
-                                           pc->logfn?pageant_conn_log:NULL);
+                pageant_handle_msg(BinarySink_UPCAST(reply), pc->pktbuf, pc->len, pc,
+                                   pc->logfn ? pageant_conn_log : NULL);
             } else {
                 plog(pc->logctx, pc->logfn, "%p: overlong message (%u)",
                      pc, pc->len);
-                plog(pc->logctx, pc->logfn, "%p: reply: SSH_AGENT_FAILURE "
-                     "(message too long)", pc);
-                reply = pageant_failure_msg(&replylen);
+                pageant_failure_msg(BinarySink_UPCAST(reply), "message too long", pc,
+                                    pc->logfn ? pageant_conn_log : NULL);
             }
-            sk_write(pc->connsock, reply, replylen);
-            smemclr(reply, replylen);
+
+            PUT_32BIT(reply->s, reply->len - 4);
+            sk_write(pc->connsock, reply->s, reply->len);
+
+            strbuf_free(reply);
         }
     }
 
@@ -1141,7 +1102,10 @@ void *pageant_get_keylist1(int *length)
 	if (length)
 	    *length = resplen-5;
     } else {
-	ret = pageant_make_keylist1(length);
+        strbuf *buf = strbuf_new();
+	pageant_make_keylist1(BinarySink_UPCAST(buf));
+        *length = buf->len;
+        ret = strbuf_to_str(buf);
     }
     return ret;
 }
@@ -1174,7 +1138,10 @@ void *pageant_get_keylist2(int *length)
 	if (length)
 	    *length = resplen-5;
     } else {
-	ret = pageant_make_keylist2(length);
+        strbuf *buf = strbuf_new();
+	pageant_make_keylist2(BinarySink_UPCAST(buf));
+        *length = buf->len;
+        ret = strbuf_to_str(buf);
     }
     return ret;
 }
