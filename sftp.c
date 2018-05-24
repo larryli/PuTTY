@@ -18,6 +18,7 @@ struct sftp_packet {
     unsigned length, maxlen;
     unsigned savedpos;
     int type;
+    BinarySink_IMPLEMENTATION;
 };
 
 static const char *fxp_error_message;
@@ -28,30 +29,22 @@ static void fxp_internal_error(const char *msg);
 /* ----------------------------------------------------------------------
  * SFTP packet construction functions.
  */
-static void sftp_pkt_ensure(struct sftp_packet *pkt, int length)
+static void sftp_pkt_BinarySink_write(
+    BinarySink *bs, const void *data, size_t length)
 {
-    if ((int)pkt->maxlen < length) {
-	pkt->maxlen = length + 256;
+    struct sftp_packet *pkt = BinarySink_DOWNCAST(bs, struct sftp_packet);
+    unsigned newlen;
+
+    assert(length <= 0xFFFFFFFFU - pkt->length);
+
+    newlen = pkt->length + length;
+    if (pkt->maxlen < newlen) {
+	pkt->maxlen = newlen * 5 / 4 + 256;
 	pkt->data = sresize(pkt->data, pkt->maxlen, char);
     }
-}
-static void sftp_pkt_adddata(struct sftp_packet *pkt,
-                             const void *data, int len)
-{
-    pkt->length += len;
-    sftp_pkt_ensure(pkt, pkt->length);
-    memcpy(pkt->data + pkt->length - len, data, len);
-}
-static void sftp_pkt_addbyte(struct sftp_packet *pkt, unsigned char byte)
-{
-    sftp_pkt_adddata(pkt, &byte, 1);
-}
-static void sftp_pkt_adduint32(struct sftp_packet *pkt,
-			       unsigned long value)
-{
-    unsigned char x[4];
-    PUT_32BIT(x, value);
-    sftp_pkt_adddata(pkt, x, 4);
+
+    memcpy(pkt->data + pkt->length, data, length);
+    pkt->length = newlen;
 }
 static struct sftp_packet *sftp_pkt_init(int pkt_type)
 {
@@ -61,61 +54,29 @@ static struct sftp_packet *sftp_pkt_init(int pkt_type)
     pkt->savedpos = -1;
     pkt->length = 0;
     pkt->maxlen = 0;
-    sftp_pkt_adduint32(pkt, 0); /* length field will be filled in later */
-    sftp_pkt_addbyte(pkt, (unsigned char) pkt_type);
+    BinarySink_INIT(pkt, sftp_pkt_BinarySink_write);
+    put_uint32(pkt, 0); /* length field will be filled in later */
+    put_byte(pkt, pkt_type);
     return pkt;
 }
-/*
-static void sftp_pkt_addbool(struct sftp_packet *pkt, unsigned char value)
+
+static void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs)
 {
-    sftp_pkt_adddata(pkt, &value, 1);
-}
-*/
-static void sftp_pkt_adduint64(struct sftp_packet *pkt, uint64 value)
-{
-    unsigned char x[8];
-    PUT_32BIT(x, value.hi);
-    PUT_32BIT(x + 4, value.lo);
-    sftp_pkt_adddata(pkt, x, 8);
-}
-static void sftp_pkt_addstring_start(struct sftp_packet *pkt)
-{
-    sftp_pkt_adduint32(pkt, 0);
-    pkt->savedpos = pkt->length;
-}
-static void sftp_pkt_addstring_str(struct sftp_packet *pkt, const char *data)
-{
-    sftp_pkt_adddata(pkt, data, strlen(data));
-    PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
-}
-static void sftp_pkt_addstring_data(struct sftp_packet *pkt,
-				    const char *data, int len)
-{
-    sftp_pkt_adddata(pkt, data, len);
-    PUT_32BIT(pkt->data + pkt->savedpos - 4, pkt->length - pkt->savedpos);
-}
-static void sftp_pkt_addstring(struct sftp_packet *pkt, const char *data)
-{
-    sftp_pkt_addstring_start(pkt);
-    sftp_pkt_addstring_str(pkt, data);
-}
-static void sftp_pkt_addattrs(struct sftp_packet *pkt, struct fxp_attrs attrs)
-{
-    sftp_pkt_adduint32(pkt, attrs.flags);
+    put_uint32(bs, attrs.flags);
     if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
-	sftp_pkt_adduint32(pkt, attrs.size.hi);
-	sftp_pkt_adduint32(pkt, attrs.size.lo);
+	put_uint32(bs, attrs.size.hi);
+	put_uint32(bs, attrs.size.lo);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID) {
-	sftp_pkt_adduint32(pkt, attrs.uid);
-	sftp_pkt_adduint32(pkt, attrs.gid);
+	put_uint32(bs, attrs.uid);
+	put_uint32(bs, attrs.gid);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) {
-	sftp_pkt_adduint32(pkt, attrs.permissions);
+	put_uint32(bs, attrs.permissions);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME) {
-	sftp_pkt_adduint32(pkt, attrs.atime);
-	sftp_pkt_adduint32(pkt, attrs.mtime);
+	put_uint32(bs, attrs.atime);
+	put_uint32(bs, attrs.mtime);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_EXTENDED) {
 	/*
@@ -124,6 +85,9 @@ static void sftp_pkt_addattrs(struct sftp_packet *pkt, struct fxp_attrs attrs)
 	 */
     }
 }
+
+#define put_fxp_attrs(bs, attrs) \
+    BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
 
 /* ----------------------------------------------------------------------
  * SFTP packet decode functions.
@@ -466,7 +430,7 @@ int fxp_init(void)
     unsigned long remotever;
 
     pktout = sftp_pkt_init(SSH_FXP_INIT);
-    sftp_pkt_adduint32(pktout, SFTP_PROTO_VERSION);
+    put_uint32(pktout, SFTP_PROTO_VERSION);
     sftp_send(pktout);
 
     pktin = sftp_recv();
@@ -510,9 +474,8 @@ struct sftp_request *fxp_realpath_send(const char *path)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_REALPATH);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_str(pktout, path);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, path);
     sftp_send(pktout);
 
     return req;
@@ -557,13 +520,13 @@ struct sftp_request *fxp_open_send(const char *path, int type,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_OPEN);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, path);
-    sftp_pkt_adduint32(pktout, type);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, path);
+    put_uint32(pktout, type);
     if (attrs)
-        sftp_pkt_addattrs(pktout, *attrs);
+        put_fxp_attrs(pktout, *attrs);
     else
-        sftp_pkt_adduint32(pktout, 0); /* empty ATTRS structure */
+        put_uint32(pktout, 0); /* empty ATTRS structure */
     sftp_send(pktout);
 
     return req;
@@ -605,8 +568,8 @@ struct sftp_request *fxp_opendir_send(const char *path)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_OPENDIR);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, path);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, path);
     sftp_send(pktout);
 
     return req;
@@ -647,9 +610,8 @@ struct sftp_request *fxp_close_send(struct fxp_handle *handle)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_CLOSE);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
     sftp_send(pktout);
 
     sfree(handle->hstring);
@@ -672,9 +634,9 @@ struct sftp_request *fxp_mkdir_send(const char *path)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_MKDIR);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, path);
-    sftp_pkt_adduint32(pktout, 0);     /* (FIXME) empty ATTRS structure */
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, path);
+    put_uint32(pktout, 0);     /* (FIXME) empty ATTRS structure */
     sftp_send(pktout);
 
     return req;
@@ -698,8 +660,8 @@ struct sftp_request *fxp_rmdir_send(const char *path)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_RMDIR);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, path);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, path);
     sftp_send(pktout);
 
     return req;
@@ -723,8 +685,8 @@ struct sftp_request *fxp_remove_send(const char *fname)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_REMOVE);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, fname);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, fname);
     sftp_send(pktout);
 
     return req;
@@ -749,9 +711,9 @@ struct sftp_request *fxp_rename_send(const char *srcfname,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_RENAME);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, srcfname);
-    sftp_pkt_addstring(pktout, dstfname);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, srcfname);
+    put_stringz(pktout, dstfname);
     sftp_send(pktout);
 
     return req;
@@ -779,8 +741,8 @@ struct sftp_request *fxp_stat_send(const char *fname)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_STAT);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, fname);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, fname);
     sftp_send(pktout);
 
     return req;
@@ -811,9 +773,8 @@ struct sftp_request *fxp_fstat_send(struct fxp_handle *handle)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_FSTAT);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
     sftp_send(pktout);
 
     return req;
@@ -848,9 +809,9 @@ struct sftp_request *fxp_setstat_send(const char *fname,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_SETSTAT);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring(pktout, fname);
-    sftp_pkt_addattrs(pktout, attrs);
+    put_uint32(pktout, req->id);
+    put_stringz(pktout, fname);
+    put_fxp_attrs(pktout, attrs);
     sftp_send(pktout);
 
     return req;
@@ -875,10 +836,9 @@ struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_FSETSTAT);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
-    sftp_pkt_addattrs(pktout, attrs);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
+    put_fxp_attrs(pktout, attrs);
     sftp_send(pktout);
 
     return req;
@@ -909,11 +869,10 @@ struct sftp_request *fxp_read_send(struct fxp_handle *handle,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_READ);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
-    sftp_pkt_adduint64(pktout, offset);
-    sftp_pkt_adduint32(pktout, len);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
+    put_uint64(pktout, offset);
+    put_uint32(pktout, len);
     sftp_send(pktout);
 
     return req;
@@ -958,9 +917,8 @@ struct sftp_request *fxp_readdir_send(struct fxp_handle *handle)
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_READDIR);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
     sftp_send(pktout);
 
     return req;
@@ -1041,12 +999,10 @@ struct sftp_request *fxp_write_send(struct fxp_handle *handle,
     struct sftp_packet *pktout;
 
     pktout = sftp_pkt_init(SSH_FXP_WRITE);
-    sftp_pkt_adduint32(pktout, req->id);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, handle->hstring, handle->hlen);
-    sftp_pkt_adduint64(pktout, offset);
-    sftp_pkt_addstring_start(pktout);
-    sftp_pkt_addstring_data(pktout, buffer, len);
+    put_uint32(pktout, req->id);
+    put_string(pktout, handle->hstring, handle->hlen);
+    put_uint64(pktout, offset);
+    put_string(pktout, buffer, len);
     sftp_send(pktout);
 
     return req;
