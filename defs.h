@@ -34,4 +34,10 @@ typedef uint32_t uint32;
 #define TYPECHECK(to_check, to_return)                  \
     (sizeof(to_check) ? (to_return) : (to_return))
 
+/* Return a pointer to the object of structure type 'type' whose field
+ * with name 'field' is pointed at by 'object'. */
+#define FROMFIELD(object, type, field)                                  \
+    TYPECHECK(object == &((type *)0)->field,                            \
+              ((type *)(((char *)(object)) - offsetof(type, field))))
+
 #endif /* PUTTY_DEFS_H */

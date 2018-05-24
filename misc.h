@@ -37,9 +37,14 @@ char *dupprintf(const char *fmt, ...)
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
 
+struct strbuf {
+    char *s;
+    unsigned char *u;
+    int len;
+    /* (also there's a surrounding implementation struct in misc.c) */
+};
 strbuf *strbuf_new(void);
 void strbuf_free(strbuf *buf);
-char *strbuf_str(strbuf *buf);         /* does not free buf */
 char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
 void strbuf_catf(strbuf *buf, const char *fmt, ...);
 void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap);

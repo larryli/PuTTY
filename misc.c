@@ -466,44 +466,66 @@ char *dupprintf(const char *fmt, ...)
     return ret;
 }
 
-struct strbuf {
-    char *s;
-    int len, size;
+struct strbuf_impl {
+    int size;
+    struct strbuf visible;
 };
+
+#define STRBUF_SET_PTR(buf, ptr)                                \
+    ((buf)->visible.s = (ptr),                                  \
+     (buf)->visible.u = (unsigned char *)(buf)->visible.s)
+
+char *strbuf_append(strbuf *buf_o, size_t len)
+{
+    struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
+    char *toret;
+    if (buf->size < buf->visible.len + len + 1) {
+        buf->size = (buf->visible.len + len + 1) * 5 / 4 + 512;
+        STRBUF_SET_PTR(buf, sresize(buf->visible.s, buf->size, char));
+    }
+    toret = buf->visible.s + buf->visible.len;
+    buf->visible.len += len;
+    buf->visible.s[buf->visible.len] = '\0';
+    return toret;
+}
+
 strbuf *strbuf_new(void)
 {
-    strbuf *buf = snew(strbuf);
-    buf->len = 0;
+    struct strbuf_impl *buf = snew(struct strbuf_impl);
+    buf->visible.len = 0;
     buf->size = 512;
-    buf->s = snewn(buf->size, char);
-    *buf->s = '\0';
-    return buf;
+    STRBUF_SET_PTR(buf, snewn(buf->size, char));
+    *buf->visible.s = '\0';
+    return &buf->visible;
 }
-void strbuf_free(strbuf *buf)
+void strbuf_free(strbuf *buf_o)
 {
-    sfree(buf->s);
+    struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
+    if (buf->visible.s) {
+        smemclr(buf->visible.s, buf->size);
+        sfree(buf->visible.s);
+    }
     sfree(buf);
 }
-char *strbuf_str(strbuf *buf)
+char *strbuf_to_str(strbuf *buf_o)
 {
-    return buf->s;
-}
-char *strbuf_to_str(strbuf *buf)
-{
-    char *ret = buf->s;
+    struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
+    char *ret = buf->visible.s;
     sfree(buf);
     return ret;
 }
-void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap)
+void strbuf_catfv(strbuf *buf_o, const char *fmt, va_list ap)
 {
-    buf->s = dupvprintf_inner(buf->s, buf->len, &buf->size, fmt, ap);
-    buf->len += strlen(buf->s + buf->len);
+    struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
+    STRBUF_SET_PTR(buf, dupvprintf_inner(buf->visible.s, buf->visible.len,
+                                         &buf->size, fmt, ap));
+    buf->visible.len += strlen(buf->visible.s + buf->visible.len);
 }
-void strbuf_catf(strbuf *buf, const char *fmt, ...)
+void strbuf_catf(strbuf *buf_o, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    strbuf_catfv(buf, fmt, ap);
+    strbuf_catfv(buf_o, fmt, ap);
     va_end(ap);
 }
 
