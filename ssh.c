@@ -1172,11 +1172,9 @@ static void bomb_out(Ssh ssh, char *text)
 #define bombout(msg) bomb_out(ssh, dupprintf msg)
 
 /* Helper function for common bits of parsing ttymodes. */
-static void parse_ttymodes(Ssh ssh,
-                           void (*do_mode)(void *data,
-                                           const struct ssh_ttymode *mode,
-                                           char *val),
-			   void *data)
+static void parse_ttymodes(
+    BinarySink *bs, Ssh ssh,
+    void (*do_mode)(BinarySink *, const struct ssh_ttymode *, char *))
 {
     int i;
     const struct ssh_ttymode *mode;
@@ -1199,11 +1197,11 @@ static void parse_ttymodes(Ssh ssh,
 	if (val[0] == 'A') {
 	    val = get_ttymode(ssh->frontend, mode->mode);
 	    if (val) {
-		do_mode(data, mode, val);
+		do_mode(bs, mode, val);
 		sfree(val);
 	    }
 	} else if (val[0] == 'V') {
-            do_mode(data, mode, val + 1);              /* skip the 'V' */
+            do_mode(bs, mode, val + 1);              /* skip the 'V' */
 	} /* else 'N', or something from the future we don't understand */
     }
 }
@@ -5979,22 +5977,19 @@ static void ssh1_smsg_exit_status(Ssh ssh, struct Packet *pktin)
 }
 
 /* Helper function to deal with sending tty modes for REQUEST_PTY */
-static void ssh1_send_ttymode(void *data,
+static void ssh1_send_ttymode(BinarySink *bs,
                               const struct ssh_ttymode *mode, char *val)
 {
-    struct Packet *pktout = (struct Packet *)data;
-    unsigned int arg = 0;
+    put_byte(bs, mode->opcode);
 
     switch (mode->type) {
       case TTY_OP_CHAR:
-	arg = ssh_tty_parse_specchar(val);
+        put_byte(bs, ssh_tty_parse_specchar(val));
 	break;
       case TTY_OP_BOOL:
-	arg = ssh_tty_parse_boolean(val);
+        put_byte(bs, ssh_tty_parse_boolean(val));
 	break;
     }
-    put_byte(pktout, mode->opcode);
-    put_byte(pktout, arg);
 }
 
 int ssh_agent_forwarding_permitted(Ssh ssh)
@@ -6098,7 +6093,7 @@ static void do_ssh1_connection(void *vctx)
 	put_uint32(pkt, ssh->term_width);
 	put_uint32(pkt, 0); /* width in pixels */
 	put_uint32(pkt, 0); /* height in pixels */
-	parse_ttymodes(ssh, ssh1_send_ttymode, (void *)pkt);
+	parse_ttymodes(BinarySink_UPCAST(pkt), ssh, ssh1_send_ttymode);
 	put_byte(pkt, SSH1_TTY_OP_ISPEED);
 	put_uint32(pkt, ssh->ispeed);
 	put_byte(pkt, SSH1_TTY_OP_OSPEED);
@@ -9711,22 +9706,19 @@ static void ssh2_msg_userauth_banner(Ssh ssh, struct Packet *pktin)
 }
 
 /* Helper function to deal with sending tty modes for "pty-req" */
-static void ssh2_send_ttymode(void *data,
+static void ssh2_send_ttymode(BinarySink *bs,
                               const struct ssh_ttymode *mode, char *val)
 {
-    struct Packet *pktout = (struct Packet *)data;
-    unsigned int arg = 0;
+    put_byte(bs, mode->opcode);
 
     switch (mode->type) {
       case TTY_OP_CHAR:
-	arg = ssh_tty_parse_specchar(val);
+        put_uint32(bs, ssh_tty_parse_specchar(val));
 	break;
       case TTY_OP_BOOL:
-	arg = ssh_tty_parse_boolean(val);
+        put_uint32(bs, ssh_tty_parse_boolean(val));
 	break;
     }
-    put_byte(pktout, mode->opcode);
-    put_uint32(pktout, arg);
 }
 
 static void ssh2_setup_x11(struct ssh_channel *c, struct Packet *pktin,
@@ -9805,7 +9797,6 @@ static void ssh2_setup_pty(struct ssh_channel *c, struct Packet *pktin,
     };
     Ssh ssh = c->ssh;
     struct Packet *pktout;
-    int stringstart;
     crStateP(ssh2_setup_pty_state, ctx);
 
     crBeginState;
@@ -9822,15 +9813,16 @@ static void ssh2_setup_pty(struct ssh_channel *c, struct Packet *pktin,
     put_uint32(pktout, ssh->term_height);
     put_uint32(pktout, 0);	       /* pixel width */
     put_uint32(pktout, 0);	       /* pixel height */
-    put_uint32(pktout, 0);             /* string length to fill in later */
-    stringstart = pktout->length;
-    parse_ttymodes(ssh, ssh2_send_ttymode, (void *)pktout);
-    put_byte(pktout, SSH2_TTY_OP_ISPEED);
-    put_uint32(pktout, ssh->ispeed);
-    put_byte(pktout, SSH2_TTY_OP_OSPEED);
-    put_uint32(pktout, ssh->ospeed);
-    put_byte(pktout, SSH_TTY_OP_END);
-    PUT_32BIT(pktout->data + stringstart - 4, pktout->length - stringstart);
+    {
+        strbuf *modebuf = strbuf_new();
+        parse_ttymodes(BinarySink_UPCAST(modebuf), ssh, ssh2_send_ttymode);
+        put_byte(modebuf, SSH2_TTY_OP_ISPEED);
+        put_uint32(modebuf, ssh->ispeed);
+        put_byte(modebuf, SSH2_TTY_OP_OSPEED);
+        put_uint32(modebuf, ssh->ospeed);
+        put_byte(modebuf, SSH_TTY_OP_END);
+        put_stringsb(pktout, modebuf);
+    }
     ssh2_pkt_send(ssh, pktout);
     ssh->state = SSH_STATE_INTERMED;
 
