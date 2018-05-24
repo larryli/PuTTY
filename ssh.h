@@ -194,8 +194,8 @@ int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
 void rsa_fingerprint(char *str, int len, struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
-unsigned char *rsa_ssh1_public_blob(struct RSAKey *key, int *len,
-                                    RsaSsh1Order order);
+void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
+                          RsaSsh1Order order);
 int rsa_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
@@ -228,7 +228,7 @@ struct ssh_kex;
 const char *ssh_ecdhkex_curve_textname(const struct ssh_kex *kex);
 void *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
 void ssh_ecdhkex_freekey(void *key);
-char *ssh_ecdhkex_getpublic(void *key, int *len);
+void ssh_ecdhkex_getpublic(void *key, BinarySink *bs);
 Bignum ssh_ecdhkex_getkey(void *key, char *remoteKey, int remoteKeyLen);
 
 /*
@@ -400,14 +400,14 @@ struct ssh_signkey {
                      const char *data, int len);
     void (*freekey) (void *key);
     char *(*fmtkey) (void *key);
-    unsigned char *(*public_blob) (void *key, int *len);
-    unsigned char *(*private_blob) (void *key, int *len);
+    void (*public_blob)(void *key, BinarySink *);
+    void (*private_blob)(void *key, BinarySink *);
     void *(*createkey) (const struct ssh_signkey *self,
                         const unsigned char *pub_blob, int pub_len,
 			const unsigned char *priv_blob, int priv_len);
     void *(*openssh_createkey) (const struct ssh_signkey *self,
                                 const unsigned char **blob, int *len);
-    int (*openssh_fmtkey) (void *key, unsigned char *blob, int len);
+    void (*openssh_fmtkey) (void *key, BinarySink *);
     /* OpenSSH private key blobs, as created by openssh_fmtkey and
      * consumed by openssh_createkey, always (at least so far...) take
      * the form of a number of SSH-2 strings / mpints concatenated
@@ -421,8 +421,7 @@ struct ssh_signkey {
                         const void *blob, int len);
     int (*verifysig) (void *key, const char *sig, int siglen,
 		      const char *data, int datalen);
-    unsigned char *(*sign) (void *key, const char *data, int datalen,
-			    int *siglen);
+    void (*sign) (void *key, const char *data, int datalen, BinarySink *);
     const char *name;
     const char *keytype;               /* for host key cache */
     const void *extra;                 /* private to the public key methods */
@@ -719,7 +718,7 @@ const char *dh_validate_f(void *handle, Bignum f);
 Bignum dh_find_K(void *, Bignum f);
 
 int rsa_ssh1_encrypted(const Filename *filename, char **comment);
-int rsa_ssh1_loadpub(const Filename *filename, void **blob, int *bloblen,
+int rsa_ssh1_loadpub(const Filename *filename, BinarySink *bs,
                      char **commentptr, const char **errorstr);
 int rsa_ssh1_loadkey(const Filename *filename, struct RSAKey *key,
                      const char *passphrase, const char **errorstr);
@@ -740,9 +739,9 @@ int ssh2_userkey_encrypted(const Filename *filename, char **comment);
 struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 				       const char *passphrase,
                                        const char **errorstr);
-unsigned char *ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
-				    int *pub_blob_len, char **commentptr,
-				    const char **errorstr);
+int ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
+                         BinarySink *bs,
+                         char **commentptr, const char **errorstr);
 int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase);
 const struct ssh_signkey *find_pubkey_alg(const char *name);

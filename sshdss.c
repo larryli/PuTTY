@@ -271,72 +271,22 @@ static int dss_verifysig(void *key, const char *sig, int siglen,
     return ret;
 }
 
-static unsigned char *dss_public_blob(void *key, int *len)
+static void dss_public_blob(void *key, BinarySink *bs)
 {
     struct dss_key *dss = (struct dss_key *) key;
-    int plen, qlen, glen, ylen, bloblen;
-    int i;
-    unsigned char *blob, *p;
 
-    plen = (bignum_bitcount(dss->p) + 8) / 8;
-    qlen = (bignum_bitcount(dss->q) + 8) / 8;
-    glen = (bignum_bitcount(dss->g) + 8) / 8;
-    ylen = (bignum_bitcount(dss->y) + 8) / 8;
-
-    /*
-     * string "ssh-dss", mpint p, mpint q, mpint g, mpint y. Total
-     * 27 + sum of lengths. (five length fields, 20+7=27).
-     */
-    bloblen = 27 + plen + qlen + glen + ylen;
-    blob = snewn(bloblen, unsigned char);
-    p = blob;
-    PUT_32BIT(p, 7);
-    p += 4;
-    memcpy(p, "ssh-dss", 7);
-    p += 7;
-    PUT_32BIT(p, plen);
-    p += 4;
-    for (i = plen; i--;)
-	*p++ = bignum_byte(dss->p, i);
-    PUT_32BIT(p, qlen);
-    p += 4;
-    for (i = qlen; i--;)
-	*p++ = bignum_byte(dss->q, i);
-    PUT_32BIT(p, glen);
-    p += 4;
-    for (i = glen; i--;)
-	*p++ = bignum_byte(dss->g, i);
-    PUT_32BIT(p, ylen);
-    p += 4;
-    for (i = ylen; i--;)
-	*p++ = bignum_byte(dss->y, i);
-    assert(p == blob + bloblen);
-    *len = bloblen;
-    return blob;
+    put_stringz(bs, "ssh-dss");
+    put_mp_ssh2(bs, dss->p);
+    put_mp_ssh2(bs, dss->q);
+    put_mp_ssh2(bs, dss->g);
+    put_mp_ssh2(bs, dss->y);
 }
 
-static unsigned char *dss_private_blob(void *key, int *len)
+static void dss_private_blob(void *key, BinarySink *bs)
 {
     struct dss_key *dss = (struct dss_key *) key;
-    int xlen, bloblen;
-    int i;
-    unsigned char *blob, *p;
 
-    xlen = (bignum_bitcount(dss->x) + 8) / 8;
-
-    /*
-     * mpint x, string[20] the SHA of p||q||g. Total 4 + xlen.
-     */
-    bloblen = 4 + xlen;
-    blob = snewn(bloblen, unsigned char);
-    p = blob;
-    PUT_32BIT(p, xlen);
-    p += 4;
-    for (i = xlen; i--;)
-	*p++ = bignum_byte(dss->x, i);
-    assert(p == blob + bloblen);
-    *len = bloblen;
-    return blob;
+    put_mp_ssh2(bs, dss->x);
 }
 
 static void *dss_createkey(const struct ssh_signkey *self,
@@ -415,32 +365,15 @@ static void *dss_openssh_createkey(const struct ssh_signkey *self,
     return dss;
 }
 
-static int dss_openssh_fmtkey(void *key, unsigned char *blob, int len)
+static void dss_openssh_fmtkey(void *key, BinarySink *bs)
 {
     struct dss_key *dss = (struct dss_key *) key;
-    int bloblen, i;
 
-    bloblen =
-	ssh2_bignum_length(dss->p) +
-	ssh2_bignum_length(dss->q) +
-	ssh2_bignum_length(dss->g) +
-	ssh2_bignum_length(dss->y) +
-	ssh2_bignum_length(dss->x);
-
-    if (bloblen > len)
-	return bloblen;
-
-    bloblen = 0;
-#define ENC(x) \
-    PUT_32BIT(blob+bloblen, ssh2_bignum_length((x))-4); bloblen += 4; \
-    for (i = ssh2_bignum_length((x))-4; i-- ;) blob[bloblen++]=bignum_byte((x),i);
-    ENC(dss->p);
-    ENC(dss->q);
-    ENC(dss->g);
-    ENC(dss->y);
-    ENC(dss->x);
-
-    return bloblen;
+    put_mp_ssh2(bs, dss->p);
+    put_mp_ssh2(bs, dss->q);
+    put_mp_ssh2(bs, dss->g);
+    put_mp_ssh2(bs, dss->y);
+    put_mp_ssh2(bs, dss->x);
 }
 
 static int dss_pubkey_bits(const struct ssh_signkey *self,
@@ -578,14 +511,13 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
     }
 }
 
-static unsigned char *dss_sign(void *key, const char *data, int datalen,
-                               int *siglen)
+static void dss_sign(void *key, const char *data, int datalen,
+                     BinarySink *bs)
 {
     struct dss_key *dss = (struct dss_key *) key;
     Bignum k, gkp, hash, kinv, hxr, r, s;
     unsigned char digest[20];
-    unsigned char *bytes;
-    int nbytes, i;
+    int i;
 
     SHA_Simple(data, datalen, digest);
 
@@ -609,28 +541,14 @@ static unsigned char *dss_sign(void *key, const char *data, int datalen,
     freebn(k);
     freebn(hash);
 
-    /*
-     * Signature blob is
-     * 
-     *   string  "ssh-dss"
-     *   string  two 20-byte numbers r and s, end to end
-     * 
-     * i.e. 4+7 + 4+40 bytes.
-     */
-    nbytes = 4 + 7 + 4 + 40;
-    bytes = snewn(nbytes, unsigned char);
-    PUT_32BIT(bytes, 7);
-    memcpy(bytes + 4, "ssh-dss", 7);
-    PUT_32BIT(bytes + 4 + 7, 40);
-    for (i = 0; i < 20; i++) {
-	bytes[4 + 7 + 4 + i] = bignum_byte(r, 19 - i);
-	bytes[4 + 7 + 4 + 20 + i] = bignum_byte(s, 19 - i);
-    }
+    put_stringz(bs, "ssh-dss");
+    put_uint32(bs, 40);
+    for (i = 0; i < 20; i++)
+	put_byte(bs, bignum_byte(r, 19 - i));
+    for (i = 0; i < 20; i++)
+        put_byte(bs, bignum_byte(s, 19 - i));
     freebn(r);
     freebn(s);
-
-    *siglen = nbytes;
-    return bytes;
 }
 
 const struct ssh_signkey ssh_dss = {

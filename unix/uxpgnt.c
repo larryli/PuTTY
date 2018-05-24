@@ -556,8 +556,11 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
             const char *error;
 
-            if (!rsa_ssh1_loadpub(fn, &key_in.blob, &key_in.bloblen,
+            key_in.blob = strbuf_new();
+            if (!rsa_ssh1_loadpub(fn, BinarySink_UPCAST(key_in.blob),
                                   NULL, &error)) {
+                strbuf_free(key_in.blob);
+                key_in.blob = NULL;
                 if (file_errors) {
                     *retstr = dupprintf("unable to load file '%s': %s",
                                         string, error);
@@ -573,7 +576,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
                 key_in.ssh_version = 1;
                 key_in.comment = NULL;
                 key_ret = pageant_pubkey_copy(&key_in);
-                sfree(key_in.blob);
+                strbuf_free(key_in.blob);
+                key_in.blob = NULL;
                 filename_free(fn);
                 return key_ret;
             }
@@ -582,9 +586,11 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
                    keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
             const char *error;
 
-            if ((key_in.blob = ssh2_userkey_loadpub(fn, NULL,
-                                                    &key_in.bloblen,
-                                                    NULL, &error)) == NULL) {
+            key_in.blob = strbuf_new();
+            if (!ssh2_userkey_loadpub(fn, NULL, BinarySink_UPCAST(key_in.blob),
+                                     NULL, &error)) {
+                strbuf_free(key_in.blob);
+                key_in.blob = NULL;
                 if (file_errors) {
                     *retstr = dupprintf("unable to load file '%s': %s",
                                         string, error);
@@ -600,7 +606,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
                 key_in.ssh_version = 2;
                 key_in.comment = NULL;
                 key_ret = pageant_pubkey_copy(&key_in);
-                sfree(key_in.blob);
+                strbuf_free(key_in.blob);
+                key_in.blob = NULL;
                 filename_free(fn);
                 return key_ret;
             }
@@ -696,12 +703,14 @@ void run_client(void)
                     struct RSAKey rkey;
                     memset(&rkey, 0, sizeof(rkey));
                     rkey.comment = dupstr(key->comment);
-                    rsa_ssh1_readpub(key->blob, key->bloblen, &rkey, NULL,
+                    rsa_ssh1_readpub(key->blob->u, key->blob->len, &rkey, NULL,
                                      RSA_SSH1_EXPONENT_FIRST);
                     ssh1_write_pubkey(fp, &rkey);
                     freersakey(&rkey);
                 } else {
-                    ssh2_write_pubkey(fp, key->comment, key->blob,key->bloblen,
+                    ssh2_write_pubkey(fp, key->comment,
+                                      key->blob->u,
+                                      key->blob->len,
                                       (act->action == KEYACT_CLIENT_PUBLIC ?
                                        SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
                                        SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));

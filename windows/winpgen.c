@@ -1321,13 +1321,13 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                    "PuTTYgen Error", MB_OK | MB_ICONERROR);
                     } else {
                         if (state->ssh2) {
-                            int bloblen;
-                            unsigned char *blob;
-                            blob = state->ssh2key.alg->public_blob
-                                (state->ssh2key.data, &bloblen);
+                            strbuf *blob = strbuf_new();
+                            state->ssh2key.alg->public_blob(
+                                state->ssh2key.data, BinarySink_UPCAST(blob));
                             ssh2_write_pubkey(fp, state->ssh2key.comment,
-                                              blob, bloblen,
+                                              blob->u, blob->len,
                                               SSH_KEYTYPE_SSH2_PUBLIC_RFC4716);
+                            strbuf_free(blob);
                         } else {
                             ssh1_write_pubkey(fp, &state->key);
                         }

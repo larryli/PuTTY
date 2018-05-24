@@ -125,8 +125,7 @@ struct pageant_pubkey {
     /* Everything needed to identify a public key found by
      * pageant_enum_keys and pass it back to the agent or other code
      * later */
-    void *blob;
-    int bloblen;
+    strbuf *blob;
     char *comment;
     int ssh_version;
 };

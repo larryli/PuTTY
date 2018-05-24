@@ -246,10 +246,9 @@ int main(int argc, char **argv)
     int sshver = 0;
     struct ssh2_userkey *ssh2key = NULL;
     struct RSAKey *ssh1key = NULL;
-    unsigned char *ssh2blob = NULL;
+    strbuf *ssh2blob = NULL;
     char *ssh2alg = NULL;
     const struct ssh_signkey *ssh2algf = NULL;
-    int ssh2bloblen;
     char *old_passphrase = NULL, *new_passphrase = NULL;
     int load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
@@ -807,29 +806,33 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_SSH1_PUBLIC:
 	    ssh1key = snew(struct RSAKey);
 	    if (!load_encrypted) {
-		void *vblob;
-		unsigned char *blob;
-		int n, l, bloblen;
+		strbuf *blob;
+		int n, l;
 
-		ret = rsa_ssh1_loadpub(infilename, &vblob, &bloblen,
+                blob = strbuf_new();
+		ret = rsa_ssh1_loadpub(infilename, BinarySink_UPCAST(blob),
                                        &origcomment, &error);
-		blob = (unsigned char *)vblob;
 
 		n = 4;		       /* skip modulus bits */
-		
-		l = ssh1_read_bignum(blob + n, bloblen - n,
+
+		l = ssh1_read_bignum(blob->u + n,
+                                     blob->len - n,
 				     &ssh1key->exponent);
 		if (l < 0) {
 		    error = "SSH-1 public key blob was too short";
 		} else {
 		    n += l;
-		    l = ssh1_read_bignum(blob + n, bloblen - n,
-					 &ssh1key->modulus);
+		    l = ssh1_read_bignum(
+                        blob->u + n,
+                        blob->len - n, &ssh1key->modulus);
 		    if (l < 0) {
 			error = "SSH-1 public key blob was too short";
 		    } else
 			n += l;
 		}
+
+                strbuf_free(blob);
+
 		ssh1key->comment = dupstr(origcomment);
 		ssh1key->private_exponent = NULL;
 		ssh1key->p = NULL;
@@ -849,16 +852,18 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716:
           case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH:
 	    if (!load_encrypted) {
-		ssh2blob = ssh2_userkey_loadpub(infilename, &ssh2alg,
-						&ssh2bloblen, &origcomment,
-                                                &error);
-                if (ssh2blob) {
+                ssh2blob = strbuf_new();
+		if (ssh2_userkey_loadpub(infilename, &ssh2alg, BinarySink_UPCAST(ssh2blob),
+                                         &origcomment, &error)) {
                     ssh2algf = find_pubkey_alg(ssh2alg);
                     if (ssh2algf)
                         bits = ssh2algf->pubkey_bits(ssh2algf,
-                                                     ssh2blob, ssh2bloblen);
+                                                     ssh2blob->s,
+                                                     ssh2blob->len);
                     else
                         bits = -1;
+                } else {
+                    strbuf_free(ssh2blob);
                 }
                 sfree(ssh2alg);
 	    } else {
@@ -1007,12 +1012,12 @@ int main(int argc, char **argv)
             } else {
                 if (!ssh2blob) {
                     assert(ssh2key);
-                    ssh2blob = ssh2key->alg->public_blob(ssh2key->data,
-                                                         &ssh2bloblen);
+                    ssh2blob = strbuf_new();
+                    ssh2key->alg->public_blob(ssh2key->data, BinarySink_UPCAST(ssh2blob));
                 }
 
                 ssh2_write_pubkey(fp, ssh2key ? ssh2key->comment : origcomment,
-                                  ssh2blob, ssh2bloblen,
+                                  ssh2blob->s, ssh2blob->len,
                                   (outtype == PUBLIC ?
                                    SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 :
                                    SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH));
@@ -1038,7 +1043,8 @@ int main(int argc, char **argv)
                                                    ssh2key->data);
 		} else {
 		    assert(ssh2blob);
-		    fingerprint = ssh2_fingerprint_blob(ssh2blob, ssh2bloblen);
+		    fingerprint = ssh2_fingerprint_blob(
+                        ssh2blob->s, ssh2blob->len);
 		}
 	    }
 

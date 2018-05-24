@@ -924,8 +924,9 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase)
 {
-    unsigned char *pubblob, *privblob, *spareblob;
-    int publen, privlen, sparelen = 0;
+    strbuf *pubblob, *privblob;
+    unsigned char *spareblob;
+    int sparelen = 0;
     unsigned char *outblob;
     int outlen;
     struct mpint_pos numbers[9];
@@ -939,8 +940,10 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
     /*
      * Fetch the key blobs.
      */
-    pubblob = key->alg->public_blob(key->data, &publen);
-    privblob = key->alg->private_blob(key->data, &privlen);
+    pubblob = strbuf_new();
+    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    privblob = strbuf_new();
+    key->alg->private_blob(key->data, BinarySink_UPCAST(privblob));
     spareblob = outblob = NULL;
 
     outblob = NULL;
@@ -967,14 +970,14 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
              * These blobs were generated from inside PuTTY, so we needn't
              * treat them as untrusted.
              */
-            pos = 4 + GET_32BIT(pubblob);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
+            pos = 4 + GET_32BIT(pubblob->u);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &e);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &n);
             pos = 0;
-            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
-            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
-            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
-            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
+            pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &d);
+            pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &p);
+            pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &q);
+            pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &iqmp);
 
             assert(e.start && iqmp.start); /* can't go wrong */
 
@@ -1024,13 +1027,13 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
              * These blobs were generated from inside PuTTY, so we needn't
              * treat them as untrusted.
              */
-            pos = 4 + GET_32BIT(pubblob);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
-            pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+            pos = 4 + GET_32BIT(pubblob->u);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &p);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &q);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &g);
+            pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &y);
             pos = 0;
-            pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
+            pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &x);
 
             assert(y.start && x.start); /* can't go wrong */
 
@@ -1097,8 +1100,8 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
 
         len = ber_write_id_len(NULL, 2, 1, 0);
         len += 1;
-        len += ber_write_id_len(NULL, 4, privlen - 4, 0);
-        len+= privlen - 4;
+        len += ber_write_id_len(NULL, 4, privblob->len - 4, 0);
+        len+= privblob->len - 4;
         len += ber_write_id_len(NULL, 0, oidlen +
                                 ber_write_id_len(NULL, 6, oidlen, 0),
                                 ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
@@ -1120,9 +1123,9 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
         pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
         pos += ber_write_id_len(outblob+pos, 2, 1, 0);
         outblob[pos++] = 1;
-        pos += ber_write_id_len(outblob+pos, 4, privlen - 4, 0);
-        memcpy(outblob+pos, privblob + 4, privlen - 4);
-        pos += privlen - 4;
+        pos += ber_write_id_len(outblob+pos, 4, privblob->len - 4, 0);
+        memcpy(outblob+pos, privblob->u + 4, privblob->len - 4);
+        pos += privblob->len - 4;
         pos += ber_write_id_len(outblob+pos, 0, oidlen +
                                 ber_write_id_len(NULL, 6, oidlen, 0),
                                 ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
@@ -1134,7 +1137,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
                                 ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
         pos += ber_write_id_len(outblob+pos, 3, 2 + pointlen, 0);
         outblob[pos++] = 0;
-        memcpy(outblob+pos, pubblob+39, 1 + pointlen);
+        memcpy(outblob+pos, pubblob->u+39, 1 + pointlen);
         pos += 1 + pointlen;
 
         header = "-----BEGIN EC PRIVATE KEY-----\n";
@@ -1254,14 +1257,10 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
         smemclr(spareblob, sparelen);
         sfree(spareblob);
     }
-    if (privblob) {
-        smemclr(privblob, privlen);
-        sfree(privblob);
-    }
-    if (pubblob) {
-        smemclr(pubblob, publen);
-        sfree(pubblob);
-    }
+    if (privblob)
+        strbuf_free(privblob);
+    if (pubblob)
+        strbuf_free(pubblob);
     return ret;
 }
 
@@ -1747,9 +1746,10 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
 int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase)
 {
-    unsigned char *pubblob, *privblob, *outblob, *p;
+    strbuf *pubblob, *privblob;
+    unsigned char *outblob, *p;
     unsigned char *private_section_start, *private_section_length_field;
-    int publen, privlen, commentlen, maxsize, padvalue, i;
+    int commentlen, maxsize, padvalue, i;
     unsigned checkint;
     int ret = 0;
     unsigned char bcrypt_salt[16];
@@ -1759,11 +1759,10 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     /*
      * Fetch the key blobs and find out the lengths of things.
      */
-    pubblob = key->alg->public_blob(key->data, &publen);
-    i = key->alg->openssh_fmtkey(key->data, NULL, 0);
-    privblob = snewn(i, unsigned char);
-    privlen = key->alg->openssh_fmtkey(key->data, privblob, i);
-    assert(privlen == i);
+    pubblob = strbuf_new();
+    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    privblob = strbuf_new();
+    key->alg->openssh_fmtkey(key->data, BinarySink_UPCAST(privblob));
     commentlen = strlen(key->comment);
 
     /*
@@ -1775,11 +1774,11 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
                32 +                    /* kdf name string */
                64 +                    /* kdf options string */
                4 +                     /* key count */
-               4+publen +              /* public key string */
+               4+pubblob->len +        /* public key string */
                4 +                     /* string header for private section */
                8 +                     /* checkint x 2 */
                4+strlen(key->alg->name) + /* key type string */
-               privlen +               /* private blob */
+               privblob->len +         /* private blob */
                4+commentlen +          /* comment string */
                16);                    /* padding at end of private section */
     outblob = snewn(maxsize, unsigned char);
@@ -1816,7 +1815,7 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     p += write_uint32(p, 1);
 
     /* Public blob. */
-    p += write_string(p, pubblob, publen);
+    p += write_string(p, pubblob->u, pubblob->len);
 
     /* Begin private section. */
     private_section_length_field = p;
@@ -1833,8 +1832,8 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     /* Private key. The main private blob goes inline, with no string
      * wrapper. */
     p += write_string_z(p, key->alg->name);
-    memcpy(p, privblob, privlen);
-    p += privlen;
+    memcpy(p, privblob->u, privblob->len);
+    p += privblob->len;
 
     /* Comment. */
     p += write_string_z(p, key->comment);
@@ -1891,14 +1890,10 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
         smemclr(outblob, maxsize);
         sfree(outblob);
     }
-    if (privblob) {
-        smemclr(privblob, privlen);
-        sfree(privblob);
-    }
-    if (pubblob) {
-        smemclr(pubblob, publen);
-        sfree(pubblob);
-    }
+    if (privblob)
+        strbuf_free(privblob);
+    if (pubblob)
+        strbuf_free(pubblob);
     return ret;
 }
 
@@ -2497,8 +2492,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 		 char *passphrase)
 {
-    unsigned char *pubblob, *privblob;
-    int publen, privlen;
+    strbuf *pubblob, *privblob;
     unsigned char *outblob;
     int outlen;
     struct mpint_pos numbers[6];
@@ -2512,8 +2506,10 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
     /*
      * Fetch the key blobs.
      */
-    pubblob = key->alg->public_blob(key->data, &publen);
-    privblob = key->alg->private_blob(key->data, &privlen);
+    pubblob = strbuf_new();
+    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    privblob = strbuf_new();
+    key->alg->private_blob(key->data, BinarySink_UPCAST(privblob));
     outblob = NULL;
 
     /*
@@ -2528,14 +2524,14 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
          * These blobs were generated from inside PuTTY, so we needn't
          * treat them as untrusted.
          */
-        pos = 4 + GET_32BIT(pubblob);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &e);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &n);
+        pos = 4 + GET_32BIT(pubblob->u);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &e);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &n);
         pos = 0;
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &d);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &p);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &q);
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &iqmp);
+        pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &d);
+        pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &p);
+        pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &q);
+        pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &iqmp);
 
         assert(e.start && iqmp.start); /* can't go wrong */
 
@@ -2557,13 +2553,13 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
          * These blobs were generated from inside PuTTY, so we needn't
          * treat them as untrusted.
          */
-        pos = 4 + GET_32BIT(pubblob);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &p);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &q);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &g);
-        pos += ssh2_read_mpint(pubblob+pos, publen-pos, &y);
+        pos = 4 + GET_32BIT(pubblob->u);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &p);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &q);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &g);
+        pos += ssh2_read_mpint(pubblob->u+pos, pubblob->len-pos, &y);
         pos = 0;
-        pos += ssh2_read_mpint(privblob+pos, privlen-pos, &x);
+        pos += ssh2_read_mpint(privblob->u+pos, privblob->len-pos, &x);
 
         assert(y.start && x.start); /* can't go wrong */
 
@@ -2700,13 +2696,9 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
         smemclr(outblob, outlen);
         sfree(outblob);
     }
-    if (privblob) {
-        smemclr(privblob, privlen);
-        sfree(privblob);
-    }
-    if (pubblob) {
-        smemclr(pubblob, publen);
-        sfree(pubblob);
-    }
+    if (privblob)
+        strbuf_free(privblob);
+    if (pubblob)
+        strbuf_free(pubblob);
     return ret;
 }

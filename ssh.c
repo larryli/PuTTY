@@ -4144,16 +4144,18 @@ int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
          * Construct the base64-encoded public key blob and see if
          * that's listed.
          */
-        unsigned char *binblob;
+        strbuf *binblob;
         char *base64blob;
-        int binlen, atoms, i;
-        binblob = ssh2keytype->public_blob(ssh2keydata, &binlen);
-        atoms = (binlen + 2) / 3;
+        int atoms, i;
+        binblob = strbuf_new();
+        ssh2keytype->public_blob(ssh2keydata, BinarySink_UPCAST(binblob));
+        atoms = (binblob->len + 2) / 3;
         base64blob = snewn(atoms * 4 + 1, char);
         for (i = 0; i < atoms; i++)
-            base64_encode_atom(binblob + 3*i, binlen - 3*i, base64blob + 4*i);
+            base64_encode_atom(binblob->u + 3*i,
+                               binblob->len - 3*i, base64blob + 4*i);
         base64blob[atoms * 4] = '\0';
-        sfree(binblob);
+        strbuf_free(binblob);
         if (conf_get_str_str_opt(ssh->conf, CONF_ssh_manual_hostkeys,
                                  base64blob)) {
             sfree(base64blob);
@@ -4191,8 +4193,7 @@ static void do_ssh1_login(void *vctx)
         unsigned char cookie[8];
 	unsigned char session_id[16];
 	int cipher_type;
-	void *publickey_blob;
-	int publickey_bloblen;
+	strbuf *publickey_blob;
 	char *publickey_comment;
 	int privatekey_available, privatekey_encrypted;
 	prompts_t *cur_prompt;
@@ -4529,8 +4530,9 @@ static void do_ssh1_login(void *vctx)
 	if (keytype == SSH_KEYTYPE_SSH1 ||
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
 	    const char *error;
+            s->publickey_blob = strbuf_new();
 	    if (rsa_ssh1_loadpub(s->keyfile,
-                                 &s->publickey_blob, &s->publickey_bloblen,
+                                 BinarySink_UPCAST(s->publickey_blob),
                                  &s->publickey_comment, &error)) {
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH1);
                 if (!s->privatekey_available)
@@ -4545,7 +4547,8 @@ static void do_ssh1_login(void *vctx)
 				   error);
 		c_write_str(ssh, msgbuf);
 		sfree(msgbuf);
-		s->publickey_blob = NULL;
+                strbuf_free(s->publickey_blob);
+                s->publickey_blob = NULL;
 	    }
 	} else {
 	    char *msgbuf;
@@ -4634,8 +4637,8 @@ static void do_ssh1_login(void *vctx)
 			}
 		    }
 		    if (s->publickey_blob) {
-			if (!memcmp(pkblob, s->publickey_blob,
-				    s->publickey_bloblen)) {
+			if (!memcmp(pkblob, s->publickey_blob->s,
+				    s->publickey_blob->len)) {
 			    logeventf(ssh, "Pageant key #%d matches "
 				      "configured key file", s->keyi);
 			    s->tried_publickey = 1;
@@ -5161,7 +5164,7 @@ static void do_ssh1_login(void *vctx)
 
     /* Clear up */
     if (s->publickey_blob) {
-	sfree(s->publickey_blob);
+	strbuf_free(s->publickey_blob);
 	sfree(s->publickey_comment);
     }
 
@@ -6456,8 +6459,7 @@ static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
  */
 struct ssh_transient_hostkey_cache_entry {
     const struct ssh_signkey *alg;
-    unsigned char *pub_blob;
-    int pub_len;
+    strbuf *pub_blob;
 };
 
 static int ssh_transient_hostkey_cache_cmp(void *av, void *bv)
@@ -6486,7 +6488,7 @@ static void ssh_cleanup_transient_hostkey_store(Ssh ssh)
 {
     struct ssh_transient_hostkey_cache_entry *ent;
     while ((ent = delpos234(ssh->transient_hostkey_cache, 0)) != NULL) {
-        sfree(ent->pub_blob);
+        strbuf_free(ent->pub_blob);
         sfree(ent);
     }
     freetree234(ssh->transient_hostkey_cache);
@@ -6499,13 +6501,14 @@ static void ssh_store_transient_hostkey(
 
     if ((ent = find234(ssh->transient_hostkey_cache, (void *)alg,
                        ssh_transient_hostkey_cache_find)) != NULL) {
-        sfree(ent->pub_blob);
+        strbuf_free(ent->pub_blob);
         sfree(ent);
     }
 
     ent = snew(struct ssh_transient_hostkey_cache_entry);
     ent->alg = alg;
-    ent->pub_blob = alg->public_blob(key, &ent->pub_len);
+    ent->pub_blob = strbuf_new();
+    alg->public_blob(key, BinarySink_UPCAST(ent->pub_blob));
     retd = add234(ssh->transient_hostkey_cache, ent);
     assert(retd == ent);
 }
@@ -6518,14 +6521,15 @@ static int ssh_verify_transient_hostkey(
 
     if ((ent = find234(ssh->transient_hostkey_cache, (void *)alg,
                        ssh_transient_hostkey_cache_find)) != NULL) {
-        int this_len;
-        unsigned char *this_blob = alg->public_blob(key, &this_len);
+        strbuf *this_blob = strbuf_new();
+        alg->public_blob(key, BinarySink_UPCAST(this_blob));
 
-        if (this_len == ent->pub_len &&
-            !memcmp(this_blob, ent->pub_blob, this_len))
+        if (this_blob->len == ent->pub_blob->len &&
+            !memcmp(this_blob->s, ent->pub_blob->s,
+                    this_blob->len))
             toret = TRUE;
 
-        sfree(this_blob);
+        strbuf_free(this_blob);
     }
 
     return toret;
@@ -7430,18 +7434,11 @@ static void do_ssh2_transport(void *vctx)
             crStopV;
         }
 
+        s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_ECDH_INIT);
         {
-            char *publicPoint;
-            int publicPointLength;
-            publicPoint = ssh_ecdhkex_getpublic(s->eckey, &publicPointLength);
-            if (!publicPoint) {
-                ssh_ecdhkex_freekey(s->eckey);
-                bombout(("Unable to encode public key for ECDH"));
-                crStopV;
-            }
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_ECDH_INIT);
-            put_string(s->pktout, publicPoint, publicPointLength);
-            sfree(publicPoint);
+            strbuf *pubpoint = strbuf_new();
+            ssh_ecdhkex_getpublic(s->eckey, BinarySink_UPCAST(pubpoint));
+            put_stringsb(s->pktout, pubpoint);
         }
 
         ssh2_pkt_send_noqueue(ssh, s->pktout);
@@ -7463,17 +7460,11 @@ static void do_ssh2_transport(void *vctx)
                                        s->hostkeydata, s->hostkeylen);
 
         {
-            char *publicPoint;
-            int publicPointLength;
-            publicPoint = ssh_ecdhkex_getpublic(s->eckey, &publicPointLength);
-            if (!publicPoint) {
-                ssh_ecdhkex_freekey(s->eckey);
-                bombout(("Unable to encode public key for ECDH hash"));
-                crStopV;
-            }
+            strbuf *pubpoint = strbuf_new();
+            ssh_ecdhkex_getpublic(s->eckey, BinarySink_UPCAST(pubpoint));
             hash_string(ssh->kex->hash, ssh->exhash,
-                        publicPoint, publicPointLength);
-            sfree(publicPoint);
+                        pubpoint->u, pubpoint->len);
+            strbuf_free(pubpoint);
         }
 
         {
@@ -9955,8 +9946,7 @@ static void do_ssh2_userauth(void *vctx)
 	char *username;
 	char *password;
 	int got_username;
-	void *publickey_blob;
-	int publickey_bloblen;
+	strbuf *publickey_blob;
 	int privatekey_available, privatekey_encrypted;
 	char *publickey_algorithm;
 	char *publickey_comment;
@@ -10053,12 +10043,11 @@ static void do_ssh2_userauth(void *vctx)
                 keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
                 keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
 		const char *error;
-		s->publickey_blob =
-		    ssh2_userkey_loadpub(s->keyfile,
+		s->publickey_blob = strbuf_new();
+                if (ssh2_userkey_loadpub(s->keyfile,
 					 &s->publickey_algorithm,
-					 &s->publickey_bloblen, 
-					 &s->publickey_comment, &error);
-		if (s->publickey_blob) {
+					 BinarySink_UPCAST(s->publickey_blob),
+					 &s->publickey_comment, &error)) {
 		    s->privatekey_available = (keytype == SSH_KEYTYPE_SSH2);
                     if (!s->privatekey_available)
                         logeventf(ssh, "Key file contains public key only");
@@ -10074,6 +10063,8 @@ static void do_ssh2_userauth(void *vctx)
 				       error);
 		    c_write_str(ssh, msgbuf);
 		    sfree(msgbuf);
+                    strbuf_free(s->publickey_blob);
+                    s->publickey_blob = NULL;
 		}
 	    } else {
 		char *msgbuf;
@@ -10171,9 +10162,9 @@ static void do_ssh2_userauth(void *vctx)
 		    /* See if configured key is in agent. */
 		    for (keyi = 0; keyi < s->nkeys; keyi++) {
 			s->pklen = toint(GET_32BIT(p));
-			if (s->pklen == s->publickey_bloblen &&
-			    !memcmp(p+4, s->publickey_blob,
-				    s->publickey_bloblen)) {
+			if (s->pklen == s->publickey_blob->len &&
+			    !memcmp(p+4, s->publickey_blob->s,
+				    s->publickey_blob->len)) {
 			    logeventf(ssh, "Pageant key #%d matches "
 				      "configured key file", keyi);
 			    s->keyi = keyi;
@@ -10626,7 +10617,8 @@ static void do_ssh2_userauth(void *vctx)
 		put_bool(s->pktout, FALSE);
 						/* no signature included */
 		put_stringz(s->pktout, s->publickey_algorithm);
-		put_string(s->pktout, s->publickey_blob, s->publickey_bloblen);
+		put_string(s->pktout, s->publickey_blob->s,
+                           s->publickey_blob->len);
 		ssh2_pkt_send(ssh, s->pktout);
 		logevent("Offered public key");
 
@@ -10720,9 +10712,7 @@ static void do_ssh2_userauth(void *vctx)
 		}
 
 		if (key) {
-		    unsigned char *pkblob, *sigblob, *sigdata;
-		    int pkblob_len, sigblob_len, sigdata_len;
-		    int p;
+                    strbuf *pkblob, *sigdata, *sigblob;
 
 		    /*
 		     * We have loaded the private key and the server
@@ -10736,9 +10726,9 @@ static void do_ssh2_userauth(void *vctx)
 		    put_stringz(s->pktout, "publickey"); /* method */
 		    put_bool(s->pktout, TRUE); /* signature follows */
 		    put_stringz(s->pktout, key->alg->name);
-		    pkblob = key->alg->public_blob(key->data,
-                                                   &pkblob_len);
-		    put_string(s->pktout, pkblob, pkblob_len);
+		    pkblob = strbuf_new();
+                    key->alg->public_blob(key->data, BinarySink_UPCAST(pkblob));
+		    put_string(s->pktout, pkblob->s, pkblob->len);
 
 		    /*
 		     * The data to be signed is:
@@ -10748,30 +10738,24 @@ static void do_ssh2_userauth(void *vctx)
 		     * followed by everything so far placed in the
 		     * outgoing packet.
 		     */
-		    sigdata_len = s->pktout->length - 5 + 4 +
-			ssh->v2_session_id_len;
-		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
-			sigdata_len -= 4;
-		    sigdata = snewn(sigdata_len, unsigned char);
-		    p = 0;
-		    if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
-			PUT_32BIT(sigdata+p, ssh->v2_session_id_len);
-			p += 4;
-		    }
-		    memcpy(sigdata+p, ssh->v2_session_id,
-			   ssh->v2_session_id_len);
-		    p += ssh->v2_session_id_len;
-		    memcpy(sigdata+p, s->pktout->data + 5,
-			   s->pktout->length - 5);
-		    p += s->pktout->length - 5;
-		    assert(p == sigdata_len);
-		    sigblob = key->alg->sign(key->data, (char *)sigdata,
-					     sigdata_len, &sigblob_len);
-		    ssh2_add_sigblob(ssh, s->pktout, pkblob, pkblob_len,
-				     sigblob, sigblob_len);
-		    sfree(pkblob);
-		    sfree(sigblob);
-		    sfree(sigdata);
+                    sigdata = strbuf_new();
+		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID) {
+                        put_data(sigdata, ssh->v2_session_id,
+                                 ssh->v2_session_id_len);
+                    } else {
+                        put_string(sigdata, ssh->v2_session_id,
+                                   ssh->v2_session_id_len);
+                    }
+		    put_data(sigdata, s->pktout->data + 5,
+                             s->pktout->length - 5);
+		    sigblob = strbuf_new();
+                    key->alg->sign(key->data, sigdata->s, sigdata->len,
+                                   BinarySink_UPCAST(sigblob));
+                    strbuf_free(sigdata);
+		    ssh2_add_sigblob(ssh, s->pktout, pkblob->s, pkblob->len,
+				     sigblob->s, sigblob->len);
+		    strbuf_free(pkblob);
+		    strbuf_free(sigblob);
 
 		    ssh2_pkt_send(ssh, s->pktout);
                     logevent("Sent public key signature");
@@ -11363,7 +11347,7 @@ static void do_ssh2_userauth(void *vctx)
     /* Clear up various bits and pieces from authentication. */
     if (s->publickey_blob) {
 	sfree(s->publickey_algorithm);
-	sfree(s->publickey_blob);
+	strbuf_free(s->publickey_blob);
 	sfree(s->publickey_comment);
     }
     if (s->agent_response)
