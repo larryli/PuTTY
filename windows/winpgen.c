@@ -671,7 +671,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     comment = NULL;
     passphrase = NULL;
     if (realtype == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
+	needs_pass = rsa_ssh1_encrypted(filename, &comment);
     else if (realtype == SSH_KEYTYPE_SSH2)
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     else
@@ -698,7 +698,8 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    passphrase = dupstr("");
 	if (type == SSH_KEYTYPE_SSH1) {
 	    if (realtype == type)
-		ret = loadrsakey(filename, &newkey1, passphrase, &errmsg);
+		ret = rsa_ssh1_loadkey(
+                    filename, &newkey1, passphrase, &errmsg);
 	    else
 		ret = import_ssh1(filename, realtype, &newkey1,
                                   passphrase, &errmsg);
@@ -1279,8 +1280,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                             ret = export_ssh1(fn, type, &state->key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = saversakey(fn, &state->key,
-                                             *passphrase ? passphrase : NULL);
+                            ret = rsa_ssh1_savekey(
+                                fn, &state->key,
+                                *passphrase ? passphrase : NULL);
                         filename_free(fn);
 		    }
 		    if (ret <= 0) {

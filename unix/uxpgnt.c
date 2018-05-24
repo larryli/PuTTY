@@ -556,8 +556,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
             const char *error;
 
-            if (!rsakey_pubblob(fn, &key_in.blob, &key_in.bloblen,
-                                NULL, &error)) {
+            if (!rsa_ssh1_loadpub(fn, &key_in.blob, &key_in.bloblen,
+                                  NULL, &error)) {
                 if (file_errors) {
                     *retstr = dupprintf("unable to load file '%s': %s",
                                         string, error);
@@ -696,7 +696,8 @@ void run_client(void)
                     struct RSAKey rkey;
                     memset(&rkey, 0, sizeof(rkey));
                     rkey.comment = dupstr(key->comment);
-                    makekey(key->blob, key->bloblen, &rkey, NULL, 0);
+                    rsa_ssh1_readpub(key->blob, key->bloblen, &rkey, NULL,
+                                     RSA_SSH1_EXPONENT_FIRST);
                     ssh1_write_pubkey(fp, &rkey);
                     freersakey(&rkey);
                 } else {

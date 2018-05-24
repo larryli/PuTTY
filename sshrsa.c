@@ -10,8 +10,8 @@
 #include "ssh.h"
 #include "misc.h"
 
-int makekey(const unsigned char *data, int len, struct RSAKey *result,
-	    const unsigned char **keystr, int order)
+int rsa_ssh1_readpub(const unsigned char *data, int len, struct RSAKey *result,
+                     const unsigned char **keystr, RsaSsh1Order order)
 {
     const unsigned char *p = data;
     int i, n;
@@ -28,13 +28,7 @@ int makekey(const unsigned char *data, int len, struct RSAKey *result,
 
     len -= 4;
 
-    /*
-     * order=0 means exponent then modulus (the keys sent by the
-     * server). order=1 means modulus then exponent (the keys
-     * stored in a keyfile).
-     */
-
-    if (order == 0) {
+    if (order == RSA_SSH1_EXPONENT_FIRST) {
 	n = ssh1_read_bignum(p, len, result ? &result->exponent : NULL);
 	if (n < 0) return -1;
 	p += n;
@@ -50,7 +44,7 @@ int makekey(const unsigned char *data, int len, struct RSAKey *result,
     p += n;
     len -= n;
 
-    if (order == 1) {
+    if (order == RSA_SSH1_MODULUS_FIRST) {
 	n = ssh1_read_bignum(p, len, result ? &result->exponent : NULL);
 	if (n < 0) return -1;
 	p += n;
@@ -59,12 +53,13 @@ int makekey(const unsigned char *data, int len, struct RSAKey *result,
     return p - data;
 }
 
-int makeprivate(const unsigned char *data, int len, struct RSAKey *result)
+int rsa_ssh1_readpriv(const unsigned char *data, int len,
+                      struct RSAKey *result)
 {
     return ssh1_read_bignum(data, len, &result->private_exponent);
 }
 
-int rsaencrypt(unsigned char *data, int length, struct RSAKey *key)
+int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)
 {
     Bignum b1, b2;
     int i;
@@ -318,7 +313,7 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
     return ret;
 }
 
-Bignum rsadecrypt(Bignum input, struct RSAKey *key)
+Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key)
 {
     return rsa_privkey_op(input, key);
 }
@@ -468,8 +463,8 @@ int rsa_verify(struct RSAKey *key)
     return 1;
 }
 
-/* Public key blob as used by Pageant: exponent before modulus. */
-unsigned char *rsa_public_blob(struct RSAKey *key, int *len)
+unsigned char *rsa_ssh1_public_blob(struct RSAKey *key, int *len,
+                                    RsaSsh1Order order)
 {
     int length, pos;
     unsigned char *ret;
@@ -480,8 +475,13 @@ unsigned char *rsa_public_blob(struct RSAKey *key, int *len)
 
     PUT_32BIT(ret, bignum_bitcount(key->modulus));
     pos = 4;
-    pos += ssh1_write_bignum(ret + pos, key->exponent);
-    pos += ssh1_write_bignum(ret + pos, key->modulus);
+    if (order == RSA_SSH1_EXPONENT_FIRST) {
+        pos += ssh1_write_bignum(ret + pos, key->exponent);
+        pos += ssh1_write_bignum(ret + pos, key->modulus);
+    } else {
+        pos += ssh1_write_bignum(ret + pos, key->modulus);
+        pos += ssh1_write_bignum(ret + pos, key->exponent);
+    }
 
     *len = length;
     return ret;

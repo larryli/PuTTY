@@ -769,7 +769,7 @@ int main(int argc, char **argv)
 	 * Find out whether the input key is encrypted.
 	 */
 	if (intype == SSH_KEYTYPE_SSH1)
-	    encrypted = rsakey_encrypted(infilename, &origcomment);
+	    encrypted = rsa_ssh1_encrypted(infilename, &origcomment);
 	else if (intype == SSH_KEYTYPE_SSH2)
 	    encrypted = ssh2_userkey_encrypted(infilename, &origcomment);
 	else
@@ -811,8 +811,8 @@ int main(int argc, char **argv)
 		unsigned char *blob;
 		int n, l, bloblen;
 
-		ret = rsakey_pubblob(infilename, &vblob, &bloblen,
-				     &origcomment, &error);
+		ret = rsa_ssh1_loadpub(infilename, &vblob, &bloblen,
+                                       &origcomment, &error);
 		blob = (unsigned char *)vblob;
 
 		n = 4;		       /* skip modulus bits */
@@ -836,7 +836,8 @@ int main(int argc, char **argv)
 		ssh1key->q = NULL;
 		ssh1key->iqmp = NULL;
 	    } else {
-		ret = loadrsakey(infilename, ssh1key, old_passphrase, &error);
+		ret = rsa_ssh1_loadkey(
+                    infilename, ssh1key, old_passphrase, &error);
 	    }
 	    if (ret > 0)
 		error = NULL;
@@ -972,7 +973,7 @@ int main(int argc, char **argv)
       case PRIVATE:
 	if (sshver == 1) {
 	    assert(ssh1key);
-	    ret = saversakey(outfilename, ssh1key, new_passphrase);
+	    ret = rsa_ssh1_savekey(outfilename, ssh1key, new_passphrase);
 	    if (!ret) {
 		fprintf(stderr, "puttygen: unable to save SSH-1 private key\n");
 		return 1;

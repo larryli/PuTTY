@@ -2871,9 +2871,9 @@ static int ssh1_pkt_getrsakey(struct Packet *pkt, struct RSAKey *key,
 {
     int j;
 
-    j = makekey(pkt->body + pkt->savedpos,
-		pkt->length - pkt->savedpos,
-		key, keystr, 0);
+    j = rsa_ssh1_readpub(pkt->body + pkt->savedpos,
+                         pkt->length - pkt->savedpos,
+                         key, keystr, RSA_SSH1_EXPONENT_FIRST);
 
     if (j < 0)
 	return FALSE;
@@ -4424,13 +4424,13 @@ static void do_ssh1_login(void *vctx)
     }
 
     if (s->hostkey.bytes > s->servkey.bytes) {
-	ret = rsaencrypt(s->rsabuf, 32, &s->servkey);
+	ret = rsa_ssh1_encrypt(s->rsabuf, 32, &s->servkey);
 	if (ret)
-	    ret = rsaencrypt(s->rsabuf, s->servkey.bytes, &s->hostkey);
+	    ret = rsa_ssh1_encrypt(s->rsabuf, s->servkey.bytes, &s->hostkey);
     } else {
-	ret = rsaencrypt(s->rsabuf, 32, &s->hostkey);
+	ret = rsa_ssh1_encrypt(s->rsabuf, 32, &s->hostkey);
 	if (ret)
-	    ret = rsaencrypt(s->rsabuf, s->hostkey.bytes, &s->servkey);
+	    ret = rsa_ssh1_encrypt(s->rsabuf, s->hostkey.bytes, &s->servkey);
     }
     if (!ret) {
 	bombout(("SSH-1 public key encryptions failed due to bad formatting"));
@@ -4617,14 +4617,13 @@ static void do_ssh1_login(void *vctx)
 	if (keytype == SSH_KEYTYPE_SSH1 ||
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
 	    const char *error;
-	    if (rsakey_pubblob(s->keyfile,
-			       &s->publickey_blob, &s->publickey_bloblen,
-			       &s->publickey_comment, &error)) {
+	    if (rsa_ssh1_loadpub(s->keyfile,
+                                 &s->publickey_blob, &s->publickey_bloblen,
+                                 &s->publickey_comment, &error)) {
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH1);
                 if (!s->privatekey_available)
                     logeventf(ssh, "Key file contains public key only");
-		s->privatekey_encrypted = rsakey_encrypted(s->keyfile,
-                                                           NULL);
+		s->privatekey_encrypted = rsa_ssh1_encrypted(s->keyfile, NULL);
 	    } else {
 		char *msgbuf;
 		logeventf(ssh, "Unable to load key (%s)", error);
@@ -4888,8 +4887,8 @@ static void do_ssh1_login(void *vctx)
 		 * Try decrypting key with passphrase.
 		 */
 		s->keyfile = conf_get_filename(ssh->conf, CONF_keyfile);
-		ret = loadrsakey(s->keyfile, &s->key, passphrase,
-				 &error);
+		ret = rsa_ssh1_loadkey(
+                    s->keyfile, &s->key, passphrase, &error);
 		if (passphrase) {
 		    smemclr(passphrase, strlen(passphrase));
 		    sfree(passphrase);
@@ -4910,7 +4909,7 @@ static void do_ssh1_login(void *vctx)
 		    got_passphrase = FALSE;
 		    /* and try again */
 		} else {
-		    assert(0 && "unexpected return from loadrsakey()");
+		    assert(0 && "unexpected return from rsa_ssh1_loadkey()");
 		    got_passphrase = FALSE;   /* placate optimisers */
 		}
 	    }
@@ -4943,7 +4942,7 @@ static void do_ssh1_login(void *vctx)
 			bombout(("Server's RSA challenge was badly formatted"));
 			crStopV;
 		    }
-		    response = rsadecrypt(challenge, &s->key);
+		    response = rsa_ssh1_decrypt(challenge, &s->key);
 		    freebn(s->key.private_exponent);/* burn the evidence */
 
 		    for (i = 0; i < 32; i++) {

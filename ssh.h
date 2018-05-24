@@ -173,18 +173,29 @@ struct ec_key {
 
 struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve);
 
-int makekey(const unsigned char *data, int len, struct RSAKey *result,
-	    const unsigned char **keystr, int order);
-int makeprivate(const unsigned char *data, int len, struct RSAKey *result);
-int rsaencrypt(unsigned char *data, int length, struct RSAKey *key);
-Bignum rsadecrypt(Bignum input, struct RSAKey *key);
-void rsasign(unsigned char *data, int length, struct RSAKey *key);
+/*
+ * SSH-1 never quite decided which order to store the two components
+ * of an RSA key. During connection setup, the server sends its host
+ * and server keys with the exponent first; private key files store
+ * the modulus first. The agent protocol is even more confusing,
+ * because the client specifies a key to the server in one order and
+ * the server lists the keys it knows about in the other order!
+ */
+typedef enum { RSA_SSH1_EXPONENT_FIRST, RSA_SSH1_MODULUS_FIRST } RsaSsh1Order;
+
+int rsa_ssh1_readpub(const unsigned char *data, int len, struct RSAKey *result,
+                     const unsigned char **keystr, RsaSsh1Order order);
+int rsa_ssh1_readpriv(const unsigned char *data, int len,
+                      struct RSAKey *result);
+int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);
+Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key);
 void rsasanitise(struct RSAKey *key);
 int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
 void rsa_fingerprint(char *str, int len, struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
-unsigned char *rsa_public_blob(struct RSAKey *key, int *len);
+unsigned char *rsa_ssh1_public_blob(struct RSAKey *key, int *len,
+                                    RsaSsh1Order order);
 int rsa_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
@@ -711,13 +722,13 @@ Bignum dh_create_e(void *, int nbits);
 const char *dh_validate_f(void *handle, Bignum f);
 Bignum dh_find_K(void *, Bignum f);
 
-int loadrsakey(const Filename *filename, struct RSAKey *key,
-	       const char *passphrase, const char **errorstr);
-int rsakey_encrypted(const Filename *filename, char **comment);
-int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
-		   char **commentptr, const char **errorstr);
-
-int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase);
+int rsa_ssh1_encrypted(const Filename *filename, char **comment);
+int rsa_ssh1_loadpub(const Filename *filename, void **blob, int *bloblen,
+                     char **commentptr, const char **errorstr);
+int rsa_ssh1_loadkey(const Filename *filename, struct RSAKey *key,
+                     const char *passphrase, const char **errorstr);
+int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
+                     char *passphrase);
 
 extern int base64_decode_atom(const char *atom, unsigned char *out);
 extern int base64_lines(int datalen);

@@ -23,9 +23,9 @@
 
 static int key_type_fp(FILE *fp);
 
-static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
-			   char **commentptr, const char *passphrase,
-			   const char **error)
+static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
+                              char **commentptr, const char *passphrase,
+                              const char **error)
 {
     unsigned char buf[16384];
     unsigned char keybuf[16];
@@ -69,7 +69,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     i += 4;
 
     /* Now the serious stuff. An ordinary SSH-1 public key. */
-    j = makekey(buf + i, len - i, key, NULL, 1);
+    j = rsa_ssh1_readpub(buf + i, len - i, key, NULL, RSA_SSH1_MODULUS_FIRST);
     if (j < 0)
 	goto end;		       /* overran */
     i += j;
@@ -132,7 +132,7 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
      * decryption exponent, and then the three auxiliary values
      * (iqmp, q, p).
      */
-    j = makeprivate(buf + i, len - i, key);
+    j = rsa_ssh1_readpriv(buf + i, len - i, key);
     if (j < 0) goto end;
     i += j;
     j = ssh1_read_bignum(buf + i, len - i, &key->iqmp);
@@ -157,8 +157,8 @@ static int loadrsakey_main(FILE * fp, struct RSAKey *key, int pub_only,
     return ret;
 }
 
-int loadrsakey(const Filename *filename, struct RSAKey *key,
-               const char *passphrase, const char **errorstr)
+int rsa_ssh1_loadkey(const Filename *filename, struct RSAKey *key,
+                     const char *passphrase, const char **errorstr)
 {
     FILE *fp;
     char buf[64];
@@ -179,7 +179,7 @@ int loadrsakey(const Filename *filename, struct RSAKey *key,
 	/*
 	 * This routine will take care of calling fclose() for us.
 	 */
-	ret = loadrsakey_main(fp, key, FALSE, NULL, passphrase, &error);
+	ret = rsa_ssh1_load_main(fp, key, FALSE, NULL, passphrase, &error);
 	fp = NULL;
 	goto end;
     }
@@ -201,7 +201,7 @@ int loadrsakey(const Filename *filename, struct RSAKey *key,
  * See whether an RSA key is encrypted. Return its comment field as
  * well.
  */
-int rsakey_encrypted(const Filename *filename, char **comment)
+int rsa_ssh1_encrypted(const Filename *filename, char **comment)
 {
     FILE *fp;
     char buf[64];
@@ -219,7 +219,7 @@ int rsakey_encrypted(const Filename *filename, char **comment)
 	/*
 	 * This routine will take care of calling fclose() for us.
 	 */
-	return loadrsakey_main(fp, NULL, FALSE, comment, NULL, &dummy);
+	return rsa_ssh1_load_main(fp, NULL, FALSE, comment, NULL, &dummy);
     }
     fclose(fp);
     return 0;			       /* wasn't the right kind of file */
@@ -230,8 +230,8 @@ int rsakey_encrypted(const Filename *filename, char **comment)
  * an RSA key, as given in the agent protocol (modulus bits,
  * exponent, modulus).
  */
-int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
-		   char **commentptr, const char **errorstr)
+int rsa_ssh1_loadpub(const Filename *filename, void **blob, int *bloblen,
+                     char **commentptr, const char **errorstr)
 {
     FILE *fp;
     char buf[64];
@@ -256,12 +256,13 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
      */
     if (fgets(buf, sizeof(buf), fp) && !strcmp(buf, rsa_signature)) {
 	memset(&key, 0, sizeof(key));
-	if (loadrsakey_main(fp, &key, TRUE, commentptr, NULL, &error)) {
-	    *blob = rsa_public_blob(&key, bloblen);
+	if (rsa_ssh1_load_main(fp, &key, TRUE, commentptr, NULL, &error)) {
+	    *blob = rsa_ssh1_public_blob(&key, bloblen,
+                                         RSA_SSH1_EXPONENT_FIRST);
 	    freersakey(&key);
 	    ret = 1;
 	}
-	fp = NULL; /* loadrsakey_main unconditionally closes fp */
+	fp = NULL; /* rsa_ssh1_load_main unconditionally closes fp */
     } else {
         /*
          * Try interpreting the file as an SSH-1 public key.
@@ -307,7 +308,7 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
         }
         if (commentptr)
             *commentptr = commentp ? dupstr(commentp) : NULL;
-        *blob = rsa_public_blob(&key, bloblen);
+        *blob = rsa_ssh1_public_blob(&key, bloblen, RSA_SSH1_EXPONENT_FIRST);
         freersakey(&key);
         sfree(line);
         fclose(fp);
@@ -329,7 +330,8 @@ int rsakey_pubblob(const Filename *filename, void **blob, int *bloblen,
 /*
  * Save an RSA key file. Return nonzero on success.
  */
-int saversakey(const Filename *filename, struct RSAKey *key, char *passphrase)
+int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
+                     char *passphrase)
 {
     unsigned char buf[16384];
     unsigned char keybuf[16];

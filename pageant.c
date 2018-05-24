@@ -11,8 +11,8 @@
 #include "pageant.h"
 
 /*
- * We need this to link with the RSA code, because rsaencrypt()
- * pads its data with random bytes. Since we only use rsadecrypt()
+ * We need this to link with the RSA code, because rsa_ssh1_encrypt()
+ * pads its data with random bytes. Since we only use rsa_ssh1_decrypt()
  * and the signing functions, which are deterministic, this should
  * never be called.
  *
@@ -182,7 +182,7 @@ void *pageant_make_keylist1(int *length)
     nkeys = 0;
     for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
 	nkeys++;
-	blob = rsa_public_blob(key, &bloblen);
+	blob = rsa_ssh1_public_blob(key, &bloblen, RSA_SSH1_EXPONENT_FIRST);
 	len += bloblen;
 	sfree(blob);
 	len += 4 + strlen(key->comment);
@@ -195,7 +195,7 @@ void *pageant_make_keylist1(int *length)
     PUT_32BIT(p, nkeys);
     p += 4;
     for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-	blob = rsa_public_blob(key, &bloblen);
+	blob = rsa_ssh1_public_blob(key, &bloblen, RSA_SSH1_EXPONENT_FIRST);
 	memcpy(p, blob, bloblen);
 	p += bloblen;
 	sfree(blob);
@@ -447,7 +447,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
                 fail_reason = "key not found";
 		goto failure;
 	    }
-	    response = rsadecrypt(challenge, key);
+	    response = rsa_ssh1_decrypt(challenge, key);
 	    for (i = 0; i < 32; i++)
 		response_source[i] = bignum_byte(response, 31 - i);
 
@@ -547,7 +547,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    key = snew(struct RSAKey);
 	    memset(key, 0, sizeof(struct RSAKey));
 
-	    n = makekey(p, msgend - p, key, NULL, 1);
+	    n = rsa_ssh1_readpub(p, msgend - p, key, NULL,
+                                 RSA_SSH1_MODULUS_FIRST);
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
@@ -556,7 +557,7 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 	    }
 	    p += n;
 
-	    n = makeprivate(p, msgend - p, key);
+	    n = rsa_ssh1_readpriv(p, msgend - p, key);
 	    if (n < 0) {
 		freersakey(key);
 		sfree(key);
@@ -745,7 +746,8 @@ void *pageant_handle_msg(const void *msg, int msglen, int *outlen,
 
             plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
 
-	    n = makekey(p, msgend - p, &reqkey, NULL, 0);
+	    n = rsa_ssh1_readpub(p, msgend - p, &reqkey, NULL,
+                                 RSA_SSH1_EXPONENT_FIRST);
 	    if (n < 0) {
                 fail_reason = "request truncated before public key";
 		goto failure;
@@ -1286,7 +1288,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	int i, nkeys, bloblen, keylistlen;
 
 	if (type == SSH_KEYTYPE_SSH1) {
-	    if (!rsakey_pubblob(filename, &blob, &bloblen, NULL, &error)) {
+	    if (!rsa_ssh1_loadpub(filename, &blob, &bloblen, NULL, &error)) {
                 *retstr = dupprintf("Couldn't load private key (%s)", error);
                 return PAGEANT_ACTION_FAILURE;
 	    }
@@ -1396,7 +1398,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
     error = NULL;
     if (type == SSH_KEYTYPE_SSH1)
-	needs_pass = rsakey_encrypted(filename, &comment);
+	needs_pass = rsa_ssh1_encrypted(filename, &comment);
     else
 	needs_pass = ssh2_userkey_encrypted(filename, &comment);
     attempts = 0;
@@ -1434,7 +1436,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    this_passphrase = "";
 
 	if (type == SSH_KEYTYPE_SSH1)
-	    ret = loadrsakey(filename, rkey, this_passphrase, &error);
+	    ret = rsa_ssh1_loadkey(filename, rkey, this_passphrase, &error);
 	else {
 	    skey = ssh2_load_userkey(filename, this_passphrase, &error);
 	    if (skey == SSH2_WRONG_PASSPHRASE)
@@ -1629,7 +1631,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
         /* public blob and fingerprint */
         memset(&rkey, 0, sizeof(rkey));
-        n = makekey(p, keylistlen, &rkey, NULL, 0);
+        n = rsa_ssh1_readpub(p, keylistlen, &rkey, NULL,
+                             RSA_SSH1_EXPONENT_FIRST);
         if (n < 0 || n > keylistlen) {
             freersakey(&rkey);
             *retstr = dupstr("Received broken SSH-1 key list from agent");
@@ -1657,7 +1660,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         comment = dupprintf("%.*s", (int)n, (const char *)p);
         p += n, keylistlen -= n;
 
-        cbkey.blob = rsa_public_blob(&rkey, &cbkey.bloblen);
+        cbkey.blob = rsa_ssh1_public_blob(&rkey, &cbkey.bloblen,
+                                          RSA_SSH1_EXPONENT_FIRST);
         cbkey.comment = comment;
         cbkey.ssh_version = 1;
         callback(callback_ctx, fingerprint, comment, &cbkey);
