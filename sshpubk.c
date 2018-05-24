@@ -329,88 +329,64 @@ int rsa_ssh1_loadpub(const Filename *filename, BinarySink *bs,
 int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
                      char *passphrase)
 {
-    unsigned char buf[16384];
-    unsigned char keybuf[16];
-    struct MD5Context md5c;
-    unsigned char *p, *estart;
+    strbuf *buf = strbuf_new();
+    int estart;
     FILE *fp;
 
     /*
-     * Write the initial signature.
+     * The public part of the key.
      */
-    p = buf;
-    memcpy(p, rsa_signature, sizeof(rsa_signature));
-    p += sizeof(rsa_signature);
-
-    /*
-     * One byte giving encryption type, and one reserved (zero)
-     * uint32.
-     */
-    *p++ = (passphrase ? SSH_CIPHER_3DES : 0);
-    PUT_32BIT(p, 0);
-    p += 4;
-
-    /*
-     * An ordinary SSH-1 public key consists of: a uint32
-     * containing the bit count, then two bignums containing the
-     * modulus and exponent respectively.
-     */
-    PUT_32BIT(p, bignum_bitcount(key->modulus));
-    p += 4;
-    p += ssh1_write_bignum(p, key->modulus);
-    p += ssh1_write_bignum(p, key->exponent);
-
-    /*
-     * A string containing the comment field.
-     */
-    if (key->comment) {
-	PUT_32BIT(p, strlen(key->comment));
-	p += 4;
-	memcpy(p, key->comment, strlen(key->comment));
-	p += strlen(key->comment);
-    } else {
-	PUT_32BIT(p, 0);
-	p += 4;
-    }
+    put_data(buf, rsa_signature, sizeof(rsa_signature));
+    put_byte(buf, passphrase ? SSH_CIPHER_3DES : 0); /* encryption type */
+    put_uint32(buf, 0);                              /* reserved */
+    rsa_ssh1_public_blob(BinarySink_UPCAST(buf), key,
+                         RSA_SSH1_MODULUS_FIRST);
+    put_stringz(buf, NULLTOEMPTY(key->comment));
 
     /*
      * The encrypted portion starts here.
      */
-    estart = p;
+    estart = buf->len;
 
     /*
      * Two bytes, then the same two bytes repeated.
      */
-    *p++ = random_byte();
-    *p++ = random_byte();
-    p[0] = p[-2];
-    p[1] = p[-1];
-    p += 2;
+    {
+        unsigned char b0 = random_byte();
+        unsigned char b1 = random_byte();
+        put_byte(buf, b0);
+        put_byte(buf, b1);
+        put_byte(buf, b0);
+        put_byte(buf, b1);
+    }
 
     /*
      * Four more bignums: the decryption exponent, then iqmp, then
      * q, then p.
      */
-    p += ssh1_write_bignum(p, key->private_exponent);
-    p += ssh1_write_bignum(p, key->iqmp);
-    p += ssh1_write_bignum(p, key->q);
-    p += ssh1_write_bignum(p, key->p);
+    put_mp_ssh1(buf, key->private_exponent);
+    put_mp_ssh1(buf, key->iqmp);
+    put_mp_ssh1(buf, key->q);
+    put_mp_ssh1(buf, key->p);
 
     /*
      * Now write zeros until the encrypted portion is a multiple of
      * 8 bytes.
      */
-    while ((p - estart) % 8)
-	*p++ = '\0';
+    while ((buf->len - estart) % 8)
+	put_byte(buf, 0);
 
     /*
      * Now encrypt the encrypted portion.
      */
     if (passphrase) {
+        struct MD5Context md5c;
+        unsigned char keybuf[16];
+
 	MD5Init(&md5c);
 	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
-	des3_encrypt_pubkey(keybuf, estart, p - estart);
+	des3_encrypt_pubkey(keybuf, buf->u + estart, buf->len - estart);
 	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
     }
 
@@ -419,7 +395,7 @@ int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
      */
     fp = f_open(filename, "wb", TRUE);
     if (fp) {
-	int ret = (fwrite(buf, 1, p - buf, fp) == (size_t) (p - buf));
+	int ret = (fwrite(buf->u, 1, buf->len, fp) == (size_t) (buf->len));
         if (fclose(fp))
             ret = 0;
 	return ret;
@@ -773,35 +749,23 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     {
 	char realmac[41];
 	unsigned char binary[20];
-	unsigned char *macdata;
-	int maclen;
-	int free_macdata;
+	strbuf *macdata;
+        int free_macdata;
 
 	if (old_fmt) {
 	    /* MAC (or hash) only covers the private blob. */
-	    macdata = private_blob->u;
-	    maclen = private_blob->len;
-	    free_macdata = 0;
+	    macdata = private_blob;
+	    free_macdata = FALSE;
 	} else {
-	    unsigned char *p;
-	    int namelen = strlen(alg->name);
-	    int enclen = strlen(encryption);
-	    int commlen = strlen(comment);
-	    maclen = (4 + namelen +
-		      4 + enclen +
-		      4 + commlen +
-		      4 + public_blob->len +
-		      4 + private_blob->len);
-	    macdata = snewn(maclen, unsigned char);
-	    p = macdata;
-#define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
-	    DO_STR(alg->name, namelen);
-	    DO_STR(encryption, enclen);
-	    DO_STR(comment, commlen);
-	    DO_STR(public_blob->s, public_blob->len);
-	    DO_STR(private_blob->s, private_blob->len);
-
-	    free_macdata = 1;
+            macdata = strbuf_new();
+	    put_stringz(macdata, alg->name);
+	    put_stringz(macdata, encryption);
+	    put_stringz(macdata, comment);
+	    put_string(macdata, public_blob->s,
+                       public_blob->len);
+	    put_string(macdata, private_blob->s,
+                       private_blob->len);
+	    free_macdata = TRUE;
 	}
 
 	if (is_mac) {
@@ -815,18 +779,17 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 		put_data(&s, passphrase, passlen);
 	    SHA_Final(&s, mackey);
 
-	    hmac_sha1_simple(mackey, 20, macdata, maclen, binary);
+	    hmac_sha1_simple(mackey, 20, macdata->s,
+                             macdata->len, binary);
 
 	    smemclr(mackey, sizeof(mackey));
 	    smemclr(&s, sizeof(s));
 	} else {
-	    SHA_Simple(macdata, maclen, binary);
+	    SHA_Simple(macdata->s, macdata->len, binary);
 	}
 
-	if (free_macdata) {
-	    smemclr(macdata, maclen);
-	    sfree(macdata);
-	}
+	if (free_macdata)
+	    strbuf_free(macdata);
 
 	for (i = 0; i < 20; i++)
 	    sprintf(realmac + 2 * i, "%02x", binary[i]);
@@ -1333,38 +1296,26 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 
     /* Now create the MAC. */
     {
-	unsigned char *macdata;
-	int maclen;
-	unsigned char *p;
-	int namelen = strlen(key->alg->name);
-	int enclen = strlen(cipherstr);
-	int commlen = strlen(key->comment);
+	strbuf *macdata;
 	SHA_State s;
 	unsigned char mackey[20];
 	char header[] = "putty-private-key-file-mac-key";
 
-	maclen = (4 + namelen +
-		  4 + enclen +
-		  4 + commlen +
-		  4 + pub_blob->len +
-		  4 + priv_encrypted_len);
-	macdata = snewn(maclen, unsigned char);
-	p = macdata;
-#define DO_STR(s,len) PUT_32BIT(p,(len));memcpy(p+4,(s),(len));p+=4+(len)
-	DO_STR(key->alg->name, namelen);
-	DO_STR(cipherstr, enclen);
-	DO_STR(key->comment, commlen);
-	DO_STR(pub_blob->u, pub_blob->len);
-	DO_STR(priv_blob_encrypted, priv_encrypted_len);
+	macdata = strbuf_new();
+	put_stringz(macdata, key->alg->name);
+	put_stringz(macdata, cipherstr);
+	put_stringz(macdata, key->comment);
+	put_string(macdata, pub_blob->s, pub_blob->len);
+	put_string(macdata, priv_blob_encrypted, priv_encrypted_len);
 
 	SHA_Init(&s);
 	put_data(&s, header, sizeof(header)-1);
 	if (passphrase)
 	    put_data(&s, passphrase, strlen(passphrase));
 	SHA_Final(&s, mackey);
-	hmac_sha1_simple(mackey, 20, macdata, maclen, priv_mac);
-	smemclr(macdata, maclen);
-	sfree(macdata);
+	hmac_sha1_simple(mackey, 20, macdata->s,
+                         macdata->len, priv_mac);
+	strbuf_free(macdata);
 	smemclr(mackey, sizeof(mackey));
 	smemclr(&s, sizeof(s));
     }

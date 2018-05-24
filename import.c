@@ -219,17 +219,14 @@ static int ber_read_id_len(void *source, int sourcelen,
  * Will avoid writing anything if dest is NULL, but still return
  * amount of space required.
  */
-static int ber_write_id_len(void *dest, int id, int length, int flags)
+static void BinarySink_put_ber_id_len(BinarySink *bs,
+                                      int id, int length, int flags)
 {
-    unsigned char *d = (unsigned char *)dest;
-    int len = 0;
-
     if (id <= 30) {
 	/*
 	 * Identifier is one byte.
 	 */
-	len++;
-	if (d) *d++ = id | flags;
+	put_byte(bs, id | flags);
     } else {
 	int n;
 	/*
@@ -238,22 +235,18 @@ static int ber_write_id_len(void *dest, int id, int length, int flags)
 	 * the identifier, 7 bits at a time, with the top bit of
 	 * each byte 1 except the last one which is 0.
 	 */
-	len++;
-	if (d) *d++ = 0x1F | flags;
+	put_byte(bs, 0x1F | flags);
 	for (n = 1; (id >> (7*n)) > 0; n++)
 	    continue;		       /* count the bytes */
-	while (n--) {
-	    len++;
-	    if (d) *d++ = (n ? 0x80 : 0) | ((id >> (7*n)) & 0x7F);
-	}
+	while (n--)
+	    put_byte(bs, (n ? 0x80 : 0) | ((id >> (7*n)) & 0x7F));
     }
 
     if (length < 128) {
 	/*
 	 * Length is one byte.
 	 */
-	len++;
-	if (d) *d++ = length;
+        put_byte(bs, length);
     } else {
 	int n;
 	/*
@@ -263,55 +256,14 @@ static int ber_write_id_len(void *dest, int id, int length, int flags)
 	 */
 	for (n = 1; (length >> (8*n)) > 0; n++)
 	    continue;		       /* count the bytes */
-	len++;
-	if (d) *d++ = 0x80 | n;
-	while (n--) {
-	    len++;
-	    if (d) *d++ = (length >> (8*n)) & 0xFF;
-	}
-    }
-
-    return len;
-}
-
-static int write_uint32(void *target, unsigned val)
-{
-    unsigned char *d = (unsigned char *)target;
-
-    PUT_32BIT(d, val);
-    return 4;
-}
-
-static int write_string(void *target, const void *data, int len)
-{
-    unsigned char *d = (unsigned char *)target;
-
-    PUT_32BIT(d, len);
-    memcpy(d+4, data, len);
-    return len+4;
-}
-
-static int write_string_z(void *target, const char *string)
-{
-    return write_string(target, string, strlen(string));
-}
-
-static int put_mp(void *target, void *data, int len)
-{
-    unsigned char *d = (unsigned char *)target;
-    unsigned char *i = (unsigned char *)data;
-
-    if (*i & 0x80) {
-        PUT_32BIT(d, len+1);
-        d[4] = 0;
-        memcpy(d+5, data, len);
-        return len+5;
-    } else {
-        PUT_32BIT(d, len);
-        memcpy(d+4, data, len);
-        return len+4;
+	put_byte(bs, 0x80 | n);
+	while (n--)
+	    put_byte(bs, (length >> (8*n)) & 0xFF);
     }
 }
+
+#define put_ber_id_len(bs, id, len, flags) \
+    BinarySink_put_ber_id_len(BinarySink_UPCAST(bs), id, len, flags)
 
 /* Simple structure to point to an mp-int within a blob. */
 struct mpint_pos { void *start; int bytes; };
@@ -357,6 +309,25 @@ struct openssh_pem_key {
     unsigned char *keyblob;
     int keyblob_len, keyblob_size;
 };
+
+void BinarySink_put_mp_ssh2_from_string(
+    BinarySink *bs, const void *bytesv, int nbytes)
+{
+    const unsigned char *bytes = (const unsigned char *)bytesv;
+    while (nbytes > 0 && bytes[0] == 0) {
+        nbytes--;
+        bytes++;
+    }
+    if (nbytes > 0 && bytes[0] & 0x80) {
+        put_uint32(bs, nbytes + 1);
+        put_byte(bs, 0);
+    } else {
+        put_uint32(bs, nbytes);
+    }
+    put_data(bs, bytes, nbytes);
+}
+#define put_mp_ssh2_from_string(bs, val, len) \
+    BinarySink_put_mp_ssh2_from_string(BinarySink_UPCAST(bs), val, len)
 
 static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
                                                     const char **errmsg_p)
@@ -570,17 +541,15 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 {
     struct openssh_pem_key *key = load_openssh_pem_key(filename, errmsg_p);
     struct ssh2_userkey *retkey;
-    unsigned char *p, *q;
+    unsigned char *p;
     int ret, id, len, flags;
     int i, num_integers;
     struct ssh2_userkey *retval = NULL;
     const char *errmsg;
-    unsigned char *blob;
-    int blobsize = 0, blobptr, privptr;
+    strbuf *blob = strbuf_new();
+    int privptr = 0, publen;
     char *modptr = NULL;
     int modlen = 0;
-
-    blob = NULL;
 
     if (!key)
 	return NULL;
@@ -682,7 +651,6 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         int privlen;
         const struct ssh_signkey *alg;
         const struct ec_curve *curve;
-        int algnamelen, curvenamelen;
         /* Read INTEGER 1 */
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
                               &id, &len, &flags);
@@ -762,40 +730,16 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
             goto error;
         }
         retkey->alg = alg;
-        blob = snewn((4+19 + 4+8 + 4+len) + (4+1+privlen), unsigned char);
-        if (!blob) {
-            sfree(retkey);
-            errmsg = "out of memory";
-            goto error;
-        }
 
-        q = blob;
+        put_stringz(blob, alg->name);
+        put_stringz(blob, curve->name);
+        put_string(blob, p, len);
+        publen = blob->len;
+        put_mp_ssh2_from_string(blob, priv, privlen);
 
-        algnamelen = strlen(alg->name);
-        PUT_32BIT(q, algnamelen); q += 4;
-        memcpy(q, alg->name, algnamelen); q += algnamelen;
-
-        curvenamelen = strlen(curve->name);
-        PUT_32BIT(q, curvenamelen); q += 4;
-        memcpy(q, curve->name, curvenamelen); q += curvenamelen;
-
-        PUT_32BIT(q, len); q += 4;
-        memcpy(q, p, len); q += len;
-
-        /*
-         * To be acceptable to our createkey(), the private blob must
-         * contain a valid mpint, i.e. without the top bit set. But
-         * the input private string may have the top bit set, so we
-         * prefix a zero byte to ensure createkey() doesn't fail for
-         * that reason.
-         */
-        PUT_32BIT(q, privlen+1);
-        q[4] = 0;
-        memcpy(q+5, priv, privlen);
-
-        retkey->data = retkey->alg->createkey(retkey->alg,
-                                              blob, q-blob,
-                                              q, 5+privlen);
+        retkey->data = retkey->alg->createkey(
+            retkey->alg, blob->u, publen,
+            blob->u + publen, blob->len - publen);
 
         if (!retkey->data) {
             sfree(retkey);
@@ -805,18 +749,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 
     } else if (key->keytype == OP_RSA || key->keytype == OP_DSA) {
 
-        /*
-         * Space to create key blob in.
-         */
-        blobsize = 256+key->keyblob_len;
-        blob = snewn(blobsize, unsigned char);
-        PUT_32BIT(blob, 7);
-        if (key->keytype == OP_DSA)
-            memcpy(blob+4, "ssh-dss", 7);
-        else if (key->keytype == OP_RSA)
-            memcpy(blob+4, "ssh-rsa", 7);
-        blobptr = 4+7;
-        privptr = -1;
+        put_stringz(blob, key->keytype == OP_DSA ? "ssh-dss" : "ssh-rsa");
 
         for (i = 0; i < num_integers; i++) {
             ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
@@ -849,14 +782,10 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
                     modptr = (char *)p;
                     modlen = len;
                 } else if (i != 6 && i != 7) {
-                    PUT_32BIT(blob+blobptr, len);
-                    memcpy(blob+blobptr+4, p, len);
-                    blobptr += 4+len;
+                    put_mp_ssh2_from_string(blob, p, len);
                     if (i == 2) {
-                        PUT_32BIT(blob+blobptr, modlen);
-                        memcpy(blob+blobptr+4, modptr, modlen);
-                        blobptr += 4+modlen;
-                        privptr = blobptr;
+                        put_mp_ssh2_from_string(blob, modptr, modlen);
+                        privptr = blob->len;
                     }
                 }
             } else if (key->keytype == OP_DSA) {
@@ -864,11 +793,9 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
                  * Integers 1-4 go into the public blob; integer 5 goes
                  * into the private blob.
                  */
-                PUT_32BIT(blob+blobptr, len);
-                memcpy(blob+blobptr+4, p, len);
-                blobptr += 4+len;
+                put_mp_ssh2_from_string(blob, p, len);
                 if (i == 4)
-                    privptr = blobptr;
+                    privptr = blob->len;
             }
 
             /* Skip past the number. */
@@ -884,9 +811,9 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         assert(privptr > 0);          /* should have bombed by now if not */
         retkey = snew(struct ssh2_userkey);
         retkey->alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
-        retkey->data = retkey->alg->createkey(retkey->alg, blob, privptr,
-                                              blob+privptr,
-                                              blobptr-privptr);
+        retkey->data = retkey->alg->createkey(
+            retkey->alg, blob->u, privptr, blob->u+privptr, blob->len-privptr);
+
         if (!retkey->data) {
             sfree(retkey);
             errmsg = "unable to create key data structure";
@@ -909,10 +836,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
     retval = retkey;
 
     error:
-    if (blob) {
-        smemclr(blob, blobsize);
-        sfree(blob);
-    }
+    strbuf_free(blob);
     smemclr(key->keyblob, key->keyblob_size);
     sfree(key->keyblob);
     smemclr(key, sizeof(*key));
@@ -924,13 +848,11 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase)
 {
-    strbuf *pubblob, *privblob;
+    strbuf *pubblob, *privblob, *outblob;
     unsigned char *spareblob;
     int sparelen = 0;
-    unsigned char *outblob;
-    int outlen;
     struct mpint_pos numbers[9];
-    int nnumbers, pos, len, seqlen, i;
+    int nnumbers, i;
     const char *header, *footer;
     char zero[1];
     unsigned char iv[8];
@@ -944,16 +866,17 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
     key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new();
     key->alg->private_blob(key->data, BinarySink_UPCAST(privblob));
-    spareblob = outblob = NULL;
+    spareblob = NULL;
 
-    outblob = NULL;
-    len = 0;
+    outblob = strbuf_new();
 
     /*
      * Encode the OpenSSH key blob, and also decide on the header
      * line.
      */
     if (key->alg == &ssh_rsa || key->alg == &ssh_dss) {
+        strbuf *seq;
+
         /*
          * The RSA and DSS handlers share some code because the two
          * key types have very similar ASN.1 representations, as a
@@ -1049,40 +972,21 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
             footer = "-----END DSA PRIVATE KEY-----\n";
         }
 
-        /*
-         * Now count up the total size of the ASN.1 encoded integers,
-         * so as to determine the length of the containing SEQUENCE.
-         */
-        len = 0;
+        seq = strbuf_new();
         for (i = 0; i < nnumbers; i++) {
-            len += ber_write_id_len(NULL, 2, numbers[i].bytes, 0);
-            len += numbers[i].bytes;
+            put_ber_id_len(seq, 2, numbers[i].bytes, 0);
+            put_data(seq, numbers[i].start, numbers[i].bytes);
         }
-        seqlen = len;
-        /* Now add on the SEQUENCE header. */
-        len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
-
-        /*
-         * Now we know how big outblob needs to be. Allocate it.
-         */
-        outblob = snewn(len, unsigned char);
-
-        /*
-         * And write the data into it.
-         */
-        pos = 0;
-        pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
-        for (i = 0; i < nnumbers; i++) {
-            pos += ber_write_id_len(outblob+pos, 2, numbers[i].bytes, 0);
-            memcpy(outblob+pos, numbers[i].start, numbers[i].bytes);
-            pos += numbers[i].bytes;
-        }
+        put_ber_id_len(outblob, 16, seq->len, ASN1_CONSTRUCTED);
+        put_data(outblob, seq->s, seq->len);
+        strbuf_free(seq);
     } else if (key->alg == &ssh_ecdsa_nistp256 ||
                key->alg == &ssh_ecdsa_nistp384 ||
                key->alg == &ssh_ecdsa_nistp521) {
         const unsigned char *oid;
         int oidlen;
         int pointlen;
+        strbuf *seq, *sub;
 
         /*
          * Structure of asn1:
@@ -1098,47 +1002,43 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
         pointlen = (((struct ec_key *)key->data)->publicKey.curve->fieldBits
                     + 7) / 8 * 2;
 
-        len = ber_write_id_len(NULL, 2, 1, 0);
-        len += 1;
-        len += ber_write_id_len(NULL, 4, privblob->len - 4, 0);
-        len+= privblob->len - 4;
-        len += ber_write_id_len(NULL, 0, oidlen +
-                                ber_write_id_len(NULL, 6, oidlen, 0),
-                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
-        len += ber_write_id_len(NULL, 6, oidlen, 0);
-        len += oidlen;
-        len += ber_write_id_len(NULL, 1, 2 + pointlen +
-                                ber_write_id_len(NULL, 3, 2 + pointlen, 0),
-                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
-        len += ber_write_id_len(NULL, 3, 2 + pointlen, 0);
-        len += 2 + pointlen;
+        seq = strbuf_new();
 
-        seqlen = len;
-        len += ber_write_id_len(NULL, 16, seqlen, ASN1_CONSTRUCTED);
+        /* INTEGER 1 */
+        put_ber_id_len(seq, 2, 1, 0);
+        put_byte(seq, 1);
 
-        outblob = snewn(len, unsigned char);
-        assert(outblob);
+        /* OCTET STRING private key */
+        put_ber_id_len(seq, 4, privblob->len - 4, 0);
+        put_data(seq, privblob->s + 4, privblob->len - 4);
 
-        pos = 0;
-        pos += ber_write_id_len(outblob+pos, 16, seqlen, ASN1_CONSTRUCTED);
-        pos += ber_write_id_len(outblob+pos, 2, 1, 0);
-        outblob[pos++] = 1;
-        pos += ber_write_id_len(outblob+pos, 4, privblob->len - 4, 0);
-        memcpy(outblob+pos, privblob->u + 4, privblob->len - 4);
-        pos += privblob->len - 4;
-        pos += ber_write_id_len(outblob+pos, 0, oidlen +
-                                ber_write_id_len(NULL, 6, oidlen, 0),
-                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
-        pos += ber_write_id_len(outblob+pos, 6, oidlen, 0);
-        memcpy(outblob+pos, oid, oidlen);
-        pos += oidlen;
-        pos += ber_write_id_len(outblob+pos, 1, 2 + pointlen +
-                                ber_write_id_len(NULL, 3, 2 + pointlen, 0),
-                                ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
-        pos += ber_write_id_len(outblob+pos, 3, 2 + pointlen, 0);
-        outblob[pos++] = 0;
-        memcpy(outblob+pos, pubblob->u+39, 1 + pointlen);
-        pos += 1 + pointlen;
+        /* Subsidiary OID */
+        sub = strbuf_new();
+        put_ber_id_len(sub, 6, oidlen, 0);
+        put_data(sub, oid, oidlen);
+
+        /* Append the OID to the sequence */
+        put_ber_id_len(seq, 0, sub->len,
+                       ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        put_data(seq, sub->s, sub->len);
+        strbuf_free(sub);
+
+        /* Subsidiary BIT STRING */
+        sub = strbuf_new();
+        put_ber_id_len(sub, 3, 2 + pointlen, 0);
+        put_byte(sub, 0);
+        put_data(sub, pubblob->s+39, 1 + pointlen);
+
+        /* Append the BIT STRING to the sequence */
+        put_ber_id_len(seq, 1, sub->len,
+                         ASN1_CLASS_CONTEXT_SPECIFIC | ASN1_CONSTRUCTED);
+        put_data(seq, sub->s, sub->len);
+        strbuf_free(sub);
+
+        /* Write the full sequence with header to the output blob. */
+        put_ber_id_len(outblob, 16, seq->len, ASN1_CONSTRUCTED);
+        put_data(outblob, seq->s, seq->len);
+        strbuf_free(seq);
 
         header = "-----BEGIN EC PRIVATE KEY-----\n";
         footer = "-----END EC PRIVATE KEY-----\n";
@@ -1156,19 +1056,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
     if (passphrase) {
 	struct MD5Context md5c;
 	unsigned char keybuf[32];
-
-        /*
-         * Round up to the cipher block size, ensuring we have at
-         * least one byte of padding (see below).
-         */
-        outlen = (len+8) &~ 7;
-        {
-            unsigned char *tmp = snewn(outlen, unsigned char);
-            memcpy(tmp, outblob, len);
-            smemclr(outblob, len);
-            sfree(outblob);
-            outblob = tmp;
-        }
+        int origlen, outlen, pad, i;
 
         /*
          * Padding on OpenSSH keys is deterministic. The number of
@@ -1187,10 +1075,11 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
          * with the same value. Those are all removed and the rest is
          * returned.
          */
-        assert(pos == len);
-        while (pos < outlen) {
-            outblob[pos++] = outlen - len;
-        }
+        origlen = outblob->len;
+        outlen = (origlen + 8) &~ 7;
+        pad = outlen - origlen;
+        for (i = 0; i < pad; i++)
+            put_byte(outblob, pad);
 
 	/*
 	 * Invent an iv. Then derive encryption key from passphrase
@@ -1217,16 +1106,11 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
 	/*
 	 * Now encrypt the key blob.
 	 */
-	des3_encrypt_pubkey_ossh(keybuf, iv, outblob, outlen);
+	des3_encrypt_pubkey_ossh(keybuf, iv,
+                                 outblob->u, outlen);
 
         smemclr(&md5c, sizeof(md5c));
         smemclr(keybuf, sizeof(keybuf));
-    } else {
-        /*
-         * If no encryption, the blob has exactly its original
-         * cleartext size.
-         */
-        outlen = len;
     }
 
     /*
@@ -1243,16 +1127,14 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
 	    fprintf(fp, "%02X", iv[i]);
 	fprintf(fp, "\n\n");
     }
-    base64_encode(fp, outblob, outlen, 64);
+    base64_encode(fp, outblob->u, outblob->len, 64);
     fputs(footer, fp);
     fclose(fp);
     ret = 1;
 
     error:
-    if (outblob) {
-        smemclr(outblob, outlen);
-        sfree(outblob);
-    }
+    if (outblob)
+        strbuf_free(outblob);
     if (spareblob) {
         smemclr(spareblob, sparelen);
         sfree(spareblob);
@@ -1746,10 +1628,8 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
 int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
                       char *passphrase)
 {
-    strbuf *pubblob, *privblob;
-    unsigned char *outblob, *p;
-    unsigned char *private_section_start, *private_section_length_field;
-    int commentlen, maxsize, padvalue, i;
+    strbuf *pubblob, *privblob, *cblob;
+    int padvalue, i;
     unsigned checkint;
     int ret = 0;
     unsigned char bcrypt_salt[16];
@@ -1763,113 +1643,88 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new();
     key->alg->openssh_fmtkey(key->data, BinarySink_UPCAST(privblob));
-    commentlen = strlen(key->comment);
-
-    /*
-     * Allocate enough space for the full binary key format. No need
-     * to be absolutely precise here.
-     */
-    maxsize = (16 +                    /* magic number */
-               32 +                    /* cipher name string */
-               32 +                    /* kdf name string */
-               64 +                    /* kdf options string */
-               4 +                     /* key count */
-               4+pubblob->len +        /* public key string */
-               4 +                     /* string header for private section */
-               8 +                     /* checkint x 2 */
-               4+strlen(key->alg->name) + /* key type string */
-               privblob->len +         /* private blob */
-               4+commentlen +          /* comment string */
-               16);                    /* padding at end of private section */
-    outblob = snewn(maxsize, unsigned char);
 
     /*
      * Construct the cleartext version of the blob.
      */
-    p = outblob;
+    cblob = strbuf_new();
 
     /* Magic number. */
-    memcpy(p, "openssh-key-v1\0", 15);
-    p += 15;
+    put_asciz(cblob, "openssh-key-v1");
 
     /* Cipher and kdf names, and kdf options. */
     if (!passphrase) {
         memset(bcrypt_salt, 0, sizeof(bcrypt_salt)); /* prevent warnings */
-        p += write_string_z(p, "none");
-        p += write_string_z(p, "none");
-        p += write_string_z(p, "");
+        put_stringz(cblob, "none");
+        put_stringz(cblob, "none");
+        put_stringz(cblob, "");
     } else {
-        unsigned char *q;
+        strbuf *substr;
+
         for (i = 0; i < (int)sizeof(bcrypt_salt); i++)
             bcrypt_salt[i] = random_byte();
-        p += write_string_z(p, "aes256-ctr");
-        p += write_string_z(p, "bcrypt");
-        q = p;
-        p += 4;
-        p += write_string(p, bcrypt_salt, sizeof(bcrypt_salt));
-        p += write_uint32(p, bcrypt_rounds);
-        PUT_32BIT_MSB_FIRST(q, (unsigned)(p - (q+4)));
+        put_stringz(cblob, "aes256-ctr");
+        put_stringz(cblob, "bcrypt");
+        substr = strbuf_new();
+        put_string(substr, bcrypt_salt, sizeof(bcrypt_salt));
+        put_uint32(substr, bcrypt_rounds);
+        put_stringsb(cblob, substr);
     }
 
     /* Number of keys. */
-    p += write_uint32(p, 1);
+    put_uint32(cblob, 1);
 
     /* Public blob. */
-    p += write_string(p, pubblob->u, pubblob->len);
+    put_string(cblob, pubblob->s, pubblob->len);
 
-    /* Begin private section. */
-    private_section_length_field = p;
-    p += 4;
-    private_section_start = p;
+    /* Private section. */
+    {
+        strbuf *cpblob = strbuf_new();
 
-    /* checkint. */
-    checkint = 0;
-    for (i = 0; i < 4; i++)
-        checkint = (checkint << 8) + random_byte();
-    p += write_uint32(p, checkint);
-    p += write_uint32(p, checkint);
+        /* checkint. */
+        checkint = 0;
+        for (i = 0; i < 4; i++)
+            checkint = (checkint << 8) + random_byte();
+        put_uint32(cpblob, checkint);
+        put_uint32(cpblob, checkint);
 
-    /* Private key. The main private blob goes inline, with no string
-     * wrapper. */
-    p += write_string_z(p, key->alg->name);
-    memcpy(p, privblob->u, privblob->len);
-    p += privblob->len;
+        /* Private key. The main private blob goes inline, with no string
+         * wrapper. */
+        put_stringz(cpblob, key->alg->name);
+        put_data(cpblob, privblob->s, privblob->len);
 
-    /* Comment. */
-    p += write_string_z(p, key->comment);
+        /* Comment. */
+        put_stringz(cpblob, key->comment);
 
-    /* Pad out the encrypted section. */
-    padvalue = 1;
-    do {
-        *p++ = padvalue++;
-    } while ((p - private_section_start) & 15);
+        /* Pad out the encrypted section. */
+        padvalue = 1;
+        do {
+            put_byte(cpblob, padvalue++);
+        } while (cpblob->len & 15);
 
-    assert(p - outblob < maxsize);
+        if (passphrase) {
+            /*
+             * Encrypt the private section. We need 48 bytes of key
+             * material: 32 bytes AES key + 16 bytes iv.
+             */
+            unsigned char keybuf[48];
+            void *ctx;
 
-    /* Go back and fill in the length field for the private section. */
-    PUT_32BIT_MSB_FIRST(private_section_length_field,
-                        p - private_section_start);
+            openssh_bcrypt(passphrase,
+                           bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
+                           keybuf, sizeof(keybuf));
 
-    if (passphrase) {
-        /*
-         * Encrypt the private section. We need 48 bytes of key
-         * material: 32 bytes AES key + 16 bytes iv.
-         */
-        unsigned char keybuf[48];
-        void *ctx;
+            ctx = aes_make_context();
+            aes256_key(ctx, keybuf);
+            aes_iv(ctx, keybuf + 32);
+            aes_ssh2_sdctr(ctx, cpblob->u,
+                           cpblob->len);
+            aes_free_context(ctx);
 
-        openssh_bcrypt(passphrase,
-                       bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
-                       keybuf, sizeof(keybuf));
+            smemclr(keybuf, sizeof(keybuf));
+        }
 
-        ctx = aes_make_context();
-        aes256_key(ctx, keybuf);
-        aes_iv(ctx, keybuf + 32);
-        aes_ssh2_sdctr(ctx, private_section_start,
-                       p - private_section_start);
-        aes_free_context(ctx);
-
-        smemclr(keybuf, sizeof(keybuf));
+        put_stringsb(cblob, cpblob);
     }
 
     /*
@@ -1880,16 +1735,14 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
     if (!fp)
 	goto error;
     fputs("-----BEGIN OPENSSH PRIVATE KEY-----\n", fp);
-    base64_encode(fp, outblob, p - outblob, 64);
+    base64_encode(fp, cblob->u, cblob->len, 64);
     fputs("-----END OPENSSH PRIVATE KEY-----\n", fp);
     fclose(fp);
     ret = 1;
 
     error:
-    if (outblob) {
-        smemclr(outblob, maxsize);
-        sfree(outblob);
-    }
+    if (cblob)
+        strbuf_free(cblob);
     if (privblob)
         strbuf_free(privblob);
     if (pubblob)
@@ -2232,30 +2085,32 @@ static int sshcom_read_mpint(void *data, int len, struct mpint_pos *ret)
     return len;                        /* ensure further calls fail as well */
 }
 
-static int sshcom_put_mpint(void *target, void *data, int len)
+void BinarySink_put_mp_sshcom_from_string(
+    BinarySink *bs, const void *bytesv, int nbytes)
 {
-    unsigned char *d = (unsigned char *)target;
-    unsigned char *i = (unsigned char *)data;
-    int bits = len * 8 - 1;
+    const unsigned char *bytes = (const unsigned char *)bytesv;
+    int bits = nbytes * 8 - 1;
 
     while (bits > 0) {
-	if (*i & (1 << (bits & 7)))
+	if (*bytes & (1 << (bits & 7)))
 	    break;
 	if (!(bits-- & 7))
-	    i++, len--;
+	    bytes++, nbytes--;
     }
 
-    PUT_32BIT(d, bits+1);
-    memcpy(d+4, i, len);
-    return len+4;
+    put_uint32(bs, bits+1);
+    put_data(bs, bytes, nbytes);
 }
+
+#define put_mp_sshcom_from_string(bs, val, len) \
+    BinarySink_put_mp_sshcom_from_string(BinarySink_UPCAST(bs), val, len)
 
 struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 				 const char **errmsg_p)
 {
     struct sshcom_key *key = load_sshcom_key(filename, errmsg_p);
     const char *errmsg;
-    int pos, len;
+    int pos, len, publen;
     const char prefix_rsa[] = "if-modn{sign{rsa";
     const char prefix_dsa[] = "dl-modp{sign{dsa";
     enum { RSA, DSA } type;
@@ -2264,8 +2119,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
     int cipherlen;
     struct ssh2_userkey *ret = NULL, *retkey;
     const struct ssh_signkey *alg;
-    unsigned char *blob = NULL;
-    int blobsize = 0, publen, privlen;
+    strbuf *blob = NULL;
 
     if (!key)
         return NULL;
@@ -2401,9 +2255,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
      * construct public and private blobs in our own format, and
      * end up feeding them to alg->createkey().
      */
-    blobsize = cipherlen + 256;
-    blob = snewn(blobsize, unsigned char);
-    privlen = 0;
+    blob = strbuf_new();
     if (type == RSA) {
         struct mpint_pos n, e, d, u, p, q;
         int pos = 0;
@@ -2419,16 +2271,14 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         }
 
         alg = &ssh_rsa;
-        pos = 0;
-        pos += write_string(blob+pos, "ssh-rsa", 7);
-        pos += put_mp(blob+pos, e.start, e.bytes);
-        pos += put_mp(blob+pos, n.start, n.bytes);
-        publen = pos;
-        pos += write_string(blob+pos, d.start, d.bytes);
-        pos += put_mp(blob+pos, q.start, q.bytes);
-        pos += put_mp(blob+pos, p.start, p.bytes);
-        pos += put_mp(blob+pos, u.start, u.bytes);
-        privlen = pos - publen;
+        put_stringz(blob, "ssh-rsa");
+        put_mp_ssh2_from_string(blob, e.start, e.bytes);
+        put_mp_ssh2_from_string(blob, n.start, n.bytes);
+        publen = blob->len;
+        put_string(blob, d.start, d.bytes);
+        put_mp_ssh2_from_string(blob, q.start, q.bytes);
+        put_mp_ssh2_from_string(blob, p.start, p.bytes);
+        put_mp_ssh2_from_string(blob, u.start, u.bytes);
     } else {
         struct mpint_pos p, q, g, x, y;
         int pos = 4;
@@ -2450,22 +2300,19 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
         }
 
         alg = &ssh_dss;
-        pos = 0;
-        pos += write_string(blob+pos, "ssh-dss", 7);
-        pos += put_mp(blob+pos, p.start, p.bytes);
-        pos += put_mp(blob+pos, q.start, q.bytes);
-        pos += put_mp(blob+pos, g.start, g.bytes);
-        pos += put_mp(blob+pos, y.start, y.bytes);
-        publen = pos;
-        pos += put_mp(blob+pos, x.start, x.bytes);
-        privlen = pos - publen;
+        put_stringz(blob, "ssh-dss");
+        put_mp_ssh2_from_string(blob, p.start, p.bytes);
+        put_mp_ssh2_from_string(blob, q.start, q.bytes);
+        put_mp_ssh2_from_string(blob, g.start, g.bytes);
+        put_mp_ssh2_from_string(blob, y.start, y.bytes);
+        publen = blob->len;
+        put_mp_ssh2_from_string(blob, x.start, x.bytes);
     }
-
-    assert(privlen > 0);	       /* should have bombed by now if not */
 
     retkey = snew(struct ssh2_userkey);
     retkey->alg = alg;
-    retkey->data = alg->createkey(alg, blob, publen, blob+publen, privlen);
+    retkey->data = alg->createkey(alg, blob->u, publen,
+                                  blob->u + publen, blob->len - publen);
     if (!retkey->data) {
 	sfree(retkey);
 	errmsg = "unable to create key data structure";
@@ -2478,8 +2325,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 
     error:
     if (blob) {
-        smemclr(blob, blobsize);
-        sfree(blob);
+        strbuf_free(blob);
     }
     smemclr(key->keyblob, key->keyblob_size);
     sfree(key->keyblob);
@@ -2492,11 +2338,9 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 		 char *passphrase)
 {
-    strbuf *pubblob, *privblob;
-    unsigned char *outblob;
-    int outlen;
+    strbuf *pubblob, *privblob, *outblob;
     struct mpint_pos numbers[6];
-    int nnumbers, initial_zero, pos, lenpos, i;
+    int nnumbers, initial_zero, lenpos, i;
     const char *type;
     char *ciphertext;
     int cipherlen;
@@ -2577,54 +2421,38 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 
-    /*
-     * Total size of key blob will be somewhere under 512 plus
-     * combined length of integers. We'll calculate the more
-     * precise size as we construct the blob.
-     */
-    outlen = 512;
-    for (i = 0; i < nnumbers; i++)
-	outlen += 4 + numbers[i].bytes;
-    outblob = snewn(outlen, unsigned char);
+    outblob = strbuf_new();
 
     /*
      * Create the unencrypted key blob.
      */
-    pos = 0;
-    PUT_32BIT(outblob+pos, SSHCOM_MAGIC_NUMBER); pos += 4;
-    pos += 4;			       /* length field, fill in later */
-    pos += write_string(outblob+pos, type, strlen(type));
-    {
-	const char *ciphertype = passphrase ? "3des-cbc" : "none";
-	pos += write_string(outblob+pos, ciphertype, strlen(ciphertype));
-    }
-    lenpos = pos;		       /* remember this position */
-    pos += 4;			       /* encrypted-blob size */
-    pos += 4;			       /* encrypted-payload size */
-    if (initial_zero) {
-	PUT_32BIT(outblob+pos, 0);
-	pos += 4;
-    }
+    put_uint32(outblob, SSHCOM_MAGIC_NUMBER);
+    put_uint32(outblob, 0);          /* length field, fill in later */
+    put_stringz(outblob, type);
+    put_stringz(outblob, passphrase ? "3des-cbc" : "none");
+    lenpos = outblob->len;      /* remember this position */
+    put_uint32(outblob, 0);            /* encrypted-blob size */
+    put_uint32(outblob, 0);            /* encrypted-payload size */
+    if (initial_zero)
+        put_uint32(outblob, 0);
     for (i = 0; i < nnumbers; i++)
-	pos += sshcom_put_mpint(outblob+pos,
-				numbers[i].start, numbers[i].bytes);
+	put_mp_sshcom_from_string(outblob, numbers[i].start, numbers[i].bytes);
     /* Now wrap up the encrypted payload. */
-    PUT_32BIT(outblob+lenpos+4, pos - (lenpos+8));
+    PUT_32BIT(outblob->s + lenpos + 4,
+              outblob->len - (lenpos + 8));
     /* Pad encrypted blob to a multiple of cipher block size. */
     if (passphrase) {
-	int padding = -(pos - (lenpos+4)) & 7;
+	int padding = -(outblob->len - (lenpos+4)) & 7;
 	while (padding--)
-	    outblob[pos++] = random_byte();
+	    put_byte(outblob, random_byte());
     }
-    ciphertext = (char *)outblob+lenpos+4;
-    cipherlen = pos - (lenpos+4);
+    ciphertext = outblob->s + lenpos + 4;
+    cipherlen = outblob->len - (lenpos + 4);
     assert(!passphrase || cipherlen % 8 == 0);
     /* Wrap up the encrypted blob string. */
-    PUT_32BIT(outblob+lenpos, cipherlen);
+    PUT_32BIT(outblob->s + lenpos, cipherlen);
     /* And finally fill in the total length field. */
-    PUT_32BIT(outblob+4, pos);
-
-    assert(pos < outlen);
+    PUT_32BIT(outblob->s + 4, outblob->len);
 
     /*
      * Encrypt the key.
@@ -2686,16 +2514,14 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	}
 	fprintf(fp, "%s\"\n", c);
     }
-    base64_encode(fp, outblob, pos, 70);
+    base64_encode(fp, outblob->u, outblob->len, 70);
     fputs("---- END SSH2 ENCRYPTED PRIVATE KEY ----\n", fp);
     fclose(fp);
     ret = 1;
 
     error:
-    if (outblob) {
-        smemclr(outblob, outlen);
-        sfree(outblob);
-    }
+    if (outblob)
+        strbuf_free(outblob);
     if (privblob)
         strbuf_free(privblob);
     if (pubblob)

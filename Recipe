@@ -271,7 +271,7 @@ UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc uxproxy time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.
-IMPORT   = import sshbcrypt sshblowf
+IMPORT   = import sshbcrypt sshblowf marshal
 
 # Character set library, for use in pterm.
 CHARSET  = sbcsdat slookup sbcs utf8 toucs fromucs xenc mimeenc macenc localenc
