@@ -47,9 +47,13 @@ struct strbuf {
 };
 strbuf *strbuf_new(void);
 void strbuf_free(strbuf *buf);
+char *strbuf_append(strbuf *buf, size_t len);
 char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
 void strbuf_catf(strbuf *buf, const char *fmt, ...);
 void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap);
+
+strbuf *strbuf_new_for_agent_query(void);
+void strbuf_finalise_agent_query(strbuf *buf);
 
 /* String-to-Unicode converters that auto-allocate the destination and
  * work around the rather deficient interface of mb_to_wc.

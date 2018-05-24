@@ -537,6 +537,19 @@ void strbuf_catf(strbuf *buf_o, const char *fmt, ...)
     va_end(ap);
 }
 
+strbuf *strbuf_new_for_agent_query(void)
+{
+    strbuf *buf = strbuf_new();
+    put_uint32(buf, 0);                /* reserve space for length field */
+    return buf;
+}
+void strbuf_finalise_agent_query(strbuf *buf_o)
+{
+    struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
+    assert(buf->visible.len >= 5);
+    PUT_32BIT_MSB_FIRST(buf->visible.u, buf->visible.len - 4);
+}
+
 /*
  * Read an entire line of text from a file. Return a buffer
  * malloced to be as big as necessary (caller must free).

@@ -3938,8 +3938,8 @@ static void ssh_agentf_callback(void *cv, void *reply, int replylen);
 
 static void ssh_agentf_try_forward(struct ssh_channel *c)
 {
-    unsigned datalen, lengthfield, messagelen;
-    unsigned char *message;
+    unsigned datalen, length;
+    strbuf *message;
     unsigned char msglen[4];
     void *reply;
     int replylen;
@@ -3982,9 +3982,9 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
             break;         /* not even a length field available yet */
 
         bufchain_fetch(&c->u.a.inbuffer, msglen, 4);
-        lengthfield = GET_32BIT(msglen);
+        length = GET_32BIT(msglen);
 
-        if (lengthfield > AGENT_MAX_MSGLEN) {
+        if (length > AGENT_MAX_MSGLEN-4) {
             /*
              * If the remote has sent a message that's just _too_
              * long, we should reject it in advance of seeing the rest
@@ -3998,16 +3998,17 @@ static void ssh_agentf_try_forward(struct ssh_channel *c)
             return;
         }
 
-        if (lengthfield > datalen - 4)
+        if (length > datalen - 4)
             break;          /* a whole message is not yet available */
 
-        messagelen = lengthfield + 4;
+        bufchain_consume(&c->u.a.inbuffer, 4);
 
-        message = snewn(messagelen, unsigned char);
-        bufchain_fetch_consume(&c->u.a.inbuffer, message, messagelen);
+        message = strbuf_new_for_agent_query();
+        bufchain_fetch_consume(
+            &c->u.a.inbuffer, strbuf_append(message, length), length);
         c->u.a.pending = agent_query(
-            message, messagelen, &reply, &replylen, ssh_agentf_callback, c);
-        sfree(message);
+            message, &reply, &replylen, ssh_agentf_callback, c);
+        strbuf_free(message);
 
         if (c->u.a.pending)
             return;   /* agent_query promised to reply in due course */
@@ -4172,7 +4173,7 @@ static void do_ssh1_login(void *vctx)
         int userpass_ret;
 	char c;
 	int pwpkt_type;
-	unsigned char request[5], *response, *p;
+        unsigned char *response, *p;
 	int responselen;
 	int keyi, nkeys;
 	int authed;
@@ -4545,16 +4546,18 @@ static void do_ssh1_login(void *vctx)
 	     * Attempt RSA authentication using Pageant.
 	     */
 	    void *r;
+            strbuf *request;
 
 	    s->authed = FALSE;
 	    s->tried_agent = 1;
 	    logevent("Pageant is running. Requesting keys.");
 
 	    /* Request the keys held by the agent. */
-	    PUT_32BIT(s->request, 1);
-	    s->request[4] = SSH1_AGENTC_REQUEST_RSA_IDENTITIES;
+            request = strbuf_new_for_agent_query();
+	    put_byte(request, SSH1_AGENTC_REQUEST_RSA_IDENTITIES);
             ssh->auth_agent_query = agent_query(
-                s->request, 5, &r, &s->responselen, ssh_agent_callback, ssh);
+                request, &r, &s->responselen, ssh_agent_callback, ssh);
+            strbuf_free(request);
 	    if (ssh->auth_agent_query) {
                 ssh->agent_response = NULL;
                 crWaitUntilV(ssh->agent_response);
@@ -4634,38 +4637,31 @@ static void do_ssh1_login(void *vctx)
 		    }
 
 		    {
-			char *agentreq, *q, *ret;
+                        strbuf *agentreq;
+			char *ret;
 			void *vret;
-			int len, retlen;
-			len = 1 + 4;   /* message type, bit count */
-			len += ssh1_bignum_length(s->key.exponent);
-			len += ssh1_bignum_length(s->key.modulus);
-			len += ssh1_bignum_length(s->challenge);
-			len += 16;     /* session id */
-			len += 4;      /* response format */
-			agentreq = snewn(4 + len, char);
-			PUT_32BIT(agentreq, len);
-			q = agentreq + 4;
-			*q++ = SSH1_AGENTC_RSA_CHALLENGE;
-			PUT_32BIT(q, bignum_bitcount(s->key.modulus));
-			q += 4;
-			q += ssh1_write_bignum(q, s->key.exponent);
-			q += ssh1_write_bignum(q, s->key.modulus);
-			q += ssh1_write_bignum(q, s->challenge);
-			memcpy(q, s->session_id, 16);
-			q += 16;
-			PUT_32BIT(q, 1);	/* response format */
+			int retlen;
+
+			agentreq = strbuf_new_for_agent_query();
+			put_byte(agentreq, SSH1_AGENTC_RSA_CHALLENGE);
+			put_uint32(agentreq, bignum_bitcount(s->key.modulus));
+			put_mp_ssh1(agentreq, s->key.exponent);
+			put_mp_ssh1(agentreq, s->key.modulus);
+			put_mp_ssh1(agentreq, s->challenge);
+			put_data(agentreq, s->session_id, 16);
+			put_uint32(agentreq, 1);    /* response format */
                         ssh->auth_agent_query = agent_query(
-                            agentreq, len + 4, &vret, &retlen,
+                            agentreq, &vret, &retlen,
                             ssh_agent_callback, ssh);
+                        strbuf_free(agentreq);
+
 			if (ssh->auth_agent_query) {
-			    sfree(agentreq);
                             ssh->agent_response = NULL;
                             crWaitUntilV(ssh->agent_response);
 			    vret = ssh->agent_response;
 			    retlen = ssh->agent_response_len;
-			} else
-			    sfree(agentreq);
+			}
+
 			ret = vret;
 			if (ret) {
 			    if (ret[4] == SSH1_AGENT_RSA_RESPONSE) {
@@ -9921,14 +9917,14 @@ static void do_ssh2_userauth(void *vctx)
 	int privatekey_available, privatekey_encrypted;
 	char *publickey_algorithm;
 	char *publickey_comment;
-	unsigned char agent_request[5], *agent_response, *agentp;
+	unsigned char *agent_response, *agentp;
 	int agent_responselen;
 	unsigned char *pkblob_in_agent;
 	int keyi, nkeys;
 	char *pkblob, *alg, *commentp;
 	int pklen, alglen, commentlen;
-	int siglen, retlen, len;
-	char *q, *agentreq, *ret;
+	int retlen, len;
+	char *ret;
 	struct Packet *pktout;
 	Filename *keyfile;
 #ifndef NO_GSSAPI
@@ -10061,15 +10057,18 @@ static void do_ssh2_userauth(void *vctx)
 	if (conf_get_int(ssh->conf, CONF_tryagent) && agent_exists()) {
 
 	    void *r;
+            strbuf *agent_request;
 
 	    logevent("Pageant is running. Requesting keys.");
 
 	    /* Request the keys held by the agent. */
-	    PUT_32BIT(s->agent_request, 1);
-	    s->agent_request[4] = SSH2_AGENTC_REQUEST_IDENTITIES;
+            agent_request = strbuf_new_for_agent_query();
+            put_byte(agent_request, SSH2_AGENTC_REQUEST_IDENTITIES);
             ssh->auth_agent_query = agent_query(
-                s->agent_request, 5, &r, &s->agent_responselen,
+                agent_request, &r, &s->agent_responselen,
                 ssh_agent_callback, ssh);
+            strbuf_free(agent_request);
+
 	    if (ssh->auth_agent_query) {
                 ssh->agent_response = NULL;
 		crWaitUntilV(ssh->agent_response);
@@ -10468,7 +10467,7 @@ static void do_ssh2_userauth(void *vctx)
 		    pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 
 		} else {
-		    
+                    strbuf *agentreq, *sigdata;
 		    void *vret;
 
 		    if (flags & FLAG_VERBOSE) {
@@ -10493,40 +10492,28 @@ static void do_ssh2_userauth(void *vctx)
 		    put_string(s->pktout, s->pkblob, s->pklen);
 
 		    /* Ask agent for signature. */
-		    s->siglen = s->pktout->length - 5 + 4 +
-			ssh->v2_session_id_len;
-		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)
-			s->siglen -= 4;
-		    s->len = 1;       /* message type */
-		    s->len += 4 + s->pklen;	/* key blob */
-		    s->len += 4 + s->siglen;	/* data to sign */
-		    s->len += 4;      /* flags */
-		    s->agentreq = snewn(4 + s->len, char);
-		    PUT_32BIT(s->agentreq, s->len);
-		    s->q = s->agentreq + 4;
-		    *s->q++ = SSH2_AGENTC_SIGN_REQUEST;
-		    PUT_32BIT(s->q, s->pklen);
-		    s->q += 4;
-		    memcpy(s->q, s->pkblob, s->pklen);
-		    s->q += s->pklen;
-		    PUT_32BIT(s->q, s->siglen);
-		    s->q += 4;
+		    agentreq = strbuf_new_for_agent_query();
+		    put_byte(agentreq, SSH2_AGENTC_SIGN_REQUEST);
+		    put_string(agentreq, s->pkblob, s->pklen);
 		    /* Now the data to be signed... */
-		    if (!(ssh->remote_bugs & BUG_SSH2_PK_SESSIONID)) {
-			PUT_32BIT(s->q, ssh->v2_session_id_len);
-			s->q += 4;
-		    }
-		    memcpy(s->q, ssh->v2_session_id,
-			   ssh->v2_session_id_len);
-		    s->q += ssh->v2_session_id_len;
-		    memcpy(s->q, s->pktout->data + 5,
-			   s->pktout->length - 5);
-		    s->q += s->pktout->length - 5;
+                    sigdata = strbuf_new();
+		    if (ssh->remote_bugs & BUG_SSH2_PK_SESSIONID) {
+                        put_data(sigdata, ssh->v2_session_id,
+                                 ssh->v2_session_id_len);
+                    } else {
+                        put_string(sigdata, ssh->v2_session_id,
+                                   ssh->v2_session_id_len);
+                    }
+		    put_data(sigdata, s->pktout->data + 5,
+                             s->pktout->length - 5);
+                    put_stringsb(agentreq, sigdata);
 		    /* And finally the (zero) flags word. */
-		    PUT_32BIT(s->q, 0);
+		    put_uint32(agentreq, 0);
                     ssh->auth_agent_query = agent_query(
-                        s->agentreq, s->len + 4, &vret, &s->retlen,
+                        agentreq, &vret, &s->retlen,
                         ssh_agent_callback, ssh);
+                    strbuf_free(agentreq);
+
                     if (ssh->auth_agent_query) {
                         ssh->agent_response = NULL;
                         crWaitUntilV(ssh->agent_response);
@@ -10534,7 +10521,6 @@ static void do_ssh2_userauth(void *vctx)
 			s->retlen = ssh->agent_response_len;
 		    }
 		    s->ret = vret;
-		    sfree(s->agentreq);
 		    if (s->ret) {
 			if (s->retlen >= 9 &&
                             s->ret[4] == SSH2_AGENT_SIGN_RESPONSE &&
