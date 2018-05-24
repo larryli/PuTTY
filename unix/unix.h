@@ -71,9 +71,6 @@ extern Backend pty_backend;
 
 #define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
 
-typedef uint32_t uint32; /* C99: uint32_t defined in stdint.h */
-#define PUTTY_UINT32_DEFINED
-
 /*
  * Under GTK, we send MA_CLICK _and_ MA_2CLK, or MA_CLICK _and_
  * MA_3CLK, when a button is pressed for the second or third time.

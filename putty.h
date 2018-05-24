@@ -16,13 +16,7 @@
 #endif
 #endif
 
-#ifndef DONE_TYPEDEFS
-#define DONE_TYPEDEFS
-typedef struct conf_tag Conf;
-typedef struct backend_tag Backend;
-typedef struct terminal_tag Terminal;
-#endif
-
+#include "defs.h"
 #include "puttyps.h"
 #include "network.h"
 #include "misc.h"
@@ -537,8 +531,6 @@ GLOBAL int loaded_session;
  * This is set to the name of the loaded session.
  */
 GLOBAL char *cmdline_session_name;
-
-struct RSAKey;			       /* be a little careful of scope */
 
 /*
  * Mechanism for getting text strings such as usernames and passwords

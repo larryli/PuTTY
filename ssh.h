@@ -199,11 +199,6 @@ unsigned char *rsa_ssh1_public_blob(struct RSAKey *key, int *len,
 int rsa_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
-#ifndef PUTTY_UINT32_DEFINED
-/* This makes assumptions about the int type. */
-typedef unsigned int uint32;
-#define PUTTY_UINT32_DEFINED
-#endif
 typedef uint32 word32;
 
 unsigned long crc32_compute(const void *s, size_t len);

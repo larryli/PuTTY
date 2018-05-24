@@ -5,6 +5,7 @@
 #ifndef PUTTY_MISC_H
 #define PUTTY_MISC_H
 
+#include "defs.h"
 #include "puttymem.h"
 
 #include <stdio.h>		       /* for FILE * */
@@ -17,9 +18,6 @@
 #ifndef TRUE
 #define TRUE 1
 #endif
-
-typedef struct Filename Filename;
-typedef struct FontSpec FontSpec;
 
 unsigned long parse_blocksize(const char *bs);
 char ctrlparse(char *s, char **next);
@@ -38,7 +36,7 @@ char *dupprintf(const char *fmt, ...)
     ;
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
-typedef struct strbuf strbuf;
+
 strbuf *strbuf_new(void);
 void strbuf_free(strbuf *buf);
 char *strbuf_str(strbuf *buf);         /* does not free buf */
@@ -70,10 +68,6 @@ struct bufchain_tag {
     struct bufchain_granule *head, *tail;
     int buffersize;		       /* current amount of buffered data */
 };
-#ifndef BUFCHAIN_TYPEDEF
-typedef struct bufchain_tag bufchain;  /* rest of declaration in misc.c */
-#define BUFCHAIN_TYPEDEF
-#endif
 
 void bufchain_init(bufchain *ch);
 void bufchain_clear(bufchain *ch);

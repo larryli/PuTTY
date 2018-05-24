@@ -13,12 +13,7 @@
 #ifndef PUTTY_NETWORK_H
 #define PUTTY_NETWORK_H
 
-#ifndef DONE_TYPEDEFS
-#define DONE_TYPEDEFS
-typedef struct conf_tag Conf;
-typedef struct backend_tag Backend;
-typedef struct terminal_tag Terminal;
-#endif
+#include "defs.h"
 
 typedef struct SockAddr_tag *SockAddr;
 /* pay attention to levels of indirection */
@@ -229,10 +224,6 @@ Socket new_error_socket(const char *errmsg, Plug plug);
 void backend_socket_log(void *frontend, int type, SockAddr addr, int port,
                         const char *error_msg, int error_code, Conf *conf,
                         int session_started);
-#ifndef BUFCHAIN_TYPEDEF
-typedef struct bufchain_tag bufchain;  /* rest of declaration in misc.c */
-#define BUFCHAIN_TYPEDEF
-#endif
 void log_proxy_stderr(Plug plug, bufchain *buf, const void *vdata, int len);
 
 #endif
