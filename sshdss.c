@@ -9,34 +9,6 @@
 #include "ssh.h"
 #include "misc.h"
 
-static void sha_mpint(SHA_State * s, Bignum b)
-{
-    unsigned char lenbuf[4];
-    int len;
-    len = (bignum_bitcount(b) + 8) / 8;
-    PUT_32BIT(lenbuf, len);
-    SHA_Bytes(s, lenbuf, 4);
-    while (len-- > 0) {
-	lenbuf[0] = bignum_byte(b, len);
-	SHA_Bytes(s, lenbuf, 1);
-    }
-    smemclr(lenbuf, sizeof(lenbuf));
-}
-
-static void sha512_mpint(SHA512_State * s, Bignum b)
-{
-    unsigned char lenbuf[4];
-    int len;
-    len = (bignum_bitcount(b) + 8) / 8;
-    PUT_32BIT(lenbuf, len);
-    SHA512_Bytes(s, lenbuf, 4);
-    while (len-- > 0) {
-	lenbuf[0] = bignum_byte(b, len);
-	SHA512_Bytes(s, lenbuf, 1);
-    }
-    smemclr(lenbuf, sizeof(lenbuf));
-}
-
 static void getstring(const char **data, int *datalen,
                       const char **p, int *length)
 {
@@ -395,9 +367,9 @@ static void *dss_createkey(const struct ssh_signkey *self,
     getstring(&pb, &priv_len, &hash, &hashlen);
     if (hashlen == 20) {
 	SHA_Init(&s);
-	sha_mpint(&s, dss->p);
-	sha_mpint(&s, dss->q);
-	sha_mpint(&s, dss->g);
+	put_mp_ssh2(&s, dss->p);
+	put_mp_ssh2(&s, dss->q);
+	put_mp_ssh2(&s, dss->g);
 	SHA_Final(&s, digest);
 	if (0 != memcmp(hash, digest, 20)) {
 	    dss_freekey(dss);
@@ -569,7 +541,7 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
      */
     SHA512_Init(&ss);
     SHA512_Bytes(&ss, id_string, strlen(id_string) + 1);
-    sha512_mpint(&ss, private_key);
+    put_mp_ssh2(&ss, private_key);
     SHA512_Final(&ss, digest512);
 
     /*

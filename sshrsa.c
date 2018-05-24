@@ -94,20 +94,6 @@ int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)
     return 1;
 }
 
-static void sha512_mpint(SHA512_State * s, Bignum b)
-{
-    unsigned char lenbuf[4];
-    int len;
-    len = (bignum_bitcount(b) + 8) / 8;
-    PUT_32BIT(lenbuf, len);
-    SHA512_Bytes(s, lenbuf, 4);
-    while (len-- > 0) {
-	lenbuf[0] = bignum_byte(b, len);
-	SHA512_Bytes(s, lenbuf, 1);
-    }
-    smemclr(lenbuf, sizeof(lenbuf));
-}
-
 /*
  * Compute (base ^ exp) % mod, provided mod == p * q, with p,q
  * distinct primes, and iqmp is the multiplicative inverse of q mod p.
@@ -232,12 +218,10 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 		 *    byte = random_byte();
 		 */
 		if (digestused >= lenof(digest512)) {
-		    unsigned char seqbuf[4];
-		    PUT_32BIT(seqbuf, hashseq);
 		    SHA512_Init(&ss);
 		    SHA512_Bytes(&ss, "RSA deterministic blinding", 26);
-		    SHA512_Bytes(&ss, seqbuf, sizeof(seqbuf));
-		    sha512_mpint(&ss, key->private_exponent);
+		    put_uint32(&ss, hashseq);
+		    put_mp_ssh2(&ss, key->private_exponent);
 		    SHA512_Final(&ss, digest512);
 		    hashseq++;
 
@@ -247,7 +231,7 @@ static Bignum rsa_privkey_op(Bignum input, struct RSAKey *key)
 		     */
 		    SHA512_Init(&ss);
 		    SHA512_Bytes(&ss, digest512, sizeof(digest512));
-		    sha512_mpint(&ss, input);
+		    put_mp_ssh2(&ss, input);
 		    SHA512_Final(&ss, digest512);
 
 		    digestused = 0;
