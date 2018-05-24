@@ -2294,7 +2294,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
         digestLen = extra->hash->hlen;
         assert(digestLen <= sizeof(digest));
         hashctx = extra->hash->init();
-        extra->hash->bytes(hashctx, data, datalen);
+        put_data(extra->hash->sink(hashctx), data, datalen);
         extra->hash->final(hashctx, digest);
 
         /* Verify the signature */
@@ -2421,7 +2421,7 @@ static void ecdsa_sign(void *key, const char *data, int datalen,
         digestLen = extra->hash->hlen;
         assert(digestLen <= sizeof(digest));
         hashctx = extra->hash->init();
-        extra->hash->bytes(hashctx, data, datalen);
+        put_data(extra->hash->sink(hashctx), data, datalen);
         extra->hash->final(hashctx, digest);
 
         /* Do the signature */

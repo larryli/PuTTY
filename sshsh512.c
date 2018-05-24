@@ -355,11 +355,10 @@ static void sha512_free(void *handle)
     sfree(s);
 }
 
-static void sha512_bytes(void *handle, const void *p, int len)
+static BinarySink *sha512_sink(void *handle)
 {
     SHA512_State *s = handle;
-
-    put_data(s, p, len);
+    return BinarySink_UPCAST(s);
 }
 
 static void sha512_final(void *handle, unsigned char *output)
@@ -371,7 +370,7 @@ static void sha512_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha512 = {
-    sha512_init, sha512_copy, sha512_bytes, sha512_final, sha512_free,
+    sha512_init, sha512_copy, sha512_sink, sha512_final, sha512_free,
     64, "SHA-512"
 };
 
@@ -394,7 +393,7 @@ static void sha384_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha384 = {
-    sha384_init, sha512_copy, sha512_bytes, sha384_final, sha512_free,
+    sha384_init, sha512_copy, sha512_sink, sha384_final, sha512_free,
     48, "SHA-384"
 };
 

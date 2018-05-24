@@ -260,11 +260,10 @@ static void sha1_free(void *handle)
     sfree(s);
 }
 
-static void sha1_bytes(void *handle, const void *p, int len)
+static BinarySink *sha1_sink(void *handle)
 {
     SHA_State *s = handle;
-
-    put_data(s, p, len);
+    return BinarySink_UPCAST(s);
 }
 
 static void sha1_final(void *handle, unsigned char *output)
@@ -276,7 +275,7 @@ static void sha1_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha1 = {
-    sha1_init, sha1_copy, sha1_bytes, sha1_final, sha1_free, 20, "SHA-1"
+    sha1_init, sha1_copy, sha1_sink, sha1_final, sha1_free, 20, "SHA-1"
 };
 
 /* ----------------------------------------------------------------------
@@ -334,10 +333,10 @@ static void hmacsha1_start(void *handle)
     BinarySink_COPIED(&keys[2]);
 }
 
-static void hmacsha1_bytes(void *handle, unsigned char const *blk, int len)
+static BinarySink *hmacsha1_sink(void *handle)
 {
     SHA_State *keys = (SHA_State *)handle;
-    put_data(&keys[2], blk, len);
+    return BinarySink_UPCAST(&keys[2]);
 }
 
 static void hmacsha1_genresult(void *handle, unsigned char *hmac)
@@ -358,12 +357,10 @@ static void hmacsha1_genresult(void *handle, unsigned char *hmac)
 static void sha1_do_hmac(void *handle, unsigned char *blk, int len,
 			 unsigned long seq, unsigned char *hmac)
 {
-    unsigned char seqbuf[4];
-
-    PUT_32BIT_MSB_FIRST(seqbuf, seq);
+    BinarySink *bs = hmacsha1_sink(handle);
     hmacsha1_start(handle);
-    hmacsha1_bytes(handle, seqbuf, 4);
-    hmacsha1_bytes(handle, blk, len);
+    put_uint32(bs, seq);
+    put_data(bs, blk, len);
     hmacsha1_genresult(handle, hmac);
 }
 
@@ -434,7 +431,7 @@ void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
 const struct ssh_mac ssh_hmac_sha1 = {
     sha1_make_context, sha1_free_context, sha1_key,
     sha1_generate, sha1_verify,
-    hmacsha1_start, hmacsha1_bytes, hmacsha1_genresult, hmacsha1_verresult,
+    hmacsha1_start, hmacsha1_sink, hmacsha1_genresult, hmacsha1_verresult,
     "hmac-sha1", "hmac-sha1-etm@openssh.com",
     20, 20,
     "HMAC-SHA1"
@@ -443,7 +440,7 @@ const struct ssh_mac ssh_hmac_sha1 = {
 const struct ssh_mac ssh_hmac_sha1_96 = {
     sha1_make_context, sha1_free_context, sha1_key,
     sha1_96_generate, sha1_96_verify,
-    hmacsha1_start, hmacsha1_bytes,
+    hmacsha1_start, hmacsha1_sink,
     hmacsha1_96_genresult, hmacsha1_96_verresult,
     "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
     12, 20,
@@ -453,7 +450,7 @@ const struct ssh_mac ssh_hmac_sha1_96 = {
 const struct ssh_mac ssh_hmac_sha1_buggy = {
     sha1_make_context, sha1_free_context, sha1_key_buggy,
     sha1_generate, sha1_verify,
-    hmacsha1_start, hmacsha1_bytes, hmacsha1_genresult, hmacsha1_verresult,
+    hmacsha1_start, hmacsha1_sink, hmacsha1_genresult, hmacsha1_verresult,
     "hmac-sha1", NULL,
     20, 16,
     "bug-compatible HMAC-SHA1"
@@ -462,7 +459,7 @@ const struct ssh_mac ssh_hmac_sha1_buggy = {
 const struct ssh_mac ssh_hmac_sha1_96_buggy = {
     sha1_make_context, sha1_free_context, sha1_key_buggy,
     sha1_96_generate, sha1_96_verify,
-    hmacsha1_start, hmacsha1_bytes,
+    hmacsha1_start, hmacsha1_sink,
     hmacsha1_96_genresult, hmacsha1_96_verresult,
     "hmac-sha1-96", NULL,
     12, 16,

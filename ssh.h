@@ -365,7 +365,7 @@ struct ssh_mac {
     int (*verify) (void *, unsigned char *blk, int len, unsigned long seq);
     /* partial-packet operations */
     void (*start) (void *);
-    void (*bytes) (void *, unsigned char const *, int);
+    BinarySink *(*sink) (void *);
     void (*genresult) (void *, unsigned char *);
     int (*verresult) (void *, unsigned char const *);
     const char *name, *etm_name;
@@ -376,7 +376,7 @@ struct ssh_mac {
 struct ssh_hash {
     void *(*init)(void); /* also allocates context */
     void *(*copy)(const void *);
-    void (*bytes)(void *, const void *, int);
+    BinarySink *(*sink) (void *);
     void (*final)(void *, unsigned char *); /* also frees context */
     void (*free)(void *);
     int hlen; /* output length in bytes */

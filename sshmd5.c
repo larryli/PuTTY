@@ -274,10 +274,10 @@ static void hmacmd5_start(void *handle)
     BinarySink_COPIED(&keys[2]);
 }
 
-static void hmacmd5_bytes(void *handle, unsigned char const *blk, int len)
+static BinarySink *hmacmd5_sink(void *handle)
 {
     struct MD5Context *keys = (struct MD5Context *)handle;
-    put_data(&keys[2], blk, len);
+    return BinarySink_UPCAST(&keys[2]);
 }
 
 static void hmacmd5_genresult(void *handle, unsigned char *hmac)
@@ -307,9 +307,10 @@ static void hmacmd5_do_hmac_internal(void *handle,
 				     unsigned char const *blk2, int len2,
 				     unsigned char *hmac)
 {
+    BinarySink *bs = hmacmd5_sink(handle);
     hmacmd5_start(handle);
-    hmacmd5_bytes(handle, blk, len);
-    if (blk2) hmacmd5_bytes(handle, blk2, len2);
+    put_data(bs, blk, len);
+    if (blk2) put_data(bs, blk2, len2);
     hmacmd5_genresult(handle, hmac);
 }
 
@@ -345,7 +346,7 @@ static int hmacmd5_verify(void *handle, unsigned char *blk, int len,
 const struct ssh_mac ssh_hmac_md5 = {
     hmacmd5_make_context, hmacmd5_free_context, hmacmd5_key_16,
     hmacmd5_generate, hmacmd5_verify,
-    hmacmd5_start, hmacmd5_bytes, hmacmd5_genresult, hmacmd5_verresult,
+    hmacmd5_start, hmacmd5_sink, hmacmd5_genresult, hmacmd5_verresult,
     "hmac-md5", "hmac-md5-etm@openssh.com",
     16, 16,
     "HMAC-MD5"

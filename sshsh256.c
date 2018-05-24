@@ -232,11 +232,10 @@ static void sha256_free(void *handle)
     sfree(s);
 }
 
-static void sha256_bytes(void *handle, const void *p, int len)
+static BinarySink *sha256_sink(void *handle)
 {
     SHA256_State *s = handle;
-
-    put_data(s, p, len);
+    return BinarySink_UPCAST(s);
 }
 
 static void sha256_final(void *handle, unsigned char *output)
@@ -248,7 +247,7 @@ static void sha256_final(void *handle, unsigned char *output)
 }
 
 const struct ssh_hash ssh_sha256 = {
-    sha256_init, sha256_copy, sha256_bytes, sha256_final, sha256_free,
+    sha256_init, sha256_copy, sha256_sink, sha256_final, sha256_free,
     32, "SHA-256"
 };
 
@@ -302,10 +301,10 @@ static void hmacsha256_start(void *handle)
     BinarySink_COPIED(&keys[2]);
 }
 
-static void hmacsha256_bytes(void *handle, unsigned char const *blk, int len)
+static BinarySink *hmacsha256_sink(void *handle)
 {
     SHA256_State *keys = (SHA256_State *)handle;
-    put_data(&keys[2], blk, len);
+    return BinarySink_UPCAST(&keys[2]);
 }
 
 static void hmacsha256_genresult(void *handle, unsigned char *hmac)
@@ -326,12 +325,10 @@ static void hmacsha256_genresult(void *handle, unsigned char *hmac)
 static void sha256_do_hmac(void *handle, unsigned char *blk, int len,
 			 unsigned long seq, unsigned char *hmac)
 {
-    unsigned char seqbuf[4];
-
-    PUT_32BIT_MSB_FIRST(seqbuf, seq);
+    BinarySink *bs = hmacsha256_sink(handle);
     hmacsha256_start(handle);
-    hmacsha256_bytes(handle, seqbuf, 4);
-    hmacsha256_bytes(handle, blk, len);
+    put_uint32(bs, seq);
+    put_data(bs, blk, len);
     hmacsha256_genresult(handle, hmac);
 }
 
@@ -359,7 +356,7 @@ static int sha256_verify(void *handle, unsigned char *blk, int len,
 const struct ssh_mac ssh_hmac_sha256 = {
     sha256_make_context, sha256_free_context, sha256_key,
     sha256_generate, sha256_verify,
-    hmacsha256_start, hmacsha256_bytes,
+    hmacsha256_start, hmacsha256_sink,
     hmacsha256_genresult, hmacsha256_verresult,
     "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
     32, 32,

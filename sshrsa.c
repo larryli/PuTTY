@@ -838,13 +838,14 @@ static void oaep_mask(const struct ssh_hash *h, void *seed, int seedlen,
     while (datalen > 0) {
         int i, max = (datalen > h->hlen ? h->hlen : datalen);
         void *s;
-        unsigned char counter[4], hash[SSH2_KEX_MAX_HASH_LEN];
+        BinarySink *bs;
+        unsigned char hash[SSH2_KEX_MAX_HASH_LEN];
 
 	assert(h->hlen <= SSH2_KEX_MAX_HASH_LEN);
-        PUT_32BIT(counter, count);
         s = h->init();
-        h->bytes(s, seed, seedlen);
-        h->bytes(s, counter, 4);
+        bs = h->sink(s);
+        put_data(bs, seed, seedlen);
+        put_uint32(bs, count);
         h->final(s, hash);
         count++;
 
