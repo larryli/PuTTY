@@ -118,7 +118,7 @@ char *format_telnet_command(SockAddr addr, int port, Conf *conf);
  * These are implemented in cproxy.c or nocproxy.c, depending on
  * whether encrypted proxy authentication is available.
  */
-extern void proxy_socks5_offerencryptedauth(char *command, int *len);
+extern void proxy_socks5_offerencryptedauth(BinarySink *);
 extern int proxy_socks5_handlechap (Proxy_Socket p);
 extern int proxy_socks5_selectchap(Proxy_Socket p);
 

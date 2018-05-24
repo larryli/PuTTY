@@ -14,6 +14,7 @@
 #include "ssh.h" /* For MD5 support */
 #include "network.h"
 #include "proxy.h"
+#include "marshal.h"
 
 static void hmacmd5_chap(const unsigned char *challenge, int challen,
 			 const char *passwd, unsigned char *response)
@@ -36,10 +37,9 @@ static void hmacmd5_chap(const unsigned char *challenge, int challen,
     hmacmd5_free_context(hmacmd5_ctx);
 }
 
-void proxy_socks5_offerencryptedauth(char *command, int *len)
+void proxy_socks5_offerencryptedauth(BinarySink *bs)
 {
-    command[*len] = 0x03; /* CHAP */
-    (*len)++;
+    put_byte(bs, 0x03);              /* CHAP */
 }
 
 int proxy_socks5_handlechap (Proxy_Socket p)

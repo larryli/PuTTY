@@ -795,47 +795,38 @@ int proxy_socks4_negotiate (Proxy_Socket p, int change)
 	 *  user ID (variable length, null terminated string)
 	 */
 
-	int length, type, namelen;
-	char *command, addr[4], hostname[512];
-	char *username;
+        strbuf *command = strbuf_new();
+        char hostname[512];
+        int write_hostname = FALSE;
 
-	type = sk_addrtype(p->remote_addr);
-	if (type == ADDRTYPE_IPV6) {
+        put_byte(command, 4);          /* SOCKS version 4 */
+        put_byte(command, 1);          /* CONNECT command */
+        put_uint16(command, p->remote_port);
+
+	switch (sk_addrtype(p->remote_addr)) {
+          case ADDRTYPE_IPV4:
+            {
+                char addr[4];
+                sk_addrcopy(p->remote_addr, addr);
+                put_data(command, addr, 4);
+                break;
+            }
+          case ADDRTYPE_NAME:
+            sk_getaddr(p->remote_addr, hostname, lenof(hostname));
+            put_uint32(command, 1);
+            write_hostname = TRUE;
+            break;
+          case ADDRTYPE_IPV6:
             p->error = "Proxy error: SOCKS version 4 does not support IPv6";
-	    return 1;
-	} else if (type == ADDRTYPE_IPV4) {
-	    namelen = 0;
-	    sk_addrcopy(p->remote_addr, addr);
-	} else {		       /* type == ADDRTYPE_NAME */
-	    assert(type == ADDRTYPE_NAME);
-	    sk_getaddr(p->remote_addr, hostname, lenof(hostname));
-	    namelen = strlen(hostname) + 1;   /* include the NUL */
-	    addr[0] = addr[1] = addr[2] = 0;
-	    addr[3] = 1;
+            strbuf_free(command);
+            return 1;
 	}
 
-	username = conf_get_str(p->conf, CONF_proxy_username);
-	length = strlen(username) + namelen + 9;
-	command = snewn(length, char);
-	strcpy(command + 8, username);
-
-	command[0] = 4; /* version 4 */
-	command[1] = 1; /* CONNECT command */
-
-	/* port */
-	command[2] = (char) (p->remote_port >> 8) & 0xff;
-	command[3] = (char) p->remote_port & 0xff;
-
-	/* address */
-	memcpy(command + 4, addr, 4);
-
-	/* hostname */
-	memcpy(command + 8 + strlen(username) + 1,
-	       hostname, namelen);
-
-	sk_write(p->sub_socket, command, length);
-	sfree(username);
-	sfree(command);
+        put_asciz(command, conf_get_str(p->conf, CONF_proxy_username));
+        if (write_hostname)
+            put_asciz(command, hostname);
+	sk_write(p->sub_socket, command->s, command->len);
+	strbuf_free(command);
 
 	p->state = 1;
 	return 0;
@@ -956,26 +947,30 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	 *     0x03 = CHAP
 	 */
 
-	char command[5];
+	strbuf *command;
 	char *username, *password;
-	int len;
+        int method_count_offset, methods_start;
 
-	command[0] = 5; /* version 5 */
+        command = strbuf_new();
+	put_byte(command, 5);          /* SOCKS version 5 */
 	username = conf_get_str(p->conf, CONF_proxy_username);
 	password = conf_get_str(p->conf, CONF_proxy_password);
+
+        method_count_offset = command->len;
+        put_byte(command, 0);
+        methods_start = command->len;
+
+        put_byte(command, 0x00);       /* no authentication */
+
 	if (username[0] || password[0]) {
-	    command[2] = 0x00;	       /* no authentication */
-	    len = 3;
-	    proxy_socks5_offerencryptedauth (command, &len);
-	    command[len++] = 0x02;	       /* username/password */
-	    command[1] = len - 2;	/* Number of methods supported */
-	} else {
-	    command[1] = 1;	       /* one methods supported: */
-	    command[2] = 0x00;	       /* no authentication */
-	    len = 3;
+	    proxy_socks5_offerencryptedauth(BinarySink_UPCAST(command));
+            put_byte(command, 0x02);    /* username/password */
 	}
 
-	sk_write(p->sub_socket, command, len);
+        command->u[method_count_offset] = command->len - methods_start;
+
+	sk_write(p->sub_socket, command->s, command->len);
+        strbuf_free(command);
 
 	p->state = 1;
 	return 0;
@@ -1113,36 +1108,40 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	     *  dest. port (2 bytes) [network order]
 	     */
 
-	    char command[512];
-	    int len;
-	    int type;
+	    strbuf *command = strbuf_new();
+	    put_byte(command, 5);      /* SOCKS version 5 */
+	    put_byte(command, 1);      /* CONNECT command */
+	    put_byte(command, 0x00);   /* reserved byte */
 
-	    type = sk_addrtype(p->remote_addr);
-	    if (type == ADDRTYPE_IPV4) {
-		len = 10;	       /* 4 hdr + 4 addr + 2 trailer */
-		command[3] = 1; /* IPv4 */
-		sk_addrcopy(p->remote_addr, command+4);
-	    } else if (type == ADDRTYPE_IPV6) {
-		len = 22;	       /* 4 hdr + 16 addr + 2 trailer */
-		command[3] = 4; /* IPv6 */
-		sk_addrcopy(p->remote_addr, command+4);
-	    } else {
-		assert(type == ADDRTYPE_NAME);
-		command[3] = 3;
-		sk_getaddr(p->remote_addr, command+5, 256);
-		command[4] = strlen(command+5);
-		len = 7 + command[4];  /* 4 hdr, 1 len, N addr, 2 trailer */
+	    switch (sk_addrtype(p->remote_addr)) {
+              case ADDRTYPE_IPV4:
+		put_byte(command, 1);  /* IPv4 */
+		sk_addrcopy(p->remote_addr, strbuf_append(command, 4));
+                break;
+              case ADDRTYPE_IPV6:
+		put_byte(command, 4);  /* IPv6 */
+		sk_addrcopy(p->remote_addr, strbuf_append(command, 16));
+                break;
+              case ADDRTYPE_NAME:
+                {
+                    char hostname[512];
+                    put_byte(command, 3);  /* domain name */
+                    sk_getaddr(p->remote_addr, hostname, lenof(hostname));
+                    if (!put_pstring(command, hostname)) {
+                        p->error = "Proxy error: SOCKS 5 cannot "
+                            "support host names longer than 255 chars";
+                        strbuf_free(command);
+                        return 1;
+                    }
+                }
+                break;
 	    }
 
-	    command[0] = 5; /* version 5 */
-	    command[1] = 1; /* CONNECT command */
-	    command[2] = 0x00;
+            put_uint16(command, p->remote_port);
 
-	    /* port */
-	    command[len-2] = (char) (p->remote_port >> 8) & 0xff;
-	    command[len-1] = (char) p->remote_port & 0xff;
+	    sk_write(p->sub_socket, command->s, command->len);
 
-	    sk_write(p->sub_socket, command, len);
+            strbuf_free(command);
 
 	    p->state = 3;
 	    return 1;
@@ -1241,23 +1240,25 @@ int proxy_socks5_negotiate (Proxy_Socket p, int change)
 	}
 
 	if (p->state == 5) {
-	    char *username = conf_get_str(p->conf, CONF_proxy_username);
-	    char *password = conf_get_str(p->conf, CONF_proxy_password);
+            const char *username = conf_get_str(p->conf, CONF_proxy_username);
+            const char *password = conf_get_str(p->conf, CONF_proxy_password);
 	    if (username[0] || password[0]) {
-		char userpwbuf[255 + 255 + 3];
-		int ulen, plen;
-		ulen = strlen(username);
-		if (ulen > 255) ulen = 255;
-		if (ulen < 1) ulen = 1;
-		plen = strlen(password);
-		if (plen > 255) plen = 255;
-		if (plen < 1) plen = 1;
-		userpwbuf[0] = 1;      /* version number of subnegotiation */
-		userpwbuf[1] = ulen;
-		memcpy(userpwbuf+2, username, ulen);
-		userpwbuf[ulen+2] = plen;
-		memcpy(userpwbuf+ulen+3, password, plen);
-		sk_write(p->sub_socket, userpwbuf, ulen + plen + 3);
+                strbuf *auth = strbuf_new();
+		put_byte(auth, 1); /* version number of subnegotiation */
+                if (!put_pstring(auth, username)) {
+                    p->error = "Proxy error: SOCKS 5 authentication cannot "
+                        "support usernames longer than 255 chars";
+                    strbuf_free(auth);
+                    return 1;
+                }
+                if (!put_pstring(auth, password)) {
+                    p->error = "Proxy error: SOCKS 5 authentication cannot "
+                        "support passwords longer than 255 chars";
+                    strbuf_free(auth);
+                    return 1;
+                }
+		sk_write(p->sub_socket, auth->s, auth->len);
+                strbuf_free(auth);
 		p->state = 7;
 	    } else 
 		plug_closing(p->plug, "Proxy error: Server chose "

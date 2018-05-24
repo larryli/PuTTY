@@ -13,7 +13,7 @@
 #include "network.h"
 #include "proxy.h"
 
-void proxy_socks5_offerencryptedauth(char * command, int * len)
+void proxy_socks5_offerencryptedauth(BinarySink *bs)
 {
     /* For telnet, don't add any new encrypted authentication routines */
 }
