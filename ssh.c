@@ -805,6 +805,25 @@ static void pq_clear(struct PacketQueue *pq)
         ssh_unref_packet(pkt);
 }
 
+static int pq_empty_on_to_front_of(struct PacketQueue *src,
+                                   struct PacketQueue *dest)
+{
+    struct PacketQueueNode *srcfirst, *srclast;
+
+    if (src->end.next == &src->end)
+        return FALSE;
+
+    srcfirst = src->end.next;
+    srclast = src->end.prev;
+    srcfirst->prev = &dest->end;
+    srclast->next = dest->end.next;
+    srcfirst->prev->next = srcfirst;
+    srclast->next->prev = srclast;
+    src->end.next = src->end.prev = &src->end;
+
+    return TRUE;
+}
+
 struct rdpkt1_state_tag {
     long len, pad, biglen;
     unsigned long realcrc, gotcrc;
@@ -11470,6 +11489,16 @@ static void do_ssh2_connection(void *vctx)
 	ssh2_msg_channel_open;
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_channel_response;
     ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_channel_response;
+
+    /*
+     * Put our current pending packet queue back to the front of
+     * pq_full, and then schedule a callback to re-process those
+     * packets (if any). That way, anything already in our queue that
+     * matches any of the table entries we've just modified will go to
+     * the right handler function, and won't come here to confuse us.
+     */
+    if (pq_empty_on_to_front_of(&ssh->pq_ssh2_connection, &ssh->pq_full))
+        queue_idempotent_callback(&ssh->pq_full_consumer);
 
     /*
      * Now the connection protocol is properly up and running, with
