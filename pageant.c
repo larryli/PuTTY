@@ -1742,7 +1742,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
     sfree(keylist);
 
     if (keylistlen != 0) {
-        *retstr = dupstr("Received broken SSH-1 key list from agent");
+        *retstr = dupstr("Received broken SSH-2 key list from agent");
         return PAGEANT_ACTION_FAILURE;
     }
 
