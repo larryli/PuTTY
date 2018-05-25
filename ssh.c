@@ -11005,6 +11005,7 @@ static void do_ssh2_userauth(void *vctx)
 			    sfree(s->gss_buf.value);
 			}
 
+                        pq_push_front(&ssh->pq_ssh2_userauth, pktin);
 			break;
 		    }
 		    logevent("GSSAPI authentication initialised");
