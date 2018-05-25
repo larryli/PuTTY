@@ -1519,8 +1519,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		ssh1_write_bignum(request + reqlen,
 				  rkey->private_exponent);
 	    reqlen += ssh1_write_bignum(request + reqlen, rkey->iqmp);
-	    reqlen += ssh1_write_bignum(request + reqlen, rkey->p);
 	    reqlen += ssh1_write_bignum(request + reqlen, rkey->q);
+	    reqlen += ssh1_write_bignum(request + reqlen, rkey->p);
 	    PUT_32BIT(request + reqlen, clen);
 	    memcpy(request + reqlen + 4, rkey->comment, clen);
 	    reqlen += 4 + clen;
