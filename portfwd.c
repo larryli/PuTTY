@@ -433,7 +433,7 @@ char *pfd_connect(struct PortForwarding **pf_ret, char *hostname,int port,
 
     SockAddr addr;
     const char *err;
-    char *dummy_realhost;
+    char *dummy_realhost = NULL;
     struct PortForwarding *pf;
 
     /*
