@@ -1057,7 +1057,7 @@ void *x11_make_greeting(int endian, int protomajor, int protominor,
         t = time(NULL);
         PUT_32BIT_MSB_FIRST(realauthdata+14, t);
 
-        des_encrypt_xdmauth(auth_data + 9, realauthdata, authdatalen);
+        des_encrypt_xdmauth((char *)auth_data + 9, realauthdata, authdatalen);
     } else {
         authdata = realauthdata;
         authdatalen = 0;
