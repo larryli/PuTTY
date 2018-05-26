@@ -25,13 +25,6 @@
 #define GSS_CTXT_MAYFAIL (1<<3)	/* Context may expire during handshake */
 #endif
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 /*
  * Packet type contexts, so that ssh2_pkt_type can correctly decode
  * the ambiguous type numbers back into the correct type strings.

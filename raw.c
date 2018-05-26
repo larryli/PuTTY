@@ -8,13 +8,6 @@
 
 #include "putty.h"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 #define RAW_MAX_BACKLOG 4096
 
 typedef struct raw_backend_data {

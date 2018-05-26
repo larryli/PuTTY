@@ -13,13 +13,6 @@
 #include <stdarg.h>		       /* for va_list */
 #include <time.h>                      /* for struct tm */
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 unsigned long parse_blocksize(const char *bs);
 char ctrlparse(char *s, char **next);
 

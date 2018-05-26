@@ -29,13 +29,6 @@
 #include <utmpx.h>
 #endif
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 /* updwtmpx() needs the name of the wtmp file.  Try to find it. */
 #ifndef WTMPX_FILE
 #ifdef _PATH_WTMPX

@@ -41,6 +41,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "defs.h"
+
 #ifdef ZLIB_STANDALONE
 
 /*
@@ -57,13 +59,15 @@
 #define sresize(x, n, type) ( (type *) realloc((x), (n) * sizeof(type)) )
 #define sfree(x) ( free((x)) )
 
-#else
-#include "ssh.h"
-#endif
-
 #ifndef FALSE
 #define FALSE 0
-#define TRUE (!FALSE)
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#else
+#include "ssh.h"
 #endif
 
 /* ----------------------------------------------------------------------

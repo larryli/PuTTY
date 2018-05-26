@@ -11,6 +11,13 @@
 #ifndef PUTTY_DEFS_H
 #define PUTTY_DEFS_H
 
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+
 typedef struct conf_tag Conf;
 typedef struct backend_tag Backend;
 typedef struct terminal_tag Terminal;

@@ -8,13 +8,6 @@
 
 #include "putty.h"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 #define	IAC	255		       /* interpret as command: */
 #define	DONT	254		       /* you are not to use option */
 #define	DO	253		       /* please, you use option */

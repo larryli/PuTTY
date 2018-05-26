@@ -8,13 +8,6 @@
 #include "putty.h"
 #include "ssh.h"
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 struct PortForwarding {
     const struct plug_function_table *fn;
     /* the above variable absolutely *must* be the first in this structure */
