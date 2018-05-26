@@ -67,7 +67,8 @@ static void aes_decrypt_cbc_sw(unsigned char*, int, AESContext*);
 static void aes_sdctr_sw(unsigned char*, int, AESContext*);
 
 INLINE static int supports_aes_ni();
-static void aes_setup_ni(AESContext * ctx, unsigned char *key, int keylen);
+static void aes_setup_ni(AESContext * ctx,
+                         const unsigned char *key, int keylen);
 
 INLINE static void aes_encrypt_cbc(unsigned char *blk, int len, AESContext * ctx)
 {
@@ -691,7 +692,7 @@ static const word32 D3[256] = {
  * bytes; it can be either 16 (128-bit), 24 (192-bit), or 32
  * (256-bit).
  */
-static void aes_setup(AESContext * ctx, unsigned char *key, int keylen)
+static void aes_setup(AESContext * ctx, const unsigned char *key, int keylen)
 {
     int i, j, Nk, rconst;
     size_t bufaddr;
@@ -979,26 +980,27 @@ void aes_free_context(void *handle)
     sfree(handle);
 }
 
-void aes128_key(void *handle, unsigned char *key)
+void aes128_key(void *handle, const void *key)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_setup(ctx, key, 16);
 }
 
-void aes192_key(void *handle, unsigned char *key)
+void aes192_key(void *handle, const void *key)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_setup(ctx, key, 24);
 }
 
-void aes256_key(void *handle, unsigned char *key)
+void aes256_key(void *handle, const void *key)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_setup(ctx, key, 32);
 }
 
-void aes_iv(void *handle, unsigned char *iv)
+void aes_iv(void *handle, const void *viv)
 {
+    const unsigned char *iv = (const unsigned char *)viv;
     AESContext *ctx = (AESContext *)handle;
     if (ctx->isNI) {
         memcpy(ctx->iv, iv, sizeof(ctx->iv));
@@ -1010,25 +1012,25 @@ void aes_iv(void *handle, unsigned char *iv)
     }
 }
 
-void aes_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len)
+void aes_ssh2_encrypt_blk(void *handle, void *blk, int len)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_encrypt_cbc(blk, len, ctx);
 }
 
-void aes_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len)
+void aes_ssh2_decrypt_blk(void *handle, void *blk, int len)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_decrypt_cbc(blk, len, ctx);
 }
 
-void aes_ssh2_sdctr(void *handle, unsigned char *blk, int len)
+void aes_ssh2_sdctr(void *handle, void *blk, int len)
 {
     AESContext *ctx = (AESContext *)handle;
     aes_sdctr(blk, len, ctx);
 }
 
-void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+void aes256_encrypt_pubkey(const void *key, void *blk, int len)
 {
     AESContext ctx;
     aes_setup(&ctx, key, 32);
@@ -1037,7 +1039,7 @@ void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
     smemclr(&ctx, sizeof(ctx));
 }
 
-void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len)
+void aes256_decrypt_pubkey(const void *key, void *blk, int len)
 {
     AESContext ctx;
     aes_setup(&ctx, key, 32);
@@ -1295,10 +1297,10 @@ INLINE static void KEY_256_ASSIST_2(__m128i* temp1, __m128i * temp3)
  * AES-NI key expansion core
  */
 FUNC_ISA
-static void AES_128_Key_Expansion (unsigned char *userkey, __m128i *key)
+static void AES_128_Key_Expansion (const unsigned char *userkey, __m128i *key)
 {
     __m128i temp1, temp2;
-    temp1 = _mm_loadu_si128((__m128i*)userkey);
+    temp1 = _mm_loadu_si128((const __m128i*)userkey);
     key[0] = temp1;
     temp2 = _mm_aeskeygenassist_si128 (temp1 ,0x1);
     temp1 = AES_128_ASSIST(temp1, temp2);
@@ -1333,11 +1335,11 @@ static void AES_128_Key_Expansion (unsigned char *userkey, __m128i *key)
 }
 
 FUNC_ISA
-static void AES_192_Key_Expansion (unsigned char *userkey, __m128i *key)
+static void AES_192_Key_Expansion (const unsigned char *userkey, __m128i *key)
 {
     __m128i temp1, temp2, temp3;
-    temp1 = _mm_loadu_si128((__m128i*)userkey);
-    temp3 = _mm_loadu_si128((__m128i*)(userkey+16));
+    temp1 = _mm_loadu_si128((const __m128i*)userkey);
+    temp3 = _mm_loadu_si128((const __m128i*)(userkey+16));
     key[0]=temp1;
     key[1]=temp3;
     temp2=_mm_aeskeygenassist_si128 (temp3,0x1);
@@ -1375,11 +1377,11 @@ static void AES_192_Key_Expansion (unsigned char *userkey, __m128i *key)
 }
 
 FUNC_ISA
-static void AES_256_Key_Expansion (unsigned char *userkey, __m128i *key)
+static void AES_256_Key_Expansion (const unsigned char *userkey, __m128i *key)
 {
     __m128i temp1, temp2, temp3;
-    temp1 = _mm_loadu_si128((__m128i*)userkey);
-    temp3 = _mm_loadu_si128((__m128i*)(userkey+16));
+    temp1 = _mm_loadu_si128((const __m128i*)userkey);
+    temp3 = _mm_loadu_si128((const __m128i*)(userkey+16));
     key[0] = temp1;
     key[1] = temp3;
     temp2 = _mm_aeskeygenassist_si128 (temp3,0x01);
@@ -1659,7 +1661,8 @@ static void aes_inv_key_14(AESContext * ctx)
  * (256-bit).
  */
 FUNC_ISA
-static void aes_setup_ni(AESContext * ctx, unsigned char *key, int keylen)
+static void aes_setup_ni(AESContext * ctx,
+                         const unsigned char *key, int keylen)
 {
     __m128i *keysched = (__m128i*)ctx->keysched;
 

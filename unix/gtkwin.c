@@ -304,13 +304,13 @@ char *get_ttymode(void *frontend, const char *mode)
     return term_get_ttymode(inst->term, mode);
 }
 
-int from_backend(void *frontend, int is_stderr, const char *data, int len)
+int from_backend(void *frontend, int is_stderr, const void *data, int len)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     return term_data(inst->term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(void *frontend, const char *data, int len)
+int from_backend_untrusted(void *frontend, const void *data, int len)
 {
     struct gui_data *inst = (struct gui_data *)frontend;
     return term_data_untrusted(inst->term, data, len);

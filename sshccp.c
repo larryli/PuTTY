@@ -1000,14 +1000,15 @@ static void ccp_free_context(void *vctx)
     sfree(ctx);
 }
 
-static void ccp_iv(void *vctx, unsigned char *iv)
+static void ccp_iv(void *vctx, const void *iv)
 {
     /* struct ccp_context *ctx = (struct ccp_context *)vctx; */
     /* IV is set based on the sequence number */
 }
 
-static void ccp_key(void *vctx, unsigned char *key)
+static void ccp_key(void *vctx, const void *vkey)
 {
+    const unsigned char *key = (const unsigned char *)vkey;
     struct ccp_context *ctx = (struct ccp_context *)vctx;
     /* Initialise the a_cipher (for decrypting lengths) with the first 256 bits */
     chacha20_key(&ctx->a_cipher, key + 32);
@@ -1015,19 +1016,19 @@ static void ccp_key(void *vctx, unsigned char *key)
     chacha20_key(&ctx->b_cipher, key);
 }
 
-static void ccp_encrypt(void *vctx, unsigned char *blk, int len)
+static void ccp_encrypt(void *vctx, void *blk, int len)
 {
     struct ccp_context *ctx = (struct ccp_context *)vctx;
     chacha20_encrypt(&ctx->b_cipher, blk, len);
 }
 
-static void ccp_decrypt(void *vctx, unsigned char *blk, int len)
+static void ccp_decrypt(void *vctx, void *blk, int len)
 {
     struct ccp_context *ctx = (struct ccp_context *)vctx;
     chacha20_decrypt(&ctx->b_cipher, blk, len);
 }
 
-static void ccp_length_op(struct ccp_context *ctx, unsigned char *blk, int len,
+static void ccp_length_op(struct ccp_context *ctx, void *blk, int len,
                           unsigned long seq)
 {
     unsigned char iv[8];
@@ -1044,7 +1045,7 @@ static void ccp_length_op(struct ccp_context *ctx, unsigned char *blk, int len,
     smemclr(iv, sizeof(iv));
 }
 
-static void ccp_encrypt_length(void *vctx, unsigned char *blk, int len,
+static void ccp_encrypt_length(void *vctx, void *blk, int len,
                                unsigned long seq)
 {
     struct ccp_context *ctx = (struct ccp_context *)vctx;
@@ -1052,7 +1053,7 @@ static void ccp_encrypt_length(void *vctx, unsigned char *blk, int len,
     chacha20_encrypt(&ctx->a_cipher, blk, len);
 }
 
-static void ccp_decrypt_length(void *vctx, unsigned char *blk, int len,
+static void ccp_decrypt_length(void *vctx, void *blk, int len,
                                unsigned long seq)
 {
     struct ccp_context *ctx = (struct ccp_context *)vctx;

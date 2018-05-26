@@ -403,7 +403,7 @@ void pageant_handle_msg(BinarySink *bs,
             put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
 
             signature = strbuf_new();
-            key->alg->sign(key->data, (const char *)data, datalen,
+            key->alg->sign(key->data, data, datalen,
                            BinarySink_UPCAST(signature));
             put_stringsb(bs, signature);
 

@@ -685,8 +685,8 @@ void frontend_echoedit_update(void *frontend, int echo, int edit);
  * special commands changes. It does not need to invoke it at session
  * shutdown. */
 void update_specials_menu(void *frontend);
-int from_backend(void *frontend, int is_stderr, const char *data, int len);
-int from_backend_untrusted(void *frontend, const char *data, int len);
+int from_backend(void *frontend, int is_stderr, const void *data, int len);
+int from_backend_untrusted(void *frontend, const void *data, int len);
 /* Called when the back end wants to indicate that EOF has arrived on
  * the server-to-client stream. Returns FALSE to indicate that we
  * intend to keep the session open in the other direction, or TRUE to
@@ -1103,8 +1103,8 @@ void term_reconfig(Terminal *, Conf *);
 void term_request_copy(Terminal *, const int *clipboards, int n_clipboards);
 void term_request_paste(Terminal *, int clipboard);
 void term_seen_key_event(Terminal *); 
-int term_data(Terminal *, int is_stderr, const char *data, int len);
-int term_data_untrusted(Terminal *, const char *data, int len);
+int term_data(Terminal *, int is_stderr, const void *data, int len);
+int term_data_untrusted(Terminal *, const void *data, int len);
 void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);
@@ -1175,7 +1175,7 @@ extern Backend ssh_backend;
 void *ldisc_create(Conf *, Terminal *, Backend *, void *, void *);
 void ldisc_configure(void *, Conf *);
 void ldisc_free(void *);
-void ldisc_send(void *handle, const char *buf, int len, int interactive);
+void ldisc_send(void *handle, const void *buf, int len, int interactive);
 void ldisc_echoedit_update(void *handle);
 
 /*

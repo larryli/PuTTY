@@ -211,7 +211,7 @@ int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
  * Write to a file. Returns 0 on error, 1 on OK.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
-				    char *buffer, uint64 offset, int len);
+				    void *buffer, uint64 offset, int len);
 int fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*

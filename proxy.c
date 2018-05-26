@@ -96,7 +96,7 @@ static void sk_proxy_close (Socket s)
     sfree(ps);
 }
 
-static int sk_proxy_write (Socket s, const char *data, int len)
+static int sk_proxy_write (Socket s, const void *data, int len)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 
@@ -107,7 +107,7 @@ static int sk_proxy_write (Socket s, const char *data, int len)
     return sk_write(ps->sub_socket, data, len);
 }
 
-static int sk_proxy_write_oob (Socket s, const char *data, int len)
+static int sk_proxy_write_oob (Socket s, const void *data, int len)
 {
     Proxy_Socket ps = (Proxy_Socket) s;
 

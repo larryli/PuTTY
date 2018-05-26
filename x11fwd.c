@@ -787,7 +787,7 @@ static void x11_send_init_error(struct X11Connection *xconn,
     PUT_16BIT(xconn->firstpkt[0], reply + 6, msgsize >> 2);/* data len */
     memset(reply + 8, 0, msgsize);
     memcpy(reply + 8, full_message, msglen);
-    sshfwd_write(xconn->c, (char *)reply, 8 + msgsize);
+    sshfwd_write(xconn->c, reply, 8 + msgsize);
     sshfwd_write_eof(xconn->c);
     xconn->no_data_sent_to_x_client = FALSE;
     sfree(reply);
@@ -1057,8 +1057,7 @@ void *x11_make_greeting(int endian, int protomajor, int protominor,
         t = time(NULL);
         PUT_32BIT_MSB_FIRST(realauthdata+14, t);
 
-        des_encrypt_xdmauth((const unsigned char *)auth_data + 9,
-                            realauthdata, authdatalen);
+        des_encrypt_xdmauth(auth_data + 9, realauthdata, authdatalen);
     } else {
         authdata = realauthdata;
         authdatalen = 0;

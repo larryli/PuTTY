@@ -137,14 +137,14 @@ static void sk_handle_close(Socket s)
     sfree(ps);
 }
 
-static int sk_handle_write(Socket s, const char *data, int len)
+static int sk_handle_write(Socket s, const void *data, int len)
 {
     Handle_Socket ps = (Handle_Socket) s;
 
     return handle_write(ps->send_h, data, len);
 }
 
-static int sk_handle_write_oob(Socket s, const char *data, int len)
+static int sk_handle_write_oob(Socket s, const void *data, int len)
 {
     /*
      * oob data is treated as inband; nasty, but nothing really

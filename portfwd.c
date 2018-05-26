@@ -308,7 +308,7 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 		    if (pf->socksbuf[1] != 1 || pf->socksbuf[2] != 0) {
 			/* Not CONNECT or reserved field nonzero - error */
 			reply[1] = 1;	/* generic failure */
-			sk_write(pf->s, (char *) reply, lenof(reply));
+			sk_write(pf->s, reply, lenof(reply));
 			pfd_close(pf);
 			return;
 		    }
@@ -319,7 +319,7 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 		    pf->port = GET_16BIT_MSB_FIRST(pf->socksbuf+4+alen);
 		    if (atype == 1) {
 			/* REP=0 (success) already */
-			sk_write(pf->s, (char *) reply, lenof(reply));
+			sk_write(pf->s, reply, lenof(reply));
 			pf->hostname = dupprintf("%d.%d.%d.%d",
                                                  (unsigned char)pf->socksbuf[4],
                                                  (unsigned char)pf->socksbuf[5],
@@ -328,7 +328,7 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 			goto connect;
 		    } else if (atype == 3) {
 			/* REP=0 (success) already */
-			sk_write(pf->s, (char *) reply, lenof(reply));
+			sk_write(pf->s, reply, lenof(reply));
                         pf->hostname = snewn(alen, char);
 			pf->hostname[alen-1] = '\0';
 			memcpy(pf->hostname, pf->socksbuf + 5, alen-1);
@@ -338,7 +338,7 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 			 * Unknown address type. (FIXME: support IPv6!)
 			 */
 			reply[1] = 8;	/* atype not supported */
-			sk_write(pf->s, (char *) reply, lenof(reply));
+			sk_write(pf->s, reply, lenof(reply));
 			pfd_close(pf);
 			return;
 		    }

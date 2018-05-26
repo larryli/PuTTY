@@ -3083,7 +3083,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     */
 		    term_seen_key_event(term);
 		    if (ldisc)
-			ldisc_send(ldisc, (char *)buf, len, 1);
+			ldisc_send(ldisc, buf, len, 1);
 		    show_mouseptr(0);
 		}
 	    }
@@ -5921,12 +5921,12 @@ void frontend_keypress(void *handle)
     return;
 }
 
-int from_backend(void *frontend, int is_stderr, const char *data, int len)
+int from_backend(void *frontend, int is_stderr, const void *data, int len)
 {
     return term_data(term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(void *frontend, const char *data, int len)
+int from_backend_untrusted(void *frontend, const void *data, int len)
 {
     return term_data_untrusted(term, data, len);
 }

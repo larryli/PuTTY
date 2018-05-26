@@ -93,7 +93,7 @@ FontSpec *platform_default_fontspec(const char *name) { return fontspec_new("");
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
 void log_eventlog(void *handle, const char *event) {}
-int from_backend(void *frontend, int is_stderr, const char *data, int datalen)
+int from_backend(void *frontend, int is_stderr, const void *data, int datalen)
 { assert(!"only here to satisfy notional call from backend_socket_log"); }
 
 /*
@@ -156,7 +156,8 @@ static int time_to_die = FALSE;
  * used, because in LIFE_X11 mode we connect to the X server using a
  * straightforward Socket and don't try to create an ersatz SSH
  * forwarding too. */
-int sshfwd_write(struct ssh_channel *c, char *data, int len) { return 0; }
+int sshfwd_write(struct ssh_channel *c, const void *data, int len)
+{ return 0; }
 void sshfwd_write_eof(struct ssh_channel *c) { }
 void sshfwd_unclean_close(struct ssh_channel *c, const char *err) { }
 void sshfwd_unthrottle(struct ssh_channel *c, int bufsize) {}

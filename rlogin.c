@@ -31,7 +31,7 @@ typedef struct rlogin_tag {
 
 static void rlogin_size(void *handle, int width, int height);
 
-static void c_write(Rlogin rlogin, char *buf, int len)
+static void c_write(Rlogin rlogin, const void *buf, int len)
 {
     int backlog = from_backend(rlogin->frontend, 0, buf, len);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);

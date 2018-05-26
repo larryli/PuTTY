@@ -22,7 +22,7 @@
                       (ldisc->back->ldisc(ldisc->backhandle, LD_EDIT) || \
 			   term_ldisc(ldisc->term, LD_EDIT))))
 
-static void c_write(Ldisc ldisc, const char *buf, int len)
+static void c_write(Ldisc ldisc, const void *buf, int len)
 {
     from_backend(ldisc->frontend, 0, buf, len);
 }
@@ -47,7 +47,7 @@ static void pwrite(Ldisc ldisc, unsigned char c)
     if ((c >= 32 && c <= 126) ||
 	(!in_utf(ldisc->term) && c >= 0xA0) ||
 	(in_utf(ldisc->term) && c >= 0x80)) {
-	c_write(ldisc, (char *)&c, 1);
+	c_write(ldisc, &c, 1);
     } else if (c < 128) {
 	char cc[2];
 	cc[1] = (c == 127 ? '?' : c + 0x40);
@@ -134,8 +134,9 @@ void ldisc_echoedit_update(void *handle)
     frontend_echoedit_update(ldisc->frontend, ECHOING, EDITING);
 }
 
-void ldisc_send(void *handle, const char *buf, int len, int interactive)
+void ldisc_send(void *handle, const void *vbuf, int len, int interactive)
 {
+    const char *buf = (const char *)vbuf;
     Ldisc ldisc = (Ldisc) handle;
     int keyflag = 0;
 

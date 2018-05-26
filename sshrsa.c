@@ -524,16 +524,17 @@ static Bignum getmp(const char **data, int *datalen)
     getstring(data, datalen, &p, &length);
     if (!p)
 	return NULL;
-    b = bignum_from_bytes((unsigned char *)p, length);
+    b = bignum_from_bytes(p, length);
     return b;
 }
 
 static void rsa2_freekey(void *key);   /* forward reference */
 
 static void *rsa2_newkey(const struct ssh_signkey *self,
-                         const char *data, int len)
+                         const void *vdata, int len)
 {
     const char *p;
+    const char *data = (const char *)vdata;
     int slen;
     struct RSAKey *rsa;
 
@@ -597,13 +598,13 @@ static void rsa2_private_blob(void *key, BinarySink *bs)
 }
 
 static void *rsa2_createkey(const struct ssh_signkey *self,
-                            const unsigned char *pub_blob, int pub_len,
-			    const unsigned char *priv_blob, int priv_len)
+                            const void *pub_blob, int pub_len,
+			    const void *priv_blob, int priv_len)
 {
     struct RSAKey *rsa;
     const char *pb = (const char *) priv_blob;
 
-    rsa = rsa2_newkey(self, (char *) pub_blob, pub_len);
+    rsa = rsa2_newkey(self, pub_blob, pub_len);
     rsa->private_exponent = getmp(&pb, &priv_len);
     rsa->p = getmp(&pb, &priv_len);
     rsa->q = getmp(&pb, &priv_len);
@@ -665,7 +666,7 @@ static int rsa2_pubkey_bits(const struct ssh_signkey *self,
     struct RSAKey *rsa;
     int ret;
 
-    rsa = rsa2_newkey(self, (const char *) blob, len);
+    rsa = rsa2_newkey(self, blob, len);
     if (!rsa)
 	return -1;
     ret = bignum_bitcount(rsa->modulus);
@@ -705,10 +706,11 @@ static const unsigned char asn1_weird_stuff[] = {
 
 #define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
 
-static int rsa2_verifysig(void *key, const char *sig, int siglen,
-			  const char *data, int datalen)
+static int rsa2_verifysig(void *key, const void *vsig, int siglen,
+			  const void *data, int datalen)
 {
     struct RSAKey *rsa = (struct RSAKey *) key;
+    const char *sig = (const char *)vsig;
     Bignum in, out;
     const char *p;
     int slen;
@@ -755,7 +757,7 @@ static int rsa2_verifysig(void *key, const char *sig, int siglen,
     return ret;
 }
 
-static void rsa2_sign(void *key, const char *data, int datalen,
+static void rsa2_sign(void *key, const void *data, int datalen,
                       BinarySink *bs)
 {
     struct RSAKey *rsa = (struct RSAKey *) key;
@@ -812,7 +814,7 @@ const struct ssh_signkey ssh_rsa = {
     NULL,
 };
 
-void *ssh_rsakex_newkey(char *data, int len)
+void *ssh_rsakex_newkey(const void *data, int len)
 {
     return rsa2_newkey(&ssh_rsa, data, len);
 }

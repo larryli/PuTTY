@@ -210,7 +210,7 @@ static void send_opt(Telnet telnet, int cmd, int option)
     b[0] = IAC;
     b[1] = cmd;
     b[2] = option;
-    sel_write(telnet->net, (char *)b, 3);
+    sel_write(telnet->net, b, 3);
 }
 
 static void deactivate_option(Telnet telnet, const struct Opt *o)
@@ -554,10 +554,10 @@ void telnet_from_pty(Telnet telnet, char *buf, int len)
 
 	while (p < end && iswritable(*p))
 	    p++;
-	sel_write(telnet->net, (char *)q, p - q);
+	sel_write(telnet->net, q, p - q);
 
 	while (p < end && !iswritable(*p)) {
-	    sel_write(telnet->net, (char *)(*p == IAC ? iac : cr), 2);
+	    sel_write(telnet->net, *p == IAC ? iac : cr, 2);
 	    p++;
 	}
     }

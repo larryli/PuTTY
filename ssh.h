@@ -10,7 +10,7 @@
 struct ssh_channel;
 typedef struct ssh_tag *Ssh;
 
-extern int sshfwd_write(struct ssh_channel *c, char *, int);
+extern int sshfwd_write(struct ssh_channel *c, const void *, int);
 extern void sshfwd_write_eof(struct ssh_channel *c);
 extern void sshfwd_unclean_close(struct ssh_channel *c, const char *err);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
@@ -203,7 +203,7 @@ int detect_attack(void *handle, unsigned char *buf, uint32 len,
  * SSH2 RSA key exchange functions
  */
 struct ssh_hash;
-void *ssh_rsakex_newkey(char *data, int len);
+void *ssh_rsakex_newkey(const void *data, int len);
 void ssh_rsakex_freekey(void *key);
 int ssh_rsakex_klen(void *key);
 void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
@@ -295,9 +295,9 @@ struct ssh_mac;
 struct ssh_cipher {
     void *(*make_context)(void);
     void (*free_context)(void *);
-    void (*sesskey) (void *, unsigned char *key);	/* for SSH-1 */
-    void (*encrypt) (void *, unsigned char *blk, int len);
-    void (*decrypt) (void *, unsigned char *blk, int len);
+    void (*sesskey) (void *, const void *key);	/* for SSH-1 */
+    void (*encrypt) (void *, void *blk, int len);
+    void (*decrypt) (void *, void *blk, int len);
     int blksize;
     const char *text_name;
 };
@@ -305,13 +305,13 @@ struct ssh_cipher {
 struct ssh2_cipher {
     void *(*make_context)(void);
     void (*free_context)(void *);
-    void (*setiv) (void *, unsigned char *key);	/* for SSH-2 */
-    void (*setkey) (void *, unsigned char *key);/* for SSH-2 */
-    void (*encrypt) (void *, unsigned char *blk, int len);
-    void (*decrypt) (void *, unsigned char *blk, int len);
+    void (*setiv) (void *, const void *iv);	/* for SSH-2 */
+    void (*setkey) (void *, const void *key);/* for SSH-2 */
+    void (*encrypt) (void *, void *blk, int len);
+    void (*decrypt) (void *, void *blk, int len);
     /* Ignored unless SSH_CIPHER_SEPARATE_LENGTH flag set */
-    void (*encrypt_length) (void *, unsigned char *blk, int len, unsigned long seq);
-    void (*decrypt_length) (void *, unsigned char *blk, int len, unsigned long seq);
+    void (*encrypt_length) (void *, void *blk, int len, unsigned long seq);
+    void (*decrypt_length) (void *, void *blk, int len, unsigned long seq);
     const char *name;
     int blksize;
     /* real_keybits is the number of bits of entropy genuinely used by
@@ -382,14 +382,14 @@ struct ssh_kexes {
 
 struct ssh_signkey {
     void *(*newkey) (const struct ssh_signkey *self,
-                     const char *data, int len);
+                     const void *data, int len);
     void (*freekey) (void *key);
     char *(*fmtkey) (void *key);
     void (*public_blob)(void *key, BinarySink *);
     void (*private_blob)(void *key, BinarySink *);
     void *(*createkey) (const struct ssh_signkey *self,
-                        const unsigned char *pub_blob, int pub_len,
-			const unsigned char *priv_blob, int priv_len);
+                        const void *pub_blob, int pub_len,
+			const void *priv_blob, int priv_len);
     void *(*openssh_createkey) (const struct ssh_signkey *self,
                                 const unsigned char **blob, int *len);
     void (*openssh_fmtkey) (void *key, BinarySink *);
@@ -404,9 +404,9 @@ struct ssh_signkey {
     int openssh_private_npieces;
     int (*pubkey_bits) (const struct ssh_signkey *self,
                         const void *blob, int len);
-    int (*verifysig) (void *key, const char *sig, int siglen,
-		      const char *data, int datalen);
-    void (*sign) (void *key, const char *data, int datalen, BinarySink *);
+    int (*verifysig) (void *key, const void *sig, int siglen,
+		      const void *data, int datalen);
+    void (*sign) (void *key, const void *data, int datalen, BinarySink *);
     const char *name;
     const char *keytype;               /* for host key cache */
     const void *extra;                 /* private to the public key methods */
@@ -472,13 +472,13 @@ extern const struct ssh_mac ssh_hmac_sha256;
 
 void *aes_make_context(void);
 void aes_free_context(void *handle);
-void aes128_key(void *handle, unsigned char *key);
-void aes192_key(void *handle, unsigned char *key);
-void aes256_key(void *handle, unsigned char *key);
-void aes_iv(void *handle, unsigned char *iv);
-void aes_ssh2_encrypt_blk(void *handle, unsigned char *blk, int len);
-void aes_ssh2_decrypt_blk(void *handle, unsigned char *blk, int len);
-void aes_ssh2_sdctr(void *handle, unsigned char *blk, int len);
+void aes128_key(void *handle, const void *key);
+void aes192_key(void *handle, const void *key);
+void aes256_key(void *handle, const void *key);
+void aes_iv(void *handle, const void *iv);
+void aes_ssh2_encrypt_blk(void *handle, void *blk, int len);
+void aes_ssh2_decrypt_blk(void *handle, void *blk, int len);
+void aes_ssh2_sdctr(void *handle, void *blk, int len);
 
 /*
  * PuTTY version number formatted as an SSH version string. 
@@ -657,8 +657,8 @@ Bignum modmul(Bignum a, Bignum b, Bignum mod);
 Bignum modsub(const Bignum a, const Bignum b, const Bignum n);
 void decbn(Bignum n);
 extern Bignum Zero, One;
-Bignum bignum_from_bytes(const unsigned char *data, int nbytes);
-Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes);
+Bignum bignum_from_bytes(const void *data, int nbytes);
+Bignum bignum_from_bytes_le(const void *data, int nbytes);
 Bignum bignum_random_in_range(const Bignum lower, const Bignum upper);
 int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result);
 int bignum_bitcount(Bignum bn);
@@ -796,21 +796,17 @@ int export_ssh1(const Filename *filename, int type,
 int export_ssh2(const Filename *filename, int type,
                 struct ssh2_userkey *key, char *passphrase);
 
-void des3_decrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
-void des3_encrypt_pubkey(unsigned char *key, unsigned char *blk, int len);
-void des3_decrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
-			      unsigned char *blk, int len);
-void des3_encrypt_pubkey_ossh(unsigned char *key, unsigned char *iv,
-			      unsigned char *blk, int len);
-void aes256_encrypt_pubkey(unsigned char *key, unsigned char *blk,
-			   int len);
-void aes256_decrypt_pubkey(unsigned char *key, unsigned char *blk,
-			   int len);
+void des3_decrypt_pubkey(const void *key, void *blk, int len);
+void des3_encrypt_pubkey(const void *key, void *blk, int len);
+void des3_decrypt_pubkey_ossh(const void *key, const void *iv,
+			      void *blk, int len);
+void des3_encrypt_pubkey_ossh(const void *key, const void *iv,
+			      void *blk, int len);
+void aes256_encrypt_pubkey(const void *key, void *blk, int len);
+void aes256_decrypt_pubkey(const void *key, void *blk, int len);
 
-void des_encrypt_xdmauth(const unsigned char *key,
-                         unsigned char *blk, int len);
-void des_decrypt_xdmauth(const unsigned char *key,
-                         unsigned char *blk, int len);
+void des_encrypt_xdmauth(const void *key, void *blk, int len);
+void des_decrypt_xdmauth(const void *key, void *blk, int len);
 
 void openssh_bcrypt(const char *passphrase,
                     const unsigned char *salt, int saltbytes,

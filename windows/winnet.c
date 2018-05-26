@@ -931,8 +931,8 @@ static void sk_tcp_flush(Socket s)
 }
 
 static void sk_tcp_close(Socket s);
-static int sk_tcp_write(Socket s, const char *data, int len);
-static int sk_tcp_write_oob(Socket s, const char *data, int len);
+static int sk_tcp_write(Socket s, const void *data, int len);
+static int sk_tcp_write_oob(Socket s, const void *data, int len);
 static void sk_tcp_write_eof(Socket s);
 static void sk_tcp_set_frozen(Socket s, int is_frozen);
 static const char *sk_tcp_socket_error(Socket s);
@@ -1568,7 +1568,7 @@ void try_send(Actual_Socket s)
     }
 }
 
-static int sk_tcp_write(Socket sock, const char *buf, int len)
+static int sk_tcp_write(Socket sock, const void *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 
@@ -1588,7 +1588,7 @@ static int sk_tcp_write(Socket sock, const char *buf, int len)
     return bufchain_size(&s->output_data);
 }
 
-static int sk_tcp_write_oob(Socket sock, const char *buf, int len)
+static int sk_tcp_write_oob(Socket sock, const void *buf, int len)
 {
     Actual_Socket s = (Actual_Socket) sock;
 

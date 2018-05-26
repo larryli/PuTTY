@@ -993,7 +993,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
  * Write to a file. Returns 0 on error, 1 on OK.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
-				    char *buffer, uint64 offset, int len)
+				    void *buffer, uint64 offset, int len)
 {
     struct sftp_request *req = sftp_alloc_request();
     struct sftp_packet *pktout;

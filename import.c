@@ -585,14 +585,14 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
          * Now decrypt the key blob.
          */
         if (key->encryption == OP_E_3DES)
-            des3_decrypt_pubkey_ossh(keybuf, (unsigned char *)key->iv,
+            des3_decrypt_pubkey_ossh(keybuf, key->iv,
                                      key->keyblob, key->keyblob_len);
         else {
             void *ctx;
             assert(key->encryption == OP_E_AES);
             ctx = aes_make_context();
             aes128_key(ctx, keybuf);
-            aes_iv(ctx, (unsigned char *)key->iv);
+            aes_iv(ctx, key->iv);
             aes_ssh2_decrypt_blk(ctx, key->keyblob, key->keyblob_len);
             aes_free_context(ctx);
         }
@@ -2219,8 +2219,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 	 * Now decrypt the key blob.
 	 */
         memset(iv, 0, sizeof(iv));
-	des3_decrypt_pubkey_ossh(keybuf, iv, (unsigned char *)ciphertext,
-				 cipherlen);
+	des3_decrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
 
         smemclr(&md5c, sizeof(md5c));
         smemclr(keybuf, sizeof(keybuf));
@@ -2478,8 +2477,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	 * Now decrypt the key blob.
 	 */
         memset(iv, 0, sizeof(iv));
-	des3_encrypt_pubkey_ossh(keybuf, iv, (unsigned char *)ciphertext,
-				 cipherlen);
+	des3_encrypt_pubkey_ossh(keybuf, iv, ciphertext, cipherlen);
 
         smemclr(&md5c, sizeof(md5c));
         smemclr(keybuf, sizeof(keybuf));

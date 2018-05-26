@@ -38,7 +38,7 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-int from_backend(void *frontend, int is_stderr, const char *data, int len)
+int from_backend(void *frontend, int is_stderr, const void *data, int len)
 { return 0; }
 
 /* functions required by terminal.c */
@@ -71,7 +71,7 @@ void set_title(void *frontend, char *t) { }
 void set_icon(void *frontend, char *t) { }
 void set_sbar(void *frontend, int a, int b, int c) { }
 
-void ldisc_send(void *handle, const char *buf, int len, int interactive) {}
+void ldisc_send(void *handle, const void *buf, int len, int interactive) {}
 void ldisc_echoedit_update(void *handle) {}
 Context get_ctx(void *frontend) { 
     static char x;

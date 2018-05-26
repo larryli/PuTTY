@@ -37,7 +37,7 @@ static Bignum getmp(const char **data, int *datalen)
 	return NULL;
     if (p[0] & 0x80)
 	return NULL;		       /* negative mp */
-    b = bignum_from_bytes((const unsigned char *)p, length);
+    b = bignum_from_bytes(p, length);
     return b;
 }
 
@@ -48,7 +48,7 @@ static Bignum get160(const char **data, int *datalen)
     if (*datalen < 20)
         return NULL;
 
-    b = bignum_from_bytes((const unsigned char *)*data, 20);
+    b = bignum_from_bytes(*data, 20);
     *data += 20;
     *datalen -= 20;
 
@@ -58,8 +58,9 @@ static Bignum get160(const char **data, int *datalen)
 static void dss_freekey(void *key);    /* forward reference */
 
 static void *dss_newkey(const struct ssh_signkey *self,
-                        const char *data, int len)
+                        const void *vdata, int len)
 {
+    const char *data = (const char *)vdata;
     const char *p;
     int slen;
     struct dss_key *dss;
@@ -163,10 +164,11 @@ static char *dss_fmtkey(void *key)
     return p;
 }
 
-static int dss_verifysig(void *key, const char *sig, int siglen,
-			 const char *data, int datalen)
+static int dss_verifysig(void *key, const void *vsig, int siglen,
+			 const void *data, int datalen)
 {
     struct dss_key *dss = (struct dss_key *) key;
+    const char *sig = (const char *)vsig;
     const char *p;
     int slen;
     char hash[20];
@@ -290,8 +292,8 @@ static void dss_private_blob(void *key, BinarySink *bs)
 }
 
 static void *dss_createkey(const struct ssh_signkey *self,
-                           const unsigned char *pub_blob, int pub_len,
-			   const unsigned char *priv_blob, int priv_len)
+                           const void *pub_blob, int pub_len,
+			   const void *priv_blob, int priv_len)
 {
     struct dss_key *dss;
     const char *pb = (const char *) priv_blob;
@@ -301,7 +303,7 @@ static void *dss_createkey(const struct ssh_signkey *self,
     unsigned char digest[20];
     Bignum ytest;
 
-    dss = dss_newkey(self, (char *) pub_blob, pub_len);
+    dss = dss_newkey(self, pub_blob, pub_len);
     if (!dss)
         return NULL;
     dss->x = getmp(&pb, &priv_len);
@@ -382,7 +384,7 @@ static int dss_pubkey_bits(const struct ssh_signkey *self,
     struct dss_key *dss;
     int ret;
 
-    dss = dss_newkey(self, (const char *) blob, len);
+    dss = dss_newkey(self, blob, len);
     if (!dss)
         return -1;
     ret = bignum_bitcount(dss->p);
@@ -511,7 +513,7 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
     }
 }
 
-static void dss_sign(void *key, const char *data, int datalen,
+static void dss_sign(void *key, const void *data, int datalen,
                      BinarySink *bs)
 {
     struct dss_key *dss = (struct dss_key *) key;

@@ -1404,8 +1404,9 @@ void decbn(Bignum bn)
     bn[i]--;
 }
 
-Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
+Bignum bignum_from_bytes(const void *vdata, int nbytes)
 {
+    const unsigned char *data = (const unsigned char *)vdata;
     Bignum result;
     int w, i;
 
@@ -1426,8 +1427,9 @@ Bignum bignum_from_bytes(const unsigned char *data, int nbytes)
     return result;
 }
 
-Bignum bignum_from_bytes_le(const unsigned char *data, int nbytes)
+Bignum bignum_from_bytes_le(const void *vdata, int nbytes)
 {
+    const unsigned char *data = (const unsigned char *)vdata;
     Bignum result;
     int w, i;
 

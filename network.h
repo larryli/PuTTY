@@ -26,8 +26,8 @@ struct socket_function_table {
     /* if p is NULL, it doesn't change the plug */
     /* but it does return the one it's using */
     void (*close) (Socket s);
-    int (*write) (Socket s, const char *data, int len);
-    int (*write_oob) (Socket s, const char *data, int len);
+    int (*write) (Socket s, const void *data, int len);
+    int (*write_oob) (Socket s, const void *data, int len);
     void (*write_eof) (Socket s);
     void (*flush) (Socket s);
     void (*set_frozen) (Socket s, int is_frozen);

@@ -1618,7 +1618,7 @@ static Bignum getmp(const char **data, int *datalen)
         return NULL;
     if (p[0] & 0x80)
         return NULL;                   /* negative mp */
-    return bignum_from_bytes((unsigned char *)p, length);
+    return bignum_from_bytes(p, length);
 }
 
 static Bignum getmp_le(const char **data, int *datalen)
@@ -1629,7 +1629,7 @@ static Bignum getmp_le(const char **data, int *datalen)
     getstring(data, datalen, &p, &length);
     if (!p)
         return NULL;
-    return bignum_from_bytes_le((const unsigned char *)p, length);
+    return bignum_from_bytes_le(p, length);
 }
 
 static int decodepoint_ed(const char *p, int length, struct ec_point *point)
@@ -1692,9 +1692,9 @@ static int decodepoint(const char *p, int length, struct ec_point *point)
         return 0;
     }
     length = length / 2;
-    point->x = bignum_from_bytes((const unsigned char *)p, length);
+    point->x = bignum_from_bytes(p, length);
     p += length;
-    point->y = bignum_from_bytes((const unsigned char *)p, length);
+    point->y = bignum_from_bytes(p, length);
     point->z = NULL;
 
     /* Verify the point is on the curve */
@@ -1749,10 +1749,11 @@ static void ecdsa_freekey(void *key)
 }
 
 static void *ecdsa_newkey(const struct ssh_signkey *self,
-                          const char *data, int len)
+                          const void *vdata, int len)
 {
     const struct ecsign_extra *extra =
         (const struct ecsign_extra *)self->extra;
+    const char *data = (const char *)vdata;
     const char *p;
     int slen;
     struct ec_key *ec;
@@ -1905,14 +1906,14 @@ static void ecdsa_private_blob(void *key, BinarySink *bs)
 }
 
 static void *ecdsa_createkey(const struct ssh_signkey *self,
-                             const unsigned char *pub_blob, int pub_len,
-                             const unsigned char *priv_blob, int priv_len)
+                             const void *pub_blob, int pub_len,
+                             const void *priv_blob, int priv_len)
 {
     struct ec_key *ec;
     struct ec_point *publicKey;
     const char *pb = (const char *) priv_blob;
 
-    ec = (struct ec_key*)ecdsa_newkey(self, (const char *) pub_blob, pub_len);
+    ec = (struct ec_key*)ecdsa_newkey(self, pub_blob, pub_len);
     if (!ec) {
         return NULL;
     }
@@ -1984,7 +1985,7 @@ static void *ed25519_openssh_createkey(const struct ssh_signkey *self,
         return NULL;
     }
 
-    ec->privateKey = bignum_from_bytes_le((const unsigned char *)q, 32);
+    ec->privateKey = bignum_from_bytes_le(q, 32);
 
     /* Check that private key generates public key */
     publicKey = ec_public(ec->privateKey, ec->publicKey.curve);
@@ -2148,7 +2149,7 @@ static int ecdsa_pubkey_bits(const struct ssh_signkey *self,
     struct ec_key *ec;
     int ret;
 
-    ec = (struct ec_key*)ecdsa_newkey(self, (const char *) blob, len);
+    ec = (struct ec_key*)ecdsa_newkey(self, blob, len);
     if (!ec)
         return -1;
     ret = ec->publicKey.curve->fieldBits;
@@ -2157,10 +2158,12 @@ static int ecdsa_pubkey_bits(const struct ssh_signkey *self,
     return ret;
 }
 
-static int ecdsa_verifysig(void *key, const char *sig, int siglen,
-                           const char *data, int datalen)
+static int ecdsa_verifysig(void *key, const void *vsig, int siglen,
+                           const void *vdata, int datalen)
 {
     struct ec_key *ec = (struct ec_key *) key;
+    const char *sig = (const char *)vsig;
+    const char *data = (const char *)vdata;
     const struct ecsign_extra *extra =
         (const struct ecsign_extra *)ec->signalg->extra;
     const char *p;
@@ -2307,7 +2310,7 @@ static int ecdsa_verifysig(void *key, const char *sig, int siglen,
     return ret;
 }
 
-static void ecdsa_sign(void *key, const char *data, int datalen,
+static void ecdsa_sign(void *key, const void *data, int datalen,
                        BinarySink *bs)
 {
     struct ec_key *ec = (struct ec_key *) key;

@@ -1352,15 +1352,16 @@ static int alloc_channel_id(Ssh ssh)
     return low + 1 + CHANNEL_NUMBER_OFFSET;
 }
 
-static void c_write_stderr(int trusted, const char *buf, int len)
+static void c_write_stderr(int trusted, const void *vbuf, int len)
 {
+    const char *buf = (const char *)vbuf;
     int i;
     for (i = 0; i < len; i++)
 	if (buf[i] != '\r' && (trusted || buf[i] == '\n' || (buf[i] & 0x60)))
 	    fputc(buf[i], stderr);
 }
 
-static void c_write(Ssh ssh, const char *buf, int len)
+static void c_write(Ssh ssh, const void *buf, int len)
 {
     if (flags & FLAG_STDERR)
 	c_write_stderr(1, buf, len);
@@ -1368,7 +1369,7 @@ static void c_write(Ssh ssh, const char *buf, int len)
 	from_backend(ssh->frontend, 1, buf, len);
 }
 
-static void c_write_untrusted(Ssh ssh, const char *buf, int len)
+static void c_write_untrusted(Ssh ssh, const void *buf, int len)
 {
     if (flags & FLAG_STDERR)
 	c_write_stderr(0, buf, len);
@@ -2175,7 +2176,7 @@ static int s_write(Ssh ssh, void *data, int len)
 		   0, NULL, NULL, 0, NULL);
     if (!ssh->s)
         return 0;
-    return sk_write(ssh->s, (char *)data, len);
+    return sk_write(ssh->s, data, len);
 }
 
 static void s_wrpkt(Ssh ssh, struct Packet *pkt)
@@ -2808,7 +2809,7 @@ static Bignum ssh2_pkt_getmp(struct Packet *pkt)
 	return NULL;
     if (p[0] & 0x80)
 	return NULL;
-    b = bignum_from_bytes((unsigned char *)p, length);
+    b = bignum_from_bytes(p, length);
     return b;
 }
 
@@ -5219,7 +5220,7 @@ void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
     ssh2_channel_check_close(c);
 }
 
-int sshfwd_write(struct ssh_channel *c, char *buf, int len)
+int sshfwd_write(struct ssh_channel *c, const void *buf, int len)
 {
     Ssh ssh = c->ssh;
 
@@ -7898,7 +7899,7 @@ static void do_ssh2_transport(void *vctx)
         }
 
         if (!ssh->hostkey->verifysig(s->hkey, s->sigdata, s->siglen,
-                                     (char *)s->exchange_hash,
+                                     s->exchange_hash,
                                      ssh->kex->hash->hlen)) {
 #ifndef FUZZING
             bombout(("Server's host key did not match the signature "

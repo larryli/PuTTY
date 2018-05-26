@@ -6629,7 +6629,7 @@ int term_ldisc(Terminal *term, int option)
     return FALSE;
 }
 
-int term_data(Terminal *term, int is_stderr, const char *data, int len)
+int term_data(Terminal *term, int is_stderr, const void *data, int len)
 {
     bufchain_add(&term->inbuf, data, len);
 
@@ -6673,8 +6673,9 @@ int term_data(Terminal *term, int is_stderr, const char *data, int len)
  * The only control character that should be honoured is \n (which
  * will behave as a CRLF).
  */
-int term_data_untrusted(Terminal *term, const char *data, int len)
+int term_data_untrusted(Terminal *term, const void *vdata, int len)
 {
+    const char *data = (const char *)vdata;
     int i;
     /* FIXME: more sophisticated checking? */
     for (i = 0; i < len; i++) {

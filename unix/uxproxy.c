@@ -175,7 +175,7 @@ static int localproxy_try_send(Local_Proxy_Socket ps)
     return sent;
 }
 
-static int sk_localproxy_write (Socket s, const char *data, int len)
+static int sk_localproxy_write (Socket s, const void *data, int len)
 {
     Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
 
@@ -188,7 +188,7 @@ static int sk_localproxy_write (Socket s, const char *data, int len)
     return bufchain_size(&ps->pending_output_data);
 }
 
-static int sk_localproxy_write_oob (Socket s, const char *data, int len)
+static int sk_localproxy_write_oob (Socket s, const void *data, int len)
 {
     /*
      * oob data is treated as inband; nasty, but nothing really
