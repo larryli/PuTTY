@@ -70,12 +70,6 @@ void share_setup_x11_channel(void *csv, void *chanv,
 #define SSH_CIPHER_3DES		3
 #define SSH_CIPHER_BLOWFISH	6
 
-#ifdef MSCRYPTOAPI
-#define APIEXTRA 8
-#else
-#define APIEXTRA 0
-#endif
-
 #ifndef BIGNUM_INTERNAL
 typedef void *Bignum;
 #endif
@@ -83,17 +77,12 @@ typedef void *Bignum;
 struct RSAKey {
     int bits;
     int bytes;
-#ifdef MSCRYPTOAPI
-    unsigned long exponent;
-    unsigned char *modulus;
-#else
     Bignum modulus;
     Bignum exponent;
     Bignum private_exponent;
     Bignum p;
     Bignum q;
     Bignum iqmp;
-#endif
     char *comment;
 };
 
@@ -242,14 +231,10 @@ typedef struct {
 } MD5_Core_State;
 
 struct MD5Context {
-#ifdef MSCRYPTOAPI
-    unsigned long hHash;
-#else
     MD5_Core_State core;
     unsigned char block[64];
     int blkused;
     uint32 lenhi, lenlo;
-#endif
     BinarySink_IMPLEMENTATION;
 };
 
@@ -507,9 +492,7 @@ extern const char sshver[];
  */
 extern int ssh_fallback_cmd(void *handle);
 
-#ifndef MSCRYPTOAPI
 void SHATransform(word32 * digest, word32 * data);
-#endif
 
 /*
  * Check of compiler version

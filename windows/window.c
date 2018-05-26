@@ -894,9 +894,6 @@ void cleanup_exit(int code)
 
     if (conf_get_int(conf, CONF_protocol) == PROT_SSH) {
 	random_save_seed();
-#ifdef MSCRYPTOAPI
-	crypto_wrapup();
-#endif
     }
     shutdown_help();
 

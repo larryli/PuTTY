@@ -26,9 +26,6 @@ void cleanup_exit(int code)
     sk_cleanup();
 
     random_save_seed();
-#ifdef MSCRYPTOAPI
-    crypto_wrapup();
-#endif
 
     exit(code);
 }

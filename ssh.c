@@ -1555,7 +1555,7 @@ static void ssh1_rdpkt(Ssh ssh)
         }
 
         st->pktin->maxlen = st->biglen;
-        st->pktin->data = snewn(st->biglen + APIEXTRA, unsigned char);
+        st->pktin->data = snewn(st->biglen, unsigned char);
 
         crMaybeWaitUntilV(bufchain_try_fetch_consume(
                               &ssh->incoming_data,
@@ -1594,8 +1594,7 @@ static void ssh1_rdpkt(Ssh ssh)
 
             if (st->pktin->maxlen < st->pad + decomplen) {
                 st->pktin->maxlen = st->pad + decomplen;
-                st->pktin->data = sresize(st->pktin->data,
-                                          st->pktin->maxlen + APIEXTRA,
+                st->pktin->data = sresize(st->pktin->data, st->pktin->maxlen,
                                           unsigned char);
                 st->pktin->body = st->pktin->data + st->pad + 1;
             }
@@ -1812,7 +1811,7 @@ static void ssh2_rdpkt(Ssh ssh)
              */
 
             /* May as well allocate the whole lot now. */
-            st->pktin->data = snewn(OUR_V2_PACKETLIMIT + st->maclen + APIEXTRA,
+            st->pktin->data = snewn(OUR_V2_PACKETLIMIT + st->maclen,
                                     unsigned char);
 
             /* Read an amount corresponding to the MAC. */
@@ -1853,11 +1852,10 @@ static void ssh2_rdpkt(Ssh ssh)
                 }
             }
             st->pktin->maxlen = st->packetlen + st->maclen;
-            st->pktin->data = sresize(st->pktin->data,
-                                      st->pktin->maxlen + APIEXTRA,
+            st->pktin->data = sresize(st->pktin->data, st->pktin->maxlen,
                                       unsigned char);
         } else if (ssh->scmac && ssh->scmac_etm) {
-            st->pktin->data = snewn(4 + APIEXTRA, unsigned char);
+            st->pktin->data = snewn(4, unsigned char);
 
             /*
              * OpenSSH encrypt-then-MAC mode: the packet length is
@@ -1897,8 +1895,7 @@ static void ssh2_rdpkt(Ssh ssh)
              * Allocate memory for the rest of the packet.
              */
             st->pktin->maxlen = st->packetlen + st->maclen;
-            st->pktin->data = sresize(st->pktin->data,
-                                      st->pktin->maxlen + APIEXTRA,
+            st->pktin->data = sresize(st->pktin->data, st->pktin->maxlen,
                                       unsigned char);
 
             /*
@@ -1925,7 +1922,7 @@ static void ssh2_rdpkt(Ssh ssh)
                                        st->pktin->data + 4,
                                        st->packetlen - 4);
         } else {
-            st->pktin->data = snewn(st->cipherblk + APIEXTRA, unsigned char);
+            st->pktin->data = snewn(st->cipherblk, unsigned char);
 
             /*
              * Acquire and decrypt the first block of the packet. This will
@@ -1964,8 +1961,7 @@ static void ssh2_rdpkt(Ssh ssh)
              * Allocate memory for the rest of the packet.
              */
             st->pktin->maxlen = st->packetlen + st->maclen;
-            st->pktin->data = sresize(st->pktin->data,
-                                      st->pktin->maxlen + APIEXTRA,
+            st->pktin->data = sresize(st->pktin->data, st->pktin->maxlen,
                                       unsigned char);
 
             /*
@@ -2026,7 +2022,7 @@ static void ssh2_rdpkt(Ssh ssh)
                 if (st->pktin->maxlen < newlen + 5) {
                     st->pktin->maxlen = newlen + 5;
                     st->pktin->data = sresize(st->pktin->data,
-                                              st->pktin->maxlen + APIEXTRA,
+                                              st->pktin->maxlen,
                                               unsigned char);
                 }
                 st->pktin->length = 5 + newlen;
@@ -2311,7 +2307,7 @@ static void ssh_pkt_ensure(struct Packet *pkt, int length)
 	unsigned char *body = pkt->body;
 	int offset = body ? body - pkt->data : 0;
 	pkt->maxlen = length + 256;
-	pkt->data = sresize(pkt->data, pkt->maxlen + APIEXTRA, unsigned char);
+	pkt->data = sresize(pkt->data, pkt->maxlen, unsigned char);
 	if (body) pkt->body = pkt->data + offset;
     }
 }
@@ -12307,11 +12303,6 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->gss_kex_used = FALSE;
 
     *backend_handle = ssh;
-
-#ifdef MSCRYPTOAPI
-    if (crypto_startup() == 0)
-	return "Microsoft high encryption pack not installed!";
-#endif
 
     ssh->frontend = frontend_handle;
     ssh->term_width = conf_get_int(ssh->conf, CONF_width);

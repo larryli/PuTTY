@@ -1260,14 +1260,6 @@ int mk_wcwidth_cjk(unsigned int ucs);
 int mk_wcswidth_cjk(const unsigned int *pwcs, size_t n);
 
 /*
- * Exports from mscrypto.c
- */
-#ifdef MSCRYPTOAPI
-int crypto_startup();
-void crypto_wrapup();
-#endif
-
-/*
  * Exports from pageantc.c.
  * 
  * agent_query returns NULL for here's-a-response, and non-NULL for
