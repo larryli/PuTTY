@@ -725,10 +725,6 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 
         /* Construct the key */
         retkey = snew(struct ssh2_userkey);
-        if (!retkey) {
-            errmsg = "out of memory";
-            goto error;
-        }
         retkey->alg = alg;
 
         put_stringz(blob, alg->name);
