@@ -1707,7 +1707,7 @@ static void aes_setup_ni(AESContext * ctx,
 
 #else /* COMPILER_SUPPORTS_AES_NI */
 
-static void aes_setup_ni(AESContext * ctx, unsigned char *key, int keylen)
+static void aes_setup_ni(AESContext * ctx, const unsigned char *key, int keylen)
 {
     assert(0);
 }
