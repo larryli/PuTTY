@@ -487,6 +487,11 @@ void pageant_handle_msg(BinarySink *bs,
 		goto add1_cleanup;
 	    }
 
+            if (!rsa_verify(key)) {
+                pageant_failure_msg(bs, "key is invalid", logctx, logfn);
+		goto add1_cleanup;
+            }
+
 	    comment = snewn(commentlen+1, char);
 	    if (comment) {
 		memcpy(comment, p + 4, commentlen);
