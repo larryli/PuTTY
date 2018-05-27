@@ -1307,145 +1307,91 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr)
 {
-    unsigned char *keylist, *p;
+    unsigned char *keylist;
     int i, nkeys, keylistlen;
-    char *comment;
+    ptrlen comment;
     struct pageant_pubkey cbkey;
+    BinarySource src[1];
 
     keylist = pageant_get_keylist1(&keylistlen);
-    if (keylistlen < 4) {
-        *retstr = dupstr("Received broken SSH-1 key list from agent");
-        sfree(keylist);
+    if (!keylist) {
+        *retstr = dupstr("Did not receive an SSH-1 key list from agent");
         return PAGEANT_ACTION_FAILURE;
     }
-    nkeys = toint(GET_32BIT(keylist));
-    if (nkeys < 0) {
-        *retstr = dupstr("Received broken SSH-1 key list from agent");
-        sfree(keylist);
-        return PAGEANT_ACTION_FAILURE;
-    }
-    p = keylist + 4;
-    keylistlen -= 4;
+    BinarySource_BARE_INIT(src, keylist, keylistlen);
 
+    nkeys = toint(get_uint32(src));
     for (i = 0; i < nkeys; i++) {
         struct RSAKey rkey;
         char fingerprint[128];
-        int n;
 
         /* public blob and fingerprint */
         memset(&rkey, 0, sizeof(rkey));
-        n = rsa_ssh1_readpub(p, keylistlen, &rkey, NULL,
-                             RSA_SSH1_EXPONENT_FIRST);
-        if (n < 0 || n > keylistlen) {
-            freersakey(&rkey);
-            *retstr = dupstr("Received broken SSH-1 key list from agent");
-            sfree(keylist);
-            return PAGEANT_ACTION_FAILURE;
-        }
-        p += n, keylistlen -= n;
-        rsa_fingerprint(fingerprint, sizeof(fingerprint), &rkey);
+        get_rsa_ssh1_pub(src, &rkey, NULL, RSA_SSH1_EXPONENT_FIRST);
+        comment = get_string(src);
 
-        /* comment */
-        if (keylistlen < 4) {
+        if (get_err(src)) {
             *retstr = dupstr("Received broken SSH-1 key list from agent");
             freersakey(&rkey);
             sfree(keylist);
             return PAGEANT_ACTION_FAILURE;
         }
-        n = toint(GET_32BIT(p));
-        p += 4, keylistlen -= 4;
-        if (n < 0 || keylistlen < n) {
-            *retstr = dupstr("Received broken SSH-1 key list from agent");
-            freersakey(&rkey);
-            sfree(keylist);
-            return PAGEANT_ACTION_FAILURE;
-        }
-        comment = dupprintf("%.*s", (int)n, (const char *)p);
-        p += n, keylistlen -= n;
+
+        rsa_fingerprint(fingerprint, sizeof(fingerprint), &rkey);
 
         cbkey.blob = strbuf_new();
         rsa_ssh1_public_blob(BinarySink_UPCAST(cbkey.blob), &rkey,
                              RSA_SSH1_EXPONENT_FIRST);
-        cbkey.comment = comment;
+        cbkey.comment = mkstr(comment);
         cbkey.ssh_version = 1;
-        callback(callback_ctx, fingerprint, comment, &cbkey);
+        callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
         strbuf_free(cbkey.blob);
         freersakey(&rkey);
-        sfree(comment);
+        sfree(cbkey.comment);
     }
 
     sfree(keylist);
 
-    if (keylistlen != 0) {
+    if (get_err(src) || get_avail(src) != 0) {
         *retstr = dupstr("Received broken SSH-1 key list from agent");
         return PAGEANT_ACTION_FAILURE;
     }
 
     keylist = pageant_get_keylist2(&keylistlen);
-    if (keylistlen < 4) {
-        *retstr = dupstr("Received broken SSH-2 key list from agent");
-        sfree(keylist);
+    if (!keylist) {
+        *retstr = dupstr("Did not receive an SSH-2 key list from agent");
         return PAGEANT_ACTION_FAILURE;
     }
-    nkeys = toint(GET_32BIT(keylist));
-    if (nkeys < 0) {
-        *retstr = dupstr("Received broken SSH-2 key list from agent");
-        sfree(keylist);
-        return PAGEANT_ACTION_FAILURE;
-    }
-    p = keylist + 4;
-    keylistlen -= 4;
+    BinarySource_BARE_INIT(src, keylist, keylistlen);
 
+    nkeys = toint(get_uint32(src));
     for (i = 0; i < nkeys; i++) {
+        ptrlen pubblob;
         char *fingerprint;
-        int n;
 
-        /* public blob */
-        if (keylistlen < 4) {
+        pubblob = get_string(src);
+        comment = get_string(src);
+
+        if (get_err(src)) {
             *retstr = dupstr("Received broken SSH-2 key list from agent");
             sfree(keylist);
             return PAGEANT_ACTION_FAILURE;
         }
-        n = toint(GET_32BIT(p));
-        p += 4, keylistlen -= 4;
-        if (n < 0 || keylistlen < n) {
-            *retstr = dupstr("Received broken SSH-2 key list from agent");
-            sfree(keylist);
-            return PAGEANT_ACTION_FAILURE;
-        }
-        fingerprint = ssh2_fingerprint_blob(p, n);
+
+        fingerprint = ssh2_fingerprint_blob(pubblob.ptr, pubblob.len);
         cbkey.blob = strbuf_new();
-        put_data(cbkey.blob, p, n);
-        p += n, keylistlen -= n;
-
-        /* comment */
-        if (keylistlen < 4) {
-            *retstr = dupstr("Received broken SSH-2 key list from agent");
-            sfree(fingerprint);
-            sfree(keylist);
-            return PAGEANT_ACTION_FAILURE;
-        }
-        n = toint(GET_32BIT(p));
-        p += 4, keylistlen -= 4;
-        if (n < 0 || keylistlen < n) {
-            *retstr = dupstr("Received broken SSH-2 key list from agent");
-            sfree(fingerprint);
-            sfree(keylist);
-            return PAGEANT_ACTION_FAILURE;
-        }
-        comment = dupprintf("%.*s", (int)n, (const char *)p);
-        p += n, keylistlen -= n;
+        put_data(cbkey.blob, pubblob.ptr, pubblob.len);
 
         cbkey.ssh_version = 2;
-        cbkey.comment = comment;
-        callback(callback_ctx, fingerprint, comment, &cbkey);
+        cbkey.comment = mkstr(comment);
+        callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
         sfree(fingerprint);
-        sfree(comment);
+        sfree(cbkey.comment);
     }
 
     sfree(keylist);
 
-    if (keylistlen != 0) {
+    if (get_err(src) || get_avail(src) != 0) {
         *retstr = dupstr("Received broken SSH-2 key list from agent");
         return PAGEANT_ACTION_FAILURE;
     }
