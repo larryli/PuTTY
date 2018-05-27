@@ -19,11 +19,7 @@
 Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
                           Plug plug, int overlapped);
 
-typedef struct Socket_named_pipe_server_tag *Named_Pipe_Server_Socket;
-struct Socket_named_pipe_server_tag {
-    const struct socket_function_table *fn;
-    /* the above variable absolutely *must* be the first in this structure */
-
+typedef struct NamedPipeServerSocket {
     /* Parameters for (repeated) creation of named pipe objects */
     PSECURITY_DESCRIPTOR psd;
     PACL acl;
@@ -37,11 +33,13 @@ struct Socket_named_pipe_server_tag {
     /* PuTTY Socket machinery */
     Plug plug;
     char *error;
-};
+
+    const Socket_vtable *sockvt;
+} NamedPipeServerSocket;
 
 static Plug sk_namedpipeserver_plug(Socket s, Plug p)
 {
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
     Plug ret = ps->plug;
     if (p)
 	ps->plug = p;
@@ -50,7 +48,7 @@ static Plug sk_namedpipeserver_plug(Socket s, Plug p)
 
 static void sk_namedpipeserver_close(Socket s)
 {
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
 
     if (ps->callback_handle)
         handle_free(ps->callback_handle);
@@ -67,7 +65,7 @@ static void sk_namedpipeserver_close(Socket s)
 
 static const char *sk_namedpipeserver_socket_error(Socket s)
 {
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket) s;
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
     return ps->error;
 }
 
@@ -76,7 +74,7 @@ static char *sk_namedpipeserver_peer_info(Socket s)
     return NULL;
 }
 
-static int create_named_pipe(Named_Pipe_Server_Socket ps, int first_instance)
+static int create_named_pipe(NamedPipeServerSocket *ps, int first_instance)
 {
     SECURITY_ATTRIBUTES sa;
 
@@ -129,7 +127,7 @@ static Socket named_pipe_accept(accept_ctx_t ctx, Plug plug)
  */
 SockAddr sk_namedpipe_addr(const char *pipename);
 
-static void named_pipe_accept_loop(Named_Pipe_Server_Socket ps,
+static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
                                    int got_one_already)
 {
     while (1) {
@@ -198,32 +196,30 @@ static void named_pipe_accept_loop(Named_Pipe_Server_Socket ps,
 
 static void named_pipe_connect_callback(void *vps)
 {
-    Named_Pipe_Server_Socket ps = (Named_Pipe_Server_Socket)vps;
+    NamedPipeServerSocket *ps = (NamedPipeServerSocket *)vps;
     named_pipe_accept_loop(ps, TRUE);
 }
 
+/*
+ * This socket type is only used for listening, so it should never
+ * be asked to write or flush or set_frozen.
+ */
+static const Socket_vtable NamedPipeServerSocket_sockvt = {
+    sk_namedpipeserver_plug,
+    sk_namedpipeserver_close,
+    NULL /* write */,
+    NULL /* write_oob */,
+    NULL /* write_eof */,
+    NULL /* flush */,
+    NULL /* set_frozen */,
+    sk_namedpipeserver_socket_error,
+    sk_namedpipeserver_peer_info,
+};
+
 Socket new_named_pipe_listener(const char *pipename, Plug plug)
 {
-    /*
-     * This socket type is only used for listening, so it should never
-     * be asked to write or flush or set_frozen.
-     */
-    static const struct socket_function_table socket_fn_table = {
-	sk_namedpipeserver_plug,
-	sk_namedpipeserver_close,
-	NULL /* write */,
-	NULL /* write_oob */,
-        NULL /* write_eof */,
-        NULL /* flush */,
-        NULL /* set_frozen */,
-	sk_namedpipeserver_socket_error,
-	sk_namedpipeserver_peer_info,
-    };
-
-    Named_Pipe_Server_Socket ret;
-
-    ret = snew(struct Socket_named_pipe_server_tag);
-    ret->fn = &socket_fn_table;
+    NamedPipeServerSocket *ret = snew(NamedPipeServerSocket);
+    ret->sockvt = &NamedPipeServerSocket_sockvt;
     ret->plug = plug;
     ret->error = NULL;
     ret->psd = NULL;
@@ -253,7 +249,7 @@ Socket new_named_pipe_listener(const char *pipename, Plug plug)
     named_pipe_accept_loop(ret, FALSE);
 
   cleanup:
-    return (Socket) ret;
+    return &ret->sockvt;
 }
 
 #endif /* !defined NO_SECURITY */

@@ -15,12 +15,7 @@
 
 #include "defs.h"
 
-typedef struct SockAddr_tag *SockAddr;
-/* pay attention to levels of indirection */
-typedef struct socket_function_table **Socket;
-typedef struct plug_function_table **Plug;
-
-struct socket_function_table {
+struct Socket_vtable {
     Plug(*plug) (Socket s, Plug p);
     /* use a different plug (return the old one) */
     /* if p is NULL, it doesn't change the plug */
@@ -39,7 +34,7 @@ struct socket_function_table {
 typedef union { void *p; int i; } accept_ctx_t;
 typedef Socket (*accept_fn_t)(accept_ctx_t ctx, Plug plug);
 
-struct plug_function_table {
+struct Plug_vtable {
     void (*log)(Plug p, int type, SockAddr addr, int port,
 		const char *error_msg, int error_code);
     /*

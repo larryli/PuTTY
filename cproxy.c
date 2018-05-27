@@ -42,7 +42,7 @@ void proxy_socks5_offerencryptedauth(BinarySink *bs)
     put_byte(bs, 0x03);              /* CHAP */
 }
 
-int proxy_socks5_handlechap (Proxy_Socket p)
+int proxy_socks5_handlechap (ProxySocket *p)
 {
 
     /* CHAP authentication reply format:
@@ -158,7 +158,7 @@ int proxy_socks5_handlechap (Proxy_Socket p)
     return 0;
 }
 
-int proxy_socks5_selectchap(Proxy_Socket p)
+int proxy_socks5_selectchap(ProxySocket *p)
 {
     char *username = conf_get_str(p->conf, CONF_proxy_username);
     char *password = conf_get_str(p->conf, CONF_proxy_password);

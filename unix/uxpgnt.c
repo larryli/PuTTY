@@ -185,7 +185,7 @@ static void x11_closing(Plug plug, const char *error_msg, int error_code,
     time_to_die = TRUE;
 }
 struct X11Connection {
-    const struct plug_function_table *fn;
+    const Plug_vtable *plugvt;
 };
 
 char *socketname;
@@ -735,11 +735,20 @@ void run_client(void)
         exit(1);
 }
 
+static const Plug_vtable X11Connection_plugvt = {
+    x11_log,
+    x11_closing,
+    x11_receive,
+    x11_sent,
+    NULL
+};
+
 void run_agent(void)
 {
     const char *err;
     char *username, *socketdir;
     struct pageant_listen_state *pl;
+    Plug pl_plug;
     Socket sock;
     unsigned long now;
     int *fdlist;
@@ -778,8 +787,8 @@ void run_agent(void)
         exit(1);
     }
     socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
-    pl = pageant_listener_new();
-    sock = new_unix_listener(unix_sock_addr(socketname), (Plug)pl);
+    pl = pageant_listener_new(&pl_plug);
+    sock = new_unix_listener(unix_sock_addr(socketname), pl_plug);
     if ((err = sk_socket_error(sock)) != NULL) {
         fprintf(stderr, "pageant: %s: %s\n", socketname, err);
         exit(1);
@@ -800,14 +809,6 @@ void run_agent(void)
         Socket s;
         struct X11Connection *conn;
 
-        static const struct plug_function_table fn_table = {
-            x11_log,
-            x11_closing,
-            x11_receive,
-            x11_sent,
-            NULL
-        };
-
         if (!display) {
             fprintf(stderr, "pageant: no DISPLAY for -X mode\n");
             exit(1);
@@ -815,10 +816,10 @@ void run_agent(void)
         disp = x11_setup_display(display, conf);
 
         conn = snew(struct X11Connection);
-        conn->fn = &fn_table;
+        conn->plugvt = &X11Connection_plugvt;
         s = new_connection(sk_addr_dup(disp->addr),
                            disp->realhost, disp->port,
-                           0, 1, 0, 0, (Plug)conn, conf);
+                           0, 1, 0, 0, &conn->plugvt, conf);
         if ((err = sk_socket_error(s)) != NULL) {
             fprintf(stderr, "pageant: unable to connect to X server: %s", err);
             exit(1);

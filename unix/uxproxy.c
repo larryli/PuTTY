@@ -15,12 +15,7 @@
 #include "network.h"
 #include "proxy.h"
 
-typedef struct Socket_localproxy_tag * Local_Proxy_Socket;
-
-struct Socket_localproxy_tag {
-    const struct socket_function_table *fn;
-    /* the above variable absolutely *must* be the first in this structure */
-
+typedef struct LocalProxySocket {
     int to_cmd, from_cmd, cmd_err;     /* fds */
 
     char *error;
@@ -31,7 +26,9 @@ struct Socket_localproxy_tag {
     bufchain pending_input_data;
     bufchain pending_error_data;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
-};
+
+    const Socket_vtable *sockvt;
+} LocalProxySocket;
 
 static void localproxy_select_result(int fd, int event);
 
@@ -43,8 +40,8 @@ static tree234 *localproxy_by_tofd;
 static tree234 *localproxy_by_errfd;
 static int localproxy_fromfd_cmp(void *av, void *bv)
 {
-    Local_Proxy_Socket a = (Local_Proxy_Socket)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *a = (LocalProxySocket *)av;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a->from_cmd < b->from_cmd)
 	return -1;
     if (a->from_cmd > b->from_cmd)
@@ -54,7 +51,7 @@ static int localproxy_fromfd_cmp(void *av, void *bv)
 static int localproxy_fromfd_find(void *av, void *bv)
 {
     int a = *(int *)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a < b->from_cmd)
 	return -1;
     if (a > b->from_cmd)
@@ -63,8 +60,8 @@ static int localproxy_fromfd_find(void *av, void *bv)
 }
 static int localproxy_tofd_cmp(void *av, void *bv)
 {
-    Local_Proxy_Socket a = (Local_Proxy_Socket)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *a = (LocalProxySocket *)av;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a->to_cmd < b->to_cmd)
 	return -1;
     if (a->to_cmd > b->to_cmd)
@@ -74,7 +71,7 @@ static int localproxy_tofd_cmp(void *av, void *bv)
 static int localproxy_tofd_find(void *av, void *bv)
 {
     int a = *(int *)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a < b->to_cmd)
 	return -1;
     if (a > b->to_cmd)
@@ -83,8 +80,8 @@ static int localproxy_tofd_find(void *av, void *bv)
 }
 static int localproxy_errfd_cmp(void *av, void *bv)
 {
-    Local_Proxy_Socket a = (Local_Proxy_Socket)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *a = (LocalProxySocket *)av;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a->cmd_err < b->cmd_err)
 	return -1;
     if (a->cmd_err > b->cmd_err)
@@ -94,7 +91,7 @@ static int localproxy_errfd_cmp(void *av, void *bv)
 static int localproxy_errfd_find(void *av, void *bv)
 {
     int a = *(int *)av;
-    Local_Proxy_Socket b = (Local_Proxy_Socket)bv;
+    LocalProxySocket *b = (LocalProxySocket *)bv;
     if (a < b->cmd_err)
 	return -1;
     if (a > b->cmd_err)
@@ -106,7 +103,7 @@ static int localproxy_errfd_find(void *av, void *bv)
 
 static Plug sk_localproxy_plug (Socket s, Plug p)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
     Plug ret = ps->plug;
     if (p)
 	ps->plug = p;
@@ -115,7 +112,7 @@ static Plug sk_localproxy_plug (Socket s, Plug p)
 
 static void sk_localproxy_close (Socket s)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
     if (ps->to_cmd >= 0) {
         del234(localproxy_by_tofd, ps);
@@ -138,7 +135,7 @@ static void sk_localproxy_close (Socket s)
     sfree(ps);
 }
 
-static int localproxy_try_send(Local_Proxy_Socket ps)
+static int localproxy_try_send(LocalProxySocket *ps)
 {
     int sent = 0;
 
@@ -177,7 +174,7 @@ static int localproxy_try_send(Local_Proxy_Socket ps)
 
 static int sk_localproxy_write (Socket s, const void *data, int len)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
     assert(ps->outgoingeof == EOF_NO);
 
@@ -199,7 +196,7 @@ static int sk_localproxy_write_oob (Socket s, const void *data, int len)
 
 static void sk_localproxy_write_eof (Socket s)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
     assert(ps->outgoingeof == EOF_NO);
     ps->outgoingeof = EOF_PENDING;
@@ -209,13 +206,13 @@ static void sk_localproxy_write_eof (Socket s)
 
 static void sk_localproxy_flush (Socket s)
 {
-    /* Local_Proxy_Socket ps = (Local_Proxy_Socket) s; */
+    /* LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt); */
     /* do nothing */
 }
 
 static void sk_localproxy_set_frozen (Socket s, int is_frozen)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
     if (is_frozen)
 	uxsel_del(ps->from_cmd);
@@ -225,13 +222,13 @@ static void sk_localproxy_set_frozen (Socket s, int is_frozen)
 
 static const char * sk_localproxy_socket_error (Socket s)
 {
-    Local_Proxy_Socket ps = (Local_Proxy_Socket) s;
+    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
     return ps->error;
 }
 
 static void localproxy_select_result(int fd, int event)
 {
-    Local_Proxy_Socket s;
+    LocalProxySocket *s;
     char buf[20480];
     int ret;
 
@@ -263,6 +260,18 @@ static void localproxy_select_result(int fd, int event)
     }
 }
 
+static const Socket_vtable LocalProxySocket_sockvt = {
+    sk_localproxy_plug,
+    sk_localproxy_close,
+    sk_localproxy_write,
+    sk_localproxy_write_oob,
+    sk_localproxy_write_eof,
+    sk_localproxy_flush,
+    sk_localproxy_set_frozen,
+    sk_localproxy_socket_error,
+    NULL, /* peer_info */
+};
+
 Socket platform_new_connection(SockAddr addr, const char *hostname,
 			       int port, int privport,
 			       int oobinline, int nodelay, int keepalive,
@@ -270,27 +279,15 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 {
     char *cmd;
 
-    static const struct socket_function_table socket_fn_table = {
-	sk_localproxy_plug,
-	sk_localproxy_close,
-	sk_localproxy_write,
-	sk_localproxy_write_oob,
-	sk_localproxy_write_eof,
-	sk_localproxy_flush,
-	sk_localproxy_set_frozen,
-	sk_localproxy_socket_error,
-        NULL, /* peer_info */
-    };
-
-    Local_Proxy_Socket ret;
+    LocalProxySocket *ret;
     int to_cmd_pipe[2], from_cmd_pipe[2], cmd_err_pipe[2], pid, proxytype;
 
     proxytype = conf_get_int(conf, CONF_proxy_type);
     if (proxytype != PROXY_CMD && proxytype != PROXY_FUZZ)
 	return NULL;
 
-    ret = snew(struct Socket_localproxy_tag);
-    ret->fn = &socket_fn_table;
+    ret = snew(LocalProxySocket);
+    ret->sockvt = &LocalProxySocket_sockvt;
     ret->plug = plug;
     ret->error = NULL;
     ret->outgoingeof = EOF_NO;
@@ -329,7 +326,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
             (cmd_err_pipe[0] == 0 && pipe(cmd_err_pipe) < 0)) {
 	    ret->error = dupprintf("pipe: %s", strerror(errno));
 	    sfree(cmd);
-	    return (Socket)ret;
+	    return &ret->sockvt;
 	}
 	cloexec(to_cmd_pipe[1]);
 	cloexec(from_cmd_pipe[0]);
@@ -341,7 +338,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 	if (pid < 0) {
 	    ret->error = dupprintf("fork: %s", strerror(errno));
 	    sfree(cmd);
-	    return (Socket)ret;
+	    return &ret->sockvt;
 	} else if (pid == 0) {
 	    close(0);
 	    close(1);
@@ -375,13 +372,13 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 	if (ret->to_cmd == -1) {
 	    ret->error = dupprintf("/dev/null: %s", strerror(errno));
 	    sfree(cmd);
-	    return (Socket)ret;
+	    return &ret->sockvt;
 	}
 	ret->from_cmd = open(cmd, O_RDONLY);
 	if (ret->from_cmd == -1) {
 	    ret->error = dupprintf("%s: %s", cmd, strerror(errno));
 	    sfree(cmd);
-	    return (Socket)ret;
+	    return &ret->sockvt;
 	}
 	sfree(cmd);
 	ret->cmd_err = -1;
@@ -406,5 +403,5 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     /* We are responsible for this and don't need it any more */
     sk_addr_free(addr);
 
-    return (Socket) ret;
+    return &ret->sockvt;
 }

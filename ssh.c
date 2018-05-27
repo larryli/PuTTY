@@ -878,14 +878,13 @@ enum RekeyClass {
 };
 
 struct ssh_tag {
-    const struct plug_function_table *fn;
-    /* the above field _must_ be first in the structure */
-
     char *v_c, *v_s;
     void *exhash;
     BinarySink *exhash_bs;
 
     Socket s;
+
+    const Plug_vtable *plugvt;
 
     void *ldisc;
     void *logctx;
@@ -3593,7 +3592,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
 static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
                            const char *error_msg, int error_code)
 {
-    Ssh ssh = (Ssh) plug;
+    Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
 
     /*
      * While we're attempting connection sharing, don't loudly log
@@ -3646,7 +3645,7 @@ void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
 static void ssh_closing(Plug plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    Ssh ssh = (Ssh) plug;
+    Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
     ssh->incoming_data_seen_eof = TRUE;
     ssh->incoming_data_eof_message = dupstr(error_msg);
     queue_idempotent_callback(&ssh->incoming_data_consumer);
@@ -3654,7 +3653,7 @@ static void ssh_closing(Plug plug, const char *error_msg, int error_code,
 
 static void ssh_receive(Plug plug, int urgent, char *data, int len)
 {
-    Ssh ssh = (Ssh) plug;
+    Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
 
     /* Log raw data, if we're in that mode. */
     if (ssh->logctx)
@@ -3671,7 +3670,7 @@ static void ssh_receive(Plug plug, int urgent, char *data, int len)
 
 static void ssh_sent(Plug plug, int bufsize)
 {
-    Ssh ssh = (Ssh) plug;
+    Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
     /*
      * If the send backlog on the SSH socket itself clears, we
      * should unthrottle the whole world if it was throttled.
@@ -3732,6 +3731,14 @@ static int ssh_test_for_upstream(const char *host, int port, Conf *conf)
     return ret;
 }
 
+static const Plug_vtable Ssh_plugvt = {
+    ssh_socket_log,
+    ssh_closing,
+    ssh_receive,
+    ssh_sent,
+    NULL
+};
+
 /*
  * Connect to specified host and port.
  * Returns an error message, or NULL on success.
@@ -3741,14 +3748,6 @@ static int ssh_test_for_upstream(const char *host, int port, Conf *conf)
 static const char *connect_to_host(Ssh ssh, const char *host, int port,
 				   char **realhost, int nodelay, int keepalive)
 {
-    static const struct plug_function_table fn_table = {
-	ssh_socket_log,
-	ssh_closing,
-	ssh_receive,
-	ssh_sent,
-	NULL
-    };
-
     SockAddr addr;
     const char *err;
     char *loghost;
@@ -3757,7 +3756,7 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
     ssh_hostport_setup(host, port, ssh->conf,
                        &ssh->savedhost, &ssh->savedport, &loghost);
 
-    ssh->fn = &fn_table;               /* make 'ssh' usable as a Plug */
+    ssh->plugvt = &Ssh_plugvt;
 
     /*
      * Try connection-sharing, in case that means we don't open a
@@ -3770,8 +3769,9 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
      */
     ssh->connshare = NULL;
     ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
-    ssh->s = ssh_connection_sharing_init(ssh->savedhost, ssh->savedport,
-                                         ssh->conf, ssh, &ssh->connshare);
+    ssh->s = ssh_connection_sharing_init(
+        ssh->savedhost, ssh->savedport, ssh->conf, ssh, &ssh->plugvt,
+        &ssh->connshare);
     ssh->attempting_connshare = FALSE;
     if (ssh->s != NULL) {
         /*
@@ -3801,7 +3801,7 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
 
         ssh->s = new_connection(addr, *realhost, port,
                                 0, 1, nodelay, keepalive,
-                                (Plug) ssh, ssh->conf);
+                                &ssh->plugvt, ssh->conf);
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             notify_remote_exit(ssh->frontend);
@@ -4090,7 +4090,7 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
     }
     ssh->close_expected = TRUE;
     ssh->clean_exit = clean_exit;
-    ssh_closing((Plug)ssh, error, 0, 0);
+    ssh_closing(&ssh->plugvt, error, 0, 0);
     sfree(error);
 }
 

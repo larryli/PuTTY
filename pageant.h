@@ -79,13 +79,13 @@ void keylist_update(void);
 /*
  * Functions to establish a listening socket speaking the SSH agent
  * protocol. Call pageant_listener_new() to set up a state; then
- * create a socket using the returned pointer as a Plug; then call
+ * create a socket using the returned Plug; then call
  * pageant_listener_got_socket() to give the listening state its own
  * socket pointer. Also, provide a logging function later if you want
  * to.
  */
 struct pageant_listen_state;
-struct pageant_listen_state *pageant_listener_new(void);
+struct pageant_listen_state *pageant_listener_new(Plug *plug);
 void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket sock);
 void pageant_listener_set_logfn(struct pageant_listen_state *pl,
                                 void *logctx, pageant_logfn_t logfn);

@@ -36,6 +36,20 @@ typedef uint32_t uint32;
 
 typedef struct BinarySink BinarySink;
 
+typedef struct SockAddr_tag *SockAddr;
+
+typedef struct Socket_vtable Socket_vtable;
+typedef struct Plug_vtable Plug_vtable;
+
+/* Note indirection: for historical reasons (it used to be closer to
+ * the OS socket type), the type that most code uses for a socket is
+ * 'Socket', not 'Socket *'. So an implementation of Socket or Plug
+ * has a 'const Socket *' field for the vtable pointer, and the
+ * 'Socket' type returned to client code is a pointer to _that_ in
+ * turn. */
+typedef const Socket_vtable **Socket;
+typedef const Plug_vtable **Plug;
+
 /* Do a compile-time type-check of 'to_check' (without evaluating it),
  * as a side effect of returning the value 'to_return'. Note that
  * although this macro double-*expands* to_return, it always

@@ -863,9 +863,6 @@ int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
     } while (0)
 
 struct pageant_conn_state {
-    const struct plug_function_table *fn;
-    /* the above variable absolutely *must* be the first in this structure */
-
     Socket connsock;
     void *logctx;
     pageant_logfn_t logfn;
@@ -873,12 +870,15 @@ struct pageant_conn_state {
     unsigned len, got;
     int real_packet;
     int crLine;            /* for coroutine in pageant_conn_receive */
+
+    const Plug_vtable *plugvt;
 };
 
 static void pageant_conn_closing(Plug plug, const char *error_msg,
 				 int error_code, int calling_back)
 {
-    struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
+    struct pageant_conn_state *pc = FROMFIELD(
+        plug, struct pageant_conn_state, plugvt);
     if (error_msg)
         plog(pc->logctx, pc->logfn, "%p: error: %s", pc, error_msg);
     else
@@ -889,7 +889,8 @@ static void pageant_conn_closing(Plug plug, const char *error_msg,
 
 static void pageant_conn_sent(Plug plug, int bufsize)
 {
-    /* struct pageant_conn_state *pc = (struct pageant_conn_state *)plug; */
+    /* struct pageant_conn_state *pc = FROMFIELD(
+        plug, struct pageant_conn_state, plugvt); */
 
     /*
      * We do nothing here, because we expect that there won't be a
@@ -910,7 +911,8 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
 
 static void pageant_conn_receive(Plug plug, int urgent, char *data, int len)
 {
-    struct pageant_conn_state *pc = (struct pageant_conn_state *)plug;
+    struct pageant_conn_state *pc = FROMFIELD(
+        plug, struct pageant_conn_state, plugvt);
     char c;
 
     crBegin(pc->crLine);
@@ -959,46 +961,48 @@ static void pageant_conn_receive(Plug plug, int urgent, char *data, int len)
 }
 
 struct pageant_listen_state {
-    const struct plug_function_table *fn;
-    /* the above variable absolutely *must* be the first in this structure */
-
     Socket listensock;
     void *logctx;
     pageant_logfn_t logfn;
+
+    const Plug_vtable *plugvt;
 };
 
 static void pageant_listen_closing(Plug plug, const char *error_msg,
 				   int error_code, int calling_back)
 {
-    struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
+    struct pageant_listen_state *pl = FROMFIELD(
+        plug, struct pageant_listen_state, plugvt);
     if (error_msg)
         plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
     sk_close(pl->listensock);
     pl->listensock = NULL;
 }
 
+static const Plug_vtable pageant_connection_plugvt = {
+    NULL, /* no log function, because that's for outgoing connections */
+    pageant_conn_closing,
+    pageant_conn_receive,
+    pageant_conn_sent,
+    NULL /* no accepting function, because we've already done it */
+};
+
 static int pageant_listen_accepting(Plug plug,
                                     accept_fn_t constructor, accept_ctx_t ctx)
 {
-    static const struct plug_function_table connection_fn_table = {
-	NULL, /* no log function, because that's for outgoing connections */
-	pageant_conn_closing,
-        pageant_conn_receive,
-        pageant_conn_sent,
-	NULL /* no accepting function, because we've already done it */
-    };
-    struct pageant_listen_state *pl = (struct pageant_listen_state *)plug;
+    struct pageant_listen_state *pl = FROMFIELD(
+        plug, struct pageant_listen_state, plugvt);
     struct pageant_conn_state *pc;
     const char *err;
     char *peerinfo;
 
     pc = snew(struct pageant_conn_state);
-    pc->fn = &connection_fn_table;
+    pc->plugvt = &pageant_connection_plugvt;
     pc->logfn = pl->logfn;
     pc->logctx = pl->logctx;
     pc->crLine = 0;
 
-    pc->connsock = constructor(ctx, (Plug) pc);
+    pc->connsock = constructor(ctx, &pc->plugvt);
     if ((err = sk_socket_error(pc->connsock)) != NULL) {
         sk_close(pc->connsock);
         sfree(pc);
@@ -1018,21 +1022,22 @@ static int pageant_listen_accepting(Plug plug,
     return 0;
 }
 
-struct pageant_listen_state *pageant_listener_new(void)
-{
-    static const struct plug_function_table listener_fn_table = {
-        NULL, /* no log function, because that's for outgoing connections */
-        pageant_listen_closing,
-        NULL, /* no receive function on a listening socket */
-        NULL, /* no sent function on a listening socket */
-        pageant_listen_accepting
-    };
+static const Plug_vtable pageant_listener_plugvt = {
+    NULL, /* no log function, because that's for outgoing connections */
+    pageant_listen_closing,
+    NULL, /* no receive function on a listening socket */
+    NULL, /* no sent function on a listening socket */
+    pageant_listen_accepting
+};
 
+struct pageant_listen_state *pageant_listener_new(Plug *plug)
+{
     struct pageant_listen_state *pl = snew(struct pageant_listen_state);
-    pl->fn = &listener_fn_table;
+    pl->plugvt = &pageant_listener_plugvt;
     pl->logctx = NULL;
     pl->logfn = NULL;
     pl->listensock = NULL;
+    *plug = &pl->plugvt;
     return pl;
 }
 

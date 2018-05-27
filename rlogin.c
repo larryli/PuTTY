@@ -12,9 +12,6 @@
 #define RLOGIN_MAX_BACKLOG 4096
 
 typedef struct rlogin_tag {
-    const struct plug_function_table *fn;
-    /* the above field _must_ be first in the structure */
-
     Socket s;
     int closed_on_socket_error;
     int bufsize;
@@ -27,6 +24,8 @@ typedef struct rlogin_tag {
 
     /* In case we need to read a username from the terminal before starting */
     prompts_t *prompt;
+
+    const Plug_vtable *plugvt;
 } *Rlogin;
 
 static void rlogin_size(void *handle, int width, int height);
@@ -40,7 +39,7 @@ static void c_write(Rlogin rlogin, const void *buf, int len)
 static void rlogin_log(Plug plug, int type, SockAddr addr, int port,
 		       const char *error_msg, int error_code)
 {
-    Rlogin rlogin = (Rlogin) plug;
+    Rlogin rlogin = FROMFIELD(plug, struct rlogin_tag, plugvt);
     backend_socket_log(rlogin->frontend, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, !rlogin->firstbyte);
@@ -49,7 +48,7 @@ static void rlogin_log(Plug plug, int type, SockAddr addr, int port,
 static void rlogin_closing(Plug plug, const char *error_msg, int error_code,
 			   int calling_back)
 {
-    Rlogin rlogin = (Rlogin) plug;
+    Rlogin rlogin = FROMFIELD(plug, struct rlogin_tag, plugvt);
 
     /*
      * We don't implement independent EOF in each direction for Telnet
@@ -73,7 +72,7 @@ static void rlogin_closing(Plug plug, const char *error_msg, int error_code,
 
 static void rlogin_receive(Plug plug, int urgent, char *data, int len)
 {
-    Rlogin rlogin = (Rlogin) plug;
+    Rlogin rlogin = FROMFIELD(plug, struct rlogin_tag, plugvt);
     if (urgent == 2) {
 	char c;
 
@@ -109,7 +108,7 @@ static void rlogin_receive(Plug plug, int urgent, char *data, int len)
 
 static void rlogin_sent(Plug plug, int bufsize)
 {
-    Rlogin rlogin = (Rlogin) plug;
+    Rlogin rlogin = FROMFIELD(plug, struct rlogin_tag, plugvt);
     rlogin->bufsize = bufsize;
 }
 
@@ -134,6 +133,13 @@ static void rlogin_startup(Rlogin rlogin, const char *ruser)
     rlogin->prompt = NULL;
 }
 
+static const Plug_vtable Rlogin_plugvt = {
+    rlogin_log,
+    rlogin_closing,
+    rlogin_receive,
+    rlogin_sent
+};
+
 /*
  * Called to set up the rlogin connection.
  * 
@@ -147,12 +153,6 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
 {
-    static const struct plug_function_table fn_table = {
-	rlogin_log,
-	rlogin_closing,
-	rlogin_receive,
-	rlogin_sent
-    };
     SockAddr addr;
     const char *err;
     Rlogin rlogin;
@@ -161,7 +161,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     char *loghost;
 
     rlogin = snew(struct rlogin_tag);
-    rlogin->fn = &fn_table;
+    rlogin->plugvt = &Rlogin_plugvt;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
     rlogin->frontend = frontend_handle;
@@ -191,7 +191,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
      * Open socket.
      */
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
-			       nodelay, keepalive, (Plug) rlogin, conf);
+			       nodelay, keepalive, &rlogin->plugvt, conf);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
 	return err;
 

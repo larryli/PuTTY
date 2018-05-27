@@ -36,16 +36,6 @@ const struct in6_addr in6addr_loopback = IN6ADDR_LOOPBACK_INIT;
 	((p_ntohl(addr.s_addr) & 0xFF000000L) == 0x7F000000L)
 
 /*
- * We used to typedef struct Socket_tag *Socket.
- *
- * Since we have made the networking abstraction slightly more
- * abstract, Socket no longer means a tcp socket (it could mean
- * an ssl socket).  So now we must use Actual_Socket when we know
- * we are talking about a tcp socket.
- */
-typedef struct Socket_tag *Actual_Socket;
-
-/*
  * Mutable state that goes with a SockAddr: stores information
  * about where in the list of candidate IP(v*) addresses we've
  * currently got to.
@@ -58,9 +48,8 @@ struct SockAddrStep_tag {
     int curraddr;
 };
 
-struct Socket_tag {
-    const struct socket_function_table *fn;
-    /* the above variable absolutely *must* be the first in this structure */
+typedef struct NetSocket NetSocket;
+struct NetSocket {
     const char *error;
     SOCKET s;
     Plug plug;
@@ -85,7 +74,9 @@ struct Socket_tag {
      * example. So here we define `parent' and `child' pointers to
      * track this link.
      */
-    Actual_Socket parent, child;
+    NetSocket *parent, *child;
+
+    const Socket_vtable *sockvt;
 };
 
 struct SockAddr_tag {
@@ -133,7 +124,7 @@ static tree234 *sktree;
 
 static int cmpfortree(void *av, void *bv)
 {
-    Actual_Socket a = (Actual_Socket) av, b = (Actual_Socket) bv;
+    NetSocket *a = (NetSocket *)av, *b = (NetSocket *)bv;
     unsigned long as = (unsigned long) a->s, bs = (unsigned long) b->s;
     if (as < bs)
 	return -1;
@@ -148,7 +139,7 @@ static int cmpfortree(void *av, void *bv)
 
 static int cmpforsearch(void *av, void *bv)
 {
-    Actual_Socket b = (Actual_Socket) bv;
+    NetSocket *b = (NetSocket *)bv;
     uintptr_t as = (uintptr_t) av, bs = (uintptr_t) b->s;
     if (as < bs)
 	return -1;
@@ -310,7 +301,7 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, htonl);
     GET_WINDOWS_FUNCTION(winsock_module, htons);
     GET_WINDOWS_FUNCTION(winsock_module, ntohs);
-    GET_WINDOWS_FUNCTION(winsock_module, gethostname);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gethostname);
 #else
     /* The toolchain I use for Windows Coverity builds doesn't know
      * the type signatures of these */
@@ -356,7 +347,7 @@ void sk_init(void)
 
 void sk_cleanup(void)
 {
-    Actual_Socket s;
+    NetSocket *s;
     int i;
 
     if (sktree) {
@@ -913,16 +904,16 @@ SockAddr sk_addr_dup(SockAddr addr)
     return addr;
 }
 
-static Plug sk_tcp_plug(Socket sock, Plug p)
+static Plug sk_net_plug(Socket sock, Plug p)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
     Plug ret = s->plug;
     if (p)
 	s->plug = p;
     return ret;
 }
 
-static void sk_tcp_flush(Socket s)
+static void sk_net_flush(Socket s)
 {
     /*
      * We send data to the socket as soon as we can anyway,
@@ -930,39 +921,39 @@ static void sk_tcp_flush(Socket s)
      */
 }
 
-static void sk_tcp_close(Socket s);
-static int sk_tcp_write(Socket s, const void *data, int len);
-static int sk_tcp_write_oob(Socket s, const void *data, int len);
-static void sk_tcp_write_eof(Socket s);
-static void sk_tcp_set_frozen(Socket s, int is_frozen);
-static const char *sk_tcp_socket_error(Socket s);
-static char *sk_tcp_peer_info(Socket s);
+static void sk_net_close(Socket s);
+static int sk_net_write(Socket s, const void *data, int len);
+static int sk_net_write_oob(Socket s, const void *data, int len);
+static void sk_net_write_eof(Socket s);
+static void sk_net_set_frozen(Socket s, int is_frozen);
+static const char *sk_net_socket_error(Socket s);
+static char *sk_net_peer_info(Socket s);
 
 extern char *do_select(SOCKET skt, int startup);
 
-static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
-{
-    static const struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_write_eof,
-	sk_tcp_flush,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error,
-	sk_tcp_peer_info,
-    };
+static const Socket_vtable NetSocket_sockvt = {
+    sk_net_plug,
+    sk_net_close,
+    sk_net_write,
+    sk_net_write_oob,
+    sk_net_write_eof,
+    sk_net_flush,
+    sk_net_set_frozen,
+    sk_net_socket_error,
+    sk_net_peer_info,
+};
 
+static Socket sk_net_accept(accept_ctx_t ctx, Plug plug)
+{
     DWORD err;
     char *errstr;
-    Actual_Socket ret;
+    NetSocket *ret;
 
     /*
-     * Create Socket structure.
+     * Create NetSocket structure.
      */
-    ret = snew(struct Socket_tag);
-    ret->fn = &fn_table;
+    ret = snew(NetSocket);
+    ret->sockvt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -981,7 +972,7 @@ static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
     if (ret->s == INVALID_SOCKET) {
 	err = p_WSAGetLastError();
 	ret->error = winsock_error_string(err);
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
     ret->oobinline = 0;
@@ -991,15 +982,15 @@ static Socket sk_tcp_accept(accept_ctx_t ctx, Plug plug)
     errstr = do_select(ret->s, 1);
     if (errstr) {
 	ret->error = errstr;
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
     add234(sktree, ret);
 
-    return (Socket) ret;
+    return &ret->sockvt;
 }
 
-static DWORD try_connect(Actual_Socket sock)
+static DWORD try_connect(NetSocket *sock)
 {
     SOCKET s;
 #ifndef NO_IPV6
@@ -1200,26 +1191,14 @@ static DWORD try_connect(Actual_Socket sock)
 Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
 	      int nodelay, int keepalive, Plug plug)
 {
-    static const struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_write_eof,
-	sk_tcp_flush,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error,
-	sk_tcp_peer_info,
-    };
-
-    Actual_Socket ret;
+    NetSocket *ret;
     DWORD err;
 
     /*
-     * Create Socket structure.
+     * Create NetSocket structure.
      */
-    ret = snew(struct Socket_tag);
-    ret->fn = &fn_table;
+    ret = snew(NetSocket);
+    ret->sockvt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -1246,24 +1225,12 @@ Socket sk_new(SockAddr addr, int port, int privport, int oobinline,
         err = try_connect(ret);
     } while (err && sk_nextaddr(ret->addr, &ret->step));
 
-    return (Socket) ret;
+    return &ret->sockvt;
 }
 
 Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
                       int local_host_only, int orig_address_family)
 {
-    static const struct socket_function_table fn_table = {
-	sk_tcp_plug,
-	sk_tcp_close,
-	sk_tcp_write,
-	sk_tcp_write_oob,
-	sk_tcp_write_eof,
-	sk_tcp_flush,
-	sk_tcp_set_frozen,
-	sk_tcp_socket_error,
-	sk_tcp_peer_info,
-    };
-
     SOCKET s;
 #ifndef NO_IPV6
     SOCKADDR_IN6 a6;
@@ -1272,17 +1239,17 @@ Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
 
     DWORD err;
     char *errstr;
-    Actual_Socket ret;
+    NetSocket *ret;
     int retcode;
     int on = 1;
 
     int address_family;
 
     /*
-     * Create Socket structure.
+     * Create NetSocket structure.
      */
-    ret = snew(struct Socket_tag);
-    ret->fn = &fn_table;
+    ret = snew(NetSocket);
+    ret->sockvt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -1324,10 +1291,10 @@ Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
     if (s == INVALID_SOCKET) {
 	err = p_WSAGetLastError();
 	ret->error = winsock_error_string(err);
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
-	SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
     ret->oobinline = 0;
 
@@ -1410,14 +1377,14 @@ Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
     if (err) {
 	p_closesocket(s);
 	ret->error = winsock_error_string(err);
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
 
     if (p_listen(s, SOMAXCONN) == SOCKET_ERROR) {
         p_closesocket(s);
 	ret->error = winsock_error_string(p_WSAGetLastError());
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
     /* Set up a select mechanism. This could be an AsyncSelect on a
@@ -1426,7 +1393,7 @@ Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
     if (errstr) {
 	p_closesocket(s);
 	ret->error = errstr;
-	return (Socket) ret;
+	return &ret->sockvt;
     }
 
     add234(sktree, ret);
@@ -1437,32 +1404,31 @@ Socket sk_newlistener(const char *srcaddr, int port, Plug plug,
      * IPv6 listening socket and link it to this one.
      */
     if (address_family == AF_INET && orig_address_family == ADDRTYPE_UNSPEC) {
-	Actual_Socket other;
-
-	other = (Actual_Socket) sk_newlistener(srcaddr, port, plug,
-					       local_host_only, ADDRTYPE_IPV6);
+	Socket other = sk_newlistener(srcaddr, port, plug,
+                                      local_host_only, ADDRTYPE_IPV6);
 
 	if (other) {
-	    if (!other->error) {
-		other->parent = ret;
-		ret->child = other;
+            NetSocket *ns = FROMFIELD(other, NetSocket, sockvt);
+	    if (!ns->error) {
+		ns->parent = ret;
+		ret->child = ns;
 	    } else {
-		sfree(other);
+		sfree(ns);
 	    }
 	}
     }
 #endif
 
-    return (Socket) ret;
+    return &ret->sockvt;
 }
 
-static void sk_tcp_close(Socket sock)
+static void sk_net_close(Socket sock)
 {
     extern char *do_select(SOCKET skt, int startup);
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
 
     if (s->child)
-	sk_tcp_close((Socket)s->child);
+	sk_net_close(&s->child->sockvt);
 
     del234(sktree, s);
     do_select(s->s, 0);
@@ -1477,7 +1443,7 @@ static void sk_tcp_close(Socket sock)
  */
 static void socket_error_callback(void *vs)
 {
-    Actual_Socket s = (Actual_Socket)vs;
+    NetSocket *s = (NetSocket *)vs;
 
     /*
      * Just in case other socket work has caused this socket to vanish
@@ -1497,7 +1463,7 @@ static void socket_error_callback(void *vs)
  * The function which tries to send on a socket once it's deemed
  * writable.
  */
-void try_send(Actual_Socket s)
+void try_send(NetSocket *s)
 {
     while (s->sending_oob || bufchain_size(&s->output_data) > 0) {
 	int nsent;
@@ -1568,9 +1534,9 @@ void try_send(Actual_Socket s)
     }
 }
 
-static int sk_tcp_write(Socket sock, const void *buf, int len)
+static int sk_net_write(Socket sock, const void *buf, int len)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1588,9 +1554,9 @@ static int sk_tcp_write(Socket sock, const void *buf, int len)
     return bufchain_size(&s->output_data);
 }
 
-static int sk_tcp_write_oob(Socket sock, const void *buf, int len)
+static int sk_net_write_oob(Socket sock, const void *buf, int len)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1611,9 +1577,9 @@ static int sk_tcp_write_oob(Socket sock, const void *buf, int len)
     return s->sending_oob;
 }
 
-static void sk_tcp_write_eof(Socket sock)
+static void sk_net_write_eof(Socket sock)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1634,7 +1600,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
     int ret;
     DWORD err;
     char buf[20480];		       /* nice big buffer for plenty of speed */
-    Actual_Socket s;
+    NetSocket *s;
     u_long atmark;
 
     /* wParam is the socket itself */
@@ -1798,7 +1764,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
 #endif
 	    {
 		p_closesocket(t);      /* dodgy WinSock let nonlocal through */
-	    } else if (plug_accepting(s->plug, sk_tcp_accept, actx)) {
+	    } else if (plug_accepting(s->plug, sk_net_accept, actx)) {
 		p_closesocket(t);      /* denied or error */
 	    }
 	}
@@ -1814,15 +1780,15 @@ const char *sk_addr_error(SockAddr addr)
 {
     return addr->error;
 }
-static const char *sk_tcp_socket_error(Socket sock)
+static const char *sk_net_socket_error(Socket sock)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
     return s->error;
 }
 
-static char *sk_tcp_peer_info(Socket sock)
+static char *sk_net_peer_info(Socket sock)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
 #ifdef NO_IPV6
     struct sockaddr_in addr;
 #else
@@ -1852,9 +1818,9 @@ static char *sk_tcp_peer_info(Socket sock)
     }
 }
 
-static void sk_tcp_set_frozen(Socket sock, int is_frozen)
+static void sk_net_set_frozen(Socket sock, int is_frozen)
 {
-    Actual_Socket s = (Actual_Socket) sock;
+    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
@@ -1870,7 +1836,7 @@ static void sk_tcp_set_frozen(Socket sock, int is_frozen)
 
 void socket_reselect_all(void)
 {
-    Actual_Socket s;
+    NetSocket *s;
     int i;
 
     for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
@@ -1884,7 +1850,7 @@ void socket_reselect_all(void)
  */
 SOCKET first_socket(int *state)
 {
-    Actual_Socket s;
+    NetSocket *s;
     *state = 0;
     s = index234(sktree, (*state)++);
     return s ? s->s : INVALID_SOCKET;
@@ -1892,13 +1858,13 @@ SOCKET first_socket(int *state)
 
 SOCKET next_socket(int *state)
 {
-    Actual_Socket s = index234(sktree, (*state)++);
+    NetSocket *s = index234(sktree, (*state)++);
     return s ? s->s : INVALID_SOCKET;
 }
 
 extern int socket_writable(SOCKET skt)
 {
-    Actual_Socket s = find234(sktree, (void *)skt, cmpforsearch);
+    NetSocket *s = find234(sktree, (void *)skt, cmpforsearch);
 
     if (s)
 	return bufchain_size(&s->output_data) > 0;

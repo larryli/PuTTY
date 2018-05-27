@@ -11,9 +11,6 @@
 #define RAW_MAX_BACKLOG 4096
 
 typedef struct raw_backend_data {
-    const struct plug_function_table *fn;
-    /* the above field _must_ be first in the structure */
-
     Socket s;
     int closed_on_socket_error;
     int bufsize;
@@ -21,6 +18,8 @@ typedef struct raw_backend_data {
     int sent_console_eof, sent_socket_eof, session_started;
 
     Conf *conf;
+
+    const Plug_vtable *plugvt;
 } *Raw;
 
 static void raw_size(void *handle, int width, int height);
@@ -34,7 +33,7 @@ static void c_write(Raw raw, const void *buf, int len)
 static void raw_log(Plug plug, int type, SockAddr addr, int port,
 		    const char *error_msg, int error_code)
 {
-    Raw raw = (Raw) plug;
+    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
     backend_socket_log(raw->frontend, type, addr, port,
                        error_msg, error_code, raw->conf, raw->session_started);
 }
@@ -57,7 +56,7 @@ static void raw_check_close(Raw raw)
 static void raw_closing(Plug plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    Raw raw = (Raw) plug;
+    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
 
     if (error_msg) {
         /* A socket error has occurred. */
@@ -89,7 +88,7 @@ static void raw_closing(Plug plug, const char *error_msg, int error_code,
 
 static void raw_receive(Plug plug, int urgent, char *data, int len)
 {
-    Raw raw = (Raw) plug;
+    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
     c_write(raw, data, len);
     /* We count 'session start', for proxy logging purposes, as being
      * when data is received from the network and printed. */
@@ -98,9 +97,16 @@ static void raw_receive(Plug plug, int urgent, char *data, int len)
 
 static void raw_sent(Plug plug, int bufsize)
 {
-    Raw raw = (Raw) plug;
+    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
     raw->bufsize = bufsize;
 }
+
+static const Plug_vtable Raw_plugvt = {
+    raw_log,
+    raw_closing,
+    raw_receive,
+    raw_sent
+};
 
 /*
  * Called to set up the raw connection.
@@ -115,12 +121,6 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
 			    const char *host, int port, char **realhost,
                             int nodelay, int keepalive)
 {
-    static const struct plug_function_table fn_table = {
-	raw_log,
-	raw_closing,
-	raw_receive,
-	raw_sent
-    };
     SockAddr addr;
     const char *err;
     Raw raw;
@@ -128,7 +128,7 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     char *loghost;
 
     raw = snew(struct raw_backend_data);
-    raw->fn = &fn_table;
+    raw->plugvt = &Raw_plugvt;
     raw->s = NULL;
     raw->closed_on_socket_error = FALSE;
     *backend_handle = raw;
@@ -157,7 +157,7 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
      * Open socket.
      */
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, keepalive,
-			    (Plug) raw, conf);
+			    &raw->plugvt, conf);
     if ((err = sk_socket_error(raw->s)) != NULL)
 	return err;
 
