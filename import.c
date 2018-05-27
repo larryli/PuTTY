@@ -649,7 +649,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         /* And now for something completely different */
         unsigned char *priv;
         int privlen;
-        const struct ssh_signkey *alg;
+        const ssh_keyalg *alg;
         const struct ec_curve *curve;
         /* Read INTEGER 1 */
         ret = ber_read_id_len(p, key->keyblob+key->keyblob_len-p,
@@ -980,6 +980,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
                key->alg == &ssh_ecdsa_nistp384 ||
                key->alg == &ssh_ecdsa_nistp521) {
         const unsigned char *oid;
+        struct ec_key *ec = FROMFIELD(key->data, struct ec_key, sshk);
         int oidlen;
         int pointlen;
         strbuf *seq, *sub;
@@ -995,8 +996,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
          *     BIT STRING (0x00 public key point)
          */
         oid = ec_alg_oid(key->alg, &oidlen);
-        pointlen = (((struct ec_key *)key->data)->publicKey.curve->fieldBits
-                    + 7) / 8 * 2;
+        pointlen = (ec->publicKey.curve->fieldBits + 7) / 8 * 2;
 
         seq = strbuf_new();
 
@@ -1430,7 +1430,7 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     unsigned checkint0, checkint1;
     const void *priv, *string;
     int privlen, stringlen, key_index;
-    const struct ssh_signkey *alg = NULL;
+    const ssh_keyalg *alg = NULL;
 
     if (!key)
 	return NULL;
@@ -2114,7 +2114,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
     char *ciphertext;
     int cipherlen;
     struct ssh2_userkey *ret = NULL, *retkey;
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     strbuf *blob = NULL;
 
     if (!key)

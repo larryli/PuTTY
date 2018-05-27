@@ -74,6 +74,9 @@ void share_setup_x11_channel(void *csv, void *chanv,
 typedef void *Bignum;
 #endif
 
+typedef struct ssh_key {} ssh_key;
+typedef struct ssh_keyalg ssh_keyalg;
+
 struct RSAKey {
     int bits;
     int bytes;
@@ -84,10 +87,12 @@ struct RSAKey {
     Bignum q;
     Bignum iqmp;
     char *comment;
+    ssh_key sshk;
 };
 
 struct dss_key {
     Bignum p, q, g, y, x;
+    ssh_key sshk;
 };
 
 struct ec_curve;
@@ -141,23 +146,22 @@ struct ec_curve {
     };
 };
 
-const struct ssh_signkey *ec_alg_by_oid(int len, const void *oid,
+const ssh_keyalg *ec_alg_by_oid(int len, const void *oid,
                                         const struct ec_curve **curve);
-const unsigned char *ec_alg_oid(const struct ssh_signkey *alg, int *oidlen);
+const unsigned char *ec_alg_oid(const ssh_keyalg *alg, int *oidlen);
 extern const int ec_nist_curve_lengths[], n_ec_nist_curve_lengths;
 int ec_nist_alg_and_curve_by_bits(int bits,
                                   const struct ec_curve **curve,
-                                  const struct ssh_signkey **alg);
+                                  const ssh_keyalg **alg);
 int ec_ed_alg_and_curve_by_bits(int bits,
                                 const struct ec_curve **curve,
-                                const struct ssh_signkey **alg);
-
-struct ssh_signkey;
+                                const ssh_keyalg **alg);
 
 struct ec_key {
-    const struct ssh_signkey *signalg;
+    const ssh_keyalg *signalg;
     struct ec_point publicKey;
     Bignum privateKey;
+    struct ssh_key sshk;
 };
 
 struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve);
@@ -203,22 +207,22 @@ int detect_attack(void *handle, unsigned char *buf, uint32 len,
  * SSH2 RSA key exchange functions
  */
 struct ssh_hash;
-void *ssh_rsakex_newkey(const void *data, int len);
-void ssh_rsakex_freekey(void *key);
-int ssh_rsakex_klen(void *key);
+struct RSAKey *ssh_rsakex_newkey(const void *data, int len);
+void ssh_rsakex_freekey(struct RSAKey *key);
+int ssh_rsakex_klen(struct RSAKey *key);
 void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
-                        unsigned char *out, int outlen,
-                        void *key);
+                        unsigned char *out, int outlen, struct RSAKey *key);
 
 /*
  * SSH2 ECDH key exchange functions
  */
 struct ssh_kex;
 const char *ssh_ecdhkex_curve_textname(const struct ssh_kex *kex);
-void *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
-void ssh_ecdhkex_freekey(void *key);
-void ssh_ecdhkex_getpublic(void *key, BinarySink *bs);
-Bignum ssh_ecdhkex_getkey(void *key, char *remoteKey, int remoteKeyLen);
+struct ec_key *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
+void ssh_ecdhkex_freekey(struct ec_key *key);
+void ssh_ecdhkex_getpublic(struct ec_key *key, BinarySink *bs);
+Bignum ssh_ecdhkex_getkey(struct ec_key *key,
+                          char *remoteKey, int remoteKeyLen);
 
 /*
  * Helper function for k generation in DSA, reused in ECDSA
@@ -380,19 +384,19 @@ struct ssh_kexes {
     const struct ssh_kex *const *list;
 };
 
-struct ssh_signkey {
-    void *(*newkey) (const struct ssh_signkey *self,
-                     const void *data, int len);
-    void (*freekey) (void *key);
-    char *(*fmtkey) (void *key);
-    void (*public_blob)(void *key, BinarySink *);
-    void (*private_blob)(void *key, BinarySink *);
-    void *(*createkey) (const struct ssh_signkey *self,
-                        const void *pub_blob, int pub_len,
-			const void *priv_blob, int priv_len);
-    void *(*openssh_createkey) (const struct ssh_signkey *self,
-                                const unsigned char **blob, int *len);
-    void (*openssh_fmtkey) (void *key, BinarySink *);
+struct ssh_keyalg {
+    ssh_key *(*newkey) (const ssh_keyalg *self,
+                        const void *data, int len);
+    void (*freekey) (ssh_key *key);
+    char *(*fmtkey) (ssh_key *key);
+    void (*public_blob)(ssh_key *key, BinarySink *);
+    void (*private_blob)(ssh_key *key, BinarySink *);
+    ssh_key *(*createkey) (const ssh_keyalg *self,
+                           const void *pub_blob, int pub_len,
+                           const void *priv_blob, int priv_len);
+    ssh_key *(*openssh_createkey) (const ssh_keyalg *self,
+                                   const unsigned char **blob, int *len);
+    void (*openssh_fmtkey) (ssh_key *key, BinarySink *);
     /* OpenSSH private key blobs, as created by openssh_fmtkey and
      * consumed by openssh_createkey, always (at least so far...) take
      * the form of a number of SSH-2 strings / mpints concatenated
@@ -402,11 +406,11 @@ struct ssh_signkey {
      * skip over the right number to find the next key in the file.
      * openssh_private_npieces gives that information. */
     int openssh_private_npieces;
-    int (*pubkey_bits) (const struct ssh_signkey *self,
+    int (*pubkey_bits) (const ssh_keyalg *self,
                         const void *blob, int len);
-    int (*verifysig) (void *key, const void *sig, int siglen,
+    int (*verifysig) (ssh_key *key, const void *sig, int siglen,
 		      const void *data, int datalen);
-    void (*sign) (void *key, const void *data, int datalen, BinarySink *);
+    void (*sign) (ssh_key *key, const void *data, int datalen, BinarySink *);
     const char *name;
     const char *keytype;               /* for host key cache */
     const void *extra;                 /* private to the public key methods */
@@ -430,8 +434,8 @@ struct ssh_compress {
 };
 
 struct ssh2_userkey {
-    const struct ssh_signkey *alg;     /* the key algorithm */
-    void *data;			       /* the key data */
+    const ssh_keyalg *alg;             /* the key algorithm */
+    ssh_key *data;                     /* the key data */
     char *comment;		       /* the key comment */
 };
 
@@ -457,12 +461,12 @@ extern const struct ssh_kexes ssh_diffiehellman_gex;
 extern const struct ssh_kexes ssh_gssk5_sha1_kex;
 extern const struct ssh_kexes ssh_rsa_kex;
 extern const struct ssh_kexes ssh_ecdh_kex;
-extern const struct ssh_signkey ssh_dss;
-extern const struct ssh_signkey ssh_rsa;
-extern const struct ssh_signkey ssh_ecdsa_ed25519;
-extern const struct ssh_signkey ssh_ecdsa_nistp256;
-extern const struct ssh_signkey ssh_ecdsa_nistp384;
-extern const struct ssh_signkey ssh_ecdsa_nistp521;
+extern const ssh_keyalg ssh_dss;
+extern const ssh_keyalg ssh_rsa;
+extern const ssh_keyalg ssh_ecdsa_ed25519;
+extern const ssh_keyalg ssh_ecdsa_nistp256;
+extern const ssh_keyalg ssh_ecdsa_nistp384;
+extern const ssh_keyalg ssh_ecdsa_nistp521;
 extern const struct ssh_mac ssh_hmac_md5;
 extern const struct ssh_mac ssh_hmac_sha1;
 extern const struct ssh_mac ssh_hmac_sha1_buggy;
@@ -727,8 +731,8 @@ int ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
                          char **commentptr, const char **errorstr);
 int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 		      char *passphrase);
-const struct ssh_signkey *find_pubkey_alg(const char *name);
-const struct ssh_signkey *find_pubkey_alg_len(int namelen, const char *name);
+const ssh_keyalg *find_pubkey_alg(const char *name);
+const ssh_keyalg *find_pubkey_alg_len(int namelen, const char *name);
 
 enum {
     SSH_KEYTYPE_UNOPENABLE,
@@ -780,7 +784,7 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
                        const void *v_pub_blob, int pub_len,
                        int keytype);
 char *ssh2_fingerprint_blob(const void *blob, int bloblen);
-char *ssh2_fingerprint(const struct ssh_signkey *alg, void *data);
+char *ssh2_fingerprint(const ssh_keyalg *alg, ssh_key *key);
 int key_type(const Filename *filename);
 const char *key_type_to_str(int type);
 

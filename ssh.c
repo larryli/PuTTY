@@ -426,7 +426,7 @@ static void ssh2_connection_input(Ssh ssh);
 #define OUR_V2_PACKETLIMIT 0x9000UL
 
 struct ssh_signkey_with_user_pref_id {
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     int id;
 };
 const static struct ssh_signkey_with_user_pref_id hostkey_algs[] = {
@@ -909,7 +909,7 @@ struct ssh_tag {
     const struct ssh_compress *cscomp, *sccomp;
     void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
-    const struct ssh_signkey *hostkey;
+    const ssh_keyalg *hostkey;
     char *hostkey_str; /* string representation, for easy checking in rekeys */
     unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
@@ -4095,7 +4095,7 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
 }
 
 int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
-                               const struct ssh_signkey *ssh2keytype,
+                               const ssh_keyalg *ssh2keytype,
                                void *ssh2keydata)
 {
     if (!conf_get_str_nthstrkey(ssh->conf, CONF_ssh_manual_hostkeys, 0)) {
@@ -6377,7 +6377,7 @@ struct kexinit_algorithm {
 	    int warn;
 	} kex;
 	struct {
-            const struct ssh_signkey *hostkey;
+            const ssh_keyalg *hostkey;
             int warn;
         } hk;
 	struct {
@@ -6438,7 +6438,7 @@ static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
  * we permit precisely those host keys in non-GSS rekeys.
  */
 struct ssh_transient_hostkey_cache_entry {
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     strbuf *pub_blob;
 };
 
@@ -6452,7 +6452,7 @@ static int ssh_transient_hostkey_cache_cmp(void *av, void *bv)
 
 static int ssh_transient_hostkey_cache_find(void *av, void *bv)
 {
-    const struct ssh_signkey *aalg = (const struct ssh_signkey *)av;
+    const ssh_keyalg *aalg = (const ssh_keyalg *)av;
     const struct ssh_transient_hostkey_cache_entry
         *b = (const struct ssh_transient_hostkey_cache_entry *)bv;
     return strcmp(aalg->name, b->alg->name);
@@ -6475,7 +6475,7 @@ static void ssh_cleanup_transient_hostkey_store(Ssh ssh)
 }
 
 static void ssh_store_transient_hostkey(
-    Ssh ssh, const struct ssh_signkey *alg, void *key)
+    Ssh ssh, const ssh_keyalg *alg, ssh_key *key)
 {
     struct ssh_transient_hostkey_cache_entry *ent, *retd;
 
@@ -6494,7 +6494,7 @@ static void ssh_store_transient_hostkey(
 }
 
 static int ssh_verify_transient_hostkey(
-    Ssh ssh, const struct ssh_signkey *alg, void *key)
+    Ssh ssh, const ssh_keyalg *alg, ssh_key *key)
 {
     struct ssh_transient_hostkey_cache_entry *ent;
     int toret = FALSE;
@@ -6515,7 +6515,7 @@ static int ssh_verify_transient_hostkey(
     return toret;
 }
 
-static int ssh_have_transient_hostkey(Ssh ssh, const struct ssh_signkey *alg)
+static int ssh_have_transient_hostkey(Ssh ssh, const ssh_keyalg *alg)
 {
     struct ssh_transient_hostkey_cache_entry *ent =
         find234(ssh->transient_hostkey_cache, (void *)alg,
@@ -6567,9 +6567,9 @@ static void do_ssh2_transport(void *vctx)
 	const struct ssh_compress *sccomp_tobe;
 	char *hostkeydata, *sigdata, *rsakeydata, *keystr, *fingerprint;
 	int hostkeylen, siglen, rsakeylen;
-	void *hkey;		       /* actual host key */
-	void *rsakey;		       /* for RSA kex */
-        void *eckey;                   /* for ECDH kex */
+	ssh_key *hkey;		       /* actual host key */
+	struct RSAKey *rsakey;         /* for RSA kex */
+        struct ec_key *eckey;          /* for ECDH kex */
 	unsigned char exchange_hash[SSH2_KEX_MAX_HASH_LEN];
 	int n_preferred_kex;
         int can_gssapi_keyex;
@@ -12710,7 +12710,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
             ADD_SPECIALS(uncert_start);
             for (i = 0; i < ssh->n_uncert_hostkeys; i++) {
                 struct telnet_special uncert[1];
-                const struct ssh_signkey *alg =
+                const ssh_keyalg *alg =
                     hostkey_algs[ssh->uncert_hostkeys[i]].alg;
                 uncert[0].name = alg->name;
                 uncert[0].code = TS_LOCALSTART + ssh->uncert_hostkeys[i];

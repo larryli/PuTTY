@@ -248,7 +248,7 @@ int main(int argc, char **argv)
     struct RSAKey *ssh1key = NULL;
     strbuf *ssh2blob = NULL;
     char *ssh2alg = NULL;
-    const struct ssh_signkey *ssh2algf = NULL;
+    const ssh_keyalg *ssh2algf = NULL;
     char *old_passphrase = NULL, *new_passphrase = NULL;
     int load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
@@ -722,21 +722,21 @@ int main(int argc, char **argv)
 	    struct dss_key *dsskey = snew(struct dss_key);
 	    dsa_generate(dsskey, bits, progressfn, &prog);
 	    ssh2key = snew(struct ssh2_userkey);
-	    ssh2key->data = dsskey;
+	    ssh2key->data = &dsskey->sshk;
 	    ssh2key->alg = &ssh_dss;
 	    ssh1key = NULL;
         } else if (keytype == ECDSA) {
             struct ec_key *ec = snew(struct ec_key);
             ec_generate(ec, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->data = ec;
+            ssh2key->data = &ec->sshk;
             ssh2key->alg = ec->signalg;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
             struct ec_key *ec = snew(struct ec_key);
             ec_edgenerate(ec, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->data = ec;
+            ssh2key->data = &ec->sshk;
             ssh2key->alg = &ssh_ecdsa_ed25519;
             ssh1key = NULL;
 	} else {
@@ -747,7 +747,7 @@ int main(int argc, char **argv)
 		ssh1key = rsakey;
 	    } else {
 		ssh2key = snew(struct ssh2_userkey);
-		ssh2key->data = rsakey;
+		ssh2key->data = &rsakey->sshk;
 		ssh2key->alg = &ssh_rsa;
 	    }
 	}

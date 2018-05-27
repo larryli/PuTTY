@@ -528,10 +528,10 @@ static Bignum getmp(const char **data, int *datalen)
     return b;
 }
 
-static void rsa2_freekey(void *key);   /* forward reference */
+static void rsa2_freekey(ssh_key *key);   /* forward reference */
 
-static void *rsa2_newkey(const struct ssh_signkey *self,
-                         const void *vdata, int len)
+static ssh_key *rsa2_newkey(const ssh_keyalg *self,
+                            const void *vdata, int len)
 {
     const char *p;
     const char *data = (const char *)vdata;
@@ -552,23 +552,23 @@ static void *rsa2_newkey(const struct ssh_signkey *self,
     rsa->comment = NULL;
 
     if (!rsa->exponent || !rsa->modulus) {
-        rsa2_freekey(rsa);
+        rsa2_freekey(&rsa->sshk);
         return NULL;
     }
 
-    return rsa;
+    return &rsa->sshk;
 }
 
-static void rsa2_freekey(void *key)
+static void rsa2_freekey(ssh_key *key)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
     freersakey(rsa);
     sfree(rsa);
 }
 
-static char *rsa2_fmtkey(void *key)
+static char *rsa2_fmtkey(ssh_key *key)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
     char *p;
     int len;
 
@@ -578,18 +578,18 @@ static char *rsa2_fmtkey(void *key)
     return p;
 }
 
-static void rsa2_public_blob(void *key, BinarySink *bs)
+static void rsa2_public_blob(ssh_key *key, BinarySink *bs)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
 
     put_stringz(bs, "ssh-rsa");
     put_mp_ssh2(bs, rsa->exponent);
     put_mp_ssh2(bs, rsa->modulus);
 }
 
-static void rsa2_private_blob(void *key, BinarySink *bs)
+static void rsa2_private_blob(ssh_key *key, BinarySink *bs)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
 
     put_mp_ssh2(bs, rsa->private_exponent);
     put_mp_ssh2(bs, rsa->p);
@@ -597,29 +597,30 @@ static void rsa2_private_blob(void *key, BinarySink *bs)
     put_mp_ssh2(bs, rsa->iqmp);
 }
 
-static void *rsa2_createkey(const struct ssh_signkey *self,
-                            const void *pub_blob, int pub_len,
-			    const void *priv_blob, int priv_len)
+static ssh_key *rsa2_createkey(const ssh_keyalg *self,
+                               const void *pub_blob, int pub_len,
+                               const void *priv_blob, int priv_len)
 {
     struct RSAKey *rsa;
     const char *pb = (const char *) priv_blob;
 
-    rsa = rsa2_newkey(self, pub_blob, pub_len);
+    rsa = FROMFIELD(rsa2_newkey(self, pub_blob, pub_len),
+                    struct RSAKey, sshk);
     rsa->private_exponent = getmp(&pb, &priv_len);
     rsa->p = getmp(&pb, &priv_len);
     rsa->q = getmp(&pb, &priv_len);
     rsa->iqmp = getmp(&pb, &priv_len);
 
     if (!rsa_verify(rsa)) {
-	rsa2_freekey(rsa);
+	rsa2_freekey(&rsa->sshk);
 	return NULL;
     }
 
-    return rsa;
+    return &rsa->sshk;
 }
 
-static void *rsa2_openssh_createkey(const struct ssh_signkey *self,
-                                    const unsigned char **blob, int *len)
+static ssh_key *rsa2_openssh_createkey(const ssh_keyalg *self,
+                                       const unsigned char **blob, int *len)
 {
     const char **b = (const char **) blob;
     struct RSAKey *rsa;
@@ -636,21 +637,21 @@ static void *rsa2_openssh_createkey(const struct ssh_signkey *self,
 
     if (!rsa->modulus || !rsa->exponent || !rsa->private_exponent ||
 	!rsa->iqmp || !rsa->p || !rsa->q) {
-        rsa2_freekey(rsa);
+        rsa2_freekey(&rsa->sshk);
 	return NULL;
     }
 
     if (!rsa_verify(rsa)) {
-	rsa2_freekey(rsa);
+	rsa2_freekey(&rsa->sshk);
 	return NULL;
     }
 
-    return rsa;
+    return &rsa->sshk;
 }
 
-static void rsa2_openssh_fmtkey(void *key, BinarySink *bs)
+static void rsa2_openssh_fmtkey(ssh_key *key, BinarySink *bs)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
 
     put_mp_ssh2(bs, rsa->modulus);
     put_mp_ssh2(bs, rsa->exponent);
@@ -660,17 +661,18 @@ static void rsa2_openssh_fmtkey(void *key, BinarySink *bs)
     put_mp_ssh2(bs, rsa->q);
 }
 
-static int rsa2_pubkey_bits(const struct ssh_signkey *self,
+static int rsa2_pubkey_bits(const ssh_keyalg *self,
                             const void *blob, int len)
 {
     struct RSAKey *rsa;
     int ret;
 
-    rsa = rsa2_newkey(self, blob, len);
+    rsa = FROMFIELD(rsa2_newkey(self, blob, len),
+                    struct RSAKey, sshk);
     if (!rsa)
 	return -1;
     ret = bignum_bitcount(rsa->modulus);
-    rsa2_freekey(rsa);
+    rsa2_freekey(&rsa->sshk);
 
     return ret;
 }
@@ -706,10 +708,10 @@ static const unsigned char asn1_weird_stuff[] = {
 
 #define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
 
-static int rsa2_verifysig(void *key, const void *vsig, int siglen,
+static int rsa2_verifysig(ssh_key *key, const void *vsig, int siglen,
 			  const void *data, int datalen)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
     const char *sig = (const char *)vsig;
     Bignum in, out;
     const char *p;
@@ -757,10 +759,10 @@ static int rsa2_verifysig(void *key, const void *vsig, int siglen,
     return ret;
 }
 
-static void rsa2_sign(void *key, const void *data, int datalen,
+static void rsa2_sign(ssh_key *key, const void *data, int datalen,
                       BinarySink *bs)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
+    struct RSAKey *rsa = FROMFIELD(key, struct RSAKey, sshk);
     unsigned char *bytes;
     int nbytes;
     unsigned char hash[20];
@@ -796,7 +798,7 @@ static void rsa2_sign(void *key, const void *data, int datalen,
     freebn(out);
 }
 
-const struct ssh_signkey ssh_rsa = {
+const ssh_keyalg ssh_rsa = {
     rsa2_newkey,
     rsa2_freekey,
     rsa2_fmtkey,
@@ -814,20 +816,19 @@ const struct ssh_signkey ssh_rsa = {
     NULL,
 };
 
-void *ssh_rsakex_newkey(const void *data, int len)
+struct RSAKey *ssh_rsakex_newkey(const void *data, int len)
 {
-    return rsa2_newkey(&ssh_rsa, data, len);
+    return FROMFIELD(rsa2_newkey(&ssh_rsa, data, len),
+                     struct RSAKey, sshk);
 }
 
-void ssh_rsakex_freekey(void *key)
+void ssh_rsakex_freekey(struct RSAKey *key)
 {
-    rsa2_freekey(key);
+    rsa2_freekey(&key->sshk);
 }
 
-int ssh_rsakex_klen(void *key)
+int ssh_rsakex_klen(struct RSAKey *rsa)
 {
-    struct RSAKey *rsa = (struct RSAKey *) key;
-
     return bignum_bitcount(rsa->modulus);
 }
 
@@ -860,11 +861,9 @@ static void oaep_mask(const struct ssh_hash *h, void *seed, int seedlen,
 }
 
 void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
-                        unsigned char *out, int outlen,
-                        void *key)
+                        unsigned char *out, int outlen, struct RSAKey *rsa)
 {
     Bignum b1, b2;
-    struct RSAKey *rsa = (struct RSAKey *) key;
     int k, i;
     char *p;
     const int HLEN = h->hlen;

@@ -961,7 +961,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             {
                 int i, bits;
                 const struct ec_curve *curve;
-                const struct ssh_signkey *alg;
+                const ssh_keyalg *alg;
 
                 for (i = 0; i < n_ec_nist_curve_lengths; i++) {
                     bits = ec_nist_curve_lengths[i];
@@ -1366,16 +1366,16 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);
 	if (state->ssh2) {
             if (state->keytype == DSA) {
-		state->ssh2key.data = &state->dsskey;
+		state->ssh2key.data = &state->dsskey.sshk;
 		state->ssh2key.alg = &ssh_dss;
             } else if (state->keytype == ECDSA) {
-                state->ssh2key.data = &state->eckey;
+                state->ssh2key.data = &state->eckey.sshk;
                 state->ssh2key.alg = state->eckey.signalg;
             } else if (state->keytype == ED25519) {
-                state->ssh2key.data = &state->eckey;
+                state->ssh2key.data = &state->eckey.sshk;
                 state->ssh2key.alg = &ssh_ecdsa_ed25519;
 	    } else {
-		state->ssh2key.data = &state->key;
+		state->ssh2key.data = &state->key.sshk;
 		state->ssh2key.alg = &ssh_rsa;
 	    }
 	    state->commentptr = &state->ssh2key.comment;

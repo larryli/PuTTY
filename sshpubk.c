@@ -584,7 +584,7 @@ struct ssh2_userkey ssh2_wrong_passphrase = {
     NULL, NULL, NULL
 };
 
-const struct ssh_signkey *find_pubkey_alg_len(int namelen, const char *name)
+const ssh_keyalg *find_pubkey_alg_len(int namelen, const char *name)
 {
     if (match_ssh_id(namelen, name, "ssh-rsa"))
 	return &ssh_rsa;
@@ -602,7 +602,7 @@ const struct ssh_signkey *find_pubkey_alg_len(int namelen, const char *name)
 	return NULL;
 }
 
-const struct ssh_signkey *find_pubkey_alg(const char *name)
+const ssh_keyalg *find_pubkey_alg(const char *name)
 {
     return find_pubkey_alg_len(strlen(name), name);
 }
@@ -613,7 +613,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 {
     FILE *fp;
     char header[40], *b, *encryption, *comment, *mac;
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     struct ssh2_userkey *ret;
     int cipher, cipherblk;
     strbuf *public_blob, *private_blob;
@@ -1068,7 +1068,7 @@ int ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 {
     FILE *fp;
     char header[40], *b;
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     int type, i;
     const char *error = NULL;
     char *comment = NULL;
@@ -1514,7 +1514,7 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     char fingerprint_str[16*3];
     const char *algstr;
     int alglen;
-    const struct ssh_signkey *alg;
+    const ssh_keyalg *alg;
     int i;
 
     /*
@@ -1552,7 +1552,7 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     }
 }
 
-char *ssh2_fingerprint(const struct ssh_signkey *alg, void *data)
+char *ssh2_fingerprint(const ssh_keyalg *alg, ssh_key *data)
 {
     strbuf *blob = strbuf_new();
     alg->public_blob(data, BinarySink_UPCAST(blob));

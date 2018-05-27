@@ -55,10 +55,10 @@ static Bignum get160(const char **data, int *datalen)
     return b;
 }
 
-static void dss_freekey(void *key);    /* forward reference */
+static void dss_freekey(ssh_key *key);    /* forward reference */
 
-static void *dss_newkey(const struct ssh_signkey *self,
-                        const void *vdata, int len)
+static ssh_key *dss_newkey(const ssh_keyalg *self,
+                           const void *vdata, int len)
 {
     const char *data = (const char *)vdata;
     const char *p;
@@ -91,16 +91,16 @@ static void *dss_newkey(const struct ssh_signkey *self,
     if (!dss->p || !dss->q || !dss->g || !dss->y ||
         !bignum_cmp(dss->q, Zero) || !bignum_cmp(dss->p, Zero)) {
         /* Invalid key. */
-        dss_freekey(dss);
+        dss_freekey(&dss->sshk);
         return NULL;
     }
 
-    return dss;
+    return &dss->sshk;
 }
 
-static void dss_freekey(void *key)
+static void dss_freekey(ssh_key *key)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
     if (dss->p)
         freebn(dss->p);
     if (dss->q)
@@ -114,9 +114,9 @@ static void dss_freekey(void *key)
     sfree(dss);
 }
 
-static char *dss_fmtkey(void *key)
+static char *dss_fmtkey(ssh_key *key)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
     char *p;
     int len, i, pos, nibbles;
     static const char hex[] = "0123456789abcdef";
@@ -164,10 +164,10 @@ static char *dss_fmtkey(void *key)
     return p;
 }
 
-static int dss_verifysig(void *key, const void *vsig, int siglen,
+static int dss_verifysig(ssh_key *key, const void *vsig, int siglen,
 			 const void *data, int datalen)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
     const char *sig = (const char *)vsig;
     const char *p;
     int slen;
@@ -273,9 +273,9 @@ static int dss_verifysig(void *key, const void *vsig, int siglen,
     return ret;
 }
 
-static void dss_public_blob(void *key, BinarySink *bs)
+static void dss_public_blob(ssh_key *key, BinarySink *bs)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
 
     put_stringz(bs, "ssh-dss");
     put_mp_ssh2(bs, dss->p);
@@ -284,16 +284,16 @@ static void dss_public_blob(void *key, BinarySink *bs)
     put_mp_ssh2(bs, dss->y);
 }
 
-static void dss_private_blob(void *key, BinarySink *bs)
+static void dss_private_blob(ssh_key *key, BinarySink *bs)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
 
     put_mp_ssh2(bs, dss->x);
 }
 
-static void *dss_createkey(const struct ssh_signkey *self,
-                           const void *pub_blob, int pub_len,
-			   const void *priv_blob, int priv_len)
+static ssh_key *dss_createkey(const ssh_keyalg *self,
+                              const void *pub_blob, int pub_len,
+                              const void *priv_blob, int priv_len)
 {
     struct dss_key *dss;
     const char *pb = (const char *) priv_blob;
@@ -303,12 +303,13 @@ static void *dss_createkey(const struct ssh_signkey *self,
     unsigned char digest[20];
     Bignum ytest;
 
-    dss = dss_newkey(self, pub_blob, pub_len);
+    dss = FROMFIELD(dss_newkey(self, pub_blob, pub_len),
+                    struct dss_key, sshk);
     if (!dss)
         return NULL;
     dss->x = getmp(&pb, &priv_len);
     if (!dss->x) {
-        dss_freekey(dss);
+        dss_freekey(&dss->sshk);
         return NULL;
     }
 
@@ -324,7 +325,7 @@ static void *dss_createkey(const struct ssh_signkey *self,
 	put_mp_ssh2(&s, dss->g);
 	SHA_Final(&s, digest);
 	if (0 != memcmp(hash, digest, 20)) {
-	    dss_freekey(dss);
+	    dss_freekey(&dss->sshk);
 	    return NULL;
 	}
     }
@@ -334,17 +335,17 @@ static void *dss_createkey(const struct ssh_signkey *self,
      */
     ytest = modpow(dss->g, dss->x, dss->p);
     if (0 != bignum_cmp(ytest, dss->y)) {
-	dss_freekey(dss);
+	dss_freekey(&dss->sshk);
         freebn(ytest);
 	return NULL;
     }
     freebn(ytest);
 
-    return dss;
+    return &dss->sshk;
 }
 
-static void *dss_openssh_createkey(const struct ssh_signkey *self,
-                                   const unsigned char **blob, int *len)
+static ssh_key *dss_openssh_createkey(const ssh_keyalg *self,
+                                      const unsigned char **blob, int *len)
 {
     const char **b = (const char **) blob;
     struct dss_key *dss;
@@ -360,16 +361,16 @@ static void *dss_openssh_createkey(const struct ssh_signkey *self,
     if (!dss->p || !dss->q || !dss->g || !dss->y || !dss->x ||
         !bignum_cmp(dss->q, Zero) || !bignum_cmp(dss->p, Zero)) {
         /* Invalid key. */
-        dss_freekey(dss);
+        dss_freekey(&dss->sshk);
         return NULL;
     }
 
-    return dss;
+    return &dss->sshk;
 }
 
-static void dss_openssh_fmtkey(void *key, BinarySink *bs)
+static void dss_openssh_fmtkey(ssh_key *key, BinarySink *bs)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
 
     put_mp_ssh2(bs, dss->p);
     put_mp_ssh2(bs, dss->q);
@@ -378,17 +379,18 @@ static void dss_openssh_fmtkey(void *key, BinarySink *bs)
     put_mp_ssh2(bs, dss->x);
 }
 
-static int dss_pubkey_bits(const struct ssh_signkey *self,
+static int dss_pubkey_bits(const ssh_keyalg *self,
                            const void *blob, int len)
 {
     struct dss_key *dss;
     int ret;
 
-    dss = dss_newkey(self, blob, len);
+    dss = FROMFIELD(dss_newkey(self, blob, len),
+                    struct dss_key, sshk);
     if (!dss)
         return -1;
     ret = bignum_bitcount(dss->p);
-    dss_freekey(dss);
+    dss_freekey(&dss->sshk);
 
     return ret;
 }
@@ -513,10 +515,10 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
     }
 }
 
-static void dss_sign(void *key, const void *data, int datalen,
+static void dss_sign(ssh_key *key, const void *data, int datalen,
                      BinarySink *bs)
 {
-    struct dss_key *dss = (struct dss_key *) key;
+    struct dss_key *dss = FROMFIELD(key, struct dss_key, sshk);
     Bignum k, gkp, hash, kinv, hxr, r, s;
     unsigned char digest[20];
     int i;
@@ -553,7 +555,7 @@ static void dss_sign(void *key, const void *data, int datalen,
     freebn(s);
 }
 
-const struct ssh_signkey ssh_dss = {
+const ssh_keyalg ssh_dss = {
     dss_newkey,
     dss_freekey,
     dss_fmtkey,
