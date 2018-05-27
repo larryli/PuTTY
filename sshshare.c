@@ -2031,39 +2031,17 @@ char *ssh_share_sockname(const char *host, int port, Conf *conf)
     return sockname;
 }
 
-static void nullplug_socket_log(Plug plug, int type, SockAddr addr, int port,
-                                const char *error_msg, int error_code) {}
-static void nullplug_closing(Plug plug, const char *error_msg, int error_code,
-			     int calling_back) {}
-static void nullplug_receive(Plug plug, int urgent, char *data, int len) {}
-static void nullplug_sent(Plug plug, int bufsize) {}
-
-static const Plug_vtable nullplug_plugvt = {
-    nullplug_socket_log,
-    nullplug_closing,
-    nullplug_receive,
-    nullplug_sent,
-    NULL
-};
-
-struct nullplug {
-    const Plug_vtable *plugvt;
-};
-
 int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
 {
     char *sockname, *logtext, *ds_err, *us_err;
     int result;
     Socket sock;
-    struct nullplug np;
-
-    np.plugvt = &nullplug_plugvt;
 
     sockname = ssh_share_sockname(host, port, conf);
 
     sock = NULL;
     logtext = ds_err = us_err = NULL;
-    result = platform_ssh_share(sockname, conf, &np.plugvt, (Plug)NULL, &sock,
+    result = platform_ssh_share(sockname, conf, nullplug, (Plug)NULL, &sock,
                                 &logtext, &ds_err, &us_err, FALSE, TRUE);
 
     sfree(logtext);

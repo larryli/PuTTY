@@ -52,22 +52,6 @@ static int xdmseen_cmp(void *a, void *b)
            memcmp(sa->clientid, sb->clientid, sizeof(sa->clientid));
 }
 
-/* Do-nothing "plug" implementation, used by x11_setup_display() when it
- * creates a trial connection (and then immediately closes it).
- * XXX: bit out of place here, could in principle live in a platform-
- *      independent network.c or something */
-static void dummy_plug_log(Plug p, int type, SockAddr addr, int port,
-			   const char *error_msg, int error_code) { }
-static void dummy_plug_closing
-     (Plug p, const char *error_msg, int error_code, int calling_back) { }
-static void dummy_plug_receive(Plug p, int urgent, char *data, int len) { }
-static void dummy_plug_sent(Plug p, int bufsize) { }
-static int dummy_plug_accepting(Plug p, accept_fn_t constructor, accept_ctx_t ctx) { return 1; }
-static const Plug_vtable dummy_plug_vtable = {
-    dummy_plug_log, dummy_plug_closing, dummy_plug_receive,
-    dummy_plug_sent, dummy_plug_accepting
-};
-
 struct X11FakeAuth *x11_invent_fake_auth(tree234 *authtree, int authtype)
 {
     struct X11FakeAuth *auth = snew(struct X11FakeAuth);
@@ -306,8 +290,7 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf)
 	if (!err) {
 	    /* Create trial connection to see if there is a useful Unix-domain
 	     * socket */
-            const Plug_vtable *dummy = &dummy_plug_vtable;
-	    Socket s = sk_new(sk_addr_dup(ux), 0, 0, 0, 0, 0, &dummy);
+	    Socket s = sk_new(sk_addr_dup(ux), 0, 0, 0, 0, 0, nullplug);
 	    err = sk_socket_error(s);
 	    sk_close(s);
 	}

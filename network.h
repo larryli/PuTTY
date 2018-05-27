@@ -207,6 +207,11 @@ char *get_hostname(void);
  */
 Socket new_error_socket(const char *errmsg, Plug plug);
 
+/*
+ * Trivial plug that does absolutely nothing. Found in nullplug.c.
+ */
+extern Plug nullplug;
+
 /* ----------------------------------------------------------------------
  * Functions defined outside the network code, which have to be
  * declared in this header file rather than the main putty.h because
