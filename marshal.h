@@ -243,6 +243,10 @@ struct BinarySource {
     BinarySource_get_mp_ssh1(BinarySource_UPCAST(src))
 #define get_mp_ssh2(src) \
     BinarySource_get_mp_ssh2(BinarySource_UPCAST(src))
+#define get_rsa_ssh1_pub(src, rsa, keystr, order) \
+    BinarySource_get_rsa_ssh1_pub(BinarySource_UPCAST(src), rsa, keystr, order)
+#define get_rsa_ssh1_priv(src, rsa) \
+    BinarySource_get_rsa_ssh1_priv(BinarySource_UPCAST(src), rsa)
 
 #define get_err(src) (BinarySource_UPCAST(src)->err)
 #define get_avail(src) (BinarySource_UPCAST(src)->len - \

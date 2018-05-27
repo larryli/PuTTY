@@ -182,8 +182,13 @@ typedef enum { RSA_SSH1_EXPONENT_FIRST, RSA_SSH1_MODULUS_FIRST } RsaSsh1Order;
 
 int rsa_ssh1_readpub(const unsigned char *data, int len, struct RSAKey *result,
                      const unsigned char **keystr, RsaSsh1Order order);
+void BinarySource_get_rsa_ssh1_pub(
+    BinarySource *src, struct RSAKey *result,
+    ptrlen *keystr, RsaSsh1Order order);
 int rsa_ssh1_readpriv(const unsigned char *data, int len,
                       struct RSAKey *result);
+void BinarySource_get_rsa_ssh1_priv(
+    BinarySource *src, struct RSAKey *rsa);
 int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);
 Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key);
 void rsasanitise(struct RSAKey *key);
