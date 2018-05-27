@@ -88,6 +88,8 @@ struct BinarySink {
  * that then gets wrapped into a string container in an outer one). */
 #define put_string(bs, val, len) \
     BinarySink_put_string(BinarySink_UPCAST(bs),val,len)
+#define put_stringpl(bs, ptrlen) \
+    BinarySink_put_stringpl(BinarySink_UPCAST(bs),ptrlen)
 #define put_stringz(bs, val) \
     BinarySink_put_stringz(BinarySink_UPCAST(bs), val)
 #define put_stringsb(bs, val) \
@@ -129,6 +131,7 @@ void BinarySink_put_bool(BinarySink *, int);
 void BinarySink_put_uint16(BinarySink *, unsigned long);
 void BinarySink_put_uint32(BinarySink *, unsigned long);
 void BinarySink_put_string(BinarySink *, const void *data, size_t len);
+void BinarySink_put_stringpl(BinarySink *, ptrlen);
 void BinarySink_put_stringz(BinarySink *, const char *str);
 struct strbuf;
 void BinarySink_put_stringsb(BinarySink *, struct strbuf *);

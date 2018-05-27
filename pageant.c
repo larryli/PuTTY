@@ -556,7 +556,7 @@ void pageant_handle_msg(BinarySink *bs,
 	    key = snew(struct ssh2_userkey);
             key->data = NULL;
             key->comment = NULL;
-            key->alg = find_pubkey_alg_len(alglen, alg);
+            key->alg = find_pubkey_alg_len(make_ptrlen(alg, alglen));
 	    if (!key->alg) {
                 pageant_failure_msg(bs, "algorithm unknown", logctx, logfn);
 		goto add2_cleanup;

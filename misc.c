@@ -360,6 +360,16 @@ int toint(unsigned u)
         return INT_MIN; /* fallback; should never occur on binary machines */
 }
 
+int string_length_for_printf(size_t s)
+{
+    /* Truncate absurdly long strings (should one show up) to fit
+     * within a positive 'int', which is what the "%.*s" format will
+     * expect. */
+    if (s > INT_MAX)
+        return INT_MAX;
+    return s;
+}
+
 /*
  * Do an sprintf(), but into a custom-allocated buffer.
  * 
@@ -1175,6 +1185,28 @@ int match_ssh_id(int stringlen, const void *string, const char *id)
 {
     int idlen = strlen(id);
     return (idlen == stringlen && !memcmp(string, id, idlen));
+}
+
+ptrlen make_ptrlen(const void *ptr, size_t len)
+{
+    ptrlen pl;
+    pl.ptr = ptr;
+    pl.len = len;
+    return pl;
+}
+
+int ptrlen_eq_string(ptrlen pl, const char *str)
+{
+    size_t len = strlen(str);
+    return (pl.len == len && !memcmp(pl.ptr, str, len));
+}
+
+char *mkstr(ptrlen pl)
+{
+    char *p = snewn(pl.len + 1, char);
+    memcpy(p, pl.ptr, pl.len);
+    p[pl.len] = '\0';
+    return p;
 }
 
 void *get_ssh_string(int *datalen, const void **data, int *stringlen)

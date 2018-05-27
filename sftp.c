@@ -342,18 +342,6 @@ struct sftp_request *sftp_find_request(struct sftp_packet *pktin)
 }
 
 /* ----------------------------------------------------------------------
- * String handling routines.
- */
-
-static char *mkstr(char *s, int len)
-{
-    char *p = snewn(len + 1, char);
-    memcpy(p, s, len);
-    p[len] = '\0';
-    return p;
-}
-
-/* ----------------------------------------------------------------------
  * SFTP primitives.
  */
 
@@ -500,7 +488,7 @@ char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req)
             sftp_pkt_free(pktin);
 	    return NULL;
 	}
-	path = mkstr(path, len);
+	path = mkstr(make_ptrlen(path, len));
 	sftp_pkt_free(pktin);
 	return path;
     } else {
@@ -548,7 +536,7 @@ struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin,
 	    return NULL;
 	}
 	handle = snew(struct fxp_handle);
-	handle->hstring = mkstr(hstring, len);
+	handle->hstring = mkstr(make_ptrlen(hstring, len));
 	handle->hlen = len;
 	sftp_pkt_free(pktin);
 	return handle;
@@ -590,7 +578,7 @@ struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin,
 	    return NULL;
 	}
 	handle = snew(struct fxp_handle);
-	handle->hstring = mkstr(hstring, len);
+	handle->hstring = mkstr(make_ptrlen(hstring, len));
 	handle->hlen = len;
 	sftp_pkt_free(pktin);
 	return handle;
@@ -977,8 +965,8 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
 		sfree(pktin);
 		return NULL;
 	    }
-	    ret->names[i].filename = mkstr(str1, len1);
-	    ret->names[i].longname = mkstr(str2, len2);
+	    ret->names[i].filename = mkstr(make_ptrlen(str1, len1));
+	    ret->names[i].longname = mkstr(make_ptrlen(str2, len2));
 	}
         sftp_pkt_free(pktin);
 	return ret;

@@ -52,6 +52,11 @@ void BinarySink_put_string(BinarySink *bs, const void *data, size_t len)
     bs->write(bs, data, len);
 }
 
+void BinarySink_put_stringpl(BinarySink *bs, ptrlen pl)
+{
+    BinarySink_put_string(bs, pl.ptr, pl.len);
+}
+
 void BinarySink_put_stringz(BinarySink *bs, const char *str)
 {
     BinarySink_put_string(bs, str, strlen(str));

@@ -87,6 +87,14 @@ int validate_manual_hostkey(char *key);
 
 struct tm ltime(void);
 
+ptrlen make_ptrlen(const void *ptr, size_t len);
+int ptrlen_eq_string(ptrlen pl, const char *str);
+char *mkstr(ptrlen pl);
+int string_length_for_printf(size_t);
+/* Derive two printf arguments from a ptrlen, suitable for "%.*s" */
+#define PTRLEN_PRINTF(pl) \
+    string_length_for_printf((pl).len), (const char *)(pl).ptr
+
 /* Wipe sensitive data out of memory that's about to be freed. Simpler
  * than memset because we don't need the fill char parameter; also
  * attempts (by fiddly use of volatile) to inhibit the compiler from
