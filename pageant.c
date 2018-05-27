@@ -725,6 +725,7 @@ void pageant_handle_msg(BinarySink *bs,
             del234(ssh2keys, key);
             keylist_update();
             key->alg->freekey(key->data);
+            sfree(key->comment);
             sfree(key);
             put_byte(bs, SSH_AGENT_SUCCESS);
 
@@ -765,6 +766,7 @@ void pageant_handle_msg(BinarySink *bs,
 	    while ((skey = index234(ssh2keys, 0)) != NULL) {
 		del234(ssh2keys, skey);
 		skey->alg->freekey(skey->data);
+                sfree(skey->comment);
 		sfree(skey);
 	    }
 	    keylist_update();
