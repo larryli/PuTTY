@@ -1015,7 +1015,7 @@ void conf_set_filename(Conf *conf, int key, const Filename *val);
 void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
 /* Serialisation functions for Duplicate Session */
 void conf_serialise(BinarySink *bs, Conf *conf);
-int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
+int conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
 
 /*
  * Functions to copy, free, serialise and deserialise FontSpecs.
@@ -1029,7 +1029,7 @@ int conf_deserialise(Conf *conf, void *data, int maxsize);/*returns size used*/
 FontSpec *fontspec_copy(const FontSpec *f);
 void fontspec_free(FontSpec *f);
 void fontspec_serialise(BinarySink *bs, FontSpec *f);
-FontSpec *fontspec_deserialise(void *data, int maxsize, int *used);
+FontSpec *fontspec_deserialise(BinarySource *src);
 
 /*
  * Exports from noise.c.
@@ -1456,7 +1456,7 @@ int filename_is_null(const Filename *fn);
 Filename *filename_copy(const Filename *fn);
 void filename_free(Filename *fn);
 void filename_serialise(BinarySink *bs, const Filename *f);
-Filename *filename_deserialise(void *data, int maxsize, int *used);
+Filename *filename_deserialise(BinarySource *src);
 char *get_username(void);	       /* return value needs freeing */
 char *get_random_data(int bytes, const char *device); /* used in cmdgen.c */
 char filename_char_sanitise(char c);   /* rewrite special pathname chars */

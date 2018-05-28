@@ -201,8 +201,9 @@ void launch_saved_session(const char *str)
 
 int read_dupsession_data(Conf *conf, char *arg)
 {
-    int fd, i, ret, size, size_used;
+    int fd, i, ret, size;
     char *data;
+    BinarySource src[1];
 
     if (sscanf(arg, "---[%d,%d]", &fd, &size) != 2) {
 	fprintf(stderr, "%s: malformed magic argument `%s'\n", appname, arg);
@@ -222,35 +223,36 @@ int read_dupsession_data(Conf *conf, char *arg)
 	exit(1);
     }
 
-    size_used = conf_deserialise(conf, data, size);
-    if (use_pty_argv && size > size_used) {
-	int n = 0;
-	i = size_used;
-	while (i < size) {
-	    while (i < size && data[i]) i++;
-	    if (i >= size) {
-		fprintf(stderr, "%s: malformed Duplicate Session data\n",
-			appname);
-		exit(1);
-	    }
-	    i++;
-	    n++;
-	}
-	pty_argv = snewn(n+1, char *);
-	pty_argv[n] = NULL;
-	n = 0;
-	i = size_used;
-	while (i < size) {
-	    char *p = data + i;
-	    while (i < size && data[i]) i++;
-	    assert(i < size);
-	    i++;
-	    pty_argv[n++] = dupstr(p);
-	}
+    BinarySource_BARE_INIT(src, data, size);
+    if (!conf_deserialise(conf, src)) {
+        fprintf(stderr, "%s: malformed Duplicate Session data\n", appname);
+        exit(1);
+    }
+    if (use_pty_argv) {
+	int pty_argc = 0;
+        size_t argv_startpos = src->pos;
+
+        while (get_asciz(src), !get_err(src))
+            pty_argc++;
+
+        src->err = BSE_NO_ERROR;
+
+        if (pty_argc > 0) {
+            src->pos = argv_startpos;
+
+            pty_argv = snewn(pty_argc + 1, char *);
+            pty_argv[pty_argc] = NULL;
+            for (i = 0; i < pty_argc; i++)
+                pty_argv[i] = dupstr(get_asciz(src));
+        }
+    }
+
+    if (get_err(src) || get_avail(src) > 0) {
+        fprintf(stderr, "%s: malformed Duplicate Session data\n", appname);
+        exit(1);
     }
 
     sfree(data);
-
     return 0;
 }
 

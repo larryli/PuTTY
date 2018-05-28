@@ -480,7 +480,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	    if (sscanf(p + 1, "%p:%u", &filemap, &cpsize) == 2 &&
 		(cp = MapViewOfFile(filemap, FILE_MAP_READ,
 				    0, 0, cpsize)) != NULL) {
-		conf_deserialise(conf, cp, cpsize);
+                BinarySource src[1];
+                BinarySource_BARE_INIT(src, cp, cpsize);
+		if (!conf_deserialise(conf, src))
+                    modalfatalbox("Serialised configuration data was invalid");
 		UnmapViewOfFile(cp);
 		CloseHandle(filemap);
 	    } else if (!do_config()) {

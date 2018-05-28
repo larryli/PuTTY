@@ -54,16 +54,9 @@ void filename_serialise(BinarySink *bs, const Filename *f)
 {
     put_asciz(bs, f->path);
 }
-Filename *filename_deserialise(void *vdata, int maxsize, int *used)
+Filename *filename_deserialise(BinarySource *src)
 {
-    char *data = (char *)vdata;
-    char *end;
-    end = memchr(data, '\0', maxsize);
-    if (!end)
-        return NULL;
-    end++;
-    *used = end - data;
-    return filename_from_str(data);
+    return filename_from_str(get_asciz(src));
 }
 
 char filename_char_sanitise(char c)
@@ -561,21 +554,13 @@ void fontspec_serialise(BinarySink *bs, FontSpec *f)
     put_uint32(bs, f->height);
     put_uint32(bs, f->charset);
 }
-FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
+FontSpec *fontspec_deserialise(BinarySource *src)
 {
-    char *data = (char *)vdata;
-    char *end;
-    if (maxsize < 13)
-        return NULL;
-    end = memchr(data, '\0', maxsize-12);
-    if (!end)
-        return NULL;
-    end++;
-    *used = end - data + 12;
-    return fontspec_new(data,
-                        GET_32BIT_MSB_FIRST(end),
-                        GET_32BIT_MSB_FIRST(end + 4),
-                        GET_32BIT_MSB_FIRST(end + 8));
+    const char *name = get_asciz(src);
+    unsigned isbold = get_uint32(src);
+    unsigned height = get_uint32(src);
+    unsigned charset = get_uint32(src);
+    return fontspec_new(name, isbold, height, charset);
 }
 
 int open_for_write_would_lose_data(const Filename *fn)

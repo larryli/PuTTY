@@ -78,16 +78,9 @@ void filename_serialise(BinarySink *bs, const Filename *f)
 {
     put_asciz(bs, f->path);
 }
-Filename *filename_deserialise(void *vdata, int maxsize, int *used)
+Filename *filename_deserialise(BinarySource *src)
 {
-    char *data = (char *)vdata;
-    char *end;
-    end = memchr(data, '\0', maxsize);
-    if (!end)
-        return NULL;
-    end++;
-    *used = end - data;
-    return filename_from_str(data);
+    return filename_from_str(get_asciz(src));
 }
 
 char filename_char_sanitise(char c)
@@ -274,14 +267,9 @@ void fontspec_serialise(BinarySink *bs, FontSpec *f)
 {
     put_asciz(bs, f->name);
 }
-FontSpec *fontspec_deserialise(void *vdata, int maxsize, int *used)
+FontSpec *fontspec_deserialise(BinarySource *src)
 {
-    char *data = (char *)vdata;
-    char *end = memchr(data, '\0', maxsize);
-    if (!end)
-        return NULL;
-    *used = end - data + 1;
-    return fontspec_new(data);
+    return fontspec_new(get_asciz(src));
 }
 
 char *make_dir_and_check_ours(const char *dirname)

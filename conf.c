@@ -504,97 +504,53 @@ void conf_serialise(BinarySink *bs, Conf *conf)
     put_uint32(bs, 0xFFFFFFFFU);
 }
 
-int conf_deserialise(Conf *conf, void *vdata, int maxsize)
+int conf_deserialise(Conf *conf, BinarySource *src)
 {
-    unsigned char *data = (unsigned char *)vdata;
-    unsigned char *start = data;
     struct conf_entry *entry;
     unsigned primary;
-    int used;
-    unsigned char *zero;
 
-    while (maxsize >= 4) {
-	primary = GET_32BIT_MSB_FIRST(data);
-	data += 4, maxsize -= 4;
+    while (1) {
+        primary = get_uint32(src);
 
+        if (get_err(src))
+            return FALSE;
+        if (primary == 0xFFFFFFFFU)
+            return TRUE;
 	if (primary >= N_CONFIG_OPTIONS)
-	    break;
+	    return FALSE;
 
 	entry = snew(struct conf_entry);
 	entry->key.primary = primary;
 
 	switch (subkeytypes[entry->key.primary]) {
 	  case TYPE_INT:
-	    if (maxsize < 4) {
-		sfree(entry);
-		goto done;
-	    }
-	    entry->key.secondary.i = toint(GET_32BIT_MSB_FIRST(data));
-	    data += 4, maxsize -= 4;
+	    entry->key.secondary.i = toint(get_uint32(src));
 	    break;
 	  case TYPE_STR:
-	    zero = memchr(data, 0, maxsize);
-	    if (!zero) {
-		sfree(entry);
-		goto done;
-	    }
-	    entry->key.secondary.s = dupstr((char *)data);
-	    maxsize -= (zero + 1 - data);
-	    data = zero + 1;
+	    entry->key.secondary.s = dupstr(get_asciz(src));
 	    break;
 	}
 
 	switch (valuetypes[entry->key.primary]) {
 	  case TYPE_INT:
-	    if (maxsize < 4) {
-		if (subkeytypes[entry->key.primary] == TYPE_STR)
-		    sfree(entry->key.secondary.s);
-		sfree(entry);
-		goto done;
-	    }
-	    entry->value.u.intval = toint(GET_32BIT_MSB_FIRST(data));
-	    data += 4, maxsize -= 4;
+	    entry->value.u.intval = toint(get_uint32(src));
 	    break;
 	  case TYPE_STR:
-	    zero = memchr(data, 0, maxsize);
-	    if (!zero) {
-		if (subkeytypes[entry->key.primary] == TYPE_STR)
-		    sfree(entry->key.secondary.s);
-		sfree(entry);
-		goto done;
-	    }
-	    entry->value.u.stringval = dupstr((char *)data);
-	    maxsize -= (zero + 1 - data);
-	    data = zero + 1;
+	    entry->value.u.stringval = dupstr(get_asciz(src));
 	    break;
 	  case TYPE_FILENAME:
-            entry->value.u.fileval =
-                filename_deserialise(data, maxsize, &used);
-            if (!entry->value.u.fileval) {
-		if (subkeytypes[entry->key.primary] == TYPE_STR)
-		    sfree(entry->key.secondary.s);
-		sfree(entry);
-		goto done;
-	    }
-	    data += used;
-	    maxsize -= used;
+            entry->value.u.fileval = filename_deserialise(src);
 	    break;
 	  case TYPE_FONT:
-            entry->value.u.fontval =
-                fontspec_deserialise(data, maxsize, &used);
-            if (!entry->value.u.fontval) {
-		if (subkeytypes[entry->key.primary] == TYPE_STR)
-		    sfree(entry->key.secondary.s);
-		sfree(entry);
-		goto done;
-	    }
-	    data += used;
-	    maxsize -= used;
+            entry->value.u.fontval = fontspec_deserialise(src);
 	    break;
 	}
+
+        if (get_err(src)) {
+            free_entry(entry);
+            return FALSE;
+        }
+
 	conf_insert(conf, entry);
     }
-
-    done:
-    return (int)(data - start);
 }
