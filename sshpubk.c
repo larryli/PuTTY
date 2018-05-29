@@ -27,70 +27,52 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
                               char **commentptr, const char *passphrase,
                               const char **error)
 {
-    unsigned char buf[16384];
-    unsigned char keybuf[16];
-    int len;
-    int i, j, ciphertype;
+    strbuf *buf;
+    int ciphertype;
     int ret = 0;
     struct MD5Context md5c;
-    char *comment;
+    ptrlen comment;
+    BinarySource src[1];
 
     *error = NULL;
 
     /* Slurp the whole file (minus the header) into a buffer. */
-    len = fread(buf, 1, sizeof(buf), fp);
-    fclose(fp);
-    if (len < 0 || len == sizeof(buf)) {
-	*error = "error reading file";
-	goto end;		       /* file too big or not read */
+    buf = strbuf_new();
+    {
+        int ch;
+        while ((ch = fgetc(fp)) != EOF)
+            put_byte(buf, ch);
     }
+    fclose(fp);
 
-    i = 0;
+    BinarySource_BARE_INIT(src, buf->u, buf->len);
+
     *error = "file format error";
 
     /*
-     * A zero byte. (The signature includes a terminating NUL.)
+     * A zero byte. (The signature includes a terminating NUL, which
+     * we haven't gone past yet because we read it using fgets which
+     * stopped after the \n.)
      */
-    if (len - i < 1 || buf[i] != 0)
+    if (get_byte(src) != 0)
 	goto end;
-    i++;
 
     /* One byte giving encryption type, and one reserved uint32. */
-    if (len - i < 1)
-	goto end;
-    ciphertype = buf[i];
+    ciphertype = get_byte(src);
     if (ciphertype != 0 && ciphertype != SSH_CIPHER_3DES)
 	goto end;
-    i++;
-    if (len - i < 4)
-	goto end;		       /* reserved field not present */
-    if (buf[i] != 0 || buf[i + 1] != 0 || buf[i + 2] != 0
-	|| buf[i + 3] != 0) goto end;  /* reserved field nonzero, panic! */
-    i += 4;
+    if (get_uint32(src) != 0)
+        goto end;                 /* reserved field nonzero, panic! */
 
     /* Now the serious stuff. An ordinary SSH-1 public key. */
-    j = rsa_ssh1_readpub(buf + i, len - i, key, NULL, RSA_SSH1_MODULUS_FIRST);
-    if (j < 0)
-	goto end;		       /* overran */
-    i += j;
+    get_rsa_ssh1_pub(src, key, NULL, RSA_SSH1_MODULUS_FIRST);
 
     /* Next, the comment field. */
-    j = toint(GET_32BIT(buf + i));
-    i += 4;
-    if (j < 0 || len - i < j)
-	goto end;
-    comment = snewn(j + 1, char);
-    if (comment) {
-	memcpy(comment, buf + i, j);
-	comment[j] = '\0';
-    }
-    i += j;
+    comment = get_string(src);
     if (commentptr)
-	*commentptr = dupstr(comment);
+	*commentptr = mkstr(comment);
     if (key)
-	key->comment = comment;
-    else
-	sfree(comment);
+	key->comment = mkstr(comment);
 
     if (pub_only) {
 	ret = 1;
@@ -107,10 +89,16 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
      * Decrypt remainder of buffer.
      */
     if (ciphertype) {
+        unsigned char keybuf[16];
+        size_t enclen = buf->len - src->pos;
+
+        if (enclen & 7)
+            goto end;
+
 	MD5Init(&md5c);
 	put_data(&md5c, passphrase, strlen(passphrase));
 	MD5Final(keybuf, &md5c);
-	des3_decrypt_pubkey(keybuf, buf + i, (len - i + 7) & ~7);
+	des3_decrypt_pubkey(keybuf, buf->u + src->pos, enclen);
 	smemclr(keybuf, sizeof(keybuf));	/* burn the evidence */
     }
 
@@ -118,32 +106,27 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
      * We are now in the secret part of the key. The first four
      * bytes should be of the form a, b, a, b.
      */
-    if (len - i < 4)
-	goto end;
-    if (buf[i] != buf[i + 2] || buf[i + 1] != buf[i + 3]) {
-	*error = "wrong passphrase";
-	ret = -1;
-	goto end;
+    {
+        int b0a = get_byte(src);
+        int b1a = get_byte(src);
+        int b0b = get_byte(src);
+        int b1b = get_byte(src);
+        if (b0a != b0b || b1a != b1b) {
+            *error = "wrong passphrase";
+            ret = -1;
+            goto end;
+        }
     }
-    i += 4;
 
     /*
      * After that, we have one further bignum which is our
      * decryption exponent, and then the three auxiliary values
      * (iqmp, q, p).
      */
-    j = rsa_ssh1_readpriv(buf + i, len - i, key);
-    if (j < 0) goto end;
-    i += j;
-    j = ssh1_read_bignum(buf + i, len - i, &key->iqmp);
-    if (j < 0) goto end;
-    i += j;
-    j = ssh1_read_bignum(buf + i, len - i, &key->q);
-    if (j < 0) goto end;
-    i += j;
-    j = ssh1_read_bignum(buf + i, len - i, &key->p);
-    if (j < 0) goto end;
-    i += j;
+    get_rsa_ssh1_priv(src, key);
+    key->iqmp = get_mp_ssh1(src);
+    key->q = get_mp_ssh1(src);
+    key->p = get_mp_ssh1(src);
 
     if (!rsa_verify(key)) {
 	*error = "rsa_verify failed";
@@ -153,7 +136,7 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
 	ret = 1;
 
   end:
-    smemclr(buf, sizeof(buf));       /* burn the evidence */
+    strbuf_free(buf);
     return ret;
 }
 
@@ -1400,31 +1383,25 @@ static char *ssh2_pubkey_openssh_str_internal(const char *comment,
                                               int pub_len)
 {
     const unsigned char *ssh2blob = (const unsigned char *)v_pub_blob;
-    const char *alg;
-    int alglen;
+    ptrlen alg;
     char *buffer, *p;
     int i;
 
-    if (pub_len < 4) {
-        alg = NULL;
-    } else {
-        alglen = GET_32BIT(ssh2blob);
-        if (alglen > 0 && alglen < pub_len - 4) {
-            alg = (const char *)ssh2blob + 4;
-        } else {
-            alg = NULL;
+    {
+        BinarySource src[1];
+        BinarySource_BARE_INIT(src, ssh2blob, pub_len);
+        alg = get_string(src);
+        if (get_err(src)) {
+            const char *replacement_str = "INVALID-ALGORITHM";
+            alg.ptr = replacement_str;
+            alg.len = strlen(replacement_str);
         }
     }
 
-    if (!alg) {
-        alg = "INVALID-ALGORITHM";
-        alglen = strlen(alg);
-    }
-
-    buffer = snewn(alglen +
+    buffer = snewn(alg.len +
                    4 * ((pub_len+2) / 3) +
                    (comment ? strlen(comment) : 0) + 3, char);
-    p = buffer + sprintf(buffer, "%.*s ", alglen, alg);
+    p = buffer + sprintf(buffer, "%.*s ", PTRLEN_PRINTF(alg));
     i = 0;
     while (i < pub_len) {
         int n = (pub_len - i < 3 ? pub_len - i : 3);
@@ -1512,10 +1489,10 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
 {
     unsigned char digest[16];
     char fingerprint_str[16*3];
-    const char *algstr;
-    int alglen;
+    ptrlen algname;
     const ssh_keyalg *alg;
     int i;
+    BinarySource src[1];
 
     /*
      * The fingerprint hash itself is always just the MD5 of the blob.
@@ -1527,21 +1504,17 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     /*
      * Identify the key algorithm, if possible.
      */
-    alglen = toint(GET_32BIT((const unsigned char *)blob));
-    if (alglen > 0 && alglen < bloblen-4) {
-        algstr = (const char *)blob + 4;
-
-        /*
-         * If we can actually identify the algorithm as one we know
-         * about, get hold of the key's bit count too.
-         */
-        alg = find_pubkey_alg_len(make_ptrlen(algstr, alglen));
+    BinarySource_BARE_INIT(src, blob, bloblen);
+    algname = get_string(src);
+    if (!get_err(src)) {
+        alg = find_pubkey_alg_len(algname);
         if (alg) {
             int bits = alg->pubkey_bits(alg, blob, bloblen);
-            return dupprintf("%.*s %d %s", alglen, algstr,
+            return dupprintf("%.*s %d %s", PTRLEN_PRINTF(algname),
                              bits, fingerprint_str);
         } else {
-            return dupprintf("%.*s %s", alglen, algstr, fingerprint_str);
+            return dupprintf("%.*s %s", PTRLEN_PRINTF(algname),
+                             fingerprint_str);
         }
     } else {
         /*
