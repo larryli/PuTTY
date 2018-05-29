@@ -2697,11 +2697,12 @@ void bndebug(char *string, Bignum b)
  * BUG_SSH2_RSA_PADDING.
  */
 static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
-			     void *pkblob_v, int pkblob_len,
-			     void *sigblob_v, int sigblob_len)
+			     const void *pkblob, int pkblob_len,
+			     const void *sigblob, int sigblob_len)
 {
-    unsigned char *pkblob = (unsigned char *)pkblob_v;
-    unsigned char *sigblob = (unsigned char *)sigblob_v;
+    BinarySource pk[1], sig[1];
+    BinarySource_BARE_INIT(pk, pkblob, pkblob_len);
+    BinarySource_BARE_INIT(sig, sigblob, sigblob_len);
 
     /* dmemdump(pkblob, pkblob_len); */
     /* dmemdump(sigblob, sigblob_len); */
@@ -2710,48 +2711,41 @@ static void ssh2_add_sigblob(Ssh ssh, struct Packet *pkt,
      * See if this is in fact an ssh-rsa signature and a buggy
      * server; otherwise we can just do this the easy way.
      */
-    if ((ssh->remote_bugs & BUG_SSH2_RSA_PADDING) && pkblob_len > 4+7+4 &&
-	(GET_32BIT(pkblob) == 7 && !memcmp(pkblob+4, "ssh-rsa", 7))) {
-	int pos, len, siglen;
+    if ((ssh->remote_bugs & BUG_SSH2_RSA_PADDING) &&
+        ptrlen_eq_string(get_string(pk), "ssh-rsa") &&
+        ptrlen_eq_string(get_string(sig), "ssh-rsa")) {
+	ptrlen mod_mp, sig_mp;
+        size_t sig_prefix_len;
 
 	/*
-	 * Find the byte length of the modulus.
+	 * Find the modulus and signature integers.
 	 */
+        get_string(pk);                /* skip over exponent */
+        mod_mp = get_string(pk);       /* remember modulus */
+        sig_prefix_len = sig->pos;
+	sig_mp = get_string(sig);
+        if (get_err(pk) || get_err(sig))
+            goto give_up;
 
-	pos = 4+7;		       /* skip over "ssh-rsa" */
-        len = toint(GET_32BIT(pkblob+pos)); /* get length of exponent */
-        if (len < 0 || len > pkblob_len - pos - 4)
-            goto give_up;
-	pos += 4 + len;                /* skip over exponent */
-        if (pkblob_len - pos < 4)
-            goto give_up;
-	len = toint(GET_32BIT(pkblob+pos)); /* find length of modulus */
-        if (len < 0 || len > pkblob_len - pos - 4)
-            goto give_up;
-	pos += 4;		       /* find modulus itself */
-	while (len > 0 && pkblob[pos] == 0)
-	    len--, pos++;
+        /*
+         * Find the byte length of the modulus, not counting leading
+	 * zeroes.
+         */
+	while (mod_mp.len > 0 && *(const char *)mod_mp.ptr == 0) {
+            mod_mp.len--;
+            mod_mp.ptr = (const char *)mod_mp.ptr + 1;
+        }
+
 	/* debug(("modulus length is %d\n", len)); */
-
-	/*
-	 * Now find the signature integer.
-	 */
-	pos = 4+7;		       /* skip over "ssh-rsa" */
-        if (sigblob_len < pos+4)
-            goto give_up;
-	siglen = toint(GET_32BIT(sigblob+pos));
-        if (siglen != sigblob_len - pos - 4)
-            goto give_up;
 	/* debug(("signature length is %d\n", siglen)); */
 
-	if (len != siglen) {
+	if (mod_mp.len != sig_mp.len) {
             strbuf *substr = strbuf_new();
-	    put_data(substr, sigblob, pos);
-	    put_uint32(substr, len);
-	    while (len-- > siglen)
+	    put_data(substr, sigblob, sig_prefix_len);
+	    put_uint32(substr, mod_mp.len);
+	    while (mod_mp.len-- > sig_mp.len)
 		put_byte(substr, 0);
-	    pos += 4;		       /* point to start of actual sig */
-	    put_data(substr, sigblob+pos, siglen);
+	    put_data(substr, sig_mp.ptr, sig_mp.len);
             put_stringsb(pkt, substr);
 	    return;
 	}
