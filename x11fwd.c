@@ -974,29 +974,29 @@ void x11_send_eof(struct X11Connection *xconn)
  * representations of an X11 auth protocol name + hex cookie into our
  * usual integer protocol id and binary auth data.
  */
-int x11_identify_auth_proto(const char *protoname)
+int x11_identify_auth_proto(ptrlen protoname)
 {
     int protocol;
 
     for (protocol = 1; protocol < lenof(x11_authnames); protocol++)
-        if (!strcmp(protoname, x11_authnames[protocol]))
+        if (ptrlen_eq_string(protoname, x11_authnames[protocol]))
             return protocol;
     return -1;
 }
 
-void *x11_dehexify(const char *hex, int *outlen)
+void *x11_dehexify(ptrlen hexpl, int *outlen)
 {
     int len, i;
     unsigned char *ret;
 
-    len = strlen(hex) / 2;
+    len = hexpl.len / 2;
     ret = snewn(len, unsigned char);
 
     for (i = 0; i < len; i++) {
         char bytestr[3];
         unsigned val = 0;
-        bytestr[0] = hex[2*i];
-        bytestr[1] = hex[2*i+1];
+        bytestr[0] = ((const char *)hexpl.ptr)[2*i];
+        bytestr[1] = ((const char *)hexpl.ptr)[2*i+1];
         bytestr[2] = '\0';
         sscanf(bytestr, "%x", &val);
         ret[i] = val;

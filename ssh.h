@@ -657,8 +657,8 @@ char *platform_get_x_display(void);
  */
 void x11_get_auth_from_authfile(struct X11Display *display,
 				const char *authfilename);
-int x11_identify_auth_proto(const char *proto);
-void *x11_dehexify(const char *hex, int *outlen);
+int x11_identify_auth_proto(ptrlen protoname);
+void *x11_dehexify(ptrlen hex, int *outlen);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);
