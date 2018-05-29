@@ -109,23 +109,6 @@ void smemclr(void *b, size_t len);
  * by the 'eq' in the name. */
 int smemeq(const void *av, const void *bv, size_t len);
 
-/* Extracts an SSH-marshalled string from the start of *data. If
- * successful (*datalen is not too small), advances data/datalen past
- * the string and returns a pointer to the string itself and its
- * length in *stringlen. Otherwise does nothing and returns NULL.
- *
- * Like strchr, this function can discard const from its parameter.
- * Treat it as if it was a family of two functions, one returning a
- * non-const string given a non-const pointer, and one taking and
- * returning const. */
-void *get_ssh_string(int *datalen, const void **data, int *stringlen);
-/* Extracts an SSH uint32, similarly. Returns TRUE on success, and
- * leaves the extracted value in *ret. */
-int get_ssh_uint32(int *datalen, const void **data, unsigned *ret);
-/* Given a not-necessarily-zero-terminated string in (length,data)
- * form, check if it equals an ordinary C zero-terminated string. */
-int match_ssh_id(int stringlen, const void *string, const char *id);
-
 char *buildinfo(const char *newline);
 
 /*

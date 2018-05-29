@@ -180,13 +180,9 @@ struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve
  */
 typedef enum { RSA_SSH1_EXPONENT_FIRST, RSA_SSH1_MODULUS_FIRST } RsaSsh1Order;
 
-int rsa_ssh1_readpub(const unsigned char *data, int len, struct RSAKey *result,
-                     const unsigned char **keystr, RsaSsh1Order order);
 void BinarySource_get_rsa_ssh1_pub(
     BinarySource *src, struct RSAKey *result,
     ptrlen *keystr, RsaSsh1Order order);
-int rsa_ssh1_readpriv(const unsigned char *data, int len,
-                      struct RSAKey *result);
 void BinarySource_get_rsa_ssh1_priv(
     BinarySource *src, struct RSAKey *rsa);
 int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);
@@ -667,14 +663,10 @@ extern Bignum Zero, One;
 Bignum bignum_from_bytes(const void *data, int nbytes);
 Bignum bignum_from_bytes_le(const void *data, int nbytes);
 Bignum bignum_random_in_range(const Bignum lower, const Bignum upper);
-int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result);
 int bignum_bitcount(Bignum bn);
-int ssh1_bignum_length(Bignum bn);
-int ssh2_bignum_length(Bignum bn);
 int bignum_byte(Bignum bn, int i);
 int bignum_bit(Bignum bn, int i);
 void bignum_set_bit(Bignum bn, int i, int value);
-int ssh1_write_bignum(void *data, Bignum bn);
 Bignum biggcd(Bignum a, Bignum b);
 unsigned short bignum_mod_short(Bignum number, unsigned short modulus);
 Bignum bignum_add_long(Bignum number, unsigned long addend);

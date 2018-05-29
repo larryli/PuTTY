@@ -701,10 +701,13 @@ void run_client(void)
                 FILE *fp = stdout;     /* FIXME: add a -o option? */
 
                 if (key->ssh_version == 1) {
+                    BinarySource src[1];
                     struct RSAKey rkey;
+
+                    BinarySource_BARE_INIT(src, key->blob->u, key->blob->len);
                     memset(&rkey, 0, sizeof(rkey));
                     rkey.comment = dupstr(key->comment);
-                    rsa_ssh1_readpub(key->blob->u, key->blob->len, &rkey, NULL,
+                    get_rsa_ssh1_pub(src, &rkey, NULL,
                                      RSA_SSH1_EXPONENT_FIRST);
                     ssh1_write_pubkey(fp, &rkey);
                     freersakey(&rkey);

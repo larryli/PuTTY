@@ -807,30 +807,13 @@ int main(int argc, char **argv)
 	    ssh1key = snew(struct RSAKey);
 	    if (!load_encrypted) {
 		strbuf *blob;
-		int n, l;
+                BinarySource src[1];
 
                 blob = strbuf_new();
 		ret = rsa_ssh1_loadpub(infilename, BinarySink_UPCAST(blob),
                                        &origcomment, &error);
-
-		n = 4;		       /* skip modulus bits */
-
-		l = ssh1_read_bignum(blob->u + n,
-                                     blob->len - n,
-				     &ssh1key->exponent);
-		if (l < 0) {
-		    error = "SSH-1 public key blob was too short";
-		} else {
-		    n += l;
-		    l = ssh1_read_bignum(
-                        blob->u + n,
-                        blob->len - n, &ssh1key->modulus);
-		    if (l < 0) {
-			error = "SSH-1 public key blob was too short";
-		    } else
-			n += l;
-		}
-
+                BinarySource_BARE_INIT(src, blob->u, blob->len);
+                get_rsa_ssh1_pub(src, ssh1key, NULL, RSA_SSH1_EXPONENT_FIRST);
                 strbuf_free(blob);
 
 		ssh1key->comment = dupstr(origcomment);

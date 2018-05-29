@@ -47,42 +47,10 @@ void BinarySource_get_rsa_ssh1_pub(
     }
 }
 
-int rsa_ssh1_readpub(const unsigned char *data, int len, struct RSAKey *result,
-                     const unsigned char **keystr, RsaSsh1Order order)
-{
-    BinarySource src;
-    ptrlen key_pl;
-
-    BinarySource_BARE_INIT(&src, data, len);
-    get_rsa_ssh1_pub(&src, result, &key_pl, order);
-
-    if (keystr)
-        *keystr = key_pl.ptr;
-
-    if (get_err(&src))
-        return -1;
-    else
-        return key_pl.len;
-}
-
 void BinarySource_get_rsa_ssh1_priv(
     BinarySource *src, struct RSAKey *rsa)
 {
     rsa->private_exponent = get_mp_ssh1(src);
-}
-
-int rsa_ssh1_readpriv(const unsigned char *data, int len,
-                      struct RSAKey *result)
-{
-    BinarySource src;
-
-    BinarySource_BARE_INIT(&src, data, len);
-    get_rsa_ssh1_priv(&src, result);
-
-    if (get_err(&src))
-        return -1;
-    else
-        return src.pos;
 }
 
 int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)

@@ -1181,12 +1181,6 @@ int smemeq(const void *av, const void *bv, size_t len)
     return (0x100 - val) >> 8;
 }
 
-int match_ssh_id(int stringlen, const void *string, const char *id)
-{
-    int idlen = strlen(id);
-    return (idlen == stringlen && !memcmp(string, id, idlen));
-}
-
 ptrlen make_ptrlen(const void *ptr, size_t len)
 {
     ptrlen pl;
@@ -1207,33 +1201,6 @@ char *mkstr(ptrlen pl)
     memcpy(p, pl.ptr, pl.len);
     p[pl.len] = '\0';
     return p;
-}
-
-void *get_ssh_string(int *datalen, const void **data, int *stringlen)
-{
-    void *ret;
-    unsigned int len;
-
-    if (*datalen < 4)
-        return NULL;
-    len = GET_32BIT_MSB_FIRST((const unsigned char *)*data);
-    if (*datalen - 4 < len)
-        return NULL;
-    ret = (void *)((const char *)*data + 4);
-    *datalen -= len + 4;
-    *data = (const char *)*data + len + 4;
-    *stringlen = len;
-    return ret;
-}
-
-int get_ssh_uint32(int *datalen, const void **data, unsigned *ret)
-{
-    if (*datalen < 4)
-        return FALSE;
-    *ret = GET_32BIT_MSB_FIRST((const unsigned char *)*data);
-    *datalen -= 4;
-    *data = (const char *)*data + 4;
-    return TRUE;
 }
 
 int strstartswith(const char *s, const char *t)

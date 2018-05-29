@@ -247,7 +247,7 @@ Bignum dh_create_e(void *handle, int nbits)
     int nbytes;
     unsigned char *buf;
 
-    nbytes = ssh1_bignum_length(ctx->qmask);
+    nbytes = (bignum_bitcount(ctx->qmask) + 7) / 8;
     buf = snewn(nbytes, unsigned char);
 
     do {
@@ -258,10 +258,9 @@ Bignum dh_create_e(void *handle, int nbits)
 	if (ctx->x)
 	    freebn(ctx->x);
 	if (nbits == 0 || nbits > bignum_bitcount(ctx->qmask)) {
-	    ssh1_write_bignum(buf, ctx->qmask);
-	    for (i = 2; i < nbytes; i++)
-		buf[i] &= random_byte();
-	    ssh1_read_bignum(buf, nbytes, &ctx->x);   /* can't fail */
+	    for (i = 0; i < nbytes; i++)
+		buf[i] = bignum_byte(ctx->qmask, i) & random_byte();
+	    ctx->x = bignum_from_bytes(buf, nbytes);
 	} else {
 	    int b, nb;
 	    ctx->x = bn_power_2(nbits);

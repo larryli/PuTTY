@@ -1509,36 +1509,7 @@ Bignum bignum_random_in_range(const Bignum lower, const Bignum upper)
 }
 
 /*
- * Read an SSH-1-format bignum from a data buffer. Return the number
- * of bytes consumed, or -1 if there wasn't enough data.
- */
-int ssh1_read_bignum(const unsigned char *data, int len, Bignum * result)
-{
-    const unsigned char *p = data;
-    int i;
-    int w, b;
-
-    if (len < 2)
-	return -1;
-
-    w = 0;
-    for (i = 0; i < 2; i++)
-	w = (w << 8) + *p++;
-    b = (w + 7) / 8;		       /* bits -> bytes */
-
-    if (len < b+2)
-	return -1;
-
-    if (!result)		       /* just return length */
-	return b + 2;
-
-    *result = bignum_from_bytes(p, b);
-
-    return p + b - data;
-}
-
-/*
- * Return the bit count of a bignum, for SSH-1 encoding.
+ * Return the bit count of a bignum.
  */
 int bignum_bitcount(Bignum bn)
 {
@@ -1546,22 +1517,6 @@ int bignum_bitcount(Bignum bn)
     while (bitcount >= 0
 	   && (bn[bitcount / BIGNUM_INT_BITS + 1] >> (bitcount % BIGNUM_INT_BITS)) == 0) bitcount--;
     return bitcount + 1;
-}
-
-/*
- * Return the byte length of a bignum when SSH-1 encoded.
- */
-int ssh1_bignum_length(Bignum bn)
-{
-    return 2 + (bignum_bitcount(bn) + 7) / 8;
-}
-
-/*
- * Return the byte length of a bignum when SSH-2 encoded.
- */
-int ssh2_bignum_length(Bignum bn)
-{
-    return 4 + (bignum_bitcount(bn) + 8) / 8;
 }
 
 /*
@@ -1602,24 +1557,6 @@ void bignum_set_bit(Bignum bn, int bitnum, int value)
 	else
 	    bn[v] &= ~mask;
     }
-}
-
-/*
- * Write a SSH-1-format bignum into a buffer. It is assumed the
- * buffer is big enough. Returns the number of bytes used.
- */
-int ssh1_write_bignum(void *data, Bignum bn)
-{
-    unsigned char *p = data;
-    int len = ssh1_bignum_length(bn);
-    int i;
-    int bitc = bignum_bitcount(bn);
-
-    *p++ = (bitc >> 8) & 0xFF;
-    *p++ = (bitc) & 0xFF;
-    for (i = len - 2; i--;)
-	*p++ = bignum_byte(bn, i);
-    return len;
 }
 
 void BinarySink_put_mp_ssh1(BinarySink *bs, Bignum bn)
