@@ -526,8 +526,16 @@ if (defined $makefiles{'clangcl'}) {
     "RCCMD = llvm-rc\n".
     "ifeq (\$(Platform),x64)\n".
     "CCTARGET = x86_64-pc-windows-msvc18.0.0\n".
+    "PLATFORMCFLAGS =\n".
+    "else ifeq (\$(Platform),arm)\n".
+    "CCTARGET = arm-pc-windows-msvc18.0.0\n".
+    "PLATFORMCFLAGS = /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE /GS-\n".
+    "else ifeq (\$(Platform),arm64)\n".
+    "CCTARGET = arm64-pc-windows-msvc18.0.0\n".
+    "PLATFORMCFLAGS = /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE /GS-\n".
     "else\n".
     "CCTARGET = i386-pc-windows-msvc18.0.0\n".
+    "PLATFORMCFLAGS =\n".
     "endif\n".
     "CC = \$(CCCMD) --target=\$(CCTARGET)\n".
     "RC = \$(RCCMD) /c 1252 \n".
@@ -539,7 +547,7 @@ if (defined $makefiles{'clangcl'}) {
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 ".
                "/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS").
-               "\n".
+               " \$(PLATFORMCFLAGS)\n".
     "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
     &splitline("RCPPFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
                " -DWIN32 -D_WIN32 -DWINVER=0x0400")." \$(RCFL)\n".
