@@ -29,7 +29,13 @@
 
 #include "winhelp.h"
 
+#if defined _M_IX86 || defined _M_AMD64
+#define BUILDINFO_PLATFORM "x86 Windows"
+#elif defined _M_ARM || defined _M_ARM64
+#define BUILDINFO_PLATFORM "Arm Windows"
+#else
 #define BUILDINFO_PLATFORM "Windows"
+#endif
 
 struct Filename {
     char *path;
