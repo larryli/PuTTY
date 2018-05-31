@@ -295,6 +295,7 @@ static ssh_key *dss_createkey(const ssh_keyalg *self,
                               const void *pub_blob, int pub_len,
                               const void *priv_blob, int priv_len)
 {
+    ssh_key *sshk;
     struct dss_key *dss;
     const char *pb = (const char *) priv_blob;
     const char *hash;
@@ -303,10 +304,11 @@ static ssh_key *dss_createkey(const ssh_keyalg *self,
     unsigned char digest[20];
     Bignum ytest;
 
-    dss = FROMFIELD(dss_newkey(self, pub_blob, pub_len),
-                    struct dss_key, sshk);
-    if (!dss)
+    sshk = dss_newkey(self, pub_blob, pub_len);
+    if (!sshk)
         return NULL;
+
+    dss = FROMFIELD(sshk, struct dss_key, sshk);
     dss->x = getmp(&pb, &priv_len);
     if (!dss->x) {
         dss_freekey(&dss->sshk);
@@ -382,13 +384,15 @@ static void dss_openssh_fmtkey(ssh_key *key, BinarySink *bs)
 static int dss_pubkey_bits(const ssh_keyalg *self,
                            const void *blob, int len)
 {
+    ssh_key *sshk;
     struct dss_key *dss;
     int ret;
 
-    dss = FROMFIELD(dss_newkey(self, blob, len),
-                    struct dss_key, sshk);
-    if (!dss)
+    sshk = dss_newkey(self, blob, len);
+    if (!sshk)
         return -1;
+
+    dss = FROMFIELD(sshk, struct dss_key, sshk);
     ret = bignum_bitcount(dss->p);
     dss_freekey(&dss->sshk);
 

@@ -1734,8 +1734,10 @@ struct ecsign_extra {
 
 static void ecdsa_freekey(ssh_key *key)
 {
-    struct ec_key *ec = FROMFIELD(key, struct ec_key, sshk);
-    if (!ec) return;
+    struct ec_key *ec;
+
+    if (!key) return;
+    ec = FROMFIELD(key, struct ec_key, sshk);
 
     if (ec->publicKey.x)
         freebn(ec->publicKey.x);
@@ -1909,15 +1911,16 @@ static ssh_key *ecdsa_createkey(const ssh_keyalg *self,
                                 const void *pub_blob, int pub_len,
                                 const void *priv_blob, int priv_len)
 {
+    ssh_key *sshk;
     struct ec_key *ec;
     struct ec_point *publicKey;
     const char *pb = (const char *) priv_blob;
 
-    ec = FROMFIELD(ecdsa_newkey(self, pub_blob, pub_len),
-                   struct ec_key, sshk);
-    if (!ec) {
+    sshk = ecdsa_newkey(self, pub_blob, pub_len);
+    if (!sshk)
         return NULL;
-    }
+
+    ec = FROMFIELD(sshk, struct ec_key, sshk);
 
     if (ec->publicKey.curve->type != EC_WEIERSTRASS
         && ec->publicKey.curve->type != EC_EDWARDS) {
@@ -2147,13 +2150,15 @@ static void ecdsa_openssh_fmtkey(ssh_key *key, BinarySink *bs)
 static int ecdsa_pubkey_bits(const ssh_keyalg *self,
                              const void *blob, int len)
 {
+    ssh_key *sshk;
     struct ec_key *ec;
     int ret;
 
-    ec = FROMFIELD(ecdsa_newkey(self, blob, len),
-                   struct ec_key, sshk);
-    if (!ec)
+    sshk = ecdsa_newkey(self, blob, len);
+    if (!sshk)
         return -1;
+
+    ec = FROMFIELD(sshk, struct ec_key, sshk);
     ret = ec->publicKey.curve->fieldBits;
     ecdsa_freekey(&ec->sshk);
 
