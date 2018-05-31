@@ -88,6 +88,8 @@ ifneq "$(SNAPSHOT)" "" set Isuffix $(Date)-installer
 ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Isuffix custom-$(Date)-installer
 set Ifilename32 putty-$(Isuffix)
 set Ifilename64 putty-64bit-$(Isuffix)
+set Ifilenamea32 putty-arm32-$(Isuffix)
+set Ifilenamea64 putty-arm64-$(Isuffix)
 
 # Set up the version string for the Windows installer.
 ifneq "$(RELEASE)" "" set Iversion $(RELEASE)
@@ -195,11 +197,13 @@ in putty/windows do make -f Makefile.clangcl BUILDDIR=buildold/ cleantestprogs
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe abuild*/*.exe
 
 # Build a WiX MSI installer, for each of build32 and build64.
-in putty/windows with wixonlinux do candle -arch x86 -dWin64=no -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
-in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=x86 -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
 
 # Sign the Windows installers.
-ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
+ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi installera32.msi installera64.msi
 
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever) -j$(nproc)
@@ -219,6 +223,8 @@ deliver putty/windows/build64/*.exe putty/w64/$@
 deliver putty/windows/build64/putty.zip putty/w64/$@
 deliver putty/windows/installer32.msi putty/w32/$(Ifilename32).msi
 deliver putty/windows/installer64.msi putty/w64/$(Ifilename64).msi
+deliver putty/windows/installera32.msi putty/wa32/$(Ifilenamea32).msi
+deliver putty/windows/installera64.msi putty/wa64/$(Ifilenamea64).msi
 deliver putty/windows/abuild32/*.exe putty/wa32/$@
 deliver putty/windows/abuild32/putty.zip putty/wa32/$@
 deliver putty/windows/abuild64/*.exe putty/wa64/$@
