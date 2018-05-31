@@ -799,8 +799,9 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
     ret = snew(struct ssh2_userkey);
     ret->alg = alg;
     ret->comment = comment;
-    ret->data = alg->createkey(alg, public_blob->u, public_blob->len,
-			       private_blob->u, private_blob->len);
+    ret->data = alg->createkey(
+        alg, make_ptrlen(public_blob->u, public_blob->len),
+        make_ptrlen(private_blob->u, private_blob->len));
     if (!ret->data) {
 	sfree(ret);
 	ret = NULL;
@@ -1509,7 +1510,7 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     if (!get_err(src)) {
         alg = find_pubkey_alg_len(algname);
         if (alg) {
-            int bits = alg->pubkey_bits(alg, blob, bloblen);
+            int bits = alg->pubkey_bits(alg, make_ptrlen(blob, bloblen));
             return dupprintf("%.*s %d %s", PTRLEN_PRINTF(algname),
                              bits, fingerprint_str);
         } else {

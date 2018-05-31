@@ -670,8 +670,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         put_mp_ssh2_from_string(blob, privkey.data.ptr, privkey.data.len);
 
         retkey->data = retkey->alg->createkey(
-            retkey->alg, blob->u, publen,
-            blob->u + publen, blob->len - publen);
+            retkey->alg, make_ptrlen(blob->u, publen),
+            make_ptrlen(blob->u + publen, blob->len - publen));
 
         if (!retkey->data) {
             sfree(retkey);
@@ -742,7 +742,8 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
         retkey = snew(struct ssh2_userkey);
         retkey->alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
         retkey->data = retkey->alg->createkey(
-            retkey->alg, blob->u, privptr, blob->u+privptr, blob->len-privptr);
+            retkey->alg, make_ptrlen(blob->u, privptr),
+            make_ptrlen(blob->u+privptr, blob->len-privptr));
 
         if (!retkey->data) {
             sfree(retkey);
@@ -1466,13 +1467,13 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
         thiskey.len = (const char *)get_ptr(src) - (const char *)thiskey.ptr;
 
         if (key_index == key->key_wanted) {
-            const unsigned char *blobptr = thiskey.ptr;
-            int bloblen = thiskey.len;
+            BinarySource src[1];
+            BinarySource_BARE_INIT(src, thiskey.ptr, thiskey.len);
 
             retkey = snew(struct ssh2_userkey);
             retkey->comment = NULL;
             retkey->alg = alg;
-            retkey->data = alg->openssh_createkey(alg, &blobptr, &bloblen);
+            retkey->data = alg->openssh_createkey(alg, src);
             if (!retkey->data) {
                 errmsg = "unable to create key data structure";
                 goto error;
@@ -2173,8 +2174,9 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
 
     retkey = snew(struct ssh2_userkey);
     retkey->alg = alg;
-    retkey->data = alg->createkey(alg, blob->u, publen,
-                                  blob->u + publen, blob->len - publen);
+    retkey->data = alg->createkey(
+        alg, make_ptrlen(blob->u, publen),
+        make_ptrlen(blob->u + publen, blob->len - publen));
     if (!retkey->data) {
 	sfree(retkey);
 	errmsg = "unable to create key data structure";

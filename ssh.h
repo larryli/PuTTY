@@ -394,17 +394,13 @@ struct ssh_kexes {
 };
 
 struct ssh_keyalg {
-    ssh_key *(*newkey) (const ssh_keyalg *self,
-                        const void *data, int len);
+    ssh_key *(*newkey) (const ssh_keyalg *self, ptrlen data);
     void (*freekey) (ssh_key *key);
     char *(*fmtkey) (ssh_key *key);
     void (*public_blob)(ssh_key *key, BinarySink *);
     void (*private_blob)(ssh_key *key, BinarySink *);
-    ssh_key *(*createkey) (const ssh_keyalg *self,
-                           const void *pub_blob, int pub_len,
-                           const void *priv_blob, int priv_len);
-    ssh_key *(*openssh_createkey) (const ssh_keyalg *self,
-                                   const unsigned char **blob, int *len);
+    ssh_key *(*createkey) (const ssh_keyalg *self, ptrlen pub, ptrlen priv);
+    ssh_key *(*openssh_createkey) (const ssh_keyalg *self, BinarySource *);
     void (*openssh_fmtkey) (ssh_key *key, BinarySink *);
     /* OpenSSH private key blobs, as created by openssh_fmtkey and
      * consumed by openssh_createkey, always (at least so far...) take
@@ -415,10 +411,8 @@ struct ssh_keyalg {
      * skip over the right number to find the next key in the file.
      * openssh_private_npieces gives that information. */
     int openssh_private_npieces;
-    int (*pubkey_bits) (const ssh_keyalg *self,
-                        const void *blob, int len);
-    int (*verifysig) (ssh_key *key, const void *sig, int siglen,
-		      const void *data, int datalen);
+    int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
+    int (*verifysig) (ssh_key *key, ptrlen sig, ptrlen data);
     void (*sign) (ssh_key *key, const void *data, int datalen, BinarySink *);
     const char *name;
     const char *keytype;               /* for host key cache */

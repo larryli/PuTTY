@@ -857,9 +857,8 @@ int main(int argc, char **argv)
                                          &origcomment, &error)) {
                     ssh2algf = find_pubkey_alg(ssh2alg);
                     if (ssh2algf)
-                        bits = ssh2algf->pubkey_bits(ssh2algf,
-                                                     ssh2blob->s,
-                                                     ssh2blob->len);
+                        bits = ssh2algf->pubkey_bits(
+                            ssh2algf, make_ptrlen(ssh2blob->s, ssh2blob->len));
                     else
                         bits = -1;
                 } else {

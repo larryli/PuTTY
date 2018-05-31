@@ -430,14 +430,7 @@ void pageant_handle_msg(BinarySink *bs,
 		goto add2_cleanup;
 	    }
 
-            {
-                const unsigned char *p = get_ptr(msg);
-                int len = get_avail(msg);
-                key->data = key->alg->openssh_createkey(key->alg, &p, &len);
-                assert(len >= 0);
-                assert(len < get_avail(msg));
-                msg->pos += get_avail(msg) - len;
-            }
+            key->data = key->alg->openssh_createkey(key->alg, msg);
 
 	    if (!key->data) {
                 pageant_failure_msg(bs, "key setup failed", logctx, logfn);

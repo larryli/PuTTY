@@ -7192,8 +7192,7 @@ static void do_ssh2_transport(void *vctx)
         }
         set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
         s->hostkeydata = get_string(pktin);
-        s->hkey = ssh->hostkey->newkey(ssh->hostkey,
-                                       s->hostkeydata.ptr, s->hostkeydata.len);
+        s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
         s->f = get_mp_ssh2(pktin);
         s->sigdata = get_string(pktin);
         if (get_err(pktin)) {
@@ -7264,8 +7263,7 @@ static void do_ssh2_transport(void *vctx)
 
         s->hostkeydata = get_string(pktin);
         put_stringpl(ssh->exhash_bs, s->hostkeydata);
-        s->hkey = ssh->hostkey->newkey(ssh->hostkey,
-                                       s->hostkeydata.ptr, s->hostkeydata.len);
+        s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
 
         {
             strbuf *pubpoint = strbuf_new();
@@ -7469,8 +7467,7 @@ static void do_ssh2_transport(void *vctx)
                 s->hostkeydata = get_string(pktin);
                 if (ssh->hostkey) {
                     s->hkey = ssh->hostkey->newkey(ssh->hostkey,
-                                                   s->hostkeydata.ptr,
-                                                   s->hostkeydata.len);
+                                                   s->hostkeydata);
                     put_string(ssh->exhash_bs,
                                s->hostkeydata.ptr, s->hostkeydata.len);
                 }
@@ -7564,8 +7561,7 @@ static void do_ssh2_transport(void *vctx)
 
         s->hostkeydata = get_string(pktin);
         put_stringpl(ssh->exhash_bs, s->hostkeydata);
-	s->hkey = ssh->hostkey->newkey(ssh->hostkey,
-                                       s->hostkeydata.ptr, s->hostkeydata.len);
+	s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
 
         rsakeydata = get_string(pktin);
 
@@ -7704,9 +7700,9 @@ static void do_ssh2_transport(void *vctx)
             crStopV;
         }
 
-        if (!ssh->hostkey->verifysig(s->hkey, s->sigdata.ptr, s->sigdata.len,
-                                     s->exchange_hash,
-                                     ssh->kex->hash->hlen)) {
+        if (!ssh->hostkey->verifysig(
+                s->hkey, s->sigdata,
+                make_ptrlen(s->exchange_hash, ssh->kex->hash->hlen))) {
 #ifndef FUZZING
             bombout(("Server's host key did not match the signature "
                      "supplied"));
