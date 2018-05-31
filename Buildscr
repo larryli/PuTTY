@@ -195,8 +195,8 @@ in putty/windows do make -f Makefile.clangcl BUILDDIR=buildold/ cleantestprogs
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe abuild*/*.exe
 
 # Build a WiX MSI installer, for each of build32 and build64.
-in putty/windows with wixonlinux do candle -arch x86 -dWin64=no -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
-in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x86 -dWin64=no -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
 
 # Sign the Windows installers.
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
