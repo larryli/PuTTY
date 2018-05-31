@@ -139,7 +139,7 @@ ifneq "$(MAKEARGS)" "" set Makeargs $(Makeargs) $(MAKEARGS)
 in putty do ./mksrcarc.sh
 in putty do ./mkunxarc.sh '$(Autoconfver)' '$(Uxarcsuffix)' $(Docmakever)
 in putty do perl mkfiles.pl
-in putty/doc do make $(Docmakever) putty.hlp putty.chm
+in putty/doc do make $(Docmakever) putty.hlp putty.chm -j$(nproc)
 
 # Munge the installer script locally so that it reports the version
 # we're really building.
@@ -160,12 +160,12 @@ in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +4
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
 # allows the resulting files to still run on Windows XP.
-in putty/windows with clangcl32 do mkdir build32 && Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
-in putty/windows with clangcl64 do mkdir build64 && Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ $(Makeargs) all cleantestprogs
+in putty/windows with clangcl32 do mkdir build32 && Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs -j$(nproc)
+in putty/windows with clangcl64 do mkdir build64 && Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ $(Makeargs) all cleantestprogs -j$(nproc)
 
 # Build experimental Arm Windows binaries.
-in putty/windows with clangcl_a32 do mkdir abuild32 && Platform=arm make -f Makefile.clangcl BUILDDIR=abuild32/ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs
-in putty/windows with clangcl_a64 do mkdir abuild64 && Platform=arm64 make -f Makefile.clangcl BUILDDIR=abuild64/ $(Makeargs) all cleantestprogs
+in putty/windows with clangcl_a32 do mkdir abuild32 && Platform=arm make -f Makefile.clangcl BUILDDIR=abuild32/ SUBSYSVER=,5.01 $(Makeargs) all cleantestprogs -j$(nproc)
+in putty/windows with clangcl_a64 do mkdir abuild64 && Platform=arm64 make -f Makefile.clangcl BUILDDIR=abuild64/ $(Makeargs) all cleantestprogs -j$(nproc)
 
 # Build the 'old' binaries, which should still run on all 32-bit
 # versions of Windows back to Win95 (but not Win32s). These link
@@ -174,7 +174,7 @@ in putty/windows with clangcl_a64 do mkdir abuild64 && Platform=arm64 make -f Ma
 # a subsystem version of 4.0, and compile with /arch:IA32 to prevent
 # the use of modern CPU features like MMX which older machines also
 # might not have.
-in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj XFLAGS=/arch:IA32 all cleantestprogs
+in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj XFLAGS=/arch:IA32 all cleantestprogs -j$(nproc)
 
 # Code-sign the Windows binaries, if the local bob config provides a
 # script to do so in a cross-compiling way. We assume here that the
@@ -193,7 +193,7 @@ in putty/windows with wixonlinux do candle -arch x64 -dWin64=yes -dBuilddir=buil
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi
 
 in putty/doc do make mostlyclean
-in putty/doc do make $(Docmakever)
+in putty/doc do make $(Docmakever) -j$(nproc)
 in putty/windows/buildold do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/windows/build32 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
 in putty/windows/build64 do zip -k -j putty.zip `ls *.exe | grep -v puttytel` ../../doc/putty.chm ../../doc/putty.hlp ../../doc/putty.cnt
