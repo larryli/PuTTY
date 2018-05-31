@@ -370,6 +370,7 @@ static void ssh2_pkt_send(Ssh, struct Packet *);
 static void ssh2_pkt_send_noqueue(Ssh, struct Packet *);
 static void do_ssh1_login(void *vctx);
 static void do_ssh2_userauth(void *vctx);
+static void ssh2_connection_setup(Ssh ssh);
 static void do_ssh2_connection(void *vctx);
 static void ssh_channel_init(struct ssh_channel *c);
 static struct ssh_channel *ssh_channel_msg(Ssh ssh, struct Packet *pktin);
@@ -9884,6 +9885,21 @@ static void ssh2_msg_userauth(Ssh ssh, struct Packet *pktin)
 {
     pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh2_userauth, pktin);
+    if (pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
+        /*
+         * The very instant we see this message, the connection
+         * protocol has officially started, which means we must
+         * install the dispatch-table entries for all the
+         * connection-layer messages. In particular, we must do this
+         * _before_ we return to the loop in ssh_process_pq_full
+         * that's processing the currently queued packets through the
+         * dispatch table, because if (say) an SSH_MSG_GLOBAL_REQUEST
+         * is already pending in pq_full, we can't afford to delay
+         * installing its dispatch table entry until after that queue
+         * run is done.
+         */
+        ssh2_connection_setup(ssh);
+    }
     queue_idempotent_callback(&ssh->ssh2_userauth_icb);
 }
 
@@ -11368,6 +11384,40 @@ static void ssh2_response_connection(struct ssh_channel *c,
         ssh2_msg_connection(c->ssh, pktin);
 }
 
+static void ssh2_connection_setup(Ssh ssh)
+{
+    /*
+     * Initially, most connection-protocol messages go to the function
+     * that queues them for handling by the main do_ssh2_connection
+     * coroutine.
+     */
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] =
+        ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_connection;
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_connection;
+
+    /*
+     * But a couple of them are easier to pass to special handler
+     * functions right from the start.
+     */
+    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] =
+	ssh2_msg_channel_window_adjust;
+    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] =
+	ssh2_msg_global_request;
+
+    /*
+     * Ensure our channels tree exists.
+     */
+    if (!ssh->channels)
+        ssh->channels = newtree234(ssh_channelcmp);
+}
+
 static void do_ssh2_connection(void *vctx)
 {
     Ssh ssh = (Ssh)vctx;
@@ -11382,29 +11432,13 @@ static void do_ssh2_connection(void *vctx)
 
     crBeginState;
 
-    /* Register as a handler for all the messages this coroutine handles. */
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_connection;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_connection;
-
-    ssh->channels = newtree234(ssh_channelcmp);
-
     /*
-     * Set up handlers for some connection protocol messages, so we
-     * don't have to handle them repeatedly in this coroutine.
+     * Initialise our dispatch table entries. Normally this will have
+     * been done as a side effect of USERAUTH_SUCCESS, but in some
+     * cases, it might not (e.g. if we bypassed userauth, or if we're
+     * running the bare-connection protocol).
      */
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] =
-	ssh2_msg_channel_window_adjust;
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] =
-	ssh2_msg_global_request;
+    ssh2_connection_setup(ssh);
 
     /*
      * Create the main session channel.
