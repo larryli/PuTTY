@@ -75,7 +75,10 @@ void share_setup_x11_channel(void *csv, void *chanv,
 typedef void *Bignum;
 #endif
 
-typedef struct ssh_key {} ssh_key;
+typedef struct ssh_key {
+    int dummy;
+} ssh_key;
+
 typedef struct ssh_keyalg ssh_keyalg;
 
 struct RSAKey {
