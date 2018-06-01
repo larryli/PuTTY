@@ -152,7 +152,7 @@ in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(VersionInfoVersion=)
 in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 # Some gratuitous theming for the MSI installer UI.
-in putty/icons do make
+in putty/icons do make -j$(nproc)
 in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 180 \( -size 329x312 canvas:white \) +append \( icons/putty-48.png -geometry +28+24 \) -composite \( icons/pscp-48.png -geometry +88+96 \) -composite \( icons/puttygen-48.png -geometry +28+168 \) -composite \( icons/pageant-48.png -geometry +88+240 \) -composite windows/msidialog.bmp
 in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
 
