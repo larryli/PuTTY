@@ -2,6 +2,7 @@
  * sftp.h: definitions for SFTP and the sftp.c routines.
  */
 
+#include "defs.h"
 #include "int64.h"
 
 #define SSH_FXP_INIT                              1	/* 0x1 */
