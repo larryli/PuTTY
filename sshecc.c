@@ -2689,7 +2689,8 @@ void ssh_ecdhkex_getpublic(struct ec_key *ec, BinarySink *bs)
     }
 }
 
-Bignum ssh_ecdhkex_getkey(struct ec_key *ec, char *remoteKey, int remoteKeyLen)
+Bignum ssh_ecdhkex_getkey(struct ec_key *ec,
+                          const void *remoteKey, int remoteKeyLen)
 {
     struct ec_point remote;
     Bignum ret;
@@ -2708,7 +2709,8 @@ Bignum ssh_ecdhkex_getkey(struct ec_key *ec, char *remoteKey, int remoteKeyLen)
 
         remote.curve = ec->publicKey.curve;
         remote.infinity = 0;
-        remote.x = bignum_from_bytes_le((unsigned char*)remoteKey, remoteKeyLen);
+        remote.x = bignum_from_bytes_le((const unsigned char *)remoteKey,
+                                        remoteKeyLen);
         remote.y = NULL;
         remote.z = NULL;
     }

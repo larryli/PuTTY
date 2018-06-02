@@ -605,7 +605,7 @@ void pfd_override_throttle(struct PortForwarding *pf, int enable)
 /*
  * Called to send data down the raw connection.
  */
-int pfd_send(struct PortForwarding *pf, char *data, int len)
+int pfd_send(struct PortForwarding *pf, const void *data, int len)
 {
     if (pf == NULL)
 	return 0;

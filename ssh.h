@@ -226,7 +226,7 @@ struct ec_key *ssh_ecdhkex_newkey(const struct ssh_kex *kex);
 void ssh_ecdhkex_freekey(struct ec_key *key);
 void ssh_ecdhkex_getpublic(struct ec_key *key, BinarySink *bs);
 Bignum ssh_ecdhkex_getkey(struct ec_key *key,
-                          char *remoteKey, int remoteKeyLen);
+                          const void *remoteKey, int remoteKeyLen);
 
 /*
  * Helper function for k generation in DSA, reused in ECDSA
@@ -542,7 +542,7 @@ void ssh_send_port_open(void *channel, const char *hostname, int port,
 extern char *pfd_connect(struct PortForwarding **pf, char *hostname, int port,
                          void *c, Conf *conf, int addressfamily);
 extern void pfd_close(struct PortForwarding *);
-extern int pfd_send(struct PortForwarding *, char *data, int len);
+extern int pfd_send(struct PortForwarding *, const void *data, int len);
 extern void pfd_send_eof(struct PortForwarding *);
 extern void pfd_confirm(struct PortForwarding *);
 extern void pfd_unthrottle(struct PortForwarding *);
@@ -622,7 +622,7 @@ void x11_free_fake_auth(struct X11FakeAuth *auth);
 struct X11Connection;                  /* opaque outside x11fwd.c */
 struct X11Connection *x11_init(tree234 *authtree, void *, const char *, int);
 extern void x11_close(struct X11Connection *);
-extern int x11_send(struct X11Connection *, char *, int);
+extern int x11_send(struct X11Connection *, const void *, int);
 extern void x11_send_eof(struct X11Connection *s);
 extern void x11_unthrottle(struct X11Connection *s);
 extern void x11_override_throttle(struct X11Connection *s, int enable);

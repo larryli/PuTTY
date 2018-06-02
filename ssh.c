@@ -5890,7 +5890,7 @@ static void ssh1_msg_channel_close(Ssh ssh, struct Packet *pktin)
 /*
  * Handle incoming data on an SSH-1 or SSH-2 agent-forwarding channel.
  */
-static int ssh_agent_channel_data(struct ssh_channel *c, char *data,
+static int ssh_agent_channel_data(struct ssh_channel *c, const void *data,
 				  int length)
 {
     bufchain_add(&c->u.a.inbuffer, data, length);
@@ -5908,7 +5908,7 @@ static int ssh_agent_channel_data(struct ssh_channel *c, char *data,
 }
 
 static int ssh_channel_data(struct ssh_channel *c, int is_stderr,
-			    char *data,  int length)
+			    const void *data, int length)
 {
     switch (c->type) {
       case CHAN_MAINSESSION:

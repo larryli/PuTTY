@@ -800,8 +800,10 @@ static int x11_parse_ip(const char *addr_string, unsigned long *ip)
 /*
  * Called to send data down the raw connection.
  */
-int x11_send(struct X11Connection *xconn, char *data, int len)
+int x11_send(struct X11Connection *xconn, const void *vdata, int len)
 {
+    const char *data = (const char *)vdata;
+
     if (!xconn)
 	return 0;
 
