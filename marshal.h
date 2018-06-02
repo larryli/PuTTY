@@ -138,4 +138,127 @@ void BinarySink_put_stringsb(BinarySink *, struct strbuf *);
 void BinarySink_put_asciz(BinarySink *, const char *str);
 int BinarySink_put_pstring(BinarySink *, const char *str);
 
+/* ---------------------------------------------------------------------- */
+
+/*
+ * A complementary trait structure for _un_-marshalling.
+ *
+ * This structure contains client-visible data fields rather than
+ * methods, because that seemed more useful than leaving it totally
+ * opaque. But it's still got the self-pointer system that will allow
+ * the set of get_* macros to target one of these itself or any other
+ * type that 'derives' from it. So, for example, an SSH packet
+ * structure can act as a BinarySource while also having additional
+ * fields like the packet type.
+ */
+typedef enum BinarySourceError {
+    BSE_NO_ERROR,
+    BSE_OUT_OF_DATA,
+    BSE_INVALID
+} BinarySourceError;
+struct BinarySource {
+    /*
+     * (data, len) is the data block being decoded. pos is the current
+     * position within the block.
+     */
+    const void *data;
+    size_t pos, len;
+
+    /*
+     * 'err' indicates whether a decoding error has happened at any
+     * point. Once this has been set to something other than
+     * BSE_NO_ERROR, it shouldn't be changed by any unmarshalling
+     * function. So you can safely do a long sequence of get_foo()
+     * operations and then test err just once at the end, rather than
+     * having to conditionalise every single get.
+     *
+     * The unmarshalling functions should always return some value,
+     * even if a decoding error occurs. Generally on error they'll
+     * return zero (if numeric) or the empty string (if string-based),
+     * or some other appropriate default value for more complicated
+     * types.
+     *
+     * If the usual return value is dynamically allocated (e.g. a
+     * Bignum, or a normal C 'char *' string), then the error value is
+     * also dynamic in the same way. So you have to free exactly the
+     * same set of things whether or not there was a decoding error,
+     * which simplifies exit paths - for example, you could call a big
+     * pile of get_foo functions, then put the actual handling of the
+     * results under 'if (!get_err(src))', and then free everything
+     * outside that if.
+     */
+    BinarySourceError err;
+
+    /*
+     * Self-pointer for the implicit derivation trick, same as
+     * BinarySink above.
+     */
+    BinarySource *binarysource_;
+};
+
+/*
+ * Implementation macros, similar to BinarySink.
+ */
+#define BinarySource_IMPLEMENTATION BinarySource binarysource_[1]
+#define BinarySource_INIT__(obj, data_, len_)    \
+    ((obj)->data = (data_),                             \
+     (obj)->len = (len_),                               \
+     (obj)->pos = 0,                                    \
+     (obj)->err = BSE_NO_ERROR,                         \
+     (obj)->binarysource_ = (obj))
+#define BinarySource_BARE_INIT(obj, data_, len_)                \
+    TYPECHECK(&(obj)->binarysource_ == (BinarySource **)0,      \
+              BinarySource_INIT__(obj, data_, len_))
+#define BinarySource_INIT(obj, data_, len_)                             \
+    TYPECHECK(&(obj)->binarysource_ == (BinarySource (*)[1])0,          \
+              BinarySource_INIT__(BinarySource_UPCAST(obj), data_, len_))
+#define BinarySource_DOWNCAST(object, type)                               \
+    TYPECHECK((object) == ((type *)0)->binarysource_,                     \
+              ((type *)(((char *)(object)) - offsetof(type, binarysource_))))
+#define BinarySource_UPCAST(object)                                       \
+    TYPECHECK((object)->binarysource_ == (BinarySource *)0,                 \
+              (object)->binarysource_)
+#define BinarySource_COPIED(obj) \
+    ((obj)->binarysource_->binarysource_ = (obj)->binarysource_)
+
+#define get_data(src, len) \
+    BinarySource_get_data(BinarySource_UPCAST(src), len)
+#define get_byte(src) \
+    BinarySource_get_byte(BinarySource_UPCAST(src))
+#define get_bool(src) \
+    BinarySource_get_bool(BinarySource_UPCAST(src))
+#define get_uint16(src) \
+    BinarySource_get_uint16(BinarySource_UPCAST(src))
+#define get_uint32(src) \
+    BinarySource_get_uint32(BinarySource_UPCAST(src))
+#define get_uint64(src) \
+    BinarySource_get_uint64(BinarySource_UPCAST(src))
+#define get_string(src) \
+    BinarySource_get_string(BinarySource_UPCAST(src))
+#define get_asciz(src) \
+    BinarySource_get_asciz(BinarySource_UPCAST(src))
+#define get_pstring(src) \
+    BinarySource_get_pstring(BinarySource_UPCAST(src))
+#define get_mp_ssh1(src) \
+    BinarySource_get_mp_ssh1(BinarySource_UPCAST(src))
+#define get_mp_ssh2(src) \
+    BinarySource_get_mp_ssh2(BinarySource_UPCAST(src))
+
+#define get_err(src) (BinarySource_UPCAST(src)->err)
+#define get_avail(src) (BinarySource_UPCAST(src)->len - \
+                       BinarySource_UPCAST(src)->pos)
+#define get_ptr(src)                                                    \
+    ((const void *)(                                                    \
+        (const unsigned char *)(BinarySource_UPCAST(src)->data) +       \
+        BinarySource_UPCAST(src)->pos))
+
+ptrlen BinarySource_get_data(BinarySource *, size_t);
+unsigned char BinarySource_get_byte(BinarySource *);
+int BinarySource_get_bool(BinarySource *);
+unsigned BinarySource_get_uint16(BinarySource *);
+unsigned long BinarySource_get_uint32(BinarySource *);
+ptrlen BinarySource_get_string(BinarySource *);
+const char *BinarySource_get_asciz(BinarySource *);
+ptrlen BinarySource_get_pstring(BinarySource *);
+
 #endif /* PUTTY_MARSHAL_H */

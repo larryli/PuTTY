@@ -37,6 +37,7 @@ struct RSAKey;
 typedef uint32_t uint32;
 
 typedef struct BinarySink BinarySink;
+typedef struct BinarySource BinarySource;
 
 typedef struct SockAddr_tag *SockAddr;
 

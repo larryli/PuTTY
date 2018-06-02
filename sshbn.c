@@ -1624,12 +1624,12 @@ int ssh1_write_bignum(void *data, Bignum bn)
 
 void BinarySink_put_mp_ssh1(BinarySink *bs, Bignum bn)
 {
-    int len = ssh1_bignum_length(bn);
+    int bits = bignum_bitcount(bn);
+    int bytes = (bits + 7) / 8;
     int i;
-    int bitc = bignum_bitcount(bn);
 
-    put_uint16(bs, bitc);
-    for (i = len - 2; i--;)
+    put_uint16(bs, bits);
+    for (i = bytes; i--;)
         put_byte(bs, bignum_byte(bn, i));
 }
 
@@ -1641,6 +1641,40 @@ void BinarySink_put_mp_ssh2(BinarySink *bs, Bignum bn)
     put_uint32(bs, bytes);
     for (i = bytes; i--;)
         put_byte(bs, bignum_byte(bn, i));
+}
+
+Bignum BinarySource_get_mp_ssh1(BinarySource *src)
+{
+    unsigned bitc = get_uint16(src);
+    ptrlen bytes = get_data(src, (bitc + 7) / 8);
+    if (get_err(src)) {
+        return bignum_from_long(0);
+    } else {
+        Bignum toret = bignum_from_bytes(bytes.ptr, bytes.len);
+        if (bignum_bitcount(toret) != bitc) {
+            src->err = BSE_INVALID;
+            freebn(toret);
+            toret = bignum_from_long(0);
+        }
+        return toret;
+    }
+}
+
+Bignum BinarySource_get_mp_ssh2(BinarySource *src)
+{
+    ptrlen bytes = get_string(src);
+    if (get_err(src)) {
+        return bignum_from_long(0);
+    } else {
+        const unsigned char *p = bytes.ptr;
+        if ((bytes.len > 0 &&
+             ((p[0] & 0x80) ||
+              (p[0] == 0 && (bytes.len <= 1 || !(p[1] & 0x80)))))) {
+            src->err = BSE_INVALID;
+            return bignum_from_long(0);
+        }
+        return bignum_from_bytes(bytes.ptr, bytes.len);
+    }
 }
 
 /*

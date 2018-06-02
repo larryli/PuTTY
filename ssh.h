@@ -695,6 +695,8 @@ Bignum bignum_from_decimal(const char *decimal);
 
 void BinarySink_put_mp_ssh1(BinarySink *, Bignum);
 void BinarySink_put_mp_ssh2(BinarySink *, Bignum);
+Bignum BinarySource_get_mp_ssh1(BinarySource *);
+Bignum BinarySource_get_mp_ssh2(BinarySource *);
 
 #ifdef DEBUG
 void diagbn(char *prefix, Bignum md);
