@@ -213,9 +213,9 @@ void pageant_handle_msg(BinarySink *bs,
                 int i;
                 struct RSAKey *rkey;
                 for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
-                    char fingerprint[128];
-                    rsa_fingerprint(fingerprint, sizeof(fingerprint), rkey);
+                    char *fingerprint = rsa_ssh1_fingerprint(rkey);
                     plog(logctx, logfn, "returned key: %s", fingerprint);
+                    sfree(fingerprint);
                 }
             }
 	}
@@ -282,10 +282,11 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             if (logfn) {
-                char fingerprint[128];
+                char *fingerprint;
                 reqkey.comment = NULL;
-                rsa_fingerprint(fingerprint, sizeof(fingerprint), &reqkey);
+                fingerprint = rsa_ssh1_fingerprint(&reqkey);
                 plog(logctx, logfn, "requested key: %s", fingerprint);
+                sfree(fingerprint);
             }
             if ((key = find234(rsakeys, &reqkey, NULL)) == NULL) {
                 pageant_failure_msg(bs, "key not found", logctx, logfn);
@@ -386,9 +387,9 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             if (logfn) {
-                char fingerprint[128];
-                rsa_fingerprint(fingerprint, sizeof(fingerprint), key);
+                char *fingerprint = rsa_ssh1_fingerprint(key);
                 plog(logctx, logfn, "submitted key: %s", fingerprint);
+                sfree(fingerprint);
             }
 
 	    if (add234(rsakeys, key) == key) {
@@ -496,9 +497,9 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             if (logfn) {
-                char fingerprint[128];
+                char *fingerprint;
                 reqkey.comment = NULL;
-                rsa_fingerprint(fingerprint, sizeof(fingerprint), &reqkey);
+                fingerprint = rsa_ssh1_fingerprint(&reqkey);
                 plog(logctx, logfn, "unwanted key: %s", fingerprint);
             }
 
@@ -1316,7 +1317,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
     nkeys = toint(get_uint32(src));
     for (i = 0; i < nkeys; i++) {
         struct RSAKey rkey;
-        char fingerprint[128];
+        char *fingerprint;
 
         /* public blob and fingerprint */
         memset(&rkey, 0, sizeof(rkey));
@@ -1330,7 +1331,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             return PAGEANT_ACTION_FAILURE;
         }
 
-        rsa_fingerprint(fingerprint, sizeof(fingerprint), &rkey);
+        fingerprint = rsa_ssh1_fingerprint(&rkey);
 
         cbkey.blob = strbuf_new();
         rsa_ssh1_public_blob(BinarySink_UPCAST(cbkey.blob), &rkey,
@@ -1341,6 +1342,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         strbuf_free(cbkey.blob);
         freersakey(&rkey);
         sfree(cbkey.comment);
+        sfree(fingerprint);
     }
 
     sfree(keylist);

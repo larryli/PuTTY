@@ -290,14 +290,16 @@ void keylist_update(void)
     if (keylist) {
 	SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
 	for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
-	    char listentry[512], *p;
+	    char *listentry, *fp, *p;
+
+	    fp = rsa_ssh1_fingerprint(rkey);
+	    listentry = dupprintf("ssh1\t%s", fp);
+            sfree(fp);
+
 	    /*
 	     * Replace two spaces in the fingerprint with tabs, for
 	     * nice alignment in the box.
 	     */
-	    strcpy(listentry, "ssh1\t");
-	    p = listentry + strlen(listentry);
-	    rsa_fingerprint(p, sizeof(listentry) - (p - listentry), rkey);
 	    p = strchr(listentry, ' ');
 	    if (p)
 		*p = '\t';
@@ -306,6 +308,7 @@ void keylist_update(void)
 		*p = '\t';
 	    SendDlgItemMessage(keylist, 100, LB_ADDSTRING,
 			       0, (LPARAM) listentry);
+            sfree(listentry);
 	}
 	for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
 	    char *listentry, *p;

@@ -340,30 +340,25 @@ void rsastr_fmt(char *str, struct RSAKey *key)
  * Generate a fingerprint string for the key. Compatible with the
  * OpenSSH fingerprint code.
  */
-void rsa_fingerprint(char *str, int len, struct RSAKey *key)
+char *rsa_ssh1_fingerprint(struct RSAKey *key)
 {
     struct MD5Context md5c;
     unsigned char digest[16];
-    char buffer[16 * 3 + 40];
-    int slen, i;
+    strbuf *out;
+    int i;
 
     MD5Init(&md5c);
     put_mp_ssh1(&md5c, key->modulus);
     put_mp_ssh1(&md5c, key->exponent);
     MD5Final(digest, &md5c);
 
-    sprintf(buffer, "%d ", bignum_bitcount(key->modulus));
+    out = strbuf_new();
+    strbuf_catf(out, "%d ", bignum_bitcount(key->modulus));
     for (i = 0; i < 16; i++)
-	sprintf(buffer + strlen(buffer), "%s%02x", i ? ":" : "",
-		digest[i]);
-    strncpy(str, buffer, len);
-    str[len - 1] = '\0';
-    slen = strlen(str);
-    if (key->comment && slen < len - 1) {
-	str[slen] = ' ';
-	strncpy(str + slen + 1, key->comment, len - slen - 1);
-	str[len - 1] = '\0';
-    }
+	strbuf_catf(out, "%s%02x", i ? ":" : "", digest[i]);
+    if (key->comment)
+        strbuf_catf(out, " %s", key->comment);
+    return strbuf_to_str(out);
 }
 
 /*

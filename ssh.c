@@ -4130,13 +4130,10 @@ static void do_ssh1_login(void *vctx)
      * Log the host key fingerprint.
      */
     if (!get_err(pktin)) {
-	char logmsg[80];
+	char *fingerprint = rsa_ssh1_fingerprint(&s->hostkey);
 	logevent("Host key fingerprint is:");
-	strcpy(logmsg, "      ");
-	s->hostkey.comment = NULL;
-	rsa_fingerprint(logmsg + strlen(logmsg),
-			sizeof(logmsg) - strlen(logmsg), &s->hostkey);
-	logevent(logmsg);
+        logeventf(ssh, "      %s", fingerprint);
+        sfree(fingerprint);
     }
 
     ssh->v1_remote_protoflags = get_uint32(pktin);
@@ -4186,13 +4183,14 @@ static void do_ssh1_login(void *vctx)
 	 * First format the key into a string.
 	 */
 	int len = rsastr_len(&s->hostkey);
-	char fingerprint[100];
+	char *fingerprint;
 	char *keystr = snewn(len, char);
 	rsastr_fmt(keystr, &s->hostkey);
-	rsa_fingerprint(fingerprint, sizeof(fingerprint), &s->hostkey);
+	fingerprint = rsa_ssh1_fingerprint(&s->hostkey);
 
         /* First check against manually configured host keys. */
         s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL, NULL);
+        sfree(fingerprint);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
             sfree(keystr);

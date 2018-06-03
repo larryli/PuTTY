@@ -192,7 +192,7 @@ Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key);
 void rsasanitise(struct RSAKey *key);
 int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
-void rsa_fingerprint(char *str, int len, struct RSAKey *key);
+char *rsa_ssh1_fingerprint(struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
                           RsaSsh1Order order);

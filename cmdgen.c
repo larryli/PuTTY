@@ -1017,8 +1017,7 @@ int main(int argc, char **argv)
 
 	    if (sshver == 1) {
 		assert(ssh1key);
-		fingerprint = snewn(128, char);
-		rsa_fingerprint(fingerprint, 128, ssh1key);
+		fingerprint = rsa_ssh1_fingerprint(ssh1key);
 	    } else {
 		if (ssh2key) {
 		    fingerprint = ssh2_fingerprint(ssh2key->alg,

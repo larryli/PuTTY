@@ -734,8 +734,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    SetDlgItemText(hwnd, IDC_PASSPHRASE2EDIT,
 			   passphrase);
 	    if (type == SSH_KEYTYPE_SSH1) {
-		char buf[128];
-		char *savecomment;
+		char *fingerprint, *savecomment;
 
 		state->ssh2 = FALSE;
 		state->commentptr = &state->key.comment;
@@ -746,11 +745,11 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 		 */
 		savecomment = state->key.comment;
 		state->key.comment = NULL;
-		rsa_fingerprint(buf, sizeof(buf),
-				&state->key);
+		fingerprint = rsa_ssh1_fingerprint(&state->key);
 		state->key.comment = savecomment;
+		SetDlgItemText(hwnd, IDC_FINGERPRINT, fingerprint);
+                sfree(fingerprint);
 
-		SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
 		/*
 		 * Construct a decimal representation
 		 * of the key, for pasting into
@@ -1406,7 +1405,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 * Now update the key controls with all the key data.
 	 */
 	{
-	    char *savecomment;
+	    char *fp, *savecomment;
 	    /*
 	     * Blank passphrase, initially. This isn't dangerous,
 	     * because we will warn (Are You Sure?) before allowing
@@ -1423,16 +1422,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	     */
 	    savecomment = *state->commentptr;
 	    *state->commentptr = NULL;
-	    if (state->ssh2) {
-		char *fp;
+	    if (state->ssh2)
 		fp = ssh2_fingerprint(state->ssh2key.alg, state->ssh2key.data);
-		SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
-		sfree(fp);
-	    } else {
-		char buf[128];
-		rsa_fingerprint(buf, sizeof(buf), &state->key);
-		SetDlgItemText(hwnd, IDC_FINGERPRINT, buf);
-	    }
+            else
+                fp = rsa_ssh1_fingerprint(&state->key);
+            SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
+            sfree(fp);
 	    *state->commentptr = savecomment;
 	    /*
 	     * Construct a decimal representation of the key, for
