@@ -9456,7 +9456,9 @@ void sshfwd_x11_is_local(struct ssh_channel *c)
      * exchange mode.
      */
     c->u.x11.initial = FALSE;
-    ssh2_set_window(c, ssh_is_simple(c->ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE);
+    if (c->ssh->version == 2)
+        ssh2_set_window(
+            c, ssh_is_simple(c->ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE);
 }
 
 /*
