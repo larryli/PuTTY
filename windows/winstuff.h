@@ -608,6 +608,11 @@ void clear_jumplist(void);
 BOOL set_explicit_app_user_model_id();
 
 /*
+ * Exports from winnoise.c.
+ */
+int win_read_random(void *buf, unsigned wanted); /* returns TRUE on success */
+
+/*
  * Extra functions in winstore.c over and above the interface in
  * storage.h.
  *

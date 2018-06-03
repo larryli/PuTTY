@@ -809,14 +809,45 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     burnstr(passphrase);
 }
 
+static void start_generating_key(HWND hwnd, struct MainDlgState *state)
+{
+    static const char generating_msg[] =
+	"Please wait while a key is generated...";
+
+    struct rsa_key_thread_params *params;
+    DWORD threadid;
+
+    SetDlgItemText(hwnd, IDC_GENERATING, generating_msg);
+    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
+                       MAKELPARAM(0, PROGRESSRANGE));
+    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
+
+    params = snew(struct rsa_key_thread_params);
+    params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
+    params->dialog = hwnd;
+    params->key_bits = state->key_bits;
+    params->curve_bits = state->curve_bits;
+    params->keytype = state->keytype;
+    params->key = &state->key;
+    params->dsskey = &state->dsskey;
+
+    if (!CreateThread(NULL, 0, generate_key_thread,
+                      params, 0, &threadid)) {
+        MessageBox(hwnd, "Out of thread resources",
+                   "Key generation error",
+                   MB_OK | MB_ICONERROR);
+        sfree(params);
+    } else {
+        state->generation_thread_exists = TRUE;
+    }
+}
+
 /*
  * Dialog-box function for the main PuTTYgen dialog box.
  */
 static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
-    static const char generating_msg[] =
-	"Please wait while a key is generated...";
     static const char entropy_msg[] =
 	"Please generate some randomness by moving the mouse over the blank area.";
     struct MainDlgState *state;
@@ -1009,9 +1040,6 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS,
 			       state->entropy_got, 0);
 	    if (state->entropy_got >= state->entropy_required) {
-		struct rsa_key_thread_params *params;
-		DWORD threadid;
-
 		/*
 		 * Seed the entropy pool
 		 */
@@ -1020,29 +1048,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		sfree(state->entropy);
 		state->collecting_entropy = FALSE;
 
-		SetDlgItemText(hwnd, IDC_GENERATING, generating_msg);
-		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
-				   MAKELPARAM(0, PROGRESSRANGE));
-		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
-
-		params = snew(struct rsa_key_thread_params);
-		params->progressbar = GetDlgItem(hwnd, IDC_PROGRESS);
-		params->dialog = hwnd;
-		params->key_bits = state->key_bits;
-		params->curve_bits = state->curve_bits;
-                params->keytype = state->keytype;
-		params->key = &state->key;
-		params->dsskey = &state->dsskey;
-
-		if (!CreateThread(NULL, 0, generate_key_thread,
-				  params, 0, &threadid)) {
-		    MessageBox(hwnd, "Out of thread resources",
-			       "Key generation error",
-			       MB_OK | MB_ICONERROR);
-		    sfree(params);
-		} else {
-		    state->generation_thread_exists = TRUE;
-		}
+                start_generating_key(hwnd, state);
 	    }
 	}
 	break;
@@ -1102,6 +1108,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    state =
 		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (!state->generation_thread_exists) {
+                unsigned raw_entropy_required;
+                unsigned char *raw_entropy_buf;
 		BOOL ok;
 		state->key_bits = GetDlgItemInt(hwnd, IDC_BITS, &ok, FALSE);
 		if (!ok)
@@ -1149,39 +1157,62 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 			break;
                 }
 
-		ui_set_state(hwnd, state, 1);
-		SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
-		state->key_exists = FALSE;
-		state->collecting_entropy = TRUE;
-
-		/*
-		 * My brief statistical tests on mouse movements
-		 * suggest that there are about 2.5 bits of
-		 * randomness in the x position, 2.5 in the y
-		 * position, and 1.7 in the message time, making
-		 * 5.7 bits of unpredictability per mouse movement.
-		 * However, other people have told me it's far less
-		 * than that, so I'm going to be stupidly cautious
-		 * and knock that down to a nice round 2. With this
-		 * method, we require two words per mouse movement,
-		 * so with 2 bits per mouse movement we expect 2
-		 * bits every 2 words.
-		 */
 		if (state->keytype == RSA || state->keytype == DSA)
-                    state->entropy_required = (state->key_bits / 2) * 2;
+                    raw_entropy_required = (state->key_bits / 2) * 2;
 		else if (state->keytype == ECDSA)
-                    state->entropy_required = (state->curve_bits / 2) * 2;
+                    raw_entropy_required = (state->curve_bits / 2) * 2;
                 else
-                    state->entropy_required = 256;
+                    raw_entropy_required = 256;
 
-		state->entropy_got = 0;
-		state->entropy_size = (state->entropy_required *
-				       sizeof(unsigned));
-		state->entropy = snewn(state->entropy_required, unsigned);
+                raw_entropy_buf = snewn(raw_entropy_required, unsigned char);
+                if (win_read_random(raw_entropy_buf, raw_entropy_required)) {
+                    /*
+                     * If we can get the entropy we need from
+                     * CryptGenRandom, just do that, and go straight
+                     * to the key-generation phase.
+                     */
+                    random_add_heavynoise(raw_entropy_buf,
+                                          raw_entropy_required);
+                    start_generating_key(hwnd, state);
+                } else {
+                    /*
+                     * Manual entropy input, by making the user wave
+                     * the mouse over the window a lot.
+                     *
+                     * My brief statistical tests on mouse movements
+                     * suggest that there are about 2.5 bits of
+                     * randomness in the x position, 2.5 in the y
+                     * position, and 1.7 in the message time, making
+                     * 5.7 bits of unpredictability per mouse
+                     * movement. However, other people have told me
+                     * it's far less than that, so I'm going to be
+                     * stupidly cautious and knock that down to a nice
+                     * round 2. With this method, we require two words
+                     * per mouse movement, so with 2 bits per mouse
+                     * movement we expect 2 bits every 2 words, i.e.
+                     * the number of _words_ of mouse data we want to
+                     * collect is just the same as the number of
+                     * _bits_ of entropy we want.
+                     */
+                    state->entropy_required = raw_entropy_required;
 
-		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
-				   MAKELPARAM(0, state->entropy_required));
-		SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
+                    ui_set_state(hwnd, state, 1);
+                    SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
+                    state->key_exists = FALSE;
+                    state->collecting_entropy = TRUE;
+
+                    state->entropy_got = 0;
+                    state->entropy_size = (state->entropy_required *
+                                           sizeof(unsigned));
+                    state->entropy = snewn(state->entropy_required, unsigned);
+
+                    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
+                                       MAKELPARAM(0, state->entropy_required));
+                    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
+                }
+
+                smemclr(raw_entropy_buf, raw_entropy_required);
+                sfree(raw_entropy_buf);
 	    }
 	    break;
 	  case IDC_SAVE:
