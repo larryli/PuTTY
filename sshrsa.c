@@ -441,8 +441,8 @@ void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
     }
 }
 
-/* Given a public blob, determine its length. */
-int rsa_public_blob_len(void *data, int maxlen)
+/* Given an SSH-1 public key blob, determine its length. */
+int rsa_ssh1_public_blob_len(void *data, int maxlen)
 {
     BinarySource src[1];
 

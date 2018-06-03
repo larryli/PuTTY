@@ -1073,7 +1073,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		}
 		/* Now skip over public blob */
 		if (type == SSH_KEYTYPE_SSH1) {
-		    int n = rsa_public_blob_len(p, keylistlen);
+		    int n = rsa_ssh1_public_blob_len(p, keylistlen);
 		    if (n < 0) {
                         *retstr = dupstr("Received broken key list from agent");
                         sfree(keylist);

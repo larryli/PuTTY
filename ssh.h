@@ -196,7 +196,7 @@ char *rsa_ssh1_fingerprint(struct RSAKey *key);
 int rsa_verify(struct RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
                           RsaSsh1Order order);
-int rsa_public_blob_len(void *data, int maxlen);
+int rsa_ssh1_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
 typedef uint32 word32;
