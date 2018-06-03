@@ -501,6 +501,7 @@ void pageant_handle_msg(BinarySink *bs,
                 reqkey.comment = NULL;
                 fingerprint = rsa_ssh1_fingerprint(&reqkey);
                 plog(logctx, logfn, "unwanted key: %s", fingerprint);
+                sfree(fingerprint);
             }
 
 	    key = find234(rsakeys, &reqkey, NULL);
