@@ -354,7 +354,7 @@ static void console_data_untrusted(HANDLE hout, const char *data, int len)
 
 int console_get_userpass_input(prompts_t *p)
 {
-    HANDLE hin, hout;
+    HANDLE hin = INVALID_HANDLE_VALUE, hout = INVALID_HANDLE_VALUE;
     size_t curr_prompt;
 
     /*

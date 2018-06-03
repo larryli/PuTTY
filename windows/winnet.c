@@ -290,7 +290,11 @@ void sk_init(void)
 
     GET_WINDOWS_FUNCTION(winsock_module, WSAAsyncSelect);
     GET_WINDOWS_FUNCTION(winsock_module, WSAEventSelect);
-    GET_WINDOWS_FUNCTION(winsock_module, select);
+    /* We don't type-check select because at least some MinGW versions
+     * of the Windows API headers seem to disagree with the
+     * documentation on whether the 'struct timeval *' pointer is
+     * const or not. */
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, select);
     GET_WINDOWS_FUNCTION(winsock_module, WSAGetLastError);
     GET_WINDOWS_FUNCTION(winsock_module, WSAEnumNetworkEvents);
     GET_WINDOWS_FUNCTION(winsock_module, WSAStartup);

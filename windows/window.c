@@ -1016,7 +1016,7 @@ void update_specials_menu(void *frontend)
 
 static void update_mouse_pointer(void)
 {
-    LPTSTR curstype;
+    LPTSTR curstype = NULL;
     int force_visible = FALSE;
     static int forced_visible = FALSE;
     switch (busy_status) {

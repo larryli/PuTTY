@@ -291,12 +291,12 @@ static void serial_free(void *handle)
 static void serial_reconfig(void *handle, Conf *conf)
 {
     Serial serial = (Serial) handle;
-    const char *err;
 
-    err = serial_configure(serial, serial->port, conf);
+    serial_configure(serial, serial->port, conf);
 
     /*
-     * FIXME: what should we do if err returns something?
+     * FIXME: what should we do if that call returned a non-NULL error
+     * message?
      */
 }
 
