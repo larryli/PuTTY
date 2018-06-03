@@ -813,7 +813,7 @@ int main(int argc, char **argv)
 		ret = rsa_ssh1_loadpub(infilename, BinarySink_UPCAST(blob),
                                        &origcomment, &error);
                 BinarySource_BARE_INIT(src, blob->u, blob->len);
-                get_rsa_ssh1_pub(src, ssh1key, NULL, RSA_SSH1_EXPONENT_FIRST);
+                get_rsa_ssh1_pub(src, ssh1key, RSA_SSH1_EXPONENT_FIRST);
                 strbuf_free(blob);
 
 		ssh1key->comment = dupstr(origcomment);

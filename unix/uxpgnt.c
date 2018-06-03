@@ -707,8 +707,7 @@ void run_client(void)
                     BinarySource_BARE_INIT(src, key->blob->u, key->blob->len);
                     memset(&rkey, 0, sizeof(rkey));
                     rkey.comment = dupstr(key->comment);
-                    get_rsa_ssh1_pub(src, &rkey, NULL,
-                                     RSA_SSH1_EXPONENT_FIRST);
+                    get_rsa_ssh1_pub(src, &rkey, RSA_SSH1_EXPONENT_FIRST);
                     ssh1_write_pubkey(fp, &rkey);
                     freersakey(&rkey);
                 } else {

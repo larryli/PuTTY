@@ -4082,7 +4082,6 @@ static void do_ssh1_login(void *vctx)
 	int crLine;
 	int len;
 	unsigned char *rsabuf;
-        ptrlen keystr1, keystr2;
 	unsigned long supported_ciphers_mask, supported_auths_mask;
 	int tried_publickey, tried_agent;
 	int tis_auth_refused, ccard_auth_refused;
@@ -4123,8 +4122,8 @@ static void do_ssh1_login(void *vctx)
     pl = get_data(pktin, 8);
     memcpy(s->cookie, pl.ptr, pl.len);
 
-    get_rsa_ssh1_pub(pktin, &s->servkey, &s->keystr1, RSA_SSH1_EXPONENT_FIRST);
-    get_rsa_ssh1_pub(pktin, &s->hostkey, &s->keystr2, RSA_SSH1_EXPONENT_FIRST);
+    get_rsa_ssh1_pub(pktin, &s->servkey, RSA_SSH1_EXPONENT_FIRST);
+    get_rsa_ssh1_pub(pktin, &s->hostkey, RSA_SSH1_EXPONENT_FIRST);
 
     /*
      * Log the host key fingerprint.
@@ -4153,8 +4152,13 @@ static void do_ssh1_login(void *vctx)
     ssh->v1_local_protoflags |= SSH1_PROTOFLAG_SCREEN_NUMBER;
 
     MD5Init(&md5c);
-    put_data(&md5c, s->keystr2.ptr, s->keystr2.len);
-    put_data(&md5c, s->keystr1.ptr, s->keystr1.len);
+    {
+        int i;
+        for (i = (bignum_bitcount(s->hostkey.modulus) + 7) / 8; i-- ;)
+            put_byte(&md5c, bignum_byte(s->hostkey.modulus, i));
+        for (i = (bignum_bitcount(s->servkey.modulus) + 7) / 8; i-- ;)
+            put_byte(&md5c, bignum_byte(s->servkey.modulus, i));
+    }
     put_data(&md5c, s->cookie, 8);
     MD5Final(s->session_id, &md5c);
 
@@ -4496,15 +4500,20 @@ static void do_ssh1_login(void *vctx)
                 }
 		logeventf(ssh, "Pageant has %d SSH-1 keys", s->nkeys);
 		for (s->keyi = 0; s->keyi < s->nkeys; s->keyi++) {
-		    ptrlen keystr;
-                    get_rsa_ssh1_pub(s->asrc, &s->key, &keystr,
+                    size_t start, end;
+                    start = s->asrc->pos;
+                    get_rsa_ssh1_pub(s->asrc, &s->key,
                                      RSA_SSH1_EXPONENT_FIRST);
+                    end = s->asrc->pos;
                     s->comment = get_string(s->asrc);
                     if (get_err(s->asrc)) {
                         logevent("Pageant key list packet was truncated");
                         break;
                     }
 		    if (s->publickey_blob) {
+                        ptrlen keystr = make_ptrlen(
+                            (const char *)s->asrc->data + start, end - start);
+
 			if (keystr.len == s->publickey_blob->len &&
                             !memcmp(keystr.ptr, s->publickey_blob->s,
 				    s->publickey_blob->len)) {

@@ -11,29 +11,18 @@
 #include "misc.h"
 
 void BinarySource_get_rsa_ssh1_pub(
-    BinarySource *src, struct RSAKey *rsa, ptrlen *keystr, RsaSsh1Order order)
+    BinarySource *src, struct RSAKey *rsa, RsaSsh1Order order)
 {
-    const unsigned char *start, *end;
     unsigned bits;
     Bignum e, m;
 
     bits = get_uint32(src);
     if (order == RSA_SSH1_EXPONENT_FIRST) {
         e = get_mp_ssh1(src);
-        start = get_ptr(src);
         m = get_mp_ssh1(src);
-        end = get_ptr(src);
     } else {
-        start = get_ptr(src);
         m = get_mp_ssh1(src);
-        end = get_ptr(src);
         e = get_mp_ssh1(src);
-    }
-
-    if (keystr) {
-        start += (end-start >= 2 ? 2 : end-start);
-        keystr->ptr = start;
-        keystr->len = end - start;
     }
 
     if (rsa) {

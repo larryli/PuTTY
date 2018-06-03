@@ -264,7 +264,7 @@ void pageant_handle_msg(BinarySink *bs,
             response = NULL;
             memset(&reqkey, 0, sizeof(reqkey));
 
-            get_rsa_ssh1_pub(msg, &reqkey, NULL, RSA_SSH1_EXPONENT_FIRST);
+            get_rsa_ssh1_pub(msg, &reqkey, RSA_SSH1_EXPONENT_FIRST);
             challenge = get_mp_ssh1(msg);
             session_id = get_data(msg, 16);
 	    response_type = get_uint32(msg);
@@ -363,7 +363,7 @@ void pageant_handle_msg(BinarySink *bs,
 	    key = snew(struct RSAKey);
 	    memset(key, 0, sizeof(struct RSAKey));
 
-            get_rsa_ssh1_pub(msg, key, NULL, RSA_SSH1_MODULUS_FIRST);
+            get_rsa_ssh1_pub(msg, key, RSA_SSH1_MODULUS_FIRST);
             get_rsa_ssh1_priv(msg, key);
 
             /* SSH-1 names p and q the other way round, i.e. we have
@@ -486,7 +486,7 @@ void pageant_handle_msg(BinarySink *bs,
 
             plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
 
-            get_rsa_ssh1_pub(msg, &reqkey, NULL, RSA_SSH1_EXPONENT_FIRST);
+            get_rsa_ssh1_pub(msg, &reqkey, RSA_SSH1_EXPONENT_FIRST);
 
             if (get_err(msg)) {
                 pageant_failure_msg(bs, "unable to decode request",
@@ -1321,7 +1321,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
         /* public blob and fingerprint */
         memset(&rkey, 0, sizeof(rkey));
-        get_rsa_ssh1_pub(src, &rkey, NULL, RSA_SSH1_EXPONENT_FIRST);
+        get_rsa_ssh1_pub(src, &rkey, RSA_SSH1_EXPONENT_FIRST);
         comment = get_string(src);
 
         if (get_err(src)) {

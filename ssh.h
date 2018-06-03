@@ -183,8 +183,7 @@ struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve
 typedef enum { RSA_SSH1_EXPONENT_FIRST, RSA_SSH1_MODULUS_FIRST } RsaSsh1Order;
 
 void BinarySource_get_rsa_ssh1_pub(
-    BinarySource *src, struct RSAKey *result,
-    ptrlen *keystr, RsaSsh1Order order);
+    BinarySource *src, struct RSAKey *result, RsaSsh1Order order);
 void BinarySource_get_rsa_ssh1_priv(
     BinarySource *src, struct RSAKey *rsa);
 int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);

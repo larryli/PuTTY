@@ -65,7 +65,7 @@ static int rsa_ssh1_load_main(FILE * fp, struct RSAKey *key, int pub_only,
         goto end;                 /* reserved field nonzero, panic! */
 
     /* Now the serious stuff. An ordinary SSH-1 public key. */
-    get_rsa_ssh1_pub(src, key, NULL, RSA_SSH1_MODULUS_FIRST);
+    get_rsa_ssh1_pub(src, key, RSA_SSH1_MODULUS_FIRST);
 
     /* Next, the comment field. */
     comment = get_string(src);
