@@ -1146,6 +1146,7 @@ void share_got_pkt_from_server(void *csv, int type,
       case SSH2_MSG_REQUEST_SUCCESS:
       case SSH2_MSG_REQUEST_FAILURE:
         globreq = cs->globreq_head;
+        assert(globreq);         /* should match the queue in ssh.c */
         if (globreq->type == GLOBREQ_TCPIP_FORWARD) {
             if (type == SSH2_MSG_REQUEST_FAILURE) {
                 share_remove_forwarding(cs, globreq->fwd);
@@ -1402,6 +1403,20 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
                     (cs->parent->ssh, cs->id, type, pkt, pktlen,
                      orig_wantreply ? NULL : "upstream added want_reply flag");
                 ssh_sharing_queue_global_request(cs->parent->ssh, cs);
+
+                /*
+                 * And queue a globreq so that when the reply comes
+                 * back we know to cancel it.
+                 */
+                globreq = snew(struct share_globreq);
+                globreq->next = NULL;
+                if (cs->globreq_tail)
+                    cs->globreq_tail->next = globreq;
+                else
+                    cs->globreq_head = globreq;
+                globreq->fwd = fwd;
+                globreq->want_reply = orig_wantreply;
+                globreq->type = GLOBREQ_CANCEL_TCPIP_FORWARD;
             }
 
             sfree(host);
