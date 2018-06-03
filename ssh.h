@@ -38,6 +38,8 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx);
 void ssh_delete_sharing_channel(Ssh ssh, unsigned localid);
 int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
                                void *share_ctx);
+void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
+                                 void *share_ctx);
 void ssh_sharing_queue_global_request(Ssh ssh, void *share_ctx);
 struct X11FakeAuth *ssh_sharing_add_x11_display(Ssh ssh, int authtype,
                                                 void *share_cs,

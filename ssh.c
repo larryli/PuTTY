@@ -5236,6 +5236,21 @@ int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
     return TRUE;
 }
 
+void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
+                                 void *share_ctx)
+{
+    struct ssh_rportfwd pf, *realpf;
+
+    assert(ssh->rportfwds);
+    pf.shost = dupstr(shost);
+    pf.sport = sport;
+    realpf = del234(ssh->rportfwds, &pf);
+    assert(realpf);
+    assert(realpf->share_ctx == share_ctx);
+    sfree(realpf->shost);
+    sfree(realpf);
+}
+
 static void ssh_sharing_global_request_response(Ssh ssh, struct Packet *pktin,
                                                 void *ctx)
 {

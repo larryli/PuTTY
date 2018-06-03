@@ -857,6 +857,8 @@ static void share_try_cleanup(struct ssh_sharing_connstate *cs)
                 "cleanup after downstream went away");
             strbuf_free(packet);
 
+            ssh_remove_sharing_rportfwd(cs->parent->ssh,
+                                        fwd->host, fwd->port, cs);
             share_remove_forwarding(cs, fwd);
             i--;    /* don't accidentally skip one as a result */
         }
@@ -1392,6 +1394,12 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
                                               "", 0, NULL);
                 }
             } else {
+                /*
+                 * Tell ssh.c to stop sending us channel-opens for
+                 * this forwarding.
+                 */
+                ssh_remove_sharing_rportfwd(cs->parent->ssh, host, port, cs);
+
                 /*
                  * Pass the cancel request on to the SSH server, but
                  * set want_reply even if it wasn't originally set, so
