@@ -89,7 +89,7 @@ static int cmpkeys_ssh2_asymm(void *av, void *bv)
      * Compare purely by public blob.
      */
     bblob = strbuf_new();
-    b->alg->public_blob(b->data, BinarySink_UPCAST(bblob));
+    ssh_key_public_blob(b->key, BinarySink_UPCAST(bblob));
 
     c = 0;
     for (i = 0; i < ablob->len && i < bblob->len; i++) {
@@ -123,7 +123,7 @@ static int cmpkeys_ssh2(void *av, void *bv)
     int toret;
 
     ablob = strbuf_new();
-    a->alg->public_blob(a->data, BinarySink_UPCAST(ablob));
+    ssh_key_public_blob(a->key, BinarySink_UPCAST(ablob));
     apl.ptr = ablob->u;
     apl.len = ablob->len;
     toret = cmpkeys_ssh2_asymm(&apl, bv);
@@ -151,7 +151,7 @@ void pageant_make_keylist2(BinarySink *bs)
     put_uint32(bs, count234(ssh2keys));
     for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
         strbuf *blob = strbuf_new();
-        key->alg->public_blob(key->data, BinarySink_UPCAST(blob));
+        ssh_key_public_blob(key->key, BinarySink_UPCAST(blob));
         put_stringsb(bs, blob);
 	put_stringz(bs, key->comment);
     }
@@ -235,8 +235,7 @@ void pageant_handle_msg(BinarySink *bs,
                 int i;
                 struct ssh2_userkey *skey;
                 for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-                    char *fingerprint = ssh2_fingerprint(skey->alg,
-                                                         skey->data);
+                    char *fingerprint = ssh2_fingerprint(skey->key);
                     plog(logctx, logfn, "returned key: %s %s",
                          fingerprint, skey->comment);
                     sfree(fingerprint);
@@ -343,8 +342,8 @@ void pageant_handle_msg(BinarySink *bs,
             put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
 
             signature = strbuf_new();
-            key->alg->sign(key->data, sigdata.ptr, sigdata.len,
-                           BinarySink_UPCAST(signature));
+            ssh_key_sign(key->key, sigdata.ptr, sigdata.len,
+                         BinarySink_UPCAST(signature));
             put_stringsb(bs, signature);
 
             plog(logctx, logfn, "reply: SSH2_AGENT_SIGN_RESPONSE");
@@ -416,24 +415,25 @@ void pageant_handle_msg(BinarySink *bs,
 	 */
 	{
 	    struct ssh2_userkey *key = NULL;
-            ptrlen alg;
+            ptrlen algpl;
+            const ssh_keyalg *alg;
 
             plog(logctx, logfn, "request: SSH2_AGENTC_ADD_IDENTITY");
 
-            alg = get_string(msg);
+            algpl = get_string(msg);
 
 	    key = snew(struct ssh2_userkey);
-            key->data = NULL;
+            key->key = NULL;
             key->comment = NULL;
-            key->alg = find_pubkey_alg_len(alg);
-	    if (!key->alg) {
+            alg = find_pubkey_alg_len(algpl);
+	    if (!alg) {
                 pageant_failure_msg(bs, "algorithm unknown", logctx, logfn);
 		goto add2_cleanup;
 	    }
 
-            key->data = key->alg->openssh_createkey(key->alg, msg);
+            key->key = ssh_key_new_priv_openssh(alg, msg);
 
-	    if (!key->data) {
+	    if (!key->key) {
                 pageant_failure_msg(bs, "key setup failed", logctx, logfn);
 		goto add2_cleanup;
 	    }
@@ -447,7 +447,7 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             if (logfn) {
-                char *fingerprint = ssh2_fingerprint(key->alg, key->data);
+                char *fingerprint = ssh2_fingerprint(key->key);
                 plog(logctx, logfn, "submitted key: %s %s",
                      fingerprint, key->comment);
                 sfree(fingerprint);
@@ -467,8 +467,8 @@ void pageant_handle_msg(BinarySink *bs,
 
           add2_cleanup:
             if (key) {
-                if (key->data)
-                    key->alg->freekey(key->data);
+                if (key->key)
+                    ssh_key_free(key->key);
                 if (key->comment)
                     sfree(key->comment);
 		sfree(key);
@@ -558,7 +558,7 @@ void pageant_handle_msg(BinarySink *bs,
 
             del234(ssh2keys, key);
             keylist_update();
-            key->alg->freekey(key->data);
+            ssh_key_free(key->key);
             sfree(key->comment);
             sfree(key);
             put_byte(bs, SSH_AGENT_SUCCESS);
@@ -599,7 +599,7 @@ void pageant_handle_msg(BinarySink *bs,
 
 	    while ((skey = index234(ssh2keys, 0)) != NULL) {
 		del234(ssh2keys, skey);
-		skey->alg->freekey(skey->data);
+                ssh_key_free(skey->key);
                 sfree(skey->comment);
 		sfree(skey);
 	    }
@@ -1274,8 +1274,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 	    request = strbuf_new_for_agent_query();
 	    put_byte(request, SSH2_AGENTC_ADD_IDENTITY);
-	    put_stringz(request, skey->alg->name);
-            skey->alg->openssh_fmtkey(skey->data, BinarySink_UPCAST(request));
+	    put_stringz(request, ssh_key_ssh_id(skey->key));
+            ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(request));
 	    put_stringz(request, skey->comment);
 	    agent_query_synchronous(request, &vresponse, &resplen);
             strbuf_free(request);
@@ -1291,7 +1291,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 	    sfree(response);
 	} else {
 	    if (!pageant_add_ssh2_key(skey)) {
-		skey->alg->freekey(skey->data);
+                ssh_key_free(skey->key);
 		sfree(skey);	       /* already present, don't waste RAM */
 	    }
 	}

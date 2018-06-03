@@ -14,6 +14,8 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
     Bignum pm1, qm1, phi_n;
     unsigned pfirst, qfirst;
 
+    key->sshk = &ssh_rsa;
+
     /*
      * Set up the phase limits for the progress report. We do this
      * by passing minus the phase number.

@@ -769,7 +769,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 
 		savecomment = state->ssh2key.comment;
 		state->ssh2key.comment = NULL;
-		fp = ssh2_fingerprint(state->ssh2key.alg, state->ssh2key.data);
+		fp = ssh2_fingerprint(state->ssh2key.key);
 		state->ssh2key.comment = savecomment;
 
 		SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
@@ -1321,8 +1321,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     } else {
                         if (state->ssh2) {
                             strbuf *blob = strbuf_new();
-                            state->ssh2key.alg->public_blob(
-                                state->ssh2key.data, BinarySink_UPCAST(blob));
+                            ssh_key_public_blob(
+                                state->ssh2key.key, BinarySink_UPCAST(blob));
                             ssh2_write_pubkey(fp, state->ssh2key.comment,
                                               blob->u, blob->len,
                                               SSH_KEYTYPE_SSH2_PUBLIC_RFC4716);
@@ -1365,17 +1365,13 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);
 	if (state->ssh2) {
             if (state->keytype == DSA) {
-		state->ssh2key.data = &state->dsskey.sshk;
-		state->ssh2key.alg = &ssh_dss;
+		state->ssh2key.key = &state->dsskey.sshk;
             } else if (state->keytype == ECDSA) {
-                state->ssh2key.data = &state->eckey.sshk;
-                state->ssh2key.alg = state->eckey.signalg;
+                state->ssh2key.key = &state->eckey.sshk;
             } else if (state->keytype == ED25519) {
-                state->ssh2key.data = &state->eckey.sshk;
-                state->ssh2key.alg = &ssh_ecdsa_ed25519;
+                state->ssh2key.key = &state->eckey.sshk;
 	    } else {
-		state->ssh2key.data = &state->key.sshk;
-		state->ssh2key.alg = &ssh_rsa;
+		state->ssh2key.key = &state->key.sshk;
 	    }
 	    state->commentptr = &state->ssh2key.comment;
 	} else {
@@ -1423,7 +1419,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    savecomment = *state->commentptr;
 	    *state->commentptr = NULL;
 	    if (state->ssh2)
-		fp = ssh2_fingerprint(state->ssh2key.alg, state->ssh2key.data);
+		fp = ssh2_fingerprint(state->ssh2key.key);
             else
                 fp = rsa_ssh1_fingerprint(&state->key);
             SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);

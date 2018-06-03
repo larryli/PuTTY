@@ -903,7 +903,7 @@ struct ssh_tag {
     const struct ssh_compress *cscomp, *sccomp;
     void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
-    const ssh_keyalg *hostkey;
+    const ssh_keyalg *hostkey_alg;
     char *hostkey_str; /* string representation, for easy checking in rekeys */
     unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
@@ -4008,9 +4008,7 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
     sfree(error);
 }
 
-int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
-                               const ssh_keyalg *ssh2keytype,
-                               void *ssh2keydata)
+int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint, ssh_key *key)
 {
     if (!conf_get_str_nthstrkey(ssh->conf, CONF_ssh_manual_hostkeys, 0)) {
         return -1;                     /* no manual keys configured */
@@ -4035,7 +4033,7 @@ int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
             return 1;                  /* success */
     }
 
-    if (ssh2keydata) {
+    if (key) {
         /*
          * Construct the base64-encoded public key blob and see if
          * that's listed.
@@ -4044,7 +4042,7 @@ int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint,
         char *base64blob;
         int atoms, i;
         binblob = strbuf_new();
-        ssh2keytype->public_blob(ssh2keydata, BinarySink_UPCAST(binblob));
+        ssh_key_public_blob(key, BinarySink_UPCAST(binblob));
         atoms = (binblob->len + 2) / 3;
         base64blob = snewn(atoms * 4 + 1, char);
         for (i = 0; i < atoms; i++)
@@ -4193,7 +4191,7 @@ static void do_ssh1_login(void *vctx)
 	fingerprint = rsa_ssh1_fingerprint(&s->hostkey);
 
         /* First check against manually configured host keys. */
-        s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL, NULL);
+        s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL);
         sfree(fingerprint);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
@@ -6349,7 +6347,7 @@ static int ssh_transient_hostkey_cache_cmp(void *av, void *bv)
     const struct ssh_transient_hostkey_cache_entry
         *a = (const struct ssh_transient_hostkey_cache_entry *)av,
         *b = (const struct ssh_transient_hostkey_cache_entry *)bv;
-    return strcmp(a->alg->name, b->alg->name);
+    return strcmp(a->alg->ssh_id, b->alg->ssh_id);
 }
 
 static int ssh_transient_hostkey_cache_find(void *av, void *bv)
@@ -6357,7 +6355,7 @@ static int ssh_transient_hostkey_cache_find(void *av, void *bv)
     const ssh_keyalg *aalg = (const ssh_keyalg *)av;
     const struct ssh_transient_hostkey_cache_entry
         *b = (const struct ssh_transient_hostkey_cache_entry *)bv;
-    return strcmp(aalg->name, b->alg->name);
+    return strcmp(aalg->ssh_id, b->alg->ssh_id);
 }
 
 static void ssh_init_transient_hostkey_store(Ssh ssh)
@@ -6376,35 +6374,33 @@ static void ssh_cleanup_transient_hostkey_store(Ssh ssh)
     freetree234(ssh->transient_hostkey_cache);
 }
 
-static void ssh_store_transient_hostkey(
-    Ssh ssh, const ssh_keyalg *alg, ssh_key *key)
+static void ssh_store_transient_hostkey(Ssh ssh, ssh_key *key)
 {
     struct ssh_transient_hostkey_cache_entry *ent, *retd;
 
-    if ((ent = find234(ssh->transient_hostkey_cache, (void *)alg,
+    if ((ent = find234(ssh->transient_hostkey_cache, (void *)ssh_key_alg(key),
                        ssh_transient_hostkey_cache_find)) != NULL) {
         strbuf_free(ent->pub_blob);
         sfree(ent);
     }
 
     ent = snew(struct ssh_transient_hostkey_cache_entry);
-    ent->alg = alg;
+    ent->alg = ssh_key_alg(key);
     ent->pub_blob = strbuf_new();
-    alg->public_blob(key, BinarySink_UPCAST(ent->pub_blob));
+    ssh_key_public_blob(key, BinarySink_UPCAST(ent->pub_blob));
     retd = add234(ssh->transient_hostkey_cache, ent);
     assert(retd == ent);
 }
 
-static int ssh_verify_transient_hostkey(
-    Ssh ssh, const ssh_keyalg *alg, ssh_key *key)
+static int ssh_verify_transient_hostkey(Ssh ssh, ssh_key *key)
 {
     struct ssh_transient_hostkey_cache_entry *ent;
     int toret = FALSE;
 
-    if ((ent = find234(ssh->transient_hostkey_cache, (void *)alg,
+    if ((ent = find234(ssh->transient_hostkey_cache, (void *)ssh_key_alg(key),
                        ssh_transient_hostkey_cache_find)) != NULL) {
         strbuf *this_blob = strbuf_new();
-        alg->public_blob(key, BinarySink_UPCAST(this_blob));
+        ssh_key_public_blob(key, BinarySink_UPCAST(this_blob));
 
         if (this_blob->len == ent->pub_blob->len &&
             !memcmp(this_blob->s, ent->pub_blob->s,
@@ -6726,9 +6722,9 @@ static void do_ssh2_transport(void *vctx)
                     if (hostkey_algs[j].id != s->preferred_hk[i])
                         continue;
                     if (have_ssh_host_key(ssh->savedhost, ssh->savedport,
-                                          hostkey_algs[j].alg->keytype)) {
+                                          hostkey_algs[j].alg->cache_id)) {
                         alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                                  hostkey_algs[j].alg->name);
+                                                  hostkey_algs[j].alg->ssh_id);
                         alg->u.hk.hostkey = hostkey_algs[j].alg;
                         alg->u.hk.warn = warn;
                     }
@@ -6742,7 +6738,7 @@ static void do_ssh2_transport(void *vctx)
                     if (hostkey_algs[j].id != s->preferred_hk[i])
                         continue;
                     alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                              hostkey_algs[j].alg->name);
+                                              hostkey_algs[j].alg->ssh_id);
                     alg->u.hk.hostkey = hostkey_algs[j].alg;
                     alg->u.hk.warn = warn;
                 }
@@ -6770,7 +6766,7 @@ static void do_ssh2_transport(void *vctx)
                         continue;
                     if (ssh_have_transient_hostkey(ssh, hostkey_algs[j].alg)) {
                         alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                                  hostkey_algs[j].alg->name);
+                                                  hostkey_algs[j].alg->ssh_id);
                         alg->u.hk.hostkey = hostkey_algs[j].alg;
                         alg->u.hk.warn = warn;
                     }
@@ -6787,8 +6783,8 @@ static void do_ssh2_transport(void *vctx)
              */
             assert(ssh->kex);
 	    alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-				      ssh->hostkey->name);
-	    alg->u.hk.hostkey = ssh->hostkey;
+				      ssh->hostkey_alg->ssh_id);
+	    alg->u.hk.hostkey = ssh->hostkey_alg;
             alg->u.hk.warn = FALSE;
         }
         if (s->can_gssapi_keyex) {
@@ -6907,7 +6903,7 @@ static void do_ssh2_transport(void *vctx)
 	    crStopV;
 	}
 	ssh->kex = NULL;
-	ssh->hostkey = NULL;
+	ssh->hostkey_alg = NULL;
 	s->cscipher_tobe = NULL;
 	s->sccipher_tobe = NULL;
 	s->csmac_tobe = NULL;
@@ -6969,7 +6965,7 @@ static void do_ssh2_transport(void *vctx)
                         if (alg->u.hk.hostkey == NULL &&
                             ssh->kex->main_type != KEXTYPE_GSS)
                             continue;
-			ssh->hostkey = alg->u.hk.hostkey;
+			ssh->hostkey_alg = alg->u.hk.hostkey;
                         s->warn_hk = alg->u.hk.warn;
 		    } else if (i == KEXLIST_CSCIPHER) {
 			s->cscipher_tobe = alg->u.cipher.cipher;
@@ -7019,11 +7015,11 @@ static void do_ssh2_transport(void *vctx)
                 ssh->n_uncert_hostkeys = 0;
 
                 for (j = 0; j < lenof(hostkey_algs); j++) {
-                    if (hostkey_algs[j].alg != ssh->hostkey &&
-                        in_commasep_string(hostkey_algs[j].alg->name,
+                    if (hostkey_algs[j].alg != ssh->hostkey_alg &&
+                        in_commasep_string(hostkey_algs[j].alg->ssh_id,
                                            str.ptr, str.len) &&
                         !have_ssh_host_key(ssh->savedhost, ssh->savedport,
-                                           hostkey_algs[j].alg->keytype)) {
+                                           hostkey_algs[j].alg->cache_id)) {
                         ssh->uncert_hostkeys[ssh->n_uncert_hostkeys++] = j;
                     }
                 }
@@ -7096,21 +7092,21 @@ static void do_ssh2_transport(void *vctx)
                     if (betteralgs) {
                         char *old_ba = betteralgs;
                         betteralgs = dupcat(betteralgs, ",",
-                                            hktype->alg->name,
+                                            hktype->alg->ssh_id,
                                             (const char *)NULL);
                         sfree(old_ba);
                     } else {
-                        betteralgs = dupstr(hktype->alg->name);
+                        betteralgs = dupstr(hktype->alg->ssh_id);
                     }
                 }
             }
             if (betteralgs) {
-                s->dlgret = askhk(ssh->frontend, ssh->hostkey->name,
+                s->dlgret = askhk(ssh->frontend, ssh->hostkey_alg->ssh_id,
                                   betteralgs, ssh_dialog_callback, ssh);
                 sfree(betteralgs);
             } else {
                 s->dlgret = askalg(ssh->frontend, "host key type",
-                                   ssh->hostkey->name,
+                                   ssh->hostkey_alg->ssh_id,
                                    ssh_dialog_callback, ssh);
             }
 	    if (s->dlgret < 0) {
@@ -7257,7 +7253,7 @@ static void do_ssh2_transport(void *vctx)
         }
         set_busy_status(ssh->frontend, BUSY_CPU); /* cogitate */
         s->hostkeydata = get_string(pktin);
-        s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
+        s->hkey = ssh_key_new_pub(ssh->hostkey_alg, s->hostkeydata);
         s->f = get_mp_ssh2(pktin);
         s->sigdata = get_string(pktin);
         if (get_err(pktin)) {
@@ -7328,7 +7324,7 @@ static void do_ssh2_transport(void *vctx)
 
         s->hostkeydata = get_string(pktin);
         put_stringpl(ssh->exhash_bs, s->hostkeydata);
-        s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
+        s->hkey = ssh_key_new_pub(ssh->hostkey_alg, s->hostkeydata);
 
         {
             strbuf *pubpoint = strbuf_new();
@@ -7530,9 +7526,9 @@ static void do_ssh2_transport(void *vctx)
                 break;
               case SSH2_MSG_KEXGSS_HOSTKEY:
                 s->hostkeydata = get_string(pktin);
-                if (ssh->hostkey) {
-                    s->hkey = ssh->hostkey->newkey(ssh->hostkey,
-                                                   s->hostkeydata);
+                if (ssh->hostkey_alg) {
+                    s->hkey = ssh_key_new_pub(ssh->hostkey_alg,
+                                              s->hostkeydata);
                     put_string(ssh->exhash_bs,
                                s->hostkeydata.ptr, s->hostkeydata.len);
                 }
@@ -7626,7 +7622,7 @@ static void do_ssh2_transport(void *vctx)
 
         s->hostkeydata = get_string(pktin);
         put_stringpl(ssh->exhash_bs, s->hostkeydata);
-	s->hkey = ssh->hostkey->newkey(ssh->hostkey, s->hostkeydata);
+	s->hkey = ssh_key_new_pub(ssh->hostkey_alg, s->hostkeydata);
 
         rsakeydata = get_string(pktin);
 
@@ -7765,7 +7761,7 @@ static void do_ssh2_transport(void *vctx)
             crStopV;
         }
 
-        if (!ssh->hostkey->verifysig(
+        if (!ssh_key_verify(
                 s->hkey, s->sigdata,
                 make_ptrlen(s->exchange_hash, ssh->kex->hash->hlen))) {
 #ifndef FUZZING
@@ -7776,8 +7772,7 @@ static void do_ssh2_transport(void *vctx)
         }
     }
 
-    s->keystr = (ssh->hostkey && s->hkey ?
-                 ssh->hostkey->fmtkey(s->hkey) : NULL);
+    s->keystr = (s->hkey ? ssh_key_cache_str(s->hkey) : NULL);
 #ifndef NO_GSSAPI
     if (ssh->gss_kex_used) {
         /*
@@ -7792,12 +7787,12 @@ static void do_ssh2_transport(void *vctx)
              * host key, store it.
              */
             if (s->hkey) {
-                s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
+                s->fingerprint = ssh2_fingerprint(s->hkey);
                 logevent("GSS kex provided fallback host key:");
                 logevent(s->fingerprint);
                 sfree(s->fingerprint);
                 s->fingerprint = NULL;
-                ssh_store_transient_hostkey(ssh, ssh->hostkey, s->hkey);
+                ssh_store_transient_hostkey(ssh, s->hkey);
             } else if (!ssh_have_any_transient_hostkey(ssh)) {
                 /*
                  * But if it didn't, then we currently have no
@@ -7812,7 +7807,7 @@ static void do_ssh2_transport(void *vctx)
                  * startup, and only add the key to the transient
                  * cache.
                  */
-                if (ssh->hostkey) {
+                if (ssh->hostkey_alg) {
                     s->need_gss_transient_hostkey = TRUE;
                 } else {
                     /*
@@ -7850,15 +7845,14 @@ static void do_ssh2_transport(void *vctx)
              * triggered on purpose to populate the transient cache.
              */
             assert(s->hkey);  /* only KEXTYPE_GSS lets this be null */
-            s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
+            s->fingerprint = ssh2_fingerprint(s->hkey);
 
             if (s->need_gss_transient_hostkey) {
                 logevent("Post-GSS rekey provided fallback host key:");
                 logevent(s->fingerprint);
-                ssh_store_transient_hostkey(ssh, ssh->hostkey, s->hkey);
+                ssh_store_transient_hostkey(ssh, s->hkey);
                 s->need_gss_transient_hostkey = FALSE;
-            } else if (!ssh_verify_transient_hostkey(
-                           ssh, ssh->hostkey, s->hkey)) {
+            } else if (!ssh_verify_transient_hostkey(ssh, s->hkey)) {
                 logevent("Non-GSS rekey after initial GSS kex "
                          "used host key:");
                 logevent(s->fingerprint);
@@ -7878,7 +7872,7 @@ static void do_ssh2_transport(void *vctx)
 	    int i, j, nkeys = 0;
 	    char *list = NULL;
 	    for (i = 0; i < lenof(hostkey_algs); i++) {
-		if (hostkey_algs[i].alg == ssh->hostkey)
+		if (hostkey_algs[i].alg == ssh->hostkey_alg)
 		    continue;
 
                 for (j = 0; j < ssh->n_uncert_hostkeys; j++)
@@ -7889,9 +7883,9 @@ static void do_ssh2_transport(void *vctx)
 		    char *newlist;
 		    if (list)
 			newlist = dupprintf("%s/%s", list,
-					    hostkey_algs[i].alg->name);
+					    hostkey_algs[i].alg->ssh_id);
 		    else
-			newlist = dupprintf("%s", hostkey_algs[i].alg->name);
+			newlist = dupprintf("%s", hostkey_algs[i].alg->ssh_id);
 		    sfree(list);
 		    list = newlist;
 		    nkeys++;
@@ -7911,12 +7905,11 @@ static void do_ssh2_transport(void *vctx)
          * Authenticate remote host: verify host key. (We've already
          * checked the signature of the exchange hash.)
          */
-        s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
+        s->fingerprint = ssh2_fingerprint(s->hkey);
         logevent("Host key fingerprint is:");
         logevent(s->fingerprint);
         /* First check against manually configured host keys. */
-        s->dlgret = verify_ssh_manual_host_key(ssh, s->fingerprint,
-                                               ssh->hostkey, s->hkey);
+        s->dlgret = verify_ssh_manual_host_key(ssh, s->fingerprint, s->hkey);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
             crStopV;
@@ -7924,8 +7917,8 @@ static void do_ssh2_transport(void *vctx)
             ssh_set_frozen(ssh, 1);
             s->dlgret = verify_ssh_host_key(ssh->frontend,
                                             ssh->savedhost, ssh->savedport,
-                                            ssh->hostkey->keytype, s->keystr,
-                                            s->fingerprint,
+                                            ssh_key_cache_id(s->hkey),
+                                            s->keystr, s->fingerprint,
                                             ssh_dialog_callback, ssh);
 #ifdef FUZZING
 	    s->dlgret = 1;
@@ -7950,12 +7943,12 @@ static void do_ssh2_transport(void *vctx)
         ssh->hostkey_str = s->keystr;
         s->keystr = NULL;
     } else if (ssh->cross_certifying) {
-        s->fingerprint = ssh2_fingerprint(ssh->hostkey, s->hkey);
+        s->fingerprint = ssh2_fingerprint(s->hkey);
         logevent("Storing additional host key for this host:");
         logevent(s->fingerprint);
         sfree(s->fingerprint);
         store_host_key(ssh->savedhost, ssh->savedport,
-                       ssh->hostkey->keytype, s->keystr);
+                       ssh_key_cache_id(s->hkey), s->keystr);
         ssh->cross_certifying = FALSE;
         /*
          * Don't forget to store the new key as the one we'll be
@@ -7979,7 +7972,7 @@ static void do_ssh2_transport(void *vctx)
     }
     sfree(s->keystr);
     if (s->hkey) {
-        ssh->hostkey->freekey(s->hkey);
+        ssh_key_free(s->hkey);
         s->hkey = NULL;
     }
 
@@ -10505,9 +10498,9 @@ static void do_ssh2_userauth(void *vctx)
 						    /* service requested */
 		    put_stringz(s->pktout, "publickey"); /* method */
 		    put_bool(s->pktout, TRUE); /* signature follows */
-		    put_stringz(s->pktout, key->alg->name);
+		    put_stringz(s->pktout, ssh_key_ssh_id(key->key));
 		    pkblob = strbuf_new();
-                    key->alg->public_blob(key->data, BinarySink_UPCAST(pkblob));
+                    ssh_key_public_blob(key->key, BinarySink_UPCAST(pkblob));
 		    put_string(s->pktout, pkblob->s, pkblob->len);
 
 		    /*
@@ -10529,8 +10522,8 @@ static void do_ssh2_userauth(void *vctx)
 		    put_data(sigdata, s->pktout->data + 5,
                              s->pktout->length - 5);
 		    sigblob = strbuf_new();
-                    key->alg->sign(key->data, sigdata->s, sigdata->len,
-                                   BinarySink_UPCAST(sigblob));
+                    ssh_key_sign(key->key, sigdata->s, sigdata->len,
+                                 BinarySink_UPCAST(sigblob));
                     strbuf_free(sigdata);
 		    ssh2_add_sigblob(ssh, s->pktout, pkblob->s, pkblob->len,
 				     sigblob->s, sigblob->len);
@@ -10540,7 +10533,7 @@ static void do_ssh2_userauth(void *vctx)
 		    ssh2_pkt_send(ssh, s->pktout);
                     logevent("Sent public key signature");
 		    s->type = AUTH_TYPE_PUBLICKEY;
-		    key->alg->freekey(key->data);
+		    ssh_key_free(key->key);
                     sfree(key->comment);
                     sfree(key);
 		}
@@ -12021,7 +12014,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->sc_comp_ctx = NULL;
     ssh->kex = NULL;
     ssh->kex_ctx = NULL;
-    ssh->hostkey = NULL;
+    ssh->hostkey_alg = NULL;
     ssh->hostkey_str = NULL;
     ssh->exitcode = -1;
     ssh->close_expected = FALSE;
@@ -12538,7 +12531,7 @@ static const struct telnet_special *ssh_get_specials(void *handle)
                 struct telnet_special uncert[1];
                 const ssh_keyalg *alg =
                     hostkey_algs[ssh->uncert_hostkeys[i]].alg;
-                uncert[0].name = alg->name;
+                uncert[0].name = alg->ssh_id;
                 uncert[0].code = TS_LOCALSTART + ssh->uncert_hostkeys[i];
                 ADD_SPECIALS(uncert);
             }
@@ -12607,7 +12600,7 @@ static void ssh_special(void *handle, Telnet_Special code)
             queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	}
     } else if (code >= TS_LOCALSTART) {
-        ssh->hostkey = hostkey_algs[code - TS_LOCALSTART].alg;
+        ssh->hostkey_alg = hostkey_algs[code - TS_LOCALSTART].alg;
         ssh->cross_certifying = TRUE;
 	if (!ssh->kex_in_progress && !ssh->bare_connection &&
             ssh->version == 2) {

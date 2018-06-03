@@ -248,7 +248,6 @@ int main(int argc, char **argv)
     struct RSAKey *ssh1key = NULL;
     strbuf *ssh2blob = NULL;
     char *ssh2alg = NULL;
-    const ssh_keyalg *ssh2algf = NULL;
     char *old_passphrase = NULL, *new_passphrase = NULL;
     int load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
@@ -722,22 +721,19 @@ int main(int argc, char **argv)
 	    struct dss_key *dsskey = snew(struct dss_key);
 	    dsa_generate(dsskey, bits, progressfn, &prog);
 	    ssh2key = snew(struct ssh2_userkey);
-	    ssh2key->data = &dsskey->sshk;
-	    ssh2key->alg = &ssh_dss;
+	    ssh2key->key = &dsskey->sshk;
 	    ssh1key = NULL;
         } else if (keytype == ECDSA) {
             struct ec_key *ec = snew(struct ec_key);
             ec_generate(ec, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->data = &ec->sshk;
-            ssh2key->alg = ec->signalg;
+            ssh2key->key = &ec->sshk;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
             struct ec_key *ec = snew(struct ec_key);
             ec_edgenerate(ec, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->data = &ec->sshk;
-            ssh2key->alg = &ssh_ecdsa_ed25519;
+            ssh2key->key = &ec->sshk;
             ssh1key = NULL;
 	} else {
 	    struct RSAKey *rsakey = snew(struct RSAKey);
@@ -747,8 +743,7 @@ int main(int argc, char **argv)
 		ssh1key = rsakey;
 	    } else {
 		ssh2key = snew(struct ssh2_userkey);
-		ssh2key->data = &rsakey->sshk;
-		ssh2key->alg = &ssh_rsa;
+		ssh2key->key = &rsakey->sshk;
 	    }
 	}
 	progressfn(&prog, PROGFN_PROGRESS, INT_MAX, -1);
@@ -838,10 +833,10 @@ int main(int argc, char **argv)
                 ssh2blob = strbuf_new();
 		if (ssh2_userkey_loadpub(infilename, &ssh2alg, BinarySink_UPCAST(ssh2blob),
                                          &origcomment, &error)) {
-                    ssh2algf = find_pubkey_alg(ssh2alg);
-                    if (ssh2algf)
-                        bits = ssh2algf->pubkey_bits(
-                            ssh2algf, make_ptrlen(ssh2blob->s, ssh2blob->len));
+                    const ssh_keyalg *alg = find_pubkey_alg(ssh2alg);
+                    if (alg)
+                        bits = ssh_key_public_bits(
+                            alg, make_ptrlen(ssh2blob->s, ssh2blob->len));
                     else
                         bits = -1;
                 } else {
@@ -995,7 +990,7 @@ int main(int argc, char **argv)
                 if (!ssh2blob) {
                     assert(ssh2key);
                     ssh2blob = strbuf_new();
-                    ssh2key->alg->public_blob(ssh2key->data, BinarySink_UPCAST(ssh2blob));
+                    ssh_key_public_blob(ssh2key->key, BinarySink_UPCAST(ssh2blob));
                 }
 
                 ssh2_write_pubkey(fp, ssh2key ? ssh2key->comment : origcomment,
@@ -1020,8 +1015,7 @@ int main(int argc, char **argv)
 		fingerprint = rsa_ssh1_fingerprint(ssh1key);
 	    } else {
 		if (ssh2key) {
-		    fingerprint = ssh2_fingerprint(ssh2key->alg,
-                                                   ssh2key->data);
+		    fingerprint = ssh2_fingerprint(ssh2key->key);
 		} else {
 		    assert(ssh2blob);
 		    fingerprint = ssh2_fingerprint_blob(
@@ -1085,7 +1079,7 @@ int main(int argc, char **argv)
     if (ssh1key)
 	freersakey(ssh1key);
     if (ssh2key) {
-	ssh2key->alg->freekey(ssh2key->data);
+	ssh_key_free(ssh2key->key);
 	sfree(ssh2key);
     }
 

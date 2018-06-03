@@ -339,7 +339,7 @@ void keylist_update(void)
              * stop and leave out a tab character. Urgh.
              */
 
-	    p = ssh2_fingerprint(skey->alg, skey->data);
+	    p = ssh2_fingerprint(skey->key);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             sfree(p);
 
@@ -350,7 +350,8 @@ void keylist_update(void)
                     break;
                 listentry[pos++] = '\t';
             }
-            if (skey->alg != &ssh_dss && skey->alg != &ssh_rsa) {
+            if (ssh_key_alg(skey->key) != &ssh_dss &&
+                ssh_key_alg(skey->key) != &ssh_rsa) {
                 /*
                  * Remove the bit-count field, which is between the
                  * first and second \t.
@@ -647,7 +648,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 			
                     if (selectedArray[itemNum] == rCount + i) {
                         pageant_delete_ssh2_key(skey);
-                        skey->alg->freekey(skey->data);
+                        ssh_key_free(skey->key);
                         sfree(skey);
                         itemNum--;
                     }

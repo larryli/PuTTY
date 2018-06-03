@@ -77,11 +77,8 @@ void share_setup_x11_channel(void *csv, void *chanv,
 typedef void *Bignum;
 #endif
 
-typedef struct ssh_key {
-    int dummy;
-} ssh_key;
-
 typedef struct ssh_keyalg ssh_keyalg;
+typedef const struct ssh_keyalg *ssh_key;
 
 struct RSAKey {
     int bits;
@@ -164,10 +161,9 @@ int ec_ed_alg_and_curve_by_bits(int bits,
                                 const ssh_keyalg **alg);
 
 struct ec_key {
-    const ssh_keyalg *signalg;
     struct ec_point publicKey;
     Bignum privateKey;
-    struct ssh_key sshk;
+    ssh_key sshk;
 };
 
 struct ec_point *ec_public(const Bignum privateKey, const struct ec_curve *curve);
@@ -391,30 +387,46 @@ struct ssh_kexes {
 };
 
 struct ssh_keyalg {
-    ssh_key *(*newkey) (const ssh_keyalg *self, ptrlen data);
+    /* Constructors that create an ssh_key */
+    ssh_key *(*new_pub) (const ssh_keyalg *self, ptrlen pub);
+    ssh_key *(*new_priv) (const ssh_keyalg *self, ptrlen pub, ptrlen priv);
+    ssh_key *(*new_priv_openssh) (const ssh_keyalg *self, BinarySource *);
+
+    /* Methods that operate on an existing ssh_key */
     void (*freekey) (ssh_key *key);
-    char *(*fmtkey) (ssh_key *key);
+    void (*sign) (ssh_key *key, const void *data, int datalen, BinarySink *);
+    int (*verify) (ssh_key *key, ptrlen sig, ptrlen data);
     void (*public_blob)(ssh_key *key, BinarySink *);
     void (*private_blob)(ssh_key *key, BinarySink *);
-    ssh_key *(*createkey) (const ssh_keyalg *self, ptrlen pub, ptrlen priv);
-    ssh_key *(*openssh_createkey) (const ssh_keyalg *self, BinarySource *);
-    void (*openssh_fmtkey) (ssh_key *key, BinarySink *);
-    /* OpenSSH private key blobs, as created by openssh_fmtkey and
-     * consumed by openssh_createkey, always (at least so far...) take
-     * the form of a number of SSH-2 strings / mpints concatenated
-     * end-to-end. Because the new-style OpenSSH private key format
-     * stores those blobs without a containing string wrapper, we need
-     * to know how many strings each one consists of, so that we can
-     * skip over the right number to find the next key in the file.
-     * openssh_private_npieces gives that information. */
-    int openssh_private_npieces;
+    void (*openssh_blob) (ssh_key *key, BinarySink *);
+    char *(*cache_str) (ssh_key *key);
+
+    /* 'Class methods' that don't deal with an ssh_key at all */
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
-    int (*verifysig) (ssh_key *key, ptrlen sig, ptrlen data);
-    void (*sign) (ssh_key *key, const void *data, int datalen, BinarySink *);
-    const char *name;
-    const char *keytype;               /* for host key cache */
-    const void *extra;                 /* private to the public key methods */
+
+    /* Constant data fields giving information about the key type */
+    const char *ssh_id;    /* string identifier in the SSH protocol */
+    const char *cache_id;  /* identifier used in PuTTY's host key cache */
+    const void *extra;     /* private to the public key methods */
 };
+
+#define ssh_key_new_pub(alg, data) ((alg)->new_pub(alg, data))
+#define ssh_key_new_priv(alg, pub, priv) ((alg)->new_priv(alg, pub, priv))
+#define ssh_key_new_priv_openssh(alg, bs) ((alg)->new_priv_openssh(alg, bs))
+
+#define ssh_key_free(key) ((*(key))->freekey(key))
+#define ssh_key_sign(key, data, len, bs) ((*(key))->sign(key, data, len, bs))
+#define ssh_key_verify(key, sig, data) ((*(key))->verify(key, sig, data))
+#define ssh_key_public_blob(key, bs) ((*(key))->public_blob(key, bs))
+#define ssh_key_private_blob(key, bs) ((*(key))->private_blob(key, bs))
+#define ssh_key_openssh_blob(key, bs) ((*(key))->openssh_blob(key, bs))
+#define ssh_key_cache_str(key) ((*(key))->cache_str(key))
+
+#define ssh_key_public_bits(alg, blob) ((alg)->pubkey_bits(alg, blob))
+
+#define ssh_key_alg(key) (*(key))
+#define ssh_key_ssh_id(key) ((*(key))->ssh_id)
+#define ssh_key_cache_id(key) ((*(key))->cache_id)
 
 struct ssh_compress {
     const char *name;
@@ -434,8 +446,7 @@ struct ssh_compress {
 };
 
 struct ssh2_userkey {
-    const ssh_keyalg *alg;             /* the key algorithm */
-    ssh_key *data;                     /* the key data */
+    ssh_key *key;                      /* the key itself */
     char *comment;		       /* the key comment */
 };
 
@@ -782,7 +793,7 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
                        const void *v_pub_blob, int pub_len,
                        int keytype);
 char *ssh2_fingerprint_blob(const void *blob, int bloblen);
-char *ssh2_fingerprint(const ssh_keyalg *alg, ssh_key *key);
+char *ssh2_fingerprint(ssh_key *key);
 int key_type(const Filename *filename);
 const char *key_type_to_str(int type);
 

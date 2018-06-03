@@ -502,6 +502,7 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 {
     struct openssh_pem_key *key = load_openssh_pem_key(filename, errmsg_p);
     struct ssh2_userkey *retkey;
+    const ssh_keyalg *alg;
     BinarySource src[1];
     int i, num_integers;
     struct ssh2_userkey *retval = NULL;
@@ -661,19 +662,18 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
 
         /* Construct the key */
         retkey = snew(struct ssh2_userkey);
-        retkey->alg = alg;
 
-        put_stringz(blob, alg->name);
+        put_stringz(blob, alg->ssh_id);
         put_stringz(blob, curve->name);
         put_stringpl(blob, pubkey.data);
         publen = blob->len;
         put_mp_ssh2_from_string(blob, privkey.data.ptr, privkey.data.len);
 
-        retkey->data = retkey->alg->createkey(
-            retkey->alg, make_ptrlen(blob->u, publen),
+        retkey->key = ssh_key_new_priv(
+            alg, make_ptrlen(blob->u, publen),
             make_ptrlen(blob->u + publen, blob->len - publen));
 
-        if (!retkey->data) {
+        if (!retkey->key) {
             sfree(retkey);
             errmsg = "unable to create key data structure";
             goto error;
@@ -740,12 +740,12 @@ struct ssh2_userkey *openssh_pem_read(const Filename *filename,
          */
         assert(privptr > 0);          /* should have bombed by now if not */
         retkey = snew(struct ssh2_userkey);
-        retkey->alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
-        retkey->data = retkey->alg->createkey(
-            retkey->alg, make_ptrlen(blob->u, privptr),
+        alg = (key->keytype == OP_RSA ? &ssh_rsa : &ssh_dss);
+        retkey->key = ssh_key_new_priv(
+            alg, make_ptrlen(blob->u, privptr),
             make_ptrlen(blob->u+privptr, blob->len-privptr));
 
-        if (!retkey->data) {
+        if (!retkey->key) {
             sfree(retkey);
             errmsg = "unable to create key data structure";
             goto error;
@@ -794,9 +794,9 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
      * Fetch the key blobs.
      */
     pubblob = strbuf_new();
-    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    ssh_key_public_blob(key->key, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new();
-    key->alg->private_blob(key->data, BinarySink_UPCAST(privblob));
+    ssh_key_private_blob(key->key, BinarySink_UPCAST(privblob));
     spareblob = NULL;
 
     outblob = strbuf_new();
@@ -805,7 +805,8 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
      * Encode the OpenSSH key blob, and also decide on the header
      * line.
      */
-    if (key->alg == &ssh_rsa || key->alg == &ssh_dss) {
+    if (ssh_key_alg(key->key) == &ssh_rsa ||
+        ssh_key_alg(key->key) == &ssh_dss) {
         strbuf *seq;
 
         /*
@@ -815,7 +816,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
          * bignums per key type and then construct the actual blob in
          * common code after that.
          */
-        if (key->alg == &ssh_rsa) {
+        if (ssh_key_alg(key->key) == &ssh_rsa) {
             ptrlen n, e, d, p, q, iqmp, dmp1, dmq1;
             Bignum bd, bp, bq, bdmp1, bdmq1;
 
@@ -911,11 +912,11 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
         put_ber_id_len(outblob, 16, seq->len, ASN1_CONSTRUCTED);
         put_data(outblob, seq->s, seq->len);
         strbuf_free(seq);
-    } else if (key->alg == &ssh_ecdsa_nistp256 ||
-               key->alg == &ssh_ecdsa_nistp384 ||
-               key->alg == &ssh_ecdsa_nistp521) {
+    } else if (ssh_key_alg(key->key) == &ssh_ecdsa_nistp256 ||
+               ssh_key_alg(key->key) == &ssh_ecdsa_nistp384 ||
+               ssh_key_alg(key->key) == &ssh_ecdsa_nistp521) {
         const unsigned char *oid;
-        struct ec_key *ec = FROMFIELD(key->data, struct ec_key, sshk);
+        struct ec_key *ec = FROMFIELD(key->key, struct ec_key, sshk);
         int oidlen;
         int pointlen;
         strbuf *seq, *sub;
@@ -930,7 +931,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
          *   [1]
          *     BIT STRING (0x00 public key point)
          */
-        oid = ec_alg_oid(key->alg, &oidlen);
+        oid = ec_alg_oid(ssh_key_alg(key->key), &oidlen);
         pointlen = (ec->publicKey.curve->fieldBits + 7) / 8 * 2;
 
         seq = strbuf_new();
@@ -1340,7 +1341,6 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
 {
     struct openssh_new_key *key = load_openssh_new_key(filename, errmsg_p);
     struct ssh2_userkey *retkey = NULL;
-    int i;
     struct ssh2_userkey *retval = NULL;
     const char *errmsg;
     unsigned checkint;
@@ -1428,56 +1428,42 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
         goto error;
     }
 
-    retkey = NULL;
+    retkey = snew(struct ssh2_userkey);
+    retkey->key = NULL;
+    retkey->comment = NULL;
+
     for (key_index = 0; key_index < key->nkeys; key_index++) {
-        ptrlen keytype, thiskey, comment;
+        ptrlen comment;
 
         /*
-         * Read the key type, which will tell us how to scan over
-         * the key to get to the next one.
+         * Identify the key type.
          */
-        keytype = get_string(src);
-
-        /*
-         * Preliminary key type identification, and decide how
-         * many pieces of key we expect to see. Currently
-         * (conveniently) all key types can be seen as some number
-         * of strings, so we just need to know how many of them to
-         * skip over. (The numbers below exclude the key comment.)
-         */
-        alg = find_pubkey_alg_len(keytype);
+        alg = find_pubkey_alg_len(get_string(src));
         if (!alg) {
             errmsg = "private key type not recognised\n";
             goto error;
         }
 
-        thiskey.ptr = get_ptr(src);
-
         /*
-         * Skip over the pieces of key.
+         * Read the key. We have to do this even if it's not the one
+         * we want, because it's the only way to find out how much
+         * data to skip past to get to the next key in the file.
          */
-        for (i = 0; i < alg->openssh_private_npieces; i++)
-            get_string(src);
-
+        retkey->key = ssh_key_new_priv_openssh(alg, src);
         if (get_err(src)) {
             errmsg = "unable to read entire private key";
             goto error;
         }
-
-        thiskey.len = (const char *)get_ptr(src) - (const char *)thiskey.ptr;
-
-        if (key_index == key->key_wanted) {
-            BinarySource src[1];
-            BinarySource_BARE_INIT(src, thiskey.ptr, thiskey.len);
-
-            retkey = snew(struct ssh2_userkey);
-            retkey->comment = NULL;
-            retkey->alg = alg;
-            retkey->data = alg->openssh_createkey(alg, src);
-            if (!retkey->data) {
-                errmsg = "unable to create key data structure";
-                goto error;
-            }
+        if (!retkey->key) {
+            errmsg = "unable to create key data structure";
+            goto error;
+        }
+        if (key_index != key->key_wanted) {
+            /*
+             * If this isn't the key we're looking for, throw it away.
+             */
+            ssh_key_free(retkey->key);
+            retkey->key = NULL;
         }
 
         /*
@@ -1518,10 +1504,8 @@ struct ssh2_userkey *openssh_new_read(const Filename *filename,
     error:
     if (retkey) {
         sfree(retkey->comment);
-        if (retkey->data) {
-            assert(alg);
-            alg->freekey(retkey->data);
-        }
+        if (retkey->key)
+            ssh_key_free(retkey->key);
         sfree(retkey);
     }
     smemclr(key->keyblob, key->keyblob_size);
@@ -1547,9 +1531,9 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
      * Fetch the key blobs and find out the lengths of things.
      */
     pubblob = strbuf_new();
-    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    ssh_key_public_blob(key->key, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new();
-    key->alg->openssh_fmtkey(key->data, BinarySink_UPCAST(privblob));
+    ssh_key_openssh_blob(key->key, BinarySink_UPCAST(privblob));
 
     /*
      * Construct the cleartext version of the blob.
@@ -1597,7 +1581,7 @@ int openssh_new_write(const Filename *filename, struct ssh2_userkey *key,
 
         /* Private key. The main private blob goes inline, with no string
          * wrapper. */
-        put_stringz(cpblob, key->alg->name);
+        put_stringz(cpblob, ssh_key_ssh_id(key->key));
         put_data(cpblob, privblob->s, privblob->len);
 
         /* Comment. */
@@ -1669,11 +1653,11 @@ int openssh_auto_write(const Filename *filename, struct ssh2_userkey *key,
      * assume that anything not in that fixed list is newer, and hence
      * will use the new format.
      */
-    if (key->alg == &ssh_dss ||
-        key->alg == &ssh_rsa ||
-        key->alg == &ssh_ecdsa_nistp256 ||
-        key->alg == &ssh_ecdsa_nistp384 ||
-        key->alg == &ssh_ecdsa_nistp521)
+    if (ssh_key_alg(key->key) == &ssh_dss ||
+        ssh_key_alg(key->key) == &ssh_rsa ||
+        ssh_key_alg(key->key) == &ssh_ecdsa_nistp256 ||
+        ssh_key_alg(key->key) == &ssh_ecdsa_nistp384 ||
+        ssh_key_alg(key->key) == &ssh_ecdsa_nistp521)
         return openssh_pem_write(filename, key, passphrase);
     else
         return openssh_new_write(filename, key, passphrase);
@@ -2117,7 +2101,7 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
     /*
      * Now we break down into RSA versus DSA. In either case we'll
      * construct public and private blobs in our own format, and
-     * end up feeding them to alg->createkey().
+     * end up feeding them to ssh_key_new_priv().
      */
     blob = strbuf_new();
     if (type == RSA) {
@@ -2173,11 +2157,10 @@ struct ssh2_userkey *sshcom_read(const Filename *filename, char *passphrase,
     }
 
     retkey = snew(struct ssh2_userkey);
-    retkey->alg = alg;
-    retkey->data = alg->createkey(
+    retkey->key = ssh_key_new_priv(
         alg, make_ptrlen(blob->u, publen),
         make_ptrlen(blob->u + publen, blob->len - publen));
-    if (!retkey->data) {
+    if (!retkey->key) {
 	sfree(retkey);
 	errmsg = "unable to create key data structure";
 	goto error;
@@ -2216,16 +2199,16 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
      * Fetch the key blobs.
      */
     pubblob = strbuf_new();
-    key->alg->public_blob(key->data, BinarySink_UPCAST(pubblob));
+    ssh_key_public_blob(key->key, BinarySink_UPCAST(pubblob));
     privblob = strbuf_new();
-    key->alg->private_blob(key->data, BinarySink_UPCAST(privblob));
+    ssh_key_private_blob(key->key, BinarySink_UPCAST(privblob));
     outblob = NULL;
 
     /*
      * Find the sequence of integers to be encoded into the OpenSSH
      * key blob, and also decide on the header line.
      */
-    if (key->alg == &ssh_rsa) {
+    if (ssh_key_alg(key->key) == &ssh_rsa) {
         ptrlen n, e, d, p, q, iqmp;
 
         /*
@@ -2254,7 +2237,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
         nnumbers = 6;
 	initial_zero = 0;
 	type = "if-modn{sign{rsa-pkcs1-sha1},encrypt{rsa-pkcs1v2-oaep}}";
-    } else if (key->alg == &ssh_dss) {
+    } else if (ssh_key_alg(key->key) == &ssh_dss) {
         ptrlen p, q, g, y, x;
 
         /*

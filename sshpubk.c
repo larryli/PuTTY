@@ -563,9 +563,7 @@ static int read_blob(FILE *fp, int nlines, BinarySink *bs)
 /*
  * Magic error return value for when the passphrase is wrong.
  */
-struct ssh2_userkey ssh2_wrong_passphrase = {
-    NULL, NULL, NULL
-};
+struct ssh2_userkey ssh2_wrong_passphrase = { NULL, NULL };
 
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name)
 {
@@ -741,7 +739,7 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
 	    free_macdata = FALSE;
 	} else {
             macdata = strbuf_new();
-	    put_stringz(macdata, alg->name);
+	    put_stringz(macdata, alg->ssh_id);
 	    put_stringz(macdata, encryption);
 	    put_stringz(macdata, comment);
 	    put_string(macdata, public_blob->s,
@@ -797,12 +795,11 @@ struct ssh2_userkey *ssh2_load_userkey(const Filename *filename,
      * Create and return the key.
      */
     ret = snew(struct ssh2_userkey);
-    ret->alg = alg;
     ret->comment = comment;
-    ret->data = alg->createkey(
+    ret->key = ssh_key_new_priv(
         alg, make_ptrlen(public_blob->u, public_blob->len),
         make_ptrlen(private_blob->u, private_blob->len));
-    if (!ret->data) {
+    if (!ret->key) {
 	sfree(ret);
 	ret = NULL;
 	error = "createkey failed";
@@ -1129,7 +1126,7 @@ int ssh2_userkey_loadpub(const Filename *filename, char **algorithm,
 
     fclose(fp);
     if (algorithm)
-	*algorithm = dupstr(alg->name);
+	*algorithm = dupstr(alg->ssh_id);
     return TRUE;
 
     /*
@@ -1252,9 +1249,9 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
      * Fetch the key component blobs.
      */
     pub_blob = strbuf_new();
-    key->alg->public_blob(key->data, BinarySink_UPCAST(pub_blob));
+    ssh_key_public_blob(key->key, BinarySink_UPCAST(pub_blob));
     priv_blob = strbuf_new();
-    key->alg->private_blob(key->data, BinarySink_UPCAST(priv_blob));
+    ssh_key_private_blob(key->key, BinarySink_UPCAST(priv_blob));
 
     /*
      * Determine encryption details, and encrypt the private blob.
@@ -1286,7 +1283,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
 	char header[] = "putty-private-key-file-mac-key";
 
 	macdata = strbuf_new();
-	put_stringz(macdata, key->alg->name);
+	put_stringz(macdata, ssh_key_ssh_id(key->key));
 	put_stringz(macdata, cipherstr);
 	put_stringz(macdata, key->comment);
 	put_string(macdata, pub_blob->s, pub_blob->len);
@@ -1333,7 +1330,7 @@ int ssh2_save_userkey(const Filename *filename, struct ssh2_userkey *key,
         sfree(priv_blob_encrypted);
         return 0;
     }
-    fprintf(fp, "PuTTY-User-Key-File-2: %s\n", key->alg->name);
+    fprintf(fp, "PuTTY-User-Key-File-2: %s\n", ssh_key_ssh_id(key->key));
     fprintf(fp, "Encryption: %s\n", cipherstr);
     fprintf(fp, "Comment: %s\n", key->comment);
     fprintf(fp, "Public-Lines: %d\n", base64_lines(pub_blob->len));
@@ -1425,7 +1422,7 @@ char *ssh2_pubkey_openssh_str(struct ssh2_userkey *key)
     char *ret;
 
     blob = strbuf_new();
-    key->alg->public_blob(key->data, BinarySink_UPCAST(blob));
+    ssh_key_public_blob(key->key, BinarySink_UPCAST(blob));
     ret = ssh2_pubkey_openssh_str_internal(
         key->comment, blob->s, blob->len);
     strbuf_free(blob);
@@ -1510,7 +1507,7 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     if (!get_err(src)) {
         alg = find_pubkey_alg_len(algname);
         if (alg) {
-            int bits = alg->pubkey_bits(alg, make_ptrlen(blob, bloblen));
+            int bits = ssh_key_public_bits(alg, make_ptrlen(blob, bloblen));
             return dupprintf("%.*s %d %s", PTRLEN_PRINTF(algname),
                              bits, fingerprint_str);
         } else {
@@ -1526,10 +1523,10 @@ char *ssh2_fingerprint_blob(const void *blob, int bloblen)
     }
 }
 
-char *ssh2_fingerprint(const ssh_keyalg *alg, ssh_key *data)
+char *ssh2_fingerprint(ssh_key *data)
 {
     strbuf *blob = strbuf_new();
-    alg->public_blob(data, BinarySink_UPCAST(blob));
+    ssh_key_public_blob(data, BinarySink_UPCAST(blob));
     char *ret = ssh2_fingerprint_blob(blob->s, blob->len);
     strbuf_free(blob);
     return ret;
