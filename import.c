@@ -2265,8 +2265,7 @@ int sshcom_write(const Filename *filename, struct ssh2_userkey *key,
 	initial_zero = 1;
 	type = "dl-modp{sign{dsa-nist-sha1},dh{plain}}";
     } else {
-        assert(0);                     /* zoinks! */
-	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
+        goto error;                    /* unsupported key type */
     }
 
     outblob = strbuf_new();
