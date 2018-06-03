@@ -930,6 +930,7 @@ struct ssh_tag {
     int exitcode;
     int close_expected;
     int clean_exit;
+    int disconnect_message_seen;
 
     tree234 *rportfwds, *portfwds;
 
@@ -1593,6 +1594,20 @@ static void ssh1_rdpkt(Ssh ssh)
 
         BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
 
+        /*
+         * Mild layer violation: if the message is a DISCONNECT, we
+         * should unset the close_expected flag, because now we _do_
+         * expect the server to close the network connection
+         * afterwards. That way, the more informative connection_fatal
+         * message for the disconnect itself won't fight with 'Server
+         * unexpectedly closed network connection'.
+         */
+        if (st->pktin->type == SSH1_MSG_DISCONNECT) {
+            ssh->clean_exit = FALSE;
+            ssh->close_expected = TRUE;
+            ssh->disconnect_message_seen = TRUE;
+        }
+
         pq_push(&ssh->pq_full, st->pktin);
         queue_idempotent_callback(&ssh->pq_full_consumer);
     }
@@ -2015,6 +2030,20 @@ static void ssh2_rdpkt(Ssh ssh)
 
         BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
 
+        /*
+         * Mild layer violation: if the message is a DISCONNECT, we
+         * should unset the close_expected flag, because now we _do_
+         * expect the server to close the network connection
+         * afterwards. That way, the more informative connection_fatal
+         * message for the disconnect itself won't fight with 'Server
+         * unexpectedly closed network connection'.
+         */
+        if (st->pktin->type == SSH2_MSG_DISCONNECT) {
+            ssh->clean_exit = FALSE;
+            ssh->close_expected = TRUE;
+            ssh->disconnect_message_seen = TRUE;
+        }
+
         pq_push(&ssh->pq_full, st->pktin);
         queue_idempotent_callback(&ssh->pq_full_consumer);
         if (st->pktin->type == SSH2_MSG_NEWKEYS) {
@@ -2078,6 +2107,20 @@ static void ssh2_bare_connection_rdpkt(Ssh ssh)
             ssh2_log_incoming_packet(ssh, st->pktin);
 
         BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
+
+        /*
+         * Mild layer violation: if the message is a DISCONNECT, we
+         * should unset the close_expected flag, because now we _do_
+         * expect the server to close the network connection
+         * afterwards. That way, the more informative connection_fatal
+         * message for the disconnect itself won't fight with 'Server
+         * unexpectedly closed network connection'.
+         */
+        if (st->pktin->type == SSH2_MSG_DISCONNECT) {
+            ssh->clean_exit = FALSE;
+            ssh->close_expected = TRUE;
+            ssh->disconnect_message_seen = TRUE;
+        }
 
         pq_push(&ssh->pq_full, st->pktin);
         queue_idempotent_callback(&ssh->pq_full_consumer);
@@ -3379,7 +3422,8 @@ static void ssh_process_incoming_data(void *ctx)
 
         if (error_msg)
             logevent(error_msg);
-        if (!ssh->close_expected || !ssh->clean_exit)
+        if ((!ssh->close_expected || !ssh->clean_exit) &&
+            !ssh->disconnect_message_seen)
             connection_fatal(ssh->frontend, "%s", error_msg);
     }
 }
@@ -11959,6 +12003,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->exitcode = -1;
     ssh->close_expected = FALSE;
     ssh->clean_exit = FALSE;
+    ssh->disconnect_message_seen = FALSE;
     ssh->state = SSH_STATE_PREPACKET;
     ssh->size_needed = FALSE;
     ssh->eof_needed = FALSE;
