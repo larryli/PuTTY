@@ -688,8 +688,7 @@ void clear_jumplist(void)
 /* Adds a saved session to the Windows 7 jumplist. */
 void add_session_to_jumplist(const char * const sessionname)
 {
-    if ((osVersion.dwMajorVersion < 6) ||
-        (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion < 1))
+    if ((osMajorVersion < 6) || (osMajorVersion == 6 && osMinorVersion < 1))
         return;                        /* do nothing on pre-Win7 systems */
 
     if (add_to_jumplist_registry(sessionname) == JUMPLISTREG_OK) {
@@ -703,8 +702,7 @@ void add_session_to_jumplist(const char * const sessionname)
 /* Removes a saved session from the Windows jumplist. */
 void remove_session_from_jumplist(const char * const sessionname)
 {
-    if ((osVersion.dwMajorVersion < 6) ||
-        (osVersion.dwMajorVersion == 6 && osVersion.dwMinorVersion < 1))
+    if ((osMajorVersion < 6) || (osMajorVersion == 6 && osMinorVersion < 1))
         return;                        /* do nothing on pre-Win7 systems */
 
     if (remove_from_jumplist_registry(sessionname) == JUMPLISTREG_OK) {

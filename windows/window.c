@@ -374,23 +374,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * config box. */
     defuse_showwindow();
 
-    if (!init_winver())
-    {
-	char *str = dupprintf("%s Fatal Error", appname);
-	MessageBox(NULL, "Windows refuses to report a version",
-		   str, MB_OK | MB_ICONEXCLAMATION);
-	sfree(str);
-	return 1;
-    }
+    init_winver();
 
     /*
      * If we're running a version of Windows that doesn't support
      * WM_MOUSEWHEEL, find out what message number we should be
      * using instead.
      */
-    if (osVersion.dwMajorVersion < 4 ||
-	(osVersion.dwMajorVersion == 4 && 
-	 osVersion.dwPlatformId != VER_PLATFORM_WIN32_NT))
+    if (osMajorVersion < 4 ||
+	(osMajorVersion == 4 && osPlatformId != VER_PLATFORM_WIN32_NT))
 	wm_mousewheel = RegisterWindowMessage("MSWHEEL_ROLLMSG");
 
     init_help();
@@ -3111,8 +3103,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    int n;
 	    char *buff;
 
-	    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS || 
-	        osVersion.dwPlatformId == VER_PLATFORM_WIN32s) break; /* no Unicode */
+	    if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS || 
+	        osPlatformId == VER_PLATFORM_WIN32s)
+                break; /* no Unicode */
 
 	    if ((lParam & GCS_RESULTSTR) == 0) /* Composition unfinished. */
 		break; /* fall back to DefWindowProc */
@@ -3317,10 +3310,10 @@ static void sys_cursor_update(void)
     SetCaretPos(caret_x, caret_y);
 
     /* IMM calls on Win98 and beyond only */
-    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32s) return; /* 3.11 */
+    if (osPlatformId == VER_PLATFORM_WIN32s) return; /* 3.11 */
     
-    if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS &&
-	    osVersion.dwMinorVersion == 0) return; /* 95 */
+    if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS &&
+        osMinorVersion == 0) return; /* 95 */
 
     /* we should have the IMM functions */
     hIMC = ImmGetContext(hwnd);
@@ -4672,7 +4665,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	/* XXX how do we know what the max size of the keys array should
 	 * be is? There's indication on MS' website of an Inquire/InquireEx
 	 * functioning returning a KBINFO structure which tells us. */
-	if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT && p_ToUnicodeEx) {
+	if (osPlatformId == VER_PLATFORM_WIN32_NT && p_ToUnicodeEx) {
 	    r = p_ToUnicodeEx(wParam, scan, keystate, keys_unicode,
                               lenof(keys_unicode), 0, kbd_layout);
 	} else {
@@ -5671,7 +5664,7 @@ void do_beep(void *frontend, int mode)
 	 * We must beep in different ways depending on whether this
 	 * is a 95-series or NT-series OS.
 	 */
-	if(osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT)
+	if (osPlatformId == VER_PLATFORM_WIN32_NT)
 	    Beep(800, 100);
 	else
 	    MessageBeep(-1);

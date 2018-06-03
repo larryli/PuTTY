@@ -521,9 +521,9 @@ void show_help(HWND hwnd);
 /*
  * Exports from winmisc.c.
  */
-extern OSVERSIONINFO osVersion;
+GLOBAL DWORD osMajorVersion, osMinorVersion, osPlatformId;
+void init_winver(void);
 void dll_hijacking_protection(void);
-BOOL init_winver(void);
 HMODULE load_system32_dll(const char *libname);
 const char *win_strerror(int error);
 void restrict_process_acl(void);

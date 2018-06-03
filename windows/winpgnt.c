@@ -1129,14 +1129,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Determine whether we're an NT system (should have security
      * APIs) or a non-NT system (don't do security).
      */
-    if (!init_winver())
-    {
-	modalfatalbox("Windows refuses to report a version");
-    }
-    if (osVersion.dwPlatformId == VER_PLATFORM_WIN32_NT) {
-	has_security = TRUE;
-    } else
-	has_security = FALSE;
+    init_winver();
+    has_security = (osPlatformId == VER_PLATFORM_WIN32_NT);
 
     if (has_security) {
 #ifndef NO_SECURITY

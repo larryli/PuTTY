@@ -105,7 +105,7 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
      * PRINTER_INFO_5 is recommended.
      * Bletch.
      */
-    if (osVersion.dwPlatformId != VER_PLATFORM_WIN32_NT) {
+    if (osPlatformId != VER_PLATFORM_WIN32_NT) {
 	ret->enum_level = 5;
     } else {
 	ret->enum_level = 4;
