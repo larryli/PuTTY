@@ -108,7 +108,7 @@ static void usage(void)
     printf("       pageant -a [key files]\n");
     printf("       pageant -d [key identifiers]\n");
     printf("       pageant --public [key identifiers]\n");
-    printf("       pageant --public-openssh [key identifiers]\n");
+    printf("       pageant ( --public-openssh | -L ) [key identifiers]\n");
     printf("       pageant -l\n");
     printf("       pageant -D\n");
     printf("Lifetime options, for running Pageant as an agent:\n");
@@ -121,7 +121,7 @@ static void usage(void)
     printf("  -a           add key(s) to the existing agent\n");
     printf("  -l           list currently loaded key fingerprints and comments\n");
     printf("  --public     print public keys in RFC 4716 format\n");
-    printf("  --public-openssh   print public keys in OpenSSH format\n");
+    printf("  --public-openssh, -L   print public keys in OpenSSH format\n");
     printf("  -d           delete key(s) from the agent\n");
     printf("  -D           delete all keys from the agent\n");
     printf("Other options:\n");
@@ -1052,7 +1052,7 @@ int main(int argc, char **argv)
                 add_keyact(KEYACT_CLIENT_LIST, NULL);
             } else if (!strcmp(p, "--public")) {
                 curr_keyact = KEYACT_CLIENT_PUBLIC;
-            } else if (!strcmp(p, "--public-openssh")) {
+            } else if (!strcmp(p, "--public-openssh") || !strcmp(p, "-L")) {
                 curr_keyact = KEYACT_CLIENT_PUBLIC_OPENSSH;
             } else if (!strcmp(p, "-X")) {
                 life = LIFE_X11;
