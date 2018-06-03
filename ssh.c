@@ -1492,8 +1492,7 @@ static void ssh1_log_outgoing_packet(Ssh ssh, const struct Packet *pkt)
 
     log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
                ssh1_pkt_type(pkt->data[12]),
-               pkt->body, pkt->length,
-               nblanks, blanks, NULL, 0, NULL);
+               src->data, src->len, nblanks, blanks, NULL, 0, NULL);
 }
 
 /*
@@ -1742,7 +1741,7 @@ static void ssh2_log_outgoing_packet(Ssh ssh, const struct Packet *pkt)
 
     log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
                ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
-               pkt->body, pkt->length, nblanks, blanks,
+               src->data, src->len, nblanks, blanks,
                &ssh->v2_outgoing_sequence,
                pkt->downstream_id, pkt->additional_log_text);
 }
