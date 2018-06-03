@@ -369,8 +369,23 @@ static void localexp_to_exp_lifetime(TimeStamp *localexp,
     if (expiry)
         *expiry = GSS_NO_EXPIRATION;
 
-    if (!LocalFileTimeToFileTime(localexp, &expUTC))
-        return;
+    /*
+     * Type oddity: localexp is a pointer to 'TimeStamp', whereas
+     * LocalFileTimeToFileTime expects a pointer to FILETIME. However,
+     * despite having different formal type names from the compiler's
+     * point of view, these two structures are specified to be
+     * isomorphic in the MS documentation, so it's legitimate to copy
+     * between them:
+     *
+     * https://msdn.microsoft.com/en-us/library/windows/desktop/aa380511(v=vs.85).aspx
+     */
+    {
+        FILETIME localexp_ft;
+        enum { vorpal_sword = 1 / (sizeof(*localexp) == sizeof(localexp_ft)) };
+        memcpy(&localexp_ft, localexp, sizeof(localexp_ft));
+        if (!LocalFileTimeToFileTime(&localexp_ft, &expUTC))
+            return;
+    }
 
     TIME_WIN_TO_POSIX(expUTC, exp);
     delta = exp - now;
