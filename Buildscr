@@ -267,4 +267,4 @@ in-dest putty do echo "AddType application/octet-stream .hlp" >> .htaccess
 in-dest putty do echo "AddType application/octet-stream .cnt" >> .htaccess
 in-dest putty do set -- putty*.tar.gz; for k in '' .gpg; do echo RedirectMatch temp '(.*/)'putty.tar.gz$$k\$$ '$$1'"$$1$$k" >> .htaccess; done
 # And one in each binary directory, providing links for the installers.
-in-dest putty do for params in "w32 putty-installer" "w64 putty-64bit-installer"; do (set -- $$params; subdir=$$1; installername=$$2; cd $$subdir && for ext in msi exe; do set -- putty*installer.$$ext; if test -f $$1; then for k in '' .gpg; do echo RedirectMatch temp '(.*/)'$${installername}.$$ext$$k\$$ '$$1'"$$1$$k" >> .htaccess; done; fi; done); done
+in-dest putty do for params in "w32 putty-installer" "w64 putty-64bit-installer" "wa32 putty-arm32-installer" "wa64 putty-arm64-installer"; do (set -- $$params; subdir=$$1; installername=$$2; cd $$subdir && for ext in msi exe; do set -- putty*installer.$$ext; if test -f $$1; then for k in '' .gpg; do echo RedirectMatch temp '(.*/)'$${installername}.$$ext$$k\$$ '$$1'"$$1$$k" >> .htaccess; done; fi; done); done
