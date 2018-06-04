@@ -450,7 +450,15 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
     int displaynum;
     int ideal_match = FALSE;
     char *ourhostname;
-    const size_t MAX_RECORD_SIZE = 0x80, BUF_SIZE = 2 * MAX_RECORD_SIZE;
+
+    /* A maximally sized (wildly implausible) .Xauthority record
+     * consists of a 16-bit integer to start with, then four strings,
+     * each of which has a 16-bit length field followed by that many
+     * bytes of data (i.e. up to 0xFFFF bytes). */
+    const size_t MAX_RECORD_SIZE = 2 + 4 * (2+0xFFFF);
+
+    /* We'll want a buffer of twice that size (see below). */
+    const size_t BUF_SIZE = 2 * MAX_RECORD_SIZE;
 
     /*
      * Normally we should look for precisely the details specified in
