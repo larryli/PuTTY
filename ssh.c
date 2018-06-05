@@ -670,11 +670,17 @@ struct ssh_portfwd {
     ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr), \
 	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
+typedef struct PacketQueueNode PacketQueueNode;
+struct PacketQueueNode {
+    PacketQueueNode *next, *prev;
+};
+
 struct PktIn {
     int refcount;
     int type;
     unsigned long sequence; /* SSH-2 incoming sequence number */
     long encrypted_len;	    /* for SSH-2 total-size counting */
+    PacketQueueNode qnode;  /* for linking this packet on to a queue */
     BinarySource_IMPLEMENTATION;
 };
 
@@ -720,25 +726,20 @@ static PktOut *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
 static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin);
 static void ssh_unref_packet(PktIn *pkt);
 
-struct PacketQueueNode {
-    struct PacketQueueNode *next, *prev;
-    PktIn *pkt;
-};
-
 struct PacketQueue {
-    struct PacketQueueNode end;
+    PacketQueueNode end;
 };
 
 static void pq_init(struct PacketQueue *pq)
 {
     pq->end.next = pq->end.prev = &pq->end;
-    pq->end.pkt = NULL;
 }
 
 static void pq_push(struct PacketQueue *pq, PktIn *pkt)
 {
-    struct PacketQueueNode *node = snew(struct PacketQueueNode);
-    node->pkt = pkt;
+    PacketQueueNode *node = &pkt->qnode;
+    assert(!node->next);
+    assert(!node->prev);
     node->next = &pq->end;
     node->prev = pq->end.prev;
     node->next->prev = node;
@@ -747,8 +748,9 @@ static void pq_push(struct PacketQueue *pq, PktIn *pkt)
 
 static void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
 {
-    struct PacketQueueNode *node = snew(struct PacketQueueNode);
-    node->pkt = pkt;
+    PacketQueueNode *node = &pkt->qnode;
+    assert(!node->next);
+    assert(!node->prev);
     node->prev = &pq->end;
     node->next = pq->end.next;
     node->next->prev = node;
@@ -757,25 +759,22 @@ static void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
 
 static PktIn *pq_peek(struct PacketQueue *pq)
 {
-    return pq->end.next->pkt; /* works even if next == &end, because
-                               * end.pkt is NULL */
+    if (pq->end.next == &pq->end)
+        return NULL;
+    return FROMFIELD(pq->end.next, PktIn, qnode);
 }
 
 static PktIn *pq_pop(struct PacketQueue *pq)
 {
-    PktIn *pkt;
-    struct PacketQueueNode *node;
-
-    node = pq->end.next;
+    PacketQueueNode *node = pq->end.next;
     if (node == &pq->end)
         return NULL;
 
-    pkt = node->pkt;
     node->next->prev = node->prev;
     node->prev->next = node->next;
-    sfree(node);
+    node->prev = node->next = NULL;
 
-    return pkt;
+    return FROMFIELD(node, PktIn, qnode);
 }
 
 static void pq_clear(struct PacketQueue *pq)
@@ -1527,6 +1526,7 @@ static void ssh1_rdpkt(Ssh ssh)
          * Allocate the packet to return, now we know its length.
          */
         st->pktin = snew_plus(PktIn, st->biglen);
+        st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
         st->pktin->refcount = 1;
         st->pktin->type = 0;
 
@@ -1829,6 +1829,7 @@ static void ssh2_rdpkt(Ssh ssh)
              * Now transfer the data into an output packet.
              */
             st->pktin = snew_plus(PktIn, st->maxlen);
+            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
             st->pktin->refcount = 1;
             st->pktin->type = 0;
             st->data = snew_plus_get_aux(st->pktin);
@@ -1876,6 +1877,7 @@ static void ssh2_rdpkt(Ssh ssh)
              * Allocate the packet to return, now we know its length.
              */
             st->pktin = snew_plus(PktIn, OUR_V2_PACKETLIMIT + st->maclen);
+            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
             st->pktin->refcount = 1;
             st->pktin->type = 0;
             st->data = snew_plus_get_aux(st->pktin);
@@ -1947,6 +1949,7 @@ static void ssh2_rdpkt(Ssh ssh)
              */
             st->maxlen = st->packetlen + st->maclen;
             st->pktin = snew_plus(PktIn, st->maxlen);
+            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
             st->pktin->refcount = 1;
             st->pktin->type = 0;
             st->data = snew_plus_get_aux(st->pktin);
@@ -2098,6 +2101,7 @@ static void ssh2_bare_connection_rdpkt(Ssh ssh)
          * Allocate the packet to return, now we know its length.
          */
         st->pktin = snew_plus(PktIn, st->packetlen);
+        st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
         st->maxlen = 0;
         st->pktin->refcount = 1;
         st->data = snew_plus_get_aux(st->pktin);
