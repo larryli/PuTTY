@@ -4141,6 +4141,8 @@ static void do_ssh1_login(void *vctx)
     get_rsa_ssh1_pub(pktin, &s->servkey, RSA_SSH1_EXPONENT_FIRST);
     get_rsa_ssh1_pub(pktin, &s->hostkey, RSA_SSH1_EXPONENT_FIRST);
 
+    s->hostkey.comment = NULL; /* avoid confusing rsa_ssh1_fingerprint */
+
     /*
      * Log the host key fingerprint.
      */
