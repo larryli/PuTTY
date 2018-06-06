@@ -27,7 +27,7 @@ extern Socket ssh_connection_sharing_init(
     void **state);
 int ssh_share_test_for_upstream(const char *host, int port, Conf *conf);
 void share_got_pkt_from_server(void *ctx, int type,
-                               unsigned char *pkt, int pktlen);
+                               const void *pkt, int pktlen);
 void share_activate(void *state, const char *server_verstring);
 void sharestate_free(void *state);
 int share_ndownstreams(void *state);

@@ -1129,8 +1129,9 @@ void share_setup_x11_channel(void *csv, void *chanv,
 }
 
 void share_got_pkt_from_server(void *csv, int type,
-                               unsigned char *pkt, int pktlen)
+                               const void *vpkt, int pktlen)
 {
+    const unsigned char *pkt = (const unsigned char *)vpkt;
     struct ssh_sharing_connstate *cs = (struct ssh_sharing_connstate *)csv;
     struct share_globreq *globreq;
     size_t id_pos;
@@ -1203,8 +1204,11 @@ void share_got_pkt_from_server(void *csv, int type,
             /*
              * The normal case: this id refers to an open channel.
              */
-            PUT_32BIT(pkt + id_pos, chan->downstream_id);
-            send_packet_to_downstream(cs, type, pkt, pktlen, chan);
+            unsigned char *rewritten = snewn(pktlen, unsigned char);
+            memcpy(rewritten, pkt, pktlen);
+            PUT_32BIT(rewritten + id_pos, chan->downstream_id);
+            send_packet_to_downstream(cs, type, rewritten, pktlen, chan);
+            sfree(rewritten);
 
             /*
              * Update the channel state, for messages that need it.
