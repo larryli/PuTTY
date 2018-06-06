@@ -258,7 +258,6 @@ struct xlfd_decomposed {
 
 static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
 {
-    void *mem;
     char *p, *components[14];
     struct xlfd_decomposed *dec;
     int i;
@@ -266,15 +265,14 @@ static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
     if (!xlfd)
         return NULL;
 
-    mem = smalloc(sizeof(struct xlfd_decomposed) + strlen(xlfd) + 1);
-    p = ((char *)mem) + sizeof(struct xlfd_decomposed);
+    dec = snew_plus(struct xlfd_decomposed, strlen(xlfd) + 1);
+    p = snew_plus_get_aux(dec);
     strcpy(p, xlfd);
-    dec = (struct xlfd_decomposed *)mem;
 
     for (i = 0; i < 14; i++) {
         if (*p != '-') {
             /* Malformed XLFD: not enough '-' */
-            sfree(mem);
+            sfree(dec);
             return NULL;
         }
         *p++ = '\0';
@@ -283,7 +281,7 @@ static struct xlfd_decomposed *xlfd_decompose(const char *xlfd)
     }
     if (*p) {
         /* Malformed XLFD: too many '-' */
-        sfree(mem);
+        sfree(dec);
         return NULL;
     }
 

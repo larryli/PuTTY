@@ -932,17 +932,14 @@ static void share_closing(Plug plug, const char *error_msg, int error_code,
 static void share_xchannel_add_message(
     struct share_xchannel *xc, int type, const void *data, int len)
 {
-    unsigned char *block;
     struct share_xchannel_message *msg;
 
     /*
-     * Be a little tricksy here by allocating a single memory block
-     * containing both the 'struct share_xchannel_message' and the
-     * actual data. Simplifies freeing it later.
+     * Allocate the 'struct share_xchannel_message' and the actual
+     * data in one unit.
      */
-    block = smalloc(sizeof(struct share_xchannel_message) + len);
-    msg = (struct share_xchannel_message *)block;
-    msg->data = block + sizeof(struct share_xchannel_message);
+    msg = snew_plus(struct share_xchannel_message, len);
+    msg->data = snew_plus_get_aux(msg);
     msg->datalen = len;
     msg->type = type;
     memcpy(msg->data, data, len);
