@@ -366,7 +366,7 @@ static struct PktOut *ssh1_pkt_init(int pkt_type);
 static struct PktOut *ssh2_pkt_init(int pkt_type);
 static void ssh_pkt_ensure(struct PktOut *, int length);
 static void ssh_pkt_adddata(struct PktOut *, const void *data, int len);
-static int ssh2_pkt_construct(Ssh, struct PktOut *);
+static ptrlen ssh2_pkt_construct(Ssh, struct PktOut *);
 static void ssh2_pkt_send(Ssh, struct PktOut *);
 static void ssh2_pkt_send_noqueue(Ssh, struct PktOut *);
 static void do_ssh1_login(void *vctx);
@@ -679,11 +679,11 @@ struct PktIn {
 };
 
 struct PktOut {
-    long length;	    /* length relative to 'data' */
+    long prefix;            /* bytes up to and including type field */
+    long length;            /* total bytes, including prefix */
     int type;
     long forcepad;	    /* SSH-2: force padding to at least this length */
     unsigned char *data;    /* allocated storage */
-    unsigned char *body;    /* offset of payload within `data' */
     long maxlen;	    /* amount of storage allocated for `data' */
     long encrypted_len;	    /* for SSH-2 total-size counting */
 
@@ -1393,7 +1393,7 @@ static PktOut *ssh_new_packet(void)
     PktOut *pkt = snew(PktOut);
 
     BinarySink_INIT(pkt, ssh_pkt_BinarySink_write);
-    pkt->body = pkt->data = NULL;
+    pkt->data = NULL;
     pkt->maxlen = 0;
 
     return pkt;
@@ -1435,14 +1435,8 @@ static void ssh1_log_outgoing_packet(Ssh ssh, const PktOut *pkt)
     ptrlen str;
     BinarySource src[1];
 
-    /*
-     * For outgoing packets, pkt->length represents the length of the
-     * whole packet starting at pkt->data (including some header), and
-     * pkt->body refers to the point within that where the log-worthy
-     * payload begins.
-     */
-    BinarySource_BARE_INIT(src, pkt->body,
-                           pkt->length - (pkt->body - pkt->data));
+    BinarySource_BARE_INIT(src, pkt->data + pkt->prefix,
+                           pkt->length - pkt->prefix);
 
     if (ssh->logomitdata &&
         (pkt->type == SSH1_CMSG_STDIN_DATA ||
@@ -1657,14 +1651,8 @@ static void ssh2_log_outgoing_packet(Ssh ssh, const PktOut *pkt)
     ptrlen str;
     BinarySource src[1];
 
-    /*
-     * For outgoing packets, pkt->length represents the length of the
-     * whole packet starting at pkt->data (including some header), and
-     * pkt->body refers to the point within that where the log-worthy
-     * payload begins.
-     */
-    BinarySource_BARE_INIT(src, pkt->body,
-                           pkt->length - (pkt->body - pkt->data));
+    BinarySource_BARE_INIT(src, pkt->data + pkt->prefix,
+                           pkt->length - pkt->prefix);
 
     if (ssh->logomitdata &&
         (pkt->type == SSH2_MSG_CHANNEL_DATA ||
@@ -2208,7 +2196,7 @@ static int s_wrpkt_prepare(Ssh ssh, PktOut *pkt, int *offset_p)
     return biglen + 4;		/* len(length+padding+type+data+CRC) */
 }
 
-static int s_write(Ssh ssh, void *data, int len)
+static int s_write(Ssh ssh, const void *data, int len)
 {
     if (len && ssh->logctx)
 	log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len,
@@ -2337,11 +2325,8 @@ static int ssh_versioncmp(const char *a, const char *b)
 static void ssh_pkt_ensure(PktOut *pkt, int length)
 {
     if (pkt->maxlen < length) {
-	unsigned char *body = pkt->body;
-	int offset = body ? body - pkt->data : 0;
 	pkt->maxlen = length + 256;
 	pkt->data = sresize(pkt->data, pkt->maxlen, unsigned char);
-	if (body) pkt->body = pkt->data + offset;
     }
 }
 static void ssh_pkt_adddata(PktOut *pkt, const void *data, int len)
@@ -2363,7 +2348,7 @@ static PktOut *ssh1_pkt_init(int pkt_type)
     PktOut *pkt = ssh_new_packet();
     pkt->length = 4 + 8;	    /* space for length + max padding */
     put_byte(pkt, pkt_type);
-    pkt->body = pkt->data + pkt->length;
+    pkt->prefix = pkt->length;
     pkt->type = pkt_type;
     pkt->downstream_id = 0;
     pkt->additional_log_text = NULL;
@@ -2377,18 +2362,18 @@ static PktOut *ssh2_pkt_init(int pkt_type)
     pkt->forcepad = 0;
     pkt->type = pkt_type;
     put_byte(pkt, (unsigned char) pkt_type);
-    pkt->body = pkt->data + pkt->length; /* after packet type */
+    pkt->prefix = pkt->length;
     pkt->downstream_id = 0;
     pkt->additional_log_text = NULL;
     return pkt;
 }
 
 /*
- * Construct an SSH-2 final-form packet: compress it, encrypt it,
- * put the MAC on it. Final packet, ready to be sent, is stored in
- * pkt->data. Total length is returned.
+ * Construct an SSH-2 final-form packet: compress it, encrypt it, put
+ * the MAC on it. Return a slice of pkt->data giving the final packet
+ * in ready-to-send form.
  */
-static int ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
+static ptrlen ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
 {
     int cipherblk, maclen, padding, unencrypted_prefix, i;
 
@@ -2400,10 +2385,12 @@ static int ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
          * Trivial packet construction for the bare connection
          * protocol.
          */
-        PUT_32BIT(pkt->data + 1, pkt->length - 5);
-        pkt->body = pkt->data + 1;
+        long start = pkt->prefix - 1;
+        long length = pkt->length - start;
+        assert(start >= 4);
+        PUT_32BIT(pkt->data + start - 4, length);
         ssh->v2_outgoing_sequence++;   /* only for diagnostics, really */
-        return pkt->length - 1;
+        return make_ptrlen(pkt->data + start - 4, length + 4);
     }
 
     /*
@@ -2477,9 +2464,7 @@ static int ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
     ssh->v2_outgoing_sequence++;       /* whether or not we MACed */
     pkt->encrypted_len = pkt->length + padding;
 
-    /* Ready-to-send packet starts at pkt->data. We return length. */
-    pkt->body = pkt->data;
-    return pkt->length + padding + maclen;
+    return make_ptrlen(pkt->data, pkt->length + padding + maclen);
 }
 
 /*
@@ -2527,7 +2512,7 @@ static void ssh_pkt_defersend(Ssh);
  */
 static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
 {
-    int len;
+    ptrlen data;
     int backlog;
     if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC)) {
 	/* We need to send two packets, so use the deferral mechanism. */
@@ -2535,8 +2520,8 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
 	ssh_pkt_defersend(ssh);
 	return;
     }
-    len = ssh2_pkt_construct(ssh, pkt);
-    backlog = s_write(ssh, pkt->body, len);
+    data = ssh2_pkt_construct(ssh, pkt);
+    backlog = s_write(ssh, data.ptr, data.len);
     if (backlog > SSH_MAX_BACKLOG)
 	ssh_throttle_all(ssh, 1, backlog);
 
@@ -2558,7 +2543,7 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
  */
 static void ssh2_pkt_defer_noqueue(Ssh ssh, PktOut *pkt, int noignore)
 {
-    int len;
+    ptrlen data;
     if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
 	ssh->deferred_len == 0 && !noignore &&
 	!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
@@ -2570,15 +2555,15 @@ static void ssh2_pkt_defer_noqueue(Ssh ssh, PktOut *pkt, int noignore)
 	put_stringz(ipkt, "");
 	ssh2_pkt_defer_noqueue(ssh, ipkt, TRUE);
     }
-    len = ssh2_pkt_construct(ssh, pkt);
-    if (ssh->deferred_len + len > ssh->deferred_size) {
-	ssh->deferred_size = ssh->deferred_len + len + 128;
+    data = ssh2_pkt_construct(ssh, pkt);
+    if (ssh->deferred_len + data.len > ssh->deferred_size) {
+	ssh->deferred_size = ssh->deferred_len + data.len + 128;
 	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
 					  ssh->deferred_size,
 					  unsigned char);
     }
-    memcpy(ssh->deferred_send_data + ssh->deferred_len, pkt->body, len);
-    ssh->deferred_len += len;
+    memcpy(ssh->deferred_send_data + ssh->deferred_len, data.ptr, data.len);
+    ssh->deferred_len += data.len;
     ssh->deferred_data_size += pkt->encrypted_len;
     ssh_free_pktout(pkt);
 }
