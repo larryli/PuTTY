@@ -672,11 +672,9 @@ struct ssh_portfwd {
 
 struct PktIn {
     int refcount;
-    long length;            /* length relative to 'body' */
     int type;
     unsigned long sequence; /* SSH-2 incoming sequence number */
     unsigned char *data;    /* allocated storage */
-    unsigned char *body;    /* offset of payload within `data' */
     long maxlen;	    /* amount of storage allocated for `data' */
     long encrypted_len;	    /* for SSH-2 total-size counting */
     BinarySource_IMPLEMENTATION;
@@ -809,14 +807,14 @@ static int pq_empty_on_to_front_of(struct PacketQueue *src,
 }
 
 struct rdpkt1_state_tag {
-    long len, pad, biglen;
+    long len, pad, biglen, length;
     unsigned long realcrc, gotcrc;
     int chunk;
     PktIn *pktin;
 };
 
 struct rdpkt2_state_tag {
-    long len, pad, payload, packetlen, maclen;
+    long len, pad, payload, packetlen, maclen, length;
     int cipherblk;
     unsigned long incoming_sequence;
     PktIn *pktin;
@@ -1407,7 +1405,8 @@ static void ssh1_log_incoming_packet(Ssh ssh, const PktIn *pkt)
     ptrlen str;
     BinarySource src[1];
 
-    BinarySource_BARE_INIT(src, pkt->body, pkt->length);
+    BinarySource_BARE_INIT(src, BinarySource_UPCAST(pkt)->data,
+                           BinarySource_UPCAST(pkt)->len);
 
     if (ssh->logomitdata &&
         (pkt->type == SSH1_SMSG_STDOUT_DATA ||
@@ -1424,10 +1423,8 @@ static void ssh1_log_incoming_packet(Ssh ssh, const PktIn *pkt)
             nblanks++;
         }
     }
-    log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
-               ssh1_pkt_type(pkt->type),
-               pkt->body, pkt->length, nblanks, blanks, NULL,
-               0, NULL);
+    log_packet(ssh->logctx, PKT_INCOMING, pkt->type, ssh1_pkt_type(pkt->type),
+               src->data, src->len, nblanks, blanks, NULL, 0, NULL);
 }
 
 static void ssh1_log_outgoing_packet(Ssh ssh, const PktOut *pkt)
@@ -1511,12 +1508,12 @@ static void ssh1_rdpkt(Ssh ssh)
 
     while (1) {
         st->pktin = snew(PktIn);
-        st->pktin->body = st->pktin->data = NULL;
+        st->pktin->data = NULL;
         st->pktin->maxlen = 0;
         st->pktin->refcount = 1;
 
         st->pktin->type = 0;
-        st->pktin->length = 0;
+        st->length = 0;
 
         {
             unsigned char lenbuf[4];
@@ -1527,7 +1524,7 @@ static void ssh1_rdpkt(Ssh ssh)
 
         st->pad = 8 - (st->len % 8);
         st->biglen = st->len + st->pad;
-        st->pktin->length = st->len - 5;
+        st->length = st->len - 5;
 
         if (st->biglen < 0) {
             bombout(("Extremely large packet length from server suggests"
@@ -1561,13 +1558,12 @@ static void ssh1_rdpkt(Ssh ssh)
             crStopV;
         }
 
-        st->pktin->body = st->pktin->data + st->pad + 1;
-
         if (ssh->v1_compressing) {
             unsigned char *decompblk;
             int decomplen;
             if (!zlib_decompress_block(ssh->sc_comp_ctx,
-                                       st->pktin->body - 1, st->pktin->length + 1,
+                                       st->pktin->data + st->pad,
+                                       st->length + 1,
                                        &decompblk, &decomplen)) {
                 bombout(("Zlib decompression encountered invalid data"));
                 ssh_unref_packet(st->pktin);
@@ -1578,25 +1574,24 @@ static void ssh1_rdpkt(Ssh ssh)
                 st->pktin->maxlen = st->pad + decomplen;
                 st->pktin->data = sresize(st->pktin->data, st->pktin->maxlen,
                                           unsigned char);
-                st->pktin->body = st->pktin->data + st->pad + 1;
             }
 
-            memcpy(st->pktin->body - 1, decompblk, decomplen);
+            memcpy(st->pktin->data + st->pad, decompblk, decomplen);
             sfree(decompblk);
-            st->pktin->length = decomplen - 1;
+            st->length = decomplen - 1;
         }
 
-        st->pktin->type = st->pktin->body[-1];
+        st->pktin->type = st->pktin->data[st->pad];
 
         /*
-         * Now pktin->body and pktin->length identify the semantic content
-         * of the packet, excluding the initial type byte.
+         * Now we know the bounds of the semantic content of the
+         * packet, excluding the initial type byte.
          */
+        BinarySource_INIT(st->pktin, st->pktin->data + st->pad + 1,
+                          st->length);
 
         if (ssh->logctx)
             ssh1_log_incoming_packet(ssh, st->pktin);
-
-        BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
 
         /*
          * Mild layer violation: if the message is a DISCONNECT, we
@@ -1625,7 +1620,8 @@ static void ssh2_log_incoming_packet(Ssh ssh, const PktIn *pkt)
     ptrlen str;
     BinarySource src[1];
 
-    BinarySource_BARE_INIT(src, pkt->body, pkt->length);
+    BinarySource_BARE_INIT(src, BinarySource_UPCAST(pkt)->data,
+                           BinarySource_UPCAST(pkt)->len);
 
     if (ssh->logomitdata &&
         (pkt->type == SSH2_MSG_CHANNEL_DATA ||
@@ -1645,7 +1641,7 @@ static void ssh2_log_incoming_packet(Ssh ssh, const PktIn *pkt)
 
     log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
                ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->type),
-               pkt->body, pkt->length, nblanks, blanks, &pkt->sequence,
+               src->data, src->len, nblanks, blanks, &pkt->sequence,
                0, NULL);
 }
 
@@ -1759,12 +1755,12 @@ static void ssh2_rdpkt(Ssh ssh)
 
     while (1) {
         st->pktin = snew(PktIn);
-        st->pktin->body = st->pktin->data = NULL;
+        st->pktin->data = NULL;
         st->pktin->maxlen = 0;
         st->pktin->refcount = 1;
 
         st->pktin->type = 0;
-        st->pktin->length = 0;
+        st->length = 0;
         if (ssh->sccipher)
             st->cipherblk = ssh->sccipher->blksize;
         else
@@ -1984,13 +1980,13 @@ static void ssh2_rdpkt(Ssh ssh)
          */
         st->payload = st->len - st->pad - 1;
 
-        st->pktin->length = st->payload + 5;
+        st->length = st->payload + 5;
         st->pktin->encrypted_len = st->packetlen;
 
         st->pktin->sequence = st->incoming_sequence++;
 
-        st->pktin->length = st->packetlen - st->pad;
-        assert(st->pktin->length >= 0);
+        st->length = st->packetlen - st->pad;
+        assert(st->length >= 0);
 
         /*
          * Decompress packet payload.
@@ -2000,7 +1996,7 @@ static void ssh2_rdpkt(Ssh ssh)
             int newlen;
             if (ssh->sccomp &&
                 ssh->sccomp->decompress(ssh->sc_comp_ctx,
-                                        st->pktin->data + 5, st->pktin->length - 5,
+                                        st->pktin->data + 5, st->length - 5,
                                         &newpayload, &newlen)) {
                 if (st->pktin->maxlen < newlen + 5) {
                     st->pktin->maxlen = newlen + 5;
@@ -2008,7 +2004,7 @@ static void ssh2_rdpkt(Ssh ssh)
                                               st->pktin->maxlen,
                                               unsigned char);
                 }
-                st->pktin->length = 5 + newlen;
+                st->length = 5 + newlen;
                 memcpy(st->pktin->data + 5, newpayload, newlen);
                 sfree(newpayload);
             }
@@ -2019,23 +2015,21 @@ static void ssh2_rdpkt(Ssh ssh)
          * with no type byte are forbidden, so treat them as deserving
          * an SSH_MSG_UNIMPLEMENTED.
          */
-        if (st->pktin->length <= 5) { /* == 5 we hope, but robustness */
+        if (st->length <= 5) { /* == 5 we hope, but robustness */
             ssh2_msg_something_unimplemented(ssh, st->pktin);
             crStopV;
         }
         /*
-         * pktin->body and pktin->length should identify the semantic
-         * content of the packet, excluding the initial type byte.
+         * Now we can identify the semantic content of the packet,
+         * and also the initial type byte.
          */
         st->pktin->type = st->pktin->data[5];
-        st->pktin->body = st->pktin->data + 6;
-        st->pktin->length -= 6;
-        assert(st->pktin->length >= 0);    /* one last double-check */
+        st->length -= 6;
+        assert(st->length >= 0);    /* one last double-check */
+        BinarySource_INIT(st->pktin, st->pktin->data + 6, st->length);
 
         if (ssh->logctx)
             ssh2_log_incoming_packet(ssh, st->pktin);
-
-        BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
 
         /*
          * Mild layer violation: if the message is a DISCONNECT, we
@@ -2086,7 +2080,6 @@ static void ssh2_bare_connection_rdpkt(Ssh ssh)
         }
 
         st->pktin = snew(PktIn);
-        st->pktin->body = NULL;
         st->pktin->maxlen = 0;
         st->pktin->refcount = 1;
         st->pktin->data = snewn(st->packetlen, unsigned char);
@@ -2107,16 +2100,13 @@ static void ssh2_bare_connection_rdpkt(Ssh ssh)
          * content of the packet, excluding the initial type byte.
          */
         st->pktin->type = st->pktin->data[0];
-        st->pktin->body = st->pktin->data + 1;
-        st->pktin->length = st->packetlen - 1;
+        BinarySource_INIT(st->pktin, st->pktin->data + 1, st->packetlen - 1);
 
         /*
          * Log incoming packet, possibly omitting sensitive fields.
          */
         if (ssh->logctx)
             ssh2_log_incoming_packet(ssh, st->pktin);
-
-        BinarySource_INIT(st->pktin, st->pktin->body, st->pktin->length);
 
         /*
          * Mild layer violation: if the message is a DISCONNECT, we
@@ -5270,7 +5260,8 @@ static void ssh_sharing_global_request_response(Ssh ssh, PktIn *pktin,
                                                 void *ctx)
 {
     share_got_pkt_from_server(ctx, pktin->type,
-                              pktin->body, pktin->length);
+                              BinarySource_UPCAST(pktin)->data,
+                              BinarySource_UPCAST(pktin)->len);
 }
 
 void ssh_sharing_queue_global_request(Ssh ssh, void *share_ctx)
@@ -7051,7 +7042,9 @@ static void do_ssh2_transport(void *vctx)
 	put_string(ssh->exhash_bs, s->our_kexinit, s->our_kexinitlen);
 	sfree(s->our_kexinit);
         /* Include the type byte in the hash of server's KEXINIT */
-        put_string(ssh->exhash_bs, pktin->body - 1, pktin->length + 1);
+        put_string(ssh->exhash_bs,
+                   (const char *)BinarySource_UPCAST(pktin)->data - 1,
+                   BinarySource_UPCAST(pktin)->len + 1);
 
 	if (s->warn_kex) {
 	    ssh_set_frozen(ssh, 1);
@@ -8605,7 +8598,8 @@ static struct ssh_channel *ssh_channel_msg(Ssh ssh, PktIn *pktin)
     }
     if (c->type == CHAN_SHARING) {
         share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  pktin->body, pktin->length);
+                                  BinarySource_UPCAST(pktin)->data,
+                                  BinarySource_UPCAST(pktin)->len);
         return NULL;
     }
     return c;
@@ -9389,7 +9383,8 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
                  * to sshshare.c.
                  */
                 share_got_pkt_from_server(realpf->share_ctx, pktin->type,
-                                          pktin->body, pktin->length);
+                                          BinarySource_UPCAST(pktin)->data,
+                                          BinarySource_UPCAST(pktin)->len);
                 sfree(c);
                 return;
             }
