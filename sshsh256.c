@@ -267,7 +267,8 @@ static void sha256_free_context(void *handle)
     sfree(handle);
 }
 
-static void sha256_key_internal(void *handle, unsigned char *key, int len)
+static void sha256_key_internal(void *handle,
+                                const unsigned char *key, int len)
 {
     SHA256_State *keys = (SHA256_State *)handle;
     unsigned char foo[64];
@@ -288,7 +289,7 @@ static void sha256_key_internal(void *handle, unsigned char *key, int len)
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void sha256_key(void *handle, unsigned char *key)
+static void sha256_key(void *handle, const void *key)
 {
     sha256_key_internal(handle, key, 32);
 }
@@ -322,7 +323,7 @@ static void hmacsha256_genresult(void *handle, unsigned char *hmac)
     SHA256_Final(&s, hmac);
 }
 
-static void sha256_do_hmac(void *handle, unsigned char *blk, int len,
+static void sha256_do_hmac(void *handle, const unsigned char *blk, int len,
 			 unsigned long seq, unsigned char *hmac)
 {
     BinarySink *bs = hmacsha256_sink(handle);
@@ -332,9 +333,10 @@ static void sha256_do_hmac(void *handle, unsigned char *blk, int len,
     hmacsha256_genresult(handle, hmac);
 }
 
-static void sha256_generate(void *handle, unsigned char *blk, int len,
+static void sha256_generate(void *handle, void *vblk, int len,
 			  unsigned long seq)
 {
+    unsigned char *blk = (unsigned char *)vblk;
     sha256_do_hmac(handle, blk, len, seq, blk + len);
 }
 
@@ -345,9 +347,10 @@ static int hmacsha256_verresult(void *handle, unsigned char const *hmac)
     return smemeq(correct, hmac, 32);
 }
 
-static int sha256_verify(void *handle, unsigned char *blk, int len,
+static int sha256_verify(void *handle, const void *vblk, int len,
 		       unsigned long seq)
 {
+    const unsigned char *blk = (const unsigned char *)vblk;
     unsigned char correct[32];
     sha256_do_hmac(handle, blk, len, seq, correct);
     return smemeq(correct, blk + len, 32);

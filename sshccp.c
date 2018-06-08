@@ -878,7 +878,7 @@ static void poly_free_context(void *ctx)
     /* Not allocated, just forwarded, no need to free */
 }
 
-static void poly_setkey(void *ctx, unsigned char *key)
+static void poly_setkey(void *ctx, const void *key)
 {
     /* Uses the same context as ChaCha20, so ignore */
 }
@@ -948,7 +948,8 @@ static int poly_verresult(void *handle, unsigned char const *blk)
 }
 
 /* The generic poly operation used before generate and verify */
-static void poly_op(void *handle, unsigned char *blk, int len, unsigned long seq)
+static void poly_op(void *handle, const unsigned char *blk, int len,
+                    unsigned long seq)
 {
     struct ccp_context *ctx = (struct ccp_context *)handle;
     poly_start(ctx);
@@ -957,14 +958,17 @@ static void poly_op(void *handle, unsigned char *blk, int len, unsigned long seq
     put_data(ctx, blk, len);
 }
 
-static void poly_generate(void *handle, unsigned char *blk, int len, unsigned long seq)
+static void poly_generate(void *handle, void *vblk, int len, unsigned long seq)
 {
+    unsigned char *blk = (unsigned char *)vblk;
     poly_op(handle, blk, len, seq);
     poly_genresult(handle, blk+len);
 }
 
-static int poly_verify(void *handle, unsigned char *blk, int len, unsigned long seq)
+static int poly_verify(void *handle, const void *vblk, int len,
+                       unsigned long seq)
 {
+    const unsigned char *blk = (const unsigned char *)vblk;
     poly_op(handle, blk, len, seq);
     return poly_verresult(handle, blk+len);
 }

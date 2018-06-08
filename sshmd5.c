@@ -261,7 +261,7 @@ void hmacmd5_key(void *handle, void const *keyv, int len)
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void hmacmd5_key_16(void *handle, unsigned char *key)
+static void hmacmd5_key_16(void *handle, const void *key)
 {
     hmacmd5_key(handle, key, 16);
 }
@@ -329,15 +329,17 @@ static void hmacmd5_do_hmac_ssh(void *handle, unsigned char const *blk, int len,
     hmacmd5_do_hmac_internal(handle, seqbuf, 4, blk, len, hmac);
 }
 
-static void hmacmd5_generate(void *handle, unsigned char *blk, int len,
+static void hmacmd5_generate(void *handle, void *vblk, int len,
 			     unsigned long seq)
 {
+    unsigned char *blk = (unsigned char *)vblk;
     hmacmd5_do_hmac_ssh(handle, blk, len, seq, blk + len);
 }
 
-static int hmacmd5_verify(void *handle, unsigned char *blk, int len,
+static int hmacmd5_verify(void *handle, const void *vblk, int len,
 			  unsigned long seq)
 {
+    const unsigned char *blk = (const unsigned char *)vblk;
     unsigned char correct[16];
     hmacmd5_do_hmac_ssh(handle, blk, len, seq, correct);
     return smemeq(correct, blk + len, 16);

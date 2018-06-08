@@ -294,7 +294,7 @@ static void sha1_free_context(void *handle)
     sfree(handle);
 }
 
-static void sha1_key_internal(void *handle, unsigned char *key, int len)
+static void sha1_key_internal(void *handle, const unsigned char *key, int len)
 {
     SHA_State *keys = (SHA_State *)handle;
     unsigned char foo[64];
@@ -315,12 +315,12 @@ static void sha1_key_internal(void *handle, unsigned char *key, int len)
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void sha1_key(void *handle, unsigned char *key)
+static void sha1_key(void *handle, const void *key)
 {
     sha1_key_internal(handle, key, 20);
 }
 
-static void sha1_key_buggy(void *handle, unsigned char *key)
+static void sha1_key_buggy(void *handle, const void *key)
 {
     sha1_key_internal(handle, key, 16);
 }
@@ -354,7 +354,7 @@ static void hmacsha1_genresult(void *handle, unsigned char *hmac)
     SHA_Final(&s, hmac);
 }
 
-static void sha1_do_hmac(void *handle, unsigned char *blk, int len,
+static void sha1_do_hmac(void *handle, const unsigned char *blk, int len,
 			 unsigned long seq, unsigned char *hmac)
 {
     BinarySink *bs = hmacsha1_sink(handle);
@@ -364,9 +364,10 @@ static void sha1_do_hmac(void *handle, unsigned char *blk, int len,
     hmacsha1_genresult(handle, hmac);
 }
 
-static void sha1_generate(void *handle, unsigned char *blk, int len,
+static void sha1_generate(void *handle, void *vblk, int len,
 			  unsigned long seq)
 {
+    unsigned char *blk = (unsigned char *)vblk;
     sha1_do_hmac(handle, blk, len, seq, blk + len);
 }
 
@@ -377,9 +378,10 @@ static int hmacsha1_verresult(void *handle, unsigned char const *hmac)
     return smemeq(correct, hmac, 20);
 }
 
-static int sha1_verify(void *handle, unsigned char *blk, int len,
+static int sha1_verify(void *handle, const void *vblk, int len,
 		       unsigned long seq)
 {
+    const unsigned char *blk = (const unsigned char *)vblk;
     unsigned char correct[20];
     sha1_do_hmac(handle, blk, len, seq, correct);
     return smemeq(correct, blk + len, 20);
@@ -392,9 +394,10 @@ static void hmacsha1_96_genresult(void *handle, unsigned char *hmac)
     memcpy(hmac, full, 12);
 }
 
-static void sha1_96_generate(void *handle, unsigned char *blk, int len,
+static void sha1_96_generate(void *handle, void *vblk, int len,
 			     unsigned long seq)
 {
+    unsigned char *blk = (unsigned char *)vblk;
     unsigned char full[20];
     sha1_do_hmac(handle, blk, len, seq, full);
     memcpy(blk + len, full, 12);
@@ -407,9 +410,10 @@ static int hmacsha1_96_verresult(void *handle, unsigned char const *hmac)
     return smemeq(correct, hmac, 12);
 }
 
-static int sha1_96_verify(void *handle, unsigned char *blk, int len,
+static int sha1_96_verify(void *handle, const void *vblk, int len,
 		       unsigned long seq)
 {
+    const unsigned char *blk = (const unsigned char *)vblk;
     unsigned char correct[20];
     sha1_do_hmac(handle, blk, len, seq, correct);
     return smemeq(correct, blk + len, 12);

@@ -350,10 +350,10 @@ struct ssh_mac {
     /* Passes in the cipher context */
     void *(*make_context)(void *);
     void (*free_context)(void *);
-    void (*setkey) (void *, unsigned char *key);
+    void (*setkey) (void *, const void *key);
     /* whole-packet operations */
-    void (*generate) (void *, unsigned char *blk, int len, unsigned long seq);
-    int (*verify) (void *, unsigned char *blk, int len, unsigned long seq);
+    void (*generate) (void *, void *blk, int len, unsigned long seq);
+    int (*verify) (void *, const void *blk, int len, unsigned long seq);
     /* partial-packet operations */
     void (*start) (void *);
     BinarySink *(*sink) (void *);

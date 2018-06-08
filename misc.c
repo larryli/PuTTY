@@ -485,7 +485,7 @@ struct strbuf_impl {
     ((buf)->visible.s = (ptr),                                  \
      (buf)->visible.u = (unsigned char *)(buf)->visible.s)
 
-char *strbuf_append(strbuf *buf_o, size_t len)
+void *strbuf_append(strbuf *buf_o, size_t len)
 {
     struct strbuf_impl *buf = FROMFIELD(buf_o, struct strbuf_impl, visible);
     char *toret;
