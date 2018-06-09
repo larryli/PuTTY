@@ -22,6 +22,118 @@ void sshfwd_x11_sharing_handover(struct ssh_channel *c,
                                  const void *initial_data, int initial_len);
 void sshfwd_x11_is_local(struct ssh_channel *c);
 
+/*
+ * Buffer management constants. There are several of these for
+ * various different purposes:
+ *
+ *  - SSH1_BUFFER_LIMIT is the amount of backlog that must build up
+ *    on a local data stream before we throttle the whole SSH
+ *    connection (in SSH-1 only). Throttling the whole connection is
+ *    pretty drastic so we set this high in the hope it won't
+ *    happen very often.
+ *
+ *  - SSH_MAX_BACKLOG is the amount of backlog that must build up
+ *    on the SSH connection itself before we defensively throttle
+ *    _all_ local data streams. This is pretty drastic too (though
+ *    thankfully unlikely in SSH-2 since the window mechanism should
+ *    ensure that the server never has any need to throttle its end
+ *    of the connection), so we set this high as well.
+ *
+ *  - OUR_V2_WINSIZE is the default window size we present on SSH-2
+ *    channels.
+ *
+ *  - OUR_V2_BIGWIN is the window size we advertise for the only
+ *    channel in a simple connection.  It must be <= INT_MAX.
+ *
+ *  - OUR_V2_MAXPKT is the official "maximum packet size" we send
+ *    to the remote side. This actually has nothing to do with the
+ *    size of the _packet_, but is instead a limit on the amount
+ *    of data we're willing to receive in a single SSH2 channel
+ *    data message.
+ *
+ *  - OUR_V2_PACKETLIMIT is actually the maximum size of SSH
+ *    _packet_ we're prepared to cope with.  It must be a multiple
+ *    of the cipher block size, and must be at least 35000.
+ */
+
+#define SSH1_BUFFER_LIMIT 32768
+#define SSH_MAX_BACKLOG 32768
+#define OUR_V2_WINSIZE 16384
+#define OUR_V2_BIGWIN 0x7fffffff
+#define OUR_V2_MAXPKT 0x4000UL
+#define OUR_V2_PACKETLIMIT 0x9000UL
+
+typedef struct PacketQueueNode PacketQueueNode;
+struct PacketQueueNode {
+    PacketQueueNode *next, *prev;
+};
+
+typedef struct PktIn {
+    int refcount;
+    int type;
+    unsigned long sequence; /* SSH-2 incoming sequence number */
+    long encrypted_len;	    /* for SSH-2 total-size counting */
+    PacketQueueNode qnode;  /* for linking this packet on to a queue */
+    BinarySource_IMPLEMENTATION;
+} PktIn;
+
+typedef struct PktOut {
+    long prefix;            /* bytes up to and including type field */
+    long length;            /* total bytes, including prefix */
+    int type;
+    long forcepad;	    /* SSH-2: force padding to at least this length */
+    unsigned char *data;    /* allocated storage */
+    long maxlen;	    /* amount of storage allocated for `data' */
+    long encrypted_len;	    /* for SSH-2 total-size counting */
+
+    /* Extra metadata used in SSH packet logging mode, allowing us to
+     * log in the packet header line that the packet came from a
+     * connection-sharing downstream and what if anything unusual was
+     * done to it. The additional_log_text field is expected to be a
+     * static string - it will not be freed. */
+    unsigned downstream_id;
+    const char *additional_log_text;
+
+    BinarySink_IMPLEMENTATION;
+} PktOut;
+
+typedef struct PacketQueue {
+    PacketQueueNode end;
+} PacketQueue;
+
+void pq_init(struct PacketQueue *pq);
+void pq_push(struct PacketQueue *pq, PktIn *pkt);
+void pq_push_front(struct PacketQueue *pq, PktIn *pkt);
+PktIn *pq_peek(struct PacketQueue *pq);
+PktIn *pq_pop(struct PacketQueue *pq);
+void pq_clear(struct PacketQueue *pq);
+int pq_empty_on_to_front_of(struct PacketQueue *src, struct PacketQueue *dest);
+
+/*
+ * Packet type contexts, so that ssh2_pkt_type can correctly decode
+ * the ambiguous type numbers back into the correct type strings.
+ */
+typedef enum {
+    SSH2_PKTCTX_NOKEX,
+    SSH2_PKTCTX_DHGROUP,
+    SSH2_PKTCTX_DHGEX,
+    SSH2_PKTCTX_ECDHKEX,
+    SSH2_PKTCTX_GSSKEX,
+    SSH2_PKTCTX_RSAKEX
+} Pkt_KCtx;
+typedef enum {
+    SSH2_PKTCTX_NOAUTH,
+    SSH2_PKTCTX_PUBLICKEY,
+    SSH2_PKTCTX_PASSWORD,
+    SSH2_PKTCTX_GSSAPI,
+    SSH2_PKTCTX_KBDINTER
+} Pkt_ACtx;
+
+PktOut *ssh1_pkt_init(int pkt_type);
+PktOut *ssh2_pkt_init(int pkt_type);
+void ssh_unref_packet(PktIn *pkt);
+void ssh_free_pktout(PktOut *pkt);
+
 extern Socket ssh_connection_sharing_init(
     const char *host, int port, Conf *conf, Ssh ssh, Plug sshplug,
     void **state);
@@ -1047,6 +1159,9 @@ void platform_ssh_share_cleanup(const char *name);
 #define SSH2_OPEN_RESOURCE_SHORTAGE               4	/* 0x4 */
 
 #define SSH2_EXTENDED_DATA_STDERR                 1	/* 0x1 */
+
+const char *ssh1_pkt_type(int type);
+const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type);
 
 /*
  * Need this to warn about support for the original SSH-2 keyfile

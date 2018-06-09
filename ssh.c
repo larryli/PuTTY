@@ -15,6 +15,7 @@
 #include "storage.h"
 #include "marshal.h"
 #include "ssh.h"
+#include "sshcr.h"
 #ifndef NO_GSSAPI
 #include "sshgssc.h"
 #include "sshgss.h"
@@ -24,26 +25,6 @@
 #define GSS_CTXT_EXPIRES (1<<2)	/* Context expires before next timer */
 #define GSS_CTXT_MAYFAIL (1<<3)	/* Context may expire during handshake */
 #endif
-
-/*
- * Packet type contexts, so that ssh2_pkt_type can correctly decode
- * the ambiguous type numbers back into the correct type strings.
- */
-typedef enum {
-    SSH2_PKTCTX_NOKEX,
-    SSH2_PKTCTX_DHGROUP,
-    SSH2_PKTCTX_DHGEX,
-    SSH2_PKTCTX_ECDHKEX,
-    SSH2_PKTCTX_GSSKEX,
-    SSH2_PKTCTX_RSAKEX
-} Pkt_KCtx;
-typedef enum {
-    SSH2_PKTCTX_NOAUTH,
-    SSH2_PKTCTX_PUBLICKEY,
-    SSH2_PKTCTX_PASSWORD,
-    SSH2_PKTCTX_GSSAPI,
-    SSH2_PKTCTX_KBDINTER
-} Pkt_ACtx;
 
 static const char *const ssh2_disconnect_reasons[] = {
     NULL,
@@ -200,7 +181,7 @@ static unsigned long rekey_mins(int rekey_time, unsigned long def)
 #define translate(x) if (type == x) return #x
 #define translatek(x,ctx) if (type == x && (pkt_kctx == ctx)) return #x
 #define translatea(x,ctx) if (type == x && (pkt_actx == ctx)) return #x
-static const char *ssh1_pkt_type(int type)
+const char *ssh1_pkt_type(int type)
 {
     translate(SSH1_MSG_DISCONNECT);
     translate(SSH1_SMSG_PUBLIC_KEY);
@@ -245,8 +226,7 @@ static const char *ssh1_pkt_type(int type)
     translate(SSH1_CMSG_AUTH_CCARD_RESPONSE);
     return "unknown";
 }
-static const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx,
-                                 int type)
+const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
 {
     translatea(SSH2_MSG_USERAUTH_GSSAPI_RESPONSE,SSH2_PKTCTX_GSSAPI);
     translatea(SSH2_MSG_USERAUTH_GSSAPI_TOKEN,SSH2_PKTCTX_GSSAPI);
@@ -313,57 +293,6 @@ enum {
     PKT_END, PKT_INT, PKT_CHAR, PKT_DATA, PKT_STR, PKT_BIGNUM,
 };
 
-/*
- * Coroutine mechanics for the sillier bits of the code. If these
- * macros look impenetrable to you, you might find it helpful to
- * read
- * 
- *   https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html
- * 
- * which explains the theory behind these macros.
- * 
- * In particular, if you are getting `case expression not constant'
- * errors when building with MS Visual Studio, this is because MS's
- * Edit and Continue debugging feature causes their compiler to
- * violate ANSI C. To disable Edit and Continue debugging:
- * 
- *  - right-click ssh.c in the FileView
- *  - click Settings
- *  - select the C/C++ tab and the General category
- *  - under `Debug info:', select anything _other_ than `Program
- *    Database for Edit and Continue'.
- */
-#define crBegin(v)	{ int *crLine = &v; switch(v) { case 0:;
-#define crBeginState	crBegin(s->crLine)
-#define crStateP(t, v)				\
-    struct t *s; 				\
-    if (!(v)) { s = (v) = snew(struct t); s->crLine = 0; }	\
-    s = (v);
-#define crState(t)	crStateP(t, ssh->t)
-#define crFinish(z)	} *crLine = 0; return (z); }
-#define crFinishV	} *crLine = 0; return; }
-#define crFinishFree(z)	} sfree(s); return (z); }
-#define crFinishFreeV	} sfree(s); return; }
-#define crReturn(z)	\
-	do {\
-	    *crLine =__LINE__; return (z); case __LINE__:;\
-	} while (0)
-#define crReturnV	\
-	do {\
-	    *crLine=__LINE__; return; case __LINE__:;\
-	} while (0)
-#define crStop(z)	do{ *crLine = 0; return (z); }while(0)
-#define crStopV		do{ *crLine = 0; return; }while(0)
-#define crWaitUntil(c)	do { crReturn(0); } while (!(c))
-#define crWaitUntilV(c)	do { crReturnV; } while (!(c))
-#define crMaybeWaitUntil(c) do { while (!(c)) crReturn(0); } while (0)
-#define crMaybeWaitUntilV(c) do { while (!(c)) crReturnV; } while (0)
-
-typedef struct PktIn PktIn;
-typedef struct PktOut PktOut;
-
-static struct PktOut *ssh1_pkt_init(int pkt_type);
-static struct PktOut *ssh2_pkt_init(int pkt_type);
 static void ssh_pkt_ensure(struct PktOut *, int length);
 static void ssh_pkt_adddata(struct PktOut *, const void *data, int len);
 static ptrlen ssh2_pkt_construct(Ssh, struct PktOut *);
@@ -385,47 +314,6 @@ static void ssh2_general_packet_processing(Ssh ssh, PktIn *pktin);
 static void ssh1_login_input(Ssh ssh);
 static void ssh2_userauth_input(Ssh ssh);
 static void ssh2_connection_input(Ssh ssh);
-
-/*
- * Buffer management constants. There are several of these for
- * various different purposes:
- * 
- *  - SSH1_BUFFER_LIMIT is the amount of backlog that must build up
- *    on a local data stream before we throttle the whole SSH
- *    connection (in SSH-1 only). Throttling the whole connection is
- *    pretty drastic so we set this high in the hope it won't
- *    happen very often.
- * 
- *  - SSH_MAX_BACKLOG is the amount of backlog that must build up
- *    on the SSH connection itself before we defensively throttle
- *    _all_ local data streams. This is pretty drastic too (though
- *    thankfully unlikely in SSH-2 since the window mechanism should
- *    ensure that the server never has any need to throttle its end
- *    of the connection), so we set this high as well.
- * 
- *  - OUR_V2_WINSIZE is the default window size we present on SSH-2
- *    channels.
- *
- *  - OUR_V2_BIGWIN is the window size we advertise for the only
- *    channel in a simple connection.  It must be <= INT_MAX.
- *
- *  - OUR_V2_MAXPKT is the official "maximum packet size" we send
- *    to the remote side. This actually has nothing to do with the
- *    size of the _packet_, but is instead a limit on the amount
- *    of data we're willing to receive in a single SSH2 channel
- *    data message.
- *
- *  - OUR_V2_PACKETLIMIT is actually the maximum size of SSH
- *    _packet_ we're prepared to cope with.  It must be a multiple
- *    of the cipher block size, and must be at least 35000.
- */
-
-#define SSH1_BUFFER_LIMIT 32768
-#define SSH_MAX_BACKLOG 32768
-#define OUR_V2_WINSIZE 16384
-#define OUR_V2_BIGWIN 0x7fffffff
-#define OUR_V2_MAXPKT 0x4000UL
-#define OUR_V2_PACKETLIMIT 0x9000UL
 
 struct ssh_signkey_with_user_pref_id {
     const ssh_keyalg *alg;
@@ -670,40 +558,6 @@ struct ssh_portfwd {
     ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr), \
 	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
-typedef struct PacketQueueNode PacketQueueNode;
-struct PacketQueueNode {
-    PacketQueueNode *next, *prev;
-};
-
-struct PktIn {
-    int refcount;
-    int type;
-    unsigned long sequence; /* SSH-2 incoming sequence number */
-    long encrypted_len;	    /* for SSH-2 total-size counting */
-    PacketQueueNode qnode;  /* for linking this packet on to a queue */
-    BinarySource_IMPLEMENTATION;
-};
-
-struct PktOut {
-    long prefix;            /* bytes up to and including type field */
-    long length;            /* total bytes, including prefix */
-    int type;
-    long forcepad;	    /* SSH-2: force padding to at least this length */
-    unsigned char *data;    /* allocated storage */
-    long maxlen;	    /* amount of storage allocated for `data' */
-    long encrypted_len;	    /* for SSH-2 total-size counting */
-
-    /* Extra metadata used in SSH packet logging mode, allowing us to
-     * log in the packet header line that the packet came from a
-     * connection-sharing downstream and what if anything unusual was
-     * done to it. The additional_log_text field is expected to be a
-     * static string - it will not be freed. */
-    unsigned downstream_id;
-    const char *additional_log_text;
-
-    BinarySink_IMPLEMENTATION;
-};
-
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
 static void ssh2_bare_connection_protocol_setup(Ssh ssh);
@@ -724,18 +578,13 @@ static PktOut *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
                                    const char *authtype);
 #endif
 static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin);
-static void ssh_unref_packet(PktIn *pkt);
 
-struct PacketQueue {
-    PacketQueueNode end;
-};
-
-static void pq_init(struct PacketQueue *pq)
+void pq_init(struct PacketQueue *pq)
 {
     pq->end.next = pq->end.prev = &pq->end;
 }
 
-static void pq_push(struct PacketQueue *pq, PktIn *pkt)
+void pq_push(struct PacketQueue *pq, PktIn *pkt)
 {
     PacketQueueNode *node = &pkt->qnode;
     assert(!node->next);
@@ -746,7 +595,7 @@ static void pq_push(struct PacketQueue *pq, PktIn *pkt)
     node->prev->next = node;
 }
 
-static void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
+void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
 {
     PacketQueueNode *node = &pkt->qnode;
     assert(!node->next);
@@ -757,14 +606,14 @@ static void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
     node->prev->next = node;
 }
 
-static PktIn *pq_peek(struct PacketQueue *pq)
+PktIn *pq_peek(struct PacketQueue *pq)
 {
     if (pq->end.next == &pq->end)
         return NULL;
     return FROMFIELD(pq->end.next, PktIn, qnode);
 }
 
-static PktIn *pq_pop(struct PacketQueue *pq)
+PktIn *pq_pop(struct PacketQueue *pq)
 {
     PacketQueueNode *node = pq->end.next;
     if (node == &pq->end)
@@ -777,15 +626,14 @@ static PktIn *pq_pop(struct PacketQueue *pq)
     return FROMFIELD(node, PktIn, qnode);
 }
 
-static void pq_clear(struct PacketQueue *pq)
+void pq_clear(struct PacketQueue *pq)
 {
     PktIn *pkt;
     while ((pkt = pq_pop(pq)) != NULL)
         ssh_unref_packet(pkt);
 }
 
-static int pq_empty_on_to_front_of(struct PacketQueue *src,
-                                   struct PacketQueue *dest)
+int pq_empty_on_to_front_of(struct PacketQueue *src, struct PacketQueue *dest)
 {
     struct PacketQueueNode *srcfirst, *srclast;
 
@@ -1373,13 +1221,13 @@ static void c_write_str(Ssh ssh, const char *buf)
     c_write(ssh, buf, strlen(buf));
 }
 
-static void ssh_unref_packet(PktIn *pkt)
+void ssh_unref_packet(PktIn *pkt)
 {
     if (--pkt->refcount <= 0)
         sfree(pkt);
 }
 
-static void ssh_free_pktout(PktOut *pkt)
+void ssh_free_pktout(PktOut *pkt)
 {
     sfree(pkt->data);
     sfree(pkt);
@@ -2347,7 +2195,7 @@ static void ssh_pkt_BinarySink_write(BinarySink *bs,
     ssh_pkt_adddata(pkt, data, len);
 }
 
-static PktOut *ssh1_pkt_init(int pkt_type)
+PktOut *ssh1_pkt_init(int pkt_type)
 {
     PktOut *pkt = ssh_new_packet();
     pkt->length = 4 + 8;	    /* space for length + max padding */
@@ -2359,7 +2207,7 @@ static PktOut *ssh1_pkt_init(int pkt_type)
     return pkt;
 }
 
-static PktOut *ssh2_pkt_init(int pkt_type)
+PktOut *ssh2_pkt_init(int pkt_type)
 {
     PktOut *pkt = ssh_new_packet();
     pkt->length = 5; /* space for packet length + padding length */
