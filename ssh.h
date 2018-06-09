@@ -129,8 +129,21 @@ typedef enum {
     SSH2_PKTCTX_KBDINTER
 } Pkt_ACtx;
 
-PktOut *ssh1_pkt_init(int pkt_type);
-PktOut *ssh2_pkt_init(int pkt_type);
+typedef struct PacketLogSettings {
+    int omit_passwords, omit_data;
+    Pkt_KCtx kctx;
+    Pkt_ACtx actx;
+} PacketLogSettings;
+
+#define MAX_BLANKS 4 /* no packet needs more censored sections than this */
+int ssh1_censor_packet(
+    const PacketLogSettings *pls, int type, int sender_is_client,
+    ptrlen pkt, logblank_t *blanks);
+int ssh2_censor_packet(
+    const PacketLogSettings *pls, int type, int sender_is_client,
+    ptrlen pkt, logblank_t *blanks);
+
+PktOut *ssh_new_packet(void);
 void ssh_unref_packet(PktIn *pkt);
 void ssh_free_pktout(PktOut *pkt);
 
@@ -1105,6 +1118,13 @@ void platform_ssh_share_cleanup(const char *name);
 #define SSH2_MSG_USERAUTH_GSSAPI_ERROR                  64
 #define SSH2_MSG_USERAUTH_GSSAPI_ERRTOK                 65
 #define SSH2_MSG_USERAUTH_GSSAPI_MIC                    66
+
+/* Virtual packet type, for packets too short to even have a type */
+#define SSH_MSG_NO_TYPE_CODE                  0x100
+
+/* Given that virtual packet types exist, this is how big the dispatch
+ * table has to be */
+#define SSH_MAX_MSG                           0x101
 
 /*
  * SSH-1 agent messages.

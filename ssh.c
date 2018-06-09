@@ -16,6 +16,7 @@
 #include "marshal.h"
 #include "ssh.h"
 #include "sshcr.h"
+#include "sshbpp.h"
 #ifndef NO_GSSAPI
 #include "sshgssc.h"
 #include "sshgss.h"
@@ -295,9 +296,7 @@ enum {
 
 static void ssh_pkt_ensure(struct PktOut *, int length);
 static void ssh_pkt_adddata(struct PktOut *, const void *data, int len);
-static ptrlen ssh2_pkt_construct(Ssh, struct PktOut *);
 static void ssh2_pkt_send(Ssh, struct PktOut *);
-static void ssh2_pkt_send_noqueue(Ssh, struct PktOut *);
 static void do_ssh1_login(void *vctx);
 static void do_ssh2_userauth(void *vctx);
 static void ssh2_connection_setup(Ssh ssh);
@@ -651,31 +650,6 @@ int pq_empty_on_to_front_of(struct PacketQueue *src, struct PacketQueue *dest)
     return TRUE;
 }
 
-struct rdpkt1_state_tag {
-    long len, pad, biglen, length, maxlen;
-    unsigned char *data;
-    unsigned long realcrc, gotcrc;
-    int chunk;
-    PktIn *pktin;
-};
-
-struct rdpkt2_state_tag {
-    long len, pad, payload, packetlen, maclen, length, maxlen;
-    unsigned char *buf;
-    size_t bufsize;
-    unsigned char *data;
-    int cipherblk;
-    unsigned long incoming_sequence;
-    PktIn *pktin;
-};
-
-struct rdpkt2_bare_state_tag {
-    long packetlen, maxlen;
-    unsigned char *data;
-    unsigned long incoming_sequence;
-    PktIn *pktin;
-};
-
 struct queued_handler;
 struct queued_handler {
     int msg1, msg2;
@@ -729,28 +703,18 @@ struct ssh_tag {
     void *logctx;
 
     unsigned char session_key[32];
-    int v1_compressing;
     int v1_remote_protoflags;
     int v1_local_protoflags;
     int agentfwd_enabled;
     int X11_fwd_enabled;
     int remote_bugs;
-    const struct ssh_cipher *cipher;
-    void *v1_cipher_ctx;
-    void *crcda_ctx;
-    const struct ssh2_cipher *cscipher, *sccipher;
-    void *cs_cipher_ctx, *sc_cipher_ctx;
-    const struct ssh_mac *csmac, *scmac;
-    int csmac_etm, scmac_etm;
-    void *cs_mac_ctx, *sc_mac_ctx;
-    BinarySink *sc_mac_bs;
-    const struct ssh_compress *cscomp, *sccomp;
-    void *cs_comp_ctx, *sc_comp_ctx;
     const struct ssh_kex *kex;
     const ssh_keyalg *hostkey_alg;
     char *hostkey_str; /* string representation, for easy checking in rekeys */
     unsigned char v2_session_id[SSH2_KEX_MAX_HASH_LEN];
     int v2_session_id_len;
+    int v2_cbc_ignore_workaround;
+    int v2_out_cipherblksize;
     void *kex_ctx;
 
     int bare_connection;
@@ -804,9 +768,6 @@ struct ssh_tag {
 
     bufchain banner;	/* accumulates banners during do_ssh2_userauth */
 
-    Pkt_KCtx pkt_kctx;
-    Pkt_ACtx pkt_actx;
-
     struct X11Display *x11disp;
     struct X11FakeAuth *x11auth;
     tree234 *x11authtree;
@@ -816,11 +777,7 @@ struct ssh_tag {
     int overall_bufsize;
     int throttled_all;
     int v1_stdout_throttling;
-    unsigned long v2_outgoing_sequence;
 
-    int ssh1_rdpkt_crstate;
-    int ssh2_rdpkt_crstate;
-    int ssh2_bare_rdpkt_crstate;
     int do_ssh1_connection_crstate;
 
     void *do_ssh_init_state;
@@ -862,9 +819,8 @@ struct ssh_tag {
     const char *rekey_reason;
     enum RekeyClass rekey_class;
 
-    struct rdpkt1_state_tag rdpkt1_state;
-    struct rdpkt2_state_tag rdpkt2_state;
-    struct rdpkt2_bare_state_tag rdpkt2_bare_state;
+    PacketLogSettings pls;
+    BinaryPacketProtocol *bpp;
 
     void (*general_packet_processing)(Ssh ssh, PktIn *pkt);
     void (*current_incoming_data_fn) (Ssh ssh);
@@ -877,12 +833,6 @@ struct ssh_tag {
      * etc in mid-session.
      */
     Conf *conf;
-
-    /*
-     * Values cached out of conf so as to avoid the tree234 lookup
-     * cost every time they're used.
-     */
-    int logomitdata;
 
     /*
      * Dynamically allocated username string created during SSH
@@ -909,7 +859,7 @@ struct ssh_tag {
      * Dispatch table for packet types that we may have to deal
      * with at any time.
      */
-    handler_fn_t packet_dispatch[256];
+    handler_fn_t packet_dispatch[SSH_MAX_MSG];
 
     /*
      * Queues of one-off handler functions for success/failure
@@ -932,13 +882,6 @@ struct ssh_tag {
     int kex_in_progress;
     unsigned long next_rekey, last_rekey;
     const char *deferred_rekey_reason;
-
-    /*
-     * Inhibit processing of incoming raw data into packets while
-     * we're still waiting for a NEWKEYS message to complete and fill
-     * in the new details of how that should be done.
-     */
-    int pending_newkeys;
 
     /*
      * Fully qualified host name, which we need if doing GSSAPI.
@@ -997,7 +940,7 @@ static const char *ssh_pkt_type(Ssh ssh, int type)
     if (ssh->version == 1)
 	return ssh1_pkt_type(type);
     else
-	return ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, type);
+	return ssh2_pkt_type(ssh->pls.kctx, ssh->pls.actx, type);
 }
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -1236,817 +1179,18 @@ void ssh_free_pktout(PktOut *pkt)
 
 static void ssh_pkt_BinarySink_write(BinarySink *bs,
                                      const void *data, size_t len);
-static PktOut *ssh_new_packet(void)
+PktOut *ssh_new_packet(void)
 {
     PktOut *pkt = snew(PktOut);
 
     BinarySink_INIT(pkt, ssh_pkt_BinarySink_write);
     pkt->data = NULL;
+    pkt->length = 0;
     pkt->maxlen = 0;
+    pkt->downstream_id = 0;
+    pkt->additional_log_text = NULL;
 
     return pkt;
-}
-
-static void ssh1_log_incoming_packet(Ssh ssh, const PktIn *pkt)
-{
-    int nblanks = 0;
-    struct logblank_t blanks[4];
-    ptrlen str;
-    BinarySource src[1];
-
-    BinarySource_BARE_INIT(src, BinarySource_UPCAST(pkt)->data,
-                           BinarySource_UPCAST(pkt)->len);
-
-    if (ssh->logomitdata &&
-        (pkt->type == SSH1_SMSG_STDOUT_DATA ||
-         pkt->type == SSH1_SMSG_STDERR_DATA ||
-         pkt->type == SSH1_MSG_CHANNEL_DATA)) {
-        /* "Session data" packets - omit the data string. */
-        if (pkt->type == SSH1_MSG_CHANNEL_DATA)
-            get_uint32(src);           /* skip channel id */
-        str = get_string(src);
-        if (!get_err(src)) {
-            blanks[nblanks].offset = src->pos - str.len;
-            blanks[nblanks].type = PKTLOG_OMIT;
-            blanks[nblanks].len = str.len;
-            nblanks++;
-        }
-    }
-    log_packet(ssh->logctx, PKT_INCOMING, pkt->type, ssh1_pkt_type(pkt->type),
-               src->data, src->len, nblanks, blanks, NULL, 0, NULL);
-}
-
-static void ssh1_log_outgoing_packet(Ssh ssh, const PktOut *pkt)
-{
-    int nblanks = 0;
-    struct logblank_t blanks[4];
-    ptrlen str;
-    BinarySource src[1];
-
-    BinarySource_BARE_INIT(src, pkt->data + pkt->prefix,
-                           pkt->length - pkt->prefix);
-
-    if (ssh->logomitdata &&
-        (pkt->type == SSH1_CMSG_STDIN_DATA ||
-         pkt->type == SSH1_MSG_CHANNEL_DATA)) {
-        /* "Session data" packets - omit the data string. */
-        if (pkt->type == SSH1_MSG_CHANNEL_DATA)
-            get_uint32(src);           /* skip channel id */
-        str = get_string(src);
-        if (!get_err(src)) {
-            blanks[nblanks].offset = src->pos - str.len;
-            blanks[nblanks].type = PKTLOG_OMIT;
-            blanks[nblanks].len = str.len;
-            nblanks++;
-        }
-    }
-
-    if ((pkt->type == SSH1_CMSG_AUTH_PASSWORD ||
-         pkt->type == SSH1_CMSG_AUTH_TIS_RESPONSE ||
-         pkt->type == SSH1_CMSG_AUTH_CCARD_RESPONSE) &&
-        conf_get_int(ssh->conf, CONF_logomitpass)) {
-        /* If this is a password or similar packet, blank the password(s). */
-        blanks[nblanks].offset = 0;
-        blanks[nblanks].len = pkt->length;
-        blanks[nblanks].type = PKTLOG_BLANK;
-        nblanks++;
-    } else if (pkt->type == SSH1_CMSG_X11_REQUEST_FORWARDING &&
-               conf_get_int(ssh->conf, CONF_logomitpass)) {
-        /*
-         * If this is an X forwarding request packet, blank the fake
-         * auth data.
-         *
-         * Note that while we blank the X authentication data here, we
-         * don't take any special action to blank the start of an X11
-         * channel, so using MIT-MAGIC-COOKIE-1 and actually opening
-         * an X connection without having session blanking enabled is
-         * likely to leak your cookie into the log.
-         */
-        get_string(src);              /* skip protocol name */
-        str = get_string(src);
-        if (!get_err(src)) {
-            blanks[nblanks].offset = src->pos - str.len;
-            blanks[nblanks].type = PKTLOG_BLANK;
-            blanks[nblanks].len = str.len;
-            nblanks++;
-        }
-    }
-
-    log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[12],
-               ssh1_pkt_type(pkt->data[12]),
-               src->data, src->len, nblanks, blanks, NULL, 0, NULL);
-}
-
-/*
- * Collect incoming data in the incoming packet buffer.
- * Decipher and verify the packet when it is completely read.
- * Update the *data and *datalen variables.
- * Return a Packet structure when a packet is completed.
- */
-static void ssh1_rdpkt(Ssh ssh)
-{
-    struct rdpkt1_state_tag *st = &ssh->rdpkt1_state;
-
-    crBegin(ssh->ssh1_rdpkt_crstate);
-
-    while (1) {
-        st->maxlen = 0;
-        st->length = 0;
-
-        {
-            unsigned char lenbuf[4];
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data, lenbuf, 4));
-            st->len = toint(GET_32BIT_MSB_FIRST(lenbuf));
-        }
-
-        st->pad = 8 - (st->len % 8);
-        st->biglen = st->len + st->pad;
-        st->length = st->len - 5;
-
-        if (st->biglen < 0) {
-            bombout(("Extremely large packet length from server suggests"
-                     " data stream corruption"));
-            ssh_unref_packet(st->pktin);
-            crStopV;
-        }
-
-        /*
-         * Allocate the packet to return, now we know its length.
-         */
-        st->pktin = snew_plus(PktIn, st->biglen);
-        st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
-        st->pktin->refcount = 1;
-        st->pktin->type = 0;
-
-        st->maxlen = st->biglen;
-        st->data = snew_plus_get_aux(st->pktin);
-
-        crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                              &ssh->incoming_data, st->data, st->biglen));
-
-        if (ssh->cipher && detect_attack(ssh->crcda_ctx, st->data,
-                                         st->biglen, NULL)) {
-            bombout(("Network attack (CRC compensation) detected!"));
-            ssh_unref_packet(st->pktin);
-            crStopV;
-        }
-
-        if (ssh->cipher)
-            ssh->cipher->decrypt(ssh->v1_cipher_ctx, st->data, st->biglen);
-
-        st->realcrc = crc32_compute(st->data, st->biglen - 4);
-        st->gotcrc = GET_32BIT(st->data + st->biglen - 4);
-        if (st->gotcrc != st->realcrc) {
-            bombout(("Incorrect CRC received on packet"));
-            ssh_unref_packet(st->pktin);
-            crStopV;
-        }
-
-        if (ssh->v1_compressing) {
-            unsigned char *decompblk;
-            int decomplen;
-            if (!zlib_decompress_block(ssh->sc_comp_ctx,
-                                       st->data + st->pad, st->length + 1,
-                                       &decompblk, &decomplen)) {
-                bombout(("Zlib decompression encountered invalid data"));
-                ssh_unref_packet(st->pktin);
-                crStopV;
-            }
-
-            if (st->maxlen < st->pad + decomplen) {
-                PktIn *old_pktin = st->pktin;
-
-                st->maxlen = st->pad + decomplen;
-                st->pktin = snew_plus(PktIn, st->maxlen);
-                *st->pktin = *old_pktin; /* structure copy */
-                st->data = snew_plus_get_aux(st->pktin);
-
-                smemclr(old_pktin, st->biglen);
-                sfree(old_pktin);
-            }
-
-            memcpy(st->data + st->pad, decompblk, decomplen);
-            sfree(decompblk);
-            st->length = decomplen - 1;
-        }
-
-        /*
-         * Now we can find the bounds of the semantic content of the
-         * packet, and the initial type byte.
-         */
-        st->pktin->type = st->data[st->pad];
-        BinarySource_INIT(st->pktin, st->data + st->pad + 1, st->length);
-
-        if (ssh->logctx)
-            ssh1_log_incoming_packet(ssh, st->pktin);
-
-        /*
-         * Mild layer violation: if the message is a DISCONNECT, we
-         * should unset the close_expected flag, because now we _do_
-         * expect the server to close the network connection
-         * afterwards. That way, the more informative connection_fatal
-         * message for the disconnect itself won't fight with 'Server
-         * unexpectedly closed network connection'.
-         */
-        if (st->pktin->type == SSH1_MSG_DISCONNECT) {
-            ssh->clean_exit = FALSE;
-            ssh->close_expected = TRUE;
-            ssh->disconnect_message_seen = TRUE;
-        }
-
-        pq_push(&ssh->pq_full, st->pktin);
-        queue_idempotent_callback(&ssh->pq_full_consumer);
-    }
-    crFinishV;
-}
-
-static void ssh2_log_incoming_packet(Ssh ssh, const PktIn *pkt)
-{
-    int nblanks = 0;
-    struct logblank_t blanks[4];
-    ptrlen str;
-    BinarySource src[1];
-
-    BinarySource_BARE_INIT(src, BinarySource_UPCAST(pkt)->data,
-                           BinarySource_UPCAST(pkt)->len);
-
-    if (ssh->logomitdata &&
-        (pkt->type == SSH2_MSG_CHANNEL_DATA ||
-         pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)) {
-        /* "Session data" packets - omit the data string. */
-        get_uint32(src);              /* skip channel id */
-        if (pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)
-            get_uint32(src);          /* skip extended data type */
-        str = get_string(src);
-        if (!get_err(src)) {
-            blanks[nblanks].offset = src->pos - str.len;
-            blanks[nblanks].type = PKTLOG_OMIT;
-            blanks[nblanks].len = str.len;
-            nblanks++;
-        }
-    }
-
-    log_packet(ssh->logctx, PKT_INCOMING, pkt->type,
-               ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->type),
-               src->data, src->len, nblanks, blanks, &pkt->sequence,
-               0, NULL);
-}
-
-static void ssh2_log_outgoing_packet(Ssh ssh, const PktOut *pkt)
-{
-    int nblanks = 0;
-    struct logblank_t blanks[4];
-    ptrlen str;
-    BinarySource src[1];
-
-    BinarySource_BARE_INIT(src, pkt->data + pkt->prefix,
-                           pkt->length - pkt->prefix);
-
-    if (ssh->logomitdata &&
-        (pkt->type == SSH2_MSG_CHANNEL_DATA ||
-         pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)) {
-        /* "Session data" packets - omit the data string. */
-        get_uint32(src);              /* skip channel id */
-        if (pkt->type == SSH2_MSG_CHANNEL_EXTENDED_DATA)
-            get_uint32(src);          /* skip extended data type */
-        str = get_string(src);
-        if (!get_err(src)) {
-            blanks[nblanks].offset = src->pos - str.len;
-            blanks[nblanks].type = PKTLOG_OMIT;
-            blanks[nblanks].len = str.len;
-            nblanks++;
-        }
-    }
-
-    if (pkt->type == SSH2_MSG_USERAUTH_REQUEST &&
-        conf_get_int(ssh->conf, CONF_logomitpass)) {
-        /* If this is a password packet, blank the password(s). */
-        get_string(src);              /* username */
-        get_string(src);              /* service name */
-        str = get_string(src);        /* auth method */
-        if (ptrlen_eq_string(str, "password")) {
-            get_bool(src);
-            /* Blank the password field. */
-            str = get_string(src);
-            if (!get_err(src)) {
-                blanks[nblanks].offset = src->pos - str.len;
-                blanks[nblanks].type = PKTLOG_BLANK;
-                blanks[nblanks].len = str.len;
-                nblanks++;
-                /* If there's another password field beyond it (change of
-                 * password), blank that too. */
-                str = get_string(src);
-                if (!get_err(src))
-                    blanks[nblanks-1].len = src->pos - blanks[nblanks].offset;
-            }
-        }
-    } else if (ssh->pkt_actx == SSH2_PKTCTX_KBDINTER &&
-               pkt->type == SSH2_MSG_USERAUTH_INFO_RESPONSE &&
-               conf_get_int(ssh->conf, CONF_logomitpass)) {
-        /* If this is a keyboard-interactive response packet, blank
-         * the responses. */
-        get_uint32(src);
-        blanks[nblanks].offset = src->pos;
-        blanks[nblanks].type = PKTLOG_BLANK;
-        do {
-            str = get_string(src);
-        } while (!get_err(src));
-        blanks[nblanks].len = src->pos - blanks[nblanks].offset;
-        nblanks++;
-    } else if (pkt->type == SSH2_MSG_CHANNEL_REQUEST &&
-               conf_get_int(ssh->conf, CONF_logomitpass)) {
-        /*
-         * If this is an X forwarding request packet, blank the fake
-         * auth data.
-         *
-         * Note that while we blank the X authentication data here, we
-         * don't take any special action to blank the start of an X11
-         * channel, so using MIT-MAGIC-COOKIE-1 and actually opening
-         * an X connection without having session blanking enabled is
-         * likely to leak your cookie into the log.
-         */
-        get_uint32(src);
-        str = get_string(src);
-        if (ptrlen_eq_string(str, "x11-req")) {
-            get_bool(src);
-            get_bool(src);
-            get_string(src);
-            str = get_string(src);
-            if (!get_err(src)) {
-                blanks[nblanks].offset = src->pos - str.len;
-                blanks[nblanks].type = PKTLOG_BLANK;
-                blanks[nblanks].len = str.len;
-                nblanks++;
-            }
-        }
-    }
-
-    log_packet(ssh->logctx, PKT_OUTGOING, pkt->data[5],
-               ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx, pkt->data[5]),
-               src->data, src->len, nblanks, blanks,
-               &ssh->v2_outgoing_sequence,
-               pkt->downstream_id, pkt->additional_log_text);
-}
-
-static void ssh2_rdpkt(Ssh ssh)
-{
-    struct rdpkt2_state_tag *st = &ssh->rdpkt2_state;
-
-    crBegin(ssh->ssh2_rdpkt_crstate);
-
-    st->buf = NULL;
-    st->bufsize = 0;
-
-    while (1) {
-        st->maxlen = 0;
-        st->length = 0;
-        if (ssh->sccipher)
-            st->cipherblk = ssh->sccipher->blksize;
-        else
-            st->cipherblk = 8;
-        if (st->cipherblk < 8)
-            st->cipherblk = 8;
-        st->maclen = ssh->scmac ? ssh->scmac->len : 0;
-
-        if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_IS_CBC) &&
-            ssh->scmac && !ssh->scmac_etm) {
-            /*
-             * When dealing with a CBC-mode cipher, we want to avoid the
-             * possibility of an attacker's tweaking the ciphertext stream
-             * so as to cause us to feed the same block to the block
-             * cipher more than once and thus leak information
-             * (VU#958563).  The way we do this is not to take any
-             * decisions on the basis of anything we've decrypted until
-             * we've verified it with a MAC.  That includes the packet
-             * length, so we just read data and check the MAC repeatedly,
-             * and when the MAC passes, see if the length we've got is
-             * plausible.
-             *
-             * This defence is unnecessary in OpenSSH ETM mode, because
-             * the whole point of ETM mode is that the attacker can't
-             * tweak the ciphertext stream at all without the MAC
-             * detecting it before we decrypt anything.
-             */
-
-            /*
-             * Make sure we have buffer space for a maximum-size packet.
-             */
-            int buflimit = OUR_V2_PACKETLIMIT + st->maclen;
-            if (st->bufsize < buflimit) {
-                st->bufsize = buflimit;
-                st->buf = sresize(st->buf, st->bufsize, unsigned char);
-            }
-
-            /* Read an amount corresponding to the MAC. */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data, st->buf, st->maclen));
-
-            st->packetlen = 0;
-            ssh->scmac->start(ssh->sc_mac_ctx);
-            ssh->sc_mac_bs = ssh->scmac->sink(ssh->sc_mac_ctx);
-            put_uint32(ssh->sc_mac_bs, st->incoming_sequence);
-
-            for (;;) { /* Once around this loop per cipher block. */
-                /* Read another cipher-block's worth, and tack it onto the end. */
-                crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                      &ssh->incoming_data,
-                                      st->buf + (st->packetlen + st->maclen),
-                                      st->cipherblk));
-                /* Decrypt one more block (a little further back in the stream). */
-                ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-                                       st->buf + st->packetlen,
-                                       st->cipherblk);
-                /* Feed that block to the MAC. */
-                put_data(ssh->sc_mac_bs,
-                         st->buf + st->packetlen, st->cipherblk);
-                st->packetlen += st->cipherblk;
-                /* See if that gives us a valid packet. */
-                if (ssh->scmac->verresult(ssh->sc_mac_ctx,
-                                          st->buf + st->packetlen) &&
-                    ((st->len = toint(GET_32BIT(st->buf))) ==
-                     st->packetlen-4))
-		    break;
-                if (st->packetlen >= OUR_V2_PACKETLIMIT) {
-                    bombout(("No valid incoming packet found"));
-                    crStopV;
-                }
-            }
-            st->maxlen = st->packetlen + st->maclen;
-
-            /*
-             * Now transfer the data into an output packet.
-             */
-            st->pktin = snew_plus(PktIn, st->maxlen);
-            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
-            st->pktin->refcount = 1;
-            st->pktin->type = 0;
-            st->data = snew_plus_get_aux(st->pktin);
-            memcpy(st->data, st->buf, st->maxlen);
-        } else if (ssh->scmac && ssh->scmac_etm) {
-            if (st->bufsize < 4) {
-                st->bufsize = 4;
-                st->buf = sresize(st->buf, st->bufsize, unsigned char);
-            }
-
-            /*
-             * OpenSSH encrypt-then-MAC mode: the packet length is
-             * unencrypted, unless the cipher supports length encryption.
-             */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data, st->buf, 4));
-
-            /* Cipher supports length decryption, so do it */
-            if (ssh->sccipher && (ssh->sccipher->flags & SSH_CIPHER_SEPARATE_LENGTH)) {
-                /* Keep the packet the same though, so the MAC passes */
-                unsigned char len[4];
-                memcpy(len, st->buf, 4);
-                ssh->sccipher->decrypt_length(ssh->sc_cipher_ctx, len, 4, st->incoming_sequence);
-                st->len = toint(GET_32BIT(len));
-            } else {
-                st->len = toint(GET_32BIT(st->buf));
-            }
-
-            /*
-             * _Completely_ silly lengths should be stomped on before they
-             * do us any more damage.
-             */
-            if (st->len < 0 || st->len > OUR_V2_PACKETLIMIT ||
-                st->len % st->cipherblk != 0) {
-                bombout(("Incoming packet length field was garbled"));
-                crStopV;
-            }
-
-            /*
-             * So now we can work out the total packet length.
-             */
-            st->packetlen = st->len + 4;
-
-            /*
-             * Allocate the packet to return, now we know its length.
-             */
-            st->pktin = snew_plus(PktIn, OUR_V2_PACKETLIMIT + st->maclen);
-            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
-            st->pktin->refcount = 1;
-            st->pktin->type = 0;
-            st->data = snew_plus_get_aux(st->pktin);
-            memcpy(st->data, st->buf, 4);
-
-            /*
-             * Read the remainder of the packet.
-             */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data, st->data + 4,
-                                  st->packetlen + st->maclen - 4));
-
-            /*
-             * Check the MAC.
-             */
-            if (ssh->scmac
-                && !ssh->scmac->verify(ssh->sc_mac_ctx, st->data,
-                                       st->len + 4, st->incoming_sequence)) {
-                bombout(("Incorrect MAC received on packet"));
-                ssh_unref_packet(st->pktin);
-                crStopV;
-            }
-
-            /* Decrypt everything between the length field and the MAC. */
-            if (ssh->sccipher)
-                ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-                                       st->data + 4, st->packetlen - 4);
-        } else {
-            if (st->bufsize < st->cipherblk) {
-                st->bufsize = st->cipherblk;
-                st->buf = sresize(st->buf, st->bufsize, unsigned char);
-            }
-
-            /*
-             * Acquire and decrypt the first block of the packet. This will
-             * contain the length and padding details.
-             */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data,
-                                  st->buf, st->cipherblk));
-
-            if (ssh->sccipher)
-                ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-                                       st->buf, st->cipherblk);
-
-            /*
-             * Now get the length figure.
-             */
-            st->len = toint(GET_32BIT(st->buf));
-
-            /*
-             * _Completely_ silly lengths should be stomped on before they
-             * do us any more damage.
-             */
-            if (st->len < 0 || st->len > OUR_V2_PACKETLIMIT ||
-                (st->len + 4) % st->cipherblk != 0) {
-                bombout(("Incoming packet was garbled on decryption"));
-                ssh_unref_packet(st->pktin);
-                crStopV;
-            }
-
-            /*
-             * So now we can work out the total packet length.
-             */
-            st->packetlen = st->len + 4;
-
-            /*
-             * Allocate the packet to return, now we know its length.
-             */
-            st->maxlen = st->packetlen + st->maclen;
-            st->pktin = snew_plus(PktIn, st->maxlen);
-            st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
-            st->pktin->refcount = 1;
-            st->pktin->type = 0;
-            st->data = snew_plus_get_aux(st->pktin);
-            memcpy(st->data, st->buf, st->cipherblk);
-
-            /*
-             * Read and decrypt the remainder of the packet.
-             */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data,
-                                  st->data + st->cipherblk,
-                                  st->packetlen + st->maclen - st->cipherblk));
-
-            /* Decrypt everything _except_ the MAC. */
-            if (ssh->sccipher)
-                ssh->sccipher->decrypt(ssh->sc_cipher_ctx,
-                                       st->data + st->cipherblk,
-                                       st->packetlen - st->cipherblk);
-
-            /*
-             * Check the MAC.
-             */
-            if (ssh->scmac
-                && !ssh->scmac->verify(ssh->sc_mac_ctx, st->data,
-                                       st->len + 4, st->incoming_sequence)) {
-                bombout(("Incorrect MAC received on packet"));
-                ssh_unref_packet(st->pktin);
-                crStopV;
-            }
-        }
-        /* Get and sanity-check the amount of random padding. */
-        st->pad = st->data[4];
-        if (st->pad < 4 || st->len - st->pad < 1) {
-            bombout(("Invalid padding length on received packet"));
-            ssh_unref_packet(st->pktin);
-            crStopV;
-        }
-        /*
-         * This enables us to deduce the payload length.
-         */
-        st->payload = st->len - st->pad - 1;
-
-        st->length = st->payload + 5;
-        st->pktin->encrypted_len = st->packetlen;
-
-        st->pktin->sequence = st->incoming_sequence++;
-
-        st->length = st->packetlen - st->pad;
-        assert(st->length >= 0);
-
-        /*
-         * Decompress packet payload.
-         */
-        {
-            unsigned char *newpayload;
-            int newlen;
-            if (ssh->sccomp &&
-                ssh->sccomp->decompress(ssh->sc_comp_ctx,
-                                        st->data + 5, st->length - 5,
-                                        &newpayload, &newlen)) {
-                if (st->maxlen < newlen + 5) {
-                    PktIn *old_pktin = st->pktin;
-
-                    st->maxlen = newlen + 5;
-                    st->pktin = snew_plus(PktIn, st->maxlen);
-                    *st->pktin = *old_pktin; /* structure copy */
-                    st->data = snew_plus_get_aux(st->pktin);
-
-                    smemclr(old_pktin, st->packetlen + st->maclen);
-                    sfree(old_pktin);
-                }
-                st->length = 5 + newlen;
-                memcpy(st->data + 5, newpayload, newlen);
-                sfree(newpayload);
-            }
-        }
-
-        /*
-         * RFC 4253 doesn't explicitly say that completely empty packets
-         * with no type byte are forbidden, so treat them as deserving
-         * an SSH_MSG_UNIMPLEMENTED.
-         */
-        if (st->length <= 5) { /* == 5 we hope, but robustness */
-            ssh2_msg_something_unimplemented(ssh, st->pktin);
-            crStopV;
-        }
-
-        /*
-         * Now we can identify the semantic content of the packet,
-         * and also the initial type byte.
-         */
-        st->pktin->type = st->data[5];
-        st->length -= 6;
-        assert(st->length >= 0);    /* one last double-check */
-        BinarySource_INIT(st->pktin, st->data + 6, st->length);
-
-        if (ssh->logctx)
-            ssh2_log_incoming_packet(ssh, st->pktin);
-
-        /*
-         * Mild layer violation: if the message is a DISCONNECT, we
-         * should unset the close_expected flag, because now we _do_
-         * expect the server to close the network connection
-         * afterwards. That way, the more informative connection_fatal
-         * message for the disconnect itself won't fight with 'Server
-         * unexpectedly closed network connection'.
-         */
-        if (st->pktin->type == SSH2_MSG_DISCONNECT) {
-            ssh->clean_exit = FALSE;
-            ssh->close_expected = TRUE;
-            ssh->disconnect_message_seen = TRUE;
-        }
-
-        pq_push(&ssh->pq_full, st->pktin);
-        queue_idempotent_callback(&ssh->pq_full_consumer);
-        if (st->pktin->type == SSH2_MSG_NEWKEYS) {
-            /* Mild layer violation: in this situation we must suspend
-             * processing of the input byte stream in order to ensure
-             * that the transport code has processed NEWKEYS and
-             * installed the new cipher. */
-            ssh->pending_newkeys = TRUE;
-            crReturnV;
-        }
-    }
-    crFinishV;
-}
-
-static void ssh2_bare_connection_rdpkt(Ssh ssh)
-{
-    struct rdpkt2_bare_state_tag *st = &ssh->rdpkt2_bare_state;
-
-    crBegin(ssh->ssh2_bare_rdpkt_crstate);
-
-    while (1) {
-        /* Read the length field. */
-        {
-            unsigned char lenbuf[4];
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  &ssh->incoming_data, lenbuf, 4));
-            st->packetlen = toint(GET_32BIT_MSB_FIRST(lenbuf));
-        }
-
-        if (st->packetlen <= 0 || st->packetlen >= OUR_V2_PACKETLIMIT) {
-            bombout(("Invalid packet length received"));
-            crStopV;
-        }
-
-        /*
-         * Allocate the packet to return, now we know its length.
-         */
-        st->pktin = snew_plus(PktIn, st->packetlen);
-        st->pktin->qnode.prev = st->pktin->qnode.next = NULL;
-        st->maxlen = 0;
-        st->pktin->refcount = 1;
-        st->data = snew_plus_get_aux(st->pktin);
-
-        st->pktin->encrypted_len = st->packetlen;
-
-        st->pktin->sequence = st->incoming_sequence++;
-
-        /*
-         * Read the remainder of the packet.
-         */
-        crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                              &ssh->incoming_data, st->data, st->packetlen));
-
-        /*
-         * The data we just read is precisely the initial type byte
-         * followed by the packet payload.
-         */
-        st->pktin->type = st->data[0];
-        BinarySource_INIT(st->pktin, st->data + 1, st->packetlen - 1);
-
-        /*
-         * Log incoming packet, possibly omitting sensitive fields.
-         */
-        if (ssh->logctx)
-            ssh2_log_incoming_packet(ssh, st->pktin);
-
-        /*
-         * Mild layer violation: if the message is a DISCONNECT, we
-         * should unset the close_expected flag, because now we _do_
-         * expect the server to close the network connection
-         * afterwards. That way, the more informative connection_fatal
-         * message for the disconnect itself won't fight with 'Server
-         * unexpectedly closed network connection'.
-         */
-        if (st->pktin->type == SSH2_MSG_DISCONNECT) {
-            ssh->clean_exit = FALSE;
-            ssh->close_expected = TRUE;
-            ssh->disconnect_message_seen = TRUE;
-        }
-
-        pq_push(&ssh->pq_full, st->pktin);
-        queue_idempotent_callback(&ssh->pq_full_consumer);
-    }
-    crFinishV;
-}
-
-static int s_wrpkt_prepare(Ssh ssh, PktOut *pkt, int *offset_p)
-{
-    int pad, biglen, i, pktoffs;
-    unsigned long crc;
-#ifdef __SC__
-    /*
-     * XXX various versions of SC (including 8.8.4) screw up the
-     * register allocation in this function and use the same register
-     * (D6) for len and as a temporary, with predictable results.  The
-     * following sledgehammer prevents this.
-     */
-    volatile
-#endif
-    int len;
-
-    if (ssh->logctx)
-        ssh1_log_outgoing_packet(ssh, pkt);
-
-    if (ssh->v1_compressing) {
-	unsigned char *compblk;
-	int complen;
-	zlib_compress_block(ssh->cs_comp_ctx,
-			    pkt->data + 12, pkt->length - 12,
-			    &compblk, &complen);
-	ssh_pkt_ensure(pkt, complen + 2);   /* just in case it's got bigger */
-	memcpy(pkt->data + 12, compblk, complen);
-	sfree(compblk);
-	pkt->length = complen + 12;
-    }
-
-    ssh_pkt_ensure(pkt, pkt->length + 4); /* space for CRC */
-    pkt->length += 4;
-    len = pkt->length - 4 - 8;	/* len(type+data+CRC) */
-    pad = 8 - (len % 8);
-    pktoffs = 8 - pad;
-    biglen = len + pad;		/* len(padding+type+data+CRC) */
-
-    for (i = pktoffs; i < 4+8; i++)
-	pkt->data[i] = random_byte();
-    crc = crc32_compute(pkt->data + pktoffs + 4, biglen - 4); /* all ex len */
-    PUT_32BIT(pkt->data + pktoffs + 4 + biglen - 4, crc);
-    PUT_32BIT(pkt->data + pktoffs, len);
-
-    if (ssh->cipher)
-	ssh->cipher->encrypt(ssh->v1_cipher_ctx,
-			     pkt->data + pktoffs + 4, biglen);
-
-    if (offset_p) *offset_p = pktoffs;
-    return biglen + 4;		/* len(length+padding+type+data+CRC) */
 }
 
 static int s_write(Ssh ssh, const void *data, int len)
@@ -2057,15 +1201,6 @@ static int s_write(Ssh ssh, const void *data, int len)
     if (!ssh->s)
         return 0;
     return sk_write(ssh->s, data, len);
-}
-
-static void s_wrpkt(Ssh ssh, PktOut *pkt)
-{
-    int len, offset;
-    len = s_wrpkt_prepare(ssh, pkt, &offset);
-    bufchain_add(&ssh->outgoing_data, pkt->data + offset, len);
-    queue_idempotent_callback(&ssh->outgoing_data_sender);
-    ssh_free_pktout(pkt);
 }
 
 /*
@@ -2079,7 +1214,7 @@ static PktOut *construct_packet(Ssh ssh, int pkttype, va_list ap)
     Bignum bn;
     PktOut *pkt;
 
-    pkt = ssh1_pkt_init(pkttype);
+    pkt = ssh_bpp_new_pktout(ssh->bpp, pkttype);
 
     while ((argtype = va_arg(ap, int)) != PKT_END) {
 	unsigned char *argp, argchar;
@@ -2115,6 +1250,26 @@ static PktOut *construct_packet(Ssh ssh, int pkttype, va_list ap)
     return pkt;
 }
 
+static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
+{
+    if (ssh->version == 2 && ssh->v2_cbc_ignore_workaround &&
+        bufchain_size(&ssh->outgoing_data) != 0) {
+        /*
+         * When using a CBC-mode cipher in SSH-2, it's necessary to
+         * ensure that an attacker can't provide data to be encrypted
+         * using an IV that they know. We ensure this by prefixing
+         * each packet that might contain user data with an
+         * SSH_MSG_IGNORE.
+         */
+	PktOut *ipkt = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
+	put_stringz(ipkt, "");
+        ssh_bpp_format_packet(ssh->bpp, pkt);
+    }
+
+    ssh_bpp_format_packet(ssh->bpp, pkt);
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
+}
+
 static void send_packet(Ssh ssh, int pkttype, ...)
 {
     PktOut *pkt;
@@ -2122,7 +1277,7 @@ static void send_packet(Ssh ssh, int pkttype, ...)
     va_start(ap, pkttype);
     pkt = construct_packet(ssh, pkttype, ap);
     va_end(ap);
-    s_wrpkt(ssh, pkt);
+    ssh_pkt_write(ssh, pkt);
 }
 
 static int ssh_versioncmp(const char *a, const char *b)
@@ -2169,168 +1324,6 @@ static void ssh_pkt_BinarySink_write(BinarySink *bs,
     ssh_pkt_adddata(pkt, data, len);
 }
 
-PktOut *ssh1_pkt_init(int pkt_type)
-{
-    PktOut *pkt = ssh_new_packet();
-    pkt->length = 4 + 8;	    /* space for length + max padding */
-    put_byte(pkt, pkt_type);
-    pkt->prefix = pkt->length;
-    pkt->type = pkt_type;
-    pkt->downstream_id = 0;
-    pkt->additional_log_text = NULL;
-    return pkt;
-}
-
-PktOut *ssh2_pkt_init(int pkt_type)
-{
-    PktOut *pkt = ssh_new_packet();
-    pkt->length = 5; /* space for packet length + padding length */
-    pkt->forcepad = 0;
-    pkt->type = pkt_type;
-    put_byte(pkt, (unsigned char) pkt_type);
-    pkt->prefix = pkt->length;
-    pkt->downstream_id = 0;
-    pkt->additional_log_text = NULL;
-    return pkt;
-}
-
-/*
- * Construct an SSH-2 final-form packet: compress it, encrypt it, put
- * the MAC on it. Return a slice of pkt->data giving the final packet
- * in ready-to-send form.
- */
-static ptrlen ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
-{
-    int cipherblk, maclen, padding, unencrypted_prefix, i;
-
-    if (ssh->logctx)
-        ssh2_log_outgoing_packet(ssh, pkt);
-
-    if (ssh->bare_connection) {
-        /*
-         * Trivial packet construction for the bare connection
-         * protocol.
-         */
-        long start = pkt->prefix - 1;
-        long length = pkt->length - start;
-        assert(start >= 4);
-        PUT_32BIT(pkt->data + start - 4, length);
-        ssh->v2_outgoing_sequence++;   /* only for diagnostics, really */
-        return make_ptrlen(pkt->data + start - 4, length + 4);
-    }
-
-    /*
-     * Compress packet payload.
-     */
-    {
-	unsigned char *newpayload;
-	int newlen;
-	if (ssh->cscomp &&
-	    ssh->cscomp->compress(ssh->cs_comp_ctx, pkt->data + 5,
-				  pkt->length - 5,
-				  &newpayload, &newlen)) {
-	    pkt->length = 5;
-	    put_data(pkt, newpayload, newlen);
-	    sfree(newpayload);
-	}
-    }
-
-    /*
-     * Add padding. At least four bytes, and must also bring total
-     * length (minus MAC) up to a multiple of the block size.
-     * If pkt->forcepad is set, make sure the packet is at least that size
-     * after padding.
-     */
-    cipherblk = ssh->cscipher ? ssh->cscipher->blksize : 8;  /* block size */
-    cipherblk = cipherblk < 8 ? 8 : cipherblk;	/* or 8 if blksize < 8 */
-    padding = 4;
-    unencrypted_prefix = (ssh->csmac && ssh->csmac_etm) ? 4 : 0;
-    if (pkt->length + padding < pkt->forcepad)
-	padding = pkt->forcepad - pkt->length;
-    padding +=
-	(cipherblk - (pkt->length - unencrypted_prefix + padding) % cipherblk)
-        % cipherblk;
-    assert(padding <= 255);
-    maclen = ssh->csmac ? ssh->csmac->len : 0;
-    ssh_pkt_ensure(pkt, pkt->length + padding + maclen);
-    pkt->data[4] = padding;
-    for (i = 0; i < padding; i++)
-	pkt->data[pkt->length + i] = random_byte();
-    PUT_32BIT(pkt->data, pkt->length + padding - 4);
-
-    /* Encrypt length if the scheme requires it */
-    if (ssh->cscipher && (ssh->cscipher->flags & SSH_CIPHER_SEPARATE_LENGTH)) {
-        ssh->cscipher->encrypt_length(ssh->cs_cipher_ctx, pkt->data, 4,
-                                      ssh->v2_outgoing_sequence);
-    }
-
-    if (ssh->csmac && ssh->csmac_etm) {
-        /*
-         * OpenSSH-defined encrypt-then-MAC protocol.
-         */
-        if (ssh->cscipher)
-            ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
-                                   pkt->data + 4, pkt->length + padding - 4);
-        ssh->csmac->generate(ssh->cs_mac_ctx, pkt->data,
-                             pkt->length + padding,
-                             ssh->v2_outgoing_sequence);
-    } else {
-        /*
-         * SSH-2 standard protocol.
-         */
-        if (ssh->csmac)
-            ssh->csmac->generate(ssh->cs_mac_ctx, pkt->data,
-                                 pkt->length + padding,
-                                 ssh->v2_outgoing_sequence);
-        if (ssh->cscipher)
-            ssh->cscipher->encrypt(ssh->cs_cipher_ctx,
-                                   pkt->data, pkt->length + padding);
-    }
-
-    ssh->v2_outgoing_sequence++;       /* whether or not we MACed */
-    pkt->encrypted_len = pkt->length + padding;
-
-    return make_ptrlen(pkt->data, pkt->length + padding + maclen);
-}
-
-/*
- * Send an SSH-2 packet immediately, without queuing.
- */
-static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
-{
-    ptrlen data;
-    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
-	bufchain_size(&ssh->outgoing_data) != 0 &&
-	!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
-        /*
-         * When using a CBC-mode cipher in SSH-2, it's necessary to
-         * ensure that an attacker can't provide data to be encrypted
-         * using an IV that they know. We ensure this by prefixing
-         * each packet that might contain user data with an
-         * SSH_MSG_IGNORE.
-         */
-	PktOut *ipkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
-	put_stringz(ipkt, "");
-        data = ssh2_pkt_construct(ssh, ipkt);
-        bufchain_add(&ssh->outgoing_data, data.ptr, data.len);
-    }
-    data = ssh2_pkt_construct(ssh, pkt);
-    bufchain_add(&ssh->outgoing_data, data.ptr, data.len);
-    queue_idempotent_callback(&ssh->outgoing_data_sender);
-
-    ssh->outgoing_data_size += pkt->encrypted_len;
-    if (!ssh->kex_in_progress &&
-        !ssh->bare_connection &&
-	ssh->max_data_size != 0 &&
-	ssh->outgoing_data_size > ssh->max_data_size) {
-        ssh->rekey_reason = "too much data sent";
-        ssh->rekey_class = RK_NORMAL;
-        queue_idempotent_callback(&ssh->ssh2_transport_icb);
-    }
-
-    ssh_free_pktout(pkt);
-}
-
 /*
  * Queue an SSH-2 packet.
  */
@@ -2355,7 +1348,7 @@ static void ssh2_pkt_send(Ssh ssh, PktOut *pkt)
     if (ssh->queueing) {
 	ssh2_pkt_queue(ssh, pkt);
     } else {
-	ssh2_pkt_send_noqueue(ssh, pkt);
+	ssh_pkt_write(ssh, pkt);
     }
 }
 
@@ -2415,7 +1408,7 @@ static void ssh2_pkt_send_with_padding(Ssh ssh, PktOut *pkt, int padsize)
 	 * construct the final form of this packet and append it to
 	 * the outgoing_data bufchain...
 	 */
-	ssh2_pkt_send(ssh, pkt);
+	ssh_pkt_write(ssh, pkt);
 
 	/*
          * ... but before we return from this function (triggering a
@@ -2425,33 +1418,30 @@ static void ssh2_pkt_send_with_padding(Ssh ssh, PktOut *pkt, int padsize)
 	 * so that the block size is unavailable, we don't do this
 	 * trick at all, because we gain nothing by it.)
 	 */
-	if (ssh->cscipher &&
-	    !(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
+	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
 	    int stringlen, i;
 
 	    stringlen = (256 - bufchain_size(&ssh->outgoing_data));
-	    stringlen += ssh->cscipher->blksize - 1;
-	    stringlen -= (stringlen % ssh->cscipher->blksize);
-	    if (ssh->cscomp) {
-		/*
-		 * Temporarily disable actual compression, so we
-		 * can guarantee to get this string exactly the
-		 * length we want it. The compression-disabling
-		 * routine should return an integer indicating how
-		 * many bytes we should adjust our string length
-		 * by.
-		 */
-		stringlen -=
-		    ssh->cscomp->disable_compression(ssh->cs_comp_ctx);
-	    }
-	    pkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
+	    stringlen += ssh->v2_out_cipherblksize - 1;
+	    stringlen -= (stringlen % ssh->v2_out_cipherblksize);
+
+            /*
+             * Temporarily disable actual compression, so we can
+             * guarantee to get this string exactly the length we want
+             * it. The compression-disabling routine should return an
+             * integer indicating how many bytes we should adjust our
+             * string length by.
+             */
+            stringlen -= ssh2_bpp_temporarily_disable_compression(ssh->bpp);
+
+	    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
 	    {
                 strbuf *substr = strbuf_new();
                 for (i = 0; i < stringlen; i++)
                     put_byte(substr, random_byte());
                 put_stringsb(pkt, substr);
             }
-	    ssh2_pkt_send(ssh, pkt);
+	    ssh_pkt_write(ssh, pkt);
 	}
     }
 }
@@ -2466,7 +1456,7 @@ static void ssh2_pkt_queuesend(Ssh ssh)
     assert(!ssh->queueing);
 
     for (i = 0; i < ssh->queuelen; i++)
-	ssh2_pkt_send_noqueue(ssh, ssh->queue[i]);
+	ssh_pkt_write(ssh, ssh->queue[i]);
     ssh->queuelen = 0;
 }
 
@@ -2805,6 +1795,36 @@ static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
     sfree(verstring);
 }
 
+static void ssh_feed_to_bpp(Ssh ssh)
+{
+    PacketQueueNode *prev_tail = ssh->pq_full.end.prev;
+
+    assert(ssh->bpp);
+    ssh_bpp_handle_input(ssh->bpp);
+
+    if (ssh->bpp->error) {
+        bomb_out(ssh, ssh->bpp->error); /* also frees the error string */
+        return;
+    }
+
+    if (ssh->bpp->seen_disconnect) {
+        /*
+         * If we've seen a DISCONNECT message, we should unset the
+         * close_expected flag, because now we _do_ expect the server
+         * to close the network connection afterwards. That way, the
+         * more informative connection_fatal message for the
+         * disconnect itself won't fight with 'Server unexpectedly
+         * closed network connection'.
+         */
+        ssh->clean_exit = FALSE;
+        ssh->close_expected = TRUE;
+        ssh->disconnect_message_seen = TRUE;
+    }
+
+    if (ssh->pq_full.end.prev != prev_tail)
+        queue_idempotent_callback(&ssh->pq_full_consumer);
+}
+
 static void do_ssh_init(Ssh ssh)
 {
     static const char protoname[] = "SSH-";
@@ -2863,7 +1883,6 @@ static void do_ssh_init(Ssh ssh)
 
     ssh->session_started = TRUE;
     ssh->agentfwd_enabled = FALSE;
-    ssh->rdpkt2_state.incoming_sequence = 0;
 
     /*
      * Now read the rest of the greeting line.
@@ -2958,16 +1977,21 @@ static void do_ssh_init(Ssh ssh)
 	 */
 	ssh2_protocol_setup(ssh);
 	ssh->general_packet_processing = ssh2_general_packet_processing;
-	ssh->current_incoming_data_fn = ssh2_rdpkt;
 	ssh->current_user_input_fn = NULL;
     } else {
 	/*
 	 * Initialise SSH-1 protocol.
 	 */
 	ssh1_protocol_setup(ssh);
-	ssh->current_incoming_data_fn = ssh1_rdpkt;
 	ssh->current_user_input_fn = ssh1_login_input;
     }
+    ssh->bpp->out_raw = &ssh->outgoing_data;
+    ssh->bpp->in_raw = &ssh->incoming_data;
+    ssh->bpp->in_pq = &ssh->pq_full;
+    ssh->bpp->pls = &ssh->pls;
+    ssh->bpp->logctx = ssh->logctx;
+    ssh->current_incoming_data_fn = ssh_feed_to_bpp;
+
     queue_idempotent_callback(&ssh->incoming_data_consumer);
     queue_idempotent_callback(&ssh->user_input_consumer);
     if (ssh->version == 2)
@@ -3081,7 +2105,6 @@ static void do_ssh_connection_init(Ssh ssh)
     s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
 
     ssh->agentfwd_enabled = FALSE;
-    ssh->rdpkt2_bare_state.incoming_sequence = 0;
 
     logeventf(ssh, "Server version: %s", s->vstring);
     ssh_detect_bugs(ssh, s->vstring);
@@ -3116,7 +2139,12 @@ static void do_ssh_connection_init(Ssh ssh)
      * Initialise bare connection protocol.
      */
     ssh2_bare_connection_protocol_setup(ssh);
-    ssh->current_incoming_data_fn = ssh2_bare_connection_rdpkt;
+    ssh->bpp->out_raw = &ssh->outgoing_data;
+    ssh->bpp->in_raw = &ssh->incoming_data;
+    ssh->bpp->in_pq = &ssh->pq_full;
+    ssh->bpp->pls = &ssh->pls;
+    ssh->bpp->logctx = ssh->logctx;
+    ssh->current_incoming_data_fn = ssh_feed_to_bpp;
     queue_idempotent_callback(&ssh->incoming_data_consumer);
     ssh->current_user_input_fn = ssh2_connection_input;
     queue_idempotent_callback(&ssh->user_input_consumer);
@@ -3149,7 +2177,7 @@ static void ssh_process_incoming_data(void *ctx)
     if (ssh->state == SSH_STATE_CLOSED)
         return;
 
-    if (!ssh->frozen && !ssh->pending_newkeys)
+    if (!ssh->frozen)
         ssh->current_incoming_data_fn(ssh);
 
     if (ssh->state == SSH_STATE_CLOSED) /* yes, check _again_ */
@@ -3748,11 +2776,11 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
 	    send_packet(ssh, SSH1_MSG_DISCONNECT, PKT_STR, wire_reason,
 			PKT_END);
 	} else if (ssh->version == 2) {
-	    PktOut *pktout = ssh2_pkt_init(SSH2_MSG_DISCONNECT);
+	    PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_DISCONNECT);
 	    put_uint32(pktout, code);
 	    put_stringz(pktout, wire_reason);
 	    put_stringz(pktout, "en");	/* language tag */
-	    ssh2_pkt_send_noqueue(ssh, pktout);
+	    ssh_pkt_write(ssh, pktout);
 	}
     }
     ssh->close_expected = TRUE;
@@ -4079,15 +3107,14 @@ static void do_ssh1_login(void *vctx)
 
     sfree(s->rsabuf);
 
-    ssh->cipher = (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
-		   s->cipher_type == SSH_CIPHER_DES ? &ssh_des :
-		   &ssh_3des);
-    ssh->v1_cipher_ctx = ssh->cipher->make_context();
-    ssh->cipher->sesskey(ssh->v1_cipher_ctx, ssh->session_key);
-    logeventf(ssh, "Initialised %s encryption", ssh->cipher->text_name);
-
-    ssh->crcda_ctx = crcda_make_context();
-    logevent("Installing CRC compensation attack detector");
+    {
+        const struct ssh_cipher *cipher =
+            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
+             s->cipher_type == SSH_CIPHER_DES ? &ssh_des :
+             &ssh_3des);
+        ssh1_bpp_new_cipher(ssh->bpp, cipher, ssh->session_key);
+        logeventf(ssh, "Initialised %s encryption", cipher->text_name);
+    }
 
     if (s->servkey.modulus) {
 	sfree(s->servkey.modulus);
@@ -4798,7 +3825,7 @@ static void do_ssh1_login(void *vctx)
     /* Set up for the next phase */
     {
         int i;
-        for (i = 0; i < 256; i++)
+        for (i = 0; i < SSH_MAX_MSG; i++)
             if (ssh->packet_dispatch[i] == ssh1_coro_wrapper_initial)
                 ssh->packet_dispatch[i] = ssh1_coro_wrapper_session;
         ssh->current_user_input_fn = ssh1_connection_input;
@@ -4824,7 +3851,7 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
         c->closes |= CLOSES_SENT_EOF;
     } else {
         PktOut *pktout;
-        pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_EOF);
+        pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_EOF);
         put_uint32(pktout, c->remoteid);
         ssh2_pkt_send(ssh, pktout);
         c->closes |= CLOSES_SENT_EOF;
@@ -5203,7 +4230,8 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 		     * to make on it are rejected.
 		     */
 		} else {
-		    pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
+		    pktout = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
 		    put_stringz(pktout, "cancel-tcpip-forward");
 		    put_bool(pktout, 0);/* _don't_ want reply */
 		    if (epf->saddr) {
@@ -5330,7 +4358,8 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 					  ssh_rportfwd_succfail, pf);
 		    } else {
 			PktOut *pktout;
-			pktout = ssh2_pkt_init(SSH2_MSG_GLOBAL_REQUEST);
+			pktout = ssh_bpp_new_pktout(
+                            ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
 			put_stringz(pktout, "tcpip-forward");
 			put_bool(pktout, 1);/* want reply */
 			put_stringz(pktout, pf->shost);
@@ -5730,7 +4759,7 @@ static void do_ssh1_connection(void *vctx)
 	ssh->ospeed = 38400; ssh->ispeed = 38400; /* last-resort defaults */
 	sscanf(conf_get_str(ssh->conf, CONF_termspeed), "%d,%d", &ssh->ospeed, &ssh->ispeed);
 	/* Send the pty request. */
-	pkt = ssh1_pkt_init(SSH1_CMSG_REQUEST_PTY);
+	pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_REQUEST_PTY);
 	put_stringz(pkt, conf_get_str(ssh->conf, CONF_termtype));
 	put_uint32(pkt, ssh->term_height);
 	put_uint32(pkt, ssh->term_width);
@@ -5742,7 +4771,7 @@ static void do_ssh1_connection(void *vctx)
 	put_byte(pkt, SSH1_TTY_OP_OSPEED);
 	put_uint32(pkt, ssh->ospeed);
 	put_byte(pkt, SSH_TTY_OP_END);
-	s_wrpkt(ssh, pkt);
+	ssh_pkt_write(ssh, pkt);
 	ssh->state = SSH_STATE_INTERMED;
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_connection)) != NULL);
 	if (pktin->type != SSH1_SMSG_SUCCESS
@@ -5771,12 +4800,8 @@ static void do_ssh1_connection(void *vctx)
 	} else if (pktin->type == SSH1_SMSG_FAILURE) {
 	    c_write_str(ssh, "Server refused to compress\r\n");
 	}
-	logevent("Started compression");
-	ssh->v1_compressing = TRUE;
-	ssh->cs_comp_ctx = zlib_compress_init();
-	logevent("Initialised zlib (RFC1950) compression");
-	ssh->sc_comp_ctx = zlib_decompress_init();
-	logevent("Initialised zlib (RFC1950) decompression");
+	logevent("Started zlib (RFC1950) compression");
+        ssh1_bpp_start_compression(ssh->bpp);
     }
 
     /*
@@ -5895,10 +4920,12 @@ static void ssh1_protocol_setup(Ssh ssh)
 {
     int i;
 
+    ssh->bpp = ssh1_bpp_new();
+
     /*
      * Most messages are handled by the main protocol routine.
      */
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < SSH_MAX_MSG; i++)
 	ssh->packet_dispatch[i] = ssh1_coro_wrapper_initial;
 
     /*
@@ -5965,8 +4992,8 @@ static void add_to_commasep(strbuf *buf, const char *data)
 /*
  * SSH-2 key derivation (RFC 4253 section 7.2).
  */
-static unsigned char *ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
-                                 char chr, int keylen)
+static void ssh2_mkkey(Ssh ssh, strbuf *out, Bignum K, unsigned char *H,
+                       char chr, int keylen)
 {
     const struct ssh_hash *h = ssh->kex->hash;
     int keylen_padded;
@@ -5975,12 +5002,22 @@ static unsigned char *ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
     BinarySink *bs;
 
     if (keylen == 0)
-        return NULL;
+        return;
 
-    /* Round up to the next multiple of hash length. */
+    /*
+     * Round the requested amount of key material up to a multiple of
+     * the length of the hash we're using to make it. This makes life
+     * simpler because then we can just write each hash output block
+     * straight into the output buffer without fiddling about
+     * truncating the last one. Since it's going into a strbuf, and
+     * strbufs are always smemclr()ed on free, there's no need to
+     * worry about leaving extra potentially-sensitive data in memory
+     * that the caller didn't ask for.
+     */
     keylen_padded = ((keylen + h->hlen - 1) / h->hlen) * h->hlen;
 
-    key = snewn(keylen_padded, unsigned char);
+    out->len = 0;
+    key = strbuf_append(out, keylen_padded);
 
     /* First hlen bytes. */
     s = h->init();
@@ -6010,14 +5047,6 @@ static unsigned char *ssh2_mkkey(Ssh ssh, Bignum K, unsigned char *H,
 
         h->free(s);
     }
-
-    /* Now clear any extra bytes of key material beyond the length
-     * we're officially returning, because the caller won't know to
-     * smemclr those. */
-    if (keylen_padded > keylen)
-        smemclr(key + keylen, keylen_padded - keylen);
-
-    return key;
 }
 
 /*
@@ -6211,13 +5240,12 @@ static void do_ssh2_transport(void *vctx)
 	int kex_init_value, kex_reply_value;
 	const struct ssh_mac *const *maclist;
 	int nmacs;
-	const struct ssh2_cipher *cscipher_tobe;
-	const struct ssh2_cipher *sccipher_tobe;
-	const struct ssh_mac *csmac_tobe;
-	const struct ssh_mac *scmac_tobe;
-        int csmac_etm_tobe, scmac_etm_tobe;
-	const struct ssh_compress *cscomp_tobe;
-	const struct ssh_compress *sccomp_tobe;
+        struct {
+            const struct ssh2_cipher *cipher;
+            const struct ssh_mac *mac;
+            int etm_mode;
+            const struct ssh_compress *comp;
+        } in, out;
 	ptrlen hostkeydata, sigdata;
         char *keystr, *fingerprint;
 	ssh_key *hkey;		       /* actual host key */
@@ -6261,9 +5289,9 @@ static void do_ssh2_transport(void *vctx)
 
     crBeginState;
 
-    s->cscipher_tobe = s->sccipher_tobe = NULL;
-    s->csmac_tobe = s->scmac_tobe = NULL;
-    s->cscomp_tobe = s->sccomp_tobe = NULL;
+    s->in.cipher = s->out.cipher = NULL;
+    s->in.mac = s->out.mac = NULL;
+    s->in.comp = s->out.comp = NULL;
 
     s->got_session_id = FALSE;
     s->userauth_succeeded = FALSE;
@@ -6328,7 +5356,7 @@ static void do_ssh2_transport(void *vctx)
     }
 #endif
 
-    ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
+    ssh->pls.kctx = SSH2_PKTCTX_NOKEX;
     {
 	int i, j, k, warn;
 	struct kexinit_algorithm *alg;
@@ -6616,7 +5644,7 @@ static void do_ssh2_transport(void *vctx)
 	/*
 	 * Construct and send our key exchange packet.
 	 */
-	s->pktout = ssh2_pkt_init(SSH2_MSG_KEXINIT);
+	s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_KEXINIT);
 	for (i = 0; i < 16; i++)
 	    put_byte(s->pktout, (unsigned char) random_byte());
 	for (i = 0; i < NKEXLIST; i++) {
@@ -6641,7 +5669,7 @@ static void do_ssh2_transport(void *vctx)
     s->our_kexinit = snewn(s->our_kexinitlen, unsigned char);
     memcpy(s->our_kexinit, s->pktout->data + 5, s->our_kexinitlen); 
 
-    ssh2_pkt_send_noqueue(ssh, s->pktout);
+    ssh_pkt_write(ssh, s->pktout);
 
     crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
 
@@ -6659,12 +5687,9 @@ static void do_ssh2_transport(void *vctx)
 	}
 	ssh->kex = NULL;
 	ssh->hostkey_alg = NULL;
-	s->cscipher_tobe = NULL;
-	s->sccipher_tobe = NULL;
-	s->csmac_tobe = NULL;
-	s->scmac_tobe = NULL;
-	s->cscomp_tobe = NULL;
-	s->sccomp_tobe = NULL;
+	s->in.cipher = s->out.cipher = NULL;
+	s->in.mac = s->out.mac = NULL;
+	s->in.comp = s->out.comp = NULL;
 	s->warn_kex = s->warn_hk = FALSE;
         s->warn_cscipher = s->warn_sccipher = FALSE;
 
@@ -6682,16 +5707,16 @@ static void do_ssh2_transport(void *vctx)
              * particular MAC, then just select that, and don't even
              * bother looking through the server's KEXINIT string for
              * MACs. */
-            if (i == KEXLIST_CSMAC && s->cscipher_tobe &&
-                s->cscipher_tobe->required_mac) {
-                s->csmac_tobe = s->cscipher_tobe->required_mac;
-                s->csmac_etm_tobe = !!(s->csmac_tobe->etm_name);
+            if (i == KEXLIST_CSMAC && s->out.cipher &&
+                s->out.cipher->required_mac) {
+                s->out.mac = s->out.cipher->required_mac;
+                s->out.etm_mode = !!(s->out.mac->etm_name);
                 goto matched;
             }
-            if (i == KEXLIST_SCMAC && s->sccipher_tobe &&
-                s->sccipher_tobe->required_mac) {
-                s->scmac_tobe = s->sccipher_tobe->required_mac;
-                s->scmac_etm_tobe = !!(s->scmac_tobe->etm_name);
+            if (i == KEXLIST_SCMAC && s->in.cipher &&
+                s->in.cipher->required_mac) {
+                s->in.mac = s->in.cipher->required_mac;
+                s->in.etm_mode = !!(s->in.mac->etm_name);
                 goto matched;
             }
 
@@ -6723,21 +5748,21 @@ static void do_ssh2_transport(void *vctx)
 			ssh->hostkey_alg = alg->u.hk.hostkey;
                         s->warn_hk = alg->u.hk.warn;
 		    } else if (i == KEXLIST_CSCIPHER) {
-			s->cscipher_tobe = alg->u.cipher.cipher;
+			s->out.cipher = alg->u.cipher.cipher;
 			s->warn_cscipher = alg->u.cipher.warn;
 		    } else if (i == KEXLIST_SCCIPHER) {
-			s->sccipher_tobe = alg->u.cipher.cipher;
+			s->in.cipher = alg->u.cipher.cipher;
 			s->warn_sccipher = alg->u.cipher.warn;
 		    } else if (i == KEXLIST_CSMAC) {
-			s->csmac_tobe = alg->u.mac.mac;
-			s->csmac_etm_tobe = alg->u.mac.etm;
+			s->out.mac = alg->u.mac.mac;
+			s->out.etm_mode = alg->u.mac.etm;
 		    } else if (i == KEXLIST_SCMAC) {
-			s->scmac_tobe = alg->u.mac.mac;
-			s->scmac_etm_tobe = alg->u.mac.etm;
+			s->in.mac = alg->u.mac.mac;
+			s->in.etm_mode = alg->u.mac.etm;
 		    } else if (i == KEXLIST_CSCOMP) {
-			s->cscomp_tobe = alg->u.comp;
+			s->out.comp = alg->u.comp;
 		    } else if (i == KEXLIST_SCCOMP) {
-			s->sccomp_tobe = alg->u.comp;
+			s->in.comp = alg->u.comp;
 		    }
 		    goto matched;
 		}
@@ -6883,7 +5908,7 @@ static void do_ssh2_transport(void *vctx)
 	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend,
 			       "client-to-server cipher",
-			       s->cscipher_tobe->name,
+			       s->out.cipher->name,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
                 ssh->user_response = -1;
@@ -6902,7 +5927,7 @@ static void do_ssh2_transport(void *vctx)
 	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend,
 			       "server-to-client cipher",
-			       s->sccipher_tobe->name,
+			       s->in.cipher->name,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
                 ssh->user_response = -1;
@@ -6930,8 +5955,8 @@ static void do_ssh2_transport(void *vctx)
         {
             int csbits, scbits;
 
-            csbits = s->cscipher_tobe ? s->cscipher_tobe->real_keybits : 0;
-            scbits = s->sccipher_tobe ? s->sccipher_tobe->real_keybits : 0;
+            csbits = s->out.cipher ? s->out.cipher->real_keybits : 0;
+            scbits = s->in.cipher ? s->in.cipher->real_keybits : 0;
             s->nbits = (csbits > scbits ? csbits : scbits);
         }
         /* The keys only have hlen-bit entropy, since they're based on
@@ -6945,7 +5970,7 @@ static void do_ssh2_transport(void *vctx)
          */
         if (dh_is_gex(ssh->kex)) {
             logevent("Doing Diffie-Hellman group exchange");
-            ssh->pkt_kctx = SSH2_PKTCTX_DHGEX;
+            ssh->pls.kctx = SSH2_PKTCTX_DHGEX;
             /*
              * Work out how big a DH group we will need to allow that
              * much data.
@@ -6956,15 +5981,17 @@ static void do_ssh2_transport(void *vctx)
             if (s->pbits > DH_MAX_SIZE)
                 s->pbits = DH_MAX_SIZE;
             if ((ssh->remote_bugs & BUG_SSH2_OLDGEX)) {
-                s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD);
+                s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_KEX_DH_GEX_REQUEST_OLD);
                 put_uint32(s->pktout, s->pbits);
             } else {
-                s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_DH_GEX_REQUEST);
+                s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_KEX_DH_GEX_REQUEST);
                 put_uint32(s->pktout, DH_MIN_SIZE);
                 put_uint32(s->pktout, s->pbits);
                 put_uint32(s->pktout, DH_MAX_SIZE);
             }
-            ssh2_pkt_send_noqueue(ssh, s->pktout);
+            ssh_pkt_write(ssh, s->pktout);
 
             crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
             if (pktin->type != SSH2_MSG_KEX_DH_GEX_GROUP) {
@@ -6983,7 +6010,7 @@ static void do_ssh2_transport(void *vctx)
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
             s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
         } else {
-            ssh->pkt_kctx = SSH2_PKTCTX_DHGROUP;
+            ssh->pls.kctx = SSH2_PKTCTX_DHGROUP;
             ssh->kex_ctx = dh_setup_group(ssh->kex);
             s->kex_init_value = SSH2_MSG_KEXDH_INIT;
             s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
@@ -6998,9 +6025,9 @@ static void do_ssh2_transport(void *vctx)
          */
         set_busy_status(ssh->frontend, BUSY_CPU); /* this can take a while */
         s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
-        s->pktout = ssh2_pkt_init(s->kex_init_value);
+        s->pktout = ssh_bpp_new_pktout(ssh->bpp, s->kex_init_value);
         put_mp_ssh2(s->pktout, s->e);
-        ssh2_pkt_send_noqueue(ssh, s->pktout);
+        ssh_pkt_write(ssh, s->pktout);
 
         set_busy_status(ssh->frontend, BUSY_WAITING); /* wait for server */
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
@@ -7055,7 +6082,7 @@ static void do_ssh2_transport(void *vctx)
         logeventf(ssh, "Doing ECDH key exchange with curve %s and hash %s",
                   ssh_ecdhkex_curve_textname(ssh->kex),
                   ssh->kex->hash->text_name);
-        ssh->pkt_kctx = SSH2_PKTCTX_ECDHKEX;
+        ssh->pls.kctx = SSH2_PKTCTX_ECDHKEX;
 
         s->eckey = ssh_ecdhkex_newkey(ssh->kex);
         if (!s->eckey) {
@@ -7063,14 +6090,14 @@ static void do_ssh2_transport(void *vctx)
             crStopV;
         }
 
-        s->pktout = ssh2_pkt_init(SSH2_MSG_KEX_ECDH_INIT);
+        s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_KEX_ECDH_INIT);
         {
             strbuf *pubpoint = strbuf_new();
             ssh_ecdhkex_getpublic(s->eckey, BinarySink_UPCAST(pubpoint));
             put_stringsb(s->pktout, pubpoint);
         }
 
-        ssh2_pkt_send_noqueue(ssh, s->pktout);
+        ssh_pkt_write(ssh, s->pktout);
 
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
         if (pktin->type != SSH2_MSG_KEX_ECDH_REPLY) {
@@ -7112,7 +6139,7 @@ static void do_ssh2_transport(void *vctx)
     } else if (ssh->kex->main_type == KEXTYPE_GSS) {
         ptrlen data;
 
-        ssh->pkt_kctx = SSH2_PKTCTX_GSSKEX;
+        ssh->pls.kctx = SSH2_PKTCTX_GSSKEX;
         s->init_token_sent = 0;
         s->complete_rcvd = 0;
         s->hkey = NULL;
@@ -7129,8 +6156,8 @@ static void do_ssh2_transport(void *vctx)
         {
             int csbits, scbits;
 
-            csbits = s->cscipher_tobe->real_keybits;
-            scbits = s->sccipher_tobe->real_keybits;
+            csbits = s->out.cipher->real_keybits;
+            scbits = s->in.cipher->real_keybits;
             s->nbits = (csbits > scbits ? csbits : scbits);
         }
         /* The keys only have hlen-bit entropy, since they're based on
@@ -7146,11 +6173,11 @@ static void do_ssh2_transport(void *vctx)
             s->pbits = 512 << ((s->nbits - 1) / 64);
             logeventf(ssh, "Doing GSSAPI (with Kerberos V5) Diffie-Hellman "
                       "group exchange, with minimum %d bits", s->pbits);
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_GROUPREQ);
+            s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_KEXGSS_GROUPREQ);
             put_uint32(s->pktout, s->pbits); /* min */
             put_uint32(s->pktout, s->pbits); /* preferred */
             put_uint32(s->pktout, s->pbits * 2); /* max */
-            ssh2_pkt_send_noqueue(ssh, s->pktout);
+            ssh_pkt_write(ssh, s->pktout);
 
             crMaybeWaitUntilV(
                 (pktin = pq_pop(&ssh->pq_ssh2_transport)) != NULL);
@@ -7232,7 +6259,7 @@ static void do_ssh2_transport(void *vctx)
 
             if (!s->init_token_sent) {
                 s->init_token_sent = 1;
-                s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_INIT);
+                s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_KEXGSS_INIT);
                 if (s->gss_sndtok.length == 0) {
                     bombout(("GSSAPI key exchange failed:"
                              " no initial context token"));
@@ -7241,14 +6268,15 @@ static void do_ssh2_transport(void *vctx)
                 put_string(s->pktout,
                            s->gss_sndtok.value, s->gss_sndtok.length);
                 put_mp_ssh2(s->pktout, s->e);
-                ssh2_pkt_send_noqueue(ssh, s->pktout);
+                ssh_pkt_write(ssh, s->pktout);
                 ssh->gsslib->free_tok(ssh->gsslib, &s->gss_sndtok);
                 logevent("GSSAPI key exchange initialised");
             } else if (s->gss_sndtok.length != 0) {
-                s->pktout = ssh2_pkt_init(SSH2_MSG_KEXGSS_CONTINUE);
+                s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_KEXGSS_CONTINUE);
                 put_string(s->pktout,
                            s->gss_sndtok.value, s->gss_sndtok.length);
-                ssh2_pkt_send_noqueue(ssh, s->pktout);
+                ssh_pkt_write(ssh, s->pktout);
                 ssh->gsslib->free_tok(ssh->gsslib, &s->gss_sndtok);
             }
 
@@ -7366,7 +6394,7 @@ static void do_ssh2_transport(void *vctx)
         assert(ssh->kex->main_type == KEXTYPE_RSA);
 	logeventf(ssh, "Doing RSA key exchange with hash %s",
 		  ssh->kex->hash->text_name);
-	ssh->pkt_kctx = SSH2_PKTCTX_RSAKEX;
+	ssh->pls.kctx = SSH2_PKTCTX_RSAKEX;
         /*
          * RSA key exchange. First expect a KEXRSA_PUBKEY packet
          * from the server.
@@ -7431,9 +6459,9 @@ static void do_ssh2_transport(void *vctx)
             /*
              * And send it off in a return packet.
              */
-            s->pktout = ssh2_pkt_init(SSH2_MSG_KEXRSA_SECRET);
+            s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_KEXRSA_SECRET);
             put_string(s->pktout, outstr, outstrlen);
-            ssh2_pkt_send_noqueue(ssh, s->pktout);
+            ssh_pkt_write(ssh, s->pktout);
 
 	    put_string(ssh->exhash_bs, outstr, outstrlen);
 
@@ -7750,71 +6778,65 @@ static void do_ssh2_transport(void *vctx)
     /*
      * Send SSH2_MSG_NEWKEYS.
      */
-    s->pktout = ssh2_pkt_init(SSH2_MSG_NEWKEYS);
-    ssh2_pkt_send_noqueue(ssh, s->pktout);
+    s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_NEWKEYS);
+    ssh_pkt_write(ssh, s->pktout);
     ssh->outgoing_data_size = 0;       /* start counting from here */
 
     /*
      * We've sent client NEWKEYS, so create and initialise
      * client-to-server session keys.
      */
-    if (ssh->cs_cipher_ctx)
-	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
-    ssh->cscipher = s->cscipher_tobe;
-    if (ssh->cscipher) ssh->cs_cipher_ctx = ssh->cscipher->make_context();
+    {
+        strbuf *cipher_key = strbuf_new();
+        strbuf *cipher_iv = strbuf_new();
+        strbuf *mac_key = strbuf_new();
 
-    if (ssh->cs_mac_ctx)
-	ssh->csmac->free_context(ssh->cs_mac_ctx);
-    ssh->csmac = s->csmac_tobe;
-    ssh->csmac_etm = s->csmac_etm_tobe;
-    if (ssh->csmac)
-        ssh->cs_mac_ctx = ssh->csmac->make_context(ssh->cs_cipher_ctx);
+        if (s->out.cipher) {
+            ssh2_mkkey(ssh, cipher_iv, s->K, s->exchange_hash, 'A',
+                       s->out.cipher->blksize);
+            ssh2_mkkey(ssh, cipher_key, s->K, s->exchange_hash, 'C',
+                       s->out.cipher->padded_keybytes);
+        }
+        if (s->out.mac) {
+            ssh2_mkkey(ssh, mac_key, s->K, s->exchange_hash, 'E',
+                       s->out.mac->keylen);
+        }
 
-    if (ssh->cs_comp_ctx)
-	ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
-    ssh->cscomp = s->cscomp_tobe;
-    ssh->cs_comp_ctx = ssh->cscomp->compress_init();
+        ssh2_bpp_new_outgoing_crypto(
+            ssh->bpp,
+            s->out.cipher, cipher_key->u, cipher_iv->u,
+            s->out.mac, s->out.etm_mode, mac_key->u,
+            s->out.comp);
 
-    /*
-     * Set IVs on client-to-server keys. Here we use the exchange
-     * hash from the _first_ key exchange.
-     */
-    if (ssh->cscipher) {
-	unsigned char *key;
+        /*
+         * Remember some details we'll need later for making other
+         * policy decisions based on the crypto we've just
+         * initialised.
+         */
+        ssh->v2_cbc_ignore_workaround = (
+            s->out.cipher &&
+            (s->out.cipher->flags & SSH_CIPHER_IS_CBC) &&
+            !(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE));
+        ssh->v2_out_cipherblksize = s->out.cipher->blksize;
 
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'C',
-                         ssh->cscipher->padded_keybytes);
-	ssh->cscipher->setkey(ssh->cs_cipher_ctx, key);
-        smemclr(key, ssh->cscipher->padded_keybytes);
-        sfree(key);
-
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'A',
-                         ssh->cscipher->blksize);
-	ssh->cscipher->setiv(ssh->cs_cipher_ctx, key);
-        smemclr(key, ssh->cscipher->blksize);
-        sfree(key);
-    }
-    if (ssh->csmac) {
-	unsigned char *key;
-
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'E',
-                         ssh->csmac->keylen);
-	ssh->csmac->setkey(ssh->cs_mac_ctx, key);
-        smemclr(key, ssh->csmac->keylen);
-        sfree(key);
+        strbuf_free(cipher_key);
+        strbuf_free(cipher_iv);
+        strbuf_free(mac_key);
     }
 
-    if (ssh->cscipher)
-	logeventf(ssh, "Initialised %.200s client->server encryption",
-		  ssh->cscipher->text_name);
-    if (ssh->csmac)
-	logeventf(ssh, "Initialised %.200s client->server MAC algorithm%s%s",
-		  ssh->csmac->text_name,
-		  ssh->csmac_etm ? " (in ETM mode)" : "",
-		  ssh->cscipher->required_mac ? " (required by cipher)" : "");
-    if (ssh->cscomp->text_name)
-	logeventf(ssh, "Initialised %s compression",
-		  ssh->cscomp->text_name);
+    if (s->out.cipher)
+        logeventf(ssh, "Initialised %.200s client->server encryption",
+                  s->out.cipher->text_name);
+    if (s->out.mac)
+        logeventf(ssh, "Initialised %.200s client->server"
+                  " MAC algorithm%s%s",
+                  s->out.mac->text_name,
+                  s->out.etm_mode ? " (in ETM mode)" : "",
+                  (s->out.cipher->required_mac ?
+                   " (required by cipher)" : ""));
+    if (s->out.comp->text_name)
+        logeventf(ssh, "Initialised %s compression",
+                  s->out.comp->text_name);
 
     /*
      * Now our end of the key exchange is complete, we can send all
@@ -7831,72 +6853,52 @@ static void do_ssh2_transport(void *vctx)
 	bombout(("expected new-keys packet from server"));
 	crStopV;
     }
-    ssh->pending_newkeys = FALSE;      /* resume processing incoming data */
     ssh->incoming_data_size = 0;       /* start counting from here */
 
     /*
      * We've seen server NEWKEYS, so create and initialise
      * server-to-client session keys.
      */
-    if (ssh->sc_cipher_ctx)
-	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
-    if (s->sccipher_tobe) {
-	ssh->sccipher = s->sccipher_tobe;
-	ssh->sc_cipher_ctx = ssh->sccipher->make_context();
+    {
+        strbuf *cipher_key = strbuf_new();
+        strbuf *cipher_iv = strbuf_new();
+        strbuf *mac_key = strbuf_new();
+
+        if (s->in.cipher) {
+            ssh2_mkkey(ssh, cipher_iv, s->K, s->exchange_hash, 'B',
+                       s->in.cipher->blksize);
+            ssh2_mkkey(ssh, cipher_key, s->K, s->exchange_hash, 'D',
+                       s->in.cipher->padded_keybytes);
+        }
+        if (s->in.mac) {
+            ssh2_mkkey(ssh, mac_key, s->K, s->exchange_hash, 'F',
+                       s->in.mac->keylen);
+        }
+
+        ssh2_bpp_new_incoming_crypto(
+            ssh->bpp,
+            s->in.cipher, cipher_key->u, cipher_iv->u,
+            s->in.mac, s->in.etm_mode, mac_key->u,
+            s->in.comp);
+
+        strbuf_free(cipher_key);
+        strbuf_free(cipher_iv);
+        strbuf_free(mac_key);
     }
 
-    if (ssh->sc_mac_ctx)
-	ssh->scmac->free_context(ssh->sc_mac_ctx);
-    if (s->scmac_tobe) {
-	ssh->scmac = s->scmac_tobe;
-	ssh->scmac_etm = s->scmac_etm_tobe;
-	ssh->sc_mac_ctx = ssh->scmac->make_context(ssh->sc_cipher_ctx);
-    }
-
-    if (ssh->sc_comp_ctx)
-	ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
-    ssh->sccomp = s->sccomp_tobe;
-    ssh->sc_comp_ctx = ssh->sccomp->decompress_init();
-
-    /*
-     * Set IVs on server-to-client keys. Here we use the exchange
-     * hash from the _first_ key exchange.
-     */
-    if (ssh->sccipher) {
-	unsigned char *key;
-
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'D',
-                         ssh->sccipher->padded_keybytes);
-	ssh->sccipher->setkey(ssh->sc_cipher_ctx, key);
-        smemclr(key, ssh->sccipher->padded_keybytes);
-        sfree(key);
-
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'B',
-                         ssh->sccipher->blksize);
-	ssh->sccipher->setiv(ssh->sc_cipher_ctx, key);
-        smemclr(key, ssh->sccipher->blksize);
-        sfree(key);
-    }
-    if (ssh->scmac) {
-	unsigned char *key;
-
-	key = ssh2_mkkey(ssh, s->K, s->exchange_hash, 'F',
-                         ssh->scmac->keylen);
-	ssh->scmac->setkey(ssh->sc_mac_ctx, key);
-        smemclr(key, ssh->scmac->keylen);
-        sfree(key);
-    }
-    if (ssh->sccipher)
-	logeventf(ssh, "Initialised %.200s server->client encryption",
-		  ssh->sccipher->text_name);
-    if (ssh->scmac)
-	logeventf(ssh, "Initialised %.200s server->client MAC algorithm%s%s",
-		  ssh->scmac->text_name,
-		  ssh->scmac_etm ? " (in ETM mode)" : "",
-		  ssh->sccipher->required_mac ? " (required by cipher)" : "");
-    if (ssh->sccomp->text_name)
-	logeventf(ssh, "Initialised %s decompression",
-		  ssh->sccomp->text_name);
+    if (s->in.cipher)
+        logeventf(ssh, "Initialised %.200s server->client encryption",
+                  s->in.cipher->text_name);
+    if (s->in.mac)
+        logeventf(ssh, "Initialised %.200s server->client"
+                  " MAC algorithm%s%s",
+                  s->in.mac->text_name,
+                  s->in.etm_mode ? " (in ETM mode)" : "",
+                  (s->in.cipher->required_mac ?
+                   " (required by cipher)" : ""));
+    if (s->in.comp->text_name)
+        logeventf(ssh, "Initialised %s decompression",
+                  s->in.comp->text_name);
 
     /*
      * Free shared secret.
@@ -8068,7 +7070,7 @@ static int ssh2_try_send(struct ssh_channel *c)
 	    len = c->v.v2.remwindow;
 	if ((unsigned)len > c->v.v2.remmaxpkt)
 	    len = c->v.v2.remmaxpkt;
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_DATA);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_DATA);
 	put_uint32(pktout, c->remoteid);
         put_string(pktout, data, len);
 	ssh2_pkt_send(ssh, pktout);
@@ -8162,7 +7164,7 @@ static PktOut *ssh2_chanopen_init(struct ssh_channel *c,
 {
     PktOut *pktout;
 
-    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN);
+    pktout = ssh_bpp_new_pktout(c->ssh->bpp, SSH2_MSG_CHANNEL_OPEN);
     put_stringz(pktout, type);
     put_uint32(pktout, c->localid);
     put_uint32(pktout, c->v.v2.locwindow);/* our window size */
@@ -8212,7 +7214,7 @@ static PktOut *ssh2_chanreq_init(struct ssh_channel *c,
     PktOut *pktout;
 
     assert(!(c->closes & (CLOSES_SENT_CLOSE | CLOSES_RCVD_CLOSE)));
-    pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_REQUEST);
+    pktout = ssh_bpp_new_pktout(c->ssh->bpp, SSH2_MSG_CHANNEL_REQUEST);
     put_uint32(pktout, c->remoteid);
     put_stringz(pktout, type);
     put_bool(pktout, handler != NULL);
@@ -8312,7 +7314,7 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	    c->v.v2.remlocwin = newwin;
 	    c->v.v2.throttle_state = THROTTLED;
 	}
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_WINDOW_ADJUST);
 	put_uint32(pktout, c->remoteid);
 	put_uint32(pktout, newwin - c->v.v2.locwindow);
 	ssh2_pkt_send(ssh, pktout);
@@ -8603,7 +7605,7 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
          * means the channel is in final wind-up. But we haven't sent
          * CLOSE, so let's do so now.
          */
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_CLOSE);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_CLOSE);
 	put_uint32(pktout, c->remoteid);
 	ssh2_pkt_send(ssh, pktout);
         c->closes |= CLOSES_SENT_EOF | CLOSES_SENT_CLOSE;
@@ -9012,7 +8014,7 @@ static void ssh2_msg_channel_request(Ssh ssh, PktIn *pktin)
 	reply = SSH2_MSG_CHANNEL_FAILURE;
     }
     if (want_reply) {
-	pktout = ssh2_pkt_init(reply);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, reply);
 	put_uint32(pktout, c->remoteid);
 	ssh2_pkt_send(ssh, pktout);
     }
@@ -9033,7 +8035,7 @@ static void ssh2_msg_global_request(Ssh ssh, PktIn *pktin)
      * want_reply.
      */
     if (want_reply) {
-	pktout = ssh2_pkt_init(SSH2_MSG_REQUEST_FAILURE);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_REQUEST_FAILURE);
 	ssh2_pkt_send(ssh, pktout);
     }
 }
@@ -9171,7 +8173,7 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
     c->remoteid = remid;
     c->halfopen = FALSE;
     if (error) {
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_FAILURE);
+	pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_OPEN_FAILURE);
 	put_uint32(pktout, c->remoteid);
 	put_uint32(pktout, SSH2_OPEN_CONNECT_FAILED);
 	put_stringz(pktout, error);
@@ -9187,7 +8189,8 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
             c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
                 our_winsize_override;
         }
-	pktout = ssh2_pkt_init(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
+	pktout = ssh_bpp_new_pktout(
+            ssh->bpp, SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
 	put_uint32(pktout, c->remoteid);
 	put_uint32(pktout, c->localid);
 	put_uint32(pktout, c->v.v2.locwindow);
@@ -9561,7 +8564,7 @@ static void do_ssh2_userauth(void *vctx)
         /*
          * Request userauth protocol, and await a response to it.
          */
-        s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+        s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_SERVICE_REQUEST);
         put_stringz(s->pktout, "ssh-userauth");
         ssh2_pkt_send(ssh, s->pktout);
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
@@ -9572,7 +8575,7 @@ static void do_ssh2_userauth(void *vctx)
         /*
          * Request connection protocol directly, without authentication.
          */
-        s->pktout = ssh2_pkt_init(SSH2_MSG_SERVICE_REQUEST);
+        s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_SERVICE_REQUEST);
         put_stringz(s->pktout, "ssh-connection");
         ssh2_pkt_send(ssh, s->pktout);
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh2_userauth)) != NULL);
@@ -9809,9 +8812,9 @@ static void do_ssh2_userauth(void *vctx)
 	 * just in case it succeeds, and (b) so that we know what
 	 * authentication methods we can usefully try next.
 	 */
-	ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
+	ssh->pls.actx = SSH2_PKTCTX_NOAUTH;
 
-	s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+	s->pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 	put_stringz(s->pktout, ssh->username);
 	put_stringz(s->pktout, "ssh-connection");/* service requested */
 	put_stringz(s->pktout, "none");    /* method */
@@ -9976,7 +8979,7 @@ static void do_ssh2_userauth(void *vctx)
 #endif
 	    }
 
-	    ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
+	    ssh->pls.actx = SSH2_PKTCTX_NOAUTH;
 
 #ifndef NO_GSSAPI
             if (s->can_gssapi_keyex_auth && !s->tried_gssapi_keyex_auth) {
@@ -9985,7 +8988,7 @@ static void do_ssh2_userauth(void *vctx)
 
                 s->type = AUTH_TYPE_GSSAPI;
                 s->tried_gssapi_keyex_auth = TRUE;
-                ssh->pkt_actx = SSH2_PKTCTX_GSSAPI;
+                ssh->pls.actx = SSH2_PKTCTX_GSSAPI;
 
                 if (ssh->gsslib->gsslogmsg)
                     logevent(ssh->gsslib->gsslogmsg);
@@ -10007,7 +9010,7 @@ static void do_ssh2_userauth(void *vctx)
 		 * Attempt public-key authentication using a key from Pageant.
 		 */
 
-		ssh->pkt_actx = SSH2_PKTCTX_PUBLICKEY;
+		ssh->pls.actx = SSH2_PKTCTX_PUBLICKEY;
 
 		logeventf(ssh, "Trying Pageant key #%d", s->keyi);
 
@@ -10021,7 +9024,8 @@ static void do_ssh2_userauth(void *vctx)
                 }
 
 		/* See if server will accept it */
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		put_stringz(s->pktout, ssh->username);
 		put_stringz(s->pktout, "ssh-connection");
 						    /* service requested */
@@ -10056,7 +9060,8 @@ static void do_ssh2_userauth(void *vctx)
 		     * Server is willing to accept the key.
 		     * Construct a SIGN_REQUEST.
 		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		    s->pktout = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		    put_stringz(s->pktout, ssh->username);
 		    put_stringz(s->pktout, "ssh-connection");
 							/* service requested */
@@ -10131,7 +9136,7 @@ static void do_ssh2_userauth(void *vctx)
 		struct ssh2_userkey *key;   /* not live over crReturn */
 		char *passphrase;	    /* not live over crReturn */
 
-		ssh->pkt_actx = SSH2_PKTCTX_PUBLICKEY;
+		ssh->pls.actx = SSH2_PKTCTX_PUBLICKEY;
 
 		s->tried_pubkey_config = TRUE;
 
@@ -10141,7 +9146,8 @@ static void do_ssh2_userauth(void *vctx)
 		 * First, offer the public blob to see if the server is
 		 * willing to accept it.
 		 */
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		put_stringz(s->pktout, ssh->username);
 		put_stringz(s->pktout, "ssh-connection");
 						/* service requested */
@@ -10251,7 +9257,8 @@ static void do_ssh2_userauth(void *vctx)
 		     * has announced that it's willing to accept it.
 		     * Hallelujah. Generate a signature and send it.
 		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		    s->pktout = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		    put_stringz(s->pktout, ssh->username);
 		    put_stringz(s->pktout, "ssh-connection");
 						    /* service requested */
@@ -10306,14 +9313,15 @@ static void do_ssh2_userauth(void *vctx)
 
 		s->type = AUTH_TYPE_GSSAPI;
 		s->tried_gssapi = TRUE;
-		ssh->pkt_actx = SSH2_PKTCTX_GSSAPI;
+		ssh->pls.actx = SSH2_PKTCTX_GSSAPI;
 
                 if (ssh->gsslib->gsslogmsg)
                     logevent(ssh->gsslib->gsslogmsg);
 
 		/* Sending USERAUTH_REQUEST with "gssapi-with-mic" method */
                 logeventf(ssh, "Trying gssapi-with-mic...");
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		put_stringz(s->pktout, ssh->username);
 		put_stringz(s->pktout, "ssh-connection");
 		put_stringz(s->pktout, "gssapi-with-mic");
@@ -10419,7 +9427,8 @@ static void do_ssh2_userauth(void *vctx)
                      */
 		    if (s->gss_sndtok.length != 0) {
                         s->pktout =
-                            ssh2_pkt_init(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
+                            ssh_bpp_new_pktout(
+                                ssh->bpp, SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
 			put_string(s->pktout,
                                    s->gss_sndtok.value, s->gss_sndtok.length);
 			ssh2_pkt_send(ssh, s->pktout);
@@ -10464,9 +9473,10 @@ static void do_ssh2_userauth(void *vctx)
 
 		s->type = AUTH_TYPE_KEYBOARD_INTERACTIVE;
 
-		ssh->pkt_actx = SSH2_PKTCTX_KBDINTER;
+		ssh->pls.actx = SSH2_PKTCTX_KBDINTER;
 
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		put_stringz(s->pktout, ssh->username);
 		put_stringz(s->pktout, "ssh-connection");
 							/* service requested */
@@ -10588,7 +9598,8 @@ static void do_ssh2_userauth(void *vctx)
 		    /*
 		     * Send the response(s) to the server.
 		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_INFO_RESPONSE);
+		    s->pktout = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH2_MSG_USERAUTH_INFO_RESPONSE);
 		    put_uint32(s->pktout, s->num_prompts);
 		    for (i=0; i < s->num_prompts; i++) {
 			put_stringz(s->pktout,
@@ -10623,7 +9634,7 @@ static void do_ssh2_userauth(void *vctx)
 		 */
 		int changereq_first_time; /* not live over crReturn */
 
-		ssh->pkt_actx = SSH2_PKTCTX_PASSWORD;
+		ssh->pls.actx = SSH2_PKTCTX_PASSWORD;
 
 		s->cur_prompt = new_prompts(ssh->frontend);
 		s->cur_prompt->to_server = TRUE;
@@ -10675,7 +9686,8 @@ static void do_ssh2_userauth(void *vctx)
 		 * probably doesn't have much to worry about from
 		 * people who find out how long their password is!
 		 */
-		s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		s->pktout = ssh_bpp_new_pktout(
+                    ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		put_stringz(s->pktout, ssh->username);
 		put_stringz(s->pktout, "ssh-connection");
 							/* service requested */
@@ -10807,7 +9819,8 @@ static void do_ssh2_userauth(void *vctx)
 		     * Send the new password (along with the old one).
 		     * (see above for padding rationale)
 		     */
-		    s->pktout = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+		    s->pktout = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
 		    put_stringz(s->pktout, ssh->username);
 		    put_stringz(s->pktout, "ssh-connection");
 							/* service requested */
@@ -11297,7 +10310,7 @@ static void ssh2_msg_transport(Ssh ssh, PktIn *pktin)
 static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin)
 {
     char *buf = dupprintf("Server protocol violation: unexpected %s packet",
-			  ssh2_pkt_type(ssh->pkt_kctx, ssh->pkt_actx,
+			  ssh2_pkt_type(ssh->pls.kctx, ssh->pls.actx,
 					pktin->type));
     ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
     sfree(buf);
@@ -11306,13 +10319,13 @@ static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin)
 static void ssh2_msg_something_unimplemented(Ssh ssh, PktIn *pktin)
 {
     PktOut *pktout;
-    pktout = ssh2_pkt_init(SSH2_MSG_UNIMPLEMENTED);
+    pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_UNIMPLEMENTED);
     put_uint32(pktout, pktin->sequence);
     /*
      * UNIMPLEMENTED messages MUST appear in the same order as the
      * messages they respond to. Hence, never queue them.
      */
-    ssh2_pkt_send_noqueue(ssh, pktout);
+    ssh_pkt_write(ssh, pktout);
 }
 
 /*
@@ -11321,6 +10334,8 @@ static void ssh2_msg_something_unimplemented(Ssh ssh, PktIn *pktin)
 static void ssh2_protocol_setup(Ssh ssh)
 {
     int i;
+
+    ssh->bpp = ssh2_bpp_new();
 
 #ifndef NO_GSSAPI
     /* Load and pick the highest GSS library on the preference list. */
@@ -11353,7 +10368,7 @@ static void ssh2_protocol_setup(Ssh ssh)
     /*
      * Most messages cause SSH2_MSG_UNIMPLEMENTED.
      */
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < SSH_MAX_MSG; i++)
 	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
 
     /*
@@ -11409,10 +10424,12 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh)
 {
     int i;
 
+    ssh->bpp = ssh2_bare_bpp_new();
+
     /*
      * Most messages cause SSH2_MSG_UNIMPLEMENTED.
      */
-    for (i = 0; i < 256; i++)
+    for (i = 0; i < SSH_MAX_MSG; i++)
 	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
 
     /*
@@ -11475,9 +10492,9 @@ static PktOut *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
 
     /* Now we can build the real packet */
     if (strcmp(authtype, "gssapi-with-mic") == 0) {
-        p = ssh2_pkt_init(SSH2_MSG_USERAUTH_GSSAPI_MIC);
+        p = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_USERAUTH_GSSAPI_MIC);
     } else {
-        p = ssh2_pkt_init(SSH2_MSG_USERAUTH_REQUEST);
+        p = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_USERAUTH_REQUEST);
         put_stringz(p, ssh->username);
         put_stringz(p, "ssh-connection");
         put_stringz(p, authtype);
@@ -11736,7 +10753,8 @@ static void ssh2_general_packet_processing(Ssh ssh, PktIn *pktin)
 
 static void ssh_cache_conf_values(Ssh ssh)
 {
-    ssh->logomitdata = conf_get_int(ssh->conf, CONF_logomitdata);
+    ssh->pls.omit_passwords = conf_get_int(ssh->conf, CONF_logomitpass);
+    ssh->pls.omit_data = conf_get_int(ssh->conf, CONF_logomitdata);
 }
 
 /*
@@ -11757,21 +10775,6 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh_cache_conf_values(ssh);
     ssh->version = 0;		       /* when not ready yet */
     ssh->s = NULL;
-    ssh->cipher = NULL;
-    ssh->v1_cipher_ctx = NULL;
-    ssh->crcda_ctx = NULL;
-    ssh->cscipher = NULL;
-    ssh->cs_cipher_ctx = NULL;
-    ssh->sccipher = NULL;
-    ssh->sc_cipher_ctx = NULL;
-    ssh->csmac = NULL;
-    ssh->cs_mac_ctx = NULL;
-    ssh->scmac = NULL;
-    ssh->sc_mac_ctx = NULL;
-    ssh->cscomp = NULL;
-    ssh->cs_comp_ctx = NULL;
-    ssh->sccomp = NULL;
-    ssh->sc_comp_ctx = NULL;
     ssh->kex = NULL;
     ssh->kex_ctx = NULL;
     ssh->hostkey_alg = NULL;
@@ -11786,17 +10789,13 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->ldisc = NULL;
     ssh->logctx = NULL;
     ssh->fallback_cmd = 0;
-    ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
-    ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
+    ssh->pls.kctx = SSH2_PKTCTX_NOKEX;
+    ssh->pls.actx = SSH2_PKTCTX_NOAUTH;
     ssh->x11disp = NULL;
     ssh->x11auth = NULL;
     ssh->x11authtree = newtree234(x11_authcmp);
-    ssh->v1_compressing = FALSE;
-    ssh->v2_outgoing_sequence = 0;
-    ssh->ssh1_rdpkt_crstate = 0;
-    ssh->ssh2_rdpkt_crstate = 0;
-    ssh->ssh2_bare_rdpkt_crstate = 0;
-    ssh->rdpkt2_state.buf = NULL;
+    ssh->v2_cbc_ignore_workaround = FALSE;
+    ssh->bpp = NULL;
     ssh->do_ssh1_connection_crstate = 0;
     ssh->do_ssh_init_state = NULL;
     ssh->do_ssh_connection_init_state = NULL;
@@ -11843,7 +10842,6 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->outgoing_data_sender.ctx = ssh;
     ssh->outgoing_data_sender.queued = FALSE;
     ssh->current_user_input_fn = NULL;
-    ssh->pending_newkeys = FALSE;
     ssh->rekey_reason = NULL;
     ssh->rekey_class = RK_INITIAL;
     ssh->v_c = NULL;
@@ -11934,36 +10932,9 @@ static void ssh_free(void *handle)
     struct X11FakeAuth *auth;
     int need_random_unref;
 
-    if (ssh->v1_cipher_ctx)
-	ssh->cipher->free_context(ssh->v1_cipher_ctx);
-    if (ssh->cs_cipher_ctx)
-	ssh->cscipher->free_context(ssh->cs_cipher_ctx);
-    if (ssh->sc_cipher_ctx)
-	ssh->sccipher->free_context(ssh->sc_cipher_ctx);
-    if (ssh->cs_mac_ctx)
-	ssh->csmac->free_context(ssh->cs_mac_ctx);
-    if (ssh->sc_mac_ctx)
-	ssh->scmac->free_context(ssh->sc_mac_ctx);
-    if (ssh->cs_comp_ctx) {
-	if (ssh->cscomp)
-	    ssh->cscomp->compress_cleanup(ssh->cs_comp_ctx);
-	else
-	    zlib_compress_cleanup(ssh->cs_comp_ctx);
-    }
-    if (ssh->sc_comp_ctx) {
-	if (ssh->sccomp)
-	    ssh->sccomp->decompress_cleanup(ssh->sc_comp_ctx);
-	else
-	    zlib_decompress_cleanup(ssh->sc_comp_ctx);
-    }
     if (ssh->kex_ctx)
 	dh_cleanup(ssh->kex_ctx);
     sfree(ssh->savedhost);
-
-    if (ssh->rdpkt2_state.buf) {
-        smemclr(ssh->rdpkt2_state.buf, ssh->rdpkt2_state.bufsize);
-        sfree(ssh->rdpkt2_state.buf);
-    }
 
     while (ssh->queuelen-- > 0)
 	ssh_free_pktout(ssh->queue[ssh->queuelen]);
@@ -12011,6 +10982,8 @@ static void ssh_free(void *handle)
 	x11_free_display(ssh->x11disp);
     while ((auth = delpos234(ssh->x11authtree, 0)) != NULL)
         x11_free_fake_auth(auth);
+    if (ssh->bpp)
+        ssh_bpp_free(ssh->bpp);
     freetree234(ssh->x11authtree);
     sfree(ssh->do_ssh_init_state);
     sfree(ssh->do_ssh1_login_state);
@@ -12032,10 +11005,6 @@ static void ssh_free(void *handle)
     sfree(ssh->fullhostname);
     sfree(ssh->hostkey_str);
     sfree(ssh->specials);
-    if (ssh->crcda_ctx) {
-	crcda_free_context(ssh->crcda_ctx);
-	ssh->crcda_ctx = NULL;
-    }
     if (ssh->s)
 	ssh_do_close(ssh, TRUE);
     expire_timer_context(ssh);
@@ -12353,9 +11322,9 @@ static void ssh_special(void *handle, Telnet_Special code)
 		send_packet(ssh, SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
 	} else {
 	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
-		pktout = ssh2_pkt_init(SSH2_MSG_IGNORE);
+		pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
 		put_stringz(pktout, "");
-		ssh2_pkt_send_noqueue(ssh, pktout);
+		ssh_pkt_write(ssh, pktout);
 	    }
 	}
     } else if (code == TS_REKEY) {
@@ -12457,7 +11426,7 @@ void ssh_send_packet_from_downstream(Ssh ssh, unsigned id, int type,
 {
     PktOut *pkt;
 
-    pkt = ssh2_pkt_init(type);
+    pkt = ssh_bpp_new_pktout(ssh->bpp, type);
     pkt->downstream_id = id;
     pkt->additional_log_text = additional_log_text;
     put_data(pkt, data, datalen);
