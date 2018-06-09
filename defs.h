@@ -62,6 +62,8 @@ typedef struct ptrlen {
     size_t len;
 } ptrlen;
 
+typedef struct logblank_t logblank_t;
+
 /* Do a compile-time type-check of 'to_check' (without evaluating it),
  * as a side effect of returning the value 'to_return'. Note that
  * although this macro double-*expands* to_return, it always
