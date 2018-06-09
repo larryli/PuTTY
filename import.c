@@ -1010,8 +1010,7 @@ int openssh_pem_write(const Filename *filename, struct ssh2_userkey *key,
         origlen = outblob->len;
         outlen = (origlen + 8) &~ 7;
         pad = outlen - origlen;
-        for (i = 0; i < pad; i++)
-            put_byte(outblob, pad);
+        put_padding(outblob, pad, pad);
 
 	/*
 	 * Invent an iv. Then derive encryption key from passphrase

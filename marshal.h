@@ -110,6 +110,10 @@ struct BinarySink {
 #define put_mp_ssh2(bs, val) \
     BinarySink_put_mp_ssh2(BinarySink_UPCAST(bs), val)
 
+/* Padding with a specified byte. */
+#define put_padding(bs, padbyte, len) \
+    BinarySink_put_padding(BinarySink_UPCAST(bs), padbyte, len)
+
 /* Fallback: just emit raw data bytes, using a syntax that matches the
  * rest of these macros. */
 #define put_data(bs, val, len) \
@@ -126,6 +130,7 @@ struct BinarySink {
  * declaration(s) of their other parameter type(s) are in scope.
  */
 void BinarySink_put_data(BinarySink *, const void *data, size_t len);
+void BinarySink_put_padding(BinarySink *, unsigned char padbyte, size_t len);
 void BinarySink_put_byte(BinarySink *, unsigned char);
 void BinarySink_put_bool(BinarySink *, int);
 void BinarySink_put_uint16(BinarySink *, unsigned long);

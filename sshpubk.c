@@ -356,8 +356,7 @@ int rsa_ssh1_savekey(const Filename *filename, struct RSAKey *key,
      * Now write zeros until the encrypted portion is a multiple of
      * 8 bytes.
      */
-    while ((buf->len - estart) % 8)
-	put_byte(buf, 0);
+    put_padding(buf, (estart - buf->len) & 7, 0);
 
     /*
      * Now encrypt the encrypted portion.

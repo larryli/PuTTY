@@ -2803,8 +2803,7 @@ static void ssh2_add_sigblob(Ssh ssh, PktOut *pkt,
             strbuf *substr = strbuf_new();
 	    put_data(substr, sigblob, sig_prefix_len);
 	    put_uint32(substr, mod_mp.len);
-	    while (mod_mp.len-- > sig_mp.len)
-		put_byte(substr, 0);
+	    put_padding(substr, mod_mp.len - sig_mp.len, 0);
 	    put_data(substr, sig_mp.ptr, sig_mp.len);
             put_stringsb(pkt, substr);
 	    return;
