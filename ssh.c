@@ -793,8 +793,6 @@ struct ssh_tag {
     PktOut **queue;
     int queuelen, queuesize;
     int queueing;
-    unsigned char *deferred_send_data;
-    int deferred_len, deferred_size;
 
     /*
      * Gross hack: pscp will try to start SFTP but fall back to
@@ -857,6 +855,9 @@ struct ssh_tag {
 
     bufchain user_input;
     struct IdempotentCallback user_input_consumer;
+
+    bufchain outgoing_data;
+    struct IdempotentCallback outgoing_data_sender;
 
     const char *rekey_reason;
     enum RekeyClass rekey_class;
@@ -926,7 +927,7 @@ struct ssh_tag {
      * Track incoming and outgoing data sizes and time, for
      * size-based rekeys.
      */
-    unsigned long incoming_data_size, outgoing_data_size, deferred_data_size;
+    unsigned long incoming_data_size, outgoing_data_size;
     unsigned long max_data_size;
     int kex_in_progress;
     unsigned long next_rekey, last_rekey;
@@ -2060,27 +2061,10 @@ static int s_write(Ssh ssh, const void *data, int len)
 
 static void s_wrpkt(Ssh ssh, PktOut *pkt)
 {
-    int len, backlog, offset;
-    len = s_wrpkt_prepare(ssh, pkt, &offset);
-    backlog = s_write(ssh, pkt->data + offset, len);
-    if (backlog > SSH_MAX_BACKLOG)
-	ssh_throttle_all(ssh, 1, backlog);
-    ssh_free_pktout(pkt);
-}
-
-static void s_wrpkt_defer(Ssh ssh, PktOut *pkt)
-{
     int len, offset;
     len = s_wrpkt_prepare(ssh, pkt, &offset);
-    if (ssh->deferred_len + len > ssh->deferred_size) {
-	ssh->deferred_size = ssh->deferred_len + len + 128;
-	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
-					  ssh->deferred_size,
-					  unsigned char);
-    }
-    memcpy(ssh->deferred_send_data + ssh->deferred_len,
-	   pkt->data + offset, len);
-    ssh->deferred_len += len;
+    bufchain_add(&ssh->outgoing_data, pkt->data + offset, len);
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
     ssh_free_pktout(pkt);
 }
 
@@ -2139,16 +2123,6 @@ static void send_packet(Ssh ssh, int pkttype, ...)
     pkt = construct_packet(ssh, pkttype, ap);
     va_end(ap);
     s_wrpkt(ssh, pkt);
-}
-
-static void defer_packet(Ssh ssh, int pkttype, ...)
-{
-    PktOut *pkt;
-    va_list ap;
-    va_start(ap, pkttype);
-    pkt = construct_packet(ssh, pkttype, ap);
-    va_end(ap);
-    s_wrpkt_defer(ssh, pkt);
 }
 
 static int ssh_versioncmp(const char *a, const char *b)
@@ -2320,62 +2294,29 @@ static ptrlen ssh2_pkt_construct(Ssh ssh, PktOut *pkt)
 }
 
 /*
- * Routines called from the main SSH code to send packets. There
- * are quite a few of these, because we have two separate
- * mechanisms for delaying the sending of packets:
- * 
- *  - In order to send an IGNORE message and a password message in
- *    a single fixed-length blob, we require the ability to
- *    concatenate the encrypted forms of those two packets _into_ a
- *    single blob and then pass it to our <network.h> transport
- *    layer in one go. Hence, there's a deferment mechanism which
- *    works after packet encryption.
- * 
- *  - In order to avoid sending any connection-layer messages
- *    during repeat key exchange, we have to queue up any such
- *    outgoing messages _before_ they are encrypted (and in
- *    particular before they're allocated sequence numbers), and
- *    then send them once we've finished.
- * 
- * I call these mechanisms `defer' and `queue' respectively, so as
- * to distinguish them reasonably easily.
- * 
- * The functions send_noqueue() and defer_noqueue() free the packet
- * structure they are passed. Every outgoing packet goes through
- * precisely one of these functions in its life; packets passed to
- * ssh2_pkt_send() or ssh2_pkt_defer() either go straight to one of
- * these or get queued, and then when the queue is later emptied
- * the packets are all passed to defer_noqueue().
- *
- * When using a CBC-mode cipher, it's necessary to ensure that an
- * attacker can't provide data to be encrypted using an IV that they
- * know.  We ensure this by prefixing each packet that might contain
- * user data with an SSH_MSG_IGNORE.  This is done using the deferral
- * mechanism, so in this case send_noqueue() ends up redirecting to
- * defer_noqueue().  If you don't like this inefficiency, don't use
- * CBC.
- */
-
-static void ssh2_pkt_defer_noqueue(Ssh, PktOut *, int);
-static void ssh_pkt_defersend(Ssh);
-
-/*
- * Send an SSH-2 packet immediately, without queuing or deferring.
+ * Send an SSH-2 packet immediately, without queuing.
  */
 static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
 {
     ptrlen data;
-    int backlog;
-    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC)) {
-	/* We need to send two packets, so use the deferral mechanism. */
-	ssh2_pkt_defer_noqueue(ssh, pkt, FALSE);
-	ssh_pkt_defersend(ssh);
-	return;
+    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
+	bufchain_size(&ssh->outgoing_data) != 0 &&
+	!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
+        /*
+         * When using a CBC-mode cipher in SSH-2, it's necessary to
+         * ensure that an attacker can't provide data to be encrypted
+         * using an IV that they know. We ensure this by prefixing
+         * each packet that might contain user data with an
+         * SSH_MSG_IGNORE.
+         */
+	PktOut *ipkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
+	put_stringz(ipkt, "");
+        data = ssh2_pkt_construct(ssh, ipkt);
+        bufchain_add(&ssh->outgoing_data, data.ptr, data.len);
     }
     data = ssh2_pkt_construct(ssh, pkt);
-    backlog = s_write(ssh, data.ptr, data.len);
-    if (backlog > SSH_MAX_BACKLOG)
-	ssh_throttle_all(ssh, 1, backlog);
+    bufchain_add(&ssh->outgoing_data, data.ptr, data.len);
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
 
     ssh->outgoing_data_size += pkt->encrypted_len;
     if (!ssh->kex_in_progress &&
@@ -2387,36 +2328,6 @@ static void ssh2_pkt_send_noqueue(Ssh ssh, PktOut *pkt)
         queue_idempotent_callback(&ssh->ssh2_transport_icb);
     }
 
-    ssh_free_pktout(pkt);
-}
-
-/*
- * Defer an SSH-2 packet.
- */
-static void ssh2_pkt_defer_noqueue(Ssh ssh, PktOut *pkt, int noignore)
-{
-    ptrlen data;
-    if (ssh->cscipher != NULL && (ssh->cscipher->flags & SSH_CIPHER_IS_CBC) &&
-	ssh->deferred_len == 0 && !noignore &&
-	!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
-	/*
-	 * Interpose an SSH_MSG_IGNORE to ensure that user data don't
-	 * get encrypted with a known IV.
-	 */
-	PktOut *ipkt = ssh2_pkt_init(SSH2_MSG_IGNORE);
-	put_stringz(ipkt, "");
-	ssh2_pkt_defer_noqueue(ssh, ipkt, TRUE);
-    }
-    data = ssh2_pkt_construct(ssh, pkt);
-    if (ssh->deferred_len + data.len > ssh->deferred_size) {
-	ssh->deferred_size = ssh->deferred_len + data.len + 128;
-	ssh->deferred_send_data = sresize(ssh->deferred_send_data,
-					  ssh->deferred_size,
-					  unsigned char);
-    }
-    memcpy(ssh->deferred_send_data + ssh->deferred_len, data.ptr, data.len);
-    ssh->deferred_len += data.len;
-    ssh->deferred_data_size += pkt->encrypted_len;
     ssh_free_pktout(pkt);
 }
 
@@ -2441,57 +2352,37 @@ static void ssh2_pkt_queue(Ssh ssh, PktOut *pkt)
  */
 static void ssh2_pkt_send(Ssh ssh, PktOut *pkt)
 {
-    if (ssh->queueing)
+    if (ssh->queueing) {
 	ssh2_pkt_queue(ssh, pkt);
-    else
+    } else {
 	ssh2_pkt_send_noqueue(ssh, pkt);
+    }
 }
 
-/*
- * Either queue or defer a packet, depending on whether queueing is
- * set.
- */
-static void ssh2_pkt_defer(Ssh ssh, PktOut *pkt)
+static void ssh_send_outgoing_data(void *ctx)
 {
-    if (ssh->queueing)
-	ssh2_pkt_queue(ssh, pkt);
-    else
-	ssh2_pkt_defer_noqueue(ssh, pkt, FALSE);
-}
+    Ssh ssh = (Ssh)ctx;
 
-/*
- * Send the whole deferred data block constructed by
- * ssh2_pkt_defer() or SSH-1's defer_packet().
- * 
- * The expected use of the defer mechanism is that you call
- * ssh2_pkt_defer() a few times, then call ssh_pkt_defersend(). If
- * not currently queueing, this simply sets up deferred_send_data
- * and then sends it. If we _are_ currently queueing, the calls to
- * ssh2_pkt_defer() put the deferred packets on to the queue
- * instead, and therefore ssh_pkt_defersend() has no deferred data
- * to send. Hence, there's no need to make it conditional on
- * ssh->queueing.
- */
-static void ssh_pkt_defersend(Ssh ssh)
-{
-    int backlog;
-    backlog = s_write(ssh, ssh->deferred_send_data, ssh->deferred_len);
-    ssh->deferred_len = ssh->deferred_size = 0;
-    sfree(ssh->deferred_send_data);
-    ssh->deferred_send_data = NULL;
-    if (backlog > SSH_MAX_BACKLOG)
-	ssh_throttle_all(ssh, 1, backlog);
+    while (bufchain_size(&ssh->outgoing_data) > 0) {
+        void *data;
+        int len, backlog;
 
-    if (ssh->version == 2) {
-	ssh->outgoing_data_size += ssh->deferred_data_size;
-	ssh->deferred_data_size = 0;
-	if (!ssh->kex_in_progress &&
-	    !ssh->bare_connection &&
-	    ssh->max_data_size != 0 &&
+        bufchain_prefix(&ssh->outgoing_data, &data, &len);
+        backlog = s_write(ssh, data, len);
+        bufchain_consume(&ssh->outgoing_data, len);
+
+	ssh->outgoing_data_size += len;
+        if (ssh->version == 2 && !ssh->kex_in_progress &&
+	    !ssh->bare_connection && ssh->max_data_size != 0 &&
 	    ssh->outgoing_data_size > ssh->max_data_size) {
             ssh->rekey_reason = "too much data sent";
             ssh->rekey_class = RK_NORMAL;
             queue_idempotent_callback(&ssh->ssh2_transport_icb);
+        }
+
+        if (backlog > SSH_MAX_BACKLOG) {
+            ssh_throttle_all(ssh, 1, backlog);
+            return;
         }
     }
 }
@@ -2518,26 +2409,27 @@ static void ssh2_pkt_send_with_padding(Ssh ssh, PktOut *pkt, int padsize)
 #endif
     {
 	/*
-	 * If we can't do that, however, an alternative approach is
-	 * to use the pkt_defer mechanism to bundle the packet
-	 * tightly together with an SSH_MSG_IGNORE such that their
-	 * combined length is a constant. So first we construct the
-	 * final form of this packet and defer its sending.
+	 * If we can't do that, however, an alternative approach is to
+	 * bundle the packet tightly together with an SSH_MSG_IGNORE
+	 * such that their combined length is a constant. So first we
+	 * construct the final form of this packet and append it to
+	 * the outgoing_data bufchain...
 	 */
-	ssh2_pkt_defer(ssh, pkt);
+	ssh2_pkt_send(ssh, pkt);
 
 	/*
-	 * Now construct an SSH_MSG_IGNORE which includes a string
-	 * that's an exact multiple of the cipher block size. (If
-	 * the cipher is NULL so that the block size is
-	 * unavailable, we don't do this trick at all, because we
-	 * gain nothing by it.)
+         * ... but before we return from this function (triggering a
+	 * call to the outgoing_data_sender), we also construct an
+	 * SSH_MSG_IGNORE which includes a string that's an exact
+	 * multiple of the cipher block size. (If the cipher is NULL
+	 * so that the block size is unavailable, we don't do this
+	 * trick at all, because we gain nothing by it.)
 	 */
 	if (ssh->cscipher &&
 	    !(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
 	    int stringlen, i;
 
-	    stringlen = (256 - ssh->deferred_len);
+	    stringlen = (256 - bufchain_size(&ssh->outgoing_data));
 	    stringlen += ssh->cscipher->blksize - 1;
 	    stringlen -= (stringlen % ssh->cscipher->blksize);
 	    if (ssh->cscomp) {
@@ -2559,16 +2451,13 @@ static void ssh2_pkt_send_with_padding(Ssh ssh, PktOut *pkt, int padsize)
                     put_byte(substr, random_byte());
                 put_stringsb(pkt, substr);
             }
-	    ssh2_pkt_defer(ssh, pkt);
+	    ssh2_pkt_send(ssh, pkt);
 	}
-	ssh_pkt_defersend(ssh);
     }
 }
 
 /*
- * Send all queued SSH-2 packets. We send them by means of
- * ssh2_pkt_defer_noqueue(), in case they included a pair of
- * packets that needed to be lumped together.
+ * Send all queued SSH-2 packets.
  */
 static void ssh2_pkt_queuesend(Ssh ssh)
 {
@@ -2577,10 +2466,8 @@ static void ssh2_pkt_queuesend(Ssh ssh)
     assert(!ssh->queueing);
 
     for (i = 0; i < ssh->queuelen; i++)
-	ssh2_pkt_defer_noqueue(ssh, ssh->queue[i], FALSE);
+	ssh2_pkt_send_noqueue(ssh, ssh->queue[i]);
     ssh->queuelen = 0;
-
-    ssh_pkt_defersend(ssh);
 }
 
 #if 0
@@ -2913,7 +2800,8 @@ static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
 
     logeventf(ssh, "We claim version: %.*s",
 	      strcspn(verstring, "\015\012"), verstring);
-    s_write(ssh, verstring, strlen(verstring));
+    bufchain_add(&ssh->outgoing_data, verstring, strlen(verstring));
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
     sfree(verstring);
 }
 
@@ -4826,9 +4714,9 @@ static void do_ssh1_login(void *vctx)
 
 		for (i = bottom; i <= top; i++) {
 		    if (i == pwlen) {
-			defer_packet(ssh, s->pwpkt_type,
-                                     PKT_STR,s->cur_prompt->prompts[0]->result,
-				     PKT_END);
+                        send_packet(ssh, s->pwpkt_type,
+                                    PKT_STR, s->cur_prompt->prompts[0]->result,
+                                    PKT_END);
 		    } else {
 			for (j = 0; j < i; j++) {
 			    do {
@@ -4836,12 +4724,11 @@ static void do_ssh1_login(void *vctx)
 			    } while (randomstr[j] == '\0');
 			}
 			randomstr[i] = '\0';
-			defer_packet(ssh, SSH1_MSG_IGNORE,
-				     PKT_STR, randomstr, PKT_END);
+			send_packet(ssh, SSH1_MSG_IGNORE,
+                                    PKT_STR, randomstr, PKT_END);
 		    }
 		}
 		logevent("Sending password with camouflage packets");
-		ssh_pkt_defersend(ssh);
 		sfree(randomstr);
 	    } 
 	    else if (!(ssh->remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
@@ -11898,9 +11785,6 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->eof_needed = FALSE;
     ssh->ldisc = NULL;
     ssh->logctx = NULL;
-    ssh->deferred_send_data = NULL;
-    ssh->deferred_len = 0;
-    ssh->deferred_size = 0;
     ssh->fallback_cmd = 0;
     ssh->pkt_kctx = SSH2_PKTCTX_NOKEX;
     ssh->pkt_actx = SSH2_PKTCTX_NOAUTH;
@@ -11954,6 +11838,10 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
     ssh->user_input_consumer.fn = ssh_process_user_input;
     ssh->user_input_consumer.ctx = ssh;
     ssh->user_input_consumer.queued = FALSE;
+    bufchain_init(&ssh->outgoing_data);
+    ssh->outgoing_data_sender.fn = ssh_send_outgoing_data;
+    ssh->outgoing_data_sender.ctx = ssh;
+    ssh->outgoing_data_sender.queued = FALSE;
     ssh->current_user_input_fn = NULL;
     ssh->pending_newkeys = FALSE;
     ssh->rekey_reason = NULL;
@@ -12010,8 +11898,7 @@ static const char *ssh_init(void *frontend_handle, void **backend_handle,
 
     ssh->pinger = NULL;
 
-    ssh->incoming_data_size = ssh->outgoing_data_size =
-	ssh->deferred_data_size = 0L;
+    ssh->incoming_data_size = ssh->outgoing_data_size = 0L;
     ssh->max_data_size = parse_blocksize(conf_get_str(ssh->conf,
 						      CONF_ssh_rekey_data));
     ssh->kex_in_progress = FALSE;
@@ -12120,7 +12007,6 @@ static void ssh_free(void *handle)
 	freetree234(ssh->rportfwds);
 	ssh->rportfwds = NULL;
     }
-    sfree(ssh->deferred_send_data);
     if (ssh->x11disp)
 	x11_free_display(ssh->x11disp);
     while ((auth = delpos234(ssh->x11authtree, 0)) != NULL)
@@ -12132,6 +12018,7 @@ static void ssh_free(void *handle)
     sfree(ssh->do_ssh2_userauth_state);
     sfree(ssh->do_ssh2_connection_state);
     bufchain_clear(&ssh->incoming_data);
+    bufchain_clear(&ssh->outgoing_data);
     sfree(ssh->incoming_data_eof_message);
     pq_clear(&ssh->pq_full);
     pq_clear(&ssh->pq_ssh1_login);
