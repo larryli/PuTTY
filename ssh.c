@@ -1203,53 +1203,6 @@ static int s_write(Ssh ssh, const void *data, int len)
     return sk_write(ssh->s, data, len);
 }
 
-/*
- * Construct a SSH-1 packet with the specified contents.
- * (This all-at-once interface used to be the only one, but now SSH-1
- * packets can also be constructed incrementally.)
- */
-static PktOut *construct_packet(Ssh ssh, int pkttype, va_list ap)
-{
-    int argtype;
-    Bignum bn;
-    PktOut *pkt;
-
-    pkt = ssh_bpp_new_pktout(ssh->bpp, pkttype);
-
-    while ((argtype = va_arg(ap, int)) != PKT_END) {
-	unsigned char *argp, argchar;
-	char *sargp;
-	unsigned long argint;
-	int arglen;
-	switch (argtype) {
-	  /* Actual fields in the packet */
-	  case PKT_INT:
-	    argint = va_arg(ap, int);
-	    put_uint32(pkt, argint);
-	    break;
-	  case PKT_CHAR:
-	    argchar = (unsigned char) va_arg(ap, int);
-	    put_byte(pkt, argchar);
-	    break;
-	  case PKT_DATA:
-	    argp = va_arg(ap, unsigned char *);
-	    arglen = va_arg(ap, int);
-	    put_data(pkt, argp, arglen);
-	    break;
-	  case PKT_STR:
-	    sargp = va_arg(ap, char *);
-	    put_stringz(pkt, sargp);
-	    break;
-	  case PKT_BIGNUM:
-	    bn = va_arg(ap, Bignum);
-	    put_mp_ssh1(pkt, bn);
-	    break;
-	}
-    }
-
-    return pkt;
-}
-
 static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
 {
     if (ssh->version == 2 && ssh->v2_cbc_ignore_workaround &&
@@ -1268,16 +1221,6 @@ static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
 
     ssh_bpp_format_packet(ssh->bpp, pkt);
     queue_idempotent_callback(&ssh->outgoing_data_sender);
-}
-
-static void send_packet(Ssh ssh, int pkttype, ...)
-{
-    PktOut *pkt;
-    va_list ap;
-    va_start(ap, pkttype);
-    pkt = construct_packet(ssh, pkttype, ap);
-    va_end(ap);
-    ssh_pkt_write(ssh, pkt);
 }
 
 static int ssh_versioncmp(const char *a, const char *b)
@@ -2773,8 +2716,9 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
 	error = dupstr("Disconnected");
     if (wire_reason) {
 	if (ssh->version == 1) {
-	    send_packet(ssh, SSH1_MSG_DISCONNECT, PKT_STR, wire_reason,
-			PKT_END);
+	    PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_DISCONNECT);
+            put_stringz(pktout, wire_reason);
+            ssh_pkt_write(ssh, pktout);
 	} else if (ssh->version == 2) {
 	    PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_DISCONNECT);
 	    put_uint32(pktout, code);
@@ -2853,6 +2797,7 @@ static void do_ssh1_login(void *vctx)
 {
     Ssh ssh = (Ssh)vctx;
     PktIn *pktin;
+    PktOut *pkt;
 
     int i, j, ret;
     ptrlen pl;
@@ -3096,12 +3041,13 @@ static void do_ssh1_login(void *vctx)
 	break;
     }
 
-    send_packet(ssh, SSH1_CMSG_SESSION_KEY,
-		PKT_CHAR, s->cipher_type,
-		PKT_DATA, s->cookie, 8,
-		PKT_CHAR, (s->len * 8) >> 8, PKT_CHAR, (s->len * 8) & 0xFF,
-		PKT_DATA, s->rsabuf, s->len,
-		PKT_INT, ssh->v1_local_protoflags, PKT_END);
+    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_SESSION_KEY);
+    put_byte(pkt, s->cipher_type);
+    put_data(pkt, s->cookie, 8);
+    put_uint16(pkt, s->len * 8);
+    put_data(pkt, s->rsabuf, s->len);
+    put_uint32(pkt, ssh->v1_local_protoflags);
+    ssh_pkt_write(ssh, pkt);
 
     logevent("Trying to enable encryption...");
 
@@ -3173,7 +3119,10 @@ static void do_ssh1_login(void *vctx)
         free_prompts(s->cur_prompt);
     }
 
-    send_packet(ssh, SSH1_CMSG_USER, PKT_STR, ssh->username, PKT_END);
+    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_USER);
+    put_stringz(pkt, ssh->username);
+    ssh_pkt_write(ssh, pkt);
+
     {
         char *userlog = dupprintf("Sent username \"%s\"", ssh->username);
         logevent(userlog);
@@ -3305,8 +3254,9 @@ static void do_ssh1_login(void *vctx)
 			    continue;
 		    }
 		    logeventf(ssh, "Trying Pageant key #%d", s->keyi);
-		    send_packet(ssh, SSH1_CMSG_AUTH_RSA,
-				PKT_BIGNUM, s->key.modulus, PKT_END);
+                    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AUTH_RSA);
+                    put_mp_ssh1(pkt, s->key.modulus);
+                    ssh_pkt_write(ssh, pkt);
 		    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login))
                                       != NULL);
 		    if (pktin->type != SSH1_SMSG_AUTH_RSA_CHALLENGE) {
@@ -3351,9 +3301,10 @@ static void do_ssh1_login(void *vctx)
 			if (ret) {
 			    if (ret[4] == SSH1_AGENT_RSA_RESPONSE) {
 				logevent("Sending Pageant's response");
-				send_packet(ssh, SSH1_CMSG_AUTH_RSA_RESPONSE,
-					    PKT_DATA, ret + 5, 16,
-					    PKT_END);
+                                pkt = ssh_bpp_new_pktout(ssh->bpp,
+                                    SSH1_CMSG_AUTH_RSA_RESPONSE);
+                                put_data(pkt, ret + 5, 16);
+                                ssh_pkt_write(ssh, pkt);
 				sfree(ret);
 				crMaybeWaitUntilV(
                                     (pktin = pq_pop(&ssh->pq_ssh1_login))
@@ -3487,8 +3438,9 @@ static void do_ssh1_login(void *vctx)
 		/*
 		 * Send a public key attempt.
 		 */
-		send_packet(ssh, SSH1_CMSG_AUTH_RSA,
-			    PKT_BIGNUM, s->key.modulus, PKT_END);
+                pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AUTH_RSA);
+                put_mp_ssh1(pkt, s->key.modulus);
+                ssh_pkt_write(ssh, pkt);
 
 		crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login))
                                   != NULL);
@@ -3524,8 +3476,10 @@ static void do_ssh1_login(void *vctx)
 		    put_data(&md5c, s->session_id, 16);
 		    MD5Final(buffer, &md5c);
 
-		    send_packet(ssh, SSH1_CMSG_AUTH_RSA_RESPONSE,
-				PKT_DATA, buffer, 16, PKT_END);
+                    pkt = ssh_bpp_new_pktout(
+                        ssh->bpp, SSH1_CMSG_AUTH_RSA_RESPONSE);
+                    put_data(pkt, buffer, 16);
+                    ssh_pkt_write(ssh, pkt);
 
 		    freebn(challenge);
 		    freebn(response);
@@ -3558,7 +3512,8 @@ static void do_ssh1_login(void *vctx)
 	    !s->tis_auth_refused) {
 	    s->pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
 	    logevent("Requested TIS authentication");
-	    send_packet(ssh, SSH1_CMSG_AUTH_TIS, PKT_END);
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AUTH_TIS);
+            ssh_pkt_write(ssh, pkt);
 	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 	    if (pktin->type != SSH1_SMSG_AUTH_TIS_CHALLENGE) {
 		logevent("TIS authentication declined");
@@ -3600,7 +3555,8 @@ static void do_ssh1_login(void *vctx)
 	    !s->ccard_auth_refused) {
 	    s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
 	    logevent("Requested CryptoCard authentication");
-	    send_packet(ssh, SSH1_CMSG_AUTH_CCARD, PKT_END);
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AUTH_CCARD);
+            ssh_pkt_write(ssh, pkt);
 	    crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_login)) != NULL);
 	    if (pktin->type != SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
 		logevent("CryptoCard authentication declined");
@@ -3724,7 +3680,6 @@ static void do_ssh1_login(void *vctx)
 		 * we can use the primary defence.
 		 */
 		int bottom, top, pwlen, i;
-		char *randomstr;
 
 		pwlen = strlen(s->cur_prompt->prompts[0]->result);
 		if (pwlen < 16) {
@@ -3737,26 +3692,22 @@ static void do_ssh1_login(void *vctx)
 
 		assert(pwlen >= bottom && pwlen <= top);
 
-		randomstr = snewn(top + 1, char);
-
 		for (i = bottom; i <= top; i++) {
 		    if (i == pwlen) {
-                        send_packet(ssh, s->pwpkt_type,
-                                    PKT_STR, s->cur_prompt->prompts[0]->result,
-                                    PKT_END);
+                        pkt = ssh_bpp_new_pktout(ssh->bpp, s->pwpkt_type);
+                        put_stringz(pkt, s->cur_prompt->prompts[0]->result);
+                        ssh_pkt_write(ssh, pkt);
 		    } else {
-			for (j = 0; j < i; j++) {
-			    do {
-				randomstr[j] = random_byte();
-			    } while (randomstr[j] == '\0');
-			}
-			randomstr[i] = '\0';
-			send_packet(ssh, SSH1_MSG_IGNORE,
-                                    PKT_STR, randomstr, PKT_END);
+                        strbuf *random_data = strbuf_new();
+			for (j = 0; j < i; j++)
+                            put_byte(random_data, random_byte());
+
+                        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_IGNORE);
+                        put_stringsb(pkt, random_data);
+                        ssh_pkt_write(ssh, pkt);
 		    }
 		}
 		logevent("Sending password with camouflage packets");
-		sfree(randomstr);
 	    } 
 	    else if (!(ssh->remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
 		/*
@@ -3764,42 +3715,30 @@ static void do_ssh1_login(void *vctx)
 		 * but can deal with padded passwords, so we
 		 * can use the secondary defence.
 		 */
-		char string[64];
-		char *ss;
-		int len;
+                strbuf *padded_pw = strbuf_new();
 
-		len = strlen(s->cur_prompt->prompts[0]->result);
-		if (len < sizeof(string)) {
-		    ss = string;
-		    strcpy(string, s->cur_prompt->prompts[0]->result);
-		    len++;	       /* cover the zero byte */
-		    while (len < sizeof(string)) {
-			string[len++] = (char) random_byte();
-		    }
-		} else {
-		    ss = s->cur_prompt->prompts[0]->result;
-		}
 		logevent("Sending length-padded password");
-		send_packet(ssh, s->pwpkt_type,
-			    PKT_INT, len, PKT_DATA, ss, len,
-			    PKT_END);
+                pkt = ssh_bpp_new_pktout(ssh->bpp, s->pwpkt_type);
+                put_asciz(padded_pw, s->cur_prompt->prompts[0]->result);
+                do {
+                    put_byte(padded_pw, random_byte());
+                } while (padded_pw->len % 64 != 0);
+                put_stringsb(pkt, padded_pw);
+                ssh_pkt_write(ssh, pkt);
 	    } else {
 		/*
 		 * The server is believed unable to cope with
 		 * any of our password camouflage methods.
 		 */
-		int len;
-		len = strlen(s->cur_prompt->prompts[0]->result);
 		logevent("Sending unpadded password");
-		send_packet(ssh, s->pwpkt_type,
-                            PKT_INT, len,
-			    PKT_DATA, s->cur_prompt->prompts[0]->result, len,
-			    PKT_END);
+                pkt = ssh_bpp_new_pktout(ssh->bpp, s->pwpkt_type);
+                put_stringz(pkt, s->cur_prompt->prompts[0]->result);
+                ssh_pkt_write(ssh, pkt);
 	    }
 	} else {
-	    send_packet(ssh, s->pwpkt_type,
-			PKT_STR, s->cur_prompt->prompts[0]->result,
-			PKT_END);
+            pkt = ssh_bpp_new_pktout(ssh->bpp, s->pwpkt_type);
+            put_stringz(pkt, s->cur_prompt->prompts[0]->result);
+            ssh_pkt_write(ssh, pkt);
 	}
 	logevent("Sent password");
 	free_prompts(s->cur_prompt);
@@ -3838,6 +3777,7 @@ static void do_ssh1_login(void *vctx)
 static void ssh_channel_try_eof(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
+    PktOut *pktout;
     assert(c->pending_eof);          /* precondition for calling us */
     if (c->halfopen)
         return;                 /* can't close: not even opened yet */
@@ -3846,11 +3786,11 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
 
     c->pending_eof = FALSE;            /* we're about to send it */
     if (ssh->version == 1) {
-        send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE, PKT_INT, c->remoteid,
-                    PKT_END);
+        pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_CLOSE);
+        put_uint32(pktout, c->remoteid);
+        ssh_pkt_write(ssh, pktout);
         c->closes |= CLOSES_SENT_EOF;
     } else {
-        PktOut *pktout;
         pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_CHANNEL_EOF);
         put_uint32(pktout, c->remoteid);
         ssh2_pkt_send(ssh, pktout);
@@ -4339,6 +4279,8 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 			      epf->daddr, epf->dport);
 		    sfree(pf);
 		} else {
+                    PktOut *pktout;
+
 		    logeventf(ssh, "Requesting remote port %s"
 			      " forward to %s", sportdesc, dportdesc);
 
@@ -4348,16 +4290,16 @@ static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
 		    pf->pfrec = epf;
 
 		    if (ssh->version == 1) {
-			send_packet(ssh, SSH1_CMSG_PORT_FORWARD_REQUEST,
-				    PKT_INT, epf->sport,
-				    PKT_STR, epf->daddr,
-				    PKT_INT, epf->dport,
-				    PKT_END);
+                        pktout = ssh_bpp_new_pktout(
+                            ssh->bpp, SSH1_CMSG_PORT_FORWARD_REQUEST);
+                        put_uint32(pktout, epf->sport);
+                        put_stringz(pktout, epf->daddr);
+                        put_uint32(pktout, epf->dport);
+                        ssh_pkt_write(ssh, pktout);
 			ssh_queue_handler(ssh, SSH1_SMSG_SUCCESS,
 					  SSH1_SMSG_FAILURE,
 					  ssh_rportfwd_succfail, pf);
 		    } else {
-			PktOut *pktout;
 			pktout = ssh_bpp_new_pktout(
                             ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
 			put_stringz(pktout, "tcpip-forward");
@@ -4401,13 +4343,15 @@ static void ssh1_smsg_x11_open(Ssh ssh, PktIn *pktin)
     /* Remote side is trying to open a channel to talk to our
      * X-Server. Give them back a local channel number. */
     struct ssh_channel *c;
+    PktOut *pkt;
     int remoteid = get_uint32(pktin);
 
     logevent("Received X11 connect request");
     /* Refuse if X11 forwarding is disabled. */
     if (!ssh->X11_fwd_enabled) {
-	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-		    PKT_INT, remoteid, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_FAILURE);
+        put_uint32(pkt, remoteid);
+        ssh_pkt_write(ssh, pkt);
 	logevent("Rejected X11 connect request");
     } else {
 	c = snew(struct ssh_channel);
@@ -4418,9 +4362,10 @@ static void ssh1_smsg_x11_open(Ssh ssh, PktIn *pktin)
         c->remoteid = remoteid;
         c->halfopen = FALSE;
         c->type = CHAN_X11;	/* identify channel type */
-        send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-                    PKT_INT, c->remoteid, PKT_INT,
-                    c->localid, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
+        put_uint32(pkt, c->remoteid);
+        put_uint32(pkt, c->localid);
+        ssh_pkt_write(ssh, pkt);
         logevent("Opened X11 forward channel");
     }
 }
@@ -4430,12 +4375,14 @@ static void ssh1_smsg_agent_open(Ssh ssh, PktIn *pktin)
     /* Remote side is trying to open a channel to talk to our
      * agent. Give them back a local channel number. */
     struct ssh_channel *c;
+    PktOut *pkt;
     int remoteid = toint(get_uint32(pktin));
 
     /* Refuse if agent forwarding is disabled. */
     if (!ssh->agentfwd_enabled) {
-	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-		    PKT_INT, remoteid, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_FAILURE);
+        put_uint32(pkt, remoteid);
+        ssh_pkt_write(ssh, pkt);
     } else {
 	c = snew(struct ssh_channel);
 	c->ssh = ssh;
@@ -4445,9 +4392,10 @@ static void ssh1_smsg_agent_open(Ssh ssh, PktIn *pktin)
 	c->type = CHAN_AGENT;	/* identify channel type */
 	c->u.a.pending = NULL;
         bufchain_init(&c->u.a.inbuffer);
-	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-		    PKT_INT, c->remoteid, PKT_INT, c->localid,
-		    PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
+        put_uint32(pkt, c->remoteid);
+        put_uint32(pkt, c->localid);
+        ssh_pkt_write(ssh, pkt);
     }
 }
 
@@ -4456,6 +4404,7 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
     /* Remote side is trying to open a channel to talk to a
      * forwarded port. Give them back a local channel number. */
     struct ssh_rportfwd pf, *pfp;
+    PktOut *pkt;
     int remoteid;
     int port;
     ptrlen host;
@@ -4472,8 +4421,9 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
     if (pfp == NULL) {
 	logeventf(ssh, "Rejected remote port open request for %s:%d",
 		  pf.dhost, port);
-	send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-		    PKT_INT, remoteid, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_FAILURE);
+        put_uint32(pkt, remoteid);
+        ssh_pkt_write(ssh, pkt);
     } else {
         struct ssh_channel *c = snew(struct ssh_channel);
         c->ssh = ssh;
@@ -4486,16 +4436,19 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
 	    logeventf(ssh, "Port open failed: %s", err);
             sfree(err);
 	    sfree(c);
-	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_FAILURE,
-			PKT_INT, remoteid, PKT_END);
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_FAILURE);
+            put_uint32(pkt, remoteid);
+            ssh_pkt_write(ssh, pkt);
 	} else {
 	    ssh_channel_init(c);
 	    c->remoteid = remoteid;
 	    c->halfopen = FALSE;
 	    c->type = CHAN_SOCKDATA;	/* identify channel type */
-	    send_packet(ssh, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION,
-			PKT_INT, c->remoteid, PKT_INT,
-			c->localid, PKT_END);
+            pkt = ssh_bpp_new_pktout(
+                ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
+            put_uint32(pkt, c->remoteid);
+            put_uint32(pkt, c->localid);
+            ssh_pkt_write(ssh, pkt);
 	    logevent("Forwarded port opened successfully");
 	}
     }
@@ -4569,8 +4522,10 @@ static void ssh1_msg_channel_close(Ssh ssh, PktIn *pktin)
 
         if (!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes) &&
             !(c->closes & CLOSES_SENT_CLOSE)) {
-            send_packet(ssh, SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION,
-                        PKT_INT, c->remoteid, PKT_END);
+            PktOut *pkt = ssh_bpp_new_pktout(
+                ssh->bpp, SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION);
+            put_uint32(pkt, c->remoteid);
+            ssh_pkt_write(ssh, pkt);
             c->closes |= CLOSES_SENT_CLOSE;
         }
 
@@ -4635,9 +4590,11 @@ static void ssh1_msg_channel_data(Ssh ssh, PktIn *pktin)
 
 static void ssh1_smsg_exit_status(Ssh ssh, PktIn *pktin)
 {
+    PktOut *pkt;
     ssh->exitcode = get_uint32(pktin);
     logeventf(ssh, "Server sent command exit status %d", ssh->exitcode);
-    send_packet(ssh, SSH1_CMSG_EXIT_CONFIRMATION, PKT_END);
+    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_EXIT_CONFIRMATION);
+    ssh_pkt_write(ssh, pkt);
     /*
      * In case `helpful' firewalls or proxies tack
      * extra human-readable text on the end of the
@@ -4673,6 +4630,7 @@ static void do_ssh1_connection(void *vctx)
 {
     Ssh ssh = (Ssh)vctx;
     PktIn *pktin;
+    PktOut *pkt;
 
     crBegin(ssh->do_ssh1_connection_crstate);
 
@@ -4692,7 +4650,8 @@ static void do_ssh1_connection(void *vctx)
 
     if (ssh_agent_forwarding_permitted(ssh)) {
 	logevent("Requesting agent forwarding");
-	send_packet(ssh, SSH1_CMSG_AGENT_REQUEST_FORWARDING, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AGENT_REQUEST_FORWARDING);
+        ssh_pkt_write(ssh, pkt);
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_connection)) != NULL);
 	if (pktin->type != SSH1_SMSG_SUCCESS
 	    && pktin->type != SSH1_SMSG_FAILURE) {
@@ -4721,18 +4680,13 @@ static void do_ssh1_connection(void *vctx)
             ssh->x11auth->disp = ssh->x11disp;
 
             logevent("Requesting X11 forwarding");
-            if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER) {
-                send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-                            PKT_STR, ssh->x11auth->protoname,
-                            PKT_STR, ssh->x11auth->datastring,
-                            PKT_INT, ssh->x11disp->screennum,
-                            PKT_END);
-            } else {
-                send_packet(ssh, SSH1_CMSG_X11_REQUEST_FORWARDING,
-                            PKT_STR, ssh->x11auth->protoname,
-                            PKT_STR, ssh->x11auth->datastring,
-                            PKT_END);
-            }
+            pkt = ssh_bpp_new_pktout(
+                ssh->bpp, SSH1_CMSG_X11_REQUEST_FORWARDING);
+            put_stringz(pkt, ssh->x11auth->protoname);
+            put_stringz(pkt, ssh->x11auth->datastring);
+            if (ssh->v1_local_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER)
+                put_uint32(pkt, ssh->x11disp->screennum);
+            ssh_pkt_write(ssh, pkt);
             crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_connection))
                               != NULL);
             if (pktin->type != SSH1_SMSG_SUCCESS
@@ -4791,7 +4745,9 @@ static void do_ssh1_connection(void *vctx)
     }
 
     if (conf_get_int(ssh->conf, CONF_compression)) {
-	send_packet(ssh, SSH1_CMSG_REQUEST_COMPRESSION, PKT_INT, 6, PKT_END);
+        pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_REQUEST_COMPRESSION);
+        put_uint32(pkt, 6);            /* gzip compression level */
+        ssh_pkt_write(ssh, pkt);
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_connection)) != NULL);
 	if (pktin->type != SSH1_SMSG_SUCCESS
 	    && pktin->type != SSH1_SMSG_FAILURE) {
@@ -4819,10 +4775,14 @@ static void do_ssh1_connection(void *vctx)
 	    cmd = conf_get_str(ssh->conf, CONF_remote_cmd2);
 	    ssh->fallback_cmd = TRUE;
 	}
-	if (*cmd)
-	    send_packet(ssh, SSH1_CMSG_EXEC_CMD, PKT_STR, cmd, PKT_END);
-	else
-	    send_packet(ssh, SSH1_CMSG_EXEC_SHELL, PKT_END);
+	if (*cmd) {
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_EXEC_CMD);
+            put_stringz(pkt, cmd);
+            ssh_pkt_write(ssh, pkt);
+        } else {
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_EXEC_SHELL);
+            ssh_pkt_write(ssh, pkt);
+        }
 	logevent("Started session");
     }
 
@@ -4861,9 +4821,9 @@ static void do_ssh1_connection(void *vctx)
             bufchain_prefix(&ssh->user_input, &data, &len);
             if (len > 512)
                 len = 512;
-            send_packet(ssh, SSH1_CMSG_STDIN_DATA,
-                        PKT_INT, len, PKT_DATA, data, len,
-                        PKT_END);
+            pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_STDIN_DATA);
+            put_string(pkt, data, len);
+            ssh_pkt_write(ssh, pkt);
             bufchain_consume(&ssh->user_input, len);
         }
 	crReturnV;
@@ -7037,11 +6997,10 @@ static int ssh_send_channel_data(struct ssh_channel *c, const char *buf,
 	bufchain_add(&c->v.v2.outbuffer, buf, len);
 	return ssh2_try_send(c);
     } else {
-	send_packet(c->ssh, SSH1_MSG_CHANNEL_DATA,
-		    PKT_INT, c->remoteid,
-		    PKT_INT, len,
-		    PKT_DATA, buf, len,
-		    PKT_END);
+        PktOut *pkt = ssh_bpp_new_pktout(c->ssh->bpp, SSH1_MSG_CHANNEL_DATA);
+        put_uint32(pkt, c->remoteid);
+        put_string(pkt, buf, len);
+        ssh_pkt_write(c->ssh, pkt);
 	/*
 	 * In SSH-1 we can return 0 here - implying that channels are
 	 * never individually throttled - because the only
@@ -11164,10 +11123,12 @@ static void ssh_size(void *handle, int width, int height)
       case SSH_STATE_SESSION:
 	if (!conf_get_int(ssh->conf, CONF_nopty)) {
 	    if (ssh->version == 1) {
-		send_packet(ssh, SSH1_CMSG_WINDOW_SIZE,
-			    PKT_INT, ssh->term_height,
-			    PKT_INT, ssh->term_width,
-			    PKT_INT, 0, PKT_INT, 0, PKT_END);
+                pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_WINDOW_SIZE);
+                put_uint32(pktout, ssh->term_height);
+                put_uint32(pktout, ssh->term_width);
+                put_uint32(pktout, 0);
+                put_uint32(pktout, 0);
+                ssh_pkt_write(ssh, pktout);
 	    } else if (ssh->mainchan) {
 		pktout = ssh2_chanreq_init(ssh->mainchan, "window-change",
 					   NULL, NULL);
@@ -11308,7 +11269,8 @@ static void ssh_special(void *handle, Telnet_Special code)
 	    return;
 	}
 	if (ssh->version == 1) {
-	    send_packet(ssh, SSH1_CMSG_EOF, PKT_END);
+            pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_EOF);
+            ssh_pkt_write(ssh, pktout);
 	} else if (ssh->mainchan) {
             sshfwd_write_eof(ssh->mainchan);
             ssh->send_ok = 0;          /* now stop trying to read from stdin */
@@ -11318,8 +11280,11 @@ static void ssh_special(void *handle, Telnet_Special code)
 	if (ssh->state == SSH_STATE_CLOSED
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
-	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE))
-		send_packet(ssh, SSH1_MSG_IGNORE, PKT_STR, "", PKT_END);
+	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
+                pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_IGNORE);
+                put_stringz(pktout, "");
+                ssh_pkt_write(ssh, pktout);
+            }
 	} else {
 	    if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
 		pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
@@ -11468,12 +11433,13 @@ void ssh_send_port_open(void *channel, const char *hostname, int port,
     logeventf(ssh, "Opening connection to %s:%d for %s", hostname, port, org);
 
     if (ssh->version == 1) {
-	send_packet(ssh, SSH1_MSG_PORT_OPEN,
-		    PKT_INT, c->localid,
-		    PKT_STR, hostname,
-		    PKT_INT, port,
-		    /* PKT_STR, <org:orgport>, */
-		    PKT_END);
+        pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_PORT_OPEN);
+        put_uint32(pktout, c->localid);
+        put_stringz(pktout, hostname);
+        put_uint32(pktout, port);
+        /* originator string would go here, but we didn't specify
+         * SSH_PROTOFLAG_HOST_IN_FWD_OPEN */
+        ssh_pkt_write(ssh, pktout);
     } else {
 	pktout = ssh2_chanopen_init(c, "direct-tcpip");
         {
