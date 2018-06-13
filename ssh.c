@@ -2310,11 +2310,14 @@ static void ssh_sent(Plug plug, int bufsize)
 {
     Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
     /*
-     * If the send backlog on the SSH socket itself clears, we
-     * should unthrottle the whole world if it was throttled.
+     * If the send backlog on the SSH socket itself clears, we should
+     * unthrottle the whole world if it was throttled, and also resume
+     * sending our bufchain of queued wire data.
      */
-    if (bufsize < SSH_MAX_BACKLOG)
+    if (bufsize < SSH_MAX_BACKLOG) {
 	ssh_throttle_all(ssh, 0, bufsize);
+        queue_idempotent_callback(&ssh->outgoing_data_sender);
+    }
 }
 
 static void ssh_hostport_setup(const char *host, int port, Conf *conf,
