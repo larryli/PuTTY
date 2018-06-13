@@ -582,7 +582,7 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
                                       s->out.sequence);
     }
 
-    put_padding(pkt, 0, maclen);
+    put_padding(pkt, maclen, 0);
 
     if (s->out.mac && s->out.etm_mode) {
         /*

@@ -11,7 +11,7 @@ void BinarySink_put_data(BinarySink *bs, const void *data, size_t len)
     bs->write(bs, data, len);
 }
 
-void BinarySink_put_padding(BinarySink *bs, unsigned char padbyte, size_t len)
+void BinarySink_put_padding(BinarySink *bs, size_t len, unsigned char padbyte)
 {
     char buf[16];
     memset(buf, padbyte, sizeof(buf));
