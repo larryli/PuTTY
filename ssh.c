@@ -5731,7 +5731,8 @@ static void do_ssh2_transport(void *vctx)
 		}
 		if ((i == KEXLIST_CSCOMP || i == KEXLIST_SCCOMP) &&
 		    in_commasep_string(alg->u.comp->delayed_name,
-                                       str.ptr, str.len))
+                                       str.ptr, str.len) &&
+                    !s->userauth_succeeded)
 		    s->pending_compression = TRUE;  /* try this later */
 	    }
 	    bombout(("Couldn't agree a %s (available: %.*s)",
