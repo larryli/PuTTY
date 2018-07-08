@@ -339,11 +339,11 @@ void pageant_handle_msg(BinarySink *bs,
                 return;
             }
 
-            put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
-
             signature = strbuf_new();
             ssh_key_sign(key->key, sigdata.ptr, sigdata.len,
                          BinarySink_UPCAST(signature));
+
+            put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
             put_stringsb(bs, signature);
 
             plog(logctx, logfn, "reply: SSH2_AGENT_SIGN_RESPONSE");

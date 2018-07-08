@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <ctype.h>
 #include <assert.h>
 #include <tchar.h>
@@ -777,8 +778,9 @@ PSID get_default_sid(void)
 #endif
 
 struct PageantReply {
-    char buf[AGENT_MAX_MSGLEN - 4];
-    int len, overflowed;
+    char *buf;
+    size_t size, len;
+    int overflowed;
     BinarySink_IMPLEMENTATION;
 };
 
@@ -786,7 +788,7 @@ static void pageant_reply_BinarySink_write(
     BinarySink *bs, const void *data, size_t len)
 {
     struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
-    if (!rep->overflowed && len <= sizeof(rep->buf) - rep->len) {
+    if (!rep->overflowed && len <= rep->size - rep->len) {
         memcpy(rep->buf + rep->len, data, len);
         rep->len += len;
     } else {
@@ -799,7 +801,7 @@ static char *answer_filemapping_message(const char *mapname)
     HANDLE maphandle = INVALID_HANDLE_VALUE;
     void *mapaddr = NULL;
     char *err = NULL;
-    unsigned char *msg;
+    size_t mapsize;
     unsigned msglen;
     struct PageantReply reply;
 
@@ -809,6 +811,8 @@ static char *answer_filemapping_message(const char *mapname)
     PSID expectedsid_bc = NULL;
     PSECURITY_DESCRIPTOR psd = NULL;
 #endif
+
+    reply.buf = NULL;
 
 #ifdef DEBUG_IPC
     debug(("mapname = \"%s\"\n", mapname));
@@ -886,6 +890,31 @@ static char *answer_filemapping_message(const char *mapname)
     debug(("mapped address = %p\n", mapaddr));
 #endif
 
+    {
+        MEMORY_BASIC_INFORMATION mbi;
+        size_t mbiSize = VirtualQuery(mapaddr, &mbi, sizeof(mbi));
+        if (mbiSize == 0) {
+            err = dupprintf("unable to query view of file mapping: %s",
+                            win_strerror(GetLastError()));
+            goto cleanup;
+        }
+        if (mbiSize < (offsetof(MEMORY_BASIC_INFORMATION, RegionSize) +
+                       sizeof(mbi.RegionSize))) {
+            err = dupstr("VirtualQuery returned too little data to get "
+                         "region size");
+            goto cleanup;
+        }
+
+        mapsize = mbi.RegionSize;
+    }
+#ifdef DEBUG_IPC
+    debug(("region size = %zd\n", mapsize));
+#endif
+    if (mapsize < 5) {
+        err = dupstr("mapping smaller than smallest possible request");
+        goto cleanup;
+    }
+
     msglen = GET_32BIT((unsigned char *)mapaddr);
 
 #ifdef DEBUG_IPC
@@ -893,17 +922,19 @@ static char *answer_filemapping_message(const char *mapname)
            msglen, (unsigned)((unsigned char *) mapaddr)[4]));
 #endif
 
+    reply.buf = (char *)mapaddr + 4;
+    reply.size = mapsize - 4;
     reply.len = 0;
     reply.overflowed = FALSE;
     BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
 
-    if (msglen > AGENT_MAX_MSGLEN - 4) {
+    if (msglen > mapsize - 4) {
         pageant_failure_msg(BinarySink_UPCAST(&reply),
                             "incoming length field too large", NULL, NULL);
     } else {
         pageant_handle_msg(BinarySink_UPCAST(&reply),
-                           msg + 4, msglen, NULL, NULL);
-        if (reply.overflowed || reply.len > AGENT_MAX_MSGLEN - 4) {
+                           (unsigned char *)mapaddr + 4, msglen, NULL, NULL);
+        if (reply.overflowed) {
             reply.len = 0;
             reply.overflowed = FALSE;
             pageant_failure_msg(BinarySink_UPCAST(&reply),
@@ -912,19 +943,13 @@ static char *answer_filemapping_message(const char *mapname)
         }
     }
 
-    if (reply.len > AGENT_MAX_MSGLEN - 4) {
-        err = dupstr("even error-message output overflows buffer");
+    if (reply.overflowed) {
+        err = dupstr("even failure message overflows buffer");
         goto cleanup;
     }
 
-    /*
-     * Windows Pageant answers messages in place, by overwriting the
-     * input message buffer.
-     */
-    assert(4 + reply.len <= AGENT_MAX_MSGLEN);
-    PUT_32BIT(msg, reply.len);
-    memcpy(msg + 4, reply.buf, reply.len);
-    smemclr(reply.buf, sizeof(reply.buf));
+    /* Write in the initial length field, and we're done. */
+    PUT_32BIT(((unsigned char *)mapaddr), reply.len);
 
   cleanup:
     /* expectedsid has the lifetime of the program, so we don't free it */
