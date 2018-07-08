@@ -380,59 +380,6 @@ void keylist_update(void)
     }
 }
 
-struct PageantReply {
-    char buf[AGENT_MAX_MSGLEN - 4];
-    int len, overflowed;
-    BinarySink_IMPLEMENTATION;
-};
-
-static void pageant_reply_BinarySink_write(
-    BinarySink *bs, const void *data, size_t len)
-{
-    struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
-    if (!rep->overflowed && len <= sizeof(rep->buf) - rep->len) {
-        memcpy(rep->buf + rep->len, data, len);
-        rep->len += len;
-    } else {
-        rep->overflowed = TRUE;
-    }
-}
-
-static void answer_msg(void *msgv)
-{
-    unsigned char *msg = (unsigned char *)msgv;
-    unsigned msglen;
-    struct PageantReply reply;
-
-    reply.len = 0;
-    reply.overflowed = FALSE;
-    BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
-
-    msglen = GET_32BIT(msg);
-    if (msglen > AGENT_MAX_MSGLEN) {
-        pageant_failure_msg(BinarySink_UPCAST(&reply),
-                            "incoming length field too large", NULL, NULL);
-    } else {
-        pageant_handle_msg(BinarySink_UPCAST(&reply),
-                           msg + 4, msglen, NULL, NULL);
-        if (reply.len > AGENT_MAX_MSGLEN) {
-            reply.len = 0;
-            reply.overflowed = FALSE;
-            pageant_failure_msg(BinarySink_UPCAST(&reply),
-                                "output would exceed max msglen", NULL, NULL);
-        }
-    }
-
-    /*
-     * Windows Pageant answers messages in place, by overwriting the
-     * input message buffer.
-     */
-    assert(4 + reply.len <= AGENT_MAX_MSGLEN);
-    PUT_32BIT(msg, reply.len);
-    memcpy(msg + 4, reply.buf, reply.len);
-    smemclr(reply.buf, sizeof(reply.buf));
-}
-
 static void win_add_keyfile(Filename *filename)
 {
     char *err;
@@ -829,6 +776,168 @@ PSID get_default_sid(void)
 }
 #endif
 
+struct PageantReply {
+    char buf[AGENT_MAX_MSGLEN - 4];
+    int len, overflowed;
+    BinarySink_IMPLEMENTATION;
+};
+
+static void pageant_reply_BinarySink_write(
+    BinarySink *bs, const void *data, size_t len)
+{
+    struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
+    if (!rep->overflowed && len <= sizeof(rep->buf) - rep->len) {
+        memcpy(rep->buf + rep->len, data, len);
+        rep->len += len;
+    } else {
+        rep->overflowed = TRUE;
+    }
+}
+
+static char *answer_filemapping_message(const char *mapname)
+{
+    HANDLE maphandle = INVALID_HANDLE_VALUE;
+    void *mapaddr = NULL;
+    char *err = NULL;
+    unsigned char *msg;
+    unsigned msglen;
+    struct PageantReply reply;
+
+#ifndef NO_SECURITY
+    PSID mapsid = NULL;
+    PSID expectedsid = NULL;
+    PSID expectedsid_bc = NULL;
+    PSECURITY_DESCRIPTOR psd = NULL;
+#endif
+
+#ifdef DEBUG_IPC
+    debug(("mapname = \"%s\"\n", mapname));
+#endif
+
+    maphandle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, mapname);
+    if (maphandle == NULL || maphandle == INVALID_HANDLE_VALUE) {
+        err = dupprintf("OpenFileMapping(\"%s\"): %s",
+                        mapname, win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+#ifdef DEBUG_IPC
+    debug(("maphandle = %p\n", maphandle));
+#endif
+
+#ifndef NO_SECURITY
+    if (has_security) {
+        DWORD retd;
+
+        if ((expectedsid = get_user_sid()) == NULL) {
+            err = dupstr("unable to get user SID");
+            goto cleanup;
+        }
+
+        if ((expectedsid_bc = get_default_sid()) == NULL) {
+            err = dupstr("unable to get default SID");
+            goto cleanup;
+        }
+
+        if ((retd = p_GetSecurityInfo(
+                 maphandle, SE_KERNEL_OBJECT, OWNER_SECURITY_INFORMATION,
+                 &mapsid, NULL, NULL, NULL, &psd) != ERROR_SUCCESS)) {
+            err = dupprintf("unable to get owner of file mapping: "
+                            "GetSecurityInfo returned: %s",
+                            win_strerror(retd));
+            goto cleanup;
+        }
+
+#ifdef DEBUG_IPC
+        {
+            LPTSTR ours, ours2, theirs;
+            ConvertSidToStringSid(mapsid, &theirs);
+            ConvertSidToStringSid(expectedsid, &ours);
+            ConvertSidToStringSid(expectedsid_bc, &ours2);
+            debug(("got sids:\n  oursnew=%s\n  oursold=%s\n"
+                   "  theirs=%s\n", ours, ours2, theirs));
+            LocalFree(ours);
+            LocalFree(ours2);
+            LocalFree(theirs);
+        }
+#endif
+
+        if (!EqualSid(mapsid, expectedsid) &&
+            !EqualSid(mapsid, expectedsid_bc)) {
+            err = dupstr("wrong owning SID of file mapping");
+            goto cleanup;
+        }
+    } else
+#endif /* NO_SECURITY */
+    {
+#ifdef DEBUG_IPC
+        debug(("security APIs not present\n"));
+#endif
+    }
+
+    mapaddr = MapViewOfFile(maphandle, FILE_MAP_WRITE, 0, 0, 0);
+    if (!mapaddr) {
+        err = dupprintf("unable to obtain view of file mapping: %s",
+                        win_strerror(GetLastError()));
+        goto cleanup;
+    }
+
+#ifdef DEBUG_IPC
+    debug(("mapped address = %p\n", mapaddr));
+#endif
+
+    msglen = GET_32BIT((unsigned char *)mapaddr);
+
+#ifdef DEBUG_IPC
+    debug(("msg length=%08x, msg type=%02x\n",
+           msglen, (unsigned)((unsigned char *) mapaddr)[4]));
+#endif
+
+    reply.len = 0;
+    reply.overflowed = FALSE;
+    BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
+
+    if (msglen > AGENT_MAX_MSGLEN - 4) {
+        pageant_failure_msg(BinarySink_UPCAST(&reply),
+                            "incoming length field too large", NULL, NULL);
+    } else {
+        pageant_handle_msg(BinarySink_UPCAST(&reply),
+                           msg + 4, msglen, NULL, NULL);
+        if (reply.overflowed || reply.len > AGENT_MAX_MSGLEN - 4) {
+            reply.len = 0;
+            reply.overflowed = FALSE;
+            pageant_failure_msg(BinarySink_UPCAST(&reply),
+                                "output would overflow message buffer",
+                                NULL, NULL);
+        }
+    }
+
+    if (reply.len > AGENT_MAX_MSGLEN - 4) {
+        err = dupstr("even error-message output overflows buffer");
+        goto cleanup;
+    }
+
+    /*
+     * Windows Pageant answers messages in place, by overwriting the
+     * input message buffer.
+     */
+    assert(4 + reply.len <= AGENT_MAX_MSGLEN);
+    PUT_32BIT(msg, reply.len);
+    memcpy(msg + 4, reply.buf, reply.len);
+    smemclr(reply.buf, sizeof(reply.buf));
+
+  cleanup:
+    /* expectedsid has the lifetime of the program, so we don't free it */
+    sfree(expectedsid_bc);
+    if (psd)
+        LocalFree(psd);
+    if (mapaddr)
+        UnmapViewOfFile(mapaddr);
+    if (maphandle != NULL && maphandle != INVALID_HANDLE_VALUE)
+        CloseHandle(maphandle);
+    return err;
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -971,14 +1080,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_COPYDATA:
 	{
 	    COPYDATASTRUCT *cds;
-	    char *mapname;
-	    void *p;
-	    HANDLE filemap;
-#ifndef NO_SECURITY
-	    PSID mapowner, ourself, ourself2;
-#endif
-            PSECURITY_DESCRIPTOR psd = NULL;
-	    int ret = 0;
+	    char *mapname, *err;
 
 	    cds = (COPYDATASTRUCT *) lParam;
 	    if (cds->dwData != AGENT_COPYDATA_ID)
@@ -986,92 +1088,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    mapname = (char *) cds->lpData;
 	    if (mapname[cds->cbData - 1] != '\0')
 		return 0;	       /* failure to be ASCIZ! */
+            err = answer_filemapping_message(mapname);
+            if (err) {
 #ifdef DEBUG_IPC
-	    debug(("mapname is :%s:\n", mapname));
+                debug(("IPC failed: %s\n", err));
 #endif
-	    filemap = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, mapname);
-#ifdef DEBUG_IPC
-	    debug(("filemap is %p\n", filemap));
-#endif
-	    if (filemap != NULL && filemap != INVALID_HANDLE_VALUE) {
-#ifndef NO_SECURITY
-		int rc;
-		if (has_security) {
-                    if ((ourself = get_user_sid()) == NULL) {
-#ifdef DEBUG_IPC
-			debug(("couldn't get user SID\n"));
-#endif
-                        CloseHandle(filemap);
-			return 0;
-                    }
-
-                    if ((ourself2 = get_default_sid()) == NULL) {
-#ifdef DEBUG_IPC
-			debug(("couldn't get default SID\n"));
-#endif
-                        CloseHandle(filemap);
-			return 0;
-                    }
-
-		    if ((rc = p_GetSecurityInfo(filemap, SE_KERNEL_OBJECT,
-						OWNER_SECURITY_INFORMATION,
-						&mapowner, NULL, NULL, NULL,
-						&psd) != ERROR_SUCCESS)) {
-#ifdef DEBUG_IPC
-			debug(("couldn't get owner info for filemap: %d\n",
-                               rc));
-#endif
-                        CloseHandle(filemap);
-                        sfree(ourself2);
-			return 0;
-		    }
-#ifdef DEBUG_IPC
-                    {
-                        LPTSTR ours, ours2, theirs;
-                        ConvertSidToStringSid(mapowner, &theirs);
-                        ConvertSidToStringSid(ourself, &ours);
-                        ConvertSidToStringSid(ourself2, &ours2);
-                        debug(("got sids:\n  oursnew=%s\n  oursold=%s\n"
-                               "  theirs=%s\n", ours, ours2, theirs));
-                        LocalFree(ours);
-                        LocalFree(ours2);
-                        LocalFree(theirs);
-                    }
-#endif
-		    if (!EqualSid(mapowner, ourself) &&
-                        !EqualSid(mapowner, ourself2)) {
-                        CloseHandle(filemap);
-                        LocalFree(psd);
-                        sfree(ourself2);
-			return 0;      /* security ID mismatch! */
-                    }
-#ifdef DEBUG_IPC
-		    debug(("security stuff matched\n"));
-#endif
-                    LocalFree(psd);
-                    sfree(ourself2);
-		} else {
-#ifdef DEBUG_IPC
-		    debug(("security APIs not present\n"));
-#endif
-		}
-#endif
-		p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, 0);
-#ifdef DEBUG_IPC
-		debug(("p is %p\n", p));
-		{
-		    int i;
-		    for (i = 0; i < 5; i++)
-			debug(("p[%d]=%02x\n", i,
-			       ((unsigned char *) p)[i]));
-                }
-#endif
-		answer_msg(p);
-		ret = 1;
-		UnmapViewOfFile(p);
-	    }
-	    CloseHandle(filemap);
-	    return ret;
+                sfree(err);
+                return 0;
+            }
+	    return 1;
 	}
     }
 
