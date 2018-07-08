@@ -5,12 +5,11 @@
 #include <stdarg.h>
 
 /*
- * FIXME: it would be nice not to have this arbitrary limit. It's
- * currently needed because the Windows Pageant IPC system needs an
- * upper bound known to the client, but it's also reused as a basic
- * sanity check on incoming messages' length fields.
+ * Upper limit on length of any agent message. Used as a basic sanity
+ * check on messages' length fields, and used by the Windows Pageant
+ * client IPC to decide how large a file mapping to allocate.
  */
-#define AGENT_MAX_MSGLEN  8192
+#define AGENT_MAX_MSGLEN  262144
 
 typedef void (*pageant_logfn_t)(void *logctx, const char *fmt, va_list ap);
 
