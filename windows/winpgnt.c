@@ -1136,8 +1136,8 @@ void spawn_cmd(const char *cmdline, const char *args, int show)
     if (ShellExecute(NULL, _T("open"), cmdline,
 		     args, NULL, show) <= (HINSTANCE) 32) {
 	char *msg;
-	msg = dupprintf("Failed to run \"%.100s\", Error: %d", cmdline,
-			(int)GetLastError());
+	msg = dupprintf("Failed to run \"%s\": %s", cmdline,
+			win_strerror(GetLastError()));
 	MessageBox(NULL, msg, APPNAME, MB_OK | MB_ICONEXCLAMATION);
 	sfree(msg);
     }
