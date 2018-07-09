@@ -251,7 +251,7 @@ static void ssh1_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
         unsigned char *compblk;
         int complen;
         zlib_compress_block(s->compctx, pkt->data + 12, pkt->length - 12,
-                            &compblk, &complen);
+                            &compblk, &complen, 0);
         /* Replace the uncompressed packet data with the compressed
          * version. */
         pkt->length = 12;

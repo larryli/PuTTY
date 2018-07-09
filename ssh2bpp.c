@@ -496,32 +496,19 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
     crFinishV;
 }
 
-int ssh2_bpp_temporarily_disable_compression(BinaryPacketProtocol *bpp)
-{
-    struct ssh2_bpp_state *s;
-    assert(bpp->vt == &ssh2_bpp_vtable);
-    s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
-
-    if (!s->out.comp || !s->out.comp_ctx)
-        return 0;
-
-    return s->out.comp->disable_compression(s->out.comp_ctx);
-}
-
 static PktOut *ssh2_bpp_new_pktout(int pkt_type)
 {
     PktOut *pkt = ssh_new_packet();
     pkt->length = 5; /* space for packet length + padding length */
-    pkt->forcepad = 0;
+    pkt->minlen = 0;
     pkt->type = pkt_type;
     put_byte(pkt, pkt_type);
     pkt->prefix = pkt->length;
     return pkt;
 }
 
-static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
+static void ssh2_bpp_format_packet_inner(struct ssh2_bpp_state *s, PktOut *pkt)
 {
-    struct ssh2_bpp_state *s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
     int origlen, cipherblk, maclen, padding, unencrypted_prefix, i;
 
     if (s->bpp.logctx) {
@@ -537,14 +524,29 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
                    pkt->downstream_id, pkt->additional_log_text);
     }
 
+    cipherblk = s->out.cipher ? s->out.cipher->blksize : 8;
+    cipherblk = cipherblk < 8 ? 8 : cipherblk;  /* or 8 if blksize < 8 */
+
     if (s->out.comp && s->out.comp_ctx) {
         unsigned char *newpayload;
-        int newlen;
+        int minlen, newlen;
+
         /*
          * Compress packet payload.
          */
+        minlen = pkt->minlen;
+        if (minlen) {
+            /*
+             * Work out how much compressed data we need (at least) to
+             * make the overall packet length come to pkt->minlen.
+             */
+            if (s->out.mac)
+                minlen -= s->out.mac->len;
+            minlen -= 8;              /* length field + min padding */
+        }
+
         s->out.comp->compress(s->out.comp_ctx, pkt->data + 5, pkt->length - 5,
-                              &newpayload, &newlen);
+                              &newpayload, &newlen, minlen);
         pkt->length = 5;
         put_data(pkt, newpayload, newlen);
         sfree(newpayload);
@@ -556,12 +558,8 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
      * If pkt->forcepad is set, make sure the packet is at least that size
      * after padding.
      */
-    cipherblk = s->out.cipher ? s->out.cipher->blksize : 8;
-    cipherblk = cipherblk < 8 ? 8 : cipherblk;  /* or 8 if blksize < 8 */
     padding = 4;
     unencrypted_prefix = (s->out.mac && s->out.etm_mode) ? 4 : 0;
-    if (pkt->length + padding < pkt->forcepad)
-        padding = pkt->forcepad - pkt->length;
     padding +=
         (cipherblk - (pkt->length - unencrypted_prefix + padding) % cipherblk)
         % cipherblk;
@@ -607,6 +605,74 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
     s->out.sequence++;       /* whether or not we MACed */
     pkt->encrypted_len = origlen + padding;
 
+}
+
+static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
+{
+    struct ssh2_bpp_state *s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
+
+    if (pkt->minlen > 0 && !(s->out.comp && s->out.comp_ctx)) {
+        /*
+         * If we've been told to pad the packet out to a given minimum
+         * length, but we're not compressing (and hence can't get the
+         * compression to do the padding by pointlessly opening and
+         * closing zlib blocks), then our other strategy is to precede
+         * this message with an SSH_MSG_IGNORE that makes it up to the
+         * right length.
+         *
+         * A third option in principle, and the most obviously
+         * sensible, would be to set the explicit padding field in the
+         * packet to more than its minimum value. Sadly, that turns
+         * out to break some servers (our institutional memory thinks
+         * Cisco in particular) and so we abandoned that idea shortly
+         * after trying it.
+         */
+
+        /*
+         * Calculate the length we expect the real packet to have.
+         */
+        int block, length;
+        PktOut *ignore_pkt;
+
+        block = s->out.cipher ? s->out.cipher->blksize : 0;
+        if (block < 8)
+            block = 8;
+        length = pkt->length;
+        length += 4;       /* minimum 4 byte padding */
+        length += block-1;
+        length -= (length % block);
+        if (s->out.mac)
+            length += s->out.mac->len;
+
+        if (length < pkt->minlen) {
+            /*
+             * We need an ignore message. Calculate its length.
+             */
+            length = pkt->minlen - length;
+
+            /*
+             * And work backwards from that to the length of the
+             * contained string.
+             */
+            if (s->out.mac)
+                length -= s->out.mac->len;
+            length -= 8;               /* length field + min padding */
+            length -= 5;               /* type code + string length prefix */
+
+            if (length < 0)
+                length = 0;
+
+            ignore_pkt = ssh2_bpp_new_pktout(SSH2_MSG_IGNORE);
+            put_uint32(ignore_pkt, length);
+            while (length-- > 0)
+                put_byte(ignore_pkt, random_byte());
+            ssh2_bpp_format_packet_inner(s, ignore_pkt);
+            bufchain_add(s->bpp.out_raw, ignore_pkt->data, ignore_pkt->length);
+            ssh_free_pktout(ignore_pkt);
+        }
+    }
+
+    ssh2_bpp_format_packet_inner(s, pkt);
     bufchain_add(s->bpp.out_raw, pkt->data, pkt->length);
 
     ssh_free_pktout(pkt);

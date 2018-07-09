@@ -342,7 +342,8 @@ static void ssh_comp_none_cleanup(void *handle)
 {
 }
 static void ssh_comp_none_block(void *handle, unsigned char *block, int len,
-                                unsigned char **outblock, int *outlen)
+                                unsigned char **outblock, int *outlen,
+                                int minlen)
 {
 }
 static int ssh_decomp_none_block(void *handle, unsigned char *block, int len,
@@ -350,15 +351,11 @@ static int ssh_decomp_none_block(void *handle, unsigned char *block, int len,
 {
     return 0;
 }
-static int ssh_comp_none_disable(void *handle)
-{
-    return 0;
-}
 const static struct ssh_compress ssh_comp_none = {
     "none", NULL,
     ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
     ssh_comp_none_init, ssh_comp_none_cleanup, ssh_decomp_none_block,
-    ssh_comp_none_disable, NULL
+    NULL
 };
 extern const struct ssh_compress ssh_zlib;
 const static struct ssh_compress *const compressions[] = {
@@ -1324,72 +1321,6 @@ static void ssh_send_outgoing_data(void *ctx)
             ssh_throttle_all(ssh, 1, backlog);
             return;
         }
-    }
-}
-
-/*
- * Send a packet whose length needs to be disguised (typically
- * passwords or keyboard-interactive responses).
- */
-static void ssh2_pkt_send_with_padding(Ssh ssh, PktOut *pkt, int padsize)
-{
-#if 0
-    if (0) {
-	/*
-	 * The simplest way to do this is to adjust the
-	 * variable-length padding field in the outgoing packet.
-	 * 
-	 * Currently compiled out, because some Cisco SSH servers
-	 * don't like excessively padded packets (bah, why's it
-	 * always Cisco?)
-	 */
-	pkt->forcepad = padsize;
-	ssh2_pkt_send(ssh, pkt);
-    } else
-#endif
-    {
-	/*
-	 * If we can't do that, however, an alternative approach is to
-	 * bundle the packet tightly together with an SSH_MSG_IGNORE
-	 * such that their combined length is a constant. So first we
-	 * construct the final form of this packet and append it to
-	 * the outgoing_data bufchain...
-	 */
-	ssh_pkt_write(ssh, pkt);
-
-	/*
-         * ... but before we return from this function (triggering a
-	 * call to the outgoing_data_sender), we also construct an
-	 * SSH_MSG_IGNORE which includes a string that's an exact
-	 * multiple of the cipher block size. (If the cipher is NULL
-	 * so that the block size is unavailable, we don't do this
-	 * trick at all, because we gain nothing by it.)
-	 */
-	if (!(ssh->remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE)) {
-	    int stringlen, i;
-
-	    stringlen = (256 - bufchain_size(&ssh->outgoing_data));
-	    stringlen += ssh->v2_out_cipherblksize - 1;
-	    stringlen -= (stringlen % ssh->v2_out_cipherblksize);
-
-            /*
-             * Temporarily disable actual compression, so we can
-             * guarantee to get this string exactly the length we want
-             * it. The compression-disabling routine should return an
-             * integer indicating how many bytes we should adjust our
-             * string length by.
-             */
-            stringlen -= ssh2_bpp_temporarily_disable_compression(ssh->bpp);
-
-	    pkt = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
-	    {
-                strbuf *substr = strbuf_new();
-                for (i = 0; i < stringlen; i++)
-                    put_byte(substr, random_byte());
-                put_stringsb(pkt, substr);
-            }
-	    ssh_pkt_write(ssh, pkt);
-	}
     }
 }
 
@@ -9563,7 +9494,8 @@ static void do_ssh2_userauth(void *vctx)
                     }
 
 		    /*
-		     * Send the response(s) to the server.
+		     * Send the response(s) to the server, padding
+		     * them to disguise their true length.
 		     */
 		    s->pktout = ssh_bpp_new_pktout(
                         ssh->bpp, SSH2_MSG_USERAUTH_INFO_RESPONSE);
@@ -9572,7 +9504,8 @@ static void do_ssh2_userauth(void *vctx)
 			put_stringz(s->pktout,
                                     s->cur_prompt->prompts[i]->result);
 		    }
-		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
+                    s->pktout->minlen = 256;
+		    ssh2_pkt_send(ssh, s->pktout);
 
                     /*
                      * Free the prompts structure from this iteration.
@@ -9661,7 +9594,8 @@ static void do_ssh2_userauth(void *vctx)
 		put_stringz(s->pktout, "password");
 		put_bool(s->pktout, FALSE);
 		put_stringz(s->pktout, s->password);
-		ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
+                s->pktout->minlen = 256;
+                ssh2_pkt_send(ssh, s->pktout);
 		logevent("Sent password");
 		s->type = AUTH_TYPE_PASSWORD;
 
@@ -9797,7 +9731,8 @@ static void do_ssh2_userauth(void *vctx)
 		    put_stringz(s->pktout,
 				       s->cur_prompt->prompts[1]->result);
 		    free_prompts(s->cur_prompt);
-		    ssh2_pkt_send_with_padding(ssh, s->pktout, 256);
+                    s->pktout->minlen = 256;
+                    ssh2_pkt_send(ssh, s->pktout);
 		    logevent("Sent new password");
 		    
 		    /*

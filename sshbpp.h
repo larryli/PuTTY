@@ -47,7 +47,6 @@ void ssh2_bpp_new_incoming_crypto(
     const struct ssh2_cipher *cipher, const void *ckey, const void *iv,
     const struct ssh_mac *mac, int etm_mode, const void *mac_key,
     const struct ssh_compress *compression);
-int ssh2_bpp_temporarily_disable_compression(BinaryPacketProtocol *bpp);
 
 BinaryPacketProtocol *ssh2_bare_bpp_new(void);
 
