@@ -610,4 +610,6 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
     pkt->encrypted_len = origlen + padding;
 
     bufchain_add(s->bpp.out_raw, pkt->data, pkt->length);
+
+    ssh_free_pktout(pkt);
 }

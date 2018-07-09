@@ -157,4 +157,6 @@ static void ssh2_bare_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
 
     PUT_32BIT(pkt->data, pkt->length - 4);
     bufchain_add(s->bpp.out_raw, pkt->data, pkt->length);
+
+    ssh_free_pktout(pkt);
 }
