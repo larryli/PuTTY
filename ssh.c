@@ -1216,7 +1216,7 @@ static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
          */
 	PktOut *ipkt = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
 	put_stringz(ipkt, "");
-        ssh_bpp_format_packet(ssh->bpp, pkt);
+        ssh_bpp_format_packet(ssh->bpp, ipkt);
     }
 
     ssh_bpp_format_packet(ssh->bpp, pkt);
