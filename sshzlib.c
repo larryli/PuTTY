@@ -679,8 +679,8 @@ static int zlib_disable_compression(void *handle)
     return n;
 }
 
-int zlib_compress_block(void *handle, unsigned char *block, int len,
-			unsigned char **outblock, int *outlen)
+void zlib_compress_block(void *handle, unsigned char *block, int len,
+                         unsigned char **outblock, int *outlen)
 {
     struct LZ77Context *ectx = (struct LZ77Context *)handle;
     struct Outbuf *out = (struct Outbuf *) ectx->userdata;
@@ -796,8 +796,6 @@ int zlib_compress_block(void *handle, unsigned char *block, int len,
 
     *outblock = out->outbuf;
     *outlen = out->outlen;
-
-    return 1;
 }
 
 /* ----------------------------------------------------------------------

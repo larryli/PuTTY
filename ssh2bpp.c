@@ -537,19 +537,17 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
                    pkt->downstream_id, pkt->additional_log_text);
     }
 
-    /*
-     * Compress packet payload.
-     */
-    {
+    if (s->out.comp && s->out.comp_ctx) {
         unsigned char *newpayload;
         int newlen;
-        if (s->out.comp && s->out.comp->compress(
-                s->out.comp_ctx, pkt->data + 5, pkt->length - 5,
-                &newpayload, &newlen)) {
-            pkt->length = 5;
-            put_data(pkt, newpayload, newlen);
-            sfree(newpayload);
-        }
+        /*
+         * Compress packet payload.
+         */
+        s->out.comp->compress(s->out.comp_ctx, pkt->data + 5, pkt->length - 5,
+                              &newpayload, &newlen);
+        pkt->length = 5;
+        put_data(pkt, newpayload, newlen);
+        sfree(newpayload);
     }
 
     /*

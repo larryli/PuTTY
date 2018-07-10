@@ -341,8 +341,12 @@ static void *ssh_comp_none_init(void)
 static void ssh_comp_none_cleanup(void *handle)
 {
 }
-static int ssh_comp_none_block(void *handle, unsigned char *block, int len,
-			       unsigned char **outblock, int *outlen)
+static void ssh_comp_none_block(void *handle, unsigned char *block, int len,
+                                unsigned char **outblock, int *outlen)
+{
+}
+static int ssh_decomp_none_block(void *handle, unsigned char *block, int len,
+                                 unsigned char **outblock, int *outlen)
 {
     return 0;
 }
@@ -353,7 +357,7 @@ static int ssh_comp_none_disable(void *handle)
 const static struct ssh_compress ssh_comp_none = {
     "none", NULL,
     ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
-    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
+    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_decomp_none_block,
     ssh_comp_none_disable, NULL
 };
 extern const struct ssh_compress ssh_zlib;

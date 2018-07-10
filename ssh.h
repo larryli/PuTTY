@@ -560,8 +560,8 @@ struct ssh_compress {
     const char *delayed_name;
     void *(*compress_init) (void);
     void (*compress_cleanup) (void *);
-    int (*compress) (void *, unsigned char *block, int len,
-		     unsigned char **outblock, int *outlen);
+    void (*compress) (void *, unsigned char *block, int len,
+                      unsigned char **outblock, int *outlen);
     void *(*decompress_init) (void);
     void (*decompress_cleanup) (void *);
     int (*decompress) (void *, unsigned char *block, int len,
@@ -981,8 +981,8 @@ void *zlib_compress_init(void);
 void zlib_compress_cleanup(void *);
 void *zlib_decompress_init(void);
 void zlib_decompress_cleanup(void *);
-int zlib_compress_block(void *, unsigned char *block, int len,
-			unsigned char **outblock, int *outlen);
+void zlib_compress_block(void *, unsigned char *block, int len,
+                         unsigned char **outblock, int *outlen);
 int zlib_decompress_block(void *, unsigned char *block, int len,
 			  unsigned char **outblock, int *outlen);
 
