@@ -693,7 +693,7 @@ if (defined $makefiles{'vc'}) {
       "# C compilation flags\n".
       "CFLAGS = /nologo /W3 /O1 " .
       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
-      " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 /D_CRT_SECURE_NO_WARNINGS\n".
+      " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 /D_CRT_SECURE_NO_WARNINGS /D_ARM_WINAPI_PARTITION_DESKTOP_SDK_AVAILABLE\n".
       "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
       "RCFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
       " -DWIN32 -D_WIN32 -DWINVER=0x0400\n".
