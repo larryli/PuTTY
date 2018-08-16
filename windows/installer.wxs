@@ -5,17 +5,20 @@
 <?if $(var.RealPlatform) = x64 ?>
   <?define Bitness = " (64-bit)" ?>
   <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY64" ?>
-  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
 <?else ?>
   <?define Bitness = "" ?>
   <?define RegKeyPathLocation = "Software\SimonTatham\PuTTY" ?>
-  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
 <?endif ?>
 
 <?if $(var.RealPlatform) = x86 ?>
   <?define InstallerVersion = "100" ?>
-<?else ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(var.RealPlatform) = x64 ?>
   <?define InstallerVersion = "200" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define InstallerVersion = "500" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
 <?endif ?>
 
 <?if $(var.RealPlatform) = x64 ?>

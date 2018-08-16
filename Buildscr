@@ -199,8 +199,13 @@ ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i h
 # Build a WiX MSI installer, for each of build32 and build64.
 in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=x86 -dDllOk=yes -dBuilddir=build32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer32.msi -spdb
 in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=yes -dBuilddir=build64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installer64.msi -spdb
-in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
-in putty/windows with wixonlinux do candle -arch x86 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
+in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
+
+# Bodge the platform fields for the Windows on Arm installers, since
+# WiX 3 doesn't understand Arm platform names itself.
+in putty/windows do ./msiplatform.py installera32.msi Arm
+in putty/windows do ./msiplatform.py installera64.msi Arm64
 
 # Sign the Windows installers.
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi installera32.msi installera64.msi
