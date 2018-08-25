@@ -30,15 +30,17 @@
 #define MAX_TICK_MINS	(INT_MAX / (60 * TICKSPERSEC))
 
 /*
- * Fingerprints of the PGP master keys that can be used to establish a trust
- * path between an executable and other files.
+ * Fingerprints of the current and previous PGP master keys, to
+ * establish a trust path between an executable and other files.
  */
-#define PGP_MASTER_KEY_FP \
+#define PGP_MASTER_KEY_YEAR "2018"
+#define PGP_MASTER_KEY_DETAILS "RSA, 4096-bit"
+#define PGP_MASTER_KEY_FP                                       \
+    "24E1 B1C5 75EA 3C9F F752  A922 76BC 7FE4 EBFD 2D9E"
+#define PGP_PREV_MASTER_KEY_YEAR "2015"
+#define PGP_PREV_MASTER_KEY_DETAILS "RSA, 4096-bit"
+#define PGP_PREV_MASTER_KEY_FP                                  \
     "440D E3B5 B7A1 CA85 B3CC  1718 AB58 5DC6 0467 6F7C"
-#define PGP_RSA_MASTER_KEY_FP \
-    "8F 15 97 DA 25 30 AB 0D  88 D1 92 54 11 CF 0C 4C"
-#define PGP_DSA_MASTER_KEY_FP \
-    "313C 3E76 4B74 C2C5 F2AE  83A8 4F5E 6DF5 6A93 B34E"
 
 /* Three attribute types: 
  * The ATTRs (normal attributes) are stored with the characters in
