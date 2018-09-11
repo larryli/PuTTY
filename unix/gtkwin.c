@@ -162,7 +162,7 @@ struct gui_data {
     Backend *back;
     void *backhandle;
     Terminal *term;
-    void *logctx;
+    LogContext *logctx;
     int exited;
     struct unicode_data ucsdata;
     Conf *conf;

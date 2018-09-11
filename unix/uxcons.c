@@ -405,7 +405,7 @@ void old_keyfile_warning(void)
     postmsg(&cf);
 }
 
-void console_provide_logctx(void *logctx)
+void console_provide_logctx(LogContext *logctx)
 {
     console_logctx = logctx;
 }

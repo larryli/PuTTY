@@ -116,7 +116,7 @@ void nonfatal(const char *p, ...)
 /*
  * Stubs to let everything else link sensibly.
  */
-void log_eventlog(void *handle, const char *event)
+void log_eventlog(LogContext *logctx, const char *event)
 {
 }
 char *x_get_default(const char *key)

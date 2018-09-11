@@ -1065,7 +1065,7 @@ static void telnet_provide_ldisc(void *handle, Ldisc *ldisc)
     telnet->ldisc = ldisc;
 }
 
-static void telnet_provide_logctx(void *handle, void *logctx)
+static void telnet_provide_logctx(void *handle, LogContext *logctx)
 {
     /* This is a stub. */
 }

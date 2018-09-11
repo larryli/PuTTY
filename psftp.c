@@ -2669,7 +2669,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 {
     char *host, *realhost;
     const char *err;
-    void *logctx;
+    LogContext *logctx;
 
     /* Separate host and username */
     host = userhost;

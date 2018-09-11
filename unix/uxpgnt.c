@@ -92,7 +92,7 @@ int platform_default_i(const char *name, int def) { return def; }
 FontSpec *platform_default_fontspec(const char *name) { return fontspec_new(""); }
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
-void log_eventlog(void *handle, const char *event) {}
+void log_eventlog(LogContext *logctx, const char *event) {}
 int from_backend(void *frontend, int is_stderr, const void *data, int datalen)
 { assert(!"only here to satisfy notional call from backend_socket_log"); }
 

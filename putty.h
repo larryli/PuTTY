@@ -462,7 +462,7 @@ struct backend_tag {
     int (*sendok) (void *handle);
     int (*ldisc) (void *handle, int);
     void (*provide_ldisc) (void *handle, Ldisc *ldisc);
-    void (*provide_logctx) (void *handle, void *logctx);
+    void (*provide_logctx) (void *handle, LogContext *logctx);
     /*
      * back->unthrottle() tells the back end that the front end
      * buffer is clearing.
@@ -1110,7 +1110,7 @@ int term_data_untrusted(Terminal *, const void *data, int len);
 void term_provide_resize_fn(Terminal *term,
 			    void (*resize_fn)(void *, int, int),
 			    void *resize_ctx);
-void term_provide_logctx(Terminal *term, void *logctx);
+void term_provide_logctx(Terminal *term, LogContext *logctx);
 void term_set_focus(Terminal *term, int has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
 int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
@@ -1120,14 +1120,14 @@ int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
 /*
  * Exports from logging.c.
  */
-void *log_init(void *frontend, Conf *conf);
-void log_free(void *logctx);
-void log_reconfig(void *logctx, Conf *conf);
-void logfopen(void *logctx);
-void logfclose(void *logctx);
-void logtraffic(void *logctx, unsigned char c, int logmode);
-void logflush(void *logctx);
-void log_eventlog(void *logctx, const char *string);
+LogContext *log_init(void *frontend, Conf *conf);
+void log_free(LogContext *logctx);
+void log_reconfig(LogContext *logctx, Conf *conf);
+void logfopen(LogContext *logctx);
+void logfclose(LogContext *logctx);
+void logtraffic(LogContext *logctx, unsigned char c, int logmode);
+void logflush(LogContext *logctx);
+void log_eventlog(LogContext *logctx, const char *string);
 enum { PKT_INCOMING, PKT_OUTGOING };
 enum { PKTLOG_EMIT, PKTLOG_BLANK, PKTLOG_OMIT };
 struct logblank_t {
@@ -1135,7 +1135,7 @@ struct logblank_t {
     int len;
     int type;
 };
-void log_packet(void *logctx, int direction, int type,
+void log_packet(LogContext *logctx, int direction, int type,
 		const char *texttype, const void *data, int len,
 		int n_blanks, const struct logblank_t *blanks,
 		const unsigned long *sequence,
@@ -1353,7 +1353,7 @@ int askappend(void *frontend, Filename *filename,
  */
 extern int console_batch_mode;
 int console_get_userpass_input(prompts_t *p);
-void console_provide_logctx(void *logctx);
+void console_provide_logctx(LogContext *logctx);
 int is_interactive(void);
 
 /*

@@ -1212,7 +1212,7 @@ static void pty_provide_ldisc(void *handle, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void pty_provide_logctx(void *handle, void *logctx)
+static void pty_provide_logctx(void *handle, LogContext *logctx)
 {
     /* Pty pty = (Pty)handle; */
     /* This is a stub. */

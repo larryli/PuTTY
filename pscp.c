@@ -340,7 +340,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 {
     const char *err;
     char *realhost;
-    void *logctx;
+    LogContext *logctx;
 
     if (host == NULL || host[0] == '\0')
 	bump("Empty host name");

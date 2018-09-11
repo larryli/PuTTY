@@ -6687,7 +6687,7 @@ int term_data_untrusted(Terminal *term, const void *vdata, int len)
     return 0; /* assumes that term_data() always returns 0 */
 }
 
-void term_provide_logctx(Terminal *term, void *logctx)
+void term_provide_logctx(Terminal *term, LogContext *logctx)
 {
     term->logctx = logctx;
 }

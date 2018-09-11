@@ -279,7 +279,7 @@ static void raw_provide_ldisc(void *handle, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void raw_provide_logctx(void *handle, void *logctx)
+static void raw_provide_logctx(void *handle, LogContext *logctx)
 {
     /* This is a stub. */
 }

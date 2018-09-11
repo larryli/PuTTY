@@ -50,7 +50,7 @@ static int null_exitcode(void *);
 static int null_sendok(void *);
 static int null_ldisc(void *, int);
 static void null_provide_ldisc(void *, Ldisc *);
-static void null_provide_logctx(void *, void *);
+static void null_provide_logctx(void *, LogContext *);
 static void null_unthrottle(void *, int);
 static int null_cfg_info(void *);
 
@@ -161,7 +161,7 @@ static void null_provide_ldisc (void *handle, Ldisc *ldisc) {
 
 }
 
-static void null_provide_logctx(void *handle, void *logctx) {
+static void null_provide_logctx(void *handle, LogContext *logctx) {
 
 }
 

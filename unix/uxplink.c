@@ -25,7 +25,7 @@
 
 #define MAX_STDIN_BACKLOG 4096
 
-static void *logctx;
+static LogContext *logctx;
 
 static struct termios orig_termios;
 

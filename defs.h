@@ -45,6 +45,7 @@ typedef struct Socket_vtable Socket_vtable;
 typedef struct Plug_vtable Plug_vtable;
 
 typedef struct Ldisc_tag Ldisc;
+typedef struct LogContext_tag LogContext;
 
 /* Note indirection: for historical reasons (it used to be closer to
  * the OS socket type), the type that most code uses for a socket is

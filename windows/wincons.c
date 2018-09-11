@@ -335,7 +335,7 @@ void pgp_fingerprints(void)
 	  "  " PGP_PREV_MASTER_KEY_FP "\n", stdout);
 }
 
-void console_provide_logctx(void *logctx)
+void console_provide_logctx(LogContext *logctx)
 {
     console_logctx = logctx;
 }

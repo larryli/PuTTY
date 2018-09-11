@@ -701,7 +701,7 @@ struct ssh_tag {
     const Plug_vtable *plugvt;
 
     Ldisc *ldisc;
-    void *logctx;
+    LogContext *logctx;
 
     unsigned char session_key[32];
     int v1_remote_protoflags;
@@ -11434,7 +11434,7 @@ static void ssh_provide_ldisc(void *handle, Ldisc *ldisc)
     ssh->ldisc = ldisc;
 }
 
-static void ssh_provide_logctx(void *handle, void *logctx)
+static void ssh_provide_logctx(void *handle, LogContext *logctx)
 {
     Ssh ssh = (Ssh) handle;
     ssh->logctx = logctx;

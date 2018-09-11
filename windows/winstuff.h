@@ -240,7 +240,7 @@ void quit_help(HWND hwnd);
  * windlg.c. Likewise the saved-sessions list.
  */
 GLOBAL Terminal *term;
-GLOBAL void *logctx;
+GLOBAL LogContext *logctx;
 
 /*
  * Windows-specific clipboard helper function shared with windlg.c,
