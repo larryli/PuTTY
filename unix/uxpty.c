@@ -78,6 +78,7 @@ struct pty_tag {
     int child_dead, finished;
     int exit_code;
     bufchain output_data;
+    Backend backend;
 };
 
 /*
@@ -728,9 +729,9 @@ static void pty_uxsel_setup(Pty pty)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
-			    const char *host, int port, char **realhost,
-                            int nodelay, int keepalive)
+static const char *pty_init(void *frontend, Backend **backend_handle,
+                            Conf *conf, const char *host, int port,
+                            char **realhost, int nodelay, int keepalive)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -752,7 +753,8 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     }
 
     pty->frontend = frontend;
-    *backend_handle = NULL;	       /* we can't sensibly use this, sadly */
+    pty->backend.vt = &pty_backend;
+    *backend_handle = &pty->backend;
 
     pty->conf = conf_copy(conf);
     pty->term_width = conf_get_int(conf, CONF_width);
@@ -1025,16 +1027,14 @@ static const char *pty_init(void *frontend, void **backend_handle, Conf *conf,
     }
     pty_uxsel_setup(pty);
 
-    *backend_handle = pty;
-
     *realhost = dupstr("");
 
     return NULL;
 }
 
-static void pty_reconfig(void *handle, Conf *conf)
+static void pty_reconfig(Backend *be, Conf *conf)
 {
-    Pty pty = (Pty)handle;
+    Pty pty = FROMFIELD(be, struct pty_tag, backend);
     /*
      * We don't have much need to reconfigure this backend, but
      * unfortunately we do need to pick up the setting of Close On
@@ -1046,9 +1046,9 @@ static void pty_reconfig(void *handle, Conf *conf)
 /*
  * Stub routine (never called in pterm).
  */
-static void pty_free(void *handle)
+static void pty_free(Backend *be)
 {
-    Pty pty = (Pty)handle;
+    Pty pty = FROMFIELD(be, struct pty_tag, backend);
 
     /* Either of these may fail `not found'. That's fine with us. */
     del234(ptys_by_pid, pty);
@@ -1099,9 +1099,9 @@ static void pty_try_write(Pty pty)
 /*
  * Called to send data down the pty.
  */
-static int pty_send(void *handle, const char *buf, int len)
+static int pty_send(Backend *be, const char *buf, int len)
 {
-    Pty pty = (Pty)handle;
+    Pty pty = FROMFIELD(be, struct pty_tag, backend);
 
     if (pty->master_fd < 0)
 	return 0;                      /* ignore all writes if fd closed */
@@ -1129,18 +1129,18 @@ static void pty_close(Pty pty)
 /*
  * Called to query the current socket sendability status.
  */
-static int pty_sendbuffer(void *handle)
+static int pty_sendbuffer(Backend *be)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     return 0;
 }
 
 /*
  * Called to set the size of the window
  */
-static void pty_size(void *handle, int width, int height)
+static void pty_size(Backend *be, int width, int height)
 {
-    Pty pty = (Pty)handle;
+    Pty pty = FROMFIELD(be, struct pty_tag, backend);
     struct winsize size;
 
     pty->term_width = width;
@@ -1159,9 +1159,9 @@ static void pty_size(void *handle, int width, int height)
 /*
  * Send special codes.
  */
-static void pty_special(void *handle, Telnet_Special code)
+static void pty_special(Backend *be, Telnet_Special code)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /* Do nothing! */
     return;
 }
@@ -1170,9 +1170,9 @@ static void pty_special(void *handle, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *pty_get_specials(void *handle)
+static const struct telnet_special *pty_get_specials(Backend *be)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /*
      * Hmm. When I get round to having this actually usable, it
      * might be quite nice to have the ability to deliver a few
@@ -1182,58 +1182,58 @@ static const struct telnet_special *pty_get_specials(void *handle)
     return NULL;
 }
 
-static int pty_connected(void *handle)
+static int pty_connected(Backend *be)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     return TRUE;
 }
 
-static int pty_sendok(void *handle)
+static int pty_sendok(Backend *be)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     return 1;
 }
 
-static void pty_unthrottle(void *handle, int backlog)
+static void pty_unthrottle(Backend *be, int backlog)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /* do nothing */
 }
 
-static int pty_ldisc(void *handle, int option)
+static int pty_ldisc(Backend *be, int option)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     return 0;			       /* neither editing nor echoing */
 }
 
-static void pty_provide_ldisc(void *handle, Ldisc *ldisc)
+static void pty_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /* This is a stub. */
 }
 
-static void pty_provide_logctx(void *handle, LogContext *logctx)
+static void pty_provide_logctx(Backend *be, LogContext *logctx)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /* This is a stub. */
 }
 
-static int pty_exitcode(void *handle)
+static int pty_exitcode(Backend *be)
 {
-    Pty pty = (Pty)handle;
+    Pty pty = FROMFIELD(be, struct pty_tag, backend);
     if (!pty->finished)
 	return -1;		       /* not dead yet */
     else
 	return pty->exit_code;
 }
 
-static int pty_cfg_info(void *handle)
+static int pty_cfg_info(Backend *be)
 {
-    /* Pty pty = (Pty)handle; */
+    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     return 0;
 }
 
-Backend pty_backend = {
+const struct Backend_vtable pty_backend = {
     pty_init,
     pty_free,
     pty_reconfig,

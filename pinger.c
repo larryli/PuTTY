@@ -9,8 +9,7 @@ struct pinger_tag {
     int interval;
     int pending;
     unsigned long when_set, next;
-    Backend *back;
-    void *backhandle;
+    Backend *backend;
 };
 
 static void pinger_schedule(Pinger pinger);
@@ -20,7 +19,7 @@ static void pinger_timer(void *ctx, unsigned long now)
     Pinger pinger = (Pinger)ctx;
 
     if (pinger->pending && now == pinger->next) {
-	pinger->back->special(pinger->backhandle, TS_PING);
+        backend_special(pinger->backend, TS_PING);
 	pinger->pending = FALSE;
 	pinger_schedule(pinger);
     }
@@ -45,14 +44,13 @@ static void pinger_schedule(Pinger pinger)
     }
 }
 
-Pinger pinger_new(Conf *conf, Backend *back, void *backhandle)
+Pinger pinger_new(Conf *conf, Backend *backend)
 {
     Pinger pinger = snew(struct pinger_tag);
 
     pinger->interval = conf_get_int(conf, CONF_ping_interval);
     pinger->pending = FALSE;
-    pinger->back = back;
-    pinger->backhandle = backhandle;
+    pinger->backend = backend;
     pinger_schedule(pinger);
 
     return pinger;

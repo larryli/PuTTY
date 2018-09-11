@@ -126,8 +126,7 @@ static int caret_x = -1, caret_y = -1;
 static int kbd_codepage;
 
 static Ldisc *ldisc;
-static Backend *back;
-static void *backhandle;
+static Backend *backend;
 
 static struct unicode_data ucsdata;
 static int session_closed;
@@ -248,6 +247,7 @@ char *get_ttymode(void *frontend, const char *mode)
 
 static void start_backend(void)
 {
+    const struct Backend_vtable *vt;
     const char *error;
     char msg[1024], *title;
     char *realhost;
@@ -257,8 +257,8 @@ static void start_backend(void)
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
      */
-    back = backend_from_proto(conf_get_int(conf, CONF_protocol));
-    if (back == NULL) {
+    vt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
+    if (!vt) {
 	char *str = dupprintf("%s Internal Error", appname);
 	MessageBox(NULL, "Unsupported protocol number found",
 		   str, MB_OK | MB_ICONEXCLAMATION);
@@ -266,13 +266,13 @@ static void start_backend(void)
 	cleanup_exit(1);
     }
 
-    error = back->init(NULL, &backhandle, conf,
-		       conf_get_str(conf, CONF_host),
-		       conf_get_int(conf, CONF_port),
-		       &realhost,
-		       conf_get_int(conf, CONF_tcp_nodelay),
-		       conf_get_int(conf, CONF_tcp_keepalives));
-    back->provide_logctx(backhandle, logctx);
+    error = backend_init(vt, NULL, &backend, conf,
+                         conf_get_str(conf, CONF_host),
+                         conf_get_int(conf, CONF_port),
+                         &realhost,
+                         conf_get_int(conf, CONF_tcp_nodelay),
+                         conf_get_int(conf, CONF_tcp_keepalives));
+    backend_provide_logctx(backend, logctx);
     if (error) {
 	char *str = dupprintf("%s Error", appname);
 	sprintf(msg, "Unable to open connection to\n"
@@ -294,12 +294,12 @@ static void start_backend(void)
     /*
      * Connect the terminal to the backend for resize purposes.
      */
-    term_provide_resize_fn(term, back->size, backhandle);
+    term_provide_backend(term, backend);
 
     /*
      * Set up a line discipline.
      */
-    ldisc = ldisc_create(conf, term, back, backhandle, NULL);
+    ldisc = ldisc_create(conf, term, backend, NULL);
 
     /*
      * Destroy the Restart Session menu item. (This will return
@@ -329,11 +329,10 @@ static void close_session(void *ignored_context)
 	ldisc_free(ldisc);
 	ldisc = NULL;
     }
-    if (back) {
-	back->free(backhandle);
-	backhandle = NULL;
-	back = NULL;
-        term_provide_resize_fn(term, NULL, NULL);
+    if (backend) {
+        backend_free(backend);
+        backend = NULL;
+        term_provide_backend(term, NULL);
 	update_specials_menu(NULL);
     }
 
@@ -413,10 +412,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
 	{
-	    Backend *b = backend_from_proto(default_protocol);
+            const struct Backend_vtable *vt =
+                backend_vt_from_proto(default_protocol);
 	    default_port = 0; /* illegal */
-	    if (b)
-		default_port = b->default_port;
+            if (vt)
+                default_port = vt->default_port;
 	}
 	conf_set_int(conf, CONF_logtype, LGTYP_NONE);
 
@@ -951,8 +951,8 @@ void update_specials_menu(void *frontend)
     HMENU new_menu;
     int i, j;
 
-    if (back)
-	specials = back->get_specials(backhandle);
+    if (backend)
+        specials = backend_get_specials(backend);
     else
 	specials = NULL;
 
@@ -1975,7 +1975,7 @@ void notify_remote_exit(void *fe)
     int exitcode, close_on_exit;
 
     if (!session_closed &&
-        (exitcode = back->exitcode(backhandle)) >= 0) {
+        (exitcode = backend_exitcode(backend)) >= 0) {
 	close_on_exit = conf_get_int(conf, CONF_close_on_exit);
 	/* Abnormal exits will already have set session_closed and taken
 	 * appropriate action. */
@@ -2161,7 +2161,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    }
 	    break;
 	  case IDM_RESTART:
-	    if (!back) {
+            if (!backend) {
 		logevent(NULL, "----- Session restarted -----");
 		term_pwron(term, FALSE);
 		start_backend();
@@ -2190,7 +2190,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		prev_conf = conf_copy(conf);
 
 		reconfig_result =
-		    do_reconfig(hwnd, back ? back->cfg_info(backhandle) : 0);
+                    do_reconfig(hwnd, backend ? backend_cfg_info(backend) : 0);
 		reconfiguring = FALSE;
 		if (!reconfig_result) {
                     conf_free(prev_conf);
@@ -2237,8 +2237,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 setup_clipboards(term, conf);
 
 		/* Pass new config data to the back end */
-		if (back)
-		    back->reconfig(backhandle, conf);
+                if (backend)
+                    backend_reconfig(backend, conf);
 
 		/* Screen size changed ? */
 		if (conf_get_int(conf, CONF_height) !=
@@ -2414,8 +2414,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		 */
 		if (i >= n_specials)
 		    break;
-		if (back)
-		    back->special(backhandle, specials[i].code);
+                if (backend)
+                    backend_special(backend, specials[i].code);
 	    }
 	}
 	break;
@@ -4405,8 +4405,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 	if (wParam == VK_CANCEL && shift_state == 2) {	/* Ctrl-Break */
-	    if (back)
-		back->special(backhandle, TS_BRK);
+            if (backend)
+                backend_special(backend, TS_BRK);
 	    return 0;
 	}
 	if (wParam == VK_PAUSE) {      /* Break/Pause */

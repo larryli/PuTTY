@@ -34,8 +34,7 @@ void do_sftp_cleanup();
  */
 
 char *pwd, *homedir;
-static Backend *back;
-static void *backhandle;
+static Backend *backend;
 static Conf *conf;
 int sent_eof = FALSE;
 
@@ -967,14 +966,14 @@ int sftp_cmd_quit(struct sftp_command *cmd)
 
 int sftp_cmd_close(struct sftp_command *cmd)
 {
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
 
-    if (back != NULL && back->connected(backhandle)) {
+    if (backend_connected(backend)) {
 	char ch;
-	back->special(backhandle, TS_EOF);
+        backend_special(backend, TS_EOF);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }
@@ -999,7 +998,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     struct sftp_request *req;
     int i;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1123,7 +1122,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
     struct sftp_request *req;
     char *dir;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1164,7 +1163,7 @@ int sftp_cmd_cd(struct sftp_command *cmd)
  */
 int sftp_cmd_pwd(struct sftp_command *cmd)
 {
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1188,7 +1187,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
     int i, ret;
     int recurse = FALSE;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1304,7 +1303,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
     int i, ret;
     int recurse = FALSE;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1405,7 +1404,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     int result;
     int i, ret;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1463,7 +1462,7 @@ int sftp_cmd_rmdir(struct sftp_command *cmd)
 {
     int i, ret;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1504,7 +1503,7 @@ int sftp_cmd_rm(struct sftp_command *cmd)
 {
     int i, ret;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1597,7 +1596,7 @@ int sftp_cmd_mv(struct sftp_command *cmd)
     struct sftp_context_mv actx, *ctx = &actx;
     int i, ret;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1689,7 +1688,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
     int i, ret;
     struct sftp_context_chmod actx, *ctx = &actx;
 
-    if (back == NULL) {
+    if (!backend) {
 	not_connected();
 	return 0;
     }
@@ -1815,7 +1814,7 @@ static int sftp_cmd_open(struct sftp_command *cmd)
 {
     int portnumber;
 
-    if (back != NULL) {
+    if (backend) {
 	printf("psftp: already connected\n");
 	return 0;
     }
@@ -1835,7 +1834,7 @@ static int sftp_cmd_open(struct sftp_command *cmd)
 	portnumber = 0;
 
     if (psftp_connect(cmd->words[1], NULL, portnumber)) {
-	back = NULL;		       /* connection is already closed */
+        backend = NULL;                /* connection is already closed */
 	return -1;		       /* this is fatal */
     }
     do_sftp_init();
@@ -2214,7 +2213,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	    printf("psftp> ");
 	line = fgetline(fp);
     } else {
-	line = ssh_sftp_get_cmdline("psftp> ", back == NULL);
+        line = ssh_sftp_get_cmdline("psftp> ", !backend);
     }
 
     if (!line || !*line) {
@@ -2355,14 +2354,13 @@ static int do_sftp_init(void)
 void do_sftp_cleanup()
 {
     char ch;
-    if (back) {
-	back->special(backhandle, TS_EOF);
+    if (backend) {
+        backend_special(backend, TS_EOF);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
-	back->free(backhandle);
+        backend_free(backend);
 	sftp_cleanup_request();
-	back = NULL;
-	backhandle = NULL;
+        backend = NULL;
     }
     if (pwd) {
 	sfree(pwd);
@@ -2602,7 +2600,7 @@ int sftp_recvdata(char *buf, int len)
     }
 
     while (outlen > 0) {
-	if (back->exitcode(backhandle) >= 0 || ssh_sftp_loop_iteration() < 0)
+        if (backend_exitcode(backend) >= 0 || ssh_sftp_loop_iteration() < 0)
 	    return 0;		       /* doom */
     }
 
@@ -2610,12 +2608,12 @@ int sftp_recvdata(char *buf, int len)
 }
 int sftp_senddata(char *buf, int len)
 {
-    back->send(backhandle, buf, len);
+    backend_send(backend, buf, len);
     return 1;
 }
 int sftp_sendbuffer(void)
 {
-    return back->sendbuffer(backhandle);
+    return backend_sendbuffer(backend);
 }
 
 /*
@@ -2826,25 +2824,23 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "exec sftp-server");
     conf_set_int(conf, CONF_ssh_subsys2, FALSE);
 
-    back = &ssh_backend;
-
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
 
     platform_psftp_pre_conn_setup();
 
-    err = back->init(NULL, &backhandle, conf,
-		     conf_get_str(conf, CONF_host),
-		     conf_get_int(conf, CONF_port),
-		     &realhost, 0,
-		     conf_get_int(conf, CONF_tcp_keepalives));
+    err = backend_init(&ssh_backend, NULL, &backend, conf,
+                       conf_get_str(conf, CONF_host),
+                       conf_get_int(conf, CONF_port),
+                       &realhost, 0,
+                       conf_get_int(conf, CONF_tcp_keepalives));
     if (err != NULL) {
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
-    back->provide_logctx(backhandle, logctx);
-    while (!back->sendok(backhandle)) {
-	if (back->exitcode(backhandle) >= 0)
+    backend_provide_logctx(backend, logctx);
+    while (!backend_sendok(backend)) {
+        if (backend_exitcode(backend) >= 0)
 	    return 1;
 	if (ssh_sftp_loop_iteration() < 0) {
 	    fprintf(stderr, "ssh_init: error during SSH connection setup\n");
@@ -2945,7 +2941,7 @@ int psftp_main(int argc, char *argv[])
     }
     argc -= i;
     argv += i;
-    back = NULL;
+    backend = NULL;
 
     /*
      * If the loaded session provides a hostname, and a hostname has not
@@ -2975,9 +2971,9 @@ int psftp_main(int argc, char *argv[])
 
     ret = do_sftp(mode, modeflags, batchfile);
 
-    if (back != NULL && back->connected(backhandle)) {
+    if (backend && backend_connected(backend)) {
 	char ch;
-	back->special(backhandle, TS_EOF);
+        backend_special(backend, TS_EOF);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }

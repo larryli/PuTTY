@@ -22,7 +22,7 @@ const int be_default_protocol = PROT_TELNET;
 const int be_default_protocol = PROT_SSH;
 #endif
 
-Backend *backends[] = {
+const struct Backend_vtable *const backends[] = {
     &ssh_backend,
     &telnet_backend,
     &rlogin_backend,

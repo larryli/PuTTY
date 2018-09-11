@@ -17,6 +17,7 @@ typedef struct serial_backend_data {
     int bufsize;
     long clearbreak_time;
     int break_in_progress;
+    Backend backend;
 } *Serial;
 
 static void serial_terminate(Serial serial)
@@ -198,7 +199,7 @@ static const char *serial_configure(Serial serial, HANDLE serport, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(void *frontend_handle, void **backend_handle,
+static const char *serial_init(void *frontend_handle, Backend **backend_handle,
 			       Conf *conf, const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
@@ -212,7 +213,8 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
     serial->break_in_progress = FALSE;
-    *backend_handle = serial;
+    serial->backend.vt = &serial_backend;
+    *backend_handle = &serial->backend;
 
     serial->frontend = frontend_handle;
 
@@ -279,18 +281,18 @@ static const char *serial_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
-static void serial_free(void *handle)
+static void serial_free(Backend *be)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
 
     serial_terminate(serial);
     expire_timer_context(serial);
     sfree(serial);
 }
 
-static void serial_reconfig(void *handle, Conf *conf)
+static void serial_reconfig(Backend *be, Conf *conf)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
 
     serial_configure(serial, serial->port, conf);
 
@@ -303,9 +305,9 @@ static void serial_reconfig(void *handle, Conf *conf)
 /*
  * Called to send data down the serial connection.
  */
-static int serial_send(void *handle, const char *buf, int len)
+static int serial_send(Backend *be, const char *buf, int len)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
 
     if (serial->out == NULL)
 	return 0;
@@ -317,16 +319,16 @@ static int serial_send(void *handle, const char *buf, int len)
 /*
  * Called to query the current sendability status.
  */
-static int serial_sendbuffer(void *handle)
+static int serial_sendbuffer(Backend *be)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
     return serial->bufsize;
 }
 
 /*
  * Called to set the size of the window
  */
-static void serial_size(void *handle, int width, int height)
+static void serial_size(Backend *be, int width, int height)
 {
     /* Do nothing! */
     return;
@@ -346,9 +348,9 @@ static void serbreak_timer(void *ctx, unsigned long now)
 /*
  * Send serial special codes.
  */
-static void serial_special(void *handle, Telnet_Special code)
+static void serial_special(Backend *be, Telnet_Special code)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
 
     if (serial->port && code == TS_BRK) {
 	logevent(serial->frontend, "Starting serial break at user request");
@@ -375,7 +377,7 @@ static void serial_special(void *handle, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *serial_get_specials(void *handle)
+static const struct telnet_special *serial_get_specials(Backend *be)
 {
     static const struct telnet_special specials[] = {
 	{"Break", TS_BRK},
@@ -384,24 +386,24 @@ static const struct telnet_special *serial_get_specials(void *handle)
     return specials;
 }
 
-static int serial_connected(void *handle)
+static int serial_connected(Backend *be)
 {
     return 1;			       /* always connected */
 }
 
-static int serial_sendok(void *handle)
+static int serial_sendok(Backend *be)
 {
     return 1;
 }
 
-static void serial_unthrottle(void *handle, int backlog)
+static void serial_unthrottle(Backend *be, int backlog)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
     if (serial->in)
 	handle_unthrottle(serial->in, backlog);
 }
 
-static int serial_ldisc(void *handle, int option)
+static int serial_ldisc(Backend *be, int option)
 {
     /*
      * Local editing and local echo are off by default.
@@ -409,19 +411,19 @@ static int serial_ldisc(void *handle, int option)
     return 0;
 }
 
-static void serial_provide_ldisc(void *handle, Ldisc *ldisc)
+static void serial_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
     /* This is a stub. */
 }
 
-static void serial_provide_logctx(void *handle, LogContext *logctx)
+static void serial_provide_logctx(Backend *be, LogContext *logctx)
 {
     /* This is a stub. */
 }
 
-static int serial_exitcode(void *handle)
+static int serial_exitcode(Backend *be)
 {
-    Serial serial = (Serial) handle;
+    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
     if (serial->port != INVALID_HANDLE_VALUE)
         return -1;                     /* still connected */
     else
@@ -432,12 +434,12 @@ static int serial_exitcode(void *handle)
 /*
  * cfg_info for Serial does nothing at all.
  */
-static int serial_cfg_info(void *handle)
+static int serial_cfg_info(Backend *be)
 {
     return 0;
 }
 
-Backend serial_backend = {
+const struct Backend_vtable serial_backend = {
     serial_init,
     serial_free,
     serial_reconfig,

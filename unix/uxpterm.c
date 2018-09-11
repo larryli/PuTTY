@@ -13,7 +13,7 @@ const int new_session = 0, saved_sessions = 0;   /* or these */
 const int dup_check_launchable = 0; /* no need to check host name in conf */
 const int use_pty_argv = TRUE;
 
-Backend *select_backend(Conf *conf)
+const struct Backend_vtable *select_backend(Conf *conf)
 {
     return &pty_backend;
 }

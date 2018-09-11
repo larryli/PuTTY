@@ -275,13 +275,14 @@ int cmdline_process_param(const char *p, char *value,
                     const char *comma = strchr(p, ',');
                     if (comma) {
                         char *prefix = dupprintf("%.*s", (int)(comma - p), p);
-                        const Backend *b = backend_from_name(prefix);
+                        const struct Backend_vtable *vt =
+                            backend_vt_from_name(prefix);
 
-                        if (b) {
-                            default_protocol = b->protocol;
+                        if (vt) {
+                            default_protocol = vt->protocol;
                             conf_set_int(conf, CONF_protocol,
                                          default_protocol);
-                            port_override = b->default_port;
+                            port_override = vt->default_port;
                         } else {
                             cmdline_error("unrecognised protocol prefix '%s'",
                                           prefix);

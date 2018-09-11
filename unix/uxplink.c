@@ -91,8 +91,7 @@ void cmdline_error(const char *p, ...)
 
 static int local_tty = FALSE; /* do we have a local tty? */
 
-static Backend *back;
-static void *backhandle;
+static Backend *backend;
 static Conf *conf;
 
 /*
@@ -459,13 +458,13 @@ static void from_tty(void *vbuf, unsigned len)
 		} else {
 		    q = memchr(p, '\xff', end - p);
 		    if (q == NULL) q = end;
-		    back->send(backhandle, p, q - p);
+                    backend_send(backend, p, q - p);
 		    p = q;
 		}
 		break;
 	    case FF:
 		if (*p == '\xff') {
-		    back->send(backhandle, p, 1);
+                    backend_send(backend, p, 1);
 		    p++;
 		    state = NORMAL;
 		} else if (*p == '\0') {
@@ -475,7 +474,7 @@ static void from_tty(void *vbuf, unsigned len)
 		break;
 	    case FF00:
 		if (*p == '\0') {
-		    back->special(backhandle, TS_BRK);
+                    backend_special(backend, TS_BRK);
 		} else {
 		    /* 
 		     * Pretend that PARMRK wasn't set.  This involves
@@ -494,11 +493,11 @@ static void from_tty(void *vbuf, unsigned len)
 			if (!(orig_termios.c_iflag & IGNPAR)) {
 			    /* PE/FE get passed on as NUL. */
 			    *p = 0;
-			    back->send(backhandle, p, 1);
+                            backend_send(backend, p, 1);
 			}
 		    } else {
 			/* INPCK not set.  Assume we got a parity error. */
-			back->send(backhandle, p, 1);
+                        backend_send(backend, p, 1);
 		    }
 		}
 		p++;
@@ -606,6 +605,7 @@ int main(int argc, char **argv)
     int just_test_share_exists = FALSE;
     unsigned long now;
     struct winsize size;
+    const struct Backend_vtable *backvt;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -643,10 +643,10 @@ int main(int argc, char **argv)
 	 */
 	char *p = getenv("PLINK_PROTOCOL");
 	if (p) {
-	    const Backend *b = backend_from_name(p);
-	    if (b) {
-		default_protocol = b->protocol;
-		default_port = b->default_port;
+            const struct Backend_vtable *vt = backend_vt_from_name(p);
+            if (vt) {
+                default_protocol = vt->protocol;
+                default_port = vt->default_port;
 		conf_set_int(conf, CONF_protocol, default_protocol);
 		conf_set_int(conf, CONF_port, default_port);
 	    }
@@ -766,8 +766,8 @@ int main(int argc, char **argv)
      * Select protocol. This is farmed out into a table in a
      * separate file to enable an ssh-free variant.
      */
-    back = backend_from_proto(conf_get_int(conf, CONF_protocol));
-    if (back == NULL) {
+    backvt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
+    if (!backvt) {
 	fprintf(stderr,
 		"Internal fault: Unsupported protocol found\n");
 	return 1;
@@ -817,13 +817,13 @@ int main(int argc, char **argv)
 	conf_set_int(conf, CONF_ssh_simple, TRUE);
 
     if (just_test_share_exists) {
-        if (!back->test_for_upstream) {
+        if (!backvt->test_for_upstream) {
             fprintf(stderr, "Connection sharing not supported for connection "
-                    "type '%s'\n", back->name);
+                    "type '%s'\n", backvt->name);
             return 1;
         }
-        if (back->test_for_upstream(conf_get_str(conf, CONF_host),
-                                    conf_get_int(conf, CONF_port), conf))
+        if (backvt->test_for_upstream(conf_get_str(conf, CONF_host),
+                                      conf_get_int(conf, CONF_port), conf))
             return 0;
         else
             return 1;
@@ -845,17 +845,17 @@ int main(int argc, char **argv)
 	__AFL_INIT();
 #endif
 
-	error = back->init(NULL, &backhandle, conf,
-			   conf_get_str(conf, CONF_host),
-			   conf_get_int(conf, CONF_port),
-			   &realhost, nodelay,
-			   conf_get_int(conf, CONF_tcp_keepalives));
+        error = backend_init(backvt, NULL, &backend, conf,
+                             conf_get_str(conf, CONF_host),
+                             conf_get_int(conf, CONF_port),
+                             &realhost, nodelay,
+                             conf_get_int(conf, CONF_tcp_keepalives));
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;
 	}
-	back->provide_logctx(backhandle, logctx);
-	ldisc_create(conf, NULL, back, backhandle, NULL);
+        backend_provide_logctx(backend, logctx);
+        ldisc_create(conf, NULL, backend, NULL);
 	sfree(realhost);
     }
 
@@ -885,9 +885,9 @@ int main(int argc, char **argv)
 	FD_SET_MAX(signalpipe[0], maxfd, rset);
 
 	if (!sending &&
-	    back->connected(backhandle) &&
-	    back->sendok(backhandle) &&
-	    back->sendbuffer(backhandle) < MAX_STDIN_BACKLOG) {
+            backend_connected(backend) &&
+            backend_sendok(backend) &&
+            backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
 	    /* If we're OK to send, then try to read from stdin. */
 	    FD_SET_MAX(STDIN_FILENO, maxfd, rset);
 	}
@@ -988,46 +988,46 @@ int main(int argc, char **argv)
 		/* ignore error */;
 	    /* ignore its value; it'll be `x' */
 	    if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
-		back->size(backhandle, size.ws_col, size.ws_row);
+                backend_size(backend, size.ws_col, size.ws_row);
 	}
 
 	if (FD_ISSET(STDIN_FILENO, &rset)) {
 	    char buf[4096];
 	    int ret;
 
-	    if (back->connected(backhandle)) {
+            if (backend_connected(backend)) {
 		ret = read(STDIN_FILENO, buf, sizeof(buf));
 		if (ret < 0) {
 		    perror("stdin: read");
 		    exit(1);
 		} else if (ret == 0) {
-		    back->special(backhandle, TS_EOF);
+                    backend_special(backend, TS_EOF);
 		    sending = FALSE;   /* send nothing further after this */
 		} else {
 		    if (local_tty)
 			from_tty(buf, ret);
 		    else
-			back->send(backhandle, buf, ret);
+                        backend_send(backend, buf, ret);
 		}
 	    }
 	}
 
 	if (FD_ISSET(STDOUT_FILENO, &wset)) {
-	    back->unthrottle(backhandle, try_output(FALSE));
+            backend_unthrottle(backend, try_output(FALSE));
 	}
 
 	if (FD_ISSET(STDERR_FILENO, &wset)) {
-	    back->unthrottle(backhandle, try_output(TRUE));
+            backend_unthrottle(backend, try_output(TRUE));
 	}
 
         run_toplevel_callbacks();
 
-	if (!back->connected(backhandle) &&
+        if (!backend_connected(backend) &&
 	    bufchain_size(&stdout_data) == 0 &&
 	    bufchain_size(&stderr_data) == 0)
 	    break;		       /* we closed the connection */
     }
-    exitcode = back->exitcode(backhandle);
+    exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
 	fprintf(stderr, "Remote process exit code unavailable\n");
 	exitcode = 1;		       /* this is an error condition */

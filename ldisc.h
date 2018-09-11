@@ -10,8 +10,7 @@
 
 struct Ldisc_tag {
     Terminal *term;
-    Backend *back;
-    void *backhandle;
+    Backend *backend;
     void *frontend;
 
     /*

@@ -267,10 +267,10 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	conf_set_int(conf, CONF_protocol, newproto);
 
 	if (oldproto != newproto) {
-	    Backend *ob = backend_from_proto(oldproto);
-	    Backend *nb = backend_from_proto(newproto);
-	    assert(ob);
-	    assert(nb);
+            const struct Backend_vtable *ovt = backend_vt_from_proto(oldproto);
+            const struct Backend_vtable *nvt = backend_vt_from_proto(newproto);
+            assert(ovt);
+            assert(nvt);
 	    /* Iff the user hasn't changed the port from the old protocol's
 	     * default, update it with the new protocol's default.
 	     * (This includes a "default" of 0, implying that there is no
@@ -281,8 +281,8 @@ void config_protocolbuttons_handler(union control *ctrl, void *dlg,
 	     * getting to the protocol; we want that non-default port
 	     * to be preserved. */
 	    port = conf_get_int(conf, CONF_port);
-	    if (port == ob->default_port)
-		conf_set_int(conf, CONF_port, nb->default_port);
+            if (port == ovt->default_port)
+                conf_set_int(conf, CONF_port, nvt->default_port);
 	}
 	dlg_refresh(hp->host, dlg);
 	dlg_refresh(hp->port, dlg);
@@ -1503,7 +1503,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 	hp->port = c;
 	ctrl_columns(s, 1, 100);
 
-	if (!backend_from_proto(PROT_SSH)) {
+        if (!backend_vt_from_proto(PROT_SSH)) {
 	    ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
 			      HELPCTX(session_hostname),
 			      config_protocolbuttons_handler, P(hp),
@@ -1594,7 +1594,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     {
 	const char *sshlogname, *sshrawlogname;
 	if ((midsession && protocol == PROT_SSH) ||
-	    (!midsession && backend_from_proto(PROT_SSH))) {
+            (!midsession && backend_vt_from_proto(PROT_SSH))) {
 	    sshlogname = "SSH packets";
 	    sshrawlogname = "SSH packets and raw data";
         } else {
@@ -1630,7 +1630,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 conf_checkbox_handler, I(CONF_logflush));
 
     if ((midsession && protocol == PROT_SSH) ||
-	(!midsession && backend_from_proto(PROT_SSH))) {
+        (!midsession && backend_vt_from_proto(PROT_SSH))) {
 	s = ctrl_getset(b, "Session/Logging", "ssh",
 			"Options specific to SSH packet logging");
 	ctrl_checkbox(s, "Omit known password fields", 'k',
@@ -2107,7 +2107,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 #endif
 
 	    {
-		const char *label = backend_from_proto(PROT_SSH) ?
+                const char *label = backend_vt_from_proto(PROT_SSH) ?
 		    "Logical name of remote host (e.g. for SSH key lookup):" :
 		    "Logical name of remote host:";
 		s = ctrl_getset(b, "Connection", "identity",
@@ -2319,7 +2319,8 @@ void setup_config_box(struct controlbox *b, int midsession,
      * when we're not doing SSH.
      */
 
-    if (backend_from_proto(PROT_SSH) && (!midsession || protocol == PROT_SSH)) {
+    if (backend_vt_from_proto(PROT_SSH) &&
+        (!midsession || protocol == PROT_SSH)) {
 
 	/*
 	 * The Connection/SSH panel.

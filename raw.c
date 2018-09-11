@@ -20,9 +20,10 @@ typedef struct raw_backend_data {
     Conf *conf;
 
     const Plug_vtable *plugvt;
+    Backend backend;
 } *Raw;
 
-static void raw_size(void *handle, int width, int height);
+static void raw_size(Backend *be, int width, int height);
 
 static void c_write(Raw raw, const void *buf, int len)
 {
@@ -116,7 +117,7 @@ static const Plug_vtable Raw_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *raw_init(void *frontend_handle, void **backend_handle,
+static const char *raw_init(void *frontend_handle, Backend **backend_handle,
 			    Conf *conf,
 			    const char *host, int port, char **realhost,
                             int nodelay, int keepalive)
@@ -129,9 +130,10 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
 
     raw = snew(struct raw_backend_data);
     raw->plugvt = &Raw_plugvt;
+    raw->backend.vt = &raw_backend;
     raw->s = NULL;
     raw->closed_on_socket_error = FALSE;
-    *backend_handle = raw;
+    *backend_handle = &raw->backend;
     raw->sent_console_eof = raw->sent_socket_eof = FALSE;
     raw->bufsize = 0;
     raw->session_started = FALSE;
@@ -176,9 +178,9 @@ static const char *raw_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
-static void raw_free(void *handle)
+static void raw_free(Backend *be)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
 
     if (raw->s)
 	sk_close(raw->s);
@@ -189,16 +191,16 @@ static void raw_free(void *handle)
 /*
  * Stub routine (we don't have any need to reconfigure this backend).
  */
-static void raw_reconfig(void *handle, Conf *conf)
+static void raw_reconfig(Backend *be, Conf *conf)
 {
 }
 
 /*
  * Called to send data down the raw connection.
  */
-static int raw_send(void *handle, const char *buf, int len)
+static int raw_send(Backend *be, const char *buf, int len)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
 
     if (raw->s == NULL)
 	return 0;
@@ -211,16 +213,16 @@ static int raw_send(void *handle, const char *buf, int len)
 /*
  * Called to query the current socket sendability status.
  */
-static int raw_sendbuffer(void *handle)
+static int raw_sendbuffer(Backend *be)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
     return raw->bufsize;
 }
 
 /*
  * Called to set the size of the window
  */
-static void raw_size(void *handle, int width, int height)
+static void raw_size(Backend *be, int width, int height)
 {
     /* Do nothing! */
     return;
@@ -229,9 +231,9 @@ static void raw_size(void *handle, int width, int height)
 /*
  * Send raw special codes. We only handle outgoing EOF here.
  */
-static void raw_special(void *handle, Telnet_Special code)
+static void raw_special(Backend *be, Telnet_Special code)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
     if (code == TS_EOF && raw->s) {
         sk_write_eof(raw->s);
         raw->sent_socket_eof= TRUE;
@@ -245,48 +247,48 @@ static void raw_special(void *handle, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *raw_get_specials(void *handle)
+static const struct telnet_special *raw_get_specials(Backend *be)
 {
     return NULL;
 }
 
-static int raw_connected(void *handle)
+static int raw_connected(Backend *be)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
     return raw->s != NULL;
 }
 
-static int raw_sendok(void *handle)
+static int raw_sendok(Backend *be)
 {
     return 1;
 }
 
-static void raw_unthrottle(void *handle, int backlog)
+static void raw_unthrottle(Backend *be, int backlog)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static int raw_ldisc(void *handle, int option)
+static int raw_ldisc(Backend *be, int option)
 {
     if (option == LD_EDIT || option == LD_ECHO)
 	return 1;
     return 0;
 }
 
-static void raw_provide_ldisc(void *handle, Ldisc *ldisc)
+static void raw_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
     /* This is a stub. */
 }
 
-static void raw_provide_logctx(void *handle, LogContext *logctx)
+static void raw_provide_logctx(Backend *be, LogContext *logctx)
 {
     /* This is a stub. */
 }
 
-static int raw_exitcode(void *handle)
+static int raw_exitcode(Backend *be)
 {
-    Raw raw = (Raw) handle;
+    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
     if (raw->s != NULL)
         return -1;                     /* still connected */
     else if (raw->closed_on_socket_error)
@@ -299,12 +301,12 @@ static int raw_exitcode(void *handle)
 /*
  * cfg_info for Raw does nothing at all.
  */
-static int raw_cfg_info(void *handle)
+static int raw_cfg_info(Backend *be)
 {
     return 0;
 }
 
-Backend raw_backend = {
+const struct Backend_vtable raw_backend = {
     raw_init,
     raw_free,
     raw_reconfig,

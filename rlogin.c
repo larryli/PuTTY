@@ -26,9 +26,8 @@ typedef struct rlogin_tag {
     prompts_t *prompt;
 
     const Plug_vtable *plugvt;
+    Backend backend;
 } *Rlogin;
-
-static void rlogin_size(void *handle, int width, int height);
 
 static void c_write(Rlogin rlogin, const void *buf, int len)
 {
@@ -80,7 +79,8 @@ static void rlogin_receive(Plug plug, int urgent, char *data, int len)
 	len--;
 	if (c == '\x80') {
 	    rlogin->cansize = 1;
-	    rlogin_size(rlogin, rlogin->term_width, rlogin->term_height);
+            backend_size(&rlogin->backend,
+                         rlogin->term_width, rlogin->term_height);
         }
 	/*
 	 * We should flush everything (aka Telnet SYNCH) if we see
@@ -148,7 +148,7 @@ static const Plug_vtable Rlogin_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *rlogin_init(void *frontend_handle, void **backend_handle,
+static const char *rlogin_init(void *frontend_handle, Backend **backend_handle,
 			       Conf *conf,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
@@ -162,6 +162,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
 
     rlogin = snew(struct rlogin_tag);
     rlogin->plugvt = &Rlogin_plugvt;
+    rlogin->backend.vt = &rlogin_backend;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
     rlogin->frontend = frontend_handle;
@@ -171,7 +172,7 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     rlogin->cansize = 0;
     rlogin->prompt = NULL;
     rlogin->conf = conf_copy(conf);
-    *backend_handle = rlogin;
+    *backend_handle = &rlogin->backend;
 
     addressfamily = conf_get_int(conf, CONF_addressfamily);
     /*
@@ -232,9 +233,9 @@ static const char *rlogin_init(void *frontend_handle, void **backend_handle,
     return NULL;
 }
 
-static void rlogin_free(void *handle)
+static void rlogin_free(Backend *be)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
 
     if (rlogin->prompt)
         free_prompts(rlogin->prompt);
@@ -247,16 +248,16 @@ static void rlogin_free(void *handle)
 /*
  * Stub routine (we don't have any need to reconfigure this backend).
  */
-static void rlogin_reconfig(void *handle, Conf *conf)
+static void rlogin_reconfig(Backend *be, Conf *conf)
 {
 }
 
 /*
  * Called to send data down the rlogin connection.
  */
-static int rlogin_send(void *handle, const char *buf, int len)
+static int rlogin_send(Backend *be, const char *buf, int len)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     bufchain bc;
 
     if (rlogin->s == NULL)
@@ -296,18 +297,18 @@ static int rlogin_send(void *handle, const char *buf, int len)
 /*
  * Called to query the current socket sendability status.
  */
-static int rlogin_sendbuffer(void *handle)
+static int rlogin_sendbuffer(Backend *be)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     return rlogin->bufsize;
 }
 
 /*
  * Called to set the size of the window
  */
-static void rlogin_size(void *handle, int width, int height)
+static void rlogin_size(Backend *be, int width, int height)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     rlogin->term_width = width;
@@ -327,7 +328,7 @@ static void rlogin_size(void *handle, int width, int height)
 /*
  * Send rlogin special codes.
  */
-static void rlogin_special(void *handle, Telnet_Special code)
+static void rlogin_special(Backend *be, Telnet_Special code)
 {
     /* Do nothing! */
     return;
@@ -337,48 +338,48 @@ static void rlogin_special(void *handle, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *rlogin_get_specials(void *handle)
+static const struct telnet_special *rlogin_get_specials(Backend *be)
 {
     return NULL;
 }
 
-static int rlogin_connected(void *handle)
+static int rlogin_connected(Backend *be)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     return rlogin->s != NULL;
 }
 
-static int rlogin_sendok(void *handle)
+static int rlogin_sendok(Backend *be)
 {
-    /* Rlogin rlogin = (Rlogin) handle; */
+    /* Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend); */
     return 1;
 }
 
-static void rlogin_unthrottle(void *handle, int backlog)
+static void rlogin_unthrottle(Backend *be, int backlog)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
-static int rlogin_ldisc(void *handle, int option)
+static int rlogin_ldisc(Backend *be, int option)
 {
-    /* Rlogin rlogin = (Rlogin) handle; */
+    /* Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend); */
     return 0;
 }
 
-static void rlogin_provide_ldisc(void *handle, Ldisc *ldisc)
+static void rlogin_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
     /* This is a stub. */
 }
 
-static void rlogin_provide_logctx(void *handle, LogContext *logctx)
+static void rlogin_provide_logctx(Backend *be, LogContext *logctx)
 {
     /* This is a stub. */
 }
 
-static int rlogin_exitcode(void *handle)
+static int rlogin_exitcode(Backend *be)
 {
-    Rlogin rlogin = (Rlogin) handle;
+    Rlogin rlogin = FROMFIELD(be, struct rlogin_tag, backend);
     if (rlogin->s != NULL)
         return -1;                     /* still connected */
     else if (rlogin->closed_on_socket_error)
@@ -391,12 +392,12 @@ static int rlogin_exitcode(void *handle)
 /*
  * cfg_info for rlogin does nothing at all.
  */
-static int rlogin_cfg_info(void *handle)
+static int rlogin_cfg_info(Backend *be)
 {
     return 0;
 }
 
-Backend rlogin_backend = {
+const struct Backend_vtable rlogin_backend = {
     rlogin_init,
     rlogin_free,
     rlogin_reconfig,

@@ -37,11 +37,12 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-Backend *select_backend(Conf *conf)
+const struct Backend_vtable *select_backend(Conf *conf)
 {
-    Backend *back = backend_from_proto(conf_get_int(conf, CONF_protocol));
-    assert(back != NULL);
-    return back;
+    const struct Backend_vtable *vt =
+        backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
+    assert(vt != NULL);
+    return vt;
 }
 
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
@@ -83,9 +84,10 @@ void setup(int single)
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {
-	Backend *b = backend_from_proto(default_protocol);
+        const struct Backend_vtable *vt =
+            backend_vt_from_proto(default_protocol);
 	default_port = 0; /* illegal */
-	if (b)
-	    default_port = b->default_port;
+        if (vt)
+            default_port = vt->default_port;
     }
 }

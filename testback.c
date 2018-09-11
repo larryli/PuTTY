@@ -32,36 +32,36 @@
 
 #include "putty.h"
 
-static const char *null_init(void *, void **, Conf *, const char *, int,
+static const char *null_init(void *, Backend **, Conf *, const char *, int,
                              char **, int, int);
-static const char *loop_init(void *, void **, Conf *, const char *, int,
+static const char *loop_init(void *, Backend **, Conf *, const char *, int,
                              char **, int, int);
-static void null_free(void *);
-static void loop_free(void *);
-static void null_reconfig(void *, Conf *);
-static int null_send(void *, const char *, int);
-static int loop_send(void *, const char *, int);
-static int null_sendbuffer(void *);
-static void null_size(void *, int, int);
-static void null_special(void *, Telnet_Special);
-static const struct telnet_special *null_get_specials(void *handle);
-static int null_connected(void *);
-static int null_exitcode(void *);
-static int null_sendok(void *);
-static int null_ldisc(void *, int);
-static void null_provide_ldisc(void *, Ldisc *);
-static void null_provide_logctx(void *, LogContext *);
-static void null_unthrottle(void *, int);
-static int null_cfg_info(void *);
+static void null_free(Backend *);
+static void loop_free(Backend *);
+static void null_reconfig(Backend *, Conf *);
+static int null_send(Backend *, const char *, int);
+static int loop_send(Backend *, const char *, int);
+static int null_sendbuffer(Backend *);
+static void null_size(Backend *, int, int);
+static void null_special(Backend *, Telnet_Special);
+static const struct telnet_special *null_get_specials(Backend *);
+static int null_connected(Backend *);
+static int null_exitcode(Backend *);
+static int null_sendok(Backend *);
+static int null_ldisc(Backend *, int);
+static void null_provide_ldisc(Backend *, Ldisc *);
+static void null_provide_logctx(Backend *, LogContext *);
+static void null_unthrottle(Backend *, int);
+static int null_cfg_info(Backend *);
 
-Backend null_backend = {
+const struct Backend_vtable null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
     null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
     null_cfg_info, NULL /* test_for_upstream */, "null", -1, 0
 };
 
-Backend loop_backend = {
+const struct Backend_vtable loop_backend = {
     loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
     null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
@@ -70,102 +70,104 @@ Backend loop_backend = {
 
 struct loop_state {
     Terminal *term;
+    Backend backend;
 };
 
-static const char *null_init(void *frontend_handle, void **backend_handle,
+static const char *null_init(void *frontend_handle, Backend **backend_handle,
                              Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
-
+    *backend_handle = NULL;
     return NULL;
 }
 
-static const char *loop_init(void *frontend_handle, void **backend_handle,
+static const char *loop_init(void *frontend_handle, Backend **backend_handle,
                              Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
     st->term = frontend_handle;
-    *backend_handle = st;
+    *backend_handle = &st->backend;
     return NULL;
 }
 
-static void null_free(void *handle)
+static void null_free(Backend *be)
 {
 
 }
 
-static void loop_free(void *handle)
+static void loop_free(Backend *be)
 {
+    struct loop_state *st = FROMFIELD(be, struct loop_state, backend);
 
-    sfree(handle);
+    sfree(st);
 }
 
-static void null_reconfig(void *handle, Conf *conf) {
+static void null_reconfig(Backend *be, Conf *conf) {
 
 }
 
-static int null_send(void *handle, const char *buf, int len) {
+static int null_send(Backend *be, const char *buf, int len) {
 
     return 0;
 }
 
-static int loop_send(void *handle, const char *buf, int len) {
-    struct loop_state *st = handle;
+static int loop_send(Backend *be, const char *buf, int len) {
+    struct loop_state *st = FROMFIELD(be, struct loop_state, backend);
 
     return from_backend(st->term, 0, buf, len);
 }
 
-static int null_sendbuffer(void *handle) {
+static int null_sendbuffer(Backend *be) {
 
     return 0;
 }
 
-static void null_size(void *handle, int width, int height) {
+static void null_size(Backend *be, int width, int height) {
 
 }
 
-static void null_special(void *handle, Telnet_Special code) {
+static void null_special(Backend *be, Telnet_Special code) {
 
 }
 
-static const struct telnet_special *null_get_specials (void *handle) {
+static const struct telnet_special *null_get_specials (Backend *be) {
 
     return NULL;
 }
 
-static int null_connected(void *handle) {
+static int null_connected(Backend *be) {
 
     return 0;
 }
 
-static int null_exitcode(void *handle) {
+static int null_exitcode(Backend *be) {
 
     return 0;
 }
 
-static int null_sendok(void *handle) {
+static int null_sendok(Backend *be) {
 
     return 1;
 }
 
-static void null_unthrottle(void *handle, int backlog) {
+static void null_unthrottle(Backend *be, int backlog) {
 
 }
 
-static int null_ldisc(void *handle, int option) {
+static int null_ldisc(Backend *be, int option) {
 
     return 0;
 }
 
-static void null_provide_ldisc (void *handle, Ldisc *ldisc) {
+static void null_provide_ldisc (Backend *be, Ldisc *ldisc) {
 
 }
 
-static void null_provide_logctx(void *handle, LogContext *logctx) {
+static void null_provide_logctx(Backend *be, LogContext *logctx) {
 
 }
 
-static int null_cfg_info(void *handle)
+static int null_cfg_info(Backend *be)
 {
     return 0;
 }

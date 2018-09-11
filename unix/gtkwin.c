@@ -159,8 +159,7 @@ struct gui_data {
     char *icontitle;
     int master_fd, master_func_id;
     Ldisc *ldisc;
-    Backend *back;
-    void *backhandle;
+    Backend *backend;
     Terminal *term;
     LogContext *logctx;
     int exited;
@@ -1609,8 +1608,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug((" - Ctrl-Break special case, sending TS_BRK\n"));
 #endif
-	    if (inst->back)
-		inst->back->special(inst->backhandle, TS_BRK);
+            if (inst->backend)
+                backend_special(inst->backend, TS_BRK);
 	    return TRUE;
 	}
 
@@ -2399,7 +2398,7 @@ static void exit_callback(void *vinst)
     int exitcode, close_on_exit;
 
     if (!inst->exited &&
-        (exitcode = inst->back->exitcode(inst->backhandle)) >= 0) {
+        (exitcode = backend_exitcode(inst->backend)) >= 0) {
         destroy_inst_connection(inst);
 
 	close_on_exit = conf_get_int(inst->conf, CONF_close_on_exit);
@@ -2424,13 +2423,12 @@ static void destroy_inst_connection(struct gui_data *inst)
         ldisc_free(inst->ldisc);
         inst->ldisc = NULL;
     }
-    if (inst->backhandle) {
-        inst->back->free(inst->backhandle);
-        inst->backhandle = NULL;
-        inst->back = NULL;
+    if (inst->backend) {
+        backend_free(inst->backend);
+        inst->backend = NULL;
     }
     if (inst->term)
-        term_provide_resize_fn(inst->term, NULL, NULL);
+        term_provide_backend(inst->term, NULL);
     if (inst->menu) {
         update_specials_menu(inst);
         gtk_widget_set_sensitive(inst->restartitem, TRUE);
@@ -4480,8 +4478,8 @@ void special_menuitem(GtkMenuItem *item, gpointer data)
     int code = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),
                                                  "user-data"));
 
-    if (inst->back)
-	inst->back->special(inst->backhandle, code);
+    if (inst->backend)
+        backend_special(inst->backend, code);
 }
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
@@ -4582,7 +4580,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 
     dialog = create_config_box(
         title, ctx->newconf, 1,
-        inst->back ? inst->back->cfg_info(inst->backhandle) : 0,
+        inst->backend ? backend_cfg_info(inst->backend) : 0,
         after_change_settings_dialog, ctx);
     register_dialog(inst, DIALOG_SLOT_RECONFIGURE, dialog);
 
@@ -4633,8 +4631,8 @@ static void after_change_settings_dialog(void *vctx, int retval)
         term_reconfig(inst->term, inst->conf);
         setup_clipboards(inst, inst->term, inst->conf);
         /* Pass new config data to the back end */
-        if (inst->back)
-	    inst->back->reconfig(inst->backhandle, inst->conf);
+        if (inst->backend)
+            backend_reconfig(inst->backend, inst->conf);
 
 	cache_conf_values(inst);
 
@@ -4851,7 +4849,7 @@ void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 {
     struct gui_data *inst = (struct gui_data *)data;
 
-    if (!inst->back) {
+    if (!inst->backend) {
 	logevent(inst, "----- Session restarted -----");
 	term_pwron(inst->term, FALSE);
 	start_backend(inst);
@@ -4984,8 +4982,8 @@ void update_specials_menu(void *frontend)
 
     const struct telnet_special *specials;
 
-    if (inst->back)
-	specials = inst->back->get_specials(inst->backhandle);
+    if (inst->backend)
+        specials = backend_get_specials(inst->backend);
     else
 	specials = NULL;
 
@@ -5045,20 +5043,20 @@ void update_specials_menu(void *frontend)
 
 static void start_backend(struct gui_data *inst)
 {
-    extern Backend *select_backend(Conf *conf);
+    const struct Backend_vtable *vt;
     char *realhost;
     const char *error;
     char *s;
 
-    inst->back = select_backend(inst->conf);
+    vt = select_backend(inst->conf);
 
-    error = inst->back->init((void *)inst, &inst->backhandle,
-			     inst->conf,
-			     conf_get_str(inst->conf, CONF_host),
-			     conf_get_int(inst->conf, CONF_port),
-			     &realhost,
-			     conf_get_int(inst->conf, CONF_tcp_nodelay),
-			     conf_get_int(inst->conf, CONF_tcp_keepalives));
+    error = backend_init(vt, (void *)inst, &inst->backend,
+                         inst->conf,
+                         conf_get_str(inst->conf, CONF_host),
+                         conf_get_int(inst->conf, CONF_port),
+                         &realhost,
+                         conf_get_int(inst->conf, CONF_tcp_nodelay),
+                         conf_get_int(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
@@ -5079,13 +5077,11 @@ static void start_backend(struct gui_data *inst)
     }
     sfree(realhost);
 
-    inst->back->provide_logctx(inst->backhandle, inst->logctx);
+    backend_provide_logctx(inst->backend, inst->logctx);
 
-    term_provide_resize_fn(inst->term, inst->back->size, inst->backhandle);
+    term_provide_backend(inst->term, inst->backend);
 
-    inst->ldisc =
-	ldisc_create(inst->conf, inst->term, inst->back, inst->backhandle,
-		     inst);
+    inst->ldisc = ldisc_create(inst->conf, inst->term, inst->backend, inst);
 
     gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }

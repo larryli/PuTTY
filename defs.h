@@ -21,7 +21,6 @@
 #endif
 
 typedef struct conf_tag Conf;
-typedef struct backend_tag Backend;
 typedef struct terminal_tag Terminal;
 
 typedef struct Filename Filename;
@@ -44,10 +43,14 @@ typedef struct SockAddr_tag *SockAddr;
 typedef struct Socket_vtable Socket_vtable;
 typedef struct Plug_vtable Plug_vtable;
 
+typedef struct Backend Backend;
+typedef struct Backend_vtable Backend_vtable;
+
 typedef struct Ldisc_tag Ldisc;
 typedef struct LogContext_tag LogContext;
 
 typedef struct ssh_tag *Ssh;
+
 /* Note indirection: for historical reasons (it used to be closer to
  * the OS socket type), the type that most code uses for a socket is
  * 'Socket', not 'Socket *'. So an implementation of Socket or Plug

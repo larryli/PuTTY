@@ -43,8 +43,7 @@ static int fallback_cmd_is_sftp = 0;
 static int using_sftp = 0;
 static int uploading = 0;
 
-static Backend *back;
-static void *backhandle;
+static Backend *backend;
 static Conf *conf;
 int sent_eof = FALSE;
 
@@ -247,7 +246,7 @@ static int ssh_scp_recv(void *buf, int len)
     }
 
     while (outlen > 0) {
-	if (back->exitcode(backhandle) >= 0 || ssh_sftp_loop_iteration() < 0)
+        if (backend_exitcode(backend) >= 0 || ssh_sftp_loop_iteration() < 0)
 	    return 0;		       /* doom */
     }
 
@@ -259,8 +258,8 @@ static int ssh_scp_recv(void *buf, int len)
  */
 static void ssh_scp_init(void)
 {
-    while (!back->sendok(backhandle)) {
-        if (back->exitcode(backhandle) >= 0) {
+    while (!backend_sendok(backend)) {
+        if (backend_exitcode(backend) >= 0) {
             errs++;
             return;
         }
@@ -271,7 +270,7 @@ static void ssh_scp_init(void)
     }
 
     /* Work out which backend we ended up using. */
-    if (!ssh_fallback_cmd(backhandle))
+    if (!ssh_fallback_cmd(backend))
 	using_sftp = main_cmd_is_sftp;
     else
 	using_sftp = fallback_cmd_is_sftp;
@@ -300,9 +299,9 @@ static void bump(const char *fmt, ...)
     sfree(str2);
     errs++;
 
-    if (back != NULL && back->connected(backhandle)) {
+    if (backend && backend_connected(backend)) {
 	char ch;
-	back->special(backhandle, TS_EOF);
+        backend_special(backend, TS_EOF);
         sent_eof = TRUE;
 	ssh_scp_recv(&ch, 1);
     }
@@ -498,21 +497,19 @@ static void do_cmd(char *host, char *user, char *cmd)
     }
     conf_set_int(conf, CONF_nopty, TRUE);
 
-    back = &ssh_backend;
-
     logctx = log_init(NULL, conf);
     console_provide_logctx(logctx);
 
     platform_psftp_pre_conn_setup();
 
-    err = back->init(NULL, &backhandle, conf,
-		     conf_get_str(conf, CONF_host),
-		     conf_get_int(conf, CONF_port),
-		     &realhost, 0,
-		     conf_get_int(conf, CONF_tcp_keepalives));
+    err = backend_init(&ssh_backend, NULL, &backend, conf,
+                       conf_get_str(conf, CONF_host),
+                       conf_get_int(conf, CONF_port),
+                       &realhost, 0,
+                       conf_get_int(conf, CONF_tcp_keepalives));
     if (err != NULL)
 	bump("ssh_init: %s", err);
-    back->provide_logctx(backhandle, logctx);
+    backend_provide_logctx(backend, logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL && errs == 0)
 	tell_user(stderr, "Connected to %s", realhost);
@@ -644,12 +641,12 @@ int sftp_recvdata(char *buf, int len)
 }
 int sftp_senddata(char *buf, int len)
 {
-    back->send(backhandle, buf, len);
+    backend_send(backend, buf, len);
     return 1;
 }
 int sftp_sendbuffer(void)
 {
-    return back->sendbuffer(backhandle);
+    return backend_sendbuffer(backend);
 }
 
 /* ----------------------------------------------------------------------
@@ -806,8 +803,8 @@ int scp_send_errmsg(char *str)
     if (using_sftp) {
 	/* do nothing; we never need to send our errors to the server */
     } else {
-	back->send(backhandle, "\001", 1);/* scp protocol error prefix */
-	back->send(backhandle, str, strlen(str));
+        backend_send(backend, "\001", 1);/* scp protocol error prefix */
+        backend_send(backend, str, strlen(str));
     }
     return 0;			       /* can't fail */
 }
@@ -822,7 +819,7 @@ int scp_send_filetimes(unsigned long mtime, unsigned long atime)
     } else {
 	char buf[80];
 	sprintf(buf, "T%lu 0 %lu 0\n", mtime, atime);
-	back->send(backhandle, buf, strlen(buf));
+        backend_send(backend, buf, strlen(buf));
 	return response();
     }
 }
@@ -869,9 +866,9 @@ int scp_send_filename(const char *name, uint64 size, int permissions)
         if (permissions < 0)
             permissions = 0644;
 	sprintf(buf, "C%04o %s ", (int)(permissions & 07777), sizestr);
-	back->send(backhandle, buf, strlen(buf));
-	back->send(backhandle, name, strlen(name));
-	back->send(backhandle, "\n", 1);
+        backend_send(backend, buf, strlen(buf));
+        backend_send(backend, name, strlen(name));
+        backend_send(backend, "\n", 1);
 	return response();
     }
 }
@@ -903,7 +900,7 @@ int scp_send_filedata(char *data, int len)
 	scp_sftp_fileoffset = uint64_add32(scp_sftp_fileoffset, len);
 	return 0;
     } else {
-	int bufsize = back->send(backhandle, data, len);
+        int bufsize = backend_send(backend, data, len);
 
 	/*
 	 * If the network transfer is backing up - that is, the
@@ -914,7 +911,7 @@ int scp_send_filedata(char *data, int len)
 	while (bufsize > MAX_SCP_BUFSIZE) {
 	    if (ssh_sftp_loop_iteration() < 0)
 		return 1;
-	    bufsize = back->sendbuffer(backhandle);
+            bufsize = backend_sendbuffer(backend);
 	}
 
 	return 0;
@@ -963,7 +960,7 @@ int scp_send_finish(void)
 	scp_has_times = 0;
 	return 0;
     } else {
-	back->send(backhandle, "", 1);
+        backend_send(backend, "", 1);
 	return response();
     }
 }
@@ -1033,9 +1030,9 @@ int scp_send_dirname(const char *name, int modes)
     } else {
 	char buf[40];
 	sprintf(buf, "D%04o 0 ", modes);
-	back->send(backhandle, buf, strlen(buf));
-	back->send(backhandle, name, strlen(name));
-	back->send(backhandle, "\n", 1);
+        backend_send(backend, buf, strlen(buf));
+        backend_send(backend, name, strlen(name));
+        backend_send(backend, "\n", 1);
 	return response();
     }
 }
@@ -1046,7 +1043,7 @@ int scp_send_enddir(void)
 	sfree(scp_sftp_remotepath);
 	return 0;
     } else {
-	back->send(backhandle, "E\n", 2);
+        backend_send(backend, "E\n", 2);
 	return response();
     }
 }
@@ -1144,7 +1141,7 @@ int scp_sink_setup(const char *source, int preserve, int recursive)
 int scp_sink_init(void)
 {
     if (!using_sftp) {
-	back->send(backhandle, "", 1);
+        backend_send(backend, "", 1);
     }
     return 0;
 }
@@ -1457,14 +1454,14 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	      case '\02':		       /* fatal error */
 		bump("%s", act->buf);
 	      case 'E':
-		back->send(backhandle, "", 1);
+                backend_send(backend, "", 1);
 		act->action = SCP_SINK_ENDDIR;
 		return 0;
 	      case 'T':
 		if (sscanf(act->buf, "%lu %*d %lu %*d",
 			   &act->mtime, &act->atime) == 2) {
 		    act->settime = 1;
-		    back->send(backhandle, "", 1);
+                    backend_send(backend, "", 1);
 		    continue;	       /* go round again */
 		}
 		bump("Protocol error: Illegal time format");
@@ -1521,7 +1518,7 @@ int scp_accept_filexfer(void)
 	sfree(scp_sftp_currentname);
 	return 0;
     } else {
-	back->send(backhandle, "", 1);
+        backend_send(backend, "", 1);
 	return 0;		       /* can't fail */
     }
 }
@@ -1606,7 +1603,7 @@ int scp_finish_filerecv(void)
 	fxp_close_recv(pktin, req);
 	return 0;
     } else {
-	back->send(backhandle, "", 1);
+        backend_send(backend, "", 1);
 	return response();
     }
 }
@@ -2355,7 +2352,7 @@ int psftp_main(int argc, char *argv[])
     }
     argc -= i;
     argv += i;
-    back = NULL;
+    backend = NULL;
 
     if (list) {
 	if (argc != 1)
@@ -2375,9 +2372,9 @@ int psftp_main(int argc, char *argv[])
 	    tolocal(argc, argv);
     }
 
-    if (back != NULL && back->connected(backhandle)) {
+    if (backend && backend_connected(backend)) {
 	char ch;
-	back->special(backhandle, TS_EOF);
+        backend_special(backend, TS_EOF);
         sent_eof = TRUE;
 	ssh_scp_recv(&ch, 1);
     }
@@ -2385,9 +2382,8 @@ int psftp_main(int argc, char *argv[])
 
     cmdline_cleanup();
     console_provide_logctx(NULL);
-    back->free(backhandle);
-    backhandle = NULL;
-    back = NULL;
+    backend_free(backend);
+    backend = NULL;
     sk_cleanup();
     return (errs == 0 ? 0 : 1);
 }

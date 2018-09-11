@@ -1693,8 +1693,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->lastbeep = FALSE;
     term->beep_overloaded = FALSE;
     term->attr_mask = 0xffffffff;
-    term->resize_fn = NULL;
-    term->resize_ctx = NULL;
+    term->backend = NULL;
     term->in_term_out = FALSE;
     term->ltemp = NULL;
     term->ltemp_size = 0;
@@ -1964,22 +1963,18 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 
     update_sbar(term);
     term_update(term);
-    if (term->resize_fn)
-	term->resize_fn(term->resize_ctx, term->cols, term->rows);
+    if (term->backend)
+        backend_size(term->backend, term->cols, term->rows);
 }
 
 /*
- * Hand a function and context pointer to the terminal which it can
- * use to notify a back end of resizes.
+ * Hand a backend to the terminal, so it can be notified of resizes.
  */
-void term_provide_resize_fn(Terminal *term,
-			    void (*resize_fn)(void *, int, int),
-			    void *resize_ctx)
+void term_provide_backend(Terminal *term, Backend *backend)
 {
-    term->resize_fn = resize_fn;
-    term->resize_ctx = resize_ctx;
-    if (resize_fn && term->cols > 0 && term->rows > 0)
-	resize_fn(resize_ctx, term->cols, term->rows);
+    term->backend = backend;
+    if (term->backend && term->cols > 0 && term->rows > 0)
+        backend_size(term->backend, term->cols, term->rows);
 }
 
 /* Find the bottom line on the screen that has any content.
