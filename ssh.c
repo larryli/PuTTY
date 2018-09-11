@@ -700,7 +700,7 @@ struct ssh_tag {
 
     const Plug_vtable *plugvt;
 
-    void *ldisc;
+    Ldisc *ldisc;
     void *logctx;
 
     unsigned char session_key[32];
@@ -11428,7 +11428,7 @@ static int ssh_ldisc(void *handle, int option)
     return FALSE;
 }
 
-static void ssh_provide_ldisc(void *handle, void *ldisc)
+static void ssh_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     Ssh ssh = (Ssh) handle;
     ssh->ldisc = ldisc;

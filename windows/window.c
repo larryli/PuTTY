@@ -125,7 +125,7 @@ static int caret_x = -1, caret_y = -1;
 
 static int kbd_codepage;
 
-static void *ldisc;
+static Ldisc *ldisc;
 static Backend *back;
 static void *backhandle;
 

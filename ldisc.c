@@ -22,12 +22,12 @@
                       (ldisc->back->ldisc(ldisc->backhandle, LD_EDIT) || \
 			   term_ldisc(ldisc->term, LD_EDIT))))
 
-static void c_write(Ldisc ldisc, const void *buf, int len)
+static void c_write(Ldisc *ldisc, const void *buf, int len)
 {
     from_backend(ldisc->frontend, 0, buf, len);
 }
 
-static int plen(Ldisc ldisc, unsigned char c)
+static int plen(Ldisc *ldisc, unsigned char c)
 {
     if ((c >= 32 && c <= 126) || (c >= 160 && !in_utf(ldisc->term)))
 	return 1;
@@ -42,7 +42,7 @@ static int plen(Ldisc ldisc, unsigned char c)
 	return 4;		       /* <XY> hex representation */
 }
 
-static void pwrite(Ldisc ldisc, unsigned char c)
+static void pwrite(Ldisc *ldisc, unsigned char c)
 {
     if ((c >= 32 && c <= 126) ||
 	(!in_utf(ldisc->term) && c >= 0xA0) ||
@@ -60,7 +60,7 @@ static void pwrite(Ldisc ldisc, unsigned char c)
     }
 }
 
-static int char_start(Ldisc ldisc, unsigned char c)
+static int char_start(Ldisc *ldisc, unsigned char c)
 {
     if (in_utf(ldisc->term))
 	return (c < 0x80 || c >= 0xC0);
@@ -68,7 +68,7 @@ static int char_start(Ldisc ldisc, unsigned char c)
 	return 1;
 }
 
-static void bsb(Ldisc ldisc, int n)
+static void bsb(Ldisc *ldisc, int n)
 {
     while (n--)
 	c_write(ldisc, "\010 \010", 3);
@@ -77,11 +77,11 @@ static void bsb(Ldisc ldisc, int n)
 #define CTRL(x) (x^'@')
 #define KCTRL(x) ((x^'@') | 0x100)
 
-void *ldisc_create(Conf *conf, Terminal *term,
+Ldisc *ldisc_create(Conf *conf, Terminal *term,
 		   Backend *back, void *backhandle,
 		   void *frontend)
 {
-    Ldisc ldisc = snew(struct ldisc_tag);
+    Ldisc *ldisc = snew(Ldisc);
 
     ldisc->buf = NULL;
     ldisc->buflen = 0;
@@ -104,10 +104,8 @@ void *ldisc_create(Conf *conf, Terminal *term,
     return ldisc;
 }
 
-void ldisc_configure(void *handle, Conf *conf)
+void ldisc_configure(Ldisc *ldisc, Conf *conf)
 {
-    Ldisc ldisc = (Ldisc) handle;
-
     ldisc->telnet_keyboard = conf_get_int(conf, CONF_telnet_keyboard);
     ldisc->telnet_newline = conf_get_int(conf, CONF_telnet_newline);
     ldisc->protocol = conf_get_int(conf, CONF_protocol);
@@ -115,10 +113,8 @@ void ldisc_configure(void *handle, Conf *conf)
     ldisc->localedit = conf_get_int(conf, CONF_localedit);
 }
 
-void ldisc_free(void *handle)
+void ldisc_free(Ldisc *ldisc)
 {
-    Ldisc ldisc = (Ldisc) handle;
-
     if (ldisc->term)
 	ldisc->term->ldisc = NULL;
     if (ldisc->back)
@@ -128,16 +124,14 @@ void ldisc_free(void *handle)
     sfree(ldisc);
 }
 
-void ldisc_echoedit_update(void *handle)
+void ldisc_echoedit_update(Ldisc *ldisc)
 {
-    Ldisc ldisc = (Ldisc) handle;
     frontend_echoedit_update(ldisc->frontend, ECHOING, EDITING);
 }
 
-void ldisc_send(void *handle, const void *vbuf, int len, int interactive)
+void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)
 {
     const char *buf = (const char *)vbuf;
-    Ldisc ldisc = (Ldisc) handle;
     int keyflag = 0;
 
     assert(ldisc->term);

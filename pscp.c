@@ -60,7 +60,7 @@ const char *const appname = "PSCP";
  */
 #define MAX_SCP_BUFSIZE 16384
 
-void ldisc_echoedit_update(void *handle) { }
+void ldisc_echoedit_update(Ldisc *ldisc) { }
 
 static void tell_char(FILE *stream, char c)
 {

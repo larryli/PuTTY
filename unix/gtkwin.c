@@ -158,7 +158,7 @@ struct gui_data {
     char *wintitle;
     char *icontitle;
     int master_fd, master_func_id;
-    void *ldisc;
+    Ldisc *ldisc;
     Backend *back;
     void *backhandle;
     Terminal *term;

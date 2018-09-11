@@ -366,7 +366,7 @@ static int rlogin_ldisc(void *handle, int option)
     return 0;
 }
 
-static void rlogin_provide_ldisc(void *handle, void *ldisc)
+static void rlogin_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     /* This is a stub. */
 }

@@ -409,7 +409,7 @@ static int serial_ldisc(void *handle, int option)
     return 0;
 }
 
-static void serial_provide_ldisc(void *handle, void *ldisc)
+static void serial_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     /* This is a stub. */
 }

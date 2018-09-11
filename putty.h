@@ -461,7 +461,7 @@ struct backend_tag {
      * may be lost. */
     int (*sendok) (void *handle);
     int (*ldisc) (void *handle, int);
-    void (*provide_ldisc) (void *handle, void *ldisc);
+    void (*provide_ldisc) (void *handle, Ldisc *ldisc);
     void (*provide_logctx) (void *handle, void *logctx);
     /*
      * back->unthrottle() tells the back end that the front end
@@ -1174,18 +1174,18 @@ extern Backend ssh_backend;
 /*
  * Exports from ldisc.c.
  */
-void *ldisc_create(Conf *, Terminal *, Backend *, void *, void *);
-void ldisc_configure(void *, Conf *);
-void ldisc_free(void *);
-void ldisc_send(void *handle, const void *buf, int len, int interactive);
-void ldisc_echoedit_update(void *handle);
+Ldisc *ldisc_create(Conf *, Terminal *, Backend *, void *, void *);
+void ldisc_configure(Ldisc *, Conf *);
+void ldisc_free(Ldisc *);
+void ldisc_send(Ldisc *, const void *buf, int len, int interactive);
+void ldisc_echoedit_update(Ldisc *);
 
 /*
  * Exports from ldiscucs.c.
  */
-void lpage_send(void *, int codepage, const char *buf, int len,
+void lpage_send(Ldisc *, int codepage, const char *buf, int len,
                 int interactive);
-void luni_send(void *, const wchar_t * widebuf, int len, int interactive);
+void luni_send(Ldisc *, const wchar_t * widebuf, int len, int interactive);
 
 /*
  * Exports from sshrand.c.

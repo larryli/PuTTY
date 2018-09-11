@@ -175,7 +175,7 @@ typedef struct telnet_tag {
     int closed_on_socket_error;
 
     void *frontend;
-    void *ldisc;
+    Ldisc *ldisc;
     int term_width, term_height;
 
     int opt_states[NUM_OPTS];
@@ -1059,7 +1059,7 @@ static int telnet_ldisc(void *handle, int option)
     return FALSE;
 }
 
-static void telnet_provide_ldisc(void *handle, void *ldisc)
+static void telnet_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     Telnet telnet = (Telnet) handle;
     telnet->ldisc = ldisc;

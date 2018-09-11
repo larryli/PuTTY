@@ -49,7 +49,7 @@ static int null_connected(void *);
 static int null_exitcode(void *);
 static int null_sendok(void *);
 static int null_ldisc(void *, int);
-static void null_provide_ldisc(void *, void *);
+static void null_provide_ldisc(void *, Ldisc *);
 static void null_provide_logctx(void *, void *);
 static void null_unthrottle(void *, int);
 static int null_cfg_info(void *);
@@ -157,7 +157,7 @@ static int null_ldisc(void *handle, int option) {
     return 0;
 }
 
-static void null_provide_ldisc (void *handle, void *ldisc) {
+static void null_provide_ldisc (void *handle, Ldisc *ldisc) {
 
 }
 

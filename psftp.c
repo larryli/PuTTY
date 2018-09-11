@@ -2483,7 +2483,7 @@ void connection_fatal(void *frontend, const char *fmt, ...)
     cleanup_exit(1);
 }
 
-void ldisc_echoedit_update(void *handle) { }
+void ldisc_echoedit_update(Ldisc *ldisc) { }
 
 /*
  * In psftp, all agent requests should be synchronous, so this is a

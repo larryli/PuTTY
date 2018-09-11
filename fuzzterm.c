@@ -71,8 +71,8 @@ void set_title(void *frontend, char *t) { }
 void set_icon(void *frontend, char *t) { }
 void set_sbar(void *frontend, int a, int b, int c) { }
 
-void ldisc_send(void *handle, const void *buf, int len, int interactive) {}
-void ldisc_echoedit_update(void *handle) {}
+void ldisc_send(Ldisc *ldisc, const void *buf, int len, int interactive) {}
+void ldisc_echoedit_update(Ldisc *ldisc) {}
 Context get_ctx(void *frontend) { 
     static char x;
 

@@ -1206,7 +1206,7 @@ static int pty_ldisc(void *handle, int option)
     return 0;			       /* neither editing nor echoing */
 }
 
-static void pty_provide_ldisc(void *handle, void *ldisc)
+static void pty_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     /* Pty pty = (Pty)handle; */
     /* This is a stub. */

@@ -230,7 +230,7 @@ struct terminal_tag {
     void (*resize_fn)(void *, int, int);
     void *resize_ctx;
 
-    void *ldisc;
+    Ldisc *ldisc;
 
     void *frontend;
 

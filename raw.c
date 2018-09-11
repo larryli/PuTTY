@@ -274,7 +274,7 @@ static int raw_ldisc(void *handle, int option)
     return 0;
 }
 
-static void raw_provide_ldisc(void *handle, void *ldisc)
+static void raw_provide_ldisc(void *handle, Ldisc *ldisc)
 {
     /* This is a stub. */
 }
