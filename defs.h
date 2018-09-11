@@ -47,6 +47,7 @@ typedef struct Plug_vtable Plug_vtable;
 typedef struct Ldisc_tag Ldisc;
 typedef struct LogContext_tag LogContext;
 
+typedef struct ssh_tag *Ssh;
 /* Note indirection: for historical reasons (it used to be closer to
  * the OS socket type), the type that most code uses for a socket is
  * 'Socket', not 'Socket *'. So an implementation of Socket or Plug

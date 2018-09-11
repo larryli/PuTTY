@@ -11293,9 +11293,8 @@ static void ssh_special(void *handle, Telnet_Special code)
     }
 }
 
-void *new_sock_channel(void *handle, struct PortForwarding *pf)
+void *new_sock_channel(Ssh ssh, struct PortForwarding *pf)
 {
-    Ssh ssh = (Ssh) handle;
     struct ssh_channel *c;
     c = snew(struct ssh_channel);
 

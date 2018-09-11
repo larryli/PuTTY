@@ -8,7 +8,6 @@
 #include "misc.h"
 
 struct ssh_channel;
-typedef struct ssh_tag *Ssh;
 
 extern int sshfwd_write(struct ssh_channel *c, const void *, int);
 extern void sshfwd_write_eof(struct ssh_channel *c);
@@ -666,7 +665,7 @@ void logevent(void *, const char *);
 struct PortForwarding;
 
 /* Allocate and register a new channel for port forwarding */
-void *new_sock_channel(void *handle, struct PortForwarding *pf);
+void *new_sock_channel(Ssh ssh, struct PortForwarding *pf);
 void ssh_send_port_open(void *channel, const char *hostname, int port,
                         const char *org);
 
@@ -682,7 +681,7 @@ extern void pfd_override_throttle(struct PortForwarding *, int enable);
 struct PortListener;
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern char *pfl_listen(char *desthost, int destport, char *srcaddr,
-                        int port, void *backhandle, Conf *conf,
+                        int port, Ssh ssh, Conf *conf,
                         struct PortListener **pl, int address_family);
 extern void pfl_terminate(struct PortListener *);
 
