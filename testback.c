@@ -32,15 +32,15 @@
 
 #include "putty.h"
 
-static const char *null_init(void *, void **, Conf *, char *, int, char **,
-			     int, int);
-static const char *loop_init(void *, void **, Conf *, char *, int, char **,
-			     int, int);
+static const char *null_init(void *, void **, Conf *, const char *, int,
+                             char **, int, int);
+static const char *loop_init(void *, void **, Conf *, const char *, int,
+                             char **, int, int);
 static void null_free(void *);
 static void loop_free(void *);
 static void null_reconfig(void *, Conf *);
-static int null_send(void *, char *, int);
-static int loop_send(void *, char *, int);
+static int null_send(void *, const char *, int);
+static int loop_send(void *, const char *, int);
 static int null_sendbuffer(void *);
 static void null_size(void *, int, int);
 static void null_special(void *, Telnet_Special);
@@ -73,14 +73,14 @@ struct loop_state {
 };
 
 static const char *null_init(void *frontend_handle, void **backend_handle,
-			     Conf *conf, char *host, int port,
+                             Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
 
     return NULL;
 }
 
 static const char *loop_init(void *frontend_handle, void **backend_handle,
-			     Conf *conf, char *host, int port,
+                             Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
@@ -104,12 +104,12 @@ static void null_reconfig(void *handle, Conf *conf) {
 
 }
 
-static int null_send(void *handle, char *buf, int len) {
+static int null_send(void *handle, const char *buf, int len) {
 
     return 0;
 }
 
-static int loop_send(void *handle, char *buf, int len) {
+static int loop_send(void *handle, const char *buf, int len) {
     struct loop_state *st = handle;
 
     return from_backend(st->term, 0, buf, len);
