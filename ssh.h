@@ -14,12 +14,12 @@ extern void sshfwd_write_eof(struct ssh_channel *c);
 extern void sshfwd_unclean_close(struct ssh_channel *c, const char *err);
 extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
 Conf *sshfwd_get_conf(struct ssh_channel *c);
+void sshfwd_window_override_removed(struct ssh_channel *c);
 void sshfwd_x11_sharing_handover(struct ssh_channel *c,
                                  void *share_cs, void *share_chan,
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len);
-void sshfwd_x11_is_local(struct ssh_channel *c);
 
 /*
  * Buffer management constants. There are several of these for
@@ -184,6 +184,8 @@ void share_setup_x11_channel(void *csv, void *chanv,
                              const char *peer_addr, int peer_port, int endian,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len);
+
+Frontend *ssh_get_frontend(Ssh ssh);
 
 /*
  * Useful thing.
@@ -665,19 +667,12 @@ void logevent(Frontend *, const char *);
 struct PortForwarding;
 
 /* Allocate and register a new channel for port forwarding */
-void *new_sock_channel(Ssh ssh, struct PortForwarding *pf);
-void ssh_send_port_open(void *channel, const char *hostname, int port,
-                        const char *org);
+struct ssh_channel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
+                                       const char *org, Channel *chan);
 
 /* Exports from portfwd.c */
-extern char *pfd_connect(struct PortForwarding **pf, char *hostname, int port,
-                         void *c, Conf *conf, int addressfamily);
-extern void pfd_close(struct PortForwarding *);
-extern int pfd_send(struct PortForwarding *, const void *data, int len);
-extern void pfd_send_eof(struct PortForwarding *);
-extern void pfd_confirm(struct PortForwarding *);
-extern void pfd_unthrottle(struct PortForwarding *);
-extern void pfd_override_throttle(struct PortForwarding *, int enable);
+extern char *pfd_connect(Channel **chan_ret, char *hostname, int port,
+                         struct ssh_channel *c, Conf *conf, int addressfamily);
 struct PortListener;
 /* desthost == NULL indicates dynamic (SOCKS) port forwarding */
 extern char *pfl_listen(char *desthost, int destport, char *srcaddr,
@@ -750,13 +745,9 @@ extern struct X11Display *x11_setup_display(const char *display, Conf *);
 void x11_free_display(struct X11Display *disp);
 struct X11FakeAuth *x11_invent_fake_auth(tree234 *t, int authtype);
 void x11_free_fake_auth(struct X11FakeAuth *auth);
-struct X11Connection;                  /* opaque outside x11fwd.c */
-struct X11Connection *x11_init(tree234 *authtree, void *, const char *, int);
-extern void x11_close(struct X11Connection *);
-extern int x11_send(struct X11Connection *, const void *, int);
-extern void x11_send_eof(struct X11Connection *s);
-extern void x11_unthrottle(struct X11Connection *s);
-extern void x11_override_throttle(struct X11Connection *s, int enable);
+Channel *x11_new_channel(tree234 *authtree, struct ssh_channel *c,
+                         const char *peeraddr, int peerport,
+                         int connection_sharing_possible);
 char *x11_display(const char *display);
 /* Platform-dependent X11 functions */
 extern void platform_get_x11_auth(struct X11Display *display, Conf *);
@@ -785,6 +776,8 @@ void x11_get_auth_from_authfile(struct X11Display *display,
 				const char *authfilename);
 int x11_identify_auth_proto(ptrlen protoname);
 void *x11_dehexify(ptrlen hex, int *outlen);
+
+Channel *agentf_new(struct ssh_channel *c);
 
 Bignum copybn(Bignum b);
 Bignum bn_power_2(int n);

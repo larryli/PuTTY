@@ -53,6 +53,8 @@ typedef struct Frontend Frontend;
 
 typedef struct ssh_tag *Ssh;
 
+typedef struct Channel Channel;
+
 /* Note indirection: for historical reasons (it used to be closer to
  * the OS socket type), the type that most code uses for a socket is
  * 'Socket', not 'Socket *'. So an implementation of Socket or Plug

@@ -17,6 +17,7 @@
 #include "ssh.h"
 #include "sshcr.h"
 #include "sshbpp.h"
+#include "sshchan.h"
 #ifndef NO_GSSAPI
 #include "sshgssc.h"
 #include "sshgss.h"
@@ -362,29 +363,6 @@ const static struct ssh_compress *const compressions[] = {
     &ssh_zlib, &ssh_comp_none
 };
 
-enum {				       /* channel types */
-    CHAN_MAINSESSION,
-    CHAN_X11,
-    CHAN_AGENT,
-    CHAN_SOCKDATA,
-    /*
-     * CHAN_SHARING indicates a channel which is tracked here on
-     * behalf of a connection-sharing downstream. We do almost nothing
-     * with these channels ourselves: all messages relating to them
-     * get thrown straight to sshshare.c and passed on almost
-     * unmodified to downstream.
-     */
-    CHAN_SHARING,
-    /*
-     * CHAN_ZOMBIE is used to indicate a channel for which we've
-     * already destroyed the local data source: for instance, if a
-     * forwarded port experiences a socket error on the local side, we
-     * immediately destroy its local socket and turn the SSH channel
-     * into CHAN_ZOMBIE.
-     */
-    CHAN_ZOMBIE
-};
-
 typedef void (*handler_fn_t)(Ssh ssh, PktIn *pktin);
 typedef void (*chandler_fn_t)(Ssh ssh, PktIn *pktin, void *ctx);
 typedef void (*cchandler_fn_t)(struct ssh_channel *, PktIn *, void *);
@@ -452,6 +430,15 @@ struct ssh_channel {
      * throttled.
      */
     int throttling_conn;
+
+    /*
+     * True if we currently have backed-up data on the direction of
+     * this channel pointing out of the SSH connection, and therefore
+     * would prefer the 'Channel' implementation not to read further
+     * local input if possible.
+     */
+    int throttled_by_backlog;
+
     union {
 	struct ssh2_data_channel {
 	    bufchain outbuffer;
@@ -472,22 +459,9 @@ struct ssh_channel {
 	    enum { THROTTLED, UNTHROTTLING, UNTHROTTLED } throttle_state;
 	} v2;
     } v;
-    union {
-	struct ssh_agent_channel {
-            bufchain inbuffer;
-            agent_pending_query *pending;
-	} a;
-	struct ssh_x11_channel {
-	    struct X11Connection *xconn;
-            int initial;
-	} x11;
-	struct ssh_pfd_channel {
-            struct PortForwarding *pf;
-	} pfd;
-	struct ssh_sharing_channel {
-	    void *ctx;
-	} sharing;
-    } u;
+
+    void *sharectx;     /* sharing context, if this is a downstream channel */
+    Channel *chan;      /* handle the client side of this channel, if not */
 };
 
 /*
@@ -943,6 +917,11 @@ static const char *ssh_pkt_type(Ssh ssh, int type)
 	return ssh1_pkt_type(type);
     else
 	return ssh2_pkt_type(ssh->pls.kctx, ssh->pls.actx, type);
+}
+
+Frontend *ssh_get_frontend(Ssh ssh)
+{
+    return ssh->frontend;
 }
 
 #define logevent(s) logevent(ssh->frontend, s)
@@ -2107,6 +2086,88 @@ static void ssh_process_user_input(void *ctx)
         ssh->current_user_input_fn(ssh);
 }
 
+void chan_remotely_opened_confirmation(Channel *chan)
+{
+    assert(0 && "this channel type should never receive OPEN_CONFIRMATION");
+}
+
+void chan_remotely_opened_failure(Channel *chan, const char *errtext)
+{
+    assert(0 && "this channel type should never receive OPEN_FAILURE");
+}
+
+int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
+{
+    return FALSE;     /* default: never proactively ask for a close */
+}
+
+/*
+ * Trivial channel vtable for handling 'zombie channels' - those whose
+ * local source of data has already been shut down or otherwise
+ * stopped existing - so that we don't have to give them a null
+ * 'Channel *' and special-case that all over the place.
+ */
+
+static void zombiechan_free(Channel *chan);
+static int zombiechan_send(Channel *chan, int is_stderr, const void *, int);
+static void zombiechan_set_input_wanted(Channel *chan, int wanted);
+static void zombiechan_do_nothing(Channel *chan);
+static void zombiechan_open_failure(Channel *chan, const char *);
+static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof);
+static char *zombiechan_log_close_msg(Channel *chan) { return NULL; }
+
+static const struct ChannelVtable zombiechan_channelvt = {
+    zombiechan_free,
+    zombiechan_do_nothing,             /* open_confirmation */
+    zombiechan_open_failure,
+    zombiechan_send,
+    zombiechan_do_nothing,             /* send_eof */
+    zombiechan_set_input_wanted,
+    zombiechan_log_close_msg,
+    zombiechan_want_close,
+};
+
+Channel *zombiechan_new(void)
+{
+    Channel *chan = snew(Channel);
+    chan->vt = &zombiechan_channelvt;
+    chan->initial_fixed_window_size = 0;
+    return chan;
+}
+
+static void zombiechan_free(Channel *chan)
+{
+    assert(chan->vt == &zombiechan_channelvt);
+    sfree(chan);
+}
+
+static void zombiechan_do_nothing(Channel *chan)
+{
+    assert(chan->vt == &zombiechan_channelvt);
+}
+
+static void zombiechan_open_failure(Channel *chan, const char *errtext)
+{
+    assert(chan->vt == &zombiechan_channelvt);
+}
+
+static int zombiechan_send(Channel *chan, int is_stderr,
+                           const void *data, int length)
+{
+    assert(chan->vt == &zombiechan_channelvt);
+    return 0;
+}
+
+static void zombiechan_set_input_wanted(Channel *chan, int enable)
+{
+    assert(chan->vt == &zombiechan_channelvt);
+}
+
+static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof)
+{
+    return TRUE;
+}
+
 static int ssh_do_close(Ssh ssh, int notify_exit)
 {
     int ret = 0;
@@ -2428,7 +2489,21 @@ static void ssh_throttle_conn(Ssh ssh, int adjust)
     }
 }
 
-static void ssh_agentf_try_forward(struct ssh_channel *c);
+static void ssh_channel_check_throttle(struct ssh_channel *c)
+{
+    /*
+     * We don't want this channel to read further input if this
+     * particular channel has a backed-up SSH window, or if the
+     * outgoing side of the whole SSH connection is currently
+     * throttled, or if this channel already has an outgoing EOF
+     * either sent or pending.
+     */
+    chan_set_input_wanted(c->chan,
+                          !c->throttled_by_backlog &&
+                          !c->ssh->throttled_all &&
+                          !c->pending_eof &&
+                          !(c->closes & CLOSES_SENT_EOF));
+}
 
 /*
  * Throttle or unthrottle _all_ local data streams (for when sends
@@ -2445,29 +2520,8 @@ static void ssh_throttle_all(Ssh ssh, int enable, int bufsize)
     ssh->overall_bufsize = bufsize;
     if (!ssh->channels)
 	return;
-    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++) {
-	switch (c->type) {
-	  case CHAN_MAINSESSION:
-	    /*
-	     * This is treated separately, outside the switch.
-	     */
-	    break;
-	  case CHAN_X11:
-	    x11_override_throttle(c->u.x11.xconn, enable);
-	    break;
-	  case CHAN_AGENT:
-	    /* Agent forwarding channels are buffer-managed by
-             * checking ssh->throttled_all in ssh_agentf_try_forward.
-             * So at the moment we _un_throttle again, we must make an
-             * attempt to do something. */
-            if (!enable)
-                ssh_agentf_try_forward(c);
-	    break;
-	  case CHAN_SOCKDATA:
-	    pfd_override_throttle(c->u.pfd.pf, enable);
-	    break;
-	}
-    }
+    for (i = 0; NULL != (c = index234(ssh->channels, i)); i++)
+        ssh_channel_check_throttle(c);
 }
 
 static void ssh_agent_callback(void *sshv, void *reply, int replylen)
@@ -2501,140 +2555,6 @@ static void ssh_dialog_callback(void *sshv, int ret)
      */
     if (!ssh->frozen)
         queue_idempotent_callback(&ssh->incoming_data_consumer);
-}
-
-static void ssh_agentf_got_response(struct ssh_channel *c,
-                                    void *reply, int replylen)
-{
-    c->u.a.pending = NULL;
-
-    assert(!(c->closes & CLOSES_SENT_EOF));
-
-    if (!reply) {
-	/* The real agent didn't send any kind of reply at all for
-         * some reason, so fake an SSH_AGENT_FAILURE. */
-	reply = "\0\0\0\1\5";
-	replylen = 5;
-    }
-
-    ssh_send_channel_data(c, reply, replylen);
-}
-
-static void ssh_agentf_callback(void *cv, void *reply, int replylen);
-
-static void ssh_agentf_try_forward(struct ssh_channel *c)
-{
-    unsigned datalen, length;
-    strbuf *message;
-    unsigned char msglen[4];
-    void *reply;
-    int replylen;
-
-    /*
-     * Don't try to parallelise agent requests. Wait for each one to
-     * return before attempting the next.
-     */
-    if (c->u.a.pending)
-        return;
-
-    /*
-     * If the outgoing side of the channel connection is currently
-     * throttled (for any reason, either that channel's window size or
-     * the entire SSH connection being throttled), don't submit any
-     * new forwarded requests to the real agent. This causes the input
-     * side of the agent forwarding not to be emptied, exerting the
-     * required back-pressure on the remote client, and encouraging it
-     * to read our responses before sending too many more requests.
-     */
-    if (c->ssh->throttled_all ||
-        (c->ssh->version == 2 && c->v.v2.remwindow == 0))
-        return;
-
-    if (c->closes & CLOSES_SENT_EOF) {
-        /*
-         * If we've already sent outgoing EOF, there's nothing we can
-         * do with incoming data except consume it and throw it away.
-         */
-        bufchain_clear(&c->u.a.inbuffer);
-        return;
-    }
-
-    while (1) {
-        /*
-         * Try to extract a complete message from the input buffer.
-         */
-        datalen = bufchain_size(&c->u.a.inbuffer);
-        if (datalen < 4)
-            break;         /* not even a length field available yet */
-
-        bufchain_fetch(&c->u.a.inbuffer, msglen, 4);
-        length = GET_32BIT(msglen);
-
-        if (length > AGENT_MAX_MSGLEN-4) {
-            /*
-             * If the remote has sent a message that's just _too_
-             * long, we should reject it in advance of seeing the rest
-             * of the incoming message, and also close the connection
-             * for good measure (which avoids us having to faff about
-             * with carefully ignoring just the right number of bytes
-             * from the overlong message).
-             */
-            ssh_agentf_got_response(c, NULL, 0);
-            sshfwd_write_eof(c);
-            return;
-        }
-
-        if (length > datalen - 4)
-            break;          /* a whole message is not yet available */
-
-        bufchain_consume(&c->u.a.inbuffer, 4);
-
-        message = strbuf_new_for_agent_query();
-        bufchain_fetch_consume(
-            &c->u.a.inbuffer, strbuf_append(message, length), length);
-        c->u.a.pending = agent_query(
-            message, &reply, &replylen, ssh_agentf_callback, c);
-        strbuf_free(message);
-
-        if (c->u.a.pending)
-            return;   /* agent_query promised to reply in due course */
-
-        /*
-         * If the agent gave us an answer immediately, pass it
-         * straight on and go round this loop again.
-         */
-        ssh_agentf_got_response(c, reply, replylen);
-        sfree(reply);
-    }
-
-    /*
-     * If we get here (i.e. we left the above while loop via 'break'
-     * rather than 'return'), that means we've determined that the
-     * input buffer for the agent forwarding connection doesn't
-     * contain a complete request.
-     *
-     * So if there's potentially more data to come, we can return now,
-     * and wait for the remote client to send it. But if the remote
-     * has sent EOF, it would be a mistake to do that, because we'd be
-     * waiting a long time. So this is the moment to check for EOF,
-     * and respond appropriately.
-     */
-    if (c->closes & CLOSES_RCVD_EOF)
-        sshfwd_write_eof(c);
-}
-
-static void ssh_agentf_callback(void *cv, void *reply, int replylen)
-{
-    struct ssh_channel *c = (struct ssh_channel *)cv;
-
-    ssh_agentf_got_response(c, reply, replylen);
-    sfree(reply);
-
-    /*
-     * Now try to extract and send further messages from the channel's
-     * input-side buffer.
-     */
-    ssh_agentf_try_forward(c);
 }
 
 /*
@@ -4297,10 +4217,9 @@ static void ssh1_smsg_x11_open(Ssh ssh, PktIn *pktin)
 	c->ssh = ssh;
 
 	ssh_channel_init(c);
-	c->u.x11.xconn = x11_init(ssh->x11authtree, c, NULL, -1);
+        c->chan = x11_new_channel(ssh->x11authtree, c, NULL, -1, FALSE);
         c->remoteid = remoteid;
         c->halfopen = FALSE;
-        c->type = CHAN_X11;	/* identify channel type */
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
         put_uint32(pkt, c->remoteid);
         put_uint32(pkt, c->localid);
@@ -4328,9 +4247,7 @@ static void ssh1_smsg_agent_open(Ssh ssh, PktIn *pktin)
 	ssh_channel_init(c);
 	c->remoteid = remoteid;
 	c->halfopen = FALSE;
-	c->type = CHAN_AGENT;	/* identify channel type */
-	c->u.a.pending = NULL;
-        bufchain_init(&c->u.a.inbuffer);
+        c->chan = agentf_new(c);
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
         put_uint32(pkt, c->remoteid);
         put_uint32(pkt, c->localid);
@@ -4369,7 +4286,7 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
 
 	logeventf(ssh, "Received remote port open request for %s:%d",
 		  pf.dhost, port);
-	err = pfd_connect(&c->u.pfd.pf, pf.dhost, port,
+        err = pfd_connect(&c->chan, pf.dhost, port,
                           c, ssh->conf, pfp->pfrec->addressfamily);
 	if (err != NULL) {
 	    logeventf(ssh, "Port open failed: %s", err);
@@ -4382,7 +4299,6 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
 	    ssh_channel_init(c);
 	    c->remoteid = remoteid;
 	    c->halfopen = FALSE;
-	    c->type = CHAN_SOCKDATA;	/* identify channel type */
             pkt = ssh_bpp_new_pktout(
                 ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
             put_uint32(pkt, c->remoteid);
@@ -4400,12 +4316,10 @@ static void ssh1_msg_channel_open_confirmation(Ssh ssh, PktIn *pktin)
     struct ssh_channel *c;
 
     c = ssh_channel_msg(ssh, pktin);
-    if (c && c->type == CHAN_SOCKDATA) {
-	c->remoteid = get_uint32(pktin);
-	c->halfopen = FALSE;
-	c->throttling_conn = 0;
-	pfd_confirm(c->u.pfd.pf);
-    }
+    chan_open_confirmation(c->chan);
+    c->remoteid = get_uint32(pktin);
+    c->halfopen = FALSE;
+    c->throttling_conn = 0;
 
     if (c && c->pending_eof) {
 	/*
@@ -4423,12 +4337,11 @@ static void ssh1_msg_channel_open_failure(Ssh ssh, PktIn *pktin)
     struct ssh_channel *c;
 
     c = ssh_channel_msg(ssh, pktin);
-    if (c && c->type == CHAN_SOCKDATA) {
-	logevent("Forwarded connection refused by server");
-	pfd_close(c->u.pfd.pf);
-	del234(ssh->channels, c);
-	sfree(c);
-    }
+    chan_open_failed(c->chan, NULL);
+    chan_free(c->chan);
+
+    del234(ssh->channels, c);
+    sfree(c);
 }
 
 static void ssh1_msg_channel_close(Ssh ssh, PktIn *pktin)
@@ -4473,39 +4386,11 @@ static void ssh1_msg_channel_close(Ssh ssh, PktIn *pktin)
     }
 }
 
-/*
- * Handle incoming data on an SSH-1 or SSH-2 agent-forwarding channel.
- */
-static int ssh_agent_channel_data(struct ssh_channel *c, const void *data,
-				  int length)
-{
-    bufchain_add(&c->u.a.inbuffer, data, length);
-    ssh_agentf_try_forward(c);
-
-    /*
-     * We exert back-pressure on an agent forwarding client if and
-     * only if we're waiting for the response to an asynchronous agent
-     * request. This prevents the client running out of window while
-     * receiving the _first_ message, but means that if any message
-     * takes time to process, the client will be discouraged from
-     * sending an endless stream of further ones after it.
-     */
-    return (c->u.a.pending ? bufchain_size(&c->u.a.inbuffer) : 0);
-}
-
 static int ssh_channel_data(struct ssh_channel *c, int is_stderr,
 			    const void *data, int length)
 {
-    switch (c->type) {
-      case CHAN_MAINSESSION:
-	return from_backend(c->ssh->frontend, is_stderr, data, length);
-      case CHAN_X11:
-	return x11_send(c->u.x11.xconn, data, length);
-      case CHAN_SOCKDATA:
-	return pfd_send(c->u.pfd.pf, data, length);
-      case CHAN_AGENT:
-	return ssh_agent_channel_data(c, data, length);
-    }
+    if (c->chan)
+        chan_send(c->chan, is_stderr, data, length);
     return 0;
 }
 
@@ -6933,6 +6818,8 @@ static void do_ssh2_transport(void *vctx)
 static int ssh_send_channel_data(struct ssh_channel *c, const char *buf,
 				   int len)
 {
+    assert(!(c->closes & CLOSES_SENT_EOF));
+
     if (c->ssh->version == 2) {
 	bufchain_add(&c->v.v2.outbuffer, buf, len);
 	return ssh2_try_send(c);
@@ -7002,23 +6889,8 @@ static void ssh2_try_send_and_unthrottle(Ssh ssh, struct ssh_channel *c)
 	return;                   /* don't send on channels we've EOFed */
     bufsize = ssh2_try_send(c);
     if (bufsize == 0) {
-	switch (c->type) {
-	  case CHAN_MAINSESSION:
-	    /* stdin need not receive an unthrottle
-	     * notification since it will be polled */
-	    break;
-	  case CHAN_X11:
-	    x11_unthrottle(c->u.x11.xconn);
-	    break;
-	  case CHAN_AGENT:
-            /* Now that we've successfully sent all the outgoing
-             * replies we had, try to process more incoming data. */
-            ssh_agentf_try_forward(c);
-	    break;
-	  case CHAN_SOCKDATA:
-	    pfd_unthrottle(c->u.pfd.pf);
-	    break;
-	}
+        c->throttled_by_backlog = FALSE;
+        ssh_channel_check_throttle(c);
     }
 }
 
@@ -7036,7 +6908,9 @@ static int ssh_is_simple(Ssh ssh)
 }
 
 /*
- * Set up most of a new ssh_channel.
+ * Set up most of a new ssh_channel. Nulls out sharectx, but leaves
+ * chan untouched (since it will sometimes have been filled in before
+ * calling this).
  */
 static void ssh_channel_init(struct ssh_channel *c)
 {
@@ -7045,6 +6919,7 @@ static void ssh_channel_init(struct ssh_channel *c)
     c->closes = 0;
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
+    c->sharectx = NULL;
     if (ssh->version == 2) {
 	c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
 	    ssh_is_simple(ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
@@ -7162,11 +7037,12 @@ static void ssh2_set_window(struct ssh_channel *c, int newwin)
 	return;
 
     /*
-     * Also, never widen the window for an X11 channel when we're
-     * still waiting to see its initial auth and may yet hand it off
-     * to a downstream.
+     * If the client-side Channel is in an initial setup phase with a
+     * fixed window size, e.g. for an X11 channel when we're still
+     * waiting to see its initial auth and may yet hand it off to a
+     * downstream, don't send any WINDOW_ADJUST either.
      */
-    if (c->type == CHAN_X11 && c->u.x11.initial)
+    if (c->chan->initial_fixed_window_size)
         return;
 
     /*
@@ -7241,7 +7117,13 @@ static struct ssh_channel *ssh_channel_msg(Ssh ssh, PktIn *pktin)
 	halfopen_ok = (pktin->type == SSH2_MSG_CHANNEL_OPEN_CONFIRMATION ||
 		       pktin->type == SSH2_MSG_CHANNEL_OPEN_FAILURE);
     c = find234(ssh->channels, &localid, ssh_channelfind);
-    if (!c || (c->type != CHAN_SHARING && (c->halfopen != halfopen_ok))) {
+    if (c && c->sharectx) {
+        share_got_pkt_from_server(c->sharectx, pktin->type,
+                                  BinarySource_UPCAST(pktin)->data,
+                                  BinarySource_UPCAST(pktin)->len);
+        return NULL;
+    }
+    if (!c || c->halfopen != halfopen_ok) {
 	char *buf = dupprintf("Received %s for %s channel %u",
 			      ssh_pkt_type(ssh, pktin->type),
 			      !c ? "nonexistent" :
@@ -7250,12 +7132,6 @@ static struct ssh_channel *ssh_channel_msg(Ssh ssh, PktIn *pktin)
 	ssh_disconnect(ssh, NULL, buf, SSH2_DISCONNECT_PROTOCOL_ERROR, FALSE);
 	sfree(buf);
 	return NULL;
-    }
-    if (c->type == CHAN_SHARING) {
-        share_got_pkt_from_server(c->u.sharing.ctx, pktin->type,
-                                  BinarySource_UPCAST(pktin)->data,
-                                  BinarySource_UPCAST(pktin)->len);
-        return NULL;
     }
     return c;
 }
@@ -7421,36 +7297,20 @@ void ssh_sharing_logf(Ssh ssh, unsigned id, const char *logfmt, ...)
 
 /*
  * Close any local socket and free any local resources associated with
- * a channel.  This converts the channel into a CHAN_ZOMBIE.
+ * a channel.  This converts the channel into a zombie.
  */
 static void ssh_channel_close_local(struct ssh_channel *c, char const *reason)
 {
     Ssh ssh = c->ssh;
-    char const *msg = NULL;
+    const char *msg = NULL;
 
-    switch (c->type) {
-      case CHAN_MAINSESSION:
-        ssh->mainchan = NULL;
-        update_specials_menu(ssh->frontend);
-        break;
-      case CHAN_X11:
-        assert(c->u.x11.xconn != NULL);
-	x11_close(c->u.x11.xconn);
-        msg = "Forwarded X11 connection terminated";
-        break;
-      case CHAN_AGENT:
-        if (c->u.a.pending)
-            agent_cancel_query(c->u.a.pending);
-        bufchain_clear(&c->u.a.inbuffer);
-	msg = "Agent-forwarding connection closed";
-        break;
-      case CHAN_SOCKDATA:
-        assert(c->u.pfd.pf != NULL);
-	pfd_close(c->u.pfd.pf);
-	msg = "Forwarded port closed";
-        break;
-    }
-    c->type = CHAN_ZOMBIE;
+    if (c->sharectx)
+        return;
+
+    msg = chan_log_close_msg(c->chan);
+    chan_free(c->chan);
+    c->chan = zombiechan_new();
+
     if (msg != NULL) {
 	if (reason != NULL)
 	    logeventf(ssh, "%s %s", msg, reason);
@@ -7495,7 +7355,8 @@ static void ssh2_channel_check_close(struct ssh_channel *c)
     }
 
     if ((!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes) ||
-	 c->type == CHAN_ZOMBIE) &&
+         chan_want_close(c->chan, (c->closes & CLOSES_SENT_EOF),
+                         (c->closes & CLOSES_RCVD_EOF))) &&
 	!c->v.v2.chanreq_head &&
 	!(c->closes & CLOSES_SENT_CLOSE)) {
         /*
@@ -7526,34 +7387,7 @@ static void ssh_channel_got_eof(struct ssh_channel *c)
         return;                        /* already seen EOF */
     c->closes |= CLOSES_RCVD_EOF;
 
-    if (c->type == CHAN_X11) {
-	assert(c->u.x11.xconn != NULL);
-	x11_send_eof(c->u.x11.xconn);
-    } else if (c->type == CHAN_AGENT) {
-        /* Just call try_forward, which will respond to the EOF now if
-         * appropriate, or wait until the queue of outstanding
-         * requests is dealt with if not */
-        ssh_agentf_try_forward(c);
-    } else if (c->type == CHAN_SOCKDATA) {
-	assert(c->u.pfd.pf != NULL);
-	pfd_send_eof(c->u.pfd.pf);
-    } else if (c->type == CHAN_MAINSESSION) {
-        Ssh ssh = c->ssh;
-
-        if (!ssh->sent_console_eof &&
-            (from_backend_eof(ssh->frontend) || ssh->got_pty)) {
-            /*
-             * Either from_backend_eof told us that the front end
-             * wants us to close the outgoing side of the connection
-             * as soon as we see EOF from the far end, or else we've
-             * unilaterally decided to do that because we've allocated
-             * a remote pty and hence EOF isn't a particularly
-             * meaningful concept.
-             */
-            sshfwd_write_eof(c);
-        }
-        ssh->sent_console_eof = TRUE;
-    }
+    chan_send_eof(c->chan);
 }
 
 static void ssh2_msg_channel_eof(Ssh ssh, PktIn *pktin)
@@ -7605,22 +7439,6 @@ static void ssh2_msg_channel_close(Ssh ssh, PktIn *pktin)
      */
     if (!(c->closes & CLOSES_SENT_EOF)) {
         /*
-         * Make sure we don't read any more from whatever our local
-         * data source is for this channel.
-         */
-        switch (c->type) {
-          case CHAN_MAINSESSION:
-            ssh->send_ok = 0;     /* stop trying to read from stdin */
-            break;
-          case CHAN_X11:
-	    x11_override_throttle(c->u.x11.xconn, 1);
-	    break;
-	  case CHAN_SOCKDATA:
-	    pfd_override_throttle(c->u.pfd.pf, 1);
-	    break;
-        }
-
-        /*
          * Abandon any buffered data we still wanted to send to this
          * channel. Receiving a CHANNEL_CLOSE is an indication that
          * the server really wants to get on and _destroy_ this
@@ -7633,6 +7451,13 @@ static void ssh2_msg_channel_close(Ssh ssh, PktIn *pktin)
          * Send outgoing EOF.
          */
         sshfwd_write_eof(c);
+
+        /*
+         * Make sure we don't read any more from whatever our local
+         * data source is for this channel. (This will pick up on the
+         * changes made by sshfwd_write_eof.)
+         */
+        ssh_channel_check_throttle(c);
     }
 
     /*
@@ -7657,32 +7482,22 @@ static void ssh2_msg_channel_open_confirmation(Ssh ssh, PktIn *pktin)
     c->v.v2.remwindow = get_uint32(pktin);
     c->v.v2.remmaxpkt = get_uint32(pktin);
 
-    if (c->type == CHAN_SOCKDATA) {
-	assert(c->u.pfd.pf != NULL);
-	pfd_confirm(c->u.pfd.pf);
-    } else if (c->type == CHAN_ZOMBIE) {
-        /*
-         * This case can occur if a local socket error occurred
-         * between us sending out CHANNEL_OPEN and receiving
-         * OPEN_CONFIRMATION. In this case, all we can do is
-         * immediately initiate close proceedings now that we know the
-         * server's id to put in the close message.
-         */
-        ssh2_channel_check_close(c);
-    } else {
-        /*
-         * We never expect to receive OPEN_CONFIRMATION for any
-         * *other* channel type (since only local-to-remote port
-         * forwardings cause us to send CHANNEL_OPEN after the main
-         * channel is live - all other auxiliary channel types are
-         * initiated from the server end). It's safe to enforce this
-         * by assertion rather than by ssh_disconnect, because the
-         * real point is that we never constructed a half-open channel
-         * structure in the first place with any type other than the
-         * above.
-         */
-        assert(!"Funny channel type in ssh2_msg_channel_open_confirmation");
-    }
+    chan_open_confirmation(c->chan);
+
+    /*
+     * Now that the channel is fully open, it's possible in principle
+     * to immediately close it. Check whether it wants us to!
+     *
+     * This can occur if a local socket error occurred between us
+     * sending out CHANNEL_OPEN and receiving OPEN_CONFIRMATION. If
+     * that happens, all we can do is immediately initiate close
+     * proceedings now that we know the server's id to put in the
+     * close message. We'll have handled that in this code by having
+     * already turned c->chan into a zombie, so its want_close method
+     * (which ssh2_channel_check_close will consult) will already be
+     * returning TRUE.
+     */
+    ssh2_channel_check_close(c);
 
     if (c->pending_eof)
         ssh_channel_try_eof(c);        /* in case we had a pending EOF */
@@ -7724,31 +7539,12 @@ static void ssh2_msg_channel_open_failure(Ssh ssh, PktIn *pktin)
 	return;
     assert(c->halfopen); /* ssh_channel_msg will have enforced this */
 
-    if (c->type == CHAN_SOCKDATA) {
+    {
         char *errtext = ssh2_channel_open_failure_error_text(pktin);
-        logeventf(ssh, "Forwarded connection refused by server: %s", errtext);
+        chan_open_failed(c->chan, errtext);
         sfree(errtext);
-        pfd_close(c->u.pfd.pf);
-    } else if (c->type == CHAN_ZOMBIE) {
-        /*
-         * This case can occur if a local socket error occurred
-         * between us sending out CHANNEL_OPEN and receiving
-         * OPEN_FAILURE. In this case, we need do nothing except allow
-         * the code below to throw the half-open channel away.
-         */
-    } else {
-        /*
-         * We never expect to receive OPEN_FAILURE for any *other*
-         * channel type (since only local-to-remote port forwardings
-         * cause us to send CHANNEL_OPEN after the main channel is
-         * live - all other auxiliary channel types are initiated from
-         * the server end). It's safe to enforce this by assertion
-         * rather than by ssh_disconnect, because the real point is
-         * that we never constructed a half-open channel structure in
-         * the first place with any type other than the above.
-         */
-        assert(!"Funny channel type in ssh2_msg_channel_open_failure");
     }
+    chan_free(c->chan);
 
     del234(ssh->channels, c);
     sfree(c);
@@ -7970,7 +7766,6 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
     const char *error = NULL;
     struct ssh_channel *c;
     unsigned remid, winsize, pktsize;
-    unsigned our_winsize_override = 0;
     PktOut *pktout;
 
     type = get_string(pktin);
@@ -7991,22 +7786,8 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 	if (!ssh->X11_fwd_enabled && !ssh->connshare)
 	    error = "X11 forwarding is not enabled";
 	else {
-            c->u.x11.xconn = x11_init(ssh->x11authtree, c,
-                                      addrstr, peerport);
-	    c->type = CHAN_X11;
-            c->u.x11.initial = TRUE;
-
-            /*
-             * If we are a connection-sharing upstream, then we should
-             * initially present a very small window, adequate to take
-             * the X11 initial authorisation packet but not much more.
-             * Downstream will then present us a larger window (by
-             * fiat of the connection-sharing protocol) and we can
-             * guarantee to send a positive-valued WINDOW_ADJUST.
-             */
-            if (ssh->connshare)
-                our_winsize_override = 128;
-
+            c->chan = x11_new_channel(ssh->x11authtree, c, addrstr, peerport,
+                                      ssh->connshare != NULL);
             logevent("Opened X11 forward channel");
 	}
 
@@ -8044,7 +7825,7 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
                 return;
             }
 
-            err = pfd_connect(&c->u.pfd.pf, realpf->dhost, realpf->dport,
+            err = pfd_connect(&c->chan, realpf->dhost, realpf->dport,
                               c, ssh->conf, realpf->pfrec->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
@@ -8054,17 +7835,13 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 		error = "Port open failed";
 	    } else {
 		logevent("Forwarded port opened successfully");
-		c->type = CHAN_SOCKDATA;
 	    }
 	}
     } else if (ptrlen_eq_string(type, "auth-agent@openssh.com")) {
 	if (!ssh->agentfwd_enabled)
 	    error = "Agent forwarding is not enabled";
-	else {
-	    c->type = CHAN_AGENT;	/* identify channel type */
-            bufchain_init(&c->u.a.inbuffer);
-            c->u.a.pending = NULL;
-	}
+        else
+            c->chan = agentf_new(c);
     } else {
 	error = "Unsupported channel type requested";
     }
@@ -8084,9 +7861,9 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 	ssh_channel_init(c);
 	c->v.v2.remwindow = winsize;
 	c->v.v2.remmaxpkt = pktsize;
-        if (our_winsize_override) {
+        if (c->chan->initial_fixed_window_size) {
             c->v.v2.locwindow = c->v.v2.locmaxwin = c->v.v2.remlocwin =
-                our_winsize_override;
+                c->chan->initial_fixed_window_size;
         }
 	pktout = ssh_bpp_new_pktout(
             ssh->bpp, SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
@@ -8108,30 +7885,28 @@ void sshfwd_x11_sharing_handover(struct ssh_channel *c,
      * This function is called when we've just discovered that an X
      * forwarding channel on which we'd been handling the initial auth
      * ourselves turns out to be destined for a connection-sharing
-     * downstream. So we turn the channel into a CHAN_SHARING, meaning
+     * downstream. So we turn the channel into a sharing one, meaning
      * that we completely stop tracking windows and buffering data and
      * just pass more or less unmodified SSH messages back and forth.
      */
-    c->type = CHAN_SHARING;
-    c->u.sharing.ctx = share_cs;
+    c->sharectx = share_cs;
     share_setup_x11_channel(share_cs, share_chan,
                             c->localid, c->remoteid, c->v.v2.remwindow,
                             c->v.v2.remmaxpkt, c->v.v2.locwindow,
                             peer_addr, peer_port, endian,
                             protomajor, protominor,
                             initial_data, initial_len);
+    chan_free(c->chan);
+    c->chan = NULL;
 }
 
-void sshfwd_x11_is_local(struct ssh_channel *c)
+void sshfwd_window_override_removed(struct ssh_channel *c)
 {
     /*
-     * This function is called when we've just discovered that an X
-     * forwarding channel is _not_ destined for a connection-sharing
-     * downstream but we're going to handle it ourselves. We stop
-     * presenting a cautiously small window and go into ordinary data
-     * exchange mode.
+     * This function is called when a client-side Channel has just
+     * stopped requiring an initial fixed-size window.
      */
-    c->u.x11.initial = FALSE;
+    assert(!c->chan->initial_fixed_window_size);
     if (c->ssh->version == 2)
         ssh2_set_window(
             c, ssh_is_simple(c->ssh) ? OUR_V2_BIGWIN : OUR_V2_WINSIZE);
@@ -9879,6 +9654,108 @@ static void ssh2_connection_setup(Ssh ssh)
         ssh->channels = newtree234(ssh_channelcmp);
 }
 
+typedef struct mainchan {
+    Ssh ssh;
+    struct ssh_channel *c;
+
+    Channel chan;
+} mainchan;
+
+static void mainchan_free(Channel *chan);
+static void mainchan_open_confirmation(Channel *chan);
+static void mainchan_open_failure(Channel *chan, const char *errtext);
+static int mainchan_send(Channel *chan, int is_stderr, const void *, int);
+static void mainchan_send_eof(Channel *chan);
+static void mainchan_set_input_wanted(Channel *chan, int wanted);
+static char *mainchan_log_close_msg(Channel *chan);
+
+static const struct ChannelVtable mainchan_channelvt = {
+    mainchan_free,
+    mainchan_open_confirmation,
+    mainchan_open_failure,
+    mainchan_send,
+    mainchan_send_eof,
+    mainchan_set_input_wanted,
+    mainchan_log_close_msg,
+    chan_no_eager_close,
+};
+
+static mainchan *mainchan_new(Ssh ssh)
+{
+    mainchan *mc = snew(mainchan);
+    mc->ssh = ssh;
+    mc->c = NULL;
+    mc->chan.vt = &mainchan_channelvt;
+    mc->chan.initial_fixed_window_size = 0;
+    return mc;
+}
+
+static void mainchan_free(Channel *chan)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = FROMFIELD(chan, mainchan, chan);
+    mc->ssh->mainchan = NULL;
+    sfree(mc);
+}
+
+static void mainchan_open_confirmation(Channel *chan)
+{
+    assert(FALSE && "OPEN_CONFIRMATION for main channel should be "
+           "handled by connection layer setup");
+}
+
+static void mainchan_open_failure(Channel *chan, const char *errtext)
+{
+    assert(FALSE && "OPEN_FAILURE for main channel should be "
+           "handled by connection layer setup");
+}
+
+static int mainchan_send(Channel *chan, int is_stderr,
+                         const void *data, int length)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = FROMFIELD(chan, mainchan, chan);
+    return from_backend(mc->ssh->frontend, is_stderr, data, length);
+}
+
+static void mainchan_send_eof(Channel *chan)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = FROMFIELD(chan, mainchan, chan);
+
+    if (!mc->ssh->sent_console_eof &&
+        (from_backend_eof(mc->ssh->frontend) || mc->ssh->got_pty)) {
+        /*
+         * Either from_backend_eof told us that the front end wants us
+         * to close the outgoing side of the connection as soon as we
+         * see EOF from the far end, or else we've unilaterally
+         * decided to do that because we've allocated a remote pty and
+         * hence EOF isn't a particularly meaningful concept.
+         */
+        sshfwd_write_eof(mc->c);
+    }
+    mc->ssh->sent_console_eof = TRUE;
+}
+
+static void mainchan_set_input_wanted(Channel *chan, int wanted)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = FROMFIELD(chan, mainchan, chan);
+
+    /*
+     * This is the main channel of the SSH session, i.e. the one tied
+     * to the standard input (or GUI) of the primary SSH client user
+     * interface. So ssh->send_ok is how we control whether we're
+     * reading from that input.
+     */
+    mc->ssh->send_ok = wanted;
+}
+
+static char *mainchan_log_close_msg(Channel *chan)
+{
+    return dupstr("Main session channel closed");
+}
+
 static void do_ssh2_connection(void *vctx)
 {
     Ssh ssh = (Ssh)vctx;
@@ -9907,22 +9784,23 @@ static void do_ssh2_connection(void *vctx)
     if (conf_get_int(ssh->conf, CONF_ssh_no_shell)) {
 	ssh->mainchan = NULL;
     } else {
-	ssh->mainchan = snew(struct ssh_channel);
-	ssh->mainchan->ssh = ssh;
-	ssh->mainchan->type = CHAN_MAINSESSION;
-	ssh_channel_init(ssh->mainchan);
+        mainchan *mc = mainchan_new(ssh);
 
 	if (*conf_get_str(ssh->conf, CONF_ssh_nc_host)) {
 	    /*
 	     * Just start a direct-tcpip channel and use it as the main
 	     * channel.
 	     */
-	    ssh_send_port_open(ssh->mainchan,
-			       conf_get_str(ssh->conf, CONF_ssh_nc_host),
-			       conf_get_int(ssh->conf, CONF_ssh_nc_port),
-			       "main channel");
+            ssh->mainchan = mc->c = ssh_send_port_open
+                (ssh, conf_get_str(ssh->conf, CONF_ssh_nc_host),
+                 conf_get_int(ssh->conf, CONF_ssh_nc_port),
+                 "main channel", &mc->chan);
 	    ssh->ncmode = TRUE;
 	} else {
+            ssh->mainchan = mc->c = snew(struct ssh_channel);
+            ssh->mainchan->ssh = ssh;
+            ssh_channel_init(ssh->mainchan);
+            ssh->mainchan->chan = &mc->chan;
 	    s->pktout = ssh2_chanopen_init(ssh->mainchan, "session");
 	    logevent("Opening session as main channel");
 	    ssh2_pkt_send(ssh, s->pktout);
@@ -11295,19 +11173,6 @@ static void ssh_special(Backend *be, Telnet_Special code)
     }
 }
 
-void *new_sock_channel(Ssh ssh, struct PortForwarding *pf)
-{
-    struct ssh_channel *c;
-    c = snew(struct ssh_channel);
-
-    c->ssh = ssh;
-    ssh_channel_init(c);
-    c->halfopen = TRUE;
-    c->type = CHAN_SOCKDATA;/* identify channel type */
-    c->u.pfd.pf = pf;
-    return c;
-}
-
 unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
 {
     struct ssh_channel *c;
@@ -11315,8 +11180,8 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
 
     c->ssh = ssh;
     ssh_channel_init(c);
-    c->type = CHAN_SHARING;
-    c->u.sharing.ctx = sharing_ctx;
+    c->chan = NULL;
+    c->sharectx = sharing_ctx;
     return c->localid;
 }
 
@@ -11367,12 +11232,16 @@ static void ssh_unthrottle(Backend *be, int bufsize)
     queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
-void ssh_send_port_open(void *channel, const char *hostname, int port,
-                        const char *org)
+struct ssh_channel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
+                                       const char *org, Channel *chan)
 {
-    struct ssh_channel *c = (struct ssh_channel *)channel;
-    Ssh ssh = c->ssh;
+    struct ssh_channel *c = snew(struct ssh_channel);
     PktOut *pktout;
+
+    c->ssh = ssh;
+    ssh_channel_init(c);
+    c->halfopen = TRUE;
+    c->chan = chan;
 
     logeventf(ssh, "Opening connection to %s:%d for %s", hostname, port, org);
 
@@ -11405,6 +11274,8 @@ void ssh_send_port_open(void *channel, const char *hostname, int port,
 	put_uint32(pktout, 0);
 	ssh2_pkt_send(ssh, pktout);
     }
+
+    return c;
 }
 
 static int ssh_connected(Backend *be)
