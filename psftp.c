@@ -2466,7 +2466,7 @@ void nonfatal(const char *fmt, ...)
     fputs(str2, stderr);
     sfree(str2);
 }
-void connection_fatal(void *frontend, const char *fmt, ...)
+void connection_fatal(Frontend *frontend, const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -2506,7 +2506,8 @@ static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-int from_backend(void *frontend, int is_stderr, const void *data, int datalen)
+int from_backend(Frontend *frontend, int is_stderr,
+                 const void *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -2550,7 +2551,7 @@ int from_backend(void *frontend, int is_stderr, const void *data, int datalen)
 
     return 0;
 }
-int from_backend_untrusted(void *frontend_handle, const void *data, int len)
+int from_backend_untrusted(Frontend *frontend, const void *data, int len)
 {
     /*
      * No "untrusted" output should get here (the way the code is
@@ -2559,7 +2560,7 @@ int from_backend_untrusted(void *frontend_handle, const void *data, int len)
     assert(!"Unexpected call to from_backend_untrusted()");
     return 0; /* not reached */
 }
-int from_backend_eof(void *frontend)
+int from_backend_eof(Frontend *frontend)
 {
     /*
      * We expect to be the party deciding when to close the

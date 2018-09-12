@@ -32,9 +32,9 @@
 
 #include "putty.h"
 
-static const char *null_init(void *, Backend **, Conf *, const char *, int,
+static const char *null_init(Frontend *, Backend **, Conf *, const char *, int,
                              char **, int, int);
-static const char *loop_init(void *, Backend **, Conf *, const char *, int,
+static const char *loop_init(Frontend *, Backend **, Conf *, const char *, int,
                              char **, int, int);
 static void null_free(Backend *);
 static void loop_free(Backend *);
@@ -69,23 +69,23 @@ const struct Backend_vtable loop_backend = {
 };
 
 struct loop_state {
-    Terminal *term;
+    Frontend *frontend;
     Backend backend;
 };
 
-static const char *null_init(void *frontend_handle, Backend **backend_handle,
+static const char *null_init(Frontend *frontend, Backend **backend_handle,
                              Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
     *backend_handle = NULL;
     return NULL;
 }
 
-static const char *loop_init(void *frontend_handle, Backend **backend_handle,
+static const char *loop_init(Frontend *frontend, Backend **backend_handle,
                              Conf *conf, const char *host, int port,
 			     char **realhost, int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
-    st->term = frontend_handle;
+    st->frontend = frontend;
     *backend_handle = &st->backend;
     return NULL;
 }
@@ -114,7 +114,7 @@ static int null_send(Backend *be, const char *buf, int len) {
 static int loop_send(Backend *be, const char *buf, int len) {
     struct loop_state *st = FROMFIELD(be, struct loop_state, backend);
 
-    return from_backend(st->term, 0, buf, len);
+    return from_backend(st->frontend, 0, buf, len);
 }
 
 static int null_sendbuffer(Backend *be) {

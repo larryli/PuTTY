@@ -13,7 +13,7 @@
 typedef struct serial_backend_data {
     HANDLE port;
     struct handle *out, *in;
-    void *frontend;
+    Frontend *frontend;
     int bufsize;
     long clearbreak_time;
     int break_in_progress;
@@ -199,7 +199,7 @@ static const char *serial_configure(Serial serial, HANDLE serport, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(void *frontend_handle, Backend **backend_handle,
+static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 			       Conf *conf, const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
@@ -216,7 +216,7 @@ static const char *serial_init(void *frontend_handle, Backend **backend_handle,
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
-    serial->frontend = frontend_handle;
+    serial->frontend = frontend;
 
     serline = conf_get_str(conf, CONF_serline);
     {

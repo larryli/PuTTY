@@ -38,12 +38,12 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-int from_backend(void *frontend, int is_stderr, const void *data, int len)
+int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
 { return 0; }
 
 /* functions required by terminal.c */
 
-void request_resize(void *frontend, int x, int y) { }
+void request_resize(Frontend *frontend, int x, int y) { }
 void do_text(Context ctx, int x, int y, wchar_t * text, int len,
 	     unsigned long attr, int lattr, truecolour tc)
 {
@@ -67,40 +67,40 @@ void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
     printf("\n");
 }
 int char_width(Context ctx, int uc) { return 1; }
-void set_title(void *frontend, char *t) { }
-void set_icon(void *frontend, char *t) { }
-void set_sbar(void *frontend, int a, int b, int c) { }
+void set_title(Frontend *frontend, char *t) { }
+void set_icon(Frontend *frontend, char *t) { }
+void set_sbar(Frontend *frontend, int a, int b, int c) { }
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, int interactive) {}
 void ldisc_echoedit_update(Ldisc *ldisc) {}
-Context get_ctx(void *frontend) { 
+Context get_ctx(Frontend *frontend) { 
     static char x;
 
     return &x;
 }
 void free_ctx(Context ctx) { }
-void palette_set(void *frontend, int a, int b, int c, int d) { }
-void palette_reset(void *frontend) { }
-int palette_get(void *frontend, int n, int *r, int *g, int *b) {return FALSE;}
-void write_clip(void *frontend, int clipboard,
+void palette_set(Frontend *frontend, int a, int b, int c, int d) { }
+void palette_reset(Frontend *frontend) { }
+int palette_get(Frontend *frontend, int n, int *r, int *g, int *b) {return FALSE;}
+void write_clip(Frontend *frontend, int clipboard,
                 wchar_t *a, int *b, truecolour *c, int d, int e) { }
-void set_raw_mouse_mode(void *frontend, int m) { }
-void frontend_request_paste(void *frontend, int clipboard) { }
-void do_beep(void *frontend, int a) { }
-void sys_cursor(void *frontend, int x, int y) { }
+void set_raw_mouse_mode(Frontend *frontend, int m) { }
+void frontend_request_paste(Frontend *frontend, int clipboard) { }
+void do_beep(Frontend *frontend, int a) { }
+void sys_cursor(Frontend *frontend, int x, int y) { }
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }
 
-void set_iconic(void *frontend, int iconic) { }
-void move_window(void *frontend, int x, int y) { }
-void set_zorder(void *frontend, int top) { }
-void refresh_window(void *frontend) { }
-void set_zoomed(void *frontend, int zoomed) { }
-int is_iconic(void *frontend) { return 0; }
-void get_window_pos(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
-void get_window_pixels(void *frontend, int *x, int *y) { *x = 0; *y = 0; }
-char *get_window_title(void *frontend, int icon) { return "moo"; }
-int frontend_is_utf8(void *frontend) { return TRUE; }
+void set_iconic(Frontend *frontend, int iconic) { }
+void move_window(Frontend *frontend, int x, int y) { }
+void set_zorder(Frontend *frontend, int top) { }
+void refresh_window(Frontend *frontend) { }
+void set_zoomed(Frontend *frontend, int zoomed) { }
+int is_iconic(Frontend *frontend) { return 0; }
+void get_window_pos(Frontend *frontend, int *x, int *y) { *x = 0; *y = 0; }
+void get_window_pixels(Frontend *frontend, int *x, int *y) { *x = 0; *y = 0; }
+char *get_window_title(Frontend *frontend, int icon) { return "moo"; }
+int frontend_is_utf8(Frontend *frontend) { return TRUE; }
 
 /* needed by timing.c */
 void timer_change_notify(unsigned long next) { }
@@ -142,8 +142,8 @@ int dlg_coloursel_results(union control *ctrl, void *dlg,
 void dlg_refresh(union control *ctrl, void *dlg) { }
 
 /* miscellany */
-void logevent(void *frontend, const char *msg) { }
-int askappend(void *frontend, Filename *filename,
+void logevent(Frontend *frontend, const char *msg) { }
+int askappend(Frontend *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx) { return 0; }
 
 const char *const appname = "FuZZterm";

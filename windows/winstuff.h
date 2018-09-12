@@ -247,7 +247,7 @@ GLOBAL LogContext *logctx;
  * which takes the data string in the system code page instead of
  * Unicode.
  */
-void write_aclip(void *frontend, int clipboard, char *, int, int);
+void write_aclip(Frontend *frontend, int clipboard, char *, int, int);
 
 #define WM_NETEVENT  (WM_APP + 5)
 

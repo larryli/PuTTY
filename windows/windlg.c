@@ -761,7 +761,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     return ret;
 }
 
-void logevent(void *frontend, const char *string)
+void logevent(Frontend *frontend, const char *string)
 {
     char timebuf[40];
     char **location;
@@ -813,7 +813,7 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
-int verify_ssh_host_key(void *frontend, char *host, int port,
+int verify_ssh_host_key(Frontend *frontend, char *host, int port,
                         const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
 {
@@ -897,7 +897,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int askalg(void *frontend, const char *algtype, const char *algname,
+int askalg(Frontend *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
@@ -922,7 +922,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
 	return 0;
 }
 
-int askhk(void *frontend, const char *algname, const char *betteralgs,
+int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
           void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
@@ -953,7 +953,7 @@ int askhk(void *frontend, const char *algname, const char *betteralgs,
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(void *frontend, Filename *filename,
+int askappend(Frontend *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =

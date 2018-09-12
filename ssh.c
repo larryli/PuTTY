@@ -729,7 +729,7 @@ struct ssh_tag {
     int echoing, editing;
 
     int session_started;
-    void *frontend;
+    Frontend *frontend;
 
     int ospeed, ispeed;		       /* temporaries */
     int term_width, term_height;
@@ -10665,7 +10665,7 @@ static void ssh_cache_conf_values(Ssh ssh)
  *
  * Returns an error message, or NULL on success.
  */
-static const char *ssh_init(void *frontend_handle, Backend **backend_handle,
+static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
 			    Conf *conf,
                             const char *host, int port, char **realhost,
 			    int nodelay, int keepalive)
@@ -10781,7 +10781,7 @@ static const char *ssh_init(void *frontend_handle, Backend **backend_handle,
     ssh->backend.vt = &ssh_backend;
     *backend_handle = &ssh->backend;
 
-    ssh->frontend = frontend_handle;
+    ssh->frontend = frontend;
     ssh->term_width = conf_get_int(ssh->conf, CONF_width);
     ssh->term_height = conf_get_int(ssh->conf, CONF_height);
 

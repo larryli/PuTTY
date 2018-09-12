@@ -175,7 +175,7 @@ void launch_saved_session(const char *str);
 void session_window_closed(void);
 void window_setup_error(const char *errmsg);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-GtkWidget *make_gtk_toplevel_window(void *frontend);
+GtkWidget *make_gtk_toplevel_window(Frontend *frontend);
 #endif
 
 const struct Backend_vtable *select_backend(Conf *conf);
@@ -189,16 +189,16 @@ enum MenuAction {
     MA_RESTART_SESSION, MA_CHANGE_SETTINGS, MA_CLEAR_SCROLLBACK,
     MA_RESET_TERMINAL, MA_EVENT_LOG
 };
-void app_menu_action(void *frontend, enum MenuAction);
+void app_menu_action(Frontend *frontend, enum MenuAction);
 
 /* Things pty.c needs from pterm.c */
-const char *get_x_display(void *frontend);
-int font_dimension(void *frontend, int which);/* 0 for width, 1 for height */
-int get_windowid(void *frontend, long *id);
+const char *get_x_display(Frontend *frontend);
+int font_dimension(Frontend *frontend, int which);/* 0 for width, 1 for height */
+int get_windowid(Frontend *frontend, long *id);
 
 /* Things gtkdlg.c needs from pterm.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-GtkWidget *get_window(void *frontend);
+GtkWidget *get_window(Frontend *frontend);
 enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
     DIALOG_SLOT_NETWORK_PROMPT,
@@ -207,8 +207,8 @@ enum DialogSlot {
     DIALOG_SLOT_CONNECTION_FATAL,
     DIALOG_SLOT_LIMIT /* must remain last */
 };
-void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog);
-void unregister_dialog(void *frontend, enum DialogSlot slot);
+void register_dialog(Frontend *frontend, enum DialogSlot slot, GtkWidget *dialog);
+void unregister_dialog(Frontend *frontend, enum DialogSlot slot);
 #endif
 
 /* Things pterm.c needs from gtkdlg.c */

@@ -18,7 +18,7 @@
 #define SERIAL_MAX_BACKLOG 4096
 
 typedef struct serial_backend_data {
-    void *frontend;
+    Frontend *frontend;
     int fd;
     int finished;
     int inbufsize;
@@ -288,7 +288,7 @@ static const char *serial_configure(Serial serial, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(void *frontend_handle, Backend **backend_handle,
+static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 			       Conf *conf,
 			       const char *host, int port, char **realhost,
                                int nodelay, int keepalive)
@@ -301,7 +301,7 @@ static const char *serial_init(void *frontend_handle, Backend **backend_handle,
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
-    serial->frontend = frontend_handle;
+    serial->frontend = frontend;
     serial->finished = FALSE;
     serial->inbufsize = 0;
     bufchain_init(&serial->output_data);

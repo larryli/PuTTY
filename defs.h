@@ -49,6 +49,8 @@ typedef struct Backend_vtable Backend_vtable;
 typedef struct Ldisc_tag Ldisc;
 typedef struct LogContext_tag LogContext;
 
+typedef struct Frontend Frontend;
+
 typedef struct ssh_tag *Ssh;
 
 /* Note indirection: for historical reasons (it used to be closer to

@@ -42,7 +42,7 @@ void nonfatal(const char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
 }
-void connection_fatal(void *frontend, const char *p, ...)
+void connection_fatal(Frontend *frontend, const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -93,7 +93,7 @@ FontSpec *platform_default_fontspec(const char *name) { return fontspec_new("");
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
 void log_eventlog(LogContext *logctx, const char *event) {}
-int from_backend(void *frontend, int is_stderr, const void *data, int datalen)
+int from_backend(Frontend *fe, int is_stderr, const void *data, int datalen)
 { assert(!"only here to satisfy notional call from backend_socket_log"); }
 
 /*

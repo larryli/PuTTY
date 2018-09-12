@@ -58,7 +58,7 @@ void nonfatal(const char *p, ...)
     fputc('\n', stderr);
     postmsg(&cf);
 }
-void connection_fatal(void *frontend, const char *p, ...)
+void connection_fatal(Frontend *frontend, const char *p, ...)
 {
     struct termios cf;
     va_list ap;
@@ -132,7 +132,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void frontend_echoedit_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     struct termios mode;
@@ -190,7 +190,7 @@ static char *get_ttychar(struct termios *t, int index)
     return dupprintf("^<%d>", c);
 }
 
-char *get_ttymode(void *frontend, const char *mode)
+char *get_ttymode(Frontend *frontend, const char *mode)
 {
     /*
      * Propagate appropriate terminal modes from the local terminal,
@@ -400,7 +400,7 @@ int try_output(int is_stderr)
     return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
-int from_backend(void *frontend_handle, int is_stderr,
+int from_backend(Frontend *frontend, int is_stderr,
                  const void *data, int len)
 {
     if (is_stderr) {
@@ -413,7 +413,7 @@ int from_backend(void *frontend_handle, int is_stderr,
     }
 }
 
-int from_backend_untrusted(void *frontend_handle, const void *data, int len)
+int from_backend_untrusted(Frontend *frontend, const void *data, int len)
 {
     /*
      * No "untrusted" output should get here (the way the code is
@@ -423,7 +423,7 @@ int from_backend_untrusted(void *frontend_handle, const void *data, int len)
     return 0; /* not reached */
 }
 
-int from_backend_eof(void *frontend_handle)
+int from_backend_eof(Frontend *frontend)
 {
     assert(outgoingeof == EOF_NO);
     outgoingeof = EOF_PENDING;

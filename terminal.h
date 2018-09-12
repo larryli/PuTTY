@@ -231,7 +231,7 @@ struct terminal_tag {
 
     Ldisc *ldisc;
 
-    void *frontend;
+    Frontend *frontend;
 
     LogContext *logctx;
 

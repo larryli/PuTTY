@@ -18,7 +18,7 @@ typedef struct rlogin_tag {
     int firstbyte;
     int cansize;
     int term_width, term_height;
-    void *frontend;
+    Frontend *frontend;
 
     Conf *conf;
 
@@ -148,7 +148,7 @@ static const Plug_vtable Rlogin_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *rlogin_init(void *frontend_handle, Backend **backend_handle,
+static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
 			       Conf *conf,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
@@ -165,7 +165,7 @@ static const char *rlogin_init(void *frontend_handle, Backend **backend_handle,
     rlogin->backend.vt = &rlogin_backend;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
-    rlogin->frontend = frontend_handle;
+    rlogin->frontend = frontend;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
     rlogin->firstbyte = 1;

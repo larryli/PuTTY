@@ -45,7 +45,7 @@ void nonfatal(const char *p, ...)
     va_end(ap);
     fputc('\n', stderr);
 }
-void connection_fatal(void *frontend, const char *p, ...)
+void connection_fatal(Frontend *frontend, const char *p, ...)
 {
     va_list ap;
     fprintf(stderr, "FATAL ERROR: ");
@@ -83,7 +83,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void frontend_echoedit_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     DWORD mode;
@@ -100,9 +100,9 @@ void frontend_echoedit_update(void *frontend, int echo, int edit)
     SetConsoleMode(inhandle, mode);
 }
 
-char *get_ttymode(void *frontend, const char *mode) { return NULL; }
+char *get_ttymode(Frontend *frontend, const char *mode) { return NULL; }
 
-int from_backend(void *frontend_handle, int is_stderr,
+int from_backend(Frontend *frontend, int is_stderr,
 		 const void *data, int len)
 {
     if (is_stderr) {
@@ -114,7 +114,7 @@ int from_backend(void *frontend_handle, int is_stderr,
     return handle_backlog(stdout_handle) + handle_backlog(stderr_handle);
 }
 
-int from_backend_untrusted(void *frontend_handle, const void *data, int len)
+int from_backend_untrusted(Frontend *frontend, const void *data, int len)
 {
     /*
      * No "untrusted" output should get here (the way the code is
@@ -124,7 +124,7 @@ int from_backend_untrusted(void *frontend_handle, const void *data, int len)
     return 0; /* not reached */
 }
 
-int from_backend_eof(void *frontend_handle)
+int from_backend_eof(Frontend *frontend)
 {
     handle_write_eof(stdout_handle);
     return FALSE;   /* do not respond to incoming EOF with outgoing */

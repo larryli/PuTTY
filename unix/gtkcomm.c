@@ -221,7 +221,7 @@ static gint idle_toplevel_callback_func(gpointer data)
     return TRUE;
 }
 
-static void notify_toplevel_callback(void *frontend)
+static void notify_toplevel_callback(void *vctx)
 {
     if (!idle_fn_scheduled) {
         toplevel_callback_idle_id =

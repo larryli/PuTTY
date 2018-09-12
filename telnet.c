@@ -172,7 +172,7 @@ typedef struct telnet_tag {
     Socket s;
     int closed_on_socket_error;
 
-    void *frontend;
+    Frontend *frontend;
     Ldisc *ldisc;
     int term_width, term_height;
 
@@ -705,7 +705,7 @@ static const Plug_vtable Telnet_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *telnet_init(void *frontend_handle, Backend **backend_handle,
+static const char *telnet_init(Frontend *frontend, Backend **backend_handle,
 			       Conf *conf, const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
@@ -726,7 +726,7 @@ static const char *telnet_init(void *frontend_handle, Backend **backend_handle,
     telnet->activated = FALSE;
     telnet->sb_buf = NULL;
     telnet->sb_size = 0;
-    telnet->frontend = frontend_handle;
+    telnet->frontend = frontend;
     telnet->term_width = conf_get_int(telnet->conf, CONF_width);
     telnet->term_height = conf_get_int(telnet->conf, CONF_height);
     telnet->state = TOP_LEVEL;

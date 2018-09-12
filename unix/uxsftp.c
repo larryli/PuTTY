@@ -66,7 +66,7 @@ Filename *platform_default_filename(const char *name)
 	return filename_from_str("");
 }
 
-char *get_ttymode(void *frontend, const char *mode) { return NULL; }
+char *get_ttymode(Frontend *frontend, const char *mode) { return NULL; }
 
 int get_userpass_input(prompts_t *p, bufchain *input)
 {

@@ -231,16 +231,16 @@ const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
 /* Dummy routine, only required in plink. */
-void frontend_echoedit_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
 {
 }
 
-int frontend_is_utf8(void *frontend)
+int frontend_is_utf8(Frontend *frontend)
 {
     return ucsdata.line_codepage == CP_UTF8;
 }
 
-char *get_ttymode(void *frontend, const char *mode)
+char *get_ttymode(Frontend *frontend, const char *mode)
 {
     return term_get_ttymode(term, mode);
 }
@@ -946,7 +946,7 @@ static void update_savedsess_menu(void)
 /*
  * Update the Special Commands submenu.
  */
-void update_specials_menu(void *frontend)
+void update_specials_menu(Frontend *frontend)
 {
     HMENU new_menu;
     int i, j;
@@ -1052,7 +1052,7 @@ static void update_mouse_pointer(void)
     }
 }
 
-void set_busy_status(void *frontend, int status)
+void set_busy_status(Frontend *frontend, int status)
 {
     busy_status = status;
     update_mouse_pointer();
@@ -1061,7 +1061,7 @@ void set_busy_status(void *frontend, int status)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(void *frontend, int activate)
+void set_raw_mouse_mode(Frontend *frontend, int activate)
 {
     activate = activate && !conf_get_int(conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
@@ -1071,7 +1071,7 @@ void set_raw_mouse_mode(void *frontend, int activate)
 /*
  * Print a message box and close the connection.
  */
-void connection_fatal(void *frontend, const char *fmt, ...)
+void connection_fatal(Frontend *frontend, const char *fmt, ...)
 {
     va_list ap;
     char *stuff, morestuff[100];
@@ -1622,7 +1622,7 @@ static void deinit_fonts(void)
     }
 }
 
-void request_resize(void *frontend, int w, int h)
+void request_resize(Frontend *frontend, int w, int h)
 {
     int width, height;
 
@@ -1970,7 +1970,7 @@ static int is_alt_pressed(void)
 
 static int resizing;
 
-void notify_remote_exit(void *fe)
+void notify_remote_exit(Frontend *frontend)
 {
     int exitcode, close_on_exit;
 
@@ -3277,7 +3277,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
  * helper software tracks the system caret, so we should arrange to
  * have one.)
  */
-void sys_cursor(void *frontend, int x, int y)
+void sys_cursor(Frontend *frontend, int x, int y)
 {
     int cx, cy;
 
@@ -4813,7 +4813,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     return -1;
 }
 
-void set_title(void *frontend, char *title)
+void set_title(Frontend *frontend, char *title)
 {
     sfree(window_name);
     window_name = snewn(1 + strlen(title), char);
@@ -4822,7 +4822,7 @@ void set_title(void *frontend, char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_icon(void *frontend, char *title)
+void set_icon(Frontend *frontend, char *title)
 {
     sfree(icon_name);
     icon_name = snewn(1 + strlen(title), char);
@@ -4831,7 +4831,7 @@ void set_icon(void *frontend, char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_sbar(void *frontend, int total, int start, int page)
+void set_sbar(Frontend *frontend, int total, int start, int page)
 {
     SCROLLINFO si;
 
@@ -4849,7 +4849,7 @@ void set_sbar(void *frontend, int total, int start, int page)
 	SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 }
 
-Context get_ctx(void *frontend)
+Context get_ctx(Frontend *frontend)
 {
     HDC hdc;
     if (hwnd) {
@@ -4879,7 +4879,7 @@ static void real_palette_set(int n, int r, int g, int b)
     }
 }
 
-int palette_get(void *frontend, int n, int *r, int *g, int *b)
+int palette_get(Frontend *frontend, int n, int *r, int *g, int *b)
 {
     if (n < 0 || n >= NALLCOLOURS)
 	return FALSE;
@@ -4889,7 +4889,7 @@ int palette_get(void *frontend, int n, int *r, int *g, int *b)
     return TRUE;
 }
 
-void palette_set(void *frontend, int n, int r, int g, int b)
+void palette_set(Frontend *frontend, int n, int r, int g, int b)
 {
     if (n >= 16)
 	n += 256 - 16;
@@ -4910,7 +4910,7 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     }
 }
 
-void palette_reset(void *frontend)
+void palette_reset(Frontend *frontend)
 {
     int i;
 
@@ -4939,7 +4939,7 @@ void palette_reset(void *frontend)
     }
 }
 
-void write_aclip(void *frontend, int clipboard,
+void write_aclip(Frontend *frontend, int clipboard,
                  char *data, int len, int must_deselect)
 {
     HGLOBAL clipdata;
@@ -4987,7 +4987,7 @@ int cmpCOLORREF(void *va, void *vb)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(void *frontend, int clipboard,
+void write_clip(Frontend *frontend, int clipboard,
                 wchar_t *data, int *attr, truecolour *truecolour, int len,
                 int must_deselect)
 {
@@ -5458,7 +5458,7 @@ static void process_clipdata(HGLOBAL clipdata, int unicode)
     sfree(clipboard_contents);
 }
 
-void frontend_request_paste(void *frontend, int clipboard)
+void frontend_request_paste(Frontend *frontend, int clipboard)
 {
     assert(clipboard == CLIP_SYSTEM);
 
@@ -5488,7 +5488,7 @@ void frontend_request_paste(void *frontend, int clipboard)
  * Move `lines' lines from position `from' to position `to' in the
  * window.
  */
-void optimised_move(void *frontend, int to, int from, int lines)
+void optimised_move(Frontend *frontend, int to, int from, int lines)
 {
     RECT r;
     int min, max;
@@ -5618,7 +5618,7 @@ static void flash_window(int mode)
 /*
  * Beep.
  */
-void do_beep(void *frontend, int mode)
+void do_beep(Frontend *frontend, int mode)
 {
     if (mode == BELL_DEFAULT) {
 	/*
@@ -5680,7 +5680,7 @@ void do_beep(void *frontend, int mode)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(void *frontend, int iconic)
+void set_iconic(Frontend *frontend, int iconic)
 {
     if (IsIconic(hwnd)) {
 	if (!iconic)
@@ -5694,7 +5694,7 @@ void set_iconic(void *frontend, int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(void *frontend, int x, int y)
+void move_window(Frontend *frontend, int x, int y)
 {
     int resize_action = conf_get_int(conf, CONF_resize_action);
     if (resize_action == RESIZE_DISABLED || 
@@ -5709,7 +5709,7 @@ void move_window(void *frontend, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(void *frontend, int top)
+void set_zorder(Frontend *frontend, int top)
 {
     if (conf_get_int(conf, CONF_alwaysontop))
 	return;			       /* ignore */
@@ -5720,7 +5720,7 @@ void set_zorder(void *frontend, int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(void *frontend)
+void refresh_window(Frontend *frontend)
 {
     InvalidateRect(hwnd, NULL, TRUE);
 }
@@ -5729,7 +5729,7 @@ void refresh_window(void *frontend)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(void *frontend, int zoomed)
+void set_zoomed(Frontend *frontend, int zoomed)
 {
     if (IsZoomed(hwnd)) {
         if (!zoomed)
@@ -5743,7 +5743,7 @@ void set_zoomed(void *frontend, int zoomed)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-int is_iconic(void *frontend)
+int is_iconic(Frontend *frontend)
 {
     return IsIconic(hwnd);
 }
@@ -5751,7 +5751,7 @@ int is_iconic(void *frontend)
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(void *frontend, int *x, int *y)
+void get_window_pos(Frontend *frontend, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -5762,7 +5762,7 @@ void get_window_pos(void *frontend, int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(void *frontend, int *x, int *y)
+void get_window_pixels(Frontend *frontend, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -5773,7 +5773,7 @@ void get_window_pixels(void *frontend, int *x, int *y)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(void *frontend, int icon)
+char *get_window_title(Frontend *frontend, int icon)
 {
     return icon ? icon_name : window_name;
 }
@@ -5906,7 +5906,7 @@ static void flip_full_screen()
     }
 }
 
-void frontend_keypress(void *handle)
+void frontend_keypress(Frontend *frontend)
 {
     /*
      * Keypress termination in non-Close-On-Exit mode is not
@@ -5917,17 +5917,17 @@ void frontend_keypress(void *handle)
     return;
 }
 
-int from_backend(void *frontend, int is_stderr, const void *data, int len)
+int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
 {
     return term_data(term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(void *frontend, const void *data, int len)
+int from_backend_untrusted(Frontend *frontend, const void *data, int len)
 {
     return term_data_untrusted(term, data, len);
 }
 
-int from_backend_eof(void *frontend)
+int from_backend_eof(Frontend *frontend)
 {
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }

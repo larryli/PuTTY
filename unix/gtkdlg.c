@@ -3442,7 +3442,7 @@ struct verify_ssh_host_key_result_ctx {
     char *keystr;
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
-    void *frontend;
+    Frontend *frontend;
 };
 
 static void verify_ssh_host_key_result_callback(void *vctx, int result)
@@ -3483,7 +3483,7 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
     sfree(ctx);
 }
 
-int verify_ssh_host_key(void *frontend, char *host, int port,
+int verify_ssh_host_key(Frontend *frontend, char *host, int port,
                         const char *keytype, char *keystr, char *fingerprint,
                         void (*callback)(void *ctx, int result), void *ctx)
 {
@@ -3560,7 +3560,7 @@ int verify_ssh_host_key(void *frontend, char *host, int port,
 struct simple_prompt_result_ctx {
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
-    void *frontend;
+    Frontend *frontend;
     enum DialogSlot dialog_slot;
 };
 
@@ -3584,7 +3584,7 @@ static void simple_prompt_result_callback(void *vctx, int result)
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int askalg(void *frontend, const char *algtype, const char *algname,
+int askalg(Frontend *frontend, const char *algtype, const char *algname,
 	   void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msg[] =
@@ -3616,7 +3616,7 @@ int askalg(void *frontend, const char *algtype, const char *algname,
     return -1;                         /* dialog still in progress */
 }
 
-int askhk(void *frontend, const char *algname, const char *betteralgs,
+int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
           void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msg[] =
@@ -4059,7 +4059,7 @@ void logevent_dlg(void *estuff, const char *string)
     }
 }
 
-int askappend(void *frontend, Filename *filename,
+int askappend(Frontend *frontend, Filename *filename,
 	      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =

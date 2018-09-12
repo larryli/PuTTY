@@ -78,7 +78,7 @@ static void bsb(Ldisc *ldisc, int n)
 #define KCTRL(x) ((x^'@') | 0x100)
 
 Ldisc *ldisc_create(Conf *conf, Terminal *term,
-                   Backend *backend, void *frontend)
+                    Backend *backend, Frontend *frontend)
 {
     Ldisc *ldisc = snew(Ldisc);
 

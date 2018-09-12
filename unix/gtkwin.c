@@ -76,7 +76,7 @@ struct clipboard_data_instance {
 #endif
 
 struct clipboard_state {
-    struct gui_data *inst;
+    Frontend *inst;
     int clipboard;
     GdkAtom atom;
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
@@ -88,7 +88,7 @@ struct clipboard_state {
 #endif
 };
 
-struct gui_data {
+struct Frontend {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
@@ -182,7 +182,7 @@ struct gui_data {
 #endif
 };
 
-static void cache_conf_values(struct gui_data *inst)
+static void cache_conf_values(Frontend *inst)
 {
     inst->bold_style = conf_get_int(inst->conf, CONF_bold_style);
     inst->window_border = conf_get_int(inst->conf, CONF_window_border);
@@ -200,31 +200,31 @@ static void cache_conf_values(struct gui_data *inst)
 }
 
 struct draw_ctx {
-    struct gui_data *inst;
+    Frontend *inst;
     unifont_drawctx uctx;
 };
 
 static int send_raw_mouse;
 
-static void start_backend(struct gui_data *inst);
+static void start_backend(Frontend *inst);
 static void exit_callback(void *vinst);
-static void destroy_inst_connection(struct gui_data *inst);
-static void delete_inst(struct gui_data *inst);
+static void destroy_inst_connection(Frontend *inst);
+static void delete_inst(Frontend *inst);
 
 static void post_fatal_message_box_toplevel(void *vctx)
 {
-    struct gui_data *inst = (struct gui_data *)vctx;
+    Frontend *inst = (Frontend *)vctx;
     gtk_widget_destroy(inst->window);
 }
 
 static void post_fatal_message_box(void *vctx, int result)
 {
-    struct gui_data *inst = (struct gui_data *)vctx;
+    Frontend *inst = (Frontend *)vctx;
     unregister_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL);
     queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
 }
 
-void fatal_message_box(struct gui_data *inst, const char *msg)
+void fatal_message_box(Frontend *inst, const char *msg)
 {
     char *title = dupcat(appname, " Fatal Error", NULL);
     GtkWidget *dialog = create_message_box(
@@ -235,16 +235,14 @@ void fatal_message_box(struct gui_data *inst, const char *msg)
     sfree(title);
 }
 
-static void connection_fatal_callback(void *vinst)
+static void connection_fatal_callback(void *vctx)
 {
-    struct gui_data *inst = (struct gui_data *)vinst;
+    Frontend *inst = (Frontend *)vctx;
     destroy_inst_connection(inst);
 }
 
-void connection_fatal(void *frontend, const char *p, ...)
+void connection_fatal(Frontend *inst, const char *p, ...)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
     va_list ap;
     char *msg;
     va_start(ap, p);
@@ -254,7 +252,7 @@ void connection_fatal(void *frontend, const char *p, ...)
     sfree(msg);
 
     inst->exited = TRUE;   /* suppress normal exit handling */
-    queue_toplevel_callback(connection_fatal_callback, frontend);
+    queue_toplevel_callback(connection_fatal_callback, inst);
 }
 
 /*
@@ -293,36 +291,33 @@ int platform_default_i(const char *name, int def)
 }
 
 /* Dummy routine, only required in plink. */
-void frontend_echoedit_update(void *frontend, int echo, int edit)
+void frontend_echoedit_update(Frontend *inst, int echo, int edit)
 {
 }
 
-char *get_ttymode(void *frontend, const char *mode)
+char *get_ttymode(Frontend *inst, const char *mode)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return term_get_ttymode(inst->term, mode);
 }
 
-int from_backend(void *frontend, int is_stderr, const void *data, int len)
+int from_backend(Frontend *inst, int is_stderr, const void *data, int len)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return term_data(inst->term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(void *frontend, const void *data, int len)
+int from_backend_untrusted(Frontend *inst, const void *data, int len)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return term_data_untrusted(inst->term, data, len);
 }
 
-int from_backend_eof(void *frontend)
+int from_backend_eof(Frontend *inst)
 {
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
 int get_userpass_input(prompts_t *p, bufchain *input)
 {
-    struct gui_data *inst = (struct gui_data *)p->frontend;
+    Frontend *inst = p->frontend;
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
@@ -330,19 +325,15 @@ int get_userpass_input(prompts_t *p, bufchain *input)
     return ret;
 }
 
-void logevent(void *frontend, const char *string)
+void logevent(Frontend *inst, const char *string)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
     log_eventlog(inst->logctx, string);
 
     logevent_dlg(inst->eventlogstuff, string);
 }
 
-int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
+int font_dimension(Frontend *inst, int which) /* 0 for width, 1 for height */
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
     if (which)
 	return inst->font_height;
     else
@@ -360,8 +351,6 @@ int font_dimension(void *frontend, int which)/* 0 for width, 1 for height */
  */
 static Mouse_Button translate_button(Mouse_Button button)
 {
-    /* struct gui_data *inst = (struct gui_data *)frontend; */
-
     if (button == MBT_LEFT)
 	return MBT_SELECT;
     if (button == MBT_MIDDLE)
@@ -375,9 +364,8 @@ static Mouse_Button translate_button(Mouse_Button button)
  * Return the top-level GtkWindow associated with a particular
  * front end instance.
  */
-GtkWidget *get_window(void *frontend)
+GtkWidget *get_window(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return inst->window;
 }
 
@@ -386,16 +374,14 @@ GtkWidget *get_window(void *frontend)
  * network code wanting to ask an asynchronous user question (e.g.
  * 'what about this dodgy host key, then?').
  */
-void register_dialog(void *frontend, enum DialogSlot slot, GtkWidget *dialog)
+void register_dialog(Frontend *inst, enum DialogSlot slot, GtkWidget *dialog)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(!inst->dialogs[slot]);
     inst->dialogs[slot] = dialog;
 }
-void unregister_dialog(void *frontend, enum DialogSlot slot)
+void unregister_dialog(Frontend *inst, enum DialogSlot slot)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(inst->dialogs[slot]);
     inst->dialogs[slot] = NULL;
@@ -405,13 +391,12 @@ void unregister_dialog(void *frontend, enum DialogSlot slot)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(void *frontend, int iconic)
+void set_iconic(Frontend *inst, int iconic)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (iconic)
 	gtk_window_iconify(GTK_WINDOW(inst->window));
     else
@@ -422,9 +407,8 @@ void set_iconic(void *frontend, int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(void *frontend, int x, int y)
+void move_window(Frontend *inst, int x, int y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -443,9 +427,8 @@ void move_window(void *frontend, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(void *frontend, int top)
+void set_zorder(Frontend *inst, int top)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (top)
 	gdk_window_raise(gtk_widget_get_window(inst->window));
     else
@@ -455,9 +438,8 @@ void set_zorder(void *frontend, int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(void *frontend)
+void refresh_window(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     term_invalidate(inst->term);
 }
 
@@ -465,13 +447,12 @@ void refresh_window(void *frontend)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(void *frontend, int zoomed)
+void set_zoomed(Frontend *inst, int zoomed)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (zoomed)
 	gtk_window_maximize(GTK_WINDOW(inst->window));
     else
@@ -482,18 +463,16 @@ void set_zoomed(void *frontend, int zoomed)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-int is_iconic(void *frontend)
+int is_iconic(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
 }
 
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(void *frontend, int *x, int *y)
+void get_window_pos(Frontend *inst, int *x, int *y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -509,9 +488,8 @@ void get_window_pos(void *frontend, int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(void *frontend, int *x, int *y)
+void get_window_pixels(Frontend *inst, int *x, int *y)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -530,7 +508,7 @@ void get_window_pixels(void *frontend, int *x, int *y)
  * raise it, so that the user realises they've already been asked this
  * question.
  */
-static int find_and_raise_dialog(struct gui_data *inst, enum DialogSlot slot)
+static int find_and_raise_dialog(Frontend *inst, enum DialogSlot slot)
 {
     GtkWidget *dialog = inst->dialogs[slot];
     if (!dialog)
@@ -546,15 +524,14 @@ static int find_and_raise_dialog(struct gui_data *inst, enum DialogSlot slot)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(void *frontend, int icon)
+char *get_window_title(Frontend *inst, int icon)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return icon ? inst->icontitle : inst->wintitle;
 }
 
 static void warn_on_close_callback(void *vctx, int result)
 {
-    struct gui_data *inst = (struct gui_data *)vctx;
+    Frontend *inst = (Frontend *)vctx;
     unregister_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE);
     if (result)
         gtk_widget_destroy(inst->window);
@@ -570,9 +547,8 @@ static void warn_on_close_callback(void *vctx, int result)
  * handler need not do anything', i.e. 'suppress default handler',
  * i.e. 'do not close the window'.)
  */
-gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
+gint delete_window(GtkWidget *widget, GdkEvent *event, Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
     if (!inst->exited && conf_get_int(inst->conf, CONF_warn_on_close)) {
         /*
          * We're not going to exit right now. We must put up a
@@ -594,7 +570,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, gpointer data)
     return FALSE;
 }
 
-static void update_mouseptr(struct gui_data *inst)
+static void update_mouseptr(Frontend *inst)
 {
     switch (inst->busy_status) {
       case BUSY_NOT:
@@ -620,7 +596,7 @@ static void update_mouseptr(struct gui_data *inst)
     }
 }
 
-static void show_mouseptr(struct gui_data *inst, int show)
+static void show_mouseptr(Frontend *inst, int show)
 {
     if (!conf_get_int(inst->conf, CONF_hide_mouseptr))
 	show = 1;
@@ -628,9 +604,9 @@ static void show_mouseptr(struct gui_data *inst, int show)
     update_mouseptr(inst);
 }
 
-static void draw_backing_rect(struct gui_data *inst);
+static void draw_backing_rect(Frontend *inst);
 
-static void drawing_area_setup(struct gui_data *inst, int width, int height)
+static void drawing_area_setup(Frontend *inst, int width, int height)
 {
     int w, h, new_scale, need_size = 0;
 
@@ -719,7 +695,7 @@ static void drawing_area_setup(struct gui_data *inst, int width, int height)
 #endif
 }
 
-static void drawing_area_setup_simple(struct gui_data *inst)
+static void drawing_area_setup_simple(Frontend *inst)
 {
     /*
      * Wrapper on drawing_area_setup which fetches the width and
@@ -736,10 +712,8 @@ static void drawing_area_setup_simple(struct gui_data *inst)
     drawing_area_setup(inst, alloc.width, alloc.height);
 }
 
-static void area_realised(GtkWidget *widget, gpointer data)
+static void area_realised(GtkWidget *widget, Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-
     inst->drawing_area_realised = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size &&
         inst->drawing_area_setup_needed)
@@ -747,17 +721,15 @@ static void area_realised(GtkWidget *widget, gpointer data)
 }
 
 static void area_size_allocate(
-    GtkWidget *widget, GdkRectangle *alloc, gpointer data)
+    GtkWidget *widget, GdkRectangle *alloc, Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-
     inst->drawing_area_got_size = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size)
         drawing_area_setup(inst, alloc->width, alloc->height);
 }
 
 #if GTK_CHECK_VERSION(3,10,0)
-static void area_check_scale(struct gui_data *inst)
+static void area_check_scale(Frontend *inst)
 {
     if (!inst->drawing_area_setup_needed &&
         inst->scale != gtk_widget_get_scale_factor(inst->area)) {
@@ -774,7 +746,7 @@ static void area_check_scale(struct gui_data *inst)
 static gboolean area_configured(
     GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     area_check_scale(inst);
     return FALSE;
 }
@@ -799,7 +771,7 @@ static void cairo_setup_dctx(struct draw_ctx *dctx)
 #if GTK_CHECK_VERSION(3,0,0)
 static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
 
 #if GTK_CHECK_VERSION(3,10,0)
     /*
@@ -862,7 +834,7 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 #else
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
 
 #ifndef NO_BACKING_PIXMAPS
     /*
@@ -912,11 +884,11 @@ char *dup_keyval_name(guint keyval)
 }
 #endif
 
-static void change_font_size(struct gui_data *inst, int increment);
+static void change_font_size(Frontend *inst, int increment);
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     char output[256];
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, output_charset, use_ucsoutput;
@@ -2146,7 +2118,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #if GTK_CHECK_VERSION(2,0,0)
 void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
 
 #ifdef KEY_EVENT_DIAGNOSTICS
     char *string_string = dupstr("");
@@ -2173,7 +2145,7 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 #define SCROLL_INCREMENT_LINES 5
 
 #if GTK_CHECK_VERSION(3,4,0)
-gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
+gboolean scroll_internal(Frontend *inst, gdouble delta, guint state,
 			 gdouble ex, gdouble ey)
 {
     int shift, ctrl, alt, x, y, raw_mouse_mode;
@@ -2225,7 +2197,7 @@ gboolean scroll_internal(struct gui_data *inst, gdouble delta, guint state,
 }
 #endif
 
-static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
+static gboolean button_internal(Frontend *inst, GdkEventButton *event)
 {
     int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
 
@@ -2298,7 +2270,7 @@ static gboolean button_internal(struct gui_data *inst, GdkEventButton *event)
 
 gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     return button_internal(inst, event);
 }
 
@@ -2310,7 +2282,7 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
  */
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
 
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble dx, dy;
@@ -2351,7 +2323,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     int shift, ctrl, alt, x, y, button;
 
     /* Remember the timestamp. */
@@ -2380,10 +2352,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     return TRUE;
 }
 
-void frontend_keypress(void *handle)
+void frontend_keypress(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)handle;
-
     /*
      * If our child process has exited but not closed, terminate on
      * any keypress.
@@ -2392,9 +2362,9 @@ void frontend_keypress(void *handle)
         gtk_widget_destroy(inst->window);
 }
 
-static void exit_callback(void *vinst)
+static void exit_callback(void *vctx)
 {
-    struct gui_data *inst = (struct gui_data *)vinst;
+    Frontend *inst = (Frontend *)vctx;
     int exitcode, close_on_exit;
 
     if (!inst->exited &&
@@ -2409,14 +2379,12 @@ static void exit_callback(void *vinst)
     }
 }
 
-void notify_remote_exit(void *frontend)
+void notify_remote_exit(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
     queue_toplevel_callback(exit_callback, inst);
 }
 
-static void destroy_inst_connection(struct gui_data *inst)
+static void destroy_inst_connection(Frontend *inst)
 {
     inst->exited = TRUE;
     if (inst->ldisc) {
@@ -2435,7 +2403,7 @@ static void destroy_inst_connection(struct gui_data *inst)
     }
 }
 
-static void delete_inst(struct gui_data *inst)
+static void delete_inst(Frontend *inst)
 {
     int dialog_slot;
     for (dialog_slot = 0; dialog_slot < DIALOG_SLOT_LIMIT; dialog_slot++) {
@@ -2496,7 +2464,7 @@ static void delete_inst(struct gui_data *inst)
 
 void destroy(GtkWidget *widget, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     inst->window = NULL;
     delete_inst(inst);
     session_window_closed();
@@ -2504,16 +2472,15 @@ void destroy(GtkWidget *widget, gpointer data)
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     term_set_focus(inst->term, event->in);
     term_update(inst->term);
     show_mouseptr(inst, 1);
     return FALSE;
 }
 
-void set_busy_status(void *frontend, int status)
+void set_busy_status(Frontend *inst, int status)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     inst->busy_status = status;
     update_mouseptr(inst);
 }
@@ -2521,24 +2488,21 @@ void set_busy_status(void *frontend, int status)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(void *frontend, int activate)
+void set_raw_mouse_mode(Frontend *inst, int activate)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     activate = activate && !conf_get_int(inst->conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
     update_mouseptr(inst);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(struct gui_data *inst,
+static void compute_whole_window_size(Frontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix);
 #endif
 
-void request_resize(void *frontend, int w, int h)
+void request_resize(Frontend *inst, int w, int h)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
 #if !GTK_CHECK_VERSION(3,0,0)
 
     int large_x, large_y;
@@ -2624,7 +2588,7 @@ void request_resize(void *frontend, int w, int h)
 
 }
 
-static void real_palette_set(struct gui_data *inst, int n, int r, int g, int b)
+static void real_palette_set(Frontend *inst, int n, int r, int g, int b)
 {
     inst->cols[n].red = r * 0x0101;
     inst->cols[n].green = g * 0x0101;
@@ -2678,7 +2642,7 @@ void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
 #endif
 }
 
-void set_window_background(struct gui_data *inst)
+void set_window_background(Frontend *inst)
 {
     if (inst->area)
 	set_gtk_widget_background(GTK_WIDGET(inst->area), &inst->cols[258]);
@@ -2686,9 +2650,8 @@ void set_window_background(struct gui_data *inst)
 	set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
-void palette_set(void *frontend, int n, int r, int g, int b)
+void palette_set(Frontend *inst, int n, int r, int g, int b)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (n >= 16)
 	n += 256 - 16;
     if (n >= NALLCOLOURS)
@@ -2703,9 +2666,8 @@ void palette_set(void *frontend, int n, int r, int g, int b)
     }
 }
 
-int palette_get(void *frontend, int n, int *r, int *g, int *b)
+int palette_get(Frontend *inst, int n, int *r, int *g, int *b)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (n < 0 || n >= NALLCOLOURS)
 	return FALSE;
     *r = inst->cols[n].red >> 8;
@@ -2714,9 +2676,8 @@ int palette_get(void *frontend, int n, int *r, int *g, int *b)
     return TRUE;
 }
 
-void palette_reset(void *frontend)
+void palette_reset(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     /* This maps colour indices in inst->conf to those used in inst->cols. */
     static const int ww[] = {
 	256, 257, 258, 259, 260, 261,
@@ -2784,7 +2745,7 @@ void palette_reset(void *frontend)
 }
 
 static struct clipboard_state *clipboard_from_atom(
-    struct gui_data *inst, GdkAtom atom)
+    Frontend *inst, GdkAtom atom)
 {
     int i;
 
@@ -2806,7 +2767,7 @@ static struct clipboard_state *clipboard_from_atom(
  * formats it feels like.
  */
 
-void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
+void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -2823,7 +2784,7 @@ void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
     }
 }
 
-int init_clipboard(struct gui_data *inst)
+int init_clipboard(Frontend *inst)
 {
     set_clipboard_atom(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
     set_clipboard_atom(inst, CLIP_CLIPBOARD, clipboard_atom);
@@ -2861,11 +2822,10 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
     sfree(cdi);
 }
 
-void write_clip(void *frontend, int clipboard,
+void write_clip(Frontend *inst, int clipboard,
                 wchar_t *data, int *attr, truecolour *truecolour, int len,
                 int must_deselect)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_state *state = &inst->clipstates[clipboard];
     struct clipboard_data_instance *cdi;
 
@@ -2922,7 +2882,7 @@ void write_clip(void *frontend, int clipboard,
 static void clipboard_text_received(GtkClipboard *clipboard,
                                     const gchar *text, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     wchar_t *paste;
     int paste_len;
     int length;
@@ -2940,9 +2900,8 @@ static void clipboard_text_received(GtkClipboard *clipboard,
     sfree(paste);
 }
 
-void frontend_request_paste(void *frontend, int clipboard)
+void frontend_request_paste(Frontend *inst, int clipboard)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     if (!state->gtkclipboard)
@@ -2975,7 +2934,7 @@ void frontend_request_paste(void *frontend, int clipboard)
  */
 
 /* Store the data in a cut-buffer. */
-static void store_cutbuffer(struct gui_data *inst, char *ptr, int len)
+static void store_cutbuffer(Frontend *inst, char *ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
     if (inst->disp) {
@@ -2989,7 +2948,7 @@ static void store_cutbuffer(struct gui_data *inst, char *ptr, int len)
 /* Retrieve data from a cut-buffer.
  * Returned data needs to be freed with XFree().
  */
-static char *retrieve_cutbuffer(struct gui_data *inst, int *nbytes)
+static char *retrieve_cutbuffer(Frontend *inst, int *nbytes)
 {
 #ifndef NOT_X_WINDOWS
     char *ptr;
@@ -3009,11 +2968,10 @@ static char *retrieve_cutbuffer(struct gui_data *inst, int *nbytes)
 #endif
 }
 
-void write_clip(void *frontend, int clipboard,
+void write_clip(Frontend *inst, int clipboard,
                 wchar_t *data, int *attr, truecolour *truecolour, int len,
                 int must_deselect)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     if (state->pasteout_data)
@@ -3115,7 +3073,7 @@ void write_clip(void *frontend, int clipboard,
 static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
                           guint info, guint time_stamp, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     GdkAtom target = gtk_selection_data_get_target(seldata);
     struct clipboard_state *state = clipboard_from_atom(
         inst, gtk_selection_data_get_selection(seldata));
@@ -3140,7 +3098,7 @@ static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
                             gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     struct clipboard_state *state = clipboard_from_atom(
         inst, seldata->selection);
 
@@ -3163,9 +3121,8 @@ static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     return TRUE;
 }
 
-void frontend_request_paste(void *frontend, int clipboard)
+void frontend_request_paste(Frontend *inst, int clipboard)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     /*
@@ -3198,7 +3155,7 @@ void frontend_request_paste(void *frontend, int clipboard)
 static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
                                guint time, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     char *text;
     int length;
 #ifndef NOT_X_WINDOWS
@@ -3320,7 +3277,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #endif
 }
 
-static void init_one_clipboard(struct gui_data *inst, int clipboard)
+static void init_one_clipboard(Frontend *inst, int clipboard)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -3328,7 +3285,7 @@ static void init_one_clipboard(struct gui_data *inst, int clipboard)
     state->clipboard = clipboard;
 }
 
-void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
+void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -3338,7 +3295,7 @@ void set_clipboard_atom(struct gui_data *inst, int clipboard, GdkAtom atom)
     state->atom = atom;
 }
 
-void init_clipboard(struct gui_data *inst)
+void init_clipboard(Frontend *inst)
 {
 #ifndef NOT_X_WINDOWS
     /*
@@ -3394,7 +3351,7 @@ void init_clipboard(struct gui_data *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
-static void set_window_titles(struct gui_data *inst)
+static void set_window_titles(Frontend *inst)
 {
     /*
      * We must always call set_icon_name after calling set_title,
@@ -3407,25 +3364,22 @@ static void set_window_titles(struct gui_data *inst)
                                  inst->icontitle);
 }
 
-void set_title(void *frontend, char *title)
+void set_title(Frontend *inst, char *title)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_icon(void *frontend, char *title)
+void set_icon(Frontend *inst, char *title)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     sfree(inst->icontitle);
     inst->icontitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_title_and_icon(void *frontend, char *title, char *icon)
+void set_title_and_icon(Frontend *inst, char *title, char *icon)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
     sfree(inst->icontitle);
@@ -3433,9 +3387,8 @@ void set_title_and_icon(void *frontend, char *title, char *icon)
     set_window_titles(inst);
 }
 
-void set_sbar(void *frontend, int total, int start, int page)
+void set_sbar(Frontend *inst, int total, int start, int page)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
     inst->ignore_sbar = TRUE;
@@ -3451,17 +3404,15 @@ void set_sbar(void *frontend, int total, int start, int page)
     inst->ignore_sbar = FALSE;
 }
 
-void scrollbar_moved(GtkAdjustment *adj, gpointer data)
+void scrollbar_moved(GtkAdjustment *adj, Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)data;
-
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
     if (!inst->ignore_sbar)
 	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
 }
 
-static void show_scrollbar(struct gui_data *inst, gboolean visible)
+static void show_scrollbar(Frontend *inst, gboolean visible)
 {
     inst->sbar_visible = visible;
     if (visible)
@@ -3470,7 +3421,7 @@ static void show_scrollbar(struct gui_data *inst, gboolean visible)
         gtk_widget_hide(inst->sbar);
 }
 
-void sys_cursor(void *frontend, int x, int y)
+void sys_cursor(Frontend *frontend, int x, int y)
 {
     /*
      * This is meaningless under X.
@@ -3483,7 +3434,7 @@ void sys_cursor(void *frontend, int x, int y)
  * may want to perform additional actions on any kind of bell (for
  * example, taskbar flashing in Windows).
  */
-void do_beep(void *frontend, int mode)
+void do_beep(Frontend *frontend, int mode)
 {
     if (mode == BELL_DEFAULT)
         gdk_display_beep(gdk_display_get_default());
@@ -3498,9 +3449,8 @@ int char_width(Context ctx, int uc)
     return 1;
 }
 
-Context get_ctx(void *frontend)
+Context get_ctx(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     struct draw_ctx *dctx;
 
     if (!gtk_widget_get_window(inst->area))
@@ -3534,7 +3484,7 @@ Context get_ctx(void *frontend)
 void free_ctx(Context ctx)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    /* struct gui_data *inst = dctx->inst; */
+    /* Frontend *inst = dctx->inst; */
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
         gdk_gc_unref(dctx->uctx.u.gdk.gc);
@@ -3824,7 +3774,7 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 #endif
 }
 
-static void draw_backing_rect(struct gui_data *inst)
+static void draw_backing_rect(Frontend *inst)
 {
     int w, h;
     struct draw_ctx *dctx = get_ctx(inst);
@@ -3850,7 +3800,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 		      unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
+    Frontend *inst = dctx->inst;
     int ncombining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome =
@@ -4007,7 +3957,7 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	     unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
+    Frontend *inst = dctx->inst;
     int widefactor;
 
     do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
@@ -4037,7 +3987,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	       unsigned long attr, int lattr, truecolour truecolour)
 {
     struct draw_ctx *dctx = (struct draw_ctx *)ctx;
-    struct gui_data *inst = dctx->inst;
+    Frontend *inst = dctx->inst;
 
     int active, passive, widefactor;
 
@@ -4149,7 +4099,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 #endif
 }
 
-GdkCursor *make_mouse_ptr(struct gui_data *inst, int cursor_val)
+GdkCursor *make_mouse_ptr(Frontend *inst, int cursor_val)
 {
     if (cursor_val == -1) {
 #if GTK_CHECK_VERSION(2,16,0)
@@ -4186,15 +4136,14 @@ void modalfatalbox(const char *p, ...)
     exit(1);
 }
 
-const char *get_x_display(void *frontend)
+const char *get_x_display(Frontend *frontend)
 {
     return gdk_get_display();
 }
 
 #ifndef NOT_X_WINDOWS
-int get_windowid(void *frontend, long *id)
+int get_windowid(Frontend *inst, long *id)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     GdkWindow *window = gtk_widget_get_window(inst->area);
     if (!GDK_IS_X11_WINDOW(window))
         return FALSE;
@@ -4203,13 +4152,12 @@ int get_windowid(void *frontend, long *id)
 }
 #endif
 
-int frontend_is_utf8(void *frontend)
+int frontend_is_utf8(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
     return inst->ucsdata.line_codepage == CS_UTF8;
 }
 
-char *setup_fonts_ucs(struct gui_data *inst)
+char *setup_fonts_ucs(Frontend *inst)
 {
     int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
@@ -4312,7 +4260,7 @@ static void find_app_menu_bar(GtkWidget *widget, gpointer data)
 }
 #endif
 
-static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
+static void compute_geom_hints(Frontend *inst, GdkGeometry *geom)
 {
     /*
      * Unused fields in geom.
@@ -4413,7 +4361,7 @@ static void compute_geom_hints(struct gui_data *inst, GdkGeometry *geom)
 #endif
 }
 
-void set_geom_hints(struct gui_data *inst)
+void set_geom_hints(Frontend *inst)
 {
     GdkGeometry geom;
     gint flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
@@ -4427,7 +4375,7 @@ void set_geom_hints(struct gui_data *inst)
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(struct gui_data *inst,
+static void compute_whole_window_size(Frontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix)
 {
@@ -4440,13 +4388,13 @@ static void compute_whole_window_size(struct gui_data *inst,
 
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     term_clrsb(inst->term);
 }
 
 void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     term_pwron(inst->term, TRUE);
     if (inst->ldisc)
 	ldisc_echoedit_update(inst->ldisc);
@@ -4454,27 +4402,27 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 
 void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     static const int clips[] = { MENU_CLIPBOARD };
     term_request_copy(inst->term, clips, lenof(clips));
 }
 
 void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     term_request_paste(inst->term, MENU_CLIPBOARD);
 }
 
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     static const int clips[] = { COPYALL_CLIPBOARDS };
     term_copyall(inst->term, clips, lenof(clips));
 }
 
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     int code = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),
                                                  "user-data"));
 
@@ -4484,17 +4432,17 @@ void special_menuitem(GtkMenuItem *item, gpointer data)
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     about_box(inst->window);
 }
 
 void event_log_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
-void setup_clipboards(struct gui_data *inst, Terminal *term, Conf *conf)
+void setup_clipboards(Frontend *inst, Terminal *term, Conf *conf)
 {
     assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
 
@@ -4556,7 +4504,7 @@ void setup_clipboards(struct gui_data *inst, Terminal *term, Conf *conf)
 }
 
 struct after_change_settings_dialog_ctx {
-    struct gui_data *inst;
+    Frontend *inst;
     Conf *newconf;
 };
 
@@ -4564,7 +4512,7 @@ static void after_change_settings_dialog(void *vctx, int retval);
 
 void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     struct after_change_settings_dialog_ctx *ctx;
     GtkWidget *dialog;
     char *title;
@@ -4597,7 +4545,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
     };
     struct after_change_settings_dialog_ctx ctx =
         *(struct after_change_settings_dialog_ctx *)vctx;
-    struct gui_data *inst = ctx.inst;
+    Frontend *inst = ctx.inst;
     Conf *oldconf = inst->conf, *newconf = ctx.newconf;
     int i, j, need_size;
 
@@ -4772,7 +4720,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
     }
 }
 
-static void change_font_size(struct gui_data *inst, int increment)
+static void change_font_size(Frontend *inst, int increment)
 {
     static const int conf_keys[lenof(inst->fonts)] = {
         CONF_font, CONF_boldfont, CONF_widefont, CONF_wideboldfont,
@@ -4835,7 +4783,7 @@ static void change_font_size(struct gui_data *inst, int increment)
 
 void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
 {
-    struct gui_data *inst = (struct gui_data *)gdata;
+    Frontend *inst = (Frontend *)gdata;
 
     launch_duplicate_session(inst->conf);
 }
@@ -4847,7 +4795,7 @@ void new_session_menuitem(GtkMenuItem *item, gpointer data)
 
 void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
 
     if (!inst->backend) {
 	logevent(inst, "----- Session restarted -----");
@@ -4871,9 +4819,9 @@ void saved_session_freedata(GtkMenuItem *item, gpointer data)
     sfree(str);
 }
 
-void app_menu_action(void *frontend, enum MenuAction action)
+void app_menu_action(Frontend *frontend, enum MenuAction action)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
+    Frontend *inst = (Frontend *)frontend;
     switch (action) {
       case MA_COPY:
         copy_clipboard_menuitem(NULL, inst);
@@ -4907,7 +4855,7 @@ void app_menu_action(void *frontend, enum MenuAction action)
 
 static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 {
-    struct gui_data *inst = (struct gui_data *)data;
+    Frontend *inst = (Frontend *)data;
     struct sesslist sesslist;
     int i;
 
@@ -4976,10 +4924,8 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 #endif
 }
 
-void update_specials_menu(void *frontend)
+void update_specials_menu(Frontend *inst)
 {
-    struct gui_data *inst = (struct gui_data *)frontend;
-
     const struct telnet_special *specials;
 
     if (inst->backend)
@@ -5041,7 +4987,7 @@ void update_specials_menu(void *frontend)
     }
 }
 
-static void start_backend(struct gui_data *inst)
+static void start_backend(Frontend *inst)
 {
     const struct Backend_vtable *vt;
     char *realhost;
@@ -5114,14 +5060,14 @@ static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
 
 void new_session_window(Conf *conf, const char *geometry_string)
 {
-    struct gui_data *inst;
+    Frontend *inst;
 
     prepare_session(conf);
 
     /*
      * Create an instance structure and initialise to zeroes
      */
-    inst = snew(struct gui_data);
+    inst = snew(Frontend);
     memset(inst, 0, sizeof(*inst));
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     inst->cdi_headtail.next = inst->cdi_headtail.prev = &inst->cdi_headtail;

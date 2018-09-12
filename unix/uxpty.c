@@ -71,7 +71,7 @@ static int pty_signal_pipe[2] = { -1, -1 };   /* obviously bogus initial val */
 struct pty_tag {
     Conf *conf;
     int master_fd, slave_fd;
-    void *frontend;
+    Frontend *frontend;
     char name[FILENAME_MAX];
     pid_t child_pid;
     int term_width, term_height;
@@ -729,7 +729,7 @@ static void pty_uxsel_setup(Pty pty)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *pty_init(void *frontend, Backend **backend_handle,
+static const char *pty_init(Frontend *frontend, Backend **backend_handle,
                             Conf *conf, const char *host, int port,
                             char **realhost, int nodelay, int keepalive)
 {
