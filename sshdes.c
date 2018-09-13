@@ -752,10 +752,23 @@ static void *des3_make_context(void)
     return snewn(3, DESContext);
 }
 
-static void *des3_ssh1_make_context(void)
+struct des3_ssh1_ctx {
+    /* 3 cipher context for each direction */
+    DESContext contexts[6];
+    ssh1_cipher vt;
+};
+
+struct des_ssh1_ctx {
+    /* 1 cipher context for each direction */
+    DESContext contexts[2];
+    ssh1_cipher vt;
+};
+
+static ssh1_cipher *des3_ssh1_new(void)
 {
-    /* Need 3 keys for each direction, in SSH-1 */
-    return snewn(6, DESContext);
+    struct des3_ssh1_ctx *ctx = snew(struct des3_ssh1_ctx);
+    ctx->vt = &ssh1_3des;
+    return &ctx->vt;
 }
 
 static void *des_make_context(void)
@@ -763,10 +776,25 @@ static void *des_make_context(void)
     return snew(DESContext);
 }
 
-static void *des_ssh1_make_context(void)
+static ssh1_cipher *des_ssh1_new(void)
 {
-    /* Need one key for each direction, in SSH-1 */
-    return snewn(2, DESContext);
+    struct des_ssh1_ctx *ctx = snew(struct des_ssh1_ctx);
+    ctx->vt = &ssh1_des;
+    return &ctx->vt;
+}
+
+static void des3_ssh1_free(ssh1_cipher *cipher)
+{
+    struct des3_ssh1_ctx *ctx = FROMFIELD(cipher, struct des3_ssh1_ctx, vt);
+    smemclr(ctx, sizeof(*ctx));
+    sfree(ctx);
+}
+
+static void des_ssh1_free(ssh1_cipher *cipher)
+{
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    smemclr(ctx, sizeof(*ctx));
+    sfree(ctx);
 }
 
 static void des3_free_context(void *handle)   /* used for both 3DES and DES */
@@ -802,23 +830,42 @@ static void des_key(void *handle, const void *vkey)
 		  GET_32BIT_MSB_FIRST(key + 4), &keys[0]);
 }
 
-static void des3_sesskey(void *handle, const void *key)
+static void des3_ssh1_sesskey(ssh1_cipher *cipher, const void *key)
 {
-    DESContext *keys = (DESContext *) handle;
-    des3_key(keys, key);
-    des3_key(keys+3, key);
+    struct des3_ssh1_ctx *ctx = FROMFIELD(cipher, struct des3_ssh1_ctx, vt);
+    des3_key(ctx->contexts, key);
+    des3_key(ctx->contexts+3, key);
 }
 
-static void des3_encrypt_blk(void *handle, void *blk, int len)
+static void des3_ssh1_encrypt_blk(ssh1_cipher *cipher, void *blk, int len)
 {
-    DESContext *keys = (DESContext *) handle;
-    des_3cbc_encrypt(blk, len, keys);
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    des_3cbc_encrypt(blk, len, ctx->contexts);
 }
 
-static void des3_decrypt_blk(void *handle, void *blk, int len)
+static void des3_ssh1_decrypt_blk(ssh1_cipher *cipher, void *blk, int len)
 {
-    DESContext *keys = (DESContext *) handle;
-    des_3cbc_decrypt(blk, len, keys+3);
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    des_3cbc_decrypt(blk, len, ctx->contexts+3);
+}
+
+static void des_ssh1_sesskey(ssh1_cipher *cipher, const void *key)
+{
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    des_key(ctx->contexts, key);
+    des_key(ctx->contexts+1, key);
+}
+
+static void des_ssh1_encrypt_blk(ssh1_cipher *cipher, void *blk, int len)
+{
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    des_cbc_encrypt(blk, len, ctx->contexts);
+}
+
+static void des_ssh1_decrypt_blk(ssh1_cipher *cipher, void *blk, int len)
+{
+    struct des_ssh1_ctx *ctx = FROMFIELD(cipher, struct des_ssh1_ctx, vt);
+    des_cbc_decrypt(blk, len, ctx->contexts+1);
 }
 
 static void des3_ssh2_encrypt_blk(void *handle, void *blk, int len)
@@ -1017,34 +1064,15 @@ const struct ssh2_ciphers ssh2_des = {
     des_list
 };
 
-const struct ssh_cipher ssh_3des = {
-    des3_ssh1_make_context, des3_free_context, des3_sesskey,
-    des3_encrypt_blk, des3_decrypt_blk,
+const struct ssh1_cipheralg ssh1_3des = {
+    des3_ssh1_new, des3_ssh1_free, des3_ssh1_sesskey,
+    des3_ssh1_encrypt_blk, des3_ssh1_decrypt_blk,
     8, "triple-DES inner-CBC"
 };
 
-static void des_sesskey(void *handle, const void *key)
-{
-    DESContext *keys = (DESContext *) handle;
-    des_key(keys, key);
-    des_key(keys+1, key);
-}
-
-static void des_encrypt_blk(void *handle, void *blk, int len)
-{
-    DESContext *keys = (DESContext *) handle;
-    des_cbc_encrypt(blk, len, keys);
-}
-
-static void des_decrypt_blk(void *handle, void *blk, int len)
-{
-    DESContext *keys = (DESContext *) handle;
-    des_cbc_decrypt(blk, len, keys+1);
-}
-
-const struct ssh_cipher ssh_des = {
-    des_ssh1_make_context, des3_free_context, des_sesskey,
-    des_encrypt_blk, des_decrypt_blk,
+const struct ssh1_cipheralg ssh1_des = {
+    des_ssh1_new, des_ssh1_free, des_ssh1_sesskey,
+    des_ssh1_encrypt_blk, des_ssh1_decrypt_blk,
     8, "single-DES CBC"
 };
 

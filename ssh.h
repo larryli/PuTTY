@@ -420,16 +420,26 @@ void SHA384_Init(SHA384_State * s);
 void SHA384_Final(SHA384_State * s, unsigned char *output);
 void SHA384_Simple(const void *p, int len, unsigned char *output);
 
-struct ssh_mac;
-struct ssh_cipher {
-    void *(*make_context)(void);
-    void (*free_context)(void *);
-    void (*sesskey) (void *, const void *key);	/* for SSH-1 */
-    void (*encrypt) (void *, void *blk, int len);
-    void (*decrypt) (void *, void *blk, int len);
+struct ssh2_macalg;
+
+struct ssh1_cipheralg;
+typedef const struct ssh1_cipheralg *ssh1_cipher;
+
+struct ssh1_cipheralg {
+    ssh1_cipher *(*new)(void);
+    void (*free)(ssh1_cipher *);
+    void (*sesskey)(ssh1_cipher *, const void *key);
+    void (*encrypt)(ssh1_cipher *, void *blk, int len);
+    void (*decrypt)(ssh1_cipher *, void *blk, int len);
     int blksize;
     const char *text_name;
 };
+
+#define ssh1_cipher_new(alg) ((alg)->new())
+#define ssh1_cipher_free(ctx) ((*(ctx))->free(ctx))
+#define ssh1_cipher_sesskey(ctx, key) ((*(ctx))->sesskey(ctx, key))
+#define ssh1_cipher_encrypt(ctx, blk, len) ((*(ctx))->encrypt(ctx, blk, len))
+#define ssh1_cipher_decrypt(ctx, blk, len) ((*(ctx))->decrypt(ctx, blk, len))
 
 struct ssh2_cipher {
     void *(*make_context)(void);
@@ -576,9 +586,9 @@ struct ssh2_userkey {
 /* The maximum length of any hash algorithm used in kex. (bytes) */
 #define SSH2_KEX_MAX_HASH_LEN (64) /* SHA-512 */
 
-extern const struct ssh_cipher ssh_3des;
-extern const struct ssh_cipher ssh_des;
-extern const struct ssh_cipher ssh_blowfish_ssh1;
+extern const struct ssh1_cipheralg ssh1_3des;
+extern const struct ssh1_cipheralg ssh1_des;
+extern const struct ssh1_cipheralg ssh1_blowfish;
 extern const struct ssh2_ciphers ssh2_3des;
 extern const struct ssh2_ciphers ssh2_des;
 extern const struct ssh2_ciphers ssh2_aes;

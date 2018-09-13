@@ -2914,10 +2914,9 @@ static void do_ssh1_login(void *vctx)
     sfree(s->rsabuf);
 
     {
-        const struct ssh_cipher *cipher =
-            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
-             s->cipher_type == SSH_CIPHER_DES ? &ssh_des :
-             &ssh_3des);
+        const struct ssh1_cipheralg *cipher =
+            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh1_blowfish :
+             s->cipher_type == SSH_CIPHER_DES ? &ssh1_des : &ssh1_3des);
         ssh1_bpp_new_cipher(ssh->bpp, cipher, ssh->session_key);
         logeventf(ssh, "Initialised %s encryption", cipher->text_name);
     }

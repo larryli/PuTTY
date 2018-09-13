@@ -32,7 +32,7 @@ struct BinaryPacketProtocol {
 
 BinaryPacketProtocol *ssh1_bpp_new(void);
 void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
-                         const struct ssh_cipher *cipher,
+                         const struct ssh1_cipheralg *cipher,
                          const void *session_key);
 void ssh1_bpp_start_compression(BinaryPacketProtocol *bpp);
 
