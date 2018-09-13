@@ -437,9 +437,9 @@ void fwdsetter(struct ctlpos *cp, int listid, char *stext, int sid,
 	       char *btext, int bid,
 	       char *r1text, int r1id, char *r2text, int r2id);
 
-void dlg_auto_set_fixed_pitch_flag(void *dlg);
-int dlg_get_fixed_pitch_flag(void *dlg);
-void dlg_set_fixed_pitch_flag(void *dlg, int flag);
+void dlg_auto_set_fixed_pitch_flag(dlgparam *dlg);
+int dlg_get_fixed_pitch_flag(dlgparam *dlg);
+void dlg_set_fixed_pitch_flag(dlgparam *dlg, int flag);
 
 #define MAX_SHORTCUTS_PER_CTRL 16
 

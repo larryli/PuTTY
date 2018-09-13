@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, void *dlg,
+static void about_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event)
 {
     if (event == EVENT_ACTION) {

@@ -10,7 +10,7 @@
 #include "dialog.h"
 #include "storage.h"
 
-static void about_handler(union control *ctrl, void *dlg,
+static void about_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -20,7 +20,7 @@ static void about_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void help_handler(union control *ctrl, void *dlg,
+static void help_handler(union control *ctrl, dlgparam *dlg,
 			 void *data, int event)
 {
     HWND *hwndp = (HWND *)ctrl->generic.context.p;
@@ -30,7 +30,7 @@ static void help_handler(union control *ctrl, void *dlg,
     }
 }
 
-static void variable_pitch_handler(union control *ctrl, void *dlg,
+static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
                                    void *data, int event)
 {
     if (event == EVENT_REFRESH) {
