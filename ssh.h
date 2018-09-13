@@ -322,9 +322,10 @@ unsigned long crc32_compute(const void *s, size_t len);
 unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
 
 /* SSH CRC compensation attack detector */
-void *crcda_make_context(void);
-void crcda_free_context(void *handle);
-int detect_attack(void *handle, unsigned char *buf, uint32 len,
+struct crcda_ctx;
+struct crcda_ctx *crcda_make_context(void);
+void crcda_free_context(struct crcda_ctx *ctx);
+int detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32 len,
 		  unsigned char *IV);
 
 /*
