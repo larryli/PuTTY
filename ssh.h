@@ -16,7 +16,8 @@ extern void sshfwd_unthrottle(struct ssh_channel *c, int bufsize);
 Conf *sshfwd_get_conf(struct ssh_channel *c);
 void sshfwd_window_override_removed(struct ssh_channel *c);
 void sshfwd_x11_sharing_handover(struct ssh_channel *c,
-                                 void *share_cs, void *share_chan,
+                                 ssh_sharing_connstate *share_cs,
+                                 share_channel *share_chan,
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len);
@@ -148,26 +149,28 @@ void ssh_free_pktout(PktOut *pkt);
 
 extern Socket ssh_connection_sharing_init(
     const char *host, int port, Conf *conf, Ssh ssh, Plug sshplug,
-    void **state);
+    ssh_sharing_state **state);
 int ssh_share_test_for_upstream(const char *host, int port, Conf *conf);
-void share_got_pkt_from_server(void *ctx, int type,
+void share_got_pkt_from_server(ssh_sharing_connstate *ctx, int type,
                                const void *pkt, int pktlen);
-void share_activate(void *state, const char *server_verstring);
-void sharestate_free(void *state);
-int share_ndownstreams(void *state);
+void share_activate(ssh_sharing_state *sharestate,
+                    const char *server_verstring);
+void sharestate_free(ssh_sharing_state *state);
+int share_ndownstreams(ssh_sharing_state *state);
 
 void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
                        const char *ds_err, const char *us_err);
-unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx);
+unsigned ssh_alloc_sharing_channel(Ssh ssh, ssh_sharing_connstate *connstate);
 void ssh_delete_sharing_channel(Ssh ssh, unsigned localid);
 int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                               void *share_ctx);
+                               ssh_sharing_connstate *connstate);
 void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                                 void *share_ctx);
-void ssh_sharing_queue_global_request(Ssh ssh, void *share_ctx);
-struct X11FakeAuth *ssh_sharing_add_x11_display(Ssh ssh, int authtype,
-                                                void *share_cs,
-                                                void *share_chan);
+                                 ssh_sharing_connstate *connstate);
+void ssh_sharing_queue_global_request(
+    Ssh ssh, ssh_sharing_connstate *connstate);
+struct X11FakeAuth *ssh_sharing_add_x11_display(
+    Ssh ssh, int authtype, ssh_sharing_connstate *share_cs,
+    share_channel *share_chan);
 void ssh_sharing_remove_x11_display(Ssh ssh, struct X11FakeAuth *auth);
 void ssh_send_packet_from_downstream(Ssh ssh, unsigned id, int type,
                                      const void *pkt, int pktlen,
@@ -177,7 +180,7 @@ void ssh_sharing_downstream_connected(Ssh ssh, unsigned id,
 void ssh_sharing_downstream_disconnected(Ssh ssh, unsigned id);
 void ssh_sharing_logf(Ssh ssh, unsigned id, const char *logfmt, ...);
 int ssh_agent_forwarding_permitted(Ssh ssh);
-void share_setup_x11_channel(void *csv, void *chanv,
+void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              unsigned upstream_id, unsigned server_id,
                              unsigned server_currwin, unsigned server_maxpkt,
                              unsigned client_adjusted_window,
@@ -727,7 +730,8 @@ struct X11FakeAuth {
      * What to do with an X connection matching this auth data.
      */
     struct X11Display *disp;
-    void *share_cs, *share_chan;
+    ssh_sharing_connstate *share_cs;
+    share_channel *share_chan;
 };
 void *x11_make_greeting(int endian, int protomajor, int protominor,
                         int auth_proto, const void *auth_data, int auth_len,

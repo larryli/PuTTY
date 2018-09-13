@@ -128,7 +128,8 @@ struct X11FakeAuth *x11_invent_fake_auth(tree234 *authtree, int authtype)
 		auth->data[i]);
 
     auth->disp = NULL;
-    auth->share_cs = auth->share_chan = NULL;
+    auth->share_cs = NULL;
+    auth->share_chan = NULL;
 
     return auth;
 }

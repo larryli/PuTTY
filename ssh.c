@@ -460,7 +460,8 @@ struct ssh_channel {
 	} v2;
     } v;
 
-    void *sharectx;     /* sharing context, if this is a downstream channel */
+    ssh_sharing_connstate *sharectx; /* sharing context, if this is a
+                                      * downstream channel */
     Channel *chan;      /* handle the client side of this channel, if not */
 };
 
@@ -497,7 +498,7 @@ struct ssh_rportfwd {
     unsigned sport, dport;
     char *shost, *dhost;
     char *sportdesc;
-    void *share_ctx;
+    ssh_sharing_connstate *share_ctx;
     struct ssh_portfwd *pfrec;
 };
 
@@ -695,7 +696,7 @@ struct ssh_tag {
 
     int bare_connection;
     int attempting_connshare;
-    void *connshare;
+    ssh_sharing_state *connshare;
 
     char *savedhost;
     int savedport;
@@ -3800,7 +3801,7 @@ static void ssh_rportfwd_succfail(Ssh ssh, PktIn *pktin, void *ctx)
 }
 
 int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                               void *share_ctx)
+                               ssh_sharing_connstate *share_ctx)
 {
     struct ssh_rportfwd *pf = snew(struct ssh_rportfwd);
     pf->dhost = NULL;
@@ -3822,7 +3823,7 @@ int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
 }
 
 void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                                 void *share_ctx)
+                                 ssh_sharing_connstate *share_ctx)
 {
     struct ssh_rportfwd pf, *realpf;
 
@@ -3844,7 +3845,8 @@ static void ssh_sharing_global_request_response(Ssh ssh, PktIn *pktin,
                               BinarySource_UPCAST(pktin)->len);
 }
 
-void ssh_sharing_queue_global_request(Ssh ssh, void *share_ctx)
+void ssh_sharing_queue_global_request(Ssh ssh,
+                                      ssh_sharing_connstate *share_ctx)
 {
     ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS, SSH2_MSG_REQUEST_FAILURE,
                       ssh_sharing_global_request_response, share_ctx);
@@ -7735,9 +7737,9 @@ static void ssh2_msg_global_request(Ssh ssh, PktIn *pktin)
     }
 }
 
-struct X11FakeAuth *ssh_sharing_add_x11_display(Ssh ssh, int authtype,
-                                                void *share_cs,
-                                                void *share_chan)
+struct X11FakeAuth *ssh_sharing_add_x11_display(
+    Ssh ssh, int authtype, ssh_sharing_connstate *share_cs,
+    share_channel *share_chan)
 {
     struct X11FakeAuth *auth;
 
@@ -7876,7 +7878,8 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 }
 
 void sshfwd_x11_sharing_handover(struct ssh_channel *c,
-                                 void *share_cs, void *share_chan,
+                                 ssh_sharing_connstate *share_cs,
+                                 share_channel *share_chan,
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len)
@@ -11173,7 +11176,7 @@ static void ssh_special(Backend *be, Telnet_Special code)
     }
 }
 
-unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
+unsigned ssh_alloc_sharing_channel(Ssh ssh, ssh_sharing_connstate *connstate)
 {
     struct ssh_channel *c;
     c = snew(struct ssh_channel);
@@ -11181,7 +11184,7 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, void *sharing_ctx)
     c->ssh = ssh;
     ssh_channel_init(c);
     c->chan = NULL;
-    c->sharectx = sharing_ctx;
+    c->sharectx = connstate;
     return c->localid;
 }
 

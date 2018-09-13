@@ -168,7 +168,8 @@ int chan_no_eager_close(Channel *chan, int s, int r) { return FALSE; }
 
 Conf *sshfwd_get_conf(struct ssh_channel *c) { return NULL; }
 void sshfwd_x11_sharing_handover(struct ssh_channel *c,
-                                 void *share_cs, void *share_chan,
+                                 ssh_sharing_connstate *share_cs,
+                                 share_channel *share_chan,
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len) {}
