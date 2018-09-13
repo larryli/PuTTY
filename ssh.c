@@ -4850,7 +4850,7 @@ struct kexinit_algorithm {
             int warn;
         } hk;
 	struct {
-	    const struct ssh2_cipher *cipher;
+            const struct ssh2_cipheralg *cipher;
 	    int warn;
 	} cipher;
 	struct {
@@ -5026,7 +5026,7 @@ static void do_ssh2_transport(void *vctx)
 	const struct ssh_mac *const *maclist;
 	int nmacs;
         struct {
-            const struct ssh2_cipher *cipher;
+            const struct ssh2_cipheralg *cipher;
             const struct ssh_mac *mac;
             int etm_mode;
             const struct ssh_compress *comp;

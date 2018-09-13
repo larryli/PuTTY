@@ -355,6 +355,9 @@ Bignum ssh_ecdhkex_getkey(struct ec_key *key,
 Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
                   unsigned char *digest, int digest_len);
 
+struct ssh2_cipheralg;
+typedef const struct ssh2_cipheralg *ssh2_cipher;
+
 typedef struct {
     uint32 h[4];
 } MD5_Core_State;
@@ -371,7 +374,7 @@ void MD5Init(struct MD5Context *context);
 void MD5Final(unsigned char digest[16], struct MD5Context *context);
 void MD5Simple(void const *p, unsigned len, unsigned char output[16]);
 
-void *hmacmd5_make_context(void *);
+void *hmacmd5_make_context(ssh2_cipher *);
 void hmacmd5_free_context(void *handle);
 void hmacmd5_key(void *handle, void const *key, int len);
 void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
@@ -441,16 +444,18 @@ struct ssh1_cipheralg {
 #define ssh1_cipher_encrypt(ctx, blk, len) ((*(ctx))->encrypt(ctx, blk, len))
 #define ssh1_cipher_decrypt(ctx, blk, len) ((*(ctx))->decrypt(ctx, blk, len))
 
-struct ssh2_cipher {
-    void *(*make_context)(void);
-    void (*free_context)(void *);
-    void (*setiv) (void *, const void *iv);	/* for SSH-2 */
-    void (*setkey) (void *, const void *key);/* for SSH-2 */
-    void (*encrypt) (void *, void *blk, int len);
-    void (*decrypt) (void *, void *blk, int len);
+struct ssh2_cipheralg {
+    ssh2_cipher *(*new)(const struct ssh2_cipheralg *alg);
+    void (*free)(ssh2_cipher *);
+    void (*setiv)(ssh2_cipher *, const void *iv);
+    void (*setkey)(ssh2_cipher *, const void *key);
+    void (*encrypt)(ssh2_cipher *, void *blk, int len);
+    void (*decrypt)(ssh2_cipher *, void *blk, int len);
     /* Ignored unless SSH_CIPHER_SEPARATE_LENGTH flag set */
-    void (*encrypt_length) (void *, void *blk, int len, unsigned long seq);
-    void (*decrypt_length) (void *, void *blk, int len, unsigned long seq);
+    void (*encrypt_length)(ssh2_cipher *, void *blk, int len,
+                           unsigned long seq);
+    void (*decrypt_length)(ssh2_cipher *, void *blk, int len,
+                           unsigned long seq);
     const char *name;
     int blksize;
     /* real_keybits is the number of bits of entropy genuinely used by
@@ -474,14 +479,26 @@ struct ssh2_cipher {
     const struct ssh_mac *required_mac;
 };
 
+#define ssh2_cipher_new(alg) ((alg)->new(alg))
+#define ssh2_cipher_free(ctx) ((*(ctx))->free(ctx))
+#define ssh2_cipher_setiv(ctx, iv) ((*(ctx))->setiv(ctx, iv))
+#define ssh2_cipher_setkey(ctx, key) ((*(ctx))->setkey(ctx, key))
+#define ssh2_cipher_encrypt(ctx, blk, len) ((*(ctx))->encrypt(ctx, blk, len))
+#define ssh2_cipher_decrypt(ctx, blk, len) ((*(ctx))->decrypt(ctx, blk, len))
+#define ssh2_cipher_encrypt_length(ctx, blk, len, seq) \
+    ((*(ctx))->encrypt_length(ctx, blk, len, seq))
+#define ssh2_cipher_decrypt_length(ctx, blk, len, seq) \
+    ((*(ctx))->decrypt_length(ctx, blk, len, seq))
+#define ssh2_cipher_alg(ctx) (*(ctx))
+
 struct ssh2_ciphers {
     int nciphers;
-    const struct ssh2_cipher *const *list;
+    const struct ssh2_cipheralg *const *list;
 };
 
 struct ssh_mac {
     /* Passes in the cipher context */
-    void *(*make_context)(void *);
+    void *(*make_context)(ssh2_cipher *);
     void (*free_context)(void *);
     void (*setkey) (void *, const void *key);
     /* whole-packet operations */
@@ -618,15 +635,16 @@ extern const struct ssh_mac ssh_hmac_sha1_96;
 extern const struct ssh_mac ssh_hmac_sha1_96_buggy;
 extern const struct ssh_mac ssh_hmac_sha256;
 
-void *aes_make_context(void);
-void aes_free_context(void *handle);
-void aes128_key(void *handle, const void *key);
-void aes192_key(void *handle, const void *key);
-void aes256_key(void *handle, const void *key);
-void aes_iv(void *handle, const void *iv);
-void aes_ssh2_encrypt_blk(void *handle, void *blk, int len);
-void aes_ssh2_decrypt_blk(void *handle, void *blk, int len);
-void aes_ssh2_sdctr(void *handle, void *blk, int len);
+typedef struct AESContext AESContext;
+AESContext *aes_make_context(void);
+void aes_free_context(AESContext *ctx);
+void aes128_key(AESContext *ctx, const void *key);
+void aes192_key(AESContext *ctx, const void *key);
+void aes256_key(AESContext *ctx, const void *key);
+void aes_iv(AESContext *ctx, const void *iv);
+void aes_ssh2_encrypt_blk(AESContext *ctx, void *blk, int len);
+void aes_ssh2_decrypt_blk(AESContext *ctx, void *blk, int len);
+void aes_ssh2_sdctr(AESContext *ctx, void *blk, int len);
 
 /*
  * PuTTY version number formatted as an SSH version string. 
