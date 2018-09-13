@@ -331,11 +331,12 @@ int detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32 len,
 /*
  * SSH2 RSA key exchange functions
  */
-struct ssh_hash;
+struct ssh_hashalg;
 struct RSAKey *ssh_rsakex_newkey(const void *data, int len);
 void ssh_rsakex_freekey(struct RSAKey *key);
 int ssh_rsakex_klen(struct RSAKey *key);
-void ssh_rsakex_encrypt(const struct ssh_hash *h, unsigned char *in, int inlen,
+void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
+                        unsigned char *in, int inlen,
                         unsigned char *out, int outlen, struct RSAKey *key);
 
 /*
@@ -527,20 +528,30 @@ int ssh2_mac_verresult(ssh2_mac *, const void *);
 void ssh2_mac_generate(ssh2_mac *, void *, int, unsigned long seq);
 int ssh2_mac_verify(ssh2_mac *, const void *, int, unsigned long seq);
 
-struct ssh_hash {
-    void *(*init)(void); /* also allocates context */
-    void *(*copy)(const void *);
-    BinarySink *(*sink) (void *);
-    void (*final)(void *, unsigned char *); /* also frees context */
-    void (*free)(void *);
+typedef struct ssh_hash {
+    const struct ssh_hashalg *vt;
+    BinarySink_DELEGATE_IMPLEMENTATION;
+} ssh_hash;
+
+struct ssh_hashalg {
+    ssh_hash *(*new)(const struct ssh_hashalg *alg);
+    ssh_hash *(*copy)(ssh_hash *);
+    void (*final)(ssh_hash *, unsigned char *); /* ALSO FREES THE ssh_hash! */
+    void (*free)(ssh_hash *);
     int hlen; /* output length in bytes */
     const char *text_name;
 };   
 
+#define ssh_hash_new(alg) ((alg)->new(alg))
+#define ssh_hash_copy(ctx) ((ctx)->vt->copy(ctx))
+#define ssh_hash_final(ctx, out) ((ctx)->vt->final(ctx, out))
+#define ssh_hash_free(ctx) ((ctx)->vt->free(ctx))
+#define ssh_hash_alg(ctx) ((ctx)->vt)
+
 struct ssh_kex {
     const char *name, *groupname;
     enum { KEXTYPE_DH, KEXTYPE_RSA, KEXTYPE_ECDH, KEXTYPE_GSS } main_type;
-    const struct ssh_hash *hash;
+    const struct ssh_hashalg *hash;
     const void *extra;                 /* private to the kex methods */
 };
 
@@ -625,10 +636,10 @@ extern const struct ssh2_ciphers ssh2_aes;
 extern const struct ssh2_ciphers ssh2_blowfish;
 extern const struct ssh2_ciphers ssh2_arcfour;
 extern const struct ssh2_ciphers ssh2_ccp;
-extern const struct ssh_hash ssh_sha1;
-extern const struct ssh_hash ssh_sha256;
-extern const struct ssh_hash ssh_sha384;
-extern const struct ssh_hash ssh_sha512;
+extern const struct ssh_hashalg ssh_sha1;
+extern const struct ssh_hashalg ssh_sha256;
+extern const struct ssh_hashalg ssh_sha384;
+extern const struct ssh_hashalg ssh_sha512;
 extern const struct ssh_kexes ssh_diffiehellman_group1;
 extern const struct ssh_kexes ssh_diffiehellman_group14;
 extern const struct ssh_kexes ssh_diffiehellman_gex;

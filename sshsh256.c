@@ -204,51 +204,51 @@ void SHA256_Simple(const void *p, int len, unsigned char *output) {
  * Thin abstraction for things where hashes are pluggable.
  */
 
-static void *sha256_init(void)
-{
-    SHA256_State *s;
+struct sha256_hash {
+    SHA256_State state;
+    ssh_hash hash;
+};
 
-    s = snew(SHA256_State);
-    SHA256_Init(s);
-    return s;
+static ssh_hash *sha256_new(const struct ssh_hashalg *alg)
+{
+    struct sha256_hash *h = snew(struct sha256_hash);
+    SHA256_Init(&h->state);
+    h->hash.vt = alg;
+    BinarySink_DELEGATE_INIT(&h->hash, &h->state);
+    return &h->hash;
 }
 
-static void *sha256_copy(const void *vold)
+static ssh_hash *sha256_copy(ssh_hash *hashold)
 {
-    const SHA256_State *old = (const SHA256_State *)vold;
-    SHA256_State *s;
+    struct sha256_hash *hold, *hnew;
+    ssh_hash *hashnew = sha256_new(hashold->vt);
 
-    s = snew(SHA256_State);
-    *s = *old;
-    BinarySink_COPIED(s);
-    return s;
+    hold = FROMFIELD(hashold, struct sha256_hash, hash);
+    hnew = FROMFIELD(hashnew, struct sha256_hash, hash);
+
+    hnew->state = hold->state;
+    BinarySink_COPIED(&hnew->state);
+
+    return hashnew;
 }
 
-static void sha256_free(void *handle)
+static void sha256_free(ssh_hash *hash)
 {
-    SHA256_State *s = handle;
+    struct sha256_hash *h = FROMFIELD(hash, struct sha256_hash, hash);
 
-    smemclr(s, sizeof(*s));
-    sfree(s);
+    smemclr(h, sizeof(*h));
+    sfree(h);
 }
 
-static BinarySink *sha256_sink(void *handle)
+static void sha256_final(ssh_hash *hash, unsigned char *output)
 {
-    SHA256_State *s = handle;
-    return BinarySink_UPCAST(s);
+    struct sha256_hash *h = FROMFIELD(hash, struct sha256_hash, hash);
+    SHA256_Final(&h->state, output);
+    sha256_free(hash);
 }
 
-static void sha256_final(void *handle, unsigned char *output)
-{
-    SHA256_State *s = handle;
-
-    SHA256_Final(s, output);
-    sha256_free(s);
-}
-
-const struct ssh_hash ssh_sha256 = {
-    sha256_init, sha256_copy, sha256_sink, sha256_final, sha256_free,
-    32, "SHA-256"
+const struct ssh_hashalg ssh_sha256 = {
+    sha256_new, sha256_copy, sha256_final, sha256_free, 32, "SHA-256"
 };
 
 /* ----------------------------------------------------------------------

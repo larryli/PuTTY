@@ -232,50 +232,51 @@ void SHA_Simple(const void *p, int len, unsigned char *output)
  * Thin abstraction for things where hashes are pluggable.
  */
 
-static void *sha1_init(void)
-{
-    SHA_State *s;
+struct sha1_hash {
+    SHA_State state;
+    ssh_hash hash;
+};
 
-    s = snew(SHA_State);
-    SHA_Init(s);
-    return s;
+static ssh_hash *sha1_new(const struct ssh_hashalg *alg)
+{
+    struct sha1_hash *h = snew(struct sha1_hash);
+    SHA_Init(&h->state);
+    h->hash.vt = alg;
+    BinarySink_DELEGATE_INIT(&h->hash, &h->state);
+    return &h->hash;
 }
 
-static void *sha1_copy(const void *vold)
+static ssh_hash *sha1_copy(ssh_hash *hashold)
 {
-    const SHA_State *old = (const SHA_State *)vold;
-    SHA_State *s;
+    struct sha1_hash *hold, *hnew;
+    ssh_hash *hashnew = sha1_new(hashold->vt);
 
-    s = snew(SHA_State);
-    *s = *old;
-    BinarySink_COPIED(s);
-    return s;
+    hold = FROMFIELD(hashold, struct sha1_hash, hash);
+    hnew = FROMFIELD(hashnew, struct sha1_hash, hash);
+
+    hnew->state = hold->state;
+    BinarySink_COPIED(&hnew->state);
+
+    return hashnew;
 }
 
-static void sha1_free(void *handle)
+static void sha1_free(ssh_hash *hash)
 {
-    SHA_State *s = handle;
+    struct sha1_hash *h = FROMFIELD(hash, struct sha1_hash, hash);
 
-    smemclr(s, sizeof(*s));
-    sfree(s);
+    smemclr(h, sizeof(*h));
+    sfree(h);
 }
 
-static BinarySink *sha1_sink(void *handle)
+static void sha1_final(ssh_hash *hash, unsigned char *output)
 {
-    SHA_State *s = handle;
-    return BinarySink_UPCAST(s);
+    struct sha1_hash *h = FROMFIELD(hash, struct sha1_hash, hash);
+    SHA_Final(&h->state, output);
+    sha1_free(hash);
 }
 
-static void sha1_final(void *handle, unsigned char *output)
-{
-    SHA_State *s = handle;
-
-    SHA_Final(s, output);
-    sha1_free(s);
-}
-
-const struct ssh_hash ssh_sha1 = {
-    sha1_init, sha1_copy, sha1_sink, sha1_final, sha1_free, 20, "SHA-1"
+const struct ssh_hashalg ssh_sha1 = {
+    sha1_new, sha1_copy, sha1_final, sha1_free, 20, "SHA-1"
 };
 
 /* ----------------------------------------------------------------------
