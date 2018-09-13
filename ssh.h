@@ -380,7 +380,7 @@ struct hmacmd5_context *hmacmd5_make_context(void);
 void hmacmd5_free_context(struct hmacmd5_context *ctx);
 void hmacmd5_key(struct hmacmd5_context *ctx, void const *key, int len);
 void hmacmd5_do_hmac(struct hmacmd5_context *ctx,
-                     unsigned char const *blk, int len, unsigned char *hmac);
+                     const void *blk, int len, unsigned char *hmac);
 
 int supports_sha_ni(void);
 
@@ -396,7 +396,8 @@ void SHA_Init(SHA_State * s);
 void SHA_Final(SHA_State * s, unsigned char *output);
 void SHA_Simple(const void *p, int len, unsigned char *output);
 
-void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
+void hmac_sha1_simple(const void *key, int keylen,
+                      const void *data, int datalen,
 		      unsigned char *output);
 typedef struct SHA256_State {
     uint32 h[8];
