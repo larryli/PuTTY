@@ -3,12 +3,6 @@
  */
 
 /*
- * This will come in handy for generic control handlers. Anyone
- * knows how to make this more portable, let me know :-)
- */
-#define ATOFFSET(data, offset) ( (void *) ( (char *)(data) + (offset) ) )
-
-/*
  * This is the big union which defines a single control, of any
  * type.
  * 

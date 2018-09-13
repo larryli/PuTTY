@@ -190,13 +190,6 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
 
 Frontend *ssh_get_frontend(Ssh ssh);
 
-/*
- * Useful thing.
- */
-#ifndef lenof
-#define lenof(x) ( (sizeof((x))) / (sizeof(*(x))))
-#endif
-
 #define SSH_CIPHER_IDEA		1
 #define SSH_CIPHER_DES		2
 #define SSH_CIPHER_3DES		3
