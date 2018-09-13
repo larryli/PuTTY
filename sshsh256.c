@@ -256,111 +256,80 @@ const struct ssh_hash ssh_sha256 = {
  * HMAC wrapper on it.
  */
 
-static void *sha256_make_context(ssh2_cipher *cipher)
+struct hmacsha256 {
+    SHA256_State sha[3];
+    ssh2_mac mac;
+};
+
+static ssh2_mac *hmacsha256_new(
+    const struct ssh2_macalg *alg, ssh2_cipher *cipher)
 {
-    return snewn(3, SHA256_State);
+    struct hmacsha256 *ctx = snew(struct hmacsha256);
+    ctx->mac.vt = alg;
+    BinarySink_DELEGATE_INIT(&ctx->mac, &ctx->sha[2]);
+    return &ctx->mac;
 }
 
-static void sha256_free_context(void *handle)
+static void hmacsha256_free(ssh2_mac *mac)
 {
-    smemclr(handle, 3 * sizeof(SHA256_State));
-    sfree(handle);
+    struct hmacsha256 *ctx = FROMFIELD(mac, struct hmacsha256, mac);
+    smemclr(ctx, sizeof(*ctx));
+    sfree(ctx);
 }
 
-static void sha256_key_internal(void *handle,
+static void sha256_key_internal(struct hmacsha256 *ctx,
                                 const unsigned char *key, int len)
 {
-    SHA256_State *keys = (SHA256_State *)handle;
     unsigned char foo[64];
     int i;
 
     memset(foo, 0x36, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
-    SHA256_Init(&keys[0]);
-    put_data(&keys[0], foo, 64);
+    SHA256_Init(&ctx->sha[0]);
+    put_data(&ctx->sha[0], foo, 64);
 
     memset(foo, 0x5C, 64);
     for (i = 0; i < len && i < 64; i++)
 	foo[i] ^= key[i];
-    SHA256_Init(&keys[1]);
-    put_data(&keys[1], foo, 64);
+    SHA256_Init(&ctx->sha[1]);
+    put_data(&ctx->sha[1], foo, 64);
 
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void sha256_key(void *handle, const void *key)
+static void hmacsha256_key(ssh2_mac *mac, const void *key)
 {
-    sha256_key_internal(handle, key, 32);
+    struct hmacsha256 *ctx = FROMFIELD(mac, struct hmacsha256, mac);
+    sha256_key_internal(ctx, key, ctx->mac.vt->keylen);
 }
 
-static void hmacsha256_start(void *handle)
+static void hmacsha256_start(ssh2_mac *mac)
 {
-    SHA256_State *keys = (SHA256_State *)handle;
+    struct hmacsha256 *ctx = FROMFIELD(mac, struct hmacsha256, mac);
 
-    keys[2] = keys[0];		      /* structure copy */
-    BinarySink_COPIED(&keys[2]);
+    ctx->sha[2] = ctx->sha[0];         /* structure copy */
+    BinarySink_COPIED(&ctx->sha[2]);
 }
 
-static BinarySink *hmacsha256_sink(void *handle)
+static void hmacsha256_genresult(ssh2_mac *mac, unsigned char *hmac)
 {
-    SHA256_State *keys = (SHA256_State *)handle;
-    return BinarySink_UPCAST(&keys[2]);
-}
-
-static void hmacsha256_genresult(void *handle, unsigned char *hmac)
-{
-    SHA256_State *keys = (SHA256_State *)handle;
+    struct hmacsha256 *ctx = FROMFIELD(mac, struct hmacsha256, mac);
     SHA256_State s;
     unsigned char intermediate[32];
 
-    s = keys[2];		       /* structure copy */
+    s = ctx->sha[2];                   /* structure copy */
     BinarySink_COPIED(&s);
     SHA256_Final(&s, intermediate);
-    s = keys[1];		       /* structure copy */
+    s = ctx->sha[1];                   /* structure copy */
     BinarySink_COPIED(&s);
     put_data(&s, intermediate, 32);
     SHA256_Final(&s, hmac);
 }
 
-static void sha256_do_hmac(void *handle, const unsigned char *blk, int len,
-			 unsigned long seq, unsigned char *hmac)
-{
-    BinarySink *bs = hmacsha256_sink(handle);
-    hmacsha256_start(handle);
-    put_uint32(bs, seq);
-    put_data(bs, blk, len);
-    hmacsha256_genresult(handle, hmac);
-}
-
-static void sha256_generate(void *handle, void *vblk, int len,
-			  unsigned long seq)
-{
-    unsigned char *blk = (unsigned char *)vblk;
-    sha256_do_hmac(handle, blk, len, seq, blk + len);
-}
-
-static int hmacsha256_verresult(void *handle, unsigned char const *hmac)
-{
-    unsigned char correct[32];
-    hmacsha256_genresult(handle, correct);
-    return smemeq(correct, hmac, 32);
-}
-
-static int sha256_verify(void *handle, const void *vblk, int len,
-		       unsigned long seq)
-{
-    const unsigned char *blk = (const unsigned char *)vblk;
-    unsigned char correct[32];
-    sha256_do_hmac(handle, blk, len, seq, correct);
-    return smemeq(correct, blk + len, 32);
-}
-
-const struct ssh_mac ssh_hmac_sha256 = {
-    sha256_make_context, sha256_free_context, sha256_key,
-    sha256_generate, sha256_verify,
-    hmacsha256_start, hmacsha256_sink,
-    hmacsha256_genresult, hmacsha256_verresult,
+const struct ssh2_macalg ssh_hmac_sha256 = {
+    hmacsha256_new, hmacsha256_free, hmacsha256_key,
+    hmacsha256_start, hmacsha256_genresult,
     "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
     32, 32,
     "HMAC-SHA-256"

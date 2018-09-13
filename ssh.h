@@ -374,11 +374,12 @@ void MD5Init(struct MD5Context *context);
 void MD5Final(unsigned char digest[16], struct MD5Context *context);
 void MD5Simple(void const *p, unsigned len, unsigned char output[16]);
 
-void *hmacmd5_make_context(ssh2_cipher *);
-void hmacmd5_free_context(void *handle);
-void hmacmd5_key(void *handle, void const *key, int len);
-void hmacmd5_do_hmac(void *handle, unsigned char const *blk, int len,
-		     unsigned char *hmac);
+struct hmacmd5_context;
+struct hmacmd5_context *hmacmd5_make_context(void);
+void hmacmd5_free_context(struct hmacmd5_context *ctx);
+void hmacmd5_key(struct hmacmd5_context *ctx, void const *key, int len);
+void hmacmd5_do_hmac(struct hmacmd5_context *ctx,
+                     unsigned char const *blk, int len, unsigned char *hmac);
 
 int supports_sha_ni(void);
 
@@ -476,7 +477,7 @@ struct ssh2_cipheralg {
 #define SSH_CIPHER_SEPARATE_LENGTH      2
     const char *text_name;
     /* If set, this takes priority over other MAC. */
-    const struct ssh_mac *required_mac;
+    const struct ssh2_macalg *required_mac;
 };
 
 #define ssh2_cipher_new(alg) ((alg)->new(alg))
@@ -496,23 +497,35 @@ struct ssh2_ciphers {
     const struct ssh2_cipheralg *const *list;
 };
 
-struct ssh_mac {
+struct ssh2_macalg;
+typedef struct ssh2_mac {
+    const struct ssh2_macalg *vt;
+    BinarySink_DELEGATE_IMPLEMENTATION;
+} ssh2_mac;
+
+struct ssh2_macalg {
     /* Passes in the cipher context */
-    void *(*make_context)(ssh2_cipher *);
-    void (*free_context)(void *);
-    void (*setkey) (void *, const void *key);
-    /* whole-packet operations */
-    void (*generate) (void *, void *blk, int len, unsigned long seq);
-    int (*verify) (void *, const void *blk, int len, unsigned long seq);
-    /* partial-packet operations */
-    void (*start) (void *);
-    BinarySink *(*sink) (void *);
-    void (*genresult) (void *, unsigned char *);
-    int (*verresult) (void *, unsigned char const *);
+    ssh2_mac *(*new)(const struct ssh2_macalg *alg, ssh2_cipher *cipher);
+    void (*free)(ssh2_mac *);
+    void (*setkey)(ssh2_mac *, const void *key);
+    void (*start)(ssh2_mac *);
+    void (*genresult)(ssh2_mac *, unsigned char *);
     const char *name, *etm_name;
     int len, keylen;
     const char *text_name;
 };
+
+#define ssh2_mac_new(alg, cipher) ((alg)->new(alg, cipher))
+#define ssh2_mac_free(ctx) ((ctx)->vt->free(ctx))
+#define ssh2_mac_setkey(ctx, key) ((ctx)->vt->free(ctx, key))
+#define ssh2_mac_start(ctx) ((ctx)->vt->start(ctx))
+#define ssh2_mac_genresult(ctx, out) ((ctx)->vt->genresult(ctx, out))
+#define ssh2_mac_alg(ctx) ((ctx)->vt)
+
+/* Centralised 'methods' for ssh2_mac, defined in sshmac.c */
+int ssh2_mac_verresult(ssh2_mac *, const void *);
+void ssh2_mac_generate(ssh2_mac *, void *, int, unsigned long seq);
+int ssh2_mac_verify(ssh2_mac *, const void *, int, unsigned long seq);
 
 struct ssh_hash {
     void *(*init)(void); /* also allocates context */
@@ -628,12 +641,12 @@ extern const ssh_keyalg ssh_ecdsa_ed25519;
 extern const ssh_keyalg ssh_ecdsa_nistp256;
 extern const ssh_keyalg ssh_ecdsa_nistp384;
 extern const ssh_keyalg ssh_ecdsa_nistp521;
-extern const struct ssh_mac ssh_hmac_md5;
-extern const struct ssh_mac ssh_hmac_sha1;
-extern const struct ssh_mac ssh_hmac_sha1_buggy;
-extern const struct ssh_mac ssh_hmac_sha1_96;
-extern const struct ssh_mac ssh_hmac_sha1_96_buggy;
-extern const struct ssh_mac ssh_hmac_sha256;
+extern const struct ssh2_macalg ssh_hmac_md5;
+extern const struct ssh2_macalg ssh_hmac_sha1;
+extern const struct ssh2_macalg ssh_hmac_sha1_buggy;
+extern const struct ssh2_macalg ssh_hmac_sha1_96;
+extern const struct ssh2_macalg ssh_hmac_sha1_96_buggy;
+extern const struct ssh2_macalg ssh_hmac_sha256;
 
 typedef struct AESContext AESContext;
 AESContext *aes_make_context(void);

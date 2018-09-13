@@ -283,20 +283,30 @@ const struct ssh_hash ssh_sha1 = {
  * HMAC wrapper on it.
  */
 
-static void *sha1_make_context(ssh2_cipher *cipher)
+struct hmacsha1 {
+    SHA_State sha[3];
+    ssh2_mac mac;
+};
+
+static ssh2_mac *hmacsha1_new(
+    const struct ssh2_macalg *alg, ssh2_cipher *cipher)
 {
-    return snewn(3, SHA_State);
+    struct hmacsha1 *ctx = snew(struct hmacsha1);
+    ctx->mac.vt = alg;
+    BinarySink_DELEGATE_INIT(&ctx->mac, &ctx->sha[2]);
+    return &ctx->mac;
 }
 
-static void sha1_free_context(void *handle)
+static void hmacsha1_free(ssh2_mac *mac)
 {
-    smemclr(handle, 3 * sizeof(SHA_State));
-    sfree(handle);
+    struct hmacsha1 *ctx = FROMFIELD(mac, struct hmacsha1, mac);
+    smemclr(ctx, sizeof(*ctx));
+    sfree(ctx);
 }
 
-static void sha1_key_internal(void *handle, const unsigned char *key, int len)
+static void sha1_key_internal(SHA_State *keys,
+                              const unsigned char *key, int len)
 {
-    SHA_State *keys = (SHA_State *)handle;
     unsigned char foo[64];
     int i;
 
@@ -315,108 +325,38 @@ static void sha1_key_internal(void *handle, const unsigned char *key, int len)
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void sha1_key(void *handle, const void *key)
+static void hmacsha1_key(ssh2_mac *mac, const void *key)
 {
-    sha1_key_internal(handle, key, 20);
+    struct hmacsha1 *ctx = FROMFIELD(mac, struct hmacsha1, mac);
+    /* Reading the key length out of the ssh2_macalg structure means
+     * this same method can be used for the _buggy variants which use
+     * a shorter key */
+    sha1_key_internal(ctx->sha, key, ctx->mac.vt->keylen);
 }
 
-static void sha1_key_buggy(void *handle, const void *key)
+static void hmacsha1_start(ssh2_mac *mac)
 {
-    sha1_key_internal(handle, key, 16);
+    struct hmacsha1 *ctx = FROMFIELD(mac, struct hmacsha1, mac);
+
+    ctx->sha[2] = ctx->sha[0];         /* structure copy */
+    BinarySink_COPIED(&ctx->sha[2]);
 }
 
-static void hmacsha1_start(void *handle)
+static void hmacsha1_genresult(ssh2_mac *mac, unsigned char *hmac)
 {
-    SHA_State *keys = (SHA_State *)handle;
-
-    keys[2] = keys[0];		      /* structure copy */
-    BinarySink_COPIED(&keys[2]);
-}
-
-static BinarySink *hmacsha1_sink(void *handle)
-{
-    SHA_State *keys = (SHA_State *)handle;
-    return BinarySink_UPCAST(&keys[2]);
-}
-
-static void hmacsha1_genresult(void *handle, unsigned char *hmac)
-{
-    SHA_State *keys = (SHA_State *)handle;
+    struct hmacsha1 *ctx = FROMFIELD(mac, struct hmacsha1, mac);
     SHA_State s;
     unsigned char intermediate[20];
 
-    s = keys[2];		       /* structure copy */
+    s = ctx->sha[2];                   /* structure copy */
     BinarySink_COPIED(&s);
     SHA_Final(&s, intermediate);
-    s = keys[1];		       /* structure copy */
+    s = ctx->sha[1];                   /* structure copy */
     BinarySink_COPIED(&s);
     put_data(&s, intermediate, 20);
-    SHA_Final(&s, hmac);
-}
-
-static void sha1_do_hmac(void *handle, const unsigned char *blk, int len,
-			 unsigned long seq, unsigned char *hmac)
-{
-    BinarySink *bs = hmacsha1_sink(handle);
-    hmacsha1_start(handle);
-    put_uint32(bs, seq);
-    put_data(bs, blk, len);
-    hmacsha1_genresult(handle, hmac);
-}
-
-static void sha1_generate(void *handle, void *vblk, int len,
-			  unsigned long seq)
-{
-    unsigned char *blk = (unsigned char *)vblk;
-    sha1_do_hmac(handle, blk, len, seq, blk + len);
-}
-
-static int hmacsha1_verresult(void *handle, unsigned char const *hmac)
-{
-    unsigned char correct[20];
-    hmacsha1_genresult(handle, correct);
-    return smemeq(correct, hmac, 20);
-}
-
-static int sha1_verify(void *handle, const void *vblk, int len,
-		       unsigned long seq)
-{
-    const unsigned char *blk = (const unsigned char *)vblk;
-    unsigned char correct[20];
-    sha1_do_hmac(handle, blk, len, seq, correct);
-    return smemeq(correct, blk + len, 20);
-}
-
-static void hmacsha1_96_genresult(void *handle, unsigned char *hmac)
-{
-    unsigned char full[20];
-    hmacsha1_genresult(handle, full);
-    memcpy(hmac, full, 12);
-}
-
-static void sha1_96_generate(void *handle, void *vblk, int len,
-			     unsigned long seq)
-{
-    unsigned char *blk = (unsigned char *)vblk;
-    unsigned char full[20];
-    sha1_do_hmac(handle, blk, len, seq, full);
-    memcpy(blk + len, full, 12);
-}
-
-static int hmacsha1_96_verresult(void *handle, unsigned char const *hmac)
-{
-    unsigned char correct[20];
-    hmacsha1_genresult(handle, correct);
-    return smemeq(correct, hmac, 12);
-}
-
-static int sha1_96_verify(void *handle, const void *vblk, int len,
-		       unsigned long seq)
-{
-    const unsigned char *blk = (const unsigned char *)vblk;
-    unsigned char correct[20];
-    sha1_do_hmac(handle, blk, len, seq, correct);
-    return smemeq(correct, blk + len, 12);
+    SHA_Final(&s, intermediate);
+    memcpy(hmac, intermediate, ctx->mac.vt->len);
+    smemclr(intermediate, sizeof(intermediate));
 }
 
 void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
@@ -432,39 +372,33 @@ void hmac_sha1_simple(void *key, int keylen, void *data, int datalen,
     SHA_Final(&states[1], output);
 }
 
-const struct ssh_mac ssh_hmac_sha1 = {
-    sha1_make_context, sha1_free_context, sha1_key,
-    sha1_generate, sha1_verify,
-    hmacsha1_start, hmacsha1_sink, hmacsha1_genresult, hmacsha1_verresult,
+const struct ssh2_macalg ssh_hmac_sha1 = {
+    hmacsha1_new, hmacsha1_free, hmacsha1_key,
+    hmacsha1_start, hmacsha1_genresult,
     "hmac-sha1", "hmac-sha1-etm@openssh.com",
     20, 20,
     "HMAC-SHA1"
 };
 
-const struct ssh_mac ssh_hmac_sha1_96 = {
-    sha1_make_context, sha1_free_context, sha1_key,
-    sha1_96_generate, sha1_96_verify,
-    hmacsha1_start, hmacsha1_sink,
-    hmacsha1_96_genresult, hmacsha1_96_verresult,
+const struct ssh2_macalg ssh_hmac_sha1_96 = {
+    hmacsha1_new, hmacsha1_free, hmacsha1_key,
+    hmacsha1_start, hmacsha1_genresult,
     "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
     12, 20,
     "HMAC-SHA1-96"
 };
 
-const struct ssh_mac ssh_hmac_sha1_buggy = {
-    sha1_make_context, sha1_free_context, sha1_key_buggy,
-    sha1_generate, sha1_verify,
-    hmacsha1_start, hmacsha1_sink, hmacsha1_genresult, hmacsha1_verresult,
+const struct ssh2_macalg ssh_hmac_sha1_buggy = {
+    hmacsha1_new, hmacsha1_free, hmacsha1_key,
+    hmacsha1_start, hmacsha1_genresult,
     "hmac-sha1", NULL,
     20, 16,
     "bug-compatible HMAC-SHA1"
 };
 
-const struct ssh_mac ssh_hmac_sha1_96_buggy = {
-    sha1_make_context, sha1_free_context, sha1_key_buggy,
-    sha1_96_generate, sha1_96_verify,
-    hmacsha1_start, hmacsha1_sink,
-    hmacsha1_96_genresult, hmacsha1_96_verresult,
+const struct ssh2_macalg ssh_hmac_sha1_96_buggy = {
+    hmacsha1_new, hmacsha1_free, hmacsha1_key,
+    hmacsha1_start, hmacsha1_genresult,
     "hmac-sha1-96", NULL,
     12, 16,
     "bug-compatible HMAC-SHA1-96"

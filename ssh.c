@@ -328,10 +328,10 @@ const static struct ssh_signkey_with_user_pref_id hostkey_algs[] = {
     { &ssh_rsa, HK_RSA },
 };
 
-const static struct ssh_mac *const macs[] = {
+const static struct ssh2_macalg *const macs[] = {
     &ssh_hmac_sha256, &ssh_hmac_sha1, &ssh_hmac_sha1_96, &ssh_hmac_md5
 };
-const static struct ssh_mac *const buggymacs[] = {
+const static struct ssh2_macalg *const buggymacs[] = {
     &ssh_hmac_sha1_buggy, &ssh_hmac_sha1_96_buggy, &ssh_hmac_md5
 };
 
@@ -4854,7 +4854,7 @@ struct kexinit_algorithm {
 	    int warn;
 	} cipher;
 	struct {
-	    const struct ssh_mac *mac;
+            const struct ssh2_macalg *mac;
 	    int etm;
 	} mac;
 	const struct ssh_compress *comp;
@@ -5023,11 +5023,11 @@ static void do_ssh2_transport(void *vctx)
 	void *our_kexinit;
 	int our_kexinitlen;
 	int kex_init_value, kex_reply_value;
-	const struct ssh_mac *const *maclist;
+        const struct ssh2_macalg *const *maclist;
 	int nmacs;
         struct {
             const struct ssh2_cipheralg *cipher;
-            const struct ssh_mac *mac;
+            const struct ssh2_macalg *mac;
             int etm_mode;
             const struct ssh_compress *comp;
         } in, out;

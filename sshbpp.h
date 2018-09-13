@@ -40,12 +40,12 @@ BinaryPacketProtocol *ssh2_bpp_new(void);
 void ssh2_bpp_new_outgoing_crypto(
     BinaryPacketProtocol *bpp,
     const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh_mac *mac, int etm_mode, const void *mac_key,
+    const struct ssh2_macalg *mac, int etm_mode, const void *mac_key,
     const struct ssh_compress *compression);
 void ssh2_bpp_new_incoming_crypto(
     BinaryPacketProtocol *bpp,
     const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh_mac *mac, int etm_mode, const void *mac_key,
+    const struct ssh2_macalg *mac, int etm_mode, const void *mac_key,
     const struct ssh_compress *compression);
 
 BinaryPacketProtocol *ssh2_bare_bpp_new(void);

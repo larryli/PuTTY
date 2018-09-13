@@ -255,6 +255,7 @@ SSH      = ssh ssh1bpp ssh2bpp ssh2bpp-bare ssh1censor ssh2censor
          + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
          + sshaes sshccp sshsh256 sshsh512 sshbn wildcard pinger ssharcf
          + sshgssc pgssapi sshshare sshecc aqsync marshal nullplug agentf
+         + sshmac
 WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
