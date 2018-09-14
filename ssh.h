@@ -874,12 +874,13 @@ void diagbn(char *prefix, Bignum md);
 #endif
 
 int dh_is_gex(const struct ssh_kex *kex);
-void *dh_setup_group(const struct ssh_kex *kex);
-void *dh_setup_gex(Bignum pval, Bignum gval);
-void dh_cleanup(void *);
-Bignum dh_create_e(void *, int nbits);
-const char *dh_validate_f(void *handle, Bignum f);
-Bignum dh_find_K(void *, Bignum f);
+struct dh_ctx;
+struct dh_ctx *dh_setup_group(const struct ssh_kex *kex);
+struct dh_ctx *dh_setup_gex(Bignum pval, Bignum gval);
+void dh_cleanup(struct dh_ctx *);
+Bignum dh_create_e(struct dh_ctx *, int nbits);
+const char *dh_validate_f(struct dh_ctx *, Bignum f);
+Bignum dh_find_K(struct dh_ctx *, Bignum f);
 
 int rsa_ssh1_encrypted(const Filename *filename, char **comment);
 int rsa_ssh1_loadpub(const Filename *filename, BinarySink *bs,

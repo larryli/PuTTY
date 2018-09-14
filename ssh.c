@@ -691,7 +691,7 @@ struct ssh_tag {
     int v2_session_id_len;
     int v2_cbc_ignore_workaround;
     int v2_out_cipherblksize;
-    void *kex_ctx;
+    struct dh_ctx *dh_ctx;
 
     int bare_connection;
     int attempting_connshare;
@@ -5787,12 +5787,12 @@ static void do_ssh2_transport(void *vctx)
                 bombout(("unable to read mp-ints from incoming group packet"));
                 crStopV;
             }
-            ssh->kex_ctx = dh_setup_gex(s->p, s->g);
+            ssh->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
             s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
         } else {
             ssh->pls.kctx = SSH2_PKTCTX_DHGROUP;
-            ssh->kex_ctx = dh_setup_group(ssh->kex);
+            ssh->dh_ctx = dh_setup_group(ssh->kex);
             s->kex_init_value = SSH2_MSG_KEXDH_INIT;
             s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
             logeventf(ssh, "Using Diffie-Hellman with standard group \"%s\"",
@@ -5805,7 +5805,7 @@ static void do_ssh2_transport(void *vctx)
          * Now generate and send e for Diffie-Hellman.
          */
         set_busy_status(ssh->frontend, BUSY_CPU); /* this can take a while */
-        s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
+        s->e = dh_create_e(ssh->dh_ctx, s->nbits * 2);
         s->pktout = ssh_bpp_new_pktout(ssh->bpp, s->kex_init_value);
         put_mp_ssh2(s->pktout, s->e);
         ssh_pkt_write(ssh, s->pktout);
@@ -5827,13 +5827,13 @@ static void do_ssh2_transport(void *vctx)
         }
 
         {
-            const char *err = dh_validate_f(ssh->kex_ctx, s->f);
+            const char *err = dh_validate_f(ssh->dh_ctx, s->f);
             if (err) {
                 bombout(("key exchange reply failed validation: %s", err));
                 crStopV;
             }
         }
-        s->K = dh_find_K(ssh->kex_ctx, s->f);
+        s->K = dh_find_K(ssh->dh_ctx, s->f);
 
         /* We assume everything from now on will be quick, and it might
          * involve user interaction. */
@@ -5852,7 +5852,7 @@ static void do_ssh2_transport(void *vctx)
         put_mp_ssh2(ssh->exhash, s->e);
         put_mp_ssh2(ssh->exhash, s->f);
 
-        dh_cleanup(ssh->kex_ctx);
+        dh_cleanup(ssh->dh_ctx);
         freebn(s->f);
         if (dh_is_gex(ssh->kex)) {
             freebn(s->g);
@@ -5972,9 +5972,9 @@ static void do_ssh2_transport(void *vctx)
                 bombout(("unable to read mp-ints from incoming group packet"));
                 crStopV;
             }
-            ssh->kex_ctx = dh_setup_gex(s->p, s->g);
+            ssh->dh_ctx = dh_setup_gex(s->p, s->g);
         } else {
-            ssh->kex_ctx = dh_setup_group(ssh->kex);
+            ssh->dh_ctx = dh_setup_group(ssh->kex);
             logeventf(ssh, "Using GSSAPI (with Kerberos V5) Diffie-Hellman with standard group \"%s\"",
                       ssh->kex->groupname);
         }
@@ -5983,7 +5983,7 @@ static void do_ssh2_transport(void *vctx)
                   ssh->kex->hash->text_name);
         /* Now generate e for Diffie-Hellman. */
         set_busy_status(ssh->frontend, BUSY_CPU); /* this can take a while */
-        s->e = dh_create_e(ssh->kex_ctx, s->nbits * 2);
+        s->e = dh_create_e(ssh->dh_ctx, s->nbits * 2);
 
         if (ssh->gsslib->gsslogmsg)
             logevent(ssh->gsslib->gsslogmsg);
@@ -6137,7 +6137,7 @@ static void do_ssh2_transport(void *vctx)
                  s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED ||
                  !s->complete_rcvd);
 
-        s->K = dh_find_K(ssh->kex_ctx, s->f);
+        s->K = dh_find_K(ssh->dh_ctx, s->f);
 
         /* We assume everything from now on will be quick, and it might
          * involve user interaction. */
@@ -6162,7 +6162,7 @@ static void do_ssh2_transport(void *vctx)
          * used as the MIC input.
          */
 
-        dh_cleanup(ssh->kex_ctx);
+        dh_cleanup(ssh->dh_ctx);
         freebn(s->f);
         if (dh_is_gex(ssh->kex)) {
             freebn(s->g);
@@ -6313,7 +6313,7 @@ static void do_ssh2_transport(void *vctx)
     }
 #endif
 
-    ssh->kex_ctx = NULL;
+    ssh->dh_ctx = NULL;
 
 #if 0
     debug(("Exchange hash is:\n"));
@@ -10554,7 +10554,7 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
     ssh->version = 0;		       /* when not ready yet */
     ssh->s = NULL;
     ssh->kex = NULL;
-    ssh->kex_ctx = NULL;
+    ssh->dh_ctx = NULL;
     ssh->hostkey_alg = NULL;
     ssh->hostkey_str = NULL;
     ssh->exitcode = -1;
@@ -10711,8 +10711,8 @@ static void ssh_free(Backend *be)
     struct X11FakeAuth *auth;
     int need_random_unref;
 
-    if (ssh->kex_ctx)
-	dh_cleanup(ssh->kex_ctx);
+    if (ssh->dh_ctx)
+        dh_cleanup(ssh->dh_ctx);
     sfree(ssh->savedhost);
 
     while (ssh->queuelen-- > 0)
