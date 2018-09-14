@@ -156,23 +156,9 @@ static int time_to_die = FALSE;
  * used, because in LIFE_X11 mode we connect to the X server using a
  * straightforward Socket and don't try to create an ersatz SSH
  * forwarding too. */
-int sshfwd_write(struct ssh_channel *c, const void *data, int len)
-{ return 0; }
-void sshfwd_write_eof(struct ssh_channel *c) { }
-void sshfwd_unclean_close(struct ssh_channel *c, const char *err) { }
-void sshfwd_unthrottle(struct ssh_channel *c, int bufsize) {}
-void sshfwd_window_override_removed(struct ssh_channel *c) { }
 void chan_remotely_opened_confirmation(Channel *chan) { }
 void chan_remotely_opened_failure(Channel *chan, const char *err) { }
 int chan_no_eager_close(Channel *chan, int s, int r) { return FALSE; }
-
-Conf *sshfwd_get_conf(struct ssh_channel *c) { return NULL; }
-void sshfwd_x11_sharing_handover(struct ssh_channel *c,
-                                 ssh_sharing_connstate *share_cs,
-                                 share_channel *share_chan,
-                                 const char *peer_addr, int peer_port,
-                                 int endian, int protomajor, int protominor,
-                                 const void *initial_data, int initial_len) {}
 
 /*
  * These functions are part of the plug for our connection to the X

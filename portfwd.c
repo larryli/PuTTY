@@ -23,7 +23,7 @@ typedef enum {
 } SocksState;
 
 typedef struct PortForwarding {
-    struct ssh_channel *c;        /* channel structure held by ssh.c */
+    SshChannel *c;                /* channel structure held by SSH backend */
     Ssh ssh;                      /* instance of SSH backend itself */
     /* Note that ssh need not be filled in if c is non-NULL */
     Socket s;
@@ -146,11 +146,11 @@ static void pfl_closing(Plug plug, const char *error_msg, int error_code,
     pfl_terminate(pl);
 }
 
-static struct ssh_channel *wrap_send_port_open(
+static SshChannel *wrap_send_port_open(
     Ssh ssh, const char *hostname, int port, Socket s, Channel *chan)
 {
     char *peerinfo, *description;
-    struct ssh_channel *toret;
+    SshChannel *toret;
 
     peerinfo = sk_peer_info(s);
     if (peerinfo) {
@@ -455,7 +455,7 @@ static const struct ChannelVtable PortForwarding_channelvt = {
  * dynamically allocated error message string.
  */
 char *pfd_connect(Channel **chan_ret, char *hostname,int port,
-                  struct ssh_channel *c, Conf *conf, int addressfamily)
+                  SshChannel *c, Conf *conf, int addressfamily)
 {
     SockAddr addr;
     const char *err;

@@ -54,6 +54,7 @@ typedef struct Frontend Frontend;
 typedef struct ssh_tag *Ssh;
 
 typedef struct Channel Channel;
+typedef struct SshChannel SshChannel;
 
 typedef struct ssh_sharing_state ssh_sharing_state;
 typedef struct ssh_sharing_connstate ssh_sharing_connstate;

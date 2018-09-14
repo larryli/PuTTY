@@ -471,6 +471,28 @@ struct ssh_channel {
     ssh_sharing_connstate *sharectx; /* sharing context, if this is a
                                       * downstream channel */
     Channel *chan;      /* handle the client side of this channel, if not */
+    SshChannel sc;      /* entry point for chan to talk back to */
+};
+
+static int sshchannel_write(SshChannel *c, const void *buf, int len);
+static void sshchannel_write_eof(SshChannel *c);
+static void sshchannel_unclean_close(SshChannel *c, const char *err);
+static void sshchannel_unthrottle(SshChannel *c, int bufsize);
+static Conf *sshchannel_get_conf(SshChannel *c);
+static void sshchannel_window_override_removed(SshChannel *c);
+static void sshchannel_x11_sharing_handover(
+    SshChannel *c, ssh_sharing_connstate *share_cs, share_channel *share_chan,
+    const char *peer_addr, int peer_port, int endian,
+    int protomajor, int protominor, const void *initial_data, int initial_len);
+
+const struct SshChannelVtable sshchannel_vtable = {
+    sshchannel_write,
+    sshchannel_write_eof,
+    sshchannel_unclean_close,
+    sshchannel_unthrottle,
+    sshchannel_get_conf,
+    sshchannel_window_override_removed,
+    sshchannel_x11_sharing_handover,
 };
 
 /*
@@ -3665,14 +3687,16 @@ static void ssh_channel_try_eof(struct ssh_channel *c)
     }
 }
 
-Conf *sshfwd_get_conf(struct ssh_channel *c)
+static Conf *sshchannel_get_conf(SshChannel *sc)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
     Ssh ssh = c->ssh;
     return ssh->conf;
 }
 
-void sshfwd_write_eof(struct ssh_channel *c)
+static void sshchannel_write_eof(SshChannel *sc)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
     Ssh ssh = c->ssh;
 
     if (ssh->state == SSH_STATE_CLOSED)
@@ -3685,8 +3709,9 @@ void sshfwd_write_eof(struct ssh_channel *c)
     ssh_channel_try_eof(c);
 }
 
-void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
+static void sshchannel_unclean_close(SshChannel *sc, const char *err)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
     Ssh ssh = c->ssh;
     char *reason;
 
@@ -3701,8 +3726,9 @@ void sshfwd_unclean_close(struct ssh_channel *c, const char *err)
     ssh2_channel_check_close(c);
 }
 
-int sshfwd_write(struct ssh_channel *c, const void *buf, int len)
+static int sshchannel_write(SshChannel *sc, const void *buf, int len)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
     Ssh ssh = c->ssh;
 
     if (ssh->state == SSH_STATE_CLOSED)
@@ -3711,8 +3737,9 @@ int sshfwd_write(struct ssh_channel *c, const void *buf, int len)
     return ssh_send_channel_data(c, buf, len);
 }
 
-void sshfwd_unthrottle(struct ssh_channel *c, int bufsize)
+static void sshchannel_unthrottle(SshChannel *sc, int bufsize)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
     Ssh ssh = c->ssh;
 
     if (ssh->state == SSH_STATE_CLOSED)
@@ -4225,7 +4252,7 @@ static void ssh1_smsg_x11_open(Ssh ssh, PktIn *pktin)
 	c->ssh = ssh;
 
 	ssh_channel_init(c);
-        c->chan = x11_new_channel(ssh->x11authtree, c, NULL, -1, FALSE);
+        c->chan = x11_new_channel(ssh->x11authtree, &c->sc, NULL, -1, FALSE);
         c->remoteid = remoteid;
         c->halfopen = FALSE;
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
@@ -4255,7 +4282,7 @@ static void ssh1_smsg_agent_open(Ssh ssh, PktIn *pktin)
 	ssh_channel_init(c);
 	c->remoteid = remoteid;
 	c->halfopen = FALSE;
-        c->chan = agentf_new(c);
+        c->chan = agentf_new(&c->sc);
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
         put_uint32(pkt, c->remoteid);
         put_uint32(pkt, c->localid);
@@ -4295,7 +4322,7 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
 	logeventf(ssh, "Received remote port open request for %s:%d",
 		  pf.dhost, port);
         err = pfd_connect(&c->chan, pf.dhost, port,
-                          c, ssh->conf, pfp->pfrec->addressfamily);
+                          &c->sc, ssh->conf, pfp->pfrec->addressfamily);
 	if (err != NULL) {
 	    logeventf(ssh, "Port open failed: %s", err);
             sfree(err);
@@ -6931,6 +6958,7 @@ static void ssh_channel_init(struct ssh_channel *c)
 	c->v.v2.throttle_state = UNTHROTTLED;
 	bufchain_init(&c->v.v2.outbuffer);
     }
+    c->sc.vt = &sshchannel_vtable;
     add234(ssh->channels, c);
 }
 
@@ -7454,7 +7482,7 @@ static void ssh2_msg_channel_close(Ssh ssh, PktIn *pktin)
         /*
          * Send outgoing EOF.
          */
-        sshfwd_write_eof(c);
+        sshfwd_write_eof(&c->sc);
 
         /*
          * Make sure we don't read any more from whatever our local
@@ -7790,7 +7818,8 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 	if (!ssh->X11_fwd_enabled && !ssh->connshare)
 	    error = "X11 forwarding is not enabled";
 	else {
-            c->chan = x11_new_channel(ssh->x11authtree, c, addrstr, peerport,
+            c->chan = x11_new_channel(ssh->x11authtree, &c->sc,
+                                      addrstr, peerport,
                                       ssh->connshare != NULL);
             logevent("Opened X11 forward channel");
 	}
@@ -7830,7 +7859,7 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
             }
 
             err = pfd_connect(&c->chan, realpf->dhost, realpf->dport,
-                              c, ssh->conf, realpf->pfrec->addressfamily);
+                              &c->sc, ssh->conf, realpf->pfrec->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
 	    if (err != NULL) {
@@ -7845,7 +7874,7 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
 	if (!ssh->agentfwd_enabled)
 	    error = "Agent forwarding is not enabled";
         else
-            c->chan = agentf_new(c);
+            c->chan = agentf_new(&c->sc);
     } else {
 	error = "Unsupported channel type requested";
     }
@@ -7879,13 +7908,13 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
     }
 }
 
-void sshfwd_x11_sharing_handover(struct ssh_channel *c,
-                                 ssh_sharing_connstate *share_cs,
-                                 share_channel *share_chan,
-                                 const char *peer_addr, int peer_port,
-                                 int endian, int protomajor, int protominor,
-                                 const void *initial_data, int initial_len)
+static void sshchannel_x11_sharing_handover(
+    SshChannel *sc, ssh_sharing_connstate *share_cs, share_channel *share_chan,
+    const char *peer_addr, int peer_port, int endian,
+    int protomajor, int protominor, const void *initial_data, int initial_len)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
+
     /*
      * This function is called when we've just discovered that an X
      * forwarding channel on which we'd been handling the initial auth
@@ -7905,8 +7934,10 @@ void sshfwd_x11_sharing_handover(struct ssh_channel *c,
     c->chan = NULL;
 }
 
-void sshfwd_window_override_removed(struct ssh_channel *c)
+static void sshchannel_window_override_removed(SshChannel *sc)
 {
+    struct ssh_channel *c = FROMFIELD(sc, struct ssh_channel, sc);
+
     /*
      * This function is called when a client-side Channel has just
      * stopped requiring an initial fixed-size window.
@@ -9661,7 +9692,7 @@ static void ssh2_connection_setup(Ssh ssh)
 
 typedef struct mainchan {
     Ssh ssh;
-    struct ssh_channel *c;
+    SshChannel *sc;
 
     Channel chan;
 } mainchan;
@@ -9689,7 +9720,7 @@ static mainchan *mainchan_new(Ssh ssh)
 {
     mainchan *mc = snew(mainchan);
     mc->ssh = ssh;
-    mc->c = NULL;
+    mc->sc = NULL;
     mc->chan.vt = &mainchan_channelvt;
     mc->chan.initial_fixed_window_size = 0;
     return mc;
@@ -9737,7 +9768,7 @@ static void mainchan_send_eof(Channel *chan)
          * decided to do that because we've allocated a remote pty and
          * hence EOF isn't a particularly meaningful concept.
          */
-        sshfwd_write_eof(mc->c);
+        sshfwd_write_eof(mc->sc);
     }
     mc->ssh->sent_console_eof = TRUE;
 }
@@ -9796,13 +9827,15 @@ static void do_ssh2_connection(void *vctx)
 	     * Just start a direct-tcpip channel and use it as the main
 	     * channel.
 	     */
-            ssh->mainchan = mc->c = ssh_send_port_open
+            mc->sc = ssh_send_port_open
                 (ssh, conf_get_str(ssh->conf, CONF_ssh_nc_host),
                  conf_get_int(ssh->conf, CONF_ssh_nc_port),
                  "main channel", &mc->chan);
+            ssh->mainchan = FROMFIELD(mc->sc, struct ssh_channel, sc);
 	    ssh->ncmode = TRUE;
 	} else {
-            ssh->mainchan = mc->c = snew(struct ssh_channel);
+            ssh->mainchan = snew(struct ssh_channel);
+            mc->sc = &ssh->mainchan->sc;
             ssh->mainchan->ssh = ssh;
             ssh_channel_init(ssh->mainchan);
             ssh->mainchan->chan = &mc->chan;
@@ -11100,7 +11133,7 @@ static void ssh_special(Backend *be, Telnet_Special code)
             pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_EOF);
             ssh_pkt_write(ssh, pktout);
 	} else if (ssh->mainchan) {
-            sshfwd_write_eof(ssh->mainchan);
+            sshfwd_write_eof(&ssh->mainchan->sc);
             ssh->send_ok = 0;          /* now stop trying to read from stdin */
 	}
 	logevent("Sent EOF message");
@@ -11237,8 +11270,8 @@ static void ssh_unthrottle(Backend *be, int bufsize)
     queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
-struct ssh_channel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
-                                       const char *org, Channel *chan)
+SshChannel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
+                               const char *org, Channel *chan)
 {
     struct ssh_channel *c = snew(struct ssh_channel);
     PktOut *pktout;
@@ -11280,7 +11313,7 @@ struct ssh_channel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
 	ssh2_pkt_send(ssh, pktout);
     }
 
-    return c;
+    return &c->sc;
 }
 
 static int ssh_connected(Backend *be)
