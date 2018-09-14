@@ -527,41 +527,21 @@ struct ssh_portfwd; /* forward declaration */
 struct ssh_rportfwd {
     unsigned sport, dport;
     char *shost, *dhost;
-    char *sportdesc;
+    int addressfamily;
+    char *log_description; /* name of remote listening port, for logging */
     ssh_sharing_connstate *share_ctx;
-    struct ssh_portfwd *pfrec;
+    PortFwdRecord *pfr;
 };
 
 static void free_rportfwd(struct ssh_rportfwd *pf)
 {
     if (pf) {
-        sfree(pf->sportdesc);
+        sfree(pf->log_description);
         sfree(pf->shost);
         sfree(pf->dhost);
         sfree(pf);
     }
 }
-
-/*
- * Separately to the rportfwd tree (which is for looking up port
- * open requests from the server), a tree of _these_ structures is
- * used to keep track of all the currently open port forwardings,
- * so that we can reconfigure in mid-session if the user requests
- * it.
- */
-struct ssh_portfwd {
-    enum { DESTROY, KEEP, CREATE } status;
-    int type;
-    unsigned sport, dport;
-    char *saddr, *daddr;
-    char *sserv, *dserv;
-    struct ssh_rportfwd *remote;
-    int addressfamily;
-    struct PortListener *local;
-};
-#define free_portfwd(pf) ( \
-    ((pf) ? (sfree((pf)->saddr), sfree((pf)->daddr), \
-	     sfree((pf)->sserv), sfree((pf)->dserv)) : (void)0 ), sfree(pf) )
 
 static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
@@ -746,7 +726,8 @@ struct ssh_tag {
     int clean_exit;
     int disconnect_message_seen;
 
-    tree234 *rportfwds, *portfwds;
+    tree234 *rportfwds;
+    PortFwdManager *portfwdmgr;
 
     enum {
 	SSH_STATE_PREPACKET,
@@ -1060,51 +1041,6 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
 	return +1;
     if (a->sport < b->sport)
 	return -1;
-    return 0;
-}
-
-/*
- * Special form of strcmp which can cope with NULL inputs. NULL is
- * defined to sort before even the empty string.
- */
-static int nullstrcmp(const char *a, const char *b)
-{
-    if (a == NULL && b == NULL)
-	return 0;
-    if (a == NULL)
-	return -1;
-    if (b == NULL)
-	return +1;
-    return strcmp(a, b);
-}
-
-static int ssh_portcmp(void *av, void *bv)
-{
-    struct ssh_portfwd *a = (struct ssh_portfwd *) av;
-    struct ssh_portfwd *b = (struct ssh_portfwd *) bv;
-    int i;
-    if (a->type > b->type)
-	return +1;
-    if (a->type < b->type)
-	return -1;
-    if (a->addressfamily > b->addressfamily)
-	return +1;
-    if (a->addressfamily < b->addressfamily)
-	return -1;
-    if ( (i = nullstrcmp(a->saddr, b->saddr)) != 0)
-	return i < 0 ? -1 : +1;
-    if (a->sport > b->sport)
-	return +1;
-    if (a->sport < b->sport)
-	return -1;
-    if (a->type != 'D') {
-	if ( (i = nullstrcmp(a->daddr, b->daddr)) != 0)
-	    return i < 0 ? -1 : +1;
-	if (a->dport > b->dport)
-	    return +1;
-	if (a->dport < b->dport)
-	    return -1;
-    }
     return 0;
 }
 
@@ -2230,18 +2166,7 @@ static int ssh_do_close(Ssh ssh, int notify_exit)
      * Go through port-forwardings, and close any associated
      * listening sockets.
      */
-    if (ssh->portfwds) {
-	struct ssh_portfwd *pf;
-	while (NULL != (pf = index234(ssh->portfwds, 0))) {
-	    /* Dispose of any listening socket. */
-	    if (pf->local)
-		pfl_terminate(pf->local);
-	    del234(ssh->portfwds, pf); /* moving next one to index 0 */
-	    free_portfwd(pf);
-	}
-	freetree234(ssh->portfwds);
-	ssh->portfwds = NULL;
-    }
+    portfwdmgr_close_all(ssh->portfwdmgr);
 
     /*
      * Also stop attempting to connection-share.
@@ -3816,58 +3741,110 @@ static void ssh_queue_handler(Ssh ssh, int msg1, int msg2,
 
 static void ssh_rportfwd_succfail(Ssh ssh, PktIn *pktin, void *ctx)
 {
-    struct ssh_rportfwd *rpf, *pf = (struct ssh_rportfwd *)ctx;
+    struct ssh_rportfwd *rpf = (struct ssh_rportfwd *)ctx;
 
     if (pktin->type == (ssh->version == 1 ? SSH1_SMSG_SUCCESS :
 			SSH2_MSG_REQUEST_SUCCESS)) {
 	logeventf(ssh, "Remote port forwarding from %s enabled",
-		  pf->sportdesc);
+                  rpf->log_description);
     } else {
 	logeventf(ssh, "Remote port forwarding from %s refused",
-		  pf->sportdesc);
+                  rpf->log_description);
 
-	rpf = del234(ssh->rportfwds, pf);
-	assert(rpf == pf);
-	pf->pfrec->remote = NULL;
-	free_rportfwd(pf);
+        struct ssh_rportfwd *realpf = del234(ssh->rportfwds, rpf);
+        assert(realpf == rpf);
+        portfwdmgr_close(ssh->portfwdmgr, rpf->pfr);
+        free_rportfwd(rpf);
     }
 }
 
-int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                               ssh_sharing_connstate *share_ctx)
+struct ssh_rportfwd *ssh_rportfwd_alloc(
+    Ssh ssh, const char *shost, int sport, const char *dhost, int dport,
+    int addressfamily, const char *log_description, PortFwdRecord *pfr,
+    ssh_sharing_connstate *share_ctx)
 {
-    struct ssh_rportfwd *pf = snew(struct ssh_rportfwd);
-    pf->dhost = NULL;
-    pf->dport = 0;
-    pf->share_ctx = share_ctx;
-    pf->shost = dupstr(shost);
-    pf->sport = sport;
-    pf->sportdesc = NULL;
+    /*
+     * Ensure the remote port forwardings tree exists.
+     */
     if (!ssh->rportfwds) {
-        assert(ssh->version == 2);
-        ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
+        if (ssh->version == 1)
+            ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
+        else
+            ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
     }
-    if (add234(ssh->rportfwds, pf) != pf) {
-        sfree(pf->shost);
-        sfree(pf);
-        return FALSE;
+
+    struct ssh_rportfwd *rpf = snew(struct ssh_rportfwd);
+
+    rpf->shost = dupstr(shost);
+    rpf->sport = sport;
+    rpf->dhost = dupstr(dhost);
+    rpf->dport = dport;
+    rpf->addressfamily = addressfamily;
+    rpf->log_description = dupstr(log_description);
+    rpf->pfr = pfr;
+    rpf->share_ctx = share_ctx;
+
+    if (add234(ssh->rportfwds, rpf) != rpf) {
+        free_rportfwd(rpf);
+        return NULL;
     }
-    return TRUE;
+
+    if (!rpf->share_ctx) {
+        PktOut *pktout;
+
+        if (ssh->version == 1) {
+            pktout = ssh_bpp_new_pktout(
+                ssh->bpp, SSH1_CMSG_PORT_FORWARD_REQUEST);
+            put_uint32(pktout, rpf->sport);
+            put_stringz(pktout, rpf->dhost);
+            put_uint32(pktout, rpf->dport);
+            ssh_pkt_write(ssh, pktout);
+            ssh_queue_handler(ssh, SSH1_SMSG_SUCCESS,
+                              SSH1_SMSG_FAILURE,
+                              ssh_rportfwd_succfail, rpf);
+        } else {
+            pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
+            put_stringz(pktout, "tcpip-forward");
+            put_bool(pktout, 1);       /* want reply */
+            put_stringz(pktout, rpf->shost);
+            put_uint32(pktout, rpf->sport);
+            ssh2_pkt_send(ssh, pktout);
+
+            ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS,
+                              SSH2_MSG_REQUEST_FAILURE,
+                              ssh_rportfwd_succfail, rpf);
+        }
+    }
+
+    return rpf;
 }
 
-void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                                 ssh_sharing_connstate *share_ctx)
+void ssh_rportfwd_remove(Ssh ssh, struct ssh_rportfwd *rpf)
 {
-    struct ssh_rportfwd pf, *realpf;
+    if (ssh->version == 1) {
+        /*
+         * We cannot cancel listening ports on the server side in
+         * SSH-1! There's no message to support it.
+         */
+    } else if (rpf->share_ctx) {
+        /*
+         * We don't manufacture a cancel-tcpip-forward message for
+         * remote port forwardings being removed on behalf of a
+         * downstream; we just pass through the one the downstream
+         * sent to us.
+         */
+    } else {
+        PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
+        put_stringz(pktout, "cancel-tcpip-forward");
+        put_bool(pktout, 0);           /* _don't_ want reply */
+        put_stringz(pktout, rpf->shost);
+        put_uint32(pktout, rpf->sport);
+        ssh2_pkt_send(ssh, pktout);
+    }
 
-    assert(ssh->rportfwds);
-    pf.shost = dupstr(shost);
-    pf.sport = sport;
-    realpf = del234(ssh->rportfwds, &pf);
-    assert(realpf);
-    assert(realpf->share_ctx == share_ctx);
-    sfree(realpf->shost);
-    sfree(realpf);
+    struct ssh_rportfwd *realpf = del234(ssh->rportfwds, rpf);
+    assert(realpf == rpf);
+    free_rportfwd(rpf);
 }
 
 static void ssh_sharing_global_request_response(Ssh ssh, PktIn *pktin,
@@ -3883,334 +3860,6 @@ void ssh_sharing_queue_global_request(Ssh ssh,
 {
     ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS, SSH2_MSG_REQUEST_FAILURE,
                       ssh_sharing_global_request_response, share_ctx);
-}
-
-static void ssh_setup_portfwd(Ssh ssh, Conf *conf)
-{
-    struct ssh_portfwd *epf;
-    int i;
-    char *key, *val;
-
-    if (!ssh->portfwds) {
-	ssh->portfwds = newtree234(ssh_portcmp);
-    } else {
-	/*
-	 * Go through the existing port forwardings and tag them
-	 * with status==DESTROY. Any that we want to keep will be
-	 * re-enabled (status==KEEP) as we go through the
-	 * configuration and find out which bits are the same as
-	 * they were before.
-	 */
-	struct ssh_portfwd *epf;
-	int i;
-	for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
-	    epf->status = DESTROY;
-    }
-
-    for (val = conf_get_str_strs(conf, CONF_portfwd, NULL, &key);
-	 val != NULL;
-	 val = conf_get_str_strs(conf, CONF_portfwd, key, &key)) {
-	char *kp, *kp2, *vp, *vp2;
-	char address_family, type;
-	int sport,dport,sserv,dserv;
-	char *sports, *dports, *saddr, *host;
-
-	kp = key;
-
-	address_family = 'A';
-	type = 'L';
-	if (*kp == 'A' || *kp == '4' || *kp == '6')
-	    address_family = *kp++;
-	if (*kp == 'L' || *kp == 'R')
-	    type = *kp++;
-
-	if ((kp2 = host_strchr(kp, ':')) != NULL) {
-	    /*
-	     * There's a colon in the middle of the source port
-	     * string, which means that the part before it is
-	     * actually a source address.
-	     */
-	    char *saddr_tmp = dupprintf("%.*s", (int)(kp2 - kp), kp);
-            saddr = host_strduptrim(saddr_tmp);
-            sfree(saddr_tmp);
-	    sports = kp2+1;
-	} else {
-	    saddr = NULL;
-	    sports = kp;
-	}
-	sport = atoi(sports);
-	sserv = 0;
-	if (sport == 0) {
-	    sserv = 1;
-	    sport = net_service_lookup(sports);
-	    if (!sport) {
-		logeventf(ssh, "Service lookup failed for source"
-			  " port \"%s\"", sports);
-	    }
-	}
-
-	if (type == 'L' && !strcmp(val, "D")) {
-            /* dynamic forwarding */
-	    host = NULL;
-	    dports = NULL;
-	    dport = -1;
-	    dserv = 0;
-            type = 'D';
-        } else {
-            /* ordinary forwarding */
-	    vp = val;
-	    vp2 = vp + host_strcspn(vp, ":");
-	    host = dupprintf("%.*s", (int)(vp2 - vp), vp);
-	    if (*vp2)
-		vp2++;
-	    dports = vp2;
-	    dport = atoi(dports);
-	    dserv = 0;
-	    if (dport == 0) {
-		dserv = 1;
-		dport = net_service_lookup(dports);
-		if (!dport) {
-		    logeventf(ssh, "Service lookup failed for destination"
-			      " port \"%s\"", dports);
-		}
-	    }
-	}
-
-	if (sport && dport) {
-	    /* Set up a description of the source port. */
-	    struct ssh_portfwd *pfrec, *epfrec;
-
-	    pfrec = snew(struct ssh_portfwd);
-	    pfrec->type = type;
-	    pfrec->saddr = saddr;
-	    pfrec->sserv = sserv ? dupstr(sports) : NULL;
-	    pfrec->sport = sport;
-	    pfrec->daddr = host;
-	    pfrec->dserv = dserv ? dupstr(dports) : NULL;
-	    pfrec->dport = dport;
-	    pfrec->local = NULL;
-	    pfrec->remote = NULL;
-	    pfrec->addressfamily = (address_family == '4' ? ADDRTYPE_IPV4 :
-				    address_family == '6' ? ADDRTYPE_IPV6 :
-				    ADDRTYPE_UNSPEC);
-
-	    epfrec = add234(ssh->portfwds, pfrec);
-	    if (epfrec != pfrec) {
-		if (epfrec->status == DESTROY) {
-		    /*
-		     * We already have a port forwarding up and running
-		     * with precisely these parameters. Hence, no need
-		     * to do anything; simply re-tag the existing one
-		     * as KEEP.
-		     */
-		    epfrec->status = KEEP;
-		}
-		/*
-		 * Anything else indicates that there was a duplicate
-		 * in our input, which we'll silently ignore.
-		 */
-		free_portfwd(pfrec);
-	    } else {
-		pfrec->status = CREATE;
-	    }
-	} else {
-	    sfree(saddr);
-	    sfree(host);
-	}
-    }
-
-    /*
-     * Now go through and destroy any port forwardings which were
-     * not re-enabled.
-     */
-    for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
-	if (epf->status == DESTROY) {
-	    char *message;
-
-	    message = dupprintf("%s port forwarding from %s%s%d",
-				epf->type == 'L' ? "local" :
-				epf->type == 'R' ? "remote" : "dynamic",
-				epf->saddr ? epf->saddr : "",
-				epf->saddr ? ":" : "",
-				epf->sport);
-
-	    if (epf->type != 'D') {
-		char *msg2 = dupprintf("%s to %s:%d", message,
-				       epf->daddr, epf->dport);
-		sfree(message);
-		message = msg2;
-	    }
-
-	    logeventf(ssh, "Cancelling %s", message);
-	    sfree(message);
-
-	    /* epf->remote or epf->local may be NULL if setting up a
-	     * forwarding failed. */
-	    if (epf->remote) {
-		struct ssh_rportfwd *rpf = epf->remote;
-		PktOut *pktout;
-
-		/*
-		 * Cancel the port forwarding at the server
-		 * end.
-		 */
-		if (ssh->version == 1) {
-		    /*
-		     * We cannot cancel listening ports on the
-		     * server side in SSH-1! There's no message
-		     * to support it. Instead, we simply remove
-		     * the rportfwd record from the local end
-		     * so that any connections the server tries
-		     * to make on it are rejected.
-		     */
-		} else {
-		    pktout = ssh_bpp_new_pktout(
-                        ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
-		    put_stringz(pktout, "cancel-tcpip-forward");
-		    put_bool(pktout, 0);/* _don't_ want reply */
-		    if (epf->saddr) {
-			put_stringz(pktout, epf->saddr);
-		    } else if (conf_get_int(conf, CONF_rport_acceptall)) {
-			/* XXX: rport_acceptall may not represent
-			 * what was used to open the original connection,
-			 * since it's reconfigurable. */
-			put_stringz(pktout, "");
-		    } else {
-			put_stringz(pktout, "localhost");
-		    }
-		    put_uint32(pktout, epf->sport);
-		    ssh2_pkt_send(ssh, pktout);
-		}
-
-		del234(ssh->rportfwds, rpf);
-		free_rportfwd(rpf);
-	    } else if (epf->local) {
-		pfl_terminate(epf->local);
-	    }
-
-	    delpos234(ssh->portfwds, i);
-	    free_portfwd(epf);
-	    i--;		       /* so we don't skip one in the list */
-	}
-
-    /*
-     * And finally, set up any new port forwardings (status==CREATE).
-     */
-    for (i = 0; (epf = index234(ssh->portfwds, i)) != NULL; i++)
-	if (epf->status == CREATE) {
-	    char *sportdesc, *dportdesc;
-	    sportdesc = dupprintf("%s%s%s%s%d%s",
-				  epf->saddr ? epf->saddr : "",
-				  epf->saddr ? ":" : "",
-				  epf->sserv ? epf->sserv : "",
-				  epf->sserv ? "(" : "",
-				  epf->sport,
-				  epf->sserv ? ")" : "");
-	    if (epf->type == 'D') {
-		dportdesc = NULL;
-	    } else {
-		dportdesc = dupprintf("%s:%s%s%d%s",
-				      epf->daddr,
-				      epf->dserv ? epf->dserv : "",
-				      epf->dserv ? "(" : "",
-				      epf->dport,
-				      epf->dserv ? ")" : "");
-	    }
-
-	    if (epf->type == 'L') {
-                char *err = pfl_listen(epf->daddr, epf->dport,
-                                       epf->saddr, epf->sport,
-                                       ssh, conf, &epf->local,
-                                       epf->addressfamily);
-
-		logeventf(ssh, "Local %sport %s forwarding to %s%s%s",
-			  epf->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
-			  epf->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
-			  sportdesc, dportdesc,
-			  err ? " failed: " : "", err ? err : "");
-                if (err)
-                    sfree(err);
-	    } else if (epf->type == 'D') {
-		char *err = pfl_listen(NULL, -1, epf->saddr, epf->sport,
-                                       ssh, conf, &epf->local,
-                                       epf->addressfamily);
-
-		logeventf(ssh, "Local %sport %s SOCKS dynamic forwarding%s%s",
-			  epf->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
-			  epf->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
-			  sportdesc,
-			  err ? " failed: " : "", err ? err : "");
-
-                if (err)
-                    sfree(err);
-	    } else {
-		struct ssh_rportfwd *pf;
-
-		/*
-		 * Ensure the remote port forwardings tree exists.
-		 */
-		if (!ssh->rportfwds) {
-		    if (ssh->version == 1)
-			ssh->rportfwds = newtree234(ssh_rportcmp_ssh1);
-		    else
-			ssh->rportfwds = newtree234(ssh_rportcmp_ssh2);
-		}
-
-		pf = snew(struct ssh_rportfwd);
-                pf->share_ctx = NULL;
-                pf->dhost = dupstr(epf->daddr);
-		pf->dport = epf->dport;
-                if (epf->saddr) {
-                    pf->shost = dupstr(epf->saddr);
-                } else if (conf_get_int(conf, CONF_rport_acceptall)) {
-                    pf->shost = dupstr("");
-                } else {
-                    pf->shost = dupstr("localhost");
-                }
-		pf->sport = epf->sport;
-		if (add234(ssh->rportfwds, pf) != pf) {
-		    logeventf(ssh, "Duplicate remote port forwarding to %s:%d",
-			      epf->daddr, epf->dport);
-		    sfree(pf);
-		} else {
-                    PktOut *pktout;
-
-		    logeventf(ssh, "Requesting remote port %s"
-			      " forward to %s", sportdesc, dportdesc);
-
-		    pf->sportdesc = sportdesc;
-		    sportdesc = NULL;
-		    epf->remote = pf;
-		    pf->pfrec = epf;
-
-		    if (ssh->version == 1) {
-                        pktout = ssh_bpp_new_pktout(
-                            ssh->bpp, SSH1_CMSG_PORT_FORWARD_REQUEST);
-                        put_uint32(pktout, epf->sport);
-                        put_stringz(pktout, epf->daddr);
-                        put_uint32(pktout, epf->dport);
-                        ssh_pkt_write(ssh, pktout);
-			ssh_queue_handler(ssh, SSH1_SMSG_SUCCESS,
-					  SSH1_SMSG_FAILURE,
-					  ssh_rportfwd_succfail, pf);
-		    } else {
-			pktout = ssh_bpp_new_pktout(
-                            ssh->bpp, SSH2_MSG_GLOBAL_REQUEST);
-			put_stringz(pktout, "tcpip-forward");
-			put_bool(pktout, 1);/* want reply */
-			put_stringz(pktout, pf->shost);
-			put_uint32(pktout, pf->sport);
-			ssh2_pkt_send(ssh, pktout);
-
-			ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS,
-					  SSH2_MSG_REQUEST_FAILURE,
-					  ssh_rportfwd_succfail, pf);
-		    }
-		}
-	    }
-	    sfree(sportdesc);
-	    sfree(dportdesc);
-	}
 }
 
 static void ssh1_smsg_stdout_stderr_data(Ssh ssh, PktIn *pktin)
@@ -4321,8 +3970,8 @@ static void ssh1_msg_port_open(Ssh ssh, PktIn *pktin)
 
 	logeventf(ssh, "Received remote port open request for %s:%d",
 		  pf.dhost, port);
-        err = pfd_connect(&c->chan, pf.dhost, port,
-                          &c->sc, ssh->conf, pfp->pfrec->addressfamily);
+        err = portfwdmgr_connect(ssh->portfwdmgr, &c->chan, pf.dhost, port,
+                                 &c->sc, pfp->addressfamily);
 	if (err != NULL) {
 	    logeventf(ssh, "Port open failed: %s", err);
             sfree(err);
@@ -4562,7 +4211,7 @@ static void do_ssh1_connection(void *vctx)
         }
     }
 
-    ssh_setup_portfwd(ssh, ssh->conf);
+    portfwdmgr_config(ssh->portfwdmgr, ssh->conf);
     ssh->packet_dispatch[SSH1_MSG_PORT_OPEN] = ssh1_msg_port_open;
 
     if (!conf_get_int(ssh->conf, CONF_nopty)) {
@@ -7858,8 +7507,9 @@ static void ssh2_msg_channel_open(Ssh ssh, PktIn *pktin)
                 return;
             }
 
-            err = pfd_connect(&c->chan, realpf->dhost, realpf->dport,
-                              &c->sc, ssh->conf, realpf->pfrec->addressfamily);
+            err = portfwdmgr_connect(
+                ssh->portfwdmgr, &c->chan, realpf->dhost, realpf->dport,
+                &c->sc, realpf->addressfamily);
 	    logeventf(ssh, "Attempting to forward remote port to "
 		      "%s:%d", realpf->dhost, realpf->dport);
 	    if (err != NULL) {
@@ -9925,7 +9575,7 @@ static void do_ssh2_connection(void *vctx)
     /*
      * Enable port forwardings.
      */
-    ssh_setup_portfwd(ssh, ssh->conf);
+    portfwdmgr_config(ssh->portfwdmgr, ssh->conf);
 
     if (ssh->mainchan && !ssh->ncmode) {
 	/*
@@ -10703,7 +10353,7 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
 
     ssh->channels = NULL;
     ssh->rportfwds = NULL;
-    ssh->portfwds = NULL;
+    ssh->portfwdmgr = portfwdmgr_new(ssh);
 
     ssh->send_ok = 0;
     ssh->editing = 0;
@@ -10798,6 +10448,7 @@ static void ssh_free(Backend *be)
 	freetree234(ssh->rportfwds);
 	ssh->rportfwds = NULL;
     }
+    portfwdmgr_free(ssh->portfwdmgr);
     if (ssh->x11disp)
 	x11_free_display(ssh->x11disp);
     while ((auth = delpos234(ssh->x11authtree, 0)) != NULL)
@@ -10864,8 +10515,7 @@ static void ssh_reconfig(Backend *be, Conf *conf)
     int i, rekey_time;
 
     pinger_reconfig(ssh->pinger, ssh->conf, conf);
-    if (ssh->portfwds)
-	ssh_setup_portfwd(ssh, conf);
+    portfwdmgr_config(ssh->portfwdmgr, conf);
 
     rekey_time = conf_get_int(conf, CONF_ssh_rekey_time);
     if (ssh2_timer_update(ssh, rekey_mins(rekey_time, 60)))

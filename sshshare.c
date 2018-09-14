@@ -242,6 +242,7 @@ struct share_forwarding {
     char *host;
     int port;
     int active;             /* has the server sent REQUEST_SUCCESS? */
+    struct ssh_rportfwd *rpf;
 };
 
 struct share_xchannel_message {
@@ -856,8 +857,7 @@ static void share_try_cleanup(struct ssh_sharing_connstate *cs)
                 "cleanup after downstream went away");
             strbuf_free(packet);
 
-            ssh_remove_sharing_rportfwd(cs->parent->ssh,
-                                        fwd->host, fwd->port, cs);
+            ssh_rportfwd_remove(cs->parent->ssh, fwd->rpf);
             share_remove_forwarding(cs, fwd);
             i--;    /* don't accidentally skip one as a result */
         }
@@ -1306,7 +1306,8 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
         if (ptrlen_eq_string(request_name, "tcpip-forward")) {
             ptrlen hostpl;
             char *host;
-            int port, ret;
+            int port;
+            struct ssh_rportfwd *rpf;
 
             /*
              * Pick the packet apart to find the want_reply field and
@@ -1328,8 +1329,9 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
              * ourselves to manufacture a failure packet and send it
              * back to downstream.
              */
-            ret = ssh_alloc_sharing_rportfwd(cs->parent->ssh, host, port, cs);
-            if (!ret) {
+            rpf = ssh_rportfwd_alloc(
+                cs->parent->ssh, host, port, NULL, 0, 0, NULL, NULL, cs);
+            if (!rpf) {
                 if (orig_wantreply) {
                     send_packet_to_downstream(cs, SSH2_MSG_REQUEST_FAILURE,
                                               "", 0, NULL);
@@ -1359,6 +1361,8 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
                     globreq->fwd = fwd;
                     globreq->want_reply = orig_wantreply;
                     globreq->type = GLOBREQ_TCPIP_FORWARD;
+
+                    fwd->rpf = rpf;
                 }
             }
 
@@ -1395,7 +1399,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
                  * Tell ssh.c to stop sending us channel-opens for
                  * this forwarding.
                  */
-                ssh_remove_sharing_rportfwd(cs->parent->ssh, host, port, cs);
+                ssh_rportfwd_remove(cs->parent->ssh, fwd->rpf);
 
                 /*
                  * Pass the cancel request on to the SSH server, but

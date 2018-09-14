@@ -60,6 +60,9 @@ typedef struct ssh_sharing_state ssh_sharing_state;
 typedef struct ssh_sharing_connstate ssh_sharing_connstate;
 typedef struct share_channel share_channel;
 
+typedef struct PortFwdManager PortFwdManager;
+typedef struct PortFwdRecord PortFwdRecord;
+
 typedef struct dlgparam dlgparam;
 
 typedef struct settings_w settings_w;

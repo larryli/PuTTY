@@ -149,10 +149,6 @@ void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
                        const char *ds_err, const char *us_err);
 unsigned ssh_alloc_sharing_channel(Ssh ssh, ssh_sharing_connstate *connstate);
 void ssh_delete_sharing_channel(Ssh ssh, unsigned localid);
-int ssh_alloc_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                               ssh_sharing_connstate *connstate);
-void ssh_remove_sharing_rportfwd(Ssh ssh, const char *shost, int sport,
-                                 ssh_sharing_connstate *connstate);
 void ssh_sharing_queue_global_request(
     Ssh ssh, ssh_sharing_connstate *connstate);
 struct X11FakeAuth *ssh_sharing_add_x11_display(
@@ -174,6 +170,23 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              const char *peer_addr, int peer_port, int endian,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len);
+
+struct ssh_rportfwd;
+struct ssh_rportfwd *ssh_rportfwd_alloc(
+    Ssh ssh, const char *shost, int sport, const char *dhost, int dport,
+    int addressfamily, const char *log_description, PortFwdRecord *pfr,
+    ssh_sharing_connstate *share_ctx);
+void ssh_rportfwd_remove(Ssh ssh, struct ssh_rportfwd *rpf);
+
+/* Exports from portfwd.c */
+PortFwdManager *portfwdmgr_new(Ssh ssh);
+void portfwdmgr_free(PortFwdManager *mgr);
+void portfwdmgr_config(PortFwdManager *mgr, Conf *conf);
+void portfwdmgr_close(PortFwdManager *mgr, PortFwdRecord *pfr);
+void portfwdmgr_close_all(PortFwdManager *mgr);
+char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
+                         char *hostname, int port, SshChannel *c,
+                         int addressfamily);
 
 Frontend *ssh_get_frontend(Ssh ssh);
 
@@ -718,21 +731,9 @@ void random_add_heavynoise(void *noise, int length);
 
 void logevent(Frontend *, const char *);
 
-struct PortForwarding;
-
 /* Allocate and register a new channel for port forwarding */
 SshChannel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
                                const char *org, Channel *chan);
-
-/* Exports from portfwd.c */
-extern char *pfd_connect(Channel **chan_ret, char *hostname, int port,
-                         SshChannel *c, Conf *conf, int addressfamily);
-struct PortListener;
-/* desthost == NULL indicates dynamic (SOCKS) port forwarding */
-extern char *pfl_listen(char *desthost, int destport, char *srcaddr,
-                        int port, Ssh ssh, Conf *conf,
-                        struct PortListener **pl, int address_family);
-extern void pfl_terminate(struct PortListener *);
 
 /* Exports from x11fwd.c */
 enum {
