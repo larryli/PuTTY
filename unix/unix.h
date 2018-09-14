@@ -65,7 +65,7 @@ struct FontSpec {
 };
 struct FontSpec *fontspec_new(const char *name);
 
-typedef void *Context;                 /* FIXME: probably needs changing */
+typedef struct draw_ctx *Context;
 
 extern const struct Backend_vtable pty_backend;
 

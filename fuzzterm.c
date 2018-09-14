@@ -73,11 +73,7 @@ void set_sbar(Frontend *frontend, int a, int b, int c) { }
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, int interactive) {}
 void ldisc_echoedit_update(Ldisc *ldisc) {}
-Context get_ctx(Frontend *frontend) { 
-    static char x;
-
-    return &x;
-}
+Context get_ctx(Frontend *frontend) { return NULL; }
 void free_ctx(Context ctx) { }
 void palette_set(Frontend *frontend, int a, int b, int c, int d) { }
 void palette_reset(Frontend *frontend) { }

@@ -3481,9 +3481,8 @@ Context get_ctx(Frontend *inst)
     return dctx;
 }
 
-void free_ctx(Context ctx)
+void free_ctx(Context dctx)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     /* Frontend *inst = dctx->inst; */
 #ifdef DRAW_TEXT_GDK
     if (dctx->uctx.type == DRAWTYPE_GDK) {
@@ -3796,10 +3795,9 @@ static void draw_backing_rect(Frontend *inst)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
+void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
 		      unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     Frontend *inst = dctx->inst;
     int ncombining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
@@ -3953,14 +3951,13 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
     }
 }
 
-void do_text(Context ctx, int x, int y, wchar_t *text, int len,
+void do_text(Context dctx, int x, int y, wchar_t *text, int len,
 	     unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     Frontend *inst = dctx->inst;
     int widefactor;
 
-    do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
+    do_text_internal(dctx, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3983,10 +3980,9 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
                 len*widefactor*inst->font_width, inst->font_height);
 }
 
-void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
+void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
 	       unsigned long attr, int lattr, truecolour truecolour)
 {
-    struct draw_ctx *dctx = (struct draw_ctx *)ctx;
     Frontend *inst = dctx->inst;
 
     int active, passive, widefactor;
@@ -4001,7 +3997,7 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
         active = 1;
     } else
         active = 0;
-    do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
+    do_text_internal(dctx, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & TATTR_COMBINING)
 	len = 1;
