@@ -335,31 +335,39 @@ const static struct ssh2_macalg *const buggymacs[] = {
     &ssh_hmac_sha1_buggy, &ssh_hmac_sha1_96_buggy, &ssh_hmac_md5
 };
 
-static void *ssh_comp_none_init(void)
+static ssh_compressor *ssh_comp_none_init(void)
 {
     return NULL;
 }
-static void ssh_comp_none_cleanup(void *handle)
+static void ssh_comp_none_cleanup(ssh_compressor *handle)
 {
 }
-static void ssh_comp_none_block(void *handle, unsigned char *block, int len,
+static ssh_decompressor *ssh_decomp_none_init(void)
+{
+    return NULL;
+}
+static void ssh_decomp_none_cleanup(ssh_decompressor *handle)
+{
+}
+static void ssh_comp_none_block(ssh_compressor *handle,
+                                unsigned char *block, int len,
                                 unsigned char **outblock, int *outlen,
                                 int minlen)
 {
 }
-static int ssh_decomp_none_block(void *handle, unsigned char *block, int len,
+static int ssh_decomp_none_block(ssh_decompressor *handle,
+                                 unsigned char *block, int len,
                                  unsigned char **outblock, int *outlen)
 {
     return 0;
 }
-const static struct ssh_compress ssh_comp_none = {
+const static struct ssh_compression_alg ssh_comp_none = {
     "none", NULL,
     ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
-    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_decomp_none_block,
+    ssh_decomp_none_init, ssh_decomp_none_cleanup, ssh_decomp_none_block,
     NULL
 };
-extern const struct ssh_compress ssh_zlib;
-const static struct ssh_compress *const compressions[] = {
+const static struct ssh_compression_alg *const compressions[] = {
     &ssh_zlib, &ssh_comp_none
 };
 
@@ -4853,7 +4861,7 @@ struct kexinit_algorithm {
             const struct ssh2_macalg *mac;
 	    int etm;
 	} mac;
-	const struct ssh_compress *comp;
+        const struct ssh_compression_alg *comp;
     } u;
 };
 
@@ -5025,7 +5033,7 @@ static void do_ssh2_transport(void *vctx)
             const struct ssh2_cipheralg *cipher;
             const struct ssh2_macalg *mac;
             int etm_mode;
-            const struct ssh_compress *comp;
+            const struct ssh_compression_alg *comp;
         } in, out;
 	ptrlen hostkeydata, sigdata;
         char *keystr, *fingerprint;
@@ -5042,7 +5050,7 @@ static void do_ssh2_transport(void *vctx)
 	int preferred_hk[HK_MAX];
 	int n_preferred_ciphers;
 	const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
-	const struct ssh_compress *preferred_comp;
+        const struct ssh_compression_alg *preferred_comp;
 	int userauth_succeeded;	    /* for delayed compression */
 	int pending_compression;
 	int got_session_id;
@@ -5413,7 +5421,7 @@ static void do_ssh2_transport(void *vctx)
 		alg->u.comp = s->preferred_comp;
 	    }
 	    for (i = 0; i < lenof(compressions); i++) {
-		const struct ssh_compress *c = compressions[i];
+                const struct ssh_compression_alg *c = compressions[i];
 		alg = ssh2_kexinit_addalg(s->kexlists[j], c->name);
 		alg->u.comp = c;
 		if (s->userauth_succeeded && c->delayed_name) {

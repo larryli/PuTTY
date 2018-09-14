@@ -603,22 +603,38 @@ struct ssh_keyalg {
 #define ssh_key_ssh_id(key) ((*(key))->ssh_id)
 #define ssh_key_cache_id(key) ((*(key))->cache_id)
 
-struct ssh_compress {
+typedef struct ssh_compressor {
+    const struct ssh_compression_alg *vt;
+} ssh_compressor;
+typedef struct ssh_decompressor {
+    const struct ssh_compression_alg *vt;
+} ssh_decompressor;
+
+struct ssh_compression_alg {
     const char *name;
     /* For zlib@openssh.com: if non-NULL, this name will be considered once
      * userauth has completed successfully. */
     const char *delayed_name;
-    void *(*compress_init) (void);
-    void (*compress_cleanup) (void *);
-    void (*compress) (void *, unsigned char *block, int len,
-                      unsigned char **outblock, int *outlen,
-                      int minlen);
-    void *(*decompress_init) (void);
-    void (*decompress_cleanup) (void *);
-    int (*decompress) (void *, unsigned char *block, int len,
-		       unsigned char **outblock, int *outlen);
+    ssh_compressor *(*compress_new)(void);
+    void (*compress_free)(ssh_compressor *);
+    void (*compress)(ssh_compressor *, unsigned char *block, int len,
+                     unsigned char **outblock, int *outlen,
+                     int minlen);
+    ssh_decompressor *(*decompress_new)(void);
+    void (*decompress_free)(ssh_decompressor *);
+    int (*decompress)(ssh_decompressor *, unsigned char *block, int len,
+                      unsigned char **outblock, int *outlen);
     const char *text_name;
 };
+
+#define ssh_compressor_new(alg) ((alg)->compress_new())
+#define ssh_compressor_free(comp) ((comp)->vt->compress_free(comp))
+#define ssh_compressor_compress(comp, in, inlen, out, outlen, minlen) \
+    ((comp)->vt->compress(comp, in, inlen, out, outlen, minlen))
+#define ssh_decompressor_new(alg) ((alg)->decompress_new())
+#define ssh_decompressor_free(comp) ((comp)->vt->decompress_free(comp))
+#define ssh_decompressor_decompress(comp, in, inlen, out, outlen) \
+    ((comp)->vt->decompress(comp, in, inlen, out, outlen))
 
 struct ssh2_userkey {
     ssh_key *key;                      /* the key itself */
@@ -659,6 +675,7 @@ extern const struct ssh2_macalg ssh_hmac_sha1_buggy;
 extern const struct ssh2_macalg ssh_hmac_sha1_96;
 extern const struct ssh2_macalg ssh_hmac_sha1_96_buggy;
 extern const struct ssh2_macalg ssh_hmac_sha256;
+extern const struct ssh_compression_alg ssh_zlib;
 
 typedef struct AESContext AESContext;
 AESContext *aes_make_context(void);
@@ -1016,19 +1033,6 @@ int ec_edgenerate(struct ec_key *key, int bits, progfn_t pfn,
 Bignum primegen(int bits, int modulus, int residue, Bignum factor,
 		int phase, progfn_t pfn, void *pfnparam, unsigned firstbits);
 void invent_firstbits(unsigned *one, unsigned *two);
-
-
-/*
- * zlib compression.
- */
-void *zlib_compress_init(void);
-void zlib_compress_cleanup(void *);
-void *zlib_decompress_init(void);
-void zlib_decompress_cleanup(void *);
-void zlib_compress_block(void *, unsigned char *block, int len,
-                         unsigned char **outblock, int *outlen, int minlen);
-int zlib_decompress_block(void *, unsigned char *block, int len,
-			  unsigned char **outblock, int *outlen);
 
 /*
  * Connection-sharing API provided by platforms. This function must
