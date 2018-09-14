@@ -502,7 +502,7 @@ static void read_clip_setting(void *handle, const char *savekey,
 
 char *save_settings(const char *section, Conf *conf)
 {
-    void *sesskey;
+    struct settings_w *sesskey;
     char *errmsg;
 
     sesskey = open_settings_w(section, &errmsg);
@@ -513,7 +513,7 @@ char *save_settings(const char *section, Conf *conf)
     return NULL;
 }
 
-void save_open_settings(void *sesskey, Conf *conf)
+void save_open_settings(settings_w *sesskey, Conf *conf)
 {
     int i;
     const char *p;
@@ -760,7 +760,7 @@ void save_open_settings(void *sesskey, Conf *conf)
 
 void load_settings(const char *section, Conf *conf)
 {
-    void *sesskey;
+    settings_r *sesskey;
 
     sesskey = open_settings_r(section);
     load_open_settings(sesskey, conf);
@@ -770,7 +770,7 @@ void load_settings(const char *section, Conf *conf)
         add_session_to_jumplist(section);
 }
 
-void load_open_settings(void *sesskey, Conf *conf)
+void load_open_settings(settings_r *sesskey, Conf *conf)
 {
     int i;
     char *prot;
@@ -1242,7 +1242,7 @@ void get_sesslist(struct sesslist *list, int allocate)
     char otherbuf[2048];
     int buflen, bufsize, i;
     char *p, *ret;
-    void *handle;
+    settings_e *handle;
 
     if (allocate) {
 

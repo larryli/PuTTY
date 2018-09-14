@@ -383,7 +383,6 @@ static IShellLink *make_shell_link(const char *appname,
 {
     IShellLink *ret;
     char *app_path, *param_string, *desc_string;
-    void *psettings_tmp;
     IPropertyStore *pPS;
     PROPVARIANT pv;
 
@@ -409,7 +408,7 @@ static IShellLink *make_shell_link(const char *appname,
 
     /* Check if this is a valid session, otherwise don't add. */
     if (sessionname) {
-        psettings_tmp = open_settings_r(sessionname);
+        settings_r *psettings_tmp = open_settings_r(sessionname);
         if (!psettings_tmp) {
             sfree(app_path);
             return NULL;

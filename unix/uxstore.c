@@ -218,7 +218,11 @@ static char *make_filename(int index, const char *subname)
     return ret;
 }
 
-void *open_settings_w(const char *sessionname, char **errmsg)
+struct settings_w {
+    FILE *fp;
+};
+
+settings_w *open_settings_w(const char *sessionname, char **errmsg)
 {
     char *filename, *err;
     FILE *fp;
@@ -256,25 +260,26 @@ void *open_settings_w(const char *sessionname, char **errmsg)
 	return NULL;                   /* can't open */
     }
     sfree(filename);
-    return fp;
+
+    settings_w *toret = snew(settings_w);
+    toret->fp = fp;
+    return toret;
 }
 
-void write_setting_s(void *handle, const char *key, const char *value)
+void write_setting_s(settings_w *handle, const char *key, const char *value)
 {
-    FILE *fp = (FILE *)handle;
-    fprintf(fp, "%s=%s\n", key, value);
+    fprintf(handle->fp, "%s=%s\n", key, value);
 }
 
-void write_setting_i(void *handle, const char *key, int value)
+void write_setting_i(settings_w *handle, const char *key, int value)
 {
-    FILE *fp = (FILE *)handle;
-    fprintf(fp, "%s=%d\n", key, value);
+    fprintf(handle->fp, "%s=%d\n", key, value);
 }
 
-void close_settings_w(void *handle)
+void close_settings_w(settings_w *handle)
 {
-    FILE *fp = (FILE *)handle;
-    fclose(fp);
+    fclose(handle->fp);
+    sfree(handle);
 }
 
 /*
@@ -347,12 +352,16 @@ const char *get_setting(const char *key)
     return x_get_default(key);
 }
 
-void *open_settings_r(const char *sessionname)
+struct settings_r {
+    tree234 *t;
+};
+
+settings_r *open_settings_r(const char *sessionname)
 {
     char *filename;
     FILE *fp;
     char *line;
-    tree234 *ret;
+    settings_r *toret;
 
     filename = make_filename(INDEX_SESSION, sessionname);
     fp = fopen(filename, "r");
@@ -360,7 +369,8 @@ void *open_settings_r(const char *sessionname)
     if (!fp)
 	return NULL;		       /* can't open */
 
-    ret = newtree234(keycmp);
+    toret = snew(settings_r);
+    toret->t = newtree234(keycmp);
 
     while ( (line = fgetline(fp)) ) {
         char *value = strchr(line, '=');
@@ -376,25 +386,24 @@ void *open_settings_r(const char *sessionname)
         kv = snew(struct skeyval);
         kv->key = dupstr(line);
         kv->value = dupstr(value);
-        add234(ret, kv);
+        add234(toret->t, kv);
 
         sfree(line);
     }
 
     fclose(fp);
 
-    return ret;
+    return toret;
 }
 
-char *read_setting_s(void *handle, const char *key)
+char *read_setting_s(settings_r *handle, const char *key)
 {
-    tree234 *tree = (tree234 *)handle;
     const char *val;
     struct skeyval tmp, *kv;
 
     tmp.key = key;
-    if (tree != NULL &&
-        (kv = find234(tree, &tmp, NULL)) != NULL) {
+    if (handle != NULL &&
+        (kv = find234(handle->t, &tmp, NULL)) != NULL) {
         val = kv->value;
         assert(val != NULL);
     } else
@@ -406,15 +415,14 @@ char *read_setting_s(void *handle, const char *key)
 	return dupstr(val);
 }
 
-int read_setting_i(void *handle, const char *key, int defvalue)
+int read_setting_i(settings_r *handle, const char *key, int defvalue)
 {
-    tree234 *tree = (tree234 *)handle;
     const char *val;
     struct skeyval tmp, *kv;
 
     tmp.key = key;
-    if (tree != NULL &&
-        (kv = find234(tree, &tmp, NULL)) != NULL) {
+    if (handle != NULL &&
+        (kv = find234(handle->t, &tmp, NULL)) != NULL) {
         val = kv->value;
         assert(val != NULL);
     } else
@@ -426,7 +434,7 @@ int read_setting_i(void *handle, const char *key, int defvalue)
 	return atoi(val);
 }
 
-FontSpec *read_setting_fontspec(void *handle, const char *name)
+FontSpec *read_setting_fontspec(settings_r *handle, const char *name)
 {
     /*
      * In GTK1-only PuTTY, we used to store font names simply as a
@@ -464,7 +472,7 @@ FontSpec *read_setting_fontspec(void *handle, const char *name)
 	return NULL;
     }
 }
-Filename *read_setting_filename(void *handle, const char *name)
+Filename *read_setting_filename(settings_r *handle, const char *name)
 {
     char *tmp = read_setting_s(handle, name);
     if (tmp) {
@@ -475,7 +483,7 @@ Filename *read_setting_filename(void *handle, const char *name)
 	return NULL;
 }
 
-void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
+void write_setting_fontspec(settings_w *handle, const char *name, FontSpec *fs)
 {
     /*
      * read_setting_fontspec had to handle two cases, but when
@@ -486,27 +494,28 @@ void write_setting_fontspec(void *handle, const char *name, FontSpec *fs)
     write_setting_s(handle, suffname, fs->name);
     sfree(suffname);
 }
-void write_setting_filename(void *handle, const char *name, Filename *result)
+void write_setting_filename(settings_w *handle,
+                            const char *name, Filename *result)
 {
     write_setting_s(handle, name, result->path);
 }
 
-void close_settings_r(void *handle)
+void close_settings_r(settings_r *handle)
 {
-    tree234 *tree = (tree234 *)handle;
     struct skeyval *kv;
 
-    if (!tree)
+    if (!handle)
         return;
 
-    while ( (kv = index234(tree, 0)) != NULL) {
-        del234(tree, kv);
+    while ( (kv = index234(handle->t, 0)) != NULL) {
+        del234(handle->t, kv);
         sfree((char *)kv->key);
         sfree((char *)kv->value);
         sfree(kv);
     }
 
-    freetree234(tree);
+    freetree234(handle->t);
+    sfree(handle);
 }
 
 void del_settings(const char *sessionname)
@@ -517,7 +526,11 @@ void del_settings(const char *sessionname)
     sfree(filename);
 }
 
-void *enum_settings_start(void)
+struct settings_e {
+    DIR *dp;
+};
+
+settings_e *enum_settings_start(void)
 {
     DIR *dp;
     char *filename;
@@ -526,12 +539,13 @@ void *enum_settings_start(void)
     dp = opendir(filename);
     sfree(filename);
 
-    return dp;
+    settings_e *toret = snew(settings_e);
+    toret->dp = dp;
+    return toret;
 }
 
-char *enum_settings_next(void *handle, char *buffer, int buflen)
+char *enum_settings_next(settings_e *handle, char *buffer, int buflen)
 {
-    DIR *dp = (DIR *)handle;
     struct dirent *de;
     struct stat st;
     char *fullpath;
@@ -541,7 +555,7 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
     fullpath = make_filename(INDEX_SESSIONDIR, NULL);
     maxlen = len = strlen(fullpath);
 
-    while ( (de = readdir(dp)) != NULL ) {
+    while ( (de = readdir(handle->dp)) != NULL ) {
         thislen = len + 1 + strlen(de->d_name);
 	if (maxlen < thislen) {
 	    maxlen = thislen;
@@ -566,10 +580,10 @@ char *enum_settings_next(void *handle, char *buffer, int buflen)
     return NULL;
 }
 
-void enum_settings_finish(void *handle)
+void enum_settings_finish(settings_e *handle)
 {
-    DIR *dp = (DIR *)handle;
-    closedir(dp);
+    closedir(handle->dp);
+    sfree(handle);
 }
 
 /*
