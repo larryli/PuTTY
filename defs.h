@@ -62,6 +62,7 @@ typedef struct share_channel share_channel;
 
 typedef struct PortFwdManager PortFwdManager;
 typedef struct PortFwdRecord PortFwdRecord;
+typedef struct ConnectionLayer ConnectionLayer;
 
 typedef struct dlgparam dlgparam;
 

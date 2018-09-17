@@ -729,6 +729,8 @@ struct ssh_tag {
     tree234 *rportfwds;
     PortFwdManager *portfwdmgr;
 
+    ConnectionLayer cl;
+
     enum {
 	SSH_STATE_PREPACKET,
 	SSH_STATE_BEFORE_SIZE,
@@ -2199,39 +2201,6 @@ static void ssh_socket_log(Plug plug, int type, SockAddr addr, int port,
                            ssh->session_started);
 }
 
-void ssh_connshare_log(Ssh ssh, int event, const char *logtext,
-                       const char *ds_err, const char *us_err)
-{
-    if (event == SHARE_NONE) {
-        /* In this case, 'logtext' is an error message indicating a
-         * reason why connection sharing couldn't be set up _at all_.
-         * Failing that, ds_err and us_err indicate why we couldn't be
-         * a downstream and an upstream respectively. */
-        if (logtext) {
-            logeventf(ssh, "Could not set up connection sharing: %s", logtext);
-        } else {
-            if (ds_err)
-                logeventf(ssh, "Could not set up connection sharing"
-                          " as downstream: %s", ds_err);
-            if (us_err)
-                logeventf(ssh, "Could not set up connection sharing"
-                          " as upstream: %s", us_err);
-        }
-    } else if (event == SHARE_DOWNSTREAM) {
-        /* In this case, 'logtext' is a local endpoint address */
-        logeventf(ssh, "Using existing shared connection at %s", logtext);
-        /* Also we should mention this in the console window to avoid
-         * confusing users as to why this window doesn't behave the
-         * usual way. */
-        if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
-            c_write_str(ssh,"Reusing a shared connection to this server.\r\n");
-        }
-    } else if (event == SHARE_UPSTREAM) {
-        /* In this case, 'logtext' is a local endpoint address too */
-        logeventf(ssh, "Sharing this connection at %s", logtext);
-    }
-}
-
 static void ssh_closing(Plug plug, const char *error_msg, int error_code,
 			int calling_back)
 {
@@ -2363,7 +2332,7 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
     ssh->connshare = NULL;
     ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
     ssh->s = ssh_connection_sharing_init(
-        ssh->savedhost, ssh->savedport, ssh->conf, ssh, &ssh->plugvt,
+        ssh->savedhost, ssh->savedport, ssh->conf, &ssh->cl, &ssh->plugvt,
         &ssh->connshare);
     ssh->attempting_connshare = FALSE;
     if (ssh->s != NULL) {
@@ -2374,6 +2343,14 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
         ssh->current_incoming_data_fn = do_ssh_connection_init;
         ssh->fullhostname = NULL;
         *realhost = dupstr(host);      /* best we can do */
+
+        if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
+            /* In an interactive session, or in verbose mode, announce
+             * in the console window that we're a sharing downstream,
+             * to avoid confusing users as to why this session doesn't
+             * behave in quite the usual way. */
+            c_write_str(ssh,"Reusing a shared connection to this server.\r\n");
+        }
     } else {
         /*
          * We're not a downstream, so open a normal socket.
@@ -3758,11 +3735,56 @@ static void ssh_rportfwd_succfail(Ssh ssh, PktIn *pktin, void *ctx)
     }
 }
 
-struct ssh_rportfwd *ssh_rportfwd_alloc(
-    Ssh ssh, const char *shost, int sport, const char *dhost, int dport,
+/* Many of these vtable methods have the same names as wrapper macros
+ * in ssh.h, so parenthesise the names to inhibit macro expansion */
+
+static struct ssh_rportfwd *(ssh_rportfwd_alloc)(
+    ConnectionLayer *cl,
+    const char *shost, int sport, const char *dhost, int dport,
+    int addressfamily, const char *log_description, PortFwdRecord *pfr,
+    ssh_sharing_connstate *share_ctx);
+static void (ssh_rportfwd_remove)(
+    ConnectionLayer *cl, struct ssh_rportfwd *rpf);
+static SshChannel *(ssh_lportfwd_open)(
+    ConnectionLayer *cl, const char *hostname, int port,
+    const char *org, Channel *chan);
+static struct X11FakeAuth *(ssh_add_sharing_x11_display)(
+    ConnectionLayer *cl, int authtype, ssh_sharing_connstate *share_cs,
+    share_channel *share_chan);
+static void (ssh_remove_sharing_x11_display)(ConnectionLayer *cl,
+                                             struct X11FakeAuth *auth);
+static void (ssh_send_packet_from_downstream)(
+    ConnectionLayer *cl, unsigned id, int type,
+    const void *pkt, int pktlen, const char *additional_log_text);
+static unsigned (ssh_alloc_sharing_channel)(
+    ConnectionLayer *cl, ssh_sharing_connstate *connstate);
+static void (ssh_delete_sharing_channel)(
+    ConnectionLayer *cl, unsigned localid);
+static void (ssh_sharing_queue_global_request)(
+    ConnectionLayer *cl, ssh_sharing_connstate *share_ctx);
+static int (ssh_agent_forwarding_permitted)(ConnectionLayer *cl);
+
+const struct ConnectionLayerVtable ssh_connlayer_vtable = {
+    ssh_rportfwd_alloc,
+    ssh_rportfwd_remove,
+    ssh_lportfwd_open,
+    ssh_add_sharing_x11_display,
+    ssh_remove_sharing_x11_display,
+    ssh_send_packet_from_downstream,
+    ssh_alloc_sharing_channel,
+    ssh_delete_sharing_channel,
+    ssh_sharing_queue_global_request,
+    ssh_agent_forwarding_permitted,
+};
+
+static struct ssh_rportfwd *(ssh_rportfwd_alloc)(
+    ConnectionLayer *cl,
+    const char *shost, int sport, const char *dhost, int dport,
     int addressfamily, const char *log_description, PortFwdRecord *pfr,
     ssh_sharing_connstate *share_ctx)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
+
     /*
      * Ensure the remote port forwardings tree exists.
      */
@@ -3819,8 +3841,10 @@ struct ssh_rportfwd *ssh_rportfwd_alloc(
     return rpf;
 }
 
-void ssh_rportfwd_remove(Ssh ssh, struct ssh_rportfwd *rpf)
+static void (ssh_rportfwd_remove)(
+    ConnectionLayer *cl, struct ssh_rportfwd *rpf)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     if (ssh->version == 1) {
         /*
          * We cannot cancel listening ports on the server side in
@@ -3855,9 +3879,10 @@ static void ssh_sharing_global_request_response(Ssh ssh, PktIn *pktin,
                               BinarySource_UPCAST(pktin)->len);
 }
 
-void ssh_sharing_queue_global_request(Ssh ssh,
-                                      ssh_sharing_connstate *share_ctx)
+static void (ssh_sharing_queue_global_request)(
+    ConnectionLayer *cl, ssh_sharing_connstate *share_ctx)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     ssh_queue_handler(ssh, SSH2_MSG_REQUEST_SUCCESS, SSH2_MSG_REQUEST_FAILURE,
                       ssh_sharing_global_request_response, share_ctx);
 }
@@ -4129,8 +4154,9 @@ static void ssh1_send_ttymode(BinarySink *bs,
     }
 }
 
-int ssh_agent_forwarding_permitted(Ssh ssh)
+static int (ssh_agent_forwarding_permitted)(ConnectionLayer *cl)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     return conf_get_int(ssh->conf, CONF_agentfwd) && agent_exists();
 }
 
@@ -4156,7 +4182,7 @@ static void do_ssh1_connection(void *vctx)
     ssh->packet_dispatch[SSH1_MSG_CHANNEL_DATA] = ssh1_msg_channel_data;
     ssh->packet_dispatch[SSH1_SMSG_EXIT_STATUS] = ssh1_smsg_exit_status;
 
-    if (ssh_agent_forwarding_permitted(ssh)) {
+    if (ssh_agent_forwarding_permitted(&ssh->cl)) {
 	logevent("Requesting agent forwarding");
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_AGENT_REQUEST_FORWARDING);
         ssh_pkt_write(ssh, pkt);
@@ -6945,37 +6971,6 @@ static void ssh_check_termination(Ssh ssh)
     }
 }
 
-void ssh_sharing_downstream_connected(Ssh ssh, unsigned id,
-                                      const char *peerinfo)
-{
-    if (peerinfo)
-        logeventf(ssh, "Connection sharing downstream #%u connected from %s",
-                  id, peerinfo);
-    else
-        logeventf(ssh, "Connection sharing downstream #%u connected", id);
-}
-
-void ssh_sharing_downstream_disconnected(Ssh ssh, unsigned id)
-{
-    logeventf(ssh, "Connection sharing downstream #%u disconnected", id);
-    ssh_check_termination(ssh);
-}
-
-void ssh_sharing_logf(Ssh ssh, unsigned id, const char *logfmt, ...)
-{
-    va_list ap;
-    char *buf;
-
-    va_start(ap, logfmt);
-    buf = dupvprintf(logfmt, ap);
-    va_end(ap);
-    if (id)
-        logeventf(ssh, "Connection sharing downstream #%u: %s", id, buf);
-    else
-        logeventf(ssh, "Connection sharing: %s", buf);
-    sfree(buf);
-}
-
 /*
  * Close any local socket and free any local resources associated with
  * a channel.  This converts the channel into a zombie.
@@ -7416,10 +7411,11 @@ static void ssh2_msg_global_request(Ssh ssh, PktIn *pktin)
     }
 }
 
-struct X11FakeAuth *ssh_sharing_add_x11_display(
-    Ssh ssh, int authtype, ssh_sharing_connstate *share_cs,
+static struct X11FakeAuth *(ssh_add_sharing_x11_display)(
+    ConnectionLayer *cl, int authtype, ssh_sharing_connstate *share_cs,
     share_channel *share_chan)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     struct X11FakeAuth *auth;
 
     /*
@@ -7434,8 +7430,10 @@ struct X11FakeAuth *ssh_sharing_add_x11_display(
     return auth;
 }
 
-void ssh_sharing_remove_x11_display(Ssh ssh, struct X11FakeAuth *auth)
+static void (ssh_remove_sharing_x11_display)(
+    ConnectionLayer *cl, struct X11FakeAuth *auth)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     del234(ssh->x11authtree, auth);
     x11_free_fake_auth(auth);
 }
@@ -9477,8 +9475,8 @@ static void do_ssh2_connection(void *vctx)
 	     * Just start a direct-tcpip channel and use it as the main
 	     * channel.
 	     */
-            mc->sc = ssh_send_port_open
-                (ssh, conf_get_str(ssh->conf, CONF_ssh_nc_host),
+            mc->sc = ssh_lportfwd_open
+                (&ssh->cl, conf_get_str(ssh->conf, CONF_ssh_nc_host),
                  conf_get_int(ssh->conf, CONF_ssh_nc_port),
                  "main channel", &mc->chan);
             ssh->mainchan = FROMFIELD(mc->sc, struct ssh_channel, sc);
@@ -9603,7 +9601,7 @@ static void do_ssh2_connection(void *vctx)
         }
 
 	/* Potentially enable agent forwarding. */
-	if (ssh_agent_forwarding_permitted(ssh))
+        if (ssh_agent_forwarding_permitted(&ssh->cl))
 	    ssh2_setup_agent(ssh->mainchan, NULL, NULL);
 
 	/* Now allocate a pty for the session. */
@@ -10351,9 +10349,12 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
     ssh->term_width = conf_get_int(ssh->conf, CONF_width);
     ssh->term_height = conf_get_int(ssh->conf, CONF_height);
 
+    ssh->cl.vt = &ssh_connlayer_vtable;
+    ssh->cl.frontend = ssh->frontend;
+
     ssh->channels = NULL;
     ssh->rportfwds = NULL;
-    ssh->portfwdmgr = portfwdmgr_new(ssh);
+    ssh->portfwdmgr = portfwdmgr_new(&ssh->cl);
 
     ssh->send_ok = 0;
     ssh->editing = 0;
@@ -10861,8 +10862,10 @@ static void ssh_special(Backend *be, Telnet_Special code)
     }
 }
 
-unsigned ssh_alloc_sharing_channel(Ssh ssh, ssh_sharing_connstate *connstate)
+static unsigned (ssh_alloc_sharing_channel)(
+    ConnectionLayer *cl, ssh_sharing_connstate *connstate)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     struct ssh_channel *c;
     c = snew(struct ssh_channel);
 
@@ -10873,8 +10876,9 @@ unsigned ssh_alloc_sharing_channel(Ssh ssh, ssh_sharing_connstate *connstate)
     return c->localid;
 }
 
-void ssh_delete_sharing_channel(Ssh ssh, unsigned localid)
+static void (ssh_delete_sharing_channel)(ConnectionLayer *cl, unsigned localid)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     struct ssh_channel *c;
 
     c = find234(ssh->channels, &localid, ssh_channelfind);
@@ -10882,10 +10886,11 @@ void ssh_delete_sharing_channel(Ssh ssh, unsigned localid)
         ssh_channel_destroy(c);
 }
 
-void ssh_send_packet_from_downstream(Ssh ssh, unsigned id, int type,
-                                     const void *data, int datalen,
-                                     const char *additional_log_text)
+static void (ssh_send_packet_from_downstream)(
+        ConnectionLayer *cl, unsigned id, int type,
+        const void *data, int datalen, const char *additional_log_text)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     PktOut *pkt;
 
     pkt = ssh_bpp_new_pktout(ssh->bpp, type);
@@ -10920,9 +10925,11 @@ static void ssh_unthrottle(Backend *be, int bufsize)
     queue_idempotent_callback(&ssh->incoming_data_consumer);
 }
 
-SshChannel *ssh_send_port_open(Ssh ssh, const char *hostname, int port,
-                               const char *org, Channel *chan)
+static SshChannel *(ssh_lportfwd_open)(
+    ConnectionLayer *cl, const char *hostname, int port,
+    const char *org, Channel *chan)
 {
+    Ssh ssh = FROMFIELD(cl, struct ssh_tag, cl);
     struct ssh_channel *c = snew(struct ssh_channel);
     PktOut *pktout;
 

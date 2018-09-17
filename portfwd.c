@@ -35,8 +35,8 @@ typedef enum {
 } SocksState;
 
 typedef struct PortForwarding {
-    SshChannel *c;                /* channel structure held by SSH backend */
-    Ssh ssh;                      /* instance of SSH backend itself */
+    SshChannel *c;         /* channel structure held by SSH connection layer */
+    ConnectionLayer *cl;   /* the connection layer itself */
     /* Note that ssh need not be filled in if c is non-NULL */
     Socket s;
     int input_wanted;
@@ -61,7 +61,7 @@ typedef struct PortForwarding {
 } PortForwarding;
 
 struct PortListener {
-    Ssh ssh;                      /* instance of SSH backend itself */
+    ConnectionLayer *cl;
     Socket s;
     int is_dynamic;
     /*
@@ -160,8 +160,9 @@ static void pfl_closing(Plug plug, const char *error_msg, int error_code,
     pfl_terminate(pl);
 }
 
-static SshChannel *wrap_send_port_open(
-    Ssh ssh, const char *hostname, int port, Socket s, Channel *chan)
+static SshChannel *wrap_lportfwd_open(
+    ConnectionLayer *cl, const char *hostname, int port,
+    Socket s, Channel *chan)
 {
     char *peerinfo, *description;
     SshChannel *toret;
@@ -174,7 +175,7 @@ static SshChannel *wrap_send_port_open(
         description = dupstr("forwarding");
     }
 
-    toret = ssh_send_port_open(ssh, hostname, port, description, chan);
+    toret = ssh_lportfwd_open(cl, hostname, port, description, chan);
 
     sfree(description);
     return toret;
@@ -419,8 +420,8 @@ static void pfd_receive(Plug plug, int urgent, char *data, int len)
 	 */
 	sk_set_frozen(pf->s, 1);
 
-        pf->c = wrap_send_port_open(pf->ssh, pf->hostname, pf->port, pf->s,
-                                    &pf->chan);
+        pf->c = wrap_lportfwd_open(pf->cl, pf->hostname, pf->port, pf->s,
+                                   &pf->chan);
     }
     if (pf->ready)
         sshfwd_write(pf->c, data, len);
@@ -480,7 +481,7 @@ static int pfl_accepting(Plug p, accept_fn_t constructor, accept_ctx_t ctx)
     pf->input_wanted = TRUE;
 
     pf->c = NULL;
-    pf->ssh = pl->ssh;
+    pf->cl = pl->cl;
 
     pf->s = s = constructor(ctx, &pf->plugvt);
     if ((err = sk_socket_error(s)) != NULL) {
@@ -501,8 +502,8 @@ static int pfl_accepting(Plug p, accept_fn_t constructor, accept_ctx_t ctx)
 	pf->socks_state = SOCKS_NONE;
 	pf->hostname = dupstr(pl->hostname);
 	pf->port = pl->port;	
-        pf->c = wrap_send_port_open(pl->ssh, pf->hostname, pf->port,
-                                    s, &pf->chan);
+        pf->c = wrap_lportfwd_open(pl->cl, pf->hostname, pf->port,
+                                   s, &pf->chan);
     }
 
     return 0;
@@ -525,7 +526,7 @@ static const Plug_vtable PortListener_plugvt = {
  * dynamically allocated error message string.
  */
 static char *pfl_listen(char *desthost, int destport, char *srcaddr,
-                        int port, Ssh ssh, Conf *conf,
+                        int port, ConnectionLayer *cl, Conf *conf,
                         struct PortListener **pl_ret, int address_family)
 {
     const char *err;
@@ -542,7 +543,7 @@ static char *pfl_listen(char *desthost, int destport, char *srcaddr,
 	pl->is_dynamic = FALSE;
     } else
 	pl->is_dynamic = TRUE;
-    pl->ssh = ssh;
+    pl->cl = cl;
 
     pl->s = new_listener(srcaddr, port, &pl->plugvt,
                          !conf_get_int(conf, CONF_lport_acceptall),
@@ -637,7 +638,7 @@ static void pfd_open_failure(Channel *chan, const char *errtext)
     assert(chan->vt == &PortForwarding_channelvt);
     PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
 
-    logeventf(ssh_get_frontend(pf->ssh),
+    logeventf(pf->cl->frontend,
               "Forwarded connection refused by server%s%s",
               errtext ? ": " : "", errtext ? errtext : "");
 }
@@ -702,18 +703,16 @@ void pfr_free(PortFwdRecord *pfr)
 }
 
 struct PortFwdManager {
-    Ssh ssh;
-    Frontend *frontend;
+    ConnectionLayer *cl;
     Conf *conf;
     tree234 *forwardings;
 };
 
-PortFwdManager *portfwdmgr_new(Ssh ssh)
+PortFwdManager *portfwdmgr_new(ConnectionLayer *cl)
 {
     PortFwdManager *mgr = snew(PortFwdManager);
 
-    mgr->ssh = ssh;
-    mgr->frontend = ssh_get_frontend(ssh);
+    mgr->cl = cl;
     mgr->conf = NULL;
     mgr->forwardings = newtree234(pfr_cmp);
 
@@ -801,7 +800,7 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
             sserv = 1;
             sport = net_service_lookup(sports);
             if (!sport) {
-                logeventf(mgr->frontend, "Service lookup failed for source"
+                logeventf(mgr->cl->frontend, "Service lookup failed for source"
                           " port \"%s\"", sports);
             }
         }
@@ -827,7 +826,7 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
                 dserv = 1;
                 dport = net_service_lookup(dports);
                 if (!dport) {
-                    logeventf(mgr->frontend,
+                    logeventf(mgr->cl->frontend,
                               "Service lookup failed for destination"
                               " port \"%s\"", dports);
                 }
@@ -897,7 +896,7 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
                 message = msg2;
             }
 
-            logeventf(mgr->frontend, "Cancelling %s", message);
+            logeventf(mgr->cl->frontend, "Cancelling %s", message);
             sfree(message);
 
             /* pfr->remote or pfr->local may be NULL if setting up a
@@ -916,7 +915,7 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
                  * connections the server tries to make on it are
                  * rejected.
                  */
-                ssh_rportfwd_remove(mgr->ssh, pfr->remote);
+                ssh_rportfwd_remove(mgr->cl, pfr->remote);
             } else if (pfr->local) {
                 pfl_terminate(pfr->local);
             }
@@ -954,10 +953,10 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
             if (pfr->type == 'L') {
                 char *err = pfl_listen(pfr->daddr, pfr->dport,
                                        pfr->saddr, pfr->sport,
-                                       mgr->ssh, conf, &pfr->local,
+                                       mgr->cl, conf, &pfr->local,
                                        pfr->addressfamily);
 
-                logeventf(mgr->frontend,
+                logeventf(mgr->cl->frontend,
                           "Local %sport %s forwarding to %s%s%s",
                           pfr->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
                           pfr->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
@@ -967,10 +966,10 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
                     sfree(err);
             } else if (pfr->type == 'D') {
                 char *err = pfl_listen(NULL, -1, pfr->saddr, pfr->sport,
-                                       mgr->ssh, conf, &pfr->local,
+                                       mgr->cl, conf, &pfr->local,
                                        pfr->addressfamily);
 
-                logeventf(mgr->frontend,
+                logeventf(mgr->cl->frontend,
                           "Local %sport %s SOCKS dynamic forwarding%s%s",
                           pfr->addressfamily == ADDRTYPE_IPV4 ? "IPv4 " :
                           pfr->addressfamily == ADDRTYPE_IPV6 ? "IPv6 " : "",
@@ -991,16 +990,16 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
                 }
 
                 pfr->remote = ssh_rportfwd_alloc(
-                    mgr->ssh, shost, pfr->sport, pfr->daddr, pfr->dport,
+                    mgr->cl, shost, pfr->sport, pfr->daddr, pfr->dport,
                     pfr->addressfamily, sportdesc, pfr, NULL);
 
                 if (!pfr->remote) {
-                    logeventf(mgr->frontend,
+                    logeventf(mgr->cl->frontend,
                               "Duplicate remote port forwarding to %s:%d",
                               pfr->daddr, pfr->dport);
                     pfr_free(pfr);
                 } else {
-                    logeventf(mgr->frontend, "Requesting remote port %s"
+                    logeventf(mgr->cl->frontend, "Requesting remote port %s"
                               " forward to %s", sportdesc, dportdesc);
                 }
             }
@@ -1049,7 +1048,7 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
     pf->input_wanted = TRUE;
     pf->ready = 1;
     pf->c = c;
-    pf->ssh = mgr->ssh;
+    pf->cl = mgr->cl;
     pf->socks_state = SOCKS_NONE;
 
     pf->s = new_connection(addr, dummy_realhost, port,
