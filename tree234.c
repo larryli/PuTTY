@@ -1014,6 +1014,9 @@ void *del234(tree234 * t, void *e)
  */
 
 #include <stdarg.h>
+#include <string.h>
+
+int n_errors = 0;
 
 /*
  * Error reporting function.
@@ -1026,6 +1029,7 @@ void error(char *fmt, ...)
     vfprintf(stdout, fmt, ap);
     va_end(ap);
     printf("\n");
+    n_errors++;
 }
 
 /* The array representation of the data. */
@@ -1480,7 +1484,8 @@ int main(void)
 	delpostest(j);
     }
 
-    return 0;
+    printf("%d errors found\n", n_errors);
+    return (n_errors != 0);
 }
 
 #endif
