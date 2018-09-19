@@ -1334,3 +1334,8 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset);
 #define alloc_channel_id(tree, type) \
     TYPECHECK(&((type *)0)->localid == (unsigned *)0, \
               alloc_channel_id_general(tree, offsetof(type, localid)))
+
+int first_in_commasep_string(char const *needle, char const *haystack,
+                             int haylen);
+int in_commasep_string(char const *needle, char const *haystack, int haylen);
+void add_to_commasep(strbuf *buf, const char *data);

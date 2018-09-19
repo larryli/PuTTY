@@ -3465,59 +3465,6 @@ static void ssh1_protocol_setup(Ssh ssh)
 }
 
 /*
- * Utility routines for decoding comma-separated strings in KEXINIT.
- */
-static int first_in_commasep_string(char const *needle, char const *haystack,
-				    int haylen)
-{
-    int needlen;
-    if (!needle || !haystack)	       /* protect against null pointers */
-	return 0;
-    needlen = strlen(needle);
-
-    if (haylen >= needlen &&       /* haystack is long enough */
-	!memcmp(needle, haystack, needlen) &&	/* initial match */
-	(haylen == needlen || haystack[needlen] == ',')
-	/* either , or EOS follows */
-	)
-	return 1;
-    return 0;
-}
-
-static int in_commasep_string(char const *needle, char const *haystack,
-			      int haylen)
-{
-    char *p;
-
-    if (!needle || !haystack)	       /* protect against null pointers */
-	return 0;
-    /*
-     * Is it at the start of the string?
-     */
-    if (first_in_commasep_string(needle, haystack, haylen))
-	return 1;
-    /*
-     * If not, search for the next comma and resume after that.
-     * If no comma found, terminate.
-     */
-    p = memchr(haystack, ',', haylen);
-    if (!p) return 0;
-    /* + 1 to skip over comma */
-    return in_commasep_string(needle, p + 1, haylen - (p + 1 - haystack));
-}
-
-/*
- * Add a value to a strbuf containing a comma-separated list.
- */
-static void add_to_commasep(strbuf *buf, const char *data)
-{
-    if (buf->len > 0)
-	put_byte(buf, ',');
-    put_data(buf, data, strlen(data));
-}
-
-
-/*
  * SSH-2 key derivation (RFC 4253 section 7.2).
  */
 static void ssh2_mkkey(Ssh ssh, strbuf *out, Bignum K, unsigned char *H,
