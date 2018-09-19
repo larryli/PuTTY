@@ -5922,11 +5922,6 @@ int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
     return term_data(term, is_stderr, data, len);
 }
 
-int from_backend_untrusted(Frontend *frontend, const void *data, int len)
-{
-    return term_data_untrusted(term, data, len);
-}
-
 int from_backend_eof(Frontend *frontend)
 {
     return TRUE;   /* do respond to incoming EOF with outgoing */

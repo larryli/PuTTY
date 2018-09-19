@@ -448,11 +448,16 @@ static void console_close(FILE *outfp, int infd)
 
 static void console_prompt_text(FILE *outfp, const char *data, int len)
 {
-    int i;
+    bufchain sanitised;
+    void *vdata;
 
-    for (i = 0; i < len; i++)
-	if ((data[i] & 0x60) || (data[i] == '\n'))
-	    fputc(data[i], outfp);
+    bufchain_init(&sanitised);
+    sanitise_term_data(&sanitised, data, len);
+    while (bufchain_size(&sanitised) > 0) {
+        bufchain_prefix(&sanitised, &vdata, &len);
+        fwrite(vdata, 1, len, outfp);
+        bufchain_consume(&sanitised, len);
+    }
     fflush(outfp);
 }
 

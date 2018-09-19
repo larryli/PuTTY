@@ -6624,10 +6624,8 @@ int term_ldisc(Terminal *term, int option)
     return FALSE;
 }
 
-int term_data(Terminal *term, int is_stderr, const void *data, int len)
+static void term_added_data(Terminal *term)
 {
-    bufchain_add(&term->inbuf, data, len);
-
     if (!term->in_term_out) {
 	term->in_term_out = TRUE;
 	term_reset_cblink(term);
@@ -6640,6 +6638,12 @@ int term_data(Terminal *term, int is_stderr, const void *data, int len)
 	    term_out(term);
 	term->in_term_out = FALSE;
     }
+}
+
+int term_data(Terminal *term, int is_stderr, const void *data, int len)
+{
+    bufchain_add(&term->inbuf, data, len);
+    term_added_data(term);
 
     /*
      * term_out() always completely empties inbuf. Therefore,
@@ -6663,23 +6667,10 @@ int term_data(Terminal *term, int is_stderr, const void *data, int len)
     return 0;
 }
 
-/*
- * Write untrusted data to the terminal.
- * The only control character that should be honoured is \n (which
- * will behave as a CRLF).
- */
-int term_data_untrusted(Terminal *term, const void *vdata, int len)
+static void term_data_untrusted(Terminal *term, const void *data, int len)
 {
-    const char *data = (const char *)vdata;
-    int i;
-    /* FIXME: more sophisticated checking? */
-    for (i = 0; i < len; i++) {
-	if (data[i] == '\n')
-	    term_data(term, 1, "\r\n", 2);
-	else if (data[i] & 0x60)
-	    term_data(term, 1, data + i, 1);
-    }
-    return 0; /* assumes that term_data() always returns 0 */
+    sanitise_term_data(&term->inbuf, data, len);
+    term_added_data(term);
 }
 
 void term_provide_logctx(Terminal *term, LogContext *logctx)

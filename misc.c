@@ -827,6 +827,33 @@ int bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
 }
 
 /* ----------------------------------------------------------------------
+ * Sanitise terminal output that we have reason not to trust, e.g.
+ * because it appears in the login banner or password prompt from a
+ * server, which we'd rather not permit to use arbitrary escape
+ * sequences.
+ */
+
+void sanitise_term_data(bufchain *out, const void *vdata, int len)
+{
+    const char *data = (const char *)vdata;
+    int i;
+
+    /*
+     * FIXME: this method of sanitisation is ASCII-centric. It would
+     * be nice to permit SSH banners and the like to contain printable
+     * Unicode, but that would need a lot more complicated code here
+     * (not to mention knowing what character set it should interpret
+     * the data as).
+     */
+    for (i = 0; i < len; i++) {
+        if (data[i] == '\n')
+            bufchain_add(out, "\r\n", 2);
+        else if (data[i] >= ' ' && data[i] < 0x7F)
+            bufchain_add(out, data + i, 1);
+    }
+}
+
+/* ----------------------------------------------------------------------
  * My own versions of malloc, realloc and free. Because I want
  * malloc and realloc to bomb out and exit the program if they run
  * out of memory, realloc to reliably call malloc if passed a NULL

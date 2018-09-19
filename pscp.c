@@ -196,15 +196,6 @@ int from_backend(Frontend *frontend, int is_stderr,
 
     return 0;
 }
-int from_backend_untrusted(Frontend *frontend, const void *data, int len)
-{
-    /*
-     * No "untrusted" output should get here (the way the code is
-     * currently, it's all diverted by FLAG_STDERR).
-     */
-    assert(!"Unexpected call to from_backend_untrusted()");
-    return 0; /* not reached */
-}
 int from_backend_eof(Frontend *frontend)
 {
     /*

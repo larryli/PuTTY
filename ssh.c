@@ -1078,14 +1078,6 @@ static void c_write(Ssh ssh, const void *buf, int len)
 	from_backend(ssh->frontend, 1, buf, len);
 }
 
-static void c_write_untrusted(Ssh ssh, const void *buf, int len)
-{
-    if (flags & FLAG_STDERR)
-	c_write_stderr(0, buf, len);
-    else
-	from_backend_untrusted(ssh->frontend, buf, len);
-}
-
 static void c_write_str(Ssh ssh, const char *buf)
 {
     c_write(ssh, buf, strlen(buf));
@@ -7066,7 +7058,7 @@ static void ssh2_msg_userauth_banner(Ssh ssh, PktIn *pktin)
 	bufchain_size(&ssh->banner) <= 131072) {
 	ptrlen banner = get_string(pktin);
 	if (banner.len)
-	    bufchain_add(&ssh->banner, banner.ptr, banner.len);
+            sanitise_term_data(&ssh->banner, banner.ptr, banner.len);
     }
 }
 
@@ -7679,11 +7671,15 @@ static void do_ssh2_userauth(void *vctx)
 		 * banner _anyway_, and moreover the printing of
 		 * the banner will screw up processing on the
 		 * output of (say) plink.)
+                 *
+                 * The banner data has been sanitised already by this
+                 * point, so we can safely send it straight to the
+                 * output channel.
 		 */
 		if (size && (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
 		    char *banner = snewn(size, char);
 		    bufchain_fetch(&ssh->banner, banner, size);
-		    c_write_untrusted(ssh, banner, size);
+                    c_write(ssh, banner, size);
 		    sfree(banner);
 		}
 		bufchain_clear(&ssh->banner);
