@@ -17,7 +17,7 @@ struct BinaryPacketProtocolVtable {
 struct BinaryPacketProtocol {
     const struct BinaryPacketProtocolVtable *vt;
     bufchain *in_raw, *out_raw;
-    PacketQueue *in_pq;
+    PktInQueue *in_pq;
     PacketLogSettings *pls;
     LogContext *logctx;
 

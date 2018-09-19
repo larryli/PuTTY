@@ -547,61 +547,83 @@ static PktOut *ssh2_gss_authpacket(Ssh ssh, Ssh_gss_ctx gss_ctx,
 #endif
 static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin);
 
-void pq_init(struct PacketQueue *pq)
+void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node)
 {
-    pq->end.next = pq->end.prev = &pq->end;
-}
-
-void pq_push(struct PacketQueue *pq, PktIn *pkt)
-{
-    PacketQueueNode *node = &pkt->qnode;
     assert(!node->next);
     assert(!node->prev);
-    node->next = &pq->end;
-    node->prev = pq->end.prev;
+    node->next = &pqb->end;
+    node->prev = pqb->end.prev;
     node->next->prev = node;
     node->prev->next = node;
 }
 
-void pq_push_front(struct PacketQueue *pq, PktIn *pkt)
+void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node)
 {
-    PacketQueueNode *node = &pkt->qnode;
     assert(!node->next);
     assert(!node->prev);
-    node->prev = &pq->end;
-    node->next = pq->end.next;
+    node->prev = &pqb->end;
+    node->next = pqb->end.next;
     node->next->prev = node;
     node->prev->next = node;
 }
 
-PktIn *pq_peek(struct PacketQueue *pq)
+static PktIn *pq_in_get(PacketQueueBase *pqb, int pop)
 {
-    if (pq->end.next == &pq->end)
-        return NULL;
-    return FROMFIELD(pq->end.next, PktIn, qnode);
-}
-
-PktIn *pq_pop(struct PacketQueue *pq)
-{
-    PacketQueueNode *node = pq->end.next;
-    if (node == &pq->end)
+    PacketQueueNode *node = pqb->end.next;
+    if (node == &pqb->end)
         return NULL;
 
-    node->next->prev = node->prev;
-    node->prev->next = node->next;
-    node->prev = node->next = NULL;
+    if (pop) {
+        node->next->prev = node->prev;
+        node->prev->next = node->next;
+        node->prev = node->next = NULL;
+    }
 
     return FROMFIELD(node, PktIn, qnode);
 }
 
-void pq_clear(struct PacketQueue *pq)
+static PktOut *pq_out_get(PacketQueueBase *pqb, int pop)
+{
+    PacketQueueNode *node = pqb->end.next;
+    if (node == &pqb->end)
+        return NULL;
+
+    if (pop) {
+        node->next->prev = node->prev;
+        node->prev->next = node->next;
+        node->prev = node->next = NULL;
+    }
+
+    return FROMFIELD(node, PktOut, qnode);
+}
+
+void pq_in_init(PktInQueue *pq)
+{
+    pq->pqb.end.next = pq->pqb.end.prev = &pq->pqb.end;
+    pq->get = pq_in_get;
+}
+
+void pq_out_init(PktOutQueue *pq)
+{
+    pq->pqb.end.next = pq->pqb.end.prev = &pq->pqb.end;
+    pq->get = pq_out_get;
+}
+
+void pq_in_clear(PktInQueue *pq)
 {
     PktIn *pkt;
     while ((pkt = pq_pop(pq)) != NULL)
         ssh_unref_packet(pkt);
 }
 
-int pq_empty_on_to_front_of(struct PacketQueue *src, struct PacketQueue *dest)
+void pq_out_clear(PktOutQueue *pq)
+{
+    PktOut *pkt;
+    while ((pkt = pq_pop(pq)) != NULL)
+        ssh_free_pktout(pkt);
+}
+
+int pq_base_empty_on_to_front_of(PacketQueueBase *src, PacketQueueBase *dest)
 {
     struct PacketQueueNode *srcfirst, *srclast;
 
@@ -727,8 +749,7 @@ struct ssh_tag {
     int sent_console_eof;
     int got_pty;           /* affects EOF behaviour on main channel */
 
-    PktOut **queue;
-    int queuelen, queuesize;
+    PktOutQueue outq;
     int queueing;
 
     /*
@@ -765,22 +786,22 @@ struct ssh_tag {
     int incoming_data_seen_eof;
     char *incoming_data_eof_message;
 
-    struct PacketQueue pq_full;
+    PktInQueue pq_full;
     struct IdempotentCallback pq_full_consumer;
 
-    struct PacketQueue pq_ssh1_login;
+    PktInQueue pq_ssh1_login;
     struct IdempotentCallback ssh1_login_icb;
 
-    struct PacketQueue pq_ssh1_connection;
+    PktInQueue pq_ssh1_connection;
     struct IdempotentCallback ssh1_connection_icb;
 
-    struct PacketQueue pq_ssh2_transport;
+    PktInQueue pq_ssh2_transport;
     struct IdempotentCallback ssh2_transport_icb;
 
-    struct PacketQueue pq_ssh2_userauth;
+    PktInQueue pq_ssh2_userauth;
     struct IdempotentCallback ssh2_userauth_icb;
 
-    struct PacketQueue pq_ssh2_connection;
+    PktInQueue pq_ssh2_connection;
     struct IdempotentCallback ssh2_connection_icb;
 
     bufchain user_input;
@@ -1166,28 +1187,13 @@ static void ssh_pkt_BinarySink_write(BinarySink *bs,
 }
 
 /*
- * Queue an SSH-2 packet.
- */
-static void ssh2_pkt_queue(Ssh ssh, PktOut *pkt)
-{
-    assert(ssh->queueing);
-
-    if (ssh->queuelen >= ssh->queuesize) {
-	ssh->queuesize = ssh->queuelen + 32;
-	ssh->queue = sresize(ssh->queue, ssh->queuesize, PktOut *);
-    }
-
-    ssh->queue[ssh->queuelen++] = pkt;
-}
-
-/*
  * Either queue or send a packet, depending on whether queueing is
  * set.
  */
 static void ssh2_pkt_send(Ssh ssh, PktOut *pkt)
 {
     if (ssh->queueing) {
-	ssh2_pkt_queue(ssh, pkt);
+        pq_push(&ssh->outq, pkt);
     } else {
 	ssh_pkt_write(ssh, pkt);
     }
@@ -1226,13 +1232,12 @@ static void ssh_send_outgoing_data(void *ctx)
  */
 static void ssh2_pkt_queuesend(Ssh ssh)
 {
-    int i;
+    PktOut *pkt;
 
     assert(!ssh->queueing);
 
-    for (i = 0; i < ssh->queuelen; i++)
-	ssh_pkt_write(ssh, ssh->queue[i]);
-    ssh->queuelen = 0;
+    while ((pkt = pq_pop(&ssh->outq)) != NULL)
+        ssh_pkt_write(ssh, pkt);
 }
 
 #if 0
@@ -1320,7 +1325,7 @@ static void ssh2_add_sigblob(Ssh ssh, PktOut *pkt,
 
 static void ssh_feed_to_bpp(Ssh ssh)
 {
-    PacketQueueNode *prev_tail = ssh->pq_full.end.prev;
+    PacketQueueNode *prev_tail = ssh->pq_full.pqb.end.prev;
 
     assert(ssh->bpp);
     ssh_bpp_handle_input(ssh->bpp);
@@ -1344,7 +1349,7 @@ static void ssh_feed_to_bpp(Ssh ssh)
         ssh->disconnect_message_seen = TRUE;
     }
 
-    if (ssh->pq_full.end.prev != prev_tail)
+    if (ssh->pq_full.pqb.end.prev != prev_tail)
         queue_idempotent_callback(&ssh->pq_full_consumer);
 }
 
@@ -9731,27 +9736,27 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
     ssh->incoming_data_consumer.fn = ssh_process_incoming_data;
     ssh->incoming_data_consumer.ctx = ssh;
     ssh->incoming_data_consumer.queued = FALSE;
-    pq_init(&ssh->pq_full);
+    pq_in_init(&ssh->pq_full);
     ssh->pq_full_consumer.fn = ssh_process_pq_full;
     ssh->pq_full_consumer.ctx = ssh;
     ssh->pq_full_consumer.queued = FALSE;
-    pq_init(&ssh->pq_ssh1_login);
+    pq_in_init(&ssh->pq_ssh1_login);
     ssh->ssh1_login_icb.fn = do_ssh1_login;
     ssh->ssh1_login_icb.ctx = ssh;
     ssh->ssh1_login_icb.queued = FALSE;
-    pq_init(&ssh->pq_ssh1_connection);
+    pq_in_init(&ssh->pq_ssh1_connection);
     ssh->ssh1_connection_icb.fn = do_ssh1_connection;
     ssh->ssh1_connection_icb.ctx = ssh;
     ssh->ssh1_connection_icb.queued = FALSE;
-    pq_init(&ssh->pq_ssh2_transport);
+    pq_in_init(&ssh->pq_ssh2_transport);
     ssh->ssh2_transport_icb.fn = do_ssh2_transport;
     ssh->ssh2_transport_icb.ctx = ssh;
     ssh->ssh2_transport_icb.queued = FALSE;
-    pq_init(&ssh->pq_ssh2_userauth);
+    pq_in_init(&ssh->pq_ssh2_userauth);
     ssh->ssh2_userauth_icb.fn = do_ssh2_userauth;
     ssh->ssh2_userauth_icb.ctx = ssh;
     ssh->ssh2_userauth_icb.queued = FALSE;
-    pq_init(&ssh->pq_ssh2_connection);
+    pq_in_init(&ssh->pq_ssh2_connection);
     ssh->ssh2_connection_icb.fn = do_ssh2_connection;
     ssh->ssh2_connection_icb.ctx = ssh;
     ssh->ssh2_connection_icb.queued = FALSE;
@@ -9771,8 +9776,7 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
     ssh->mainchan = NULL;
     ssh->throttled_all = 0;
     ssh->v1_stdout_throttling = 0;
-    ssh->queue = NULL;
-    ssh->queuelen = ssh->queuesize = 0;
+    pq_out_init(&ssh->outq);
     ssh->queueing = FALSE;
     ssh->qhead = ssh->qtail = NULL;
     ssh->deferred_rekey_reason = NULL;
@@ -9862,9 +9866,7 @@ static void ssh_free(Backend *be)
         dh_cleanup(ssh->dh_ctx);
     sfree(ssh->savedhost);
 
-    while (ssh->queuelen-- > 0)
-	ssh_free_pktout(ssh->queue[ssh->queuelen]);
-    sfree(ssh->queue);
+    pq_out_clear(&ssh->outq);
 
     while (ssh->qhead) {
 	struct queued_handler *qh = ssh->qhead;
@@ -9920,12 +9922,12 @@ static void ssh_free(Backend *be)
     bufchain_clear(&ssh->incoming_data);
     bufchain_clear(&ssh->outgoing_data);
     sfree(ssh->incoming_data_eof_message);
-    pq_clear(&ssh->pq_full);
-    pq_clear(&ssh->pq_ssh1_login);
-    pq_clear(&ssh->pq_ssh1_connection);
-    pq_clear(&ssh->pq_ssh2_transport);
-    pq_clear(&ssh->pq_ssh2_userauth);
-    pq_clear(&ssh->pq_ssh2_connection);
+    pq_in_clear(&ssh->pq_full);
+    pq_in_clear(&ssh->pq_ssh1_login);
+    pq_in_clear(&ssh->pq_ssh1_connection);
+    pq_in_clear(&ssh->pq_ssh2_transport);
+    pq_in_clear(&ssh->pq_ssh2_userauth);
+    pq_in_clear(&ssh->pq_ssh2_connection);
     bufchain_clear(&ssh->user_input);
     sfree(ssh->v_c);
     sfree(ssh->v_s);

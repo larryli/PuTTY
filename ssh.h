@@ -81,20 +81,46 @@ typedef struct PktOut {
     unsigned downstream_id;
     const char *additional_log_text;
 
+    PacketQueueNode qnode;  /* for linking this packet on to a queue */
     BinarySink_IMPLEMENTATION;
 } PktOut;
 
-typedef struct PacketQueue {
+typedef struct PacketQueueBase {
     PacketQueueNode end;
-} PacketQueue;
+} PacketQueueBase;
 
-void pq_init(struct PacketQueue *pq);
-void pq_push(struct PacketQueue *pq, PktIn *pkt);
-void pq_push_front(struct PacketQueue *pq, PktIn *pkt);
-PktIn *pq_peek(struct PacketQueue *pq);
-PktIn *pq_pop(struct PacketQueue *pq);
-void pq_clear(struct PacketQueue *pq);
-int pq_empty_on_to_front_of(struct PacketQueue *src, struct PacketQueue *dest);
+typedef struct PktInQueue {
+    PacketQueueBase pqb;
+    PktIn *(*get)(PacketQueueBase *, int pop);
+} PktInQueue;
+
+typedef struct PktOutQueue {
+    PacketQueueBase pqb;
+    PktOut *(*get)(PacketQueueBase *, int pop);
+} PktOutQueue;
+
+void pq_base_init(PacketQueueBase *pqb);
+void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node);
+void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node);
+int pq_base_empty_on_to_front_of(PacketQueueBase *src, PacketQueueBase *dest);
+
+void pq_in_init(PktInQueue *pq);
+void pq_out_init(PktOutQueue *pq);
+void pq_in_clear(PktInQueue *pq);
+void pq_out_clear(PktOutQueue *pq);
+
+#define pq_push(pq, pkt)                                \
+    TYPECHECK((pq)->get(&(pq)->pqb, FALSE) == pkt,      \
+              pq_base_push(&(pq)->pqb, &(pkt)->qnode))
+#define pq_push_front(pq, pkt)                                  \
+    TYPECHECK((pq)->get(&(pq)->pqb, FALSE) == pkt,              \
+              pq_base_push_front(&(pq)->pqb, &(pkt)->qnode))
+#define pq_peek(pq) ((pq)->get(&(pq)->pqb, FALSE))
+#define pq_pop(pq) ((pq)->get(&(pq)->pqb, TRUE))
+#define pq_empty_on_to_front_of(src, dst)                               \
+    TYPECHECK((src)->get(&(src)->pqb, FALSE) ==                         \
+              (dst)->get(&(dst)->pqb, FALSE),                           \
+              pq_base_empty_on_to_front_of(&(src)->pqb, &(dst)->pqb))
 
 /*
  * Packet type contexts, so that ssh2_pkt_type can correctly decode
