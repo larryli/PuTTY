@@ -59,7 +59,6 @@ typedef struct PktIn {
     int refcount;
     int type;
     unsigned long sequence; /* SSH-2 incoming sequence number */
-    long encrypted_len;	    /* for SSH-2 total-size counting */
     PacketQueueNode qnode;  /* for linking this packet on to a queue */
     BinarySource_IMPLEMENTATION;
 } PktIn;
@@ -71,7 +70,6 @@ typedef struct PktOut {
     long minlen;            /* SSH-2: ensure wire length is at least this */
     unsigned char *data;    /* allocated storage */
     long maxlen;	    /* amount of storage allocated for `data' */
-    long encrypted_len;	    /* for SSH-2 total-size counting */
 
     /* Extra metadata used in SSH packet logging mode, allowing us to
      * log in the packet header line that the packet came from a

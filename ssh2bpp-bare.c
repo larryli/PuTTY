@@ -79,8 +79,6 @@ static void ssh2_bare_bpp_handle_input(BinaryPacketProtocol *bpp)
         s->pktin->refcount = 1;
         s->data = snew_plus_get_aux(s->pktin);
 
-        s->pktin->encrypted_len = s->packetlen;
-
         s->pktin->sequence = s->incoming_sequence++;
 
         /*
