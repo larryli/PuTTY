@@ -661,6 +661,7 @@ enum RekeyClass {
 
 struct ssh_tag {
     char *v_c, *v_s;
+    struct ssh_version_receiver version_receiver;
     ssh_hash *exhash;
 
     Socket s;
@@ -795,7 +796,6 @@ struct ssh_tag {
     BinaryPacketProtocol *bpp;
 
     void (*general_packet_processing)(Ssh ssh, PktIn *pkt);
-    void (*current_incoming_data_fn) (Ssh ssh);
     void (*current_user_input_fn) (Ssh ssh);
 
     /*
@@ -1149,26 +1149,6 @@ static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
     queue_idempotent_callback(&ssh->outgoing_data_sender);
 }
 
-static int ssh_versioncmp(const char *a, const char *b)
-{
-    char *ae, *be;
-    unsigned long av, bv;
-
-    av = strtoul(a, &ae, 10);
-    bv = strtoul(b, &be, 10);
-    if (av != bv)
-	return (av < bv ? -1 : +1);
-    if (*ae == '.')
-	ae++;
-    if (*be == '.')
-	be++;
-    av = strtoul(ae, &ae, 10);
-    bv = strtoul(be, &be, 10);
-    if (av != bv)
-	return (av < bv ? -1 : +1);
-    return 0;
-}
-
 /*
  * Packet construction functions. Mostly shared between SSH-1 and SSH-2.
  */
@@ -1346,258 +1326,6 @@ static void ssh2_add_sigblob(Ssh ssh, PktOut *pkt,
     put_string(pkt, sigblob, sigblob_len);
 }
 
-/*
- * Examine the remote side's version string and compare it against
- * a list of known buggy implementations.
- */
-static void ssh_detect_bugs(Ssh ssh, char *vstring)
-{
-    char *imp;			       /* pointer to implementation part */
-    imp = vstring;
-    imp += strcspn(imp, "-");
-    if (*imp) imp++;
-    imp += strcspn(imp, "-");
-    if (*imp) imp++;
-
-    ssh->remote_bugs = 0;
-
-    /*
-     * General notes on server version strings:
-     *  - Not all servers reporting "Cisco-1.25" have all the bugs listed
-     *    here -- in particular, we've heard of one that's perfectly happy
-     *    with SSH1_MSG_IGNOREs -- but this string never seems to change,
-     *    so we can't distinguish them.
-     */
-    if (conf_get_int(ssh->conf, CONF_sshbug_ignore1) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_ignore1) == AUTO &&
-	 (!strcmp(imp, "1.2.18") || !strcmp(imp, "1.2.19") ||
-	  !strcmp(imp, "1.2.20") || !strcmp(imp, "1.2.21") ||
-	  !strcmp(imp, "1.2.22") || !strcmp(imp, "Cisco-1.25") ||
-	  !strcmp(imp, "OSU_1.4alpha3") || !strcmp(imp, "OSU_1.5alpha4")))) {
-	/*
-	 * These versions don't support SSH1_MSG_IGNORE, so we have
-	 * to use a different defence against password length
-	 * sniffing.
-	 */
-	ssh->remote_bugs |= BUG_CHOKES_ON_SSH1_IGNORE;
-	logevent("We believe remote version has SSH-1 ignore bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_plainpw1) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_plainpw1) == AUTO &&
-	 (!strcmp(imp, "Cisco-1.25") || !strcmp(imp, "OSU_1.4alpha3")))) {
-	/*
-	 * These versions need a plain password sent; they can't
-	 * handle having a null and a random length of data after
-	 * the password.
-	 */
-	ssh->remote_bugs |= BUG_NEEDS_SSH1_PLAIN_PASSWORD;
-	logevent("We believe remote version needs a plain SSH-1 password");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_rsa1) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_rsa1) == AUTO &&
-	 (!strcmp(imp, "Cisco-1.25")))) {
-	/*
-	 * These versions apparently have no clue whatever about
-	 * RSA authentication and will panic and die if they see
-	 * an AUTH_RSA message.
-	 */
-	ssh->remote_bugs |= BUG_CHOKES_ON_RSA;
-	logevent("We believe remote version can't handle SSH-1 RSA authentication");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_hmac2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_hmac2) == AUTO &&
-	 !wc_match("* VShell", imp) &&
-	 (wc_match("2.1.0*", imp) || wc_match("2.0.*", imp) ||
-	  wc_match("2.2.0*", imp) || wc_match("2.3.0*", imp) ||
-	  wc_match("2.1 *", imp)))) {
-	/*
-	 * These versions have the HMAC bug.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_HMAC;
-	logevent("We believe remote version has SSH-2 HMAC bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_derivekey2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_derivekey2) == AUTO &&
-	 !wc_match("* VShell", imp) &&
-	 (wc_match("2.0.0*", imp) || wc_match("2.0.10*", imp) ))) {
-	/*
-	 * These versions have the key-derivation bug (failing to
-	 * include the literal shared secret in the hashes that
-	 * generate the keys).
-	 */
-	ssh->remote_bugs |= BUG_SSH2_DERIVEKEY;
-	logevent("We believe remote version has SSH-2 key-derivation bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_rsapad2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_rsapad2) == AUTO &&
-	 (wc_match("OpenSSH_2.[5-9]*", imp) ||
-	  wc_match("OpenSSH_3.[0-2]*", imp) ||
-	  wc_match("mod_sftp/0.[0-8]*", imp) ||
-	  wc_match("mod_sftp/0.9.[0-8]", imp)))) {
-	/*
-	 * These versions have the SSH-2 RSA padding bug.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_RSA_PADDING;
-	logevent("We believe remote version has SSH-2 RSA padding bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_pksessid2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_pksessid2) == AUTO &&
-	 wc_match("OpenSSH_2.[0-2]*", imp))) {
-	/*
-	 * These versions have the SSH-2 session-ID bug in
-	 * public-key authentication.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_PK_SESSIONID;
-	logevent("We believe remote version has SSH-2 public-key-session-ID bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_rekey2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_rekey2) == AUTO &&
-	 (wc_match("DigiSSH_2.0", imp) ||
-	  wc_match("OpenSSH_2.[0-4]*", imp) ||
-	  wc_match("OpenSSH_2.5.[0-3]*", imp) ||
-	  wc_match("Sun_SSH_1.0", imp) ||
-	  wc_match("Sun_SSH_1.0.1", imp) ||
-	  /* All versions <= 1.2.6 (they changed their format in 1.2.7) */
-	  wc_match("WeOnlyDo-*", imp)))) {
-	/*
-	 * These versions have the SSH-2 rekey bug.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_REKEY;
-	logevent("We believe remote version has SSH-2 rekey bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_maxpkt2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_maxpkt2) == AUTO &&
-	 (wc_match("1.36_sshlib GlobalSCAPE", imp) ||
-          wc_match("1.36 sshlib: GlobalScape", imp)))) {
-	/*
-	 * This version ignores our makpkt and needs to be throttled.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_MAXPKT;
-	logevent("We believe remote version ignores SSH-2 maximum packet size");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_ignore2) == FORCE_ON) {
-	/*
-	 * Servers that don't support SSH2_MSG_IGNORE. Currently,
-	 * none detected automatically.
-	 */
-	ssh->remote_bugs |= BUG_CHOKES_ON_SSH2_IGNORE;
-	logevent("We believe remote version has SSH-2 ignore bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_oldgex2) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_oldgex2) == AUTO &&
-	 (wc_match("OpenSSH_2.[235]*", imp)))) {
-	/*
-	 * These versions only support the original (pre-RFC4419)
-	 * SSH-2 GEX request, and disconnect with a protocol error if
-	 * we use the newer version.
-	 */
-	ssh->remote_bugs |= BUG_SSH2_OLDGEX;
-	logevent("We believe remote version has outdated SSH-2 GEX");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_winadj) == FORCE_ON) {
-	/*
-	 * Servers that don't support our winadj request for one
-	 * reason or another. Currently, none detected automatically.
-	 */
-	ssh->remote_bugs |= BUG_CHOKES_ON_WINADJ;
-	logevent("We believe remote version has winadj bug");
-    }
-
-    if (conf_get_int(ssh->conf, CONF_sshbug_chanreq) == FORCE_ON ||
-	(conf_get_int(ssh->conf, CONF_sshbug_chanreq) == AUTO &&
-	 (wc_match("OpenSSH_[2-5].*", imp) ||
-	  wc_match("OpenSSH_6.[0-6]*", imp) ||
-	  wc_match("dropbear_0.[2-4][0-9]*", imp) ||
-	  wc_match("dropbear_0.5[01]*", imp)))) {
-	/*
-	 * These versions have the SSH-2 channel request bug.
-	 * OpenSSH 6.7 and above do not:
-	 * https://bugzilla.mindrot.org/show_bug.cgi?id=1818
-	 * dropbear_0.52 and above do not:
-	 * https://secure.ucc.asn.au/hg/dropbear/rev/cd02449b709c
-	 */
-	ssh->remote_bugs |= BUG_SENDS_LATE_REQUEST_REPLY;
-	logevent("We believe remote version has SSH-2 channel request bug");
-    }
-}
-
-/*
- * The `software version' part of an SSH version string is required
- * to contain no spaces or minus signs.
- */
-static void ssh_fix_verstring(char *str)
-{
-    /* Eat "<protoversion>-". */
-    while (*str && *str != '-') str++;
-    assert(*str == '-'); str++;
-
-    /* Convert minus signs and spaces in the remaining string into
-     * underscores. */
-    while (*str) {
-        if (*str == '-' || *str == ' ')
-            *str = '_';
-        str++;
-    }
-}
-
-/*
- * Send an appropriate SSH version string.
- */
-static void ssh_send_verstring(Ssh ssh, const char *protoname, char *svers)
-{
-    char *verstring;
-
-    if (ssh->version == 2) {
-	/*
-	 * Construct a v2 version string.
-	 */
-	verstring = dupprintf("%s2.0-%s\015\012", protoname, sshver);
-    } else {
-	/*
-	 * Construct a v1 version string.
-	 */
-        assert(!strcmp(protoname, "SSH-")); /* no v1 bare connection protocol */
-	verstring = dupprintf("SSH-%s-%s\012",
-			      (ssh_versioncmp(svers, "1.5") <= 0 ?
-			       svers : "1.5"),
-			      sshver);
-    }
-
-    ssh_fix_verstring(verstring + strlen(protoname));
-#ifdef FUZZING
-    /* FUZZING make PuTTY insecure, so make live use difficult. */
-    verstring[0] = 'I';
-#endif
-
-    if (ssh->version == 2) {
-	size_t len;
-	/*
-	 * Record our version string.
-	 */
-	len = strcspn(verstring, "\015\012");
-	ssh->v_c = snewn(len + 1, char);
-	memcpy(ssh->v_c, verstring, len);
-	ssh->v_c[len] = 0;
-    }
-
-    logeventf(ssh, "We claim version: %.*s",
-	      strcspn(verstring, "\015\012"), verstring);
-    bufchain_add(&ssh->outgoing_data, verstring, strlen(verstring));
-    queue_idempotent_callback(&ssh->outgoing_data_sender);
-    sfree(verstring);
-}
-
 static void ssh_feed_to_bpp(Ssh ssh)
 {
     PacketQueueNode *prev_tail = ssh->pq_full.end.prev;
@@ -1628,342 +1356,83 @@ static void ssh_feed_to_bpp(Ssh ssh)
         queue_idempotent_callback(&ssh->pq_full_consumer);
 }
 
-static void do_ssh_init(Ssh ssh)
+static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
+                                int major_version)
 {
-    static const char protoname[] = "SSH-";
-
-    struct do_ssh_init_state {
-	int crLine;
-	int vslen;
-	char *vstring;
-	char *version;
-	int vstrsize;
-	int i;
-	int proto1, proto2;
-    };
-    crState(do_ssh_init_state);
-    
-    crBeginState;
+    Ssh ssh = FROMFIELD(rcv, struct ssh_tag, version_receiver);
+    BinaryPacketProtocol *old_bpp;
 
     /*
-     * Search for a line beginning with the protocol name prefix in
-     * the input.
+     * Queue an outgoing-data run: if the version string has been sent
+     * late rather than early, it'll still be sitting on our output
+     * raw data queue.
      */
-    s->i = 0;
-    while (1) {
-        char prefix[sizeof(protoname)-1];
-
-        /*
-         * Every time round this loop, we're at the start of a new
-         * line, so look for the prefix.
-         */
-        crMaybeWaitUntilV(
-            bufchain_size(&ssh->incoming_data) >= sizeof(prefix));
-        bufchain_fetch(&ssh->incoming_data, prefix, sizeof(prefix));
-        if (!memcmp(prefix, protoname, sizeof(prefix))) {
-            bufchain_consume(&ssh->incoming_data, sizeof(prefix));
-            break;
-        }
-
-        /*
-         * If we didn't find it, consume data until we see a newline.
-         */
-        while (1) {
-            int len;
-            void *data;
-            char *nl;
-
-            crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
-            bufchain_prefix(&ssh->incoming_data, &data, &len);
-            if ((nl = memchr(data, '\012', len)) != NULL) {
-                bufchain_consume(&ssh->incoming_data, nl - (char *)data + 1);
-                break;
-            } else {
-                bufchain_consume(&ssh->incoming_data, len);
-            }
-        }
-    }
-
-    ssh->session_started = TRUE;
-    ssh->agentfwd_enabled = FALSE;
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
 
     /*
-     * Now read the rest of the greeting line.
+     * We don't support choosing a major protocol version dynamically,
+     * so this should always be the same value we set up in
+     * connect_to_host().
      */
-    s->vstrsize = sizeof(protoname) + 16;
-    s->vstring = snewn(s->vstrsize, char);
-    strcpy(s->vstring, protoname);
-    s->vslen = strlen(protoname);
-    s->i = 0;
-    do {
-        int len;
-        void *data;
-        char *nl;
+    assert(ssh->version == major_version);
 
-        crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
-        bufchain_prefix(&ssh->incoming_data, &data, &len);
-        if ((nl = memchr(data, '\012', len)) != NULL) {
-            len = nl - (char *)data + 1;
+    old_bpp = ssh->bpp;
+    ssh->remote_bugs = ssh_verstring_get_bugs(old_bpp);
+
+    if (!ssh->bare_connection) {
+        if (ssh->version == 2) {
+            /*
+             * Retrieve both version strings from the old BPP before
+             * we free it.
+             */
+            ssh->v_s = dupstr(ssh_verstring_get_remote(old_bpp));
+            ssh->v_c = dupstr(ssh_verstring_get_local(old_bpp));
+
+            /*
+             * Initialise SSH-2 protocol.
+             */
+            ssh2_protocol_setup(ssh);
+            ssh->general_packet_processing = ssh2_general_packet_processing;
+            ssh->current_user_input_fn = NULL;
+        } else {
+            /*
+             * Initialise SSH-1 protocol.
+             */
+            ssh1_protocol_setup(ssh);
+            ssh->current_user_input_fn = ssh1_login_input;
         }
 
-	if (s->vslen + len >= s->vstrsize - 1) {
-	    s->vstrsize = (s->vslen + len) * 5 / 4 + 32;
-	    s->vstring = sresize(s->vstring, s->vstrsize, char);
-	}
+        if (ssh->version == 2)
+            queue_idempotent_callback(&ssh->ssh2_transport_icb);
 
-	memcpy(s->vstring + s->vslen, data, len);
-        s->vslen += len;
-        bufchain_consume(&ssh->incoming_data, len);
-
-    } while (s->vstring[s->vslen-1] != '\012');
-
-    s->vstring[s->vslen] = 0;
-    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
-
-    logeventf(ssh, "Server version: %s", s->vstring);
-    ssh_detect_bugs(ssh, s->vstring);
-
-    /*
-     * Decide which SSH protocol version to support.
-     */
-    s->version = dupprintf(
-        "%.*s", (int)strcspn(s->vstring + strlen(protoname), "-"),
-        s->vstring + strlen(protoname));
-
-    /* Anything strictly below "2.0" means protocol 1 is supported. */
-    s->proto1 = ssh_versioncmp(s->version, "2.0") < 0;
-    /* Anything greater or equal to "1.99" means protocol 2 is supported. */
-    s->proto2 = ssh_versioncmp(s->version, "1.99") >= 0;
-
-    if (conf_get_int(ssh->conf, CONF_sshprot) == 0) {
-	if (!s->proto1) {
-	    bombout(("SSH protocol version 1 required by our configuration "
-		     "but not provided by server"));
-	    crStopV;
-	}
-    } else if (conf_get_int(ssh->conf, CONF_sshprot) == 3) {
-	if (!s->proto2) {
-	    bombout(("SSH protocol version 2 required by our configuration "
-		     "but server only provides (old, insecure) SSH-1"));
-	    crStopV;
-	}
     } else {
-	/* No longer support values 1 or 2 for CONF_sshprot */
-	assert(!"Unexpected value for CONF_sshprot");
+        assert(ssh->version == 2);     /* can't do SSH-1 bare connection! */
+        logeventf(ssh, "Using bare ssh-connection protocol");
+
+        ssh2_bare_connection_protocol_setup(ssh);
+        ssh->current_user_input_fn = ssh2_connection_input;
+
     }
 
-    if (s->proto2 && (conf_get_int(ssh->conf, CONF_sshprot) >= 2 || !s->proto1))
-	ssh->version = 2;
-    else
-	ssh->version = 1;
-
-    logeventf(ssh, "Using SSH protocol version %d", ssh->version);
-
-    /* Send the version string, if we haven't already */
-    if (conf_get_int(ssh->conf, CONF_sshprot) != 3)
-	ssh_send_verstring(ssh, protoname, s->version);
-
-    sfree(s->version);
-
-    if (ssh->version == 2) {
-	size_t len;
-	/*
-	 * Record their version string.
-	 */
-	len = strcspn(s->vstring, "\015\012");
-	ssh->v_s = snewn(len + 1, char);
-	memcpy(ssh->v_s, s->vstring, len);
-	ssh->v_s[len] = 0;
-	    
-	/*
-	 * Initialise SSH-2 protocol.
-	 */
-	ssh2_protocol_setup(ssh);
-	ssh->general_packet_processing = ssh2_general_packet_processing;
-	ssh->current_user_input_fn = NULL;
-    } else {
-	/*
-	 * Initialise SSH-1 protocol.
-	 */
-	ssh1_protocol_setup(ssh);
-	ssh->current_user_input_fn = ssh1_login_input;
-    }
     ssh->bpp->out_raw = &ssh->outgoing_data;
     ssh->bpp->in_raw = &ssh->incoming_data;
     ssh->bpp->in_pq = &ssh->pq_full;
     ssh->bpp->pls = &ssh->pls;
     ssh->bpp->logctx = ssh->logctx;
-    ssh->current_incoming_data_fn = ssh_feed_to_bpp;
 
     queue_idempotent_callback(&ssh->incoming_data_consumer);
-    queue_idempotent_callback(&ssh->user_input_consumer);
-    if (ssh->version == 2)
-        queue_idempotent_callback(&ssh->ssh2_transport_icb);
-
-    update_specials_menu(ssh->frontend);
-    ssh->state = SSH_STATE_BEFORE_SIZE;
-    ssh->pinger = pinger_new(ssh->conf, &ssh->backend);
-
-    sfree(s->vstring);
-
-    crFinishV;
-}
-
-static void do_ssh_connection_init(Ssh ssh)
-{
-    /*
-     * Ordinary SSH begins with the banner "SSH-x.y-...". This is just
-     * the ssh-connection part, extracted and given a trivial binary
-     * packet protocol, so we replace 'SSH-' at the start with a new
-     * name. In proper SSH style (though of course this part of the
-     * proper SSH protocol _isn't_ subject to this kind of
-     * DNS-domain-based extension), we define the new name in our
-     * extension space.
-     */
-    static const char protoname[] =
-        "SSHCONNECTION@putty.projects.tartarus.org-";
-
-    struct do_ssh_connection_init_state {
-	int crLine;
-	int vslen;
-	char *vstring;
-	char *version;
-	int vstrsize;
-	int i;
-    };
-    crState(do_ssh_connection_init_state);
-    
-    crBeginState;
-
-    /*
-     * Search for a line beginning with the protocol name prefix in
-     * the input.
-     */
-    s->i = 0;
-    while (1) {
-        char prefix[sizeof(protoname)-1];
-
-        /*
-         * Every time round this loop, we're at the start of a new
-         * line, so look for the prefix.
-         */
-        crMaybeWaitUntilV(
-            bufchain_size(&ssh->incoming_data) >= sizeof(prefix));
-        bufchain_fetch(&ssh->incoming_data, prefix, sizeof(prefix));
-        if (!memcmp(prefix, protoname, sizeof(prefix))) {
-            bufchain_consume(&ssh->incoming_data, sizeof(prefix));
-            break;
-        }
-
-        /*
-         * If we didn't find it, consume data until we see a newline.
-         */
-        while (1) {
-            int len;
-            void *data;
-            char *nl;
-
-            crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
-            bufchain_prefix(&ssh->incoming_data, &data, &len);
-            if ((nl = memchr(data, '\012', len)) != NULL) {
-                bufchain_consume(&ssh->incoming_data, nl - (char *)data + 1);
-                break;
-            } else {
-                bufchain_consume(&ssh->incoming_data, len);
-            }
-        }
-    }
-
-    /*
-     * Now read the rest of the greeting line.
-     */
-    s->vstrsize = sizeof(protoname) + 16;
-    s->vstring = snewn(s->vstrsize, char);
-    strcpy(s->vstring, protoname);
-    s->vslen = strlen(protoname);
-    s->i = 0;
-    do {
-        int len;
-        void *data;
-        char *nl;
-
-        crMaybeWaitUntilV(bufchain_size(&ssh->incoming_data) > 0);
-        bufchain_prefix(&ssh->incoming_data, &data, &len);
-        if ((nl = memchr(data, '\012', len)) != NULL) {
-            len = nl - (char *)data + 1;
-        }
-
-	if (s->vslen + len >= s->vstrsize - 1) {
-	    s->vstrsize = (s->vslen + len) * 5 / 4 + 32;
-	    s->vstring = sresize(s->vstring, s->vstrsize, char);
-	}
-
-	memcpy(s->vstring + s->vslen, data, len);
-        s->vslen += len;
-        bufchain_consume(&ssh->incoming_data, len);
-
-    } while (s->vstring[s->vslen-1] != '\012');
-
-    s->vstring[s->vslen] = 0;
-    s->vstring[strcspn(s->vstring, "\015\012")] = '\0';/* remove EOL chars */
-
-    ssh->agentfwd_enabled = FALSE;
-
-    logeventf(ssh, "Server version: %s", s->vstring);
-    ssh_detect_bugs(ssh, s->vstring);
-
-    /*
-     * Decide which SSH protocol version to support. This is easy in
-     * bare ssh-connection mode: only 2.0 is legal.
-     */
-    s->version = dupprintf(
-        "%.*s", (int)strcspn(s->vstring + strlen(protoname), "-"),
-        s->vstring + strlen(protoname));
-
-    if (ssh_versioncmp(s->version, "2.0") < 0) {
-	bombout(("Server announces compatibility with SSH-1 in bare ssh-connection protocol"));
-        crStopV;
-    }
-    if (conf_get_int(ssh->conf, CONF_sshprot) == 0) {
-	bombout(("Bare ssh-connection protocol cannot be run in SSH-1-only mode"));
-	crStopV;
-    }
-
-    ssh->version = 2;
-
-    logeventf(ssh, "Using bare ssh-connection protocol");
-
-    /* Send the version string, if we haven't already */
-    ssh_send_verstring(ssh, protoname, s->version);
-
-    sfree(s->version);
-
-    /*
-     * Initialise bare connection protocol.
-     */
-    ssh2_bare_connection_protocol_setup(ssh);
-    ssh->bpp->out_raw = &ssh->outgoing_data;
-    ssh->bpp->in_raw = &ssh->incoming_data;
-    ssh->bpp->in_pq = &ssh->pq_full;
-    ssh->bpp->pls = &ssh->pls;
-    ssh->bpp->logctx = ssh->logctx;
-    ssh->current_incoming_data_fn = ssh_feed_to_bpp;
-    queue_idempotent_callback(&ssh->incoming_data_consumer);
-    ssh->current_user_input_fn = ssh2_connection_input;
     queue_idempotent_callback(&ssh->user_input_consumer);
 
     update_specials_menu(ssh->frontend);
     ssh->state = SSH_STATE_BEFORE_SIZE;
     ssh->pinger = pinger_new(ssh->conf, &ssh->backend);
 
-    /*
-     * Get connection protocol under way.
-     */
-    do_ssh2_connection(ssh);
-
-    sfree(s->vstring);
-
-    crFinishV;
+    if (ssh->bare_connection) {
+        /*
+         * Get connection protocol under way.
+         */
+        do_ssh2_connection(ssh);
+    }
 }
 
 static void ssh_set_frozen(Ssh ssh, int frozen)
@@ -1981,7 +1450,7 @@ static void ssh_process_incoming_data(void *ctx)
         return;
 
     if (!ssh->frozen)
-        ssh->current_incoming_data_fn(ssh);
+        ssh_feed_to_bpp(ssh);
 
     if (ssh->state == SSH_STATE_CLOSED) /* yes, check _again_ */
         return;
@@ -2317,7 +1786,6 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
          * We are a downstream.
          */
         ssh->bare_connection = TRUE;
-        ssh->current_incoming_data_fn = do_ssh_connection_init;
         ssh->fullhostname = NULL;
         *realhost = dupstr(host);      /* best we can do */
 
@@ -2332,7 +1800,6 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
         /*
          * We're not a downstream, so open a normal socket.
          */
-        ssh->current_incoming_data_fn = do_ssh_init;
 
         /*
          * Try to find host.
@@ -2358,19 +1825,34 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
 
     /*
      * The SSH version number is always fixed (since we no longer support
-     * fallback between versions), so set it now, and if it's SSH-2,
-     * send the version string now too.
+     * fallback between versions), so set it now.
      */
     sshprot = conf_get_int(ssh->conf, CONF_sshprot);
     assert(sshprot == 0 || sshprot == 3);
     if (sshprot == 0)
 	/* SSH-1 only */
 	ssh->version = 1;
-    if (sshprot == 3 && !ssh->bare_connection) {
+    if (sshprot == 3 || ssh->bare_connection) {
 	/* SSH-2 only */
 	ssh->version = 2;
-	ssh_send_verstring(ssh, "SSH-", NULL);
     }
+
+    /*
+     * Set up the initial BPP that will do the version string
+     * exchange.
+     */
+    ssh->version_receiver.got_ssh_version = ssh_got_ssh_version;
+    ssh->bpp = ssh_verstring_new(
+        ssh->conf, ssh->frontend, ssh->bare_connection,
+        ssh->version == 1 ? "1.5" : "2.0", &ssh->version_receiver);
+    ssh->bpp->out_raw = &ssh->outgoing_data;
+    ssh->bpp->in_raw = &ssh->incoming_data;
+    /*
+     * And call its handle_input method right now, in case it wants to
+     * send the outgoing version string immediately.
+     */
+    ssh_bpp_handle_input(ssh->bpp);
+    queue_idempotent_callback(&ssh->outgoing_data_sender);
 
     /*
      * loghost, if configured, overrides realhost.
