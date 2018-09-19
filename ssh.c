@@ -1342,21 +1342,6 @@ static void ssh_process_user_input(void *ctx)
         ssh->current_user_input_fn(ssh);
 }
 
-void chan_remotely_opened_confirmation(Channel *chan)
-{
-    assert(0 && "this channel type should never receive OPEN_CONFIRMATION");
-}
-
-void chan_remotely_opened_failure(Channel *chan, const char *errtext)
-{
-    assert(0 && "this channel type should never receive OPEN_FAILURE");
-}
-
-int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
-{
-    return FALSE;     /* default: never proactively ask for a close */
-}
-
 static int ssh_do_close(Ssh ssh, int notify_exit)
 {
     int ret = 0;

@@ -267,3 +267,22 @@ static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof)
     return TRUE;
 }
 
+/* ----------------------------------------------------------------------
+ * Centralised standard methods for other channel implementations to
+ * borrow.
+ */
+
+void chan_remotely_opened_confirmation(Channel *chan)
+{
+    assert(0 && "this channel type should never receive OPEN_CONFIRMATION");
+}
+
+void chan_remotely_opened_failure(Channel *chan, const char *errtext)
+{
+    assert(0 && "this channel type should never receive OPEN_FAILURE");
+}
+
+int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
+{
+    return FALSE;     /* default: never proactively ask for a close */
+}
