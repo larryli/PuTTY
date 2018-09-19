@@ -88,22 +88,66 @@ void pq_out_clear(PktOutQueue *pq)
         ssh_free_pktout(pkt);
 }
 
-int pq_base_empty_on_to_front_of(PacketQueueBase *src, PacketQueueBase *dest)
+/*
+ * Concatenate the contents of the two queues q1 and q2, and leave the
+ * result in qdest. qdest must be either empty, or one of the input
+ * queues.
+ */
+void pq_base_concatenate(PacketQueueBase *qdest,
+                         PacketQueueBase *q1, PacketQueueBase *q2)
 {
-    struct PacketQueueNode *srcfirst, *srclast;
+    struct PacketQueueNode *head1, *tail1, *head2, *tail2;
 
-    if (src->end.next == &src->end)
-        return FALSE;
+    /*
+     * Extract the contents from both input queues, and empty them.
+     */
 
-    srcfirst = src->end.next;
-    srclast = src->end.prev;
-    srcfirst->prev = &dest->end;
-    srclast->next = dest->end.next;
-    srcfirst->prev->next = srcfirst;
-    srclast->next->prev = srclast;
-    src->end.next = src->end.prev = &src->end;
+    head1 = (q1->end.next == &q1->end ? NULL : q1->end.next);
+    tail1 = (q1->end.prev == &q1->end ? NULL : q1->end.prev);
+    head2 = (q2->end.next == &q2->end ? NULL : q2->end.next);
+    tail2 = (q2->end.prev == &q2->end ? NULL : q2->end.prev);
 
-    return TRUE;
+    q1->end.next = q1->end.prev = &q1->end;
+    q2->end.next = q2->end.prev = &q2->end;
+
+    /*
+     * Link the two lists together, handling the case where one or
+     * both is empty.
+     */
+
+    if (tail1)
+        tail1->next = head2;
+    else
+        head1 = head2;
+
+    if (head2)
+        head2->prev = tail1;
+    else
+        tail2 = head1;
+
+    /*
+     * Check the destination queue is currently empty. (If it was one
+     * of the input queues, then it will be, because we emptied both
+     * of those just a moment ago.)
+     */
+
+    assert(qdest->end.next == &qdest->end);
+    assert(qdest->end.prev == &qdest->end);
+
+    /*
+     * If our concatenated list has anything in it, then put it in
+     * dest.
+     */
+
+    if (!head1) {
+        assert(!tail2);
+    } else {
+        assert(tail2);
+        qdest->end.next = head1;
+        qdest->end.prev = tail2;
+        head1->prev = &qdest->end;
+        tail2->next = &qdest->end;
+    }
 }
 
 /* ----------------------------------------------------------------------

@@ -8846,8 +8846,10 @@ static void do_ssh2_connection(void *vctx)
      * matches any of the table entries we've just modified will go to
      * the right handler function, and won't come here to confuse us.
      */
-    if (pq_empty_on_to_front_of(&ssh->pq_ssh2_connection, &ssh->pq_full))
+    if (pq_peek(&ssh->pq_ssh2_connection)) {
+        pq_concatenate(&ssh->pq_full, &ssh->pq_ssh2_connection, &ssh->pq_full);
         queue_idempotent_callback(&ssh->pq_full_consumer);
+    }
 
     /*
      * Now the connection protocol is properly up and running, with
