@@ -1046,42 +1046,36 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
     return 0;
 }
 
-static int alloc_channel_id(Ssh ssh)
+static unsigned alloc_channel_id(Ssh ssh)
 {
     const unsigned CHANNEL_NUMBER_OFFSET = 256;
-    unsigned low, high, mid;
-    int tsize;
-    struct ssh_channel *c;
+    search234_state ss;
 
     /*
-     * First-fit allocation of channel numbers: always pick the
-     * lowest unused one. To do this, binary-search using the
-     * counted B-tree to find the largest channel ID which is in a
-     * contiguous sequence from the beginning. (Precisely
-     * everything in that sequence must have ID equal to its tree
-     * index plus CHANNEL_NUMBER_OFFSET.)
+     * First-fit allocation of channel numbers: we always pick the
+     * lowest unused one.
+     *
+     * Every channel before that, and no channel after it, has an ID
+     * exactly equal to its tree index plus CHANNEL_NUMBER_OFFSET. So
+     * we can use the search234 system to identify the length of that
+     * initial sequence, in a single log-time pass down the channels
+     * tree.
      */
-    tsize = count234(ssh->channels);
+    search234_start(&ss, ssh->channels);
+    while (ss.element) {
+        struct ssh_channel *c = (struct ssh_channel *)ss.element;
+        if (c->localid == ss.index + CHANNEL_NUMBER_OFFSET)
+            search234_step(&ss, +1);
+        else
+            search234_step(&ss, -1);
+    }
 
-    low = -1;
-    high = tsize;
-    while (high - low > 1) {
-	mid = (high + low) / 2;
-	c = index234(ssh->channels, mid);
-	if (c->localid == mid + CHANNEL_NUMBER_OFFSET)
-	    low = mid;		       /* this one is fine */
-	else
-	    high = mid;		       /* this one is past it */
-    }
     /*
-     * Now low points to either -1, or the tree index of the
-     * largest ID in the initial sequence.
+     * Now ss.index gives exactly the number of channels in that
+     * initial sequence. So adding CHANNEL_NUMBER_OFFSET to it must
+     * give precisely the lowest unused channel number.
      */
-    {
-	unsigned i = low + 1 + CHANNEL_NUMBER_OFFSET;
-	assert(NULL == find234(ssh->channels, &i, ssh_channelfind));
-    }
-    return low + 1 + CHANNEL_NUMBER_OFFSET;
+    return ss.index + CHANNEL_NUMBER_OFFSET;
 }
 
 static void c_write_stderr(int trusted, const void *vbuf, int len)
