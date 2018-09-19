@@ -4,7 +4,9 @@
  */
 
 #include <assert.h>
+#include <stdlib.h>
 
+#include "putty.h"
 #include "ssh.h"
 #include "sshchan.h"
 
@@ -285,4 +287,182 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext)
 int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
 {
     return FALSE;     /* default: never proactively ask for a close */
+}
+
+/* ----------------------------------------------------------------------
+ * Common routine to marshal tty modes into an SSH packet.
+ */
+
+void write_ttymodes_to_packet_from_conf(
+    BinarySink *bs, Frontend *frontend, Conf *conf,
+    int ssh_version, int ospeed, int ispeed)
+{
+    int i;
+
+    /*
+     * Codes for terminal modes.
+     * Most of these are the same in SSH-1 and SSH-2.
+     * This list is derived from RFC 4254 and
+     * SSH-1 RFC-1.2.31.
+     */
+    static const struct ssh_ttymode {
+        const char *mode;
+        int opcode;
+        enum { TTY_OP_CHAR, TTY_OP_BOOL } type;
+    } ssh_ttymodes[] = {
+        /* "V" prefix discarded for special characters relative to SSH specs */
+        { "INTR",      1, TTY_OP_CHAR },
+        { "QUIT",      2, TTY_OP_CHAR },
+        { "ERASE",     3, TTY_OP_CHAR },
+        { "KILL",      4, TTY_OP_CHAR },
+        { "EOF",       5, TTY_OP_CHAR },
+        { "EOL",       6, TTY_OP_CHAR },
+        { "EOL2",      7, TTY_OP_CHAR },
+        { "START",     8, TTY_OP_CHAR },
+        { "STOP",      9, TTY_OP_CHAR },
+        { "SUSP",     10, TTY_OP_CHAR },
+        { "DSUSP",    11, TTY_OP_CHAR },
+        { "REPRINT",  12, TTY_OP_CHAR },
+        { "WERASE",   13, TTY_OP_CHAR },
+        { "LNEXT",    14, TTY_OP_CHAR },
+        { "FLUSH",    15, TTY_OP_CHAR },
+        { "SWTCH",    16, TTY_OP_CHAR },
+        { "STATUS",   17, TTY_OP_CHAR },
+        { "DISCARD",  18, TTY_OP_CHAR },
+        { "IGNPAR",   30, TTY_OP_BOOL },
+        { "PARMRK",   31, TTY_OP_BOOL },
+        { "INPCK",    32, TTY_OP_BOOL },
+        { "ISTRIP",   33, TTY_OP_BOOL },
+        { "INLCR",    34, TTY_OP_BOOL },
+        { "IGNCR",    35, TTY_OP_BOOL },
+        { "ICRNL",    36, TTY_OP_BOOL },
+        { "IUCLC",    37, TTY_OP_BOOL },
+        { "IXON",     38, TTY_OP_BOOL },
+        { "IXANY",    39, TTY_OP_BOOL },
+        { "IXOFF",    40, TTY_OP_BOOL },
+        { "IMAXBEL",  41, TTY_OP_BOOL },
+        { "IUTF8",    42, TTY_OP_BOOL },
+        { "ISIG",     50, TTY_OP_BOOL },
+        { "ICANON",   51, TTY_OP_BOOL },
+        { "XCASE",    52, TTY_OP_BOOL },
+        { "ECHO",     53, TTY_OP_BOOL },
+        { "ECHOE",    54, TTY_OP_BOOL },
+        { "ECHOK",    55, TTY_OP_BOOL },
+        { "ECHONL",   56, TTY_OP_BOOL },
+        { "NOFLSH",   57, TTY_OP_BOOL },
+        { "TOSTOP",   58, TTY_OP_BOOL },
+        { "IEXTEN",   59, TTY_OP_BOOL },
+        { "ECHOCTL",  60, TTY_OP_BOOL },
+        { "ECHOKE",   61, TTY_OP_BOOL },
+        { "PENDIN",   62, TTY_OP_BOOL }, /* XXX is this a real mode? */
+        { "OPOST",    70, TTY_OP_BOOL },
+        { "OLCUC",    71, TTY_OP_BOOL },
+        { "ONLCR",    72, TTY_OP_BOOL },
+        { "OCRNL",    73, TTY_OP_BOOL },
+        { "ONOCR",    74, TTY_OP_BOOL },
+        { "ONLRET",   75, TTY_OP_BOOL },
+        { "CS7",      90, TTY_OP_BOOL },
+        { "CS8",      91, TTY_OP_BOOL },
+        { "PARENB",   92, TTY_OP_BOOL },
+        { "PARODD",   93, TTY_OP_BOOL }
+    };
+
+    /* Miscellaneous other tty-related constants. */
+    enum {
+        /* The opcodes for ISPEED/OSPEED differ between SSH-1 and SSH-2. */
+        SSH1_TTY_OP_ISPEED = 192,
+        SSH1_TTY_OP_OSPEED = 193,
+        SSH2_TTY_OP_ISPEED = 128,
+        SSH2_TTY_OP_OSPEED = 129,
+
+        SSH_TTY_OP_END = 0
+    };
+
+    for (i = 0; i < lenof(ssh_ttymodes); i++) {
+        const struct ssh_ttymode *mode = ssh_ttymodes + i;
+        const char *sval = conf_get_str_str(conf, CONF_ttymodes, mode->mode);
+        char *to_free = NULL;
+
+        /* Every mode known to the current version of the code should be
+         * mentioned; this was ensured when settings were loaded. */
+
+        /*
+         * sval[0] can be
+         *  - 'V', indicating that an explicit value follows it;
+         *  - 'A', indicating that we should pass the value through from
+         *    the local environment via get_ttymode; or
+         *  - 'N', indicating that we should explicitly not send this
+         *    mode.
+         */
+        if (sval[0] == 'A') {
+            sval = to_free = get_ttymode(frontend, mode->mode);
+        } else if (sval[0] == 'V') {
+            sval++;                    /* skip the 'V' */
+        } else {
+            /* else 'N', or something from the future we don't understand */
+            continue;
+        }
+
+        if (sval) {
+            /*
+             * Parse the string representation of the tty mode
+             * into the integer value it will take on the wire.
+             */
+            unsigned ival = 0;
+
+            switch (mode->type) {
+              case TTY_OP_CHAR:
+                if (*sval) {
+                    char *next = NULL;
+                    /* We know ctrlparse won't write to the string, so
+                     * casting away const is ugly but allowable. */
+                    ival = ctrlparse((char *)sval, &next);
+                    if (!next)
+                        ival = sval[0];
+                } else {
+                    ival = 255; /* special value meaning "don't set" */
+                }
+                break;
+              case TTY_OP_BOOL:
+                if (stricmp(sval, "yes") == 0 ||
+                    stricmp(sval, "on") == 0 ||
+                    stricmp(sval, "true") == 0 ||
+                    stricmp(sval, "+") == 0)
+                    ival = 1;      /* true */
+                else if (stricmp(sval, "no") == 0 ||
+                         stricmp(sval, "off") == 0 ||
+                         stricmp(sval, "false") == 0 ||
+                         stricmp(sval, "-") == 0)
+                    ival = 0;      /* false */
+                else
+                    ival = (atoi(sval) != 0);
+                break;
+              default:
+                assert(0 && "Bad mode->type");
+            }
+
+            /*
+             * And write it into the output packet. The parameter
+             * value is formatted as a byte in SSH-1, but a uint32
+             * in SSH-2.
+             */
+            put_byte(bs, mode->opcode);
+            if (ssh_version == 1)
+                put_byte(bs, ival);
+            else
+                put_uint32(bs, ival);
+        }
+
+        sfree(to_free);
+    }
+
+    /*
+     * Finish off with the terminal speeds (which are formatted as
+     * uint32 in both protocol versions) and the end marker.
+     */
+    put_byte(bs, ssh_version == 1 ? SSH1_TTY_OP_ISPEED : SSH2_TTY_OP_ISPEED);
+    put_uint32(bs, ispeed);
+    put_byte(bs, ssh_version == 1 ? SSH1_TTY_OP_OSPEED : SSH2_TTY_OP_OSPEED);
+    put_uint32(bs, ospeed);
+    put_byte(bs, SSH_TTY_OP_END);
 }
