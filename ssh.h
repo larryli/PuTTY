@@ -1326,3 +1326,11 @@ enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_REAL_ENUM) };
 void write_ttymodes_to_packet_from_conf(
     BinarySink *bs, Frontend *frontend, Conf *conf,
     int ssh_version, int ospeed, int ispeed);
+
+/* Shared system for allocating local SSH channel ids. Expects to be
+ * passed a tree full of structs that have a field called 'localid' of
+ * type unsigned, and will check that! */
+unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset);
+#define alloc_channel_id(tree, type) \
+    TYPECHECK(&((type *)0)->localid == (unsigned *)0, \
+              alloc_channel_id_general(tree, offsetof(type, localid)))

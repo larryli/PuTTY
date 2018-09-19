@@ -466,3 +466,40 @@ void write_ttymodes_to_packet_from_conf(
     put_uint32(bs, ospeed);
     put_byte(bs, SSH_TTY_OP_END);
 }
+
+/* ----------------------------------------------------------------------
+ * Routine for allocating a new channel ID, given a means of finding
+ * the index field in a given channel structure.
+ */
+
+unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset)
+{
+    const unsigned CHANNEL_NUMBER_OFFSET = 256;
+    search234_state ss;
+
+    /*
+     * First-fit allocation of channel numbers: we always pick the
+     * lowest unused one.
+     *
+     * Every channel before that, and no channel after it, has an ID
+     * exactly equal to its tree index plus CHANNEL_NUMBER_OFFSET. So
+     * we can use the search234 system to identify the length of that
+     * initial sequence, in a single log-time pass down the channels
+     * tree.
+     */
+    search234_start(&ss, channels);
+    while (ss.element) {
+        unsigned localid = *(unsigned *)((char *)ss.element + localid_offset);
+        if (localid == ss.index + CHANNEL_NUMBER_OFFSET)
+            search234_step(&ss, +1);
+        else
+            search234_step(&ss, -1);
+    }
+
+    /*
+     * Now ss.index gives exactly the number of channels in that
+     * initial sequence. So adding CHANNEL_NUMBER_OFFSET to it must
+     * give precisely the lowest unused channel number.
+     */
+    return ss.index + CHANNEL_NUMBER_OFFSET;
+}

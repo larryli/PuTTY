@@ -814,38 +814,6 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
     return 0;
 }
 
-static unsigned alloc_channel_id(Ssh ssh)
-{
-    const unsigned CHANNEL_NUMBER_OFFSET = 256;
-    search234_state ss;
-
-    /*
-     * First-fit allocation of channel numbers: we always pick the
-     * lowest unused one.
-     *
-     * Every channel before that, and no channel after it, has an ID
-     * exactly equal to its tree index plus CHANNEL_NUMBER_OFFSET. So
-     * we can use the search234 system to identify the length of that
-     * initial sequence, in a single log-time pass down the channels
-     * tree.
-     */
-    search234_start(&ss, ssh->channels);
-    while (ss.element) {
-        struct ssh_channel *c = (struct ssh_channel *)ss.element;
-        if (c->localid == ss.index + CHANNEL_NUMBER_OFFSET)
-            search234_step(&ss, +1);
-        else
-            search234_step(&ss, -1);
-    }
-
-    /*
-     * Now ss.index gives exactly the number of channels in that
-     * initial sequence. So adding CHANNEL_NUMBER_OFFSET to it must
-     * give precisely the lowest unused channel number.
-     */
-    return ss.index + CHANNEL_NUMBER_OFFSET;
-}
-
 static void c_write_stderr(int trusted, const void *vbuf, int len)
 {
     const char *buf = (const char *)vbuf;
@@ -5676,7 +5644,7 @@ static int ssh_is_simple(Ssh ssh)
 static void ssh_channel_init(struct ssh_channel *c)
 {
     Ssh ssh = c->ssh;
-    c->localid = alloc_channel_id(ssh);
+    c->localid = alloc_channel_id(ssh->channels, struct ssh_channel);
     c->closes = 0;
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
