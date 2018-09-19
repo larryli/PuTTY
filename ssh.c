@@ -47,23 +47,6 @@ static const char *const ssh2_disconnect_reasons[] = {
     "illegal user name",
 };
 
-/*
- * Various remote-bug flags.
- */
-#define BUG_CHOKES_ON_SSH1_IGNORE                 1
-#define BUG_SSH2_HMAC                             2
-#define BUG_NEEDS_SSH1_PLAIN_PASSWORD        	  4
-#define BUG_CHOKES_ON_RSA	        	  8
-#define BUG_SSH2_RSA_PADDING	        	 16
-#define BUG_SSH2_DERIVEKEY                       32
-#define BUG_SSH2_REKEY                           64
-#define BUG_SSH2_PK_SESSIONID                   128
-#define BUG_SSH2_MAXPKT				256
-#define BUG_CHOKES_ON_SSH2_IGNORE               512
-#define BUG_CHOKES_ON_WINADJ                   1024
-#define BUG_SENDS_LATE_REQUEST_REPLY           2048
-#define BUG_SSH2_OLDGEX                        4096
-
 #define DH_MIN_SIZE 1024
 #define DH_MAX_SIZE 8192
 

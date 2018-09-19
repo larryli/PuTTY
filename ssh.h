@@ -1266,3 +1266,29 @@ const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type);
  * format.
  */
 void old_keyfile_warning(void);
+
+/*
+ * Flags indicating implementation bugs that we know how to mitigate
+ * if we think the other end has them.
+ */
+#define SSH_IMPL_BUG_LIST(X)                    \
+    X(BUG_CHOKES_ON_SSH1_IGNORE)                \
+    X(BUG_SSH2_HMAC)                            \
+    X(BUG_NEEDS_SSH1_PLAIN_PASSWORD)            \
+    X(BUG_CHOKES_ON_RSA)                        \
+    X(BUG_SSH2_RSA_PADDING)                     \
+    X(BUG_SSH2_DERIVEKEY)                       \
+    X(BUG_SSH2_REKEY)                           \
+    X(BUG_SSH2_PK_SESSIONID)                    \
+    X(BUG_SSH2_MAXPKT)                          \
+    X(BUG_CHOKES_ON_SSH2_IGNORE)                \
+    X(BUG_CHOKES_ON_WINADJ)                     \
+    X(BUG_SENDS_LATE_REQUEST_REPLY)             \
+    X(BUG_SSH2_OLDGEX)                          \
+    /* end of list */
+#define TMP_DECLARE_LOG2_ENUM(thing) log2_##thing,
+enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_LOG2_ENUM) };
+#undef TMP_DECLARE_LOG2_ENUM
+#define TMP_DECLARE_REAL_ENUM(thing) thing = 1 << log2_##thing,
+enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_REAL_ENUM) };
+#undef TMP_DECLARE_REAL_ENUM
