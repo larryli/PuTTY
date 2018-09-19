@@ -1284,13 +1284,6 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
     }
 }
 
-static void ssh_set_frozen(Ssh ssh, int frozen)
-{
-    if (ssh->s)
-	sk_set_frozen(ssh->s, frozen);
-    ssh->frozen = frozen;
-}
-
 static void ssh_process_incoming_data(void *ctx)
 {
     Ssh ssh = (Ssh)ctx;
@@ -1720,13 +1713,23 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
 static void ssh_throttle_conn(Ssh ssh, int adjust)
 {
     int old_count = ssh->conn_throttle_count;
+    int frozen;
+
     ssh->conn_throttle_count += adjust;
     assert(ssh->conn_throttle_count >= 0);
+
     if (ssh->conn_throttle_count && !old_count) {
-	ssh_set_frozen(ssh, 1);
+        frozen = TRUE;
     } else if (!ssh->conn_throttle_count && old_count) {
-	ssh_set_frozen(ssh, 0);
+        frozen = FALSE;
+    } else {
+        return;                /* don't change current frozen state */
     }
+
+    ssh->frozen = frozen;
+
+    if (ssh->s)
+        sk_set_frozen(ssh->s, frozen);
 }
 
 static void ssh_channel_check_throttle(struct ssh_channel *c)
@@ -2025,7 +2028,6 @@ static void do_ssh1_login(void *vctx)
             sfree(keystr);
             crStopV;
         } else if (s->dlgret < 0) { /* none configured; use standard handling */
-            ssh_set_frozen(ssh, 1);
             s->dlgret = verify_ssh_host_key(ssh->frontend,
                                             ssh->savedhost, ssh->savedport,
                                             "rsa", keystr, fingerprint,
@@ -2039,7 +2041,6 @@ static void do_ssh1_login(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
                 s->dlgret = ssh->user_response;
             }
-            ssh_set_frozen(ssh, 0);
 
             if (s->dlgret == 0) {
                 ssh_disconnect(ssh, "User aborted at host key verification",
@@ -2111,7 +2112,6 @@ static void do_ssh1_login(void *vctx)
 
 	/* Warn about chosen cipher if necessary. */
 	if (warn) {
-            ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend, "cipher", cipher_string,
 			       ssh_dialog_callback, ssh);
 	    if (s->dlgret < 0) {
@@ -2119,7 +2119,6 @@ static void do_ssh1_login(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-            ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
 			       0, TRUE);
@@ -4625,7 +4624,6 @@ static void do_ssh2_transport(void *vctx)
                    BinarySource_UPCAST(pktin)->len + 1);
 
 	if (s->warn_kex) {
-	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend, "key-exchange algorithm",
 			       ssh->kex->name,
 			       ssh_dialog_callback, ssh);
@@ -4634,7 +4632,6 @@ static void do_ssh2_transport(void *vctx)
 		crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at kex warning", NULL,
 			       0, TRUE);
@@ -4645,8 +4642,6 @@ static void do_ssh2_transport(void *vctx)
 	if (s->warn_hk) {
             int j, k;
             char *betteralgs;
-
-	    ssh_set_frozen(ssh, 1);
 
             /*
              * Change warning box wording depending on why we chose a
@@ -4695,7 +4690,6 @@ static void do_ssh2_transport(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at host key warning", NULL,
 			       0, TRUE);
@@ -4704,7 +4698,6 @@ static void do_ssh2_transport(void *vctx)
 	}
 
 	if (s->warn_cscipher) {
-	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend,
 			       "client-to-server cipher",
 			       s->out.cipher->name,
@@ -4714,7 +4707,6 @@ static void do_ssh2_transport(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
 			       0, TRUE);
@@ -4723,7 +4715,6 @@ static void do_ssh2_transport(void *vctx)
 	}
 
 	if (s->warn_sccipher) {
-	    ssh_set_frozen(ssh, 1);
 	    s->dlgret = askalg(ssh->frontend,
 			       "server-to-client cipher",
 			       s->in.cipher->name,
@@ -4733,7 +4724,6 @@ static void do_ssh2_transport(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-	    ssh_set_frozen(ssh, 0);
 	    if (s->dlgret == 0) {
 		ssh_disconnect(ssh, "User aborted at cipher warning", NULL,
 			       0, TRUE);
@@ -5498,7 +5488,6 @@ static void do_ssh2_transport(void *vctx)
             bombout(("Host key did not appear in manually configured list"));
             crStopV;
         } else if (s->dlgret < 0) { /* none configured; use standard handling */
-            ssh_set_frozen(ssh, 1);
             s->dlgret = verify_ssh_host_key(ssh->frontend,
                                             ssh->savedhost, ssh->savedport,
                                             ssh_key_cache_id(s->hkey),
@@ -5512,7 +5501,6 @@ static void do_ssh2_transport(void *vctx)
                 crWaitUntilV(ssh->user_response >= 0);
 		s->dlgret = ssh->user_response;
 	    }
-            ssh_set_frozen(ssh, 0);
             if (s->dlgret == 0) {
                 ssh_disconnect(ssh, "Aborted at host key verification", NULL,
                                0, TRUE);
