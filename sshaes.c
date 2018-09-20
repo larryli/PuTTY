@@ -48,8 +48,6 @@
 #    define INLINE
 #endif
 
-typedef struct AESContext AESContext;
-
 struct AESContext {
     word32 keysched_buf[(MAX_NR + 1) * NB + 3];
     word32 invkeysched_buf[(MAX_NR + 1) * NB + 3];
