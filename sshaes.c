@@ -1243,6 +1243,7 @@ INLINE static int supports_aes_ni()
  * Wrapper of SHUFPD instruction for MSVC
  */
 #ifdef _MSC_VER
+FUNC_ISA
 INLINE static __m128i mm_shuffle_pd_i0(__m128i a, __m128i b)
 {
     union {
@@ -1255,6 +1256,7 @@ INLINE static __m128i mm_shuffle_pd_i0(__m128i a, __m128i b)
     return ru.i;
 }
 
+FUNC_ISA
 INLINE static __m128i mm_shuffle_pd_i1(__m128i a, __m128i b)
 {
     union {
