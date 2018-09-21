@@ -929,6 +929,14 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
     BinaryPacketProtocol *old_bpp;
 
     /*
+     * This is as good a time as any to stop printing proxy-command
+     * diagnostics in the terminal window, on the assumption that the
+     * proxy command must by now have made a sensible connection and
+     * the real session output will start shortly.
+     */
+    ssh->session_started = TRUE;
+
+    /*
      * Queue an outgoing-data run: if the version string has been sent
      * late rather than early, it'll still be sitting on our output
      * raw data queue.
