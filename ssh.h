@@ -97,7 +97,6 @@ typedef struct PktOutQueue {
     PktOut *(*get)(PacketQueueBase *, int pop);
 } PktOutQueue;
 
-void pq_base_init(PacketQueueBase *pqb);
 void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node);
 void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node);
 void pq_base_concatenate(PacketQueueBase *dest,
