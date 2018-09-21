@@ -3200,6 +3200,7 @@ static void do_ssh1_connection(void *vctx)
         pkt = ssh_bpp_new_pktout(ssh->bpp, SSH1_CMSG_REQUEST_COMPRESSION);
         put_uint32(pkt, 6);            /* gzip compression level */
         ssh_pkt_write(ssh, pkt);
+        ssh1_bpp_requested_compression(ssh->bpp);
         crMaybeWaitUntilV((pktin = pq_pop(&ssh->pq_ssh1_connection)) != NULL);
 	if (pktin->type != SSH1_SMSG_SUCCESS
 	    && pktin->type != SSH1_SMSG_FAILURE) {
@@ -3207,9 +3208,9 @@ static void do_ssh1_connection(void *vctx)
 	    crStopV;
 	} else if (pktin->type == SSH1_SMSG_FAILURE) {
 	    c_write_str(ssh, "Server refused to compress\r\n");
-	}
-	logevent("Started zlib (RFC1950) compression");
-        ssh1_bpp_start_compression(ssh->bpp);
+	} else {
+            logevent("Started zlib (RFC1950) compression");
+        }
     }
 
     /*

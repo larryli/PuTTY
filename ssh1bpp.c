@@ -21,6 +21,7 @@ struct ssh1_bpp_state {
 
     struct crcda_ctx *crcda_ctx;
 
+    int pending_compression_request;
     ssh_compressor *compctx;
     ssh_decompressor *decompctx;
 
@@ -82,17 +83,13 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
     }
 }
 
-void ssh1_bpp_start_compression(BinaryPacketProtocol *bpp)
+void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp)
 {
     struct ssh1_bpp_state *s;
     assert(bpp->vt == &ssh1_bpp_vtable);
     s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
 
-    assert(!s->compctx);
-    assert(!s->decompctx);
-
-    s->compctx = ssh_compressor_new(&ssh_zlib);
-    s->decompctx = ssh_decompressor_new(&ssh_zlib);
+    s->pending_compression_request = TRUE;
 }
 
 static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
@@ -210,6 +207,20 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
 
             if (type == SSH1_MSG_DISCONNECT)
                 s->bpp.seen_disconnect = TRUE;
+
+            if (type == SSH1_SMSG_SUCCESS && s->pending_compression_request) {
+                assert(!s->compctx);
+                assert(!s->decompctx);
+
+                s->compctx = ssh_compressor_new(&ssh_zlib);
+                s->decompctx = ssh_decompressor_new(&ssh_zlib);
+
+                s->pending_compression_request = FALSE;
+            }
+
+            if (type == SSH1_SMSG_FAILURE && s->pending_compression_request) {
+                s->pending_compression_request = FALSE;
+            }
         }
     }
     crFinishV;
