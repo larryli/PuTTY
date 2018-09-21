@@ -33,6 +33,9 @@ void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node)
     node->prev = pqb->end.prev;
     node->next->prev = node;
     node->prev->next = node;
+
+    if (pqb->ic)
+        queue_idempotent_callback(pqb->ic);
 }
 
 void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node)
@@ -42,6 +45,9 @@ void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node)
     node->next = pqb->end.next;
     node->next->prev = node;
     node->prev->next = node;
+
+    if (pqb->ic)
+        queue_idempotent_callback(pqb->ic);
 }
 
 static PacketQueueNode pktin_freeq_head = {
@@ -102,12 +108,14 @@ static PktOut *pq_out_get(PacketQueueBase *pqb, int pop)
 
 void pq_in_init(PktInQueue *pq)
 {
+    pq->pqb.ic = NULL;
     pq->pqb.end.next = pq->pqb.end.prev = &pq->pqb.end;
     pq->get = pq_in_get;
 }
 
 void pq_out_init(PktOutQueue *pq)
 {
+    pq->pqb.ic = NULL;
     pq->pqb.end.next = pq->pqb.end.prev = &pq->pqb.end;
     pq->get = pq_out_get;
 }
@@ -115,6 +123,7 @@ void pq_out_init(PktOutQueue *pq)
 void pq_in_clear(PktInQueue *pq)
 {
     PktIn *pkt;
+    pq->pqb.ic = NULL;
     while ((pkt = pq_pop(pq)) != NULL) {
         /* No need to actually free these packets: pq_pop on a
          * PktInQueue will automatically move them to the free
@@ -125,6 +134,7 @@ void pq_in_clear(PktInQueue *pq)
 void pq_out_clear(PktOutQueue *pq)
 {
     PktOut *pkt;
+    pq->pqb.ic = NULL;
     while ((pkt = pq_pop(pq)) != NULL)
         ssh_free_pktout(pkt);
 }
@@ -188,6 +198,9 @@ void pq_base_concatenate(PacketQueueBase *qdest,
         qdest->end.prev = tail2;
         head1->prev = &qdest->end;
         tail2->next = &qdest->end;
+
+        if (qdest->ic)
+            queue_idempotent_callback(qdest->ic);
     }
 }
 

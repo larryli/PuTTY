@@ -85,6 +85,7 @@ typedef struct PktOut {
 
 typedef struct PacketQueueBase {
     PacketQueueNode end;
+    struct IdempotentCallback *ic;
 } PacketQueueBase;
 
 typedef struct PktInQueue {
