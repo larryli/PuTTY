@@ -342,6 +342,10 @@ void console_provide_logctx(LogContext *logctx)
 
 void logevent(Frontend *frontend, const char *string)
 {
+    if (flags & FLAG_VERBOSE) {
+	fprintf(stderr, "%s\n", string);
+	fflush(stderr);
+    }
     log_eventlog(console_logctx, string);
 }
 

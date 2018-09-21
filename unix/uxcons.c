@@ -413,12 +413,14 @@ void console_provide_logctx(LogContext *logctx)
 void logevent(Frontend *frontend, const char *string)
 {
     struct termios cf;
-    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE))
+    if (flags & FLAG_VERBOSE) {
         premsg(&cf);
+	fprintf(stderr, "%s\n", string);
+	fflush(stderr);
+        postmsg(&cf);
+    }
     if (console_logctx)
 	log_eventlog(console_logctx, string);
-    if ((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE))
-        postmsg(&cf);
 }
 
 /*

@@ -610,7 +610,7 @@ int main(int argc, char **argv)
     bufchain_init(&stderr_data);
     outgoingeof = EOF_NO;
 
-    flags = FLAG_STDERR | FLAG_STDERR_TTY;
+    flags = FLAG_STDERR_TTY;
     cmdline_tooltype |=
         (TOOLTYPE_HOST_ARG |
          TOOLTYPE_HOST_ARG_CAN_BE_SESSION |

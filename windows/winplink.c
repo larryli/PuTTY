@@ -302,7 +302,7 @@ int main(int argc, char **argv)
     default_protocol = PROT_SSH;
     default_port = 22;
 
-    flags = FLAG_STDERR;
+    flags = 0;
     cmdline_tooltype |=
         (TOOLTYPE_HOST_ARG |
          TOOLTYPE_HOST_ARG_CAN_BE_SESSION |

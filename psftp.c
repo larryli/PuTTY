@@ -2872,7 +2872,7 @@ int psftp_main(int argc, char *argv[])
     int modeflags = 0;
     char *batchfile = NULL;
 
-    flags = FLAG_STDERR | FLAG_INTERACTIVE
+    flags = FLAG_INTERACTIVE
 #ifdef FLAG_SYNCAGENT
 	| FLAG_SYNCAGENT
 #endif

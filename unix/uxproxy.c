@@ -299,18 +299,6 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     if (proxytype == PROXY_CMD) {
 	cmd = format_telnet_command(addr, port, conf);
 
-        if (flags & FLAG_STDERR) {
-            /* If we have a sensible stderr, the proxy command can
-             * send its own standard error there, so we won't
-             * interfere. */
-            cmd_err_pipe[0] = cmd_err_pipe[1] = -1;
-        } else {
-            /* If we don't have a sensible stderr, we should catch the
-             * proxy command's standard error to put in our event
-             * log. */
-            cmd_err_pipe[0] = cmd_err_pipe[1] = 0;
-        }
-
         {
             char *logmsg = dupprintf("Starting local proxy command: %s", cmd);
             plug_log(plug, 2, NULL, 0, logmsg, 0);
@@ -323,15 +311,14 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 	 */
 	if (pipe(to_cmd_pipe) < 0 ||
 	    pipe(from_cmd_pipe) < 0 ||
-            (cmd_err_pipe[0] == 0 && pipe(cmd_err_pipe) < 0)) {
+            pipe(cmd_err_pipe) < 0) {
 	    ret->error = dupprintf("pipe: %s", strerror(errno));
 	    sfree(cmd);
 	    return &ret->sockvt;
 	}
 	cloexec(to_cmd_pipe[1]);
 	cloexec(from_cmd_pipe[0]);
-	if (cmd_err_pipe[0] >= 0)
-            cloexec(cmd_err_pipe[0]);
+        cloexec(cmd_err_pipe[0]);
 
 	pid = fork();
 
@@ -346,10 +333,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 	    dup2(from_cmd_pipe[1], 1);
 	    close(to_cmd_pipe[0]);
 	    close(from_cmd_pipe[1]);
-	    if (cmd_err_pipe[0] >= 0) {
-                dup2(cmd_err_pipe[1], 2);
-                close(cmd_err_pipe[1]);
-            }
+            dup2(cmd_err_pipe[1], 2);
 	    noncloexec(0);
 	    noncloexec(1);
 	    execl("/bin/sh", "sh", "-c", cmd, (void *)NULL);
@@ -360,8 +344,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
 
 	close(to_cmd_pipe[0]);
 	close(from_cmd_pipe[1]);
-        if (cmd_err_pipe[0] >= 0)
-            close(cmd_err_pipe[1]);
+        close(cmd_err_pipe[1]);
 
 	ret->to_cmd = to_cmd_pipe[1];
 	ret->from_cmd = from_cmd_pipe[0];

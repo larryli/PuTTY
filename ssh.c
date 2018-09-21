@@ -704,21 +704,9 @@ static int ssh_rportcmp_ssh2(void *av, void *bv)
     return 0;
 }
 
-static void c_write_stderr(int trusted, const void *vbuf, int len)
-{
-    const char *buf = (const char *)vbuf;
-    int i;
-    for (i = 0; i < len; i++)
-	if (buf[i] != '\r' && (trusted || buf[i] == '\n' || (buf[i] & 0x60)))
-	    fputc(buf[i], stderr);
-}
-
 static void c_write(Ssh ssh, const void *buf, int len)
 {
-    if (flags & FLAG_STDERR)
-	c_write_stderr(1, buf, len);
-    else
-	from_backend(ssh->frontend, 1, buf, len);
+    from_backend(ssh->frontend, 1, buf, len);
 }
 
 static void c_write_str(Ssh ssh, const char *buf)
@@ -1866,8 +1854,7 @@ static void do_ssh1_login(void *vctx)
     {
         char *userlog = dupprintf("Sent username \"%s\"", ssh->username);
         logevent(userlog);
-        if (flags & FLAG_INTERACTIVE &&
-            (!((flags & FLAG_STDERR) && (flags & FLAG_VERBOSE)))) {
+        if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE)) {
             c_write_str(ssh, userlog);
             c_write_str(ssh, "\r\n");
         }

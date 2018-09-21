@@ -2283,7 +2283,7 @@ int psftp_main(int argc, char *argv[])
 
     default_protocol = PROT_TELNET;
 
-    flags = FLAG_STDERR
+    flags = 0
 #ifdef FLAG_SYNCAGENT
 	| FLAG_SYNCAGENT
 #endif

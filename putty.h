@@ -520,10 +520,6 @@ extern const char *const appname;
  * 
  * FLAG_VERBOSE is set when the user requests verbose details.
  * 
- * FLAG_STDERR is set in command-line applications (which have a
- * functioning stderr that it makes sense to write to) and not in
- * GUI applications (which don't).
- * 
  * FLAG_INTERACTIVE is set when a full interactive shell session is
  * being run, _either_ because no remote command has been provided
  * _or_ because the application is GUI and can't run non-
@@ -538,8 +534,7 @@ extern const char *const appname;
  * avoid collision.
  */
 #define FLAG_VERBOSE     0x0001
-#define FLAG_STDERR      0x0002
-#define FLAG_INTERACTIVE 0x0004
+#define FLAG_INTERACTIVE 0x0002
 GLOBAL int flags;
 
 /*
