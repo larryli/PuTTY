@@ -1249,8 +1249,11 @@ static const char *connect_to_host(Ssh ssh, const char *host, int port,
     ssh->connshare = NULL;
     ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
     ssh->s = ssh_connection_sharing_init(
-        ssh->savedhost, ssh->savedport, ssh->conf, &ssh->cl, &ssh->plugvt,
-        &ssh->connshare);
+        ssh->savedhost, ssh->savedport, ssh->conf, ssh->frontend,
+        &ssh->plugvt, &ssh->connshare);
+    if (ssh->connshare)
+        ssh_connshare_provide_connlayer(ssh->connshare, &ssh->cl);
+
     ssh->attempting_connshare = FALSE;
     if (ssh->s != NULL) {
         /*

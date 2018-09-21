@@ -160,8 +160,10 @@ PktOut *ssh_new_packet(void);
 void ssh_free_pktout(PktOut *pkt);
 
 extern Socket ssh_connection_sharing_init(
-    const char *host, int port, Conf *conf, ConnectionLayer *cl,
+    const char *host, int port, Conf *conf, Frontend *frontend,
     Plug sshplug, ssh_sharing_state **state);
+void ssh_connshare_provide_connlayer(ssh_sharing_state *sharestate,
+                                     ConnectionLayer *cl);
 int ssh_share_test_for_upstream(const char *host, int port, Conf *conf);
 void share_got_pkt_from_server(ssh_sharing_connstate *ctx, int type,
                                const void *pkt, int pktlen);
