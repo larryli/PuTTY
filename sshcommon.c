@@ -125,7 +125,7 @@ void pq_base_concatenate(PacketQueueBase *qdest,
     if (head2)
         head2->prev = tail1;
     else
-        tail2 = head1;
+        tail2 = tail1;
 
     /*
      * Check the destination queue is currently empty. (If it was one
