@@ -1281,14 +1281,15 @@ int main(int argc, char **argv)
 	setup_passphrases(NULL);
 	test(0, "puttygen", "-L", filename, "-o", pubfilename, NULL);
 	{
-	    char cmdbuf[256];
+	    char *cmdbuf;
 	    fp = NULL;
-	    sprintf(cmdbuf, "ssh-keygen -l -f '%s' > '%s'",
+	    cmdbuf = dupprintf("ssh-keygen -l -f '%s' > '%s'",
 		    pubfilename, tmpfilename1);
 	    if (system(cmdbuf) ||
 		(fp = get_fp(tmpfilename1)) == NULL) {
 		printf("UNABLE to test fingerprint matching against OpenSSH");
 	    }
+	    sfree(cmdbuf);
 	}
 
 	/*
