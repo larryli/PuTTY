@@ -113,8 +113,9 @@ static void unmungestr(char *in, char *out, int outlen)
     return;
 }
 
-/* Stub needed to link against misc.c */
+/* Stubs needed to link against misc.c */
 void logevent(Frontend *frontend, const char *msg) { assert(0); }
+void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 
 static int has_security;
 

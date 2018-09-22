@@ -33,6 +33,7 @@ int random_byte(void)
 }
 
 void logevent(Frontend *frontend, const char *msg) { assert(0); }
+void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 
 #define fromxdigit(c) ( (c)>'9' ? ((c)&0xDF) - 'A' + 10 : (c) - '0' )
 
