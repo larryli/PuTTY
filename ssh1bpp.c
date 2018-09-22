@@ -86,15 +86,6 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
     }
 }
 
-void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp)
-{
-    struct ssh1_bpp_state *s;
-    assert(bpp->vt == &ssh1_bpp_vtable);
-    s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
-
-    s->pending_compression_request = TRUE;
-}
-
 #define BPP_READ(ptr, len) do                                   \
     {                                                           \
         crMaybeWaitUntilV(bufchain_try_fetch_consume(           \
@@ -212,21 +203,39 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
             int type = s->pktin->type;
             s->pktin = NULL;
 
-            if (type == SSH1_MSG_DISCONNECT)
+            switch (type) {
+              case SSH1_MSG_DISCONNECT:
                 s->bpp.seen_disconnect = TRUE;
+                break;
 
-            if (type == SSH1_SMSG_SUCCESS && s->pending_compression_request) {
-                assert(!s->compctx);
-                assert(!s->decompctx);
+              case SSH1_SMSG_SUCCESS:
+              case SSH1_SMSG_FAILURE:
+                if (s->pending_compression_request) {
+                    /*
+                     * This is the response to
+                     * SSH1_CMSG_REQUEST_COMPRESSION.
+                     */
+                    if (type == SSH1_SMSG_SUCCESS) {
+                        /*
+                         * If the response was positive, start
+                         * compression.
+                         */
+                        assert(!s->compctx);
+                        assert(!s->decompctx);
 
-                s->compctx = ssh_compressor_new(&ssh_zlib);
-                s->decompctx = ssh_decompressor_new(&ssh_zlib);
+                        s->compctx = ssh_compressor_new(&ssh_zlib);
+                        s->decompctx = ssh_decompressor_new(&ssh_zlib);
+                    }
 
-                s->pending_compression_request = FALSE;
-            }
-
-            if (type == SSH1_SMSG_FAILURE && s->pending_compression_request) {
-                s->pending_compression_request = FALSE;
+                    /*
+                     * Either way, cancel the pending flag, and
+                     * schedule a run of our output side in case we
+                     * had any packets queued up in the meantime.
+                     */
+                    s->pending_compression_request = FALSE;
+                    queue_idempotent_callback(&s->bpp.ic_out_pq);
+                }
+                break;
             }
         }
     }
@@ -300,9 +309,31 @@ static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp)
     struct ssh1_bpp_state *s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
     PktOut *pkt;
 
+    if (s->pending_compression_request) {
+        /*
+         * Don't send any output packets while we're awaiting a
+         * response to SSH1_CMSG_REQUEST_COMPRESSION, because if they
+         * cross over in transit with the responding SSH1_CMSG_SUCCESS
+         * then the other end could decode them with the wrong
+         * compression settings.
+         */
+        return;
+    }
+
     while ((pkt = pq_pop(&s->bpp.out_pq)) != NULL) {
+        int type = pkt->type;
         ssh1_bpp_format_packet(s, pkt);
         ssh_free_pktout(pkt);
+
+        if (type == SSH1_CMSG_REQUEST_COMPRESSION) {
+            /*
+             * When we see the actual compression request go past, set
+             * the pending flag, and stop processing packets this
+             * time.
+             */
+            s->pending_compression_request = TRUE;
+            break;
+        }
     }
 }
 
