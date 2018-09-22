@@ -852,13 +852,14 @@ int scp_send_filename(const char *name, uint64 size, int permissions)
 	sfree(fullname);
 	return 0;
     } else {
-	char buf[40];
+	char *buf;
 	char sizestr[40];
 	uint64_decimal(size, sizestr);
         if (permissions < 0)
             permissions = 0644;
-	sprintf(buf, "C%04o %s ", (int)(permissions & 07777), sizestr);
+	buf = dupprintf("C%04o %s ", (int)(permissions & 07777), sizestr);
         backend_send(backend, buf, strlen(buf));
+        sfree(buf);
         backend_send(backend, name, strlen(name));
         backend_send(backend, "\n", 1);
 	return response();
