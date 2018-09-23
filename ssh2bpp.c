@@ -42,7 +42,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp);
 static PktOut *ssh2_bpp_new_pktout(int type);
 static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt);
 
-const struct BinaryPacketProtocolVtable ssh2_bpp_vtable = {
+static const struct BinaryPacketProtocolVtable ssh2_bpp_vtable = {
     ssh2_bpp_free,
     ssh2_bpp_handle_input,
     ssh2_bpp_new_pktout,

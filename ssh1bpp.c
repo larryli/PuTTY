@@ -33,7 +33,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp);
 static PktOut *ssh1_bpp_new_pktout(int type);
 static void ssh1_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt);
 
-const struct BinaryPacketProtocolVtable ssh1_bpp_vtable = {
+static const struct BinaryPacketProtocolVtable ssh1_bpp_vtable = {
     ssh1_bpp_free,
     ssh1_bpp_handle_input,
     ssh1_bpp_new_pktout,

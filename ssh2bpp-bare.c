@@ -25,7 +25,7 @@ static void ssh2_bare_bpp_handle_input(BinaryPacketProtocol *bpp);
 static PktOut *ssh2_bare_bpp_new_pktout(int type);
 static void ssh2_bare_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *);
 
-const struct BinaryPacketProtocolVtable ssh2_bare_bpp_vtable = {
+static const struct BinaryPacketProtocolVtable ssh2_bare_bpp_vtable = {
     ssh2_bare_bpp_free,
     ssh2_bare_bpp_handle_input,
     ssh2_bare_bpp_new_pktout,
