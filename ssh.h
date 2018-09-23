@@ -53,10 +53,10 @@ struct ssh_channel;
 typedef struct PacketQueueNode PacketQueueNode;
 struct PacketQueueNode {
     PacketQueueNode *next, *prev;
+    int on_free_queue;     /* is this packet scheduled for freeing? */
 };
 
 typedef struct PktIn {
-    int refcount;
     int type;
     unsigned long sequence; /* SSH-2 incoming sequence number */
     PacketQueueNode qnode;  /* for linking this packet on to a queue */
@@ -157,7 +157,6 @@ int ssh2_censor_packet(
     ptrlen pkt, logblank_t *blanks);
 
 PktOut *ssh_new_packet(void);
-void ssh_unref_packet(PktIn *pkt);
 void ssh_free_pktout(PktOut *pkt);
 
 extern Socket ssh_connection_sharing_init(

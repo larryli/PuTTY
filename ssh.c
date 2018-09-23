@@ -1043,7 +1043,6 @@ static void ssh_process_pq_full(void *ctx)
         if (ssh->general_packet_processing)
             ssh->general_packet_processing(ssh, pktin);
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
-	ssh_unref_packet(pktin);
     }
 }
 
@@ -3316,14 +3315,12 @@ static void ssh1_connection_input(Ssh ssh)
 
 static void ssh1_coro_wrapper_initial(Ssh ssh, PktIn *pktin)
 {
-    pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh1_login, pktin);
     queue_idempotent_callback(&ssh->ssh1_login_icb);
 }
 
 static void ssh1_coro_wrapper_session(Ssh ssh, PktIn *pktin)
 {
-    pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh1_connection, pktin);
     queue_idempotent_callback(&ssh->ssh1_connection_icb);
 }
@@ -6661,7 +6658,6 @@ static void ssh2_setup_env(struct ssh_channel *c, PktIn *pktin,
  */
 static void ssh2_msg_userauth(Ssh ssh, PktIn *pktin)
 {
-    pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh2_userauth, pktin);
     if (pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
         /*
@@ -8136,7 +8132,6 @@ static void ssh2_userauth_input(Ssh ssh)
  */
 static void ssh2_msg_connection(Ssh ssh, PktIn *pktin)
 {
-    pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh2_connection, pktin);
     queue_idempotent_callback(&ssh->ssh2_connection_icb);
 }
@@ -8610,7 +8605,6 @@ static void ssh2_msg_debug(Ssh ssh, PktIn *pktin)
 
 static void ssh2_msg_transport(Ssh ssh, PktIn *pktin)
 {
-    pktin->refcount++;   /* avoid packet being freed when we return */
     pq_push(&ssh->pq_ssh2_transport, pktin);
     queue_idempotent_callback(&ssh->ssh2_transport_icb);
 }

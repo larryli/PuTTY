@@ -15,10 +15,20 @@
  * Implementation of PacketQueue.
  */
 
+static void pq_ensure_unlinked(PacketQueueNode *node)
+{
+    if (node->on_free_queue) {
+        node->next->prev = node->prev;
+        node->prev->next = node->next;
+    } else {
+        assert(!node->next);
+        assert(!node->prev);
+    }
+}
+
 void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node)
 {
-    assert(!node->next);
-    assert(!node->prev);
+    pq_ensure_unlinked(node);
     node->next = &pqb->end;
     node->prev = pqb->end.prev;
     node->next->prev = node;
@@ -27,13 +37,32 @@ void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node)
 
 void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node)
 {
-    assert(!node->next);
-    assert(!node->prev);
+    pq_ensure_unlinked(node);
     node->prev = &pqb->end;
     node->next = pqb->end.next;
     node->next->prev = node;
     node->prev->next = node;
 }
+
+static PacketQueueNode pktin_freeq_head = {
+    &pktin_freeq_head, &pktin_freeq_head, TRUE
+};
+
+static void pktin_free_queue_callback(void *vctx)
+{
+    while (pktin_freeq_head.next != &pktin_freeq_head) {
+        PacketQueueNode *node = pktin_freeq_head.next;
+        PktIn *pktin = FROMFIELD(node, PktIn, qnode);
+        pktin_freeq_head.next = node->next;
+        sfree(pktin);
+    }
+
+    pktin_freeq_head.prev = &pktin_freeq_head;
+}
+
+static IdempotentCallback ic_pktin_free = {
+    pktin_free_queue_callback, NULL, FALSE
+};
 
 static PktIn *pq_in_get(PacketQueueBase *pqb, int pop)
 {
@@ -44,7 +73,13 @@ static PktIn *pq_in_get(PacketQueueBase *pqb, int pop)
     if (pop) {
         node->next->prev = node->prev;
         node->prev->next = node->next;
-        node->prev = node->next = NULL;
+
+        node->prev = pktin_freeq_head.prev;
+        node->next = &pktin_freeq_head;
+        node->next->prev = node;
+        node->prev->next = node;
+        node->on_free_queue = TRUE;
+        queue_idempotent_callback(&ic_pktin_free);
     }
 
     return FROMFIELD(node, PktIn, qnode);
@@ -80,8 +115,11 @@ void pq_out_init(PktOutQueue *pq)
 void pq_in_clear(PktInQueue *pq)
 {
     PktIn *pkt;
-    while ((pkt = pq_pop(pq)) != NULL)
-        ssh_unref_packet(pkt);
+    while ((pkt = pq_pop(pq)) != NULL) {
+        /* No need to actually free these packets: pq_pop on a
+         * PktInQueue will automatically move them to the free
+         * queue. */
+    }
 }
 
 void pq_out_clear(PktOutQueue *pq)
@@ -170,6 +208,7 @@ PktOut *ssh_new_packet(void)
     pkt->downstream_id = 0;
     pkt->additional_log_text = NULL;
     pkt->qnode.next = pkt->qnode.prev = NULL;
+    pkt->qnode.on_free_queue = FALSE;
 
     return pkt;
 }
@@ -193,12 +232,6 @@ static void ssh_pkt_BinarySink_write(BinarySink *bs,
 {
     PktOut *pkt = BinarySink_DOWNCAST(bs, PktOut);
     ssh_pkt_adddata(pkt, data, len);
-}
-
-void ssh_unref_packet(PktIn *pkt)
-{
-    if (--pkt->refcount <= 0)
-        sfree(pkt);
 }
 
 void ssh_free_pktout(PktOut *pkt)

@@ -74,8 +74,7 @@ static void ssh2_bpp_free(BinaryPacketProtocol *bpp)
         ssh2_mac_free(s->in.mac);
     if (s->in_decomp)
         ssh_decompressor_free(s->in_decomp);
-    if (s->pktin)
-        ssh_unref_packet(s->pktin);
+    sfree(s->pktin);
     sfree(s);
 }
 
@@ -249,8 +248,8 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
              */
             s->pktin = snew_plus(PktIn, s->maxlen);
             s->pktin->qnode.prev = s->pktin->qnode.next = NULL;
-            s->pktin->refcount = 1;
             s->pktin->type = 0;
+            s->pktin->qnode.on_free_queue = FALSE;
             s->data = snew_plus_get_aux(s->pktin);
             memcpy(s->data, s->buf, s->maxlen);
         } else if (s->in.mac && s->in.etm_mode) {
@@ -300,8 +299,8 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
              */
             s->pktin = snew_plus(PktIn, OUR_V2_PACKETLIMIT + s->maclen);
             s->pktin->qnode.prev = s->pktin->qnode.next = NULL;
-            s->pktin->refcount = 1;
             s->pktin->type = 0;
+            s->pktin->qnode.on_free_queue = FALSE;
             s->data = snew_plus_get_aux(s->pktin);
             memcpy(s->data, s->buf, 4);
 
@@ -369,8 +368,8 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             s->maxlen = s->packetlen + s->maclen;
             s->pktin = snew_plus(PktIn, s->maxlen);
             s->pktin->qnode.prev = s->pktin->qnode.next = NULL;
-            s->pktin->refcount = 1;
             s->pktin->type = 0;
+            s->pktin->qnode.on_free_queue = FALSE;
             s->data = snew_plus_get_aux(s->pktin);
             memcpy(s->data, s->buf, s->cipherblk);
 

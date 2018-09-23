@@ -59,8 +59,7 @@ static void ssh1_bpp_free(BinaryPacketProtocol *bpp)
         ssh_decompressor_free(s->decompctx);
     if (s->crcda_ctx)
         crcda_free_context(s->crcda_ctx);
-    if (s->pktin)
-        ssh_unref_packet(s->pktin);
+    sfree(s->pktin);
     sfree(s);
 }
 
@@ -125,7 +124,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
          */
         s->pktin = snew_plus(PktIn, s->biglen);
         s->pktin->qnode.prev = s->pktin->qnode.next = NULL;
-        s->pktin->refcount = 1;
+        s->pktin->qnode.on_free_queue = FALSE;
         s->pktin->type = 0;
 
         s->maxlen = s->biglen;

@@ -44,8 +44,7 @@ static void ssh2_bare_bpp_free(BinaryPacketProtocol *bpp)
 {
     struct ssh2_bare_bpp_state *s =
         FROMFIELD(bpp, struct ssh2_bare_bpp_state, bpp);
-    if (s->pktin)
-        ssh_unref_packet(s->pktin);
+    sfree(s->pktin);
     sfree(s);
 }
 
@@ -75,8 +74,8 @@ static void ssh2_bare_bpp_handle_input(BinaryPacketProtocol *bpp)
          */
         s->pktin = snew_plus(PktIn, s->packetlen);
         s->pktin->qnode.prev = s->pktin->qnode.next = NULL;
+        s->pktin->qnode.on_free_queue = FALSE;
         s->maxlen = 0;
-        s->pktin->refcount = 1;
         s->data = snew_plus_get_aux(s->pktin);
 
         s->pktin->sequence = s->incoming_sequence++;
