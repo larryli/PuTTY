@@ -474,8 +474,7 @@ struct ssh_tag {
     int incoming_data_seen_eof;
     char *incoming_data_eof_message;
 
-    PktInQueue pq_full;
-    struct IdempotentCallback pq_full_consumer;
+    struct IdempotentCallback incoming_pkt_consumer;
 
     PktInQueue pq_ssh1_login;
     struct IdempotentCallback ssh1_login_icb;
@@ -725,22 +724,7 @@ static int s_write(Ssh ssh, const void *data, int len)
 
 static void ssh_pkt_write(Ssh ssh, PktOut *pkt)
 {
-    if (ssh->version == 2 && ssh->v2_cbc_ignore_workaround &&
-        bufchain_size(&ssh->outgoing_data) != 0) {
-        /*
-         * When using a CBC-mode cipher in SSH-2, it's necessary to
-         * ensure that an attacker can't provide data to be encrypted
-         * using an IV that they know. We ensure this by prefixing
-         * each packet that might contain user data with an
-         * SSH_MSG_IGNORE.
-         */
-	PktOut *ipkt = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_IGNORE);
-	put_stringz(ipkt, "");
-        ssh_bpp_format_packet(ssh->bpp, ipkt);
-    }
-
-    ssh_bpp_format_packet(ssh->bpp, pkt);
-    queue_idempotent_callback(&ssh->outgoing_data_sender);
+    pq_push(&ssh->bpp->out_pq, pkt);
 }
 
 /*
@@ -881,8 +865,6 @@ static void ssh2_add_sigblob(Ssh ssh, PktOut *pkt,
 
 static void ssh_feed_to_bpp(Ssh ssh)
 {
-    PacketQueueNode *prev_tail = ssh->pq_full.pqb.end.prev;
-
     assert(ssh->bpp);
     ssh_bpp_handle_input(ssh->bpp);
 
@@ -904,9 +886,6 @@ static void ssh_feed_to_bpp(Ssh ssh)
         ssh->close_expected = TRUE;
         ssh->disconnect_message_seen = TRUE;
     }
-
-    if (ssh->pq_full.pqb.end.prev != prev_tail)
-        queue_idempotent_callback(&ssh->pq_full_consumer);
 }
 
 static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
@@ -976,12 +955,14 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
     }
 
     ssh->bpp->out_raw = &ssh->outgoing_data;
+    ssh->bpp->out_raw->ic = &ssh->outgoing_data_sender;
     ssh->bpp->in_raw = &ssh->incoming_data;
-    ssh->bpp->in_pq = &ssh->pq_full;
+    ssh->bpp->in_pq.pqb.ic = &ssh->incoming_pkt_consumer;
     ssh->bpp->pls = &ssh->pls;
     ssh->bpp->logctx = ssh->logctx;
+    ssh->bpp->remote_bugs = ssh->remote_bugs;
 
-    queue_idempotent_callback(&ssh->incoming_data_consumer);
+    queue_idempotent_callback(&ssh->bpp->ic_in_raw);
     queue_idempotent_callback(&ssh->user_input_consumer);
 
     update_specials_menu(ssh->frontend);
@@ -1034,12 +1015,12 @@ static void ssh_process_incoming_data(void *ctx)
     }
 }
 
-static void ssh_process_pq_full(void *ctx)
+static void ssh_process_incoming_pkts(void *ctx)
 {
     Ssh ssh = (Ssh)ctx;
     PktIn *pktin;
 
-    while ((pktin = pq_pop(&ssh->pq_full)) != NULL) {
+    while ((pktin = pq_pop(&ssh->bpp->in_pq)) != NULL) {
         if (ssh->general_packet_processing)
             ssh->general_packet_processing(ssh, pktin);
 	ssh->packet_dispatch[pktin->type](ssh, pktin);
@@ -1729,6 +1710,13 @@ static void do_ssh1_login(void *vctx)
     logevent("Trying to enable encryption...");
 
     sfree(s->rsabuf);
+
+    /*
+     * Force the BPP to synchronously marshal all packets up to and
+     * including the SESSION_KEY into wire format, before we turn on
+     * crypto.
+     */
+    ssh_bpp_handle_output(ssh->bpp);
 
     {
         const struct ssh1_cipheralg *cipher =
@@ -5078,6 +5066,13 @@ static void do_ssh2_transport(void *vctx)
     ssh->stats.out.remaining = ssh->max_data_size;
 
     /*
+     * Force the BPP to synchronously marshal all packets up to and
+     * including that NEWKEYS into wire format, before we switch over
+     * to new crypto.
+     */
+    ssh_bpp_handle_output(ssh->bpp);
+
+    /*
      * We've sent client NEWKEYS, so create and initialise
      * client-to-server session keys.
      */
@@ -6616,10 +6611,10 @@ static void ssh2_msg_userauth(Ssh ssh, PktIn *pktin)
          * protocol has officially started, which means we must
          * install the dispatch-table entries for all the
          * connection-layer messages. In particular, we must do this
-         * _before_ we return to the loop in ssh_process_pq_full
+         * _before_ we return to the loop in ssh_process_incoming_pkts
          * that's processing the currently queued packets through the
          * dispatch table, because if (say) an SSH_MSG_GLOBAL_REQUEST
-         * is already pending in pq_full, we can't afford to delay
+         * is already pending in in_pq, we can't afford to delay
          * installing its dispatch table entry until after that queue
          * run is done.
          */
@@ -8331,14 +8326,15 @@ static void do_ssh2_connection(void *vctx)
 
     /*
      * Put our current pending packet queue back to the front of
-     * pq_full, and then schedule a callback to re-process those
+     * the main pq, and then schedule a callback to re-process those
      * packets (if any). That way, anything already in our queue that
      * matches any of the table entries we've just modified will go to
      * the right handler function, and won't come here to confuse us.
      */
     if (pq_peek(&ssh->pq_ssh2_connection)) {
-        pq_concatenate(&ssh->pq_full, &ssh->pq_ssh2_connection, &ssh->pq_full);
-        queue_idempotent_callback(&ssh->pq_full_consumer);
+        pq_concatenate(&ssh->bpp->in_pq,
+                       &ssh->pq_ssh2_connection, &ssh->bpp->in_pq);
+        queue_idempotent_callback(ssh->bpp->in_pq.pqb.ic);
     }
 
     /*
@@ -9005,10 +9001,9 @@ static const char *ssh_init(Frontend *frontend, Backend **backend_handle,
     ssh->incoming_data_consumer.fn = ssh_process_incoming_data;
     ssh->incoming_data_consumer.ctx = ssh;
     ssh->incoming_data_consumer.queued = FALSE;
-    pq_in_init(&ssh->pq_full);
-    ssh->pq_full_consumer.fn = ssh_process_pq_full;
-    ssh->pq_full_consumer.ctx = ssh;
-    ssh->pq_full_consumer.queued = FALSE;
+    ssh->incoming_pkt_consumer.fn = ssh_process_incoming_pkts;
+    ssh->incoming_pkt_consumer.ctx = ssh;
+    ssh->incoming_pkt_consumer.queued = FALSE;
     pq_in_init(&ssh->pq_ssh1_login);
     ssh->ssh1_login_icb.fn = do_ssh1_login;
     ssh->ssh1_login_icb.ctx = ssh;
@@ -9191,7 +9186,6 @@ static void ssh_free(Backend *be)
     bufchain_clear(&ssh->incoming_data);
     bufchain_clear(&ssh->outgoing_data);
     sfree(ssh->incoming_data_eof_message);
-    pq_in_clear(&ssh->pq_full);
     pq_in_clear(&ssh->pq_ssh1_login);
     pq_in_clear(&ssh->pq_ssh1_connection);
     pq_in_clear(&ssh->pq_ssh2_transport);

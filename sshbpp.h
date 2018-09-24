@@ -5,30 +5,44 @@
 #ifndef PUTTY_SSHBPP_H
 #define PUTTY_SSHBPP_H
 
-typedef struct BinaryPacketProtocol BinaryPacketProtocol;
-
 struct BinaryPacketProtocolVtable {
     void (*free)(BinaryPacketProtocol *); 
     void (*handle_input)(BinaryPacketProtocol *);
+    void (*handle_output)(BinaryPacketProtocol *);
     PktOut *(*new_pktout)(int type);
-    void (*format_packet)(BinaryPacketProtocol *, PktOut *);
 };
 
 struct BinaryPacketProtocol {
     const struct BinaryPacketProtocolVtable *vt;
     bufchain *in_raw, *out_raw;
-    PktInQueue *in_pq;
+    PktInQueue in_pq;
+    PktOutQueue out_pq;
     PacketLogSettings *pls;
     LogContext *logctx;
+    Ssh ssh;
+
+    /* ic_in_raw is filled in by the BPP (probably by calling
+     * ssh_bpp_common_setup). The BPP's owner triggers it when data is
+     * added to in_raw, and also when the BPP is newly created. */
+    IdempotentCallback ic_in_raw;
+
+    /* ic_out_pq is entirely internal to the BPP itself; it's used as
+     * the callback on out_pq. */
+    IdempotentCallback ic_out_pq;
+
+    int remote_bugs;
 
     int seen_disconnect;
     char *error;
 };
 
-#define ssh_bpp_free(bpp) ((bpp)->vt->free(bpp))
 #define ssh_bpp_handle_input(bpp) ((bpp)->vt->handle_input(bpp))
+#define ssh_bpp_handle_output(bpp) ((bpp)->vt->handle_output(bpp))
 #define ssh_bpp_new_pktout(bpp, type) ((bpp)->vt->new_pktout(type))
-#define ssh_bpp_format_packet(bpp, pkt) ((bpp)->vt->format_packet(bpp, pkt))
+
+/* ssh_bpp_free is more than just a macro wrapper on the vtable; it
+ * does centralised parts of the freeing too. */
+void ssh_bpp_free(BinaryPacketProtocol *bpp);
 
 BinaryPacketProtocol *ssh1_bpp_new(void);
 void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
@@ -39,6 +53,10 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
  * next SSH1_SMSG_SUCCESS or SSH1_SMSG_FAILURE message, it should set
  * up zlib compression if it was SUCCESS. */
 void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp);
+
+/* Helper routine which does common BPP initialisation, e.g. setting
+ * up in_pq and out_pq, and initialising input_consumer. */
+void ssh_bpp_common_setup(BinaryPacketProtocol *);
 
 /* Common helper function between the SSH-2 full and bare BPPs */
 int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin);

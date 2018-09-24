@@ -41,14 +41,14 @@ struct ssh_verstring_state {
 
 static void ssh_verstring_free(BinaryPacketProtocol *bpp);
 static void ssh_verstring_handle_input(BinaryPacketProtocol *bpp);
+static void ssh_verstring_handle_output(BinaryPacketProtocol *bpp);
 static PktOut *ssh_verstring_new_pktout(int type);
-static void ssh_verstring_format_packet(BinaryPacketProtocol *bpp, PktOut *);
 
 static const struct BinaryPacketProtocolVtable ssh_verstring_vtable = {
     ssh_verstring_free,
     ssh_verstring_handle_input,
+    ssh_verstring_handle_output,
     ssh_verstring_new_pktout,
-    ssh_verstring_format_packet,
 };
 
 static void ssh_detect_bugs(struct ssh_verstring_state *s);
@@ -97,6 +97,7 @@ BinaryPacketProtocol *ssh_verstring_new(
     s->send_early = !ssh_version_includes_v1(protoversion);
 
     s->bpp.vt = &ssh_verstring_vtable;
+    ssh_bpp_common_setup(&s->bpp);
     return &s->bpp;
 }
 
@@ -394,7 +395,7 @@ static PktOut *ssh_verstring_new_pktout(int type)
     return NULL;
 }
 
-static void ssh_verstring_format_packet(BinaryPacketProtocol *bpp, PktOut *pkg)
+static void ssh_verstring_handle_output(BinaryPacketProtocol *bpp)
 {
     assert(0 && "Should never try to send packets during SSH version "
            "string exchange");

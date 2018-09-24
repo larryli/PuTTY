@@ -30,14 +30,14 @@ struct ssh1_bpp_state {
 
 static void ssh1_bpp_free(BinaryPacketProtocol *bpp);
 static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp);
+static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp);
 static PktOut *ssh1_bpp_new_pktout(int type);
-static void ssh1_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt);
 
 static const struct BinaryPacketProtocolVtable ssh1_bpp_vtable = {
     ssh1_bpp_free,
     ssh1_bpp_handle_input,
+    ssh1_bpp_handle_output,
     ssh1_bpp_new_pktout,
-    ssh1_bpp_format_packet,
 };
 
 BinaryPacketProtocol *ssh1_bpp_new(void)
@@ -45,6 +45,7 @@ BinaryPacketProtocol *ssh1_bpp_new(void)
     struct ssh1_bpp_state *s = snew(struct ssh1_bpp_state);
     memset(s, 0, sizeof(*s));
     s->bpp.vt = &ssh1_bpp_vtable;
+    ssh_bpp_common_setup(&s->bpp);
     return &s->bpp;
 }
 
@@ -202,7 +203,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
                        NULL, 0, NULL);
         }
 
-        pq_push(s->bpp.in_pq, s->pktin);
+        pq_push(&s->bpp.in_pq, s->pktin);
 
         {
             int type = s->pktin->type;
@@ -241,9 +242,8 @@ static PktOut *ssh1_bpp_new_pktout(int pkt_type)
     return pkt;
 }
 
-static void ssh1_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
+static void ssh1_bpp_format_packet(struct ssh1_bpp_state *s, PktOut *pkt)
 {
-    struct ssh1_bpp_state *s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
     int pad, biglen, i, pktoffs;
     unsigned long crc;
     int len;
@@ -290,6 +290,15 @@ static void ssh1_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
 
     bufchain_add(s->bpp.out_raw, pkt->data + pktoffs,
                  biglen + 4); /* len(length+padding+type+data+CRC) */
+}
 
-    ssh_free_pktout(pkt);
+static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp)
+{
+    struct ssh1_bpp_state *s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
+    PktOut *pkt;
+
+    while ((pkt = pq_pop(&s->bpp.out_pq)) != NULL) {
+        ssh1_bpp_format_packet(s, pkt);
+        ssh_free_pktout(pkt);
+    }
 }

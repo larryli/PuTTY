@@ -252,6 +252,7 @@ void ssh_free_pktout(PktOut *pkt)
     sfree(pkt->data);
     sfree(pkt);
 }
+
 /* ----------------------------------------------------------------------
  * Implement zombiechan_new() and its trivial vtable.
  */
@@ -630,8 +631,38 @@ const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
 #undef TRANSLATE_AUTH
 
 /* ----------------------------------------------------------------------
- * Common helper function for implementations of BinaryPacketProtocol.
+ * Common helper functions for clients and implementations of
+ * BinaryPacketProtocol.
  */
+
+static void ssh_bpp_input_raw_data_callback(void *context)
+{
+    BinaryPacketProtocol *bpp = (BinaryPacketProtocol *)context;
+    ssh_bpp_handle_input(bpp);
+}
+
+static void ssh_bpp_output_packet_callback(void *context)
+{
+    BinaryPacketProtocol *bpp = (BinaryPacketProtocol *)context;
+    ssh_bpp_handle_output(bpp);
+}
+
+void ssh_bpp_common_setup(BinaryPacketProtocol *bpp)
+{
+    pq_in_init(&bpp->in_pq);
+    pq_out_init(&bpp->out_pq);
+    bpp->ic_in_raw.fn = ssh_bpp_input_raw_data_callback;
+    bpp->ic_in_raw.ctx = bpp;
+    bpp->ic_out_pq.fn = ssh_bpp_output_packet_callback;
+    bpp->ic_out_pq.ctx = bpp;
+    bpp->out_pq.pqb.ic = &bpp->ic_out_pq;
+}
+
+void ssh_bpp_free(BinaryPacketProtocol *bpp)
+{
+    delete_callbacks_for_context(bpp);
+    bpp->vt->free(bpp);
+}
 
 #define BITMAP_UNIVERSAL(y, name, value)         \
     | (value >= y && value < y+32 ? 1UL << (value-y) : 0)
@@ -658,7 +689,7 @@ int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
         !((valid_bitmap[pktin->type >> 5] >> (pktin->type & 0x1F)) & 1)) {
         PktOut *pkt = ssh_bpp_new_pktout(bpp, SSH2_MSG_UNIMPLEMENTED);
         put_uint32(pkt, pktin->sequence);
-        ssh_bpp_format_packet(bpp, pkt);
+        pq_push(&bpp->out_pq, pkt);
         return TRUE;
     }
 

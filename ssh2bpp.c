@@ -25,6 +25,7 @@ struct ssh2_bpp_state {
     unsigned cipherblk;
     PktIn *pktin;
     struct DataTransferStats *stats;
+    int cbc_ignore_workaround;
 
     struct ssh2_bpp_direction in, out;
     /* comp and decomp logically belong in the per-direction
@@ -39,14 +40,14 @@ struct ssh2_bpp_state {
 
 static void ssh2_bpp_free(BinaryPacketProtocol *bpp);
 static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp);
+static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp);
 static PktOut *ssh2_bpp_new_pktout(int type);
-static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt);
 
 static const struct BinaryPacketProtocolVtable ssh2_bpp_vtable = {
     ssh2_bpp_free,
     ssh2_bpp_handle_input,
+    ssh2_bpp_handle_output,
     ssh2_bpp_new_pktout,
-    ssh2_bpp_format_packet,
 };
 
 BinaryPacketProtocol *ssh2_bpp_new(struct DataTransferStats *stats)
@@ -55,6 +56,7 @@ BinaryPacketProtocol *ssh2_bpp_new(struct DataTransferStats *stats)
     memset(s, 0, sizeof(*s));
     s->bpp.vt = &ssh2_bpp_vtable;
     s->stats = stats;
+    ssh_bpp_common_setup(&s->bpp);
     return &s->bpp;
 }
 
@@ -99,8 +101,13 @@ void ssh2_bpp_new_outgoing_crypto(
         s->out.cipher = ssh2_cipher_new(cipher);
         ssh2_cipher_setkey(s->out.cipher, ckey);
         ssh2_cipher_setiv(s->out.cipher, iv);
+
+        s->cbc_ignore_workaround = (
+            (ssh2_cipher_alg(s->out.cipher)->flags & SSH_CIPHER_IS_CBC) &&
+            !(s->bpp.remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE));
     } else {
         s->out.cipher = NULL;
+        s->cbc_ignore_workaround = FALSE;
     }
     s->out.etm_mode = etm_mode;
     if (mac) {
@@ -478,7 +485,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             continue;
         }
 
-        pq_push(s->bpp.in_pq, s->pktin);
+        pq_push(&s->bpp.in_pq, s->pktin);
 
         {
             int type = s->pktin->type;
@@ -611,10 +618,8 @@ static void ssh2_bpp_format_packet_inner(struct ssh2_bpp_state *s, PktOut *pkt)
 
 }
 
-static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
+static void ssh2_bpp_format_packet(struct ssh2_bpp_state *s, PktOut *pkt)
 {
-    struct ssh2_bpp_state *s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
-
     if (pkt->minlen > 0 && !s->out_comp) {
         /*
          * If we've been told to pad the packet out to a given minimum
@@ -678,6 +683,40 @@ static void ssh2_bpp_format_packet(BinaryPacketProtocol *bpp, PktOut *pkt)
 
     ssh2_bpp_format_packet_inner(s, pkt);
     bufchain_add(s->bpp.out_raw, pkt->data, pkt->length);
+}
 
-    ssh_free_pktout(pkt);
+static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp)
+{
+    struct ssh2_bpp_state *s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
+    PktOut *pkt;
+
+    if (s->cbc_ignore_workaround) {
+        /*
+         * When using a CBC-mode cipher in SSH-2, it's necessary to
+         * ensure that an attacker can't provide data to be encrypted
+         * using an IV that they know. We ensure this by inserting an
+         * SSH_MSG_IGNORE if the last cipher block of the previous
+         * packet has already been sent to the network (which we
+         * approximate conservatively by checking if it's vanished
+         * from out_raw).
+         */
+        if (bufchain_size(s->bpp.out_raw) <
+            (ssh2_cipher_alg(s->out.cipher)->blksize +
+             ssh2_mac_alg(s->out.mac)->len)) {
+            /*
+             * There's less data in out_raw than the MAC size plus the
+             * cipher block size, which means at least one byte of
+             * that cipher block must already have left. Add an
+             * IGNORE.
+             */
+            pkt = ssh_bpp_new_pktout(&s->bpp, SSH2_MSG_IGNORE);
+            put_stringz(pkt, "");
+            ssh2_bpp_format_packet(s, pkt);
+        }
+    }
+
+    while ((pkt = pq_pop(&s->bpp.out_pq)) != NULL) {
+        ssh2_bpp_format_packet(s, pkt);
+        ssh_free_pktout(pkt);
+    }
 }
