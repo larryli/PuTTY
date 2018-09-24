@@ -1159,7 +1159,7 @@ static void pty_size(Backend *be, int width, int height)
 /*
  * Send special codes.
  */
-static void pty_special(Backend *be, Telnet_Special code)
+static void pty_special(Backend *be, SessionSpecialCode code, int arg)
 {
     /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /* Do nothing! */
@@ -1170,7 +1170,7 @@ static void pty_special(Backend *be, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *pty_get_specials(Backend *be)
+static const SessionSpecial *pty_get_specials(Backend *be)
 {
     /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
     /*

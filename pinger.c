@@ -1,5 +1,5 @@
 /*
- * pinger.c: centralised module that deals with sending TS_PING
+ * pinger.c: centralised module that deals with sending SS_PING
  * keepalives, to avoid replicating this code in multiple backends.
  */
 
@@ -19,7 +19,7 @@ static void pinger_timer(void *ctx, unsigned long now)
     Pinger pinger = (Pinger)ctx;
 
     if (pinger->pending && now == pinger->next) {
-        backend_special(pinger->backend, TS_PING);
+        backend_special(pinger->backend, SS_PING, 0);
 	pinger->pending = FALSE;
 	pinger_schedule(pinger);
     }

@@ -43,8 +43,8 @@ static int null_send(Backend *, const char *, int);
 static int loop_send(Backend *, const char *, int);
 static int null_sendbuffer(Backend *);
 static void null_size(Backend *, int, int);
-static void null_special(Backend *, Telnet_Special);
-static const struct telnet_special *null_get_specials(Backend *);
+static void null_special(Backend *, SessionSpecialCode, int);
+static const SessionSpecial *null_get_specials(Backend *);
 static int null_connected(Backend *);
 static int null_exitcode(Backend *);
 static int null_sendok(Backend *);
@@ -126,11 +126,11 @@ static void null_size(Backend *be, int width, int height) {
 
 }
 
-static void null_special(Backend *be, Telnet_Special code) {
+static void null_special(Backend *be, SessionSpecialCode code, int arg) {
 
 }
 
-static const struct telnet_special *null_get_specials (Backend *be) {
+static const SessionSpecial *null_get_specials (Backend *be) {
 
     return NULL;
 }

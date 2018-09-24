@@ -247,7 +247,7 @@ int stdin_gotdata(struct handle *h, void *data, int len)
 	if (len > 0) {
             return backend_send(backend, data, len);
 	} else {
-            backend_special(backend, TS_EOF);
+            backend_special(backend, SS_EOF, 0);
 	    return 0;
 	}
     } else

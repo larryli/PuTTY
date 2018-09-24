@@ -973,7 +973,7 @@ int sftp_cmd_close(struct sftp_command *cmd)
 
     if (backend_connected(backend)) {
 	char ch;
-        backend_special(backend, TS_EOF);
+        backend_special(backend, SS_EOF, 0);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }
@@ -2355,7 +2355,7 @@ void do_sftp_cleanup()
 {
     char ch;
     if (backend) {
-        backend_special(backend, TS_EOF);
+        backend_special(backend, SS_EOF, 0);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
         backend_free(backend);
@@ -2965,7 +2965,7 @@ int psftp_main(int argc, char *argv[])
 
     if (backend && backend_connected(backend)) {
 	char ch;
-        backend_special(backend, TS_EOF);
+        backend_special(backend, SS_EOF, 0);
         sent_eof = TRUE;
 	sftp_recvdata(&ch, 1);
     }

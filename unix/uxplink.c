@@ -464,7 +464,7 @@ static void from_tty(void *vbuf, unsigned len)
 		break;
 	    case FF00:
 		if (*p == '\0') {
-                    backend_special(backend, TS_BRK);
+                    backend_special(backend, SS_BRK, 0);
 		} else {
 		    /* 
 		     * Pretend that PARMRK wasn't set.  This involves
@@ -991,7 +991,7 @@ int main(int argc, char **argv)
 		    perror("stdin: read");
 		    exit(1);
 		} else if (ret == 0) {
-                    backend_special(backend, TS_EOF);
+                    backend_special(backend, SS_EOF, 0);
 		    sending = FALSE;   /* send nothing further after this */
 		} else {
 		    if (local_tty)

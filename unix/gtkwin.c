@@ -1573,10 +1573,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Break special case, sending TS_BRK\n"));
+            debug((" - Ctrl-Break special case, sending SS_BRK\n"));
 #endif
             if (inst->backend)
-                backend_special(inst->backend, TS_BRK);
+                backend_special(inst->backend, SS_BRK, 0);
 	    return TRUE;
 	}
 
@@ -4414,11 +4414,10 @@ void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
     Frontend *inst = (Frontend *)data;
-    int code = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(item),
-                                                 "user-data"));
+    SessionSpecial *sc = g_object_get_data(G_OBJECT(item), "user-data");
 
     if (inst->backend)
-        backend_special(inst->backend, code);
+        backend_special(inst->backend, sc->code, sc->arg);
 }
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
@@ -4915,9 +4914,11 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 #endif
 }
 
+static void free_special_cmd(gpointer data) { sfree(data); }
+
 void update_specials_menu(Frontend *inst)
 {
-    const struct telnet_special *specials;
+    const SessionSpecial *specials;
 
     if (inst->backend)
         specials = backend_get_specials(inst->backend);
@@ -4936,7 +4937,7 @@ void update_specials_menu(Frontend *inst)
 	for (i = 0; nesting > 0; i++) {
 	    GtkWidget *menuitem = NULL;
 	    switch (specials[i].code) {
-	      case TS_SUBMENU:
+	      case SS_SUBMENU:
 		assert (nesting < 2);
 		saved_menu = menu; /* XXX lame stacking */
 		menu = gtk_menu_new();
@@ -4947,20 +4948,24 @@ void update_specials_menu(Frontend *inst)
 		menuitem = NULL;
 		nesting++;
 		break;
-	      case TS_EXITMENU:
+	      case SS_EXITMENU:
 		nesting--;
 		if (nesting) {
 		    menu = saved_menu; /* XXX lame stacking */
 		    saved_menu = NULL;
 		}
 		break;
-	      case TS_SEP:
+	      case SS_SEP:
 		menuitem = gtk_menu_item_new();
 		break;
 	      default:
 		menuitem = gtk_menu_item_new_with_label(specials[i].name);
-                g_object_set_data(G_OBJECT(menuitem), "user-data",
-                                  GINT_TO_POINTER(specials[i].code));
+                {
+                    SessionSpecial *sc = snew(SessionSpecial);
+                    *sc = specials[i]; /* structure copy */
+                    g_object_set_data_full(G_OBJECT(menuitem), "user-data",
+                                           sc, free_special_cmd);
+                }
                 g_signal_connect(G_OBJECT(menuitem), "activate",
                                  G_CALLBACK(special_menuitem), inst);
 		break;

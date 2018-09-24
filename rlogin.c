@@ -328,7 +328,7 @@ static void rlogin_size(Backend *be, int width, int height)
 /*
  * Send rlogin special codes.
  */
-static void rlogin_special(Backend *be, Telnet_Special code)
+static void rlogin_special(Backend *be, SessionSpecialCode code, int arg)
 {
     /* Do nothing! */
     return;
@@ -338,7 +338,7 @@ static void rlogin_special(Backend *be, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *rlogin_get_specials(Backend *be)
+static const SessionSpecial *rlogin_get_specials(Backend *be)
 {
     return NULL;
 }

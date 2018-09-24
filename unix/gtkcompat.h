@@ -33,6 +33,7 @@
 #define g_signal_handler_disconnect gtk_signal_disconnect
 #define g_object_get_data gtk_object_get_data
 #define g_object_set_data gtk_object_set_data
+#define g_object_set_data_full gtk_object_set_data_full
 #define g_object_ref_sink gtk_object_sink
 
 #define GDK_GRAB_SUCCESS GrabSuccess

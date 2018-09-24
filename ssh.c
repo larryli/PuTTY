@@ -313,7 +313,7 @@ static void ssh1_protocol_setup(Ssh ssh);
 static void ssh2_protocol_setup(Ssh ssh);
 static void ssh2_bare_connection_protocol_setup(Ssh ssh);
 static void ssh_size(Backend *be, int width, int height);
-static void ssh_special(Backend *be, Telnet_Special);
+static void ssh_special(Backend *be, SessionSpecialCode, int arg);
 static int ssh2_try_send(struct ssh_channel *c);
 static int ssh_send_channel_data(struct ssh_channel *c,
 				 const char *buf, int len);
@@ -592,7 +592,7 @@ struct ssh_tag {
     /*
      * The last list returned from get_specials.
      */
-    struct telnet_special *specials;
+    SessionSpecial *specials;
 
     /*
      * List of host key algorithms for which we _don't_ have a stored
@@ -3243,7 +3243,7 @@ static void do_ssh1_connection(void *vctx)
     if (ssh->size_needed)
         backend_size(&ssh->backend, ssh->term_width, ssh->term_height);
     if (ssh->eof_needed)
-        backend_special(&ssh->backend, TS_EOF);
+        backend_special(&ssh->backend, SS_EOF, 0);
 
     if (ssh->ldisc)
 	ldisc_echoedit_update(ssh->ldisc);  /* cause ldisc to notice changes */
@@ -8524,7 +8524,7 @@ static void do_ssh2_connection(void *vctx)
     if (ssh->size_needed)
         backend_size(&ssh->backend, ssh->term_width, ssh->term_height);
     if (ssh->eof_needed)
-        backend_special(&ssh->backend, TS_EOF);
+        backend_special(&ssh->backend, SS_EOF, 0);
 
     /*
      * Transfer data!
@@ -9514,40 +9514,40 @@ static void ssh_size(Backend *be, int width, int height)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *ssh_get_specials(Backend *be)
+static const SessionSpecial *ssh_get_specials(Backend *be)
 {
-    static const struct telnet_special ssh1_ignore_special[] = {
-	{"IGNORE message", TS_NOP}
+    static const SessionSpecial ssh1_ignore_special[] = {
+	{"IGNORE message", SS_NOP}
     };
-    static const struct telnet_special ssh2_ignore_special[] = {
-	{"IGNORE message", TS_NOP},
+    static const SessionSpecial ssh2_ignore_special[] = {
+	{"IGNORE message", SS_NOP},
     };
-    static const struct telnet_special ssh2_rekey_special[] = {
-	{"Repeat key exchange", TS_REKEY},
+    static const SessionSpecial ssh2_rekey_special[] = {
+	{"Repeat key exchange", SS_REKEY},
     };
-    static const struct telnet_special ssh2_session_specials[] = {
-	{NULL, TS_SEP},
-	{"Break", TS_BRK},
+    static const SessionSpecial ssh2_session_specials[] = {
+	{NULL, SS_SEP},
+	{"Break", SS_BRK},
 	/* These are the signal names defined by RFC 4254.
 	 * They include all the ISO C signals, but are a subset of the POSIX
 	 * required signals. */
-	{"SIGINT (Interrupt)", TS_SIGINT},
-	{"SIGTERM (Terminate)", TS_SIGTERM},
-	{"SIGKILL (Kill)", TS_SIGKILL},
-	{"SIGQUIT (Quit)", TS_SIGQUIT},
-	{"SIGHUP (Hangup)", TS_SIGHUP},
-	{"More signals", TS_SUBMENU},
-	  {"SIGABRT", TS_SIGABRT}, {"SIGALRM", TS_SIGALRM},
-	  {"SIGFPE",  TS_SIGFPE},  {"SIGILL",  TS_SIGILL},
-	  {"SIGPIPE", TS_SIGPIPE}, {"SIGSEGV", TS_SIGSEGV},
-	  {"SIGUSR1", TS_SIGUSR1}, {"SIGUSR2", TS_SIGUSR2},
-	{NULL, TS_EXITMENU}
+	{"SIGINT (Interrupt)", SS_SIGINT},
+	{"SIGTERM (Terminate)", SS_SIGTERM},
+	{"SIGKILL (Kill)", SS_SIGKILL},
+	{"SIGQUIT (Quit)", SS_SIGQUIT},
+	{"SIGHUP (Hangup)", SS_SIGHUP},
+	{"More signals", SS_SUBMENU},
+	  {"SIGABRT", SS_SIGABRT}, {"SIGALRM", SS_SIGALRM},
+	  {"SIGFPE",  SS_SIGFPE},  {"SIGILL",  SS_SIGILL},
+	  {"SIGPIPE", SS_SIGPIPE}, {"SIGSEGV", SS_SIGSEGV},
+	  {"SIGUSR1", SS_SIGUSR1}, {"SIGUSR2", SS_SIGUSR2},
+	{NULL, SS_EXITMENU}
     };
-    static const struct telnet_special specials_end[] = {
-	{NULL, TS_EXITMENU}
+    static const SessionSpecial specials_end[] = {
+	{NULL, SS_EXITMENU}
     };
 
-    struct telnet_special *specials = NULL;
+    SessionSpecial *specials = NULL;
     int nspecials = 0, specialsize = 0;
 
     Ssh ssh = FROMFIELD(be, struct ssh_tag, backend);
@@ -9559,9 +9559,9 @@ static const struct telnet_special *ssh_get_specials(Backend *be)
         int len = lenof(name);                                          \
         if (nspecials + len > specialsize) {                            \
             specialsize = (nspecials + len) * 5 / 4 + 32;               \
-            specials = sresize(specials, specialsize, struct telnet_special); \
+            specials = sresize(specials, specialsize, SessionSpecial); \
         }                                                               \
-	memcpy(specials+nspecials, name, len*sizeof(struct telnet_special)); \
+	memcpy(specials+nspecials, name, len*sizeof(SessionSpecial)); \
         nspecials += len;                                               \
     } while (0)
 
@@ -9580,22 +9580,23 @@ static const struct telnet_special *ssh_get_specials(Backend *be)
 	    ADD_SPECIALS(ssh2_session_specials);
 
         if (ssh->n_uncert_hostkeys) {
-            static const struct telnet_special uncert_start[] = {
-                {NULL, TS_SEP},
-                {"Cache new host key type", TS_SUBMENU},
+            static const SessionSpecial uncert_start[] = {
+                {NULL, SS_SEP},
+                {"Cache new host key type", SS_SUBMENU},
             };
-            static const struct telnet_special uncert_end[] = {
-                {NULL, TS_EXITMENU},
+            static const SessionSpecial uncert_end[] = {
+                {NULL, SS_EXITMENU},
             };
             int i;
 
             ADD_SPECIALS(uncert_start);
             for (i = 0; i < ssh->n_uncert_hostkeys; i++) {
-                struct telnet_special uncert[1];
+                SessionSpecial uncert[1];
                 const ssh_keyalg *alg =
                     hostkey_algs[ssh->uncert_hostkeys[i]].alg;
                 uncert[0].name = alg->ssh_id;
-                uncert[0].code = TS_LOCALSTART + ssh->uncert_hostkeys[i];
+                uncert[0].code = SS_XCERT;
+                uncert[0].arg = ssh->uncert_hostkeys[i];
                 ADD_SPECIALS(uncert);
             }
             ADD_SPECIALS(uncert_end);
@@ -9616,22 +9617,22 @@ static const struct telnet_special *ssh_get_specials(Backend *be)
 }
 
 /*
- * Send special codes. TS_EOF is useful for `plink', so you
+ * Send special codes. SS_EOF is useful for `plink', so you
  * can send an EOF and collect resulting output (e.g. `plink
  * hostname sort').
  */
-static void ssh_special(Backend *be, Telnet_Special code)
+static void ssh_special(Backend *be, SessionSpecialCode code, int arg)
 {
     Ssh ssh = FROMFIELD(be, struct ssh_tag, backend);
     PktOut *pktout;
 
-    if (code == TS_EOF) {
+    if (code == SS_EOF) {
 	if (ssh->state != SSH_STATE_SESSION) {
 	    /*
 	     * Buffer the EOF in case we are pre-SESSION, so we can
 	     * send it as soon as we reach SESSION.
 	     */
-	    if (code == TS_EOF)
+	    if (code == SS_EOF)
 		ssh->eof_needed = TRUE;
 	    return;
 	}
@@ -9643,7 +9644,7 @@ static void ssh_special(Backend *be, Telnet_Special code)
             ssh->send_ok = 0;          /* now stop trying to read from stdin */
 	}
 	logevent("Sent EOF message");
-    } else if (code == TS_PING || code == TS_NOP) {
+    } else if (code == SS_PING || code == SS_NOP) {
 	if (ssh->state == SSH_STATE_CLOSED
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
@@ -9659,15 +9660,15 @@ static void ssh_special(Backend *be, Telnet_Special code)
 		ssh_pkt_write(ssh, pktout);
 	    }
 	}
-    } else if (code == TS_REKEY) {
+    } else if (code == SS_REKEY) {
 	if (!ssh->kex_in_progress && !ssh->bare_connection &&
             ssh->version == 2) {
             ssh->rekey_reason = "at user request";
             ssh->rekey_class = RK_NORMAL;
             queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	}
-    } else if (code >= TS_LOCALSTART) {
-        ssh->hostkey_alg = hostkey_algs[code - TS_LOCALSTART].alg;
+    } else if (code == SS_XCERT) {
+        ssh->hostkey_alg = hostkey_algs[arg].alg;
         ssh->cross_certifying = TRUE;
 	if (!ssh->kex_in_progress && !ssh->bare_connection &&
             ssh->version == 2) {
@@ -9675,7 +9676,7 @@ static void ssh_special(Backend *be, Telnet_Special code)
             ssh->rekey_class = RK_NORMAL;
             queue_idempotent_callback(&ssh->ssh2_transport_icb);
 	}
-    } else if (code == TS_BRK) {
+    } else if (code == SS_BRK) {
 	if (ssh->state == SSH_STATE_CLOSED
 	    || ssh->state == SSH_STATE_PREPACKET) return;
 	if (ssh->version == 1) {
@@ -9688,19 +9689,19 @@ static void ssh_special(Backend *be, Telnet_Special code)
     } else {
 	/* Is is a POSIX signal? */
 	const char *signame = NULL;
-	if (code == TS_SIGABRT) signame = "ABRT";
-	if (code == TS_SIGALRM) signame = "ALRM";
-	if (code == TS_SIGFPE)  signame = "FPE";
-	if (code == TS_SIGHUP)  signame = "HUP";
-	if (code == TS_SIGILL)  signame = "ILL";
-	if (code == TS_SIGINT)  signame = "INT";
-	if (code == TS_SIGKILL) signame = "KILL";
-	if (code == TS_SIGPIPE) signame = "PIPE";
-	if (code == TS_SIGQUIT) signame = "QUIT";
-	if (code == TS_SIGSEGV) signame = "SEGV";
-	if (code == TS_SIGTERM) signame = "TERM";
-	if (code == TS_SIGUSR1) signame = "USR1";
-	if (code == TS_SIGUSR2) signame = "USR2";
+	if (code == SS_SIGABRT) signame = "ABRT";
+	if (code == SS_SIGALRM) signame = "ALRM";
+	if (code == SS_SIGFPE)  signame = "FPE";
+	if (code == SS_SIGHUP)  signame = "HUP";
+	if (code == SS_SIGILL)  signame = "ILL";
+	if (code == SS_SIGINT)  signame = "INT";
+	if (code == SS_SIGKILL) signame = "KILL";
+	if (code == SS_SIGPIPE) signame = "PIPE";
+	if (code == SS_SIGQUIT) signame = "QUIT";
+	if (code == SS_SIGSEGV) signame = "SEGV";
+	if (code == SS_SIGTERM) signame = "TERM";
+	if (code == SS_SIGUSR1) signame = "USR1";
+	if (code == SS_SIGUSR2) signame = "USR2";
 	/* The SSH-2 protocol does in principle support arbitrary named
 	 * signals, including signame@domain, but we don't support those. */
 	if (signame) {

@@ -132,7 +132,7 @@ static struct unicode_data ucsdata;
 static int session_closed;
 static int reconfiguring = FALSE;
 
-static const struct telnet_special *specials = NULL;
+static const SessionSpecial *specials = NULL;
 static HMENU specials_menu = NULL;
 static int n_specials = 0;
 
@@ -965,10 +965,10 @@ void update_specials_menu(Frontend *frontend)
 	for (i = 0; nesting > 0; i++) {
 	    assert(IDM_SPECIAL_MIN + 0x10 * i < IDM_SPECIAL_MAX);
 	    switch (specials[i].code) {
-	      case TS_SEP:
+	      case SS_SEP:
 		AppendMenu(new_menu, MF_SEPARATOR, 0, 0);
 		break;
-	      case TS_SUBMENU:
+	      case SS_SUBMENU:
 		assert(nesting < 2);
 		nesting++;
 		saved_menu = new_menu; /* XXX lame stacking */
@@ -976,7 +976,7 @@ void update_specials_menu(Frontend *frontend)
 		AppendMenu(saved_menu, MF_POPUP | MF_ENABLED,
 			   (UINT_PTR) new_menu, specials[i].name);
 		break;
-	      case TS_EXITMENU:
+	      case SS_EXITMENU:
 		nesting--;
 		if (nesting) {
 		    new_menu = saved_menu; /* XXX lame stacking */
@@ -2415,7 +2415,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		if (i >= n_specials)
 		    break;
                 if (backend)
-                    backend_special(backend, specials[i].code);
+                    backend_special(
+                        backend, specials[i].code, specials[i].arg);
 	    }
 	}
 	break;
@@ -4406,7 +4407,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 	if (wParam == VK_CANCEL && shift_state == 2) {	/* Ctrl-Break */
             if (backend)
-                backend_special(backend, TS_BRK);
+                backend_special(backend, SS_BRK, 0);
 	    return 0;
 	}
 	if (wParam == VK_PAUSE) {      /* Break/Pause */

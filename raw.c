@@ -231,10 +231,10 @@ static void raw_size(Backend *be, int width, int height)
 /*
  * Send raw special codes. We only handle outgoing EOF here.
  */
-static void raw_special(Backend *be, Telnet_Special code)
+static void raw_special(Backend *be, SessionSpecialCode code, int arg)
 {
     Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
-    if (code == TS_EOF && raw->s) {
+    if (code == SS_EOF && raw->s) {
         sk_write_eof(raw->s);
         raw->sent_socket_eof= TRUE;
         raw_check_close(raw);
@@ -247,7 +247,7 @@ static void raw_special(Backend *be, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *raw_get_specials(Backend *be)
+static const SessionSpecial *raw_get_specials(Backend *be)
 {
     return NULL;
 }

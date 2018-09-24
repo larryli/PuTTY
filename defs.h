@@ -70,6 +70,8 @@ typedef struct settings_w settings_w;
 typedef struct settings_r settings_r;
 typedef struct settings_e settings_e;
 
+typedef struct SessionSpecial SessionSpecial;
+
 /* Note indirection: for historical reasons (it used to be closer to
  * the OS socket type), the type that most code uses for a socket is
  * 'Socket', not 'Socket *'. So an implementation of Socket or Plug

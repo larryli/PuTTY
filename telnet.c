@@ -914,7 +914,7 @@ static void telnet_size(Backend *be, int width, int height)
 /*
  * Send Telnet special codes.
  */
-static void telnet_special(Backend *be, Telnet_Special code)
+static void telnet_special(Backend *be, SessionSpecialCode code, int arg)
 {
     Telnet telnet = FROMFIELD(be, struct telnet_tag, backend);
     unsigned char b[2];
@@ -924,55 +924,55 @@ static void telnet_special(Backend *be, Telnet_Special code)
 
     b[0] = IAC;
     switch (code) {
-      case TS_AYT:
+      case SS_AYT:
 	b[1] = AYT;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_BRK:
+      case SS_BRK:
 	b[1] = BREAK;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_EC:
+      case SS_EC:
 	b[1] = EC;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_EL:
+      case SS_EL:
 	b[1] = EL;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_GA:
+      case SS_GA:
 	b[1] = GA;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_NOP:
+      case SS_NOP:
 	b[1] = NOP;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_ABORT:
+      case SS_ABORT:
 	b[1] = ABORT;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_AO:
+      case SS_AO:
 	b[1] = AO;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_IP:
+      case SS_IP:
 	b[1] = IP;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_SUSP:
+      case SS_SUSP:
 	b[1] = SUSP;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_EOR:
+      case SS_EOR:
 	b[1] = EOR;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_EOF:
+      case SS_EOF:
 	b[1] = xEOF;
 	telnet->bufsize = sk_write(telnet->s, b, 2);
 	break;
-      case TS_EOL:
+      case SS_EOL:
 	/* In BINARY mode, CR-LF becomes just CR -
 	 * and without the NUL suffix too. */
 	if (telnet->opt_states[o_we_bin.index] == ACTIVE)
@@ -980,25 +980,12 @@ static void telnet_special(Backend *be, Telnet_Special code)
 	else
 	    telnet->bufsize = sk_write(telnet->s, "\r\n", 2);
 	break;
-      case TS_SYNCH:
+      case SS_SYNCH:
 	b[1] = DM;
 	telnet->bufsize = sk_write(telnet->s, b, 1);
 	telnet->bufsize = sk_write_oob(telnet->s, b + 1, 1);
 	break;
-      case TS_RECHO:
-	if (telnet->opt_states[o_echo.index] == INACTIVE ||
-	    telnet->opt_states[o_echo.index] == REALLY_INACTIVE) {
-	    telnet->opt_states[o_echo.index] = REQUESTED;
-	    send_opt(telnet, o_echo.send, o_echo.option);
-	}
-	break;
-      case TS_LECHO:
-	if (telnet->opt_states[o_echo.index] == ACTIVE) {
-	    telnet->opt_states[o_echo.index] = REQUESTED;
-	    send_opt(telnet, o_echo.nsend, o_echo.option);
-	}
-	break;
-      case TS_PING:
+      case SS_PING:
 	if (telnet->opt_states[o_they_sga.index] == ACTIVE) {
 	    b[1] = NOP;
 	    telnet->bufsize = sk_write(telnet->s, b, 2);
@@ -1009,25 +996,25 @@ static void telnet_special(Backend *be, Telnet_Special code)
     }
 }
 
-static const struct telnet_special *telnet_get_specials(Backend *be)
+static const SessionSpecial *telnet_get_specials(Backend *be)
 {
-    static const struct telnet_special specials[] = {
-	{"Are You There", TS_AYT},
-	{"Break", TS_BRK},
-	{"Synch", TS_SYNCH},
-	{"Erase Character", TS_EC},
-	{"Erase Line", TS_EL},
-	{"Go Ahead", TS_GA},
-	{"No Operation", TS_NOP},
-	{NULL, TS_SEP},
-	{"Abort Process", TS_ABORT},
-	{"Abort Output", TS_AO},
-	{"Interrupt Process", TS_IP},
-	{"Suspend Process", TS_SUSP},
-	{NULL, TS_SEP},
-	{"End Of Record", TS_EOR},
-	{"End Of File", TS_EOF},
-	{NULL, TS_EXITMENU}
+    static const SessionSpecial specials[] = {
+	{"Are You There", SS_AYT},
+	{"Break", SS_BRK},
+	{"Synch", SS_SYNCH},
+	{"Erase Character", SS_EC},
+	{"Erase Line", SS_EL},
+	{"Go Ahead", SS_GA},
+	{"No Operation", SS_NOP},
+	{NULL, SS_SEP},
+	{"Abort Process", SS_ABORT},
+	{"Abort Output", SS_AO},
+	{"Interrupt Process", SS_IP},
+	{"Suspend Process", SS_SUSP},
+	{NULL, SS_SEP},
+	{"End Of Record", SS_EOR},
+	{"End Of File", SS_EOF},
+	{NULL, SS_EXITMENU}
     };
     return specials;
 }

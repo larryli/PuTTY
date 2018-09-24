@@ -496,11 +496,11 @@ static void serial_size(Backend *be, int width, int height)
 /*
  * Send serial special codes.
  */
-static void serial_special(Backend *be, Telnet_Special code)
+static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 {
     Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
 
-    if (serial->fd >= 0 && code == TS_BRK) {
+    if (serial->fd >= 0 && code == SS_BRK) {
 	tcsendbreak(serial->fd, 0);
 	logevent(serial->frontend, "Sending serial break at user request");
     }
@@ -512,11 +512,11 @@ static void serial_special(Backend *be, Telnet_Special code)
  * Return a list of the special codes that make sense in this
  * protocol.
  */
-static const struct telnet_special *serial_get_specials(Backend *be)
+static const SessionSpecial *serial_get_specials(Backend *be)
 {
-    static const struct telnet_special specials[] = {
-	{"Break", TS_BRK},
-	{NULL, TS_EXITMENU}
+    static const struct SessionSpecial specials[] = {
+	{"Break", SS_BRK},
+	{NULL, SS_EXITMENU}
     };
     return specials;
 }

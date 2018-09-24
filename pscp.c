@@ -293,7 +293,7 @@ static void bump(const char *fmt, ...)
 
     if (backend && backend_connected(backend)) {
 	char ch;
-        backend_special(backend, TS_EOF);
+        backend_special(backend, SS_EOF, 0);
         sent_eof = TRUE;
 	ssh_scp_recv(&ch, 1);
     }
@@ -2367,7 +2367,7 @@ int psftp_main(int argc, char *argv[])
 
     if (backend && backend_connected(backend)) {
 	char ch;
-        backend_special(backend, TS_EOF);
+        backend_special(backend, SS_EOF, 0);
         sent_eof = TRUE;
 	ssh_scp_recv(&ch, 1);
     }
