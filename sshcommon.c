@@ -560,112 +560,24 @@ void add_to_commasep(strbuf *buf, const char *data)
  * string names.
  */
 
-#define translate(x) if (type == x) return #x
-#define translatek(x,ctx) if (type == x && (pkt_kctx == ctx)) return #x
-#define translatea(x,ctx) if (type == x && (pkt_actx == ctx)) return #x
+#define TRANSLATE_UNIVERSAL(y, name, value)      \
+    if (type == value) return #name;
+#define TRANSLATE_KEX(y, name, value, ctx) \
+    if (type == value && pkt_kctx == ctx) return #name;
+#define TRANSLATE_AUTH(y, name, value, ctx) \
+    if (type == value && pkt_actx == ctx) return #name;
+
 const char *ssh1_pkt_type(int type)
 {
-    translate(SSH1_MSG_DISCONNECT);
-    translate(SSH1_SMSG_PUBLIC_KEY);
-    translate(SSH1_CMSG_SESSION_KEY);
-    translate(SSH1_CMSG_USER);
-    translate(SSH1_CMSG_AUTH_RSA);
-    translate(SSH1_SMSG_AUTH_RSA_CHALLENGE);
-    translate(SSH1_CMSG_AUTH_RSA_RESPONSE);
-    translate(SSH1_CMSG_AUTH_PASSWORD);
-    translate(SSH1_CMSG_REQUEST_PTY);
-    translate(SSH1_CMSG_WINDOW_SIZE);
-    translate(SSH1_CMSG_EXEC_SHELL);
-    translate(SSH1_CMSG_EXEC_CMD);
-    translate(SSH1_SMSG_SUCCESS);
-    translate(SSH1_SMSG_FAILURE);
-    translate(SSH1_CMSG_STDIN_DATA);
-    translate(SSH1_SMSG_STDOUT_DATA);
-    translate(SSH1_SMSG_STDERR_DATA);
-    translate(SSH1_CMSG_EOF);
-    translate(SSH1_SMSG_EXIT_STATUS);
-    translate(SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
-    translate(SSH1_MSG_CHANNEL_OPEN_FAILURE);
-    translate(SSH1_MSG_CHANNEL_DATA);
-    translate(SSH1_MSG_CHANNEL_CLOSE);
-    translate(SSH1_MSG_CHANNEL_CLOSE_CONFIRMATION);
-    translate(SSH1_SMSG_X11_OPEN);
-    translate(SSH1_CMSG_PORT_FORWARD_REQUEST);
-    translate(SSH1_MSG_PORT_OPEN);
-    translate(SSH1_CMSG_AGENT_REQUEST_FORWARDING);
-    translate(SSH1_SMSG_AGENT_OPEN);
-    translate(SSH1_MSG_IGNORE);
-    translate(SSH1_CMSG_EXIT_CONFIRMATION);
-    translate(SSH1_CMSG_X11_REQUEST_FORWARDING);
-    translate(SSH1_CMSG_AUTH_RHOSTS_RSA);
-    translate(SSH1_MSG_DEBUG);
-    translate(SSH1_CMSG_REQUEST_COMPRESSION);
-    translate(SSH1_CMSG_AUTH_TIS);
-    translate(SSH1_SMSG_AUTH_TIS_CHALLENGE);
-    translate(SSH1_CMSG_AUTH_TIS_RESPONSE);
-    translate(SSH1_CMSG_AUTH_CCARD);
-    translate(SSH1_SMSG_AUTH_CCARD_CHALLENGE);
-    translate(SSH1_CMSG_AUTH_CCARD_RESPONSE);
+    SSH1_MESSAGE_TYPES(TRANSLATE_UNIVERSAL, y);
     return "unknown";
 }
 const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
 {
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_RESPONSE,SSH2_PKTCTX_GSSAPI);
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_TOKEN,SSH2_PKTCTX_GSSAPI);
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE,SSH2_PKTCTX_GSSAPI);
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_ERROR,SSH2_PKTCTX_GSSAPI);
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK,SSH2_PKTCTX_GSSAPI);
-    translatea(SSH2_MSG_USERAUTH_GSSAPI_MIC, SSH2_PKTCTX_GSSAPI);
-    translate(SSH2_MSG_DISCONNECT);
-    translate(SSH2_MSG_IGNORE);
-    translate(SSH2_MSG_UNIMPLEMENTED);
-    translate(SSH2_MSG_DEBUG);
-    translate(SSH2_MSG_SERVICE_REQUEST);
-    translate(SSH2_MSG_SERVICE_ACCEPT);
-    translate(SSH2_MSG_KEXINIT);
-    translate(SSH2_MSG_NEWKEYS);
-    translatek(SSH2_MSG_KEXDH_INIT, SSH2_PKTCTX_DHGROUP);
-    translatek(SSH2_MSG_KEXDH_REPLY, SSH2_PKTCTX_DHGROUP);
-    translatek(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD, SSH2_PKTCTX_DHGEX);
-    translatek(SSH2_MSG_KEX_DH_GEX_REQUEST, SSH2_PKTCTX_DHGEX);
-    translatek(SSH2_MSG_KEX_DH_GEX_GROUP, SSH2_PKTCTX_DHGEX);
-    translatek(SSH2_MSG_KEX_DH_GEX_INIT, SSH2_PKTCTX_DHGEX);
-    translatek(SSH2_MSG_KEX_DH_GEX_REPLY, SSH2_PKTCTX_DHGEX);
-    translatek(SSH2_MSG_KEXRSA_PUBKEY, SSH2_PKTCTX_RSAKEX);
-    translatek(SSH2_MSG_KEXRSA_SECRET, SSH2_PKTCTX_RSAKEX);
-    translatek(SSH2_MSG_KEXRSA_DONE, SSH2_PKTCTX_RSAKEX);
-    translatek(SSH2_MSG_KEX_ECDH_INIT, SSH2_PKTCTX_ECDHKEX);
-    translatek(SSH2_MSG_KEX_ECDH_REPLY, SSH2_PKTCTX_ECDHKEX);
-    translatek(SSH2_MSG_KEXGSS_INIT, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_CONTINUE, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_COMPLETE, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_HOSTKEY, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_ERROR, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_GROUPREQ, SSH2_PKTCTX_GSSKEX);
-    translatek(SSH2_MSG_KEXGSS_GROUP, SSH2_PKTCTX_GSSKEX);
-    translate(SSH2_MSG_USERAUTH_REQUEST);
-    translate(SSH2_MSG_USERAUTH_FAILURE);
-    translate(SSH2_MSG_USERAUTH_SUCCESS);
-    translate(SSH2_MSG_USERAUTH_BANNER);
-    translatea(SSH2_MSG_USERAUTH_PK_OK, SSH2_PKTCTX_PUBLICKEY);
-    translatea(SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ, SSH2_PKTCTX_PASSWORD);
-    translatea(SSH2_MSG_USERAUTH_INFO_REQUEST, SSH2_PKTCTX_KBDINTER);
-    translatea(SSH2_MSG_USERAUTH_INFO_RESPONSE, SSH2_PKTCTX_KBDINTER);
-    translate(SSH2_MSG_GLOBAL_REQUEST);
-    translate(SSH2_MSG_REQUEST_SUCCESS);
-    translate(SSH2_MSG_REQUEST_FAILURE);
-    translate(SSH2_MSG_CHANNEL_OPEN);
-    translate(SSH2_MSG_CHANNEL_OPEN_CONFIRMATION);
-    translate(SSH2_MSG_CHANNEL_OPEN_FAILURE);
-    translate(SSH2_MSG_CHANNEL_WINDOW_ADJUST);
-    translate(SSH2_MSG_CHANNEL_DATA);
-    translate(SSH2_MSG_CHANNEL_EXTENDED_DATA);
-    translate(SSH2_MSG_CHANNEL_EOF);
-    translate(SSH2_MSG_CHANNEL_CLOSE);
-    translate(SSH2_MSG_CHANNEL_REQUEST);
-    translate(SSH2_MSG_CHANNEL_SUCCESS);
-    translate(SSH2_MSG_CHANNEL_FAILURE);
+    SSH2_MESSAGE_TYPES(TRANSLATE_UNIVERSAL, TRANSLATE_KEX, TRANSLATE_AUTH, y);
     return "unknown";
 }
-#undef translate
-#undef translatec
+
+#undef TRANSLATE_UNIVERSAL
+#undef TRANSLATE_KEX
+#undef TRANSLATE_AUTH
