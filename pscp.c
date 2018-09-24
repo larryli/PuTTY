@@ -42,6 +42,7 @@ static int main_cmd_is_sftp = 0;
 static int fallback_cmd_is_sftp = 0;
 static int using_sftp = 0;
 static int uploading = 0;
+static int progress_bar_displayed = FALSE;
 
 static Backend *backend;
 static Conf *conf;
@@ -74,6 +75,21 @@ static void tell_str(FILE *stream, const char *str)
 	tell_char(stream, str[i]);
 }
 
+static void abandon_progress_bar(void)
+{
+    /*
+     * Output a \n to stdout (which is where we've been sending
+     * progress bars) so that the cursor will move to the next line.
+     * We should do this before displaying any other kind of output
+     * like an error message.
+     */
+    if (progress_bar_displayed) {
+        putchar('\n');
+        fflush(stdout);
+        progress_bar_displayed = FALSE;
+    }
+}
+
 static void tell_user(FILE *stream, const char *fmt, ...)
 {
     char *str, *str2;
@@ -83,6 +99,7 @@ static void tell_user(FILE *stream, const char *fmt, ...)
     va_end(ap);
     str2 = dupcat(str, "\n", NULL);
     sfree(str);
+    abandon_progress_bar();
     tell_str(stream, str2);
     sfree(str2);
 }
@@ -99,6 +116,7 @@ void modalfatalbox(const char *fmt, ...)
     str2 = dupcat("Fatal: ", str, "\n", NULL);
     sfree(str);
     va_end(ap);
+    abandon_progress_bar();
     tell_str(stderr, str2);
     sfree(str2);
     errs++;
@@ -114,6 +132,7 @@ void nonfatal(const char *fmt, ...)
     str2 = dupcat("Error: ", str, "\n", NULL);
     sfree(str);
     va_end(ap);
+    abandon_progress_bar();
     tell_str(stderr, str2);
     sfree(str2);
     errs++;
@@ -127,6 +146,7 @@ void connection_fatal(Frontend *frontend, const char *fmt, ...)
     str2 = dupcat("Fatal: ", str, "\n", NULL);
     sfree(str);
     va_end(ap);
+    abandon_progress_bar();
     tell_str(stderr, str2);
     sfree(str2);
     errs++;
@@ -287,6 +307,7 @@ static void bump(const char *fmt, ...)
     va_end(ap);
     str2 = dupcat(str, "\n", NULL);
     sfree(str);
+    abandon_progress_bar();
     tell_str(stderr, str2);
     sfree(str2);
     errs++;
@@ -556,7 +577,9 @@ static void print_stats(const char *name, uint64 size, uint64 done,
 	prev_stats_len = len;
 
 	if (uint64_compare(done, size) == 0)
-	    printf("\n");
+            abandon_progress_bar();
+
+        progress_bar_displayed = TRUE;
 
 	fflush(stdout);
     }
@@ -1615,6 +1638,7 @@ static void run_err(const char *fmt, ...)
     str2 = dupcat("pscp: ", str, "\n", NULL);
     sfree(str);
     scp_send_errmsg(str2);
+    abandon_progress_bar();
     tell_user(stderr, "%s", str2);
     va_end(ap);
     sfree(str2);
@@ -1711,8 +1735,6 @@ static void source(const char *src)
 	if (uint64_compare(uint64_add32(i, k),size) > 0) /* i + k > size */ 
 	    k = (uint64_subtract(size, i)).lo; 	/* k = size - i; */
 	if ((j = read_from_file(f, transbuf, k)) != k) {
-	    if (statistics)
-		printf("\n");
 	    bump("%s: Read error", src);
 	}
 	if (scp_send_filedata(transbuf, k))
