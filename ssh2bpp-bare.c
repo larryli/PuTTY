@@ -111,6 +111,12 @@ static void ssh2_bare_bpp_handle_input(BinaryPacketProtocol *bpp)
                        &s->pktin->sequence, 0, NULL);
         }
 
+        if (ssh2_bpp_check_unimplemented(&s->bpp, s->pktin)) {
+            sfree(s->pktin);
+            s->pktin = NULL;
+            continue;
+        }
+
         pq_push(s->bpp.in_pq, s->pktin);
 
         {

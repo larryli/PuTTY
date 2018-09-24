@@ -40,6 +40,9 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
  * up zlib compression if it was SUCCESS. */
 void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp);
 
+/* Common helper function between the SSH-2 full and bare BPPs */
+int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin);
+
 /*
  * Structure that tracks how much data is sent and received, for
  * purposes of triggering an SSH-2 rekey when either one gets over a

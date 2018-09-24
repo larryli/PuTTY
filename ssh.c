@@ -75,7 +75,6 @@ static void ssh2_channel_check_close(struct ssh_channel *c);
 static void ssh_channel_close_local(struct ssh_channel *c, char const *reason);
 static void ssh_channel_destroy(struct ssh_channel *c);
 static void ssh_channel_unthrottle(struct ssh_channel *c, int bufsize);
-static void ssh2_msg_something_unimplemented(Ssh ssh, PktIn *pktin);
 static void ssh2_general_packet_processing(Ssh ssh, PktIn *pktin);
 static void ssh1_login_input(Ssh ssh);
 static void ssh2_userauth_input(Ssh ssh);
@@ -8630,18 +8629,6 @@ static void ssh2_msg_unexpected(Ssh ssh, PktIn *pktin)
     sfree(buf);
 }
 
-static void ssh2_msg_something_unimplemented(Ssh ssh, PktIn *pktin)
-{
-    PktOut *pktout;
-    pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_UNIMPLEMENTED);
-    put_uint32(pktout, pktin->sequence);
-    /*
-     * UNIMPLEMENTED messages MUST appear in the same order as the
-     * messages they respond to. Hence, never queue them.
-     */
-    ssh_pkt_write(ssh, pktout);
-}
-
 /*
  * Handle the top-level SSH-2 protocol.
  */
@@ -8680,20 +8667,17 @@ static void ssh2_protocol_setup(Ssh ssh)
 #endif
 
     /*
-     * Most messages cause SSH2_MSG_UNIMPLEMENTED.
+     * All message types we don't set explicitly will dispatch to
+     * ssh2_msg_unexpected.
      */
     for (i = 0; i < SSH_MAX_MSG; i++)
-	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
+	ssh->packet_dispatch[i] = ssh2_msg_unexpected;
 
     /*
      * Initially, we only accept transport messages (and a few generic
      * ones). do_ssh2_userauth and do_ssh2_connection will each add
-     * more when they start. Messages that are understood but not
-     * currently acceptable go to ssh2_msg_unexpected.
+     * more when they start.
      */
-    ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_SERVICE_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_SERVICE_ACCEPT] = ssh2_msg_unexpected;
     ssh->packet_dispatch[SSH2_MSG_KEXINIT] = ssh2_msg_transport;
     ssh->packet_dispatch[SSH2_MSG_NEWKEYS] = ssh2_msg_transport;
     ssh->packet_dispatch[SSH2_MSG_KEXDH_INIT] = ssh2_msg_transport;
@@ -8703,28 +8687,6 @@ static void ssh2_protocol_setup(Ssh ssh)
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_INIT] = ssh2_msg_transport;
     ssh->packet_dispatch[SSH2_MSG_KEX_DH_GEX_REPLY] = ssh2_msg_transport;
     ssh->packet_dispatch[SSH2_MSG_KEXGSS_GROUP] = ssh2_msg_transport;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_FAILURE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_SUCCESS] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_BANNER] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_PK_OK] = ssh2_msg_unexpected;
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ] = ssh2_msg_unexpected; duplicate case value */
-    /* ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_REQUEST] = ssh2_msg_unexpected; duplicate case value */
-    ssh->packet_dispatch[SSH2_MSG_USERAUTH_INFO_RESPONSE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_unexpected;
 
     /*
      * These messages have a special handler from the start.
@@ -8741,38 +8703,15 @@ static void ssh2_bare_connection_protocol_setup(Ssh ssh)
     ssh->bpp = ssh2_bare_bpp_new();
 
     /*
-     * Most messages cause SSH2_MSG_UNIMPLEMENTED.
-     */
-    for (i = 0; i < SSH_MAX_MSG; i++)
-	ssh->packet_dispatch[i] = ssh2_msg_something_unimplemented;
-
-    /*
-     * Initially, we set all ssh-connection messages to 'unexpected';
-     * do_ssh2_connection will fill things in properly. We also handle
-     * a couple of messages from the transport protocol which aren't
-     * related to key exchange (UNIMPLEMENTED, IGNORE, DEBUG,
+     * Everything defaults to ssh2_msg_unexpected for the moment;
+     * do_ssh2_connection will fill things in properly. But we do
+     * handle a couple of messages from the transport protocol which
+     * aren't related to key exchange (UNIMPLEMENTED, IGNORE, DEBUG,
      * DISCONNECT).
      */
-    ssh->packet_dispatch[SSH2_MSG_GLOBAL_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_SUCCESS] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_REQUEST_FAILURE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_CONFIRMATION] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_OPEN_FAILURE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_WINDOW_ADJUST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_DATA] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EXTENDED_DATA] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_EOF] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_CLOSE] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_REQUEST] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_SUCCESS] = ssh2_msg_unexpected;
-    ssh->packet_dispatch[SSH2_MSG_CHANNEL_FAILURE] = ssh2_msg_unexpected;
+    for (i = 0; i < SSH_MAX_MSG; i++)
+	ssh->packet_dispatch[i] = ssh2_msg_unexpected;
 
-    ssh->packet_dispatch[SSH2_MSG_UNIMPLEMENTED] = ssh2_msg_unexpected;
-
-    /*
-     * These messages have a special handler from the start.
-     */
     ssh->packet_dispatch[SSH2_MSG_DISCONNECT] = ssh2_msg_disconnect;
     ssh->packet_dispatch[SSH2_MSG_IGNORE] = ssh_msg_ignore;
     ssh->packet_dispatch[SSH2_MSG_DEBUG] = ssh2_msg_debug;

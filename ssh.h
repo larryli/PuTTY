@@ -1299,6 +1299,7 @@ enum {
 
 const char *ssh1_pkt_type(int type);
 const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type);
+int ssh2_pkt_type_code_valid(unsigned type);
 
 /*
  * Need this to warn about support for the original SSH-2 keyfile

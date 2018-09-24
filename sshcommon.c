@@ -8,6 +8,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshbpp.h"
 #include "sshchan.h"
 
 /* ----------------------------------------------------------------------
@@ -581,3 +582,43 @@ const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type)
 #undef TRANSLATE_UNIVERSAL
 #undef TRANSLATE_KEX
 #undef TRANSLATE_AUTH
+
+/* ----------------------------------------------------------------------
+ * Common helper function for implementations of BinaryPacketProtocol.
+ */
+
+#define BITMAP_UNIVERSAL(y, name, value)         \
+    | (value >= y && value < y+32 ? 1UL << (value-y) : 0)
+#define BITMAP_CONDITIONAL(y, name, value, ctx) \
+    BITMAP_UNIVERSAL(y, name, value)
+#define SSH2_BITMAP_WORD(y) \
+    (0 SSH2_MESSAGE_TYPES(BITMAP_UNIVERSAL, BITMAP_CONDITIONAL, \
+                          BITMAP_CONDITIONAL, (32*y)))
+
+int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
+{
+    static const unsigned valid_bitmap[] = {
+        SSH2_BITMAP_WORD(0),
+        SSH2_BITMAP_WORD(1),
+        SSH2_BITMAP_WORD(2),
+        SSH2_BITMAP_WORD(3),
+        SSH2_BITMAP_WORD(4),
+        SSH2_BITMAP_WORD(5),
+        SSH2_BITMAP_WORD(6),
+        SSH2_BITMAP_WORD(7),
+    };
+
+    if (pktin->type < 0x100 &&
+        !((valid_bitmap[pktin->type >> 5] >> (pktin->type & 0x1F)) & 1)) {
+        PktOut *pkt = ssh_bpp_new_pktout(bpp, SSH2_MSG_UNIMPLEMENTED);
+        put_uint32(pkt, pktin->sequence);
+        ssh_bpp_format_packet(bpp, pkt);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+#undef BITMAP_UNIVERSAL
+#undef BITMAP_CONDITIONAL
+#undef SSH1_BITMAP_WORD
