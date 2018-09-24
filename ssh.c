@@ -1464,59 +1464,6 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
     sfree(error);
 }
 
-int verify_ssh_manual_host_key(Ssh ssh, const char *fingerprint, ssh_key *key)
-{
-    if (!conf_get_str_nthstrkey(ssh->conf, CONF_ssh_manual_hostkeys, 0)) {
-        return -1;                     /* no manual keys configured */
-    }
-
-    if (fingerprint) {
-        /*
-         * The fingerprint string we've been given will have things
-         * like 'ssh-rsa 2048' at the front of it. Strip those off and
-         * narrow down to just the colon-separated hex block at the
-         * end of the string.
-         */
-        const char *p = strrchr(fingerprint, ' ');
-        fingerprint = p ? p+1 : fingerprint;
-        /* Quick sanity checks, including making sure it's in lowercase */
-        assert(strlen(fingerprint) == 16*3 - 1);
-        assert(fingerprint[2] == ':');
-        assert(fingerprint[strspn(fingerprint, "0123456789abcdef:")] == 0);
-
-        if (conf_get_str_str_opt(ssh->conf, CONF_ssh_manual_hostkeys,
-                                 fingerprint))
-            return 1;                  /* success */
-    }
-
-    if (key) {
-        /*
-         * Construct the base64-encoded public key blob and see if
-         * that's listed.
-         */
-        strbuf *binblob;
-        char *base64blob;
-        int atoms, i;
-        binblob = strbuf_new();
-        ssh_key_public_blob(key, BinarySink_UPCAST(binblob));
-        atoms = (binblob->len + 2) / 3;
-        base64blob = snewn(atoms * 4 + 1, char);
-        for (i = 0; i < atoms; i++)
-            base64_encode_atom(binblob->u + 3*i,
-                               binblob->len - 3*i, base64blob + 4*i);
-        base64blob[atoms * 4] = '\0';
-        strbuf_free(binblob);
-        if (conf_get_str_str_opt(ssh->conf, CONF_ssh_manual_hostkeys,
-                                 base64blob)) {
-            sfree(base64blob);
-            return 1;                  /* success */
-        }
-        sfree(base64blob);
-    }
-
-    return 0;
-}
-
 static void ssh1_coro_wrapper_initial(Ssh ssh, PktIn *pktin);
 static void ssh1_coro_wrapper_session(Ssh ssh, PktIn *pktin);
 static void ssh1_connection_input(Ssh ssh);
@@ -1650,7 +1597,7 @@ static void do_ssh1_login(void *vctx)
 	fingerprint = rsa_ssh1_fingerprint(&s->hostkey);
 
         /* First check against manually configured host keys. */
-        s->dlgret = verify_ssh_manual_host_key(ssh, fingerprint, NULL);
+        s->dlgret = verify_ssh_manual_host_key(ssh->conf, fingerprint, NULL);
         sfree(fingerprint);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
@@ -5038,7 +4985,8 @@ static void do_ssh2_transport(void *vctx)
         logevent("Host key fingerprint is:");
         logevent(s->fingerprint);
         /* First check against manually configured host keys. */
-        s->dlgret = verify_ssh_manual_host_key(ssh, s->fingerprint, s->hkey);
+        s->dlgret = verify_ssh_manual_host_key(ssh->conf,
+                                               s->fingerprint, s->hkey);
         if (s->dlgret == 0) {          /* did not match */
             bombout(("Host key did not appear in manually configured list"));
             crStopV;
