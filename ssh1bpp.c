@@ -91,6 +91,12 @@ void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp)
     s->pending_compression_request = TRUE;
 }
 
+#define BPP_READ(ptr, len) do                                   \
+    {                                                           \
+        crMaybeWaitUntilV(bufchain_try_fetch_consume(           \
+                              s->bpp.in_raw, ptr, len));        \
+    } while (0)
+
 static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
 {
     struct ssh1_bpp_state *s = FROMFIELD(bpp, struct ssh1_bpp_state, bpp);
@@ -103,8 +109,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
 
         {
             unsigned char lenbuf[4];
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  bpp->in_raw, lenbuf, 4));
+            BPP_READ(lenbuf, 4);
             s->len = toint(GET_32BIT_MSB_FIRST(lenbuf));
         }
 
@@ -130,8 +135,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
         s->maxlen = s->biglen;
         s->data = snew_plus_get_aux(s->pktin);
 
-        crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                              bpp->in_raw, s->data, s->biglen));
+        BPP_READ(s->data, s->biglen);
 
         if (s->cipher && detect_attack(s->crcda_ctx,
                                        s->data, s->biglen, NULL)) {

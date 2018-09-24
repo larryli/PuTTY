@@ -197,6 +197,12 @@ static void ssh_verstring_send(struct ssh_verstring_state *s)
     vs_logevent(("We claim version: %s", s->our_vstring));
 }
 
+#define BPP_WAITFOR(minlen) do                          \
+    {                                                   \
+        crMaybeWaitUntilV(                              \
+            bufchain_size(s->bpp.in_raw) >= (minlen));  \
+    } while (0)
+
 void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
 {
     struct ssh_verstring_state *s =
@@ -221,8 +227,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
          * Every time round this loop, we're at the start of a new
          * line, so look for the prefix.
          */
-        crMaybeWaitUntilV(bufchain_size(s->bpp.in_raw) >=
-                          s->prefix_wanted.len);
+        BPP_WAITFOR(s->prefix_wanted.len);
         bufchain_fetch(s->bpp.in_raw, s->prefix, s->prefix_wanted.len);
         if (!memcmp(s->prefix, s->prefix_wanted.ptr, s->prefix_wanted.len)) {
             bufchain_consume(s->bpp.in_raw, s->prefix_wanted.len);
@@ -237,7 +242,9 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
             void *data;
             char *nl;
 
-            crMaybeWaitUntilV(bufchain_size(s->bpp.in_raw) > 0);
+            /* Wait to receive at least 1 byte, but then consume more
+             * than that if it's there. */
+            BPP_WAITFOR(1);
             bufchain_prefix(s->bpp.in_raw, &data, &len);
             if ((nl = memchr(data, '\012', len)) != NULL) {
                 bufchain_consume(s->bpp.in_raw, nl - (char *)data + 1);

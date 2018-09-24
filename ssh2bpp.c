@@ -158,6 +158,12 @@ void ssh2_bpp_new_incoming_crypto(
     s->pending_newkeys = FALSE;
 }
 
+#define BPP_READ(ptr, len) do                                   \
+    {                                                           \
+        crMaybeWaitUntilV(bufchain_try_fetch_consume(           \
+                              s->bpp.in_raw, ptr, len));        \
+    } while (0)
+
 static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
 {
     struct ssh2_bpp_state *s = FROMFIELD(bpp, struct ssh2_bpp_state, bpp);
@@ -206,8 +212,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             }
 
             /* Read an amount corresponding to the MAC. */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  s->bpp.in_raw, s->buf, s->maclen));
+            BPP_READ(s->buf, s->maclen);
 
             s->packetlen = 0;
             ssh2_mac_start(s->in.mac);
@@ -216,10 +221,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             for (;;) { /* Once around this loop per cipher block. */
                 /* Read another cipher-block's worth, and tack it on to
                  * the end. */
-                crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                      s->bpp.in_raw,
-                                      s->buf + (s->packetlen + s->maclen),
-                                      s->cipherblk));
+                BPP_READ(s->buf + (s->packetlen + s->maclen), s->cipherblk);
                 /* Decrypt one more block (a little further back in
                  * the stream). */
                 ssh2_cipher_decrypt(s->in.cipher,
@@ -262,8 +264,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
              * OpenSSH encrypt-then-MAC mode: the packet length is
              * unencrypted, unless the cipher supports length encryption.
              */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  s->bpp.in_raw, s->buf, 4));
+            BPP_READ(s->buf, 4);
 
             /* Cipher supports length decryption, so do it */
             if (s->in.cipher && (ssh2_cipher_alg(s->in.cipher)->flags &
@@ -307,9 +308,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             /*
              * Read the remainder of the packet.
              */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  s->bpp.in_raw, s->data + 4,
-                                  s->packetlen + s->maclen - 4));
+            BPP_READ(s->data + 4, s->packetlen + s->maclen - 4);
 
             /*
              * Check the MAC.
@@ -334,8 +333,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
              * Acquire and decrypt the first block of the packet. This will
              * contain the length and padding details.
              */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  s->bpp.in_raw, s->buf, s->cipherblk));
+            BPP_READ(s->buf, s->cipherblk);
 
             if (s->in.cipher)
                 ssh2_cipher_decrypt(
@@ -376,9 +374,8 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
             /*
              * Read and decrypt the remainder of the packet.
              */
-            crMaybeWaitUntilV(bufchain_try_fetch_consume(
-                                  s->bpp.in_raw, s->data + s->cipherblk,
-                                  s->packetlen + s->maclen - s->cipherblk));
+            BPP_READ(s->data + s->cipherblk,
+                     s->packetlen + s->maclen - s->cipherblk);
 
             /* Decrypt everything _except_ the MAC. */
             if (s->in.cipher)
