@@ -43,12 +43,15 @@ static void ssh_verstring_free(BinaryPacketProtocol *bpp);
 static void ssh_verstring_handle_input(BinaryPacketProtocol *bpp);
 static void ssh_verstring_handle_output(BinaryPacketProtocol *bpp);
 static PktOut *ssh_verstring_new_pktout(int type);
+static void ssh_verstring_queue_disconnect(BinaryPacketProtocol *bpp,
+                                          const char *msg, int category);
 
 static const struct BinaryPacketProtocolVtable ssh_verstring_vtable = {
     ssh_verstring_free,
     ssh_verstring_handle_input,
     ssh_verstring_handle_output,
     ssh_verstring_new_pktout,
+    ssh_verstring_queue_disconnect,
 };
 
 static void ssh_detect_bugs(struct ssh_verstring_state *s);
@@ -607,4 +610,10 @@ int ssh_verstring_get_bugs(BinaryPacketProtocol *bpp)
     struct ssh_verstring_state *s =
         FROMFIELD(bpp, struct ssh_verstring_state, bpp);
     return s->remote_bugs;
+}
+
+static void ssh_verstring_queue_disconnect(BinaryPacketProtocol *bpp,
+                                           const char *msg, int category)
+{
+    /* No way to send disconnect messages at this stage of the protocol! */
 }

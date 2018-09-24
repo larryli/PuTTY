@@ -31,6 +31,8 @@ struct ssh1_bpp_state {
 static void ssh1_bpp_free(BinaryPacketProtocol *bpp);
 static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp);
 static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp);
+static void ssh1_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
+                                      const char *msg, int category);
 static PktOut *ssh1_bpp_new_pktout(int type);
 
 static const struct BinaryPacketProtocolVtable ssh1_bpp_vtable = {
@@ -38,6 +40,7 @@ static const struct BinaryPacketProtocolVtable ssh1_bpp_vtable = {
     ssh1_bpp_handle_input,
     ssh1_bpp_handle_output,
     ssh1_bpp_new_pktout,
+    ssh1_bpp_queue_disconnect,
 };
 
 BinaryPacketProtocol *ssh1_bpp_new(void)
@@ -301,4 +304,12 @@ static void ssh1_bpp_handle_output(BinaryPacketProtocol *bpp)
         ssh1_bpp_format_packet(s, pkt);
         ssh_free_pktout(pkt);
     }
+}
+
+static void ssh1_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
+                                      const char *msg, int category)
+{
+    PktOut *pkt = ssh_bpp_new_pktout(bpp, SSH1_MSG_DISCONNECT);
+    put_stringz(pkt, msg);
+    pq_push(&bpp->out_pq, pkt);
 }

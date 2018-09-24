@@ -10,6 +10,8 @@ struct BinaryPacketProtocolVtable {
     void (*handle_input)(BinaryPacketProtocol *);
     void (*handle_output)(BinaryPacketProtocol *);
     PktOut *(*new_pktout)(int type);
+    void (*queue_disconnect)(BinaryPacketProtocol *,
+                             const char *msg, int category);
 };
 
 struct BinaryPacketProtocol {
@@ -39,6 +41,8 @@ struct BinaryPacketProtocol {
 #define ssh_bpp_handle_input(bpp) ((bpp)->vt->handle_input(bpp))
 #define ssh_bpp_handle_output(bpp) ((bpp)->vt->handle_output(bpp))
 #define ssh_bpp_new_pktout(bpp, type) ((bpp)->vt->new_pktout(type))
+#define ssh_bpp_queue_disconnect(bpp, msg, cat) \
+    ((bpp)->vt->queue_disconnect(bpp, msg, cat))
 
 /* ssh_bpp_free is more than just a macro wrapper on the vtable; it
  * does centralised parts of the freeing too. */
@@ -58,7 +62,9 @@ void ssh1_bpp_requested_compression(BinaryPacketProtocol *bpp);
  * up in_pq and out_pq, and initialising input_consumer. */
 void ssh_bpp_common_setup(BinaryPacketProtocol *);
 
-/* Common helper function between the SSH-2 full and bare BPPs */
+/* Common helper functions between the SSH-2 full and bare BPPs */
+void ssh2_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
+                               const char *msg, int category);
 int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin);
 
 /*

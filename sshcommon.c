@@ -664,6 +664,16 @@ void ssh_bpp_free(BinaryPacketProtocol *bpp)
     bpp->vt->free(bpp);
 }
 
+void ssh2_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
+                               const char *msg, int category)
+{
+    PktOut *pkt = ssh_bpp_new_pktout(bpp, SSH2_MSG_DISCONNECT);
+    put_uint32(pkt, category);
+    put_stringz(pkt, msg);
+    put_stringz(pkt, "en");            /* language tag */
+    pq_push(&bpp->out_pq, pkt);
+}
+
 #define BITMAP_UNIVERSAL(y, name, value)         \
     | (value >= y && value < y+32 ? 1UL << (value-y) : 0)
 #define BITMAP_CONDITIONAL(y, name, value, ctx) \

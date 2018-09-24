@@ -1429,19 +1429,8 @@ static void ssh_disconnect(Ssh ssh, const char *client_reason,
 	error = dupprintf("Disconnected: %s", client_reason);
     else
 	error = dupstr("Disconnected");
-    if (wire_reason) {
-	if (ssh->version == 1) {
-	    PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH1_MSG_DISCONNECT);
-            put_stringz(pktout, wire_reason);
-            ssh_pkt_write(ssh, pktout);
-	} else if (ssh->version == 2) {
-	    PktOut *pktout = ssh_bpp_new_pktout(ssh->bpp, SSH2_MSG_DISCONNECT);
-	    put_uint32(pktout, code);
-	    put_stringz(pktout, wire_reason);
-	    put_stringz(pktout, "en");	/* language tag */
-	    ssh_pkt_write(ssh, pktout);
-	}
-    }
+    if (wire_reason)
+        ssh_bpp_queue_disconnect(ssh->bpp, wire_reason, code);
     ssh->close_expected = TRUE;
     ssh->clean_exit = clean_exit;
     ssh_closing(&ssh->plugvt, error, 0, 0);
