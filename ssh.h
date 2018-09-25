@@ -1247,8 +1247,8 @@ void platform_ssh_share_cleanup(const char *name);
     K(y, SSH2_MSG_KEXRSA_PUBKEY, 30, SSH2_PKTCTX_RSAKEX)                \
     K(y, SSH2_MSG_KEXRSA_SECRET, 31, SSH2_PKTCTX_RSAKEX)                \
     K(y, SSH2_MSG_KEXRSA_DONE, 32, SSH2_PKTCTX_RSAKEX)                  \
-    K(y, SSH2_MSG_KEX_ECDH_INIT, 30, SSH2_PKTCTX_DHGEX)                 \
-    K(y, SSH2_MSG_KEX_ECDH_REPLY, 31, SSH2_PKTCTX_DHGEX)                \
+    K(y, SSH2_MSG_KEX_ECDH_INIT, 30, SSH2_PKTCTX_ECDHKEX)               \
+    K(y, SSH2_MSG_KEX_ECDH_REPLY, 31, SSH2_PKTCTX_ECDHKEX)              \
     X(y, SSH2_MSG_USERAUTH_REQUEST, 50)                                 \
     X(y, SSH2_MSG_USERAUTH_FAILURE, 51)                                 \
     X(y, SSH2_MSG_USERAUTH_SUCCESS, 52)                                 \
