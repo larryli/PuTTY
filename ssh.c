@@ -966,9 +966,6 @@ static const SessionSpecial *ssh_get_specials(Backend *be)
     if (ssh->base_layer)
         ssh_ppl_get_specials(ssh->base_layer, ssh_add_special, &ctx);
 
-    if (!ssh->specials)
-        return NULL;
-
     if (ctx.specials) {
         /* If the list is non-empty, terminate it with a SS_EXITMENU. */
         ssh_add_special(&ctx, NULL, SS_EXITMENU, 0);
