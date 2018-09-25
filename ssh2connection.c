@@ -1335,8 +1335,10 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
     }
 
     s->mainchan_ready = TRUE;
-    if (s->mainchan)
+    if (s->mainchan) {
 	s->want_user_input = TRUE;
+        ssh_ppl_got_user_input(&s->ppl); /* in case any is already queued */
+    }
 
     /* If an EOF or a window-size change arrived before we were ready
      * to handle either one, handle them now. */
