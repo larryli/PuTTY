@@ -23,6 +23,7 @@
 #define WINHELP_CTX_logging_filename "logging.filename:config-logfilename"
 #define WINHELP_CTX_logging_exists "logging.exists:config-logfileexists"
 #define WINHELP_CTX_logging_flush "logging.flush:config-logflush"
+#define WINHELP_CTX_logging_header "logging.header:config-logheader"
 #define WINHELP_CTX_logging_ssh_omit_password "logging.ssh.omitpassword:config-logssh"
 #define WINHELP_CTX_logging_ssh_omit_data "logging.ssh.omitdata:config-logssh"
 #define WINHELP_CTX_keyboard_backspace "keyboard.backspace:config-backspace"
