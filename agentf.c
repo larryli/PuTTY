@@ -159,6 +159,7 @@ static const struct ChannelVtable agentf_channelvt = {
     chan_no_exit_status,
     chan_no_exit_signal,
     chan_no_exit_signal_numeric,
+    chan_no_request_response,
 };
 
 Channel *agentf_new(SshChannel *c)

@@ -280,6 +280,7 @@ static const struct ChannelVtable zombiechan_channelvt = {
     chan_no_exit_status,
     chan_no_exit_signal,
     chan_no_exit_signal_numeric,
+    chan_no_request_response,
 };
 
 Channel *zombiechan_new(void)
@@ -358,6 +359,11 @@ int chan_no_exit_signal_numeric(
     Channel *chan, int signum, int core_dumped, ptrlen msg)
 {
     return FALSE;
+}
+
+void chan_no_request_response(Channel *chan, int success)
+{
+    assert(0 && "this channel type should never send a want-reply request");
 }
 
 /* ----------------------------------------------------------------------

@@ -34,6 +34,11 @@ struct ChannelVtable {
         Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
     int (*rcvd_exit_signal_numeric)(
         Channel *chan, int signum, int core_dumped, ptrlen msg);
+
+    /* A method for signalling success/failure responses to channel
+     * requests initiated from the SshChannel vtable with want_reply
+     * true. */
+    void (*request_response)(Channel *, int success);
 };
 
 struct Channel {
@@ -56,6 +61,8 @@ struct Channel {
     ((ch)->vt->rcvd_exit_signal(ch, sig, core, msg))
 #define chan_rcvd_exit_signal_numeric(ch, sig, core, msg)   \
     ((ch)->vt->rcvd_exit_signal_numeric(ch, sig, core, msg))
+#define chan_request_response(ch, success)   \
+    ((ch)->vt->request_response(ch, success))
 
 /*
  * Reusable methods you can put in vtables to give default handling of
@@ -74,6 +81,9 @@ int chan_no_eager_close(Channel *, int, int);
 int chan_no_exit_status(Channel *, int);
 int chan_no_exit_signal(Channel *, ptrlen, int, ptrlen);
 int chan_no_exit_signal_numeric(Channel *, int, int, ptrlen);
+
+/* default implementation that never expects to receive a response */
+void chan_no_request_response(Channel *, int);
 
 /*
  * Constructor for a trivial do-nothing implementation of
@@ -106,6 +116,43 @@ struct SshChannelVtable {
                                  const char *peer_addr, int peer_port,
                                  int endian, int protomajor, int protominor,
                                  const void *initial_data, int initial_len);
+
+    /*
+     * All the outgoing channel requests we support. Each one has a
+     * want_reply flag, which will cause a callback to
+     * chan_request_response when the result is available.
+     *
+     * The ones that return 'int' use it to indicate that the SSH
+     * protocol in use doesn't support this request at all.
+     *
+     * (It's also intentional that not all of them have a want_reply
+     * flag: the ones that don't are because SSH-1 has no method for
+     * signalling success or failure of that request, or because we
+     * wouldn't do anything usefully different with the reply in any
+     * case.)
+     */
+    void (*request_x11_forwarding)(
+        SshChannel *c, int want_reply, const char *authproto,
+        const char *authdata, int screen_number, int oneshot);
+    void (*request_agent_forwarding)(
+        SshChannel *c, int want_reply);
+    void (*request_pty)(
+        SshChannel *c, int want_reply, Conf *conf, int w, int h);
+    int (*send_env_var)(
+        SshChannel *c, int want_reply, const char *var, const char *value);
+    void (*start_shell)(
+        SshChannel *c, int want_reply);
+    void (*start_command)(
+        SshChannel *c, int want_reply, const char *command);
+    int (*start_subsystem)(
+        SshChannel *c, int want_reply, const char *subsystem);
+    int (*send_serial_break)(
+        SshChannel *c, int want_reply, int length); /* length=0 for default */
+    int (*send_signal)(
+        SshChannel *c, int want_reply, const char *signame);
+    void (*send_terminal_size_change)(
+        SshChannel *c, int w, int h);
+    void (*hint_channel_is_simple)(SshChannel *c);
 };
 
 struct SshChannel {
@@ -120,5 +167,27 @@ struct SshChannel {
 #define sshfwd_window_override_removed(c) ((c)->vt->window_override_removed(c))
 #define sshfwd_x11_sharing_handover(c, cs, ch, pa, pp, e, pmaj, pmin, d, l) \
     ((c)->vt->x11_sharing_handover(c, cs, ch, pa, pp, e, pmaj, pmin, d, l))
+#define sshfwd_request_x11_forwarding(c, wr, ap, ad, scr, oneshot) \
+    ((c)->vt->request_x11_forwarding(c, wr, ap, ad, scr, oneshot))
+#define sshfwd_request_agent_forwarding(c, wr) \
+    ((c)->vt->request_agent_forwarding(c, wr))
+#define sshfwd_request_pty(c, wr, conf, w, h) \
+    ((c)->vt->request_pty(c, wr, conf, w, h))
+#define sshfwd_send_env_var(c, wr, var, value) \
+    ((c)->vt->send_env_var(c, wr, var, value))
+#define sshfwd_start_shell(c, wr) \
+    ((c)->vt->start_shell(c, wr))
+#define sshfwd_start_command(c, wr, cmd) \
+    ((c)->vt->start_command(c, wr, cmd))
+#define sshfwd_start_subsystem(c, wr, subsys) \
+    ((c)->vt->start_subsystem(c, wr, subsys))
+#define sshfwd_send_serial_break(c, wr, length) \
+    ((c)->vt->send_serial_break(c, wr, length))
+#define sshfwd_send_signal(c, wr, sig) \
+    ((c)->vt->send_signal(c, wr, sig))
+#define sshfwd_send_terminal_size_change(c, w, h) \
+    ((c)->vt->send_terminal_size_change(c, w, h))
+#define sshfwd_hint_channel_is_simple(c) \
+    ((c)->vt->hint_channel_is_simple(c))
 
 #endif /* PUTTY_SSHCHAN_H */

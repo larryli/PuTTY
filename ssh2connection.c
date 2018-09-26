@@ -13,10 +13,6 @@
 
 struct ssh2_channel;
 
-typedef enum MainChanType {
-    MAINCHAN_DIRECT_TCPIP, MAINCHAN_SESSION, MAINCHAN_NONE
-} MainChanType;
-
 struct outstanding_global_request;
 
 struct ssh2_connection_state {
@@ -28,7 +24,6 @@ struct ssh2_connection_state {
     char *peer_verstring;
 
     struct ssh2_channel *mainchan;     /* primary session channel */
-    MainChanType mctype;
     char *mainchan_open_error;
     int mainchan_ready;
     int echoedit;
@@ -38,6 +33,7 @@ struct ssh2_connection_state {
     int want_user_input;
 
     int ssh_is_simple;
+    int persistent;
 
     Conf *conf;
 
@@ -45,8 +41,6 @@ struct ssh2_connection_state {
     int all_channels_throttled;
 
     int X11_fwd_enabled;
-    struct X11Display *x11disp;
-    struct X11FakeAuth *x11auth;
     tree234 *x11authtree;
 
     int got_pty;
@@ -261,6 +255,30 @@ static void ssh2channel_x11_sharing_handover(
     SshChannel *c, ssh_sharing_connstate *share_cs, share_channel *share_chan,
     const char *peer_addr, int peer_port, int endian,
     int protomajor, int protominor, const void *initial_data, int initial_len);
+static void ssh2channel_request_x11_forwarding(
+    SshChannel *c, int want_reply, const char *authproto,
+    const char *authdata, int screen_number, int oneshot);
+static void ssh2channel_request_agent_forwarding(
+    SshChannel *c, int want_reply);
+static void ssh2channel_request_pty(
+    SshChannel *c, int want_reply, Conf *conf, int w, int h);
+static int ssh2channel_send_env_var(
+    SshChannel *c, int want_reply, const char *var, const char *value);
+static void ssh2channel_start_shell(
+    SshChannel *c, int want_reply);
+static void ssh2channel_start_command(
+    SshChannel *c, int want_reply, const char *command);
+static int ssh2channel_start_subsystem(
+    SshChannel *c, int want_reply, const char *subsystem);
+static int ssh2channel_send_env_var(
+    SshChannel *c, int want_reply, const char *var, const char *value);
+static int ssh2channel_send_serial_break(
+    SshChannel *c, int want_reply, int length);
+static int ssh2channel_send_signal(
+    SshChannel *c, int want_reply, const char *signame);
+static void ssh2channel_send_terminal_size_change(
+    SshChannel *c, int w, int h);
+static void ssh2channel_hint_channel_is_simple(SshChannel *c);
 
 static const struct SshChannelVtable ssh2channel_vtable = {
     ssh2channel_write,
@@ -270,6 +288,17 @@ static const struct SshChannelVtable ssh2channel_vtable = {
     ssh2channel_get_conf,
     ssh2channel_window_override_removed,
     ssh2channel_x11_sharing_handover,
+    ssh2channel_request_x11_forwarding,
+    ssh2channel_request_agent_forwarding,
+    ssh2channel_request_pty,
+    ssh2channel_send_env_var,
+    ssh2channel_start_shell,
+    ssh2channel_start_command,
+    ssh2channel_start_subsystem,
+    ssh2channel_send_serial_break,
+    ssh2channel_send_signal,
+    ssh2channel_send_terminal_size_change,
+    ssh2channel_hint_channel_is_simple,
 };
 
 typedef void (*cr_handler_fn_t)(struct ssh2_channel *, PktIn *, void *);
@@ -311,18 +340,7 @@ static void ssh2_queue_global_request_handler(
     s->globreq_tail = ogr;
 }
 
-typedef struct mainchan {
-    struct ssh2_connection_state *connlayer;
-    SshChannel *sc;
-
-    Channel chan;
-} mainchan;
-static mainchan *mainchan_new(struct ssh2_connection_state *s);
-static void ssh2_setup_x11(struct ssh2_channel *c, PktIn *pktin, void *ctx);
-static void ssh2_setup_agent(struct ssh2_channel *c, PktIn *pktin, void *ctx);
-static void ssh2_setup_pty(struct ssh2_channel *c, PktIn *pktin, void *ctx);
-static void ssh2_setup_env(struct ssh2_channel *c, PktIn *pktin, void *ctx);
-static void ssh2_response_session(struct ssh2_channel *c, PktIn *, void *);
+static void create_mainchan(struct ssh2_connection_state *s, Conf *conf);
 
 static int ssh2_channelcmp(void *av, void *bv)
 {
@@ -381,6 +399,14 @@ PacketProtocolLayer *ssh2_connection_new(
 
     s->ssh_is_simple = is_simple;
 
+    /*
+     * If the ssh_no_shell option is enabled, we disable the usual
+     * termination check, so that we persist even in the absence of
+     * any at all channels (because our purpose is probably to be a
+     * background port forwarder).
+     */
+    s->persistent = conf_get_int(s->conf, CONF_ssh_no_shell);
+
     s->connshare = connshare;
     s->peer_verstring = dupstr(peer_verstring);
 
@@ -422,10 +448,11 @@ static void ssh2_connection_free(PacketProtocolLayer *ppl)
         ssh2_channel_free(c);
     freetree234(s->channels);
 
-    if (s->x11disp)
-	x11_free_display(s->x11disp);
-    while ((auth = delpos234(s->x11authtree, 0)) != NULL)
+    while ((auth = delpos234(s->x11authtree, 0)) != NULL) {
+        if (auth->disp)
+            x11_free_display(auth->disp);
         x11_free_fake_auth(auth);
+    }
     freetree234(s->x11authtree);
 
     while ((rpf = delpos234(s->rportfwds, 0)) != NULL)
@@ -436,16 +463,27 @@ static void ssh2_connection_free(PacketProtocolLayer *ppl)
     sfree(s);
 }
 
+static char *chan_open_x11(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc,
+    ptrlen peeraddr, int peerport);
+static char *chan_open_forwarded_tcpip(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc,
+    ssh_sharing_connstate **share_ctx,
+    ptrlen fwdaddr, int fwdport, ptrlen peeraddr, int peerport);
+static char *chan_open_auth_agent(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc);
+
 static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
 {
     PktIn *pktin;
     PktOut *pktout;
     ptrlen type, data;
     struct ssh2_channel *c;
+    ssh_sharing_connstate *share_ctx;
     struct outstanding_channel_request *ocr;
     unsigned localid, remid, winsize, pktsize, ext_type;
     int want_reply, reply_success, expect_halfopen;
-    const char *error;
+    char *error;
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
     /* Cross-reference to ssh2transport.c to handle the common packets
@@ -515,78 +553,42 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
             winsize = get_uint32(pktin);
             pktsize = get_uint32(pktin);
 
+            share_ctx = NULL;
+
             if (ptrlen_eq_string(type, "x11")) {
-                char *addrstr = mkstr(get_string(pktin));
+                ptrlen peeraddr = get_string(pktin);
                 int peerport = get_uint32(pktin);
 
-                ppl_logevent(("Received X11 connect request from %s:%d",
-                              addrstr, peerport));
-
-                if (!s->X11_fwd_enabled && !s->connshare) {
-                    error = "X11 forwarding is not enabled";
-                } else {
-                    c->chan = x11_new_channel(
-                        s->x11authtree, &c->sc, addrstr, peerport,
-                        s->connshare != NULL);
-                    ppl_logevent(("Opened X11 forward channel"));
-                }
-
-                sfree(addrstr);
+                error = chan_open_x11(
+                    s, &c->chan, &c->sc, peeraddr, peerport);
             } else if (ptrlen_eq_string(type, "forwarded-tcpip")) {
-                struct ssh_rportfwd pf, *realpf;
-                ptrlen peeraddr;
-                int peerport;
+                ptrlen fwdaddr = get_string(pktin);
+                int fwdport = toint(get_uint32(pktin));
+                ptrlen peeraddr = get_string(pktin);
+                int peerport = toint(get_uint32(pktin));
 
-                pf.shost = mkstr(get_string(pktin));
-                pf.sport = get_uint32(pktin);
-                peeraddr = get_string(pktin);
-                peerport = get_uint32(pktin);
-                realpf = find234(s->rportfwds, &pf, NULL);
-                ppl_logevent(("Received remote port %s:%d open request "
-                              "from %.*s:%d", pf.shost, pf.sport,
-                              PTRLEN_PRINTF(peeraddr), peerport));
-                sfree(pf.shost);
-
-                if (realpf == NULL) {
-                    error = "Remote port is not recognised";
-                } else {
-                    char *err;
-
-                    if (realpf->share_ctx) {
-                        /*
-                         * This port forwarding is on behalf of a
-                         * connection-sharing downstream, so abandon our own
-                         * channel-open procedure and just pass the message on
-                         * to sshshare.c.
-                         */
-                        share_got_pkt_from_server(
-                            realpf->share_ctx, pktin->type,
-                            BinarySource_UPCAST(pktin)->data,
-                            BinarySource_UPCAST(pktin)->len);
-                        sfree(c);
-                        break;
-                    }
-
-                    err = portfwdmgr_connect(
-                        s->portfwdmgr, &c->chan, realpf->dhost, realpf->dport,
-                        &c->sc, realpf->addressfamily);
-                    ppl_logevent(("Attempting to forward remote port to "
-                                  "%s:%d", realpf->dhost, realpf->dport));
-                    if (err != NULL) {
-                        ppl_logevent(("Port open failed: %s", err));
-                        sfree(err);
-                        error = "Port open failed";
-                    } else {
-                        ppl_logevent(("Forwarded port opened successfully"));
-                    }
-                }
+                error = chan_open_forwarded_tcpip(
+                    s, &c->chan, &c->sc, &share_ctx,
+                    fwdaddr, fwdport, peeraddr, peerport);
             } else if (ptrlen_eq_string(type, "auth-agent@openssh.com")) {
-                if (!s->agent_fwd_enabled)
-                    error = "Agent forwarding is not enabled";
-                else
-                    c->chan = agentf_new(&c->sc);
+                error = chan_open_auth_agent(s, &c->chan, &c->sc);
             } else {
-                error = "Unsupported channel type requested";
+                error = dupstr("Unsupported channel type requested");
+            }
+
+            if (share_ctx) {
+                /*
+                 * This channel-open request needs to go to a
+                 * connection-sharing downstream, so abandon our own
+                 * channel-open procedure and just pass the message on
+                 * to sshshare.c.
+                 */
+                assert(!error);
+                share_got_pkt_from_server(share_ctx, pktin->type,
+                                          BinarySource_UPCAST(pktin)->data,
+                                          BinarySource_UPCAST(pktin)->len);
+                sfree(c);
+                break;
             }
 
             c->remoteid = remid;
@@ -600,6 +602,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 put_stringz(pktout, "en");	/* language tag */
                 pq_push(s->ppl.out_pq, pktout);
                 ppl_logevent(("Rejected channel open: %s", error));
+                sfree(error);
                 sfree(c);
             } else {
                 ssh2_channel_init(c);
@@ -1075,84 +1078,14 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
     struct ssh2_connection_state *s =
         container_of(ppl, struct ssh2_connection_state, ppl);
     PktIn *pktin;
-    PktOut *pktout;
 
     if (ssh2_connection_filter_queue(s)) /* no matter why we were called */
         return;
 
     crBegin(s->crState);
 
-    /*
-     * Create the main session channel, if any.
-     */
-    if (conf_get_int(s->conf, CONF_ssh_no_shell)) {
-        s->mctype = MAINCHAN_NONE;
-    } else if (*conf_get_str(s->conf, CONF_ssh_nc_host)) {
-        s->mctype = MAINCHAN_DIRECT_TCPIP;
-    } else {
-        s->mctype = MAINCHAN_SESSION;
-    }
-
-    if (s->mctype != MAINCHAN_NONE) {
-        mainchan *mc = mainchan_new(s);
-
-        switch (s->mctype) {
-          case MAINCHAN_NONE:
-            assert(0 && "Unreachable");
-            break;
-
-          case MAINCHAN_SESSION:
-            s->mainchan = snew(struct ssh2_channel);
-            mc->sc = &s->mainchan->sc;
-            s->mainchan->connlayer = s;
-            ssh2_channel_init(s->mainchan);
-            s->mainchan->chan = &mc->chan;
-            s->mainchan->halfopen = TRUE;
-	    pktout = ssh2_chanopen_init(s->mainchan, "session");
-	    ppl_logevent(("Opening session as main channel"));
-	    pq_push(s->ppl.out_pq, pktout);
-            break;
-
-          case MAINCHAN_DIRECT_TCPIP:
-            mc->sc = ssh_lportfwd_open(
-                &s->cl, conf_get_str(s->conf, CONF_ssh_nc_host),
-                conf_get_int(s->conf, CONF_ssh_nc_port),
-                "main channel", &mc->chan);
-            s->mainchan = container_of(mc->sc, struct ssh2_channel, sc);
-            break;
-	}
-
-        /*
-         * Wait until that channel has been successfully opened (or
-         * not).
-         */
-	crMaybeWaitUntilV(!s->mainchan || !s->mainchan->halfopen);
-        if (!s->mainchan) {
-            ssh_sw_abort(s->ppl.ssh, "Server refused to open main channel: %s",
-                         s->mainchan_open_error);
-            return;
-        }
-    }
-
-    /*
-     * Now the connection protocol is properly up and running, with
-     * all those dispatch table entries, so it's safe to let
-     * downstreams start trying to open extra channels through us.
-     */
     if (s->connshare)
         share_activate(s->connshare, s->peer_verstring);
-
-    if (s->mainchan && s->ssh_is_simple) {
-	/*
-	 * This message indicates to the server that we promise
-	 * not to try to run any other channel in parallel with
-	 * this one, so it's safe for it to advertise a very large
-	 * window and leave the flow control to TCP.
-	 */
-	pktout = ssh2_chanreq_init(
-            s->mainchan, "simple@putty.projects.tartarus.org", NULL, NULL);
-	pq_push(s->ppl.out_pq, pktout);
-    }
 
     /*
      * Enable port forwardings.
@@ -1160,126 +1093,10 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
     portfwdmgr_config(s->portfwdmgr, s->conf);
     s->portfwdmgr_configured = TRUE;
 
-    if (s->mainchan && s->mctype == MAINCHAN_SESSION) {
-	/*
-	 * Send the CHANNEL_REQUESTS for the main session channel.
-	 * Each one is handled by its own little asynchronous
-	 * co-routine.
-	 */
-
-	/* Potentially enable X11 forwarding. */
-	if (conf_get_int(s->conf, CONF_x11_forward)) {
-            char *x11_setup_err;
-            s->x11disp = x11_setup_display(
-                conf_get_str(s->conf, CONF_x11_display),
-                s->conf, &x11_setup_err);
-            if (!s->x11disp) {
-                ppl_logevent(("X11 forwarding not enabled: unable to"
-                              " initialise X display: %s", x11_setup_err));
-                sfree(x11_setup_err);
-            } else {
-                s->x11auth = x11_invent_fake_auth(
-                    s->x11authtree, conf_get_int(s->conf, CONF_x11_auth));
-                s->x11auth->disp = s->x11disp;
-
-                ssh2_setup_x11(s->mainchan, NULL, NULL);
-            }
-        }
-
-	/* Potentially enable agent forwarding. */
-	if (ssh_agent_forwarding_permitted(&s->cl))
-	    ssh2_setup_agent(s->mainchan, NULL, NULL);
-
-	/* Now allocate a pty for the session. */
-	if (!conf_get_int(s->conf, CONF_nopty))
-	    ssh2_setup_pty(s->mainchan, NULL, NULL);
-
-	/* Send environment variables. */
-	ssh2_setup_env(s->mainchan, NULL, NULL);
-
-	/*
-	 * Start a shell or a remote command. We may have to attempt
-	 * this twice if the config data has provided a second choice
-	 * of command.
-	 */
-	for (s->session_attempt = 0; s->session_attempt < 2;
-             s->session_attempt++) {
-	    int subsys;
-	    char *cmd;
-
-	    if (s->session_attempt == 0) {
-		cmd = conf_get_str(s->conf, CONF_remote_cmd);
-		subsys = conf_get_int(s->conf, CONF_ssh_subsys);
-	    } else {
-		cmd = conf_get_str(s->conf, CONF_remote_cmd2);
-                if (!*cmd) {
-                    /* If there's no remote_cmd2 configured, then we
-                     * have no fallback command, and we should quit
-                     * this loop before even trying to look up
-                     * CONF_ssh_subsys2, which is one of the few conf
-                     * keys that is not guaranteed to be populated. */
-                    break;
-                }
-		subsys = conf_get_int(s->conf, CONF_ssh_subsys2);
-                ppl_logevent(("Primary command failed; attempting fallback"));
-	    }
-
-	    if (subsys) {
-		pktout = ssh2_chanreq_init(s->mainchan, "subsystem",
-                                           ssh2_response_session, s);
-		put_stringz(pktout, cmd);
-	    } else if (*cmd) {
-		pktout = ssh2_chanreq_init(s->mainchan, "exec",
-                                           ssh2_response_session, s);
-		put_stringz(pktout, cmd);
-	    } else {
-		pktout = ssh2_chanreq_init(s->mainchan, "shell",
-                                           ssh2_response_session, s);
-	    }
-	    pq_push(s->ppl.out_pq, pktout);
-            s->session_status = 0;
-
-            /* Wait for success or failure message to be passed to
-             * ssh2_response_session, which will set session_status to
-             * +1 for success or -1 for failure */
-	    crMaybeWaitUntilV(s->session_status != 0);
-
-	    if (s->session_status > 0) {
-                if (s->session_attempt == 1)
-                    ssh_got_fallback_cmd(s->ppl.ssh);
-		ppl_logevent(("Started a shell/command"));
-                break;
-            }
-        }
-
-        if (s->session_status < 0) {
-            /*
-             * We failed to start either the primary or the fallback
-             * command.
-             */
-            ssh_sw_abort(s->ppl.ssh,
-                         "Server refused to start a shell/command");
-            return;
-	}
-    } else {
-	s->echoedit = TRUE;
-    }
-
-    s->mainchan_ready = TRUE;
-    if (s->mainchan) {
-	s->want_user_input = TRUE;
-        ssh_ppl_got_user_input(&s->ppl); /* in case any is already queued */
-    }
-
-    /* If an EOF or a window-size change arrived before we were ready
-     * to handle either one, handle them now. */
-    if (s->mainchan_eof_pending)
-	ssh_ppl_special_cmd(&s->ppl, SS_EOF, 0);
-    if (s->term_width_orig != s->term_width ||
-        s->term_height_orig != s->term_height)
-	ssh_terminal_size(&s->cl, s->term_width, s->term_height);
-
-    ssh_ldisc_update(s->ppl.ssh);
+    /*
+     * Create the main session channel, if any.
+     */
+    create_mainchan(s, s->conf);
 
     /*
      * Transfer data!
@@ -1494,14 +1311,8 @@ static void ssh2_check_termination(struct ssh2_connection_state *s)
      * policy is that we terminate when none of either is left.
      */
 
-    if (s->mctype == MAINCHAN_NONE) {
-        /*
-         * Exception: in ssh_no_shell mode we persist even in the
-         * absence of any channels (because our purpose is probably to
-         * be a background port forwarder).
-         */
-        return;
-    }
+    if (s->persistent)
+        return;     /* persistent mode: never proactively terminate */
 
     if (count234(s->channels) == 0 &&
         !(s->connshare && share_ndownstreams(s->connshare) > 0)) {
@@ -1517,200 +1328,6 @@ static void ssh2_check_termination(struct ssh2_connection_state *s)
         ssh_user_close(s->ppl.ssh, "All channels closed");
         return;
     }
-}
-
-static void ssh2_setup_x11(struct ssh2_channel *c, PktIn *pktin, void *ctx)
-{
-    struct ssh2_setup_x11_state {
-	int crLine;
-    };
-    struct ssh2_connection_state *cs = c->connlayer;
-    PacketProtocolLayer *ppl = &cs->ppl; /* for ppl_logevent */
-    PktOut *pktout;
-    crStateP(ssh2_setup_x11_state, ctx);
-
-    crBeginState;
-
-    ppl_logevent(("Requesting X11 forwarding"));
-    pktout = ssh2_chanreq_init(cs->mainchan, "x11-req", ssh2_setup_x11, s);
-    put_bool(pktout, 0);	       /* many connections */
-    put_stringz(pktout, cs->x11auth->protoname);
-    put_stringz(pktout, cs->x11auth->datastring);
-    put_uint32(pktout, cs->x11disp->screennum);
-    pq_push(cs->ppl.out_pq, pktout);
-
-    /* Wait to be called back with either a response packet, or NULL
-     * meaning clean up and free our data */
-    crReturnV;
-
-    if (pktin) {
-        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-            ppl_logevent(("X11 forwarding enabled"));
-            cs->X11_fwd_enabled = TRUE;
-        } else
-            ppl_logevent(("X11 forwarding refused"));
-    }
-
-    crFinishFreeV;
-}
-
-static void ssh2_setup_agent(struct ssh2_channel *c, PktIn *pktin, void *ctx)
-{
-    struct ssh2_setup_agent_state {
-	int crLine;
-    };
-    struct ssh2_connection_state *cs = c->connlayer;
-    PacketProtocolLayer *ppl = &cs->ppl; /* for ppl_logevent */
-    PktOut *pktout;
-    crStateP(ssh2_setup_agent_state, ctx);
-
-    crBeginState;
-
-    ppl_logevent(("Requesting OpenSSH-style agent forwarding"));
-    pktout = ssh2_chanreq_init(cs->mainchan, "auth-agent-req@openssh.com",
-                               ssh2_setup_agent, s);
-    pq_push(cs->ppl.out_pq, pktout);
-
-    /* Wait to be called back with either a response packet, or NULL
-     * meaning clean up and free our data */
-    crReturnV;
-
-    if (pktin) {
-        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-            ppl_logevent(("Agent forwarding enabled"));
-            cs->agent_fwd_enabled = TRUE;
-        } else
-            ppl_logevent(("Agent forwarding refused"));
-    }
-
-    crFinishFreeV;
-}
-
-static void ssh2_setup_pty(struct ssh2_channel *c, PktIn *pktin, void *ctx)
-{
-    struct ssh2_setup_pty_state {
-	int crLine;
-        int ospeed, ispeed;
-    };
-    struct ssh2_connection_state *cs = c->connlayer;
-    PacketProtocolLayer *ppl = &cs->ppl; /* for ppl_logevent, ppl_printf */
-    PktOut *pktout;
-    crStateP(ssh2_setup_pty_state, ctx);
-
-    crBeginState;
-
-    /* Unpick the terminal-speed string. */
-    s->ospeed = 38400; s->ispeed = 38400; /* last-resort defaults */
-    sscanf(conf_get_str(cs->conf, CONF_termspeed), "%d,%d",
-           &s->ospeed, &s->ispeed);
-    /* Build the pty request. */
-    pktout = ssh2_chanreq_init(cs->mainchan, "pty-req", ssh2_setup_pty, s);
-    put_stringz(pktout, conf_get_str(cs->conf, CONF_termtype));
-    put_uint32(pktout, cs->term_width);
-    put_uint32(pktout, cs->term_height);
-    cs->term_width_orig = cs->term_width;
-    cs->term_height_orig = cs->term_height;
-    put_uint32(pktout, 0);	       /* pixel width */
-    put_uint32(pktout, 0);	       /* pixel height */
-    {
-        strbuf *modebuf = strbuf_new();
-        write_ttymodes_to_packet_from_conf(
-            BinarySink_UPCAST(modebuf), cs->ppl.seat, cs->conf,
-            2, s->ospeed, s->ispeed);
-        put_stringsb(pktout, modebuf);
-    }
-    pq_push(cs->ppl.out_pq, pktout);
-
-    /* Wait to be called back with either a response packet, or NULL
-     * meaning clean up and free our data */
-    crReturnV;
-
-    if (pktin) {
-        if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS) {
-            ppl_logevent(("Allocated pty (ospeed %dbps, ispeed %dbps)",
-                          s->ospeed, s->ispeed));
-            cs->got_pty = TRUE;
-        } else {
-            ppl_printf(("Server refused to allocate pty\r\n"));
-            cs->echoedit = TRUE;
-        }
-    }
-
-    crFinishFreeV;
-}
-
-static void ssh2_setup_env(struct ssh2_channel *c, PktIn *pktin, void *ctx)
-{
-    struct ssh2_setup_env_state {
-	int crLine;
-	int num_env, env_left, env_ok;
-    };
-    struct ssh2_connection_state *cs = c->connlayer;
-    PacketProtocolLayer *ppl = &cs->ppl; /* for ppl_logevent, ppl_printf */
-    PktOut *pktout;
-    crStateP(ssh2_setup_env_state, ctx);
-
-    crBeginState;
-
-    /*
-     * Send environment variables.
-     * 
-     * Simplest thing here is to send all the requests at once, and
-     * then wait for a whole bunch of successes or failures.
-     */
-    s->num_env = 0;
-    {
-	char *key, *val;
-
-	for (val = conf_get_str_strs(cs->conf, CONF_environmt, NULL, &key);
-	     val != NULL;
-	     val = conf_get_str_strs(cs->conf, CONF_environmt, key, &key)) {
-	    pktout = ssh2_chanreq_init(cs->mainchan, "env", ssh2_setup_env, s);
-	    put_stringz(pktout, key);
-	    put_stringz(pktout, val);
-	    pq_push(cs->ppl.out_pq, pktout);
-
-	    s->num_env++;
-	}
-	if (s->num_env)
-	    ppl_logevent(("Sent %d environment variables", s->num_env));
-    }
-
-    if (s->num_env) {
-	s->env_ok = 0;
-	s->env_left = s->num_env;
-
-	while (s->env_left > 0) {
-            /* Wait to be called back with either a response packet,
-             * or NULL meaning clean up and free our data */
-            crReturnV;
-	    if (!pktin) goto out;
-	    if (pktin->type == SSH2_MSG_CHANNEL_SUCCESS)
-		s->env_ok++;
-	    s->env_left--;
-	}
-
-	if (s->env_ok == s->num_env) {
-	    ppl_logevent(("All environment variables successfully set"));
-	} else if (s->env_ok == 0) {
-	    ppl_logevent(("All environment variables refused"));
-	    ppl_printf(("Server refused to set environment variables\r\n"));
-	} else {
-	    ppl_logevent(("%d environment variables refused",
-                          s->num_env - s->env_ok));
-	    ppl_printf(("Server refused to set all environment "
-                        "variables\r\n"));
-	}
-    }
-  out:;
-    crFinishFreeV;
-}
-
-static void ssh2_response_session(struct ssh2_channel *c, PktIn *pktin,
-                                  void *ctx)
-{
-    struct ssh2_connection_state *s = c->connlayer;
-    s->session_status = (pktin->type == SSH2_MSG_CHANNEL_SUCCESS ? +1 : -1);
 }
 
 /*
@@ -1882,6 +1499,170 @@ static void ssh2channel_window_override_removed(SshChannel *sc)
      */
     assert(!c->chan->initial_fixed_window_size);
     ssh2_set_window(c, s->ssh_is_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE);
+}
+
+static void ssh2_channel_response(
+    struct ssh2_channel *c, PktIn *pkt, void *ctx)
+{
+    chan_request_response(c->chan, pkt->type == SSH2_MSG_CHANNEL_SUCCESS);
+}
+
+static void ssh2channel_start_shell(
+    SshChannel *sc, int want_reply)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "shell", want_reply ? ssh2_channel_response : NULL, NULL);
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static void ssh2channel_start_command(
+    SshChannel *sc, int want_reply, const char *command)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "exec", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_stringz(pktout, command);
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static int ssh2channel_start_subsystem(
+    SshChannel *sc, int want_reply, const char *subsystem)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "subsystem", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_stringz(pktout, subsystem);
+    pq_push(s->ppl.out_pq, pktout);
+
+    return TRUE;
+}
+
+static void ssh2channel_request_x11_forwarding(
+    SshChannel *sc, int want_reply, const char *authproto,
+    const char *authdata, int screen_number, int oneshot)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "x11-req", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_bool(pktout, oneshot);
+    put_stringz(pktout, authproto);
+    put_stringz(pktout, authdata);
+    put_uint32(pktout, screen_number);
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static void ssh2channel_request_agent_forwarding(
+    SshChannel *sc, int want_reply)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "auth-agent-req@openssh.com",
+        want_reply ? ssh2_channel_response : NULL, NULL);
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static void ssh2channel_request_pty(
+    SshChannel *sc, int want_reply, Conf *conf, int w, int h)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+    int ospeed, ispeed;
+    strbuf *modebuf;
+
+    ospeed = ispeed = 38400;           /* last-resort defaults */
+    sscanf(conf_get_str(conf, CONF_termspeed), "%d,%d",
+           &ospeed, &ispeed);
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "pty-req", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_stringz(pktout, conf_get_str(conf, CONF_termtype));
+    put_uint32(pktout, w);
+    put_uint32(pktout, h);
+    put_uint32(pktout, 0);	       /* pixel width */
+    put_uint32(pktout, 0);	       /* pixel height */
+    modebuf = strbuf_new();
+    write_ttymodes_to_packet_from_conf(
+        BinarySink_UPCAST(modebuf), s->ppl.seat, conf,
+        2, ospeed, ispeed);
+    put_stringsb(pktout, modebuf);
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static int ssh2channel_send_env_var(
+    SshChannel *sc, int want_reply, const char *var, const char *value)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "env", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_stringz(pktout, var);
+    put_stringz(pktout, value);
+    pq_push(s->ppl.out_pq, pktout);
+
+    return TRUE;
+}
+
+static int ssh2channel_send_serial_break(
+    SshChannel *sc, int want_reply, int length)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "break", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_uint32(pktout, length);
+    pq_push(s->ppl.out_pq, pktout);
+
+    return TRUE;
+}
+
+static int ssh2channel_send_signal(
+    SshChannel *sc, int want_reply, const char *signame)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "signal", want_reply ? ssh2_channel_response : NULL, NULL);
+    put_stringz(pktout, signame);
+    pq_push(s->ppl.out_pq, pktout);
+
+    return TRUE;
+}
+
+static void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(c, "window-change", NULL, NULL);
+    put_uint32(pktout, w);
+    put_uint32(pktout, h);
+    put_uint32(pktout, 0);	       /* pixel width */
+    put_uint32(pktout, 0);	       /* pixel height */
+    pq_push(s->ppl.out_pq, pktout);
+}
+
+static void ssh2channel_hint_channel_is_simple(SshChannel *sc)
+{
+    struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
+    struct ssh2_connection_state *s = c->connlayer;
+
+    PktOut *pktout = ssh2_chanreq_init(
+        c, "simple@putty.projects.tartarus.org", NULL, NULL);
+    pq_push(s->ppl.out_pq, pktout);
 }
 
 static SshChannel *ssh2_lportfwd_open(
@@ -2118,6 +1899,7 @@ static int mainchan_rcvd_exit_signal(
     Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
 static int mainchan_rcvd_exit_signal_numeric(
     Channel *chan, int signum, int core_dumped, ptrlen msg);
+static void mainchan_request_response(Channel *chan, int success);
 
 static const struct ChannelVtable mainchan_channelvt = {
     mainchan_free,
@@ -2131,16 +1913,60 @@ static const struct ChannelVtable mainchan_channelvt = {
     mainchan_rcvd_exit_status,
     mainchan_rcvd_exit_signal,
     mainchan_rcvd_exit_signal_numeric,
+    mainchan_request_response,
 };
 
-static mainchan *mainchan_new(struct ssh2_connection_state *s)
+typedef enum MainChanType {
+    MAINCHAN_SESSION, MAINCHAN_DIRECT_TCPIP
+} MainChanType;
+
+typedef struct mainchan {
+    struct ssh2_connection_state *connlayer;
+    SshChannel *sc;
+    MainChanType type;
+    Conf *conf;
+    int req_x11, req_agent, req_pty, req_cmd_primary, req_cmd_fallback;
+    int n_req_env, n_env_replies, n_env_fails;
+
+    Channel chan;
+} mainchan;
+
+static void create_mainchan(struct ssh2_connection_state *s, Conf *conf)
 {
-    mainchan *mc = snew(mainchan);
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+    mainchan *mc;
+    PktOut *pktout;
+
+    if (conf_get_int(s->conf, CONF_ssh_no_shell))
+        return;                        /* do nothing */
+
+    mc = snew(mainchan);
+    memset(mc, 0, sizeof(mainchan));
     mc->connlayer = s;
     mc->sc = NULL;
     mc->chan.vt = &mainchan_channelvt;
     mc->chan.initial_fixed_window_size = 0;
-    return mc;
+    mc->conf = conf_copy(conf);
+
+    if (*conf_get_str(mc->conf, CONF_ssh_nc_host)) {
+        mc->sc = ssh_lportfwd_open(
+            &s->cl, conf_get_str(mc->conf, CONF_ssh_nc_host),
+            conf_get_int(mc->conf, CONF_ssh_nc_port),
+            "main channel", &mc->chan);
+        s->mainchan = container_of(mc->sc, struct ssh2_channel, sc);
+        mc->type = MAINCHAN_DIRECT_TCPIP;
+    } else {
+        s->mainchan = snew(struct ssh2_channel);
+        mc->sc = &s->mainchan->sc;
+        s->mainchan->connlayer = s;
+        ssh2_channel_init(s->mainchan);
+        s->mainchan->chan = &mc->chan;
+        s->mainchan->halfopen = TRUE;
+        pktout = ssh2_chanopen_init(s->mainchan, "session");
+        ppl_logevent(("Opening session as main channel"));
+        pq_push(s->ppl.out_pq, pktout);
+        mc->type = MAINCHAN_SESSION;
+    }
 }
 
 static void mainchan_free(Channel *chan)
@@ -2149,8 +1975,12 @@ static void mainchan_free(Channel *chan)
     mainchan *mc = container_of(chan, mainchan, chan);
     struct ssh2_connection_state *s = mc->connlayer;
     s->mainchan = NULL;
+    conf_free(mc->conf);
     sfree(mc);
 }
+
+static void mainchan_try_fallback_command(mainchan *mc);
+static void mainchan_ready(mainchan *mc);
 
 static void mainchan_open_confirmation(Channel *chan)
 {
@@ -2160,6 +1990,218 @@ static void mainchan_open_confirmation(Channel *chan)
 
     seat_update_specials_menu(s->ppl.seat);
     ppl_logevent(("Opened main channel"));
+
+    if (s->ssh_is_simple)
+        sshfwd_hint_channel_is_simple(mc->sc);
+
+    if (mc->type == MAINCHAN_SESSION) {
+	/*
+	 * Send the CHANNEL_REQUESTS for the main session channel.
+         */
+        char *key, *val, *cmd;
+        struct X11Display *x11disp;
+        struct X11FakeAuth *x11auth;
+        int retry_cmd_now = FALSE;
+
+	if (conf_get_int(mc->conf, CONF_x11_forward)) {;
+            char *x11_setup_err;
+            if ((x11disp = x11_setup_display(
+                     conf_get_str(mc->conf, CONF_x11_display),
+                     mc->conf, &x11_setup_err)) == NULL) {
+                ppl_logevent(("X11 forwarding not enabled: unable to"
+                              " initialise X display: %s", x11_setup_err));
+                sfree(x11_setup_err);
+            } else {
+                x11auth = x11_invent_fake_auth(
+                    s->x11authtree, conf_get_int(mc->conf, CONF_x11_auth));
+                x11auth->disp = x11disp;
+
+                sshfwd_request_x11_forwarding(
+                    mc->sc, TRUE, x11auth->protoname, x11auth->datastring,
+                    x11disp->screennum, FALSE);
+                mc->req_x11 = TRUE;
+            }
+        }
+
+	if (ssh_agent_forwarding_permitted(&s->cl)) {
+            sshfwd_request_agent_forwarding(mc->sc, TRUE);
+            mc->req_agent = TRUE;
+        }
+
+	if (!conf_get_int(mc->conf, CONF_nopty)) {
+            sshfwd_request_pty(
+                mc->sc, TRUE, mc->conf, s->term_width, s->term_height);
+            /* Record the initial width/height we requested, so we
+             * know whether we need to send a change later once
+             * everything is set up (if the window is resized in
+             * between) */
+            s->term_width_orig = s->term_width;
+            s->term_height_orig = s->term_height;
+            mc->req_pty = TRUE;
+        }
+
+        for (val = conf_get_str_strs(mc->conf, CONF_environmt, NULL, &key);
+             val != NULL;
+             val = conf_get_str_strs(mc->conf, CONF_environmt, key, &key)) {
+            sshfwd_send_env_var(mc->sc, TRUE, key, val);
+            mc->n_req_env++;
+        }
+        if (mc->n_req_env)
+            ppl_logevent(("Sent %d environment variables", mc->n_req_env));
+
+        cmd = conf_get_str(s->conf, CONF_remote_cmd);
+        if (conf_get_int(s->conf, CONF_ssh_subsys)) {
+            retry_cmd_now = !sshfwd_start_subsystem(mc->sc, TRUE, cmd);
+        } else if (*cmd) {
+            sshfwd_start_command(mc->sc, TRUE, cmd);
+        } else {
+            sshfwd_start_shell(mc->sc, TRUE);
+        }
+
+        if (retry_cmd_now)
+            mainchan_try_fallback_command(mc);
+        else
+            mc->req_cmd_primary = TRUE;
+
+    } else {
+	s->echoedit = TRUE;
+        mainchan_ready(mc);
+    }
+}
+
+static void mainchan_try_fallback_command(mainchan *mc)
+{
+    const char *cmd = conf_get_str(mc->conf, CONF_remote_cmd2);
+    if (conf_get_int(mc->conf, CONF_ssh_subsys2)) {
+        sshfwd_start_subsystem(mc->sc, TRUE, cmd);
+    } else {
+        sshfwd_start_command(mc->sc, TRUE, cmd);
+    }
+    mc->req_cmd_fallback = TRUE;
+}
+
+static void mainchan_request_response(Channel *chan, int success)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = container_of(chan, mainchan, chan);
+    struct ssh2_connection_state *s = mc->connlayer;
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+
+    if (mc->req_x11) {
+        mc->req_x11 = FALSE;
+
+        if (success) {
+            ppl_logevent(("X11 forwarding enabled"));
+            s->X11_fwd_enabled = TRUE;
+        } else {
+            ppl_logevent(("X11 forwarding refused"));
+        }
+        return;
+    }
+
+    if (mc->req_agent) {
+        mc->req_agent = FALSE;
+
+        if (success) {
+            ppl_logevent(("Agent forwarding enabled"));
+        } else {
+            ppl_logevent(("Agent forwarding refused"));
+        }
+        return;
+    }
+
+    if (mc->req_pty) {
+        mc->req_pty = FALSE;
+
+        if (success) {
+            ppl_logevent(("Allocated pty"));
+            s->agent_fwd_enabled = TRUE;
+        } else {
+            ppl_logevent(("Server refused to allocate pty"));
+            ppl_printf(("Server refused to allocate pty\r\n"));
+            s->echoedit = TRUE;
+        }
+        return;
+    }
+
+    if (mc->n_env_replies < mc->n_req_env) {
+        int j = mc->n_env_replies++;
+        if (!success) {
+            ppl_logevent(("Server refused to set environment variable %s",
+                          conf_get_str_nthstrkey(mc->conf,
+                                                 CONF_environmt, j)));
+            mc->n_env_fails++;
+        }
+
+        if (mc->n_env_replies == mc->n_req_env) {
+            if (mc->n_env_fails == 0) {
+                ppl_logevent(("All environment variables successfully set"));
+            } else if (mc->n_env_fails == mc->n_req_env) {
+                ppl_logevent(("All environment variables refused"));
+                ppl_printf(("Server refused to set environment "
+                            "variables\r\n"));
+            } else {
+                ppl_printf(("Server refused to set all environment "
+                            "variables\r\n"));
+            }
+        }
+        return;
+    }
+
+    if (mc->req_cmd_primary) {
+        mc->req_cmd_primary = FALSE;
+
+        if (success) {
+            ppl_logevent(("Started a shell/command"));
+            mainchan_ready(mc);
+            queue_idempotent_callback(&s->ppl.ic_process_queue);
+        } else if (*conf_get_str(mc->conf, CONF_remote_cmd2)) {
+            ppl_logevent(("Primary command failed; attempting fallback"));
+            mainchan_try_fallback_command(mc);
+        } else {
+            /*
+             * If there's no remote_cmd2 configured, then we have no
+             * fallback command, so we've run out of options.
+             */
+            ssh_sw_abort(s->ppl.ssh,
+                         "Server refused to start a shell/command");
+        }
+        return;
+    }
+
+    if (mc->req_cmd_fallback) {
+        mc->req_cmd_fallback = FALSE;
+
+        if (success) {
+            ppl_logevent(("Started a shell/command"));
+            ssh_got_fallback_cmd(s->ppl.ssh);
+            mainchan_ready(mc);
+            queue_idempotent_callback(&s->ppl.ic_process_queue);
+        } else {
+            ssh_sw_abort(s->ppl.ssh,
+                         "Server refused to start a shell/command");
+        }
+        return;
+    }
+}
+
+static void mainchan_ready(mainchan *mc)
+{
+    struct ssh2_connection_state *s = mc->connlayer;
+
+    s->mainchan_ready = TRUE;
+    s->want_user_input = TRUE;
+    ssh_ppl_got_user_input(&s->ppl); /* in case any is already queued */
+
+    /* If an EOF or a window-size change arrived before we were ready
+     * to handle either one, handle them now. */
+    if (s->mainchan_eof_pending)
+	ssh_ppl_special_cmd(&s->ppl, SS_EOF, 0);
+    if (s->term_width_orig != s->term_width ||
+        s->term_height_orig != s->term_height)
+	ssh_terminal_size(&s->cl, s->term_width, s->term_height);
+
+    ssh_ldisc_update(s->ppl.ssh);
 }
 
 static void mainchan_open_failure(Channel *chan, const char *errtext)
@@ -2168,12 +2210,8 @@ static void mainchan_open_failure(Channel *chan, const char *errtext)
     mainchan *mc = container_of(chan, mainchan, chan);
     struct ssh2_connection_state *s = mc->connlayer;
 
-    /*
-     * Record the failure reason we're given, and let the main
-     * coroutine handle closing the SSH session.
-     */
-    s->mainchan_open_error = dupstr(errtext);
-    queue_idempotent_callback(&s->ppl.ic_process_queue);
+    ssh_sw_abort(
+        s->ppl.ssh, "Server refused to open main channel: %s", errtext);
 }
 
 static int mainchan_send(Channel *chan, int is_stderr,
@@ -2338,6 +2376,83 @@ static int mainchan_rcvd_exit_signal_numeric(
     ssh2_log_exit_signal_common(s, signum_str, core_dumped, msg);
     sfree(signum_str);
     return TRUE;
+}
+
+static char *chan_open_x11(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc,
+    ptrlen peeraddr, int peerport)
+{
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+    char *peeraddr_str;
+
+    ppl_logevent(("Received X11 connect request from %.*s:%d",
+                  PTRLEN_PRINTF(peeraddr), peerport));
+
+    if (!s->X11_fwd_enabled && !s->connshare)
+        return dupstr("X11 forwarding is not enabled");
+
+    peeraddr_str = peeraddr.ptr ? mkstr(peeraddr) : NULL;
+    *ch = x11_new_channel(
+        s->x11authtree, sc, peeraddr_str, peerport, s->connshare != NULL);
+    sfree(peeraddr_str);
+    ppl_logevent(("Opened X11 forward channel"));
+
+    return NULL;
+}
+
+static char *chan_open_forwarded_tcpip(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc,
+    ssh_sharing_connstate **share_ctx,
+    ptrlen fwdaddr, int fwdport, ptrlen peeraddr, int peerport)
+{
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+    struct ssh_rportfwd pf, *realpf;
+    char *err;
+
+    ppl_logevent(("Received remote port %.*s:%d open request from %.*s:%d",
+                  PTRLEN_PRINTF(fwdaddr), fwdport,
+                  PTRLEN_PRINTF(peeraddr), peerport));
+
+    pf.shost = mkstr(fwdaddr);
+    pf.sport = fwdport;
+    realpf = find234(s->rportfwds, &pf, NULL);
+    sfree(pf.shost);
+
+    if (realpf == NULL)
+        return dupstr("Remote port is not recognised");
+
+    if (realpf->share_ctx) {
+        /*
+         * This port forwarding is on behalf of a connection-sharing
+         * downstream.
+         */
+        *share_ctx = realpf->share_ctx;
+        return NULL;
+    }
+
+    err = portfwdmgr_connect(
+        s->portfwdmgr, ch, realpf->dhost, realpf->dport,
+        sc, realpf->addressfamily);
+    ppl_logevent(("Attempting to forward remote port to %s:%d",
+                  realpf->dhost, realpf->dport));
+    if (err != NULL) {
+        ppl_logevent(("Port open failed: %s", err));
+        sfree(err);
+        return dupstr("Port open failed");
+    }
+
+    ppl_logevent(("Forwarded port opened successfully"));
+    return NULL;
+}
+
+static char *chan_open_auth_agent(
+    struct ssh2_connection_state *s, Channel **ch, SshChannel *sc)
+{
+    if (!s->agent_fwd_enabled)
+        return dupstr("Agent forwarding is not enabled");
+
+    *ch = agentf_new(sc);
+    return NULL;
 }
 
 /*

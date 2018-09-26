@@ -130,6 +130,7 @@ int chan_no_exit_signal(Channel *ch, ptrlen s, int c, ptrlen m)
 { return FALSE; }
 int chan_no_exit_signal_numeric(Channel *ch, int s, int c, ptrlen m)
 { return FALSE; }
+void chan_no_request_response(Channel *chan, int success) {}
 
 /*
  * These functions are part of the plug for our connection to the X

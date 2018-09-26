@@ -186,6 +186,18 @@ static const struct SshChannelVtable ssh1channel_vtable = {
     ssh1channel_unthrottle,
     ssh1channel_get_conf,
     ssh1channel_window_override_removed,
+    NULL /* x11_sharing_handover is only used by SSH-2 connection sharing */,
+    NULL /* request_x11_forwarding */,
+    NULL /* request_agent_forwarding */,
+    NULL /* request_pty */,
+    NULL /* send_env_var */,
+    NULL /* start_shell */,
+    NULL /* start_command */,
+    NULL /* start_subsystem */,
+    NULL /* send_serial_break */,
+    NULL /* send_signal */,
+    NULL /* send_terminal_size_change */,
+    NULL /* hint_channel_is_simple */,
 };
 
 static void ssh1_channel_init(struct ssh1_channel *c);
