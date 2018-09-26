@@ -1628,7 +1628,7 @@ void setup_config_box(struct controlbox *b, int midsession,
     ctrl_checkbox(s, "Flush log file frequently", 'u',
 		 HELPCTX(logging_flush),
 		 conf_checkbox_handler, I(CONF_logflush));
-    ctrl_checkbox(s, "Include header", 'h',
+    ctrl_checkbox(s, "Include header", 'i',
 		 HELPCTX(logging_header),
 		 conf_checkbox_handler, I(CONF_logheader));
 
