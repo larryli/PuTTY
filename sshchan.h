@@ -26,6 +26,14 @@ struct ChannelVtable {
     char *(*log_close_msg)(Channel *);
 
     int (*want_close)(Channel *, int sent_local_eof, int rcvd_remote_eof);
+
+    /* A method for every channel request we know of. All of these
+     * return TRUE for success or FALSE for failure. */
+    int (*rcvd_exit_status)(Channel *, int status);
+    int (*rcvd_exit_signal)(
+        Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
+    int (*rcvd_exit_signal_numeric)(
+        Channel *chan, int signum, int core_dumped, ptrlen msg);
 };
 
 struct Channel {
@@ -42,6 +50,12 @@ struct Channel {
     ((ch)->vt->set_input_wanted(ch, wanted))
 #define chan_log_close_msg(ch) ((ch)->vt->log_close_msg(ch))
 #define chan_want_close(ch, leof, reof) ((ch)->vt->want_close(ch, leof, reof))
+#define chan_rcvd_exit_status(ch, status) \
+    ((ch)->vt->rcvd_exit_status(ch, status))
+#define chan_rcvd_exit_signal(ch, sig, core, msg)   \
+    ((ch)->vt->rcvd_exit_signal(ch, sig, core, msg))
+#define chan_rcvd_exit_signal_numeric(ch, sig, core, msg)   \
+    ((ch)->vt->rcvd_exit_signal_numeric(ch, sig, core, msg))
 
 /*
  * Reusable methods you can put in vtables to give default handling of
@@ -55,6 +69,11 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext);
 /* want_close for any channel that wants the default behaviour of not
  * closing until both directions have had an EOF */
 int chan_no_eager_close(Channel *, int, int);
+
+/* default implementations that refuse all the channel requests */
+int chan_no_exit_status(Channel *, int);
+int chan_no_exit_signal(Channel *, ptrlen, int, ptrlen);
+int chan_no_exit_signal_numeric(Channel *, int, int, ptrlen);
 
 /*
  * Constructor for a trivial do-nothing implementation of

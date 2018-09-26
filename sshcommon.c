@@ -277,6 +277,9 @@ static const struct ChannelVtable zombiechan_channelvt = {
     zombiechan_set_input_wanted,
     zombiechan_log_close_msg,
     zombiechan_want_close,
+    chan_no_exit_status,
+    chan_no_exit_signal,
+    chan_no_exit_signal_numeric,
 };
 
 Channel *zombiechan_new(void)
@@ -338,6 +341,23 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext)
 int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
 {
     return FALSE;     /* default: never proactively ask for a close */
+}
+
+int chan_no_exit_status(Channel *chan, int status)
+{
+    return FALSE;
+}
+
+int chan_no_exit_signal(
+    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg)
+{
+    return FALSE;
+}
+
+int chan_no_exit_signal_numeric(
+    Channel *chan, int signum, int core_dumped, ptrlen msg)
+{
+    return FALSE;
 }
 
 /* ----------------------------------------------------------------------

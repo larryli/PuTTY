@@ -451,6 +451,9 @@ static const struct ChannelVtable PortForwarding_channelvt = {
     pfd_set_input_wanted,
     pfd_log_close_msg,
     chan_no_eager_close,
+    chan_no_exit_status,
+    chan_no_exit_signal,
+    chan_no_exit_signal_numeric,
 };
 
 /*

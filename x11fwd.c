@@ -731,6 +731,9 @@ static const struct ChannelVtable X11Connection_channelvt = {
     x11_set_input_wanted,
     x11_log_close_msg,
     chan_no_eager_close,
+    chan_no_exit_status,
+    chan_no_exit_signal,
+    chan_no_exit_signal_numeric,
 };
 
 /*

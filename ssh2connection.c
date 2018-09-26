@@ -444,7 +444,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
     struct ssh2_channel *c;
     struct outstanding_channel_request *ocr;
     unsigned localid, remid, winsize, pktsize, ext_type;
-    int want_reply, reply_type, expect_halfopen;
+    int want_reply, reply_success, expect_halfopen;
     const char *error;
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
@@ -466,13 +466,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
             /* type = */ get_string(pktin);
             want_reply = get_bool(pktin);
 
-            /*
-             * 'reply_type' is the message type we'll send in
-             * response, if want_reply is set. Initialise it to the
-             * default value of REQUEST_FAILURE, for any request we
-             * don't recognise and handle below.
-             */
-            reply_type = SSH2_MSG_REQUEST_FAILURE;
+            reply_success = FALSE;
 
             /*
              * We currently don't support any incoming global requests
@@ -481,7 +475,9 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
              */
 
             if (want_reply) {
-                pktout = ssh_bpp_new_pktout(s->ppl.bpp, reply_type);
+                int type = (reply_success ? SSH2_MSG_REQUEST_SUCCESS :
+                            SSH2_MSG_REQUEST_FAILURE);
+                pktout = ssh_bpp_new_pktout(s->ppl.bpp, type);
                 pq_push(s->ppl.out_pq, pktout);
             }
             pq_pop(s->ppl.in_pq);
@@ -773,13 +769,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 type = get_string(pktin);
                 want_reply = get_bool(pktin);
 
-                /*
-                 * 'reply_type' is the message type we'll send in
-                 * response, if want_reply is set. Initialise it to
-                 * the default value of CHANNEL_FAILURE, for any
-                 * request we don't recognise and handle below.
-                 */
-                reply_type = SSH2_MSG_CHANNEL_FAILURE;
+                reply_success = FALSE;
 
                 if (c->closes & CLOSES_SENT_CLOSE) {
                     /*
@@ -793,141 +783,71 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 }
 
                 /*
-                 * Having got the channel number, we now look at the
-                 * request type string to see if it's something we
-                 * recognise.
+                 * Try every channel request name we recognise, no
+                 * matter what the channel, and see if the Channel
+                 * instance will accept it.
                  */
-                if (c == s->mainchan) {
-                    int exitcode;
+                if (ptrlen_eq_string(type, "exit-status")) {
+                    int exitcode = toint(get_uint32(pktin));
+                    reply_success = chan_rcvd_exit_status(c->chan, exitcode);
+                } else if (ptrlen_eq_string(type, "exit-signal")) {
+                    ptrlen signame;
+                    int signum;
+                    int core = FALSE;
+                    ptrlen errmsg;
+                    int format;
 
                     /*
-                     * We recognise "exit-status" and "exit-signal" on
-                     * the primary channel.
+                     * ICK: older versions of OpenSSH (e.g. 3.4p1)
+                     * provide an `int' for the signal, despite its
+                     * having been a `string' in the drafts of RFC
+                     * 4254 since at least 2001. (Fixed in session.c
+                     * 1.147.) Try to infer which we can safely parse
+                     * it as.
                      */
-                    if (ptrlen_eq_string(type, "exit-status")) {
-                        exitcode = toint(get_uint32(pktin));
-                        ssh_got_exitcode(s->ppl.ssh, exitcode);
-                        ppl_logevent(("Server sent command exit status %d",
-                                      exitcode));
-                        reply_type = SSH2_MSG_CHANNEL_SUCCESS;
-                    } else if (ptrlen_eq_string(type, "exit-signal")) {
-                        char *fmt_sig = NULL, *fmt_msg = NULL;
-                        ptrlen errmsg;
-                        int core = FALSE;
-                        int format;
 
-                        /*
-                         * ICK: older versions of OpenSSH (e.g. 3.4p1)
-                         * provide an `int' for the signal, despite
-                         * its having been a `string' in the drafts of
-                         * RFC 4254 since at least 2001. (Fixed in
-                         * session.c 1.147.) Try to infer which we can
-                         * safely parse it as.
-                         */
+                    size_t startpos = BinarySource_UPCAST(pktin)->pos;
 
-                        size_t startpos = BinarySource_UPCAST(pktin)->pos;
+                    for (format = 0; format < 2; format++) {
+                        BinarySource_UPCAST(pktin)->pos = startpos;
+                        BinarySource_UPCAST(pktin)->err = BSE_NO_ERROR;
 
-                        for (format = 0; format < 2; format++) {
-                            BinarySource_UPCAST(pktin)->pos = startpos;
-                            BinarySource_UPCAST(pktin)->err = BSE_NO_ERROR;
+                        /* placate compiler warnings about unin */
+                        signame = make_ptrlen(NULL, 0);
+                        signum = 0;
 
-                            if (format == 0) {
-                                /* standard string-based format */
-                                ptrlen signame = get_string(pktin);
-                                fmt_sig = dupprintf(" \"%.*s\"",
-                                                    PTRLEN_PRINTF(signame));
+                        if (format == 0) /* standard string-based format */
+                            signame = get_string(pktin);
+                        else      /* nonstandard integer format */
+                            signum = toint(get_uint32(pktin));
 
-                                /*
-                                 * Really hideous method of translating the
-                                 * signal description back into a locally
-                                 * meaningful number.
-                                 */
+                        core = get_bool(pktin);
+                        errmsg = get_string(pktin); /* error message */
+                        get_string(pktin);     /* language tag */
 
-                                if (0)
-                                    ;
-#define TRANSLATE_SIGNAL(s)                                             \
-                                else if (ptrlen_eq_string(signame, #s)) \
-                                    exitcode = 128 + SIG ## s
-#ifdef SIGABRT
-                                TRANSLATE_SIGNAL(ABRT);
-#endif
-#ifdef SIGALRM
-                                TRANSLATE_SIGNAL(ALRM);
-#endif
-#ifdef SIGFPE
-                                TRANSLATE_SIGNAL(FPE);
-#endif
-#ifdef SIGHUP
-                                TRANSLATE_SIGNAL(HUP);
-#endif
-#ifdef SIGILL
-                                TRANSLATE_SIGNAL(ILL);
-#endif
-#ifdef SIGINT
-                                TRANSLATE_SIGNAL(INT);
-#endif
-#ifdef SIGKILL
-                                TRANSLATE_SIGNAL(KILL);
-#endif
-#ifdef SIGPIPE
-                                TRANSLATE_SIGNAL(PIPE);
-#endif
-#ifdef SIGQUIT
-                                TRANSLATE_SIGNAL(QUIT);
-#endif
-#ifdef SIGSEGV
-                                TRANSLATE_SIGNAL(SEGV);
-#endif
-#ifdef SIGTERM
-                                TRANSLATE_SIGNAL(TERM);
-#endif
-#ifdef SIGUSR1
-                                TRANSLATE_SIGNAL(USR1);
-#endif
-#ifdef SIGUSR2
-                                TRANSLATE_SIGNAL(USR2);
-#endif
-#undef TRANSLATE_SIGNAL
-                                else
-                                    exitcode = 128;
-                            } else {
-                                /* nonstandard integer format */
-                                unsigned signum = get_uint32(pktin);
-                                fmt_sig = dupprintf(" %u", signum);
-                                exitcode = 128 + signum;
-                            }
+                        if (!get_err(pktin) && get_avail(pktin) == 0)
+                            break;             /* successful parse */
+                    }
 
-                            core = get_bool(pktin);
-                            errmsg = get_string(pktin); /* error message */
-                            get_string(pktin);     /* language tag */
-                            if (!get_err(pktin) && get_avail(pktin) == 0)
-                                break;             /* successful parse */
-
-                            sfree(fmt_sig);
-                        }
-
-                        if (format == 2) {
-                            fmt_sig = NULL;
-                            exitcode = 128;
-                        }
-
-                        if (errmsg.len) {
-                            fmt_msg = dupprintf(" (\"%.*s\")",
-                                                PTRLEN_PRINTF(errmsg));
-                        }
-
-                        ssh_got_exitcode(s->ppl.ssh, exitcode);
-                        ppl_logevent(("Server exited on signal%s%s%s",
-                                      fmt_sig ? fmt_sig : "",
-                                      core ? " (core dumped)" : "",
-                                      fmt_msg ? fmt_msg : ""));
-                        sfree(fmt_sig);
-                        sfree(fmt_msg);
-                        reply_type = SSH2_MSG_CHANNEL_SUCCESS;
+                    switch (format) {
+                      case 0:
+                        reply_success = chan_rcvd_exit_signal(
+                            c->chan, signame, core, errmsg);
+                        break;
+                      case 1:
+                        reply_success = chan_rcvd_exit_signal_numeric(
+                            c->chan, signum, core, errmsg);
+                        break;
+                      default:
+                        /* Couldn't parse this message in either format */
+                        reply_success = FALSE;
+                        break;
                     }
                 }
                 if (want_reply) {
-                    pktout = ssh_bpp_new_pktout(s->ppl.bpp, reply_type);
+                    int type = (reply_success ? SSH2_MSG_CHANNEL_SUCCESS :
+                                SSH2_MSG_CHANNEL_FAILURE);
+                    pktout = ssh_bpp_new_pktout(s->ppl.bpp, type);
                     put_uint32(pktout, c->remoteid);
                     pq_push(s->ppl.out_pq, pktout);
                 }
@@ -2193,6 +2113,11 @@ static int mainchan_send(Channel *chan, int is_stderr, const void *, int);
 static void mainchan_send_eof(Channel *chan);
 static void mainchan_set_input_wanted(Channel *chan, int wanted);
 static char *mainchan_log_close_msg(Channel *chan);
+static int mainchan_rcvd_exit_status(Channel *chan, int status);
+static int mainchan_rcvd_exit_signal(
+    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
+static int mainchan_rcvd_exit_signal_numeric(
+    Channel *chan, int signum, int core_dumped, ptrlen msg);
 
 static const struct ChannelVtable mainchan_channelvt = {
     mainchan_free,
@@ -2203,6 +2128,9 @@ static const struct ChannelVtable mainchan_channelvt = {
     mainchan_set_input_wanted,
     mainchan_log_close_msg,
     chan_no_eager_close,
+    mainchan_rcvd_exit_status,
+    mainchan_rcvd_exit_signal,
+    mainchan_rcvd_exit_signal_numeric,
 };
 
 static mainchan *mainchan_new(struct ssh2_connection_state *s)
@@ -2297,6 +2225,119 @@ static void mainchan_set_input_wanted(Channel *chan, int wanted)
 static char *mainchan_log_close_msg(Channel *chan)
 {
     return dupstr("Main session channel closed");
+}
+
+static int mainchan_rcvd_exit_status(Channel *chan, int status)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = container_of(chan, mainchan, chan);
+    struct ssh2_connection_state *s = mc->connlayer;
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+
+    ssh_got_exitcode(s->ppl.ssh, status);
+    ppl_logevent(("Session sent command exit status %d", status));
+    return TRUE;
+}
+
+static void ssh2_log_exit_signal_common(
+    struct ssh2_connection_state *s, const char *sigdesc,
+    int core_dumped, ptrlen msg)
+{
+    PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
+
+    const char *core_msg = core_dumped ? " (core dumped)" : "";
+    const char *msg_pre = (msg.len ? " (" : "");
+    const char *msg_post = (msg.len ? ")" : "");
+    ppl_logevent(("Session exited on %s%s%s%.*s%s",
+                  sigdesc, core_msg, msg_pre, PTRLEN_PRINTF(msg), msg_post));
+}
+
+static int mainchan_rcvd_exit_signal(
+    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = container_of(chan, mainchan, chan);
+    struct ssh2_connection_state *s = mc->connlayer;
+    int exitcode;
+    char *signame_str;
+
+    /*
+     * Translate the signal description back into a locally
+     * meaningful number.
+     */
+
+    if (0)
+        ;
+#define TRANSLATE_SIGNAL(s)                                     \
+    else if (ptrlen_eq_string(signame, #s))      \
+        exitcode = 128 + SIG ## s
+#ifdef SIGABRT
+    TRANSLATE_SIGNAL(ABRT);
+#endif
+#ifdef SIGALRM
+    TRANSLATE_SIGNAL(ALRM);
+#endif
+#ifdef SIGFPE
+    TRANSLATE_SIGNAL(FPE);
+#endif
+#ifdef SIGHUP
+    TRANSLATE_SIGNAL(HUP);
+#endif
+#ifdef SIGILL
+    TRANSLATE_SIGNAL(ILL);
+#endif
+#ifdef SIGINT
+    TRANSLATE_SIGNAL(INT);
+#endif
+#ifdef SIGKILL
+    TRANSLATE_SIGNAL(KILL);
+#endif
+#ifdef SIGPIPE
+    TRANSLATE_SIGNAL(PIPE);
+#endif
+#ifdef SIGQUIT
+    TRANSLATE_SIGNAL(QUIT);
+#endif
+#ifdef SIGSEGV
+    TRANSLATE_SIGNAL(SEGV);
+#endif
+#ifdef SIGTERM
+    TRANSLATE_SIGNAL(TERM);
+#endif
+#ifdef SIGUSR1
+    TRANSLATE_SIGNAL(USR1);
+#endif
+#ifdef SIGUSR2
+    TRANSLATE_SIGNAL(USR2);
+#endif
+#undef TRANSLATE_SIGNAL
+    else
+        exitcode = 128;
+
+    ssh_got_exitcode(s->ppl.ssh, exitcode);
+    if (exitcode == 128)
+        signame_str = dupprintf("unrecognised signal \"%.*s\"",
+                                PTRLEN_PRINTF(signame));
+    else
+        signame_str = dupprintf("signal SIG%.*s", PTRLEN_PRINTF(signame));
+    ssh2_log_exit_signal_common(s, signame_str, core_dumped, msg);
+    sfree(signame_str);
+    return TRUE;
+}
+
+static int mainchan_rcvd_exit_signal_numeric(
+    Channel *chan, int signum, int core_dumped, ptrlen msg)
+{
+    assert(chan->vt == &mainchan_channelvt);
+    mainchan *mc = container_of(chan, mainchan, chan);
+    struct ssh2_connection_state *s = mc->connlayer;
+    char *signum_str;
+
+    ssh_got_exitcode(s->ppl.ssh, 128 + signum);
+    signum_str = dupprintf("signal %d", signum);
+    ssh2_log_exit_signal_common(s, signum_str, core_dumped, msg);
+    sfree(signum_str);
+    return TRUE;
 }
 
 /*

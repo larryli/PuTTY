@@ -125,6 +125,11 @@ static int time_to_die = FALSE;
 void chan_remotely_opened_confirmation(Channel *chan) { }
 void chan_remotely_opened_failure(Channel *chan, const char *err) { }
 int chan_no_eager_close(Channel *chan, int s, int r) { return FALSE; }
+int chan_no_exit_status(Channel *ch, int s) { return FALSE; }
+int chan_no_exit_signal(Channel *ch, ptrlen s, int c, ptrlen m)
+{ return FALSE; }
+int chan_no_exit_signal_numeric(Channel *ch, int s, int c, ptrlen m)
+{ return FALSE; }
 
 /*
  * These functions are part of the plug for our connection to the X
