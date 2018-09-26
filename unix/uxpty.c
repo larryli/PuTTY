@@ -193,10 +193,17 @@ static void setup_utmp(char *ttyname, char *location)
     memset(&utmp_entry, 0, sizeof(utmp_entry));
     utmp_entry.ut_type = USER_PROCESS;
     utmp_entry.ut_pid = getpid();
+#if __GNUC__ >= 8
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif // __GNUC__ >= 8
     strncpy(utmp_entry.ut_line, ttyname+5, lenof(utmp_entry.ut_line));
     strncpy(utmp_entry.ut_id, ttyname+8, lenof(utmp_entry.ut_id));
     strncpy(utmp_entry.ut_user, pw->pw_name, lenof(utmp_entry.ut_user));
     strncpy(utmp_entry.ut_host, location, lenof(utmp_entry.ut_host));
+#if __GNUC__ >= 8
+#   pragma GCC diagnostic pop
+#endif // __GNUC__ >= 8
     /*
      * Apparently there are some architectures where (struct
      * utmpx).ut_tv is not essentially struct timeval (e.g. Linux

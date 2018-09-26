@@ -1678,7 +1678,14 @@ Socket new_unix_listener(SockAddr listenaddr, Plug plug)
 
     memset(&u, '\0', sizeof(u));
     u.su.sun_family = AF_UNIX;
+#if __GNUC__ >= 8
+#   pragma GCC diagnostic push
+#   pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif // __GNUC__ >= 8
     strncpy(u.su.sun_path, listenaddr->hostname, sizeof(u.su.sun_path)-1);
+#if __GNUC__ >= 8
+#   pragma GCC diagnostic pop
+#endif // __GNUC__ >= 8
     addr = &u;
     addrlen = sizeof(u.su);
 
