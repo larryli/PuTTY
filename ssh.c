@@ -507,7 +507,9 @@ static void ssh_closing(Plug plug, const char *error_msg, int error_code,
 			int calling_back)
 {
     Ssh ssh = FROMFIELD(plug, struct ssh_tag, plugvt);
-    if (ssh->bpp) {
+    if (error_msg) {
+        ssh_remote_error(ssh, "Network error: %s", error_msg);
+    } else if (ssh->bpp) {
         ssh->bpp->input_eof = TRUE;
         queue_idempotent_callback(&ssh->bpp->ic_in_raw);
     }
