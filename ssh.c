@@ -387,7 +387,7 @@ static void ssh_initiate_connection_close(Ssh ssh)
 
 void ssh_remote_error(Ssh ssh, const char *fmt, ...)
 {
-    if (ssh->base_layer) {
+    if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
         /* Error messages sent by the remote don't count as clean exits */
@@ -405,7 +405,7 @@ void ssh_remote_error(Ssh ssh, const char *fmt, ...)
 
 void ssh_remote_eof(Ssh ssh, const char *fmt, ...)
 {
-    if (ssh->base_layer) {
+    if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
         /* EOF from the remote, if we were expecting it, does count as
@@ -428,7 +428,7 @@ void ssh_remote_eof(Ssh ssh, const char *fmt, ...)
 
 void ssh_proto_error(Ssh ssh, const char *fmt, ...)
 {
-    if (ssh->base_layer) {
+    if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
         ssh->exitcode = 128;
@@ -445,7 +445,7 @@ void ssh_proto_error(Ssh ssh, const char *fmt, ...)
 
 void ssh_sw_abort(Ssh ssh, const char *fmt, ...)
 {
-    if (ssh->base_layer) {
+    if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
         ssh->exitcode = 128;
@@ -462,7 +462,7 @@ void ssh_sw_abort(Ssh ssh, const char *fmt, ...)
 
 void ssh_user_close(Ssh ssh, const char *fmt, ...)
 {
-    if (ssh->base_layer) {
+    if (ssh->base_layer || !ssh->session_started) {
         GET_FORMATTED_MSG;
 
         /* Closing the connection due to user action, even if the
