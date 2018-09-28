@@ -236,6 +236,9 @@ struct ConnectionLayerVtable {
     void (*sharing_queue_global_request)(
         ConnectionLayer *cl, ssh_sharing_connstate *connstate);
 
+    /* Indicate that the last downstream has disconnected */
+    void (*sharing_no_more_downstreams)(ConnectionLayer *cl);
+
     /* Query whether the connection layer is doing agent forwarding */
     int (*agent_forwarding_permitted)(ConnectionLayer *cl);
 
@@ -281,6 +284,8 @@ struct ConnectionLayer {
     ((cl)->vt->delete_sharing_channel(cl, ch))
 #define ssh_sharing_queue_global_request(cl, cs) \
     ((cl)->vt->sharing_queue_global_request(cl, cs))
+#define ssh_sharing_no_more_downstreams(cl) \
+    ((cl)->vt->sharing_no_more_downstreams(cl))
 #define ssh_agent_forwarding_permitted(cl) \
     ((cl)->vt->agent_forwarding_permitted(cl))
 #define ssh_terminal_size(cl, w, h) ((cl)->vt->terminal_size(cl, w, h))

@@ -119,6 +119,7 @@ static const struct ConnectionLayerVtable ssh1_connlayer_vtable = {
     NULL /* alloc_sharing_channel */,
     NULL /* delete_sharing_channel */,
     NULL /* sharing_queue_global_request */,
+    NULL /* sharing_no_more_downstreams */,
     ssh1_agent_forwarding_permitted,
     ssh1_terminal_size,
     ssh1_stdout_unthrottle,

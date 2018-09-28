@@ -127,6 +127,7 @@ static void ssh2_delete_sharing_channel(
     ConnectionLayer *cl, unsigned localid);
 static void ssh2_sharing_queue_global_request(
     ConnectionLayer *cl, ssh_sharing_connstate *share_ctx);
+static void ssh2_sharing_no_more_downstreams(ConnectionLayer *cl);
 static int ssh2_agent_forwarding_permitted(ConnectionLayer *cl);
 static void ssh2_terminal_size(ConnectionLayer *cl, int width, int height);
 static void ssh2_stdout_unthrottle(ConnectionLayer *cl, int bufsize);
@@ -144,6 +145,7 @@ static const struct ConnectionLayerVtable ssh2_connlayer_vtable = {
     ssh2_alloc_sharing_channel,
     ssh2_delete_sharing_channel,
     ssh2_sharing_queue_global_request,
+    ssh2_sharing_no_more_downstreams,
     ssh2_agent_forwarding_permitted,
     ssh2_terminal_size,
     ssh2_stdout_unthrottle,
@@ -2094,6 +2096,13 @@ static void ssh2_sharing_queue_global_request(
     struct ssh2_connection_state *s =
         FROMFIELD(cl, struct ssh2_connection_state, cl);
     ssh2_queue_global_request_handler(s, ssh2_sharing_globreq_response, cs);
+}
+
+static void ssh2_sharing_no_more_downstreams(ConnectionLayer *cl)
+{
+    struct ssh2_connection_state *s =
+        FROMFIELD(cl, struct ssh2_connection_state, cl);
+    queue_toplevel_callback(ssh2_check_termination_callback, s);
 }
 
 static struct X11FakeAuth *ssh2_add_sharing_x11_display(
