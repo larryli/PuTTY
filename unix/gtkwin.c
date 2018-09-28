@@ -224,21 +224,33 @@ static void post_fatal_message_box(void *vctx, int result)
     queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
 }
 
-void fatal_message_box(Frontend *inst, const char *msg)
+static void common_connfatal_message_box(
+    Frontend *inst, const char *msg, post_dialog_fn_t postfn)
 {
     char *title = dupcat(appname, " Fatal Error", NULL);
     GtkWidget *dialog = create_message_box(
         inst->window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
-        FALSE, &buttons_ok, post_fatal_message_box, inst);
+        FALSE, &buttons_ok, postfn, inst);
     register_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL, dialog);
     sfree(title);
+}
+
+void fatal_message_box(Frontend *inst, const char *msg)
+{
+    common_connfatal_message_box(inst, msg, post_fatal_message_box);
 }
 
 static void connection_fatal_callback(void *vctx)
 {
     Frontend *inst = (Frontend *)vctx;
     destroy_inst_connection(inst);
+}
+
+static void post_nonfatal_message_box(void *vctx, int result)
+{
+    Frontend *inst = (Frontend *)vctx;
+    unregister_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL);
 }
 
 void connection_fatal(Frontend *inst, const char *p, ...)
@@ -248,7 +260,11 @@ void connection_fatal(Frontend *inst, const char *p, ...)
     va_start(ap, p);
     msg = dupvprintf(p, ap);
     va_end(ap);
-    fatal_message_box(inst, msg);
+    if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON) {
+        fatal_message_box(inst, msg);
+    } else {
+        common_connfatal_message_box(inst, msg, post_nonfatal_message_box);
+    }
     sfree(msg);
 
     inst->exited = TRUE;   /* suppress normal exit handling */
