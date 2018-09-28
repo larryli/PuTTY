@@ -83,7 +83,7 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
      */
     if (condition & G_IO_PRI)
         select_result(sourcefd, 4);
-    if (condition & G_IO_IN)
+    if (condition & (G_IO_IN | G_IO_HUP))
         select_result(sourcefd, 1);
     if (condition & G_IO_OUT)
         select_result(sourcefd, 2);
@@ -107,7 +107,7 @@ uxsel_id *uxsel_input_add(int fd, int rwx) {
 
 #if GTK_CHECK_VERSION(2,0,0)
     int flags = 0;
-    if (rwx & 1) flags |= G_IO_IN;
+    if (rwx & 1) flags |= G_IO_IN | G_IO_HUP;
     if (rwx & 2) flags |= G_IO_OUT;
     if (rwx & 4) flags |= G_IO_PRI;
     id->chan = g_io_channel_unix_new(fd);
