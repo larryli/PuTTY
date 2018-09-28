@@ -122,13 +122,17 @@ static void sk_localproxy_close (Socket s)
         close(ps->to_cmd);
     }
 
-    del234(localproxy_by_fromfd, ps);
-    uxsel_del(ps->from_cmd);
-    close(ps->from_cmd);
+    if (ps->from_cmd >= 0) {
+        del234(localproxy_by_fromfd, ps);
+        uxsel_del(ps->from_cmd);
+        close(ps->from_cmd);
+    }
 
-    del234(localproxy_by_errfd, ps);
-    uxsel_del(ps->cmd_err);
-    close(ps->cmd_err);
+    if (ps->cmd_err >= 0) {
+        del234(localproxy_by_errfd, ps);
+        uxsel_del(ps->cmd_err);
+        close(ps->cmd_err);
+    }
 
     bufchain_clear(&ps->pending_input_data);
     bufchain_clear(&ps->pending_output_data);
@@ -238,6 +242,9 @@ static void sk_localproxy_set_frozen (Socket s, int is_frozen)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
+    if (ps->from_cmd < 0)
+        return;
+
     if (is_frozen)
 	uxsel_del(ps->from_cmd);
     else
@@ -257,24 +264,36 @@ static void localproxy_select_result(int fd, int event)
     int ret;
 
     if (!(s = find234(localproxy_by_fromfd, &fd, localproxy_fromfd_find)) &&
-	!(s = find234(localproxy_by_fromfd, &fd, localproxy_errfd_find)) &&
+	!(s = find234(localproxy_by_errfd, &fd, localproxy_errfd_find)) &&
 	!(s = find234(localproxy_by_tofd, &fd, localproxy_tofd_find)) )
 	return;		       /* boggle */
 
     if (event == 1) {
         if (fd == s->cmd_err) {
             ret = read(fd, buf, sizeof(buf));
-            if (ret > 0)
+            if (ret > 0) {
                 log_proxy_stderr(s->plug, &s->pending_error_data, buf, ret);
+            } else {
+                del234(localproxy_by_errfd, s);
+                uxsel_del(s->cmd_err);
+                close(s->cmd_err);
+                s->cmd_err = -1;
+            }
         } else {
             assert(fd == s->from_cmd);
             ret = read(fd, buf, sizeof(buf));
-            if (ret < 0) {
-                plug_closing(s->plug, strerror(errno), errno, 0);
-            } else if (ret == 0) {
-                plug_closing(s->plug, NULL, 0, 0);
-            } else {
+            if (ret > 0) {
                 plug_receive(s->plug, 0, buf, ret);
+            } else {
+                if (ret < 0) {
+                    plug_closing(s->plug, strerror(errno), errno, 0);
+                } else {
+                    plug_closing(s->plug, NULL, 0, 0);
+                }
+                del234(localproxy_by_fromfd, s);
+                uxsel_del(s->from_cmd);
+                close(s->from_cmd);
+                s->from_cmd = -1;
             }
         }
     } else if (event == 2) {
