@@ -27,6 +27,8 @@ typedef struct LocalProxySocket {
     bufchain pending_error_data;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
+    int pending_error;
+
     const Socket_vtable *sockvt;
 } LocalProxySocket;
 
@@ -132,7 +134,26 @@ static void sk_localproxy_close (Socket s)
     bufchain_clear(&ps->pending_output_data);
     bufchain_clear(&ps->pending_error_data);
 
+    delete_callbacks_for_context(ps);
+
     sfree(ps);
+}
+
+static void localproxy_error_callback(void *vs)
+{
+    LocalProxySocket *ps = (LocalProxySocket *)vs;
+
+    /*
+     * Just in case other socket work has caused this socket to vanish
+     * or become somehow non-erroneous before this callback arrived...
+     */
+    if (!ps->pending_error)
+        return;
+
+    /*
+     * An error has occurred on this socket. Pass it to the plug.
+     */
+    plug_closing(ps->plug, strerror(ps->pending_error), ps->pending_error, 0);
 }
 
 static int localproxy_try_send(LocalProxySocket *ps)
@@ -146,7 +167,10 @@ static int localproxy_try_send(LocalProxySocket *ps)
 	bufchain_prefix(&ps->pending_output_data, &data, &len);
 	ret = write(ps->to_cmd, data, len);
 	if (ret < 0 && errno != EWOULDBLOCK) {
-            plug_closing(ps->plug, strerror(errno), errno, 0);
+            if (!ps->pending_error) {
+                ps->pending_error = errno;
+                queue_toplevel_callback(localproxy_error_callback, ps);
+            }
             return 0;
 	} else if (ret <= 0) {
 	    break;
@@ -291,6 +315,7 @@ Socket platform_new_connection(SockAddr addr, const char *hostname,
     ret->plug = plug;
     ret->error = NULL;
     ret->outgoingeof = EOF_NO;
+    ret->pending_error = 0;
 
     bufchain_init(&ret->pending_input_data);
     bufchain_init(&ret->pending_output_data);
