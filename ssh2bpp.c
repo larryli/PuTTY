@@ -516,6 +516,7 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
     } else {
         ssh_remote_eof(s->bpp.ssh, "Server closed network connection");
     }
+    return;  /* avoid touching s now it's been freed */
 
     crFinishV;
 }
