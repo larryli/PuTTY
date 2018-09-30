@@ -95,7 +95,7 @@ mainchan *mainchan_new(
         mc->type = MAINCHAN_SESSION;
     }
 
-    *sc_out = mc->sc;
+    if (sc_out) *sc_out = mc->sc;
     return mc;
 }
 
