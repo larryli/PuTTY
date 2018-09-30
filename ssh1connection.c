@@ -113,6 +113,8 @@ static const struct ConnectionLayerVtable ssh1_connlayer_vtable = {
     ssh1_rportfwd_alloc,
     ssh1_rportfwd_remove,
     ssh1_lportfwd_open,
+    NULL /* session_open */,
+    NULL /* add_x11_display */,
     NULL /* add_sharing_x11_display */,
     NULL /* remove_sharing_x11_display */,
     NULL /* send_packet_from_downstream */,
@@ -126,6 +128,10 @@ static const struct ConnectionLayerVtable ssh1_connlayer_vtable = {
     ssh1_stdin_backlog,
     ssh1_throttle_all_channels,
     ssh1_ldisc_option,
+    NULL /* set_ldisc_option */,
+    NULL /* enable_x_fwd */,
+    NULL /* enable_agent_fwd */,
+    NULL /* set_wants_user_input */,
 };
 
 struct ssh1_channel {

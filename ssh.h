@@ -186,6 +186,9 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len);
 
+struct X11Display;
+struct X11FakeAuth;
+
 /* Structure definition centralised here because the SSH-1 and SSH-2
  * connection layers both use it. But the client module (portfwd.c)
  * should not try to look inside here. */
@@ -214,6 +217,13 @@ struct ConnectionLayerVtable {
     SshChannel *(*lportfwd_open)(
         ConnectionLayer *cl, const char *hostname, int port,
         const char *org, Channel *chan);
+
+    /* Initiate opening of a 'session'-type channel */
+    SshChannel *(*session_open)(ConnectionLayer *cl, Channel *chan);
+
+    /* Add an X11 display for ordinary X forwarding */
+    struct X11FakeAuth *(*add_x11_display)(
+        ConnectionLayer *cl, int authtype, struct X11Display *x11disp);
 
     /* Add and remove X11 displays for connection sharing downstreams */
     struct X11FakeAuth *(*add_sharing_x11_display)(
@@ -263,6 +273,20 @@ struct ConnectionLayerVtable {
     /* Ask the connection layer about its current preference for
      * line-discipline options. */
     int (*ldisc_option)(ConnectionLayer *cl, int option);
+
+    /* Communicate _to_ the connection layer (from the main session
+     * channel) what its preference for line-discipline options is. */
+    void (*set_ldisc_option)(ConnectionLayer *cl, int option, int value);
+
+    /* Communicate to the connection layer whether X and agent
+     * forwarding were successfully enabled (for purposes of
+     * knowing whether to accept subsequent channel-opens). */
+    void (*enable_x_fwd)(ConnectionLayer *cl);
+    void (*enable_agent_fwd)(ConnectionLayer *cl);
+
+    /* Communicate to the connection layer whether the main session
+     * channel currently wants user input. */
+    void (*set_wants_user_input)(ConnectionLayer *cl, int wanted);
 };
 
 struct ConnectionLayer {
@@ -275,6 +299,10 @@ struct ConnectionLayer {
 #define ssh_rportfwd_remove(cl, rpf) ((cl)->vt->rportfwd_remove(cl, rpf))
 #define ssh_lportfwd_open(cl, h, p, org, chan) \
     ((cl)->vt->lportfwd_open(cl, h, p, org, chan))
+#define ssh_session_open(cl, chan) \
+    ((cl)->vt->session_open(cl, chan))
+#define ssh_add_x11_display(cl, auth, disp) \
+    ((cl)->vt->add_x11_display(cl, auth, disp))
 #define ssh_add_sharing_x11_display(cl, auth, cs, ch)   \
     ((cl)->vt->add_sharing_x11_display(cl, auth, cs, ch))
 #define ssh_remove_sharing_x11_display(cl, fa)   \
@@ -298,6 +326,12 @@ struct ConnectionLayer {
 #define ssh_throttle_all_channels(cl, throttled) \
     ((cl)->vt->throttle_all_channels(cl, throttled))
 #define ssh_ldisc_option(cl, option) ((cl)->vt->ldisc_option(cl, option))
+#define ssh_set_ldisc_option(cl, opt, val) \
+    ((cl)->vt->set_ldisc_option(cl, opt, val))
+#define ssh_enable_x_fwd(cl) ((cl)->vt->enable_x_fwd(cl))
+#define ssh_enable_agent_fwd(cl) ((cl)->vt->enable_agent_fwd(cl))
+#define ssh_set_wants_user_input(cl, wanted) \
+    ((cl)->vt->set_wants_user_input(cl, wanted))
 
 /* Exports from portfwd.c */
 PortFwdManager *portfwdmgr_new(ConnectionLayer *cl);

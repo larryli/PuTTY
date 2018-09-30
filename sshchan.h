@@ -191,4 +191,19 @@ struct SshChannel {
 #define sshfwd_hint_channel_is_simple(c) \
     ((c)->vt->hint_channel_is_simple(c))
 
+/* ----------------------------------------------------------------------
+ * The 'main' or primary channel of the SSH connection is special,
+ * because it's the one that's connected directly to parts of the
+ * frontend such as the terminal and the specials menu. So it exposes
+ * a richer API.
+ */
+
+mainchan *mainchan_new(
+    PacketProtocolLayer *ppl, ConnectionLayer *cl, Conf *conf,
+    int term_width, int term_height, int is_simple, SshChannel **sc_out);
+void mainchan_get_specials(
+    mainchan *mc, add_special_fn_t add_special, void *ctx);
+void mainchan_special_cmd(mainchan *mc, SessionSpecialCode code, int arg);
+void mainchan_terminal_size(mainchan *mc, int width, int height);
+
 #endif /* PUTTY_SSHCHAN_H */

@@ -216,6 +216,7 @@ typedef enum {
     SS_SIGINT,  SS_SIGKILL, SS_SIGPIPE, SS_SIGQUIT, SS_SIGSEGV,
     SS_SIGTERM, SS_SIGUSR1, SS_SIGUSR2,
 
+
     /*
      * These aren't really special commands, but they appear in the
      * enumeration because the list returned from
@@ -235,6 +236,10 @@ struct SessionSpecial {
     SessionSpecialCode code;
     int arg;
 };
+
+/* Needed by both sshchan.h and sshppl.h */
+typedef void (*add_special_fn_t)(
+    void *ctx, const char *text, SessionSpecialCode code, int arg);
 
 typedef enum {
     MBT_NOTHING,
@@ -357,7 +362,8 @@ enum {
      * Line discipline options which the backend might try to control.
      */
     LD_EDIT,			       /* local line editing */
-    LD_ECHO			       /* local echo */
+    LD_ECHO,                           /* local echo */
+    LD_N_OPTIONS
 };
 
 enum {
