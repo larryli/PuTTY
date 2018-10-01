@@ -373,6 +373,7 @@ static void ssh_initiate_connection_close(Ssh ssh)
      * schedule closing the network socket after they go out. */
     ssh_bpp_handle_output(ssh->bpp);
     ssh->pending_close = TRUE;
+    queue_idempotent_callback(&ssh->ic_out_raw);
 
     /* Now we expect the other end to close the connection too in
      * response, so arrange that we'll receive notification of that
