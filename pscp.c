@@ -576,10 +576,10 @@ static void print_stats(const char *name, uint64 size, uint64 done,
 	    printf("%*s", prev_stats_len - len, "");
 	prev_stats_len = len;
 
+        progress_bar_displayed = TRUE;
+
 	if (uint64_compare(done, size) == 0)
             abandon_progress_bar();
-
-        progress_bar_displayed = TRUE;
 
 	fflush(stdout);
     }
