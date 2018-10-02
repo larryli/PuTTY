@@ -2257,17 +2257,6 @@ static void usage(void)
     printf("  -sshlog file\n");
     printf("  -sshrawlog file\n");
     printf("            log protocol details to a file\n");
-#if 0
-    /*
-     * -gui is an internal option, used by GUI front ends to get
-     * pscp to pass progress reports back to them. It's not an
-     * ordinary user-accessible option, so it shouldn't be part of
-     * the command-line help. The only people who need to know
-     * about it are programmers, and they can read the source.
-     */
-    printf
-	("  -gui hWnd GUI mode with the windows handle for receiving messages\n");
-#endif
     cleanup_exit(1);
 }
 
