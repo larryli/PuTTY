@@ -2267,9 +2267,9 @@ static void mainchan_send_eof(Channel *chan)
          */
         sshfwd_write_eof(mc->sc);
         ppl_logevent(("Sent EOF message"));
+        s->mainchan_eof_sent = TRUE;
+        s->want_user_input = FALSE;      /* now stop reading from stdin */
     }
-    s->mainchan_eof_sent = TRUE;
-    s->want_user_input = FALSE;      /* now stop reading from stdin */
 }
 
 static void mainchan_set_input_wanted(Channel *chan, int wanted)
