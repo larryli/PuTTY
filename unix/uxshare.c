@@ -27,8 +27,8 @@
 /*
  * Functions provided by uxnet.c to help connection sharing.
  */
-SockAddr unix_sock_addr(const char *path);
-Socket new_unix_listener(SockAddr listenaddr, Plug plug);
+SockAddr *unix_sock_addr(const char *path);
+Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
 static char *make_parentdir_name(void)
 {
@@ -249,13 +249,13 @@ static char *make_dirname(const char *pi_name, char **logtext)
 }
 
 int platform_ssh_share(const char *pi_name, Conf *conf,
-                       Plug downplug, Plug upplug, Socket *sock,
+                       Plug *downplug, Plug *upplug, Socket **sock,
                        char **logtext, char **ds_err, char **us_err,
                        int can_upstream, int can_downstream)
 {
     char *dirname, *lockname, *sockname, *err;
     int lockfd;
-    Socket retsock;
+    Socket *retsock;
 
     /*
      * Sort out what we're going to call the directory in which we

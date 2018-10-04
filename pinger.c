@@ -5,18 +5,18 @@
 
 #include "putty.h"
 
-struct pinger_tag {
+struct Pinger {
     int interval;
     int pending;
     unsigned long when_set, next;
     Backend *backend;
 };
 
-static void pinger_schedule(Pinger pinger);
+static void pinger_schedule(Pinger *pinger);
 
 static void pinger_timer(void *ctx, unsigned long now)
 {
-    Pinger pinger = (Pinger)ctx;
+    Pinger *pinger = (Pinger *)ctx;
 
     if (pinger->pending && now == pinger->next) {
         backend_special(pinger->backend, SS_PING, 0);
@@ -25,7 +25,7 @@ static void pinger_timer(void *ctx, unsigned long now)
     }
 }
 
-static void pinger_schedule(Pinger pinger)
+static void pinger_schedule(Pinger *pinger)
 {
     unsigned long next;
 
@@ -44,9 +44,9 @@ static void pinger_schedule(Pinger pinger)
     }
 }
 
-Pinger pinger_new(Conf *conf, Backend *backend)
+Pinger *pinger_new(Conf *conf, Backend *backend)
 {
-    Pinger pinger = snew(struct pinger_tag);
+    Pinger *pinger = snew(Pinger);
 
     pinger->interval = conf_get_int(conf, CONF_ping_interval);
     pinger->pending = FALSE;
@@ -56,7 +56,7 @@ Pinger pinger_new(Conf *conf, Backend *backend)
     return pinger;
 }
 
-void pinger_reconfig(Pinger pinger, Conf *oldconf, Conf *newconf)
+void pinger_reconfig(Pinger *pinger, Conf *oldconf, Conf *newconf)
 {
     int newinterval = conf_get_int(newconf, CONF_ping_interval);
     if (conf_get_int(oldconf, CONF_ping_interval) != newinterval) {
@@ -65,7 +65,7 @@ void pinger_reconfig(Pinger pinger, Conf *oldconf, Conf *newconf)
     }
 }
 
-void pinger_free(Pinger pinger)
+void pinger_free(Pinger *pinger)
 {
     expire_timer_context(pinger);
     sfree(pinger);

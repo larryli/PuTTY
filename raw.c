@@ -10,8 +10,9 @@
 
 #define RAW_MAX_BACKLOG 4096
 
-typedef struct raw_backend_data {
-    Socket s;
+typedef struct Raw Raw;
+struct Raw {
+    Socket *s;
     int closed_on_socket_error;
     int bufsize;
     Frontend *frontend;
@@ -21,25 +22,25 @@ typedef struct raw_backend_data {
 
     const Plug_vtable *plugvt;
     Backend backend;
-} *Raw;
+};
 
 static void raw_size(Backend *be, int width, int height);
 
-static void c_write(Raw raw, const void *buf, int len)
+static void c_write(Raw *raw, const void *buf, int len)
 {
     int backlog = from_backend(raw->frontend, 0, buf, len);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static void raw_log(Plug plug, int type, SockAddr addr, int port,
+static void raw_log(Plug *plug, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code)
 {
-    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plugvt);
     backend_socket_log(raw->frontend, type, addr, port,
                        error_msg, error_code, raw->conf, raw->session_started);
 }
 
-static void raw_check_close(Raw raw)
+static void raw_check_close(Raw *raw)
 {
     /*
      * Called after we send EOF on either the socket or the console.
@@ -54,10 +55,10 @@ static void raw_check_close(Raw raw)
     }
 }
 
-static void raw_closing(Plug plug, const char *error_msg, int error_code,
+static void raw_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plugvt);
 
     if (error_msg) {
         /* A socket error has occurred. */
@@ -87,18 +88,18 @@ static void raw_closing(Plug plug, const char *error_msg, int error_code,
     }
 }
 
-static void raw_receive(Plug plug, int urgent, char *data, int len)
+static void raw_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plugvt);
     c_write(raw, data, len);
     /* We count 'session start', for proxy logging purposes, as being
      * when data is received from the network and printed. */
     raw->session_started = TRUE;
 }
 
-static void raw_sent(Plug plug, int bufsize)
+static void raw_sent(Plug *plug, int bufsize)
 {
-    Raw raw = FROMFIELD(plug, struct raw_backend_data, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plugvt);
     raw->bufsize = bufsize;
 }
 
@@ -122,13 +123,13 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
 			    const char *host, int port, char **realhost,
                             int nodelay, int keepalive)
 {
-    SockAddr addr;
+    SockAddr *addr;
     const char *err;
-    Raw raw;
+    Raw *raw;
     int addressfamily;
     char *loghost;
 
-    raw = snew(struct raw_backend_data);
+    raw = snew(Raw);
     raw->plugvt = &Raw_plugvt;
     raw->backend.vt = &raw_backend;
     raw->s = NULL;
@@ -180,7 +181,7 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
 
 static void raw_free(Backend *be)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
 
     if (raw->s)
 	sk_close(raw->s);
@@ -200,7 +201,7 @@ static void raw_reconfig(Backend *be, Conf *conf)
  */
 static int raw_send(Backend *be, const char *buf, int len)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
 
     if (raw->s == NULL)
 	return 0;
@@ -215,7 +216,7 @@ static int raw_send(Backend *be, const char *buf, int len)
  */
 static int raw_sendbuffer(Backend *be)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
     return raw->bufsize;
 }
 
@@ -233,7 +234,7 @@ static void raw_size(Backend *be, int width, int height)
  */
 static void raw_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
     if (code == SS_EOF && raw->s) {
         sk_write_eof(raw->s);
         raw->sent_socket_eof= TRUE;
@@ -254,7 +255,7 @@ static const SessionSpecial *raw_get_specials(Backend *be)
 
 static int raw_connected(Backend *be)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
     return raw->s != NULL;
 }
 
@@ -265,7 +266,7 @@ static int raw_sendok(Backend *be)
 
 static void raw_unthrottle(Backend *be, int backlog)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
@@ -288,7 +289,7 @@ static void raw_provide_logctx(Backend *be, LogContext *logctx)
 
 static int raw_exitcode(Backend *be)
 {
-    Raw raw = FROMFIELD(be, struct raw_backend_data, backend);
+    Raw *raw = FROMFIELD(be, Raw, backend);
     if (raw->s != NULL)
         return -1;                     /* still connected */
     else if (raw->closed_on_socket_error)

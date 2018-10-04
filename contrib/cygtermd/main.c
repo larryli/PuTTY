@@ -24,7 +24,7 @@ sel *asel;
 sel_rfd *netr, *ptyr, *sigr;
 int ptyfd;
 sel_wfd *netw, *ptyw;
-Telnet telnet;
+Telnet *telnet;
 
 #define BUF 65536
 

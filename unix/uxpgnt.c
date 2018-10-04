@@ -20,8 +20,8 @@
 #include "misc.h"
 #include "pageant.h"
 
-SockAddr unix_sock_addr(const char *path);
-Socket new_unix_listener(SockAddr listenaddr, Plug plug);
+SockAddr *unix_sock_addr(const char *path);
+Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
 void modalfatalbox(const char *p, ...)
 {
@@ -166,11 +166,11 @@ int chan_no_eager_close(Channel *chan, int s, int r) { return FALSE; }
  * except that x11_closing has to signal back to the main loop that
  * it's time to terminate.
  */
-static void x11_log(Plug p, int type, SockAddr addr, int port,
+static void x11_log(Plug *p, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code) {}
-static void x11_receive(Plug plug, int urgent, char *data, int len) {}
-static void x11_sent(Plug plug, int bufsize) {}
-static void x11_closing(Plug plug, const char *error_msg, int error_code,
+static void x11_receive(Plug *plug, int urgent, char *data, int len) {}
+static void x11_sent(Plug *plug, int bufsize) {}
+static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
     time_to_die = TRUE;
@@ -741,8 +741,8 @@ void run_agent(void)
     const char *err;
     char *username, *socketdir;
     struct pageant_listen_state *pl;
-    Plug pl_plug;
-    Socket sock;
+    Plug *pl_plug;
+    Socket *sock;
     unsigned long now;
     int *fdlist;
     int fd;
@@ -799,7 +799,7 @@ void run_agent(void)
         struct X11Display *disp;
         void *greeting;
         int greetinglen;
-        Socket s;
+        Socket *s;
         struct X11Connection *conn;
 
         if (!display) {

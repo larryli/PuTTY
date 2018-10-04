@@ -20,7 +20,7 @@ typedef struct LocalProxySocket {
 
     char *error;
 
-    Plug plug;
+    Plug *plug;
 
     bufchain pending_output_data;
     bufchain pending_input_data;
@@ -103,16 +103,16 @@ static int localproxy_errfd_find(void *av, void *bv)
 
 /* basic proxy socket functions */
 
-static Plug sk_localproxy_plug (Socket s, Plug p)
+static Plug *sk_localproxy_plug (Socket *s, Plug *p)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
-    Plug ret = ps->plug;
+    Plug *ret = ps->plug;
     if (p)
 	ps->plug = p;
     return ret;
 }
 
-static void sk_localproxy_close (Socket s)
+static void sk_localproxy_close (Socket *s)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
@@ -200,7 +200,7 @@ static int localproxy_try_send(LocalProxySocket *ps)
     return sent;
 }
 
-static int sk_localproxy_write (Socket s, const void *data, int len)
+static int sk_localproxy_write (Socket *s, const void *data, int len)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
@@ -213,7 +213,7 @@ static int sk_localproxy_write (Socket s, const void *data, int len)
     return bufchain_size(&ps->pending_output_data);
 }
 
-static int sk_localproxy_write_oob (Socket s, const void *data, int len)
+static int sk_localproxy_write_oob (Socket *s, const void *data, int len)
 {
     /*
      * oob data is treated as inband; nasty, but nothing really
@@ -222,7 +222,7 @@ static int sk_localproxy_write_oob (Socket s, const void *data, int len)
     return sk_localproxy_write(s, data, len);
 }
 
-static void sk_localproxy_write_eof (Socket s)
+static void sk_localproxy_write_eof (Socket *s)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
@@ -232,13 +232,13 @@ static void sk_localproxy_write_eof (Socket s)
     localproxy_try_send(ps);
 }
 
-static void sk_localproxy_flush (Socket s)
+static void sk_localproxy_flush (Socket *s)
 {
     /* LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt); */
     /* do nothing */
 }
 
-static void sk_localproxy_set_frozen (Socket s, int is_frozen)
+static void sk_localproxy_set_frozen (Socket *s, int is_frozen)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
 
@@ -251,7 +251,7 @@ static void sk_localproxy_set_frozen (Socket s, int is_frozen)
 	uxsel_set(ps->from_cmd, 1, localproxy_select_result);
 }
 
-static const char * sk_localproxy_socket_error (Socket s)
+static const char * sk_localproxy_socket_error (Socket *s)
 {
     LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sockvt);
     return ps->error;
@@ -315,10 +315,10 @@ static const Socket_vtable LocalProxySocket_sockvt = {
     NULL, /* peer_info */
 };
 
-Socket platform_new_connection(SockAddr addr, const char *hostname,
-			       int port, int privport,
-			       int oobinline, int nodelay, int keepalive,
-			       Plug plug, Conf *conf)
+Socket *platform_new_connection(SockAddr *addr, const char *hostname,
+                                int port, int privport,
+                                int oobinline, int nodelay, int keepalive,
+                                Plug *plug, Conf *conf)
 {
     char *cmd;
 

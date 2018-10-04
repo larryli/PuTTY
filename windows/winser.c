@@ -10,7 +10,8 @@
 
 #define SERIAL_MAX_BACKLOG 4096
 
-typedef struct serial_backend_data {
+typedef struct Serial Serial;
+struct Serial {
     HANDLE port;
     struct handle *out, *in;
     Frontend *frontend;
@@ -18,9 +19,9 @@ typedef struct serial_backend_data {
     long clearbreak_time;
     int break_in_progress;
     Backend backend;
-} *Serial;
+};
 
-static void serial_terminate(Serial serial)
+static void serial_terminate(Serial *serial)
 {
     if (serial->out) {
 	handle_free(serial->out);
@@ -40,7 +41,7 @@ static void serial_terminate(Serial serial)
 
 static int serial_gotdata(struct handle *h, void *data, int len)
 {
-    Serial serial = (Serial)handle_get_privdata(h);
+    Serial *serial = (Serial *)handle_get_privdata(h);
     if (len <= 0) {
 	const char *error_msg;
 
@@ -72,7 +73,7 @@ static int serial_gotdata(struct handle *h, void *data, int len)
 
 static void serial_sentdata(struct handle *h, int new_backlog)
 {
-    Serial serial = (Serial)handle_get_privdata(h);
+    Serial *serial = (Serial *)handle_get_privdata(h);
     if (new_backlog < 0) {
 	const char *error_msg = "Error writing to serial device";
 
@@ -88,7 +89,7 @@ static void serial_sentdata(struct handle *h, int new_backlog)
     }
 }
 
-static const char *serial_configure(Serial serial, HANDLE serport, Conf *conf)
+static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 {
     DCB dcb;
     COMMTIMEOUTS timeouts;
@@ -203,12 +204,12 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 			       Conf *conf, const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
-    Serial serial;
+    Serial *serial;
     HANDLE serport;
     const char *err;
     char *serline;
 
-    serial = snew(struct serial_backend_data);
+    serial = snew(Serial);
     serial->port = INVALID_HANDLE_VALUE;
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
@@ -283,7 +284,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 
 static void serial_free(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     serial_terminate(serial);
     expire_timer_context(serial);
@@ -292,7 +293,7 @@ static void serial_free(Backend *be)
 
 static void serial_reconfig(Backend *be, Conf *conf)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     serial_configure(serial, serial->port, conf);
 
@@ -307,7 +308,7 @@ static void serial_reconfig(Backend *be, Conf *conf)
  */
 static int serial_send(Backend *be, const char *buf, int len)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     if (serial->out == NULL)
 	return 0;
@@ -321,7 +322,7 @@ static int serial_send(Backend *be, const char *buf, int len)
  */
 static int serial_sendbuffer(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     return serial->bufsize;
 }
 
@@ -336,7 +337,7 @@ static void serial_size(Backend *be, int width, int height)
 
 static void serbreak_timer(void *ctx, unsigned long now)
 {
-    Serial serial = (Serial)ctx;
+    Serial *serial = (Serial *)ctx;
 
     if (now == serial->clearbreak_time && serial->port) {
 	ClearCommBreak(serial->port);
@@ -350,7 +351,7 @@ static void serbreak_timer(void *ctx, unsigned long now)
  */
 static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     if (serial->port && code == SS_BRK) {
 	logevent(serial->frontend, "Starting serial break at user request");
@@ -398,7 +399,7 @@ static int serial_sendok(Backend *be)
 
 static void serial_unthrottle(Backend *be, int backlog)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     if (serial->in)
 	handle_unthrottle(serial->in, backlog);
 }
@@ -423,7 +424,7 @@ static void serial_provide_logctx(Backend *be, LogContext *logctx)
 
 static int serial_exitcode(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     if (serial->port != INVALID_HANDLE_VALUE)
         return -1;                     /* still connected */
     else

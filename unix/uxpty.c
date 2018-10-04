@@ -60,7 +60,7 @@
 #endif
 #endif
 
-typedef struct pty_tag *Pty;
+typedef struct Pty Pty;
 
 /*
  * The pty_signal_pipe, along with the SIGCHLD handler, must be
@@ -68,7 +68,7 @@ typedef struct pty_tag *Pty;
  */
 static int pty_signal_pipe[2] = { -1, -1 };   /* obviously bogus initial val */
 
-struct pty_tag {
+struct Pty {
     Conf *conf;
     int master_fd, slave_fd;
     Frontend *frontend;
@@ -88,8 +88,8 @@ struct pty_tag {
  */
 static int pty_compare_by_fd(void *av, void *bv)
 {
-    Pty a = (Pty)av;
-    Pty b = (Pty)bv;
+    Pty *a = (Pty *)av;
+    Pty *b = (Pty *)bv;
 
     if (a->master_fd < b->master_fd)
 	return -1;
@@ -101,7 +101,7 @@ static int pty_compare_by_fd(void *av, void *bv)
 static int pty_find_by_fd(void *av, void *bv)
 {
     int a = *(int *)av;
-    Pty b = (Pty)bv;
+    Pty *b = (Pty *)bv;
 
     if (a < b->master_fd)
 	return -1;
@@ -119,8 +119,8 @@ static tree234 *ptys_by_fd = NULL;
  */
 static int pty_compare_by_pid(void *av, void *bv)
 {
-    Pty a = (Pty)av;
-    Pty b = (Pty)bv;
+    Pty *a = (Pty *)av;
+    Pty *b = (Pty *)bv;
 
     if (a->child_pid < b->child_pid)
 	return -1;
@@ -132,7 +132,7 @@ static int pty_compare_by_pid(void *av, void *bv)
 static int pty_find_by_pid(void *av, void *bv)
 {
     pid_t a = *(pid_t *)av;
-    Pty b = (Pty)bv;
+    Pty *b = (Pty *)bv;
 
     if (a < b->child_pid)
 	return -1;
@@ -158,7 +158,7 @@ static tree234 *ptys_by_pid = NULL;
  * be single-instance, so we can declare utmp-related variables
  * here.
  */
-static Pty single_pty = NULL;
+static Pty *single_pty = NULL;
 
 #ifndef OMIT_UTMP
 static pid_t pty_utmp_helper_pid = -1;
@@ -176,8 +176,8 @@ char **pty_argv;
 
 char *pty_osx_envrestore_prefix;
 
-static void pty_close(Pty pty);
-static void pty_try_write(Pty pty);
+static void pty_close(Pty *pty);
+static void pty_try_write(Pty *pty);
 
 #ifndef OMIT_UTMP
 static void setup_utmp(char *ttyname, char *location)
@@ -286,7 +286,7 @@ static void fatal_sig_handler(int signum)
 }
 #endif
 
-static int pty_open_slave(Pty pty)
+static int pty_open_slave(Pty *pty)
 {
     if (pty->slave_fd < 0) {
 	pty->slave_fd = open(pty->name, O_RDWR);
@@ -296,7 +296,7 @@ static int pty_open_slave(Pty pty)
     return pty->slave_fd;
 }
 
-static void pty_open_master(Pty pty)
+static void pty_open_master(Pty *pty)
 {
 #ifdef BSD_PTYS
     const char chars1[] = "pqrstuvwxyz";
@@ -405,9 +405,9 @@ static void pty_open_master(Pty pty)
     add234(ptys_by_fd, pty);
 }
 
-static Pty new_pty_struct(void)
+static Pty *new_pty_struct(void)
 {
-    Pty pty = snew(struct pty_tag);
+    Pty *pty = snew(Pty);
     pty->conf = NULL;
     bufchain_init(&pty->output_data);
     return pty;
@@ -430,7 +430,7 @@ void pty_pre_init(void)
 {
 #ifndef NO_PTY_PRE_INIT
 
-    Pty pty;
+    Pty *pty;
 
 #ifndef OMIT_UTMP
     pid_t pid;
@@ -580,7 +580,7 @@ void pty_pre_init(void)
 
 }
 
-void pty_real_select_result(Pty pty, int event, int status)
+void pty_real_select_result(Pty *pty, int event, int status)
 {
     char buf[4096];
     int ret;
@@ -684,7 +684,7 @@ void pty_real_select_result(Pty pty, int event, int status)
 
 void pty_select_result(int fd, int event)
 {
-    Pty pty;
+    Pty *pty;
 
     if (fd == pty_signal_pipe[0]) {
 	pid_t pid;
@@ -711,7 +711,7 @@ void pty_select_result(int fd, int event)
     }
 }
 
-static void pty_uxsel_setup(Pty pty)
+static void pty_uxsel_setup(Pty *pty)
 {
     int rwx;
 
@@ -746,7 +746,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
     int got_windowid;
     long windowid;
 #endif
-    Pty pty;
+    Pty *pty;
 
     if (single_pty) {
 	pty = single_pty;
@@ -1041,7 +1041,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
 
 static void pty_reconfig(Backend *be, Conf *conf)
 {
-    Pty pty = FROMFIELD(be, struct pty_tag, backend);
+    Pty *pty = FROMFIELD(be, Pty, backend);
     /*
      * We don't have much need to reconfigure this backend, but
      * unfortunately we do need to pick up the setting of Close On
@@ -1055,7 +1055,7 @@ static void pty_reconfig(Backend *be, Conf *conf)
  */
 static void pty_free(Backend *be)
 {
-    Pty pty = FROMFIELD(be, struct pty_tag, backend);
+    Pty *pty = FROMFIELD(be, Pty, backend);
 
     /* Either of these may fail `not found'. That's fine with us. */
     del234(ptys_by_pid, pty);
@@ -1076,7 +1076,7 @@ static void pty_free(Backend *be)
     }
 }
 
-static void pty_try_write(Pty pty)
+static void pty_try_write(Pty *pty)
 {
     void *data;
     int len, ret;
@@ -1108,7 +1108,7 @@ static void pty_try_write(Pty pty)
  */
 static int pty_send(Backend *be, const char *buf, int len)
 {
-    Pty pty = FROMFIELD(be, struct pty_tag, backend);
+    Pty *pty = FROMFIELD(be, Pty, backend);
 
     if (pty->master_fd < 0)
 	return 0;                      /* ignore all writes if fd closed */
@@ -1119,7 +1119,7 @@ static int pty_send(Backend *be, const char *buf, int len)
     return bufchain_size(&pty->output_data);
 }
 
-static void pty_close(Pty pty)
+static void pty_close(Pty *pty)
 {
     if (pty->master_fd >= 0) {
 	close(pty->master_fd);
@@ -1138,7 +1138,7 @@ static void pty_close(Pty pty)
  */
 static int pty_sendbuffer(Backend *be)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     return 0;
 }
 
@@ -1147,7 +1147,7 @@ static int pty_sendbuffer(Backend *be)
  */
 static void pty_size(Backend *be, int width, int height)
 {
-    Pty pty = FROMFIELD(be, struct pty_tag, backend);
+    Pty *pty = FROMFIELD(be, Pty, backend);
     struct winsize size;
 
     pty->term_width = width;
@@ -1168,7 +1168,7 @@ static void pty_size(Backend *be, int width, int height)
  */
 static void pty_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     /* Do nothing! */
     return;
 }
@@ -1179,7 +1179,7 @@ static void pty_special(Backend *be, SessionSpecialCode code, int arg)
  */
 static const SessionSpecial *pty_get_specials(Backend *be)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     /*
      * Hmm. When I get round to having this actually usable, it
      * might be quite nice to have the ability to deliver a few
@@ -1191,43 +1191,43 @@ static const SessionSpecial *pty_get_specials(Backend *be)
 
 static int pty_connected(Backend *be)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     return TRUE;
 }
 
 static int pty_sendok(Backend *be)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     return 1;
 }
 
 static void pty_unthrottle(Backend *be, int backlog)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     /* do nothing */
 }
 
 static int pty_ldisc(Backend *be, int option)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     return 0;			       /* neither editing nor echoing */
 }
 
 static void pty_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     /* This is a stub. */
 }
 
 static void pty_provide_logctx(Backend *be, LogContext *logctx)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     /* This is a stub. */
 }
 
 static int pty_exitcode(Backend *be)
 {
-    Pty pty = FROMFIELD(be, struct pty_tag, backend);
+    Pty *pty = FROMFIELD(be, Pty, backend);
     if (!pty->finished)
 	return -1;		       /* not dead yet */
     else
@@ -1236,7 +1236,7 @@ static int pty_exitcode(Backend *be)
 
 static int pty_cfg_info(Backend *be)
 {
-    /* Pty pty = FROMFIELD(be, struct pty_tag, backend); */
+    /* Pty *pty = FROMFIELD(be, Pty, backend); */
     return 0;
 }
 

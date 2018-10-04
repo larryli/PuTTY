@@ -17,14 +17,15 @@
 
 #define SERIAL_MAX_BACKLOG 4096
 
-typedef struct serial_backend_data {
+typedef struct Serial Serial;
+struct Serial {
     Frontend *frontend;
     int fd;
     int finished;
     int inbufsize;
     bufchain output_data;
     Backend backend;
-} *Serial;
+};
 
 /*
  * We store our serial backends in a tree sorted by fd, so that
@@ -33,8 +34,8 @@ typedef struct serial_backend_data {
  */
 static int serial_compare_by_fd(void *av, void *bv)
 {
-    Serial a = (Serial)av;
-    Serial b = (Serial)bv;
+    Serial *a = (Serial *)av;
+    Serial *b = (Serial *)bv;
 
     if (a->fd < b->fd)
 	return -1;
@@ -46,7 +47,7 @@ static int serial_compare_by_fd(void *av, void *bv)
 static int serial_find_by_fd(void *av, void *bv)
 {
     int a = *(int *)av;
-    Serial b = (Serial)bv;
+    Serial *b = (Serial *)bv;
 
     if (a < b->fd)
 	return -1;
@@ -58,10 +59,10 @@ static int serial_find_by_fd(void *av, void *bv)
 static tree234 *serial_by_fd = NULL;
 
 static void serial_select_result(int fd, int event);
-static void serial_uxsel_setup(Serial serial);
-static void serial_try_write(Serial serial);
+static void serial_uxsel_setup(Serial *serial);
+static void serial_try_write(Serial *serial);
 
-static const char *serial_configure(Serial serial, Conf *conf)
+static const char *serial_configure(Serial *serial, Conf *conf)
 {
     struct termios options;
     int bflag, bval, speed, flow, parity;
@@ -293,11 +294,11 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 			       const char *host, int port, char **realhost,
                                int nodelay, int keepalive)
 {
-    Serial serial;
+    Serial *serial;
     const char *err;
     char *line;
 
-    serial = snew(struct serial_backend_data);
+    serial = snew(Serial);
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
@@ -339,7 +340,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     return NULL;
 }
 
-static void serial_close(Serial serial)
+static void serial_close(Serial *serial)
 {
     if (serial->fd >= 0) {
 	close(serial->fd);
@@ -349,7 +350,7 @@ static void serial_close(Serial serial)
 
 static void serial_free(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     serial_close(serial);
 
@@ -360,7 +361,7 @@ static void serial_free(Backend *be)
 
 static void serial_reconfig(Backend *be, Conf *conf)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     /*
      * FIXME: what should we do if this returns an error?
@@ -370,7 +371,7 @@ static void serial_reconfig(Backend *be, Conf *conf)
 
 static void serial_select_result(int fd, int event)
 {
-    Serial serial;
+    Serial *serial;
     char buf[4096];
     int ret;
     int finished = FALSE;
@@ -421,7 +422,7 @@ static void serial_select_result(int fd, int event)
     }
 }
 
-static void serial_uxsel_setup(Serial serial)
+static void serial_uxsel_setup(Serial *serial)
 {
     int rwx = 0;
 
@@ -432,7 +433,7 @@ static void serial_uxsel_setup(Serial serial)
     uxsel_set(serial->fd, rwx, serial_select_result);
 }
 
-static void serial_try_write(Serial serial)
+static void serial_try_write(Serial *serial)
 {
     void *data;
     int len, ret;
@@ -464,7 +465,7 @@ static void serial_try_write(Serial serial)
  */
 static int serial_send(Backend *be, const char *buf, int len)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     if (serial->fd < 0)
 	return 0;
@@ -480,7 +481,7 @@ static int serial_send(Backend *be, const char *buf, int len)
  */
 static int serial_sendbuffer(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     return bufchain_size(&serial->output_data);
 }
 
@@ -498,7 +499,7 @@ static void serial_size(Backend *be, int width, int height)
  */
 static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
 
     if (serial->fd >= 0 && code == SS_BRK) {
 	tcsendbreak(serial->fd, 0);
@@ -533,7 +534,7 @@ static int serial_sendok(Backend *be)
 
 static void serial_unthrottle(Backend *be, int backlog)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     serial->inbufsize = backlog;
     serial_uxsel_setup(serial);
 }
@@ -558,7 +559,7 @@ static void serial_provide_logctx(Backend *be, LogContext *logctx)
 
 static int serial_exitcode(Backend *be)
 {
-    Serial serial = FROMFIELD(be, struct serial_backend_data, backend);
+    Serial *serial = FROMFIELD(be, Serial, backend);
     if (serial->fd >= 0)
         return -1;                     /* still connected */
     else

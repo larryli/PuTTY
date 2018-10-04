@@ -16,8 +16,8 @@
 
 #include "winsecur.h"
 
-Socket make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                          Plug plug, int overlapped);
+Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
+                           Plug *plug, int overlapped);
 
 typedef struct NamedPipeServerSocket {
     /* Parameters for (repeated) creation of named pipe objects */
@@ -31,22 +31,22 @@ typedef struct NamedPipeServerSocket {
     struct handle *callback_handle;    /* winhandl.c's reference */
 
     /* PuTTY Socket machinery */
-    Plug plug;
+    Plug *plug;
     char *error;
 
     const Socket_vtable *sockvt;
 } NamedPipeServerSocket;
 
-static Plug sk_namedpipeserver_plug(Socket s, Plug p)
+static Plug *sk_namedpipeserver_plug(Socket *s, Plug *p)
 {
     NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
-    Plug ret = ps->plug;
+    Plug *ret = ps->plug;
     if (p)
 	ps->plug = p;
     return ret;
 }
 
-static void sk_namedpipeserver_close(Socket s)
+static void sk_namedpipeserver_close(Socket *s)
 {
     NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
 
@@ -63,13 +63,13 @@ static void sk_namedpipeserver_close(Socket s)
     sfree(ps);
 }
 
-static const char *sk_namedpipeserver_socket_error(Socket s)
+static const char *sk_namedpipeserver_socket_error(Socket *s)
 {
     NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
     return ps->error;
 }
 
-static char *sk_namedpipeserver_peer_info(Socket s)
+static char *sk_namedpipeserver_peer_info(Socket *s)
 {
     return NULL;
 }
@@ -114,7 +114,7 @@ static int create_named_pipe(NamedPipeServerSocket *ps, int first_instance)
     return ps->pipehandle != INVALID_HANDLE_VALUE;
 }
 
-static Socket named_pipe_accept(accept_ctx_t ctx, Plug plug)
+static Socket *named_pipe_accept(accept_ctx_t ctx, Plug *plug)
 {
     HANDLE conn = (HANDLE)ctx.p;
 
@@ -122,10 +122,10 @@ static Socket named_pipe_accept(accept_ctx_t ctx, Plug plug)
 }
 
 /*
- * Dummy SockAddr type which just holds a named pipe address. Only
+ * Dummy SockAddr *type which just holds a named pipe address. Only
  * used for calling plug_log from named_pipe_accept_loop() here.
  */
-SockAddr sk_namedpipe_addr(const char *pipename);
+SockAddr *sk_namedpipe_addr(const char *pipename);
 
 static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
                                    int got_one_already)
@@ -216,7 +216,7 @@ static const Socket_vtable NamedPipeServerSocket_sockvt = {
     sk_namedpipeserver_peer_info,
 };
 
-Socket new_named_pipe_listener(const char *pipename, Plug plug)
+Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
 {
     NamedPipeServerSocket *ret = snew(NamedPipeServerSocket);
     ret->sockvt = &NamedPipeServerSocket_sockvt;
