@@ -52,10 +52,8 @@
  * polymorphic.
  * 
  * Any instance of `unifont' used in the vtable functions will
- * actually be the first element of a larger structure containing
- * data specific to the subtype. This is permitted by the ISO C
- * provision that one may safely cast between a pointer to a
- * structure and a pointer to its first element.
+ * actually be an element of a larger structure containing data
+ * specific to the subtype.
  */
 
 #define FONTFLAG_CLIENTSIDE    0x0001
@@ -177,7 +175,6 @@ typedef struct x11font_individual {
 } x11font_individual;
 
 struct x11font {
-    struct unifont u;
     /*
      * Copy of the X display handle, so we don't have to keep
      * extracting it from GDK.
@@ -212,6 +209,8 @@ struct x11font {
      * Data passed in to unifont_create().
      */
     int wide, bold, shadowoffset, shadowalways;
+
+    unifont u;
 };
 
 static const struct unifont_vtable x11font_vtable = {
@@ -537,12 +536,12 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->fonts[0].xfs = xfs;
     xfont->fonts[0].allocated = TRUE;
 
-    return (unifont *)xfont;
+    return &xfont->u;
 }
 
 static void x11font_destroy(unifont *font)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
     Display *disp = xfont->disp;
     int i;
 
@@ -564,7 +563,7 @@ static void x11font_destroy(unifont *font)
         }
 #endif
     }
-    sfree(font);
+    sfree(xfont);
 }
 
 static void x11_alloc_subfont(struct x11font *xfont, int sfid)
@@ -580,7 +579,7 @@ static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 
 static int x11font_has_glyph(unifont *font, wchar_t glyph)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
 
     if (xfont->sixteen_bit) {
 	/*
@@ -894,7 +893,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 			      int x, int y, const wchar_t *string, int len,
 			      int wide, int bold, int cellwidth)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
     int sfid;
     int shadowoffset = 0;
     int mult = (wide ? 2 : 1);
@@ -1201,7 +1200,7 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *x11font_size_increment(unifont *font, int increment)
 {
-    struct x11font *xfont = (struct x11font *)font;
+    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
     Display *disp = xfont->disp;
     Atom fontprop = XInternAtom(disp, "FONT", False);
     char *returned_name = NULL;
@@ -1324,7 +1323,6 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 static char *pangofont_size_increment(unifont *font, int increment);
 
 struct pangofont {
-    struct unifont u;
     /*
      * Pango objects.
      */
@@ -1345,6 +1343,8 @@ struct pangofont {
      */
     int *widthcache;
     unsigned nwidthcache;
+
+    struct unifont u;
 };
 
 static const struct unifont_vtable pangofont_vtable = {
@@ -1475,7 +1475,7 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
 
     pango_font_metrics_unref(metrics);
 
-    return (unifont *)pfont;
+    return &pfont->u;
 }
 
 static unifont *pangofont_create(GtkWidget *widget, const char *name,
@@ -1523,11 +1523,11 @@ static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
 
 static void pangofont_destroy(unifont *font)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
     pango_font_description_free(pfont->desc);
     sfree(pfont->widthcache);
     g_object_unref(pfont->fset);
-    sfree(font);
+    sfree(pfont);
 }
 
 static int pangofont_char_width(PangoLayout *layout, struct pangofont *pfont,
@@ -1587,7 +1587,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
                                     int len, int wide, int bold, int cellwidth,
                                     int combining)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
     PangoLayout *layout;
     PangoRectangle rect;
     char *utfstring, *utfptr;
@@ -2018,7 +2018,7 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *pangofont_size_increment(unifont *font, int increment)
 {
-    struct pangofont *pfont = (struct pangofont *)font;
+    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
     PangoFontDescription *desc;
     int size;
     char *newname, *retname;
@@ -2177,9 +2177,10 @@ static void multifont_destroy(unifont *font);
 static char *multifont_size_increment(unifont *font, int increment);
 
 struct multifont {
-    struct unifont u;
     unifont *main;
     unifont *fallback;
+
+    struct unifont u;
 };
 
 static const struct unifont_vtable multifont_vtable = {
@@ -2238,16 +2239,16 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     mfont->main = font;
     mfont->fallback = fallback;
 
-    return (unifont *)mfont;
+    return &mfont->u;
 }
 
 static void multifont_destroy(unifont *font)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
     unifont_destroy(mfont->main);
     if (mfont->fallback)
         unifont_destroy(mfont->fallback);
-    sfree(font);
+    sfree(mfont);
 }
 
 typedef void (*unifont_draw_func_t)(unifont_drawctx *ctx, unifont *font,
@@ -2260,7 +2261,7 @@ static void multifont_draw_main(unifont_drawctx *ctx, unifont *font, int x,
                                 int wide, int bold, int cellwidth,
                                 int cellinc, unifont_draw_func_t draw)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
     unifont *f;
     int ok, i;
 
@@ -2306,7 +2307,7 @@ static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
 
 static char *multifont_size_increment(unifont *font, int increment)
 {
-    struct multifont *mfont = (struct multifont *)font;
+    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
     return unifont_size_increment(mfont->main, increment);
 }
 
@@ -2320,8 +2321,6 @@ static char *multifont_size_increment(unifont *font, int increment)
 typedef struct fontinfo fontinfo;
 
 typedef struct unifontsel_internal {
-    /* This must be the structure's first element, for cross-casting */
-    unifontsel u;
     GtkListStore *family_model, *style_model, *size_model;
     GtkWidget *family_list, *style_list, *size_entry, *size_list;
     GtkWidget *filter_buttons[4];
@@ -2337,6 +2336,8 @@ typedef struct unifontsel_internal {
     fontinfo *selected;
     int selsize, intendedsize;
     int inhibit_response;  /* inhibit callbacks when we change GUI controls */
+
+    unifontsel u;
 } unifontsel_internal;
 
 /*
@@ -3674,12 +3675,12 @@ unifontsel *unifontsel_new(const char *wintitle)
     fs->selsize = fs->intendedsize = 13;   /* random default */
     gtk_widget_set_sensitive(fs->u.ok_button, FALSE);
 
-    return (unifontsel *)fs;
+    return &fs->u;
 }
 
 void unifontsel_destroy(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
     fontinfo *info;
 
 #ifndef NO_BACKING_PIXMAPS
@@ -3698,7 +3699,7 @@ void unifontsel_destroy(unifontsel *fontsel)
 
 void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
     int i, start, end, size, flags;
     const char *fontname2 = NULL;
     fontinfo *info;
@@ -3758,7 +3759,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 
 char *unifontsel_get_name(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = (unifontsel_internal *)fontsel;
+    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
     char *name;
 
     if (!fs->selected)
