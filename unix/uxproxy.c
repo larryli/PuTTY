@@ -9,7 +9,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#define DEFINE_PLUG_METHOD_MACROS
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"

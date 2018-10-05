@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define DEFINE_PLUG_METHOD_MACROS
 #define NEED_DECLARATION_OF_SELECT     /* in order to initialise it */
 
 #include "putty.h"

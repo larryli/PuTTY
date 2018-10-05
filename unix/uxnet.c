@@ -19,7 +19,6 @@
 #include <pwd.h>
 #include <grp.h>
 
-#define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "tree234.h"

@@ -8,7 +8,6 @@
 #include <ctype.h>
 #include <string.h>
 
-#define DEFINE_PLUG_METHOD_MACROS
 #include "putty.h"
 #include "network.h"
 #include "proxy.h"

@@ -156,7 +156,6 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 #define sk_write_eof(s) (((s)->vt->write_eof) (s))
 #define sk_flush(s) (((s)->vt->flush) (s))
 
-#ifdef DEFINE_PLUG_METHOD_MACROS
 #define plug_log(p,type,addr,port,msg,code) \
     (((p)->vt->log) (p, type, addr, port, msg, code))
 #define plug_closing(p,msg,code,callback) \
@@ -167,7 +166,6 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     (((p)->vt->sent) (p, bufsize))
 #define plug_accepting(p, constructor, ctx) \
     (((p)->vt->accepting)(p, constructor, ctx))
-#endif
 
 /*
  * Special error values are returned from sk_namelookup and sk_new
