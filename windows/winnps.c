@@ -34,7 +34,7 @@ typedef struct NamedPipeServerSocket {
     Plug *plug;
     char *error;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 } NamedPipeServerSocket;
 
 static Plug *sk_namedpipeserver_plug(Socket *s, Plug *p)
@@ -204,7 +204,7 @@ static void named_pipe_connect_callback(void *vps)
  * This socket type is only used for listening, so it should never
  * be asked to write or flush or set_frozen.
  */
-static const Socket_vtable NamedPipeServerSocket_sockvt = {
+static const SocketVtable NamedPipeServerSocket_sockvt = {
     sk_namedpipeserver_plug,
     sk_namedpipeserver_close,
     NULL /* write */,

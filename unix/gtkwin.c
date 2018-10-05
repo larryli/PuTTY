@@ -5001,7 +5001,7 @@ void update_specials_menu(Frontend *inst)
 
 static void start_backend(Frontend *inst)
 {
-    const struct Backend_vtable *vt;
+    const struct BackendVtable *vt;
     char *realhost;
     const char *error;
     char *s;

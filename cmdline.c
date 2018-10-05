@@ -275,7 +275,7 @@ int cmdline_process_param(const char *p, char *value,
                     const char *comma = strchr(p, ',');
                     if (comma) {
                         char *prefix = dupprintf("%.*s", (int)(comma - p), p);
-                        const struct Backend_vtable *vt =
+                        const struct BackendVtable *vt =
                             backend_vt_from_name(prefix);
 
                         if (vt) {

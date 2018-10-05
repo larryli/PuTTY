@@ -56,7 +56,7 @@ typedef struct PortForwarding {
     strbuf *socksbuf;
     size_t socksbuf_consumed;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Channel chan;
 } PortForwarding;
 
@@ -71,7 +71,7 @@ struct PortListener {
     char *hostname;
     int port;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 static struct PortForwarding *new_portfwd_state(void)
@@ -435,7 +435,7 @@ static void pfd_sent(Plug *plug, int bufsize)
 	sshfwd_unthrottle(pf->c, bufsize);
 }
 
-static const Plug_vtable PortForwarding_plugvt = {
+static const PlugVtable PortForwarding_plugvt = {
     pfd_log,
     pfd_closing,
     pfd_receive,
@@ -509,7 +509,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     return 0;
 }
 
-static const Plug_vtable PortListener_plugvt = {
+static const PlugVtable PortListener_plugvt = {
     pfl_log,
     pfl_closing,
     NULL,                          /* recv */

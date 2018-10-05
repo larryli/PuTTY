@@ -595,7 +595,7 @@ int main(int argc, char **argv)
     int just_test_share_exists = FALSE;
     unsigned long now;
     struct winsize size;
-    const struct Backend_vtable *backvt;
+    const struct BackendVtable *backvt;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -633,7 +633,7 @@ int main(int argc, char **argv)
 	 */
 	char *p = getenv("PLINK_PROTOCOL");
 	if (p) {
-            const struct Backend_vtable *vt = backend_vt_from_name(p);
+            const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
                 default_protocol = vt->protocol;
                 default_port = vt->default_port;

@@ -197,7 +197,7 @@ struct Telnet {
 
     Pinger *pinger;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Backend backend;
 };
 
@@ -691,7 +691,7 @@ static void telnet_sent(Plug *plug, int bufsize)
     telnet->bufsize = bufsize;
 }
 
-static const Plug_vtable Telnet_plugvt = {
+static const PlugVtable Telnet_plugvt = {
     telnet_log,
     telnet_closing,
     telnet_receive,
@@ -1079,7 +1079,7 @@ static int telnet_cfg_info(Backend *be)
     return 0;
 }
 
-const struct Backend_vtable telnet_backend = {
+const struct BackendVtable telnet_backend = {
     telnet_init,
     telnet_free,
     telnet_reconfig,

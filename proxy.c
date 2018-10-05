@@ -396,7 +396,7 @@ SockAddr *name_lookup(const char *host, int port, char **canonicalname,
     }
 }
 
-static const struct Socket_vtable ProxySocket_sockvt = {
+static const struct SocketVtable ProxySocket_sockvt = {
     sk_proxy_plug,
     sk_proxy_close,
     sk_proxy_write,
@@ -408,7 +408,7 @@ static const struct Socket_vtable ProxySocket_sockvt = {
     NULL, /* peer_info */
 };
 
-static const struct Plug_vtable ProxySocket_plugvt = {
+static const struct PlugVtable ProxySocket_plugvt = {
     plug_proxy_log,
     plug_proxy_closing,
     plug_proxy_receive,

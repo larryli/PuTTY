@@ -6,6 +6,6 @@
 #include <stdio.h>
 #include "putty.h"
 
-const struct Backend_vtable *const backends[] = {
+const struct BackendVtable *const backends[] = {
     NULL
 };

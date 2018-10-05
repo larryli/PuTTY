@@ -76,7 +76,7 @@ struct NetSocket {
      */
     NetSocket *parent, *child;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 };
 
 struct SockAddr {
@@ -935,7 +935,7 @@ static char *sk_net_peer_info(Socket *s);
 
 extern char *do_select(SOCKET skt, int startup);
 
-static const Socket_vtable NetSocket_sockvt = {
+static const SocketVtable NetSocket_sockvt = {
     sk_net_plug,
     sk_net_close,
     sk_net_write,

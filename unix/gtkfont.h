@@ -49,9 +49,9 @@
 /*
  * Exports from gtkfont.c.
  */
-struct unifont_vtable;		       /* contents internal to gtkfont.c */
+struct UnifontVtable;		       /* contents internal to gtkfont.c */
 typedef struct unifont {
-    const struct unifont_vtable *vt;
+    const struct UnifontVtable *vt;
     /*
      * `Non-static data members' of the `class', accessible to
      * external code.

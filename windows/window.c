@@ -247,7 +247,7 @@ char *get_ttymode(Frontend *frontend, const char *mode)
 
 static void start_backend(void)
 {
-    const struct Backend_vtable *vt;
+    const struct BackendVtable *vt;
     const char *error;
     char msg[1024], *title;
     char *realhost;
@@ -412,7 +412,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
 	{
-            const struct Backend_vtable *vt =
+            const struct BackendVtable *vt =
                 backend_vt_from_proto(default_protocol);
 	    default_port = 0; /* illegal */
             if (vt)

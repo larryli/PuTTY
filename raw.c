@@ -20,7 +20,7 @@ struct Raw {
 
     Conf *conf;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Backend backend;
 };
 
@@ -103,7 +103,7 @@ static void raw_sent(Plug *plug, int bufsize)
     raw->bufsize = bufsize;
 }
 
-static const Plug_vtable Raw_plugvt = {
+static const PlugVtable Raw_plugvt = {
     raw_log,
     raw_closing,
     raw_receive,
@@ -307,7 +307,7 @@ static int raw_cfg_info(Backend *be)
     return 0;
 }
 
-const struct Backend_vtable raw_backend = {
+const struct BackendVtable raw_backend = {
     raw_init,
     raw_free,
     raw_reconfig,

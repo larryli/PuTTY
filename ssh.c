@@ -37,7 +37,7 @@ struct Ssh {
     struct ssh_version_receiver version_receiver;
     int remote_bugs;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Backend backend;
 
     Ldisc *ldisc;
@@ -599,7 +599,7 @@ static int ssh_test_for_upstream(const char *host, int port, Conf *conf)
     return ret;
 }
 
-static const Plug_vtable Ssh_plugvt = {
+static const PlugVtable Ssh_plugvt = {
     ssh_socket_log,
     ssh_closing,
     ssh_receive,
@@ -1087,7 +1087,7 @@ void ssh_got_fallback_cmd(Ssh *ssh)
     ssh->fallback_cmd = TRUE;
 }
 
-const struct Backend_vtable ssh_backend = {
+const struct BackendVtable ssh_backend = {
     ssh_init,
     ssh_free,
     ssh_reconfig,

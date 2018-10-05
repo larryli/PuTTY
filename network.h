@@ -15,7 +15,7 @@
 
 #include "defs.h"
 
-struct Socket_vtable {
+struct SocketVtable {
     Plug *(*plug) (Socket *s, Plug *p);
     /* use a different plug (return the old one) */
     /* if p is NULL, it doesn't change the plug */
@@ -34,7 +34,7 @@ struct Socket_vtable {
 typedef union { void *p; int i; } accept_ctx_t;
 typedef Socket *(*accept_fn_t)(accept_ctx_t ctx, Plug *plug);
 
-struct Plug_vtable {
+struct PlugVtable {
     void (*log)(Plug *p, int type, SockAddr *addr, int port,
 		const char *error_msg, int error_code);
     /*

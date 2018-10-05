@@ -43,7 +43,7 @@ typedef struct HandleSocket {
 
     Plug *plug;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 } HandleSocket;
 
 static int handle_gotdata(struct handle *h, void *data, int len)
@@ -306,7 +306,7 @@ static char *sk_handle_peer_info(Socket *s)
     return NULL;
 }
 
-static const Socket_vtable HandleSocket_sockvt = {
+static const SocketVtable HandleSocket_sockvt = {
     sk_handle_plug,
     sk_handle_close,
     sk_handle_write,

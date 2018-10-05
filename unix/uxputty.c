@@ -37,9 +37,9 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-const struct Backend_vtable *select_backend(Conf *conf)
+const struct BackendVtable *select_backend(Conf *conf)
 {
-    const struct Backend_vtable *vt =
+    const struct BackendVtable *vt =
         backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     assert(vt != NULL);
     return vt;
@@ -84,7 +84,7 @@ void setup(int single)
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {
-        const struct Backend_vtable *vt =
+        const struct BackendVtable *vt =
             backend_vt_from_proto(default_protocol);
 	default_port = 0; /* illegal */
         if (vt)

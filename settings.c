@@ -74,18 +74,18 @@ const char *const ttymodes[] = {
  * (which is only present in tools that manage settings).
  */
 
-const struct Backend_vtable *backend_vt_from_name(const char *name)
+const struct BackendVtable *backend_vt_from_name(const char *name)
 {
-    const struct Backend_vtable *const *p;
+    const struct BackendVtable *const *p;
     for (p = backends; *p != NULL; p++)
 	if (!strcmp((*p)->name, name))
 	    return *p;
     return NULL;
 }
 
-const struct Backend_vtable *backend_vt_from_proto(int proto)
+const struct BackendVtable *backend_vt_from_proto(int proto)
 {
-    const struct Backend_vtable *const *p;
+    const struct BackendVtable *const *p;
     for (p = backends; *p != NULL; p++)
 	if ((*p)->protocol == proto)
 	    return *p;
@@ -529,7 +529,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "SSHLogOmitData", conf_get_int(conf, CONF_logomitdata));
     p = "raw";
     {
-        const struct Backend_vtable *vt =
+        const struct BackendVtable *vt =
             backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
         if (vt)
             p = vt->name;
@@ -794,7 +794,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     conf_set_int(conf, CONF_protocol, default_protocol);
     conf_set_int(conf, CONF_port, default_port);
     {
-        const struct Backend_vtable *vt = backend_vt_from_name(prot);
+        const struct BackendVtable *vt = backend_vt_from_name(prot);
         if (vt) {
             conf_set_int(conf, CONF_protocol, vt->protocol);
 	    gppi(sesskey, "PortNumber", default_port, conf, CONF_port);

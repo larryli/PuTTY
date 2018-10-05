@@ -289,7 +289,7 @@ int main(int argc, char **argv)
     int use_subsystem = 0;
     int just_test_share_exists = FALSE;
     unsigned long now, next, then;
-    const struct Backend_vtable *vt;
+    const struct BackendVtable *vt;
 
     dll_hijacking_protection();
 
@@ -324,7 +324,7 @@ int main(int argc, char **argv)
 	 */
 	char *p = getenv("PLINK_PROTOCOL");
 	if (p) {
-            const struct Backend_vtable *vt = backend_vt_from_name(p);
+            const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
                 default_protocol = vt->protocol;
                 default_port = vt->default_port;

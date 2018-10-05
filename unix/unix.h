@@ -67,7 +67,7 @@ struct FontSpec *fontspec_new(const char *name);
 
 typedef struct draw_ctx *Context;
 
-extern const struct Backend_vtable pty_backend;
+extern const struct BackendVtable pty_backend;
 
 #define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
 
@@ -178,7 +178,7 @@ void window_setup_error(const char *errmsg);
 GtkWidget *make_gtk_toplevel_window(Frontend *frontend);
 #endif
 
-const struct Backend_vtable *select_backend(Conf *conf);
+const struct BackendVtable *select_backend(Conf *conf);
 
 /* Defined in gtkcomm.c */
 void gtkcomm_setup(void);
@@ -328,7 +328,7 @@ void *sk_getxdmdata(Socket *sock, int *lenp);
 /*
  * Exports from uxser.c.
  */
-extern const struct Backend_vtable serial_backend;
+extern const struct BackendVtable serial_backend;
 
 /*
  * uxpeer.c, wrapping getsockopt(SO_PEERCRED).

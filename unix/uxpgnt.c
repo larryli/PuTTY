@@ -176,7 +176,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
     time_to_die = TRUE;
 }
 struct X11Connection {
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 char *socketname;
@@ -728,7 +728,7 @@ void run_client(void)
         exit(1);
 }
 
-static const Plug_vtable X11Connection_plugvt = {
+static const PlugVtable X11Connection_plugvt = {
     x11_log,
     x11_closing,
     x11_receive,

@@ -89,7 +89,7 @@ struct NetSocket {
      */
     NetSocket *parent, *child;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 };
 
 struct SockAddr {
@@ -507,7 +507,7 @@ static void sk_net_set_frozen(Socket *s, int is_frozen);
 static char *sk_net_peer_info(Socket *s);
 static const char *sk_net_socket_error(Socket *s);
 
-static struct Socket_vtable NetSocket_sockvt = {
+static struct SocketVtable NetSocket_sockvt = {
     sk_net_plug,
     sk_net_close,
     sk_net_write,

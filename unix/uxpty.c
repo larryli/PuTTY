@@ -1240,7 +1240,7 @@ static int pty_cfg_info(Backend *be)
     return 0;
 }
 
-const struct Backend_vtable pty_backend = {
+const struct BackendVtable pty_backend = {
     pty_init,
     pty_free,
     pty_reconfig,

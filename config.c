@@ -267,8 +267,8 @@ void config_protocolbuttons_handler(union control *ctrl, dlgparam *dlg,
 	conf_set_int(conf, CONF_protocol, newproto);
 
 	if (oldproto != newproto) {
-            const struct Backend_vtable *ovt = backend_vt_from_proto(oldproto);
-            const struct Backend_vtable *nvt = backend_vt_from_proto(newproto);
+            const struct BackendVtable *ovt = backend_vt_from_proto(oldproto);
+            const struct BackendVtable *nvt = backend_vt_from_proto(newproto);
             assert(ovt);
             assert(nvt);
 	    /* Iff the user hasn't changed the port from the old protocol's

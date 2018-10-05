@@ -26,7 +26,7 @@ struct Rlogin {
     /* In case we need to read a username from the terminal before starting */
     prompts_t *prompt;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Backend backend;
 };
 
@@ -134,7 +134,7 @@ static void rlogin_startup(Rlogin *rlogin, const char *ruser)
     rlogin->prompt = NULL;
 }
 
-static const Plug_vtable Rlogin_plugvt = {
+static const PlugVtable Rlogin_plugvt = {
     rlogin_log,
     rlogin_closing,
     rlogin_receive,
@@ -398,7 +398,7 @@ static int rlogin_cfg_info(Backend *be)
     return 0;
 }
 
-const struct Backend_vtable rlogin_backend = {
+const struct BackendVtable rlogin_backend = {
     rlogin_init,
     rlogin_free,
     rlogin_reconfig,

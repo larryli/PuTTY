@@ -14,7 +14,7 @@ typedef struct {
     char *error;
     Plug *plug;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 } ErrorSocket;
 
 static Plug *sk_error_plug(Socket *s, Plug *p)
@@ -45,7 +45,7 @@ static char *sk_error_peer_info(Socket *s)
     return NULL;
 }
 
-static const Socket_vtable ErrorSocket_sockvt = {
+static const SocketVtable ErrorSocket_sockvt = {
     sk_error_plug,
     sk_error_close,
     NULL /* write */,

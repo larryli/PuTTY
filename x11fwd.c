@@ -42,7 +42,7 @@ typedef struct X11Connection {
     SshChannel *c;               /* channel structure held by SSH backend */
     Socket *s;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
     Channel chan;
 } X11Connection;
 
@@ -699,7 +699,7 @@ int x11_get_screen_number(char *display)
     return atoi(display + n + 1);
 }
 
-static const Plug_vtable X11Connection_plugvt = {
+static const PlugVtable X11Connection_plugvt = {
     x11_log,
     x11_closing,
     x11_receive,

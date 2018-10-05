@@ -25,7 +25,7 @@ static void nullplug_sent(Plug *plug, int bufsize)
 {
 }
 
-static const Plug_vtable nullplug_plugvt = {
+static const PlugVtable nullplug_plugvt = {
     nullplug_socket_log,
     nullplug_closing,
     nullplug_receive,
@@ -33,7 +33,7 @@ static const Plug_vtable nullplug_plugvt = {
     NULL
 };
 
-static const Plug_vtable *nullplug_plugvt_ptr = &nullplug_plugvt;
+static const PlugVtable *nullplug_plugvt_ptr = &nullplug_plugvt;
 
 /*
  * There's a singleton instance of nullplug, because it's not

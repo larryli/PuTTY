@@ -67,9 +67,9 @@ typedef void (*fontsel_add_entry)(void *ctx, const char *realfontname,
 				  const char *family, const char *charset,
 				  const char *style, const char *stylekey,
 				  int size, int flags,
-				  const struct unifont_vtable *fontclass);
+				  const struct UnifontVtable *fontclass);
 
-struct unifont_vtable {
+struct UnifontVtable {
     /*
      * `Methods' of the `class'.
      */
@@ -213,7 +213,7 @@ struct x11font {
     unifont u;
 };
 
-static const struct unifont_vtable x11font_vtable = {
+static const struct UnifontVtable x11font_vtable = {
     x11font_create,
     NULL,                              /* no fallback fonts in X11 */
     x11font_destroy,
@@ -1347,7 +1347,7 @@ struct pangofont {
     struct unifont u;
 };
 
-static const struct unifont_vtable pangofont_vtable = {
+static const struct UnifontVtable pangofont_vtable = {
     pangofont_create,
     pangofont_create_fallback,
     pangofont_destroy,
@@ -2057,7 +2057,7 @@ static char *pangofont_size_increment(unifont *font, int increment)
  *
  * The 'multifont' subclass is omitted here, as discussed above.
  */
-static const struct unifont_vtable *unifont_types[] = {
+static const struct UnifontVtable *unifont_types[] = {
 #if GTK_CHECK_VERSION(2,0,0)
     &pangofont_vtable,
 #endif
@@ -2183,7 +2183,7 @@ struct multifont {
     struct unifont u;
 };
 
-static const struct unifont_vtable multifont_vtable = {
+static const struct UnifontVtable multifont_vtable = {
     NULL,                             /* creation is done specially */
     NULL,
     multifont_destroy,
@@ -2363,7 +2363,7 @@ struct fontinfo {
     /*
      * The class of font.
      */
-    const struct unifont_vtable *fontclass;
+    const struct UnifontVtable *fontclass;
 };
 
 struct fontinfo_realname_find {
@@ -2966,7 +2966,7 @@ static void unifontsel_add_entry(void *ctx, const char *realfontname,
 				 const char *family, const char *charset,
 				 const char *style, const char *stylekey,
 				 int size, int flags,
-				 const struct unifont_vtable *fontclass)
+				 const struct UnifontVtable *fontclass)
 {
     unifontsel_internal *fs = (unifontsel_internal *)ctx;
     fontinfo *info;

@@ -29,7 +29,7 @@ typedef struct LocalProxySocket {
 
     int pending_error;
 
-    const Socket_vtable *sockvt;
+    const SocketVtable *sockvt;
 } LocalProxySocket;
 
 static void localproxy_select_result(int fd, int event);
@@ -303,7 +303,7 @@ static void localproxy_select_result(int fd, int event)
     }
 }
 
-static const Socket_vtable LocalProxySocket_sockvt = {
+static const SocketVtable LocalProxySocket_sockvt = {
     sk_localproxy_plug,
     sk_localproxy_close,
     sk_localproxy_write,

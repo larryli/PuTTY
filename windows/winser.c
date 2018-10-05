@@ -440,7 +440,7 @@ static int serial_cfg_info(Backend *be)
     return 0;
 }
 
-const struct Backend_vtable serial_backend = {
+const struct BackendVtable serial_backend = {
     serial_init,
     serial_free,
     serial_reconfig,

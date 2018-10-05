@@ -147,7 +147,7 @@ struct ssh_sharing_state {
     ConnectionLayer *cl;             /* instance of the ssh connection layer */
     char *server_verstring;          /* server version string after "SSH-" */
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 struct share_globreq;
@@ -200,7 +200,7 @@ struct ssh_sharing_connstate {
     /* Global requests we've sent on to the server, pending replies. */
     struct share_globreq *globreq_head, *globreq_tail;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 struct share_halfchannel {
@@ -1910,7 +1910,7 @@ void share_activate(ssh_sharing_state *sharestate,
     }
 }
 
-static const Plug_vtable ssh_sharing_conn_plugvt = {
+static const PlugVtable ssh_sharing_conn_plugvt = {
     NULL, /* no log function, because that's for outgoing connections */
     share_closing,
     share_receive,
@@ -2054,7 +2054,7 @@ int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
     }
 }
 
-static const Plug_vtable ssh_sharing_listen_plugvt = {
+static const PlugVtable ssh_sharing_listen_plugvt = {
     NULL, /* no log function, because that's for outgoing connections */
     share_listen_closing,
     NULL, /* no receive function on a listening socket */

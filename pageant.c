@@ -707,7 +707,7 @@ struct pageant_conn_state {
     int real_packet;
     int crLine;            /* for coroutine in pageant_conn_receive */
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 static void pageant_conn_closing(Plug *plug, const char *error_msg,
@@ -801,7 +801,7 @@ struct pageant_listen_state {
     void *logctx;
     pageant_logfn_t logfn;
 
-    const Plug_vtable *plugvt;
+    const PlugVtable *plugvt;
 };
 
 static void pageant_listen_closing(Plug *plug, const char *error_msg,
@@ -815,7 +815,7 @@ static void pageant_listen_closing(Plug *plug, const char *error_msg,
     pl->listensock = NULL;
 }
 
-static const Plug_vtable pageant_connection_plugvt = {
+static const PlugVtable pageant_connection_plugvt = {
     NULL, /* no log function, because that's for outgoing connections */
     pageant_conn_closing,
     pageant_conn_receive,
@@ -858,7 +858,7 @@ static int pageant_listen_accepting(Plug *plug,
     return 0;
 }
 
-static const Plug_vtable pageant_listener_plugvt = {
+static const PlugVtable pageant_listener_plugvt = {
     NULL, /* no log function, because that's for outgoing connections */
     pageant_listen_closing,
     NULL, /* no receive function on a listening socket */
