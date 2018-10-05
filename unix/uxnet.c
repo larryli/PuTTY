@@ -483,7 +483,7 @@ SockAddr *sk_addr_dup(SockAddr *addr)
 
 static Plug *sk_net_plug(Socket *sock, Plug *p)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
     Plug *ret = s->plug;
     if (p)
 	s->plug = p;
@@ -980,7 +980,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     if (address_family == AF_INET6 && orig_address_family == ADDRTYPE_UNSPEC) {
         NetSocket *other;
 
-        other = FROMFIELD(
+        other = container_of(
             sk_newlistener(srcaddr, port, plug,
                            local_host_only, ADDRTYPE_IPV4),
             NetSocket, sock);
@@ -1010,7 +1010,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
 static void sk_net_close(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
 
     if (s->child)
         sk_net_close(&s->child->sock);
@@ -1039,7 +1039,7 @@ void *sk_getxdmdata(Socket *sock, int *lenp)
      */
     if (sock->vt != &NetSocket_sockvt)
 	return NULL;		       /* failure */
-    s = FROMFIELD(sock, NetSocket, sock);
+    s = container_of(sock, NetSocket, sock);
 
     addrlen = sizeof(u);
     if (getsockname(s->s, &u.sa, &addrlen) < 0)
@@ -1185,7 +1185,7 @@ void try_send(NetSocket *s)
 
 static int sk_net_write(Socket *sock, const void *buf, int len)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1211,7 +1211,7 @@ static int sk_net_write(Socket *sock, const void *buf, int len)
 
 static int sk_net_write_oob(Socket *sock, const void *buf, int len)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1240,7 +1240,7 @@ static int sk_net_write_oob(Socket *sock, const void *buf, int len)
 
 static void sk_net_write_eof(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1467,13 +1467,13 @@ const char *sk_addr_error(SockAddr *addr)
 }
 static const char *sk_net_socket_error(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
     return s->error;
 }
 
 static void sk_net_set_frozen(Socket *sock, int is_frozen)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
@@ -1482,7 +1482,7 @@ static void sk_net_set_frozen(Socket *sock, int is_frozen)
 
 static char *sk_net_peer_info(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
+    NetSocket *s = container_of(sock, NetSocket, sock);
     union sockaddr_union addr;
     socklen_t addrlen = sizeof(addr);
 #ifndef NO_IPV6

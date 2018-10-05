@@ -1041,7 +1041,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
 
 static void pty_reconfig(Backend *be, Conf *conf)
 {
-    Pty *pty = FROMFIELD(be, Pty, backend);
+    Pty *pty = container_of(be, Pty, backend);
     /*
      * We don't have much need to reconfigure this backend, but
      * unfortunately we do need to pick up the setting of Close On
@@ -1055,7 +1055,7 @@ static void pty_reconfig(Backend *be, Conf *conf)
  */
 static void pty_free(Backend *be)
 {
-    Pty *pty = FROMFIELD(be, Pty, backend);
+    Pty *pty = container_of(be, Pty, backend);
 
     /* Either of these may fail `not found'. That's fine with us. */
     del234(ptys_by_pid, pty);
@@ -1108,7 +1108,7 @@ static void pty_try_write(Pty *pty)
  */
 static int pty_send(Backend *be, const char *buf, int len)
 {
-    Pty *pty = FROMFIELD(be, Pty, backend);
+    Pty *pty = container_of(be, Pty, backend);
 
     if (pty->master_fd < 0)
 	return 0;                      /* ignore all writes if fd closed */
@@ -1138,7 +1138,7 @@ static void pty_close(Pty *pty)
  */
 static int pty_sendbuffer(Backend *be)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     return 0;
 }
 
@@ -1147,7 +1147,7 @@ static int pty_sendbuffer(Backend *be)
  */
 static void pty_size(Backend *be, int width, int height)
 {
-    Pty *pty = FROMFIELD(be, Pty, backend);
+    Pty *pty = container_of(be, Pty, backend);
     struct winsize size;
 
     pty->term_width = width;
@@ -1168,7 +1168,7 @@ static void pty_size(Backend *be, int width, int height)
  */
 static void pty_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     /* Do nothing! */
     return;
 }
@@ -1179,7 +1179,7 @@ static void pty_special(Backend *be, SessionSpecialCode code, int arg)
  */
 static const SessionSpecial *pty_get_specials(Backend *be)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     /*
      * Hmm. When I get round to having this actually usable, it
      * might be quite nice to have the ability to deliver a few
@@ -1191,43 +1191,43 @@ static const SessionSpecial *pty_get_specials(Backend *be)
 
 static int pty_connected(Backend *be)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     return TRUE;
 }
 
 static int pty_sendok(Backend *be)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     return 1;
 }
 
 static void pty_unthrottle(Backend *be, int backlog)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     /* do nothing */
 }
 
 static int pty_ldisc(Backend *be, int option)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     return 0;			       /* neither editing nor echoing */
 }
 
 static void pty_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     /* This is a stub. */
 }
 
 static void pty_provide_logctx(Backend *be, LogContext *logctx)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     /* This is a stub. */
 }
 
 static int pty_exitcode(Backend *be)
 {
-    Pty *pty = FROMFIELD(be, Pty, backend);
+    Pty *pty = container_of(be, Pty, backend);
     if (!pty->finished)
 	return -1;		       /* not dead yet */
     else
@@ -1236,7 +1236,7 @@ static int pty_exitcode(Backend *be)
 
 static int pty_cfg_info(Backend *be)
 {
-    /* Pty *pty = FROMFIELD(be, Pty, backend); */
+    /* Pty *pty = container_of(be, Pty, backend); */
     return 0;
 }
 

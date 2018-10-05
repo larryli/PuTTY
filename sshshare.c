@@ -950,7 +950,7 @@ static void share_disconnect(struct ssh_sharing_connstate *cs,
 static void share_closing(Plug *plug, const char *error_msg, int error_code,
 			  int calling_back)
 {
-    struct ssh_sharing_connstate *cs = FROMFIELD(
+    struct ssh_sharing_connstate *cs = container_of(
         plug, struct ssh_sharing_connstate, plug);
 
     if (error_msg) {
@@ -1766,7 +1766,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
 
 static void share_receive(Plug *plug, int urgent, char *data, int len)
 {
-    ssh_sharing_connstate *cs = FROMFIELD(
+    ssh_sharing_connstate *cs = container_of(
         plug, ssh_sharing_connstate, plug);
     static const char expected_verstring_prefix[] =
         "SSHCONNECTION@putty.projects.tartarus.org-2.0-";
@@ -1842,7 +1842,7 @@ static void share_receive(Plug *plug, int urgent, char *data, int len)
 
 static void share_sent(Plug *plug, int bufsize)
 {
-    /* ssh_sharing_connstate *cs = FROMFIELD(
+    /* ssh_sharing_connstate *cs = container_of(
         plug, ssh_sharing_connstate, plug); */
 
     /*
@@ -1858,7 +1858,8 @@ static void share_sent(Plug *plug, int bufsize)
 static void share_listen_closing(Plug *plug, const char *error_msg,
 				 int error_code, int calling_back)
 {
-    ssh_sharing_state *sharestate = FROMFIELD(plug, ssh_sharing_state, plug);
+    ssh_sharing_state *sharestate =
+        container_of(plug, ssh_sharing_state, plug);
     if (error_msg)
         log_general(sharestate, "listening socket: %s", error_msg);
     sk_close(sharestate->listensock);
@@ -1921,7 +1922,7 @@ static const PlugVtable ssh_sharing_conn_plugvt = {
 static int share_listen_accepting(Plug *plug,
                                   accept_fn_t constructor, accept_ctx_t ctx)
 {
-    struct ssh_sharing_state *sharestate = FROMFIELD(
+    struct ssh_sharing_state *sharestate = container_of(
         plug, struct ssh_sharing_state, plug);
     struct ssh_sharing_connstate *cs;
     const char *err;

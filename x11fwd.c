@@ -634,7 +634,7 @@ static void x11_send_init_error(struct X11Connection *conn,
 static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    struct X11Connection *xconn = FROMFIELD(
+    struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
 
     if (error_msg) {
@@ -666,7 +666,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void x11_receive(Plug *plug, int urgent, char *data, int len)
 {
-    struct X11Connection *xconn = FROMFIELD(
+    struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
 
     xconn->no_data_sent_to_x_client = FALSE;
@@ -675,7 +675,7 @@ static void x11_receive(Plug *plug, int urgent, char *data, int len)
 
 static void x11_sent(Plug *plug, int bufsize)
 {
-    struct X11Connection *xconn = FROMFIELD(
+    struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
 
     sshfwd_unthrottle(xconn->c, bufsize);
@@ -773,7 +773,7 @@ Channel *x11_new_channel(tree234 *authtree, SshChannel *c,
 static void x11_chan_free(Channel *chan)
 {
     assert(chan->vt == &X11Connection_channelvt);
-    X11Connection *xconn = FROMFIELD(chan, X11Connection, chan);
+    X11Connection *xconn = container_of(chan, X11Connection, chan);
 
     if (xconn->auth_protocol) {
 	sfree(xconn->auth_protocol);
@@ -790,7 +790,7 @@ static void x11_chan_free(Channel *chan)
 static void x11_set_input_wanted(Channel *chan, int wanted)
 {
     assert(chan->vt == &X11Connection_channelvt);
-    X11Connection *xconn = FROMFIELD(chan, X11Connection, chan);
+    X11Connection *xconn = container_of(chan, X11Connection, chan);
 
     xconn->input_wanted = wanted;
     if (xconn->s)
@@ -845,7 +845,7 @@ static int x11_parse_ip(const char *addr_string, unsigned long *ip)
 static int x11_send(Channel *chan, int is_stderr, const void *vdata, int len)
 {
     assert(chan->vt == &X11Connection_channelvt);
-    X11Connection *xconn = FROMFIELD(chan, X11Connection, chan);
+    X11Connection *xconn = container_of(chan, X11Connection, chan);
     const char *data = (const char *)vdata;
 
     /*
@@ -999,7 +999,7 @@ static int x11_send(Channel *chan, int is_stderr, const void *vdata, int len)
 static void x11_send_eof(Channel *chan)
 {
     assert(chan->vt == &X11Connection_channelvt);
-    X11Connection *xconn = FROMFIELD(chan, X11Connection, chan);
+    X11Connection *xconn = container_of(chan, X11Connection, chan);
 
     if (xconn->s) {
         sk_write_eof(xconn->s);

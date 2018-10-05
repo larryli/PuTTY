@@ -645,7 +645,7 @@ static void do_telnet_read(Telnet *telnet, char *buf, int len)
 static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
+    Telnet *telnet = container_of(plug, Telnet, plug);
     backend_socket_log(telnet->frontend, type, addr, port,
                        error_msg, error_code, telnet->conf,
                        telnet->session_started);
@@ -654,7 +654,7 @@ static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
 static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
 			   int calling_back)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
+    Telnet *telnet = container_of(plug, Telnet, plug);
 
     /*
      * We don't implement independent EOF in each direction for Telnet
@@ -678,7 +678,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void telnet_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
+    Telnet *telnet = container_of(plug, Telnet, plug);
     if (urgent)
 	telnet->in_synch = TRUE;
     telnet->session_started = TRUE;
@@ -687,7 +687,7 @@ static void telnet_receive(Plug *plug, int urgent, char *data, int len)
 
 static void telnet_sent(Plug *plug, int bufsize)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
+    Telnet *telnet = container_of(plug, Telnet, plug);
     telnet->bufsize = bufsize;
 }
 
@@ -809,7 +809,7 @@ static const char *telnet_init(Frontend *frontend, Backend **backend_handle,
 
 static void telnet_free(Backend *be)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
 
     sfree(telnet->sb_buf);
     if (telnet->s)
@@ -826,7 +826,7 @@ static void telnet_free(Backend *be)
  */
 static void telnet_reconfig(Backend *be, Conf *conf)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     pinger_reconfig(telnet->pinger, telnet->conf, conf);
     conf_free(telnet->conf);
     telnet->conf = conf_copy(conf);
@@ -837,7 +837,7 @@ static void telnet_reconfig(Backend *be, Conf *conf)
  */
 static int telnet_send(Backend *be, const char *buf, int len)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     unsigned char *p, *end;
     static const unsigned char iac[2] = { IAC, IAC };
     static const unsigned char cr[2] = { CR, NUL };
@@ -872,7 +872,7 @@ static int telnet_send(Backend *be, const char *buf, int len)
  */
 static int telnet_sendbuffer(Backend *be)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     return telnet->bufsize;
 }
 
@@ -881,7 +881,7 @@ static int telnet_sendbuffer(Backend *be)
  */
 static void telnet_size(Backend *be, int width, int height)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     unsigned char b[24];
     int n;
     char *logbuf;
@@ -917,7 +917,7 @@ static void telnet_size(Backend *be, int width, int height)
  */
 static void telnet_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     unsigned char b[2];
 
     if (telnet->s == NULL)
@@ -1022,25 +1022,25 @@ static const SessionSpecial *telnet_get_specials(Backend *be)
 
 static int telnet_connected(Backend *be)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     return telnet->s != NULL;
 }
 
 static int telnet_sendok(Backend *be)
 {
-    /* Telnet *telnet = FROMFIELD(be, Telnet, backend); */
+    /* Telnet *telnet = container_of(be, Telnet, backend); */
     return 1;
 }
 
 static void telnet_unthrottle(Backend *be, int backlog)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     sk_set_frozen(telnet->s, backlog > TELNET_MAX_BACKLOG);
 }
 
 static int telnet_ldisc(Backend *be, int option)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     if (option == LD_ECHO)
 	return telnet->echoing;
     if (option == LD_EDIT)
@@ -1050,7 +1050,7 @@ static int telnet_ldisc(Backend *be, int option)
 
 static void telnet_provide_ldisc(Backend *be, Ldisc *ldisc)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     telnet->ldisc = ldisc;
 }
 
@@ -1061,7 +1061,7 @@ static void telnet_provide_logctx(Backend *be, LogContext *logctx)
 
 static int telnet_exitcode(Backend *be)
 {
-    Telnet *telnet = FROMFIELD(be, Telnet, backend);
+    Telnet *telnet = container_of(be, Telnet, backend);
     if (telnet->s != NULL)
         return -1;                     /* still connected */
     else if (telnet->closed_on_socket_error)

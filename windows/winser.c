@@ -284,7 +284,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
 
 static void serial_free(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     serial_terminate(serial);
     expire_timer_context(serial);
@@ -293,7 +293,7 @@ static void serial_free(Backend *be)
 
 static void serial_reconfig(Backend *be, Conf *conf)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     serial_configure(serial, serial->port, conf);
 
@@ -308,7 +308,7 @@ static void serial_reconfig(Backend *be, Conf *conf)
  */
 static int serial_send(Backend *be, const char *buf, int len)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     if (serial->out == NULL)
 	return 0;
@@ -322,7 +322,7 @@ static int serial_send(Backend *be, const char *buf, int len)
  */
 static int serial_sendbuffer(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     return serial->bufsize;
 }
 
@@ -351,7 +351,7 @@ static void serbreak_timer(void *ctx, unsigned long now)
  */
 static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     if (serial->port && code == SS_BRK) {
 	logevent(serial->frontend, "Starting serial break at user request");
@@ -399,7 +399,7 @@ static int serial_sendok(Backend *be)
 
 static void serial_unthrottle(Backend *be, int backlog)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     if (serial->in)
 	handle_unthrottle(serial->in, backlog);
 }
@@ -424,7 +424,7 @@ static void serial_provide_logctx(Backend *be, LogContext *logctx)
 
 static int serial_exitcode(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     if (serial->port != INVALID_HANDLE_VALUE)
         return -1;                     /* still connected */
     else

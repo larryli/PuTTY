@@ -104,7 +104,7 @@ static int localproxy_errfd_find(void *av, void *bv)
 
 static Plug *sk_localproxy_plug (Socket *s, Plug *p)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
     Plug *ret = ps->plug;
     if (p)
 	ps->plug = p;
@@ -113,7 +113,7 @@ static Plug *sk_localproxy_plug (Socket *s, Plug *p)
 
 static void sk_localproxy_close (Socket *s)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
 
     if (ps->to_cmd >= 0) {
         del234(localproxy_by_tofd, ps);
@@ -201,7 +201,7 @@ static int localproxy_try_send(LocalProxySocket *ps)
 
 static int sk_localproxy_write (Socket *s, const void *data, int len)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
 
     assert(ps->outgoingeof == EOF_NO);
 
@@ -223,7 +223,7 @@ static int sk_localproxy_write_oob (Socket *s, const void *data, int len)
 
 static void sk_localproxy_write_eof (Socket *s)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
 
     assert(ps->outgoingeof == EOF_NO);
     ps->outgoingeof = EOF_PENDING;
@@ -233,13 +233,13 @@ static void sk_localproxy_write_eof (Socket *s)
 
 static void sk_localproxy_flush (Socket *s)
 {
-    /* LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock); */
+    /* LocalProxySocket *ps = container_of(s, LocalProxySocket, sock); */
     /* do nothing */
 }
 
 static void sk_localproxy_set_frozen (Socket *s, int is_frozen)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
 
     if (ps->from_cmd < 0)
         return;
@@ -252,7 +252,7 @@ static void sk_localproxy_set_frozen (Socket *s, int is_frozen)
 
 static const char * sk_localproxy_socket_error (Socket *s)
 {
-    LocalProxySocket *ps = FROMFIELD(s, LocalProxySocket, sock);
+    LocalProxySocket *ps = container_of(s, LocalProxySocket, sock);
     return ps->error;
 }
 

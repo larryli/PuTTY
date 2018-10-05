@@ -97,7 +97,7 @@ static void null_free(Backend *be)
 
 static void loop_free(Backend *be)
 {
-    struct loop_state *st = FROMFIELD(be, struct loop_state, backend);
+    struct loop_state *st = container_of(be, struct loop_state, backend);
 
     sfree(st);
 }
@@ -112,7 +112,7 @@ static int null_send(Backend *be, const char *buf, int len) {
 }
 
 static int loop_send(Backend *be, const char *buf, int len) {
-    struct loop_state *st = FROMFIELD(be, struct loop_state, backend);
+    struct loop_state *st = container_of(be, struct loop_state, backend);
 
     return from_backend(st->frontend, 0, buf, len);
 }

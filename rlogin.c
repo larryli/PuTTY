@@ -39,7 +39,7 @@ static void c_write(Rlogin *rlogin, const void *buf, int len)
 static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
+    Rlogin *rlogin = container_of(plug, Rlogin, plug);
     backend_socket_log(rlogin->frontend, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, !rlogin->firstbyte);
@@ -48,7 +48,7 @@ static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
 			   int calling_back)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
+    Rlogin *rlogin = container_of(plug, Rlogin, plug);
 
     /*
      * We don't implement independent EOF in each direction for Telnet
@@ -72,7 +72,7 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
+    Rlogin *rlogin = container_of(plug, Rlogin, plug);
     if (urgent == 2) {
 	char c;
 
@@ -109,7 +109,7 @@ static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 
 static void rlogin_sent(Plug *plug, int bufsize)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
+    Rlogin *rlogin = container_of(plug, Rlogin, plug);
     rlogin->bufsize = bufsize;
 }
 
@@ -236,7 +236,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
 
 static void rlogin_free(Backend *be)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
 
     if (rlogin->prompt)
         free_prompts(rlogin->prompt);
@@ -258,7 +258,7 @@ static void rlogin_reconfig(Backend *be, Conf *conf)
  */
 static int rlogin_send(Backend *be, const char *buf, int len)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     bufchain bc;
 
     if (rlogin->s == NULL)
@@ -300,7 +300,7 @@ static int rlogin_send(Backend *be, const char *buf, int len)
  */
 static int rlogin_sendbuffer(Backend *be)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     return rlogin->bufsize;
 }
 
@@ -309,7 +309,7 @@ static int rlogin_sendbuffer(Backend *be)
  */
 static void rlogin_size(Backend *be, int width, int height)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     char b[12] = { '\xFF', '\xFF', 0x73, 0x73, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     rlogin->term_width = width;
@@ -346,25 +346,25 @@ static const SessionSpecial *rlogin_get_specials(Backend *be)
 
 static int rlogin_connected(Backend *be)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     return rlogin->s != NULL;
 }
 
 static int rlogin_sendok(Backend *be)
 {
-    /* Rlogin *rlogin = FROMFIELD(be, Rlogin, backend); */
+    /* Rlogin *rlogin = container_of(be, Rlogin, backend); */
     return 1;
 }
 
 static void rlogin_unthrottle(Backend *be, int backlog)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
 static int rlogin_ldisc(Backend *be, int option)
 {
-    /* Rlogin *rlogin = FROMFIELD(be, Rlogin, backend); */
+    /* Rlogin *rlogin = container_of(be, Rlogin, backend); */
     return 0;
 }
 
@@ -380,7 +380,7 @@ static void rlogin_provide_logctx(Backend *be, LogContext *logctx)
 
 static int rlogin_exitcode(Backend *be)
 {
-    Rlogin *rlogin = FROMFIELD(be, Rlogin, backend);
+    Rlogin *rlogin = container_of(be, Rlogin, backend);
     if (rlogin->s != NULL)
         return -1;                     /* still connected */
     else if (rlogin->closed_on_socket_error)

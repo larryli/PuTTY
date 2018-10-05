@@ -541,7 +541,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
 
 static void x11font_destroy(unifont *font)
 {
-    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
+    struct x11font *xfont = container_of(font, struct x11font, u);
     Display *disp = xfont->disp;
     int i;
 
@@ -579,7 +579,7 @@ static void x11_alloc_subfont(struct x11font *xfont, int sfid)
 
 static int x11font_has_glyph(unifont *font, wchar_t glyph)
 {
-    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
+    struct x11font *xfont = container_of(font, struct x11font, u);
 
     if (xfont->sixteen_bit) {
 	/*
@@ -893,7 +893,7 @@ static void x11font_draw_text(unifont_drawctx *ctx, unifont *font,
 			      int x, int y, const wchar_t *string, int len,
 			      int wide, int bold, int cellwidth)
 {
-    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
+    struct x11font *xfont = container_of(font, struct x11font, u);
     int sfid;
     int shadowoffset = 0;
     int mult = (wide ? 2 : 1);
@@ -1200,7 +1200,7 @@ static char *x11font_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *x11font_size_increment(unifont *font, int increment)
 {
-    struct x11font *xfont = FROMFIELD(font, struct x11font, u);
+    struct x11font *xfont = container_of(font, struct x11font, u);
     Display *disp = xfont->disp;
     Atom fontprop = XInternAtom(disp, "FONT", False);
     char *returned_name = NULL;
@@ -1523,7 +1523,7 @@ static unifont *pangofont_create_fallback(GtkWidget *widget, int height,
 
 static void pangofont_destroy(unifont *font)
 {
-    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     pango_font_description_free(pfont->desc);
     sfree(pfont->widthcache);
     g_object_unref(pfont->fset);
@@ -1587,7 +1587,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
                                     int len, int wide, int bold, int cellwidth,
                                     int combining)
 {
-    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     PangoLayout *layout;
     PangoRectangle rect;
     char *utfstring, *utfptr;
@@ -2018,7 +2018,7 @@ static char *pangofont_scale_fontname(GtkWidget *widget, const char *name,
 
 static char *pangofont_size_increment(unifont *font, int increment)
 {
-    struct pangofont *pfont = FROMFIELD(font, struct pangofont, u);
+    struct pangofont *pfont = container_of(font, struct pangofont, u);
     PangoFontDescription *desc;
     int size;
     char *newname, *retname;
@@ -2244,7 +2244,7 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
 
 static void multifont_destroy(unifont *font)
 {
-    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
+    struct multifont *mfont = container_of(font, struct multifont, u);
     unifont_destroy(mfont->main);
     if (mfont->fallback)
         unifont_destroy(mfont->fallback);
@@ -2261,7 +2261,7 @@ static void multifont_draw_main(unifont_drawctx *ctx, unifont *font, int x,
                                 int wide, int bold, int cellwidth,
                                 int cellinc, unifont_draw_func_t draw)
 {
-    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
+    struct multifont *mfont = container_of(font, struct multifont, u);
     unifont *f;
     int ok, i;
 
@@ -2307,7 +2307,7 @@ static void multifont_draw_combining(unifont_drawctx *ctx, unifont *font,
 
 static char *multifont_size_increment(unifont *font, int increment)
 {
-    struct multifont *mfont = FROMFIELD(font, struct multifont, u);
+    struct multifont *mfont = container_of(font, struct multifont, u);
     return unifont_size_increment(mfont->main, increment);
 }
 
@@ -3680,7 +3680,7 @@ unifontsel *unifontsel_new(const char *wintitle)
 
 void unifontsel_destroy(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     fontinfo *info;
 
 #ifndef NO_BACKING_PIXMAPS
@@ -3699,7 +3699,7 @@ void unifontsel_destroy(unifontsel *fontsel)
 
 void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 {
-    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     int i, start, end, size, flags;
     const char *fontname2 = NULL;
     fontinfo *info;
@@ -3759,7 +3759,7 @@ void unifontsel_set_name(unifontsel *fontsel, const char *fontname)
 
 char *unifontsel_get_name(unifontsel *fontsel)
 {
-    unifontsel_internal *fs = FROMFIELD(fontsel, unifontsel_internal, u);
+    unifontsel_internal *fs = container_of(fontsel, unifontsel_internal, u);
     char *name;
 
     if (!fs->selected)

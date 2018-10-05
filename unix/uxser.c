@@ -350,7 +350,7 @@ static void serial_close(Serial *serial)
 
 static void serial_free(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     serial_close(serial);
 
@@ -361,7 +361,7 @@ static void serial_free(Backend *be)
 
 static void serial_reconfig(Backend *be, Conf *conf)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     /*
      * FIXME: what should we do if this returns an error?
@@ -465,7 +465,7 @@ static void serial_try_write(Serial *serial)
  */
 static int serial_send(Backend *be, const char *buf, int len)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     if (serial->fd < 0)
 	return 0;
@@ -481,7 +481,7 @@ static int serial_send(Backend *be, const char *buf, int len)
  */
 static int serial_sendbuffer(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     return bufchain_size(&serial->output_data);
 }
 
@@ -499,7 +499,7 @@ static void serial_size(Backend *be, int width, int height)
  */
 static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
 
     if (serial->fd >= 0 && code == SS_BRK) {
 	tcsendbreak(serial->fd, 0);
@@ -534,7 +534,7 @@ static int serial_sendok(Backend *be)
 
 static void serial_unthrottle(Backend *be, int backlog)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     serial->inbufsize = backlog;
     serial_uxsel_setup(serial);
 }
@@ -559,7 +559,7 @@ static void serial_provide_logctx(Backend *be, LogContext *logctx)
 
 static int serial_exitcode(Backend *be)
 {
-    Serial *serial = FROMFIELD(be, Serial, backend);
+    Serial *serial = container_of(be, Serial, backend);
     if (serial->fd >= 0)
         return -1;                     /* still connected */
     else

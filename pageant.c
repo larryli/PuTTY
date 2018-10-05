@@ -713,7 +713,7 @@ struct pageant_conn_state {
 static void pageant_conn_closing(Plug *plug, const char *error_msg,
 				 int error_code, int calling_back)
 {
-    struct pageant_conn_state *pc = FROMFIELD(
+    struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
     if (error_msg)
         plog(pc->logctx, pc->logfn, "%p: error: %s", pc, error_msg);
@@ -725,7 +725,7 @@ static void pageant_conn_closing(Plug *plug, const char *error_msg,
 
 static void pageant_conn_sent(Plug *plug, int bufsize)
 {
-    /* struct pageant_conn_state *pc = FROMFIELD(
+    /* struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug); */
 
     /*
@@ -747,7 +747,7 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
 
 static void pageant_conn_receive(Plug *plug, int urgent, char *data, int len)
 {
-    struct pageant_conn_state *pc = FROMFIELD(
+    struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
     char c;
 
@@ -807,7 +807,7 @@ struct pageant_listen_state {
 static void pageant_listen_closing(Plug *plug, const char *error_msg,
 				   int error_code, int calling_back)
 {
-    struct pageant_listen_state *pl = FROMFIELD(
+    struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
     if (error_msg)
         plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
@@ -826,7 +826,7 @@ static const PlugVtable pageant_connection_plugvt = {
 static int pageant_listen_accepting(Plug *plug,
                                     accept_fn_t constructor, accept_ctx_t ctx)
 {
-    struct pageant_listen_state *pl = FROMFIELD(
+    struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
     struct pageant_conn_state *pc;
     const char *err;

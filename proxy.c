@@ -79,7 +79,7 @@ void proxy_activate (ProxySocket *p)
 
 static Plug *sk_proxy_plug (Socket *s, Plug *p)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
     Plug *ret = ps->plug;
     if (p)
 	ps->plug = p;
@@ -88,7 +88,7 @@ static Plug *sk_proxy_plug (Socket *s, Plug *p)
 
 static void sk_proxy_close (Socket *s)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     sk_close(ps->sub_socket);
     sk_addr_free(ps->remote_addr);
@@ -97,7 +97,7 @@ static void sk_proxy_close (Socket *s)
 
 static int sk_proxy_write (Socket *s, const void *data, int len)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	bufchain_add(&ps->pending_output_data, data, len);
@@ -108,7 +108,7 @@ static int sk_proxy_write (Socket *s, const void *data, int len)
 
 static int sk_proxy_write_oob (Socket *s, const void *data, int len)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	bufchain_clear(&ps->pending_output_data);
@@ -121,7 +121,7 @@ static int sk_proxy_write_oob (Socket *s, const void *data, int len)
 
 static void sk_proxy_write_eof (Socket *s)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
         ps->pending_eof = 1;
@@ -132,7 +132,7 @@ static void sk_proxy_write_eof (Socket *s)
 
 static void sk_proxy_flush (Socket *s)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->pending_flush = 1;
@@ -143,7 +143,7 @@ static void sk_proxy_flush (Socket *s)
 
 static void sk_proxy_set_frozen (Socket *s, int is_frozen)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->freeze = is_frozen;
@@ -182,7 +182,7 @@ static void sk_proxy_set_frozen (Socket *s, int is_frozen)
 
 static const char * sk_proxy_socket_error (Socket *s)
 {
-    ProxySocket *ps = FROMFIELD(s, ProxySocket, sock);
+    ProxySocket *ps = container_of(s, ProxySocket, sock);
     if (ps->error != NULL || ps->sub_socket == NULL) {
 	return ps->error;
     }
@@ -194,7 +194,7 @@ static const char * sk_proxy_socket_error (Socket *s)
 static void plug_proxy_log(Plug *plug, int type, SockAddr *addr, int port,
 			   const char *error_msg, int error_code)
 {
-    ProxySocket *ps = FROMFIELD(plug, ProxySocket, plugimpl);
+    ProxySocket *ps = container_of(plug, ProxySocket, plugimpl);
 
     plug_log(ps->plug, type, addr, port, error_msg, error_code);
 }
@@ -202,7 +202,7 @@ static void plug_proxy_log(Plug *plug, int type, SockAddr *addr, int port,
 static void plug_proxy_closing (Plug *p, const char *error_msg,
 				int error_code, int calling_back)
 {
-    ProxySocket *ps = FROMFIELD(p, ProxySocket, plugimpl);
+    ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->closing_error_msg = error_msg;
@@ -216,7 +216,7 @@ static void plug_proxy_closing (Plug *p, const char *error_msg,
 
 static void plug_proxy_receive (Plug *p, int urgent, char *data, int len)
 {
-    ProxySocket *ps = FROMFIELD(p, ProxySocket, plugimpl);
+    ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	/* we will lose the urgentness of this data, but since most,
@@ -235,7 +235,7 @@ static void plug_proxy_receive (Plug *p, int urgent, char *data, int len)
 
 static void plug_proxy_sent (Plug *p, int bufsize)
 {
-    ProxySocket *ps = FROMFIELD(p, ProxySocket, plugimpl);
+    ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->sent_bufsize = bufsize;
@@ -248,7 +248,7 @@ static void plug_proxy_sent (Plug *p, int bufsize)
 static int plug_proxy_accepting(Plug *p,
                                 accept_fn_t constructor, accept_ctx_t ctx)
 {
-    ProxySocket *ps = FROMFIELD(p, ProxySocket, plugimpl);
+    ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
 	ps->accepting_constructor = constructor;

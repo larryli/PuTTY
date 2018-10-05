@@ -18,7 +18,7 @@ typedef struct {
 
 static Plug *sk_error_plug(Socket *s, Plug *p)
 {
-    ErrorSocket *es = FROMFIELD(s, ErrorSocket, sock);
+    ErrorSocket *es = container_of(s, ErrorSocket, sock);
     Plug *ret = es->plug;
     if (p)
 	es->plug = p;
@@ -27,7 +27,7 @@ static Plug *sk_error_plug(Socket *s, Plug *p)
 
 static void sk_error_close(Socket *s)
 {
-    ErrorSocket *es = FROMFIELD(s, ErrorSocket, sock);
+    ErrorSocket *es = container_of(s, ErrorSocket, sock);
 
     sfree(es->error);
     sfree(es);
@@ -35,7 +35,7 @@ static void sk_error_close(Socket *s)
 
 static const char *sk_error_socket_error(Socket *s)
 {
-    ErrorSocket *es = FROMFIELD(s, ErrorSocket, sock);
+    ErrorSocket *es = container_of(s, ErrorSocket, sock);
     return es->error;
 }
 

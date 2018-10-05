@@ -124,7 +124,8 @@ static void pfd_close(struct PortForwarding *pf);
 static void pfd_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
+    struct PortForwarding *pf =
+        container_of(plug, struct PortForwarding, plug);
 
     if (error_msg) {
         /*
@@ -205,7 +206,8 @@ static char *ipv6_to_string(ptrlen ipv6)
 
 static void pfd_receive(Plug *plug, int urgent, char *data, int len)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
+    struct PortForwarding *pf =
+        container_of(plug, struct PortForwarding, plug);
 
     if (len == 0)
         return;
@@ -429,7 +431,8 @@ static void pfd_receive(Plug *plug, int urgent, char *data, int len)
 
 static void pfd_sent(Plug *plug, int bufsize)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
+    struct PortForwarding *pf =
+        container_of(plug, struct PortForwarding, plug);
 
     if (pf->c)
 	sshfwd_unthrottle(pf->c, bufsize);
@@ -473,7 +476,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     Socket *s;
     const char *err;
 
-    pl = FROMFIELD(p, struct PortListener, plug);
+    pl = container_of(p, struct PortListener, plug);
     pf = new_portfwd_state();
     pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
@@ -588,7 +591,7 @@ static void pfl_terminate(struct PortListener *pl)
 static void pfd_set_input_wanted(Channel *chan, int wanted)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
     pf->input_wanted = wanted;
     sk_set_frozen(pf->s, !pf->input_wanted);
 }
@@ -596,7 +599,7 @@ static void pfd_set_input_wanted(Channel *chan, int wanted)
 static void pfd_chan_free(Channel *chan)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
     pfd_close(pf);
 }
 
@@ -606,21 +609,21 @@ static void pfd_chan_free(Channel *chan)
 static int pfd_send(Channel *chan, int is_stderr, const void *data, int len)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
     return sk_write(pf->s, data, len);
 }
 
 static void pfd_send_eof(Channel *chan)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
     sk_write_eof(pf->s);
 }
 
 static void pfd_open_confirmation(Channel *chan)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
 
     pf->ready = 1;
     sk_set_frozen(pf->s, 0);
@@ -636,7 +639,7 @@ static void pfd_open_confirmation(Channel *chan)
 static void pfd_open_failure(Channel *chan, const char *errtext)
 {
     assert(chan->vt == &PortForwarding_channelvt);
-    PortForwarding *pf = FROMFIELD(chan, PortForwarding, chan);
+    PortForwarding *pf = container_of(chan, PortForwarding, chan);
 
     logeventf(pf->cl->frontend,
               "Forwarded connection refused by server%s%s",
