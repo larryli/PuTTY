@@ -56,7 +56,7 @@ typedef struct PortForwarding {
     strbuf *socksbuf;
     size_t socksbuf_consumed;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Channel chan;
 } PortForwarding;
 
@@ -71,7 +71,7 @@ struct PortListener {
     char *hostname;
     int port;
 
-    const PlugVtable *plugvt;
+    Plug plug;
 };
 
 static struct PortForwarding *new_portfwd_state(void)
@@ -124,7 +124,7 @@ static void pfd_close(struct PortForwarding *pf);
 static void pfd_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plugvt);
+    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
 
     if (error_msg) {
         /*
@@ -205,7 +205,7 @@ static char *ipv6_to_string(ptrlen ipv6)
 
 static void pfd_receive(Plug *plug, int urgent, char *data, int len)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plugvt);
+    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
 
     if (len == 0)
         return;
@@ -429,7 +429,7 @@ static void pfd_receive(Plug *plug, int urgent, char *data, int len)
 
 static void pfd_sent(Plug *plug, int bufsize)
 {
-    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plugvt);
+    struct PortForwarding *pf = FROMFIELD(plug, struct PortForwarding, plug);
 
     if (pf->c)
 	sshfwd_unthrottle(pf->c, bufsize);
@@ -473,9 +473,9 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     Socket *s;
     const char *err;
 
-    pl = FROMFIELD(p, struct PortListener, plugvt);
+    pl = FROMFIELD(p, struct PortListener, plug);
     pf = new_portfwd_state();
-    pf->plugvt = &PortForwarding_plugvt;
+    pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
     pf->chan.vt = &PortForwarding_channelvt;
     pf->input_wanted = TRUE;
@@ -483,7 +483,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     pf->c = NULL;
     pf->cl = pl->cl;
 
-    pf->s = s = constructor(ctx, &pf->plugvt);
+    pf->s = s = constructor(ctx, &pf->plug);
     if ((err = sk_socket_error(s)) != NULL) {
 	free_portfwd_state(pf);
 	return err != NULL;
@@ -536,7 +536,7 @@ static char *pfl_listen(char *desthost, int destport, char *srcaddr,
      * Open socket.
      */
     pl = *pl_ret = new_portlistener_state();
-    pl->plugvt = &PortListener_plugvt;
+    pl->plug.vt = &PortListener_plugvt;
     if (desthost) {
 	pl->hostname = dupstr(desthost);
 	pl->port = destport;
@@ -545,7 +545,7 @@ static char *pfl_listen(char *desthost, int destport, char *srcaddr,
 	pl->is_dynamic = TRUE;
     pl->cl = cl;
 
-    pl->s = new_listener(srcaddr, port, &pl->plugvt,
+    pl->s = new_listener(srcaddr, port, &pl->plug,
                          !conf_get_int(conf, CONF_lport_acceptall),
                          conf, address_family);
     if ((err = sk_socket_error(pl->s)) != NULL) {
@@ -1042,7 +1042,7 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
      */
     pf = new_portfwd_state();
     *chan_ret = &pf->chan;
-    pf->plugvt = &PortForwarding_plugvt;
+    pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
     pf->chan.vt = &PortForwarding_channelvt;
     pf->input_wanted = TRUE;
@@ -1052,7 +1052,7 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
     pf->socks_state = SOCKS_NONE;
 
     pf->s = new_connection(addr, dummy_realhost, port,
-                           0, 1, 0, 0, &pf->plugvt, mgr->conf);
+                           0, 1, 0, 0, &pf->plug, mgr->conf);
     sfree(dummy_realhost);
     if ((err = sk_socket_error(pf->s)) != NULL) {
         char *err_ret = dupstr(err);

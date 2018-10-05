@@ -33,10 +33,10 @@ static const PlugVtable nullplug_plugvt = {
     NULL
 };
 
-static const PlugVtable *nullplug_plugvt_ptr = &nullplug_plugvt;
+static Plug nullplug_plug = { &nullplug_plugvt };
 
 /*
  * There's a singleton instance of nullplug, because it's not
  * interesting enough to worry about making more than one of them.
  */
-Plug *nullplug = &nullplug_plugvt_ptr;
+Plug *const nullplug = &nullplug_plug;

@@ -34,12 +34,12 @@ typedef struct NamedPipeServerSocket {
     Plug *plug;
     char *error;
 
-    const SocketVtable *sockvt;
+    Socket sock;
 } NamedPipeServerSocket;
 
 static Plug *sk_namedpipeserver_plug(Socket *s, Plug *p)
 {
-    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sock);
     Plug *ret = ps->plug;
     if (p)
 	ps->plug = p;
@@ -48,7 +48,7 @@ static Plug *sk_namedpipeserver_plug(Socket *s, Plug *p)
 
 static void sk_namedpipeserver_close(Socket *s)
 {
-    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sock);
 
     if (ps->callback_handle)
         handle_free(ps->callback_handle);
@@ -65,7 +65,7 @@ static void sk_namedpipeserver_close(Socket *s)
 
 static const char *sk_namedpipeserver_socket_error(Socket *s)
 {
-    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sockvt);
+    NamedPipeServerSocket *ps = FROMFIELD(s, NamedPipeServerSocket, sock);
     return ps->error;
 }
 
@@ -219,7 +219,7 @@ static const SocketVtable NamedPipeServerSocket_sockvt = {
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
 {
     NamedPipeServerSocket *ret = snew(NamedPipeServerSocket);
-    ret->sockvt = &NamedPipeServerSocket_sockvt;
+    ret->sock.vt = &NamedPipeServerSocket_sockvt;
     ret->plug = plug;
     ret->error = NULL;
     ret->psd = NULL;
@@ -249,7 +249,7 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
     named_pipe_accept_loop(ret, FALSE);
 
   cleanup:
-    return &ret->sockvt;
+    return &ret->sock;
 }
 
 #endif /* !defined NO_SECURITY */

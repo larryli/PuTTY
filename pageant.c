@@ -707,14 +707,14 @@ struct pageant_conn_state {
     int real_packet;
     int crLine;            /* for coroutine in pageant_conn_receive */
 
-    const PlugVtable *plugvt;
+    Plug plug;
 };
 
 static void pageant_conn_closing(Plug *plug, const char *error_msg,
 				 int error_code, int calling_back)
 {
     struct pageant_conn_state *pc = FROMFIELD(
-        plug, struct pageant_conn_state, plugvt);
+        plug, struct pageant_conn_state, plug);
     if (error_msg)
         plog(pc->logctx, pc->logfn, "%p: error: %s", pc, error_msg);
     else
@@ -726,7 +726,7 @@ static void pageant_conn_closing(Plug *plug, const char *error_msg,
 static void pageant_conn_sent(Plug *plug, int bufsize)
 {
     /* struct pageant_conn_state *pc = FROMFIELD(
-        plug, struct pageant_conn_state, plugvt); */
+        plug, struct pageant_conn_state, plug); */
 
     /*
      * We do nothing here, because we expect that there won't be a
@@ -748,7 +748,7 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
 static void pageant_conn_receive(Plug *plug, int urgent, char *data, int len)
 {
     struct pageant_conn_state *pc = FROMFIELD(
-        plug, struct pageant_conn_state, plugvt);
+        plug, struct pageant_conn_state, plug);
     char c;
 
     crBegin(pc->crLine);
@@ -801,14 +801,14 @@ struct pageant_listen_state {
     void *logctx;
     pageant_logfn_t logfn;
 
-    const PlugVtable *plugvt;
+    Plug plug;
 };
 
 static void pageant_listen_closing(Plug *plug, const char *error_msg,
 				   int error_code, int calling_back)
 {
     struct pageant_listen_state *pl = FROMFIELD(
-        plug, struct pageant_listen_state, plugvt);
+        plug, struct pageant_listen_state, plug);
     if (error_msg)
         plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
     sk_close(pl->listensock);
@@ -827,18 +827,18 @@ static int pageant_listen_accepting(Plug *plug,
                                     accept_fn_t constructor, accept_ctx_t ctx)
 {
     struct pageant_listen_state *pl = FROMFIELD(
-        plug, struct pageant_listen_state, plugvt);
+        plug, struct pageant_listen_state, plug);
     struct pageant_conn_state *pc;
     const char *err;
     char *peerinfo;
 
     pc = snew(struct pageant_conn_state);
-    pc->plugvt = &pageant_connection_plugvt;
+    pc->plug.vt = &pageant_connection_plugvt;
     pc->logfn = pl->logfn;
     pc->logctx = pl->logctx;
     pc->crLine = 0;
 
-    pc->connsock = constructor(ctx, &pc->plugvt);
+    pc->connsock = constructor(ctx, &pc->plug);
     if ((err = sk_socket_error(pc->connsock)) != NULL) {
         sk_close(pc->connsock);
         sfree(pc);
@@ -869,11 +869,11 @@ static const PlugVtable pageant_listener_plugvt = {
 struct pageant_listen_state *pageant_listener_new(Plug **plug)
 {
     struct pageant_listen_state *pl = snew(struct pageant_listen_state);
-    pl->plugvt = &pageant_listener_plugvt;
+    pl->plug.vt = &pageant_listener_plugvt;
     pl->logctx = NULL;
     pl->logfn = NULL;
     pl->listensock = NULL;
-    *plug = &pl->plugvt;
+    *plug = &pl->plug;
     return pl;
 }
 

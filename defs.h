@@ -42,8 +42,8 @@ typedef struct IdempotentCallback IdempotentCallback;
 
 typedef struct SockAddr SockAddr;
 
-typedef struct SocketVtable SocketVtable;
-typedef struct PlugVtable PlugVtable;
+typedef struct Socket Socket;
+typedef struct Plug Plug;
 
 typedef struct Backend Backend;
 typedef struct BackendVtable BackendVtable;
@@ -73,9 +73,6 @@ typedef struct settings_r settings_r;
 typedef struct settings_e settings_e;
 
 typedef struct SessionSpecial SessionSpecial;
-
-typedef const SocketVtable *Socket;
-typedef const PlugVtable *Plug;
 
 /*
  * A small structure wrapping up a (pointer, length) pair so that it

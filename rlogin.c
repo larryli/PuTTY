@@ -26,7 +26,7 @@ struct Rlogin {
     /* In case we need to read a username from the terminal before starting */
     prompts_t *prompt;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Backend backend;
 };
 
@@ -39,7 +39,7 @@ static void c_write(Rlogin *rlogin, const void *buf, int len)
 static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plugvt);
+    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
     backend_socket_log(rlogin->frontend, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, !rlogin->firstbyte);
@@ -48,7 +48,7 @@ static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
 			   int calling_back)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plugvt);
+    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
 
     /*
      * We don't implement independent EOF in each direction for Telnet
@@ -72,7 +72,7 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plugvt);
+    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
     if (urgent == 2) {
 	char c;
 
@@ -109,7 +109,7 @@ static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 
 static void rlogin_sent(Plug *plug, int bufsize)
 {
-    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plugvt);
+    Rlogin *rlogin = FROMFIELD(plug, Rlogin, plug);
     rlogin->bufsize = bufsize;
 }
 
@@ -162,7 +162,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
     char *loghost;
 
     rlogin = snew(Rlogin);
-    rlogin->plugvt = &Rlogin_plugvt;
+    rlogin->plug.vt = &Rlogin_plugvt;
     rlogin->backend.vt = &rlogin_backend;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
@@ -193,7 +193,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
      * Open socket.
      */
     rlogin->s = new_connection(addr, *realhost, port, 1, 0,
-			       nodelay, keepalive, &rlogin->plugvt, conf);
+			       nodelay, keepalive, &rlogin->plug, conf);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
 	return err;
 

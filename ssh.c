@@ -37,7 +37,7 @@ struct Ssh {
     struct ssh_version_receiver version_receiver;
     int remote_bugs;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Backend backend;
 
     Ldisc *ldisc;
@@ -489,7 +489,7 @@ void ssh_user_close(Ssh *ssh, const char *fmt, ...)
 static void ssh_socket_log(Plug *plug, int type, SockAddr *addr, int port,
                            const char *error_msg, int error_code)
 {
-    Ssh *ssh = FROMFIELD(plug, Ssh, plugvt);
+    Ssh *ssh = FROMFIELD(plug, Ssh, plug);
 
     /*
      * While we're attempting connection sharing, don't loudly log
@@ -509,7 +509,7 @@ static void ssh_socket_log(Plug *plug, int type, SockAddr *addr, int port,
 static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    Ssh *ssh = FROMFIELD(plug, Ssh, plugvt);
+    Ssh *ssh = FROMFIELD(plug, Ssh, plug);
     if (error_msg) {
         ssh_remote_error(ssh, "Network error: %s", error_msg);
     } else if (ssh->bpp) {
@@ -520,7 +520,7 @@ static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void ssh_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Ssh *ssh = FROMFIELD(plug, Ssh, plugvt);
+    Ssh *ssh = FROMFIELD(plug, Ssh, plug);
 
     /* Log raw data, if we're in that mode. */
     if (ssh->logctx)
@@ -534,7 +534,7 @@ static void ssh_receive(Plug *plug, int urgent, char *data, int len)
 
 static void ssh_sent(Plug *plug, int bufsize)
 {
-    Ssh *ssh = FROMFIELD(plug, Ssh, plugvt);
+    Ssh *ssh = FROMFIELD(plug, Ssh, plug);
     /*
      * If the send backlog on the SSH socket itself clears, we should
      * unthrottle the whole world if it was throttled. Also trigger an
@@ -624,7 +624,7 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
     ssh_hostport_setup(host, port, ssh->conf,
                        &ssh->savedhost, &ssh->savedport, &loghost);
 
-    ssh->plugvt = &Ssh_plugvt;
+    ssh->plug.vt = &Ssh_plugvt;
 
     /*
      * Try connection-sharing, in case that means we don't open a
@@ -639,7 +639,7 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
     ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
     ssh->s = ssh_connection_sharing_init(
         ssh->savedhost, ssh->savedport, ssh->conf, ssh->frontend,
-        &ssh->plugvt, &ssh->connshare);
+        &ssh->plug, &ssh->connshare);
     ssh->attempting_connshare = FALSE;
     if (ssh->s != NULL) {
         /*
@@ -677,7 +677,7 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
 
         ssh->s = new_connection(addr, *realhost, port,
                                 0, 1, nodelay, keepalive,
-                                &ssh->plugvt, ssh->conf);
+                                &ssh->plug, ssh->conf);
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             notify_remote_exit(ssh->frontend);

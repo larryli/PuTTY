@@ -197,7 +197,7 @@ struct Telnet {
 
     Pinger *pinger;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Backend backend;
 };
 
@@ -645,7 +645,7 @@ static void do_telnet_read(Telnet *telnet, char *buf, int len)
 static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plugvt);
+    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
     backend_socket_log(telnet->frontend, type, addr, port,
                        error_msg, error_code, telnet->conf,
                        telnet->session_started);
@@ -654,7 +654,7 @@ static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
 static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
 			   int calling_back)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plugvt);
+    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
 
     /*
      * We don't implement independent EOF in each direction for Telnet
@@ -678,7 +678,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void telnet_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plugvt);
+    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
     if (urgent)
 	telnet->in_synch = TRUE;
     telnet->session_started = TRUE;
@@ -687,7 +687,7 @@ static void telnet_receive(Plug *plug, int urgent, char *data, int len)
 
 static void telnet_sent(Plug *plug, int bufsize)
 {
-    Telnet *telnet = FROMFIELD(plug, Telnet, plugvt);
+    Telnet *telnet = FROMFIELD(plug, Telnet, plug);
     telnet->bufsize = bufsize;
 }
 
@@ -717,7 +717,7 @@ static const char *telnet_init(Frontend *frontend, Backend **backend_handle,
     int addressfamily;
 
     telnet = snew(Telnet);
-    telnet->plugvt = &Telnet_plugvt;
+    telnet->plug.vt = &Telnet_plugvt;
     telnet->backend.vt = &telnet_backend;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
@@ -754,7 +754,7 @@ static const char *telnet_init(Frontend *frontend, Backend **backend_handle,
      * Open socket.
      */
     telnet->s = new_connection(addr, *realhost, port, 0, 1, nodelay, keepalive,
-                               &telnet->plugvt, telnet->conf);
+                               &telnet->plug, telnet->conf);
     if ((err = sk_socket_error(telnet->s)) != NULL)
 	return err;
 

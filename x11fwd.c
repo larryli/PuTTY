@@ -42,7 +42,7 @@ typedef struct X11Connection {
     SshChannel *c;               /* channel structure held by SSH backend */
     Socket *s;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Channel chan;
 } X11Connection;
 
@@ -635,7 +635,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
     struct X11Connection *xconn = FROMFIELD(
-        plug, struct X11Connection, plugvt);
+        plug, struct X11Connection, plug);
 
     if (error_msg) {
         /*
@@ -667,7 +667,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 static void x11_receive(Plug *plug, int urgent, char *data, int len)
 {
     struct X11Connection *xconn = FROMFIELD(
-        plug, struct X11Connection, plugvt);
+        plug, struct X11Connection, plug);
 
     xconn->no_data_sent_to_x_client = FALSE;
     sshfwd_write(xconn->c, data, len);
@@ -676,7 +676,7 @@ static void x11_receive(Plug *plug, int urgent, char *data, int len)
 static void x11_sent(Plug *plug, int bufsize)
 {
     struct X11Connection *xconn = FROMFIELD(
-        plug, struct X11Connection, plugvt);
+        plug, struct X11Connection, plug);
 
     sshfwd_unthrottle(xconn->c, bufsize);
 }
@@ -738,7 +738,7 @@ Channel *x11_new_channel(tree234 *authtree, SshChannel *c,
      * Open socket.
      */
     xconn = snew(struct X11Connection);
-    xconn->plugvt = &X11Connection_plugvt;
+    xconn->plug.vt = &X11Connection_plugvt;
     xconn->chan.vt = &X11Connection_channelvt;
     xconn->chan.initial_fixed_window_size =
         (connection_sharing_possible ? 128 : 0);
@@ -945,7 +945,7 @@ static int x11_send(Channel *chan, int is_stderr, const void *vdata, int len)
         xconn->disp = auth_matched->disp;
         xconn->s = new_connection(sk_addr_dup(xconn->disp->addr),
                                   xconn->disp->realhost, xconn->disp->port, 
-                                  0, 1, 0, 0, &xconn->plugvt,
+                                  0, 1, 0, 0, &xconn->plug,
                                   sshfwd_get_conf(xconn->c));
         if ((err = sk_socket_error(xconn->s)) != NULL) {
             char *err_message = dupprintf("unable to connect to"

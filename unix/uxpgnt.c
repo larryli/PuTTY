@@ -176,7 +176,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
     time_to_die = TRUE;
 }
 struct X11Connection {
-    const PlugVtable *plugvt;
+    Plug plug;
 };
 
 char *socketname;
@@ -809,10 +809,10 @@ void run_agent(void)
         disp = x11_setup_display(display, conf);
 
         conn = snew(struct X11Connection);
-        conn->plugvt = &X11Connection_plugvt;
+        conn->plug.vt = &X11Connection_plugvt;
         s = new_connection(sk_addr_dup(disp->addr),
                            disp->realhost, disp->port,
-                           0, 1, 0, 0, &conn->plugvt, conf);
+                           0, 1, 0, 0, &conn->plug, conf);
         if ((err = sk_socket_error(s)) != NULL) {
             fprintf(stderr, "pageant: unable to connect to X server: %s", err);
             exit(1);

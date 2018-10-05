@@ -20,7 +20,7 @@ struct Raw {
 
     Conf *conf;
 
-    const PlugVtable *plugvt;
+    Plug plug;
     Backend backend;
 };
 
@@ -35,7 +35,7 @@ static void c_write(Raw *raw, const void *buf, int len)
 static void raw_log(Plug *plug, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code)
 {
-    Raw *raw = FROMFIELD(plug, Raw, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plug);
     backend_socket_log(raw->frontend, type, addr, port,
                        error_msg, error_code, raw->conf, raw->session_started);
 }
@@ -58,7 +58,7 @@ static void raw_check_close(Raw *raw)
 static void raw_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    Raw *raw = FROMFIELD(plug, Raw, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plug);
 
     if (error_msg) {
         /* A socket error has occurred. */
@@ -90,7 +90,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
 
 static void raw_receive(Plug *plug, int urgent, char *data, int len)
 {
-    Raw *raw = FROMFIELD(plug, Raw, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plug);
     c_write(raw, data, len);
     /* We count 'session start', for proxy logging purposes, as being
      * when data is received from the network and printed. */
@@ -99,7 +99,7 @@ static void raw_receive(Plug *plug, int urgent, char *data, int len)
 
 static void raw_sent(Plug *plug, int bufsize)
 {
-    Raw *raw = FROMFIELD(plug, Raw, plugvt);
+    Raw *raw = FROMFIELD(plug, Raw, plug);
     raw->bufsize = bufsize;
 }
 
@@ -130,7 +130,7 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
     char *loghost;
 
     raw = snew(Raw);
-    raw->plugvt = &Raw_plugvt;
+    raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = &raw_backend;
     raw->s = NULL;
     raw->closed_on_socket_error = FALSE;
@@ -160,7 +160,7 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
      * Open socket.
      */
     raw->s = new_connection(addr, *realhost, port, 0, 1, nodelay, keepalive,
-			    &raw->plugvt, conf);
+			    &raw->plug, conf);
     if ((err = sk_socket_error(raw->s)) != NULL)
 	return err;
 

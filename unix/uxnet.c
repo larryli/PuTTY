@@ -89,7 +89,7 @@ struct NetSocket {
      */
     NetSocket *parent, *child;
 
-    const SocketVtable *sockvt;
+    Socket sock;
 };
 
 struct SockAddr {
@@ -484,7 +484,7 @@ SockAddr *sk_addr_dup(SockAddr *addr)
 
 static Plug *sk_net_plug(Socket *sock, Plug *p)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
     Plug *ret = s->plug;
     if (p)
 	s->plug = p;
@@ -528,7 +528,7 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
      * Create NetSocket structure.
      */
     ret = snew(NetSocket);
-    ret->sockvt = &NetSocket_sockvt;
+    ret->sock.vt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -549,7 +549,7 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
 
     if (ret->s < 0) {
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     ret->oobinline = 0;
@@ -557,7 +557,7 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
     uxsel_tell(ret);
     add234(sktree, ret);
 
-    return &ret->sockvt;
+    return &ret->sock;
 }
 
 static int try_connect(NetSocket *sock)
@@ -769,7 +769,7 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
      * Create NetSocket structure.
      */
     ret = snew(NetSocket);
-    ret->sockvt = &NetSocket_sockvt;
+    ret->sock.vt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -801,7 +801,7 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
     if (err)
         ret->error = strerror(err);
 
-    return &ret->sockvt;
+    return &ret->sock;
 }
 
 Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
@@ -824,7 +824,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
      * Create NetSocket structure.
      */
     ret = snew(NetSocket);
-    ret->sockvt = &NetSocket_sockvt;
+    ret->sock.vt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -875,7 +875,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
     if (s < 0) {
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     cloexec(s);
@@ -886,7 +886,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
                    (const char *)&on, sizeof(on)) < 0) {
         ret->error = strerror(errno);
         close(s);
-        return &ret->sockvt;
+        return &ret->sock;
     }
 
     retcode = -1;
@@ -964,13 +964,13 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     if (retcode < 0) {
         close(s);
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     if (listen(s, SOMAXCONN) < 0) {
         close(s);
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
 #ifndef NO_IPV6
@@ -984,7 +984,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
         other = FROMFIELD(
             sk_newlistener(srcaddr, port, plug,
                            local_host_only, ADDRTYPE_IPV4),
-            NetSocket, sockvt);
+            NetSocket, sock);
 
         if (other) {
             if (!other->error) {
@@ -995,7 +995,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
                  * as IPv6, we must return an error overall. */
                 close(s);
                 sfree(ret);
-                return &other->sockvt;
+                return &other->sock;
             }
         }
     }
@@ -1006,15 +1006,15 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     uxsel_tell(ret);
     add234(sktree, ret);
 
-    return &ret->sockvt;
+    return &ret->sock;
 }
 
 static void sk_net_close(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
 
     if (s->child)
-        sk_net_close(&s->child->sockvt);
+        sk_net_close(&s->child->sock);
 
     del234(sktree, s);
     if (s->s >= 0) {
@@ -1038,9 +1038,9 @@ void *sk_getxdmdata(Socket *sock, int *lenp)
      * We must check that this socket really _is_ a NetSocket before
      * downcasting it.
      */
-    if (*sock != &NetSocket_sockvt)
+    if (sock->vt != &NetSocket_sockvt)
 	return NULL;		       /* failure */
-    s = FROMFIELD(sock, NetSocket, sockvt);
+    s = FROMFIELD(sock, NetSocket, sock);
 
     addrlen = sizeof(u);
     if (getsockname(s->s, &u.sa, &addrlen) < 0)
@@ -1186,7 +1186,7 @@ void try_send(NetSocket *s)
 
 static int sk_net_write(Socket *sock, const void *buf, int len)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1212,7 +1212,7 @@ static int sk_net_write(Socket *sock, const void *buf, int len)
 
 static int sk_net_write_oob(Socket *sock, const void *buf, int len)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1241,7 +1241,7 @@ static int sk_net_write_oob(Socket *sock, const void *buf, int len)
 
 static void sk_net_write_eof(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
 
     assert(s->outgoingeof == EOF_NO);
 
@@ -1468,13 +1468,13 @@ const char *sk_addr_error(SockAddr *addr)
 }
 static const char *sk_net_socket_error(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
     return s->error;
 }
 
 static void sk_net_set_frozen(Socket *sock, int is_frozen)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
@@ -1483,7 +1483,7 @@ static void sk_net_set_frozen(Socket *sock, int is_frozen)
 
 static char *sk_net_peer_info(Socket *sock)
 {
-    NetSocket *s = FROMFIELD(sock, NetSocket, sockvt);
+    NetSocket *s = FROMFIELD(sock, NetSocket, sock);
     union sockaddr_union addr;
     socklen_t addrlen = sizeof(addr);
 #ifndef NO_IPV6
@@ -1644,7 +1644,7 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
      * Create NetSocket structure.
      */
     ret = snew(NetSocket);
-    ret->sockvt = &NetSocket_sockvt;
+    ret->sock.vt = &NetSocket_sockvt;
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
@@ -1669,7 +1669,7 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     s = socket(AF_UNIX, SOCK_STREAM, 0);
     if (s < 0) {
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     cloexec(s);
@@ -1692,20 +1692,20 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     if (unlink(u.su.sun_path) < 0 && errno != ENOENT) {
         close(s);
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     retcode = bind(s, &addr->sa, addrlen);
     if (retcode < 0) {
         close(s);
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     if (listen(s, SOMAXCONN) < 0) {
         close(s);
 	ret->error = strerror(errno);
-	return &ret->sockvt;
+	return &ret->sock;
     }
 
     ret->s = s;
@@ -1713,5 +1713,5 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     uxsel_tell(ret);
     add234(sktree, ret);
 
-    return &ret->sockvt;
+    return &ret->sock;
 }
