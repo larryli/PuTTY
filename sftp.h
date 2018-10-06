@@ -138,7 +138,7 @@ char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req);
  * if it's being created.
  */
 struct sftp_request *fxp_open_send(const char *path, int type,
-                                   struct fxp_attrs *attrs);
+                                   const struct fxp_attrs *attrs);
 struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin,
 				 struct sftp_request *req);
 
@@ -158,7 +158,8 @@ int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
 /*
  * Make a directory.
  */
-struct sftp_request *fxp_mkdir_send(const char *path);
+struct sftp_request *fxp_mkdir_send(const char *path,
+                                    const struct fxp_attrs *attrs);
 int fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*

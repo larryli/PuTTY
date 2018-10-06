@@ -85,6 +85,8 @@ static void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs)
     }
 }
 
+static const struct fxp_attrs no_attrs = { 0 };
+
 #define put_fxp_attrs(bs, attrs) \
     BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
 
@@ -460,7 +462,7 @@ char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req)
  * Open a file.
  */
 struct sftp_request *fxp_open_send(const char *path, int type,
-                                   struct fxp_attrs *attrs)
+                                   const struct fxp_attrs *attrs)
 {
     struct sftp_request *req = sftp_alloc_request();
     struct sftp_packet *pktout;
@@ -469,10 +471,7 @@ struct sftp_request *fxp_open_send(const char *path, int type,
     put_uint32(pktout, req->id);
     put_stringz(pktout, path);
     put_uint32(pktout, type);
-    if (attrs)
-        put_fxp_attrs(pktout, *attrs);
-    else
-        put_uint32(pktout, 0); /* empty ATTRS structure */
+    put_fxp_attrs(pktout, attrs ? *attrs : no_attrs);
     sftp_send(pktout);
 
     return req;
@@ -566,7 +565,8 @@ int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req)
     return fxp_errtype == SSH_FX_OK;
 }
 
-struct sftp_request *fxp_mkdir_send(const char *path)
+struct sftp_request *fxp_mkdir_send(const char *path,
+                                    const struct fxp_attrs *attrs)
 {
     struct sftp_request *req = sftp_alloc_request();
     struct sftp_packet *pktout;
@@ -574,7 +574,7 @@ struct sftp_request *fxp_mkdir_send(const char *path)
     pktout = sftp_pkt_init(SSH_FXP_MKDIR);
     put_uint32(pktout, req->id);
     put_stringz(pktout, path);
-    put_uint32(pktout, 0);     /* (FIXME) empty ATTRS structure */
+    put_fxp_attrs(pktout, attrs ? *attrs : no_attrs);
     sftp_send(pktout);
 
     return req;

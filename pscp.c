@@ -1015,7 +1015,7 @@ int scp_send_dirname(const char *name, int modes)
 	 * exists and is a directory we will assume we were either
 	 * successful or it didn't matter.
 	 */
-	req = fxp_mkdir_send(fullname);
+	req = fxp_mkdir_send(fullname, NULL);
         pktin = sftp_wait_for_reply(req);
 	ret = fxp_mkdir_recv(pktin, req);
 

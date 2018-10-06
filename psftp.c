@@ -516,7 +516,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
 	if (!result ||
 	    !(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) ||
 	    !(attrs.permissions & 0040000)) {
-	    req = fxp_mkdir_send(outfname);
+	    req = fxp_mkdir_send(outfname, NULL);
             pktin = sftp_wait_for_reply(req);
 	    result = fxp_mkdir_recv(pktin, req);
 
@@ -1422,7 +1422,7 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
 	    return 0;
 	}
 
-	req = fxp_mkdir_send(dir);
+	req = fxp_mkdir_send(dir, NULL);
         pktin = sftp_wait_for_reply(req);
 	result = fxp_mkdir_recv(pktin, req);
 
