@@ -90,12 +90,12 @@ typedef struct PacketQueueBase {
 
 typedef struct PktInQueue {
     PacketQueueBase pqb;
-    PktIn *(*get)(PacketQueueBase *, int pop);
+    PktIn *(*after)(PacketQueueBase *, PacketQueueNode *prev, int pop);
 } PktInQueue;
 
 typedef struct PktOutQueue {
     PacketQueueBase pqb;
-    PktOut *(*get)(PacketQueueBase *, int pop);
+    PktOut *(*after)(PacketQueueBase *, PacketQueueNode *prev, int pop);
 } PktOutQueue;
 
 void pq_base_push(PacketQueueBase *pqb, PacketQueueNode *node);
@@ -108,20 +108,23 @@ void pq_out_init(PktOutQueue *pq);
 void pq_in_clear(PktInQueue *pq);
 void pq_out_clear(PktOutQueue *pq);
 
-#define pq_push(pq, pkt)                                \
-    TYPECHECK((pq)->get(&(pq)->pqb, FALSE) == pkt,      \
+#define pq_push(pq, pkt)                                        \
+    TYPECHECK((pq)->after(&(pq)->pqb, NULL, FALSE) == pkt,      \
               pq_base_push(&(pq)->pqb, &(pkt)->qnode))
 #define pq_push_front(pq, pkt)                                  \
-    TYPECHECK((pq)->get(&(pq)->pqb, FALSE) == pkt,              \
+    TYPECHECK((pq)->after(&(pq)->pqb, NULL, FALSE) == pkt,      \
               pq_base_push_front(&(pq)->pqb, &(pkt)->qnode))
-#define pq_peek(pq) ((pq)->get(&(pq)->pqb, FALSE))
-#define pq_pop(pq) ((pq)->get(&(pq)->pqb, TRUE))
-#define pq_concatenate(dst, q1, q2)                                      \
-    TYPECHECK((q1)->get(&(q1)->pqb, FALSE) ==                           \
-              (dst)->get(&(dst)->pqb, FALSE) &&                         \
-              (q2)->get(&(q2)->pqb, FALSE) ==                           \
-              (dst)->get(&(dst)->pqb, FALSE),                           \
+#define pq_peek(pq) ((pq)->after(&(pq)->pqb, &(pq)->pqb.end, FALSE))
+#define pq_pop(pq) ((pq)->after(&(pq)->pqb, &(pq)->pqb.end, TRUE))
+#define pq_concatenate(dst, q1, q2)                                     \
+    TYPECHECK((q1)->after(&(q1)->pqb, NULL, FALSE) ==                   \
+              (dst)->after(&(dst)->pqb, NULL, FALSE) &&                 \
+              (q2)->after(&(q2)->pqb, NULL, FALSE) ==                   \
+              (dst)->after(&(dst)->pqb, NULL, FALSE),                   \
               pq_base_concatenate(&(dst)->pqb, &(q1)->pqb, &(q2)->pqb))
+
+#define pq_first(pq) pq_peek(pq)
+#define pq_next(pq, pkt) ((pq)->after(&(pq)->pqb, &(pkt)->qnode, FALSE))
 
 /*
  * Packet type contexts, so that ssh2_pkt_type can correctly decode
