@@ -199,11 +199,8 @@ struct ssh2_transport_state {
 
     int nbits, pbits, warn_kex, warn_hk, warn_cscipher, warn_sccipher;
     Bignum p, g, e, f, K;
-    void *our_kexinit;
-    int our_kexinitlen;
+    strbuf *client_kexinit, *server_kexinit;
     int kex_init_value, kex_reply_value;
-    const struct ssh2_macalg *const *maclist;
-    int nmacs;
     struct {
         const struct ssh2_cipheralg *cipher;
         const struct ssh2_macalg *mac;
@@ -217,16 +214,9 @@ struct ssh2_transport_state {
     struct RSAKey *rsa_kex_key;             /* for RSA kex */
     struct ec_key *ecdh_key;              /* for ECDH kex */
     unsigned char exchange_hash[SSH2_KEX_MAX_HASH_LEN];
-    int n_preferred_kex;
     int can_gssapi_keyex;
     int need_gss_transient_hostkey;
     int warned_about_no_gss_transient_hostkey;
-    const struct ssh_kexes *preferred_kex[KEX_MAX + 1]; /* +1 for GSSAPI */
-    int n_preferred_hk;
-    int preferred_hk[HK_MAX];
-    int n_preferred_ciphers;
-    const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
-    const struct ssh_compression_alg *preferred_comp;
     int got_session_id;
     int dlgret;
     int guessok;
@@ -341,6 +331,9 @@ PacketProtocolLayer *ssh2_transport_new(
     s->thc = ssh_transient_hostkey_cache_new();
     s->gss_kex_used = FALSE;
 
+    s->client_kexinit = strbuf_new();
+    s->server_kexinit = strbuf_new();
+
     ssh2_transport_set_max_data_size(s);
 
     return &s->ppl;
@@ -397,6 +390,8 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
         ssh_ecdhkex_freekey(s->ecdh_key);
     if (s->exhash)
         ssh_hash_free(s->exhash);
+    strbuf_free(s->client_kexinit);
+    strbuf_free(s->server_kexinit);
     ssh_transient_hostkey_cache_free(s->thc);
     sfree(s);
 }
@@ -583,6 +578,329 @@ static PktIn *ssh2_transport_pop(struct ssh2_transport_state *s)
     return pq_pop(s->ppl.in_pq);
 }
 
+static void ssh2_write_kexinit_lists(
+    BinarySink *pktout,
+    struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST],
+    Conf *conf, int remote_bugs,
+    const char *hk_host, int hk_port, const ssh_keyalg *hk_prev,
+    ssh_transient_hostkey_cache *thc,
+    int first_time, int can_gssapi_keyex, int transient_hostkey_mode)
+{
+    int i, j, k, warn;
+
+    int n_preferred_kex;
+    const struct ssh_kexes *preferred_kex[KEX_MAX + 1]; /* +1 for GSSAPI */
+    int n_preferred_hk;
+    int preferred_hk[HK_MAX];
+    int n_preferred_ciphers;
+    const struct ssh2_ciphers *preferred_ciphers[CIPHER_MAX];
+    const struct ssh_compression_alg *preferred_comp;
+    const struct ssh2_macalg *const *maclist;
+    int nmacs;
+
+    struct kexinit_algorithm *alg;
+
+    /*
+     * Set up the preferred key exchange. (NULL => warn below here)
+     */
+    n_preferred_kex = 0;
+    if (can_gssapi_keyex)
+        preferred_kex[n_preferred_kex++] = &ssh_gssk5_sha1_kex;
+    for (i = 0; i < KEX_MAX; i++) {
+        switch (conf_get_int_int(conf, CONF_ssh_kexlist, i)) {
+          case KEX_DHGEX:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_gex;
+            break;
+          case KEX_DHGROUP14:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group14;
+            break;
+          case KEX_DHGROUP1:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_diffiehellman_group1;
+            break;
+          case KEX_RSA:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_rsa_kex;
+            break;
+          case KEX_ECDH:
+            preferred_kex[n_preferred_kex++] =
+                &ssh_ecdh_kex;
+            break;
+          case KEX_WARN:
+            /* Flag for later. Don't bother if it's the last in
+             * the list. */
+            if (i < KEX_MAX - 1) {
+                preferred_kex[n_preferred_kex++] = NULL;
+            }
+            break;
+        }
+    }
+
+    /*
+     * Set up the preferred host key types. These are just the ids
+     * in the enum in putty.h, so 'warn below here' is indicated
+     * by HK_WARN.
+     */
+    n_preferred_hk = 0;
+    for (i = 0; i < HK_MAX; i++) {
+        int id = conf_get_int_int(conf, CONF_ssh_hklist, i);
+        /* As above, don't bother with HK_WARN if it's last in the
+         * list */
+        if (id != HK_WARN || i < HK_MAX - 1)
+            preferred_hk[n_preferred_hk++] = id;
+    }
+
+    /*
+     * Set up the preferred ciphers. (NULL => warn below here)
+     */
+    n_preferred_ciphers = 0;
+    for (i = 0; i < CIPHER_MAX; i++) {
+        switch (conf_get_int_int(conf, CONF_ssh_cipherlist, i)) {
+          case CIPHER_BLOWFISH:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_blowfish;
+            break;
+          case CIPHER_DES:
+            if (conf_get_int(conf, CONF_ssh2_des_cbc))
+                preferred_ciphers[n_preferred_ciphers++] = &ssh2_des;
+            break;
+          case CIPHER_3DES:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_3des;
+            break;
+          case CIPHER_AES:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_aes;
+            break;
+          case CIPHER_ARCFOUR:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_arcfour;
+            break;
+          case CIPHER_CHACHA20:
+            preferred_ciphers[n_preferred_ciphers++] = &ssh2_ccp;
+            break;
+          case CIPHER_WARN:
+            /* Flag for later. Don't bother if it's the last in
+             * the list. */
+            if (i < CIPHER_MAX - 1) {
+                preferred_ciphers[n_preferred_ciphers++] = NULL;
+            }
+            break;
+        }
+    }
+
+    /*
+     * Set up preferred compression.
+     */
+    if (conf_get_int(conf, CONF_compression))
+        preferred_comp = &ssh_zlib;
+    else
+        preferred_comp = &ssh_comp_none;
+
+    for (i = 0; i < NKEXLIST; i++)
+        for (j = 0; j < MAXKEXLIST; j++)
+            kexlists[i][j].name = NULL;
+    /* List key exchange algorithms. */
+    warn = FALSE;
+    for (i = 0; i < n_preferred_kex; i++) {
+        const struct ssh_kexes *k = preferred_kex[i];
+        if (!k) warn = TRUE;
+        else for (j = 0; j < k->nkexes; j++) {
+                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_KEX],
+                                          k->list[j]->name);
+                alg->u.kex.kex = k->list[j];
+                alg->u.kex.warn = warn;
+            }
+    }
+    /* List server host key algorithms. */
+    if (first_time) {
+        /*
+         * In the first key exchange, we list all the algorithms
+         * we're prepared to cope with, but prefer those algorithms
+         * for which we have a host key for this host.
+         *
+         * If the host key algorithm is below the warning
+         * threshold, we warn even if we did already have a key
+         * for it, on the basis that if the user has just
+         * reconfigured that host key type to be warned about,
+         * they surely _do_ want to be alerted that a server
+         * they're actually connecting to is using it.
+         */
+        warn = FALSE;
+        for (i = 0; i < n_preferred_hk; i++) {
+            if (preferred_hk[i] == HK_WARN)
+                warn = TRUE;
+            for (j = 0; j < lenof(hostkey_algs); j++) {
+                if (hostkey_algs[j].id != preferred_hk[i])
+                    continue;
+                if (have_ssh_host_key(hk_host, hk_port,
+                                      hostkey_algs[j].alg->cache_id)) {
+                    alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                                              hostkey_algs[j].alg->ssh_id);
+                    alg->u.hk.hostkey = hostkey_algs[j].alg;
+                    alg->u.hk.warn = warn;
+                }
+            }
+        }
+        warn = FALSE;
+        for (i = 0; i < n_preferred_hk; i++) {
+            if (preferred_hk[i] == HK_WARN)
+                warn = TRUE;
+            for (j = 0; j < lenof(hostkey_algs); j++) {
+                if (hostkey_algs[j].id != preferred_hk[i])
+                    continue;
+                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                                          hostkey_algs[j].alg->ssh_id);
+                alg->u.hk.hostkey = hostkey_algs[j].alg;
+                alg->u.hk.warn = warn;
+            }
+        }
+#ifndef NO_GSSAPI
+    } else if (transient_hostkey_mode) {
+        /*
+         * If we've previously done a GSSAPI KEX, then we list
+         * precisely the algorithms for which a previous GSS key
+         * exchange has delivered us a host key, because we expect
+         * one of exactly those keys to be used in any subsequent
+         * non-GSS-based rekey.
+         *
+         * An exception is if this is the key exchange we
+         * triggered for the purposes of populating that cache -
+         * in which case the cache will currently be empty, which
+         * isn't helpful!
+         */
+        warn = FALSE;
+        for (i = 0; i < n_preferred_hk; i++) {
+            if (preferred_hk[i] == HK_WARN)
+                warn = TRUE;
+            for (j = 0; j < lenof(hostkey_algs); j++) {
+                if (hostkey_algs[j].id != preferred_hk[i])
+                    continue;
+                if (ssh_transient_hostkey_cache_has(
+                        thc, hostkey_algs[j].alg)) {
+                    alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                                              hostkey_algs[j].alg->ssh_id);
+                    alg->u.hk.hostkey = hostkey_algs[j].alg;
+                    alg->u.hk.warn = warn;
+                }
+            }
+        }
+#endif
+    } else {
+        /*
+         * In subsequent key exchanges, we list only the host key
+         * algorithm that was selected in the first key exchange,
+         * so that we keep getting the same host key and hence
+         * don't have to interrupt the user's session to ask for
+         * reverification.
+         */
+        assert(hk_prev);
+        alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY], hk_prev->ssh_id);
+        alg->u.hk.hostkey = hk_prev;
+        alg->u.hk.warn = FALSE;
+    }
+    if (can_gssapi_keyex) {
+        alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY], "null");
+        alg->u.hk.hostkey = NULL;
+    }
+    /* List encryption algorithms (client->server then server->client). */
+    for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
+        warn = FALSE;
+#ifdef FUZZING
+        alg = ssh2_kexinit_addalg(kexlists[k], "none");
+        alg->u.cipher.cipher = NULL;
+        alg->u.cipher.warn = warn;
+#endif /* FUZZING */
+        for (i = 0; i < n_preferred_ciphers; i++) {
+            const struct ssh2_ciphers *c = preferred_ciphers[i];
+            if (!c) warn = TRUE;
+            else for (j = 0; j < c->nciphers; j++) {
+                    alg = ssh2_kexinit_addalg(kexlists[k],
+                                              c->list[j]->name);
+                    alg->u.cipher.cipher = c->list[j];
+                    alg->u.cipher.warn = warn;
+                }
+        }
+    }
+
+    /*
+     * Be prepared to work around the buggy MAC problem.
+     */
+    if (remote_bugs & BUG_SSH2_HMAC) {
+        maclist = buggymacs;
+        nmacs = lenof(buggymacs);
+    } else {
+        maclist = macs;
+        nmacs = lenof(macs);
+    }
+
+    /* List MAC algorithms (client->server then server->client). */
+    for (j = KEXLIST_CSMAC; j <= KEXLIST_SCMAC; j++) {
+#ifdef FUZZING
+        alg = ssh2_kexinit_addalg(kexlists[j], "none");
+        alg->u.mac.mac = NULL;
+        alg->u.mac.etm = FALSE;
+#endif /* FUZZING */
+        for (i = 0; i < nmacs; i++) {
+            alg = ssh2_kexinit_addalg(kexlists[j], maclist[i]->name);
+            alg->u.mac.mac = maclist[i];
+            alg->u.mac.etm = FALSE;
+        }
+        for (i = 0; i < nmacs; i++) {
+            /* For each MAC, there may also be an ETM version,
+             * which we list second. */
+            if (maclist[i]->etm_name) {
+                alg = ssh2_kexinit_addalg(kexlists[j], maclist[i]->etm_name);
+                alg->u.mac.mac = maclist[i];
+                alg->u.mac.etm = TRUE;
+            }
+        }
+    }
+
+    /* List client->server compression algorithms,
+     * then server->client compression algorithms. (We use the
+     * same set twice.) */
+    for (j = KEXLIST_CSCOMP; j <= KEXLIST_SCCOMP; j++) {
+        assert(lenof(compressions) > 1);
+        /* Prefer non-delayed versions */
+        alg = ssh2_kexinit_addalg(kexlists[j], preferred_comp->name);
+        alg->u.comp.comp = preferred_comp;
+        alg->u.comp.delayed = FALSE;
+        if (preferred_comp->delayed_name) {
+            alg = ssh2_kexinit_addalg(kexlists[j],
+                                      preferred_comp->delayed_name);
+            alg->u.comp.comp = preferred_comp;
+            alg->u.comp.delayed = TRUE;
+        }
+        for (i = 0; i < lenof(compressions); i++) {
+            const struct ssh_compression_alg *c = compressions[i];
+            alg = ssh2_kexinit_addalg(kexlists[j], c->name);
+            alg->u.comp.comp = c;
+            alg->u.comp.delayed = FALSE;
+            if (c->delayed_name) {
+                alg = ssh2_kexinit_addalg(kexlists[j], c->delayed_name);
+                alg->u.comp.comp = c;
+                alg->u.comp.delayed = TRUE;
+            }
+        }
+    }
+
+    /*
+     * Finally, format the lists into text and write them into the
+     * outgoing KEXINIT packet.
+     */
+    for (i = 0; i < NKEXLIST; i++) {
+        strbuf *list = strbuf_new();
+        for (j = 0; j < MAXKEXLIST; j++) {
+            if (kexlists[i][j].name == NULL) break;
+            add_to_commasep(list, kexlists[i][j].name);
+        }
+        put_stringsb(pktout, list);
+    }
+    /* List client->server languages. Empty list. */
+    put_stringz(pktout, "");
+    /* List server->client languages. Empty list. */
+    put_stringz(pktout, "");
+}
+
 static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
 {
     struct ssh2_transport_state *s =
@@ -606,14 +924,6 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     s->got_session_id = FALSE;
     s->need_gss_transient_hostkey = FALSE;
     s->warned_about_no_gss_transient_hostkey = FALSE;
-
-    /*
-     * Be prepared to work around the buggy MAC problem.
-     */
-    if (s->ppl.remote_bugs & BUG_SSH2_HMAC)
-        s->maclist = buggymacs, s->nmacs = lenof(buggymacs);
-    else
-        s->maclist = macs, s->nmacs = lenof(macs);
 
   begin_key_exchange:
 
@@ -665,316 +975,55 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
 #endif
 
     s->ppl.bpp->pls->kctx = SSH2_PKTCTX_NOKEX;
+
+    /*
+     * Construct our KEXINIT packet, in a strbuf so we can refer to it
+     * later.
+     */
+    s->client_kexinit->len = 0;
+    put_byte(s->client_kexinit, SSH2_MSG_KEXINIT);
     {
-        int i, j, k, warn;
-        struct kexinit_algorithm *alg;
-
-        /*
-         * Set up the preferred key exchange. (NULL => warn below here)
-         */
-        s->n_preferred_kex = 0;
-        if (s->can_gssapi_keyex)
-            s->preferred_kex[s->n_preferred_kex++] = &ssh_gssk5_sha1_kex;
-        for (i = 0; i < KEX_MAX; i++) {
-	    switch (conf_get_int_int(s->conf, CONF_ssh_kexlist, i)) {
-              case KEX_DHGEX:
-                s->preferred_kex[s->n_preferred_kex++] =
-                    &ssh_diffiehellman_gex;
-                break;
-              case KEX_DHGROUP14:
-                s->preferred_kex[s->n_preferred_kex++] =
-                    &ssh_diffiehellman_group14;
-                break;
-              case KEX_DHGROUP1:
-                s->preferred_kex[s->n_preferred_kex++] =
-                    &ssh_diffiehellman_group1;
-                break;
-              case KEX_RSA:
-                s->preferred_kex[s->n_preferred_kex++] =
-                    &ssh_rsa_kex;
-                break;
-              case KEX_ECDH:
-                s->preferred_kex[s->n_preferred_kex++] =
-                    &ssh_ecdh_kex;
-                break;
-              case KEX_WARN:
-                /* Flag for later. Don't bother if it's the last in
-                 * the list. */
-                if (i < KEX_MAX - 1) {
-                    s->preferred_kex[s->n_preferred_kex++] = NULL;
-                }
-                break;
-            }
-        }
-
-        /*
-         * Set up the preferred host key types. These are just the ids
-         * in the enum in putty.h, so 'warn below here' is indicated
-         * by HK_WARN.
-         */
-        s->n_preferred_hk = 0;
-        for (i = 0; i < HK_MAX; i++) {
-            int id = conf_get_int_int(s->conf, CONF_ssh_hklist, i);
-            /* As above, don't bother with HK_WARN if it's last in the
-             * list */
-            if (id != HK_WARN || i < HK_MAX - 1)
-                s->preferred_hk[s->n_preferred_hk++] = id;
-        }
-
-        /*
-         * Set up the preferred ciphers. (NULL => warn below here)
-         */
-        s->n_preferred_ciphers = 0;
-	for (i = 0; i < CIPHER_MAX; i++) {
-	    switch (conf_get_int_int(s->conf, CONF_ssh_cipherlist, i)) {
-              case CIPHER_BLOWFISH:
-                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_blowfish;
-                break;
-              case CIPHER_DES:
-		if (conf_get_int(s->conf, CONF_ssh2_des_cbc))
-                    s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_des;
-                break;
-              case CIPHER_3DES:
-                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_3des;
-                break;
-              case CIPHER_AES:
-                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_aes;
-                break;
-              case CIPHER_ARCFOUR:
-                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_arcfour;
-                break;
-              case CIPHER_CHACHA20:
-                s->preferred_ciphers[s->n_preferred_ciphers++] = &ssh2_ccp;
-                break;
-              case CIPHER_WARN:
-                /* Flag for later. Don't bother if it's the last in
-                 * the list. */
-                if (i < CIPHER_MAX - 1) {
-                    s->preferred_ciphers[s->n_preferred_ciphers++] = NULL;
-                }
-                break;
-            }
-        }
-
-        /*
-         * Set up preferred compression.
-         */
-	if (conf_get_int(s->conf, CONF_compression))
-            s->preferred_comp = &ssh_zlib;
-        else
-            s->preferred_comp = &ssh_comp_none;
-
-        /*
-         * Flag that KEX is in progress.
-         */
-        s->kex_in_progress = TRUE;
-
-        for (i = 0; i < NKEXLIST; i++)
-            for (j = 0; j < MAXKEXLIST; j++)
-                s->kexlists[i][j].name = NULL;
-        /* List key exchange algorithms. */
-        warn = FALSE;
-        for (i = 0; i < s->n_preferred_kex; i++) {
-            const struct ssh_kexes *k = s->preferred_kex[i];
-            if (!k) warn = TRUE;
-            else for (j = 0; j < k->nkexes; j++) {
-                    alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_KEX],
-                                              k->list[j]->name);
-                    alg->u.kex.kex = k->list[j];
-                    alg->u.kex.warn = warn;
-                }
-        }
-        /* List server host key algorithms. */
-        if (!s->got_session_id) {
-            /*
-             * In the first key exchange, we list all the algorithms
-             * we're prepared to cope with, but prefer those algorithms
-             * for which we have a host key for this host.
-             *
-             * If the host key algorithm is below the warning
-             * threshold, we warn even if we did already have a key
-             * for it, on the basis that if the user has just
-             * reconfigured that host key type to be warned about,
-             * they surely _do_ want to be alerted that a server
-             * they're actually connecting to is using it.
-             */
-            warn = FALSE;
-            for (i = 0; i < s->n_preferred_hk; i++) {
-                if (s->preferred_hk[i] == HK_WARN)
-                    warn = TRUE;
-                for (j = 0; j < lenof(hostkey_algs); j++) {
-                    if (hostkey_algs[j].id != s->preferred_hk[i])
-                        continue;
-                    if (have_ssh_host_key(s->savedhost, s->savedport,
-                                          hostkey_algs[j].alg->cache_id)) {
-                        alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                                  hostkey_algs[j].alg->ssh_id);
-                        alg->u.hk.hostkey = hostkey_algs[j].alg;
-                        alg->u.hk.warn = warn;
-                    }
-                }
-            }
-            warn = FALSE;
-            for (i = 0; i < s->n_preferred_hk; i++) {
-                if (s->preferred_hk[i] == HK_WARN)
-                    warn = TRUE;
-                for (j = 0; j < lenof(hostkey_algs); j++) {
-                    if (hostkey_algs[j].id != s->preferred_hk[i])
-                        continue;
-                    alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                              hostkey_algs[j].alg->ssh_id);
-                    alg->u.hk.hostkey = hostkey_algs[j].alg;
-                    alg->u.hk.warn = warn;
-                }
-            }
-#ifndef NO_GSSAPI
-        } else if (s->gss_kex_used && !s->need_gss_transient_hostkey) {
-            /*
-             * If we've previously done a GSSAPI KEX, then we list
-             * precisely the algorithms for which a previous GSS key
-             * exchange has delivered us a host key, because we expect
-             * one of exactly those keys to be used in any subsequent
-             * non-GSS-based rekey.
-             *
-             * An exception is if this is the key exchange we
-             * triggered for the purposes of populating that cache -
-             * in which case the cache will currently be empty, which
-             * isn't helpful!
-             */
-            warn = FALSE;
-            for (i = 0; i < s->n_preferred_hk; i++) {
-                if (s->preferred_hk[i] == HK_WARN)
-                    warn = TRUE;
-                for (j = 0; j < lenof(hostkey_algs); j++) {
-                    if (hostkey_algs[j].id != s->preferred_hk[i])
-                        continue;
-                    if (ssh_transient_hostkey_cache_has(
-                            s->thc, hostkey_algs[j].alg)) {
-                        alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                                  hostkey_algs[j].alg->ssh_id);
-                        alg->u.hk.hostkey = hostkey_algs[j].alg;
-                        alg->u.hk.warn = warn;
-                    }
-                }
-            }
-#endif
-        } else {
-            /*
-             * In subsequent key exchanges, we list only the kex
-             * algorithm that was selected in the first key exchange,
-             * so that we keep getting the same host key and hence
-             * don't have to interrupt the user's session to ask for
-             * reverification.
-             */
-            assert(s->kex_alg);
-            alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
-                                      s->hostkey_alg->ssh_id);
-            alg->u.hk.hostkey = s->hostkey_alg;
-            alg->u.hk.warn = FALSE;
-        }
-        if (s->can_gssapi_keyex) {
-            alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY], "null");
-            alg->u.hk.hostkey = NULL;
-        }
-        /* List encryption algorithms (client->server then server->client). */
-        for (k = KEXLIST_CSCIPHER; k <= KEXLIST_SCCIPHER; k++) {
-            warn = FALSE;
-#ifdef FUZZING
-            alg = ssh2_kexinit_addalg(s->kexlists[k], "none");
-            alg->u.cipher.cipher = NULL;
-            alg->u.cipher.warn = warn;
-#endif /* FUZZING */
-            for (i = 0; i < s->n_preferred_ciphers; i++) {
-                const struct ssh2_ciphers *c = s->preferred_ciphers[i];
-                if (!c) warn = TRUE;
-                else for (j = 0; j < c->nciphers; j++) {
-                        alg = ssh2_kexinit_addalg(s->kexlists[k],
-                                                  c->list[j]->name);
-                        alg->u.cipher.cipher = c->list[j];
-                        alg->u.cipher.warn = warn;
-                    }
-            }
-        }
-        /* List MAC algorithms (client->server then server->client). */
-        for (j = KEXLIST_CSMAC; j <= KEXLIST_SCMAC; j++) {
-#ifdef FUZZING
-            alg = ssh2_kexinit_addalg(s->kexlists[j], "none");
-            alg->u.mac.mac = NULL;
-            alg->u.mac.etm = FALSE;
-#endif /* FUZZING */
-            for (i = 0; i < s->nmacs; i++) {
-                alg = ssh2_kexinit_addalg(s->kexlists[j], s->maclist[i]->name);
-                alg->u.mac.mac = s->maclist[i];
-                alg->u.mac.etm = FALSE;
-            }
-            for (i = 0; i < s->nmacs; i++)
-                /* For each MAC, there may also be an ETM version,
-                 * which we list second. */
-                if (s->maclist[i]->etm_name) {
-                    alg = ssh2_kexinit_addalg(s->kexlists[j],
-                                              s->maclist[i]->etm_name);
-                    alg->u.mac.mac = s->maclist[i];
-                    alg->u.mac.etm = TRUE;
-                }
-        }
-        /* List client->server compression algorithms,
-         * then server->client compression algorithms. (We use the
-         * same set twice.) */
-        for (j = KEXLIST_CSCOMP; j <= KEXLIST_SCCOMP; j++) {
-            assert(lenof(compressions) > 1);
-            /* Prefer non-delayed versions */
-            alg = ssh2_kexinit_addalg(s->kexlists[j], s->preferred_comp->name);
-            alg->u.comp.comp = s->preferred_comp;
-            alg->u.comp.delayed = FALSE;
-            if (s->preferred_comp->delayed_name) {
-                alg = ssh2_kexinit_addalg(s->kexlists[j],
-                                          s->preferred_comp->delayed_name);
-                alg->u.comp.comp = s->preferred_comp;
-                alg->u.comp.delayed = TRUE;
-            }
-            for (i = 0; i < lenof(compressions); i++) {
-                const struct ssh_compression_alg *c = compressions[i];
-                alg = ssh2_kexinit_addalg(s->kexlists[j], c->name);
-                alg->u.comp.comp = c;
-                alg->u.comp.delayed = FALSE;
-                if (c->delayed_name) {
-                    alg = ssh2_kexinit_addalg(s->kexlists[j], c->delayed_name);
-                    alg->u.comp.comp = c;
-                    alg->u.comp.delayed = TRUE;
-                }
-            }
-        }
-        /*
-         * Construct and send our key exchange packet.
-         */
-        pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
+        int i;
         for (i = 0; i < 16; i++)
-            put_byte(pktout, (unsigned char) random_byte());
-        for (i = 0; i < NKEXLIST; i++) {
-            strbuf *list = strbuf_new();
-            for (j = 0; j < MAXKEXLIST; j++) {
-                if (s->kexlists[i][j].name == NULL) break;
-                add_to_commasep(list, s->kexlists[i][j].name);
-            }
-            put_stringsb(pktout, list);
-        }
-        /* List client->server languages. Empty list. */
-        put_stringz(pktout, "");
-        /* List server->client languages. Empty list. */
-        put_stringz(pktout, "");
-        /* First KEX packet does _not_ follow, because we're not that brave. */
-        put_bool(pktout, FALSE);
-        /* Reserved. */
-        put_uint32(pktout, 0);
+            put_byte(s->client_kexinit, (unsigned char) random_byte());
     }
+    ssh2_write_kexinit_lists(
+        BinarySink_UPCAST(s->client_kexinit), s->kexlists,
+        s->conf, s->ppl.remote_bugs,
+        s->savedhost, s->savedport, s->hostkey_alg, s->thc,
+        !s->got_session_id, s->can_gssapi_keyex,
+        s->gss_kex_used && !s->need_gss_transient_hostkey);
+    /* First KEX packet does _not_ follow, because we're not that brave. */
+    put_bool(s->client_kexinit, FALSE);
+    put_uint32(s->client_kexinit, 0);             /* reserved */
 
-    s->our_kexinitlen = pktout->length - 5;
-    s->our_kexinit = snewn(s->our_kexinitlen, unsigned char);
-    memcpy(s->our_kexinit, pktout->data + 5, s->our_kexinitlen);
-
+    /*
+     * Send our KEXINIT.
+     */
+    pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_KEXINIT);
+    put_data(pktout, s->client_kexinit->u + 1,
+             s->client_kexinit->len - 1); /* omit initial packet type byte */
     pq_push(s->ppl.out_pq, pktout);
 
+    /*
+     * Flag that KEX is in progress.
+     */
+    s->kex_in_progress = TRUE;
+
+    /*
+     * Wait for the other side's KEXINIT, and save it.
+     */
     crMaybeWaitUntilV((pktin = ssh2_transport_pop(s)) != NULL);
+    if (pktin->type != SSH2_MSG_KEXINIT) {
+        ssh_proto_error(s->ppl.ssh, "Received unexpected packet when "
+                        "expecting KEXINIT, type %d (%s)", pktin->type,
+                        ssh2_pkt_type(s->ppl.bpp->pls->kctx,
+                                      s->ppl.bpp->pls->actx, pktin->type));
+        return;
+    }
+    s->server_kexinit->len = 0;
+    put_byte(s->server_kexinit, SSH2_MSG_KEXINIT);
+    put_data(s->server_kexinit, get_ptr(pktin), get_avail(pktin));
 
     /*
      * Now examine the other side's KEXINIT to see what we're up
@@ -984,13 +1033,6 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         ptrlen str;
         int i, j;
 
-        if (pktin->type != SSH2_MSG_KEXINIT) {
-            ssh_proto_error(s->ppl.ssh, "Received unexpected packet when "
-                            "expecting KEXINIT, type %d (%s)", pktin->type,
-                            ssh2_pkt_type(s->ppl.bpp->pls->kctx,
-                                          s->ppl.bpp->pls->actx, pktin->type));
-            return;
-        }
         s->kex_alg = NULL;
         s->hostkey_alg = NULL;
         s->in.cipher = s->out.cipher = NULL;
@@ -1118,12 +1160,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         s->exhash = ssh_hash_new(s->kex_alg->hash);
         put_stringz(s->exhash, s->client_greeting);
         put_stringz(s->exhash, s->server_greeting);
-        put_string(s->exhash, s->our_kexinit, s->our_kexinitlen);
-        sfree(s->our_kexinit);
-        /* Include the type byte in the hash of server's KEXINIT */
-        put_string(s->exhash,
-                   (const char *)BinarySource_UPCAST(pktin)->data - 1,
-                   BinarySource_UPCAST(pktin)->len + 1);
+        put_string(s->exhash, s->client_kexinit->u, s->client_kexinit->len);
+        put_string(s->exhash, s->server_kexinit->u, s->server_kexinit->len);
 
         if (s->warn_kex) {
             s->dlgret = seat_confirm_weak_crypto_primitive(
