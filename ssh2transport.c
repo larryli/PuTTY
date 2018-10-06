@@ -192,8 +192,8 @@ struct ssh2_transport_state {
     int gss_status;
     time_t gss_cred_expiry;             /* Re-delegate if newer */
     unsigned long gss_ctxt_lifetime;    /* Re-delegate when short */
-    tree234 *transient_hostkey_cache;
 #endif
+    ssh_transient_hostkey_cache *thc;
 
     int gss_kex_used;
 
@@ -287,16 +287,6 @@ static const struct PacketProtocolLayerVtable ssh2_transport_vtable = {
 #ifndef NO_GSSAPI
 static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
                                       int definitely_rekeying);
-static void ssh_init_transient_hostkey_store(struct ssh2_transport_state *);
-static void ssh_cleanup_transient_hostkey_store(struct ssh2_transport_state *);
-static void ssh_store_transient_hostkey(
-    struct ssh2_transport_state *s, ssh_key *key);
-static int ssh_verify_transient_hostkey(
-    struct ssh2_transport_state *s, ssh_key *key);
-static int ssh_have_transient_hostkey(
-    struct ssh2_transport_state *s, const ssh_keyalg *alg);
-static int ssh_have_any_transient_hostkey(
-    struct ssh2_transport_state *s);
 #endif
 
 static int ssh2_transport_timer_update(struct ssh2_transport_state *s,
@@ -347,8 +337,8 @@ PacketProtocolLayer *ssh2_transport_new(
     s->gss_cred_expiry = GSS_NO_EXPIRATION;
     s->shgss->srv_name = GSS_C_NO_NAME;
     s->shgss->ctx = NULL;
-    ssh_init_transient_hostkey_store(s);
 #endif
+    s->thc = ssh_transient_hostkey_cache_new();
     s->gss_kex_used = FALSE;
 
     ssh2_transport_set_max_data_size(s);
@@ -407,9 +397,7 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
         ssh_ecdhkex_freekey(s->ecdh_key);
     if (s->exhash)
         ssh_hash_free(s->exhash);
-#ifndef NO_GSSAPI
-    ssh_cleanup_transient_hostkey_store(s);
-#endif
+    ssh_transient_hostkey_cache_free(s->thc);
     sfree(s);
 }
 
@@ -860,7 +848,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 for (j = 0; j < lenof(hostkey_algs); j++) {
                     if (hostkey_algs[j].id != s->preferred_hk[i])
                         continue;
-                    if (ssh_have_transient_hostkey(s, hostkey_algs[j].alg)) {
+                    if (ssh_transient_hostkey_cache_has(
+                            s->thc, hostkey_algs[j].alg)) {
                         alg = ssh2_kexinit_addalg(s->kexlists[KEXLIST_HOSTKEY],
                                                   hostkey_algs[j].alg->ssh_id);
                         alg->u.hk.hostkey = hostkey_algs[j].alg;
@@ -1884,8 +1873,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     if (s->gss_kex_used) {
         /*
          * In a GSS-based session, check the host key (if any) against
-         * the transient host key cache. See comment above, at the
-         * definition of ssh_transient_hostkey_cache_entry.
+         * the transient host key cache.
          */
         if (s->kex_alg->main_type == KEXTYPE_GSS) {
 
@@ -1899,8 +1887,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 ppl_logevent(("%s", s->fingerprint));
                 sfree(s->fingerprint);
                 s->fingerprint = NULL;
-                ssh_store_transient_hostkey(s, s->hkey);
-            } else if (!ssh_have_any_transient_hostkey(s)) {
+                ssh_transient_hostkey_cache_add(s->thc, s->hkey);
+            } else if (!ssh_transient_hostkey_cache_non_empty(s->thc)) {
                 /*
                  * But if it didn't, then we currently have no
                  * fallback host key to use in subsequent non-GSS
@@ -1957,9 +1945,9 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
             if (s->need_gss_transient_hostkey) {
                 ppl_logevent(("Post-GSS rekey provided fallback host key:"));
                 ppl_logevent(("%s", s->fingerprint));
-                ssh_store_transient_hostkey(s, s->hkey);
+                ssh_transient_hostkey_cache_add(s->thc, s->hkey);
                 s->need_gss_transient_hostkey = FALSE;
-            } else if (!ssh_verify_transient_hostkey(s, s->hkey)) {
+            } else if (!ssh_transient_hostkey_cache_verify(s->thc, s->hkey)) {
                 ppl_logevent(("Non-GSS rekey after initial GSS kex "
                               "used host key:"));
                 ppl_logevent(("%s", s->fingerprint));
@@ -2582,123 +2570,6 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
         conf_get_int(s->conf, CONF_gssapirekey), GSS_DEF_REKEY_MINS);
     if (mins > 0 && s->gss_ctxt_lifetime <= mins * 60)
         s->gss_status |= GSS_CTXT_EXPIRES;
-}
-
-/*
- * Data structure managing host keys in sessions based on GSSAPI KEX.
- *
- * In a session we started with a GSSAPI key exchange, the concept of
- * 'host key' has completely different lifetime and security semantics
- * from the usual ones. Per RFC 4462 section 2.1, we assume that any
- * host key delivered to us in the course of a GSSAPI key exchange is
- * _solely_ there to use as a transient fallback within the same
- * session, if at the time of a subsequent rekey the GSS credentials
- * are temporarily invalid and so a non-GSS KEX method has to be used.
- *
- * In particular, in a GSS-based SSH deployment, host keys may not
- * even _be_ persistent identities for the server; it would be
- * legitimate for a server to generate a fresh one routinely if it
- * wanted to, like SSH-1 server keys.
- *
- * So, in this mode, we never touch the persistent host key cache at
- * all, either to check keys against it _or_ to store keys in it.
- * Instead, we maintain an in-memory cache of host keys that have been
- * mentioned in GSS key exchanges within this particular session, and
- * we permit precisely those host keys in non-GSS rekeys.
- */
-struct ssh_transient_hostkey_cache_entry {
-    const ssh_keyalg *alg;
-    strbuf *pub_blob;
-};
-
-static int ssh_transient_hostkey_cache_cmp(void *av, void *bv)
-{
-    const struct ssh_transient_hostkey_cache_entry
-        *a = (const struct ssh_transient_hostkey_cache_entry *)av,
-        *b = (const struct ssh_transient_hostkey_cache_entry *)bv;
-    return strcmp(a->alg->ssh_id, b->alg->ssh_id);
-}
-
-static int ssh_transient_hostkey_cache_find(void *av, void *bv)
-{
-    const ssh_keyalg *aalg = (const ssh_keyalg *)av;
-    const struct ssh_transient_hostkey_cache_entry
-        *b = (const struct ssh_transient_hostkey_cache_entry *)bv;
-    return strcmp(aalg->ssh_id, b->alg->ssh_id);
-}
-
-static void ssh_init_transient_hostkey_store(
-    struct ssh2_transport_state *s)
-{
-    s->transient_hostkey_cache =
-        newtree234(ssh_transient_hostkey_cache_cmp);
-}
-
-static void ssh_cleanup_transient_hostkey_store(
-    struct ssh2_transport_state *s)
-{
-    struct ssh_transient_hostkey_cache_entry *ent;
-    while ((ent = delpos234(s->transient_hostkey_cache, 0)) != NULL) {
-        strbuf_free(ent->pub_blob);
-        sfree(ent);
-    }
-    freetree234(s->transient_hostkey_cache);
-}
-
-static void ssh_store_transient_hostkey(
-    struct ssh2_transport_state *s, ssh_key *key)
-{
-    struct ssh_transient_hostkey_cache_entry *ent, *retd;
-
-    if ((ent = find234(s->transient_hostkey_cache, (void *)ssh_key_alg(key),
-                       ssh_transient_hostkey_cache_find)) != NULL) {
-        strbuf_free(ent->pub_blob);
-        sfree(ent);
-    }
-
-    ent = snew(struct ssh_transient_hostkey_cache_entry);
-    ent->alg = ssh_key_alg(key);
-    ent->pub_blob = strbuf_new();
-    ssh_key_public_blob(key, BinarySink_UPCAST(ent->pub_blob));
-    retd = add234(s->transient_hostkey_cache, ent);
-    assert(retd == ent);
-}
-
-static int ssh_verify_transient_hostkey(
-    struct ssh2_transport_state *s, ssh_key *key)
-{
-    struct ssh_transient_hostkey_cache_entry *ent;
-    int toret = FALSE;
-
-    if ((ent = find234(s->transient_hostkey_cache, (void *)ssh_key_alg(key),
-                       ssh_transient_hostkey_cache_find)) != NULL) {
-        strbuf *this_blob = strbuf_new();
-        ssh_key_public_blob(key, BinarySink_UPCAST(this_blob));
-
-        if (this_blob->len == ent->pub_blob->len &&
-            !memcmp(this_blob->s, ent->pub_blob->s,
-                    this_blob->len))
-            toret = TRUE;
-
-        strbuf_free(this_blob);
-    }
-
-    return toret;
-}
-
-static int ssh_have_transient_hostkey(
-    struct ssh2_transport_state *s, const ssh_keyalg *alg)
-{
-    struct ssh_transient_hostkey_cache_entry *ent =
-        find234(s->transient_hostkey_cache, (void *)alg,
-                ssh_transient_hostkey_cache_find);
-    return ent != NULL;
-}
-
-static int ssh_have_any_transient_hostkey(
-    struct ssh2_transport_state *s)
-{
-    return count234(s->transient_hostkey_cache) > 0;
 }
 
 ptrlen ssh2_transport_get_session_id(PacketProtocolLayer *ppl)

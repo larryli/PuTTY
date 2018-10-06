@@ -1482,3 +1482,14 @@ void add_to_commasep(strbuf *buf, const char *data);
 
 int verify_ssh_manual_host_key(
     Conf *conf, const char *fingerprint, ssh_key *key);
+
+typedef struct ssh_transient_hostkey_cache ssh_transient_hostkey_cache;
+ssh_transient_hostkey_cache *ssh_transient_hostkey_cache_new(void);
+void ssh_transient_hostkey_cache_free(ssh_transient_hostkey_cache *thc);
+void ssh_transient_hostkey_cache_add(
+    ssh_transient_hostkey_cache *thc, ssh_key *key);
+int ssh_transient_hostkey_cache_verify(
+    ssh_transient_hostkey_cache *thc, ssh_key *key);
+int ssh_transient_hostkey_cache_has(
+    ssh_transient_hostkey_cache *thc, const ssh_keyalg *alg);
+int ssh_transient_hostkey_cache_non_empty(ssh_transient_hostkey_cache *thc);
