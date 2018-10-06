@@ -36,7 +36,7 @@ void sigchld(int signum)
 void fatal(const char *fmt, ...)
 {
     va_list ap;
-    fprintf(stderr, "FIXME: ");
+    fprintf(stderr, "cygtermd: ");
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);

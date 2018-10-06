@@ -2,8 +2,8 @@
  * Header declaring Telnet-handling functions.
  */
 
-#ifndef FIXME_TELNET_H
-#define FIXME_TELNET_H
+#ifndef CYGTERMD_TELNET_H
+#define CYGTERMD_TELNET_H
 
 #include "sel.h"
 
@@ -38,4 +38,4 @@ void telnet_from_net(Telnet *telnet, char *buf, int len);
  */
 int telnet_shell_ok(Telnet *telnet, struct shell_data *shdata);
 
-#endif /* FIXME_TELNET_H */
+#endif /* CYGTERMD_TELNET_H */
