@@ -299,7 +299,7 @@ struct skeyval {
 
 static tree234 *xrmtree = NULL;
 
-int keycmp(void *av, void *bv)
+static int keycmp(void *av, void *bv)
 {
     struct skeyval *a = (struct skeyval *)av;
     struct skeyval *b = (struct skeyval *)bv;
@@ -340,7 +340,7 @@ void provide_xrm_string(char *string)
     }
 }
 
-const char *get_setting(const char *key)
+static const char *get_setting(const char *key)
 {
     struct skeyval tmp, *ret;
     tmp.key = key;
