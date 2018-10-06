@@ -801,12 +801,19 @@ void run_agent(void)
         int greetinglen;
         Socket *s;
         struct X11Connection *conn;
+        char *x11_setup_err;
 
         if (!display) {
             fprintf(stderr, "pageant: no DISPLAY for -X mode\n");
             exit(1);
         }
-        disp = x11_setup_display(display, conf);
+        disp = x11_setup_display(display, conf, &x11_setup_err);
+        if (!disp) {
+            fprintf(stderr, "pageant: unable to connect to X server: %s\n",
+                    x11_setup_err);
+            sfree(x11_setup_err);
+            exit(1);
+        }
 
         conn = snew(struct X11Connection);
         conn->plug.vt = &X11Connection_plugvt;

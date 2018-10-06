@@ -921,8 +921,12 @@ int x11_authcmp(void *av, void *bv); /* for putting X11FakeAuth in a tree234 */
  * the supplied authtype parameter configures the preferred
  * authorisation protocol to use at the remote end. The local auth
  * details are looked up by calling platform_get_x11_auth.
+ *
+ * If the returned pointer is NULL, then *error_msg will contain a
+ * dynamically allocated error message string.
  */
-extern struct X11Display *x11_setup_display(const char *display, Conf *);
+extern struct X11Display *x11_setup_display(const char *display, Conf *,
+                                            char **error_msg);
 void x11_free_display(struct X11Display *disp);
 struct X11FakeAuth *x11_invent_fake_auth(tree234 *t, int authtype);
 void x11_free_fake_auth(struct X11FakeAuth *auth);
