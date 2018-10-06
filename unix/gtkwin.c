@@ -3049,7 +3049,7 @@ void write_clip(Frontend *inst, int clipboard,
     state->pasteout_data_len = wc_to_mb(inst->ucsdata.line_codepage, 0,
 				       data, len, state->pasteout_data,
 				       state->pasteout_data_len,
-				       NULL, NULL, NULL);
+				       NULL, NULL);
     if (state->pasteout_data_len == 0) {
 	sfree(state->pasteout_data);
 	state->pasteout_data = NULL;

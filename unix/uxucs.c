@@ -57,13 +57,9 @@ int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 }
 
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
-	     char *mbstr, int mblen, const char *defchr, int *defused,
+	     char *mbstr, int mblen, const char *defchr,
 	     struct unicode_data *ucsdata)
 {
-    /* FIXME: we should remove the defused param completely... */
-    if (defused)
-	*defused = 0;
-
     if (codepage == DEFAULT_CODEPAGE) {
 	char output[MB_LEN_MAX];
 	mbstate_t state;
