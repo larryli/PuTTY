@@ -282,14 +282,19 @@ void close_settings_w(settings_w *handle)
     sfree(handle);
 }
 
-/*
- * Reading settings, for the moment, is done by retrieving X
- * resources from the X display. When we introduce disk files, I
- * think what will happen is that the X resources will override
- * PuTTY's inbuilt defaults, but that the disk files will then
- * override those. This isn't optimal, but it's the best I can
- * immediately work out.
- * FIXME: the above comment is a bit out of date. Did it happen?
+/* ----------------------------------------------------------------------
+ * System for treating X resources as a fallback source of defaults,
+ * after data read from a saved-session disk file.
+ *
+ * The read_setting_* functions will call get_setting(key) as a
+ * fallback if the setting isn't in the file they loaded. That in turn
+ * will hand on to x_get_default, which the front end application
+ * provides, and which actually reads resources from the X server (if
+ * appropriate). In between, there's a tree234 of X-resource shaped
+ * settings living locally in this file: the front end can call
+ * provide_xrm_string() to insert a setting into this tree (typically
+ * in response to an -xrm command line option or similar), and those
+ * will override the actual X resources.
  */
 
 struct skeyval {
@@ -351,6 +356,11 @@ static const char *get_setting(const char *key)
     }
     return x_get_default(key);
 }
+
+/* ----------------------------------------------------------------------
+ * Main code for reading settings from a disk file, calling the above
+ * get_setting() as a fallback if necessary.
+ */
 
 struct settings_r {
     tree234 *t;

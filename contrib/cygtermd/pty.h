@@ -1,5 +1,5 @@
 /*
- * pty.h - FIXME
+ * pty.h - declare functions for pty setup
  */
 
 #ifndef CYGTERMD_PTY_H

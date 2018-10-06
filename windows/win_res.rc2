@@ -1,12 +1,16 @@
 /*
  * Windows resources shared between PuTTY and PuTTYtel, to be #include'd
  * after defining appropriate macros.
+ *
  * Note that many of these strings mention PuTTY. Due to restrictions in
  * VC's handling of string concatenation, this can't easily be fixed.
  * It's fixed up at runtime.
- * FIXME: This file is called '.rc2' rather than '.rc' to avoid MSVC trying
- * to compile it on its own when using the project files. Nicer solutions
- * welcome.
+ *
+ * This file has the more or less arbitrary extension '.rc2' to avoid
+ * IDEs taking it to be a top-level resource script in its own right
+ * (which has been known to happen if the extension was '.rc'), and
+ * also to avoid the resource compiler ignoring everything included
+ * from it (which happens if the extension is '.h').
  */
 
 #include "win_res.h"
