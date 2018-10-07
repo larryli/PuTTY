@@ -270,7 +270,7 @@ MISC     = misc marshal
 MISCNET  = timing callback MISC version settings tree234 proxy CONF be_misc
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs
-UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc uxproxy time
+UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc uxproxy errsock time
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.
