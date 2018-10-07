@@ -345,6 +345,11 @@ extern const struct BackendVtable serial_backend;
 int so_peercred(int fd, int *pid, int *uid, int *gid);
 
 /*
+ * uxfdsock.c.
+ */
+Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug);
+
+/*
  * Default font setting, which can vary depending on NOT_X_WINDOWS.
  */
 #ifdef NOT_X_WINDOWS
