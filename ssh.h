@@ -1479,6 +1479,7 @@ int first_in_commasep_string(char const *needle, char const *haystack,
                              int haylen);
 int in_commasep_string(char const *needle, char const *haystack, int haylen);
 void add_to_commasep(strbuf *buf, const char *data);
+int get_commasep_word(ptrlen *list, ptrlen *word);
 
 int verify_ssh_manual_host_key(
     Conf *conf, const char *fingerprint, ssh_key *key);

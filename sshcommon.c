@@ -596,6 +596,38 @@ void add_to_commasep(strbuf *buf, const char *data)
     put_data(buf, data, strlen(data));
 }
 
+int get_commasep_word(ptrlen *list, ptrlen *word)
+{
+    const char *comma;
+
+    /*
+     * Discard empty list elements, should there be any, because we
+     * never want to return one as if it was a real string. (This
+     * introduces a mild tolerance of badly formatted data in lists we
+     * receive, but I think that's acceptable.)
+     */
+    while (list->len > 0 && *(const char *)list->ptr == ',') {
+        list->ptr = (const char *)list->ptr + 1;
+        list->len--;
+    }
+
+    if (!list->len)
+        return FALSE;
+
+    comma = memchr(list->ptr, ',', list->len);
+    if (!comma) {
+        *word = *list;
+        list->len = 0;
+    } else {
+        size_t wordlen = comma - (const char *)list->ptr;
+        word->ptr = list->ptr;
+        word->len = wordlen;
+        list->ptr = (const char *)list->ptr + wordlen + 1;
+        list->len -= wordlen + 1;
+    }
+    return TRUE;
+}
+
 /* ----------------------------------------------------------------------
  * Functions for translating SSH packet type codes into their symbolic
  * string names.
