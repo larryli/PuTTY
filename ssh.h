@@ -765,10 +765,12 @@ struct ssh_compression_alg {
 #define ssh_compressor_free(comp) ((comp)->vt->compress_free(comp))
 #define ssh_compressor_compress(comp, in, inlen, out, outlen, minlen) \
     ((comp)->vt->compress(comp, in, inlen, out, outlen, minlen))
+#define ssh_compressor_alg(comp) ((comp)->vt)
 #define ssh_decompressor_new(alg) ((alg)->decompress_new())
 #define ssh_decompressor_free(comp) ((comp)->vt->decompress_free(comp))
 #define ssh_decompressor_decompress(comp, in, inlen, out, outlen) \
     ((comp)->vt->decompress(comp, in, inlen, out, outlen))
+#define ssh_decompressor_alg(comp) ((comp)->vt)
 
 struct ssh2_userkey {
     ssh_key *key;                      /* the key itself */
