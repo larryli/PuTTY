@@ -562,6 +562,9 @@ char *enum_settings_next(settings_e *handle, char *buffer, int buflen)
     int maxlen, thislen, len;
     char *unmunged;
 
+    if (!handle->dp)
+        return NULL;
+
     fullpath = make_filename(INDEX_SESSIONDIR, NULL);
     maxlen = len = strlen(fullpath);
 
@@ -592,7 +595,8 @@ char *enum_settings_next(settings_e *handle, char *buffer, int buflen)
 
 void enum_settings_finish(settings_e *handle)
 {
-    closedir(handle->dp);
+    if (handle->dp)
+        closedir(handle->dp);
     sfree(handle);
 }
 
