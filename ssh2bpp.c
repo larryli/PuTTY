@@ -575,63 +575,30 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
                 continue;
             }
 
-            if (s->pending_compression && userauth_range(type)) {
+            if (type == SSH2_MSG_USERAUTH_SUCCESS) {
                 /*
                  * Another one: if we were configured with OpenSSH's
                  * deferred compression which is triggered on receipt
-                 * of USERAUTH_SUCCESS, and we're currently
-                 * anticipating the next packet perhaps _being_
-                 * USERAUTH_SUCCESS, then we do some special handling.
+                 * of USERAUTH_SUCCESS, then this is the moment to
+                 * turn on compression.
                  */
-
-                if (type == SSH2_MSG_USERAUTH_SUCCESS) {
-                    /*
-                     * Success! This is the moment to turn on
-                     * compression.
-                     */
-                    s->pending_compression = FALSE;
+                if (s->in.pending_compression) {
                     s->in_decomp =
                         ssh_decompressor_new(s->in.pending_compression);
+                    bpp_logevent(("Initialised delayed %s decompression",
+                                  ssh_decompressor_alg(
+                                      s->in_decomp)->text_name));
+                    s->in.pending_compression = NULL;
+                }
+                if (s->out.pending_compression) {
                     s->out_comp =
                         ssh_compressor_new(s->out.pending_compression);
-                    s->in.pending_compression = NULL;
+                    bpp_logevent(("Initialised delayed %s compression",
+                                  ssh_compressor_alg(
+                                      s->out_comp)->text_name));
                     s->out.pending_compression = NULL;
-
-                    if (s->out_comp)
-                        bpp_logevent(("Initialised delayed %s compression",
-                                      ssh_compressor_alg(
-                                          s->out_comp)->text_name));
-                    if (s->in_decomp)
-                        bpp_logevent(("Initialised delayed %s decompression",
-                                      ssh_decompressor_alg(
-                                          s->in_decomp)->text_name));
-
-                    /*
-                     * Also, since we will have temporarily disabled
-                     * output queue processing (for fear of having
-                     * some asynchronous thing like an IGNORE message
-                     * cross in transit with USERAUTH_SUCCESS coming
-                     * the other way, leaving its compresssion status
-                     * in doubt), we should schedule a run of the
-                     * output queue now, to release any pending
-                     * packets.
-                     */
-                    queue_idempotent_callback(&s->bpp.ic_out_pq);
-                } else {
-                    /*
-                     * This message indicates that we're not about to
-                     * see USERAUTH_SUCCESS (i.e. turn on compression)
-                     * just yet, so we turn off the outgoing packet
-                     * blockage and release any queued output packets,
-                     * so that we can make another attempt to
-                     * authenticate.
-                     */
-                    s->pending_compression = FALSE;
-                    queue_idempotent_callback(&s->bpp.ic_out_pq);
                 }
-            }
 
-            if (type == SSH2_MSG_USERAUTH_SUCCESS) {
                 /*
                  * Whether or not we were doing delayed compression in
                  * _this_ set of crypto parameters, we should set a
@@ -640,6 +607,23 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
                  * future rekey will be treated as un-delayed.
                  */
                 s->seen_userauth_success = TRUE;
+            }
+
+            if (s->pending_compression && userauth_range(type)) {
+                /*
+                 * Receiving any userauth message at all indicates
+                 * that we're not about to turn on delayed compression
+                 * - either because we just _have_ done, or because
+                 * this message is a USERAUTH_FAILURE or some kind of
+                 * intermediate 'please send more data' continuation
+                 * message. Either way, we turn off the outgoing
+                 * packet blockage for now, and release any queued
+                 * output packets, so that we can make another attempt
+                 * to authenticate. The next userauth packet we send
+                 * will re-block the output direction.
+                 */
+                s->pending_compression = FALSE;
+                queue_idempotent_callback(&s->bpp.ic_out_pq);
             }
         }
     }
@@ -895,8 +879,7 @@ static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp)
         ssh2_bpp_format_packet(s, pkt);
         ssh_free_pktout(pkt);
 
-        if (n_userauth == 0 &&
-            (s->out.pending_compression || s->in.pending_compression)) {
+        if (n_userauth == 0 && s->out.pending_compression) {
             /*
              * This is the last userauth packet in the queue, so
              * unless our side decides to send another one in future,
