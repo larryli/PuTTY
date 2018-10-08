@@ -3772,7 +3772,7 @@ struct eventlog_stuff {
 
 static void eventlog_destroy(GtkWidget *widget, gpointer data)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+    eventlog_stuff *es = (eventlog_stuff *)data;
 
     es->window = NULL;
     sfree(es->seldata);
@@ -3789,7 +3789,7 @@ static void eventlog_ok_handler(union control *ctrl, dlgparam *dp,
 static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
 				  void *data, int event)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+    eventlog_stuff *es = (eventlog_stuff *)data;
 
     if (event == EVENT_REFRESH) {
 	int i;
@@ -3868,7 +3868,7 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
 void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
                             guint info, guint time_stamp, gpointer data)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+    eventlog_stuff *es = (eventlog_stuff *)data;
 
     gtk_selection_data_set(seldata, gtk_selection_data_get_target(seldata), 8,
                            (unsigned char *)es->seldata, es->sellen);
@@ -3877,7 +3877,7 @@ void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
                               gpointer data)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)data;
+    eventlog_stuff *es = (eventlog_stuff *)data;
     struct uctrl *uc;
 
     /*
@@ -3901,9 +3901,8 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     return TRUE;
 }
 
-void showeventlog(void *estuff, void *parentwin)
+void showeventlog(eventlog_stuff *es, void *parentwin)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
     GtkWidget *window, *w0, *w1;
     GtkWidget *parent = GTK_WIDGET(parentwin);
     struct controlset *s0, *s1;
@@ -3984,17 +3983,33 @@ void showeventlog(void *estuff, void *parentwin)
                      G_CALLBACK(eventlog_selection_clear), es);
 }
 
-void *eventlogstuff_new(void)
+eventlog_stuff *eventlogstuff_new(void)
 {
-    struct eventlog_stuff *es;
-    es = snew(struct eventlog_stuff);
+    eventlog_stuff *es = snew(eventlog_stuff);
     memset(es, 0, sizeof(*es));
     return es;
 }
 
-void logevent_dlg(void *estuff, const char *string)
+void eventlogstuff_free(eventlog_stuff *es)
 {
-    struct eventlog_stuff *es = (struct eventlog_stuff *)estuff;
+    int i;
+
+    if (es->events_initial) {
+        for (i = 0; i < LOGEVENT_INITIAL_MAX; i++)
+            sfree(es->events_initial[i]);
+        sfree(es->events_initial);
+    }
+    if (es->events_circular) {
+        for (i = 0; i < LOGEVENT_CIRCULAR_MAX; i++)
+            sfree(es->events_circular[i]);
+        sfree(es->events_circular);
+    }
+
+    sfree(es);
+}
+
+void logevent_dlg(eventlog_stuff *es, const char *string)
+{
     char timebuf[40];
     struct tm tm;
     char **location;

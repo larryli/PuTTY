@@ -165,7 +165,7 @@ struct Frontend {
     int exited;
     struct unicode_data ucsdata;
     Conf *conf;
-    void *eventlogstuff;
+    eventlog_stuff *eventlogstuff;
     guint32 input_event_time; /* Timestamp of the most recent input event. */
     GtkWidget *dialogs[DIALOG_SLOT_LIMIT];
 #if GTK_CHECK_VERSION(3,4,0)
@@ -2469,6 +2469,8 @@ static void delete_inst(Frontend *inst)
      * we're supposed to have cleaned everything up.
      */
     delete_callbacks_for_context(inst);
+
+    eventlogstuff_free(inst->eventlogstuff);
 
     sfree(inst);
 }

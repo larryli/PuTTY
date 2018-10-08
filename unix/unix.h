@@ -219,9 +219,11 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 #endif
 void nonfatal_message_box(void *window, const char *msg);
 void about_box(void *window);
-void *eventlogstuff_new(void);
-void showeventlog(void *estuff, void *parentwin);
-void logevent_dlg(void *estuff, const char *string);
+typedef struct eventlog_stuff eventlog_stuff;
+eventlog_stuff *eventlogstuff_new(void);
+void eventlogstuff_free(eventlog_stuff *);
+void showeventlog(eventlog_stuff *estuff, void *parentwin);
+void logevent_dlg(eventlog_stuff *estuff, const char *string);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 struct message_box_button {
     const char *title;
