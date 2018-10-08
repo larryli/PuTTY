@@ -395,7 +395,6 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
         ssh_key_free(s->hkey);
         s->hkey = NULL;
     }
-    if (s->e) freebn(s->e);
     if (s->f) freebn(s->f);
     if (s->p) freebn(s->p);
     if (s->g) freebn(s->g);
@@ -1368,7 +1367,6 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         dh_cleanup(s->dh_ctx);
         s->dh_ctx = NULL;
         freebn(s->f); s->f = NULL;
-        freebn(s->e); s->e = NULL;
         if (dh_is_gex(s->kex_alg)) {
             freebn(s->g); s->g = NULL;
             freebn(s->p); s->p = NULL;
@@ -1690,7 +1688,6 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         dh_cleanup(s->dh_ctx);
         s->dh_ctx = NULL;
         freebn(s->f); s->f = NULL;
-        freebn(s->e); s->e = NULL;
         if (dh_is_gex(s->kex_alg)) {
             freebn(s->g); s->g = NULL;
             freebn(s->p); s->p = NULL;
