@@ -105,9 +105,9 @@ char *get_remote_username(Conf *conf)
     }
 }
 
-static char *gpps_raw(void *handle, const char *name, const char *def)
+static char *gpps_raw(settings_r *sesskey, const char *name, const char *def)
 {
-    char *ret = read_setting_s(handle, name);
+    char *ret = read_setting_s(sesskey, name);
     if (!ret)
 	ret = platform_default_s(name);
     if (!ret)
@@ -115,10 +115,10 @@ static char *gpps_raw(void *handle, const char *name, const char *def)
     return ret;
 }
 
-static void gpps(void *handle, const char *name, const char *def,
+static void gpps(settings_r *sesskey, const char *name, const char *def,
 		 Conf *conf, int primary)
 {
-    char *val = gpps_raw(handle, name, def);
+    char *val = gpps_raw(sesskey, name, def);
     conf_set_str(conf, primary, val);
     sfree(val);
 }
@@ -128,33 +128,35 @@ static void gpps(void *handle, const char *name, const char *def,
  * format of a Filename or FontSpec is platform-dependent. So the
  * platform-dependent functions MUST return some sort of value.
  */
-static void gppfont(void *handle, const char *name, Conf *conf, int primary)
+static void gppfont(settings_r *sesskey, char *name,
+                    Conf *conf, int primary)
 {
-    FontSpec *result = read_setting_fontspec(handle, name);
+    FontSpec *result = read_setting_fontspec(sesskey, name);
     if (!result)
         result = platform_default_fontspec(name);
     conf_set_fontspec(conf, primary, result);
     fontspec_free(result);
 }
-static void gppfile(void *handle, const char *name, Conf *conf, int primary)
+static void gppfile(settings_r *sesskey, const char *name,
+                    Conf *conf, int primary)
 {
-    Filename *result = read_setting_filename(handle, name);
+    Filename *result = read_setting_filename(sesskey, name);
     if (!result)
 	result = platform_default_filename(name);
     conf_set_filename(conf, primary, result);
     filename_free(result);
 }
 
-static int gppi_raw(void *handle, const char *name, int def)
+static int gppi_raw(settings_r *sesskey, const char *name, int def)
 {
     def = platform_default_i(name, def);
-    return read_setting_i(handle, name, def);
+    return read_setting_i(sesskey, name, def);
 }
 
-static void gppi(void *handle, const char *name, int def,
+static void gppi(settings_r *sesskey, const char *name, int def,
                  Conf *conf, int primary)
 {
-    conf_set_int(conf, primary, gppi_raw(handle, name, def));
+    conf_set_int(conf, primary, gppi_raw(sesskey, name, def));
 }
 
 /*
@@ -164,7 +166,8 @@ static void gppi(void *handle, const char *name, int def,
  * If there's no "=VALUE" (e.g. just NAME,NAME,NAME) then those keys
  * are mapped to the empty string.
  */
-static int gppmap(void *handle, const char *name, Conf *conf, int primary)
+static int gppmap(settings_r *sesskey, const char *name,
+                  Conf *conf, int primary)
 {
     char *buf, *p, *q, *key, *val;
 
@@ -178,7 +181,7 @@ static int gppmap(void *handle, const char *name, Conf *conf, int primary)
      * Now read a serialised list from the settings and unmarshal it
      * into its components.
      */
-    buf = gpps_raw(handle, name, NULL);
+    buf = gpps_raw(sesskey, name, NULL);
     if (!buf)
 	return FALSE;
 
@@ -231,8 +234,8 @@ static int gppmap(void *handle, const char *name, Conf *conf, int primary)
  * Write a set of name/value pairs in the above format, or just the
  * names if include_values is FALSE.
  */
-static void wmap(void *handle, char const *outkey, Conf *conf, int primary,
-                 int include_values)
+static void wmap(settings_w *sesskey, char const *outkey, Conf *conf,
+                 int primary, int include_values)
 {
     char *buf, *p, *key, *realkey;
     const char *val, *q;
@@ -293,7 +296,7 @@ static void wmap(void *handle, char const *outkey, Conf *conf, int primary,
         }
     }
     *p = '\0';
-    write_setting_s(handle, outkey, buf);
+    write_setting_s(sesskey, outkey, buf);
     sfree(buf);
 }
 
@@ -403,7 +406,7 @@ static void gprefs_from_str(const char *str,
 /*
  * Read a preference list.
  */
-static void gprefs(void *sesskey, const char *name, const char *def,
+static void gprefs(settings_r *sesskey, const char *name, const char *def,
 		   const struct keyvalwhere *mapping, int nvals,
 		   Conf *conf, int primary)
 {
@@ -418,7 +421,7 @@ static void gprefs(void *sesskey, const char *name, const char *def,
 /* 
  * Write out a preference list.
  */
-static void wprefs(void *sesskey, const char *name,
+static void wprefs(settings_w *sesskey, const char *name,
 		   const struct keyvalwhere *mapping, int nvals,
 		   Conf *conf, int primary)
 {
@@ -452,36 +455,36 @@ static void wprefs(void *sesskey, const char *name,
     sfree(buf);
 }
 
-static void write_clip_setting(void *handle, const char *savekey,
+static void write_clip_setting(settings_w *sesskey, const char *savekey,
                                Conf *conf, int confkey, int strconfkey)
 {
     int val = conf_get_int(conf, confkey);
     switch (val) {
       case CLIPUI_NONE:
       default:
-        write_setting_s(handle, savekey, "none");
+        write_setting_s(sesskey, savekey, "none");
         break;
       case CLIPUI_IMPLICIT:
-        write_setting_s(handle, savekey, "implicit");
+        write_setting_s(sesskey, savekey, "implicit");
         break;
       case CLIPUI_EXPLICIT:
-        write_setting_s(handle, savekey, "explicit");
+        write_setting_s(sesskey, savekey, "explicit");
         break;
       case CLIPUI_CUSTOM:
         {
             char *sval = dupcat("custom:", conf_get_str(conf, strconfkey),
                                 (const char *)NULL);
-            write_setting_s(handle, savekey, sval);
+            write_setting_s(sesskey, savekey, sval);
             sfree(sval);
         }
         break;
     }
 }
 
-static void read_clip_setting(void *handle, const char *savekey,
+static void read_clip_setting(settings_r *sesskey, char *savekey,
                               int def, Conf *conf, int confkey, int strconfkey)
 {
-    char *setting = read_setting_s(handle, savekey);
+    char *setting = read_setting_s(sesskey, savekey);
     int val;
 
     conf_set_str(conf, strconfkey, "");
