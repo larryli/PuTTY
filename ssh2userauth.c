@@ -38,7 +38,6 @@ struct ssh2_userauth_state {
         AUTH_TYPE_KEYBOARD_INTERACTIVE,
         AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET
     } type;
-    int done_service_req;
     int need_pw, can_pubkey, can_passwd, can_keyb_inter;
     int userpass_ret;
     int tried_pubkey_config, done_agent;
@@ -205,7 +204,6 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
     crBegin(s->crState);
 
-    s->done_service_req = FALSE;
 #ifndef NO_GSSAPI
     s->tried_gssapi = FALSE;
     s->tried_gssapi_keyex_auth = FALSE;
