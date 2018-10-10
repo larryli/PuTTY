@@ -23,7 +23,6 @@ Socket *new_named_pipe_client(const char *pipename, Plug *plug)
     HANDLE pipehandle;
     PSID usersid, pipeowner;
     PSECURITY_DESCRIPTOR psd;
-    Socket *ret;
 
     assert(strncmp(pipename, "\\\\.\\pipe\\", 9) == 0);
     assert(strchr(pipename + 9, '\\') == NULL);

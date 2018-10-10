@@ -728,7 +728,6 @@ void modalfatalbox(const char *, ...);
 #pragma noreturn(modalfatalbox)
 #endif
 void do_beep(Frontend *frontend, int);
-void begin_session(Frontend *frontend);
 void sys_cursor(Frontend *frontend, int x, int y);
 void frontend_request_paste(Frontend *frontend, int clipboard);
 void frontend_keypress(Frontend *frontend);
