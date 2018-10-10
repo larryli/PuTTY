@@ -509,19 +509,17 @@ static void do_cmd(char *host, char *user, char *cmd)
     }
     conf_set_int(conf, CONF_nopty, TRUE);
 
-    logctx = log_init(NULL, conf);
-    console_provide_logctx(logctx);
+    logctx = log_init(default_logpolicy, conf);
 
     platform_psftp_pre_conn_setup();
 
-    err = backend_init(&ssh_backend, NULL, &backend, conf,
+    err = backend_init(&ssh_backend, NULL, &backend, logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
                        conf_get_int(conf, CONF_tcp_keepalives));
     if (err != NULL)
 	bump("ssh_init: %s", err);
-    backend_provide_logctx(backend, logctx);
     ssh_scp_init();
     if (verbose && realhost != NULL && errs == 0)
 	tell_user(stderr, "Connected to %s", realhost);
@@ -2382,7 +2380,6 @@ int psftp_main(int argc, char *argv[])
     random_save_seed();
 
     cmdline_cleanup();
-    console_provide_logctx(NULL);
     backend_free(backend);
     backend = NULL;
     sk_cleanup();

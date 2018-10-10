@@ -20,6 +20,7 @@ struct Rlogin {
     int cansize;
     int term_width, term_height;
     Frontend *frontend;
+    LogContext *logctx;
 
     Conf *conf;
 
@@ -40,7 +41,7 @@ static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
-    backend_socket_log(rlogin->frontend, type, addr, port,
+    backend_socket_log(rlogin->frontend, rlogin->logctx, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, !rlogin->firstbyte);
 }
@@ -65,7 +66,7 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
     }
     if (error_msg) {
 	/* A socket error has occurred. */
-	logevent(rlogin->frontend, error_msg);
+        logevent(rlogin->logctx, error_msg);
 	connection_fatal(rlogin->frontend, "%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
 }
@@ -150,7 +151,7 @@ static const PlugVtable Rlogin_plugvt = {
  * freed by the caller.
  */
 static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
-			       Conf *conf,
+                               LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
 {
@@ -167,6 +168,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
     rlogin->frontend = frontend;
+    rlogin->logctx = logctx;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
     rlogin->firstbyte = 1;
@@ -180,7 +182,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
      * Try to find host.
      */
     addr = name_lookup(host, port, realhost, conf, addressfamily,
-                       rlogin->frontend, "rlogin connection");
+                       rlogin->logctx, "rlogin connection");
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;
@@ -373,11 +375,6 @@ static void rlogin_provide_ldisc(Backend *be, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void rlogin_provide_logctx(Backend *be, LogContext *logctx)
-{
-    /* This is a stub. */
-}
-
 static int rlogin_exitcode(Backend *be)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
@@ -412,7 +409,6 @@ const struct BackendVtable rlogin_backend = {
     rlogin_sendok,
     rlogin_ldisc,
     rlogin_provide_ldisc,
-    rlogin_provide_logctx,
     rlogin_unthrottle,
     rlogin_cfg_info,
     NULL /* test_for_upstream */,

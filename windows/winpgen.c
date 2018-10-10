@@ -61,7 +61,6 @@ void nonfatal(const char *fmt, ...)
 }
 
 /* Stubs needed to link against misc.c */
-void logevent(Frontend *frontend, const char *msg) { assert(0); }
 void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 
 /* ----------------------------------------------------------------------

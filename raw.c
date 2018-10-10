@@ -16,6 +16,7 @@ struct Raw {
     int closed_on_socket_error;
     int bufsize;
     Frontend *frontend;
+    LogContext *logctx;
     int sent_console_eof, sent_socket_eof, session_started;
 
     Conf *conf;
@@ -36,7 +37,7 @@ static void raw_log(Plug *plug, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);
-    backend_socket_log(raw->frontend, type, addr, port,
+    backend_socket_log(raw->frontend, raw->logctx, type, addr, port,
                        error_msg, error_code, raw->conf, raw->session_started);
 }
 
@@ -68,7 +69,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
             raw->closed_on_socket_error = TRUE;
             notify_remote_exit(raw->frontend);
         }
-        logevent(raw->frontend, error_msg);
+        logevent(raw->logctx, error_msg);
         connection_fatal(raw->frontend, "%s", error_msg);
     } else {
         /* Otherwise, the remote side closed the connection normally. */
@@ -119,7 +120,7 @@ static const PlugVtable Raw_plugvt = {
  * freed by the caller.
  */
 static const char *raw_init(Frontend *frontend, Backend **backend_handle,
-			    Conf *conf,
+                            LogContext *logctx, Conf *conf,
 			    const char *host, int port, char **realhost,
                             int nodelay, int keepalive)
 {
@@ -141,13 +142,14 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
     raw->conf = conf_copy(conf);
 
     raw->frontend = frontend;
+    raw->logctx = logctx;
 
     addressfamily = conf_get_int(conf, CONF_addressfamily);
     /*
      * Try to find host.
      */
     addr = name_lookup(host, port, realhost, conf, addressfamily,
-                       raw->frontend, "main connection");
+                       raw->logctx, "main connection");
     if ((err = sk_addr_error(addr)) != NULL) {
 	sk_addr_free(addr);
 	return err;
@@ -282,11 +284,6 @@ static void raw_provide_ldisc(Backend *be, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void raw_provide_logctx(Backend *be, LogContext *logctx)
-{
-    /* This is a stub. */
-}
-
 static int raw_exitcode(Backend *be)
 {
     Raw *raw = container_of(be, Raw, backend);
@@ -321,7 +318,6 @@ const struct BackendVtable raw_backend = {
     raw_sendok,
     raw_ldisc,
     raw_provide_ldisc,
-    raw_provide_logctx,
     raw_unthrottle,
     raw_cfg_info,
     NULL /* test_for_upstream */,

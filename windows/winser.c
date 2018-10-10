@@ -15,6 +15,7 @@ struct Serial {
     HANDLE port;
     struct handle *out, *in;
     Frontend *frontend;
+    LogContext *logctx;
     int bufsize;
     long clearbreak_time;
     int break_in_progress;
@@ -61,7 +62,7 @@ static int serial_gotdata(struct handle *h, void *data, int len)
 
 	notify_remote_exit(serial->frontend);
 
-	logevent(serial->frontend, error_msg);
+        logevent(serial->logctx, error_msg);
 
 	connection_fatal(serial->frontend, "%s", error_msg);
 
@@ -81,7 +82,7 @@ static void serial_sentdata(struct handle *h, int new_backlog)
 
 	notify_remote_exit(serial->frontend);
 
-	logevent(serial->frontend, error_msg);
+        logevent(serial->logctx, error_msg);
 
 	connection_fatal(serial->frontend, "%s", error_msg);
     } else {
@@ -101,7 +102,6 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
      * device instead of a serial port.
      */
     if (GetCommState(serport, &dcb)) {
-	char *msg;
 	const char *str;
 
 	/*
@@ -124,14 +124,10 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	 * Configurable parameters.
 	 */
 	dcb.BaudRate = conf_get_int(conf, CONF_serspeed);
-	msg = dupprintf("Configuring baud rate %lu", dcb.BaudRate);
-	logevent(serial->frontend, msg);
-	sfree(msg);
+        logeventf(serial->logctx, "Configuring baud rate %lu", dcb.BaudRate);
 
 	dcb.ByteSize = conf_get_int(conf, CONF_serdatabits);
-	msg = dupprintf("Configuring %u data bits", dcb.ByteSize);
-	logevent(serial->frontend, msg);
-	sfree(msg);
+        logeventf(serial->logctx, "Configuring %u data bits", dcb.ByteSize);
 
 	switch (conf_get_int(conf, CONF_serstopbits)) {
 	  case 2: dcb.StopBits = ONESTOPBIT; str = "1"; break;
@@ -139,9 +135,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	  case 4: dcb.StopBits = TWOSTOPBITS; str = "2"; break;
 	  default: return "Invalid number of stop bits (need 1, 1.5 or 2)";
 	}
-	msg = dupprintf("Configuring %s data bits", str);
-	logevent(serial->frontend, msg);
-	sfree(msg);
+        logeventf(serial->logctx, "Configuring %s data bits", str);
 
 	switch (conf_get_int(conf, CONF_serparity)) {
 	  case SER_PAR_NONE: dcb.Parity = NOPARITY; str = "no"; break;
@@ -150,9 +144,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	  case SER_PAR_MARK: dcb.Parity = MARKPARITY; str = "mark"; break;
 	  case SER_PAR_SPACE: dcb.Parity = SPACEPARITY; str = "space"; break;
 	}
-	msg = dupprintf("Configuring %s parity", str);
-	logevent(serial->frontend, msg);
-	sfree(msg);
+        logeventf(serial->logctx, "Configuring %s parity", str);
 
 	switch (conf_get_int(conf, CONF_serflow)) {
 	  case SER_FLOW_NONE:
@@ -173,9 +165,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	    str = "DSR/DTR";
 	    break;
 	}
-	msg = dupprintf("Configuring %s flow control", str);
-	logevent(serial->frontend, msg);
-	sfree(msg);
+        logeventf(serial->logctx, "Configuring %s flow control", str);
 
 	if (!SetCommState(serport, &dcb))
 	    return "Unable to configure serial port";
@@ -201,7 +191,8 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
  * freed by the caller.
  */
 static const char *serial_init(Frontend *frontend, Backend **backend_handle,
-			       Conf *conf, const char *host, int port,
+                               LogContext *logctx, Conf *conf,
+                               const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
 {
     Serial *serial;
@@ -218,13 +209,10 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     *backend_handle = &serial->backend;
 
     serial->frontend = frontend;
+    serial->logctx = logctx;
 
     serline = conf_get_str(conf, CONF_serline);
-    {
-	char *msg = dupprintf("Opening serial device %s", serline);
-	logevent(serial->frontend, msg);
-        sfree(msg);
-    }
+    logeventf(serial->logctx, "Opening serial device %s", serline);
 
     {
 	/*
@@ -342,7 +330,7 @@ static void serbreak_timer(void *ctx, unsigned long now)
     if (now == serial->clearbreak_time && serial->port) {
 	ClearCommBreak(serial->port);
 	serial->break_in_progress = FALSE;
-	logevent(serial->frontend, "Finished serial break");
+        logevent(serial->logctx, "Finished serial break");
     }
 }
 
@@ -354,7 +342,7 @@ static void serial_special(Backend *be, SessionSpecialCode code, int arg)
     Serial *serial = container_of(be, Serial, backend);
 
     if (serial->port && code == SS_BRK) {
-	logevent(serial->frontend, "Starting serial break at user request");
+        logevent(serial->logctx, "Starting serial break at user request");
 	SetCommBreak(serial->port);
 	/*
 	 * To send a serial break on Windows, we call SetCommBreak
@@ -417,11 +405,6 @@ static void serial_provide_ldisc(Backend *be, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void serial_provide_logctx(Backend *be, LogContext *logctx)
-{
-    /* This is a stub. */
-}
-
 static int serial_exitcode(Backend *be)
 {
     Serial *serial = container_of(be, Serial, backend);
@@ -454,7 +437,6 @@ const struct BackendVtable serial_backend = {
     serial_sendok,
     serial_ldisc,
     serial_provide_ldisc,
-    serial_provide_logctx,
     serial_unthrottle,
     serial_cfg_info,
     NULL /* test_for_upstream */,

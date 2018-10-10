@@ -822,8 +822,7 @@ int main(int argc, char **argv)
     /*
      * Start up the connection.
      */
-    logctx = log_init(NULL, conf);
-    console_provide_logctx(logctx);
+    logctx = log_init(default_logpolicy, conf);
     {
 	const char *error;
 	char *realhost;
@@ -835,7 +834,7 @@ int main(int argc, char **argv)
 	__AFL_INIT();
 #endif
 
-        error = backend_init(backvt, NULL, &backend, conf,
+        error = backend_init(backvt, NULL, &backend, logctx, conf,
                              conf_get_str(conf, CONF_host),
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,
@@ -844,7 +843,6 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;
 	}
-        backend_provide_logctx(backend, logctx);
         ldisc_create(conf, NULL, backend, NULL);
 	sfree(realhost);
     }

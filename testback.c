@@ -50,21 +50,20 @@ static int null_exitcode(Backend *);
 static int null_sendok(Backend *);
 static int null_ldisc(Backend *, int);
 static void null_provide_ldisc(Backend *, Ldisc *);
-static void null_provide_logctx(Backend *, LogContext *);
 static void null_unthrottle(Backend *, int);
 static int null_cfg_info(Backend *);
 
 const struct BackendVtable null_backend = {
     null_init, null_free, null_reconfig, null_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
+    null_ldisc, null_provide_ldisc, null_unthrottle,
     null_cfg_info, NULL /* test_for_upstream */, "null", -1, 0
 };
 
 const struct BackendVtable loop_backend = {
     loop_init, loop_free, null_reconfig, loop_send, null_sendbuffer, null_size,
     null_special, null_get_specials, null_connected, null_exitcode, null_sendok,
-    null_ldisc, null_provide_ldisc, null_provide_logctx, null_unthrottle,
+    null_ldisc, null_provide_ldisc, null_unthrottle,
     null_cfg_info, NULL /* test_for_upstream */, "loop", -1, 0
 };
 

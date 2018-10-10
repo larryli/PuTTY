@@ -446,8 +446,7 @@ int main(int argc, char **argv)
 	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
 	conf_set_int(conf, CONF_ssh_simple, TRUE);
 
-    logctx = log_init(NULL, conf);
-    console_provide_logctx(logctx);
+    logctx = log_init(default_logpolicy, conf);
 
     if (just_test_share_exists) {
         if (!vt->test_for_upstream) {
@@ -463,7 +462,7 @@ int main(int argc, char **argv)
     }
 
     if (restricted_acl) {
-	logevent(NULL, "Running with restricted process ACL");
+        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
     }
 
     /*
@@ -477,7 +476,7 @@ int main(int argc, char **argv)
 	int nodelay = conf_get_int(conf, CONF_tcp_nodelay) &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-        error = backend_init(vt, NULL, &backend, conf,
+        error = backend_init(vt, NULL, &backend, logctx, conf,
                              conf_get_str(conf, CONF_host),
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,
@@ -486,7 +485,6 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s", error);
 	    return 1;
 	}
-        backend_provide_logctx(backend, logctx);
 	sfree(realhost);
     }
 

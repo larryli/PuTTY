@@ -13,8 +13,6 @@
 
 int console_batch_mode = FALSE;
 
-static void *console_logctx = NULL;
-
 /*
  * Clean up and exit.
  */
@@ -247,8 +245,9 @@ int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(Frontend *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx)
+static int console_askappend(LogPolicy *lp, Filename *filename,
+                             void (*callback)(void *ctx, int result),
+                             void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -335,18 +334,20 @@ void pgp_fingerprints(void)
 	  "  " PGP_PREV_MASTER_KEY_FP "\n", stdout);
 }
 
-void console_provide_logctx(LogContext *logctx)
+static void console_logging_error(LogPolicy *lp, const char *string)
 {
-    console_logctx = logctx;
+    /* Ordinary Event Log entries are displayed in the same way as
+     * logging errors, but only in verbose mode */
+    fprintf(stderr, "%s\n", string);
+    fflush(stderr);
 }
 
-void logevent(Frontend *frontend, const char *string)
+static void console_eventlog(LogPolicy *lp, const char *string)
 {
-    if (flags & FLAG_VERBOSE) {
-	fprintf(stderr, "%s\n", string);
-	fflush(stderr);
-    }
-    log_eventlog(console_logctx, string);
+    /* Ordinary Event Log entries are displayed in the same way as
+     * logging errors, but only in verbose mode */
+    if (flags & FLAG_VERBOSE)
+        console_logging_error(lp, string);
 }
 
 static void console_data_untrusted(HANDLE hout, const char *data, int len)
@@ -486,3 +487,10 @@ void frontend_keypress(Frontend *frontend)
      */
     return;
 }
+
+static const LogPolicyVtable default_logpolicy_vt = {
+    console_eventlog,
+    console_askappend,
+    console_logging_error,
+};
+LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};

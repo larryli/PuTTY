@@ -266,13 +266,12 @@ static void start_backend(void)
 	cleanup_exit(1);
     }
 
-    error = backend_init(vt, NULL, &backend, conf,
+    error = backend_init(vt, NULL, &backend, logctx, conf,
                          conf_get_str(conf, CONF_host),
                          conf_get_int(conf, CONF_port),
                          &realhost,
                          conf_get_int(conf, CONF_tcp_nodelay),
                          conf_get_int(conf, CONF_tcp_keepalives));
-    backend_provide_logctx(backend, logctx);
     if (error) {
 	char *str = dupprintf("%s Error", appname);
 	sprintf(msg, "Unable to open connection to\n"
@@ -635,7 +634,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     term = term_init(conf, &ucsdata, NULL);
     setup_clipboards(term, conf);
-    logctx = log_init(NULL, conf);
+    logctx = log_init(default_logpolicy, conf);
     term_provide_logctx(term, logctx);
     term_size(term, conf_get_int(conf, CONF_height),
 	      conf_get_int(conf, CONF_width),
@@ -743,7 +742,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     if (restricted_acl) {
-	logevent(NULL, "Running with restricted process ACL");
+        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
     }
 
     start_backend();
@@ -2162,7 +2161,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	  case IDM_RESTART:
             if (!backend) {
-		logevent(NULL, "----- Session restarted -----");
+                lp_eventlog(default_logpolicy,
+                            "----- Session restarted -----");
 		term_pwron(term, FALSE);
 		start_backend();
 	    }

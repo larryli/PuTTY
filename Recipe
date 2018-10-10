@@ -347,7 +347,7 @@ psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes sshbn
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
-	 + gtkask gtkmisc nullplug UXMISC
+         + gtkask gtkmisc nullplug logging UXMISC
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg

@@ -4048,8 +4048,8 @@ void logevent_dlg(eventlog_stuff *es, const char *string)
     }
 }
 
-int askappend(Frontend *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx)
+int gtkdlg_askappend(Frontend *frontend, Filename *filename,
+                     void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
 	"The session log file \"%.*s\" already exists. "

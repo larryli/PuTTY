@@ -737,7 +737,8 @@ static void pty_uxsel_setup(Pty *pty)
  * freed by the caller.
  */
 static const char *pty_init(Frontend *frontend, Backend **backend_handle,
-                            Conf *conf, const char *host, int port,
+                            LogContext *logctx, Conf *conf,
+                            const char *host, int port,
                             char **realhost, int nodelay, int keepalive)
 {
     int slavefd;
@@ -1219,12 +1220,6 @@ static void pty_provide_ldisc(Backend *be, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void pty_provide_logctx(Backend *be, LogContext *logctx)
-{
-    /* Pty *pty = container_of(be, Pty, backend); */
-    /* This is a stub. */
-}
-
 static int pty_exitcode(Backend *be)
 {
     Pty *pty = container_of(be, Pty, backend);
@@ -1254,7 +1249,6 @@ const struct BackendVtable pty_backend = {
     pty_sendok,
     pty_ldisc,
     pty_provide_ldisc,
-    pty_provide_logctx,
     pty_unthrottle,
     pty_cfg_info,
     NULL /* test_for_upstream */,

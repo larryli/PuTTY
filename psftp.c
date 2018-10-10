@@ -2816,12 +2816,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "exec sftp-server");
     conf_set_int(conf, CONF_ssh_subsys2, FALSE);
 
-    logctx = log_init(NULL, conf);
-    console_provide_logctx(logctx);
+    logctx = log_init(default_logpolicy, conf);
 
     platform_psftp_pre_conn_setup();
 
-    err = backend_init(&ssh_backend, NULL, &backend, conf,
+    err = backend_init(&ssh_backend, NULL, &backend, logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
@@ -2830,7 +2829,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;
     }
-    backend_provide_logctx(backend, logctx);
     while (!backend_sendok(backend)) {
         if (backend_exitcode(backend) >= 0)
 	    return 1;
@@ -2972,7 +2970,6 @@ int psftp_main(int argc, char *argv[])
     do_sftp_cleanup();
     random_save_seed();
     cmdline_cleanup();
-    console_provide_logctx(NULL);
     sk_cleanup();
 
     return ret;

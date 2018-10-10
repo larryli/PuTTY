@@ -137,11 +137,6 @@ int dlg_coloursel_results(union control *ctrl, void *dlg,
 			  int *r, int *g, int *b) { return 0; }
 void dlg_refresh(union control *ctrl, void *dlg) { }
 
-/* miscellany */
-void logevent(Frontend *frontend, const char *msg) { }
-int askappend(Frontend *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx) { return 0; }
-
 const char *const appname = "FuZZterm";
 const int ngsslibs = 0;
 const char *const gsslibnames[0] = { };

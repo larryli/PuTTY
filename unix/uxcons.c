@@ -23,8 +23,6 @@
 
 int console_batch_mode = FALSE;
 
-static void *console_logctx = NULL;
-
 static struct termios orig_termios_stderr;
 static int stderr_is_a_tty;
 
@@ -327,8 +325,9 @@ int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(Frontend *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx)
+static int console_askappend(LogPolicy *lp, Filename *filename,
+                             void (*callback)(void *ctx, int result),
+                             void *ctx)
 {
     static const char msgtemplate[] =
 	"The session log file \"%.*s\" already exists.\n"
@@ -405,22 +404,24 @@ void old_keyfile_warning(void)
     postmsg(&cf);
 }
 
-void console_provide_logctx(LogContext *logctx)
+static void console_logging_error(LogPolicy *lp, const char *string)
 {
-    console_logctx = logctx;
+    /* Errors setting up logging are considered important, so they're
+     * displayed to standard error even when not in verbose mode */
+    struct termios cf;
+    premsg(&cf);
+    fprintf(stderr, "%s\n", string);
+    fflush(stderr);
+    postmsg(&cf);
 }
 
-void logevent(Frontend *frontend, const char *string)
+
+static void console_eventlog(LogPolicy *lp, const char *string)
 {
-    struct termios cf;
-    if (flags & FLAG_VERBOSE) {
-        premsg(&cf);
-	fprintf(stderr, "%s\n", string);
-	fflush(stderr);
-        postmsg(&cf);
-    }
-    if (console_logctx)
-	log_eventlog(console_logctx, string);
+    /* Ordinary Event Log entries are displayed in the same way as
+     * logging errors, but only in verbose mode */
+    if (flags & FLAG_VERBOSE)
+        console_logging_error(lp, string);
 }
 
 /*
@@ -573,3 +574,10 @@ int is_interactive(void)
 char *platform_get_x_display(void) {
     return dupstr(getenv("DISPLAY"));
 }
+
+static const LogPolicyVtable default_logpolicy_vt = {
+    console_eventlog,
+    console_askappend,
+    console_logging_error,
+};
+LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};

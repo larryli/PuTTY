@@ -761,13 +761,11 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     return ret;
 }
 
-void logevent(Frontend *frontend, const char *string)
+static void win_gui_eventlog(LogPolicy *lp, const char *string)
 {
     char timebuf[40];
     char **location;
     struct tm tm;
-
-    log_eventlog(logctx, string);
 
     tm=ltime();
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
@@ -796,6 +794,14 @@ void logevent(Frontend *frontend, const char *string)
         sfree(events_circular[circular_first]);
         events_circular[circular_first] = dupstr("..");
     }
+}
+
+static void win_gui_logging_error(LogPolicy *lp, const char *event)
+{
+    /* Send 'can't open log file' errors to the terminal window.
+     * (Marked as stderr, although terminal.c won't care.) */
+    from_backend(NULL, 1, event, strlen(event));
+    from_backend(NULL, 1, "\r\n", 2);
 }
 
 void showeventlog(HWND hwnd)
@@ -953,8 +959,9 @@ int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-int askappend(Frontend *frontend, Filename *filename,
-	      void (*callback)(void *ctx, int result), void *ctx)
+static int win_gui_askappend(LogPolicy *lp, Filename *filename,
+                             void (*callback)(void *ctx, int result),
+                             void *ctx)
 {
     static const char msgtemplate[] =
 	"The session log file \"%.*s\" already exists.\n"
@@ -985,6 +992,13 @@ int askappend(Frontend *frontend, Filename *filename,
     else
 	return 0;
 }
+
+static const LogPolicyVtable default_logpolicy_vt = {
+    win_gui_eventlog,
+    win_gui_askappend,
+    win_gui_logging_error,
+};
+LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
 
 /*
  * Warn about the obsolescent key file format.

@@ -180,6 +180,8 @@ struct Frontend {
 #ifdef OSX_META_KEY_CONFIG
     int system_mod_mask;
 #endif
+
+    LogPolicy logpolicy;
 };
 
 static void cache_conf_values(Frontend *inst)
@@ -336,12 +338,37 @@ int get_userpass_input(prompts_t *p, bufchain *input)
     return ret;
 }
 
-void logevent(Frontend *inst, const char *string)
+static void gtk_eventlog(LogPolicy *lp, const char *string)
 {
-    log_eventlog(inst->logctx, string);
-
+    Frontend *inst = container_of(lp, Frontend, logpolicy);
     logevent_dlg(inst->eventlogstuff, string);
 }
+
+static int gtk_askappend(LogPolicy *lp, Filename *filename,
+                         void (*callback)(void *ctx, int result), void *ctx)
+{
+    Frontend *inst = container_of(lp, Frontend, logpolicy);
+
+    int gtkdlg_askappend(Frontend *frontend, Filename *filename,
+                         void (*callback)(void *ctx, int result), void *ctx);
+    return gtkdlg_askappend(inst, filename, callback, ctx);
+}
+
+static void gtk_logging_error(LogPolicy *lp, const char *event)
+{
+    Frontend *inst = container_of(lp, Frontend, logpolicy);
+
+    /* Send 'can't open log file' errors to the terminal window.
+     * (Marked as stderr, although terminal.c won't care.) */
+    from_backend(inst, 1, event, strlen(event));
+    from_backend(inst, 1, "\r\n", 2);
+}
+
+static const LogPolicyVtable gtk_logpolicy_vt = {
+    gtk_eventlog,
+    gtk_askappend,
+    gtk_logging_error,
+};
 
 int font_dimension(Frontend *inst, int which) /* 0 for width, 1 for height */
 {
@@ -4806,7 +4833,7 @@ void restart_session_menuitem(GtkMenuItem *item, gpointer data)
     Frontend *inst = (Frontend *)data;
 
     if (!inst->backend) {
-	logevent(inst, "----- Session restarted -----");
+        logevent(inst->logctx, "----- Session restarted -----");
 	term_pwron(inst->term, FALSE);
 	start_backend(inst);
 	inst->exited = FALSE;
@@ -5011,7 +5038,7 @@ static void start_backend(Frontend *inst)
     vt = select_backend(inst->conf);
 
     error = backend_init(vt, (void *)inst, &inst->backend,
-                         inst->conf,
+                         inst->logctx, inst->conf,
                          conf_get_str(inst->conf, CONF_host),
                          conf_get_int(inst->conf, CONF_port),
                          &realhost,
@@ -5036,8 +5063,6 @@ static void start_backend(Frontend *inst)
 	sfree(title);
     }
     sfree(realhost);
-
-    backend_provide_logctx(inst->backend, inst->logctx);
 
     term_provide_backend(inst->term, inst->backend);
 
@@ -5095,6 +5120,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->cumulative_scroll = 0.0;
 #endif
     inst->drawing_area_setup_needed = TRUE;
+
+    inst->logpolicy.vt = &gtk_logpolicy_vt;
 
 #ifndef NOT_X_WINDOWS
     inst->disp = get_x11_display();
@@ -5414,7 +5441,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     inst->term = term_init(inst->conf, &inst->ucsdata, inst);
     setup_clipboards(inst, inst->term, inst->conf);
-    inst->logctx = log_init(inst, inst->conf);
+    inst->logctx = log_init(&inst->logpolicy, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);
 
     term_size(inst->term, inst->height, inst->width,

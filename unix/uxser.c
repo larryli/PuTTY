@@ -20,6 +20,7 @@
 typedef struct Serial Serial;
 struct Serial {
     Frontend *frontend;
+    LogContext *logctx;
     int fd;
     int finished;
     int inbufsize;
@@ -67,7 +68,6 @@ static const char *serial_configure(Serial *serial, Conf *conf)
     struct termios options;
     int bflag, bval, speed, flow, parity;
     const char *str;
-    char *msg;
 
     if (serial->fd < 0)
 	return "Unable to reconfigure already-closed serial connection";
@@ -181,9 +181,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
 #undef SETBAUD
     cfsetispeed(&options, bflag);
     cfsetospeed(&options, bflag);
-    msg = dupprintf("Configuring baud rate %d", bval);
-    logevent(serial->frontend, msg);
-    sfree(msg);
+    logeventf(serial->logctx, "Configuring baud rate %d", bval);
 
     options.c_cflag &= ~CSIZE;
     switch (conf_get_int(conf, CONF_serdatabits)) {
@@ -193,20 +191,16 @@ static const char *serial_configure(Serial *serial, Conf *conf)
       case 8: options.c_cflag |= CS8; break;
       default: return "Invalid number of data bits (need 5, 6, 7 or 8)";
     }
-    msg = dupprintf("Configuring %d data bits",
-		    conf_get_int(conf, CONF_serdatabits));
-    logevent(serial->frontend, msg);
-    sfree(msg);
+    logeventf(serial->logctx, "Configuring %d data bits",
+              conf_get_int(conf, CONF_serdatabits));
 
     if (conf_get_int(conf, CONF_serstopbits) >= 4) {
 	options.c_cflag |= CSTOPB;
     } else {
 	options.c_cflag &= ~CSTOPB;
     }
-    msg = dupprintf("Configuring %d stop bits",
-		    (options.c_cflag & CSTOPB ? 2 : 1));
-    logevent(serial->frontend, msg);
-    sfree(msg);
+    logeventf(serial->logctx, "Configuring %d stop bits",
+              (options.c_cflag & CSTOPB ? 2 : 1));
 
     options.c_iflag &= ~(IXON|IXOFF);
 #ifdef CRTSCTS
@@ -229,9 +223,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
 	str = "RTS/CTS";
     } else
 	str = "no";
-    msg = dupprintf("Configuring %s flow control", str);
-    logevent(serial->frontend, msg);
-    sfree(msg);
+    logeventf(serial->logctx, "Configuring %s flow control", str);
 
     /* Parity */
     parity = conf_get_int(conf, CONF_serparity);
@@ -247,9 +239,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
 	options.c_cflag &= ~PARENB;
 	str = "no";
     }
-    msg = dupprintf("Configuring %s parity", str);
-    logevent(serial->frontend, msg);
-    sfree(msg);
+    logeventf(serial->logctx, "Configuring %s parity", str);
 
     options.c_cflag |= CLOCAL | CREAD;
     options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
@@ -290,7 +280,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
  * freed by the caller.
  */
 static const char *serial_init(Frontend *frontend, Backend **backend_handle,
-			       Conf *conf,
+                               LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
                                int nodelay, int keepalive)
 {
@@ -303,16 +293,13 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     *backend_handle = &serial->backend;
 
     serial->frontend = frontend;
+    serial->logctx = logctx;
     serial->finished = FALSE;
     serial->inbufsize = 0;
     bufchain_init(&serial->output_data);
 
     line = conf_get_str(conf, CONF_serline);
-    {
-	char *msg = dupprintf("Opening serial device %s", line);
-	logevent(serial->frontend, msg);
-        sfree(msg);
-    }
+    logeventf(serial->logctx, "Opening serial device %s", line);
 
     serial->fd = open(line, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
     if (serial->fd < 0)
@@ -503,7 +490,7 @@ static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 
     if (serial->fd >= 0 && code == SS_BRK) {
 	tcsendbreak(serial->fd, 0);
-	logevent(serial->frontend, "Sending serial break at user request");
+        logevent(serial->logctx, "Sending serial break at user request");
     }
 
     return;
@@ -552,11 +539,6 @@ static void serial_provide_ldisc(Backend *be, Ldisc *ldisc)
     /* This is a stub. */
 }
 
-static void serial_provide_logctx(Backend *be, LogContext *logctx)
-{
-    /* This is a stub. */
-}
-
 static int serial_exitcode(Backend *be)
 {
     Serial *serial = container_of(be, Serial, backend);
@@ -589,7 +571,6 @@ const struct BackendVtable serial_backend = {
     serial_sendok,
     serial_ldisc,
     serial_provide_ldisc,
-    serial_provide_logctx,
     serial_unthrottle,
     serial_cfg_info,
     NULL /* test_for_upstream */,
