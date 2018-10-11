@@ -730,7 +730,6 @@ void modalfatalbox(const char *, ...);
 void do_beep(Frontend *frontend, int);
 void sys_cursor(Frontend *frontend, int x, int y);
 void frontend_request_paste(Frontend *frontend, int clipboard);
-void frontend_keypress(Frontend *frontend);
 void frontend_echoedit_update(Frontend *frontend, int echo, int edit);
 /* It's the backend's responsibility to invoke this at the start of a
  * connection, if necessary; it can also invoke it later if the set of

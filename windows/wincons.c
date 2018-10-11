@@ -480,14 +480,6 @@ int console_get_userpass_input(prompts_t *p)
     return 1; /* success */
 }
 
-void frontend_keypress(Frontend *frontend)
-{
-    /*
-     * This is nothing but a stub, in console code.
-     */
-    return;
-}
-
 static const LogPolicyVtable default_logpolicy_vt = {
     console_eventlog,
     console_askappend,

@@ -5907,17 +5907,6 @@ static void flip_full_screen()
     }
 }
 
-void frontend_keypress(Frontend *frontend)
-{
-    /*
-     * Keypress termination in non-Close-On-Exit mode is not
-     * currently supported in PuTTY proper, because the window
-     * always has a perfectly good Close button anyway. So we do
-     * nothing here.
-     */
-    return;
-}
-
 int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
 {
     return term_data(term, is_stderr, data, len);

@@ -554,14 +554,6 @@ int console_get_userpass_input(prompts_t *p)
     return 1; /* success */
 }
 
-void frontend_keypress(Frontend *frontend)
-{
-    /*
-     * This is nothing but a stub, in console code.
-     */
-    return;
-}
-
 int is_interactive(void)
 {
     return isatty(0);

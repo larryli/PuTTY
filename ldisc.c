@@ -135,13 +135,6 @@ void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)
     assert(ldisc->term);
     assert(len);
 
-    /*
-     * Notify the front end that something was pressed, in case
-     * it's depending on finding out (e.g. keypress termination for
-     * Close On Exit). 
-     */
-    frontend_keypress(ldisc->frontend);
-
     if (interactive) {
         /*
          * Interrupt a paste from the clipboard, if one was in
