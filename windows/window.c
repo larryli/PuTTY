@@ -213,7 +213,7 @@ static Mouse_Button lastbtn;
 static int send_raw_mouse = 0;
 static int wheel_accumulator = 0;
 
-static int busy_status = BUSY_NOT;
+static BusyStatus busy_status = BUSY_NOT;
 
 static char *window_name, *icon_name;
 
@@ -230,20 +230,56 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
-/* Dummy routine, only required in plink. */
-void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
-{
-}
-
 int frontend_is_utf8(Frontend *frontend)
 {
     return ucsdata.line_codepage == CP_UTF8;
 }
 
-char *get_ttymode(Frontend *frontend, const char *mode)
+static int win_seat_is_utf8(Seat *seat)
+{
+    return frontend_is_utf8(NULL);
+}
+
+char *win_seat_get_ttymode(Seat *seat, const char *mode)
 {
     return term_get_ttymode(term, mode);
 }
+
+int win_seat_get_char_cell_size(Seat *seat, int *x, int *y)
+{
+    *x = font_width;
+    *y = font_height;
+    return TRUE;
+}
+
+static int win_seat_output(Seat *seat, int is_stderr, const void *, int);
+static int win_seat_eof(Seat *seat);
+static int win_seat_get_userpass_input(
+    Seat *seat, prompts_t *p, bufchain *input);
+static void win_seat_notify_remote_exit(Seat *seat);
+static void win_seat_connection_fatal(Seat *seat, const char *msg);
+static void win_seat_update_specials_menu(Seat *seat);
+static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
+
+static const SeatVtable win_seat_vt = {
+    win_seat_output,
+    win_seat_eof,
+    win_seat_get_userpass_input,
+    win_seat_notify_remote_exit,
+    win_seat_connection_fatal,
+    win_seat_update_specials_menu,
+    win_seat_get_ttymode,
+    win_seat_set_busy_status,
+    win_seat_verify_ssh_host_key,
+    win_seat_confirm_weak_crypto_primitive,
+    win_seat_confirm_weak_cached_hostkey,
+    win_seat_is_utf8,
+    nullseat_echoedit_update,
+    nullseat_get_x_display,
+    nullseat_get_windowid,
+    win_seat_get_char_cell_size,
+};
+Seat win_seat[1] = {{ &win_seat_vt }};
 
 static void start_backend(void)
 {
@@ -266,7 +302,7 @@ static void start_backend(void)
 	cleanup_exit(1);
     }
 
-    error = backend_init(vt, NULL, &backend, logctx, conf,
+    error = backend_init(vt, win_seat, &backend, logctx, conf,
                          conf_get_str(conf, CONF_host),
                          conf_get_int(conf, CONF_port),
                          &realhost,
@@ -298,7 +334,7 @@ static void start_backend(void)
     /*
      * Set up a line discipline.
      */
-    ldisc = ldisc_create(conf, term, backend, NULL);
+    ldisc = ldisc_create(conf, term, backend, win_seat);
 
     /*
      * Destroy the Restart Session menu item. (This will return
@@ -332,7 +368,7 @@ static void close_session(void *ignored_context)
         backend_free(backend);
         backend = NULL;
         term_provide_backend(term, NULL);
-	update_specials_menu(NULL);
+	seat_update_specials_menu(win_seat);
     }
 
     /*
@@ -945,7 +981,7 @@ static void update_savedsess_menu(void)
 /*
  * Update the Special Commands submenu.
  */
-void update_specials_menu(Frontend *frontend)
+static void win_seat_update_specials_menu(Seat *seat)
 {
     HMENU new_menu;
     int i, j;
@@ -1051,7 +1087,7 @@ static void update_mouse_pointer(void)
     }
 }
 
-void set_busy_status(Frontend *frontend, int status)
+static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
 {
     busy_status = status;
     update_mouse_pointer();
@@ -1070,17 +1106,12 @@ void set_raw_mouse_mode(Frontend *frontend, int activate)
 /*
  * Print a message box and close the connection.
  */
-void connection_fatal(Frontend *frontend, const char *fmt, ...)
+static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    va_list ap;
-    char *stuff, morestuff[100];
+    char title[100];
 
-    va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
-    va_end(ap);
-    sprintf(morestuff, "%.70s Fatal Error", appname);
-    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
-    sfree(stuff);
+    sprintf(title, "%.70s Fatal Error", appname);
+    MessageBox(hwnd, msg, title, MB_ICONERROR | MB_OK);
 
     if (conf_get_int(conf, CONF_close_on_exit) == FORCE_ON)
 	PostQuitMessage(1);
@@ -1969,7 +2000,7 @@ static int is_alt_pressed(void)
 
 static int resizing;
 
-void notify_remote_exit(Frontend *frontend)
+static void win_seat_notify_remote_exit(Seat *seat)
 {
     int exitcode, close_on_exit;
 
@@ -5907,17 +5938,19 @@ static void flip_full_screen()
     }
 }
 
-int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
+static int win_seat_output(Seat *seat, int is_stderr,
+                           const void *data, int len)
 {
     return term_data(term, is_stderr, data, len);
 }
 
-int from_backend_eof(Frontend *frontend)
+static int win_seat_eof(Seat *seat)
 {
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, bufchain *input)
+static int win_seat_get_userpass_input(
+    Seat *seat, prompts_t *p, bufchain *input)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);

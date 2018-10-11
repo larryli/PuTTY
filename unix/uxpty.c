@@ -71,7 +71,7 @@ static int pty_signal_pipe[2] = { -1, -1 };   /* obviously bogus initial val */
 struct Pty {
     Conf *conf;
     int master_fd, slave_fd;
-    Frontend *frontend;
+    Seat *seat;
     char name[FILENAME_MAX];
     pid_t child_pid;
     int term_width, term_height;
@@ -633,7 +633,7 @@ void pty_real_select_result(Pty *pty, int event, int status)
 		perror("read pty master");
 		exit(1);
 	    } else if (ret > 0) {
-		from_backend(pty->frontend, 0, buf, ret);
+		seat_stdout(pty->seat, buf, ret);
 	    }
 	} else if (event == 2) {
             /*
@@ -675,10 +675,10 @@ void pty_real_select_result(Pty *pty, int event, int status)
 			" %d (%.400s)]\r\n", WTERMSIG(pty->exit_code),
 			strsignal(WTERMSIG(pty->exit_code)));
 #endif
-	    from_backend(pty->frontend, 0, message, strlen(message));
+	    seat_stdout(pty->seat, message, strlen(message));
 	}
 
-	notify_remote_exit(pty->frontend);
+	seat_notify_remote_exit(pty->seat);
     }
 }
 
@@ -736,7 +736,7 @@ static void pty_uxsel_setup(Pty *pty)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *pty_init(Frontend *frontend, Backend **backend_handle,
+static const char *pty_init(Seat *seat, Backend **backend_handle,
                             LogContext *logctx, Conf *conf,
                             const char *host, int port,
                             char **realhost, int nodelay, int keepalive)
@@ -760,7 +760,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
 #endif
     }
 
-    pty->frontend = frontend;
+    pty->seat = seat;
     pty->backend.vt = &pty_backend;
     *backend_handle = &pty->backend;
 
@@ -781,7 +781,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
             close(pty_utmp_helper_pipe);   /* just let the child process die */
             pty_utmp_helper_pipe = -1;
         } else {
-            const char *location = get_x_display(pty->frontend);
+            const char *location = seat_get_x_display(pty->seat);
             int len = strlen(location)+1, pos = 0;   /* +1 to include NUL */
             while (pos < len) {
                 int ret = write(pty_utmp_helper_pipe, location+pos, len - pos);
@@ -798,7 +798,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
 #endif
 
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
-    got_windowid = get_windowid(pty->frontend, &windowid);
+    got_windowid = seat_get_windowid(pty->seat, &windowid);
 #endif
 
     /*
@@ -888,7 +888,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
              * Set the IUTF8 bit iff the character set is UTF-8.
              */
 #ifdef IUTF8
-            if (frontend_is_utf8(frontend))
+            if (seat_is_utf8(seat))
                 attrs.c_iflag |= IUTF8;
             else
                 attrs.c_iflag &= ~IUTF8;
@@ -928,7 +928,7 @@ static const char *pty_init(Frontend *frontend, Backend **backend_handle,
              * terminal to match the display the terminal itself is
              * on.
              */
-            const char *x_display = get_x_display(pty->frontend);
+            const char *x_display = seat_get_x_display(pty->seat);
             char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
             putenv(x_display_env_var);
             /* As above, we don't free this. */
@@ -1150,16 +1150,17 @@ static void pty_size(Backend *be, int width, int height)
 {
     Pty *pty = container_of(be, Pty, backend);
     struct winsize size;
+    int xpixel = 0, ypixel = 0;
 
     pty->term_width = width;
     pty->term_height = height;
 
+    seat_get_char_cell_size(pty->seat, &xpixel, &ypixel);
+
     size.ws_row = (unsigned short)pty->term_height;
     size.ws_col = (unsigned short)pty->term_width;
-    size.ws_xpixel = (unsigned short) pty->term_width *
-	font_dimension(pty->frontend, 0);
-    size.ws_ypixel = (unsigned short) pty->term_height *
-	font_dimension(pty->frontend, 1);
+    size.ws_xpixel = (unsigned short)pty->term_width * xpixel;
+    size.ws_ypixel = (unsigned short)pty->term_height * ypixel;
     ioctl(pty->master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }

@@ -28,21 +28,65 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-void set_busy_status(Frontend *frontend, int status)
+/*
+ * Various error message and/or fatal exit functions.
+ */
+void console_print_error_msg(const char *prefix, const char *msg)
 {
+    fputs(prefix, stderr);
+    fputs(": ", stderr);
+    fputs(msg, stderr);
+    fputc('\n', stderr);
+    fflush(stderr);
 }
 
-void notify_remote_exit(Frontend *frontend)
+void console_print_error_msg_fmt_v(
+    const char *prefix, const char *fmt, va_list ap)
 {
+    char *msg = dupvprintf(fmt, ap);
+    console_print_error_msg(prefix, msg);
+    sfree(msg);
+}
+
+void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v(prefix, fmt, ap);
+    va_end(ap);
+}
+
+void modalfatalbox(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v("FATAL ERROR", fmt, ap);
+    va_end(ap);
+    cleanup_exit(1);
+}
+
+void nonfatal(const char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v("ERROR", fmt, ap);
+    va_end(ap);
+}
+
+void console_connection_fatal(Seat *seat, const char *msg)
+{
+    console_print_error_msg("FATAL ERROR", msg);
+    cleanup_exit(1);
 }
 
 void timer_change_notify(unsigned long next)
 {
 }
 
-int verify_ssh_host_key(Frontend *frontend, char *host, int port,
-                        const char *keytype, char *keystr, char *fingerprint,
-                        void (*callback)(void *ctx, int result), void *ctx)
+int console_verify_ssh_host_key(
+    Seat *seat, const char *host, int port,
+    const char *keytype, char *keystr, char *fingerprint,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
     HANDLE hin;
@@ -145,16 +189,9 @@ int verify_ssh_host_key(Frontend *frontend, char *host, int port,
     }
 }
 
-void update_specials_menu(Frontend *frontend)
-{
-}
-
-/*
- * Ask whether the selected algorithm is acceptable (since it was
- * below the configured 'warn' threshold).
- */
-int askalg(Frontend *frontend, const char *algtype, const char *algname,
-	   void (*callback)(void *ctx, int result), void *ctx)
+int console_confirm_weak_crypto_primitive(
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -194,8 +231,9 @@ int askalg(Frontend *frontend, const char *algtype, const char *algname,
     }
 }
 
-int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
-          void (*callback)(void *ctx, int result), void *ctx)
+int console_confirm_weak_cached_hostkey(
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;

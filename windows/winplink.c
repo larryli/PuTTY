@@ -22,51 +22,12 @@ struct agent_callback {
     int len;
 };
 
-void modalfatalbox(const char *p, ...)
+void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v("plink", fmt, ap);
     va_end(ap);
-    fputc('\n', stderr);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
-void nonfatal(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-}
-void connection_fatal(Frontend *frontend, const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
-void cmdline_error(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "plink: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
     exit(1);
 }
 
@@ -83,7 +44,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
+static void plink_echoedit_update(Seat *seat, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     DWORD mode;
@@ -100,10 +61,7 @@ void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
     SetConsoleMode(inhandle, mode);
 }
 
-char *get_ttymode(Frontend *frontend, const char *mode) { return NULL; }
-
-int from_backend(Frontend *frontend, int is_stderr,
-		 const void *data, int len)
+static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
 {
     if (is_stderr) {
 	handle_write(stderr_handle, data, len);
@@ -114,13 +72,13 @@ int from_backend(Frontend *frontend, int is_stderr,
     return handle_backlog(stdout_handle) + handle_backlog(stderr_handle);
 }
 
-int from_backend_eof(Frontend *frontend)
+static int plink_eof(Seat *seat)
 {
     handle_write_eof(stdout_handle);
     return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, bufchain *input)
+static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);
@@ -128,6 +86,26 @@ int get_userpass_input(prompts_t *p, bufchain *input)
 	ret = console_get_userpass_input(p);
     return ret;
 }
+
+static const SeatVtable plink_seat_vt = {
+    plink_output,
+    plink_eof,
+    plink_get_userpass_input,
+    nullseat_notify_remote_exit,
+    console_connection_fatal,
+    nullseat_update_specials_menu,
+    nullseat_get_ttymode,
+    nullseat_set_busy_status,
+    console_verify_ssh_host_key,
+    console_confirm_weak_crypto_primitive,
+    console_confirm_weak_cached_hostkey,
+    nullseat_is_never_utf8,
+    plink_echoedit_update,
+    nullseat_get_x_display,
+    nullseat_get_windowid,
+    nullseat_get_char_cell_size,
+};
+static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
 static DWORD main_thread_id;
 
@@ -476,7 +454,7 @@ int main(int argc, char **argv)
 	int nodelay = conf_get_int(conf, CONF_tcp_nodelay) &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
-        error = backend_init(vt, NULL, &backend, logctx, conf,
+        error = backend_init(vt, plink_seat, &backend, logctx, conf,
                              conf_get_str(conf, CONF_host),
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,

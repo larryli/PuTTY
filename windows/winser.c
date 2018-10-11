@@ -14,7 +14,7 @@ typedef struct Serial Serial;
 struct Serial {
     HANDLE port;
     struct handle *out, *in;
-    Frontend *frontend;
+    Seat *seat;
     LogContext *logctx;
     int bufsize;
     long clearbreak_time;
@@ -60,15 +60,15 @@ static int serial_gotdata(struct handle *h, void *data, int len)
 
 	serial_terminate(serial);
 
-	notify_remote_exit(serial->frontend);
+	seat_notify_remote_exit(serial->seat);
 
         logevent(serial->logctx, error_msg);
 
-	connection_fatal(serial->frontend, "%s", error_msg);
+	seat_connection_fatal(serial->seat, "%s", error_msg);
 
 	return 0;		       /* placate optimiser */
     } else {
-	return from_backend(serial->frontend, 0, data, len);
+	return seat_stdout(serial->seat, data, len);
     }
 }
 
@@ -80,11 +80,11 @@ static void serial_sentdata(struct handle *h, int new_backlog)
 
 	serial_terminate(serial);
 
-	notify_remote_exit(serial->frontend);
+	seat_notify_remote_exit(serial->seat);
 
         logevent(serial->logctx, error_msg);
 
-	connection_fatal(serial->frontend, "%s", error_msg);
+	seat_connection_fatal(serial->seat, "%s", error_msg);
     } else {
 	serial->bufsize = new_backlog;
     }
@@ -190,7 +190,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(Frontend *frontend, Backend **backend_handle,
+static const char *serial_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
                                const char *host, int port,
 			       char **realhost, int nodelay, int keepalive)
@@ -208,7 +208,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
-    serial->frontend = frontend;
+    serial->seat = seat;
     serial->logctx = logctx;
 
     serline = conf_get_str(conf, CONF_serline);
@@ -265,7 +265,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     /*
      * Specials are always available.
      */
-    update_specials_menu(serial->frontend);
+    seat_update_specials_menu(serial->seat);
 
     return NULL;
 }

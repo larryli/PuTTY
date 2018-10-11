@@ -19,7 +19,7 @@
 
 typedef struct Serial Serial;
 struct Serial {
-    Frontend *frontend;
+    Seat *seat;
     LogContext *logctx;
     int fd;
     int finished;
@@ -279,7 +279,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(Frontend *frontend, Backend **backend_handle,
+static const char *serial_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
                                int nodelay, int keepalive)
@@ -292,7 +292,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
-    serial->frontend = frontend;
+    serial->seat = seat;
     serial->logctx = logctx;
     serial->finished = FALSE;
     serial->inbufsize = 0;
@@ -322,7 +322,7 @@ static const char *serial_init(Frontend *frontend, Backend **backend_handle,
     /*
      * Specials are always available.
      */
-    update_specials_menu(serial->frontend);
+    seat_update_specials_menu(serial->seat);
 
     return NULL;
 }
@@ -390,7 +390,7 @@ static void serial_select_result(int fd, int event)
 	    perror("read serial port");
 	    exit(1);
 	} else if (ret > 0) {
-	    serial->inbufsize = from_backend(serial->frontend, 0, buf, ret);
+	    serial->inbufsize = seat_stdout(serial->seat, buf, ret);
 	    serial_uxsel_setup(serial); /* might acquire backlog and freeze */
 	}
     } else if (event == 2) {
@@ -405,7 +405,7 @@ static void serial_select_result(int fd, int event)
 
 	serial->finished = TRUE;
 
-	notify_remote_exit(serial->frontend);
+	seat_notify_remote_exit(serial->seat);
     }
 }
 

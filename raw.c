@@ -15,7 +15,7 @@ struct Raw {
     Socket *s;
     int closed_on_socket_error;
     int bufsize;
-    Frontend *frontend;
+    Seat *seat;
     LogContext *logctx;
     int sent_console_eof, sent_socket_eof, session_started;
 
@@ -29,7 +29,7 @@ static void raw_size(Backend *be, int width, int height);
 
 static void c_write(Raw *raw, const void *buf, int len)
 {
-    int backlog = from_backend(raw->frontend, 0, buf, len);
+    int backlog = seat_stdout(raw->seat, buf, len);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
@@ -37,7 +37,7 @@ static void raw_log(Plug *plug, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);
-    backend_socket_log(raw->frontend, raw->logctx, type, addr, port,
+    backend_socket_log(raw->seat, raw->logctx, type, addr, port,
                        error_msg, error_code, raw->conf, raw->session_started);
 }
 
@@ -51,7 +51,7 @@ static void raw_check_close(Raw *raw)
         if (raw->s) {
             sk_close(raw->s);
             raw->s = NULL;
-            notify_remote_exit(raw->frontend);
+            seat_notify_remote_exit(raw->seat);
         }
     }
 }
@@ -67,13 +67,13 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
             sk_close(raw->s);
             raw->s = NULL;
             raw->closed_on_socket_error = TRUE;
-            notify_remote_exit(raw->frontend);
+            seat_notify_remote_exit(raw->seat);
         }
         logevent(raw->logctx, error_msg);
-        connection_fatal(raw->frontend, "%s", error_msg);
+        seat_connection_fatal(raw->seat, "%s", error_msg);
     } else {
         /* Otherwise, the remote side closed the connection normally. */
-        if (!raw->sent_console_eof && from_backend_eof(raw->frontend)) {
+        if (!raw->sent_console_eof && seat_eof(raw->seat)) {
             /*
              * The front end wants us to close the outgoing side of the
              * connection as soon as we see EOF from the far end.
@@ -119,7 +119,7 @@ static const PlugVtable Raw_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *raw_init(Frontend *frontend, Backend **backend_handle,
+static const char *raw_init(Seat *seat, Backend **backend_handle,
                             LogContext *logctx, Conf *conf,
 			    const char *host, int port, char **realhost,
                             int nodelay, int keepalive)
@@ -141,7 +141,7 @@ static const char *raw_init(Frontend *frontend, Backend **backend_handle,
     raw->session_started = FALSE;
     raw->conf = conf_copy(conf);
 
-    raw->frontend = frontend;
+    raw->seat = seat;
     raw->logctx = logctx;
 
     addressfamily = conf_get_int(conf, CONF_addressfamily);

@@ -81,8 +81,8 @@ void cmdline_cleanup(void)
 } while (0)
 
 /*
- * Similar interface to get_userpass_input(), except that here a -1
- * return means that we aren't capable of processing the prompt and
+ * Similar interface to seat_get_userpass_input(), except that here a
+ * -1 return means that we aren't capable of processing the prompt and
  * someone else should do it.
  */
 int cmdline_get_passwd_input(prompts_t *p)

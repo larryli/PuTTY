@@ -92,27 +92,6 @@ static void no_progress(void *param, int action, int phase, int iprogress)
 {
 }
 
-void modalfatalbox(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    cleanup_exit(1);
-}
-
-void nonfatal(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-}
-
 /*
  * Stubs to let everything else link sensibly.
  */
@@ -775,7 +754,7 @@ int main(int argc, char **argv)
 	 */
 	if (encrypted && load_encrypted) {
 	    if (!old_passphrase) {
-		prompts_t *p = new_prompts(NULL);
+		prompts_t *p = new_prompts();
 		int ret;
 		p->to_server = FALSE;
 		p->name = dupstr("SSH key passphrase");

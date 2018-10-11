@@ -249,12 +249,12 @@ struct terminal_tag {
     Conf *conf;
 
     /*
-     * from_backend calls term_out, but it can also be called from
-     * the ldisc if the ldisc is called _within_ term_out. So we
-     * have to guard against re-entrancy - if from_backend is
-     * called recursively like this, it will simply add data to the
-     * end of the buffer term_out is in the process of working
-     * through.
+     * GUI implementations of seat_output call term_out, but it can
+     * also be called from the ldisc if the ldisc is called _within_
+     * term_out. So we have to guard against re-entrancy - if
+     * seat_output is called recursively like this, it will simply add
+     * data to the end of the buffer term_out is in the process of
+     * working through.
      */
     int in_term_out;
 

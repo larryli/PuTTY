@@ -32,10 +32,10 @@
 
 #include "putty.h"
 
-static const char *null_init(Frontend *, Backend **, Conf *, const char *, int,
-                             char **, int, int);
-static const char *loop_init(Frontend *, Backend **, Conf *, const char *, int,
-                             char **, int, int);
+static const char *null_init(Seat *, Backend **, LogContext *, Conf *,
+                             const char *, int, char **, int, int);
+static const char *loop_init(Seat *, Backend **, LogContext *, Conf *,
+                             const char *, int, char **, int, int);
 static void null_free(Backend *);
 static void loop_free(Backend *);
 static void null_reconfig(Backend *, Conf *);
@@ -68,23 +68,25 @@ const struct BackendVtable loop_backend = {
 };
 
 struct loop_state {
-    Frontend *frontend;
+    Seat *seat;
     Backend backend;
 };
 
-static const char *null_init(Frontend *frontend, Backend **backend_handle,
-                             Conf *conf, const char *host, int port,
-			     char **realhost, int nodelay, int keepalive) {
+static const char *null_init(Seat *seat, Backend **backend_handle,
+                               LogContext *logctx, Conf *conf,
+			       const char *host, int port, char **realhost,
+			       int nodelay, int keepalive) {
     *backend_handle = NULL;
     return NULL;
 }
 
-static const char *loop_init(Frontend *frontend, Backend **backend_handle,
-                             Conf *conf, const char *host, int port,
-			     char **realhost, int nodelay, int keepalive) {
+static const char *loop_init(Seat *seat, Backend **backend_handle,
+                             LogContext *logctx, Conf *conf,
+                             const char *host, int port, char **realhost,
+                             int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
-    st->frontend = frontend;
+    st->seat = seat;
     *backend_handle = &st->backend;
     return NULL;
 }
@@ -113,7 +115,7 @@ static int null_send(Backend *be, const char *buf, int len) {
 static int loop_send(Backend *be, const char *buf, int len) {
     struct loop_state *st = container_of(be, struct loop_state, backend);
 
-    return from_backend(st->frontend, 0, buf, len);
+    return seat_output(st->seat, 0, buf, len);
 }
 
 static int null_sendbuffer(Backend *be) {
@@ -159,10 +161,6 @@ static int null_ldisc(Backend *be, int option) {
 }
 
 static void null_provide_ldisc (Backend *be, Ldisc *ldisc) {
-
-}
-
-static void null_provide_logctx(Backend *be, LogContext *logctx) {
 
 }
 

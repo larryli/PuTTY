@@ -61,6 +61,29 @@ const char *const appname = "PSCP";
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
 
+static int pscp_output(Seat *, int is_stderr, const void *, int);
+static int pscp_eof(Seat *);
+
+static const SeatVtable pscp_seat_vt = {
+    pscp_output,
+    pscp_eof,
+    filexfer_get_userpass_input,
+    nullseat_notify_remote_exit,
+    console_connection_fatal,
+    nullseat_update_specials_menu,
+    nullseat_get_ttymode,
+    nullseat_set_busy_status,
+    console_verify_ssh_host_key,
+    console_confirm_weak_crypto_primitive,
+    console_confirm_weak_cached_hostkey,
+    nullseat_is_never_utf8,
+    nullseat_echoedit_update,
+    nullseat_get_x_display,
+    nullseat_get_windowid,
+    nullseat_get_char_cell_size,
+};
+static Seat pscp_seat[1] = {{ &pscp_seat_vt }};
+
 static void tell_char(FILE *stream, char c)
 {
     fputc(c, stream);
@@ -104,56 +127,6 @@ static void tell_user(FILE *stream, const char *fmt, ...)
 }
 
 /*
- *  Print an error message and perform a fatal exit.
- */
-void modalfatalbox(const char *fmt, ...)
-{
-    char *str, *str2;
-    va_list ap;
-    va_start(ap, fmt);
-    str = dupvprintf(fmt, ap);
-    str2 = dupcat("Fatal: ", str, "\n", NULL);
-    sfree(str);
-    va_end(ap);
-    abandon_stats();
-    tell_str(stderr, str2);
-    sfree(str2);
-    errs++;
-
-    cleanup_exit(1);
-}
-void nonfatal(const char *fmt, ...)
-{
-    char *str, *str2;
-    va_list ap;
-    va_start(ap, fmt);
-    str = dupvprintf(fmt, ap);
-    str2 = dupcat("Error: ", str, "\n", NULL);
-    sfree(str);
-    va_end(ap);
-    abandon_stats();
-    tell_str(stderr, str2);
-    sfree(str2);
-    errs++;
-}
-void connection_fatal(Frontend *frontend, const char *fmt, ...)
-{
-    char *str, *str2;
-    va_list ap;
-    va_start(ap, fmt);
-    str = dupvprintf(fmt, ap);
-    str2 = dupcat("Fatal: ", str, "\n", NULL);
-    sfree(str);
-    va_end(ap);
-    abandon_stats();
-    tell_str(stderr, str2);
-    sfree(str2);
-    errs++;
-
-    cleanup_exit(1);
-}
-
-/*
  * In pscp, all agent requests should be synchronous, so this is a
  * never-called stub.
  */
@@ -168,16 +141,16 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  * is available.
  *
  * To do this, we repeatedly call the SSH protocol module, with our
- * own trap in from_backend() to catch the data that comes back. We
- * do this until we have enough data.
+ * own pscp_output() function to catch the data that comes back. We do
+ * this until we have enough data.
  */
 
 static unsigned char *outptr;	       /* where to put the data */
 static unsigned outlen;		       /* how much data required */
 static unsigned char *pending = NULL;  /* any spare data */
 static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-int from_backend(Frontend *frontend, int is_stderr,
-                 const void *data, int datalen)
+static int pscp_output(Seat *seat, int is_stderr,
+                       const void *data, int datalen)
 {
     unsigned char *p = (unsigned char *) data;
     unsigned len = (unsigned) datalen;
@@ -215,7 +188,7 @@ int from_backend(Frontend *frontend, int is_stderr,
 
     return 0;
 }
-int from_backend_eof(Frontend *frontend)
+static int pscp_eof(Seat *seat)
 {
     /*
      * We usually expect to be the party deciding when to close the
@@ -224,8 +197,8 @@ int from_backend_eof(Frontend *frontend)
      * downloading rather than uploading.
      */
     if ((using_sftp || uploading) && !sent_eof) {
-        connection_fatal(frontend,
-                         "Received unexpected end-of-file from server");
+        seat_connection_fatal(
+            pscp_seat, "Received unexpected end-of-file from server");
     }
     return FALSE;
 }
@@ -325,7 +298,7 @@ static void bump(const char *fmt, ...)
  * Wait for the reply to a single SFTP request. Parallels the same
  * function in psftp.c (but isn't centralised into sftp.c because the
  * latter module handles SFTP only and shouldn't assume that SFTP is
- * the only thing going on by calling connection_fatal).
+ * the only thing going on by calling seat_connection_fatal).
  */
 struct sftp_packet *sftp_wait_for_reply(struct sftp_request *req)
 {
@@ -334,13 +307,17 @@ struct sftp_packet *sftp_wait_for_reply(struct sftp_request *req)
 
     sftp_register(req);
     pktin = sftp_recv();
-    if (pktin == NULL)
-        connection_fatal(NULL, "did not receive SFTP response packet "
-                         "from server");
+    if (pktin == NULL) {
+        seat_connection_fatal(
+            pscp_seat, "did not receive SFTP response packet from server");
+    }
     rreq = sftp_find_request(pktin);
-    if (rreq != req)
-        connection_fatal(NULL, "unable to understand SFTP response packet "
-                         "from server: %s", fxp_error());
+    if (rreq != req) {
+        seat_connection_fatal(
+            pscp_seat,
+            "unable to understand SFTP response packet from server: %s",
+            fxp_error());
+    }
     return pktin;
 }
 
@@ -513,7 +490,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     platform_psftp_pre_conn_setup();
 
-    err = backend_init(&ssh_backend, NULL, &backend, logctx, conf,
+    err = backend_init(&ssh_backend, pscp_seat, &backend, logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,

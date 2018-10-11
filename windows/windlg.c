@@ -798,10 +798,11 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
 static void win_gui_logging_error(LogPolicy *lp, const char *event)
 {
+    extern Seat win_seat[1];
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    from_backend(NULL, 1, event, strlen(event));
-    from_backend(NULL, 1, "\r\n", 2);
+    seat_stderr(win_seat, event, strlen(event));
+    seat_stderr(win_seat, "\r\n", 2);
 }
 
 void showeventlog(HWND hwnd)
@@ -819,9 +820,10 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
-int verify_ssh_host_key(Frontend *frontend, char *host, int port,
-                        const char *keytype, char *keystr, char *fingerprint,
-                        void (*callback)(void *ctx, int result), void *ctx)
+int win_seat_verify_ssh_host_key(
+    Seat *seat, const char *host, int port,
+    const char *keytype, char *keystr, char *fingerprint,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
 
@@ -903,8 +905,9 @@ int verify_ssh_host_key(Frontend *frontend, char *host, int port,
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int askalg(Frontend *frontend, const char *algtype, const char *algname,
-	   void (*callback)(void *ctx, int result), void *ctx)
+int win_seat_confirm_weak_crypto_primitive(
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
@@ -928,8 +931,9 @@ int askalg(Frontend *frontend, const char *algtype, const char *algname,
 	return 0;
 }
 
-int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
-          void (*callback)(void *ctx, int result), void *ctx)
+int win_seat_confirm_weak_cached_hostkey(
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =

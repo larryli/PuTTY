@@ -38,9 +38,6 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-int from_backend(Frontend *frontend, int is_stderr, const void *data, int len)
-{ return 0; }
-
 /* functions required by terminal.c */
 
 void request_resize(Frontend *frontend, int x, int y) { }

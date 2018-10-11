@@ -29,63 +29,12 @@ static LogContext *logctx;
 
 static struct termios orig_termios;
 
-void modalfatalbox(const char *p, ...)
+void cmdline_error(const char *fmt, ...)
 {
-    struct termios cf;
     va_list ap;
-    premsg(&cf);
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v("plink", fmt, ap);
     va_end(ap);
-    fputc('\n', stderr);
-    postmsg(&cf);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
-void nonfatal(const char *p, ...)
-{
-    struct termios cf;
-    va_list ap;
-    premsg(&cf);
-    fprintf(stderr, "ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    postmsg(&cf);
-}
-void connection_fatal(Frontend *frontend, const char *p, ...)
-{
-    struct termios cf;
-    va_list ap;
-    premsg(&cf);
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    postmsg(&cf);
-    if (logctx) {
-        log_free(logctx);
-        logctx = NULL;
-    }
-    cleanup_exit(1);
-}
-void cmdline_error(const char *p, ...)
-{
-    struct termios cf;
-    va_list ap;
-    premsg(&cf);
-    fprintf(stderr, "plink: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    postmsg(&cf);
     exit(1);
 }
 
@@ -132,7 +81,7 @@ int term_ldisc(Terminal *term, int mode)
 {
     return FALSE;
 }
-void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
+static void plink_echoedit_update(Seat *seat, int echo, int edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     struct termios mode;
@@ -158,7 +107,7 @@ void frontend_echoedit_update(Frontend *frontend, int echo, int edit)
 	mode.c_cc[VMIN] = 1;
 	mode.c_cc[VTIME] = 0;
 	/* FIXME: perhaps what we do with IXON/IXOFF should be an
-	 * argument to frontend_echoedit_update(), to allow
+	 * argument to the echoedit_update() method, to allow
 	 * implementation of SSH-2 "xon-xoff" and Rlogin's
 	 * equivalent? */
 	mode.c_iflag &= ~IXON;
@@ -190,7 +139,7 @@ static char *get_ttychar(struct termios *t, int index)
     return dupprintf("^<%d>", c);
 }
 
-char *get_ttymode(Frontend *frontend, const char *mode)
+static char *plink_get_ttymode(Seat *seat, const char *mode)
 {
     /*
      * Propagate appropriate terminal modes from the local terminal,
@@ -400,8 +349,7 @@ int try_output(int is_stderr)
     return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
-int from_backend(Frontend *frontend, int is_stderr,
-                 const void *data, int len)
+static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
 {
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
@@ -413,7 +361,7 @@ int from_backend(Frontend *frontend, int is_stderr,
     }
 }
 
-int from_backend_eof(Frontend *frontend)
+static int plink_eof(Seat *seat)
 {
     assert(outgoingeof == EOF_NO);
     outgoingeof = EOF_PENDING;
@@ -421,7 +369,7 @@ int from_backend_eof(Frontend *frontend)
     return FALSE;   /* do not respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, bufchain *input)
+static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);
@@ -429,6 +377,26 @@ int get_userpass_input(prompts_t *p, bufchain *input)
 	ret = console_get_userpass_input(p);
     return ret;
 }
+
+static const SeatVtable plink_seat_vt = {
+    plink_output,
+    plink_eof,
+    plink_get_userpass_input,
+    nullseat_notify_remote_exit,
+    console_connection_fatal,
+    nullseat_update_specials_menu,
+    plink_get_ttymode,
+    nullseat_set_busy_status,
+    console_verify_ssh_host_key,
+    console_confirm_weak_crypto_primitive,
+    console_confirm_weak_cached_hostkey,
+    nullseat_is_never_utf8,
+    plink_echoedit_update,
+    nullseat_get_x_display,
+    nullseat_get_windowid,
+    nullseat_get_char_cell_size,
+};
+static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
 /*
  * Handle data from a local tty in PARMRK format.
@@ -834,7 +802,7 @@ int main(int argc, char **argv)
 	__AFL_INIT();
 #endif
 
-        error = backend_init(backvt, NULL, &backend, logctx, conf,
+        error = backend_init(backvt, plink_seat, &backend, logctx, conf,
                              conf_get_str(conf, CONF_host),
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,
@@ -843,7 +811,7 @@ int main(int argc, char **argv)
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;
 	}
-        ldisc_create(conf, NULL, backend, NULL);
+        ldisc_create(conf, NULL, backend, plink_seat);
 	sfree(realhost);
     }
 
@@ -854,7 +822,7 @@ int main(int argc, char **argv)
      */
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
-    frontend_echoedit_update(NULL, 1, 1);
+    seat_echoedit_update(plink_seat, 1, 1);
     sending = FALSE;
     now = GETTICKCOUNT();
 

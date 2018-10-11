@@ -19,7 +19,7 @@ struct Rlogin {
     int firstbyte;
     int cansize;
     int term_width, term_height;
-    Frontend *frontend;
+    Seat *seat;
     LogContext *logctx;
 
     Conf *conf;
@@ -33,7 +33,7 @@ struct Rlogin {
 
 static void c_write(Rlogin *rlogin, const void *buf, int len)
 {
-    int backlog = from_backend(rlogin->frontend, 0, buf, len);
+    int backlog = seat_stdout(rlogin->seat, buf, len);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
@@ -41,7 +41,7 @@ static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 		       const char *error_msg, int error_code)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
-    backend_socket_log(rlogin->frontend, rlogin->logctx, type, addr, port,
+    backend_socket_log(rlogin->seat, rlogin->logctx, type, addr, port,
                        error_msg, error_code,
                        rlogin->conf, !rlogin->firstbyte);
 }
@@ -62,12 +62,12 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
         rlogin->s = NULL;
         if (error_msg)
             rlogin->closed_on_socket_error = TRUE;
-	notify_remote_exit(rlogin->frontend);
+	seat_notify_remote_exit(rlogin->seat);
     }
     if (error_msg) {
 	/* A socket error has occurred. */
         logevent(rlogin->logctx, error_msg);
-	connection_fatal(rlogin->frontend, "%s", error_msg);
+        seat_connection_fatal(rlogin->seat, "%s", error_msg);
     }				       /* Otherwise, the remote side closed the connection normally. */
 }
 
@@ -150,7 +150,7 @@ static const PlugVtable Rlogin_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
+static const char *rlogin_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive)
@@ -167,7 +167,7 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
     rlogin->backend.vt = &rlogin_backend;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = FALSE;
-    rlogin->frontend = frontend;
+    rlogin->seat = seat;
     rlogin->logctx = logctx;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
@@ -223,11 +223,11 @@ static const char *rlogin_init(Frontend *frontend, Backend **backend_handle,
     } else {
         int ret;
 
-        rlogin->prompt = new_prompts(rlogin->frontend);
+        rlogin->prompt = new_prompts();
         rlogin->prompt->to_server = TRUE;
         rlogin->prompt->name = dupstr("Rlogin login name");
         add_prompt(rlogin->prompt, dupstr("rlogin username: "), TRUE); 
-        ret = get_userpass_input(rlogin->prompt, NULL);
+        ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, NULL);
         if (ret >= 0) {
             rlogin_startup(rlogin, rlogin->prompt->prompts[0]->result);
         }
@@ -274,7 +274,7 @@ static int rlogin_send(Backend *be, const char *buf, int len)
          * We're still prompting for a username, and aren't talking
          * directly to the network connection yet.
          */
-        int ret = get_userpass_input(rlogin->prompt, &bc);
+        int ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, &bc);
         if (ret >= 0) {
             rlogin_startup(rlogin, rlogin->prompt->prompts[0]->result);
             /* that nulls out rlogin->prompt, so then we'll start sending

@@ -3416,7 +3416,7 @@ struct verify_ssh_host_key_result_ctx {
     char *keystr;
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
-    Frontend *frontend;
+    Seat *seat;
 };
 
 static void verify_ssh_host_key_result_callback(void *vctx, int result)
@@ -3449,7 +3449,7 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_dialog(ctx->frontend, DIALOG_SLOT_NETWORK_PROMPT);
+    unregister_dialog(ctx->seat, DIALOG_SLOT_NETWORK_PROMPT);
 
     sfree(ctx->host);
     sfree(ctx->keytype);
@@ -3457,9 +3457,10 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
     sfree(ctx);
 }
 
-int verify_ssh_host_key(Frontend *frontend, char *host, int port,
-                        const char *keytype, char *keystr, char *fingerprint,
-                        void (*callback)(void *ctx, int result), void *ctx)
+int gtk_seat_verify_ssh_host_key(
+    Seat *seat, const char *host, int port,
+    const char *keytype, char *keystr, char *fingerprint,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char absenttxt[] =
 	"The server's host key is not cached. You have no guarantee "
@@ -3518,13 +3519,13 @@ int verify_ssh_host_key(Frontend *frontend, char *host, int port,
     result_ctx->port = port;
     result_ctx->keytype = dupstr(keytype);
     result_ctx->keystr = dupstr(keystr);
-    result_ctx->frontend = frontend;
+    result_ctx->seat = seat;
 
-    mainwin = GTK_WIDGET(get_window(frontend));
+    mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text, string_width(fingerprint), TRUE,
         &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
-    register_dialog(frontend, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
+    register_dialog(seat, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);
 
@@ -3534,7 +3535,7 @@ int verify_ssh_host_key(Frontend *frontend, char *host, int port,
 struct simple_prompt_result_ctx {
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
-    Frontend *frontend;
+    Seat *seat;
     enum DialogSlot dialog_slot;
 };
 
@@ -3550,7 +3551,7 @@ static void simple_prompt_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_dialog(ctx->frontend, ctx->dialog_slot);
+    unregister_dialog(ctx->seat, ctx->dialog_slot);
     sfree(ctx);
 }
 
@@ -3558,8 +3559,9 @@ static void simple_prompt_result_callback(void *vctx, int result)
  * Ask whether the selected algorithm is acceptable (since it was
  * below the configured 'warn' threshold).
  */
-int askalg(Frontend *frontend, const char *algtype, const char *algname,
-	   void (*callback)(void *ctx, int result), void *ctx)
+int gtk_seat_confirm_weak_crypto_primitive(
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msg[] =
 	"The first %s supported by the server is "
@@ -3575,23 +3577,24 @@ int askalg(Frontend *frontend, const char *algtype, const char *algname,
     result_ctx = snew(struct simple_prompt_result_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
-    result_ctx->frontend = frontend;
+    result_ctx->seat = seat;
     result_ctx->dialog_slot = DIALOG_SLOT_NETWORK_PROMPT;
 
-    mainwin = GTK_WIDGET(get_window(frontend));
+    mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text,
         string_width("Reasonably long line of text as a width template"),
         FALSE, &buttons_yn, simple_prompt_result_callback, result_ctx);
-    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
+    register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
     return -1;                         /* dialog still in progress */
 }
 
-int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
-          void (*callback)(void *ctx, int result), void *ctx)
+int gtk_seat_confirm_weak_cached_hostkey(
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msg[] =
 	"The first host key type we have stored for this server\n"
@@ -3610,16 +3613,16 @@ int askhk(Frontend *frontend, const char *algname, const char *betteralgs,
     result_ctx = snew(struct simple_prompt_result_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
-    result_ctx->frontend = frontend;
+    result_ctx->seat = seat;
     result_ctx->dialog_slot = DIALOG_SLOT_NETWORK_PROMPT;
 
-    mainwin = GTK_WIDGET(get_window(frontend));
+    mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
         mainwin, "PuTTY Security Alert", text,
         string_width("is ecdsa-nistp521, which is below the configured"
                      " warning threshold."),
         FALSE, &buttons_yn, simple_prompt_result_callback, result_ctx);
-    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
+    register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(text);
 
@@ -4048,7 +4051,7 @@ void logevent_dlg(eventlog_stuff *es, const char *string)
     }
 }
 
-int gtkdlg_askappend(Frontend *frontend, Filename *filename,
+int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
@@ -4076,15 +4079,15 @@ int gtkdlg_askappend(Frontend *frontend, Filename *filename,
     result_ctx = snew(struct simple_prompt_result_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
-    result_ctx->frontend = frontend;
+    result_ctx->seat = seat;
     result_ctx->dialog_slot = DIALOG_SLOT_LOGFILE_PROMPT;
 
-    mainwin = GTK_WIDGET(get_window(frontend));
+    mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
         mainwin, mbtitle, message,
         string_width("LINE OF TEXT SUITABLE FOR THE ASKAPPEND WIDTH"),
         FALSE, &buttons_append, simple_prompt_result_callback, result_ctx);
-    register_dialog(frontend, result_ctx->dialog_slot, msgbox);
+    register_dialog(seat, result_ctx->dialog_slot, msgbox);
 
     sfree(message);
     sfree(mbtitle);

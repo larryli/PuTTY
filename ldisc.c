@@ -24,7 +24,7 @@
 
 static void c_write(Ldisc *ldisc, const void *buf, int len)
 {
-    from_backend(ldisc->frontend, 0, buf, len);
+    seat_stdout(ldisc->seat, buf, len);
 }
 
 static int plen(Ldisc *ldisc, unsigned char c)
@@ -77,8 +77,7 @@ static void bsb(Ldisc *ldisc, int n)
 #define CTRL(x) (x^'@')
 #define KCTRL(x) ((x^'@') | 0x100)
 
-Ldisc *ldisc_create(Conf *conf, Terminal *term,
-                    Backend *backend, Frontend *frontend)
+Ldisc *ldisc_create(Conf *conf, Terminal *term, Backend *backend, Seat *seat)
 {
     Ldisc *ldisc = snew(Ldisc);
 
@@ -89,7 +88,7 @@ Ldisc *ldisc_create(Conf *conf, Terminal *term,
 
     ldisc->backend = backend;
     ldisc->term = term;
-    ldisc->frontend = frontend;
+    ldisc->seat = seat;
 
     ldisc_configure(ldisc, conf);
 
@@ -124,7 +123,7 @@ void ldisc_free(Ldisc *ldisc)
 
 void ldisc_echoedit_update(Ldisc *ldisc)
 {
-    frontend_echoedit_update(ldisc->frontend, ECHOING, EDITING);
+    seat_echoedit_update(ldisc->seat, ECHOING, EDITING);
 }
 
 void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)

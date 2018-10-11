@@ -152,7 +152,7 @@ struct Frontend {
     int width, height, scale;
     int ignore_sbar;
     int mouseptr_visible;
-    int busy_status;
+    BusyStatus busy_status;
     int alt_keycode;
     int alt_digits;
     char *wintitle;
@@ -181,6 +181,7 @@ struct Frontend {
     int system_mod_mask;
 #endif
 
+    Seat seat;
     LogPolicy logpolicy;
 };
 
@@ -222,7 +223,7 @@ static void post_fatal_message_box_toplevel(void *vctx)
 static void post_fatal_message_box(void *vctx, int result)
 {
     Frontend *inst = (Frontend *)vctx;
-    unregister_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL);
+    unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
     queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
 }
 
@@ -234,7 +235,7 @@ static void common_connfatal_message_box(
         inst->window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
         FALSE, &buttons_ok, postfn, inst);
-    register_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL, dialog);
+    register_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL, dialog);
     sfree(title);
 }
 
@@ -252,22 +253,17 @@ static void connection_fatal_callback(void *vctx)
 static void post_nonfatal_message_box(void *vctx, int result)
 {
     Frontend *inst = (Frontend *)vctx;
-    unregister_dialog(inst, DIALOG_SLOT_CONNECTION_FATAL);
+    unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
 }
 
-void connection_fatal(Frontend *inst, const char *p, ...)
+static void gtk_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    va_list ap;
-    char *msg;
-    va_start(ap, p);
-    msg = dupvprintf(p, ap);
-    va_end(ap);
+    Frontend *inst = container_of(seat, Frontend, seat);
     if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON) {
         fatal_message_box(inst, msg);
     } else {
         common_connfatal_message_box(inst, msg, post_nonfatal_message_box);
     }
-    sfree(msg);
 
     inst->exited = TRUE;   /* suppress normal exit handling */
     queue_toplevel_callback(connection_fatal_callback, inst);
@@ -308,35 +304,80 @@ int platform_default_i(const char *name, int def)
     return def;
 }
 
-/* Dummy routine, only required in plink. */
-void frontend_echoedit_update(Frontend *inst, int echo, int edit)
+static char *gtk_seat_get_ttymode(Seat *seat, const char *mode)
 {
-}
-
-char *get_ttymode(Frontend *inst, const char *mode)
-{
+    Frontend *inst = container_of(seat, Frontend, seat);
     return term_get_ttymode(inst->term, mode);
 }
 
-int from_backend(Frontend *inst, int is_stderr, const void *data, int len)
+static int gtk_seat_output(Seat *seat, int is_stderr,
+                           const void *data, int len)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     return term_data(inst->term, is_stderr, data, len);
 }
 
-int from_backend_eof(Frontend *inst)
+static int gtk_seat_eof(Seat *seat)
 {
+    /* Frontend *inst = container_of(seat, Frontend, seat); */
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
-int get_userpass_input(prompts_t *p, bufchain *input)
+static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
+                                       bufchain *input)
 {
-    Frontend *inst = p->frontend;
+    Frontend *inst = container_of(seat, Frontend, seat);
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
 	ret = term_get_userpass_input(inst->term, p, input);
     return ret;
 }
+
+static int gtk_seat_is_utf8(Seat *seat)
+{
+    Frontend *inst = container_of(seat, Frontend, seat);
+    return frontend_is_utf8(inst);
+}
+
+static int gtk_seat_get_char_cell_size(Seat *seat, int *w, int *h)
+{
+    Frontend *inst = container_of(seat, Frontend, seat);
+    *w = inst->font_width;
+    *h = inst->font_height;
+    return TRUE;
+}
+
+static void gtk_seat_notify_remote_exit(Seat *seat);
+static void gtk_seat_update_specials_menu(Seat *seat);
+static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status);
+static const char *gtk_seat_get_x_display(Seat *seat);
+#ifndef NOT_X_WINDOWS
+static int gtk_seat_get_windowid(Seat *seat, long *id);
+#endif
+
+static const SeatVtable gtk_seat_vt = {
+    gtk_seat_output,
+    gtk_seat_eof,
+    gtk_seat_get_userpass_input,
+    gtk_seat_notify_remote_exit,
+    gtk_seat_connection_fatal,
+    gtk_seat_update_specials_menu,
+    gtk_seat_get_ttymode,
+    gtk_seat_set_busy_status,
+    gtk_seat_verify_ssh_host_key,
+    gtk_seat_confirm_weak_crypto_primitive,
+    gtk_seat_confirm_weak_cached_hostkey,
+    gtk_seat_is_utf8,
+    nullseat_echoedit_update,
+    gtk_seat_get_x_display,
+#ifdef NOT_X_WINDOWS
+    nullseat_get_windowid,
+#else
+    gtk_seat_get_windowid,
+#endif
+    gtk_seat_get_char_cell_size,
+};
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)
 {
@@ -348,10 +389,7 @@ static int gtk_askappend(LogPolicy *lp, Filename *filename,
                          void (*callback)(void *ctx, int result), void *ctx)
 {
     Frontend *inst = container_of(lp, Frontend, logpolicy);
-
-    int gtkdlg_askappend(Frontend *frontend, Filename *filename,
-                         void (*callback)(void *ctx, int result), void *ctx);
-    return gtkdlg_askappend(inst, filename, callback, ctx);
+    return gtkdlg_askappend(&inst->seat, filename, callback, ctx);
 }
 
 static void gtk_logging_error(LogPolicy *lp, const char *event)
@@ -360,8 +398,8 @@ static void gtk_logging_error(LogPolicy *lp, const char *event)
 
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    from_backend(inst, 1, event, strlen(event));
-    from_backend(inst, 1, "\r\n", 2);
+    seat_stderr(&inst->seat, event, strlen(event));
+    seat_stderr(&inst->seat, "\r\n", 2);
 }
 
 static const LogPolicyVtable gtk_logpolicy_vt = {
@@ -369,14 +407,6 @@ static const LogPolicyVtable gtk_logpolicy_vt = {
     gtk_askappend,
     gtk_logging_error,
 };
-
-int font_dimension(Frontend *inst, int which) /* 0 for width, 1 for height */
-{
-    if (which)
-	return inst->font_height;
-    else
-	return inst->font_width;
-}
 
 /*
  * Translate a raw mouse button designation (LEFT, MIDDLE, RIGHT)
@@ -402,8 +432,9 @@ static Mouse_Button translate_button(Mouse_Button button)
  * Return the top-level GtkWindow associated with a particular
  * front end instance.
  */
-GtkWidget *get_window(Frontend *inst)
+GtkWidget *gtk_seat_get_window(Seat *seat)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     return inst->window;
 }
 
@@ -412,14 +443,20 @@ GtkWidget *get_window(Frontend *inst)
  * network code wanting to ask an asynchronous user question (e.g.
  * 'what about this dodgy host key, then?').
  */
-void register_dialog(Frontend *inst, enum DialogSlot slot, GtkWidget *dialog)
+void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog)
 {
+    Frontend *inst;
+    assert(seat->vt == &gtk_seat_vt);
+    inst = container_of(seat, Frontend, seat);
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(!inst->dialogs[slot]);
     inst->dialogs[slot] = dialog;
 }
-void unregister_dialog(Frontend *inst, enum DialogSlot slot)
+void unregister_dialog(Seat *seat, enum DialogSlot slot)
 {
+    Frontend *inst;
+    assert(seat->vt == &gtk_seat_vt);
+    inst = container_of(seat, Frontend, seat);
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(inst->dialogs[slot]);
     inst->dialogs[slot] = NULL;
@@ -570,7 +607,7 @@ char *get_window_title(Frontend *inst, int icon)
 static void warn_on_close_callback(void *vctx, int result)
 {
     Frontend *inst = (Frontend *)vctx;
-    unregister_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE);
+    unregister_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE);
     if (result)
         gtk_widget_destroy(inst->window);
 }
@@ -600,7 +637,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, Frontend *inst)
                 "Are you sure you want to close this session?",
                 string_width("Most of the width of the above text"),
                 FALSE, &buttons_yn, warn_on_close_callback, inst);
-            register_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE, dialog);
+            register_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE, dialog);
             sfree(title);
         }
         return TRUE;
@@ -2435,8 +2472,9 @@ static void exit_callback(void *vctx)
     }
 }
 
-void notify_remote_exit(Frontend *inst)
+static void gtk_seat_notify_remote_exit(Seat *seat)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     queue_toplevel_callback(exit_callback, inst);
 }
 
@@ -2454,7 +2492,7 @@ static void destroy_inst_connection(Frontend *inst)
     if (inst->term)
         term_provide_backend(inst->term, NULL);
     if (inst->menu) {
-        update_specials_menu(inst);
+        seat_update_specials_menu(&inst->seat);
         gtk_widget_set_sensitive(inst->restartitem, TRUE);
     }
 }
@@ -2537,8 +2575,9 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     return FALSE;
 }
 
-void set_busy_status(Frontend *inst, int status)
+static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     inst->busy_status = status;
     update_mouseptr(inst);
 }
@@ -4190,14 +4229,15 @@ void modalfatalbox(const char *p, ...)
     exit(1);
 }
 
-const char *get_x_display(Frontend *frontend)
+static const char *gtk_seat_get_x_display(Seat *seat)
 {
     return gdk_get_display();
 }
 
 #ifndef NOT_X_WINDOWS
-int get_windowid(Frontend *inst, long *id)
+static int gtk_seat_get_windowid(Seat *seat, long *id)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     GdkWindow *window = gtk_widget_get_window(inst->area);
     if (!GDK_IS_X11_WINDOW(window))
         return FALSE;
@@ -4583,7 +4623,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
         title, ctx->newconf, 1,
         inst->backend ? backend_cfg_info(inst->backend) : 0,
         after_change_settings_dialog, ctx);
-    register_dialog(inst, DIALOG_SLOT_RECONFIGURE, dialog);
+    register_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE, dialog);
 
     sfree(title);
 }
@@ -4613,7 +4653,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
 
     assert(lenof(ww) == NCFGCOLOURS);
 
-    unregister_dialog(inst, DIALOG_SLOT_RECONFIGURE);
+    unregister_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE);
 
     if (retval) {
         inst->conf = newconf;
@@ -4979,8 +5019,9 @@ void set_window_icon(GtkWidget *window, const char *const *const *icon,
 
 static void free_special_cmd(gpointer data) { sfree(data); }
 
-void update_specials_menu(Frontend *inst)
+static void gtk_seat_update_specials_menu(Seat *seat)
 {
+    Frontend *inst = container_of(seat, Frontend, seat);
     const SessionSpecial *specials;
 
     if (inst->backend)
@@ -5055,7 +5096,7 @@ static void start_backend(Frontend *inst)
 
     vt = select_backend(inst->conf);
 
-    error = backend_init(vt, (void *)inst, &inst->backend,
+    error = backend_init(vt, &inst->seat, &inst->backend,
                          inst->logctx, inst->conf,
                          conf_get_str(inst->conf, CONF_host),
                          conf_get_int(inst->conf, CONF_port),
@@ -5067,7 +5108,7 @@ static void start_backend(Frontend *inst)
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
 			      conf_dest(inst->conf), error);
 	inst->exited = TRUE;
-	connection_fatal(inst, msg);
+	seat_connection_fatal(&inst->seat, msg);
 	sfree(msg);
         return;
     }
@@ -5084,7 +5125,8 @@ static void start_backend(Frontend *inst)
 
     term_provide_backend(inst->term, inst->backend);
 
-    inst->ldisc = ldisc_create(inst->conf, inst->term, inst->backend, inst);
+    inst->ldisc = ldisc_create(inst->conf, inst->term, inst->backend,
+                               &inst->seat);
 
     gtk_widget_set_sensitive(inst->restartitem, FALSE);
 }
@@ -5139,6 +5181,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
     inst->drawing_area_setup_needed = TRUE;
 
+    inst->seat.vt = &gtk_seat_vt;
     inst->logpolicy.vt = &gtk_logpolicy_vt;
 
 #ifndef NOT_X_WINDOWS

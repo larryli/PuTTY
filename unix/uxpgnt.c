@@ -23,43 +23,12 @@
 SockAddr *unix_sock_addr(const char *path);
 Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
-void modalfatalbox(const char *p, ...)
+void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
+    va_start(ap, fmt);
+    console_print_error_msg_fmt_v("pageant", fmt, ap);
     va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-void nonfatal(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-}
-void connection_fatal(Frontend *frontend, const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
-    exit(1);
-}
-void cmdline_error(const char *p, ...)
-{
-    va_list ap;
-    fprintf(stderr, "pageant: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
     exit(1);
 }
 
@@ -92,8 +61,6 @@ int platform_default_i(const char *name, int def) { return def; }
 FontSpec *platform_default_fontspec(const char *name) { return fontspec_new(""); }
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }
 char *x_get_default(const char *key) { return NULL; }
-int from_backend(Frontend *fe, int is_stderr, const void *data, int datalen)
-{ assert(!"only here to satisfy notional call from backend_socket_log"); }
 
 /*
  * Short description of parameters.
@@ -338,7 +305,7 @@ enum {
 static char *askpass_tty(const char *prompt)
 {
     int ret;
-    prompts_t *p = new_prompts(NULL);
+    prompts_t *p = new_prompts();
     p->to_server = FALSE;
     p->name = dupstr("Pageant passphrase prompt");
     add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), FALSE);

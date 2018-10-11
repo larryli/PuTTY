@@ -191,14 +191,8 @@ enum MenuAction {
 };
 void app_menu_action(Frontend *frontend, enum MenuAction);
 
-/* Things pty.c needs from pterm.c */
-const char *get_x_display(Frontend *frontend);
-int font_dimension(Frontend *frontend, int which);/* 0 for width, 1 for height */
-int get_windowid(Frontend *frontend, long *id);
-
 /* Things gtkdlg.c needs from pterm.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-GtkWidget *get_window(Frontend *frontend);
 enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
     DIALOG_SLOT_NETWORK_PROMPT,
@@ -207,8 +201,9 @@ enum DialogSlot {
     DIALOG_SLOT_CONNECTION_FATAL,
     DIALOG_SLOT_LIMIT /* must remain last */
 };
-void register_dialog(Frontend *frontend, enum DialogSlot slot, GtkWidget *dialog);
-void unregister_dialog(Frontend *frontend, enum DialogSlot slot);
+GtkWidget *gtk_seat_get_window(Seat *seat);
+void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog);
+void unregister_dialog(Seat *seat, enum DialogSlot slot);
 #endif
 
 /* Things pterm.c needs from gtkdlg.c */
@@ -224,6 +219,18 @@ eventlog_stuff *eventlogstuff_new(void);
 void eventlogstuff_free(eventlog_stuff *);
 void showeventlog(eventlog_stuff *estuff, void *parentwin);
 void logevent_dlg(eventlog_stuff *estuff, const char *string);
+int gtkdlg_askappend(Seat *seat, Filename *filename,
+                     void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_verify_ssh_host_key(
+    Seat *seat, const char *host, int port,
+    const char *keytype, char *keystr, char *fingerprint,
+    void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_confirm_weak_crypto_primitive(
+    Seat *seat, const char *algtype, const char *algname,
+    void (*callback)(void *ctx, int result), void *ctx);
+int gtk_seat_confirm_weak_cached_hostkey(
+    Seat *seat, const char *algname, const char *betteralgs,
+    void (*callback)(void *ctx, int result), void *ctx);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 struct message_box_button {
     const char *title;

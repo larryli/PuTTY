@@ -11,7 +11,7 @@
 struct Ldisc_tag {
     Terminal *term;
     Backend *backend;
-    Frontend *frontend;
+    Seat *seat;
 
     /*
      * Values cached out of conf.

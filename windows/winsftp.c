@@ -13,9 +13,7 @@
 #include "int64.h"
 #include "winsecur.h"
 
-char *get_ttymode(Frontend *frontend, const char *mode) { return NULL; }
-
-int get_userpass_input(prompts_t *p, bufchain *input)
+int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
 {
     int ret;
     ret = cmdline_get_passwd_input(p);
