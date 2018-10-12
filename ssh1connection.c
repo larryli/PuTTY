@@ -28,7 +28,6 @@ struct ssh1_connection_state {
 
     int got_pty;
     int echoedit;
-    int ospeed, ispeed;
     int stdout_throttling;
     int session_ready;
     int session_eof_pending, session_eof_sent, session_terminated;
@@ -709,11 +708,6 @@ static void ssh1_connection_process_queue(PacketProtocolLayer *ppl)
     s->portfwdmgr_configured = TRUE;
 
     if (!conf_get_int(s->conf, CONF_nopty)) {
-	/* Unpick the terminal-speed string. */
-	/* XXX perhaps we should allow no speeds to be sent. */
-	s->ospeed = 38400; s->ispeed = 38400; /* last-resort defaults */
-	sscanf(conf_get_str(s->conf, CONF_termspeed), "%d,%d",
-               &s->ospeed, &s->ispeed);
 	/* Send the pty request. */
 	pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_CMSG_REQUEST_PTY);
 	put_stringz(pktout, conf_get_str(s->conf, CONF_termtype));
@@ -723,14 +717,13 @@ static void ssh1_connection_process_queue(PacketProtocolLayer *ppl)
         s->term_height_orig = s->term_height;
 	put_uint32(pktout, 0); /* width in pixels */
 	put_uint32(pktout, 0); /* height in pixels */
-        write_ttymodes_to_packet_from_conf(
-            BinarySink_UPCAST(pktout), s->ppl.seat, s->conf,
-            1, s->ospeed, s->ispeed);
+        write_ttymodes_to_packet(
+            BinarySink_UPCAST(pktout), 1,
+            get_ttymodes_from_conf(s->ppl.seat, s->conf));
         pq_push(s->ppl.out_pq, pktout);
         crMaybeWaitUntilV((pktin = ssh1_connection_pop(s)) != NULL);
 	if (pktin->type == SSH1_SMSG_SUCCESS) {
-            ppl_logevent(("Allocated pty (ospeed %dbps, ispeed %dbps)",
-                          s->ospeed, s->ispeed));
+            ppl_logevent(("Allocated pty"));
             s->got_pty = TRUE;
 	} else if (pktin->type == SSH1_SMSG_FAILURE) {
 	    ppl_printf(("Server refused to allocate pty\r\n"));

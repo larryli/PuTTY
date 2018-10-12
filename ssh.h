@@ -1393,6 +1393,44 @@ enum {
 
 #define SSH2_EXTENDED_DATA_STDERR                 1	/* 0x1 */
 
+enum {
+    /* TTY modes with opcodes defined consistently in the SSH specs. */
+    #define TTYMODE_CHAR(name, val, index) SSH_TTYMODE_##name = val,
+    #define TTYMODE_FLAG(name, val, field, mask) SSH_TTYMODE_##name = val,
+    #include "sshttymodes.h"
+    #undef TTYMODE_CHAR
+    #undef TTYMODE_FLAG
+
+    /* Modes encoded differently between SSH-1 and SSH-2, for which we
+     * make up our own dummy opcodes to avoid confusion. */
+    TTYMODE_dummy = 255,
+    TTYMODE_ISPEED, TTYMODE_OSPEED,
+
+    /* Limiting value that we can use as an array bound below */
+    TTYMODE_LIMIT,
+
+    /* The real opcodes for terminal speeds. */
+    TTYMODE_ISPEED_SSH1 = 192,
+    TTYMODE_OSPEED_SSH1 = 193,
+    TTYMODE_ISPEED_SSH2 = 128,
+    TTYMODE_OSPEED_SSH2 = 129,
+
+    /* And the opcode that ends a list. */
+    TTYMODE_END_OF_LIST = 0
+};
+
+struct ssh_ttymodes {
+    /* A boolean per mode, indicating whether it's set. */
+    int have_mode[TTYMODE_LIMIT];
+
+    /* The actual value for each mode. */
+    unsigned mode_val[TTYMODE_LIMIT];
+};
+
+struct ssh_ttymodes get_ttymodes_from_conf(Seat *seat, Conf *conf);
+void write_ttymodes_to_packet(BinarySink *bs, int ssh_version,
+                              struct ssh_ttymodes modes);
+
 const char *ssh1_pkt_type(int type);
 const char *ssh2_pkt_type(Pkt_KCtx pkt_kctx, Pkt_ACtx pkt_actx, int type);
 int ssh2_pkt_type_code_valid(unsigned type);
@@ -1428,11 +1466,6 @@ enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_LOG2_ENUM) };
 #define TMP_DECLARE_REAL_ENUM(thing) thing = 1 << log2_##thing,
 enum { SSH_IMPL_BUG_LIST(TMP_DECLARE_REAL_ENUM) };
 #undef TMP_DECLARE_REAL_ENUM
-
-/* Shared function that writes tty modes into a pty request */
-void write_ttymodes_to_packet_from_conf(
-    BinarySink *bs, Seat *seat, Conf *conf,
-    int ssh_version, int ospeed, int ispeed);
 
 /* Shared system for allocating local SSH channel ids. Expects to be
  * passed a tree full of structs that have a field called 'localid' of

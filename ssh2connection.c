@@ -1593,12 +1593,7 @@ static void ssh2channel_request_pty(
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
-    int ospeed, ispeed;
     strbuf *modebuf;
-
-    ospeed = ispeed = 38400;           /* last-resort defaults */
-    sscanf(conf_get_str(conf, CONF_termspeed), "%d,%d",
-           &ospeed, &ispeed);
 
     PktOut *pktout = ssh2_chanreq_init(
         c, "pty-req", want_reply ? ssh2_channel_response : NULL, NULL);
@@ -1608,9 +1603,9 @@ static void ssh2channel_request_pty(
     put_uint32(pktout, 0);	       /* pixel width */
     put_uint32(pktout, 0);	       /* pixel height */
     modebuf = strbuf_new();
-    write_ttymodes_to_packet_from_conf(
-        BinarySink_UPCAST(modebuf), s->ppl.seat, conf,
-        2, ospeed, ispeed);
+    write_ttymodes_to_packet(
+        BinarySink_UPCAST(modebuf), 2,
+        get_ttymodes_from_conf(s->ppl.seat, conf));
     put_stringsb(pktout, modebuf);
     pq_push(s->ppl.out_pq, pktout);
 }
