@@ -1288,13 +1288,19 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
 	    char *cmd;
 
 	    if (s->session_attempt == 0) {
-		subsys = conf_get_int(s->conf, CONF_ssh_subsys);
 		cmd = conf_get_str(s->conf, CONF_remote_cmd);
+		subsys = conf_get_int(s->conf, CONF_ssh_subsys);
 	    } else {
-		subsys = conf_get_int(s->conf, CONF_ssh_subsys2);
 		cmd = conf_get_str(s->conf, CONF_remote_cmd2);
-                if (!*cmd)
+                if (!*cmd) {
+                    /* If there's no remote_cmd2 configured, then we
+                     * have no fallback command, and we should quit
+                     * this loop before even trying to look up
+                     * CONF_ssh_subsys2, which is one of the few conf
+                     * keys that is not guaranteed to be populated. */
                     break;
+                }
+		subsys = conf_get_int(s->conf, CONF_ssh_subsys2);
                 ppl_logevent(("Primary command failed; attempting fallback"));
 	    }
 
