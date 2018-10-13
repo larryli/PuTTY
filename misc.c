@@ -1243,6 +1243,16 @@ ptrlen make_ptrlen(const void *ptr, size_t len)
     return pl;
 }
 
+ptrlen ptrlen_from_asciz(const char *str)
+{
+    return make_ptrlen(str, strlen(str));
+}
+
+ptrlen ptrlen_from_strbuf(strbuf *sb)
+{
+    return make_ptrlen(sb->u, sb->len);
+}
+
 int ptrlen_eq_string(ptrlen pl, const char *str)
 {
     size_t len = strlen(str);

@@ -816,7 +816,7 @@ int main(int argc, char **argv)
                     const ssh_keyalg *alg = find_pubkey_alg(ssh2alg);
                     if (alg)
                         bits = ssh_key_public_bits(
-                            alg, make_ptrlen(ssh2blob->s, ssh2blob->len));
+                            alg, ptrlen_from_strbuf(ssh2blob));
                     else
                         bits = -1;
                 } else {

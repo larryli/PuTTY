@@ -97,6 +97,8 @@ struct tm ltime(void);
 int nullstrcmp(const char *a, const char *b);
 
 ptrlen make_ptrlen(const void *ptr, size_t len);
+ptrlen ptrlen_from_asciz(const char *str);
+ptrlen ptrlen_from_strbuf(strbuf *sb);
 int ptrlen_eq_string(ptrlen pl, const char *str);
 char *mkstr(ptrlen pl);
 int string_length_for_printf(size_t);
