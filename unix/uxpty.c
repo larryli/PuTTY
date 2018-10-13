@@ -678,6 +678,7 @@ void pty_real_select_result(Pty *pty, int event, int status)
 	    seat_stdout(pty->seat, message, strlen(message));
 	}
 
+        seat_eof(pty->seat);
 	seat_notify_remote_exit(pty->seat);
     }
 }
