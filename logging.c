@@ -209,19 +209,45 @@ void logtraffic(LogContext *ctx, unsigned char c, int logmode)
     }
 }
 
-/*
- * Log an Event Log entry. Used in SSH packet logging mode, to copy
- * the Event Log entries into the same log file as the packet data.
- */
-void logevent(LogContext *ctx, const char *event)
+static void logevent_internal(LogContext *ctx, const char *event)
 {
-    if (!ctx)
-        return;
     if (ctx->logtype == LGTYP_PACKETS || ctx->logtype == LGTYP_SSHRAW) {
         logprintf(ctx, "Event Log: %s\r\n", event);
         logflush(ctx);
     }
     lp_eventlog(ctx->lp, event);
+}
+
+void logevent(LogContext *ctx, const char *event)
+{
+    if (!ctx)
+        return;
+
+    /*
+     * Replace newlines in Event Log messages with spaces. (Sometimes
+     * the same message string is reused for the Event Log and a GUI
+     * dialog box; newlines are sometimes appropriate in the latter,
+     * but never in the former.)
+     */
+    if (strchr(event, '\n') || strchr(event, '\r')) {
+        char *dup = dupstr(event);
+        char *p = dup, *q = dup;
+        while (*p) {
+            if (*p == '\r' || *p == '\n') {
+                do {
+                    p++;
+                } while (*p == '\r' || *p == '\n');
+                *q++ = ' ';
+            } else {
+                *q++ = *p++;
+            }
+        }
+        *q = '\0';
+        logevent_internal(ctx, dup);
+        sfree(dup);
+    } else {
+        logevent_internal(ctx, event);
+    }
 }
 
 void logevent_and_free(LogContext *ctx, char *event)
