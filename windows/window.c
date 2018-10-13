@@ -245,10 +245,9 @@ char *win_seat_get_ttymode(Seat *seat, const char *mode)
     return term_get_ttymode(term, mode);
 }
 
-int win_seat_get_char_cell_size(Seat *seat, int *x, int *y)
+int win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
 {
-    *x = font_width;
-    *y = font_height;
+    get_window_pixels(NULL, x, y);
     return TRUE;
 }
 
@@ -277,7 +276,7 @@ static const SeatVtable win_seat_vt = {
     nullseat_echoedit_update,
     nullseat_get_x_display,
     nullseat_get_windowid,
-    win_seat_get_char_cell_size,
+    win_seat_get_window_pixel_size,
 };
 Seat win_seat[1] = {{ &win_seat_vt }};
 

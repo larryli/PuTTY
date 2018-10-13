@@ -340,11 +340,10 @@ static int gtk_seat_is_utf8(Seat *seat)
     return frontend_is_utf8(inst);
 }
 
-static int gtk_seat_get_char_cell_size(Seat *seat, int *w, int *h)
+static int gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 {
     Frontend *inst = container_of(seat, Frontend, seat);
-    *w = inst->font_width;
-    *h = inst->font_height;
+    get_window_pixels(inst, w, h);
     return TRUE;
 }
 
@@ -376,7 +375,7 @@ static const SeatVtable gtk_seat_vt = {
 #else
     gtk_seat_get_windowid,
 #endif
-    gtk_seat_get_char_cell_size,
+    gtk_seat_get_window_pixel_size,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)

@@ -103,7 +103,7 @@ static const SeatVtable plink_seat_vt = {
     plink_echoedit_update,
     nullseat_get_x_display,
     nullseat_get_windowid,
-    nullseat_get_char_cell_size,
+    nullseat_get_window_pixel_size,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 

@@ -1155,12 +1155,12 @@ static void pty_size(Backend *be, int width, int height)
     pty->term_width = width;
     pty->term_height = height;
 
-    seat_get_char_cell_size(pty->seat, &xpixel, &ypixel);
+    seat_get_window_pixel_size(pty->seat, &xpixel, &ypixel);
 
     size.ws_row = (unsigned short)pty->term_height;
     size.ws_col = (unsigned short)pty->term_width;
-    size.ws_xpixel = (unsigned short)pty->term_width * xpixel;
-    size.ws_ypixel = (unsigned short)pty->term_height * ypixel;
+    size.ws_xpixel = (unsigned short)xpixel;
+    size.ws_ypixel = (unsigned short)ypixel;
     ioctl(pty->master_fd, TIOCSWINSZ, (void *)&size);
     return;
 }

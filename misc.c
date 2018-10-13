@@ -1414,5 +1414,5 @@ int nullseat_is_always_utf8(Seat *seat) { return TRUE; }
 void nullseat_echoedit_update(Seat *seat, int echoing, int editing) {}
 const char *nullseat_get_x_display(Seat *seat) { return NULL; }
 int nullseat_get_windowid(Seat *seat, long *id_out) { return FALSE; }
-int nullseat_get_char_cell_size(
+int nullseat_get_window_pixel_size(
     Seat *seat, int *width, int *height) { return FALSE; }

@@ -903,12 +903,12 @@ struct SeatVtable {
     int (*get_windowid)(Seat *seat, long *id_out);
 
     /*
-     * Return the pixel size of a terminal character cell. If the
+     * Return the size of the terminal window in pixels. If the
      * concept is meaningless or the information is unavailable,
      * return FALSE; otherwise fill in the output pointers and return
      * TRUE.
      */
-    int (*get_char_cell_size)(Seat *seat, int *width, int *height);
+    int (*get_window_pixel_size)(Seat *seat, int *width, int *height);
 };
 
 #define seat_output(seat, is_stderr, data, len) \
@@ -939,8 +939,8 @@ struct SeatVtable {
     ((seat)->vt->get_x_display(seat))
 #define seat_get_windowid(seat, out) \
     ((seat)->vt->get_windowid(seat, out))
-#define seat_get_char_cell_size(seat, width, height) \
-    ((seat)->vt->get_char_cell_size(seat, width, height))
+#define seat_get_window_pixel_size(seat, width, height) \
+    ((seat)->vt->get_window_pixel_size(seat, width, height))
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
@@ -983,7 +983,7 @@ int nullseat_is_always_utf8(Seat *seat);
 void nullseat_echoedit_update(Seat *seat, int echoing, int editing);
 const char *nullseat_get_x_display(Seat *seat);
 int nullseat_get_windowid(Seat *seat, long *id_out);
-int nullseat_get_char_cell_size(Seat *seat, int *width, int *height);
+int nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
 
 /*
  * Seat functions provided by the platform's console-application

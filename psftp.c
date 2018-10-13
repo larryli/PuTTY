@@ -61,7 +61,7 @@ static const SeatVtable psftp_seat_vt = {
     nullseat_echoedit_update,
     nullseat_get_x_display,
     nullseat_get_windowid,
-    nullseat_get_char_cell_size,
+    nullseat_get_window_pixel_size,
 };
 static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
 
