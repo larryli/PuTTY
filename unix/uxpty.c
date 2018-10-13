@@ -580,7 +580,9 @@ void pty_pre_init(void)
 
 }
 
-void pty_real_select_result(Pty *pty, int event, int status)
+static void pty_try_wait(void);
+
+static void pty_real_select_result(Pty *pty, int event, int status)
 {
     char buf[4096];
     int ret;
@@ -627,6 +629,7 @@ void pty_real_select_result(Pty *pty, int event, int status)
 		 * the pterm window to hang around!
 		 */
 		finished = TRUE;
+                pty_try_wait(); /* one last effort to collect exit code */
 		if (!pty->child_dead)
 		    pty->exit_code = 0;
 	    } else if (ret < 0) {
@@ -683,27 +686,34 @@ void pty_real_select_result(Pty *pty, int event, int status)
     }
 }
 
+static void pty_try_wait(void)
+{
+    Pty *pty;
+    pid_t pid;
+    int status;
+
+    do {
+        pid = waitpid(-1, &status, WNOHANG);
+
+        pty = find234(ptys_by_pid, &pid, pty_find_by_pid);
+
+        if (pty)
+            pty_real_select_result(pty, -1, status);
+    } while (pid > 0);
+}
+
 void pty_select_result(int fd, int event)
 {
     Pty *pty;
 
     if (fd == pty_signal_pipe[0]) {
-	pid_t pid;
-	int status;
 	char c[1];
 
 	if (read(pty_signal_pipe[0], c, 1) <= 0)
 	    /* ignore error */;
 	/* ignore its value; it'll be `x' */
 
-	do {
-	    pid = waitpid(-1, &status, WNOHANG);
-
-	    pty = find234(ptys_by_pid, &pid, pty_find_by_pid);
-
-	    if (pty)
-		pty_real_select_result(pty, -1, status);
-	} while (pid > 0);
+        pty_try_wait();
     } else {
 	pty = find234(ptys_by_fd, &fd, pty_find_by_fd);
 
