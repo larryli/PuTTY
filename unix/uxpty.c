@@ -740,17 +740,15 @@ static void pty_uxsel_setup(Pty *pty)
 }
 
 /*
- * Called to set up the pty.
- * 
- * Returns an error message, or NULL on success.
- *
- * Also places the canonical host name into `realhost'. It must be
- * freed by the caller.
+ * The main setup function for the pty back end. This doesn't match
+ * the signature of backend_init(), partly because it has to be able
+ * to take extra arguments such as an argv array, and also because
+ * once we're changing the type signature _anyway_ we can discard the
+ * stuff that's not really applicable to this backend like host names
+ * and port numbers.
  */
-static const char *pty_init(Seat *seat, Backend **backend_handle,
-                            LogContext *logctx, Conf *conf,
-                            const char *host, int port,
-                            char **realhost, int nodelay, int keepalive)
+Backend *pty_backend_create(
+    Seat *seat, LogContext *logctx, Conf *conf, char **argv)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -773,7 +771,6 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
 
     pty->seat = seat;
     pty->backend.vt = &pty_backend;
-    *backend_handle = &pty->backend;
 
     pty->conf = conf_copy(conf);
     pty->term_width = conf_get_int(conf, CONF_width);
@@ -973,11 +970,11 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
 	putty_signal(SIGQUIT, SIG_DFL);
 	putty_signal(SIGPIPE, SIG_DFL);
 	block_signal(SIGPIPE, 0);
-	if (pty_argv) {
+	if (argv) {
             /*
              * Exec the exact argument list we were given.
              */
-	    execvp(pty_argv[0], pty_argv);
+	    execvp(argv[0], argv);
             /*
              * If that fails, and if we had exactly one argument, pass
              * that argument to $SHELL -c.
@@ -1002,10 +999,10 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
              * plausible uses of the Debian-style alias
              * 'x-terminal-emulator'...
              */
-            if (pty_argv[1] == NULL) {
+            if (argv[1] == NULL) {
                 char *shell = getenv("SHELL");
                 if (shell)
-                    execl(shell, shell, "-c", pty_argv[0], (void *)NULL);
+                    execl(shell, shell, "-c", argv[0], (void *)NULL);
             }
         } else {
 	    char *shell = getenv("SHELL");
@@ -1046,8 +1043,23 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
     }
     pty_uxsel_setup(pty);
 
-    *realhost = dupstr("");
+    return &pty->backend;
+}
 
+/*
+ * This is the pty backend's _official_ init method, for BackendVtable
+ * purposes. Its job is just to be an API converter, ignoring the
+ * irrelevant input parameters and making up auxiliary outputs. Also
+ * it gets the argv array from the global variable pty_argv, expecting
+ * that it will have been invoked by pterm.
+ */
+static const char *pty_init(Seat *seat, Backend **backend_handle,
+                            LogContext *logctx, Conf *conf,
+                            const char *host, int port,
+                            char **realhost, int nodelay, int keepalive)
+{
+    *backend_handle= pty_backend_create(seat, logctx, conf, pty_argv);
+    *realhost = dupstr("");
     return NULL;
 }
 
@@ -1237,8 +1249,74 @@ static int pty_exitcode(Backend *be)
     Pty *pty = container_of(be, Pty, backend);
     if (!pty->finished)
 	return -1;		       /* not dead yet */
+    else if (WIFSIGNALED(pty->exit_code))
+        return 128 + WTERMSIG(pty->exit_code);
     else
-	return pty->exit_code;
+        return WEXITSTATUS(pty->exit_code);
+}
+
+ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
+{
+    Pty *pty = container_of(be, Pty, backend);
+    int sig;
+
+    *aux_msg = NULL;
+
+    if (!pty->finished || !WIFSIGNALED(pty->exit_code))
+	return PTRLEN_LITERAL("");
+
+    sig = WTERMSIG(pty->exit_code);
+
+#define TRANSLATE_SIGNAL(s) do                          \
+    {                                                   \
+        if (sig == SIG ## s)                            \
+            return PTRLEN_LITERAL(#s);                  \
+    } while (0)
+
+#ifdef SIGABRT
+    TRANSLATE_SIGNAL(ABRT);
+#endif
+#ifdef SIGALRM
+    TRANSLATE_SIGNAL(ALRM);
+#endif
+#ifdef SIGFPE
+    TRANSLATE_SIGNAL(FPE);
+#endif
+#ifdef SIGHUP
+    TRANSLATE_SIGNAL(HUP);
+#endif
+#ifdef SIGILL
+    TRANSLATE_SIGNAL(ILL);
+#endif
+#ifdef SIGINT
+    TRANSLATE_SIGNAL(INT);
+#endif
+#ifdef SIGKILL
+    TRANSLATE_SIGNAL(KILL);
+#endif
+#ifdef SIGPIPE
+    TRANSLATE_SIGNAL(PIPE);
+#endif
+#ifdef SIGQUIT
+    TRANSLATE_SIGNAL(QUIT);
+#endif
+#ifdef SIGSEGV
+    TRANSLATE_SIGNAL(SEGV);
+#endif
+#ifdef SIGTERM
+    TRANSLATE_SIGNAL(TERM);
+#endif
+#ifdef SIGUSR1
+    TRANSLATE_SIGNAL(USR1);
+#endif
+#ifdef SIGUSR2
+    TRANSLATE_SIGNAL(USR2);
+#endif
+#undef TRANSLATE_SIGNAL
+
+    *aux_msg = dupprintf("untranslatable signal number %d: %s",
+                         sig, strsignal(sig));
+    return PTRLEN_LITERAL("HUP");      /* need some kind of default */
 }
 
 static int pty_cfg_info(Backend *be)
