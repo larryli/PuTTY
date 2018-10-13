@@ -177,6 +177,7 @@ static void ssh1channel_write_eof(SshChannel *c);
 static void ssh1channel_unclean_close(SshChannel *c, const char *err);
 static void ssh1channel_unthrottle(SshChannel *c, int bufsize);
 static Conf *ssh1channel_get_conf(SshChannel *c);
+static void ssh1channel_window_override_removed(SshChannel *c) { /* ignore */ }
 
 static const struct SshChannelVtable ssh1channel_vtable = {
     ssh1channel_write,
@@ -184,8 +185,7 @@ static const struct SshChannelVtable ssh1channel_vtable = {
     ssh1channel_unclean_close,
     ssh1channel_unthrottle,
     ssh1channel_get_conf,
-    NULL /* window_override_removed is only used by SSH-2 sharing */,
-    NULL /* x11_sharing_handover, likewise */,
+    ssh1channel_window_override_removed,
 };
 
 static void ssh1_channel_init(struct ssh1_channel *c);
