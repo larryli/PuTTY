@@ -106,7 +106,7 @@ Channel *zombiechan_new(void);
 struct SshChannelVtable {
     int (*write)(SshChannel *c, const void *, int);
     void (*write_eof)(SshChannel *c);
-    void (*unclean_close)(SshChannel *c, const char *err);
+    void (*initiate_close)(SshChannel *c, const char *err);
     void (*unthrottle)(SshChannel *c, int bufsize);
     Conf *(*get_conf)(SshChannel *c);
     void (*window_override_removed)(SshChannel *c);
@@ -162,7 +162,7 @@ struct SshChannel {
 
 #define sshfwd_write(c, buf, len) ((c)->vt->write(c, buf, len))
 #define sshfwd_write_eof(c) ((c)->vt->write_eof(c))
-#define sshfwd_unclean_close(c, err) ((c)->vt->unclean_close(c, err))
+#define sshfwd_initiate_close(c, err) ((c)->vt->initiate_close(c, err))
 #define sshfwd_unthrottle(c, bufsize) ((c)->vt->unthrottle(c, bufsize))
 #define sshfwd_get_conf(c) ((c)->vt->get_conf(c))
 #define sshfwd_window_override_removed(c) ((c)->vt->window_override_removed(c))

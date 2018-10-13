@@ -258,7 +258,7 @@ struct ssh2_channel {
 
 static int ssh2channel_write(SshChannel *c, const void *buf, int len);
 static void ssh2channel_write_eof(SshChannel *c);
-static void ssh2channel_unclean_close(SshChannel *c, const char *err);
+static void ssh2channel_initiate_close(SshChannel *c, const char *err);
 static void ssh2channel_unthrottle(SshChannel *c, int bufsize);
 static Conf *ssh2channel_get_conf(SshChannel *c);
 static void ssh2channel_window_override_removed(SshChannel *c);
@@ -294,7 +294,7 @@ static void ssh2channel_hint_channel_is_simple(SshChannel *c);
 static const struct SshChannelVtable ssh2channel_vtable = {
     ssh2channel_write,
     ssh2channel_write_eof,
-    ssh2channel_unclean_close,
+    ssh2channel_initiate_close,
     ssh2channel_unthrottle,
     ssh2channel_get_conf,
     ssh2channel_window_override_removed,
@@ -1442,12 +1442,12 @@ static void ssh2channel_write_eof(SshChannel *sc)
     ssh2_channel_try_eof(c);
 }
 
-static void ssh2channel_unclean_close(SshChannel *sc, const char *err)
+static void ssh2channel_initiate_close(SshChannel *sc, const char *err)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     char *reason;
 
-    reason = dupprintf("due to local error: %s", err);
+    reason = err ? dupprintf("due to local error: %s", err) : NULL;
     ssh2_channel_close_local(c, reason);
     sfree(reason);
     c->pending_eof = FALSE;   /* this will confuse a zombie channel */

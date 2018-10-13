@@ -120,12 +120,12 @@ static void pfd_closing(Plug *plug, const char *error_msg, int error_code,
          * Socket error. Slam the connection instantly shut.
          */
         if (pf->c) {
-            sshfwd_unclean_close(pf->c, error_msg);
+            sshfwd_initiate_close(pf->c, error_msg);
         } else {
             /*
              * We might not have an SSH channel, if a socket error
              * occurred during SOCKS negotiation. If not, we must
-             * clean ourself up without sshfwd_unclean_close's call
+             * clean ourself up without sshfwd_initiate_close's call
              * back to pfd_close.
              */
             pfd_close(pf);

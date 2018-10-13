@@ -195,7 +195,7 @@ struct ssh1_channel {
 
 static int ssh1channel_write(SshChannel *c, const void *buf, int len);
 static void ssh1channel_write_eof(SshChannel *c);
-static void ssh1channel_unclean_close(SshChannel *c, const char *err);
+static void ssh1channel_initiate_close(SshChannel *c, const char *err);
 static void ssh1channel_unthrottle(SshChannel *c, int bufsize);
 static Conf *ssh1channel_get_conf(SshChannel *c);
 static void ssh1channel_window_override_removed(SshChannel *c) { /* ignore */ }
@@ -203,7 +203,7 @@ static void ssh1channel_window_override_removed(SshChannel *c) { /* ignore */ }
 static const struct SshChannelVtable ssh1channel_vtable = {
     ssh1channel_write,
     ssh1channel_write_eof,
-    ssh1channel_unclean_close,
+    ssh1channel_initiate_close,
     ssh1channel_unthrottle,
     ssh1channel_get_conf,
     ssh1channel_window_override_removed,
@@ -937,12 +937,12 @@ static void ssh1channel_write_eof(SshChannel *sc)
     ssh1_channel_try_eof(c);
 }
 
-static void ssh1channel_unclean_close(SshChannel *sc, const char *err)
+static void ssh1channel_initiate_close(SshChannel *sc, const char *err)
 {
     struct ssh1_channel *c = container_of(sc, struct ssh1_channel, sc);
     char *reason;
 
-    reason = dupprintf("due to local error: %s", err);
+    reason = err ? dupprintf("due to local error: %s", err) : NULL;
     ssh1_channel_close_local(c, reason);
     sfree(reason);
     c->pending_eof = FALSE;   /* this will confuse a zombie channel */

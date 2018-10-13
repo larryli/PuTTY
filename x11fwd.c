@@ -662,7 +662,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
          * Whether we did that or not, now we slam the connection
          * shut.
          */
-        sshfwd_unclean_close(xconn->c, error_msg);
+        sshfwd_initiate_close(xconn->c, error_msg);
     } else {
         /*
          * Ordinary EOF received on socket. Send an EOF on the SSH
