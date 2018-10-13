@@ -1259,6 +1259,24 @@ int ptrlen_eq_string(ptrlen pl, const char *str)
     return (pl.len == len && !memcmp(pl.ptr, str, len));
 }
 
+int ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2)
+{
+    return (pl1.len == pl2.len && !memcmp(pl1.ptr, pl2.ptr, pl1.len));
+}
+
+int ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail)
+{
+    if (whole.len >= prefix.len &&
+        !memcmp(whole.ptr, prefix.ptr, prefix.len)) {
+        if (tail) {
+            tail->ptr = (const char *)whole.ptr + prefix.len;
+            tail->len = whole.len - prefix.len;
+        }
+        return TRUE;
+    }
+    return FALSE;
+}
+
 char *mkstr(ptrlen pl)
 {
     char *p = snewn(pl.len + 1, char);

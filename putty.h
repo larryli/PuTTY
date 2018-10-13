@@ -1484,6 +1484,8 @@ void logtraffic(LogContext *logctx, unsigned char c, int logmode);
 void logflush(LogContext *logctx);
 void logevent(LogContext *logctx, const char *event);
 void logeventf(LogContext *logctx, const char *fmt, ...);
+void logeventvf(LogContext *logctx, const char *fmt, va_list ap);
+
 /*
  * Pass a dynamically allocated string to logevent and immediately
  * free it. Intended for use by wrapper macros which pass the return
