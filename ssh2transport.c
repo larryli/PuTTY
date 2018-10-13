@@ -530,6 +530,7 @@ int ssh2_common_filter_queue(PacketProtocolLayer *ppl)
                 ((reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
                  ssh2_disconnect_reasons[reason] : "unknown"),
                 PTRLEN_PRINTF(msg));
+            pq_pop(ppl->in_pq);
             return TRUE;               /* indicate that we've been freed */
 
           case SSH2_MSG_DEBUG:
