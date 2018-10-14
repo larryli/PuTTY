@@ -344,6 +344,9 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
                          char *hostname, int port, SshChannel *c,
                          int addressfamily);
 
+Socket *platform_make_agent_socket(Plug *plug, const char *dirprefix,
+                                   char **error, char **name);
+
 LogContext *ssh_get_logctx(Ssh *ssh);
 
 /* Communications back to ssh.c from connection layers */

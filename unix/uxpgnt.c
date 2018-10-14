@@ -20,9 +20,6 @@
 #include "misc.h"
 #include "pageant.h"
 
-SockAddr *unix_sock_addr(const char *path);
-Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
-
 void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
@@ -711,7 +708,7 @@ static const PlugVtable X11Connection_plugvt = {
 void run_agent(void)
 {
     const char *err;
-    char *username, *socketdir;
+    char *errw;
     struct pageant_listen_state *pl;
     Plug *pl_plug;
     Socket *sock;
@@ -743,19 +740,12 @@ void run_agent(void)
     /*
      * Set up a listening socket and run Pageant on it.
      */
-    username = get_username();
-    socketdir = dupprintf("%s.%s", PAGEANT_DIR_PREFIX, username);
-    sfree(username);
-    assert(*socketdir == '/');
-    if ((err = make_dir_and_check_ours(socketdir)) != NULL) {
-        fprintf(stderr, "pageant: %s: %s\n", socketdir, err);
-        exit(1);
-    }
-    socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
     pl = pageant_listener_new(&pl_plug);
-    sock = new_unix_listener(unix_sock_addr(socketname), pl_plug);
-    if ((err = sk_socket_error(sock)) != NULL) {
-        fprintf(stderr, "pageant: %s: %s\n", socketname, err);
+    sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
+                                      &errw, &socketname);
+    if (!sock) {
+        fprintf(stderr, "pageant: %s\n", errw);
+        sfree(errw);
         exit(1);
     }
     pageant_listener_got_socket(pl, sock);

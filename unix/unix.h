@@ -321,9 +321,11 @@ int init_ucs(struct unicode_data *ucsdata, char *line_codepage,
 	     int utf8_override, int font_charset, int vtmode);
 
 /*
- * Spare function exported directly from uxnet.c.
+ * Spare functions exported directly from uxnet.c.
  */
 void *sk_getxdmdata(Socket *sock, int *lenp);
+SockAddr *unix_sock_addr(const char *path);
+Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
 /*
  * General helpful Unix stuff: more helpful version of the FD_SET
