@@ -950,6 +950,7 @@ static void ssh1_channel_init(struct ssh1_channel *c)
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
     c->sc.vt = &ssh1channel_vtable;
+    c->sc.cl = &s->cl;
     c->localid = alloc_channel_id(s->channels, struct ssh1_channel);
     add234(s->channels, c);
 }

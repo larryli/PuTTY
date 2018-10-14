@@ -1348,6 +1348,7 @@ static void ssh2_channel_init(struct ssh2_channel *c)
     c->throttle_state = UNTHROTTLED;
     bufchain_init(&c->outbuffer);
     c->sc.vt = &ssh2channel_vtable;
+    c->sc.cl = &s->cl;
     c->localid = alloc_channel_id(s->channels, struct ssh2_channel);
     add234(s->channels, c);
 }

@@ -157,6 +157,7 @@ struct SshChannelVtable {
 
 struct SshChannel {
     const struct SshChannelVtable *vt;
+    ConnectionLayer *cl;
 };
 
 #define sshfwd_write(c, buf, len) ((c)->vt->write(c, buf, len))
