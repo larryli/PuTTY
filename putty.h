@@ -211,11 +211,16 @@ typedef enum {
 
     /*
      * Send a POSIX-style signal. (Useful in SSH and also pterm.)
+     *
+     * We use the master list in sshsignals.h to define these enum
+     * values, which will come out looking like names of the form
+     * SS_SIGABRT, SS_SIGINT etc.
      */
-    SS_SIGABRT, SS_SIGALRM, SS_SIGFPE,  SS_SIGHUP,  SS_SIGILL,
-    SS_SIGINT,  SS_SIGKILL, SS_SIGPIPE, SS_SIGQUIT, SS_SIGSEGV,
-    SS_SIGTERM, SS_SIGUSR1, SS_SIGUSR2,
-
+    #define SIGNAL_MAIN(name, text) SS_SIG ## name,
+    #define SIGNAL_SUB(name) SS_SIG ## name,
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
 
     /*
      * These aren't really special commands, but they appear in the

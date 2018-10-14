@@ -432,57 +432,20 @@ static int mainchan_rcvd_exit_signal(
     char *signame_str;
 
     /*
-     * Translate the signal description back into a locally
-     * meaningful number.
+     * Translate the signal description back into a locally meaningful
+     * number, or 128 if the string didn't match any we recognise.
      */
+    exitcode = 128;
 
-    if (0)
-        ;
-#define TRANSLATE_SIGNAL(s)                                     \
-    else if (ptrlen_eq_string(signame, #s))      \
-        exitcode = 128 + SIG ## s
-#ifdef SIGABRT
-    TRANSLATE_SIGNAL(ABRT);
-#endif
-#ifdef SIGALRM
-    TRANSLATE_SIGNAL(ALRM);
-#endif
-#ifdef SIGFPE
-    TRANSLATE_SIGNAL(FPE);
-#endif
-#ifdef SIGHUP
-    TRANSLATE_SIGNAL(HUP);
-#endif
-#ifdef SIGILL
-    TRANSLATE_SIGNAL(ILL);
-#endif
-#ifdef SIGINT
-    TRANSLATE_SIGNAL(INT);
-#endif
-#ifdef SIGKILL
-    TRANSLATE_SIGNAL(KILL);
-#endif
-#ifdef SIGPIPE
-    TRANSLATE_SIGNAL(PIPE);
-#endif
-#ifdef SIGQUIT
-    TRANSLATE_SIGNAL(QUIT);
-#endif
-#ifdef SIGSEGV
-    TRANSLATE_SIGNAL(SEGV);
-#endif
-#ifdef SIGTERM
-    TRANSLATE_SIGNAL(TERM);
-#endif
-#ifdef SIGUSR1
-    TRANSLATE_SIGNAL(USR1);
-#endif
-#ifdef SIGUSR2
-    TRANSLATE_SIGNAL(USR2);
-#endif
-#undef TRANSLATE_SIGNAL
-    else
-        exitcode = 128;
+    #define SIGNAL_SUB(s) \
+        if (ptrlen_eq_string(signame, #s))      \
+            exitcode = 128 + SIG ## s;
+    #define SIGNAL_MAIN(s, text) SIGNAL_SUB(s)
+    #define SIGNALS_LOCAL_ONLY
+    #include "sshsignals.h"
+    #undef SIGNAL_SUB
+    #undef SIGNAL_MAIN
+    #undef SIGNALS_LOCAL_ONLY
 
     ssh_got_exitcode(mc->ppl->ssh, exitcode);
     if (exitcode == 128)
@@ -509,31 +472,6 @@ static int mainchan_rcvd_exit_signal_numeric(
     return TRUE;
 }
 
-/*
- * List of signal names defined by RFC 4254. These include all the ISO
- * C signals, but are a subset of the POSIX required signals.
- *
- * The list macro takes parameters MAIN and SUB, which is an arbitrary
- * UI decision to expose the signals we think users are most likely to
- * want, with extra descriptive text, and relegate the less probable
- * ones to a submenu for people who know what they're doing.
- */
-#define SIGNAL_LIST(MAIN, SUB)                  \
-    MAIN(INT, "Interrupt")                      \
-    MAIN(TERM, "Terminate")                     \
-    MAIN(KILL, "Kill")                          \
-    MAIN(QUIT, "Quit")                          \
-    MAIN(HUP, "Hangup")                         \
-    SUB(ABRT)                                   \
-    SUB(ALRM)                                   \
-    SUB(FPE)                                    \
-    SUB(ILL)                                    \
-    SUB(PIPE)                                   \
-    SUB(SEGV)                                   \
-    SUB(USR1)                                   \
-    SUB(USR2)                                   \
-    /* end of list */
-
 void mainchan_get_specials(
     mainchan *mc, add_special_fn_t add_special, void *ctx)
 {
@@ -541,36 +479,36 @@ void mainchan_get_specials(
 
     add_special(ctx, "Break", SS_BRK, 0);
 
-    #define ADD_MAIN(name, desc) \
+    #define SIGNAL_MAIN(name, desc) \
     add_special(ctx, "SIG" #name " (" desc ")", SS_SIG ## name, 0);
-    #define ADD_SUB(name) \
-    add_special(ctx, "SIG" #name, SS_SIG ## name, 0);
+    #define SIGNAL_SUB(name)
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
 
-    #define NO_ADD_SUB(name)
-    #define NO_ADD_MAIN(name, desc)
-
-    SIGNAL_LIST(ADD_MAIN, NO_ADD_SUB);
     add_special(ctx, "More signals", SS_SUBMENU, 0);
-    SIGNAL_LIST(NO_ADD_MAIN, ADD_SUB);
-    add_special(ctx, NULL, SS_EXITMENU, 0);
 
-    #undef ADD_MAIN
-    #undef ADD_SUB
-    #undef NO_ADD_MAIN
-    #undef NO_ADD_SUB
+    #define SIGNAL_MAIN(name, desc)
+    #define SIGNAL_SUB(name) \
+    add_special(ctx, "SIG" #name, SS_SIG ## name, 0);
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
+
+    add_special(ctx, NULL, SS_EXITMENU, 0);
 }
 
 static const char *ssh_signal_lookup(SessionSpecialCode code)
 {
-    #define CHECK_SUB(name) \
+    #define SIGNAL_SUB(name) \
     if (code == SS_SIG ## name) return #name;
-    #define CHECK_MAIN(name, desc) CHECK_SUB(name)
+    #define SIGNAL_MAIN(name, desc) SIGNAL_SUB(name)
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
 
-    SIGNAL_LIST(CHECK_MAIN, CHECK_SUB);
+    /* If none of those clauses matched, fail lookup. */
     return NULL;
-
-    #undef CHECK_MAIN
-    #undef CHECK_SUB
 }
 
 void mainchan_special_cmd(mainchan *mc, SessionSpecialCode code, int arg)
