@@ -959,10 +959,15 @@ int main(int argc, char **argv)
         {
             FILE *fp;
 
-            if (outfile)
+            if (outfile) {
                 fp = f_open(outfilename, "w", FALSE);
-            else
+                if (!fp) {
+                    fprintf(stderr, "unable to open output file\n");
+                    exit(1);
+                }
+            } else {
                 fp = stdout;
+            }
 
             if (sshver == 1) {
                 ssh1_write_pubkey(fp, ssh1key);
@@ -1003,10 +1008,15 @@ int main(int argc, char **argv)
 		}
 	    }
 
-	    if (outfile)
+	    if (outfile) {
 		fp = f_open(outfilename, "w", FALSE);
-	    else
+                if (!fp) {
+                    fprintf(stderr, "unable to open output file\n");
+                    exit(1);
+                }
+            } else {
 		fp = stdout;
+            }
 	    fprintf(fp, "%s\n", fingerprint);
 	    if (outfile)
 		fclose(fp);
