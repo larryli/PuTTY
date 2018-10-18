@@ -1416,3 +1416,12 @@ const char *nullseat_get_x_display(Seat *seat) { return NULL; }
 int nullseat_get_windowid(Seat *seat, long *id_out) { return FALSE; }
 int nullseat_get_window_pixel_size(
     Seat *seat, int *width, int *height) { return FALSE; }
+
+void sk_free_peer_info(SocketPeerInfo *pi)
+{
+    if (pi) {
+        sfree((char *)pi->addr_text);
+        sfree((char *)pi->log_text);
+        sfree(pi);
+    }
+}

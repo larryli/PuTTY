@@ -44,6 +44,7 @@ typedef struct SockAddr SockAddr;
 
 typedef struct Socket Socket;
 typedef struct Plug Plug;
+typedef struct SocketPeerInfo SocketPeerInfo;
 
 typedef struct Backend Backend;
 typedef struct BackendVtable BackendVtable;

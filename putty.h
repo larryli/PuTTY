@@ -483,7 +483,11 @@ enum {
      * host name has already been resolved or will be resolved at
      * the proxy end.
      */
-    ADDRTYPE_UNSPEC, ADDRTYPE_IPV4, ADDRTYPE_IPV6, ADDRTYPE_NAME
+    ADDRTYPE_UNSPEC,
+    ADDRTYPE_IPV4,
+    ADDRTYPE_IPV6,
+    ADDRTYPE_LOCAL,    /* e.g. Unix domain socket, or Windows named pipe */
+    ADDRTYPE_NAME      /* SockAddr storing an unresolved host name */
 };
 
 struct Backend {

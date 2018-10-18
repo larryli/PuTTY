@@ -503,7 +503,7 @@ static int sk_net_write(Socket *s, const void *data, int len);
 static int sk_net_write_oob(Socket *s, const void *data, int len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, int is_frozen);
-static char *sk_net_peer_info(Socket *s);
+static SocketPeerInfo *sk_net_peer_info(Socket *s);
 static const char *sk_net_socket_error(Socket *s);
 
 static struct SocketVtable NetSocket_sockvt = {
@@ -1480,7 +1480,7 @@ static void sk_net_set_frozen(Socket *sock, int is_frozen)
     uxsel_tell(s);
 }
 
-static char *sk_net_peer_info(Socket *sock)
+static SocketPeerInfo *sk_net_peer_info(Socket *sock)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
     union sockaddr_union addr;
@@ -1488,26 +1488,42 @@ static char *sk_net_peer_info(Socket *sock)
 #ifndef NO_IPV6
     char buf[INET6_ADDRSTRLEN];
 #endif
+    SocketPeerInfo *pi;
 
     if (getpeername(s->s, &addr.sa, &addrlen) < 0)
         return NULL;
+
+    pi = snew(SocketPeerInfo);
+    pi->addressfamily = ADDRTYPE_UNSPEC;
+    pi->addr_text = NULL;
+    pi->port = -1;
+    pi->log_text = NULL;
+
     if (addr.storage.ss_family == AF_INET) {
-        return dupprintf
-            ("%s:%d",
-             inet_ntoa(addr.sin.sin_addr),
-             (int)ntohs(addr.sin.sin_port));
+        pi->addressfamily = ADDRTYPE_IPV4;
+        memcpy(pi->addr_bin.ipv4, &addr.sin.sin_addr, 4);
+        pi->port = ntohs(addr.sin.sin_port);
+        pi->addr_text = dupstr(inet_ntoa(addr.sin.sin_addr));
+        pi->log_text = dupprintf("%s:%d", pi->addr_text, pi->port);
+
 #ifndef NO_IPV6
     } else if (addr.storage.ss_family == AF_INET6) {
-        return dupprintf
-            ("[%s]:%d",
-             inet_ntop(AF_INET6, &addr.sin6.sin6_addr, buf, sizeof(buf)),
-             (int)ntohs(addr.sin6.sin6_port));
+        pi->addressfamily = ADDRTYPE_IPV6;
+        memcpy(pi->addr_bin.ipv6, &addr.sin6.sin6_addr, 16);
+        pi->port = ntohs(addr.sin6.sin6_port);
+        pi->addr_text = dupstr(
+            inet_ntop(AF_INET6, &addr.sin6.sin6_addr, buf, sizeof(buf)));
+        pi->log_text = dupprintf("[%s]:%d", pi->addr_text, pi->port);
 #endif
+
     } else if (addr.storage.ss_family == AF_UNIX) {
+        pi->addressfamily = ADDRTYPE_LOCAL;
+
         /*
          * For Unix sockets, the source address is unlikely to be
-         * helpful. Instead, we try SO_PEERCRED and try to get the
-         * source pid.
+         * helpful, so we leave addr_txt NULL (and we certainly can't
+         * fill in port, obviously). Instead, we try SO_PEERCRED and
+         * try to get the source pid, and put that in the log text.
          */
         int pid, uid, gid;
         if (so_peercred(s->s, &pid, &uid, &gid)) {
@@ -1516,14 +1532,16 @@ static char *sk_net_peer_info(Socket *sock)
             sprintf(gidbuf, "%d", gid);
             struct passwd *pw = getpwuid(uid);
             struct group *gr = getgrgid(gid);
-            return dupprintf("pid %d (%s:%s)", pid,
-                             pw ? pw->pw_name : uidbuf,
-                             gr ? gr->gr_name : gidbuf);
+            pi->log_text = dupprintf("pid %d (%s:%s)", pid,
+                                     pw ? pw->pw_name : uidbuf,
+                                     gr ? gr->gr_name : gidbuf);
         }
-        return NULL;
     } else {
+        sfree(pi);
         return NULL;
     }
+
+    return pi;
 }
 
 static void uxsel_tell(NetSocket *s)

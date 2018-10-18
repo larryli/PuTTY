@@ -104,7 +104,7 @@ static void ssh2_rportfwd_remove(
     ConnectionLayer *cl, struct ssh_rportfwd *rpf);
 static SshChannel *ssh2_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *org, Channel *chan);
+    const char *description, const SocketPeerInfo *pi, Channel *chan);
 static SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan);
 static struct X11FakeAuth *ssh2_add_x11_display(
     ConnectionLayer *cl, int authtype, struct X11Display *x11disp);
@@ -1678,7 +1678,7 @@ static void ssh2channel_hint_channel_is_simple(SshChannel *sc)
 
 static SshChannel *ssh2_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *org, Channel *chan)
+    const char *description, const SocketPeerInfo *pi, Channel *chan)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
@@ -1691,7 +1691,8 @@ static SshChannel *ssh2_lportfwd_open(
     c->halfopen = TRUE;
     c->chan = chan;
 
-    ppl_logevent(("Opening connection to %s:%d for %s", hostname, port, org));
+    ppl_logevent(("Opening connection to %s:%d for %s",
+                  hostname, port, description));
 
     pktout = ssh2_chanopen_init(c, "direct-tcpip");
     {

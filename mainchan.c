@@ -88,7 +88,8 @@ mainchan *mainchan_new(
         const char *host = conf_get_str(mc->conf, CONF_ssh_nc_host);
         int port = conf_get_int(mc->conf, CONF_ssh_nc_port);
 
-        mc->sc = ssh_lportfwd_open(cl, host, port, "main channel", &mc->chan);
+        mc->sc = ssh_lportfwd_open(cl, host, port, "main channel",
+                                   NULL, &mc->chan);
         mc->type = MAINCHAN_DIRECT_TCPIP;
     } else {
         mc->sc = ssh_session_open(cl, &mc->chan);

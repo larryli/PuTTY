@@ -830,7 +830,7 @@ static int pageant_listen_accepting(Plug *plug,
         plug, struct pageant_listen_state, plug);
     struct pageant_conn_state *pc;
     const char *err;
-    char *peerinfo;
+    SocketPeerInfo *peerinfo;
 
     pc = snew(struct pageant_conn_state);
     pc->plug.vt = &pageant_connection_plugvt;
@@ -848,12 +848,13 @@ static int pageant_listen_accepting(Plug *plug,
     sk_set_frozen(pc->connsock, 0);
 
     peerinfo = sk_peer_info(pc->connsock);
-    if (peerinfo) {
+    if (peerinfo && peerinfo->log_text) {
         plog(pl->logctx, pl->logfn, "%p: new connection from %s",
-             pc, peerinfo);
+             pc, peerinfo->log_text);
     } else {
         plog(pl->logctx, pl->logfn, "%p: new connection", pc);
     }
+    sk_free_peer_info(peerinfo);
 
     return 0;
 }

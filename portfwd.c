@@ -153,18 +153,18 @@ static SshChannel *wrap_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
     Socket *s, Channel *chan)
 {
-    char *peerinfo, *description;
+    SocketPeerInfo *pi;
+    char *description;
     SshChannel *toret;
 
-    peerinfo = sk_peer_info(s);
-    if (peerinfo) {
-        description = dupprintf("forwarding from %s", peerinfo);
-        sfree(peerinfo);
+    pi = sk_peer_info(s);
+    if (pi && pi->log_text) {
+        description = dupprintf("forwarding from %s", pi->log_text);
     } else {
         description = dupstr("forwarding");
     }
-
-    toret = ssh_lportfwd_open(cl, hostname, port, description, chan);
+    toret = ssh_lportfwd_open(cl, hostname, port, description, pi, chan);
+    sk_free_peer_info(pi);
 
     sfree(description);
     return toret;

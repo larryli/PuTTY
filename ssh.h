@@ -216,7 +216,8 @@ struct ConnectionLayerVtable {
      * PortFwdManager */
     SshChannel *(*lportfwd_open)(
         ConnectionLayer *cl, const char *hostname, int port,
-        const char *org, Channel *chan);
+        const char *description, const SocketPeerInfo *peerinfo,
+        Channel *chan);
 
     /* Initiate opening of a 'session'-type channel */
     SshChannel *(*session_open)(ConnectionLayer *cl, Channel *chan);
@@ -297,8 +298,8 @@ struct ConnectionLayer {
 #define ssh_rportfwd_alloc(cl, sh, sp, dh, dp, af, ld, pfr, share) \
     ((cl)->vt->rportfwd_alloc(cl, sh, sp, dh, dp, af, ld, pfr, share))
 #define ssh_rportfwd_remove(cl, rpf) ((cl)->vt->rportfwd_remove(cl, rpf))
-#define ssh_lportfwd_open(cl, h, p, org, chan) \
-    ((cl)->vt->lportfwd_open(cl, h, p, org, chan))
+#define ssh_lportfwd_open(cl, h, p, desc, pi, chan) \
+    ((cl)->vt->lportfwd_open(cl, h, p, desc, pi, chan))
 #define ssh_session_open(cl, chan) \
     ((cl)->vt->session_open(cl, chan))
 #define ssh_add_x11_display(cl, auth, disp) \

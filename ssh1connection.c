@@ -109,7 +109,7 @@ static void ssh1_rportfwd_remove(
     ConnectionLayer *cl, struct ssh_rportfwd *rpf);
 static SshChannel *ssh1_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *org, Channel *chan);
+    const char *description, const SocketPeerInfo *pi, Channel *chan);
 static SshChannel *ssh1_session_open(ConnectionLayer *cl, Channel *chan);
 static struct X11FakeAuth *ssh1_add_x11_display(
     ConnectionLayer *cl, int authtype, struct X11Display *disp);
@@ -1176,7 +1176,7 @@ static SshChannel *ssh1_session_open(ConnectionLayer *cl, Channel *chan)
 
 static SshChannel *ssh1_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
-    const char *org, Channel *chan)
+    const char *description, const SocketPeerInfo *pi, Channel *chan)
 {
     struct ssh1_connection_state *s =
         container_of(cl, struct ssh1_connection_state, cl);
@@ -1189,7 +1189,8 @@ static SshChannel *ssh1_lportfwd_open(
     c->halfopen = TRUE;
     c->chan = chan;
 
-    ppl_logevent(("Opening connection to %s:%d for %s", hostname, port, org));
+    ppl_logevent(("Opening connection to %s:%d for %s",
+                  hostname, port, description));
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_MSG_PORT_OPEN);
     put_uint32(pktout, c->localid);
