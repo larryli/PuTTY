@@ -21,8 +21,10 @@
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <termios.h>
 
 #include "putty.h"
+#include "ssh.h"
 #include "tree234.h"
 
 #ifndef OMIT_UTMP
@@ -739,6 +741,35 @@ static void pty_uxsel_setup(Pty *pty)
     uxsel_set(pty_signal_pipe[0], 1, pty_select_result);
 }
 
+static void copy_ttymodes_into_termios(
+    struct termios *attrs, struct ssh_ttymodes modes)
+{
+#define TTYMODE_CHAR(name, ssh_opcode, cc_index) {              \
+        if (modes.have_mode[ssh_opcode])                        \
+            attrs->c_cc[cc_index] = modes.mode_val[ssh_opcode]; \
+    }
+
+#define TTYMODE_FLAG(flagval, ssh_opcode, field, flagmask) {    \
+        if (modes.have_mode[ssh_opcode]) {                      \
+            attrs->c_##field##flag &= ~flagmask;                \
+            if (modes.mode_val[ssh_opcode])                     \
+                attrs->c_##field##flag |= flagval;              \
+        }                                                       \
+    }
+
+#define TTYMODES_LOCAL_ONLY   /* omit any that this platform doesn't know */
+#include "sshttymodes.h"
+
+#undef TTYMODES_LOCAL_ONLY
+#undef TTYMODE_CHAR
+#undef TTYMODE_FLAG
+
+    if (modes.have_mode[TTYMODE_ISPEED])
+        cfsetispeed(attrs, modes.mode_val[TTYMODE_ISPEED]);
+    if (modes.have_mode[TTYMODE_OSPEED])
+        cfsetospeed(attrs, modes.mode_val[TTYMODE_OSPEED]);
+}
+
 /*
  * The main setup function for the pty back end. This doesn't match
  * the signature of backend_init(), partly because it has to be able
@@ -748,7 +779,8 @@ static void pty_uxsel_setup(Pty *pty)
  * and port numbers.
  */
 Backend *pty_backend_create(
-    Seat *seat, LogContext *logctx, Conf *conf, char **argv)
+    Seat *seat, LogContext *logctx, Conf *conf, char **argv,
+    struct ssh_ttymodes ttymodes)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -901,6 +933,8 @@ Backend *pty_backend_create(
             else
                 attrs.c_iflag &= ~IUTF8;
 #endif
+
+            copy_ttymodes_into_termios(&attrs, ttymodes);
 
             tcsetattr(0, TCSANOW, &attrs);
         }
@@ -1058,7 +1092,9 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
                             const char *host, int port,
                             char **realhost, int nodelay, int keepalive)
 {
-    *backend_handle= pty_backend_create(seat, logctx, conf, pty_argv);
+    struct ssh_ttymodes modes;
+    memset(&modes, 0, sizeof(modes));
+    *backend_handle= pty_backend_create(seat, logctx, conf, pty_argv, modes);
     *realhost = dupstr("");
     return NULL;
 }
