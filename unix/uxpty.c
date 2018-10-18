@@ -1229,8 +1229,31 @@ static void pty_size(Backend *be, int width, int height)
  */
 static void pty_special(Backend *be, SessionSpecialCode code, int arg)
 {
-    /* Pty *pty = container_of(be, Pty, backend); */
-    /* Do nothing! */
+    Pty *pty = container_of(be, Pty, backend);
+
+    if (code == SS_BRK) {
+        tcsendbreak(pty->master_fd, 0);
+        return;
+    }
+
+    {
+        int sig = -1;
+
+        #define SIGNAL_SUB(name) if (code == SS_SIG ## name) sig = SIG ## name;
+        #define SIGNAL_MAIN(name, text) SIGNAL_SUB(name)
+        #define SIGNALS_LOCAL_ONLY
+        #include "sshsignals.h"
+        #undef SIGNAL_SUB
+        #undef SIGNAL_MAIN
+        #undef SIGNALS_LOCAL_ONLY
+
+        if (sig != -1) {
+            if (!pty->child_dead)
+                kill(pty->child_pid, sig);
+            return;
+        }
+    }
+
     return;
 }
 
