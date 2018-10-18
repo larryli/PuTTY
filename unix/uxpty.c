@@ -90,6 +90,7 @@ struct Pty {
     int child_dead, finished;
     int exit_code;
     bufchain output_data;
+    int pending_eof;
     Backend backend;
 };
 
@@ -1316,6 +1317,17 @@ static void pty_try_write(Pty *pty)
 	bufchain_consume(&pty->output_data, ret);
     }
 
+    if (pty->pending_eof && bufchain_size(&pty->output_data) == 0) {
+        /* This should only happen if pty->master_i is a pipe that
+         * doesn't alias either output fd */
+        assert(pty->master_i != pty->master_o);
+        assert(pty->master_i != pty->master_e);
+        uxsel_del(pty->master_i);
+        close(pty->master_i);
+        pty->master_i = -1;
+        pty->pending_eof = FALSE;
+    }
+
     pty_uxsel_setup(pty);
 }
 
@@ -1326,7 +1338,7 @@ static int pty_send(Backend *be, const char *buf, int len)
 {
     Pty *pty = container_of(be, Pty, backend);
 
-    if (pty->master_i < 0)
+    if (pty->master_i < 0 || pty->pending_eof)
 	return 0;                      /* ignore all writes if fd closed */
 
     bufchain_add(&pty->output_data, buf, len);
@@ -1408,6 +1420,14 @@ static void pty_special(Backend *be, SessionSpecialCode code, int arg)
     if (code == SS_BRK) {
         if (pty->master_fd >= 0)
             tcsendbreak(pty->master_fd, 0);
+        return;
+    }
+
+    if (code == SS_EOF) {
+        if (pty->master_i >= 0 && pty->master_i != pty->master_fd) {
+            pty->pending_eof = TRUE;
+            pty_try_write(pty);
+        }
         return;
     }
 
