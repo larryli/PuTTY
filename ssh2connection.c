@@ -1153,9 +1153,8 @@ static void ssh2_channel_check_close(struct ssh2_channel *c)
         return;
     }
 
-    if ((!((CLOSES_SENT_EOF | CLOSES_RCVD_EOF) & ~c->closes) ||
-         chan_want_close(c->chan, (c->closes & CLOSES_SENT_EOF),
-                         (c->closes & CLOSES_RCVD_EOF))) &&
+    if (chan_want_close(c->chan, (c->closes & CLOSES_SENT_EOF),
+                        (c->closes & CLOSES_RCVD_EOF)) &&
 	!c->chanreq_head &&
 	!(c->closes & CLOSES_SENT_CLOSE)) {
         /*

@@ -33,7 +33,7 @@ static const struct ChannelVtable mainchan_channelvt = {
     mainchan_send_eof,
     mainchan_set_input_wanted,
     mainchan_log_close_msg,
-    chan_no_eager_close,
+    chan_default_want_close,
     mainchan_rcvd_exit_status,
     mainchan_rcvd_exit_signal,
     mainchan_rcvd_exit_signal_numeric,

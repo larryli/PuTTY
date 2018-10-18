@@ -339,9 +339,14 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext)
     assert(0 && "this channel type should never receive OPEN_FAILURE");
 }
 
-int chan_no_eager_close(Channel *chan, int sent_local_eof, int rcvd_remote_eof)
+int chan_default_want_close(
+    Channel *chan, int sent_local_eof, int rcvd_remote_eof)
 {
-    return FALSE;     /* default: never proactively ask for a close */
+    /*
+     * Default close policy: we start initiating the CHANNEL_CLOSE
+     * procedure as soon as both sides of the channel have seen EOF.
+     */
+    return sent_local_eof && rcvd_remote_eof;
 }
 
 int chan_no_exit_status(Channel *chan, int status)

@@ -75,7 +75,7 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext);
 
 /* want_close for any channel that wants the default behaviour of not
  * closing until both directions have had an EOF */
-int chan_no_eager_close(Channel *, int, int);
+int chan_default_want_close(Channel *, int, int);
 
 /* default implementations that refuse all the channel requests */
 int chan_no_exit_status(Channel *, int);

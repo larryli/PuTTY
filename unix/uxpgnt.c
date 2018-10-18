@@ -124,7 +124,7 @@ static int time_to_die = FALSE;
  * forwarding too. */
 void chan_remotely_opened_confirmation(Channel *chan) { }
 void chan_remotely_opened_failure(Channel *chan, const char *err) { }
-int chan_no_eager_close(Channel *chan, int s, int r) { return FALSE; }
+int chan_default_want_close(Channel *chan, int s, int r) { return FALSE; }
 int chan_no_exit_status(Channel *ch, int s) { return FALSE; }
 int chan_no_exit_signal(Channel *ch, ptrlen s, int c, ptrlen m)
 { return FALSE; }
