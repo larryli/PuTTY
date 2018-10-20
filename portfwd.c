@@ -516,8 +516,9 @@ static const PlugVtable PortListener_plugvt = {
  * On success, returns NULL and fills in *pl_ret. On error, returns a
  * dynamically allocated error message string.
  */
-static char *pfl_listen(char *desthost, int destport, char *srcaddr,
-                        int port, ConnectionLayer *cl, Conf *conf,
+static char *pfl_listen(const char *desthost, int destport,
+                        const char *srcaddr, int port,
+                        ConnectionLayer *cl, Conf *conf,
                         struct PortListener **pl_ret, int address_family)
 {
     const char *err;
