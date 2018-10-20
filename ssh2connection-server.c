@@ -13,13 +13,22 @@
 #include "ssh2connection.h"
 #include "sshserver.h"
 
+void ssh2connection_server_configure(
+    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt)
+{
+    struct ssh2_connection_state *s =
+        container_of(ppl, struct ssh2_connection_state, ppl);
+    s->sftpserver_vt = sftpserver_vt;
+}
+
 static ChanopenResult chan_open_session(
     struct ssh2_connection_state *s, SshChannel *sc)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
     ppl_logevent(("Opened session channel"));
-    CHANOPEN_RETURN_SUCCESS(sesschan_new(sc, s->ppl.logctx));
+    CHANOPEN_RETURN_SUCCESS(sesschan_new(sc, s->ppl.logctx,
+                                         s->sftpserver_vt));
 }
 
 static ChanopenResult chan_open_direct_tcpip(

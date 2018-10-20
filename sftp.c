@@ -13,138 +13,24 @@
 #include "tree234.h"
 #include "sftp.h"
 
-struct sftp_packet {
-    char *data;
-    unsigned length, maxlen;
-    unsigned savedpos;
-    int type;
-    BinarySink_IMPLEMENTATION;
-    BinarySource_IMPLEMENTATION;
-};
-
 static const char *fxp_error_message;
 static int fxp_errtype;
 
 static void fxp_internal_error(const char *msg);
 
 /* ----------------------------------------------------------------------
- * SFTP packet construction functions.
- */
-static void sftp_pkt_BinarySink_write(
-    BinarySink *bs, const void *data, size_t length)
-{
-    struct sftp_packet *pkt = BinarySink_DOWNCAST(bs, struct sftp_packet);
-    unsigned newlen;
-
-    assert(length <= 0xFFFFFFFFU - pkt->length);
-
-    newlen = pkt->length + length;
-    if (pkt->maxlen < newlen) {
-	pkt->maxlen = newlen * 5 / 4 + 256;
-	pkt->data = sresize(pkt->data, pkt->maxlen, char);
-    }
-
-    memcpy(pkt->data + pkt->length, data, length);
-    pkt->length = newlen;
-}
-static struct sftp_packet *sftp_pkt_init(int pkt_type)
-{
-    struct sftp_packet *pkt;
-    pkt = snew(struct sftp_packet);
-    pkt->data = NULL;
-    pkt->savedpos = -1;
-    pkt->length = 0;
-    pkt->maxlen = 0;
-    BinarySink_INIT(pkt, sftp_pkt_BinarySink_write);
-    put_uint32(pkt, 0); /* length field will be filled in later */
-    put_byte(pkt, pkt_type);
-    return pkt;
-}
-
-static void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs)
-{
-    put_uint32(bs, attrs.flags);
-    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE)
-	put_uint64(bs, attrs.size);
-    if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID) {
-	put_uint32(bs, attrs.uid);
-	put_uint32(bs, attrs.gid);
-    }
-    if (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) {
-	put_uint32(bs, attrs.permissions);
-    }
-    if (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME) {
-	put_uint32(bs, attrs.atime);
-	put_uint32(bs, attrs.mtime);
-    }
-    if (attrs.flags & SSH_FILEXFER_ATTR_EXTENDED) {
-	/*
-	 * We currently don't support sending any extended
-	 * attributes.
-	 */
-    }
-}
-
-static const struct fxp_attrs no_attrs = { 0 };
-
-#define put_fxp_attrs(bs, attrs) \
-    BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
-
-/* ----------------------------------------------------------------------
- * SFTP packet decode functions.
+ * Client-specific parts of the send- and receive-packet system.
  */
 
-static int BinarySource_get_fxp_attrs(BinarySource *src,
-                                      struct fxp_attrs *attrs)
-{
-    attrs->flags = get_uint32(src);
-    if (attrs->flags & SSH_FILEXFER_ATTR_SIZE)
-        attrs->size = get_uint64(src);
-    if (attrs->flags & SSH_FILEXFER_ATTR_UIDGID) {
-	attrs->uid = get_uint32(src);
-	attrs->gid = get_uint32(src);
-    }
-    if (attrs->flags & SSH_FILEXFER_ATTR_PERMISSIONS)
-	attrs->permissions = get_uint32(src);
-    if (attrs->flags & SSH_FILEXFER_ATTR_ACMODTIME) {
-	attrs->atime = get_uint32(src);
-	attrs->mtime = get_uint32(src);
-    }
-    if (attrs->flags & SSH_FILEXFER_ATTR_EXTENDED) {
-	unsigned long count = get_uint32(src);
-	while (count--) {
-	    /*
-	     * We should try to analyse these, if we ever find one
-	     * we recognise.
-	     */
-	    get_string(src);
-	    get_string(src);
-	}
-    }
-    return 1;
-}
-
-#define get_fxp_attrs(bs, attrs) \
-    BinarySource_get_fxp_attrs(BinarySource_UPCAST(bs), attrs)
-
-static void sftp_pkt_free(struct sftp_packet *pkt)
-{
-    if (pkt->data)
-	sfree(pkt->data);
-    sfree(pkt);
-}
-
-/* ----------------------------------------------------------------------
- * Send and receive packet functions.
- */
 int sftp_send(struct sftp_packet *pkt)
 {
     int ret;
-    PUT_32BIT(pkt->data, pkt->length - 4);
+    sftp_send_prepare(pkt);
     ret = sftp_senddata(pkt->data, pkt->length);
     sftp_pkt_free(pkt);
     return ret;
 }
+
 struct sftp_packet *sftp_recv(void)
 {
     struct sftp_packet *pkt;
@@ -153,20 +39,14 @@ struct sftp_packet *sftp_recv(void)
     if (!sftp_recvdata(x, 4))
 	return NULL;
 
-    pkt = snew(struct sftp_packet);
-    pkt->savedpos = 0;
-    pkt->length = pkt->maxlen = GET_32BIT(x);
-    pkt->data = snewn(pkt->length, char);
+    pkt = sftp_recv_prepare(GET_32BIT(x));
 
     if (!sftp_recvdata(pkt->data, pkt->length)) {
 	sftp_pkt_free(pkt);
 	return NULL;
     }
 
-    BinarySource_INIT(pkt, pkt->data, pkt->length);
-    pkt->type = get_byte(pkt);
-
-    if (get_err(pkt)) {
+    if (!sftp_recv_finish(pkt)) {
 	sftp_pkt_free(pkt);
 	return NULL;
     }

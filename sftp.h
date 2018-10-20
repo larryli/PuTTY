@@ -86,6 +86,7 @@ struct fxp_attrs {
     unsigned long atime;
     unsigned long mtime;
 };
+extern const struct fxp_attrs no_attrs;
 
 /*
  * Copy between the possibly-unused permissions field in an fxp_attrs
@@ -96,9 +97,9 @@ struct fxp_attrs {
      ((attrs).flags |= SSH_FILEXFER_ATTR_PERMISSIONS,   \
       (attrs).permissions = (perms)) :                  \
      ((attrs).flags &= ~SSH_FILEXFER_ATTR_PERMISSIONS))
-#define GET_PERMISSIONS(attrs)                          \
+#define GET_PERMISSIONS(attrs, defaultperms)            \
     ((attrs).flags & SSH_FILEXFER_ATTR_PERMISSIONS ?    \
-     (attrs).permissions : -1)
+     (attrs).permissions : defaultperms)
 
 struct fxp_handle {
     char *hstring;
@@ -116,7 +117,47 @@ struct fxp_names {
 };
 
 struct sftp_request;
-struct sftp_packet;
+
+/*
+ * Packet-manipulation functions.
+ */
+
+struct sftp_packet {
+    char *data;
+    unsigned length, maxlen;
+    unsigned savedpos;
+    int type;
+    BinarySink_IMPLEMENTATION;
+    BinarySource_IMPLEMENTATION;
+};
+
+/* When sending a packet, create it with sftp_pkt_init, then add
+ * things to it by treating it as a BinarySink. When it's done, call
+ * sftp_send_prepare, and then pkt->data and pkt->length describe its
+ * wire format. */
+struct sftp_packet *sftp_pkt_init(int pkt_type);
+void sftp_send_prepare(struct sftp_packet *pkt);
+
+/* When receiving a packet, create it with sftp_recv_prepare once you
+ * decode its length from the first 4 bytes of wire data. Then write
+ * that many bytes into pkt->data, and call sftp_recv_finish to set up
+ * the type code and BinarySource. */
+struct sftp_packet *sftp_recv_prepare(unsigned length);
+int sftp_recv_finish(struct sftp_packet *pkt);
+
+/* Either kind of packet can be freed afterwards with sftp_pkt_free. */
+void sftp_pkt_free(struct sftp_packet *pkt);
+
+void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs);
+int BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs);
+#define put_fxp_attrs(bs, attrs) \
+    BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
+#define get_fxp_attrs(bs, attrs) \
+    BinarySource_get_fxp_attrs(BinarySource_UPCAST(bs), attrs)
+
+/*
+ * Error handling.
+ */
 
 const char *fxp_error(void);
 int fxp_error_type(void);
@@ -269,3 +310,170 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
 int xfer_done(struct fxp_xfer *xfer);
 void xfer_set_error(struct fxp_xfer *xfer);
 void xfer_cleanup(struct fxp_xfer *xfer);
+
+/*
+ * Vtable for the platform-specific filesystem implementation that
+ * answers requests in an SFTP server.
+ */
+typedef struct SftpReplyBuilder SftpReplyBuilder;
+struct SftpServer {
+    const SftpServerVtable *vt;
+};
+struct SftpServerVtable {
+    SftpServer *(*new)(const SftpServerVtable *vt);
+    void (*free)(SftpServer *srv);
+
+    /*
+     * Handle actual filesystem requests.
+     *
+     * Each of these functions replies by calling an appropiate
+     * sftp_reply_foo() function on the given reply packet.
+     */
+
+    /* Should call fxp_reply_error or fxp_reply_simple_name */
+    void (*realpath)(SftpServer *srv, SftpReplyBuilder *reply,
+                     ptrlen path);
+
+    /* Should call fxp_reply_error or fxp_reply_handle */
+    void (*open)(SftpServer *srv, SftpReplyBuilder *reply,
+                 ptrlen path, unsigned flags, struct fxp_attrs attrs);
+
+    /* Should call fxp_reply_error or fxp_reply_handle */
+    void (*opendir)(SftpServer *srv, SftpReplyBuilder *reply,
+                    ptrlen path);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*close)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*mkdir)(SftpServer *srv, SftpReplyBuilder *reply,
+                  ptrlen path, struct fxp_attrs attrs);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*rmdir)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen path);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*remove)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen path);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*rename)(SftpServer *srv, SftpReplyBuilder *reply,
+                   ptrlen srcpath, ptrlen dstpath);
+
+    /* Should call fxp_reply_error or fxp_reply_attrs */
+    void (*stat)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen path,
+                 int follow_symlinks);
+
+    /* Should call fxp_reply_error or fxp_reply_attrs */
+    void (*fstat)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*setstat)(SftpServer *srv, SftpReplyBuilder *reply,
+                    ptrlen path, struct fxp_attrs attrs);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*fsetstat)(SftpServer *srv, SftpReplyBuilder *reply,
+                     ptrlen handle, struct fxp_attrs attrs);
+
+    /* Should call fxp_reply_error or fxp_reply_data */
+    void (*read)(SftpServer *srv, SftpReplyBuilder *reply,
+                 ptrlen handle, uint64 offset, unsigned length);
+
+    /* Should call fxp_reply_error or fxp_reply_ok */
+    void (*write)(SftpServer *srv, SftpReplyBuilder *reply,
+                  ptrlen handle, uint64 offset, ptrlen data);
+
+    /* Should call fxp_reply_error, or fxp_reply_name_count once and
+     * then fxp_reply_full_name that many times */
+    void (*readdir)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle,
+                    int max_entries, int omit_longname);
+};
+
+#define sftpsrv_new(vt) \
+    ((vt)->new(vt))
+#define sftpsrv_free(srv) \
+    ((srv)->vt->free(srv))
+#define sftpsrv_realpath(srv, reply, path) \
+    ((srv)->vt->realpath(srv, reply, path))
+#define sftpsrv_open(srv, reply, path, flags, attrs) \
+    ((srv)->vt->open(srv, reply, path, flags, attrs))
+#define sftpsrv_opendir(srv, reply, path) \
+    ((srv)->vt->opendir(srv, reply, path))
+#define sftpsrv_close(srv, reply, handle) \
+    ((srv)->vt->close(srv, reply, handle))
+#define sftpsrv_mkdir(srv, reply, path, attrs) \
+    ((srv)->vt->mkdir(srv, reply, path, attrs))
+#define sftpsrv_rmdir(srv, reply, path) \
+    ((srv)->vt->rmdir(srv, reply, path))
+#define sftpsrv_remove(srv, reply, path) \
+    ((srv)->vt->remove(srv, reply, path))
+#define sftpsrv_rename(srv, reply, srcpath, dstpath) \
+    ((srv)->vt->rename(srv, reply, srcpath, dstpath))
+#define sftpsrv_stat(srv, reply, path, follow) \
+    ((srv)->vt->stat(srv, reply, path, follow))
+#define sftpsrv_fstat(srv, reply, handle) \
+    ((srv)->vt->fstat(srv, reply, handle))
+#define sftpsrv_setstat(srv, reply, path, attrs) \
+    ((srv)->vt->setstat(srv, reply, path, attrs))
+#define sftpsrv_fsetstat(srv, reply, handle, attrs) \
+    ((srv)->vt->fsetstat(srv, reply, handle, attrs))
+#define sftpsrv_read(srv, reply, handle, offset, length) \
+    ((srv)->vt->read(srv, reply, handle, offset, length))
+#define sftpsrv_write(srv, reply, handle, offset, data) \
+    ((srv)->vt->write(srv, reply, handle, offset, data))
+#define sftpsrv_readdir(srv, reply, handle, max, nolongname) \
+    ((srv)->vt->readdir(srv, reply, handle, max, nolongname))
+
+typedef struct SftpReplyBuilderVtable SftpReplyBuilderVtable;
+struct SftpReplyBuilder {
+    const SftpReplyBuilderVtable *vt;
+};
+struct SftpReplyBuilderVtable {
+    void (*reply_ok)(SftpReplyBuilder *reply);
+    void (*reply_error)(SftpReplyBuilder *reply, unsigned code,
+                        const char *msg);
+    void (*reply_simple_name)(SftpReplyBuilder *reply, ptrlen name);
+    void (*reply_name_count)(SftpReplyBuilder *reply, unsigned count);
+    void (*reply_full_name)(SftpReplyBuilder *reply, ptrlen name,
+                            ptrlen longname, struct fxp_attrs attrs);
+    void (*reply_handle)(SftpReplyBuilder *reply, ptrlen handle);
+    void (*reply_data)(SftpReplyBuilder *reply, ptrlen data);
+    void (*reply_attrs)(SftpReplyBuilder *reply, struct fxp_attrs attrs);
+};
+
+#define fxp_reply_ok(reply) \
+    ((reply)->vt->reply_ok(reply))
+#define fxp_reply_error(reply, code, msg) \
+    ((reply)->vt->reply_error(reply, code, msg))
+#define fxp_reply_simple_name(reply, name) \
+    ((reply)->vt->reply_simple_name(reply, name))
+#define fxp_reply_name_count(reply, count) \
+    ((reply)->vt->reply_name_count(reply, count))
+#define fxp_reply_full_name(reply, name, longname, attrs) \
+    ((reply)->vt->reply_full_name(reply, name, longname, attrs))
+#define fxp_reply_handle(reply, handle) \
+    ((reply)->vt->reply_handle(reply, handle))
+#define fxp_reply_data(reply, data) \
+    ((reply)->vt->reply_data(reply, data))
+#define fxp_reply_attrs(reply, attrs) \
+    ((reply)->vt->reply_attrs(reply, attrs))
+
+/*
+ * The usual implementation of an SftpReplyBuilder, containing a
+ * 'struct sftp_packet' which is assumed to be already initialised
+ * before one of the above request methods is called.
+ */
+extern const struct SftpReplyBuilderVtable DefaultSftpReplyBuilder_vt;
+typedef struct DefaultSftpReplyBuilder DefaultSftpReplyBuilder;
+struct DefaultSftpReplyBuilder {
+    SftpReplyBuilder rb;
+    struct sftp_packet *pkt;
+};
+
+/*
+ * The top-level function that handles an SFTP request, given an
+ * implementation of the above SftpServer abstraction to do the actual
+ * filesystem work. It handles all the marshalling and unmarshalling
+ * of packets, and the copying of request ids into the responses.
+ */
+struct sftp_packet *sftp_handle_request(
+    SftpServer *srv, struct sftp_packet *request);

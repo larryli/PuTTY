@@ -251,6 +251,8 @@ static int longoptarg(const char *arg, const char *expected,
     return FALSE;
 }
 
+extern const SftpServerVtable unix_live_sftpserver_vt;
+
 int main(int argc, char **argv)
 {
     int *fdlist;
@@ -427,7 +429,8 @@ int main(int argc, char **argv)
 
     {
         Plug *plug = ssh_server_plug(
-            conf, hostkeys, nhostkeys, hostkey1, &ap, server_logpolicy);
+            conf, hostkeys, nhostkeys, hostkey1, &ap, server_logpolicy,
+            &unix_live_sftpserver_vt);
         ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
     }
 

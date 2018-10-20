@@ -37,6 +37,8 @@ struct ssh2_connection_state {
     PortFwdManager *portfwdmgr;
     int portfwdmgr_configured;
 
+    const SftpServerVtable *sftpserver_vt;
+
     /*
      * These store the list of global requests that we're waiting for
      * replies to. (REQUEST_FAILURE doesn't come with any indication

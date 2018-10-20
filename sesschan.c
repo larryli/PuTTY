@@ -11,12 +11,14 @@
 #include "ssh.h"
 #include "sshchan.h"
 #include "sshserver.h"
+#include "sftp.h"
 
 typedef struct sesschan {
     SshChannel *c;
 
     LogContext *parent_logctx, *child_logctx;
     Conf *conf;
+    const SftpServerVtable *sftpserver_vt;
 
     LogPolicy logpolicy;
     Seat seat;
@@ -39,6 +41,7 @@ typedef struct sesschan {
     Backend *backend;
 
     bufchain subsys_input;
+    SftpServer *sftpsrv;
 
     Channel chan;
 } sesschan;
@@ -91,6 +94,35 @@ static const struct ChannelVtable sesschan_channelvt = {
     chan_no_request_response,
 };
 
+static int sftp_chan_send(Channel *chan, int is_stderr, const void *, int);
+static void sftp_chan_send_eof(Channel *chan);
+static char *sftp_log_close_msg(Channel *chan);
+
+static const struct ChannelVtable sftp_channelvt = {
+    sesschan_free,
+    chan_remotely_opened_confirmation,
+    chan_remotely_opened_failure,
+    sftp_chan_send,
+    sftp_chan_send_eof,
+    sesschan_set_input_wanted,
+    sftp_log_close_msg,
+    chan_default_want_close,
+    chan_no_exit_status,
+    chan_no_exit_signal,
+    chan_no_exit_signal_numeric,
+    chan_no_run_shell,
+    chan_no_run_command,
+    chan_no_run_subsystem,
+    chan_no_enable_x11_forwarding,
+    chan_no_enable_agent_forwarding,
+    chan_no_allocate_pty,
+    chan_no_set_env,
+    chan_no_send_break,
+    chan_no_send_signal,
+    chan_no_change_window_size,
+    chan_no_request_response,
+};
+
 static void sesschan_eventlog(LogPolicy *lp, const char *event) {}
 static void sesschan_logging_error(LogPolicy *lp, const char *event) {}
 static int sesschan_askappend(
@@ -128,7 +160,8 @@ static const SeatVtable sesschan_seat_vt = {
     sesschan_get_window_pixel_size,
 };
 
-Channel *sesschan_new(SshChannel *c, LogContext *logctx)
+Channel *sesschan_new(SshChannel *c, LogContext *logctx,
+                      const SftpServerVtable *sftpserver_vt)
 {
     sesschan *sess = snew(sesschan);
     memset(sess, 0, sizeof(sesschan));
@@ -150,6 +183,8 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx)
     sess->logpolicy.vt = &sesschan_logpolicy_vt;
     sess->child_logctx = log_init(&sess->logpolicy, sess->conf);
 
+    sess->sftpserver_vt = sftpserver_vt;
+
     bufchain_init(&sess->subsys_input);
 
     return &sess->chan;
@@ -165,6 +200,8 @@ static void sesschan_free(Channel *chan)
     if (sess->backend)
         backend_free(sess->backend);
     bufchain_clear(&sess->subsys_input);
+    if (sess->sftpsrv)
+        sftpsrv_free(sess->sftpsrv);
     for (i = 0; i < sess->n_x11_sockets; i++)
         sk_close(sess->x11_sockets[i]);
     if (sess->agentfwd_socket)
@@ -236,6 +273,15 @@ int sesschan_run_command(Channel *chan, ptrlen command)
 
 int sesschan_run_subsystem(Channel *chan, ptrlen subsys)
 {
+    sesschan *sess = container_of(chan, sesschan, chan);
+
+    if (ptrlen_eq_string(subsys, "sftp") && sess->sftpserver_vt) {
+        sess->sftpsrv = sftpsrv_new(sess->sftpserver_vt);
+        sess->chan.vt = &sftp_channelvt;
+        logevent(sess->parent_logctx, "Starting built-in SFTP subsystem");
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -556,4 +602,52 @@ static int sesschan_get_window_pixel_size(Seat *seat, int *width, int *height)
     *height = sess->hp;
 
     return TRUE;
+}
+
+/* ----------------------------------------------------------------------
+ * Built-in SFTP subsystem.
+ */
+
+static int sftp_chan_send(Channel *chan, int is_stderr,
+                          const void *data, int length)
+{
+    sesschan *sess = container_of(chan, sesschan, chan);
+
+    bufchain_add(&sess->subsys_input, data, length);
+
+    while (bufchain_size(&sess->subsys_input) >= 4) {
+        char lenbuf[4];
+        unsigned pktlen;
+        struct sftp_packet *pkt, *reply;
+
+        bufchain_fetch(&sess->subsys_input, lenbuf, 4);
+        pktlen = GET_32BIT(lenbuf);
+
+        if (bufchain_size(&sess->subsys_input) - 4 < pktlen)
+            break;                     /* wait for more data */
+
+        bufchain_consume(&sess->subsys_input, 4);
+        pkt = sftp_recv_prepare(pktlen);
+        bufchain_fetch_consume(&sess->subsys_input, pkt->data, pktlen);
+        sftp_recv_finish(pkt);
+        reply = sftp_handle_request(sess->sftpsrv, pkt);
+        sftp_pkt_free(pkt);
+
+        sftp_send_prepare(reply);
+        sshfwd_write(sess->c, reply->data, reply->length);
+        sftp_pkt_free(reply);
+    }
+
+    return 0;
+}
+
+static void sftp_chan_send_eof(Channel *chan)
+{
+    sesschan *sess = container_of(chan, sesschan, chan);
+    sshfwd_write_eof(sess->c);
+}
+
+static char *sftp_log_close_msg(Channel *chan)
+{
+    return dupstr("Session channel (SFTP) closed");
 }

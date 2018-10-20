@@ -50,7 +50,7 @@ void ssh1_connection_direction_specific_setup(
     if (!s->mainchan_chan) {
         s->mainchan_sc.vt = &ssh1sesschan_vtable;
         s->mainchan_sc.cl = &s->cl;
-        s->mainchan_chan = sesschan_new(&s->mainchan_sc, s->ppl.logctx);
+        s->mainchan_chan = sesschan_new(&s->mainchan_sc, s->ppl.logctx, NULL);
     }
 }
 

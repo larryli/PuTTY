@@ -40,6 +40,7 @@ struct server {
     int nhostkeys;
     struct RSAKey *hostkey1;
     AuthPolicy *authpolicy;
+    const SftpServerVtable *sftpserver_vt;
 
     Seat seat;
     Ssh ssh;
@@ -210,7 +211,8 @@ static const PlugVtable ssh_server_plugvt = {
 
 Plug *ssh_server_plug(
     Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
-    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy)
+    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
+    const SftpServerVtable *sftpserver_vt)
 {
     server *srv = snew(server);
 
@@ -224,6 +226,7 @@ Plug *ssh_server_plug(
     srv->hostkeys = hostkeys;
     srv->hostkey1 = hostkey1;
     srv->authpolicy = authpolicy;
+    srv->sftpserver_vt = sftpserver_vt;
 
     srv->seat.vt = &server_seat_vt;
 
@@ -412,6 +415,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
         connection_layer = ssh2_connection_new(
             &srv->ssh, NULL, FALSE, srv->conf, 
             ssh_verstring_get_local(old_bpp), &srv->cl);
+        ssh2connection_server_configure(connection_layer, srv->sftpserver_vt);
         server_connect_ppl(srv, connection_layer);
 
         if (conf_get_int(srv->conf, CONF_ssh_no_userauth)) {

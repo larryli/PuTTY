@@ -267,7 +267,7 @@ WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 
 # SFTP implementation (pscp, psftp).
-SFTP     = sftp int64 logging cmdline
+SFTP     = sftp sftpcommon int64 logging cmdline
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
@@ -283,7 +283,7 @@ UXMISC   = MISCNET UXMISCCOMMON uxproxy
 # SSH server.
 SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
          + ssh2userauth-server sshrsag sshprime ssh2connection-server
-         + sesschan int64 proxy cproxy ssh1login-server
+         + sesschan sftpcommon int64 sftpserver proxy cproxy ssh1login-server
          + ssh1connection-server
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
@@ -377,7 +377,7 @@ testbn   : [UT] testbn sshbn MISC version CONF tree234 uxmisc uxnogtk
 testbn   : [C] testbn sshbn MISC version CONF tree234 winmisc LIBS
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
-         + uxpty ux_x11 uxagentsock
+         + uxpty uxsftpserver ux_x11 uxagentsock
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

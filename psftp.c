@@ -420,7 +420,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     if (restart) {
 	file = open_existing_wfile(outfname, NULL);
     } else {
-	file = open_new_file(outfname, GET_PERMISSIONS(attrs));
+	file = open_new_file(outfname, GET_PERMISSIONS(attrs, -1));
     }
 
     if (!file) {

@@ -2,7 +2,8 @@ typedef struct AuthPolicy AuthPolicy;
 
 Plug *ssh_server_plug(
     Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
-    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy);
+    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
+    const SftpServerVtable *sftpserver_vt);
 void ssh_server_start(Plug *plug, Socket *socket);
 
 void server_instance_terminated(void);
@@ -37,11 +38,15 @@ PacketProtocolLayer *ssh2_userauth_server_new(
 void ssh2_userauth_server_set_transport_layer(
     PacketProtocolLayer *userauth, PacketProtocolLayer *transport);
 
+void ssh2connection_server_configure(
+    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt);
+
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, struct RSAKey *hostkey,
     AuthPolicy *authpolicy);
 
-Channel *sesschan_new(SshChannel *c, LogContext *logctx);
+Channel *sesschan_new(SshChannel *c, LogContext *logctx,
+                      const SftpServerVtable *sftpserver_vt);
 
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
