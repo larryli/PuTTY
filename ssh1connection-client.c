@@ -516,3 +516,16 @@ struct ssh_rportfwd *ssh1_rportfwd_alloc(
 
     return rpf;
 }
+
+SshChannel *ssh1_serverside_x11_open(
+    ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
+{
+    assert(FALSE && "Should never be called in the client");
+    return NULL;
+}
+
+SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
+{
+    assert(FALSE && "Should never be called in the client");
+    return NULL;
+}

@@ -250,14 +250,18 @@ GTKMAIN  = gtkmain cmdline
 NONSSH   = telnet raw rlogin ldisc pinger
 
 # SSH back end (putty, plink, pscp, psftp).
-SSH      = ssh sshcommon ssh1bpp ssh2bpp ssh2bpp-bare ssh1censor ssh2censor
-         + ssh1login ssh1connection ssh2transport ssh2userauth ssh2connection
-         + sshverstring sshcrc sshdes sshmd5 sshrsa sshrand sshsha sshblowf
-         + sshdh sshcrcda sshpubk sshzlib sshdss x11fwd portfwd
-         + sshaes sshccp sshsh256 sshsh512 sshbn wildcard pinger ssharcf
-         + sshgssc pgssapi sshshare sshecc aqsync marshal nullplug agentf
-         + sshmac mainchan ssh2transhk ssh2kex-client ssh2connection-client
-         + ssh1connection-client
+SSHCOMMON = sshcommon sshrand
+         + sshverstring sshcrc sshdes sshmd5 sshrsa sshsha sshblowf
+         + sshdh sshcrcda sshpubk sshzlib sshdss ssharcf
+         + sshaes sshccp sshsh256 sshsh512 sshbn sshmac marshal nullplug
+         + sshgssc pgssapi sshecc wildcard ssh1censor ssh2censor ssh2bpp
+	 + ssh2transport ssh2transhk ssh2connection portfwd x11fwd
+         + ssh1connection ssh1bpp
+SSH      = SSHCOMMON ssh ssh2bpp-bare
+         + ssh1login ssh2userauth
+         + pinger
+         + sshshare aqsync agentf
+         + mainchan ssh2kex-client ssh2connection-client ssh1connection-client
 WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
          + winhsock errsock
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
@@ -268,11 +272,19 @@ SFTP     = sftp int64 logging cmdline
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
 MISC     = misc marshal
-MISCNET  = timing callback MISC version settings tree234 proxy CONF be_misc
+MISCNETCOMMON = timing callback MISC version tree234 CONF
+MISCNET  = MISCNETCOMMON be_misc settings proxy
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs
-UXMISC   = MISCNET uxstore uxsel uxnet uxpeer uxmisc time
-         + uxproxy uxfdsock errsock
+UXMISCCOMMON = MISCNETCOMMON uxstore uxsel uxnet uxpeer uxmisc time
+         + uxfdsock errsock
+UXMISC   = MISCNET UXMISCCOMMON uxproxy
+
+# SSH server.
+SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
+         + ssh2userauth-server sshrsag sshprime ssh2connection-server
+         + sesschan int64 proxy cproxy ssh1login-server
+         + ssh1connection-server
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.
@@ -363,6 +375,9 @@ fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk
 testbn   : [UT] testbn sshbn MISC version CONF tree234 uxmisc uxnogtk
 testbn   : [C] testbn sshbn MISC version CONF tree234 winmisc LIBS
+
+uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
+         + uxpty ux_x11 uxagentsock
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

@@ -89,6 +89,21 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
     }
 }
 
+void ssh1_bpp_start_compression(BinaryPacketProtocol *bpp)
+{
+    struct ssh1_bpp_state *s;
+    assert(bpp->vt == &ssh1_bpp_vtable);
+    s = container_of(bpp, struct ssh1_bpp_state, bpp);
+
+    assert(!s->compctx);
+    assert(!s->decompctx);
+
+    s->compctx = ssh_compressor_new(&ssh_zlib);
+    s->decompctx = ssh_decompressor_new(&ssh_zlib);
+
+    bpp_logevent(("Started zlib (RFC1950) compression"));
+}
+
 #define BPP_READ(ptr, len) do                                   \
     {                                                           \
         crMaybeWaitUntilV(s->bpp.input_eof ||                   \
@@ -221,13 +236,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
                          * If the response was positive, start
                          * compression.
                          */
-                        assert(!s->compctx);
-                        assert(!s->decompctx);
-
-                        s->compctx = ssh_compressor_new(&ssh_zlib);
-                        s->decompctx = ssh_decompressor_new(&ssh_zlib);
-
-                        bpp_logevent(("Started zlib (RFC1950) compression"));
+                        ssh1_bpp_start_compression(&s->bpp);
                     }
 
                     /*

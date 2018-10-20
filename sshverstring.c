@@ -61,7 +61,7 @@ static int ssh_version_includes_v2(const char *ver);
 BinaryPacketProtocol *ssh_verstring_new(
     Conf *conf, LogContext *logctx, int bare_connection_mode,
     const char *protoversion, struct ssh_version_receiver *rcv,
-    const char *impl_name)
+    int server_mode, const char *impl_name)
 {
     struct ssh_verstring_state *s = snew(struct ssh_verstring_state);
 
@@ -98,8 +98,10 @@ BinaryPacketProtocol *ssh_verstring_new(
      * We send our version string early if we can. But if it includes
      * SSH-1, we can't, because we have to take the other end into
      * account too (see below).
+     *
+     * In server mode, we do send early.
      */
-    s->send_early = !ssh_version_includes_v1(protoversion);
+    s->send_early = server_mode || !ssh_version_includes_v1(protoversion);
 
     s->bpp.vt = &ssh_verstring_vtable;
     ssh_bpp_common_setup(&s->bpp);

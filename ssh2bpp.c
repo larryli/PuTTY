@@ -34,6 +34,7 @@ struct ssh2_bpp_state {
     ssh_decompressor *in_decomp;
     ssh_compressor *out_comp;
 
+    int is_server;
     int pending_newkeys;
     int pending_compression, seen_userauth_success;
 
@@ -54,13 +55,14 @@ static const struct BinaryPacketProtocolVtable ssh2_bpp_vtable = {
 };
 
 BinaryPacketProtocol *ssh2_bpp_new(
-    LogContext *logctx, struct DataTransferStats *stats)
+    LogContext *logctx, struct DataTransferStats *stats, int is_server)
 {
     struct ssh2_bpp_state *s = snew(struct ssh2_bpp_state);
     memset(s, 0, sizeof(*s));
     s->bpp.vt = &ssh2_bpp_vtable;
     s->bpp.logctx = logctx;
     s->stats = stats;
+    s->is_server = is_server;
     ssh_bpp_common_setup(&s->bpp);
     return &s->bpp;
 }
@@ -216,6 +218,10 @@ void ssh2_bpp_new_incoming_crypto(
     /* Clear the pending_newkeys flag, so that handle_input below will
      * start consuming the input data again. */
     s->pending_newkeys = FALSE;
+
+    /* And schedule a run of handle_input, in case there's already
+     * input data in the queue. */
+    queue_idempotent_callback(&s->bpp.ic_in_raw);
 }
 
 int ssh2_bpp_rekey_inadvisable(BinaryPacketProtocol *bpp)
@@ -225,6 +231,24 @@ int ssh2_bpp_rekey_inadvisable(BinaryPacketProtocol *bpp)
     s = container_of(bpp, struct ssh2_bpp_state, bpp);
 
     return s->pending_compression;
+}
+
+static void ssh2_bpp_enable_pending_compression(struct ssh2_bpp_state *s)
+{
+    BinaryPacketProtocol *bpp = &s->bpp; /* for bpp_logevent */
+
+    if (s->in.pending_compression) {
+        s->in_decomp = ssh_decompressor_new(s->in.pending_compression);
+        bpp_logevent(("Initialised delayed %s decompression",
+                      ssh_decompressor_alg(s->in_decomp)->text_name));
+        s->in.pending_compression = NULL;
+    }
+    if (s->out.pending_compression) {
+        s->out_comp = ssh_compressor_new(s->out.pending_compression);
+        bpp_logevent(("Initialised delayed %s compression",
+                      ssh_compressor_alg(s->out_comp)->text_name));
+        s->out.pending_compression = NULL;
+    }
 }
 
 #define BPP_READ(ptr, len) do                                   \
@@ -571,29 +595,14 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
                 continue;
             }
 
-            if (type == SSH2_MSG_USERAUTH_SUCCESS) {
+            if (type == SSH2_MSG_USERAUTH_SUCCESS && !s->is_server) {
                 /*
                  * Another one: if we were configured with OpenSSH's
                  * deferred compression which is triggered on receipt
                  * of USERAUTH_SUCCESS, then this is the moment to
                  * turn on compression.
                  */
-                if (s->in.pending_compression) {
-                    s->in_decomp =
-                        ssh_decompressor_new(s->in.pending_compression);
-                    bpp_logevent(("Initialised delayed %s decompression",
-                                  ssh_decompressor_alg(
-                                      s->in_decomp)->text_name));
-                    s->in.pending_compression = NULL;
-                }
-                if (s->out.pending_compression) {
-                    s->out_comp =
-                        ssh_compressor_new(s->out.pending_compression);
-                    bpp_logevent(("Initialised delayed %s compression",
-                                  ssh_compressor_alg(
-                                      s->out_comp)->text_name));
-                    s->out.pending_compression = NULL;
-                }
+                ssh2_bpp_enable_pending_compression(s);
 
                 /*
                  * Whether or not we were doing delayed compression in
@@ -869,13 +878,15 @@ static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp)
     }
 
     while ((pkt = pq_pop(&s->bpp.out_pq)) != NULL) {
-        if (userauth_range(pkt->type))
+        int type = pkt->type;
+
+        if (userauth_range(type))
             n_userauth--;
 
         ssh2_bpp_format_packet(s, pkt);
         ssh_free_pktout(pkt);
 
-        if (n_userauth == 0 && s->out.pending_compression) {
+        if (n_userauth == 0 && s->out.pending_compression && !s->is_server) {
             /*
              * This is the last userauth packet in the queue, so
              * unless our side decides to send another one in future,
@@ -885,6 +896,8 @@ static void ssh2_bpp_handle_output(BinaryPacketProtocol *bpp)
              */
             s->pending_compression = TRUE;
             return;
+        } else if (type == SSH2_MSG_USERAUTH_SUCCESS && s->is_server) {
+            ssh2_bpp_enable_pending_compression(s);
         }
     }
 }

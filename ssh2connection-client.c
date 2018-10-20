@@ -301,6 +301,17 @@ SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
     return &c->sc;
 }
 
+SshChannel *ssh2_serverside_x11_open(
+    ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
+{
+    assert(FALSE && "Should never be called in the client");
+}
+
+SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
+{
+    assert(FALSE && "Should never be called in the client");
+}
+
 static void ssh2_channel_response(
     struct ssh2_channel *c, PktIn *pkt, void *ctx)
 {

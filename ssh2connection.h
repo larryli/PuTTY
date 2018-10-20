@@ -163,8 +163,10 @@ struct ssh_rportfwd *ssh2_rportfwd_alloc(
     ssh_sharing_connstate *share_ctx);
 void ssh2_rportfwd_remove(
     ConnectionLayer *cl, struct ssh_rportfwd *rpf);
-
 SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan);
+SshChannel *ssh2_serverside_x11_open(
+    ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi);
+SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan);
 
 void ssh2channel_send_exit_status(SshChannel *c, int status);
 void ssh2channel_send_exit_signal(

@@ -1086,8 +1086,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 	}
     }
 
-    ssh1_connection_set_local_protoflags(
-        s->successor_layer, s->local_protoflags);
+    ssh1_connection_set_protoflags(
+        s->successor_layer, s->local_protoflags, s->remote_protoflags);
     {
         PacketProtocolLayer *successor = s->successor_layer;
         s->successor_layer = NULL;     /* avoid freeing it ourself */

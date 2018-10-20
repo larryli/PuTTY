@@ -69,6 +69,8 @@ static const struct ConnectionLayerVtable ssh2_connlayer_vtable = {
     ssh2_rportfwd_remove,
     ssh2_lportfwd_open,
     ssh2_session_open,
+    ssh2_serverside_x11_open,
+    ssh2_serverside_agent_open,
     ssh2_add_x11_display,
     ssh2_add_sharing_x11_display,
     ssh2_remove_sharing_x11_display,

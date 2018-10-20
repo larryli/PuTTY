@@ -1050,6 +1050,72 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
     }
 }
 
+int portfwdmgr_listen(PortFwdManager *mgr, const char *host, int port,
+                      const char *keyhost, int keyport, Conf *conf)
+{
+    PortFwdRecord *pfr;
+
+    pfr = snew(PortFwdRecord);
+    pfr->type = 'L';
+    pfr->saddr = host ? dupstr(host) : NULL;
+    pfr->daddr = keyhost ? dupstr(keyhost) : NULL;
+    pfr->sserv = pfr->dserv = NULL;
+    pfr->sport = port;
+    pfr->dport = keyport;
+    pfr->local = NULL;
+    pfr->remote = NULL;
+    pfr->addressfamily = ADDRTYPE_UNSPEC;
+
+    PortFwdRecord *existing = add234(mgr->forwardings, pfr);
+    if (existing != pfr) {
+        /*
+         * We had this record already. Return failure.
+         */
+        pfr_free(pfr);
+        return FALSE;
+    }
+
+    char *err = pfl_listen(keyhost, keyport, host, port,
+                           mgr->cl, conf, &pfr->local, pfr->addressfamily);
+    logeventf(mgr->cl->logctx,
+              "%s on port %s:%d to forward to client%s%s",
+              err ? "Failed to listen" : "Listening", host, port,
+              err ? ": " : "", err ? err : "");
+    if (err) {
+        sfree(err);
+        del234(mgr->forwardings, pfr);
+        pfr_free(pfr);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+int portfwdmgr_unlisten(PortFwdManager *mgr, const char *host, int port)
+{
+    PortFwdRecord pfr_key;
+
+    pfr_key.type = 'L';
+    /* Safe to cast the const away here, because it will only be used
+     * by pfr_cmp, which won't write to the string */
+    pfr_key.saddr = pfr_key.daddr = (char *)host;
+    pfr_key.sserv = pfr_key.dserv = NULL;
+    pfr_key.sport = pfr_key.dport = port;
+    pfr_key.local = NULL;
+    pfr_key.remote = NULL;
+    pfr_key.addressfamily = ADDRTYPE_UNSPEC;
+
+    PortFwdRecord *pfr = del234(mgr->forwardings, &pfr_key);
+
+    if (!pfr)
+        return FALSE;
+
+    logeventf(mgr->cl->logctx, "Closing listening port %s:%d", host, port);
+
+    pfr_free(pfr);
+    return TRUE;
+}
+
 /*
  * Called when receiving a PORT OPEN from the server to make a
  * connection to a destination host.
