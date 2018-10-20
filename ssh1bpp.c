@@ -116,7 +116,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
 
         if (s->len < 0 || s->len > 262144) { /* SSH1.5-mandated max size */
             ssh_sw_abort(s->bpp.ssh,
-                         "Extremely large packet length from server suggests"
+                         "Extremely large packet length from remote suggests"
                          " data stream corruption");
             crStopV;
         }
@@ -246,9 +246,9 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
   eof:
     if (!s->bpp.expect_close) {
         ssh_remote_error(s->bpp.ssh,
-                         "Server unexpectedly closed network connection");
+                         "Remote side unexpectedly closed network connection");
     } else {
-        ssh_remote_eof(s->bpp.ssh, "Server closed network connection");
+        ssh_remote_eof(s->bpp.ssh, "Remote side closed network connection");
     }
     return;  /* avoid touching s now it's been freed */
 

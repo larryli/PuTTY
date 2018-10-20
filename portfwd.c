@@ -645,7 +645,7 @@ static void pfd_open_failure(Channel *chan, const char *errtext)
     PortForwarding *pf = container_of(chan, PortForwarding, chan);
 
     logeventf(pf->cl->logctx,
-              "Forwarded connection refused by server%s%s",
+              "Forwarded connection refused by remote%s%s",
               errtext ? ": " : "", errtext ? errtext : "");
 }
 

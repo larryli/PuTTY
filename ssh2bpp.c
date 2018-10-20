@@ -111,7 +111,7 @@ void ssh2_bpp_new_outgoing_crypto(
             (ssh2_cipher_alg(s->out.cipher)->flags & SSH_CIPHER_IS_CBC) &&
             !(s->bpp.remote_bugs & BUG_CHOKES_ON_SSH2_IGNORE));
 
-        bpp_logevent(("Initialised %.200s client->server encryption",
+        bpp_logevent(("Initialised %.200s outbound encryption",
                       ssh2_cipher_alg(s->out.cipher)->text_name));
     } else {
         s->out.cipher = NULL;
@@ -122,8 +122,7 @@ void ssh2_bpp_new_outgoing_crypto(
         s->out.mac = ssh2_mac_new(mac, s->out.cipher);
         mac->setkey(s->out.mac, mac_key);
 
-        bpp_logevent(("Initialised %.200s client->server"
-                      " MAC algorithm%s%s",
+        bpp_logevent(("Initialised %.200s outbound MAC algorithm%s%s",
                       ssh2_mac_alg(s->out.mac)->text_name,
                       etm_mode ? " (in ETM mode)" : "",
                       (s->out.cipher &&
@@ -175,7 +174,7 @@ void ssh2_bpp_new_incoming_crypto(
         ssh2_cipher_setkey(s->in.cipher, ckey);
         ssh2_cipher_setiv(s->in.cipher, iv);
 
-        bpp_logevent(("Initialised %.200s server->client encryption",
+        bpp_logevent(("Initialised %.200s inbound encryption",
                       ssh2_cipher_alg(s->in.cipher)->text_name));
     } else {
         s->in.cipher = NULL;
@@ -185,7 +184,7 @@ void ssh2_bpp_new_incoming_crypto(
         s->in.mac = ssh2_mac_new(mac, s->in.cipher);
         mac->setkey(s->in.mac, mac_key);
 
-        bpp_logevent(("Initialised %.200s server->client MAC algorithm%s%s",
+        bpp_logevent(("Initialised %.200s inbound MAC algorithm%s%s",
                       ssh2_mac_alg(s->in.mac)->text_name,
                       etm_mode ? " (in ETM mode)" : "",
                       (s->in.cipher &&
@@ -628,9 +627,9 @@ static void ssh2_bpp_handle_input(BinaryPacketProtocol *bpp)
   eof:
     if (!s->bpp.expect_close) {
         ssh_remote_error(s->bpp.ssh,
-                         "Server unexpectedly closed network connection");
+                         "Remote side unexpectedly closed network connection");
     } else {
-        ssh_remote_eof(s->bpp.ssh, "Server closed network connection");
+        ssh_remote_eof(s->bpp.ssh, "Remote side closed network connection");
     }
     return;  /* avoid touching s now it's been freed */
 

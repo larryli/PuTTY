@@ -319,7 +319,7 @@ int ssh2_common_filter_queue(PacketProtocolLayer *ppl)
             msg = get_string(pktin);
 
             ssh_remote_error(
-                ppl->ssh, "Server sent disconnect message\n"
+                ppl->ssh, "Remote side sent disconnect message\n"
                 "type %d (%s):\n\"%.*s\"", reason,
                 ((reason > 0 && reason < lenof(ssh2_disconnect_reasons)) ?
                  ssh2_disconnect_reasons[reason] : "unknown"),
@@ -1400,7 +1400,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 return;
             }
             pq_push_front(s->ppl.in_pq, pktin);
-            ppl_logevent(("Server initiated key re-exchange"));
+            ppl_logevent(("Remote side initiated key re-exchange"));
             s->rekey_class = RK_SERVER;
         }
 
@@ -1445,7 +1445,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
              * rekey, we process it anyway!)
              */
             if ((s->ppl.remote_bugs & BUG_SSH2_REKEY)) {
-                ppl_logevent(("Server bug prevents key re-exchange (%s)",
+                ppl_logevent(("Remote bug prevents key re-exchange (%s)",
                               s->rekey_reason));
                 /* Reset the counters, so that at least this message doesn't
                  * hit the event log _too_ often. */
