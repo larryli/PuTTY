@@ -1002,6 +1002,9 @@ char *platform_get_x_display(void);
  */
 void x11_get_auth_from_authfile(struct X11Display *display,
 				const char *authfilename);
+void x11_format_auth_for_authfile(
+    BinarySink *bs, SockAddr *addr, int display_no,
+    ptrlen authproto, ptrlen authdata);
 int x11_identify_auth_proto(ptrlen protoname);
 void *x11_dehexify(ptrlen hex, int *outlen);
 
