@@ -343,6 +343,23 @@ int ssh2channel_start_subsystem(
     return TRUE;
 }
 
+void ssh2channel_send_exit_status(SshChannel *sc, int status)
+{
+    assert(FALSE && "Should never be called in the client");
+}
+
+void ssh2channel_send_exit_signal(
+    SshChannel *sc, ptrlen signame, int core_dumped, ptrlen msg)
+{
+    assert(FALSE && "Should never be called in the client");
+}
+
+void ssh2channel_send_exit_signal_numeric(
+    SshChannel *sc, int signum, int core_dumped, ptrlen msg)
+{
+    assert(FALSE && "Should never be called in the client");
+}
+
 void ssh2channel_request_x11_forwarding(
     SshChannel *sc, int want_reply, const char *authproto,
     const char *authdata, int screen_number, int oneshot)

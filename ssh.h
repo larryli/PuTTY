@@ -1435,6 +1435,8 @@ struct ssh_ttymodes {
 };
 
 struct ssh_ttymodes get_ttymodes_from_conf(Seat *seat, Conf *conf);
+struct ssh_ttymodes read_ttymodes_from_packet(
+    BinarySource *bs, int ssh_version);
 void write_ttymodes_to_packet(BinarySink *bs, int ssh_version,
                               struct ssh_ttymodes modes);
 

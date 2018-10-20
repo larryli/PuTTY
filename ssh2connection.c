@@ -137,6 +137,9 @@ static const struct SshChannelVtable ssh2channel_vtable = {
     ssh2channel_get_conf,
     ssh2channel_window_override_removed,
     ssh2channel_x11_sharing_handover,
+    ssh2channel_send_exit_status,
+    ssh2channel_send_exit_signal,
+    ssh2channel_send_exit_signal_numeric,
     ssh2channel_request_x11_forwarding,
     ssh2channel_request_agent_forwarding,
     ssh2channel_request_pty,
@@ -655,6 +658,66 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                         reply_success = FALSE;
                         break;
                     }
+                } else if (ptrlen_eq_string(type, "shell")) {
+                    reply_success = chan_run_shell(c->chan);
+                } else if (ptrlen_eq_string(type, "exec")) {
+                    ptrlen command = get_string(pktin);
+                    reply_success = chan_run_command(c->chan, command);
+                } else if (ptrlen_eq_string(type, "subsystem")) {
+                    ptrlen subsys = get_string(pktin);
+                    reply_success = chan_run_subsystem(c->chan, subsys);
+                } else if (ptrlen_eq_string(type, "x11-req")) {
+                    int oneshot = get_bool(pktin);
+                    ptrlen authproto = get_string(pktin);
+                    ptrlen authdata = get_string(pktin);
+                    unsigned screen_number = get_uint32(pktin);
+                    reply_success = chan_enable_x11_forwarding(
+                        c->chan, oneshot, authproto, authdata, screen_number);
+                } else if (ptrlen_eq_string(type,
+                                            "auth-agent-req@openssh.com")) {
+                    reply_success = chan_enable_agent_forwarding(c->chan);
+                } else if (ptrlen_eq_string(type, "pty-req")) {
+                    ptrlen termtype = get_string(pktin);
+                    unsigned width = get_uint32(pktin);
+                    unsigned height = get_uint32(pktin);
+                    unsigned pixwidth = get_uint32(pktin);
+                    unsigned pixheight = get_uint32(pktin);
+                    ptrlen encoded_modes = get_string(pktin);
+                    BinarySource bs_modes[1];
+                    struct ssh_ttymodes modes;
+
+                    BinarySource_BARE_INIT(
+                        bs_modes, encoded_modes.ptr, encoded_modes.len);
+                    modes = read_ttymodes_from_packet(bs_modes, 2);
+                    if (get_err(bs_modes) || get_avail(bs_modes) > 0) {
+                        ppl_logevent(("Unable to decode terminal mode "
+                                      "string"));
+                        reply_success = FALSE;
+                    } else {
+                        reply_success = chan_allocate_pty(
+                            c->chan, termtype, width, height,
+                            pixwidth, pixheight, modes);
+                    }
+                } else if (ptrlen_eq_string(type, "env")) {
+                    ptrlen var = get_string(pktin);
+                    ptrlen value = get_string(pktin);
+
+                    reply_success = chan_set_env(c->chan, var, value);
+                } else if (ptrlen_eq_string(type, "break")) {
+                    unsigned length = get_uint32(pktin);
+
+                    reply_success = chan_send_break(c->chan, length);
+                } else if (ptrlen_eq_string(type, "signal")) {
+                    ptrlen signame = get_string(pktin);
+
+                    reply_success = chan_send_signal(c->chan, signame);
+                } else if (ptrlen_eq_string(type, "window-change")) {
+                    unsigned width = get_uint32(pktin);
+                    unsigned height = get_uint32(pktin);
+                    unsigned pixwidth = get_uint32(pktin);
+                    unsigned pixheight = get_uint32(pktin);
+                    reply_success = chan_change_window_size(
+                        c->chan, width, height, pixwidth, pixheight);
                 }
                 if (want_reply) {
                     int type = (reply_success ? SSH2_MSG_CHANNEL_SUCCESS :

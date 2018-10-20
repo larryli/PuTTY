@@ -166,6 +166,11 @@ void ssh2_rportfwd_remove(
 
 SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan);
 
+void ssh2channel_send_exit_status(SshChannel *c, int status);
+void ssh2channel_send_exit_signal(
+    SshChannel *c, ptrlen signame, int core_dumped, ptrlen msg);
+void ssh2channel_send_exit_signal_numeric(
+    SshChannel *c, int signum, int core_dumped, ptrlen msg);
 void ssh2channel_request_x11_forwarding(
     SshChannel *c, int want_reply, const char *authproto,
     const char *authdata, int screen_number, int oneshot);

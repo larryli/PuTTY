@@ -127,6 +127,23 @@ int chan_no_exit_signal(Channel *ch, ptrlen s, int c, ptrlen m)
 { return FALSE; }
 int chan_no_exit_signal_numeric(Channel *ch, int s, int c, ptrlen m)
 { return FALSE; }
+int chan_no_run_shell(Channel *chan) { return FALSE; }
+int chan_no_run_command(Channel *chan, ptrlen command) { return FALSE; }
+int chan_no_run_subsystem(Channel *chan, ptrlen subsys) { return FALSE; }
+int chan_no_enable_x11_forwarding(
+    Channel *chan, int oneshot, ptrlen authproto, ptrlen authdata,
+    unsigned screen_number) { return FALSE; }
+int chan_no_enable_agent_forwarding(Channel *chan) { return FALSE; }
+int chan_no_allocate_pty(
+    Channel *chan, ptrlen termtype, unsigned width, unsigned height,
+    unsigned pixwidth, unsigned pixheight, struct ssh_ttymodes modes)
+{ return FALSE; }
+int chan_no_set_env(Channel *chan, ptrlen var, ptrlen value) { return FALSE; }
+int chan_no_send_break(Channel *chan, unsigned length) { return FALSE; }
+int chan_no_send_signal(Channel *chan, ptrlen signame) { return FALSE; }
+int chan_no_change_window_size(
+    Channel *chan, unsigned width, unsigned height,
+    unsigned pixwidth, unsigned pixheight) { return FALSE; }
 void chan_no_request_response(Channel *chan, int success) {}
 
 /*
