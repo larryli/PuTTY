@@ -94,7 +94,7 @@ struct ssh2_channel {
      */
     int throttled_by_backlog;
 
-    bufchain outbuffer;
+    bufchain outbuffer, errbuffer;
     unsigned remwindow, remmaxpkt;
     /* locwindow is signed so we can cope with excess data. */
     int locwindow, locmaxwin;

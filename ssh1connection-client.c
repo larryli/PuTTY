@@ -397,7 +397,8 @@ static void ssh1mainchan_hint_channel_is_simple(SshChannel *sc)
 {
 }
 
-static int ssh1mainchan_write(SshChannel *sc, const void *data, int len)
+static int ssh1mainchan_write(
+    SshChannel *sc, int is_stderr, const void *data, int len)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);

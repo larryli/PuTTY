@@ -89,7 +89,8 @@ static const struct ConnectionLayerVtable ssh1_connlayer_vtable = {
     ssh1_set_wants_user_input,
 };
 
-static int ssh1channel_write(SshChannel *c, const void *buf, int len);
+static int ssh1channel_write(
+    SshChannel *c, int is_stderr, const void *buf, int len);
 static void ssh1channel_write_eof(SshChannel *c);
 static void ssh1channel_initiate_close(SshChannel *c, const char *err);
 static void ssh1channel_unthrottle(SshChannel *c, int bufsize);
@@ -581,7 +582,8 @@ static void ssh1channel_unthrottle(SshChannel *sc, int bufsize)
     }
 }
 
-static int ssh1channel_write(SshChannel *sc, const void *buf, int len)
+static int ssh1channel_write(
+    SshChannel *sc, int is_stderr, const void *buf, int len)
 {
     struct ssh1_channel *c = container_of(sc, struct ssh1_channel, sc);
     struct ssh1_connection_state *s = c->connlayer;

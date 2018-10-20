@@ -116,7 +116,8 @@ static char *ssh2_channel_open_failure_error_text(PktIn *pktin)
     return dupprintf("%s [%.*s]", reason_code_string, PTRLEN_PRINTF(reason));
 }
 
-static int ssh2channel_write(SshChannel *c, const void *buf, int len);
+static int ssh2channel_write(
+    SshChannel *c, int is_stderr, const void *buf, int len);
 static void ssh2channel_write_eof(SshChannel *c);
 static void ssh2channel_initiate_close(SshChannel *c, const char *err);
 static void ssh2channel_unthrottle(SshChannel *c, int bufsize);
@@ -215,6 +216,7 @@ struct outstanding_channel_request {
 static void ssh2_channel_free(struct ssh2_channel *c)
 {
     bufchain_clear(&c->outbuffer);
+    bufchain_clear(&c->errbuffer);
     while (c->chanreq_head) {
         struct outstanding_channel_request *chanreq = c->chanreq_head;
         c->chanreq_head = c->chanreq_head->next;
@@ -741,6 +743,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                      * stuff.
                      */
                     bufchain_clear(&c->outbuffer);
+                    bufchain_clear(&c->errbuffer);
 
                     /*
                      * Send outgoing EOF.
@@ -980,7 +983,7 @@ static void ssh2_channel_try_eof(struct ssh2_channel *c)
     assert(c->pending_eof);          /* precondition for calling us */
     if (c->halfopen)
         return;                 /* can't close: not even opened yet */
-    if (bufchain_size(&c->outbuffer) > 0)
+    if (bufchain_size(&c->outbuffer) > 0 || bufchain_size(&c->errbuffer) > 0)
         return;              /* can't send EOF: pending outgoing data */
 
     c->pending_eof = FALSE;            /* we're about to send it */
@@ -1001,19 +1004,31 @@ static int ssh2_try_send(struct ssh2_channel *c)
     PktOut *pktout;
     int bufsize;
 
-    while (c->remwindow > 0 && bufchain_size(&c->outbuffer) > 0) {
+    while (c->remwindow > 0 &&
+           (bufchain_size(&c->outbuffer) > 0 ||
+            bufchain_size(&c->errbuffer) > 0)) {
 	int len;
 	void *data;
-	bufchain_prefix(&c->outbuffer, &data, &len);
+        bufchain *buf = (bufchain_size(&c->errbuffer) > 0 ?
+                         &c->errbuffer : &c->outbuffer);
+
+	bufchain_prefix(buf, &data, &len);
 	if ((unsigned)len > c->remwindow)
 	    len = c->remwindow;
 	if ((unsigned)len > c->remmaxpkt)
 	    len = c->remmaxpkt;
-	pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_DATA);
-	put_uint32(pktout, c->remoteid);
+        if (buf == &c->errbuffer) {
+            pktout = ssh_bpp_new_pktout(
+                s->ppl.bpp, SSH2_MSG_CHANNEL_EXTENDED_DATA);
+            put_uint32(pktout, c->remoteid);
+            put_uint32(pktout, SSH2_EXTENDED_DATA_STDERR);
+        } else {
+            pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_DATA);
+            put_uint32(pktout, c->remoteid);
+        }
         put_string(pktout, data, len);
         pq_push(s->ppl.out_pq, pktout);
-	bufchain_consume(&c->outbuffer, len);
+	bufchain_consume(buf, len);
 	c->remwindow -= len;
     }
 
@@ -1021,7 +1036,7 @@ static int ssh2_try_send(struct ssh2_channel *c)
      * After having sent as much data as we can, return the amount
      * still buffered.
      */
-    bufsize = bufchain_size(&c->outbuffer);
+    bufsize = bufchain_size(&c->outbuffer) + bufchain_size(&c->errbuffer);
 
     /*
      * And if there's no data pending but we need to send an EOF, send
@@ -1155,6 +1170,7 @@ void ssh2_channel_init(struct ssh2_channel *c)
     c->chanreq_head = NULL;
     c->throttle_state = UNTHROTTLED;
     bufchain_init(&c->outbuffer);
+    bufchain_init(&c->errbuffer);
     c->sc.vt = &ssh2channel_vtable;
     c->sc.cl = &s->cl;
     c->localid = alloc_channel_id(s->channels, struct ssh2_channel);
@@ -1264,11 +1280,12 @@ static void ssh2channel_unthrottle(SshChannel *sc, int bufsize)
     }
 }
 
-static int ssh2channel_write(SshChannel *sc, const void *buf, int len)
+static int ssh2channel_write(
+    SshChannel *sc, int is_stderr, const void *buf, int len)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     assert(!(c->closes & CLOSES_SENT_EOF));
-    bufchain_add(&c->outbuffer, buf, len);
+    bufchain_add(is_stderr ? &c->errbuffer : &c->outbuffer, buf, len);
     return ssh2_try_send(c);
 }
 
@@ -1521,7 +1538,8 @@ static int ssh2_stdin_backlog(ConnectionLayer *cl)
     if (!s->mainchan)
         return 0;
     c = container_of(s->mainchan_sc, struct ssh2_channel, sc);
-    return s->mainchan ? bufchain_size(&c->outbuffer) : 0;
+    return s->mainchan ?
+        bufchain_size(&c->outbuffer) + bufchain_size(&c->errbuffer) : 0;
 }
 
 static void ssh2_throttle_all_channels(ConnectionLayer *cl, int throttled)
