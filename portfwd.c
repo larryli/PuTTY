@@ -467,18 +467,10 @@ static const struct ChannelVtable PortForwarding_channelvt = {
     chan_no_request_response,
 };
 
-/*
- called when someone connects to the local port
- */
-
-static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
+Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug)
 {
     struct PortForwarding *pf;
-    struct PortListener *pl;
-    Socket *s;
-    const char *err;
 
-    pl = container_of(p, struct PortListener, plug);
     pf = new_portfwd_state();
     pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
@@ -486,29 +478,72 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     pf->input_wanted = TRUE;
 
     pf->c = NULL;
-    pf->cl = pl->cl;
 
-    pf->s = s = constructor(ctx, &pf->plug);
-    if ((err = sk_socket_error(s)) != NULL) {
-	free_portfwd_state(pf);
-	return err != NULL;
-    }
-
+    pf->cl = cl;
     pf->input_wanted = TRUE;
     pf->ready = 0;
 
+    pf->socks_state = SOCKS_NONE;
+    pf->hostname = NULL;
+    pf->port = 0;
+
+    *plug = &pf->plug;
+    return &pf->chan;
+}
+
+void portfwd_raw_free(Channel *pfchan)
+{
+    struct PortForwarding *pf;
+    assert(pfchan->vt == &PortForwarding_channelvt);
+    pf = container_of(pfchan, struct PortForwarding, chan);
+    free_portfwd_state(pf);
+}
+
+void portfwd_raw_setup(Channel *pfchan, Socket *s, SshChannel *sc)
+{
+    struct PortForwarding *pf;
+    assert(pfchan->vt == &PortForwarding_channelvt);
+    pf = container_of(pfchan, struct PortForwarding, chan);
+
+    pf->s = s;
+    pf->c = sc;
+}
+
+/*
+ called when someone connects to the local port
+ */
+
+static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
+{
+    struct PortListener *pl = container_of(p, struct PortListener, plug);
+    struct PortForwarding *pf;
+    Channel *chan;
+    Plug *plug;
+    Socket *s;
+    const char *err;
+
+    chan = portfwd_raw_new(pl->cl, &plug);
+    s = constructor(ctx, plug);
+    if ((err = sk_socket_error(s)) != NULL) {
+	portfwd_raw_free(chan);
+	return TRUE;
+    }
+
+    pf = container_of(chan, struct PortForwarding, chan);
+
     if (pl->is_dynamic) {
+        pf->s = s;
 	pf->socks_state = SOCKS_INITIAL;
         pf->socksbuf = strbuf_new();
         pf->socksbuf_consumed = 0;
 	pf->port = 0;		       /* "hostname" buffer is so far empty */
 	sk_set_frozen(s, 0);	       /* we want to receive SOCKS _now_! */
     } else {
-	pf->socks_state = SOCKS_NONE;
 	pf->hostname = dupstr(pl->hostname);
 	pf->port = pl->port;	
-        pf->c = wrap_lportfwd_open(pl->cl, pf->hostname, pf->port,
-                                   s, &pf->chan);
+        portfwd_raw_setup(
+            chan, s,
+            wrap_lportfwd_open(pl->cl, pf->hostname, pf->port, s, &pf->chan));
     }
 
     return 0;
