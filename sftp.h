@@ -56,6 +56,8 @@
 
 #define SFTP_PROTO_VERSION 3
 
+#define PERMS_DIRECTORY   040000
+
 /*
  * External references. The sftp client module sftp.c expects to be
  * able to get at these functions.
@@ -477,3 +479,41 @@ struct DefaultSftpReplyBuilder {
  */
 struct sftp_packet *sftp_handle_request(
     SftpServer *srv, struct sftp_packet *request);
+
+/* ----------------------------------------------------------------------
+ * Not exactly SFTP-related, but here's a system that implements an
+ * old-fashioned SCP server module, given an SftpServer vtable to use
+ * as its underlying filesystem access.
+ */
+
+typedef struct ScpServer ScpServer;
+typedef struct ScpServerVtable ScpServerVtable;
+struct ScpServer {
+    const struct ScpServerVtable *vt;
+};
+struct ScpServerVtable {
+    void (*free)(ScpServer *s);
+
+    int (*send)(ScpServer *s, const void *data, size_t length);
+    void (*throttle)(ScpServer *s, int throttled);
+    void (*eof)(ScpServer *s);
+};
+
+#define scp_free(s) ((s)->vt->free(s))
+#define scp_send(s, data, len) ((s)->vt->send(s, data, len))
+#define scp_throttle(s, th) ((s)->vt->throttle(s, th))
+#define scp_eof(s) ((s)->vt->eof(s))
+
+/*
+ * Create an ScpServer by calling this function, giving it the command
+ * you received from the SSH client to execute. If that command is
+ * recognised as an scp command, it will construct an ScpServer object
+ * and return it; otherwise, it will return NULL, and you should
+ * execute the command in whatever way you normally would.
+ *
+ * The ScpServer will generate output for the client by writing it to
+ * the provided SshChannel using sshfwd_write; you pass it input using
+ * the send method in its own vtable.
+ */
+ScpServer *scp_recognise_exec(
+    SshChannel *sc, const SftpServerVtable *sftpserver_vt, ptrlen command);

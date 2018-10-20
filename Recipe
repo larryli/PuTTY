@@ -284,7 +284,7 @@ UXMISC   = MISCNET UXMISCCOMMON uxproxy
 SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
          + ssh2userauth-server sshrsag sshprime ssh2connection-server
          + sesschan sftpcommon int64 sftpserver proxy cproxy ssh1login-server
-         + ssh1connection-server
+         + ssh1connection-server scpserver
 
 # import.c and dependencies, for PuTTYgen-like utilities that have to
 # load foreign key files.

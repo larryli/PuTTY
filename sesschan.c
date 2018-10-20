@@ -42,6 +42,7 @@ typedef struct sesschan {
 
     bufchain subsys_input;
     SftpServer *sftpsrv;
+    ScpServer *scpsrv;
 
     Channel chan;
 } sesschan;
@@ -106,6 +107,36 @@ static const struct ChannelVtable sftp_channelvt = {
     sftp_chan_send_eof,
     sesschan_set_input_wanted,
     sftp_log_close_msg,
+    chan_default_want_close,
+    chan_no_exit_status,
+    chan_no_exit_signal,
+    chan_no_exit_signal_numeric,
+    chan_no_run_shell,
+    chan_no_run_command,
+    chan_no_run_subsystem,
+    chan_no_enable_x11_forwarding,
+    chan_no_enable_agent_forwarding,
+    chan_no_allocate_pty,
+    chan_no_set_env,
+    chan_no_send_break,
+    chan_no_send_signal,
+    chan_no_change_window_size,
+    chan_no_request_response,
+};
+
+static int scp_chan_send(Channel *chan, int is_stderr, const void *, int);
+static void scp_chan_send_eof(Channel *chan);
+static void scp_set_input_wanted(Channel *chan, int wanted);
+static char *scp_log_close_msg(Channel *chan);
+
+static const struct ChannelVtable scp_channelvt = {
+    sesschan_free,
+    chan_remotely_opened_confirmation,
+    chan_remotely_opened_failure,
+    scp_chan_send,
+    scp_chan_send_eof,
+    scp_set_input_wanted,
+    scp_log_close_msg,
     chan_default_want_close,
     chan_no_exit_status,
     chan_no_exit_signal,
@@ -263,6 +294,14 @@ int sesschan_run_command(Channel *chan, ptrlen command)
 
     if (sess->backend)
         return FALSE;
+
+    /* FIXME: make this possible to configure off */
+    if ((sess->scpsrv = scp_recognise_exec(sess->c, sess->sftpserver_vt,
+                                           command)) != NULL) {
+        sess->chan.vt = &scp_channelvt;
+        logevent(sess->parent_logctx, "Starting built-in SCP server");
+        return TRUE;
+    }
 
     char *command_str = mkstr(command);
     sesschan_start_backend(sess, command_str);
@@ -650,4 +689,32 @@ static void sftp_chan_send_eof(Channel *chan)
 static char *sftp_log_close_msg(Channel *chan)
 {
     return dupstr("Session channel (SFTP) closed");
+}
+
+/* ----------------------------------------------------------------------
+ * Built-in SCP subsystem.
+ */
+
+static int scp_chan_send(Channel *chan, int is_stderr,
+                         const void *data, int length)
+{
+    sesschan *sess = container_of(chan, sesschan, chan);
+    return scp_send(sess->scpsrv, data, length);
+}
+
+static void scp_chan_send_eof(Channel *chan)
+{
+    sesschan *sess = container_of(chan, sesschan, chan);
+    scp_eof(sess->scpsrv);
+}
+
+static char *scp_log_close_msg(Channel *chan)
+{
+    return dupstr("Session channel (SCP) closed");
+}
+
+static void scp_set_input_wanted(Channel *chan, int wanted)
+{
+    sesschan *sess = container_of(chan, sesschan, chan);
+    scp_throttle(sess->scpsrv, !wanted);
 }
