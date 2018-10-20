@@ -478,6 +478,7 @@ void BinarySource_get_rsa_ssh1_priv(
     BinarySource *src, struct RSAKey *rsa);
 int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);
 Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key);
+int rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf);
 void rsasanitise(struct RSAKey *key);
 int rsastr_len(struct RSAKey *key);
 void rsastr_fmt(char *str, struct RSAKey *key);
@@ -504,12 +505,17 @@ int detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32 len,
  * SSH2 RSA key exchange functions
  */
 struct ssh_hashalg;
+struct ssh_rsa_kex_extra {
+    int minklen;
+};
 struct RSAKey *ssh_rsakex_newkey(const void *data, int len);
 void ssh_rsakex_freekey(struct RSAKey *key);
 int ssh_rsakex_klen(struct RSAKey *key);
 void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
                         unsigned char *in, int inlen,
                         unsigned char *out, int outlen, struct RSAKey *key);
+Bignum ssh_rsakex_decrypt(const struct ssh_hashalg *h, ptrlen ciphertext,
+                          struct RSAKey *rsa);
 
 /*
  * SSH2 ECDH key exchange functions
