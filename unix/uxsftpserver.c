@@ -667,7 +667,7 @@ static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
                 longnamebuf = dupprintf(
                     "%s %3u %-8s %-8s %8s %.3s %2d %02d:%02d %s",
                     perms, (unsigned)st.st_nlink, user, group, sizebuf,
-                    ("JanFebMarAprMayJunJulAugSepOctNovDec" + 3*tm.tm_mon),
+                    (&"JanFebMarAprMayJunJulAugSepOctNovDec"[3*tm.tm_mon]),
                     tm.tm_mday, tm.tm_hour, tm.tm_min, de->d_name);
                 longname = ptrlen_from_asciz(longnamebuf);
 
