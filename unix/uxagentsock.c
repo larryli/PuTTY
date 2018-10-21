@@ -62,6 +62,11 @@ Socket *platform_make_agent_socket(
                  * we expect read() to return EOF as soon as
                  * that process terminates.
                  */
+
+                close(0);
+                close(1);
+                close(2);
+
                 setpgid(0, 0);
                 close(cleanup_pipe[1]);
                 while (read(cleanup_pipe[0], buf, sizeof(buf)) > 0);

@@ -159,6 +159,11 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
                  * we expect read() to return EOF as soon as
                  * that process terminates.
                  */
+
+                close(0);
+                close(1);
+                close(2);
+
                 setpgid(0, 0);
                 close(cleanup_pipe[1]);
                 close(authfd);
