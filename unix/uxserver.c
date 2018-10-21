@@ -529,4 +529,5 @@ int main(int argc, char **argv)
 
         run_toplevel_callbacks();
     }
+    exit(0);
 }
