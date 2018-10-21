@@ -887,10 +887,12 @@ Backend *pty_backend_create(
             /* If somehow we've got a pty master already and don't
              * need it, throw it away! */
             close(pty->master_fd);
+#ifndef OMIT_UTMP
             if (pty_utmp_helper_pipe >= 0) {
                 close(pty_utmp_helper_pipe); /* don't need this either */
                 pty_utmp_helper_pipe = -1;
             }
+#endif
         }
 
 
