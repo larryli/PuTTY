@@ -136,7 +136,8 @@ struct ssh_version_receiver {
 };
 BinaryPacketProtocol *ssh_verstring_new(
     Conf *conf, LogContext *logctx, int bare_connection_mode,
-    const char *protoversion, struct ssh_version_receiver *rcv);
+    const char *protoversion, struct ssh_version_receiver *rcv,
+    const char *impl_name);
 const char *ssh_verstring_get_remote(BinaryPacketProtocol *);
 const char *ssh_verstring_get_local(BinaryPacketProtocol *);
 int ssh_verstring_get_bugs(BinaryPacketProtocol *);

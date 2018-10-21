@@ -27,6 +27,7 @@ struct ssh_verstring_state {
     int major_protoversion;
     int remote_bugs;
     char prefix[PREFIX_MAXLEN];
+    char *impl_name;
     char *vstring;
     int vslen, vstrsize;
     char *protoversion;
@@ -59,7 +60,8 @@ static int ssh_version_includes_v2(const char *ver);
 
 BinaryPacketProtocol *ssh_verstring_new(
     Conf *conf, LogContext *logctx, int bare_connection_mode,
-    const char *protoversion, struct ssh_version_receiver *rcv)
+    const char *protoversion, struct ssh_version_receiver *rcv,
+    const char *impl_name)
 {
     struct ssh_verstring_state *s = snew(struct ssh_verstring_state);
 
@@ -90,6 +92,7 @@ BinaryPacketProtocol *ssh_verstring_new(
     s->bpp.logctx = logctx;
     s->our_protoversion = dupstr(protoversion);
     s->receiver = rcv;
+    s->impl_name = dupstr(impl_name);
 
     /*
      * We send our version string early if we can. But if it includes
@@ -108,6 +111,7 @@ void ssh_verstring_free(BinaryPacketProtocol *bpp)
     struct ssh_verstring_state *s =
         container_of(bpp, struct ssh_verstring_state, bpp);
     conf_free(s->conf);
+    sfree(s->impl_name);
     sfree(s->vstring);
     sfree(s->protoversion);
     sfree(s->our_vstring);
@@ -155,9 +159,9 @@ static void ssh_verstring_send(struct ssh_verstring_state *s)
      * Construct our outgoing version string.
      */
     s->our_vstring = dupprintf(
-        "%.*s%s-%s",
+        "%.*s%s-%s%s",
         (int)s->prefix_wanted.len, (const char *)s->prefix_wanted.ptr,
-        s->our_protoversion, sshver);
+        s->our_protoversion, s->impl_name, sshver);
     sv_pos = s->prefix_wanted.len + strlen(s->our_protoversion) + 1;
 
     /* Convert minus signs and spaces in the software version string

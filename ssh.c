@@ -717,7 +717,7 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
     ssh->version_receiver.got_ssh_version = ssh_got_ssh_version;
     ssh->bpp = ssh_verstring_new(
         ssh->conf, ssh->logctx, ssh->bare_connection,
-        ssh->version == 1 ? "1.5" : "2.0", &ssh->version_receiver);
+        ssh->version == 1 ? "1.5" : "2.0", &ssh->version_receiver, "PuTTY");
     ssh_connect_bpp(ssh);
     queue_idempotent_callback(&ssh->bpp->ic_in_raw);
 

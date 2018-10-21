@@ -63,10 +63,10 @@ set Docmakever VERSION="$(Puttytextver)"
 # make sure it's under 40 characters, which is a hard limit in the SSH
 # protocol spec (and enforced by a compile-time assertion in
 # version.c).
-ifneq "$(RELEASE)" "" set Sshver PuTTY-Release-$(RELEASE)
-ifneq "$(PRERELEASE)" "" set Sshver PuTTY-Prerelease-$(PRERELEASE):$(Ndate).$(vcsid)
-ifneq "$(SNAPSHOT)" "" set Sshver PuTTY-Snapshot-$(Date).$(vcsid)
-ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Sshver PuTTY-Custom-$(Date).$(vcsid)
+ifneq "$(RELEASE)" "" set Sshver -Release-$(RELEASE)
+ifneq "$(PRERELEASE)" "" set Sshver -Prerelease-$(PRERELEASE):$(Ndate).$(vcsid)
+ifneq "$(SNAPSHOT)" "" set Sshver -Snapshot-$(Date).$(vcsid)
+ifeq "$(RELEASE)$(PRERELEASE)$(SNAPSHOT)" "" set Sshver -Custom-$(Date).$(vcsid)
 
 # Set up the filename suffix for the Unix source archive.
 ifneq "$(RELEASE)" "" set Uxarcsuffix -$(RELEASE)
