@@ -201,21 +201,32 @@ int auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
     return TRUE;
 }
 
-static void show_help_and_exit(void)
+static void safety_warning(FILE *fp)
 {
-    printf("usage:   uppity [options]\n");
-    printf("options: --hostkey KEY        SSH host key (need at least one)\n");
-    printf("         --userkey KEY        public key"
-           " acceptable for user authentication\n");
-    printf("also:    uppity --help        show this text\n");
-    printf("         uppity --version     show version information\n");
-    exit(0);
+    fputs("  =================================================\n"
+          "     THIS SSH SERVER IS NOT WRITTEN TO BE SECURE!\n"
+          "  DO NOT DEPLOY IT IN A HOSTILE-FACING ENVIRONMENT!\n"
+          "  =================================================\n", fp);
+}
+
+static void show_help(FILE *fp)
+{
+    safety_warning(fp);
+    fputs("\n"
+          "usage:   uppity [options]\n"
+          "options: --hostkey KEY        SSH host key (need at least one)\n"
+          "         --userkey KEY        public key"
+           " acceptable for user authentication\n"
+          "also:    uppity --help        show this text\n"
+          "         uppity --version     show version information\n"
+          "\n", fp);
+    safety_warning(fp);
 }
 
 static void show_version_and_exit(void)
 {
     char *buildinfo_text = buildinfo("\n");
-    printf("uppity: %s\n%s\n", ver, buildinfo_text);
+    printf("%s: %s\n%s\n", appname, ver, buildinfo_text);
     sfree(buildinfo_text);
     exit(0);
 }
@@ -243,8 +254,8 @@ static int longoptarg(const char *arg, const char *expected,
             *val = *++*argvp;
             return TRUE;
         } else {
-            fprintf(stderr, "uppity: option %s expects an argument\n",
-                    expected);
+            fprintf(stderr, "%s: option %s expects an argument\n",
+                    appname, expected);
             exit(1);
         }
     }
@@ -272,12 +283,24 @@ int main(int argc, char **argv)
     ap.ssh1keys = NULL;
     ap.ssh2keys = NULL;
 
+    if (argc <= 1) {
+        /*
+         * We're going to terminate with an error message below,
+         * because there are no host keys. But we'll display the help
+         * as additional standard-error output, if nothing else so
+         * that people see the giant safety warning.
+         */
+        show_help(stderr);
+        fputc('\n', stderr);
+    }
+
     while (--argc > 0) {
         const char *arg = *++argv;
         const char *val;
 
         if (!strcmp(arg, "--help")) {
-            show_help_and_exit();
+            show_help(stdout);
+            exit(0);
         } else if (!strcmp(arg, "--version")) {
             show_version_and_exit();
         } else if (!strcmp(arg, "--verbose") || !strcmp(arg, "-v")) {
@@ -296,8 +319,8 @@ int main(int argc, char **argv)
                 uk = ssh2_load_userkey(keyfile, NULL, &error);
                 filename_free(keyfile);
                 if (!uk || !uk->key) {
-                    fprintf(stderr, "uppity: unable to load host key '%s': "
-                            "%s\n", val, error);
+                    fprintf(stderr, "%s: unable to load host key '%s': "
+                            "%s\n", appname, val, error);
                     exit(1);
                 }
                 key = uk->key;
@@ -306,8 +329,9 @@ int main(int argc, char **argv)
 
                 for (i = 0; i < nhostkeys; i++)
                     if (ssh_key_alg(hostkeys[i]) == ssh_key_alg(key)) {
-                        fprintf(stderr, "uppity: host key '%s' duplicates key "
-                                "type %s\n", val, ssh_key_alg(key)->ssh_id);
+                        fprintf(stderr, "%s: host key '%s' duplicates key "
+                                "type %s\n", appname, val,
+                                ssh_key_alg(key)->ssh_id);
                         exit(1);
                     }
 
@@ -318,19 +342,20 @@ int main(int argc, char **argv)
                 hostkeys[nhostkeys++] = key;
             } else if (keytype == SSH_KEYTYPE_SSH1) {
                 if (hostkey1) {
-                    fprintf(stderr, "uppity: host key '%s' is a redundant "
-                            "SSH-1 host key\n", val);
+                    fprintf(stderr, "%s: host key '%s' is a redundant "
+                            "SSH-1 host key\n", appname, val);
                     exit(1);
                 }
                 hostkey1 = snew(struct RSAKey);
                 if (!rsa_ssh1_loadkey(keyfile, hostkey1, NULL, &error)) {
-                    fprintf(stderr, "uppity: unable to load host key '%s': "
-                            "%s\n", val, error);
+                    fprintf(stderr, "%s: unable to load host key '%s': "
+                            "%s\n", appname, val, error);
                     exit(1);
                 }
             } else {
-                fprintf(stderr, "uppity: '%s' is not loadable as a "
-                        "private key (%s)", val, key_type_to_str(keytype));
+                fprintf(stderr, "%s: '%s' is not loadable as a "
+                        "private key (%s)", appname, val,
+                        key_type_to_str(keytype));
                 exit(1);
             }
         } else if (longoptarg(arg, "--userkey", &val, &argc, &argv)) {
@@ -349,8 +374,8 @@ int main(int argc, char **argv)
 
                 if (!ssh2_userkey_loadpub(keyfile, NULL, BinarySink_UPCAST(sb),
                                           NULL, &error)) {
-                    fprintf(stderr, "uppity: unable to load user key '%s': "
-                            "%s\n", val, error);
+                    fprintf(stderr, "%s: unable to load user key '%s': "
+                            "%s\n", appname, val, error);
                     exit(1);
                 }
 
@@ -370,8 +395,8 @@ int main(int argc, char **argv)
 
                 if (!rsa_ssh1_loadpub(keyfile, BinarySink_UPCAST(sb),
                                       NULL, &error)) {
-                    fprintf(stderr, "uppity: unable to load user key '%s': "
-                            "%s\n", val, error);
+                    fprintf(stderr, "%s: unable to load user key '%s': "
+                            "%s\n", appname, val, error);
                     exit(1);
                 }
 
@@ -384,8 +409,8 @@ int main(int argc, char **argv)
 
                 strbuf_free(sb);
             } else {
-                fprintf(stderr, "uppity: '%s' is not loadable as a public key "
-                        "(%s)\n", val, key_type_to_str(keytype));
+                fprintf(stderr, "%s: '%s' is not loadable as a public key "
+                        "(%s)\n", appname, val, key_type_to_str(keytype));
                 exit(1);
             }
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||
@@ -403,13 +428,13 @@ int main(int argc, char **argv)
             conf_set_int(conf, CONF_logtype, LGTYP_SSHRAW);
             conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
         } else {
-            fprintf(stderr, "uppity: unrecognised option '%s'\n", arg);
+            fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);
         }
     }
 
     if (nhostkeys == 0 && !hostkey1) {
-        fprintf(stderr, "uppity: specify at least one host key\n");
+        fprintf(stderr, "%s: specify at least one host key\n", appname);
         exit(1);
     }
 
