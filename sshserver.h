@@ -13,6 +13,9 @@ void platform_logevent(const char *msg);
     X(NONE)                                     \
     X(PASSWORD)                                 \
     X(PUBLICKEY)                                \
+    X(KBDINT)                                   \
+    X(TIS)                                      \
+    X(CRYPTOCARD)                               \
     /* end of list */
 
 #define AUTHMETHOD_BIT_INDEX(name) AUTHMETHOD_BIT_INDEX_##name,
@@ -21,6 +24,18 @@ enum { AUTHMETHODS(AUTHMETHOD_BIT_INDEX) AUTHMETHOD_BIT_INDEX_dummy };
     AUTHMETHOD_##name = 1 << AUTHMETHOD_BIT_INDEX_##name,
 enum { AUTHMETHODS(AUTHMETHOD_BIT_VALUE) AUTHMETHOD_BIT_VALUE_dummy };
 
+typedef struct AuthKbdInt AuthKbdInt;
+typedef struct AuthKbdIntPrompt AuthKbdIntPrompt;
+struct AuthKbdInt {
+    char *title, *instruction;         /* both need freeing */
+    int nprompts;
+    AuthKbdIntPrompt *prompts;         /* the array itself needs freeing */
+};
+struct AuthKbdIntPrompt {
+    char *prompt;                      /* needs freeing */
+    int echo;
+};
+
 unsigned auth_methods(AuthPolicy *);
 int auth_none(AuthPolicy *, ptrlen username);
 int auth_password(AuthPolicy *, ptrlen username, ptrlen password);
@@ -28,6 +43,19 @@ int auth_publickey(AuthPolicy *, ptrlen username, ptrlen public_blob);
 /* auth_publickey_ssh1 must return the whole public key given the modulus,
  * because the SSH-1 client never transmits the exponent over the wire.
  * The key remains owned by the AuthPolicy. */
+
+AuthKbdInt *auth_kbdint_prompts(AuthPolicy *, ptrlen username);
+/* auth_kbdint_prompts returns NULL to trigger auth failure */
+int auth_kbdint_responses(AuthPolicy *, const ptrlen *responses);
+/* auth_kbdint_responses returns >0 for success, <0 for failure, and 0
+ * to indicate that we haven't decided yet and further prompts are
+ * coming */
+
+/* The very similar SSH-1 TIS and CryptoCard methods are combined into
+ * a single API for AuthPolicy, which takes a method argument */
+char *auth_ssh1int_challenge(AuthPolicy *, unsigned method, ptrlen username);
+int auth_ssh1int_response(AuthPolicy *, ptrlen response);
+
 struct RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, Bignum rsa_modulus);
 /* auth_successful returns FALSE if further authentication is needed */

@@ -152,7 +152,10 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         s->supported_auths_mask |= (1U << SSH1_AUTH_PASSWORD);
     if (s->ap_methods & AUTHMETHOD_PUBLICKEY)
         s->supported_auths_mask |= (1U << SSH1_AUTH_RSA);
-    /* FIXME: TIS, CCARD */
+    if (s->ap_methods & AUTHMETHOD_TIS)
+        s->supported_auths_mask |= (1U << SSH1_AUTH_TIS);
+    if (s->ap_methods & AUTHMETHOD_CRYPTOCARD)
+        s->supported_auths_mask |= (1U << SSH1_AUTH_CCARD);
 
     for (i = 0; i < 8; i++)
         s->cookie[i] = random_byte();
@@ -349,6 +352,47 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
             }
 
             goto auth_success;
+        } else if (pktin->type == SSH1_CMSG_AUTH_TIS ||
+                   pktin->type == SSH1_CMSG_AUTH_CCARD) {
+            char *challenge;
+            unsigned response_type;
+            ptrlen response;
+
+            s->current_method = (pktin->type == SSH1_CMSG_AUTH_TIS ?
+                                 AUTHMETHOD_TIS : AUTHMETHOD_CRYPTOCARD);
+            if (!(s->ap_methods & s->current_method))
+                continue;
+
+            challenge = auth_ssh1int_challenge(
+                s->authpolicy, s->current_method, s->username);
+            if (!challenge)
+                continue;
+            pktout = ssh_bpp_new_pktout(
+                s->ppl.bpp,
+                (s->current_method == AUTHMETHOD_TIS ?
+                 SSH1_SMSG_AUTH_TIS_CHALLENGE :
+                 SSH1_SMSG_AUTH_CCARD_CHALLENGE));
+            put_stringz(pktout, challenge);
+            pq_push(s->ppl.out_pq, pktout);
+            sfree(challenge);
+
+            crMaybeWaitUntilV((pktin = ssh1_login_server_pop(s)) != NULL);
+            response_type = (s->current_method == AUTHMETHOD_TIS ?
+                             SSH1_CMSG_AUTH_TIS_RESPONSE :
+                             SSH1_CMSG_AUTH_CCARD_RESPONSE);
+            if (pktin->type != response_type) {
+                ssh_proto_error(s->ppl.ssh, "Received unexpected packet in "
+                                "response to %s challenge, type %d (%s)",
+                                (s->current_method == AUTHMETHOD_TIS ?
+                                 "TIS" : "CryptoCard"),
+                                pktin->type, ssh1_pkt_type(pktin->type));
+                return;
+            }
+
+            response = get_string(pktin);
+
+            if (auth_ssh1int_response(s->authpolicy, response))
+                goto auth_success;
         }
     }
 

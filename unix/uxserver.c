@@ -164,10 +164,12 @@ struct AuthPolicy_ssh2_pubkey {
 struct AuthPolicy {
     struct AuthPolicy_ssh1_pubkey *ssh1keys;
     struct AuthPolicy_ssh2_pubkey *ssh2keys;
+    int kbdint_state;
 };
 unsigned auth_methods(AuthPolicy *ap)
 {
-    return AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD;
+    return (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD | AUTHMETHOD_KBDINT |
+            AUTHMETHOD_TIS | AUTHMETHOD_CRYPTOCARD);
 }
 int auth_none(AuthPolicy *ap, ptrlen username)
 {
@@ -195,6 +197,65 @@ struct RSAKey *auth_publickey_ssh1(
             return &iter->key;
     }
     return NULL;
+}
+AuthKbdInt *auth_kbdint_prompts(AuthPolicy *ap, ptrlen username)
+{
+    AuthKbdInt *aki = snew(AuthKbdInt);
+
+    switch (ap->kbdint_state) {
+      case 0:
+        aki->title = dupstr("Initial double prompt");
+        aki->instruction =
+            dupstr("First prompt should echo, second should not");
+        aki->nprompts = 2;
+        aki->prompts = snewn(aki->nprompts, AuthKbdIntPrompt);
+        aki->prompts[0].prompt = dupstr("Echoey prompt: ");
+        aki->prompts[0].echo = TRUE;
+        aki->prompts[1].prompt = dupstr("Silent prompt: ");
+        aki->prompts[1].echo = FALSE;
+        return aki;
+      case 1:
+        aki->title = dupstr("Zero-prompt step");
+        aki->instruction = dupstr("Shouldn't see any prompts this time");
+        aki->nprompts = 0;
+        aki->prompts = NULL;
+        return aki;
+      default:
+        ap->kbdint_state = 0;
+        return NULL;
+    }
+}
+int auth_kbdint_responses(AuthPolicy *ap, const ptrlen *responses)
+{
+    switch (ap->kbdint_state) {
+      case 0:
+        if (ptrlen_eq_string(responses[0], "stoat") &&
+            ptrlen_eq_string(responses[1], "weasel")) {
+            ap->kbdint_state++;
+            return 0;                  /* those are the expected responses */
+        } else {
+            ap->kbdint_state = 0;
+            return -1;
+        }
+        break;
+      case 1:
+        return +1;                     /* succeed after the zero-prompt step */
+      default:
+        ap->kbdint_state = 0;
+        return -1;
+    }
+}
+char *auth_ssh1int_challenge(AuthPolicy *ap, unsigned method, ptrlen username)
+{
+    /* FIXME: test returning a challenge string without \n, and ensure
+     * it gets printed as a prompt in its own right, without PuTTY
+     * making up a "Response: " prompt to follow it */
+    return dupprintf("This is a dummy %s challenge!\n",
+                     (method == AUTHMETHOD_TIS ? "TIS" : "CryptoCard"));
+}
+int auth_ssh1int_response(AuthPolicy *ap, ptrlen response)
+{
+    return ptrlen_eq_string(response, "otter");
 }
 int auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
 {
@@ -280,6 +341,7 @@ int main(int argc, char **argv)
     Conf *conf = conf_new();
     load_open_settings(NULL, conf);
 
+    ap.kbdint_state = 0;
     ap.ssh1keys = NULL;
     ap.ssh2keys = NULL;
 

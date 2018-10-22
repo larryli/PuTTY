@@ -29,6 +29,8 @@ struct ssh2_userauth_server_state {
     unsigned methods, this_method;
     int partial_success;
 
+    AuthKbdInt *aki;
+
     PacketProtocolLayer ppl;
 };
 
@@ -45,6 +47,21 @@ static const struct PacketProtocolLayerVtable ssh2_userauth_server_vtable = {
     NULL /* reconfigure */,
     "ssh-userauth",
 };
+
+static void free_auth_kbdint(AuthKbdInt *aki)
+{
+    int i;
+
+    if (!aki)
+        return;
+
+    sfree(aki->title);
+    sfree(aki->instruction);
+    for (i = 0; i < aki->nprompts; i++)
+        sfree(aki->prompts[i].prompt);
+    sfree(aki->prompts);
+    sfree(aki);
+}
 
 PacketProtocolLayer *ssh2_userauth_server_new(
     PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy)
@@ -75,6 +92,8 @@ static void ssh2_userauth_server_free(PacketProtocolLayer *ppl)
 
     if (s->successor_layer)
         ssh_ppl_free(s->successor_layer);
+
+    free_auth_kbdint(s->aki);
 
     sfree(s);
 }
@@ -211,6 +230,66 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
 
             if (!success)
                 goto failure;
+        } else if (ptrlen_eq_string(s->method, "keyboard-interactive")) {
+            int i, ok;
+            unsigned n;
+
+            s->this_method = AUTHMETHOD_KBDINT;
+            if (!(s->methods & s->this_method))
+                goto failure;
+
+            do {
+                s->aki = auth_kbdint_prompts(s->authpolicy, s->username);
+                if (!s->aki)
+                    goto failure;
+
+                pktout = ssh_bpp_new_pktout(
+                    s->ppl.bpp, SSH2_MSG_USERAUTH_INFO_REQUEST);
+                put_stringz(pktout, s->aki->title);
+                put_stringz(pktout, s->aki->instruction);
+                put_stringz(pktout, ""); /* language tag */
+                put_uint32(pktout, s->aki->nprompts);
+                for (i = 0; i < s->aki->nprompts; i++) {
+                    put_stringz(pktout, s->aki->prompts[i].prompt);
+                    put_bool(pktout, s->aki->prompts[i].echo);
+                }
+                pq_push(s->ppl.out_pq, pktout);
+
+                crMaybeWaitUntilV(
+                    (pktin = ssh2_userauth_server_pop(s)) != NULL);
+                if (pktin->type != SSH2_MSG_USERAUTH_INFO_RESPONSE) {
+                    ssh_proto_error(
+                        s->ppl.ssh, "Received unexpected packet when "
+                        "expecting USERAUTH_INFO_RESPONSE, type %d (%s)",
+                        pktin->type,
+                        ssh2_pkt_type(s->ppl.bpp->pls->kctx,
+                                      s->ppl.bpp->pls->actx, pktin->type));
+                    return;
+                }
+
+                n = get_uint32(pktin);
+                if (n != s->aki->nprompts) {
+                    ssh_proto_error(
+                        s->ppl.ssh, "Received %u keyboard-interactive "
+                        "responses after sending %u prompts",
+                        n, s->aki->nprompts);
+                    return;
+                }
+
+                {
+                    ptrlen *responses = snewn(s->aki->nprompts, ptrlen);
+                    for (i = 0; i < s->aki->nprompts; i++)
+                        responses[i] = get_string(pktin);
+                    ok = auth_kbdint_responses(s->authpolicy, responses);
+                    sfree(responses);
+                }
+
+                free_auth_kbdint(s->aki);
+                s->aki = NULL;
+            } while (ok == 0);
+
+            if (ok <= 0)
+                goto failure;
         } else {
             goto failure;
         }
@@ -246,6 +325,8 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
                 add_to_commasep(list, "password");
             if (s->methods & AUTHMETHOD_PUBLICKEY)
                 add_to_commasep(list, "publickey");
+            if (s->methods & AUTHMETHOD_KBDINT)
+                add_to_commasep(list, "keyboard-interactive");
             put_stringsb(pktout, list);
         }
         put_bool(pktout, s->partial_success);
