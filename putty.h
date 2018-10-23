@@ -1679,6 +1679,7 @@ int agent_exists(void);
  * Exports from wildcard.c
  */
 const char *wc_error(int value);
+int wc_match_pl(const char *wildcard, ptrlen target);
 int wc_match(const char *wildcard, const char *target);
 int wc_unescape(char *output, const char *wildcard);
 
