@@ -1456,6 +1456,10 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	      case 'C':
 	      case 'D':
 		act->action = (action == 'C' ? SCP_SINK_FILE : SCP_SINK_DIR);
+                if (act->action == SCP_SINK_DIR && !recursive) {
+                    bump("security violation: remote host attempted to create "
+                         "a subdirectory in a non-recursive copy!");
+                }
 		break;
 	      default:
 		bump("Protocol error: Expected control record");
