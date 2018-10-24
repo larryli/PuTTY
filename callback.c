@@ -65,6 +65,7 @@ void delete_callbacks_for_context(void *ctx)
 
     cbhead = newhead;
     cbtail = newtail;
+    newtail->next = NULL;
 }
 
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)

@@ -1229,6 +1229,7 @@ void ssh2_channel_init(struct ssh2_channel *c)
     c->closes = 0;
     c->pending_eof = FALSE;
     c->throttling_conn = FALSE;
+    c->throttled_by_backlog = FALSE;
     c->sharectx = NULL;
     c->locwindow = c->locmaxwin = c->remlocwin =
         s->ssh_is_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
