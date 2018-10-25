@@ -305,11 +305,13 @@ SshChannel *ssh2_serverside_x11_open(
     ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
 {
     assert(FALSE && "Should never be called in the client");
+    return 0;                          /* placate optimiser */
 }
 
 SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 {
     assert(FALSE && "Should never be called in the client");
+    return 0;                          /* placate optimiser */
 }
 
 static void ssh2_channel_response(
