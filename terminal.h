@@ -20,15 +20,6 @@ typedef struct {
     int y, x;
 } pos;
 
-#ifdef OPTIMISE_SCROLL
-struct scrollregion {
-    struct scrollregion *next;
-    int topline; /* Top line of scroll region. */
-    int botline; /* Bottom line of scroll region. */
-    int lines; /* Number of lines to scroll by - +ve is forwards. */
-};
-#endif /* OPTIMISE_SCROLL */
-
 typedef struct termchar termchar;
 typedef struct termline termline;
 
@@ -97,10 +88,6 @@ struct terminal_tag {
 
 #define TTYPE termchar
 #define TSIZE (sizeof(TTYPE))
-
-#ifdef OPTIMISE_SCROLL
-    struct scrollregion *scrollhead, *scrolltail;
-#endif /* OPTIMISE_SCROLL */
 
     int default_attr, curr_attr, save_attr;
     truecolour curr_truecolour, save_truecolour;

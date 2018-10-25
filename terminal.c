@@ -101,7 +101,7 @@ static void resizeline(Terminal *, termline *, int);
 static termline *lineptr(Terminal *, int, int, int);
 static void unlineptr(termline *);
 static void check_line_size(Terminal *, termline *);
-static void do_paint(Terminal *, Context, int);
+static void do_paint(Terminal *, Context);
 static void erase_lots(Terminal *, int, int, int);
 static int find_last_nonempty_line(Terminal *, tree234 *);
 static void swap_screen(Terminal *, int, int, int);
@@ -110,9 +110,6 @@ static void deselect(Terminal *);
 static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, int);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
-#ifdef OPTIMISE_SCROLL
-static void scroll_display(Terminal *, int, int, int);
-#endif /* OPTIMISE_SCROLL */
 
 static termline *newline(Terminal *term, int cols, int bce)
 {
@@ -1366,7 +1363,7 @@ void term_update(Terminal *term)
 
 	if (need_sbar_update)
 	    update_sbar(term);
-	do_paint(term, ctx, TRUE);
+	do_paint(term, ctx);
 	sys_cursor(term->frontend, term->curs.x, term->curs.y - term->disptop);
 	free_ctx(ctx);
     }
@@ -1686,9 +1683,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata,
     term->rows = term->cols = -1;
     power_on(term, TRUE);
     term->beephead = term->beeptail = NULL;
-#ifdef OPTIMISE_SCROLL
-    term->scrollhead = term->scrolltail = NULL;
-#endif /* OPTIMISE_SCROLL */
     term->nbeeps = 0;
     term->lastbeep = FALSE;
     term->beep_overloaded = FALSE;
@@ -2126,17 +2120,9 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 {
     termline *line;
     int i, seltop, scrollwinsize;
-#ifdef OPTIMISE_SCROLL
-    int olddisptop, shift;
-#endif /* OPTIMISE_SCROLL */
 
     if (topline != 0 || term->alt_which != 0)
 	sb = FALSE;
-
-#ifdef OPTIMISE_SCROLL
-    olddisptop = term->disptop;
-    shift = lines;
-#endif /* OPTIMISE_SCROLL */
 
     scrollwinsize = botline - topline + 1;
 
@@ -2258,80 +2244,7 @@ static void scroll(Terminal *term, int topline, int botline, int lines, int sb)
 	    }
 	}
     }
-#ifdef OPTIMISE_SCROLL
-    shift += term->disptop - olddisptop;
-    if (shift < term->rows && shift > -term->rows && shift != 0)
-	scroll_display(term, topline, botline, shift);
-#endif /* OPTIMISE_SCROLL */
 }
-
-#ifdef OPTIMISE_SCROLL
-/*
- * Add a scroll of a region on the screen into the pending scroll list.
- * `lines' is +ve for scrolling forward, -ve for backward.
- *
- * If the scroll is on the same area as the last scroll in the list,
- * merge them.
- */
-static void save_scroll(Terminal *term, int topline, int botline, int lines)
-{
-    struct scrollregion *newscroll;
-    if (term->scrolltail &&
-	term->scrolltail->topline == topline && 
-	term->scrolltail->botline == botline) {
-	term->scrolltail->lines += lines;
-    } else {
-	newscroll = snew(struct scrollregion);
-	newscroll->topline = topline;
-	newscroll->botline = botline;
-	newscroll->lines = lines;
-	newscroll->next = NULL;
-
-	if (!term->scrollhead)
-	    term->scrollhead = newscroll;
-	else
-	    term->scrolltail->next = newscroll;
-	term->scrolltail = newscroll;
-    }
-}
-
-/*
- * Scroll the physical display, and our conception of it in disptext.
- */
-static void scroll_display(Terminal *term, int topline, int botline, int lines)
-{
-    int distance, nlines, i, j;
-
-    distance = lines > 0 ? lines : -lines;
-    nlines = botline - topline + 1 - distance;
-    if (lines > 0) {
-	for (i = 0; i < nlines; i++)
-	    for (j = 0; j < term->cols; j++)
-		copy_termchar(term->disptext[i], j,
-			      term->disptext[i+distance]->chars+j);
-	if (term->dispcursy >= 0 &&
-	    term->dispcursy >= topline + distance &&
-	    term->dispcursy < topline + distance + nlines)
-	    term->dispcursy -= distance;
-	for (i = 0; i < distance; i++)
-	    for (j = 0; j < term->cols; j++)
-		term->disptext[nlines+i]->chars[j].attr |= ATTR_INVALID;
-    } else {
-	for (i = nlines; i-- ;)
-	    for (j = 0; j < term->cols; j++)
-		copy_termchar(term->disptext[i+distance], j,
-			      term->disptext[i]->chars+j);
-	if (term->dispcursy >= 0 &&
-	    term->dispcursy >= topline &&
-	    term->dispcursy < topline + nlines)
-	    term->dispcursy += distance;
-	for (i = 0; i < distance; i++)
-	    for (j = 0; j < term->cols; j++)
-		term->disptext[i]->chars[j].attr |= ATTR_INVALID;
-    }
-    save_scroll(term, topline, botline, lines);
-}
-#endif /* OPTIMISE_SCROLL */
 
 /*
  * Move the cursor to a given position, clipping at boundaries. We
@@ -5109,19 +5022,15 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 }
 
 /*
- * Given a context, update the window. Out of paranoia, we don't
- * allow WM_PAINT responses to do scrolling optimisations.
+ * Given a context, update the window.
  */
-static void do_paint(Terminal *term, Context ctx, int may_optimise)
+static void do_paint(Terminal *term, Context ctx)
 {
     int i, j, our_curs_y, our_curs_x;
     int rv, cursor;
     pos scrpos;
     wchar_t *ch;
     int chlen;
-#ifdef OPTIMISE_SCROLL
-    struct scrollregion *sr;
-#endif /* OPTIMISE_SCROLL */
     termchar *newline;
 
     chlen = 1024;
@@ -5200,18 +5109,6 @@ static void do_paint(Terminal *term, Context ctx, int may_optimise)
 	term->curstype = 0;
     }
     term->dispcursx = term->dispcursy = -1;
-
-#ifdef OPTIMISE_SCROLL
-    /* Do scrolls */
-    sr = term->scrollhead;
-    while (sr) {
-	struct scrollregion *next = sr->next;
-	do_scroll(ctx, sr->topline, sr->botline, sr->lines);
-	sfree(sr);
-	sr = next;
-    }
-    term->scrollhead = term->scrolltail = NULL;
-#endif /* OPTIMISE_SCROLL */
 
     /* The normal screen data */
     for (i = 0; i < term->rows; i++) {
@@ -5574,7 +5471,7 @@ void term_paint(Terminal *term, Context ctx,
     }
 
     if (immediately) {
-        do_paint (term, ctx, FALSE);
+        do_paint (term, ctx);
     } else {
 	term_schedule_update(term);
     }
@@ -5590,10 +5487,6 @@ void term_paint(Terminal *term, Context ctx,
 void term_scroll(Terminal *term, int rel, int where)
 {
     int sbtop = -sblines(term);
-#ifdef OPTIMISE_SCROLL
-    int olddisptop = term->disptop;
-    int shift;
-#endif /* OPTIMISE_SCROLL */
 
     term->disptop = (rel < 0 ? 0 : rel > 0 ? sbtop : term->disptop) + where;
     if (term->disptop < sbtop)
@@ -5601,11 +5494,6 @@ void term_scroll(Terminal *term, int rel, int where)
     if (term->disptop > 0)
 	term->disptop = 0;
     update_sbar(term);
-#ifdef OPTIMISE_SCROLL
-    shift = (term->disptop - olddisptop);
-    if (shift < term->rows && shift > -term->rows)
-	scroll_display(term, 0, term->rows - 1, shift);
-#endif /* OPTIMISE_SCROLL */
     term_update(term);
 }
 

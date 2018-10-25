@@ -1020,9 +1020,6 @@ void do_text(Context, int, int, wchar_t *, int, unsigned long, int,
 void do_cursor(Context, int, int, wchar_t *, int, unsigned long, int,
                truecolour);
 int char_width(Context ctx, int uc);
-#ifdef OPTIMISE_SCROLL
-void do_scroll(Context, int, int, int);
-#endif
 void set_title(Frontend *frontend, char *);
 void set_icon(Frontend *frontend, char *);
 void set_sbar(Frontend *frontend, int, int, int);
@@ -1043,7 +1040,6 @@ void modalfatalbox(const char *, ...);
 void do_beep(Frontend *frontend, int);
 void sys_cursor(Frontend *frontend, int x, int y);
 void frontend_request_paste(Frontend *frontend, int clipboard);
-#define OPTIMISE_IS_SCROLL 1
 
 void set_iconic(Frontend *frontend, int iconic);
 void move_window(Frontend *frontend, int x, int y);

@@ -5514,27 +5514,6 @@ void frontend_request_paste(Frontend *frontend, int clipboard)
 		 hwnd, 0, &in_threadid);
 }
 
-#if 0
-/*
- * Move `lines' lines from position `from' to position `to' in the
- * window.
- */
-void optimised_move(Frontend *frontend, int to, int from, int lines)
-{
-    RECT r;
-    int min, max;
-
-    min = (to < from ? to : from);
-    max = to + from - min;
-
-    r.left = offset_width;
-    r.right = offset_width + term->cols * font_width;
-    r.top = offset_height + min * font_height;
-    r.bottom = offset_height + (max + lines) * font_height;
-    ScrollWindow(hwnd, 0, (to - from) * font_height, &r, &r);
-}
-#endif
-
 /*
  * Print a modal (Really Bad) message box and perform a fatal exit.
  */
