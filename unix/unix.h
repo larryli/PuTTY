@@ -65,8 +65,6 @@ struct FontSpec {
 };
 struct FontSpec *fontspec_new(const char *name);
 
-typedef struct draw_ctx *Context;
-
 extern const struct BackendVtable pty_backend;
 
 #define BROKEN_PIPE_ERROR_CODE EPIPE   /* used in sshshare.c */
@@ -158,7 +156,7 @@ unsigned long getticks(void);
 #endif
 
 /* The per-session frontend structure managed by gtkwin.c */
-struct gui_data;
+typedef struct GtkFrontend GtkFrontend;
 
 /* Callback when a dialog box finishes, and a no-op implementation of it */
 typedef void (*post_dialog_fn_t)(void *ctx, int result);
@@ -175,7 +173,7 @@ void launch_saved_session(const char *str);
 void session_window_closed(void);
 void window_setup_error(const char *errmsg);
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
-GtkWidget *make_gtk_toplevel_window(Frontend *frontend);
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend);
 #endif
 
 const struct BackendVtable *select_backend(Conf *conf);
@@ -189,7 +187,7 @@ enum MenuAction {
     MA_RESTART_SESSION, MA_CHANGE_SETTINGS, MA_CLEAR_SCROLLBACK,
     MA_RESET_TERMINAL, MA_EVENT_LOG
 };
-void app_menu_action(Frontend *frontend, enum MenuAction);
+void app_menu_action(GtkFrontend *frontend, enum MenuAction);
 
 /* Things gtkdlg.c needs from pterm.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS

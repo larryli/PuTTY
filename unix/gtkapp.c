@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     fprintf(stderr, "GtkApplication frontend doesn't work pre-GTK3\n");
     return 1;
 }
-GtkWidget *make_gtk_toplevel_window(Frontend *frontend) { return NULL; }
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend) { return NULL; }
 void launch_duplicate_session(Conf *conf) {}
 void launch_new_session(void) {}
 void launch_saved_session(const char *str) {}
@@ -204,7 +204,7 @@ WIN_ACTION_LIST(WIN_ACTION_ENTRY)
 };
 
 static GtkApplication *app;
-GtkWidget *make_gtk_toplevel_window(Frontend *frontend)
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 {
     GtkWidget *win = gtk_application_window_new(app);
     g_action_map_add_action_entries(G_ACTION_MAP(win),

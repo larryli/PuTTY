@@ -227,17 +227,87 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
     (((wch) >= 0x180B && (wch) <= 0x180D) || /* MONGOLIAN FREE VARIATION SELECTOR */ \
      ((wch) >= 0xFE00 && (wch) <= 0xFE0F)) /* VARIATION SELECTOR 1-16 */
 
+static int wintw_setup_draw_ctx(TermWin *);
+static void wintw_draw_text(TermWin *, int x, int y, wchar_t *text, int len,
+                            unsigned long attrs, int lattrs, truecolour tc);
+static void wintw_draw_cursor(TermWin *, int x, int y, wchar_t *text, int len,
+                              unsigned long attrs, int lattrs, truecolour tc);
+static int wintw_char_width(TermWin *, int uc);
+static void wintw_free_draw_ctx(TermWin *);
+static void wintw_set_cursor_pos(TermWin *, int x, int y);
+static void wintw_set_raw_mouse_mode(TermWin *, int enable);
+static void wintw_set_scrollbar(TermWin *, int total, int start, int page);
+static void wintw_bell(TermWin *, int mode);
+static void wintw_clip_write(
+    TermWin *, int clipboard, wchar_t *text, int *attrs,
+    truecolour *colours, int len, int must_deselect);
+static void wintw_clip_request_paste(TermWin *, int clipboard);
+static void wintw_refresh(TermWin *);
+static void wintw_request_resize(TermWin *, int w, int h);
+static void wintw_set_title(TermWin *, const char *title);
+static void wintw_set_icon_title(TermWin *, const char *icontitle);
+static void wintw_set_minimised(TermWin *, int minimised);
+static int wintw_is_minimised(TermWin *);
+static void wintw_set_maximised(TermWin *, int maximised);
+static void wintw_move(TermWin *, int x, int y);
+static void wintw_set_zorder(TermWin *, int top);
+static int wintw_palette_get(TermWin *, int n, int *r, int *g, int *b);
+static void wintw_palette_set(TermWin *, int n, int r, int g, int b);
+static void wintw_palette_reset(TermWin *);
+static void wintw_get_pos(TermWin *, int *x, int *y);
+static void wintw_get_pixels(TermWin *, int *x, int *y);
+static const char *wintw_get_title(TermWin *, int icon);
+static int wintw_is_utf8(TermWin *);
+
+static const TermWinVtable windows_termwin_vt = {
+    wintw_setup_draw_ctx,
+    wintw_draw_text,
+    wintw_draw_cursor,
+    wintw_char_width,
+    wintw_free_draw_ctx,
+    wintw_set_cursor_pos,
+    wintw_set_raw_mouse_mode,
+    wintw_set_scrollbar,
+    wintw_bell,
+    wintw_clip_write,
+    wintw_clip_request_paste,
+    wintw_refresh,
+    wintw_request_resize,
+    wintw_set_title,
+    wintw_set_icon_title,
+    wintw_set_minimised,
+    wintw_is_minimised,
+    wintw_set_maximised,
+    wintw_move,
+    wintw_set_zorder,
+    wintw_palette_get,
+    wintw_palette_set,
+    wintw_palette_reset,
+    wintw_get_pos,
+    wintw_get_pixels,
+    wintw_get_title,
+    wintw_is_utf8,
+};
+
+static TermWin wintw[1];
+static HDC wintw_hdc;
+
 const int share_can_be_downstream = TRUE;
 const int share_can_be_upstream = TRUE;
 
-int frontend_is_utf8(Frontend *frontend)
+static int is_utf8(void)
 {
     return ucsdata.line_codepage == CP_UTF8;
 }
 
+static int wintw_is_utf8(TermWin *tw)
+{
+    return is_utf8();
+}
+
 static int win_seat_is_utf8(Seat *seat)
 {
-    return frontend_is_utf8(NULL);
+    return is_utf8();
 }
 
 char *win_seat_get_ttymode(Seat *seat, const char *mode)
@@ -247,7 +317,7 @@ char *win_seat_get_ttymode(Seat *seat, const char *mode)
 
 int win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
 {
-    get_window_pixels(NULL, x, y);
+    win_get_pixels(wintw, x, y);
     return TRUE;
 }
 
@@ -322,8 +392,8 @@ static void start_backend(void)
 	title = msg;
     }
     sfree(realhost);
-    set_title(NULL, title);
-    set_icon(NULL, title);
+    win_set_title(wintw, title);
+    win_set_icon_title(wintw, title);
 
     /*
      * Connect the terminal to the backend for resize purposes.
@@ -356,8 +426,8 @@ static void close_session(void *ignored_context)
 
     session_closed = TRUE;
     sprintf(morestuff, "%.70s (inactive)", appname);
-    set_icon(NULL, morestuff);
-    set_title(NULL, morestuff);
+    win_set_icon_title(wintw, morestuff);
+    win_set_title(wintw, morestuff);
 
     if (ldisc) {
 	ldisc_free(ldisc);
@@ -667,7 +737,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * which will call schedule_timer(), which will in turn call
      * timer_change_notify() which will expect hwnd to exist.)
      */
-    term = term_init(conf, &ucsdata, NULL);
+    wintw->vt = &windows_termwin_vt;
+    term = term_init(conf, &ucsdata, wintw);
     setup_clipboards(term, conf);
     logctx = log_init(default_logpolicy, conf);
     term_provide_logctx(term, logctx);
@@ -1095,7 +1166,7 @@ static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(Frontend *frontend, int activate)
+static void wintw_set_raw_mouse_mode(TermWin *tw, int activate)
 {
     activate = activate && !conf_get_int(conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
@@ -1651,7 +1722,7 @@ static void deinit_fonts(void)
     }
 }
 
-void request_resize(Frontend *frontend, int w, int h)
+static void wintw_request_resize(TermWin *tw, int w, int h)
 {
     int width, height;
 
@@ -2046,6 +2117,28 @@ static void conf_cache_data(void)
 
 static const int clips_system[] = { CLIP_SYSTEM };
 
+static HDC make_hdc(void)
+{
+    HDC hdc;
+
+    if (!hwnd)
+        return NULL;
+
+    hdc = GetDC(hwnd);
+    if (!hdc)
+        return NULL;
+
+    SelectPalette(hdc, pal, FALSE);
+    return hdc;
+}
+
+static void free_hdc(HDC hdc)
+{
+    assert(hwnd);
+    SelectPalette(hdc, GetStockObject(DEFAULT_PALETTE), FALSE);
+    ReleaseDC(hwnd, hdc);
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
@@ -2348,7 +2441,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    init_lvl = 2;
 		}
 
-		set_title(NULL, conf_get_str(conf, CONF_wintitle));
+		win_set_title(wintw, conf_get_str(conf, CONF_wintitle));
 		if (IsIconic(hwnd)) {
 		    SetWindowText(hwnd,
 				  conf_get_int(conf, CONF_win_name_always) ?
@@ -2671,12 +2764,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * current terminal appearance so that WM_PAINT becomes
 	     * completely trivial. However, this should do for now.
 	     */
-	    term_paint(term, hdc, 
+            assert(!wintw_hdc);
+            wintw_hdc = hdc;
+	    term_paint(term, 
 		       (p.rcPaint.left-offset_width)/font_width,
 		       (p.rcPaint.top-offset_height)/font_height,
 		       (p.rcPaint.right-offset_width-1)/font_width,
 		       (p.rcPaint.bottom-offset_height-1)/font_height,
 		       !term->window_update_pending);
+            wintw_hdc = NULL;
 
 	    if (p.fErase ||
 	        p.rcPaint.left  < offset_width  ||
@@ -3043,21 +3139,21 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_PALETTECHANGED:
 	if ((HWND) wParam != hwnd && pal != NULL) {
-	    HDC hdc = get_ctx(NULL);
+	    HDC hdc = make_hdc();
 	    if (hdc) {
 		if (RealizePalette(hdc) > 0)
 		    UpdateColors(hdc);
-		free_ctx(hdc);
+		free_hdc(hdc);
 	    }
 	}
 	break;
       case WM_QUERYNEWPALETTE:
 	if (pal != NULL) {
-	    HDC hdc = get_ctx(NULL);
+	    HDC hdc = make_hdc();
 	    if (hdc) {
 		if (RealizePalette(hdc) > 0)
 		    UpdateColors(hdc);
-		free_ctx(hdc);
+		free_hdc(hdc);
 		return TRUE;
 	    }
 	}
@@ -3308,7 +3404,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
  * helper software tracks the system caret, so we should arrange to
  * have one.)
  */
-void sys_cursor(Frontend *frontend, int x, int y)
+static void wintw_set_cursor_pos(TermWin *tw, int x, int y)
 {
     int cx, cy;
 
@@ -3362,12 +3458,12 @@ static void sys_cursor_update(void)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr, truecolour truecolour)
+static void do_text_internal(
+    int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
-    HDC hdc = ctx;
     RECT line_box;
     int force_manual_underline = 0;
     int fnt_width, char_width;
@@ -3513,13 +3609,13 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                  GetBValue(fg) * 2 / 3);
     }
 
-    SelectObject(hdc, fonts[nfont]);
-    SetTextColor(hdc, fg);
-    SetBkColor(hdc, bg);
+    SelectObject(wintw_hdc, fonts[nfont]);
+    SetTextColor(wintw_hdc, fg);
+    SetBkColor(wintw_hdc, bg);
     if (attr & TATTR_COMBINING)
-	SetBkMode(hdc, TRANSPARENT);
+	SetBkMode(wintw_hdc, TRANSPARENT);
     else
-	SetBkMode(hdc, OPAQUE);
+	SetBkMode(wintw_hdc, OPAQUE);
     line_box.left = x;
     line_box.top = y;
     line_box.right = x + char_width * len;
@@ -3556,7 +3652,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
          * generally reasonable results.
          */
         xoffset = char_width / 2;
-        SetTextAlign(hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
+        SetTextAlign(wintw_hdc, TA_TOP | TA_CENTER | TA_NOUPDATECP);
         lpDx_maybe = NULL;
         maxlen = 1;
     } else {
@@ -3565,7 +3661,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
          * in the normal way.
          */
         xoffset = 0;
-        SetTextAlign(hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
+        SetTextAlign(wintw_hdc, TA_TOP | TA_LEFT | TA_NOUPDATECP);
         lpDx_maybe = lpDx;
         maxlen = len;
     }
@@ -3652,14 +3748,14 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
             if (nlen <= 0)
                 return;		       /* Eeek! */
 
-            ExtTextOutW(hdc, x + xoffset,
+            ExtTextOutW(wintw_hdc, x + xoffset,
                         y - font_height * (lattr == LATTR_BOT) + text_adjust,
                         ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                         &line_box, uni_buf, nlen,
                         lpDx_maybe);
             if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-                SetBkMode(hdc, TRANSPARENT);
-                ExtTextOutW(hdc, x + xoffset - 1,
+                SetBkMode(wintw_hdc, TRANSPARENT);
+                ExtTextOutW(wintw_hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
                             ETO_CLIPPED, &line_box, uni_buf, nlen, lpDx_maybe);
@@ -3678,12 +3774,12 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
             for (i = 0; i < len; i++)
                 directbuf[i] = text[i] & 0xFF;
 
-            ExtTextOut(hdc, x + xoffset,
+            ExtTextOut(wintw_hdc, x + xoffset,
                        y - font_height * (lattr == LATTR_BOT) + text_adjust,
                        ETO_CLIPPED | (opaque ? ETO_OPAQUE : 0),
                        &line_box, directbuf, len, lpDx_maybe);
             if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-                SetBkMode(hdc, TRANSPARENT);
+                SetBkMode(wintw_hdc, TRANSPARENT);
 
                 /* GRR: This draws the character outside its box and
                  * can leave 'droppings' even with the clip box! I
@@ -3694,7 +3790,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                  * or -1 for this shift depending on if the leftmost
                  * column is blank...
                  */
-                ExtTextOut(hdc, x + xoffset - 1,
+                ExtTextOut(wintw_hdc, x + xoffset - 1,
                            y - font_height * (lattr ==
                                               LATTR_BOT) + text_adjust,
                            ETO_CLIPPED, &line_box, directbuf, len, lpDx_maybe);
@@ -3715,15 +3811,15 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
                 wbuf[i] = text[i];
 
             /* print Glyphs as they are, without Windows' Shaping*/
-            general_textout(hdc, x + xoffset,
+            general_textout(wintw_hdc, x + xoffset,
                             y - font_height * (lattr==LATTR_BOT) + text_adjust,
                             &line_box, wbuf, len, lpDx,
                             opaque && !(attr & TATTR_COMBINING));
 
             /* And the shadow bold hack. */
             if (bold_font_mode == BOLD_SHADOW && (attr & ATTR_BOLD)) {
-                SetBkMode(hdc, TRANSPARENT);
-                ExtTextOutW(hdc, x + xoffset - 1,
+                SetBkMode(wintw_hdc, TRANSPARENT);
+                ExtTextOutW(wintw_hdc, x + xoffset - 1,
                             y - font_height * (lattr ==
                                                LATTR_BOT) + text_adjust,
                             ETO_CLIPPED, &line_box, wbuf, len, lpDx_maybe);
@@ -3734,7 +3830,7 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
          * If we're looping round again, stop erasing the background
          * rectangle.
          */
-        SetBkMode(hdc, TRANSPARENT);
+        SetBkMode(wintw_hdc, TRANSPARENT);
         opaque = FALSE;
     }
     if (lattr != LATTR_TOP && (force_manual_underline ||
@@ -3745,10 +3841,10 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 	if (lattr == LATTR_BOT)
 	    dec = dec * 2 - font_height;
 
-	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, fg));
-	MoveToEx(hdc, line_box.left, line_box.top + dec, NULL);
-	LineTo(hdc, line_box.right, line_box.top + dec);
-	oldpen = SelectObject(hdc, oldpen);
+	oldpen = SelectObject(wintw_hdc, CreatePen(PS_SOLID, 0, fg));
+	MoveToEx(wintw_hdc, line_box.left, line_box.top + dec, NULL);
+	LineTo(wintw_hdc, line_box.right, line_box.top + dec);
+	oldpen = SelectObject(wintw_hdc, oldpen);
 	DeleteObject(oldpen);
     }
 }
@@ -3756,8 +3852,9 @@ void do_text_internal(Context ctx, int x, int y, wchar_t *text, int len,
 /*
  * Wrapper that handles combining characters.
  */
-void do_text(Context ctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr, truecolour truecolour)
+static void wintw_draw_text(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
     if (attr & TATTR_COMBINING) {
 	unsigned long a = 0;
@@ -3767,13 +3864,13 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 	    len0 = 2;
 	if (len-len0 >= 1 && IS_LOW_VARSEL(text[len0])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+1, attr, lattr, truecolour);
+	    do_text_internal(x, y, text, len0+1, attr, lattr, truecolour);
 	    text += len0+1;
 	    len -= len0+1;
 	    a = TATTR_COMBINING;
 	} else if (len-len0 >= 2 && IS_HIGH_VARSEL(text[len0], text[len0+1])) {
 	    attr &= ~TATTR_COMBINING;
-	    do_text_internal(ctx, x, y, text, len0+2, attr, lattr, truecolour);
+	    do_text_internal(x, y, text, len0+2, attr, lattr, truecolour);
 	    text += len0+2;
 	    len -= len0+2;
 	    a = TATTR_COMBINING;
@@ -3783,33 +3880,32 @@ void do_text(Context ctx, int x, int y, wchar_t *text, int len,
 
 	while (len--) {
 	    if (len >= 1 && IS_SURROGATE_PAIR(text[0], text[1])) {
-		do_text_internal(ctx, x, y, text, 2, attr | a, lattr, truecolour);
+		do_text_internal(x, y, text, 2, attr | a, lattr, truecolour);
 		len--;
 		text++;
 	    } else
-                do_text_internal(ctx, x, y, text, 1, attr | a, lattr, truecolour);
+                do_text_internal(x, y, text, 1, attr | a, lattr, truecolour);
 
 	    text++;
 	    a = TATTR_COMBINING;
 	}
     } else
-	do_text_internal(ctx, x, y, text, len, attr, lattr, truecolour);
+	do_text_internal(x, y, text, len, attr, lattr, truecolour);
 }
 
-void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
-	       unsigned long attr, int lattr, truecolour truecolour)
+static void wintw_draw_cursor(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-
     int fnt_width;
     int char_width;
-    HDC hdc = ctx;
     int ctype = cursor_type;
 
     lattr &= LATTR_MODE;
 
     if ((attr & TATTR_ACTCURS) && (ctype == 0 || term->big_cursor)) {
 	if (*text != UCSWIDE) {
-	    do_text(ctx, x, y, text, len, attr, lattr, truecolour);
+	    win_draw_text(tw, x, y, text, len, attr, lattr, truecolour);
 	    return;
 	}
 	ctype = 2;
@@ -3831,9 +3927,9 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	pts[2].x = pts[3].x = x + char_width - 1;
 	pts[0].y = pts[3].y = pts[4].y = y;
 	pts[1].y = pts[2].y = y + font_height - 1;
-	oldpen = SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[261]));
-	Polyline(hdc, pts, 5);
-	oldpen = SelectObject(hdc, oldpen);
+	oldpen = SelectObject(wintw_hdc, CreatePen(PS_SOLID, 0, colours[261]));
+	Polyline(wintw_hdc, pts, 5);
+	oldpen = SelectObject(wintw_hdc, oldpen);
 	DeleteObject(oldpen);
     } else if ((attr & (TATTR_ACTCURS | TATTR_PASCURS)) && ctype != 0) {
 	int startx, starty, dx, dy, length, i;
@@ -3856,15 +3952,15 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 	if (attr & TATTR_ACTCURS) {
 	    HPEN oldpen;
 	    oldpen =
-		SelectObject(hdc, CreatePen(PS_SOLID, 0, colours[261]));
-	    MoveToEx(hdc, startx, starty, NULL);
-	    LineTo(hdc, startx + dx * length, starty + dy * length);
-	    oldpen = SelectObject(hdc, oldpen);
+		SelectObject(wintw_hdc, CreatePen(PS_SOLID, 0, colours[261]));
+	    MoveToEx(wintw_hdc, startx, starty, NULL);
+	    LineTo(wintw_hdc, startx + dx * length, starty + dy * length);
+	    oldpen = SelectObject(wintw_hdc, oldpen);
 	    DeleteObject(oldpen);
 	} else {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
-		    SetPixel(hdc, startx, starty, colours[261]);
+		    SetPixel(wintw_hdc, startx, starty, colours[261]);
 		}
 		startx += dx;
 		starty += dy;
@@ -3875,8 +3971,8 @@ void do_cursor(Context ctx, int x, int y, wchar_t *text, int len,
 
 /* This function gets the actual width of a character in the normal font.
  */
-int char_width(Context ctx, int uc) {
-    HDC hdc = ctx;
+static int wintw_char_width(TermWin *tw, int uc)
+{
     int ibuf = 0;
 
     /* If the font max is the same as the font ave width then this
@@ -3903,26 +3999,28 @@ int char_width(Context ctx, int uc) {
 	    return 1;
 
 	if ( (uc & CSET_MASK) == CSET_ACP ) {
-	    SelectObject(hdc, fonts[FONT_NORMAL]);
+	    SelectObject(wintw_hdc, fonts[FONT_NORMAL]);
 	} else if ( (uc & CSET_MASK) == CSET_OEMCP ) {
 	    another_font(FONT_OEM);
 	    if (!fonts[FONT_OEM]) return 0;
 
-	    SelectObject(hdc, fonts[FONT_OEM]);
+	    SelectObject(wintw_hdc, fonts[FONT_OEM]);
 	} else
 	    return 0;
 
-	if ( GetCharWidth32(hdc, uc&~CSET_MASK, uc&~CSET_MASK, &ibuf) != 1 &&
-	     GetCharWidth(hdc, uc&~CSET_MASK, uc&~CSET_MASK, &ibuf) != 1)
+	if (GetCharWidth32(wintw_hdc, uc & ~CSET_MASK,
+                           uc & ~CSET_MASK, &ibuf) != 1 &&
+	    GetCharWidth(wintw_hdc, uc & ~CSET_MASK,
+                         uc & ~CSET_MASK, &ibuf) != 1)
 	    return 0;
     } else {
 	/* Speedup, I know of no font where ascii is the wrong width */
 	if (uc >= ' ' && uc <= '~') return 1;
 
-	SelectObject(hdc, fonts[FONT_NORMAL]);
-	if ( GetCharWidth32W(hdc, uc, uc, &ibuf) == 1 )
+	SelectObject(wintw_hdc, fonts[FONT_NORMAL]);
+	if (GetCharWidth32W(wintw_hdc, uc, uc, &ibuf) == 1)
 	    /* Okay that one worked */ ;
-	else if ( GetCharWidthW(hdc, uc, uc, &ibuf) == 1 )
+	else if (GetCharWidthW(wintw_hdc, uc, uc, &ibuf) == 1)
 	    /* This should work on 9x too, but it's "less accurate" */ ;
 	else
 	    return 0;
@@ -4844,7 +4942,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     return -1;
 }
 
-void set_title(Frontend *frontend, char *title)
+static void wintw_set_title(TermWin *tw, const char *title)
 {
     sfree(window_name);
     window_name = snewn(1 + strlen(title), char);
@@ -4853,7 +4951,7 @@ void set_title(Frontend *frontend, char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_icon(Frontend *frontend, char *title)
+static void wintw_set_icon_title(TermWin *tw, const char *title)
 {
     sfree(icon_name);
     icon_name = snewn(1 + strlen(title), char);
@@ -4862,7 +4960,7 @@ void set_icon(Frontend *frontend, char *title)
 	SetWindowText(hwnd, title);
 }
 
-void set_sbar(Frontend *frontend, int total, int start, int page)
+static void wintw_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
     SCROLLINFO si;
 
@@ -4880,22 +4978,18 @@ void set_sbar(Frontend *frontend, int total, int start, int page)
 	SetScrollInfo(hwnd, SB_VERT, &si, TRUE);
 }
 
-Context get_ctx(Frontend *frontend)
+static int wintw_setup_draw_ctx(TermWin *tw)
 {
-    HDC hdc;
-    if (hwnd) {
-	hdc = GetDC(hwnd);
-	if (hdc && pal)
-	    SelectPalette(hdc, pal, FALSE);
-	return hdc;
-    } else
-	return NULL;
+    assert(!wintw_hdc);
+    wintw_hdc = make_hdc();
+    return wintw_hdc != NULL;
 }
 
-void free_ctx(Context ctx)
+static void wintw_free_draw_ctx(TermWin *tw)
 {
-    SelectPalette(ctx, GetStockObject(DEFAULT_PALETTE), FALSE);
-    ReleaseDC(hwnd, ctx);
+    assert(wintw_hdc);
+    free_hdc(wintw_hdc);
+    wintw_hdc = NULL;
 }
 
 static void real_palette_set(int n, int r, int g, int b)
@@ -4910,7 +5004,7 @@ static void real_palette_set(int n, int r, int g, int b)
     }
 }
 
-int palette_get(Frontend *frontend, int n, int *r, int *g, int *b)
+static int wintw_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 {
     if (n < 0 || n >= NALLCOLOURS)
 	return FALSE;
@@ -4920,7 +5014,7 @@ int palette_get(Frontend *frontend, int n, int *r, int *g, int *b)
     return TRUE;
 }
 
-void palette_set(Frontend *frontend, int n, int r, int g, int b)
+static void wintw_palette_set(TermWin *tw, int n, int r, int g, int b)
 {
     if (n >= 16)
 	n += 256 - 16;
@@ -4928,10 +5022,10 @@ void palette_set(Frontend *frontend, int n, int r, int g, int b)
 	return;
     real_palette_set(n, r, g, b);
     if (pal) {
-	HDC hdc = get_ctx(frontend);
+	HDC hdc = make_hdc();
 	UnrealizeObject(pal);
 	RealizePalette(hdc);
-	free_ctx(hdc);
+	free_hdc(hdc);
     } else {
 	if (n == (ATTR_DEFBG>>ATTR_BGSHIFT))
 	    /* If Default Background changes, we need to ensure any
@@ -4941,7 +5035,7 @@ void palette_set(Frontend *frontend, int n, int r, int g, int b)
     }
 }
 
-void palette_reset(Frontend *frontend)
+static void wintw_palette_reset(TermWin *tw)
 {
     int i;
 
@@ -4960,9 +5054,9 @@ void palette_reset(Frontend *frontend)
     if (pal) {
 	HDC hdc;
 	SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
-	hdc = get_ctx(frontend);
+	hdc = make_hdc();
 	RealizePalette(hdc);
-	free_ctx(hdc);
+	free_hdc(hdc);
     } else {
 	/* Default Background may have changed. Ensure any space between
 	 * text area and window border is redrawn. */
@@ -4970,8 +5064,7 @@ void palette_reset(Frontend *frontend)
     }
 }
 
-void write_aclip(Frontend *frontend, int clipboard,
-                 char *data, int len, int must_deselect)
+void write_aclip(int clipboard, char *data, int len, int must_deselect)
 {
     HGLOBAL clipdata;
     void *lock;
@@ -5018,9 +5111,9 @@ int cmpCOLORREF(void *va, void *vb)
 /*
  * Note: unlike write_aclip() this will not append a nul.
  */
-void write_clip(Frontend *frontend, int clipboard,
-                wchar_t *data, int *attr, truecolour *truecolour, int len,
-                int must_deselect)
+static void wintw_clip_write(
+    TermWin *tw, int clipboard, wchar_t *data, int *attr,
+    truecolour *truecolour, int len, int must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
@@ -5489,7 +5582,7 @@ static void process_clipdata(HGLOBAL clipdata, int unicode)
     sfree(clipboard_contents);
 }
 
-void frontend_request_paste(Frontend *frontend, int clipboard)
+static void wintw_clip_request_paste(TermWin *tw, int clipboard)
 {
     assert(clipboard == CLIP_SYSTEM);
 
@@ -5628,7 +5721,7 @@ static void flash_window(int mode)
 /*
  * Beep.
  */
-void do_beep(Frontend *frontend, int mode)
+static void wintw_bell(TermWin *tw, int mode)
 {
     if (mode == BELL_DEFAULT) {
 	/*
@@ -5690,13 +5783,13 @@ void do_beep(Frontend *frontend, int mode)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(Frontend *frontend, int iconic)
+static void wintw_set_minimised(TermWin *tw, int minimised)
 {
     if (IsIconic(hwnd)) {
-	if (!iconic)
+	if (!minimised)
 	    ShowWindow(hwnd, SW_RESTORE);
     } else {
-	if (iconic)
+	if (minimised)
 	    ShowWindow(hwnd, SW_MINIMIZE);
     }
 }
@@ -5704,7 +5797,7 @@ void set_iconic(Frontend *frontend, int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(Frontend *frontend, int x, int y)
+static void wintw_move(TermWin *tw, int x, int y)
 {
     int resize_action = conf_get_int(conf, CONF_resize_action);
     if (resize_action == RESIZE_DISABLED || 
@@ -5719,7 +5812,7 @@ void move_window(Frontend *frontend, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(Frontend *frontend, int top)
+static void wintw_set_zorder(TermWin *tw, int top)
 {
     if (conf_get_int(conf, CONF_alwaysontop))
 	return;			       /* ignore */
@@ -5730,7 +5823,7 @@ void set_zorder(Frontend *frontend, int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(Frontend *frontend)
+static void wintw_refresh(TermWin *tw)
 {
     InvalidateRect(hwnd, NULL, TRUE);
 }
@@ -5739,13 +5832,13 @@ void refresh_window(Frontend *frontend)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(Frontend *frontend, int zoomed)
+static void wintw_set_maximised(TermWin *tw, int maximised)
 {
     if (IsZoomed(hwnd)) {
-        if (!zoomed)
+        if (!maximised)
 	    ShowWindow(hwnd, SW_RESTORE);
     } else {
-	if (zoomed)
+	if (maximised)
 	    ShowWindow(hwnd, SW_MAXIMIZE);
     }
 }
@@ -5753,7 +5846,7 @@ void set_zoomed(Frontend *frontend, int zoomed)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-int is_iconic(Frontend *frontend)
+static int wintw_is_minimised(TermWin *tw)
 {
     return IsIconic(hwnd);
 }
@@ -5761,7 +5854,7 @@ int is_iconic(Frontend *frontend)
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(Frontend *frontend, int *x, int *y)
+static void wintw_get_pos(TermWin *tw, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -5772,7 +5865,7 @@ void get_window_pos(Frontend *frontend, int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(Frontend *frontend, int *x, int *y)
+static void wintw_get_pixels(TermWin *tw, int *x, int *y)
 {
     RECT r;
     GetWindowRect(hwnd, &r);
@@ -5783,7 +5876,7 @@ void get_window_pixels(Frontend *frontend, int *x, int *y)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(Frontend *frontend, int icon)
+static const char *wintw_get_title(TermWin *tw, int icon)
 {
     return icon ? icon_name : window_name;
 }

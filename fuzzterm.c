@@ -9,6 +9,8 @@
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
 const int buildinfo_gtk_relevant = FALSE;
 
+static const TermWinVtable fuzz_termwin_vt;
+
 int main(int argc, char **argv)
 {
 	char blk[512];
@@ -16,6 +18,9 @@ int main(int argc, char **argv)
 	Terminal *term;
 	Conf *conf;
 	struct unicode_data ucsdata;
+        TermWin termwin;
+
+        termwin.vt = &fuzz_termwin_vt;
 
 	conf = conf_new();
 	do_defaults(NULL, conf);
@@ -23,7 +28,7 @@ int main(int argc, char **argv)
 		 conf_get_int(conf, CONF_utf8_override),
 		 CS_NONE, conf_get_int(conf, CONF_vtmode));
 
-	term = term_init(conf, &ucsdata, NULL);
+	term = term_init(conf, &ucsdata, &termwin);
 	term_size(term, 24, 80, 10000);
 	term->ldisc = NULL;
 	/* Tell american fuzzy lop that this is a good place to fork. */
@@ -39,10 +44,10 @@ int main(int argc, char **argv)
 }
 
 /* functions required by terminal.c */
-
-void request_resize(Frontend *frontend, int x, int y) { }
-void do_text(Context ctx, int x, int y, wchar_t * text, int len,
-	     unsigned long attr, int lattr, truecolour tc)
+static int fuzz_setup_draw_ctx(TermWin *tw) { return TRUE; }
+static void fuzz_draw_text(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour tc)
 {
     int i;
 
@@ -52,8 +57,9 @@ void do_text(Context ctx, int x, int y, wchar_t * text, int len,
     }
     printf("\n");
 }
-void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
-	     unsigned long attr, int lattr, truecolour tc)
+static void fuzz_draw_cursor(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour tc)
 {
     int i;
 
@@ -63,37 +69,68 @@ void do_cursor(Context ctx, int x, int y, wchar_t * text, int len,
     }
     printf("\n");
 }
-int char_width(Context ctx, int uc) { return 1; }
-void set_title(Frontend *frontend, char *t) { }
-void set_icon(Frontend *frontend, char *t) { }
-void set_sbar(Frontend *frontend, int a, int b, int c) { }
+static int fuzz_char_width(TermWin *tw, int uc) { return 1; }
+static void fuzz_free_draw_ctx(TermWin *tw) {}
+static void fuzz_set_cursor_pos(TermWin *tw, int x, int y) {}
+static void fuzz_set_raw_mouse_mode(TermWin *tw, int enable) {}
+static void fuzz_set_scrollbar(TermWin *tw, int total, int start, int page) {}
+static void fuzz_bell(TermWin *tw, int mode) {}
+static void fuzz_clip_write(
+    TermWin *tw, int clipboard, wchar_t *text, int *attrs,
+    truecolour *colours, int len, int must_deselect) {}
+static void fuzz_clip_request_paste(TermWin *tw, int clipboard) {}
+static void fuzz_refresh(TermWin *tw) {}
+static void fuzz_request_resize(TermWin *tw, int w, int h) {}
+static void fuzz_set_title(TermWin *tw, const char *title) {}
+static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
+static void fuzz_set_minimised(TermWin *tw, int minimised) {}
+static int fuzz_is_minimised(TermWin *tw) { return FALSE; }
+static void fuzz_set_maximised(TermWin *tw, int maximised) {}
+static void fuzz_move(TermWin *tw, int x, int y) {}
+static void fuzz_set_zorder(TermWin *tw, int top) {}
+static int fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+{ return FALSE; }
+static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
+static void fuzz_palette_reset(TermWin *tw) {}
+static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
+static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
+static const char *fuzz_get_title(TermWin *tw, int icon) { return "moo"; }
+static int fuzz_is_utf8(TermWin *tw) { return TRUE; }
+
+static const TermWinVtable fuzz_termwin_vt = {
+    fuzz_setup_draw_ctx,
+    fuzz_draw_text,
+    fuzz_draw_cursor,
+    fuzz_char_width,
+    fuzz_free_draw_ctx,
+    fuzz_set_cursor_pos,
+    fuzz_set_raw_mouse_mode,
+    fuzz_set_scrollbar,
+    fuzz_bell,
+    fuzz_clip_write,
+    fuzz_clip_request_paste,
+    fuzz_refresh,
+    fuzz_request_resize,
+    fuzz_set_title,
+    fuzz_set_icon_title,
+    fuzz_set_minimised,
+    fuzz_is_minimised,
+    fuzz_set_maximised,
+    fuzz_move,
+    fuzz_set_zorder,
+    fuzz_palette_get,
+    fuzz_palette_set,
+    fuzz_palette_reset,
+    fuzz_get_pos,
+    fuzz_get_pixels,
+    fuzz_get_title,
+    fuzz_is_utf8,
+};
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, int interactive) {}
 void ldisc_echoedit_update(Ldisc *ldisc) {}
-Context get_ctx(Frontend *frontend) { return NULL; }
-void free_ctx(Context ctx) { }
-void palette_set(Frontend *frontend, int a, int b, int c, int d) { }
-void palette_reset(Frontend *frontend) { }
-int palette_get(Frontend *frontend, int n, int *r, int *g, int *b) {return FALSE;}
-void write_clip(Frontend *frontend, int clipboard,
-                wchar_t *a, int *b, truecolour *c, int d, int e) { }
-void set_raw_mouse_mode(Frontend *frontend, int m) { }
-void frontend_request_paste(Frontend *frontend, int clipboard) { }
-void do_beep(Frontend *frontend, int a) { }
-void sys_cursor(Frontend *frontend, int x, int y) { }
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }
-
-void set_iconic(Frontend *frontend, int iconic) { }
-void move_window(Frontend *frontend, int x, int y) { }
-void set_zorder(Frontend *frontend, int top) { }
-void refresh_window(Frontend *frontend) { }
-void set_zoomed(Frontend *frontend, int zoomed) { }
-int is_iconic(Frontend *frontend) { return 0; }
-void get_window_pos(Frontend *frontend, int *x, int *y) { *x = 0; *y = 0; }
-void get_window_pixels(Frontend *frontend, int *x, int *y) { *x = 0; *y = 0; }
-char *get_window_title(Frontend *frontend, int icon) { return "moo"; }
-int frontend_is_utf8(Frontend *frontend) { return TRUE; }
 
 /* needed by timing.c */
 void timer_change_notify(unsigned long next) { }
@@ -173,5 +210,3 @@ char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }
-
-

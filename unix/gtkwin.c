@@ -76,7 +76,7 @@ struct clipboard_data_instance {
 #endif
 
 struct clipboard_state {
-    Frontend *inst;
+    GtkFrontend *inst;
     int clipboard;
     GdkAtom atom;
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
@@ -88,7 +88,7 @@ struct clipboard_state {
 #endif
 };
 
-struct Frontend {
+struct GtkFrontend {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
     gboolean drawing_area_got_size, drawing_area_realised;
@@ -143,7 +143,7 @@ struct Frontend {
     struct clipboard_state clipstates[N_CLIPBOARDS];
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     /* Remember all clipboard_data_instance structures currently
-     * associated with this gui_data, in case they're still around
+     * associated with this GtkFrontend, in case they're still around
      * when it gets destroyed */
     struct clipboard_data_instance cdi_headtail;
 #endif
@@ -180,12 +180,14 @@ struct Frontend {
 #ifdef OSX_META_KEY_CONFIG
     int system_mod_mask;
 #endif
+    unifont_drawctx uctx;
 
     Seat seat;
+    TermWin termwin;
     LogPolicy logpolicy;
 };
 
-static void cache_conf_values(Frontend *inst)
+static void cache_conf_values(GtkFrontend *inst)
 {
     inst->bold_style = conf_get_int(inst->conf, CONF_bold_style);
     inst->window_border = conf_get_int(inst->conf, CONF_window_border);
@@ -202,33 +204,28 @@ static void cache_conf_values(Frontend *inst)
 #endif
 }
 
-struct draw_ctx {
-    Frontend *inst;
-    unifont_drawctx uctx;
-};
-
 static int send_raw_mouse;
 
-static void start_backend(Frontend *inst);
+static void start_backend(GtkFrontend *inst);
 static void exit_callback(void *vinst);
-static void destroy_inst_connection(Frontend *inst);
-static void delete_inst(Frontend *inst);
+static void destroy_inst_connection(GtkFrontend *inst);
+static void delete_inst(GtkFrontend *inst);
 
 static void post_fatal_message_box_toplevel(void *vctx)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     gtk_widget_destroy(inst->window);
 }
 
 static void post_fatal_message_box(void *vctx, int result)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
     queue_toplevel_callback(post_fatal_message_box_toplevel, inst);
 }
 
 static void common_connfatal_message_box(
-    Frontend *inst, const char *msg, post_dialog_fn_t postfn)
+    GtkFrontend *inst, const char *msg, post_dialog_fn_t postfn)
 {
     char *title = dupcat(appname, " Fatal Error", NULL);
     GtkWidget *dialog = create_message_box(
@@ -239,26 +236,26 @@ static void common_connfatal_message_box(
     sfree(title);
 }
 
-void fatal_message_box(Frontend *inst, const char *msg)
+void fatal_message_box(GtkFrontend *inst, const char *msg)
 {
     common_connfatal_message_box(inst, msg, post_fatal_message_box);
 }
 
 static void connection_fatal_callback(void *vctx)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     destroy_inst_connection(inst);
 }
 
 static void post_nonfatal_message_box(void *vctx, int result)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     unregister_dialog(&inst->seat, DIALOG_SLOT_CONNECTION_FATAL);
 }
 
 static void gtk_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     if (conf_get_int(inst->conf, CONF_close_on_exit) == FORCE_ON) {
         fatal_message_box(inst, msg);
     } else {
@@ -306,27 +303,27 @@ int platform_default_i(const char *name, int def)
 
 static char *gtk_seat_get_ttymode(Seat *seat, const char *mode)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_get_ttymode(inst->term, mode);
 }
 
 static int gtk_seat_output(Seat *seat, int is_stderr,
                            const void *data, int len)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_data(inst->term, is_stderr, data, len);
 }
 
 static int gtk_seat_eof(Seat *seat)
 {
-    /* Frontend *inst = container_of(seat, Frontend, seat); */
+    /* GtkFrontend *inst = container_of(seat, GtkFrontend, seat); */
     return TRUE;   /* do respond to incoming EOF with outgoing */
 }
 
 static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
                                        bufchain *input)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
@@ -336,14 +333,14 @@ static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
 
 static int gtk_seat_is_utf8(Seat *seat)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
-    return frontend_is_utf8(inst);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    return win_is_utf8(&inst->termwin);
 }
 
 static int gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
-    get_window_pixels(inst, w, h);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    win_get_pixels(&inst->termwin, w, h);
     return TRUE;
 }
 
@@ -380,20 +377,20 @@ static const SeatVtable gtk_seat_vt = {
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)
 {
-    Frontend *inst = container_of(lp, Frontend, logpolicy);
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
     logevent_dlg(inst->eventlogstuff, string);
 }
 
 static int gtk_askappend(LogPolicy *lp, Filename *filename,
                          void (*callback)(void *ctx, int result), void *ctx)
 {
-    Frontend *inst = container_of(lp, Frontend, logpolicy);
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
     return gtkdlg_askappend(&inst->seat, filename, callback, ctx);
 }
 
 static void gtk_logging_error(LogPolicy *lp, const char *event)
 {
-    Frontend *inst = container_of(lp, Frontend, logpolicy);
+    GtkFrontend *inst = container_of(lp, GtkFrontend, logpolicy);
 
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
@@ -433,7 +430,7 @@ static Mouse_Button translate_button(Mouse_Button button)
  */
 GtkWidget *gtk_seat_get_window(Seat *seat)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return inst->window;
 }
 
@@ -444,18 +441,18 @@ GtkWidget *gtk_seat_get_window(Seat *seat)
  */
 void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog)
 {
-    Frontend *inst;
+    GtkFrontend *inst;
     assert(seat->vt == &gtk_seat_vt);
-    inst = container_of(seat, Frontend, seat);
+    inst = container_of(seat, GtkFrontend, seat);
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(!inst->dialogs[slot]);
     inst->dialogs[slot] = dialog;
 }
 void unregister_dialog(Seat *seat, enum DialogSlot slot)
 {
-    Frontend *inst;
+    GtkFrontend *inst;
     assert(seat->vt == &gtk_seat_vt);
-    inst = container_of(seat, Frontend, seat);
+    inst = container_of(seat, GtkFrontend, seat);
     assert(slot < DIALOG_SLOT_LIMIT);
     assert(inst->dialogs[slot]);
     inst->dialogs[slot] = NULL;
@@ -465,13 +462,14 @@ void unregister_dialog(Seat *seat, enum DialogSlot slot)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-void set_iconic(Frontend *inst, int iconic)
+static void gtkwin_set_minimised(TermWin *tw, int minimised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    if (iconic)
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (minimised)
 	gtk_window_iconify(GTK_WINDOW(inst->window));
     else
 	gtk_window_deiconify(GTK_WINDOW(inst->window));
@@ -481,8 +479,9 @@ void set_iconic(Frontend *inst, int iconic)
 /*
  * Move the window in response to a server-side request.
  */
-void move_window(Frontend *inst, int x, int y)
+static void gtkwin_move(TermWin *tw, int x, int y)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -501,8 +500,9 @@ void move_window(Frontend *inst, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-void set_zorder(Frontend *inst, int top)
+static void gtkwin_set_zorder(TermWin *tw, int top)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (top)
 	gdk_window_raise(gtk_widget_get_window(inst->window));
     else
@@ -512,8 +512,9 @@ void set_zorder(Frontend *inst, int top)
 /*
  * Refresh the window in response to a server-side request.
  */
-void refresh_window(Frontend *inst)
+static void gtkwin_refresh(TermWin *tw)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     term_invalidate(inst->term);
 }
 
@@ -521,13 +522,14 @@ void refresh_window(Frontend *inst)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-void set_zoomed(Frontend *inst, int zoomed)
+static void gtkwin_set_maximised(TermWin *tw, int maximised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
      */
 #if GTK_CHECK_VERSION(2,0,0)
-    if (zoomed)
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    if (maximised)
 	gtk_window_maximize(GTK_WINDOW(inst->window));
     else
 	gtk_window_unmaximize(GTK_WINDOW(inst->window));
@@ -535,18 +537,20 @@ void set_zoomed(Frontend *inst, int zoomed)
 }
 
 /*
- * Report whether the window is iconic, for terminal reports.
+ * Report whether the window is minimised, for terminal reports.
  */
-int is_iconic(Frontend *inst)
+static int gtkwin_is_minimised(TermWin *tw)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
 }
 
 /*
  * Report the window's position, for terminal reports.
  */
-void get_window_pos(Frontend *inst, int *x, int *y)
+static void gtkwin_get_pos(TermWin *tw, int *x, int *y)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -562,8 +566,9 @@ void get_window_pos(Frontend *inst, int *x, int *y)
 /*
  * Report the window's pixel size, for terminal reports.
  */
-void get_window_pixels(Frontend *inst, int *x, int *y)
+static void gtkwin_get_pixels(TermWin *tw, int *x, int *y)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -582,7 +587,7 @@ void get_window_pixels(Frontend *inst, int *x, int *y)
  * raise it, so that the user realises they've already been asked this
  * question.
  */
-static int find_and_raise_dialog(Frontend *inst, enum DialogSlot slot)
+static int find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
 {
     GtkWidget *dialog = inst->dialogs[slot];
     if (!dialog)
@@ -598,14 +603,15 @@ static int find_and_raise_dialog(Frontend *inst, enum DialogSlot slot)
 /*
  * Return the window or icon title.
  */
-char *get_window_title(Frontend *inst, int icon)
+static const char *gtkwin_get_title(TermWin *tw, int icon)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return icon ? inst->icontitle : inst->wintitle;
 }
 
 static void warn_on_close_callback(void *vctx, int result)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     unregister_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE);
     if (result)
         gtk_widget_destroy(inst->window);
@@ -621,7 +627,7 @@ static void warn_on_close_callback(void *vctx, int result)
  * handler need not do anything', i.e. 'suppress default handler',
  * i.e. 'do not close the window'.)
  */
-gint delete_window(GtkWidget *widget, GdkEvent *event, Frontend *inst)
+gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
 {
     if (!inst->exited && conf_get_int(inst->conf, CONF_warn_on_close)) {
         /*
@@ -644,7 +650,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, Frontend *inst)
     return FALSE;
 }
 
-static void update_mouseptr(Frontend *inst)
+static void update_mouseptr(GtkFrontend *inst)
 {
     switch (inst->busy_status) {
       case BUSY_NOT:
@@ -670,7 +676,7 @@ static void update_mouseptr(Frontend *inst)
     }
 }
 
-static void show_mouseptr(Frontend *inst, int show)
+static void show_mouseptr(GtkFrontend *inst, int show)
 {
     if (!conf_get_int(inst->conf, CONF_hide_mouseptr))
 	show = 1;
@@ -678,9 +684,9 @@ static void show_mouseptr(Frontend *inst, int show)
     update_mouseptr(inst);
 }
 
-static void draw_backing_rect(Frontend *inst);
+static void draw_backing_rect(GtkFrontend *inst);
 
-static void drawing_area_setup(Frontend *inst, int width, int height)
+static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 {
     int w, h, new_scale, need_size = 0;
 
@@ -769,7 +775,7 @@ static void drawing_area_setup(Frontend *inst, int width, int height)
 #endif
 }
 
-static void drawing_area_setup_simple(Frontend *inst)
+static void drawing_area_setup_simple(GtkFrontend *inst)
 {
     /*
      * Wrapper on drawing_area_setup which fetches the width and
@@ -786,7 +792,7 @@ static void drawing_area_setup_simple(Frontend *inst)
     drawing_area_setup(inst, alloc.width, alloc.height);
 }
 
-static void area_realised(GtkWidget *widget, Frontend *inst)
+static void area_realised(GtkWidget *widget, GtkFrontend *inst)
 {
     inst->drawing_area_realised = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size &&
@@ -795,7 +801,7 @@ static void area_realised(GtkWidget *widget, Frontend *inst)
 }
 
 static void area_size_allocate(
-    GtkWidget *widget, GdkRectangle *alloc, Frontend *inst)
+    GtkWidget *widget, GdkRectangle *alloc, GtkFrontend *inst)
 {
     inst->drawing_area_got_size = TRUE;
     if (inst->drawing_area_realised && inst->drawing_area_got_size)
@@ -803,7 +809,7 @@ static void area_size_allocate(
 }
 
 #if GTK_CHECK_VERSION(3,10,0)
-static void area_check_scale(Frontend *inst)
+static void area_check_scale(GtkFrontend *inst)
 {
     if (!inst->drawing_area_setup_needed &&
         inst->scale != gtk_widget_get_scale_factor(inst->area)) {
@@ -820,32 +826,32 @@ static void area_check_scale(Frontend *inst)
 static gboolean area_configured(
     GtkWidget *widget, GdkEventConfigure *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     area_check_scale(inst);
     return FALSE;
 }
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
-static void cairo_setup_dctx(struct draw_ctx *dctx)
+static void cairo_setup_draw_ctx(GtkFrontend *inst)
 {
-    cairo_get_matrix(dctx->uctx.u.cairo.cr,
-                     &dctx->uctx.u.cairo.origmatrix);
-    cairo_set_line_width(dctx->uctx.u.cairo.cr, 1.0);
-    cairo_set_line_cap(dctx->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
-    cairo_set_line_join(dctx->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
+    cairo_get_matrix(inst->uctx.u.cairo.cr,
+                     &inst->uctx.u.cairo.origmatrix);
+    cairo_set_line_width(inst->uctx.u.cairo.cr, 1.0);
+    cairo_set_line_cap(inst->uctx.u.cairo.cr, CAIRO_LINE_CAP_SQUARE);
+    cairo_set_line_join(inst->uctx.u.cairo.cr, CAIRO_LINE_JOIN_MITER);
     /* This antialiasing setting appears to be ignored for Pango
      * font rendering but honoured for stroking and filling paths;
      * I don't quite understand the logic of that, but I won't
      * complain since it's exactly what I happen to want */
-    cairo_set_antialias(dctx->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
+    cairo_set_antialias(inst->uctx.u.cairo.cr, CAIRO_ANTIALIAS_NONE);
 }
 #endif
 
 #if GTK_CHECK_VERSION(3,0,0)
 static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #if GTK_CHECK_VERSION(3,10,0)
     /*
@@ -908,7 +914,7 @@ static gint draw_area(GtkWidget *widget, cairo_t *cr, gpointer data)
 #else
 gint expose_area(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #ifndef NO_BACKING_PIXMAPS
     /*
@@ -958,12 +964,12 @@ char *dup_keyval_name(guint keyval)
 }
 #endif
 
-static void change_font_size(Frontend *inst, int increment);
-static void key_pressed(Frontend *inst);
+static void change_font_size(GtkFrontend *inst, int increment);
+static void key_pressed(GtkFrontend *inst);
 
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     char output[256];
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, output_charset, use_ucsoutput;
@@ -2200,7 +2206,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #if GTK_CHECK_VERSION(2,0,0)
 void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #ifdef KEY_EVENT_DIAGNOSTICS
     char *string_string = dupstr("");
@@ -2228,7 +2234,7 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 #define SCROLL_INCREMENT_LINES 5
 
 #if GTK_CHECK_VERSION(3,4,0)
-gboolean scroll_internal(Frontend *inst, gdouble delta, guint state,
+gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
 			 gdouble ex, gdouble ey)
 {
     int shift, ctrl, alt, x, y, raw_mouse_mode;
@@ -2280,7 +2286,7 @@ gboolean scroll_internal(Frontend *inst, gdouble delta, guint state,
 }
 #endif
 
-static gboolean button_internal(Frontend *inst, GdkEventButton *event)
+static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
 {
     int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
 
@@ -2353,7 +2359,7 @@ static gboolean button_internal(Frontend *inst, GdkEventButton *event)
 
 gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     return button_internal(inst, event);
 }
 
@@ -2365,7 +2371,7 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
  */
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble dx, dy;
@@ -2406,7 +2412,7 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     int shift, ctrl, alt, x, y, button;
 
     /* Remember the timestamp. */
@@ -2435,7 +2441,7 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     return TRUE;
 }
 
-static void key_pressed(Frontend *inst)
+static void key_pressed(GtkFrontend *inst)
 {
     /*
      * If our child process has exited but not closed, terminate on
@@ -2456,7 +2462,7 @@ static void key_pressed(Frontend *inst)
 
 static void exit_callback(void *vctx)
 {
-    Frontend *inst = (Frontend *)vctx;
+    GtkFrontend *inst = (GtkFrontend *)vctx;
     int exitcode, close_on_exit;
 
     if (!inst->exited &&
@@ -2473,11 +2479,11 @@ static void exit_callback(void *vctx)
 
 static void gtk_seat_notify_remote_exit(Seat *seat)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     queue_toplevel_callback(exit_callback, inst);
 }
 
-static void destroy_inst_connection(Frontend *inst)
+static void destroy_inst_connection(GtkFrontend *inst)
 {
     inst->exited = TRUE;
     if (inst->ldisc) {
@@ -2496,7 +2502,7 @@ static void destroy_inst_connection(Frontend *inst)
     }
 }
 
-static void delete_inst(Frontend *inst)
+static void delete_inst(GtkFrontend *inst)
 {
     int dialog_slot;
     for (dialog_slot = 0; dialog_slot < DIALOG_SLOT_LIMIT; dialog_slot++) {
@@ -2559,7 +2565,7 @@ static void delete_inst(Frontend *inst)
 
 void destroy(GtkWidget *widget, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     inst->window = NULL;
     delete_inst(inst);
     session_window_closed();
@@ -2567,7 +2573,7 @@ void destroy(GtkWidget *widget, gpointer data)
 
 gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_set_focus(inst->term, event->in);
     term_update(inst->term);
     show_mouseptr(inst, 1);
@@ -2576,7 +2582,7 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
 
 static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     inst->busy_status = status;
     update_mouseptr(inst);
 }
@@ -2584,21 +2590,24 @@ static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 /*
  * set or clear the "raw mouse message" mode
  */
-void set_raw_mouse_mode(Frontend *inst, int activate)
+static void gtkwin_set_raw_mouse_mode(TermWin *tw, int activate)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     activate = activate && !conf_get_int(inst->conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
     update_mouseptr(inst);
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(Frontend *inst,
+static void compute_whole_window_size(GtkFrontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix);
 #endif
 
-void request_resize(Frontend *inst, int w, int h)
+static void gtkwin_request_resize(TermWin *tw, int w, int h)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+
 #if !GTK_CHECK_VERSION(3,0,0)
 
     int large_x, large_y;
@@ -2684,7 +2693,7 @@ void request_resize(Frontend *inst, int w, int h)
 
 }
 
-static void real_palette_set(Frontend *inst, int n, int r, int g, int b)
+static void real_palette_set(GtkFrontend *inst, int n, int r, int g, int b)
 {
     inst->cols[n].red = r * 0x0101;
     inst->cols[n].green = g * 0x0101;
@@ -2738,7 +2747,7 @@ void set_gtk_widget_background(GtkWidget *widget, const GdkColor *col)
 #endif
 }
 
-void set_window_background(Frontend *inst)
+void set_window_background(GtkFrontend *inst)
 {
     if (inst->area)
 	set_gtk_widget_background(GTK_WIDGET(inst->area), &inst->cols[258]);
@@ -2746,8 +2755,9 @@ void set_window_background(Frontend *inst)
 	set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
-void palette_set(Frontend *inst, int n, int r, int g, int b)
+static void gtkwin_palette_set(TermWin *tw, int n, int r, int g, int b)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (n >= 16)
 	n += 256 - 16;
     if (n >= NALLCOLOURS)
@@ -2762,8 +2772,9 @@ void palette_set(Frontend *inst, int n, int r, int g, int b)
     }
 }
 
-int palette_get(Frontend *inst, int n, int *r, int *g, int *b)
+static int gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (n < 0 || n >= NALLCOLOURS)
 	return FALSE;
     *r = inst->cols[n].red >> 8;
@@ -2772,8 +2783,9 @@ int palette_get(Frontend *inst, int n, int *r, int *g, int *b)
     return TRUE;
 }
 
-void palette_reset(Frontend *inst)
+static void gtkwin_palette_reset(TermWin *tw)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     /* This maps colour indices in inst->conf to those used in inst->cols. */
     static const int ww[] = {
 	256, 257, 258, 259, 260, 261,
@@ -2841,7 +2853,7 @@ void palette_reset(Frontend *inst)
 }
 
 static struct clipboard_state *clipboard_from_atom(
-    Frontend *inst, GdkAtom atom)
+    GtkFrontend *inst, GdkAtom atom)
 {
     int i;
 
@@ -2863,7 +2875,7 @@ static struct clipboard_state *clipboard_from_atom(
  * formats it feels like.
  */
 
-void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
+void set_clipboard_atom(GtkFrontend *inst, int clipboard, GdkAtom atom)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -2880,7 +2892,7 @@ void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
     }
 }
 
-int init_clipboard(Frontend *inst)
+int init_clipboard(GtkFrontend *inst)
 {
     set_clipboard_atom(inst, CLIP_PRIMARY, GDK_SELECTION_PRIMARY);
     set_clipboard_atom(inst, CLIP_CLIPBOARD, clipboard_atom);
@@ -2918,10 +2930,11 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
     sfree(cdi);
 }
 
-void write_clip(Frontend *inst, int clipboard,
-                wchar_t *data, int *attr, truecolour *truecolour, int len,
-                int must_deselect)
+static void gtkwin_clip_write(
+    TermWin *tw, int clipboard, wchar_t *data, int *attr,
+    truecolour *truecolour, int len, int must_deselect)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
     struct clipboard_data_instance *cdi;
 
@@ -2978,7 +2991,7 @@ void write_clip(Frontend *inst, int clipboard,
 static void clipboard_text_received(GtkClipboard *clipboard,
                                     const gchar *text, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     wchar_t *paste;
     int paste_len;
     int length;
@@ -2996,8 +3009,9 @@ static void clipboard_text_received(GtkClipboard *clipboard,
     sfree(paste);
 }
 
-void frontend_request_paste(Frontend *inst, int clipboard)
+static void gtkwin_clip_request_paste(TermWin *tw, int clipboard)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     if (!state->gtkclipboard)
@@ -3030,7 +3044,7 @@ void frontend_request_paste(Frontend *inst, int clipboard)
  */
 
 /* Store the data in a cut-buffer. */
-static void store_cutbuffer(Frontend *inst, char *ptr, int len)
+static void store_cutbuffer(GtkFrontend *inst, char *ptr, int len)
 {
 #ifndef NOT_X_WINDOWS
     if (inst->disp) {
@@ -3044,7 +3058,7 @@ static void store_cutbuffer(Frontend *inst, char *ptr, int len)
 /* Retrieve data from a cut-buffer.
  * Returned data needs to be freed with XFree().
  */
-static char *retrieve_cutbuffer(Frontend *inst, int *nbytes)
+static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
 {
 #ifndef NOT_X_WINDOWS
     char *ptr;
@@ -3064,10 +3078,11 @@ static char *retrieve_cutbuffer(Frontend *inst, int *nbytes)
 #endif
 }
 
-void write_clip(Frontend *inst, int clipboard,
-                wchar_t *data, int *attr, truecolour *truecolour, int len,
-                int must_deselect)
+static void gtkwin_clip_write(
+    TermWin *tw, int clipboard, wchar_t *data, int *attr,
+    truecolour *truecolour, int len, int must_deselect)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     if (state->pasteout_data)
@@ -3169,7 +3184,7 @@ void write_clip(Frontend *inst, int clipboard,
 static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
                           guint info, guint time_stamp, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     GdkAtom target = gtk_selection_data_get_target(seldata);
     struct clipboard_state *state = clipboard_from_atom(
         inst, gtk_selection_data_get_selection(seldata));
@@ -3194,7 +3209,7 @@ static void selection_get(GtkWidget *widget, GtkSelectionData *seldata,
 static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
                             gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     struct clipboard_state *state = clipboard_from_atom(
         inst, seldata->selection);
 
@@ -3217,8 +3232,9 @@ static gint selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     return TRUE;
 }
 
-void frontend_request_paste(Frontend *inst, int clipboard)
+static void gtkwin_clip_request_paste(TermWin *tw, int clipboard)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
     /*
@@ -3251,7 +3267,7 @@ void frontend_request_paste(Frontend *inst, int clipboard)
 static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
                                guint time, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     char *text;
     int length;
 #ifndef NOT_X_WINDOWS
@@ -3373,7 +3389,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 #endif
 }
 
-static void init_one_clipboard(Frontend *inst, int clipboard)
+static void init_one_clipboard(GtkFrontend *inst, int clipboard)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -3381,7 +3397,7 @@ static void init_one_clipboard(Frontend *inst, int clipboard)
     state->clipboard = clipboard;
 }
 
-void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
+void set_clipboard_atom(GtkFrontend *inst, int clipboard, GdkAtom atom)
 {
     struct clipboard_state *state = &inst->clipstates[clipboard];
 
@@ -3391,7 +3407,7 @@ void set_clipboard_atom(Frontend *inst, int clipboard, GdkAtom atom)
     state->atom = atom;
 }
 
-void init_clipboard(Frontend *inst)
+void init_clipboard(GtkFrontend *inst)
 {
 #ifndef NOT_X_WINDOWS
     /*
@@ -3447,7 +3463,7 @@ void init_clipboard(Frontend *inst)
 
 #endif /* JUST_USE_GTK_CLIPBOARD_UTF8 */
 
-static void set_window_titles(Frontend *inst)
+static void set_window_titles(GtkFrontend *inst)
 {
     /*
      * We must always call set_icon_name after calling set_title,
@@ -3460,21 +3476,23 @@ static void set_window_titles(Frontend *inst)
                                  inst->icontitle);
 }
 
-void set_title(Frontend *inst, char *title)
+static void gtkwin_set_title(TermWin *tw, const char *title)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_icon(Frontend *inst, char *title)
+static void gtkwin_set_icon_title(TermWin *tw, const char *title)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     sfree(inst->icontitle);
     inst->icontitle = dupstr(title);
     set_window_titles(inst);
 }
 
-void set_title_and_icon(Frontend *inst, char *title, char *icon)
+void set_title_and_icon(GtkFrontend *inst, char *title, char *icon)
 {
     sfree(inst->wintitle);
     inst->wintitle = dupstr(title);
@@ -3483,8 +3501,9 @@ void set_title_and_icon(Frontend *inst, char *title, char *icon)
     set_window_titles(inst);
 }
 
-void set_sbar(Frontend *inst, int total, int start, int page)
+static void gtkwin_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
     inst->ignore_sbar = TRUE;
@@ -3500,7 +3519,7 @@ void set_sbar(Frontend *inst, int total, int start, int page)
     inst->ignore_sbar = FALSE;
 }
 
-void scrollbar_moved(GtkAdjustment *adj, Frontend *inst)
+void scrollbar_moved(GtkAdjustment *adj, GtkFrontend *inst)
 {
     if (!conf_get_int(inst->conf, CONF_scrollbar))
 	return;
@@ -3508,7 +3527,7 @@ void scrollbar_moved(GtkAdjustment *adj, Frontend *inst)
 	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
 }
 
-static void show_scrollbar(Frontend *inst, gboolean visible)
+static void show_scrollbar(GtkFrontend *inst, gboolean visible)
 {
     inst->sbar_visible = visible;
     if (visible)
@@ -3517,7 +3536,7 @@ static void show_scrollbar(Frontend *inst, gboolean visible)
         gtk_widget_hide(inst->sbar);
 }
 
-void sys_cursor(Frontend *frontend, int x, int y)
+static void gtkwin_set_cursor_pos(TermWin *tw, int x, int y)
 {
     /*
      * This is meaningless under X.
@@ -3530,13 +3549,14 @@ void sys_cursor(Frontend *frontend, int x, int y)
  * may want to perform additional actions on any kind of bell (for
  * example, taskbar flashing in Windows).
  */
-void do_beep(Frontend *frontend, int mode)
+static void gtkwin_bell(TermWin *tw, int mode)
 {
+    /* GtkFrontend *inst = container_of(tw, GtkFrontend, termwin); */
     if (mode == BELL_DEFAULT)
         gdk_display_beep(gdk_display_get_default());
 }
 
-int char_width(Context ctx, int uc)
+static int gtkwin_char_width(TermWin *tw, int uc)
 {
     /*
      * In this front end, double-width characters are handled using a
@@ -3545,66 +3565,63 @@ int char_width(Context ctx, int uc)
     return 1;
 }
 
-Context get_ctx(Frontend *inst)
+static int gtkwin_setup_draw_ctx(TermWin *tw)
 {
-    struct draw_ctx *dctx;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 
     if (!gtk_widget_get_window(inst->area))
-	return NULL;
+	return FALSE;
 
-    dctx = snew(struct draw_ctx);
-    dctx->inst = inst;
-    dctx->uctx.type = inst->drawtype;
+    inst->uctx.type = inst->drawtype;
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
         /* If we're doing GDK-based drawing, then we also expect
          * inst->pixmap to exist. */
-        dctx->uctx.u.gdk.target = inst->pixmap;
-        dctx->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
+        inst->uctx.u.gdk.target = inst->pixmap;
+        inst->uctx.u.gdk.gc = gdk_gc_new(gtk_widget_get_window(inst->area));
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        dctx->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        inst->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
         /* If we're doing Cairo drawing, we expect inst->surface to
          * exist, and we draw to that first, regardless of whether we
          * subsequently copy the results to inst->pixmap. */
-        dctx->uctx.u.cairo.cr = cairo_create(inst->surface);
-        cairo_scale(dctx->uctx.u.cairo.cr, inst->scale, inst->scale);
-        cairo_setup_dctx(dctx);
+        inst->uctx.u.cairo.cr = cairo_create(inst->surface);
+        cairo_scale(inst->uctx.u.cairo.cr, inst->scale, inst->scale);
+        cairo_setup_draw_ctx(inst);
     }
 #endif
-    return dctx;
+    return TRUE;
 }
 
-void free_ctx(Context dctx)
+static void gtkwin_free_draw_ctx(TermWin *tw)
 {
-    /* Frontend *inst = dctx->inst; */
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_gc_unref(dctx->uctx.u.gdk.gc);
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_gc_unref(inst->uctx.u.gdk.gc);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_destroy(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_destroy(inst->uctx.u.cairo.cr);
     }
 #endif
-    sfree(dctx);
 }
 
 
-static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
+static void draw_update(GtkFrontend *inst, int x, int y, int w, int h)
 {
 #if defined DRAW_TEXT_CAIRO && !defined NO_BACKING_PIXMAPS
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
         /*
          * If inst->surface and inst->pixmap both exist, then we've
          * just drawn new content to the former which we must copy to
          * the latter.
          */
-        cairo_t *cr = gdk_cairo_create(dctx->inst->pixmap);
-        cairo_set_source_surface(cr, dctx->inst->surface, 0, 0);
+        cairo_t *cr = gdk_cairo_create(inst->pixmap);
+        cairo_set_source_surface(cr, inst->surface, 0, 0);
         cairo_rectangle(cr, x, y, w, h);
         cairo_fill(cr);
         cairo_destroy(cr);
@@ -3620,7 +3637,7 @@ static void draw_update(struct draw_ctx *dctx, int x, int y, int w, int h)
      * Amazingly, this one API call is actually valid in all versions
      * of GTK :-)
      */
-    gtk_widget_queue_draw_area(dctx->inst->area, x, y, w, h);
+    gtk_widget_queue_draw_area(inst->area, x, y, w, h);
 }
 
 #ifdef DRAW_TEXT_CAIRO
@@ -3634,41 +3651,40 @@ static void cairo_set_source_rgb_dim(cairo_t *cr, double r, double g, double b,
 }
 #endif
 
-static void draw_set_colour(struct draw_ctx *dctx, int col, int dim)
+static void draw_set_colour(GtkFrontend *inst, int col, int dim)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
         if (dim) {
 #if GTK_CHECK_VERSION(2,0,0)
             GdkColor color;
-            color.red =   dctx->inst->cols[col].red   * 2 / 3;
-            color.green = dctx->inst->cols[col].green * 2 / 3;
-            color.blue =  dctx->inst->cols[col].blue  * 2 / 3;
-            gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+            color.red =   inst->cols[col].red   * 2 / 3;
+            color.green = inst->cols[col].green * 2 / 3;
+            color.blue =  inst->cols[col].blue  * 2 / 3;
+            gdk_gc_set_rgb_fg_color(inst->uctx.u.gdk.gc, &color);
 #else
             /* Poor GTK1 fallback */
-            gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+            gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[col]);
 #endif
         } else {
-            gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[col]);
+            gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[col]);
         }
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_source_rgb_dim(dctx->uctx.u.cairo.cr,
-                                 dctx->inst->cols[col].red / 65535.0,
-                                 dctx->inst->cols[col].green / 65535.0,
-                                 dctx->inst->cols[col].blue / 65535.0, dim);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb_dim(inst->uctx.u.cairo.cr,
+                                 inst->cols[col].red / 65535.0,
+                                 inst->cols[col].green / 65535.0,
+                                 inst->cols[col].blue / 65535.0, dim);
     }
 #endif
 }
 
-static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb,
-                                int dim)
+static void draw_set_colour_rgb(GtkFrontend *inst, optionalrgb orgb, int dim)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
 #if GTK_CHECK_VERSION(2,0,0)
 	GdkColor color;
 	color.red =   orgb.r * 256;
@@ -3679,50 +3695,50 @@ static void draw_set_colour_rgb(struct draw_ctx *dctx, optionalrgb orgb,
             color.green = color.green * 2 / 3;
             color.blue  = color.blue  * 2 / 3;
         }
-	gdk_gc_set_rgb_fg_color(dctx->uctx.u.gdk.gc, &color);
+	gdk_gc_set_rgb_fg_color(inst->uctx.u.gdk.gc, &color);
 #else
         /* Poor GTK1 fallback */
-        gdk_gc_set_foreground(dctx->uctx.u.gdk.gc, &dctx->inst->cols[256]);
+        gdk_gc_set_foreground(inst->uctx.u.gdk.gc, &inst->cols[256]);
 #endif
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_source_rgb_dim(dctx->uctx.u.cairo.cr, orgb.r / 255.0,
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_source_rgb_dim(inst->uctx.u.cairo.cr, orgb.r / 255.0,
                                  orgb.g / 255.0, orgb.b / 255.0, dim);
     }
 #endif
 }
 
-static void draw_rectangle(struct draw_ctx *dctx, int filled,
+static void draw_rectangle(GtkFrontend *inst, int filled,
                            int x, int y, int w, int h)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_rectangle(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_rectangle(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
                            filled, x, y, w, h);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
         if (filled) {
-            cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
-            cairo_fill(dctx->uctx.u.cairo.cr);
+            cairo_rectangle(inst->uctx.u.cairo.cr, x, y, w, h);
+            cairo_fill(inst->uctx.u.cairo.cr);
         } else {
-            cairo_rectangle(dctx->uctx.u.cairo.cr,
+            cairo_rectangle(inst->uctx.u.cairo.cr,
                             x + 0.5, y + 0.5, w, h);
-            cairo_close_path(dctx->uctx.u.cairo.cr);
-            cairo_stroke(dctx->uctx.u.cairo.cr);
+            cairo_close_path(inst->uctx.u.cairo.cr);
+            cairo_stroke(inst->uctx.u.cairo.cr);
         }
     }
 #endif
 }
 
-static void draw_clip(struct draw_ctx *dctx, int x, int y, int w, int h)
+static void draw_clip(GtkFrontend *inst, int x, int y, int w, int h)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
 	GdkRectangle r;
 
 	r.x = x;
@@ -3730,59 +3746,59 @@ static void draw_clip(struct draw_ctx *dctx, int x, int y, int w, int h)
 	r.width = w;
 	r.height = h;
 
-        gdk_gc_set_clip_rectangle(dctx->uctx.u.gdk.gc, &r);
+        gdk_gc_set_clip_rectangle(inst->uctx.u.gdk.gc, &r);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_reset_clip(dctx->uctx.u.cairo.cr);
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, w, h);
-        cairo_clip(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_reset_clip(inst->uctx.u.cairo.cr);
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_rectangle(inst->uctx.u.cairo.cr, x, y, w, h);
+        cairo_clip(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_point(struct draw_ctx *dctx, int x, int y)
+static void draw_point(GtkFrontend *inst, int x, int y)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_point(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc, x, y);
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_point(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc, x, y);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_rectangle(dctx->uctx.u.cairo.cr, x, y, 1, 1);
-        cairo_fill(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_rectangle(inst->uctx.u.cairo.cr, x, y, 1, 1);
+        cairo_fill(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_line(struct draw_ctx *dctx, int x0, int y0, int x1, int y1)
+static void draw_line(GtkFrontend *inst, int x0, int y0, int x1, int y1)
 {
 #ifdef DRAW_TEXT_GDK
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
-        gdk_draw_line(dctx->uctx.u.gdk.target, dctx->uctx.u.gdk.gc,
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+        gdk_draw_line(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
                       x0, y0, x1, y1);
     }
 #endif
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_new_path(dctx->uctx.u.cairo.cr);
-        cairo_move_to(dctx->uctx.u.cairo.cr, x0 + 0.5, y0 + 0.5);
-        cairo_line_to(dctx->uctx.u.cairo.cr, x1 + 0.5, y1 + 0.5);
-        cairo_stroke(dctx->uctx.u.cairo.cr);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_new_path(inst->uctx.u.cairo.cr);
+        cairo_move_to(inst->uctx.u.cairo.cr, x0 + 0.5, y0 + 0.5);
+        cairo_line_to(inst->uctx.u.cairo.cr, x1 + 0.5, y1 + 0.5);
+        cairo_stroke(inst->uctx.u.cairo.cr);
     }
 #endif
 }
 
-static void draw_stretch_before(struct draw_ctx *dctx, int x, int y,
+static void draw_stretch_before(GtkFrontend *inst, int x, int y,
                                 int w, int wdouble,
                                 int h, int hdouble, int hbothalf)
 {
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
         cairo_matrix_t matrix;
 
         matrix.xy = 0;
@@ -3807,18 +3823,18 @@ static void draw_stretch_before(struct draw_ctx *dctx, int x, int y,
             matrix.yy = 1;
             matrix.y0 = 0;
         }
-        cairo_transform(dctx->uctx.u.cairo.cr, &matrix);
+        cairo_transform(inst->uctx.u.cairo.cr, &matrix);
     }
 #endif
 }
 
-static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
+static void draw_stretch_after(GtkFrontend *inst, int x, int y,
                                int w, int wdouble,
                                int h, int hdouble, int hbothalf)
 {
 #ifdef DRAW_TEXT_GDK
 #ifndef NO_BACKING_PIXMAPS
-    if (dctx->uctx.type == DRAWTYPE_GDK) {
+    if (inst->uctx.type == DRAWTYPE_GDK) {
 	/*
 	 * I can't find any plausible StretchBlt equivalent in the X
 	 * server, so I'm going to do this the slow and painful way.
@@ -3830,9 +3846,9 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 	int i;
         if (wdouble) {
             for (i = 0; i < w; i++) {
-                gdk_draw_pixmap(dctx->uctx.u.gdk.target,
-                                dctx->uctx.u.gdk.gc,
-                                dctx->uctx.u.gdk.target,
+                gdk_draw_pixmap(inst->uctx.u.gdk.target,
+                                inst->uctx.u.gdk.gc,
+                                inst->uctx.u.gdk.target,
                                 x + 2*i, y,
                                 x + 2*i+1, y,
                                 w - i, h);
@@ -3848,9 +3864,9 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 	    else
 		dt = 1, db = 0;
 	    for (i = 0; i < h; i += 2) {
-		gdk_draw_pixmap(dctx->uctx.u.gdk.target,
-                                dctx->uctx.u.gdk.gc,
-                                dctx->uctx.u.gdk.target,
+		gdk_draw_pixmap(inst->uctx.u.gdk.target,
+                                inst->uctx.u.gdk.gc,
+                                inst->uctx.u.gdk.target,
                                 x, y + dt*i + db,
 				x, y + dt*(i+1),
 				w, h-i-1);
@@ -3862,27 +3878,26 @@ static void draw_stretch_after(struct draw_ctx *dctx, int x, int y,
 #endif
 #endif /* DRAW_TEXT_GDK */
 #ifdef DRAW_TEXT_CAIRO
-    if (dctx->uctx.type == DRAWTYPE_CAIRO) {
-        cairo_set_matrix(dctx->uctx.u.cairo.cr,
-                         &dctx->uctx.u.cairo.origmatrix);
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        cairo_set_matrix(inst->uctx.u.cairo.cr,
+                         &inst->uctx.u.cairo.origmatrix);
     }
 #endif
 }
 
-static void draw_backing_rect(Frontend *inst)
+static void draw_backing_rect(GtkFrontend *inst)
 {
     int w, h;
-    struct draw_ctx *dctx = get_ctx(inst);
 
-    if (!dctx)
+    if (!win_setup_draw_ctx(&inst->termwin))
         return;
 
     w = inst->width * inst->font_width + 2*inst->window_border;
     h = inst->height * inst->font_height + 2*inst->window_border;
-    draw_set_colour(dctx, 258, FALSE);
-    draw_rectangle(dctx, 1, 0, 0, w, h);
-    draw_update(dctx, 0, 0, w, h);
-    free_ctx(dctx);
+    draw_set_colour(inst, 258, FALSE);
+    draw_rectangle(inst, 1, 0, 0, w, h);
+    draw_update(inst, 0, 0, w, h);
+    win_free_draw_ctx(&inst->termwin);
 }
 
 /*
@@ -3891,10 +3906,10 @@ static void draw_backing_rect(Frontend *inst)
  *
  * We are allowed to fiddle with the contents of `text'.
  */
-void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
-		      unsigned long attr, int lattr, truecolour truecolour)
+static void do_text_internal(
+    GtkFrontend *inst, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    Frontend *inst = dctx->inst;
     int ncombining;
     int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
     int monochrome =
@@ -3980,14 +3995,14 @@ void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
     } else
 	rlen = len;
 
-    draw_clip(dctx,
+    draw_clip(inst,
               x*inst->font_width+inst->window_border,
               y*inst->font_height+inst->window_border,
               rlen*widefactor*inst->font_width,
               inst->font_height);
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
-        draw_stretch_before(dctx,
+        draw_stretch_before(inst,
                             x*inst->font_width+inst->window_border,
                             y*inst->font_height+inst->window_border,
                             rlen*widefactor*inst->font_width, TRUE,
@@ -3997,28 +4012,28 @@ void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
     }
 
     if (truecolour.bg.enabled)
-	draw_set_colour_rgb(dctx, truecolour.bg, attr & ATTR_DIM);
+	draw_set_colour_rgb(inst, truecolour.bg, attr & ATTR_DIM);
     else
-	draw_set_colour(dctx, nbg, attr & ATTR_DIM);
-    draw_rectangle(dctx, TRUE,
+	draw_set_colour(inst, nbg, attr & ATTR_DIM);
+    draw_rectangle(inst, TRUE,
                    x*inst->font_width+inst->window_border,
                    y*inst->font_height+inst->window_border,
                    rlen*widefactor*inst->font_width, inst->font_height);
 
     if (truecolour.fg.enabled)
-	draw_set_colour_rgb(dctx, truecolour.fg, attr & ATTR_DIM);
+	draw_set_colour_rgb(inst, truecolour.fg, attr & ATTR_DIM);
     else
-	draw_set_colour(dctx, nfg, attr & ATTR_DIM);
+	draw_set_colour(inst, nfg, attr & ATTR_DIM);
     if (ncombining > 1) {
         assert(len == 1);
-        unifont_draw_combining(&dctx->uctx, inst->fonts[fontid],
+        unifont_draw_combining(&inst->uctx, inst->fonts[fontid],
                                x*inst->font_width+inst->window_border,
                                (y*inst->font_height+inst->window_border+
                                 inst->fonts[0]->ascent),
                                text, ncombining, widefactor > 1,
                                bold, inst->font_width);
     } else {
-        unifont_draw_text(&dctx->uctx, inst->fonts[fontid],
+        unifont_draw_text(&inst->uctx, inst->fonts[fontid],
                           x*inst->font_width+inst->window_border,
                           (y*inst->font_height+inst->window_border+
                            inst->fonts[0]->ascent),
@@ -4030,14 +4045,14 @@ void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
 	int uheight = inst->fonts[0]->ascent + 1;
 	if (uheight >= inst->font_height)
 	    uheight = inst->font_height - 1;
-        draw_line(dctx, x*inst->font_width+inst->window_border,
+        draw_line(inst, x*inst->font_width+inst->window_border,
                   y*inst->font_height + uheight + inst->window_border,
                   (x+len)*widefactor*inst->font_width-1+inst->window_border,
                   y*inst->font_height + uheight + inst->window_border);
     }
 
     if ((lattr & LATTR_MODE) != LATTR_NORM) {
-        draw_stretch_after(dctx,
+        draw_stretch_after(inst,
                            x*inst->font_width+inst->window_border,
                            y*inst->font_height+inst->window_border,
                            rlen*widefactor*inst->font_width, TRUE,
@@ -4047,13 +4062,14 @@ void do_text_internal(Context dctx, int x, int y, wchar_t *text, int len,
     }
 }
 
-void do_text(Context dctx, int x, int y, wchar_t *text, int len,
-	     unsigned long attr, int lattr, truecolour truecolour)
+static void gtkwin_draw_text(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    Frontend *inst = dctx->inst;
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     int widefactor;
 
-    do_text_internal(dctx, x, y, text, len, attr, lattr, truecolour);
+    do_text_internal(inst, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -4070,17 +4086,17 @@ void do_text(Context dctx, int x, int y, wchar_t *text, int len,
 	len *= 2;
     }
 
-    draw_update(dctx,
+    draw_update(inst,
                 x*inst->font_width+inst->window_border,
                 y*inst->font_height+inst->window_border,
                 len*widefactor*inst->font_width, inst->font_height);
 }
 
-void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
-	       unsigned long attr, int lattr, truecolour truecolour)
+static void gtkwin_draw_cursor(
+    TermWin *tw, int x, int y, wchar_t *text, int len,
+    unsigned long attr, int lattr, truecolour truecolour)
 {
-    Frontend *inst = dctx->inst;
-
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     int active, passive, widefactor;
 
     if (attr & TATTR_PASCURS) {
@@ -4093,7 +4109,7 @@ void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
         active = 1;
     } else
         active = 0;
-    do_text_internal(dctx, x, y, text, len, attr, lattr, truecolour);
+    do_text_internal(inst, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & TATTR_COMBINING)
 	len = 1;
@@ -4120,8 +4136,8 @@ void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
 	 * if it's passive.
 	 */
 	if (passive) {
-            draw_set_colour(dctx, 261, FALSE);
-            draw_rectangle(dctx, FALSE,
+            draw_set_colour(inst, 261, FALSE);
+            draw_rectangle(inst, FALSE,
                            x*inst->font_width+inst->window_border,
                            y*inst->font_height+inst->window_border,
                            len*widefactor*inst->font_width-1,
@@ -4159,22 +4175,22 @@ void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
 	    length = inst->font_height;
 	}
 
-        draw_set_colour(dctx, 261, FALSE);
+        draw_set_colour(inst, 261, FALSE);
 	if (passive) {
 	    for (i = 0; i < length; i++) {
 		if (i % 2 == 0) {
-		    draw_point(dctx, startx, starty);
+		    draw_point(inst, startx, starty);
 		}
 		startx += dx;
 		starty += dy;
 	    }
 	} else if (active) {
-	    draw_line(dctx, startx, starty,
+	    draw_line(inst, startx, starty,
                       startx + (length-1) * dx, starty + (length-1) * dy);
 	} /* else no cursor (e.g., blinked off) */
     }
 
-    draw_update(dctx,
+    draw_update(inst,
                 x*inst->font_width+inst->window_border,
                 y*inst->font_height+inst->window_border,
                 len*widefactor*inst->font_width, inst->font_height);
@@ -4191,7 +4207,7 @@ void do_cursor(Context dctx, int x, int y, wchar_t *text, int len,
 #endif
 }
 
-GdkCursor *make_mouse_ptr(Frontend *inst, int cursor_val)
+GdkCursor *make_mouse_ptr(GtkFrontend *inst, int cursor_val)
 {
     if (cursor_val == -1) {
 #if GTK_CHECK_VERSION(2,16,0)
@@ -4236,7 +4252,7 @@ static const char *gtk_seat_get_x_display(Seat *seat)
 #ifndef NOT_X_WINDOWS
 static int gtk_seat_get_windowid(Seat *seat, long *id)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     GdkWindow *window = gtk_widget_get_window(inst->area);
     if (!GDK_IS_X11_WINDOW(window))
         return FALSE;
@@ -4245,12 +4261,13 @@ static int gtk_seat_get_windowid(Seat *seat, long *id)
 }
 #endif
 
-int frontend_is_utf8(Frontend *inst)
+static int gtkwin_is_utf8(TermWin *tw)
 {
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return inst->ucsdata.line_codepage == CS_UTF8;
 }
 
-char *setup_fonts_ucs(Frontend *inst)
+char *setup_fonts_ucs(GtkFrontend *inst)
 {
     int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
@@ -4353,7 +4370,7 @@ static void find_app_menu_bar(GtkWidget *widget, gpointer data)
 }
 #endif
 
-static void compute_geom_hints(Frontend *inst, GdkGeometry *geom)
+static void compute_geom_hints(GtkFrontend *inst, GdkGeometry *geom)
 {
     /*
      * Unused fields in geom.
@@ -4454,7 +4471,7 @@ static void compute_geom_hints(Frontend *inst, GdkGeometry *geom)
 #endif
 }
 
-void set_geom_hints(Frontend *inst)
+void set_geom_hints(GtkFrontend *inst)
 {
     GdkGeometry geom;
     gint flags = GDK_HINT_MIN_SIZE | GDK_HINT_BASE_SIZE | GDK_HINT_RESIZE_INC;
@@ -4468,7 +4485,7 @@ void set_geom_hints(Frontend *inst)
 }
 
 #if GTK_CHECK_VERSION(2,0,0)
-static void compute_whole_window_size(Frontend *inst,
+static void compute_whole_window_size(GtkFrontend *inst,
                                       int wchars, int hchars,
                                       int *wpix, int *hpix)
 {
@@ -4481,13 +4498,13 @@ static void compute_whole_window_size(Frontend *inst,
 
 void clear_scrollback_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_clrsb(inst->term);
 }
 
 void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_pwron(inst->term, TRUE);
     if (inst->ldisc)
 	ldisc_echoedit_update(inst->ldisc);
@@ -4495,27 +4512,27 @@ void reset_terminal_menuitem(GtkMenuItem *item, gpointer data)
 
 void copy_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     static const int clips[] = { MENU_CLIPBOARD };
     term_request_copy(inst->term, clips, lenof(clips));
 }
 
 void paste_clipboard_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     term_request_paste(inst->term, MENU_CLIPBOARD);
 }
 
 void copy_all_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     static const int clips[] = { COPYALL_CLIPBOARDS };
     term_copyall(inst->term, clips, lenof(clips));
 }
 
 void special_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     SessionSpecial *sc = g_object_get_data(G_OBJECT(item), "user-data");
 
     if (inst->backend)
@@ -4524,17 +4541,17 @@ void special_menuitem(GtkMenuItem *item, gpointer data)
 
 void about_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     about_box(inst->window);
 }
 
 void event_log_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     showeventlog(inst->eventlogstuff, inst->window);
 }
 
-void setup_clipboards(Frontend *inst, Terminal *term, Conf *conf)
+void setup_clipboards(GtkFrontend *inst, Terminal *term, Conf *conf)
 {
     assert(term->mouse_select_clipboards[0] == CLIP_LOCAL);
 
@@ -4596,7 +4613,7 @@ void setup_clipboards(Frontend *inst, Terminal *term, Conf *conf)
 }
 
 struct after_change_settings_dialog_ctx {
-    Frontend *inst;
+    GtkFrontend *inst;
     Conf *newconf;
 };
 
@@ -4604,7 +4621,7 @@ static void after_change_settings_dialog(void *vctx, int retval);
 
 void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     struct after_change_settings_dialog_ctx *ctx;
     GtkWidget *dialog;
     char *title;
@@ -4637,7 +4654,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
     };
     struct after_change_settings_dialog_ctx ctx =
         *(struct after_change_settings_dialog_ctx *)vctx;
-    Frontend *inst = ctx.inst;
+    GtkFrontend *inst = ctx.inst;
     Conf *oldconf = inst->conf, *newconf = ctx.newconf;
     int i, j, need_size;
 
@@ -4730,7 +4747,8 @@ static void after_change_settings_dialog(void *vctx, int retval)
          */
         if (strcmp(conf_get_str(oldconf, CONF_wintitle),
 		   conf_get_str(newconf, CONF_wintitle)))
-            set_title(inst, conf_get_str(newconf, CONF_wintitle));
+            win_set_title(&inst->termwin,
+                          conf_get_str(newconf, CONF_wintitle));
 	set_window_titles(inst);
 
         /*
@@ -4782,8 +4800,9 @@ static void after_change_settings_dialog(void *vctx, int retval)
 	    conf_get_int(newconf, CONF_window_border) ||
 	    need_size) {
             set_geom_hints(inst);
-            request_resize(inst, conf_get_int(newconf, CONF_width),
-			   conf_get_int(newconf, CONF_height));
+            win_request_resize(&inst->termwin,
+                               conf_get_int(newconf, CONF_width),
+                               conf_get_int(newconf, CONF_height));
         } else {
 	    /*
 	     * The above will have caused a call to term_size() for
@@ -4812,7 +4831,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
     }
 }
 
-static void change_font_size(Frontend *inst, int increment)
+static void change_font_size(GtkFrontend *inst, int increment)
 {
     static const int conf_keys[lenof(inst->fonts)] = {
         CONF_font, CONF_boldfont, CONF_widefont, CONF_wideboldfont,
@@ -4856,8 +4875,8 @@ static void change_font_size(Frontend *inst, int increment)
     }
 
     set_geom_hints(inst);
-    request_resize(inst, conf_get_int(inst->conf, CONF_width),
-                   conf_get_int(inst->conf, CONF_height));
+    win_request_resize(&inst->termwin, conf_get_int(inst->conf, CONF_width),
+                       conf_get_int(inst->conf, CONF_height));
     term_invalidate(inst->term);
     gtk_widget_queue_draw(inst->area);
 
@@ -4875,7 +4894,7 @@ static void change_font_size(Frontend *inst, int increment)
 
 void dup_session_menuitem(GtkMenuItem *item, gpointer gdata)
 {
-    Frontend *inst = (Frontend *)gdata;
+    GtkFrontend *inst = (GtkFrontend *)gdata;
 
     launch_duplicate_session(inst->conf);
 }
@@ -4887,7 +4906,7 @@ void new_session_menuitem(GtkMenuItem *item, gpointer data)
 
 void restart_session_menuitem(GtkMenuItem *item, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
 
     if (!inst->backend) {
         logevent(inst->logctx, "----- Session restarted -----");
@@ -4911,9 +4930,9 @@ void saved_session_freedata(GtkMenuItem *item, gpointer data)
     sfree(str);
 }
 
-void app_menu_action(Frontend *frontend, enum MenuAction action)
+void app_menu_action(GtkFrontend *frontend, enum MenuAction action)
 {
-    Frontend *inst = (Frontend *)frontend;
+    GtkFrontend *inst = (GtkFrontend *)frontend;
     switch (action) {
       case MA_COPY:
         copy_clipboard_menuitem(NULL, inst);
@@ -4947,7 +4966,7 @@ void app_menu_action(Frontend *frontend, enum MenuAction action)
 
 static void update_savedsess_menu(GtkMenuItem *menuitem, gpointer data)
 {
-    Frontend *inst = (Frontend *)data;
+    GtkFrontend *inst = (GtkFrontend *)data;
     struct sesslist sesslist;
     int i;
 
@@ -5020,7 +5039,7 @@ static void free_special_cmd(gpointer data) { sfree(data); }
 
 static void gtk_seat_update_specials_menu(Seat *seat)
 {
-    Frontend *inst = container_of(seat, Frontend, seat);
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     const SessionSpecial *specials;
 
     if (inst->backend)
@@ -5086,7 +5105,7 @@ static void gtk_seat_update_specials_menu(Seat *seat)
     }
 }
 
-static void start_backend(Frontend *inst)
+static void start_backend(GtkFrontend *inst)
 {
     const struct BackendVtable *vt;
     char *realhost;
@@ -5156,16 +5175,46 @@ static void get_monitor_geometry(GtkWidget *widget, GdkRectangle *geometry)
 }
 #endif
 
+static const TermWinVtable gtk_termwin_vt = {
+    gtkwin_setup_draw_ctx,
+    gtkwin_draw_text,
+    gtkwin_draw_cursor,
+    gtkwin_char_width,
+    gtkwin_free_draw_ctx,
+    gtkwin_set_cursor_pos,
+    gtkwin_set_raw_mouse_mode,
+    gtkwin_set_scrollbar,
+    gtkwin_bell,
+    gtkwin_clip_write,
+    gtkwin_clip_request_paste,
+    gtkwin_refresh,
+    gtkwin_request_resize,
+    gtkwin_set_title,
+    gtkwin_set_icon_title,
+    gtkwin_set_minimised,
+    gtkwin_is_minimised,
+    gtkwin_set_maximised,
+    gtkwin_move,
+    gtkwin_set_zorder,
+    gtkwin_palette_get,
+    gtkwin_palette_set,
+    gtkwin_palette_reset,
+    gtkwin_get_pos,
+    gtkwin_get_pixels,
+    gtkwin_get_title,
+    gtkwin_is_utf8,
+};
+
 void new_session_window(Conf *conf, const char *geometry_string)
 {
-    Frontend *inst;
+    GtkFrontend *inst;
 
     prepare_session(conf);
 
     /*
      * Create an instance structure and initialise to zeroes
      */
-    inst = snew(Frontend);
+    inst = snew(GtkFrontend);
     memset(inst, 0, sizeof(*inst));
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     inst->cdi_headtail.next = inst->cdi_headtail.prev = &inst->cdi_headtail;
@@ -5180,6 +5229,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
     inst->drawing_area_setup_needed = TRUE;
 
+    inst->termwin.vt = &gtk_termwin_vt;
     inst->seat.vt = &gtk_seat_vt;
     inst->logpolicy.vt = &gtk_logpolicy_vt;
 
@@ -5264,7 +5314,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     /*
      * Set up the colour map.
      */
-    palette_reset(inst);
+    win_palette_reset(&inst->termwin);
 
     inst->width = conf_get_int(inst->conf, CONF_width);
     inst->height = conf_get_int(inst->conf, CONF_height);
@@ -5499,7 +5549,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     inst->eventlogstuff = eventlogstuff_new();
 
-    inst->term = term_init(inst->conf, &inst->ucsdata, inst);
+    inst->term = term_init(inst->conf, &inst->ucsdata, &inst->termwin);
     setup_clipboards(inst, inst->term, inst->conf);
     inst->logctx = log_init(&inst->logpolicy, inst->conf);
     term_provide_logctx(inst->term, inst->logctx);

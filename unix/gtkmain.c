@@ -549,7 +549,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
     return err;
 }
 
-GtkWidget *make_gtk_toplevel_window(Frontend *frontend)
+GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 {
     return gtk_window_new(GTK_WINDOW_TOPLEVEL);
 }
