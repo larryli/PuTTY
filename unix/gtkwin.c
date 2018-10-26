@@ -2635,7 +2635,7 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
      * bogus size request which guarantees to be bigger than the
      * current size of the drawing area.
      */
-    get_window_pixels(inst, &large_x, &large_y);
+    win_get_pixels(&inst->termwin, &large_x, &large_y);
     large_x += 32;
     large_y += 32;
 
