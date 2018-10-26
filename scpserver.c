@@ -469,7 +469,7 @@ static void scp_source_push_name(
             return;
         }
     } else {
-        if (!attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
+        if (!(attrs.flags & SSH_FILEXFER_ATTR_SIZE)) {
             scp_source_err(scp, "unable to read file size for %.*s",
                            PTRLEN_PRINTF(pathname));
             return;
