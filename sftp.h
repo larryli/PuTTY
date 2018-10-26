@@ -3,7 +3,6 @@
  */
 
 #include "defs.h"
-#include "int64.h"
 
 #define SSH_FXP_INIT                              1	/* 0x1 */
 #define SSH_FXP_VERSION                           2	/* 0x2 */
@@ -81,7 +80,7 @@ void sftp_cleanup_request(void);
 
 struct fxp_attrs {
     unsigned long flags;
-    uint64 size;
+    uint64_t size;
     unsigned long uid;
     unsigned long gid;
     unsigned long permissions;
@@ -248,7 +247,7 @@ int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
  * Read from a file.
  */
 struct sftp_request *fxp_read_send(struct fxp_handle *handle,
-				   uint64 offset, int len);
+				   uint64_t offset, int len);
 int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
 		  char *buffer, int len);
 
@@ -256,7 +255,7 @@ int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
  * Write to a file. Returns 0 on error, 1 on OK.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
-				    void *buffer, uint64 offset, int len);
+				    void *buffer, uint64_t offset, int len);
 int fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
@@ -299,12 +298,12 @@ struct sftp_packet *sftp_recv(void);
 
 struct fxp_xfer;
 
-struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64 offset);
+struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64_t offset);
 void xfer_download_queue(struct fxp_xfer *xfer);
 int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
 int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len);
 
-struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64 offset);
+struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64_t offset);
 int xfer_upload_ready(struct fxp_xfer *xfer);
 void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len);
 int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
@@ -378,11 +377,11 @@ struct SftpServerVtable {
 
     /* Should call fxp_reply_error or fxp_reply_data */
     void (*read)(SftpServer *srv, SftpReplyBuilder *reply,
-                 ptrlen handle, uint64 offset, unsigned length);
+                 ptrlen handle, uint64_t offset, unsigned length);
 
     /* Should call fxp_reply_error or fxp_reply_ok */
     void (*write)(SftpServer *srv, SftpReplyBuilder *reply,
-                  ptrlen handle, uint64 offset, ptrlen data);
+                  ptrlen handle, uint64_t offset, ptrlen data);
 
     /* Should call fxp_reply_error, or fxp_reply_name_count once and
      * then fxp_reply_full_name that many times */

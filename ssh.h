@@ -4,7 +4,6 @@
 #include "puttymem.h"
 #include "tree234.h"
 #include "network.h"
-#include "int64.h"
 #include "misc.h"
 
 struct ssh_channel;
@@ -507,8 +506,6 @@ void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
 int rsa_ssh1_public_blob_len(void *data, int maxlen);
 void freersakey(struct RSAKey *key);
 
-typedef uint32 word32;
-
 unsigned long crc32_compute(const void *s, size_t len);
 unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
 
@@ -516,7 +513,7 @@ unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
 struct crcda_ctx;
 struct crcda_ctx *crcda_make_context(void);
 void crcda_free_context(struct crcda_ctx *ctx);
-int detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32 len,
+int detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32_t len,
 		  unsigned char *IV);
 
 /*
@@ -556,14 +553,14 @@ struct ssh2_cipheralg;
 typedef const struct ssh2_cipheralg *ssh2_cipher;
 
 typedef struct {
-    uint32 h[4];
+    uint32_t h[4];
 } MD5_Core_State;
 
 struct MD5Context {
     MD5_Core_State core;
     unsigned char block[64];
     int blkused;
-    uint32 lenhi, lenlo;
+    uint64_t len;
     BinarySink_IMPLEMENTATION;
 };
 
@@ -581,10 +578,10 @@ void hmacmd5_do_hmac(struct hmacmd5_context *ctx,
 int supports_sha_ni(void);
 
 typedef struct SHA_State {
-    uint32 h[5];
+    uint32_t h[5];
     unsigned char block[64];
     int blkused;
-    uint32 lenhi, lenlo;
+    uint64_t len;
     void (*sha1)(struct SHA_State * s, const unsigned char *p, int len);
     BinarySink_IMPLEMENTATION;
 } SHA_State;
@@ -596,10 +593,10 @@ void hmac_sha1_simple(const void *key, int keylen,
                       const void *data, int datalen,
 		      unsigned char *output);
 typedef struct SHA256_State {
-    uint32 h[8];
+    uint32_t h[8];
     unsigned char block[64];
     int blkused;
-    uint32 lenhi, lenlo;
+    uint64_t len;
     void (*sha256)(struct SHA256_State * s, const unsigned char *p, int len);
     BinarySink_IMPLEMENTATION;
 } SHA256_State;
@@ -608,10 +605,10 @@ void SHA256_Final(SHA256_State * s, unsigned char *output);
 void SHA256_Simple(const void *p, int len, unsigned char *output);
 
 typedef struct {
-    uint64 h[8];
+    uint64_t h[8];
     unsigned char block[128];
     int blkused;
-    uint32 len[4];
+    uint64_t lenhi, lenlo;
     BinarySink_IMPLEMENTATION;
 } SHA512_State;
 #define SHA384_State SHA512_State
@@ -898,7 +895,7 @@ extern const char sshver[];
  */
 extern int ssh_fallback_cmd(Backend *backend);
 
-void SHATransform(word32 * digest, word32 * data);
+void SHATransform(uint32_t *digest, uint32_t *data);
 
 /*
  * Check of compiler version

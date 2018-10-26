@@ -3,8 +3,6 @@
  * platform-specific SFTP module.
  */
 
-#include "int64.h"
-
 #ifndef PUTTY_PSFTP_H
 #define PUTTY_PSFTP_H
 
@@ -93,10 +91,10 @@ typedef struct RFile RFile;
 typedef struct WFile WFile;
 /* Output params size, perms, mtime and atime can all be NULL if
  * desired. perms will be -1 if the OS does not support POSIX permissions. */
-RFile *open_existing_file(const char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64_t *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms);
-WFile *open_existing_wfile(const char *name, uint64 *size);
+WFile *open_existing_wfile(const char *name, uint64_t *size);
 /* Returns <0 on error, 0 on eof, or number of bytes read, as usual */
 int read_from_file(RFile *f, void *buffer, int length);
 /* Closes and frees the RFile */
@@ -109,9 +107,9 @@ void set_file_times(WFile *f, unsigned long mtime, unsigned long atime);
 void close_wfile(WFile *f);
 /* Seek offset bytes through file */
 enum { FROM_START, FROM_CURRENT, FROM_END };
-int seek_file(WFile *f, uint64 offset, int whence);
+int seek_file(WFile *f, uint64_t offset, int whence);
 /* Get file position */
-uint64 get_file_posn(WFile *f);
+uint64_t get_file_posn(WFile *f);
 /*
  * Determine the type of a file: nonexistent, file, directory or
  * weird. `weird' covers anything else - named pipes, Unix sockets,

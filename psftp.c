@@ -14,7 +14,6 @@
 #include "storage.h"
 #include "ssh.h"
 #include "sftp.h"
-#include "int64.h"
 
 const char *const appname = "PSFTP";
 
@@ -234,7 +233,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     struct sftp_packet *pktin;
     struct sftp_request *req;
     struct fxp_xfer *xfer;
-    uint64 offset;
+    uint64_t offset;
     WFile *file;
     int ret, shown_err = FALSE;
     struct fxp_attrs attrs;
@@ -434,8 +433,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     }
 
     if (restart) {
-	char decbuf[30];
-	if (seek_file(file, uint64_make(0,0) , FROM_END) == -1) {
+	if (seek_file(file, 0, FROM_END) == -1) {
 	    close_wfile(file);
 	    printf("reget: cannot restart %s - file too large\n",
 		   outfname);
@@ -447,10 +445,9 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	}
 	    
 	offset = get_file_posn(file);
-	uint64_decimal(offset, decbuf);
-	printf("reget: restarting at file position %s\n", decbuf);
+	printf("reget: restarting at file position %"PRIu64"\n", offset);
     } else {
-	offset = uint64_make(0, 0);
+	offset = 0;
     }
 
     printf("remote:%s => local:%s\n", fname, outfname);
@@ -519,7 +516,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     struct fxp_xfer *xfer;
     struct sftp_packet *pktin;
     struct sftp_request *req;
-    uint64 offset;
+    uint64_t offset;
     RFile *file;
     int err = 0, eof;
     struct fxp_attrs attrs;
@@ -672,7 +669,6 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
     }
 
     if (restart) {
-	char decbuf[30];
 	struct fxp_attrs attrs;
         int ret;
 
@@ -691,13 +687,12 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
             goto cleanup;
 	}
 	offset = attrs.size;
-	uint64_decimal(offset, decbuf);
-	printf("reput: restarting at file position %s\n", decbuf);
+	printf("reput: restarting at file position %"PRIu64"\n", offset);
 
 	if (seek_file((WFile *)file, offset, FROM_START) != 0)
-	    seek_file((WFile *)file, uint64_make(0,0), FROM_END);    /* *shrug* */
+	    seek_file((WFile *)file, 0, FROM_END);    /* *shrug* */
     } else {
-	offset = uint64_make(0, 0);
+        offset = 0;
     }
 
     printf("local:%s => remote:%s\n", fname, outfname);

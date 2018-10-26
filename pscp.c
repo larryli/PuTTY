@@ -25,7 +25,6 @@
 #include "ssh.h"
 #include "sftp.h"
 #include "storage.h"
-#include "int64.h"
 
 static int list = 0;
 static int verbose = 0;
@@ -506,7 +505,7 @@ static void do_cmd(char *host, char *user, char *cmd)
 /*
  *  Update statistic information about current file.
  */
-static void print_stats(const char *name, uint64 size, uint64 done,
+static void print_stats(const char *name, uint64_t size, uint64_t done,
 			time_t start, time_t now)
 {
     float ratebs;
@@ -515,42 +514,34 @@ static void print_stats(const char *name, uint64 size, uint64 done,
     int pct;
     int len;
     int elap;
-    double donedbl;
-    double sizedbl;
 
     elap = (unsigned long) difftime(now, start);
 
     if (now > start)
-	ratebs = (float) (uint64_to_double(done) / elap);
+	ratebs = (float)done / elap;
     else
-	ratebs = (float) uint64_to_double(done);
+	ratebs = (float)done;
 
     if (ratebs < 1.0)
-	eta = (unsigned long) (uint64_to_double(uint64_subtract(size, done)));
-    else {
-        eta = (unsigned long)
-	    ((uint64_to_double(uint64_subtract(size, done)) / ratebs));
-    }
+	eta = size - done;
+    else
+        eta = (unsigned long)((size - done) / ratebs);
 
     etastr = dupprintf("%02ld:%02ld:%02ld",
 		       eta / 3600, (eta % 3600) / 60, eta % 60);
 
-    donedbl = uint64_to_double(done);
-    sizedbl = uint64_to_double(size);
-    pct = (int) (100 * (donedbl * 1.0 / sizedbl));
+    pct = (int) (100.0 * done / size);
 
     {
-	char donekb[40];
 	/* divide by 1024 to provide kB */
-	uint64_decimal(uint64_shift_right(done, 10), donekb);
-	len = printf("\r%-25.25s | %s kB | %5.1f kB/s | ETA: %8s | %3d%%",
-		     name,
-		     donekb, ratebs / 1024.0, etastr, pct);
+	len = printf("\r%-25.25s | %"PRIu64" kB | %5.1f kB/s | "
+                     "ETA: %8s | %3d%%", name, done >> 10,
+                     ratebs / 1024.0, etastr, pct);
 	if (len < prev_stats_len)
 	    printf("%*s", prev_stats_len - len, "");
 	prev_stats_len = len;
 
-	if (uint64_compare(done, size) == 0)
+	if (done == size)
             abandon_stats();
 
 	fflush(stdout);
@@ -743,7 +734,7 @@ static unsigned long scp_sftp_mtime, scp_sftp_atime;
 static int scp_has_times;
 static struct fxp_handle *scp_sftp_filehandle;
 static struct fxp_xfer *scp_sftp_xfer;
-static uint64 scp_sftp_fileoffset;
+static uint64_t scp_sftp_fileoffset;
 
 int scp_source_setup(const char *target, int shouldbedir)
 {
@@ -811,7 +802,7 @@ int scp_send_filetimes(unsigned long mtime, unsigned long atime)
     }
 }
 
-int scp_send_filename(const char *name, uint64 size, int permissions)
+int scp_send_filename(const char *name, uint64_t size, int permissions)
 {
     if (using_sftp) {
 	char *fullname;
@@ -841,18 +832,16 @@ int scp_send_filename(const char *name, uint64 size, int permissions)
 	    errs++;
 	    return 1;
 	}
-	scp_sftp_fileoffset = uint64_make(0, 0);
+	scp_sftp_fileoffset = 0;
 	scp_sftp_xfer = xfer_upload_init(scp_sftp_filehandle,
 					 scp_sftp_fileoffset);
 	sfree(fullname);
 	return 0;
     } else {
 	char *buf;
-	char sizestr[40];
-	uint64_decimal(size, sizestr);
         if (permissions < 0)
             permissions = 0644;
-	buf = dupprintf("C%04o %s ", (int)(permissions & 07777), sizestr);
+	buf = dupprintf("C%04o %"PRIu64" ", (int)(permissions & 07777), size);
         backend_send(backend, buf, strlen(buf));
         sfree(buf);
         backend_send(backend, name, strlen(name));
@@ -885,7 +874,7 @@ int scp_send_filedata(char *data, int len)
 
 	xfer_upload_data(scp_sftp_xfer, data, len);
 
-	scp_sftp_fileoffset = uint64_add32(scp_sftp_fileoffset, len);
+	scp_sftp_fileoffset += len;
 	return 0;
     } else {
         int bufsize = backend_send(backend, data, len);
@@ -1143,7 +1132,7 @@ struct scp_sink_action {
     char *buf;			       /* will need freeing after use */
     char *name;			       /* filename or dirname (not ENDDIR) */
     long permissions;  	       /* access permissions (not ENDDIR) */
-    uint64 size;		       /* file size (not ENDDIR) */
+    uint64_t size;                     /* file size (not ENDDIR) */
     int settime;		       /* 1 if atime and mtime are filled */
     unsigned long atime, mtime;	       /* access times for the file */
 };
@@ -1369,7 +1358,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->action = SCP_SINK_DIR;
 		act->buf = dupstr(stripslashes(fname, 0));
 		act->name = act->buf;
-		act->size = uint64_make(0,0);     /* duhh, it's a directory */
+		act->size = 0;     /* duhh, it's a directory */
 		act->permissions = 07777 & attrs.permissions;
 		if (scp_sftp_preserve &&
 		    (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
@@ -1391,7 +1380,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
 		act->size = attrs.size;
 	    } else
-		act->size = uint64_make(ULONG_MAX,ULONG_MAX);   /* no idea */
+		act->size = UINT64_MAX;   /* no idea */
 	    act->permissions = 07777 & attrs.permissions;
 	    if (scp_sftp_preserve &&
 		(attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME)) {
@@ -1476,12 +1465,9 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	 * SCP_SINK_DIR.
 	 */
 	{
-	    char sizestr[40];
-	
-            if (sscanf(act->buf, "%lo %39s %n", &act->permissions,
-                       sizestr, &i) != 2)
+            if (sscanf(act->buf, "%lo %"SCNu64" %n", &act->permissions,
+                       &act->size, &i) != 2)
 		bump("Protocol error: Illegal file descriptor format");
-	    act->size = uint64_from_decimal(sizestr);
 	    act->name = act->buf + i;
 	    return 0;
 	}
@@ -1504,7 +1490,7 @@ int scp_accept_filexfer(void)
 	    errs++;
 	    return 1;
 	}
-	scp_sftp_fileoffset = uint64_make(0, 0);
+	scp_sftp_fileoffset = 0;
 	scp_sftp_xfer = xfer_download_init(scp_sftp_filehandle,
 					   scp_sftp_fileoffset);
 	sfree(scp_sftp_currentname);
@@ -1552,7 +1538,7 @@ int scp_recv_filedata(char *data, int len)
 	} else
 	    actuallen = 0;
 
-	scp_sftp_fileoffset = uint64_add32(scp_sftp_fileoffset, actuallen);
+	scp_sftp_fileoffset += actuallen;
 
 	return actuallen;
     } else {
@@ -1625,14 +1611,14 @@ static void run_err(const char *fmt, ...)
  */
 static void source(const char *src)
 {
-    uint64 size;
+    uint64_t size;
     unsigned long mtime, atime;
     long permissions;
     const char *last;
     RFile *f;
     int attr;
-    uint64 i;
-    uint64 stat_bytes;
+    uint64_t i;
+    uint64_t stat_bytes;
     time_t stat_starttime, stat_lasttime;
 
     attr = file_type(src);
@@ -1688,28 +1674,24 @@ static void source(const char *src)
     }
 
     if (verbose) {
-	char sizestr[40];
-	uint64_decimal(size, sizestr);
-	tell_user(stderr, "Sending file %s, size=%s", last, sizestr);
+	tell_user(stderr, "Sending file %s, size=%"PRIu64, last, size);
     }
     if (scp_send_filename(last, size, permissions)) {
         close_rfile(f);
 	return;
     }
 
-    stat_bytes = uint64_make(0,0);
+    stat_bytes = 0;
     stat_starttime = time(NULL);
     stat_lasttime = 0;
 
 #define PSCP_SEND_BLOCK 4096
-    for (i = uint64_make(0,0);
-	 uint64_compare(i,size) < 0;
-	 i = uint64_add32(i,PSCP_SEND_BLOCK)) {
+    for (i = 0; i < size; i += PSCP_SEND_BLOCK) {
 	char transbuf[PSCP_SEND_BLOCK];
 	int j, k = PSCP_SEND_BLOCK;
 
-	if (uint64_compare(uint64_add32(i, k),size) > 0) /* i + k > size */ 
-	    k = (uint64_subtract(size, i)).lo; 	/* k = size - i; */
+	if (i + k > size)
+	    k = size - i;
 	if ((j = read_from_file(f, transbuf, k)) != k) {
 	    bump("%s: Read error", src);
 	}
@@ -1717,9 +1699,8 @@ static void source(const char *src)
 	    bump("%s: Network error occurred", src);
 
 	if (statistics) {
-	    stat_bytes = uint64_add32(stat_bytes, k);
-	    if (time(NULL) != stat_lasttime ||
-		(uint64_compare(uint64_add32(i, k), size) == 0)) {
+	    stat_bytes += k;
+	    if (time(NULL) != stat_lasttime || i + k == size) {
 		stat_lasttime = time(NULL);
 		print_stats(last, size, stat_bytes,
 			    stat_starttime, stat_lasttime);
@@ -1786,9 +1767,9 @@ static void sink(const char *targ, const char *src)
     int exists;
     int attr;
     WFile *f;
-    uint64 received;
+    uint64_t received;
     int wrerror = 0;
-    uint64 stat_bytes;
+    uint64_t stat_bytes;
     time_t stat_starttime, stat_lasttime;
     char *stat_name;
 
@@ -1926,24 +1907,24 @@ static void sink(const char *targ, const char *src)
 	    return;
         }
 
-	stat_bytes = uint64_make(0, 0);
+	stat_bytes = 0;
 	stat_starttime = time(NULL);
 	stat_lasttime = 0;
 	stat_name = stripslashes(destfname, 1);
 
-	received = uint64_make(0, 0);
-	while (uint64_compare(received,act.size) < 0) {
+	received = 0;
+	while (received < act.size) {
 	    char transbuf[32768];
-	    uint64 blksize;
+	    uint64_t blksize;
 	    int read;
-	    blksize = uint64_make(0, 32768);
-	    if (uint64_compare(blksize,uint64_subtract(act.size,received)) > 0)
-	      blksize = uint64_subtract(act.size,received);
-	    read = scp_recv_filedata(transbuf, (int)blksize.lo);
+	    blksize = 32768;
+	    if (blksize > act.size - received)
+                blksize = act.size - received;
+	    read = scp_recv_filedata(transbuf, (int)blksize);
 	    if (read <= 0)
 		bump("Lost connection");
 	    if (wrerror) {
-                received = uint64_add32(received, read);
+                received += read;
 		continue;
             }
 	    if (write_to_file(f, transbuf, read) != (int)read) {
@@ -1953,19 +1934,19 @@ static void sink(const char *targ, const char *src)
 		    printf("\r%-25.25s | %50s\n",
 			   stat_name,
 			   "Write error.. waiting for end of file");
-                received = uint64_add32(received, read);
+                received += read;
 		continue;
 	    }
 	    if (statistics) {
-		stat_bytes = uint64_add32(stat_bytes,read);
+		stat_bytes += read;
 		if (time(NULL) > stat_lasttime ||
-		    uint64_compare(uint64_add32(received, read), act.size) == 0) {
+                    received + read == act.size) {
 		    stat_lasttime = time(NULL);
 		    print_stats(stat_name, act.size, stat_bytes,
 				stat_starttime, stat_lasttime);
 		}
 	    }
-	    received = uint64_add32(received, read);
+	    received += read;
 	}
 	if (act.settime) {
 	    set_file_times(f, act.mtime, act.atime);

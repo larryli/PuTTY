@@ -9,7 +9,6 @@
 #include <limits.h>
 
 #include "misc.h"
-#include "int64.h"
 #include "tree234.h"
 #include "sftp.h"
 
@@ -683,7 +682,7 @@ int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req)
  * error indicator. It might even depend on the SFTP server.)
  */
 struct sftp_request *fxp_read_send(struct fxp_handle *handle,
-				   uint64 offset, int len)
+				   uint64_t offset, int len)
 {
     struct sftp_request *req = sftp_alloc_request();
     struct sftp_packet *pktout;
@@ -812,7 +811,7 @@ struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
  * Write to a file. Returns 0 on error, 1 on OK.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
-				    void *buffer, uint64 offset, int len)
+				    void *buffer, uint64_t offset, int len)
 {
     struct sftp_request *req = sftp_alloc_request();
     struct sftp_packet *pktout;
@@ -894,18 +893,18 @@ void fxp_set_userdata(struct sftp_request *req, void *data)
 struct req {
     char *buffer;
     int len, retlen, complete;
-    uint64 offset;
+    uint64_t offset;
     struct req *next, *prev;
 };
 
 struct fxp_xfer {
-    uint64 offset, furthestdata, filesize;
+    uint64_t offset, furthestdata, filesize;
     int req_totalsize, req_maxsize, eof, err;
     struct fxp_handle *fh;
     struct req *head, *tail;
 };
 
-static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64 offset)
+static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64_t offset)
 {
     struct fxp_xfer *xfer = snew(struct fxp_xfer);
 
@@ -915,8 +914,8 @@ static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64 offset)
     xfer->req_totalsize = 0;
     xfer->req_maxsize = 1048576;
     xfer->err = 0;
-    xfer->filesize = uint64_make(ULONG_MAX, ULONG_MAX);
-    xfer->furthestdata = uint64_make(0, 0);
+    xfer->filesize = UINT64_MAX;
+    xfer->furthestdata = 0;
 
     return xfer;
 }
@@ -958,16 +957,16 @@ void xfer_download_queue(struct fxp_xfer *xfer)
 	sftp_register(req = fxp_read_send(xfer->fh, rr->offset, rr->len));
 	fxp_set_userdata(req, rr);
 
-	xfer->offset = uint64_add32(xfer->offset, rr->len);
+	xfer->offset += rr->len;
 	xfer->req_totalsize += rr->len;
 
 #ifdef DEBUG_DOWNLOAD
-	{ char buf[40]; uint64_decimal(rr->offset, buf); printf("queueing read request %p at %s\n", rr, buf); }
+        printf("queueing read request %p at %"PRIu64"\n", rr, rr->offset);
 #endif
     }
 }
 
-struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64 offset)
+struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64_t offset)
 {
     struct fxp_xfer *xfer = xfer_init(fh, offset);
 
@@ -1027,24 +1026,19 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
      * I simply shouldn't have been queueing multiple requests in
      * the first place...
      */
-    if (rr->retlen > 0 && uint64_compare(xfer->furthestdata, rr->offset) < 0) {
+    if (rr->retlen > 0 && xfer->furthestdata < rr->offset) {
 	xfer->furthestdata = rr->offset;
 #ifdef DEBUG_DOWNLOAD
-	{ char buf[40];
-	uint64_decimal(xfer->furthestdata, buf);
-	printf("setting furthestdata = %s\n", buf); }
+	printf("setting furthestdata = %"PRIu64"\n", xfer->furthestdata);
 #endif
     }
 
     if (rr->retlen < rr->len) {
-	uint64 filesize = uint64_add32(rr->offset,
-				       (rr->retlen < 0 ? 0 : rr->retlen));
+	uint64_t filesize = rr->offset + (rr->retlen < 0 ? 0 : rr->retlen);
 #ifdef DEBUG_DOWNLOAD
-	{ char buf[40];
-	uint64_decimal(filesize, buf);
-	printf("short block! trying filesize = %s\n", buf); }
+	printf("short block! trying filesize = %"PRIu64"\n", filesize);
 #endif
-	if (uint64_compare(xfer->filesize, filesize) > 0) {
+	if (xfer->filesize > filesize) {
 	    xfer->filesize = filesize;
 #ifdef DEBUG_DOWNLOAD
 	    printf("actually changing filesize\n");
@@ -1052,7 +1046,7 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 	}
     }
 
-    if (uint64_compare(xfer->furthestdata, xfer->filesize) > 0) {
+    if (xfer->furthestdata > xfer->filesize) {
 	fxp_error_message = "received a short buffer from FXP_READ, but not"
 	    " at EOF";
 	fxp_errtype = -1;
@@ -1109,7 +1103,7 @@ int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
 	return 0;
 }
 
-struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64 offset)
+struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64_t offset)
 {
     struct fxp_xfer *xfer = xfer_init(fh, offset);
 
@@ -1157,11 +1151,12 @@ void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len)
     sftp_register(req = fxp_write_send(xfer->fh, buffer, rr->offset, len));
     fxp_set_userdata(req, rr);
 
-    xfer->offset = uint64_add32(xfer->offset, rr->len);
+    xfer->offset += rr->len;
     xfer->req_totalsize += rr->len;
 
 #ifdef DEBUG_UPLOAD
-    { char buf[40]; uint64_decimal(rr->offset, buf); printf("queueing write request %p at %s [len %d]\n", rr, buf, len); }
+    printf("queueing write request %p at %"PRIu64" [len %d]\n",
+           rr, rr->offset, len);
 #endif
 }
 

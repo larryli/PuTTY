@@ -381,7 +381,7 @@ struct ScpSource {
     strbuf *pending_commands[3];
     int n_pending_commands;
 
-    uint64 file_offset, file_size;
+    uint64_t file_offset, file_size;
 
     ScpReplyReceiver reply;
 
@@ -535,7 +535,7 @@ static void scp_source_send_E(ScpSource *scp)
 
 static void scp_source_send_CD(
     ScpSource *scp, char cmdchar,
-    struct fxp_attrs attrs, uint64 size, ptrlen name)
+    struct fxp_attrs attrs, uint64_t size, ptrlen name)
 {
     strbuf *cmd;
 
@@ -547,18 +547,15 @@ static void scp_source_send_CD(
         strbuf_catf(cmd, "T%lu 0 %lu 0\012", attrs.mtime, attrs.atime);
     }
 
-    char sizebuf[32];
-    uint64_decimal(size, sizebuf);
-
     const char *slash;
     while ((slash = memchr(name.ptr, '/', name.len)) != NULL)
         name = make_ptrlen(
             slash+1, name.len - (slash+1 - (const char *)name.ptr));
  
     scp->pending_commands[scp->n_pending_commands++] = cmd = strbuf_new();
-    strbuf_catf(cmd, "%c%04o %s %.*s\012", cmdchar,
+    strbuf_catf(cmd, "%c%04o %"PRIu64" %.*s\012", cmdchar,
                 (unsigned)(attrs.permissions & 07777),
-                sizebuf, PTRLEN_PRINTF(name));
+                size, PTRLEN_PRINTF(name));
 
     if (cmdchar == 'C') {
         /* We'll also wait for an ack before sending the file data,
@@ -626,8 +623,7 @@ static void scp_source_process_stack(ScpSource *scp)
     /*
      * Mostly, we start by waiting for an ack byte from the receiver.
      */
-    if (scp->head && scp->head->type == SCP_READFILE &&
-        uint64_compare(scp->file_offset, uint64_make(0, 0)) != 0) {
+    if (scp->head && scp->head->type == SCP_READFILE && scp->file_offset) {
         /*
          * Exception: if we're already in the middle of transferring a
          * file, we'll be called back here because the channel backlog
@@ -717,14 +713,12 @@ static void scp_source_process_stack(ScpSource *scp)
          * Transfer file data if our backlog hasn't filled up.
          */
         int backlog;
-        uint64 remaining =
-            uint64_subtract(scp->file_size, scp->file_offset);
-        uint64 limit = uint64_make(0, 4096);
-        if (uint64_compare(remaining, limit) < 0)
-            limit = remaining;
-        if (limit.lo > 0) {
+        uint64_t limit = scp->file_size - scp->file_offset;
+        if (limit > 4096)
+            limit = 4096;
+        if (limit > 0) {
             sftpsrv_read(scp->sf, &scp->reply.srb, scp->head->handle,
-                         scp->file_offset, limit.lo);
+                         scp->file_offset, limit);
             if (scp->reply.err) {
                 scp_source_abort(
                     scp, "%.*s: unable to read: %s",
@@ -734,8 +728,7 @@ static void scp_source_process_stack(ScpSource *scp)
 
             backlog = sshfwd_write(
                 scp->sc, scp->reply.data.ptr, scp->reply.data.len);
-            scp->file_offset = uint64_add(
-                scp->file_offset, uint64_make(0, scp->reply.data.len));
+            scp->file_offset += scp->reply.data.len;
 
             if (backlog < SCP_MAX_BACKLOG)
                 scp_requeue(scp);
@@ -819,8 +812,7 @@ static void scp_source_process_stack(ScpSource *scp)
         assert(scp->recursive || node->wildcard);
 
         if (!node->wildcard)
-            scp_source_send_CD(scp, 'D', node->attrs,
-                               uint64_make(0, 0), node->pathname);
+            scp_source_send_CD(scp, 'D', node->attrs, 0, node->pathname);
         sftpsrv_opendir(scp->sf, &scp->reply.srb, node->pathname);
         if (scp->reply.err) {
             scp_source_err(
@@ -855,7 +847,7 @@ static void scp_source_process_stack(ScpSource *scp)
             scp_requeue(scp);
             return;
         }
-        scp->file_offset = uint64_make(0, 0);
+        scp->file_offset = 0;
         scp->file_size = scp->reply.attrs.size;
         scp_source_send_CD(scp, 'C', node->attrs,
                            scp->file_size, node->pathname);
@@ -943,7 +935,7 @@ struct ScpSink {
     SshChannel *sc;
     ScpSinkStackEntry *head;
 
-    uint64 file_offset, file_size;
+    uint64_t file_offset, file_size;
     unsigned long atime, mtime;
     int got_file_times;
 
@@ -1135,7 +1127,7 @@ static void scp_sink_coroutine(ScpSink *scp)
             if (*p != ' ')
                 goto parse_error;
             p++;
-            scp->file_size = uint64_from_decimal(q);
+            scp->file_size = strtoull(q, NULL, 10);
 
             ptrlen leafname = make_ptrlen(
                 p, scp->command->len - (p - scp->command->s));
@@ -1185,11 +1177,11 @@ static void scp_sink_coroutine(ScpSink *scp)
                  * Now send an ack, and read the file data.
                  */
                 sshfwd_write(scp->sc, "\0", 1);
-                scp->file_offset = uint64_make(0, 0);
-                while (uint64_compare(scp->file_offset, scp->file_size) < 0) {
+                scp->file_offset = 0;
+                while (scp->file_offset < scp->file_size) {
                     void *vdata;
                     int len;
-                    uint64 this_len, remaining;
+                    uint64_t this_len, remaining;
 
                     crMaybeWaitUntilV(
                         scp->input_eof || bufchain_size(&scp->data) > 0);
@@ -1200,22 +1192,21 @@ static void scp_sink_coroutine(ScpSink *scp)
                     }
 
                     bufchain_prefix(&scp->data, &vdata, &len);
-                    this_len = uint64_make(0, len);
-                    remaining = uint64_subtract(
-                        scp->file_size, scp->file_offset);
-                    if (uint64_compare(this_len, remaining) > 0)
+                    this_len = len;
+                    remaining = scp->file_size - scp->file_offset;
+                    if (this_len > remaining)
                         this_len = remaining;
                     sftpsrv_write(scp->sf, &scp->reply.srb,
                                   scp->reply.handle, scp->file_offset,
-                                  make_ptrlen(vdata, this_len.lo));
+                                  make_ptrlen(vdata, this_len));
                     if (scp->reply.err) {
                         scp->errmsg = dupprintf(
                             "'%.*s': unable to write to file: %s",
                             PTRLEN_PRINTF(scp->filename), scp->reply.errmsg);
                         goto done;
                     }
-                    bufchain_consume(&scp->data, this_len.lo);
-                    scp->file_offset = uint64_add(scp->file_offset, this_len);
+                    bufchain_consume(&scp->data, this_len);
+                    scp->file_offset += this_len;
                 }
 
                 /*

@@ -12,6 +12,15 @@
 #define PUTTY_DEFS_H
 
 #include <stddef.h>
+#include <stdint.h>
+
+#if defined _MSC_VER && _MSC_VER < 1800
+/* Work around lack of inttypes.h in older MSVC */
+#define PRIu64 "I64u"
+#define SCNu64 "I64u"
+#else
+#include <inttypes.h>
+#endif
 
 #ifndef FALSE
 #define FALSE 0
@@ -31,9 +40,6 @@ typedef struct bufchain_tag bufchain;
 typedef struct strbuf strbuf;
 
 struct RSAKey;
-
-#include <stdint.h>
-typedef uint32_t uint32;
 
 typedef struct BinarySink BinarySink;
 typedef struct BinarySource BinarySource;

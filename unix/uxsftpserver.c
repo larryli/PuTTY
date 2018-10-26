@@ -356,11 +356,6 @@ static void uss_rename(SftpServer *srv, SftpReplyBuilder *reply,
     }
 }
 
-static uint64 uint64_from_off_t(off_t off)
-{
-    return uint64_make((off >> 16) >> 16, (off & 0xFFFFFFFFU));
-}
-
 static struct fxp_attrs uss_translate_struct_stat(const struct stat *st)
 {
     struct fxp_attrs attrs;
@@ -370,7 +365,7 @@ static struct fxp_attrs uss_translate_struct_stat(const struct stat *st)
                    SSH_FILEXFER_ATTR_UIDGID |
                    SSH_FILEXFER_ATTR_ACMODTIME);
 
-    attrs.size = uint64_from_off_t(st->st_size);
+    attrs.size = st->st_size;
     attrs.permissions = st->st_mode;
     attrs.uid = st->st_uid;
     attrs.gid = st->st_gid;
@@ -421,11 +416,6 @@ static void uss_fstat(SftpServer *srv, SftpReplyBuilder *reply,
     }
 }
 
-static off_t uint64_to_off_t(uint64 u)
-{
-    return ((((off_t)u.hi) << 16) << 16) | (off_t)u.lo;
-}
-
 /*
  * The guts of setstat and fsetstat, macroised so that they can call
  * fchown(fd,...) or chown(path,...) depending on parameters.
@@ -433,8 +423,7 @@ static off_t uint64_to_off_t(uint64 u)
 #define SETSTAT_GUTS(api_prefix, api_arg, attrs, success) do            \
     {                                                                   \
         if (attrs.flags & SSH_FILEXFER_ATTR_SIZE)                       \
-            if (api_prefix(truncate)(                                   \
-                    api_arg, uint64_to_off_t(attrs.size)) < 0)          \
+            if (api_prefix(truncate)(api_arg, attrs.size) < 0)          \
                 success = FALSE;                                        \
         if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID)                     \
             if (api_prefix(chown)(api_arg, attrs.uid, attrs.gid) < 0)   \
@@ -492,7 +481,7 @@ static void uss_fsetstat(SftpServer *srv, SftpReplyBuilder *reply,
 }
 
 static void uss_read(SftpServer *srv, SftpReplyBuilder *reply,
-                     ptrlen handle, uint64 offset, unsigned length)
+                     ptrlen handle, uint64_t offset, unsigned length)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     int fd;
@@ -513,7 +502,7 @@ static void uss_read(SftpServer *srv, SftpReplyBuilder *reply,
 
     char *p = buf;
 
-    int status = lseek(fd, uint64_to_off_t(offset), SEEK_SET);
+    int status = lseek(fd, offset, SEEK_SET);
     if (status >= 0 || errno == ESPIPE) {
         int seekable = (status >= 0);
         while (length > 0) {
@@ -549,7 +538,7 @@ static void uss_read(SftpServer *srv, SftpReplyBuilder *reply,
 }
 
 static void uss_write(SftpServer *srv, SftpReplyBuilder *reply,
-                     ptrlen handle, uint64 offset, ptrlen data)
+                     ptrlen handle, uint64_t offset, ptrlen data)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     int fd;
@@ -560,7 +549,7 @@ static void uss_write(SftpServer *srv, SftpReplyBuilder *reply,
     const char *p = data.ptr;
     unsigned length = data.len;
 
-    int status = lseek(fd, uint64_to_off_t(offset), SEEK_SET);
+    int status = lseek(fd, offset, SEEK_SET);
     if (status >= 0 || errno == ESPIPE) {
 
         while (length > 0) {
@@ -609,7 +598,7 @@ static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
 #if defined HAVE_FSTATAT && defined HAVE_DIRFD
         struct stat st;
         if (!fstatat(dirfd(udh->dp), de->d_name, &st, AT_SYMLINK_NOFOLLOW)) {
-            char perms[11], sizebuf[32], *uidbuf = NULL, *gidbuf = NULL;
+            char perms[11], *uidbuf = NULL, *gidbuf = NULL;
             struct passwd *pwd;
             struct group *grp;
             const char *user, *group;
@@ -660,13 +649,11 @@ static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
                 else
                     group = gidbuf = dupprintf("%u", (unsigned)st.st_gid);
 
-                uint64_decimal(uint64_from_off_t(st.st_size), sizebuf);
-
                 tm = *localtime(&st.st_mtime);
 
                 longnamebuf = dupprintf(
-                    "%s %3u %-8s %-8s %8s %.3s %2d %02d:%02d %s",
-                    perms, (unsigned)st.st_nlink, user, group, sizebuf,
+                    "%s %3u %-8s %-8s %8"PRIu64" %.3s %2d %02d:%02d %s",
+                    perms, (unsigned)st.st_nlink, user, group, st.st_size,
                     (&"JanFebMarAprMayJunJulAugSepOctNovDec"[3*tm.tm_mon]),
                     tm.tm_mday, tm.tm_hour, tm.tm_min, de->d_name);
                 longname = ptrlen_from_asciz(longnamebuf);

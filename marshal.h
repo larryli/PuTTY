@@ -76,8 +76,7 @@ struct BinarySink {
  * first parameter of any of these put_* macros.
  */
 
-/* Basic big-endian integer types. uint64 is the structure type
- * defined in int64.h, not the C99 built-in type. */
+/* Basic big-endian integer types. */
 #define put_byte(bs, val) \
     BinarySink_put_byte(BinarySink_UPCAST(bs), val)
 #define put_uint16(bs, val) \
@@ -146,6 +145,7 @@ void BinarySink_put_byte(BinarySink *, unsigned char);
 void BinarySink_put_bool(BinarySink *, int);
 void BinarySink_put_uint16(BinarySink *, unsigned long);
 void BinarySink_put_uint32(BinarySink *, unsigned long);
+void BinarySink_put_uint64(BinarySink *, uint64_t);
 void BinarySink_put_string(BinarySink *, const void *data, size_t len);
 void BinarySink_put_stringpl(BinarySink *, ptrlen);
 void BinarySink_put_stringz(BinarySink *, const char *str);
@@ -277,6 +277,7 @@ unsigned char BinarySource_get_byte(BinarySource *);
 int BinarySource_get_bool(BinarySource *);
 unsigned BinarySource_get_uint16(BinarySource *);
 unsigned long BinarySource_get_uint32(BinarySource *);
+uint64_t BinarySource_get_uint64(BinarySource *);
 ptrlen BinarySource_get_string(BinarySource *);
 const char *BinarySource_get_asciz(BinarySource *);
 ptrlen BinarySource_get_pstring(BinarySource *);

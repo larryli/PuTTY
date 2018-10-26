@@ -4,7 +4,6 @@
 
 #include "marshal.h"
 #include "misc.h"
-#include "int64.h"
 
 void BinarySink_put_data(BinarySink *bs, const void *data, size_t len)
 {
@@ -47,10 +46,11 @@ void BinarySink_put_uint32(BinarySink *bs, unsigned long val)
     bs->write(bs, data, sizeof(data));
 }
 
-void BinarySink_put_uint64(BinarySink *bs, uint64 val)
+void BinarySink_put_uint64(BinarySink *bs, uint64_t val)
 {
-    BinarySink_put_uint32(bs, val.hi);
-    BinarySink_put_uint32(bs, val.lo);
+    unsigned char data[8];
+    PUT_64BIT_MSB_FIRST(data, val);
+    bs->write(bs, data, sizeof(data));
 }
 
 void BinarySink_put_string(BinarySink *bs, const void *data, size_t len)
@@ -167,20 +167,15 @@ unsigned long BinarySource_get_uint32(BinarySource *src)
     return GET_32BIT_MSB_FIRST(ucp);
 }
 
-uint64 BinarySource_get_uint64(BinarySource *src)
+uint64_t BinarySource_get_uint64(BinarySource *src)
 {
     const unsigned char *ucp;
-    uint64 toret;
 
-    if (!avail(8)) {
-        toret.hi = toret.lo = 0;
-        return toret;
-    }
+    if (!avail(8))
+        return 0;
 
     ucp = consume(8);
-    toret.hi = GET_32BIT_MSB_FIRST(ucp);
-    toret.lo = GET_32BIT_MSB_FIRST(ucp + 4);
-    return toret;
+    return GET_64BIT_MSB_FIRST(ucp);
 }
 
 ptrlen BinarySource_get_string(BinarySource *src)

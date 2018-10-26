@@ -20,7 +20,6 @@
 #include "putty.h"
 #include "ssh.h"
 #include "psftp.h"
-#include "int64.h"
 
 /*
  * In PSFTP our selects are synchronous, so these functions are
@@ -118,7 +117,7 @@ struct RFile {
     int fd;
 };
 
-RFile *open_existing_file(const char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64_t *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms)
 {
@@ -140,8 +139,7 @@ RFile *open_existing_file(const char *name, uint64 *size,
 	}
 
 	if (size)
-	    *size = uint64_make((statbuf.st_size >> 16) >> 16,
-				statbuf.st_size);
+	    *size = statbuf.st_size;
 	 	
 	if (mtime)
 	    *mtime = statbuf.st_mtime;
@@ -190,7 +188,7 @@ WFile *open_new_file(const char *name, long perms)
 }
 
 
-WFile *open_existing_wfile(const char *name, uint64 *size)
+WFile *open_existing_wfile(const char *name, uint64_t *size)
 {
     int fd;
     WFile *ret;
@@ -210,8 +208,7 @@ WFile *open_existing_wfile(const char *name, uint64 *size)
 	    memset(&statbuf, 0, sizeof(statbuf));
 	}
 
-	*size = uint64_make((statbuf.st_size >> 16) >> 16,
-			    statbuf.st_size);
+	*size = statbuf.st_size;
     }
 
     return ret;
@@ -260,13 +257,10 @@ void close_wfile(WFile *f)
 
 /* Seek offset bytes through file, from whence, where whence is
    FROM_START, FROM_CURRENT, or FROM_END */
-int seek_file(WFile *f, uint64 offset, int whence)
+int seek_file(WFile *f, uint64_t offset, int whence)
 {
-    off_t fileofft;
     int lseek_whence;
     
-    fileofft = (((off_t) offset.hi << 16) << 16) + offset.lo;
-
     switch (whence) {
     case FROM_START:
 	lseek_whence = SEEK_SET;
@@ -281,19 +275,12 @@ int seek_file(WFile *f, uint64 offset, int whence)
 	return -1;
     }
 
-    return lseek(f->fd, fileofft, lseek_whence) >= 0 ? 0 : -1;
+    return lseek(f->fd, offset, lseek_whence) >= 0 ? 0 : -1;
 }
 
-uint64 get_file_posn(WFile *f)
+uint64_t get_file_posn(WFile *f)
 {
-    off_t fileofft;
-    uint64 ret;
-
-    fileofft = lseek(f->fd, (off_t) 0, SEEK_CUR);
-
-    ret = uint64_make((fileofft >> 16) >> 16, fileofft);
-
-    return ret;
+    return lseek(f->fd, (off_t) 0, SEEK_CUR);
 }
 
 int file_type(const char *name)

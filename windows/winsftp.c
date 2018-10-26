@@ -10,7 +10,6 @@
 #include "putty.h"
 #include "psftp.h"
 #include "ssh.h"
-#include "int64.h"
 #include "winsecur.h"
 
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
@@ -71,6 +70,11 @@ char *psftp_getcwd(void)
     return ret;
 }
 
+static inline uint64_t uint64_from_words(uint32_t hi, uint32_t lo)
+{
+    return (((uint64_t)hi) << 32) | lo;
+}
+
 #define TIME_POSIX_TO_WIN(t, ft) do { \
     ULARGE_INTEGER uli; \
     uli.QuadPart = ((ULONGLONG)(t) + 11644473600ull) * 10000000ull; \
@@ -89,7 +93,7 @@ struct RFile {
     HANDLE h;
 };
 
-RFile *open_existing_file(const char *name, uint64 *size,
+RFile *open_existing_file(const char *name, uint64_t *size,
 			  unsigned long *mtime, unsigned long *atime,
                           long *perms)
 {
@@ -107,8 +111,7 @@ RFile *open_existing_file(const char *name, uint64 *size,
     if (size) {
         DWORD lo, hi;
         lo = GetFileSize(h, &hi);
-        size->lo = lo;
-        size->hi = hi;
+        *size = uint64_from_words(hi, lo);
     }
 
     if (mtime || atime) {
@@ -163,7 +166,7 @@ WFile *open_new_file(const char *name, long perms)
     return ret;
 }
 
-WFile *open_existing_wfile(const char *name, uint64 *size)
+WFile *open_existing_wfile(const char *name, uint64_t *size)
 {
     HANDLE h;
     WFile *ret;
@@ -179,8 +182,7 @@ WFile *open_existing_wfile(const char *name, uint64 *size)
     if (size) {
         DWORD lo, hi;
         lo = GetFileSize(h, &hi);
-        size->lo = lo;
-        size->hi = hi;
+        *size = uint64_from_words(hi, lo);
     }
 
     return ret;
@@ -213,7 +215,7 @@ void close_wfile(WFile *f)
 
 /* Seek offset bytes through file, from whence, where whence is
    FROM_START, FROM_CURRENT, or FROM_END */
-int seek_file(WFile *f, uint64 offset, int whence)
+int seek_file(WFile *f, uint64_t offset, int whence)
 {
     DWORD movemethod;
 
@@ -232,7 +234,7 @@ int seek_file(WFile *f, uint64 offset, int whence)
     }
 
     {
-        LONG lo = offset.lo, hi = offset.hi;
+        LONG lo = offset & 0xFFFFFFFFU, hi = offset >> 32;
         SetFilePointer(f->h, lo, &hi, movemethod);
     }
     
@@ -242,16 +244,12 @@ int seek_file(WFile *f, uint64 offset, int whence)
 	return 0;
 }
 
-uint64 get_file_posn(WFile *f)
+uint64_t get_file_posn(WFile *f)
 {
-    uint64 ret;
     LONG lo, hi = 0;
 
     lo = SetFilePointer(f->h, 0L, &hi, FILE_CURRENT);
-    ret.lo = lo;
-    ret.hi = hi;
-
-    return ret;
+    return uint64_from_words(hi, lo);
 }
 
 int file_type(const char *name)
