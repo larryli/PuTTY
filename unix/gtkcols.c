@@ -6,6 +6,18 @@
 #include "gtkcompat.h"
 #include "gtkcols.h"
 
+#if GTK_CHECK_VERSION(2,0,0)
+/* The "focus" method lives in GtkWidget from GTK 2 onwards, but it
+ * was in GtkContainer in GTK 1 */
+#define FOCUS_METHOD_SUPERCLASS GtkWidget
+#define FOCUS_METHOD_LOCATION widget_class /* used in columns_init */
+#define CHILD_FOCUS(cont, dir) gtk_widget_child_focus(GTK_WIDGET(cont), dir)
+#else
+#define FOCUS_METHOD_SUPERCLASS GtkContainer
+#define FOCUS_METHOD_LOCATION container_class
+#define CHILD_FOCUS(cont, dir) gtk_container_focus(GTK_CONTAINER(cont), dir)
+#endif
+
 static void columns_init(Columns *cols);
 static void columns_class_init(ColumnsClass *klass);
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -23,9 +35,8 @@ static void columns_base_add(GtkContainer *container, GtkWidget *widget);
 static void columns_remove(GtkContainer *container, GtkWidget *widget);
 static void columns_forall(GtkContainer *container, gboolean include_internals,
                            GtkCallback callback, gpointer callback_data);
-#if !GTK_CHECK_VERSION(2,0,0)
-static gint columns_focus(GtkContainer *container, GtkDirectionType dir);
-#endif
+static gint columns_focus(FOCUS_METHOD_SUPERCLASS *container,
+                          GtkDirectionType dir);
 static GType columns_child_type(GtkContainer *container);
 #if GTK_CHECK_VERSION(3,0,0)
 static void columns_get_preferred_width(GtkWidget *widget,
@@ -93,10 +104,8 @@ GType columns_get_type(void)
 }
 #endif
 
-#if !GTK_CHECK_VERSION(2,0,0)
-static gint (*columns_inherited_focus)(GtkContainer *container,
+static gint (*columns_inherited_focus)(FOCUS_METHOD_SUPERCLASS *container,
 				       GtkDirectionType direction);
-#endif
 
 static void columns_class_init(ColumnsClass *klass)
 {
@@ -139,12 +148,11 @@ static void columns_class_init(ColumnsClass *klass)
     container_class->remove = columns_remove;
     container_class->forall = columns_forall;
     container_class->child_type = columns_child_type;
-#if !GTK_CHECK_VERSION(2,0,0)
+
     /* Save the previous value of this method. */
     if (!columns_inherited_focus)
-	columns_inherited_focus = container_class->focus;
-    container_class->focus = columns_focus;
-#endif
+	columns_inherited_focus = FOCUS_METHOD_LOCATION->focus;
+    FOCUS_METHOD_LOCATION->focus = columns_focus;
 }
 
 static void columns_init(Columns *cols)
@@ -362,9 +370,6 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
 
         cols->taborder = g_list_remove_link(cols->taborder, children);
         g_list_free(children);
-#if GTK_CHECK_VERSION(2,0,0)
-	gtk_container_set_focus_chain(container, cols->taborder);
-#endif
         break;
     }
 }
@@ -463,10 +468,6 @@ void columns_add(Columns *cols, GtkWidget *child,
 
     gtk_widget_set_parent(child, GTK_WIDGET(cols));
 
-#if GTK_CHECK_VERSION(2,0,0)
-    gtk_container_set_focus_chain(GTK_CONTAINER(cols), cols->taborder);
-#endif
-
     if (gtk_widget_get_realized(GTK_WIDGET(cols)))
         gtk_widget_realize(child);
 
@@ -548,38 +549,34 @@ void columns_taborder_last(Columns *cols, GtkWidget *widget)
         cols->taborder = g_list_remove_link(cols->taborder, children);
         g_list_free(children);
 	cols->taborder = g_list_append(cols->taborder, widget);
-#if GTK_CHECK_VERSION(2,0,0)
-	gtk_container_set_focus_chain(GTK_CONTAINER(cols), cols->taborder);
-#endif
         break;
     }
 }
 
-#if !GTK_CHECK_VERSION(2,0,0)
 /*
  * Override GtkContainer's focus movement so the user can
  * explicitly specify the tab order.
  */
-static gint columns_focus(GtkContainer *container, GtkDirectionType dir)
+static gint columns_focus(FOCUS_METHOD_SUPERCLASS *super, GtkDirectionType dir)
 {
     Columns *cols;
     GList *pos;
     GtkWidget *focuschild;
 
-    g_return_val_if_fail(container != NULL, FALSE);
-    g_return_val_if_fail(IS_COLUMNS(container), FALSE);
+    g_return_val_if_fail(super != NULL, FALSE);
+    g_return_val_if_fail(IS_COLUMNS(super), FALSE);
 
-    cols = COLUMNS(container);
+    cols = COLUMNS(super);
 
-    if (!GTK_WIDGET_DRAWABLE(cols) ||
-	!GTK_WIDGET_IS_SENSITIVE(cols))
+    if (!gtk_widget_is_drawable(GTK_WIDGET(cols)) ||
+	!gtk_widget_is_sensitive(GTK_WIDGET(cols)))
 	return FALSE;
 
-    if (!GTK_WIDGET_CAN_FOCUS(container) &&
+    if (!gtk_widget_get_can_focus(GTK_WIDGET(cols)) &&
 	(dir == GTK_DIR_TAB_FORWARD || dir == GTK_DIR_TAB_BACKWARD)) {
 
-	focuschild = container->focus_child;
-	gtk_container_set_focus_child(container, NULL);
+	focuschild = gtk_container_get_focus_child(GTK_CONTAINER(cols));
+	gtk_container_set_focus_child(GTK_CONTAINER(cols), NULL);
 
 	if (dir == GTK_DIR_TAB_FORWARD)
 	    pos = cols->taborder;
@@ -592,18 +589,18 @@ static gint columns_focus(GtkContainer *container, GtkDirectionType dir)
 	    if (focuschild) {
 		if (focuschild == child) {
 		    focuschild = NULL; /* now we can start looking in here */
-		    if (GTK_WIDGET_DRAWABLE(child) &&
+		    if (gtk_widget_is_drawable(child) &&
 			GTK_IS_CONTAINER(child) &&
-			!GTK_WIDGET_HAS_FOCUS(child)) {
-			if (gtk_container_focus(GTK_CONTAINER(child), dir))
+			!gtk_widget_has_focus(child)) {
+			if (CHILD_FOCUS(child, dir))
 			    return TRUE;
 		    }
 		}
-	    } else if (GTK_WIDGET_DRAWABLE(child)) {
+	    } else if (gtk_widget_is_drawable(child)) {
 		if (GTK_IS_CONTAINER(child)) {
-		    if (gtk_container_focus(GTK_CONTAINER(child), dir))
+		    if (CHILD_FOCUS(child, dir))
 			return TRUE;
-		} else if (GTK_WIDGET_CAN_FOCUS(child)) {
+		} else if (gtk_widget_get_can_focus(child)) {
 		    gtk_widget_grab_focus(child);
 		    return TRUE;
 		}
@@ -617,9 +614,8 @@ static gint columns_focus(GtkContainer *container, GtkDirectionType dir)
 
 	return FALSE;
     } else
-	return columns_inherited_focus(container, dir);
+	return columns_inherited_focus(super, dir);
 }
-#endif
 
 /*
  * Underlying parts of the layout algorithm, to compute the Columns

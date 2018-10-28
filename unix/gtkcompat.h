@@ -53,6 +53,7 @@
 #define gtk_widget_get_parent(w) ((w)->parent)
 #define gtk_widget_set_allocation(w, a) ((w)->allocation = *(a))
 #define gtk_container_get_border_width(c) ((c)->border_width)
+#define gtk_container_get_focus_child(c) ((c)->focus_child)
 #define gtk_bin_get_child(b) ((b)->child)
 #define gtk_color_selection_dialog_get_color_selection(cs) ((cs)->colorsel)
 #define gtk_selection_data_get_target(sd) ((sd)->target)
@@ -79,6 +80,10 @@
 #define gtk_widget_get_mapped(w) GTK_WIDGET_MAPPED(w)
 #define gtk_widget_get_realized(w) GTK_WIDGET_REALIZED(w)
 #define gtk_widget_get_state(w) GTK_WIDGET_STATE(w)
+#define gtk_widget_get_can_focus(w) GTK_WIDGET_CAN_FOCUS(w)
+#define gtk_widget_is_drawable(w) GTK_WIDGET_DRAWABLE(w)
+#define gtk_widget_is_sensitive(w) GTK_WIDGET_IS_SENSITIVE(w)
+#define gtk_widget_has_focus(w) GTK_WIDGET_HAS_FOCUS(w)
 
 /* This is a bit of a bodge because it relies on us only calling this
  * macro as GDK_DISPLAY_XDISPLAY(gdk_display_get_default()), so under
