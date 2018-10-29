@@ -256,7 +256,7 @@ PacketProtocolLayer *ssh2_connection_new(
      * any at all channels (because our purpose is probably to be a
      * background port forwarder).
      */
-    s->persistent = conf_get_int(s->conf, CONF_ssh_no_shell);
+    s->persistent = conf_get_bool(s->conf, CONF_ssh_no_shell);
 
     s->connshare = connshare;
     s->peer_verstring = dupstr(peer_verstring);
@@ -1526,7 +1526,7 @@ static int ssh2_agent_forwarding_permitted(ConnectionLayer *cl)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
-    return conf_get_int(s->conf, CONF_agentfwd) && agent_exists();
+    return conf_get_bool(s->conf, CONF_agentfwd) && agent_exists();
 }
 
 static int ssh2_connection_get_specials(

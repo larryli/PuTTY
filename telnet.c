@@ -412,7 +412,7 @@ static void process_subneg(Telnet *telnet)
             logeventf(telnet->logctx, "server:\tSB %s SEND",
                       telopt(telnet->sb_opt));
 	    if (telnet->sb_opt == TELOPT_OLD_ENVIRON) {
-		if (conf_get_int(telnet->conf, CONF_rfc_environ)) {
+		if (conf_get_bool(telnet->conf, CONF_rfc_environ)) {
 		    value = RFC_VALUE;
 		    var = RFC_VAR;
 		} else {
@@ -746,7 +746,7 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
     /*
      * Initialise option states.
      */
-    if (conf_get_int(telnet->conf, CONF_passive_telnet)) {
+    if (conf_get_bool(telnet->conf, CONF_passive_telnet)) {
 	const struct Opt *const *o;
 
 	for (o = opts; *o; o++)

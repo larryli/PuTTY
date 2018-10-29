@@ -663,7 +663,7 @@ static int ssh1_agent_forwarding_permitted(ConnectionLayer *cl)
 {
     struct ssh1_connection_state *s =
         container_of(cl, struct ssh1_connection_state, cl);
-    return conf_get_int(s->conf, CONF_agentfwd) && agent_exists();
+    return conf_get_bool(s->conf, CONF_agentfwd) && agent_exists();
 }
 
 static void ssh1_connection_special_cmd(PacketProtocolLayer *ppl,

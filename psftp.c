@@ -2761,9 +2761,9 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
      * things like SCP and SFTP: agent forwarding, port forwarding,
      * X forwarding.
      */
-    conf_set_int(conf, CONF_x11_forward, 0);
-    conf_set_int(conf, CONF_agentfwd, 0);
-    conf_set_int(conf, CONF_ssh_simple, true);
+    conf_set_bool(conf, CONF_x11_forward, false);
+    conf_set_bool(conf, CONF_agentfwd, false);
+    conf_set_bool(conf, CONF_ssh_simple, true);
     {
 	char *key;
 	while ((key = conf_get_str_nthstrkey(conf, CONF_portfwd, 0)) != NULL)
@@ -2772,8 +2772,8 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     /* Set up subsystem name. */
     conf_set_str(conf, CONF_remote_cmd, "sftp");
-    conf_set_int(conf, CONF_ssh_subsys, true);
-    conf_set_int(conf, CONF_nopty, true);
+    conf_set_bool(conf, CONF_ssh_subsys, true);
+    conf_set_bool(conf, CONF_nopty, true);
 
     /*
      * Set up fallback option, for SSH-1 servers or servers with the
@@ -2798,7 +2798,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "test -x /usr/local/lib/sftp-server &&"
 		 " exec /usr/local/lib/sftp-server\n"
 		 "exec sftp-server");
-    conf_set_int(conf, CONF_ssh_subsys2, false);
+    conf_set_bool(conf, CONF_ssh_subsys2, false);
 
     logctx = log_init(default_logpolicy, conf);
 
@@ -2808,7 +2808,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
-                       conf_get_int(conf, CONF_tcp_keepalives));
+                       conf_get_bool(conf, CONF_tcp_keepalives));
     if (err != NULL) {
 	fprintf(stderr, "ssh_init: %s\n", err);
 	return 1;

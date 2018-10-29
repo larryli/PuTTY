@@ -375,8 +375,8 @@ static void start_backend(void)
                          conf_get_str(conf, CONF_host),
                          conf_get_int(conf, CONF_port),
                          &realhost,
-                         conf_get_int(conf, CONF_tcp_nodelay),
-                         conf_get_int(conf, CONF_tcp_keepalives));
+                         conf_get_bool(conf, CONF_tcp_nodelay),
+                         conf_get_bool(conf, CONF_tcp_keepalives));
     if (error) {
 	char *str = dupprintf("%s Error", appname);
 	sprintf(msg, "Unable to open connection to\n"
@@ -710,13 +710,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	int winmode = WS_OVERLAPPEDWINDOW | WS_VSCROLL;
 	int exwinmode = 0;
         wchar_t *uappname = dup_mb_to_wc(DEFAULT_CODEPAGE, 0, appname);
-	if (!conf_get_int(conf, CONF_scrollbar))
+	if (!conf_get_bool(conf, CONF_scrollbar))
 	    winmode &= ~(WS_VSCROLL);
 	if (conf_get_int(conf, CONF_resize_action) == RESIZE_DISABLED)
 	    winmode &= ~(WS_THICKFRAME | WS_MAXIMIZEBOX);
-	if (conf_get_int(conf, CONF_alwaysontop))
+	if (conf_get_bool(conf, CONF_alwaysontop))
 	    exwinmode |= WS_EX_TOPMOST;
-	if (conf_get_int(conf, CONF_sunken_edge))
+	if (conf_get_bool(conf, CONF_sunken_edge))
 	    exwinmode |= WS_EX_CLIENTEDGE;
 	hwnd = CreateWindowExW(exwinmode, uappname, uappname,
                                winmode, CW_USEDEFAULT, CW_USEDEFAULT,
@@ -960,7 +960,7 @@ static void setup_clipboards(Terminal *term, Conf *conf)
 
     term->n_mouse_select_clipboards = 1;
 
-    if (conf_get_int(conf, CONF_mouseautocopy)) {
+    if (conf_get_bool(conf, CONF_mouseautocopy)) {
         term->mouse_select_clipboards[
             term->n_mouse_select_clipboards++] = CLIP_SYSTEM;
     }
@@ -1168,7 +1168,7 @@ static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
  */
 static void wintw_set_raw_mouse_mode(TermWin *tw, int activate)
 {
-    activate = activate && !conf_get_int(conf, CONF_no_mouse_rep);
+    activate = activate && !conf_get_bool(conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
     update_mouse_pointer();
 }
@@ -1251,7 +1251,7 @@ static void conftopalette(void)
     }
 
     /* Override with system colours if appropriate */
-    if (conf_get_int(conf, CONF_system_colour))
+    if (conf_get_bool(conf, CONF_system_colour))
         systopalette();
 }
 
@@ -1304,7 +1304,7 @@ static void init_palette(void)
     int i;
     HDC hdc = GetDC(hwnd);
     if (hdc) {
-	if (conf_get_int(conf, CONF_try_palette) &&
+	if (conf_get_bool(conf, CONF_try_palette) &&
 	    GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) {
 	    /*
 	     * This is a genuine case where we must use smalloc
@@ -2003,7 +2003,7 @@ static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
     int thistime = GetMessageTime();
 
     if (send_raw_mouse &&
-	!(shift && conf_get_int(conf, CONF_mouse_override))) {
+	!(shift && conf_get_bool(conf, CONF_mouse_override))) {
 	lastbtn = MBT_NOTHING;
 	term_mouse(term, b, translate_button(b), MA_CLICK,
 		   x, y, shift, ctrl, alt);
@@ -2046,7 +2046,7 @@ static void show_mouseptr(int show)
     /* NB that the counter in ShowCursor() is also frobbed by
      * update_mouse_pointer() */
     static int cursor_visible = 1;
-    if (!conf_get_int(conf, CONF_hide_mouseptr))
+    if (!conf_get_bool(conf, CONF_hide_mouseptr))
 	show = 1;		       /* override if this feature disabled */
     if (cursor_visible && !show)
 	ShowCursor(false);
@@ -2169,7 +2169,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    char *str;
 	    show_mouseptr(1);
 	    str = dupprintf("%s Exit Confirmation", appname);
-	    if (session_closed || !conf_get_int(conf, CONF_warn_on_close) ||
+	    if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
 		MessageBox(hwnd,
 			   "Are you sure you want to close this session?",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
@@ -2384,9 +2384,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			GetWindowLongPtr(hwnd, GWL_EXSTYLE);
 
 		    nexflag = exflag;
-		    if (conf_get_int(conf, CONF_alwaysontop) !=
-			conf_get_int(prev_conf, CONF_alwaysontop)) {
-			if (conf_get_int(conf, CONF_alwaysontop)) {
+		    if (conf_get_bool(conf, CONF_alwaysontop) !=
+			conf_get_bool(prev_conf, CONF_alwaysontop)) {
+			if (conf_get_bool(conf, CONF_alwaysontop)) {
 			    nexflag |= WS_EX_TOPMOST;
 			    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
 					 SWP_NOMOVE | SWP_NOSIZE);
@@ -2396,15 +2396,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 					 SWP_NOMOVE | SWP_NOSIZE);
 			}
 		    }
-		    if (conf_get_int(conf, CONF_sunken_edge))
+		    if (conf_get_bool(conf, CONF_sunken_edge))
 			nexflag |= WS_EX_CLIENTEDGE;
 		    else
 			nexflag &= ~(WS_EX_CLIENTEDGE);
 
 		    nflg = flag;
-		    if (conf_get_int(conf, is_full_screen() ?
-				     CONF_scrollbar_in_fullscreen :
-				     CONF_scrollbar))
+		    if (conf_get_bool(conf, is_full_screen() ?
+                                      CONF_scrollbar_in_fullscreen :
+                                      CONF_scrollbar))
 			nflg |= WS_VSCROLL;
 		    else
 			nflg &= ~WS_VSCROLL;
@@ -2444,7 +2444,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		win_set_title(wintw, conf_get_str(conf, CONF_wintitle));
 		if (IsIconic(hwnd)) {
 		    SetWindowText(hwnd,
-				  conf_get_int(conf, CONF_win_name_always) ?
+				  conf_get_bool(conf, CONF_win_name_always) ?
 				  window_name : icon_name);
 		}
 
@@ -2985,7 +2985,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #endif
 	if (wParam == SIZE_MINIMIZED)
 	    SetWindowText(hwnd,
-			  conf_get_int(conf, CONF_win_name_always) ?
+			  conf_get_bool(conf, CONF_win_name_always) ?
 			  window_name : icon_name);
 	if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED)
 	    SetWindowText(hwnd, window_name);
@@ -3315,7 +3315,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_SYSCOLORCHANGE:
-	if (conf_get_int(conf, CONF_system_colour)) {
+	if (conf_get_bool(conf, CONF_system_colour)) {
 	    /* Refresh palette from system colours. */
 	    /* XXX actually this zaps the entire palette. */
 	    systopalette();
@@ -3366,7 +3366,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    break;
 
 		if (send_raw_mouse &&
-		    !(conf_get_int(conf, CONF_mouse_override) &&
+		    !(conf_get_bool(conf, CONF_mouse_override) &&
                       shift_pressed)) {
 		    /* Mouse wheel position is in screen coordinates for
 		     * some reason */
@@ -4061,9 +4061,9 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     unsigned char *p = output;
     static int alt_sum = 0;
     int funky_type = conf_get_int(conf, CONF_funky_type);
-    int no_applic_k = conf_get_int(conf, CONF_no_applic_k);
-    int ctrlaltkeys = conf_get_int(conf, CONF_ctrlaltkeys);
-    int nethack_keypad = conf_get_int(conf, CONF_nethack_keypad);
+    bool no_applic_k = conf_get_bool(conf, CONF_no_applic_k);
+    bool ctrlaltkeys = conf_get_bool(conf, CONF_ctrlaltkeys);
+    bool nethack_keypad = conf_get_bool(conf, CONF_nethack_keypad);
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
@@ -4199,7 +4199,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     /* Note if AltGr was pressed and if it was used as a compose key */
     if (!compose_state) {
 	compose_keycode = 0x100;
-	if (conf_get_int(conf, CONF_compose_key)) {
+	if (conf_get_bool(conf, CONF_compose_key)) {
 	    if (wParam == VK_MENU && (HIWORD(lParam) & KF_EXTENDED))
 		compose_keycode = wParam;
 	}
@@ -4356,16 +4356,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             }
 	    return 0;
 	}
-	if (left_alt && wParam == VK_F4 && conf_get_int(conf, CONF_alt_f4)) {
+	if (left_alt && wParam == VK_F4 && conf_get_bool(conf, CONF_alt_f4)) {
 	    return -1;
 	}
-	if (left_alt && wParam == VK_SPACE && conf_get_int(conf,
-							   CONF_alt_space)) {
+	if (left_alt && wParam == VK_SPACE && conf_get_bool(conf,
+                                                            CONF_alt_space)) {
 	    SendMessage(hwnd, WM_SYSCOMMAND, SC_KEYMENU, 0);
 	    return -1;
 	}
 	if (left_alt && wParam == VK_RETURN &&
-	    conf_get_int(conf, CONF_fullscreenonaltenter) &&
+	    conf_get_bool(conf, CONF_fullscreenonaltenter) &&
 	    (conf_get_int(conf, CONF_resize_action) != RESIZE_DISABLED)) {
  	    if ((HIWORD(lParam) & (KF_UP | KF_REPEAT)) != KF_REPEAT)
  		flip_full_screen();
@@ -4509,13 +4509,13 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 
 	if (wParam == VK_BACK && shift_state == 0) {	/* Backspace */
-	    *p++ = (conf_get_int(conf, CONF_bksp_is_delete) ? 0x7F : 0x08);
+	    *p++ = (conf_get_bool(conf, CONF_bksp_is_delete) ? 0x7F : 0x08);
 	    *p++ = 0;
 	    return -2;
 	}
 	if (wParam == VK_BACK && shift_state == 1) {	/* Shift Backspace */
 	    /* We do the opposite of what is configured */
-	    *p++ = (conf_get_int(conf, CONF_bksp_is_delete) ? 0x08 : 0x7F);
+	    *p++ = (conf_get_bool(conf, CONF_bksp_is_delete) ? 0x08 : 0x7F);
 	    *p++ = 0;
 	    return -2;
 	}
@@ -4725,7 +4725,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 	if ((code == 1 || code == 4) &&
-	    conf_get_int(conf, CONF_rxvt_homeend)) {
+	    conf_get_bool(conf, CONF_rxvt_homeend)) {
 	    p += sprintf((char *) p, code == 1 ? "\x1B[H" : "\x1BOw");
 	    return p - output;
 	}
@@ -4786,7 +4786,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	/* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
 	if(keystate[VK_CAPITAL] != 0 &&
-	   conf_get_int(conf, CONF_xlat_capslockcyr)) {
+	   conf_get_bool(conf, CONF_xlat_capslockcyr)) {
 	    capsOn= !left_alt;
 	    keystate[VK_CAPITAL] = 0;
 	}
@@ -4936,7 +4936,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
      * we return -1, which means Windows will give the keystroke
      * its default handling (i.e. bring up the System menu).
      */
-    if (wParam == VK_MENU && !conf_get_int(conf, CONF_alt_only))
+    if (wParam == VK_MENU && !conf_get_bool(conf, CONF_alt_only))
 	return 0;
 
     return -1;
@@ -4947,7 +4947,7 @@ static void wintw_set_title(TermWin *tw, const char *title)
     sfree(window_name);
     window_name = snewn(1 + strlen(title), char);
     strcpy(window_name, title);
-    if (conf_get_int(conf, CONF_win_name_always) || !IsIconic(hwnd))
+    if (conf_get_bool(conf, CONF_win_name_always) || !IsIconic(hwnd))
 	SetWindowText(hwnd, title);
 }
 
@@ -4956,7 +4956,7 @@ static void wintw_set_icon_title(TermWin *tw, const char *title)
     sfree(icon_name);
     icon_name = snewn(1 + strlen(title), char);
     strcpy(icon_name, title);
-    if (!conf_get_int(conf, CONF_win_name_always) && IsIconic(hwnd))
+    if (!conf_get_bool(conf, CONF_win_name_always) && IsIconic(hwnd))
 	SetWindowText(hwnd, title);
 }
 
@@ -4964,8 +4964,8 @@ static void wintw_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
     SCROLLINFO si;
 
-    if (!conf_get_int(conf, is_full_screen() ?
-		      CONF_scrollbar_in_fullscreen : CONF_scrollbar))
+    if (!conf_get_bool(conf, is_full_screen() ?
+                       CONF_scrollbar_in_fullscreen : CONF_scrollbar))
 	return;
 
     si.cbSize = sizeof(si);
@@ -5150,7 +5150,7 @@ static void wintw_clip_write(
     memcpy(lock, data, len * sizeof(wchar_t));
     WideCharToMultiByte(CP_ACP, 0, data, len, lock2, len2, NULL, NULL);
 
-    if (conf_get_int(conf, CONF_rtf_paste)) {
+    if (conf_get_bool(conf, CONF_rtf_paste)) {
 	wchar_t unitab[256];
 	char *rtf = NULL;
 	unsigned char *tdata = (unsigned char *)lock2;
@@ -5814,7 +5814,7 @@ static void wintw_move(TermWin *tw, int x, int y)
  */
 static void wintw_set_zorder(TermWin *tw, int top)
 {
-    if (conf_get_int(conf, CONF_alwaysontop))
+    if (conf_get_bool(conf, CONF_alwaysontop))
 	return;			       /* ignore */
     SetWindowPos(hwnd, top ? HWND_TOP : HWND_BOTTOM, 0, 0, 0, 0,
 		 SWP_NOMOVE | SWP_NOSIZE);
@@ -5936,7 +5936,7 @@ static void make_full_screen()
     /* Remove the window furniture. */
     style = GetWindowLongPtr(hwnd, GWL_STYLE);
     style &= ~(WS_CAPTION | WS_BORDER | WS_THICKFRAME);
-    if (conf_get_int(conf, CONF_scrollbar_in_fullscreen))
+    if (conf_get_bool(conf, CONF_scrollbar_in_fullscreen))
 	style |= WS_VSCROLL;
     else
 	style &= ~WS_VSCROLL;
@@ -5975,7 +5975,7 @@ static void clear_full_screen()
         style &= ~WS_THICKFRAME;
     else
         style |= WS_THICKFRAME;
-    if (conf_get_int(conf, CONF_scrollbar))
+    if (conf_get_bool(conf, CONF_scrollbar))
 	style |= WS_VSCROLL;
     else
 	style &= ~WS_VSCROLL;

@@ -78,7 +78,7 @@ mainchan *mainchan_new(
 {
     mainchan *mc;
 
-    if (conf_get_int(conf, CONF_ssh_no_shell))
+    if (conf_get_bool(conf, CONF_ssh_no_shell))
         return NULL;                   /* no main channel at all */
 
     mc = snew(mainchan);
@@ -141,7 +141,7 @@ static void mainchan_open_confirmation(Channel *chan)
         struct X11FakeAuth *x11auth;
         int retry_cmd_now = false;
 
-	if (conf_get_int(mc->conf, CONF_x11_forward)) {;
+	if (conf_get_bool(mc->conf, CONF_x11_forward)) {;
             char *x11_setup_err;
             if ((x11disp = x11_setup_display(
                      conf_get_str(mc->conf, CONF_x11_display),
@@ -165,7 +165,7 @@ static void mainchan_open_confirmation(Channel *chan)
             mc->req_agent = true;
         }
 
-	if (!conf_get_int(mc->conf, CONF_nopty)) {
+	if (!conf_get_bool(mc->conf, CONF_nopty)) {
             sshfwd_request_pty(
                 mc->sc, true, mc->conf, mc->term_width, mc->term_height);
             mc->req_pty = true;
@@ -181,7 +181,7 @@ static void mainchan_open_confirmation(Channel *chan)
             ppl_logevent(("Sent %d environment variables", mc->n_req_env));
 
         cmd = conf_get_str(mc->conf, CONF_remote_cmd);
-        if (conf_get_int(mc->conf, CONF_ssh_subsys)) {
+        if (conf_get_bool(mc->conf, CONF_ssh_subsys)) {
             retry_cmd_now = !sshfwd_start_subsystem(mc->sc, true, cmd);
         } else if (*cmd) {
             sshfwd_start_command(mc->sc, true, cmd);
@@ -204,7 +204,7 @@ static void mainchan_open_confirmation(Channel *chan)
 static void mainchan_try_fallback_command(mainchan *mc)
 {
     const char *cmd = conf_get_str(mc->conf, CONF_remote_cmd2);
-    if (conf_get_int(mc->conf, CONF_ssh_subsys2)) {
+    if (conf_get_bool(mc->conf, CONF_ssh_subsys2)) {
         sshfwd_start_subsystem(mc->sc, true, cmd);
     } else {
         sshfwd_start_command(mc->sc, true, cmd);

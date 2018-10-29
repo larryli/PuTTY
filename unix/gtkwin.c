@@ -194,9 +194,9 @@ static void cache_conf_values(GtkFrontend *inst)
     inst->cursor_type = conf_get_int(inst->conf, CONF_cursor_type);
 #ifdef OSX_META_KEY_CONFIG
     inst->meta_mod_mask = 0;
-    if (conf_get_int(inst->conf, CONF_osx_option_meta))
+    if (conf_get_bool(inst->conf, CONF_osx_option_meta))
         inst->meta_mod_mask |= GDK_MOD1_MASK;
-    if (conf_get_int(inst->conf, CONF_osx_command_meta))
+    if (conf_get_bool(inst->conf, CONF_osx_command_meta))
         inst->meta_mod_mask |= GDK_MOD2_MASK;
     inst->system_mod_mask = GDK_MOD2_MASK & ~inst->meta_mod_mask;
 #else
@@ -292,12 +292,19 @@ char *platform_default_s(const char *name)
     return NULL;
 }
 
+bool platform_default_b(const char *name, bool def)
+{
+    if (!strcmp(name, "WinNameAlways")) {
+        /* X natively supports icon titles, so use 'em by default */
+	return false;
+    }
+    return def;
+}
+
 int platform_default_i(const char *name, int def)
 {
     if (!strcmp(name, "CloseOnExit"))
 	return 2;  /* maps to FORCE_ON after painful rearrangement :-( */
-    if (!strcmp(name, "WinNameAlways"))
-	return 0;  /* X natively supports icon titles, so use 'em by default */
     return def;
 }
 
@@ -629,7 +636,7 @@ static void warn_on_close_callback(void *vctx, int result)
  */
 gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
 {
-    if (!inst->exited && conf_get_int(inst->conf, CONF_warn_on_close)) {
+    if (!inst->exited && conf_get_bool(inst->conf, CONF_warn_on_close)) {
         /*
          * We're not going to exit right now. We must put up a
          * warn-on-close dialog, unless one already exists, in which
@@ -678,7 +685,7 @@ static void update_mouseptr(GtkFrontend *inst)
 
 static void show_mouseptr(GtkFrontend *inst, int show)
 {
-    if (!conf_get_int(inst->conf, CONF_hide_mouseptr))
+    if (!conf_get_bool(inst->conf, CONF_hide_mouseptr))
 	show = 1;
     inst->mouseptr_visible = show;
     update_mouseptr(inst);
@@ -973,8 +980,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     char output[256];
     wchar_t ucsoutput[2];
     int ucsval, start, end, special, output_charset, use_ucsoutput;
-    int nethack_mode, app_keypad_mode;
-    int generated_something = false;
+    bool nethack_mode, app_keypad_mode;
+    bool generated_something = false;
 
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)
@@ -1371,9 +1378,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	special = false;
 	use_ucsoutput = false;
 
-        nethack_mode = conf_get_int(inst->conf, CONF_nethack_keypad);
+        nethack_mode = conf_get_bool(inst->conf, CONF_nethack_keypad);
         app_keypad_mode = (inst->term->app_keypad_keys &&
-                           !conf_get_int(inst->conf, CONF_no_applic_k));
+                           !conf_get_bool(inst->conf, CONF_no_applic_k));
 
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
@@ -1709,7 +1716,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/* We don't let GTK tell us what Backspace is! We know better. */
 	if (event->keyval == GDK_KEY_BackSpace &&
 	    !(event->state & GDK_SHIFT_MASK)) {
-	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
+	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x7F' : '\x08';
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug((" - Backspace, translating as %02x\n",
@@ -1722,7 +1729,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/* For Shift Backspace, do opposite of what is configured. */
 	if (event->keyval == GDK_KEY_BackSpace &&
 	    (event->state & GDK_SHIFT_MASK)) {
-	    output[1] = conf_get_int(inst->conf, CONF_bksp_is_delete) ?
+	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x08' : '\x7F';
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug((" - Shift-Backspace, translating as %02x\n",
@@ -2049,7 +2056,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		goto done;
 	    }
 	    if ((code == 1 || code == 4) &&
-		conf_get_int(inst->conf, CONF_rxvt_homeend)) {
+		conf_get_bool(inst->conf, CONF_rxvt_homeend)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
                 debug((" - rxvt style Home/End"));
 #endif
@@ -2249,8 +2256,8 @@ gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
     y = (ey - inst->window_border) / inst->font_height;
 
     raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_int(inst->conf,
-                                                  CONF_mouse_override));
+        send_raw_mouse && !(shift && conf_get_bool(inst->conf,
+                                                   CONF_mouse_override));
 
     inst->cumulative_scroll += delta * SCROLL_INCREMENT_LINES;
 
@@ -2300,8 +2307,8 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     alt = event->state & inst->meta_mod_mask;
 
     raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_int(inst->conf,
-                                                  CONF_mouse_override));
+        send_raw_mouse && !(shift && conf_get_bool(inst->conf,
+                                                   CONF_mouse_override));
 
     if (!raw_mouse_mode) {
         if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
@@ -2593,7 +2600,7 @@ static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 static void gtkwin_set_raw_mouse_mode(TermWin *tw, int activate)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    activate = activate && !conf_get_int(inst->conf, CONF_no_mouse_rep);
+    activate = activate && !conf_get_bool(inst->conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
     update_mouseptr(inst);
 }
@@ -3471,7 +3478,7 @@ static void set_window_titles(GtkFrontend *inst)
      * is life.
      */
     gtk_window_set_title(GTK_WINDOW(inst->window), inst->wintitle);
-    if (!conf_get_int(inst->conf, CONF_win_name_always))
+    if (!conf_get_bool(inst->conf, CONF_win_name_always))
 	gdk_window_set_icon_name(gtk_widget_get_window(inst->window),
                                  inst->icontitle);
 }
@@ -3504,7 +3511,7 @@ void set_title_and_icon(GtkFrontend *inst, char *title, char *icon)
 static void gtkwin_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    if (!conf_get_int(inst->conf, CONF_scrollbar))
+    if (!conf_get_bool(inst->conf, CONF_scrollbar))
 	return;
     inst->ignore_sbar = true;
     gtk_adjustment_set_lower(inst->sbar_adjust, 0);
@@ -3521,7 +3528,7 @@ static void gtkwin_set_scrollbar(TermWin *tw, int total, int start, int page)
 
 void scrollbar_moved(GtkAdjustment *adj, GtkFrontend *inst)
 {
-    if (!conf_get_int(inst->conf, CONF_scrollbar))
+    if (!conf_get_bool(inst->conf, CONF_scrollbar))
 	return;
     if (!inst->ignore_sbar)
 	term_scroll(inst->term, 1, (int)gtk_adjustment_get_value(adj));
@@ -4269,7 +4276,7 @@ static int gtkwin_is_utf8(TermWin *tw)
 
 char *setup_fonts_ucs(GtkFrontend *inst)
 {
-    int shadowbold = conf_get_int(inst->conf, CONF_shadowbold);
+    int shadowbold = conf_get_bool(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
     FontSpec *fs;
     unifont *fonts[4];
@@ -4349,7 +4356,7 @@ char *setup_fonts_ucs(GtkFrontend *inst)
 
     inst->direct_to_font = init_ucs(&inst->ucsdata,
 				    conf_get_str(inst->conf, CONF_line_codepage),
-				    conf_get_int(inst->conf, CONF_utf8_override),
+				    conf_get_bool(inst->conf, CONF_utf8_override),
 				    inst->fonts[0]->public_charset,
 				    conf_get_int(inst->conf, CONF_vtmode));
 
@@ -4559,7 +4566,7 @@ void setup_clipboards(GtkFrontend *inst, Terminal *term, Conf *conf)
     term->mouse_select_clipboards[
         term->n_mouse_select_clipboards++] = MOUSE_SELECT_CLIPBOARD;
 
-    if (conf_get_int(conf, CONF_mouseautocopy)) {
+    if (conf_get_bool(conf, CONF_mouseautocopy)) {
         term->mouse_select_clipboards[
             term->n_mouse_select_clipboards++] = CLIP_CLIPBOARD;
     }
@@ -4730,15 +4737,15 @@ static void after_change_settings_dialog(void *vctx, int retval)
          * If the scrollbar needs to be shown, hidden, or moved
          * from one end to the other of the window, do so now.
          */
-        if (conf_get_int(oldconf, CONF_scrollbar) !=
-	    conf_get_int(newconf, CONF_scrollbar)) {
-            show_scrollbar(inst, conf_get_int(newconf, CONF_scrollbar));
+        if (conf_get_bool(oldconf, CONF_scrollbar) !=
+	    conf_get_bool(newconf, CONF_scrollbar)) {
+            show_scrollbar(inst, conf_get_bool(newconf, CONF_scrollbar));
             need_size = true;
         }
-        if (conf_get_int(oldconf, CONF_scrollbar_on_left) !=
-	    conf_get_int(newconf, CONF_scrollbar_on_left)) {
+        if (conf_get_bool(oldconf, CONF_scrollbar_on_left) !=
+	    conf_get_bool(newconf, CONF_scrollbar_on_left)) {
             gtk_box_reorder_child(inst->hbox, inst->sbar,
-                                  conf_get_int(newconf, CONF_scrollbar_on_left)
+                                  conf_get_bool(newconf, CONF_scrollbar_on_left)
 				  ? 0 : 1);
         }
 
@@ -4765,12 +4772,12 @@ static void after_change_settings_dialog(void *vctx, int retval)
 		   conf_get_fontspec(newconf, CONF_wideboldfont)->name) ||
 	    strcmp(conf_get_str(oldconf, CONF_line_codepage),
 		   conf_get_str(newconf, CONF_line_codepage)) ||
-	    conf_get_int(oldconf, CONF_utf8_override) !=
-	    conf_get_int(newconf, CONF_utf8_override) ||
+	    conf_get_bool(oldconf, CONF_utf8_override) !=
+	    conf_get_bool(newconf, CONF_utf8_override) ||
 	    conf_get_int(oldconf, CONF_vtmode) !=
 	    conf_get_int(newconf, CONF_vtmode) ||
-	    conf_get_int(oldconf, CONF_shadowbold) !=
-	    conf_get_int(newconf, CONF_shadowbold) ||
+	    conf_get_bool(oldconf, CONF_shadowbold) !=
+	    conf_get_bool(newconf, CONF_shadowbold) ||
 	    conf_get_int(oldconf, CONF_shadowboldoffset) !=
 	    conf_get_int(newconf, CONF_shadowboldoffset)) {
             char *errmsg = setup_fonts_ucs(inst);
@@ -5119,8 +5126,8 @@ static void start_backend(GtkFrontend *inst)
                          conf_get_str(inst->conf, CONF_host),
                          conf_get_int(inst->conf, CONF_port),
                          &realhost,
-                         conf_get_int(inst->conf, CONF_tcp_nodelay),
-                         conf_get_int(inst->conf, CONF_tcp_keepalives));
+                         conf_get_bool(inst->conf, CONF_tcp_nodelay),
+                         conf_get_bool(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
 	char *msg = dupprintf("Unable to open connection to %s:\n%s",
@@ -5330,16 +5337,16 @@ void new_session_window(Conf *conf, const char *geometry_string)
      * unwanted, so we can pop it up quickly if it suddenly becomes
      * desirable.
      */
-    if (conf_get_int(inst->conf, CONF_scrollbar_on_left))
+    if (conf_get_bool(inst->conf, CONF_scrollbar_on_left))
         gtk_box_pack_start(inst->hbox, inst->sbar, false, false, 0);
     gtk_box_pack_start(inst->hbox, inst->area, true, true, 0);
-    if (!conf_get_int(inst->conf, CONF_scrollbar_on_left))
+    if (!conf_get_bool(inst->conf, CONF_scrollbar_on_left))
         gtk_box_pack_start(inst->hbox, inst->sbar, false, false, 0);
 
     gtk_container_add(GTK_CONTAINER(inst->window), GTK_WIDGET(inst->hbox));
 
     gtk_widget_show(inst->area);
-    show_scrollbar(inst, conf_get_int(inst->conf, CONF_scrollbar));
+    show_scrollbar(inst, conf_get_bool(inst->conf, CONF_scrollbar));
     gtk_widget_show(GTK_WIDGET(inst->hbox));
 
     /*
@@ -5441,7 +5448,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     g_signal_connect(G_OBJECT(inst->imc), "commit",
                      G_CALLBACK(input_method_commit_event), inst);
 #endif
-    if (conf_get_int(inst->conf, CONF_scrollbar))
+    if (conf_get_bool(inst->conf, CONF_scrollbar))
         g_signal_connect(G_OBJECT(inst->sbar_adjust), "value_changed",
                          G_CALLBACK(scrollbar_moved), inst);
     gtk_widget_add_events(GTK_WIDGET(inst->area),

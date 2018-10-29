@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 	conf = conf_new();
 	do_defaults(NULL, conf);
 	init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-		 conf_get_int(conf, CONF_utf8_override),
+		 conf_get_bool(conf, CONF_utf8_override),
 		 CS_NONE, conf_get_int(conf, CONF_vtmode));
 
 	term = term_init(conf, &ucsdata, &termwin);
@@ -186,6 +186,11 @@ char *platform_default_s(const char *name)
     if (!strcmp(name, "SerialLine"))
 	return dupstr("/dev/ttyS0");
     return NULL;
+}
+
+bool platform_default_b(const char *name, bool def)
+{
+    return def;
 }
 
 int platform_default_i(const char *name, int def)

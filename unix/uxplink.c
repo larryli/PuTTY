@@ -55,6 +55,11 @@ char *platform_default_s(const char *name)
     return NULL;
 }
 
+bool platform_default_b(const char *name, bool def)
+{
+    return def;
+}
+
 int platform_default_i(const char *name, int def)
 {
     return def;
@@ -674,7 +679,7 @@ int main(int argc, char **argv)
             /* change trailing blank to NUL */
             conf_set_str(conf, CONF_remote_cmd, command);
             conf_set_str(conf, CONF_remote_cmd2, "");
-            conf_set_int(conf, CONF_nopty, true);  /* command => no tty */
+            conf_set_bool(conf, CONF_nopty, true);  /* command => no tty */
 
             break;		       /* done with cmdline */
         } else {
@@ -713,7 +718,7 @@ int main(int argc, char **argv)
      * Apply subsystem status.
      */
     if (use_subsystem)
-        conf_set_int(conf, CONF_ssh_subsys, true);
+        conf_set_bool(conf, CONF_ssh_subsys, true);
 
     if (!*conf_get_str(conf, CONF_remote_cmd) &&
 	!*conf_get_str(conf, CONF_remote_cmd2) &&
@@ -769,10 +774,10 @@ int main(int argc, char **argv)
      * the "simple" flag.
      */
     if (conf_get_int(conf, CONF_protocol) == PROT_SSH &&
-	!conf_get_int(conf, CONF_x11_forward) &&
-	!conf_get_int(conf, CONF_agentfwd) &&
+	!conf_get_bool(conf, CONF_x11_forward) &&
+	!conf_get_bool(conf, CONF_agentfwd) &&
 	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
-	conf_set_int(conf, CONF_ssh_simple, true);
+	conf_set_bool(conf, CONF_ssh_simple, true);
 
     if (just_test_share_exists) {
         if (!backvt->test_for_upstream) {
@@ -795,7 +800,7 @@ int main(int argc, char **argv)
 	const char *error;
 	char *realhost;
 	/* nodelay is only useful if stdin is a terminal device */
-	int nodelay = conf_get_int(conf, CONF_tcp_nodelay) && isatty(0);
+	int nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
 
 	/* This is a good place for a fuzzer to fork us. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL
@@ -806,7 +811,7 @@ int main(int argc, char **argv)
                              conf_get_str(conf, CONF_host),
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,
-                             conf_get_int(conf, CONF_tcp_keepalives));
+                             conf_get_bool(conf, CONF_tcp_keepalives));
 	if (error) {
 	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
 	    return 1;

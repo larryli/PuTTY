@@ -481,7 +481,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
     /* Check whether we're configured to try Pageant, and also whether
      * it's available. */
-    s->try_agent_auth = (conf_get_int(s->conf, CONF_tryagent) &&
+    s->try_agent_auth = (conf_get_bool(s->conf, CONF_tryagent) &&
                          agent_exists());
 
     while (pktin->type == SSH1_SMSG_FAILURE) {
@@ -793,7 +793,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
          */
         s->cur_prompt = new_prompts(s->ppl.seat);
 
-        if (conf_get_int(s->conf, CONF_try_tis_auth) &&
+        if (conf_get_bool(s->conf, CONF_try_tis_auth) &&
             (s->supported_auths_mask & (1 << SSH1_AUTH_TIS)) &&
             !s->tis_auth_refused) {
             s->pwpkt_type = SSH1_CMSG_AUTH_TIS_RESPONSE;
@@ -842,7 +842,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                                 ssh1_pkt_type(pktin->type));
                 return;
             }
-        } else if (conf_get_int(s->conf, CONF_try_tis_auth) &&
+        } else if (conf_get_bool(s->conf, CONF_try_tis_auth) &&
             (s->supported_auths_mask & (1 << SSH1_AUTH_CCARD)) &&
             !s->ccard_auth_refused) {
             s->pwpkt_type = SSH1_CMSG_AUTH_CCARD_RESPONSE;
@@ -1059,7 +1059,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
     ppl_logevent(("Authentication successful"));
 
-    if (conf_get_int(s->conf, CONF_compression)) {
+    if (conf_get_bool(s->conf, CONF_compression)) {
         ppl_logevent(("Requesting compression"));
         pkt = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_CMSG_REQUEST_COMPRESSION);
         put_uint32(pkt, 6);         /* gzip compression level */

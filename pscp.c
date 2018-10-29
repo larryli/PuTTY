@@ -437,9 +437,9 @@ static void do_cmd(char *host, char *user, char *cmd)
      * things like SCP and SFTP: agent forwarding, port forwarding,
      * X forwarding.
      */
-    conf_set_int(conf, CONF_x11_forward, 0);
-    conf_set_int(conf, CONF_agentfwd, 0);
-    conf_set_int(conf, CONF_ssh_simple, true);
+    conf_set_bool(conf, CONF_x11_forward, false);
+    conf_set_bool(conf, CONF_agentfwd, false);
+    conf_set_bool(conf, CONF_ssh_simple, true);
     {
 	char *key;
 	while ((key = conf_get_str_nthstrkey(conf, CONF_portfwd, 0)) != NULL)
@@ -457,12 +457,12 @@ static void do_cmd(char *host, char *user, char *cmd)
 	/* First choice is SFTP subsystem. */
 	main_cmd_is_sftp = 1;
 	conf_set_str(conf, CONF_remote_cmd, "sftp");
-	conf_set_int(conf, CONF_ssh_subsys, true);
+	conf_set_bool(conf, CONF_ssh_subsys, true);
 	if (try_scp) {
 	    /* Fallback is to use the provided scp command. */
 	    fallback_cmd_is_sftp = 0;
 	    conf_set_str(conf, CONF_remote_cmd2, cmd);
-	    conf_set_int(conf, CONF_ssh_subsys2, false);
+	    conf_set_bool(conf, CONF_ssh_subsys2, false);
 	} else {
 	    /* Since we're not going to try SCP, we may as well try
 	     * harder to find an SFTP server, since in the current
@@ -475,15 +475,15 @@ static void do_cmd(char *host, char *user, char *cmd)
 			 "test -x /usr/local/lib/sftp-server &&"
 			 " exec /usr/local/lib/sftp-server\n"
 			 "exec sftp-server");
-	    conf_set_int(conf, CONF_ssh_subsys2, false);
+	    conf_set_bool(conf, CONF_ssh_subsys2, false);
 	}
     } else {
 	/* Don't try SFTP at all; just try the scp command. */
 	main_cmd_is_sftp = 0;
 	conf_set_str(conf, CONF_remote_cmd, cmd);
-	conf_set_int(conf, CONF_ssh_subsys, false);
+	conf_set_bool(conf, CONF_ssh_subsys, false);
     }
-    conf_set_int(conf, CONF_nopty, true);
+    conf_set_bool(conf, CONF_nopty, true);
 
     logctx = log_init(default_logpolicy, conf);
 
@@ -493,7 +493,7 @@ static void do_cmd(char *host, char *user, char *cmd)
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
-                       conf_get_int(conf, CONF_tcp_keepalives));
+                       conf_get_bool(conf, CONF_tcp_keepalives));
     if (err != NULL)
 	bump("ssh_init: %s", err);
     ssh_scp_init();

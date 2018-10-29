@@ -486,31 +486,31 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
 
 	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_stamp_utmp, 0);
+	    conf_set_bool(conf, CONF_stamp_utmp, false);
 
 	} else if (!strcmp(p, "-ut")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_stamp_utmp, 1);
+	    conf_set_bool(conf, CONF_stamp_utmp, true);
 
 	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_login_shell, 0);
+	    conf_set_bool(conf, CONF_login_shell, false);
 
 	} else if (!strcmp(p, "-ls")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_login_shell, 1);
+	    conf_set_bool(conf, CONF_login_shell, true);
 
 	} else if (!strcmp(p, "-nethack")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_nethack_keypad, 1);
+	    conf_set_bool(conf, CONF_nethack_keypad, true);
 
 	} else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_scrollbar, 0);
+	    conf_set_bool(conf, CONF_scrollbar, false);
 
 	} else if (!strcmp(p, "-sb")) {
 	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_scrollbar, 1);
+	    conf_set_bool(conf, CONF_scrollbar, true);
 
 	} else if (!strcmp(p, "-name")) {
 	    EXPECTS_ARG;

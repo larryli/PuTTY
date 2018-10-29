@@ -283,7 +283,7 @@ int proxy_for_destination (SockAddr *addr, const char *hostname,
      * Check the host name and IP against the hard-coded
      * representations of `localhost'.
      */
-    if (!conf_get_int(conf, CONF_even_proxy_localhost) &&
+    if (!conf_get_bool(conf, CONF_even_proxy_localhost) &&
 	(sk_hostname_is_local(hostname) ||
 	 (addr && sk_address_is_local(addr))))
 	return 0;		       /* do not proxy */

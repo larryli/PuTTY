@@ -485,7 +485,7 @@ static void ssh2_write_kexinit_lists(
             preferred_ciphers[n_preferred_ciphers++] = &ssh2_blowfish;
             break;
           case CIPHER_DES:
-            if (conf_get_int(conf, CONF_ssh2_des_cbc))
+            if (conf_get_bool(conf, CONF_ssh2_des_cbc))
                 preferred_ciphers[n_preferred_ciphers++] = &ssh2_des;
             break;
           case CIPHER_3DES:
@@ -513,7 +513,7 @@ static void ssh2_write_kexinit_lists(
     /*
      * Set up preferred compression.
      */
-    if (conf_get_int(conf, CONF_compression))
+    if (conf_get_bool(conf, CONF_compression))
         preferred_comp = &ssh_zlib;
     else
         preferred_comp = &ssh_comp_none;
@@ -993,7 +993,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
          * where the flag was set on the previous key exchange.)
          */
         s->can_gssapi_keyex = false;
-    } else if (conf_get_int(s->conf, CONF_try_gssapi_kex)) {
+    } else if (conf_get_bool(s->conf, CONF_try_gssapi_kex)) {
         /*
          * We always check if we have GSS creds before we come up with
          * the kex algorithm list, otherwise future rekeys will fail
@@ -1026,7 +1026,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
          */
         if (!s->got_session_id && (s->gss_status & GSS_CTXT_MAYFAIL) != 0)
             s->can_gssapi_keyex = 0;
-        s->gss_delegate = conf_get_int(s->conf, CONF_gssapifwd);
+        s->gss_delegate = conf_get_bool(s->conf, CONF_gssapifwd);
     } else {
         s->can_gssapi_keyex = false;
     }
@@ -1676,8 +1676,8 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
      */
     if (s->shgss->libs->nlibraries == 0)
         return;
-    if (!conf_get_int(s->conf, CONF_try_gssapi_auth) &&
-        !conf_get_int(s->conf, CONF_try_gssapi_kex))
+    if (!conf_get_bool(s->conf, CONF_try_gssapi_auth) &&
+        !conf_get_bool(s->conf, CONF_try_gssapi_kex))
         return;
 
     /* Import server name and cache it */
@@ -1754,7 +1754,7 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
      * refresh them. We must avoid setting GSS_CRED_UPDATED or
      * GSS_CTXT_EXPIRES when credential delegation is disabled.
      */
-    if (conf_get_int(s->conf, CONF_gssapifwd) == 0)
+    if (conf_get_bool(s->conf, CONF_gssapifwd) == 0)
         return;
 
     if (s->gss_cred_expiry != GSS_NO_EXPIRATION &&
@@ -1918,8 +1918,8 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
         }
     }
 
-    if (conf_get_int(s->conf, CONF_compression) !=
-	conf_get_int(conf, CONF_compression)) {
+    if (conf_get_bool(s->conf, CONF_compression) !=
+	conf_get_bool(conf, CONF_compression)) {
         rekey_reason = "compression setting changed";
         rekey_mandatory = true;
     }
@@ -1930,8 +1930,8 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
         rekey_reason = "cipher settings changed";
         rekey_mandatory = true;
     }
-    if (conf_get_int(s->conf, CONF_ssh2_des_cbc) !=
-	conf_get_int(conf, CONF_ssh2_des_cbc)) {
+    if (conf_get_bool(s->conf, CONF_ssh2_des_cbc) !=
+	conf_get_bool(conf, CONF_ssh2_des_cbc)) {
         rekey_reason = "cipher settings changed";
         rekey_mandatory = true;
     }

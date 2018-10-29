@@ -54,6 +54,7 @@ void random_save_seed(void) {}
 void random_destroy_seed(void) {}
 void noise_ultralight(unsigned long data) {}
 char *platform_default_s(const char *name) { return NULL; }
+bool platform_default_b(const char *name, bool def) { return def; }
 int platform_default_i(const char *name, int def) { return def; }
 FontSpec *platform_default_fontspec(const char *name) { return fontspec_new(""); }
 Filename *platform_default_filename(const char *name) { return filename_from_str(""); }

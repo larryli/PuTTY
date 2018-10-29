@@ -1155,37 +1155,37 @@ void cleanup_exit(int);
     /* X(value-type, subkey-type, keyword) */ \
     X(STR, NONE, host) \
     X(INT, NONE, port) \
-    X(INT, NONE, protocol) \
-    X(INT, NONE, addressfamily) \
-    X(INT, NONE, close_on_exit) \
-    X(INT, NONE, warn_on_close) \
+    X(INT, NONE, protocol) /* PROT_SSH, PROT_TELNET etc */ \
+    X(INT, NONE, addressfamily) /* ADDRTYPE_IPV[46] or ADDRTYPE_UNSPEC */ \
+    X(INT, NONE, close_on_exit) /* FORCE_ON, FORCE_OFF, AUTO */ \
+    X(BOOL, NONE, warn_on_close) \
     X(INT, NONE, ping_interval) /* in seconds */ \
-    X(INT, NONE, tcp_nodelay) \
-    X(INT, NONE, tcp_keepalives) \
+    X(BOOL, NONE, tcp_nodelay) \
+    X(BOOL, NONE, tcp_keepalives) \
     X(STR, NONE, loghost) /* logical host being contacted, for host key check */ \
     /* Proxy options */ \
     X(STR, NONE, proxy_exclude_list) \
-    X(INT, NONE, proxy_dns) \
-    X(INT, NONE, even_proxy_localhost) \
-    X(INT, NONE, proxy_type) \
+    X(INT, NONE, proxy_dns) /* FORCE_ON, FORCE_OFF, AUTO */ \
+    X(BOOL, NONE, even_proxy_localhost) \
+    X(INT, NONE, proxy_type) /* PROXY_NONE, PROXY_SOCKS4, ... */ \
     X(STR, NONE, proxy_host) \
     X(INT, NONE, proxy_port) \
     X(STR, NONE, proxy_username) \
     X(STR, NONE, proxy_password) \
     X(STR, NONE, proxy_telnet_command) \
-    X(INT, NONE, proxy_log_to_term) \
+    X(INT, NONE, proxy_log_to_term) /* FORCE_ON, FORCE_OFF, AUTO */ \
     /* SSH options */ \
     X(STR, NONE, remote_cmd) \
     X(STR, NONE, remote_cmd2) /* fallback if remote_cmd fails; never loaded or saved */ \
-    X(INT, NONE, nopty) \
-    X(INT, NONE, compression) \
+    X(BOOL, NONE, nopty) \
+    X(BOOL, NONE, compression) \
     X(INT, INT, ssh_kexlist) \
     X(INT, INT, ssh_hklist) \
     X(INT, NONE, ssh_rekey_time) /* in minutes */ \
     X(STR, NONE, ssh_rekey_data) /* string encoding e.g. "100K", "2M", "1G" */ \
-    X(INT, NONE, tryagent) \
-    X(INT, NONE, agentfwd) \
-    X(INT, NONE, change_username) /* allow username switching in SSH-2 */ \
+    X(BOOL, NONE, tryagent) \
+    X(BOOL, NONE, agentfwd) \
+    X(BOOL, NONE, change_username) /* allow username switching in SSH-2 */ \
     X(INT, INT, ssh_cipherlist) \
     X(FILENAME, NONE, keyfile) \
     /* \
@@ -1202,20 +1202,20 @@ void cleanup_exit(int);
      * downgrades PuTTY. So it's easier to use these numbers internally too. \
      */ \
     X(INT, NONE, sshprot) \
-    X(INT, NONE, ssh2_des_cbc) /* "des-cbc" unrecommended SSH-2 cipher */ \
-    X(INT, NONE, ssh_no_userauth) /* bypass "ssh-userauth" (SSH-2 only) */ \
-    X(INT, NONE, ssh_show_banner) /* show USERAUTH_BANNERs (SSH-2 only) */ \
-    X(INT, NONE, try_tis_auth) \
-    X(INT, NONE, try_ki_auth) \
-    X(INT, NONE, try_gssapi_auth) /* attempt gssapi auth via ssh userauth */ \
-    X(INT, NONE, try_gssapi_kex) /* attempt gssapi auth via ssh kex */ \
-    X(INT, NONE, gssapifwd) /* forward tgt via gss */ \
+    X(BOOL, NONE, ssh2_des_cbc) /* "des-cbc" unrecommended SSH-2 cipher */ \
+    X(BOOL, NONE, ssh_no_userauth) /* bypass "ssh-userauth" (SSH-2 only) */ \
+    X(BOOL, NONE, ssh_show_banner) /* show USERAUTH_BANNERs (SSH-2 only) */ \
+    X(BOOL, NONE, try_tis_auth) \
+    X(BOOL, NONE, try_ki_auth) \
+    X(BOOL, NONE, try_gssapi_auth) /* attempt gssapi auth via ssh userauth */ \
+    X(BOOL, NONE, try_gssapi_kex) /* attempt gssapi auth via ssh kex */ \
+    X(BOOL, NONE, gssapifwd) /* forward tgt via gss */ \
     X(INT, NONE, gssapirekey) /* KEXGSS refresh interval (mins) */ \
     X(INT, INT, ssh_gsslist) /* preference order for local GSS libs */ \
     X(FILENAME, NONE, ssh_gss_custom) \
-    X(INT, NONE, ssh_subsys) /* run a subsystem rather than a command */ \
-    X(INT, NONE, ssh_subsys2) /* fallback to go with remote_cmd_ptr2 */ \
-    X(INT, NONE, ssh_no_shell) /* avoid running a shell */ \
+    X(BOOL, NONE, ssh_subsys) /* run a subsystem rather than a command */ \
+    X(BOOL, NONE, ssh_subsys2) /* fallback to go with remote_cmd_ptr2 */ \
+    X(BOOL, NONE, ssh_no_shell) /* avoid running a shell */ \
     X(STR, NONE, ssh_nc_host) /* host to connect to in `nc' mode */ \
     X(INT, NONE, ssh_nc_port) /* port to connect to in `nc' mode */ \
     /* Telnet options */ \
@@ -1224,127 +1224,128 @@ void cleanup_exit(int);
     X(STR, STR, ttymodes) /* values are "Vvalue" or "A" */ \
     X(STR, STR, environmt) \
     X(STR, NONE, username) \
-    X(INT, NONE, username_from_env) \
+    X(BOOL, NONE, username_from_env) \
     X(STR, NONE, localusername) \
-    X(INT, NONE, rfc_environ) \
-    X(INT, NONE, passive_telnet) \
+    X(BOOL, NONE, rfc_environ) \
+    X(BOOL, NONE, passive_telnet) \
     /* Serial port options */ \
     X(STR, NONE, serline) \
     X(INT, NONE, serspeed) \
     X(INT, NONE, serdatabits) \
     X(INT, NONE, serstopbits) \
-    X(INT, NONE, serparity) \
-    X(INT, NONE, serflow) \
+    X(INT, NONE, serparity) /* SER_PAR_NONE, SER_PAR_ODD, ... */ \
+    X(INT, NONE, serflow) /* SER_FLOW_NONE, SER_FLOW_XONXOFF, ... */ \
     /* Keyboard options */ \
-    X(INT, NONE, bksp_is_delete) \
-    X(INT, NONE, rxvt_homeend) \
-    X(INT, NONE, funky_type) \
-    X(INT, NONE, no_applic_c) /* totally disable app cursor keys */ \
-    X(INT, NONE, no_applic_k) /* totally disable app keypad */ \
-    X(INT, NONE, no_mouse_rep) /* totally disable mouse reporting */ \
-    X(INT, NONE, no_remote_resize) /* disable remote resizing */ \
-    X(INT, NONE, no_alt_screen) /* disable alternate screen */ \
-    X(INT, NONE, no_remote_wintitle) /* disable remote retitling */ \
-    X(INT, NONE, no_remote_clearscroll) /* disable ESC[3J */ \
-    X(INT, NONE, no_dbackspace) /* disable destructive backspace */ \
-    X(INT, NONE, no_remote_charset) /* disable remote charset config */ \
-    X(INT, NONE, remote_qtitle_action) /* remote win title query action */ \
-    X(INT, NONE, app_cursor) \
-    X(INT, NONE, app_keypad) \
-    X(INT, NONE, nethack_keypad) \
-    X(INT, NONE, telnet_keyboard) \
-    X(INT, NONE, telnet_newline) \
-    X(INT, NONE, alt_f4) /* is it special? */ \
-    X(INT, NONE, alt_space) /* is it special? */ \
-    X(INT, NONE, alt_only) /* is it special? */ \
-    X(INT, NONE, localecho) \
-    X(INT, NONE, localedit) \
-    X(INT, NONE, alwaysontop) \
-    X(INT, NONE, fullscreenonaltenter) \
-    X(INT, NONE, scroll_on_key) \
-    X(INT, NONE, scroll_on_disp) \
-    X(INT, NONE, erase_to_scrollback) \
-    X(INT, NONE, compose_key) \
-    X(INT, NONE, ctrlaltkeys) \
-    X(INT, NONE, osx_option_meta) \
-    X(INT, NONE, osx_command_meta) \
+    X(BOOL, NONE, bksp_is_delete) \
+    X(BOOL, NONE, rxvt_homeend) \
+    X(INT, NONE, funky_type) /* FUNKY_XTERM, FUNKY_LINUX, ... */ \
+    X(BOOL, NONE, no_applic_c) /* totally disable app cursor keys */ \
+    X(BOOL, NONE, no_applic_k) /* totally disable app keypad */ \
+    X(BOOL, NONE, no_mouse_rep) /* totally disable mouse reporting */ \
+    X(BOOL, NONE, no_remote_resize) /* disable remote resizing */ \
+    X(BOOL, NONE, no_alt_screen) /* disable alternate screen */ \
+    X(BOOL, NONE, no_remote_wintitle) /* disable remote retitling */ \
+    X(BOOL, NONE, no_remote_clearscroll) /* disable ESC[3J */ \
+    X(BOOL, NONE, no_dbackspace) /* disable destructive backspace */ \
+    X(BOOL, NONE, no_remote_charset) /* disable remote charset config */ \
+    X(INT, NONE, remote_qtitle_action) /* remote win title query action
+                                       * (TITLE_NONE, TITLE_EMPTY, ...) */ \
+    X(BOOL, NONE, app_cursor) \
+    X(BOOL, NONE, app_keypad) \
+    X(BOOL, NONE, nethack_keypad) \
+    X(BOOL, NONE, telnet_keyboard) \
+    X(BOOL, NONE, telnet_newline) \
+    X(BOOL, NONE, alt_f4) /* is it special? */ \
+    X(BOOL, NONE, alt_space) /* is it special? */ \
+    X(BOOL, NONE, alt_only) /* is it special? */ \
+    X(INT, NONE, localecho) /* FORCE_ON, FORCE_OFF, AUTO */ \
+    X(INT, NONE, localedit) /* FORCE_ON, FORCE_OFF, AUTO */ \
+    X(BOOL, NONE, alwaysontop) \
+    X(BOOL, NONE, fullscreenonaltenter) \
+    X(BOOL, NONE, scroll_on_key) \
+    X(BOOL, NONE, scroll_on_disp) \
+    X(BOOL, NONE, erase_to_scrollback) \
+    X(BOOL, NONE, compose_key) \
+    X(BOOL, NONE, ctrlaltkeys) \
+    X(BOOL, NONE, osx_option_meta) \
+    X(BOOL, NONE, osx_command_meta) \
     X(STR, NONE, wintitle) /* initial window title */ \
     /* Terminal options */ \
     X(INT, NONE, savelines) \
-    X(INT, NONE, dec_om) \
-    X(INT, NONE, wrap_mode) \
-    X(INT, NONE, lfhascr) \
+    X(BOOL, NONE, dec_om) \
+    X(BOOL, NONE, wrap_mode) \
+    X(BOOL, NONE, lfhascr) \
     X(INT, NONE, cursor_type) /* 0=block 1=underline 2=vertical */ \
-    X(INT, NONE, blink_cur) \
-    X(INT, NONE, beep) \
-    X(INT, NONE, beep_ind) \
-    X(INT, NONE, bellovl) /* bell overload protection active? */ \
+    X(BOOL, NONE, blink_cur) \
+    X(INT, NONE, beep) /* BELL_DISABLED, BELL_DEFAULT, ... */ \
+    X(INT, NONE, beep_ind) /* B_IND_DISABLED, B_IND_FLASH, ... */ \
+    X(BOOL, NONE, bellovl) /* bell overload protection active? */ \
     X(INT, NONE, bellovl_n) /* number of bells to cause overload */ \
     X(INT, NONE, bellovl_t) /* time interval for overload (seconds) */ \
     X(INT, NONE, bellovl_s) /* period of silence to re-enable bell (s) */ \
     X(FILENAME, NONE, bell_wavefile) \
-    X(INT, NONE, scrollbar) \
-    X(INT, NONE, scrollbar_in_fullscreen) \
-    X(INT, NONE, resize_action) \
-    X(INT, NONE, bce) \
-    X(INT, NONE, blinktext) \
-    X(INT, NONE, win_name_always) \
+    X(BOOL, NONE, scrollbar) \
+    X(BOOL, NONE, scrollbar_in_fullscreen) \
+    X(INT, NONE, resize_action) /* RESIZE_TERM, RESIZE_DISABLED, ... */ \
+    X(BOOL, NONE, bce) \
+    X(BOOL, NONE, blinktext) \
+    X(BOOL, NONE, win_name_always) \
     X(INT, NONE, width) \
     X(INT, NONE, height) \
     X(FONT, NONE, font) \
-    X(INT, NONE, font_quality) \
+    X(INT, NONE, font_quality) /* FQ_DEFAULT, FQ_ANTIALIASED, ... */ \
     X(FILENAME, NONE, logfilename) \
-    X(INT, NONE, logtype) \
-    X(INT, NONE, logxfovr) \
-    X(INT, NONE, logflush) \
-    X(INT, NONE, logheader) \
-    X(INT, NONE, logomitpass) \
-    X(INT, NONE, logomitdata) \
-    X(INT, NONE, hide_mouseptr) \
-    X(INT, NONE, sunken_edge) \
-    X(INT, NONE, window_border) \
+    X(INT, NONE, logtype) /* LGTYP_NONE, LGTYPE_ASCII, ... */ \
+    X(INT, NONE, logxfovr) /* LGXF_OVR, LGXF_APN, LGXF_ASK */ \
+    X(BOOL, NONE, logflush) \
+    X(BOOL, NONE, logheader) \
+    X(BOOL, NONE, logomitpass) \
+    X(BOOL, NONE, logomitdata) \
+    X(BOOL, NONE, hide_mouseptr) \
+    X(BOOL, NONE, sunken_edge) \
+    X(INT, NONE, window_border) /* in pixels */ \
     X(STR, NONE, answerback) \
     X(STR, NONE, printer) \
-    X(INT, NONE, arabicshaping) \
-    X(INT, NONE, bidi) \
+    X(BOOL, NONE, arabicshaping) \
+    X(BOOL, NONE, bidi) \
     /* Colour options */ \
-    X(INT, NONE, ansi_colour) \
-    X(INT, NONE, xterm_256_colour) \
-    X(INT, NONE, true_colour) \
-    X(INT, NONE, system_colour) \
-    X(INT, NONE, try_palette) \
-    X(INT, NONE, bold_style) \
+    X(BOOL, NONE, ansi_colour) \
+    X(BOOL, NONE, xterm_256_colour) \
+    X(BOOL, NONE, true_colour) \
+    X(BOOL, NONE, system_colour) \
+    X(BOOL, NONE, try_palette) \
+    X(INT, NONE, bold_style) /* 1=font 2=colour (3=both) */ \
     X(INT, INT, colours) \
     /* Selection options */ \
-    X(INT, NONE, mouse_is_xterm) \
-    X(INT, NONE, rect_select) \
-    X(INT, NONE, paste_controls) \
-    X(INT, NONE, rawcnp) \
-    X(INT, NONE, utf8linedraw) \
-    X(INT, NONE, rtf_paste) \
-    X(INT, NONE, mouse_override) \
+    X(INT, NONE, mouse_is_xterm) /* 0=compromise 1=xterm 2=Windows */ \
+    X(BOOL, NONE, rect_select) \
+    X(BOOL, NONE, paste_controls) \
+    X(BOOL, NONE, rawcnp) \
+    X(BOOL, NONE, utf8linedraw) \
+    X(BOOL, NONE, rtf_paste) \
+    X(BOOL, NONE, mouse_override) \
     X(INT, INT, wordness) \
-    X(INT, NONE, mouseautocopy) \
-    X(INT, NONE, mousepaste) \
-    X(INT, NONE, ctrlshiftins) \
-    X(INT, NONE, ctrlshiftcv) \
+    X(BOOL, NONE, mouseautocopy) \
+    X(INT, NONE, mousepaste) /* CLIPUI_IMPLICIT, CLIPUI_EXPLICIT, ... */ \
+    X(INT, NONE, ctrlshiftins) /* CLIPUI_IMPLICIT, CLIPUI_EXPLICIT, ... */ \
+    X(INT, NONE, ctrlshiftcv) /* CLIPUI_IMPLICIT, CLIPUI_EXPLICIT, ... */ \
     X(STR, NONE, mousepaste_custom) \
     X(STR, NONE, ctrlshiftins_custom) \
     X(STR, NONE, ctrlshiftcv_custom) \
     /* translations */ \
-    X(INT, NONE, vtmode) \
+    X(INT, NONE, vtmode) /* VT_XWINDOWS, VT_OEMANSI, ... */ \
     X(STR, NONE, line_codepage) \
-    X(INT, NONE, cjk_ambig_wide) \
-    X(INT, NONE, utf8_override) \
-    X(INT, NONE, xlat_capslockcyr) \
+    X(BOOL, NONE, cjk_ambig_wide) \
+    X(BOOL, NONE, utf8_override) \
+    X(BOOL, NONE, xlat_capslockcyr) \
     /* X11 forwarding */ \
-    X(INT, NONE, x11_forward) \
+    X(BOOL, NONE, x11_forward) \
     X(STR, NONE, x11_display) \
-    X(INT, NONE, x11_auth) \
+    X(INT, NONE, x11_auth) /* X11_NO_AUTH, X11_MIT, X11_XDM */ \
     X(FILENAME, NONE, xauthfile) \
     /* port forwarding */ \
-    X(INT, NONE, lport_acceptall) /* accept conns from hosts other than localhost */ \
-    X(INT, NONE, rport_acceptall) /* same for remote forwarded ports (SSH-2 only) */ \
+    X(BOOL, NONE, lport_acceptall) /* accept conns from hosts other than localhost */ \
+    X(BOOL, NONE, rport_acceptall) /* same for remote forwarded ports (SSH-2 only) */ \
     /*                                                                \
      * Subkeys for 'portfwd' can have the following forms:            \
      *                                                                \
@@ -1356,7 +1357,7 @@ void cleanup_exit(int);
      * should be of the form 'host:port'.                             \
      */ \
     X(STR, STR, portfwd) \
-    /* SSH bug compatibility modes */ \
+    /* SSH bug compatibility modes. All FORCE_ON/FORCE_OFF/AUTO */ \
     X(INT, NONE, sshbug_ignore1) \
     X(INT, NONE, sshbug_plainpw1) \
     X(INT, NONE, sshbug_rsa1) \
@@ -1375,10 +1376,10 @@ void cleanup_exit(int);
      * other than the main one, which means it can safely use a very  \
      * large window in SSH-2.                                         \
      */ \
-    X(INT, NONE, ssh_simple) \
-    X(INT, NONE, ssh_connection_sharing) \
-    X(INT, NONE, ssh_connection_sharing_upstream) \
-    X(INT, NONE, ssh_connection_sharing_downstream) \
+    X(BOOL, NONE, ssh_simple) \
+    X(BOOL, NONE, ssh_connection_sharing) \
+    X(BOOL, NONE, ssh_connection_sharing_upstream) \
+    X(BOOL, NONE, ssh_connection_sharing_downstream) \
     /*
      * ssh_manual_hostkeys is conceptually a set rather than a
      * dictionary: the string subkeys are the important thing, and the
@@ -1386,15 +1387,15 @@ void cleanup_exit(int);
      */ \
     X(STR, STR, ssh_manual_hostkeys) \
     /* Options for pterm. Should split out into platform-dependent part. */ \
-    X(INT, NONE, stamp_utmp) \
-    X(INT, NONE, login_shell) \
-    X(INT, NONE, scrollbar_on_left) \
-    X(INT, NONE, shadowbold) \
+    X(BOOL, NONE, stamp_utmp) \
+    X(BOOL, NONE, login_shell) \
+    X(BOOL, NONE, scrollbar_on_left) \
+    X(BOOL, NONE, shadowbold) \
     X(FONT, NONE, boldfont) \
     X(FONT, NONE, widefont) \
     X(FONT, NONE, wideboldfont) \
-    X(INT, NONE, shadowboldoffset) \
-    X(INT, NONE, crhaslf) \
+    X(INT, NONE, shadowboldoffset) /* in pixels */ \
+    X(BOOL, NONE, crhaslf) \
     X(STR, NONE, winclass) \
 
 /* Now define the actual enum of option keywords using that macro. */
@@ -1494,6 +1495,7 @@ void registry_cleanup(void);
  * transferred to the caller, and must be freed.
  */
 char *platform_default_s(const char *name);
+bool platform_default_b(const char *name, bool def);
 int platform_default_i(const char *name, int def);
 Filename *platform_default_filename(const char *name);
 FontSpec *platform_default_fontspec(const char *name);

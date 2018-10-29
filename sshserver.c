@@ -221,7 +221,7 @@ Plug *ssh_server_plug(
     srv->plug.vt = &ssh_server_plugvt;
     srv->conf = conf_copy(conf);
     srv->logctx = log_init(logpolicy, conf);
-    conf_set_int(srv->conf, CONF_ssh_no_shell, true);
+    conf_set_bool(srv->conf, CONF_ssh_no_shell, true);
     srv->nhostkeys = nhostkeys;
     srv->hostkeys = hostkeys;
     srv->hostkey1 = hostkey1;
@@ -418,7 +418,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
         ssh2connection_server_configure(connection_layer, srv->sftpserver_vt);
         server_connect_ppl(srv, connection_layer);
 
-        if (conf_get_int(srv->conf, CONF_ssh_no_userauth)) {
+        if (conf_get_bool(srv->conf, CONF_ssh_no_userauth)) {
             userauth_layer = NULL;
             transport_child_layer = connection_layer;
         } else {

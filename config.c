@@ -43,11 +43,39 @@ void conf_radiobutton_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
+void conf_radiobutton_bool_handler(union control *ctrl, dlgparam *dlg,
+                                   void *data, int event)
+{
+    int button;
+    Conf *conf = (Conf *)data;
+
+    /*
+     * Same as conf_radiobutton_handler, but using conf_set_bool in
+     * place of conf_set_int, because it's dealing with a bool-typed
+     * config option.
+     */
+    if (event == EVENT_REFRESH) {
+	int val = conf_get_bool(conf, ctrl->radio.context.i);
+	for (button = 0; button < ctrl->radio.nbuttons; button++)
+	    if (val == ctrl->radio.buttondata[button].i)
+		break;
+	/* We expected that `break' to happen, in all circumstances. */
+	assert(button < ctrl->radio.nbuttons);
+	dlg_radiobutton_set(ctrl, dlg, button);
+    } else if (event == EVENT_VALCHANGE) {
+	button = dlg_radiobutton_get(ctrl, dlg);
+	assert(button >= 0 && button < ctrl->radio.nbuttons);
+	conf_set_bool(conf, ctrl->radio.context.i,
+                      ctrl->radio.buttondata[button].i);
+    }
+}
+
 #define CHECKBOX_INVERT (1<<30)
 void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
 			   void *data, int event)
 {
-    int key, invert;
+    int key;
+    bool invert;
     Conf *conf = (Conf *)data;
 
     /*
@@ -68,10 +96,10 @@ void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
      */
 
     if (event == EVENT_REFRESH) {
-	int val = conf_get_int(conf, key);
+	bool val = conf_get_bool(conf, key);
 	dlg_checkbox_set(ctrl, dlg, (!val ^ !invert));
     } else if (event == EVENT_VALCHANGE) {
-	conf_set_int(conf, key, !dlg_checkbox_get(ctrl,dlg) ^ !invert);
+	conf_set_bool(conf, key, !dlg_checkbox_get(ctrl,dlg) ^ !invert);
     }
 }
 
@@ -328,9 +356,9 @@ static void numeric_keypad_handler(union control *ctrl, dlgparam *dlg,
      * handler, but it has to handle two fields in Conf.
      */
     if (event == EVENT_REFRESH) {
-	if (conf_get_int(conf, CONF_nethack_keypad))
+	if (conf_get_bool(conf, CONF_nethack_keypad))
 	    button = 2;
-	else if (conf_get_int(conf, CONF_app_keypad))
+	else if (conf_get_bool(conf, CONF_app_keypad))
 	    button = 1;
 	else
 	    button = 0;
@@ -340,11 +368,11 @@ static void numeric_keypad_handler(union control *ctrl, dlgparam *dlg,
 	button = dlg_radiobutton_get(ctrl, dlg);
 	assert(button >= 0 && button < ctrl->radio.nbuttons);
 	if (button == 2) {
-	    conf_set_int(conf, CONF_app_keypad, false);
-	    conf_set_int(conf, CONF_nethack_keypad, true);
+	    conf_set_bool(conf, CONF_app_keypad, false);
+	    conf_set_bool(conf, CONF_nethack_keypad, true);
 	} else {
-	    conf_set_int(conf, CONF_app_keypad, (button != 0));
-	    conf_set_int(conf, CONF_nethack_keypad, false);
+	    conf_set_bool(conf, CONF_app_keypad, (button != 0));
+	    conf_set_bool(conf, CONF_nethack_keypad, false);
 	}
     }
 }
@@ -1701,14 +1729,14 @@ void setup_config_box(struct controlbox *b, int midsession,
 		    "Change the sequences sent by:");
     ctrl_radiobuttons(s, "The Backspace key", 'b', 2,
 		      HELPCTX(keyboard_backspace),
-		      conf_radiobutton_handler,
+		      conf_radiobutton_bool_handler,
 		      I(CONF_bksp_is_delete),
 		      "Control-H", I(0), "Control-? (127)", I(1), NULL);
     ctrl_radiobuttons(s, "The Home and End keys", 'e', 2,
 		      HELPCTX(keyboard_homeend),
-		      conf_radiobutton_handler,
+		      conf_radiobutton_bool_handler,
 		      I(CONF_rxvt_homeend),
-		      "Standard", I(0), "rxvt", I(1), NULL);
+		      "Standard", I(false), "rxvt", I(true), NULL);
     ctrl_radiobuttons(s, "The Function keys and keypad", 'f', 3,
 		      HELPCTX(keyboard_funkeys),
 		      conf_radiobutton_handler,
@@ -1720,7 +1748,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		    "Application keypad settings:");
     ctrl_radiobuttons(s, "Initial state of cursor keys:", 'r', 3,
 		      HELPCTX(keyboard_appcursor),
-		      conf_radiobutton_handler,
+		      conf_radiobutton_bool_handler,
 		      I(CONF_app_cursor),
 		      "Normal", I(0), "Application", I(1), NULL);
     ctrl_radiobuttons(s, "Initial state of numeric keypad:", 'n', 3,
@@ -1960,10 +1988,10 @@ void setup_config_box(struct controlbox *b, int midsession,
 		      "Default selection mode (Alt+drag does the other one):",
 		      NO_SHORTCUT, 2,
 		      HELPCTX(selection_rect),
-		      conf_radiobutton_handler,
+		      conf_radiobutton_bool_handler,
 		      I(CONF_rect_select),
-		      "Normal", 'n', I(0),
-		      "Rectangular block", 'r', I(1), NULL);
+		      "Normal", 'n', I(false),
+		      "Rectangular block", 'r', I(true), NULL);
 
     s = ctrl_getset(b, "Window/Selection", "clipboards",
                     "Assign copy/paste actions to clipboards");
@@ -2142,7 +2170,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		sfree(user);
 		ctrl_radiobuttons(s, "When username is not specified:", 'n', 4,
 				  HELPCTX(connection_username_from_env),
-				  conf_radiobutton_handler,
+				  conf_radiobutton_bool_handler,
 				  I(CONF_username_from_env),
 				  "Prompt", I(false),
 				  userlabel, I(true),
@@ -2281,15 +2309,15 @@ void setup_config_box(struct controlbox *b, int midsession,
 	    ctrl_radiobuttons(s, "Handling of OLD_ENVIRON ambiguity:",
 			      NO_SHORTCUT, 2,
 			      HELPCTX(telnet_oldenviron),
-			      conf_radiobutton_handler,
+			      conf_radiobutton_bool_handler,
 			      I(CONF_rfc_environ),
-			      "BSD (commonplace)", 'b', I(0),
-			      "RFC 1408 (unusual)", 'f', I(1), NULL);
+			      "BSD (commonplace)", 'b', I(false),
+			      "RFC 1408 (unusual)", 'f', I(true), NULL);
 	    ctrl_radiobuttons(s, "Telnet negotiation mode:", 't', 2,
 			      HELPCTX(telnet_passive),
-			      conf_radiobutton_handler,
+			      conf_radiobutton_bool_handler,
 			      I(CONF_passive_telnet),
-			      "Passive", I(1), "Active", I(0), NULL);
+			      "Passive", I(true), "Active", I(false), NULL);
 	}
 	ctrl_checkbox(s, "Keyboard sends Telnet special commands", 'k',
 		      HELPCTX(telnet_specialkeys),

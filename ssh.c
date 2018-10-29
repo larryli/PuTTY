@@ -177,8 +177,8 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
              * ourselves), since then the assumption that we have only
              * one channel to worry about is not true after all.
              */
-            int is_simple =
-                (conf_get_int(ssh->conf, CONF_ssh_simple) && !ssh->connshare);
+            bool is_simple =
+                (conf_get_bool(ssh->conf, CONF_ssh_simple) && !ssh->connshare);
 
             ssh->bpp = ssh2_bpp_new(ssh->logctx, &ssh->stats, false);
             ssh_connect_bpp(ssh);
@@ -218,7 +218,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
                 ssh_verstring_get_remote(old_bpp), &ssh->cl);
             ssh_connect_ppl(ssh, connection_layer);
 
-            if (conf_get_int(ssh->conf, CONF_ssh_no_userauth)) {
+            if (conf_get_bool(ssh->conf, CONF_ssh_no_userauth)) {
                 userauth_layer = NULL;
                 transport_child_layer = connection_layer;
             } else {
@@ -227,12 +227,12 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
                 userauth_layer = ssh2_userauth_new(
                     connection_layer, ssh->savedhost, ssh->fullhostname,
                     conf_get_filename(ssh->conf, CONF_keyfile),
-                    conf_get_int(ssh->conf, CONF_tryagent), username,
-                    conf_get_int(ssh->conf, CONF_change_username),
-                    conf_get_int(ssh->conf, CONF_try_ki_auth),
-                    conf_get_int(ssh->conf, CONF_try_gssapi_auth),
-                    conf_get_int(ssh->conf, CONF_try_gssapi_kex),
-                    conf_get_int(ssh->conf, CONF_gssapifwd),
+                    conf_get_bool(ssh->conf, CONF_tryagent), username,
+                    conf_get_bool(ssh->conf, CONF_change_username),
+                    conf_get_bool(ssh->conf, CONF_try_ki_auth),
+                    conf_get_bool(ssh->conf, CONF_try_gssapi_auth),
+                    conf_get_bool(ssh->conf, CONF_try_gssapi_kex),
+                    conf_get_bool(ssh->conf, CONF_gssapifwd),
                     &ssh->gss_state);
                 ssh_connect_ppl(ssh, userauth_layer);
                 transport_child_layer = userauth_layer;
@@ -781,8 +781,8 @@ static void ssh_throttle_all(Ssh *ssh, int enable, int bufsize)
 
 static void ssh_cache_conf_values(Ssh *ssh)
 {
-    ssh->pls.omit_passwords = conf_get_int(ssh->conf, CONF_logomitpass);
-    ssh->pls.omit_data = conf_get_int(ssh->conf, CONF_logomitdata);
+    ssh->pls.omit_passwords = conf_get_bool(ssh->conf, CONF_logomitpass);
+    ssh->pls.omit_data = conf_get_bool(ssh->conf, CONF_logomitdata);
 }
 
 /*

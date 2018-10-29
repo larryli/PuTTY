@@ -594,7 +594,7 @@ int cmdline_process_param(const char *p, char *value,
 	fclose(fp);
 	conf_set_str(conf, CONF_remote_cmd, command);
 	conf_set_str(conf, CONF_remote_cmd2, "");
-	conf_set_int(conf, CONF_nopty, true);   /* command => no terminal */
+	conf_set_bool(conf, CONF_nopty, true);   /* command => no terminal */
 	sfree(command);
     }
     if (!strcmp(p, "-P")) {
@@ -626,78 +626,78 @@ int cmdline_process_param(const char *p, char *value,
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_tryagent, true);
+	conf_set_bool(conf, CONF_tryagent, true);
     }
     if (!strcmp(p, "-noagent") || !strcmp(p, "-nopagent") ||
 	!strcmp(p, "-nopageant")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_tryagent, false);
+	conf_set_bool(conf, CONF_tryagent, false);
     }
     if (!strcmp(p, "-share")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_ssh_connection_sharing, true);
+	conf_set_bool(conf, CONF_ssh_connection_sharing, true);
     }
     if (!strcmp(p, "-noshare")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_ssh_connection_sharing, false);
+	conf_set_bool(conf, CONF_ssh_connection_sharing, false);
     }
     if (!strcmp(p, "-A")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_agentfwd, 1);
+	conf_set_bool(conf, CONF_agentfwd, true);
     }
     if (!strcmp(p, "-a")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_agentfwd, 0);
+	conf_set_bool(conf, CONF_agentfwd, false);
     }
 
     if (!strcmp(p, "-X")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_x11_forward, 1);
+	conf_set_bool(conf, CONF_x11_forward, true);
     }
     if (!strcmp(p, "-x")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_x11_forward, 0);
+	conf_set_bool(conf, CONF_x11_forward, false);
     }
 
     if (!strcmp(p, "-t")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(1);	/* lower priority than -m */
-	conf_set_int(conf, CONF_nopty, 0);
+	conf_set_bool(conf, CONF_nopty, false);
     }
     if (!strcmp(p, "-T")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(1);
-	conf_set_int(conf, CONF_nopty, 1);
+	conf_set_bool(conf, CONF_nopty, true);
     }
 
     if (!strcmp(p, "-N")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_ssh_no_shell, 1);
+	conf_set_bool(conf, CONF_ssh_no_shell, true);
     }
 
     if (!strcmp(p, "-C")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_compression, 1);
+	conf_set_bool(conf, CONF_compression, true);
     }
 
     if (!strcmp(p, "-1")) {

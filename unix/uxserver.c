@@ -73,6 +73,11 @@ char *platform_default_s(const char *name)
     return NULL;
 }
 
+bool platform_default_b(const char *name, bool def)
+{
+    return def;
+}
+
 int platform_default_i(const char *name, int def)
 {
     return def;

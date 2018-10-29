@@ -1286,11 +1286,11 @@ static void power_on(Terminal *term, int clear)
 	for (i = 0; i < term->cols; i++)
 	    term->tabs[i] = (i % 8 == 0 ? true : false);
     }
-    term->alt_om = term->dec_om = conf_get_int(term->conf, CONF_dec_om);
+    term->alt_om = term->dec_om = conf_get_bool(term->conf, CONF_dec_om);
     term->alt_ins = term->insert = false;
     term->alt_wnext = term->wrapnext =
         term->save_wnext = term->alt_save_wnext = false;
-    term->alt_wrap = term->wrap = conf_get_int(term->conf, CONF_wrap_mode);
+    term->alt_wrap = term->wrap = conf_get_bool(term->conf, CONF_wrap_mode);
     term->alt_cset = term->cset = term->save_cset = term->alt_save_cset = 0;
     term->alt_utf = term->utf = term->save_utf = term->alt_save_utf = 0;
     term->utf_state = 0;
@@ -1307,10 +1307,10 @@ static void power_on(Terminal *term, int clear)
     term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
     term->save_truecolour = term->alt_save_truecolour = term->curr_truecolour;
     term->term_editing = term->term_echoing = false;
-    term->app_cursor_keys = conf_get_int(term->conf, CONF_app_cursor);
-    term->app_keypad_keys = conf_get_int(term->conf, CONF_app_keypad);
-    term->use_bce = conf_get_int(term->conf, CONF_bce);
-    term->blink_is_real = conf_get_int(term->conf, CONF_blinktext);
+    term->app_cursor_keys = conf_get_bool(term->conf, CONF_app_cursor);
+    term->app_keypad_keys = conf_get_bool(term->conf, CONF_app_keypad);
+    term->use_bce = conf_get_bool(term->conf, CONF_bce);
+    term->blink_is_real = conf_get_bool(term->conf, CONF_blinktext);
     term->erase_char = term->basic_erase_char;
     term->alt_which = 0;
     term_print_finish(term);
@@ -1429,46 +1429,46 @@ static void set_erase_char(Terminal *term)
  */
 void term_copy_stuff_from_conf(Terminal *term)
 {
-    term->ansi_colour = conf_get_int(term->conf, CONF_ansi_colour);
-    term->arabicshaping = conf_get_int(term->conf, CONF_arabicshaping);
+    term->ansi_colour = conf_get_bool(term->conf, CONF_ansi_colour);
+    term->arabicshaping = conf_get_bool(term->conf, CONF_arabicshaping);
     term->beep = conf_get_int(term->conf, CONF_beep);
-    term->bellovl = conf_get_int(term->conf, CONF_bellovl);
+    term->bellovl = conf_get_bool(term->conf, CONF_bellovl);
     term->bellovl_n = conf_get_int(term->conf, CONF_bellovl_n);
     term->bellovl_s = conf_get_int(term->conf, CONF_bellovl_s);
     term->bellovl_t = conf_get_int(term->conf, CONF_bellovl_t);
-    term->bidi = conf_get_int(term->conf, CONF_bidi);
-    term->bksp_is_delete = conf_get_int(term->conf, CONF_bksp_is_delete);
-    term->blink_cur = conf_get_int(term->conf, CONF_blink_cur);
-    term->blinktext = conf_get_int(term->conf, CONF_blinktext);
-    term->cjk_ambig_wide = conf_get_int(term->conf, CONF_cjk_ambig_wide);
+    term->bidi = conf_get_bool(term->conf, CONF_bidi);
+    term->bksp_is_delete = conf_get_bool(term->conf, CONF_bksp_is_delete);
+    term->blink_cur = conf_get_bool(term->conf, CONF_blink_cur);
+    term->blinktext = conf_get_bool(term->conf, CONF_blinktext);
+    term->cjk_ambig_wide = conf_get_bool(term->conf, CONF_cjk_ambig_wide);
     term->conf_height = conf_get_int(term->conf, CONF_height);
     term->conf_width = conf_get_int(term->conf, CONF_width);
-    term->crhaslf = conf_get_int(term->conf, CONF_crhaslf);
-    term->erase_to_scrollback = conf_get_int(term->conf, CONF_erase_to_scrollback);
+    term->crhaslf = conf_get_bool(term->conf, CONF_crhaslf);
+    term->erase_to_scrollback = conf_get_bool(term->conf, CONF_erase_to_scrollback);
     term->funky_type = conf_get_int(term->conf, CONF_funky_type);
-    term->lfhascr = conf_get_int(term->conf, CONF_lfhascr);
-    term->logflush = conf_get_int(term->conf, CONF_logflush);
+    term->lfhascr = conf_get_bool(term->conf, CONF_lfhascr);
+    term->logflush = conf_get_bool(term->conf, CONF_logflush);
     term->logtype = conf_get_int(term->conf, CONF_logtype);
-    term->mouse_override = conf_get_int(term->conf, CONF_mouse_override);
-    term->nethack_keypad = conf_get_int(term->conf, CONF_nethack_keypad);
-    term->no_alt_screen = conf_get_int(term->conf, CONF_no_alt_screen);
-    term->no_applic_c = conf_get_int(term->conf, CONF_no_applic_c);
-    term->no_applic_k = conf_get_int(term->conf, CONF_no_applic_k);
-    term->no_dbackspace = conf_get_int(term->conf, CONF_no_dbackspace);
-    term->no_mouse_rep = conf_get_int(term->conf, CONF_no_mouse_rep);
-    term->no_remote_charset = conf_get_int(term->conf, CONF_no_remote_charset);
-    term->no_remote_resize = conf_get_int(term->conf, CONF_no_remote_resize);
-    term->no_remote_wintitle = conf_get_int(term->conf, CONF_no_remote_wintitle);
-    term->no_remote_clearscroll = conf_get_int(term->conf, CONF_no_remote_clearscroll);
-    term->rawcnp = conf_get_int(term->conf, CONF_rawcnp);
-    term->utf8linedraw = conf_get_int(term->conf, CONF_utf8linedraw);
-    term->rect_select = conf_get_int(term->conf, CONF_rect_select);
+    term->mouse_override = conf_get_bool(term->conf, CONF_mouse_override);
+    term->nethack_keypad = conf_get_bool(term->conf, CONF_nethack_keypad);
+    term->no_alt_screen = conf_get_bool(term->conf, CONF_no_alt_screen);
+    term->no_applic_c = conf_get_bool(term->conf, CONF_no_applic_c);
+    term->no_applic_k = conf_get_bool(term->conf, CONF_no_applic_k);
+    term->no_dbackspace = conf_get_bool(term->conf, CONF_no_dbackspace);
+    term->no_mouse_rep = conf_get_bool(term->conf, CONF_no_mouse_rep);
+    term->no_remote_charset = conf_get_bool(term->conf, CONF_no_remote_charset);
+    term->no_remote_resize = conf_get_bool(term->conf, CONF_no_remote_resize);
+    term->no_remote_wintitle = conf_get_bool(term->conf, CONF_no_remote_wintitle);
+    term->no_remote_clearscroll = conf_get_bool(term->conf, CONF_no_remote_clearscroll);
+    term->rawcnp = conf_get_bool(term->conf, CONF_rawcnp);
+    term->utf8linedraw = conf_get_bool(term->conf, CONF_utf8linedraw);
+    term->rect_select = conf_get_bool(term->conf, CONF_rect_select);
     term->remote_qtitle_action = conf_get_int(term->conf, CONF_remote_qtitle_action);
-    term->rxvt_homeend = conf_get_int(term->conf, CONF_rxvt_homeend);
-    term->scroll_on_disp = conf_get_int(term->conf, CONF_scroll_on_disp);
-    term->scroll_on_key = conf_get_int(term->conf, CONF_scroll_on_key);
-    term->xterm_256_colour = conf_get_int(term->conf, CONF_xterm_256_colour);
-    term->true_colour = conf_get_int(term->conf, CONF_true_colour);
+    term->rxvt_homeend = conf_get_bool(term->conf, CONF_rxvt_homeend);
+    term->scroll_on_disp = conf_get_bool(term->conf, CONF_scroll_on_disp);
+    term->scroll_on_key = conf_get_bool(term->conf, CONF_scroll_on_key);
+    term->xterm_256_colour = conf_get_bool(term->conf, CONF_xterm_256_colour);
+    term->true_colour = conf_get_bool(term->conf, CONF_true_colour);
 
     /*
      * Parse the control-character escapes in the configured
@@ -1512,14 +1512,14 @@ void term_reconfig(Terminal *term, Conf *conf)
     int reset_wrap, reset_decom, reset_bce, reset_tblink, reset_charclass;
     int i;
 
-    reset_wrap = (conf_get_int(term->conf, CONF_wrap_mode) !=
-		  conf_get_int(conf, CONF_wrap_mode));
-    reset_decom = (conf_get_int(term->conf, CONF_dec_om) !=
-		   conf_get_int(conf, CONF_dec_om));
-    reset_bce = (conf_get_int(term->conf, CONF_bce) !=
-		 conf_get_int(conf, CONF_bce));
-    reset_tblink = (conf_get_int(term->conf, CONF_blinktext) !=
-		    conf_get_int(conf, CONF_blinktext));
+    reset_wrap = (conf_get_bool(term->conf, CONF_wrap_mode) !=
+		  conf_get_bool(conf, CONF_wrap_mode));
+    reset_decom = (conf_get_bool(term->conf, CONF_dec_om) !=
+		   conf_get_bool(conf, CONF_dec_om));
+    reset_bce = (conf_get_bool(term->conf, CONF_bce) !=
+		 conf_get_bool(conf, CONF_bce));
+    reset_tblink = (conf_get_bool(term->conf, CONF_blinktext) !=
+		    conf_get_bool(conf, CONF_blinktext));
     reset_charclass = 0;
     for (i = 0; i < 256; i++)
 	if (conf_get_int_int(term->conf, CONF_wordness, i) !=
@@ -1530,10 +1530,10 @@ void term_reconfig(Terminal *term, Conf *conf)
      * If the bidi or shaping settings have changed, flush the bidi
      * cache completely.
      */
-    if (conf_get_int(term->conf, CONF_arabicshaping) !=
-	conf_get_int(conf, CONF_arabicshaping) ||
-	conf_get_int(term->conf, CONF_bidi) !=
-	conf_get_int(conf, CONF_bidi)) {
+    if (conf_get_bool(term->conf, CONF_arabicshaping) !=
+	conf_get_bool(conf, CONF_arabicshaping) ||
+	conf_get_bool(term->conf, CONF_bidi) !=
+	conf_get_bool(conf, CONF_bidi)) {
 	for (i = 0; i < term->bidi_cache_size; i++) {
 	    sfree(term->pre_bidi_cache[i].chars);
 	    sfree(term->post_bidi_cache[i].chars);
@@ -1548,27 +1548,27 @@ void term_reconfig(Terminal *term, Conf *conf)
     term->conf = conf_copy(conf);
 
     if (reset_wrap)
-	term->alt_wrap = term->wrap = conf_get_int(term->conf, CONF_wrap_mode);
+	term->alt_wrap = term->wrap = conf_get_bool(term->conf, CONF_wrap_mode);
     if (reset_decom)
-	term->alt_om = term->dec_om = conf_get_int(term->conf, CONF_dec_om);
+	term->alt_om = term->dec_om = conf_get_bool(term->conf, CONF_dec_om);
     if (reset_bce) {
-	term->use_bce = conf_get_int(term->conf, CONF_bce);
+	term->use_bce = conf_get_bool(term->conf, CONF_bce);
 	set_erase_char(term);
     }
     if (reset_tblink) {
-	term->blink_is_real = conf_get_int(term->conf, CONF_blinktext);
+	term->blink_is_real = conf_get_bool(term->conf, CONF_blinktext);
     }
     if (reset_charclass)
 	for (i = 0; i < 256; i++)
 	    term->wordness[i] = conf_get_int_int(term->conf, CONF_wordness, i);
 
-    if (conf_get_int(term->conf, CONF_no_alt_screen))
+    if (conf_get_bool(term->conf, CONF_no_alt_screen))
 	swap_screen(term, 0, false, false);
-    if (conf_get_int(term->conf, CONF_no_mouse_rep)) {
+    if (conf_get_bool(term->conf, CONF_no_mouse_rep)) {
 	term->xterm_mouse = 0;
 	win_set_raw_mouse_mode(term->win, 0);
     }
-    if (conf_get_int(term->conf, CONF_no_remote_charset)) {
+    if (conf_get_bool(term->conf, CONF_no_remote_charset)) {
 	term->cset_attr[0] = term->cset_attr[1] = CSET_ASCII;
 	term->sco_acs = term->alt_sco_acs = 0;
 	term->utf = 0;
@@ -6065,7 +6065,7 @@ static int wstartswith(const wchar_t *a, size_t alen,
 void term_do_paste(Terminal *term, const wchar_t *data, int len)
 {
     const wchar_t *p;
-    int paste_controls = conf_get_int(term->conf, CONF_paste_controls);
+    int paste_controls = conf_get_bool(term->conf, CONF_paste_controls);
 
     /*
      * Pasting data into the terminal counts as a keyboard event (for

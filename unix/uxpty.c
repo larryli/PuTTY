@@ -920,7 +920,7 @@ Backend *pty_backend_create(
          * or not.
          */
         if (pty_utmp_helper_pipe >= 0) {   /* if it's < 0, we can't anyway */
-            if (!conf_get_int(conf, CONF_stamp_utmp)) {
+            if (!conf_get_bool(conf, CONF_stamp_utmp)) {
                 /* We're not stamping utmp, so just let the child
                  * process die that was waiting to unstamp it later. */
                 close(pty_utmp_helper_pipe);
@@ -1046,7 +1046,7 @@ Backend *pty_backend_create(
                  * Set the backspace character to be whichever of ^H and
                  * ^? is specified by bksp_is_delete.
                  */
-                attrs.c_cc[VERASE] = conf_get_int(conf, CONF_bksp_is_delete)
+                attrs.c_cc[VERASE] = conf_get_bool(conf, CONF_bksp_is_delete)
                     ? '\177' : '\010';
 
                 /*
@@ -1176,7 +1176,7 @@ Backend *pty_backend_create(
         } else {
 	    char *shell = getenv("SHELL");
 	    char *shellname;
-	    if (conf_get_int(conf, CONF_login_shell)) {
+	    if (conf_get_bool(conf, CONF_login_shell)) {
 		char *p = strrchr(shell, '/');
 		shellname = snewn(2+strlen(shell), char);
 		p = p ? p+1 : shell;

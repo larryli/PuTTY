@@ -587,7 +587,7 @@ static char *pfl_listen(const char *desthost, int destport,
     pl->cl = cl;
 
     pl->s = new_listener(srcaddr, port, &pl->plug,
-                         !conf_get_int(conf, CONF_lport_acceptall),
+                         !conf_get_bool(conf, CONF_lport_acceptall),
                          conf, address_family);
     if ((err = sk_socket_error(pl->s)) != NULL) {
         char *err_ret = dupstr(err);
@@ -1024,7 +1024,7 @@ void portfwdmgr_config(PortFwdManager *mgr, Conf *conf)
 
                 if (pfr->saddr) {
                     shost = pfr->saddr;
-                } else if (conf_get_int(conf, CONF_rport_acceptall)) {
+                } else if (conf_get_bool(conf, CONF_rport_acceptall)) {
                     shost = "";
                 } else {
                     shost = "localhost";

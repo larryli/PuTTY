@@ -103,8 +103,8 @@ Ldisc *ldisc_create(Conf *conf, Terminal *term, Backend *backend, Seat *seat)
 
 void ldisc_configure(Ldisc *ldisc, Conf *conf)
 {
-    ldisc->telnet_keyboard = conf_get_int(conf, CONF_telnet_keyboard);
-    ldisc->telnet_newline = conf_get_int(conf, CONF_telnet_newline);
+    ldisc->telnet_keyboard = conf_get_bool(conf, CONF_telnet_keyboard);
+    ldisc->telnet_newline = conf_get_bool(conf, CONF_telnet_newline);
     ldisc->protocol = conf_get_int(conf, CONF_protocol);
     ldisc->localecho = conf_get_int(conf, CONF_localecho);
     ldisc->localedit = conf_get_int(conf, CONF_localedit);
