@@ -388,13 +388,13 @@ static const XCharStruct *x11_char_struct(
      */
 
     if (byte2 < xfs->min_char_or_byte2 || byte2 > xfs->max_char_or_byte2)
-        return FALSE;
+        return NULL;
 
     if (xfs->min_byte1 == 0 && xfs->max_byte1 == 0) {
         index = byte2 - xfs->min_char_or_byte2;
     } else {
         if (byte1 < xfs->min_byte1 || byte1 > xfs->max_byte1)
-            return FALSE;
+            return NULL;
         index = ((byte2 - xfs->min_char_or_byte2) +
                  ((byte1 - xfs->min_byte1) *
                   (xfs->max_char_or_byte2 - xfs->min_char_or_byte2 + 1)));
