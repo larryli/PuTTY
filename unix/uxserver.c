@@ -175,9 +175,36 @@ int auth_none(AuthPolicy *ap, ptrlen username)
 {
     return FALSE;
 }
-int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password)
+int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password,
+                  ptrlen *new_password_opt)
 {
-    return ptrlen_eq_string(password, "weasel");
+    const char *PHONY_GOOD_PASSWORD = "weasel";
+    const char *PHONY_BAD_PASSWORD = "ferret";
+
+    if (!new_password_opt) {
+        /* Accept login with our preconfigured good password */
+        if (ptrlen_eq_string(password, PHONY_GOOD_PASSWORD))
+            return 1;
+        /* Don't outright reject the bad password, but insist on a change */
+        if (ptrlen_eq_string(password, PHONY_BAD_PASSWORD))
+            return 2;
+        /* Reject anything else */
+        return 0;
+    } else {
+        /* In a password-change request, expect the bad password as input */
+        if (!ptrlen_eq_string(password, PHONY_BAD_PASSWORD))
+            return 0;
+        /* Accept a request to change it to the good password */
+        if (ptrlen_eq_string(*new_password_opt, PHONY_GOOD_PASSWORD))
+            return 1;
+        /* Outright reject a request to change it to the same password
+         * as it already 'was' */
+        if (ptrlen_eq_string(*new_password_opt, PHONY_BAD_PASSWORD))
+            return 0;
+        /* Anything else, pretend the new pw wasn't good enough, and
+         * re-request a change */
+        return 2;
+    }
 }
 int auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
 {

@@ -38,7 +38,12 @@ struct AuthKbdIntPrompt {
 
 unsigned auth_methods(AuthPolicy *);
 int auth_none(AuthPolicy *, ptrlen username);
-int auth_password(AuthPolicy *, ptrlen username, ptrlen password);
+
+int auth_password(AuthPolicy *, ptrlen username, ptrlen password,
+                  ptrlen *opt_new_password);
+/* auth_password returns 1 for 'accepted', 0 for 'rejected', and 2 for
+ * 'ok but now you need to change your password' */
+
 int auth_publickey(AuthPolicy *, ptrlen username, ptrlen public_blob);
 /* auth_publickey_ssh1 must return the whole public key given the modulus,
  * because the SSH-1 client never transmits the exponent over the wire.

@@ -163,20 +163,34 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
                 goto failure;
         } else if (ptrlen_eq_string(s->method, "password")) {
             int changing;
-            ptrlen password;
+            ptrlen password, new_password, *new_password_ptr;
 
             s->this_method = AUTHMETHOD_PASSWORD;
             if (!(s->methods & s->this_method))
                 goto failure;
 
             changing = get_bool(pktin);
-            if (changing)
-                goto failure;          /* FIXME: not yet supported */
-
             password = get_string(pktin);
 
-            if (!auth_password(s->authpolicy, s->username, password))
+            if (changing) {
+                new_password = get_string(pktin);
+                new_password_ptr = &new_password;
+            } else {
+                new_password_ptr = NULL;
+            }
+
+            int result = auth_password(s->authpolicy, s->username,
+                                       password, new_password_ptr);
+            if (result == 2) {
+                pktout = ssh_bpp_new_pktout(
+                    s->ppl.bpp, SSH2_MSG_USERAUTH_PASSWD_CHANGEREQ);
+                put_stringz(pktout, "Please change your password");
+                put_stringz(pktout, ""); /* language tag */
+                pq_push(s->ppl.out_pq, pktout);
+                continue; /* skip USERAUTH_{SUCCESS,FAILURE} epilogue */
+            } else if (result != 1) {
                 goto failure;
+            }
         } else if (ptrlen_eq_string(s->method, "publickey")) {
             int has_signature, success;
             ptrlen algorithm, blob, signature;

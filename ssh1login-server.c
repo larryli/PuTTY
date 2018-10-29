@@ -280,7 +280,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
             if (nul)
                 password.len = (const char *)nul - (const char *)password.ptr;
 
-            if (auth_password(s->authpolicy, s->username, password))
+            if (auth_password(s->authpolicy, s->username, password, NULL))
                 goto auth_success;
         } else if (pktin->type == SSH1_CMSG_AUTH_RSA) {
             s->current_method = AUTHMETHOD_PUBLICKEY;
