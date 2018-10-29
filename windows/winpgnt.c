@@ -58,7 +58,7 @@ static HMENU systray_menu, session_menu;
 static int already_running;
 
 static char *putty_path;
-static int restrict_putty_acl = FALSE;
+static int restrict_putty_acl = false;
 
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
@@ -222,7 +222,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
 	SetForegroundWindow(hwnd);
@@ -467,7 +467,7 @@ static void prompt_add_keyfile(void)
     of.lpstrFileTitle = NULL;
     of.lpstrTitle = "Select Private Key File";
     of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
-    if (request_file(keypath, &of, TRUE, FALSE)) {
+    if (request_file(keypath, &of, true, false)) {
 	if(strlen(filelist) > of.nFileOffset) {
 	    /* Only one filename returned? */
             Filename *fn = filename_from_str(filelist);
@@ -520,7 +520,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
         if (has_help())
@@ -715,7 +715,7 @@ static void update_sessions(void)
 	    mii.fState = MFS_ENABLED;
 	    mii.wID = (index_menu * 16) + IDM_SESSIONS_BASE;
 	    mii.dwTypeData = session_name;
-	    InsertMenuItem(session_menu, index_menu, TRUE, &mii);
+	    InsertMenuItem(session_menu, index_menu, true, &mii);
 	    index_menu++;
 	}
 	index_key++;
@@ -729,7 +729,7 @@ static void update_sessions(void)
 	mii.fType = MFT_STRING;
 	mii.fState = MFS_GRAYED;
 	mii.dwTypeData = _T("(No sessions)");
-	InsertMenuItem(session_menu, index_menu, TRUE, &mii);
+	InsertMenuItem(session_menu, index_menu, true, &mii);
     }
 }
 
@@ -748,7 +748,7 @@ PSID get_default_sid(void)
     PSECURITY_DESCRIPTOR psd = NULL;
     PSID sid = NULL, copy = NULL, ret = NULL;
 
-    if ((proc = OpenProcess(MAXIMUM_ALLOWED, FALSE,
+    if ((proc = OpenProcess(MAXIMUM_ALLOWED, false,
                             GetCurrentProcessId())) == NULL)
         goto cleanup;
 
@@ -795,7 +795,7 @@ static void pageant_reply_BinarySink_write(
         memcpy(rep->buf + rep->len, data, len);
         rep->len += len;
     } else {
-        rep->overflowed = TRUE;
+        rep->overflowed = true;
     }
 }
 
@@ -821,7 +821,7 @@ static char *answer_filemapping_message(const char *mapname)
     debug(("mapname = \"%s\"\n", mapname));
 #endif
 
-    maphandle = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, mapname);
+    maphandle = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, mapname);
     if (maphandle == NULL || maphandle == INVALID_HANDLE_VALUE) {
         err = dupprintf("OpenFileMapping(\"%s\"): %s",
                         mapname, win_strerror(GetLastError()));
@@ -928,7 +928,7 @@ static char *answer_filemapping_message(const char *mapname)
     reply.buf = (char *)mapaddr + 4;
     reply.size = mapsize - 4;
     reply.len = 0;
-    reply.overflowed = FALSE;
+    reply.overflowed = false;
     BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
 
     if (msglen > mapsize - 4) {
@@ -939,7 +939,7 @@ static char *answer_filemapping_message(const char *mapname)
                            (unsigned char *)mapaddr + 4, msglen, NULL, NULL);
         if (reply.overflowed) {
             reply.len = 0;
-            reply.overflowed = FALSE;
+            reply.overflowed = false;
             pageant_failure_msg(BinarySink_UPCAST(&reply),
                                 "output would overflow message buffer",
                                 NULL, NULL);
@@ -993,7 +993,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    PostMessage(hwnd, WM_SYSTRAY2, cursorpos.x, cursorpos.y);
 	} else if (lParam == WM_LBUTTONDBLCLK) {
 	    /* Run the default menu item. */
-	    UINT menuitem = GetMenuDefaultItem(systray_menu, FALSE, 0);
+	    UINT menuitem = GetMenuDefaultItem(systray_menu, false, 0);
 	    if (menuitem != -1)
 		PostMessage(hwnd, WM_COMMAND, menuitem, 0);
 	}
@@ -1085,7 +1085,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    mii.fMask = MIIM_TYPE;
 		    mii.cch = MAX_PATH;
 		    mii.dwTypeData = buf;
-		    GetMenuItemInfo(session_menu, wParam, FALSE, &mii);
+		    GetMenuItemInfo(session_menu, wParam, false, &mii);
                     param[0] = '\0';
                     if (restrict_putty_acl)
                         strcat(param, "&R");
@@ -1258,7 +1258,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             restrict_process_acl();
         } else if (!strcmp(argv[i], "-restrict-putty-acl") ||
                    !strcmp(argv[i], "-restrict_putty_acl")) {
-            restrict_putty_acl = TRUE;
+            restrict_putty_acl = true;
 	} else if (!strcmp(argv[i], "-c")) {
 	    /*
 	     * If we see `-c', then the rest of the
@@ -1274,7 +1274,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             Filename *fn = filename_from_str(argv[i]);
 	    win_add_keyfile(fn);
             filename_free(fn);
-	    added_keys = TRUE;
+	    added_keys = true;
 	}
     }
 
@@ -1356,7 +1356,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     initial_menuitems_count = GetMenuItemCount(session_menu);
 
     /* Set the default menu item. */
-    SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, FALSE);
+    SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, false);
 
     ShowWindow(hwnd, SW_HIDE);
 

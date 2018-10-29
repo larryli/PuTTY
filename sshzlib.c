@@ -59,13 +59,6 @@
 #define sresize(x, n, type) ( (type *) realloc((x), (n) * sizeof(type)) )
 #define sfree(x) ( free((x)) )
 
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-
 typedef struct { const struct dummy *vt; } ssh_compressor;
 typedef struct { const struct dummy *vt; } ssh_decompressor;
 static const struct dummy { int i; } ssh_zlib;
@@ -97,7 +90,7 @@ static int lz77_init(struct LZ77Context *ctx);
 /*
  * Supply data to be compressed. Will update the private fields of
  * the LZ77Context, and will call literal() and match() to output.
- * If `compress' is FALSE, it will never emit a match, but will
+ * If `compress' is false, it will never emit a match, but will
  * instead call literal() for everything.
  */
 static void lz77_compress(struct LZ77Context *ctx,
@@ -657,9 +650,9 @@ void zlib_compress_block(ssh_compressor *sc, unsigned char *block, int len,
 	outbits(out, 0x9C78, 16);
 	out->firstblock = 0;
 
-	in_block = FALSE;
+	in_block = false;
     } else
-	in_block = TRUE;
+	in_block = true;
 
     if (!in_block) {
         /*
@@ -674,7 +667,7 @@ void zlib_compress_block(ssh_compressor *sc, unsigned char *block, int len,
     /*
      * Do the compression.
      */
-    lz77_compress(&comp->ectx, block, len, TRUE);
+    lz77_compress(&comp->ectx, block, len, true);
 
     /*
      * End the block (by transmitting code 256, which is
@@ -1235,7 +1228,7 @@ int main(int argc, char **argv)
     unsigned char buf[16], *outbuf;
     int ret, outlen;
     ssh_decompressor *handle;
-    int noheader = FALSE, opts = TRUE;
+    int noheader = false, opts = true;
     char *filename = NULL;
     FILE *fp;
 
@@ -1244,9 +1237,9 @@ int main(int argc, char **argv)
 
         if (p[0] == '-' && opts) {
             if (!strcmp(p, "-d"))
-                noheader = TRUE;
+                noheader = true;
             else if (!strcmp(p, "--"))
-                opts = FALSE;          /* next thing is filename */
+                opts = false;          /* next thing is filename */
             else {
                 fprintf(stderr, "unknown command line option '%s'\n", p);
                 return 1;

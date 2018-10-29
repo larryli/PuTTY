@@ -157,7 +157,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
 	}
     }
     ctrl_filesel(s, "Custom sound file to play as a bell:", NO_SHORTCUT,
-		 FILTER_WAVE_FILES, FALSE, "Select bell sound file",
+		 FILTER_WAVE_FILES, false, "Select bell sound file",
 		 HELPCTX(bell_style),
 		 conf_filesel_handler, I(CONF_bell_wavefile));
 
@@ -396,7 +396,7 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
     if (!midsession && backend_vt_from_proto(PROT_SSH)) {
 	s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
 	ctrl_filesel(s, "X authority file for local display", 't',
-		     NULL, FALSE, "Select X authority file",
+		     NULL, false, "Select X authority file",
 		     HELPCTX(ssh_tunnels_xauthority),
 		     conf_filesel_handler, I(CONF_xauthfile));
     }

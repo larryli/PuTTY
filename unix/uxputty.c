@@ -20,7 +20,7 @@
 /*
  * Stubs to avoid uxpty.c needing to be linked in.
  */
-const int use_pty_argv = FALSE;
+const int use_pty_argv = false;
 char **pty_argv;		       /* never used */
 char *pty_osx_envrestore_prefix;
 
@@ -48,7 +48,7 @@ const struct BackendVtable *select_backend(Conf *conf)
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 {
     char *title = dupcat(appname, " Configuration", NULL);
-    create_config_box(title, conf, FALSE, 0, after, afterctx);
+    create_config_box(title, conf, false, 0, after, afterctx);
     sfree(title);
 }
 
@@ -73,8 +73,8 @@ char *platform_get_x_display(void) {
     return dupstr(display);
 }
 
-const int share_can_be_downstream = TRUE;
-const int share_can_be_upstream = TRUE;
+const int share_can_be_downstream = true;
+const int share_can_be_upstream = true;
 
 void setup(int single)
 {

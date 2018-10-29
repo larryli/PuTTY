@@ -29,7 +29,7 @@ void request_callback_notifications(toplevel_callback_notify_fn_t fn,
 static void run_idempotent_callback(void *ctx)
 {
     struct IdempotentCallback *ic = (struct IdempotentCallback *)ctx;
-    ic->queued = FALSE;
+    ic->queued = false;
     ic->fn(ic->ctx);
 }
 
@@ -37,7 +37,7 @@ void queue_idempotent_callback(struct IdempotentCallback *ic)
 {
     if (ic->queued)
         return;
-    ic->queued = TRUE;
+    ic->queued = true;
     queue_toplevel_callback(run_idempotent_callback, ic);
 }
 
@@ -101,7 +101,7 @@ void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)
 
 int run_toplevel_callbacks(void)
 {
-    int done_something = FALSE;
+    int done_something = false;
 
     if (cbhead) {
         /*
@@ -122,7 +122,7 @@ int run_toplevel_callbacks(void)
         sfree(cbcurr);
         cbcurr = NULL;
 
-        done_something = TRUE;
+        done_something = true;
     }
     return done_something;
 }

@@ -96,7 +96,7 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
 }
 
 /*
- * Return value is TRUE if pterm is to run in direct-to-font mode.
+ * Return value is true if pterm is to run in direct-to-font mode.
  */
 int init_ucs(struct unicode_data *ucsdata, char *linecharset,
 	     int utf8_override, int font_charset, int vtmode)

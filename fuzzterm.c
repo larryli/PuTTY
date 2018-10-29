@@ -7,7 +7,7 @@
 #include "terminal.h"
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
 static const TermWinVtable fuzz_termwin_vt;
 
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 }
 
 /* functions required by terminal.c */
-static int fuzz_setup_draw_ctx(TermWin *tw) { return TRUE; }
+static int fuzz_setup_draw_ctx(TermWin *tw) { return true; }
 static void fuzz_draw_text(
     TermWin *tw, int x, int y, wchar_t *text, int len,
     unsigned long attr, int lattr, truecolour tc)
@@ -84,18 +84,18 @@ static void fuzz_request_resize(TermWin *tw, int w, int h) {}
 static void fuzz_set_title(TermWin *tw, const char *title) {}
 static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
 static void fuzz_set_minimised(TermWin *tw, int minimised) {}
-static int fuzz_is_minimised(TermWin *tw) { return FALSE; }
+static int fuzz_is_minimised(TermWin *tw) { return false; }
 static void fuzz_set_maximised(TermWin *tw, int maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
 static void fuzz_set_zorder(TermWin *tw, int top) {}
 static int fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
-{ return FALSE; }
+{ return false; }
 static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
 static void fuzz_palette_reset(TermWin *tw) {}
 static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static const char *fuzz_get_title(TermWin *tw, int icon) { return "moo"; }
-static int fuzz_is_utf8(TermWin *tw) { return TRUE; }
+static int fuzz_is_utf8(TermWin *tw) { return true; }
 
 static const TermWinVtable fuzz_termwin_vt = {
     fuzz_setup_draw_ctx,

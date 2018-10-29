@@ -134,7 +134,7 @@ void help(void)
      */
     printf("PuTTYgen: key generator and converter for the PuTTY tools\n"
 	   "%s\n", ver);
-    usage(FALSE);
+    usage(false);
     printf("  -t    specify key type when generating (ed25519, ecdsa, rsa, "
 							"dsa, rsa1)\n"
 	   "  -b    specify number of bits when generating key\n"
@@ -177,9 +177,9 @@ static int move(char *from, char *to)
     }
     if (ret) {
 	perror("puttygen: cannot move new file on to old one");
-	return FALSE;
+	return false;
     }
-    return TRUE;
+    return true;
 }
 
 static char *readpassphrase(const char *filename)
@@ -208,7 +208,7 @@ static char *readpassphrase(const char *filename)
 #define DEFAULT_RSADSA_BITS 2048
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
@@ -220,8 +220,8 @@ int main(int argc, char **argv)
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
     int bits = -1;
     char *comment = NULL, *origcomment = NULL;
-    int change_passphrase = FALSE;
-    int errs = FALSE, nogo = FALSE;
+    int change_passphrase = false;
+    int errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
     int sshver = 0;
     struct ssh2_userkey *ssh2key = NULL;
@@ -242,7 +242,7 @@ int main(int argc, char **argv)
      * return success.
      */
     if (argc <= 1) {
-	usage(TRUE);
+	usage(true);
 	return 0;
     }
 
@@ -275,68 +275,68 @@ int main(int argc, char **argv)
 
 			if (!strcmp(opt, "-help")) {
                             if (val) {
-                                errs = TRUE;
+                                errs = true;
                                 fprintf(stderr, "puttygen: option `-%s'"
                                         " expects no argument\n", opt);
                             } else {
                                 help();
-                                nogo = TRUE;
+                                nogo = true;
                             }
 			} else if (!strcmp(opt, "-version")) {
                             if (val) {
-                                errs = TRUE;
+                                errs = true;
                                 fprintf(stderr, "puttygen: option `-%s'"
                                         " expects no argument\n", opt);
                             } else {
                                 showversion();
-                                nogo = TRUE;
+                                nogo = true;
                             }
 			} else if (!strcmp(opt, "-pgpfp")) {
                             if (val) {
-                                errs = TRUE;
+                                errs = true;
                                 fprintf(stderr, "puttygen: option `-%s'"
                                         " expects no argument\n", opt);
                             } else {
                                 /* support --pgpfp for consistency */
                                 pgp_fingerprints();
-                                nogo = TRUE;
+                                nogo = true;
                             }
 			} else if (!strcmp(opt, "-old-passphrase")) {
 			    if (!val && argc > 1)
 				--argc, val = *++argv;
 			    if (!val) {
-				errs = TRUE;
+				errs = true;
 				fprintf(stderr, "puttygen: option `-%s'"
 					" expects an argument\n", opt);
 			    } else {
 				old_passphrase = readpassphrase(val);
 				if (!old_passphrase)
-				    errs = TRUE;
+				    errs = true;
 			    }
 			} else if (!strcmp(opt, "-new-passphrase")) {
 			    if (!val && argc > 1)
 				--argc, val = *++argv;
 			    if (!val) {
-				errs = TRUE;
+				errs = true;
 				fprintf(stderr, "puttygen: option `-%s'"
 					" expects an argument\n", opt);
 			    } else {
 				new_passphrase = readpassphrase(val);
 				if (!new_passphrase)
-				    errs = TRUE;
+				    errs = true;
 			    }
 			} else if (!strcmp(opt, "-random-device")) {
 			    if (!val && argc > 1)
 				--argc, val = *++argv;
 			    if (!val) {
-				errs = TRUE;
+				errs = true;
 				fprintf(stderr, "puttygen: option `-%s'"
 					" expects an argument\n", opt);
 			    } else {
                                 random_device = val;
 			    }
 			} else {
-			    errs = TRUE;
+			    errs = true;
 			    fprintf(stderr,
 				    "puttygen: no such option `-%s'\n", opt);
 			}
@@ -356,14 +356,14 @@ int main(int argc, char **argv)
 		    switch (c) {
 		      case 'h':
 			help();
-			nogo = TRUE;
+			nogo = true;
 			break;
 		      case 'V':
 			showversion();
-			nogo = TRUE;
+			nogo = true;
 			break;
 		      case 'P':
-			change_passphrase = TRUE;
+			change_passphrase = true;
 			break;
 		      case 'l':
 			outtype = FP;
@@ -393,7 +393,7 @@ int main(int argc, char **argv)
 		    else if (!*p) {
 			fprintf(stderr, "puttygen: option `-%c' expects a"
 				" parameter\n", c);
-			errs = TRUE;
+			errs = true;
 		    }
 		    /*
 		     * Now c is the option and p is the parameter.
@@ -413,7 +413,7 @@ int main(int argc, char **argv)
 			else {
 			    fprintf(stderr,
 				    "puttygen: unknown key type `%s'\n", p);
-			    errs = TRUE;
+			    errs = true;
 			}
                         break;
 		      case 'b':
@@ -440,7 +440,7 @@ int main(int argc, char **argv)
 			else {
 			    fprintf(stderr,
 				    "puttygen: unknown output type `%s'\n", p);
-			    errs = TRUE;
+			    errs = true;
 			}
                         break;
 		      case 'o':
@@ -453,7 +453,7 @@ int main(int argc, char **argv)
 		    /*
 		     * Unrecognised option.
 		     */
-		    errs = TRUE;
+		    errs = true;
 		    fprintf(stderr, "puttygen: no such option `-%c'\n", c);
 		    break;
 		}
@@ -465,7 +465,7 @@ int main(int argc, char **argv)
 	    if (!infile)
 		infile = p;
 	    else {
-		errs = TRUE;
+		errs = true;
 		fprintf(stderr, "puttygen: cannot handle more than one"
 			" input file\n");
 	    }
@@ -492,19 +492,19 @@ int main(int argc, char **argv)
 
     if (keytype == ECDSA && (bits != 256 && bits != 384 && bits != 521)) {
         fprintf(stderr, "puttygen: invalid bits for ECDSA, choose 256, 384 or 521\n");
-        errs = TRUE;
+        errs = true;
     }
 
     if (keytype == ED25519 && (bits != 256)) {
         fprintf(stderr, "puttygen: invalid bits for ED25519, choose 256\n");
-        errs = TRUE;
+        errs = true;
     }
 
     if (keytype == RSA2 || keytype == RSA1 || keytype == DSA) {
         if (bits < 256) {
             fprintf(stderr, "puttygen: cannot generate %s keys shorter than"
                     " 256 bits\n", (keytype == DSA ? "DSA" : "RSA"));
-            errs = TRUE;
+            errs = true;
         } else if (bits < DEFAULT_RSADSA_BITS) {
             fprintf(stderr, "puttygen: warning: %s keys shorter than"
                     " %d bits are probably not secure\n",
@@ -524,7 +524,7 @@ int main(int argc, char **argv)
      * ones, print the usage message and return failure.
      */
     if (!infile && keytype == NOKEYGEN) {
-	usage(TRUE);
+	usage(true);
 	return 1;
     }
 
@@ -648,9 +648,9 @@ int main(int argc, char **argv)
 	intype == SSH_KEYTYPE_OPENSSH_PEM ||
 	intype == SSH_KEYTYPE_OPENSSH_NEW ||
         intype == SSH_KEYTYPE_SSHCOM)
-	load_encrypted = TRUE;
+	load_encrypted = true;
     else
-	load_encrypted = FALSE;
+	load_encrypted = false;
 
     if (load_encrypted && (intype == SSH_KEYTYPE_SSH1_PUBLIC ||
                            intype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
@@ -756,9 +756,9 @@ int main(int argc, char **argv)
 	    if (!old_passphrase) {
 		prompts_t *p = new_prompts();
 		int ret;
-		p->to_server = FALSE;
+		p->to_server = false;
 		p->name = dupstr("SSH key passphrase");
-		add_prompt(p, dupstr("Enter passphrase to load key: "), FALSE);
+		add_prompt(p, dupstr("Enter passphrase to load key: "), false);
 		ret = console_get_userpass_input(p);
 		assert(ret >= 0);
 		if (!ret) {
@@ -891,10 +891,10 @@ int main(int argc, char **argv)
 	prompts_t *p = new_prompts(NULL);
 	int ret;
 
-	p->to_server = FALSE;
+	p->to_server = false;
 	p->name = dupstr("New SSH key passphrase");
-	add_prompt(p, dupstr("Enter passphrase to save key: "), FALSE);
-	add_prompt(p, dupstr("Re-enter passphrase to verify: "), FALSE);
+	add_prompt(p, dupstr("Enter passphrase to save key: "), false);
+	add_prompt(p, dupstr("Re-enter passphrase to verify: "), false);
 	ret = console_get_userpass_input(p);
 	assert(ret >= 0);
 	if (!ret) {
@@ -960,7 +960,7 @@ int main(int argc, char **argv)
             FILE *fp;
 
             if (outfile) {
-                fp = f_open(outfilename, "w", FALSE);
+                fp = f_open(outfilename, "w", false);
                 if (!fp) {
                     fprintf(stderr, "unable to open output file\n");
                     exit(1);
@@ -1009,7 +1009,7 @@ int main(int argc, char **argv)
 	    }
 
 	    if (outfile) {
-		fp = f_open(outfilename, "w", FALSE);
+		fp = f_open(outfilename, "w", false);
                 if (!fp) {
                     fprintf(stderr, "unable to open output file\n");
                     exit(1);

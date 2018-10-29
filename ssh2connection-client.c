@@ -131,7 +131,7 @@ int ssh2_connection_parse_global_request(
      * We don't know of any global requests that an SSH client needs
      * to honour.
      */
-    return FALSE;
+    return false;
 }
 
 PktOut *ssh2_portfwd_chanopen(
@@ -290,7 +290,7 @@ SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
 
     c->connlayer = s;
     ssh2_channel_init(c);
-    c->halfopen = TRUE;
+    c->halfopen = true;
     c->chan = chan;
 
     ppl_logevent(("Opening main session channel"));
@@ -304,13 +304,13 @@ SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
 SshChannel *ssh2_serverside_x11_open(
     ConnectionLayer *cl, Channel *chan, const SocketPeerInfo *pi)
 {
-    assert(FALSE && "Should never be called in the client");
+    assert(false && "Should never be called in the client");
     return 0;                          /* placate optimiser */
 }
 
 SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 {
-    assert(FALSE && "Should never be called in the client");
+    assert(false && "Should never be called in the client");
     return 0;                          /* placate optimiser */
 }
 
@@ -353,24 +353,24 @@ int ssh2channel_start_subsystem(
     put_stringz(pktout, subsystem);
     pq_push(s->ppl.out_pq, pktout);
 
-    return TRUE;
+    return true;
 }
 
 void ssh2channel_send_exit_status(SshChannel *sc, int status)
 {
-    assert(FALSE && "Should never be called in the client");
+    assert(false && "Should never be called in the client");
 }
 
 void ssh2channel_send_exit_signal(
     SshChannel *sc, ptrlen signame, int core_dumped, ptrlen msg)
 {
-    assert(FALSE && "Should never be called in the client");
+    assert(false && "Should never be called in the client");
 }
 
 void ssh2channel_send_exit_signal_numeric(
     SshChannel *sc, int signum, int core_dumped, ptrlen msg)
 {
-    assert(FALSE && "Should never be called in the client");
+    assert(false && "Should never be called in the client");
 }
 
 void ssh2channel_request_x11_forwarding(
@@ -434,7 +434,7 @@ int ssh2channel_send_env_var(
     put_stringz(pktout, value);
     pq_push(s->ppl.out_pq, pktout);
 
-    return TRUE;
+    return true;
 }
 
 int ssh2channel_send_serial_break(SshChannel *sc, int want_reply, int length)
@@ -447,7 +447,7 @@ int ssh2channel_send_serial_break(SshChannel *sc, int want_reply, int length)
     put_uint32(pktout, length);
     pq_push(s->ppl.out_pq, pktout);
 
-    return TRUE;
+    return true;
 }
 
 int ssh2channel_send_signal(
@@ -461,7 +461,7 @@ int ssh2channel_send_signal(
     put_stringz(pktout, signame);
     pq_push(s->ppl.out_pq, pktout);
 
-    return TRUE;
+    return true;
 }
 
 void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)

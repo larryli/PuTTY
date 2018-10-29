@@ -88,7 +88,7 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
     if (condition & G_IO_OUT)
         select_result(sourcefd, 2);
 
-    return TRUE;
+    return true;
 }
 #else
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
@@ -173,11 +173,11 @@ static gint timer_trigger(gpointer data)
     }
 
     /*
-     * Returning FALSE means 'don't call this timer again', which
+     * Returning false means 'don't call this timer again', which
      * _should_ be redundant given that we removed it above, but just
-     * in case, return FALSE anyway.
+     * in case, return false anyway.
      */
-    return FALSE;
+    return false;
 }
 
 void timer_change_notify(unsigned long next)
@@ -215,10 +215,10 @@ static gint idle_toplevel_callback_func(gpointer data)
      */
     if (!toplevel_callback_pending() && idle_fn_scheduled) {
         g_source_remove(toplevel_callback_idle_id);
-        idle_fn_scheduled = FALSE;
+        idle_fn_scheduled = false;
     }
 
-    return TRUE;
+    return true;
 }
 
 static void notify_toplevel_callback(void *vctx)
@@ -226,7 +226,7 @@ static void notify_toplevel_callback(void *vctx)
     if (!idle_fn_scheduled) {
         toplevel_callback_idle_id =
             g_idle_add(idle_toplevel_callback_func, NULL);
-        idle_fn_scheduled = TRUE;
+        idle_fn_scheduled = true;
     }
 }
 

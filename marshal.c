@@ -88,10 +88,10 @@ int BinarySink_put_pstring(BinarySink *bs, const char *str)
 {
     size_t len = strlen(str);
     if (len > 255)
-        return FALSE; /* can't write a Pascal-style string this long */
+        return false; /* can't write a Pascal-style string this long */
     BinarySink_put_byte(bs, len);
     bs->write(bs, str, len);
-    return TRUE;
+    return true;
 }
 
 /* ---------------------------------------------------------------------- */
@@ -99,13 +99,13 @@ int BinarySink_put_pstring(BinarySink *bs, const char *str)
 static int BinarySource_data_avail(BinarySource *src, size_t wanted)
 {
     if (src->err)
-        return FALSE;
+        return false;
 
     if (wanted <= src->len - src->pos)
-        return TRUE;
+        return true;
 
     src->err = BSE_OUT_OF_DATA;
-    return FALSE;
+    return false;
 }
 
 #define avail(wanted) BinarySource_data_avail(src, wanted)

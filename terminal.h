@@ -52,7 +52,7 @@ struct termline {
     int cols;			       /* number of real columns on the line */
     int size;			       /* number of allocated termchars
 					* (cc-lists may make this > cols) */
-    int temporary;		       /* TRUE if decompressed from scrollback */
+    int temporary;		       /* true if decompressed from scrollback */
     int cc_free;		       /* offset to first cc in free list */
     struct termchar *chars;
 };
@@ -166,7 +166,7 @@ struct terminal_tag {
     int esc_nargs;
     int esc_query;
 #define ANSI(x,y)	((x)+((y)<<8))
-#define ANSI_QUE(x)	ANSI(x,TRUE)
+#define ANSI_QUE(x)	ANSI(x,true)
 
 #define OSC_STR_MAX 2048
     int osc_strlen;

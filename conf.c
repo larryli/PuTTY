@@ -513,11 +513,11 @@ int conf_deserialise(Conf *conf, BinarySource *src)
         primary = get_uint32(src);
 
         if (get_err(src))
-            return FALSE;
+            return false;
         if (primary == 0xFFFFFFFFU)
-            return TRUE;
+            return true;
 	if (primary >= N_CONFIG_OPTIONS)
-	    return FALSE;
+	    return false;
 
 	entry = snew(struct conf_entry);
 	entry->key.primary = primary;
@@ -548,7 +548,7 @@ int conf_deserialise(Conf *conf, BinarySource *src)
 
         if (get_err(src)) {
             free_entry(entry);
-            return FALSE;
+            return false;
         }
 
 	conf_insert(conf, entry);

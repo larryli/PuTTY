@@ -285,10 +285,10 @@ static void sigchld_handler(int signum)
 
 static void pty_setup_sigchld_handler(void)
 {
-    static int setup = FALSE;
+    static int setup = false;
     if (!setup) {
         putty_signal(SIGCHLD, sigchld_handler);
-        setup = TRUE;
+        setup = true;
     }
 }
 
@@ -455,7 +455,7 @@ void pty_pre_init(void)
     pty_setup_sigchld_handler();
     pty->master_fd = pty->slave_fd = -1;
 #ifndef OMIT_UTMP
-    pty_stamped_utmp = FALSE;
+    pty_stamped_utmp = false;
 #endif
 
     if (geteuid() != getuid() || getegid() != getgid()) {
@@ -597,7 +597,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 {
     char buf[4096];
     int ret;
-    int finished = FALSE;
+    int finished = false;
 
     if (event < 0) {
 	/*
@@ -608,7 +608,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 	    /*
 	     * The primary child process died.
              */
-            pty->child_dead = TRUE;
+            pty->child_dead = true;
             del234(ptys_by_pid, pty);
             pty->exit_code = status;
 
@@ -625,7 +625,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 	     * or make configurable if necessary.
 	     */
             if (pty->master_fd >= 0)
-                finished = TRUE;
+                finished = true;
 	}
     } else {
 	if (event == 1) {
@@ -667,7 +667,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
                      * usage model would precisely _not_ be for the
                      * pterm window to hang around!
                      */
-                    finished = TRUE;
+                    finished = true;
                     pty_try_wait(); /* one last effort to collect exit code */
                     if (!pty->child_dead)
                         pty->exit_code = 0;
@@ -696,7 +696,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 
         pty_close(pty);
 
-	pty->finished = TRUE;
+	pty->finished = true;
 
 	/*
 	 * This is a slight layering-violation sort of hack: only
@@ -862,7 +862,7 @@ Backend *pty_backend_create(
 	pty = new_pty_struct();
 	pty->master_fd = pty->slave_fd = -1;
 #ifndef OMIT_UTMP
-	pty_stamped_utmp = FALSE;
+	pty_stamped_utmp = false;
 #endif
     }
     for (i = 0; i < 6; i++)
@@ -1193,8 +1193,8 @@ Backend *pty_backend_create(
 	_exit(127);
     } else {
 	pty->child_pid = pid;
-	pty->child_dead = FALSE;
-	pty->finished = FALSE;
+	pty->child_dead = false;
+	pty->finished = false;
 	if (pty->slave_fd > 0)
 	    close(pty->slave_fd);
 	if (!ptys_by_pid)
@@ -1248,7 +1248,7 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
         cmd = pty_argv[0];
 
     *backend_handle= pty_backend_create(
-        seat, logctx, conf, pty_argv, cmd, modes, FALSE);
+        seat, logctx, conf, pty_argv, cmd, modes, false);
     *realhost = dupstr("");
     return NULL;
 }
@@ -1327,7 +1327,7 @@ static void pty_try_write(Pty *pty)
         uxsel_del(pty->master_i);
         close(pty->master_i);
         pty->master_i = -1;
-        pty->pending_eof = FALSE;
+        pty->pending_eof = false;
     }
 
     pty_uxsel_setup(pty);
@@ -1427,7 +1427,7 @@ static void pty_special(Backend *be, SessionSpecialCode code, int arg)
 
     if (code == SS_EOF) {
         if (pty->master_i >= 0 && pty->master_i != pty->master_fd) {
-            pty->pending_eof = TRUE;
+            pty->pending_eof = true;
             pty_try_write(pty);
         }
         return;
@@ -1473,7 +1473,7 @@ static const SessionSpecial *pty_get_specials(Backend *be)
 static int pty_connected(Backend *be)
 {
     /* Pty *pty = container_of(be, Pty, backend); */
-    return TRUE;
+    return true;
 }
 
 static int pty_sendok(Backend *be)

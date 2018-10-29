@@ -343,7 +343,7 @@ int open_for_write_would_lose_data(const Filename *fn)
          * open the file for writing and report _that_ error, which is
          * likely to be more to the point.
          */
-        return FALSE;
+        return false;
     }
 
     /*
@@ -360,8 +360,8 @@ int open_for_write_would_lose_data(const Filename *fn)
      * information.)
      */
     if (S_ISREG(st.st_mode) && st.st_size > 0) {
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }

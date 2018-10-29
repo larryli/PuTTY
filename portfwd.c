@@ -254,7 +254,7 @@ static void pfd_receive(Plug *plug, int urgent, char *data, int len)
                     return;
                 if (socks_version == 4 && message_type == 1) {
                     /* CONNECT message */
-                    int name_based = FALSE;
+                    int name_based = false;
 
                     port = get_uint16(src);
                     ipv4 = get_uint32(src);
@@ -264,7 +264,7 @@ static void pfd_receive(Plug *plug, int urgent, char *data, int len)
                          * extension to specify a hostname, which comes
                          * after the username.
                          */
-                        name_based = TRUE;
+                        name_based = true;
                     }
                     get_asciz(src);        /* skip username */
                     socks4_hostname = name_based ? get_asciz(src) : NULL;
@@ -475,12 +475,12 @@ Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug)
     pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
     pf->chan.vt = &PortForwarding_channelvt;
-    pf->input_wanted = TRUE;
+    pf->input_wanted = true;
 
     pf->c = NULL;
 
     pf->cl = cl;
-    pf->input_wanted = TRUE;
+    pf->input_wanted = true;
     pf->ready = 0;
 
     pf->socks_state = SOCKS_NONE;
@@ -526,7 +526,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
 	portfwd_raw_free(chan);
-	return TRUE;
+	return true;
     }
 
     pf = container_of(chan, struct PortForwarding, chan);
@@ -581,9 +581,9 @@ static char *pfl_listen(const char *desthost, int destport,
     if (desthost) {
 	pl->hostname = dupstr(desthost);
 	pl->port = destport;
-	pl->is_dynamic = FALSE;
+	pl->is_dynamic = false;
     } else
-	pl->is_dynamic = TRUE;
+	pl->is_dynamic = true;
     pl->cl = cl;
 
     pl->s = new_listener(srcaddr, port, &pl->plug,
@@ -1072,7 +1072,7 @@ int portfwdmgr_listen(PortFwdManager *mgr, const char *host, int port,
          * We had this record already. Return failure.
          */
         pfr_free(pfr);
-        return FALSE;
+        return false;
     }
 
     char *err = pfl_listen(keyhost, keyport, host, port,
@@ -1085,10 +1085,10 @@ int portfwdmgr_listen(PortFwdManager *mgr, const char *host, int port,
         sfree(err);
         del234(mgr->forwardings, pfr);
         pfr_free(pfr);
-        return FALSE;
+        return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 int portfwdmgr_unlisten(PortFwdManager *mgr, const char *host, int port)
@@ -1108,12 +1108,12 @@ int portfwdmgr_unlisten(PortFwdManager *mgr, const char *host, int port)
     PortFwdRecord *pfr = del234(mgr->forwardings, &pfr_key);
 
     if (!pfr)
-        return FALSE;
+        return false;
 
     logeventf(mgr->cl->logctx, "Closing listening port %s:%d", host, port);
 
     pfr_free(pfr);
-    return TRUE;
+    return true;
 }
 
 /*
@@ -1152,7 +1152,7 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
     pf->plug.vt = &PortForwarding_plugvt;
     pf->chan.initial_fixed_window_size = 0;
     pf->chan.vt = &PortForwarding_channelvt;
-    pf->input_wanted = TRUE;
+    pf->input_wanted = true;
     pf->ready = 1;
     pf->c = c;
     pf->cl = mgr->cl;

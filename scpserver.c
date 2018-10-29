@@ -268,14 +268,14 @@ struct ScpReplyReceiver {
 static void scp_reply_ok(SftpReplyBuilder *srb)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
-    reply->err = FALSE;
+    reply->err = false;
 }
 
 static void scp_reply_error(
     SftpReplyBuilder *srb, unsigned code, const char *msg)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
-    reply->err = TRUE;
+    reply->err = true;
     reply->code = code;
     sfree(reply->errmsg);
     reply->errmsg = dupstr(msg);
@@ -284,7 +284,7 @@ static void scp_reply_error(
 static void scp_reply_name_count(SftpReplyBuilder *srb, unsigned count)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
-    reply->err = FALSE;
+    reply->err = false;
 }
 
 static void scp_reply_full_name(
@@ -293,7 +293,7 @@ static void scp_reply_full_name(
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
     char *p;
-    reply->err = FALSE;
+    reply->err = false;
     sfree((void *)reply->name.ptr);
     reply->name.ptr = p = mkstr(name);
     reply->name.len = name.len;
@@ -303,14 +303,14 @@ static void scp_reply_full_name(
 static void scp_reply_simple_name(SftpReplyBuilder *srb, ptrlen name)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
-    reply->err = FALSE;
+    reply->err = false;
 }
 
 static void scp_reply_handle(SftpReplyBuilder *srb, ptrlen handle)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
     char *p;
-    reply->err = FALSE;
+    reply->err = false;
     sfree((void *)reply->handle.ptr);
     reply->handle.ptr = p = mkstr(handle);
     reply->handle.len = handle.len;
@@ -320,7 +320,7 @@ static void scp_reply_data(SftpReplyBuilder *srb, ptrlen data)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
     char *p;
-    reply->err = FALSE;
+    reply->err = false;
     sfree((void *)reply->data.ptr);
     reply->data.ptr = p = mkstr(data);
     reply->data.len = data.len;
@@ -330,7 +330,7 @@ static void scp_reply_attrs(
     SftpReplyBuilder *srb, struct fxp_attrs attrs)
 {
     ScpReplyReceiver *reply = container_of(srb, ScpReplyReceiver, srb);
-    reply->err = FALSE;
+    reply->err = false;
     reply->attrs = attrs;
 }
 
@@ -426,8 +426,8 @@ static void scp_source_push(ScpSource *scp, ScpSourceNodeType type,
 static char *scp_source_err_base(ScpSource *scp, const char *fmt, va_list ap)
 {
     char *msg = dupvprintf(fmt, ap);
-    sshfwd_write_ext(scp->sc, TRUE, msg, strlen(msg));
-    sshfwd_write_ext(scp->sc, TRUE, "\012", 1);
+    sshfwd_write_ext(scp->sc, true, msg, strlen(msg));
+    sshfwd_write_ext(scp->sc, true, "\012", 1);
     return msg;
 }
 static void scp_source_err(ScpSource *scp, const char *fmt, ...)
@@ -451,7 +451,7 @@ static void scp_source_abort(ScpSource *scp, const char *fmt, ...)
     sshfwd_write_eof(scp->sc);
     sshfwd_initiate_close(scp->sc, msg);
 
-    scp->finished = TRUE;
+    scp->finished = true;
 }
 
 static void scp_source_push_name(
@@ -687,7 +687,7 @@ static void scp_source_process_stack(ScpSource *scp)
          * wildcard (if any) we're using to match the filenames we get
          * back.
          */
-        sftpsrv_stat(scp->sf, &scp->reply.srb, pathname, TRUE);
+        sftpsrv_stat(scp->sf, &scp->reply.srb, pathname, true);
         if (scp->reply.err) {
             scp_source_abort(
                 scp, "%.*s: unable to access: %s",
@@ -755,7 +755,7 @@ static void scp_source_process_stack(ScpSource *scp)
         sshfwd_send_exit_status(scp->sc, 0);
         sshfwd_write_eof(scp->sc);
         sshfwd_initiate_close(scp->sc, NULL);
-        scp->finished = TRUE;
+        scp->finished = true;
         return;
     }
 
@@ -766,7 +766,7 @@ static void scp_source_process_stack(ScpSource *scp)
     scp->head = node->next;
 
     if (node->type == SCP_READDIR) {
-        sftpsrv_readdir(scp->sf, &scp->reply.srb, node->handle, 1, TRUE);
+        sftpsrv_readdir(scp->sf, &scp->reply.srb, node->handle, 1, true);
         if (scp->reply.err) {
             if (scp->reply.code != SSH_FX_EOF)
                 scp_source_err(scp, "%.*s: unable to list directory: %s",
@@ -871,7 +871,7 @@ static int scp_source_send(ScpServer *s, const void *vdata, size_t length)
         if (scp->expect_newline) {
             if (data[i] == '\012') {
                 /* End of an error message following a 1 byte */
-                scp->expect_newline = FALSE;
+                scp->expect_newline = false;
                 scp->acks++;
             }
         } else {
@@ -880,7 +880,7 @@ static int scp_source_send(ScpServer *s, const void *vdata, size_t length)
                 scp->acks++;
                 break;
               case 1:                  /* non-fatal error; consume it */
-                scp->expect_newline = TRUE;
+                scp->expect_newline = true;
                 break;
               case 2:
                 scp_source_abort(
@@ -918,7 +918,7 @@ static void scp_source_eof(ScpServer *s)
     if (scp->finished)
         return;
 
-    scp->eof = TRUE;
+    scp->eof = true;
     scp_source_process_stack(scp);
 }
 
@@ -962,8 +962,8 @@ struct ScpSinkStackEntry {
     ptrlen destpath;
 
     /*
-     * If isdir is TRUE, then destpath identifies a directory that the
-     * files we receive should be created inside. If it's FALSE, then
+     * If isdir is true, then destpath identifies a directory that the
+     * files we receive should be created inside. If it's false, then
      * it identifies the exact pathname the next file we receive
      * should be created _as_ - regardless of the filename in the 'C'
      * command.
@@ -1031,11 +1031,11 @@ static ScpSink *scp_sink_new(
          * directory because of the -d option in the command line,
          * test it ourself to see whether it is or not.
          */
-        sftpsrv_stat(scp->sf, &scp->reply.srb, pathname, TRUE);
+        sftpsrv_stat(scp->sf, &scp->reply.srb, pathname, true);
         if (!scp->reply.err &&
             (scp->reply.attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
             (scp->reply.attrs.permissions & PERMS_DIRECTORY))
-            pathname_is_definitely_dir = TRUE;
+            pathname_is_definitely_dir = true;
     }
     scp_sink_push(scp, pathname, pathname_is_definitely_dir);
 
@@ -1102,7 +1102,7 @@ static void scp_sink_coroutine(ScpSink *scp)
             if (sscanf(scp->command->s, "T%lu %lu %lu %lu",
                        &scp->mtime, &dummy1, &scp->atime, &dummy2) != 4)
                 goto parse_error;
-            scp->got_file_times = TRUE;
+            scp->got_file_times = true;
         } else if (scp->command_chr == 'C' || scp->command_chr == 'D') {
             /*
              * Common handling of the start of this case, because the
@@ -1148,7 +1148,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                 scp->attrs.atime = scp->atime;
                 scp->attrs.flags |= SSH_FILEXFER_ATTR_ACMODTIME;
             }
-            scp->got_file_times = FALSE;
+            scp->got_file_times = false;
 
             if (scp->command_chr == 'D') {
                 sftpsrv_mkdir(scp->sf, &scp->reply.srb,
@@ -1161,7 +1161,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                     goto done;
                 }
 
-                scp_sink_push(scp, scp->filename, TRUE);
+                scp_sink_push(scp, scp->filename, true);
             } else {
                 sftpsrv_open(scp->sf, &scp->reply.srb, scp->filename,
                              SSH_FXF_WRITE | SSH_FXF_CREAT | SSH_FXF_TRUNC,
@@ -1227,7 +1227,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                 goto done;
             }
             scp_sink_pop(scp);
-            scp->got_file_times = FALSE;
+            scp->got_file_times = false;
         } else {
             ptrlen cmd_pl;
 
@@ -1245,8 +1245,8 @@ static void scp_sink_coroutine(ScpSink *scp)
 
   done:
     if (scp->errmsg) {
-        sshfwd_write_ext(scp->sc, TRUE, scp->errmsg, strlen(scp->errmsg));
-        sshfwd_write_ext(scp->sc, TRUE, "\012", 1);
+        sshfwd_write_ext(scp->sc, true, scp->errmsg, strlen(scp->errmsg));
+        sshfwd_write_ext(scp->sc, true, "\012", 1);
         sshfwd_send_exit_status(scp->sc, 1);
     } else {
         sshfwd_send_exit_status(scp->sc, 0);
@@ -1273,7 +1273,7 @@ static void scp_sink_eof(ScpServer *s)
 {
     ScpSink *scp = container_of(s, ScpSink, scpserver);
 
-    scp->input_eof = TRUE;
+    scp->input_eof = true;
     scp_sink_coroutine(scp);
 }
 
@@ -1307,8 +1307,8 @@ static struct ScpServerVtable ScpError_ScpServer_vt = {
 static void scp_error_send_message_cb(void *vscp)
 {
     ScpError *scp = (ScpError *)vscp;
-    sshfwd_write_ext(scp->sc, TRUE, scp->message, strlen(scp->message));
-    sshfwd_write_ext(scp->sc, TRUE, "\n", 1);
+    sshfwd_write_ext(scp->sc, true, scp->message, strlen(scp->message));
+    sshfwd_write_ext(scp->sc, true, "\n", 1);
     sshfwd_send_exit_status(scp->sc, 1);
     sshfwd_write_eof(scp->sc);
     sshfwd_initiate_close(scp->sc, scp->message);
@@ -1353,8 +1353,8 @@ static void scp_error_free(ScpServer *s)
 ScpServer *scp_recognise_exec(
     SshChannel *sc, const SftpServerVtable *sftpserver_vt, ptrlen command)
 {
-    int recursive = FALSE, preserve = FALSE;
-    int targetshouldbedirectory = FALSE;
+    int recursive = false, preserve = false;
+    int targetshouldbedirectory = false;
     ptrlen command_orig = command;
 
     if (!ptrlen_startswith(command, PTRLEN_LITERAL("scp "), &command))
@@ -1366,15 +1366,15 @@ ScpServer *scp_recognise_exec(
             continue;
         }
         if (ptrlen_startswith(command, PTRLEN_LITERAL("-r "), &command)) {
-            recursive = TRUE;
+            recursive = true;
             continue;
         }
         if (ptrlen_startswith(command, PTRLEN_LITERAL("-p "), &command)) {
-            preserve = TRUE;
+            preserve = true;
             continue;
         }
         if (ptrlen_startswith(command, PTRLEN_LITERAL("-d "), &command)) {
-            targetshouldbedirectory = TRUE;
+            targetshouldbedirectory = true;
             continue;
         }
         break;

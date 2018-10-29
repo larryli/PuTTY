@@ -183,7 +183,7 @@ static int gppmap(settings_r *sesskey, const char *name,
      */
     buf = gpps_raw(sesskey, name, NULL);
     if (!buf)
-	return FALSE;
+	return false;
 
     p = buf;
     while (*p) {
@@ -227,12 +227,12 @@ static int gppmap(settings_r *sesskey, const char *name,
     }
     sfree(buf);
 
-    return TRUE;
+    return true;
 }
 
 /*
  * Write a set of name/value pairs in the above format, or just the
- * names if include_values is FALSE.
+ * names if include_values is false.
  */
 static void wmap(settings_w *sesskey, char const *outkey, Conf *conf,
                  int primary, int include_values)
@@ -549,7 +549,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "TCPKeepalives", conf_get_int(conf, CONF_tcp_keepalives));
     write_setting_s(sesskey, "TerminalType", conf_get_str(conf, CONF_termtype));
     write_setting_s(sesskey, "TerminalSpeed", conf_get_str(conf, CONF_termspeed));
-    wmap(sesskey, "TerminalModes", conf, CONF_ttymodes, TRUE);
+    wmap(sesskey, "TerminalModes", conf, CONF_ttymodes, true);
 
     /* Address family selection */
     write_setting_i(sesskey, "AddressFamily", conf_get_int(conf, CONF_addressfamily));
@@ -565,7 +565,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_s(sesskey, "ProxyPassword", conf_get_str(conf, CONF_proxy_password));
     write_setting_s(sesskey, "ProxyTelnetCommand", conf_get_str(conf, CONF_proxy_telnet_command));
     write_setting_i(sesskey, "ProxyLogToTerm", conf_get_int(conf, CONF_proxy_log_to_term));
-    wmap(sesskey, "Environment", conf, CONF_environmt, TRUE);
+    wmap(sesskey, "Environment", conf, CONF_environmt, true);
     write_setting_s(sesskey, "UserName", conf_get_str(conf, CONF_username));
     write_setting_i(sesskey, "UserNameFromEnvironment", conf_get_int(conf, CONF_username_from_env));
     write_setting_s(sesskey, "LocalUserName", conf_get_str(conf, CONF_localusername));
@@ -727,7 +727,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_filename(sesskey, "X11AuthFile", conf_get_filename(conf, CONF_xauthfile));
     write_setting_i(sesskey, "LocalPortAcceptAll", conf_get_int(conf, CONF_lport_acceptall));
     write_setting_i(sesskey, "RemotePortAcceptAll", conf_get_int(conf, CONF_rport_acceptall));
-    wmap(sesskey, "PortForwardings", conf, CONF_portfwd, TRUE);
+    wmap(sesskey, "PortForwardings", conf, CONF_portfwd, true);
     write_setting_i(sesskey, "BugIgnore1", 2-conf_get_int(conf, CONF_sshbug_ignore1));
     write_setting_i(sesskey, "BugPlainPW1", 2-conf_get_int(conf, CONF_sshbug_plainpw1));
     write_setting_i(sesskey, "BugRSA1", 2-conf_get_int(conf, CONF_sshbug_rsa1));
@@ -759,7 +759,7 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_i(sesskey, "ConnectionSharing", conf_get_int(conf, CONF_ssh_connection_sharing));
     write_setting_i(sesskey, "ConnectionSharingUpstream", conf_get_int(conf, CONF_ssh_connection_sharing_upstream));
     write_setting_i(sesskey, "ConnectionSharingDownstream", conf_get_int(conf, CONF_ssh_connection_sharing_downstream));
-    wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, FALSE);
+    wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, false);
 }
 
 void load_settings(const char *section, Conf *conf)
@@ -1195,7 +1195,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     i = gppi_raw(sesskey, "BugOldGex2", 0); conf_set_int(conf, CONF_sshbug_oldgex2, 2-i);
     i = gppi_raw(sesskey, "BugWinadj", 0); conf_set_int(conf, CONF_sshbug_winadj, 2-i);
     i = gppi_raw(sesskey, "BugChanReq", 0); conf_set_int(conf, CONF_sshbug_chanreq, 2-i);
-    conf_set_int(conf, CONF_ssh_simple, FALSE);
+    conf_set_int(conf, CONF_ssh_simple, false);
     gppi(sesskey, "StampUtmp", 1, conf, CONF_stamp_utmp);
     gppi(sesskey, "LoginShell", 1, conf, CONF_login_shell);
     gppi(sesskey, "ScrollbarOnLeft", 0, conf, CONF_scrollbar_on_left);

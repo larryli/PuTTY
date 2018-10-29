@@ -492,7 +492,7 @@ static void update_jumplist_from_registry(void)
     IObjectArray *array = NULL;
     IShellLink *link = NULL;
     IObjectArray *pRemoved = NULL;
-    int need_abort = FALSE;
+    int need_abort = false;
 
     /*
      * Create an ICustomDestinationList: the top-level object which
@@ -513,7 +513,7 @@ static void update_jumplist_from_registry(void)
     if (!SUCCEEDED(pCDL->lpVtbl->BeginList(pCDL, &num_items,
                                            COMPTR(IObjectArray, &pRemoved))))
         goto cleanup;
-    need_abort = TRUE;
+    need_abort = true;
     if (!SUCCEEDED(pRemoved->lpVtbl->GetCount(pRemoved, &nremoved)))
         nremoved = 0;
 
@@ -543,7 +543,7 @@ static void update_jumplist_from_registry(void)
             /*
              * Check that the link isn't in the user-removed list.
              */
-            for (i = 0, found = FALSE; i < nremoved && !found; i++) {
+            for (i = 0, found = false; i < nremoved && !found; i++) {
                 IShellLink *rlink;
                 if (SUCCEEDED(pRemoved->lpVtbl->GetAt
                               (pRemoved, i, COMPTR(IShellLink, &rlink)))) {
@@ -553,7 +553,7 @@ static void update_jumplist_from_registry(void)
                         SUCCEEDED(rlink->lpVtbl->GetDescription
                                   (rlink, desc2, sizeof(desc2)-1)) &&
                         !strcmp(desc1, desc2)) {
-                        found = TRUE;
+                        found = true;
                     }
                     rlink->lpVtbl->Release(rlink);
                 }
@@ -656,7 +656,7 @@ static void update_jumplist_from_registry(void)
      * Commit the jump list.
      */
     pCDL->lpVtbl->CommitList(pCDL);
-    need_abort = FALSE;
+    need_abort = false;
 
     /*
      * Clean up.
@@ -738,12 +738,12 @@ BOOL set_explicit_app_user_model_id()
     {
         if (p_SetCurrentProcessExplicitAppUserModelID(L"SimonTatham.PuTTY") == S_OK)
         {
-	  return TRUE;
+	  return true;
         }
-        return FALSE;
+        return false;
     }
     /* Function doesn't exist, which is ok for Pre-7 systems */
 
-    return TRUE;
+    return true;
 
 }

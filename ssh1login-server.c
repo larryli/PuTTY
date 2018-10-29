@@ -45,11 +45,11 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *);
 
 static int ssh1_login_server_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special,
-    void *ctx) { return FALSE; }
+    void *ctx) { return false; }
 static void ssh1_login_server_special_cmd(PacketProtocolLayer *ppl,
                                    SessionSpecialCode code, int arg) {}
 static int ssh1_login_server_want_user_input(
-    PacketProtocolLayer *ppl) { return FALSE; }
+    PacketProtocolLayer *ppl) { return false; }
 static void ssh1_login_server_got_user_input(PacketProtocolLayer *ppl) {}
 static void ssh1_login_server_reconfigure(
     PacketProtocolLayer *ppl, Conf *conf) {}
@@ -138,7 +138,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         s->servkey = snew(struct RSAKey);
         rsa_generate(s->servkey, server_key_bits, no_progress, NULL);
         s->servkey->comment = NULL;
-        s->servkey_generated_here = TRUE;
+        s->servkey_generated_here = true;
     }
 
     s->local_protoflags = SSH1_PROTOFLAGS_SUPPORTED;

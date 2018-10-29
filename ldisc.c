@@ -233,7 +233,7 @@ void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)
 		}
 		break;
 	      case CTRL('V'):	       /* quote next char */
-		ldisc->quotenext = TRUE;
+		ldisc->quotenext = true;
 		break;
 	      case CTRL('D'):	       /* logout or send */
 		if (ldisc->buflen == 0) {
@@ -298,7 +298,7 @@ void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)
 		ldisc->buf[ldisc->buflen++] = c;
 		if (ECHOING)
 		    pwrite(ldisc, (unsigned char) c);
-		ldisc->quotenext = FALSE;
+		ldisc->quotenext = false;
 		break;
 	    }
 	}

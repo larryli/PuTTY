@@ -63,7 +63,7 @@ int auth_ssh1int_response(AuthPolicy *, ptrlen response);
 
 struct RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, Bignum rsa_modulus);
-/* auth_successful returns FALSE if further authentication is needed */
+/* auth_successful returns false if further authentication is needed */
 int auth_successful(AuthPolicy *, ptrlen username, unsigned method);
 
 PacketProtocolLayer *ssh2_userauth_server_new(

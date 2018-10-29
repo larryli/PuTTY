@@ -35,7 +35,7 @@ void do_sftp_cleanup();
 char *pwd, *homedir;
 static Backend *backend;
 static Conf *conf;
-int sent_eof = FALSE;
+int sent_eof = false;
 
 /* ------------------------------------------------------------
  * Seat vtable.
@@ -235,7 +235,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
     struct fxp_xfer *xfer;
     uint64_t offset;
     WFile *file;
-    int ret, shown_err = FALSE;
+    int ret, shown_err = false;
     struct fxp_attrs attrs;
 
     /*
@@ -378,7 +378,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 		nextfname = dupcat(fname, "/", ournames[i]->filename, NULL);
                 nextoutfname = dir_file_cat(outfname, ournames[i]->filename);
 		ret = sftp_get_file(nextfname, nextoutfname, recurse, restart);
-		restart = FALSE;       /* after first partial file, do full */
+		restart = false;       /* after first partial file, do full */
 		sfree(nextoutfname);
 		sfree(nextfname);
 		if (!ret) {
@@ -469,7 +469,7 @@ int sftp_get_file(char *fname, char *outfname, int recurse, int restart)
 	if (ret <= 0) {
 	    if (!shown_err) {
 		printf("error while reading: %s\n", fxp_error());
-		shown_err = TRUE;
+		shown_err = true;
 	    }
             if (ret == INT_MIN)        /* pktin not even freed */
                 sfree(pktin);
@@ -622,7 +622,7 @@ int sftp_put_file(char *fname, char *outfname, int recurse, int restart)
             nextfname = dir_file_cat(fname, ournames[i]);
 	    nextoutfname = dupcat(outfname, "/", ournames[i], NULL);
 	    ret = sftp_put_file(nextfname, nextoutfname, recurse, restart);
-	    restart = FALSE;	       /* after first partial file, do full */
+	    restart = false;	       /* after first partial file, do full */
 	    sfree(nextoutfname);
 	    sfree(nextfname);
 	    if (!ret) {
@@ -914,7 +914,7 @@ int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
 
     if (is_wc) {
 	SftpWildcardMatcher *swcm = sftp_begin_wildcard_matching(filename);
-	int matched = FALSE;
+	int matched = false;
 	sfree(unwcfname);
 
 	if (!swcm)
@@ -929,7 +929,7 @@ int wildcard_iterate(char *filename, int (*func)(void *, char *), void *ctx)
 		ret = 0;
 	    }
             sfree(newname);
-	    matched = TRUE;
+	    matched = true;
 	    ret &= func(ctx, cname);
 	    sfree(cname);
 	}
@@ -1000,7 +1000,7 @@ int sftp_cmd_close(struct sftp_command *cmd)
     if (backend_connected(backend)) {
 	char ch;
         backend_special(backend, SS_EOF, 0);
-        sent_eof = TRUE;
+        sent_eof = true;
 	sftp_recvdata(&ch, 1);
     }
     do_sftp_cleanup();
@@ -1211,7 +1211,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 {
     char *fname, *unwcfname, *origfname, *origwfname, *outfname;
     int i, ret;
-    int recurse = FALSE;
+    int recurse = false;
 
     if (!backend) {
 	not_connected();
@@ -1225,7 +1225,7 @@ int sftp_general_get(struct sftp_command *cmd, int restart, int multiple)
 	    i++;
 	    break;
 	} else if (!strcmp(cmd->words[i], "-r")) {
-	    recurse = TRUE;
+	    recurse = true;
 	} else {
 	    printf("%s: unrecognised option '%s'\n", cmd->words[0], cmd->words[i]);
 	    return 0;
@@ -1327,7 +1327,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 {
     char *fname, *wfname, *origoutfname, *outfname;
     int i, ret;
-    int recurse = FALSE;
+    int recurse = false;
 
     if (!backend) {
 	not_connected();
@@ -1341,7 +1341,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 	    i++;
 	    break;
 	} else if (!strcmp(cmd->words[i], "-r")) {
-	    recurse = TRUE;
+	    recurse = true;
 	} else {
 	    printf("%s: unrecognised option '%s'\n", cmd->words[0], cmd->words[i]);
 	    return 0;
@@ -1359,7 +1359,7 @@ int sftp_general_put(struct sftp_command *cmd, int restart, int multiple)
 	WildcardMatcher *wcm;
 	fname = cmd->words[i++];
 
-	if (multiple && test_wildcard(fname, FALSE) == WCTYPE_WILDCARD) {
+	if (multiple && test_wildcard(fname, false) == WCTYPE_WILDCARD) {
 	    wcm = begin_wildcard_matching(fname);
 	    wfname = wildcard_get_filename(wcm);
 	    if (!wfname) {
@@ -1560,9 +1560,9 @@ static int check_is_dir(char *dstfname)
     if (result &&
 	(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) &&
 	(attrs.permissions & 0040000))
-	return TRUE;
+	return true;
     else
-	return FALSE;
+	return false;
 }
 
 struct sftp_context_mv {
@@ -1935,20 +1935,20 @@ static struct sftp_cmd_lookup {
      * in ASCII order.
      */
     {
-	"!", TRUE, "run a local command",
+	"!", true, "run a local command",
 	    "<command>\n"
 	    /* FIXME: this example is crap for non-Windows. */
 	    "  Runs a local command. For example, \"!del myfile\".\n",
 	    sftp_cmd_pling
     },
     {
-	"bye", TRUE, "finish your SFTP session",
+	"bye", true, "finish your SFTP session",
 	    "\n"
 	    "  Terminates your SFTP session and quits the PSFTP program.\n",
 	    sftp_cmd_quit
     },
     {
-	"cd", TRUE, "change your remote working directory",
+	"cd", true, "change your remote working directory",
 	    " [ <new working directory> ]\n"
 	    "  Change the remote working directory for your SFTP session.\n"
 	    "  If a new working directory is not supplied, you will be\n"
@@ -1956,7 +1956,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_cd
     },
     {
-	"chmod", TRUE, "change file permissions and modes",
+	"chmod", true, "change file permissions and modes",
 	    " <modes> <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Change the file permissions on one or more remote files or\n"
 	    "  directories.\n"
@@ -1984,7 +1984,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_chmod
     },
     {
-	"close", TRUE, "finish your SFTP session but do not quit PSFTP",
+	"close", true, "finish your SFTP session but do not quit PSFTP",
 	    "\n"
 	    "  Terminates your SFTP session, but does not quit the PSFTP\n"
 	    "  program. You can then use \"open\" to start another SFTP\n"
@@ -1992,16 +1992,16 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_close
     },
     {
-	"del", TRUE, "delete files on the remote server",
+	"del", true, "delete files on the remote server",
 	    " <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Delete a file or files from the server.\n",
 	    sftp_cmd_rm
     },
     {
-	"delete", FALSE, "del", NULL, sftp_cmd_rm
+	"delete", false, "del", NULL, sftp_cmd_rm
     },
     {
-	"dir", TRUE, "list remote files",
+	"dir", true, "list remote files",
 	    " [ <directory-name> ]/[ <wildcard> ]\n"
 	    "  List the contents of a specified directory on the server.\n"
 	    "  If <directory-name> is not given, the current working directory\n"
@@ -2011,10 +2011,10 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_ls
     },
     {
-	"exit", TRUE, "bye", NULL, sftp_cmd_quit
+	"exit", true, "bye", NULL, sftp_cmd_quit
     },
     {
-	"get", TRUE, "download a file from the server to your local machine",
+	"get", true, "download a file from the server to your local machine",
 	    " [ -r ] [ -- ] <filename> [ <local-filename> ]\n"
 	    "  Downloads a file on the server and stores it locally under\n"
 	    "  the same name, or under a different one if you supply the\n"
@@ -2023,7 +2023,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_get
     },
     {
-	"help", TRUE, "give help",
+	"help", true, "give help",
 	    " [ <command> [ <command> ... ] ]\n"
 	    "  Give general help if no commands are specified.\n"
 	    "  If one or more commands are specified, give specific help on\n"
@@ -2031,25 +2031,25 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_help
     },
     {
-	"lcd", TRUE, "change local working directory",
+	"lcd", true, "change local working directory",
 	    " <local-directory-name>\n"
 	    "  Change the local working directory of the PSFTP program (the\n"
 	    "  default location where the \"get\" command will save files).\n",
 	    sftp_cmd_lcd
     },
     {
-	"lpwd", TRUE, "print local working directory",
+	"lpwd", true, "print local working directory",
 	    "\n"
 	    "  Print the local working directory of the PSFTP program (the\n"
 	    "  default location where the \"get\" command will save files).\n",
 	    sftp_cmd_lpwd
     },
     {
-	"ls", TRUE, "dir", NULL,
+	"ls", true, "dir", NULL,
 	    sftp_cmd_ls
     },
     {
-	"mget", TRUE, "download multiple files at once",
+	"mget", true, "download multiple files at once",
 	    " [ -r ] [ -- ] <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Downloads many files from the server, storing each one under\n"
 	    "  the same name it has on the server side. You can use wildcards\n"
@@ -2058,13 +2058,13 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mget
     },
     {
-	"mkdir", TRUE, "create directories on the remote server",
+	"mkdir", true, "create directories on the remote server",
 	    " <directory-name> [ <directory-name>... ]\n"
 	    "  Creates directories with the given names on the server.\n",
 	    sftp_cmd_mkdir
     },
     {
-	"mput", TRUE, "upload multiple files at once",
+	"mput", true, "upload multiple files at once",
 	    " [ -r ] [ -- ] <filename-or-wildcard> [ <filename-or-wildcard>... ]\n"
 	    "  Uploads many files to the server, storing each one under the\n"
 	    "  same name it has on the client side. You can use wildcards\n"
@@ -2073,7 +2073,7 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mput
     },
     {
-	"mv", TRUE, "move or rename file(s) on the remote server",
+	"mv", true, "move or rename file(s) on the remote server",
 	    " <source> [ <source>... ] <destination>\n"
 	    "  Moves or renames <source>(s) on the server to <destination>,\n"
 	    "  also on the server.\n"
@@ -2085,14 +2085,14 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_mv
     },
     {
-	"open", TRUE, "connect to a host",
+	"open", true, "connect to a host",
 	    " [<user>@]<hostname> [<port>]\n"
 	    "  Establishes an SFTP connection to a given host. Only usable\n"
 	    "  when you are not already connected to a server.\n",
 	    sftp_cmd_open
     },
     {
-	"put", TRUE, "upload a file from your local machine to the server",
+	"put", true, "upload a file from your local machine to the server",
 	    " [ -r ] [ -- ] <filename> [ <remote-filename> ]\n"
 	    "  Uploads a file to the server and stores it there under\n"
 	    "  the same name, or under a different one if you supply the\n"
@@ -2101,17 +2101,17 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_put
     },
     {
-	"pwd", TRUE, "print your remote working directory",
+	"pwd", true, "print your remote working directory",
 	    "\n"
 	    "  Print the current remote working directory for your SFTP session.\n",
 	    sftp_cmd_pwd
     },
     {
-	"quit", TRUE, "bye", NULL,
+	"quit", true, "bye", NULL,
 	    sftp_cmd_quit
     },
     {
-	"reget", TRUE, "continue downloading files",
+	"reget", true, "continue downloading files",
 	    " [ -r ] [ -- ] <filename> [ <local-filename> ]\n"
 	    "  Works exactly like the \"get\" command, but the local file\n"
 	    "  must already exist. The download will begin at the end of the\n"
@@ -2120,15 +2120,15 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_reget
     },
     {
-	"ren", TRUE, "mv", NULL,
+	"ren", true, "mv", NULL,
 	    sftp_cmd_mv
     },
     {
-	"rename", FALSE, "mv", NULL,
+	"rename", false, "mv", NULL,
 	    sftp_cmd_mv
     },
     {
-	"reput", TRUE, "continue uploading files",
+	"reput", true, "continue uploading files",
 	    " [ -r ] [ -- ] <filename> [ <remote-filename> ]\n"
 	    "  Works exactly like the \"put\" command, but the remote file\n"
 	    "  must already exist. The upload will begin at the end of the\n"
@@ -2137,11 +2137,11 @@ static struct sftp_cmd_lookup {
 	    sftp_cmd_reput
     },
     {
-	"rm", TRUE, "del", NULL,
+	"rm", true, "del", NULL,
 	    sftp_cmd_rm
     },
     {
-	"rmdir", TRUE, "remove directories on the remote server",
+	"rmdir", true, "remove directories on the remote server",
 	    " <directory-name> [ <directory-name>... ]\n"
 	    "  Removes the directory with the given name on the server.\n"
 	    "  The directory will not be removed unless it is empty.\n"
@@ -2382,7 +2382,7 @@ void do_sftp_cleanup()
     char ch;
     if (backend) {
         backend_special(backend, SS_EOF, 0);
-        sent_eof = TRUE;
+        sent_eof = true;
 	sftp_recvdata(&ch, 1);
         backend_free(backend);
 	sftp_cleanup_request();
@@ -2545,7 +2545,7 @@ static int psftp_eof(Seat *seat)
         seat_connection_fatal(
             psftp_seat, "Received unexpected end-of-file from SFTP server");
     }
-    return FALSE;
+    return false;
 }
 
 int sftp_recvdata(char *buf, int len)
@@ -2763,7 +2763,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
      */
     conf_set_int(conf, CONF_x11_forward, 0);
     conf_set_int(conf, CONF_agentfwd, 0);
-    conf_set_int(conf, CONF_ssh_simple, TRUE);
+    conf_set_int(conf, CONF_ssh_simple, true);
     {
 	char *key;
 	while ((key = conf_get_str_nthstrkey(conf, CONF_portfwd, 0)) != NULL)
@@ -2772,8 +2772,8 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 
     /* Set up subsystem name. */
     conf_set_str(conf, CONF_remote_cmd, "sftp");
-    conf_set_int(conf, CONF_ssh_subsys, TRUE);
-    conf_set_int(conf, CONF_nopty, TRUE);
+    conf_set_int(conf, CONF_ssh_subsys, true);
+    conf_set_int(conf, CONF_nopty, true);
 
     /*
      * Set up fallback option, for SSH-1 servers or servers with the
@@ -2798,7 +2798,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "test -x /usr/local/lib/sftp-server &&"
 		 " exec /usr/local/lib/sftp-server\n"
 		 "exec sftp-server");
-    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
+    conf_set_int(conf, CONF_ssh_subsys2, false);
 
     logctx = log_init(default_logpolicy, conf);
 
@@ -2839,8 +2839,8 @@ void cmdline_error(const char *p, ...)
     exit(1);
 }
 
-const int share_can_be_downstream = TRUE;
-const int share_can_be_upstream = FALSE;
+const int share_can_be_downstream = true;
+const int share_can_be_upstream = false;
 
 /*
  * Main program. Parse arguments etc.
@@ -2867,7 +2867,7 @@ int psftp_main(int argc, char *argv[])
     /* Load Default Settings before doing anything else. */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = FALSE;
+    loaded_session = false;
 
     for (i = 1; i < argc; i++) {
 	int ret;
@@ -2948,7 +2948,7 @@ int psftp_main(int argc, char *argv[])
     if (backend && backend_connected(backend)) {
 	char ch;
         backend_special(backend, SS_EOF, 0);
-        sent_eof = TRUE;
+        sent_eof = true;
 	sftp_recvdata(&ch, 1);
     }
     do_sftp_cleanup();

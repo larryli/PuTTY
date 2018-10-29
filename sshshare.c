@@ -631,7 +631,7 @@ static struct share_xchannel *share_add_xchannel
     struct share_xchannel *xc = snew(struct share_xchannel);
     xc->upstream_id = upstream_id;
     xc->server_id = server_id;
-    xc->live = TRUE;
+    xc->live = true;
     xc->msghead = xc->msgtail = NULL;
     if (add234(cs->xchannels_by_us, xc) != xc) {
         sfree(xc);
@@ -676,7 +676,7 @@ static struct share_forwarding *share_add_forwarding
     struct share_forwarding *fwd = snew(struct share_forwarding);
     fwd->host = dupstr(host);
     fwd->port = port;
-    fwd->active = FALSE;
+    fwd->active = false;
     if (add234(cs->forwardings, fwd) != fwd) {
         /* Duplicate?! */
         sfree(fwd);
@@ -875,7 +875,7 @@ static void share_try_cleanup(struct ssh_sharing_connstate *cs)
         if (fwd->active) {
             strbuf *packet = strbuf_new();
             put_stringz(packet, "cancel-tcpip-forward");
-            put_bool(packet, FALSE);       /* !want_reply */
+            put_bool(packet, false);       /* !want_reply */
             put_stringz(packet, fwd->host);
             put_uint32(packet, fwd->port);
             ssh_send_packet_from_downstream(
@@ -997,7 +997,7 @@ void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
      * Handle queued incoming messages from the server destined for an
      * xchannel which is dead (i.e. downstream sent OPEN_FAILURE).
      */
-    int delete = FALSE;
+    int delete = false;
     while (xc->msghead) {
         struct share_xchannel_message *msg = xc->msghead;
         xc->msghead = msg->next;
@@ -1024,7 +1024,7 @@ void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
             /*
              * On CHANNEL_CLOSE we can discard the channel completely.
              */
-            delete = TRUE;
+            delete = true;
         }
 
         sfree(msg);
@@ -1092,7 +1092,7 @@ void share_xchannel_failure(struct ssh_sharing_connstate *cs,
      * Now mark the xchannel as dead, and respond to anything sent on
      * it until we see CLOSE for it in turn.
      */
-    xc->live = FALSE;
+    xc->live = false;
     share_dead_xchannel_respond(cs, xc);
 }
 
@@ -1183,7 +1183,7 @@ void share_got_pkt_from_server(ssh_sharing_connstate *cs, int type,
             if (type == SSH2_MSG_REQUEST_FAILURE) {
                 share_remove_forwarding(cs, globreq->fwd);
             } else {
-                globreq->fwd->active = TRUE;
+                globreq->fwd->active = true;
             }
         } else if (globreq->type == GLOBREQ_CANCEL_TCPIP_FORWARD) {
             if (type == SSH2_MSG_REQUEST_SUCCESS) {
@@ -1795,7 +1795,7 @@ static void share_receive(Plug *plug, int urgent, char *data, int len)
         cs->recvlen--;                 /* trim off \r before \n */
     log_downstream(cs, "Downstream version string: %.*s",
                    cs->recvlen, cs->recvbuf);
-    cs->got_verstring = TRUE;
+    cs->got_verstring = true;
 
     /*
      * Loop round reading packets.
@@ -1861,7 +1861,7 @@ static void share_send_verstring(ssh_sharing_connstate *cs)
     sk_write(cs->sock, fullstring, strlen(fullstring));
     sfree(fullstring);
 
-    cs->sent_verstring = TRUE;
+    cs->sent_verstring = true;
 }
 
 int share_ndownstreams(ssh_sharing_state *sharestate)
@@ -1942,11 +1942,11 @@ static int share_listen_accepting(Plug *plug,
 
     add234(cs->parent->connections, cs);
 
-    cs->sent_verstring = FALSE;
+    cs->sent_verstring = false;
     if (sharestate->server_verstring)
         share_send_verstring(cs);
 
-    cs->got_verstring = FALSE;
+    cs->got_verstring = false;
     cs->recvlen = 0;
     cs->crLine = 0;
     cs->halfchannels = newtree234(share_halfchannel_cmp);
@@ -2026,7 +2026,7 @@ int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
     sock = NULL;
     logtext = ds_err = us_err = NULL;
     result = platform_ssh_share(sockname, conf, nullplug, (Plug *)NULL, &sock,
-                                &logtext, &ds_err, &us_err, FALSE, TRUE);
+                                &logtext, &ds_err, &us_err, false, true);
 
     sfree(logtext);
     sfree(ds_err);
@@ -2035,11 +2035,11 @@ int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
 
     if (result == SHARE_NONE) {
         assert(sock == NULL);
-        return FALSE;
+        return false;
     } else {
         assert(result == SHARE_DOWNSTREAM);
         sk_close(sock);
-        return TRUE;
+        return true;
     }
 }
 

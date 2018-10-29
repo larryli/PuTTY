@@ -81,12 +81,12 @@ char *get_username(void)
 {
     DWORD namelen;
     char *user;
-    int got_username = FALSE;
+    int got_username = false;
     DECL_WINDOWS_FUNCTION(static, BOOLEAN, GetUserNameExA,
 			  (EXTENDED_NAME_FORMAT, LPSTR, PULONG));
 
     {
-	static int tried_usernameex = FALSE;
+	static int tried_usernameex = false;
 	if (!tried_usernameex) {
 	    /* Not available on Win9x, so load dynamically */
 	    HMODULE secur32 = load_system32_dll("secur32.dll");
@@ -97,7 +97,7 @@ char *get_username(void)
 	    HMODULE sspicli = load_system32_dll("sspicli.dll");
             (void)sspicli; /* squash compiler warning about unused variable */
 	    GET_WINDOWS_FUNCTION(secur32, GetUserNameExA);
-	    tried_usernameex = TRUE;
+	    tried_usernameex = true;
 	}
     }
 
@@ -125,7 +125,7 @@ char *get_username(void)
     if (!got_username) {
 	/* Fall back to local user name */
 	namelen = 0;
-	if (GetUserName(NULL, &namelen) == FALSE) {
+	if (GetUserName(NULL, &namelen) == false) {
 	    /*
 	     * Apparently this doesn't work at least on Windows XP SP2.
 	     * Thus assume a maximum of 256. It will fail again if it
@@ -604,7 +604,7 @@ int open_for_write_would_lose_data(const Filename *fn)
          * let the subsequent attempt to open the file for real give a
          * more useful error message.
          */
-        return FALSE;
+        return false;
     }
     if (attrs.dwFileAttributes & (FILE_ATTRIBUTE_DEVICE |
                                   FILE_ATTRIBUTE_DIRECTORY)) {
@@ -613,7 +613,7 @@ int open_for_write_would_lose_data(const Filename *fn)
          * opening it for writing will not cause truncation. (It may
          * not _succeed_ either, but that's not our problem here!)
          */
-        return FALSE;
+        return false;
     }
     if (attrs.nFileSizeHigh == 0 && attrs.nFileSizeLow == 0) {
         /*
@@ -622,7 +622,7 @@ int open_for_write_would_lose_data(const Filename *fn)
          * opening it for writing won't truncate any data away because
          * there's nothing to truncate anyway.
          */
-        return FALSE;
+        return false;
     }
-    return TRUE;
+    return true;
 }

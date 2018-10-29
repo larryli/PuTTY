@@ -21,7 +21,7 @@
 #include "storage.h"
 #include "ssh.h"
 
-int console_batch_mode = FALSE;
+int console_batch_mode = false;
 
 static struct termios orig_termios_stderr;
 static int stderr_is_a_tty;
@@ -30,7 +30,7 @@ void stderr_tty_init()
 {
     /* Ensure that if stderr is a tty, we can get it back to a sane state. */
     if ((flags & FLAG_STDERR_TTY) && isatty(STDERR_FILENO)) {
-	stderr_is_a_tty = TRUE;
+	stderr_is_a_tty = true;
 	tcgetattr(STDERR_FILENO, &orig_termios_stderr);
     }
 }

@@ -42,10 +42,10 @@ void init_help(void)
 	help_path = NULL;
     strcpy(r, PUTTY_HELP_CONTENTS);
     if ( (fp = fopen(b, "r")) != NULL) {
-	help_has_contents = TRUE;
+	help_has_contents = true;
 	fclose(fp);
     } else
-	help_has_contents = FALSE;
+	help_has_contents = false;
 
 #ifndef NO_HTMLHELP
     strcpy(r, PUTTY_CHM_FILE);
@@ -120,7 +120,7 @@ void launch_help(HWND hwnd, const char *topic)
 		    help_has_contents ? HELP_FINDER : HELP_CONTENTS, 0);
 	}
     }
-    requested_help = TRUE;
+    requested_help = true;
 }
 
 void quit_help(HWND hwnd)
@@ -134,6 +134,6 @@ void quit_help(HWND hwnd)
 	if (help_path) {
 	    WinHelp(hwnd, help_path, HELP_QUIT, 0);
 	}
-	requested_help = FALSE;
+	requested_help = false;
     }
 }

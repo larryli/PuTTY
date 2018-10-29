@@ -52,7 +52,7 @@ void pq_base_push_front(PacketQueueBase *pqb, PacketQueueNode *node)
 }
 
 static PacketQueueNode pktin_freeq_head = {
-    &pktin_freeq_head, &pktin_freeq_head, TRUE
+    &pktin_freeq_head, &pktin_freeq_head, true
 };
 
 static void pktin_free_queue_callback(void *vctx)
@@ -68,7 +68,7 @@ static void pktin_free_queue_callback(void *vctx)
 }
 
 static IdempotentCallback ic_pktin_free = {
-    pktin_free_queue_callback, NULL, FALSE
+    pktin_free_queue_callback, NULL, false
 };
 
 static PktIn *pq_in_after(PacketQueueBase *pqb,
@@ -86,7 +86,7 @@ static PktIn *pq_in_after(PacketQueueBase *pqb,
         node->next = &pktin_freeq_head;
         node->next->prev = node;
         node->prev->next = node;
-        node->on_free_queue = TRUE;
+        node->on_free_queue = true;
         queue_idempotent_callback(&ic_pktin_free);
     }
 
@@ -224,7 +224,7 @@ PktOut *ssh_new_packet(void)
     pkt->downstream_id = 0;
     pkt->additional_log_text = NULL;
     pkt->qnode.next = pkt->qnode.prev = NULL;
-    pkt->qnode.on_free_queue = FALSE;
+    pkt->qnode.on_free_queue = false;
 
     return pkt;
 }
@@ -331,7 +331,7 @@ static void zombiechan_set_input_wanted(Channel *chan, int enable)
 
 static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof)
 {
-    return TRUE;
+    return true;
 }
 
 /* ----------------------------------------------------------------------
@@ -361,75 +361,75 @@ int chan_default_want_close(
 
 int chan_no_exit_status(Channel *chan, int status)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_exit_signal(
     Channel *chan, ptrlen signame, int core_dumped, ptrlen msg)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_exit_signal_numeric(
     Channel *chan, int signum, int core_dumped, ptrlen msg)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_run_shell(Channel *chan)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_run_command(Channel *chan, ptrlen command)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_run_subsystem(Channel *chan, ptrlen subsys)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_enable_x11_forwarding(
     Channel *chan, int oneshot, ptrlen authproto, ptrlen authdata,
     unsigned screen_number)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_enable_agent_forwarding(Channel *chan)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_allocate_pty(
     Channel *chan, ptrlen termtype, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight, struct ssh_ttymodes modes)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_set_env(Channel *chan, ptrlen var, ptrlen value)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_send_break(Channel *chan, unsigned length)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_send_signal(Channel *chan, ptrlen signame)
 {
-    return FALSE;
+    return false;
 }
 
 int chan_no_change_window_size(
     Channel *chan, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight)
 {
-    return FALSE;
+    return false;
 }
 
 void chan_no_request_response(Channel *chan, int success)
@@ -558,7 +558,7 @@ struct ssh_ttymodes get_ttymodes_from_conf(Seat *seat, Conf *conf)
                 assert(0 && "Bad mode->type");
             }
 
-            modes.have_mode[mode->opcode] = TRUE;
+            modes.have_mode[mode->opcode] = true;
             modes.mode_val[mode->opcode] = ival;
         }
 
@@ -572,9 +572,9 @@ struct ssh_ttymodes get_ttymodes_from_conf(Seat *seat, Conf *conf)
         ospeed = ispeed = 38400;           /* last-resort defaults */
         sscanf(conf_get_str(conf, CONF_termspeed), "%u,%u", &ospeed, &ispeed);
         /* Currently we unconditionally set these */
-        modes.have_mode[TTYMODE_ISPEED] = TRUE;
+        modes.have_mode[TTYMODE_ISPEED] = true;
         modes.mode_val[TTYMODE_ISPEED] = ispeed;
-        modes.have_mode[TTYMODE_OSPEED] = TRUE;
+        modes.have_mode[TTYMODE_OSPEED] = true;
         modes.mode_val[TTYMODE_OSPEED] = ospeed;
     }
 
@@ -613,7 +613,7 @@ struct ssh_ttymodes read_ttymodes_from_packet(
 
         our_opcode = our_ttymode_opcode(real_opcode, ssh_version);
         assert(our_opcode < TTYMODE_LIMIT);
-        modes.have_mode[our_opcode] = TRUE;
+        modes.have_mode[our_opcode] = true;
 
         if (ssh_version == 1 && real_opcode >= 1 && real_opcode <= 127)
             modes.mode_val[our_opcode] = get_byte(bs);
@@ -709,19 +709,19 @@ int in_commasep_string(char const *needle, char const *haystack, int haylen)
     char *p;
 
     if (!needle || !haystack)          /* protect against null pointers */
-        return FALSE;
+        return false;
     /*
      * Is it at the start of the string?
      */
     if (first_in_commasep_string(needle, haystack, haylen))
-        return TRUE;
+        return true;
     /*
      * If not, search for the next comma and resume after that.
      * If no comma found, terminate.
      */
     p = memchr(haystack, ',', haylen);
     if (!p)
-        return FALSE;
+        return false;
     /* + 1 to skip over comma */
     return in_commasep_string(needle, p + 1, haylen - (p + 1 - haystack));
 }
@@ -749,7 +749,7 @@ int get_commasep_word(ptrlen *list, ptrlen *word)
     }
 
     if (!list->len)
-        return FALSE;
+        return false;
 
     comma = memchr(list->ptr, ',', list->len);
     if (!comma) {
@@ -762,7 +762,7 @@ int get_commasep_word(ptrlen *list, ptrlen *word)
         list->ptr = (const char *)list->ptr + wordlen + 1;
         list->len -= wordlen + 1;
     }
-    return TRUE;
+    return true;
 }
 
 /* ----------------------------------------------------------------------
@@ -873,7 +873,7 @@ void ssh_bpp_common_setup(BinaryPacketProtocol *bpp)
 {
     pq_in_init(&bpp->in_pq);
     pq_out_init(&bpp->out_pq);
-    bpp->input_eof = FALSE;
+    bpp->input_eof = false;
     bpp->ic_in_raw.fn = ssh_bpp_input_raw_data_callback;
     bpp->ic_in_raw.ctx = bpp;
     bpp->ic_out_pq.fn = ssh_bpp_output_packet_callback;
@@ -923,10 +923,10 @@ int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
         PktOut *pkt = ssh_bpp_new_pktout(bpp, SSH2_MSG_UNIMPLEMENTED);
         put_uint32(pkt, pktin->sequence);
         pq_push(&bpp->out_pq, pkt);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 #undef BITMAP_UNIVERSAL
@@ -1002,10 +1002,10 @@ int ssh1_common_get_specials(
      */
     if (!(ppl->remote_bugs & BUG_CHOKES_ON_SSH1_IGNORE)) {
         add_special(ctx, "IGNORE message", SS_NOP, 0);
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 int ssh1_common_filter_queue(PacketProtocolLayer *ppl)
@@ -1021,7 +1021,7 @@ int ssh1_common_filter_queue(PacketProtocolLayer *ppl)
                              "Remote side sent disconnect message:\n\"%.*s\"",
                              PTRLEN_PRINTF(msg));
             pq_pop(ppl->in_pq);
-            return TRUE;               /* indicate that we've been freed */
+            return true;               /* indicate that we've been freed */
 
           case SSH1_MSG_DEBUG:
             msg = get_string(pktin);
@@ -1035,11 +1035,11 @@ int ssh1_common_filter_queue(PacketProtocolLayer *ppl)
             break;
 
           default:
-            return FALSE;
+            return false;
         }
     }
 
-    return FALSE;
+    return false;
 }
 
 void ssh1_compute_session_id(

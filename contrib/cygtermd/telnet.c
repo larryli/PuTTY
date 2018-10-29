@@ -5,19 +5,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include "sel.h"
 #include "telnet.h"
 #include "malloc.h"
 #include "pty.h"
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
 
 #define	IAC	255		       /* interpret as command: */
 #define	DONT	254		       /* you are not to use option */

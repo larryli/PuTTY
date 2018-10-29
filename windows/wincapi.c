@@ -11,12 +11,12 @@
 
 int got_crypt(void)
 {
-    static int attempted = FALSE;
+    static int attempted = false;
     static int successful;
     static HMODULE crypt;
 
     if (!attempted) {
-        attempted = TRUE;
+        attempted = true;
         crypt = load_system32_dll("crypt32.dll");
         successful = crypt &&
 #ifdef COVERITY

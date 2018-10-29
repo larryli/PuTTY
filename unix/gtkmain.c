@@ -554,7 +554,7 @@ GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
     return gtk_window_new(GTK_WINDOW_TOPLEVEL);
 }
 
-const int buildinfo_gtk_relevant = TRUE;
+const int buildinfo_gtk_relevant = true;
 
 struct post_initial_config_box_ctx {
     Conf *conf;
@@ -594,7 +594,7 @@ int main(int argc, char **argv)
         /* Call the function in ux{putty,pterm}.c to do app-type
          * specific setup */
         extern void setup(int);
-        setup(TRUE);     /* TRUE means we are a one-session process */
+        setup(true);     /* true means we are a one-session process */
     }
 
     progname = argv[0];
@@ -633,7 +633,7 @@ int main(int argc, char **argv)
 	smemclr(argv[1], strlen(argv[1]));
 
         assert(!dup_check_launchable || conf_launchable(conf));
-        need_config_box = FALSE;
+        need_config_box = false;
     } else {
 	if (do_cmdline(argc, argv, 0, conf))
 	    exit(1);		       /* pre-defaults pass to get -class */
@@ -646,7 +646,7 @@ int main(int argc, char **argv)
         if (cmdline_tooltype & TOOLTYPE_HOST_ARG)
             need_config_box = !cmdline_host_ok(conf);
         else
-            need_config_box = FALSE;
+            need_config_box = false;
     }
 
     if (need_config_box) {

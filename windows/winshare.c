@@ -161,9 +161,9 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
         memset(&sa, 0, sizeof(sa));
         sa.nLength = sizeof(sa);
         sa.lpSecurityDescriptor = psd;
-        sa.bInheritHandle = FALSE;
+        sa.bInheritHandle = false;
 
-        mutex = CreateMutex(&sa, FALSE, mutexname);
+        mutex = CreateMutex(&sa, false, mutexname);
 
         if (!mutex) {
             *logtext = dupprintf("CreateMutex(\"%s\") failed: %s",

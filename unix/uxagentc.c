@@ -19,8 +19,8 @@ int agent_exists(void)
 {
     const char *p = getenv("SSH_AUTH_SOCK");
     if (p && *p)
-	return TRUE;
-    return FALSE;
+	return true;
+    return false;
 }
 
 static tree234 *agent_pending_queries;

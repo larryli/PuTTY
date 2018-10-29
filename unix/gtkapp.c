@@ -88,7 +88,7 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 
 char *x_get_default(const char *key) { return NULL; }
 
-const int buildinfo_gtk_relevant = TRUE;
+const int buildinfo_gtk_relevant = true;
 
 #if !GTK_CHECK_VERSION(3,0,0)
 /* This front end only works in GTK 3. If that's not what we've got,
@@ -275,7 +275,7 @@ void window_setup_error(const char *errmsg)
     create_message_box(NULL, "Error creating session window", errmsg,
                        string_width("Some sort of fiddly error message that "
                                     "might be technical"),
-                       TRUE, &buttons_ok, window_setup_error_callback, NULL);
+                       true, &buttons_ok, window_setup_error_callback, NULL);
 }
 
 static void activate(GApplication *app,
@@ -319,7 +319,7 @@ int main(int argc, char **argv)
         /* Call the function in ux{putty,pterm}.c to do app-type
          * specific setup */
         extern void setup(int);
-        setup(FALSE);     /* FALSE means we are not a one-session process */
+        setup(false);     /* false means we are not a one-session process */
     }
 
     if (argc > 1) {

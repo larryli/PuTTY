@@ -91,7 +91,7 @@ int ssh_transient_hostkey_cache_verify(
     ssh_transient_hostkey_cache *thc, ssh_key *key)
 {
     struct ssh_transient_hostkey_cache_entry *ent;
-    int toret = FALSE;
+    int toret = false;
 
     if ((ent = find234(thc->cache, (void *)ssh_key_alg(key),
                        ssh_transient_hostkey_cache_find)) != NULL) {
@@ -101,7 +101,7 @@ int ssh_transient_hostkey_cache_verify(
         if (this_blob->len == ent->pub_blob->len &&
             !memcmp(this_blob->s, ent->pub_blob->s,
                     this_blob->len))
-            toret = TRUE;
+            toret = true;
 
         strbuf_free(this_blob);
     }

@@ -61,7 +61,7 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
         sk_close(rlogin->s);
         rlogin->s = NULL;
         if (error_msg)
-            rlogin->closed_on_socket_error = TRUE;
+            rlogin->closed_on_socket_error = true;
 	seat_notify_remote_exit(rlogin->seat);
     }
     if (error_msg) {
@@ -166,7 +166,7 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
     rlogin->plug.vt = &Rlogin_plugvt;
     rlogin->backend.vt = &rlogin_backend;
     rlogin->s = NULL;
-    rlogin->closed_on_socket_error = FALSE;
+    rlogin->closed_on_socket_error = false;
     rlogin->seat = seat;
     rlogin->logctx = logctx;
     rlogin->term_width = conf_get_int(conf, CONF_width);
@@ -224,9 +224,9 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
         int ret;
 
         rlogin->prompt = new_prompts();
-        rlogin->prompt->to_server = TRUE;
+        rlogin->prompt->to_server = true;
         rlogin->prompt->name = dupstr("Rlogin login name");
-        add_prompt(rlogin->prompt, dupstr("rlogin username: "), TRUE); 
+        add_prompt(rlogin->prompt, dupstr("rlogin username: "), true); 
         ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, NULL);
         if (ret >= 0) {
             rlogin_startup(rlogin, rlogin->prompt->prompts[0]->result);

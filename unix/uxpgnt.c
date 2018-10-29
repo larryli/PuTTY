@@ -113,7 +113,7 @@ void keylist_update(void)
 
 const char *const appname = "Pageant";
 
-static int time_to_die = FALSE;
+static int time_to_die = false;
 
 /* Stub functions to permit linking against x11fwd.c. These never get
  * used, because in LIFE_X11 mode we connect to the X server using a
@@ -121,29 +121,29 @@ static int time_to_die = FALSE;
  * forwarding too. */
 void chan_remotely_opened_confirmation(Channel *chan) { }
 void chan_remotely_opened_failure(Channel *chan, const char *err) { }
-int chan_default_want_close(Channel *chan, int s, int r) { return FALSE; }
-int chan_no_exit_status(Channel *ch, int s) { return FALSE; }
+int chan_default_want_close(Channel *chan, int s, int r) { return false; }
+int chan_no_exit_status(Channel *ch, int s) { return false; }
 int chan_no_exit_signal(Channel *ch, ptrlen s, int c, ptrlen m)
-{ return FALSE; }
+{ return false; }
 int chan_no_exit_signal_numeric(Channel *ch, int s, int c, ptrlen m)
-{ return FALSE; }
-int chan_no_run_shell(Channel *chan) { return FALSE; }
-int chan_no_run_command(Channel *chan, ptrlen command) { return FALSE; }
-int chan_no_run_subsystem(Channel *chan, ptrlen subsys) { return FALSE; }
+{ return false; }
+int chan_no_run_shell(Channel *chan) { return false; }
+int chan_no_run_command(Channel *chan, ptrlen command) { return false; }
+int chan_no_run_subsystem(Channel *chan, ptrlen subsys) { return false; }
 int chan_no_enable_x11_forwarding(
     Channel *chan, int oneshot, ptrlen authproto, ptrlen authdata,
-    unsigned screen_number) { return FALSE; }
-int chan_no_enable_agent_forwarding(Channel *chan) { return FALSE; }
+    unsigned screen_number) { return false; }
+int chan_no_enable_agent_forwarding(Channel *chan) { return false; }
 int chan_no_allocate_pty(
     Channel *chan, ptrlen termtype, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight, struct ssh_ttymodes modes)
-{ return FALSE; }
-int chan_no_set_env(Channel *chan, ptrlen var, ptrlen value) { return FALSE; }
-int chan_no_send_break(Channel *chan, unsigned length) { return FALSE; }
-int chan_no_send_signal(Channel *chan, ptrlen signame) { return FALSE; }
+{ return false; }
+int chan_no_set_env(Channel *chan, ptrlen var, ptrlen value) { return false; }
+int chan_no_send_break(Channel *chan, unsigned length) { return false; }
+int chan_no_send_signal(Channel *chan, ptrlen signame) { return false; }
 int chan_no_change_window_size(
     Channel *chan, unsigned width, unsigned height,
-    unsigned pixwidth, unsigned pixheight) { return FALSE; }
+    unsigned pixwidth, unsigned pixheight) { return false; }
 void chan_no_request_response(Channel *chan, int success) {}
 
 /*
@@ -159,7 +159,7 @@ static void x11_sent(Plug *plug, int bufsize) {}
 static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 			int calling_back)
 {
-    time_to_die = TRUE;
+    time_to_die = true;
 }
 struct X11Connection {
     Plug plug;
@@ -306,10 +306,10 @@ int have_controlling_tty(void)
             perror("/dev/tty: open");
             exit(1);
         }
-        return FALSE;
+        return false;
     } else {
         close(fd);
-        return TRUE;
+        return true;
     }
 }
 
@@ -326,9 +326,9 @@ static char *askpass_tty(const char *prompt)
 {
     int ret;
     prompts_t *p = new_prompts();
-    p->to_server = FALSE;
+    p->to_server = false;
     p->name = dupstr("Pageant passphrase prompt");
-    add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), FALSE);
+    add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), false);
     ret = console_get_userpass_input(p);
     assert(ret >= 0);
 
@@ -400,7 +400,7 @@ static int unix_add_keyfile(const char *filename_str)
     int status, ret;
     char *err;
 
-    ret = TRUE;
+    ret = true;
 
     /*
      * Try without a passphrase.
@@ -410,7 +410,7 @@ static int unix_add_keyfile(const char *filename_str)
         goto cleanup;
     } else if (status == PAGEANT_ACTION_FAILURE) {
         fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
-        ret = FALSE;
+        ret = false;
         goto cleanup;
     }
 
@@ -437,7 +437,7 @@ static int unix_add_keyfile(const char *filename_str)
             goto cleanup;
         } else if (status == PAGEANT_ACTION_FAILURE) {
             fprintf(stderr, "pageant: %s: %s\n", filename_str, err);
-            ret = FALSE;
+            ret = false;
             goto cleanup;
         }
     }
@@ -476,9 +476,9 @@ int match_fingerprint_string(const char *string, const char *fingerprint)
         while (*string == ':') string++;
         while (*hash == ':') hash++;
         if (!*string)
-            return TRUE;
+            return true;
         if (tolower((unsigned char)*string) != tolower((unsigned char)*hash))
-            return FALSE;
+            return false;
         string++;
         hash++;
     }
@@ -502,8 +502,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
 {
     struct key_find_ctx actx, *ctx = &actx;
     struct pageant_pubkey key_in, *key_ret;
-    int try_file = TRUE, try_fp = TRUE, try_comment = TRUE;
-    int file_errors = FALSE;
+    int try_file = true, try_fp = true, try_comment = true;
+    int file_errors = false;
 
     /*
      * Trim off disambiguating prefixes telling us how to interpret
@@ -511,17 +511,17 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
      */
     if (!strncmp(string, "file:", 5)) {
         string += 5;
-        try_fp = try_comment = FALSE;
-        file_errors = TRUE; /* also report failure to load the file */
+        try_fp = try_comment = false;
+        file_errors = true; /* also report failure to load the file */
     } else if (!strncmp(string, "comment:", 8)) {
         string += 8;
-        try_file = try_fp = FALSE;
+        try_file = try_fp = false;
     } else if (!strncmp(string, "fp:", 3)) {
         string += 3;
-        try_file = try_comment = FALSE;
+        try_file = try_comment = false;
     } else if (!strncmp(string, "fingerprint:", 12)) {
         string += 12;
-        try_file = try_comment = FALSE;
+        try_file = try_comment = false;
     }
 
     /*
@@ -632,7 +632,7 @@ void run_client(void)
 {
     const struct cmdline_key_action *act;
     struct pageant_pubkey *key;
-    int errors = FALSE;
+    int errors = false;
     char *retstr;
 
     if (!agent_exists()) {
@@ -644,14 +644,14 @@ void run_client(void)
         switch (act->action) {
           case KEYACT_CLIENT_ADD:
             if (!unix_add_keyfile(act->filename))
-                errors = TRUE;
+                errors = true;
             break;
           case KEYACT_CLIENT_LIST:
             if (pageant_enum_keys(key_list_callback, NULL, &retstr) ==
                 PAGEANT_ACTION_FAILURE) {
                 fprintf(stderr, "pageant: listing keys: %s\n", retstr);
                 sfree(retstr);
-                errors = TRUE;
+                errors = true;
             }
             break;
           case KEYACT_CLIENT_DEL:
@@ -661,7 +661,7 @@ void run_client(void)
                 fprintf(stderr, "pageant: deleting key '%s': %s\n",
                         act->filename, retstr);
                 sfree(retstr);
-                errors = TRUE;
+                errors = true;
             }
             if (key)
                 pageant_pubkey_free(key);
@@ -673,7 +673,7 @@ void run_client(void)
                 fprintf(stderr, "pageant: finding key '%s': %s\n",
                         act->filename, retstr);
                 sfree(retstr);
-                errors = TRUE;
+                errors = true;
             } else {
                 FILE *fp = stdout;     /* FIXME: add a -o option? */
 
@@ -702,7 +702,7 @@ void run_client(void)
             if (pageant_delete_all_keys(&retstr) == PAGEANT_ACTION_FAILURE) {
                 fprintf(stderr, "pageant: deleting all keys: %s\n", retstr);
                 sfree(retstr);
-                errors = TRUE;
+                errors = true;
             }
             break;
           default:
@@ -734,7 +734,7 @@ void run_agent(void)
     int fd;
     int i, fdcount, fdsize, fdstate;
     int termination_pid = -1;
-    int errors = FALSE;
+    int errors = false;
     Conf *conf;
     const struct cmdline_key_action *act;
 
@@ -749,7 +749,7 @@ void run_agent(void)
     for (act = keyact_head; act; act = act->next) {
         assert(act->action == KEYACT_AGENT_LOAD);
         if (!unix_add_keyfile(act->filename))
-            errors = TRUE;
+            errors = true;
     }
     if (errors)
         exit(1);
@@ -811,13 +811,13 @@ void run_agent(void)
         smemclr(greeting, greetinglen);
         sfree(greeting);
 
-        pageant_fork_and_print_env(FALSE);
+        pageant_fork_and_print_env(false);
     } else if (life == LIFE_TTY) {
         schedule_timer(TTY_LIFE_POLL_INTERVAL,
                        tty_life_timer, &dummy_timer_ctx);
-        pageant_fork_and_print_env(TRUE);
+        pageant_fork_and_print_env(true);
     } else if (life == LIFE_PERM) {
-        pageant_fork_and_print_env(FALSE);
+        pageant_fork_and_print_env(false);
     } else if (life == LIFE_DEBUG) {
         pageant_print_env(getpid());
         pageant_logfp = stdout;
@@ -840,8 +840,8 @@ void run_agent(void)
             perror("fork");
             exit(1);
         } else if (pid == 0) {
-            setenv("SSH_AUTH_SOCK", socketname, TRUE);
-            setenv("SSH_AGENT_PID", dupprintf("%d", (int)agentpid), TRUE);
+            setenv("SSH_AUTH_SOCK", socketname, true);
+            setenv("SSH_AGENT_PID", dupprintf("%d", (int)agentpid), true);
             execvp(exec_args[0], exec_args);
             perror("exec");
             _exit(127);
@@ -945,7 +945,7 @@ void run_agent(void)
              * clean up and leave.
              */
             if (!have_controlling_tty()) {
-                time_to_die = TRUE;
+                time_to_die = true;
                 break;
             }
         }
@@ -977,7 +977,7 @@ void run_agent(void)
                 if (pid <= 0)
                     break;
                 if (pid == termination_pid)
-                    time_to_die = TRUE;
+                    time_to_die = true;
             }
         }
 
@@ -998,7 +998,7 @@ void run_agent(void)
 
 int main(int argc, char **argv)
 {
-    int doing_opts = TRUE;
+    int doing_opts = true;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
     const char *standalone_askpass_prompt = NULL;
 
@@ -1063,7 +1063,7 @@ int main(int argc, char **argv)
                     exit(1);
                 }
             } else if (!strcmp(p, "--")) {
-                doing_opts = FALSE;
+                doing_opts = false;
             }
         } else {
             /*
@@ -1120,19 +1120,19 @@ int main(int argc, char **argv)
      * actions of KEYACT_AGENT_* type.
      */
     {
-        int has_agent_actions = FALSE;
-        int has_client_actions = FALSE;
-        int has_lifetime = FALSE;
+        int has_agent_actions = false;
+        int has_client_actions = false;
+        int has_lifetime = false;
         const struct cmdline_key_action *act;
 
         for (act = keyact_head; act; act = act->next) {
             if (is_agent_action(act->action))
-                has_agent_actions = TRUE;
+                has_agent_actions = true;
             else
-                has_client_actions = TRUE;
+                has_client_actions = true;
         }
         if (life != LIFE_UNSPEC)
-            has_lifetime = TRUE;
+            has_lifetime = true;
 
         if (has_lifetime && has_client_actions) {
             fprintf(stderr, "pageant: client key actions (-a, -d, -D, -l, -L)"

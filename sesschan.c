@@ -206,7 +206,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
     sess->conf = conf_new();
     load_open_settings(NULL, sess->conf);
 
-    /* Set close-on-exit = TRUE to suppress uxpty.c's "[pterm: process
+    /* Set close-on-exit = true to suppress uxpty.c's "[pterm: process
      * terminated with status x]" message */
     conf_set_int(sess->conf, CONF_close_on_exit, FORCE_ON);
 
@@ -282,10 +282,10 @@ int sesschan_run_shell(Channel *chan)
     sesschan *sess = container_of(chan, sesschan, chan);
 
     if (sess->backend)
-        return FALSE;
+        return false;
 
     sesschan_start_backend(sess, NULL);
-    return TRUE;
+    return true;
 }
 
 int sesschan_run_command(Channel *chan, ptrlen command)
@@ -293,21 +293,21 @@ int sesschan_run_command(Channel *chan, ptrlen command)
     sesschan *sess = container_of(chan, sesschan, chan);
 
     if (sess->backend)
-        return FALSE;
+        return false;
 
     /* FIXME: make this possible to configure off */
     if ((sess->scpsrv = scp_recognise_exec(sess->c, sess->sftpserver_vt,
                                            command)) != NULL) {
         sess->chan.vt = &scp_channelvt;
         logevent(sess->parent_logctx, "Starting built-in SCP server");
-        return TRUE;
+        return true;
     }
 
     char *command_str = mkstr(command);
     sesschan_start_backend(sess, command_str);
     sfree(command_str);
 
-    return TRUE;
+    return true;
 }
 
 int sesschan_run_subsystem(Channel *chan, ptrlen subsys)
@@ -318,10 +318,10 @@ int sesschan_run_subsystem(Channel *chan, ptrlen subsys)
         sess->sftpsrv = sftpsrv_new(sess->sftpserver_vt);
         sess->chan.vt = &sftp_channelvt;
         logevent(sess->parent_logctx, "Starting built-in SFTP subsystem");
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 static void fwd_log(Plug *plug, int type, SockAddr *addr, int port,
@@ -344,13 +344,13 @@ static int xfwd_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
 	portfwd_raw_free(chan);
-        return TRUE;
+        return true;
     }
     pi = sk_peer_info(s);
     portfwd_raw_setup(chan, s, ssh_serverside_x11_open(sess->c->cl, chan, pi));
     sk_free_peer_info(pi);
 
-    return FALSE;
+    return false;
 }
 
 static const PlugVtable xfwd_plugvt = {
@@ -371,7 +371,7 @@ int sesschan_enable_x11_forwarding(
     char screensuffix[32];
 
     if (oneshot)
-        return FALSE;                  /* not supported */
+        return false;                  /* not supported */
 
     snprintf(screensuffix, sizeof(screensuffix), ".%u", screen_number);
 
@@ -379,7 +379,7 @@ int sesschan_enable_x11_forwarding(
      * Decode the authorisation data from ASCII hex into binary.
      */
     if (authdata_hex.len % 2)
-        return FALSE;                  /* expected an even number of digits */
+        return false;                  /* expected an even number of digits */
     authdata_bin = strbuf_new();
     for (i = 0; i < authdata_hex.len; i += 2) {
         const unsigned char *hex = authdata_hex.ptr;
@@ -387,7 +387,7 @@ int sesschan_enable_x11_forwarding(
 
         if (!isxdigit(hex[i]) || !isxdigit(hex[i+1])) {
             strbuf_free(authdata_bin);
-            return FALSE;              /* not hex */
+            return false;              /* not hex */
         }
 
         hexbuf[0] = hex[i];
@@ -420,11 +420,11 @@ static int agentfwd_accepting(
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
 	portfwd_raw_free(chan);
-        return TRUE;
+        return true;
     }
     portfwd_raw_setup(chan, s, ssh_serverside_agent_open(sess->c->cl, chan));
 
-    return FALSE;
+    return false;
 }
 
 static const PlugVtable agentfwd_plugvt = {
@@ -467,20 +467,20 @@ int sesschan_allocate_pty(
     char *s;
 
     if (sess->want_pty)
-        return FALSE;
+        return false;
 
     s = mkstr(termtype);
     conf_set_str(sess->conf, CONF_termtype, s);
     sfree(s);
 
-    sess->want_pty = TRUE;
+    sess->want_pty = true;
     sess->ttymodes  = modes;
     sess->wc = width;
     sess->hc = height;
     sess->wp = pixwidth;
     sess->hp = pixheight;
 
-    return TRUE;
+    return true;
 }
 
 int sesschan_set_env(Channel *chan, ptrlen var, ptrlen value)
@@ -492,7 +492,7 @@ int sesschan_set_env(Channel *chan, ptrlen var, ptrlen value)
     sfree(svar);
     sfree(svalue);
 
-    return TRUE;
+    return true;
 }
 
 int sesschan_send_break(Channel *chan, unsigned length)
@@ -506,9 +506,9 @@ int sesschan_send_break(Channel *chan, unsigned length)
          * implementation-defined semantics to _its_ duration
          * parameter, this all just sounds too difficult. */
         backend_special(sess->backend, SS_BRK, 0);
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 int sesschan_send_signal(Channel *chan, ptrlen signame)
@@ -527,10 +527,10 @@ int sesschan_send_signal(Channel *chan, ptrlen signame)
     #undef SIGNAL_SUB
 
     if (code == SS_EXITMENU)
-        return FALSE;
+        return false;
 
     backend_special(sess->backend, code, 0);
-    return TRUE;
+    return true;
 }
 
 int sesschan_change_window_size(
@@ -540,7 +540,7 @@ int sesschan_change_window_size(
     sesschan *sess = container_of(chan, sesschan, chan);
 
     if (!sess->want_pty)
-        return FALSE;
+        return false;
 
     sess->wc = width;
     sess->hc = height;
@@ -550,7 +550,7 @@ int sesschan_change_window_size(
     if (sess->backend)
         backend_size(sess->backend, sess->wc, sess->hc);
 
-    return TRUE;
+    return true;
 }
 
 static int sesschan_seat_output(
@@ -590,10 +590,10 @@ static int sesschan_seat_eof(Seat *seat)
     sesschan *sess = container_of(seat, sesschan, seat);
 
     sshfwd_write_eof(sess->c);
-    sess->seen_eof = TRUE;
+    sess->seen_eof = true;
 
     queue_toplevel_callback(sesschan_check_close_callback, sess);
-    return TRUE;
+    return true;
 }
 
 static void sesschan_notify_remote_exit(Seat *seat)
@@ -611,14 +611,14 @@ static void sesschan_notify_remote_exit(Seat *seat)
             sigmsg = dupstr("");
 
         sshfwd_send_exit_signal(
-            sess->c, signame, FALSE, ptrlen_from_asciz(sigmsg));
+            sess->c, signame, false, ptrlen_from_asciz(sigmsg));
 
         sfree(sigmsg);
     } else {
         sshfwd_send_exit_status(sess->c, backend_exitcode(sess->backend));
     }
 
-    sess->seen_exit = TRUE;
+    sess->seen_exit = true;
     queue_toplevel_callback(sesschan_check_close_callback, sess);
 }
 
@@ -628,9 +628,9 @@ static void sesschan_connection_fatal(Seat *seat, const char *message)
 
     /* Closest translation I can think of */
     sshfwd_send_exit_signal(
-        sess->c, PTRLEN_LITERAL("HUP"), FALSE, ptrlen_from_asciz(message));
+        sess->c, PTRLEN_LITERAL("HUP"), false, ptrlen_from_asciz(message));
 
-    sess->ignoring_input = TRUE;
+    sess->ignoring_input = true;
 }
 
 static int sesschan_get_window_pixel_size(Seat *seat, int *width, int *height)
@@ -640,7 +640,7 @@ static int sesschan_get_window_pixel_size(Seat *seat, int *width, int *height)
     *width = sess->wp;
     *height = sess->hp;
 
-    return TRUE;
+    return true;
 }
 
 /* ----------------------------------------------------------------------

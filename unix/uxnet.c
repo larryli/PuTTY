@@ -297,15 +297,15 @@ static int sk_nextaddr(SockAddr *addr, SockAddrStep *step)
 #ifndef NO_IPV6
     if (step->ai && step->ai->ai_next) {
 	step->ai = step->ai->ai_next;
-	return TRUE;
+	return true;
     } else
-	return FALSE;
+	return false;
 #else
     if (step->curraddr+1 < addr->naddresses) {
 	step->curraddr++;
-	return TRUE;
+	return true;
     } else {
-	return FALSE;
+	return false;
     }
 #endif    
 }
@@ -365,9 +365,9 @@ static SockAddr sk_extractaddr_tmp(
 int sk_addr_needs_port(SockAddr *addr)
 {
     if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
-        return FALSE;
+        return false;
     } else {
-        return TRUE;
+        return true;
     }
 }
 
@@ -392,9 +392,9 @@ static int sockaddr_is_loopback(struct sockaddr *sa)
 	return IN6_IS_ADDR_LOOPBACK(&u->sin6.sin6_addr);
 #endif
       case AF_UNIX:
-	return TRUE;
+	return true;
       default:
-	return FALSE;
+	return false;
     }
 }
 
@@ -452,7 +452,7 @@ void sk_addrcopy(SockAddr *addr, char *buf)
 	memcpy(buf, &((struct sockaddr_in6 *)step.ai->ai_addr)->sin6_addr,
 	       sizeof(struct in6_addr));
     else
-	assert(FALSE);
+	assert(false);
 #else
     struct in_addr a;
 
@@ -536,9 +536,9 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
     ret->frozen = 1;
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
-    ret->oobpending = FALSE;
+    ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
-    ret->incomingeof = FALSE;
+    ret->incomingeof = false;
     ret->listener = 0;
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
@@ -601,7 +601,7 @@ static int try_connect(NetSocket *sock)
     cloexec(s);
 
     if (sock->oobinline) {
-	int b = TRUE;
+	int b = true;
 	if (setsockopt(s, SOL_SOCKET, SO_OOBINLINE,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -611,7 +611,7 @@ static int try_connect(NetSocket *sock)
     }
 
     if (sock->nodelay) {
-	int b = TRUE;
+	int b = true;
 	if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -621,7 +621,7 @@ static int try_connect(NetSocket *sock)
     }
 
     if (sock->keepalive) {
-	int b = TRUE;
+	int b = true;
 	if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -779,9 +779,9 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
     ret->localhost_only = 0;	       /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
-    ret->oobpending = FALSE;
+    ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
-    ret->incomingeof = FALSE;
+    ret->incomingeof = false;
     ret->listener = 0;
     ret->addr = addr;
     START_STEP(ret->addr, ret->step);
@@ -833,9 +833,9 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
-    ret->oobpending = FALSE;
+    ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
-    ret->incomingeof = FALSE;
+    ret->incomingeof = false;
     ret->listener = 1;
     ret->addr = NULL;
     ret->s = -1;
@@ -1127,7 +1127,7 @@ void try_send(NetSocket *s)
 		/*
 		 * Perfectly normal: we've sent all we can for the moment.
 		 */
-		s->writable = FALSE;
+		s->writable = false;
 		return;
 	    } else {
 		/*
@@ -1312,7 +1312,7 @@ static void net_select_result(int fd, int event)
 	 * when we get called for the readability event (which
 	 * should also occur).
 	 */
-	s->oobpending = TRUE;
+	s->oobpending = true;
         break;
       case 1: 			       /* readable; also acceptance */
 	if (s->listener) {
@@ -1361,7 +1361,7 @@ static void net_select_result(int fd, int event)
 	if (s->oobinline && s->oobpending) {
 	    atmark = 1;
 	    if (ioctl(s->s, SIOCATMARK, &atmark) == 0 && atmark)
-		s->oobpending = FALSE; /* clear this indicator */
+		s->oobpending = false; /* clear this indicator */
 	} else
 	    atmark = 1;
 
@@ -1375,7 +1375,7 @@ static void net_select_result(int fd, int event)
 	if (ret < 0) {
             plug_closing(s->plug, strerror(errno), errno, 0);
 	} else if (0 == ret) {
-            s->incomingeof = TRUE;     /* stop trying to read now */
+            s->incomingeof = true;     /* stop trying to read now */
             uxsel_tell(s);
 	    plug_closing(s->plug, NULL, 0, 0);
 	} else {
@@ -1668,12 +1668,12 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     ret->writable = 0;		       /* to start with */
     ret->sending_oob = 0;
     ret->frozen = 0;
-    ret->localhost_only = TRUE;
+    ret->localhost_only = true;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
-    ret->oobpending = FALSE;
+    ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
-    ret->incomingeof = FALSE;
+    ret->incomingeof = false;
     ret->listener = 1;
     ret->addr = listenaddr;
     ret->s = -1;

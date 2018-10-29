@@ -209,7 +209,7 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf,
      */
     if (localcopy[0] == '/') {
 	disp->unixsocketpath = localcopy;
-	disp->unixdomain = TRUE;
+	disp->unixdomain = true;
 	disp->hostname = NULL;
 	disp->displaynum = -1;
 	disp->screennum = 0;
@@ -258,7 +258,7 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf,
 	else if (!*hostname || !strcmp(hostname, "unix"))
 	    disp->unixdomain = platform_uses_x11_unix_by_default;
 	else
-	    disp->unixdomain = FALSE;
+	    disp->unixdomain = false;
 
 	if (!disp->hostname && !disp->unixdomain)
 	    disp->hostname = dupstr("localhost");
@@ -310,7 +310,7 @@ struct X11Display *x11_setup_display(const char *display, Conf *conf,
 	    sk_addr_free(ux);
 	} else {
 	    sk_addr_free(disp->addr);
-	    disp->unixdomain = TRUE;
+	    disp->unixdomain = true;
 	    disp->addr = ux;
 	    /* Fill in the rest in a moment */
 	}
@@ -469,7 +469,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
     ptrlen addr, protoname, data;
     char *displaynum_string;
     int displaynum;
-    int ideal_match = FALSE;
+    int ideal_match = false;
     char *ourhostname;
 
     /* A maximally sized (wildly implausible) .Xauthority record
@@ -527,7 +527,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
     BinarySource_BARE_INIT(src, buf, size);
 
     while (!ideal_match) {
-        int match = FALSE;
+        int match = false;
 
         if (src->pos >= MAX_RECORD_SIZE) {
             size -= src->pos;
@@ -597,7 +597,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
 		char buf[4];
 		sk_addrcopy(disp->addr, buf);
 		if (addr.len == 4 && !memcmp(addr.ptr, buf, 4)) {
-		    match = TRUE;
+		    match = true;
 		    /* If this is a "localhost" entry, note it down
 		     * but carry on looking for a Unix-domain entry. */
 		    ideal_match = !localhost;
@@ -610,7 +610,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
 		char buf[16];
 		sk_addrcopy(disp->addr, buf);
 		if (addr.len == 16 && !memcmp(addr.ptr, buf, 16)) {
-		    match = TRUE;
+		    match = true;
 		    ideal_match = !localhost;
 		}
 	    }
@@ -620,7 +620,7 @@ void x11_get_auth_from_authfile(struct X11Display *disp,
                 && ourhostname && ptrlen_eq_string(addr, ourhostname))
 		/* A matching Unix-domain socket is always the best
 		 * match. */
-		match = ideal_match = TRUE;
+		match = ideal_match = true;
 	    break;
 	}
 
@@ -660,7 +660,7 @@ void x11_format_auth_for_authfile(
         put_uint16(bs, 6); /* indicates IPv6 */
         put_stringpl_xauth(bs, make_ptrlen(ipv6buf, 16));
     } else {
-        assert(FALSE && "Bad address type in x11_format_auth_for_authfile");
+        assert(false && "Bad address type in x11_format_auth_for_authfile");
     }
 
     {
@@ -720,7 +720,7 @@ static void x11_receive(Plug *plug, int urgent, char *data, int len)
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
 
-    xconn->no_data_sent_to_x_client = FALSE;
+    xconn->no_data_sent_to_x_client = false;
     sshfwd_write(xconn->c, data, len);
 }
 
@@ -811,8 +811,8 @@ Channel *x11_new_channel(tree234 *authtree, SshChannel *c,
     xconn->authtree = authtree;
     xconn->verified = 0;
     xconn->data_read = 0;
-    xconn->input_wanted = TRUE;
-    xconn->no_data_sent_to_x_client = TRUE;
+    xconn->input_wanted = true;
+    xconn->no_data_sent_to_x_client = true;
     xconn->c = c;
 
     /*
@@ -882,7 +882,7 @@ static void x11_send_init_error(struct X11Connection *xconn,
     memcpy(reply + 8, full_message, msglen);
     sshfwd_write(xconn->c, reply, 8 + msgsize);
     sshfwd_write_eof(xconn->c);
-    xconn->no_data_sent_to_x_client = FALSE;
+    xconn->no_data_sent_to_x_client = false;
     sfree(reply);
     sfree(full_message);
 }
@@ -898,9 +898,9 @@ static int x11_parse_ip(const char *addr_string, unsigned long *ip)
     if (addr_string &&
         4 == sscanf(addr_string, "%d.%d.%d.%d", i+0, i+1, i+2, i+3)) {
         *ip = (i[0] << 24) | (i[1] << 16) | (i[2] << 8) | i[3];
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 

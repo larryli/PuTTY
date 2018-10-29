@@ -11,7 +11,7 @@ const char *const appname = "pterm";
 const int use_event_log = 0;	       /* pterm doesn't need it */
 const int new_session = 0, saved_sessions = 0;   /* or these */
 const int dup_check_launchable = 0; /* no need to check host name in conf */
-const int use_pty_argv = TRUE;
+const int use_pty_argv = true;
 
 const struct BackendVtable *select_backend(Conf *conf)
 {

@@ -11,7 +11,7 @@
 #include "storage.h"
 #include "ssh.h"
 
-int console_batch_mode = FALSE;
+int console_batch_mode = false;
 
 /*
  * Clean up and exit.

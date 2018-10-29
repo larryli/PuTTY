@@ -178,10 +178,10 @@ Channel *agentf_new(SshChannel *c)
     af->c = c;
     af->chan.vt = &agentf_channelvt;
     af->chan.initial_fixed_window_size = 0;
-    af->rcvd_eof = FALSE;
+    af->rcvd_eof = false;
     bufchain_init(&af->inbuffer);
     af->pending = NULL;
-    af->input_wanted = TRUE;
+    af->input_wanted = true;
     return &af->chan;
 }
 
@@ -220,7 +220,7 @@ static void agentf_send_eof(Channel *chan)
     assert(chan->vt == &agentf_channelvt);
     agentf *af = container_of(chan, agentf, chan);
 
-    af->rcvd_eof = TRUE;
+    af->rcvd_eof = true;
 
     /* Call try_forward, which will respond to the EOF now if
      * appropriate, or wait until the queue of outstanding requests is

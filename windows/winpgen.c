@@ -171,7 +171,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
 	p = (struct PassphraseProcStruct *) lParam;
@@ -233,7 +233,7 @@ static int prompt_keyfile(HWND hwnd, char *dlgtitle,
     of.lpstrFileTitle = NULL;
     of.lpstrTitle = dlgtitle;
     of.Flags = 0;
-    return request_file(NULL, &of, FALSE, save);
+    return request_file(NULL, &of, false, save);
 }
 
 /*
@@ -256,7 +256,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
         SetDlgItemText(hwnd, 1000, LICENCE_TEXT("\r\n\r\n"));
@@ -296,7 +296,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
         {
@@ -493,9 +493,9 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 
     switch (status) {
       case 0:			       /* no key */
-	hidemany(hwnd, nokey_ids, FALSE);
-	hidemany(hwnd, generating_ids, TRUE);
-	hidemany(hwnd, gotkey_ids, TRUE);
+	hidemany(hwnd, nokey_ids, false);
+	hidemany(hwnd, generating_ids, true);
+	hidemany(hwnd, gotkey_ids, true);
 	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
@@ -526,9 +526,9 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 		       MF_GRAYED|MF_BYCOMMAND);
 	break;
       case 1:			       /* generating key */
-	hidemany(hwnd, nokey_ids, TRUE);
-	hidemany(hwnd, generating_ids, FALSE);
-	hidemany(hwnd, gotkey_ids, TRUE);
+	hidemany(hwnd, nokey_ids, true);
+	hidemany(hwnd, generating_ids, false);
+	hidemany(hwnd, gotkey_ids, true);
 	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 0);
 	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 0);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 0);
@@ -559,9 +559,9 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
 		       MF_GRAYED|MF_BYCOMMAND);
 	break;
       case 2:
-	hidemany(hwnd, nokey_ids, TRUE);
-	hidemany(hwnd, generating_ids, TRUE);
-	hidemany(hwnd, gotkey_ids, FALSE);
+	hidemany(hwnd, nokey_ids, true);
+	hidemany(hwnd, generating_ids, true);
+	hidemany(hwnd, gotkey_ids, false);
 	EnableWindow(GetDlgItem(hwnd, IDC_GENERATE), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_LOAD), 1);
 	EnableWindow(GetDlgItem(hwnd, IDC_SAVE), 1);
@@ -739,7 +739,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	    if (type == SSH_KEYTYPE_SSH1) {
 		char *fingerprint, *savecomment;
 
-		state->ssh2 = FALSE;
+		state->ssh2 = false;
 		state->commentptr = &state->key.comment;
 		state->key = newkey1;
 
@@ -764,7 +764,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 		char *fp;
 		char *savecomment;
 
-		state->ssh2 = TRUE;
+		state->ssh2 = true;
 		state->commentptr =
 		    &state->ssh2key.comment;
 		state->ssh2key = *newkey2;	/* structure copy */
@@ -789,7 +789,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 	 * the key data.
 	 */
 	ui_set_state(hwnd, state, 2);
-	state->key_exists = TRUE;
+	state->key_exists = true;
 
 	/*
 	 * If the user has imported a foreign key
@@ -841,7 +841,7 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
                    MB_OK | MB_ICONERROR);
         sfree(params);
     } else {
-        state->generation_thread_exists = TRUE;
+        state->generation_thread_exists = true;
     }
 }
 
@@ -871,10 +871,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    (LPARAM) LoadIcon(hinst, MAKEINTRESOURCE(200)));
 
 	state = snew(struct MainDlgState);
-	state->generation_thread_exists = FALSE;
-	state->collecting_entropy = FALSE;
+	state->generation_thread_exists = false;
+	state->collecting_entropy = false;
 	state->entropy = NULL;
-	state->key_exists = FALSE;
+	state->key_exists = false;
 	SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) state);
 	{
 	    HMENU menu, menu1;
@@ -935,7 +935,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
 	{
@@ -1012,7 +1012,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    endbox(&cp);
 	}
         ui_set_key_type(hwnd, state, IDC_KEYSSH2RSA);
-	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, FALSE);
+	SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
 	SendDlgItemMessage(hwnd, IDC_CURVE, CB_SETCURSEL,
                            DEFAULT_CURVE_INDEX, 0);
 
@@ -1049,7 +1049,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		random_add_heavynoise(state->entropy, state->entropy_size);
 		smemclr(state->entropy, state->entropy_size);
 		sfree(state->entropy);
-		state->collecting_entropy = FALSE;
+		state->collecting_entropy = false;
 
                 start_generating_key(hwnd, state);
 	    }
@@ -1114,7 +1114,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 unsigned raw_entropy_required;
                 unsigned char *raw_entropy_buf;
 		BOOL ok;
-		state->key_bits = GetDlgItemInt(hwnd, IDC_BITS, &ok, FALSE);
+		state->key_bits = GetDlgItemInt(hwnd, IDC_BITS, &ok, false);
 		if (!ok)
 		    state->key_bits = DEFAULT_KEY_BITS;
                 {
@@ -1147,7 +1147,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    if (ret != IDOK)
 			break;
 		    state->key_bits = DEFAULT_KEY_BITS;
-		    SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, FALSE);
+		    SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
 		} else if ((state->keytype == RSA || state->keytype == DSA) &&
                            state->key_bits < DEFAULT_KEY_BITS) {
                     char *message = dupprintf
@@ -1201,8 +1201,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
                     ui_set_state(hwnd, state, 1);
                     SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
-                    state->key_exists = FALSE;
-                    state->collecting_entropy = TRUE;
+                    state->key_exists = false;
+                    state->collecting_entropy = true;
 
                     state->entropy_got = 0;
                     state->entropy_size = (state->entropy_required *
@@ -1392,8 +1392,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	return 0;
       case WM_DONEKEY:
 	state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	state->generation_thread_exists = FALSE;
-	state->key_exists = TRUE;
+	state->generation_thread_exists = false;
+	state->key_exists = true;
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
 			   MAKELPARAM(0, PROGRESSRANGE));
 	SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, PROGRESSRANGE, 0);

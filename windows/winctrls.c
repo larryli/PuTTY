@@ -92,7 +92,7 @@ HWND doctl(struct ctlpos *cp, RECT r,
 	ctl = CreateWindowEx(exstyle, wclass, wtext, wstyle,
 			     r.left, r.top, r.right, r.bottom,
 			     cp->hwnd, (HMENU)(ULONG_PTR)wid, hinst, NULL);
-	SendMessage(ctl, WM_SETFONT, cp->font, MAKELPARAM(TRUE, 0));
+	SendMessage(ctl, WM_SETFONT, cp->font, MAKELPARAM(true, 0));
 
 	if (!strcmp(wclass, "LISTBOX")) {
 	    /*
@@ -981,7 +981,7 @@ static void pl_moveitem(HWND hwnd, int listid, int src, int dst)
     SendDlgItemMessage (hwnd, listid, LB_GETTEXT, src, (LPARAM) txt);
     val = SendDlgItemMessage (hwnd, listid, LB_GETITEMDATA, src, 0);
     /* Deselect old location. */
-    SendDlgItemMessage (hwnd, listid, LB_SETSEL, FALSE, src);
+    SendDlgItemMessage (hwnd, listid, LB_SETSEL, false, src);
     /* Delete it at the old location. */
     SendDlgItemMessage (hwnd, listid, LB_DELETESTRING, src, 0);
     /* Insert it at new location. */
@@ -1014,14 +1014,14 @@ int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
     ret = p_LBItemFromPt(hwnd, cursor, scroll);
     if (ret == -1)
 	return ret;
-    ret = p_LBItemFromPt(hwnd, cursor, FALSE);
+    ret = p_LBItemFromPt(hwnd, cursor, false);
     updist = downdist = 0;
     for (i = 1; i < 4096 && (!updist || !downdist); i++) {
 	uppoint = downpoint = cursor;
 	uppoint.y -= i;
 	downpoint.y += i;
-	upitem = p_LBItemFromPt(hwnd, uppoint, FALSE);
-	downitem = p_LBItemFromPt(hwnd, downpoint, FALSE);
+	upitem = p_LBItemFromPt(hwnd, uppoint, false);
+	downitem = p_LBItemFromPt(hwnd, downpoint, false);
 	if (!updist && upitem != ret)
 	    updist = i;
 	if (!downdist && downitem != ret)
@@ -1036,7 +1036,7 @@ int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
  * Handler for prefslist above.
  * 
  * Return value has bit 0 set if the dialog box procedure needs to
- * return TRUE from handling this message; it has bit 1 set if a
+ * return true from handling this message; it has bit 1 set if a
  * change may have been made in the contents of the list.
  */
 int handle_prefslist(struct prefslist *hdl,
@@ -1062,10 +1062,10 @@ int handle_prefslist(struct prefslist *hdl,
 		    SendDlgItemMessage(hwnd, hdl->listid,
 				       LB_ADDSTRING, 0, (LPARAM) "");
 
-                hdl->srcitem = p_LBItemFromPt(dlm->hWnd, dlm->ptCursor, TRUE);
+                hdl->srcitem = p_LBItemFromPt(dlm->hWnd, dlm->ptCursor, true);
 		hdl->dragging = 0;
 		/* XXX hack Q183115 */
-		SetWindowLongPtr(hwnd, DWLP_MSGRESULT, TRUE);
+		SetWindowLongPtr(hwnd, DWLP_MSGRESULT, true);
                 ret |= 1; break;
               case DL_CANCELDRAG:
 		p_DrawInsert(hwnd, dlm->hWnd, -1);     /* Clear arrow */
@@ -1075,7 +1075,7 @@ int handle_prefslist(struct prefslist *hdl,
                 ret |= 1; break;
               case DL_DRAGGING:
 		hdl->dragging = 1;
-		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
+		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, true);
 		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
 		p_DrawInsert (hwnd, dlm->hWnd, dest);
 		if (dest >= 0)
@@ -1085,7 +1085,7 @@ int handle_prefslist(struct prefslist *hdl,
                 ret |= 1; break;
               case DL_DROPPED:
 		if (hdl->dragging) {
-		    dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, TRUE);
+		    dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, true);
 		    if (dest > hdl->dummyitem) dest = hdl->dummyitem;
 		    p_DrawInsert (hwnd, dlm->hWnd, -1);
 		}
@@ -1211,7 +1211,7 @@ void winctrl_add_shortcuts(struct dlgparam *dp, struct winctrl *c)
 	if (c->shortcuts[i] != NO_SHORTCUT) {
 	    unsigned char s = tolower((unsigned char)c->shortcuts[i]);
 	    assert(!dp->shortcuts[s]);
-	    dp->shortcuts[s] = TRUE;
+	    dp->shortcuts[s] = true;
 	}
 }
 
@@ -1222,7 +1222,7 @@ void winctrl_rem_shortcuts(struct dlgparam *dp, struct winctrl *c)
 	if (c->shortcuts[i] != NO_SHORTCUT) {
 	    unsigned char s = tolower((unsigned char)c->shortcuts[i]);
 	    assert(dp->shortcuts[s]);
-	    dp->shortcuts[s] = FALSE;
+	    dp->shortcuts[s] = false;
 	}
 }
 
@@ -1780,7 +1780,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 		r.top + (r.bottom-r.top-s.cy)/2,
 		(char *)c->data, strlen((char *)c->data));
 
-	return TRUE;
+	return true;
     }
 
     ctrl = c->ctrl;
@@ -1797,7 +1797,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
      * subsequent code can test dp->coloursel_wanted().
      */
     ret = 0;
-    dp->coloursel_wanted = FALSE;
+    dp->coloursel_wanted = false;
 
     /*
      * Now switch on the control type and the message.
@@ -1933,7 +1933,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	    of.lpstrFileTitle = NULL;
 	    of.lpstrTitle = ctrl->fileselect.title;
 	    of.Flags = 0;
-	    if (request_file(NULL, &of, FALSE, ctrl->fileselect.for_writing)) {
+	    if (request_file(NULL, &of, false, ctrl->fileselect.for_writing)) {
 		SetDlgItemText(dp->hwnd, c->base_id + 1, filename);
 		ctrl->generic.handler(ctrl, dp, dp->data, EVENT_VALCHANGE);
 	    }
@@ -2008,9 +2008,9 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 		(unsigned char) (cc.rgbResult >> 8) & 0xFF;
 	    dp->coloursel_result.b =
 		(unsigned char) (cc.rgbResult >> 16) & 0xFF;
-	    dp->coloursel_result.ok = TRUE;
+	    dp->coloursel_result.ok = true;
 	} else
-	    dp->coloursel_result.ok = FALSE;
+	    dp->coloursel_result.ok = false;
 	ctrl->generic.handler(ctrl, dp, dp->data, EVENT_CALLBACK);
     }
 
@@ -2019,7 +2019,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 
 /*
  * This function can be called to produce context help on a
- * control. Returns TRUE if it has actually launched some help.
+ * control. Returns true if it has actually launched some help.
  */
 int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 {
@@ -2340,7 +2340,7 @@ void dlg_update_start(union control *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     if (c && c->ctrl->generic.type == CTRL_LISTBOX) {
-	SendDlgItemMessage(dp->hwnd, c->base_id+1, WM_SETREDRAW, FALSE, 0);
+	SendDlgItemMessage(dp->hwnd, c->base_id+1, WM_SETREDRAW, false, 0);
     }
 }
 
@@ -2349,8 +2349,8 @@ void dlg_update_done(union control *ctrl, dlgparam *dp)
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     if (c && c->ctrl->generic.type == CTRL_LISTBOX) {
 	HWND hw = GetDlgItem(dp->hwnd, c->base_id+1);
-	SendMessage(hw, WM_SETREDRAW, TRUE, 0);
-	InvalidateRect(hw, NULL, TRUE);
+	SendMessage(hw, WM_SETREDRAW, true, 0);
+	InvalidateRect(hw, NULL, true);
     }
 }
 
@@ -2408,7 +2408,7 @@ void dlg_error_msg(dlgparam *dp, const char *msg)
  */
 void dlg_end(dlgparam *dp, int value)
 {
-    dp->ended = TRUE;
+    dp->ended = true;
     dp->endresult = value;
 }
 
@@ -2441,7 +2441,7 @@ void dlg_refresh(union control *ctrl, dlgparam *dp)
 
 void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
 {
-    dp->coloursel_wanted = TRUE;
+    dp->coloursel_wanted = true;
     dp->coloursel_result.r = r;
     dp->coloursel_result.g = g;
     dp->coloursel_result.b = b;
@@ -2482,7 +2482,7 @@ void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
     quality = conf_get_int(conf, CONF_font_quality);
     fs = conf_get_fontspec(conf, CONF_font);
 
-    hfont = CreateFont(0, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE,
+    hfont = CreateFont(0, 0, 0, 0, FW_DONTCARE, false, false, false,
                        DEFAULT_CHARSET, OUT_DEFAULT_PRECIS,
                        CLIP_DEFAULT_PRECIS, FONT_QUALITY(quality),
                        FIXED_PITCH | FF_DONTCARE, fs->name);
@@ -2491,7 +2491,7 @@ void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
         /* Note that the TMPF_FIXED_PITCH bit is defined upside down :-( */
         is_var = (tm.tmPitchAndFamily & TMPF_FIXED_PITCH);
     } else {
-        is_var = FALSE;                /* assume it's basically normal */
+        is_var = false;                /* assume it's basically normal */
     }
     if (hdc)
         ReleaseDC(NULL, hdc);
@@ -2499,7 +2499,7 @@ void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
         DeleteObject(hfont);
 
     if (is_var)
-        dp->fixed_pitch_fonts = FALSE;
+        dp->fixed_pitch_fonts = false;
 }
 
 int dlg_get_fixed_pitch_flag(dlgparam *dp)
@@ -2516,12 +2516,12 @@ void dp_init(struct dlgparam *dp)
 {
     dp->nctrltrees = 0;
     dp->data = NULL;
-    dp->ended = FALSE;
+    dp->ended = false;
     dp->focused = dp->lastfocused = NULL;
     memset(dp->shortcuts, 0, sizeof(dp->shortcuts));
     dp->hwnd = NULL;
     dp->wintitle = dp->errtitle = NULL;
-    dp->fixed_pitch_fonts = TRUE;
+    dp->fixed_pitch_fonts = true;
 }
 
 void dp_add_tree(struct dlgparam *dp, struct winctrls *wc)

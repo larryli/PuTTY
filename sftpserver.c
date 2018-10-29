@@ -125,14 +125,14 @@ struct sftp_packet *sftp_handle_request(
         path = get_string(req);
         if (get_err(req))
             goto decode_error;
-        sftpsrv_stat(srv, rb, path, TRUE);
+        sftpsrv_stat(srv, rb, path, true);
         break;
 
       case SSH_FXP_LSTAT:
         path = get_string(req);
         if (get_err(req))
             goto decode_error;
-        sftpsrv_stat(srv, rb, path, FALSE);
+        sftpsrv_stat(srv, rb, path, false);
         break;
 
       case SSH_FXP_FSTAT:
@@ -171,7 +171,7 @@ struct sftp_packet *sftp_handle_request(
         handle = get_string(req);
         if (get_err(req))
             goto decode_error;
-        sftpsrv_readdir(srv, rb, handle, INT_MAX, FALSE);
+        sftpsrv_readdir(srv, rb, handle, INT_MAX, false);
         break;
 
       case SSH_FXP_WRITE:

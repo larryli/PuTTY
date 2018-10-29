@@ -27,7 +27,7 @@ int random_byte(void)
     return 0;                 /* unreachable, but placate optimiser */
 }
 
-static int pageant_local = FALSE;
+static int pageant_local = false;
 
 /*
  * rsakeys stores SSH-1 RSA keys. ssh2keys stores all SSH-2 keys.
@@ -627,7 +627,7 @@ void pageant_failure_msg(BinarySink *bs,
 
 void pageant_init(void)
 {
-    pageant_local = TRUE;
+    pageant_local = true;
     rsakeys = newtree234(cmpkeys_rsa);
     ssh2keys = newtree234(cmpkeys_ssh2);
 }
@@ -666,18 +666,18 @@ int pageant_delete_ssh1_key(struct RSAKey *rkey)
 {
     struct RSAKey *deleted = del234(rsakeys, rkey);
     if (!deleted)
-        return FALSE;
+        return false;
     assert(deleted == rkey);
-    return TRUE;
+    return true;
 }
 
 int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
 {
     struct ssh2_userkey *deleted = del234(ssh2keys, skey);
     if (!deleted)
-        return FALSE;
+        return false;
     assert(deleted == skey);
-    return TRUE;
+    return true;
 }
 
 /* ----------------------------------------------------------------------
@@ -842,7 +842,7 @@ static int pageant_listen_accepting(Plug *plug,
     if ((err = sk_socket_error(pc->connsock)) != NULL) {
         sk_close(pc->connsock);
         sfree(pc);
-	return TRUE;
+	return true;
     }
 
     sk_set_frozen(pc->connsock, 0);

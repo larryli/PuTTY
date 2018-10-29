@@ -37,7 +37,7 @@ void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 #define fromxdigit(c) ( (c)>'9' ? ((c)&0xDF) - 'A' + 10 : (c) - '0' )
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
@@ -215,7 +215,7 @@ int main(int argc, char **argv)
             answer_q = bigdiv(n, d);
             answer_r = bigmod(n, d);
 
-            fail = FALSE;
+            fail = false;
             if (bignum_cmp(expect_q, answer_q) != 0) {
                 char *as = bignum_decimal(n);
                 char *bs = bignum_decimal(d);
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 
                 printf("%d: fail: %s / %s gave %s expected %s\n",
                        line, as, bs, cs, ds);
-                fail = TRUE;
+                fail = true;
 
                 sfree(as);
                 sfree(bs);
@@ -239,7 +239,7 @@ int main(int argc, char **argv)
 
                 printf("%d: fail: %s mod %s gave %s expected %s\n",
                        line, as, bs, cs, ds);
-                fail = TRUE;
+                fail = true;
 
                 sfree(as);
                 sfree(bs);

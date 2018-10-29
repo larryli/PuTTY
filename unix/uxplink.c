@@ -38,7 +38,7 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-static int local_tty = FALSE; /* do we have a local tty? */
+static int local_tty = false; /* do we have a local tty? */
 
 static Backend *backend;
 static Conf *conf;
@@ -79,7 +79,7 @@ char *x_get_default(const char *key)
 }
 int term_ldisc(Terminal *term, int mode)
 {
-    return FALSE;
+    return false;
 }
 static void plink_echoedit_update(Seat *seat, int echo, int edit)
 {
@@ -353,11 +353,11 @@ static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
 {
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
-	return try_output(TRUE);
+	return try_output(true);
     } else {
         assert(outgoingeof == EOF_NO);
 	bufchain_add(&stdout_data, data, len);
-	return try_output(FALSE);
+	return try_output(false);
     }
 }
 
@@ -365,8 +365,8 @@ static int plink_eof(Seat *seat)
 {
     assert(outgoingeof == EOF_NO);
     outgoingeof = EOF_PENDING;
-    try_output(FALSE);
-    return FALSE;   /* do not respond to incoming EOF with outgoing */
+    try_output(false);
+    return false;   /* do not respond to incoming EOF with outgoing */
 }
 
 static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
@@ -546,10 +546,10 @@ static void version(void)
 
 void frontend_net_error_pending(void) {}
 
-const int share_can_be_downstream = TRUE;
-const int share_can_be_upstream = TRUE;
+const int share_can_be_downstream = true;
+const int share_can_be_upstream = true;
 
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
@@ -560,7 +560,7 @@ int main(int argc, char **argv)
     int exitcode;
     int errors;
     int use_subsystem = 0;
-    int just_test_share_exists = FALSE;
+    int just_test_share_exists = false;
     unsigned long now;
     struct winsize size;
     const struct BackendVtable *backvt;
@@ -591,7 +591,7 @@ int main(int argc, char **argv)
      */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = FALSE;
+    loaded_session = false;
     default_protocol = conf_get_int(conf, CONF_protocol);
     default_port = conf_get_int(conf, CONF_port);
     errors = 0;
@@ -645,7 +645,7 @@ int main(int argc, char **argv)
                 provide_xrm_string(*++argv);
             }
         } else if (!strcmp(p, "-shareexists")) {
-            just_test_share_exists = TRUE;
+            just_test_share_exists = true;
         } else if (!strcmp(p, "-fuzznet")) {
             conf_set_int(conf, CONF_proxy_type, PROXY_FUZZ);
             conf_set_str(conf, CONF_proxy_telnet_command, "%host");
@@ -674,7 +674,7 @@ int main(int argc, char **argv)
             /* change trailing blank to NUL */
             conf_set_str(conf, CONF_remote_cmd, command);
             conf_set_str(conf, CONF_remote_cmd2, "");
-            conf_set_int(conf, CONF_nopty, TRUE);  /* command => no tty */
+            conf_set_int(conf, CONF_nopty, true);  /* command => no tty */
 
             break;		       /* done with cmdline */
         } else {
@@ -713,7 +713,7 @@ int main(int argc, char **argv)
      * Apply subsystem status.
      */
     if (use_subsystem)
-        conf_set_int(conf, CONF_ssh_subsys, TRUE);
+        conf_set_int(conf, CONF_ssh_subsys, true);
 
     if (!*conf_get_str(conf, CONF_remote_cmd) &&
 	!*conf_get_str(conf, CONF_remote_cmd2) &&
@@ -772,7 +772,7 @@ int main(int argc, char **argv)
 	!conf_get_int(conf, CONF_x11_forward) &&
 	!conf_get_int(conf, CONF_agentfwd) &&
 	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
-	conf_set_int(conf, CONF_ssh_simple, TRUE);
+	conf_set_int(conf, CONF_ssh_simple, true);
 
     if (just_test_share_exists) {
         if (!backvt->test_for_upstream) {
@@ -823,7 +823,7 @@ int main(int argc, char **argv)
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
     seat_echoedit_update(plink_seat, 1, 1);
-    sending = FALSE;
+    sending = false;
     now = GETTICKCOUNT();
 
     while (1) {
@@ -958,7 +958,7 @@ int main(int argc, char **argv)
 		    exit(1);
 		} else if (ret == 0) {
                     backend_special(backend, SS_EOF, 0);
-		    sending = FALSE;   /* send nothing further after this */
+		    sending = false;   /* send nothing further after this */
 		} else {
 		    if (local_tty)
 			from_tty(buf, ret);
@@ -969,11 +969,11 @@ int main(int argc, char **argv)
 	}
 
 	if (FD_ISSET(STDOUT_FILENO, &wset)) {
-            backend_unthrottle(backend, try_output(FALSE));
+            backend_unthrottle(backend, try_output(false));
 	}
 
 	if (FD_ISSET(STDERR_FILENO, &wset)) {
-            backend_unthrottle(backend, try_output(TRUE));
+            backend_unthrottle(backend, try_output(true));
 	}
 
         run_toplevel_callbacks();

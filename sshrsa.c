@@ -288,7 +288,7 @@ Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key)
 int rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf)
 {
     strbuf *data = strbuf_new();
-    int success = FALSE;
+    int success = false;
     BinarySource src[1];
 
     {
@@ -313,7 +313,7 @@ int rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf)
     }
 
     /* Everything else is the payload */
-    success = TRUE;
+    success = true;
     put_data(outbuf, get_ptr(src), get_avail(src));
 
   out:

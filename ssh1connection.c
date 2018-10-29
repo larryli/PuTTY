@@ -234,9 +234,9 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
 
     while (1) {
         if (ssh1_common_filter_queue(&s->ppl))
-            return TRUE;
+            return true;
         if ((pktin = pq_peek(s->ppl.in_pq)) == NULL)
-            return FALSE;
+            return false;
 
         switch (pktin->type) {
           case SSH1_MSG_CHANNEL_DATA:
@@ -263,15 +263,15 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
                     ssh1_pkt_type(pktin->type),
                     !c ? "nonexistent" : c->halfopen ? "half-open" : "open",
                     localid);
-                return TRUE;
+                return true;
             }
  
             switch (pktin->type) {
               case SSH1_MSG_CHANNEL_OPEN_CONFIRMATION:
                 assert(c->halfopen);
                 c->remoteid = get_uint32(pktin);
-                c->halfopen = FALSE;
-                c->throttling_conn = FALSE;
+                c->halfopen = false;
+                c->throttling_conn = false;
 
                 chan_open_confirmation(c->chan);
 
@@ -288,7 +288,7 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
                  * message. We'll have handled that in this code by
                  * having already turned c->chan into a zombie, so its
                  * want_close method (which ssh1_channel_check_close
-                 * will consult) will already be returning TRUE.
+                 * will consult) will already be returning true.
                  */
                 ssh1_channel_check_close(c);
 
@@ -310,10 +310,10 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
                 data = get_string(pktin);
                 if (!get_err(pktin)) {
                     int bufsize = chan_send(
-                        c->chan, FALSE, data.ptr, data.len);
+                        c->chan, false, data.ptr, data.len);
 
                     if (!c->throttling_conn && bufsize > SSH1_BUFFER_LIMIT) {
-                        c->throttling_conn = TRUE;
+                        c->throttling_conn = true;
                         ssh_throttle_conn(s->ppl.ssh, +1);
                     }
                 }
@@ -335,7 +335,7 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
                             "Received CHANNEL_CLOSE_CONFIRMATION for channel"
                             " %u for which we never sent CHANNEL_CLOSE\n",
                             c->localid);
-                        return TRUE;
+                        return true;
                     }
 
                     c->closes |= CLOSES_RCVD_CLOSECONF;
@@ -351,9 +351,9 @@ static int ssh1_connection_filter_queue(struct ssh1_connection_state *s)
             if (ssh1_handle_direction_specific_packet(s, pktin)) {
                 pq_pop(s->ppl.in_pq);
                 if (ssh1_check_termination(s))
-                    return TRUE;
+                    return true;
             } else {
-                return FALSE;
+                return false;
             }
         }
     }
@@ -377,7 +377,7 @@ static void ssh1_connection_process_queue(PacketProtocolLayer *ppl)
     crBegin(s->crState);
 
     portfwdmgr_config(s->portfwdmgr, s->conf);
-    s->portfwdmgr_configured = TRUE;
+    s->portfwdmgr_configured = true;
 
     while (!s->finished_setup) {
         ssh1_connection_direction_specific_setup(s);
@@ -460,7 +460,7 @@ static void ssh1_channel_try_eof(struct ssh1_channel *c)
     if (c->halfopen)
         return;                 /* can't close: not even opened yet */
 
-    c->pending_eof = FALSE;            /* we're about to send it */
+    c->pending_eof = false;            /* we're about to send it */
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_MSG_CHANNEL_CLOSE);
     put_uint32(pktout, c->remoteid);
@@ -525,10 +525,10 @@ int ssh1_check_termination(struct ssh1_connection_state *s)
         pq_push(s->ppl.out_pq, pktout);
 
         ssh_user_close(s->ppl.ssh, "Session finished");
-        return TRUE;
+        return true;
     }
 
-    return FALSE;
+    return false;
 }
 
 /*
@@ -539,8 +539,8 @@ void ssh1_channel_init(struct ssh1_channel *c)
 {
     struct ssh1_connection_state *s = c->connlayer;
     c->closes = 0;
-    c->pending_eof = FALSE;
-    c->throttling_conn = FALSE;
+    c->pending_eof = false;
+    c->throttling_conn = false;
     c->sc.vt = &ssh1channel_vtable;
     c->sc.cl = &s->cl;
     c->localid = alloc_channel_id(s->channels, struct ssh1_channel);
@@ -561,7 +561,7 @@ static void ssh1channel_write_eof(SshChannel *sc)
     if (c->closes & CLOSES_SENT_CLOSE)
         return;
 
-    c->pending_eof = TRUE;
+    c->pending_eof = true;
     ssh1_channel_try_eof(c);
 }
 
@@ -573,7 +573,7 @@ static void ssh1channel_initiate_close(SshChannel *sc, const char *err)
     reason = err ? dupprintf("due to local error: %s", err) : NULL;
     ssh1_channel_close_local(c, reason);
     sfree(reason);
-    c->pending_eof = FALSE;   /* this will confuse a zombie channel */
+    c->pending_eof = false;   /* this will confuse a zombie channel */
 
     ssh1_channel_check_close(c);
 }
@@ -634,7 +634,7 @@ static SshChannel *ssh1_lportfwd_open(
 
     c->connlayer = s;
     ssh1_channel_init(c);
-    c->halfopen = TRUE;
+    c->halfopen = true;
     c->chan = chan;
 
     ppl_logevent(("Opening connection to %s:%d for %s",
@@ -743,7 +743,7 @@ static void ssh1_enable_x_fwd(ConnectionLayer *cl)
     struct ssh1_connection_state *s =
         container_of(cl, struct ssh1_connection_state, cl);
 
-    s->X11_fwd_enabled = TRUE;
+    s->X11_fwd_enabled = true;
 }
 
 static void ssh1_enable_agent_fwd(ConnectionLayer *cl)
@@ -751,7 +751,7 @@ static void ssh1_enable_agent_fwd(ConnectionLayer *cl)
     struct ssh1_connection_state *s =
         container_of(cl, struct ssh1_connection_state, cl);
 
-    s->agent_fwd_enabled = TRUE;
+    s->agent_fwd_enabled = true;
 }
 
 static void ssh1_set_wants_user_input(ConnectionLayer *cl, int wanted)
@@ -760,7 +760,7 @@ static void ssh1_set_wants_user_input(ConnectionLayer *cl, int wanted)
         container_of(cl, struct ssh1_connection_state, cl);
 
     s->want_user_input = wanted;
-    s->finished_setup = TRUE;
+    s->finished_setup = true;
 }
 
 static int ssh1_connection_want_user_input(PacketProtocolLayer *ppl)

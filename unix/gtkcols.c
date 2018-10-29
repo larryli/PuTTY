@@ -3,6 +3,7 @@
  */
 
 #include <gtk/gtk.h>
+#include "defs.h"
 #include "gtkcompat.h"
 #include "gtkcols.h"
 
@@ -157,7 +158,7 @@ static void columns_class_init(ColumnsClass *klass)
 
 static void columns_init(Columns *cols)
 {
-    gtk_widget_set_has_window(GTK_WIDGET(cols), FALSE);
+    gtk_widget_set_has_window(GTK_WIDGET(cols), false);
 
     cols->children = NULL;
     cols->spacing = 0;
@@ -222,7 +223,7 @@ static void columns_map(GtkWidget *widget)
     g_return_if_fail(IS_COLUMNS(widget));
 
     cols = COLUMNS(widget);
-    gtk_widget_set_mapped(GTK_WIDGET(cols), TRUE);
+    gtk_widget_set_mapped(GTK_WIDGET(cols), true);
 
     for (children = cols->children;
          children && (child = children->data);
@@ -243,7 +244,7 @@ static void columns_unmap(GtkWidget *widget)
     g_return_if_fail(IS_COLUMNS(widget));
 
     cols = COLUMNS(widget);
-    gtk_widget_set_mapped(GTK_WIDGET(cols), FALSE);
+    gtk_widget_set_mapped(GTK_WIDGET(cols), false);
 
     for (children = cols->children;
          children && (child = children->data);
@@ -285,9 +286,9 @@ static gint columns_expose(GtkWidget *widget, GdkEventExpose *event)
     GList *children;
     GdkEventExpose child_event;
 
-    g_return_val_if_fail(widget != NULL, FALSE);
-    g_return_val_if_fail(IS_COLUMNS(widget), FALSE);
-    g_return_val_if_fail(event != NULL, FALSE);
+    g_return_val_if_fail(widget != NULL, false);
+    g_return_val_if_fail(IS_COLUMNS(widget), false);
+    g_return_val_if_fail(event != NULL, false);
 
     if (GTK_WIDGET_DRAWABLE(widget)) {
         cols = COLUMNS(widget);
@@ -304,7 +305,7 @@ static gint columns_expose(GtkWidget *widget, GdkEventExpose *event)
                 gtk_widget_event(child->widget, (GdkEvent *)&child_event);
         }
     }
-    return FALSE;
+    return false;
 }
 #endif
 
@@ -438,7 +439,7 @@ void columns_set_cols(Columns *cols, gint ncols, const gint *percentages)
     childdata->widget = NULL;
     childdata->ncols = ncols;
     childdata->percentages = g_new(gint, ncols);
-    childdata->force_left = FALSE;
+    childdata->force_left = false;
     for (i = 0; i < ncols; i++)
         childdata->percentages[i] = percentages[i];
 
@@ -459,7 +460,7 @@ void columns_add(Columns *cols, GtkWidget *child,
     childdata->widget = child;
     childdata->colstart = colstart;
     childdata->colspan = colspan;
-    childdata->force_left = FALSE;
+    childdata->force_left = false;
     childdata->same_height_as = NULL;
     childdata->percentages = NULL;
 
@@ -506,7 +507,7 @@ void columns_force_left_align(Columns *cols, GtkWidget *widget)
     child = columns_find_child(cols, widget);
     g_return_if_fail(child != NULL);
 
-    child->force_left = TRUE;
+    child->force_left = true;
     if (gtk_widget_get_visible(widget))
         gtk_widget_queue_resize(GTK_WIDGET(cols));
 }
@@ -563,14 +564,14 @@ static gint columns_focus(FOCUS_METHOD_SUPERCLASS *super, GtkDirectionType dir)
     GList *pos;
     GtkWidget *focuschild;
 
-    g_return_val_if_fail(super != NULL, FALSE);
-    g_return_val_if_fail(IS_COLUMNS(super), FALSE);
+    g_return_val_if_fail(super != NULL, false);
+    g_return_val_if_fail(IS_COLUMNS(super), false);
 
     cols = COLUMNS(super);
 
     if (!gtk_widget_is_drawable(GTK_WIDGET(cols)) ||
 	!gtk_widget_is_sensitive(GTK_WIDGET(cols)))
-	return FALSE;
+	return false;
 
     if (!gtk_widget_get_can_focus(GTK_WIDGET(cols)) &&
 	(dir == GTK_DIR_TAB_FORWARD || dir == GTK_DIR_TAB_BACKWARD)) {
@@ -593,16 +594,16 @@ static gint columns_focus(FOCUS_METHOD_SUPERCLASS *super, GtkDirectionType dir)
 			GTK_IS_CONTAINER(child) &&
 			!gtk_widget_has_focus(child)) {
 			if (CHILD_FOCUS(child, dir))
-			    return TRUE;
+			    return true;
 		    }
 		}
 	    } else if (gtk_widget_is_drawable(child)) {
 		if (GTK_IS_CONTAINER(child)) {
 		    if (CHILD_FOCUS(child, dir))
-			return TRUE;
+			return true;
 		} else if (gtk_widget_get_can_focus(child)) {
 		    gtk_widget_grab_focus(child);
-		    return TRUE;
+		    return true;
 		}
 	    }
 
@@ -612,7 +613,7 @@ static gint columns_focus(FOCUS_METHOD_SUPERCLASS *super, GtkDirectionType dir)
 		pos = pos->prev;
 	}
 
-	return FALSE;
+	return false;
     } else
 	return columns_inherited_focus(super, dir);
 }
@@ -668,7 +669,7 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
             printf("label %p '%s' wrap=%s: ", child->widget,
                    gtk_label_get_text(GTK_LABEL(child->widget)),
                    (gtk_label_get_line_wrap(GTK_LABEL(child->widget))
-                    ? "TRUE" : "FALSE"));
+                    ? "true" : "false"));
         else
             printf("widget %p: ", child->widget);
         {

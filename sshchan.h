@@ -28,7 +28,7 @@ struct ChannelVtable {
     int (*want_close)(Channel *, int sent_local_eof, int rcvd_remote_eof);
 
     /* A method for every channel request we know of. All of these
-     * return TRUE for success or FALSE for failure. */
+     * return true for success or false for failure. */
     int (*rcvd_exit_status)(Channel *, int status);
     int (*rcvd_exit_signal)(
         Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
@@ -217,7 +217,7 @@ struct SshChannel {
     ConnectionLayer *cl;
 };
 
-#define sshfwd_write(c, buf, len) ((c)->vt->write(c, FALSE, buf, len))
+#define sshfwd_write(c, buf, len) ((c)->vt->write(c, false, buf, len))
 #define sshfwd_write_ext(c, stderr, buf, len) \
     ((c)->vt->write(c, stderr, buf, len))
 #define sshfwd_write_eof(c) ((c)->vt->write_eof(c))

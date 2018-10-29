@@ -618,7 +618,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             return;
         }
 
-        s->gss_kex_used = TRUE;
+        s->gss_kex_used = true;
 
         /*-
          * If this the first KEX, save the GSS context for "gssapi-keyex"
@@ -695,7 +695,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                  * cache.
                  */
                 if (s->hostkey_alg) {
-                    s->need_gss_transient_hostkey = TRUE;
+                    s->need_gss_transient_hostkey = true;
                 } else {
                     /*
                      * If we negotiated the "null" host key algorithm
@@ -718,7 +718,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                      */
                     if (!s->warned_about_no_gss_transient_hostkey) {
                         ppl_logevent(("No fallback host key available"));
-                        s->warned_about_no_gss_transient_hostkey = TRUE;
+                        s->warned_about_no_gss_transient_hostkey = true;
                     }
                 }
             }
@@ -738,7 +738,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                 ppl_logevent(("Post-GSS rekey provided fallback host key:"));
                 ppl_logevent(("%s", s->fingerprint));
                 ssh_transient_hostkey_cache_add(s->thc, s->hkey);
-                s->need_gss_transient_hostkey = FALSE;
+                s->need_gss_transient_hostkey = false;
             } else if (!ssh_transient_hostkey_cache_verify(s->thc, s->hkey)) {
                 ppl_logevent(("Non-GSS rekey after initial GSS kex "
                               "used host key:"));
@@ -836,7 +836,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             s->fingerprint = NULL;
             store_host_key(s->savedhost, s->savedport,
                            ssh_key_cache_id(s->hkey), s->keystr);
-            s->cross_certifying = FALSE;
+            s->cross_certifying = false;
             /*
              * Don't forget to store the new key as the one we'll be
              * re-checking in future normal rekeys.

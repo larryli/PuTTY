@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #if defined _MSC_VER && _MSC_VER < 1800
 /* Work around lack of inttypes.h in older MSVC */
@@ -20,13 +21,6 @@
 #define SCNu64 "I64u"
 #else
 #include <inttypes.h>
-#endif
-
-#ifndef FALSE
-#define FALSE 0
-#endif
-#ifndef TRUE
-#define TRUE 1
 #endif
 
 typedef struct conf_tag Conf;

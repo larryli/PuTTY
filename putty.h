@@ -511,7 +511,7 @@ struct BackendVtable {
     const SessionSpecial *(*get_specials) (Backend *be);
     int (*connected) (Backend *be);
     int (*exitcode) (Backend *be);
-    /* If back->sendok() returns FALSE, the backend doesn't currently
+    /* If back->sendok() returns false, the backend doesn't currently
      * want input data, so the frontend should avoid acquiring any if
      * possible (passing back-pressure on to its sender). */
     int (*sendok) (Backend *be);
@@ -593,7 +593,7 @@ GLOBAL int default_protocol;
 GLOBAL int default_port;
 
 /*
- * This is set TRUE by cmdline.c iff a session is loaded with "-load".
+ * This is set true by cmdline.c iff a session is loaded with "-load".
  */
 GLOBAL int loaded_session;
 /*
@@ -746,9 +746,9 @@ struct SeatVtable {
 
     /*
      * Called when the back end wants to indicate that EOF has arrived
-     * on the server-to-client stream. Returns FALSE to indicate that
+     * on the server-to-client stream. Returns false to indicate that
      * we intend to keep the session open in the other direction, or
-     * TRUE to indicate that if they're closing so are we.
+     * true to indicate that if they're closing so are we.
      */
     int (*eof)(Seat *seat);
 
@@ -901,16 +901,16 @@ struct SeatVtable {
 
     /*
      * Return the X11 id of the X terminal window relevant to a seat,
-     * by returning TRUE and filling in the output pointer. Return
-     * FALSE if there isn't one or if the concept is meaningless.
+     * by returning true and filling in the output pointer. Return
+     * false if there isn't one or if the concept is meaningless.
      */
     int (*get_windowid)(Seat *seat, long *id_out);
 
     /*
      * Return the size of the terminal window in pixels. If the
      * concept is meaningless or the information is unavailable,
-     * return FALSE; otherwise fill in the output pointers and return
-     * TRUE.
+     * return false; otherwise fill in the output pointers and return
+     * true.
      */
     int (*get_window_pixel_size)(Seat *seat, int *width, int *height);
 };
@@ -953,9 +953,9 @@ void seat_connection_fatal(Seat *seat, const char *fmt, ...);
 
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
 #define seat_stdout(seat, data, len) \
-    seat_output(seat, FALSE, data, len)
+    seat_output(seat, false, data, len)
 #define seat_stderr(seat, data, len) \
-    seat_output(seat, TRUE, data, len)
+    seat_output(seat, true, data, len)
 
 /*
  * Stub methods for seat implementations that want to use the obvious
@@ -1922,9 +1922,9 @@ int open_for_write_would_lose_data(const Filename *fn);
  * run_timers() is called from the front end when it has reason to
  * think some timers have reached their moment, or when it simply
  * needs to know how long to wait next. We pass it the time we
- * think it is. It returns TRUE and places the time when the next
+ * think it is. It returns true and places the time when the next
  * timer needs to go off in `next', or alternatively it returns
- * FALSE if there are no timers at all pending.
+ * false if there are no timers at all pending.
  * 
  * timer_change_notify() must be supplied by the front end; it
  * notifies the front end that a new timer has been added to the
@@ -2020,7 +2020,7 @@ unsigned long timing_last_clock(void);
  * call) then it can call toplevel_callback_pending(), which will
  * return true if at least one callback is in the queue.
  *
- * run_toplevel_callbacks() returns TRUE if it ran any actual code.
+ * run_toplevel_callbacks() returns true if it ran any actual code.
  * This can be used as a means of speculatively terminating a select
  * loop, as in PSFTP, for example - if a callback has run then perhaps
  * it might have done whatever the loop's caller was waiting for.

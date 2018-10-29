@@ -622,7 +622,7 @@ BOOL set_explicit_app_user_model_id();
 /*
  * Exports from winnoise.c.
  */
-int win_read_random(void *buf, unsigned wanted); /* returns TRUE on success */
+int win_read_random(void *buf, unsigned wanted); /* returns true on success */
 
 /*
  * Extra functions in winstore.c over and above the interface in
@@ -654,7 +654,7 @@ char *get_jumplist_registry_entries(void);
 #define CLIPNAME_EXPLICIT "System clipboard"
 #define CLIPNAME_EXPLICIT_OBJECT "system clipboard"
 /* These defaults are the ones PuTTY has historically had */
-#define CLIPUI_DEFAULT_AUTOCOPY TRUE
+#define CLIPUI_DEFAULT_AUTOCOPY true
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_EXPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
 

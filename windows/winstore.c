@@ -24,7 +24,7 @@ static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static const char hex[16] = "0123456789ABCDEF";
 
-static int tried_shgetfolderpath = FALSE;
+static int tried_shgetfolderpath = false;
 static HMODULE shell32_module = NULL;
 DECL_WINDOWS_FUNCTION(static, HRESULT, SHGetFolderPathA, 
 		      (HWND, int, HANDLE, DWORD, LPSTR));
@@ -511,7 +511,7 @@ static int try_random_seed(char const *path, int action, HANDLE *ret)
                      win_strerror(GetLastError()));
         }
 	*ret = INVALID_HANDLE_VALUE;
-	return FALSE;		       /* so we'll do the next ones too */
+	return false;		       /* so we'll do the next ones too */
     }
 
     *ret = CreateFile(path,
@@ -576,7 +576,7 @@ static HANDLE access_random_seed(int action)
 	 * so stuff that. */
 	shell32_module = load_system32_dll("shell32.dll");
 	GET_WINDOWS_FUNCTION(shell32_module, SHGetFolderPathA);
-	tried_shgetfolderpath = TRUE;
+	tried_shgetfolderpath = true;
     }
     if (p_SHGetFolderPathA) {
 	if (SUCCEEDED(p_SHGetFolderPathA(NULL, CSIDL_LOCAL_APPDATA,

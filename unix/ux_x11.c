@@ -22,13 +22,13 @@ void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
     /*
      * Find the .Xauthority file.
      */
-    needs_free = FALSE;
+    needs_free = false;
     xauthfile = getenv("XAUTHORITY");
     if (!xauthfile) {
 	xauthfile = getenv("HOME");
 	if (xauthfile) {
 	    xauthfile = dupcat(xauthfile, "/.Xauthority", NULL);
-	    needs_free = TRUE;
+	    needs_free = true;
 	}
     }
 
@@ -39,7 +39,7 @@ void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
     }
 }
 
-const int platform_uses_x11_unix_by_default = TRUE;
+const int platform_uses_x11_unix_by_default = true;
 
 int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
                              const char *screen_number_suffix,
@@ -71,7 +71,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
         int addrtype = ADDRTYPE_IPV4;
 
         sockets[nsockets] = new_listener(
-            NULL, tcp_port, plug, FALSE, conf, addrtype);
+            NULL, tcp_port, plug, false, conf, addrtype);
 
         err = sk_socket_error(sockets[nsockets]);
         if (!err) {

@@ -80,7 +80,7 @@ static int create_named_pipe(NamedPipeServerSocket *ps, int first_instance)
     memset(&sa, 0, sizeof(sa));
     sa.nLength = sizeof(sa);
     sa.lpSecurityDescriptor = ps->psd;
-    sa.bInheritHandle = FALSE;
+    sa.bInheritHandle = false;
 
     ps->pipehandle = CreateNamedPipe
         (/* lpName */
@@ -117,7 +117,7 @@ static Socket *named_pipe_accept(accept_ctx_t ctx, Plug *plug)
 {
     HANDLE conn = (HANDLE)ctx.p;
 
-    return make_handle_socket(conn, conn, NULL, plug, TRUE);
+    return make_handle_socket(conn, conn, NULL, plug, true);
 }
 
 /*
@@ -136,7 +136,7 @@ static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
         if (got_one_already) {
             /* If we were called with a connection already waiting,
              * skip this step. */
-            got_one_already = FALSE;
+            got_one_already = false;
             error = 0;
         } else {
             /*
@@ -173,7 +173,7 @@ static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
                 CloseHandle(conn);
             }
 
-            if (!create_named_pipe(ps, FALSE)) {
+            if (!create_named_pipe(ps, false)) {
                 error = GetLastError();
             } else {
                 /*
@@ -196,7 +196,7 @@ static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
 static void named_pipe_connect_callback(void *vps)
 {
     NamedPipeServerSocket *ps = (NamedPipeServerSocket *)vps;
-    named_pipe_accept_loop(ps, TRUE);
+    named_pipe_accept_loop(ps, true);
 }
 
 /*
@@ -234,18 +234,18 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
         goto cleanup;
     }
 
-    if (!create_named_pipe(ret, TRUE)) {
+    if (!create_named_pipe(ret, true)) {
         ret->error = dupprintf("unable to create named pipe '%s': %s",
                                pipename, win_strerror(GetLastError()));
         goto cleanup;
     }
 
     memset(&ret->connect_ovl, 0, sizeof(ret->connect_ovl));
-    ret->connect_ovl.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    ret->connect_ovl.hEvent = CreateEvent(NULL, true, false, NULL);
     ret->callback_handle =
         handle_add_foreign_event(ret->connect_ovl.hEvent,
                                  named_pipe_connect_callback, ret);
-    named_pipe_accept_loop(ret, FALSE);
+    named_pipe_accept_loop(ret, false);
 
   cleanup:
     return &ret->sock;

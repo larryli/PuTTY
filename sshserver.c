@@ -74,7 +74,7 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len) {}
 Channel *agentf_new(SshChannel *c) { return NULL; }
-int agent_exists(void) { return FALSE; }
+int agent_exists(void) { return false; }
 void ssh_got_exitcode(Ssh *ssh, int exitcode) {}
 
 mainchan *mainchan_new(
@@ -128,7 +128,7 @@ static void server_closing(Plug *plug, const char *error_msg, int error_code,
     if (error_msg) {
         ssh_remote_error(&srv->ssh, "Network error: %s", error_msg);
     } else if (srv->bpp) {
-        srv->bpp->input_eof = TRUE;
+        srv->bpp->input_eof = true;
         queue_idempotent_callback(&srv->bpp->ic_in_raw);
     }
 }
@@ -181,9 +181,9 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
     assert(srv->conn_throttle_count >= 0);
 
     if (srv->conn_throttle_count && !old_count) {
-        frozen = TRUE;
+        frozen = true;
     } else if (!srv->conn_throttle_count && old_count) {
-        frozen = FALSE;
+        frozen = false;
     } else {
         return;                /* don't change current frozen state */
     }
@@ -221,7 +221,7 @@ Plug *ssh_server_plug(
     srv->plug.vt = &ssh_server_plugvt;
     srv->conf = conf_copy(conf);
     srv->logctx = log_init(logpolicy, conf);
-    conf_set_int(srv->conf, CONF_ssh_no_shell, TRUE);
+    conf_set_int(srv->conf, CONF_ssh_no_shell, true);
     srv->nhostkeys = nhostkeys;
     srv->hostkeys = hostkeys;
     srv->hostkey1 = hostkey1;
@@ -261,9 +261,9 @@ void ssh_server_start(Plug *plug, Socket *socket)
     srv->ic_out_raw.ctx = srv;
     srv->version_receiver.got_ssh_version = server_got_ssh_version;
     srv->bpp = ssh_verstring_new(
-        srv->conf, srv->logctx, FALSE /* bare_connection */,
+        srv->conf, srv->logctx, false /* bare_connection */,
         our_protoversion, &srv->version_receiver,
-        TRUE, "Uppity");
+        true, "Uppity");
     server_connect_bpp(srv);
     queue_idempotent_callback(&srv->bpp->ic_in_raw);
 }
@@ -304,7 +304,7 @@ static void server_connect_bpp(server *srv)
     srv->bpp->remote_bugs = srv->remote_bugs;
     /* Servers don't really have a notion of 'unexpected' connection
      * closure. The client is free to close if it likes. */
-    srv->bpp->expect_close = TRUE;
+    srv->bpp->expect_close = true;
 }
 
 static void server_connect_ppl(server *srv, PacketProtocolLayer *ppl)
@@ -409,11 +409,11 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
     if (major_version == 2) {
         PacketProtocolLayer *userauth_layer, *transport_child_layer;
 
-        srv->bpp = ssh2_bpp_new(srv->logctx, &srv->stats, TRUE);
+        srv->bpp = ssh2_bpp_new(srv->logctx, &srv->stats, true);
         server_connect_bpp(srv);
 
         connection_layer = ssh2_connection_new(
-            &srv->ssh, NULL, FALSE, srv->conf, 
+            &srv->ssh, NULL, false, srv->conf, 
             ssh_verstring_get_local(old_bpp), &srv->cl);
         ssh2connection_server_configure(connection_layer, srv->sftpserver_vt);
         server_connect_ppl(srv, connection_layer);
@@ -432,7 +432,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
             srv->conf, NULL, 0, NULL,
             ssh_verstring_get_remote(old_bpp),
             ssh_verstring_get_local(old_bpp),
-            &srv->gss_state, &srv->stats, transport_child_layer, TRUE);
+            &srv->gss_state, &srv->stats, transport_child_layer, true);
         ssh2_transport_provide_hostkeys(
             srv->base_layer, srv->hostkeys, srv->nhostkeys);
         if (userauth_layer)

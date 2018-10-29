@@ -107,12 +107,12 @@ static int uss_decode_handle(
     unsigned char handlebuf[8];
 
     if (handle.len != 8)
-        return FALSE;
+        return false;
     memcpy(handlebuf, handle.ptr, 8);
     des_decrypt_xdmauth(uss->handlekey, handlebuf, 8);
     *index = toint(GET_32BIT(handlebuf));
     *seq = GET_32BIT(handlebuf + 4);
-    return TRUE;
+    return true;
 }
 
 static void uss_return_new_handle(
@@ -126,12 +126,12 @@ static void uss_return_new_handle(
         uss->fdsopen = sresize(uss->fdsopen, uss->fdsize, int);
         while (old_size < uss->fdsize) {
             uss->fdseqs[old_size] = 0;
-            uss->fdsopen[old_size] = FALSE;
+            uss->fdsopen[old_size] = false;
             old_size++;
         }
     }
     assert(!uss->fdsopen[fd]);
-    uss->fdsopen[fd] = TRUE;
+    uss->fdsopen[fd] = true;
     if (++uss->fdseqs[fd] == USS_DIRHANDLE_SEQ)
         uss->fdseqs[fd] = 0;
     uss_return_handle_raw(uss, reply, fd, uss->fdseqs[fd]);
@@ -286,7 +286,7 @@ static void uss_close(SftpServer *srv, SftpReplyBuilder *reply,
     } else if ((fd = uss_lookup_fd(uss, reply, handle)) >= 0) {
         close(fd);
         assert(0 <= fd && fd <= uss->fdsize);
-        uss->fdsopen[fd] = FALSE;
+        uss->fdsopen[fd] = false;
         fxp_reply_ok(reply);
     }
     /* if both failed, uss_lookup_fd will have filled in an error response */
@@ -424,20 +424,20 @@ static void uss_fstat(SftpServer *srv, SftpReplyBuilder *reply,
     {                                                                   \
         if (attrs.flags & SSH_FILEXFER_ATTR_SIZE)                       \
             if (api_prefix(truncate)(api_arg, attrs.size) < 0)          \
-                success = FALSE;                                        \
+                success = false;                                        \
         if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID)                     \
             if (api_prefix(chown)(api_arg, attrs.uid, attrs.gid) < 0)   \
-                success = FALSE;                                        \
+                success = false;                                        \
         if (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)                \
             if (api_prefix(chmod)(api_arg, attrs.permissions) < 0)      \
-                success = FALSE;                                        \
+                success = false;                                        \
         if (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME) {                \
             struct timeval tv[2];                                       \
             tv[0].tv_sec = attrs.atime;                                 \
             tv[1].tv_sec = attrs.mtime;                                 \
             tv[0].tv_usec = tv[1].tv_usec = 0;                          \
             if (api_prefix(utimes)(api_arg, tv) < 0)                    \
-                success = FALSE;                                        \
+                success = false;                                        \
         }                                                               \
     } while (0)
 
@@ -450,7 +450,7 @@ static void uss_setstat(SftpServer *srv, SftpReplyBuilder *reply,
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
 
     char *pathstr = mkstr(path);
-    int success = TRUE;
+    int success = true;
     SETSTAT_GUTS(PATH_PREFIX, pathstr, attrs, success);
     free(pathstr);
 
@@ -470,7 +470,7 @@ static void uss_fsetstat(SftpServer *srv, SftpReplyBuilder *reply,
     if ((fd = uss_lookup_fd(uss, reply, handle)) < 0)
         return;
 
-    int success = TRUE;
+    int success = true;
     SETSTAT_GUTS(FD_PREFIX, fd, attrs, success);
 
     if (!success) {

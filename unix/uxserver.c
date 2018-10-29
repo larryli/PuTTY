@@ -173,7 +173,7 @@ unsigned auth_methods(AuthPolicy *ap)
 }
 int auth_none(AuthPolicy *ap, ptrlen username)
 {
-    return FALSE;
+    return false;
 }
 int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password,
                   ptrlen *new_password_opt)
@@ -211,9 +211,9 @@ int auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
     struct AuthPolicy_ssh2_pubkey *iter;
     for (iter = ap->ssh2keys; iter; iter = iter->next) {
         if (ptrlen_eq_ptrlen(public_blob, iter->public_blob))
-            return TRUE;
+            return true;
     }
-    return FALSE;
+    return false;
 }
 struct RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, Bignum rsa_modulus)
@@ -237,9 +237,9 @@ AuthKbdInt *auth_kbdint_prompts(AuthPolicy *ap, ptrlen username)
         aki->nprompts = 2;
         aki->prompts = snewn(aki->nprompts, AuthKbdIntPrompt);
         aki->prompts[0].prompt = dupstr("Echoey prompt: ");
-        aki->prompts[0].echo = TRUE;
+        aki->prompts[0].echo = true;
         aki->prompts[1].prompt = dupstr("Silent prompt: ");
-        aki->prompts[1].echo = FALSE;
+        aki->prompts[1].echo = false;
         return aki;
       case 1:
         aki->title = dupstr("Zero-prompt step");
@@ -286,7 +286,7 @@ int auth_ssh1int_response(AuthPolicy *ap, ptrlen response)
 }
 int auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
 {
-    return TRUE;
+    return true;
 }
 
 static void safety_warning(FILE *fp)
@@ -319,13 +319,13 @@ static void show_version_and_exit(void)
     exit(0);
 }
 
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
-static int finished = FALSE;
+static int finished = false;
 void server_instance_terminated(void)
 {
     /* FIXME: change policy here if we're running in a listening loop */
-    finished = TRUE;
+    finished = true;
 }
 
 static int longoptarg(const char *arg, const char *expected,
@@ -333,21 +333,21 @@ static int longoptarg(const char *arg, const char *expected,
 {
     int len = strlen(expected);
     if (memcmp(arg, expected, len))
-        return FALSE;
+        return false;
     if (arg[len] == '=') {
         *val = arg + len + 1;
-        return TRUE;
+        return true;
     } else if (arg[len] == '\0') {
         if (--*argcp > 0) {
             *val = *++*argvp;
-            return TRUE;
+            return true;
         } else {
             fprintf(stderr, "%s: option %s expects an argument\n",
                     appname, expected);
             exit(1);
         }
     }
-    return FALSE;
+    return false;
 }
 
 extern const SftpServerVtable unix_live_sftpserver_vt;
@@ -393,7 +393,7 @@ int main(int argc, char **argv)
         } else if (!strcmp(arg, "--version")) {
             show_version_and_exit();
         } else if (!strcmp(arg, "--verbose") || !strcmp(arg, "-v")) {
-            verbose = TRUE;
+            verbose = true;
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
             Filename *keyfile;
             int keytype;

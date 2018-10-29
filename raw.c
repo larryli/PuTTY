@@ -66,7 +66,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
         if (raw->s) {
             sk_close(raw->s);
             raw->s = NULL;
-            raw->closed_on_socket_error = TRUE;
+            raw->closed_on_socket_error = true;
             seat_notify_remote_exit(raw->seat);
         }
         logevent(raw->logctx, error_msg);
@@ -81,10 +81,10 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
             if (!raw->sent_socket_eof) {
                 if (raw->s)
                     sk_write_eof(raw->s);
-                raw->sent_socket_eof= TRUE;
+                raw->sent_socket_eof= true;
             }
         }
-        raw->sent_console_eof = TRUE;
+        raw->sent_console_eof = true;
         raw_check_close(raw);
     }
 }
@@ -95,7 +95,7 @@ static void raw_receive(Plug *plug, int urgent, char *data, int len)
     c_write(raw, data, len);
     /* We count 'session start', for proxy logging purposes, as being
      * when data is received from the network and printed. */
-    raw->session_started = TRUE;
+    raw->session_started = true;
 }
 
 static void raw_sent(Plug *plug, int bufsize)
@@ -134,11 +134,11 @@ static const char *raw_init(Seat *seat, Backend **backend_handle,
     raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = &raw_backend;
     raw->s = NULL;
-    raw->closed_on_socket_error = FALSE;
+    raw->closed_on_socket_error = false;
     *backend_handle = &raw->backend;
-    raw->sent_console_eof = raw->sent_socket_eof = FALSE;
+    raw->sent_console_eof = raw->sent_socket_eof = false;
     raw->bufsize = 0;
-    raw->session_started = FALSE;
+    raw->session_started = false;
     raw->conf = conf_copy(conf);
 
     raw->seat = seat;
@@ -239,7 +239,7 @@ static void raw_special(Backend *be, SessionSpecialCode code, int arg)
     Raw *raw = container_of(be, Raw, backend);
     if (code == SS_EOF && raw->s) {
         sk_write_eof(raw->s);
-        raw->sent_socket_eof= TRUE;
+        raw->sent_socket_eof= true;
         raw_check_close(raw);
     }
 

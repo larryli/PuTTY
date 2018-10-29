@@ -213,14 +213,14 @@ int sk_startup(int hi, int lo)
     winsock_ver = MAKEWORD(hi, lo);
 
     if (p_WSAStartup(winsock_ver, &wsadata)) {
-	return FALSE;
+	return false;
     }
 
     if (LOBYTE(wsadata.wVersion) != LOBYTE(winsock_ver)) {
-	return FALSE;
+	return false;
     }
 
-    return TRUE;
+    return true;
 }
 
 /* Actually define this function pointer, which won't have been
@@ -524,9 +524,9 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
-    ret->namedpipe = FALSE;
+    ret->namedpipe = false;
     ret->addresses = NULL;
-    ret->resolved = FALSE;
+    ret->resolved = false;
     ret->refcount = 1;
     *realhost = '\0';
 
@@ -549,7 +549,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
                 sfree(trimmed_host);
             }
 	    if (err == 0)
-		ret->resolved = TRUE;
+		ret->resolved = true;
 	} else
 #endif
 	{
@@ -558,7 +558,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
 	     * (NOTE: we don't use gethostbyname as a fallback!)
 	     */
 	    if ( (h = p_gethostbyname(host)) )
-		ret->resolved = TRUE;
+		ret->resolved = true;
 	    else
 		err = p_WSAGetLastError();
 	}
@@ -614,7 +614,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
 	ret->addresses = snewn(1, unsigned long);
 	ret->naddresses = 1;
 	ret->addresses[0] = p_ntohl(a);
-	ret->resolved = TRUE;
+	ret->resolved = true;
 	strncpy(realhost, host, sizeof(realhost));
     }
     realhost[lenof(realhost)-1] = '\0';
@@ -627,11 +627,11 @@ SockAddr *sk_nonamelookup(const char *host)
 {
     SockAddr *ret = snew(SockAddr);
     ret->error = NULL;
-    ret->resolved = FALSE;
+    ret->resolved = false;
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
-    ret->namedpipe = FALSE;
+    ret->namedpipe = false;
     ret->addresses = NULL;
     ret->naddresses = 0;
     ret->refcount = 1;
@@ -644,11 +644,11 @@ SockAddr *sk_namedpipe_addr(const char *pipename)
 {
     SockAddr *ret = snew(SockAddr);
     ret->error = NULL;
-    ret->resolved = FALSE;
+    ret->resolved = false;
 #ifndef NO_IPV6
     ret->ais = NULL;
 #endif
-    ret->namedpipe = TRUE;
+    ret->namedpipe = true;
     ret->addresses = NULL;
     ret->naddresses = 0;
     ret->refcount = 1;
@@ -663,16 +663,16 @@ int sk_nextaddr(SockAddr *addr, SockAddrStep *step)
     if (step->ai) {
 	if (step->ai->ai_next) {
 	    step->ai = step->ai->ai_next;
-	    return TRUE;
+	    return true;
 	} else
-	    return FALSE;
+	    return false;
     }
 #endif
     if (step->curraddr+1 < addr->naddresses) {
 	step->curraddr++;
-	return TRUE;
+	return true;
     } else {
-	return FALSE;
+	return false;
     }
 }
 
@@ -741,7 +741,7 @@ static SockAddr sk_extractaddr_tmp(
 
 int sk_addr_needs_port(SockAddr *addr)
 {
-    return addr->namedpipe ? FALSE : TRUE;
+    return addr->namedpipe ? false : true;
 }
 
 int sk_hostname_is_local(const char *name)
@@ -851,7 +851,7 @@ void sk_addrcopy(SockAddr *addr, char *buf)
 	    memcpy(buf, &((struct sockaddr_in6 *)step.ai->ai_addr)->sin6_addr,
 		   sizeof(struct in6_addr));
 	else
-	    assert(FALSE);
+	    assert(false);
     } else
 #endif
     if (family == AF_INET) {
@@ -1015,17 +1015,17 @@ static DWORD try_connect(NetSocket *sock)
 	SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
     if (sock->oobinline) {
-	BOOL b = TRUE;
+	BOOL b = true;
 	p_setsockopt(s, SOL_SOCKET, SO_OOBINLINE, (void *) &b, sizeof(b));
     }
 
     if (sock->nodelay) {
-	BOOL b = TRUE;
+	BOOL b = true;
 	p_setsockopt(s, IPPROTO_TCP, TCP_NODELAY, (void *) &b, sizeof(b));
     }
 
     if (sock->keepalive) {
-	BOOL b = TRUE;
+	BOOL b = true;
 	p_setsockopt(s, SOL_SOCKET, SO_KEEPALIVE, (void *) &b, sizeof(b));
     }
 
@@ -1470,7 +1470,7 @@ void try_send(NetSocket *s)
 		 * a small number - so we check that case and treat
 		 * it just like WSAEWOULDBLOCK.)
 		 */
-		s->writable = FALSE;
+		s->writable = false;
 		return;
 	    } else {
 		/*

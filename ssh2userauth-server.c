@@ -146,13 +146,13 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
              */
             pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_USERAUTH_FAILURE);
             put_stringz(pktout, "");
-            put_bool(pktout, FALSE);
+            put_bool(pktout, false);
             pq_push(s->ppl.out_pq, pktout);
             continue;
         }
 
         s->methods = auth_methods(s->authpolicy);
-        s->partial_success = FALSE;
+        s->partial_success = false;
 
         if (ptrlen_eq_string(s->method, "none")) {
             s->this_method = AUTHMETHOD_NONE;
@@ -327,7 +327,7 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
              */
             s->methods = auth_methods(s->authpolicy);
         }
-        s->partial_success = TRUE;
+        s->partial_success = true;
 
       failure:
         pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_USERAUTH_FAILURE);

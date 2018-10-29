@@ -123,7 +123,7 @@ static const char *host_strchr_internal(const char *s, const char *set,
 }
 size_t host_strcspn(const char *s, const char *set)
 {
-    const char *answer = host_strchr_internal(s, set, TRUE);
+    const char *answer = host_strchr_internal(s, set, true);
     if (answer)
         return answer - s;
     else
@@ -134,14 +134,14 @@ char *host_strchr(const char *s, int c)
     char set[2];
     set[0] = c;
     set[1] = '\0';
-    return (char *) host_strchr_internal(s, set, TRUE);
+    return (char *) host_strchr_internal(s, set, true);
 }
 char *host_strrchr(const char *s, int c)
 {
     char set[2];
     set[0] = c;
     set[1] = '\0';
-    return (char *) host_strchr_internal(s, set, FALSE);
+    return (char *) host_strchr_internal(s, set, false);
 }
 
 #ifdef TEST_HOST_STRFOO
@@ -235,9 +235,9 @@ prompts_t *new_prompts(void)
     p->prompts = NULL;
     p->n_prompts = 0;
     p->data = NULL;
-    p->to_server = TRUE; /* to be on the safe side */
+    p->to_server = true; /* to be on the safe side */
     p->name = p->instruction = NULL;
-    p->name_reqd = p->instr_reqd = FALSE;
+    p->name_reqd = p->instr_reqd = false;
     return p;
 }
 void add_prompt(prompts_t *p, char *promptstr, int echo)
@@ -830,9 +830,9 @@ int bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
 {
     if (ch->buffersize >= len) {
         bufchain_fetch_consume(ch, data, len);
-        return TRUE;
+        return true;
     } else {
-        return FALSE;
+        return false;
     }
 }
 
@@ -1113,11 +1113,11 @@ void smemclr(void *b, size_t n) {
 
 /*
  * Validate a manual host key specification (either entered in the
- * GUI, or via -hostkey). If valid, we return TRUE, and update 'key'
+ * GUI, or via -hostkey). If valid, we return true, and update 'key'
  * to contain a canonicalised version of the key string in 'key'
  * (which is guaranteed to take up at most as much space as the
  * original version), suitable for putting into the Conf. If not
- * valid, we return FALSE.
+ * valid, we return false.
  */
 int validate_manual_hostkey(char *key)
 {
@@ -1154,7 +1154,7 @@ int validate_manual_hostkey(char *key)
             for (i = 0; i < 16*3 - 1; i++)
                 key[i] = tolower(q[i]);
             key[16*3 - 1] = '\0';
-            return TRUE;
+            return true;
         }
       not_fingerprint:;
 
@@ -1200,12 +1200,12 @@ int validate_manual_hostkey(char *key)
                 goto not_ssh2_blob;    /* sorry */
 
             strcpy(key, q);
-            return TRUE;
+            return true;
         }
       not_ssh2_blob:;
     }
 
-    return FALSE;
+    return false;
 }
 
 int smemeq(const void *av, const void *bv, size_t len)
@@ -1272,9 +1272,9 @@ int ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail)
             tail->ptr = (const char *)whole.ptr + prefix.len;
             tail->len = whole.len - prefix.len;
         }
-        return TRUE;
+        return true;
     }
-    return FALSE;
+    return false;
 }
 
 char *mkstr(ptrlen pl)
@@ -1391,7 +1391,7 @@ char *buildinfo(const char *newline)
 
 int nullseat_output(
     Seat *seat, int is_stderr, const void *data, int len) { return 0; }
-int nullseat_eof(Seat *seat) { return TRUE; }
+int nullseat_eof(Seat *seat) { return true; }
 int nullseat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input) { return 0; }
 void nullseat_notify_remote_exit(Seat *seat) {}
@@ -1409,13 +1409,13 @@ int nullseat_confirm_weak_crypto_primitive(
 int nullseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx) { return 0; }
-int nullseat_is_never_utf8(Seat *seat) { return FALSE; }
-int nullseat_is_always_utf8(Seat *seat) { return TRUE; }
+int nullseat_is_never_utf8(Seat *seat) { return false; }
+int nullseat_is_always_utf8(Seat *seat) { return true; }
 void nullseat_echoedit_update(Seat *seat, int echoing, int editing) {}
 const char *nullseat_get_x_display(Seat *seat) { return NULL; }
-int nullseat_get_windowid(Seat *seat, long *id_out) { return FALSE; }
+int nullseat_get_windowid(Seat *seat, long *id_out) { return false; }
 int nullseat_get_window_pixel_size(
-    Seat *seat, int *width, int *height) { return FALSE; }
+    Seat *seat, int *width, int *height) { return false; }
 
 void sk_free_peer_info(SocketPeerInfo *pi)
 {

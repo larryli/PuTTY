@@ -80,7 +80,7 @@ static void random_stir(void)
      */
     if (pool.stir_pending)
 	return;
-    pool.stir_pending = TRUE;
+    pool.stir_pending = true;
 
     noise_get_light(random_add_noise);
 
@@ -193,7 +193,7 @@ static void random_stir(void)
 
     pool.poolpos = sizeof(pool.incoming);
 
-    pool.stir_pending = FALSE;
+    pool.stir_pending = false;
 
 #ifdef RANDOM_DIAGNOSTICS
     {

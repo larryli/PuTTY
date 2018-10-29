@@ -271,7 +271,7 @@ static void option_side_effects(Telnet *telnet, const struct Opt *o, int enabled
 	    telnet->opt_states[o_they_sga.index] = REQUESTED;
 	    send_opt(telnet, o_they_sga.send, o_they_sga.option);
 	}
-	telnet->activated = TRUE;
+	telnet->activated = true;
     }
 }
 
@@ -647,7 +647,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
         sk_close(telnet->s);
         telnet->s = NULL;
         if (error_msg)
-            telnet->closed_on_socket_error = TRUE;
+            telnet->closed_on_socket_error = true;
 	seat_notify_remote_exit(telnet->seat);
     }
     if (error_msg) {
@@ -661,8 +661,8 @@ static void telnet_receive(Plug *plug, int urgent, char *data, int len)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
     if (urgent)
-	telnet->in_synch = TRUE;
-    telnet->session_started = TRUE;
+	telnet->in_synch = true;
+    telnet->session_started = true;
     do_telnet_read(telnet, data, len);
 }
 
@@ -703,10 +703,10 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
     telnet->backend.vt = &telnet_backend;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
-    telnet->closed_on_socket_error = FALSE;
-    telnet->echoing = TRUE;
-    telnet->editing = TRUE;
-    telnet->activated = FALSE;
+    telnet->closed_on_socket_error = false;
+    telnet->echoing = true;
+    telnet->editing = true;
+    telnet->activated = false;
     telnet->sb_buf = NULL;
     telnet->sb_size = 0;
     telnet->seat = seat;
@@ -716,7 +716,7 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
     telnet->state = TOP_LEVEL;
     telnet->ldisc = NULL;
     telnet->pinger = NULL;
-    telnet->session_started = TRUE;
+    telnet->session_started = true;
     *backend_handle = &telnet->backend;
 
     /*
@@ -759,13 +759,13 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
 	    if (telnet->opt_states[(*o)->index] == REQUESTED)
 		send_opt(telnet, (*o)->send, (*o)->option);
 	}
-	telnet->activated = TRUE;
+	telnet->activated = true;
     }
 
     /*
      * Set up SYNCH state.
      */
-    telnet->in_synch = FALSE;
+    telnet->in_synch = false;
 
     /*
      * We can send special commands from the start.
@@ -1025,7 +1025,7 @@ static int telnet_ldisc(Backend *be, int option)
 	return telnet->echoing;
     if (option == LD_EDIT)
 	return telnet->editing;
-    return FALSE;
+    return false;
 }
 
 static void telnet_provide_ldisc(Backend *be, Ldisc *ldisc)

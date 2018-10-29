@@ -294,7 +294,7 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
 
     serial->seat = seat;
     serial->logctx = logctx;
-    serial->finished = FALSE;
+    serial->finished = false;
     serial->inbufsize = 0;
     bufchain_init(&serial->output_data);
 
@@ -361,7 +361,7 @@ static void serial_select_result(int fd, int event)
     Serial *serial;
     char buf[4096];
     int ret;
-    int finished = FALSE;
+    int finished = false;
 
     serial = find234(serial_by_fd, &fd, serial_find_by_fd);
 
@@ -377,7 +377,7 @@ static void serial_select_result(int fd, int event)
 	     * to the idea that there might be two-way devices we
 	     * can treat _like_ serial ports which can return EOF.
 	     */
-	    finished = TRUE;
+	    finished = true;
 	} else if (ret < 0) {
 #ifdef EAGAIN
 	    if (errno == EAGAIN)
@@ -403,7 +403,7 @@ static void serial_select_result(int fd, int event)
     if (finished) {
 	serial_close(serial);
 
-	serial->finished = TRUE;
+	serial->finished = true;
 
 	seat_notify_remote_exit(serial->seat);
     }

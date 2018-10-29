@@ -130,7 +130,7 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
 #if !GTK_CHECK_VERSION(2,0,0)
 
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg)->action_area),
-                       w, TRUE, TRUE, 0);
+                       w, true, true, 0);
 
 #elif !GTK_CHECK_VERSION(3,0,0)
 
@@ -149,14 +149,14 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
 #endif
     gtk_widget_show(align);
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
-                     align, FALSE, TRUE, 0);
+                     align, false, true, 0);
 
     w = gtk_hseparator_new();
     gtk_box_pack_end(GTK_BOX(gtk_dialog_get_content_area(GTK_DIALOG(dlg))),
-                     w, FALSE, TRUE, 0);
+                     w, false, true, 0);
     gtk_widget_show(w);
     gtk_widget_hide(gtk_dialog_get_action_area(GTK_DIALOG(dlg)));
-    g_object_set(G_OBJECT(dlg), "has-separator", TRUE, (const char *)NULL);
+    g_object_set(G_OBJECT(dlg), "has-separator", true, (const char *)NULL);
 
 #else /* GTK 3 */
 
@@ -166,10 +166,10 @@ void our_dialog_set_action_area(GtkWindow *dlg, GtkWidget *w)
     GtkWidget *sep;
 
     g_object_set(G_OBJECT(w), "margin", 8, (const char *)NULL);
-    gtk_box_pack_end(vbox, w, FALSE, TRUE, 0);
+    gtk_box_pack_end(vbox, w, false, true, 0);
 
     sep = gtk_hseparator_new();
-    gtk_box_pack_end(vbox, sep, FALSE, TRUE, 0);
+    gtk_box_pack_end(vbox, sep, false, true, 0);
     gtk_widget_show(sep);
 
 #endif

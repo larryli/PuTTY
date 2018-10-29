@@ -159,8 +159,8 @@ static int cmdline_check_unavailable(int flag, const char *p)
     if (need_save < 0) return x; \
 } while (0)
 
-static int seen_hostname_argument = FALSE;
-static int seen_port_argument = FALSE;
+static int seen_hostname_argument = false;
+static int seen_port_argument = false;
 
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
@@ -227,7 +227,7 @@ int cmdline_process_param(const char *p, char *value,
                     buf = dupprintf("%.*s", (int)(p - host), host);
                     conf_set_str(conf, CONF_host, buf);
                     sfree(buf);
-                    seen_hostname_argument = TRUE;
+                    seen_hostname_argument = true;
                 }
 
                 /*
@@ -243,7 +243,7 @@ int cmdline_process_param(const char *p, char *value,
                      * the next argument as a separate port; this one
                      * counts as explicitly provided.
                      */
-                    seen_port_argument = TRUE;
+                    seen_port_argument = true;
                 } else {
                     conf_set_int(conf, CONF_port, -1);
                 }
@@ -322,7 +322,7 @@ int cmdline_process_param(const char *p, char *value,
                 while (len > 0 && (hostname[len-1] == ' ' ||
                                    hostname[len-1] == '\t'))
                     hostname[--len] = '\0';
-                seen_hostname_argument = TRUE;
+                seen_hostname_argument = true;
                 conf_set_str(conf, CONF_host, hostname);
 
                 if ((cmdline_tooltype & TOOLTYPE_HOST_ARG_CAN_BE_SESSION) &&
@@ -353,7 +353,7 @@ int cmdline_process_param(const char *p, char *value,
                     do_defaults(hostname_after_user, conf2);
                     if (conf_launchable(conf2)) {
                         conf_copy_into(conf, conf2);
-                        loaded_session = TRUE;
+                        loaded_session = true;
                         /* And override the username if one was given. */
                         if (user)
                             conf_set_str(conf, CONF_username, user);
@@ -385,7 +385,7 @@ int cmdline_process_param(const char *p, char *value,
             int retd = cmdline_process_param("-P", dup, 1, conf);
             sfree(dup);
             assert(retd == 2);
-            seen_port_argument = TRUE;
+            seen_port_argument = true;
             return 1;
         } else {
             /*
@@ -401,7 +401,7 @@ int cmdline_process_param(const char *p, char *value,
 	/* This parameter must be processed immediately rather than being
 	 * saved. */
 	do_defaults(value, conf);
-	loaded_session = TRUE;
+	loaded_session = true;
 	cmdline_session_name = dupstr(value);
 	return 2;
     }
@@ -594,7 +594,7 @@ int cmdline_process_param(const char *p, char *value,
 	fclose(fp);
 	conf_set_str(conf, CONF_remote_cmd, command);
 	conf_set_str(conf, CONF_remote_cmd2, "");
-	conf_set_int(conf, CONF_nopty, TRUE);   /* command => no terminal */
+	conf_set_int(conf, CONF_nopty, true);   /* command => no terminal */
 	sfree(command);
     }
     if (!strcmp(p, "-P")) {
@@ -626,26 +626,26 @@ int cmdline_process_param(const char *p, char *value,
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_tryagent, TRUE);
+	conf_set_int(conf, CONF_tryagent, true);
     }
     if (!strcmp(p, "-noagent") || !strcmp(p, "-nopagent") ||
 	!strcmp(p, "-nopageant")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_tryagent, FALSE);
+	conf_set_int(conf, CONF_tryagent, false);
     }
     if (!strcmp(p, "-share")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_ssh_connection_sharing, TRUE);
+	conf_set_int(conf, CONF_ssh_connection_sharing, true);
     }
     if (!strcmp(p, "-noshare")) {
 	RETURN(1);
 	UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
 	SAVEABLE(0);
-	conf_set_int(conf, CONF_ssh_connection_sharing, FALSE);
+	conf_set_int(conf, CONF_ssh_connection_sharing, false);
     }
     if (!strcmp(p, "-A")) {
 	RETURN(1);
@@ -860,7 +860,7 @@ int cmdline_process_param(const char *p, char *value,
         !strcmp(p, "-restrictacl")) {
 	RETURN(1);
         restrict_process_acl();
-        restricted_acl = TRUE;
+        restricted_acl = true;
     }
 #endif
 
@@ -884,7 +884,7 @@ void cmdline_run_saved(Conf *conf)
 int cmdline_host_ok(Conf *conf)
 {
     /*
-     * Return TRUE if the command-line arguments we've processed in
+     * Return true if the command-line arguments we've processed in
      * TOOLTYPE_HOST_ARG mode are sufficient to justify launching a
      * session.
      */
@@ -895,7 +895,7 @@ int cmdline_host_ok(Conf *conf)
      * clearly no.
      */
     if (!conf_launchable(conf))
-        return FALSE;
+        return false;
 
     /*
      * But also, if we haven't seen either a -load option or a
@@ -908,7 +908,7 @@ int cmdline_host_ok(Conf *conf)
      * option to connect to something else or change the setting.
      */
     if (!seen_hostname_argument && !loaded_session)
-        return FALSE;
+        return false;
 
-    return TRUE;
+    return true;
 }

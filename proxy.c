@@ -778,7 +778,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
 
         strbuf *command = strbuf_new();
         char hostname[512];
-        int write_hostname = FALSE;
+        int write_hostname = false;
 
         put_byte(command, 4);          /* SOCKS version 4 */
         put_byte(command, 1);          /* CONNECT command */
@@ -795,7 +795,7 @@ int proxy_socks4_negotiate (ProxySocket *p, int change)
           case ADDRTYPE_NAME:
             sk_getaddr(p->remote_addr, hostname, lenof(hostname));
             put_uint32(command, 1);
-            write_hostname = TRUE;
+            write_hostname = true;
             break;
           case ADDRTYPE_IPV6:
             p->error = "Proxy error: SOCKS version 4 does not support IPv6";

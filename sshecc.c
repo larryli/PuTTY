@@ -2754,10 +2754,10 @@ int ec_nist_alg_and_curve_by_bits(int bits,
       case 256: *alg = &ssh_ecdsa_nistp256; break;
       case 384: *alg = &ssh_ecdsa_nistp384; break;
       case 521: *alg = &ssh_ecdsa_nistp521; break;
-      default: return FALSE;
+      default: return false;
     }
     *curve = ((struct ecsign_extra *)(*alg)->extra)->curve();
-    return TRUE;
+    return true;
 }
 
 int ec_ed_alg_and_curve_by_bits(int bits,
@@ -2766,8 +2766,8 @@ int ec_ed_alg_and_curve_by_bits(int bits,
 {
     switch (bits) {
       case 256: *alg = &ssh_ecdsa_ed25519; break;
-      default: return FALSE;
+      default: return false;
     }
     *curve = ((struct ecsign_extra *)(*alg)->extra)->curve();
-    return TRUE;
+    return true;
 }

@@ -265,7 +265,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
         }
     }
 
-    s->found_prefix = TRUE;
+    s->found_prefix = true;
 
     /*
      * Start a buffer to store the full greeting line.

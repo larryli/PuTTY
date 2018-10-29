@@ -20,7 +20,7 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
 
     switch (nMsg) {
       case WM_ERASEBKGND:
-	return TRUE;
+	return true;
 
       case WM_PAINT:
 	{
@@ -80,7 +80,7 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
 
 	    SetWindowPos(hWnd, NULL, 0, 0, sz.cx + 6, sz.cy + 6,
 			 SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
-	    InvalidateRect(hWnd, NULL, FALSE);
+	    InvalidateRect(hWnd, NULL, false);
 
 	    DeleteDC(hdc);
 	}

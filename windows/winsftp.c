@@ -25,7 +25,7 @@ void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }
-const int platform_uses_x11_unix_by_default = TRUE;
+const int platform_uses_x11_unix_by_default = true;
 
 /* ----------------------------------------------------------------------
  * File access abstraction.
@@ -440,12 +440,12 @@ void finish_wildcard_matching(WildcardMatcher *dir)
 int vet_filename(const char *name)
 {
     if (strchr(name, '/') || strchr(name, '\\') || strchr(name, ':'))
-	return FALSE;
+	return false;
 
     if (!name[strspn(name, ".")])      /* entirely composed of dots */
-	return FALSE;
+	return false;
 
-    return TRUE;
+    return true;
 }
 
 int create_directory(const char *name)
@@ -479,7 +479,7 @@ char *do_select(SOCKET skt, int startup)
 	if (startup) {
 	    events = (FD_CONNECT | FD_READ | FD_WRITE |
 		      FD_OOB | FD_CLOSE | FD_ACCEPT);
-	    netevent = CreateEvent(NULL, FALSE, FALSE, NULL);
+	    netevent = CreateEvent(NULL, false, false, NULL);
 	} else {
 	    events = 0;
 	}
@@ -534,7 +534,7 @@ int do_eventsel_loop(HANDLE other_event)
     else
 	otherindex = -1;
 
-    n = WaitForMultipleObjects(nallhandles, handles, FALSE, ticks);
+    n = WaitForMultipleObjects(nallhandles, handles, false, ticks);
 
     if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
 	handle_got_event(handles[n - WAIT_OBJECT_0]);
@@ -721,7 +721,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
      * Create a second thread to read from stdin. Process network
      * and timing events until it terminates.
      */
-    ctx->event = CreateEvent(NULL, FALSE, FALSE, NULL);
+    ctx->event = CreateEvent(NULL, false, false, NULL);
     ctx->line = NULL;
 
     hThread = CreateThread(NULL, 0, command_read_thread, ctx, 0, &threadid);

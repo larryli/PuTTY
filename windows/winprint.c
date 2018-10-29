@@ -32,7 +32,7 @@ DECL_WINDOWS_FUNCTION(static, BOOL, WritePrinter,
 
 static void init_winfuncs(void)
 {
-    static int initialised = FALSE;
+    static int initialised = false;
     if (initialised)
         return;
     {
@@ -53,7 +53,7 @@ static void init_winfuncs(void)
         GET_WINDOWS_FUNCTION_PP(winspool_module, EndPagePrinter);
         GET_WINDOWS_FUNCTION_PP(winspool_module, WritePrinter);
     }
-    initialised = TRUE;
+    initialised = true;
 }
 
 static int printer_add_enum(int param, DWORD level, char **buffer,
@@ -80,11 +80,11 @@ static int printer_add_enum(int param, DWORD level, char **buffer,
 
     if (p_EnumPrinters(param, NULL, level, (LPBYTE)((*buffer)+offset),
                        needed, &needed, &nprinters) == 0)
-        return FALSE;
+        return false;
 
     *nprinters_ptr += nprinters;
 
-    return TRUE;
+    return true;
 }
 
 printer_enum *printer_start_enum(int *nprinters_ptr)

@@ -44,7 +44,7 @@ static int uploading = 0;
 
 static Backend *backend;
 static Conf *conf;
-int sent_eof = FALSE;
+int sent_eof = false;
 
 static void source(const char *src);
 static void rsource(const char *src);
@@ -199,7 +199,7 @@ static int pscp_eof(Seat *seat)
         seat_connection_fatal(
             pscp_seat, "Received unexpected end-of-file from server");
     }
-    return FALSE;
+    return false;
 }
 static int ssh_scp_recv(void *buf, int len)
 {
@@ -286,7 +286,7 @@ static void bump(const char *fmt, ...)
     if (backend && backend_connected(backend)) {
 	char ch;
         backend_special(backend, SS_EOF, 0);
-        sent_eof = TRUE;
+        sent_eof = true;
 	ssh_scp_recv(&ch, 1);
     }
 
@@ -439,7 +439,7 @@ static void do_cmd(char *host, char *user, char *cmd)
      */
     conf_set_int(conf, CONF_x11_forward, 0);
     conf_set_int(conf, CONF_agentfwd, 0);
-    conf_set_int(conf, CONF_ssh_simple, TRUE);
+    conf_set_int(conf, CONF_ssh_simple, true);
     {
 	char *key;
 	while ((key = conf_get_str_nthstrkey(conf, CONF_portfwd, 0)) != NULL)
@@ -457,12 +457,12 @@ static void do_cmd(char *host, char *user, char *cmd)
 	/* First choice is SFTP subsystem. */
 	main_cmd_is_sftp = 1;
 	conf_set_str(conf, CONF_remote_cmd, "sftp");
-	conf_set_int(conf, CONF_ssh_subsys, TRUE);
+	conf_set_int(conf, CONF_ssh_subsys, true);
 	if (try_scp) {
 	    /* Fallback is to use the provided scp command. */
 	    fallback_cmd_is_sftp = 0;
 	    conf_set_str(conf, CONF_remote_cmd2, cmd);
-	    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
+	    conf_set_int(conf, CONF_ssh_subsys2, false);
 	} else {
 	    /* Since we're not going to try SCP, we may as well try
 	     * harder to find an SFTP server, since in the current
@@ -475,15 +475,15 @@ static void do_cmd(char *host, char *user, char *cmd)
 			 "test -x /usr/local/lib/sftp-server &&"
 			 " exec /usr/local/lib/sftp-server\n"
 			 "exec sftp-server");
-	    conf_set_int(conf, CONF_ssh_subsys2, FALSE);
+	    conf_set_int(conf, CONF_ssh_subsys2, false);
 	}
     } else {
 	/* Don't try SFTP at all; just try the scp command. */
 	main_cmd_is_sftp = 0;
 	conf_set_str(conf, CONF_remote_cmd, cmd);
-	conf_set_int(conf, CONF_ssh_subsys, FALSE);
+	conf_set_int(conf, CONF_ssh_subsys, false);
     }
-    conf_set_int(conf, CONF_nopty, TRUE);
+    conf_set_int(conf, CONF_nopty, true);
 
     logctx = log_init(default_logpolicy, conf);
 
@@ -2239,8 +2239,8 @@ void cmdline_error(const char *p, ...)
     exit(1);
 }
 
-const int share_can_be_downstream = TRUE;
-const int share_can_be_upstream = FALSE;
+const int share_can_be_downstream = true;
+const int share_can_be_upstream = false;
 
 /*
  * Main program. (Called `psftp_main' because it gets called from
@@ -2263,7 +2263,7 @@ int psftp_main(int argc, char *argv[])
     /* Load Default Settings before doing anything else. */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = FALSE;
+    loaded_session = false;
 
     for (i = 1; i < argc; i++) {
 	int ret;
@@ -2336,7 +2336,7 @@ int psftp_main(int argc, char *argv[])
     if (backend && backend_connected(backend)) {
 	char ch;
         backend_special(backend, SS_EOF, 0);
-        sent_eof = TRUE;
+        sent_eof = true;
 	ssh_scp_recv(&ch, 1);
     }
     random_save_seed();

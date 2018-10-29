@@ -37,7 +37,7 @@ void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }
-const int platform_uses_x11_unix_by_default = TRUE;
+const int platform_uses_x11_unix_by_default = true;
 
 /*
  * Default settings that are specific to PSFTP.
@@ -415,12 +415,12 @@ char *stripslashes(const char *str, int local)
 int vet_filename(const char *name)
 {
     if (strchr(name, '/'))
-	return FALSE;
+	return false;
 
     if (name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2])))
-	return FALSE;
+	return false;
 
-    return TRUE;
+    return true;
 }
 
 int create_directory(const char *name)
@@ -444,7 +444,7 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
     int fd, fdstate, rwx, ret, maxfd;
     unsigned long now = GETTICKCOUNT();
     unsigned long next;
-    int done_something = FALSE;
+    int done_something = false;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -555,7 +555,7 @@ static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
  */
 int ssh_sftp_loop_iteration(void)
 {
-    return ssh_sftp_do_select(FALSE, FALSE);
+    return ssh_sftp_do_select(false, false);
 }
 
 /*
@@ -573,7 +573,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
     buflen = bufsize = 0;
 
     while (1) {
-	ret = ssh_sftp_do_select(TRUE, no_fds_ok);
+	ret = ssh_sftp_do_select(true, no_fds_ok);
 	if (ret < 0) {
 	    printf("connection died\n");
             sfree(buf);
@@ -608,7 +608,7 @@ void frontend_net_error_pending(void) {}
 
 void platform_psftp_pre_conn_setup(void) {}
 
-const int buildinfo_gtk_relevant = FALSE;
+const int buildinfo_gtk_relevant = false;
 
 /*
  * Main program: do platform-specific initialisation and then call

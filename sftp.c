@@ -970,7 +970,7 @@ struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64_t offset)
 {
     struct fxp_xfer *xfer = xfer_init(fh, offset);
 
-    xfer->eof = FALSE;
+    xfer->eof = false;
     xfer_download_queue(xfer);
 
     return xfer;
@@ -999,7 +999,7 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 #endif
 
     if ((rr->retlen < 0 && fxp_error_type()==SSH_FX_EOF) || rr->retlen == 0) {
-	xfer->eof = TRUE;
+	xfer->eof = true;
         rr->retlen = 0;
 	rr->complete = -1;
 #ifdef DEBUG_DOWNLOAD

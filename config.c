@@ -340,11 +340,11 @@ static void numeric_keypad_handler(union control *ctrl, dlgparam *dlg,
 	button = dlg_radiobutton_get(ctrl, dlg);
 	assert(button >= 0 && button < ctrl->radio.nbuttons);
 	if (button == 2) {
-	    conf_set_int(conf, CONF_app_keypad, FALSE);
-	    conf_set_int(conf, CONF_nethack_keypad, TRUE);
+	    conf_set_int(conf, CONF_app_keypad, false);
+	    conf_set_int(conf, CONF_nethack_keypad, true);
 	} else {
 	    conf_set_int(conf, CONF_app_keypad, (button != 0));
-	    conf_set_int(conf, CONF_nethack_keypad, FALSE);
+	    conf_set_int(conf, CONF_nethack_keypad, false);
 	}
     }
 }
@@ -613,7 +613,7 @@ struct sessionsaver_data {
 static void sessionsaver_data_free(void *ssdv)
 {
     struct sessionsaver_data *ssd = (struct sessionsaver_data *)ssdv;
-    get_sesslist(&ssd->sesslist, FALSE);
+    get_sesslist(&ssd->sesslist, false);
     sfree(ssd->savedsession);
     sfree(ssd);
 }
@@ -685,7 +685,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	    dlg_listbox_select(ssd->listbox, dlg, top);
 	}
     } else if (event == EVENT_ACTION) {
-	int mbl = FALSE;
+	int mbl = false;
 	if (!ssd->midsession &&
 	    (ctrl == ssd->listbox ||
 	     (ssd->loadbutton && ctrl == ssd->loadbutton))) {
@@ -720,8 +720,8 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
                     sfree(errmsg);
                 }
             }
-	    get_sesslist(&ssd->sesslist, FALSE);
-	    get_sesslist(&ssd->sesslist, TRUE);
+	    get_sesslist(&ssd->sesslist, false);
+	    get_sesslist(&ssd->sesslist, true);
 	    dlg_refresh(ssd->editbox, dlg);
 	    dlg_refresh(ssd->listbox, dlg);
 	} else if (!ssd->midsession &&
@@ -731,8 +731,8 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 		dlg_beep(dlg);
 	    } else {
 		del_settings(ssd->sesslist.sessions[i]);
-		get_sesslist(&ssd->sesslist, FALSE);
-		get_sesslist(&ssd->sesslist, TRUE);
+		get_sesslist(&ssd->sesslist, false);
+		get_sesslist(&ssd->sesslist, true);
 		dlg_refresh(ssd->listbox, dlg);
 	    }
 	} else if (ctrl == ssd->okbutton) {
@@ -751,7 +751,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
 		!conf_launchable(conf)) {
 		Conf *conf2 = conf_new();
-		int mbl = FALSE;
+		int mbl = false;
 		if (!load_selected_session(ssd, dlg, conf2, &mbl)) {
 		    dlg_beep(dlg);
 		    conf_free(conf2);
@@ -847,7 +847,7 @@ static void colour_handler(union control *ctrl, dlgparam *dlg,
     Conf *conf = (Conf *)data;
     struct colour_data *cd =
 	(struct colour_data *)ctrl->generic.context.p;
-    int update = FALSE, clear = FALSE, r, g, b;
+    int update = false, clear = false, r, g, b;
 
     if (event == EVENT_REFRESH) {
 	if (ctrl == cd->listbox) {
@@ -857,22 +857,22 @@ static void colour_handler(union control *ctrl, dlgparam *dlg,
 	    for (i = 0; i < lenof(colours); i++)
 		dlg_listbox_add(ctrl, dlg, colours[i]);
 	    dlg_update_done(ctrl, dlg);
-	    clear = TRUE;
-	    update = TRUE;
+	    clear = true;
+	    update = true;
 	}
     } else if (event == EVENT_SELCHANGE) {
 	if (ctrl == cd->listbox) {
 	    /* The user has selected a colour. Update the RGB text. */
 	    int i = dlg_listbox_index(ctrl, dlg);
 	    if (i < 0) {
-		clear = TRUE;
+		clear = true;
 	    } else {
-		clear = FALSE;
+		clear = false;
 		r = conf_get_int_int(conf, CONF_colours, i*3+0);
 		g = conf_get_int_int(conf, CONF_colours, i*3+1);
 		b = conf_get_int_int(conf, CONF_colours, i*3+2);
 	    }
-	    update = TRUE;
+	    update = true;
 	}
     } else if (event == EVENT_VALCHANGE) {
 	if (ctrl == cd->redit || ctrl == cd->gedit || ctrl == cd->bedit) {
@@ -925,8 +925,8 @@ static void colour_handler(union control *ctrl, dlgparam *dlg,
 		conf_set_int_int(conf, CONF_colours, i*3+0, r);
 		conf_set_int_int(conf, CONF_colours, i*3+1, g);
 		conf_set_int_int(conf, CONF_colours, i*3+2, b);
-		clear = FALSE;
-		update = TRUE;
+		clear = false;
+		update = true;
 	    }
 	}
     }
@@ -1468,11 +1468,11 @@ void setup_config_box(struct controlbox *b, int midsession,
 				    (char)(midsession ? 'a' : 'o'),
 				    HELPCTX(no_help),
 				    sessionsaver_handler, P(ssd));
-    ssd->okbutton->button.isdefault = TRUE;
+    ssd->okbutton->button.isdefault = true;
     ssd->okbutton->generic.column = 3;
     ssd->cancelbutton = ctrl_pushbutton(s, "Cancel", 'c', HELPCTX(no_help),
 					sessionsaver_handler, P(ssd));
-    ssd->cancelbutton->button.iscancel = TRUE;
+    ssd->cancelbutton->button.iscancel = true;
     ssd->cancelbutton->generic.column = 4;
     /* We carefully don't close the 5-column part, so that platform-
      * specific add-ons can put extra buttons alongside Open and Cancel. */
@@ -1530,7 +1530,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		    midsession ? "Save the current session settings" :
 		    "Load, save or delete a stored session");
     ctrl_columns(s, 2, 75, 25);
-    get_sesslist(&ssd->sesslist, TRUE);
+    get_sesslist(&ssd->sesslist, true);
     ssd->editbox = ctrl_editbox(s, "Saved Sessions", 'e', 100,
 				HELPCTX(session_saved),
 				sessionsaver_handler, P(ssd), P(NULL));
@@ -1613,7 +1613,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  NULL);
     }
     ctrl_filesel(s, "Log file name:", 'f',
-		 NULL, TRUE, "Select session log file name",
+		 NULL, true, "Select session log file name",
 		 HELPCTX(logging_filename),
 		 conf_filesel_handler, I(CONF_logfilename));
     ctrl_text(s, "(Log file name can contain &Y, &M, &D for date,"
@@ -2144,8 +2144,8 @@ void setup_config_box(struct controlbox *b, int midsession,
 				  HELPCTX(connection_username_from_env),
 				  conf_radiobutton_handler,
 				  I(CONF_username_from_env),
-				  "Prompt", I(FALSE),
-				  userlabel, I(TRUE),
+				  "Prompt", I(false),
+				  userlabel, I(true),
 				  NULL);
 		sfree(userlabel);
 	    }
@@ -2482,7 +2482,7 @@ void setup_config_box(struct controlbox *b, int midsession,
              * it become really unhelpful if a horizontal scrollbar
              * appears, so we suppress that. */
             mh->listbox->listbox.height = 2;
-            mh->listbox->listbox.hscroll = FALSE;
+            mh->listbox->listbox.hscroll = false;
             ctrl_tabdelay(s, mh->rembutton);
 	    mh->keybox = ctrl_editbox(s, "Key", 'k', 80,
                                       HELPCTX(ssh_kex_manual_hostkeys),
@@ -2558,7 +2558,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			  conf_checkbox_handler,
 			  I(CONF_change_username));
 	    ctrl_filesel(s, "Private key file for authentication:", 'k',
-			 FILTER_KEY_FILES, FALSE, "Select private key file",
+			 FILTER_KEY_FILES, false, "Select private key file",
 			 HELPCTX(ssh_auth_privkey),
 			 conf_filesel_handler, I(CONF_keyfile));
 
@@ -2615,7 +2615,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 		 */
 
 		ctrl_filesel(s, "User-supplied GSSAPI library path:", 's',
-			     FILTER_DYNLIB_FILES, FALSE, "Select library file",
+			     FILTER_DYNLIB_FILES, false, "Select library file",
 			     HELPCTX(ssh_gssapi_libraries),
 			     conf_filesel_handler,
 			     I(CONF_ssh_gss_custom));

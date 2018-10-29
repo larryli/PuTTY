@@ -139,7 +139,7 @@ static void mainchan_open_confirmation(Channel *chan)
         char *key, *val, *cmd;
         struct X11Display *x11disp;
         struct X11FakeAuth *x11auth;
-        int retry_cmd_now = FALSE;
+        int retry_cmd_now = false;
 
 	if (conf_get_int(mc->conf, CONF_x11_forward)) {;
             char *x11_setup_err;
@@ -154,27 +154,27 @@ static void mainchan_open_confirmation(Channel *chan)
                     mc->cl, conf_get_int(mc->conf, CONF_x11_auth), x11disp);
 
                 sshfwd_request_x11_forwarding(
-                    mc->sc, TRUE, x11auth->protoname, x11auth->datastring,
-                    x11disp->screennum, FALSE);
-                mc->req_x11 = TRUE;
+                    mc->sc, true, x11auth->protoname, x11auth->datastring,
+                    x11disp->screennum, false);
+                mc->req_x11 = true;
             }
         }
 
 	if (ssh_agent_forwarding_permitted(mc->cl)) {
-            sshfwd_request_agent_forwarding(mc->sc, TRUE);
-            mc->req_agent = TRUE;
+            sshfwd_request_agent_forwarding(mc->sc, true);
+            mc->req_agent = true;
         }
 
 	if (!conf_get_int(mc->conf, CONF_nopty)) {
             sshfwd_request_pty(
-                mc->sc, TRUE, mc->conf, mc->term_width, mc->term_height);
-            mc->req_pty = TRUE;
+                mc->sc, true, mc->conf, mc->term_width, mc->term_height);
+            mc->req_pty = true;
         }
 
         for (val = conf_get_str_strs(mc->conf, CONF_environmt, NULL, &key);
              val != NULL;
              val = conf_get_str_strs(mc->conf, CONF_environmt, key, &key)) {
-            sshfwd_send_env_var(mc->sc, TRUE, key, val);
+            sshfwd_send_env_var(mc->sc, true, key, val);
             mc->n_req_env++;
         }
         if (mc->n_req_env)
@@ -182,21 +182,21 @@ static void mainchan_open_confirmation(Channel *chan)
 
         cmd = conf_get_str(mc->conf, CONF_remote_cmd);
         if (conf_get_int(mc->conf, CONF_ssh_subsys)) {
-            retry_cmd_now = !sshfwd_start_subsystem(mc->sc, TRUE, cmd);
+            retry_cmd_now = !sshfwd_start_subsystem(mc->sc, true, cmd);
         } else if (*cmd) {
-            sshfwd_start_command(mc->sc, TRUE, cmd);
+            sshfwd_start_command(mc->sc, true, cmd);
         } else {
-            sshfwd_start_shell(mc->sc, TRUE);
+            sshfwd_start_shell(mc->sc, true);
         }
 
         if (retry_cmd_now)
             mainchan_try_fallback_command(mc);
         else
-            mc->req_cmd_primary = TRUE;
+            mc->req_cmd_primary = true;
 
     } else {
-        ssh_set_ldisc_option(mc->cl, LD_ECHO, TRUE);
-        ssh_set_ldisc_option(mc->cl, LD_EDIT, TRUE);
+        ssh_set_ldisc_option(mc->cl, LD_ECHO, true);
+        ssh_set_ldisc_option(mc->cl, LD_EDIT, true);
         mainchan_ready(mc);
     }
 }
@@ -205,11 +205,11 @@ static void mainchan_try_fallback_command(mainchan *mc)
 {
     const char *cmd = conf_get_str(mc->conf, CONF_remote_cmd2);
     if (conf_get_int(mc->conf, CONF_ssh_subsys2)) {
-        sshfwd_start_subsystem(mc->sc, TRUE, cmd);
+        sshfwd_start_subsystem(mc->sc, true, cmd);
     } else {
-        sshfwd_start_command(mc->sc, TRUE, cmd);
+        sshfwd_start_command(mc->sc, true, cmd);
     }
-    mc->req_cmd_fallback = TRUE;
+    mc->req_cmd_fallback = true;
 }
 
 static void mainchan_request_response(Channel *chan, int success)
@@ -219,7 +219,7 @@ static void mainchan_request_response(Channel *chan, int success)
     PacketProtocolLayer *ppl = mc->ppl; /* for ppl_logevent */
 
     if (mc->req_x11) {
-        mc->req_x11 = FALSE;
+        mc->req_x11 = false;
 
         if (success) {
             ppl_logevent(("X11 forwarding enabled"));
@@ -231,7 +231,7 @@ static void mainchan_request_response(Channel *chan, int success)
     }
 
     if (mc->req_agent) {
-        mc->req_agent = FALSE;
+        mc->req_agent = false;
 
         if (success) {
             ppl_logevent(("Agent forwarding enabled"));
@@ -243,16 +243,16 @@ static void mainchan_request_response(Channel *chan, int success)
     }
 
     if (mc->req_pty) {
-        mc->req_pty = FALSE;
+        mc->req_pty = false;
 
         if (success) {
             ppl_logevent(("Allocated pty"));
-            mc->got_pty = TRUE;
+            mc->got_pty = true;
         } else {
             ppl_logevent(("Server refused to allocate pty"));
             ppl_printf(("Server refused to allocate pty\r\n"));
-            ssh_set_ldisc_option(mc->cl, LD_ECHO, TRUE);
-            ssh_set_ldisc_option(mc->cl, LD_EDIT, TRUE);
+            ssh_set_ldisc_option(mc->cl, LD_ECHO, true);
+            ssh_set_ldisc_option(mc->cl, LD_EDIT, true);
         }
         return;
     }
@@ -282,7 +282,7 @@ static void mainchan_request_response(Channel *chan, int success)
     }
 
     if (mc->req_cmd_primary) {
-        mc->req_cmd_primary = FALSE;
+        mc->req_cmd_primary = false;
 
         if (success) {
             ppl_logevent(("Started a shell/command"));
@@ -302,7 +302,7 @@ static void mainchan_request_response(Channel *chan, int success)
     }
 
     if (mc->req_cmd_fallback) {
-        mc->req_cmd_fallback = FALSE;
+        mc->req_cmd_fallback = false;
 
         if (success) {
             ppl_logevent(("Started a shell/command"));
@@ -318,14 +318,14 @@ static void mainchan_request_response(Channel *chan, int success)
 
 static void mainchan_ready(mainchan *mc)
 {
-    mc->ready = TRUE;
+    mc->ready = true;
 
-    ssh_set_wants_user_input(mc->cl, TRUE);
+    ssh_set_wants_user_input(mc->cl, true);
     ssh_ppl_got_user_input(mc->ppl); /* in case any is already queued */
 
     /* If an EOF arrived before we were ready, handle it now. */
     if (mc->eof_pending) {
-        mc->eof_pending = FALSE;
+        mc->eof_pending = false;
 	mainchan_special_cmd(mc, SS_EOF, 0);
     }
 
@@ -387,8 +387,8 @@ static void mainchan_send_eof(Channel *chan)
         sshfwd_write_eof(mc->sc);
         ppl_logevent(("Sent EOF message"));
     }
-    mc->eof_sent = TRUE;
-    ssh_set_wants_user_input(mc->cl, FALSE); /* now stop reading from stdin */
+    mc->eof_sent = true;
+    ssh_set_wants_user_input(mc->cl, false); /* now stop reading from stdin */
 }
 
 static void mainchan_set_input_wanted(Channel *chan, int wanted)
@@ -418,7 +418,7 @@ static int mainchan_rcvd_exit_status(Channel *chan, int status)
 
     ssh_got_exitcode(mc->ppl->ssh, status);
     ppl_logevent(("Session sent command exit status %d", status));
-    return TRUE;
+    return true;
 }
 
 static void mainchan_log_exit_signal_common(
@@ -466,7 +466,7 @@ static int mainchan_rcvd_exit_signal(
         signame_str = dupprintf("signal SIG%.*s", PTRLEN_PRINTF(signame));
     mainchan_log_exit_signal_common(mc, signame_str, core_dumped, msg);
     sfree(signame_str);
-    return TRUE;
+    return true;
 }
 
 static int mainchan_rcvd_exit_signal_numeric(
@@ -480,7 +480,7 @@ static int mainchan_rcvd_exit_signal_numeric(
     signum_str = dupprintf("signal %d", signum);
     mainchan_log_exit_signal_common(mc, signum_str, core_dumped, msg);
     sfree(signum_str);
-    return TRUE;
+    return true;
 }
 
 void mainchan_get_specials(
@@ -533,17 +533,17 @@ void mainchan_special_cmd(mainchan *mc, SessionSpecialCode code, int arg)
              * Buffer the EOF to send as soon as the main channel is
              * fully set up.
              */
-            mc->eof_pending = TRUE;
+            mc->eof_pending = true;
         } else if (!mc->eof_sent) {
             sshfwd_write_eof(mc->sc);
-            mc->eof_sent = TRUE;
+            mc->eof_sent = true;
         }
     } else if (code == SS_BRK) {
         sshfwd_send_serial_break(
-            mc->sc, FALSE, 0 /* default break length */);
+            mc->sc, false, 0 /* default break length */);
     } else if ((signame = ssh_signal_lookup(code)) != NULL) {
         /* It's a signal. */
-        sshfwd_send_signal(mc->sc, FALSE, signame);
+        sshfwd_send_signal(mc->sc, false, signame);
         ppl_logevent(("Sent signal SIG%s", signame));
     }
 }

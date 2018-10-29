@@ -200,7 +200,7 @@
 #if GTK_CHECK_VERSION(3,0,0)
 #define gtk_hseparator_new() gtk_separator_new(GTK_ORIENTATION_HORIZONTAL)
 /* Fortunately, my hboxes and vboxes never actually set homogeneous to
- * TRUE, so I can just wrap these deprecated constructors with a macro
+ * true, so I can just wrap these deprecated constructors with a macro
  * without also having to arrange a call to gtk_box_set_homogeneous. */
 #define gtk_hbox_new(homogeneous, spacing) \
     gtk_box_new(GTK_ORIENTATION_HORIZONTAL, spacing)

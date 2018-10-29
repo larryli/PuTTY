@@ -98,7 +98,7 @@ struct Ssh {
     ConnectionLayer cl_dummy;
 
     /*
-     * session_started is FALSE until we initialise the main protocol
+     * session_started is false until we initialise the main protocol
      * layers. So it distinguishes between base_layer==NULL meaning
      * that the SSH protocol hasn't been set up _yet_, and
      * base_layer==NULL meaning the SSH protocol has run and finished.
@@ -153,7 +153,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
     BinaryPacketProtocol *old_bpp;
     PacketProtocolLayer *connection_layer;
 
-    ssh->session_started = TRUE;
+    ssh->session_started = true;
 
     /*
      * We don't support choosing a major protocol version dynamically,
@@ -180,7 +180,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
             int is_simple =
                 (conf_get_int(ssh->conf, CONF_ssh_simple) && !ssh->connshare);
 
-            ssh->bpp = ssh2_bpp_new(ssh->logctx, &ssh->stats, FALSE);
+            ssh->bpp = ssh2_bpp_new(ssh->logctx, &ssh->stats, false);
             ssh_connect_bpp(ssh);
 
 #ifndef NO_GSSAPI
@@ -246,7 +246,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
                 ssh_verstring_get_local(old_bpp),
                 ssh_verstring_get_remote(old_bpp),
                 &ssh->gss_state,
-                &ssh->stats, transport_child_layer, FALSE);
+                &ssh->stats, transport_child_layer, false);
             ssh_connect_ppl(ssh, ssh->base_layer);
 
             if (userauth_layer)
@@ -272,7 +272,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
         ssh_connect_bpp(ssh);
 
         connection_layer = ssh2_connection_new(
-            ssh, NULL, FALSE, ssh->conf, ssh_verstring_get_remote(old_bpp),
+            ssh, NULL, false, ssh->conf, ssh_verstring_get_remote(old_bpp),
             &ssh->cl);
         ssh_connect_ppl(ssh, connection_layer);
         ssh->base_layer = connection_layer;
@@ -380,13 +380,13 @@ static void ssh_initiate_connection_close(Ssh *ssh)
     /* Force any remaining queued SSH packets through the BPP, and
      * schedule closing the network socket after they go out. */
     ssh_bpp_handle_output(ssh->bpp);
-    ssh->pending_close = TRUE;
+    ssh->pending_close = true;
     queue_idempotent_callback(&ssh->ic_out_raw);
 
     /* Now we expect the other end to close the connection too in
      * response, so arrange that we'll receive notification of that
      * via ssh_remote_eof. */
-    ssh->bpp->expect_close = TRUE;
+    ssh->bpp->expect_close = true;
 }
 
 #define GET_FORMATTED_MSG                       \
@@ -521,7 +521,7 @@ static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
     if (error_msg) {
         ssh_remote_error(ssh, "Network error: %s", error_msg);
     } else if (ssh->bpp) {
-        ssh->bpp->input_eof = TRUE;
+        ssh->bpp->input_eof = true;
         queue_idempotent_callback(&ssh->bpp->ic_in_raw);
     }
 }
@@ -644,18 +644,18 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
      * downstream and need to do our connection setup differently.
      */
     ssh->connshare = NULL;
-    ssh->attempting_connshare = TRUE;  /* affects socket logging behaviour */
+    ssh->attempting_connshare = true;  /* affects socket logging behaviour */
     ssh->s = ssh_connection_sharing_init(
         ssh->savedhost, ssh->savedport, ssh->conf, ssh->logctx,
         &ssh->plug, &ssh->connshare);
     if (ssh->connshare)
         ssh_connshare_provide_connlayer(ssh->connshare, &ssh->cl_dummy);
-    ssh->attempting_connshare = FALSE;
+    ssh->attempting_connshare = false;
     if (ssh->s != NULL) {
         /*
          * We are a downstream.
          */
-        ssh->bare_connection = TRUE;
+        ssh->bare_connection = true;
         ssh->fullhostname = NULL;
         *realhost = dupstr(host);      /* best we can do */
 
@@ -718,7 +718,7 @@ static const char *connect_to_host(Ssh *ssh, const char *host, int port,
     ssh->bpp = ssh_verstring_new(
         ssh->conf, ssh->logctx, ssh->bare_connection,
         ssh->version == 1 ? "1.5" : "2.0", &ssh->version_receiver,
-        FALSE, "PuTTY");
+        false, "PuTTY");
     ssh_connect_bpp(ssh);
     queue_idempotent_callback(&ssh->bpp->ic_in_raw);
 
@@ -745,9 +745,9 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
     assert(ssh->conn_throttle_count >= 0);
 
     if (ssh->conn_throttle_count && !old_count) {
-        frozen = TRUE;
+        frozen = true;
     } else if (!ssh->conn_throttle_count && old_count) {
-        frozen = FALSE;
+        frozen = false;
     } else {
         return;                /* don't change current frozen state */
     }
@@ -819,7 +819,7 @@ static const char *ssh_init(Seat *seat, Backend **backend_handle,
     ssh->cl_dummy.logctx = ssh->logctx = logctx;
 
     random_ref(); /* do this now - may be needed by sharing setup code */
-    ssh->need_random_unref = TRUE;
+    ssh->need_random_unref = true;
 
     p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
     if (p != NULL) {
@@ -827,7 +827,7 @@ static const char *ssh_init(Seat *seat, Backend **backend_handle,
          * frees this useless Ssh object, in case the caller is
          * impatient and just exits without bothering, in which case
          * the random seed won't be re-saved. */
-        ssh->need_random_unref = FALSE;
+        ssh->need_random_unref = false;
         random_unref();
 	return p;
     }
@@ -1038,7 +1038,7 @@ void ssh_ldisc_update(Ssh *ssh)
 static int ssh_ldisc(Backend *be, int option)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
-    return ssh->cl ? ssh_ldisc_option(ssh->cl, option) : FALSE;
+    return ssh->cl ? ssh_ldisc_option(ssh->cl, option) : false;
 }
 
 static void ssh_provide_ldisc(Backend *be, Ldisc *ldisc)
@@ -1090,7 +1090,7 @@ extern int ssh_fallback_cmd(Backend *be)
 
 void ssh_got_fallback_cmd(Ssh *ssh)
 {
-    ssh->fallback_cmd = TRUE;
+    ssh->fallback_cmd = true;
 }
 
 const struct BackendVtable ssh_backend = {

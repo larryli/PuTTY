@@ -36,11 +36,11 @@ int ssh_sftp_loop_iteration(void);
  * Read a command line for PSFTP from standard input. Caller must
  * free.
  * 
- * If `backend_required' is TRUE, should also listen for activity
+ * If `backend_required' is true, should also listen for activity
  * at the backend (rekeys, clientalives, unexpected closures etc)
  * and respond as necessary, and if the backend closes it should
  * treat this as a failure condition. If `backend_required' is
- * FALSE, a back end is not (intentionally) active at all (e.g.
+ * false, a back end is not (intentionally) active at all (e.g.
  * psftp before an `open' command).
  */
 char *ssh_sftp_get_cmdline(const char *prompt, int backend_required);
@@ -166,7 +166,7 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  * to filenames returned from FXP_READDIR, which means we can panic
  * if we see _anything_ resembling a directory separator.
  * 
- * Returns TRUE if the filename is kosher, FALSE if dangerous.
+ * Returns true if the filename is kosher, false if dangerous.
  */
 int vet_filename(const char *name);
 

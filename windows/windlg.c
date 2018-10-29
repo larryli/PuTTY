@@ -156,14 +156,14 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
 			    memcpy(p, sel_nl, sizeof(sel_nl));
 			    p += sizeof(sel_nl);
 			}
-			write_aclip(CLIP_SYSTEM, clipdata, size, TRUE);
+			write_aclip(CLIP_SYSTEM, clipdata, size, true);
 			sfree(clipdata);
 		    }
 		    sfree(selitems);
 
 		    for (i = 0; i < (ninitial + ncircular); i++)
 			SendDlgItemMessage(hwnd, IDN_LIST, LB_SETSEL,
-					   FALSE, i);
+					   false, i);
 		}
 	    }
 	    return 0;
@@ -230,7 +230,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	switch (LOWORD(wParam)) {
 	  case IDOK:
 	  case IDCANCEL:
-	    EndDialog(hwnd, TRUE);
+	    EndDialog(hwnd, true);
 	    return 0;
 	  case IDA_LICENCE:
 	    EnableWindow(hwnd, 0);
@@ -249,7 +249,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	}
 	return 0;
       case WM_CLOSE:
-	EndDialog(hwnd, TRUE);
+	EndDialog(hwnd, true);
 	return 0;
     }
     return 0;
@@ -428,7 +428,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 		MoveWindow(hwnd,
 			   (rs.right + rs.left + rd.left - rd.right) / 2,
 			   (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-			   rd.right - rd.left, rd.bottom - rd.top, TRUE);
+			   rd.right - rd.left, rd.bottom - rd.top, true);
 	}
 
 	/*
@@ -451,7 +451,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 				      hwnd, (HMENU) IDCX_TVSTATIC, hinst,
 				      NULL);
 	    font = SendMessage(hwnd, WM_GETFONT, 0, 0);
-	    SendMessage(tvstatic, WM_SETFONT, font, MAKELPARAM(TRUE, 0));
+	    SendMessage(tvstatic, WM_SETFONT, font, MAKELPARAM(true, 0));
 
 	    r.left = 3;
 	    r.right = r.left + 95;
@@ -468,7 +468,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 				      hwnd, (HMENU) IDCX_TREEVIEW, hinst,
 				      NULL);
 	    font = SendMessage(hwnd, WM_GETFONT, 0, 0);
-	    SendMessage(treeview, WM_SETFONT, font, MAKELPARAM(TRUE, 0));
+	    SendMessage(treeview, WM_SETFONT, font, MAKELPARAM(true, 0));
 	    tvfaff.treeview = treeview;
 	    memset(tvfaff.lastat, 0, sizeof(tvfaff.lastat));
 	}
@@ -594,7 +594,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 
             i = TreeView_GetSelection(((LPNMHDR) lParam)->hwndFrom);
  
- 	    SendMessage (hwnd, WM_SETREDRAW, FALSE, 0);
+ 	    SendMessage (hwnd, WM_SETREDRAW, false, 0);
  
 	    item.hItem = i;
 	    item.pszText = buffer;
@@ -623,8 +623,8 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 
 	    dlg_refresh(NULL, &dp);    /* set up control values */
  
-	    SendMessage (hwnd, WM_SETREDRAW, TRUE, 0);
- 	    InvalidateRect (hwnd, NULL, TRUE);
+	    SendMessage (hwnd, WM_SETREDRAW, true, 0);
+ 	    InvalidateRect (hwnd, NULL, true);
 
 	    SetFocus(((LPNMHDR) lParam)->hwndFrom);	/* ensure focus stays */
 	    return 0;
@@ -698,8 +698,8 @@ int do_config(void)
     int ret;
 
     ctrlbox = ctrl_new_box();
-    setup_config_box(ctrlbox, FALSE, 0, 0);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), FALSE, 0);
+    setup_config_box(ctrlbox, false, 0, 0);
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), false, 0);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -709,7 +709,7 @@ int do_config(void)
     dp.errtitle = dupprintf("%s Error", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
+    dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
 
     ret =
 	SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
@@ -732,8 +732,8 @@ int do_reconfig(HWND hwnd, int protcfginfo)
 
     ctrlbox = ctrl_new_box();
     protocol = conf_get_int(conf, CONF_protocol);
-    setup_config_box(ctrlbox, TRUE, protocol, protcfginfo);
-    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), TRUE, protocol);
+    setup_config_box(ctrlbox, true, protocol, protcfginfo);
+    win_setup_config_box(ctrlbox, &dp.hwnd, has_help(), true, protocol);
     dp_init(&dp);
     winctrl_init(&ctrls_base);
     winctrl_init(&ctrls_panel);
@@ -743,7 +743,7 @@ int do_reconfig(HWND hwnd, int protcfginfo)
     dp.errtitle = dupprintf("%s Error", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
-    dp.shortcuts['g'] = TRUE;	       /* the treeview: `Cate&gory' */
+    dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
 
     ret = SaneDialogBox(hinst, MAKEINTRESOURCE(IDD_MAINBOX), NULL,
 		  GenericMainDlgProc);

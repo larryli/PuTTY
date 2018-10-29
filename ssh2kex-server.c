@@ -82,12 +82,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             }
 
             if (pktin->type != SSH2_MSG_KEX_DH_GEX_REQUEST_OLD) {
-                s->dh_got_size_bounds = TRUE;
+                s->dh_got_size_bounds = true;
                 s->dh_min_size = get_uint32(pktin);
                 s->pbits = get_uint32(pktin);
                 s->dh_max_size = get_uint32(pktin);
             } else {
-                s->dh_got_size_bounds = FALSE;
+                s->dh_got_size_bounds = false;
                 s->pbits = get_uint32(pktin);
             }
 

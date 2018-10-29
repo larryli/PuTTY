@@ -133,7 +133,7 @@ unsigned long getticks(void);
  * is _not_ implicit but requires a specific UI action. This is at
  * odds with all other PuTTY front ends' defaults, but on OS X there
  * is no multi-decade precedent for PuTTY working the other way. */
-#define CLIPUI_DEFAULT_AUTOCOPY FALSE
+#define CLIPUI_DEFAULT_AUTOCOPY false
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
 #define MENU_CLIPBOARD CLIP_CLIPBOARD
@@ -146,7 +146,7 @@ unsigned long getticks(void);
 #define CLIPNAME_EXPLICIT_OBJECT "CLIPBOARD"
 /* These defaults are the ones Unix PuTTY has historically had since
  * it was first thought of in 2002 */
-#define CLIPUI_DEFAULT_AUTOCOPY FALSE
+#define CLIPUI_DEFAULT_AUTOCOPY false
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_IMPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_IMPLICIT
 #define MENU_CLIPBOARD CLIP_CLIPBOARD

@@ -20,7 +20,7 @@ static void pinger_timer(void *ctx, unsigned long now)
 
     if (pinger->pending && now == pinger->next) {
         backend_special(pinger->backend, SS_PING, 0);
-	pinger->pending = FALSE;
+	pinger->pending = false;
 	pinger_schedule(pinger);
     }
 }
@@ -30,7 +30,7 @@ static void pinger_schedule(Pinger *pinger)
     unsigned long next;
 
     if (!pinger->interval) {
-	pinger->pending = FALSE;       /* cancel any pending ping */
+	pinger->pending = false;       /* cancel any pending ping */
 	return;
     }
 
@@ -40,7 +40,7 @@ static void pinger_schedule(Pinger *pinger)
         (next - pinger->when_set) < (pinger->next - pinger->when_set)) {
 	pinger->next = next;
         pinger->when_set = timing_last_clock();
-	pinger->pending = TRUE;
+	pinger->pending = true;
     }
 }
 
@@ -49,7 +49,7 @@ Pinger *pinger_new(Conf *conf, Backend *backend)
     Pinger *pinger = snew(Pinger);
 
     pinger->interval = conf_get_int(conf, CONF_ping_interval);
-    pinger->pending = FALSE;
+    pinger->pending = false;
     pinger->backend = backend;
     pinger_schedule(pinger);
 

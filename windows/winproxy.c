@@ -48,7 +48,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
      */
     sa.nLength = sizeof(sa);
     sa.lpSecurityDescriptor = NULL;    /* default */
-    sa.bInheritHandle = TRUE;
+    sa.bInheritHandle = true;
     if (!CreatePipe(&us_from_cmd, &cmd_to_us, &sa, 0)) {
         sfree(cmd);
 	return new_error_socket_fmt(
@@ -91,7 +91,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
     si.hStdInput = cmd_from_us;
     si.hStdOutput = cmd_to_us;
     si.hStdError = cmd_err_to_us;
-    CreateProcess(NULL, cmd, NULL, NULL, TRUE,
+    CreateProcess(NULL, cmd, NULL, NULL, true,
 		  CREATE_NO_WINDOW | NORMAL_PRIORITY_CLASS,
 		  NULL, NULL, &si, &pi);
     CloseHandle(pi.hProcess);
@@ -106,5 +106,5 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
         CloseHandle(cmd_err_to_us);
 
     return make_handle_socket(us_to_cmd, us_from_cmd, us_from_cmd_err,
-                              plug, FALSE);
+                              plug, false);
 }

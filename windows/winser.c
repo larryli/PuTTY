@@ -107,18 +107,18 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	/*
 	 * Boilerplate.
 	 */
-	dcb.fBinary = TRUE;
+	dcb.fBinary = true;
 	dcb.fDtrControl = DTR_CONTROL_ENABLE;
-	dcb.fDsrSensitivity = FALSE;
-	dcb.fTXContinueOnXoff = FALSE;
-	dcb.fOutX = FALSE;
-	dcb.fInX = FALSE;
-	dcb.fErrorChar = FALSE;
-	dcb.fNull = FALSE;
+	dcb.fDsrSensitivity = false;
+	dcb.fTXContinueOnXoff = false;
+	dcb.fOutX = false;
+	dcb.fInX = false;
+	dcb.fErrorChar = false;
+	dcb.fNull = false;
 	dcb.fRtsControl = RTS_CONTROL_ENABLE;
-	dcb.fAbortOnError = FALSE;
-	dcb.fOutxCtsFlow = FALSE;
-	dcb.fOutxDsrFlow = FALSE;
+	dcb.fAbortOnError = false;
+	dcb.fOutxCtsFlow = false;
+	dcb.fOutxDsrFlow = false;
 
 	/*
 	 * Configurable parameters.
@@ -151,17 +151,17 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 	    str = "no";
 	    break;
 	  case SER_FLOW_XONXOFF:
-	    dcb.fOutX = dcb.fInX = TRUE;
+	    dcb.fOutX = dcb.fInX = true;
 	    str = "XON/XOFF";
 	    break;
 	  case SER_FLOW_RTSCTS:
 	    dcb.fRtsControl = RTS_CONTROL_HANDSHAKE;
-	    dcb.fOutxCtsFlow = TRUE;
+	    dcb.fOutxCtsFlow = true;
 	    str = "RTS/CTS";
 	    break;
 	  case SER_FLOW_DSRDTR:
 	    dcb.fDtrControl = DTR_CONTROL_HANDSHAKE;
-	    dcb.fOutxDsrFlow = TRUE;
+	    dcb.fOutxDsrFlow = true;
 	    str = "DSR/DTR";
 	    break;
 	}
@@ -204,7 +204,7 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
     serial->port = INVALID_HANDLE_VALUE;
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
-    serial->break_in_progress = FALSE;
+    serial->break_in_progress = false;
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;
 
@@ -329,7 +329,7 @@ static void serbreak_timer(void *ctx, unsigned long now)
 
     if (now == serial->clearbreak_time && serial->port) {
 	ClearCommBreak(serial->port);
-	serial->break_in_progress = FALSE;
+	serial->break_in_progress = false;
         logevent(serial->logctx, "Finished serial break");
     }
 }
@@ -356,7 +356,7 @@ static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 	 */
 	serial->clearbreak_time =
 	    schedule_timer(TICKSPERSEC * 2 / 5, serbreak_timer, serial);
-	serial->break_in_progress = TRUE;
+	serial->break_in_progress = true;
     }
 
     return;

@@ -33,7 +33,7 @@ int cmdline_get_passwd_input(prompts_t *p)
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
 {
-    assert(FALSE && "cmdline_process_param should never be called");
+    assert(false && "cmdline_process_param should never be called");
 }
 
 /*

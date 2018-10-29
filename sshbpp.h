@@ -99,8 +99,8 @@ struct DataTransferStats {
 #define DTS_CONSUME(stats, direction, size)             \
     ((stats)->direction.running &&                      \
      (stats)->direction.remaining <= (size) ?           \
-     ((stats)->direction.running = FALSE, TRUE) :       \
-     ((stats)->direction.remaining -= (size), FALSE))
+     ((stats)->direction.running = false, true) :       \
+     ((stats)->direction.remaining -= (size), false))
 
 BinaryPacketProtocol *ssh2_bpp_new(
     LogContext *logctx, struct DataTransferStats *stats, int is_server);

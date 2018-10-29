@@ -25,8 +25,8 @@ int so_peercred(int fd, int *pid, int *uid, int *gid)
         *pid = cr.pid;
         *uid = cr.uid;
         *gid = cr.gid;
-        return TRUE;
+        return true;
     }
 #endif
-    return FALSE;
+    return false;
 }

@@ -334,9 +334,9 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
 
     while (1) {
         if (ssh2_common_filter_queue(&s->ppl))
-            return TRUE;
+            return true;
         if ((pktin = pq_peek(s->ppl.in_pq)) == NULL)
-            return FALSE;
+            return false;
 
         switch (pktin->type) {
           case SSH2_MSG_GLOBAL_REQUEST:
@@ -363,7 +363,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     "Received %s with no outstanding global request",
                     ssh2_pkt_type(s->ppl.bpp->pls->kctx, s->ppl.bpp->pls->actx,
                                   pktin->type));
-                return TRUE;
+                return true;
             }
 
             s->globreq_head->handler(s, pktin, s->globreq_head->ctx);
@@ -405,7 +405,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
             }
 
             c->remoteid = remid;
-            c->halfopen = FALSE;
+            c->halfopen = false;
             if (chanopen_result.outcome == CHANOPEN_RESULT_FAILURE) {
                 pktout = ssh_bpp_new_pktout(
                     s->ppl.bpp, SSH2_MSG_CHANNEL_OPEN_FAILURE);
@@ -479,14 +479,14 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                                 (!c ? "nonexistent" :
                                  c->halfopen ? "half-open" : "open"),
                                 localid);
-                return TRUE;
+                return true;
             }
  
             switch (pktin->type) {
               case SSH2_MSG_CHANNEL_OPEN_CONFIRMATION:
                 assert(c->halfopen);
                 c->remoteid = get_uint32(pktin);
-                c->halfopen = FALSE;
+                c->halfopen = false;
                 c->remwindow = get_uint32(pktin);
                 c->remmaxpkt = get_uint32(pktin);
 
@@ -505,7 +505,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                  * message. We'll have handled that in this code by
                  * having already turned c->chan into a zombie, so its
                  * want_close method (which ssh2_channel_check_close
-                 * will consult) will already be returning TRUE.
+                 * will consult) will already be returning true.
                  */
                 ssh2_channel_check_close(c);
 
@@ -569,7 +569,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     if ((bufsize > c->locmaxwin ||
                          (s->ssh_is_simple && bufsize>0)) &&
                         !c->throttling_conn) {
-                        c->throttling_conn = TRUE;
+                        c->throttling_conn = true;
                         ssh_throttle_conn(s->ppl.ssh, +1);
                     }
                 }
@@ -586,7 +586,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 type = get_string(pktin);
                 want_reply = get_bool(pktin);
 
-                reply_success = FALSE;
+                reply_success = false;
 
                 if (c->closes & CLOSES_SENT_CLOSE) {
                     /*
@@ -596,7 +596,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                      * side's CHANNEL_CLOSE and arrive after they have
                      * wound the channel up completely.
                      */
-                    want_reply = FALSE;
+                    want_reply = false;
                 }
 
                 /*
@@ -610,7 +610,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 } else if (ptrlen_eq_string(type, "exit-signal")) {
                     ptrlen signame;
                     int signum;
-                    int core = FALSE;
+                    int core = false;
                     ptrlen errmsg;
                     int format;
 
@@ -657,7 +657,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                         break;
                       default:
                         /* Couldn't parse this message in either format */
-                        reply_success = FALSE;
+                        reply_success = false;
                         break;
                     }
                 } else if (ptrlen_eq_string(type, "shell")) {
@@ -694,7 +694,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     if (get_err(bs_modes) || get_avail(bs_modes) > 0) {
                         ppl_logevent(("Unable to decode terminal mode "
                                       "string"));
-                        reply_success = FALSE;
+                        reply_success = false;
                     } else {
                         reply_success = chan_allocate_pty(
                             c->chan, termtype, width, height,
@@ -740,7 +740,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                         "channel request",
                         ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                       s->ppl.bpp->pls->actx, pktin->type));
-                    return TRUE;
+                    return true;
                 }
                 ocr->handler(c, pktin, ocr->ctx);
                 c->chanreq_head = ocr->next;
@@ -839,7 +839,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
             break;
 
           default:
-            return FALSE;
+            return false;
         }
     }
 }
@@ -966,7 +966,7 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
      * Enable port forwardings.
      */
     portfwdmgr_config(s->portfwdmgr, s->conf);
-    s->portfwdmgr_configured = TRUE;
+    s->portfwdmgr_configured = true;
 
     /*
      * Create the main session channel, if any.
@@ -1051,7 +1051,7 @@ static void ssh2_channel_try_eof(struct ssh2_channel *c)
     if (bufchain_size(&c->outbuffer) > 0 || bufchain_size(&c->errbuffer) > 0)
         return;              /* can't send EOF: pending outgoing data */
 
-    c->pending_eof = FALSE;            /* we're about to send it */
+    c->pending_eof = false;            /* we're about to send it */
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_EOF);
     put_uint32(pktout, c->remoteid);
@@ -1120,7 +1120,7 @@ static void ssh2_try_send_and_unthrottle(struct ssh2_channel *c)
 	return;                   /* don't send on channels we've EOFed */
     bufsize = ssh2_try_send(c);
     if (bufsize == 0) {
-        c->throttled_by_backlog = FALSE;
+        c->throttled_by_backlog = false;
         ssh2_channel_check_throttle(c);
     }
 }
@@ -1227,9 +1227,9 @@ void ssh2_channel_init(struct ssh2_channel *c)
 {
     struct ssh2_connection_state *s = c->connlayer;
     c->closes = 0;
-    c->pending_eof = FALSE;
-    c->throttling_conn = FALSE;
-    c->throttled_by_backlog = FALSE;
+    c->pending_eof = false;
+    c->throttling_conn = false;
+    c->throttled_by_backlog = false;
     c->sharectx = NULL;
     c->locwindow = c->locmaxwin = c->remlocwin =
         s->ssh_is_simple ? OUR_V2_BIGWIN : OUR_V2_WINSIZE;
@@ -1313,7 +1313,7 @@ static void ssh2channel_write_eof(SshChannel *sc)
     if (c->closes & CLOSES_SENT_EOF)
         return;
 
-    c->pending_eof = TRUE;
+    c->pending_eof = true;
     ssh2_channel_try_eof(c);
 }
 
@@ -1325,7 +1325,7 @@ static void ssh2channel_initiate_close(SshChannel *sc, const char *err)
     reason = err ? dupprintf("due to local error: %s", err) : NULL;
     ssh2_channel_close_local(c, reason);
     sfree(reason);
-    c->pending_eof = FALSE;   /* this will confuse a zombie channel */
+    c->pending_eof = false;   /* this will confuse a zombie channel */
 
     ssh2_channel_check_close(c);
 }
@@ -1414,7 +1414,7 @@ static SshChannel *ssh2_lportfwd_open(
 
     c->connlayer = s;
     ssh2_channel_init(c);
-    c->halfopen = TRUE;
+    c->halfopen = true;
     c->chan = chan;
 
     pktout = ssh2_portfwd_chanopen(s, c, hostname, port, description, pi);
@@ -1534,11 +1534,11 @@ static int ssh2_connection_get_specials(
 {
     struct ssh2_connection_state *s =
         container_of(ppl, struct ssh2_connection_state, ppl);
-    int toret = FALSE;
+    int toret = false;
 
     if (s->mainchan) {
         mainchan_get_specials(s->mainchan, add_special, ctx);
-        toret = TRUE;
+        toret = true;
     }
 
     /*
@@ -1551,7 +1551,7 @@ static int ssh2_connection_get_specials(
             add_special(ctx, NULL, SS_SEP, 0);
 
         add_special(ctx, "IGNORE message", SS_NOP, 0);
-        toret = TRUE;
+        toret = true;
     }
 
     return toret;
@@ -1642,7 +1642,7 @@ static void ssh2_enable_x_fwd(ConnectionLayer *cl)
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
 
-    s->X11_fwd_enabled = TRUE;
+    s->X11_fwd_enabled = true;
 }
 
 static void ssh2_enable_agent_fwd(ConnectionLayer *cl)
@@ -1650,7 +1650,7 @@ static void ssh2_enable_agent_fwd(ConnectionLayer *cl)
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
 
-    s->agent_fwd_enabled = TRUE;
+    s->agent_fwd_enabled = true;
 }
 
 static void ssh2_set_wants_user_input(ConnectionLayer *cl, int wanted)
