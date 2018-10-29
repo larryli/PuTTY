@@ -1410,6 +1410,7 @@ void conf_free(Conf *conf);
 Conf *conf_copy(Conf *oldconf);
 void conf_copy_into(Conf *dest, Conf *src);
 /* Mandatory accessor functions: enforce by assertion that keys exist. */
+bool conf_get_bool(Conf *conf, int key);
 int conf_get_int(Conf *conf, int key);
 int conf_get_int_int(Conf *conf, int key, int subkey);
 char *conf_get_str(Conf *conf, int key);   /* result still owned by conf */
@@ -1426,6 +1427,7 @@ char *conf_get_str_strs(Conf *conf, int key, char *subkeyin, char **subkeyout);
 /* Return the nth string subkey in a list. Owned by conf. NULL if beyond end */
 char *conf_get_str_nthstrkey(Conf *conf, int key, int n);
 /* Functions to set entries in configuration. Always copy their inputs. */
+void conf_set_bool(Conf *conf, int key, bool value);
 void conf_set_int(Conf *conf, int key, int value);
 void conf_set_int_int(Conf *conf, int key, int subkey, int value);
 void conf_set_str(Conf *conf, int key, const char *value);
