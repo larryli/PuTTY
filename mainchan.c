@@ -376,7 +376,7 @@ static void mainchan_send_eof(Channel *chan)
     mainchan *mc = container_of(chan, mainchan, chan);
     PacketProtocolLayer *ppl = mc->ppl; /* for ppl_logevent */
 
-    if (!mc->eof_sent & (seat_eof(mc->ppl->seat) || mc->got_pty)) {
+    if (!mc->eof_sent && (seat_eof(mc->ppl->seat) || mc->got_pty)) {
         /*
          * Either seat_eof told us that the front end wants us to
          * close the outgoing side of the connection as soon as we see

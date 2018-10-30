@@ -1903,11 +1903,11 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
         if (s->max_data_size < old_max_data_size) {
             unsigned long diff = old_max_data_size - s->max_data_size;
 
-            /* Intentionally use bitwise OR instead of logical, so
-             * that we decrement both counters even if the first one
-             * runs out */
-            if ((DTS_CONSUME(s->stats, out, diff) != 0) |
-                (DTS_CONSUME(s->stats, in, diff) != 0))
+            /* We must decrement both counters, so avoid short-circuit
+             * evaluation skipping one */
+            int out_expired = DTS_CONSUME(s->stats, out, diff) != 0;
+            int in_expired = DTS_CONSUME(s->stats, in, diff) != 0;
+            if (out_expired || in_expired)
                 rekey_reason = "data limit lowered";
         } else {
             unsigned long diff = s->max_data_size - old_max_data_size;

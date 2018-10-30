@@ -407,7 +407,7 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
         ctx->cols[2].red = ctx->cols[2].green = ctx->cols[2].blue = 0x8000;
         gdk_colormap_alloc_colors(ctx->colmap, ctx->cols, 2,
                                   FALSE, TRUE, success);
-        if (!success[0] | !success[1])
+        if (!success[0] || !success[1])
             return "unable to allocate colours";
     }
 #endif
