@@ -54,7 +54,7 @@ typedef enum MainChanType {
     MAINCHAN_SESSION, MAINCHAN_DIRECT_TCPIP
 } MainChanType;
 
-typedef struct mainchan {
+struct mainchan {
     SshChannel *sc;
     Conf *conf;
     PacketProtocolLayer *ppl;
@@ -70,7 +70,7 @@ typedef struct mainchan {
     int term_width, term_height;
 
     Channel chan;
-} mainchan;
+};
 
 mainchan *mainchan_new(
     PacketProtocolLayer *ppl, ConnectionLayer *cl, Conf *conf,
