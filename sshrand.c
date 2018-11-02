@@ -42,7 +42,7 @@ struct RandPool {
     unsigned char incomingb[HASHINPUT];
     int incomingpos;
 
-    int stir_pending;
+    bool stir_pending;
 };
 
 int random_active = 0;

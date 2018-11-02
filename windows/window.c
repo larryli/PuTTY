@@ -102,24 +102,25 @@ static void set_input_locale(HKL);
 static void update_savedsess_menu(void);
 static void init_winfuncs(void);
 
-static int is_full_screen(void);
+static bool is_full_screen(void);
 static void make_full_screen(void);
 static void clear_full_screen(void);
 static void flip_full_screen(void);
-static void process_clipdata(HGLOBAL clipdata, int unicode);
+static void process_clipdata(HGLOBAL clipdata, bool unicode);
 static void setup_clipboards(Terminal *, Conf *);
 
 /* Window layout information */
 static void reset_window(int);
 static int extra_width, extra_height;
-static int font_width, font_height, font_dualwidth, font_varpitch;
+static int font_width, font_height;
+static bool font_dualwidth, font_varpitch;
 static int offset_width, offset_height;
-static int was_zoomed = 0;
+static bool was_zoomed = false;
 static int prev_rows, prev_cols;
   
 static void flash_window(int mode);
 static void sys_cursor_update(void);
-static int get_fullscreen_rect(RECT * ss);
+static bool get_fullscreen_rect(RECT * ss);
 
 static int caret_x = -1, caret_y = -1;
 
@@ -129,8 +130,8 @@ static Ldisc *ldisc;
 static Backend *backend;
 
 static struct unicode_data ucsdata;
-static int session_closed;
-static int reconfiguring = false;
+static bool session_closed;
+static bool reconfiguring = false;
 
 static const SessionSpecial *specials = NULL;
 static HMENU specials_menu = NULL;
@@ -183,11 +184,11 @@ struct agent_callback {
 #define FONT_SHIFT	5
 static HFONT fonts[FONT_MAXNO];
 static LOGFONT lfont;
-static int fontflag[FONT_MAXNO];
+static bool fontflag[FONT_MAXNO];
 static enum {
     BOLD_NONE, BOLD_SHADOW, BOLD_FONT
 } bold_font_mode;
-static int bold_colours;
+static bool bold_colours;
 static enum {
     UND_LINE, UND_FONT
 } und_mode;
@@ -210,7 +211,7 @@ static int dbltime, lasttime, lastact;
 static Mouse_Button lastbtn;
 
 /* this allows xterm-style mouse handling. */
-static int send_raw_mouse = 0;
+static bool send_raw_mouse = false;
 static int wheel_accumulator = 0;
 
 static BusyStatus busy_status = BUSY_NOT;
@@ -227,7 +228,7 @@ static UINT wm_mousewheel = WM_MOUSEWHEEL;
     (((wch) >= 0x180B && (wch) <= 0x180D) || /* MONGOLIAN FREE VARIATION SELECTOR */ \
      ((wch) >= 0xFE00 && (wch) <= 0xFE0F)) /* VARIATION SELECTOR 1-16 */
 
-static int wintw_setup_draw_ctx(TermWin *);
+static bool wintw_setup_draw_ctx(TermWin *);
 static void wintw_draw_text(TermWin *, int x, int y, wchar_t *text, int len,
                             unsigned long attrs, int lattrs, truecolour tc);
 static void wintw_draw_cursor(TermWin *, int x, int y, wchar_t *text, int len,
@@ -235,29 +236,29 @@ static void wintw_draw_cursor(TermWin *, int x, int y, wchar_t *text, int len,
 static int wintw_char_width(TermWin *, int uc);
 static void wintw_free_draw_ctx(TermWin *);
 static void wintw_set_cursor_pos(TermWin *, int x, int y);
-static void wintw_set_raw_mouse_mode(TermWin *, int enable);
+static void wintw_set_raw_mouse_mode(TermWin *, bool enable);
 static void wintw_set_scrollbar(TermWin *, int total, int start, int page);
 static void wintw_bell(TermWin *, int mode);
 static void wintw_clip_write(
     TermWin *, int clipboard, wchar_t *text, int *attrs,
-    truecolour *colours, int len, int must_deselect);
+    truecolour *colours, int len, bool must_deselect);
 static void wintw_clip_request_paste(TermWin *, int clipboard);
 static void wintw_refresh(TermWin *);
 static void wintw_request_resize(TermWin *, int w, int h);
 static void wintw_set_title(TermWin *, const char *title);
 static void wintw_set_icon_title(TermWin *, const char *icontitle);
-static void wintw_set_minimised(TermWin *, int minimised);
-static int wintw_is_minimised(TermWin *);
-static void wintw_set_maximised(TermWin *, int maximised);
+static void wintw_set_minimised(TermWin *, bool minimised);
+static bool wintw_is_minimised(TermWin *);
+static void wintw_set_maximised(TermWin *, bool maximised);
 static void wintw_move(TermWin *, int x, int y);
-static void wintw_set_zorder(TermWin *, int top);
-static int wintw_palette_get(TermWin *, int n, int *r, int *g, int *b);
+static void wintw_set_zorder(TermWin *, bool top);
+static bool wintw_palette_get(TermWin *, int n, int *r, int *g, int *b);
 static void wintw_palette_set(TermWin *, int n, int r, int g, int b);
 static void wintw_palette_reset(TermWin *);
 static void wintw_get_pos(TermWin *, int *x, int *y);
 static void wintw_get_pixels(TermWin *, int *x, int *y);
-static const char *wintw_get_title(TermWin *, int icon);
-static int wintw_is_utf8(TermWin *);
+static const char *wintw_get_title(TermWin *, bool icon);
+static bool wintw_is_utf8(TermWin *);
 
 static const TermWinVtable windows_termwin_vt = {
     wintw_setup_draw_ctx,
@@ -292,20 +293,20 @@ static const TermWinVtable windows_termwin_vt = {
 static TermWin wintw[1];
 static HDC wintw_hdc;
 
-const int share_can_be_downstream = true;
-const int share_can_be_upstream = true;
+const bool share_can_be_downstream = true;
+const bool share_can_be_upstream = true;
 
-static int is_utf8(void)
+static bool is_utf8(void)
 {
     return ucsdata.line_codepage == CP_UTF8;
 }
 
-static int wintw_is_utf8(TermWin *tw)
+static bool wintw_is_utf8(TermWin *tw)
 {
     return is_utf8();
 }
 
-static int win_seat_is_utf8(Seat *seat)
+static bool win_seat_is_utf8(Seat *seat)
 {
     return is_utf8();
 }
@@ -315,14 +316,14 @@ char *win_seat_get_ttymode(Seat *seat, const char *mode)
     return term_get_ttymode(term, mode);
 }
 
-int win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
+bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
 {
     win_get_pixels(wintw, x, y);
     return true;
 }
 
-static int win_seat_output(Seat *seat, int is_stderr, const void *, int);
-static int win_seat_eof(Seat *seat);
+static int win_seat_output(Seat *seat, bool is_stderr, const void *, int);
+static bool win_seat_eof(Seat *seat);
 static int win_seat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input);
 static void win_seat_notify_remote_exit(Seat *seat);
@@ -511,7 +512,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     {
 	char *p;
-        int special_launchable_argument = false;
+        bool special_launchable_argument = false;
 
 	default_protocol = be_default_protocol;
 	/* Find the appropriate default port. */
@@ -1006,7 +1007,7 @@ void cleanup_exit(int code)
 /*
  * Set up, or shut down, an AsyncSelect. Called from winnet.c.
  */
-char *do_select(SOCKET skt, int startup)
+char *do_select(SOCKET skt, bool startup)
 {
     int msg, events;
     if (startup) {
@@ -1122,8 +1123,8 @@ static void win_seat_update_specials_menu(Seat *seat)
 static void update_mouse_pointer(void)
 {
     LPTSTR curstype = NULL;
-    int force_visible = false;
-    static int forced_visible = false;
+    bool force_visible = false;
+    static bool forced_visible = false;
     switch (busy_status) {
       case BUSY_NOT:
 	if (send_raw_mouse)
@@ -1166,7 +1167,7 @@ static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
 /*
  * set or clear the "raw mouse message" mode
  */
-static void wintw_set_raw_mouse_mode(TermWin *tw, int activate)
+static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     activate = activate && !conf_get_bool(conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
@@ -1343,7 +1344,7 @@ static void init_palette(void)
  */
 static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			  unsigned short *lpString, UINT cbCount,
-			  CONST INT *lpDx, int opaque)
+			  CONST INT *lpDx, bool opaque)
 {
 #ifdef __LCC__
     /*
@@ -1385,15 +1386,16 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
  */
 static void general_textout(HDC hdc, int x, int y, CONST RECT *lprc,
 			    unsigned short *lpString, UINT cbCount,
-			    CONST INT *lpDx, int opaque)
+			    CONST INT *lpDx, bool opaque)
 {
     int i, j, xp, xn;
-    int bkmode = 0, got_bkmode = false;
+    int bkmode = 0;
+    bool got_bkmode = false;
 
     xp = xn = x;
 
     for (i = 0; i < (int)cbCount ;) {
-	int rtl = is_rtl(lpString[i]);
+	bool rtl = is_rtl(lpString[i]);
 
 	xn += lpDx[i];
 
@@ -1592,7 +1594,8 @@ static void init_fonts(int pick_width, int pick_height)
     {
 	HDC und_dc;
 	HBITMAP und_bm, und_oldbm;
-	int i, gotit;
+	int i;
+        bool gotit;
 	COLORREF c;
 
 	und_dc = CreateCompatibleDC(hdc);
@@ -1653,7 +1656,9 @@ static void init_fonts(int pick_width, int pick_height)
 	DeleteObject(fonts[FONT_BOLD]);
 	fonts[FONT_BOLD] = 0;
     }
-    fontflag[0] = fontflag[1] = fontflag[2] = 1;
+    fontflag[0] = true;
+    fontflag[1] = true;
+    fontflag[2] = true;
 
     init_ucs(conf, &ucsdata);
 }
@@ -1662,7 +1667,8 @@ static void another_font(int fontno)
 {
     int basefont;
     int fw_dontcare, fw_bold, quality;
-    int c, u, w, x;
+    int c, w, x;
+    bool u;
     char *s;
     FontSpec *font;
 
@@ -1708,7 +1714,7 @@ static void another_font(int fontno)
 		   CLIP_DEFAULT_PRECIS, FONT_QUALITY(quality),
 		   DEFAULT_PITCH | FF_DONTCARE, s);
 
-    fontflag[fontno] = 1;
+    fontflag[fontno] = true;
 }
 
 static void deinit_fonts(void)
@@ -1718,7 +1724,7 @@ static void deinit_fonts(void)
 	if (fonts[i])
 	    DeleteObject(fonts[i]);
 	fonts[i] = 0;
-	fontflag[i] = 0;
+	fontflag[i] = false;
     }
 }
 
@@ -1998,7 +2004,8 @@ static void set_input_locale(HKL kl)
     kbd_codepage = atoi(lbuf);
 }
 
-static void click(Mouse_Button b, int x, int y, int shift, int ctrl, int alt)
+static void click(Mouse_Button b, int x, int y,
+                  bool shift, bool ctrl, bool alt)
 {
     int thistime = GetMessageTime();
 
@@ -2041,13 +2048,13 @@ static Mouse_Button translate_button(Mouse_Button button)
     return 0;			       /* shouldn't happen */
 }
 
-static void show_mouseptr(int show)
+static void show_mouseptr(bool show)
 {
     /* NB that the counter in ShowCursor() is also frobbed by
      * update_mouse_pointer() */
-    static int cursor_visible = 1;
+    static bool cursor_visible = true;
     if (!conf_get_bool(conf, CONF_hide_mouseptr))
-	show = 1;		       /* override if this feature disabled */
+	show = true;                   /* override if this feature disabled */
     if (cursor_visible && !show)
 	ShowCursor(false);
     else if (!cursor_visible && show)
@@ -2055,7 +2062,7 @@ static void show_mouseptr(int show)
     cursor_visible = show;
 }
 
-static int is_alt_pressed(void)
+static bool is_alt_pressed(void)
 {
     BYTE keystate[256];
     int r = GetKeyboardState(keystate);
@@ -2068,7 +2075,7 @@ static int is_alt_pressed(void)
     return false;
 }
 
-static int resizing;
+static bool resizing;
 
 static void win_seat_notify_remote_exit(Seat *seat)
 {
@@ -2143,10 +2150,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
     HDC hdc;
-    static int ignore_clip = false;
-    static int need_backend_resize = false;
-    static int fullscr_on_max = false;
-    static int processed_resize = false;
+    static bool ignore_clip = false;
+    static bool need_backend_resize = false;
+    static bool fullscr_on_max = false;
+    static bool processed_resize = false;
     static UINT last_mousemove = 0;
     int resize_action;
 
@@ -2167,7 +2174,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_CLOSE:
 	{
 	    char *str;
-	    show_mouseptr(1);
+	    show_mouseptr(true);
 	    str = dupprintf("%s Exit Confirmation", appname);
 	    if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
 		MessageBox(hwnd,
@@ -2179,7 +2186,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	}
 	return 0;
       case WM_DESTROY:
-	show_mouseptr(1);
+	show_mouseptr(true);
 	PostQuitMessage(0);
 	return 0;
       case WM_INITMENUPOPUP:
@@ -2205,7 +2212,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		char b[2048];
 		char *cl;
                 const char *argprefix;
-		BOOL inherit_handles;
+		bool inherit_handles;
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
 		HANDLE filemap = NULL;
@@ -2295,7 +2302,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    {
 		Conf *prev_conf;
 		int init_lvl = 1;
-		int reconfig_result;
+		bool reconfig_result;
 
 		if (reconfiguring)
 		    break;
@@ -2506,7 +2513,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * We get this if the System menu has been activated
 	     * using the mouse.
 	     */
-	    show_mouseptr(1);
+	    show_mouseptr(true);
 	    break;
           case SC_KEYMENU:
 	    /*
@@ -2517,7 +2524,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * the menu up_ rather than just sitting there in
 	     * `ready to appear' state.
 	     */
-	    show_mouseptr(1);	       /* make sure pointer is visible */
+	    show_mouseptr(true);    /* make sure pointer is visible */
 	    if( lParam == 0 )
 		PostMessage(hwnd, WM_CHAR, ' ', 0);
 	    break;
@@ -2560,7 +2567,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     (conf_get_int(conf, CONF_mouse_is_xterm) == 2))) {
 	    POINT cursorpos;
 
-	    show_mouseptr(1);	       /* make sure pointer is visible */
+	    show_mouseptr(true);    /* make sure pointer is visible */
 	    GetCursorPos(&cursorpos);
 	    TrackPopupMenu(popup_menus[CTXMENU].menu,
 			   TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON,
@@ -2569,43 +2576,45 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    break;
 	}
 	{
-	    int button, press;
+	    int button;
+            bool press;
 
 	    switch (message) {
 	      case WM_LBUTTONDOWN:
 		button = MBT_LEFT;
 		wParam |= MK_LBUTTON;
-		press = 1;
+		press = true;
 		break;
 	      case WM_MBUTTONDOWN:
 		button = MBT_MIDDLE;
 		wParam |= MK_MBUTTON;
-		press = 1;
+		press = true;
 		break;
 	      case WM_RBUTTONDOWN:
 		button = MBT_RIGHT;
 		wParam |= MK_RBUTTON;
-		press = 1;
+		press = true;
 		break;
 	      case WM_LBUTTONUP:
 		button = MBT_LEFT;
 		wParam &= ~MK_LBUTTON;
-		press = 0;
+		press = false;
 		break;
 	      case WM_MBUTTONUP:
 		button = MBT_MIDDLE;
 		wParam &= ~MK_MBUTTON;
-		press = 0;
+		press = false;
 		break;
 	      case WM_RBUTTONUP:
 		button = MBT_RIGHT;
 		wParam &= ~MK_RBUTTON;
-		press = 0;
+		press = false;
 		break;
-	      default:
-		button = press = 0;    /* shouldn't happen */
+	      default: /* shouldn't happen */
+		button = 0;
+                press = false;
 	    }
-	    show_mouseptr(1);
+	    show_mouseptr(true);
 	    /*
 	     * Special case: in full-screen mode, if the left
 	     * button is clicked in the very top left corner of the
@@ -2613,7 +2622,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	     * selection.
 	     */
 	    {
-		char mouse_on_hotspot = 0;
+		bool mouse_on_hotspot = false;
 		POINT pt;
 
 		GetCursorPos(&pt);
@@ -2630,13 +2639,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 			if (mi.rcMonitor.left == pt.x &&
 			    mi.rcMonitor.top == pt.y) {
-			    mouse_on_hotspot = 1;
+			    mouse_on_hotspot = true;
 			}
 		    }
 		}
 #else
 		if (pt.x == 0 && pt.y == 0) {
-		    mouse_on_hotspot = 1;
+		    mouse_on_hotspot = true;
 		}
 #endif
 		if (is_full_screen() && press &&
@@ -2674,7 +2683,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    static LPARAM lp = 0;
 	    if (wParam != wp || lParam != lp ||
 		last_mousemove != WM_MOUSEMOVE) {
-		show_mouseptr(1);
+		show_mouseptr(true);
 		wp = wParam; lp = lParam;
 		last_mousemove = WM_MOUSEMOVE;
 	    }
@@ -2706,7 +2715,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    static LPARAM lp = 0;
 	    if (wParam != wp || lParam != lp ||
 		last_mousemove != WM_NCMOUSEMOVE) {
-		show_mouseptr(1);
+		show_mouseptr(true);
 		wp = wParam; lp = lParam;
 		last_mousemove = WM_NCMOUSEMOVE;
 	    }
@@ -2846,7 +2855,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	term_update(term);
 	break;
       case WM_KILLFOCUS:
-	show_mouseptr(1);
+	show_mouseptr(true);
 	term_set_focus(term, false);
 	DestroyCaret();
 	caret_x = caret_y = -1;	       /* ensure caret is replaced next time */
@@ -2856,12 +2865,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 #ifdef RDB_DEBUG_PATCH
 	debug((27, "WM_ENTERSIZEMOVE"));
 #endif
-	EnableSizeTip(1);
+	EnableSizeTip(true);
 	resizing = true;
 	need_backend_resize = false;
 	break;
       case WM_EXITSIZEMOVE:
-	EnableSizeTip(0);
+	EnableSizeTip(false);
 	resizing = false;
 #ifdef RDB_DEBUG_PATCH
 	debug((27, "WM_EXITSIZEMOVE"));
@@ -3031,7 +3040,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    height = HIWORD(lParam);
 
             if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
-                was_zoomed = 1;
+                was_zoomed = true;
                 prev_rows = term->rows;
                 prev_cols = term->cols;
                 if (resize_action == RESIZE_TERM) {
@@ -3058,7 +3067,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 }
                 reset_window(0);
             } else if (wParam == SIZE_RESTORED && was_zoomed) {
-                was_zoomed = 0;
+                was_zoomed = false;
                 if (resize_action == RESIZE_TERM) {
                     w = (width-window_border*2) / font_width;
                     if (w < 1) w = 1;
@@ -3205,8 +3214,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     */
 		    term_seen_key_event(term);
 		    if (ldisc)
-			ldisc_send(ldisc, buf, len, 1);
-		    show_mouseptr(0);
+			ldisc_send(ldisc, buf, len, true);
+		    show_mouseptr(false);
 		}
 	    }
 	}
@@ -3258,12 +3267,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
 			    WCHAR ls = *(unsigned short *)(buff+i+2);
 			    if (IS_LOW_SURROGATE(ls)) {
-				luni_send(ldisc, (unsigned short *)(buff+i), 2, 1);
+				luni_send(ldisc, (unsigned short *)(buff+i),
+                                          2, true);
 				i += 2;
 				continue;
 			    }
 			}
-			luni_send(ldisc, (unsigned short *)(buff+i), 1, 1);
+			luni_send(ldisc, (unsigned short *)(buff+i), 1, true);
                     }
 		}
 		free(buff);
@@ -3280,12 +3290,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    buf[0] = wParam >> 8;
 	    term_seen_key_event(term);
 	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, buf, 2, 1);
+		lpage_send(ldisc, kbd_codepage, buf, 2, true);
 	} else {
 	    char c = (unsigned char) wParam;
 	    term_seen_key_event(term);
 	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, &c, 1, 1);
+		lpage_send(ldisc, kbd_codepage, &c, 1, true);
 	}
 	return (0);
       case WM_CHAR:
@@ -3307,10 +3317,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 pair[0] = pending_surrogate;
                 pair[1] = c;
                 term_seen_key_event(term);
-                luni_send(ldisc, pair, 2, 1);
+                luni_send(ldisc, pair, 2, true);
             } else if (!IS_SURROGATE(c)) {
                 term_seen_key_event(term);
-                luni_send(ldisc, &c, 1, 1);
+                luni_send(ldisc, &c, 1, true);
             }
 	}
 	return 0;
@@ -3336,7 +3346,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	return 0;
       default:
 	if (message == wm_mousewheel || message == WM_MOUSEWHEEL) {
-	    int shift_pressed=0, control_pressed=0;
+	    bool shift_pressed = false, control_pressed = false;
 
 	    if (message == WM_MOUSEWHEEL) {
 		wheel_accumulator += (short)HIWORD(wParam);
@@ -3465,12 +3475,13 @@ static void do_text_internal(
     COLORREF fg, bg, t;
     int nfg, nbg, nfont;
     RECT line_box;
-    int force_manual_underline = 0;
+    bool force_manual_underline = false;
     int fnt_width, char_width;
     int text_adjust = 0;
     int xoffset = 0;
-    int maxlen, remaining, opaque;
-    int is_cursor = false;
+    int maxlen, remaining;
+    bool opaque;
+    bool is_cursor = false;
     static int *lpDx = NULL;
     static int lpDx_len = 0;
     int *lpDx_maybe;
@@ -3540,7 +3551,7 @@ static void do_text_internal(
 	text[0] = ucsdata.unitab_xterm['q'];
 	if (attr & ATTR_UNDER) {
 	    attr &= ~ATTR_UNDER;
-	    force_manual_underline = 1;
+	    force_manual_underline = true;
 	}
     }
 #endif
@@ -3566,7 +3577,7 @@ static void do_text_internal(
     another_font(nfont);
     if (!fonts[nfont]) {
 	if (nfont & FONT_UNDERLINE)
-	    force_manual_underline = 1;
+	    force_manual_underline = true;
 	/* Don't do the same for manual bold, it could be bad news. */
 
 	nfont &= ~(FONT_BOLD | FONT_UNDERLINE);
@@ -4056,7 +4067,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			unsigned char *output)
 {
     BYTE keystate[256];
-    int scan, left_alt = 0, key_down, shift_state;
+    int scan, shift_state;
+    bool left_alt = false, key_down;
     int r, i, code;
     unsigned char *p = output;
     static int alt_sum = 0;
@@ -4178,7 +4190,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	return 0;
 
     if ((HIWORD(lParam) & KF_ALTDOWN) && (keystate[VK_RMENU] & 0x80) == 0)
-	left_alt = 1;
+	left_alt = true;
 
     key_down = ((HIWORD(lParam) & KF_UP) == 0);
 
@@ -4188,7 +4200,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    keystate[VK_MENU] = 0;
 	else {
 	    keystate[VK_RMENU] = 0x80;
-	    left_alt = 0;
+	    left_alt = false;
 	}
     }
 
@@ -4373,7 +4385,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	}
 	/* Control-Numlock for app-keypad mode switch */
 	if (wParam == VK_PAUSE && shift_state == 2) {
-	    term->app_keypad_keys ^= 1;
+	    term->app_keypad_keys = !term->app_keypad_keys;
 	    return 0;
 	}
 
@@ -4782,7 +4794,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     /* Okay we've done everything interesting; let windows deal with 
      * the boring stuff */
     {
-	BOOL capsOn=0;
+	bool capsOn = false;
 
 	/* helg: clear CAPS LOCK state if caps lock switches to cyrillic */
 	if(keystate[VK_CAPITAL] != 0 &&
@@ -4862,7 +4874,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    keybuf = nc;
 		    term_seen_key_event(term);
 		    if (ldisc)
-			luni_send(ldisc, &keybuf, 1, 1);
+			luni_send(ldisc, &keybuf, 1, true);
 		    continue;
 		}
 
@@ -4874,7 +4886,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			    keybuf = alt_sum;
 			    term_seen_key_event(term);
 			    if (ldisc)
-				luni_send(ldisc, &keybuf, 1, 1);
+				luni_send(ldisc, &keybuf, 1, true);
 			} else {
 			    char ch = (char) alt_sum;
 			    /*
@@ -4888,13 +4900,13 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     */
 			    term_seen_key_event(term);
 			    if (ldisc)
-				ldisc_send(ldisc, &ch, 1, 1);
+				ldisc_send(ldisc, &ch, 1, true);
 			}
 			alt_sum = 0;
 		    } else {
 			term_seen_key_event(term);
 			if (ldisc)
-			    luni_send(ldisc, &wch, 1, 1);
+			    luni_send(ldisc, &wch, 1, true);
 		    }
 		} else {
 		    if(capsOn && wch < 0x80) {
@@ -4903,17 +4915,19 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			cbuf[1] = xlat_uskbd2cyrllic(wch);
 			term_seen_key_event(term);
 			if (ldisc)
-			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt, 1);
+			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt,
+                                      true);
 		    } else {
 			WCHAR cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = wch;
 			term_seen_key_event(term);
 			if (ldisc)
-			    luni_send(ldisc, cbuf +!left_alt, 1+!!left_alt, 1);
+			    luni_send(ldisc, cbuf +!left_alt, 1+!!left_alt,
+                                      true);
 		    }
 		}
-		show_mouseptr(0);
+		show_mouseptr(false);
 	    }
 
 	    /* This is so the ALT-Numpad and dead keys work correctly. */
@@ -4978,7 +4992,7 @@ static void wintw_set_scrollbar(TermWin *tw, int total, int start, int page)
 	SetScrollInfo(hwnd, SB_VERT, &si, true);
 }
 
-static int wintw_setup_draw_ctx(TermWin *tw)
+static bool wintw_setup_draw_ctx(TermWin *tw)
 {
     assert(!wintw_hdc);
     wintw_hdc = make_hdc();
@@ -5004,7 +5018,7 @@ static void real_palette_set(int n, int r, int g, int b)
     }
 }
 
-static int wintw_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static bool wintw_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 {
     if (n < 0 || n >= NALLCOLOURS)
 	return false;
@@ -5064,7 +5078,7 @@ static void wintw_palette_reset(TermWin *tw)
     }
 }
 
-void write_aclip(int clipboard, char *data, int len, int must_deselect)
+void write_aclip(int clipboard, char *data, int len, bool must_deselect)
 {
     HGLOBAL clipdata;
     void *lock;
@@ -5113,7 +5127,7 @@ int cmpCOLORREF(void *va, void *vb)
  */
 static void wintw_clip_write(
     TermWin *tw, int clipboard, wchar_t *data, int *attr,
-    truecolour *truecolour, int len, int must_deselect)
+    truecolour *truecolour, int len, bool must_deselect)
 {
     HGLOBAL clipdata, clipdata2, clipdata3;
     int len2;
@@ -5536,9 +5550,11 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
 
     if (OpenClipboard(NULL)) {
 	if ((clipdata = GetClipboardData(CF_UNICODETEXT))) {
-	    SendMessage(hwnd, WM_GOT_CLIPDATA, (WPARAM)1, (LPARAM)clipdata);
+	    SendMessage(hwnd, WM_GOT_CLIPDATA,
+                        (WPARAM)true, (LPARAM)clipdata);
 	} else if ((clipdata = GetClipboardData(CF_TEXT))) {
-	    SendMessage(hwnd, WM_GOT_CLIPDATA, (WPARAM)0, (LPARAM)clipdata);
+	    SendMessage(hwnd, WM_GOT_CLIPDATA,
+                        (WPARAM)false, (LPARAM)clipdata);
 	}
 	CloseClipboard();
     }
@@ -5546,7 +5562,7 @@ static DWORD WINAPI clipboard_read_threadfunc(void *param)
     return 0;
 }
 
-static void process_clipdata(HGLOBAL clipdata, int unicode)
+static void process_clipdata(HGLOBAL clipdata, bool unicode)
 {
     wchar_t *clipboard_contents = NULL;
     size_t clipboard_length = 0;
@@ -5641,7 +5657,7 @@ void nonfatal(const char *fmt, ...)
     sfree(stuff);
 }
 
-static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
+static bool flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
 {
     if (p_FlashWindowEx) {
 	FLASHWINFO fi;
@@ -5658,7 +5674,7 @@ static BOOL flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
 
 static void flash_window(int mode);
 static long next_flash;
-static int flashing = 0;
+static bool flashing = false;
 
 /*
  * Timer for platforms where we must maintain window flashing manually
@@ -5681,7 +5697,7 @@ static void flash_window(int mode)
     if ((mode == 0) || (beep_ind == B_IND_DISABLED)) {
 	/* stop */
 	if (flashing) {
-	    flashing = 0;
+	    flashing = false;
 	    if (p_FlashWindowEx)
 		flash_window_ex(FLASHW_STOP, 0, 0);
 	    else
@@ -5691,7 +5707,7 @@ static void flash_window(int mode)
     } else if (mode == 2) {
 	/* start */
 	if (!flashing) {
-	    flashing = 1;
+	    flashing = true;
 	    if (p_FlashWindowEx) {
 		/* For so-called "steady" mode, we use uCount=2, which
 		 * seems to be the traditional number of flashes used
@@ -5783,7 +5799,7 @@ static void wintw_bell(TermWin *tw, int mode)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-static void wintw_set_minimised(TermWin *tw, int minimised)
+static void wintw_set_minimised(TermWin *tw, bool minimised)
 {
     if (IsIconic(hwnd)) {
 	if (!minimised)
@@ -5812,7 +5828,7 @@ static void wintw_move(TermWin *tw, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-static void wintw_set_zorder(TermWin *tw, int top)
+static void wintw_set_zorder(TermWin *tw, bool top)
 {
     if (conf_get_bool(conf, CONF_alwaysontop))
 	return;			       /* ignore */
@@ -5832,7 +5848,7 @@ static void wintw_refresh(TermWin *tw)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-static void wintw_set_maximised(TermWin *tw, int maximised)
+static void wintw_set_maximised(TermWin *tw, bool maximised)
 {
     if (IsZoomed(hwnd)) {
         if (!maximised)
@@ -5846,7 +5862,7 @@ static void wintw_set_maximised(TermWin *tw, int maximised)
 /*
  * Report whether the window is iconic, for terminal reports.
  */
-static int wintw_is_minimised(TermWin *tw)
+static bool wintw_is_minimised(TermWin *tw)
 {
     return IsIconic(hwnd);
 }
@@ -5876,7 +5892,7 @@ static void wintw_get_pixels(TermWin *tw, int *x, int *y)
 /*
  * Return the window or icon title.
  */
-static const char *wintw_get_title(TermWin *tw, int icon)
+static const char *wintw_get_title(TermWin *tw, bool icon)
 {
     return icon ? icon_name : window_name;
 }
@@ -5884,7 +5900,7 @@ static const char *wintw_get_title(TermWin *tw, int icon)
 /*
  * See if we're in full-screen mode.
  */
-static int is_full_screen()
+static bool is_full_screen()
 {
     if (!IsZoomed(hwnd))
 	return false;
@@ -5896,7 +5912,7 @@ static int is_full_screen()
 /* Get the rect/size of a full screen window using the nearest available
  * monitor in multimon systems; default to something sensible if only
  * one monitor is present. */
-static int get_fullscreen_rect(RECT * ss)
+static bool get_fullscreen_rect(RECT * ss)
 {
 #if defined(MONITOR_DEFAULTTONEAREST) && !defined(NO_MULTIMON)
 	HMONITOR mon;
@@ -6009,13 +6025,13 @@ static void flip_full_screen()
     }
 }
 
-static int win_seat_output(Seat *seat, int is_stderr,
+static int win_seat_output(Seat *seat, bool is_stderr,
                            const void *data, int len)
 {
     return term_data(term, is_stderr, data, len);
 }
 
-static int win_seat_eof(Seat *seat)
+static bool win_seat_eof(Seat *seat)
 {
     return true;   /* do respond to incoming EOF with outgoing */
 }

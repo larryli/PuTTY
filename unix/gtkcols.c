@@ -331,7 +331,7 @@ static void columns_remove(GtkContainer *container, GtkWidget *widget)
     ColumnsChild *child;
     GtkWidget *childw;
     GList *children;
-    gboolean was_visible;
+    bool was_visible;
 
     g_return_if_fail(container != NULL);
     g_return_if_fail(IS_COLUMNS(container));

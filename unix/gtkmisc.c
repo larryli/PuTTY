@@ -190,8 +190,7 @@ GtkBox *our_dialog_make_action_hbox(GtkWindow *dlg)
 }
 
 void our_dialog_add_to_content_area(GtkWindow *dlg, GtkWidget *w,
-                                    gboolean expand, gboolean fill,
-                                    guint padding)
+                                    bool expand, bool fill, guint padding)
 {
 #if GTK_CHECK_VERSION(3,0,0)
     /* GtkWindow is a GtkBin, hence contains exactly one child, which

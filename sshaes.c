@@ -57,14 +57,14 @@ struct AESContext {
     void (*encrypt_cbc)(unsigned char*, int, AESContext*);
     void (*decrypt_cbc)(unsigned char*, int, AESContext*);
     void (*sdctr)(unsigned char*, int, AESContext*);
-    int isNI;
+    bool isNI;
 };
 
 static void aes_encrypt_cbc_sw(unsigned char*, int, AESContext*);
 static void aes_decrypt_cbc_sw(unsigned char*, int, AESContext*);
 static void aes_sdctr_sw(unsigned char*, int, AESContext*);
 
-INLINE static int supports_aes_ni();
+INLINE static bool supports_aes_ni();
 static void aes_setup_ni(AESContext * ctx,
                          const unsigned char *key, int keylen);
 
@@ -1219,7 +1219,7 @@ const struct ssh2_ciphers ssh2_aes = {
 #if defined(__clang__) || defined(__GNUC__)
 
 #include <cpuid.h>
-INLINE static int supports_aes_ni()
+INLINE static bool supports_aes_ni()
 {
     unsigned int CPUInfo[4];
     __cpuid(1, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
@@ -1228,7 +1228,7 @@ INLINE static int supports_aes_ni()
 
 #else /* defined(__clang__) || defined(__GNUC__) */
 
-INLINE static int supports_aes_ni()
+INLINE static bool supports_aes_ni()
 {
     unsigned int CPUInfo[4];
     __cpuid(CPUInfo, 1);
@@ -1755,9 +1755,9 @@ static void aes_setup_ni(AESContext * ctx, const unsigned char *key, int keylen)
     assert(0);
 }
 
-INLINE static int supports_aes_ni()
+INLINE static bool supports_aes_ni()
 {
-    return 0;
+    return false;
 }
 
 #endif /* COMPILER_SUPPORTS_AES_NI */

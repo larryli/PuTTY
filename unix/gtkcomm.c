@@ -199,7 +199,7 @@ void timer_change_notify(unsigned long next)
  */
 
 static guint toplevel_callback_idle_id;
-static int idle_fn_scheduled;
+static bool idle_fn_scheduled;
 
 static void notify_toplevel_callback(void *);
 

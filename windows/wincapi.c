@@ -9,10 +9,10 @@
 #define WINCAPI_GLOBAL
 #include "wincapi.h"
 
-int got_crypt(void)
+bool got_crypt(void)
 {
-    static int attempted = false;
-    static int successful;
+    static bool attempted = false;
+    static bool successful;
     static HMODULE crypt;
 
     if (!attempted) {

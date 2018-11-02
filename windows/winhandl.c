@@ -58,10 +58,10 @@ struct handle_generic {
     HANDLE h;			       /* the handle itself */
     HANDLE ev_to_main;		       /* event used to signal main thread */
     HANDLE ev_from_main;	       /* event used to signal back to us */
-    int moribund;		       /* are we going to kill this soon? */
-    int done;			       /* request subthread to terminate */
-    int defunct;		       /* has the subthread already gone? */
-    int busy;			       /* operation currently in progress? */
+    bool moribund;                     /* are we going to kill this soon? */
+    bool done;                         /* request subthread to terminate */
+    bool defunct;                      /* has the subthread already gone? */
+    bool busy;                         /* operation currently in progress? */
     void *privdata;		       /* for client to remember who they are */
 };
 
@@ -81,10 +81,10 @@ struct handle_input {
     HANDLE h;			       /* the handle itself */
     HANDLE ev_to_main;		       /* event used to signal main thread */
     HANDLE ev_from_main;	       /* event used to signal back to us */
-    int moribund;		       /* are we going to kill this soon? */
-    int done;			       /* request subthread to terminate */
-    int defunct;		       /* has the subthread already gone? */
-    int busy;			       /* operation currently in progress? */
+    bool moribund;                     /* are we going to kill this soon? */
+    bool done;                         /* request subthread to terminate */
+    bool defunct;                      /* has the subthread already gone? */
+    bool busy;                         /* operation currently in progress? */
     void *privdata;		       /* for client to remember who they are */
 
     /*
@@ -115,7 +115,8 @@ static DWORD WINAPI handle_input_threadfunc(void *param)
     struct handle_input *ctx = (struct handle_input *) param;
     OVERLAPPED ovl, *povl;
     HANDLE oev;
-    int readret, readlen, finished;
+    bool readret, finished;
+    int readlen;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED) {
 	povl = &ovl;
@@ -241,10 +242,10 @@ struct handle_output {
     HANDLE h;			       /* the handle itself */
     HANDLE ev_to_main;		       /* event used to signal main thread */
     HANDLE ev_from_main;	       /* event used to signal back to us */
-    int moribund;		       /* are we going to kill this soon? */
-    int done;			       /* request subthread to terminate */
-    int defunct;		       /* has the subthread already gone? */
-    int busy;			       /* operation currently in progress? */
+    bool moribund;                     /* are we going to kill this soon? */
+    bool done;                         /* request subthread to terminate */
+    bool defunct;                      /* has the subthread already gone? */
+    bool busy;                         /* operation currently in progress? */
     void *privdata;		       /* for client to remember who they are */
 
     /*
@@ -284,7 +285,7 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
     struct handle_output *ctx = (struct handle_output *) param;
     OVERLAPPED ovl, *povl;
     HANDLE oev;
-    int writeret;
+    bool writeret;
 
     if (ctx->flags & HANDLE_FLAG_OVERLAPPED) {
 	povl = &ovl;
@@ -377,10 +378,10 @@ struct handle_foreign {
     HANDLE h;			       /* the handle itself */
     HANDLE ev_to_main;		       /* event used to signal main thread */
     HANDLE ev_from_main;	       /* event used to signal back to us */
-    int moribund;		       /* are we going to kill this soon? */
-    int done;			       /* request subthread to terminate */
-    int defunct;		       /* has the subthread already gone? */
-    int busy;			       /* operation currently in progress? */
+    bool moribund;                     /* are we going to kill this soon? */
+    bool done;                         /* request subthread to terminate */
+    bool defunct;                      /* has the subthread already gone? */
+    bool busy;                         /* operation currently in progress? */
     void *privdata;		       /* for client to remember who they are */
 
     /*

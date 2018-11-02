@@ -79,7 +79,10 @@ struct uctrl {
 struct dlgparam {
     tree234 *byctrl, *bywidget;
     void *data;
-    struct { unsigned char r, g, b, ok; } coloursel_result;   /* 0-255 */
+    struct {
+        unsigned char r, g, b;         /* 0-255 */
+        bool ok;
+    } coloursel_result;
     /* `flags' are set to indicate when a GTK signal handler is being called
      * due to automatic processing and should not flag a user event. */
     int flags;
@@ -281,14 +284,14 @@ int dlg_radiobutton_get(union control *ctrl, dlgparam *dp)
     return 0;			       /* got to return something */
 }
 
-void dlg_checkbox_set(union control *ctrl, dlgparam *dp, int checked)
+void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(uc->toplevel), checked);
 }
 
-int dlg_checkbox_get(union control *ctrl, dlgparam *dp)
+bool dlg_checkbox_get(union control *ctrl, dlgparam *dp)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
     assert(uc->ctrl->generic.type == CTRL_CHECKBOX);
@@ -707,7 +710,7 @@ int dlg_listbox_index(union control *ctrl, dlgparam *dp)
     return -1;			       /* placate dataflow analysis */
 }
 
-int dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
+bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
 {
     struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
 
@@ -748,7 +751,7 @@ int dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
     if (uc->treeview) {
 	GtkTreeSelection *treesel;
 	GtkTreePath *path;
-	int ret;
+	bool ret;
 
 	assert(uc->treeview != NULL);
 	treesel = gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview));
@@ -761,7 +764,7 @@ int dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
     }
 #endif
     assert(!"We shouldn't get here");
-    return -1;			       /* placate dataflow analysis */
+    return false;                      /* placate dataflow analysis */
 }
 
 void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index)
@@ -790,7 +793,7 @@ void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index)
         items = gtk_container_children(GTK_CONTAINER(uc->list));
         nitems = g_list_length(items);
         if (nitems > 0) {
-            int modified = false;
+            bool modified = false;
             g_list_free(items);
             newtop = uc->adj->lower +
                 (uc->adj->upper - uc->adj->lower) * index / nitems;
@@ -1181,16 +1184,16 @@ void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
     gtk_widget_show(coloursel);
 }
 
-int dlg_coloursel_results(union control *ctrl, dlgparam *dp,
-			  int *r, int *g, int *b)
+bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
+                           int *r, int *g, int *b)
 {
     if (dp->coloursel_result.ok) {
 	*r = dp->coloursel_result.r;
 	*g = dp->coloursel_result.g;
 	*b = dp->coloursel_result.b;
-	return 1;
+	return true;
     } else
-	return 0;
+	return false;
 }
 
 /* ----------------------------------------------------------------------
@@ -1279,7 +1282,7 @@ static gboolean editbox_lostfocus(GtkWidget *ed, GdkEventFocus *event,
  */
 
 static gboolean listitem_key(GtkWidget *item, GdkEventKey *event,
-			     gpointer data, int multiple)
+			     gpointer data, bool multiple)
 {
     GtkAdjustment *adj = GTK_ADJUSTMENT(data);
 
@@ -1877,7 +1880,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
     for (i = 0; i < s->ncontrols; i++) {
 	union control *ctrl = s->ctrls[i];
 	struct uctrl *uc;
-	int left = false;
+	bool left = false;
         GtkWidget *w = NULL;
 
         switch (ctrl->generic.type) {
@@ -2555,7 +2558,7 @@ static void treeitem_sel(GtkItem *item, gpointer data)
 #endif
 
 #if !GTK_CHECK_VERSION(2,0,0)
-static int tree_grab_focus(struct dlgparam *dp)
+static bool tree_grab_focus(struct dlgparam *dp)
 {
     int i, f;
 
@@ -2592,7 +2595,7 @@ gint tree_focus(GtkContainer *container, GtkDirectionType direction,
 }
 #endif
 
-int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
+gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
 
@@ -2717,7 +2720,7 @@ int win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 }
 
 #if !GTK_CHECK_VERSION(2,0,0)
-int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
+gint tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct dlgparam *dp = (struct dlgparam *)data;
 
@@ -2742,7 +2745,7 @@ int tree_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 */
 		{
 		    GtkWidget *w = dp->treeitems[i];
-		    int vis = true;
+                    bool vis = true;
 		    while (w && (GTK_IS_TREE_ITEM(w) || GTK_IS_TREE(w))) {
 			if (!GTK_WIDGET_VISIBLE(w)) {
 			    vis = false;
@@ -2893,7 +2896,7 @@ void treeview_map_event(GtkWidget *tree, gpointer data)
 #endif
 
 GtkWidget *create_config_box(const char *title, Conf *conf,
-                             int midsession, int protcfginfo,
+                             bool midsession, int protcfginfo,
                              post_dialog_fn_t after, void *afterctx)
 {
     GtkWidget *window, *hbox, *vbox, *cols, *label,
@@ -2999,7 +3002,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 #else
 		GtkWidget *treeitem;
 #endif
-		int first;
+		bool first;
 
 		/*
 		 * We expect never to find an implicit path
@@ -3213,7 +3216,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
      */
     for (index = 0; index < dp->ctrlbox->nctrlsets; index++) {
 	struct controlset *s = dp->ctrlbox->ctrlsets[index];
-        int done = 0;
+        bool done = false;
         int j;
 
 	if (*s->pathname) {
@@ -3223,7 +3226,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
                     s->ctrls[j]->generic.type != CTRL_TEXT) {
                     dlg_set_focus(s->ctrls[j], dp);
                     dp->lastfocus = s->ctrls[j];
-                    done = 1;
+                    done = true;
                     break;
                 }
         }
@@ -3280,7 +3283,7 @@ const struct message_box_buttons buttons_ok = {
 
 GtkWidget *create_message_box(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
-    int selectable, const struct message_box_buttons *buttons,
+    bool selectable, const struct message_box_buttons *buttons,
     post_dialog_fn_t after, void *afterctx)
 {
     GtkWidget *window, *w0, *w1;
@@ -3770,7 +3773,7 @@ struct eventlog_stuff {
     int ninitial, ncircular, circular_first;
     char *seldata;
     int sellen;
-    int ignore_selchange;
+    bool ignore_selchange;
 };
 
 static void eventlog_destroy(GtkWidget *widget, gpointer data)
@@ -3887,7 +3890,7 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
      * Deselect everything in the list box.
      */
     uc = dlg_find_byctrl(&es->dp, es->listctrl);
-    es->ignore_selchange = 1;
+    es->ignore_selchange = true;
 #if !GTK_CHECK_VERSION(2,0,0)
     assert(uc->list);
     gtk_list_unselect_all(GTK_LIST(uc->list));
@@ -3896,7 +3899,7 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
     gtk_tree_selection_unselect_all
 	(gtk_tree_view_get_selection(GTK_TREE_VIEW(uc->treeview)));
 #endif
-    es->ignore_selchange = 0;
+    es->ignore_selchange = false;
 
     sfree(es->seldata);
     es->sellen = 0;

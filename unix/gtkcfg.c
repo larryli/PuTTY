@@ -18,7 +18,7 @@ static void about_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void gtk_setup_config_box(struct controlbox *b, int midsession, void *win)
+void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
 {
     struct controlset *s, *s2;
     union control *c;

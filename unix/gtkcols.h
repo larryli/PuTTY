@@ -41,7 +41,7 @@ struct ColumnsChild_tag {
     /* If `widget' is non-NULL, this entry represents an actual widget. */
     GtkWidget *widget;
     gint colstart, colspan;
-    gboolean force_left;	       /* for recalcitrant GtkLabels */
+    bool force_left;                  /* for recalcitrant GtkLabels */
     ColumnsChild *same_height_as;
     /* Otherwise, this entry represents a change in the column setup. */
     gint ncols;

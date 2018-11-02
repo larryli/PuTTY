@@ -55,10 +55,10 @@ extern const char ver[];
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
-static int already_running;
+static bool already_running;
 
 static char *putty_path;
-static int restrict_putty_acl = false;
+static bool restrict_putty_acl = false;
 
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
@@ -116,7 +116,7 @@ static void unmungestr(char *in, char *out, int outlen)
 /* Stubs needed to link against misc.c */
 void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 
-static int has_security;
+static bool has_security;
 
 struct PassphraseProcStruct {
     char **passphrase;
@@ -783,7 +783,7 @@ PSID get_default_sid(void)
 struct PageantReply {
     char *buf;
     size_t size, len;
-    int overflowed;
+    bool overflowed;
     BinarySink_IMPLEMENTATION;
 };
 
@@ -969,7 +969,7 @@ static char *answer_filemapping_message(const char *mapname)
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 				WPARAM wParam, LPARAM lParam)
 {
-    static int menuinprogress;
+    static bool menuinprogress;
     static UINT msgTaskbarCreated = 0;
 
     switch (message) {
@@ -1000,14 +1000,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_SYSTRAY2:
 	if (!menuinprogress) {
-	    menuinprogress = 1;
+	    menuinprogress = true;
 	    update_sessions();
 	    SetForegroundWindow(hwnd);
 	    TrackPopupMenu(systray_menu,
 			   TPM_RIGHTALIGN | TPM_BOTTOMALIGN |
 			   TPM_RIGHTBUTTON,
 			   wParam, lParam, 0, hwnd, NULL);
-	    menuinprogress = 0;
+	    menuinprogress = false;
 	}
 	break;
       case WM_COMMAND:
@@ -1169,7 +1169,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     WNDCLASS wndclass;
     MSG msg;
     const char *command = NULL;
-    int added_keys = 0;
+    bool added_keys = false;
     int argc, i;
     char **argv, **argstart;
 

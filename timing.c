@@ -164,7 +164,7 @@ unsigned long timing_last_clock(void)
  * Returns the time (in ticks) expected until the next timer after
  * that triggers.
  */
-int run_timers(unsigned long anow, unsigned long *next)
+bool run_timers(unsigned long anow, unsigned long *next)
 {
     struct timer *first;
 

@@ -87,7 +87,7 @@ static void logfopen_callback(void *vctx, int mode)
     char buf[256], *event;
     struct tm tm;
     const char *fmode;
-    int shout = false;
+    bool shout = false;
 
     if (mode == 0) {
 	ctx->state = L_ERROR;	       /* disable logging */
@@ -419,7 +419,7 @@ void log_free(LogContext *ctx)
 
 void log_reconfig(LogContext *ctx, Conf *conf)
 {
-    int reset_logging;
+    bool reset_logging;
 
     if (!filename_equal(conf_get_filename(ctx->conf, CONF_logfilename),
 			conf_get_filename(conf, CONF_logfilename)) ||
@@ -463,7 +463,7 @@ static Filename *xlatlognam(Filename *src, char *hostname, int port,
     s = filename_to_str(src);
 
     while (*s) {
-        int sanitise = false;
+        bool sanitise = false;
 	/* Let (bufp, len) be the string to append. */
 	bufp = buf;		       /* don't usually override this */
 	if (*s == '&') {

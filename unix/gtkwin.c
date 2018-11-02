@@ -133,13 +133,14 @@ struct GtkFrontend {
     GtkIMContext *imc;
 #endif
     unifont *fonts[4];                 /* normal, bold, wide, widebold */
-    int xpos, ypos, gotpos, gravity;
+    int xpos, ypos, gravity;
+    bool gotpos;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
     GdkColor cols[NALLCOLOURS];
 #if !GTK_CHECK_VERSION(3,0,0)
     GdkColormap *colmap;
 #endif
-    int direct_to_font;
+    bool direct_to_font;
     struct clipboard_state clipstates[N_CLIPBOARDS];
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     /* Remember all clipboard_data_instance structures currently
@@ -150,8 +151,8 @@ struct GtkFrontend {
     int clipboard_ctrlshiftins, clipboard_ctrlshiftcv;
     int font_width, font_height;
     int width, height, scale;
-    int ignore_sbar;
-    int mouseptr_visible;
+    bool ignore_sbar;
+    bool mouseptr_visible;
     BusyStatus busy_status;
     int alt_keycode;
     int alt_digits;
@@ -162,7 +163,7 @@ struct GtkFrontend {
     Backend *backend;
     Terminal *term;
     LogContext *logctx;
-    int exited;
+    bool exited;
     struct unicode_data ucsdata;
     Conf *conf;
     eventlog_stuff *eventlogstuff;
@@ -204,7 +205,7 @@ static void cache_conf_values(GtkFrontend *inst)
 #endif
 }
 
-static int send_raw_mouse;
+static bool send_raw_mouse;
 
 static void start_backend(GtkFrontend *inst);
 static void exit_callback(void *vinst);
@@ -314,14 +315,14 @@ static char *gtk_seat_get_ttymode(Seat *seat, const char *mode)
     return term_get_ttymode(inst->term, mode);
 }
 
-static int gtk_seat_output(Seat *seat, int is_stderr,
+static int gtk_seat_output(Seat *seat, bool is_stderr,
                            const void *data, int len)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_data(inst->term, is_stderr, data, len);
 }
 
-static int gtk_seat_eof(Seat *seat)
+static bool gtk_seat_eof(Seat *seat)
 {
     /* GtkFrontend *inst = container_of(seat, GtkFrontend, seat); */
     return true;   /* do respond to incoming EOF with outgoing */
@@ -338,13 +339,13 @@ static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
     return ret;
 }
 
-static int gtk_seat_is_utf8(Seat *seat)
+static bool gtk_seat_is_utf8(Seat *seat)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return win_is_utf8(&inst->termwin);
 }
 
-static int gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
+static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     win_get_pixels(&inst->termwin, w, h);
@@ -356,7 +357,7 @@ static void gtk_seat_update_specials_menu(Seat *seat);
 static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status);
 static const char *gtk_seat_get_x_display(Seat *seat);
 #ifndef NOT_X_WINDOWS
-static int gtk_seat_get_windowid(Seat *seat, long *id);
+static bool gtk_seat_get_windowid(Seat *seat, long *id);
 #endif
 
 static const SeatVtable gtk_seat_vt = {
@@ -469,7 +470,7 @@ void unregister_dialog(Seat *seat, enum DialogSlot slot)
  * Minimise or restore the window in response to a server-side
  * request.
  */
-static void gtkwin_set_minimised(TermWin *tw, int minimised)
+static void gtkwin_set_minimised(TermWin *tw, bool minimised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
@@ -507,7 +508,7 @@ static void gtkwin_move(TermWin *tw, int x, int y)
  * Move the window to the top or bottom of the z-order in response
  * to a server-side request.
  */
-static void gtkwin_set_zorder(TermWin *tw, int top)
+static void gtkwin_set_zorder(TermWin *tw, bool top)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (top)
@@ -529,7 +530,7 @@ static void gtkwin_refresh(TermWin *tw)
  * Maximise or restore the window in response to a server-side
  * request.
  */
-static void gtkwin_set_maximised(TermWin *tw, int maximised)
+static void gtkwin_set_maximised(TermWin *tw, bool maximised)
 {
     /*
      * GTK 1.2 doesn't know how to do this.
@@ -546,7 +547,7 @@ static void gtkwin_set_maximised(TermWin *tw, int maximised)
 /*
  * Report whether the window is minimised, for terminal reports.
  */
-static int gtkwin_is_minimised(TermWin *tw)
+static bool gtkwin_is_minimised(TermWin *tw)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
@@ -594,7 +595,7 @@ static void gtkwin_get_pixels(TermWin *tw, int *x, int *y)
  * raise it, so that the user realises they've already been asked this
  * question.
  */
-static int find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
+static bool find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
 {
     GtkWidget *dialog = inst->dialogs[slot];
     if (!dialog)
@@ -610,7 +611,7 @@ static int find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
 /*
  * Return the window or icon title.
  */
-static const char *gtkwin_get_title(TermWin *tw, int icon)
+static const char *gtkwin_get_title(TermWin *tw, bool icon)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return icon ? inst->icontitle : inst->wintitle;
@@ -683,10 +684,10 @@ static void update_mouseptr(GtkFrontend *inst)
     }
 }
 
-static void show_mouseptr(GtkFrontend *inst, int show)
+static void show_mouseptr(GtkFrontend *inst, bool show)
 {
     if (!conf_get_bool(inst->conf, CONF_hide_mouseptr))
-	show = 1;
+	show = true;
     inst->mouseptr_visible = show;
     update_mouseptr(inst);
 }
@@ -695,7 +696,8 @@ static void draw_backing_rect(GtkFrontend *inst);
 
 static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 {
-    int w, h, new_scale, need_size = 0;
+    int w, h, new_scale;
+    bool need_size = false;
 
     /*
      * See if the terminal size has changed.
@@ -979,7 +981,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     GtkFrontend *inst = (GtkFrontend *)data;
     char output[256];
     wchar_t ucsoutput[2];
-    int ucsval, start, end, special, output_charset, use_ucsoutput;
+    int ucsval, start, end, output_charset;
+    bool special, use_ucsoutput;
     bool nethack_mode, app_keypad_mode;
     bool generated_something = false;
 
@@ -1327,8 +1330,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             (event->keyval == GDK_KEY_C || event->keyval == GDK_KEY_c ||
              event->keyval == GDK_KEY_V || event->keyval == GDK_KEY_v)) {
             int cfgval = conf_get_int(inst->conf, CONF_ctrlshiftcv);
-            int paste = (event->keyval == GDK_KEY_V ||
-                         event->keyval == GDK_KEY_v);
+            bool paste = (event->keyval == GDK_KEY_V ||
+                          event->keyval == GDK_KEY_v);
 
             switch (cfgval) {
               case CLIPUI_IMPLICIT:
@@ -1454,7 +1457,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     event->keyval == GDK_KEY_KP_Page_Up)) {
             /* nethack mode; do nothing */
         } else {
-            int try_filter = true;
+            bool try_filter = true;
 
 #ifdef META_MANUAL_MASK
             if (event->state & META_MANUAL_MASK & inst->meta_mod_mask) {
@@ -2129,7 +2132,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[end] = '\0';	       /* NUL-terminate */
             generated_something = true;
 	    if (inst->ldisc)
-		ldisc_send(inst->ldisc, output+start, -2, 1);
+		ldisc_send(inst->ldisc, output+start, -2, true);
 	} else if (!inst->direct_to_font) {
 	    if (!use_ucsoutput) {
 #ifdef KEY_EVENT_DIAGNOSTICS
@@ -2150,7 +2153,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 generated_something = true;
 		if (inst->ldisc)
 		    lpage_send(inst->ldisc, output_charset, output+start,
-			       end-start, 1);
+			       end-start, true);
 	    } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
                 char *string_string = dupstr("");
@@ -2174,7 +2177,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		 */
                 generated_something = true;
 		if (inst->ldisc)
-		    luni_send(inst->ldisc, ucsoutput+start, end-start, 1);
+		    luni_send(inst->ldisc, ucsoutput+start, end-start, true);
 	    }
 	} else {
 	    /*
@@ -2198,10 +2201,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #endif
             generated_something = true;
 	    if (inst->ldisc)
-		ldisc_send(inst->ldisc, output+start, end-start, 1);
+		ldisc_send(inst->ldisc, output+start, end-start, true);
 	}
 
-	show_mouseptr(inst, 0);
+	show_mouseptr(inst, false);
 	term_seen_key_event(inst->term);
     }
 
@@ -2231,8 +2234,8 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 #endif
 
     if (inst->ldisc)
-        lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), 1);
-    show_mouseptr(inst, 0);
+        lpage_send(inst->ldisc, CS_UTF8, str, strlen(str), true);
+    show_mouseptr(inst, false);
     term_seen_key_event(inst->term);
     key_pressed(inst);
 }
@@ -2244,9 +2247,10 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
 gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
 			 gdouble ex, gdouble ey)
 {
-    int shift, ctrl, alt, x, y, raw_mouse_mode;
+    int x, y;
+    bool shift, ctrl, alt, raw_mouse_mode;
 
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     shift = state & GDK_SHIFT_MASK;
     ctrl = state & GDK_CONTROL_MASK;
@@ -2295,12 +2299,13 @@ gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
 
 static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
 {
-    int shift, ctrl, alt, x, y, button, act, raw_mouse_mode;
+    bool shift, ctrl, alt, raw_mouse_mode;
+    int x, y, button, act;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -2420,12 +2425,13 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
-    int shift, ctrl, alt, x, y, button;
+    bool shift, ctrl, alt;
+    int x, y, button;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
     ctrl = event->state & GDK_CONTROL_MASK;
@@ -2583,7 +2589,7 @@ gint focus_event(GtkWidget *widget, GdkEventFocus *event, gpointer data)
     GtkFrontend *inst = (GtkFrontend *)data;
     term_set_focus(inst->term, event->in);
     term_update(inst->term);
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
     return false;
 }
 
@@ -2597,7 +2603,7 @@ static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 /*
  * set or clear the "raw mouse message" mode
  */
-static void gtkwin_set_raw_mouse_mode(TermWin *tw, int activate)
+static void gtkwin_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     activate = activate && !conf_get_bool(inst->conf, CONF_no_mouse_rep);
@@ -2779,7 +2785,7 @@ static void gtkwin_palette_set(TermWin *tw, int n, int r, int g, int b)
     }
 }
 
-static int gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static bool gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     if (n < 0 || n >= NALLCOLOURS)
@@ -2939,7 +2945,7 @@ static void clipboard_clear(GtkClipboard *clipboard, gpointer data)
 
 static void gtkwin_clip_write(
     TermWin *tw, int clipboard, wchar_t *data, int *attr,
-    truecolour *truecolour, int len, int must_deselect)
+    truecolour *truecolour, int len, bool must_deselect)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
@@ -3087,7 +3093,7 @@ static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
 
 static void gtkwin_clip_write(
     TermWin *tw, int clipboard, wchar_t *data, int *attr,
-    truecolour *truecolour, int len, int must_deselect)
+    truecolour *truecolour, int len, bool must_deselect)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     struct clipboard_state *state = &inst->clipstates[clipboard];
@@ -3279,8 +3285,8 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
     int length;
 #ifndef NOT_X_WINDOWS
     char **list;
-    int free_list_required = 0;
-    int free_required = 0;
+    bool free_list_required = false;
+    bool free_required = false;
 #endif
     int charset;
     GdkAtom seldata_target = gtk_selection_data_get_target(seldata);
@@ -3338,7 +3344,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
 	/* Xterm is rumoured to expect Latin-1, though I havn't checked the
 	 * source, so use that as a de-facto standard. */
 	charset = CS_ISO8859_1;
-	free_required = 1;
+	free_required = true;
 #else
         return;
 #endif
@@ -3361,7 +3367,7 @@ static void selection_received(GtkWidget *widget, GtkSelectionData *seldata,
                 text = list[0];
                 length = strlen(list[0]);
                 charset = CS_UTF8;
-                free_list_required = 1;
+                free_list_required = true;
             } else
 #endif
             {
@@ -3572,7 +3578,7 @@ static int gtkwin_char_width(TermWin *tw, int uc)
     return 1;
 }
 
-static int gtkwin_setup_draw_ctx(TermWin *tw)
+static bool gtkwin_setup_draw_ctx(TermWin *tw)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
 
@@ -3649,7 +3655,7 @@ static void draw_update(GtkFrontend *inst, int x, int y, int w, int h)
 
 #ifdef DRAW_TEXT_CAIRO
 static void cairo_set_source_rgb_dim(cairo_t *cr, double r, double g, double b,
-                                     int dim)
+                                     bool dim)
 {
     if (dim)
         cairo_set_source_rgb(cr, r * 2 / 3, g * 2 / 3, b * 2 / 3);
@@ -3658,7 +3664,7 @@ static void cairo_set_source_rgb_dim(cairo_t *cr, double r, double g, double b,
 }
 #endif
 
-static void draw_set_colour(GtkFrontend *inst, int col, int dim)
+static void draw_set_colour(GtkFrontend *inst, int col, bool dim)
 {
 #ifdef DRAW_TEXT_GDK
     if (inst->uctx.type == DRAWTYPE_GDK) {
@@ -3688,7 +3694,7 @@ static void draw_set_colour(GtkFrontend *inst, int col, int dim)
 #endif
 }
 
-static void draw_set_colour_rgb(GtkFrontend *inst, optionalrgb orgb, int dim)
+static void draw_set_colour_rgb(GtkFrontend *inst, optionalrgb orgb, bool dim)
 {
 #ifdef DRAW_TEXT_GDK
     if (inst->uctx.type == DRAWTYPE_GDK) {
@@ -3717,7 +3723,7 @@ static void draw_set_colour_rgb(GtkFrontend *inst, optionalrgb orgb, int dim)
 #endif
 }
 
-static void draw_rectangle(GtkFrontend *inst, int filled,
+static void draw_rectangle(GtkFrontend *inst, bool filled,
                            int x, int y, int w, int h)
 {
 #ifdef DRAW_TEXT_GDK
@@ -3801,8 +3807,8 @@ static void draw_line(GtkFrontend *inst, int x0, int y0, int x1, int y1)
 }
 
 static void draw_stretch_before(GtkFrontend *inst, int x, int y,
-                                int w, int wdouble,
-                                int h, int hdouble, int hbothalf)
+                                int w, bool wdouble,
+                                int h, bool hdouble, bool hbothalf)
 {
 #ifdef DRAW_TEXT_CAIRO
     if (inst->uctx.type == DRAWTYPE_CAIRO) {
@@ -3836,8 +3842,8 @@ static void draw_stretch_before(GtkFrontend *inst, int x, int y,
 }
 
 static void draw_stretch_after(GtkFrontend *inst, int x, int y,
-                               int w, int wdouble,
-                               int h, int hdouble, int hbothalf)
+                               int w, bool wdouble,
+                               int h, bool hdouble, bool hbothalf)
 {
 #ifdef DRAW_TEXT_GDK
 #ifndef NO_BACKING_PIXMAPS
@@ -3902,7 +3908,7 @@ static void draw_backing_rect(GtkFrontend *inst)
     w = inst->width * inst->font_width + 2*inst->window_border;
     h = inst->height * inst->font_height + 2*inst->window_border;
     draw_set_colour(inst, 258, false);
-    draw_rectangle(inst, 1, 0, 0, w, h);
+    draw_rectangle(inst, true, 0, 0, w, h);
     draw_update(inst, 0, 0, w, h);
     win_free_draw_ctx(&inst->termwin);
 }
@@ -3918,8 +3924,9 @@ static void do_text_internal(
     unsigned long attr, int lattr, truecolour truecolour)
 {
     int ncombining;
-    int nfg, nbg, t, fontid, shadow, rlen, widefactor, bold;
-    int monochrome =
+    int nfg, nbg, t, fontid, rlen, widefactor;
+    bool bold;
+    bool monochrome =
         gdk_visual_get_depth(gtk_widget_get_visual(inst->area)) == 1;
 
     if (attr & TATTR_COMBINING) {
@@ -3959,7 +3966,7 @@ static void do_text_internal(
         attr &= ~ATTR_DIM;             /* don't dim the cursor */
     }
 
-    fontid = shadow = 0;
+    fontid = 0;
 
     if (attr & ATTR_WIDE) {
 	widefactor = 2;
@@ -3969,10 +3976,10 @@ static void do_text_internal(
     }
 
     if ((attr & ATTR_BOLD) && (inst->bold_style & 1)) {
-	bold = 1;
+	bold = true;
 	fontid |= 1;
     } else {
-	bold = 0;
+	bold = false;
     }
 
     if (!inst->fonts[fontid]) {
@@ -4104,18 +4111,19 @@ static void gtkwin_draw_cursor(
     unsigned long attr, int lattr, truecolour truecolour)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    int active, passive, widefactor;
+    bool active, passive;
+    int widefactor;
 
     if (attr & TATTR_PASCURS) {
 	attr &= ~TATTR_PASCURS;
-	passive = 1;
+	passive = true;
     } else
-	passive = 0;
+	passive = false;
     if ((attr & TATTR_ACTCURS) && inst->cursor_type != 0) {
 	attr &= ~TATTR_ACTCURS;
-        active = 1;
+        active = true;
     } else
-        active = 0;
+        active = false;
     do_text_internal(inst, x, y, text, len, attr, lattr, truecolour);
 
     if (attr & TATTR_COMBINING)
@@ -4257,7 +4265,7 @@ static const char *gtk_seat_get_x_display(Seat *seat)
 }
 
 #ifndef NOT_X_WINDOWS
-static int gtk_seat_get_windowid(Seat *seat, long *id)
+static bool gtk_seat_get_windowid(Seat *seat, long *id)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     GdkWindow *window = gtk_widget_get_window(inst->area);
@@ -4268,7 +4276,7 @@ static int gtk_seat_get_windowid(Seat *seat, long *id)
 }
 #endif
 
-static int gtkwin_is_utf8(TermWin *tw)
+static bool gtkwin_is_utf8(TermWin *tw)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     return inst->ucsdata.line_codepage == CS_UTF8;
@@ -4276,7 +4284,7 @@ static int gtkwin_is_utf8(TermWin *tw)
 
 char *setup_fonts_ucs(GtkFrontend *inst)
 {
-    int shadowbold = conf_get_bool(inst->conf, CONF_shadowbold);
+    bool shadowbold = conf_get_bool(inst->conf, CONF_shadowbold);
     int shadowboldoffset = conf_get_int(inst->conf, CONF_shadowboldoffset);
     FontSpec *fs;
     unifont *fonts[4];
@@ -4643,7 +4651,7 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     ctx->newconf = conf_copy(inst->conf);
 
     dialog = create_config_box(
-        title, ctx->newconf, 1,
+        title, ctx->newconf, true,
         inst->backend ? backend_cfg_info(inst->backend) : 0,
         after_change_settings_dialog, ctx);
     register_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE, dialog);
@@ -4663,7 +4671,8 @@ static void after_change_settings_dialog(void *vctx, int retval)
         *(struct after_change_settings_dialog_ctx *)vctx;
     GtkFrontend *inst = ctx.inst;
     Conf *oldconf = inst->conf, *newconf = ctx.newconf;
-    int i, j, need_size;
+    int i, j;
+    bool need_size;
 
     sfree(vctx); /* we've copied this already */
 
@@ -5476,7 +5485,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     {
 	GtkWidget *menuitem;
 	char *s;
-	extern const int use_event_log, new_session, saved_sessions;
+	extern const bool use_event_log, new_session, saved_sessions;
 
 	inst->menu = gtk_menu_new();
 
@@ -5552,7 +5561,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
     inst->waitcursor = make_mouse_ptr(inst, GDK_WATCH);
     inst->blankcursor = make_mouse_ptr(inst, -1);
     inst->currcursor = inst->textcursor;
-    show_mouseptr(inst, 1);
+    show_mouseptr(inst, true);
 
     inst->eventlogstuff = eventlogstuff_new();
 

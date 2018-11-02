@@ -73,7 +73,7 @@ const struct fxp_attrs no_attrs = { 0 };
 #define put_fxp_attrs(bs, attrs) \
     BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
 
-int BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
+bool BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
 {
     attrs->flags = get_uint32(src);
     if (attrs->flags & SSH_FILEXFER_ATTR_SIZE)
@@ -99,7 +99,7 @@ int BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
 	    get_string(src);
 	}
     }
-    return 1;
+    return true;
 }
 
 void sftp_pkt_free(struct sftp_packet *pkt)
@@ -131,7 +131,7 @@ struct sftp_packet *sftp_recv_prepare(unsigned length)
     return pkt;
 }
 
-int sftp_recv_finish(struct sftp_packet *pkt)
+bool sftp_recv_finish(struct sftp_packet *pkt)
 {
     BinarySource_INIT(pkt, pkt->data, pkt->length);
     pkt->type = get_byte(pkt);

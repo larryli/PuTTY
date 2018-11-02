@@ -178,7 +178,7 @@ static void dh_init(struct dh_ctx *ctx)
     ctx->x = ctx->e = NULL;
 }
 
-int dh_is_gex(const struct ssh_kex *kex)
+bool dh_is_gex(const struct ssh_kex *kex)
 {
     const struct dh_extra *extra = (const struct dh_extra *)kex->extra;
     return extra->pdata == NULL;

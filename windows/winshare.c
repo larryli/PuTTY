@@ -121,7 +121,7 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug);
 int platform_ssh_share(const char *pi_name, Conf *conf,
                        Plug *downplug, Plug *upplug, Socket **sock,
                        char **logtext, char **ds_err, char **us_err,
-                       int can_upstream, int can_downstream)
+                       bool can_upstream, bool can_downstream)
 {
     char *name, *mutexname, *pipename;
     HANDLE mutex;

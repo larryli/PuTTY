@@ -21,10 +21,10 @@
 #include "storage.h"
 #include "ssh.h"
 
-int console_batch_mode = false;
+bool console_batch_mode = false;
 
 static struct termios orig_termios_stderr;
-static int stderr_is_a_tty;
+static bool stderr_is_a_tty;
 
 void stderr_tty_init()
 {
@@ -136,7 +136,7 @@ static int block_and_read(int fd, void *buf, size_t len)
 #ifdef EWOULDBLOCK
                (errno == EWOULDBLOCK) ||
 #endif
-               0)) {
+               false)) {
 
         fd_set rfds;
         FD_ZERO(&rfds);
@@ -595,7 +595,7 @@ int console_get_userpass_input(prompts_t *p)
     return 1; /* success */
 }
 
-int is_interactive(void)
+bool is_interactive(void)
 {
     return isatty(0);
 }

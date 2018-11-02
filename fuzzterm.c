@@ -7,7 +7,7 @@
 #include "terminal.h"
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
 static const TermWinVtable fuzz_termwin_vt;
 
@@ -37,14 +37,14 @@ int main(int argc, char **argv)
 #endif
 	while (!feof(stdin)) {
 		len = fread(blk, 1, sizeof(blk), stdin);
-		term_data(term, 0, blk, len);
+		term_data(term, false, blk, len);
 	}
 	term_update(term);
 	return 0;
 }
 
 /* functions required by terminal.c */
-static int fuzz_setup_draw_ctx(TermWin *tw) { return true; }
+static bool fuzz_setup_draw_ctx(TermWin *tw) { return true; }
 static void fuzz_draw_text(
     TermWin *tw, int x, int y, wchar_t *text, int len,
     unsigned long attr, int lattr, truecolour tc)
@@ -72,30 +72,30 @@ static void fuzz_draw_cursor(
 static int fuzz_char_width(TermWin *tw, int uc) { return 1; }
 static void fuzz_free_draw_ctx(TermWin *tw) {}
 static void fuzz_set_cursor_pos(TermWin *tw, int x, int y) {}
-static void fuzz_set_raw_mouse_mode(TermWin *tw, int enable) {}
+static void fuzz_set_raw_mouse_mode(TermWin *tw, bool enable) {}
 static void fuzz_set_scrollbar(TermWin *tw, int total, int start, int page) {}
 static void fuzz_bell(TermWin *tw, int mode) {}
 static void fuzz_clip_write(
     TermWin *tw, int clipboard, wchar_t *text, int *attrs,
-    truecolour *colours, int len, int must_deselect) {}
+    truecolour *colours, int len, bool must_deselect) {}
 static void fuzz_clip_request_paste(TermWin *tw, int clipboard) {}
 static void fuzz_refresh(TermWin *tw) {}
 static void fuzz_request_resize(TermWin *tw, int w, int h) {}
 static void fuzz_set_title(TermWin *tw, const char *title) {}
 static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
-static void fuzz_set_minimised(TermWin *tw, int minimised) {}
-static int fuzz_is_minimised(TermWin *tw) { return false; }
-static void fuzz_set_maximised(TermWin *tw, int maximised) {}
+static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
+static bool fuzz_is_minimised(TermWin *tw) { return false; }
+static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
-static void fuzz_set_zorder(TermWin *tw, int top) {}
-static int fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static void fuzz_set_zorder(TermWin *tw, bool top) {}
+static bool fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 { return false; }
 static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
 static void fuzz_palette_reset(TermWin *tw) {}
 static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
-static const char *fuzz_get_title(TermWin *tw, int icon) { return "moo"; }
-static int fuzz_is_utf8(TermWin *tw) { return true; }
+static const char *fuzz_get_title(TermWin *tw, bool icon) { return "moo"; }
+static bool fuzz_is_utf8(TermWin *tw) { return true; }
 
 static const TermWinVtable fuzz_termwin_vt = {
     fuzz_setup_draw_ctx,
@@ -127,7 +127,7 @@ static const TermWinVtable fuzz_termwin_vt = {
     fuzz_is_utf8,
 };
 
-void ldisc_send(Ldisc *ldisc, const void *buf, int len, int interactive) {}
+void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}
 void ldisc_echoedit_update(Ldisc *ldisc) {}
 void modalfatalbox(const char *fmt, ...) { exit(0); }
 void nonfatal(const char *fmt, ...) { }
@@ -167,8 +167,8 @@ void dlg_error_msg(void *dlg, const char *msg) { }
 void dlg_end(void *dlg, int value) { }
 void dlg_coloursel_start(union control *ctrl, void *dlg,
 			 int r, int g, int b) { }
-int dlg_coloursel_results(union control *ctrl, void *dlg,
-			  int *r, int *g, int *b) { return 0; }
+bool dlg_coloursel_results(union control *ctrl, void *dlg,
+                           int *r, int *g, int *b) { return false; }
 void dlg_refresh(union control *ctrl, void *dlg) { }
 
 const char *const appname = "FuZZterm";

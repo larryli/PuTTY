@@ -75,7 +75,7 @@ static void crc_update(uint32_t *a, void *b)
 }
 
 /* detect if a block is used in a particular pattern */
-static int check_crc(uint8_t *S, uint8_t *buf, uint32_t len, uint8_t *IV)
+static bool check_crc(uint8_t *S, uint8_t *buf, uint32_t len, uint8_t *IV)
 {
     uint32_t crc;
     uint8_t *c;
@@ -98,7 +98,7 @@ static int check_crc(uint8_t *S, uint8_t *buf, uint32_t len, uint8_t *IV)
 }
 
 /* Detect a crc32 compensation attack on a packet */
-int detect_attack(
+bool detect_attack(
     struct crcda_ctx *ctx, uint8_t *buf, uint32_t len, uint8_t *IV)
 {
     register uint32_t i, j;
@@ -125,20 +125,20 @@ int detect_attack(
         for (c = buf; c < buf + len; c += SSH_BLOCKSIZE) {
             if (IV && (!CMP(c, IV))) {
                 if ((check_crc(c, buf, len, IV)))
-                    return 1;          /* attack detected */
+                    return true;          /* attack detected */
                 else
                     break;
             }
             for (d = buf; d < c; d += SSH_BLOCKSIZE) {
                 if (!CMP(c, d)) {
                     if ((check_crc(c, buf, len, IV)))
-                        return 1;      /* attack detected */
+                        return true;      /* attack detected */
                     else
                         break;
                 }
             }
         }
-        return 0;                      /* ok */
+        return false;                  /* ok */
     }
     memset(ctx->h, HASH_UNUSEDCHAR, ctx->n * HASH_ENTRYSIZE);
 
@@ -151,18 +151,18 @@ int detect_attack(
             if (ctx->h[i] == HASH_IV) {
                 if (!CMP(c, IV)) {
                     if (check_crc(c, buf, len, IV))
-                        return 1;      /* attack detected */
+                        return true;      /* attack detected */
                     else
                         break;
                 }
             } else if (!CMP(c, buf + ctx->h[i] * SSH_BLOCKSIZE)) {
                 if (check_crc(c, buf, len, IV))
-                    return 1;          /* attack detected */
+                    return true;          /* attack detected */
                 else
                     break;
             }
         }
         ctx->h[i] = j;
     }
-    return 0;                          /* ok */
+    return false;                          /* ok */
 }

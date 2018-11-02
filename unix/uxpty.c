@@ -87,10 +87,10 @@ struct Pty {
     char name[FILENAME_MAX];
     pid_t child_pid;
     int term_width, term_height;
-    int child_dead, finished;
+    bool child_dead, finished;
     int exit_code;
     bufchain output_data;
-    int pending_eof;
+    bool pending_eof;
     Backend backend;
 };
 
@@ -178,7 +178,7 @@ static Pty *single_pty = NULL;
 #ifndef OMIT_UTMP
 static pid_t pty_utmp_helper_pid = -1;
 static int pty_utmp_helper_pipe = -1;
-static int pty_stamped_utmp;
+static bool pty_stamped_utmp;
 static struct utmpx utmp_entry;
 #endif
 
@@ -246,7 +246,7 @@ static void setup_utmp(char *ttyname, char *location)
     }
 #endif
 
-    pty_stamped_utmp = 1;
+    pty_stamped_utmp = true;
 
 }
 
@@ -273,7 +273,7 @@ static void cleanup_utmp(void)
     pututxline(&utmp_entry);
     endutxent();
 
-    pty_stamped_utmp = 0;	       /* ensure we never double-cleanup */
+    pty_stamped_utmp = false;     /* ensure we never double-cleanup */
 }
 #endif
 
@@ -285,7 +285,7 @@ static void sigchld_handler(int signum)
 
 static void pty_setup_sigchld_handler(void)
 {
-    static int setup = false;
+    static bool setup = false;
     if (!setup) {
         putty_signal(SIGCHLD, sigchld_handler);
         setup = true;
@@ -597,7 +597,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 {
     char buf[4096];
     int ret;
-    int finished = false;
+    bool finished = false;
 
     if (event < 0) {
 	/*
@@ -629,7 +629,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 	}
     } else {
 	if (event == 1) {
-            int is_stdout = (fd == pty->master_o);
+            bool is_stdout = (fd == pty->master_o);
 
 	    ret = read(fd, buf, sizeof(buf));
 
@@ -844,12 +844,12 @@ static void copy_ttymodes_into_termios(
  */
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, int pipes_instead)
+    struct ssh_ttymodes ttymodes, bool pipes_instead)
 {
     int slavefd;
     pid_t pid, pgrp;
 #ifndef NOT_X_WINDOWS		       /* for Mac OS X native compilation */
-    int got_windowid;
+    bool got_windowid;
     long windowid;
 #endif
     Pty *pty;
@@ -987,7 +987,7 @@ Backend *pty_backend_create(
                 char *e = *ep;
 
                 if (!strncmp(e, pty_osx_envrestore_prefix, plen)) {
-                    int unset = (e[plen] == 'u');
+                    bool unset = (e[plen] == 'u');
                     char *pname = dupprintf("%.*s", (int)strcspn(e, "="), e);
                     char *name = pname + plen + 1;
                     char *value = e + strcspn(e, "=");
@@ -1129,7 +1129,7 @@ Backend *pty_backend_create(
 	putty_signal(SIGINT, SIG_DFL);
 	putty_signal(SIGQUIT, SIG_DFL);
 	putty_signal(SIGPIPE, SIG_DFL);
-	block_signal(SIGPIPE, 0);
+	block_signal(SIGPIPE, false);
 	if (argv || cmd) {
             /*
              * If we were given a separated argument list, try to exec
@@ -1237,7 +1237,7 @@ Backend *pty_backend_create(
 static const char *pty_init(Seat *seat, Backend **backend_handle,
                             LogContext *logctx, Conf *conf,
                             const char *host, int port,
-                            char **realhost, int nodelay, int keepalive)
+                            char **realhost, bool nodelay, bool keepalive)
 {
     const char *cmd = NULL;
     struct ssh_ttymodes modes;
@@ -1470,16 +1470,16 @@ static const SessionSpecial *pty_get_specials(Backend *be)
     return NULL;
 }
 
-static int pty_connected(Backend *be)
+static bool pty_connected(Backend *be)
 {
     /* Pty *pty = container_of(be, Pty, backend); */
     return true;
 }
 
-static int pty_sendok(Backend *be)
+static bool pty_sendok(Backend *be)
 {
     /* Pty *pty = container_of(be, Pty, backend); */
-    return 1;
+    return true;
 }
 
 static void pty_unthrottle(Backend *be, int backlog)
@@ -1488,10 +1488,10 @@ static void pty_unthrottle(Backend *be, int backlog)
     /* do nothing */
 }
 
-static int pty_ldisc(Backend *be, int option)
+static bool pty_ldisc(Backend *be, int option)
 {
     /* Pty *pty = container_of(be, Pty, backend); */
-    return 0;			       /* neither editing nor echoing */
+    return false;                    /* neither editing nor echoing */
 }
 
 static void pty_provide_ldisc(Backend *be, Ldisc *ldisc)

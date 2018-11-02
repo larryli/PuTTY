@@ -48,7 +48,7 @@ static char *progname, **gtkargvstart;
 static int ngtkargs;
 
 extern char **pty_argv;	       /* declared in pty.c */
-extern int use_pty_argv;
+extern bool use_pty_argv;
 
 static const char *app_name = "pterm";
 
@@ -312,9 +312,9 @@ void window_setup_error(const char *errmsg)
     exit(1);
 }
 
-int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
+bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
 {
-    int err = 0;
+    bool err = false;
     char *val;
 
     /*
@@ -327,7 +327,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
      */
 #define EXPECTS_ARG { \
     if (--argc <= 0) { \
-	err = 1; \
+	err = true; \
 	fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
         continue; \
     } else \
@@ -417,14 +417,14 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
             {
 #if GTK_CHECK_VERSION(3,0,0)
                 GdkRGBA rgba;
-                int success = gdk_rgba_parse(&rgba, val);
+                bool success = gdk_rgba_parse(&rgba, val);
 #else
                 GdkColor col;
-                int success = gdk_color_parse(val, &col);
+                bool success = gdk_color_parse(val, &col);
 #endif
 
                 if (!success) {
-                    err = 1;
+                    err = true;
                     fprintf(stderr, "%s: unable to parse colour \"%s\"\n",
                             appname, val);
                 } else {
@@ -467,7 +467,7 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
 		pty_argv[argc] = NULL;
 		break;		       /* finished command-line processing */
 	    } else
-		err = 1, fprintf(stderr, "%s: -e expects an argument\n",
+		err = true, fprintf(stderr, "%s: -e expects an argument\n",
                                  appname);
 
 	} else if (!strcmp(p, "-title")) {
@@ -535,13 +535,13 @@ int do_cmdline(int argc, char **argv, int do_everything, Conf *conf)
 	} else if (p[0] != '-') {
             /* Non-option arguments not handled by cmdline.c are errors. */
             if (do_everything) {
-                err = 1;
+                err = true;
                 fprintf(stderr, "%s: unexpected non-option argument '%s'\n",
                         appname, p);
             }
 
 	} else {
-	    err = 1;
+	    err = true;
 	    fprintf(stderr, "%s: unrecognized option '%s'\n", appname, p);
 	}
     }
@@ -554,7 +554,7 @@ GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
     return gtk_window_new(GTK_WINDOW_TOPLEVEL);
 }
 
-const int buildinfo_gtk_relevant = true;
+const bool buildinfo_gtk_relevant = true;
 
 struct post_initial_config_box_ctx {
     Conf *conf;
@@ -586,14 +586,14 @@ void session_window_closed(void)
 int main(int argc, char **argv)
 {
     Conf *conf;
-    int need_config_box;
+    bool need_config_box;
 
     setlocale(LC_CTYPE, "");
 
     {
         /* Call the function in ux{putty,pterm}.c to do app-type
          * specific setup */
-        extern void setup(int);
+        extern void setup(bool);
         setup(true);     /* true means we are a one-session process */
     }
 
@@ -623,10 +623,10 @@ int main(int argc, char **argv)
      * terminating the main pterm/PuTTY. However, we'll have to
      * unblock it again when pterm forks.
      */
-    block_signal(SIGPIPE, 1);
+    block_signal(SIGPIPE, true);
 
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
-        extern const int dup_check_launchable;
+        extern const bool dup_check_launchable;
 
 	read_dupsession_data(conf, argv[1]);
 	/* Splatter this argument so it doesn't clutter a ps listing */
@@ -635,10 +635,10 @@ int main(int argc, char **argv)
         assert(!dup_check_launchable || conf_launchable(conf));
         need_config_box = false;
     } else {
-	if (do_cmdline(argc, argv, 0, conf))
+	if (do_cmdline(argc, argv, false, conf))
 	    exit(1);		       /* pre-defaults pass to get -class */
 	do_defaults(NULL, conf);
-	if (do_cmdline(argc, argv, 1, conf))
+	if (do_cmdline(argc, argv, true, conf))
 	    exit(1);		       /* post-defaults, do everything */
 
 	cmdline_run_saved(conf);

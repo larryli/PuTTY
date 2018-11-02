@@ -85,9 +85,9 @@ void conf_checkbox_handler(union control *ctrl, dlgparam *dlg,
     key = ctrl->checkbox.context.i;
     if (key & CHECKBOX_INVERT) {
 	key &= ~CHECKBOX_INVERT;
-	invert = 1;
+	invert = true;
     } else
-	invert = 0;
+	invert = false;
 
     /*
      * C lacks a logical XOR, so the following code uses the idiom
@@ -159,7 +159,8 @@ void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
     Conf *conf = (Conf *)data;
 
     if (event == EVENT_REFRESH) {
-	dlg_filesel_set(ctrl, dlg, conf_get_filename(conf, key));
+	dlg_filesel_set(
+            ctrl, dlg, conf_get_filename(conf, key));
     } else if (event == EVENT_VALCHANGE) {
 	Filename *filename = dlg_filesel_get(ctrl, dlg);
 	conf_set_filename(conf, key, filename);
@@ -174,7 +175,8 @@ void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
     Conf *conf = (Conf *)data;
 
     if (event == EVENT_REFRESH) {
-	dlg_fontsel_set(ctrl, dlg, conf_get_fontspec(conf, key));
+	dlg_fontsel_set(
+            ctrl, dlg, conf_get_fontspec(conf, key));
     } else if (event == EVENT_VALCHANGE) {
 	FontSpec *fontspec = dlg_fontsel_get(ctrl, dlg);
 	conf_set_fontspec(conf, key, fontspec);
@@ -634,7 +636,7 @@ struct sessionsaver_data {
     union control *editbox, *listbox, *loadbutton, *savebutton, *delbutton;
     union control *okbutton, *cancelbutton;
     struct sesslist sesslist;
-    int midsession;
+    bool midsession;
     char *savedsession;     /* the current contents of ssd->editbox */
 };
 
@@ -651,14 +653,15 @@ static void sessionsaver_data_free(void *ssdv)
  * any, as this is done in more than one place below. Returns 0 for
  * failure.
  */
-static int load_selected_session(struct sessionsaver_data *ssd,
-                                 dlgparam *dlg, Conf *conf, int *maybe_launch)
+static bool load_selected_session(
+    struct sessionsaver_data *ssd,
+    dlgparam *dlg, Conf *conf, bool *maybe_launch)
 {
     int i = dlg_listbox_index(ssd->listbox, dlg);
-    int isdef;
+    bool isdef;
     if (i < 0) {
 	dlg_beep(dlg);
-	return 0;
+	return false;
     }
     isdef = !strcmp(ssd->sesslist.sessions[i], "Default Settings");
     load_settings(ssd->sesslist.sessions[i], conf);
@@ -670,7 +673,7 @@ static int load_selected_session(struct sessionsaver_data *ssd,
     /* Restore the selection, which might have been clobbered by
      * changing the value of the edit box. */
     dlg_listbox_select(ssd->listbox, dlg, i);
-    return 1;
+    return true;
 }
 
 static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
@@ -713,7 +716,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	    dlg_listbox_select(ssd->listbox, dlg, top);
 	}
     } else if (event == EVENT_ACTION) {
-	int mbl = false;
+	bool mbl = false;
 	if (!ssd->midsession &&
 	    (ctrl == ssd->listbox ||
 	     (ssd->loadbutton && ctrl == ssd->loadbutton))) {
@@ -729,7 +732,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 		dlg_end(dlg, 1);       /* it's all over, and succeeded */
 	    }
 	} else if (ctrl == ssd->savebutton) {
-	    int isdef = !strcmp(ssd->savedsession, "Default Settings");
+	    bool isdef = !strcmp(ssd->savedsession, "Default Settings");
 	    if (!ssd->savedsession[0]) {
 		int i = dlg_listbox_index(ssd->listbox, dlg);
 		if (i < 0) {
@@ -779,7 +782,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
 		!conf_launchable(conf)) {
 		Conf *conf2 = conf_new();
-		int mbl = false;
+		bool mbl = false;
 		if (!load_selected_session(ssd, dlg, conf2, &mbl)) {
 		    dlg_beep(dlg);
 		    conf_free(conf2);
@@ -875,7 +878,8 @@ static void colour_handler(union control *ctrl, dlgparam *dlg,
     Conf *conf = (Conf *)data;
     struct colour_data *cd =
 	(struct colour_data *)ctrl->generic.context.p;
-    int update = false, clear = false, r, g, b;
+    bool update = false, clear = false;
+    int r, g, b;
 
     if (event == EVENT_REFRESH) {
 	if (ctrl == cd->listbox) {
@@ -1464,7 +1468,7 @@ static void clipboard_control(struct controlset *s, const char *label,
 #endif
 }
 
-void setup_config_box(struct controlbox *b, int midsession,
+void setup_config_box(struct controlbox *b, bool midsession,
 		      int protocol, int protcfginfo)
 {
     struct controlset *s;
@@ -2275,7 +2279,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 			 HELPCTX(proxy_auth),
 			 conf_editbox_handler,
 			 I(CONF_proxy_password), I(1));
-	c->editbox.password = 1;
+	c->editbox.password = true;
 	ctrl_editbox(s, "Telnet command", 'm', 100,
 		     HELPCTX(proxy_command),
 		     conf_editbox_handler,
@@ -2501,7 +2505,7 @@ void setup_config_box(struct controlbox *b, int midsession,
                                             HELPCTX(ssh_kex_manual_hostkeys),
                                             manual_hostkey_handler, P(mh));
             mh->rembutton->generic.column = 1;
-            mh->rembutton->generic.tabdelay = 1;
+            mh->rembutton->generic.tabdelay = true;
             mh->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
                                        HELPCTX(ssh_kex_manual_hostkeys),
                                        manual_hostkey_handler, P(mh));
@@ -2683,7 +2687,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 					    HELPCTX(ssh_ttymodes),
 					    ttymodes_handler, P(td));
 	    td->setbutton->generic.column = 1;
-	    td->setbutton->generic.tabdelay = 1;
+	    td->setbutton->generic.tabdelay = true;
 	    ctrl_columns(s, 1, 100);	    /* column break */
 	    /* Bit of a hack to get the value radio buttons and
 	     * edit-box on the same row. */
@@ -2752,7 +2756,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 					 HELPCTX(ssh_tunnels_portfwd),
 					 portfwd_handler, P(pfd));
 	pfd->rembutton->generic.column = 2;
-	pfd->rembutton->generic.tabdelay = 1;
+	pfd->rembutton->generic.tabdelay = true;
 	pfd->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
 				    HELPCTX(ssh_tunnels_portfwd),
 				    portfwd_handler, P(pfd));
@@ -2769,7 +2773,7 @@ void setup_config_box(struct controlbox *b, int midsession,
 					 HELPCTX(ssh_tunnels_portfwd),
 					 portfwd_handler, P(pfd));
 	pfd->addbutton->generic.column = 2;
-	pfd->addbutton->generic.tabdelay = 1;
+	pfd->addbutton->generic.tabdelay = true;
 	pfd->sourcebox = ctrl_editbox(s, "Source port", 's', 40,
 				      HELPCTX(ssh_tunnels_portfwd),
 				      portfwd_handler, P(pfd), P(NULL));

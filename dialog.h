@@ -109,7 +109,7 @@ typedef void (*handler_fn)(union control *ctrl, dlgparam *dp,
 #define STANDARD_PREFIX \
 	int type; \
 	char *label; \
-	int tabdelay; \
+	bool tabdelay; \
 	int column; \
         handler_fn handler; \
 	intorptr context; \
@@ -142,7 +142,7 @@ union control {
 	 * particular control should not yet appear in the tab
 	 * order. A subsequent CTRL_TABDELAY entry will place it.
 	 */
-	int tabdelay;
+	bool tabdelay;
 	/*
 	 * Indicate which column(s) this control occupies. This can
 	 * be unpacked into starting column and column span by the
@@ -197,7 +197,7 @@ union control {
 	 * itself.
 	 */
 	int percentwidth;
-	int password;		       /* details of input are hidden */
+	bool password;               /* details of input are hidden */
 	/*
 	 * A special case of the edit box is the combo box, which
 	 * has a drop-down list built in. (Note that a _non_-
@@ -208,7 +208,7 @@ union control {
 	 * control; front ends are not required to support that
 	 * combination.
 	 */
-	int has_list;
+	bool has_list;
 	/*
 	 * Edit boxes tend to need two items of context, so here's
 	 * a spare.
@@ -279,12 +279,12 @@ union control {
 	 * button', which gets implicitly pressed when you hit
 	 * Return even if it doesn't have the input focus.
 	 */
-	int isdefault;
+	bool isdefault;
 	/*
 	 * Also, the reverse of this: a default cancel-type button,
 	 * which is implicitly pressed when you hit Escape.
 	 */
-	int iscancel;
+	bool iscancel;
     } button;
     struct {
 	STANDARD_PREFIX;
@@ -301,7 +301,7 @@ union control {
 	 * comfortable with). This is not guaranteed to work on a
 	 * drop-down list, so don't try it!
 	 */
-	int draglist;
+	bool draglist;
 	/*
 	 * If this is non-zero, the list can have more than one
 	 * element selected at a time. This is not guaranteed to
@@ -344,7 +344,7 @@ union control {
          * scroll bar if a list box entry goes off the right-hand
          * side.
          */
-        int hscroll;
+        bool hscroll;
     } listbox;
     struct {
 	STANDARD_PREFIX;
@@ -374,7 +374,7 @@ union control {
 	 * choosing a file to read or one to write (and possibly
 	 * create).
 	 */
-	int for_writing;
+	bool for_writing;
 	/*
 	 * On at least some platforms, the file selector is a
 	 * separate dialog box, and contains a user-settable title.
@@ -517,7 +517,7 @@ union control *ctrl_draglist(struct controlset *, const char *label,
                              char shortcut, intorptr helpctx,
 			     handler_fn handler, intorptr context);
 union control *ctrl_filesel(struct controlset *, const char *label,
-                            char shortcut, const char *filter, int write,
+                            char shortcut, const char *filter, bool write,
                             const char *title, intorptr helpctx,
 			    handler_fn handler, intorptr context);
 union control *ctrl_fontsel(struct controlset *, const char *label,
@@ -536,8 +536,8 @@ union control *ctrl_tabdelay(struct controlset *, union control *);
  */
 void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int whichbutton);
 int dlg_radiobutton_get(union control *ctrl, dlgparam *dp);
-void dlg_checkbox_set(union control *ctrl, dlgparam *dp, int checked);
-int dlg_checkbox_get(union control *ctrl, dlgparam *dp);
+void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked);
+bool dlg_checkbox_get(union control *ctrl, dlgparam *dp);
 void dlg_editbox_set(union control *ctrl, dlgparam *dp, char const *text);
 char *dlg_editbox_get(union control *ctrl, dlgparam *dp);   /* result must be freed by caller */
 /* The `listbox' functions can also apply to combo boxes. */
@@ -556,7 +556,7 @@ void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
 int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index);
 /* dlg_listbox_index returns <0 if no single element is selected. */
 int dlg_listbox_index(union control *ctrl, dlgparam *dp);
-int dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index);
+bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index);
 void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index);
 void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text);
 void dlg_filesel_set(union control *ctrl, dlgparam *dp, Filename *fn);
@@ -614,8 +614,8 @@ void dlg_end(dlgparam *dp, int value);
  */
 void dlg_coloursel_start(union control *ctrl, dlgparam *dp,
 			 int r, int g, int b);
-int dlg_coloursel_results(union control *ctrl, dlgparam *dp,
-			  int *r, int *g, int *b);
+bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
+                           int *r, int *g, int *b);
 
 /*
  * This routine is used by the platform-independent code to

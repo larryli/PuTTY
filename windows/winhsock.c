@@ -36,7 +36,7 @@ typedef struct HandleSocket {
     /* Data received from stderr_H, if we have one. */
     bufchain stderrdata;
 
-    int defer_close, deferred_close;   /* in case of re-entrance */
+    bool defer_close, deferred_close;   /* in case of re-entrance */
 
     char *error;
 
@@ -209,7 +209,7 @@ static void handle_socket_unfreeze(void *hsv)
     }
 }
 
-static void sk_handle_set_frozen(Socket *s, int is_frozen)
+static void sk_handle_set_frozen(Socket *s, bool is_frozen)
 {
     HandleSocket *hs = container_of(s, HandleSocket, sock);
 
@@ -324,7 +324,7 @@ static const SocketVtable HandleSocket_sockvt = {
 };
 
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, int overlapped)
+                           Plug *plug, bool overlapped)
 {
     HandleSocket *hs;
     int flags = (overlapped ? HANDLE_FLAG_OVERLAPPED : 0);

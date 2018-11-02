@@ -124,7 +124,7 @@ ChanopenResult ssh2_connection_parse_channel_open(
     }
 }
 
-int ssh2_connection_parse_global_request(
+bool ssh2_connection_parse_global_request(
     struct ssh2_connection_state *s, ptrlen type, PktIn *pktin)
 {
     /*
@@ -240,7 +240,7 @@ struct ssh_rportfwd *ssh2_rportfwd_alloc(
         PktOut *pktout = ssh_bpp_new_pktout(
             s->ppl.bpp, SSH2_MSG_GLOBAL_REQUEST);
         put_stringz(pktout, "tcpip-forward");
-        put_bool(pktout, 1);       /* want reply */
+        put_bool(pktout, true);       /* want reply */
         put_stringz(pktout, rpf->shost);
         put_uint32(pktout, rpf->sport);
         pq_push(s->ppl.out_pq, pktout);
@@ -268,7 +268,7 @@ void ssh2_rportfwd_remove(ConnectionLayer *cl, struct ssh_rportfwd *rpf)
         PktOut *pktout = ssh_bpp_new_pktout(
             s->ppl.bpp, SSH2_MSG_GLOBAL_REQUEST);
         put_stringz(pktout, "cancel-tcpip-forward");
-        put_bool(pktout, 0);           /* _don't_ want reply */
+        put_bool(pktout, false);           /* _don't_ want reply */
         put_stringz(pktout, rpf->shost);
         put_uint32(pktout, rpf->sport);
         pq_push(s->ppl.out_pq, pktout);
@@ -320,7 +320,7 @@ static void ssh2_channel_response(
     chan_request_response(c->chan, pkt->type == SSH2_MSG_CHANNEL_SUCCESS);
 }
 
-void ssh2channel_start_shell(SshChannel *sc, int want_reply)
+void ssh2channel_start_shell(SshChannel *sc, bool want_reply)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -331,7 +331,7 @@ void ssh2channel_start_shell(SshChannel *sc, int want_reply)
 }
 
 void ssh2channel_start_command(
-    SshChannel *sc, int want_reply, const char *command)
+    SshChannel *sc, bool want_reply, const char *command)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -342,8 +342,8 @@ void ssh2channel_start_command(
     pq_push(s->ppl.out_pq, pktout);
 }
 
-int ssh2channel_start_subsystem(
-    SshChannel *sc, int want_reply, const char *subsystem)
+bool ssh2channel_start_subsystem(
+    SshChannel *sc, bool want_reply, const char *subsystem)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -362,20 +362,20 @@ void ssh2channel_send_exit_status(SshChannel *sc, int status)
 }
 
 void ssh2channel_send_exit_signal(
-    SshChannel *sc, ptrlen signame, int core_dumped, ptrlen msg)
+    SshChannel *sc, ptrlen signame, bool core_dumped, ptrlen msg)
 {
     assert(false && "Should never be called in the client");
 }
 
 void ssh2channel_send_exit_signal_numeric(
-    SshChannel *sc, int signum, int core_dumped, ptrlen msg)
+    SshChannel *sc, int signum, bool core_dumped, ptrlen msg)
 {
     assert(false && "Should never be called in the client");
 }
 
 void ssh2channel_request_x11_forwarding(
-    SshChannel *sc, int want_reply, const char *authproto,
-    const char *authdata, int screen_number, int oneshot)
+    SshChannel *sc, bool want_reply, const char *authproto,
+    const char *authdata, int screen_number, bool oneshot)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -389,7 +389,7 @@ void ssh2channel_request_x11_forwarding(
     pq_push(s->ppl.out_pq, pktout);
 }
 
-void ssh2channel_request_agent_forwarding(SshChannel *sc, int want_reply)
+void ssh2channel_request_agent_forwarding(SshChannel *sc, bool want_reply)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -401,7 +401,7 @@ void ssh2channel_request_agent_forwarding(SshChannel *sc, int want_reply)
 }
 
 void ssh2channel_request_pty(
-    SshChannel *sc, int want_reply, Conf *conf, int w, int h)
+    SshChannel *sc, bool want_reply, Conf *conf, int w, int h)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -422,8 +422,8 @@ void ssh2channel_request_pty(
     pq_push(s->ppl.out_pq, pktout);
 }
 
-int ssh2channel_send_env_var(
-    SshChannel *sc, int want_reply, const char *var, const char *value)
+bool ssh2channel_send_env_var(
+    SshChannel *sc, bool want_reply, const char *var, const char *value)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -437,7 +437,7 @@ int ssh2channel_send_env_var(
     return true;
 }
 
-int ssh2channel_send_serial_break(SshChannel *sc, int want_reply, int length)
+bool ssh2channel_send_serial_break(SshChannel *sc, bool want_reply, int length)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;
@@ -450,8 +450,8 @@ int ssh2channel_send_serial_break(SshChannel *sc, int want_reply, int length)
     return true;
 }
 
-int ssh2channel_send_signal(
-    SshChannel *sc, int want_reply, const char *signame)
+bool ssh2channel_send_signal(
+    SshChannel *sc, bool want_reply, const char *signame)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     struct ssh2_connection_state *s = c->connlayer;

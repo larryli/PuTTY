@@ -235,7 +235,7 @@ static void fdsocket_flush(Socket *s)
     /* do nothing */
 }
 
-static void fdsocket_set_frozen(Socket *s, int is_frozen)
+static void fdsocket_set_frozen(Socket *s, bool is_frozen)
 {
     FdSocket *fds = container_of(s, FdSocket, sock);
 

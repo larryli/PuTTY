@@ -27,7 +27,7 @@ typedef struct UnixSftpServer UnixSftpServer;
 
 struct UnixSftpServer {
     unsigned *fdseqs;
-    int *fdsopen;
+    bool *fdsopen;
     int fdsize;
 
     tree234 *dirhandles;
@@ -101,7 +101,7 @@ static void uss_return_handle_raw(
     fxp_reply_handle(reply, make_ptrlen(handlebuf, 8));
 }
 
-static int uss_decode_handle(
+static bool uss_decode_handle(
     UnixSftpServer *uss, ptrlen handle, int *index, unsigned *seq)
 {
     unsigned char handlebuf[8];
@@ -123,7 +123,7 @@ static void uss_return_new_handle(
         int old_size = uss->fdsize;
         uss->fdsize = fd * 5 / 4 + 32;
         uss->fdseqs = sresize(uss->fdseqs, uss->fdsize, unsigned);
-        uss->fdsopen = sresize(uss->fdsopen, uss->fdsize, int);
+        uss->fdsopen = sresize(uss->fdsopen, uss->fdsize, bool);
         while (old_size < uss->fdsize) {
             uss->fdseqs[old_size] = 0;
             uss->fdsopen[old_size] = false;
@@ -382,7 +382,7 @@ static void uss_reply_struct_stat(SftpReplyBuilder *reply,
 }
 
 static void uss_stat(SftpServer *srv, SftpReplyBuilder *reply,
-                     ptrlen path, int follow_symlinks)
+                     ptrlen path, bool follow_symlinks)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     struct stat st;
@@ -450,7 +450,7 @@ static void uss_setstat(SftpServer *srv, SftpReplyBuilder *reply,
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
 
     char *pathstr = mkstr(path);
-    int success = true;
+    bool success = true;
     SETSTAT_GUTS(PATH_PREFIX, pathstr, attrs, success);
     free(pathstr);
 
@@ -470,7 +470,7 @@ static void uss_fsetstat(SftpServer *srv, SftpReplyBuilder *reply,
     if ((fd = uss_lookup_fd(uss, reply, handle)) < 0)
         return;
 
-    int success = true;
+    bool success = true;
     SETSTAT_GUTS(FD_PREFIX, fd, attrs, success);
 
     if (!success) {
@@ -504,7 +504,7 @@ static void uss_read(SftpServer *srv, SftpReplyBuilder *reply,
 
     int status = lseek(fd, offset, SEEK_SET);
     if (status >= 0 || errno == ESPIPE) {
-        int seekable = (status >= 0);
+        bool seekable = (status >= 0);
         while (length > 0) {
             status = read(fd, p, length);
             if (status <= 0)
@@ -573,7 +573,7 @@ static void uss_write(SftpServer *srv, SftpReplyBuilder *reply,
 }
 
 static void uss_readdir(SftpServer *srv, SftpReplyBuilder *reply,
-                        ptrlen handle, int max_entries, int omit_longname)
+                        ptrlen handle, int max_entries, bool omit_longname)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     struct dirent *de;

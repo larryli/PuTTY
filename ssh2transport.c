@@ -44,11 +44,11 @@ static void ssh_comp_none_block(ssh_compressor *handle,
                                 int minlen)
 {
 }
-static int ssh_decomp_none_block(ssh_decompressor *handle,
-                                 unsigned char *block, int len,
-                                 unsigned char **outblock, int *outlen)
+static bool ssh_decomp_none_block(ssh_decompressor *handle,
+                                  unsigned char *block, int len,
+                                  unsigned char **outblock, int *outlen)
 {
-    return 0;
+    return false;
 }
 const static struct ssh_compression_alg ssh_comp_none = {
     "none", NULL,
@@ -62,11 +62,11 @@ const static struct ssh_compression_alg *const compressions[] = {
 
 static void ssh2_transport_free(PacketProtocolLayer *);
 static void ssh2_transport_process_queue(PacketProtocolLayer *);
-static int ssh2_transport_get_specials(
+static bool ssh2_transport_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
 static void ssh2_transport_special_cmd(PacketProtocolLayer *ppl,
                                        SessionSpecialCode code, int arg);
-static int ssh2_transport_want_user_input(PacketProtocolLayer *ppl);
+static bool ssh2_transport_want_user_input(PacketProtocolLayer *ppl);
 static void ssh2_transport_got_user_input(PacketProtocolLayer *ppl);
 static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
@@ -87,11 +87,11 @@ static const struct PacketProtocolLayerVtable ssh2_transport_vtable = {
 
 #ifndef NO_GSSAPI
 static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
-                                      int definitely_rekeying);
+                                      bool definitely_rekeying);
 #endif
 
-static int ssh2_transport_timer_update(struct ssh2_transport_state *s,
-                                       unsigned long rekey_time);
+static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
+                                        unsigned long rekey_time);
 
 static const char *const kexlist_descr[NKEXLIST] = {
     "key exchange algorithm",
@@ -109,7 +109,7 @@ PacketProtocolLayer *ssh2_transport_new(
     const char *client_greeting, const char *server_greeting,
     struct ssh_connection_shared_gss_state *shgss,
     struct DataTransferStats *stats, PacketProtocolLayer *higher_layer,
-    int is_server)
+    bool is_server)
 {
     struct ssh2_transport_state *s = snew(struct ssh2_transport_state);
     memset(s, 0, sizeof(*s));
@@ -298,7 +298,7 @@ static struct kexinit_algorithm *ssh2_kexinit_addalg(struct kexinit_algorithm
     return NULL;
 }
 
-int ssh2_common_filter_queue(PacketProtocolLayer *ppl)
+bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
 {
     static const char *const ssh2_disconnect_reasons[] = {
         NULL,
@@ -359,7 +359,7 @@ int ssh2_common_filter_queue(PacketProtocolLayer *ppl)
     return false;
 }
 
-static int ssh2_transport_filter_queue(struct ssh2_transport_state *s)
+static bool ssh2_transport_filter_queue(struct ssh2_transport_state *s)
 {
     PktIn *pktin;
 
@@ -407,9 +407,10 @@ static void ssh2_write_kexinit_lists(
     const char *hk_host, int hk_port, const ssh_keyalg *hk_prev,
     ssh_transient_hostkey_cache *thc,
     ssh_key *const *our_hostkeys, int our_nhostkeys,
-    int first_time, int can_gssapi_keyex, int transient_hostkey_mode)
+    bool first_time, bool can_gssapi_keyex, bool transient_hostkey_mode)
 {
-    int i, j, k, warn;
+    int i, j, k;
+    bool warn;
 
     int n_preferred_kex;
     const struct ssh_kexes *preferred_kex[KEX_MAX + 1]; /* +1 for GSSAPI */
@@ -735,18 +736,18 @@ static void ssh2_write_kexinit_lists(
     put_stringz(pktout, "");
 }
 
-static int ssh2_scan_kexinits(
+static bool ssh2_scan_kexinits(
     ptrlen client_kexinit, ptrlen server_kexinit,
     struct kexinit_algorithm kexlists[NKEXLIST][MAXKEXLIST],
     const struct ssh_kex **kex_alg, const ssh_keyalg **hostkey_alg,
     transport_direction *cs, transport_direction *sc,
-    int *warn_kex, int *warn_hk, int *warn_cscipher, int *warn_sccipher,
-    Ssh *ssh, int *ignore_guess_cs_packet, int *ignore_guess_sc_packet,
+    bool *warn_kex, bool *warn_hk, bool *warn_cscipher, bool *warn_sccipher,
+    Ssh *ssh, bool *ignore_guess_cs_packet, bool *ignore_guess_sc_packet,
     int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST])
 {
     BinarySource client[1], server[1];
     int i;
-    int guess_correct;
+    bool guess_correct;
     ptrlen clists[NKEXLIST], slists[NKEXLIST];
     const struct kexinit_algorithm *selected[NKEXLIST];
 
@@ -763,7 +764,8 @@ static int ssh2_scan_kexinits(
      * kexinit_algorithm structure. */
     for (i = 0; i < NKEXLIST; i++) {
         ptrlen clist, slist, cword, sword, found;
-        int cfirst, sfirst, j;
+        bool cfirst, sfirst;
+        int j;
 
         clists[i] = get_string(client);
         slists[i] = get_string(server);
@@ -1025,7 +1027,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
          * fresh ones.
          */
         if (!s->got_session_id && (s->gss_status & GSS_CTXT_MAYFAIL) != 0)
-            s->can_gssapi_keyex = 0;
+            s->can_gssapi_keyex = false;
         s->gss_delegate = conf_get_bool(s->conf, CONF_gssapifwd);
     } else {
         s->can_gssapi_keyex = false;
@@ -1147,7 +1149,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         for (j = 0; j < s->n_uncert_hostkeys; j++) {
             const struct ssh_signkey_with_user_pref_id *hktype =
                 &ssh2_hostkey_algs[s->uncert_hostkeys[j]];
-            int better = false;
+            bool better = false;
             for (k = 0; k < HK_MAX; k++) {
                 int id = conf_get_int_int(s->conf, CONF_ssh_hklist, k);
                 if (id == HK_WARN) {
@@ -1575,11 +1577,12 @@ static void ssh2_transport_timer(void *ctx, unsigned long now)
 /*
  * The rekey_time is zero except when re-configuring.
  *
- * We either schedule the next timer and return 0, or return 1 to run the
- * callback now, which will call us again to re-schedule on completion.
+ * We either schedule the next timer and return false, or return true
+ * to run the callback now, which will call us again to re-schedule on
+ * completion.
  */
-static int ssh2_transport_timer_update(struct ssh2_transport_state *s,
-                                       unsigned long rekey_time)
+static bool ssh2_transport_timer_update(struct ssh2_transport_state *s,
+                                        unsigned long rekey_time)
 {
     unsigned long mins;
     unsigned long ticks;
@@ -1598,7 +1601,7 @@ static int ssh2_transport_timer_update(struct ssh2_transport_state *s,
 
         /* If overdue, caller will rekey synchronously now */
         if (now - s->last_rekey > ticks)
-            return 1;
+            return true;
         ticks = next - now;
     }
 
@@ -1633,7 +1636,7 @@ static int ssh2_transport_timer_update(struct ssh2_transport_state *s,
 
     /* Schedule the next timer */
     s->next_rekey = schedule_timer(ticks, ssh2_transport_timer, s);
-    return 0;
+    return false;
 }
 
 void ssh2_transport_dialog_callback(void *loginv, int ret)
@@ -1658,7 +1661,7 @@ void ssh2_transport_dialog_callback(void *loginv, int ret)
  * newly obtained context as a proxy for the expiration of the TGT.
  */
 static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
-                                      int definitely_rekeying)
+                                      bool definitely_rekeying)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
     int gss_stat;
@@ -1754,7 +1757,7 @@ static void ssh2_transport_gss_update(struct ssh2_transport_state *s,
      * refresh them. We must avoid setting GSS_CRED_UPDATED or
      * GSS_CTXT_EXPIRES when credential delegation is disabled.
      */
-    if (conf_get_bool(s->conf, CONF_gssapifwd) == 0)
+    if (!conf_get_bool(s->conf, CONF_gssapifwd))
         return;
 
     if (s->gss_cred_expiry != GSS_NO_EXPIRATION &&
@@ -1792,13 +1795,13 @@ void ssh2_transport_notify_auth_done(PacketProtocolLayer *ppl)
 
 #endif /* NO_GSSAPI */
 
-static int ssh2_transport_get_specials(
+static bool ssh2_transport_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx)
 {
     struct ssh2_transport_state *s =
         container_of(ppl, struct ssh2_transport_state, ppl);
-    int need_separator = false;
-    int toret;
+    bool need_separator = false;
+    bool toret;
 
     if (ssh_ppl_get_specials(s->higher_layer, add_special, ctx)) {
         need_separator = true;
@@ -1884,7 +1887,7 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
 {
     struct ssh2_transport_state *s;
     const char *rekey_reason = NULL;
-    int rekey_mandatory = false;
+    bool rekey_mandatory = false;
     unsigned long old_max_data_size, rekey_time;
     int i;
 
@@ -1905,8 +1908,8 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
 
             /* We must decrement both counters, so avoid short-circuit
              * evaluation skipping one */
-            int out_expired = DTS_CONSUME(s->stats, out, diff) != 0;
-            int in_expired = DTS_CONSUME(s->stats, in, diff) != 0;
+            bool out_expired = DTS_CONSUME(s->stats, out, diff);
+            bool in_expired = DTS_CONSUME(s->stats, in, diff);
             if (out_expired || in_expired)
                 rekey_reason = "data limit lowered";
         } else {
@@ -1953,7 +1956,7 @@ static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
     ssh_ppl_reconfigure(s->higher_layer, conf);
 }
 
-static int ssh2_transport_want_user_input(PacketProtocolLayer *ppl)
+static bool ssh2_transport_want_user_input(PacketProtocolLayer *ppl)
 {
     struct ssh2_transport_state *s =
         container_of(ppl, struct ssh2_transport_state, ppl);

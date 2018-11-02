@@ -18,7 +18,7 @@ struct Serial {
     LogContext *logctx;
     int bufsize;
     long clearbreak_time;
-    int break_in_progress;
+    bool break_in_progress;
     Backend backend;
 };
 
@@ -193,7 +193,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 static const char *serial_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
                                const char *host, int port,
-			       char **realhost, int nodelay, int keepalive)
+			       char **realhost, bool nodelay, bool keepalive)
 {
     Serial *serial;
     HANDLE serport;
@@ -375,14 +375,14 @@ static const SessionSpecial *serial_get_specials(Backend *be)
     return specials;
 }
 
-static int serial_connected(Backend *be)
+static bool serial_connected(Backend *be)
 {
-    return 1;			       /* always connected */
+    return true;                       /* always connected */
 }
 
-static int serial_sendok(Backend *be)
+static bool serial_sendok(Backend *be)
 {
-    return 1;
+    return true;
 }
 
 static void serial_unthrottle(Backend *be, int backlog)
@@ -392,12 +392,12 @@ static void serial_unthrottle(Backend *be, int backlog)
 	handle_unthrottle(serial->in, backlog);
 }
 
-static int serial_ldisc(Backend *be, int option)
+static bool serial_ldisc(Backend *be, int option)
 {
     /*
      * Local editing and local echo are off by default.
      */
-    return 0;
+    return false;
 }
 
 static void serial_provide_ldisc(Backend *be, Ldisc *ldisc)

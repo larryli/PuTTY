@@ -55,20 +55,20 @@ extern Conf *conf;		       /* defined in window.c */
 
 void force_normal(HWND hwnd)
 {
-    static int recurse = 0;
+    static bool recurse = false;
 
     WINDOWPLACEMENT wp;
 
     if (recurse)
 	return;
-    recurse = 1;
+    recurse = true;
 
     wp.length = sizeof(wp);
     if (GetWindowPlacement(hwnd, &wp) && wp.showCmd == SW_SHOWMAXIMIZED) {
 	wp.showCmd = SW_SHOWNORMAL;
 	SetWindowPlacement(hwnd, &wp);
     }
-    recurse = 0;
+    recurse = false;
 }
 
 static char *getevent(int i)
@@ -693,9 +693,9 @@ void defuse_showwindow(void)
     }
 }
 
-int do_config(void)
+bool do_config(void)
 {
-    int ret;
+    bool ret;
 
     ctrlbox = ctrl_new_box();
     setup_config_box(ctrlbox, false, 0, 0);
@@ -723,10 +723,11 @@ int do_config(void)
     return ret;
 }
 
-int do_reconfig(HWND hwnd, int protcfginfo)
+bool do_reconfig(HWND hwnd, int protcfginfo)
 {
     Conf *backup_conf;
-    int ret, protocol;
+    bool ret;
+    int protocol;
 
     backup_conf = conf_copy(conf);
 

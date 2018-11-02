@@ -16,28 +16,28 @@
 #include "ssh.h"
 #include "storage.h"
 
-static int read_dev_urandom(char *buf, int len)
+static bool read_dev_urandom(char *buf, int len)
 {
     int fd;
     int ngot, ret;
 
     fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0)
-	return 0;
+	return false;
 
     ngot = 0;
     while (ngot < len) {
 	ret = read(fd, buf+ngot, len-ngot);
 	if (ret < 0) {
 	    close(fd);
-	    return 0;
+	    return false;
 	}
 	ngot += ret;
     }
 
     close(fd);
 
-    return 1;
+    return true;
 }
 
 /*
@@ -52,10 +52,10 @@ void noise_get_heavy(void (*func) (void *, int))
     char buf[512];
     FILE *fp;
     int ret;
-    int got_dev_urandom = 0;
+    bool got_dev_urandom = false;
 
     if (read_dev_urandom(buf, 32)) {
-	got_dev_urandom = 1;
+	got_dev_urandom = true;
 	func(buf, 32);
     }
 

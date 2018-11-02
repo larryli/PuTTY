@@ -27,7 +27,7 @@ struct ssh2_userauth_server_state {
 
     ptrlen username, service, method;
     unsigned methods, this_method;
-    int partial_success;
+    bool partial_success;
 
     AuthKbdInt *aki;
 
@@ -162,7 +162,7 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
             if (!auth_none(s->authpolicy, s->username))
                 goto failure;
         } else if (ptrlen_eq_string(s->method, "password")) {
-            int changing;
+            bool changing;
             ptrlen password, new_password, *new_password_ptr;
 
             s->this_method = AUTHMETHOD_PASSWORD;
@@ -192,7 +192,7 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
                 goto failure;
             }
         } else if (ptrlen_eq_string(s->method, "publickey")) {
-            int has_signature, success;
+            bool has_signature, success;
             ptrlen algorithm, blob, signature;
             const ssh_keyalg *keyalg;
             ssh_key *key;

@@ -53,20 +53,20 @@ struct NetSocket {
     SOCKET s;
     Plug *plug;
     bufchain output_data;
-    int connected;
-    int writable;
-    int frozen; /* this causes readability notifications to be ignored */
-    int frozen_readable; /* this means we missed at least one readability
-			  * notification while we were frozen */
-    int localhost_only;		       /* for listening sockets */
+    bool connected;
+    bool writable;
+    bool frozen; /* this causes readability notifications to be ignored */
+    bool frozen_readable; /* this means we missed at least one readability
+                           * notification while we were frozen */
+    bool localhost_only;               /* for listening sockets */
     char oobdata[1];
     int sending_oob;
-    int oobinline, nodelay, keepalive, privport;
+    bool oobinline, nodelay, keepalive, privport;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
     SockAddr *addr;
     SockAddrStep step;
     int port;
-    int pending_error;		       /* in case send() returns error */
+    int pending_error;             /* in case send() returns error */
     /*
      * We sometimes need pairs of Socket structures to be linked:
      * if we are listening on the same IPv6 and v4 port, for
@@ -81,9 +81,9 @@ struct NetSocket {
 struct SockAddr {
     int refcount;
     char *error;
-    int resolved;
-    int namedpipe; /* indicates that this SockAddr is phony, holding a Windows
-                    * named pipe pathname instead of a network address */
+    bool resolved;
+    bool namedpipe; /* indicates that this SockAddr is phony, holding a Windows
+                     * named pipe pathname instead of a network address */
 #ifndef NO_IPV6
     struct addrinfo *ais;	       /* Addresses IPv6 style. */
 #endif
@@ -206,7 +206,7 @@ static HMODULE winsock2_module = NULL;
 static HMODULE wship6_module = NULL;
 #endif
 
-int sk_startup(int hi, int lo)
+bool sk_startup(int hi, int lo)
 {
     WORD winsock_ver;
 
@@ -657,7 +657,7 @@ SockAddr *sk_namedpipe_addr(const char *pipename)
     return ret;
 }
 
-int sk_nextaddr(SockAddr *addr, SockAddrStep *step)
+bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
 {
 #ifndef NO_IPV6
     if (step->ai) {
@@ -739,12 +739,12 @@ static SockAddr sk_extractaddr_tmp(
     return toret;
 }
 
-int sk_addr_needs_port(SockAddr *addr)
+bool sk_addr_needs_port(SockAddr *addr)
 {
-    return addr->namedpipe ? false : true;
+    return !addr->namedpipe;
 }
 
-int sk_hostname_is_local(const char *name)
+bool sk_hostname_is_local(const char *name)
 {
     return !strcmp(name, "localhost") ||
 	   !strcmp(name, "::1") ||
@@ -754,10 +754,10 @@ int sk_hostname_is_local(const char *name)
 static INTERFACE_INFO local_interfaces[16];
 static int n_local_interfaces;       /* 0=not yet, -1=failed, >0=number */
 
-static int ipv4_is_local_addr(struct in_addr addr)
+static bool ipv4_is_local_addr(struct in_addr addr)
 {
     if (ipv4_is_loopback(addr))
-	return 1;		       /* loopback addresses are local */
+	return true;                   /* loopback addresses are local */
     if (!n_local_interfaces) {
 	SOCKET s = p_socket(AF_INET, SOCK_DGRAM, 0);
 	DWORD retbytes;
@@ -778,13 +778,13 @@ static int ipv4_is_local_addr(struct in_addr addr)
 	    SOCKADDR_IN *address =
 		(SOCKADDR_IN *)&local_interfaces[i].iiAddress;
 	    if (address->sin_addr.s_addr == addr.s_addr)
-		return 1;	       /* this address is local */
+		return true;           /* this address is local */
 	}
     }
-    return 0;		       /* this address is not local */
+    return false;                      /* this address is not local */
 }
 
-int sk_address_is_local(SockAddr *addr)
+bool sk_address_is_local(SockAddr *addr)
 {
     SockAddrStep step;
     int family;
@@ -811,13 +811,13 @@ int sk_address_is_local(SockAddr *addr)
 	}
     } else {
 	assert(family == AF_UNSPEC);
-	return 0;		       /* we don't know; assume not */
+	return false;                  /* we don't know; assume not */
     }
 }
 
-int sk_address_is_special_local(SockAddr *addr)
+bool sk_address_is_special_local(SockAddr *addr)
 {
-    return 0;                /* no Unix-domain socket analogue here */
+    return false;            /* no Unix-domain socket analogue here */
 }
 
 int sk_addrtype(SockAddr *addr)
@@ -902,11 +902,11 @@ static void sk_net_close(Socket *s);
 static int sk_net_write(Socket *s, const void *data, int len);
 static int sk_net_write_oob(Socket *s, const void *data, int len);
 static void sk_net_write_eof(Socket *s);
-static void sk_net_set_frozen(Socket *s, int is_frozen);
+static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static const char *sk_net_socket_error(Socket *s);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
 
-extern char *do_select(SOCKET skt, int startup);
+extern char *do_select(SOCKET skt, bool startup);
 
 static const SocketVtable NetSocket_sockvt = {
     sk_net_plug,
@@ -934,12 +934,12 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 1;		       /* to start with */
+    ret->writable = true;              /* to start with */
     ret->sending_oob = 0;
     ret->outgoingeof = EOF_NO;
-    ret->frozen = 1;
-    ret->frozen_readable = 0;
-    ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->frozen = true;
+    ret->frozen_readable = false;
+    ret->localhost_only = false;    /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
@@ -952,11 +952,11 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
 	return &ret->sock;
     }
 
-    ret->oobinline = 0;
+    ret->oobinline = false;
 
     /* Set up a select mechanism. This could be an AsyncSelect on a
      * window, or an EventSelect on an event object. */
-    errstr = do_select(ret->s, 1);
+    errstr = do_select(ret->s, true);
     if (errstr) {
 	ret->error = errstr;
 	return &ret->sock;
@@ -980,7 +980,7 @@ static DWORD try_connect(NetSocket *sock)
     int family;
 
     if (sock->s != INVALID_SOCKET) {
-	do_select(sock->s, 0);
+	do_select(sock->s, false);
         p_closesocket(sock->s);
     }
 
@@ -1112,7 +1112,7 @@ static DWORD try_connect(NetSocket *sock)
 
     /* Set up a select mechanism. This could be an AsyncSelect on a
      * window, or an EventSelect on an event object. */
-    errstr = do_select(s, 1);
+    errstr = do_select(s, true);
     if (errstr) {
 	sock->error = errstr;
 	err = 1;
@@ -1145,7 +1145,7 @@ static DWORD try_connect(NetSocket *sock)
 	 * If we _don't_ get EWOULDBLOCK, the connect has completed
 	 * and we should set the socket as writable.
 	 */
-	sock->writable = 1;
+	sock->writable = true;
     }
 
     err = 0;
@@ -1165,8 +1165,8 @@ static DWORD try_connect(NetSocket *sock)
     return err;
 }
 
-Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
-               int nodelay, int keepalive, Plug *plug)
+Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
+               bool nodelay, bool keepalive, Plug *plug)
 {
     NetSocket *ret;
     DWORD err;
@@ -1179,13 +1179,13 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->connected = 0;		       /* to start with */
-    ret->writable = 0;		       /* to start with */
+    ret->connected = false;            /* to start with */
+    ret->writable = false;             /* to start with */
     ret->sending_oob = 0;
     ret->outgoingeof = EOF_NO;
-    ret->frozen = 0;
-    ret->frozen_readable = 0;
-    ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->frozen = false;
+    ret->frozen_readable = false;
+    ret->localhost_only = false;    /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobinline = oobinline;
@@ -1206,7 +1206,7 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
 }
 
 Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
-                       int local_host_only, int orig_address_family)
+                       bool local_host_only, int orig_address_family)
 {
     SOCKET s;
 #ifndef NO_IPV6
@@ -1230,11 +1230,11 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 0;		       /* to start with */
+    ret->writable = false;             /* to start with */
     ret->sending_oob = 0;
     ret->outgoingeof = EOF_NO;
-    ret->frozen = 0;
-    ret->frozen_readable = 0;
+    ret->frozen = false;
+    ret->frozen_readable = false;
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
@@ -1273,7 +1273,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
     SetHandleInformation((HANDLE)s, HANDLE_FLAG_INHERIT, 0);
 
-    ret->oobinline = 0;
+    ret->oobinline = false;
 
     p_setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (const char *)&on, sizeof(on));
 
@@ -1308,7 +1308,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 	} else
 #endif
 	{
-	    int got_addr = 0;
+            bool got_addr = false;
 	    a.sin_family = AF_INET;
 
 	    /*
@@ -1320,7 +1320,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 		if (a.sin_addr.s_addr != INADDR_NONE) {
 		    /* Override localhost_only with specified listen addr. */
 		    ret->localhost_only = ipv4_is_loopback(a.sin_addr);
-		    got_addr = 1;
+		    got_addr = true;
 		}
 	    }
 
@@ -1366,7 +1366,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
     /* Set up a select mechanism. This could be an AsyncSelect on a
      * window, or an EventSelect on an event object. */
-    errstr = do_select(s, 1);
+    errstr = do_select(s, true);
     if (errstr) {
 	p_closesocket(s);
 	ret->error = errstr;
@@ -1401,14 +1401,13 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
 static void sk_net_close(Socket *sock)
 {
-    extern char *do_select(SOCKET skt, int startup);
     NetSocket *s = container_of(sock, NetSocket, sock);
 
     if (s->child)
 	sk_net_close(&s->child->sock);
 
     del234(sktree, s);
-    do_select(s->s, 0);
+    do_select(s->s, false);
     p_closesocket(s->s);
     if (s->addr)
 	sk_addr_free(s->addr);
@@ -1578,7 +1577,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
     DWORD err;
     char buf[20480];		       /* nice big buffer for plenty of speed */
     NetSocket *s;
-    u_long atmark;
+    bool atmark;
 
     /* wParam is the socket itself */
 
@@ -1612,7 +1611,8 @@ void select_result(WPARAM wParam, LPARAM lParam)
 
     switch (WSAGETSELECTEVENT(lParam)) {
       case FD_CONNECT:
-	s->connected = s->writable = 1;
+	s->connected = true;
+        s->writable = true;
 	/*
 	 * Once a socket is connected, we can stop falling
 	 * back through the candidate addresses to connect
@@ -1626,7 +1626,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
       case FD_READ:
 	/* In the case the socket is still frozen, we don't even bother */
 	if (s->frozen) {
-	    s->frozen_readable = 1;
+	    s->frozen_readable = true;
 	    break;
 	}
 
@@ -1637,8 +1637,8 @@ void select_result(WPARAM wParam, LPARAM lParam)
 	 * (data prior to urgent).
 	 */
 	if (s->oobinline) {
-	    atmark = 1;
-	    p_ioctlsocket(s->s, SIOCATMARK, &atmark);
+            u_long atmark_from_ioctl = 1;
+	    p_ioctlsocket(s->s, SIOCATMARK, &atmark_from_ioctl);
 	    /*
 	     * Avoid checking the return value from ioctlsocket(),
 	     * on the grounds that some WinSock wrappers don't
@@ -1646,8 +1646,9 @@ void select_result(WPARAM wParam, LPARAM lParam)
 	     * which is equivalent to `no OOB pending', so the
 	     * effect will be to non-OOB-ify any OOB data.
 	     */
+            atmark = atmark_from_ioctl;
 	} else
-	    atmark = 1;
+	    atmark = true;
 
 	ret = p_recv(s->s, buf, sizeof(buf), 0);
 	noise_ultralight(ret);
@@ -1684,7 +1685,7 @@ void select_result(WPARAM wParam, LPARAM lParam)
       case FD_WRITE:
 	{
 	    int bufsize_before, bufsize_after;
-	    s->writable = 1;
+	    s->writable = true;
 	    bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
 	    try_send(s);
 	    bufsize_after = s->sending_oob + bufchain_size(&s->output_data);
@@ -1812,20 +1813,20 @@ static SocketPeerInfo *sk_net_peer_info(Socket *sock)
     return pi;
 }
 
-static void sk_net_set_frozen(Socket *sock, int is_frozen)
+static void sk_net_set_frozen(Socket *sock, bool is_frozen)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
     if (s->frozen == is_frozen)
 	return;
     s->frozen = is_frozen;
     if (!is_frozen) {
-	do_select(s->s, 1);
+	do_select(s->s, true);
 	if (s->frozen_readable) {
 	    char c;
 	    p_recv(s->s, &c, 1, MSG_PEEK);
 	}
     }
-    s->frozen_readable = 0;
+    s->frozen_readable = false;
 }
 
 void socket_reselect_all(void)
@@ -1835,7 +1836,7 @@ void socket_reselect_all(void)
 
     for (i = 0; (s = index234(sktree, i)) != NULL; i++) {
 	if (!s->frozen)
-	    do_select(s->s, 1);
+	    do_select(s->s, true);
     }
 }
 
@@ -1856,14 +1857,14 @@ SOCKET next_socket(int *state)
     return s ? s->s : INVALID_SOCKET;
 }
 
-extern int socket_writable(SOCKET skt)
+extern bool socket_writable(SOCKET skt)
 {
     NetSocket *s = find234(sktree, (void *)skt, cmpforsearch);
 
     if (s)
 	return bufchain_size(&s->output_data) > 0;
     else
-	return 0;
+	return false;
 }
 
 int net_service_lookup(char *service)

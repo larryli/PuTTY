@@ -21,7 +21,7 @@ struct ssh1_bpp_state {
 
     struct crcda_ctx *crcda_ctx;
 
-    int pending_compression_request;
+    bool pending_compression_request;
     ssh_compressor *compctx;
     ssh_decompressor *decompctx;
 

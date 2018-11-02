@@ -16,10 +16,12 @@ struct Ldisc_tag {
     /*
      * Values cached out of conf.
      */
-    int telnet_keyboard, telnet_newline, protocol, localecho, localedit;
+    bool telnet_keyboard, telnet_newline;
+    int protocol, localecho, localedit;
 
     char *buf;
-    int buflen, bufsiz, quotenext;
+    int buflen, bufsiz;
+    bool quotenext;
 };
 
 #endif /* PUTTY_LDISC_H */

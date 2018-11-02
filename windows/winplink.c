@@ -40,11 +40,11 @@ WSAEVENT netevent;
 static Backend *backend;
 static Conf *conf;
 
-int term_ldisc(Terminal *term, int mode)
+bool term_ldisc(Terminal *term, int mode)
 {
     return false;
 }
-static void plink_echoedit_update(Seat *seat, int echo, int edit)
+static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     DWORD mode;
@@ -61,7 +61,7 @@ static void plink_echoedit_update(Seat *seat, int echo, int edit)
     SetConsoleMode(inhandle, mode);
 }
 
-static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
+static int plink_output(Seat *seat, bool is_stderr, const void *data, int len)
 {
     if (is_stderr) {
 	handle_write(stderr_handle, data, len);
@@ -72,7 +72,7 @@ static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
     return handle_backlog(stdout_handle) + handle_backlog(stderr_handle);
 }
 
-static int plink_eof(Seat *seat)
+static bool plink_eof(Seat *seat)
 {
     handle_write_eof(stdout_handle);
     return false;   /* do not respond to incoming EOF with outgoing */
@@ -185,7 +185,7 @@ static void version(void)
     exit(0);
 }
 
-char *do_select(SOCKET skt, int startup)
+char *do_select(SOCKET skt, bool startup)
 {
     int events;
     if (startup) {
@@ -254,18 +254,18 @@ void stdouterr_sent(struct handle *h, int new_backlog)
     }
 }
 
-const int share_can_be_downstream = true;
-const int share_can_be_upstream = true;
+const bool share_can_be_downstream = true;
+const bool share_can_be_upstream = true;
 
 int main(int argc, char **argv)
 {
-    int sending;
+    bool sending;
     SOCKET *sklist;
     int skcount, sksize;
     int exitcode;
-    int errors;
-    int use_subsystem = 0;
-    int just_test_share_exists = false;
+    bool errors;
+    bool use_subsystem = false;
+    bool just_test_share_exists = false;
     unsigned long now, next, then;
     const struct BackendVtable *vt;
 
@@ -295,7 +295,7 @@ int main(int argc, char **argv)
     loaded_session = false;
     default_protocol = conf_get_int(conf, CONF_protocol);
     default_port = conf_get_int(conf, CONF_port);
-    errors = 0;
+    errors = false;
     {
 	/*
 	 * Override the default protocol if PLINK_PROTOCOL is set.
@@ -318,16 +318,16 @@ int main(int argc, char **argv)
         if (ret == -2) {
             fprintf(stderr,
                     "plink: option \"%s\" requires an argument\n", p);
-            errors = 1;
+            errors = true;
         } else if (ret == 2) {
             --argc, ++argv;
         } else if (ret == 1) {
             continue;
         } else if (!strcmp(p, "-batch")) {
-            console_batch_mode = 1;
+            console_batch_mode = true;
         } else if (!strcmp(p, "-s")) {
             /* Save status to write to conf later. */
-            use_subsystem = 1;
+            use_subsystem = true;
         } else if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
             version();
         } else if (!strcmp(p, "--help")) {
@@ -367,7 +367,7 @@ int main(int argc, char **argv)
             break;		       /* done with cmdline */
         } else {
             fprintf(stderr, "plink: unknown option \"%s\"\n", p);
-            errors = 1;
+            errors = true;
         }
     }
 
@@ -451,7 +451,7 @@ int main(int argc, char **argv)
 	const char *error;
 	char *realhost;
 	/* nodelay is only useful if stdin is a character device (console) */
-	int nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
+	bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
 	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
 
         error = backend_init(vt, plink_seat, &backend, logctx, conf,

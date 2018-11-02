@@ -25,7 +25,7 @@ void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }
-const int platform_uses_x11_unix_by_default = true;
+const bool platform_uses_x11_unix_by_default = true;
 
 /* ----------------------------------------------------------------------
  * File access abstraction.
@@ -131,10 +131,8 @@ RFile *open_existing_file(const char *name, uint64_t *size,
 
 int read_from_file(RFile *f, void *buffer, int length)
 {
-    int ret;
     DWORD read;
-    ret = ReadFile(f->h, buffer, length, &read, NULL);
-    if (!ret)
+    if (!ReadFile(f->h, buffer, length, &read, NULL))
 	return -1;		       /* error */
     else
 	return read;
@@ -190,10 +188,8 @@ WFile *open_existing_wfile(const char *name, uint64_t *size)
 
 int write_to_file(WFile *f, void *buffer, int length)
 {
-    int ret;
     DWORD written;
-    ret = WriteFile(f->h, buffer, length, &written, NULL);
-    if (!ret)
+    if (!WriteFile(f->h, buffer, length, &written, NULL))
 	return -1;		       /* error */
     else
 	return written;
@@ -296,8 +292,7 @@ char *read_filename(DirHandle *dir)
 
 	if (!dir->name) {
 	    WIN32_FIND_DATA fdat;
-	    int ok = FindNextFile(dir->h, &fdat);
-	    if (!ok)
+	    if (!FindNextFile(dir->h, &fdat))
 		return NULL;
 	    else
 		dir->name = dupstr(fdat.cFileName);
@@ -329,7 +324,7 @@ void close_directory(DirHandle *dir)
     sfree(dir);
 }
 
-int test_wildcard(const char *name, int cmdline)
+int test_wildcard(const char *name, bool cmdline)
 {
     HANDLE fh;
     WIN32_FIND_DATA fdat;
@@ -353,7 +348,7 @@ struct WildcardMatcher {
     char *srcpath;
 };
 
-char *stripslashes(const char *str, int local)
+char *stripslashes(const char *str, bool local)
 {
     char *p;
 
@@ -391,7 +386,7 @@ WildcardMatcher *begin_wildcard_matching(const char *name)
     ret = snew(WildcardMatcher);
     ret->h = h;
     ret->srcpath = dupstr(name);
-    last = stripslashes(ret->srcpath, 1);
+    last = stripslashes(ret->srcpath, true);
     *last = '\0';
     if (fdat.cFileName[0] == '.' &&
 	(fdat.cFileName[1] == '\0' ||
@@ -407,9 +402,8 @@ char *wildcard_get_filename(WildcardMatcher *dir)
 {
     while (!dir->name) {
 	WIN32_FIND_DATA fdat;
-	int ok = FindNextFile(dir->h, &fdat);
 
-	if (!ok)
+	if (!FindNextFile(dir->h, &fdat))
 	    return NULL;
 
 	if (fdat.cFileName[0] == '.' &&
@@ -437,7 +431,7 @@ void finish_wildcard_matching(WildcardMatcher *dir)
     sfree(dir);
 }
 
-int vet_filename(const char *name)
+bool vet_filename(const char *name)
 {
     if (strchr(name, '/') || strchr(name, '\\') || strchr(name, ':'))
 	return false;
@@ -448,7 +442,7 @@ int vet_filename(const char *name)
     return true;
 }
 
-int create_directory(const char *name)
+bool create_directory(const char *name)
 {
     return CreateDirectory(name, NULL) != 0;
 }
@@ -467,7 +461,7 @@ char *dir_file_cat(const char *dir, const char *file)
  */
 static SOCKET sftp_ssh_socket = INVALID_SOCKET;
 static HANDLE netevent = INVALID_HANDLE_VALUE;
-char *do_select(SOCKET skt, int startup)
+char *do_select(SOCKET skt, bool startup)
 {
     int events;
     if (startup)
@@ -702,7 +696,7 @@ static DWORD WINAPI command_read_thread(void *param)
     return 0;
 }
 
-char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
+char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 {
     int ret;
     struct command_read_ctx actx, *ctx = &actx;

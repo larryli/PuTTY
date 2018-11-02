@@ -33,7 +33,7 @@ DECL_WINDOWS_FUNCTION(WINSECUR_GLOBAL, DWORD, SetSecurityInfo,
 		       PSID, PSID, PACL, PACL));
 DECL_WINDOWS_FUNCTION(WINSECUR_GLOBAL, DWORD, SetEntriesInAclA,
 		      (ULONG, PEXPLICIT_ACCESS, PACL, PACL *));
-int got_advapi(void);
+bool got_advapi(void);
 
 /*
  * Find the SID describing the current user. The return value (if not
@@ -51,9 +51,7 @@ PSID get_user_sid(void);
  * freed later using LocalFree). If it returns false, then instead
  * 'error' has been filled with a dynamically allocated error message.
  */
-int make_private_security_descriptor(DWORD permissions,
-                                     PSECURITY_DESCRIPTOR *psd,
-                                     PACL *acl,
-                                     char **error);
+bool make_private_security_descriptor(
+    DWORD permissions, PSECURITY_DESCRIPTOR *psd, PACL *acl, char **error);
 
 #endif

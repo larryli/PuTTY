@@ -15,7 +15,7 @@
 #include "tree234.h"
 #include "puttymem.h"
 
-int agent_exists(void)
+bool agent_exists(void)
 {
     const char *p = getenv("SSH_AUTH_SOCK");
     if (p && *p)
@@ -54,12 +54,12 @@ static int agent_connfind(void *av, void *bv)
 }
 
 /*
- * Attempt to read from an agent socket fd. Returns 0 if the expected
- * response is as yet incomplete; returns 1 if it's either complete
- * (conn->retbuf non-NULL and filled with something useful) or has
- * failed totally (conn->retbuf is NULL).
+ * Attempt to read from an agent socket fd. Returns false if the
+ * expected response is as yet incomplete; returns true if it's either
+ * complete (conn->retbuf non-NULL and filled with something useful)
+ * or has failed totally (conn->retbuf is NULL).
  */
-static int agent_try_read(agent_pending_query *conn)
+static bool agent_try_read(agent_pending_query *conn)
 {
     int ret;
 
@@ -69,7 +69,7 @@ static int agent_try_read(agent_pending_query *conn)
 	if (conn->retbuf != conn->sizebuf) sfree(conn->retbuf);
 	conn->retbuf = NULL;
 	conn->retlen = 0;
-        return 1;
+        return true;
     }
     conn->retlen += ret;
     if (conn->retsize == 4 && conn->retlen == 4) {
@@ -77,7 +77,7 @@ static int agent_try_read(agent_pending_query *conn)
 	if (conn->retsize <= 0) {
 	    conn->retbuf = NULL;
 	    conn->retlen = 0;
-            return -1;                 /* way too large */
+            return true;                 /* way too large */
 	}
 	assert(conn->retbuf == conn->sizebuf);
 	conn->retbuf = snewn(conn->retsize, char);
@@ -85,9 +85,9 @@ static int agent_try_read(agent_pending_query *conn)
     }
 
     if (conn->retlen < conn->retsize)
-	return 0;		       /* more data to come */
+	return false;                  /* more data to come */
 
-    return 1;
+    return true;
 }
 
 void agent_cancel_query(agent_pending_query *conn)

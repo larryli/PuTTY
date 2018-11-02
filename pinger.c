@@ -7,7 +7,7 @@
 
 struct Pinger {
     int interval;
-    int pending;
+    bool pending;
     unsigned long when_set, next;
     Backend *backend;
 };

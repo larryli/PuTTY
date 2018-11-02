@@ -33,7 +33,7 @@ struct server {
     Socket *socket;
     Plug plug;
     int conn_throttle_count;
-    int frozen;
+    bool frozen;
 
     Conf *conf;
     ssh_key *const *hostkeys;
@@ -74,7 +74,7 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len) {}
 Channel *agentf_new(SshChannel *c) { return NULL; }
-int agent_exists(void) { return false; }
+bool agent_exists(void) { return false; }
 void ssh_got_exitcode(Ssh *ssh, int exitcode) {}
 
 mainchan *mainchan_new(
@@ -122,7 +122,7 @@ static void server_socket_log(Plug *plug, int type, SockAddr *addr, int port,
 }
 
 static void server_closing(Plug *plug, const char *error_msg, int error_code,
-                           int calling_back)
+                           bool calling_back)
 {
     server *srv = container_of(plug, server, plug);
     if (error_msg) {
@@ -175,7 +175,7 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
 {
     server *srv = container_of(ssh, server, ssh);
     int old_count = srv->conn_throttle_count;
-    int frozen;
+    bool frozen;
 
     srv->conn_throttle_count += adjust;
     assert(srv->conn_throttle_count >= 0);

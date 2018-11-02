@@ -14,16 +14,16 @@
 static void mainchan_free(Channel *chan);
 static void mainchan_open_confirmation(Channel *chan);
 static void mainchan_open_failure(Channel *chan, const char *errtext);
-static int mainchan_send(Channel *chan, int is_stderr, const void *, int);
+static int mainchan_send(Channel *chan, bool is_stderr, const void *, int);
 static void mainchan_send_eof(Channel *chan);
-static void mainchan_set_input_wanted(Channel *chan, int wanted);
+static void mainchan_set_input_wanted(Channel *chan, bool wanted);
 static char *mainchan_log_close_msg(Channel *chan);
-static int mainchan_rcvd_exit_status(Channel *chan, int status);
-static int mainchan_rcvd_exit_signal(
-    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg);
-static int mainchan_rcvd_exit_signal_numeric(
-    Channel *chan, int signum, int core_dumped, ptrlen msg);
-static void mainchan_request_response(Channel *chan, int success);
+static bool mainchan_rcvd_exit_status(Channel *chan, int status);
+static bool mainchan_rcvd_exit_signal(
+    Channel *chan, ptrlen signame, bool core_dumped, ptrlen msg);
+static bool mainchan_rcvd_exit_signal_numeric(
+    Channel *chan, int signum, bool core_dumped, ptrlen msg);
+static void mainchan_request_response(Channel *chan, bool success);
 
 static const struct ChannelVtable mainchan_channelvt = {
     mainchan_free,
@@ -61,11 +61,11 @@ struct mainchan {
     ConnectionLayer *cl;
 
     MainChanType type;
-    int is_simple;
+    bool is_simple;
 
-    int req_x11, req_agent, req_pty, req_cmd_primary, req_cmd_fallback;
+    bool req_x11, req_agent, req_pty, req_cmd_primary, req_cmd_fallback;
     int n_req_env, n_env_replies, n_env_fails;
-    int eof_pending, eof_sent, got_pty, ready;
+    bool eof_pending, eof_sent, got_pty, ready;
 
     int term_width, term_height;
 
@@ -74,7 +74,7 @@ struct mainchan {
 
 mainchan *mainchan_new(
     PacketProtocolLayer *ppl, ConnectionLayer *cl, Conf *conf,
-    int term_width, int term_height, int is_simple, SshChannel **sc_out)
+    int term_width, int term_height, bool is_simple, SshChannel **sc_out)
 {
     mainchan *mc;
 
@@ -139,7 +139,7 @@ static void mainchan_open_confirmation(Channel *chan)
         char *key, *val, *cmd;
         struct X11Display *x11disp;
         struct X11FakeAuth *x11auth;
-        int retry_cmd_now = false;
+        bool retry_cmd_now = false;
 
 	if (conf_get_bool(mc->conf, CONF_x11_forward)) {;
             char *x11_setup_err;
@@ -212,7 +212,7 @@ static void mainchan_try_fallback_command(mainchan *mc)
     mc->req_cmd_fallback = true;
 }
 
-static void mainchan_request_response(Channel *chan, int success)
+static void mainchan_request_response(Channel *chan, bool success)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);
@@ -362,7 +362,7 @@ static void mainchan_open_failure(Channel *chan, const char *errtext)
     queue_toplevel_callback(mainchan_open_failure_abort, ctx);
 }
 
-static int mainchan_send(Channel *chan, int is_stderr,
+static int mainchan_send(Channel *chan, bool is_stderr,
                          const void *data, int length)
 {
     assert(chan->vt == &mainchan_channelvt);
@@ -391,7 +391,7 @@ static void mainchan_send_eof(Channel *chan)
     ssh_set_wants_user_input(mc->cl, false); /* now stop reading from stdin */
 }
 
-static void mainchan_set_input_wanted(Channel *chan, int wanted)
+static void mainchan_set_input_wanted(Channel *chan, bool wanted)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);
@@ -410,7 +410,7 @@ static char *mainchan_log_close_msg(Channel *chan)
     return dupstr("Main session channel closed");
 }
 
-static int mainchan_rcvd_exit_status(Channel *chan, int status)
+static bool mainchan_rcvd_exit_status(Channel *chan, int status)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);
@@ -423,7 +423,7 @@ static int mainchan_rcvd_exit_status(Channel *chan, int status)
 
 static void mainchan_log_exit_signal_common(
     mainchan *mc, const char *sigdesc,
-    int core_dumped, ptrlen msg)
+    bool core_dumped, ptrlen msg)
 {
     PacketProtocolLayer *ppl = mc->ppl; /* for ppl_logevent */
 
@@ -434,8 +434,8 @@ static void mainchan_log_exit_signal_common(
                   sigdesc, core_msg, msg_pre, PTRLEN_PRINTF(msg), msg_post));
 }
 
-static int mainchan_rcvd_exit_signal(
-    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg)
+static bool mainchan_rcvd_exit_signal(
+    Channel *chan, ptrlen signame, bool core_dumped, ptrlen msg)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);
@@ -469,8 +469,8 @@ static int mainchan_rcvd_exit_signal(
     return true;
 }
 
-static int mainchan_rcvd_exit_signal_numeric(
-    Channel *chan, int signum, int core_dumped, ptrlen msg)
+static bool mainchan_rcvd_exit_signal_numeric(
+    Channel *chan, int signum, bool core_dumped, ptrlen msg)
 {
     assert(chan->vt == &mainchan_channelvt);
     mainchan *mc = container_of(chan, mainchan, chan);

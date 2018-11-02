@@ -160,7 +160,8 @@ struct ssh_sharing_connstate {
 
     int crLine;                        /* coroutine state for share_receive */
 
-    int sent_verstring, got_verstring, curr_packetlen;
+    bool sent_verstring, got_verstring;
+    int curr_packetlen;
 
     unsigned char recvbuf[0x4010];
     int recvlen;
@@ -235,13 +236,13 @@ struct share_channel {
     int x11_auth_proto;
     char *x11_auth_data;
     int x11_auth_datalen;
-    int x11_one_shot;
+    bool x11_one_shot;
 };
 
 struct share_forwarding {
     char *host;
     int port;
-    int active;             /* has the server sent REQUEST_SUCCESS? */
+    bool active;            /* has the server sent REQUEST_SUCCESS? */
     struct ssh_rportfwd *rpf;
 };
 
@@ -263,7 +264,7 @@ struct share_xchannel {
      * channel messages from the server until such time as the server
      * sends us CHANNEL_CLOSE.
      */
-    int live;
+    bool live;
 
     /*
      * When we receive OPEN_CONFIRMATION, we will need to send a
@@ -291,7 +292,7 @@ enum {
 struct share_globreq {
     struct share_globreq *next;
     int type;
-    int want_reply;
+    bool want_reply;
     struct share_forwarding *fwd;
 };
 
@@ -571,7 +572,7 @@ static struct share_channel *share_add_channel
     chan->x11_auth_data = NULL;
     chan->x11_auth_proto = -1;
     chan->x11_auth_datalen = 0;
-    chan->x11_one_shot = 0;
+    chan->x11_one_shot = false;
     if (add234(cs->channels_by_us, chan) != chan) {
         sfree(chan);
         return NULL;
@@ -936,7 +937,7 @@ static void share_disconnect(struct ssh_sharing_connstate *cs,
 }
 
 static void share_closing(Plug *plug, const char *error_msg, int error_code,
-			  int calling_back)
+			  bool calling_back)
 {
     struct ssh_sharing_connstate *cs = container_of(
         plug, struct ssh_sharing_connstate, plug);
@@ -997,7 +998,7 @@ void share_dead_xchannel_respond(struct ssh_sharing_connstate *cs,
      * Handle queued incoming messages from the server destined for an
      * xchannel which is dead (i.e. downstream sent OPEN_FAILURE).
      */
-    int delete = false;
+    bool delete = false;
     while (xc->msghead) {
         struct share_xchannel_message *msg = xc->msghead;
         xc->msghead = msg->next;
@@ -1157,7 +1158,7 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
         sfree(chan->x11_auth_data);
         chan->x11_auth_proto = -1;
         chan->x11_auth_datalen = 0;
-        chan->x11_one_shot = 0;
+        chan->x11_one_shot = false;
     }
 }
 
@@ -1312,7 +1313,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
     char *err = NULL;
     BinarySource src[1];
     size_t wantreplypos;
-    int orig_wantreply;
+    bool orig_wantreply;
 
     BinarySource_BARE_INIT(src, pkt, pktlen);
 
@@ -1635,7 +1636,8 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
              * a downstream, and if the latter, which one.
              */
             if (ptrlen_eq_string(request_name, "x11-req")) {
-                int want_reply, single_connection, screen;
+                bool want_reply, single_connection;
+                int screen;
                 ptrlen auth_data;
                 int auth_proto;
 
@@ -1844,7 +1846,7 @@ static void share_sent(Plug *plug, int bufsize)
 }
 
 static void share_listen_closing(Plug *plug, const char *error_msg,
-				 int error_code, int calling_back)
+				 int error_code, bool calling_back)
 {
     ssh_sharing_state *sharestate =
         container_of(plug, ssh_sharing_state, plug);
@@ -1968,8 +1970,8 @@ static int share_listen_accepting(Plug *plug,
 
 /* Per-application overrides for what roles we can take (e.g. pscp
  * will never be an upstream) */
-extern const int share_can_be_downstream;
-extern const int share_can_be_upstream;
+extern const bool share_can_be_downstream;
+extern const bool share_can_be_upstream;
 
 /*
  * Decide on the string used to identify the connection point between
@@ -2015,7 +2017,7 @@ char *ssh_share_sockname(const char *host, int port, Conf *conf)
     return sockname;
 }
 
-int ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
+bool ssh_share_test_for_upstream(const char *host, int port, Conf *conf)
 {
     char *sockname, *logtext, *ds_err, *us_err;
     int result;
@@ -2071,7 +2073,8 @@ Socket *ssh_connection_sharing_init(
     const char *host, int port, Conf *conf, LogContext *logctx,
     Plug *sshplug, ssh_sharing_state **state)
 {
-    int result, can_upstream, can_downstream;
+    int result;
+    bool can_upstream, can_downstream;
     char *logtext, *ds_err, *us_err;
     char *sockname;
     Socket *sock, *toret = NULL;

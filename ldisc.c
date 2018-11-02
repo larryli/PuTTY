@@ -60,12 +60,12 @@ static void pwrite(Ldisc *ldisc, unsigned char c)
     }
 }
 
-static int char_start(Ldisc *ldisc, unsigned char c)
+static bool char_start(Ldisc *ldisc, unsigned char c)
 {
     if (in_utf(ldisc->term))
 	return (c < 0x80 || c >= 0xC0);
     else
-	return 1;
+	return true;
 }
 
 static void bsb(Ldisc *ldisc, int n)
@@ -84,7 +84,7 @@ Ldisc *ldisc_create(Conf *conf, Terminal *term, Backend *backend, Seat *seat)
     ldisc->buf = NULL;
     ldisc->buflen = 0;
     ldisc->bufsiz = 0;
-    ldisc->quotenext = 0;
+    ldisc->quotenext = false;
 
     ldisc->backend = backend;
     ldisc->term = term;
@@ -126,7 +126,7 @@ void ldisc_echoedit_update(Ldisc *ldisc)
     seat_echoedit_update(ldisc->seat, ECHOING, EDITING);
 }
 
-void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, int interactive)
+void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, bool interactive)
 {
     const char *buf = (const char *)vbuf;
     int keyflag = 0;

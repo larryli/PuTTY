@@ -33,18 +33,18 @@ struct AuthKbdInt {
 };
 struct AuthKbdIntPrompt {
     char *prompt;                      /* needs freeing */
-    int echo;
+    bool echo;
 };
 
 unsigned auth_methods(AuthPolicy *);
-int auth_none(AuthPolicy *, ptrlen username);
+bool auth_none(AuthPolicy *, ptrlen username);
 
 int auth_password(AuthPolicy *, ptrlen username, ptrlen password,
                   ptrlen *opt_new_password);
 /* auth_password returns 1 for 'accepted', 0 for 'rejected', and 2 for
  * 'ok but now you need to change your password' */
 
-int auth_publickey(AuthPolicy *, ptrlen username, ptrlen public_blob);
+bool auth_publickey(AuthPolicy *, ptrlen username, ptrlen public_blob);
 /* auth_publickey_ssh1 must return the whole public key given the modulus,
  * because the SSH-1 client never transmits the exponent over the wire.
  * The key remains owned by the AuthPolicy. */
@@ -59,12 +59,12 @@ int auth_kbdint_responses(AuthPolicy *, const ptrlen *responses);
 /* The very similar SSH-1 TIS and CryptoCard methods are combined into
  * a single API for AuthPolicy, which takes a method argument */
 char *auth_ssh1int_challenge(AuthPolicy *, unsigned method, ptrlen username);
-int auth_ssh1int_response(AuthPolicy *, ptrlen response);
+bool auth_ssh1int_response(AuthPolicy *, ptrlen response);
 
 struct RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, Bignum rsa_modulus);
 /* auth_successful returns false if further authentication is needed */
-int auth_successful(AuthPolicy *, ptrlen username, unsigned method);
+bool auth_successful(AuthPolicy *, ptrlen username, unsigned method);
 
 PacketProtocolLayer *ssh2_userauth_server_new(
     PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy);
@@ -83,7 +83,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
 
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, int pipes_instead_of_pty);
+    struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty);
 ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg);
 
 /*

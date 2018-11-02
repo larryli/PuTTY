@@ -20,7 +20,7 @@
 /*
  * Stubs to avoid uxpty.c needing to be linked in.
  */
-const int use_pty_argv = false;
+const bool use_pty_argv = false;
 char **pty_argv;		       /* never used */
 char *pty_osx_envrestore_prefix;
 
@@ -52,8 +52,8 @@ void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
     sfree(title);
 }
 
-const int use_event_log = 1, new_session = 1, saved_sessions = 1;
-const int dup_check_launchable = 1;
+const bool use_event_log = true, new_session = true, saved_sessions = true;
+const bool dup_check_launchable = true;
 
 char *make_default_wintitle(char *hostname)
 {
@@ -73,10 +73,10 @@ char *platform_get_x_display(void) {
     return dupstr(display);
 }
 
-const int share_can_be_downstream = true;
-const int share_can_be_upstream = true;
+const bool share_can_be_downstream = true;
+const bool share_can_be_upstream = true;
 
-void setup(int single)
+void setup(bool single)
 {
     sk_init();
     flags = FLAG_VERBOSE | FLAG_INTERACTIVE;

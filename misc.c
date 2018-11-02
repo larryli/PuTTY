@@ -97,7 +97,7 @@ char ctrlparse(char *s, char **next)
  * various standard string.h functions.
  */
 static const char *host_strchr_internal(const char *s, const char *set,
-                                        int first)
+                                        bool first)
 {
     int brackets = 0;
     const char *ret = NULL;
@@ -240,7 +240,7 @@ prompts_t *new_prompts(void)
     p->name_reqd = p->instr_reqd = false;
     return p;
 }
-void add_prompt(prompts_t *p, char *promptstr, int echo)
+void add_prompt(prompts_t *p, char *promptstr, bool echo)
 {
     prompt_t *pr = snew(prompt_t);
     pr->prompt = promptstr;
@@ -826,7 +826,7 @@ void bufchain_fetch_consume(bufchain *ch, void *data, int len)
     bufchain_consume(ch, len);
 }
 
-int bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
+bool bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
 {
     if (ch->buffersize >= len) {
         bufchain_fetch_consume(ch, data, len);
@@ -1055,7 +1055,7 @@ void debug_memdump(const void *buf, int len, int L)
  * Determine whether or not a Conf represents a session which can
  * sensibly be launched right now.
  */
-int conf_launchable(Conf *conf)
+bool conf_launchable(Conf *conf)
 {
     if (conf_get_int(conf, CONF_protocol) == PROT_SERIAL)
 	return conf_get_str(conf, CONF_serline)[0] != 0;
@@ -1119,7 +1119,7 @@ void smemclr(void *b, size_t n) {
  * original version), suitable for putting into the Conf. If not
  * valid, we return false.
  */
-int validate_manual_hostkey(char *key)
+bool validate_manual_hostkey(char *key)
 {
     char *p, *q, *r, *s;
 
@@ -1208,7 +1208,7 @@ int validate_manual_hostkey(char *key)
     return false;
 }
 
-int smemeq(const void *av, const void *bv, size_t len)
+bool smemeq(const void *av, const void *bv, size_t len)
 {
     const unsigned char *a = (const unsigned char *)av;
     const unsigned char *b = (const unsigned char *)bv;
@@ -1253,18 +1253,18 @@ ptrlen ptrlen_from_strbuf(strbuf *sb)
     return make_ptrlen(sb->u, sb->len);
 }
 
-int ptrlen_eq_string(ptrlen pl, const char *str)
+bool ptrlen_eq_string(ptrlen pl, const char *str)
 {
     size_t len = strlen(str);
     return (pl.len == len && !memcmp(pl.ptr, str, len));
 }
 
-int ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2)
+bool ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2)
 {
     return (pl1.len == pl2.len && !memcmp(pl1.ptr, pl2.ptr, pl1.len));
 }
 
-int ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail)
+bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail)
 {
     if (whole.len >= prefix.len &&
         !memcmp(whole.ptr, prefix.ptr, prefix.len)) {
@@ -1285,12 +1285,12 @@ char *mkstr(ptrlen pl)
     return p;
 }
 
-int strstartswith(const char *s, const char *t)
+bool strstartswith(const char *s, const char *t)
 {
     return !memcmp(s, t, strlen(t));
 }
 
-int strendswith(const char *s, const char *t)
+bool strendswith(const char *s, const char *t)
 {
     size_t slen = strlen(s), tlen = strlen(t);
     return slen >= tlen && !strcmp(s + (slen - tlen), t);
@@ -1390,8 +1390,8 @@ char *buildinfo(const char *newline)
 }
 
 int nullseat_output(
-    Seat *seat, int is_stderr, const void *data, int len) { return 0; }
-int nullseat_eof(Seat *seat) { return true; }
+    Seat *seat, bool is_stderr, const void *data, int len) { return 0; }
+bool nullseat_eof(Seat *seat) { return true; }
 int nullseat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input) { return 0; }
 void nullseat_notify_remote_exit(Seat *seat) {}
@@ -1409,12 +1409,12 @@ int nullseat_confirm_weak_crypto_primitive(
 int nullseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx) { return 0; }
-int nullseat_is_never_utf8(Seat *seat) { return false; }
-int nullseat_is_always_utf8(Seat *seat) { return true; }
-void nullseat_echoedit_update(Seat *seat, int echoing, int editing) {}
+bool nullseat_is_never_utf8(Seat *seat) { return false; }
+bool nullseat_is_always_utf8(Seat *seat) { return true; }
+void nullseat_echoedit_update(Seat *seat, bool echoing, bool editing) {}
 const char *nullseat_get_x_display(Seat *seat) { return NULL; }
-int nullseat_get_windowid(Seat *seat, long *id_out) { return false; }
-int nullseat_get_window_pixel_size(
+bool nullseat_get_windowid(Seat *seat, long *id_out) { return false; }
+bool nullseat_get_window_pixel_size(
     Seat *seat, int *width, int *height) { return false; }
 
 void sk_free_peer_info(SocketPeerInfo *pi)

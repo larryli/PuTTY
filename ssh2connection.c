@@ -14,11 +14,11 @@
 
 static void ssh2_connection_free(PacketProtocolLayer *); 
 static void ssh2_connection_process_queue(PacketProtocolLayer *);
-static int ssh2_connection_get_specials(
+static bool ssh2_connection_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
 static void ssh2_connection_special_cmd(PacketProtocolLayer *ppl,
                                         SessionSpecialCode code, int arg);
-static int ssh2_connection_want_user_input(PacketProtocolLayer *ppl);
+static bool ssh2_connection_want_user_input(PacketProtocolLayer *ppl);
 static void ssh2_connection_got_user_input(PacketProtocolLayer *ppl);
 static void ssh2_connection_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
@@ -53,16 +53,16 @@ static void ssh2_delete_sharing_channel(
 static void ssh2_sharing_queue_global_request(
     ConnectionLayer *cl, ssh_sharing_connstate *share_ctx);
 static void ssh2_sharing_no_more_downstreams(ConnectionLayer *cl);
-static int ssh2_agent_forwarding_permitted(ConnectionLayer *cl);
+static bool ssh2_agent_forwarding_permitted(ConnectionLayer *cl);
 static void ssh2_terminal_size(ConnectionLayer *cl, int width, int height);
 static void ssh2_stdout_unthrottle(ConnectionLayer *cl, int bufsize);
 static int ssh2_stdin_backlog(ConnectionLayer *cl);
-static void ssh2_throttle_all_channels(ConnectionLayer *cl, int throttled);
-static int ssh2_ldisc_option(ConnectionLayer *cl, int option);
-static void ssh2_set_ldisc_option(ConnectionLayer *cl, int option, int value);
+static void ssh2_throttle_all_channels(ConnectionLayer *cl, bool throttled);
+static bool ssh2_ldisc_option(ConnectionLayer *cl, int option);
+static void ssh2_set_ldisc_option(ConnectionLayer *cl, int option, bool value);
 static void ssh2_enable_x_fwd(ConnectionLayer *cl);
 static void ssh2_enable_agent_fwd(ConnectionLayer *cl);
-static void ssh2_set_wants_user_input(ConnectionLayer *cl, int wanted);
+static void ssh2_set_wants_user_input(ConnectionLayer *cl, bool wanted);
 
 static const struct ConnectionLayerVtable ssh2_connlayer_vtable = {
     ssh2_rportfwd_alloc,
@@ -119,7 +119,7 @@ static char *ssh2_channel_open_failure_error_text(PktIn *pktin)
 }
 
 static int ssh2channel_write(
-    SshChannel *c, int is_stderr, const void *buf, int len);
+    SshChannel *c, bool is_stderr, const void *buf, int len);
 static void ssh2channel_write_eof(SshChannel *c);
 static void ssh2channel_initiate_close(SshChannel *c, const char *err);
 static void ssh2channel_unthrottle(SshChannel *c, int bufsize);
@@ -239,7 +239,7 @@ static void ssh2_channel_free(struct ssh2_channel *c)
 }
 
 PacketProtocolLayer *ssh2_connection_new(
-    Ssh *ssh, ssh_sharing_state *connshare, int is_simple,
+    Ssh *ssh, ssh_sharing_state *connshare, bool is_simple,
     Conf *conf, const char *peer_verstring, ConnectionLayer **cl_out)
 {
     struct ssh2_connection_state *s = snew(struct ssh2_connection_state);
@@ -313,7 +313,7 @@ static void ssh2_connection_free(PacketProtocolLayer *ppl)
     sfree(s);
 }
 
-static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
+static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
 {
     PktIn *pktin;
     PktOut *pktout;
@@ -321,7 +321,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
     struct ssh2_channel *c;
     struct outstanding_channel_request *ocr;
     unsigned localid, remid, winsize, pktsize, ext_type;
-    int want_reply, reply_success, expect_halfopen;
+    bool want_reply, reply_success, expect_halfopen;
     ChanopenResult chanopen_result;
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
@@ -330,7 +330,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
      * we have an instance of ssh2transport below us, then those
      * messages won't come here anyway, but they could if we're
      * running in bare ssh2-connection mode. */
-    extern int ssh2_common_filter_queue(PacketProtocolLayer *ppl);
+    extern bool ssh2_common_filter_queue(PacketProtocolLayer *ppl);
 
     while (1) {
         if (ssh2_common_filter_queue(&s->ppl))
@@ -610,7 +610,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 } else if (ptrlen_eq_string(type, "exit-signal")) {
                     ptrlen signame;
                     int signum;
-                    int core = false;
+                    bool core = false;
                     ptrlen errmsg;
                     int format;
 
@@ -669,7 +669,7 @@ static int ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     ptrlen subsys = get_string(pktin);
                     reply_success = chan_run_subsystem(c->chan, subsys);
                 } else if (ptrlen_eq_string(type, "x11-req")) {
-                    int oneshot = get_bool(pktin);
+                    bool oneshot = get_bool(pktin);
                     ptrlen authproto = get_string(pktin);
                     ptrlen authdata = get_string(pktin);
                     unsigned screen_number = get_uint32(pktin);
@@ -1341,13 +1341,13 @@ static void ssh2channel_unthrottle(SshChannel *sc, int bufsize)
         ssh2_set_window(c, buflimit - bufsize);
 
     if (c->throttling_conn && bufsize <= buflimit) {
-	c->throttling_conn = 0;
+	c->throttling_conn = false;
 	ssh_throttle_conn(s->ppl.ssh, -1);
     }
 }
 
 static int ssh2channel_write(
-    SshChannel *sc, int is_stderr, const void *buf, int len)
+    SshChannel *sc, bool is_stderr, const void *buf, int len)
 {
     struct ssh2_channel *c = container_of(sc, struct ssh2_channel, sc);
     assert(!(c->closes & CLOSES_SENT_EOF));
@@ -1522,19 +1522,19 @@ static void ssh2_send_packet_from_downstream(
     pq_push(s->ppl.out_pq, pkt);
 }
 
-static int ssh2_agent_forwarding_permitted(ConnectionLayer *cl)
+static bool ssh2_agent_forwarding_permitted(ConnectionLayer *cl)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
     return conf_get_bool(s->conf, CONF_agentfwd) && agent_exists();
 }
 
-static int ssh2_connection_get_specials(
+static bool ssh2_connection_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx)
 {
     struct ssh2_connection_state *s =
         container_of(ppl, struct ssh2_connection_state, ppl);
-    int toret = false;
+    bool toret = false;
 
     if (s->mainchan) {
         mainchan_get_specials(s->mainchan, add_special, ctx);
@@ -1608,7 +1608,7 @@ static int ssh2_stdin_backlog(ConnectionLayer *cl)
         bufchain_size(&c->outbuffer) + bufchain_size(&c->errbuffer) : 0;
 }
 
-static void ssh2_throttle_all_channels(ConnectionLayer *cl, int throttled)
+static void ssh2_throttle_all_channels(ConnectionLayer *cl, bool throttled)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
@@ -1621,7 +1621,7 @@ static void ssh2_throttle_all_channels(ConnectionLayer *cl, int throttled)
         ssh2_channel_check_throttle(c);
 }
 
-static int ssh2_ldisc_option(ConnectionLayer *cl, int option)
+static bool ssh2_ldisc_option(ConnectionLayer *cl, int option)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
@@ -1629,7 +1629,7 @@ static int ssh2_ldisc_option(ConnectionLayer *cl, int option)
     return s->ldisc_opts[option];
 }
 
-static void ssh2_set_ldisc_option(ConnectionLayer *cl, int option, int value)
+static void ssh2_set_ldisc_option(ConnectionLayer *cl, int option, bool value)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
@@ -1653,7 +1653,7 @@ static void ssh2_enable_agent_fwd(ConnectionLayer *cl)
     s->agent_fwd_enabled = true;
 }
 
-static void ssh2_set_wants_user_input(ConnectionLayer *cl, int wanted)
+static void ssh2_set_wants_user_input(ConnectionLayer *cl, bool wanted)
 {
     struct ssh2_connection_state *s =
         container_of(cl, struct ssh2_connection_state, cl);
@@ -1661,7 +1661,7 @@ static void ssh2_set_wants_user_input(ConnectionLayer *cl, int wanted)
     s->want_user_input = wanted;
 }
 
-static int ssh2_connection_want_user_input(PacketProtocolLayer *ppl)
+static bool ssh2_connection_want_user_input(PacketProtocolLayer *ppl)
 {
     struct ssh2_connection_state *s =
         container_of(ppl, struct ssh2_connection_state, ppl);

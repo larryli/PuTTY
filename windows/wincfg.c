@@ -40,8 +40,8 @@ static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void win_setup_config_box(struct controlbox *b, HWND *hwndp, int has_help,
-			  int midsession, int protocol)
+void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
+			  bool midsession, int protocol)
 {
     struct controlset *s;
     union control *c;

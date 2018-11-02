@@ -71,7 +71,7 @@ void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 struct progress {
     int nphases;
     struct {
-	int exponential;
+	bool exponential;
 	unsigned startpoint, total;
 	unsigned param, current, n;    /* if exponential */
 	unsigned mult;		       /* if linear */
@@ -93,11 +93,11 @@ static void progress_update(void *param, int action, int phase, int iprogress)
 	p->nphases = 0;
 	break;
       case PROGFN_LIN_PHASE:
-	p->phases[phase-1].exponential = 0;
+	p->phases[phase-1].exponential = false;
 	p->phases[phase-1].mult = p->phases[phase].total / progress;
 	break;
       case PROGFN_EXP_PHASE:
-	p->phases[phase-1].exponential = 1;
+	p->phases[phase-1].exponential = true;
 	p->phases[phase-1].param = 0x10000 + progress;
 	p->phases[phase-1].current = p->phases[phase-1].total;
 	p->phases[phase-1].n = 0;
@@ -212,8 +212,8 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  * Prompt for a key file. Assumes the filename buffer is of size
  * FILENAME_MAX.
  */
-static int prompt_keyfile(HWND hwnd, char *dlgtitle,
-			  char *filename, int save, int ppk)
+static bool prompt_keyfile(HWND hwnd, char *dlgtitle,
+                           char *filename, bool save, bool ppk)
 {
     OPENFILENAME of;
     memset(&of, 0, sizeof(of));
@@ -379,12 +379,12 @@ static DWORD WINAPI generate_key_thread(void *param)
 }
 
 struct MainDlgState {
-    int collecting_entropy;
-    int generation_thread_exists;
-    int key_exists;
+    bool collecting_entropy;
+    bool generation_thread_exists;
+    bool key_exists;
     int entropy_got, entropy_required, entropy_size;
     int key_bits, curve_bits;
-    int ssh2;
+    bool ssh2;
     keytype keytype;
     char **commentptr;		       /* points to key.comment or ssh2key.comment */
     struct ssh2_userkey ssh2key;
@@ -397,7 +397,7 @@ struct MainDlgState {
     HMENU filemenu, keymenu, cvtmenu;
 };
 
-static void hidemany(HWND hwnd, const int *ids, int hideit)
+static void hidemany(HWND hwnd, const int *ids, bool hideit)
 {
     while (*ids) {
 	ShowWindow(GetDlgItem(hwnd, *ids++), (hideit ? SW_HIDE : SW_SHOW));
@@ -642,10 +642,10 @@ void ui_set_key_type(HWND hwnd, struct MainDlgState *state, int button)
 }
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
-		   Filename *filename, int was_import_cmd)
+		   Filename *filename, bool was_import_cmd)
 {
     char *passphrase;
-    int needs_pass;
+    bool needs_pass;
     int type, realtype;
     int ret;
     const char *errmsg = NULL;
@@ -1029,7 +1029,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	 */
 	if (cmdline_keyfile) {
             Filename *fn = filename_from_str(cmdline_keyfile);
-	    load_key_file(hwnd, state, fn, 0);
+	    load_key_file(hwnd, state, fn, false);
             filename_free(fn);
         }
 
@@ -1280,7 +1280,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                     }
 		}
 		if (prompt_keyfile(hwnd, "Save private key as:",
-				   filename, 1, (type == realtype))) {
+				   filename, true, (type == realtype))) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
@@ -1334,7 +1334,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
 		if (prompt_keyfile(hwnd, "Save public key as:",
-				   filename, 1, 0)) {
+				   filename, true, false)) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
@@ -1380,8 +1380,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (!state->generation_thread_exists) {
 		char filename[FILENAME_MAX];
-		if (prompt_keyfile(hwnd, "Load private key:",
-				   filename, 0, LOWORD(wParam)==IDC_LOAD)) {
+		if (prompt_keyfile(hwnd, "Load private key:", filename, false,
+                                   LOWORD(wParam) == IDC_LOAD)) {
                     Filename *fn = filename_from_str(filename);
 		    load_key_file(hwnd, state, fn, LOWORD(wParam) != IDC_LOAD);
                     filename_free(fn);

@@ -13,12 +13,13 @@
 #include "ssh1connection.h"
 #include "sshserver.h"
 
-static int ssh1sesschan_write(SshChannel *c, int is_stderr, const void *, int);
+static int ssh1sesschan_write(SshChannel *c, bool is_stderr,
+                              const void *, int);
 static void ssh1sesschan_write_eof(SshChannel *c);
 static void ssh1sesschan_initiate_close(SshChannel *c, const char *err);
 static void ssh1sesschan_send_exit_status(SshChannel *c, int status);
 static void ssh1sesschan_send_exit_signal(
-    SshChannel *c, ptrlen signame, int core_dumped, ptrlen msg);
+    SshChannel *c, ptrlen signame, bool core_dumped, ptrlen msg);
 
 static const struct SshChannelVtable ssh1sesschan_vtable = {
     ssh1sesschan_write,
@@ -54,7 +55,7 @@ void ssh1_connection_direction_specific_setup(
     }
 }
 
-int ssh1_handle_direction_specific_packet(
+bool ssh1_handle_direction_specific_packet(
     struct ssh1_connection_state *s, PktIn *pktin)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
@@ -63,7 +64,8 @@ int ssh1_handle_direction_specific_packet(
     unsigned remid;
     ptrlen host, cmd, data;
     char *host_str, *err;
-    int port, listenport, success;
+    int port, listenport;
+    bool success;
 
     switch (pktin->type) {
       case SSH1_CMSG_EXEC_SHELL:
@@ -264,7 +266,7 @@ struct ssh_rportfwd *ssh1_rportfwd_alloc(
     return NULL;
 }
 
-static int ssh1sesschan_write(SshChannel *sc, int is_stderr,
+static int ssh1sesschan_write(SshChannel *sc, bool is_stderr,
                               const void *data, int len)
 {
     struct ssh1_connection_state *s =
@@ -303,7 +305,7 @@ static void ssh1sesschan_send_exit_status(SshChannel *sc, int status)
 }
 
 static void ssh1sesschan_send_exit_signal(
-    SshChannel *sc, ptrlen signame, int core_dumped, ptrlen msg)
+    SshChannel *sc, ptrlen signame, bool core_dumped, ptrlen msg)
 {
     /* SSH-1 has no separate representation for signals */
     ssh1sesschan_send_exit_status(sc, 128);

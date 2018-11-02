@@ -87,7 +87,7 @@ void cmdline_cleanup(void)
  */
 int cmdline_get_passwd_input(prompts_t *p)
 {
-    static int tried_once = 0;
+    static bool tried_once = false;
 
     /*
      * We only handle prompts which don't echo (which we assume to be
@@ -109,7 +109,7 @@ int cmdline_get_passwd_input(prompts_t *p)
     smemclr(cmdline_password, strlen(cmdline_password));
     sfree(cmdline_password);
     cmdline_password = NULL;
-    tried_once = 1;
+    tried_once = true;
     return 1;
 }
 
@@ -125,13 +125,13 @@ int cmdline_get_passwd_input(prompts_t *p)
  */
 int cmdline_tooltype = 0;
 
-static int cmdline_check_unavailable(int flag, const char *p)
+static bool cmdline_check_unavailable(int flag, const char *p)
 {
     if (cmdline_tooltype & flag) {
 	cmdline_error("option \"%s\" not available in this tool", p);
-	return 1;
+	return true;
     }
-    return 0;
+    return false;
 }
 
 #define UNAVAILABLE_IN(flag) do { \
@@ -159,8 +159,8 @@ static int cmdline_check_unavailable(int flag, const char *p)
     if (need_save < 0) return x; \
 } while (0)
 
-static int seen_hostname_argument = false;
-static int seen_port_argument = false;
+static bool seen_hostname_argument = false;
+static bool seen_port_argument = false;
 
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
@@ -881,7 +881,7 @@ void cmdline_run_saved(Conf *conf)
     }
 }
 
-int cmdline_host_ok(Conf *conf)
+bool cmdline_host_ok(Conf *conf)
 {
     /*
      * Return true if the command-line arguments we've processed in

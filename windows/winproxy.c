@@ -13,11 +13,11 @@
 #include "proxy.h"
 
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, int overlapped);
+                           Plug *plug, bool overlapped);
 
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
-                                int port, int privport,
-                                int oobinline, int nodelay, int keepalive,
+                                int port, bool privport,
+                                bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *conf)
 {
     char *cmd;

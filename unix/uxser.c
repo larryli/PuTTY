@@ -22,7 +22,7 @@ struct Serial {
     Seat *seat;
     LogContext *logctx;
     int fd;
-    int finished;
+    bool finished;
     int inbufsize;
     bufchain output_data;
     Backend backend;
@@ -282,7 +282,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
 static const char *serial_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
-                               int nodelay, int keepalive)
+                               bool nodelay, bool keepalive)
 {
     Serial *serial;
     const char *err;
@@ -361,7 +361,7 @@ static void serial_select_result(int fd, int event)
     Serial *serial;
     char buf[4096];
     int ret;
-    int finished = false;
+    bool finished = false;
 
     serial = find234(serial_by_fd, &fd, serial_find_by_fd);
 
@@ -509,14 +509,14 @@ static const SessionSpecial *serial_get_specials(Backend *be)
     return specials;
 }
 
-static int serial_connected(Backend *be)
+static bool serial_connected(Backend *be)
 {
-    return 1;			       /* always connected */
+    return true;                       /* always connected */
 }
 
-static int serial_sendok(Backend *be)
+static bool serial_sendok(Backend *be)
 {
-    return 1;
+    return true;
 }
 
 static void serial_unthrottle(Backend *be, int backlog)
@@ -526,12 +526,12 @@ static void serial_unthrottle(Backend *be, int backlog)
     serial_uxsel_setup(serial);
 }
 
-static int serial_ldisc(Backend *be, int option)
+static bool serial_ldisc(Backend *be, int option)
 {
     /*
      * Local editing and local echo are off by default.
      */
-    return 0;
+    return false;
 }
 
 static void serial_provide_ldisc(Backend *be, Ldisc *ldisc)

@@ -8,10 +8,11 @@
 #include "putty.h"
 
 const char *const appname = "pterm";
-const int use_event_log = 0;	       /* pterm doesn't need it */
-const int new_session = 0, saved_sessions = 0;   /* or these */
-const int dup_check_launchable = 0; /* no need to check host name in conf */
-const int use_pty_argv = true;
+const bool use_event_log = false;      /* pterm doesn't need it */
+const bool new_session = false, saved_sessions = false; /* or these */
+const bool dup_check_launchable = false; /* no need to check host name
+                                          * in conf */
+const bool use_pty_argv = true;
 
 const struct BackendVtable *select_backend(Conf *conf)
 {
@@ -40,7 +41,7 @@ char *make_default_wintitle(char *hostname)
     return dupstr("pterm");
 }
 
-void setup(int single)
+void setup(bool single)
 {
     extern void pty_pre_init(void);    /* declared in pty.c */
 

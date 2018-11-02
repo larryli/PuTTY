@@ -13,7 +13,7 @@
 #include "ldisc.h"
 
 void lpage_send(Ldisc *ldisc,
-		int codepage, const char *buf, int len, int interactive)
+		int codepage, const char *buf, int len, bool interactive)
 {
     wchar_t *widebuffer = 0;
     int widesize = 0;
@@ -33,7 +33,7 @@ void lpage_send(Ldisc *ldisc,
     sfree(widebuffer);
 }
 
-void luni_send(Ldisc *ldisc, const wchar_t *widebuf, int len, int interactive)
+void luni_send(Ldisc *ldisc, const wchar_t *widebuf, int len, bool interactive)
 {
     int ratio = (in_utf(ldisc->term))?3:1;
     char *linebuffer;

@@ -112,7 +112,7 @@ void timer_change_notify(unsigned long next)
 
 char *platform_get_x_display(void) { return NULL; }
 
-static int verbose;
+static bool verbose;
 
 static void log_to_stderr(const char *msg)
 {
@@ -176,7 +176,7 @@ unsigned auth_methods(AuthPolicy *ap)
     return (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD | AUTHMETHOD_KBDINT |
             AUTHMETHOD_TIS | AUTHMETHOD_CRYPTOCARD);
 }
-int auth_none(AuthPolicy *ap, ptrlen username)
+bool auth_none(AuthPolicy *ap, ptrlen username)
 {
     return false;
 }
@@ -211,7 +211,7 @@ int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password,
         return 2;
     }
 }
-int auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
+bool auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
 {
     struct AuthPolicy_ssh2_pubkey *iter;
     for (iter = ap->ssh2keys; iter; iter = iter->next) {
@@ -285,11 +285,11 @@ char *auth_ssh1int_challenge(AuthPolicy *ap, unsigned method, ptrlen username)
     return dupprintf("This is a dummy %s challenge!\n",
                      (method == AUTHMETHOD_TIS ? "TIS" : "CryptoCard"));
 }
-int auth_ssh1int_response(AuthPolicy *ap, ptrlen response)
+bool auth_ssh1int_response(AuthPolicy *ap, ptrlen response)
 {
     return ptrlen_eq_string(response, "otter");
 }
-int auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
+bool auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
 {
     return true;
 }
@@ -324,17 +324,17 @@ static void show_version_and_exit(void)
     exit(0);
 }
 
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
-static int finished = false;
+static bool finished = false;
 void server_instance_terminated(void)
 {
     /* FIXME: change policy here if we're running in a listening loop */
     finished = true;
 }
 
-static int longoptarg(const char *arg, const char *expected,
-                      const char **val, int *argcp, char ***argvp)
+static bool longoptarg(const char *arg, const char *expected,
+                       const char **val, int *argcp, char ***argvp)
 {
     int len = strlen(expected);
     if (memcmp(arg, expected, len))

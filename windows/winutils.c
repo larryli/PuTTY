@@ -34,17 +34,17 @@ struct filereq_tag {
  * save==1 -> GetSaveFileName; save==0 -> GetOpenFileName
  * `state' is optional.
  */
-BOOL request_file(filereq *state, OPENFILENAME *of, int preserve, int save)
+bool request_file(filereq *state, OPENFILENAME *of, bool preserve, bool save)
 {
     TCHAR cwd[MAX_PATH]; /* process CWD */
-    BOOL ret;
+    bool ret;
 
     /* Get process CWD */
     if (preserve) {
 	DWORD r = GetCurrentDirectory(lenof(cwd), cwd);
 	if (r == 0 || r >= lenof(cwd))
 	    /* Didn't work, oh well. Stop trying to be clever. */
-	    preserve = 0;
+	    preserve = false;
     }
 
     /* Open the file requester, maybe setting lpstrInitialDir */
@@ -321,7 +321,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
     p = cmdline; q = outputline; outputargc = 0;
 
     while (*p) {
-	int quote;
+	bool quote;
 
 	/* Skip whitespace searching for start of argument. */
 	while (*p && isspace(*p)) p++;
@@ -331,7 +331,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
 	outputargv[outputargc] = q;
 	outputargstart[outputargc] = p;
 	outputargc++;
-	quote = 0;
+	quote = false;
 
 	/* Copy data into the argument until it's finished. */
 	while (*p) {

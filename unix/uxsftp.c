@@ -37,7 +37,7 @@ void platform_get_x11_auth(struct X11Display *display, Conf *conf)
 {
     /* Do nothing, therefore no auth. */
 }
-const int platform_uses_x11_unix_by_default = true;
+const bool platform_uses_x11_unix_by_default = true;
 
 /*
  * Default settings that are specific to PSFTP.
@@ -346,7 +346,7 @@ void close_directory(DirHandle *dir)
     sfree(dir);
 }
 
-int test_wildcard(const char *name, int cmdline)
+int test_wildcard(const char *name, bool cmdline)
 {
     struct stat statbuf;
 
@@ -403,7 +403,7 @@ void finish_wildcard_matching(WildcardMatcher *dir) {
     sfree(dir);
 }
 
-char *stripslashes(const char *str, int local)
+char *stripslashes(const char *str, bool local)
 {
     char *p;
 
@@ -417,7 +417,7 @@ char *stripslashes(const char *str, int local)
     return (char *)str;
 }
 
-int vet_filename(const char *name)
+bool vet_filename(const char *name)
 {
     if (strchr(name, '/'))
 	return false;
@@ -428,7 +428,7 @@ int vet_filename(const char *name)
     return true;
 }
 
-int create_directory(const char *name)
+bool create_directory(const char *name)
 {
     return mkdir(name, 0777) == 0;
 }
@@ -442,14 +442,14 @@ char *dir_file_cat(const char *dir, const char *file)
  * Do a select() between all currently active network fds and
  * optionally stdin.
  */
-static int ssh_sftp_do_select(int include_stdin, int no_fds_ok)
+static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 {
     fd_set rset, wset, xset;
     int i, fdcount, fdsize, *fdlist;
     int fd, fdstate, rwx, ret, maxfd;
     unsigned long now = GETTICKCOUNT();
     unsigned long next;
-    int done_something = false;
+    bool done_something = false;
 
     fdlist = NULL;
     fdcount = fdsize = 0;
@@ -566,7 +566,7 @@ int ssh_sftp_loop_iteration(void)
 /*
  * Read a PSFTP command line from stdin.
  */
-char *ssh_sftp_get_cmdline(const char *prompt, int no_fds_ok)
+char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 {
     char *buf;
     int buflen, bufsize, ret;
@@ -613,7 +613,7 @@ void frontend_net_error_pending(void) {}
 
 void platform_psftp_pre_conn_setup(void) {}
 
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
 /*
  * Main program: do platform-specific initialisation and then call

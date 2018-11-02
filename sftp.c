@@ -21,9 +21,9 @@ static void fxp_internal_error(const char *msg);
  * Client-specific parts of the send- and receive-packet system.
  */
 
-int sftp_send(struct sftp_packet *pkt)
+bool sftp_send(struct sftp_packet *pkt)
 {
-    int ret;
+    bool ret;
     sftp_send_prepare(pkt);
     ret = sftp_senddata(pkt->data, pkt->length);
     sftp_pkt_free(pkt);
@@ -61,7 +61,7 @@ struct sftp_packet *sftp_recv(void)
 
 struct sftp_request {
     unsigned id;
-    int registered;
+    bool registered;
     void *userdata;
 };
 
@@ -132,7 +132,7 @@ static struct sftp_request *sftp_alloc_request(void)
      */
     r = snew(struct sftp_request);
     r->id = low + 1 + REQUEST_ID_OFFSET;
-    r->registered = 0;
+    r->registered = false;
     r->userdata = NULL;
     add234(sftp_requests, r);
     return r;
@@ -148,7 +148,7 @@ void sftp_cleanup_request(void)
 
 void sftp_register(struct sftp_request *req)
 {
-    req->registered = 1;
+    req->registered = true;
 }
 
 struct sftp_request *sftp_find_request(struct sftp_packet *pktin)
@@ -248,7 +248,7 @@ int fxp_error_type(void)
 /*
  * Perform exchange of init/version packets. Return 0 on failure.
  */
-int fxp_init(void)
+bool fxp_init(void)
 {
     struct sftp_packet *pktout, *pktin;
     unsigned long remotever;
@@ -260,24 +260,24 @@ int fxp_init(void)
     pktin = sftp_recv();
     if (!pktin) {
 	fxp_internal_error("could not connect");
-	return 0;
+	return false;
     }
     if (pktin->type != SSH_FXP_VERSION) {
 	fxp_internal_error("did not receive FXP_VERSION");
         sftp_pkt_free(pktin);
-	return 0;
+	return false;
     }
     remotever = get_uint32(pktin);
     if (get_err(pktin)) {
 	fxp_internal_error("malformed FXP_VERSION packet");
         sftp_pkt_free(pktin);
-	return 0;
+	return false;
     }
     if (remotever > SFTP_PROTO_VERSION) {
 	fxp_internal_error
 	    ("remote protocol is more advanced than we support");
         sftp_pkt_free(pktin);
-	return 0;
+	return false;
     }
     /*
      * In principle, this packet might also contain extension-
@@ -287,7 +287,7 @@ int fxp_init(void)
      */
     sftp_pkt_free(pktin);
 
-    return 1;
+    return true;
 }
 
 /*
@@ -436,7 +436,7 @@ struct sftp_request *fxp_close_send(struct fxp_handle *handle)
     return req;
 }
 
-int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     sfree(req);
     fxp_got_status(pktin);
@@ -459,16 +459,13 @@ struct sftp_request *fxp_mkdir_send(const char *path,
     return req;
 }
 
-int fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 struct sftp_request *fxp_rmdir_send(const char *path)
@@ -484,16 +481,13 @@ struct sftp_request *fxp_rmdir_send(const char *path)
     return req;
 }
 
-int fxp_rmdir_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_rmdir_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 struct sftp_request *fxp_remove_send(const char *fname)
@@ -509,16 +503,13 @@ struct sftp_request *fxp_remove_send(const char *fname)
     return req;
 }
 
-int fxp_remove_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_remove_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 struct sftp_request *fxp_rename_send(const char *srcfname,
@@ -536,16 +527,13 @@ struct sftp_request *fxp_rename_send(const char *srcfname,
     return req;
 }
 
-int fxp_rename_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_rename_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 /*
@@ -565,19 +553,19 @@ struct sftp_request *fxp_stat_send(const char *fname)
     return req;
 }
 
-static int fxp_got_attrs(struct sftp_packet *pktin, struct fxp_attrs *attrs)
+static bool fxp_got_attrs(struct sftp_packet *pktin, struct fxp_attrs *attrs)
 {
     get_fxp_attrs(pktin, attrs);
     if (get_err(pktin)) {
         fxp_internal_error("malformed SSH_FXP_ATTRS packet");
         sftp_pkt_free(pktin);
-        return 0;
+        return false;
     }
     sftp_pkt_free(pktin);
-    return 1;
+    return true;
 }
 
-int fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+bool fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
 		  struct fxp_attrs *attrs)
 {
     sfree(req);
@@ -586,7 +574,7 @@ int fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
     } else {
 	fxp_got_status(pktin);
         sftp_pkt_free(pktin);
-	return 0;
+	return false;
     }
 }
 
@@ -603,18 +591,18 @@ struct sftp_request *fxp_fstat_send(struct fxp_handle *handle)
     return req;
 }
 
-int fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
-		   struct fxp_attrs *attrs)
+bool fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+                    struct fxp_attrs *attrs)
 {
     sfree(req);
     if (pktin->type == SSH_FXP_ATTRS) {
         return fxp_got_attrs(pktin, attrs);
 	sftp_pkt_free(pktin);
-	return 1;
+	return true;
     } else {
 	fxp_got_status(pktin);
         sftp_pkt_free(pktin);
-	return 0;
+	return false;
     }
 }
 
@@ -636,16 +624,13 @@ struct sftp_request *fxp_setstat_send(const char *fname,
     return req;
 }
 
-int fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
@@ -663,16 +648,13 @@ struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
     return req;
 }
 
-int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     int id;
     sfree(req);
     id = fxp_got_status(pktin);
     sftp_pkt_free(pktin);
-    if (id != 1) {
-    	return 0;
-    }
-    return 1;
+    return id == 1;
 }
 
 /*
@@ -826,7 +808,7 @@ struct sftp_request *fxp_write_send(struct fxp_handle *handle,
     return req;
 }
 
-int fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req)
+bool fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req)
 {
     sfree(req);
     fxp_got_status(pktin);
@@ -899,7 +881,8 @@ struct req {
 
 struct fxp_xfer {
     uint64_t offset, furthestdata, filesize;
-    int req_totalsize, req_maxsize, eof, err;
+    int req_totalsize, req_maxsize;
+    bool eof, err;
     struct fxp_handle *fh;
     struct req *head, *tail;
 };
@@ -913,14 +896,14 @@ static struct fxp_xfer *xfer_init(struct fxp_handle *fh, uint64_t offset)
     xfer->head = xfer->tail = NULL;
     xfer->req_totalsize = 0;
     xfer->req_maxsize = 1048576;
-    xfer->err = 0;
+    xfer->err = false;
     xfer->filesize = UINT64_MAX;
     xfer->furthestdata = 0;
 
     return xfer;
 }
 
-int xfer_done(struct fxp_xfer *xfer)
+bool xfer_done(struct fxp_xfer *xfer)
 {
     /*
      * We're finished if we've seen EOF _and_ there are no
@@ -1059,10 +1042,10 @@ int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 
 void xfer_set_error(struct fxp_xfer *xfer)
 {
-    xfer->err = 1;
+    xfer->err = true;
 }
 
-int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
+bool xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
 {
     void *retbuf = NULL;
     int retlen = 0;
@@ -1098,9 +1081,9 @@ int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len)
     if (retbuf) {
 	*buf = retbuf;
 	*len = retlen;
-	return 1;
+	return true;
     } else
-	return 0;
+	return false;
 }
 
 struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64_t offset)
@@ -1115,17 +1098,14 @@ struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64_t offset)
      * from us is whether the outstanding requests have been
      * handled once that's done.
      */
-    xfer->eof = 1;
+    xfer->eof = true;
 
     return xfer;
 }
 
-int xfer_upload_ready(struct fxp_xfer *xfer)
+bool xfer_upload_ready(struct fxp_xfer *xfer)
 {
-    if (sftp_sendbuffer() == 0)
-	return 1;
-    else
-	return 0;
+    return sftp_sendbuffer() == 0;
 }
 
 void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len)
@@ -1168,7 +1148,7 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
 {
     struct sftp_request *rreq;
     struct req *rr, *prev, *next;
-    int ret;
+    bool ret;
 
     rreq = sftp_find_request(pktin);
     if (!rreq)
@@ -1180,7 +1160,7 @@ int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin)
     }
     ret = fxp_write_recv(pktin, rreq);
 #ifdef DEBUG_UPLOAD
-    printf("write request %p has returned [%d]\n", rr, ret);
+    printf("write request %p has returned [%d]\n", rr, ret ? 1 : 0);
 #endif
 
     /*

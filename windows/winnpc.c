@@ -16,7 +16,7 @@
 #include "winsecur.h"
 
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, int overlapped);
+                           Plug *plug, bool overlapped);
 
 Socket *new_named_pipe_client(const char *pipename, Plug *plug)
 {

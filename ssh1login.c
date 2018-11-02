@@ -20,7 +20,7 @@ struct ssh1_login_state {
 
     char *savedhost;
     int savedport;
-    int try_agent_auth;
+    bool try_agent_auth;
 
     int remote_protoflags;
     int local_protoflags;
@@ -31,14 +31,14 @@ struct ssh1_login_state {
     int len;
     unsigned char *rsabuf;
     unsigned long supported_ciphers_mask, supported_auths_mask;
-    int tried_publickey, tried_agent;
-    int tis_auth_refused, ccard_auth_refused;
+    bool tried_publickey, tried_agent;
+    bool tis_auth_refused, ccard_auth_refused;
     unsigned char cookie[8];
     unsigned char session_id[16];
     int cipher_type;
     strbuf *publickey_blob;
     char *publickey_comment;
-    int privatekey_available, privatekey_encrypted;
+    bool privatekey_available, privatekey_encrypted;
     prompts_t *cur_prompt;
     int userpass_ret;
     char c;
@@ -47,14 +47,14 @@ struct ssh1_login_state {
     ptrlen agent_response;
     BinarySource asrc[1];          /* response from SSH agent */
     int keyi, nkeys;
-    int authed;
+    bool authed;
     struct RSAKey key;
     Bignum challenge;
     ptrlen comment;
     int dlgret;
     Filename *keyfile;
     struct RSAKey servkey, hostkey;
-    int want_user_input;
+    bool want_user_input;
 
     PacketProtocolLayer ppl;
 };
@@ -64,7 +64,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *);
 static void ssh1_login_dialog_callback(void *, int);
 static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
                                    SessionSpecialCode code, int arg);
-static int ssh1_login_want_user_input(PacketProtocolLayer *ppl);
+static bool ssh1_login_want_user_input(PacketProtocolLayer *ppl);
 static void ssh1_login_got_user_input(PacketProtocolLayer *ppl);
 static void ssh1_login_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
@@ -120,7 +120,7 @@ static void ssh1_login_free(PacketProtocolLayer *ppl)
     sfree(s);
 }
 
-static int ssh1_login_filter_queue(struct ssh1_login_state *s)
+static bool ssh1_login_filter_queue(struct ssh1_login_state *s)
 {
     return ssh1_common_filter_queue(&s->ppl);
 }
@@ -279,7 +279,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     ppl_logevent(("Encrypted session key"));
 
     {
-        int cipher_chosen = 0, warn = 0;
+        bool cipher_chosen = false, warn = false;
         const char *cipher_string = NULL;
         int i;
 	for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
@@ -287,7 +287,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 s->conf, CONF_ssh_cipherlist, i);
             if (next_cipher == CIPHER_WARN) {
                 /* If/when we choose a cipher, warn about it */
-                warn = 1;
+                warn = true;
             } else if (next_cipher == CIPHER_AES) {
                 /* XXX Probably don't need to mention this. */
                 ppl_logevent(("AES not supported in SSH-1, skipping"));
@@ -301,7 +301,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     cipher_string = "single-DES"; break;
                 }
                 if (s->supported_ciphers_mask & (1 << s->cipher_type))
-                    cipher_chosen = 1;
+                    cipher_chosen = true;
             }
         }
         if (!cipher_chosen) {
@@ -492,7 +492,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
              * Attempt RSA authentication using Pageant.
              */
             s->authed = false;
-            s->tried_agent = 1;
+            s->tried_agent = true;
             ppl_logevent(("Pageant is running. Requesting keys."));
 
             /* Request the keys held by the agent. */
@@ -535,7 +535,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                                     s->publickey_blob->len)) {
                             ppl_logevent(("Pageant key #%d matches "
                                           "configured key file", s->keyi));
-                            s->tried_publickey = 1;
+                            s->tried_publickey = true;
                         } else
                             /* Skip non-configured key */
                             continue;
@@ -632,12 +632,12 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
              * Try public key authentication with the specified
              * key file.
              */
-            int got_passphrase; /* need not be kept over crReturn */
+            bool got_passphrase; /* need not be kept over crReturn */
             if (flags & FLAG_VERBOSE)
                 ppl_printf(("Trying public key authentication.\r\n"));
             ppl_logevent(("Trying public key \"%s\"",
                           filename_to_str(s->keyfile)));
-            s->tried_publickey = 1;
+            s->tried_publickey = true;
             got_passphrase = false;
             while (!got_passphrase) {
                 /*
@@ -805,7 +805,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 ppl_logevent(("TIS authentication declined"));
                 if (flags & FLAG_INTERACTIVE)
                     ppl_printf(("TIS authentication refused.\r\n"));
-                s->tis_auth_refused = 1;
+                s->tis_auth_refused = true;
                 continue;
             } else if (pktin->type == SSH1_SMSG_AUTH_TIS_CHALLENGE) {
                 ptrlen challenge;
@@ -853,7 +853,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             if (pktin->type == SSH1_SMSG_FAILURE) {
                 ppl_logevent(("CryptoCard authentication declined"));
                 ppl_printf(("CryptoCard authentication refused.\r\n"));
-                s->ccard_auth_refused = 1;
+                s->ccard_auth_refused = true;
                 continue;
             } else if (pktin->type == SSH1_SMSG_AUTH_CCARD_CHALLENGE) {
                 ptrlen challenge;
@@ -1145,7 +1145,7 @@ static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
     }
 }
 
-static int ssh1_login_want_user_input(PacketProtocolLayer *ppl)
+static bool ssh1_login_want_user_input(PacketProtocolLayer *ppl)
 {
     struct ssh1_login_state *s =
         container_of(ppl, struct ssh1_login_state, ppl);

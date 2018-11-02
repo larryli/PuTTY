@@ -49,7 +49,7 @@
  * pure-CLI utilities, so that Unix Plink, PSFTP etc don't announce
  * themselves incongruously as having something to do with GTK. */
 #define BUILDINFO_PLATFORM_CLI "Unix"
-extern const int buildinfo_gtk_relevant;
+extern const bool buildinfo_gtk_relevant;
 #define BUILDINFO_PLATFORM (buildinfo_gtk_relevant ? \
                             BUILDINFO_PLATFORM_GTK : BUILDINFO_PLATFORM_CLI)
 
@@ -58,7 +58,7 @@ char *buildinfo_gtk_version(void);
 struct Filename {
     char *path;
 };
-FILE *f_open(const struct Filename *, char const *, int);
+FILE *f_open(const struct Filename *, char const *, bool);
 
 struct FontSpec {
     char *name;    /* may be "" to indicate no selected font at all */
@@ -207,7 +207,7 @@ void unregister_dialog(Seat *seat, enum DialogSlot slot);
 /* Things pterm.c needs from gtkdlg.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *create_config_box(const char *title, Conf *conf,
-                             int midsession, int protcfginfo,
+                             bool midsession, int protcfginfo,
                              post_dialog_fn_t after, void *afterctx);
 #endif
 void nonfatal_message_box(void *window, const char *msg);
@@ -243,7 +243,7 @@ struct message_box_buttons {
 extern const struct message_box_buttons buttons_yn, buttons_ok;
 GtkWidget *create_message_box(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
-    int selectable, const struct message_box_buttons *buttons,
+    bool selectable, const struct message_box_buttons *buttons,
     post_dialog_fn_t after, void *afterctx);
 #endif
 
@@ -280,10 +280,12 @@ void uxsel_input_remove(uxsel_id *id);
 
 /* uxcfg.c */
 struct controlbox;
-void unix_setup_config_box(struct controlbox *b, int midsession, int protocol);
+void unix_setup_config_box(
+    struct controlbox *b, bool midsession, int protocol);
 
 /* gtkcfg.c */
-void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
+void gtk_setup_config_box(
+    struct controlbox *b, bool midsession, void *window);
 
 /*
  * In the Unix Unicode layer, DEFAULT_CODEPAGE is a special value
@@ -301,13 +303,13 @@ void gtk_setup_config_box(struct controlbox *b, int midsession, void *window);
 
 /* BSD-semantics version of signal(), and another helpful function */
 void (*putty_signal(int sig, void (*func)(int)))(int);
-void block_signal(int sig, int block_it);
+void block_signal(int sig, bool block_it);
 
 /* uxmisc.c */
 void cloexec(int);
 void noncloexec(int);
-int nonblock(int);
-int no_nonblock(int);
+bool nonblock(int);
+bool no_nonblock(int);
 char *make_dir_and_check_ours(const char *dirname);
 char *make_dir_path(const char *path, mode_t mode);
 
@@ -315,8 +317,8 @@ char *make_dir_path(const char *path, mode_t mode);
  * Exports from unicode.c.
  */
 struct unicode_data;
-int init_ucs(struct unicode_data *ucsdata, char *line_codepage,
-	     int utf8_override, int font_charset, int vtmode);
+bool init_ucs(struct unicode_data *ucsdata, char *line_codepage,
+              bool utf8_override, int font_charset, int vtmode);
 
 /*
  * Spare functions exported directly from uxnet.c.
@@ -342,7 +344,7 @@ extern const struct BackendVtable serial_backend;
 /*
  * uxpeer.c, wrapping getsockopt(SO_PEERCRED).
  */
-int so_peercred(int fd, int *pid, int *uid, int *gid);
+bool so_peercred(int fd, int *pid, int *uid, int *gid);
 
 /*
  * uxfdsock.c.

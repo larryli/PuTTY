@@ -38,7 +38,7 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-static int local_tty = false; /* do we have a local tty? */
+static bool local_tty = false; /* do we have a local tty? */
 
 static Backend *backend;
 static Conf *conf;
@@ -82,11 +82,11 @@ char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }
-int term_ldisc(Terminal *term, int mode)
+bool term_ldisc(Terminal *term, int mode)
 {
     return false;
 }
-static void plink_echoedit_update(Seat *seat, int echo, int edit)
+static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */
     struct termios mode;
@@ -160,7 +160,7 @@ static char *plink_get_ttymode(Seat *seat, const char *mode)
 #define GET_BOOL(ourname, uxname, uxmemb, transform) \
     do { \
 	if (strcmp(mode, ourname) == 0) { \
-	    int b = (orig_termios.uxmemb & uxname) != 0; \
+	    bool b = (orig_termios.uxmemb & uxname) != 0; \
 	    transform; \
 	    return dupprintf("%d", b); \
 	} \
@@ -325,7 +325,7 @@ void cleanup_termios(void)
 bufchain stdout_data, stderr_data;
 enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
-int try_output(int is_stderr)
+int try_output(bool is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
@@ -333,7 +333,7 @@ int try_output(int is_stderr)
     int sendlen, ret;
 
     if (bufchain_size(chain) > 0) {
-        int prev_nonblock = nonblock(fd);
+        bool prev_nonblock = nonblock(fd);
         do {
             bufchain_prefix(chain, &senddata, &sendlen);
             ret = write(fd, senddata, sendlen);
@@ -354,7 +354,7 @@ int try_output(int is_stderr)
     return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
-static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
+static int plink_output(Seat *seat, bool is_stderr, const void *data, int len)
 {
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);
@@ -366,7 +366,7 @@ static int plink_output(Seat *seat, int is_stderr, const void *data, int len)
     }
 }
 
-static int plink_eof(Seat *seat)
+static bool plink_eof(Seat *seat)
 {
     assert(outgoingeof == EOF_NO);
     outgoingeof = EOF_PENDING;
@@ -551,21 +551,21 @@ static void version(void)
 
 void frontend_net_error_pending(void) {}
 
-const int share_can_be_downstream = true;
-const int share_can_be_upstream = true;
+const bool share_can_be_downstream = true;
+const bool share_can_be_upstream = true;
 
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
-    int sending;
+    bool sending;
     int *fdlist;
     int fd;
     int i, fdcount, fdsize, fdstate;
     int exitcode;
-    int errors;
-    int use_subsystem = 0;
-    int just_test_share_exists = false;
+    bool errors;
+    bool use_subsystem = false;
+    bool just_test_share_exists = false;
     unsigned long now;
     struct winsize size;
     const struct BackendVtable *backvt;
@@ -599,7 +599,7 @@ int main(int argc, char **argv)
     loaded_session = false;
     default_protocol = conf_get_int(conf, CONF_protocol);
     default_port = conf_get_int(conf, CONF_port);
-    errors = 0;
+    errors = false;
     {
 	/*
 	 * Override the default protocol if PLINK_PROTOCOL is set.
@@ -622,16 +622,16 @@ int main(int argc, char **argv)
         if (ret == -2) {
             fprintf(stderr,
                     "plink: option \"%s\" requires an argument\n", p);
-            errors = 1;
+            errors = true;
         } else if (ret == 2) {
             --argc, ++argv;
         } else if (ret == 1) {
             continue;
         } else if (!strcmp(p, "-batch")) {
-            console_batch_mode = 1;
+            console_batch_mode = true;
         } else if (!strcmp(p, "-s")) {
             /* Save status to write to conf later. */
-            use_subsystem = 1;
+            use_subsystem = true;
         } else if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
             version();
         } else if (!strcmp(p, "--help")) {
@@ -644,7 +644,7 @@ int main(int argc, char **argv)
             if (argc <= 1) {
                 fprintf(stderr,
                         "plink: option \"-o\" requires an argument\n");
-                errors = 1;
+                errors = true;
             } else {
                 --argc;
                 provide_xrm_string(*++argv);
@@ -684,7 +684,7 @@ int main(int argc, char **argv)
             break;		       /* done with cmdline */
         } else {
             fprintf(stderr, "plink: unknown option \"%s\"\n", p);
-            errors = 1;
+            errors = true;
 	}
     }
 
@@ -800,7 +800,7 @@ int main(int argc, char **argv)
 	const char *error;
 	char *realhost;
 	/* nodelay is only useful if stdin is a terminal device */
-	int nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
+	bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
 
 	/* This is a good place for a fuzzer to fork us. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL

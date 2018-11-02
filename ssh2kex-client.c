@@ -230,8 +230,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
         ptrlen data;
 
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_GSSKEX;
-        s->init_token_sent = 0;
-        s->complete_rcvd = 0;
+        s->init_token_sent = false;
+        s->complete_rcvd = false;
         s->hkey = NULL;
         s->fingerprint = NULL;
         s->keystr = NULL;
@@ -349,7 +349,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                    s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED);
 
             if (!s->init_token_sent) {
-                s->init_token_sent = 1;
+                s->init_token_sent = true;
                 pktout = ssh_bpp_new_pktout(s->ppl.bpp,
                                             SSH2_MSG_KEXGSS_INIT);
                 if (s->gss_sndtok.length == 0) {
@@ -385,7 +385,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                 s->gss_rcvtok.length = data.len;
                 continue;
               case SSH2_MSG_KEXGSS_COMPLETE:
-                s->complete_rcvd = 1;
+                s->complete_rcvd = true;
                 s->f = get_mp_ssh2(pktin);
                 data = get_string(pktin);
                 s->mic.value = (char *)data.ptr;

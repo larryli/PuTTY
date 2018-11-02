@@ -35,12 +35,12 @@ const char *filename_to_str(const Filename *fn)
     return fn->path;
 }
 
-int filename_equal(const Filename *f1, const Filename *f2)
+bool filename_equal(const Filename *f1, const Filename *f2)
 {
     return !strcmp(f1->path, f2->path);
 }
 
-int filename_is_null(const Filename *fn)
+bool filename_is_null(const Filename *fn)
 {
     return !*fn->path;
 }
@@ -81,12 +81,12 @@ char *get_username(void)
 {
     DWORD namelen;
     char *user;
-    int got_username = false;
+    bool got_username = false;
     DECL_WINDOWS_FUNCTION(static, BOOLEAN, GetUserNameExA,
 			  (EXTENDED_NAME_FORMAT, LPSTR, PULONG));
 
     {
-	static int tried_usernameex = false;
+	static bool tried_usernameex = false;
 	if (!tried_usernameex) {
 	    /* Not available on Win9x, so load dynamically */
 	    HMODULE secur32 = load_system32_dll("secur32.dll");
@@ -125,7 +125,7 @@ char *get_username(void)
     if (!got_username) {
 	/* Fall back to local user name */
 	namelen = 0;
-	if (GetUserName(NULL, &namelen) == false) {
+	if (!GetUserName(NULL, &namelen)) {
 	    /*
 	     * Apparently this doesn't work at least on Windows XP SP2.
 	     * Thus assume a maximum of 256. It will fail again if it
@@ -559,8 +559,7 @@ void *minefield_c_realloc(void *p, size_t size)
 
 #endif				/* MINEFIELD */
 
-FontSpec *fontspec_new(const char *name,
-                        int bold, int height, int charset)
+FontSpec *fontspec_new(const char *name, bool bold, int height, int charset)
 {
     FontSpec *f = snew(FontSpec);
     f->name = dupstr(name);
@@ -594,7 +593,7 @@ FontSpec *fontspec_deserialise(BinarySource *src)
     return fontspec_new(name, isbold, height, charset);
 }
 
-int open_for_write_would_lose_data(const Filename *fn)
+bool open_for_write_would_lose_data(const Filename *fn)
 {
     WIN32_FILE_ATTRIBUTE_DATA attrs;
     if (!GetFileAttributesEx(fn->path, GetFileExInfoStandard, &attrs)) {

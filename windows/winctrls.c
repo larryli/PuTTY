@@ -165,7 +165,7 @@ void endbox(struct ctlpos *cp)
 /*
  * A static line, followed by a full-width edit box.
  */
-void editboxfw(struct ctlpos *cp, int password, char *text,
+void editboxfw(struct ctlpos *cp, bool password, char *text,
 	       int staticid, int editid)
 {
     RECT r;
@@ -534,7 +534,7 @@ void staticbtn(struct ctlpos *cp, char *stext, int sid,
 /*
  * A simple push button.
  */
-void button(struct ctlpos *cp, char *btext, int bid, int defbtn)
+void button(struct ctlpos *cp, char *btext, int bid, bool defbtn)
 {
     RECT r;
 
@@ -769,7 +769,7 @@ void bigeditctrl(struct ctlpos *cp, char *stext,
  * A list box with a static labelling it.
  */
 void listbox(struct ctlpos *cp, char *stext,
-	     int sid, int lid, int lines, int multi)
+	     int sid, int lid, int lines, bool multi)
 {
     RECT r;
 
@@ -994,7 +994,7 @@ static void pl_moveitem(HWND hwnd, int listid, int src, int dst)
     sfree (txt);
 }
 
-int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
+int pl_itemfrompt(HWND hwnd, POINT cursor, bool scroll)
 {
     int ret;
     POINT uppoint, downpoint;
@@ -1041,7 +1041,7 @@ int pl_itemfrompt(HWND hwnd, POINT cursor, BOOL scroll)
  */
 int handle_prefslist(struct prefslist *hdl,
                      int *array, int maxmemb,
-                     int is_dlmsg, HWND hwnd,
+                     bool is_dlmsg, HWND hwnd,
 		     WPARAM wParam, LPARAM lParam)
 {
     int i;
@@ -1063,7 +1063,7 @@ int handle_prefslist(struct prefslist *hdl,
 				       LB_ADDSTRING, 0, (LPARAM) "");
 
                 hdl->srcitem = p_LBItemFromPt(dlm->hWnd, dlm->ptCursor, true);
-		hdl->dragging = 0;
+		hdl->dragging = false;
 		/* XXX hack Q183115 */
 		SetWindowLongPtr(hwnd, DWLP_MSGRESULT, true);
                 ret |= 1; break;
@@ -1071,10 +1071,10 @@ int handle_prefslist(struct prefslist *hdl,
 		p_DrawInsert(hwnd, dlm->hWnd, -1);     /* Clear arrow */
 		SendDlgItemMessage(hwnd, hdl->listid,
 				   LB_DELETESTRING, hdl->dummyitem, 0);
-		hdl->dragging = 0;
+		hdl->dragging = false;
                 ret |= 1; break;
               case DL_DRAGGING:
-		hdl->dragging = 1;
+		hdl->dragging = true;
 		dest = pl_itemfrompt(dlm->hWnd, dlm->ptCursor, true);
 		if (dest > hdl->dummyitem) dest = hdl->dummyitem;
 		p_DrawInsert (hwnd, dlm->hWnd, dest);
@@ -1092,7 +1092,7 @@ int handle_prefslist(struct prefslist *hdl,
 		SendDlgItemMessage(hwnd, hdl->listid,
 				   LB_DELETESTRING, hdl->dummyitem, 0);
 		if (hdl->dragging) {
-		    hdl->dragging = 0;
+		    hdl->dragging = false;
 		    if (dest >= 0) {
 			/* Correct for "missing" item. */
 			if (dest > hdl->srcitem) dest--;
@@ -1654,7 +1654,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 	    shortcuts[nshortcuts++] = ctrl->fontselect.shortcut;
 	    statictext(&pos, escaped, 1, base_id);
 	    staticbtn(&pos, "", base_id+1, "Change...", base_id+2);
-            data = fontspec_new("", 0, 0, 0);
+            data = fontspec_new("", false, 0, 0);
 	    sfree(escaped);
 	    break;
 	  default:
@@ -1710,7 +1710,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 }
 
 static void winctrl_set_focus(union control *ctrl, struct dlgparam *dp,
-			      int has_focus)
+			      bool has_focus)
 {
     if (has_focus) {
 	if (dp->focused)
@@ -1731,12 +1731,13 @@ union control *dlg_last_focused(union control *ctrl, dlgparam *dp)
  * The dialog-box procedure calls this function to handle Windows
  * messages on a control we manage.
  */
-int winctrl_handle_command(struct dlgparam *dp, UINT msg,
-			   WPARAM wParam, LPARAM lParam)
+bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
+                            WPARAM wParam, LPARAM lParam)
 {
     struct winctrl *c;
     union control *ctrl;
-    int i, id, ret;
+    int i, id;
+    bool ret;
     static UINT draglistmsg = WM_NULL;
 
     /*
@@ -1747,7 +1748,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	draglistmsg = RegisterWindowMessage (DRAGLISTMSGSTRING);
 
     if (msg != draglistmsg && msg != WM_COMMAND && msg != WM_DRAWITEM)
-	return 0;
+	return false;
 
     /*
      * Look up the control ID in our data.
@@ -1759,7 +1760,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	    break;
     }
     if (!c)
-	return 0;		       /* we have nothing to do */
+	return false;                  /* we have nothing to do */
 
     if (msg == WM_DRAWITEM) {
 	/*
@@ -1787,7 +1788,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
     id = LOWORD(wParam) - c->base_id;
 
     if (!ctrl || !ctrl->generic.handler)
-	return 0;		       /* nothing we can do here */
+	return false;                  /* nothing we can do here */
 
     /*
      * From here on we do not issue `return' statements until the
@@ -1796,7 +1797,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
      * to reach the end of this switch statement so that the
      * subsequent code can test dp->coloursel_wanted().
      */
-    ret = 0;
+    ret = false;
     dp->coloursel_wanted = false;
 
     /*
@@ -2021,7 +2022,7 @@ int winctrl_handle_command(struct dlgparam *dp, UINT msg,
  * This function can be called to produce context help on a
  * control. Returns true if it has actually launched some help.
  */
-int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
+bool winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 {
     int i;
     struct winctrl *c;
@@ -2036,17 +2037,17 @@ int winctrl_context_help(struct dlgparam *dp, HWND hwnd, int id)
 	    break;
     }
     if (!c)
-	return 0;		       /* we have nothing to do */
+	return false;                  /* we have nothing to do */
 
     /*
      * This is the Windows front end, so we're allowed to assume
      * `helpctx.p' is a context string.
      */
     if (!c->ctrl || !c->ctrl->generic.helpctx.p)
-	return 0;		       /* no help available for this ctrl */
+	return false;            /* no help available for this ctrl */
 
     launch_help(hwnd, c->ctrl->generic.helpctx.p);
-    return 1;
+    return true;
 }
 
 /*
@@ -2088,14 +2089,14 @@ int dlg_radiobutton_get(union control *ctrl, dlgparam *dp)
     return 0;
 }
 
-void dlg_checkbox_set(union control *ctrl, dlgparam *dp, int checked)
+void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->generic.type == CTRL_CHECKBOX);
-    CheckDlgButton(dp->hwnd, c->base_id, (checked != 0));
+    CheckDlgButton(dp->hwnd, c->base_id, checked);
 }
 
-int dlg_checkbox_get(union control *ctrl, dlgparam *dp)
+bool dlg_checkbox_get(union control *ctrl, dlgparam *dp)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->generic.type == CTRL_CHECKBOX);
@@ -2210,7 +2211,7 @@ int dlg_listbox_index(union control *ctrl, dlgparam *dp)
 	return ret;
 }
 
-int dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
+bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);
     assert(c && c->ctrl->generic.type == CTRL_LISTBOX &&
@@ -2447,16 +2448,16 @@ void dlg_coloursel_start(union control *ctrl, dlgparam *dp, int r, int g, int b)
     dp->coloursel_result.b = b;
 }
 
-int dlg_coloursel_results(union control *ctrl, dlgparam *dp,
-			  int *r, int *g, int *b)
+bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
+                           int *r, int *g, int *b)
 {
     if (dp->coloursel_result.ok) {
 	*r = dp->coloursel_result.r;
 	*g = dp->coloursel_result.g;
 	*b = dp->coloursel_result.b;
-	return 1;
+	return true;
     } else
-	return 0;
+	return false;
 }
 
 void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
@@ -2467,7 +2468,7 @@ void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
     HFONT hfont;
     HDC hdc;
     TEXTMETRIC tm;
-    int is_var;
+    bool is_var;
 
     /*
      * Attempt to load the current font, and see if it's
@@ -2502,12 +2503,12 @@ void dlg_auto_set_fixed_pitch_flag(dlgparam *dp)
         dp->fixed_pitch_fonts = false;
 }
 
-int dlg_get_fixed_pitch_flag(dlgparam *dp)
+bool dlg_get_fixed_pitch_flag(dlgparam *dp)
 {
     return dp->fixed_pitch_fonts;
 }
 
-void dlg_set_fixed_pitch_flag(dlgparam *dp, int flag)
+void dlg_set_fixed_pitch_flag(dlgparam *dp, bool flag)
 {
     dp->fixed_pitch_fonts = flag;
 }

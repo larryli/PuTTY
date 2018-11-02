@@ -124,7 +124,7 @@ static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
     }
 }
 
-void ser_setup_config_box(struct controlbox *b, int midsession,
+void ser_setup_config_box(struct controlbox *b, bool midsession,
 			  int parity_mask, int flow_mask)
 {
     struct controlset *s;

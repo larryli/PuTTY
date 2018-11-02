@@ -17,7 +17,7 @@
 void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
 {
     char *xauthfile;
-    int needs_free;
+    bool needs_free;
 
     /*
      * Find the .Xauthority file.
@@ -39,7 +39,7 @@ void platform_get_x11_auth(struct X11Display *disp, Conf *conf)
     }
 }
 
-const int platform_uses_x11_unix_by_default = true;
+const bool platform_uses_x11_unix_by_default = true;
 
 int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
                              const char *screen_number_suffix,

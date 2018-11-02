@@ -62,16 +62,17 @@
  * able to get at these functions.
  * 
  * sftp_recvdata must never return less than len. It either blocks
- * until len is available, or it returns failure.
+ * until len is available and then returns true, or it returns false
+ * for failure.
  * 
- * Both functions return 1 on success, 0 on failure.
+ * sftp_senddata returns true on success, false on failure.
  *
  * sftp_sendbuffer returns the size of the backlog of data in the
  * transmit queue.
  */
-int sftp_senddata(char *data, int len);
+bool sftp_senddata(char *data, int len);
 int sftp_sendbuffer(void);
-int sftp_recvdata(char *data, int len);
+bool sftp_recvdata(char *data, int len);
 
 /*
  * Free sftp_requests
@@ -144,13 +145,13 @@ void sftp_send_prepare(struct sftp_packet *pkt);
  * that many bytes into pkt->data, and call sftp_recv_finish to set up
  * the type code and BinarySource. */
 struct sftp_packet *sftp_recv_prepare(unsigned length);
-int sftp_recv_finish(struct sftp_packet *pkt);
+bool sftp_recv_finish(struct sftp_packet *pkt);
 
 /* Either kind of packet can be freed afterwards with sftp_pkt_free. */
 void sftp_pkt_free(struct sftp_packet *pkt);
 
 void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs);
-int BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs);
+bool BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs);
 #define put_fxp_attrs(bs, attrs) \
     BinarySink_put_fxp_attrs(BinarySink_UPCAST(bs), attrs)
 #define get_fxp_attrs(bs, attrs) \
@@ -164,9 +165,9 @@ const char *fxp_error(void);
 int fxp_error_type(void);
 
 /*
- * Perform exchange of init/version packets. Return 0 on failure.
+ * Perform exchange of init/version packets. Return false on failure.
  */
-int fxp_init(void);
+bool fxp_init(void);
 
 /*
  * Canonify a pathname. Concatenate the two given path elements
@@ -192,56 +193,56 @@ struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin,
 				    struct sftp_request *req);
 
 /*
- * Close a file/dir. Returns 1 on success, 0 on error.
+ * Close a file/dir. Returns true on success, false on error.
  */
 struct sftp_request *fxp_close_send(struct fxp_handle *handle);
-int fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_close_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Make a directory.
  */
 struct sftp_request *fxp_mkdir_send(const char *path,
                                     const struct fxp_attrs *attrs);
-int fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_mkdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Remove a directory.
  */
 struct sftp_request *fxp_rmdir_send(const char *path);
-int fxp_rmdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_rmdir_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Remove a file.
  */
 struct sftp_request *fxp_remove_send(const char *fname);
-int fxp_remove_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_remove_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Rename a file.
  */
 struct sftp_request *fxp_rename_send(const char *srcfname,
                                      const char *dstfname);
-int fxp_rename_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_rename_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Return file attributes.
  */
 struct sftp_request *fxp_stat_send(const char *fname);
-int fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
-		  struct fxp_attrs *attrs);
+bool fxp_stat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+                   struct fxp_attrs *attrs);
 struct sftp_request *fxp_fstat_send(struct fxp_handle *handle);
-int fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
-		   struct fxp_attrs *attrs);
+bool fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
+                    struct fxp_attrs *attrs);
 
 /*
  * Set file attributes.
  */
 struct sftp_request *fxp_setstat_send(const char *fname,
                                       struct fxp_attrs attrs);
-int fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
 				       struct fxp_attrs attrs);
-int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Read from a file.
@@ -249,14 +250,14 @@ int fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 struct sftp_request *fxp_read_send(struct fxp_handle *handle,
 				   uint64_t offset, int len);
 int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
-		  char *buffer, int len);
+                  char *buffer, int len);
 
 /*
- * Write to a file. Returns 0 on error, 1 on OK.
+ * Write to a file.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
 				    void *buffer, uint64_t offset, int len);
-int fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
+bool fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Read from a directory.
@@ -301,14 +302,14 @@ struct fxp_xfer;
 struct fxp_xfer *xfer_download_init(struct fxp_handle *fh, uint64_t offset);
 void xfer_download_queue(struct fxp_xfer *xfer);
 int xfer_download_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
-int xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len);
+bool xfer_download_data(struct fxp_xfer *xfer, void **buf, int *len);
 
 struct fxp_xfer *xfer_upload_init(struct fxp_handle *fh, uint64_t offset);
-int xfer_upload_ready(struct fxp_xfer *xfer);
+bool xfer_upload_ready(struct fxp_xfer *xfer);
 void xfer_upload_data(struct fxp_xfer *xfer, char *buffer, int len);
 int xfer_upload_gotpkt(struct fxp_xfer *xfer, struct sftp_packet *pktin);
 
-int xfer_done(struct fxp_xfer *xfer);
+bool xfer_done(struct fxp_xfer *xfer);
 void xfer_set_error(struct fxp_xfer *xfer);
 void xfer_cleanup(struct fxp_xfer *xfer);
 
@@ -362,7 +363,7 @@ struct SftpServerVtable {
 
     /* Should call fxp_reply_error or fxp_reply_attrs */
     void (*stat)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen path,
-                 int follow_symlinks);
+                 bool follow_symlinks);
 
     /* Should call fxp_reply_error or fxp_reply_attrs */
     void (*fstat)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle);
@@ -386,7 +387,7 @@ struct SftpServerVtable {
     /* Should call fxp_reply_error, or fxp_reply_name_count once and
      * then fxp_reply_full_name that many times */
     void (*readdir)(SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle,
-                    int max_entries, int omit_longname);
+                    int max_entries, bool omit_longname);
 };
 
 #define sftpsrv_new(vt) \
@@ -494,7 +495,7 @@ struct ScpServerVtable {
     void (*free)(ScpServer *s);
 
     int (*send)(ScpServer *s, const void *data, size_t length);
-    void (*throttle)(ScpServer *s, int throttled);
+    void (*throttle)(ScpServer *s, bool throttled);
     void (*eof)(ScpServer *s);
 };
 

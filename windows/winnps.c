@@ -16,7 +16,7 @@
 #include "winsecur.h"
 
 Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, int overlapped);
+                           Plug *plug, bool overlapped);
 
 typedef struct NamedPipeServerSocket {
     /* Parameters for (repeated) creation of named pipe objects */
@@ -73,7 +73,7 @@ static SocketPeerInfo *sk_namedpipeserver_peer_info(Socket *s)
     return NULL;
 }
 
-static int create_named_pipe(NamedPipeServerSocket *ps, int first_instance)
+static bool create_named_pipe(NamedPipeServerSocket *ps, bool first_instance)
 {
     SECURITY_ATTRIBUTES sa;
 
@@ -127,7 +127,7 @@ static Socket *named_pipe_accept(accept_ctx_t ctx, Plug *plug)
 SockAddr *sk_namedpipe_addr(const char *pipename);
 
 static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
-                                   int got_one_already)
+                                   bool got_one_already)
 {
     while (1) {
         int error;

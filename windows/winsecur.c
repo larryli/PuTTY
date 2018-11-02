@@ -16,10 +16,10 @@
 static PSID worldsid, networksid, usersid;
 
 
-int got_advapi(void)
+bool got_advapi(void)
 {
-    static int attempted = false;
-    static int successful;
+    static bool attempted = false;
+    static bool successful;
     static HMODULE advapi;
 
     if (!attempted) {
@@ -92,7 +92,7 @@ PSID get_user_sid(void)
     return ret;
 }
 
-int getsids(char **error)
+bool getsids(char **error)
 {
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -104,7 +104,7 @@ int getsids(char **error)
 #pragma clang diagnostic pop
 #endif
 
-    int ret = false;
+    bool ret = false;
 
     *error = NULL;
 
@@ -142,14 +142,14 @@ int getsids(char **error)
 }
   
 
-int make_private_security_descriptor(DWORD permissions,
-                                     PSECURITY_DESCRIPTOR *psd,
-                                     PACL *acl,
-                                     char **error)
+bool make_private_security_descriptor(DWORD permissions,
+                                      PSECURITY_DESCRIPTOR *psd,
+                                      PACL *acl,
+                                      char **error)
 {
     EXPLICIT_ACCESS ea[3];
     int acl_err;
-    int ret = false;
+    bool ret = false;
 
 
     *psd = NULL;
@@ -228,11 +228,11 @@ int make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
-static int really_restrict_process_acl(char **error)
+static bool really_restrict_process_acl(char **error)
 {
     EXPLICIT_ACCESS ea[2];
     int acl_err;
-    int ret=false;
+    bool ret = false;
     PACL acl = NULL;
 
     static const DWORD nastyace=WRITE_DAC | WRITE_OWNER |
@@ -312,7 +312,7 @@ static int really_restrict_process_acl(char **error)
 void restrict_process_acl(void)
 {
     char *error = NULL;
-    int ret;
+    bool ret;
 
 #if !defined NO_SECURITY
     ret = really_restrict_process_acl(&error);

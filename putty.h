@@ -153,7 +153,7 @@ struct sesslist {
 
 struct unicode_data {
     char **uni_tbl;
-    int dbcs_screenfont;
+    bool dbcs_screenfont;
     int font_codepage;
     int line_codepage;
     wchar_t unitab_scoacs[256];
@@ -497,7 +497,7 @@ struct BackendVtable {
     const char *(*init) (Seat *seat, Backend **backend_out,
                          LogContext *logctx, Conf *conf,
                          const char *host, int port,
-                         char **realhost, int nodelay, int keepalive);
+                         char **realhost, bool nodelay, bool keepalive);
 
     void (*free) (Backend *be);
     /* Pass in a replacement configuration. */
@@ -509,13 +509,13 @@ struct BackendVtable {
     void (*size) (Backend *be, int width, int height);
     void (*special) (Backend *be, SessionSpecialCode code, int arg);
     const SessionSpecial *(*get_specials) (Backend *be);
-    int (*connected) (Backend *be);
+    bool (*connected) (Backend *be);
     int (*exitcode) (Backend *be);
     /* If back->sendok() returns false, the backend doesn't currently
      * want input data, so the frontend should avoid acquiring any if
      * possible (passing back-pressure on to its sender). */
-    int (*sendok) (Backend *be);
-    int (*ldisc_option_state) (Backend *be, int);
+    bool (*sendok) (Backend *be);
+    bool (*ldisc_option_state) (Backend *be, int);
     void (*provide_ldisc) (Backend *be, Ldisc *ldisc);
     /* Tells the back end that the front end  buffer is clearing. */
     void (*unthrottle) (Backend *be, int bufsize);
@@ -523,7 +523,7 @@ struct BackendVtable {
 
     /* Only implemented in the SSH protocol: check whether a
      * connection-sharing upstream exists for a given configuration. */
-    int (*test_for_upstream)(const char *host, int port, Conf *conf);
+    bool (*test_for_upstream)(const char *host, int port, Conf *conf);
 
     const char *name;
     int protocol;
@@ -595,7 +595,7 @@ GLOBAL int default_port;
 /*
  * This is set true by cmdline.c iff a session is loaded with "-load".
  */
-GLOBAL int loaded_session;
+GLOBAL bool loaded_session;
 /*
  * This is set to the name of the loaded session.
  */
@@ -619,7 +619,7 @@ GLOBAL char *cmdline_session_name;
  */
 typedef struct {
     char *prompt;
-    int echo;
+    bool echo;
     /*
      * 'result' must be a dynamically allocated array of exactly
      * 'resultsize' chars. The code for actually reading input may
@@ -642,11 +642,11 @@ typedef struct {
      * information (so the caller should ensure that the supplied text is
      * sufficient).
      */
-    int to_server;
+    bool to_server;
     char *name;		/* Short description, perhaps for dialog box title */
-    int name_reqd;	/* Display of `name' required or optional? */
+    bool name_reqd;     /* Display of `name' required or optional? */
     char *instruction;	/* Long description, maybe with embedded newlines */
-    int instr_reqd;	/* Display of `instruction' required or optional? */
+    bool instr_reqd;    /* Display of `instruction' required or optional? */
     size_t n_prompts;   /* May be zero (in which case display the foregoing,
                          * if any, and return success) */
     prompt_t **prompts;
@@ -654,7 +654,7 @@ typedef struct {
 			 * seat_get_userpass_input(); initially NULL */
 } prompts_t;
 prompts_t *new_prompts();
-void add_prompt(prompts_t *p, char *promptstr, int echo);
+void add_prompt(prompts_t *p, char *promptstr, bool echo);
 void prompt_set_result(prompt_t *pr, const char *newstr);
 void prompt_ensure_result_size(prompt_t *pr, int len);
 /* Burn the evidence. (Assumes _all_ strings want free()ing.) */
@@ -668,7 +668,7 @@ void free_prompts(prompts_t *p);
  * background.
  */
 typedef struct optionalrgb {
-    unsigned char enabled;
+    bool enabled;
     unsigned char r, g, b;
 } optionalrgb;
 extern const optionalrgb optionalrgb_none;
@@ -742,7 +742,7 @@ struct SeatVtable {
      *
      * The return value is the current size of the output backlog.
      */
-    int (*output)(Seat *seat, int is_stderr, const void *data, int len);
+    int (*output)(Seat *seat, bool is_stderr, const void *data, int len);
 
     /*
      * Called when the back end wants to indicate that EOF has arrived
@@ -750,7 +750,7 @@ struct SeatVtable {
      * we intend to keep the session open in the other direction, or
      * true to indicate that if they're closing so are we.
      */
-    int (*eof)(Seat *seat);
+    bool (*eof)(Seat *seat);
 
     /*
      * Try to get answers from a set of interactive login prompts. The
@@ -884,14 +884,14 @@ struct SeatVtable {
      * user in the UTF-8 character set. (Affects e.g. visual erase
      * handling in local line editing.)
      */
-    int (*is_utf8)(Seat *seat);
+    bool (*is_utf8)(Seat *seat);
 
     /*
      * Notify the seat that the back end, and/or the ldisc between
      * them, have changed their idea of whether they currently want
      * local echo and/or local line editing enabled.
      */
-    void (*echoedit_update)(Seat *seat, int echoing, int editing);
+    void (*echoedit_update)(Seat *seat, bool echoing, bool editing);
 
     /*
      * Return the local X display string relevant to a seat, or NULL
@@ -904,7 +904,7 @@ struct SeatVtable {
      * by returning true and filling in the output pointer. Return
      * false if there isn't one or if the concept is meaningless.
      */
-    int (*get_windowid)(Seat *seat, long *id_out);
+    bool (*get_windowid)(Seat *seat, long *id_out);
 
     /*
      * Return the size of the terminal window in pixels. If the
@@ -912,7 +912,7 @@ struct SeatVtable {
      * return false; otherwise fill in the output pointers and return
      * true.
      */
-    int (*get_window_pixel_size)(Seat *seat, int *width, int *height);
+    bool (*get_window_pixel_size)(Seat *seat, int *width, int *height);
 };
 
 #define seat_output(seat, is_stderr, data, len) \
@@ -964,8 +964,8 @@ void seat_connection_fatal(Seat *seat, const char *fmt, ...);
  * These are generally obvious, except for is_utf8, where you might
  * plausibly want to return either fixed answer 'no' or 'yes'.
  */
-int nullseat_output(Seat *seat, int is_stderr, const void *data, int len);
-int nullseat_eof(Seat *seat);
+int nullseat_output(Seat *seat, bool is_stderr, const void *data, int len);
+bool nullseat_eof(Seat *seat);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 void nullseat_notify_remote_exit(Seat *seat);
 void nullseat_connection_fatal(Seat *seat, const char *message);
@@ -982,12 +982,12 @@ int nullseat_confirm_weak_crypto_primitive(
 int nullseat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx);
-int nullseat_is_never_utf8(Seat *seat);
-int nullseat_is_always_utf8(Seat *seat);
-void nullseat_echoedit_update(Seat *seat, int echoing, int editing);
+bool nullseat_is_never_utf8(Seat *seat);
+bool nullseat_is_always_utf8(Seat *seat);
+void nullseat_echoedit_update(Seat *seat, bool echoing, bool editing);
 const char *nullseat_get_x_display(Seat *seat);
-int nullseat_get_windowid(Seat *seat, long *id_out);
-int nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
+bool nullseat_get_windowid(Seat *seat, long *id_out);
+bool nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
 
 /*
  * Seat functions provided by the platform's console-application
@@ -1029,7 +1029,7 @@ struct TermWinVtable {
      * of TermWin handles it by loading the currently configured font
      * into the HDC and doing a GDI query.)
      */
-    int (*setup_draw_ctx)(TermWin *);
+    bool (*setup_draw_ctx)(TermWin *);
     /* Draw text in the window, during a painting operation */
     void (*draw_text)(TermWin *, int x, int y, wchar_t *text, int len,
                       unsigned long attrs, int line_attrs, truecolour tc);
@@ -1045,14 +1045,14 @@ struct TermWinVtable {
 
     void (*set_cursor_pos)(TermWin *, int x, int y);
 
-    void (*set_raw_mouse_mode)(TermWin *, int enable);
+    void (*set_raw_mouse_mode)(TermWin *, bool enable);
 
     void (*set_scrollbar)(TermWin *, int total, int start, int page);
 
     void (*bell)(TermWin *, int mode);
 
     void (*clip_write)(TermWin *, int clipboard, wchar_t *text, int *attrs,
-                       truecolour *colours, int len, int must_deselect);
+                       truecolour *colours, int len, bool must_deselect);
     void (*clip_request_paste)(TermWin *, int clipboard);
 
     void (*refresh)(TermWin *);
@@ -1066,20 +1066,20 @@ struct TermWinVtable {
      * {min,normal,max} switch. The idea is that when you un-minimise
      * the window it remembers whether to go back to normal or
      * maximised. */
-    void (*set_minimised)(TermWin *, int minimised);
-    int (*is_minimised)(TermWin *);
-    void (*set_maximised)(TermWin *, int maximised);
+    void (*set_minimised)(TermWin *, bool minimised);
+    bool (*is_minimised)(TermWin *);
+    void (*set_maximised)(TermWin *, bool maximised);
     void (*move)(TermWin *, int x, int y);
-    void (*set_zorder)(TermWin *, int top);
+    void (*set_zorder)(TermWin *, bool top);
 
-    int (*palette_get)(TermWin *, int n, int *r, int *g, int *b);
+    bool (*palette_get)(TermWin *, int n, int *r, int *g, int *b);
     void (*palette_set)(TermWin *, int n, int r, int g, int b);
     void (*palette_reset)(TermWin *);
 
     void (*get_pos)(TermWin *, int *x, int *y);
     void (*get_pixels)(TermWin *, int *x, int *y);
-    const char *(*get_title)(TermWin *, int icon);
-    int (*is_utf8)(TermWin *);
+    const char *(*get_title)(TermWin *, bool icon);
+    bool (*is_utf8)(TermWin *);
 };
 
 #define win_setup_draw_ctx(win) \
@@ -1397,6 +1397,7 @@ void cleanup_exit(int);
     X(INT, NONE, shadowboldoffset) /* in pixels */ \
     X(BOOL, NONE, crhaslf) \
     X(STR, NONE, winclass) \
+    /* end of list */
 
 /* Now define the actual enum of option keywords using that macro. */
 #define CONF_ENUM_DEF(valtype, keytype, keyword) CONF_ ## keyword,
@@ -1439,7 +1440,7 @@ void conf_set_filename(Conf *conf, int key, const Filename *val);
 void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
 /* Serialisation functions for Duplicate Session */
 void conf_serialise(BinarySink *bs, Conf *conf);
-int conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
+bool conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
 
 /*
  * Functions to copy, free, serialise and deserialise FontSpecs.
@@ -1475,7 +1476,7 @@ char *save_settings(const char *section, Conf *conf);
 void save_open_settings(settings_w *sesskey, Conf *conf);
 void load_settings(const char *section, Conf *conf);
 void load_open_settings(settings_r *sesskey, Conf *conf);
-void get_sesslist(struct sesslist *, int allocate);
+void get_sesslist(struct sesslist *, bool allocate);
 void do_defaults(const char *, Conf *);
 void registry_cleanup(void);
 
@@ -1507,35 +1508,35 @@ FontSpec *platform_default_fontspec(const char *name);
 Terminal *term_init(Conf *, struct unicode_data *, TermWin *);
 void term_free(Terminal *);
 void term_size(Terminal *, int, int, int);
-void term_paint(Terminal *, int, int, int, int, int);
+void term_paint(Terminal *, int, int, int, int, bool);
 void term_scroll(Terminal *, int, int);
 void term_scroll_to_selection(Terminal *, int);
-void term_pwron(Terminal *, int);
+void term_pwron(Terminal *, bool);
 void term_clrsb(Terminal *);
 void term_mouse(Terminal *, Mouse_Button, Mouse_Button, Mouse_Action,
-		int,int,int,int,int);
+		int, int, bool, bool, bool);
 void term_key(Terminal *, Key_Sym, wchar_t *, size_t, unsigned int,
 	      unsigned int);
 void term_lost_clipboard_ownership(Terminal *, int clipboard);
 void term_update(Terminal *);
 void term_invalidate(Terminal *);
-void term_blink(Terminal *, int set_cursor);
+void term_blink(Terminal *, bool set_cursor);
 void term_do_paste(Terminal *, const wchar_t *, int);
 void term_nopaste(Terminal *);
-int term_ldisc(Terminal *, int option);
+bool term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *, const int *, int);
 void term_reconfig(Terminal *, Conf *);
 void term_request_copy(Terminal *, const int *clipboards, int n_clipboards);
 void term_request_paste(Terminal *, int clipboard);
 void term_seen_key_event(Terminal *); 
-int term_data(Terminal *, int is_stderr, const void *data, int len);
+int term_data(Terminal *, bool is_stderr, const void *data, int len);
 void term_provide_backend(Terminal *term, Backend *backend);
 void term_provide_logctx(Terminal *term, LogContext *logctx);
-void term_set_focus(Terminal *term, int has_focus);
+void term_set_focus(Terminal *term, bool has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
 int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
 
-int format_arrow_key(char *buf, Terminal *term, int xkey, int ctrl);
+int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl);
 
 /*
  * Exports from logging.c.
@@ -1653,15 +1654,15 @@ extern const struct BackendVtable ssh_backend;
 Ldisc *ldisc_create(Conf *, Terminal *, Backend *, Seat *);
 void ldisc_configure(Ldisc *, Conf *);
 void ldisc_free(Ldisc *);
-void ldisc_send(Ldisc *, const void *buf, int len, int interactive);
+void ldisc_send(Ldisc *, const void *buf, int len, bool interactive);
 void ldisc_echoedit_update(Ldisc *);
 
 /*
  * Exports from ldiscucs.c.
  */
 void lpage_send(Ldisc *, int codepage, const char *buf, int len,
-                int interactive);
-void luni_send(Ldisc *, const wchar_t * widebuf, int len, int interactive);
+                bool interactive);
+void luni_send(Ldisc *, const wchar_t * widebuf, int len, bool interactive);
 
 /*
  * Exports from sshrand.c.
@@ -1690,7 +1691,7 @@ void pinger_free(Pinger *);
  */
 
 #include "misc.h"
-int conf_launchable(Conf *conf);
+bool conf_launchable(Conf *conf);
 char const *conf_dest(Conf *conf);
 
 /*
@@ -1701,7 +1702,7 @@ void prepare_session(Conf *conf);
 /*
  * Exports from sercfg.c.
  */
-void ser_setup_config_box(struct controlbox *b, int midsession,
+void ser_setup_config_box(struct controlbox *b, bool midsession,
 			  int parity_mask, int flow_mask);
 
 /*
@@ -1716,7 +1717,7 @@ extern const char ver[];
 #define CP_UTF8 65001
 #endif
 /* void init_ucs(void); -- this is now in platform-specific headers */
-int is_dbcs_leadbyte(int codepage, char byte);
+bool is_dbcs_leadbyte(int codepage, char byte);
 int mb_to_wc(int codepage, int flags, const char *mbstr, int mblen,
 	     wchar_t *wcstr, int wclen);
 int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
@@ -1766,7 +1767,7 @@ agent_pending_query *agent_query(
     void (*callback)(void *, void *, int), void *callback_ctx);
 void agent_cancel_query(agent_pending_query *);
 void agent_query_synchronous(strbuf *in, void **out, int *outlen);
-int agent_exists(void);
+bool agent_exists(void);
 
 /*
  * Exports from wildcard.c
@@ -1774,7 +1775,7 @@ int agent_exists(void);
 const char *wc_error(int value);
 int wc_match_pl(const char *wildcard, ptrlen target);
 int wc_match(const char *wildcard, const char *target);
-int wc_unescape(char *output, const char *wildcard);
+bool wc_unescape(char *output, const char *wildcard);
 
 /*
  * Exports from frontend (windlg.c etc)
@@ -1784,15 +1785,15 @@ void pgp_fingerprints(void);
  * have_ssh_host_key() just returns true if a key of that type is
  * already cached and false otherwise.
  */
-int have_ssh_host_key(const char *host, int port, const char *keytype);
+bool have_ssh_host_key(const char *host, int port, const char *keytype);
 
 /*
  * Exports from console frontends (wincons.c, uxcons.c)
  * that aren't equivalents to things in windlg.c et al.
  */
-extern int console_batch_mode;
+extern bool console_batch_mode;
 int console_get_userpass_input(prompts_t *p);
-int is_interactive(void);
+bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
 void console_print_error_msg_fmt_v(
     const char *prefix, const char *fmt, va_list ap);
@@ -1824,7 +1825,7 @@ int cmdline_process_param(const char *, char *, int, Conf *);
 void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
 int cmdline_get_passwd_input(prompts_t *p);
-int cmdline_host_ok(Conf *);
+bool cmdline_host_ok(Conf *);
 #define TOOLTYPE_FILETRANSFER 1
 #define TOOLTYPE_NONNETWORK 2
 #define TOOLTYPE_HOST_ARG 4
@@ -1852,7 +1853,7 @@ void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event);
 void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
 			  void *data, int event);
-void setup_config_box(struct controlbox *b, int midsession,
+void setup_config_box(struct controlbox *b, bool midsession,
 		      int protocol, int protcfginfo);
 
 /*
@@ -1864,7 +1865,7 @@ typedef struct bidi_char {
 } bidi_char;
 int do_bidi(bidi_char *line, int count);
 int do_shape(bidi_char *line, bidi_char *to, int count);
-int is_rtl(int c);
+bool is_rtl(int c);
 
 /*
  * X11 auth mechanisms we know about.
@@ -1895,8 +1896,8 @@ enum {
  */
 Filename *filename_from_str(const char *string);
 const char *filename_to_str(const Filename *fn);
-int filename_equal(const Filename *f1, const Filename *f2);
-int filename_is_null(const Filename *fn);
+bool filename_equal(const Filename *f1, const Filename *f2);
+bool filename_is_null(const Filename *fn);
 Filename *filename_copy(const Filename *fn);
 void filename_free(Filename *fn);
 void filename_serialise(BinarySink *bs, const Filename *f);
@@ -1904,7 +1905,7 @@ Filename *filename_deserialise(BinarySource *src);
 char *get_username(void);	       /* return value needs freeing */
 char *get_random_data(int bytes, const char *device); /* used in cmdgen.c */
 char filename_char_sanitise(char c);   /* rewrite special pathname chars */
-int open_for_write_would_lose_data(const Filename *fn);
+bool open_for_write_would_lose_data(const Filename *fn);
 
 /*
  * Exports and imports from timing.c.
@@ -1999,7 +2000,7 @@ int open_for_write_would_lose_data(const Filename *fn);
 typedef void (*timer_fn_t)(void *ctx, unsigned long now);
 unsigned long schedule_timer(int ticks, timer_fn_t fn, void *ctx);
 void expire_timer_context(void *ctx);
-int run_timers(unsigned long now, unsigned long *next);
+bool run_timers(unsigned long now, unsigned long *next);
 void timer_change_notify(unsigned long next);
 unsigned long timing_last_clock(void);
 
@@ -2031,8 +2032,8 @@ unsigned long timing_last_clock(void);
  */
 typedef void (*toplevel_callback_fn_t)(void *ctx);
 void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx);
-int run_toplevel_callbacks(void);
-int toplevel_callback_pending(void);
+bool run_toplevel_callbacks(void);
+bool toplevel_callback_pending(void);
 void delete_callbacks_for_context(void *ctx);
 
 /*
@@ -2047,7 +2048,7 @@ void delete_callbacks_for_context(void *ctx);
 struct IdempotentCallback {
     toplevel_callback_fn_t fn;
     void *ctx;
-    int queued;
+    bool queued;
 };
 void queue_idempotent_callback(struct IdempotentCallback *ic);
 

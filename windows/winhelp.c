@@ -15,9 +15,9 @@
 #include <htmlhelp.h>
 #endif /* NO_HTMLHELP */
 
-static int requested_help;
+static bool requested_help;
 static char *help_path;
-static int help_has_contents;
+static bool help_has_contents;
 #ifndef NO_HTMLHELP
 DECL_WINDOWS_FUNCTION(static, HWND, HtmlHelpA, (HWND, LPCSTR, UINT, DWORD_PTR));
 static char *chm_path;
@@ -74,7 +74,7 @@ void shutdown_help(void)
      * call HH_UNINITIALIZE.) */
 }
 
-int has_help(void)
+bool has_help(void)
 {
     /*
      * FIXME: it would be nice here to disregard help_path on

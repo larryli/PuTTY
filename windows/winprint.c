@@ -32,7 +32,7 @@ DECL_WINDOWS_FUNCTION(static, BOOL, WritePrinter,
 
 static void init_winfuncs(void)
 {
-    static int initialised = false;
+    static bool initialised = false;
     if (initialised)
         return;
     {
@@ -56,8 +56,8 @@ static void init_winfuncs(void)
     initialised = true;
 }
 
-static int printer_add_enum(int param, DWORD level, char **buffer,
-                            int offset, int *nprinters_ptr)
+static bool printer_add_enum(int param, DWORD level, char **buffer,
+                             int offset, int *nprinters_ptr)
 {
     DWORD needed = 0, nprinters = 0;
 
@@ -169,7 +169,7 @@ printer_job *printer_start_job(char *printer)
 {
     printer_job *ret = snew(printer_job);
     DOC_INFO_1 docinfo;
-    int jobstarted = 0, pagestarted = 0;
+    bool jobstarted = false, pagestarted = false;
 
     init_winfuncs();
 
@@ -183,11 +183,11 @@ printer_job *printer_start_job(char *printer)
 
     if (!p_StartDocPrinter(ret->hprinter, 1, (LPBYTE)&docinfo))
 	goto error;
-    jobstarted = 1;
+    jobstarted = true;
 
     if (!p_StartPagePrinter(ret->hprinter))
 	goto error;
-    pagestarted = 1;
+    pagestarted = true;
 
     return ret;
 

@@ -14,6 +14,7 @@
 #include <gdk/gdkkeysyms.h>
 #endif
 
+#include "defs.h"
 #include "gtkfont.h"
 #include "gtkcompat.h"
 #include "gtkmisc.h"
@@ -501,13 +502,13 @@ static void gtk_askpass_cleanup(struct askpass_ctx *ctx)
     gtk_widget_destroy(ctx->dialog);
 }
 
-static int setup_gtk(const char *display)
+static bool setup_gtk(const char *display)
 {
-    static int gtk_initialised = false;
+    static bool gtk_initialised = false;
     int argc;
     char *real_argv[3];
     char **argv = real_argv;
-    int ret;
+    bool ret;
 
     if (gtk_initialised)
         return true;
@@ -524,10 +525,10 @@ static int setup_gtk(const char *display)
     return ret;
 }
 
-const int buildinfo_gtk_relevant = true;
+const bool buildinfo_gtk_relevant = true;
 
 char *gtk_askpass_main(const char *display, const char *wintitle,
-                       const char *prompt, int *success)
+                       const char *prompt, bool *success)
 {
     struct askpass_ctx actx, *ctx = &actx;
     const char *err;
@@ -571,7 +572,8 @@ void modalfatalbox(const char *p, ...)
 
 int main(int argc, char **argv)
 {
-    int success, exitcode;
+    bool success;
+    int exitcode;
     char *ret;
 
     gtk_init(&argc, &argv);

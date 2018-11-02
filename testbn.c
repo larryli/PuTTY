@@ -37,7 +37,7 @@ void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 #define fromxdigit(c) ( (c)>'9' ? ((c)&0xDF) - 'A' + 10 : (c) - '0' )
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
@@ -201,7 +201,7 @@ int main(int argc, char **argv)
             freebn(answer);
         } else if (!strcmp(buf, "divmod")) {
             Bignum n, d, expect_q, expect_r, answer_q, answer_r;
-            int fail;
+            bool fail;
 
             if (ptrnum != 4) {
                 printf("%d: divmod with %d parameters, expected 4\n", line, ptrnum);

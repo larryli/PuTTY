@@ -436,12 +436,12 @@ const struct ssh2_macalg ssh_hmac_sha1_96_buggy = {
 #if defined(__clang__) || defined(__GNUC__)
 
 #include <cpuid.h>
-int supports_sha_ni(void)
+bool supports_sha_ni(void)
 {
     unsigned int CPUInfo[4];
     __cpuid(0, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
     if (CPUInfo[0] < 7)
-        return 0;
+        return false;
 
     __cpuid_count(7, 0, CPUInfo[0], CPUInfo[1], CPUInfo[2], CPUInfo[3]);
     return CPUInfo[1] & (1 << 29); /* SHA */
@@ -449,12 +449,12 @@ int supports_sha_ni(void)
 
 #else /* defined(__clang__) || defined(__GNUC__) */
 
-int supports_sha_ni(void)
+bool supports_sha_ni(void)
 {
     unsigned int CPUInfo[4];
     __cpuid(CPUInfo, 0);  
     if (CPUInfo[0] < 7)
-        return 0;
+        return false;
 
     __cpuidex(CPUInfo, 7, 0);
     return CPUInfo[1] & (1 << 29); /* Check SHA */
@@ -686,9 +686,9 @@ static void sha1_ni(SHA_State * s, const unsigned char *q, int len)
     assert(0);
 }
 
-int supports_sha_ni(void)
+bool supports_sha_ni(void)
 {
-    return 0;
+    return false;
 }
 
 #endif  /* COMPILER_SUPPORTS_AES_NI */

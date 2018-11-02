@@ -492,7 +492,7 @@ static void update_jumplist_from_registry(void)
     IObjectArray *array = NULL;
     IShellLink *link = NULL;
     IObjectArray *pRemoved = NULL;
-    int need_abort = false;
+    bool need_abort = false;
 
     /*
      * Create an ICustomDestinationList: the top-level object which
@@ -538,7 +538,7 @@ static void update_jumplist_from_registry(void)
         link = make_shell_link(NULL, piterator);
         if (link) {
             UINT i;
-            int found;
+            bool found;
 
             /*
              * Check that the link isn't in the user-removed list.
@@ -715,7 +715,7 @@ void remove_session_from_jumplist(const char * const sessionname)
 /* Set Explicit App User Model Id to fix removable media error with
    jump lists */
 
-BOOL set_explicit_app_user_model_id()
+bool set_explicit_app_user_model_id()
 {
   DECL_WINDOWS_FUNCTION(static, HRESULT, SetCurrentProcessExplicitAppUserModelID,
                         (PCWSTR));

@@ -15,8 +15,8 @@
 #include "proxy.h"
 
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
-                                int port, int privport,
-                                int oobinline, int nodelay, int keepalive,
+                                int port, bool privport,
+                                bool oobinline, bool nodelay, bool keepalive,
                                 Plug *plug, Conf *conf)
 {
     char *cmd;

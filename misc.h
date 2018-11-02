@@ -61,8 +61,8 @@ int toint(unsigned);
 
 char *fgetline(FILE *fp);
 char *chomp(char *str);
-int strstartswith(const char *s, const char *t);
-int strendswith(const char *s, const char *t);
+bool strstartswith(const char *s, const char *t);
+bool strendswith(const char *s, const char *t);
 
 void base64_encode_atom(const unsigned char *data, int n, char *out);
 int base64_decode_atom(const char *atom, unsigned char *out);
@@ -82,11 +82,11 @@ void bufchain_prefix(bufchain *ch, void **data, int *len);
 void bufchain_consume(bufchain *ch, int len);
 void bufchain_fetch(bufchain *ch, void *data, int len);
 void bufchain_fetch_consume(bufchain *ch, void *data, int len);
-int bufchain_try_fetch_consume(bufchain *ch, void *data, int len);
+bool bufchain_try_fetch_consume(bufchain *ch, void *data, int len);
 
 void sanitise_term_data(bufchain *out, const void *vdata, int len);
 
-int validate_manual_hostkey(char *key);
+bool validate_manual_hostkey(char *key);
 
 struct tm ltime(void);
 
@@ -99,9 +99,9 @@ int nullstrcmp(const char *a, const char *b);
 ptrlen make_ptrlen(const void *ptr, size_t len);
 ptrlen ptrlen_from_asciz(const char *str);
 ptrlen ptrlen_from_strbuf(strbuf *sb);
-int ptrlen_eq_string(ptrlen pl, const char *str);
-int ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2);
-int ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail);
+bool ptrlen_eq_string(ptrlen pl, const char *str);
+bool ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2);
+bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail);
 char *mkstr(ptrlen pl);
 int string_length_for_printf(size_t);
 /* Derive two printf arguments from a ptrlen, suitable for "%.*s" */
@@ -124,9 +124,9 @@ void smemclr(void *b, size_t len);
 /* Compare two fixed-length chunks of memory for equality, without
  * data-dependent control flow (so an attacker with a very accurate
  * stopwatch can't try to guess where the first mismatching byte was).
- * Returns 0 for mismatch or 1 for equality (unlike memcmp), hinted at
- * by the 'eq' in the name. */
-int smemeq(const void *av, const void *bv, size_t len);
+ * Returns false for mismatch or true for equality (unlike memcmp),
+ * hinted at by the 'eq' in the name. */
+bool smemeq(const void *av, const void *bv, size_t len);
 
 char *buildinfo(const char *newline);
 
@@ -145,10 +145,10 @@ char *buildinfo(const char *newline);
 
 #ifdef DEBUG
 void debug_printf(const char *fmt, ...);
-void debug_memdump(const void *buf, int len, int L);
+void debug_memdump(const void *buf, int len, bool L);
 #define debug(x) (debug_printf x)
-#define dmemdump(buf,len) debug_memdump (buf, len, 0);
-#define dmemdumpl(buf,len) debug_memdump (buf, len, 1);
+#define dmemdump(buf,len) debug_memdump (buf, len, false);
+#define dmemdumpl(buf,len) debug_memdump (buf, len, true);
 #else
 #define debug(x)
 #define dmemdump(buf,len)

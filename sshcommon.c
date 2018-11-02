@@ -72,7 +72,7 @@ static IdempotentCallback ic_pktin_free = {
 };
 
 static PktIn *pq_in_after(PacketQueueBase *pqb,
-                          PacketQueueNode *prev, int pop)
+                          PacketQueueNode *prev, bool pop)
 {
     PacketQueueNode *node = prev->next;
     if (node == &pqb->end)
@@ -94,7 +94,7 @@ static PktIn *pq_in_after(PacketQueueBase *pqb,
 }
 
 static PktOut *pq_out_after(PacketQueueBase *pqb,
-                            PacketQueueNode *prev, int pop)
+                            PacketQueueNode *prev, bool pop)
 {
     PacketQueueNode *node = prev->next;
     if (node == &pqb->end)
@@ -261,11 +261,11 @@ void ssh_free_pktout(PktOut *pkt)
  */
 
 static void zombiechan_free(Channel *chan);
-static int zombiechan_send(Channel *chan, int is_stderr, const void *, int);
-static void zombiechan_set_input_wanted(Channel *chan, int wanted);
+static int zombiechan_send(Channel *chan, bool is_stderr, const void *, int);
+static void zombiechan_set_input_wanted(Channel *chan, bool wanted);
 static void zombiechan_do_nothing(Channel *chan);
 static void zombiechan_open_failure(Channel *chan, const char *);
-static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof);
+static bool zombiechan_want_close(Channel *chan, bool sent_eof, bool rcvd_eof);
 static char *zombiechan_log_close_msg(Channel *chan) { return NULL; }
 
 static const struct ChannelVtable zombiechan_channelvt = {
@@ -317,19 +317,19 @@ static void zombiechan_open_failure(Channel *chan, const char *errtext)
     assert(chan->vt == &zombiechan_channelvt);
 }
 
-static int zombiechan_send(Channel *chan, int is_stderr,
+static int zombiechan_send(Channel *chan, bool is_stderr,
                            const void *data, int length)
 {
     assert(chan->vt == &zombiechan_channelvt);
     return 0;
 }
 
-static void zombiechan_set_input_wanted(Channel *chan, int enable)
+static void zombiechan_set_input_wanted(Channel *chan, bool enable)
 {
     assert(chan->vt == &zombiechan_channelvt);
 }
 
-static int zombiechan_want_close(Channel *chan, int sent_eof, int rcvd_eof)
+static bool zombiechan_want_close(Channel *chan, bool sent_eof, bool rcvd_eof)
 {
     return true;
 }
@@ -349,8 +349,8 @@ void chan_remotely_opened_failure(Channel *chan, const char *errtext)
     assert(0 && "this channel type should never receive OPEN_FAILURE");
 }
 
-int chan_default_want_close(
-    Channel *chan, int sent_local_eof, int rcvd_remote_eof)
+bool chan_default_want_close(
+    Channel *chan, bool sent_local_eof, bool rcvd_remote_eof)
 {
     /*
      * Default close policy: we start initiating the CHANNEL_CLOSE
@@ -359,80 +359,80 @@ int chan_default_want_close(
     return sent_local_eof && rcvd_remote_eof;
 }
 
-int chan_no_exit_status(Channel *chan, int status)
+bool chan_no_exit_status(Channel *chan, int status)
 {
     return false;
 }
 
-int chan_no_exit_signal(
-    Channel *chan, ptrlen signame, int core_dumped, ptrlen msg)
+bool chan_no_exit_signal(
+    Channel *chan, ptrlen signame, bool core_dumped, ptrlen msg)
 {
     return false;
 }
 
-int chan_no_exit_signal_numeric(
-    Channel *chan, int signum, int core_dumped, ptrlen msg)
+bool chan_no_exit_signal_numeric(
+    Channel *chan, int signum, bool core_dumped, ptrlen msg)
 {
     return false;
 }
 
-int chan_no_run_shell(Channel *chan)
+bool chan_no_run_shell(Channel *chan)
 {
     return false;
 }
 
-int chan_no_run_command(Channel *chan, ptrlen command)
+bool chan_no_run_command(Channel *chan, ptrlen command)
 {
     return false;
 }
 
-int chan_no_run_subsystem(Channel *chan, ptrlen subsys)
+bool chan_no_run_subsystem(Channel *chan, ptrlen subsys)
 {
     return false;
 }
 
-int chan_no_enable_x11_forwarding(
-    Channel *chan, int oneshot, ptrlen authproto, ptrlen authdata,
+bool chan_no_enable_x11_forwarding(
+    Channel *chan, bool oneshot, ptrlen authproto, ptrlen authdata,
     unsigned screen_number)
 {
     return false;
 }
 
-int chan_no_enable_agent_forwarding(Channel *chan)
+bool chan_no_enable_agent_forwarding(Channel *chan)
 {
     return false;
 }
 
-int chan_no_allocate_pty(
+bool chan_no_allocate_pty(
     Channel *chan, ptrlen termtype, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight, struct ssh_ttymodes modes)
 {
     return false;
 }
 
-int chan_no_set_env(Channel *chan, ptrlen var, ptrlen value)
+bool chan_no_set_env(Channel *chan, ptrlen var, ptrlen value)
 {
     return false;
 }
 
-int chan_no_send_break(Channel *chan, unsigned length)
+bool chan_no_send_break(Channel *chan, unsigned length)
 {
     return false;
 }
 
-int chan_no_send_signal(Channel *chan, ptrlen signame)
+bool chan_no_send_signal(Channel *chan, ptrlen signame)
 {
     return false;
 }
 
-int chan_no_change_window_size(
+bool chan_no_change_window_size(
     Channel *chan, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight)
 {
     return false;
 }
 
-void chan_no_request_response(Channel *chan, int success)
+void chan_no_request_response(Channel *chan, bool success)
 {
     assert(0 && "this channel type should never send a want-reply request");
 }
@@ -687,12 +687,12 @@ unsigned alloc_channel_id_general(tree234 *channels, size_t localid_offset)
  * lists of protocol identifiers in SSH-2.
  */
 
-int first_in_commasep_string(char const *needle, char const *haystack,
-                             int haylen)
+bool first_in_commasep_string(char const *needle, char const *haystack,
+                              int haylen)
 {
     int needlen;
     if (!needle || !haystack)          /* protect against null pointers */
-        return 0;
+        return false;
     needlen = strlen(needle);
 
     if (haylen >= needlen &&       /* haystack is long enough */
@@ -700,11 +700,11 @@ int first_in_commasep_string(char const *needle, char const *haystack,
         (haylen == needlen || haystack[needlen] == ',')
         /* either , or EOS follows */
         )
-        return 1;
-    return 0;
+        return true;
+    return false;
 }
 
-int in_commasep_string(char const *needle, char const *haystack, int haylen)
+bool in_commasep_string(char const *needle, char const *haystack, int haylen)
 {
     char *p;
 
@@ -733,7 +733,7 @@ void add_to_commasep(strbuf *buf, const char *data)
     put_data(buf, data, strlen(data));
 }
 
-int get_commasep_word(ptrlen *list, ptrlen *word)
+bool get_commasep_word(ptrlen *list, ptrlen *word)
 {
     const char *comma;
 
@@ -905,7 +905,7 @@ void ssh2_bpp_queue_disconnect(BinaryPacketProtocol *bpp,
     (0 SSH2_MESSAGE_TYPES(BITMAP_UNIVERSAL, BITMAP_CONDITIONAL, \
                           BITMAP_CONDITIONAL, (32*y)))
 
-int ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
+bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
 {
     static const unsigned valid_bitmap[] = {
         SSH2_BITMAP_WORD(0),
@@ -992,7 +992,7 @@ int verify_ssh_manual_host_key(
  * Common functions shared between SSH-1 layers.
  */
 
-int ssh1_common_get_specials(
+bool ssh1_common_get_specials(
     PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx)
 {
     /*
@@ -1008,7 +1008,7 @@ int ssh1_common_get_specials(
     return false;
 }
 
-int ssh1_common_filter_queue(PacketProtocolLayer *ppl)
+bool ssh1_common_filter_queue(PacketProtocolLayer *ppl)
 {
     PktIn *pktin;
     ptrlen msg;

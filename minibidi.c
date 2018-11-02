@@ -1086,9 +1086,10 @@ int getPreviousLevel(unsigned char* level, int from)
  */
 int do_shape(bidi_char *line, bidi_char *to, int count)
 {
-    int i, tempShape, ligFlag;
+    int i, tempShape;
+    bool ligFlag = false;
 
-    for (ligFlag=i=0; i<count; i++) {
+    for (i=0; i<count; i++) {
 	to[i] = line[i];
 	tempShape = STYPE(line[i].wc);
 	switch (tempShape) {
@@ -1113,28 +1114,28 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 	    if (line[i].wc == 0x644) {
 		if (i > 0) switch (line[i-1].wc) {
 		  case 0x622:
-		    ligFlag = 1;
+		    ligFlag = true;
 		    if ((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 			to[i].wc = 0xFEF6;
 		    else
 			to[i].wc = 0xFEF5;
 		    break;
 		  case 0x623:
-		    ligFlag = 1;
+		    ligFlag = true;
 		    if ((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 			to[i].wc = 0xFEF8;
 		    else
 			to[i].wc = 0xFEF7;
 		    break;
 		  case 0x625:
-		    ligFlag = 1;
+		    ligFlag = true;
 		    if ((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 			to[i].wc = 0xFEFA;
 		    else
 			to[i].wc = 0xFEF9;
 		    break;
 		  case 0x627:
-		    ligFlag = 1;
+		    ligFlag = true;
 		    if ((tempShape == SL) || (tempShape == SD) || (tempShape == SC))
 			to[i].wc = 0xFEFC;
 		    else
@@ -1143,7 +1144,7 @@ int do_shape(bidi_char *line, bidi_char *to, int count)
 		}
 		if (ligFlag) {
 		    to[i-1].wc = 0x20;
-		    ligFlag = 0;
+		    ligFlag = false;
 		    break;
 		}
 	    }
@@ -1186,18 +1187,19 @@ int do_bidi(bidi_char *line, int count)
     unsigned char currentEmbedding;
     unsigned char currentOverride;
     unsigned char tempType;
-    int i, j, yes, bover;
+    int i, j;
+    bool yes, bover;
 
     /* Check the presence of R or AL types as optimization */
-    yes = 0;
+    yes = false;
     for (i=0; i<count; i++) {
 	int type = getType(line[i].wc);
 	if (type == R || type == AL) {
-	    yes = 1;
+	    yes = true;
 	    break;
 	}
     }
-    if (yes == 0)
+    if (!yes)
 	return L;
 
     /* Initialize types, levels */
@@ -1250,7 +1252,7 @@ int do_bidi(bidi_char *line, int count)
      * terminated at the end of each paragraph. Paragraph separators are not
      * included in the embedding. (Useless here) NOT IMPLEMENTED
      */
-    bover = 0;
+    bover = false;
     for (i=0; i<count; i++) {
 	tempType = getType(line[i].wc);
 	switch (tempType) {
@@ -1269,13 +1271,13 @@ int do_bidi(bidi_char *line, int count)
 	  case RLO:
 	    currentEmbedding = levels[i] = leastGreaterOdd(currentEmbedding);
 	    tempType = currentOverride = R;
-	    bover = 1;
+	    bover = true;
 	    break;
 
 	  case LRO:
 	    currentEmbedding = levels[i] = leastGreaterEven(currentEmbedding);
 	    tempType = currentOverride = L;
-	    bover = 1;
+	    bover = true;
 	    break;
 
 	  case PDF:

@@ -24,14 +24,14 @@ static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static const char hex[16] = "0123456789ABCDEF";
 
-static int tried_shgetfolderpath = false;
+static bool tried_shgetfolderpath = false;
 static HMODULE shell32_module = NULL;
 DECL_WINDOWS_FUNCTION(static, HRESULT, SHGetFolderPathA, 
 		      (HWND, int, HANDLE, DWORD, LPSTR));
 
 static void mungestr(const char *in, char *out)
 {
-    int candot = 0;
+    bool candot = false;
 
     while (*in) {
 	if (*in == ' ' || *in == '\\' || *in == '*' || *in == '?' ||
@@ -43,7 +43,7 @@ static void mungestr(const char *in, char *out)
 	} else
 	    *out++ = *in;
 	in++;
-	candot = 1;
+	candot = true;
     }
     *out = '\0';
     return;
@@ -470,7 +470,7 @@ int verify_host_key(const char *hostname, int port,
 	return 0;		       /* key matched OK in registry */
 }
 
-int have_ssh_host_key(const char *hostname, int port,
+bool have_ssh_host_key(const char *hostname, int port,
 		      const char *keytype)
 {
     /*
@@ -503,7 +503,7 @@ void store_host_key(const char *hostname, int port,
  * Open (or delete) the random seed file.
  */
 enum { DEL, OPEN_R, OPEN_W };
-static int try_random_seed(char const *path, int action, HANDLE *ret)
+static bool try_random_seed(char const *path, int action, HANDLE *ret)
 {
     if (action == DEL) {
         if (!DeleteFile(path) && GetLastError() != ERROR_FILE_NOT_FOUND) {

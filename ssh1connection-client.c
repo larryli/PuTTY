@@ -29,7 +29,7 @@ void ssh1_connection_direction_specific_setup(
 }
 
 typedef void (*sf_handler_fn_t)(struct ssh1_connection_state *s,
-                                int success, void *ctx);
+                                bool success, void *ctx);
 
 struct outstanding_succfail {
     sf_handler_fn_t handler;
@@ -43,14 +43,14 @@ struct outstanding_succfail {
      * expect to get an acknowledgment regardless, so we arrange to
      * send that ack immediately after the rest of the queue empties.
      */
-    int trivial;
+    bool trivial;
 };
 
 static void ssh1_connection_process_trivial_succfails(void *vs);
 
 static void ssh1_queue_succfail_handler(
     struct ssh1_connection_state *s, sf_handler_fn_t handler, void *ctx,
-    int trivial)
+    bool trivial)
 {
     struct outstanding_succfail *osf = snew(struct outstanding_succfail);
     osf->handler = handler;
@@ -71,7 +71,7 @@ static void ssh1_queue_succfail_handler(
 }
 
 static void ssh1_connection_process_succfail(
-    struct ssh1_connection_state *s, int success)
+    struct ssh1_connection_state *s, bool success)
 {
     struct outstanding_succfail *prevhead = s->succfail_head;
     s->succfail_head = s->succfail_head->next;
@@ -88,7 +88,7 @@ static void ssh1_connection_process_trivial_succfails(void *vs)
         ssh1_connection_process_succfail(s, true);
 }
 
-int ssh1_handle_direction_specific_packet(
+bool ssh1_handle_direction_specific_packet(
     struct ssh1_connection_state *s, PktIn *pktin)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
@@ -233,7 +233,7 @@ int ssh1_handle_direction_specific_packet(
                 s->ppl.seat, pktin->type == SSH1_SMSG_STDERR_DATA,
                 data.ptr, data.len);
             if (!s->stdout_throttling && bufsize > SSH1_BUFFER_LIMIT) {
-                s->stdout_throttling = 1;
+                s->stdout_throttling = true;
                 ssh_throttle_conn(s->ppl.ssh, +1);
             }
         }
@@ -256,18 +256,18 @@ int ssh1_handle_direction_specific_packet(
 }
 
 static void ssh1mainchan_succfail_wantreply(struct ssh1_connection_state *s,
-                                            int success, void *ctx)
+                                            bool success, void *ctx)
 {
     chan_request_response(s->mainchan_chan, success);
 }
 
 static void ssh1mainchan_succfail_nowantreply(struct ssh1_connection_state *s,
-                                              int success, void *ctx)
+                                              bool success, void *ctx)
 {
 }
 
 static void ssh1mainchan_queue_response(struct ssh1_connection_state *s,
-                                        int want_reply, int trivial)
+                                        bool want_reply, bool trivial)
 {
     sf_handler_fn_t handler = (want_reply ? ssh1mainchan_succfail_wantreply :
                                ssh1mainchan_succfail_nowantreply);
@@ -275,8 +275,8 @@ static void ssh1mainchan_queue_response(struct ssh1_connection_state *s,
 }
 
 static void ssh1mainchan_request_x11_forwarding(
-    SshChannel *sc, int want_reply, const char *authproto,
-    const char *authdata, int screen_number, int oneshot)
+    SshChannel *sc, bool want_reply, const char *authproto,
+    const char *authdata, int screen_number, bool oneshot)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -293,7 +293,7 @@ static void ssh1mainchan_request_x11_forwarding(
 }
 
 static void ssh1mainchan_request_agent_forwarding(
-    SshChannel *sc, int want_reply)
+    SshChannel *sc, bool want_reply)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -307,7 +307,7 @@ static void ssh1mainchan_request_agent_forwarding(
 }
 
 static void ssh1mainchan_request_pty(
-    SshChannel *sc, int want_reply, Conf *conf, int w, int h)
+    SshChannel *sc, bool want_reply, Conf *conf, int w, int h)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -327,14 +327,13 @@ static void ssh1mainchan_request_pty(
     ssh1mainchan_queue_response(s, want_reply, false);
 }
 
-static int ssh1mainchan_send_env_var(
-    SshChannel *sc, int want_reply, const char *var, const char *value)
+static bool ssh1mainchan_send_env_var(
+    SshChannel *sc, bool want_reply, const char *var, const char *value)
 {
     return false;              /* SSH-1 doesn't support this at all */
 }
 
-static void ssh1mainchan_start_shell(
-    SshChannel *sc, int want_reply)
+static void ssh1mainchan_start_shell(SshChannel *sc, bool want_reply)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -347,7 +346,7 @@ static void ssh1mainchan_start_shell(
 }
 
 static void ssh1mainchan_start_command(
-    SshChannel *sc, int want_reply, const char *command)
+    SshChannel *sc, bool want_reply, const char *command)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -360,20 +359,20 @@ static void ssh1mainchan_start_command(
     ssh1mainchan_queue_response(s, want_reply, true);
 }
 
-static int ssh1mainchan_start_subsystem(
-    SshChannel *sc, int want_reply, const char *subsystem)
+static bool ssh1mainchan_start_subsystem(
+    SshChannel *sc, bool want_reply, const char *subsystem)
 {
     return false;              /* SSH-1 doesn't support this at all */
 }
 
-static int ssh1mainchan_send_serial_break(
-    SshChannel *sc, int want_reply, int length)
+static bool ssh1mainchan_send_serial_break(
+    SshChannel *sc, bool want_reply, int length)
 {
     return false;              /* SSH-1 doesn't support this at all */
 }
 
-static int ssh1mainchan_send_signal(
-    SshChannel *sc, int want_reply, const char *signame)
+static bool ssh1mainchan_send_signal(
+    SshChannel *sc, bool want_reply, const char *signame)
 {
     return false;              /* SSH-1 doesn't support this at all */
 }
@@ -398,7 +397,7 @@ static void ssh1mainchan_hint_channel_is_simple(SshChannel *sc)
 }
 
 static int ssh1mainchan_write(
-    SshChannel *sc, int is_stderr, const void *data, int len)
+    SshChannel *sc, bool is_stderr, const void *data, int len)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);
@@ -463,7 +462,7 @@ SshChannel *ssh1_session_open(ConnectionLayer *cl, Channel *chan)
 }
 
 static void ssh1_rportfwd_response(struct ssh1_connection_state *s,
-                                   int success, void *ctx)
+                                   bool success, void *ctx)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
     struct ssh_rportfwd *rpf = (struct ssh_rportfwd *)ctx;

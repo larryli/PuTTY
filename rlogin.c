@@ -14,10 +14,10 @@
 typedef struct Rlogin Rlogin;
 struct Rlogin {
     Socket *s;
-    int closed_on_socket_error;
+    bool closed_on_socket_error;
     int bufsize;
-    int firstbyte;
-    int cansize;
+    bool firstbyte;
+    bool cansize;
     int term_width, term_height;
     Seat *seat;
     LogContext *logctx;
@@ -47,7 +47,7 @@ static void rlogin_log(Plug *plug, int type, SockAddr *addr, int port,
 }
 
 static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
-			   int calling_back)
+			   bool calling_back)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
 
@@ -80,7 +80,7 @@ static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 	c = *data++;
 	len--;
 	if (c == '\x80') {
-	    rlogin->cansize = 1;
+	    rlogin->cansize = true;
             backend_size(&rlogin->backend,
                          rlogin->term_width, rlogin->term_height);
         }
@@ -101,7 +101,7 @@ static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
 		data++;
 		len--;
 	    }
-	    rlogin->firstbyte = 0;
+	    rlogin->firstbyte = false;
 	}
 	if (len > 0)
             c_write(rlogin, data, len);
@@ -153,7 +153,7 @@ static const PlugVtable Rlogin_plugvt = {
 static const char *rlogin_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
-			       int nodelay, int keepalive)
+			       bool nodelay, bool keepalive)
 {
     SockAddr *addr;
     const char *err;
@@ -171,8 +171,8 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
     rlogin->logctx = logctx;
     rlogin->term_width = conf_get_int(conf, CONF_width);
     rlogin->term_height = conf_get_int(conf, CONF_height);
-    rlogin->firstbyte = 1;
-    rlogin->cansize = 0;
+    rlogin->firstbyte = true;
+    rlogin->cansize = false;
     rlogin->prompt = NULL;
     rlogin->conf = conf_copy(conf);
     *backend_handle = &rlogin->backend;
@@ -194,7 +194,7 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
     /*
      * Open socket.
      */
-    rlogin->s = new_connection(addr, *realhost, port, 1, 0,
+    rlogin->s = new_connection(addr, *realhost, port, true, false,
 			       nodelay, keepalive, &rlogin->plug, conf);
     if ((err = sk_socket_error(rlogin->s)) != NULL)
 	return err;
@@ -346,16 +346,16 @@ static const SessionSpecial *rlogin_get_specials(Backend *be)
     return NULL;
 }
 
-static int rlogin_connected(Backend *be)
+static bool rlogin_connected(Backend *be)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
     return rlogin->s != NULL;
 }
 
-static int rlogin_sendok(Backend *be)
+static bool rlogin_sendok(Backend *be)
 {
     /* Rlogin *rlogin = container_of(be, Rlogin, backend); */
-    return 1;
+    return true;
 }
 
 static void rlogin_unthrottle(Backend *be, int backlog)
@@ -364,10 +364,10 @@ static void rlogin_unthrottle(Backend *be, int backlog)
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
-static int rlogin_ldisc(Backend *be, int option)
+static bool rlogin_ldisc(Backend *be, int option)
 {
     /* Rlogin *rlogin = container_of(be, Rlogin, backend); */
-    return 0;
+    return false;
 }
 
 static void rlogin_provide_ldisc(Backend *be, Ldisc *ldisc)

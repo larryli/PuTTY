@@ -15,8 +15,8 @@ typedef struct agentf {
     SshChannel *c;
     bufchain inbuffer;
     agent_pending_query *pending;
-    int input_wanted;
-    int rcvd_eof;
+    bool input_wanted;
+    bool rcvd_eof;
 
     Channel chan;
 } agentf;
@@ -142,10 +142,10 @@ static void agentf_callback(void *vctx, void *reply, int replylen)
 }
 
 static void agentf_free(Channel *chan);
-static int agentf_send(Channel *chan, int is_stderr, const void *, int);
+static int agentf_send(Channel *chan, bool is_stderr, const void *, int);
 static void agentf_send_eof(Channel *chan);
 static char *agentf_log_close_msg(Channel *chan);
-static void agentf_set_input_wanted(Channel *chan, int wanted);
+static void agentf_set_input_wanted(Channel *chan, bool wanted);
 
 static const struct ChannelVtable agentf_channelvt = {
     agentf_free,
@@ -196,7 +196,7 @@ static void agentf_free(Channel *chan)
     sfree(af);
 }
 
-static int agentf_send(Channel *chan, int is_stderr,
+static int agentf_send(Channel *chan, bool is_stderr,
                        const void *data, int length)
 {
     assert(chan->vt == &agentf_channelvt);
@@ -233,7 +233,7 @@ static char *agentf_log_close_msg(Channel *chan)
     return dupstr("Agent-forwarding connection closed");
 }
 
-static void agentf_set_input_wanted(Channel *chan, int wanted)
+static void agentf_set_input_wanted(Channel *chan, bool wanted)
 {
     assert(chan->vt == &agentf_channelvt);
     agentf *af = container_of(chan, agentf, chan);

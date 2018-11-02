@@ -64,20 +64,21 @@ struct NetSocket {
     int s;
     Plug *plug;
     bufchain output_data;
-    int connected;		       /* irrelevant for listening sockets */
-    int writable;
-    int frozen; /* this causes readability notifications to be ignored */
-    int localhost_only;		       /* for listening sockets */
+    bool connected;                    /* irrelevant for listening sockets */
+    bool writable;
+    bool frozen; /* this causes readability notifications to be ignored */
+    bool localhost_only;               /* for listening sockets */
     char oobdata[1];
     int sending_oob;
-    int oobpending;		       /* is there OOB data available to read? */
-    int oobinline;
+    bool oobpending;        /* is there OOB data available to read? */
+    bool oobinline;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
-    int incomingeof;
+    bool incomingeof;
     int pending_error;		       /* in case send() returns error */
-    int listener;
-    int nodelay, keepalive;            /* for connect()-type sockets */
-    int privport, port;                /* and again */
+    bool listener;
+    bool nodelay, keepalive;           /* for connect()-type sockets */
+    bool privport;
+    int port;                          /* and again */
     SockAddr *addr;
     SockAddrStep step;
     /*
@@ -292,7 +293,7 @@ SockAddr *sk_nonamelookup(const char *host)
     return ret;
 }
 
-static int sk_nextaddr(SockAddr *addr, SockAddrStep *step)
+static bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
 {
 #ifndef NO_IPV6
     if (step->ai && step->ai->ai_next) {
@@ -362,7 +363,7 @@ static SockAddr sk_extractaddr_tmp(
     return toret;
 }
 
-int sk_addr_needs_port(SockAddr *addr)
+bool sk_addr_needs_port(SockAddr *addr)
 {
     if (addr->superfamily == UNRESOLVED || addr->superfamily == UNIX) {
         return false;
@@ -371,7 +372,7 @@ int sk_addr_needs_port(SockAddr *addr)
     }
 }
 
-int sk_hostname_is_local(const char *name)
+bool sk_hostname_is_local(const char *name)
 {
     return !strcmp(name, "localhost") ||
 	   !strcmp(name, "::1") ||
@@ -381,7 +382,7 @@ int sk_hostname_is_local(const char *name)
 #define ipv4_is_loopback(addr) \
     (((addr).s_addr & htonl(0xff000000)) == htonl(0x7f000000))
 
-static int sockaddr_is_loopback(struct sockaddr *sa)
+static bool sockaddr_is_loopback(struct sockaddr *sa)
 {
     union sockaddr_union *u = (union sockaddr_union *)sa;
     switch (u->sa.sa_family) {
@@ -398,12 +399,12 @@ static int sockaddr_is_loopback(struct sockaddr *sa)
     }
 }
 
-int sk_address_is_local(SockAddr *addr)
+bool sk_address_is_local(SockAddr *addr)
 {
     if (addr->superfamily == UNRESOLVED)
-	return 0;                      /* we don't know; assume not */
+	return false;                  /* we don't know; assume not */
     else if (addr->superfamily == UNIX)
-	return 1;
+	return true;
     else {
 #ifndef NO_IPV6
 	return sockaddr_is_loopback(addr->ais->ai_addr);
@@ -418,7 +419,7 @@ int sk_address_is_local(SockAddr *addr)
     }
 }
 
-int sk_address_is_special_local(SockAddr *addr)
+bool sk_address_is_special_local(SockAddr *addr)
 {
     return addr->superfamily == UNIX;
 }
@@ -502,7 +503,7 @@ static void sk_net_close(Socket *s);
 static int sk_net_write(Socket *s, const void *data, int len);
 static int sk_net_write_oob(Socket *s, const void *data, int len);
 static void sk_net_write_eof(Socket *s);
-static void sk_net_set_frozen(Socket *s, int is_frozen);
+static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
 static const char *sk_net_socket_error(Socket *s);
 
@@ -531,18 +532,18 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 1;		       /* to start with */
+    ret->writable = true;              /* to start with */
     ret->sending_oob = 0;
-    ret->frozen = 1;
-    ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->frozen = true;
+    ret->localhost_only = false;    /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
     ret->incomingeof = false;
-    ret->listener = 0;
+    ret->listener = false;
     ret->parent = ret->child = NULL;
     ret->addr = NULL;
-    ret->connected = 1;
+    ret->connected = true;
 
     ret->s = sockfd;
 
@@ -551,7 +552,7 @@ static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
 	return &ret->sock;
     }
 
-    ret->oobinline = 0;
+    ret->oobinline = false;
 
     uxsel_tell(ret);
     add234(sktree, ret);
@@ -601,7 +602,7 @@ static int try_connect(NetSocket *sock)
     cloexec(s);
 
     if (sock->oobinline) {
-	int b = true;
+	int b = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_OOBINLINE,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -611,7 +612,7 @@ static int try_connect(NetSocket *sock)
     }
 
     if (sock->nodelay) {
-	int b = true;
+	int b = 1;
 	if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -621,7 +622,7 @@ static int try_connect(NetSocket *sock)
     }
 
     if (sock->keepalive) {
-	int b = true;
+	int b = 1;
 	if (setsockopt(s, SOL_SOCKET, SO_KEEPALIVE,
                        (void *) &b, sizeof(b)) < 0) {
             err = errno;
@@ -737,8 +738,8 @@ static int try_connect(NetSocket *sock)
 	 * If we _don't_ get EWOULDBLOCK, the connect has completed
 	 * and we should set the socket as connected and writable.
 	 */
-	sock->connected = 1;
-	sock->writable = 1;
+	sock->connected = true;
+	sock->writable = true;
     }
 
     uxsel_tell(sock);
@@ -758,8 +759,8 @@ static int try_connect(NetSocket *sock)
     return err;
 }
 
-Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
-               int nodelay, int keepalive, Plug *plug)
+Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
+               bool nodelay, bool keepalive, Plug *plug)
 {
     NetSocket *ret;
     int err;
@@ -772,17 +773,17 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->connected = 0;		       /* to start with */
-    ret->writable = 0;		       /* to start with */
+    ret->connected = false;            /* to start with */
+    ret->writable = false;             /* to start with */
     ret->sending_oob = 0;
-    ret->frozen = 0;
-    ret->localhost_only = 0;	       /* unused, but best init anyway */
+    ret->frozen = false;
+    ret->localhost_only = false;    /* unused, but best init anyway */
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
     ret->incomingeof = false;
-    ret->listener = 0;
+    ret->listener = false;
     ret->addr = addr;
     START_STEP(ret->addr, ret->step);
     ret->s = -1;
@@ -804,7 +805,7 @@ Socket *sk_new(SockAddr *addr, int port, int privport, int oobinline,
 }
 
 Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
-                       int local_host_only, int orig_address_family)
+                       bool local_host_only, int orig_address_family)
 {
     int s;
 #ifndef NO_IPV6
@@ -827,16 +828,16 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 0;		       /* to start with */
+    ret->writable = false;             /* to start with */
     ret->sending_oob = 0;
-    ret->frozen = 0;
+    ret->frozen = false;
     ret->localhost_only = local_host_only;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
     ret->incomingeof = false;
-    ret->listener = 1;
+    ret->listener = true;
     ret->addr = NULL;
     ret->s = -1;
 
@@ -879,7 +880,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
 
     cloexec(s);
 
-    ret->oobinline = 0;
+    ret->oobinline = false;
 
     if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
                    (const char *)&on, sizeof(on)) < 0) {
@@ -1267,7 +1268,7 @@ static void net_select_result(int fd, int event)
     int ret;
     char buf[20480];		       /* nice big buffer for plenty of speed */
     NetSocket *s;
-    u_long atmark;
+    bool atmark;
 
     /* Find the Socket structure */
     s = find234(sktree, &fd, cmpforsearch);
@@ -1359,11 +1360,14 @@ static void net_select_result(int fd, int event)
 	 * (data prior to urgent).
 	 */
 	if (s->oobinline && s->oobpending) {
-	    atmark = 1;
-	    if (ioctl(s->s, SIOCATMARK, &atmark) == 0 && atmark)
-		s->oobpending = false; /* clear this indicator */
+            int atmark_from_ioctl;
+	    if (ioctl(s->s, SIOCATMARK, &atmark_from_ioctl) == 0) {
+                atmark = atmark_from_ioctl;
+                if (atmark)
+                    s->oobpending = false; /* clear this indicator */
+            }
 	} else
-	    atmark = 1;
+	    atmark = true;
 
 	ret = recv(s->s, buf, s->oobpending ? 1 : sizeof(buf), 0);
 	noise_ultralight(ret);
@@ -1441,11 +1445,12 @@ static void net_select_result(int fd, int event)
                 sk_addr_free(s->addr);
                 s->addr = NULL;
             }
-	    s->connected = s->writable = 1;
+	    s->connected = true;
+            s->writable = true;
 	    uxsel_tell(s);
 	} else {
 	    int bufsize_before, bufsize_after;
-	    s->writable = 1;
+	    s->writable = true;
 	    bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
 	    try_send(s);
 	    bufsize_after = s->sending_oob + bufchain_size(&s->output_data);
@@ -1471,7 +1476,7 @@ static const char *sk_net_socket_error(Socket *sock)
     return s->error;
 }
 
-static void sk_net_set_frozen(Socket *sock, int is_frozen)
+static void sk_net_set_frozen(Socket *sock, bool is_frozen)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
     if (s->frozen == is_frozen)
@@ -1665,16 +1670,16 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
     ret->error = NULL;
     ret->plug = plug;
     bufchain_init(&ret->output_data);
-    ret->writable = 0;		       /* to start with */
+    ret->writable = false;             /* to start with */
     ret->sending_oob = 0;
-    ret->frozen = 0;
+    ret->frozen = false;
     ret->localhost_only = true;
     ret->pending_error = 0;
     ret->parent = ret->child = NULL;
     ret->oobpending = false;
     ret->outgoingeof = EOF_NO;
     ret->incomingeof = false;
-    ret->listener = 1;
+    ret->listener = true;
     ret->addr = listenaddr;
     ret->s = -1;
 
@@ -1691,7 +1696,7 @@ Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug)
 
     cloexec(s);
 
-    ret->oobinline = 0;
+    ret->oobinline = false;
 
     memset(&u, '\0', sizeof(u));
     u.su.sun_family = AF_UNIX;

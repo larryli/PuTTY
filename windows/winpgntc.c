@@ -15,7 +15,7 @@
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 
-int agent_exists(void)
+bool agent_exists(void)
 {
     HWND hwnd;
     hwnd = FindWindow("Pageant", "Pageant");

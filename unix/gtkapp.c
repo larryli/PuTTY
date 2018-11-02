@@ -88,7 +88,7 @@ https://wiki.gnome.org/Projects/GTK%2B/OSX/Bundling has some links.
 
 char *x_get_default(const char *key) { return NULL; }
 
-const int buildinfo_gtk_relevant = true;
+const bool buildinfo_gtk_relevant = true;
 
 #if !GTK_CHECK_VERSION(3,0,0)
 /* This front end only works in GTK 3. If that's not what we've got,
@@ -107,7 +107,7 @@ void session_window_closed(void) {}
 void window_setup_error(const char *errmsg) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
-extern const int use_event_log;
+extern const bool use_event_log;
 
 static void startup(GApplication *app, gpointer user_data)
 {
@@ -216,7 +216,7 @@ GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 
 void launch_duplicate_session(Conf *conf)
 {
-    extern const int dup_check_launchable;
+    extern const bool dup_check_launchable;
     assert(!dup_check_launchable || conf_launchable(conf));
     g_application_hold(G_APPLICATION(app));
     new_session_window(conf_copy(conf), NULL);
@@ -318,7 +318,7 @@ int main(int argc, char **argv)
     {
         /* Call the function in ux{putty,pterm}.c to do app-type
          * specific setup */
-        extern void setup(int);
+        extern void setup(bool);
         setup(false);     /* false means we are not a one-session process */
     }
 

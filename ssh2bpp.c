@@ -13,7 +13,7 @@ struct ssh2_bpp_direction {
     unsigned long sequence;
     ssh2_cipher *cipher;
     ssh2_mac *mac;
-    int etm_mode;
+    bool etm_mode;
     const struct ssh_compression_alg *pending_compression;
 };
 
@@ -26,7 +26,7 @@ struct ssh2_bpp_state {
     unsigned cipherblk;
     PktIn *pktin;
     struct DataTransferStats *stats;
-    int cbc_ignore_workaround;
+    bool cbc_ignore_workaround;
 
     struct ssh2_bpp_direction in, out;
     /* comp and decomp logically belong in the per-direction
@@ -34,9 +34,9 @@ struct ssh2_bpp_state {
     ssh_decompressor *in_decomp;
     ssh_compressor *out_comp;
 
-    int is_server;
-    int pending_newkeys;
-    int pending_compression, seen_userauth_success;
+    bool is_server;
+    bool pending_newkeys;
+    bool pending_compression, seen_userauth_success;
 
     BinaryPacketProtocol bpp;
 };
@@ -55,7 +55,7 @@ static const struct BinaryPacketProtocolVtable ssh2_bpp_vtable = {
 };
 
 BinaryPacketProtocol *ssh2_bpp_new(
-    LogContext *logctx, struct DataTransferStats *stats, int is_server)
+    LogContext *logctx, struct DataTransferStats *stats, bool is_server)
 {
     struct ssh2_bpp_state *s = snew(struct ssh2_bpp_state);
     memset(s, 0, sizeof(*s));
@@ -90,8 +90,8 @@ static void ssh2_bpp_free(BinaryPacketProtocol *bpp)
 void ssh2_bpp_new_outgoing_crypto(
     BinaryPacketProtocol *bpp,
     const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh2_macalg *mac, int etm_mode, const void *mac_key,
-    const struct ssh_compression_alg *compression, int delayed_compression)
+    const struct ssh2_macalg *mac, bool etm_mode, const void *mac_key,
+    const struct ssh_compression_alg *compression, bool delayed_compression)
 {
     struct ssh2_bpp_state *s;
     assert(bpp->vt == &ssh2_bpp_vtable);
@@ -157,8 +157,8 @@ void ssh2_bpp_new_outgoing_crypto(
 void ssh2_bpp_new_incoming_crypto(
     BinaryPacketProtocol *bpp,
     const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh2_macalg *mac, int etm_mode, const void *mac_key,
-    const struct ssh_compression_alg *compression, int delayed_compression)
+    const struct ssh2_macalg *mac, bool etm_mode, const void *mac_key,
+    const struct ssh_compression_alg *compression, bool delayed_compression)
 {
     struct ssh2_bpp_state *s;
     assert(bpp->vt == &ssh2_bpp_vtable);
@@ -224,7 +224,7 @@ void ssh2_bpp_new_incoming_crypto(
     queue_idempotent_callback(&s->bpp.ic_in_raw);
 }
 
-int ssh2_bpp_rekey_inadvisable(BinaryPacketProtocol *bpp)
+bool ssh2_bpp_rekey_inadvisable(BinaryPacketProtocol *bpp)
 {
     struct ssh2_bpp_state *s;
     assert(bpp->vt == &ssh2_bpp_vtable);

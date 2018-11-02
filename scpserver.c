@@ -256,7 +256,7 @@
 
 typedef struct ScpReplyReceiver ScpReplyReceiver;
 struct ScpReplyReceiver {
-    int err;
+    bool err;
     unsigned code;
     char *errmsg;
     struct fxp_attrs attrs;
@@ -371,12 +371,13 @@ typedef struct ScpSourceStackEntry ScpSourceStackEntry;
 struct ScpSource {
     SftpServer *sf;
 
-    int acks, expect_newline, eof, throttled, finished;
+    int acks;
+    bool expect_newline, eof, throttled, finished;
 
     SshChannel *sc;
     ScpSourceStackEntry *head;
-    int recursive;
-    int send_file_times;
+    bool recursive;
+    bool send_file_times;
 
     strbuf *pending_commands[3];
     int n_pending_commands;
@@ -482,7 +483,7 @@ static void scp_source_push_name(
 static void scp_source_free(ScpServer *s);
 static int scp_source_send(ScpServer *s, const void *data, size_t length);
 static void scp_source_eof(ScpServer *s);
-static void scp_source_throttle(ScpServer *s, int throttled);
+static void scp_source_throttle(ScpServer *s, bool throttled);
 
 static struct ScpServerVtable ScpSource_ScpServer_vt = {
     scp_source_free,
@@ -899,7 +900,7 @@ static int scp_source_send(ScpServer *s, const void *vdata, size_t length)
     return 0;
 }
 
-static void scp_source_throttle(ScpServer *s, int throttled)
+static void scp_source_throttle(ScpServer *s, bool throttled)
 {
     ScpSource *scp = container_of(s, ScpSource, scpserver);
 
@@ -937,10 +938,10 @@ struct ScpSink {
 
     uint64_t file_offset, file_size;
     unsigned long atime, mtime;
-    int got_file_times;
+    bool got_file_times;
 
     bufchain data;
-    int input_eof;
+    bool input_eof;
     strbuf *command;
     char command_chr;
 
@@ -968,10 +969,10 @@ struct ScpSinkStackEntry {
      * should be created _as_ - regardless of the filename in the 'C'
      * command.
      */
-    int isdir;
+    bool isdir;
 };
 
-static void scp_sink_push(ScpSink *scp, ptrlen pathname, int isdir)
+static void scp_sink_push(ScpSink *scp, ptrlen pathname, bool isdir)
 {
     ScpSinkStackEntry *node = snew_plus(ScpSinkStackEntry, pathname.len);
     char *p = snew_plus_get_aux(node);
@@ -995,7 +996,7 @@ static void scp_sink_pop(ScpSink *scp)
 static void scp_sink_free(ScpServer *s);
 static int scp_sink_send(ScpServer *s, const void *data, size_t length);
 static void scp_sink_eof(ScpServer *s);
-static void scp_sink_throttle(ScpServer *s, int throttled) {}
+static void scp_sink_throttle(ScpServer *s, bool throttled) {}
 
 static struct ScpServerVtable ScpSink_ScpServer_vt = {
     scp_sink_free,
@@ -1012,7 +1013,7 @@ static void scp_sink_start_callback(void *vscp)
 
 static ScpSink *scp_sink_new(
     SshChannel *sc, const SftpServerVtable *sftpserver_vt, ptrlen pathname,
-    int pathname_is_definitely_dir)
+    bool pathname_is_definitely_dir)
 {
     ScpSink *scp = snew(ScpSink);
     memset(scp, 0, sizeof(*scp));
@@ -1295,7 +1296,7 @@ static void scp_error_free(ScpServer *s);
 static int scp_error_send(ScpServer *s, const void *data, size_t length)
 { return 0; }
 static void scp_error_eof(ScpServer *s) {}
-static void scp_error_throttle(ScpServer *s, int throttled) {}
+static void scp_error_throttle(ScpServer *s, bool throttled) {}
 
 static struct ScpServerVtable ScpError_ScpServer_vt = {
     scp_error_free,
@@ -1353,8 +1354,8 @@ static void scp_error_free(ScpServer *s)
 ScpServer *scp_recognise_exec(
     SshChannel *sc, const SftpServerVtable *sftpserver_vt, ptrlen command)
 {
-    int recursive = false, preserve = false;
-    int targetshouldbedirectory = false;
+    bool recursive = false, preserve = false;
+    bool targetshouldbedirectory = false;
     ptrlen command_orig = command;
 
     if (!ptrlen_startswith(command, PTRLEN_LITERAL("scp "), &command))

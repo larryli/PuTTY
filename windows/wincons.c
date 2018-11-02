@@ -11,7 +11,7 @@
 #include "storage.h"
 #include "ssh.h"
 
-int console_batch_mode = false;
+bool console_batch_mode = false;
 
 /*
  * Clean up and exit.
@@ -481,14 +481,11 @@ int console_get_userpass_input(prompts_t *p)
         len = 0;
         while (1) {
             DWORD ret = 0;
-            BOOL r;
 
             prompt_ensure_result_size(pr, len * 5 / 4 + 512);
 
-            r = ReadFile(hin, pr->result + len, pr->resultsize - len - 1,
-                         &ret, NULL);
-
-            if (!r || ret == 0) {
+            if (!ReadFile(hin, pr->result + len, pr->resultsize - len - 1,
+                          &ret, NULL) || ret == 0) {
                 len = -1;
                 break;
             }

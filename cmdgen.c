@@ -114,7 +114,7 @@ void showversion(void)
     sfree(buildinfo_text);
 }
 
-void usage(int standalone)
+void usage(bool standalone)
 {
     fprintf(standalone ? stderr : stdout,
 	    "Usage: puttygen ( keyfile | -t type [ -b bits ] )\n"
@@ -163,7 +163,7 @@ void help(void)
 	   );
 }
 
-static int move(char *from, char *to)
+static bool move(char *from, char *to)
 {
     int ret;
 
@@ -208,7 +208,7 @@ static char *readpassphrase(const char *filename)
 #define DEFAULT_RSADSA_BITS 2048
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
-const int buildinfo_gtk_relevant = false;
+const bool buildinfo_gtk_relevant = false;
 
 int main(int argc, char **argv)
 {
@@ -220,8 +220,8 @@ int main(int argc, char **argv)
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
     int bits = -1;
     char *comment = NULL, *origcomment = NULL;
-    int change_passphrase = false;
-    int errs = false, nogo = false;
+    bool change_passphrase = false;
+    bool errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
     int sshver = 0;
     struct ssh2_userkey *ssh2key = NULL;
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
     strbuf *ssh2blob = NULL;
     char *ssh2alg = NULL;
     char *old_passphrase = NULL, *new_passphrase = NULL;
-    int load_encrypted;
+    bool load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
     const char *random_device = NULL;
 
@@ -735,7 +735,7 @@ int main(int argc, char **argv)
 
     } else {
 	const char *error = NULL;
-	int encrypted;
+	bool encrypted;
 
 	assert(infile != NULL);
 
@@ -930,7 +930,8 @@ int main(int argc, char **argv)
 	outfilename = filename_from_str(outfile ? outfile : "");
 
     switch (outtype) {
-	int ret, real_outtype;
+        bool ret;
+        int real_outtype;
 
       case PRIVATE:
 	if (sshver == 1) {

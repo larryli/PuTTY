@@ -42,14 +42,14 @@ void BinarySource_get_rsa_ssh1_priv(
     rsa->private_exponent = get_mp_ssh1(src);
 }
 
-int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)
+bool rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)
 {
     Bignum b1, b2;
     int i;
     unsigned char *p;
 
     if (key->bytes < length + 4)
-	return 0;		       /* RSA key too short! */
+	return false;                  /* RSA key too short! */
 
     memmove(data + key->bytes - length, data, length);
     data[0] = 0;
@@ -74,7 +74,7 @@ int rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key)
     freebn(b1);
     freebn(b2);
 
-    return 1;
+    return true;
 }
 
 /*
@@ -285,10 +285,10 @@ Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key)
     return rsa_privkey_op(input, key);
 }
 
-int rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf)
+bool rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf)
 {
     strbuf *data = strbuf_new();
-    int success = false;
+    bool success = false;
     BinarySource src[1];
 
     {
@@ -391,7 +391,7 @@ char *rsa_ssh1_fingerprint(struct RSAKey *key)
  * data. We also check the private data itself: we ensure that p >
  * q and that iqmp really is the inverse of q mod p.
  */
-int rsa_verify(struct RSAKey *key)
+bool rsa_verify(struct RSAKey *key)
 {
     Bignum n, ed, pm1, qm1;
     int cmp;
@@ -401,7 +401,7 @@ int rsa_verify(struct RSAKey *key)
     cmp = bignum_cmp(n, key->modulus);
     freebn(n);
     if (cmp != 0)
-	return 0;
+	return false;
 
     /* e * d must be congruent to 1, modulo (p-1) and modulo (q-1). */
     pm1 = copybn(key->p);
@@ -411,7 +411,7 @@ int rsa_verify(struct RSAKey *key)
     cmp = bignum_cmp(ed, One);
     freebn(ed);
     if (cmp != 0)
-	return 0;
+	return false;
 
     qm1 = copybn(key->q);
     decbn(qm1);
@@ -420,7 +420,7 @@ int rsa_verify(struct RSAKey *key)
     cmp = bignum_cmp(ed, One);
     freebn(ed);
     if (cmp != 0)
-	return 0;
+	return false;
 
     /*
      * Ensure p > q.
@@ -438,7 +438,7 @@ int rsa_verify(struct RSAKey *key)
 	freebn(key->iqmp);
 	key->iqmp = modinv(key->q, key->p);
         if (!key->iqmp)
-            return 0;
+            return false;
     }
 
     /*
@@ -448,9 +448,9 @@ int rsa_verify(struct RSAKey *key)
     cmp = bignum_cmp(n, One);
     freebn(n);
     if (cmp != 0)
-	return 0;
+	return false;
 
-    return 1;
+    return true;
 }
 
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
@@ -683,13 +683,14 @@ static const unsigned char asn1_weird_stuff[] = {
 
 #define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
 
-static int rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
+static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
 {
     struct RSAKey *rsa = container_of(key, struct RSAKey, sshk);
     BinarySource src[1];
     ptrlen type, in_pl;
     Bignum in, out;
-    int bytes, i, j, ret;
+    int bytes, i, j;
+    bool toret;
     unsigned char hash[20];
 
     BinarySource_BARE_INIT(src, sig.ptr, sig.len);
@@ -706,40 +707,40 @@ static int rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
      */
     in_pl = get_string(src);
     if (get_err(src) || !ptrlen_eq_string(type, "ssh-rsa"))
-	return 0;
+	return false;
 
     in = bignum_from_bytes(in_pl.ptr, in_pl.len);
     out = modpow(in, rsa->exponent, rsa->modulus);
     freebn(in);
 
-    ret = 1;
+    toret = true;
 
     bytes = (bignum_bitcount(rsa->modulus)+7) / 8;
     /* Top (partial) byte should be zero. */
     if (bignum_byte(out, bytes - 1) != 0)
-	ret = 0;
+	toret = false;
     /* First whole byte should be 1. */
     if (bignum_byte(out, bytes - 2) != 1)
-	ret = 0;
+	toret = false;
     /* Most of the rest should be FF. */
     for (i = bytes - 3; i >= 20 + ASN1_LEN; i--) {
 	if (bignum_byte(out, i) != 0xFF)
-	    ret = 0;
+	    toret = false;
     }
     /* Then we expect to see the asn1_weird_stuff. */
     for (i = 20 + ASN1_LEN - 1, j = 0; i >= 20; i--, j++) {
 	if (bignum_byte(out, i) != asn1_weird_stuff[j])
-	    ret = 0;
+	    toret = false;
     }
     /* Finally, we expect to see the SHA-1 hash of the signed data. */
     SHA_Simple(data.ptr, data.len, hash);
     for (i = 19, j = 0; i >= 0; i--, j++) {
 	if (bignum_byte(out, i) != hash[j])
-	    ret = 0;
+	    toret = false;
     }
     freebn(out);
 
-    return ret;
+    return toret;
 }
 
 static void rsa2_sign(ssh_key *key, const void *data, int datalen,

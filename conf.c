@@ -410,7 +410,7 @@ void conf_set_bool(Conf *conf, int primary, bool value)
     assert(subkeytypes[primary] == TYPE_NONE);
     assert(valuetypes[primary] == TYPE_BOOL);
     entry->key.primary = primary;
-    entry->value.u.boolval = value; 
+    entry->value.u.boolval = value;
     conf_insert(conf, entry);
 }
 
@@ -421,11 +421,12 @@ void conf_set_int(Conf *conf, int primary, int value)
     assert(subkeytypes[primary] == TYPE_NONE);
     assert(valuetypes[primary] == TYPE_INT);
     entry->key.primary = primary;
-    entry->value.u.intval = value; 
+    entry->value.u.intval = value;
     conf_insert(conf, entry);
 }
 
-void conf_set_int_int(Conf *conf, int primary, int secondary, int value)
+void conf_set_int_int(Conf *conf, int primary,
+                      int secondary, int value)
 {
     struct conf_entry *entry = snew(struct conf_entry);
 
@@ -537,7 +538,7 @@ void conf_serialise(BinarySink *bs, Conf *conf)
     put_uint32(bs, 0xFFFFFFFFU);
 }
 
-int conf_deserialise(Conf *conf, BinarySource *src)
+bool conf_deserialise(Conf *conf, BinarySource *src)
 {
     struct conf_entry *entry;
     unsigned primary;

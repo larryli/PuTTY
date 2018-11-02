@@ -52,7 +52,7 @@ struct termline {
     int cols;			       /* number of real columns on the line */
     int size;			       /* number of allocated termchars
 					* (cc-lists may make this > cols) */
-    int temporary;		       /* true if decompressed from scrollback */
+    bool temporary;                    /* true if decompressed from scrollback */
     int cc_free;		       /* offset to first cc in free list */
     struct termchar *chars;
 };
@@ -83,7 +83,7 @@ struct terminal_tag {
 
     struct beeptime *beephead, *beeptail;
     int nbeeps;
-    int beep_overloaded;
+    bool beep_overloaded;
     long lastbeep;
 
 #define TTYPE termchar
@@ -97,29 +97,29 @@ struct terminal_tag {
     pos curs;			       /* cursor */
     pos savecurs;		       /* saved cursor position */
     int marg_t, marg_b;		       /* scroll margins */
-    int dec_om;			       /* DEC origin mode flag */
-    int wrap, wrapnext;		       /* wrap flags */
-    int insert;			       /* insert-mode flag */
+    bool dec_om;                       /* DEC origin mode flag */
+    bool wrap, wrapnext;               /* wrap flags */
+    bool insert;                       /* insert-mode flag */
     int cset;			       /* 0 or 1: which char set */
     int save_cset, save_csattr;	       /* saved with cursor position */
-    int save_utf, save_wnext;	       /* saved with cursor position */
-    int rvideo;			       /* global reverse video flag */
+    bool save_utf, save_wnext;         /* saved with cursor position */
+    bool rvideo;                       /* global reverse video flag */
     unsigned long rvbell_startpoint;   /* for ESC[?5hESC[?5l vbell */
-    int cursor_on;		       /* cursor enabled flag */
-    int reset_132;		       /* Flag ESC c resets to 80 cols */
-    int use_bce;		       /* Use Background coloured erase */
-    int cblinker;		       /* When blinking is the cursor on ? */
-    int tblinker;		       /* When the blinking text is on */
-    int blink_is_real;		       /* Actually blink blinking text */
-    int term_echoing;		       /* Does terminal want local echo? */
-    int term_editing;		       /* Does terminal want local edit? */
+    bool cursor_on;                    /* cursor enabled flag */
+    bool reset_132;                    /* Flag ESC c resets to 80 cols */
+    bool use_bce;                      /* Use Background coloured erase */
+    bool cblinker;                     /* When blinking is the cursor on ? */
+    bool tblinker;                     /* When the blinking text is on */
+    bool blink_is_real;                /* Actually blink blinking text */
+    bool term_echoing;                 /* Does terminal want local echo? */
+    bool term_editing;                 /* Does terminal want local edit? */
     int sco_acs, save_sco_acs;	       /* CSI 10,11,12m -> OEM charset */
-    int vt52_bold;		       /* Force bold on non-bold colours */
-    int utf;			       /* Are we in toggleable UTF-8 mode? */
+    bool vt52_bold;                    /* Force bold on non-bold colours */
+    bool utf;                          /* Are we in toggleable UTF-8 mode? */
     int utf_state;		       /* Is there a pending UTF-8 character */
     int utf_char;		       /* and what is it so far. */
     int utf_size;		       /* The size of the UTF character. */
-    int printing, only_printing;       /* Are we doing ANSI printing? */
+    bool printing, only_printing;      /* Are we doing ANSI printing? */
     int print_state;		       /* state of print-end-sequence scan */
     bufchain printer_buf;	       /* buffered data for printer */
     printer_job *print_job;
@@ -129,32 +129,36 @@ struct terminal_tag {
     int alt_save_attr;
     truecolour alt_save_truecolour;
     int alt_save_cset, alt_save_csattr;
-    int alt_save_utf, alt_save_wnext;
+    bool alt_save_utf;
+    bool alt_save_wnext;
     int alt_save_sco_acs;
 
     int rows, cols, savelines;
-    int has_focus;
-    int in_vbell;
+    bool has_focus;
+    bool in_vbell;
     long vbell_end;
-    int app_cursor_keys, app_keypad_keys, vt52_mode;
-    int repeat_off, cr_lf_return;
-    int seen_disp_event;
-    int big_cursor;
+    bool app_cursor_keys, app_keypad_keys, vt52_mode;
+    bool repeat_off, cr_lf_return;
+    bool seen_disp_event;
+    bool big_cursor;
 
     int xterm_mouse;		       /* send mouse messages to host */
-    int xterm_extended_mouse;
-    int urxvt_extended_mouse;
+    bool xterm_extended_mouse;
+    bool urxvt_extended_mouse;
     int mouse_is_down;		       /* used while tracking mouse buttons */
 
-    int bracketed_paste;
+    bool bracketed_paste;
 
     int cset_attr[2];
 
 /*
  * Saved settings on the alternate screen.
  */
-    int alt_x, alt_y, alt_om, alt_wrap, alt_wnext, alt_ins;
-    int alt_cset, alt_sco_acs, alt_utf;
+    int alt_x, alt_y;
+    bool alt_wnext, alt_ins;
+    bool alt_om, alt_wrap;
+    int alt_cset, alt_sco_acs;
+    bool alt_utf;
     int alt_t, alt_b;
     int alt_which;
     int alt_sblines; /* # of lines on alternate screen that should be used for scrollback. */
@@ -166,12 +170,12 @@ struct terminal_tag {
     int esc_nargs;
     int esc_query;
 #define ANSI(x,y)	((x)+((y)<<8))
-#define ANSI_QUE(x)	ANSI(x,true)
+#define ANSI_QUE(x)	ANSI(x,1)
 
 #define OSC_STR_MAX 2048
     int osc_strlen;
     char osc_string[OSC_STR_MAX + 1];
-    int osc_w;
+    bool osc_w;
 
     char id_string[1024];
 
@@ -243,19 +247,19 @@ struct terminal_tag {
      * data to the end of the buffer term_out is in the process of
      * working through.
      */
-    int in_term_out;
+    bool in_term_out;
 
     /*
      * We schedule a window update shortly after receiving terminal
      * data. This tracks whether one is currently pending.
      */
-    int window_update_pending;
+    bool window_update_pending;
     long next_update;
 
     /*
      * Track pending blinks and tblinks.
      */
-    int tblink_pending, cblink_pending;
+    bool tblink_pending, cblink_pending;
     long next_tblink, next_cblink;
 
     /*
@@ -274,48 +278,48 @@ struct terminal_tag {
      * tree234 lookups which would be involved in fetching them from
      * the former every time.
      */
-    int ansi_colour;
+    bool ansi_colour;
     char *answerback;
     int answerbacklen;
-    int arabicshaping;
+    bool arabicshaping;
     int beep;
-    int bellovl;
+    bool bellovl;
     int bellovl_n;
     int bellovl_s;
     int bellovl_t;
-    int bidi;
-    int bksp_is_delete;
-    int blink_cur;
-    int blinktext;
-    int cjk_ambig_wide;
+    bool bidi;
+    bool bksp_is_delete;
+    bool blink_cur;
+    bool blinktext;
+    bool cjk_ambig_wide;
     int conf_height;
     int conf_width;
-    int crhaslf;
-    int erase_to_scrollback;
+    bool crhaslf;
+    bool erase_to_scrollback;
     int funky_type;
-    int lfhascr;
-    int logflush;
+    bool lfhascr;
+    bool logflush;
     int logtype;
-    int mouse_override;
-    int nethack_keypad;
-    int no_alt_screen;
-    int no_applic_c;
-    int no_applic_k;
-    int no_dbackspace;
-    int no_mouse_rep;
-    int no_remote_charset;
-    int no_remote_resize;
-    int no_remote_wintitle;
-    int no_remote_clearscroll;
-    int rawcnp;
-    int utf8linedraw;
-    int rect_select;
+    bool mouse_override;
+    bool nethack_keypad;
+    bool no_alt_screen;
+    bool no_applic_c;
+    bool no_applic_k;
+    bool no_dbackspace;
+    bool no_mouse_rep;
+    bool no_remote_charset;
+    bool no_remote_resize;
+    bool no_remote_wintitle;
+    bool no_remote_clearscroll;
+    bool rawcnp;
+    bool utf8linedraw;
+    bool rect_select;
     int remote_qtitle_action;
-    int rxvt_homeend;
-    int scroll_on_disp;
-    int scroll_on_key;
-    int xterm_256_colour;
-    int true_colour;
+    bool rxvt_homeend;
+    bool scroll_on_disp;
+    bool scroll_on_key;
+    bool xterm_256_colour;
+    bool true_colour;
 
     wchar_t *last_selected_text;
     int *last_selected_attr;

@@ -27,7 +27,7 @@ int random_byte(void)
     return 0;                 /* unreachable, but placate optimiser */
 }
 
-static int pageant_local = false;
+static bool pageant_local = false;
 
 /*
  * rsakeys stores SSH-1 RSA keys. ssh2keys stores all SSH-2 keys.
@@ -652,17 +652,17 @@ int pageant_count_ssh2_keys(void)
     return count234(ssh2keys);
 }
 
-int pageant_add_ssh1_key(struct RSAKey *rkey)
+bool pageant_add_ssh1_key(struct RSAKey *rkey)
 {
     return add234(rsakeys, rkey) == rkey;
 }
 
-int pageant_add_ssh2_key(struct ssh2_userkey *skey)
+bool pageant_add_ssh2_key(struct ssh2_userkey *skey)
 {
     return add234(ssh2keys, skey) == skey;
 }
 
-int pageant_delete_ssh1_key(struct RSAKey *rkey)
+bool pageant_delete_ssh1_key(struct RSAKey *rkey)
 {
     struct RSAKey *deleted = del234(rsakeys, rkey);
     if (!deleted)
@@ -671,7 +671,7 @@ int pageant_delete_ssh1_key(struct RSAKey *rkey)
     return true;
 }
 
-int pageant_delete_ssh2_key(struct ssh2_userkey *skey)
+bool pageant_delete_ssh2_key(struct ssh2_userkey *skey)
 {
     struct ssh2_userkey *deleted = del234(ssh2keys, skey);
     if (!deleted)
@@ -704,14 +704,14 @@ struct pageant_conn_state {
     pageant_logfn_t logfn;
     unsigned char lenbuf[4], pktbuf[AGENT_MAX_MSGLEN];
     unsigned len, got;
-    int real_packet;
+    bool real_packet;
     int crLine;            /* for coroutine in pageant_conn_receive */
 
     Plug plug;
 };
 
 static void pageant_conn_closing(Plug *plug, const char *error_msg,
-				 int error_code, int calling_back)
+				 int error_code, bool calling_back)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
@@ -805,7 +805,7 @@ struct pageant_listen_state {
 };
 
 static void pageant_listen_closing(Plug *plug, const char *error_msg,
-				   int error_code, int calling_back)
+				   int error_code, bool calling_back)
 {
     struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
@@ -842,7 +842,7 @@ static int pageant_listen_accepting(Plug *plug,
     if ((err = sk_socket_error(pc->connsock)) != NULL) {
         sk_close(pc->connsock);
         sfree(pc);
-	return true;
+	return 1;
     }
 
     sk_set_frozen(pc->connsock, 0);
@@ -998,7 +998,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 {
     struct RSAKey *rkey = NULL;
     struct ssh2_userkey *skey = NULL;
-    int needs_pass;
+    bool needs_pass;
     int ret;
     int attempts;
     char *comment;
@@ -1432,7 +1432,8 @@ int pageant_delete_all_keys(char **retstr)
 {
     strbuf *request;
     unsigned char *response;
-    int resplen, success;
+    int resplen;
+    bool success;
     void *vresponse;
 
     request = strbuf_new_for_agent_query();

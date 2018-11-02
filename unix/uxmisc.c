@@ -58,12 +58,12 @@ const char *filename_to_str(const Filename *fn)
     return fn->path;
 }
 
-int filename_equal(const Filename *f1, const Filename *f2)
+bool filename_equal(const Filename *f1, const Filename *f2)
 {
     return !strcmp(f1->path, f2->path);
 }
 
-int filename_is_null(const Filename *fn)
+bool filename_is_null(const Filename *fn)
 {
     return !fn->path[0];
 }
@@ -202,7 +202,7 @@ void noncloexec(int fd) {
         exit(1);
     }
 }
-int nonblock(int fd) {
+bool nonblock(int fd) {
     int fdflags;
 
     fdflags = fcntl(fd, F_GETFL);
@@ -217,7 +217,7 @@ int nonblock(int fd) {
 
     return fdflags & O_NONBLOCK;
 }
-int no_nonblock(int fd) {
+bool no_nonblock(int fd) {
     int fdflags;
 
     fdflags = fcntl(fd, F_GETFL);
@@ -233,7 +233,7 @@ int no_nonblock(int fd) {
     return fdflags & O_NONBLOCK;
 }
 
-FILE *f_open(const Filename *filename, char const *mode, int is_private)
+FILE *f_open(const Filename *filename, char const *mode, bool is_private)
 {
     if (!is_private) {
 	return fopen(filename->path, mode);
@@ -330,7 +330,7 @@ char *make_dir_path(const char *path, mode_t mode)
     }
 }
 
-int open_for_write_would_lose_data(const Filename *fn)
+bool open_for_write_would_lose_data(const Filename *fn)
 {
     struct stat st;
 

@@ -43,7 +43,7 @@ int ssh_sftp_loop_iteration(void);
  * false, a back end is not (intentionally) active at all (e.g.
  * psftp before an `open' command).
  */
-char *ssh_sftp_get_cmdline(const char *prompt, int backend_required);
+char *ssh_sftp_get_cmdline(const char *prompt, bool backend_required);
 
 /*
  * Platform-specific function called when we're about to make a
@@ -149,7 +149,7 @@ void close_directory(DirHandle *dir);
 enum {
     WCTYPE_NONEXISTENT, WCTYPE_FILENAME, WCTYPE_WILDCARD
 };
-int test_wildcard(const char *name, int cmdline);
+int test_wildcard(const char *name, bool cmdline);
 
 /*
  * Actually return matching file names for a local wildcard.
@@ -168,12 +168,12 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  * 
  * Returns true if the filename is kosher, false if dangerous.
  */
-int vet_filename(const char *name);
+bool vet_filename(const char *name);
 
 /*
- * Create a directory. Returns 0 on error, !=0 on success.
+ * Create a directory. Returns true on success, false on error.
  */
-int create_directory(const char *name);
+bool create_directory(const char *name);
 
 /*
  * Concatenate a directory name and a file name. The way this is
@@ -196,6 +196,6 @@ char *dir_file_cat(const char *dir, const char *file);
  * pair of overloaded functions, one mapping mutable->mutable and the
  * other const->const :-(
  */
-char *stripslashes(const char *str, int local);
+char *stripslashes(const char *str, bool local);
 
 #endif /* PUTTY_PSFTP_H */

@@ -26,7 +26,7 @@ void BinarySink_put_byte(BinarySink *bs, unsigned char val)
     bs->write(bs, &val, 1);
 }
 
-void BinarySink_put_bool(BinarySink *bs, int val)
+void BinarySink_put_bool(BinarySink *bs, bool val)
 {
     unsigned char cval = val ? 1 : 0;
     bs->write(bs, &cval, 1);
@@ -84,7 +84,7 @@ void BinarySink_put_asciz(BinarySink *bs, const char *str)
     bs->write(bs, str, strlen(str) + 1);
 }
 
-int BinarySink_put_pstring(BinarySink *bs, const char *str)
+bool BinarySink_put_pstring(BinarySink *bs, const char *str)
 {
     size_t len = strlen(str);
     if (len > 255)
@@ -96,7 +96,7 @@ int BinarySink_put_pstring(BinarySink *bs, const char *str)
 
 /* ---------------------------------------------------------------------- */
 
-static int BinarySource_data_avail(BinarySource *src, size_t wanted)
+static bool BinarySource_data_avail(BinarySource *src, size_t wanted)
 {
     if (src->err)
         return false;
@@ -134,12 +134,12 @@ unsigned char BinarySource_get_byte(BinarySource *src)
     return *ucp;
 }
 
-int BinarySource_get_bool(BinarySource *src)
+bool BinarySource_get_bool(BinarySource *src)
 {
     const unsigned char *ucp;
 
     if (!avail(1))
-        return 0;
+        return false;
 
     ucp = consume(1);
     return *ucp != 0;

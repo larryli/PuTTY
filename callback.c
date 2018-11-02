@@ -99,9 +99,9 @@ void queue_toplevel_callback(toplevel_callback_fn_t fn, void *ctx)
     cb->next = NULL;
 }
 
-int run_toplevel_callbacks(void)
+bool run_toplevel_callbacks(void)
 {
-    int done_something = false;
+    bool done_something = false;
 
     if (cbhead) {
         /*
@@ -127,7 +127,7 @@ int run_toplevel_callbacks(void)
     return done_something;
 }
 
-int toplevel_callback_pending(void)
+bool toplevel_callback_pending(void)
 {
     return cbcurr != NULL || cbhead != NULL;
 }
