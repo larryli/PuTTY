@@ -26,7 +26,7 @@ const char *const appname = "PSFTP";
 
 static int psftp_connect(char *userhost, char *user, int portnumber);
 static int do_sftp_init(void);
-void do_sftp_cleanup();
+static void do_sftp_cleanup(void);
 
 /* ----------------------------------------------------------------------
  * sftp client state.
@@ -2383,7 +2383,7 @@ static int do_sftp_init(void)
     return 0;
 }
 
-void do_sftp_cleanup()
+static void do_sftp_cleanup(void)
 {
     char ch;
     if (backend) {

@@ -150,7 +150,7 @@ static void coloursel_ok(GtkButton *button, gpointer data);
 static void coloursel_cancel(GtkButton *button, gpointer data);
 #endif
 static void dlgparam_destroy(GtkWidget *widget, gpointer data);
-int get_listitemheight(GtkWidget *widget);
+static int get_listitemheight(GtkWidget *widget);
 
 static int uctrl_cmp_byctrl(void *av, void *bv)
 {
@@ -2836,7 +2836,7 @@ void shortcut_add(struct Shortcuts *scs, GtkWidget *labelw,
     shortcut_highlight(labelw, chr);
 }
 
-int get_listitemheight(GtkWidget *w)
+static int get_listitemheight(GtkWidget *w)
 {
 #if !GTK_CHECK_VERSION(2,0,0)
     GtkWidget *listitem = gtk_list_item_new_with_label("foo");

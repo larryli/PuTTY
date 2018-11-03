@@ -206,7 +206,7 @@ static HMODULE winsock2_module = NULL;
 static HMODULE wship6_module = NULL;
 #endif
 
-bool sk_startup(int hi, int lo)
+static bool sk_startup(int hi, int lo)
 {
     WORD winsock_ver;
 
@@ -590,7 +590,7 @@ SockAddr *sk_namedpipe_addr(const char *pipename)
     return ret;
 }
 
-bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
+static bool sk_nextaddr(SockAddr *addr, SockAddrStep *step)
 {
 #ifndef NO_IPV6
     if (step->ai) {

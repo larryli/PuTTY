@@ -55,14 +55,15 @@ typedef struct bidi_char {
 } bidi_char;
 
 /* function declarations */
-void flipThisRun(bidi_char *from, unsigned char* level, int max, int count);
-int findIndexOfRun(unsigned char* level , int start, int count, int tlevel);
-unsigned char getType(int ch);
-unsigned char setOverrideBits(unsigned char level, unsigned char override);
-int getPreviousLevel(unsigned char* level, int from);
-int do_shape(bidi_char *line, bidi_char *to, int count);
-int do_bidi(bidi_char *line, int count);
-void doMirror(unsigned int *ch);
+static void flipThisRun(
+    bidi_char *from, unsigned char *level, int max, int count);
+static int findIndexOfRun(
+    unsigned char *level, int start, int count, int tlevel);
+static unsigned char getType(int ch);
+static unsigned char setOverrideBits(
+    unsigned char level, unsigned char override);
+static int getPreviousLevel(unsigned char *level, int from);
+static void doMirror(unsigned int *ch);
 
 /* character types */
 enum {
@@ -297,7 +298,8 @@ const shape_node shapetypes[] = {
  * max: the maximum level found in this line (should be unsigned char)
  * count: line size in bidi_char
  */
-void flipThisRun(bidi_char *from, unsigned char *level, int max, int count)
+static void flipThisRun(
+    bidi_char *from, unsigned char *level, int max, int count)
 {
     int i, j, k, tlevel;
     bidi_char temp;
@@ -323,7 +325,8 @@ void flipThisRun(bidi_char *from, unsigned char *level, int max, int count)
 /*
  * Finds the index of a run with level equals tlevel
  */
-int findIndexOfRun(unsigned char* level , int start, int count, int tlevel)
+static int findIndexOfRun(
+    unsigned char *level , int start, int count, int tlevel)
 {
     int i;
     for (i=start; i<count; i++) {
@@ -355,7 +358,7 @@ perl -ne 'split ";"; $num = hex $_[0]; $type = $_[4];' \
     UnicodeData.txt
 
  */
-unsigned char getType(int ch)
+static unsigned char getType(int ch)
 {
     static const struct {
 	int first, last, type;
@@ -1045,7 +1048,8 @@ int is_rtl(int c)
  * This function sets the override bits of level according
  * to the value in override, and reurns the new byte.
  */
-unsigned char setOverrideBits(unsigned char level, unsigned char override)
+static unsigned char setOverrideBits(
+    unsigned char level, unsigned char override)
 {
     if (override == ON)
 	return level;
@@ -1061,7 +1065,7 @@ unsigned char setOverrideBits(unsigned char level, unsigned char override)
  * return the value _before_ it. Used to process U+202C POP
  * DIRECTIONAL FORMATTING.
  */
-int getPreviousLevel(unsigned char* level, int from)
+static int getPreviousLevel(unsigned char *level, int from)
 {
     if (from > 0) {
         unsigned char current = level[--from];
@@ -1630,7 +1634,7 @@ int do_bidi(bidi_char *line, int count)
  * takes a pointer to a character that is checked for
  * having a mirror glyph.
  */
-void doMirror(unsigned int *ch)
+static void doMirror(unsigned int *ch)
 {
     if ((*ch & 0xFF00) == 0) {
 	switch (*ch) {
