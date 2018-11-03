@@ -87,32 +87,6 @@ void modalfatalbox(const char *fmt, ...)
     exit(1);
 }
 
-/* Un-munge session names out of the registry. */
-static void unmungestr(char *in, char *out, int outlen)
-{
-    while (*in) {
-	if (*in == '%' && in[1] && in[2]) {
-	    int i, j;
-
-	    i = in[1] - '0';
-	    i -= (i > 9 ? 7 : 0);
-	    j = in[2] - '0';
-	    j -= (j > 9 ? 7 : 0);
-
-	    *out++ = (i << 4) + j;
-	    if (!--outlen)
-		return;
-	    in += 3;
-	} else {
-	    *out++ = *in++;
-	    if (!--outlen)
-		return;
-	}
-    }
-    *out = '\0';
-    return;
-}
-
 /* Stubs needed to link against misc.c */
 void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
 
@@ -687,6 +661,7 @@ static void update_sessions(void)
     HKEY hkey;
     TCHAR buf[MAX_PATH + 1];
     MENUITEMINFO mii;
+    strbuf *sb;
 
     int index_key, index_menu;
 
@@ -704,22 +679,25 @@ static void update_sessions(void)
     index_key = 0;
     index_menu = 0;
 
+    sb = strbuf_new();
     while(ERROR_SUCCESS == RegEnumKey(hkey, index_key, buf, MAX_PATH)) {
-	TCHAR session_name[MAX_PATH + 1];
-	unmungestr(buf, session_name, MAX_PATH);
 	if(strcmp(buf, PUTTY_DEFAULT) != 0) {
+            sb->len = 0;
+            unescape_registry_key(buf, sb);
+
 	    memset(&mii, 0, sizeof(mii));
 	    mii.cbSize = sizeof(mii);
 	    mii.fMask = MIIM_TYPE | MIIM_STATE | MIIM_ID;
 	    mii.fType = MFT_STRING;
 	    mii.fState = MFS_ENABLED;
 	    mii.wID = (index_menu * 16) + IDM_SESSIONS_BASE;
-	    mii.dwTypeData = session_name;
+	    mii.dwTypeData = sb->s;
 	    InsertMenuItem(session_menu, index_menu, true, &mii);
 	    index_menu++;
 	}
 	index_key++;
     }
+    strbuf_free(sb);
 
     RegCloseKey(hkey);
 

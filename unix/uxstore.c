@@ -33,14 +33,10 @@ enum {
 
 static const char hex[16] = "0123456789ABCDEF";
 
-static char *mungestr(const char *in)
+static void make_session_filename(const char *in, strbuf *out)
 {
-    char *out, *ret;
-
     if (!in || !*in)
         in = "Default Settings";
-
-    ret = out = snewn(3*strlen(in)+1, char);
 
     while (*in) {
         /*
@@ -54,21 +50,17 @@ static char *mungestr(const char *in)
             !(*in >= '0' && *in <= '9') &&
             !(*in >= 'A' && *in <= 'Z') &&
             !(*in >= 'a' && *in <= 'z')) {
-	    *out++ = '%';
-	    *out++ = hex[((unsigned char) *in) >> 4];
-	    *out++ = hex[((unsigned char) *in) & 15];
+	    put_byte(out, '%');
+	    put_byte(out, hex[((unsigned char) *in) >> 4]);
+	    put_byte(out, hex[((unsigned char) *in) & 15]);
 	} else
-	    *out++ = *in;
+	    put_byte(out, *in);
 	in++;
     }
-    *out = '\0';
-    return ret;
 }
 
-static char *unmungestr(const char *in)
+static void decode_session_filename(const char *in, strbuf *out)
 {
-    char *out, *ret;
-    out = ret = snewn(strlen(in)+1, char);
     while (*in) {
 	if (*in == '%' && in[1] && in[2]) {
 	    int i, j;
@@ -78,14 +70,12 @@ static char *unmungestr(const char *in)
 	    j = in[2] - '0';
 	    j -= (j > 9 ? 7 : 0);
 
-	    *out++ = (i << 4) + j;
+	    put_byte(out, (i << 4) + j);
 	    in += 3;
 	} else {
-	    *out++ = *in++;
+	    put_byte(out, *in++);
 	}
     }
-    *out = '\0';
-    return ret;
 }
 
 static char *make_filename(int index, const char *subname)
@@ -181,12 +171,12 @@ static char *make_filename(int index, const char *subname)
 	return ret;
     }
     if (index == INDEX_SESSION) {
-        char *munged = mungestr(subname);
+        strbuf *sb = strbuf_new();
 	tmp = make_filename(INDEX_SESSIONDIR, NULL);
-	ret = dupprintf("%s/%s", tmp, munged);
+	strbuf_catf(sb, "%s/", tmp);
 	sfree(tmp);
-	sfree(munged);
-	return ret;
+        make_session_filename(subname, sb);
+        return strbuf_to_str(sb);
     }
     if (index == INDEX_HOSTKEYS) {
 	env = getenv("PUTTYSSHHOSTKEYS");
@@ -554,13 +544,12 @@ settings_e *enum_settings_start(void)
     return toret;
 }
 
-char *enum_settings_next(settings_e *handle, char *buffer, int buflen)
+bool enum_settings_next(settings_e *handle, strbuf *out)
 {
     struct dirent *de;
     struct stat st;
     char *fullpath;
     int maxlen, thislen, len;
-    char *unmunged;
 
     if (!handle->dp)
         return NULL;
@@ -581,16 +570,13 @@ char *enum_settings_next(settings_e *handle, char *buffer, int buflen)
         if (stat(fullpath, &st) < 0 || !S_ISREG(st.st_mode))
             continue;                  /* try another one */
 
-        unmunged = unmungestr(de->d_name);
-        strncpy(buffer, unmunged, buflen);
-        buffer[buflen-1] = '\0';
-        sfree(unmunged);
+        decode_session_filename(de->d_name, out);
 	sfree(fullpath);
-        return buffer;
+        return true;
     }
 
     sfree(fullpath);
-    return NULL;
+    return false;
 }
 
 void enum_settings_finish(settings_e *handle)

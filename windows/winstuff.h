@@ -544,6 +544,8 @@ HMODULE load_system32_dll(const char *libname);
 const char *win_strerror(int error);
 void restrict_process_acl(void);
 GLOBAL bool restricted_acl;
+void escape_registry_key(const char *in, strbuf *out);
+void unescape_registry_key(const char *in, strbuf *out);
 
 /* A few pieces of up-to-date Windows API definition needed for older
  * compilers. */

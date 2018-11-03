@@ -1268,32 +1268,20 @@ static int sessioncmp(const void *av, const void *bv)
 
 void get_sesslist(struct sesslist *list, bool allocate)
 {
-    char otherbuf[2048];
-    int buflen, bufsize, i;
-    char *p, *ret;
+    int i;
+    char *p;
     settings_e *handle;
 
     if (allocate) {
+        strbuf *sb = strbuf_new();
 
-	buflen = bufsize = 0;
-	list->buffer = NULL;
 	if ((handle = enum_settings_start()) != NULL) {
-	    do {
-		ret = enum_settings_next(handle, otherbuf, sizeof(otherbuf));
-		if (ret) {
-		    int len = strlen(otherbuf) + 1;
-		    if (bufsize < buflen + len) {
-			bufsize = buflen + len + 2048;
-			list->buffer = sresize(list->buffer, bufsize, char);
-		    }
-		    strcpy(list->buffer + buflen, otherbuf);
-		    buflen += strlen(list->buffer + buflen) + 1;
-		}
-	    } while (ret);
+            while (enum_settings_next(handle, sb))
+                put_byte(sb, '\0');
 	    enum_settings_finish(handle);
 	}
-	list->buffer = sresize(list->buffer, buflen + 1, char);
-	list->buffer[buflen] = '\0';
+        put_byte(sb, '\0');
+	list->buffer = strbuf_to_str(sb);
 
 	/*
 	 * Now set up the list of sessions. Note that "Default
