@@ -621,7 +621,7 @@ extern const struct BackendVtable serial_backend;
 void add_session_to_jumplist(const char * const sessionname);
 void remove_session_from_jumplist(const char * const sessionname);
 void clear_jumplist(void);
-bool set_explicit_app_user_model_id();
+bool set_explicit_app_user_model_id(void);
 
 /*
  * Exports from winnoise.c.

@@ -715,7 +715,7 @@ void remove_session_from_jumplist(const char * const sessionname)
 /* Set Explicit App User Model Id to fix removable media error with
    jump lists */
 
-bool set_explicit_app_user_model_id()
+bool set_explicit_app_user_model_id(void)
 {
   DECL_WINDOWS_FUNCTION(static, HRESULT, SetCurrentProcessExplicitAppUserModelID,
                         (PCWSTR));
