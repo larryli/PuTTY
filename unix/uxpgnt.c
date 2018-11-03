@@ -349,10 +349,6 @@ static char *askpass_gui(const char *prompt)
     char *passphrase;
     bool success;
 
-    /* in gtkask.c */
-    char *gtk_askpass_main(const char *display, const char *wintitle,
-                           const char *prompt, bool *success);
-
     passphrase = gtk_askpass_main(
         display, "Pageant passphrase prompt", prompt, &success);
     if (!success) {

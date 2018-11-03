@@ -132,8 +132,6 @@ void ser_setup_config_box(struct controlbox *b, bool midsession,
 
     if (!midsession) {
 	int i;
-        extern void config_protocolbuttons_handler(union control *, dlgparam *,
-						   void *, int);
 
 	/*
 	 * Add the serial back end to the protocols list at the

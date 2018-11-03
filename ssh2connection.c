@@ -325,13 +325,6 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
     ChanopenResult chanopen_result;
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
 
-    /* Cross-reference to ssh2transport.c to handle the common packets
-     * between login and connection: DISCONNECT, DEBUG and IGNORE. If
-     * we have an instance of ssh2transport below us, then those
-     * messages won't come here anyway, but they could if we're
-     * running in bare ssh2-connection mode. */
-    extern bool ssh2_common_filter_queue(PacketProtocolLayer *ppl);
-
     while (1) {
         if (ssh2_common_filter_queue(&s->ppl))
             return true;

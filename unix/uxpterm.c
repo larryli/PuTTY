@@ -43,8 +43,6 @@ char *make_default_wintitle(char *hostname)
 
 void setup(bool single)
 {
-    extern void pty_pre_init(void);    /* declared in pty.c */
-
     cmdline_tooltype = TOOLTYPE_NONNETWORK;
     default_protocol = -1;
 

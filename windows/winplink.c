@@ -530,7 +530,6 @@ int main(int argc, char **argv)
 	} else if (n == WAIT_OBJECT_0 + nhandles) {
 	    WSANETWORKEVENTS things;
 	    SOCKET socket;
-	    extern SOCKET first_socket(int *), next_socket(int *);
 	    int i, socketstate;
 
 	    /*

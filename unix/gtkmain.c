@@ -47,9 +47,6 @@
 static char *progname, **gtkargvstart;
 static int ngtkargs;
 
-extern char **pty_argv;	       /* declared in pty.c */
-extern bool use_pty_argv;
-
 static const char *app_name = "pterm";
 
 char *x_get_default(const char *key)
@@ -590,12 +587,9 @@ int main(int argc, char **argv)
 
     setlocale(LC_CTYPE, "");
 
-    {
-        /* Call the function in ux{putty,pterm}.c to do app-type
-         * specific setup */
-        extern void setup(bool);
-        setup(true);     /* true means we are a one-session process */
-    }
+    /* Call the function in ux{putty,pterm}.c to do app-type
+     * specific setup */
+    setup(true);         /* true means we are a one-session process */
 
     progname = argv[0];
 
@@ -626,8 +620,6 @@ int main(int argc, char **argv)
     block_signal(SIGPIPE, true);
 
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
-        extern const bool dup_check_launchable;
-
 	read_dupsession_data(conf, argv[1]);
 	/* Splatter this argument so it doesn't clutter a ps listing */
 	smemclr(argv[1], strlen(argv[1]));

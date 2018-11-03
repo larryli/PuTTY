@@ -189,7 +189,14 @@ enum MenuAction {
 };
 void app_menu_action(GtkFrontend *frontend, enum MenuAction);
 
-/* Things gtkdlg.c needs from pterm.c */
+/* Arrays of pixmap data used for GTK window icons. (main_icon is for
+ * the process's main window; cfg_icon is the modified icon used for
+ * its config box.) */
+extern const char *const *const main_icon[];
+extern const char *const *const cfg_icon[];
+extern const int n_main_icon, n_cfg_icon;
+
+/* Things gtkdlg.c needs from gtkwin.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 enum DialogSlot {
     DIALOG_SLOT_RECONFIGURE,
@@ -202,9 +209,12 @@ enum DialogSlot {
 GtkWidget *gtk_seat_get_window(Seat *seat);
 void register_dialog(Seat *seat, enum DialogSlot slot, GtkWidget *dialog);
 void unregister_dialog(Seat *seat, enum DialogSlot slot);
+void set_window_icon(GtkWidget *window, const char *const *const *icon,
+                     int n_icon);
+extern GdkAtom compound_text_atom;
 #endif
 
-/* Things pterm.c needs from gtkdlg.c */
+/* Things gtkwin.c needs from gtkdlg.c */
 #ifdef MAY_REFER_TO_GTK_IN_HEADERS
 GtkWidget *create_config_box(const char *title, Conf *conf,
                              bool midsession, int protcfginfo,
@@ -247,17 +257,51 @@ GtkWidget *create_message_box(
     post_dialog_fn_t after, void *afterctx);
 #endif
 
-/* Things pterm.c needs from {ptermm,uxputty}.c */
+/* Things gtkwin.c needs from {ptermm,uxputty}.c */
 char *make_default_wintitle(char *hostname);
 
-/* pterm.c needs this special function in xkeysym.c */
+/* gtkwin.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);
 
-/* Things uxstore.c needs from pterm.c */
+/* Things uxstore.c needs from gtkwin.c */
 char *x_get_default(const char *key);
 
-/* Things uxstore.c provides to pterm.c */
+/* Things uxstore.c provides to gtkwin.c */
 void provide_xrm_string(char *string);
+
+/* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
+ * early process setup that varies between applications (e.g.
+ * pty_pre_init or sk_init), and is passed a boolean by the caller
+ * indicating whether this is an OS X style multi-session monolithic
+ * process or an ordinary Unix one-shot. */
+void setup(bool single_session_in_this_process);
+
+/*
+ * Per-application constants that affect behaviour of shared modules.
+ */
+/* Do we need an Event Log menu item? (yes for PuTTY, no for pterm) */
+extern const bool use_event_log;
+/* Do we need a New Session menu item? (yes for PuTTY, no for pterm) */
+extern const bool new_session;
+/* Do we need a Saved Sessions menu item? (yes for PuTTY, no for pterm) */
+extern const bool saved_sessions;
+/* When we Duplicate Session, do we need to double-check that the Conf
+ * is in a launchable state? (no for pterm, because conf_launchable
+ * returns an irrelevant answer, since we'll force use of the pty
+ * backend which ignores all the relevant settings) */
+extern const bool dup_check_launchable;
+/* In the Duplicate Session serialised data, do we send/receive an
+ * argv array after the main Conf? (yes for pterm, no for PuTTY) */
+extern const bool use_pty_argv;
+
+/*
+ * OS X environment munging: this is the prefix we expect to find on
+ * environment variable names that were changed by osxlaunch.
+ * Extracted from the command line of the OS X pterm main binary, and
+ * used in uxpty.c to restore the original environment before
+ * launching its subprocess.
+ */
+extern char *pty_osx_envrestore_prefix;
 
 /* Things provided by uxcons.c */
 struct termios;
@@ -360,4 +404,25 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug);
 #define DEFAULT_GTK_FONT "server:fixed"
 #endif
 
-#endif
+/*
+ * uxpty.c.
+ */
+void pty_pre_init(void);    /* pty+utmp setup before dropping privilege */
+/* Pass in the argv[] for an instance of the pty backend created by
+ * the standard vtable constructor. Only called from (non-OSX) pterm,
+ * which will construct exactly one such instance, and initialises
+ * this from the command line. */
+extern char **pty_argv;
+
+/*
+ * gtkask.c.
+ */
+char *gtk_askpass_main(const char *display, const char *wintitle,
+                       const char *prompt, bool *success);
+
+/*
+ * uxsftpserver.c.
+ */
+extern const SftpServerVtable unix_live_sftpserver_vt;
+
+#endif /* PUTTY_UNIX_H */

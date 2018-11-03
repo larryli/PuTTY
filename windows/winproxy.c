@@ -12,9 +12,6 @@
 #include "network.h"
 #include "proxy.h"
 
-Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, bool overlapped);
-
 Socket *platform_new_connection(SockAddr *addr, const char *hostname,
                                 int port, bool privport,
                                 bool oobinline, bool nodelay, bool keepalive,

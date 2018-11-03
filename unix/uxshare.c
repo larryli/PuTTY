@@ -23,12 +23,6 @@
 #define SALT_FILENAME "salt"
 #define SALT_SIZE 64
 
-/*
- * Functions provided by uxnet.c to help connection sharing.
- */
-SockAddr *unix_sock_addr(const char *path);
-Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
-
 static char *make_parentdir_name(void)
 {
     char *username, *parent;

@@ -4,9 +4,6 @@
 
 #include "ssh.h"
 
-/* Forward reference from sshecc.c */
-struct ec_point *ecp_mul(const struct ec_point *a, const Bignum b);
-
 int ec_generate(struct ec_key *key, int bits, progfn_t pfn,
                 void *pfnparam)
 {

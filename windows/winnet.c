@@ -839,8 +839,6 @@ static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static const char *sk_net_socket_error(Socket *s);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
 
-extern char *do_select(SOCKET skt, bool startup);
-
 static const SocketVtable NetSocket_sockvt = {
     sk_net_plug,
     sk_net_close,
@@ -1790,7 +1788,7 @@ SOCKET next_socket(int *state)
     return s ? s->s : INVALID_SOCKET;
 }
 
-extern bool socket_writable(SOCKET skt)
+bool socket_writable(SOCKET skt)
 {
     NetSocket *s = find234(sktree, (void *)skt, cmpforsearch);
 

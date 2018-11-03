@@ -15,9 +15,6 @@
 
 #include "winsecur.h"
 
-Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
-                           Plug *plug, bool overlapped);
-
 typedef struct NamedPipeServerSocket {
     /* Parameters for (repeated) creation of named pipe objects */
     PSECURITY_DESCRIPTOR psd;
@@ -119,12 +116,6 @@ static Socket *named_pipe_accept(accept_ctx_t ctx, Plug *plug)
 
     return make_handle_socket(conn, conn, NULL, plug, true);
 }
-
-/*
- * Dummy SockAddr *type which just holds a named pipe address. Only
- * used for calling plug_log from named_pipe_accept_loop() here.
- */
-SockAddr *sk_namedpipe_addr(const char *pipename);
 
 static void named_pipe_accept_loop(NamedPipeServerSocket *ps,
                                    bool got_one_already)

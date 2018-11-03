@@ -235,13 +235,16 @@ void quit_help(HWND hwnd);
 /*
  * The terminal and logging context are notionally local to the
  * Windows front end, but they must be shared between window.c and
- * windlg.c. Likewise the Seat structure for the Windows GUI.
+ * windlg.c. Likewise the Seat structure for the Windows GUI, and the
+ * Conf for the main session..
  */
 GLOBAL Terminal *term;
 GLOBAL LogContext *logctx;
+GLOBAL Conf *conf;
 
 /*
- * GUI seat methods in windlg.c.
+ * GUI seat methods in windlg.c, so that the vtable definition in
+ * window.c can refer to them.
  */
 int win_seat_verify_ssh_host_key(
     Seat *seat, const char *host, int port,
@@ -253,6 +256,12 @@ int win_seat_confirm_weak_crypto_primitive(
 int win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx);
+
+/*
+ * The Windows GUI seat object itself, so that its methods can be
+ * called outside window.c.
+ */
+extern Seat *const win_seat;
 
 /*
  * Windows-specific clipboard helper function shared with windlg.c,
@@ -303,7 +312,17 @@ void write_aclip(int clipboard, char *, int, bool);
 /*
  * Exports from winnet.c.
  */
-extern void select_result(WPARAM, LPARAM);
+/* Report an event notification from WSA*Select */
+void select_result(WPARAM, LPARAM);
+/* Enumerate all currently live OS-level SOCKETs */
+SOCKET first_socket(int *);
+SOCKET next_socket(int *);
+/* Ask winnet.c whether we currently want to try to write to a SOCKET */
+bool socket_writable(SOCKET skt);
+/* Force a refresh of the SOCKET list by re-calling do_select for each one */
+void socket_reselect_all(void);
+/* Make a SockAddr which just holds a named pipe address. */
+SockAddr *sk_namedpipe_addr(const char *pipename);
 
 /*
  * winnet.c dynamically loads WinSock 2 or WinSock 1 depending on
@@ -331,9 +350,19 @@ DECL_WINDOWS_FUNCTION(GLOBAL, int, select,
 		       fd_set FAR *, const struct timeval FAR *));
 #endif
 
-extern bool socket_writable(SOCKET skt);
+/*
+ * Provided by each client of winnet.c, and called by winnet.c to turn
+ * on or off WSA*Select for a given socket.
+ */
+char *do_select(SOCKET skt, bool startup);
 
-extern void socket_reselect_all(void);
+/*
+ * Network-subsystem-related functions provided in other Windows modules.
+ */
+Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
+                           Plug *plug, bool overlapped); /* winhsock */
+Socket *new_named_pipe_client(const char *pipename, Plug *plug); /* winnpc */
+Socket *new_named_pipe_listener(const char *pipename, Plug *plug); /* winnps */
 
 /*
  * Exports from winctrls.c.

@@ -3189,15 +3189,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     dp->retval = -1;
     dp->window = window;
 
-    {
-	/* in gtkwin.c */
-	extern void set_window_icon(GtkWidget *window,
-				    const char *const *const *icon,
-				    int n_icon);
-	extern const char *const *const cfg_icon[];
-	extern const int n_cfg_icon;
-	set_window_icon(window, cfg_icon, n_cfg_icon);
-    }
+    set_window_icon(window, cfg_icon, n_cfg_icon);
 
 #if !GTK_CHECK_VERSION(2,0,0)
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(treescroll),
@@ -3860,8 +3852,6 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
 
         if (gtk_selection_owner_set(es->window, GDK_SELECTION_PRIMARY,
                                     GDK_CURRENT_TIME)) {
-            extern GdkAtom compound_text_atom;
-
             gtk_selection_add_target(es->window, GDK_SELECTION_PRIMARY,
                                      GDK_SELECTION_TYPE_STRING, 1);
             gtk_selection_add_target(es->window, GDK_SELECTION_PRIMARY,

@@ -107,8 +107,6 @@ void session_window_closed(void) {}
 void window_setup_error(const char *errmsg) {}
 #else /* GTK_CHECK_VERSION(3,0,0) */
 
-extern const bool use_event_log;
-
 static void startup(GApplication *app, gpointer user_data)
 {
     GMenu *menubar, *menu, *section;
@@ -216,7 +214,6 @@ GtkWidget *make_gtk_toplevel_window(GtkFrontend *frontend)
 
 void launch_duplicate_session(Conf *conf)
 {
-    extern const bool dup_check_launchable;
     assert(!dup_check_launchable || conf_launchable(conf));
     g_application_hold(G_APPLICATION(app));
     new_session_window(conf_copy(conf), NULL);
@@ -315,15 +312,11 @@ int main(int argc, char **argv)
 {
     int status;
 
-    {
-        /* Call the function in ux{putty,pterm}.c to do app-type
-         * specific setup */
-        extern void setup(bool);
-        setup(false);     /* false means we are not a one-session process */
-    }
+    /* Call the function in ux{putty,pterm}.c to do app-type
+     * specific setup */
+    setup(false);     /* false means we are not a one-session process */
 
     if (argc > 1) {
-        extern char *pty_osx_envrestore_prefix;
         pty_osx_envrestore_prefix = argv[--argc];
     }
 

@@ -5468,11 +5468,7 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
         );
 
-    {
-	extern const char *const *const main_icon[];
-	extern const int n_main_icon;
-	set_window_icon(inst->window, main_icon, n_main_icon);
-    }
+    set_window_icon(inst->window, main_icon, n_main_icon);
 
     gtk_widget_show(inst->window);
 
@@ -5484,7 +5480,6 @@ void new_session_window(Conf *conf, const char *geometry_string)
     {
 	GtkWidget *menuitem;
 	char *s;
-	extern const bool use_event_log, new_session, saved_sessions;
 
 	inst->menu = gtk_menu_new();
 

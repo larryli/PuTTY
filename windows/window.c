@@ -152,8 +152,6 @@ struct wm_netevent_params {
     LPARAM lParam;
 };
 
-Conf *conf;			       /* exported to windlg.c */
-
 static void conf_cache_data(void);
 int cursor_type;
 int vtmode;
@@ -349,7 +347,8 @@ static const SeatVtable win_seat_vt = {
     nullseat_get_windowid,
     win_seat_get_window_pixel_size,
 };
-Seat win_seat[1] = {{ &win_seat_vt }};
+static Seat win_seat_impl = { &win_seat_vt };
+Seat *const win_seat = &win_seat_impl;
 
 static void start_backend(void)
 {

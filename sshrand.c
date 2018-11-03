@@ -9,9 +9,6 @@
 /* Collect environmental noise every 5 minutes */
 #define NOISE_REGULAR_INTERVAL (5*60*TICKSPERSEC)
 
-void noise_get_heavy(void (*func) (void *, int));
-void noise_get_light(void (*func) (void *, int));
-
 /*
  * `pool' itself is a pool of random data which we actually use: we
  * return bytes from `pool', at position `poolpos', until `poolpos'

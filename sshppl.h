@@ -134,6 +134,13 @@ void ssh_ppl_user_output_string_and_free(PacketProtocolLayer *ppl, char *text);
 ptrlen ssh2_transport_get_session_id(PacketProtocolLayer *ssh2_transport_ptr);
 void ssh2_transport_notify_auth_done(PacketProtocolLayer *ssh2_transport_ptr);
 
+/* Shared method between ssh2 layers (defined in ssh2transport.c) to
+ * handle the common packets between login and connection: DISCONNECT,
+ * DEBUG and IGNORE. Those messages are handled by the ssh2transport
+ * layer if we have one, but in bare ssh2-connection mode they have to
+ * be handled by ssh2connection. */
+bool ssh2_common_filter_queue(PacketProtocolLayer *ppl);
+
 /* Methods for ssh1login to pass protocol flags to ssh1connection */
 void ssh1_connection_set_protoflags(
     PacketProtocolLayer *ppl, int local, int remote);

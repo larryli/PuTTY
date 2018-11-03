@@ -1258,7 +1258,6 @@ bool strendswith(const char *s, const char *t)
 char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
-    extern const char commitid[];      /* in commitid.c */
 
     strbuf_catf(buf, "Build platform: %d-bit %s",
                 (int)(CHAR_BIT * sizeof(void *)),

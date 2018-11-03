@@ -355,8 +355,6 @@ static bool longoptarg(const char *arg, const char *expected,
     return false;
 }
 
-extern const SftpServerVtable unix_live_sftpserver_vt;
-
 int main(int argc, char **argv)
 {
     int *fdlist;

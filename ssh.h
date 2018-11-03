@@ -185,6 +185,12 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
                              int protomajor, int protominor,
                              const void *initial_data, int initial_len);
 
+/* Per-application overrides for what roles we can take in connection
+ * sharing, regardless of user configuration (e.g. pscp will never be
+ * an upstream) */
+extern const bool share_can_be_downstream;
+extern const bool share_can_be_upstream;
+
 struct X11Display;
 struct X11FakeAuth;
 
@@ -418,6 +424,8 @@ struct ec_point {
     bool infinity;
 };
 
+/* A couple of ECC functions exported for use outside sshecc.c */
+struct ec_point *ecp_mul(const struct ec_point *a, const Bignum b);
 void ec_point_free(struct ec_point *point);
 
 /* Weierstrass form curve */

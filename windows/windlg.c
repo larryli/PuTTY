@@ -49,8 +49,6 @@ static char *events_initial[LOGEVENT_INITIAL_MAX];
 static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
-extern Conf *conf;		       /* defined in window.c */
-
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
 
 void force_normal(HWND hwnd)
@@ -799,7 +797,6 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
 static void win_gui_logging_error(LogPolicy *lp, const char *event)
 {
-    extern Seat win_seat[1];
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
     seat_stderr(win_seat, event, strlen(event));

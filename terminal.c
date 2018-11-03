@@ -1051,7 +1051,6 @@ static void null_line_error(Terminal *term, int y, int lineno,
                             tree234 *whichtree, int treeindex,
                             const char *varname)
 {
-    extern const char commitid[]; /* in version.c */
     modalfatalbox("%s==NULL in terminal.c\n"
                   "lineno=%d y=%d w=%d h=%d\n"
                   "count(scrollback=%p)=%d\n"

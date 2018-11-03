@@ -50,8 +50,6 @@
 
 #define APPNAME "Pageant"
 
-extern const char ver[];
-
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;

@@ -535,7 +535,6 @@ int do_eventsel_loop(HANDLE other_event)
     } else if (netindex >= 0 && n == WAIT_OBJECT_0 + netindex) {
 	WSANETWORKEVENTS things;
 	SOCKET socket;
-	extern SOCKET first_socket(int *), next_socket(int *);
 	int i, socketstate;
 
 	/*

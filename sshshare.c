@@ -1968,11 +1968,6 @@ static int share_listen_accepting(Plug *plug,
     return 0;
 }
 
-/* Per-application overrides for what roles we can take (e.g. pscp
- * will never be an upstream) */
-extern const bool share_can_be_downstream;
-extern const bool share_can_be_upstream;
-
 /*
  * Decide on the string used to identify the connection point between
  * upstream and downstream (be it a Windows named pipe or a
