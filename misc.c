@@ -991,7 +991,7 @@ void debug_printf(const char *fmt, ...)
 }
 
 
-void debug_memdump(const void *buf, int len, int L)
+void debug_memdump(const void *buf, int len, bool L)
 {
     int i;
     const unsigned char *p = buf;
