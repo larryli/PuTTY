@@ -181,6 +181,7 @@ struct GtkFrontend {
 #ifdef OSX_META_KEY_CONFIG
     int system_mod_mask;
 #endif
+    bool send_raw_mouse;
     unifont_drawctx uctx;
 
     Seat seat;
@@ -204,8 +205,6 @@ static void cache_conf_values(GtkFrontend *inst)
     inst->meta_mod_mask = GDK_MOD1_MASK;
 #endif
 }
-
-static bool send_raw_mouse;
 
 static void start_backend(GtkFrontend *inst);
 static void exit_callback(void *vinst);
@@ -665,7 +664,7 @@ static void update_mouseptr(GtkFrontend *inst)
 	if (!inst->mouseptr_visible) {
 	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->blankcursor);
-	} else if (send_raw_mouse) {
+	} else if (inst->send_raw_mouse) {
 	    gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->rawcursor);
 	} else {
@@ -2259,9 +2258,9 @@ gboolean scroll_internal(GtkFrontend *inst, gdouble delta, guint state,
     x = (ex - inst->window_border) / inst->font_width;
     y = (ey - inst->window_border) / inst->font_height;
 
-    raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_bool(inst->conf,
-                                                   CONF_mouse_override));
+    raw_mouse_mode = (inst->send_raw_mouse &&
+                      !(shift && conf_get_bool(inst->conf,
+                                               CONF_mouse_override)));
 
     inst->cumulative_scroll += delta * SCROLL_INCREMENT_LINES;
 
@@ -2311,9 +2310,9 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     ctrl = event->state & GDK_CONTROL_MASK;
     alt = event->state & inst->meta_mod_mask;
 
-    raw_mouse_mode =
-        send_raw_mouse && !(shift && conf_get_bool(inst->conf,
-                                                   CONF_mouse_override));
+    raw_mouse_mode = (inst->send_raw_mouse &&
+                      !(shift && conf_get_bool(inst->conf,
+                                               CONF_mouse_override)));
 
     if (!raw_mouse_mode) {
         if (event->button == 4 && event->type == GDK_BUTTON_PRESS) {
@@ -2607,7 +2606,7 @@ static void gtkwin_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     activate = activate && !conf_get_bool(inst->conf, CONF_no_mouse_rep);
-    send_raw_mouse = activate;
+    inst->send_raw_mouse = activate;
     update_mouseptr(inst);
 }
 
