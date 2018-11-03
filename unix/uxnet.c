@@ -1268,7 +1268,7 @@ static void net_select_result(int fd, int event)
     int ret;
     char buf[20480];		       /* nice big buffer for plenty of speed */
     NetSocket *s;
-    bool atmark;
+    bool atmark = true;
 
     /* Find the Socket structure */
     s = find234(sktree, &fd, cmpforsearch);
