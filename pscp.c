@@ -43,7 +43,7 @@ static bool using_sftp = false;
 static bool uploading = false;
 
 static Backend *backend;
-static Conf *conf;
+Conf *conf;
 bool sent_eof = false;
 
 static void source(const char *src);

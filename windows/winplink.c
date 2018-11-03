@@ -38,7 +38,7 @@ DWORD orig_console_mode;
 WSAEVENT netevent;
 
 static Backend *backend;
-static Conf *conf;
+Conf *conf;
 
 bool term_ldisc(Terminal *term, int mode)
 {

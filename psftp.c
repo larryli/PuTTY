@@ -34,7 +34,7 @@ static void do_sftp_cleanup(void);
 
 char *pwd, *homedir;
 static Backend *backend;
-static Conf *conf;
+Conf *conf;
 bool sent_eof = false;
 
 /* ------------------------------------------------------------
