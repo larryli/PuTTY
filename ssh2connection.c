@@ -1611,7 +1611,8 @@ static void ssh2_throttle_all_channels(ConnectionLayer *cl, bool throttled)
     s->all_channels_throttled = throttled;
 
     for (i = 0; NULL != (c = index234(s->channels, i)); i++)
-        ssh2_channel_check_throttle(c);
+        if (!c->sharectx)
+            ssh2_channel_check_throttle(c);
 }
 
 static bool ssh2_ldisc_option(ConnectionLayer *cl, int option)
