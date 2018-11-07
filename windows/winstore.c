@@ -454,7 +454,7 @@ void store_host_key(const char *hostname, int port,
 	RegCloseKey(rkey);
     } /* else key does not exist in registry */
 
-    sfree(regname);
+    strbuf_free(regname);
 }
 
 /*
