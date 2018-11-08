@@ -357,11 +357,12 @@ as well!
 source archive saying this, but many people don't seem to read it,
 so it's worth repeating here.)
 
-\H{udp-ssh-coroutines} Coroutines in \cw{ssh.c}
+\H{udp-ssh-coroutines} Coroutines in the SSH code
 
-Large parts of the code in \cw{ssh.c} are structured using a set of
-macros that implement (something close to) Donald Knuth's
-\q{coroutines} concept in C.
+Large parts of the code in the various SSH modules (in fact most of
+the protocol layers) are structured using a set of macros that
+implement (something close to) Donald Knuth's \q{coroutines} concept
+in C.
 
 Essentially, the purpose of these macros are to arrange that a
 function can call \cw{crReturn()} to return to its caller, and the
@@ -370,15 +371,30 @@ next time it is called control will resume from just after that
 
 This means that any local (automatic) variables declared in such a
 function will be corrupted every time you call \cw{crReturn}. If you
-need a variable to persist for longer than that, you \e{must} make
-it a field in one of the persistent state structures: either the
-local state structures \c{s} or \c{st} in each function, or the
-backend-wide structure \c{ssh}.
+need a variable to persist for longer than that, you \e{must} make it
+a field in some appropriate structure containing the persistent state
+of the coroutine \dash typically the main state structure for an SSH
+protocol layer.
 
 See
 \W{https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html}\c{https://www.chiark.greenend.org.uk/~sgtatham/coroutines.html}
 for a more in-depth discussion of what these macros are for and how
 they work.
+
+Another caveat: most of these coroutines are not \e{guaranteed} to run
+to completion, because the SSH connection (or whatever) that they're
+part of might be interrupted at any time by an unexpected network
+event or user action. So whenever a coroutine-managed variable refers
+to a resource that needs releasing, you should also ensure that the
+cleanup function for its containing state structure can reliably
+release it even if the coroutine is aborted at an arbitrary point.
+
+For example, if an SSH packet protocol layer has to have a field that
+sometimes points to a piece of allocated memory, then you should
+ensure that when you free that memory you reset the pointer field to
+\cw{NULL}. Then, no matter when the protocol layer's cleanup function
+is called, it can reliably free the memory if there is any, and not
+crash if there isn't.
 
 \H{udp-compile-once} Single compilation of each source file
 
