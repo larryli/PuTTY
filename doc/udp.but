@@ -33,22 +33,67 @@ All the modules in the main source directory - notably \e{all} of
 the code for the various back ends - are platform-generic. We want
 to keep them that way.
 
-This also means you should stick to what you are guaranteed by
-ANSI/ISO C (that is, the original C89/C90 standard, not C99). Try
-not to make assumptions about the precise size of basic types such
-as \c{int} and \c{long int}; don't use pointer casts to do
-endianness-dependent operations, and so on.
+This also means you should stick to the C semantics guaranteed by the
+C standard: try not to make assumptions about the precise size of
+basic types such as \c{int} and \c{long int}; don't use pointer casts
+to do endianness-dependent operations, and so on.
 
-(There are one or two aspects of ANSI C portability which we
-\e{don't} care about. In particular, we expect PuTTY to be compiled
-on 32-bit architectures \e{or bigger}; so it's safe to assume that
-\c{int} is at least 32 bits wide, not just the 16 you are guaranteed
-by ANSI C.  Similarly, we assume that the execution character
-encoding is a superset of the printable characters of ASCII, though
-we don't assume the numeric values of control characters,
-particularly \cw{'\\n'} and \cw{'\\r'}. Also, the X forwarding code
-assumes that \c{time_t} has the Unix format and semantics, i.e. an
-integer giving the number of seconds since 1970.)
+(Even \e{within} a platform front end you should still be careful of
+some of these portability issues. The Windows front end compiles on
+both 32- and 64-bit x86 and also Arm.)
+
+Our current choice of C standards version is C99: you can assume that
+C99 features are available (in particular \cw{<stdint.h>},
+\cw{<stdbool.h>} and \c{inline}), but you shouldn't use things that
+are new in C11 (such as \cw{<uchar.h>} or \cw{_Generic}).
+
+Here are a few portability assumptions that we \e{do} currently allow
+(because we'd already have to thoroughly vet the existing code if they
+ever needed to change, and it doesn't seem worth doing that unless we
+really have to):
+
+\b You can assume \c{int} is \e{at least} 32 bits wide. (We've never
+tried to port PuTTY to a platform with 16-bit \cw{int}, and it doesn't
+look likely to be necessary in future.)
+
+\b Similarly, you can assume \c{char} is exactly 8 bits. (Exceptions
+to that are even less likely to be relevant to us than short
+\cw{int}.)
+
+\b You can assume that using \c{memset} to write zero bytes over a
+whole structure will have the effect of setting all its pointer fields
+to \cw{NULL}. (The standard itself guarantees this for \e{integer}
+fields, but not for pointers.)
+
+\b You can assume that \c{time_t} has POSIX semantics, i.e. that it
+represents an integer number of non-leap seconds since 1970-01-01
+00:00:00 UTC. (Times in this format are used in X authorisation, but
+we could work around that by carefully distinguishing local \c{time_t}
+from time values used in the wire protocol; but these semantics of
+\c{time_t} are also baked into the shared library API used by the
+GSSAPI authentication code, which would be much harder to change.)
+
+\b You can assume that the execution character encoding is a superset
+of the printable characters of ASCII. (In particular, it's fine to do
+arithmetic on a \c{char} value representing a Latin alphabetic
+character, without bothering to allow for EBCDIC or other
+non-consecutive encodings of the alphabet.)
+
+On the other hand, here are some particular things \e{not} to assume:
+
+\b Don't assume anything about the \e{signedness} of \c{char}. In
+particular, you \e{must} cast \c{char} values to \c{unsigned char}
+before passing them to any \cw{<ctype.h>} function (because those
+expect a non-negative character value, or \cw{EOF}). If you need a
+particular signedness, explicitly specify \c{signed char} or
+\c{unsigned char}, or use C99 \cw{int8_t} or \cw{uint8_t}.
+
+\b From past experience with MacOS, we're still a bit nervous about
+\cw{'\\n'} and \cw{'\\r'} potentially having unusual meanings on a
+given platform. So it's fine to say \c{\\n} in a string you're passing
+to \c{printf}, but in any context where those characters appear in a
+standardised wire protocol or a binary file format, they should be
+spelled \cw{'\\012'} and \cw{'\\015'} respectively.
 
 \H{udp-multi-backend} Multiple backends treated equally
 
