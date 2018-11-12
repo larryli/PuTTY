@@ -386,9 +386,9 @@ static void mainchan_send_eof(Channel *chan)
          */
         sshfwd_write_eof(mc->sc);
         ppl_logevent(("Sent EOF message"));
+        mc->eof_sent = true;
+        ssh_set_wants_user_input(mc->cl, false); /* stop reading from stdin */
     }
-    mc->eof_sent = true;
-    ssh_set_wants_user_input(mc->cl, false); /* now stop reading from stdin */
 }
 
 static void mainchan_set_input_wanted(Channel *chan, bool wanted)
