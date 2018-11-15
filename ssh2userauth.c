@@ -1015,11 +1015,44 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                     if (s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED) {
                         crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
-                        if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_TOKEN) {
+
+                        if (pktin->type == SSH2_MSG_USERAUTH_GSSAPI_ERRTOK) {
+                            /*
+                             * Per RFC 4462 section 3.9, this packet
+                             * type MUST immediately precede an
+                             * ordinary USERAUTH_FAILURE.
+                             *
+                             * We currently don't know how to do
+                             * anything with the GSSAPI error token
+                             * contained in this packet, so we ignore
+                             * it and just wait for the following
+                             * FAILURE.
+                             */
+                            crMaybeWaitUntilV(
+                                (pktin = ssh2_userauth_pop(s)) != NULL);
+                            if (pktin->type != SSH2_MSG_USERAUTH_FAILURE) {
+                                ssh_proto_error(
+                                    s->ppl.ssh, "Received unexpected packet "
+                                    "after SSH_MSG_USERAUTH_GSSAPI_ERRTOK "
+                                    "(expected SSH_MSG_USERAUTH_FAILURE): "
+                                    "type %d (%s)", pktin->type,
+                                    ssh2_pkt_type(s->ppl.bpp->pls->kctx,
+                                                  s->ppl.bpp->pls->actx,
+                                                  pktin->type));
+                                return;
+                            }
+                        }
+
+                        if (pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
+                            ppl_logevent(("GSSAPI authentication failed"));
+                            s->gss_stat = SSH_GSS_FAILURE;
+                            pq_push_front(s->ppl.in_pq, pktin);
+                            break;
+                        } else if (pktin->type !=
+                                   SSH2_MSG_USERAUTH_GSSAPI_TOKEN) {
                             ppl_logevent(("GSSAPI authentication -"
                                           " bad server response"));
                             s->gss_stat = SSH_GSS_FAILURE;
-                            pq_push_front(s->ppl.in_pq, pktin);
                             break;
                         }
                         data = get_string(pktin);
