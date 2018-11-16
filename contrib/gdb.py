@@ -64,10 +64,9 @@ will dump the range of memory described by those two variables."""
         try:
             start, size = int(expr.address), expr.type.sizeof
         except gdb.error as e:
-            sys.stderr.write(str(e))
-            return
+            raise gdb.GdbError(str(e))
         except (TypeError, AttributeError):
-            sys.stderr.write("expression must identify an object in memory")
+            raise gdb.GdbError("expression must identify an object in memory")
             return
 
         width = 16
@@ -94,3 +93,176 @@ will dump the range of memory described by those two variables."""
             sys.stdout.write("".join(dumpline) + "\n")
 
 MemDumpCommand()
+
+class ContainerOf(gdb.Function):
+    """Implement the container_of macro from PuTTY's defs.h.
+
+    Arguments are an object or pointer to object; a type to convert it
+    to; and, optionally the name of the structure member in the
+    destination type that the pointer points to. (If the member name
+    is not provided, then the default is whichever member of the
+    destination structure type has the same type as the input object,
+    provided there's only one.)
+
+    Due to limitations of GDB's convenience function syntax, the type
+    and member names must be provided as strings.
+
+    """
+
+    def __init__(self):
+        super(ContainerOf, self).__init__("container_of")
+
+    def match_type(self, obj, typ):
+        if obj.type == typ:
+            return obj
+
+        try:
+            ref = obj.referenced_value()
+            if ref.type == typ:
+                return ref
+        except gdb.error:
+            pass
+
+        return None
+
+    def invoke(self, obj, dest_type_name_val, member_name_val=None):
+        try:
+            dest_type_name = dest_type_name_val.string()
+        except gdb.error:
+            raise gdb.GdbError("destination type name must be a string")
+
+        try:
+            dest_type = gdb.lookup_type(dest_type_name)
+        except gdb.error:
+            raise gdb.GdbError("no such type '{dt}'".format(dt=dest_type_name))
+
+        if member_name_val is not None:
+            try:
+                member_name = member_name_val.string()
+            except gdb.error:
+                raise gdb.GdbError("member name must be a string")
+
+            for field in dest_type.fields():
+                if field.name == member_name:
+                    break
+            else:
+                raise gdb.GdbError(
+                    "type '{dt}' has no member called '{memb}'"
+                    .format(dt=dest_type_name, memb=member_name))
+
+            match_obj = self.match_type(obj, field.type)
+        else:
+            matches = []
+
+            for field in dest_type.fields():
+                this_match_obj = self.match_type(obj, field.type)
+                if this_match_obj is not None:
+                    match_obj = this_match_obj
+                    matches.append(field)
+
+            if len(matches) == 0:
+                raise gdb.GdbError(
+                    "type '{dt}' has no member matching type '{ot}'"
+                    .format(dt=dest_type_name, ot=obj.type))
+
+            if len(matches) > 1:
+                raise gdb.GdbError(
+                    "type '{dt}' has multiple members matching type '{ot}'"
+                    " ({memberlist})"
+                    .format(dt=dest_type_name, ot=obj.type,
+                            memberlist=", ".join(f.name for f in matches)))
+
+            field = matches[0]
+
+        if field.bitpos % 8 != 0:
+            raise gdb.GdbError(
+                "offset of field '{memb}' is a fractional number of bytes"
+                .format(dt=dest_type_name, memb=member_name))
+        offset = field.bitpos // 8
+
+        if match_obj.type != field.type:
+            raise gdb.GdbError(
+                "value to convert does not have type '{ft}'"
+                .format(ft=field.type))
+
+        try:
+            addr = int(match_obj.address)
+        except gdb.error:
+            raise gdb.GdbError("cannot take address of value to convert")
+
+        return gdb.Value(addr - offset).cast(dest_type.pointer())
+
+ContainerOf()
+
+class List234(gdb.Function):
+    """List the elements currently stored in a tree234.
+
+    Arguments are a tree234, and optionally a value type. If no value
+    type is given, the result is a list of the raw void * pointers
+    stored in the tree. Othewise, each one is cast to a pointer to the
+    value type and dereferenced.
+
+    Due to limitations of GDB's convenience function syntax, the value
+    type must be provided as a string.
+
+    """
+
+    def __init__(self):
+        super(List234, self).__init__("list234")
+
+    def add_elements(self, node, destlist):
+        kids = node["kids"]
+        elems = node["elems"]
+        for i in range(4):
+            if int(kids[i]) != 0:
+                add_elements(self, kids[i].dereference(), destlist)
+            if i < 3 and int(elems[i]) != 0:
+                destlist.append(elems[i])
+
+    def invoke(self, tree, value_type_name_val=None):
+        if value_type_name_val is not None:
+            try:
+                value_type_name = value_type_name_val.string()
+            except gdb.error:
+                raise gdb.GdbError("value type name must be a string")
+
+            try:
+                value_type = gdb.lookup_type(value_type_name)
+            except gdb.error:
+                raise gdb.GdbError("no such type '{dt}'"
+                                   .format(dt=value_type_name))
+        else:
+            value_type = None
+
+        try:
+            tree = tree.dereference()
+        except gdb.error:
+            pass
+
+        if tree.type == gdb.lookup_type("tree234"):
+            tree = tree["root"].dereference()
+
+        if tree.type != gdb.lookup_type("node234"):
+            raise gdb.GdbError(
+                "input value is not a tree234")
+
+        if int(tree.address) == 0:
+            # If you try to return {} for the empty list, gdb gives
+            # the cryptic error "bad array bounds (0, -1)"! We return
+            # NULL as the best approximation to 'sorry, list is
+            # empty'.
+            return gdb.parse_and_eval("((void *)0)")
+
+        elems = []
+        self.add_elements(tree, elems)
+
+        if value_type is not None:
+            value_ptr_type_name = str(value_type.pointer())
+            elem_fmt = lambda p: "*({}){}".format(value_ptr_type_name, int(p))
+        else:
+            elem_fmt = lambda p: "(void *){}".format(int(p))
+
+        elems_str = "{" + ",".join(elem_fmt(elem) for elem in elems) + "}"
+        return gdb.parse_and_eval(elems_str)
+
+List234()
