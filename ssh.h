@@ -1086,6 +1086,7 @@ bool dh_is_gex(const struct ssh_kex *kex);
 struct dh_ctx;
 struct dh_ctx *dh_setup_group(const struct ssh_kex *kex);
 struct dh_ctx *dh_setup_gex(Bignum pval, Bignum gval);
+int dh_modulus_bit_size(const struct dh_ctx *ctx);
 void dh_cleanup(struct dh_ctx *);
 Bignum dh_create_e(struct dh_ctx *, int nbits);
 const char *dh_validate_f(struct dh_ctx *, Bignum f);

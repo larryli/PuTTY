@@ -210,6 +210,14 @@ struct dh_ctx *dh_setup_gex(Bignum pval, Bignum gval)
 }
 
 /*
+ * Return size of DH modulus p.
+ */
+int dh_modulus_bit_size(const struct dh_ctx *ctx)
+{
+    return bignum_bitcount(ctx->p);
+}
+
+/*
  * Clean up and free a context.
  */
 void dh_cleanup(struct dh_ctx *ctx)

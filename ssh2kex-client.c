@@ -87,17 +87,22 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             s->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
             s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
+
+            ppl_logevent(("Doing Diffie-Hellman key exchange using %d bit modulus and hash %s with a server supplied group",
+                          dh_modulus_bit_size(s->dh_ctx),
+                          s->kex_alg->hash->text_name));
         } else {
             s->ppl.bpp->pls->kctx = SSH2_PKTCTX_DHGROUP;
             s->dh_ctx = dh_setup_group(s->kex_alg);
             s->kex_init_value = SSH2_MSG_KEXDH_INIT;
             s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
-            ppl_logevent(("Using Diffie-Hellman with standard group \"%s\"",
+
+            ppl_logevent(("Doing Diffie-Hellman key exchange using %d bit modulus and hash %s with standard group \"%s\"",
+                          dh_modulus_bit_size(s->dh_ctx),
+                          s->kex_alg->hash->text_name,
                           s->kex_alg->groupname));
         }
 
-        ppl_logevent(("Doing Diffie-Hellman key exchange with hash %s",
-                      s->kex_alg->hash->text_name));
         /*
          * Now generate and send e for Diffie-Hellman.
          */
