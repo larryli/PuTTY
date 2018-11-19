@@ -447,7 +447,7 @@ Bignum *dss_gen_k(const char *id_string, Bignum modulus, Bignum private_key,
 }
 
 static void dss_sign(ssh_key *key, const void *data, int datalen,
-                     BinarySink *bs)
+                     unsigned flags, BinarySink *bs)
 {
     struct dss_key *dss = container_of(key, struct dss_key, sshk);
     Bignum k, gkp, hash, kinv, hxr, r, s;
@@ -504,4 +504,5 @@ const ssh_keyalg ssh_dss = {
     "ssh-dss",
     "dss",
     NULL,
+    0, /* no supported flags */
 };

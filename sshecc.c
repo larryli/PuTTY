@@ -2257,7 +2257,7 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
 }
 
 static void ecdsa_sign(ssh_key *key, const void *data, int datalen,
-                       BinarySink *bs)
+                       unsigned flags, BinarySink *bs)
 {
     struct ec_key *ec = container_of(key, struct ec_key, sshk);
     const struct ecsign_extra *extra =
@@ -2413,6 +2413,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     "ssh-ed25519",
     "ssh-ed25519",
     &sign_extra_ed25519,
+    0, /* no supported flags */
 };
 
 /* OID: 1.2.840.10045.3.1.7 (ansiX9p256r1) */
@@ -2441,6 +2442,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
     "ecdsa-sha2-nistp256",
     "ecdsa-sha2-nistp256",
     &sign_extra_nistp256,
+    0, /* no supported flags */
 };
 
 /* OID: 1.3.132.0.34 (secp384r1) */
@@ -2469,6 +2471,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
     "ecdsa-sha2-nistp384",
     "ecdsa-sha2-nistp384",
     &sign_extra_nistp384,
+    0, /* no supported flags */
 };
 
 /* OID: 1.3.132.0.35 (secp521r1) */
@@ -2497,6 +2500,7 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
     "ecdsa-sha2-nistp521",
     "ecdsa-sha2-nistp521",
     &sign_extra_nistp521,
+    0, /* no supported flags */
 };
 
 /* ----------------------------------------------------------------------

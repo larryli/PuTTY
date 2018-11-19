@@ -770,7 +770,8 @@ struct ssh_keyalg {
 
     /* Methods that operate on an existing ssh_key */
     void (*freekey) (ssh_key *key);
-    void (*sign) (ssh_key *key, const void *data, int datalen, BinarySink *);
+    void (*sign) (ssh_key *key, const void *data, int datalen,
+                  unsigned flags, BinarySink *);
     bool (*verify) (ssh_key *key, ptrlen sig, ptrlen data);
     void (*public_blob)(ssh_key *key, BinarySink *);
     void (*private_blob)(ssh_key *key, BinarySink *);
@@ -784,6 +785,7 @@ struct ssh_keyalg {
     const char *ssh_id;    /* string identifier in the SSH protocol */
     const char *cache_id;  /* identifier used in PuTTY's host key cache */
     const void *extra;     /* private to the public key methods */
+    const unsigned supported_flags;    /* signature-type flags we understand */
 };
 
 #define ssh_key_new_pub(alg, data) ((alg)->new_pub(alg, data))
@@ -791,7 +793,8 @@ struct ssh_keyalg {
 #define ssh_key_new_priv_openssh(alg, bs) ((alg)->new_priv_openssh(alg, bs))
 
 #define ssh_key_free(key) ((*(key))->freekey(key))
-#define ssh_key_sign(key, data, len, bs) ((*(key))->sign(key, data, len, bs))
+#define ssh_key_sign(key, data, len, flags, bs) \
+    ((*(key))->sign(key, data, len, flags, bs))
 #define ssh_key_verify(key, sig, data) ((*(key))->verify(key, sig, data))
 #define ssh_key_public_blob(key, bs) ((*(key))->public_blob(key, bs))
 #define ssh_key_private_blob(key, bs) ((*(key))->private_blob(key, bs))

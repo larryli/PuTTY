@@ -744,7 +744,7 @@ static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
 }
 
 static void rsa2_sign(ssh_key *key, const void *data, int datalen,
-                      BinarySink *bs)
+                      unsigned flags, BinarySink *bs)
 {
     struct RSAKey *rsa = container_of(key, struct RSAKey, sshk);
     unsigned char *bytes;
@@ -800,6 +800,7 @@ const ssh_keyalg ssh_rsa = {
     "ssh-rsa",
     "rsa2",
     NULL,
+    0, /* no supported flags */
 };
 
 struct RSAKey *ssh_rsakex_newkey(const void *data, int len)

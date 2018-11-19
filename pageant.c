@@ -323,7 +323,7 @@ void pageant_handle_msg(BinarySink *bs,
 	    struct ssh2_userkey *key;
             ptrlen keyblob, sigdata;
             strbuf *signature;
-            uint32_t flags;
+            uint32_t flags, supported_flags;
 
             plog(logctx, logfn, "request: SSH2_AGENTC_SIGN_REQUEST");
 
@@ -366,20 +366,22 @@ void pageant_handle_msg(BinarySink *bs,
             else
                 plog(logctx, logfn, "no signature flags");
 
-            if (flags) {
+            supported_flags = ssh_key_alg(key->key)->supported_flags;
+            if (flags & ~supported_flags) {
                 /*
                  * We MUST reject any message containing flags we
                  * don't understand.
                  */
                 char *msg = dupprintf(
-                    "unsupported flag bits 0x%08"PRIx32, flags);
+                    "unsupported flag bits 0x%08"PRIx32,
+                    flags & ~supported_flags);
                 pageant_failure_msg(bs, msg, logctx, logfn);
                 sfree(msg);
                 return;
             }
 
             signature = strbuf_new();
-            ssh_key_sign(key->key, sigdata.ptr, sigdata.len,
+            ssh_key_sign(key->key, sigdata.ptr, sigdata.len, flags,
                          BinarySink_UPCAST(signature));
 
             put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
