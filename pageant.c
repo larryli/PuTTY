@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "putty.h"
 #include "ssh.h"
@@ -322,11 +323,32 @@ void pageant_handle_msg(BinarySink *bs,
 	    struct ssh2_userkey *key;
             ptrlen keyblob, sigdata;
             strbuf *signature;
+            uint32_t flags;
 
             plog(logctx, logfn, "request: SSH2_AGENTC_SIGN_REQUEST");
 
             keyblob = get_string(msg);
             sigdata = get_string(msg);
+
+            if (get_err(msg)) {
+                pageant_failure_msg(bs, "unable to decode request",
+                                    logctx, logfn);
+                return;
+            }
+
+            /*
+             * Later versions of the agent protocol added a flags word
+             * on the end of the sign request. That hasn't always been
+             * there, so we don't complain if we don't find it.
+             *
+             * get_uint32 will default to returning zero if no data is
+             * available.
+             */
+            bool have_flags = false;
+            flags = get_uint32(msg);
+            if (!get_err(msg))
+                have_flags = true;
+
             if (logfn) {
                 char *fingerprint = ssh2_fingerprint_blob(
                     keyblob.ptr, keyblob.len);
@@ -336,6 +358,23 @@ void pageant_handle_msg(BinarySink *bs,
             key = find234(ssh2keys, &keyblob, cmpkeys_ssh2_asymm);
 	    if (!key) {
                 pageant_failure_msg(bs, "key not found", logctx, logfn);
+                return;
+            }
+
+            if (have_flags)
+                plog(logctx, logfn, "signature flags = 0x%08"PRIx32, flags);
+            else
+                plog(logctx, logfn, "no signature flags");
+
+            if (flags) {
+                /*
+                 * We MUST reject any message containing flags we
+                 * don't understand.
+                 */
+                char *msg = dupprintf(
+                    "unsupported flag bits 0x%08"PRIx32, flags);
+                pageant_failure_msg(bs, msg, logctx, logfn);
+                sfree(msg);
                 return;
             }
 
