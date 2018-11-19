@@ -676,12 +676,28 @@ static int rsa2_pubkey_bits(const ssh_keyalg *self, ptrlen pub)
  *    iso(1) identified-organization(3) oiw(14) secsig(3)
  *    algorithms(2) 26 }
  */
-static const unsigned char asn1_weird_stuff[] = {
+static const unsigned char sha1_asn1_prefix[] = {
     0x00, 0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2B,
     0x0E, 0x03, 0x02, 0x1A, 0x05, 0x00, 0x04, 0x14,
 };
 
-#define ASN1_LEN ( (int) sizeof(asn1_weird_stuff) )
+/*
+ * Two more similar pieces of ASN.1 used for signatures using SHA-256
+ * and SHA-512, in the same format but differing only in various
+ * length fields and OID.
+ */
+static const unsigned char sha256_asn1_prefix[] = {
+    0x00, 0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60,
+    0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
+    0x05, 0x00, 0x04, 0x20,
+};
+static const unsigned char sha512_asn1_prefix[] = {
+    0x00, 0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60,
+    0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
+    0x05, 0x00, 0x04, 0x40,
+};
+
+#define SHA1_ASN1_PREFIX_LEN sizeof(sha1_asn1_prefix)
 
 static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
 {
@@ -723,13 +739,13 @@ static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
     if (bignum_byte(out, bytes - 2) != 1)
 	toret = false;
     /* Most of the rest should be FF. */
-    for (i = bytes - 3; i >= 20 + ASN1_LEN; i--) {
+    for (i = bytes - 3; i >= 20 + SHA1_ASN1_PREFIX_LEN; i--) {
 	if (bignum_byte(out, i) != 0xFF)
 	    toret = false;
     }
-    /* Then we expect to see the asn1_weird_stuff. */
-    for (i = 20 + ASN1_LEN - 1, j = 0; i >= 20; i--, j++) {
-	if (bignum_byte(out, i) != asn1_weird_stuff[j])
+    /* Then we expect to see the sha1_asn1_prefix. */
+    for (i = 20 + SHA1_ASN1_PREFIX_LEN - 1, j = 0; i >= 20; i--, j++) {
+	if (bignum_byte(out, i) != sha1_asn1_prefix[j])
 	    toret = false;
     }
     /* Finally, we expect to see the SHA-1 hash of the signed data. */
@@ -749,22 +765,47 @@ static void rsa2_sign(ssh_key *key, const void *data, int datalen,
     struct RSAKey *rsa = container_of(key, struct RSAKey, sshk);
     unsigned char *bytes;
     int nbytes;
-    unsigned char hash[20];
+    unsigned char hash[64];
     Bignum in, out;
     int i, j;
+    const struct ssh_hashalg *halg;
+    ssh_hash *h;
+    const unsigned char *asn1_prefix;
+    unsigned asn1_prefix_size;
+    const char *sign_alg_name;
 
-    SHA_Simple(data, datalen, hash);
+    if (flags & SSH_AGENT_RSA_SHA2_256) {
+        halg = &ssh_sha256;
+        asn1_prefix = sha256_asn1_prefix;
+        asn1_prefix_size = sizeof(sha256_asn1_prefix);
+        sign_alg_name = "rsa-sha2-256";
+    } else if (flags & SSH_AGENT_RSA_SHA2_512) {
+        halg = &ssh_sha512;
+        asn1_prefix = sha512_asn1_prefix;
+        asn1_prefix_size = sizeof(sha512_asn1_prefix);
+        sign_alg_name = "rsa-sha2-512";
+    } else {
+        halg = &ssh_sha1;
+        asn1_prefix = sha1_asn1_prefix;
+        asn1_prefix_size = sizeof(sha1_asn1_prefix);
+        sign_alg_name = "ssh-rsa";
+    }
+
+    h = ssh_hash_new(halg);
+    put_data(h, data, datalen);
+    ssh_hash_final(h, hash);
 
     nbytes = (bignum_bitcount(rsa->modulus) - 1) / 8;
-    assert(1 <= nbytes - 20 - ASN1_LEN);
+    assert(1 <= nbytes - halg->hlen - asn1_prefix_size);
     bytes = snewn(nbytes, unsigned char);
 
     bytes[0] = 1;
-    for (i = 1; i < nbytes - 20 - ASN1_LEN; i++)
+    for (i = 1; i < nbytes - halg->hlen - asn1_prefix_size; i++)
 	bytes[i] = 0xFF;
-    for (i = nbytes - 20 - ASN1_LEN, j = 0; i < nbytes - 20; i++, j++)
-	bytes[i] = asn1_weird_stuff[j];
-    for (i = nbytes - 20, j = 0; i < nbytes; i++, j++)
+    for (i = nbytes - halg->hlen - asn1_prefix_size, j = 0;
+         i < nbytes - halg->hlen; i++, j++)
+	bytes[i] = asn1_prefix[j];
+    for (i = nbytes - halg->hlen, j = 0; i < nbytes; i++, j++)
 	bytes[i] = hash[j];
 
     in = bignum_from_bytes(bytes, nbytes);
@@ -773,7 +814,7 @@ static void rsa2_sign(ssh_key *key, const void *data, int datalen,
     out = rsa_privkey_op(in, rsa);
     freebn(in);
 
-    put_stringz(bs, "ssh-rsa");
+    put_stringz(bs, sign_alg_name);
     nbytes = (bignum_bitcount(out) + 7) / 8;
     put_uint32(bs, nbytes);
     for (i = 0; i < nbytes; i++)
@@ -800,7 +841,7 @@ const ssh_keyalg ssh_rsa = {
     "ssh-rsa",
     "rsa2",
     NULL,
-    0, /* no supported flags */
+    SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
 };
 
 struct RSAKey *ssh_rsakex_newkey(const void *data, int len)

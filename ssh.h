@@ -807,6 +807,12 @@ struct ssh_keyalg {
 #define ssh_key_ssh_id(key) ((*(key))->ssh_id)
 #define ssh_key_cache_id(key) ((*(key))->cache_id)
 
+/*
+ * Enumeration of signature flags from draft-miller-ssh-agent-02
+ */
+#define SSH_AGENT_RSA_SHA2_256 2
+#define SSH_AGENT_RSA_SHA2_512 4
+
 typedef struct ssh_compressor {
     const struct ssh_compression_alg *vt;
 } ssh_compressor;
