@@ -5,7 +5,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <inttypes.h>
 
 #include "putty.h"
 #include "ssh.h"

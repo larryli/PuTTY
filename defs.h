@@ -17,6 +17,7 @@
 
 #if defined _MSC_VER && _MSC_VER < 1800
 /* Work around lack of inttypes.h in older MSVC */
+#define PRIx32 "x"
 #define PRIu64 "I64u"
 #define SCNu64 "I64u"
 #else
