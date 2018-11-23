@@ -215,6 +215,8 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     strbuf_free(s->outgoing_kexinit);
     strbuf_free(s->incoming_kexinit);
     ssh_transient_hostkey_cache_free(s->thc);
+
+    expire_timer_context(s);
     sfree(s);
 }
 
