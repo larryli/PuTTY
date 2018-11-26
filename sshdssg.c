@@ -12,7 +12,7 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
     unsigned pfirst, qfirst;
     int progress;
 
-    key->sshk = &ssh_dss;
+    key->sshk.vt = &ssh_dss;
 
     /*
      * Set up the phase limits for the progress report. We do this

@@ -10,7 +10,7 @@ int ec_generate(struct ec_key *key, int bits, progfn_t pfn,
     struct ec_point *publicKey;
 
     if (!ec_nist_alg_and_curve_by_bits(bits, &key->publicKey.curve,
-                                       &key->sshk))
+                                       &key->sshk.vt))
         return 0;
 
     key->privateKey = bignum_random_in_range(One, key->publicKey.curve->w.n);
@@ -37,7 +37,7 @@ int ec_edgenerate(struct ec_key *key, int bits, progfn_t pfn,
     struct ec_point *publicKey;
 
     if (!ec_ed_alg_and_curve_by_bits(bits, &key->publicKey.curve,
-                                     &key->sshk))
+                                     &key->sshk.vt))
         return 0;
 
     {
