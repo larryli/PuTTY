@@ -271,7 +271,7 @@ SFTP     = sftp sftpcommon logging cmdline
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
-MISC     = misc marshal
+MISC     = misc marshal memory
 MISCNETCOMMON = timing callback MISC version tree234 CONF
 MISCNET  = MISCNETCOMMON be_misc settings proxy
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
@@ -337,13 +337,13 @@ puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes sshbn sshmd5 version
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
-	 + nogss GTKMAIN
+	 + nogss memory GTKMAIN
 putty    : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
-         + xpmpucfg GTKMAIN
+         + xpmpucfg memory GTKMAIN
 puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + uxstore uxsignal CHARSET uxputty NONSSH UXMISC xpmputty xpmpucfg
-	 + nogss GTKMAIN
+	 + nogss memory GTKMAIN
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11 noterm uxnogtk sessprep cmdline
@@ -361,18 +361,18 @@ psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes sshbn
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
-         + gtkask gtkmisc nullplug logging UXMISC uxagentsock
+         + gtkask gtkmisc nullplug logging UXMISC uxagentsock memory
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg
-         + nogss gtkapp nocmdline
+         + nogss gtkapp nocmdline memory
 puttyapp : [XT] GTKTERM uxmisc misc ldisc settings uxsel U_BE_ALL uxstore
          + uxsignal CHARSET uxputty NONSSH UXSSH UXMISC ux_x11 xpmputty
-         + xpmpucfg gtkapp nocmdline
+         + xpmpucfg gtkapp nocmdline memory
 osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
-	 + uxstore be_none uxnogtk
+	 + uxstore be_none uxnogtk memory
 testbn   : [UT] testbn sshbn MISC version CONF tree234 uxmisc uxnogtk
 testbn   : [C] testbn sshbn MISC version CONF tree234 winmisc LIBS
 
