@@ -375,6 +375,7 @@ fuzzterm : [UT] UXTERM CHARSET misc version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
 testbn   : [UT] testbn sshbn MISC version CONF tree234 uxmisc uxnogtk
 testbn   : [C] testbn sshbn MISC version CONF tree234 winmisc LIBS
+testzlib : [UT] testzlib sshzlib memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock

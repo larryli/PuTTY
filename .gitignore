@@ -43,6 +43,7 @@
 /unix/Pterm.app
 /fuzzterm
 /testbn
+/testzlib
 /cgtest
 /*.DSA
 /*.RSA
