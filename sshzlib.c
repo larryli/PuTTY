@@ -94,7 +94,7 @@ static int lz77_init(struct LZ77Context *ctx);
  * instead call literal() for everything.
  */
 static void lz77_compress(struct LZ77Context *ctx,
-			  const unsigned char *data, int len, bool compress);
+			  const unsigned char *data, int len);
 
 /*
  * Modifiable parameters.
@@ -199,7 +199,7 @@ static void lz77_advance(struct LZ77InternalContext *st,
 #define CHARAT(k) ( (k)<0 ? st->data[(st->winpos+k)&(WINSIZE-1)] : data[k] )
 
 static void lz77_compress(struct LZ77Context *ctx,
-			  const unsigned char *data, int len, bool compress)
+			  const unsigned char *data, int len)
 {
     struct LZ77InternalContext *st = ctx->ictx;
     int i, distance, off, nmatch, matchlen, advance;
@@ -238,8 +238,7 @@ static void lz77_compress(struct LZ77Context *ctx,
     deferchr = '\0';
     while (len > 0) {
 
-	/* Don't even look for a match, if we're not compressing. */
-	if (compress && len >= HASHCHARS) {
+	if (len >= HASHCHARS) {
 	    /*
 	     * Hash the next few characters.
 	     */
@@ -668,7 +667,7 @@ void zlib_compress_block(ssh_compressor *sc,
     /*
      * Do the compression.
      */
-    lz77_compress(&comp->ectx, block, len, true);
+    lz77_compress(&comp->ectx, block, len);
 
     /*
      * End the block (by transmitting code 256, which is
