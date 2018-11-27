@@ -833,12 +833,12 @@ struct ssh_compression_alg {
     const char *delayed_name;
     ssh_compressor *(*compress_new)(void);
     void (*compress_free)(ssh_compressor *);
-    void (*compress)(ssh_compressor *, unsigned char *block, int len,
+    void (*compress)(ssh_compressor *, const unsigned char *block, int len,
                      unsigned char **outblock, int *outlen,
                      int minlen);
     ssh_decompressor *(*decompress_new)(void);
     void (*decompress_free)(ssh_decompressor *);
-    bool (*decompress)(ssh_decompressor *, unsigned char *block, int len,
+    bool (*decompress)(ssh_decompressor *, const unsigned char *block, int len,
                        unsigned char **outblock, int *outlen);
     const char *text_name;
 };

@@ -39,13 +39,13 @@ static void ssh_decomp_none_cleanup(ssh_decompressor *handle)
 {
 }
 static void ssh_comp_none_block(ssh_compressor *handle,
-                                unsigned char *block, int len,
+                                const unsigned char *block, int len,
                                 unsigned char **outblock, int *outlen,
                                 int minlen)
 {
 }
 static bool ssh_decomp_none_block(ssh_decompressor *handle,
-                                  unsigned char *block, int len,
+                                  const unsigned char *block, int len,
                                   unsigned char **outblock, int *outlen)
 {
     return false;

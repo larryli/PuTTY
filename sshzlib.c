@@ -94,7 +94,7 @@ static int lz77_init(struct LZ77Context *ctx);
  * instead call literal() for everything.
  */
 static void lz77_compress(struct LZ77Context *ctx,
-			  unsigned char *data, int len, bool compress);
+			  const unsigned char *data, int len, bool compress);
 
 /*
  * Modifiable parameters.
@@ -136,7 +136,7 @@ struct LZ77InternalContext {
     int npending;
 };
 
-static int lz77_hash(unsigned char *data)
+static int lz77_hash(const unsigned char *data)
 {
     return (257 * data[0] + 263 * data[1] + 269 * data[2]) % HASHMAX;
 }
@@ -199,7 +199,7 @@ static void lz77_advance(struct LZ77InternalContext *st,
 #define CHARAT(k) ( (k)<0 ? st->data[(st->winpos+k)&(WINSIZE-1)] : data[k] )
 
 static void lz77_compress(struct LZ77Context *ctx,
-			  unsigned char *data, int len, bool compress)
+			  const unsigned char *data, int len, bool compress)
 {
     struct LZ77InternalContext *st = ctx->ictx;
     int i, distance, off, nmatch, matchlen, advance;
@@ -629,7 +629,8 @@ void zlib_compress_cleanup(ssh_compressor *sc)
     sfree(comp);
 }
 
-void zlib_compress_block(ssh_compressor *sc, unsigned char *block, int len,
+void zlib_compress_block(ssh_compressor *sc,
+                         const unsigned char *block, int len,
                          unsigned char **outblock, int *outlen,
                          int minlen)
 {
@@ -967,7 +968,8 @@ static void zlib_emit_char(struct zlib_decompress_ctx *dctx, int c)
 
 #define EATBITS(n) ( dctx->nbits -= (n), dctx->bits >>= (n) )
 
-bool zlib_decompress_block(ssh_decompressor *dc, unsigned char *block, int len,
+bool zlib_decompress_block(ssh_decompressor *dc,
+                           const unsigned char *block, int len,
                            unsigned char **outblock, int *outlen)
 {
     struct zlib_decompress_ctx *dctx =
