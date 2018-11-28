@@ -251,13 +251,14 @@ static void ssh2_bpp_enable_pending_compression(struct ssh2_bpp_state *s)
     }
 }
 
-#define BPP_READ(ptr, len) do                                   \
-    {                                                           \
-        crMaybeWaitUntilV(s->bpp.input_eof ||                   \
-                          bufchain_try_fetch_consume(           \
-                              s->bpp.in_raw, ptr, len));        \
-        if (s->bpp.input_eof)                                   \
-            goto eof;                                           \
+#define BPP_READ(ptr, len) do                                           \
+    {                                                                   \
+        bool success;                                                   \
+        crMaybeWaitUntilV((success = bufchain_try_fetch_consume(        \
+                               s->bpp.in_raw, ptr, len)) ||             \
+                          s->bpp.input_eof);                            \
+        if (!success)                                                   \
+            goto eof;                                                   \
     } while (0)
 
 #define userauth_range(pkttype) ((unsigned)((pkttype) - 50) < 20)

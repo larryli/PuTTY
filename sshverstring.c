@@ -205,12 +205,13 @@ static void ssh_verstring_send(struct ssh_verstring_state *s)
 }
 
 #define BPP_WAITFOR(minlen) do                          \
-    {                                                   \
-        crMaybeWaitUntilV(                              \
-            s->bpp.input_eof ||                         \
-            bufchain_size(s->bpp.in_raw) >= (minlen));  \
-        if (s->bpp.input_eof)                           \
-            goto eof;                                   \
+    {                                                                   \
+        bool success;                                                   \
+        crMaybeWaitUntilV(                                              \
+            (success = (bufchain_size(s->bpp.in_raw) >= (minlen))) ||   \
+            s->bpp.input_eof);                                          \
+        if (!success)                                                   \
+            goto eof;                                                   \
     } while (0)
 
 void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
@@ -284,7 +285,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
         void *data;
         char *nl;
 
-        crMaybeWaitUntilV(bufchain_size(s->bpp.in_raw) > 0);
+        BPP_WAITFOR(1);
         bufchain_prefix(s->bpp.in_raw, &data, &len);
         if ((nl = memchr(data, '\012', len)) != NULL) {
             len = nl - (char *)data + 1;
