@@ -106,6 +106,7 @@ void bufchain_consume(bufchain *ch, int len);
 void bufchain_fetch(bufchain *ch, void *data, int len);
 void bufchain_fetch_consume(bufchain *ch, void *data, int len);
 bool bufchain_try_fetch_consume(bufchain *ch, void *data, int len);
+int bufchain_fetch_consume_up_to(bufchain *ch, void *data, int len);
 
 void sanitise_term_data(bufchain *out, const void *vdata, int len);
 

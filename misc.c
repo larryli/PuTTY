@@ -813,6 +813,15 @@ bool bufchain_try_fetch_consume(bufchain *ch, void *data, int len)
     }
 }
 
+int bufchain_fetch_consume_up_to(bufchain *ch, void *data, int len)
+{
+    if (len > ch->buffersize)
+        len = ch->buffersize;
+    if (len)
+        bufchain_fetch_consume(ch, data, len);
+    return len;
+}
+
 /* ----------------------------------------------------------------------
  * Sanitise terminal output that we have reason not to trust, e.g.
  * because it appears in the login banner or password prompt from a

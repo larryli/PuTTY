@@ -2490,16 +2490,9 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  * do this until we have enough data.
  */
 
-static unsigned char *outptr;	       /* where to put the data */
-static unsigned outlen;		       /* how much data required */
-static unsigned char *pending = NULL;  /* any spare data */
-static unsigned pendlen = 0, pendsize = 0;	/* length and phys. size of buffer */
-static int psftp_output(Seat *seat, bool is_stderr,
-                        const void *data, int datalen)
+static bufchain received_data;
+static int psftp_output(Seat *seat, bool is_stderr, const void *data, int len)
 {
-    unsigned char *p = (unsigned char *) data;
-    unsigned len = (unsigned) datalen;
-
     /*
      * stderr data is just spouted to local stderr and otherwise
      * ignored.
@@ -2511,32 +2504,7 @@ static int psftp_output(Seat *seat, bool is_stderr,
 	return 0;
     }
 
-    /*
-     * If this is before the real session begins, just return.
-     */
-    if (!outptr)
-	return 0;
-
-    if ((outlen > 0) && (len > 0)) {
-	unsigned used = outlen;
-	if (used > len)
-	    used = len;
-	memcpy(outptr, p, used);
-	outptr += used;
-	outlen -= used;
-	p += used;
-	len -= used;
-    }
-
-    if (len > 0) {
-	if (pendsize < pendlen + len) {
-	    pendsize = pendlen + len + 4096;
-	    pending = sresize(pending, pendsize, unsigned char);
-	}
-	memcpy(pending + pendlen, p, len);
-	pendlen += len;
-    }
-
+    bufchain_add(&received_data, data, len);
     return 0;
 }
 
@@ -2556,34 +2524,16 @@ static bool psftp_eof(Seat *seat)
 
 bool sftp_recvdata(char *buf, int len)
 {
-    outptr = (unsigned char *) buf;
-    outlen = len;
+    while (len > 0) {
+        while (bufchain_size(&received_data) == 0) {
+            if (backend_exitcode(backend) >= 0 ||
+                ssh_sftp_loop_iteration() < 0)
+                return false;          /* doom */
+        }
 
-    /*
-     * See if the pending-input block contains some of what we
-     * need.
-     */
-    if (pendlen > 0) {
-	unsigned pendused = pendlen;
-	if (pendused > outlen)
-	    pendused = outlen;
-	memcpy(outptr, pending, pendused);
-	memmove(pending, pending + pendused, pendlen - pendused);
-	outptr += pendused;
-	outlen -= pendused;
-	pendlen -= pendused;
-	if (pendlen == 0) {
-	    pendsize = 0;
-	    sfree(pending);
-	    pending = NULL;
-	}
-	if (outlen == 0)
-	    return true;
-    }
-
-    while (outlen > 0) {
-        if (backend_exitcode(backend) >= 0 || ssh_sftp_loop_iteration() < 0)
-	    return false;              /* doom */
+        int got = bufchain_fetch_consume_up_to(&received_data, buf, len);
+        buf += got;
+        len -= got;
     }
 
     return true;
