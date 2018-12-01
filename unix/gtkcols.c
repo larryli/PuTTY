@@ -2,6 +2,7 @@
  * gtkcols.c - implementation of the `Columns' GTK layout container.
  */
 
+#include <assert.h>
 #include <gtk/gtk.h>
 #include "defs.h"
 #include "gtkcompat.h"
@@ -662,6 +663,7 @@ static gint columns_compute_width(Columns *cols, widget_dim_fn_t get_width)
 
         childwidth = get_width(child);
 	colspan = child->colspan ? child->colspan : ncols-child->colstart;
+        assert(colspan > 0);
 
 #ifdef COLUMNS_WIDTH_DIAGNOSTICS
         printf("compute_width(%p): ", cols);

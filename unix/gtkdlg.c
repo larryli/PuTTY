@@ -1850,8 +1850,9 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
     GtkWidget *ret;
     int i;
 
-    if (!s->boxname && s->boxtitle) {
+    if (!s->boxname) {
         /* This controlset is a panel title. */
+        assert(s->boxtitle);
         return gtk_label_new(s->boxtitle);
     }
 

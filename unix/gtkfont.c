@@ -1614,6 +1614,7 @@ static void pangofont_draw_internal(unifont_drawctx *ctx, unifont *font,
         draw_layout = pango_cairo_draw_layout;
     }
 #endif
+    assert(draw_layout);
 
     if (wide)
 	cellwidth *= 2;

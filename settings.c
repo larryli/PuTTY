@@ -377,6 +377,7 @@ static void gprefs_from_str(const char *str,
      */
     while (n < nvals) {
         for (i = 0; i < nvals; i++) {
+	    assert(mapping[i].v >= 0);
 	    assert(mapping[i].v < 32);
 
 	    if (!(seen & (1 << mapping[i].v))) {
