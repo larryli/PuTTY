@@ -794,7 +794,6 @@ Socket *sk_new(SockAddr *addr, int port, bool privport, bool oobinline,
     ret->privport = privport;
     ret->port = port;
 
-    err = 0;
     do {
         err = try_connect(ret);
     } while (err && sk_nextaddr(ret->addr, &ret->step));

@@ -735,13 +735,10 @@ static void columns_alloc_horiz(Columns *cols, gint ourwidth,
     ColumnsChild *child;
     GList *children;
     gint i, ncols, colspan, border, *colxpos, childwidth;
-    const gint *percentages;
-    static const gint onecol[] = { 100 };
 
     border = gtk_container_get_border_width(GTK_CONTAINER(cols));
 
     ncols = 1;
-    percentages = onecol;
     /* colxpos gives the starting x position of each column.
      * We supply n+1 of them, so that we can find the RH edge easily.
      * All ending x positions are expected to be adjusted afterwards by
@@ -759,12 +756,11 @@ static void columns_alloc_horiz(Columns *cols, gint ourwidth,
 
 	    /* Column reconfiguration. */
 	    ncols = child->ncols;
-	    percentages = child->percentages;
 	    colxpos = g_renew(gint, colxpos, ncols + 1);
 	    colxpos[0] = 0;
 	    percent = 0;
 	    for (i = 0; i < ncols; i++) {
-		percent += percentages[i];
+		percent += child->percentages[i];
 		colxpos[i+1] = (((ourwidth - 2*border) + cols->spacing)
 				* percent / 100);
 	    }

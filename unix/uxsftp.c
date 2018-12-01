@@ -445,14 +445,14 @@ char *dir_file_cat(const char *dir, const char *file)
 static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 {
     fd_set rset, wset, xset;
-    int i, fdcount, fdsize, *fdlist;
-    int fd, fdstate, rwx, ret, maxfd;
+    int i, fdsize, *fdlist;
+    int fd, fdcount, fdstate, rwx, ret, maxfd;
     unsigned long now = GETTICKCOUNT();
     unsigned long next;
     bool done_something = false;
 
     fdlist = NULL;
-    fdcount = fdsize = 0;
+    fdsize = 0;
 
     do {
 

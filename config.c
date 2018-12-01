@@ -2671,7 +2671,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 			    "Terminal modes");
 	    td = (struct ttymodes_data *)
 		ctrl_alloc(b, sizeof(struct ttymodes_data));
-	    c = ctrl_text(s, "Terminal modes to send:", HELPCTX(ssh_ttymodes));
+	    ctrl_text(s, "Terminal modes to send:", HELPCTX(ssh_ttymodes));
 	    td->listbox = ctrl_listbox(s, NULL, NO_SHORTCUT,
 				       HELPCTX(ssh_ttymodes),
 				       ttymodes_handler, P(td));

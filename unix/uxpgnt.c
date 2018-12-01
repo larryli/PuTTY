@@ -734,14 +734,14 @@ void run_agent(void)
     unsigned long now;
     int *fdlist;
     int fd;
-    int i, fdcount, fdsize, fdstate;
+    int i, fdsize, fdstate;
     int termination_pid = -1;
     bool errors = false;
     Conf *conf;
     const struct cmdline_key_action *act;
 
     fdlist = NULL;
-    fdcount = fdsize = 0;
+    fdsize = 0;
 
     pageant_init();
 
@@ -891,7 +891,7 @@ void run_agent(void)
 	 * Add all currently open fds to the select sets, and store
 	 * them in fdlist as well.
 	 */
-	fdcount = 0;
+	int fdcount = 0;
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) {
 	    fdlist[fdcount++] = fd;

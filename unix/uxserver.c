@@ -359,7 +359,7 @@ int main(int argc, char **argv)
 {
     int *fdlist;
     int fd;
-    int i, fdcount, fdsize, fdstate;
+    int i, fdsize, fdstate;
     unsigned long now;
 
     ssh_key **hostkeys = NULL;
@@ -531,7 +531,7 @@ int main(int argc, char **argv)
     }
 
     fdlist = NULL;
-    fdcount = fdsize = 0;
+    fdsize = 0;
 
     random_ref();
 
@@ -580,7 +580,7 @@ int main(int argc, char **argv)
 	 * Add all currently open fds to the select sets, and store
 	 * them in fdlist as well.
 	 */
-	fdcount = 0;
+	int fdcount = 0;
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) {
 	    fdlist[fdcount++] = fd;

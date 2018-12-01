@@ -561,7 +561,7 @@ int main(int argc, char **argv)
     bool sending;
     int *fdlist;
     int fd;
-    int i, fdcount, fdsize, fdstate;
+    int i, fdsize, fdstate;
     int exitcode;
     bool errors;
     bool use_subsystem = false;
@@ -571,7 +571,7 @@ int main(int argc, char **argv)
     const struct BackendVtable *backvt;
 
     fdlist = NULL;
-    fdcount = fdsize = 0;
+    fdsize = 0;
     /*
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
@@ -878,7 +878,7 @@ int main(int argc, char **argv)
 	 * Add all currently open fds to the select sets, and store
 	 * them in fdlist as well.
 	 */
-	fdcount = 0;
+	int fdcount = 0;
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) {
 	    fdlist[fdcount++] = fd;
