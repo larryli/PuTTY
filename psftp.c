@@ -927,10 +927,6 @@ bool wildcard_iterate(char *filename, bool (*func)(void *, char *), void *ctx)
 
 	while ( (newname = sftp_wildcard_get_filename(swcm)) != NULL ) {
 	    cname = canonify(newname);
-	    if (!cname) {
-		printf("%s: canonify: %s\n", newname, fxp_error());
-		toret = false;
-	    }
             sfree(newname);
 	    matched = true;
             if (!func(ctx, cname))
@@ -946,10 +942,6 @@ bool wildcard_iterate(char *filename, bool (*func)(void *, char *), void *ctx)
 	sftp_finish_wildcard_matching(swcm);
     } else {
 	cname = canonify(unwcfname);
-	if (!cname) {
-	    printf("%s: canonify: %s\n", filename, fxp_error());
-	    toret = false;
-	}
 	toret = func(ctx, cname);
 	sfree(cname);
 	sfree(unwcfname);
@@ -1066,11 +1058,6 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     }
 
     cdir = canonify(dir);
-    if (!cdir) {
-	printf("%s: canonify: %s\n", dir, fxp_error());
-	sfree(unwcdir);
-	return 0;
-    }
 
     printf("Listing directory %s\n", cdir);
 
@@ -1162,10 +1149,6 @@ int sftp_cmd_cd(struct sftp_command *cmd)
 	dir = dupstr(homedir);
     else {
 	dir = canonify(cmd->words[1]);
-        if (!dir) {
-            printf("%s: canonify: %s\n", cmd->words[1], fxp_error());
-            return 0;
-        }
     }
 
     req = fxp_opendir_send(dir);
@@ -1271,14 +1254,6 @@ int sftp_general_get(struct sftp_command *cmd, bool restart, bool multiple)
 
 	while (origwfname) {
 	    fname = canonify(origwfname);
-
-	    if (!fname) {
-                sftp_finish_wildcard_matching(swcm);
-		printf("%s: canonify: %s\n", origwfname, fxp_error());
-		sfree(origwfname);
-		sfree(unwcfname);
-		return 0;
-	    }
 
 	    if (!multiple && i < cmd->nwords)
 		outfname = cmd->words[i++];
@@ -1386,14 +1361,6 @@ int sftp_general_put(struct sftp_command *cmd, bool restart, bool multiple)
 		origoutfname = stripslashes(wfname, true);
 
 	    outfname = canonify(origoutfname);
-	    if (!outfname) {
-		printf("%s: canonify: %s\n", origoutfname, fxp_error());
-		if (wcm) {
-		    sfree(wfname);
-		    finish_wildcard_matching(wcm);
-		}
-		return 0;
-	    }
 	    toret = sftp_put_file(wfname, outfname, recurse, restart);
 	    sfree(outfname);
 
@@ -1449,10 +1416,6 @@ int sftp_cmd_mkdir(struct sftp_command *cmd)
     ret = 1;
     for (i = 1; i < cmd->nwords; i++) {
 	dir = canonify(cmd->words[i]);
-	if (!dir) {
-	    printf("%s: canonify: %s\n", cmd->words[i], fxp_error());
-	    return 0;
-	}
 
 	req = fxp_mkdir_send(dir, NULL);
         pktin = sftp_wait_for_reply(req);
@@ -1593,11 +1556,6 @@ static bool sftp_action_mv(void *vctx, char *srcfname)
 	while (p > srcfname && p[-1] != '/') p--;
 	newname = dupcat(ctx->dstfname, "/", p, NULL);
 	newcanon = canonify(newname);
-	if (!newcanon) {
-	    printf("%s: canonify: %s\n", newname, fxp_error());
-	    sfree(newname);
-	    return false;
-	}
 	sfree(newname);
 
 	finalfname = newcanon;
@@ -1639,10 +1597,6 @@ int sftp_cmd_mv(struct sftp_command *cmd)
     }
 
     ctx->dstfname = canonify(cmd->words[cmd->nwords-1]);
-    if (!ctx->dstfname) {
-	printf("%s: canonify: %s\n", ctx->dstfname, fxp_error());
-	return 0;
-    }
 
     /*
      * If there's more than one source argument, or one source
