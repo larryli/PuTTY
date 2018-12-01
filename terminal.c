@@ -359,24 +359,8 @@ static void move_termchar(termline *line, termchar *dest, termchar *src)
  * bloating the terminal emulator's memory footprint unless those
  * features are in constant use.)
  */
-struct buf {
-    unsigned char *data;
-    int len, size;
-};
-static void add(struct buf *b, unsigned char c)
-{
-    if (b->len >= b->size) {
-	b->size = (b->len * 3 / 2) + 512;
-	b->data = sresize(b->data, b->size, unsigned char);
-    }
-    b->data[b->len++] = c;
-}
-static int get(struct buf *b)
-{
-    return b->data[b->len++];
-}
-static void makerle(struct buf *b, termline *ldata,
-		    void (*makeliteral)(struct buf *b, termchar *c,
+static void makerle(strbuf *b, termline *ldata,
+		    void (*makeliteral)(strbuf *b, termchar *c,
 					unsigned long *state))
 {
     int hdrpos, hdrsize, n, prevlen, prevpos, thislen, thispos;
@@ -388,7 +372,7 @@ static void makerle(struct buf *b, termline *ldata,
 
     hdrpos = b->len;
     hdrsize = 0;
-    add(b, 0);
+    put_byte(b, 0);
     prevlen = prevpos = 0;
     prev2 = false;
 
@@ -397,7 +381,7 @@ static void makerle(struct buf *b, termline *ldata,
 	makeliteral(b, c++, &state);
 	thislen = b->len - thispos;
 	if (thislen == prevlen &&
-	    !memcmp(b->data + prevpos, b->data + thispos, thislen)) {
+	    !memcmp(b->u + prevpos, b->u + thispos, thislen)) {
 	    /*
 	     * This literal precisely matches the previous one.
 	     * Turn it into a run if it's worthwhile.
@@ -430,7 +414,7 @@ static void makerle(struct buf *b, termline *ldata,
 		    runpos = hdrpos;
 		    b->len = prevpos+prevlen;
 		} else {
-		    memmove(b->data + prevpos+1, b->data + prevpos, prevlen);
+		    memmove(b->u + prevpos+1, b->u + prevpos, prevlen);
 		    runpos = prevpos;
 		    b->len = prevpos+prevlen+1;
 		    /*
@@ -438,7 +422,7 @@ static void makerle(struct buf *b, termline *ldata,
 		     * literals.
 		     */
 		    assert(hdrsize >= 1 && hdrsize <= 128);
-		    b->data[hdrpos] = hdrsize - 1;
+		    b->u[hdrpos] = hdrsize - 1;
 		}
 
 		runlen = prev2 ? 3 : 2;
@@ -451,7 +435,7 @@ static void makerle(struct buf *b, termline *ldata,
 		    tmplen = b->len - tmppos;
 		    b->len = tmppos;
 		    if (tmplen != thislen ||
-			memcmp(b->data + runpos+1, b->data + tmppos, tmplen)) {
+			memcmp(b->u + runpos+1, b->u + tmppos, tmplen)) {
 			state = oldstate;
 			break;	       /* run over */
 		    }
@@ -459,11 +443,11 @@ static void makerle(struct buf *b, termline *ldata,
 		}
 
 		assert(runlen >= 2 && runlen <= 129);
-		b->data[runpos] = runlen + 0x80 - 2;
+		b->u[runpos] = runlen + 0x80 - 2;
 
 		hdrpos = b->len;
 		hdrsize = 0;
-		add(b, 0);
+		put_byte(b, 0);
 		/* And ensure this run doesn't interfere with the next. */
 		prevlen = prevpos = 0;
 		prev2 = false;
@@ -491,10 +475,10 @@ static void makerle(struct buf *b, termline *ldata,
 	 */
 	hdrsize++;
 	if (hdrsize == 128) {
-	    b->data[hdrpos] = hdrsize - 1;
+	    b->u[hdrpos] = hdrsize - 1;
 	    hdrpos = b->len;
 	    hdrsize = 0;
-	    add(b, 0);
+	    put_byte(b, 0);
 	    prevlen = prevpos = 0;
 	    prev2 = false;
 	}
@@ -505,12 +489,12 @@ static void makerle(struct buf *b, termline *ldata,
      */
     if (hdrsize > 0) {
 	assert(hdrsize <= 128);
-	b->data[hdrpos] = hdrsize - 1;
+	b->u[hdrpos] = hdrsize - 1;
     } else {
 	b->len = hdrpos;
     }
 }
-static void makeliteral_chr(struct buf *b, termchar *c, unsigned long *state)
+static void makeliteral_chr(strbuf *b, termchar *c, unsigned long *state)
 {
     /*
      * My encoding for characters is UTF-8-like, in that it stores
@@ -548,29 +532,24 @@ static void makeliteral_chr(struct buf *b, termchar *c, unsigned long *state)
      * instead.
      */
     if ((c->chr & ~0x7F) == *state) {
-	add(b, (unsigned char)(c->chr & 0x7F));
+	put_byte(b, (unsigned char)(c->chr & 0x7F));
     } else if (c->chr < 0x4000) {
-	add(b, (unsigned char)(((c->chr >> 8) & 0x3F) | 0x80));
-	add(b, (unsigned char)(c->chr & 0xFF));
+	put_byte(b, (unsigned char)(((c->chr >> 8) & 0x3F) | 0x80));
+	put_byte(b, (unsigned char)(c->chr & 0xFF));
     } else if (c->chr < 0x200000) {
-	add(b, (unsigned char)(((c->chr >> 16) & 0x1F) | 0xC0));
-	add(b, (unsigned char)((c->chr >> 8) & 0xFF));
-	add(b, (unsigned char)(c->chr & 0xFF));
+	put_byte(b, (unsigned char)(((c->chr >> 16) & 0x1F) | 0xC0));
+	put_uint16(b, c->chr & 0xFFFF);
     } else if (c->chr < 0x10000000) {
-	add(b, (unsigned char)(((c->chr >> 24) & 0x0F) | 0xE0));
-	add(b, (unsigned char)((c->chr >> 16) & 0xFF));
-	add(b, (unsigned char)((c->chr >> 8) & 0xFF));
-	add(b, (unsigned char)(c->chr & 0xFF));
+	put_byte(b, (unsigned char)(((c->chr >> 24) & 0x0F) | 0xE0));
+	put_byte(b, (unsigned char)((c->chr >> 16) & 0xFF));
+	put_uint16(b, c->chr & 0xFFFF);
     } else {
-	add(b, 0xF0);
-	add(b, (unsigned char)((c->chr >> 24) & 0xFF));
-	add(b, (unsigned char)((c->chr >> 16) & 0xFF));
-	add(b, (unsigned char)((c->chr >> 8) & 0xFF));
-	add(b, (unsigned char)(c->chr & 0xFF));
+	put_byte(b, 0xF0);
+	put_uint32(b, c->chr);
     }
     *state = c->chr & ~0xFF;
 }
-static void makeliteral_attr(struct buf *b, termchar *c, unsigned long *state)
+static void makeliteral_attr(strbuf *b, termchar *c, unsigned long *state)
 {
     /*
      * My encoding for attributes is 16-bit-granular and assumes
@@ -604,34 +583,34 @@ static void makeliteral_attr(struct buf *b, termchar *c, unsigned long *state)
     attr |= (colourbits << (32-9));
 
     if (attr < 0x8000) {
-	add(b, (unsigned char)((attr >> 8) & 0xFF));
-	add(b, (unsigned char)(attr & 0xFF));
+	put_byte(b, (unsigned char)((attr >> 8) & 0xFF));
+	put_byte(b, (unsigned char)(attr & 0xFF));
     } else {
-	add(b, (unsigned char)(((attr >> 24) & 0x7F) | 0x80));
-	add(b, (unsigned char)((attr >> 16) & 0xFF));
-	add(b, (unsigned char)((attr >> 8) & 0xFF));
-	add(b, (unsigned char)(attr & 0xFF));
+	put_byte(b, (unsigned char)(((attr >> 24) & 0x7F) | 0x80));
+	put_byte(b, (unsigned char)((attr >> 16) & 0xFF));
+	put_byte(b, (unsigned char)((attr >> 8) & 0xFF));
+	put_byte(b, (unsigned char)(attr & 0xFF));
     }
 }
-static void makeliteral_truecolour(struct buf *b, termchar *c, unsigned long *state)
+static void makeliteral_truecolour(strbuf *b, termchar *c, unsigned long *state)
 {
     /*
      * Put the used parts of the colour info into the buffer.
      */
-    add(b, ((c->truecolour.fg.enabled ? 1 : 0) |
+    put_byte(b, ((c->truecolour.fg.enabled ? 1 : 0) |
             (c->truecolour.bg.enabled ? 2 : 0)));
     if (c->truecolour.fg.enabled) {
-	add(b, c->truecolour.fg.r);
-	add(b, c->truecolour.fg.g);
-	add(b, c->truecolour.fg.b);
+	put_byte(b, c->truecolour.fg.r);
+	put_byte(b, c->truecolour.fg.g);
+	put_byte(b, c->truecolour.fg.b);
     }
     if (c->truecolour.bg.enabled) {
-	add(b, c->truecolour.bg.r);
-	add(b, c->truecolour.bg.g);
-	add(b, c->truecolour.bg.b);
+	put_byte(b, c->truecolour.bg.r);
+	put_byte(b, c->truecolour.bg.g);
+	put_byte(b, c->truecolour.bg.b);
     }
 }
-static void makeliteral_cc(struct buf *b, termchar *c, unsigned long *state)
+static void makeliteral_cc(strbuf *b, termchar *c, unsigned long *state)
 {
     /*
      * For combining characters, I just encode a bunch of ordinary
@@ -658,11 +637,18 @@ static void makeliteral_cc(struct buf *b, termchar *c, unsigned long *state)
     makeliteral_chr(b, &z, &zstate);
 }
 
-static termline *decompressline(unsigned char *data, int *bytes_used);
+typedef struct compressed_scrollback_line {
+    size_t len;
+} compressed_scrollback_line;
 
-static unsigned char *compressline(termline *ldata)
+static termline *decompressline(compressed_scrollback_line *line);
+
+static compressed_scrollback_line *compressline(termline *ldata)
 {
-    struct buf buffer = { NULL, 0, 0 }, *b = &buffer;
+    strbuf *b = strbuf_new();
+
+    /* Leave space for the header structure */
+    strbuf_append(b, sizeof(compressed_scrollback_line));
 
     /*
      * First, store the column count, 7 bits at a time, least
@@ -672,10 +658,10 @@ static unsigned char *compressline(termline *ldata)
     {
 	int n = ldata->cols;
 	while (n >= 128) {
-	    add(b, (unsigned char)((n & 0x7F) | 0x80));
+	    put_byte(b, (unsigned char)((n & 0x7F) | 0x80));
 	    n >>= 7;
 	}
-	add(b, (unsigned char)(n));
+	put_byte(b, (unsigned char)(n));
     }
 
     /*
@@ -684,10 +670,10 @@ static unsigned char *compressline(termline *ldata)
     {
 	int n = ldata->lattr;
 	while (n >= 128) {
-	    add(b, (unsigned char)((n & 0x7F) | 0x80));
+	    put_byte(b, (unsigned char)((n & 0x7F) | 0x80));
 	    n >>= 7;
 	}
-	add(b, (unsigned char)(n));
+	put_byte(b, (unsigned char)(n));
     }
 
     /*
@@ -717,7 +703,6 @@ static unsigned char *compressline(termline *ldata)
 #ifdef TERM_CC_DIAGS
 #ifndef CHECK_SB_COMPRESSION
     {
-	int dused;
 	termline *dcl;
 	int i;
 
@@ -728,8 +713,7 @@ static unsigned char *compressline(termline *ldata)
 	printf("\n");
 #endif
 
-	dcl = decompressline(b->data, &dused);
-	assert(b->len == dused);
+	dcl = decompressline(b->data);
 	assert(ldata->cols == dcl->cols);
 	assert(ldata->lattr == dcl->lattr);
 	for (i = 0; i < ldata->cols; i++)
@@ -746,30 +730,31 @@ static unsigned char *compressline(termline *ldata)
 #endif
 #endif /* TERM_CC_DIAGS */
 
-    /*
-     * Trim the allocated memory so we don't waste any, and return.
-     */
-    return sresize(b->data, b->len, unsigned char);
+    size_t linelen = b->len - sizeof(compressed_scrollback_line);
+    compressed_scrollback_line *line =
+        (compressed_scrollback_line *)strbuf_to_str(b);
+    line->len = linelen;
+    return line;
 }
 
-static void readrle(struct buf *b, termline *ldata,
-		    void (*readliteral)(struct buf *b, termchar *c,
+static void readrle(BinarySource *bs, termline *ldata,
+		    void (*readliteral)(BinarySource *bs, termchar *c,
 					termline *ldata, unsigned long *state))
 {
     int n = 0;
     unsigned long state = 0;
 
     while (n < ldata->cols) {
-	int hdr = get(b);
+	int hdr = get_byte(bs);
 
 	if (hdr >= 0x80) {
 	    /* A run. */
 
-	    int pos = b->len, count = hdr + 2 - 0x80;
+	    size_t pos = bs->pos, count = hdr + 2 - 0x80;
 	    while (count--) {
 		assert(n < ldata->cols);
-		b->len = pos;
-		readliteral(b, ldata->chars + n, ldata, &state);
+		bs->pos = pos;
+		readliteral(bs, ldata->chars + n, ldata, &state);
 		n++;
 	    }
 	} else {
@@ -778,7 +763,7 @@ static void readrle(struct buf *b, termline *ldata,
 	    int count = hdr + 1;
 	    while (count--) {
 		assert(n < ldata->cols);
-		readliteral(b, ldata->chars + n, ldata, &state);
+		readliteral(bs, ldata->chars + n, ldata, &state);
 		n++;
 	    }
 	}
@@ -786,7 +771,7 @@ static void readrle(struct buf *b, termline *ldata,
 
     assert(n == ldata->cols);
 }
-static void readliteral_chr(struct buf *b, termchar *c, termline *ldata,
+static void readliteral_chr(BinarySource *bs, termchar *c, termline *ldata,
 			    unsigned long *state)
 {
     int byte;
@@ -799,43 +784,36 @@ static void readliteral_chr(struct buf *b, termchar *c, termline *ldata,
      * 10000000-FFFFFFFF: 11110ZZZ xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
      */
 
-    byte = get(b);
+    byte = get_byte(bs);
     if (byte < 0x80) {
 	c->chr = byte | *state;
     } else if (byte < 0xC0) {
 	c->chr = (byte &~ 0xC0) << 8;
-	c->chr |= get(b);
+	c->chr |= get_byte(bs);
     } else if (byte < 0xE0) {
 	c->chr = (byte &~ 0xE0) << 16;
-	c->chr |= get(b) << 8;
-	c->chr |= get(b);
+	c->chr |= get_uint16(bs);
     } else if (byte < 0xF0) {
 	c->chr = (byte &~ 0xF0) << 24;
-	c->chr |= get(b) << 16;
-	c->chr |= get(b) << 8;
-	c->chr |= get(b);
+	c->chr |= get_byte(bs) << 16;
+	c->chr |= get_uint16(bs);
     } else {
 	assert(byte == 0xF0);
-	c->chr = get(b) << 24;
-	c->chr |= get(b) << 16;
-	c->chr |= get(b) << 8;
-	c->chr |= get(b);
+	c->chr = get_uint32(bs);
     }
     *state = c->chr & ~0xFF;
 }
-static void readliteral_attr(struct buf *b, termchar *c, termline *ldata,
+static void readliteral_attr(BinarySource *bs, termchar *c, termline *ldata,
 			     unsigned long *state)
 {
     unsigned val, attr, colourbits;
 
-    val = get(b) << 8;
-    val |= get(b);
+    val = get_uint16(bs);
 
     if (val >= 0x8000) {
 	val &= ~0x8000;
 	val <<= 16;
-	val |= get(b) << 8;
-	val |= get(b);
+	val |= get_uint16(bs);
     }
 
     colourbits = (val >> (32-9)) & 0xFF;
@@ -851,30 +829,30 @@ static void readliteral_attr(struct buf *b, termchar *c, termline *ldata,
 
     c->attr = attr;
 }
-static void readliteral_truecolour(struct buf *b, termchar *c, termline *ldata,
-				   unsigned long *state)
+static void readliteral_truecolour(
+    BinarySource *bs, termchar *c, termline *ldata, unsigned long *state)
 {
-    int flags = get(b);
+    int flags = get_byte(bs);
 
     if (flags & 1) {
         c->truecolour.fg.enabled = true;
-	c->truecolour.fg.r = get(b);
-	c->truecolour.fg.g = get(b);
-	c->truecolour.fg.b = get(b);
+	c->truecolour.fg.r = get_byte(bs);
+	c->truecolour.fg.g = get_byte(bs);
+	c->truecolour.fg.b = get_byte(bs);
     } else {
 	c->truecolour.fg = optionalrgb_none;
     }
 
     if (flags & 2) {
         c->truecolour.bg.enabled = true;
-	c->truecolour.bg.r = get(b);
-	c->truecolour.bg.g = get(b);
-	c->truecolour.bg.b = get(b);
+	c->truecolour.bg.r = get_byte(bs);
+	c->truecolour.bg.g = get_byte(bs);
+	c->truecolour.bg.b = get_byte(bs);
     } else {
 	c->truecolour.bg = optionalrgb_none;
     }
 }
-static void readliteral_cc(struct buf *b, termchar *c, termline *ldata,
+static void readliteral_cc(BinarySource *bs, termchar *c, termline *ldata,
 			   unsigned long *state)
 {
     termchar n;
@@ -885,28 +863,27 @@ static void readliteral_cc(struct buf *b, termchar *c, termline *ldata,
 
     while (1) {
 	zstate = 0;
-	readliteral_chr(b, &n, ldata, &zstate);
+	readliteral_chr(bs, &n, ldata, &zstate);
 	if (!n.chr)
 	    break;
 	add_cc(ldata, x, n.chr);
     }
 }
 
-static termline *decompressline(unsigned char *data, int *bytes_used)
+static termline *decompressline(compressed_scrollback_line *line)
 {
     int ncols, byte, shift;
-    struct buf buffer, *b = &buffer;
+    BinarySource bs[1];
     termline *ldata;
 
-    b->data = data;
-    b->len = 0;
+    BinarySource_BARE_INIT(bs, line+1, line->len);
 
     /*
      * First read in the column count.
      */
     ncols = shift = 0;
     do {
-	byte = get(b);
+	byte = get_byte(bs);
 	ncols |= (byte & 0x7F) << shift;
 	shift += 7;
     } while (byte & 0x80);
@@ -937,7 +914,7 @@ static termline *decompressline(unsigned char *data, int *bytes_used)
      */
     ldata->lattr = shift = 0;
     do {
-	byte = get(b);
+	byte = get_byte(bs);
 	ldata->lattr |= (byte & 0x7F) << shift;
 	shift += 7;
     } while (byte & 0x80);
@@ -945,14 +922,15 @@ static termline *decompressline(unsigned char *data, int *bytes_used)
     /*
      * Now we read in each of the RLE streams in turn.
      */
-    readrle(b, ldata, readliteral_chr);
-    readrle(b, ldata, readliteral_attr);
-    readrle(b, ldata, readliteral_truecolour);
-    readrle(b, ldata, readliteral_cc);
+    readrle(bs, ldata, readliteral_chr);
+    readrle(bs, ldata, readliteral_attr);
+    readrle(bs, ldata, readliteral_truecolour);
+    readrle(bs, ldata, readliteral_cc);
 
-    /* Return the number of bytes read, for diagnostic purposes. */
-    if (bytes_used)
-	*bytes_used = b->len;
+    /* And we always expect that we ended up exactly at the end of the
+     * compressed data. */
+    assert(!get_err(bs));
+    assert(get_avail(bs) == 0);
 
     return ldata;
 }
@@ -1100,10 +1078,10 @@ static termline *lineptr(Terminal *term, int y, int lineno, int screen)
 	}
     }
     if (whichtree == term->scrollback) {
-	unsigned char *cline = index234(whichtree, treeindex);
+	compressed_scrollback_line *cline = index234(whichtree, treeindex);
         if (!cline)
             null_line_error(term, y, lineno, whichtree, treeindex, "cline");
-	line = decompressline(cline, NULL);
+	line = decompressline(cline);
     } else {
 	line = index234(whichtree, treeindex);
     }
@@ -1839,11 +1817,11 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     assert(term->rows == count234(term->screen));
     while (term->rows < newrows) {
 	if (term->tempsblines > 0) {
-	    unsigned char *cline;
+	    compressed_scrollback_line *cline;
 	    /* Insert a line from the scrollback at the top of the screen. */
 	    assert(sblen >= term->tempsblines);
 	    cline = delpos234(term->scrollback, --sblen);
-	    line = decompressline(cline, NULL);
+	    line = decompressline(cline);
 	    sfree(cline);
 	    line->temporary = false;   /* reconstituted line is now real */
 	    term->tempsblines -= 1;
