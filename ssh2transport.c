@@ -1856,8 +1856,7 @@ static void ssh2_transport_special_cmd(PacketProtocolLayer *ppl,
 	}
     } else if (code == SS_XCERT) {
 	if (!s->kex_in_progress) {
-            s->hostkey_alg = ssh2_hostkey_algs[arg].alg;
-            s->cross_certifying = true;
+            s->cross_certifying = s->hostkey_alg = ssh2_hostkey_algs[arg].alg;
             s->rekey_reason = "cross-certifying new host key";
             s->rekey_class = RK_NORMAL;
             queue_idempotent_callback(&s->ppl.ic_process_queue);

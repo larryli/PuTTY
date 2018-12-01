@@ -836,6 +836,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             s->hostkey_str = s->keystr;
             s->keystr = NULL;
         } else if (s->cross_certifying) {
+            assert(s->hkey);
+            assert(ssh_key_alg(s->hkey) == s->cross_certifying);
+
             s->fingerprint = ssh2_fingerprint(s->hkey);
             ppl_logevent(("Storing additional host key for this host:"));
             ppl_logevent(("%s", s->fingerprint));
@@ -843,7 +846,6 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             s->fingerprint = NULL;
             store_host_key(s->savedhost, s->savedport,
                            ssh_key_cache_id(s->hkey), s->keystr);
-            s->cross_certifying = false;
             /*
              * Don't forget to store the new key as the one we'll be
              * re-checking in future normal rekeys.
@@ -857,6 +859,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
              * enforce that the key we're seeing this time is identical to
              * the one we saw before.
              */
+            assert(s->keystr);         /* filled in by prior key exchange */
             if (strcmp(s->hostkey_str, s->keystr)) {
 #ifndef FUZZING
                 ssh_sw_abort(s->ppl.ssh,

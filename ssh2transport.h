@@ -204,10 +204,12 @@ struct ssh2_transport_state {
     int n_uncert_hostkeys;
 
     /*
-     * Flag indicating that the current rekey is intended to finish
-     * with a newly cross-certified host key.
+     * Indicate that the current rekey is intended to finish with a
+     * newly cross-certified host key. To double-check that we
+     * certified the right one, we set this to point to the host key
+     * algorithm we expect it to be.
      */
-    bool cross_certifying;
+    const ssh_keyalg *cross_certifying;
 
     ssh_key *const *hostkeys;
     int nhostkeys;
