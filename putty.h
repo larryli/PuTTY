@@ -1141,11 +1141,8 @@ struct TermWinVtable {
  * Global functions not specific to a connection instance.
  */
 void nonfatal(const char *, ...);
-void modalfatalbox(const char *, ...);
-#ifdef macintosh
-#pragma noreturn(modalfatalbox)
-#endif
-void cleanup_exit(int);
+NORETURN void modalfatalbox(const char *, ...);
+NORETURN void cleanup_exit(int);
 
 /*
  * Exports from conf.c, and a big enum (via parametric macro) of

@@ -226,7 +226,7 @@ static void ssh_scp_init(void)
 /*
  *  Print an error message and exit after closing the SSH link.
  */
-static void bump(const char *fmt, ...)
+static NORETURN void bump(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
