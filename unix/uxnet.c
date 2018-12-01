@@ -195,12 +195,11 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     struct hostent *h = NULL;
     int n;
 #endif
-    char realhost[8192];
+    strbuf *realhost;
 
     /* Clear the structure and default to IPv4. */
     memset(ret, 0, sizeof(SockAddr));
     ret->superfamily = UNRESOLVED;
-    *realhost = '\0';
     ret->error = NULL;
     ret->refcount = 1;
 
@@ -225,11 +224,12 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
 	return ret;
     }
     ret->superfamily = IP;
-    *realhost = '\0';
+
+    realhost = strbuf_new();
     if (ret->ais->ai_canonname != NULL)
-	strncat(realhost, ret->ais->ai_canonname, sizeof(realhost) - 1);
+	strbuf_catf(realhost, "%s", ret->ais->ai_canonname);
     else
-	strncat(realhost, host, sizeof(realhost) - 1);
+	strbuf_catf(realhost, "%s", host);
 #else
     if ((a = inet_addr(host)) == (unsigned long)(in_addr_t)(-1)) {
 	/*
@@ -248,10 +248,12 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
 			  h_errno == TRY_AGAIN ?
 			  "Temporary name service failure" :
 			  "gethostbyname: unknown error");
+            strbuf_free(realhost);
 	    return ret;
 	}
 	/* This way we are always sure the h->h_name is valid :) */
-	strncpy(realhost, h->h_name, sizeof(realhost));
+        realhost->len = 0;
+	strbuf_catf(realhost, "%s", h->h_name);
 	for (n = 0; h->h_addr_list[n]; n++);
 	ret->addresses = snewn(n, unsigned long);
 	ret->naddresses = n;
@@ -265,15 +267,14 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
 	 * success return from inet_addr.
 	 */
 	ret->superfamily = IP;
-	strncpy(realhost, host, sizeof(realhost));
+        realhost->len = 0;
+	strbuf_catf(realhost, "%s", host);
 	ret->addresses = snew(unsigned long);
 	ret->naddresses = 1;
 	ret->addresses[0] = ntohl(a);
     }
 #endif
-    realhost[lenof(realhost)-1] = '\0';
-    *canonicalname = snewn(1+strlen(realhost), char);
-    strcpy(*canonicalname, realhost);
+    *canonicalname = strbuf_to_str(realhost);
     return ret;
 }
 

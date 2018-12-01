@@ -1882,8 +1882,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 	     * If so, go through them one by one.
 	     */
 	    for (k = 0; k < nsizes; k++) {
-		char *fullname;
-		char stylekey[128];
+		char *fullname, *stylekey;
 
 		pango_font_description_set_size(desc, sizes[k]);
 
@@ -1893,27 +1892,27 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 		 * Construct the sorting key for font styles.
 		 */
 		{
-		    char *p = stylekey;
-		    int n;
+                    strbuf *buf = strbuf_new();
 
-		    n = pango_font_description_get_weight(desc);
+		    int weight = pango_font_description_get_weight(desc);
 		    /* Weight: normal, then lighter, then bolder */
-		    if (n <= PANGO_WEIGHT_NORMAL)
-			n = PANGO_WEIGHT_NORMAL - n;
-		    p += sprintf(p, "%4d", n);
+		    if (weight <= PANGO_WEIGHT_NORMAL)
+			weight = PANGO_WEIGHT_NORMAL - weight;
+		    strbuf_catf(buf, "%4d", weight);
 
-		    n = pango_font_description_get_style(desc);
-		    p += sprintf(p, " %2d", n);
+		    strbuf_catf(buf, " %2d",
+                                pango_font_description_get_style(desc));
 
-		    n = pango_font_description_get_stretch(desc);
+		    int stretch = pango_font_description_get_stretch(desc);
 		    /* Stretch: closer to normal sorts earlier */
-		    n = 2 * abs(PANGO_STRETCH_NORMAL - n) +
-			(n < PANGO_STRETCH_NORMAL);
-		    p += sprintf(p, " %2d", n);
+		    stretch = 2 * abs(PANGO_STRETCH_NORMAL - stretch) +
+			(stretch < PANGO_STRETCH_NORMAL);
+		    strbuf_catf(buf, " %2d", stretch);
 
-		    n = pango_font_description_get_variant(desc);
-		    p += sprintf(p, " %2d", n);
-		    
+		    strbuf_catf(buf, " %2d",
+                                pango_font_description_get_variant(desc));
+
+                    stylekey = strbuf_to_str(buf);
 		}
 
 		/*
@@ -1926,6 +1925,7 @@ static void pangofont_enum_fonts(GtkWidget *widget, fontsel_add_entry callback,
 			 (sizes == &dummysize ? 0 : PANGO_PIXELS(sizes[k])),
 			 flags, &pangofont_vtable);
 
+                sfree(stylekey);
 		g_free(fullname);
 	    }
 	    if (sizes != &dummysize)

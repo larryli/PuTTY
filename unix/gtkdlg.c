@@ -3763,7 +3763,7 @@ struct eventlog_stuff {
     char **events_initial;
     char **events_circular;
     int ninitial, ncircular, circular_first;
-    char *seldata;
+    strbuf *seldata;
     int sellen;
     bool ignore_selchange;
 };
@@ -3773,8 +3773,6 @@ static void eventlog_destroy(GtkWidget *widget, gpointer data)
     eventlog_stuff *es = (eventlog_stuff *)data;
 
     es->window = NULL;
-    sfree(es->seldata);
-    es->seldata = NULL;
     dlg_cleanup(&es->dp);
     ctrl_free_box(es->eventbox);
 }
@@ -3803,7 +3801,6 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
         dlg_update_done(ctrl, dp);
     } else if (event == EVENT_SELCHANGE) {
         int i;
-        int selsize = 0;
 
         /*
          * If this SELCHANGE event is happening as a result of
@@ -3817,36 +3814,15 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
         /*
          * Construct the data to use as the selection.
          */
-        sfree(es->seldata);
-        es->seldata = NULL;
-        es->sellen = 0;
+        es->seldata->len = 0;
         for (i = 0; i < es->ninitial; i++) {
-            if (dlg_listbox_issel(ctrl, dp, i)) {
-                int extralen = strlen(es->events_initial[i]);
-
-                if (es->sellen + extralen + 2 > selsize) {
-                    selsize = es->sellen + extralen + 512;
-                    es->seldata = sresize(es->seldata, selsize, char);
-                }
-
-                strcpy(es->seldata + es->sellen, es->events_initial[i]);
-                es->sellen += extralen;
-                es->seldata[es->sellen++] = '\n';
-            }
+            if (dlg_listbox_issel(ctrl, dp, i))
+                strbuf_catf(es->seldata, "%s\n", es->events_initial[i]);
         }
         for (i = 0; i < es->ncircular; i++) {
             if (dlg_listbox_issel(ctrl, dp, es->ninitial + i)) {
                 int j = (es->circular_first + i) % LOGEVENT_CIRCULAR_MAX;
-                int extralen = strlen(es->events_circular[j]);
-
-                if (es->sellen + extralen + 2 > selsize) {
-                    selsize = es->sellen + extralen + 512;
-                    es->seldata = sresize(es->seldata, selsize, char);
-                }
-
-                strcpy(es->seldata + es->sellen, es->events_circular[j]);
-                es->sellen += extralen;
-                es->seldata[es->sellen++] = '\n';
+                strbuf_catf(es->seldata, "%s\n", es->events_circular[j]);
             }
         }
 
@@ -3867,7 +3843,7 @@ void eventlog_selection_get(GtkWidget *widget, GtkSelectionData *seldata,
     eventlog_stuff *es = (eventlog_stuff *)data;
 
     gtk_selection_data_set(seldata, gtk_selection_data_get_target(seldata), 8,
-                           (unsigned char *)es->seldata, es->sellen);
+                           es->seldata->u, es->seldata->len);
 }
 
 gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
@@ -3891,9 +3867,6 @@ gint eventlog_selection_clear(GtkWidget *widget, GdkEventSelection *seldata,
 #endif
     es->ignore_selchange = false;
 
-    sfree(es->seldata);
-    es->sellen = 0;
-    es->seldata = NULL;
     return true;
 }
 
@@ -3983,6 +3956,7 @@ eventlog_stuff *eventlogstuff_new(void)
 {
     eventlog_stuff *es = snew(eventlog_stuff);
     memset(es, 0, sizeof(*es));
+    es->seldata = strbuf_new();
     return es;
 }
 
@@ -4000,6 +3974,7 @@ void eventlogstuff_free(eventlog_stuff *es)
             sfree(es->events_circular[i]);
         sfree(es->events_circular);
     }
+    strbuf_free(es->seldata);
 
     sfree(es);
 }
