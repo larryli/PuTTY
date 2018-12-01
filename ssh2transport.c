@@ -1803,7 +1803,7 @@ static bool ssh2_transport_get_specials(
     struct ssh2_transport_state *s =
         container_of(ppl, struct ssh2_transport_state, ppl);
     bool need_separator = false;
-    bool toret;
+    bool toret = false;
 
     if (ssh_ppl_get_specials(s->higher_layer, add_special, ctx)) {
         need_separator = true;
