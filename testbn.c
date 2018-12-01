@@ -90,6 +90,9 @@ int main(int argc, char **argv)
             }
         }
 
+        if (ptrnum < lenof(ptrs))
+            ptrs[ptrnum] = q;
+
         if (!strcmp(buf, "mul")) {
             Bignum a, b, c, p;
 
