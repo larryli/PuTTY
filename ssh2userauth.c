@@ -53,6 +53,7 @@ struct ssh2_userauth_state {
     Ssh_gss_buf gss_rcvtok, gss_sndtok;
     Ssh_gss_stat gss_stat;
 #endif
+    bool suppress_wait_for_response_packet;
     strbuf *last_methods_string;
     bool kbd_inter_refused;
     prompts_t *cur_prompt;
@@ -431,9 +432,16 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
         while (1) {
             /*
-             * Wait for the result of the last authentication request.
+             * Wait for the result of the last authentication request,
+             * unless the request terminated for some reason on our
+             * own side.
              */
-            crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
+            if (s->suppress_wait_for_response_packet) {
+                pktin = NULL;
+                s->suppress_wait_for_response_packet = false;
+            } else {
+                crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
+            }
 
             /*
              * Now is a convenient point to spew any banner material
@@ -466,12 +474,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 }
                 bufchain_clear(&s->banner);
             }
-            if (pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
+            if (pktin && pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
                 ppl_logevent(("Access granted"));
                 goto userauth_success;
             }
 
-            if (pktin->type != SSH2_MSG_USERAUTH_FAILURE &&
+            if (pktin && pktin->type != SSH2_MSG_USERAUTH_FAILURE &&
                 s->type != AUTH_TYPE_GSSAPI) {
                 ssh_proto_error(s->ppl.ssh, "Received unexpected packet "
                                 "in response to authentication request, "
@@ -487,7 +495,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * we can look at the string in it and know what we can
              * helpfully try next.
              */
-            if (pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
+            if (pktin && pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
                 ptrlen methods = get_string(pktin);
                 bool partial_success = get_bool(pktin);
 
@@ -969,6 +977,11 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 if (s->gss_stat != SSH_GSS_OK) {
                     ppl_logevent(("GSSAPI authentication failed to get "
                                   "credentials"));
+                    /* The failure was on our side, so the server
+                     * won't be sending a response packet indicating
+                     * failure. Avoid waiting for it next time round
+                     * the loop. */
+                    s->suppress_wait_for_response_packet = true;
                     continue;
                 }
 
