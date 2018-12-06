@@ -53,6 +53,7 @@ struct ssh2_userauth_state {
     Ssh_gss_buf gss_rcvtok, gss_sndtok;
     Ssh_gss_stat gss_stat;
 #endif
+    strbuf *last_methods_string;
     bool kbd_inter_refused;
     prompts_t *cur_prompt;
     int num_prompts;
@@ -135,6 +136,7 @@ PacketProtocolLayer *ssh2_userauth_new(
     s->try_gssapi_kex_auth = try_gssapi_kex_auth;
     s->gssapi_fwd = gssapi_fwd;
     s->shgss = shgss;
+    s->last_methods_string = strbuf_new();
     bufchain_init(&s->banner);
 
     return &s->ppl;
@@ -164,6 +166,7 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     sfree(s->default_username);
     sfree(s->hostname);
     sfree(s->fullhostname);
+    strbuf_free(s->last_methods_string);
     sfree(s);
 }
 
@@ -427,11 +430,6 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
         }
 
         while (1) {
-            ptrlen methods;
-
-            methods.ptr = "";
-            methods.len = 0;
-
             /*
              * Wait for the result of the last authentication request.
              */
@@ -490,8 +488,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * helpfully try next.
              */
             if (pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
-                methods = get_string(pktin);
-                if (!get_bool(pktin)) {
+                ptrlen methods = get_string(pktin);
+                bool partial_success = get_bool(pktin);
+
+                if (!partial_success) {
                     /*
                      * We have received an unequivocal Access
                      * Denied. This can translate to a variety of
@@ -558,6 +558,15 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     ppl_logevent(("Further authentication required"));
                 }
 
+                /*
+                 * Save the methods string for use in error messages.
+                 */
+                s->last_methods_string->len = 0;
+                put_data(s->last_methods_string, methods.ptr, methods.len);
+
+                /*
+                 * Scan it for method identifiers we know about.
+                 */
                 s->can_pubkey =
                     in_commasep_string("publickey", methods.ptr, methods.len);
                 s->can_passwd =
@@ -1488,8 +1497,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     "No supported authentication methods available",
                     SSH2_DISCONNECT_NO_MORE_AUTH_METHODS_AVAILABLE);
                 ssh_sw_abort(s->ppl.ssh, "No supported authentication methods "
-                             "available (server sent: %.*s)",
-                             PTRLEN_PRINTF(methods));
+                             "available (server sent: %s)",
+                             s->last_methods_string->s);
                 return;
             }
 
