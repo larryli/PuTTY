@@ -575,26 +575,36 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 /*
                  * Scan it for method identifiers we know about.
                  */
-                s->can_pubkey =
-                    in_commasep_string("publickey", methods.ptr, methods.len);
-                s->can_passwd =
-                    in_commasep_string("password", methods.ptr, methods.len);
-                s->can_keyb_inter =
-                    s->try_ki_auth &&
-                    in_commasep_string("keyboard-interactive",
-                                       methods.ptr, methods.len);
+                bool srv_pubkey = false, srv_passwd = false;
+                bool srv_keyb_inter = false, srv_gssapi = false;
+                bool srv_gssapi_keyex_auth = false;
+
+                for (ptrlen method; get_commasep_word(&methods, &method) ;) {
+                    if (ptrlen_eq_string(method, "publickey"))
+                        srv_pubkey = true;
+                    else if (ptrlen_eq_string(method, "password"))
+                        srv_passwd = true;
+                    else if (ptrlen_eq_string(method, "keyboard-interactive"))
+                        srv_keyb_inter = true;
+                    else if (ptrlen_eq_string(method, "gssapi-with-mic"))
+                        srv_gssapi = true;
+                    else if (ptrlen_eq_string(method, "gssapi-keyex"))
+                        srv_gssapi_keyex_auth = true;
+                }
+
+                /*
+                 * And combine those flags with our own configuration
+                 * and context to set the main can_foo variables.
+                 */
+                s->can_pubkey = srv_pubkey;
+                s->can_passwd = srv_passwd;
+                s->can_keyb_inter = s->try_ki_auth && srv_keyb_inter;
 #ifndef NO_GSSAPI
-                s->can_gssapi =
-                    s->try_gssapi_auth &&
-                    in_commasep_string("gssapi-with-mic",
-                                       methods.ptr, methods.len) &&
+                s->can_gssapi = s->try_gssapi_auth && srv_gssapi &&
                     s->shgss->libs->nlibraries > 0;
-                s->can_gssapi_keyex_auth =
-                    s->try_gssapi_kex_auth &&
-                    in_commasep_string("gssapi-keyex",
-                                       methods.ptr, methods.len) &&
-                    s->shgss->libs->nlibraries > 0 &&
-                    s->shgss->ctx;
+                s->can_gssapi_keyex_auth = s->try_gssapi_kex_auth &&
+                    srv_gssapi_keyex_auth &&
+                    s->shgss->libs->nlibraries > 0 && s->shgss->ctx;
 #endif
             }
 
