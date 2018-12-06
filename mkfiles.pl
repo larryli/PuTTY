@@ -537,13 +537,13 @@ if (defined $makefiles{'clangcl'}) {
     "CCTARGET = i386-pc-windows-msvc18.0.0\n".
     "PLATFORMCFLAGS =\n".
     "endif\n".
-    "CC = \$(CCCMD) --target=\$(CCTARGET)\n".
+    "CC = \$(CCCMD)\n".
     "RC = \$(RCCMD) /c 1252 \n".
     "RCPREPROC = \$(CCCMD) /P /TC\n".
     "LD = lld-link\n".
     "\n".
     "# C compilation flags\n".
-    &splitline("CFLAGS = /nologo /W3 /O1 " .
+    &splitline("CFLAGS = --target=\$(CCTARGET) /nologo /W3 /O1 " .
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 ".
                "/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS").
