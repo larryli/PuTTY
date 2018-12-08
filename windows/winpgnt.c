@@ -794,7 +794,7 @@ static char *answer_filemapping_message(const char *mapname)
     reply.buf = NULL;
 
 #ifdef DEBUG_IPC
-    debug(("mapname = \"%s\"\n", mapname));
+    debug("mapname = \"%s\"\n", mapname);
 #endif
 
     maphandle = OpenFileMapping(FILE_MAP_ALL_ACCESS, false, mapname);
@@ -805,7 +805,7 @@ static char *answer_filemapping_message(const char *mapname)
     }
 
 #ifdef DEBUG_IPC
-    debug(("maphandle = %p\n", maphandle));
+    debug("maphandle = %p\n", maphandle);
 #endif
 
 #ifndef NO_SECURITY
@@ -837,8 +837,8 @@ static char *answer_filemapping_message(const char *mapname)
             ConvertSidToStringSid(mapsid, &theirs);
             ConvertSidToStringSid(expectedsid, &ours);
             ConvertSidToStringSid(expectedsid_bc, &ours2);
-            debug(("got sids:\n  oursnew=%s\n  oursold=%s\n"
-                   "  theirs=%s\n", ours, ours2, theirs));
+            debug("got sids:\n  oursnew=%s\n  oursold=%s\n"
+                  "  theirs=%s\n", ours, ours2, theirs);
             LocalFree(ours);
             LocalFree(ours2);
             LocalFree(theirs);
@@ -854,7 +854,7 @@ static char *answer_filemapping_message(const char *mapname)
 #endif /* NO_SECURITY */
     {
 #ifdef DEBUG_IPC
-        debug(("security APIs not present\n"));
+        debug("security APIs not present\n");
 #endif
     }
 
@@ -866,7 +866,7 @@ static char *answer_filemapping_message(const char *mapname)
     }
 
 #ifdef DEBUG_IPC
-    debug(("mapped address = %p\n", mapaddr));
+    debug("mapped address = %p\n", mapaddr);
 #endif
 
     {
@@ -887,7 +887,7 @@ static char *answer_filemapping_message(const char *mapname)
         mapsize = mbi.RegionSize;
     }
 #ifdef DEBUG_IPC
-    debug(("region size = %zd\n", mapsize));
+    debug("region size = %zd\n", mapsize);
 #endif
     if (mapsize < 5) {
         err = dupstr("mapping smaller than smallest possible request");
@@ -897,8 +897,8 @@ static char *answer_filemapping_message(const char *mapname)
     msglen = GET_32BIT((unsigned char *)mapaddr);
 
 #ifdef DEBUG_IPC
-    debug(("msg length=%08x, msg type=%02x\n",
-           msglen, (unsigned)((unsigned char *) mapaddr)[4]));
+    debug("msg length=%08x, msg type=%02x\n",
+          msglen, (unsigned)((unsigned char *) mapaddr)[4]);
 #endif
 
     reply.buf = (char *)mapaddr + 4;
@@ -1095,7 +1095,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             err = answer_filemapping_message(mapname);
             if (err) {
 #ifdef DEBUG_IPC
-                debug(("IPC failed: %s\n", err));
+                debug("IPC failed: %s\n", err);
 #endif
                 sfree(err);
                 return 0;

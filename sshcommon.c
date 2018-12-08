@@ -986,7 +986,7 @@ bool ssh1_common_filter_queue(PacketProtocolLayer *ppl)
 
           case SSH1_MSG_DEBUG:
             msg = get_string(pktin);
-            ppl_logevent(("Remote debug message: %.*s", PTRLEN_PRINTF(msg)));
+            ppl_logevent("Remote debug message: %.*s", PTRLEN_PRINTF(msg));
             pq_pop(ppl->in_pq);
             break;
 

@@ -237,7 +237,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
 	 * we don't use gethostbyname as a fallback!)
 	 */
 	if (ret->superfamily == UNRESOLVED) {
-	    /*debug(("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host)); */
+	    /*debug("Resolving \"%s\" with gethostbyname() (IPv4 only)...\n", host); */
 	    if ( (h = gethostbyname(host)) )
 		ret->superfamily = IP;
 	}

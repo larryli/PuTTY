@@ -258,7 +258,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     }
     s->username = get_string(pktin);
     s->username.ptr = s->username_str = mkstr(s->username);
-    ppl_logevent(("Received username '%.*s'", PTRLEN_PRINTF(s->username)));
+    ppl_logevent("Received username '%.*s'", PTRLEN_PRINTF(s->username));
 
     s->auth_successful = auth_none(s->authpolicy, s->username);
     while (1) {
@@ -298,7 +298,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 continue;
 
             if (s->authkey->bytes < 32) {
-                ppl_logevent(("Auth key far too small"));
+                ppl_logevent("Auth key far too small");
                 continue;
             }
 
@@ -317,7 +317,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
                 if (!rsa_ssh1_encrypt(rsabuf, 32, s->authkey)) {
                     sfree(rsabuf);
-                    ppl_logevent(("Failed to encrypt auth challenge"));
+                    ppl_logevent("Failed to encrypt auth challenge");
                     continue;
                 }
 
@@ -346,7 +346,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 ptrlen expected = make_ptrlen(
                     s->auth_rsa_expected_response, 16);
                 if (!ptrlen_eq_ptrlen(response, expected)) {
-                    ppl_logevent(("Wrong response to auth challenge"));
+                    ppl_logevent("Wrong response to auth challenge");
                     continue;
                 }
             }

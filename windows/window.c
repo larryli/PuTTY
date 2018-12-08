@@ -1548,8 +1548,8 @@ static void init_fonts(int pick_width, int pick_height)
     }
 
 #ifdef RDB_DEBUG_PATCH
-    debug(23, "Primary font H=%d, AW=%d, MW=%d",
-	    tm.tmHeight, tm.tmAveCharWidth, tm.tmMaxCharWidth);
+    debug("Primary font H=%d, AW=%d, MW=%d\n",
+          tm.tmHeight, tm.tmAveCharWidth, tm.tmMaxCharWidth);
 #endif
 
     {
@@ -1796,7 +1796,7 @@ static void reset_window(int reinit) {
     RECT cr, wr;
 
 #ifdef RDB_DEBUG_PATCH
-    debug((27, "reset_window()"));
+    debug("reset_window()\n");
 #endif
 
     /* Current window sizes ... */
@@ -1815,7 +1815,7 @@ static void reset_window(int reinit) {
     /* Are we being forced to reload the fonts ? */
     if (reinit>1) {
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "reset_window() -- Forced deinit"));
+	debug("reset_window() -- Forced deinit\n");
 #endif
 	deinit_fonts();
 	init_fonts(0,0);
@@ -1833,7 +1833,7 @@ static void reset_window(int reinit) {
 	offset_height = (win_height-font_height*term->rows)/2;
 	InvalidateRect(hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "reset_window() -> Reposition terminal"));
+	debug("reset_window() -> Reposition terminal\n");
 #endif
     }
 
@@ -1854,8 +1854,8 @@ static void reset_window(int reinit) {
 		offset_height = (win_height-font_height*term->rows)/2;
 		InvalidateRect(hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
-		debug((25, "reset_window() -> Z font resize to (%d, %d)",
-			font_width, font_height));
+		debug("reset_window() -> Z font resize to (%d, %d)\n",
+                      font_width, font_height);
 #endif
 	    }
 	} else {
@@ -1870,7 +1870,7 @@ static void reset_window(int reinit) {
 		offset_height = (win_height-font_height*term->rows)/2;
 		InvalidateRect(hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
-		debug((27, "reset_window() -> Zoomed term_size"));
+		debug("reset_window() -> Zoomed term_size\n");
 #endif
 	    }
 	}
@@ -1882,7 +1882,7 @@ static void reset_window(int reinit) {
      */
     if (reinit>0) {
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "reset_window() -> Forced re-init"));
+	debug("reset_window() -> Forced re-init\n");
 #endif
 
 	offset_width = offset_height = window_border;
@@ -1950,8 +1950,8 @@ static void reset_window(int reinit) {
 		    term_size(term, height, width,
 			      conf_get_int(conf, CONF_savelines));
 #ifdef RDB_DEBUG_PATCH
-		    debug((27, "reset_window() -> term resize to (%d,%d)",
-			       height, width));
+		    debug("reset_window() -> term resize to (%d,%d)\n",
+                          height, width);
 #endif
 		}
 	    }
@@ -1963,9 +1963,9 @@ static void reset_window(int reinit) {
 
 	    InvalidateRect(hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
-	    debug((27, "reset_window() -> window resize to (%d,%d)",
-			font_width*term->cols + extra_width,
-			font_height*term->rows + extra_height));
+	    debug("reset_window() -> window resize to (%d,%d)\n",
+                  font_width*term->cols + extra_width,
+                  font_height*term->rows + extra_height);
 #endif
 	}
 	return;
@@ -1987,8 +1987,8 @@ static void reset_window(int reinit) {
 
 	InvalidateRect(hwnd, NULL, true);
 #ifdef RDB_DEBUG_PATCH
-	debug((25, "reset_window() -> font resize to (%d,%d)", 
-		   font_width, font_height));
+	debug("reset_window() -> font resize to (%d,%d)\n", 
+              font_width, font_height);
 #endif
     }
 }
@@ -2862,7 +2862,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	break;
       case WM_ENTERSIZEMOVE:
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "WM_ENTERSIZEMOVE"));
+	debug("WM_ENTERSIZEMOVE\n");
 #endif
 	EnableSizeTip(true);
 	resizing = true;
@@ -2872,7 +2872,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	EnableSizeTip(false);
 	resizing = false;
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "WM_EXITSIZEMOVE"));
+	debug("WM_EXITSIZEMOVE\n");
 #endif
 	if (need_backend_resize) {
 	    term_size(term, conf_get_int(conf, CONF_height),
@@ -2983,13 +2983,13 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SIZE:
 	resize_action = conf_get_int(conf, CONF_resize_action);
 #ifdef RDB_DEBUG_PATCH
-	debug((27, "WM_SIZE %s (%d,%d)",
-		(wParam == SIZE_MINIMIZED) ? "SIZE_MINIMIZED":
-		(wParam == SIZE_MAXIMIZED) ? "SIZE_MAXIMIZED":
-		(wParam == SIZE_RESTORED && resizing) ? "to":
-		(wParam == SIZE_RESTORED) ? "SIZE_RESTORED":
-		"...",
-	    LOWORD(lParam), HIWORD(lParam)));
+	debug("WM_SIZE %s (%d,%d)\n",
+              (wParam == SIZE_MINIMIZED) ? "SIZE_MINIMIZED":
+              (wParam == SIZE_MAXIMIZED) ? "SIZE_MAXIMIZED":
+              (wParam == SIZE_RESTORED && resizing) ? "to":
+              (wParam == SIZE_RESTORED) ? "SIZE_RESTORED":
+              "...",
+              LOWORD(lParam), HIWORD(lParam));
 #endif
 	if (wParam == SIZE_MINIMIZED)
 	    SetWindowText(hwnd,
@@ -4098,53 +4098,53 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    first = 0;
 
 	    if ((HIWORD(lParam) & (KF_UP | KF_REPEAT)) == KF_REPEAT) {
-		debug(("+"));
+		debug("+");
 	    } else if ((HIWORD(lParam) & KF_UP)
 		       && scan == (HIWORD(lParam) & 0xFF)) {
-		debug((". U"));
+		debug(". U");
 	    } else {
-		debug((".\n"));
+		debug(".\n");
 		if (wParam >= VK_F1 && wParam <= VK_F20)
-		    debug(("K_F%d", wParam + 1 - VK_F1));
+		    debug("K_F%d", wParam + 1 - VK_F1);
 		else
 		    switch (wParam) {
 		      case VK_SHIFT:
-			debug(("SHIFT"));
+			debug("SHIFT");
 			break;
 		      case VK_CONTROL:
-			debug(("CTRL"));
+			debug("CTRL");
 			break;
 		      case VK_MENU:
-			debug(("ALT"));
+			debug("ALT");
 			break;
 		      default:
-			debug(("VK_%02x", wParam));
+			debug("VK_%02x", wParam);
 		    }
 		if (message == WM_SYSKEYDOWN || message == WM_SYSKEYUP)
-		    debug(("*"));
-		debug((", S%02x", scan = (HIWORD(lParam) & 0xFF)));
+		    debug("*");
+		debug(", S%02x", scan = (HIWORD(lParam) & 0xFF));
 
 		ch = MapVirtualKeyEx(wParam, 2, kbd_layout);
 		if (ch >= ' ' && ch <= '~')
-		    debug((", '%c'", ch));
+		    debug(", '%c'", ch);
 		else if (ch)
-		    debug((", $%02x", ch));
+		    debug(", $%02x", ch);
 
 		if (keys_unicode[0])
-		    debug((", KB0=%04x", keys_unicode[0]));
+		    debug(", KB0=%04x", keys_unicode[0]);
 		if (keys_unicode[1])
-		    debug((", KB1=%04x", keys_unicode[1]));
+		    debug(", KB1=%04x", keys_unicode[1]);
 		if (keys_unicode[2])
-		    debug((", KB2=%04x", keys_unicode[2]));
+		    debug(", KB2=%04x", keys_unicode[2]);
 
 		if ((keystate[VK_SHIFT] & 0x80) != 0)
-		    debug((", S"));
+		    debug(", S");
 		if ((keystate[VK_CONTROL] & 0x80) != 0)
-		    debug((", C"));
+		    debug(", C");
 		if ((HIWORD(lParam) & KF_EXTENDED))
-		    debug((", E"));
+		    debug(", E");
 		if ((HIWORD(lParam) & KF_UP))
-		    debug((", U"));
+		    debug(", U");
 	    }
 
 	    if ((HIWORD(lParam) & (KF_UP | KF_REPEAT)) == KF_REPEAT);
@@ -4155,7 +4155,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 
 	    for (ch = 0; ch < 256; ch++)
 		if (oldstate[ch] != keystate[ch])
-		    debug((", M%02x=%02x", ch, keystate[ch]));
+		    debug(", M%02x=%02x", ch, keystate[ch]);
 
 	    memcpy(oldstate, keystate, sizeof(oldstate));
 	}
@@ -4588,19 +4588,19 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	if (r == 1 && !key_down) {
 	    if (alt_sum) {
 		if (in_utf(term) || ucsdata.dbcs_screenfont)
-		    debug((", (U+%04x)", alt_sum));
+		    debug(", (U+%04x)", alt_sum);
 		else
-		    debug((", LCH(%d)", alt_sum));
+		    debug(", LCH(%d)", alt_sum);
 	    } else {
-		debug((", ACH(%d)", keys_unicode[0]));
+		debug(", ACH(%d)", keys_unicode[0]);
 	    }
 	} else if (r > 0) {
 	    int r1;
-	    debug((", ASC("));
+	    debug(", ASC(");
 	    for (r1 = 0; r1 < r; r1++) {
-		debug(("%s%d", r1 ? "," : "", keys_unicode[r1]));
+		debug("%s%d", r1 ? "," : "", keys_unicode[r1]);
 	    }
-	    debug((")"));
+	    debug(")");
 	}
 #endif
 	if (r > 0) {

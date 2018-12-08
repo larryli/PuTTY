@@ -1065,12 +1065,12 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             }
         }
 
-        debug(("key_event: type=%s keyval=%s state=%s "
-               "hardware_keycode=%d is_modifier=%s string=[%s]\n",
-               type_string, keyval_string, state_string,
-               (int)event->hardware_keycode,
-               event->is_modifier ? "true" : "false",
-               string_string));
+        debug("key_event: type=%s keyval=%s state=%s "
+              "hardware_keycode=%d is_modifier=%s string=[%s]\n",
+              type_string, keyval_string, state_string,
+              (int)event->hardware_keycode,
+              event->is_modifier ? "true" : "false",
+              string_string);
 
         sfree(type_string);
         sfree(state_string);
@@ -1096,8 +1096,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
              event->keyval == GDK_KEY_Alt_R) &&
             inst->alt_keycode >= 0 && inst->alt_digits > 1) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - modifier release terminates Alt+numberpad input, "
-                   "keycode = %d\n", inst->alt_keycode));
+            debug(" - modifier release terminates Alt+numberpad input, "
+                  "keycode = %d\n", inst->alt_keycode);
 #endif
             /*
              * FIXME: we might usefully try to do something clever here
@@ -1110,16 +1110,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         }
 #if GTK_CHECK_VERSION(2,0,0)
 #ifdef KEY_EVENT_DIAGNOSTICS
-        debug((" - key release, passing to IM\n"));
+        debug(" - key release, passing to IM\n");
 #endif
         if (gtk_im_context_filter_keypress(inst->imc, event)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - key release accepted by IM\n"));
+            debug(" - key release accepted by IM\n");
 #endif
             return true;
         } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - key release not accepted by IM\n"));
+            debug(" - key release not accepted by IM\n");
 #endif
         }
 #endif
@@ -1136,8 +1136,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
              event->keyval == GDK_KEY_Alt_L ||
              event->keyval == GDK_KEY_Alt_R)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - modifier press potentially begins Alt+numberpad "
-                   "input\n"));
+            debug(" - modifier press potentially begins Alt+numberpad "
+                  "input\n");
 #endif
 	    inst->alt_keycode = -1;
             inst->alt_digits = 0;
@@ -1176,8 +1176,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 		    inst->alt_keycode = inst->alt_keycode * 10 + digit;
                 inst->alt_digits++;
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Alt+numberpad digit %d added to keycode %d"
-                       " gives %d\n", digit, old_keycode, inst->alt_keycode));
+                debug(" - Alt+numberpad digit %d added to keycode %d"
+                      " gives %d\n", digit, old_keycode, inst->alt_keycode);
 #endif
 		/* Having used this digit, we now do nothing more with it. */
 		goto done;
@@ -1187,7 +1187,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         if (event->keyval == GDK_KEY_greater &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl->: increase font size\n"));
+            debug(" - Ctrl->: increase font size\n");
 #endif
             change_font_size(inst, +1);
             return true;
@@ -1195,7 +1195,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         if (event->keyval == GDK_KEY_less &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-<: increase font size\n"));
+            debug(" - Ctrl-<: increase font size\n");
 #endif
             change_font_size(inst, -1);
             return true;
@@ -1209,7 +1209,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
              (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Shift-PgUp scroll\n"));
+            debug(" - Ctrl-Shift-PgUp scroll\n");
 #endif
             term_scroll(inst->term, 1, 0);
             return true;
@@ -1217,7 +1217,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Page_Up &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-PgUp scroll\n"));
+            debug(" - Shift-PgUp scroll\n");
 #endif
 	    term_scroll(inst->term, 0, -inst->height/2);
 	    return true;
@@ -1225,7 +1225,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Page_Up &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-PgUp scroll\n"));
+            debug(" - Ctrl-PgUp scroll\n");
 #endif
 	    term_scroll(inst->term, 0, -1);
 	    return true;
@@ -1234,7 +1234,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             ((event->state & (GDK_CONTROL_MASK | GDK_SHIFT_MASK)) ==
              (GDK_CONTROL_MASK | GDK_SHIFT_MASK))) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-shift-PgDn scroll\n"));
+            debug(" - Ctrl-shift-PgDn scroll\n");
 #endif
             term_scroll(inst->term, -1, 0);
             return true;
@@ -1242,7 +1242,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Page_Down &&
             (event->state & GDK_SHIFT_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-PgDn scroll\n"));
+            debug(" - Shift-PgDn scroll\n");
 #endif
 	    term_scroll(inst->term, 0, +inst->height/2);
 	    return true;
@@ -1250,7 +1250,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Page_Down &&
             (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-PgDn scroll\n"));
+            debug(" - Ctrl-PgDn scroll\n");
 #endif
 	    term_scroll(inst->term, 0, +1);
 	    return true;
@@ -1266,25 +1266,25 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             switch (cfgval) {
               case CLIPUI_IMPLICIT:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Shift-Insert: paste from PRIMARY\n"));
+                debug(" - Shift-Insert: paste from PRIMARY\n");
 #endif
                 term_request_paste(inst->term, CLIP_PRIMARY);
                 return true;
               case CLIPUI_EXPLICIT:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Shift-Insert: paste from CLIPBOARD\n"));
+                debug(" - Shift-Insert: paste from CLIPBOARD\n");
 #endif
                 term_request_paste(inst->term, CLIP_CLIPBOARD);
                 return true;
               case CLIPUI_CUSTOM:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Shift-Insert: paste from custom clipboard\n"));
+                debug(" - Shift-Insert: paste from custom clipboard\n");
 #endif
                 term_request_paste(inst->term, inst->clipboard_ctrlshiftins);
                 return true;
               default:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Shift-Insert: no paste action\n"));
+                debug(" - Shift-Insert: no paste action\n");
 #endif
                 break;
             }
@@ -1298,26 +1298,26 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
               case CLIPUI_IMPLICIT:
                 /* do nothing; re-copy to PRIMARY is not needed */
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Ctrl-Insert: non-copy to PRIMARY\n"));
+                debug(" - Ctrl-Insert: non-copy to PRIMARY\n");
 #endif
                 return true;
               case CLIPUI_EXPLICIT:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Ctrl-Insert: copy to CLIPBOARD\n"));
+                debug(" - Ctrl-Insert: copy to CLIPBOARD\n");
 #endif
                 term_request_copy(inst->term,
                                   clips_clipboard, lenof(clips_clipboard));
                 return true;
               case CLIPUI_CUSTOM:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Ctrl-Insert: copy to custom clipboard\n"));
+                debug(" - Ctrl-Insert: copy to custom clipboard\n");
 #endif
                 term_request_copy(inst->term,
                                   &inst->clipboard_ctrlshiftins, 1);
                 return true;
               default:
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Ctrl-Insert: no copy action\n"));
+                debug(" - Ctrl-Insert: no copy action\n");
 #endif
                 break;
             }
@@ -1338,25 +1338,25 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
               case CLIPUI_IMPLICIT:
                 if (paste) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-V: paste from PRIMARY\n"));
+                    debug(" - Ctrl-Shift-V: paste from PRIMARY\n");
 #endif
                     term_request_paste(inst->term, CLIP_PRIMARY);
                 } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-C: non-copy to PRIMARY\n"));
+                    debug(" - Ctrl-Shift-C: non-copy to PRIMARY\n");
 #endif
                 }
                 return true;
               case CLIPUI_EXPLICIT:
                 if (paste) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-V: paste from CLIPBOARD\n"));
+                    debug(" - Ctrl-Shift-V: paste from CLIPBOARD\n");
 #endif
                     term_request_paste(inst->term, CLIP_CLIPBOARD);
                 } else {
                     static const int clips[] = { CLIP_CLIPBOARD };
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-C: copy to CLIPBOARD\n"));
+                    debug(" - Ctrl-Shift-C: copy to CLIPBOARD\n");
 #endif
                     term_request_copy(inst->term, clips, lenof(clips));
                 }
@@ -1364,13 +1364,13 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
               case CLIPUI_CUSTOM:
                 if (paste) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-V: paste from custom clipboard\n"));
+                    debug(" - Ctrl-Shift-V: paste from custom clipboard\n");
 #endif
                     term_request_paste(inst->term,
                                        inst->clipboard_ctrlshiftcv);
                 } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - Ctrl-Shift-C: copy to custom clipboard\n"));
+                    debug(" - Ctrl-Shift-C: copy to custom clipboard\n");
 #endif
                     term_request_copy(inst->term,
                                       &inst->clipboard_ctrlshiftcv, 1);
@@ -1458,8 +1458,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                  * something not what we wanted).
                  */
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Meta modifier requiring manual intervention, "
-                       "suppressing IM filtering\n"));
+                debug(" - Meta modifier requiring manual intervention, "
+                      "suppressing IM filtering\n");
 #endif
                 try_filter = false;
             }
@@ -1467,16 +1467,16 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
             if (try_filter) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - general key press, passing to IM\n"));
+                debug(" - general key press, passing to IM\n");
 #endif
                 if (gtk_im_context_filter_keypress(inst->imc, event)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - key press accepted by IM\n"));
+                    debug(" - key press accepted by IM\n");
 #endif
                     return true;
                 } else {
 #ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - key press not accepted by IM\n"));
+                    debug(" - key press not accepted by IM\n");
 #endif
                 }
             }
@@ -1517,8 +1517,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)widedata[i]);
                     sfree(old);
                 }
-                debug((" - string translated into Unicode = [%s]\n",
-                       string_string));
+                debug(" - string translated into Unicode = [%s]\n",
+                      string_string);
                 sfree(string_string);
             }
 #endif
@@ -1539,8 +1539,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)output[i+1] & 0xFF);
                     sfree(old);
                 }
-                debug((" - string translated into UTF-8 = [%s]\n",
-                       string_string));
+                debug(" - string translated into UTF-8 = [%s]\n",
+                      string_string);
                 sfree(string_string);
             }
 #endif
@@ -1554,8 +1554,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    ucsoutput[0] = '\033';
 	    ucsoutput[1] = ucsval;
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - keysym_to_unicode gave %04x\n",
-                   (unsigned)ucsoutput[1]));
+            debug(" - keysym_to_unicode gave %04x\n",
+                  (unsigned)ucsoutput[1]);
 #endif
 	    use_ucsoutput = true;
 	    end = 2;
@@ -1591,9 +1591,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
                     {
                         char *keyval_name = dup_keyval_name(new_keyval);
-                        debug((" - retranslation for manual Meta: "
-                               "new keyval = %s, Unicode = %04x\n",
-                               keyval_name, (unsigned)ucsoutput[1]));
+                        debug(" - retranslation for manual Meta: "
+                              "new keyval = %s, Unicode = %04x\n",
+                              keyval_name, (unsigned)ucsoutput[1]);
                         sfree(keyval_name);
                     }
 #endif
@@ -1609,7 +1609,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (!output[1] && event->keyval == '`' &&
 	    (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-` special case, translating as 1c\n"));
+            debug(" - Ctrl-` special case, translating as 1c\n");
 #endif
 	    output[1] = '\x1C';
 	    use_ucsoutput = false;
@@ -1648,10 +1648,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
 #ifdef KEY_EVENT_DIAGNOSTICS
             if (orig == output[1])
-                debug((" - manual Ctrl key handling did nothing\n"));
+                debug(" - manual Ctrl key handling did nothing\n");
             else
-                debug((" - manual Ctrl key handling: %02x -> %02x\n",
-                       (unsigned)orig, (unsigned)output[1]));
+                debug(" - manual Ctrl key handling: %02x -> %02x\n",
+                      (unsigned)orig, (unsigned)output[1]);
 #endif
         }
 
@@ -1659,7 +1659,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	if (event->keyval == GDK_KEY_Break &&
 	    (event->state & GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Break special case, sending SS_BRK\n"));
+            debug(" - Ctrl-Break special case, sending SS_BRK\n");
 #endif
             if (inst->backend)
                 backend_special(inst->backend, SS_BRK, 0);
@@ -1670,7 +1670,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * special to ldisc. */
 	if (event->keyval == GDK_KEY_Return) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Return special case, translating as 0d + special\n"));
+            debug(" - Return special case, translating as 0d + special\n");
 #endif
 	    output[1] = '\015';
 	    use_ucsoutput = false;
@@ -1685,7 +1685,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK |
 			     GDK_CONTROL_MASK)) == GDK_CONTROL_MASK) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-{space,2,@} special case, translating as 00\n"));
+            debug(" - Ctrl-{space,2,@} special case, translating as 00\n");
 #endif
 	    output[1] = '\0';
 	    use_ucsoutput = false;
@@ -1697,7 +1697,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->state & (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) ==
 	    (GDK_SHIFT_MASK | GDK_CONTROL_MASK)) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Ctrl-Shift-space special case, translating as 00a0\n"));
+            debug(" - Ctrl-Shift-space special case, translating as 00a0\n");
 #endif
 	    output[1] = '\240';
 	    output_charset = CS_ISO8859_1;
@@ -1711,8 +1711,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x7F' : '\x08';
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Backspace, translating as %02x\n",
-                   (unsigned)output[1]));
+            debug(" - Backspace, translating as %02x\n",
+                  (unsigned)output[1]);
 #endif
 	    use_ucsoutput = false;
 	    end = 2;
@@ -1724,8 +1724,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    output[1] = conf_get_bool(inst->conf, CONF_bksp_is_delete) ?
 		'\x08' : '\x7F';
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Backspace, translating as %02x\n",
-                   (unsigned)output[1]));
+            debug(" - Shift-Backspace, translating as %02x\n",
+                  (unsigned)output[1]);
 #endif
 	    use_ucsoutput = false;
 	    end = 2;
@@ -1737,7 +1737,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    (event->keyval == GDK_KEY_Tab &&
              (event->state & GDK_SHIFT_MASK))) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Shift-Tab, translating as ESC [ Z\n"));
+            debug(" - Shift-Tab, translating as ESC [ Z\n");
 #endif
 	    end = 1 + sprintf(output+1, "\033[Z");
 	    use_ucsoutput = false;
@@ -1747,7 +1747,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	 * doesn't translate Tab for us. */
 	if (event->keyval == GDK_KEY_Tab && end <= 1) {
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - Tab, translating as 09\n"));
+            debug(" - Tab, translating as 09\n");
 #endif
 	    output[1] = '\t';
 	    end = 2;
@@ -1759,7 +1759,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 event->state & GDK_SHIFT_MASK,
                 event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - numeric keypad key"));
+            debug(" - numeric keypad key");
 #endif
             use_ucsoutput = false;
             goto done;
@@ -1792,7 +1792,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                           event->state & GDK_SHIFT_MASK,
                                           event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - function key F%d", fkey_number));
+            debug(" - function key F%d", fkey_number);
 #endif
             use_ucsoutput = false;
             goto done;
@@ -1817,7 +1817,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 
             end = 1 + format_small_keypad_key(output+1, inst->term, sk_key);
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - small keypad key"));
+            debug(" - small keypad key");
 #endif
             use_ucsoutput = false;
             goto done;
@@ -1837,7 +1837,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             end = 1 + format_arrow_key(output+1, inst->term, xkey,
                                        event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - arrow key"));
+            debug(" - arrow key");
 #endif
             use_ucsoutput = false;
             goto done;
@@ -1849,7 +1849,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 event->state & GDK_SHIFT_MASK,
                 event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-            debug((" - numeric keypad key"));
+            debug(" - numeric keypad key");
 #endif
             use_ucsoutput = false;
             goto done;
@@ -1873,8 +1873,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                           (unsigned)output[i] & 0xFF);
                 sfree(old);
             }
-            debug((" - final output, special, generic encoding = [%s]\n",
-                   charset_to_localenc(output_charset), string_string));
+            debug(" - final output, special, generic encoding = [%s]\n",
+                  charset_to_localenc(output_charset), string_string);
             sfree(string_string);
 #endif
 	    /*
@@ -1898,8 +1898,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)output[i] & 0xFF);
                     sfree(old);
                 }
-                debug((" - final output in %s = [%s]\n",
-                       charset_to_localenc(output_charset), string_string));
+                debug(" - final output in %s = [%s]\n",
+                      charset_to_localenc(output_charset), string_string);
                 sfree(string_string);
 #endif
                 generated_something = true;
@@ -1918,8 +1918,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                               (unsigned)ucsoutput[i]);
                     sfree(old);
                 }
-                debug((" - final output in Unicode = [%s]\n",
-                       string_string));
+                debug(" - final output in Unicode = [%s]\n",
+                      string_string);
                 sfree(string_string);
 #endif
 
@@ -1947,8 +1947,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                                           (unsigned)output[i] & 0xFF);
                 sfree(old);
             }
-            debug((" - final output in direct-to-font encoding = [%s]\n",
-                   string_string));
+            debug(" - final output in direct-to-font encoding = [%s]\n",
+                  string_string);
             sfree(string_string);
 #endif
             generated_something = true;
@@ -1981,7 +1981,7 @@ void input_method_commit_event(GtkIMContext *imc, gchar *str, gpointer data)
                                   (unsigned)str[i] & 0xFF);
         sfree(old);
     }
-    debug((" - IM commit event in UTF-8 = [%s]\n", string_string));
+    debug(" - IM commit event in UTF-8 = [%s]\n", string_string);
     sfree(string_string);
 #endif
 

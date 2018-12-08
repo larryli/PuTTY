@@ -85,7 +85,7 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
         assert(!s->crcda_ctx);
         s->crcda_ctx = crcda_make_context();
 
-        bpp_logevent(("Initialised %s encryption", cipher->text_name));
+        bpp_logevent("Initialised %s encryption", cipher->text_name);
     }
 }
 
@@ -101,7 +101,7 @@ void ssh1_bpp_start_compression(BinaryPacketProtocol *bpp)
     s->compctx = ssh_compressor_new(&ssh_zlib);
     s->decompctx = ssh_decompressor_new(&ssh_zlib);
 
-    bpp_logevent(("Started zlib (RFC1950) compression"));
+    bpp_logevent("Started zlib (RFC1950) compression");
 }
 
 #define BPP_READ(ptr, len) do                                           \

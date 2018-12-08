@@ -225,8 +225,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
      */
     if (!filename_is_null(s->keyfile)) {
         int keytype;
-        ppl_logevent(("Reading key file \"%.150s\"",
-                      filename_to_str(s->keyfile)));
+        ppl_logevent("Reading key file \"%.150s\"",
+                     filename_to_str(s->keyfile));
         keytype = key_type(s->keyfile);
         if (keytype == SSH_KEYTYPE_SSH2 ||
             keytype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
@@ -239,22 +239,22 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                                      &s->publickey_comment, &error)) {
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH2);
                 if (!s->privatekey_available)
-                    ppl_logevent(("Key file contains public key only"));
+                    ppl_logevent("Key file contains public key only");
                 s->privatekey_encrypted =
                     ssh2_userkey_encrypted(s->keyfile, NULL);
             } else {
-                ppl_logevent(("Unable to load key (%s)", error));
-                ppl_printf(("Unable to load key file \"%s\" (%s)\r\n",
-                            filename_to_str(s->keyfile), error));
+                ppl_logevent("Unable to load key (%s)", error);
+                ppl_printf("Unable to load key file \"%s\" (%s)\r\n",
+                           filename_to_str(s->keyfile), error);
                 strbuf_free(s->publickey_blob);
                 s->publickey_blob = NULL;
             }
         } else {
-            ppl_logevent(("Unable to use this key file (%s)",
-                          key_type_to_str(keytype)));
-            ppl_printf(("Unable to use key file \"%s\" (%s)\r\n",
-                        filename_to_str(s->keyfile),
-                        key_type_to_str(keytype)));
+            ppl_logevent("Unable to use this key file (%s)",
+                         key_type_to_str(keytype));
+            ppl_printf("Unable to use key file \"%s\" (%s)\r\n",
+                       filename_to_str(s->keyfile),
+                       key_type_to_str(keytype));
             s->publickey_blob = NULL;
         }
     }
@@ -266,7 +266,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
     s->nkeys = 0;
     s->pkblob_pos_in_agent = 0;
     if (s->tryagent && agent_exists()) {
-        ppl_logevent(("Pageant is running. Requesting keys."));
+        ppl_logevent("Pageant is running. Requesting keys.");
 
         /* Request the keys held by the agent. */
         {
@@ -290,12 +290,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * and blob lengths make sense.
              */
             if (s->nkeys < 0) {
-                ppl_logevent(("Pageant response contained a negative"
-                              " key count %d", s->nkeys));
+                ppl_logevent("Pageant response contained a negative"
+                             " key count %d", s->nkeys);
                 s->nkeys = 0;
                 goto done_agent_query;
             } else {
-                ppl_logevent(("Pageant has %d SSH-2 keys", s->nkeys));
+                ppl_logevent("Pageant has %d SSH-2 keys", s->nkeys);
 
                 /* See if configured key is in agent. */
                 for (keyi = 0; keyi < s->nkeys; keyi++) {
@@ -303,7 +303,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     ptrlen blob = get_string(s->asrc);
                     get_string(s->asrc); /* skip comment */
                     if (get_err(s->asrc)) {
-                        ppl_logevent(("Pageant response was truncated"));
+                        ppl_logevent("Pageant response was truncated");
                         s->nkeys = 0;
                         goto done_agent_query;
                     }
@@ -312,20 +312,20 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         blob.len == s->publickey_blob->len &&
                         !memcmp(blob.ptr, s->publickey_blob->s,
                                 s->publickey_blob->len)) {
-                        ppl_logevent(("Pageant key #%d matches "
-                                      "configured key file", keyi));
+                        ppl_logevent("Pageant key #%d matches "
+                                     "configured key file", keyi);
                         s->keyi = keyi;
                         s->pkblob_pos_in_agent = pos;
                         break;
                     }
                 }
                 if (s->publickey_blob && !s->pkblob_pos_in_agent) {
-                    ppl_logevent(("Configured key file not in Pageant"));
+                    ppl_logevent("Configured key file not in Pageant");
                     s->nkeys = 0;
                 }
             }
         } else {
-            ppl_logevent(("Failed to get reply from Pageant"));
+            ppl_logevent("Failed to get reply from Pageant");
         }
       done_agent_query:;
     }
@@ -398,7 +398,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             free_prompts(s->cur_prompt);
         } else {
             if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE))
-                ppl_printf(("Using username \"%s\".\r\n", s->username));
+                ppl_printf("Using username \"%s\".\r\n", s->username);
         }
         s->got_username = true;
 
@@ -475,7 +475,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 bufchain_clear(&s->banner);
             }
             if (pktin && pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
-                ppl_logevent(("Access granted"));
+                ppl_logevent("Access granted");
                 goto userauth_success;
             }
 
@@ -528,32 +528,32 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     } else if (s->type == AUTH_TYPE_PUBLICKEY_OFFER_LOUD ||
                                s->type == AUTH_TYPE_PUBLICKEY_OFFER_QUIET) {
                         if (s->type == AUTH_TYPE_PUBLICKEY_OFFER_LOUD)
-                            ppl_printf(("Server refused our key\r\n"));
-                        ppl_logevent(("Server refused our key"));
+                            ppl_printf("Server refused our key\r\n");
+                        ppl_logevent("Server refused our key");
                     } else if (s->type == AUTH_TYPE_PUBLICKEY) {
                         /* This _shouldn't_ happen except by a
                          * protocol bug causing client and server to
                          * disagree on what is a correct signature. */
-                        ppl_printf(("Server refused public-key signature"
-                                    " despite accepting key!\r\n"));
-                        ppl_logevent(("Server refused public-key signature"
-                                      " despite accepting key!"));
+                        ppl_printf("Server refused public-key signature"
+                                   " despite accepting key!\r\n");
+                        ppl_logevent("Server refused public-key signature"
+                                     " despite accepting key!");
                     } else if (s->type==AUTH_TYPE_KEYBOARD_INTERACTIVE_QUIET) {
                         /* quiet, so no ppl_printf */
-                        ppl_logevent(("Server refused keyboard-interactive "
-                                      "authentication"));
+                        ppl_logevent("Server refused keyboard-interactive "
+                                     "authentication");
                     } else if (s->type==AUTH_TYPE_GSSAPI) {
                         /* always quiet, so no ppl_printf */
                         /* also, the code down in the GSSAPI block has
                          * already logged this in the Event Log */
                     } else if (s->type == AUTH_TYPE_KEYBOARD_INTERACTIVE) {
-                        ppl_logevent(("Keyboard-interactive authentication "
-                                      "failed"));
-                        ppl_printf(("Access denied\r\n"));
+                        ppl_logevent("Keyboard-interactive authentication "
+                                     "failed");
+                        ppl_printf("Access denied\r\n");
                     } else {
                         assert(s->type == AUTH_TYPE_PASSWORD);
-                        ppl_logevent(("Password authentication failed"));
-                        ppl_printf(("Access denied\r\n"));
+                        ppl_logevent("Password authentication failed");
+                        ppl_printf("Access denied\r\n");
 
                         if (s->change_username) {
                             /* XXX perhaps we should allow
@@ -562,8 +562,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         }
                     }
                 } else {
-                    ppl_printf(("Further authentication required\r\n"));
-                    ppl_logevent(("Further authentication required"));
+                    ppl_printf("Further authentication required\r\n");
+                    ppl_logevent("Further authentication required");
                 }
 
                 /*
@@ -620,9 +620,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_GSSAPI;
 
                 if (s->shgss->lib->gsslogmsg)
-                    ppl_logevent(("%s", s->shgss->lib->gsslogmsg));
+                    ppl_logevent("%s", s->shgss->lib->gsslogmsg);
 
-                ppl_logevent(("Trying gssapi-keyex..."));
+                ppl_logevent("Trying gssapi-keyex...");
                 s->pktout = ssh2_userauth_gss_packet(s, "gssapi-keyex");
                 pq_push(s->ppl.out_pq, s->pktout);
                 s->shgss->lib->release_cred(s->shgss->lib, &s->shgss->ctx);
@@ -640,7 +640,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PUBLICKEY;
 
-                ppl_logevent(("Trying Pageant key #%d", s->keyi));
+                ppl_logevent("Trying Pageant key #%d", s->keyi);
 
                 /* Unpack key from agent response */
                 s->pk = get_string(s->asrc);
@@ -675,9 +675,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     strbuf *agentreq, *sigdata;
 
                     if (flags & FLAG_VERBOSE)
-                        ppl_printf(("Authenticating with public key "
-                                    "\"%.*s\" from agent\r\n",
-                                    PTRLEN_PRINTF(s->comment)));
+                        ppl_printf("Authenticating with public key "
+                                   "\"%.*s\" from agent\r\n",
+                                   PTRLEN_PRINTF(s->comment));
 
                     /*
                      * Server is willing to accept the key.
@@ -717,7 +717,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         get_uint32(src); /* skip length field */
                         if (get_byte(src) == SSH2_AGENT_SIGN_RESPONSE &&
                             (sigblob = get_string(src), !get_err(src))) {
-                            ppl_logevent(("Sending Pageant's response"));
+                            ppl_logevent("Sending Pageant's response");
                             ssh2_userauth_add_sigblob(s, s->pktout,
                                                       s->pk, sigblob);
                             pq_push(s->ppl.out_pq, s->pktout);
@@ -768,7 +768,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_string(s->pktout, s->publickey_blob->s,
                            s->publickey_blob->len);
                 pq_push(s->ppl.out_pq, s->pktout);
-                ppl_logevent(("Offered public key"));
+                ppl_logevent("Offered public key");
 
                 crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
                 if (pktin->type != SSH2_MSG_USERAUTH_PK_OK) {
@@ -777,15 +777,15 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     s->type = AUTH_TYPE_PUBLICKEY_OFFER_LOUD;
                     continue; /* process this new message */
                 }
-                ppl_logevent(("Offer of public key accepted"));
+                ppl_logevent("Offer of public key accepted");
 
                 /*
                  * Actually attempt a serious authentication using
                  * the key.
                  */
                 if (flags & FLAG_VERBOSE)
-                    ppl_printf(("Authenticating with public key \"%s\"\r\n",
-                                s->publickey_comment));
+                    ppl_printf("Authenticating with public key \"%s\"\r\n",
+                               s->publickey_comment);
 
                 key = NULL;
                 while (!key) {
@@ -846,12 +846,12 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     if (key == SSH2_WRONG_PASSPHRASE || key == NULL) {
                         if (passphrase &&
                             (key == SSH2_WRONG_PASSPHRASE)) {
-                            ppl_printf(("Wrong passphrase\r\n"));
+                            ppl_printf("Wrong passphrase\r\n");
                             key = NULL;
                             /* and loop again */
                         } else {
-                            ppl_printf(("Unable to load private key (%s)\r\n",
-                                        error));
+                            ppl_printf("Unable to load private key (%s)\r\n",
+                                       error);
                             key = NULL;
                             break; /* try something else */
                         }
@@ -900,7 +900,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     strbuf_free(sigblob);
 
                     pq_push(s->ppl.out_pq, s->pktout);
-                    ppl_logevent(("Sent public key signature"));
+                    ppl_logevent("Sent public key signature");
                     s->type = AUTH_TYPE_PUBLICKEY;
                     ssh_key_free(key->key);
                     sfree(key->comment);
@@ -919,16 +919,16 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_GSSAPI;
 
                 if (s->shgss->lib->gsslogmsg)
-                    ppl_logevent(("%s", s->shgss->lib->gsslogmsg));
+                    ppl_logevent("%s", s->shgss->lib->gsslogmsg);
 
                 /* Sending USERAUTH_REQUEST with "gssapi-with-mic" method */
-                ppl_logevent(("Trying gssapi-with-mic..."));
+                ppl_logevent("Trying gssapi-with-mic...");
                 s->pktout = ssh_bpp_new_pktout(
                     s->ppl.bpp, SSH2_MSG_USERAUTH_REQUEST);
                 put_stringz(s->pktout, s->username);
                 put_stringz(s->pktout, s->successor_layer->vt->name);
                 put_stringz(s->pktout, "gssapi-with-mic");
-                ppl_logevent(("Attempting GSSAPI authentication"));
+                ppl_logevent("Attempting GSSAPI authentication");
 
                 /* add mechanism info */
                 s->shgss->lib->indicate_mech(s->shgss->lib, &s->gss_buf);
@@ -947,7 +947,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 pq_push(s->ppl.out_pq, s->pktout);
                 crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
                 if (pktin->type != SSH2_MSG_USERAUTH_GSSAPI_RESPONSE) {
-                    ppl_logevent(("GSSAPI authentication request refused"));
+                    ppl_logevent("GSSAPI authentication request refused");
                     pq_push_front(s->ppl.in_pq, pktin);
                     continue;
                 }
@@ -962,8 +962,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     ((char *)s->gss_rcvtok.value)[1] != s->gss_buf.length ||
                     memcmp((char *)s->gss_rcvtok.value + 2,
                            s->gss_buf.value,s->gss_buf.length) ) {
-                    ppl_logevent(("GSSAPI authentication - wrong response "
-                                  "from server"));
+                    ppl_logevent("GSSAPI authentication - wrong response "
+                                 "from server");
                     continue;
                 }
 
@@ -973,10 +973,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         s->shgss->lib, s->fullhostname, &s->shgss->srv_name);
                     if (s->gss_stat != SSH_GSS_OK) {
                         if (s->gss_stat == SSH_GSS_BAD_HOST_NAME)
-                            ppl_logevent(("GSSAPI import name failed -"
-                                          " Bad service name"));
+                            ppl_logevent("GSSAPI import name failed -"
+                                         " Bad service name");
                         else
-                            ppl_logevent(("GSSAPI import name failed"));
+                            ppl_logevent("GSSAPI import name failed");
                         continue;
                     }
                 }
@@ -985,8 +985,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->gss_stat = s->shgss->lib->acquire_cred(
                     s->shgss->lib, &s->shgss->ctx, NULL);
                 if (s->gss_stat != SSH_GSS_OK) {
-                    ppl_logevent(("GSSAPI authentication failed to get "
-                                  "credentials"));
+                    ppl_logevent("GSSAPI authentication failed to get "
+                                 "credentials");
                     /* The failure was on our side, so the server
                      * won't be sending a response packet indicating
                      * failure. Avoid waiting for it next time round
@@ -1017,19 +1017,19 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                     if (s->gss_stat!=SSH_GSS_S_COMPLETE &&
                         s->gss_stat!=SSH_GSS_S_CONTINUE_NEEDED) {
-                        ppl_logevent(("GSSAPI authentication initialisation "
-                                      "failed"));
+                        ppl_logevent("GSSAPI authentication initialisation "
+                                     "failed");
 
                         if (s->shgss->lib->display_status(s->shgss->lib,
                                 s->shgss->ctx, &s->gss_buf) == SSH_GSS_OK) {
-                            ppl_logevent(("%s", (char *)s->gss_buf.value));
+                            ppl_logevent("%s", (char *)s->gss_buf.value);
                             sfree(s->gss_buf.value);
                         }
 
                         pq_push_front(s->ppl.in_pq, pktin);
                         break;
                     }
-                    ppl_logevent(("GSSAPI authentication initialised"));
+                    ppl_logevent("GSSAPI authentication initialised");
 
                     /*
                      * Client and server now exchange tokens until GSSAPI
@@ -1076,14 +1076,14 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         }
 
                         if (pktin->type == SSH2_MSG_USERAUTH_FAILURE) {
-                            ppl_logevent(("GSSAPI authentication failed"));
+                            ppl_logevent("GSSAPI authentication failed");
                             s->gss_stat = SSH_GSS_FAILURE;
                             pq_push_front(s->ppl.in_pq, pktin);
                             break;
                         } else if (pktin->type !=
                                    SSH2_MSG_USERAUTH_GSSAPI_TOKEN) {
-                            ppl_logevent(("GSSAPI authentication -"
-                                          " bad server response"));
+                            ppl_logevent("GSSAPI authentication -"
+                                         " bad server response");
                             s->gss_stat = SSH_GSS_FAILURE;
                             break;
                         }
@@ -1097,7 +1097,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     s->shgss->lib->release_cred(s->shgss->lib, &s->shgss->ctx);
                     continue;
                 }
-                ppl_logevent(("GSSAPI authentication loop finished OK"));
+                ppl_logevent("GSSAPI authentication loop finished OK");
 
                 /* Now send the MIC */
 
@@ -1127,7 +1127,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_stringz(s->pktout, "");     /* submethods */
                 pq_push(s->ppl.out_pq, s->pktout);
                 
-                ppl_logevent(("Attempting keyboard-interactive authentication"));
+                ppl_logevent("Attempting keyboard-interactive authentication");
 
                 crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
                 if (pktin->type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
@@ -1342,7 +1342,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_stringz(s->pktout, s->password);
                 s->pktout->minlen = 256;
                 pq_push(s->ppl.out_pq, s->pktout);
-                ppl_logevent(("Sent password"));
+                ppl_logevent("Sent password");
                 s->type = AUTH_TYPE_PASSWORD;
 
                 /*
@@ -1369,8 +1369,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                             msg = "Server requested password change";
                         else
                             msg = "Server rejected new password";
-                        ppl_logevent(("%s", msg));
-                        ppl_printf(("%s\r\n", msg));
+                        ppl_logevent("%s", msg);
+                        ppl_printf("%s\r\n", msg);
                     }
 
                     prompt = get_string(pktin);
@@ -1460,7 +1460,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                                    == 0);
                         if (!got_new)
                             /* They don't. Silly user. */
-                            ppl_printf(("Passwords do not match\r\n"));
+                            ppl_printf("Passwords do not match\r\n");
 
                     }
 
@@ -1480,7 +1480,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     free_prompts(s->cur_prompt);
                     s->pktout->minlen = 256;
                     pq_push(s->ppl.out_pq, s->pktout);
-                    ppl_logevent(("Sent new password"));
+                    ppl_logevent("Sent new password");
                     
                     /*
                      * Now see what the server has to say about it.
@@ -1635,8 +1635,8 @@ static void ssh2_userauth_add_sigblob(
             mod_mp.ptr = (const char *)mod_mp.ptr + 1;
         }
 
-	/* debug(("modulus length is %d\n", len)); */
-	/* debug(("signature length is %d\n", siglen)); */
+	/* debug("modulus length is %d\n", len); */
+	/* debug("signature length is %d\n", siglen); */
 
 	if (mod_mp.len != sig_mp.len) {
             strbuf *substr = strbuf_new();

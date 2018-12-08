@@ -66,7 +66,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
          * waiting for the group request.
          */
         if (dh_is_gex(s->kex_alg)) {
-            ppl_logevent(("Doing Diffie-Hellman group exchange"));
+            ppl_logevent("Doing Diffie-Hellman group exchange");
             s->ppl.bpp->pls->kctx = SSH2_PKTCTX_DHGEX;
 
             crMaybeWaitUntilV((pktin = ssh2_transport_pop(s)) != NULL);
@@ -111,12 +111,12 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             s->dh_ctx = dh_setup_group(s->kex_alg);
             s->kex_init_value = SSH2_MSG_KEXDH_INIT;
             s->kex_reply_value = SSH2_MSG_KEXDH_REPLY;
-            ppl_logevent(("Using Diffie-Hellman with standard group \"%s\"",
-                          s->kex_alg->groupname));
+            ppl_logevent("Using Diffie-Hellman with standard group \"%s\"",
+                         s->kex_alg->groupname);
         }
 
-        ppl_logevent(("Doing Diffie-Hellman key exchange with hash %s",
-                      s->kex_alg->hash->text_name));
+        ppl_logevent("Doing Diffie-Hellman key exchange with hash %s",
+                     s->kex_alg->hash->text_name);
 
         /*
          * Generate e for Diffie-Hellman.
@@ -179,9 +179,9 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             freebn(s->p); s->p = NULL;
         }
     } else if (s->kex_alg->main_type == KEXTYPE_ECDH) {
-        ppl_logevent(("Doing ECDH key exchange with curve %s and hash %s",
-                      ssh_ecdhkex_curve_textname(s->kex_alg),
-                      s->kex_alg->hash->text_name));
+        ppl_logevent("Doing ECDH key exchange with curve %s and hash %s",
+                     ssh_ecdhkex_curve_textname(s->kex_alg),
+                     s->kex_alg->hash->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_ECDHKEX;
 
         s->ecdh_key = ssh_ecdhkex_newkey(s->kex_alg);
@@ -230,8 +230,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
         ssh_sw_abort(s->ppl.ssh, "GSS key exchange not supported in server");
     } else {
         assert(s->kex_alg->main_type == KEXTYPE_RSA);
-        ppl_logevent(("Doing RSA key exchange with hash %s",
-                      s->kex_alg->hash->text_name));
+        ppl_logevent("Doing RSA key exchange with hash %s",
+                     s->kex_alg->hash->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_RSAKEX;
 
         {

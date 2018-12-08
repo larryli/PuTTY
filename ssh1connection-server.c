@@ -72,7 +72,7 @@ bool ssh1_handle_direction_specific_packet(
         if (s->finished_setup)
             goto unexpected_setup_packet;
 
-        ppl_logevent(("Client requested a shell"));
+        ppl_logevent("Client requested a shell");
         chan_run_shell(s->mainchan_chan);
         s->finished_setup = true;
         return true;
@@ -82,7 +82,7 @@ bool ssh1_handle_direction_specific_packet(
             goto unexpected_setup_packet;
 
         cmd = get_string(pktin);
-        ppl_logevent(("Client sent command '%.*s'", PTRLEN_PRINTF(cmd)));
+        ppl_logevent("Client sent command '%.*s'", PTRLEN_PRINTF(cmd));
         chan_run_command(s->mainchan_chan, cmd);
         s->finished_setup = true;
         return true;
@@ -119,12 +119,12 @@ bool ssh1_handle_direction_specific_packet(
                 BinarySource_UPCAST(pktin), 1);
 
             if (get_err(pktin)) {
-                ppl_logevent(("Unable to decode pty request packet"));
+                ppl_logevent("Unable to decode pty request packet");
                 success = false;
             } else if (!chan_allocate_pty(
                            s->mainchan_chan, termtype, width, height,
                            pixwidth, pixheight, modes)) {
-                ppl_logevent(("Unable to allocate a pty"));
+                ppl_logevent("Unable to allocate a pty");
                 success = false;
             } else {
                 success = true;
@@ -144,8 +144,8 @@ bool ssh1_handle_direction_specific_packet(
         host = get_string(pktin);
         port = toint(get_uint32(pktin));
 
-        ppl_logevent(("Client requested port %d forward to %.*s:%d",
-                      listenport, PTRLEN_PRINTF(host), port));
+        ppl_logevent("Client requested port %d forward to %.*s:%d",
+                     listenport, PTRLEN_PRINTF(host), port);
 
         host_str = mkstr(host);
         success = portfwdmgr_listen(
@@ -207,8 +207,8 @@ bool ssh1_handle_direction_specific_packet(
 
         host_str = mkstr(host);
 
-        ppl_logevent(("Received request to connect to port %s:%d",
-                      host_str, port));
+        ppl_logevent("Received request to connect to port %s:%d",
+                     host_str, port);
         c = snew(struct ssh1_channel);
         c->connlayer = s;
         err = portfwdmgr_connect(
@@ -218,7 +218,7 @@ bool ssh1_handle_direction_specific_packet(
         sfree(host_str);
 
         if (err) {
-            ppl_logevent(("Port open failed: %s", err));
+            ppl_logevent("Port open failed: %s", err);
             sfree(err);
             ssh1_channel_free(c);
             pktout = ssh_bpp_new_pktout(
@@ -234,7 +234,7 @@ bool ssh1_handle_direction_specific_packet(
             put_uint32(pktout, c->remoteid);
             put_uint32(pktout, c->localid);
             pq_push(s->ppl.out_pq, pktout);
-            ppl_logevent(("Forwarded port opened successfully"));
+            ppl_logevent("Forwarded port opened successfully");
         }
 
         return true;
@@ -325,7 +325,7 @@ SshChannel *ssh1_serverside_x11_open(
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent(("Forwarding X11 connection to client"));
+    ppl_logevent("Forwarding X11 connection to client");
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_X11_OPEN);
     put_uint32(pktout, c->localid);
@@ -347,7 +347,7 @@ SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
     c->halfopen = true;
     c->chan = chan;
 
-    ppl_logevent(("Forwarding agent connection to client"));
+    ppl_logevent("Forwarding agent connection to client");
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_AGENT_OPEN);
     put_uint32(pktout, c->localid);
