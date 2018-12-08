@@ -6447,7 +6447,7 @@ int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
     char *p = buf;
 
     if (term->vt52_mode)
-	p += sprintf((char *) p, "\x1B%c", xkey);
+	p += sprintf(p, "\x1B%c", xkey);
     else {
 	bool app_flg = (term->app_cursor_keys && !term->no_applic_c);
 #if 0
@@ -6470,9 +6470,186 @@ int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
 	    app_flg = !app_flg;
 
 	if (app_flg)
-	    p += sprintf((char *) p, "\x1BO%c", xkey);
+	    p += sprintf(p, "\x1BO%c", xkey);
 	else
-	    p += sprintf((char *) p, "\x1B[%c", xkey);
+	    p += sprintf(p, "\x1B[%c", xkey);
+    }
+
+    return p - buf;
+}
+
+int format_function_key(char *buf, Terminal *term, int key_number,
+                        bool shift, bool ctrl)
+{
+    char *p = buf;
+
+    static const int key_number_to_tilde_code[] = {
+        -1,                 /* no such key as F0 */
+        11, 12, 13, 14, 15, /*gap*/ 17, 18, 19, 20, 21, /*gap*/
+        23, 24, 25, 26, /*gap*/ 28, 29, /*gap*/ 31, 32, 33, 34,
+    };
+
+    assert(key_number > 0);
+    assert(key_number < lenof(key_number_to_tilde_code));
+
+    int index = (shift && key_number <= 10) ? key_number + 10 : key_number;
+    int code = key_number_to_tilde_code[index];
+
+    if (term->funky_type == FUNKY_SCO) {
+        /* SCO function keys */
+        static const char sco_codes[] =
+            "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
+        index = (key_number >= 1 && key_number <= 12) ? key_number - 1 : 0;
+        if (shift) index += 12;
+        if (ctrl) index += 24;
+        p += sprintf(p, "\x1B[%c", sco_codes[index]);
+    } else if ((term->vt52_mode || term->funky_type == FUNKY_VT100P) &&
+               code >= 11 && code <= 24) {
+        int offt = 0;
+        if (code > 15)
+            offt++;
+        if (code > 21)
+            offt++;
+        if (term->vt52_mode)
+            p += sprintf(p, "\x1B%c", code + 'P' - 11 - offt);
+        else
+            p += sprintf(p, "\x1BO%c", code + 'P' - 11 - offt);
+    } else if (term->funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
+        p += sprintf(p, "\x1B[[%c", code + 'A' - 11);
+    } else if (term->funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
+        if (term->vt52_mode)
+            p += sprintf(p, "\x1B%c", code + 'P' - 11);
+        else
+            p += sprintf(p, "\x1BO%c", code + 'P' - 11);
+    } else {
+        p += sprintf(p, "\x1B[%d~", code);
+    }
+
+    return p - buf;
+}
+
+int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
+{
+    char *p = buf;
+
+    int code;
+    switch (key) {
+      case SKK_HOME: code = 1; break;
+      case SKK_INSERT: code = 2; break;
+      case SKK_DELETE: code = 3; break;
+      case SKK_END: code = 4; break;
+      case SKK_PGUP: code = 5; break;
+      case SKK_PGDN: code = 6; break;
+      default: assert(false && "bad small keypad key enum value");
+    }
+
+    /* Reorder edit keys to physical order */
+    if (term->funky_type == FUNKY_VT400 && code <= 6)
+        code = "\0\2\1\4\5\3\6"[code];
+
+    if (term->vt52_mode && code > 0 && code <= 6) {
+        p += sprintf(p, "\x1B%c", " HLMEIG"[code]);
+    } else if (term->funky_type == FUNKY_SCO) {
+        static const char codes[] = "HL.FIG";
+        if (code == 3) {
+            *p++ = '\x7F';
+        } else {
+            p += sprintf(p, "\x1B[%c", codes[code-1]);
+        }
+    } else if ((code == 1 || code == 4) && term->rxvt_homeend) {
+        p += sprintf(p, code == 1 ? "\x1B[H" : "\x1BOw");
+    } else {
+        p += sprintf(p, "\x1B[%d~", code);
+    }
+
+    return p - buf;
+}
+
+int format_numeric_keypad_key(char *buf, Terminal *term, char key,
+                              bool shift, bool ctrl)
+{
+    char *p = buf;
+    bool app_keypad = (term->app_keypad_keys && !term->no_applic_k);
+
+    if (term->nethack_keypad && (key >= '1' && key <= '9')) {
+        static const char nh_base[] = "bjnh.lyku";
+        char c = nh_base[key - '1'];
+        if (ctrl && c != '.')
+            c &= 0x1F;
+        else if (shift && c != '.')
+            c += 'A'-'a';
+        *p++ = c;
+    } else {
+        int xkey = 0;
+
+        if (term->funky_type == FUNKY_VT400 ||
+            (term->funky_type <= FUNKY_LINUX && app_keypad)) {
+            switch (key) {
+              case 'G': xkey = 'P'; break;
+              case '/': xkey = 'Q'; break;
+              case '*': xkey = 'R'; break;
+              case '-': xkey = 'S'; break;
+            }
+        }
+
+        if (app_keypad) {
+            switch (key) {
+              case '0': xkey = 'p'; break;
+              case '1': xkey = 'q'; break;
+              case '2': xkey = 'r'; break;
+              case '3': xkey = 's'; break;
+              case '4': xkey = 't'; break;
+              case '5': xkey = 'u'; break;
+              case '6': xkey = 'v'; break;
+              case '7': xkey = 'w'; break;
+              case '8': xkey = 'x'; break;
+              case '9': xkey = 'y'; break;
+              case '.': xkey = 'n'; break;
+              case '\r': xkey = 'M'; break;
+
+              case '+':
+		/*
+		 * Keypad + is tricky. It covers a space that would
+		 * be taken up on the VT100 by _two_ keys; so we
+		 * let Shift select between the two. Worse still,
+		 * in xterm function key mode we change which two...
+		 */
+                if (term->funky_type == FUNKY_XTERM)
+                    xkey = shift ? 'l' : 'k';
+                else
+                    xkey = shift ? 'm' : 'l';
+                break;
+
+              case '/':
+                if (term->funky_type == FUNKY_XTERM)
+                    xkey = 'o';
+                break;
+              case '*':
+                if (term->funky_type == FUNKY_XTERM)
+                    xkey = 'j';
+                break;
+              case '-':
+                if (term->funky_type == FUNKY_XTERM)
+                    xkey = 'm';
+                break;
+            }
+        }
+
+        if (xkey) {
+            if (term->vt52_mode) {
+                if (xkey >= 'P' && xkey <= 'S')
+                    p += sprintf(p, "\x1B%c", xkey);
+                else
+                    p += sprintf(p, "\x1B?%c", xkey);
+            } else
+                p += sprintf(p, "\x1BO%c", xkey);
+        }
+    }
+
+    if (p == buf && !app_keypad && key != 'G') {
+        /* Fallback: numeric keypad keys decode as their ASCII
+         * representation. */
+        p += sprintf(p, "%c", key);
     }
 
     return p - buf;

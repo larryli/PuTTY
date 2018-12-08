@@ -983,7 +983,9 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     int ucsval, start, end, output_charset;
     bool special, use_ucsoutput;
     bool nethack_mode, app_keypad_mode;
+    bool force_format_numeric_keypad = false;
     bool generated_something = false;
+    char num_keypad_key = '\0';
 
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)
@@ -1405,56 +1407,44 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * numeric keypad presses if Num Lock is on, but we don't want
          * it to.
          */
-	if (app_keypad_mode &&
-            (event->keyval == GDK_KEY_Num_Lock ||
-             event->keyval == GDK_KEY_KP_Divide ||
-             event->keyval == GDK_KEY_KP_Multiply ||
-             event->keyval == GDK_KEY_KP_Subtract ||
-             event->keyval == GDK_KEY_KP_Add ||
-             event->keyval == GDK_KEY_KP_Enter ||
-             event->keyval == GDK_KEY_KP_0 ||
-             event->keyval == GDK_KEY_KP_Insert ||
-             event->keyval == GDK_KEY_KP_1 ||
-             event->keyval == GDK_KEY_KP_End ||
-             event->keyval == GDK_KEY_KP_2 ||
-             event->keyval == GDK_KEY_KP_Down ||
-             event->keyval == GDK_KEY_KP_3 ||
-             event->keyval == GDK_KEY_KP_Page_Down ||
-             event->keyval == GDK_KEY_KP_4 ||
-             event->keyval == GDK_KEY_KP_Left ||
-             event->keyval == GDK_KEY_KP_5 ||
-             event->keyval == GDK_KEY_KP_Begin ||
-             event->keyval == GDK_KEY_KP_6 ||
-             event->keyval == GDK_KEY_KP_Right ||
-             event->keyval == GDK_KEY_KP_7 ||
-             event->keyval == GDK_KEY_KP_Home ||
-             event->keyval == GDK_KEY_KP_8 ||
-             event->keyval == GDK_KEY_KP_Up ||
-             event->keyval == GDK_KEY_KP_9 ||
-             event->keyval == GDK_KEY_KP_Page_Up ||
-             event->keyval == GDK_KEY_KP_Decimal ||
-             event->keyval == GDK_KEY_KP_Delete)) {
-            /* app keypad; do nothing */
-        } else if (nethack_mode &&
-                   (event->keyval == GDK_KEY_KP_1 ||
-                    event->keyval == GDK_KEY_KP_End ||
-                    event->keyval == GDK_KEY_KP_2 ||
-                    event->keyval == GDK_KEY_KP_Down ||
-                    event->keyval == GDK_KEY_KP_3 ||
-                    event->keyval == GDK_KEY_KP_Page_Down ||
-                    event->keyval == GDK_KEY_KP_4 ||
-                    event->keyval == GDK_KEY_KP_Left ||
-                    event->keyval == GDK_KEY_KP_5 ||
-                    event->keyval == GDK_KEY_KP_Begin ||
-                    event->keyval == GDK_KEY_KP_6 ||
-                    event->keyval == GDK_KEY_KP_Right ||
-                    event->keyval == GDK_KEY_KP_7 ||
-                    event->keyval == GDK_KEY_KP_Home ||
-                    event->keyval == GDK_KEY_KP_8 ||
-                    event->keyval == GDK_KEY_KP_Up ||
-                    event->keyval == GDK_KEY_KP_9 ||
-                    event->keyval == GDK_KEY_KP_Page_Up)) {
-            /* nethack mode; do nothing */
+        bool numeric = false;
+        switch (event->keyval) {
+          case GDK_KEY_Num_Lock: num_keypad_key = 'G'; break;
+          case GDK_KEY_KP_Divide: num_keypad_key = '/'; break;
+          case GDK_KEY_KP_Multiply: num_keypad_key = '*'; break;
+          case GDK_KEY_KP_Subtract: num_keypad_key = '-'; break;
+          case GDK_KEY_KP_Add: num_keypad_key = '+'; break;
+          case GDK_KEY_KP_Enter: num_keypad_key = '\r'; break;
+          case GDK_KEY_KP_0: num_keypad_key = '0'; numeric = true; break;
+          case GDK_KEY_KP_Insert: num_keypad_key = '0'; break;
+          case GDK_KEY_KP_1: num_keypad_key = '1'; numeric = true; break;
+          case GDK_KEY_KP_End: num_keypad_key = '1'; break;
+          case GDK_KEY_KP_2: num_keypad_key = '2'; numeric = true; break;
+          case GDK_KEY_KP_Down: num_keypad_key = '2'; break;
+          case GDK_KEY_KP_3: num_keypad_key = '3'; numeric = true; break;
+          case GDK_KEY_KP_Page_Down: num_keypad_key = '3'; break;
+          case GDK_KEY_KP_4: num_keypad_key = '4'; numeric = true; break;
+          case GDK_KEY_KP_Left: num_keypad_key = '4'; break;
+          case GDK_KEY_KP_5: num_keypad_key = '5'; numeric = true; break;
+          case GDK_KEY_KP_Begin: num_keypad_key = '5'; break;
+          case GDK_KEY_KP_6: num_keypad_key = '6'; numeric = true; break;
+          case GDK_KEY_KP_Right: num_keypad_key = '6'; break;
+          case GDK_KEY_KP_7: num_keypad_key = '7'; numeric = true; break;
+          case GDK_KEY_KP_Home: num_keypad_key = '7'; break;
+          case GDK_KEY_KP_8: num_keypad_key = '8'; numeric = true; break;
+          case GDK_KEY_KP_Up: num_keypad_key = '8'; break;
+          case GDK_KEY_KP_9: num_keypad_key = '9'; numeric = true; break;
+          case GDK_KEY_KP_Page_Up: num_keypad_key = '9'; break;
+          case GDK_KEY_KP_Decimal: num_keypad_key = '.'; numeric = true; break;
+          case GDK_KEY_KP_Delete: num_keypad_key = '.'; break;
+        }
+	if ((app_keypad_mode && num_keypad_key &&
+             (numeric || inst->term->funky_type != FUNKY_XTERM)) ||
+            (nethack_mode && num_keypad_key >= '1' && num_keypad_key <= '9')) {
+            /* In these modes, we override the keypad handling:
+             * regardless of Num Lock, the keys are handled by
+             * format_numeric_keypad_key below. */
+            force_format_numeric_keypad = true;
         } else {
             bool try_filter = true;
 
@@ -1763,345 +1753,108 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	    end = 2;
 	}
 
-	/*
-	 * NetHack keypad mode.
-	 */
-	if (nethack_mode) {
-	    const char *keys = NULL;
-	    switch (event->keyval) {
-	      case GDK_KEY_KP_1: case GDK_KEY_KP_End:
-                keys = "bB\002"; break;
-	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down:
-                keys = "jJ\012"; break;
-	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down:
-                keys = "nN\016"; break;
-	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left:
-                keys = "hH\010"; break;
-	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin:
-                keys = "..."; break;
-	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right:
-                keys = "lL\014"; break;
-	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home:
-                keys = "yY\031"; break;
-	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up:
-                keys = "kK\013"; break;
-	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up:
-                keys = "uU\025"; break;
-	    }
-	    if (keys) {
-		end = 2;
-		if (event->state & GDK_CONTROL_MASK)
-		    output[1] = keys[2];
-		else if (event->state & GDK_SHIFT_MASK)
-		    output[1] = keys[1];
-		else
-		    output[1] = keys[0];
+	if (num_keypad_key && force_format_numeric_keypad) {
+            end = 1 + format_numeric_keypad_key(
+                output+1, inst->term, num_keypad_key,
+                event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Nethack-mode key"));
+            debug((" - numeric keypad key"));
 #endif
-		use_ucsoutput = false;
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Application keypad mode.
-	 */
-	if (app_keypad_mode) {
-	    int xkey = 0;
-	    switch (event->keyval) {
-	      case GDK_KEY_Num_Lock: xkey = 'P'; break;
-	      case GDK_KEY_KP_Divide: xkey = 'Q'; break;
-	      case GDK_KEY_KP_Multiply: xkey = 'R'; break;
-	      case GDK_KEY_KP_Subtract: xkey = 'S'; break;
-		/*
-		 * Keypad + is tricky. It covers a space that would
-		 * be taken up on the VT100 by _two_ keys; so we
-		 * let Shift select between the two. Worse still,
-		 * in xterm function key mode we change which two...
-		 */
-	      case GDK_KEY_KP_Add:
-		if (conf_get_int(inst->conf, CONF_funky_type) == FUNKY_XTERM) {
-		    if (event->state & GDK_SHIFT_MASK)
-			xkey = 'l';
-		    else
-			xkey = 'k';
-		} else if (event->state & GDK_SHIFT_MASK)
-			xkey = 'm';
-		else
-		    xkey = 'l';
-		break;
-	      case GDK_KEY_KP_Enter: xkey = 'M'; break;
-	      case GDK_KEY_KP_0: case GDK_KEY_KP_Insert: xkey = 'p'; break;
-	      case GDK_KEY_KP_1: case GDK_KEY_KP_End: xkey = 'q'; break;
-	      case GDK_KEY_KP_2: case GDK_KEY_KP_Down: xkey = 'r'; break;
-	      case GDK_KEY_KP_3: case GDK_KEY_KP_Page_Down: xkey = 's'; break;
-	      case GDK_KEY_KP_4: case GDK_KEY_KP_Left: xkey = 't'; break;
-	      case GDK_KEY_KP_5: case GDK_KEY_KP_Begin: xkey = 'u'; break;
-	      case GDK_KEY_KP_6: case GDK_KEY_KP_Right: xkey = 'v'; break;
-	      case GDK_KEY_KP_7: case GDK_KEY_KP_Home: xkey = 'w'; break;
-	      case GDK_KEY_KP_8: case GDK_KEY_KP_Up: xkey = 'x'; break;
-	      case GDK_KEY_KP_9: case GDK_KEY_KP_Page_Up: xkey = 'y'; break;
-	      case GDK_KEY_KP_Decimal: case GDK_KEY_KP_Delete:
-                xkey = 'n'; break;
-	    }
-	    if (xkey) {
-		if (inst->term->vt52_mode) {
-		    if (xkey >= 'P' && xkey <= 'S')
-			end = 1 + sprintf(output+1, "\033%c", xkey);
-		    else
-			end = 1 + sprintf(output+1, "\033?%c", xkey);
-		} else
-		    end = 1 + sprintf(output+1, "\033O%c", xkey);
-		use_ucsoutput = false;
+        switch (event->keyval) {
+            int fkey_number;
+          case GDK_KEY_F1: fkey_number = 1; goto numbered_function_key;
+          case GDK_KEY_F2: fkey_number = 2; goto numbered_function_key;
+          case GDK_KEY_F3: fkey_number = 3; goto numbered_function_key;
+          case GDK_KEY_F4: fkey_number = 4; goto numbered_function_key;
+          case GDK_KEY_F5: fkey_number = 5; goto numbered_function_key;
+          case GDK_KEY_F6: fkey_number = 6; goto numbered_function_key;
+          case GDK_KEY_F7: fkey_number = 7; goto numbered_function_key;
+          case GDK_KEY_F8: fkey_number = 8; goto numbered_function_key;
+          case GDK_KEY_F9: fkey_number = 9; goto numbered_function_key;
+          case GDK_KEY_F10: fkey_number = 10; goto numbered_function_key;
+          case GDK_KEY_F11: fkey_number = 11; goto numbered_function_key;
+          case GDK_KEY_F12: fkey_number = 12; goto numbered_function_key;
+          case GDK_KEY_F13: fkey_number = 13; goto numbered_function_key;
+          case GDK_KEY_F14: fkey_number = 14; goto numbered_function_key;
+          case GDK_KEY_F15: fkey_number = 15; goto numbered_function_key;
+          case GDK_KEY_F16: fkey_number = 16; goto numbered_function_key;
+          case GDK_KEY_F17: fkey_number = 17; goto numbered_function_key;
+          case GDK_KEY_F18: fkey_number = 18; goto numbered_function_key;
+          case GDK_KEY_F19: fkey_number = 19; goto numbered_function_key;
+          case GDK_KEY_F20: fkey_number = 20; goto numbered_function_key;
+          numbered_function_key:
+            end = 1 + format_function_key(output+1, inst->term, fkey_number,
+                                          event->state & GDK_SHIFT_MASK,
+                                          event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Application keypad mode key"));
+            debug((" - function key F%d", fkey_number));
 #endif
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
+
+            SmallKeypadKey sk_key;
+          case GDK_KEY_Home: case GDK_KEY_KP_Home:
+            sk_key = SKK_HOME; goto small_keypad_key;
+          case GDK_KEY_Insert: case GDK_KEY_KP_Insert:
+            sk_key = SKK_INSERT; goto small_keypad_key;
+          case GDK_KEY_Delete: case GDK_KEY_KP_Delete:
+            sk_key = SKK_DELETE; goto small_keypad_key;
+          case GDK_KEY_End: case GDK_KEY_KP_End:
+            sk_key = SKK_END; goto small_keypad_key;
+          case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up:
+            sk_key = SKK_PGUP; goto small_keypad_key;
+          case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down:
+            sk_key = SKK_PGDN; goto small_keypad_key;
+          small_keypad_key:
+            /* These keys don't generate terminal input with Ctrl */
+            if (event->state & GDK_CONTROL_MASK)
+                break;
+
+            end = 1 + format_small_keypad_key(output+1, inst->term, sk_key);
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - small keypad key"));
+#endif
+            use_ucsoutput = false;
+            goto done;
+
+	    int xkey;
+          case GDK_KEY_Up: case GDK_KEY_KP_Up:
+            xkey = 'A'; goto arrow_key;
+          case GDK_KEY_Down: case GDK_KEY_KP_Down:
+            xkey = 'B'; goto arrow_key;
+          case GDK_KEY_Right: case GDK_KEY_KP_Right:
+            xkey = 'C'; goto arrow_key;
+          case GDK_KEY_Left: case GDK_KEY_KP_Left:
+            xkey = 'D'; goto arrow_key;
+          case GDK_KEY_Begin: case GDK_KEY_KP_Begin:
+            xkey = 'G'; goto arrow_key;
+          arrow_key:
+            end = 1 + format_arrow_key(output+1, inst->term, xkey,
+                                       event->state & GDK_CONTROL_MASK);
+#ifdef KEY_EVENT_DIAGNOSTICS
+            debug((" - arrow key"));
+#endif
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Next, all the keys that do tilde codes. (ESC '[' nn '~',
-	 * for integer decimal nn.)
-	 *
-	 * We also deal with the weird ones here. Linux VCs replace F1
-	 * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
-	 * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
-	 * respectively.
-	 */
-	{
-	    int code = 0;
-	    int funky_type = conf_get_int(inst->conf, CONF_funky_type);
-	    switch (event->keyval) {
-	      case GDK_KEY_F1:
-		code = (event->state & GDK_SHIFT_MASK ? 23 : 11);
-		break;
-	      case GDK_KEY_F2:
-		code = (event->state & GDK_SHIFT_MASK ? 24 : 12);
-		break;
-	      case GDK_KEY_F3:
-		code = (event->state & GDK_SHIFT_MASK ? 25 : 13);
-		break;
-	      case GDK_KEY_F4:
-		code = (event->state & GDK_SHIFT_MASK ? 26 : 14);
-		break;
-	      case GDK_KEY_F5:
-		code = (event->state & GDK_SHIFT_MASK ? 28 : 15);
-		break;
-	      case GDK_KEY_F6:
-		code = (event->state & GDK_SHIFT_MASK ? 29 : 17);
-		break;
-	      case GDK_KEY_F7:
-		code = (event->state & GDK_SHIFT_MASK ? 31 : 18);
-		break;
-	      case GDK_KEY_F8:
-		code = (event->state & GDK_SHIFT_MASK ? 32 : 19);
-		break;
-	      case GDK_KEY_F9:
-		code = (event->state & GDK_SHIFT_MASK ? 33 : 20);
-		break;
-	      case GDK_KEY_F10:
-		code = (event->state & GDK_SHIFT_MASK ? 34 : 21);
-		break;
-	      case GDK_KEY_F11:
-		code = 23;
-		break;
-	      case GDK_KEY_F12:
-		code = 24;
-		break;
-	      case GDK_KEY_F13:
-		code = 25;
-		break;
-	      case GDK_KEY_F14:
-		code = 26;
-		break;
-	      case GDK_KEY_F15:
-		code = 28;
-		break;
-	      case GDK_KEY_F16:
-		code = 29;
-		break;
-	      case GDK_KEY_F17:
-		code = 31;
-		break;
-	      case GDK_KEY_F18:
-		code = 32;
-		break;
-	      case GDK_KEY_F19:
-		code = 33;
-		break;
-	      case GDK_KEY_F20:
-		code = 34;
-		break;
-	    }
-	    if (!(event->state & GDK_CONTROL_MASK)) switch (event->keyval) {
-	      case GDK_KEY_Home: case GDK_KEY_KP_Home:
-		code = 1;
-		break;
-	      case GDK_KEY_Insert: case GDK_KEY_KP_Insert:
-		code = 2;
-		break;
-	      case GDK_KEY_Delete: case GDK_KEY_KP_Delete:
-		code = 3;
-		break;
-	      case GDK_KEY_End: case GDK_KEY_KP_End:
-		code = 4;
-		break;
-	      case GDK_KEY_Page_Up: case GDK_KEY_KP_Page_Up:
-		code = 5;
-		break;
-	      case GDK_KEY_Page_Down: case GDK_KEY_KP_Page_Down:
-		code = 6;
-		break;
-	    }
-	    /* Reorder edit keys to physical order */
-	    if (funky_type == FUNKY_VT400 && code <= 6)
-		code = "\0\2\1\4\5\3\6"[code];
-
-	    if (inst->term->vt52_mode && code > 0 && code <= 6) {
-		end = 1 + sprintf(output+1, "\x1B%c", " HLMEIG"[code]);
+	if (num_keypad_key) {
+            end = 1 + format_numeric_keypad_key(
+                output+1, inst->term, num_keypad_key,
+                event->state & GDK_SHIFT_MASK,
+                event->state & GDK_CONTROL_MASK);
 #ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - VT52 mode small keypad key"));
+            debug((" - numeric keypad key"));
 #endif
-		use_ucsoutput = false;
-		goto done;
-	    }
-
-	    if (funky_type == FUNKY_SCO &&     /* SCO function keys */
-		code >= 11 && code <= 34) {
-		char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
-		int index = 0;
-		switch (event->keyval) {
-		  case GDK_KEY_F1: index = 0; break;
-		  case GDK_KEY_F2: index = 1; break;
-		  case GDK_KEY_F3: index = 2; break;
-		  case GDK_KEY_F4: index = 3; break;
-		  case GDK_KEY_F5: index = 4; break;
-		  case GDK_KEY_F6: index = 5; break;
-		  case GDK_KEY_F7: index = 6; break;
-		  case GDK_KEY_F8: index = 7; break;
-		  case GDK_KEY_F9: index = 8; break;
-		  case GDK_KEY_F10: index = 9; break;
-		  case GDK_KEY_F11: index = 10; break;
-		  case GDK_KEY_F12: index = 11; break;
-		}
-		if (event->state & GDK_SHIFT_MASK) index += 12;
-		if (event->state & GDK_CONTROL_MASK) index += 24;
-		end = 1 + sprintf(output+1, "\x1B[%c", codes[index]);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - SCO mode function key"));
-#endif
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_SCO &&     /* SCO small keypad */
-		code >= 1 && code <= 6) {
-		char codes[] = "HL.FIG";
-		if (code == 3) {
-		    output[1] = '\x7F';
-		    end = 2;
-		} else {
-		    end = 1 + sprintf(output+1, "\x1B[%c", codes[code-1]);
-		}
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - SCO mode small keypad key"));
-#endif
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if ((inst->term->vt52_mode || funky_type == FUNKY_VT100P) &&
-		code >= 11 && code <= 24) {
-		int offt = 0;
-		if (code > 15)
-		    offt++;
-		if (code > 21)
-		    offt++;
-		if (inst->term->vt52_mode) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT52 mode function key"));
-#endif
-		    end = 1 + sprintf(output+1,
-				      "\x1B%c", code + 'P' - 11 - offt);
-                } else {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT100+ mode function key"));
-#endif
-		    end = 1 + sprintf(output+1,
-				      "\x1BO%c", code + 'P' - 11 - offt);
-                }
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
-		end = 1 + sprintf(output+1, "\x1B[[%c", code + 'A' - 11);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - Linux mode F1-F5 function key"));
-#endif
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if (funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
-		if (inst->term->vt52_mode) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - VT52 mode (overriding xterm) F1-F4 function"
-                           " key"));
-#endif
-		    end = 1 + sprintf(output+1, "\x1B%c", code + 'P' - 11);
-                } else {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                    debug((" - xterm mode F1-F4 function key"));
-#endif
-		    end = 1 + sprintf(output+1, "\x1BO%c", code + 'P' - 11);
-                }
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if ((code == 1 || code == 4) &&
-		conf_get_bool(inst->conf, CONF_rxvt_homeend)) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - rxvt style Home/End"));
-#endif
-		end = 1 + sprintf(output+1, code == 1 ? "\x1B[H" : "\x1BOw");
-		use_ucsoutput = false;
-		goto done;
-	    }
-	    if (code) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - ordinary function key encoding"));
-#endif
-		end = 1 + sprintf(output+1, "\x1B[%d~", code);
-		use_ucsoutput = false;
-		goto done;
-	    }
+            use_ucsoutput = false;
+            goto done;
 	}
 
-	/*
-	 * Cursor keys. (This includes the numberpad cursor keys,
-	 * if we haven't already done them due to app keypad mode.)
-	 * 
-	 * Here we also process un-numlocked un-appkeypadded KP5,
-	 * which sends ESC [ G.
-	 */
-	{
-	    int xkey = 0;
-	    switch (event->keyval) {
-	      case GDK_KEY_Up: case GDK_KEY_KP_Up: xkey = 'A'; break;
-	      case GDK_KEY_Down: case GDK_KEY_KP_Down: xkey = 'B'; break;
-	      case GDK_KEY_Right: case GDK_KEY_KP_Right: xkey = 'C'; break;
-	      case GDK_KEY_Left: case GDK_KEY_KP_Left: xkey = 'D'; break;
-	      case GDK_KEY_Begin: case GDK_KEY_KP_Begin: xkey = 'G'; break;
-	    }
-	    if (xkey) {
-		end = 1 + format_arrow_key(output+1, inst->term, xkey,
-					   event->state & GDK_CONTROL_MASK);
-#ifdef KEY_EVENT_DIAGNOSTICS
-                debug((" - arrow key"));
-#endif
-		use_ucsoutput = false;
-		goto done;
-	    }
-	}
 	goto done;
     }
 

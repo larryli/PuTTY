@@ -4068,7 +4068,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     BYTE keystate[256];
     int scan, shift_state;
     bool left_alt = false, key_down;
-    int r, i, code;
+    int r, i;
     unsigned char *p = output;
     static int alt_sum = 0;
     int funky_type = conf_get_int(conf, CONF_funky_type);
@@ -4388,137 +4388,6 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return 0;
 	}
 
-	/* Nethack keypad */
-	if (nethack_keypad && !left_alt) {
-	    switch (wParam) {
-	      case VK_NUMPAD1:
-		*p++ = "bB\002\002"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD2:
-		*p++ = "jJ\012\012"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD3:
-		*p++ = "nN\016\016"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD4:
-		*p++ = "hH\010\010"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD5:
-		*p++ = '.';
-		return p - output;
-	      case VK_NUMPAD6:
-		*p++ = "lL\014\014"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD7:
-		*p++ = "yY\031\031"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD8:
-		*p++ = "kK\013\013"[shift_state & 3];
-		return p - output;
-	      case VK_NUMPAD9:
-		*p++ = "uU\025\025"[shift_state & 3];
-		return p - output;
-	    }
-	}
-
-	/* Application Keypad */
-	if (!left_alt) {
-	    int xkey = 0;
-
-	    if (funky_type == FUNKY_VT400 ||
-		(funky_type <= FUNKY_LINUX &&
-		 term->app_keypad_keys && !no_applic_k)) switch (wParam) {
-		  case VK_EXECUTE:
-		    xkey = 'P';
-		    break;
-		  case VK_DIVIDE:
-		    xkey = 'Q';
-		    break;
-		  case VK_MULTIPLY:
-		    xkey = 'R';
-		    break;
-		  case VK_SUBTRACT:
-		    xkey = 'S';
-		    break;
-		}
-	    if (term->app_keypad_keys && !no_applic_k)
-		switch (wParam) {
-		  case VK_NUMPAD0:
-		    xkey = 'p';
-		    break;
-		  case VK_NUMPAD1:
-		    xkey = 'q';
-		    break;
-		  case VK_NUMPAD2:
-		    xkey = 'r';
-		    break;
-		  case VK_NUMPAD3:
-		    xkey = 's';
-		    break;
-		  case VK_NUMPAD4:
-		    xkey = 't';
-		    break;
-		  case VK_NUMPAD5:
-		    xkey = 'u';
-		    break;
-		  case VK_NUMPAD6:
-		    xkey = 'v';
-		    break;
-		  case VK_NUMPAD7:
-		    xkey = 'w';
-		    break;
-		  case VK_NUMPAD8:
-		    xkey = 'x';
-		    break;
-		  case VK_NUMPAD9:
-		    xkey = 'y';
-		    break;
-
-		  case VK_DECIMAL:
-		    xkey = 'n';
-		    break;
-		  case VK_ADD:
-		    if (funky_type == FUNKY_XTERM) {
-			if (shift_state)
-			    xkey = 'l';
-			else
-			    xkey = 'k';
-		    } else if (shift_state)
-			xkey = 'm';
-		    else
-			xkey = 'l';
-		    break;
-
-		  case VK_DIVIDE:
-		    if (funky_type == FUNKY_XTERM)
-			xkey = 'o';
-		    break;
-		  case VK_MULTIPLY:
-		    if (funky_type == FUNKY_XTERM)
-			xkey = 'j';
-		    break;
-		  case VK_SUBTRACT:
-		    if (funky_type == FUNKY_XTERM)
-			xkey = 'm';
-		    break;
-
-		  case VK_RETURN:
-		    if (HIWORD(lParam) & KF_EXTENDED)
-			xkey = 'M';
-		    break;
-		}
-	    if (xkey) {
-		if (term->vt52_mode) {
-		    if (xkey >= 'P' && xkey <= 'S')
-			p += sprintf((char *) p, "\x1B%c", xkey);
-		    else
-			p += sprintf((char *) p, "\x1B?%c", xkey);
-		} else
-		    p += sprintf((char *) p, "\x1BO%c", xkey);
-		return p - output;
-	    }
-	}
-
 	if (wParam == VK_BACK && shift_state == 0) {	/* Backspace */
 	    *p++ = (conf_get_bool(conf, CONF_bksp_is_delete) ? 0x7F : 0x08);
 	    *p++ = 0;
@@ -4577,217 +4446,101 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    return p - output;
 	}
 
-	/*
-	 * Next, all the keys that do tilde codes. (ESC '[' nn '~',
-	 * for integer decimal nn.)
-	 *
-	 * We also deal with the weird ones here. Linux VCs replace F1
-	 * to F5 by ESC [ [ A to ESC [ [ E. rxvt doesn't do _that_, but
-	 * does replace Home and End (1~ and 4~) by ESC [ H and ESC O w
-	 * respectively.
-	 */
-	code = 0;
 	switch (wParam) {
-	  case VK_F1:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 23 : 11);
-	    break;
-	  case VK_F2:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 24 : 12);
-	    break;
-	  case VK_F3:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 25 : 13);
-	    break;
-	  case VK_F4:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 26 : 14);
-	    break;
-	  case VK_F5:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 28 : 15);
-	    break;
-	  case VK_F6:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 29 : 17);
-	    break;
-	  case VK_F7:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 31 : 18);
-	    break;
-	  case VK_F8:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 32 : 19);
-	    break;
-	  case VK_F9:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 33 : 20);
-	    break;
-	  case VK_F10:
-	    code = (keystate[VK_SHIFT] & 0x80 ? 34 : 21);
-	    break;
-	  case VK_F11:
-	    code = 23;
-	    break;
-	  case VK_F12:
-	    code = 24;
-	    break;
-	  case VK_F13:
-	    code = 25;
-	    break;
-	  case VK_F14:
-	    code = 26;
-	    break;
-	  case VK_F15:
-	    code = 28;
-	    break;
-	  case VK_F16:
-	    code = 29;
-	    break;
-	  case VK_F17:
-	    code = 31;
-	    break;
-	  case VK_F18:
-	    code = 32;
-	    break;
-	  case VK_F19:
-	    code = 33;
-	    break;
-	  case VK_F20:
-	    code = 34;
-	    break;
-	}
-	if ((shift_state&2) == 0) switch (wParam) {
-	  case VK_HOME:
-	    code = 1;
-	    break;
-	  case VK_INSERT:
-	    code = 2;
-	    break;
-	  case VK_DELETE:
-	    code = 3;
-	    break;
-	  case VK_END:
-	    code = 4;
-	    break;
-	  case VK_PRIOR:
-	    code = 5;
-	    break;
-	  case VK_NEXT:
-	    code = 6;
-	    break;
-	}
-	/* Reorder edit keys to physical order */
-	if (funky_type == FUNKY_VT400 && code <= 6)
-	    code = "\0\2\1\4\5\3\6"[code];
+            char keypad_key;
+          case VK_NUMPAD0: keypad_key = '0'; goto numeric_keypad;
+          case VK_NUMPAD1: keypad_key = '1'; goto numeric_keypad;
+          case VK_NUMPAD2: keypad_key = '2'; goto numeric_keypad;
+          case VK_NUMPAD3: keypad_key = '3'; goto numeric_keypad;
+          case VK_NUMPAD4: keypad_key = '4'; goto numeric_keypad;
+          case VK_NUMPAD5: keypad_key = '5'; goto numeric_keypad;
+          case VK_NUMPAD6: keypad_key = '6'; goto numeric_keypad;
+          case VK_NUMPAD7: keypad_key = '7'; goto numeric_keypad;
+          case VK_NUMPAD8: keypad_key = '8'; goto numeric_keypad;
+          case VK_NUMPAD9: keypad_key = '9'; goto numeric_keypad;
+          case VK_DECIMAL: keypad_key = '.'; goto numeric_keypad;
+          case VK_ADD: keypad_key = '+'; goto numeric_keypad;
+          case VK_SUBTRACT: keypad_key = '-'; goto numeric_keypad;
+          case VK_MULTIPLY: keypad_key = '*'; goto numeric_keypad;
+          case VK_DIVIDE: keypad_key = '/'; goto numeric_keypad;
+          case VK_EXECUTE: keypad_key = 'G'; goto numeric_keypad;
+            /* also the case for VK_RETURN below can sometimes come here */
+          numeric_keypad:
+            /* Left Alt overrides all numeric keypad usage to act as
+             * numeric character code input */
+            if (left_alt) {
+                if (keypad_key >= '0' && keypad_key <= '9')
+                    alt_sum = alt_sum * 10 + keypad_key - '0';
+                else
+                    alt_sum = 0;
+                break;
+            }
 
-	if (term->vt52_mode && code > 0 && code <= 6) {
-	    p += sprintf((char *) p, "\x1B%c", " HLMEIG"[code]);
-	    return p - output;
-	}
+            p += format_numeric_keypad_key(
+                (char *)p, term, keypad_key,
+                shift_state & 1, shift_state & 2);
+            return p - output;
 
-	if (funky_type == FUNKY_SCO && code >= 11 && code <= 34) {
-	    /* SCO function keys */
-	    char codes[] = "MNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz@[\\]^_`{";
-	    int index = 0;
-	    switch (wParam) {
-	      case VK_F1: index = 0; break;
-	      case VK_F2: index = 1; break;
-	      case VK_F3: index = 2; break;
-	      case VK_F4: index = 3; break;
-	      case VK_F5: index = 4; break;
-	      case VK_F6: index = 5; break;
-	      case VK_F7: index = 6; break;
-	      case VK_F8: index = 7; break;
-	      case VK_F9: index = 8; break;
-	      case VK_F10: index = 9; break;
-	      case VK_F11: index = 10; break;
-	      case VK_F12: index = 11; break;
-	    }
-	    if (keystate[VK_SHIFT] & 0x80) index += 12;
-	    if (keystate[VK_CONTROL] & 0x80) index += 24;
-	    p += sprintf((char *) p, "\x1B[%c", codes[index]);
-	    return p - output;
-	}
-	if (funky_type == FUNKY_SCO &&     /* SCO small keypad */
-	    code >= 1 && code <= 6) {
-	    char codes[] = "HL.FIG";
-	    if (code == 3) {
-		*p++ = '\x7F';
-	    } else {
-		p += sprintf((char *) p, "\x1B[%c", codes[code-1]);
-	    }
-	    return p - output;
-	}
-	if ((term->vt52_mode || funky_type == FUNKY_VT100P) && code >= 11 && code <= 24) {
-	    int offt = 0;
-	    if (code > 15)
-		offt++;
-	    if (code > 21)
-		offt++;
-	    if (term->vt52_mode)
-		p += sprintf((char *) p, "\x1B%c", code + 'P' - 11 - offt);
-	    else
-		p +=
-		    sprintf((char *) p, "\x1BO%c", code + 'P' - 11 - offt);
-	    return p - output;
-	}
-	if (funky_type == FUNKY_LINUX && code >= 11 && code <= 15) {
-	    p += sprintf((char *) p, "\x1B[[%c", code + 'A' - 11);
-	    return p - output;
-	}
-	if (funky_type == FUNKY_XTERM && code >= 11 && code <= 14) {
-	    if (term->vt52_mode)
-		p += sprintf((char *) p, "\x1B%c", code + 'P' - 11);
-	    else
-		p += sprintf((char *) p, "\x1BO%c", code + 'P' - 11);
-	    return p - output;
-	}
-	if ((code == 1 || code == 4) &&
-	    conf_get_bool(conf, CONF_rxvt_homeend)) {
-	    p += sprintf((char *) p, code == 1 ? "\x1B[H" : "\x1BOw");
-	    return p - output;
-	}
-	if (code) {
-	    p += sprintf((char *) p, "\x1B[%d~", code);
-	    return p - output;
-	}
+            int fkey_number;
+	  case VK_F1: fkey_number = 1; goto numbered_function_key;
+	  case VK_F2: fkey_number = 2; goto numbered_function_key;
+	  case VK_F3: fkey_number = 3; goto numbered_function_key;
+	  case VK_F4: fkey_number = 4; goto numbered_function_key;
+	  case VK_F5: fkey_number = 5; goto numbered_function_key;
+	  case VK_F6: fkey_number = 6; goto numbered_function_key;
+	  case VK_F7: fkey_number = 7; goto numbered_function_key;
+	  case VK_F8: fkey_number = 8; goto numbered_function_key;
+	  case VK_F9: fkey_number = 9; goto numbered_function_key;
+	  case VK_F10: fkey_number = 10; goto numbered_function_key;
+	  case VK_F11: fkey_number = 11; goto numbered_function_key;
+	  case VK_F12: fkey_number = 12; goto numbered_function_key;
+	  case VK_F13: fkey_number = 13; goto numbered_function_key;
+	  case VK_F14: fkey_number = 14; goto numbered_function_key;
+	  case VK_F15: fkey_number = 15; goto numbered_function_key;
+	  case VK_F16: fkey_number = 16; goto numbered_function_key;
+	  case VK_F17: fkey_number = 17; goto numbered_function_key;
+	  case VK_F18: fkey_number = 18; goto numbered_function_key;
+	  case VK_F19: fkey_number = 19; goto numbered_function_key;
+	  case VK_F20: fkey_number = 20; goto numbered_function_key;
+          numbered_function_key:
+            p += format_function_key((char *)p, term, fkey_number,
+                                     shift_state & 1, shift_state & 2);
+            return p - output;
 
-	/*
-	 * Now the remaining keys (arrows and Keypad 5. Keypad 5 for
-	 * some reason seems to send VK_CLEAR to Windows...).
-	 */
-	{
-	    char xkey = 0;
-	    switch (wParam) {
-	      case VK_UP:
-		xkey = 'A';
-		break;
-	      case VK_DOWN:
-		xkey = 'B';
-		break;
-	      case VK_RIGHT:
-		xkey = 'C';
-		break;
-	      case VK_LEFT:
-		xkey = 'D';
-		break;
-	      case VK_CLEAR:
-		xkey = 'G';
-		break;
-	    }
-	    if (xkey) {
-		p += format_arrow_key((char *)p, term, xkey, shift_state);
-		return p - output;
-	    }
-	}
+            SmallKeypadKey sk_key;
+	  case VK_HOME: sk_key = SKK_HOME; goto small_keypad_key;
+	  case VK_END: sk_key = SKK_END; goto small_keypad_key;
+	  case VK_INSERT: sk_key = SKK_INSERT; goto small_keypad_key;
+	  case VK_DELETE: sk_key = SKK_DELETE; goto small_keypad_key;
+	  case VK_PRIOR: sk_key = SKK_PGUP; goto small_keypad_key;
+	  case VK_NEXT: sk_key = SKK_PGDN; goto small_keypad_key;
+          small_keypad_key:
+            /* These keys don't generate terminal input with Ctrl */
+            if (shift_state & 2)
+                break;
 
-	/*
-	 * Finally, deal with Return ourselves. (Win95 seems to
-	 * foul it up when Alt is pressed, for some reason.)
-	 */
-	if (wParam == VK_RETURN) {     /* Return */
+            p += format_small_keypad_key((char *)p, term, sk_key);
+            return p - output;
+
+	    char xkey;
+          case VK_UP: xkey = 'A'; goto arrow_key;
+          case VK_DOWN: xkey = 'B'; goto arrow_key;
+          case VK_RIGHT: xkey = 'C'; goto arrow_key;
+          case VK_LEFT: xkey = 'D'; goto arrow_key;
+          case VK_CLEAR: xkey = 'G'; goto arrow_key; /* close enough */
+          arrow_key:
+            p += format_arrow_key((char *)p, term, xkey, shift_state & 2);
+            return p - output;
+
+          case VK_RETURN:
+            if (HIWORD(lParam) & KF_EXTENDED) {
+                keypad_key = '\r';
+                goto numeric_keypad;
+            }
 	    *p++ = 0x0D;
 	    *p++ = 0;
 	    return -2;
 	}
-
-	if (left_alt && wParam >= VK_NUMPAD0 && wParam <= VK_NUMPAD9)
-	    alt_sum = alt_sum * 10 + wParam - VK_NUMPAD0;
-	else
-	    alt_sum = 0;
     }
 
     /* Okay we've done everything interesting; let windows deal with 
