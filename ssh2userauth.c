@@ -225,7 +225,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
      */
     if (!filename_is_null(s->keyfile)) {
         int keytype;
-        ppl_logevent("Reading key file \"%.150s\"",
+        ppl_logevent("Reading key file \"%s\"",
                      filename_to_str(s->keyfile));
         keytype = key_type(s->keyfile);
         if (keytype == SSH_KEYTYPE_SSH2 ||
@@ -798,7 +798,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         s->cur_prompt->to_server = false;
                         s->cur_prompt->name = dupstr("SSH key passphrase");
                         add_prompt(s->cur_prompt,
-                                   dupprintf("Passphrase for key \"%.100s\": ",
+                                   dupprintf("Passphrase for key \"%s\": ",
                                              s->publickey_comment),
                                    false);
                         s->userpass_ret = seat_get_userpass_input(

@@ -707,21 +707,29 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 	close_on_exit = conf_get_int(pty->conf, CONF_close_on_exit);
 	if (close_on_exit == FORCE_OFF ||
 	    (close_on_exit == AUTO && pty->exit_code != 0)) {
-	    char message[512];
-            message[0] = '\0';
-	    if (WIFEXITED(pty->exit_code))
-		sprintf(message, "\r\n[pterm: process terminated with exit"
-			" code %d]\r\n", WEXITSTATUS(pty->exit_code));
-	    else if (WIFSIGNALED(pty->exit_code))
+	    char *message;
+            if (WIFEXITED(pty->exit_code)) {
+		message = dupprintf(
+                    "\r\n[pterm: process terminated with exit code %d]\r\n",
+                    WEXITSTATUS(pty->exit_code));
+            } else if (WIFSIGNALED(pty->exit_code)) {
 #ifdef HAVE_NO_STRSIGNAL
-		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d]\r\n", WTERMSIG(pty->exit_code));
+		message = dupprintf(
+                    "\r\n[pterm: process terminated on signal %d]\r\n",
+                    WTERMSIG(pty->exit_code));
 #else
-		sprintf(message, "\r\n[pterm: process terminated on signal"
-			" %d (%.400s)]\r\n", WTERMSIG(pty->exit_code),
-			strsignal(WTERMSIG(pty->exit_code)));
+		message = dupprintf(
+                    "\r\n[pterm: process terminated on signal %d (%s)]\r\n",
+                    WTERMSIG(pty->exit_code),
+                    strsignal(WTERMSIG(pty->exit_code)));
 #endif
+            } else {
+                /* _Shouldn't_ happen, but if it does, a vague message
+                 * is better than no message at all */
+                message = dupprintf("\r\n[pterm: process terminated]\r\n");
+            }
 	    seat_stdout(pty->seat, message, strlen(message));
+            sfree(message);
 	}
 
         seat_eof(pty->seat);

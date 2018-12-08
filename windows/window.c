@@ -354,7 +354,7 @@ static void start_backend(void)
 {
     const struct BackendVtable *vt;
     const char *error;
-    char msg[1024], *title;
+    const char *title;
     char *realhost;
     int i;
 
@@ -379,17 +379,19 @@ static void start_backend(void)
                          conf_get_bool(conf, CONF_tcp_keepalives));
     if (error) {
 	char *str = dupprintf("%s Error", appname);
-	sprintf(msg, "Unable to open connection to\n"
-		"%.800s\n" "%s", conf_dest(conf), error);
+        char *msg = dupprintf("Unable to open connection to\n%s\n%s",
+                              conf_dest(conf), error);
 	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
 	sfree(str);
+	sfree(msg);
 	exit(0);
     }
     window_name = icon_name = NULL;
+    char *title_to_free = NULL;
     title = conf_get_str(conf, CONF_wintitle);
     if (!*title) {
-	sprintf(msg, "%s - %s", realhost, appname);
-	title = msg;
+	title_to_free = dupprintf("%s - %s", realhost, appname);
+	title = title_to_free;
     }
     sfree(realhost);
     win_set_title(wintw, title);
@@ -417,17 +419,20 @@ static void start_backend(void)
     }
 
     session_closed = false;
+
+    sfree(title_to_free);
 }
 
 static void close_session(void *ignored_context)
 {
-    char morestuff[100];
+    char *newtitle;
     int i;
 
     session_closed = true;
-    sprintf(morestuff, "%.70s (inactive)", appname);
-    win_set_icon_title(wintw, morestuff);
-    win_set_title(wintw, morestuff);
+    newtitle = dupprintf("%s (inactive)", appname);
+    win_set_icon_title(wintw, newtitle);
+    win_set_title(wintw, newtitle);
+    sfree(newtitle);
 
     if (ldisc) {
 	ldisc_free(ldisc);
@@ -1178,10 +1183,9 @@ static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
  */
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    char title[100];
-
-    sprintf(title, "%.70s Fatal Error", appname);
+    char *title = dupprintf("%s Fatal Error", appname);
     MessageBox(hwnd, msg, title, MB_ICONERROR | MB_OK);
+    sfree(title);
 
     if (conf_get_int(conf, CONF_close_on_exit) == FORCE_ON)
 	PostQuitMessage(1);
@@ -1196,14 +1200,15 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg)
 void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
-    char *stuff, morestuff[100];
+    char *message, *title;
 
     va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
+    message = dupvprintf(fmt, ap);
     va_end(ap);
-    sprintf(morestuff, "%.70s Command Line Error", appname);
-    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
-    sfree(stuff);
+    title = dupprintf("%s Command Line Error", appname);
+    MessageBox(hwnd, message, title, MB_ICONERROR | MB_OK);
+    sfree(message);
+    sfree(title);
     exit(1);
 }
 
@@ -5381,15 +5386,15 @@ static void wintw_clip_request_paste(TermWin *tw, int clipboard)
 void modalfatalbox(const char *fmt, ...)
 {
     va_list ap;
-    char *stuff, morestuff[100];
+    char *message, *title;
 
     va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
+    message = dupvprintf(fmt, ap);
     va_end(ap);
-    sprintf(morestuff, "%.70s Fatal Error", appname);
-    MessageBox(hwnd, stuff, morestuff,
-	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
-    sfree(stuff);
+    title = dupprintf("%s Fatal Error", appname);
+    MessageBox(hwnd, message, title, MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
+    sfree(message);
+    sfree(title);
     cleanup_exit(1);
 }
 
@@ -5399,14 +5404,15 @@ void modalfatalbox(const char *fmt, ...)
 void nonfatal(const char *fmt, ...)
 {
     va_list ap;
-    char *stuff, morestuff[100];
+    char *message, *title;
 
     va_start(ap, fmt);
-    stuff = dupvprintf(fmt, ap);
+    message = dupvprintf(fmt, ap);
     va_end(ap);
-    sprintf(morestuff, "%.70s Error", appname);
-    MessageBox(hwnd, stuff, morestuff, MB_ICONERROR | MB_OK);
-    sfree(stuff);
+    title = dupprintf("%s Error", appname);
+    MessageBox(hwnd, message, title, MB_ICONERROR | MB_OK);
+    sfree(message);
+    sfree(title);
 }
 
 static bool flash_window_ex(DWORD dwFlags, UINT uCount, DWORD dwTimeout)
@@ -5514,13 +5520,14 @@ static void wintw_bell(TermWin *tw, int mode)
 	Filename *bell_wavefile = conf_get_filename(conf, CONF_bell_wavefile);
 	if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
                          SND_ASYNC | SND_FILENAME)) {
-	    char buf[sizeof(bell_wavefile->path) + 80];
-	    char otherbuf[100];
-	    sprintf(buf, "Unable to play sound file\n%s\n"
-		    "Using default sound instead", bell_wavefile->path);
-	    sprintf(otherbuf, "%.70s Sound Error", appname);
-	    MessageBox(hwnd, buf, otherbuf,
-		       MB_OK | MB_ICONEXCLAMATION);
+            char *buf, *otherbuf;
+            buf = dupprintf(
+                "Unable to play sound file\n%s\nUsing default sound instead",
+                bell_wavefile->path);
+            otherbuf = dupprintf("%s Sound Error", appname);
+            MessageBox(hwnd, buf, otherbuf, MB_OK | MB_ICONEXCLAMATION);
+            sfree(buf);
+            sfree(otherbuf);
 	    conf_set_int(conf, CONF_beep, BELL_DEFAULT);
 	}
     } else if (mode == BELL_PCSPEAKER) {

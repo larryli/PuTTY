@@ -910,7 +910,7 @@ int win_seat_confirm_weak_crypto_primitive(
     static const char mbtitle[] = "%s Security Alert";
     static const char msg[] =
 	"The first %s supported by the server\n"
-	"is %.64s, which is below the configured\n"
+	"is %s, which is below the configured\n"
 	"warning threshold.\n"
 	"Do you want to continue with this connection?\n";
     char *message, *title;
