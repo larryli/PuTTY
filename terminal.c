@@ -3185,7 +3185,7 @@ static void term_out(Terminal *term)
 		}
 		break;
 	      case '\b':	      /* BS: Back space */
-		if (term->curs.x == 0 && (term->curs.y == 0 || term->wrap))
+		if (term->curs.x == 0 && (term->curs.y == 0 || !term->wrap))
 		    /* do nothing */ ;
 		else if (term->curs.x == 0 && term->curs.y > 0)
 		    term->curs.x = term->cols - 1, term->curs.y--;
