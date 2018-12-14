@@ -368,22 +368,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         ssh1_bpp_new_cipher(s->ppl.bpp, cipher, s->session_key);
     }
 
-    if (s->servkey.modulus) {
-        sfree(s->servkey.modulus);
-        s->servkey.modulus = NULL;
-    }
-    if (s->servkey.exponent) {
-        sfree(s->servkey.exponent);
-        s->servkey.exponent = NULL;
-    }
-    if (s->hostkey.modulus) {
-        sfree(s->hostkey.modulus);
-        s->hostkey.modulus = NULL;
-    }
-    if (s->hostkey.exponent) {
-        sfree(s->hostkey.exponent);
-        s->hostkey.exponent = NULL;
-    }
+    freersakey(&s->servkey);
+    freersakey(&s->hostkey);
     crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
 
     if (pktin->type != SSH1_SMSG_SUCCESS) {
@@ -745,7 +731,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                         return;
                     }
                     response = rsa_ssh1_decrypt(challenge, &s->key);
-                    freebn(s->key.private_exponent);/* burn the evidence */
+                    freersapriv(&s->key);   /* burn the evidence */
 
                     for (i = 0; i < 32; i++) {
                         buffer[i] = bignum_byte(response, 31 - i);

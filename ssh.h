@@ -514,6 +514,7 @@ bool rsa_verify(struct RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
                           RsaSsh1Order order);
 int rsa_ssh1_public_blob_len(void *data, int maxlen);
+void freersapriv(struct RSAKey *key);
 void freersakey(struct RSAKey *key);
 
 unsigned long crc32_compute(const void *s, size_t len);

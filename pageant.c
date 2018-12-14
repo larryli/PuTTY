@@ -308,8 +308,7 @@ void pageant_handle_msg(BinarySink *bs,
             if (response)
                 freebn(response);
             freebn(challenge);
-            freebn(reqkey.exponent);
-            freebn(reqkey.modulus);
+            freersakey(&reqkey);
 	}
 	break;
       case SSH2_AGENTC_SIGN_REQUEST:
@@ -526,13 +525,13 @@ void pageant_handle_msg(BinarySink *bs,
 
             plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
 
+            memset(&reqkey, 0, sizeof(reqkey));
             get_rsa_ssh1_pub(msg, &reqkey, RSA_SSH1_EXPONENT_FIRST);
 
             if (get_err(msg)) {
                 pageant_failure_msg(bs, "unable to decode request",
                                     logctx, logfn);
-                freebn(reqkey.exponent);
-                freebn(reqkey.modulus);
+                freersakey(&reqkey);
                 return;
             }
 
@@ -545,8 +544,7 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
 	    key = find234(rsakeys, &reqkey, NULL);
-	    freebn(reqkey.exponent);
-	    freebn(reqkey.modulus);
+            freersakey(&reqkey);
 	    if (key) {
                 plog(logctx, logfn, "found with comment: %s", key->comment);
 

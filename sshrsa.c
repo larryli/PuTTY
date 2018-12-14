@@ -486,22 +486,41 @@ int rsa_ssh1_public_blob_len(void *data, int maxlen)
     return src->pos;
 }
 
+void freersapriv(struct RSAKey *key)
+{
+    if (key->private_exponent) {
+	freebn(key->private_exponent);
+        key->private_exponent = NULL;
+    }
+    if (key->p) {
+	freebn(key->p);
+        key->p = NULL;
+    }
+    if (key->q) {
+	freebn(key->q);
+        key->q = NULL;
+    }
+    if (key->iqmp) {
+	freebn(key->iqmp);
+        key->iqmp = NULL;
+    }
+}
+
 void freersakey(struct RSAKey *key)
 {
-    if (key->modulus)
+    freersapriv(key);
+    if (key->modulus) {
 	freebn(key->modulus);
-    if (key->exponent)
+        key->modulus = NULL;
+    }
+    if (key->exponent) {
 	freebn(key->exponent);
-    if (key->private_exponent)
-	freebn(key->private_exponent);
-    if (key->p)
-	freebn(key->p);
-    if (key->q)
-	freebn(key->q);
-    if (key->iqmp)
-	freebn(key->iqmp);
-    if (key->comment)
+        key->exponent = NULL;
+    }
+    if (key->comment) {
 	sfree(key->comment);
+        key->comment = NULL;
+    }
 }
 
 /* ----------------------------------------------------------------------
