@@ -533,6 +533,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
 	bool result;
 	int nnames, namesize;
 	char *name, **ournames;
+        const char *opendir_err;
 	DirHandle *dh;
 	int i;
 
@@ -563,9 +564,9 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
 	nnames = namesize = 0;
 	ournames = NULL;
 
-	dh = open_directory(fname);
+	dh = open_directory(fname, &opendir_err);
 	if (!dh) {
-	    printf("%s: unable to open directory\n", fname);
+	    printf("%s: unable to open directory: %s\n", fname, opendir_err);
 	    return false;
 	}
 	while ((name = read_filename(dh)) != NULL) {

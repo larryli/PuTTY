@@ -266,7 +266,7 @@ struct DirHandle {
     char *name;
 };
 
-DirHandle *open_directory(const char *name)
+DirHandle *open_directory(const char *name, const char **errmsg)
 {
     HANDLE h;
     WIN32_FIND_DATA fdat;
@@ -276,8 +276,10 @@ DirHandle *open_directory(const char *name)
     /* Enumerate files in dir `foo'. */
     findfile = dupcat(name, "/*", NULL);
     h = FindFirstFile(findfile, &fdat);
-    if (h == INVALID_HANDLE_VALUE)
+    if (h == INVALID_HANDLE_VALUE) {
+        *errmsg = win_strerror(GetLastError());
 	return NULL;
+    }
     sfree(findfile);
 
     ret = snew(DirHandle);

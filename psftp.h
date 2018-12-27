@@ -127,7 +127,7 @@ int file_type(const char *name);
  * Read all the file names out of a directory.
  */
 typedef struct DirHandle DirHandle;
-DirHandle *open_directory(const char *name);
+DirHandle *open_directory(const char *name, const char **errmsg);
 /* The string returned from this will need freeing if not NULL */
 char *read_filename(DirHandle *dir);
 void close_directory(DirHandle *dir);

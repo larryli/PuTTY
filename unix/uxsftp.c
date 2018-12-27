@@ -311,14 +311,16 @@ struct DirHandle {
     DIR *dir;
 };
 
-DirHandle *open_directory(const char *name)
+DirHandle *open_directory(const char *name, const char **errmsg)
 {
     DIR *dir;
     DirHandle *ret;
 
     dir = opendir(name);
-    if (!dir)
+    if (!dir) {
+        *errmsg = strerror(errno);
 	return NULL;
+    }
 
     ret = snew(DirHandle);
     ret->dir = dir;

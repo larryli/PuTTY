@@ -1696,7 +1696,8 @@ static void rsource(const char *src)
     if (scp_send_dirname(last, 0755))
 	return;
 
-    dir = open_directory(src);
+    const char *opendir_err;
+    dir = open_directory(src, &opendir_err);
     if (dir != NULL) {
 	char *filename;
 	while ((filename = read_filename(dir)) != NULL) {
@@ -1705,8 +1706,10 @@ static void rsource(const char *src)
 	    sfree(foundfile);
 	    sfree(filename);
 	}
+        close_directory(dir);
+    } else {
+        tell_user(stderr, "Error opening directory %s: %s", src, opendir_err);
     }
-    close_directory(dir);
 
     (void) scp_send_enddir();
 
