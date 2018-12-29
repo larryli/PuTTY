@@ -36,7 +36,7 @@ static void no_progress(void *param, int action, int phase, int iprogress)
 {
 }
 
-void ssh2kex_coroutine(struct ssh2_transport_state *s)
+void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
     PktIn *pktin;
@@ -78,6 +78,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                                 ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                               s->ppl.bpp->pls->actx,
                                               pktin->type));
+                *aborted = true;
                 return;
             }
 
@@ -134,12 +135,14 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                             ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                           s->ppl.bpp->pls->actx,
                                           pktin->type));
+            *aborted = true;
             return;
         }
         s->f = get_mp_ssh2(pktin);
         if (get_err(pktin)) {
             ssh_proto_error(s->ppl.ssh,
                             "Unable to parse Diffie-Hellman initial packet");
+            *aborted = true;
             return;
         }
 
@@ -148,6 +151,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             if (err) {
                 ssh_proto_error(s->ppl.ssh, "Diffie-Hellman initial packet "
                                 "failed validation: %s", err);
+                *aborted = true;
                 return;
             }
         }
@@ -187,6 +191,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
         s->ecdh_key = ssh_ecdhkex_newkey(s->kex_alg);
         if (!s->ecdh_key) {
             ssh_sw_abort(s->ppl.ssh, "Unable to generate key for ECDH");
+            *aborted = true;
             return;
         }
 
@@ -198,6 +203,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                             ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                           s->ppl.bpp->pls->actx,
                                           pktin->type));
+            *aborted = true;
             return;
         }
 
@@ -209,6 +215,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
             if (!get_err(pktin) && !s->K) {
                 ssh_proto_error(s->ppl.ssh, "Received invalid elliptic curve "
                                 "point in ECDH initial packet");
+                *aborted = true;
                 return;
             }
         }
@@ -262,6 +269,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
                             ssh2_pkt_type(s->ppl.bpp->pls->kctx,
                                           s->ppl.bpp->pls->actx,
                                           pktin->type));
+            *aborted = true;
             return;
         }
 
@@ -274,6 +282,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s)
 
         if (!s->K) {
             ssh_proto_error(s->ppl.ssh, "Unable to decrypt RSA kex secret");
+            *aborted = true;
             return;
         }
 

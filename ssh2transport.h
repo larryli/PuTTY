@@ -224,7 +224,10 @@ void ssh2_transport_dialog_callback(void *, int);
 /* Provided by transport for use in kex */
 void ssh2transport_finalise_exhash(struct ssh2_transport_state *s);
 
-/* Provided by kex for use in transport */
-void ssh2kex_coroutine(struct ssh2_transport_state *s);
+/* Provided by kex for use in transport. Must set the 'aborted' flag
+ * if it throws a connection-terminating error, so that the caller
+ * won't have to check that by looking inside its state parameter
+ * which might already have been freed. */
+void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted);
 
 #endif /* PUTTY_SSH2TRANSPORT_H */

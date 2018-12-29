@@ -1236,9 +1236,12 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
     put_string(s->exhash, s->server_kexinit->u, s->server_kexinit->len);
     s->crStateKex = 0;
     while (1) {
-        ssh2kex_coroutine(s);
+        bool aborted = false;
+        ssh2kex_coroutine(s, &aborted);
+        if (aborted)
+            return;    /* disaster: our entire state has been freed */
         if (!s->crStateKex)
-            break;
+            break;     /* kex phase has terminated normally */
         crReturnV;
     }
 
