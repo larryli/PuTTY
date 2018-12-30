@@ -1067,12 +1067,16 @@ int main(int argc, char **argv)
 	sfree(new_passphrase);
     }
 
-    if (ssh1key)
+    if (ssh1key) {
+	sfree(ssh1key->comment);
 	freersakey(ssh1key);
+    }
     if (ssh2key) {
+	sfree(ssh2key->comment);
 	ssh_key_free(ssh2key->key);
 	sfree(ssh2key);
     }
+    filename_free(outfilename);
 
     return 0;
 }
