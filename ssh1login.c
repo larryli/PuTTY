@@ -230,8 +230,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
         /* First check against manually configured host keys. */
         s->dlgret = verify_ssh_manual_host_key(s->conf, fingerprint, NULL);
-        sfree(fingerprint);
         if (s->dlgret == 0) {          /* did not match */
+            sfree(fingerprint);
             sfree(keystr);
             ssh_proto_error(s->ppl.ssh, "Host key did not appear in manually "
                             "configured list");
@@ -240,6 +240,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             s->dlgret = seat_verify_ssh_host_key(
                 s->ppl.seat, s->savedhost, s->savedport,
                 "rsa", keystr, fingerprint, ssh1_login_dialog_callback, s);
+            sfree(fingerprint);
             sfree(keystr);
 #ifdef FUZZING
             s->dlgret = 1;
