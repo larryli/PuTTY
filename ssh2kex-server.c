@@ -11,6 +11,7 @@
 #include "sshcr.h"
 #include "storage.h"
 #include "ssh2transport.h"
+#include "mpint.h"
 
 void ssh2_transport_provide_hostkeys(PacketProtocolLayer *ppl,
                                      ssh_key *const *hostkeys, int nhostkeys)
@@ -98,7 +99,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * but not for serious use.
              */
             s->p = primegen(s->pbits, 2, 2, NULL, 1, no_progress, NULL, 1);
-            s->g = bignum_from_long(2);
+            s->g = mp_from_integer(2);
             s->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
             s->kex_reply_value = SSH2_MSG_KEX_DH_GEX_REPLY;
@@ -177,10 +178,10 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 
         dh_cleanup(s->dh_ctx);
         s->dh_ctx = NULL;
-        freebn(s->f); s->f = NULL;
+        mp_free(s->f); s->f = NULL;
         if (dh_is_gex(s->kex_alg)) {
-            freebn(s->g); s->g = NULL;
-            freebn(s->p); s->p = NULL;
+            mp_free(s->g); s->g = NULL;
+            mp_free(s->p); s->p = NULL;
         }
     } else if (s->kex_alg->main_type == KEXTYPE_ECDH) {
         ppl_logevent("Doing ECDH key exchange with curve %s and hash %s",
@@ -211,7 +212,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ptrlen keydata = get_string(pktin);
             put_stringpl(s->exhash, keydata);
 
-            s->K = ssh_ecdhkex_getkey(s->ecdh_key, keydata.ptr, keydata.len);
+            s->K = ssh_ecdhkex_getkey(s->ecdh_key, keydata);
             if (!get_err(pktin) && !s->K) {
                 ssh_proto_error(s->ppl.ssh, "Received invalid elliptic curve "
                                 "point in ECDH initial packet");

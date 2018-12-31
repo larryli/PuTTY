@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "mpint.h"
 #include "ssh.h"
 #include "pageant.h"
 
@@ -41,37 +42,9 @@ static int cmpkeys_rsa(void *av, void *bv)
 {
     struct RSAKey *a = (struct RSAKey *) av;
     struct RSAKey *b = (struct RSAKey *) bv;
-    Bignum am, bm;
-    int alen, blen;
 
-    am = a->modulus;
-    bm = b->modulus;
-    /*
-     * Compare by length of moduli.
-     */
-    alen = bignum_bitcount(am);
-    blen = bignum_bitcount(bm);
-    if (alen > blen)
-	return +1;
-    else if (alen < blen)
-	return -1;
-    /*
-     * Now compare by moduli themselves.
-     */
-    alen = (alen + 7) / 8;	       /* byte count */
-    while (alen-- > 0) {
-	int abyte, bbyte;
-	abyte = bignum_byte(am, alen);
-	bbyte = bignum_byte(bm, alen);
-	if (abyte > bbyte)
-	    return +1;
-	else if (abyte < bbyte)
-	    return -1;
-    }
-    /*
-     * Give up.
-     */
-    return 0;
+    return ((int)mp_cmp_hs(a->modulus, b->modulus) -
+            (int)mp_cmp_hs(b->modulus, a->modulus));
 }
 
 /*
@@ -251,7 +224,7 @@ void pageant_handle_msg(BinarySink *bs,
 	 */
 	{
 	    struct RSAKey reqkey, *key;
-	    Bignum challenge, response;
+	    mp_int *challenge, *response;
             ptrlen session_id;
             unsigned response_type;
 	    unsigned char response_md5[16];
@@ -295,7 +268,7 @@ void pageant_handle_msg(BinarySink *bs,
 
 	    MD5Init(&md5c);
 	    for (i = 0; i < 32; i++)
-		put_byte(&md5c, bignum_byte(response, 31 - i));
+		put_byte(&md5c, mp_get_byte(response, 31 - i));
 	    put_data(&md5c, session_id.ptr, session_id.len);
 	    MD5Final(response_md5, &md5c);
 
@@ -306,8 +279,8 @@ void pageant_handle_msg(BinarySink *bs,
 
           challenge1_cleanup:
             if (response)
-                freebn(response);
-            freebn(challenge);
+                mp_free(response);
+            mp_free(challenge);
             freersakey(&reqkey);
 	}
 	break;
@@ -1275,7 +1248,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
 	    request = strbuf_new_for_agent_query();
 	    put_byte(request, SSH1_AGENTC_ADD_RSA_IDENTITY);
-	    put_uint32(request, bignum_bitcount(rkey->modulus));
+	    put_uint32(request, mp_get_nbits(rkey->modulus));
 	    put_mp_ssh1(request, rkey->modulus);
 	    put_mp_ssh1(request, rkey->exponent);
 	    put_mp_ssh1(request, rkey->private_exponent);

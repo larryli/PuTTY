@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "putty.h"
+#include "mpint.h"
 #include "ssh.h"
 #include "sshbpp.h"
 #include "sshppl.h"
@@ -29,7 +30,7 @@ struct ssh1_login_server_state {
 
     struct RSAKey *servkey, *hostkey;
     bool servkey_generated_here;
-    Bignum sesskey;
+    mp_int *sesskey;
 
     AuthPolicy *authpolicy;
     unsigned ap_methods, current_method;
@@ -206,8 +207,8 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         struct RSAKey *smaller, *larger;
         strbuf *data = strbuf_new();
 
-        if (bignum_bitcount(s->hostkey->modulus) >
-            bignum_bitcount(s->servkey->modulus)) {
+        if (mp_get_nbits(s->hostkey->modulus) >
+            mp_get_nbits(s->servkey->modulus)) {
             larger = s->hostkey;
             smaller = s->servkey;
         } else {
@@ -216,13 +217,13 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         }
 
         if (rsa_ssh1_decrypt_pkcs1(s->sesskey, larger, data)) {
-            freebn(s->sesskey);
-            s->sesskey = bignum_from_bytes(data->u, data->len);
+            mp_free(s->sesskey);
+            s->sesskey = mp_from_bytes_be(ptrlen_from_strbuf(data));
             data->len = 0;
             if (rsa_ssh1_decrypt_pkcs1(s->sesskey, smaller, data) &&
                 data->len == sizeof(s->session_key)) {
                 memcpy(s->session_key, data->u, sizeof(s->session_key));
-                freebn(s->sesskey);
+                mp_free(s->sesskey);
                 s->sesskey = NULL;     /* indicates success */
             }
         }
@@ -288,10 +289,10 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 continue;
 
             {
-                Bignum modulus = get_mp_ssh1(pktin);
+                mp_int *modulus = get_mp_ssh1(pktin);
                 s->authkey = auth_publickey_ssh1(
                     s->authpolicy, s->username, modulus);
-                freebn(modulus);
+                mp_free(modulus);
             }
 
             if (!s->authkey)
@@ -321,7 +322,8 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                     continue;
                 }
 
-                Bignum bn = bignum_from_bytes(rsabuf, s->authkey->bytes);
+                mp_int *bn = mp_from_bytes_be(
+                    make_ptrlen(rsabuf, s->authkey->bytes));
                 smemclr(rsabuf, s->authkey->bytes);
                 sfree(rsabuf);
 
@@ -330,7 +332,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 put_mp_ssh1(pktout, bn);
                 pq_push(s->ppl.out_pq, pktout);
 
-                freebn(bn);
+                mp_free(bn);
             }
 
             crMaybeWaitUntilV((pktin = ssh1_login_server_pop(s)) != NULL);

@@ -62,7 +62,7 @@ char *auth_ssh1int_challenge(AuthPolicy *, unsigned method, ptrlen username);
 bool auth_ssh1int_response(AuthPolicy *, ptrlen response);
 
 struct RSAKey *auth_publickey_ssh1(
-    AuthPolicy *ap, ptrlen username, Bignum rsa_modulus);
+    AuthPolicy *ap, ptrlen username, mp_int *rsa_modulus);
 /* auth_successful returns false if further authentication is needed */
 bool auth_successful(AuthPolicy *, ptrlen username, unsigned method);
 

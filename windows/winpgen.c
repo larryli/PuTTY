@@ -349,7 +349,8 @@ struct rsa_key_thread_params {
     union {
         struct RSAKey *key;
         struct dss_key *dsskey;
-        struct ec_key *eckey;
+        struct ecdsa_key *eckey;
+        struct eddsa_key *edkey;
     };
 };
 static DWORD WINAPI generate_key_thread(void *param)
@@ -364,9 +365,10 @@ static DWORD WINAPI generate_key_thread(void *param)
     if (params->keytype == DSA)
 	dsa_generate(params->dsskey, params->key_bits, progress_update, &prog);
     else if (params->keytype == ECDSA)
-        ec_generate(params->eckey, params->curve_bits, progress_update, &prog);
+        ecdsa_generate(params->eckey, params->curve_bits,
+                       progress_update, &prog);
     else if (params->keytype == ED25519)
-        ec_edgenerate(params->eckey, 256, progress_update, &prog);
+        eddsa_generate(params->edkey, 256, progress_update, &prog);
     else
 	rsa_generate(params->key, params->key_bits, progress_update, &prog);
 
@@ -390,7 +392,8 @@ struct MainDlgState {
     union {
         struct RSAKey key;
         struct dss_key dsskey;
-        struct ec_key eckey;
+        struct ecdsa_key eckey;
+        struct eddsa_key edkey;
     };
     HMENU filemenu, keymenu, cvtmenu;
 };
@@ -1401,7 +1404,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             } else if (state->keytype == ECDSA) {
                 state->ssh2key.key = &state->eckey.sshk;
             } else if (state->keytype == ED25519) {
-                state->ssh2key.key = &state->eckey.sshk;
+                state->ssh2key.key = &state->edkey.sshk;
 	    } else {
 		state->ssh2key.key = &state->key.sshk;
 	    }

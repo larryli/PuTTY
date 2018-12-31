@@ -5,13 +5,13 @@
 #include <assert.h>
 
 #include "ssh.h"
+#include "mpint.h"
 
 #define RSA_EXPONENT 37		       /* we like this prime */
 
 int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
 		 void *pfnparam)
 {
-    Bignum pm1, qm1, phi_n;
     unsigned pfirst, qfirst;
 
     key->sshk.vt = &ssh_rsa;
@@ -55,7 +55,7 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
     /*
      * We don't generate e; we just use a standard one always.
      */
-    key->exponent = bignum_from_long(RSA_EXPONENT);
+    mp_int *exponent = mp_from_integer(RSA_EXPONENT);
 
     /*
      * Generate p and q: primes with combined length `bits', not
@@ -65,19 +65,15 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
      * a prime e, we can simplify the criterion.)
      */
     invent_firstbits(&pfirst, &qfirst);
-    key->p = primegen(bits / 2, RSA_EXPONENT, 1, NULL,
-		      1, pfn, pfnparam, pfirst);
-    key->q = primegen(bits - bits / 2, RSA_EXPONENT, 1, NULL,
-		      2, pfn, pfnparam, qfirst);
+    mp_int *p = primegen(bits / 2, RSA_EXPONENT, 1, NULL,
+                            1, pfn, pfnparam, pfirst);
+    mp_int *q = primegen(bits - bits / 2, RSA_EXPONENT, 1, NULL,
+                            2, pfn, pfnparam, qfirst);
 
     /*
      * Ensure p > q, by swapping them if not.
      */
-    if (bignum_cmp(key->p, key->q) < 0) {
-	Bignum t = key->p;
-	key->p = key->q;
-	key->q = t;
-    }
+    mp_cond_swap(p, q, mp_cmp_hs(q, p));
 
     /*
      * Now we have p, q and e. All we need to do now is work out
@@ -85,27 +81,31 @@ int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
      * and (q^-1 mod p).
      */
     pfn(pfnparam, PROGFN_PROGRESS, 3, 1);
-    key->modulus = bigmul(key->p, key->q);
+    mp_int *modulus = mp_mul(p, q);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 2);
-    pm1 = copybn(key->p);
-    decbn(pm1);
-    qm1 = copybn(key->q);
-    decbn(qm1);
-    phi_n = bigmul(pm1, qm1);
+    mp_int *pm1 = mp_copy(p);
+    mp_sub_integer_into(pm1, pm1, 1);
+    mp_int *qm1 = mp_copy(q);
+    mp_sub_integer_into(qm1, qm1, 1);
+    mp_int *phi_n = mp_mul(pm1, qm1);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 3);
-    freebn(pm1);
-    freebn(qm1);
-    key->private_exponent = modinv(key->exponent, phi_n);
-    assert(key->private_exponent);
+    mp_free(pm1);
+    mp_free(qm1);
+    mp_int *private_exponent = mp_invert(exponent, phi_n);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 4);
-    key->iqmp = modinv(key->q, key->p);
-    assert(key->iqmp);
+    mp_free(phi_n);
+    mp_int *iqmp = mp_invert(q, p);
     pfn(pfnparam, PROGFN_PROGRESS, 3, 5);
 
     /*
-     * Clean up temporary numbers.
+     * Populate the returned structure.
      */
-    freebn(phi_n);
+    key->modulus = modulus;
+    key->exponent = exponent;
+    key->private_exponent = private_exponent;
+    key->p = p;
+    key->q = q;
+    key->iqmp = iqmp;
 
     return 1;
 }

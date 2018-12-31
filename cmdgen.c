@@ -704,16 +704,16 @@ int main(int argc, char **argv)
 	    ssh2key->key = &dsskey->sshk;
 	    ssh1key = NULL;
         } else if (keytype == ECDSA) {
-            struct ec_key *ec = snew(struct ec_key);
-            ec_generate(ec, bits, progressfn, &prog);
+            struct ecdsa_key *ek = snew(struct ecdsa_key);
+            ecdsa_generate(ek, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->key = &ec->sshk;
+            ssh2key->key = &ek->sshk;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
-            struct ec_key *ec = snew(struct ec_key);
-            ec_edgenerate(ec, bits, progressfn, &prog);
+            struct eddsa_key *ek = snew(struct eddsa_key);
+            eddsa_generate(ek, bits, progressfn, &prog);
             ssh2key = snew(struct ssh2_userkey);
-            ssh2key->key = &ec->sshk;
+            ssh2key->key = &ek->sshk;
             ssh1key = NULL;
 	} else {
 	    struct RSAKey *rsakey = snew(struct RSAKey);

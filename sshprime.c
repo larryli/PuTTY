@@ -4,6 +4,7 @@
 
 #include <assert.h>
 #include "ssh.h"
+#include "mpint.h"
 
 /*
  * This prime generation algorithm is pretty much cribbed from
@@ -134,6 +135,23 @@ static void init_primes_array(void)
     assert(pos == NPRIMES);
 }
 
+static unsigned short mp_mod_short(mp_int *x, unsigned short modulus)
+{
+    /*
+     * This function lives here rather than in mpint.c partly because
+     * this is the only place it's needed, but mostly because it
+     * doesn't pay careful attention to constant running time, since
+     * as far as I can tell that's a lost cause for key generation
+     * anyway.
+     */
+    unsigned accumulator = 0;
+    for (size_t i = mp_max_bytes(x); i-- > 0 ;) {
+        accumulator = 0x100 * accumulator + mp_get_byte(x, i);
+        accumulator %= modulus;
+    }
+    return accumulator;
+}
+
 /*
  * Generate a prime. We can deal with various extra properties of
  * the prime:
@@ -154,23 +172,15 @@ static void init_primes_array(void)
  *    'firstbits' is not needed, specifying it to either 0 or 1 is
  *    an adequate no-op.
  */
-Bignum primegen(int bits, int modulus, int residue, Bignum factor,
-		int phase, progfn_t pfn, void *pfnparam, unsigned firstbits)
+mp_int *primegen(
+    int bits, int modulus, int residue, mp_int *factor,
+    int phase, progfn_t pfn, void *pfnparam, unsigned firstbits)
 {
-    int i, k, v, byte, bitsleft, check, checks, fbsize;
-    unsigned long delta;
-    unsigned long moduli[NPRIMES + 1];
-    unsigned long residues[NPRIMES + 1];
-    unsigned long multipliers[NPRIMES + 1];
-    Bignum p, pm1, q, wqp, wqp2;
-    int progress = 0;
-
     init_primes_array();
 
-    byte = 0;
-    bitsleft = 0;
+    int progress = 0;
 
-    fbsize = 0;
+    size_t fbsize = 0;
     while (firstbits >> fbsize)        /* work out how to align this */
         fbsize++;
 
@@ -184,184 +194,172 @@ Bignum primegen(int bits, int modulus, int residue, Bignum factor,
      * random number with the top bit set and the bottom bit clear,
      * multiply it by `factor', and add one.
      */
-    p = bn_power_2(bits - 1);
-    for (i = 0; i < bits; i++) {
-	if (i == 0 || i == bits - 1) {
-	    v = (i != 0 || !factor) ? 1 : 0;
-        } else if (i >= bits - fbsize) {
-            v = (firstbits >> (i - (bits - fbsize))) & 1;
-        } else {
-	    if (bitsleft <= 0)
-		bitsleft = 8, byte = random_byte();
-	    v = byte & 1;
-	    byte >>= 1;
-	    bitsleft--;
-	}
-	bignum_set_bit(p, i, v);
-    }
+    mp_int *p = mp_random_bits(bits - 1);
+
+    mp_set_bit(p, 0, factor ? 0 : 1);  /* bottom bit */
+    mp_set_bit(p, bits-1, 1);          /* top bit */
+    for (size_t i = 0; i < fbsize; i++)
+        mp_set_bit(p, bits-fbsize + i, 1 & (firstbits >> i));
+
     if (factor) {
-	Bignum tmp = p;
-	p = bigmul(tmp, factor);
-	freebn(tmp);
-	assert(bignum_bit(p, 0) == 0);
-	bignum_set_bit(p, 0, 1);
+	mp_int *tmp = p;
+	p = mp_mul(tmp, factor);
+	mp_free(tmp);
+	assert(mp_get_bit(p, 0) == 0);
+        mp_set_bit(p, 0, 1);
     }
 
     /*
-     * Ensure this random number is coprime to the first few
-     * primes, by repeatedly adding either 2 or 2*factor to it
-     * until it is.
+     * We need to ensure this random number is coprime to the first
+     * few primes, by repeatedly adding either 2 or 2*factor to it
+     * until it is. To do this we make a list of (modulus, residue)
+     * pairs to avoid, and we also add to that list the extra pair our
+     * caller wants to avoid.
      */
-    for (i = 0; i < NPRIMES; i++) {
+
+    /* List the moduli */
+    unsigned long moduli[NPRIMES + 1];
+    for (size_t i = 0; i < NPRIMES; i++)
 	moduli[i] = primes[i];
-	residues[i] = bignum_mod_short(p, primes[i]);
+    moduli[NPRIMES] = modulus;
+
+    /* Find the residue of our starting number mod each of them. Also
+     * set up the multipliers array which tells us how each one will
+     * change when we increment the number (which isn't just 1 if
+     * we're incrementing by multiples of factor). */
+    unsigned long residues[NPRIMES + 1], multipliers[NPRIMES + 1];
+    for (size_t i = 0; i < lenof(moduli); i++) {
+	residues[i] = mp_mod_short(p, moduli[i]);
 	if (factor)
-	    multipliers[i] = bignum_mod_short(factor, primes[i]);
+	    multipliers[i] = mp_mod_short(factor, moduli[i]);
 	else
 	    multipliers[i] = 1;
     }
-    moduli[NPRIMES] = modulus;
-    residues[NPRIMES] = (bignum_mod_short(p, (unsigned short) modulus)
-			 + modulus - residue);
-    if (factor)
-	multipliers[NPRIMES] = bignum_mod_short(factor, modulus);
-    else
-	multipliers[NPRIMES] = 1;
-    delta = 0;
+
+    /* Adjust the last entry so that it avoids a residue other than zero */
+    residues[NPRIMES] = (residues[NPRIMES] + modulus - residue) % modulus;
+
+    /*
+     * Now loop until no residue in that list is zero, to find a
+     * sensible increment. We maintain the increment in an ordinary
+     * integer, so if it gets too big, we'll have to give up and go
+     * back to making up a fresh random large integer.
+     */
+    unsigned delta = 0;
     while (1) {
-	for (i = 0; i < (sizeof(moduli) / sizeof(*moduli)); i++)
+	for (size_t i = 0; i < lenof(moduli); i++)
 	    if (!((residues[i] + delta * multipliers[i]) % moduli[i]))
-		break;
-	if (i < (sizeof(moduli) / sizeof(*moduli))) {	/* we broke */
-	    delta += 2;
-	    if (delta > 65536) {
-		freebn(p);
-		goto STARTOVER;
-	    }
-	    continue;
-	}
-	break;
+		goto found_a_zero;
+
+        /* If we didn't exit that loop by goto, we've got our candidate. */
+        break;
+
+      found_a_zero:
+        delta += 2;
+        if (delta > 65536) {
+            mp_free(p);
+            goto STARTOVER;
+        }
     }
-    q = p;
+
+    /*
+     * Having found a plausible increment, actually add it on.
+     */
     if (factor) {
-	Bignum tmp;
-	tmp = bignum_from_long(delta);
-	p = bigmuladd(tmp, factor, q);
-	freebn(tmp);
+	mp_int *d = mp_from_integer(delta);
+        mp_int *df = mp_mul(d, factor);
+        mp_add_into(p, p, df);
+        mp_free(d);
+        mp_free(df);
     } else {
-	p = bignum_add_long(q, delta);
+        mp_add_integer_into(p, p, delta);
     }
-    freebn(q);
 
     /*
      * Now apply the Miller-Rabin primality test a few times. First
      * work out how many checks are needed.
      */
-    checks = 27;
-    if (bits >= 150)
-	checks = 18;
-    if (bits >= 200)
-	checks = 15;
-    if (bits >= 250)
-	checks = 12;
-    if (bits >= 300)
-	checks = 9;
-    if (bits >= 350)
-	checks = 8;
-    if (bits >= 400)
-	checks = 7;
-    if (bits >= 450)
-	checks = 6;
-    if (bits >= 550)
-	checks = 5;
-    if (bits >= 650)
-	checks = 4;
-    if (bits >= 850)
-	checks = 3;
-    if (bits >= 1300)
-	checks = 2;
+    unsigned checks =
+        bits >= 1300 ?  2 : bits >= 850 ?  3 : bits >= 650 ?  4 :
+        bits >=  550 ?  5 : bits >= 450 ?  6 : bits >= 400 ?  7 :
+        bits >=  350 ?  8 : bits >= 300 ?  9 : bits >= 250 ? 12 :
+        bits >=  200 ? 15 : bits >= 150 ? 18 : 27;
 
     /*
      * Next, write p-1 as q*2^k.
      */
-    for (k = 0; bignum_bit(p, k) == !k; k++)
+    size_t k;
+    for (k = 0; mp_get_bit(p, k) == !k; k++)
 	continue;	/* find first 1 bit in p-1 */
-    q = bignum_rshift(p, k);
-    /* And store p-1 itself, which we'll need. */
-    pm1 = copybn(p);
-    decbn(pm1);
+    mp_int *q = mp_rshift_safe(p, k);
+
+    /*
+     * Set up stuff for the Miller-Rabin checks.
+     */
+    mp_int *two = mp_from_integer(2);
+    mp_int *pm1 = mp_copy(p);
+    mp_sub_integer_into(pm1, pm1, 1);
+    MontyContext *mc = monty_new(p);
+    mp_int *m_pm1 = monty_import(mc, pm1);
+
+    bool known_bad = false;
 
     /*
      * Now, for each check ...
      */
-    for (check = 0; check < checks; check++) {
-	Bignum w;
-
+    for (unsigned check = 0; check < checks && !known_bad; check++) {
 	/*
-	 * Invent a random number between 1 and p-1 inclusive.
+	 * Invent a random number between 1 and p-1.
 	 */
-	while (1) {
-	    w = bn_power_2(bits - 1);
-	    for (i = 0; i < bits; i++) {
-		if (bitsleft <= 0)
-		    bitsleft = 8, byte = random_byte();
-		v = byte & 1;
-		byte >>= 1;
-		bitsleft--;
-		bignum_set_bit(w, i, v);
-	    }
-	    bn_restore_invariant(w);
-	    if (bignum_cmp(w, p) >= 0 || bignum_cmp(w, Zero) == 0) {
-		freebn(w);
-		continue;
-	    }
-	    break;
-	}
+        mp_int *w = mp_random_in_range(two, pm1);
+        monty_import_into(mc, w, w);
 
 	pfn(pfnparam, PROGFN_PROGRESS, phase, ++progress);
 
 	/*
 	 * Compute w^q mod p.
 	 */
-	wqp = modpow(w, q, p);
-	freebn(w);
+	mp_int *wqp = monty_pow(mc, w, q);
+	mp_free(w);
 
 	/*
 	 * See if this is 1, or if it is -1, or if it becomes -1
 	 * when squared at most k-1 times.
 	 */
-	if (bignum_cmp(wqp, One) == 0 || bignum_cmp(wqp, pm1) == 0) {
-	    freebn(wqp);
-	    continue;
-	}
-	for (i = 0; i < k - 1; i++) {
-	    wqp2 = modmul(wqp, wqp, p);
-	    freebn(wqp);
-	    wqp = wqp2;
-	    if (bignum_cmp(wqp, pm1) == 0)
-		break;
-	}
-	if (i < k - 1) {
-	    freebn(wqp);
-	    continue;
+        bool passed = false;
+
+	if (mp_cmp_eq(wqp, monty_identity(mc)) || mp_cmp_eq(wqp, m_pm1)) {
+            passed = true;
+        } else {
+            for (size_t i = 0; i < k - 1; i++) {
+                monty_mul_into(mc, wqp, wqp, wqp);
+                if (mp_cmp_eq(wqp, m_pm1)) {
+                    passed = true;
+                    break;
+                }
+            }
 	}
 
-	/*
-	 * It didn't. Therefore, w is a witness for the
-	 * compositeness of p.
-	 */
-	freebn(wqp);
-	freebn(p);
-	freebn(pm1);
-	freebn(q);
-	goto STARTOVER;
+        if (!passed)
+            known_bad = true;
+
+	mp_free(wqp);
+    }
+
+    mp_free(q);
+    mp_free(two);
+    mp_free(pm1);
+    monty_free(mc);
+    mp_free(m_pm1);
+
+    if (known_bad) {
+        mp_free(p);
+        goto STARTOVER;
     }
 
     /*
      * We have a prime!
      */
-    freebn(q);
-    freebn(pm1);
     return p;
 }
 

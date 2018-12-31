@@ -2,39 +2,43 @@ import gdb
 import re
 import gdb.printing
 
-class PuTTYBignumPrettyPrinter(gdb.printing.PrettyPrinter):
-    "Pretty-print PuTTY's Bignum type."
-    name = "Bignum"
+class PuTTYMpintPrettyPrinter(gdb.printing.PrettyPrinter):
+    "Pretty-print PuTTY's mp_int type."
+    name = "mp_int"
 
     def __init__(self, val):
-        super(PuTTYBignumPrettyPrinter, self).__init__(self.name)
+        super(PuTTYMpintPrettyPrinter, self).__init__(self.name)
         self.val = val
 
     def to_string(self):
         type_BignumInt = gdb.lookup_type("BignumInt")
         type_BignumIntPtr = type_BignumInt.pointer()
         BIGNUM_INT_BITS = 8 * type_BignumInt.sizeof
-        array = self.val.cast(type_BignumIntPtr)
+        array = self.val["w"]
         aget = lambda i: int(array[i]) & ((1 << BIGNUM_INT_BITS)-1)
 
         try:
-            length = aget(0)
+            length = int(self.val["nw"])
             value = 0
             for i in range(length):
-                value |= aget(i+1) << (BIGNUM_INT_BITS * i)
-            return "Bignum({:#x})".format(value)
+                value |= aget(i) << (BIGNUM_INT_BITS * i)
+            return "mp_int({:#x})".format(value)
 
         except gdb.MemoryError:
-            address = int(array)
+            address = int(self.val)
             if address == 0:
-                return "Bignum(NULL)".format(address)
-            return "Bignum(invalid @ {:#x})".format(address)
+                return "mp_int(NULL)".format(address)
+            return "mp_int(invalid @ {:#x})".format(address)
 
-rcpp = gdb.printing.RegexpCollectionPrettyPrinter("PuTTY")
-rcpp.add_printer(PuTTYBignumPrettyPrinter.name, "^Bignum$",
-                 PuTTYBignumPrettyPrinter)
+class PuTTYPrinterSelector(gdb.printing.PrettyPrinter):
+    def __init__(self):
+        super(PuTTYPrinterSelector, self).__init__("PuTTY")
+    def __call__(self, val):
+        if str(val.type) == "mp_int *":
+            return PuTTYMpintPrettyPrinter(val)
+        return None
 
-gdb.printing.register_pretty_printer(None, rcpp)
+gdb.printing.register_pretty_printer(None, PuTTYPrinterSelector())
 
 class MemDumpCommand(gdb.Command):
     """Print a hex+ASCII dump of object EXP.

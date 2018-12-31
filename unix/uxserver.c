@@ -43,6 +43,7 @@
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
+#include "mpint.h"
 #include "ssh.h"
 #include "sshserver.h"
 
@@ -221,11 +222,11 @@ bool auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
     return false;
 }
 struct RSAKey *auth_publickey_ssh1(
-    AuthPolicy *ap, ptrlen username, Bignum rsa_modulus)
+    AuthPolicy *ap, ptrlen username, mp_int *rsa_modulus)
 {
     struct AuthPolicy_ssh1_pubkey *iter;
     for (iter = ap->ssh1keys; iter; iter = iter->next) {
-        if (!bignum_cmp(rsa_modulus, iter->key.modulus))
+        if (mp_cmp_eq(rsa_modulus, iter->key.modulus))
             return &iter->key;
     }
     return NULL;
