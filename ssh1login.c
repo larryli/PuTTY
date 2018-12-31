@@ -222,10 +222,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         /*
          * First format the key into a string.
          */
-        int len = rsastr_len(&s->hostkey);
         char *fingerprint;
-        char *keystr = snewn(len, char);
-        rsastr_fmt(keystr, &s->hostkey);
+        char *keystr = rsastr_fmt(&s->hostkey);
         fingerprint = rsa_ssh1_fingerprint(&s->hostkey);
 
         /* First check against manually configured host keys. */

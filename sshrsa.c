@@ -321,44 +321,27 @@ bool rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf)
     return success;
 }
 
-int rsastr_len(struct RSAKey *key)
+static void append_hex_to_strbuf(strbuf *sb, Bignum *x)
 {
-    Bignum md, ex;
-    int mdlen, exlen;
-
-    md = key->modulus;
-    ex = key->exponent;
-    mdlen = (bignum_bitcount(md) + 15) / 16;
-    exlen = (bignum_bitcount(ex) + 15) / 16;
-    return 4 * (mdlen + exlen) + 20;
+    if (sb->len > 0)
+        put_byte(sb, ',');
+    put_data(sb, "0x", 2);
+    int nibbles = (3 + bignum_bitcount(x)) / 4;
+    if (nibbles < 1)
+	nibbles = 1;
+    static const char hex[] = "0123456789abcdef";
+    for (int i = nibbles; i--;)
+	put_byte(sb, hex[(bignum_byte(x, i / 2) >> (4 * (i % 2))) & 0xF]);
 }
 
-void rsastr_fmt(char *str, struct RSAKey *key)
+char *rsastr_fmt(struct RSAKey *key)
 {
-    Bignum md, ex;
-    int len = 0, i, nibbles;
-    static const char hex[] = "0123456789abcdef";
+    strbuf *sb = strbuf_new();
 
-    md = key->modulus;
-    ex = key->exponent;
+    append_hex_to_strbuf(sb, key->exponent);
+    append_hex_to_strbuf(sb, key->modulus);
 
-    len += sprintf(str + len, "0x");
-
-    nibbles = (3 + bignum_bitcount(ex)) / 4;
-    if (nibbles < 1)
-	nibbles = 1;
-    for (i = nibbles; i--;)
-	str[len++] = hex[(bignum_byte(ex, i / 2) >> (4 * (i % 2))) & 0xF];
-
-    len += sprintf(str + len, ",0x");
-
-    nibbles = (3 + bignum_bitcount(md)) / 4;
-    if (nibbles < 1)
-	nibbles = 1;
-    for (i = nibbles; i--;)
-	str[len++] = hex[(bignum_byte(md, i / 2) >> (4 * (i % 2))) & 0xF];
-
-    str[len] = '\0';
+    return strbuf_to_str(sb);
 }
 
 /*
@@ -564,13 +547,7 @@ static void rsa2_freekey(ssh_key *key)
 static char *rsa2_cache_str(ssh_key *key)
 {
     struct RSAKey *rsa = container_of(key, struct RSAKey, sshk);
-    char *p;
-    int len;
-
-    len = rsastr_len(rsa);
-    p = snewn(len, char);
-    rsastr_fmt(p, rsa);
-    return p;
+    return rsastr_fmt(rsa);
 }
 
 static void rsa2_public_blob(ssh_key *key, BinarySink *bs)

@@ -506,9 +506,7 @@ void BinarySource_get_rsa_ssh1_priv(
 bool rsa_ssh1_encrypt(unsigned char *data, int length, struct RSAKey *key);
 Bignum rsa_ssh1_decrypt(Bignum input, struct RSAKey *key);
 bool rsa_ssh1_decrypt_pkcs1(Bignum input, struct RSAKey *key, strbuf *outbuf);
-void rsasanitise(struct RSAKey *key);
-int rsastr_len(struct RSAKey *key);
-void rsastr_fmt(char *str, struct RSAKey *key);
+char *rsastr_fmt(struct RSAKey *key);
 char *rsa_ssh1_fingerprint(struct RSAKey *key);
 bool rsa_verify(struct RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
