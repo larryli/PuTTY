@@ -938,7 +938,7 @@ static void poly_genresult(ssh2_mac *mac, unsigned char *blk)
     poly1305_finalise(&ctx->mac, blk);
 }
 
-static const struct ssh2_macalg ssh2_poly1305 = {
+const struct ssh2_macalg ssh2_poly1305 = {
     poly_ssh2_new, poly_ssh2_free, poly_setkey,
     poly_start, poly_genresult,
 
@@ -1026,7 +1026,7 @@ static void ccp_decrypt_length(ssh2_cipher *cipher, void *blk, int len,
     chacha20_decrypt(&ctx->a_cipher, blk, len);
 }
 
-static const struct ssh2_cipheralg ssh2_chacha20_poly1305 = {
+const struct ssh2_cipheralg ssh2_chacha20_poly1305 = {
 
     ccp_new,
     ccp_free,

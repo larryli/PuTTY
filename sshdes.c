@@ -1070,7 +1070,7 @@ void des_decrypt_xdmauth(const void *keydata, void *blk, int len)
     des_cbc_decrypt(blk, len, &dc);
 }
 
-static const struct ssh2_cipheralg ssh_3des_ssh2 = {
+const struct ssh2_cipheralg ssh_3des_ssh2 = {
     des3_ssh2_new, des3_ssh2_free, des3_ssh2_setiv, des3_ssh2_setkey,
     des3_ssh2_encrypt_blk, des3_ssh2_decrypt_blk, NULL, NULL,
     "3des-cbc",
@@ -1078,7 +1078,7 @@ static const struct ssh2_cipheralg ssh_3des_ssh2 = {
     NULL
 };
 
-static const struct ssh2_cipheralg ssh_3des_ssh2_ctr = {
+const struct ssh2_cipheralg ssh_3des_ssh2_ctr = {
     des3_ssh2_new, des3_ssh2_free, des3_ssh2_setiv, des3_ssh2_setkey,
     des3_ssh2_sdctr, des3_ssh2_sdctr, NULL, NULL,
     "3des-ctr",
@@ -1094,7 +1094,7 @@ static const struct ssh2_cipheralg ssh_3des_ssh2_ctr = {
  * apparently aren't the only people to do so, so we sigh 
  * and implement it anyway.
  */
-static const struct ssh2_cipheralg ssh_des_ssh2 = {
+const struct ssh2_cipheralg ssh_des_ssh2 = {
     des_ssh2_new, des_ssh2_free, des_ssh2_setiv, des_ssh2_setkey,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk, NULL, NULL,
     "des-cbc",
@@ -1102,7 +1102,7 @@ static const struct ssh2_cipheralg ssh_des_ssh2 = {
     NULL
 };
 
-static const struct ssh2_cipheralg ssh_des_sshcom_ssh2 = {
+const struct ssh2_cipheralg ssh_des_sshcom_ssh2 = {
     des_ssh2_new, des_ssh2_free, des_ssh2_setiv, des_ssh2_setkey,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk, NULL, NULL,
     "des-cbc@ssh.com",

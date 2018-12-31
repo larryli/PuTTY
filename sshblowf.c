@@ -679,7 +679,7 @@ const struct ssh1_cipheralg ssh1_blowfish = {
     8, "Blowfish-128 CBC"
 };
 
-static const struct ssh2_cipheralg ssh_blowfish_ssh2 = {
+const struct ssh2_cipheralg ssh_blowfish_ssh2 = {
     blowfish_ssh2_new, blowfish_ssh2_free,
     blowfish_ssh2_setiv, blowfish_ssh2_setkey,
     blowfish_ssh2_encrypt_blk, blowfish_ssh2_decrypt_blk, NULL, NULL,
@@ -688,7 +688,7 @@ static const struct ssh2_cipheralg ssh_blowfish_ssh2 = {
     NULL
 };
 
-static const struct ssh2_cipheralg ssh_blowfish_ssh2_ctr = {
+const struct ssh2_cipheralg ssh_blowfish_ssh2_ctr = {
     blowfish_ssh2_new, blowfish_ssh2_free,
     blowfish_ssh2_setiv, blowfish_ssh2_setkey,
     blowfish_ssh2_sdctr, blowfish_ssh2_sdctr, NULL, NULL,

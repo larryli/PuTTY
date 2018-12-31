@@ -1396,7 +1396,7 @@ static const struct eckex_extra kex_extra_curve25519 = {
     ssh_ecdhkex_m_getpublic,
     ssh_ecdhkex_m_getkey,
 };
-static const struct ssh_kex ssh_ec_kex_curve25519 = {
+const struct ssh_kex ssh_ec_kex_curve25519 = {
     "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH,
     &ssh_sha256, &kex_extra_curve25519,
 };
@@ -1408,7 +1408,7 @@ const struct eckex_extra kex_extra_nistp256 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-static const struct ssh_kex ssh_ec_kex_nistp256 = {
+const struct ssh_kex ssh_ec_kex_nistp256 = {
     "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH,
     &ssh_sha256, &kex_extra_nistp256,
 };
@@ -1420,7 +1420,7 @@ const struct eckex_extra kex_extra_nistp384 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-static const struct ssh_kex ssh_ec_kex_nistp384 = {
+const struct ssh_kex ssh_ec_kex_nistp384 = {
     "ecdh-sha2-nistp384", NULL, KEXTYPE_ECDH,
     &ssh_sha384, &kex_extra_nistp384,
 };
@@ -1432,7 +1432,7 @@ const struct eckex_extra kex_extra_nistp521 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-static const struct ssh_kex ssh_ec_kex_nistp521 = {
+const struct ssh_kex ssh_ec_kex_nistp521 = {
     "ecdh-sha2-nistp521", NULL, KEXTYPE_ECDH,
     &ssh_sha512, &kex_extra_nistp521,
 };

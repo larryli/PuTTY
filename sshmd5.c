@@ -212,6 +212,57 @@ void MD5Simple(void const *p, unsigned len, unsigned char output[16])
 }
 
 /* ----------------------------------------------------------------------
+ * Thin abstraction for things where hashes are pluggable.
+ */
+
+struct md5_hash {
+    struct MD5Context state;
+    ssh_hash hash;
+};
+
+static ssh_hash *md5_new(const struct ssh_hashalg *alg)
+{
+    struct md5_hash *h = snew(struct md5_hash);
+    MD5Init(&h->state);
+    h->hash.vt = alg;
+    BinarySink_DELEGATE_INIT(&h->hash, &h->state);
+    return &h->hash;
+}
+
+static ssh_hash *md5_copy(ssh_hash *hashold)
+{
+    struct md5_hash *hold, *hnew;
+    ssh_hash *hashnew = md5_new(hashold->vt);
+
+    hold = container_of(hashold, struct md5_hash, hash);
+    hnew = container_of(hashnew, struct md5_hash, hash);
+
+    hnew->state = hold->state;
+    BinarySink_COPIED(&hnew->state);
+
+    return hashnew;
+}
+
+static void md5_free(ssh_hash *hash)
+{
+    struct md5_hash *h = container_of(hash, struct md5_hash, hash);
+
+    smemclr(h, sizeof(*h));
+    sfree(h);
+}
+
+static void md5_final(ssh_hash *hash, unsigned char *output)
+{
+    struct md5_hash *h = container_of(hash, struct md5_hash, hash);
+    MD5Final(output, &h->state);
+    md5_free(hash);
+}
+
+const struct ssh_hashalg ssh_md5 = {
+    md5_new, md5_copy, md5_final, md5_free, 16, "MD5"
+};
+
+/* ----------------------------------------------------------------------
  * The above is the MD5 algorithm itself. Now we implement the
  * HMAC wrapper on it.
  * 
