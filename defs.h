@@ -19,6 +19,8 @@
 /* Work around lack of inttypes.h in older MSVC */
 #define PRIx32 "x"
 #define PRIu64 "I64u"
+#define PRIdMAX "I64d"
+#define PRIXMAX "I64X"
 #define SCNu64 "I64u"
 #else
 #include <inttypes.h>

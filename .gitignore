@@ -42,6 +42,7 @@
 /unix/PuTTY.app
 /unix/Pterm.app
 /fuzzterm
+/testcrypt
 /testzlib
 /cgtest
 /*.DSA
