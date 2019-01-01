@@ -252,6 +252,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 return;
             }
         } else {
+            sfree(fingerprint);
             sfree(keystr);
         }
     }
