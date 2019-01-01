@@ -905,7 +905,7 @@ static bool openssh_pem_write(
         seq = strbuf_new();
         for (i = 0; i < nnumbers; i++) {
             put_ber_id_len(seq, 2, numbers[i].len, 0);
-            put_data(seq, numbers[i].ptr, numbers[i].len);
+            put_datapl(seq, numbers[i]);
         }
         put_ber_id_len(outblob, 16, seq->len, ASN1_CONSTRUCTED);
         put_data(outblob, seq->s, seq->len);

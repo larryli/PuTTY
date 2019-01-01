@@ -269,7 +269,7 @@ void pageant_handle_msg(BinarySink *bs,
 	    MD5Init(&md5c);
 	    for (i = 0; i < 32; i++)
 		put_byte(&md5c, mp_get_byte(response, 31 - i));
-	    put_data(&md5c, session_id.ptr, session_id.len);
+	    put_datapl(&md5c, session_id);
 	    MD5Final(response_md5, &md5c);
 
 	    put_byte(bs, SSH1_AGENT_RSA_RESPONSE);
@@ -1388,7 +1388,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
         fingerprint = ssh2_fingerprint_blob(pubblob.ptr, pubblob.len);
         cbkey.blob = strbuf_new();
-        put_data(cbkey.blob, pubblob.ptr, pubblob.len);
+        put_datapl(cbkey.blob, pubblob);
 
         cbkey.ssh_version = 2;
         cbkey.comment = mkstr(comment);

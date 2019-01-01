@@ -570,7 +570,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  * Save the methods string for use in error messages.
                  */
                 s->last_methods_string->len = 0;
-                put_data(s->last_methods_string, methods.ptr, methods.len);
+                put_datapl(s->last_methods_string, methods);
 
                 /*
                  * Scan it for method identifiers we know about.
@@ -1557,7 +1557,7 @@ static void ssh2_userauth_add_session_id(
     struct ssh2_userauth_state *s, strbuf *sigdata)
 {
     if (s->ppl.remote_bugs & BUG_SSH2_PK_SESSIONID) {
-        put_data(sigdata, s->session_id.ptr, s->session_id.len);
+        put_datapl(sigdata, s->session_id);
     } else {
         put_stringpl(sigdata, s->session_id);
     }
@@ -1643,7 +1643,7 @@ static void ssh2_userauth_add_sigblob(
 	    put_data(substr, sigblob.ptr, sig_prefix_len);
 	    put_uint32(substr, mod_mp.len);
 	    put_padding(substr, mod_mp.len - sig_mp.len, 0);
-	    put_data(substr, sig_mp.ptr, sig_mp.len);
+	    put_datapl(substr, sig_mp);
             put_stringsb(pkt, substr);
 	    return;
 	}

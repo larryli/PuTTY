@@ -1133,14 +1133,13 @@ static void scp_sink_coroutine(ScpSink *scp)
             ptrlen leafname = make_ptrlen(
                 p, scp->command->len - (p - scp->command->s));
             scp->filename_sb->len = 0;
-            put_data(scp->filename_sb, scp->head->destpath.ptr,
-                     scp->head->destpath.len);
+            put_datapl(scp->filename_sb, scp->head->destpath);
             if (scp->head->isdir) {
                 if (scp->filename_sb->len > 0 &&
                     scp->filename_sb->s[scp->filename_sb->len-1]
                     != '/')
                     put_byte(scp->filename_sb, '/');
-                put_data(scp->filename_sb, leafname.ptr, leafname.len);
+                put_datapl(scp->filename_sb, leafname);
             }
             scp->filename = ptrlen_from_strbuf(scp->filename_sb);
 

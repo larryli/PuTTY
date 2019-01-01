@@ -107,7 +107,7 @@ static void ssh2_userauth_server_add_session_id(
     struct ssh2_userauth_server_state *s, strbuf *sigdata)
 {
     if (s->ppl.remote_bugs & BUG_SSH2_PK_SESSIONID) {
-        put_data(sigdata, s->session_id.ptr, s->session_id.len);
+        put_datapl(sigdata, s->session_id);
     } else {
         put_stringpl(sigdata, s->session_id);
     }

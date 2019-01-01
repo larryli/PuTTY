@@ -592,7 +592,7 @@ static unsigned char *rsa_pkcs1_signature_string(
     memcpy(bytes + 2 + padding, asn1_prefix, asn1_prefix_size);
 
     ssh_hash *h = ssh_hash_new(halg);
-    put_data(h, data.ptr, data.len);
+    put_datapl(h, data);
     ssh_hash_final(h, bytes + 2 + padding + asn1_prefix_size);
 
     return bytes;

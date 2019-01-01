@@ -773,8 +773,8 @@ static void eddsa_openssh_blob(ssh_key *key, BinarySink *bs)
     /* Encode the private key as the concatenation of the
      * little-endian key integer and the public key again */
     put_uint32(bs, priv.len + pub.len);
-    put_data(bs, priv.ptr, priv.len);
-    put_data(bs, pub.ptr, pub.len);
+    put_datapl(bs, priv);
+    put_datapl(bs, pub);
 
     strbuf_free(pub_sb);
     strbuf_free(priv_sb);
@@ -828,7 +828,7 @@ static mp_int *ecdsa_signing_exponent_from_data(
     /* Hash the data being signed. */
     unsigned char hash[MAX_HASH_LEN];
     ssh_hash *h = ssh_hash_new(extra->hash);
-    put_data(h, data.ptr, data.len);
+    put_datapl(h, data);
     ssh_hash_final(h, hash);
 
     /*
@@ -921,9 +921,9 @@ static mp_int *eddsa_signing_exponent_from_data(
     /* Hash (r || public key || message) */
     unsigned char hash[MAX_HASH_LEN];
     ssh_hash *h = ssh_hash_new(extra->hash);
-    put_data(h, r_encoded.ptr, r_encoded.len);
+    put_datapl(h, r_encoded);
     put_epoint(h, ek->publicKey, ek->curve, true); /* omit string header */
-    put_data(h, data.ptr, data.len);
+    put_datapl(h, data);
     ssh_hash_final(h, hash);
 
     /* Convert to an integer */
