@@ -979,7 +979,7 @@ static bool eddsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     return valid;
 }
 
-static void ecdsa_sign(ssh_key *key, const void *data, int datalen,
+static void ecdsa_sign(ssh_key *key, ptrlen data,
                        unsigned flags, BinarySink *bs)
 {
     struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
@@ -987,15 +987,14 @@ static void ecdsa_sign(ssh_key *key, const void *data, int datalen,
         (const struct ecsign_extra *)ek->sshk.vt->extra;
     assert(ek->privateKey);
 
-    mp_int *z = ecdsa_signing_exponent_from_data(
-        ek->curve, extra, make_ptrlen(data, datalen));
+    mp_int *z = ecdsa_signing_exponent_from_data(ek->curve, extra, data);
 
     /* Generate k between 1 and curve->n, using the same deterministic
      * k generation system we use for conventional DSA. */
     mp_int *k;
     {
         unsigned char digest[20];
-        SHA_Simple(data, datalen, digest);
+        SHA_Simple(data.ptr, data.len, digest);
         k = dss_gen_k(
             "ECDSA deterministic k generator", ek->curve->w.G_order,
             ek->privateKey, digest, sizeof(digest));
@@ -1033,7 +1032,7 @@ static void ecdsa_sign(ssh_key *key, const void *data, int datalen,
     mp_free(s);
 }
 
-static void eddsa_sign(ssh_key *key, const void *data, int datalen,
+static void eddsa_sign(ssh_key *key, ptrlen data,
                        unsigned flags, BinarySink *bs)
 {
     struct eddsa_key *ek = container_of(key, struct eddsa_key, sshk);
@@ -1076,7 +1075,7 @@ static void eddsa_sign(ssh_key *key, const void *data, int datalen,
     h = ssh_hash_new(extra->hash);
     put_data(h, hash + ek->curve->fieldBytes,
              extra->hash->hlen - ek->curve->fieldBytes);
-    put_data(h, data, datalen);
+    put_datapl(h, data);
     ssh_hash_final(h, hash);
     mp_int *log_r_unreduced = mp_from_bytes_le(
         make_ptrlen(hash, extra->hash->hlen));
@@ -1097,7 +1096,7 @@ static void eddsa_sign(ssh_key *key, const void *data, int datalen,
      * eddsa_verify does.
      */
     mp_int *H = eddsa_signing_exponent_from_data(
-        ek, extra, ptrlen_from_strbuf(r_enc), make_ptrlen(data, datalen));
+        ek, extra, ptrlen_from_strbuf(r_enc), data);
 
     /* And then s = (log(r) + H*a) mod order(G). */
     mp_int *Ha = mp_modmul(H, a, ek->curve->e.G_order);

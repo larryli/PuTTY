@@ -352,7 +352,7 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             signature = strbuf_new();
-            ssh_key_sign(key->key, sigdata.ptr, sigdata.len, flags,
+            ssh_key_sign(key->key, sigdata, flags,
                          BinarySink_UPCAST(signature));
 
             put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
@@ -1086,7 +1086,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 		}
 		/* Now skip over public blob */
 		if (type == SSH_KEYTYPE_SSH1) {
-		    int n = rsa_ssh1_public_blob_len(p, keylistlen);
+		    int n = rsa_ssh1_public_blob_len(
+                        make_ptrlen(p, keylistlen));
 		    if (n < 0) {
                         *retstr = dupstr("Received broken key list from agent");
                         sfree(keylist);

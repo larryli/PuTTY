@@ -537,7 +537,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 
         rsakeydata = get_string(pktin);
 
-        s->rsa_kex_key = ssh_rsakex_newkey(rsakeydata.ptr, rsakeydata.len);
+        s->rsa_kex_key = ssh_rsakex_newkey(rsakeydata);
         if (!s->rsa_kex_key) {
             ssh_proto_error(s->ppl.ssh,
                             "Unable to parse RSA public key packet");

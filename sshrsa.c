@@ -315,11 +315,11 @@ void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
 }
 
 /* Given an SSH-1 public key blob, determine its length. */
-int rsa_ssh1_public_blob_len(void *data, int maxlen)
+int rsa_ssh1_public_blob_len(ptrlen data)
 {
     BinarySource src[1];
 
-    BinarySource_BARE_INIT(src, data, maxlen);
+    BinarySource_BARE_INIT(src, data.ptr, data.len);
 
     /* Expect a length word, then exponent and modulus. (It doesn't
      * even matter which order.) */
@@ -638,7 +638,7 @@ static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
     return diff == 0;
 }
 
-static void rsa2_sign(ssh_key *key, const void *data, int datalen,
+static void rsa2_sign(ssh_key *key, ptrlen data,
                       unsigned flags, BinarySink *bs)
 {
     struct RSAKey *rsa = container_of(key, struct RSAKey, sshk);
@@ -661,8 +661,7 @@ static void rsa2_sign(ssh_key *key, const void *data, int datalen,
 
     nbytes = (mp_get_nbits(rsa->modulus) + 7) / 8;
 
-    bytes = rsa_pkcs1_signature_string(
-        nbytes, halg, make_ptrlen(data, datalen));
+    bytes = rsa_pkcs1_signature_string(nbytes, halg, data);
     in = mp_from_bytes_be(make_ptrlen(bytes, nbytes));
     smemclr(bytes, nbytes);
     sfree(bytes);
@@ -700,9 +699,9 @@ const ssh_keyalg ssh_rsa = {
     SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
 };
 
-struct RSAKey *ssh_rsakex_newkey(const void *data, int len)
+struct RSAKey *ssh_rsakex_newkey(ptrlen data)
 {
-    ssh_key *sshk = rsa2_new_pub(&ssh_rsa, make_ptrlen(data, len));
+    ssh_key *sshk = rsa2_new_pub(&ssh_rsa, data);
     if (!sshk)
         return NULL;
     return container_of(sshk, struct RSAKey, sshk);

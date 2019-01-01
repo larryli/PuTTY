@@ -890,7 +890,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_data(sigdata, s->pktout->data + 5,
                              s->pktout->length - 5);
                     sigblob = strbuf_new();
-                    ssh_key_sign(key->key, sigdata->s, sigdata->len, 0,
+                    ssh_key_sign(key->key, ptrlen_from_strbuf(sigdata), 0,
                                  BinarySink_UPCAST(sigblob));
                     strbuf_free(sigdata);
                     ssh2_userauth_add_sigblob(

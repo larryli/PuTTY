@@ -28,8 +28,9 @@ static strbuf *finalise_and_sign_exhash(struct ssh2_transport_state *s)
     strbuf *sb;
     ssh2transport_finalise_exhash(s);
     sb = strbuf_new();
-    ssh_key_sign(s->hkey, s->exchange_hash, s->kex_alg->hash->hlen, 0,
-                 BinarySink_UPCAST(sb));
+    ssh_key_sign(
+        s->hkey, make_ptrlen(s->exchange_hash, s->kex_alg->hash->hlen),
+        0, BinarySink_UPCAST(sb));
     return sb;
 }
 

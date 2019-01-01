@@ -511,7 +511,7 @@ char *rsa_ssh1_fingerprint(struct RSAKey *key);
 bool rsa_verify(struct RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, struct RSAKey *key,
                           RsaSsh1Order order);
-int rsa_ssh1_public_blob_len(void *data, int maxlen);
+int rsa_ssh1_public_blob_len(ptrlen data);
 void freersapriv(struct RSAKey *key);
 void freersakey(struct RSAKey *key);
 
@@ -532,7 +532,7 @@ struct ssh_hashalg;
 struct ssh_rsa_kex_extra {
     int minklen;
 };
-struct RSAKey *ssh_rsakex_newkey(const void *data, int len);
+struct RSAKey *ssh_rsakex_newkey(ptrlen data);
 void ssh_rsakex_freekey(struct RSAKey *key);
 int ssh_rsakex_klen(struct RSAKey *key);
 void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
@@ -776,8 +776,7 @@ struct ssh_keyalg {
 
     /* Methods that operate on an existing ssh_key */
     void (*freekey) (ssh_key *key);
-    void (*sign) (ssh_key *key, const void *data, int datalen,
-                  unsigned flags, BinarySink *);
+    void (*sign) (ssh_key *key, ptrlen data, unsigned flags, BinarySink *);
     bool (*verify) (ssh_key *key, ptrlen sig, ptrlen data);
     void (*public_blob)(ssh_key *key, BinarySink *);
     void (*private_blob)(ssh_key *key, BinarySink *);
@@ -799,8 +798,8 @@ struct ssh_keyalg {
 #define ssh_key_new_priv_openssh(alg, bs) ((alg)->new_priv_openssh(alg, bs))
 
 #define ssh_key_free(key) ((key)->vt->freekey(key))
-#define ssh_key_sign(key, data, len, flags, bs) \
-    ((key)->vt->sign(key, data, len, flags, bs))
+#define ssh_key_sign(key, data, flags, bs) \
+    ((key)->vt->sign(key, data, flags, bs))
 #define ssh_key_verify(key, sig, data) ((key)->vt->verify(key, sig, data))
 #define ssh_key_public_blob(key, bs) ((key)->vt->public_blob(key, bs))
 #define ssh_key_private_blob(key, bs) ((key)->vt->private_blob(key, bs))
