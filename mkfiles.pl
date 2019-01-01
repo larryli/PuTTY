@@ -1523,11 +1523,12 @@ if (defined $makefiles{'unix'}) {
     print "\n\n";
     foreach $p (&prognames("U:UT")) {
       ($prog, $type) = split ",", $p;
+      ($ldflags = $type) =~ s/T$//;
       $objstr = &objects($p, "X.o", undef, undef);
       print &splitline($prog . ": " . $objstr), "\n";
       $libstr = &objects($p, undef, undef, "-lX");
       print &splitline("\t\$(CC) -o \$@ " .
-                       $objstr . " \$(${type}LDFLAGS) $libstr", 69), "\n\n";
+                       $objstr . " \$(${ldflags}LDFLAGS) $libstr", 69), "\n\n";
     }
     foreach $d (&deps("X.o", undef, $dirpfx, "/", "unix")) {
       if ($forceobj{$d->{obj_orig}}) {
