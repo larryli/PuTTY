@@ -1,5 +1,5 @@
 # To compile this into a configure script, you need:
-# * Autoconf 2.50 or newer
+# * Autoconf 2.59c or newer
 # * Gtk (for $prefix/share/aclocal/gtk.m4)
 # * Automake (for aclocal)
 # If you've got them, running "autoreconf" should work.
@@ -16,6 +16,8 @@ AC_PROG_INSTALL
 AC_PROG_RANLIB
 ifdef([AM_PROG_AR],[AM_PROG_AR])
 AM_PROG_CC_C_O
+
+AC_PROG_CC_C99
 
 # Mild abuse of the '--enable' option format to allow manual
 # specification of setuid or setgid setup in pterm.
