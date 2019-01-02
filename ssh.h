@@ -726,7 +726,7 @@ struct ssh2_macalg {
 
 #define ssh2_mac_new(alg, cipher) ((alg)->new(alg, cipher))
 #define ssh2_mac_free(ctx) ((ctx)->vt->free(ctx))
-#define ssh2_mac_setkey(ctx, key) ((ctx)->vt->free(ctx, key))
+#define ssh2_mac_setkey(ctx, key) ((ctx)->vt->setkey(ctx, key))
 #define ssh2_mac_start(ctx) ((ctx)->vt->start(ctx))
 #define ssh2_mac_genresult(ctx, out) ((ctx)->vt->genresult(ctx, out))
 #define ssh2_mac_alg(ctx) ((ctx)->vt)
