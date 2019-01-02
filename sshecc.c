@@ -1269,15 +1269,15 @@ static void ssh_ecdhkex_w_setup(ecdh_key *dh)
 
 static void ssh_ecdhkex_m_setup(ecdh_key *dh)
 {
-    unsigned char bytes[dh->curve->fieldBytes];
-    for (size_t i = 0; i < sizeof(bytes); ++i)
-        bytes[i] = random_byte();
+    strbuf *bytes;
+    for (size_t i = 0; i < dh->curve->fieldBytes; ++i)
+        put_byte(bytes, random_byte());
 
-    bytes[0] &= 0xF8;
-    bytes[dh->curve->fieldBytes-1] &= 0x7F;
-    bytes[dh->curve->fieldBytes-1] |= 0x40;
-    dh->private = mp_from_bytes_le(make_ptrlen(bytes, dh->curve->fieldBytes));
-    smemclr(bytes, sizeof(bytes));
+    bytes->u[0] &= 0xF8;
+    bytes->u[bytes->len-1] &= 0x7F;
+    bytes->u[bytes->len-1] |= 0x40;
+    dh->private = mp_from_bytes_le(ptrlen_from_strbuf(bytes));
+    strbuf_free(bytes);
 
     dh->m_public = ecc_montgomery_multiply(dh->curve->m.G, dh->private);
 }
