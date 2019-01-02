@@ -859,8 +859,8 @@ struct ssh2_userkey {
     char *comment;		       /* the key comment */
 };
 
-/* The maximum length of any hash algorithm used in kex. (bytes) */
-#define SSH2_KEX_MAX_HASH_LEN (64) /* SHA-512 */
+/* The maximum length of any hash algorithm. (bytes) */
+#define MAX_HASH_LEN (64)              /* longest is SHA-512 */
 
 extern const struct ssh1_cipheralg ssh1_3des;
 extern const struct ssh1_cipheralg ssh1_des;
