@@ -279,7 +279,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ptrlen encrypted_secret = get_string(pktin);
             put_stringpl(s->exhash, encrypted_secret);
             s->K = ssh_rsakex_decrypt(
-                s->kex_alg->hash, encrypted_secret, s->rsa_kex_key);
+                s->rsa_kex_key, s->kex_alg->hash, encrypted_secret);
         }
 
         if (!s->K) {

@@ -535,11 +535,10 @@ struct ssh_rsa_kex_extra {
 struct RSAKey *ssh_rsakex_newkey(ptrlen data);
 void ssh_rsakex_freekey(struct RSAKey *key);
 int ssh_rsakex_klen(struct RSAKey *key);
-void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
-                        unsigned char *in, int inlen,
-                        unsigned char *out, int outlen, struct RSAKey *key);
-mp_int *ssh_rsakex_decrypt(const struct ssh_hashalg *h, ptrlen ciphertext,
-                              struct RSAKey *rsa);
+strbuf *ssh_rsakex_encrypt(
+    struct RSAKey *key, const struct ssh_hashalg *h, ptrlen plaintext);
+mp_int *ssh_rsakex_decrypt(
+    struct RSAKey *key, const struct ssh_hashalg *h, ptrlen ciphertext);
 
 /*
  * SSH2 ECDH key exchange functions

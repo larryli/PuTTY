@@ -743,9 +743,8 @@ static void oaep_mask(const struct ssh_hashalg *h, void *seed, int seedlen,
     }
 }
 
-void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
-                        unsigned char *in, int inlen,
-                        unsigned char *out, int outlen, struct RSAKey *rsa)
+strbuf *ssh_rsakex_encrypt(
+    struct RSAKey *rsa, const struct ssh_hashalg *h, ptrlen in)
 {
     mp_int *b1, *b2;
     int k, i;
@@ -783,10 +782,12 @@ void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
     k = (7 + mp_get_nbits(rsa->modulus)) / 8;
 
     /* The length of the input data must be at most k - 2hLen - 2. */
-    assert(inlen > 0 && inlen <= k - 2*HLEN - 2);
+    assert(in.len > 0 && in.len <= k - 2*HLEN - 2);
 
     /* The length of the output data wants to be precisely k. */
-    assert(outlen == k);
+    strbuf *toret = strbuf_new();
+    int outlen = k;
+    unsigned char *out = strbuf_append(toret, outlen);
 
     /*
      * Now perform EME-OAEP encoding. First set up all the unmasked
@@ -806,8 +807,8 @@ void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
     /* A bunch of zero octets */
     memset(out + 2*HLEN + 1, 0, outlen - (2*HLEN + 1));
     /* A single 1 octet, followed by the input message data. */
-    out[outlen - inlen - 1] = 1;
-    memcpy(out + outlen - inlen, in, inlen);
+    out[outlen - in.len - 1] = 1;
+    memcpy(out + outlen - in.len, in.ptr, in.len);
 
     /*
      * Now use the seed data to mask the block DB.
@@ -835,10 +836,11 @@ void ssh_rsakex_encrypt(const struct ssh_hashalg *h,
     /*
      * And we're done.
      */
+    return toret;
 }
 
-mp_int *ssh_rsakex_decrypt(const struct ssh_hashalg *h, ptrlen ciphertext,
-                              struct RSAKey *rsa)
+mp_int *ssh_rsakex_decrypt(
+    struct RSAKey *rsa, const struct ssh_hashalg *h, ptrlen ciphertext)
 {
     mp_int *b1, *b2;
     int outlen, i;
