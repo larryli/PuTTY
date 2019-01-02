@@ -190,7 +190,7 @@ AS_IF([test AS_VAR_GET(x_cv_linux_so_peercred) = yes],
 
 if test "x$GCC" = "xyes"; then
   :
-  AC_SUBST(WARNINGOPTS, ['-Wall -Werror -Wpointer-arith'])
+  AC_SUBST(WARNINGOPTS, ['-Wall -Werror -Wpointer-arith -Wvla'])
 else
   :
   AC_SUBST(WARNINGOPTS, [])

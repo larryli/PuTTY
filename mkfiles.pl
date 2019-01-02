@@ -543,7 +543,7 @@ if (defined $makefiles{'clangcl'}) {
     "LD = lld-link\n".
     "\n".
     "# C compilation flags\n".
-    &splitline("CFLAGS = --target=\$(CCTARGET) /nologo /W3 /O1 " .
+    &splitline("CFLAGS = --target=\$(CCTARGET) /nologo /W3 /O1 -Wvla " .
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 ".
                "/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS").
@@ -627,7 +627,7 @@ if (defined $makefiles{'cygwin'}) {
     "# You may also need to tell windres where to find include files:\n".
     "# RCINC = --include-dir c:\\cygwin\\include\\\n".
     "\n".
-    &splitline("CFLAGS = -Wall -O2 -std=gnu99 -D_WINDOWS -DDEBUG".
+    &splitline("CFLAGS = -Wall -O2 -std=gnu99 -Wvla -D_WINDOWS -DDEBUG".
       " -DWIN32S_COMPAT -D_NO_OLDNAMES " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs)) .
 	       "\n".
@@ -1420,7 +1420,7 @@ if (defined $makefiles{'gtk'}) {
     "\n".
     "unexport CFLAGS # work around a weird issue with krb5-config\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -g " .
+    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs) .
 	       " \$(shell \$(GTK_CONFIG) --cflags)").
 		 " -D _FILE_OFFSET_BITS=64\n".
@@ -1501,7 +1501,7 @@ if (defined $makefiles{'unix'}) {
     "\n".
     "unexport CFLAGS # work around a weird issue with krb5-config\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -g " .
+    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs)).
 		 " -D _FILE_OFFSET_BITS=64\n".
     "ULDFLAGS = \$(LDFLAGS)\n".
@@ -1743,7 +1743,7 @@ if (defined $makefiles{'osx'}) {
     print
     "CC = \$(TOOLPATH)gcc\n".
     "\n".
-    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -g " .
+    &splitline("CFLAGS = -O2 -Wall -Werror -std=gnu99 -Wvla -g " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs))."\n".
     "MLDFLAGS = -framework Cocoa\n".
     "ULDFLAGS =\n".
