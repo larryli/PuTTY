@@ -1269,7 +1269,7 @@ static void ssh_ecdhkex_w_setup(ecdh_key *dh)
 
 static void ssh_ecdhkex_m_setup(ecdh_key *dh)
 {
-    strbuf *bytes;
+    strbuf *bytes = strbuf_new();
     for (size_t i = 0; i < dh->curve->fieldBytes; ++i)
         put_byte(bytes, random_byte());
 
