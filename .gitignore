@@ -42,7 +42,6 @@
 /unix/PuTTY.app
 /unix/Pterm.app
 /fuzzterm
-/testbn
 /testzlib
 /cgtest
 /*.DSA
@@ -97,7 +96,6 @@
 /icons/*.icns
 /icons/*.xpm
 /icons/*.c
-/testdata/bignum.txt
 /unix/Makefile.gtk
 /unix/Makefile.ux
 /unix/Makefile.local
