@@ -115,6 +115,8 @@ class ModP(object):
             b, a = a, b
         assert abs(a[0]) == 1
         return a[1]*a[0]
+    def __int__(self):
+        return self.n
     def __add__(self, rhs):
         rhs = self.coerce_to(rhs)
         return type(self)(self.p, (self.n + rhs.n) % self.p)
@@ -141,6 +143,8 @@ class ModP(object):
     def __rdiv__(self, rhs):
         rhs = self.coerce_to(rhs)
         return type(self)(self.p, (rhs.n * self.invert()) % self.p)
+    def __truediv__(self, rhs): return self.__div__(rhs)
+    def __rtruediv__(self, rhs): return self.__rdiv__(rhs)
     def __pow__(self, exponent):
         assert exponent >= 0
         n, b_to_n = 1, self
