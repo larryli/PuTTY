@@ -1033,7 +1033,7 @@ void mp_lshift_fixed_into(mp_int *r, mp_int *a, size_t bits)
     size_t words = bits / BIGNUM_INT_BITS;
     size_t bitoff = bits % BIGNUM_INT_BITS;
 
-    for (size_t i = 0; i < r->nw; i++) {
+    for (size_t i = r->nw; i-- > 0 ;) {
         if (i < words) {
             r->w[i] = 0;
         } else {
