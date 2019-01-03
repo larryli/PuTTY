@@ -298,7 +298,7 @@ static void server_connect_bpp(server *srv)
     srv->bpp->ssh = &srv->ssh;
     srv->bpp->in_raw = &srv->in_raw;
     srv->bpp->out_raw = &srv->out_raw;
-    srv->bpp->out_raw->ic = &srv->ic_out_raw;
+    bufchain_set_callback(srv->bpp->out_raw, &srv->ic_out_raw);
     srv->bpp->pls = &srv->pls;
     srv->bpp->logctx = srv->logctx;
     srv->bpp->remote_bugs = srv->remote_bugs;

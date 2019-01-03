@@ -85,11 +85,6 @@ void modalfatalbox(const char *fmt, ...)
     exit(1);
 }
 
-/* Stubs needed to link against misc.c */
-void queue_idempotent_callback(IdempotentCallback *ic) {
-    unreachable("No callbacks in this application");
-}
-
 static bool has_security;
 
 struct PassphraseProcStruct {

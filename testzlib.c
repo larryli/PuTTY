@@ -18,14 +18,9 @@
 #include "defs.h"
 #include "ssh.h"
 
-void modalfatalbox(const char *p, ...)
+void out_of_memory(void)
 {
-    va_list ap;
-    fprintf(stderr, "FATAL ERROR: ");
-    va_start(ap, p);
-    vfprintf(stderr, p, ap);
-    va_end(ap);
-    fputc('\n', stderr);
+    fprintf(stderr, "Out of memory!\n");
     exit(1);
 }
 

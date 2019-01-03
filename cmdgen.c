@@ -102,10 +102,6 @@ char *x_get_default(const char *key)
 void sk_cleanup(void)
 {
 }
-void queue_idempotent_callback(IdempotentCallback *ic)
-{
-    unreachable("queue_idempotent_callback called in cmdgen");
-}
 
 void showversion(void)
 {

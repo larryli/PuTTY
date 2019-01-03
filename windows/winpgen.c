@@ -60,11 +60,6 @@ void nonfatal(const char *fmt, ...)
     sfree(stuff);
 }
 
-/* Stubs needed to link against misc.c */
-void queue_idempotent_callback(IdempotentCallback *ic) {
-    unreachable("No callbacks in this application");
-}
-
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)
  */
