@@ -279,6 +279,14 @@ class mpint(unittest.TestCase):
         bm = mp_copy(bi)
         self.assertEqual(int(mp_mul(am, bm)), ai * bi)
 
+        # A regression test for a bug that came up during development
+        # of mpint.c, relating to an intermediate value overflowing
+        # its container.
+        ai, bi = (2**8512 * 2 // 3), (2**4224 * 11 // 15)
+        am = mp_copy(ai)
+        bm = mp_copy(bi)
+        self.assertEqual(int(mp_mul(am, bm)), ai * bi)
+
     @staticmethod
     def nbits(n):
         # Mimic mp_get_nbits for ordinary Python integers.
