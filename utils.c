@@ -850,7 +850,7 @@ void debug_memdump(const void *buf, int len, bool L)
 
 #endif				/* def DEBUG */
 
-#ifndef PLATFORM_HAS_SMEMCLR
+#ifndef _WINDOWS /* FIXME PLATFORM_HAS_SMEMCLR */
 /*
  * Securely wipe memory.
  *
