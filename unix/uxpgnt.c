@@ -201,7 +201,7 @@ void pageant_print_env(int pid)
                socketname, pid);
         break;
       case SHELL_AUTO:
-        assert(0 && "Can't get here");
+        unreachable("SHELL_AUTO should have been eliminated by now");
         break;
     }
 }
@@ -708,7 +708,7 @@ void run_client(void)
             }
             break;
           default:
-            assert(0 && "Invalid client action found");
+            unreachable("Invalid client action found");
         }
     }
 

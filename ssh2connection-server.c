@@ -142,17 +142,17 @@ struct ssh_rportfwd *ssh2_rportfwd_alloc(
     int addressfamily, const char *log_description, PortFwdRecord *pfr,
     ssh_sharing_connstate *share_ctx)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2_rportfwd_remove(ConnectionLayer *cl, struct ssh_rportfwd *rpf)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 SshChannel *ssh2_session_open(ConnectionLayer *cl, Channel *chan)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 SshChannel *ssh2_serverside_x11_open(
@@ -202,19 +202,19 @@ SshChannel *ssh2_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 
 void ssh2channel_start_shell(SshChannel *sc, bool want_reply)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2channel_start_command(
     SshChannel *sc, bool want_reply, const char *command)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 bool ssh2channel_start_subsystem(
     SshChannel *sc, bool want_reply, const char *subsystem)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2channel_send_exit_status(SshChannel *sc, int status)
@@ -262,38 +262,38 @@ void ssh2channel_request_x11_forwarding(
     SshChannel *sc, bool want_reply, const char *authproto,
     const char *authdata, int screen_number, bool oneshot)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2channel_request_agent_forwarding(SshChannel *sc, bool want_reply)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2channel_request_pty(
     SshChannel *sc, bool want_reply, Conf *conf, int w, int h)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 bool ssh2channel_send_env_var(
     SshChannel *sc, bool want_reply, const char *var, const char *value)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 bool ssh2channel_send_serial_break(SshChannel *sc, bool want_reply, int length)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 bool ssh2channel_send_signal(
     SshChannel *sc, bool want_reply, const char *signame)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }

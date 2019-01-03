@@ -454,7 +454,7 @@ void sk_addrcopy(SockAddr *addr, char *buf)
 	memcpy(buf, &((struct sockaddr_in6 *)step.ai->ai_addr)->sin6_addr,
 	       sizeof(struct in6_addr));
     else
-	assert(false);
+	unreachable("bad address family in sk_addrcopy");
 #else
     struct in_addr a;
 
@@ -723,7 +723,7 @@ static int try_connect(NetSocket *sock)
 	break;
 
       default:
-	assert(0 && "unknown address family");
+	unreachable("unknown address family");
 	exit(1); /* XXX: GCC doesn't understand assert() on some systems. */
     }
 

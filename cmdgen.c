@@ -104,7 +104,7 @@ void sk_cleanup(void)
 }
 void queue_idempotent_callback(IdempotentCallback *ic)
 {
-    assert(0);
+    unreachable("queue_idempotent_callback called in cmdgen");
 }
 
 void showversion(void)
@@ -594,7 +594,7 @@ int main(int argc, char **argv)
 
 	  case SSH_KEYTYPE_OPENSSH_AUTO:
           default:
-            assert(0 && "Should never see these types on an input file");
+            unreachable("Should never see these types on an input file");
 	}
     }
 
@@ -851,7 +851,7 @@ int main(int argc, char **argv)
 	    break;
 
 	  default:
-	    assert(0);
+	    unreachable("bad input key type");
 	}
 
 	if (error) {
@@ -1044,7 +1044,7 @@ int main(int argc, char **argv)
             real_outtype = SSH_KEYTYPE_SSHCOM;
             break;
           default:
-            assert(0 && "control flow goof");
+            unreachable("control flow goof");
         }
 	ret = export_ssh2(outfilename, real_outtype, ssh2key, new_passphrase);
 	if (!ret) {

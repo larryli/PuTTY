@@ -61,7 +61,9 @@ void nonfatal(const char *fmt, ...)
 }
 
 /* Stubs needed to link against misc.c */
-void queue_idempotent_callback(IdempotentCallback *ic) { assert(0); }
+void queue_idempotent_callback(IdempotentCallback *ic) {
+    unreachable("No callbacks in this application");
+}
 
 /* ----------------------------------------------------------------------
  * Progress report code. This is really horrible :-)

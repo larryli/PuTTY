@@ -253,7 +253,7 @@ bool ssh1_handle_direction_specific_packet(
 
 SshChannel *ssh1_session_open(ConnectionLayer *cl, Channel *chan)
 {
-    assert(false && "Should never be called in the server");
+    unreachable("Should never be called in the server");
 }
 
 struct ssh_rportfwd *ssh1_rportfwd_alloc(
@@ -262,8 +262,7 @@ struct ssh_rportfwd *ssh1_rportfwd_alloc(
     int addressfamily, const char *log_description, PortFwdRecord *pfr,
     ssh_sharing_connstate *share_ctx)
 {
-    assert(false && "Should never be called in the server");
-    return NULL;
+    unreachable("Should never be called in the server");
 }
 
 static int ssh1sesschan_write(SshChannel *sc, bool is_stderr,

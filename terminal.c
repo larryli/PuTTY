@@ -6540,7 +6540,7 @@ int format_small_keypad_key(char *buf, Terminal *term, SmallKeypadKey key)
       case SKK_END: code = 4; break;
       case SKK_PGUP: code = 5; break;
       case SKK_PGDN: code = 6; break;
-      default: assert(false && "bad small keypad key enum value");
+      default: unreachable("bad small keypad key enum value");
     }
 
     /* Reorder edit keys to physical order */

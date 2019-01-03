@@ -679,7 +679,7 @@ static void update_mouseptr(GtkFrontend *inst)
                               inst->waitcursor);
 	break;
       default:
-	assert(0);
+	unreachable("Bad busy_status");
     }
 }
 

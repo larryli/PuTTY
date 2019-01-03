@@ -1145,7 +1145,7 @@ static void update_mouse_pointer(void)
 	force_visible = true;
 	break;
       default:
-	assert(0);
+	unreachable("Bad busy_status");
     }
     {
 	HCURSOR cursor = LoadCursor(NULL, curstype);
