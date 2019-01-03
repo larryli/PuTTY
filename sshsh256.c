@@ -293,10 +293,10 @@ static void sha256_key_internal(struct hmacsha256 *ctx,
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void hmacsha256_key(ssh2_mac *mac, const void *key)
+static void hmacsha256_key(ssh2_mac *mac, ptrlen key)
 {
     struct hmacsha256 *ctx = container_of(mac, struct hmacsha256, mac);
-    sha256_key_internal(ctx, key, ctx->mac.vt->keylen);
+    sha256_key_internal(ctx, key.ptr, key.len);
 }
 
 static void hmacsha256_start(ssh2_mac *mac)

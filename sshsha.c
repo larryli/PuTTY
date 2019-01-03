@@ -322,13 +322,10 @@ static void sha1_key_internal(SHA_State *keys,
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void hmacsha1_key(ssh2_mac *mac, const void *key)
+static void hmacsha1_key(ssh2_mac *mac, ptrlen key)
 {
     struct hmacsha1 *ctx = container_of(mac, struct hmacsha1, mac);
-    /* Reading the key length out of the ssh2_macalg structure means
-     * this same method can be used for the _buggy variants which use
-     * a shorter key */
-    sha1_key_internal(ctx->sha, key, ctx->mac.vt->keylen);
+    sha1_key_internal(ctx->sha, key.ptr, key.len);
 }
 
 static void hmacsha1_start(ssh2_mac *mac)

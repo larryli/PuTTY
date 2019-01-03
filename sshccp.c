@@ -772,11 +772,12 @@ static void poly1305_init(struct poly1305 *ctx)
     bigval_clear(&ctx->h);
 }
 
-/* Takes a 256 bit key */
-static void poly1305_key(struct poly1305 *ctx, const unsigned char *key)
+static void poly1305_key(struct poly1305 *ctx, ptrlen key)
 {
+    assert(key.len == 32);             /* Takes a 256 bit key */
+
     unsigned char key_copy[16];
-    memcpy(key_copy, key, 16);
+    memcpy(key_copy, key.ptr, 16);
 
     /* Key the MAC itself
      * bytes 4, 8, 12 and 16 are required to have their top four bits clear */
@@ -791,8 +792,8 @@ static void poly1305_key(struct poly1305 *ctx, const unsigned char *key)
     bigval_import_le(&ctx->r, key_copy, 16);
     smemclr(key_copy, sizeof(key_copy));
 
-    /* Use second 128 bits are the nonce */
-    memcpy(ctx->nonce, key+16, 16);
+    /* Use second 128 bits as the nonce */
+    memcpy(ctx->nonce, (const char *)key.ptr + 16, 16);
 }
 
 /* Feed up to 16 bytes (should only be less for the last chunk) */
@@ -884,7 +885,7 @@ static void poly_ssh2_free(ssh2_mac *mac)
     /* Not allocated, just forwarded, no need to free */
 }
 
-static void poly_setkey(ssh2_mac *mac, const void *key)
+static void poly_setkey(ssh2_mac *mac, ptrlen key)
 {
     /* Uses the same context as ChaCha20, so ignore */
 }
@@ -919,7 +920,7 @@ static void poly_BinarySink_write(BinarySink *bs, const void *blkv, size_t len)
         chacha20_round(&ctx->b_cipher);
 
         /* Set the poly key */
-        poly1305_key(&ctx->mac, ctx->b_cipher.current);
+        poly1305_key(&ctx->mac, make_ptrlen(ctx->b_cipher.current, 32));
 
         /* Set the first round as used */
         ctx->b_cipher.currentIndex = 64;

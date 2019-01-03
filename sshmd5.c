@@ -273,11 +273,11 @@ void hmacmd5_key(struct hmacmd5_context *ctx, void const *keyv, int len)
     smemclr(foo, 64);		       /* burn the evidence */
 }
 
-static void hmacmd5_ssh2_setkey(ssh2_mac *mac, const void *key)
+static void hmacmd5_ssh2_setkey(ssh2_mac *mac, ptrlen key)
 {
     struct hmacmd5_context *ctx =
         container_of(mac, struct hmacmd5_context, mac);
-    hmacmd5_key(ctx, key, ctx->mac.vt->keylen);
+    hmacmd5_key(ctx, key.ptr, key.len);
 }
 
 static void hmacmd5_start(ssh2_mac *mac)

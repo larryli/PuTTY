@@ -137,7 +137,7 @@ void ssh2_bpp_new_outgoing_crypto(
     s->out.etm_mode = etm_mode;
     if (mac) {
         s->out.mac = ssh2_mac_new(mac, s->out.cipher);
-        ssh2_mac_setkey(s->out.mac, mac_key);
+        ssh2_mac_setkey(s->out.mac, make_ptrlen(mac_key, mac->keylen));
 
         bpp_logevent("Initialised %s outbound MAC algorithm%s%s",
                      ssh2_mac_alg(s->out.mac)->text_name,
@@ -194,7 +194,7 @@ void ssh2_bpp_new_incoming_crypto(
     s->in.etm_mode = etm_mode;
     if (mac) {
         s->in.mac = ssh2_mac_new(mac, s->in.cipher);
-        ssh2_mac_setkey(s->in.mac, mac_key);
+        ssh2_mac_setkey(s->in.mac, make_ptrlen(mac_key, mac->keylen));
 
         bpp_logevent("Initialised %s inbound MAC algorithm%s%s",
                      ssh2_mac_alg(s->in.mac)->text_name,

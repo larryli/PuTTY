@@ -716,7 +716,7 @@ struct ssh2_macalg {
     /* Passes in the cipher context */
     ssh2_mac *(*new)(const struct ssh2_macalg *alg, ssh2_cipher *cipher);
     void (*free)(ssh2_mac *);
-    void (*setkey)(ssh2_mac *, const void *key);
+    void (*setkey)(ssh2_mac *, ptrlen key);
     void (*start)(ssh2_mac *);
     void (*genresult)(ssh2_mac *, unsigned char *);
     const char *name, *etm_name;
