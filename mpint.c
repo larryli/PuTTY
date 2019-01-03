@@ -871,7 +871,7 @@ static void mp_mul_add_simple(mp_int *r, mp_int *a, mp_int *b)
 }
 
 #ifndef KARATSUBA_THRESHOLD      /* allow redefinition via -D for testing */
-#define KARATSUBA_THRESHOLD 50
+#define KARATSUBA_THRESHOLD 24
 #endif
 
 static inline size_t mp_mul_scratchspace_unary(size_t n)
