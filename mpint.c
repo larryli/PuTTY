@@ -2286,7 +2286,10 @@ mp_int *monty_modsqrt(ModsqrtContext *sc, mp_int *x, unsigned *success)
         unsigned eq1 = mp_cmp_eq(&tmp, monty_identity(sc->mc));
 
         if (i == 0) {
-            *success = eq1;
+            /* One special case: if x=0, then no power of x will ever
+             * equal 1, but we should still report success on the
+             * grounds that 0 does have a square root mod p. */
+            *success = eq1 | mp_eq_integer(x, 0);
         } else {
             monty_mul_into(sc->mc, &tmp, toret, &power_of_zk);
             mp_select_into(toret, &tmp, toret, eq1);
