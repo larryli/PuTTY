@@ -143,6 +143,16 @@ in putty do ./mkunxarc.sh '$(Autoconfver)' '$(Uxarcsuffix)' $(Docmakever)
 in putty do perl mkfiles.pl
 in putty/doc do make $(Docmakever) putty.hlp putty.chm -j$(nproc)
 
+delegate -
+# Run the test suite, under self-delegation so that we don't leave any
+# cruft lying around. This involves doing a build of the Unix tools
+# (which is a useful double-check anyway to pick up any build failures)
+in putty do ./mkauto.sh
+in putty do ./configure CC=clang CFLAGS="-fsanitize=address -fsanitize=leak"
+in putty do make -j$(nproc)
+in putty do python test/cryptsuite.py
+enddelegate
+
 # Munge the installer script locally so that it reports the version
 # we're really building.
 in putty/windows do perl -i~ -pe 'BEGIN{$$a=shift@ARGV;}s/^(AppVerName=).*$$/$$1$$a/' '$(Puttytextver)' putty.iss
