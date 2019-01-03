@@ -395,7 +395,7 @@ typedef struct ssh_key {
     const struct ssh_keyalg *vt;
 } ssh_key;
 
-struct RSAKey {
+typedef struct RSAKey {
     int bits;
     int bytes;
     mp_int *modulus;
@@ -406,7 +406,7 @@ struct RSAKey {
     mp_int *iqmp;
     char *comment;
     ssh_key sshk;
-};
+} RSAKey;
 
 struct dss_key {
     mp_int *p, *q, *g, *y, *x;
@@ -630,9 +630,9 @@ void SHA384_Init(SHA384_State * s);
 void SHA384_Final(SHA384_State * s, unsigned char *output);
 void SHA384_Simple(const void *p, int len, unsigned char *output);
 
-struct ssh2_macalg;
+typedef struct ssh2_macalg ssh2_macalg;
 
-struct ssh1_cipheralg;
+typedef struct ssh1_cipheralg ssh1_cipheralg;
 typedef struct ssh1_cipher {
     const struct ssh1_cipheralg *vt;
 } ssh1_cipher;
@@ -653,6 +653,7 @@ struct ssh1_cipheralg {
 #define ssh1_cipher_encrypt(ctx, blk, len) ((ctx)->vt->encrypt(ctx, blk, len))
 #define ssh1_cipher_decrypt(ctx, blk, len) ((ctx)->vt->decrypt(ctx, blk, len))
 
+typedef struct ssh2_cipheralg ssh2_cipheralg;
 struct ssh2_cipheralg {
     ssh2_cipher *(*new)(const struct ssh2_cipheralg *alg);
     void (*free)(ssh2_cipher *);
@@ -1053,7 +1054,7 @@ void *x11_dehexify(ptrlen hex, int *outlen);
 Channel *agentf_new(SshChannel *c);
 
 bool dh_is_gex(const struct ssh_kex *kex);
-struct dh_ctx;
+typedef struct dh_ctx dh_ctx;
 struct dh_ctx *dh_setup_group(const struct ssh_kex *kex);
 struct dh_ctx *dh_setup_gex(mp_int *pval, mp_int *gval);
 int dh_modulus_bit_size(const struct dh_ctx *ctx);
