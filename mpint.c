@@ -1124,7 +1124,7 @@ void mp_reduce_mod_2to(mp_int *x, size_t p)
     size_t mask = ((size_t)1 << (p % BIGNUM_INT_BITS)) - 1;
     for (; word < x->nw; word++) {
         x->w[word] &= mask;
-        mask = -(size_t)1;
+        mask = 0;
     }
 }
 
