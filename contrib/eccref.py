@@ -327,8 +327,8 @@ class MontgomeryCurve(CurveBase):
     def cpoint(self, x, yparity=0):
         if not hasattr(self, 'sqrtmodp'):
             self.sqrtmodp = SqrtModP(self.p)
-        rhs = x**3 + self.a.n * x**2 + self.b.n * x
-        y = self.sqrtmodp.sqrt(rhs)
+        rhs = (x**3 + self.a.n * x**2 + x) / self.b
+        y = self.sqrtmodp.sqrt(int(rhs))
         if (y - yparity) % 2:
             y = -y
         return self.point(x, y)
