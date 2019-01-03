@@ -1257,21 +1257,6 @@ MontyContext *monty_new(mp_int *modulus)
     return mc;
 }
 
-MontyContext *monty_copy(MontyContext *orig)
-{
-    MontyContext *mc = snew(MontyContext);
-
-    mc->rw = orig->rw;
-    mc->pw = orig->pw;
-    mc->rbits = orig->rbits;
-    mc->m = mp_copy(orig->m);
-    mc->minus_minv_mod_r = mp_copy(orig->minus_minv_mod_r);
-    for (size_t j = 0; j < 3; j++)
-        mc->powers_of_r_mod_m[j] = mp_copy(orig->powers_of_r_mod_m[j]);
-    mc->scratch = mp_make_sized(monty_scratch_size(mc));
-    return mc;
-}
-
 void monty_free(MontyContext *mc)
 {
     mp_free(mc->m);
