@@ -702,7 +702,4 @@ static const ssh2_cipheralg *const blowfish_list[] = {
     &ssh_blowfish_ssh2
 };
 
-const ssh2_ciphers ssh2_blowfish = {
-    sizeof(blowfish_list) / sizeof(*blowfish_list),
-    blowfish_list
-};
+const ssh2_ciphers ssh2_blowfish = { lenof(blowfish_list), blowfish_list };

@@ -1157,10 +1157,7 @@ static const ssh2_cipheralg *const aes_list[] = {
     &ssh_aes128,
 };
 
-const ssh2_ciphers ssh2_aes = {
-    sizeof(aes_list) / sizeof(*aes_list),
-    aes_list
-};
+const ssh2_ciphers ssh2_aes = { lenof(aes_list), aes_list };
 
 /*
  * Implementation of AES for PuTTY using AES-NI

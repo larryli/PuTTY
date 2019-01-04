@@ -927,7 +927,4 @@ static const ssh_kex *const rsa_kex_list[] = {
     &ssh_rsa_kex_sha1
 };
 
-const ssh_kexes ssh_rsa_kex = {
-    sizeof(rsa_kex_list) / sizeof(*rsa_kex_list),
-    rsa_kex_list
-};
+const ssh_kexes ssh_rsa_kex = { lenof(rsa_kex_list), rsa_kex_list };

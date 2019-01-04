@@ -42,10 +42,7 @@ static const ssh_kex *const group1_list[] = {
     &ssh_diffiehellman_group1_sha1
 };
 
-const ssh_kexes ssh_diffiehellman_group1 = {
-    sizeof(group1_list) / sizeof(*group1_list),
-    group1_list
-};
+const ssh_kexes ssh_diffiehellman_group1 = { lenof(group1_list), group1_list };
 
 static const struct dh_extra extra_group14 = {
     false, dh_group14_construct,
@@ -67,8 +64,7 @@ static const ssh_kex *const group14_list[] = {
 };
 
 const ssh_kexes ssh_diffiehellman_group14 = {
-    sizeof(group14_list) / sizeof(*group14_list),
-    group14_list
+    lenof(group14_list), group14_list
 };
 
 static const struct dh_extra extra_gex = { true };
@@ -88,10 +84,7 @@ static const ssh_kex *const gex_list[] = {
     &ssh_diffiehellman_gex_sha1
 };
 
-const ssh_kexes ssh_diffiehellman_gex = {
-    sizeof(gex_list) / sizeof(*gex_list),
-    gex_list
-};
+const ssh_kexes ssh_diffiehellman_gex = { lenof(gex_list), gex_list };
 
 /*
  * Suffix on GSSAPI SSH protocol identifiers that indicates Kerberos 5
@@ -129,8 +122,7 @@ static const ssh_kex *const gssk5_sha1_kex_list[] = {
 };
 
 const ssh_kexes ssh_gssk5_sha1_kex = {
-    sizeof(gssk5_sha1_kex_list) / sizeof(*gssk5_sha1_kex_list),
-    gssk5_sha1_kex_list
+    lenof(gssk5_sha1_kex_list), gssk5_sha1_kex_list
 };
 
 /*

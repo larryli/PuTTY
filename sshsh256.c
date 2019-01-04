@@ -360,7 +360,7 @@ int main(void) {
 
     errors = 0;
 
-    for (i = 0; i < sizeof(tests) / sizeof(*tests); i++) {
+    for (i = 0; i < lenof(tests); i++) {
 	SHA256_Simple(tests[i].teststring,
 		      strlen(tests[i].teststring), digest);
 	for (j = 0; j < 32; j++) {

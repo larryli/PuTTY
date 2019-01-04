@@ -407,7 +407,7 @@ int main(void) {
 
     errors = 0;
 
-    for (i = 0; i < sizeof(tests) / sizeof(*tests); i++) {
+    for (i = 0; i < lenof(tests); i++) {
 	if (tests[i].teststring) {
 	    SHA512_Simple(tests[i].teststring,
 			  strlen(tests[i].teststring), digest);

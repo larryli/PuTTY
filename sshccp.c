@@ -1047,7 +1047,4 @@ static const ssh2_cipheralg *const ccp_list[] = {
     &ssh2_chacha20_poly1305
 };
 
-const ssh2_ciphers ssh2_ccp = {
-    sizeof(ccp_list) / sizeof(*ccp_list),
-    ccp_list
-};
+const ssh2_ciphers ssh2_ccp = { lenof(ccp_list), ccp_list };

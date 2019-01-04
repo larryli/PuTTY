@@ -124,7 +124,4 @@ static const ssh2_cipheralg *const arcfour_list[] = {
     &ssh_arcfour128_ssh2,
 };
 
-const ssh2_ciphers ssh2_arcfour = {
-    sizeof(arcfour_list) / sizeof(*arcfour_list),
-    arcfour_list
-};
+const ssh2_ciphers ssh2_arcfour = { lenof(arcfour_list), arcfour_list };

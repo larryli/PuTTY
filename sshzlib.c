@@ -510,7 +510,7 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
 	 * transmitting.
 	 */
 	i = -1;
-	j = sizeof(lencodes) / sizeof(*lencodes);
+	j = lenof(lencodes);
 	while (1) {
 	    assert(j - i >= 2);
 	    k = (j + i) / 2;
@@ -546,7 +546,7 @@ static void zlib_match(struct LZ77Context *ectx, int distance, int len)
 	 * transmitting.
 	 */
 	i = -1;
-	j = sizeof(distcodes) / sizeof(*distcodes);
+	j = lenof(distcodes);
 	while (1) {
 	    assert(j - i >= 2);
 	    k = (j + i) / 2;

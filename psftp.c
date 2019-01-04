@@ -2116,7 +2116,7 @@ const struct sftp_cmd_lookup *lookup_command(const char *name)
     int i, j, k, cmp;
 
     i = -1;
-    j = sizeof(sftp_lookup) / sizeof(*sftp_lookup);
+    j = lenof(sftp_lookup);
     while (j - i > 1) {
 	k = (j + i) / 2;
 	cmp = strcmp(name, sftp_lookup[k].name);
@@ -2140,7 +2140,7 @@ static int sftp_cmd_help(struct sftp_command *cmd)
 	 */
 	int maxlen;
 	maxlen = 0;
-	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
+	for (i = 0; i < lenof(sftp_lookup); i++) {
 	    int len;
 	    if (!sftp_lookup[i].listed)
 		continue;
@@ -2148,7 +2148,7 @@ static int sftp_cmd_help(struct sftp_command *cmd)
 	    if (maxlen < len)
 		maxlen = len;
 	}
-	for (i = 0; i < sizeof(sftp_lookup) / sizeof(*sftp_lookup); i++) {
+	for (i = 0; i < lenof(sftp_lookup); i++) {
 	    const struct sftp_cmd_lookup *lookup;
 	    if (!sftp_lookup[i].listed)
 		continue;

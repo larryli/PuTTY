@@ -1444,10 +1444,7 @@ static const ssh_kex *const ec_kex_list[] = {
     &ssh_ec_kex_nistp521,
 };
 
-const ssh_kexes ssh_ecdh_kex = {
-    sizeof(ec_kex_list) / sizeof(*ec_kex_list),
-    ec_kex_list
-};
+const ssh_kexes ssh_ecdh_kex = { lenof(ec_kex_list), ec_kex_list };
 
 /* ----------------------------------------------------------------------
  * Helper functions for finding key algorithms and returning auxiliary
