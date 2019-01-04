@@ -80,6 +80,12 @@ def hash_str(alg, message):
     ssh_hash_update(h, message)
     return ssh_hash_final(h)
 
+def hash_str_iter(alg, message_iter):
+    h = ssh_hash_new(alg)
+    for string in message_iter:
+        ssh_hash_update(h, string)
+    return ssh_hash_final(h)
+
 def mac_str(alg, key, message, cipher=None):
     m = ssh2_mac_new(alg, cipher)
     ssh2_mac_setkey(m, key)
@@ -780,6 +786,164 @@ class standard_test_vectors(unittest.TestCase):
                          unhex('750c783e6ab0b503eaa86e310a5db738'))
         self.assertEqual(mac_str('hmac_md5', unhex('aa'*16), unhex('dd'*50)),
                          unhex('56be34521d144c88dbb8c733f0e8b3f6'))
+
+    def testSHA1(self):
+        # Test cases from RFC 6234 section 8.5, omitting the ones
+        # whose input is not a multiple of 8 bits
+        self.assertEqual(hash_str('sha1', "abc"), unhex(
+            "a9993e364706816aba3e25717850c26c9cd0d89d"))
+        self.assertEqual(hash_str('sha1',
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"), unhex(
+            "84983e441c3bd26ebaae4aa1f95129e5e54670f1"))
+        self.assertEqual(hash_str_iter('sha1',
+            ("a" * 1000 for _ in range(1000))), unhex(
+            "34aa973cd4c4daa4f61eeb2bdbad27316534016f"))
+        self.assertEqual(hash_str('sha1',
+            "01234567012345670123456701234567" * 20), unhex(
+            "dea356a2cddd90c7a7ecedc5ebb563934f460452"))
+        self.assertEqual(hash_str('sha1', b"\x5e"), unhex(
+            "5e6f80a34a9798cafc6a5db96cc57ba4c4db59c2"))
+        self.assertEqual(hash_str('sha1',
+            unhex("9a7dfdf1ecead06ed646aa55fe757146")), unhex(
+            "82abff6605dbe1c17def12a394fa22a82b544a35"))
+        self.assertEqual(hash_str('sha1', unhex(
+            "f78f92141bcd170ae89b4fba15a1d59f3fd84d223c9251bdacbbae61d05ed115"
+            "a06a7ce117b7beead24421ded9c32592bd57edeae39c39fa1fe8946a84d0cf1f"
+            "7beead1713e2e0959897347f67c80b0400c209815d6b10a683836fd5562a56ca"
+            "b1a28e81b6576654631cf16566b86e3b33a108b05307c00aff14a768ed735060"
+            "6a0f85e6a91d396f5b5cbe577f9b38807c7d523d6d792f6ebc24a4ecf2b3a427"
+            "cdbbfb")), unhex(
+            "cb0082c8f197d260991ba6a460e76e202bad27b3"))
+
+    def testSHA256(self):
+        # Test cases from RFC 6234 section 8.5, omitting the ones
+        # whose input is not a multiple of 8 bits
+        self.assertEqual(hash_str('sha256', "abc"), unhex(
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"))
+        self.assertEqual(hash_str('sha256',
+            "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"), unhex(
+            "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1"))
+        self.assertEqual(hash_str_iter('sha256',
+            ("a" * 1000 for _ in range(1000))), unhex(
+            "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0"))
+        self.assertEqual(hash_str('sha256',
+            "01234567012345670123456701234567" * 20), unhex(
+            "594847328451bdfa85056225462cc1d867d877fb388df0ce35f25ab5562bfbb5"))
+        self.assertEqual(hash_str('sha256', b"\x19"), unhex(
+            "68aa2e2ee5dff96e3355e6c7ee373e3d6a4e17f75f9518d843709c0c9bc3e3d4"))
+        self.assertEqual(hash_str('sha256',
+            unhex("e3d72570dcdd787ce3887ab2cd684652")), unhex(
+            "175ee69b02ba9b58e2b0a5fd13819cea573f3940a94f825128cf4209beabb4e8"))
+        self.assertEqual(hash_str('sha256', unhex(
+            "8326754e2277372f4fc12b20527afef04d8a056971b11ad57123a7c137760000"
+            "d7bef6f3c1f7a9083aa39d810db310777dab8b1e7f02b84a26c773325f8b2374"
+            "de7a4b5a58cb5c5cf35bcee6fb946e5bd694fa593a8beb3f9d6592ecedaa66ca"
+            "82a29d0c51bcf9336230e5d784e4c0a43f8d79a30a165cbabe452b774b9c7109"
+            "a97d138f129228966f6c0adc106aad5a9fdd30825769b2c671af6759df28eb39"
+            "3d54d6")), unhex(
+            "97dbca7df46d62c8a422c941dd7e835b8ad3361763f7e9b2d95f4f0da6e1ccbc"))
+
+    def testSHA384(self):
+        # Test cases from RFC 6234 section 8.5, omitting the ones
+        # whose input is not a multiple of 8 bits
+        self.assertEqual(hash_str('sha384', "abc"), unhex(
+            'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded163'
+            '1a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7'))
+        self.assertEqual(hash_str('sha384',
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
+	    "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
+            '09330c33f71147e83d192fc782cd1b4753111b173b3b05d2'
+            '2fa08086e3b0f712fcc7c71a557e2db966c3e9fa91746039'))
+        self.assertEqual(hash_str_iter('sha384',
+            ("a" * 1000 for _ in range(1000))), unhex(
+            '9d0e1809716474cb086e834e310a4a1ced149e9c00f24852'
+            '7972cec5704c2a5b07b8b3dc38ecc4ebae97ddd87f3d8985'))
+        self.assertEqual(hash_str('sha384',
+            "01234567012345670123456701234567" * 20), unhex(
+            '2fc64a4f500ddb6828f6a3430b8dd72a368eb7f3a8322a70'
+            'bc84275b9c0b3ab00d27a5cc3c2d224aa6b61a0d79fb4596'))
+        self.assertEqual(hash_str('sha384', b"\xB9"), unhex(
+            'bc8089a19007c0b14195f4ecc74094fec64f01f90929282c'
+            '2fb392881578208ad466828b1c6c283d2722cf0ad1ab6938'))
+        self.assertEqual(hash_str('sha384',
+            unhex("a41c497779c0375ff10a7f4e08591739")), unhex(
+            'c9a68443a005812256b8ec76b00516f0dbb74fab26d66591'
+            '3f194b6ffb0e91ea9967566b58109cbc675cc208e4c823f7'))
+        self.assertEqual(hash_str('sha384', unhex(
+            "399669e28f6b9c6dbcbb6912ec10ffcf74790349b7dc8fbe4a8e7b3b5621db0f"
+            "3e7dc87f823264bbe40d1811c9ea2061e1c84ad10a23fac1727e7202fc3f5042"
+            "e6bf58cba8a2746e1f64f9b9ea352c711507053cf4e5339d52865f25cc22b5e8"
+            "7784a12fc961d66cb6e89573199a2ce6565cbdf13dca403832cfcb0e8b7211e8"
+            "3af32a11ac17929ff1c073a51cc027aaedeff85aad7c2b7c5a803e2404d96d2a"
+            "77357bda1a6daeed17151cb9bc5125a422e941de0ca0fc5011c23ecffefdd096"
+            "76711cf3db0a3440720e1615c1f22fbc3c721de521e1b99ba1bd557740864214"
+            "7ed096")), unhex(
+            '4f440db1e6edd2899fa335f09515aa025ee177a79f4b4aaf'
+            '38e42b5c4de660f5de8fb2a5b2fbd2a3cbffd20cff1288c0'))
+
+    def testSHA512(self):
+        # Test cases from RFC 6234 section 8.5, omitting the ones
+        # whose input is not a multiple of 8 bits
+        self.assertEqual(hash_str('sha512', "abc"), unhex(
+            'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a'
+            '2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f'))
+        self.assertEqual(hash_str('sha512',
+            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
+	    "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
+            '8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018'
+            '501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26545e96e55b874be909'))
+        self.assertEqual(hash_str_iter('sha512',
+            ("a" * 1000 for _ in range(1000))), unhex(
+            'e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973eb'
+            'de0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217ad8cc09b'))
+        self.assertEqual(hash_str('sha512',
+            "01234567012345670123456701234567" * 20), unhex(
+            '89d05ba632c699c31231ded4ffc127d5a894dad412c0e024db872d1abd2ba814'
+            '1a0f85072a9be1e2aa04cf33c765cb510813a39cd5a84c4acaa64d3f3fb7bae9'))
+        self.assertEqual(hash_str('sha512', b"\xD0"), unhex(
+            '9992202938e882e73e20f6b69e68a0a7149090423d93c81bab3f21678d4aceee'
+            'e50e4e8cafada4c85a54ea8306826c4ad6e74cece9631bfa8a549b4ab3fbba15'))
+        self.assertEqual(hash_str('sha512',
+            unhex("8d4e3c0e3889191491816e9d98bff0a0")), unhex(
+            'cb0b67a4b8712cd73c9aabc0b199e9269b20844afb75acbdd1c153c9828924c3'
+            'ddedaafe669c5fdd0bc66f630f6773988213eb1b16f517ad0de4b2f0c95c90f8'))
+        self.assertEqual(hash_str('sha512', unhex(
+            "a55f20c411aad132807a502d65824e31a2305432aa3d06d3e282a8d84e0de1de"
+            "6974bf495469fc7f338f8054d58c26c49360c3e87af56523acf6d89d03e56ff2"
+            "f868002bc3e431edc44df2f0223d4bb3b243586e1a7d924936694fcbbaf88d95"
+            "19e4eb50a644f8e4f95eb0ea95bc4465c8821aacd2fe15ab4981164bbb6dc32f"
+            "969087a145b0d9cc9c67c22b763299419cc4128be9a077b3ace634064e6d9928"
+            "3513dc06e7515d0d73132e9a0dc6d3b1f8b246f1a98a3fc72941b1e3bb2098e8"
+            "bf16f268d64f0b0f4707fe1ea1a1791ba2f3c0c758e5f551863a96c949ad47d7"
+            "fb40d2")), unhex(
+            'c665befb36da189d78822d10528cbf3b12b3eef726039909c1a16a270d487193'
+            '77966b957a878e720584779a62825c18da26415e49a7176a894e7510fd1451f5'))
+
+    def testHmacSHA(self):
+        # Test cases from RFC 6234 section 8.5, omitting the ones
+        # which have a long enough key to require hashing it first.
+        # (Our implementation doesn't support that, because it knows
+        # it only has to deal with a fixed key length.)
+        def vector(key, message, s1, s256):
+            self.assertEqual(mac_str('hmac_sha1', key, message), unhex(s1))
+            self.assertEqual(mac_str('hmac_sha256', key, message), unhex(s256))
+        vector(
+            unhex("0b"*20), "Hi There",
+            "b617318655057264e28bc0b6fb378c8ef146be00",
+            "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7")
+        vector(
+            "Jefe", "what do ya want for nothing?",
+            "effcdf6ae5eb2fa2d27416d5f184df9c259a7c79",
+            "5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843")
+        vector(
+            unhex("aa"*20), unhex('dd'*50),
+            "125d7342b9ac11cd91a39af48aa17b4f63f175d3",
+            "773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565FE")
+        vector(
+            unhex("0102030405060708090a0b0c0d0e0f10111213141516171819"),
+            unhex("cd"*50),
+            "4c9007f4026250c6bc8414f9bf50c86c2d7235da",
+            "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b")
 
     def testEd25519(self):
         def vector(privkey, pubkey, message, signature):

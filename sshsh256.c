@@ -330,56 +330,6 @@ const ssh2_macalg ssh_hmac_sha256 = {
     "HMAC-SHA-256"
 };
 
-#ifdef TEST
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-
-int main(void) {
-    unsigned char digest[32];
-    int i, j, errors;
-
-    struct {
-	const char *teststring;
-	unsigned char digest[32];
-    } tests[] = {
-	{ "abc", {
-	    0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea,
-	    0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22, 0x23,
-	    0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
-	    0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad,
-	} },
-	{ "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq", {
-	    0x24, 0x8d, 0x6a, 0x61, 0xd2, 0x06, 0x38, 0xb8,
-	    0xe5, 0xc0, 0x26, 0x93, 0x0c, 0x3e, 0x60, 0x39,
-	    0xa3, 0x3c, 0xe4, 0x59, 0x64, 0xff, 0x21, 0x67,
-	    0xf6, 0xec, 0xed, 0xd4, 0x19, 0xdb, 0x06, 0xc1,
-	} },
-    };
-
-    errors = 0;
-
-    for (i = 0; i < lenof(tests); i++) {
-	SHA256_Simple(tests[i].teststring,
-		      strlen(tests[i].teststring), digest);
-	for (j = 0; j < 32; j++) {
-	    if (digest[j] != tests[i].digest[j]) {
-		fprintf(stderr,
-			"\"%s\" digest byte %d should be 0x%02x, is 0x%02x\n",
-			tests[i].teststring, j, tests[i].digest[j], digest[j]);
-		errors++;
-	    }
-	}
-    }
-
-    printf("%d errors\n", errors);
-
-    return 0;
-}
-
-#endif
-
 #ifdef COMPILER_SUPPORTS_SHA_NI
 
 #if defined _MSC_VER && defined _M_AMD64
