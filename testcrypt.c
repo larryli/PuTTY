@@ -770,6 +770,32 @@ strbuf *rsa_ssh1_decrypt_pkcs1_wrapper(mp_int *input, RSAKey *key)
     return sb;
 }
 
+#define WRAP_des_encrypt_xdmauth ,
+strbuf *des_encrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
+{
+    if (key.len != 7)
+        fatal_error("des_encrypt_xdmauth: key must be 7 bytes long");
+    if (data.len % 8 != 0)
+        fatal_error("des_encrypt_xdmauth: data must be a multiple of 8 bytes");
+    strbuf *sb = strbuf_new();
+    put_datapl(sb, data);
+    des_encrypt_xdmauth(key.ptr, sb->u, sb->len);
+    return sb;
+}
+
+#define WRAP_des_decrypt_xdmauth ,
+strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
+{
+    if (key.len != 7)
+        fatal_error("des_decrypt_xdmauth: key must be 7 bytes long");
+    if (data.len % 8 != 0)
+        fatal_error("des_decrypt_xdmauth: data must be a multiple of 8 bytes");
+    strbuf *sb = strbuf_new();
+    put_datapl(sb, data);
+    des_decrypt_xdmauth(key.ptr, sb->u, sb->len);
+    return sb;
+}
+
 #define return_void(out, expression) (expression)
 
 #define VALTYPE_TYPEDEF(n,t,f)                  \

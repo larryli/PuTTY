@@ -216,6 +216,8 @@ FUNC(int, rsa_ssh1_public_blob_len, val_string_ptrlen)
  */
 FUNC(val_wpoint, ecdsa_public, val_mpint, keyalg)
 FUNC(val_epoint, eddsa_public, val_mpint, keyalg)
+FUNC(val_string, des_encrypt_xdmauth, val_string_ptrlen, val_string_ptrlen)
+FUNC(val_string, des_decrypt_xdmauth, val_string_ptrlen, val_string_ptrlen)
 
 /*
  * These functions aren't part of PuTTY's own API, but are additions
