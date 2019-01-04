@@ -159,7 +159,7 @@ static const LogPolicyVtable server_logpolicy_vt = {
 LogPolicy server_logpolicy[1] = {{ &server_logpolicy_vt }};
 
 struct AuthPolicy_ssh1_pubkey {
-    struct RSAKey key;
+    RSAKey key;
     struct AuthPolicy_ssh1_pubkey *next;
 };
 struct AuthPolicy_ssh2_pubkey {
@@ -221,7 +221,7 @@ bool auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
     }
     return false;
 }
-struct RSAKey *auth_publickey_ssh1(
+RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, mp_int *rsa_modulus)
 {
     struct AuthPolicy_ssh1_pubkey *iter;
@@ -365,7 +365,7 @@ int main(int argc, char **argv)
 
     ssh_key **hostkeys = NULL;
     int nhostkeys = 0, hostkeysize = 0;
-    struct RSAKey *hostkey1 = NULL;
+    RSAKey *hostkey1 = NULL;
 
     AuthPolicy ap;
 
@@ -407,7 +407,7 @@ int main(int argc, char **argv)
             keytype = key_type(keyfile);
 
             if (keytype == SSH_KEYTYPE_SSH2) {
-                struct ssh2_userkey *uk;
+                ssh2_userkey *uk;
                 ssh_key *key;
                 uk = ssh2_load_userkey(keyfile, NULL, &error);
                 filename_free(keyfile);
@@ -439,7 +439,7 @@ int main(int argc, char **argv)
                             "SSH-1 host key\n", appname, val);
                     exit(1);
                 }
-                hostkey1 = snew(struct RSAKey);
+                hostkey1 = snew(RSAKey);
                 if (!rsa_ssh1_loadkey(keyfile, hostkey1, NULL, &error)) {
                     fprintf(stderr, "%s: unable to load host key '%s': "
                             "%s\n", appname, val, error);

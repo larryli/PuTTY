@@ -247,7 +247,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             const struct ssh_rsa_kex_extra *extra =
                 (const struct ssh_rsa_kex_extra *)s->kex_alg->extra;
 
-	    s->rsa_kex_key = snew(struct RSAKey);
+	    s->rsa_kex_key = snew(RSAKey);
 	    rsa_generate(s->rsa_kex_key, extra->minklen, no_progress, NULL);
 	    s->rsa_kex_key->comment = NULL;
         }

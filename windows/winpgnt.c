@@ -256,8 +256,8 @@ void old_keyfile_warning(void)
  */
 void keylist_update(void)
 {
-    struct RSAKey *rkey;
-    struct ssh2_userkey *skey;
+    RSAKey *rkey;
+    ssh2_userkey *skey;
     int i;
 
     if (keylist) {
@@ -472,8 +472,8 @@ static void prompt_add_keyfile(void)
 static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
-    struct RSAKey *rkey;
-    struct ssh2_userkey *skey;
+    RSAKey *rkey;
+    ssh2_userkey *skey;
 
     switch (msg) {
       case WM_INITDIALOG:

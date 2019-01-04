@@ -869,14 +869,14 @@ struct des_ssh2_ctx {
     ssh2_cipher ciph;
 };
 
-static ssh2_cipher *des3_ssh2_new(const struct ssh2_cipheralg *alg)
+static ssh2_cipher *des3_ssh2_new(const ssh2_cipheralg *alg)
 {
     struct des3_ssh2_ctx *ctx = snew(struct des3_ssh2_ctx);
     ctx->ciph.vt = alg;
     return &ctx->ciph;
 }
 
-static ssh2_cipher *des_ssh2_new(const struct ssh2_cipheralg *alg)
+static ssh2_cipher *des_ssh2_new(const ssh2_cipheralg *alg)
 {
     struct des_ssh2_ctx *ctx = snew(struct des_ssh2_ctx);
     ctx->ciph.vt = alg;
@@ -1070,7 +1070,7 @@ void des_decrypt_xdmauth(const void *keydata, void *blk, int len)
     des_cbc_decrypt(blk, len, &dc);
 }
 
-const struct ssh2_cipheralg ssh_3des_ssh2 = {
+const ssh2_cipheralg ssh_3des_ssh2 = {
     des3_ssh2_new, des3_ssh2_free, des3_ssh2_setiv, des3_ssh2_setkey,
     des3_ssh2_encrypt_blk, des3_ssh2_decrypt_blk, NULL, NULL,
     "3des-cbc",
@@ -1078,7 +1078,7 @@ const struct ssh2_cipheralg ssh_3des_ssh2 = {
     NULL
 };
 
-const struct ssh2_cipheralg ssh_3des_ssh2_ctr = {
+const ssh2_cipheralg ssh_3des_ssh2_ctr = {
     des3_ssh2_new, des3_ssh2_free, des3_ssh2_setiv, des3_ssh2_setkey,
     des3_ssh2_sdctr, des3_ssh2_sdctr, NULL, NULL,
     "3des-ctr",
@@ -1094,7 +1094,7 @@ const struct ssh2_cipheralg ssh_3des_ssh2_ctr = {
  * apparently aren't the only people to do so, so we sigh 
  * and implement it anyway.
  */
-const struct ssh2_cipheralg ssh_des_ssh2 = {
+const ssh2_cipheralg ssh_des_ssh2 = {
     des_ssh2_new, des_ssh2_free, des_ssh2_setiv, des_ssh2_setkey,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk, NULL, NULL,
     "des-cbc",
@@ -1102,7 +1102,7 @@ const struct ssh2_cipheralg ssh_des_ssh2 = {
     NULL
 };
 
-const struct ssh2_cipheralg ssh_des_sshcom_ssh2 = {
+const ssh2_cipheralg ssh_des_sshcom_ssh2 = {
     des_ssh2_new, des_ssh2_free, des_ssh2_setiv, des_ssh2_setkey,
     des_ssh2_encrypt_blk, des_ssh2_decrypt_blk, NULL, NULL,
     "des-cbc@ssh.com",
@@ -1110,33 +1110,33 @@ const struct ssh2_cipheralg ssh_des_sshcom_ssh2 = {
     NULL
 };
 
-static const struct ssh2_cipheralg *const des3_list[] = {
+static const ssh2_cipheralg *const des3_list[] = {
     &ssh_3des_ssh2_ctr,
     &ssh_3des_ssh2
 };
 
-const struct ssh2_ciphers ssh2_3des = {
+const ssh2_ciphers ssh2_3des = {
     sizeof(des3_list) / sizeof(*des3_list),
     des3_list
 };
 
-static const struct ssh2_cipheralg *const des_list[] = {
+static const ssh2_cipheralg *const des_list[] = {
     &ssh_des_ssh2,
     &ssh_des_sshcom_ssh2
 };
 
-const struct ssh2_ciphers ssh2_des = {
+const ssh2_ciphers ssh2_des = {
     sizeof(des_list) / sizeof(*des_list),
     des_list
 };
 
-const struct ssh1_cipheralg ssh1_3des = {
+const ssh1_cipheralg ssh1_3des = {
     des3_ssh1_new, des3_ssh1_free, des3_ssh1_sesskey,
     des3_ssh1_encrypt_blk, des3_ssh1_decrypt_blk,
     8, "triple-DES inner-CBC"
 };
 
-const struct ssh1_cipheralg ssh1_des = {
+const ssh1_cipheralg ssh1_des = {
     des_ssh1_new, des_ssh1_free, des_ssh1_sesskey,
     des_ssh1_encrypt_blk, des_ssh1_decrypt_blk,
     8, "single-DES CBC"

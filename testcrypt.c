@@ -289,11 +289,11 @@ static const ssh2_cipheralg *get_ssh2_cipheralg(BinarySource *in)
     fatal_error("ssh2_cipheralg '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
-static const struct ssh_kex *get_dh_group(BinarySource *in)
+static const ssh_kex *get_dh_group(BinarySource *in)
 {
     static const struct {
         const char *key;
-        const struct ssh_kexes *value;
+        const ssh_kexes *value;
     } algs[] = {
         {"group1", &ssh_diffiehellman_group1},
         {"group14", &ssh_diffiehellman_group14},
@@ -307,11 +307,11 @@ static const struct ssh_kex *get_dh_group(BinarySource *in)
     fatal_error("dh_group '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
-static const struct ssh_kex *get_ecdh_alg(BinarySource *in)
+static const ssh_kex *get_ecdh_alg(BinarySource *in)
 {
     static const struct {
         const char *key;
-        const struct ssh_kex *value;
+        const ssh_kex *value;
     } algs[] = {
         {"curve25519", &ssh_ec_kex_curve25519},
         {"nistp256", &ssh_ec_kex_nistp256},
@@ -801,8 +801,8 @@ typedef const ssh2_macalg *TD_macalg;
 typedef const ssh_keyalg *TD_keyalg;
 typedef const ssh1_cipheralg *TD_ssh1_cipheralg;
 typedef const ssh2_cipheralg *TD_ssh2_cipheralg;
-typedef const struct ssh_kex *TD_dh_group;
-typedef const struct ssh_kex *TD_ecdh_alg;
+typedef const ssh_kex *TD_dh_group;
+typedef const ssh_kex *TD_ecdh_alg;
 typedef RsaSsh1Order TD_rsaorder;
 
 #define WRAPPED_NAME_INNER(a, b, ...) b

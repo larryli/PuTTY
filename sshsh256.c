@@ -204,7 +204,7 @@ struct sha256_hash {
     ssh_hash hash;
 };
 
-static ssh_hash *sha256_new(const struct ssh_hashalg *alg)
+static ssh_hash *sha256_new(const ssh_hashalg *alg)
 {
     struct sha256_hash *h = snew(struct sha256_hash);
     SHA256_Init(&h->state);
@@ -242,7 +242,7 @@ static void sha256_final(ssh_hash *hash, unsigned char *output)
     sha256_free(hash);
 }
 
-const struct ssh_hashalg ssh_sha256 = {
+const ssh_hashalg ssh_sha256 = {
     sha256_new, sha256_copy, sha256_final, sha256_free, 32, "SHA-256"
 };
 
@@ -257,7 +257,7 @@ struct hmacsha256 {
 };
 
 static ssh2_mac *hmacsha256_new(
-    const struct ssh2_macalg *alg, ssh2_cipher *cipher)
+    const ssh2_macalg *alg, ssh2_cipher *cipher)
 {
     struct hmacsha256 *ctx = snew(struct hmacsha256);
     ctx->mac.vt = alg;
@@ -322,7 +322,7 @@ static void hmacsha256_genresult(ssh2_mac *mac, unsigned char *hmac)
     SHA256_Final(&s, hmac);
 }
 
-const struct ssh2_macalg ssh_hmac_sha256 = {
+const ssh2_macalg ssh_hmac_sha256 = {
     hmacsha256_new, hmacsha256_free, hmacsha256_key,
     hmacsha256_start, hmacsha256_genresult,
     "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",

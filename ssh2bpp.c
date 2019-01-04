@@ -14,7 +14,7 @@ struct ssh2_bpp_direction {
     ssh2_cipher *cipher;
     ssh2_mac *mac;
     bool etm_mode;
-    const struct ssh_compression_alg *pending_compression;
+    const ssh_compression_alg *pending_compression;
 };
 
 struct ssh2_bpp_state {
@@ -109,9 +109,9 @@ static void ssh2_bpp_free(BinaryPacketProtocol *bpp)
 
 void ssh2_bpp_new_outgoing_crypto(
     BinaryPacketProtocol *bpp,
-    const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh2_macalg *mac, bool etm_mode, const void *mac_key,
-    const struct ssh_compression_alg *compression, bool delayed_compression)
+    const ssh2_cipheralg *cipher, const void *ckey, const void *iv,
+    const ssh2_macalg *mac, bool etm_mode, const void *mac_key,
+    const ssh_compression_alg *compression, bool delayed_compression)
 {
     struct ssh2_bpp_state *s;
     assert(bpp->vt == &ssh2_bpp_vtable);
@@ -171,9 +171,9 @@ void ssh2_bpp_new_outgoing_crypto(
 
 void ssh2_bpp_new_incoming_crypto(
     BinaryPacketProtocol *bpp,
-    const struct ssh2_cipheralg *cipher, const void *ckey, const void *iv,
-    const struct ssh2_macalg *mac, bool etm_mode, const void *mac_key,
-    const struct ssh_compression_alg *compression, bool delayed_compression)
+    const ssh2_cipheralg *cipher, const void *ckey, const void *iv,
+    const ssh2_macalg *mac, bool etm_mode, const void *mac_key,
+    const ssh_compression_alg *compression, bool delayed_compression)
 {
     struct ssh2_bpp_state *s;
     assert(bpp->vt == &ssh2_bpp_vtable);

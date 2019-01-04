@@ -36,7 +36,7 @@ typedef struct bufchain_tag bufchain;
 
 typedef struct strbuf strbuf;
 
-struct RSAKey;
+typedef struct RSAKey RSAKey;
 
 typedef struct BinarySink BinarySink;
 typedef struct BinarySource BinarySource;
@@ -89,6 +89,26 @@ typedef struct share_channel share_channel;
 typedef struct PortFwdManager PortFwdManager;
 typedef struct PortFwdRecord PortFwdRecord;
 typedef struct ConnectionLayer ConnectionLayer;
+
+typedef struct ssh_hashalg ssh_hashalg;
+typedef struct ssh_hash ssh_hash;
+typedef struct ssh_kex ssh_kex;
+typedef struct ssh_kexes ssh_kexes;
+typedef struct ssh_keyalg ssh_keyalg;
+typedef struct ssh_key ssh_key;
+typedef struct ssh_compressor ssh_compressor;
+typedef struct ssh_decompressor ssh_decompressor;
+typedef struct ssh_compression_alg ssh_compression_alg;
+typedef struct ssh2_userkey ssh2_userkey;
+typedef struct ssh2_macalg ssh2_macalg;
+typedef struct ssh2_mac ssh2_mac;
+typedef struct ssh2_cipheralg ssh2_cipheralg;
+typedef struct ssh2_cipher ssh2_cipher;
+typedef struct ssh2_ciphers ssh2_ciphers;
+typedef struct ssh1_cipheralg ssh1_cipheralg;
+typedef struct ssh1_cipher ssh1_cipher;
+typedef struct dh_ctx dh_ctx;
+typedef struct ecdh_key ecdh_key;
 
 typedef struct dlgparam dlgparam;
 

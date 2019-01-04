@@ -28,14 +28,14 @@ struct ssh1_login_server_state {
     char *username_str;
     ptrlen username;
 
-    struct RSAKey *servkey, *hostkey;
+    RSAKey *servkey, *hostkey;
     bool servkey_generated_here;
     mp_int *sesskey;
 
     AuthPolicy *authpolicy;
     unsigned ap_methods, current_method;
     unsigned char auth_rsa_expected_response[16];
-    struct RSAKey *authkey;
+    RSAKey *authkey;
     bool auth_successful;
 
     PacketProtocolLayer ppl;
@@ -69,7 +69,7 @@ static const struct PacketProtocolLayerVtable ssh1_login_server_vtable = {
 static void no_progress(void *param, int action, int phase, int iprogress) {}
 
 PacketProtocolLayer *ssh1_login_server_new(
-    PacketProtocolLayer *successor_layer, struct RSAKey *hostkey,
+    PacketProtocolLayer *successor_layer, RSAKey *hostkey,
     AuthPolicy *authpolicy)
 {
     struct ssh1_login_server_state *s = snew(struct ssh1_login_server_state);
@@ -136,7 +136,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         int server_key_bits = s->hostkey->bytes - 256;
         if (server_key_bits < 512)
             server_key_bits = s->hostkey->bytes + 256;
-        s->servkey = snew(struct RSAKey);
+        s->servkey = snew(RSAKey);
         rsa_generate(s->servkey, server_key_bits, no_progress, NULL);
         s->servkey->comment = NULL;
         s->servkey_generated_here = true;
@@ -204,7 +204,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     }
 
     {
-        struct RSAKey *smaller, *larger;
+        RSAKey *smaller, *larger;
         strbuf *data = strbuf_new();
 
         if (mp_get_nbits(s->hostkey->modulus) >
@@ -241,7 +241,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         s->session_key[i] ^= s->session_id[i];
 
     {
-        const struct ssh1_cipheralg *cipher =
+        const ssh1_cipheralg *cipher =
             (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh1_blowfish :
              s->cipher_type == SSH_CIPHER_DES ? &ssh1_des : &ssh1_3des);
         ssh1_bpp_new_cipher(s->ppl.bpp, cipher, s->session_key);

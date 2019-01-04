@@ -254,7 +254,7 @@ static struct ec_curve *ec_ed25519(void)
 
 struct ecsign_extra {
     struct ec_curve *(*curve)(void);
-    const struct ssh_hashalg *hash;
+    const ssh_hashalg *hash;
 
     /* These fields are used by the OpenSSH PEM format importer/exporter */
     const unsigned char *oid;
@@ -1250,7 +1250,7 @@ struct ecdh_key {
     };
 };
 
-const char *ssh_ecdhkex_curve_textname(const struct ssh_kex *kex)
+const char *ssh_ecdhkex_curve_textname(const ssh_kex *kex)
 {
     const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
     struct ec_curve *curve = extra->curve();
@@ -1281,7 +1281,7 @@ static void ssh_ecdhkex_m_setup(ecdh_key *dh)
     dh->m_public = ecc_montgomery_multiply(dh->curve->m.G, dh->private);
 }
 
-ecdh_key *ssh_ecdhkex_newkey(const struct ssh_kex *kex)
+ecdh_key *ssh_ecdhkex_newkey(const ssh_kex *kex)
 {
     const struct eckex_extra *extra = (const struct eckex_extra *)kex->extra;
     const struct ec_curve *curve = extra->curve();
@@ -1396,7 +1396,7 @@ static const struct eckex_extra kex_extra_curve25519 = {
     ssh_ecdhkex_m_getpublic,
     ssh_ecdhkex_m_getkey,
 };
-const struct ssh_kex ssh_ec_kex_curve25519 = {
+const ssh_kex ssh_ec_kex_curve25519 = {
     "curve25519-sha256@libssh.org", NULL, KEXTYPE_ECDH,
     &ssh_sha256, &kex_extra_curve25519,
 };
@@ -1408,7 +1408,7 @@ const struct eckex_extra kex_extra_nistp256 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-const struct ssh_kex ssh_ec_kex_nistp256 = {
+const ssh_kex ssh_ec_kex_nistp256 = {
     "ecdh-sha2-nistp256", NULL, KEXTYPE_ECDH,
     &ssh_sha256, &kex_extra_nistp256,
 };
@@ -1420,7 +1420,7 @@ const struct eckex_extra kex_extra_nistp384 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-const struct ssh_kex ssh_ec_kex_nistp384 = {
+const ssh_kex ssh_ec_kex_nistp384 = {
     "ecdh-sha2-nistp384", NULL, KEXTYPE_ECDH,
     &ssh_sha384, &kex_extra_nistp384,
 };
@@ -1432,19 +1432,19 @@ const struct eckex_extra kex_extra_nistp521 = {
     ssh_ecdhkex_w_getpublic,
     ssh_ecdhkex_w_getkey,
 };
-const struct ssh_kex ssh_ec_kex_nistp521 = {
+const ssh_kex ssh_ec_kex_nistp521 = {
     "ecdh-sha2-nistp521", NULL, KEXTYPE_ECDH,
     &ssh_sha512, &kex_extra_nistp521,
 };
 
-static const struct ssh_kex *const ec_kex_list[] = {
+static const ssh_kex *const ec_kex_list[] = {
     &ssh_ec_kex_curve25519,
     &ssh_ec_kex_nistp256,
     &ssh_ec_kex_nistp384,
     &ssh_ec_kex_nistp521,
 };
 
-const struct ssh_kexes ssh_ecdh_kex = {
+const ssh_kexes ssh_ecdh_kex = {
     sizeof(ec_kex_list) / sizeof(*ec_kex_list),
     ec_kex_list
 };

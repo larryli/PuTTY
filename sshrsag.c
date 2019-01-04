@@ -9,7 +9,7 @@
 
 #define RSA_EXPONENT 37		       /* we like this prime */
 
-int rsa_generate(struct RSAKey *key, int bits, progfn_t pfn,
+int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
 		 void *pfnparam)
 {
     unsigned pfirst, qfirst;

@@ -681,7 +681,7 @@ void run_client(void)
 
                 if (key->ssh_version == 1) {
                     BinarySource src[1];
-                    struct RSAKey rkey;
+                    RSAKey rkey;
 
                     BinarySource_BARE_INIT(src, key->blob->u, key->blob->len);
                     memset(&rkey, 0, sizeof(rkey));

@@ -744,7 +744,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             } else if (s->can_pubkey && s->publickey_blob &&
                        s->privatekey_available && !s->tried_pubkey_config) {
 
-                struct ssh2_userkey *key;   /* not live over crReturn */
+                ssh2_userkey *key;   /* not live over crReturn */
                 char *passphrase;           /* not live over crReturn */
 
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PUBLICKEY;

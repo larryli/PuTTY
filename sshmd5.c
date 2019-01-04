@@ -220,7 +220,7 @@ struct md5_hash {
     ssh_hash hash;
 };
 
-static ssh_hash *md5_new(const struct ssh_hashalg *alg)
+static ssh_hash *md5_new(const ssh_hashalg *alg)
 {
     struct md5_hash *h = snew(struct md5_hash);
     MD5Init(&h->state);
@@ -258,7 +258,7 @@ static void md5_final(ssh_hash *hash, unsigned char *output)
     md5_free(hash);
 }
 
-const struct ssh_hashalg ssh_md5 = {
+const ssh_hashalg ssh_md5 = {
     md5_new, md5_copy, md5_final, md5_free, 16, "MD5"
 };
 
@@ -282,7 +282,7 @@ struct hmacmd5_context *hmacmd5_make_context(void)
     return ctx;
 }
 
-static ssh2_mac *hmacmd5_ssh2_new(const struct ssh2_macalg *alg,
+static ssh2_mac *hmacmd5_ssh2_new(const ssh2_macalg *alg,
                                   ssh2_cipher *cipher)
 {
     struct hmacmd5_context *ctx = hmacmd5_make_context();
@@ -365,7 +365,7 @@ void hmacmd5_do_hmac(struct hmacmd5_context *ctx,
     ssh2_mac_genresult(&ctx->mac, hmac);
 }
 
-const struct ssh2_macalg ssh_hmac_md5 = {
+const ssh2_macalg ssh_hmac_md5 = {
     hmacmd5_ssh2_new, hmacmd5_ssh2_free, hmacmd5_ssh2_setkey,
     hmacmd5_start, hmacmd5_genresult,
     "hmac-md5", "hmac-md5-etm@openssh.com",

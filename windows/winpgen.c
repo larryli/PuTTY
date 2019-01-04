@@ -344,7 +344,7 @@ struct rsa_key_thread_params {
     int curve_bits;                    /* bits in elliptic curve (ECDSA) */
     keytype keytype;
     union {
-        struct RSAKey *key;
+        RSAKey *key;
         struct dss_key *dsskey;
         struct ecdsa_key *eckey;
         struct eddsa_key *edkey;
@@ -384,10 +384,10 @@ struct MainDlgState {
     bool ssh2;
     keytype keytype;
     char **commentptr;		       /* points to key.comment or ssh2key.comment */
-    struct ssh2_userkey ssh2key;
+    ssh2_userkey ssh2key;
     unsigned *entropy;
     union {
-        struct RSAKey key;
+        RSAKey key;
         struct dss_key dsskey;
         struct ecdsa_key eckey;
         struct eddsa_key edkey;
@@ -402,7 +402,7 @@ static void hidemany(HWND hwnd, const int *ids, bool hideit)
     }
 }
 
-static void setupbigedit1(HWND hwnd, int id, int idstatic, struct RSAKey *key)
+static void setupbigedit1(HWND hwnd, int id, int idstatic, RSAKey *key)
 {
     char *buffer = ssh1_pubkey_str(key);
     SetDlgItemText(hwnd, id, buffer);
@@ -412,7 +412,7 @@ static void setupbigedit1(HWND hwnd, int id, int idstatic, struct RSAKey *key)
 }
 
 static void setupbigedit2(HWND hwnd, int id, int idstatic,
-			  struct ssh2_userkey *key)
+			  ssh2_userkey *key)
 {
     char *buffer = ssh2_pubkey_openssh_str(key);
     SetDlgItemText(hwnd, id, buffer);
@@ -648,8 +648,8 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     int ret;
     const char *errmsg = NULL;
     char *comment;
-    struct RSAKey newkey1;
-    struct ssh2_userkey *newkey2 = NULL;
+    RSAKey newkey1;
+    ssh2_userkey *newkey2 = NULL;
 
     type = realtype = key_type(filename);
     if (type != SSH_KEYTYPE_SSH1 &&

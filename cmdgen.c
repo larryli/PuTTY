@@ -220,8 +220,8 @@ int main(int argc, char **argv)
     bool errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
     int sshver = 0;
-    struct ssh2_userkey *ssh2key = NULL;
-    struct RSAKey *ssh1key = NULL;
+    ssh2_userkey *ssh2key = NULL;
+    RSAKey *ssh1key = NULL;
     strbuf *ssh2blob = NULL;
     char *ssh2alg = NULL;
     char *old_passphrase = NULL, *new_passphrase = NULL;
@@ -696,29 +696,29 @@ int main(int argc, char **argv)
 	if (keytype == DSA) {
 	    struct dss_key *dsskey = snew(struct dss_key);
 	    dsa_generate(dsskey, bits, progressfn, &prog);
-	    ssh2key = snew(struct ssh2_userkey);
+	    ssh2key = snew(ssh2_userkey);
 	    ssh2key->key = &dsskey->sshk;
 	    ssh1key = NULL;
         } else if (keytype == ECDSA) {
             struct ecdsa_key *ek = snew(struct ecdsa_key);
             ecdsa_generate(ek, bits, progressfn, &prog);
-            ssh2key = snew(struct ssh2_userkey);
+            ssh2key = snew(ssh2_userkey);
             ssh2key->key = &ek->sshk;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
             struct eddsa_key *ek = snew(struct eddsa_key);
             eddsa_generate(ek, bits, progressfn, &prog);
-            ssh2key = snew(struct ssh2_userkey);
+            ssh2key = snew(ssh2_userkey);
             ssh2key->key = &ek->sshk;
             ssh1key = NULL;
 	} else {
-	    struct RSAKey *rsakey = snew(struct RSAKey);
+	    RSAKey *rsakey = snew(RSAKey);
 	    rsa_generate(rsakey, bits, progressfn, &prog);
 	    rsakey->comment = NULL;
 	    if (keytype == RSA1) {
 		ssh1key = rsakey;
 	    } else {
-		ssh2key = snew(struct ssh2_userkey);
+		ssh2key = snew(ssh2_userkey);
 		ssh2key->key = &rsakey->sshk;
 	    }
 	}
@@ -775,7 +775,7 @@ int main(int argc, char **argv)
 
 	  case SSH_KEYTYPE_SSH1:
           case SSH_KEYTYPE_SSH1_PUBLIC:
-	    ssh1key = snew(struct RSAKey);
+	    ssh1key = snew(RSAKey);
 	    if (!load_encrypted) {
 		strbuf *blob;
                 BinarySource src[1];

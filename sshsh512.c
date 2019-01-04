@@ -296,7 +296,7 @@ struct sha512_hash {
     ssh_hash hash;
 };
 
-static ssh_hash *sha512_new(const struct ssh_hashalg *alg)
+static ssh_hash *sha512_new(const ssh_hashalg *alg)
 {
     struct sha512_hash *h = snew(struct sha512_hash);
     SHA512_Init(&h->state);
@@ -334,11 +334,11 @@ static void sha512_final(ssh_hash *hash, unsigned char *output)
     sha512_free(hash);
 }
 
-const struct ssh_hashalg ssh_sha512 = {
+const ssh_hashalg ssh_sha512 = {
     sha512_new, sha512_copy, sha512_final, sha512_free, 64, "SHA-512"
 };
 
-static ssh_hash *sha384_new(const struct ssh_hashalg *alg)
+static ssh_hash *sha384_new(const ssh_hashalg *alg)
 {
     struct sha512_hash *h = snew(struct sha512_hash);
     SHA384_Init(&h->state);
@@ -354,7 +354,7 @@ static void sha384_final(ssh_hash *hash, unsigned char *output)
     sha512_free(hash);
 }
 
-const struct ssh_hashalg ssh_sha384 = {
+const ssh_hashalg ssh_sha384 = {
     sha384_new, sha512_copy, sha384_final, sha512_free, 48, "SHA-384"
 };
 

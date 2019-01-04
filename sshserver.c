@@ -38,7 +38,7 @@ struct server {
     Conf *conf;
     ssh_key *const *hostkeys;
     int nhostkeys;
-    struct RSAKey *hostkey1;
+    RSAKey *hostkey1;
     AuthPolicy *authpolicy;
     const SftpServerVtable *sftpserver_vt;
 
@@ -211,7 +211,7 @@ static const PlugVtable ssh_server_plugvt = {
 
 Plug *ssh_server_plug(
     Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
-    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
+    RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
     const SftpServerVtable *sftpserver_vt)
 {
     server *srv = snew(server);

@@ -2,7 +2,7 @@ typedef struct AuthPolicy AuthPolicy;
 
 Plug *ssh_server_plug(
     Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
-    struct RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
+    RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
     const SftpServerVtable *sftpserver_vt);
 void ssh_server_start(Plug *plug, Socket *socket);
 
@@ -61,7 +61,7 @@ int auth_kbdint_responses(AuthPolicy *, const ptrlen *responses);
 char *auth_ssh1int_challenge(AuthPolicy *, unsigned method, ptrlen username);
 bool auth_ssh1int_response(AuthPolicy *, ptrlen response);
 
-struct RSAKey *auth_publickey_ssh1(
+RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, mp_int *rsa_modulus);
 /* auth_successful returns false if further authentication is needed */
 bool auth_successful(AuthPolicy *, ptrlen username, unsigned method);
@@ -75,7 +75,7 @@ void ssh2connection_server_configure(
     PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt);
 
 PacketProtocolLayer *ssh1_login_server_new(
-    PacketProtocolLayer *successor_layer, struct RSAKey *hostkey,
+    PacketProtocolLayer *successor_layer, RSAKey *hostkey,
     AuthPolicy *authpolicy);
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
