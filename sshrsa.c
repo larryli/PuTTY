@@ -237,9 +237,19 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
     strbuf *out;
     int i;
 
+    /*
+     * The hash preimage for SSH-1 key fingerprinting consists of the
+     * modulus and exponent _without_ any preceding length field -
+     * just the minimum number of bytes to represent each integer,
+     * stored big-endian, concatenated with no marker at the division
+     * between them.
+     */
+
     MD5Init(&md5c);
-    put_mp_ssh1(&md5c, key->modulus);
-    put_mp_ssh1(&md5c, key->exponent);
+    for (size_t i = (mp_get_nbits(key->modulus) + 7) / 8; i-- > 0 ;)
+        put_byte(&md5c, mp_get_byte(key->modulus, i));
+    for (size_t i = (mp_get_nbits(key->exponent) + 7) / 8; i-- > 0 ;)
+        put_byte(&md5c, mp_get_byte(key->exponent, i));
     MD5Final(digest, &md5c);
 
     out = strbuf_new();
