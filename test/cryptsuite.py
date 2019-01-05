@@ -359,13 +359,14 @@ class mpint(unittest.TestCase):
 
         # Test mp_invert proper.
         moduli = [2, 3, 2**16+1, 2**32-1, 2**32+1, 2**128-159,
-                  141421356237309504880168872420969807856967187537694807]
+                  141421356237309504880168872420969807856967187537694807,
+                  2**128-1]
         for m in moduli:
             # Prepare a MontyContext for the monty_invert test below
             # (unless m is even, in which case we can't)
             mc = monty_new(m) if m & 1 else None
 
-            to_invert = {1, 2, 3, 7, 19, m-1, 5*m//17}
+            to_invert = {1, 2, 3, 7, 19, m-1, 5*m//17, (m-1)//2, (m+1)//2}
             for x in sorted(to_invert):
                 if gcd(x, m) != 1:
                     continue # filter out non-invertible cases
