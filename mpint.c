@@ -793,7 +793,7 @@ unsigned mp_hs_integer(mp_int *x, uintmax_t n)
     BignumInt carry = 1;
     for (size_t i = 0; i < x->nw; i++) {
         size_t shift = i * BIGNUM_INT_BITS;
-        BignumInt nword = shift < BIGNUM_INT_BYTES ? n >> shift : 0;
+        BignumInt nword = shift < CHAR_BIT*sizeof(n) ? n >> shift : 0;
         BignumInt dummy_out;
         BignumADC(dummy_out, carry, x->w[i], ~nword, carry);
         (void)dummy_out;
@@ -819,7 +819,7 @@ unsigned mp_eq_integer(mp_int *x, uintmax_t n)
     BignumInt diff = 0;
     for (size_t i = 0; i < x->nw; i++) {
         size_t shift = i * BIGNUM_INT_BITS;
-        BignumInt nword = shift < BIGNUM_INT_BYTES ? n >> shift : 0;
+        BignumInt nword = shift < CHAR_BIT*sizeof(n) ? n >> shift : 0;
         diff |= x->w[i] ^ nword;
     }
     return 1 ^ normalise_to_1(diff);   /* return 1 if diff _is_ zero */
