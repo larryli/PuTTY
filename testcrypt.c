@@ -910,12 +910,51 @@ static void free_all_values(void)
 
 int main(int argc, char **argv)
 {
-    FILE *fp = stdin;
+    const char *infile = NULL, *outfile = NULL;
+    bool doing_opts = true;
 
-    if (argc > 1) {
-        fp = fopen(argv[1], "r");
-        if (!fp) {
-            fprintf(stderr, "%s: open: %s\n", argv[1], strerror(errno));
+    while (--argc > 0) {
+        char *p = *++argv;
+
+        if (p[0] == '-' && doing_opts) {
+            if (!strcmp(p, "-o")) {
+                if (--argc <= 0) {
+                    fprintf(stderr, "'-o' expects a filename\n");
+                    return 1;
+                }
+                outfile = *++argv;
+            } else if (!strcmp(p, "--")) {
+                doing_opts = false;
+            } else if (!strcmp(p, "--help")) {
+                printf("usage: testcrypt [INFILE] [-o OUTFILE]\n");
+                printf(" also: testcrypt --help       display this text\n");
+                return 0;
+            } else {
+                fprintf(stderr, "unknown command line option '%s'\n", p);
+                return 1;
+            }
+        } else if (!infile) {
+            infile = p;
+        } else {
+            fprintf(stderr, "can only handle one input file name\n");
+            return 1;
+        }
+    }
+
+    FILE *infp = stdin;
+    if (infile) {
+        infp = fopen(infile, "r");
+        if (!infp) {
+            fprintf(stderr, "%s: open: %s\n", infile, strerror(errno));
+            return 1;
+        }
+    }
+
+    FILE *outfp = stdout;
+    if (outfile) {
+        outfp = fopen(outfile, "w");
+        if (!outfp) {
+            fprintf(stderr, "%s: open: %s\n", outfile, strerror(errno));
             return 1;
         }
     }
@@ -924,7 +963,7 @@ int main(int argc, char **argv)
 
     atexit(free_all_values);
 
-    for (char *line; (line = chomp(fgetline(fp))) != NULL ;) {
+    for (char *line; (line = chomp(fgetline(infp))) != NULL ;) {
         BinarySource src[1];
         BinarySource_BARE_INIT(src, line, strlen(line));
         strbuf *sb = strbuf_new();
@@ -934,14 +973,16 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < sb->len; i++)
             if (sb->s[i] == '\n')
                 lines++;
-        printf("%zu\n%s", lines, sb->s);
-        fflush(stdout);
+        fprintf(outfp, "%zu\n%s", lines, sb->s);
+        fflush(outfp);
         strbuf_free(sb);
         sfree(line);
     }
 
-    if (fp != stdin)
-        fclose(fp);
+    if (infp != stdin)
+        fclose(infp);
+    if (outfp != stdin)
+        fclose(outfp);
 
     return 0;
 }
