@@ -270,6 +270,12 @@ static inline unsigned normalise_to_1(BignumInt n)
     n = (-n) >> (BIGNUM_INT_BITS - 1); /* normalise to 0 or 1 */
     return n;
 }
+static inline unsigned normalise_to_1_u64(uint64_t n)
+{
+    n = (n >> 1) | (n & 1);            /* ensure top bit is clear */
+    n = (-n) >> 63;                    /* normalise to 0 or 1 */
+    return n;
+}
 
 /*
  * Find the highest nonzero word in a number. Returns the index of the
@@ -1822,10 +1828,10 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
     size_t shift_up = 0;
     for (size_t i = BIGNUM_INT_BITS_BITS; i-- > 0;) {
         size_t sl = 1 << i;               /* left shift count */
-        size_t sr = BIGNUM_INT_BITS - sl; /* complementary right-shift count */
+        size_t sr = 64 - sl;     /* complementary right-shift count */
 
         /* Should we shift up? */
-        unsigned indicator = 1 ^ normalise_to_1(hibits >> sr);
+        unsigned indicator = 1 ^ normalise_to_1_u64(hibits >> sr);
 
         /* If we do, what will we get? */
         uint64_t new_hibits = (hibits << sl) | (lobits >> sr);
@@ -1833,9 +1839,9 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
         size_t new_shift_up = shift_up + sl;
 
         /* Conditionally swap those values in. */
-        hibits    ^= (hibits    ^ new_hibits   ) & -(BignumInt)indicator;
-        lobits    ^= (lobits    ^ new_lobits   ) & -(BignumInt)indicator;
-        shift_up  ^= (shift_up  ^ new_shift_up ) & -(size_t)   indicator;
+        hibits    ^= (hibits    ^ new_hibits   ) & -(uint64_t)indicator;
+        lobits    ^= (lobits    ^ new_lobits   ) & -(uint64_t)indicator;
+        shift_up  ^= (shift_up  ^ new_shift_up ) & -(size_t)  indicator;
     }
 
     /*
@@ -1860,7 +1866,7 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
      */
     for (size_t i = BIGNUM_INT_BITS_BITS; i-- > 0;) {
         size_t sl = 1 << i;               /* left shift count */
-        size_t sr = BIGNUM_INT_BITS - sl; /* complementary right-shift count */
+        size_t sr = 64 - sl;     /* complementary right-shift count */
 
         /* Should we shift up? */
         unsigned indicator = 1 & (shift_up >> i);
@@ -1870,8 +1876,8 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
         uint64_t new_lobits = lobits << sl;
 
         /* Conditionally swap those values in. */
-        hibits    ^= (hibits    ^ new_hibits   ) & -(BignumInt)indicator;
-        lobits    ^= (lobits    ^ new_lobits   ) & -(BignumInt)indicator;
+        hibits    ^= (hibits    ^ new_hibits   ) & -(uint64_t)indicator;
+        lobits    ^= (lobits    ^ new_lobits   ) & -(uint64_t)indicator;
     }
 
     /*
