@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <limits.h>
 #include <stdio.h>
 
 #include "defs.h"
@@ -7,6 +8,8 @@
 
 #include "mpint.h"
 #include "mpint_i.h"
+
+#define SIZE_T_BITS (CHAR_BIT * sizeof(size_t))
 
 /*
  * Inline helpers to take min and max of size_t values, used
@@ -212,8 +215,10 @@ mp_int *mp_from_hex_pl(ptrlen hex)
     for (size_t nibble = 0; nibble < hex.len; nibble++) {
         BignumInt digit = ((char *)hex.ptr)[hex.len-1 - nibble];
 
-        BignumInt lmask = ~-(((digit-'a')|('f'-digit)) >> (BIGNUM_INT_BITS-1));
-        BignumInt umask = ~-(((digit-'A')|('F'-digit)) >> (BIGNUM_INT_BITS-1));
+        BignumInt lmask = ~-((BignumInt)((digit-'a')|('f'-digit))
+                             >> (BIGNUM_INT_BITS-1));
+        BignumInt umask = ~-((BignumInt)((digit-'A')|('F'-digit))
+                             >> (BIGNUM_INT_BITS-1));
 
         BignumInt digitval = digit - '0';
         digitval ^= (digitval ^ (digit - 'a' + 10)) & lmask;
@@ -267,7 +272,7 @@ void mp_set_bit(mp_int *x, size_t bit, unsigned val)
 static inline unsigned normalise_to_1(BignumInt n)
 {
     n = (n >> 1) | (n & 1);            /* ensure top bit is clear */
-    n = (-n) >> (BIGNUM_INT_BITS - 1); /* normalise to 0 or 1 */
+    n = (BignumInt)(-n) >> (BIGNUM_INT_BITS - 1); /* normalise to 0 or 1 */
     return n;
 }
 static inline unsigned normalise_to_1_u64(uint64_t n)
@@ -331,7 +336,8 @@ size_t mp_get_nbits(mp_int *x)
     BignumInt hibit_index = 0;
     for (size_t i = (1 << (BIGNUM_INT_BITS_BITS-1)); i != 0; i >>= 1) {
         BignumInt shifted_word = hiword >> i;
-        BignumInt indicator = (-shifted_word) >> (BIGNUM_INT_BITS-1);
+        BignumInt indicator =
+            (BignumInt)(-shifted_word) >> (BIGNUM_INT_BITS-1);
         hiword ^= (shifted_word ^ hiword ) & -indicator;
         hibit_index += i & -(size_t)indicator;
     }
@@ -361,7 +367,7 @@ static void trim_leading_zeroes(char *buf, size_t bufsize, size_t maxtrim)
     if (trim > 0) {
         for (size_t pos = trim; pos-- > 0 ;) {
             uint8_t diff = buf[pos] ^ '0';
-            size_t mask = -((((size_t)diff) - 1) >> (BIGNUM_INT_BITS - 1));
+            size_t mask = -((((size_t)diff) - 1) >> (SIZE_T_BITS - 1));
             trim ^= (trim ^ pos) & ~mask;
         }
     }
