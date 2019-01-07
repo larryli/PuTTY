@@ -17,12 +17,12 @@
  *    type used to hold the carry flag taken as input and output by
  *    the BignumADC macro (see below).
  *
- *  - four constant macros: BIGNUM_INT_BITS, BIGNUM_INT_BYTES,
- *    BIGNUM_TOP_BIT, BIGNUM_INT_MASK. These should be more or less
- *    self-explanatory, but just in case, they give the number of bits
- *    in BignumInt, the number of bytes that works out to, the
- *    BignumInt value consisting of only the top bit, and the
- *    BignumInt value with all bits set.
+ *  - five constant macros:
+ *     + BIGNUM_INT_BITS, the number of bits in BignumInt,
+ *     + BIGNUM_INT_BYTES, the number of bytes that works out to
+ *     + BIGNUM_TOP_BIT, the BignumInt value consisting of only the top bit
+ *     + BIGNUM_INT_MASK, the BignumInt value with all bits set
+ *     + BIGNUM_INT_BITS_BITS, log to the base 2 of BIGNUM_INT_BITS.
  *
  *  - four statement macros: BignumADC, BignumMUL, BignumMULADD,
  *    BignumMULADD2. These do various kinds of multi-word arithmetic,
@@ -39,7 +39,7 @@
  *       halves of the double-width value a*b + addend1 + addend2.
  *
  * Every branch of the main ifdef below defines the type BignumInt and
- * the value BIGNUM_INT_BITS. The other three constant macros are
+ * the value BIGNUM_INT_BITS_BITS. The other constant macros are
  * filled in by common code further down.
  *
  * Most branches also define a macro DEFINE_BIGNUMDBLINT containing a
