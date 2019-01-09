@@ -1572,8 +1572,8 @@ static void aes_decrypt_cbc_ni(unsigned char *blk, int len, AESContext * ctx)
 FUNC_ISA
 static void aes_sdctr_ni(unsigned char *blk, int len, AESContext *ctx)
 {
-    const __m128i BSWAP_EPI64 = _mm_setr_epi8(3,2,1,0,7,6,5,4,11,10,9,8,15,14,13,12);
-    const __m128i ONE  = _mm_setr_epi32(0,0,0,1);
+    const __m128i BSWAP_EPI64 = _mm_setr_epi8(7,6,5,4,3,2,1,0,15,14,13,12,11,10,9,8);
+    const __m128i ONE  = _mm_setr_epi32(0,0,1,0);
     const __m128i ZERO = _mm_setzero_si128();
     __m128i iv;
     __m128i* block = (__m128i*)blk;
@@ -1620,7 +1620,7 @@ static void aes_sdctr_ni(unsigned char *blk, int len, AESContext *ctx)
         iv  = _mm_shuffle_epi8(iv, BSWAP_EPI64); /* Swap endianess     */
         iv  = _mm_add_epi64(iv, ONE);            /* Inc low part       */
         enc = _mm_cmpeq_epi64(iv, ZERO);         /* Check for carry    */
-        enc = _mm_unpacklo_epi64(ZERO, enc);     /* Pack carry reg     */
+        enc = _mm_unpackhi_epi64(enc, ZERO);     /* Pack carry reg     */
         iv  = _mm_sub_epi64(iv, enc);            /* Sub carry reg      */
         iv  = _mm_shuffle_epi8(iv, BSWAP_EPI64); /* Swap enianess back */
 
