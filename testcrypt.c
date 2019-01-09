@@ -71,8 +71,8 @@ int random_byte(void)
     X(epoint, EdwardsPoint *, ecc_edwards_point_free(v))                \
     X(hash, ssh_hash *, ssh_hash_free(v))                               \
     X(key, ssh_key *, ssh_key_free(v))                                  \
-    X(ssh1_cipher, ssh1_cipher *, ssh1_cipher_free(v))                  \
-    X(ssh2_cipher, ssh2_cipher *, ssh2_cipher_free(v))                  \
+    X(ssh1cipher, ssh1_cipher *, ssh1_cipher_free(v))                   \
+    X(ssh2cipher, ssh2_cipher *, ssh2_cipher_free(v))                   \
     X(mac, ssh2_mac *, ssh2_mac_free(v))                                \
     X(dh, dh_ctx *, dh_cleanup(v))                                      \
     X(ecdh, ecdh_key *, ssh_ecdhkex_freekey(v))                         \
@@ -812,7 +812,7 @@ VALUE_TYPES(VALTYPE_TYPEDEF)
             return NULL;                                                \
         return unwrap_value_##type(lookup_value(word))->vu_##type;      \
     }
-OPTIONAL_PTR_FUNC(ssh2_cipher)
+OPTIONAL_PTR_FUNC(ssh2cipher)
 OPTIONAL_PTR_FUNC(mpint)
 
 typedef uintmax_t TD_uint;

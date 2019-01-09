@@ -125,7 +125,7 @@ FUNC(void, ssh_hash_update, val_hash, val_string_ptrlen)
  * to ssh2_mac_new. Also, again, I've invented an ssh2_mac_update so
  * you can put data into the MAC.
  */
-FUNC(val_mac, ssh2_mac_new, macalg, opt_val_ssh2_cipher)
+FUNC(val_mac, ssh2_mac_new, macalg, opt_val_ssh2cipher)
 FUNC(void, ssh2_mac_setkey, val_mac, val_string_ptrlen)
 FUNC(void, ssh2_mac_start, val_mac)
 FUNC(void, ssh2_mac_update, val_mac, val_string_ptrlen)
@@ -154,21 +154,21 @@ FUNC(uint, ssh_key_public_bits, keyalg, val_string_ptrlen)
  * functions are wrapped to replace them with a pair that take one
  * string and return a separate string.
  */
-FUNC(val_ssh1_cipher, ssh1_cipher_new, ssh1_cipheralg)
-FUNC(void, ssh1_cipher_sesskey, val_ssh1_cipher, val_string_ptrlen)
-FUNC(val_string, ssh1_cipher_encrypt, val_ssh1_cipher, val_string_ptrlen)
-FUNC(val_string, ssh1_cipher_decrypt, val_ssh1_cipher, val_string_ptrlen)
+FUNC(val_ssh1cipher, ssh1_cipher_new, ssh1_cipheralg)
+FUNC(void, ssh1_cipher_sesskey, val_ssh1cipher, val_string_ptrlen)
+FUNC(val_string, ssh1_cipher_encrypt, val_ssh1cipher, val_string_ptrlen)
+FUNC(val_string, ssh1_cipher_decrypt, val_ssh1cipher, val_string_ptrlen)
 
 /*
  * The ssh2_cipher abstraction, with similar modifications.
  */
-FUNC(val_ssh2_cipher, ssh2_cipher_new, ssh2_cipheralg)
-FUNC(void, ssh2_cipher_setiv, val_ssh2_cipher, val_string_ptrlen)
-FUNC(void, ssh2_cipher_setkey, val_ssh2_cipher, val_string_ptrlen)
-FUNC(val_string, ssh2_cipher_encrypt, val_ssh2_cipher, val_string_ptrlen)
-FUNC(val_string, ssh2_cipher_decrypt, val_ssh2_cipher, val_string_ptrlen)
-FUNC(val_string, ssh2_cipher_encrypt_length, val_ssh2_cipher, val_string_ptrlen, uint)
-FUNC(val_string, ssh2_cipher_decrypt_length, val_ssh2_cipher, val_string_ptrlen, uint)
+FUNC(val_ssh2cipher, ssh2_cipher_new, ssh2_cipheralg)
+FUNC(void, ssh2_cipher_setiv, val_ssh2cipher, val_string_ptrlen)
+FUNC(void, ssh2_cipher_setkey, val_ssh2cipher, val_string_ptrlen)
+FUNC(val_string, ssh2_cipher_encrypt, val_ssh2cipher, val_string_ptrlen)
+FUNC(val_string, ssh2_cipher_decrypt, val_ssh2cipher, val_string_ptrlen)
+FUNC(val_string, ssh2_cipher_encrypt_length, val_ssh2cipher, val_string_ptrlen, uint)
+FUNC(val_string, ssh2_cipher_decrypt_length, val_ssh2cipher, val_string_ptrlen, uint)
 
 /*
  * Integer Diffie-Hellman.
