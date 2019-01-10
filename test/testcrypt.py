@@ -190,9 +190,13 @@ def _setup(scope):
     prefix, suffix = "FUNC(", ")"
     valprefix = "val_"
     outprefix = "out_"
+    optprefix = "opt_"
     consprefix = "consumed_"
 
     def trim_argtype(arg):
+        if arg.startswith(optprefix):
+            return optprefix + trim_argtype(arg[len(optprefix):])
+
         if (arg.startswith(valprefix) and
             "_" in arg[len(valprefix):]):
             # Strip suffixes like val_string_asciz
