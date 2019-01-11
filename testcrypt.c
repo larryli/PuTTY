@@ -81,13 +81,14 @@ int random_byte(void)
     /* end of list */
 
 typedef struct Value Value;
-typedef enum ValueType ValueType;
 
 enum ValueType {
 #define VALTYPE_ENUM(n,t,f) VT_##n,
     VALUE_TYPES(VALTYPE_ENUM)
 #undef VALTYPE_ENUM
 }; 
+
+typedef enum ValueType ValueType;
 
 const char *const type_names[] = {
 #define VALTYPE_NAME(n,t,f) #n,
