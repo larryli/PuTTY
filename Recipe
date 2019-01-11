@@ -280,7 +280,7 @@ MISC     = misc utils marshal memory
 MISCNETCOMMON = timing callback MISC version tree234 CONF
 MISCNET  = MISCNETCOMMON be_misc settings proxy
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
-         + wintime winhsock errsock winsecur winucs miscucs
+         + wintime winhsock errsock winsecur winucs miscucs winmiscs
 UXMISCCOMMON = MISCNETCOMMON uxstore uxsel uxnet uxpeer uxmisc time
          + uxfdsock errsock
 UXMISC   = MISCNET UXMISCCOMMON uxproxy
@@ -332,13 +332,14 @@ psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
-	 + sshsh512 winutils sshecc winmisc winhelp conf pageant.res LIBS
+	 + sshsh512 winutils sshecc winmisc winmiscs winhelp conf pageant.res
+	 + LIBS
 
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes ARITH sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc
-         + sshecdsag winsecur
+         + sshecdsag winsecur winmiscs
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
