@@ -162,7 +162,7 @@ FUNC2(val_string, ssh1_cipher_decrypt, val_ssh1cipher, val_string_ptrlen)
 /*
  * The ssh2_cipher abstraction, with similar modifications.
  */
-FUNC1(val_ssh2cipher, ssh2_cipher_new, ssh2_cipheralg)
+FUNC1(opt_val_ssh2cipher, ssh2_cipher_new, ssh2_cipheralg)
 FUNC2(void, ssh2_cipher_setiv, val_ssh2cipher, val_string_ptrlen)
 FUNC2(void, ssh2_cipher_setkey, val_ssh2cipher, val_string_ptrlen)
 FUNC2(val_string, ssh2_cipher_encrypt, val_ssh2cipher, val_string_ptrlen)

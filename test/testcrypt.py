@@ -139,6 +139,10 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
             fnname, argindex, typename, arg))
 
 def make_retval(rettype, word, unpack_strings):
+    if rettype.startswith("opt_"):
+        if word == "NULL":
+            return None
+        rettype = rettype[4:]
     if rettype == "val_string" and unpack_strings:
         retwords = childprocess.funcall("getstring", [word])
         childprocess.funcall("free", [word])

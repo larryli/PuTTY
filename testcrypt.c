@@ -505,6 +505,14 @@ static void return_val_string_asciz(strbuf *out, char *s)
     return_val_string(out, sb);
 }
 
+static void return_opt_val_ssh2cipher(strbuf *out, ssh2_cipher *c)
+{
+    if (!c)
+        strbuf_catf(out, "NULL\n");
+    else
+        return_val_ssh2cipher(out, c);
+}
+
 static void handle_hello(BinarySource *in, strbuf *out)
 {
     strbuf_catf(out, "hello, world");
