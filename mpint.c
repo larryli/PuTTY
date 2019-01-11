@@ -878,7 +878,7 @@ static void mp_mul_add_simple(mp_int *r, mp_int *a, mp_int *b)
         }
 
         for (; rq < rend; rq++)
-            BignumADC(*rq, carry, 0, *rq, carry);
+            BignumADC(*rq, carry, carry, *rq, 0);
     }
 }
 
