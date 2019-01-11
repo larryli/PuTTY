@@ -187,7 +187,7 @@ class Function(object):
 def _setup(scope):
     header_file = os.path.join(putty_srcdir, "testcrypt.h")
 
-    prefix, suffix = "FUNC(", ")"
+    linere = re.compile(r'^FUNC\d+\((.*)\)$')
     valprefix = "val_"
     outprefix = "out_"
     optprefix = "opt_"
@@ -206,8 +206,9 @@ def _setup(scope):
     with open(header_file) as f:
         for line in iter(f.readline, ""):
             line = line.rstrip("\r\n").replace(" ", "")
-            if line.startswith(prefix) and line.endswith(suffix):
-                words = line[len(prefix):-len(suffix)].split(",")
+            m = linere.match(line)
+            if m is not None:
+                words = m.group(1).split(",")
                 function = words[1]
                 rettypes = []
                 argtypes = []

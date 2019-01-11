@@ -380,6 +380,7 @@ osxlaunch : [UT] osxlaunch
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
 testcrypt : [UT] testcrypt SSHCRYPTO marshal utils memory tree234
+testcrypt : [C] testcrypt SSHCRYPTO marshal utils memory tree234 winmiscs
 testzlib : [UT] testzlib sshzlib memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
@@ -391,9 +392,9 @@ uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
 # in the first place, so that we find out about build breakage early.)
 !begin vc
 cleantestprogs:
-	-del $(BUILDDIR)testbn.exe
+	-del $(BUILDDIR)testcrypt.exe
 !end
 !begin clangcl
 cleantestprogs:
-	-rm -f $(BUILDDIR)testbn.exe
+	-rm -f $(BUILDDIR)testcrypt.exe
 !end

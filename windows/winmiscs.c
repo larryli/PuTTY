@@ -263,3 +263,15 @@ void *minefield_c_realloc(void *p, size_t size)
 }
 
 #endif				/* MINEFIELD */
+
+#if defined _MSC_VER && _MSC_VER < 1800
+
+/*
+ * Work around lack of strtoumax in older MSVC libraries
+ */
+uintmax_t strtoumax(const char *nptr, char **endptr, int base)
+{
+    return _strtoui64(nptr, endptr, base);
+}
+
+#endif
