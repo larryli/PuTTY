@@ -48,6 +48,7 @@
 #    define INLINE
 #endif
 
+typedef struct AESContext AESContext;
 struct AESContext {
     uint32_t keysched_buf[(MAX_NR + 1) * NB + 3];
     uint32_t invkeysched_buf[(MAX_NR + 1) * NB + 3];
@@ -1024,20 +1025,24 @@ void aes_ssh2_sdctr(AESContext *ctx, void *blk, int len)
 
 void aes256_encrypt_pubkey(const void *key, void *blk, int len)
 {
-    AESContext ctx;
-    aes_setup(&ctx, key, 32);
-    memset(ctx.iv, 0, sizeof(ctx.iv));
-    aes_encrypt_cbc(blk, len, &ctx);
-    smemclr(&ctx, sizeof(ctx));
+    char iv[16];
+    memset(iv, 0, 16);
+    ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes256);
+    ssh2_cipher_setkey(cipher, key);
+    ssh2_cipher_setiv(cipher, iv);
+    ssh2_cipher_encrypt(cipher, blk, len);
+    ssh2_cipher_free(cipher);
 }
 
 void aes256_decrypt_pubkey(const void *key, void *blk, int len)
 {
-    AESContext ctx;
-    aes_setup(&ctx, key, 32);
-    memset(ctx.iv, 0, sizeof(ctx.iv));
-    aes_decrypt_cbc(blk, len, &ctx);
-    smemclr(&ctx, sizeof(ctx));
+    char iv[16];
+    memset(iv, 0, 16);
+    ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes256);
+    ssh2_cipher_setkey(cipher, key);
+    ssh2_cipher_setiv(cipher, iv);
+    ssh2_cipher_decrypt(cipher, blk, len);
+    ssh2_cipher_free(cipher);
 }
 
 struct aes_ssh2_ctx {

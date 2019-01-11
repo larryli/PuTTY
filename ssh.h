@@ -903,17 +903,6 @@ extern const ssh2_macalg ssh_hmac_sha256;
 extern const ssh2_macalg ssh2_poly1305;
 extern const ssh_compression_alg ssh_zlib;
 
-typedef struct AESContext AESContext;
-AESContext *aes_make_context(void);
-void aes_free_context(AESContext *ctx);
-void aes128_key(AESContext *ctx, const void *key);
-void aes192_key(AESContext *ctx, const void *key);
-void aes256_key(AESContext *ctx, const void *key);
-void aes_iv(AESContext *ctx, const void *iv);
-void aes_ssh2_encrypt_blk(AESContext *ctx, void *blk, int len);
-void aes_ssh2_decrypt_blk(AESContext *ctx, void *blk, int len);
-void aes_ssh2_sdctr(AESContext *ctx, void *blk, int len);
-
 /*
  * PuTTY version number formatted as an SSH version string. 
  */
