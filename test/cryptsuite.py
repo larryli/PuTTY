@@ -95,6 +95,14 @@ def adjtuples(iterable, n):
         yield tuple(toret)
         toret[:1] = []
 
+def last(iterable):
+    # Return the last element of an iterable, or None if it is empty.
+    it = iter(iterable)
+    toret = None
+    for toret in it:
+        pass
+    return toret
+
 @contextlib.contextmanager
 def queued_random_data(nbytes, seed):
     hashsize = 512 // 8
@@ -894,6 +902,37 @@ class crypt(MyTestBase):
                 for ivHexBytes in itertools.product(*([hexTestValues] * 4)):
                     ivInteger = int("".join(ivHexBytes), 16)
                     test(keylen, suffix, ivInteger)
+
+    def testAESParallelism(self):
+        # Since at least one of our implementations of AES works in
+        # parallel, here's a test that CBC decryption works the same
+        # way no matter how the input data is divided up.
+
+        # A pile of conveniently available random-looking test data.
+        test_ciphertext = ssh2_mpint(last(fibonacci_scattered(14)))
+        test_ciphertext += "x" * (15 & -len(test_ciphertext)) # pad to a block
+
+        # Test key and IV.
+        test_key = b"foobarbazquxquuxFooBarBazQuxQuux"
+        test_iv = b"FOOBARBAZQUXQUUX"
+
+        for keylen in [128, 192, 256]:
+            decryptions = []
+
+            for suffix in "hw", "sw":
+                c = ssh2_cipher_new("aes{:d}_{}".format(keylen, suffix))
+                if c is None: continue
+                ssh2_cipher_setkey(c, test_key[:keylen//8])
+                for chunklen in range(16, 16*12, 16):
+                    ssh2_cipher_setiv(c, test_iv)
+                    decryption = ""
+                    for pos in range(0, len(test_ciphertext), chunklen):
+                        chunk = test_ciphertext[pos:pos+chunklen]
+                        decryption += ssh2_cipher_decrypt(c, chunk)
+                    decryptions.append(decryption)
+
+            for d in decryptions:
+                self.assertEqualBin(d, decryptions[0])
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):
