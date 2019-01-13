@@ -547,7 +547,7 @@ static ssh2_userkey *openssh_pem_read(
             des3_decrypt_pubkey_ossh(keybuf, key->iv,
                                      key->keyblob->u, key->keyblob->len);
         else {
-            ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes128);
+            ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes128_cbc);
             ssh2_cipher_setkey(cipher, keybuf);
             ssh2_cipher_setiv(cipher, key->iv);
             ssh2_cipher_decrypt(cipher, key->keyblob->u, key->keyblob->len);
@@ -1390,7 +1390,7 @@ static ssh2_userkey *openssh_new_read(
             {
                 ssh2_cipher *cipher = ssh2_cipher_new(
                     key->cipher == ON_E_AES256CBC ?
-                    &ssh_aes256 : &ssh_aes256_ctr);
+                    &ssh_aes256_cbc : &ssh_aes256_sdctr);
                 ssh2_cipher_setkey(cipher, keybuf);
                 ssh2_cipher_setiv(cipher, keybuf + 32);
                 /* Decrypt the private section in place, casting away
@@ -1594,7 +1594,7 @@ static bool openssh_new_write(
                            bcrypt_salt, sizeof(bcrypt_salt), bcrypt_rounds,
                            keybuf, sizeof(keybuf));
 
-            cipher = ssh2_cipher_new(&ssh_aes256_ctr);
+            cipher = ssh2_cipher_new(&ssh_aes256_sdctr);
             ssh2_cipher_setkey(cipher, keybuf);
             ssh2_cipher_setiv(cipher, keybuf + 32);
             ssh2_cipher_encrypt(cipher, cpblob->u, cpblob->len);
