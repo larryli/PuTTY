@@ -3540,6 +3540,8 @@ static void simple_prompt_result_callback(void *vctx, int result)
     struct simple_prompt_result_ctx *ctx =
         (struct simple_prompt_result_ctx *)vctx;
 
+    unregister_dialog(ctx->seat, ctx->dialog_slot);
+
     if (result >= 0)
         ctx->callback(ctx->callback_ctx, result);
 
@@ -3547,7 +3549,6 @@ static void simple_prompt_result_callback(void *vctx, int result)
      * Clean up this context structure, whether or not a result was
      * ever actually delivered from the dialog box.
      */
-    unregister_dialog(ctx->seat, ctx->dialog_slot);
     sfree(ctx);
 }
 
