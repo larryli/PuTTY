@@ -768,12 +768,16 @@ class crypt(MyTestBase):
         # independent in that it was written by me.)
 
         def vector(cipher, key, iv, plaintext, ciphertext):
-            c = ssh2_cipher_new(cipher)
-            ssh2_cipher_setkey(c, key)
-            ssh2_cipher_setiv(c, iv)
-            self.assertEqualBin(ssh2_cipher_encrypt(c, plaintext), ciphertext)
-            ssh2_cipher_setiv(c, iv)
-            self.assertEqualBin(ssh2_cipher_decrypt(c, ciphertext), plaintext)
+            for suffix in "hw", "sw":
+                c = ssh2_cipher_new("{}_{}".format(cipher, suffix))
+                if c is None: return # skip test if HW AES not available
+                ssh2_cipher_setkey(c, key)
+                ssh2_cipher_setiv(c, iv)
+                self.assertEqualBin(
+                    ssh2_cipher_encrypt(c, plaintext), ciphertext)
+                ssh2_cipher_setiv(c, iv)
+                self.assertEqualBin(
+                    ssh2_cipher_decrypt(c, ciphertext), plaintext)
 
         # Tests of CBC mode.
 
@@ -848,11 +852,12 @@ class crypt(MyTestBase):
         # feeding them to an AES-CBC cipher object with its IV set to
         # zero.
 
-        def increment(keylen, iv):
+        def increment(keylen, suffix, iv):
             key = b'\xab' * (keylen//8)
-            sdctr = ssh2_cipher_new("aes{}_ctr".format(keylen))
+            sdctr = ssh2_cipher_new("aes{}_ctr_{}".format(keylen, suffix))
+            if sdctr is None: return # skip test if HW AES not available
             ssh2_cipher_setkey(sdctr, key)
-            cbc = ssh2_cipher_new("aes{}".format(keylen))
+            cbc = ssh2_cipher_new("aes{}_{}".format(keylen, suffix))
             ssh2_cipher_setkey(cbc, key)
 
             ssh2_cipher_setiv(sdctr, iv)
@@ -865,14 +870,15 @@ class crypt(MyTestBase):
             self.assertEqualBin(iv, dc0)
             return dc1
 
-        def test(keylen, ivInteger):
+        def test(keylen, suffix, ivInteger):
             mask = (1 << 128) - 1
             ivInteger &= mask
             ivBinary = unhex("{:032x}".format(ivInteger))
             ivIntegerInc = (ivInteger + 1) & mask
             ivBinaryInc = unhex("{:032x}".format((ivIntegerInc)))
-            actualResult = increment(keylen, ivBinary)
-            self.assertEqualBin(actualResult, ivBinaryInc)
+            actualResult = increment(keylen, suffix, ivBinary)
+            if actualResult is not None:
+                self.assertEqualBin(actualResult, ivBinaryInc)
 
         # Check every input IV you can make by gluing together 32-bit
         # pieces of the form 0, 1 or -1. This should test all the
@@ -882,29 +888,34 @@ class crypt(MyTestBase):
         # We also test this at all three AES key lengths, in case the
         # core cipher routines are written separately for each one.
 
-        for keylen in [128, 192, 256]:
-            hexTestValues = ["00000000", "00000001", "ffffffff"]
-            for ivHexBytes in itertools.product(*([hexTestValues] * 4)):
-                ivInteger = int("".join(ivHexBytes), 16)
-                test(keylen, ivInteger)
+        for suffix in "hw", "sw":
+            for keylen in [128, 192, 256]:
+                hexTestValues = ["00000000", "00000001", "ffffffff"]
+                for ivHexBytes in itertools.product(*([hexTestValues] * 4)):
+                    ivInteger = int("".join(ivHexBytes), 16)
+                    test(keylen, suffix, ivInteger)
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):
-            c = ssh2_cipher_new(cipher)
-            ssh2_cipher_setkey(c, key)
+            for suffix in "hw", "sw":
+                c = ssh2_cipher_new("{}_{}".format(cipher, suffix))
+                if c is None: return # skip test if HW AES not available
+                ssh2_cipher_setkey(c, key)
 
-            # The AES test vectors are implicitly in ECB mode, because
-            # they're testing the cipher primitive rather than any
-            # mode layered on top of it. We fake this by using PuTTY's
-            # CBC setting, and clearing the IV to all zeroes before
-            # each operation.
+                # The AES test vectors are implicitly in ECB mode,
+                # because they're testing the cipher primitive rather
+                # than any mode layered on top of it. We fake this by
+                # using PuTTY's CBC setting, and clearing the IV to
+                # all zeroes before each operation.
 
-            ssh2_cipher_setiv(c, b'\x00' * 16)
-            self.assertEqualBin(ssh2_cipher_encrypt(c, plaintext), ciphertext)
+                ssh2_cipher_setiv(c, b'\x00' * 16)
+                self.assertEqualBin(
+                    ssh2_cipher_encrypt(c, plaintext), ciphertext)
 
-            ssh2_cipher_setiv(c, b'\x00' * 16)
-            self.assertEqualBin(ssh2_cipher_decrypt(c, ciphertext), plaintext)
+                ssh2_cipher_setiv(c, b'\x00' * 16)
+                self.assertEqualBin(
+                    ssh2_cipher_decrypt(c, ciphertext), plaintext)
 
         # The test vectors from FIPS 197 appendix C: the key bytes go
         # 00 01 02 03 ... for as long as needed, and the plaintext
