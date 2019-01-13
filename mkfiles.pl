@@ -628,7 +628,7 @@ if (defined $makefiles{'cygwin'}) {
     "# RCINC = --include-dir c:\\cygwin\\include\\\n".
     "\n".
     &splitline("CFLAGS = -Wall -O2 -std=gnu99 -Wvla -D_WINDOWS -DDEBUG".
-      " -DWIN32S_COMPAT -D_NO_OLDNAMES " .
+      " -DWIN32S_COMPAT -D_NO_OLDNAMES -D__USE_MINGW_ANSI_STDIO=1 " .
 	       (join " ", map {"-I$dirpfx$_"} @srcdirs)) .
 	       "\n".
     "LDFLAGS = -s\n".
