@@ -676,6 +676,9 @@ struct ssh2_cipheralg {
     const char *text_name;
     /* If set, this takes priority over other MAC. */
     const ssh2_macalg *required_mac;
+
+    /* Pointer to any extra data used by a particular implementation. */
+    const void *extra;
 };
 
 #define ssh2_cipher_new(alg) ((alg)->new(alg))
