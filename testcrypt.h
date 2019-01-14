@@ -218,6 +218,9 @@ FUNC2(val_wpoint, ecdsa_public, val_mpint, keyalg)
 FUNC2(val_epoint, eddsa_public, val_mpint, keyalg)
 FUNC2(val_string, des_encrypt_xdmauth, val_string_ptrlen, val_string_ptrlen)
 FUNC2(val_string, des_decrypt_xdmauth, val_string_ptrlen, val_string_ptrlen)
+FUNC1(uint, crc32_rfc1662, val_string_ptrlen)
+FUNC1(uint, crc32_ssh1, val_string_ptrlen)
+FUNC2(uint, crc32_update, uint, val_string_ptrlen)
 
 /*
  * These functions aren't part of PuTTY's own API, but are additions

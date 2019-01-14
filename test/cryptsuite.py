@@ -3,6 +3,7 @@
 import unittest
 import struct
 import itertools
+import functools
 import contextlib
 import hashlib
 import binascii
@@ -935,6 +936,36 @@ class crypt(MyTestBase):
             for d in decryptions:
                 self.assertEqualBin(d, decryptions[0])
 
+    def testCRC32(self):
+        # Check the effect of every possible single-byte input to
+        # crc32_update. In the traditional implementation with a
+        # 256-word lookup table, this exercises every table entry; in
+        # _any_ implementation which iterates over the input one byte
+        # at a time, it should be a similarly exhaustive test. (But if
+        # a more optimised implementation absorbed _more_ than 8 bits
+        # at a time, then perhaps this test wouldn't be enough...)
+
+        # It would be nice if there was a functools.iterate() which
+        # would apply a function n times. Failing that, making shift1
+        # accept and ignore a second argument allows me to iterate it
+        # 8 times using functools.reduce.
+        shift1 = lambda x, dummy=None: (x >> 1) ^ (0xEDB88320 * (x & 1))
+        shift8 = lambda x: functools.reduce(shift1, [None]*8, x)
+
+        # A small selection of choices for the other input to
+        # crc32_update, just to check linearity.
+        test_prior_values = [0, 0xFFFFFFFF, 0x45CC1F6A, 0xA0C4ADCF, 0xD482CDF1]
+
+        for prior in test_prior_values:
+            prior_shifted = shift8(prior)
+        for i in range(256):
+            exp = shift8(i) ^ prior_shifted
+            self.assertEqual(crc32_update(prior, struct.pack("B", i)), exp)
+
+            # Check linearity of the _reference_ implementation, while
+            # we're at it!
+            self.assertEqual(shift8(i ^ prior), exp)
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):
@@ -1366,6 +1397,50 @@ class standard_test_vectors(MyTestBase):
                     message = unhex(words[2])
                     signature = unhex(words[3])[:64]
                     vector(privkey, pubkey, message, signature)
+
+    def testCRC32(self):
+        self.assertEqual(crc32_rfc1662("123456789"), 0xCBF43926)
+        self.assertEqual(crc32_ssh1("123456789"), 0x2DFD2D88)
+
+        # Source:
+        # http://reveng.sourceforge.net/crc-catalogue/17plus.htm#crc.cat.crc-32-iso-hdlc
+        # which collected these from various sources.
+        reveng_tests = [
+            '000000001CDF4421',
+            'F20183779DAB24',
+            '0FAA005587B2C9B6',
+            '00FF55111262A032',
+            '332255AABBCCDDEEFF3D86AEB0',
+            '926B559BA2DE9C',
+            'FFFFFFFFFFFFFFFF',
+            'C008300028CFE9521D3B08EA449900E808EA449900E8300102007E649416',
+            '6173640ACEDE2D15',
+        ]
+        for vec in map(unhex, reveng_tests):
+            # Each of these test vectors can be read two ways. One
+            # interpretation is that the last four bytes are the
+            # little-endian encoding of the CRC of the rest. (Because
+            # that's how the CRC is attached to a string at the
+            # sending end.)
+            #
+            # The other interpretation is that if you CRC the whole
+            # string, _including_ the final four bytes, you expect to
+            # get the same value for any correct string (because the
+            # little-endian encoding matches the way the rest of the
+            # string was interpreted as a polynomial in the first
+            # place). That's how a receiver is intended to check
+            # things.
+            #
+            # The expected output value is listed in RFC 1662, and in
+            # the reveng.sourceforge.net catalogue, as 0xDEBB20E3. But
+            # that's because their checking procedure omits the final
+            # complement step that the construction procedure
+            # includes. Our crc32_rfc1662 function does do the final
+            # complement, so we expect the bitwise NOT of that value,
+            # namely 0x2144DF1C.
+            expected = struct.unpack("<L", vec[-4:])[0]
+            self.assertEqual(crc32_rfc1662(vec[:-4]), expected)
+            self.assertEqual(crc32_rfc1662(vec), 0x2144DF1C)
 
 if __name__ == "__main__":
     try:

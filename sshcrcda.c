@@ -69,9 +69,9 @@ void crcda_free_context(struct crcda_ctx *ctx)
     }
 }
 
-static void crc_update(uint32_t *a, void *b)
+static void crc_update(uint32_t *a, const void *b)
 {
-    *a = crc32_update(*a, b, 4);
+    *a = crc32_update(*a, make_ptrlen(b, 4));
 }
 
 /* detect if a block is used in a particular pattern */

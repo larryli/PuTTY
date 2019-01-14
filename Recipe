@@ -254,9 +254,9 @@ ARITH    = mpint ecc
 SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512
 	 + sshrsa sshdss sshecc
          + sshdes sshblowf sshaes sshccp ssharcf
-         + sshdh
+         + sshdh sshcrc
 SSHCOMMON = sshcommon sshrand SSHCRYPTO
-         + sshverstring sshcrc
+         + sshverstring
          + sshcrcda sshpubk sshzlib
          + sshmac marshal nullplug
          + sshgssc pgssapi wildcard ssh1censor ssh2censor ssh2bpp

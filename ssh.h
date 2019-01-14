@@ -512,8 +512,9 @@ int rsa_ssh1_public_blob_len(ptrlen data);
 void freersapriv(RSAKey *key);
 void freersakey(RSAKey *key);
 
-unsigned long crc32_compute(const void *s, size_t len);
-unsigned long crc32_update(unsigned long crc_input, const void *s, size_t len);
+uint32_t crc32_rfc1662(ptrlen data);
+uint32_t crc32_ssh1(ptrlen data);
+uint32_t crc32_update(uint32_t crc_input, ptrlen data);
 
 /* SSH CRC compensation attack detector */
 struct crcda_ctx;

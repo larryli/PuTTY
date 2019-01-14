@@ -1,72 +1,38 @@
 /*
- * CRC32 implementation.
+ * CRC32 implementation, as used in SSH-1.
  *
- * The basic concept of a CRC is that you treat your bit-string
- * abcdefg... as a ludicrously long polynomial M=a+bx+cx^2+dx^3+...
- * over Z[2]. You then take a modulus polynomial P, and compute the
- * remainder of M on division by P. Thus, an erroneous message N
- * will only have the same CRC if the difference E = M-N is an
- * exact multiple of P. (Note that as we are working over Z[2], M-N
- * = N-M = M+N; but that's not very important.)
+ * This particular form of the CRC uses the polynomial
+ * P(x) = x^32+x^26+x^23+x^22+x^16+x^12+x^11+x^10+x^8+x^7+x^5+x^4+x^2+x^1+1
+ * and represents polynomials in bit-reversed form, so that the x^0
+ * coefficient (constant term) appears in the bit with place value
+ * 2^31, and the x^31 coefficient in the bit with place value 2^0. In
+ * this representation, (x^32 mod P) = 0xEDB88320, so multiplying the
+ * current state by x is done by shifting right by one bit, and XORing
+ * that constant into the result if the bit shifted out was 1.
  *
- * What makes the CRC good is choosing P to have good properties:
+ * There's a bewildering array of subtly different variants of CRC out
+ * there, using different polynomials, both bit orders, and varying
+ * the start and end conditions. There are catalogue websites such as
+ * http://reveng.sourceforge.net/crc-catalogue/ , which generally seem
+ * to have the convention of indexing CRCs by their 'check value',
+ * defined as whatever you get if you hash the 9-byte test string
+ * "123456789".
  *
- *  - If its first and last terms are both nonzero then it cannot
- *    be a factor of any single term x^i. Therefore if M and N
- *    differ by exactly one bit their CRCs will guaranteeably
- *    be distinct.
+ * The crc32_rfc1662() function below, which starts off the CRC state
+ * at 0xFFFFFFFF and complements it after feeding all the data, gives
+ * the check value 0xCBF43926, and matches the hash function that the
+ * above catalogue refers to as "CRC-32/ISO-HDLC"; among other things,
+ * it's also the "FCS-32" checksum described in RFC 1662 section C.3
+ * (hence the name I've given it here).
  *
- *  - If it has a prime (irreducible) factor with three terms then
- *    it cannot divide a polynomial of the form x^i(1+x^j).
- *    Therefore if M and N differ by exactly _two_ bits they will
- *    have different CRCs.
- *
- *  - If it has a factor (x+1) then it cannot divide a polynomial
- *    with an odd number of terms. Therefore if M and N differ by
- *    _any odd_ number of bits they will have different CRCs.
- *
- *  - If the error term E is of the form x^i*B(x) where B(x) has
- *    order less than P (i.e. a short _burst_ of errors) then P
- *    cannot divide E (since no polynomial can divide a shorter
- *    one), so any such error burst will be spotted.
- *
- * The CRC32 standard polynomial is
- *   x^32+x^26+x^23+x^22+x^16+x^12+x^11+x^10+x^8+x^7+x^5+x^4+x^2+x^1+x^0
- *
- * In fact, we don't compute M mod P; we compute M*x^32 mod P.
- *
- * The concrete implementation of the CRC is this: we maintain at
- * all times a 32-bit word which is the current remainder of the
- * polynomial mod P. Whenever we receive an extra bit, we multiply
- * the existing remainder by x, add (XOR) the x^32 term thus
- * generated to the new x^32 term caused by the incoming bit, and
- * remove the resulting combined x^32 term if present by replacing
- * it with (P-x^32).
- *
- * Bit 0 of the word is the x^31 term and bit 31 is the x^0 term.
- * Thus, multiplying by x means shifting right. So the actual
- * algorithm goes like this:
- *
- *   x32term = (crcword & 1) ^ newbit;
- *   crcword = (crcword >> 1) ^ (x32term * 0xEDB88320);
- *
- * In practice, we pre-compute what will happen to crcword on any
- * given sequence of eight incoming bits, and store that in a table
- * which we then use at run-time to do the job:
- * 
- *   outgoingplusnew = (crcword & 0xFF) ^ newbyte;
- *   crcword = (crcword >> 8) ^ table[outgoingplusnew];
- *
- * where table[outgoingplusnew] is computed by setting crcword=0
- * and then iterating the first code fragment eight times (taking
- * the incoming byte low bit first).
- *
- * Note that all shifts are rightward and thus no assumption is
- * made about exact word length! (Although word length must be at
- * _least_ 32 bits, but ANSI C guarantees this for `unsigned long'
- * anyway.)
+ * The crc32_ssh1() function implements the variant form used by
+ * SSH-1, which uses the same update function, but starts the state at
+ * zero and doesn't complement it at the end of the computation. The
+ * check value for that version is 0x2DFD2D88, which that CRC
+ * catalogue doesn't list at all.
  */
 
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "ssh.h"
@@ -100,15 +66,15 @@
  * This variant of the code generates the table at run-time from an
  * init function.
  */
-static unsigned long crc32_table[256];
+static uint32_t crc32_table[256];
 
 void crc32_init(void)
 {
-    unsigned long crcword;
+    uint32_t crcword;
     int i;
 
     for (i = 0; i < 256; i++) {
-	unsigned long newbyte, x32term;
+	uint32_t newbyte, x32term;
 	int j;
 	crcword = 0;
 	newbyte = i;
@@ -126,7 +92,7 @@ void crc32_init(void)
 /*
  * This variant of the code has the data already prepared.
  */
-static const unsigned long crc32_table[256] = {
+static const uint32_t crc32_table[256] = {
     0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL,
     0x076DC419L, 0x706AF48FL, 0xE963A535L, 0x9E6495A3L,
     0x0EDB8832L, 0x79DCB8A4L, 0xE0D5E91EL, 0x97D2D988L,
@@ -212,18 +178,31 @@ int main(void)
 }
 #endif
 
-unsigned long crc32_update(unsigned long crcword, const void *buf, size_t len)
+uint32_t crc32_update(uint32_t crcword, ptrlen data)
 {
-    const unsigned char *p = (const unsigned char *) buf;
-    while (len--) {
-	unsigned long newbyte = *p++;
+    const uint8_t *p = (const uint8_t *)data.ptr;
+    for (size_t len = data.len; len-- > 0 ;) {
+	uint32_t newbyte = *p++;
 	newbyte ^= crcword & 0xFFL;
 	crcword = (crcword >> 8) ^ crc32_table[newbyte];
     }
     return crcword;
 }
 
-unsigned long crc32_compute(const void *buf, size_t len)
+/*
+ * The SSH-1 variant of CRC-32.
+ */
+uint32_t crc32_ssh1(ptrlen data)
 {
-    return crc32_update(0L, buf, len);
+    return crc32_update(0, data);
+}
+
+/*
+ * The official version of CRC-32. Nothing in PuTTY proper uses this,
+ * but it's useful to expose it to testcrypt so that we can implement
+ * standard test vectors.
+ */
+uint32_t crc32_rfc1662(ptrlen data)
+{
+    return crc32_update(0xFFFFFFFF, data) ^ 0xFFFFFFFF;
 }

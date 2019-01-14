@@ -13,7 +13,7 @@ struct ssh1_bpp_state {
     int crState;
     long len, pad, biglen, length, maxlen;
     unsigned char *data;
-    unsigned long realcrc, gotcrc;
+    uint32_t realcrc, gotcrc;
     int chunk;
     PktIn *pktin;
 
@@ -164,7 +164,7 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
         if (s->cipher)
             ssh1_cipher_decrypt(s->cipher, s->data, s->biglen);
 
-        s->realcrc = crc32_compute(s->data, s->biglen - 4);
+        s->realcrc = crc32_ssh1(make_ptrlen(s->data, s->biglen - 4));
         s->gotcrc = GET_32BIT(s->data + s->biglen - 4);
         if (s->gotcrc != s->realcrc) {
             ssh_sw_abort(s->bpp.ssh, "Incorrect CRC received on packet");
@@ -280,7 +280,7 @@ static PktOut *ssh1_bpp_new_pktout(int pkt_type)
 static void ssh1_bpp_format_packet(struct ssh1_bpp_state *s, PktOut *pkt)
 {
     int pad, biglen, i, pktoffs;
-    unsigned long crc;
+    uint32_t crc;
     int len;
 
     if (s->bpp.logctx) {
@@ -315,8 +315,8 @@ static void ssh1_bpp_format_packet(struct ssh1_bpp_state *s, PktOut *pkt)
 
     for (i = pktoffs; i < 4+8; i++)
         pkt->data[i] = random_byte();
-    crc = crc32_compute(pkt->data + pktoffs + 4,
-                        biglen - 4); /* all ex len */
+    crc = crc32_ssh1(
+        make_ptrlen(pkt->data + pktoffs + 4, biglen - 4)); /* all ex len */
     PUT_32BIT(pkt->data + pktoffs + 4 + biglen - 4, crc);
     PUT_32BIT(pkt->data + pktoffs, len);
 
