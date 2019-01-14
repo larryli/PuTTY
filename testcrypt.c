@@ -827,6 +827,19 @@ strbuf *des_decrypt_xdmauth_wrapper(ptrlen key, ptrlen data)
 }
 #define des_decrypt_xdmauth des_decrypt_xdmauth_wrapper
 
+bool crcda_detect(ptrlen packet, ptrlen iv)
+{
+    if (iv.len != 0 && iv.len != 8)
+        fatal_error("crcda_detect: iv must be empty or 8 bytes long");
+    if (packet.len % 8 != 0)
+        fatal_error("crcda_detect: packet must be a multiple of 8 bytes");
+    struct crcda_ctx *ctx = crcda_make_context();
+    bool toret = detect_attack(ctx, packet.ptr, packet.len,
+                               iv.len ? iv.ptr : NULL);
+    crcda_free_context(ctx);
+    return toret;
+}
+
 #define return_void(out, expression) (expression)
 
 #define VALTYPE_TYPEDEF(n,t,f)                  \

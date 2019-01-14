@@ -966,6 +966,65 @@ class crypt(MyTestBase):
             # we're at it!
             self.assertEqual(shift8(i ^ prior), exp)
 
+    def testCRCDA(self):
+        def pattern(badblk, otherblks, pat):
+            # Arrange copies of the bad block in a pattern
+            # corresponding to the given bit string.
+            retstr = ""
+            while pat != 0:
+                retstr += (badblk if pat & 1 else next(otherblks))
+                pat >>= 1
+            return retstr
+
+        def testCases(pat):
+            badblock = b'muhahaha' # the block we'll maliciously repeat
+
+            # Various choices of the other blocks, including all the
+            # same, all different, and all different but only in the
+            # byte at one end.
+            for otherblocks in [
+                    itertools.repeat(b'GoodData'),
+                    (struct.pack('>Q', i) for i in itertools.count()),
+                    (struct.pack('<Q', i) for i in itertools.count())]:
+                yield pattern(badblock, otherblocks, pat)
+
+        def positiveTest(pat):
+            for data in testCases(pat):
+                self.assertTrue(crcda_detect(data, ""))
+                self.assertTrue(crcda_detect(data[8:], data[:8]))
+
+        def negativeTest(pat):
+            for data in testCases(pat):
+                self.assertFalse(crcda_detect(data, ""))
+                self.assertFalse(crcda_detect(data[8:], data[:8]))
+
+        # Tests of successful attack detection, derived by taking
+        # multiples of the CRC polynomial itself.
+        #
+        # (The CRC32 polynomial is usually written as 0xEDB88320.
+        # That's in bit-reversed form, but then, that's the form we
+        # need anyway for these patterns. But it's also missing the
+        # leading term - really, 0xEDB88320 is the value you get by
+        # reducing X^32 modulo the real poly, i.e. the value you put
+        # back in to the CRC to compensate for an X^32 that's just
+        # been shifted out. If you put that bit back on - at the
+        # bottom, because of the bit-reversal - you get the less
+        # familiar-looking 0x1db710641.)
+        positiveTest(0x1db710641) # the CRC polynomial P itself
+        positiveTest(0x26d930ac3) # (X+1) * P
+        positiveTest(0xbdbdf21cf) # (X^3+X^2+X+1) * P
+        positiveTest(0x3a66a39b653f6889d)
+        positiveTest(0x170db3167dd9f782b9765214c03e71a18f685b7f3)
+        positiveTest(0x1751997d000000000000000000000000000000001)
+        positiveTest(0x800000000000000000000000000000000f128a2d1)
+
+        # Tests of non-detection.
+        negativeTest(0x1db711a41)
+        negativeTest(0x3a66a39b453f6889d)
+        negativeTest(0x170db3167dd9f782b9765214c03e71b18f685b7f3)
+        negativeTest(0x1751997d000000000000000000000001000000001)
+        negativeTest(0x800000000000002000000000000000000f128a2d1)
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):

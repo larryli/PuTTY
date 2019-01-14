@@ -520,8 +520,9 @@ uint32_t crc32_update(uint32_t crc_input, ptrlen data);
 struct crcda_ctx;
 struct crcda_ctx *crcda_make_context(void);
 void crcda_free_context(struct crcda_ctx *ctx);
-bool detect_attack(struct crcda_ctx *ctx, unsigned char *buf, uint32_t len,
-                   unsigned char *IV);
+bool detect_attack(struct crcda_ctx *ctx,
+                   const unsigned char *buf, uint32_t len,
+                   const unsigned char *IV);
 
 /*
  * SSH2 RSA key exchange functions
