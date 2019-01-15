@@ -134,8 +134,10 @@ static bool aes_hw_available_cached(void)
 {
     static bool initialised = false;
     static bool hw_available;
-    if (!initialised)
+    if (!initialised) {
         hw_available = aes_hw_available();
+        initialised = true;
+    }
     return hw_available;
 }
 
