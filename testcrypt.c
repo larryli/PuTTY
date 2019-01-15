@@ -268,7 +268,6 @@ static const ssh2_cipheralg *get_ssh2_cipheralg(BinarySource *in)
         {"3des_ctr", &ssh_3des_ssh2_ctr},
         {"3des", &ssh_3des_ssh2},
         {"des", &ssh_des_ssh2},
-        {"des_sshcom", &ssh_des_sshcom_ssh2},
         {"aes256_ctr", &ssh_aes256_sdctr},
         {"aes256_ctr_hw", &ssh_aes256_sdctr_hw},
         {"aes256_ctr_sw", &ssh_aes256_sdctr_sw},
