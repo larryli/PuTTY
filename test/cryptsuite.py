@@ -5,6 +5,7 @@ import struct
 import itertools
 import contextlib
 import hashlib
+import binascii
 try:
     from math import gcd
 except ImportError:
@@ -28,7 +29,7 @@ def nbits(n):
     return toret
 
 def unhex(s):
-    return s.replace(" ", "").replace("\n", "").decode("hex")
+    return binascii.unhexlify(s.replace(" ", "").replace("\n", ""))
 
 def ssh_uint32(n):
     return struct.pack(">L", n)
@@ -140,7 +141,7 @@ class MyTestBase(unittest.TestCase):
     def assertEqualBin(self, x, y):
         # Like assertEqual, but produces more legible error reports
         # for random-looking binary data.
-        self.assertEqual(x.encode('hex'), y.encode('hex'))
+        self.assertEqual(binascii.hexlify(x), binascii.hexlify(y))
 
 class mpint(MyTestBase):
     def testCreation(self):
@@ -910,7 +911,7 @@ class crypt(MyTestBase):
 
         # A pile of conveniently available random-looking test data.
         test_ciphertext = ssh2_mpint(last(fibonacci_scattered(14)))
-        test_ciphertext += "x" * (15 & -len(test_ciphertext)) # pad to a block
+        test_ciphertext += b"x" * (15 & -len(test_ciphertext)) # pad to a block
 
         # Test key and IV.
         test_key = b"foobarbazquxquuxFooBarBazQuxQuux"
@@ -925,7 +926,7 @@ class crypt(MyTestBase):
                 ssh2_cipher_setkey(c, test_key[:keylen//8])
                 for chunklen in range(16, 16*12, 16):
                     ssh2_cipher_setiv(c, test_iv)
-                    decryption = ""
+                    decryption = b""
                     for pos in range(0, len(test_ciphertext), chunklen):
                         chunk = test_ciphertext[pos:pos+chunklen]
                         decryption += ssh2_cipher_decrypt(c, chunk)
