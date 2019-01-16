@@ -20,6 +20,7 @@ struct ssh1_bpp_state {
     ssh1_cipher *cipher;
 
     struct crcda_ctx *crcda_ctx;
+    uint8_t iv[8];                     /* for crcda */
 
     bool pending_compression_request;
     ssh_compressor *compctx;
@@ -86,6 +87,8 @@ void ssh1_bpp_new_cipher(BinaryPacketProtocol *bpp,
         s->crcda_ctx = crcda_make_context();
 
         bpp_logevent("Initialised %s encryption", cipher->text_name);
+
+        memset(s->iv, 0, sizeof(s->iv));
     }
 }
 
@@ -155,11 +158,15 @@ static void ssh1_bpp_handle_input(BinaryPacketProtocol *bpp)
         BPP_READ(s->data, s->biglen);
 
         if (s->cipher && detect_attack(s->crcda_ctx,
-                                       s->data, s->biglen, NULL)) {
+                                       s->data, s->biglen, s->iv)) {
             ssh_sw_abort(s->bpp.ssh,
                          "Network attack (CRC compensation) detected!");
             crStopV;
         }
+        /* Save the last cipher block, to be passed to the next call
+         * to detect_attack */
+        assert(s->biglen >= 8);
+        memcpy(s->iv, s->data + s->biglen - 8, sizeof(s->iv));
 
         if (s->cipher)
             ssh1_cipher_decrypt(s->cipher, s->data, s->biglen);
