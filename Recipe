@@ -283,7 +283,7 @@ WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs winmiscs
 UXMISCCOMMON = MISCNETCOMMON uxstore uxsel uxnet uxpeer uxmisc time
          + uxfdsock errsock
-UXMISC   = MISCNET UXMISCCOMMON uxproxy
+UXMISC   = MISCNET UXMISCCOMMON uxproxy uxutils
 
 # SSH server.
 SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
@@ -379,7 +379,7 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
-testcrypt : [UT] testcrypt SSHCRYPTO marshal utils memory tree234
+testcrypt : [UT] testcrypt SSHCRYPTO marshal utils memory tree234 uxutils
 testcrypt : [C] testcrypt SSHCRYPTO marshal utils memory tree234 winmiscs
 testzlib : [UT] testzlib sshzlib memory
 

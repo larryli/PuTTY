@@ -921,6 +921,14 @@ extern const ssh2_macalg ssh2_poly1305;
 extern const ssh_compression_alg ssh_zlib;
 
 /*
+ * On some systems, you have to detect hardware crypto acceleration by
+ * asking the local OS API rather than OS-agnostically asking the CPU
+ * itself. If so, then this function should be implemented in each
+ * platform subdirectory.
+ */
+bool platform_aes_hw_available(void);
+
+/*
  * PuTTY version number formatted as an SSH version string. 
  */
 extern const char sshver[];
