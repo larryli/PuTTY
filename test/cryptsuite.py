@@ -970,7 +970,7 @@ class crypt(MyTestBase):
         def pattern(badblk, otherblks, pat):
             # Arrange copies of the bad block in a pattern
             # corresponding to the given bit string.
-            retstr = ""
+            retstr = b""
             while pat != 0:
                 retstr += (badblk if pat & 1 else next(otherblks))
                 pat >>= 1
