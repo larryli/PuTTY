@@ -957,6 +957,14 @@ class standard_test_vectors(MyTestBase):
                 self.assertEqualBin(
                     ssh2_cipher_decrypt(c, ciphertext), plaintext)
 
+        # The test vector from FIPS 197 appendix B. (This is also the
+        # same key whose key setup phase is shown in detail in
+        # appendix A.)
+        vector('aes128',
+               unhex('2b7e151628aed2a6abf7158809cf4f3c'),
+               unhex('3243f6a8885a308d313198a2e0370734'),
+               unhex('3925841d02dc09fbdc118597196a0b32'))
+
         # The test vectors from FIPS 197 appendix C: the key bytes go
         # 00 01 02 03 ... for as long as needed, and the plaintext
         # bytes go 00 11 22 33 ... FF.
