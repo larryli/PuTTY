@@ -129,7 +129,7 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
     if typename == "uint" and isinstance(arg, numbers.Integral):
         return "0x{:x}".format(arg)
     if typename in {
-            "hashalg", "macalg", "keyalg", "ssh1_cipheralg", "ssh2_cipheralg",
+            "hashalg", "macalg", "keyalg", "cipheralg",
             "dh_group", "ecdh_alg", "rsaorder"}:
         arg = unicode_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:

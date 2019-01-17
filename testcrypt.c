@@ -71,8 +71,7 @@ int random_byte(void)
     X(epoint, EdwardsPoint *, ecc_edwards_point_free(v))                \
     X(hash, ssh_hash *, ssh_hash_free(v))                               \
     X(key, ssh_key *, ssh_key_free(v))                                  \
-    X(ssh1cipher, ssh1_cipher *, ssh1_cipher_free(v))                   \
-    X(ssh2cipher, ssh2_cipher *, ssh2_cipher_free(v))                   \
+    X(cipher, ssh_cipher *, ssh_cipher_free(v))                         \
     X(mac, ssh2_mac *, ssh2_mac_free(v))                                \
     X(dh, dh_ctx *, dh_cleanup(v))                                      \
     X(ecdh, ecdh_key *, ssh_ecdhkex_freekey(v))                         \
@@ -240,34 +239,16 @@ static const ssh_keyalg *get_keyalg(BinarySource *in)
     fatal_error("keyalg '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
-static const ssh1_cipheralg *get_ssh1_cipheralg(BinarySource *in)
+static const ssh_cipheralg *get_cipheralg(BinarySource *in)
 {
     static const struct {
         const char *key;
-        const ssh1_cipheralg *value;
-    } algs[] = {
-        {"3des", &ssh1_3des},
-        {"des", &ssh1_des},
-        {"blowfish", &ssh1_blowfish},
-    };
-
-    ptrlen name = get_word(in);
-    for (size_t i = 0; i < lenof(algs); i++)
-        if (ptrlen_eq_string(name, algs[i].key))
-            return algs[i].value;
-
-    fatal_error("ssh1_cipheralg '%.*s': not found", PTRLEN_PRINTF(name));
-}
-
-static const ssh2_cipheralg *get_ssh2_cipheralg(BinarySource *in)
-{
-    static const struct {
-        const char *key;
-        const ssh2_cipheralg *value;
+        const ssh_cipheralg *value;
     } algs[] = {
         {"3des_ctr", &ssh_3des_ssh2_ctr},
-        {"3des", &ssh_3des_ssh2},
-        {"des", &ssh_des_ssh2},
+        {"3des_ssh2", &ssh_3des_ssh2},
+        {"3des_ssh1", &ssh_3des_ssh1},
+        {"des", &ssh_des},
         {"aes256_ctr", &ssh_aes256_sdctr},
         {"aes256_ctr_hw", &ssh_aes256_sdctr_hw},
         {"aes256_ctr_sw", &ssh_aes256_sdctr_sw},
@@ -286,8 +267,9 @@ static const ssh2_cipheralg *get_ssh2_cipheralg(BinarySource *in)
         {"aes128", &ssh_aes128_cbc},
         {"aes128_hw", &ssh_aes128_cbc_hw},
         {"aes128_sw", &ssh_aes128_cbc_sw},
-        {"blowfish", &ssh_blowfish_ssh2_ctr},
-        {"blowfish", &ssh_blowfish_ssh2},
+        {"blowfish_ctr", &ssh_blowfish_ssh2_ctr},
+        {"blowfish_ssh2", &ssh_blowfish_ssh2},
+        {"blowfish_ssh1", &ssh_blowfish_ssh1},
         {"arcfour256", &ssh_arcfour256_ssh2},
         {"arcfour128", &ssh_arcfour128_ssh2},
         {"chacha20_poly1305", &ssh2_chacha20_poly1305},
@@ -298,7 +280,7 @@ static const ssh2_cipheralg *get_ssh2_cipheralg(BinarySource *in)
         if (ptrlen_eq_string(name, algs[i].key))
             return algs[i].value;
 
-    fatal_error("ssh2_cipheralg '%.*s': not found", PTRLEN_PRINTF(name));
+    fatal_error("cipheralg '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
 static const ssh_kex *get_dh_group(BinarySource *in)
@@ -516,12 +498,12 @@ static void return_val_string_asciz(strbuf *out, char *s)
     return_val_string(out, sb);
 }
 
-static void return_opt_val_ssh2cipher(strbuf *out, ssh2_cipher *c)
+static void return_opt_val_cipher(strbuf *out, ssh_cipher *c)
 {
     if (!c)
         strbuf_catf(out, "NULL\n");
     else
-        return_val_ssh2cipher(out, c);
+        return_val_cipher(out, c);
 }
 
 static void handle_hello(BinarySource *in, strbuf *out)
@@ -639,112 +621,77 @@ strbuf *ssh_hash_final_wrapper(ssh_hash *h)
 #undef ssh_hash_final
 #define ssh_hash_final ssh_hash_final_wrapper
 
-void ssh1_cipher_sesskey_wrapper(ssh1_cipher *c, ptrlen key)
+void ssh_cipher_setiv_wrapper(ssh_cipher *c, ptrlen key)
 {
-    if (key.len != 32)
-        fatal_error("ssh1_cipher_sesskey: needs exactly 32 bytes");
-    ssh1_cipher_sesskey(c, key.ptr);
+    if (key.len != ssh_cipher_alg(c)->blksize)
+        fatal_error("ssh_cipher_setiv: needs exactly %d bytes",
+                    ssh_cipher_alg(c)->blksize);
+    ssh_cipher_setiv(c, key.ptr);
 }
-#undef ssh1_cipher_sesskey
-#define ssh1_cipher_sesskey ssh1_cipher_sesskey_wrapper
+#undef ssh_cipher_setiv
+#define ssh_cipher_setiv ssh_cipher_setiv_wrapper
 
-strbuf *ssh1_cipher_encrypt_wrapper(ssh1_cipher *c, ptrlen input)
+void ssh_cipher_setkey_wrapper(ssh_cipher *c, ptrlen key)
 {
-    if (input.len % c->vt->blksize)
-        fatal_error("ssh1_cipher_encrypt: needs a multiple of %d bytes",
-                      c->vt->blksize);
+    if (key.len != ssh_cipher_alg(c)->padded_keybytes)
+        fatal_error("ssh_cipher_setkey: needs exactly %d bytes",
+                    ssh_cipher_alg(c)->padded_keybytes);
+    ssh_cipher_setkey(c, key.ptr);
+}
+#undef ssh_cipher_setkey
+#define ssh_cipher_setkey ssh_cipher_setkey_wrapper
+
+strbuf *ssh_cipher_encrypt_wrapper(ssh_cipher *c, ptrlen input)
+{
+    if (input.len % ssh_cipher_alg(c)->blksize)
+        fatal_error("ssh_cipher_encrypt: needs a multiple of %d bytes",
+                    ssh_cipher_alg(c)->blksize);
     strbuf *sb = strbuf_new();
     put_datapl(sb, input);
-    ssh1_cipher_encrypt(c, sb->u, sb->len);
+    ssh_cipher_encrypt(c, sb->u, sb->len);
     return sb;
 }
-#undef ssh1_cipher_encrypt
-#define ssh1_cipher_encrypt ssh1_cipher_encrypt_wrapper
+#undef ssh_cipher_encrypt
+#define ssh_cipher_encrypt ssh_cipher_encrypt_wrapper
 
-strbuf *ssh1_cipher_decrypt_wrapper(ssh1_cipher *c, ptrlen input)
+strbuf *ssh_cipher_decrypt_wrapper(ssh_cipher *c, ptrlen input)
 {
-    if (input.len % c->vt->blksize)
-        fatal_error("ssh1_cipher_decrypt: needs a multiple of %d bytes",
-                      c->vt->blksize);
+    if (input.len % ssh_cipher_alg(c)->blksize)
+        fatal_error("ssh_cipher_decrypt: needs a multiple of %d bytes",
+                    ssh_cipher_alg(c)->blksize);
     strbuf *sb = strbuf_new();
     put_datapl(sb, input);
-    ssh1_cipher_decrypt(c, sb->u, sb->len);
+    ssh_cipher_decrypt(c, sb->u, sb->len);
     return sb;
 }
-#undef ssh1_cipher_decrypt
-#define ssh1_cipher_decrypt ssh1_cipher_decrypt_wrapper
+#undef ssh_cipher_decrypt
+#define ssh_cipher_decrypt ssh_cipher_decrypt_wrapper
 
-void ssh2_cipher_setiv_wrapper(ssh2_cipher *c, ptrlen key)
-{
-    if (key.len != ssh2_cipher_alg(c)->blksize)
-        fatal_error("ssh2_cipher_setiv: needs exactly %d bytes",
-                      ssh2_cipher_alg(c)->blksize);
-    ssh2_cipher_setiv(c, key.ptr);
-}
-#undef ssh2_cipher_setiv
-#define ssh2_cipher_setiv ssh2_cipher_setiv_wrapper
-
-void ssh2_cipher_setkey_wrapper(ssh2_cipher *c, ptrlen key)
-{
-    if (key.len != ssh2_cipher_alg(c)->padded_keybytes)
-        fatal_error("ssh2_cipher_setkey: needs exactly %d bytes",
-                      ssh2_cipher_alg(c)->padded_keybytes);
-    ssh2_cipher_setkey(c, key.ptr);
-}
-#undef ssh2_cipher_setkey
-#define ssh2_cipher_setkey ssh2_cipher_setkey_wrapper
-
-strbuf *ssh2_cipher_encrypt_wrapper(ssh2_cipher *c, ptrlen input)
-{
-    if (input.len % ssh2_cipher_alg(c)->blksize)
-        fatal_error("ssh2_cipher_encrypt: needs a multiple of %d bytes",
-                      ssh2_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
-    ssh2_cipher_encrypt(c, sb->u, sb->len);
-    return sb;
-}
-#undef ssh2_cipher_encrypt
-#define ssh2_cipher_encrypt ssh2_cipher_encrypt_wrapper
-
-strbuf *ssh2_cipher_decrypt_wrapper(ssh2_cipher *c, ptrlen input)
-{
-    if (input.len % ssh2_cipher_alg(c)->blksize)
-        fatal_error("ssh2_cipher_decrypt: needs a multiple of %d bytes",
-                      ssh2_cipher_alg(c)->blksize);
-    strbuf *sb = strbuf_new();
-    put_datapl(sb, input);
-    ssh2_cipher_decrypt(c, sb->u, sb->len);
-    return sb;
-}
-#undef ssh2_cipher_decrypt
-#define ssh2_cipher_decrypt ssh2_cipher_decrypt_wrapper
-
-strbuf *ssh2_cipher_encrypt_length_wrapper(ssh2_cipher *c, ptrlen input,
+strbuf *ssh_cipher_encrypt_length_wrapper(ssh_cipher *c, ptrlen input,
                                            unsigned long seq)
 {
     if (input.len != 4)
-        fatal_error("ssh2_cipher_encrypt_length: needs exactly 4 bytes");
+        fatal_error("ssh_cipher_encrypt_length: needs exactly 4 bytes");
     strbuf *sb = strbuf_new();
     put_datapl(sb, input);
-    ssh2_cipher_encrypt_length(c, sb->u, sb->len, seq);
+    ssh_cipher_encrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
-#undef ssh2_cipher_encrypt_length
-#define ssh2_cipher_encrypt_length ssh2_cipher_encrypt_length_wrapper
+#undef ssh_cipher_encrypt_length
+#define ssh_cipher_encrypt_length ssh_cipher_encrypt_length_wrapper
 
-strbuf *ssh2_cipher_decrypt_length_wrapper(ssh2_cipher *c, ptrlen input,
+strbuf *ssh_cipher_decrypt_length_wrapper(ssh_cipher *c, ptrlen input,
                                            unsigned long seq)
 {
-    if (input.len % ssh2_cipher_alg(c)->blksize)
-        fatal_error("ssh2_cipher_decrypt_length: needs exactly 4 bytes");
+    if (input.len % ssh_cipher_alg(c)->blksize)
+        fatal_error("ssh_cipher_decrypt_length: needs exactly 4 bytes");
     strbuf *sb = strbuf_new();
     put_datapl(sb, input);
-    ssh2_cipher_decrypt_length(c, sb->u, sb->len, seq);
+    ssh_cipher_decrypt_length(c, sb->u, sb->len, seq);
     return sb;
 }
-#undef ssh2_cipher_decrypt_length
-#define ssh2_cipher_decrypt_length ssh2_cipher_decrypt_length_wrapper
+#undef ssh_cipher_decrypt_length
+#define ssh_cipher_decrypt_length ssh_cipher_decrypt_length_wrapper
 
 strbuf *ssh2_mac_genresult_wrapper(ssh2_mac *m)
 {
@@ -938,7 +885,7 @@ VALUE_TYPES(VALTYPE_TYPEDEF)
             return NULL;                                                \
         return unwrap_value_##type(lookup_value(word))->vu_##type;      \
     }
-OPTIONAL_PTR_FUNC(ssh2cipher)
+OPTIONAL_PTR_FUNC(cipher)
 OPTIONAL_PTR_FUNC(mpint)
 
 typedef uintmax_t TD_uint;
@@ -951,8 +898,7 @@ typedef ssh_hash *TD_consumed_val_hash;
 typedef const ssh_hashalg *TD_hashalg;
 typedef const ssh2_macalg *TD_macalg;
 typedef const ssh_keyalg *TD_keyalg;
-typedef const ssh1_cipheralg *TD_ssh1_cipheralg;
-typedef const ssh2_cipheralg *TD_ssh2_cipheralg;
+typedef const ssh_cipheralg *TD_cipheralg;
 typedef const ssh_kex *TD_dh_group;
 typedef const ssh_kex *TD_ecdh_alg;
 typedef RsaSsh1Order TD_rsaorder;

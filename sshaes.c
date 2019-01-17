@@ -87,34 +87,34 @@
  * instance of.
  */
 
-static ssh2_cipher *aes_select(const ssh2_cipheralg *alg);
-static ssh2_cipher *aes_sw_new(const ssh2_cipheralg *alg);
-static void aes_sw_free(ssh2_cipher *);
-static void aes_sw_setiv_cbc(ssh2_cipher *, const void *iv);
-static void aes_sw_setiv_sdctr(ssh2_cipher *, const void *iv);
-static void aes_sw_setkey(ssh2_cipher *, const void *key);
-static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg);
-static void aes_hw_free(ssh2_cipher *);
-static void aes_hw_setiv_cbc(ssh2_cipher *, const void *iv);
-static void aes_hw_setiv_sdctr(ssh2_cipher *, const void *iv);
-static void aes_hw_setkey(ssh2_cipher *, const void *key);
+static ssh_cipher *aes_select(const ssh_cipheralg *alg);
+static ssh_cipher *aes_sw_new(const ssh_cipheralg *alg);
+static void aes_sw_free(ssh_cipher *);
+static void aes_sw_setiv_cbc(ssh_cipher *, const void *iv);
+static void aes_sw_setiv_sdctr(ssh_cipher *, const void *iv);
+static void aes_sw_setkey(ssh_cipher *, const void *key);
+static ssh_cipher *aes_hw_new(const ssh_cipheralg *alg);
+static void aes_hw_free(ssh_cipher *);
+static void aes_hw_setiv_cbc(ssh_cipher *, const void *iv);
+static void aes_hw_setiv_sdctr(ssh_cipher *, const void *iv);
+static void aes_hw_setkey(ssh_cipher *, const void *key);
 
 struct aes_extra {
-    const ssh2_cipheralg *sw, *hw;
+    const ssh_cipheralg *sw, *hw;
 };
 
 #define VTABLES(cid, pid, bits, name, encsuffix, decsuffix, setiv)      \
-    static void cid##_sw##encsuffix(ssh2_cipher *, void *blk, int len); \
-    static void cid##_sw##decsuffix(ssh2_cipher *, void *blk, int len); \
-    const ssh2_cipheralg ssh_##cid##_sw = {                             \
+    static void cid##_sw##encsuffix(ssh_cipher *, void *blk, int len); \
+    static void cid##_sw##decsuffix(ssh_cipher *, void *blk, int len); \
+    const ssh_cipheralg ssh_##cid##_sw = {                             \
         aes_sw_new, aes_sw_free, aes_sw_##setiv, aes_sw_setkey,         \
         cid##_sw##encsuffix, cid##_sw##decsuffix, NULL, NULL,           \
         pid, 16, bits, bits/8, 0, name " (unaccelerated)",              \
         NULL, NULL };                                                   \
                                                                         \
-    static void cid##_hw##encsuffix(ssh2_cipher *, void *blk, int len); \
-    static void cid##_hw##decsuffix(ssh2_cipher *, void *blk, int len); \
-    const ssh2_cipheralg ssh_##cid##_hw = {                             \
+    static void cid##_hw##encsuffix(ssh_cipher *, void *blk, int len); \
+    static void cid##_hw##decsuffix(ssh_cipher *, void *blk, int len); \
+    const ssh_cipheralg ssh_##cid##_hw = {                             \
         aes_hw_new, aes_hw_free, aes_hw_##setiv, aes_hw_setkey,         \
         cid##_hw##encsuffix, cid##_hw##decsuffix, NULL, NULL,           \
         pid, 16, bits, bits/8, 0, name HW_NAME_SUFFIX,                  \
@@ -123,7 +123,7 @@ struct aes_extra {
     const struct aes_extra extra_##cid = {                              \
         &ssh_##cid##_sw, &ssh_##cid##_hw };                             \
                                                                         \
-    const ssh2_cipheralg ssh_##cid = {                                  \
+    const ssh_cipheralg ssh_##cid = {                                  \
         aes_select, NULL, NULL, NULL, NULL, NULL, NULL, NULL,           \
         pid, 16, bits, bits/8, 0, name " (dummy selector vtable)",      \
         NULL, &extra_##cid };                                           \
@@ -135,14 +135,14 @@ VTABLES(aes128_sdctr, "aes128-ctr", 128, "AES-128 SDCTR",,, setiv_sdctr)
 VTABLES(aes192_sdctr, "aes192-ctr", 192, "AES-192 SDCTR",,, setiv_sdctr)
 VTABLES(aes256_sdctr, "aes256-ctr", 256, "AES-256 SDCTR",,, setiv_sdctr)
 
-static const ssh2_cipheralg ssh_rijndael_lysator = {
+static const ssh_cipheralg ssh_rijndael_lysator = {
     /* Same as aes256_cbc, but with a different protocol ID */
     aes_select, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
     "rijndael-cbc@lysator.liu.se", 16, 256, 256/8, 0,
     "AES-256 CBC (dummy selector vtable)", NULL, &extra_aes256_cbc
 };
 
-static const ssh2_cipheralg *const aes_list[] = {
+static const ssh_cipheralg *const aes_list[] = {
     &ssh_aes256_sdctr,
     &ssh_aes256_cbc,
     &ssh_rijndael_lysator,
@@ -175,13 +175,13 @@ static bool aes_hw_available_cached(void)
     return hw_available;
 }
 
-static ssh2_cipher *aes_select(const ssh2_cipheralg *alg)
+static ssh_cipher *aes_select(const ssh_cipheralg *alg)
 {
     const struct aes_extra *extra = (const struct aes_extra *)alg->extra;
-    const ssh2_cipheralg *real_alg =
+    const ssh_cipheralg *real_alg =
         aes_hw_available_cached() ? extra->hw : extra->sw;
 
-    return ssh2_cipher_new(real_alg);
+    return ssh_cipher_new(real_alg);
 }
 
 /* ----------------------------------------------------------------------
@@ -987,36 +987,36 @@ struct aes_sw_context {
             uint8_t *keystream_pos;
         } sdctr;
     } iv;
-    ssh2_cipher ciph;
+    ssh_cipher ciph;
 };
 
-static ssh2_cipher *aes_sw_new(const ssh2_cipheralg *alg)
+static ssh_cipher *aes_sw_new(const ssh_cipheralg *alg)
 {
     aes_sw_context *ctx = snew(aes_sw_context);
     ctx->ciph.vt = alg;
     return &ctx->ciph;
 }
 
-static void aes_sw_free(ssh2_cipher *ciph)
+static void aes_sw_free(ssh_cipher *ciph)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
     smemclr(ctx, sizeof(*ctx));
     sfree(ctx);
 }
 
-static void aes_sw_setkey(ssh2_cipher *ciph, const void *vkey)
+static void aes_sw_setkey(ssh_cipher *ciph, const void *vkey)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
     aes_sliced_key_setup(&ctx->sk, vkey, ctx->ciph.vt->real_keybits);
 }
 
-static void aes_sw_setiv_cbc(ssh2_cipher *ciph, const void *iv)
+static void aes_sw_setiv_cbc(ssh_cipher *ciph, const void *iv)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
     memcpy(ctx->iv.cbc.prevblk, iv, 16);
 }
 
-static void aes_sw_setiv_sdctr(ssh2_cipher *ciph, const void *viv)
+static void aes_sw_setiv_sdctr(ssh_cipher *ciph, const void *viv)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
     const uint8_t *iv = (const uint8_t *)viv;
@@ -1050,7 +1050,7 @@ static inline void memxor16(void *vout, const void *vlhs, const void *vrhs)
 }
 
 static inline void aes_cbc_sw_encrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen)
+    ssh_cipher *ciph, void *vblk, int blklen)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
 
@@ -1081,7 +1081,7 @@ static inline void aes_cbc_sw_encrypt(
 }
 
 static inline void aes_cbc_sw_decrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen)
+    ssh_cipher *ciph, void *vblk, int blklen)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
     uint8_t *blk = (uint8_t *)vblk;
@@ -1132,7 +1132,7 @@ static inline void aes_cbc_sw_decrypt(
 }
 
 static inline void aes_sdctr_sw(
-    ssh2_cipher *ciph, void *vblk, int blklen)
+    ssh_cipher *ciph, void *vblk, int blklen)
 {
     aes_sw_context *ctx = container_of(ciph, aes_sw_context, ciph);
 
@@ -1182,13 +1182,13 @@ static inline void aes_sdctr_sw(
 
 #define SW_ENC_DEC(len)                                 \
     static void aes##len##_cbc_sw_encrypt(              \
-        ssh2_cipher *ciph, void *vblk, int blklen)      \
+        ssh_cipher *ciph, void *vblk, int blklen)       \
     { aes_cbc_sw_encrypt(ciph, vblk, blklen); }         \
     static void aes##len##_cbc_sw_decrypt(              \
-        ssh2_cipher *ciph, void *vblk, int blklen)      \
+        ssh_cipher *ciph, void *vblk, int blklen)       \
     { aes_cbc_sw_decrypt(ciph, vblk, blklen); }         \
     static void aes##len##_sdctr_sw(                    \
-        ssh2_cipher *ciph, void *vblk, int blklen)      \
+        ssh_cipher *ciph, void *vblk, int blklen)       \
     { aes_sdctr_sw(ciph, vblk, blklen); }
 
 SW_ENC_DEC(128)
@@ -1367,10 +1367,10 @@ struct aes_ni_context {
     __m128i keysched_e[MAXROUNDKEYS], keysched_d[MAXROUNDKEYS], iv;
 
     void *pointer_to_free;
-    ssh2_cipher ciph;
+    ssh_cipher ciph;
 };
 
-static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg)
+static ssh_cipher *aes_hw_new(const ssh_cipheralg *alg)
 {
     if (!aes_hw_available_cached())
         return NULL;
@@ -1393,7 +1393,7 @@ static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg)
     return &ctx->ciph;
 }
 
-static void aes_hw_free(ssh2_cipher *ciph)
+static void aes_hw_free(ssh_cipher *ciph)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
     void *allocation = ctx->pointer_to_free;
@@ -1401,7 +1401,7 @@ static void aes_hw_free(ssh2_cipher *ciph)
     sfree(allocation);
 }
 
-static void aes_hw_setkey(ssh2_cipher *ciph, const void *vkey)
+static void aes_hw_setkey(ssh_cipher *ciph, const void *vkey)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
     const unsigned char *key = (const unsigned char *)vkey;
@@ -1410,13 +1410,13 @@ static void aes_hw_setkey(ssh2_cipher *ciph, const void *vkey)
                       ctx->keysched_e, ctx->keysched_d);
 }
 
-static FUNC_ISA void aes_hw_setiv_cbc(ssh2_cipher *ciph, const void *iv)
+static FUNC_ISA void aes_hw_setiv_cbc(ssh_cipher *ciph, const void *iv)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
     ctx->iv = _mm_loadu_si128(iv);
 }
 
-static FUNC_ISA void aes_hw_setiv_sdctr(ssh2_cipher *ciph, const void *iv)
+static FUNC_ISA void aes_hw_setiv_sdctr(ssh_cipher *ciph, const void *iv)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
     __m128i counter = _mm_loadu_si128(iv);
@@ -1426,7 +1426,7 @@ static FUNC_ISA void aes_hw_setiv_sdctr(ssh2_cipher *ciph, const void *iv)
 typedef __m128i (*aes_ni_fn)(__m128i v, const __m128i *keysched);
 
 static FUNC_ISA inline void aes_cbc_ni_encrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_ni_fn encrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_ni_fn encrypt)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
 
@@ -1441,7 +1441,7 @@ static FUNC_ISA inline void aes_cbc_ni_encrypt(
 }
 
 static FUNC_ISA inline void aes_cbc_ni_decrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_ni_fn decrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_ni_fn decrypt)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
 
@@ -1456,7 +1456,7 @@ static FUNC_ISA inline void aes_cbc_ni_decrypt(
 }
 
 static FUNC_ISA inline void aes_sdctr_ni(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_ni_fn encrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_ni_fn encrypt)
 {
     aes_ni_context *ctx = container_of(ciph, aes_ni_context, ciph);
 
@@ -1473,13 +1473,13 @@ static FUNC_ISA inline void aes_sdctr_ni(
 
 #define NI_ENC_DEC(len)                                                 \
     static FUNC_ISA void aes##len##_cbc_hw_encrypt(                     \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_cbc_ni_encrypt(ciph, vblk, blklen, aes_ni_##len##_e); }       \
     static FUNC_ISA void aes##len##_cbc_hw_decrypt(                     \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_cbc_ni_decrypt(ciph, vblk, blklen, aes_ni_##len##_d); }       \
     static FUNC_ISA void aes##len##_sdctr_hw(                           \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_sdctr_ni(ciph, vblk, blklen, aes_ni_##len##_e); }             \
 
 NI_ENC_DEC(128)
@@ -1692,10 +1692,10 @@ typedef struct aes_neon_context aes_neon_context;
 struct aes_neon_context {
     uint8x16_t keysched_e[MAXROUNDKEYS], keysched_d[MAXROUNDKEYS], iv;
 
-    ssh2_cipher ciph;
+    ssh_cipher ciph;
 };
 
-static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg)
+static ssh_cipher *aes_hw_new(const ssh_cipheralg *alg)
 {
     if (!aes_hw_available_cached())
         return NULL;
@@ -1705,14 +1705,14 @@ static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg)
     return &ctx->ciph;
 }
 
-static void aes_hw_free(ssh2_cipher *ciph)
+static void aes_hw_free(ssh_cipher *ciph)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
     smemclr(ctx, sizeof(*ctx));
     sfree(ctx);
 }
 
-static void aes_hw_setkey(ssh2_cipher *ciph, const void *vkey)
+static void aes_hw_setkey(ssh_cipher *ciph, const void *vkey)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
     const unsigned char *key = (const unsigned char *)vkey;
@@ -1721,13 +1721,13 @@ static void aes_hw_setkey(ssh2_cipher *ciph, const void *vkey)
                       ctx->keysched_e, ctx->keysched_d);
 }
 
-static FUNC_ISA void aes_hw_setiv_cbc(ssh2_cipher *ciph, const void *iv)
+static FUNC_ISA void aes_hw_setiv_cbc(ssh_cipher *ciph, const void *iv)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
     ctx->iv = vld1q_u8(iv);
 }
 
-static FUNC_ISA void aes_hw_setiv_sdctr(ssh2_cipher *ciph, const void *iv)
+static FUNC_ISA void aes_hw_setiv_sdctr(ssh_cipher *ciph, const void *iv)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
     uint8x16_t counter = vld1q_u8(iv);
@@ -1737,7 +1737,7 @@ static FUNC_ISA void aes_hw_setiv_sdctr(ssh2_cipher *ciph, const void *iv)
 typedef uint8x16_t (*aes_neon_fn)(uint8x16_t v, const uint8x16_t *keysched);
 
 static FUNC_ISA inline void aes_cbc_neon_encrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_neon_fn encrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_neon_fn encrypt)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
 
@@ -1752,7 +1752,7 @@ static FUNC_ISA inline void aes_cbc_neon_encrypt(
 }
 
 static FUNC_ISA inline void aes_cbc_neon_decrypt(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_neon_fn decrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_neon_fn decrypt)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
 
@@ -1767,7 +1767,7 @@ static FUNC_ISA inline void aes_cbc_neon_decrypt(
 }
 
 static FUNC_ISA inline void aes_sdctr_neon(
-    ssh2_cipher *ciph, void *vblk, int blklen, aes_neon_fn encrypt)
+    ssh_cipher *ciph, void *vblk, int blklen, aes_neon_fn encrypt)
 {
     aes_neon_context *ctx = container_of(ciph, aes_neon_context, ciph);
 
@@ -1784,13 +1784,13 @@ static FUNC_ISA inline void aes_sdctr_neon(
 
 #define NEON_ENC_DEC(len)                                               \
     static FUNC_ISA void aes##len##_cbc_hw_encrypt(                     \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_cbc_neon_encrypt(ciph, vblk, blklen, aes_neon_##len##_e); }   \
     static FUNC_ISA void aes##len##_cbc_hw_decrypt(                     \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_cbc_neon_decrypt(ciph, vblk, blklen, aes_neon_##len##_d); }   \
     static FUNC_ISA void aes##len##_sdctr_hw(                           \
-        ssh2_cipher *ciph, void *vblk, int blklen)                      \
+        ssh_cipher *ciph, void *vblk, int blklen)                       \
     { aes_sdctr_neon(ciph, vblk, blklen, aes_neon_##len##_e); }         \
 
 NEON_ENC_DEC(128)
@@ -1812,24 +1812,24 @@ bool aes_hw_available(void)
     return false;
 }
 
-static ssh2_cipher *aes_hw_new(const ssh2_cipheralg *alg)
+static ssh_cipher *aes_hw_new(const ssh_cipheralg *alg)
 {
     return NULL;
 }
 
 #define STUB_BODY { unreachable("Should never be called"); }
 
-static void aes_hw_free(ssh2_cipher *ciph) STUB_BODY
-static void aes_hw_setkey(ssh2_cipher *ciph, const void *key) STUB_BODY
-static void aes_hw_setiv_cbc(ssh2_cipher *ciph, const void *iv) STUB_BODY
-static void aes_hw_setiv_sdctr(ssh2_cipher *ciph, const void *iv) STUB_BODY
-#define STUB_ENC_DEC(len)                                               \
-    static void aes##len##_cbc_hw_encrypt(                              \
-        ssh2_cipher *ciph, void *vblk, int blklen) STUB_BODY            \
-    static void aes##len##_cbc_hw_decrypt(                              \
-        ssh2_cipher *ciph, void *vblk, int blklen) STUB_BODY            \
-    static void aes##len##_sdctr_hw(                                    \
-        ssh2_cipher *ciph, void *vblk, int blklen) STUB_BODY
+static void aes_hw_free(ssh_cipher *ciph) STUB_BODY
+static void aes_hw_setkey(ssh_cipher *ciph, const void *key) STUB_BODY
+static void aes_hw_setiv_cbc(ssh_cipher *ciph, const void *iv) STUB_BODY
+static void aes_hw_setiv_sdctr(ssh_cipher *ciph, const void *iv) STUB_BODY
+#define STUB_ENC_DEC(len)                                       \
+    static void aes##len##_cbc_hw_encrypt(                      \
+        ssh_cipher *ciph, void *vblk, int blklen) STUB_BODY     \
+    static void aes##len##_cbc_hw_decrypt(                      \
+        ssh_cipher *ciph, void *vblk, int blklen) STUB_BODY     \
+    static void aes##len##_sdctr_hw(                            \
+        ssh_cipher *ciph, void *vblk, int blklen) STUB_BODY
 
 STUB_ENC_DEC(128)
 STUB_ENC_DEC(192)
@@ -1846,20 +1846,20 @@ void aes256_encrypt_pubkey(const void *key, void *blk, int len)
 {
     char iv[16];
     memset(iv, 0, 16);
-    ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes256_cbc);
-    ssh2_cipher_setkey(cipher, key);
-    ssh2_cipher_setiv(cipher, iv);
-    ssh2_cipher_encrypt(cipher, blk, len);
-    ssh2_cipher_free(cipher);
+    ssh_cipher *cipher = ssh_cipher_new(&ssh_aes256_cbc);
+    ssh_cipher_setkey(cipher, key);
+    ssh_cipher_setiv(cipher, iv);
+    ssh_cipher_encrypt(cipher, blk, len);
+    ssh_cipher_free(cipher);
 }
 
 void aes256_decrypt_pubkey(const void *key, void *blk, int len)
 {
     char iv[16];
     memset(iv, 0, 16);
-    ssh2_cipher *cipher = ssh2_cipher_new(&ssh_aes256_cbc);
-    ssh2_cipher_setkey(cipher, key);
-    ssh2_cipher_setiv(cipher, iv);
-    ssh2_cipher_decrypt(cipher, blk, len);
-    ssh2_cipher_free(cipher);
+    ssh_cipher *cipher = ssh_cipher_new(&ssh_aes256_cbc);
+    ssh_cipher_setkey(cipher, key);
+    ssh_cipher_setiv(cipher, iv);
+    ssh_cipher_decrypt(cipher, blk, len);
+    ssh_cipher_free(cipher);
 }
