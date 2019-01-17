@@ -1064,7 +1064,6 @@ int main(int argc, char **argv)
     }
 
     if (ssh1key) {
-	sfree(ssh1key->comment);
 	freersakey(ssh1key);
     }
     if (ssh2key) {
