@@ -1836,30 +1836,3 @@ STUB_ENC_DEC(192)
 STUB_ENC_DEC(256)
 
 #endif /* HW_AES */
-
-/* ----------------------------------------------------------------------
- * Auxiliary routines for use of AES in other contexts than the main
- * SSH packet protocol.
- */
-
-void aes256_encrypt_pubkey(const void *key, void *blk, int len)
-{
-    char iv[16];
-    memset(iv, 0, 16);
-    ssh_cipher *cipher = ssh_cipher_new(&ssh_aes256_cbc);
-    ssh_cipher_setkey(cipher, key);
-    ssh_cipher_setiv(cipher, iv);
-    ssh_cipher_encrypt(cipher, blk, len);
-    ssh_cipher_free(cipher);
-}
-
-void aes256_decrypt_pubkey(const void *key, void *blk, int len)
-{
-    char iv[16];
-    memset(iv, 0, 16);
-    ssh_cipher *cipher = ssh_cipher_new(&ssh_aes256_cbc);
-    ssh_cipher_setkey(cipher, key);
-    ssh_cipher_setiv(cipher, iv);
-    ssh_cipher_decrypt(cipher, blk, len);
-    ssh_cipher_free(cipher);
-}
