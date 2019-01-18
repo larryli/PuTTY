@@ -816,9 +816,13 @@ static void pty_uxsel_setup(Pty *pty)
 static void copy_ttymodes_into_termios(
     struct termios *attrs, struct ssh_ttymodes modes)
 {
-#define TTYMODE_CHAR(name, ssh_opcode, cc_index) {              \
-        if (modes.have_mode[ssh_opcode])                        \
-            attrs->c_cc[cc_index] = modes.mode_val[ssh_opcode]; \
+#define TTYMODE_CHAR(name, ssh_opcode, cc_index) {                      \
+        if (modes.have_mode[ssh_opcode]) {                              \
+            unsigned value = modes.mode_val[ssh_opcode];                \
+            /* normalise wire value of 255 to local _POSIX_VDISABLE */  \
+            attrs->c_cc[cc_index] = (value == 255 ?                     \
+                                     _POSIX_VDISABLE : value);          \
+        }                                                               \
     }
 
 #define TTYMODE_FLAG(flagval, ssh_opcode, field, flagmask) {    \
