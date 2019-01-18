@@ -1040,30 +1040,97 @@ class crypt(MyTestBase):
         c = unhex('7b112d00c0fc95bc13fcdacfd43281bf'
                   'de9389db1bbcfde79d59a303d41fd2eb'
                   '0955c9477ae4ee3a4d6c1fbe474c0ef6')
-        self.assertEqual(aes256_encrypt_pubkey(k, p), c)
-        self.assertEqual(aes256_decrypt_pubkey(k, c), p)
+        self.assertEqualBin(aes256_encrypt_pubkey(k, p), c)
+        self.assertEqualBin(aes256_decrypt_pubkey(k, c), p)
 
         k = b'3des with keys distinct.'
         iv = b'randomIV'
         c = unhex('be81ff840d885869a54d63b03d7cd8db'
                   'd39ab875e5f7b9da1081f8434cb33c47'
                   'dee5bcd530a3f6c13a9fc73e321a843a')
-        self.assertEqual(des3_encrypt_pubkey_ossh(k, iv, p), c)
-        self.assertEqual(des3_decrypt_pubkey_ossh(k, iv, c), p)
+        self.assertEqualBin(des3_encrypt_pubkey_ossh(k, iv, p), c)
+        self.assertEqualBin(des3_decrypt_pubkey_ossh(k, iv, c), p)
 
         k = b'3des, 2keys only'
         c = unhex('0b845650d73f615cf16ee3ed20535b5c'
                   'd2a8866ee628547bbdad916e2b4b9f19'
                   '67c15bde33c5b03ff7f403b4f8cf2364')
-        self.assertEqual(des3_encrypt_pubkey(k, p), c)
-        self.assertEqual(des3_decrypt_pubkey(k, c), p)
+        self.assertEqualBin(des3_encrypt_pubkey(k, p), c)
+        self.assertEqualBin(des3_decrypt_pubkey(k, c), p)
 
         k = b'7 bytes'
         c = unhex('5cac9999cffc980a1d1184d84b71c8cb'
                   '313d12a1d25a7831179aeb11edaca5ad'
                   '9482b224105a61c27137587620edcba8')
-        self.assertEqual(des_encrypt_xdmauth(k, p), c)
-        self.assertEqual(des_decrypt_xdmauth(k, c), p)
+        self.assertEqualBin(des_encrypt_xdmauth(k, p), c)
+        self.assertEqualBin(des_decrypt_xdmauth(k, c), p)
+
+    def testSSHCiphers(self):
+        # Test all the SSH ciphers we support, on the same principle
+        # as testAuxCryptFns that we should have test cases to verify
+        # that things still work the same today as they did yesterday.
+
+        p = b'64 bytes of test input data, enough to check any cipher mode xyz'
+        k = b'sixty-four bytes of test key data, enough to key any cipher pqrs'
+        iv = b'16 bytes of IV w'
+
+        ciphers = [
+            ("3des_ctr",      24,    8, False, unhex('83c17a29250d3d4fa81250fc0362c54e40456936445b77709a30fccf8b983d57129a969c59070d7c2977f3d25dd7d71163687c7b3cd2edb0d07514e6c77479f5')),
+            ("3des_ssh2",     24,    8, True,  unhex('d5f1cc25b8fbc62decc74b432344de674f7249b2e38871f764411eaae17a1097396bd97b66a1e4d49f08c219acaef2a483198ce837f75cc1ef67b37c2432da3e')),
+            ("3des_ssh1",     24,    8, False, unhex('d5f1cc25b8fbc62de63590b9b92344adf6dd72753273ff0fb32d4dbc6af858529129f34242f3d557eed3a5c84204eb4f868474294964cf70df5d8f45dfccfc45')),
+            ("des",            8,    8, True,  unhex('051524e77fb40e109d9fffeceacf0f28c940e2f8415ddccc117020bdd2612af5036490b12085d0e46129919b8e499f51cb82a4b341d7a1a1ea3e65201ef248f6')),
+            ("aes256_ctr",    32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
+            ("aes256_ctr_hw", 32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
+            ("aes256_ctr_sw", 32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
+            ("aes256",        32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes256_hw",     32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes256_sw",     32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes192_ctr",    24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
+            ("aes192_ctr_hw", 24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
+            ("aes192_ctr_sw", 24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
+            ("aes192",        24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes192_hw",     24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes192_sw",     24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes128_ctr",    16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
+            ("aes128_ctr_hw", 16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
+            ("aes128_ctr_sw", 16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
+            ("aes128",        16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("aes128_hw",     16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("aes128_sw",     16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("blowfish_ctr",  32,    8, False, unhex('079daf0f859363ccf72e975764d709232ec48adc74f88ccd1f342683f0bfa89ca0e8dbfccc8d4d99005d6b61e9cc4e6eaa2fd2a8163271b94bf08ef212129f01')),
+            ("blowfish_ssh2", 16,    8, True,  unhex('e986b7b01f17dfe80ee34cac81fa029b771ec0f859ae21ae3ec3df1674bc4ceb54a184c6c56c17dd2863c3e9c068e76fd9aef5673465995f0d648b0bb848017f')),
+            ("blowfish_ssh1", 32,    8, True,  unhex('d44092a9035d895acf564ba0365d19570fbb4f125d5a4fd2a1812ee6c8a1911a51bb181fbf7d1a261253cab71ee19346eb477b3e7ecf1d95dd941e635c1a4fbf')),
+            ("arcfour256",    32, None, False, unhex('db68db4cd9bbc1d302cce5919ff3181659272f5d38753e464b3122fc69518793fe15dd0fbdd9cd742bd86c5e8a3ae126c17ecc420bd2d5204f1a24874d00fda3')),
+            ("arcfour128",    16, None, False, unhex('fd4af54c5642cb29629e50a15d22e4944e21ffba77d0543b27590eafffe3886686d1aefae0484afc9e67edc0e67eb176bbb5340af1919ea39adfe866d066dd05')),
+        ]
+
+        for alg, keylen, ivlen, simple_cbc, c in ciphers:
+            cipher = ssh_cipher_new(alg)
+
+            ssh_cipher_setkey(cipher, k[:keylen])
+            if ivlen is not None:
+                ssh_cipher_setiv(cipher, iv[:ivlen])
+            self.assertEqualBin(ssh_cipher_encrypt(cipher, p), c)
+
+            ssh_cipher_setkey(cipher, k[:keylen])
+            if ivlen is not None:
+                ssh_cipher_setiv(cipher, iv[:ivlen])
+            self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
+
+            if simple_cbc:
+                # CBC ciphers (other than the three-layered CBC used
+                # by SSH-1 3DES) have more specific semantics for
+                # their IV than 'some kind of starting state for the
+                # cipher mode': the IV is specifically supposed to
+                # represent the previous block of ciphertext. So we
+                # can check that, by supplying the IV _as_ a
+                # ciphertext block via a call to decrypt(), and seeing
+                # if that causes our test ciphertext to decrypt the
+                # same way as when we provided the same IV via
+                # setiv().
+                ssh_cipher_setkey(cipher, k[:keylen])
+                ssh_cipher_decrypt(cipher, iv[:ivlen])
+                self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):
