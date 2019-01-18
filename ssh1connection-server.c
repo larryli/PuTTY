@@ -239,6 +239,15 @@ bool ssh1_handle_direction_specific_packet(
 
         return true;
 
+      case SSH1_CMSG_EXIT_CONFIRMATION:
+        if (!s->sent_exit_status) {
+            ssh_proto_error(s->ppl.ssh, "Received SSH1_CMSG_EXIT_CONFIRMATION"
+                            " without having sent SSH1_SMSG_EXIT_STATUS");
+            return true;
+        }
+        ppl_logevent("Client sent exit confirmation");
+        return true;
+
       default:
         return false;
     }
@@ -301,6 +310,8 @@ static void ssh1sesschan_send_exit_status(SshChannel *sc, int status)
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_EXIT_STATUS);
     put_uint32(pktout, status);
     pq_push(s->ppl.out_pq, pktout);
+
+    s->sent_exit_status = true;
 }
 
 static void ssh1sesschan_send_exit_signal(
