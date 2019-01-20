@@ -1483,15 +1483,14 @@ class standard_test_vectors(MyTestBase):
             '77966b957a878e720584779a62825c18da26415e49a7176a894e7510fd1451f5'))
 
     def testHmacSHA(self):
-        # Test cases from RFC 6234 section 8.5, omitting the ones
-        # which have a long enough key to require hashing it first.
-        # (Our implementation doesn't support that, because it knows
-        # it only has to deal with a fixed key length.)
-        def vector(key, message, s1, s256):
-            self.assertEqualBin(
-                mac_str('hmac_sha1', key, message), unhex(s1))
-            self.assertEqualBin(
-                mac_str('hmac_sha256', key, message), unhex(s256))
+        # Test cases from RFC 6234 section 8.5.
+        def vector(key, message, s1=None, s256=None):
+            if s1 is not None:
+                self.assertEqualBin(
+                    mac_str('hmac_sha1', key, message), unhex(s1))
+            if s256 is not None:
+                self.assertEqualBin(
+                    mac_str('hmac_sha256', key, message), unhex(s256))
         vector(
             unhex("0b"*20), "Hi There",
             "b617318655057264e28bc0b6fb378c8ef146be00",
@@ -1509,6 +1508,26 @@ class standard_test_vectors(MyTestBase):
             unhex("cd"*50),
             "4c9007f4026250c6bc8414f9bf50c86c2d7235da",
             "82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b")
+        vector(
+            unhex("aa"*80),
+            "Test Using Larger Than Block-Size Key - Hash Key First",
+            s1="aa4ae5e15272d00e95705637ce8a3b55ed402112")
+        vector(
+            unhex("aa"*131),
+            "Test Using Larger Than Block-Size Key - Hash Key First",
+            s256="60e431591ee0b67f0d8a26aacbf5b77f"
+            "8e0bc6213728c5140546040f0ee37f54")
+        vector(
+            unhex("aa"*80),
+            "Test Using Larger Than Block-Size Key and "
+            "Larger Than One Block-Size Data",
+            s1="e8e99d0f45237d786d6bbaa7965c7808bbff1a91")
+        vector(
+            unhex("aa"*131),
+            "This is a test using a larger than block-size key and a "
+            "larger than block-size data. The key needs to be hashed "
+            "before being used by the HMAC algorithm.",
+            s256="9B09FFA71B942FCB27635FBCD5B0E944BFDC63644F0713938A7F51535C3A35E2")
 
     def testEd25519(self):
         def vector(privkey, pubkey, message, signature):
