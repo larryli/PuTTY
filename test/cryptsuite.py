@@ -1172,6 +1172,46 @@ class crypt(MyTestBase):
         self.assertEqualBin(data2, expected_data2[:127])
         self.assertEqualBin(data3, expected_data3)
 
+    def testHashPadding(self):
+        # A consistency test for hashes that use MD5/SHA-1/SHA-2 style
+        # padding of the message into a whole number of fixed-size
+        # blocks. We test-hash a message of every length up to twice
+        # the block length, to make sure there's no off-by-1 error in
+        # the code that decides how much padding to put on.
+
+        # Source: generated using Python hashlib as an independent
+        # implementation. The function below will do it, called with
+        # parameters such as (hashlib.sha256,128).
+        #
+        # def gen_testcase(hashclass, maxlen):
+        #    return hashclass(b''.join(hashclass(text[:i]).digest()
+        #             for i in range(maxlen))).hexdigest()
+
+        text = """
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do
+eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad
+minim veniam, quis nostrud exercitation ullamco laboris nisi ut
+aliquip ex ea commodo consequat. Duis aute irure dolor in
+reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla
+pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+culpa qui officia deserunt mollit anim id est laborum.
+        """.replace('\n', ' ').strip()
+
+        def test(hashname, maxlen, expected):
+            assert len(text) >= maxlen
+            buf = b''.join(hash_str(hashname, text[:i])
+                           for i in range(maxlen))
+            self.assertEqualBin(hash_str(hashname, buf), unhex(expected))
+
+        test('md5', 128, '8169d766cc3b8df182b3ce756ae19a15')
+        test('sha1', 128, '3691759577deb3b70f427763a9c15acb9dfc0259')
+        test('sha256', 128, 'ec539c4d678412c86c13ee4eb9452232'
+             '35d4eed3368d876fdf10c9df27396640')
+        test('sha512', 256,
+             'cb725b4b4ec0ac1174d69427b4d97848b7db4fc01181f99a8049a4d721862578'
+             'f91e026778bb2d389a9dd88153405189e6ba438b213c5387284103d2267fd055'
+        )
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):
