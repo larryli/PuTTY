@@ -228,7 +228,6 @@ void pageant_handle_msg(BinarySink *bs,
             ptrlen session_id;
             unsigned response_type;
 	    unsigned char response_md5[16];
-	    struct MD5Context md5c;
 	    int i;
 
             plog(logctx, logfn, "request: SSH1_AGENTC_RSA_CHALLENGE");
@@ -266,11 +265,13 @@ void pageant_handle_msg(BinarySink *bs,
 	    }
 	    response = rsa_ssh1_decrypt(challenge, key);
 
-	    MD5Init(&md5c);
-	    for (i = 0; i < 32; i++)
-		put_byte(&md5c, mp_get_byte(response, 31 - i));
-	    put_datapl(&md5c, session_id);
-	    MD5Final(response_md5, &md5c);
+            {
+                ssh_hash *h = ssh_hash_new(&ssh_md5);
+                for (i = 0; i < 32; i++)
+                    put_byte(h, mp_get_byte(response, 31 - i));
+                put_datapl(h, session_id);
+                ssh_hash_final(h, response_md5);
+            }
 
 	    put_byte(bs, SSH1_AGENT_RSA_RESPONSE);
 	    put_data(bs, response_md5, 16);
