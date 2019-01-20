@@ -992,6 +992,11 @@ static void free_all_values(void)
     freetree234(values);
 }
 
+void dputs(const char *buf)
+{
+    fputs(buf, stderr);
+}
+
 int main(int argc, char **argv)
 {
     const char *infile = NULL, *outfile = NULL;
