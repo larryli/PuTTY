@@ -376,10 +376,14 @@ void hmacmd5_do_hmac(struct hmacmd5_context *ctx,
     ssh2_mac_genresult(&ctx->mac, hmac);
 }
 
+static const char *hmacmd5_text_name(ssh2_mac *mac)
+{
+    return "HMAC-MD5";
+}
+
 const ssh2_macalg ssh_hmac_md5 = {
     hmacmd5_ssh2_new, hmacmd5_ssh2_free, hmacmd5_ssh2_setkey,
-    hmacmd5_start, hmacmd5_genresult,
+    hmacmd5_start, hmacmd5_genresult, hmacmd5_text_name,
     "hmac-md5", "hmac-md5-etm@openssh.com",
     16, 16,
-    "HMAC-MD5"
 };

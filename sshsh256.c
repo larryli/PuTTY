@@ -330,12 +330,16 @@ static void hmacsha256_genresult(ssh2_mac *mac, unsigned char *hmac)
     SHA256_Final(&s, hmac);
 }
 
+static const char *hmacsha256_text_name(ssh2_mac *mac)
+{
+    return "HMAC-SHA-256";
+}
+
 const ssh2_macalg ssh_hmac_sha256 = {
     hmacsha256_new, hmacsha256_free, hmacsha256_key,
-    hmacsha256_start, hmacsha256_genresult,
+    hmacsha256_start, hmacsha256_genresult, hmacsha256_text_name,
     "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
     32, 32,
-    "HMAC-SHA-256"
 };
 
 #ifdef COMPILER_SUPPORTS_SHA_NI

@@ -627,9 +627,9 @@ struct ssh2_macalg {
     void (*setkey)(ssh2_mac *, ptrlen key);
     void (*start)(ssh2_mac *);
     void (*genresult)(ssh2_mac *, unsigned char *);
+    const char *(*text_name)(ssh2_mac *);
     const char *name, *etm_name;
     int len, keylen;
-    const char *text_name;
 };
 
 #define ssh2_mac_new(alg, cipher) ((alg)->new(alg, cipher))
@@ -637,6 +637,7 @@ struct ssh2_macalg {
 #define ssh2_mac_setkey(ctx, key) ((ctx)->vt->setkey(ctx, key))
 #define ssh2_mac_start(ctx) ((ctx)->vt->start(ctx))
 #define ssh2_mac_genresult(ctx, out) ((ctx)->vt->genresult(ctx, out))
+#define ssh2_mac_text_name(ctx) ((ctx)->vt->text_name(ctx))
 #define ssh2_mac_alg(ctx) ((ctx)->vt)
 
 /* Centralised 'methods' for ssh2_mac, defined in sshmac.c. These run

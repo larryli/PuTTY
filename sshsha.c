@@ -375,36 +375,52 @@ void hmac_sha1_simple(const void *key, int keylen,
     SHA_Final(&states[1], output);
 }
 
+static const char *hmacsha1_text_name(ssh2_mac *mac)
+{
+    return "HMAC-SHA1";
+}
+
+static const char *hmacsha196_text_name(ssh2_mac *mac)
+{
+    return "HMAC-SHA1-96";
+}
+
+static const char *hmacsha1bug_text_name(ssh2_mac *mac)
+{
+    return "bug-compatible HMAC-SHA1";
+}
+
+static const char *hmacsha196bug_text_name(ssh2_mac *mac)
+{
+    return "bug-compatible HMAC-SHA1-96";
+}
+
 const ssh2_macalg ssh_hmac_sha1 = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult,
+    hmacsha1_start, hmacsha1_genresult, hmacsha1_text_name,
     "hmac-sha1", "hmac-sha1-etm@openssh.com",
     20, 20,
-    "HMAC-SHA1"
 };
 
 const ssh2_macalg ssh_hmac_sha1_96 = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult,
+    hmacsha1_start, hmacsha1_genresult, hmacsha196_text_name,
     "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
     12, 20,
-    "HMAC-SHA1-96"
 };
 
 const ssh2_macalg ssh_hmac_sha1_buggy = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult,
+    hmacsha1_start, hmacsha1_genresult, hmacsha1bug_text_name,
     "hmac-sha1", NULL,
     20, 16,
-    "bug-compatible HMAC-SHA1"
 };
 
 const ssh2_macalg ssh_hmac_sha1_96_buggy = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult,
+    hmacsha1_start, hmacsha1_genresult, hmacsha196bug_text_name,
     "hmac-sha1-96", NULL,
     12, 16,
-    "bug-compatible HMAC-SHA1-96"
 };
 
 #ifdef COMPILER_SUPPORTS_SHA_NI
