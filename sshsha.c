@@ -375,52 +375,51 @@ void hmac_sha1_simple(const void *key, int keylen,
     SHA_Final(&states[1], output);
 }
 
+struct hmacsha1_extra {
+    const char *textname;
+};
+
 static const char *hmacsha1_text_name(ssh2_mac *mac)
 {
-    return "HMAC-SHA1";
+    const struct hmacsha1_extra *extra =
+        (const struct hmacsha1_extra *)mac->vt->extra;
+    return extra->textname;
 }
 
-static const char *hmacsha196_text_name(ssh2_mac *mac)
-{
-    return "HMAC-SHA1-96";
-}
-
-static const char *hmacsha1bug_text_name(ssh2_mac *mac)
-{
-    return "bug-compatible HMAC-SHA1";
-}
-
-static const char *hmacsha196bug_text_name(ssh2_mac *mac)
-{
-    return "bug-compatible HMAC-SHA1-96";
-}
-
+const struct hmacsha1_extra ssh_hmac_sha1_extra = { "HMAC-SHA1" };
 const ssh2_macalg ssh_hmac_sha1 = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
     hmacsha1_start, hmacsha1_genresult, hmacsha1_text_name,
     "hmac-sha1", "hmac-sha1-etm@openssh.com",
-    20, 20,
+    20, 20, &ssh_hmac_sha1_extra,
 };
 
+const struct hmacsha1_extra ssh_hmac_sha1_96_extra = { "HMAC-SHA1-96" };
 const ssh2_macalg ssh_hmac_sha1_96 = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult, hmacsha196_text_name,
+    hmacsha1_start, hmacsha1_genresult, hmacsha1_text_name,
     "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
-    12, 20,
+    12, 20, &ssh_hmac_sha1_96_extra,
 };
 
+const struct hmacsha1_extra ssh_hmac_sha1_buggy_extra = {
+    "bug-compatible HMAC-SHA1",
+};
 const ssh2_macalg ssh_hmac_sha1_buggy = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult, hmacsha1bug_text_name,
+    hmacsha1_start, hmacsha1_genresult, hmacsha1_text_name,
     "hmac-sha1", NULL,
-    20, 16,
+    20, 16, &ssh_hmac_sha1_buggy_extra,
 };
 
+const struct hmacsha1_extra ssh_hmac_sha1_96_buggy_extra = {
+    "bug-compatible HMAC-SHA1-96",
+};
 const ssh2_macalg ssh_hmac_sha1_96_buggy = {
     hmacsha1_new, hmacsha1_free, hmacsha1_key,
-    hmacsha1_start, hmacsha1_genresult, hmacsha196bug_text_name,
+    hmacsha1_start, hmacsha1_genresult, hmacsha1_text_name,
     "hmac-sha1-96", NULL,
-    12, 16,
+    12, 16, &ssh_hmac_sha1_96_buggy_extra,
 };
 
 #ifdef COMPILER_SUPPORTS_SHA_NI

@@ -630,6 +630,9 @@ struct ssh2_macalg {
     const char *(*text_name)(ssh2_mac *);
     const char *name, *etm_name;
     int len, keylen;
+
+    /* Pointer to any extra data used by a particular implementation. */
+    const void *extra;
 };
 
 #define ssh2_mac_new(alg, cipher) ((alg)->new(alg, cipher))
