@@ -252,7 +252,7 @@ static void sha256_final(ssh_hash *hash, unsigned char *output)
 }
 
 const ssh_hashalg ssh_sha256 = {
-    sha256_new, sha256_copy, sha256_final, sha256_free, 32, "SHA-256"
+    sha256_new, sha256_copy, sha256_final, sha256_free, 32, 64, "SHA-256"
 };
 
 #ifdef COMPILER_SUPPORTS_SHA_NI

@@ -14,7 +14,6 @@ struct hmac {
 
 struct hmac_extra {
     const ssh_hashalg *hashalg;
-    size_t blklen;
     const char *suffix;
 };
 
@@ -22,6 +21,15 @@ static ssh2_mac *hmac_new(const ssh2_macalg *alg, ssh_cipher *cipher)
 {
     struct hmac *ctx = snew(struct hmac);
     const struct hmac_extra *extra = (const struct hmac_extra *)alg->extra;
+
+    /*
+     * HMAC is not well defined as a wrapper on an absolutely general
+     * hash function; it expects that the function it's wrapping will
+     * consume data in fixed-size blocks, and it's partially defined
+     * in terms of that block size. So we insist that the hash we're
+     * given must have defined a meaningful block size.
+     */
+    assert(extra->hashalg->blocklen);
 
     ctx->h_outer = ctx->h_inner = ctx->h_live = NULL;
     ctx->digest = snewn(extra->hashalg->hlen, uint8_t);
@@ -67,7 +75,7 @@ static void hmac_key(ssh2_mac *mac, ptrlen key)
     size_t klen;
     strbuf *sb = NULL;
 
-    if (key.len > extra->blklen) {
+    if (key.len > extra->hashalg->blocklen) {
         /*
          * RFC 2104 section 2: if the key exceeds the block length of
          * the underlying hash, then we start by hashing the key, and
@@ -98,13 +106,13 @@ static void hmac_key(ssh2_mac *mac, ptrlen key)
     ctx->h_outer = ssh_hash_new(extra->hashalg);
     for (size_t i = 0; i < klen; i++)
         put_byte(ctx->h_outer, PAD_OUTER ^ kp[i]);
-    for (size_t i = klen; i < extra->blklen; i++)
+    for (size_t i = klen; i < extra->hashalg->blocklen; i++)
         put_byte(ctx->h_outer, PAD_OUTER);
 
     ctx->h_inner = ssh_hash_new(extra->hashalg);
     for (size_t i = 0; i < klen; i++)
         put_byte(ctx->h_inner, PAD_INNER ^ kp[i]);
-    for (size_t i = klen; i < extra->blklen; i++)
+    for (size_t i = klen; i < extra->hashalg->blocklen; i++)
         put_byte(ctx->h_inner, PAD_INNER);
 
     if (sb)
@@ -153,7 +161,7 @@ static const char *hmac_text_name(ssh2_mac *mac)
     return ctx->text_name->s;
 }
 
-const struct hmac_extra ssh_hmac_sha256_extra = { &ssh_sha256, 64, "" };
+const struct hmac_extra ssh_hmac_sha256_extra = { &ssh_sha256, "" };
 const ssh2_macalg ssh_hmac_sha256 = {
     hmac_new, hmac_free, hmac_key,
     hmac_start, hmac_genresult, hmac_text_name,
@@ -161,7 +169,7 @@ const ssh2_macalg ssh_hmac_sha256 = {
     32, 32, &ssh_hmac_sha256_extra,
 };
 
-const struct hmac_extra ssh_hmac_md5_extra = { &ssh_md5, 64, "" };
+const struct hmac_extra ssh_hmac_md5_extra = { &ssh_md5, "" };
 const ssh2_macalg ssh_hmac_md5 = {
     hmac_new, hmac_free, hmac_key,
     hmac_start, hmac_genresult, hmac_text_name,
@@ -169,7 +177,7 @@ const ssh2_macalg ssh_hmac_md5 = {
     16, 16, &ssh_hmac_md5_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_extra = { &ssh_sha1, 64, "" };
+const struct hmac_extra ssh_hmac_sha1_extra = { &ssh_sha1, "" };
 
 const ssh2_macalg ssh_hmac_sha1 = {
     hmac_new, hmac_free, hmac_key,
@@ -178,7 +186,7 @@ const ssh2_macalg ssh_hmac_sha1 = {
     20, 20, &ssh_hmac_sha1_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_96_extra = { &ssh_sha1, 64, "-96" };
+const struct hmac_extra ssh_hmac_sha1_96_extra = { &ssh_sha1, "-96" };
 
 const ssh2_macalg ssh_hmac_sha1_96 = {
     hmac_new, hmac_free, hmac_key,
@@ -188,7 +196,7 @@ const ssh2_macalg ssh_hmac_sha1_96 = {
 };
 
 const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
-    &ssh_sha1, 64, " (bug-compatible)"
+    &ssh_sha1, " (bug-compatible)"
 };
 
 const ssh2_macalg ssh_hmac_sha1_buggy = {
@@ -199,7 +207,7 @@ const ssh2_macalg ssh_hmac_sha1_buggy = {
 };
 
 const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
-    &ssh_sha1, 64, "-96 (bug-compatible)"
+    &ssh_sha1, "-96 (bug-compatible)"
 };
 
 const ssh2_macalg ssh_hmac_sha1_96_buggy = {

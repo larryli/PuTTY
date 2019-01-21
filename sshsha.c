@@ -281,7 +281,7 @@ static void sha1_final(ssh_hash *hash, unsigned char *output)
 }
 
 const ssh_hashalg ssh_sha1 = {
-    sha1_new, sha1_copy, sha1_final, sha1_free, 20, "SHA-1"
+    sha1_new, sha1_copy, sha1_final, sha1_free, 20, 64, "SHA-1"
 };
 
 #ifdef COMPILER_SUPPORTS_SHA_NI

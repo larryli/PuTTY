@@ -665,6 +665,7 @@ struct ssh_hashalg {
     void (*final)(ssh_hash *, unsigned char *); /* ALSO FREES THE ssh_hash! */
     void (*free)(ssh_hash *);
     int hlen; /* output length in bytes */
+    int blocklen; /* length of the hash's input block, or 0 for N/A */
     const char *text_name;
 };
 
