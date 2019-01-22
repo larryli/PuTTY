@@ -15,7 +15,7 @@ const bool dup_check_launchable = false; /* no need to check host name
 const bool use_pty_argv = true;
 
 /* gtkwin.c will call this, and in pterm it's not needed */
-void noise_ultralight(unsigned long data) { }
+void noise_ultralight(NoiseSourceId id, unsigned long data) { }
 
 const struct BackendVtable *select_backend(Conf *conf)
 {

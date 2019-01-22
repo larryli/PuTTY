@@ -987,7 +987,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     bool generated_something = false;
     char num_keypad_key = '\0';
 
-    noise_ultralight(event->keyval);
+    noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
 
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)
@@ -2059,7 +2059,7 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    noise_ultralight(event->button);
+    noise_ultralight(NOISE_SOURCE_MOUSEBUTTON, event->button);
 
     show_mouseptr(inst, true);
 
@@ -2187,7 +2187,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
-    noise_ultralight(((uint32_t)event->x << 16) | (uint32_t)event->y);
+    noise_ultralight(NOISE_SOURCE_MOUSEPOS,
+                     ((uint32_t)event->x << 16) | (uint32_t)event->y);
 
     show_mouseptr(inst, true);
 

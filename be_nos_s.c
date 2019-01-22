@@ -29,6 +29,6 @@ void random_destroy_seed(void)
 {
 }
 
-void noise_ultralight(unsigned long data)
+void noise_ultralight(NoiseSourceId id, unsigned long data)
 {
 }

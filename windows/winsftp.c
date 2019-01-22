@@ -578,8 +578,7 @@ int do_eventsel_loop(HANDLE other_event)
 		};
 		int e;
 
-		noise_ultralight(socket);
-		noise_ultralight(things.lNetworkEvents);
+		noise_ultralight(NOISE_SOURCE_IOID, socket);
 
 		for (e = 0; e < lenof(eventtypes); e++)
 		    if (things.lNetworkEvents & eventtypes[e].mask) {

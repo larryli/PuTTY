@@ -1121,7 +1121,7 @@ void try_send(NetSocket *s)
 	    bufchain_prefix(&s->output_data, &data, &len);
 	}
 	nsent = send(s->s, data, len, urgentflag);
-	noise_ultralight(nsent);
+	noise_ultralight(NOISE_SOURCE_IOLEN, nsent);
 	if (nsent <= 0) {
 	    err = (nsent < 0 ? errno : 0);
 	    if (err == EWOULDBLOCK) {
@@ -1275,7 +1275,7 @@ static void net_select_result(int fd, int event)
     if (!s)
 	return;		       /* boggle */
 
-    noise_ultralight(event);
+    noise_ultralight(NOISE_SOURCE_IOID, fd);
 
     switch (event) {
       case 4:			       /* exceptional */
@@ -1287,7 +1287,7 @@ static void net_select_result(int fd, int event)
 	     * type==2 (urgent data).
 	     */
 	    ret = recv(s->s, buf, sizeof(buf), MSG_OOB);
-	    noise_ultralight(ret);
+	    noise_ultralight(NOISE_SOURCE_IOLEN, ret);
 	    if (ret <= 0) {
                 plug_closing(s->plug,
 			     ret == 0 ? "Internal networking trouble" :
@@ -1370,7 +1370,7 @@ static void net_select_result(int fd, int event)
 	    atmark = true;
 
 	ret = recv(s->s, buf, s->oobpending ? 1 : sizeof(buf), 0);
-	noise_ultralight(ret);
+	noise_ultralight(NOISE_SOURCE_IOLEN, ret);
 	if (ret < 0) {
 	    if (errno == EWOULDBLOCK) {
 		break;

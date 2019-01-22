@@ -220,7 +220,7 @@ int stdin_gotdata(struct handle *h, void *data, int len)
 	fprintf(stderr, "Unable to read from standard input: %s\n", buf);
 	cleanup_exit(0);
     }
-    noise_ultralight(len);
+    noise_ultralight(NOISE_SOURCE_IOLEN, len);
     if (backend_connected(backend)) {
 	if (len > 0) {
             return backend_send(backend, data, len);
@@ -574,8 +574,7 @@ int main(int argc, char **argv)
                     };
                     int e;
 
-		    noise_ultralight(socket);
-		    noise_ultralight(things.lNetworkEvents);
+		    noise_ultralight(NOISE_SOURCE_IOID, socket);
 
                     for (e = 0; e < lenof(eventtypes); e++)
                         if (things.lNetworkEvents & eventtypes[e].mask) {

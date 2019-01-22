@@ -2696,7 +2696,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * Add the mouse position and message time to the random
 	 * number noise.
 	 */
-	noise_ultralight(lParam);
+	noise_ultralight(NOISE_SOURCE_MOUSEPOS, lParam);
 
 	if (wParam & (MK_LBUTTON | MK_MBUTTON | MK_RBUTTON) &&
 	    GetCapture() == hwnd) {
@@ -2724,7 +2724,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		last_mousemove = WM_NCMOUSEMOVE;
 	    }
 	}
-	noise_ultralight(lParam);
+	noise_ultralight(NOISE_SOURCE_MOUSEPOS, lParam);
 	break;
       case WM_IGNORE_CLIP:
 	ignore_clip = wParam;	       /* don't panic on DESTROYCLIPBOARD */
@@ -3179,7 +3179,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	 * Add the scan code and keypress timing to the random
 	 * number noise.
 	 */
-	noise_ultralight(lParam);
+	noise_ultralight(NOISE_SOURCE_KEY, lParam);
 
 	/*
 	 * We don't do TranslateMessage since it disassociates the
