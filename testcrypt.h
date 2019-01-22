@@ -204,6 +204,18 @@ FUNC3(void, rsa_ssh1_public_blob, out_val_string_binarysink, val_rsa, rsaorder)
 FUNC1(int, rsa_ssh1_public_blob_len, val_string_ptrlen)
 
 /*
+ * The PRNG type. Similarly to hashes and MACs, I've invented an extra
+ * function prng_seed_update for putting seed data into the PRNG's
+ * exposed BinarySink.
+ */
+FUNC1(val_prng, prng_new, hashalg)
+FUNC1(void, prng_seed_begin, val_prng)
+FUNC2(void, prng_seed_update, val_prng, val_string_ptrlen)
+FUNC1(void, prng_seed_finish, val_prng)
+FUNC2(val_string, prng_read, val_prng, uint)
+FUNC3(void, prng_add_entropy, val_prng, uint, val_string_ptrlen)
+
+/*
  * Miscellaneous.
  */
 FUNC2(val_wpoint, ecdsa_public, val_mpint, keyalg)

@@ -1132,6 +1132,46 @@ class crypt(MyTestBase):
                 ssh_cipher_decrypt(cipher, iv[:ivlen])
                 self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
 
+    def testPRNG(self):
+        hashalg = 'sha256'
+        seed = b"hello, world"
+        entropy = b'1234567890' * 100
+        rev = lambda s: b''.join(reversed(s))
+
+        # Replicate the generation of some random numbers. to ensure
+        # they really are the hashes of what they're supposed to be.
+        pr = prng_new(hashalg)
+        prng_seed_begin(pr)
+        prng_seed_update(pr, seed)
+        prng_seed_finish(pr)
+        data1 = prng_read(pr, 128)
+        data2 = prng_read(pr, 127) # a short read shouldn't confuse things
+        prng_add_entropy(pr, 0, entropy) # forces a reseed
+        data3 = prng_read(pr, 128)
+
+        key1 = hash_str(hashalg, b'R' + seed)
+        expected_data1 = ''.join(
+            rev(hash_str(hashalg, key1 + b'G' + ssh2_mpint(counter)))
+            for counter in range(4))
+        # After prng_read finishes, we expect the PRNG to have
+        # automatically reseeded itself, so that if its internal state
+        # is revealed then the previous output can't be reconstructed.
+        key2 = hash_str(hashalg, key1 + b'R')
+        expected_data2 = ''.join(
+            rev(hash_str(hashalg, key2 + b'G' + ssh2_mpint(counter)))
+            for counter in range(4,8))
+        # There will have been another reseed after the second
+        # prng_read, and then another due to the entropy.
+        key3 = hash_str(hashalg, key2 + b'R')
+        key4 = hash_str(hashalg, key3 + b'R' + hash_str(hashalg, entropy))
+        expected_data3 = ''.join(
+            rev(hash_str(hashalg, key4 + b'G' + ssh2_mpint(counter)))
+            for counter in range(8,12))
+
+        self.assertEqualBin(data1, expected_data1)
+        self.assertEqualBin(data2, expected_data2[:127])
+        self.assertEqualBin(data3, expected_data3)
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):

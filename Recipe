@@ -255,7 +255,7 @@ SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512
 	 + sshrsa sshdss sshecc
          + sshdes sshblowf sshaes sshccp ssharcf
          + sshdh sshcrc sshcrcda sshauxcrypt
-         + sshhmac
+         + sshhmac sshprng
 SSHCOMMON = sshcommon sshrand SSHCRYPTO
          + sshverstring
          + sshpubk sshzlib
@@ -339,7 +339,7 @@ pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 puttygen : [G] winpgen sshrsag sshdssg sshprime sshdes ARITH sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
-         + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc
+         + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc sshprng
          + sshecdsag sshauxcrypt sshhmac winsecur winmiscs
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
@@ -355,7 +355,7 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11 noterm uxnogtk sessprep cmdline
 
-PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes ARITH sshmd5 version
+PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming CONF sshecc sshecdsag uxnogtk sshauxcrypt sshhmac

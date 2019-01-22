@@ -1044,7 +1044,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		/*
 		 * Seed the entropy pool
 		 */
-		random_add_heavynoise(state->entropy, state->entropy_size);
+                random_reseed(
+                    make_ptrlen(state->entropy, state->entropy_size));
 		smemclr(state->entropy, state->entropy_size);
 		sfree(state->entropy);
 		state->collecting_entropy = false;
@@ -1172,8 +1173,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                      * CryptGenRandom, just do that, and go straight
                      * to the key-generation phase.
                      */
-                    random_add_heavynoise(raw_entropy_buf,
-                                          raw_entropy_required);
+                    random_reseed(
+                        make_ptrlen(raw_entropy_buf, raw_entropy_required));
                     start_generating_key(hwnd, state);
                 } else {
                     /*
@@ -1583,7 +1584,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	}
     }
 
-    random_ref();
+    random_setup_special();
     ret = DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;
 
     cleanup_exit(ret);

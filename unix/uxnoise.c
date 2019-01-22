@@ -82,7 +82,6 @@ void noise_get_heavy(void (*func) (void *, int))
     }
 
     read_random_seed(func);
-    random_save_seed();
 }
 
 void random_save_seed(void)
@@ -95,17 +94,6 @@ void random_save_seed(void)
 	write_random_seed(data, len);
 	sfree(data);
     }
-}
-
-/*
- * This function is called every time the random pool needs
- * stirring, and will acquire the system time.
- */
-void noise_get_light(void (*func) (void *, int))
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    func(&tv, sizeof(tv));
 }
 
 /*
@@ -144,4 +132,11 @@ void noise_ultralight(NoiseSourceId id, unsigned long data)
     gettimeofday(&tv, NULL);
     random_add_noise(NOISE_SOURCE_TIME, &tv, sizeof(tv));
     random_add_noise(id, &data, sizeof(data));
+}
+
+uint64_t prng_reseed_time_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }

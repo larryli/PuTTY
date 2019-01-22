@@ -55,6 +55,12 @@ void random_read(void *buf, size_t size)
         fatal_error("No random data in queue");
 }
 
+uint64_t prng_reseed_time_ms(void)
+{
+    static uint64_t previous_time = 0;
+    return previous_time += 200;
+}
+
 #define VALUE_TYPES(X)                                                  \
     X(string, strbuf *, strbuf_free(v))                                 \
     X(mpint, mp_int *, mp_free(v))                                      \
@@ -74,6 +80,7 @@ void random_read(void *buf, size_t size)
     X(ecdh, ecdh_key *, ssh_ecdhkex_freekey(v))                         \
     X(rsakex, RSAKey *, ssh_rsakex_freekey(v))                          \
     X(rsa, RSAKey *, rsa_free(v))                                       \
+    X(prng, prng *, prng_free(v))                                       \
     /* end of list */
 
 typedef struct Value Value;
@@ -852,6 +859,19 @@ strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
     return sb;
 }
 #define aes256_decrypt_pubkey aes256_decrypt_pubkey_wrapper
+
+strbuf *prng_read_wrapper(prng *pr, size_t size)
+{
+    strbuf *sb = strbuf_new();
+    prng_read(pr, strbuf_append(sb, size), size);
+    return sb;
+}
+#define prng_read prng_read_wrapper
+
+void prng_seed_update(prng *pr, ptrlen data)
+{
+    put_datapl(pr, data);
+}
 
 bool crcda_detect(ptrlen packet, ptrlen iv)
 {
