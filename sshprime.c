@@ -387,7 +387,9 @@ void invent_firstbits(unsigned *one, unsigned *two)
      * i.e. the ones we actually invented.
      */
     do {
-        *one = 0x100 | random_byte();
-        *two = 0x100 | random_byte();
+        uint8_t bytes[2];
+        random_read(bytes, 2);
+        *one = 0x100 | bytes[0];
+        *two = 0x100 | bytes[1];
     } while (*one * *two < 0x20000);
 }

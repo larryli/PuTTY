@@ -49,13 +49,10 @@ static NORETURN void fatal_error(const char *p, ...)
 void out_of_memory(void) { fatal_error("out of memory"); }
 
 static bufchain random_data_queue;
-int random_byte(void)
+void random_read(void *buf, size_t size)
 {
-    unsigned char u;
-    if (bufchain_try_fetch_consume(&random_data_queue, &u, 1))
-        return u;
-    fatal_error("No random data in queue");
-    return 0;
+    if (!bufchain_try_fetch_consume(&random_data_queue, buf, size))
+        fatal_error("No random data in queue");
 }
 
 #define VALUE_TYPES(X)                                                  \

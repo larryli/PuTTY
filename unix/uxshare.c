@@ -116,9 +116,7 @@ static char *make_dirname(const char *pi_name, char **logtext)
             /*
              * Invent some random data.
              */
-            for (i = 0; i < SALT_SIZE; i++) {
-                saltbuf[i] = random_byte();
-            }
+            random_read(saltbuf, SALT_SIZE);
             ret = write(saltfd, saltbuf, SALT_SIZE);
             /* POSIX atomicity guarantee: because we wrote less than
              * PIPE_BUF bytes, the write either completed in full or

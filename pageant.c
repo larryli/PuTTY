@@ -21,11 +21,9 @@
  * won't generate true random numbers. So we must scream, panic,
  * and exit immediately if that should happen.
  */
-int random_byte(void)
+void random_read(void *buf, size_t size)
 {
     modalfatalbox("Internal error: attempt to use random numbers in Pageant");
-    exit(0);
-    return 0;                 /* unreachable, but placate optimiser */
 }
 
 static bool pageant_local = false;

@@ -1674,7 +1674,7 @@ void luni_send(Ldisc *, const wchar_t * widebuf, int len, bool interactive);
  */
 
 void random_add_noise(void *noise, int length);
-int random_byte(void);
+void random_read(void *buf, size_t size);
 void random_get_savedata(void **data, int *len);
 extern int random_active;
 /* The random number subsystem is activated if at least one other entity

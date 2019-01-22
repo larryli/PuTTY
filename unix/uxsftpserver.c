@@ -58,7 +58,6 @@ static int uss_dirhandle_cmp(void *av, void *bv)
 
 static SftpServer *uss_new(const SftpServerVtable *vt)
 {
-    int i;
     UnixSftpServer *uss = snew(UnixSftpServer);
 
     memset(uss, 0, sizeof(UnixSftpServer));
@@ -66,8 +65,7 @@ static SftpServer *uss_new(const SftpServerVtable *vt)
     uss->dirhandles = newtree234(uss_dirhandle_cmp);
     uss->srv.vt = vt;
 
-    for (i = 0; i < lenof(uss->handlekey); i++)
-        uss->handlekey[i] = random_byte();
+    random_read(uss->handlekey, sizeof(uss->handlekey));
 
     return &uss->srv;
 }

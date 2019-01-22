@@ -158,8 +158,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     if (s->ap_methods & AUTHMETHOD_CRYPTOCARD)
         s->supported_auths_mask |= (1U << SSH1_AUTH_CCARD);
 
-    for (i = 0; i < 8; i++)
-        s->cookie[i] = random_byte();
+    random_read(s->cookie, 8);
 
     pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_PUBLIC_KEY);
     put_data(pktout, s->cookie, 8);
@@ -307,8 +306,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 unsigned char *rsabuf =
                     snewn(s->authkey->bytes, unsigned char);
 
-                for (i = 0; i < 32; i++)
-                    rsabuf[i] = random_byte();
+                random_read(rsabuf, 32);
 
                 {
                     ssh_hash *h = ssh_hash_new(&ssh_md5);
