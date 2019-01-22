@@ -958,6 +958,7 @@ int main(int argc, char **argv)
 
             if (backend_connected(backend)) {
 		ret = read(STDIN_FILENO, buf, sizeof(buf));
+                noise_ultralight(ret);
 		if (ret < 0) {
 		    perror("stdin: read");
 		    exit(1);

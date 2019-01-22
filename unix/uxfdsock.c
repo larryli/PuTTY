@@ -167,6 +167,7 @@ static int fdsocket_try_send(FdSocket *fds)
 
 	bufchain_prefix(&fds->pending_output_data, &data, &len);
 	ret = write(fds->outfd, data, len);
+        noise_ultralight(ret);
 	if (ret < 0 && errno != EWOULDBLOCK) {
             if (!fds->pending_error) {
                 fds->pending_error = errno;

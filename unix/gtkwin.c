@@ -987,6 +987,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     bool generated_something = false;
     char num_keypad_key = '\0';
 
+    noise_ultralight(event->keyval);
+
 #ifdef OSX_META_KEY_CONFIG
     if (event->state & inst->system_mod_mask)
         return false;                  /* let GTK process OS X Command key */
@@ -2057,6 +2059,8 @@ static gboolean button_internal(GtkFrontend *inst, GdkEventButton *event)
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
 
+    noise_ultralight(event->button);
+
     show_mouseptr(inst, true);
 
     shift = event->state & GDK_SHIFT_MASK;
@@ -2182,6 +2186,8 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
+
+    noise_ultralight(((uint32_t)event->x << 16) | (uint32_t)event->y);
 
     show_mouseptr(inst, true);
 

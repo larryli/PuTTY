@@ -114,6 +114,9 @@ int first_fd(int *state, int *rwx)
 void select_result(int fd, int event)
 {
     struct fd *fdstruct = find234(fds, &fd, uxsel_fd_findcmp);
+
+    noise_ultralight(fd);
+
     /*
      * Apparently this can sometimes be NULL. Can't see how, but I
      * assume it means I need to ignore the event since it's on an
