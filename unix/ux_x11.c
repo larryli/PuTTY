@@ -128,7 +128,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
     if (!tmpdir || !*tmpdir)
         tmpdir = "/tmp";
 
-    authfilename = dupcat(tmpdir, "/", progname, "-Xauthority-XXXXXX");
+    authfilename = dupcat(tmpdir, "/", progname, "-Xauthority-XXXXXX", NULL);
 
     {
         int oldumask = umask(077);
