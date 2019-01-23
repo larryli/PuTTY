@@ -185,7 +185,11 @@ static const ssh_hashalg *get_hashalg(BinarySource *in)
     } algs[] = {
         {"md5", &ssh_md5},
         {"sha1", &ssh_sha1},
+        {"sha1_sw", &ssh_sha1_sw},
+        {"sha1_hw", &ssh_sha1_hw},
         {"sha256", &ssh_sha256},
+        {"sha256_sw", &ssh_sha256_sw},
+        {"sha256_hw", &ssh_sha256_hw},
         {"sha384", &ssh_sha384},
         {"sha512", &ssh_sha512},
     };
@@ -508,6 +512,14 @@ static void return_opt_val_cipher(strbuf *out, ssh_cipher *c)
         strbuf_catf(out, "NULL\n");
     else
         return_val_cipher(out, c);
+}
+
+static void return_opt_val_hash(strbuf *out, ssh_hash *h)
+{
+    if (!h)
+        strbuf_catf(out, "NULL\n");
+    else
+        return_val_hash(out, h);
 }
 
 static void handle_hello(BinarySource *in, strbuf *out)
