@@ -283,4 +283,14 @@ bool platform_aes_hw_available(void)
     return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
 }
 
+bool platform_sha256_hw_available(void)
+{
+    return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
+bool platform_sha1_hw_available(void)
+{
+    return IsProcessorFeaturePresent(PF_ARM_V8_CRYPTO_INSTRUCTIONS_AVAILABLE);
+}
+
 #endif

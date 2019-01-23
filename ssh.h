@@ -856,6 +856,8 @@ extern const ssh_compression_alg ssh_zlib;
  * platform subdirectory.
  */
 bool platform_aes_hw_available(void);
+bool platform_sha256_hw_available(void);
+bool platform_sha1_hw_available(void);
 
 /*
  * PuTTY version number formatted as an SSH version string. 
