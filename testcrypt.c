@@ -508,7 +508,7 @@ static void return_opt_val_cipher(strbuf *out, ssh_cipher *c)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
-    strbuf_catf(out, "hello, world");
+    strbuf_catf(out, "hello, world\n");
 }
 
 static void rsa_free(RSAKey *rsa)
