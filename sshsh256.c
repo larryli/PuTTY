@@ -99,7 +99,7 @@ static ssh_hash *sha256_select(const ssh_hashalg *alg)
 
 const ssh_hashalg ssh_sha256 = {
     sha256_select, NULL, NULL, NULL,
-    32, 64, "SHA-256",
+    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "dummy selector vtable"),
 };
 
 /* ----------------------------------------------------------------------
@@ -327,7 +327,7 @@ static void sha256_sw_final(ssh_hash *hash, uint8_t *digest)
 
 const ssh_hashalg ssh_sha256_sw = {
     sha256_sw_new, sha256_sw_copy, sha256_sw_final, sha256_sw_free,
-    32, 64, "SHA-256",
+    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "unaccelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -684,7 +684,7 @@ FUNC_ISA static void sha256_ni_final(ssh_hash *hash, uint8_t *digest)
 
 const ssh_hashalg ssh_sha256_hw = {
     sha256_ni_new, sha256_ni_copy, sha256_ni_final, sha256_ni_free,
-    32, 64, "SHA-256",
+    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "SHA-NI accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -871,7 +871,7 @@ static void sha256_neon_final(ssh_hash *hash, uint8_t *digest)
 
 const ssh_hashalg ssh_sha256_hw = {
     sha256_neon_new, sha256_neon_copy, sha256_neon_final, sha256_neon_free,
-    32, 64, "SHA-256",
+    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "NEON accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -902,7 +902,8 @@ static void sha256_stub_final(ssh_hash *hash, uint8_t *digest) STUB_BODY
 
 const ssh_hashalg ssh_sha256_hw = {
     sha256_stub_new, sha256_stub_copy, sha256_stub_final, sha256_stub_free,
-    32, 64, "SHA-256",
+    32, 64, HASHALG_NAMES_ANNOTATED(
+        "SHA-256", "!NONEXISTENT ACCELERATED VERSION!"),
 };
 
 #endif /* HW_SHA256 */

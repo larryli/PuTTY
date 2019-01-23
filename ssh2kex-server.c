@@ -119,7 +119,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
         }
 
         ppl_logevent("Doing Diffie-Hellman key exchange with hash %s",
-                     s->kex_alg->hash->text_name);
+                     ssh_hash_alg(s->exhash)->text_name);
 
         /*
          * Generate e for Diffie-Hellman.
@@ -187,7 +187,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
     } else if (s->kex_alg->main_type == KEXTYPE_ECDH) {
         ppl_logevent("Doing ECDH key exchange with curve %s and hash %s",
                      ssh_ecdhkex_curve_textname(s->kex_alg),
-                     s->kex_alg->hash->text_name);
+                     ssh_hash_alg(s->exhash)->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_ECDHKEX;
 
         s->ecdh_key = ssh_ecdhkex_newkey(s->kex_alg);
@@ -240,7 +240,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
     } else {
         assert(s->kex_alg->main_type == KEXTYPE_RSA);
         ppl_logevent("Doing RSA key exchange with hash %s",
-                     s->kex_alg->hash->text_name);
+                     ssh_hash_alg(s->exhash)->text_name);
         s->ppl.bpp->pls->kctx = SSH2_PKTCTX_RSAKEX;
 
         {
