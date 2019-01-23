@@ -1136,7 +1136,7 @@ class crypt(MyTestBase):
         hashalg = 'sha256'
         seed = b"hello, world"
         entropy = b'1234567890' * 100
-        rev = lambda s: b''.join(reversed(s))
+        rev = lambda s: valbytes(reversed(bytevals(s)))
 
         # Replicate the generation of some random numbers. to ensure
         # they really are the hashes of what they're supposed to be.
@@ -1150,21 +1150,21 @@ class crypt(MyTestBase):
         data3 = prng_read(pr, 128)
 
         key1 = hash_str(hashalg, b'R' + seed)
-        expected_data1 = ''.join(
+        expected_data1 = b''.join(
             rev(hash_str(hashalg, key1 + b'G' + ssh2_mpint(counter)))
             for counter in range(4))
         # After prng_read finishes, we expect the PRNG to have
         # automatically reseeded itself, so that if its internal state
         # is revealed then the previous output can't be reconstructed.
         key2 = hash_str(hashalg, key1 + b'R')
-        expected_data2 = ''.join(
+        expected_data2 = b''.join(
             rev(hash_str(hashalg, key2 + b'G' + ssh2_mpint(counter)))
             for counter in range(4,8))
         # There will have been another reseed after the second
         # prng_read, and then another due to the entropy.
         key3 = hash_str(hashalg, key2 + b'R')
         key4 = hash_str(hashalg, key3 + b'R' + hash_str(hashalg, entropy))
-        expected_data3 = ''.join(
+        expected_data3 = b''.join(
             rev(hash_str(hashalg, key4 + b'G' + ssh2_mpint(counter)))
             for counter in range(8,12))
 

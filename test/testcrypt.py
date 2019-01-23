@@ -3,6 +3,7 @@ import os
 import numbers
 import subprocess
 import re
+import struct
 from binascii import hexlify
 
 # Expect to be run from the 'test' subdirectory, one level down from
@@ -15,20 +16,11 @@ def unicode_to_bytes(arg):
         arg = arg.encode("UTF-8")
     return arg
 
-# Another pair of P2/P3 compatibility shims, to give a stream of
-# integers corresponding to the byte values in a bytes object, and to
-# take an integer and return a bytes object containing a byte with
-# that value.
-if b'A'[0] != b'A':
-    def bytevals(arg):
-        return arg # in P3 this is a no-op
-    def byte2str(arg):
-        return bytes([arg])
-else:
-    def bytevals(arg):
-        return map(ord, arg) # in P2 you have to use ord()
-    def byte2str(arg):
-        return chr(arg)
+def bytevals(b):
+    return struct.unpack("{:d}B".format(len(b)), b)
+def valbytes(b):
+    b = list(b)
+    return struct.pack("{:d}B".format(len(b)), *b)
 
 class ChildProcess(object):
     def __init__(self):
@@ -140,14 +132,14 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
 
 def make_retval(rettype, word, unpack_strings):
     if rettype.startswith("opt_"):
-        if word == "NULL":
+        if word == b"NULL":
             return None
         rettype = rettype[4:]
     if rettype == "val_string" and unpack_strings:
         retwords = childprocess.funcall("getstring", [word])
         childprocess.funcall("free", [word])
         return re.sub(b"%[0-9A-F][0-9A-F]",
-                      lambda m: byte2str(int(m.group(0)[1:], 16)),
+                      lambda m: valbytes([int(m.group(0)[1:], 16)]),
                       retwords[0])
     if rettype.startswith("val_"):
         return Value(rettype, word)
