@@ -201,8 +201,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
   out:
     if (a_tcp)
         sk_addr_free(a_tcp);
-    if (a_unix)
-        sk_addr_free(a_unix);
+    /* a_unix doesn't need freeing, because new_unix_listener took it over */
     sfree(authfilename);
     strbuf_free(authfiledata);
     sfree(unix_path);
