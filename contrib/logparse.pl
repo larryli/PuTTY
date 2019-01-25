@@ -1032,7 +1032,7 @@ my ($direction, $seq, $ourseq, $type, $data, $recording);
 my %ourseqs = ('i'=>0, 'o'=>0);
 
 $recording = 0;
-while (<>) {
+while (<<>>) {
     if ($recording) {
         if (/^  [0-9a-fA-F]{8}  ((?:[0-9a-fA-F]{2} )*[0-9a-fA-F]{2})/) {
             push @$data, map { $_ eq "XX" ? -1 : hex $_ } split / /, $1;

@@ -19,7 +19,7 @@
 use strict;
 use warnings;
 
-while (<>) {
+while (<<>>) {
     if (/^  ([0-9a-f]{8})  ((?:[0-9a-f]{2} ){0,15}(?:[0-9a-f]{2}))/) {
         my $addr = $1;
         my $hex = $2;
@@ -36,7 +36,7 @@ while (<>) {
         if ($old_line ne $new_line and
             $old_line eq substr($new_line, 0, length($old_line))) {
             print "$new_line\n";
-            <>; # eat the subsequent wrapped line
+            <<>>; # eat the subsequent wrapped line
             next;
         }
     }
