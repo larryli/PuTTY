@@ -1106,6 +1106,8 @@ class crypt(MyTestBase):
 
         for alg, keylen, ivlen, simple_cbc, c in ciphers:
             cipher = ssh_cipher_new(alg)
+            if cipher is None:
+                continue # hardware-accelerated cipher not available
 
             ssh_cipher_setkey(cipher, k[:keylen])
             if ivlen is not None:
