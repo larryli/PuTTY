@@ -138,6 +138,14 @@ libversion_a_CFLAGS += -DSOURCE_COMMIT=\"`git --git-dir=$(srcdir)/.git rev-parse
 empty.h: $(allsources)
 	echo '/* Empty file touched by automake makefile to force rebuild of version.o */' >$@
 endif
+
+# Run the cryptsuite tests as part of 'make check'. Override
+# PUTTY_TESTCRYPT so that cryptsuite will take the testcrypt binary
+# from the build directory instead of the source directory, in case
+# this is an out-of-tree build.
+check-local: testcrypt
+	PUTTY_TESTCRYPT=./testcrypt $(srcdir)/test/cryptsuite.py
+
 !end
 !begin >empty.h
 /* Empty file touched by automake makefile to force rebuild of version.o */
