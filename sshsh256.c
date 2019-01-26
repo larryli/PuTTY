@@ -22,8 +22,7 @@
 #       define HW_SHA256 HW_SHA256_NI
 #   endif
 #elif defined(__GNUC__)
-#    if (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)) && \
-    (defined(__x86_64__) || defined(__i386))
+#    if (__GNUC__ >= 5) && (defined(__x86_64__) || defined(__i386))
 #       define HW_SHA256 HW_SHA256_NI
 #    endif
 #elif defined (_MSC_VER)
@@ -339,13 +338,12 @@ const ssh_hashalg ssh_sha256_sw = {
 /*
  * Set target architecture for Clang and GCC
  */
-#if !defined(__clang__) && defined(__GNUC__)
+#if defined(__clang__) || defined(__GNUC__)
+#    define FUNC_ISA __attribute__ ((target("sse4.1,sha")))
+#if !defined(__clang__)
 #    pragma GCC target("sha")
 #    pragma GCC target("sse4.1")
 #endif
-
-#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))
-#    define FUNC_ISA __attribute__ ((target("sse4.1,sha")))
 #else
 #    define FUNC_ISA
 #endif
