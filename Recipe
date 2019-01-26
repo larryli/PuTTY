@@ -64,9 +64,7 @@
 #
 #  - COMPAT=/DNO_HTMLHELP (Windows only)
 #      Disables PuTTY's use of <htmlhelp.h>, which is not available
-#      with some development environments. The resulting binary
-#      will only look for an old-style WinHelp file (.HLP/.CNT), and
-#      will ignore any .CHM file.
+#      with some development environments.
 #
 #      If you don't have this header, you may be able to use the copy
 #      supplied with HTML Help Workshop.
@@ -333,11 +331,11 @@ U_BE_NOSSH = be_nos_s uxser nocproxy
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
 plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
-         + winx11 plink.res winnojmp sessprep noterm LIBS
+         + winx11 plink.res winnojmp sessprep noterm winnohlp LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp LIBS
+         + pscp.res winnojmp winnohlp LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp LIBS
+         + psftp.res winnojmp winnohlp LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256

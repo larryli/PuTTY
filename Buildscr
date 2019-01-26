@@ -168,34 +168,31 @@ in putty/icons do make -j$(nproc)
 in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 180 \( -size 329x312 canvas:white \) +append \( icons/putty-48.png -geometry +28+24 \) -composite \( icons/pscp-48.png -geometry +88+96 \) -composite \( icons/puttygen-48.png -geometry +28+168 \) -composite \( icons/pageant-48.png -geometry +88+240 \) -composite windows/msidialog.bmp
 in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
 
-# Build the standard binaries, in both 32- and 64-bit flavours.
+mkdir putty/windows/build32
+mkdir putty/windows/build64
+mkdir putty/windows/buildold
+mkdir putty/windows/abuild32
+mkdir putty/windows/abuild64
+
+# Build the binaries to go in the installer, in both 32- and 64-bit
+# flavours.
 #
 # For the 32-bit ones, we set a subsystem version of 5.01, which
 # allows the resulting files to still run on Windows XP.
-in putty/windows with clangcl32 do mkdir build32 && Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
-in putty/windows with clangcl64 do mkdir build64 && Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl32 do Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl64 do Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ $(Makeargs) all -j$(nproc)
 
 # Build experimental Arm Windows binaries.
-in putty/windows with clangcl_a32 do mkdir abuild32 && Platform=arm make -f Makefile.clangcl BUILDDIR=abuild32/ SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
-in putty/windows with clangcl_a64 do mkdir abuild64 && Platform=arm64 make -f Makefile.clangcl BUILDDIR=abuild64/ $(Makeargs) all -j$(nproc)
-
-# Build the 'old' binaries, which should still run on all 32-bit
-# versions of Windows back to Win95 (but not Win32s). These link
-# against Visual Studio 2003 libraries (the more modern versions
-# assume excessively modern Win32 API calls to be available), specify
-# a subsystem version of 4.0, and compile with /arch:IA32 to prevent
-# the use of modern CPU features like MMX which older machines also
-# might not have.
-in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj EXTRA_libs=libcpmt.lib XFLAGS=/arch:IA32 all -j$(nproc)
+in putty/windows with clangcl_a32 do Platform=arm make -f Makefile.clangcl BUILDDIR=abuild32/ SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl_a64 do Platform=arm64 make -f Makefile.clangcl BUILDDIR=abuild64/ $(Makeargs) all -j$(nproc)
 
 # Remove Windows binaries for the test programs we don't want to ship,
-# like testbn.exe. (But we still _built_ them, to ensure the build
+# like testcrypt.exe. (But we still _built_ them, to ensure the build
 # worked.)
 in putty/windows do make -f Makefile.clangcl BUILDDIR=build32/ cleantestprogs
 in putty/windows do make -f Makefile.clangcl BUILDDIR=build64/ cleantestprogs
 in putty/windows do make -f Makefile.clangcl BUILDDIR=abuild32/ cleantestprogs
 in putty/windows do make -f Makefile.clangcl BUILDDIR=abuild64/ cleantestprogs
-in putty/windows do make -f Makefile.clangcl BUILDDIR=buildold/ cleantestprogs
 
 # Code-sign the Windows binaries, if the local bob config provides a
 # script to do so in a cross-compiling way. We assume here that the
@@ -219,6 +216,42 @@ in putty/windows do ./msiplatform.py installera64.msi Arm64
 
 # Sign the Windows installers.
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi installera32.msi installera64.msi
+
+# Delete the binaries and resource files from the build directories,
+# so that we can rebuild them differently.
+in putty/windows/build32 do rm -f *.exe *.res *.rcpp
+in putty/windows/build64 do rm -f *.exe *.res *.rcpp
+in putty/windows/abuild32 do rm -f *.exe *.res *.rcpp
+in putty/windows/abuild64 do rm -f *.exe *.res *.rcpp
+
+# Build the standalone binaries, in both 32- and 64-bit flavours.
+# These differ from the previous set in that they embed the help file.
+in putty/windows with clangcl32 do Platform=x86 make -f Makefile.clangcl BUILDDIR=build32/ RCFL=-DEMBED_CHM SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl64 do Platform=x64 make -f Makefile.clangcl BUILDDIR=build64/ RCFL=-DEMBED_CHM $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl_a32 do Platform=arm make -f Makefile.clangcl BUILDDIR=abuild32/ RCFL=-DEMBED_CHM SUBSYSVER=,5.01 $(Makeargs) all -j$(nproc)
+in putty/windows with clangcl_a64 do Platform=arm64 make -f Makefile.clangcl BUILDDIR=abuild64/ RCFL=-DEMBED_CHM $(Makeargs) all -j$(nproc)
+
+# Build the 'old' binaries, which should still run on all 32-bit
+# versions of Windows back to Win95 (but not Win32s). These link
+# against Visual Studio 2003 libraries (the more modern versions
+# assume excessively modern Win32 API calls to be available), specify
+# a subsystem version of 4.0, and compile with /arch:IA32 to prevent
+# the use of modern CPU features like MMX which older machines also
+# might not have.
+#
+# There's no installer to go with these, so they must also embed the
+# help file.
+in putty/windows with clangcl32_2003 do Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ RCFL=-DEMBED_CHM $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj EXTRA_libs=libcpmt.lib XFLAGS=/arch:IA32 all -j$(nproc)
+
+# Remove test programs again.
+in putty/windows do make -f Makefile.clangcl BUILDDIR=build32/ cleantestprogs
+in putty/windows do make -f Makefile.clangcl BUILDDIR=build64/ cleantestprogs
+in putty/windows do make -f Makefile.clangcl BUILDDIR=abuild32/ cleantestprogs
+in putty/windows do make -f Makefile.clangcl BUILDDIR=abuild64/ cleantestprogs
+in putty/windows do make -f Makefile.clangcl BUILDDIR=buildold/ cleantestprogs
+
+# Code-sign the standalone versions of the binaries.
+ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -N -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ build*/*.exe abuild*/*.exe
 
 in putty/doc do make mostlyclean
 in putty/doc do make $(Docmakever) -j$(nproc)

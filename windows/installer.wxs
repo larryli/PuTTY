@@ -243,7 +243,11 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
                         Name="PuTTY Manual"
                         Advertise="no" />
             </File>
+            <RegistryValue Root="HKLM"
+                           Key="$(var.RegKeyPathLocation)\CHMPath"
+                           Type="string" Value="[#HelpFile_File]"/>
           </Component>
+
           <Component Id="Website_Component"
                      Guid="$(var.Website_Component_GUID)">
             <File Id="Website_File"

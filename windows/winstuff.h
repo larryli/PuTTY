@@ -228,6 +228,7 @@ void shutdown_help(void);
 bool has_help(void);
 void launch_help(HWND hwnd, const char *topic);
 void quit_help(HWND hwnd);
+int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
 
 /*
  * The terminal and logging context are notionally local to the
@@ -699,5 +700,8 @@ char *get_jumplist_registry_entries(void);
 #define CLIPUI_DEFAULT_AUTOCOPY true
 #define CLIPUI_DEFAULT_MOUSE CLIPUI_EXPLICIT
 #define CLIPUI_DEFAULT_INS CLIPUI_EXPLICIT
+
+/* In winmisc.c */
+char *registry_get_string(HKEY root, const char *path, const char *leaf);
 
 #endif

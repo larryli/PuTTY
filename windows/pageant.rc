@@ -7,6 +7,8 @@
 #define APPNAME "Pageant"
 #define APPDESC "PuTTY SSH authentication agent"
 
+#include "winhelp.rc2"
+
 200 ICON "pageant.ico"
 201 ICON "pageants.ico"
 

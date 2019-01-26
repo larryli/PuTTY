@@ -29,4 +29,7 @@
 #define IDC_HELPBTN     1005
 #define IDC_ABOUT       1006
 
+#define ID_CUSTOM_CHMFILE 2000
+#define TYPE_CUSTOM_CHMFILE 2000
+
 #endif
