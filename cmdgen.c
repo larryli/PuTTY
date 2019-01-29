@@ -817,6 +817,7 @@ int main(int argc, char **argv)
                         bits = -1;
                 } else {
                     strbuf_free(ssh2blob);
+                    ssh2blob = NULL;
                 }
                 sfree(ssh2alg);
 	    } else {
