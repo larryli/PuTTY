@@ -155,6 +155,7 @@ class mpint(MyTestBase):
         decstr = '91596559417721901505460351493238411077414937428167'
         self.assertEqual(int(mp_from_decimal_pl(decstr)), int(decstr, 10))
         self.assertEqual(int(mp_from_decimal(decstr)), int(decstr, 10))
+        self.assertEqual(int(mp_from_decimal("")), 0)
         # For hex, test both upper and lower case digits
         hexstr = 'ea7cb89f409ae845215822e37D32D0C63EC43E1381C2FF8094'
         self.assertEqual(int(mp_from_hex_pl(hexstr)), int(hexstr, 16))

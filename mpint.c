@@ -186,7 +186,7 @@ mp_int *mp_from_decimal_pl(ptrlen decimal)
     size_t words = bits / BIGNUM_INT_BITS + 1;
 
     mp_int *x = mp_make_sized(words);
-    for (size_t i = 0;; i++) {
+    for (size_t i = 0; i < decimal.len; i++) {
         mp_add_integer_into(x, x, ((char *)decimal.ptr)[i] - '0');
 
         if (i+1 == decimal.len)
