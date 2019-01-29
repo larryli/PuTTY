@@ -575,6 +575,8 @@ if (defined $makefiles{'clangcl'}) {
         $extradeps = $forceobj{$d->{obj_orig}} ? ["*.c","*.h","*.rc"] : [];
         my $rule;
         my @deps = @{$d->{deps}};
+        my @incdeps = grep { m!\.rc2?$! } @deps;
+        my @rcdeps = grep { ! m!\.rc2$! } @deps;
         if ($d->{obj} =~ /\.res$/) {
             my $rc = $deps[0];
             my $rcpp = $rc;
@@ -582,14 +584,15 @@ if (defined $makefiles{'clangcl'}) {
             $rcpp =~ s/\.rc$/.rcpp/;
             $rcpp = "\$(BUILDDIR)" . $rcpp;
             $rule = "\$(RC) ".$rcpp." /FO ".$d->{obj};
-            $rc_pp_rules .= "$rcpp: $rc\n" .
+            $rc_pp_rules .= &splitline(
+                sprintf("%s: %s", $rcpp, join " ", @incdeps)) ."\n" .
                 "\t\$(RCPREPROC) \$(RCPPFLAGS) /Fi\$\@ \$<\n\n";
-            $deps[0] = $rcpp;
+            $rcdeps[0] = $rcpp;
 	} else {
             $rule = "\$(CC) /Fo\$(BUILDDIR) \$(COMPAT) \$(CFLAGS) \$(XFLAGS) /c \$<";
         }
         print &splitline(sprintf("%s: %s", $d->{obj},
-                                 join " ", @$extradeps, @deps)), "\n";
+                                 join " ", @$extradeps, @rcdeps)), "\n";
         print "\t" . $rule . "\n\n";
     }
     print "\n" . $rc_pp_rules;
