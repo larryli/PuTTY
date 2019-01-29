@@ -159,6 +159,7 @@ class mpint(MyTestBase):
         hexstr = 'ea7cb89f409ae845215822e37D32D0C63EC43E1381C2FF8094'
         self.assertEqual(int(mp_from_hex_pl(hexstr)), int(hexstr, 16))
         self.assertEqual(int(mp_from_hex(hexstr)), int(hexstr, 16))
+        self.assertEqual(int(mp_from_hex("")), 0)
         p2 = mp_power_2(123)
         self.assertEqual(int(p2), 1 << 123)
         p2c = mp_copy(p2)
@@ -319,7 +320,7 @@ class mpint(MyTestBase):
                 diff = mp_sub(am, bm)
                 self.assertEqual(int(diff), (ai - bi) & mp_mask(diff))
 
-                for bits in range(0, 512, 64):
+                for bits in range(64, 512, 64):
                     cm = mp_new(bits)
                     mp_add_into(cm, am, bm)
                     self.assertEqual(int(cm), (ai + bi) & mp_mask(cm))
@@ -357,8 +358,8 @@ class mpint(MyTestBase):
                     if r >= d:
                         continue # silly cases with tiny divisors
                     n = q*d + r
-                    mq = mp_new(nbits(q))
-                    mr = mp_new(nbits(r))
+                    mq = mp_new(max(nbits(q), 1))
+                    mr = mp_new(max(nbits(r), 1))
                     mp_divmod_into(n, d, mq, mr)
                     self.assertEqual(int(mq), q)
                     self.assertEqual(int(mr), r)
