@@ -1022,6 +1022,7 @@ static void sk_net_close(Socket *sock)
     }
     if (s->addr)
         sk_addr_free(s->addr);
+    delete_callbacks_for_context(s);
     sfree(s);
 }
 
