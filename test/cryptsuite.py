@@ -252,11 +252,16 @@ class mpint(MyTestBase):
                     self.assertEqual(mp_eq_integer(am, bi) == 1, ai == bi)
                     self.assertEqual(mp_hs_integer(am, bi) == 1, ai >= bi)
 
-                # mp_min{,_into} is a reasonable thing to test here as well
+                # mp_{min,max}{,_into} is a reasonable thing to test
+                # here as well
                 self.assertEqual(int(mp_min(am, bm)), min(ai, bi))
-                am2 = mp_copy(am)
-                mp_min_into(am2, am, bm)
-                self.assertEqual(int(am2), min(ai, bi))
+                self.assertEqual(int(mp_max(am, bm)), max(ai, bi))
+                am_small = mp_copy(am if ai<bi else bm)
+                mp_min_into(am_small, am, bm)
+                self.assertEqual(int(am_small), min(ai, bi))
+                am_big = mp_copy(am if ai>bi else bm)
+                mp_max_into(am_big, am, bm)
+                self.assertEqual(int(am_big), max(ai, bi))
 
     def testConditionals(self):
         testnumbers = [(mp_copy(n),n) for n in fibonacci_scattered()]

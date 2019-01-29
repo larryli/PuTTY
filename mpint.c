@@ -2109,10 +2109,22 @@ void mp_min_into(mp_int *r, mp_int *x, mp_int *y)
     mp_select_into(r, x, y, mp_cmp_hs(x, y));
 }
 
+void mp_max_into(mp_int *r, mp_int *x, mp_int *y)
+{
+    mp_select_into(r, y, x, mp_cmp_hs(x, y));
+}
+
 mp_int *mp_min(mp_int *x, mp_int *y)
 {
     mp_int *r = mp_make_sized(size_t_min(x->nw, y->nw));
     mp_min_into(r, x, y);
+    return r;
+}
+
+mp_int *mp_max(mp_int *x, mp_int *y)
+{
+    mp_int *r = mp_make_sized(size_t_max(x->nw, y->nw));
+    mp_max_into(r, x, y);
     return r;
 }
 
