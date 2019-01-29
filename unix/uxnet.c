@@ -195,7 +195,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     struct hostent *h = NULL;
     int n;
 #endif
-    strbuf *realhost;
+    strbuf *realhost = strbuf_new();
 
     /* Clear the structure and default to IPv4. */
     memset(ret, 0, sizeof(SockAddr));
@@ -225,7 +225,6 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     }
     ret->superfamily = IP;
 
-    realhost = strbuf_new();
     if (ret->ais->ai_canonname != NULL)
 	strbuf_catf(realhost, "%s", ret->ais->ai_canonname);
     else
