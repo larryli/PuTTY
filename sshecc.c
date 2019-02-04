@@ -567,14 +567,13 @@ static ssh_key *ecdsa_new_pub(const ssh_keyalg *alg, ptrlen data)
     struct ecdsa_key *ek = snew(struct ecdsa_key);
     ek->sshk.vt = alg;
     ek->curve = curve;
+    ek->privateKey = NULL;
 
     ek->publicKey = get_wpoint(src, curve);
     if (!ek->publicKey) {
         ecdsa_freekey(&ek->sshk);
         return NULL;
     }
-
-    ek->privateKey = NULL;
 
     return &ek->sshk;
 }
@@ -742,6 +741,7 @@ static ssh_key *eddsa_new_priv_openssh(
     struct eddsa_key *ek = snew(struct eddsa_key);
     ek->sshk.vt = alg;
     ek->curve = curve;
+    ek->privateKey = NULL;
 
     ek->publicKey = eddsa_decode(pubkey_pl, curve);
     if (!ek->publicKey) {
@@ -793,6 +793,7 @@ static ssh_key *ecdsa_new_priv_openssh(
     struct eddsa_key *ek = snew(struct eddsa_key);
     ek->sshk.vt = alg;
     ek->curve = curve;
+    ek->privateKey = NULL;
 
     ek->publicKey = get_epoint(src, curve);
     if (!ek->publicKey) {
