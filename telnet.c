@@ -508,16 +508,7 @@ static void process_subneg(Telnet *telnet)
 
 static void do_telnet_read(Telnet *telnet, char *buf, int len)
 {
-    char *outbuf = NULL;
-    int outbuflen = 0, outbufsize = 0;
-
-#define ADDTOBUF(c) do { \
-    if (outbuflen >= outbufsize) { \
-	outbufsize = outbuflen + 256; \
-        outbuf = sresize(outbuf, outbufsize, char); \
-    } \
-    outbuf[outbuflen++] = (c); \
-} while (0)
+    strbuf *outbuf = strbuf_new();
 
     while (len--) {
 	int c = (unsigned char) *buf++;
@@ -531,7 +522,7 @@ static void do_telnet_read(Telnet *telnet, char *buf, int len)
 		telnet->state = SEENIAC;
 	    else {
 		if (!telnet->in_synch)
-		    ADDTOBUF(c);
+		    put_byte(outbuf, c);
 
 #if 1
 		/* I can't get the F***ing winsock to insert the urgent IAC
@@ -568,7 +559,7 @@ static void do_telnet_read(Telnet *telnet, char *buf, int len)
 	    } else {
 		/* ignore everything else; print it if it's IAC */
 		if (c == IAC) {
-		    ADDTOBUF(c);
+		    put_byte(outbuf, c);
 		}
 		telnet->state = TOP_LEVEL;
 	    }
@@ -617,11 +608,16 @@ static void do_telnet_read(Telnet *telnet, char *buf, int len)
 	    }
 	    break;
 	}
+
+        if (outbuf->len >= 4096) {
+            c_write(telnet, outbuf->u, outbuf->len);
+            outbuf->len = 0;
+        }
     }
 
-    if (outbuflen)
-	c_write(telnet, outbuf, outbuflen);
-    sfree(outbuf);
+    if (outbuf->len)
+	c_write(telnet, outbuf->u, outbuf->len);
+    strbuf_free(outbuf);
 }
 
 static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
