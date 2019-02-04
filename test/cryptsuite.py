@@ -473,6 +473,10 @@ class mpint(MyTestBase):
         b, e, m = 0x2B5B93812F253FF91F56B3B4DAD01CA2884B6A80719B0DA4E2159A230C6009EDA97C5C8FD4636B324F9594706EE3AD444831571BA5E17B1B2DFA92DEA8B7E, 0x25, 0xC8FCFD0FD7371F4FE8D0150EFC124E220581569587CCD8E50423FA8D41E0B2A0127E100E92501E5EE3228D12EA422A568C17E0AD2E5C5FCC2AE9159D2B7FB8CB
         assert(int(mp_modpow(b, e, m)) == pow(b, e, m))
 
+        # Make sure mp_modpow can handle a base larger than the
+        # modulus, by pre-reducing it
+        assert(int(mp_modpow(1<<877, 907, 999979)) == pow(2, 877*907, 999979))
+
     def testModsqrt(self):
         moduli = [
             5, 19, 2**16+1, 2**31-1, 2**128-159, 2**255-19,

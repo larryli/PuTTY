@@ -1373,21 +1373,19 @@ mp_int *monty_invert(MontyContext *mc, mp_int *x)
 
 /*
  * Importing a number into Montgomery representation involves
- * multiplying it by r and reducing mod m. We could do this using the
- * straightforward mp_modmul, but since we have the machinery to avoid
- * division, why don't we use it? If we multiply the number not by r
- * itself, but by the residue of r^2 mod m, then we can do an actual
- * Montgomery reduction to reduce the result and remove the extra
- * factor of r.
+ * multiplying it by r and reducing mod m. We use the general-purpose
+ * mp_modmul for this, in case the input number is out of range.
  */
-void monty_import_into(MontyContext *mc, mp_int *r, mp_int *x)
-{
-    monty_mul_into(mc, r, x, mc->powers_of_r_mod_m[1]);
-}
-
 mp_int *monty_import(MontyContext *mc, mp_int *x)
 {
-    return monty_mul(mc, x, mc->powers_of_r_mod_m[1]);
+    return mp_modmul(x, mc->powers_of_r_mod_m[0], mc->m);
+}
+
+void monty_import_into(MontyContext *mc, mp_int *r, mp_int *x)
+{
+    mp_int *imported = monty_import(mc, x);
+    mp_copy_into(r, imported);
+    mp_free(imported);
 }
 
 /*
@@ -1450,7 +1448,6 @@ mp_int *monty_pow(MontyContext *mc, mp_int *base, mp_int *exponent)
 
 mp_int *mp_modpow(mp_int *base, mp_int *exponent, mp_int *modulus)
 {
-    assert(base->nw <= modulus->nw);
     assert(modulus->nw > 0);
     assert(modulus->w[0] & 1);
 
