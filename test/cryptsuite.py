@@ -809,21 +809,21 @@ class crypt(MyTestBase):
         afd5932172270940b01014b5b7fb8495946151520a126518946b44ea32f9b2a9
         ''')
 
-        vector('aes128', key[:16], iv, plaintext, unhex('''
+        vector('aes128_cbc', key[:16], iv, plaintext, unhex('''
         547ee90514cb6406d5bb00855c8092892c58299646edda0b4e7c044247795c8d
         3c3eb3d91332e401215d4d528b94a691969d27b7890d1ae42fe3421b91c989d5
         113fefa908921a573526259c6b4f8e4d90ea888e1d8b7747457ba3a43b5b79b9
         34873ebf21102d14b51836709ee85ed590b7ca618a1e884f5c57c8ea73fe3d0d
         6bf8c082dd602732bde28131159ed0b6e9cf67c353ffdd010a5a634815aaa963'''))
 
-        vector('aes192', key[:24], iv, plaintext, unhex('''
+        vector('aes192_cbc', key[:24], iv, plaintext, unhex('''
         e3dee5122edd3fec5fab95e7db8c784c0cb617103e2a406fba4ae3b4508dd608
         4ff5723a670316cc91ed86e413c11b35557c56a6f5a7a2c660fc6ee603d73814
         73a287645be0f297cdda97aef6c51faeb2392fec9d33adb65138d60f954babd9
         8ee0daab0d1decaa8d1e07007c4a3c7b726948025f9fb72dd7de41f74f2f36b4
         23ac6a5b4b6b39682ec74f57d9d300e547f3c3e467b77f5e4009923b2f94c903'''))
 
-        vector('aes256', key[:32], iv, plaintext, unhex('''
+        vector('aes256_cbc', key[:32], iv, plaintext, unhex('''
         088c6d4d41997bea79c408925255266f6c32c03ea465a5f607c2f076ec98e725
         7e0beed79609b3577c16ebdf17d7a63f8865278e72e859e2367de81b3b1fe9ab
         8f045e1d008388a3cfc4ff87daffedbb47807260489ad48566dbe73256ce9dd4
@@ -874,7 +874,7 @@ class crypt(MyTestBase):
             sdctr = ssh_cipher_new("aes{}_ctr_{}".format(keylen, suffix))
             if sdctr is None: return # skip test if HW AES not available
             ssh_cipher_setkey(sdctr, key)
-            cbc = ssh_cipher_new("aes{}_{}".format(keylen, suffix))
+            cbc = ssh_cipher_new("aes{}_cbc_{}".format(keylen, suffix))
             ssh_cipher_setkey(cbc, key)
 
             ssh_cipher_setiv(sdctr, iv)
@@ -929,7 +929,7 @@ class crypt(MyTestBase):
             decryptions = []
 
             for suffix in "hw", "sw":
-                c = ssh_cipher_new("aes{:d}_{}".format(keylen, suffix))
+                c = ssh_cipher_new("aes{:d}_cbc_{}".format(keylen, suffix))
                 if c is None: continue
                 ssh_cipher_setkey(c, test_key[:keylen//8])
                 for chunklen in range(16, 16*12, 16):
@@ -1085,25 +1085,25 @@ class crypt(MyTestBase):
             ("3des_ctr",      24,    8, False, unhex('83c17a29250d3d4fa81250fc0362c54e40456936445b77709a30fccf8b983d57129a969c59070d7c2977f3d25dd7d71163687c7b3cd2edb0d07514e6c77479f5')),
             ("3des_ssh2",     24,    8, True,  unhex('d5f1cc25b8fbc62decc74b432344de674f7249b2e38871f764411eaae17a1097396bd97b66a1e4d49f08c219acaef2a483198ce837f75cc1ef67b37c2432da3e')),
             ("3des_ssh1",     24,    8, False, unhex('d5f1cc25b8fbc62de63590b9b92344adf6dd72753273ff0fb32d4dbc6af858529129f34242f3d557eed3a5c84204eb4f868474294964cf70df5d8f45dfccfc45')),
-            ("des",            8,    8, True,  unhex('051524e77fb40e109d9fffeceacf0f28c940e2f8415ddccc117020bdd2612af5036490b12085d0e46129919b8e499f51cb82a4b341d7a1a1ea3e65201ef248f6')),
+            ("des_cbc",        8,    8, True,  unhex('051524e77fb40e109d9fffeceacf0f28c940e2f8415ddccc117020bdd2612af5036490b12085d0e46129919b8e499f51cb82a4b341d7a1a1ea3e65201ef248f6')),
             ("aes256_ctr",    32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
             ("aes256_ctr_hw", 32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
             ("aes256_ctr_sw", 32,   16, False, unhex('b87b35e819f60f0f398a37b05d7bcf0b04ad4ebe570bd08e8bfa8606bafb0db2cfcd82baf2ccceae5de1a3c1ae08a8b8fdd884fdc5092031ea8ce53333e62976')),
-            ("aes256",        32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
-            ("aes256_hw",     32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
-            ("aes256_sw",     32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes256_cbc",    32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes256_cbc_hw", 32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
+            ("aes256_cbc_sw", 32,   16, True,  unhex('381cbb2fbcc48118d0094540242bd990dd6af5b9a9890edd013d5cad2d904f34b9261c623a452f32ea60e5402919a77165df12862742f1059f8c4a862f0827c5')),
             ("aes192_ctr",    24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
             ("aes192_ctr_hw", 24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
             ("aes192_ctr_sw", 24,   16, False, unhex('06bcfa7ccf075d723e12b724695a571a0fad67c56287ea609c410ac12749c51bb96e27fa7e1c7ea3b14792bbbb8856efb0617ebec24a8e4a87340d820cf347b8')),
-            ("aes192",        24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
-            ("aes192_hw",     24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
-            ("aes192_sw",     24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes192_cbc",    24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes192_cbc_hw", 24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
+            ("aes192_cbc_sw", 24,   16, True,  unhex('ac97f8698170f9c05341214bd7624d5d2efef8311596163dc597d9fe6c868971bd7557389974612cbf49ea4e7cc6cc302d4cc90519478dd88a4f09b530c141f3')),
             ("aes128_ctr",    16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
             ("aes128_ctr_hw", 16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
             ("aes128_ctr_sw", 16,   16, False, unhex('0ad4ddfd2360ec59d77dcb9a981f92109437c68c5e7f02f92017d9f424f89ab7850473ac0e19274125e740f252c84ad1f6ad138b6020a03bdaba2f3a7378ce1e')),
-            ("aes128",        16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
-            ("aes128_hw",     16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
-            ("aes128_sw",     16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("aes128_cbc",    16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("aes128_cbc_hw", 16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
+            ("aes128_cbc_sw", 16,   16, True,  unhex('36de36917fb7955a711c8b0bf149b29120a77524f393ae3490f4ce5b1d5ca2a0d7064ce3c38e267807438d12c0e40cd0d84134647f9f4a5b11804a0cc5070e62')),
             ("blowfish_ctr",  32,    8, False, unhex('079daf0f859363ccf72e975764d709232ec48adc74f88ccd1f342683f0bfa89ca0e8dbfccc8d4d99005d6b61e9cc4e6eaa2fd2a8163271b94bf08ef212129f01')),
             ("blowfish_ssh2", 16,    8, True,  unhex('e986b7b01f17dfe80ee34cac81fa029b771ec0f859ae21ae3ec3df1674bc4ceb54a184c6c56c17dd2863c3e9c068e76fd9aef5673465995f0d648b0bb848017f')),
             ("blowfish_ssh1", 32,    8, True,  unhex('d44092a9035d895acf564ba0365d19570fbb4f125d5a4fd2a1812ee6c8a1911a51bb181fbf7d1a261253cab71ee19346eb477b3e7ecf1d95dd941e635c1a4fbf')),
@@ -1246,7 +1246,7 @@ class standard_test_vectors(MyTestBase):
         # The test vector from FIPS 197 appendix B. (This is also the
         # same key whose key setup phase is shown in detail in
         # appendix A.)
-        vector('aes128',
+        vector('aes128_cbc',
                unhex('2b7e151628aed2a6abf7158809cf4f3c'),
                unhex('3243f6a8885a308d313198a2e0370734'),
                unhex('3925841d02dc09fbdc118597196a0b32'))
@@ -1256,15 +1256,15 @@ class standard_test_vectors(MyTestBase):
         # bytes go 00 11 22 33 ... FF.
         fullkey = struct.pack("B"*32, *range(32))
         plaintext = struct.pack("B"*16, *[0x11*i for i in range(16)])
-        vector('aes128', fullkey[:16], plaintext,
+        vector('aes128_cbc', fullkey[:16], plaintext,
                unhex('69c4e0d86a7b0430d8cdb78070b4c55a'))
-        vector('aes192', fullkey[:24], plaintext,
+        vector('aes192_cbc', fullkey[:24], plaintext,
                unhex('dda97ca4864cdfe06eaf70a0ec0d7191'))
-        vector('aes256', fullkey[:32], plaintext,
+        vector('aes256_cbc', fullkey[:32], plaintext,
                unhex('8ea2b7ca516745bfeafc49904b496089'))
 
     def testDES(self):
-        c = ssh_cipher_new("des")
+        c = ssh_cipher_new("des_cbc")
         def vector(key, plaintext, ciphertext):
             key = unhex(key)
             plaintext = unhex(plaintext)
