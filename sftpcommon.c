@@ -111,7 +111,7 @@ void sftp_pkt_free(struct sftp_packet *pkt)
 
 void sftp_send_prepare(struct sftp_packet *pkt)
 {
-    PUT_32BIT(pkt->data, pkt->length - 4);
+    PUT_32BIT_MSB_FIRST(pkt->data, pkt->length - 4);
     if (pkt->length >= 5) {
         /* Rewrite the type code, in case the caller changed its mind
          * about pkt->type since calling sftp_pkt_init */

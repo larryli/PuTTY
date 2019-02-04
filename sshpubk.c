@@ -950,7 +950,7 @@ bool rfc4716_loadpub(FILE *fp, char **algorithm,
         error = "not enough data in SSH-2 public key file";
         goto error;
     }
-    alglen = toint(GET_32BIT(pubblob));
+    alglen = toint(GET_32BIT_MSB_FIRST(pubblob));
     if (alglen < 0 || alglen > pubbloblen-4) {
         error = "invalid algorithm prefix in SSH-2 public key file";
         goto error;
@@ -1021,7 +1021,7 @@ bool openssh_loadpub(FILE *fp, char **algorithm,
      */
     alglen = strlen(line);
     if (pubbloblen < alglen + 4 ||
-        GET_32BIT(pubblob) != alglen ||
+        GET_32BIT_MSB_FIRST(pubblob) != alglen ||
         0 != memcmp(pubblob + 4, line, alglen)) {
         error = "key algorithms do not match in OpenSSH public key file";
         goto error;

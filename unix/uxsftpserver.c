@@ -93,8 +93,8 @@ static void uss_return_handle_raw(
     UnixSftpServer *uss, SftpReplyBuilder *reply, int index, unsigned seq)
 {
     unsigned char handlebuf[8];
-    PUT_32BIT(handlebuf, index);
-    PUT_32BIT(handlebuf + 4, seq);
+    PUT_32BIT_MSB_FIRST(handlebuf, index);
+    PUT_32BIT_MSB_FIRST(handlebuf + 4, seq);
     des_encrypt_xdmauth(uss->handlekey, handlebuf, 8);
     fxp_reply_handle(reply, make_ptrlen(handlebuf, 8));
 }
@@ -108,8 +108,8 @@ static bool uss_decode_handle(
         return false;
     memcpy(handlebuf, handle.ptr, 8);
     des_decrypt_xdmauth(uss->handlekey, handlebuf, 8);
-    *index = toint(GET_32BIT(handlebuf));
-    *seq = GET_32BIT(handlebuf + 4);
+    *index = toint(GET_32BIT_MSB_FIRST(handlebuf));
+    *seq = GET_32BIT_MSB_FIRST(handlebuf + 4);
     return true;
 }
 

@@ -73,7 +73,7 @@ static bool agent_try_read(agent_pending_query *conn)
     }
     conn->retlen += ret;
     if (conn->retsize == 4 && conn->retlen == 4) {
-	conn->retsize = toint(GET_32BIT(conn->retbuf) + 4);
+	conn->retsize = toint(GET_32BIT_MSB_FIRST(conn->retbuf) + 4);
 	if (conn->retsize <= 0) {
 	    conn->retbuf = NULL;
 	    conn->retlen = 0;

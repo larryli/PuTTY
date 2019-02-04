@@ -38,7 +38,7 @@ struct sftp_packet *sftp_recv(void)
     if (!sftp_recvdata(x, 4))
 	return NULL;
 
-    pkt = sftp_recv_prepare(GET_32BIT(x));
+    pkt = sftp_recv_prepare(GET_32BIT_MSB_FIRST(x));
 
     if (!sftp_recvdata(pkt->data, pkt->length)) {
 	sftp_pkt_free(pkt);

@@ -2273,8 +2273,8 @@ static bool sshcom_write(
     for (i = 0; i < nnumbers; i++)
 	put_mp_sshcom_from_string(outblob, numbers[i].ptr, numbers[i].len);
     /* Now wrap up the encrypted payload. */
-    PUT_32BIT(outblob->s + lenpos + 4,
-              outblob->len - (lenpos + 8));
+    PUT_32BIT_MSB_FIRST(outblob->s + lenpos + 4,
+                        outblob->len - (lenpos + 8));
     /* Pad encrypted blob to a multiple of cipher block size. */
     if (passphrase) {
 	int padding = -(outblob->len - (lenpos+4)) & 7;
@@ -2286,9 +2286,9 @@ static bool sshcom_write(
     cipherlen = outblob->len - (lenpos + 4);
     assert(!passphrase || cipherlen % 8 == 0);
     /* Wrap up the encrypted blob string. */
-    PUT_32BIT(outblob->s + lenpos, cipherlen);
+    PUT_32BIT_MSB_FIRST(outblob->s + lenpos, cipherlen);
     /* And finally fill in the total length field. */
-    PUT_32BIT(outblob->s + 4, outblob->len);
+    PUT_32BIT_MSB_FIRST(outblob->s + 4, outblob->len);
 
     /*
      * Encrypt the key.

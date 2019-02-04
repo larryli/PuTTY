@@ -660,7 +660,7 @@ static int sftp_chan_send(Channel *chan, bool is_stderr,
         struct sftp_packet *pkt, *reply;
 
         bufchain_fetch(&sess->subsys_input, lenbuf, 4);
-        pktlen = GET_32BIT(lenbuf);
+        pktlen = GET_32BIT_MSB_FIRST(lenbuf);
 
         if (bufchain_size(&sess->subsys_input) - 4 < pktlen)
             break;                     /* wait for more data */

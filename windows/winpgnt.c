@@ -891,7 +891,7 @@ static char *answer_filemapping_message(const char *mapname)
         goto cleanup;
     }
 
-    msglen = GET_32BIT((unsigned char *)mapaddr);
+    msglen = GET_32BIT_MSB_FIRST((unsigned char *)mapaddr);
 
 #ifdef DEBUG_IPC
     debug("msg length=%08x, msg type=%02x\n",
@@ -925,7 +925,7 @@ static char *answer_filemapping_message(const char *mapname)
     }
 
     /* Write in the initial length field, and we're done. */
-    PUT_32BIT(((unsigned char *)mapaddr), reply.len);
+    PUT_32BIT_MSB_FIRST(((unsigned char *)mapaddr), reply.len);
 
   cleanup:
     /* expectedsid has the lifetime of the program, so we don't free it */

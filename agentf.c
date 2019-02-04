@@ -72,7 +72,7 @@ static void agentf_try_forward(agentf *af)
             break;         /* not even a length field available yet */
 
         bufchain_fetch(&af->inbuffer, msglen, 4);
-        length = GET_32BIT(msglen);
+        length = GET_32BIT_MSB_FIRST(msglen);
 
         if (length > AGENT_MAX_MSGLEN-4) {
             /*

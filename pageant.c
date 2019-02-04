@@ -770,7 +770,7 @@ static void pageant_conn_receive(Plug *plug, int urgent, char *data, int len)
             pc->lenbuf[pc->got++] = c;
         }
 
-        pc->len = GET_32BIT(pc->lenbuf);
+        pc->len = GET_32BIT_MSB_FIRST(pc->lenbuf);
         pc->got = 0;
         pc->real_packet = (pc->len < AGENT_MAX_MSGLEN-4);
 
@@ -796,7 +796,7 @@ static void pageant_conn_receive(Plug *plug, int urgent, char *data, int len)
                                     pc->logfn ? pageant_conn_log : NULL);
             }
 
-            PUT_32BIT(reply->s, reply->len - 4);
+            PUT_32BIT_MSB_FIRST(reply->s, reply->len - 4);
             sk_write(pc->connsock, reply->s, reply->len);
 
             strbuf_free(reply);
@@ -1056,7 +1056,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                 strbuf_free(blob);
 		return PAGEANT_ACTION_FAILURE;
 	    }
-	    PUT_32BIT(blob->s, blob->len - 4);
+	    PUT_32BIT_MSB_FIRST(blob->s, blob->len - 4);
 	    keylist = pageant_get_keylist2(&keylistlen);
 	}
 	if (keylist) {
@@ -1066,7 +1066,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                 strbuf_free(blob);
 		return PAGEANT_ACTION_FAILURE;
 	    }
-	    nkeys = toint(GET_32BIT(keylist));
+	    nkeys = toint(GET_32BIT_MSB_FIRST(keylist));
 	    if (nkeys < 0) {
 		*retstr = dupstr("Received broken key list from agent");
                 sfree(keylist);
@@ -1103,7 +1103,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         strbuf_free(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
-		    n = GET_32BIT(p);
+		    n = GET_32BIT_MSB_FIRST(p);
                     p += 4;
                     keylistlen -= 4;
 
@@ -1125,7 +1125,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         strbuf_free(blob);
                         return PAGEANT_ACTION_FAILURE;
 		    }
-		    n = GET_32BIT(p);
+		    n = GET_32BIT_MSB_FIRST(p);
                     p += 4;
                     keylistlen -= 4;
 

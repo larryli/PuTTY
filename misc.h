@@ -285,15 +285,11 @@ void debug_memdump(const void *buf, int len, bool L);
   ((uint32_t)(unsigned char)(cp)[2] << 8) | \
   ((uint32_t)(unsigned char)(cp)[3]))
 
-#define GET_32BIT(cp) GET_32BIT_MSB_FIRST(cp)
-
 #define PUT_32BIT_MSB_FIRST(cp, value) ( \
   (cp)[0] = (unsigned char)((value) >> 24), \
   (cp)[1] = (unsigned char)((value) >> 16), \
   (cp)[2] = (unsigned char)((value) >> 8), \
   (cp)[3] = (unsigned char)(value) )
-
-#define PUT_32BIT(cp, value) PUT_32BIT_MSB_FIRST(cp, value)
 
 #define GET_64BIT_MSB_FIRST(cp) \
   (((uint64_t)(unsigned char)(cp)[0] << 56) | \
