@@ -239,89 +239,114 @@ void debug_memdump(const void *buf, int len, bool L);
 #define max(x,y) ( (x) > (y) ? (x) : (y) )
 #endif
 
-#define GET_64BIT_LSB_FIRST(cp) \
-  (((uint64_t)(unsigned char)(cp)[0]) | \
-  ((uint64_t)(unsigned char)(cp)[1] << 8) | \
-  ((uint64_t)(unsigned char)(cp)[2] << 16) | \
-  ((uint64_t)(unsigned char)(cp)[3] << 24) | \
-  ((uint64_t)(unsigned char)(cp)[4] << 32) | \
-  ((uint64_t)(unsigned char)(cp)[5] << 40) | \
-  ((uint64_t)(unsigned char)(cp)[6] << 48) | \
-  ((uint64_t)(unsigned char)(cp)[7] << 56))
+static inline uint64_t GET_64BIT_LSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint64_t)p[0]      ) | ((uint64_t)p[1] <<  8) |
+            ((uint64_t)p[2] << 16) | ((uint64_t)p[3] << 24) |
+            ((uint64_t)p[4] << 32) | ((uint64_t)p[5] << 40) |
+            ((uint64_t)p[6] << 48) | ((uint64_t)p[7] << 56));
+}
 
-#define PUT_64BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)(value), \
-  (cp)[1] = (unsigned char)((value) >> 8), \
-  (cp)[2] = (unsigned char)((value) >> 16), \
-  (cp)[3] = (unsigned char)((value) >> 24), \
-  (cp)[4] = (unsigned char)((value) >> 32), \
-  (cp)[5] = (unsigned char)((value) >> 40), \
-  (cp)[6] = (unsigned char)((value) >> 48), \
-  (cp)[7] = (unsigned char)((value) >> 56) )
+static inline void PUT_64BIT_LSB_FIRST(void *vp, uint64_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[0] = value;
+    p[1] = (value) >> 8;
+    p[2] = (value) >> 16;
+    p[3] = (value) >> 24;
+    p[4] = (value) >> 32;
+    p[5] = (value) >> 40;
+    p[6] = (value) >> 48;
+    p[7] = (value) >> 56;
+}
 
-#define GET_32BIT_LSB_FIRST(cp) \
-  (((uint32_t)(unsigned char)(cp)[0]) | \
-  ((uint32_t)(unsigned char)(cp)[1] << 8) | \
-  ((uint32_t)(unsigned char)(cp)[2] << 16) | \
-  ((uint32_t)(unsigned char)(cp)[3] << 24))
+static inline uint32_t GET_32BIT_LSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint32_t)p[0]      ) | ((uint32_t)p[1] <<  8) |
+            ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24));
+}
 
-#define PUT_32BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)(value), \
-  (cp)[1] = (unsigned char)((value) >> 8), \
-  (cp)[2] = (unsigned char)((value) >> 16), \
-  (cp)[3] = (unsigned char)((value) >> 24) )
+static inline void PUT_32BIT_LSB_FIRST(void *vp, uint32_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[0] = value;
+    p[1] = (value) >> 8;
+    p[2] = (value) >> 16;
+    p[3] = (value) >> 24;
+}
 
-#define GET_16BIT_LSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0]) | \
-  ((unsigned long)(unsigned char)(cp)[1] << 8))
+static inline uint16_t GET_16BIT_LSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint16_t)p[0]      ) | ((uint16_t)p[1] <<  8));
+}
 
-#define PUT_16BIT_LSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)(value), \
-  (cp)[1] = (unsigned char)((value) >> 8) )
+static inline void PUT_16BIT_LSB_FIRST(void *vp, uint16_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[0] = value;
+    p[1] = (value) >> 8;
+}
 
-#define GET_32BIT_MSB_FIRST(cp) \
-  (((uint32_t)(unsigned char)(cp)[0] << 24) | \
-  ((uint32_t)(unsigned char)(cp)[1] << 16) | \
-  ((uint32_t)(unsigned char)(cp)[2] << 8) | \
-  ((uint32_t)(unsigned char)(cp)[3]))
+static inline uint64_t GET_64BIT_MSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint64_t)p[7]      ) | ((uint64_t)p[6] <<  8) |
+            ((uint64_t)p[5] << 16) | ((uint64_t)p[4] << 24) |
+            ((uint64_t)p[3] << 32) | ((uint64_t)p[2] << 40) |
+            ((uint64_t)p[1] << 48) | ((uint64_t)p[0] << 56));
+}
 
-#define PUT_32BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)((value) >> 24), \
-  (cp)[1] = (unsigned char)((value) >> 16), \
-  (cp)[2] = (unsigned char)((value) >> 8), \
-  (cp)[3] = (unsigned char)(value) )
+static inline void PUT_64BIT_MSB_FIRST(void *vp, uint64_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[7] = value;
+    p[6] = (value) >> 8;
+    p[5] = (value) >> 16;
+    p[4] = (value) >> 24;
+    p[3] = (value) >> 32;
+    p[2] = (value) >> 40;
+    p[1] = (value) >> 48;
+    p[0] = (value) >> 56;
+}
 
-#define GET_64BIT_MSB_FIRST(cp) \
-  (((uint64_t)(unsigned char)(cp)[0] << 56) | \
-  ((uint64_t)(unsigned char)(cp)[1] << 48) | \
-  ((uint64_t)(unsigned char)(cp)[2] << 40) | \
-  ((uint64_t)(unsigned char)(cp)[3] << 32) | \
-  ((uint64_t)(unsigned char)(cp)[4] << 24) | \
-  ((uint64_t)(unsigned char)(cp)[5] << 16) | \
-  ((uint64_t)(unsigned char)(cp)[6] << 8) | \
-  ((uint64_t)(unsigned char)(cp)[7]))
+static inline uint32_t GET_32BIT_MSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint32_t)p[3]      ) | ((uint32_t)p[2] <<  8) |
+            ((uint32_t)p[1] << 16) | ((uint32_t)p[0] << 24));
+}
 
-#define PUT_64BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)((value) >> 56), \
-  (cp)[1] = (unsigned char)((value) >> 48), \
-  (cp)[2] = (unsigned char)((value) >> 40), \
-  (cp)[3] = (unsigned char)((value) >> 32), \
-  (cp)[4] = (unsigned char)((value) >> 24), \
-  (cp)[5] = (unsigned char)((value) >> 16), \
-  (cp)[6] = (unsigned char)((value) >> 8), \
-  (cp)[7] = (unsigned char)(value) )
+static inline void PUT_32BIT_MSB_FIRST(void *vp, uint32_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[3] = value;
+    p[2] = (value) >> 8;
+    p[1] = (value) >> 16;
+    p[0] = (value) >> 24;
+}
 
-#define GET_16BIT_MSB_FIRST(cp) \
-  (((unsigned long)(unsigned char)(cp)[0] << 8) | \
-  ((unsigned long)(unsigned char)(cp)[1]))
+static inline uint16_t GET_16BIT_MSB_FIRST(const void *vp)
+{
+    const uint8_t *p = (const uint8_t *)vp;
+    return (((uint16_t)p[1]      ) | ((uint16_t)p[0] <<  8));
+}
 
-#define PUT_16BIT_MSB_FIRST(cp, value) ( \
-  (cp)[0] = (unsigned char)((value) >> 8), \
-  (cp)[1] = (unsigned char)(value) )
+static inline void PUT_16BIT_MSB_FIRST(void *vp, uint16_t value)
+{
+    uint8_t *p = (uint8_t *)vp;
+    p[1] = value;
+    p[0] = (value) >> 8;
+}
 
 /* Replace NULL with the empty string, permitting an idiom in which we
  * get a string (pointer,length) pair that might be NULL,0 and can
  * then safely say things like printf("%.*s", length, NULLTOEMPTY(ptr)) */
-#define NULLTOEMPTY(s) ((s)?(s):"")
+static inline const char *NULLTOEMPTY(const char *s)
+{
+    return s ? s : "";
+}
 
 #endif

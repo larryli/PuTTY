@@ -12,11 +12,18 @@
 #include "sshchan.h"
 #include "tree234.h"
 
-#define GET_16BIT_X11(endian, cp) \
-  (endian=='B' ? GET_16BIT_MSB_FIRST(cp) : GET_16BIT_LSB_FIRST(cp))
+static inline uint16_t GET_16BIT_X11(char endian, const void *p)
+{
+    return endian == 'B' ? GET_16BIT_MSB_FIRST(p) : GET_16BIT_LSB_FIRST(p);
+}
 
-#define PUT_16BIT_X11(endian, cp, val) \
-  (endian=='B' ? PUT_16BIT_MSB_FIRST(cp, val) : PUT_16BIT_LSB_FIRST(cp, val))
+static inline void PUT_16BIT_X11(char endian, void *p, uint16_t value)
+{
+    if (endian == 'B')
+        PUT_16BIT_MSB_FIRST(p, value);
+    else
+        PUT_16BIT_LSB_FIRST(p, value);
+}
 
 const char *const x11_authnames[] = {
     "", "MIT-MAGIC-COOKIE-1", "XDM-AUTHORIZATION-1"
