@@ -29,7 +29,7 @@ struct ssh_verstring_state {
     char prefix[PREFIX_MAXLEN];
     char *impl_name;
     char *vstring;
-    int vslen, vstrsize;
+    size_t vslen, vstrsize;
     char *protoversion;
     const char *softwareversion;
 
@@ -249,7 +249,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
          * If we didn't find it, consume data until we see a newline.
          */
         while (1) {
-            int len;
+            size_t len;
             void *data;
             char *nl;
 
@@ -281,7 +281,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
      */
     s->i = 0;
     do {
-        int len;
+        size_t len;
         void *data;
         char *nl;
 
@@ -291,7 +291,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
             len = nl - (char *)data + 1;
         }
 
-        if (s->vslen + len >= s->vstrsize - 1) {
+        if (s->vslen >= s->vstrsize - 1 || len >= s->vstrsize - 1 - s->vslen) {
             s->vstrsize = (s->vslen + len) * 5 / 4 + 32;
             s->vstring = sresize(s->vstring, s->vstrsize, char);
         }

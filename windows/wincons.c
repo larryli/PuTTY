@@ -388,7 +388,7 @@ static void console_eventlog(LogPolicy *lp, const char *string)
         console_logging_error(lp, string);
 }
 
-static void console_data_untrusted(HANDLE hout, const char *data, int len)
+static void console_data_untrusted(HANDLE hout, const char *data, size_t len)
 {
     DWORD dummy;
     bufchain sanitised;
@@ -465,7 +465,7 @@ int console_get_userpass_input(prompts_t *p)
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
 
 	DWORD savemode, newmode;
-        int len;
+        size_t len;
 	prompt_t *pr = p->prompts[curr_prompt];
 
 	GetConsoleMode(hin, &savemode);
@@ -486,7 +486,7 @@ int console_get_userpass_input(prompts_t *p)
 
             if (!ReadFile(hin, pr->result + len, pr->resultsize - len - 1,
                           &ret, NULL) || ret == 0) {
-                len = -1;
+                len = (size_t)-1;
                 break;
             }
             len += ret;
@@ -505,7 +505,7 @@ int console_get_userpass_input(prompts_t *p)
 	    WriteFile(hout, "\r\n", 2, &dummy, NULL);
 	}
 
-        if (len < 0) {
+        if (len == (size_t)-1) {
             return 0;                  /* failure due to read error */
         }
 

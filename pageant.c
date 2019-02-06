@@ -733,7 +733,7 @@ static void pageant_conn_closing(Plug *plug, const char *error_msg,
     sfree(pc);
 }
 
-static void pageant_conn_sent(Plug *plug, int bufsize)
+static void pageant_conn_sent(Plug *plug, size_t bufsize)
 {
     /* struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug); */
@@ -756,7 +756,7 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
 }
 
 static void pageant_conn_receive(
-    Plug *plug, int urgent, const char *data, int len)
+    Plug *plug, int urgent, const char *data, size_t len)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);

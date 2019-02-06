@@ -726,7 +726,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void x11_receive(Plug *plug, int urgent, const char *data, int len)
+static void x11_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
@@ -735,7 +735,7 @@ static void x11_receive(Plug *plug, int urgent, const char *data, int len)
     sshfwd_write(xconn->c, data, len);
 }
 
-static void x11_sent(Plug *plug, int bufsize)
+static void x11_sent(Plug *plug, size_t bufsize)
 {
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);
@@ -770,7 +770,8 @@ static const PlugVtable X11Connection_plugvt = {
 };
 
 static void x11_chan_free(Channel *chan);
-static int x11_send(Channel *chan, bool is_stderr, const void *vdata, int len);
+static size_t x11_send(
+    Channel *chan, bool is_stderr, const void *vdata, size_t len);
 static void x11_send_eof(Channel *chan);
 static void x11_set_input_wanted(Channel *chan, bool wanted);
 static char *x11_log_close_msg(Channel *chan);
@@ -918,7 +919,8 @@ static bool x11_parse_ip(const char *addr_string, unsigned long *ip)
 /*
  * Called to send data down the raw connection.
  */
-static int x11_send(Channel *chan, bool is_stderr, const void *vdata, int len)
+static size_t x11_send(
+    Channel *chan, bool is_stderr, const void *vdata, size_t len)
 {
     assert(chan->vt == &X11Connection_channelvt);
     X11Connection *xconn = container_of(chan, X11Connection, chan);

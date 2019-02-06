@@ -60,7 +60,7 @@ struct NetSocket {
                            * notification while we were frozen */
     bool localhost_only;               /* for listening sockets */
     char oobdata[1];
-    int sending_oob;
+    size_t sending_oob;
     bool oobinline, nodelay, keepalive, privport;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
     SockAddr *addr;
@@ -832,8 +832,8 @@ static void sk_net_flush(Socket *s)
 }
 
 static void sk_net_close(Socket *s);
-static int sk_net_write(Socket *s, const void *data, int len);
-static int sk_net_write_oob(Socket *s, const void *data, int len);
+static size_t sk_net_write(Socket *s, const void *data, size_t len);
+static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static const char *sk_net_socket_error(Socket *s);
@@ -1378,7 +1378,8 @@ void try_send(NetSocket *s)
 	int nsent;
 	DWORD err;
 	void *data;
-	int len, urgentflag;
+	size_t len;
+        int urgentflag;
 
 	if (s->sending_oob) {
 	    urgentflag = MSG_OOB;
@@ -1388,6 +1389,7 @@ void try_send(NetSocket *s)
 	    urgentflag = 0;
 	    bufchain_prefix(&s->output_data, &data, &len);
 	}
+        len = min(len, INT_MAX);       /* WinSock send() takes an int */
 	nsent = p_send(s->s, data, len, urgentflag);
 	noise_ultralight(NOISE_SOURCE_IOLEN, nsent);
 	if (nsent <= 0) {
@@ -1443,7 +1445,7 @@ void try_send(NetSocket *s)
     }
 }
 
-static int sk_net_write(Socket *sock, const void *buf, int len)
+static size_t sk_net_write(Socket *sock, const void *buf, size_t len)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 
@@ -1463,7 +1465,7 @@ static int sk_net_write(Socket *sock, const void *buf, int len)
     return bufchain_size(&s->output_data);
 }
 
-static int sk_net_write_oob(Socket *sock, const void *buf, int len)
+static size_t sk_net_write_oob(Socket *sock, const void *buf, size_t len)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 

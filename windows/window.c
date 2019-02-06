@@ -320,7 +320,8 @@ bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
     return true;
 }
 
-static int win_seat_output(Seat *seat, bool is_stderr, const void *, int);
+static size_t win_seat_output(
+    Seat *seat, bool is_stderr, const void *, size_t);
 static bool win_seat_eof(Seat *seat);
 static int win_seat_get_userpass_input(
     Seat *seat, prompts_t *p, bufchain *input);
@@ -5784,8 +5785,8 @@ static void flip_full_screen()
     }
 }
 
-static int win_seat_output(Seat *seat, bool is_stderr,
-                           const void *data, int len)
+static size_t win_seat_output(Seat *seat, bool is_stderr,
+                              const void *data, size_t len)
 {
     return term_data(term, is_stderr, data, len);
 }

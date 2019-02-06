@@ -325,12 +325,13 @@ void cleanup_termios(void)
 bufchain stdout_data, stderr_data;
 enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
-int try_output(bool is_stderr)
+size_t try_output(bool is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
     void *senddata;
-    int sendlen, ret;
+    size_t sendlen;
+    ssize_t ret;
 
     if (bufchain_size(chain) > 0) {
         bool prev_nonblock = nonblock(fd);
@@ -354,7 +355,8 @@ int try_output(bool is_stderr)
     return bufchain_size(&stdout_data) + bufchain_size(&stderr_data);
 }
 
-static int plink_output(Seat *seat, bool is_stderr, const void *data, int len)
+static size_t plink_output(
+    Seat *seat, bool is_stderr, const void *data, size_t len)
 {
     if (is_stderr) {
 	bufchain_add(&stderr_data, data, len);

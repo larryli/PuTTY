@@ -39,9 +39,9 @@ static const char *loop_init(Seat *, Backend **, LogContext *, Conf *,
 static void null_free(Backend *);
 static void loop_free(Backend *);
 static void null_reconfig(Backend *, Conf *);
-static int null_send(Backend *, const char *, int);
-static int loop_send(Backend *, const char *, int);
-static int null_sendbuffer(Backend *);
+static size_t null_send(Backend *, const char *, size_t);
+static size_t loop_send(Backend *, const char *, size_t);
+static size_t null_sendbuffer(Backend *);
 static void null_size(Backend *, int, int);
 static void null_special(Backend *, SessionSpecialCode, int);
 static const SessionSpecial *null_get_specials(Backend *);
@@ -50,7 +50,7 @@ static int null_exitcode(Backend *);
 static int null_sendok(Backend *);
 static int null_ldisc(Backend *, int);
 static void null_provide_ldisc(Backend *, Ldisc *);
-static void null_unthrottle(Backend *, int);
+static void null_unthrottle(Backend *, size_t);
 static int null_cfg_info(Backend *);
 
 const struct BackendVtable null_backend = {
@@ -107,18 +107,18 @@ static void null_reconfig(Backend *be, Conf *conf) {
 
 }
 
-static int null_send(Backend *be, const char *buf, int len) {
+static size_t null_send(Backend *be, const char *buf, size_t len) {
 
     return 0;
 }
 
-static int loop_send(Backend *be, const char *buf, int len) {
+static size_t loop_send(Backend *be, const char *buf, size_t len) {
     struct loop_state *st = container_of(be, struct loop_state, backend);
 
     return seat_output(st->seat, 0, buf, len);
 }
 
-static int null_sendbuffer(Backend *be) {
+static size_t null_sendbuffer(Backend *be) {
 
     return 0;
 }
@@ -151,7 +151,7 @@ static int null_sendok(Backend *be) {
     return 1;
 }
 
-static void null_unthrottle(Backend *be, int backlog) {
+static void null_unthrottle(Backend *be, size_t backlog) {
 
 }
 

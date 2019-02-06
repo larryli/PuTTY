@@ -70,9 +70,9 @@
  * sftp_sendbuffer returns the size of the backlog of data in the
  * transmit queue.
  */
-bool sftp_senddata(const char *data, int len);
-int sftp_sendbuffer(void);
-bool sftp_recvdata(char *data, int len);
+bool sftp_senddata(const char *data, size_t len);
+size_t sftp_sendbuffer(void);
+bool sftp_recvdata(char *data, size_t len);
 
 /*
  * Free sftp_requests
@@ -494,7 +494,7 @@ struct ScpServer {
 struct ScpServerVtable {
     void (*free)(ScpServer *s);
 
-    int (*send)(ScpServer *s, const void *data, size_t length);
+    size_t (*send)(ScpServer *s, const void *data, size_t length);
     void (*throttle)(ScpServer *s, bool throttled);
     void (*eof)(ScpServer *s);
 };

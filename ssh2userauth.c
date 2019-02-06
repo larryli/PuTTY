@@ -466,7 +466,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
                     while (bufchain_size(&s->banner) > 0) {
                         void *data;
-                        int len;
+                        size_t len;
                         bufchain_prefix(&s->banner, &data, &len);
                         seat_stderr(s->ppl.seat, data, len);
                         bufchain_consume(&s->banner, len);

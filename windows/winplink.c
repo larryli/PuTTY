@@ -61,7 +61,8 @@ static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
     SetConsoleMode(inhandle, mode);
 }
 
-static int plink_output(Seat *seat, bool is_stderr, const void *data, int len)
+static size_t plink_output(
+    Seat *seat, bool is_stderr, const void *data, size_t len)
 {
     if (is_stderr) {
 	handle_write(stderr_handle, data, len);
@@ -205,7 +206,7 @@ char *do_select(SOCKET skt, bool startup)
     return NULL;
 }
 
-int stdin_gotdata(struct handle *h, const void *data, int len, int err)
+size_t stdin_gotdata(struct handle *h, const void *data, size_t len, int err)
 {
     if (err) {
 	char buf[4096];
@@ -217,6 +218,7 @@ int stdin_gotdata(struct handle *h, const void *data, int len, int err)
 	fprintf(stderr, "Unable to read from standard input: %s\n", buf);
 	cleanup_exit(0);
     }
+
     noise_ultralight(NOISE_SOURCE_IOLEN, len);
     if (backend_connected(backend)) {
 	if (len > 0) {
@@ -229,7 +231,7 @@ int stdin_gotdata(struct handle *h, const void *data, int len, int err)
 	return 0;
 }
 
-void stdouterr_sent(struct handle *h, int new_backlog, int err)
+void stdouterr_sent(struct handle *h, size_t new_backlog, int err)
 {
     if (err) {
 	char buf[4096];

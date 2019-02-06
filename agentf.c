@@ -39,7 +39,7 @@ static void agentf_callback(void *vctx, void *reply, int replylen);
 
 static void agentf_try_forward(agentf *af)
 {
-    unsigned datalen, length;
+    size_t datalen, length;
     strbuf *message;
     unsigned char msglen[4];
     void *reply;
@@ -142,7 +142,7 @@ static void agentf_callback(void *vctx, void *reply, int replylen)
 }
 
 static void agentf_free(Channel *chan);
-static int agentf_send(Channel *chan, bool is_stderr, const void *, int);
+static size_t agentf_send(Channel *chan, bool is_stderr, const void *, size_t);
 static void agentf_send_eof(Channel *chan);
 static char *agentf_log_close_msg(Channel *chan);
 static void agentf_set_input_wanted(Channel *chan, bool wanted);
@@ -196,8 +196,8 @@ static void agentf_free(Channel *chan)
     sfree(af);
 }
 
-static int agentf_send(Channel *chan, bool is_stderr,
-                       const void *data, int length)
+static size_t agentf_send(Channel *chan, bool is_stderr,
+                          const void *data, size_t length)
 {
     assert(chan->vt == &agentf_channelvt);
     agentf *af = container_of(chan, agentf, chan);

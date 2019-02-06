@@ -348,12 +348,12 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 static void handle_try_output(struct handle_output *ctx)
 {
     void *senddata;
-    int sendlen;
+    size_t sendlen;
 
     if (!ctx->busy && bufchain_size(&ctx->queued_data)) {
 	bufchain_prefix(&ctx->queued_data, &senddata, &sendlen);
 	ctx->buffer = senddata;
-	ctx->len = sendlen;
+	ctx->len = min(sendlen, ~(DWORD)0);
 	SetEvent(ctx->ev_from_main);
 	ctx->busy = true;
     } else if (!ctx->busy && bufchain_size(&ctx->queued_data) == 0 &&
@@ -515,7 +515,7 @@ struct handle *handle_add_foreign_event(HANDLE event,
     return h;
 }
 
-int handle_write(struct handle *h, const void *data, int len)
+size_t handle_write(struct handle *h, const void *data, size_t len)
 {
     assert(h->type == HT_OUTPUT);
     assert(h->u.o.outgoingeof == EOF_NO);
@@ -702,13 +702,13 @@ void handle_got_event(HANDLE event)
     }
 }
 
-void handle_unthrottle(struct handle *h, int backlog)
+void handle_unthrottle(struct handle *h, size_t backlog)
 {
     assert(h->type == HT_INPUT);
     handle_throttle(&h->u.i, backlog);
 }
 
-int handle_backlog(struct handle *h)
+size_t handle_backlog(struct handle *h)
 {
     assert(h->type == HT_OUTPUT);
     return bufchain_size(&h->u.o.queued_data);

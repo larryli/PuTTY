@@ -314,8 +314,8 @@ static char *gtk_seat_get_ttymode(Seat *seat, const char *mode)
     return term_get_ttymode(inst->term, mode);
 }
 
-static int gtk_seat_output(Seat *seat, bool is_stderr,
-                           const void *data, int len)
+static size_t gtk_seat_output(Seat *seat, bool is_stderr,
+                              const void *data, size_t len)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     return term_data(inst->term, is_stderr, data, len);

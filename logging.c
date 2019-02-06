@@ -31,7 +31,7 @@ static Filename *xlatlognam(Filename *s, char *hostname, int port,
  * isn't open, buffering data if it's in the process of being
  * opened asynchronously, etc.
  */
-static void logwrite(LogContext *ctx, const void *data, int len)
+static void logwrite(LogContext *ctx, const void *data, size_t len)
 {
     /*
      * In state L_CLOSED, we call logfopen, which will set the state
@@ -45,7 +45,7 @@ static void logwrite(LogContext *ctx, const void *data, int len)
 	bufchain_add(&ctx->queue, data, len);
     } else if (ctx->state == L_OPEN) {
 	assert(ctx->lgfp);
-	if (fwrite(data, 1, len, ctx->lgfp) < (size_t)len) {
+	if (fwrite(data, 1, len, ctx->lgfp) < len) {
 	    logfclose(ctx);
 	    ctx->state = L_ERROR;
             lp_eventlog(ctx->lp, "Disabled writing session log "
@@ -138,7 +138,7 @@ static void logfopen_callback(void *vctx, int mode)
     assert(ctx->state != L_OPENING);   /* make _sure_ it won't be requeued */
     while (bufchain_size(&ctx->queue)) {
 	void *data;
-	int len;
+	size_t len;
 	bufchain_prefix(&ctx->queue, &data, &len);
 	logwrite(ctx, data, len);
 	bufchain_consume(&ctx->queue, len);
@@ -276,13 +276,13 @@ void logeventf(LogContext *ctx, const char *fmt, ...)
  * Set of blanking areas must be in increasing order.
  */
 void log_packet(LogContext *ctx, int direction, int type,
-		const char *texttype, const void *data, int len,
+		const char *texttype, const void *data, size_t len,
 		int n_blanks, const struct logblank_t *blanks,
 		const unsigned long *seq,
                 unsigned downstream_id, const char *additional_log_text)
 {
-    char dumpdata[80], smalldata[5];
-    int p = 0, b = 0, omitted = 0;
+    char dumpdata[128], smalldata[5];
+    size_t p = 0, b = 0, omitted = 0;
     int output_pos = 0; /* NZ if pending output in dumpdata */
 
     if (!(ctx->logtype == LGTYP_SSHRAW ||
@@ -354,7 +354,7 @@ void log_packet(LogContext *ctx, int direction, int type,
 	/* (Re-)initialise dumpdata as necessary
 	 * (start of row, or if we've just stopped omitting) */
 	if (!output_pos && !omitted)
-	    sprintf(dumpdata, "  %08x%*s\r\n", p-(p%16), 1+3*16+2+16, "");
+	    sprintf(dumpdata, "  %08zx%*s\r\n", p-(p%16), 1+3*16+2+16, "");
 
 	/* Deal with the current byte. */
 	if (blktype == PKTLOG_OMIT) {

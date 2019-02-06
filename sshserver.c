@@ -133,7 +133,8 @@ static void server_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void server_receive(Plug *plug, int urgent, const char *data, int len)
+static void server_receive(
+    Plug *plug, int urgent, const char *data, size_t len)
 {
     server *srv = container_of(plug, server, plug);
 
@@ -147,7 +148,7 @@ static void server_receive(Plug *plug, int urgent, const char *data, int len)
         queue_idempotent_callback(&srv->bpp->ic_in_raw);
 }
 
-static void server_sent(Plug *plug, int bufsize)
+static void server_sent(Plug *plug, size_t bufsize)
 {
 #ifdef FIXME
     server *srv = container_of(plug, server, plug);
@@ -333,7 +334,7 @@ static void server_bpp_output_raw_data_callback(void *vctx)
 
     while (bufchain_size(&srv->out_raw) > 0) {
         void *data;
-        int len, backlog;
+        size_t len, backlog;
 
         bufchain_prefix(&srv->out_raw, &data, &len);
 

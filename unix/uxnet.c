@@ -69,7 +69,7 @@ struct NetSocket {
     bool frozen; /* this causes readability notifications to be ignored */
     bool localhost_only;               /* for listening sockets */
     char oobdata[1];
-    int sending_oob;
+    size_t sending_oob;
     bool oobpending;        /* is there OOB data available to read? */
     bool oobinline;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
@@ -500,8 +500,8 @@ static void sk_net_flush(Socket *s)
 }
 
 static void sk_net_close(Socket *s);
-static int sk_net_write(Socket *s, const void *data, int len);
-static int sk_net_write_oob(Socket *s, const void *data, int len);
+static size_t sk_net_write(Socket *s, const void *data, size_t len);
+static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
 static void sk_net_write_eof(Socket *s);
 static void sk_net_set_frozen(Socket *s, bool is_frozen);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
@@ -1112,7 +1112,8 @@ void try_send(NetSocket *s)
 	int nsent;
 	int err;
 	void *data;
-	int len, urgentflag;
+	size_t len;
+        int urgentflag;
 
 	if (s->sending_oob) {
 	    urgentflag = MSG_OOB;
@@ -1186,7 +1187,7 @@ void try_send(NetSocket *s)
     uxsel_tell(s);
 }
 
-static int sk_net_write(Socket *sock, const void *buf, int len)
+static size_t sk_net_write(Socket *sock, const void *buf, size_t len)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 
@@ -1212,7 +1213,7 @@ static int sk_net_write(Socket *sock, const void *buf, int len)
     return bufchain_size(&s->output_data);
 }
 
-static int sk_net_write_oob(Socket *sock, const void *buf, int len)
+static size_t sk_net_write_oob(Socket *sock, const void *buf, size_t len)
 {
     NetSocket *s = container_of(sock, NetSocket, sock);
 
@@ -1451,7 +1452,7 @@ static void net_select_result(int fd, int event)
             s->writable = true;
 	    uxsel_tell(s);
 	} else {
-	    int bufsize_before, bufsize_after;
+	    size_t bufsize_before, bufsize_after;
 	    s->writable = true;
 	    bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
 	    try_send(s);

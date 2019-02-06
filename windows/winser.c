@@ -40,8 +40,8 @@ static void serial_terminate(Serial *serial)
     }
 }
 
-static int serial_gotdata(
-    struct handle *h, const void *data, int len, int err)
+static size_t serial_gotdata(
+    struct handle *h, const void *data, size_t len, int err)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
     if (err || len == 0) {
@@ -73,7 +73,7 @@ static int serial_gotdata(
     }
 }
 
-static void serial_sentdata(struct handle *h, int new_backlog, int err)
+static void serial_sentdata(struct handle *h, size_t new_backlog, int err)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
     if (err) {
@@ -295,7 +295,7 @@ static void serial_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the serial connection.
  */
-static int serial_send(Backend *be, const char *buf, int len)
+static size_t serial_send(Backend *be, const char *buf, size_t len)
 {
     Serial *serial = container_of(be, Serial, backend);
 
@@ -309,7 +309,7 @@ static int serial_send(Backend *be, const char *buf, int len)
 /*
  * Called to query the current sendability status.
  */
-static int serial_sendbuffer(Backend *be)
+static size_t serial_sendbuffer(Backend *be)
 {
     Serial *serial = container_of(be, Serial, backend);
     return serial->bufsize;
@@ -386,7 +386,7 @@ static bool serial_sendok(Backend *be)
     return true;
 }
 
-static void serial_unthrottle(Backend *be, int backlog)
+static void serial_unthrottle(Backend *be, size_t backlog)
 {
     Serial *serial = container_of(be, Serial, backend);
     if (serial->in)

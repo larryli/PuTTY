@@ -25,8 +25,7 @@
 void proxy_activate (ProxySocket *p)
 {
     void *data;
-    int len;
-    long output_before, output_after;
+    size_t len, output_before, output_after;
     
     p->state = PROXY_STATE_ACTIVE;
 
@@ -57,7 +56,7 @@ void proxy_activate (ProxySocket *p)
 
     /* if we managed to send any data, let the higher levels know. */
     if (output_after < output_before)
-	plug_sent(p->plug, output_after);
+        plug_sent(p->plug, output_after);
 
     /* if we were asked to flush the output during
      * the proxy negotiation process, do so now.
@@ -95,7 +94,7 @@ static void sk_proxy_close (Socket *s)
     sfree(ps);
 }
 
-static int sk_proxy_write (Socket *s, const void *data, int len)
+static size_t sk_proxy_write (Socket *s, const void *data, size_t len)
 {
     ProxySocket *ps = container_of(s, ProxySocket, sock);
 
@@ -106,7 +105,7 @@ static int sk_proxy_write (Socket *s, const void *data, int len)
     return sk_write(ps->sub_socket, data, len);
 }
 
-static int sk_proxy_write_oob (Socket *s, const void *data, int len)
+static size_t sk_proxy_write_oob (Socket *s, const void *data, size_t len)
 {
     ProxySocket *ps = container_of(s, ProxySocket, sock);
 
@@ -162,7 +161,7 @@ static void sk_proxy_set_frozen (Socket *s, bool is_frozen)
         while (!ps->freeze && bufchain_size(&ps->pending_input_data) > 0) {
 	    void *data;
 	    char databuf[512];
-	    int len;
+	    size_t len;
 	    bufchain_prefix(&ps->pending_input_data, &data, &len);
 	    if (len > lenof(databuf))
 		len = lenof(databuf);
@@ -214,7 +213,8 @@ static void plug_proxy_closing (Plug *p, const char *error_msg,
     }
 }
 
-static void plug_proxy_receive (Plug *p, int urgent, const char *data, int len)
+static void plug_proxy_receive(
+    Plug *p, int urgent, const char *data, size_t len)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
@@ -233,7 +233,7 @@ static void plug_proxy_receive (Plug *p, int urgent, const char *data, int len)
     }
 }
 
-static void plug_proxy_sent (Plug *p, int bufsize)
+static void plug_proxy_sent (Plug *p, size_t bufsize)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
@@ -544,9 +544,9 @@ Socket *new_listener(const char *srcaddr, int port, Plug *plug,
  * HTTP CONNECT proxy type.
  */
 
-static bool get_line_end(char *data, int len, int *out)
+static bool get_line_end(char *data, size_t len, size_t *out)
 {
-    int off = 0;
+    size_t off = 0;
 
     while (off < len)
     {
@@ -661,8 +661,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
 	 */
 
 	char *data, *datap;
-	int len;
-	int eol;
+	size_t len, eol;
 
 	if (p->state == 1) {
 

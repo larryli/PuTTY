@@ -45,7 +45,8 @@ typedef struct HandleSocket {
     Socket sock;
 } HandleSocket;
 
-static int handle_gotdata(struct handle *h, const void *data, int len, int err)
+static size_t handle_gotdata(
+    struct handle *h, const void *data, size_t len, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
@@ -79,7 +80,8 @@ static int handle_gotdata(struct handle *h, const void *data, int len, int err)
     }
 }
 
-static int handle_stderr(struct handle *h, const void *data, int len, int err)
+static size_t handle_stderr(
+    struct handle *h, const void *data, size_t len, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
@@ -89,7 +91,7 @@ static int handle_stderr(struct handle *h, const void *data, int len, int err)
     return 0;
 }
 
-static void handle_sentdata(struct handle *h, int new_backlog, int err)
+static void handle_sentdata(struct handle *h, size_t new_backlog, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
@@ -130,14 +132,14 @@ static void sk_handle_close(Socket *s)
     sfree(hs);
 }
 
-static int sk_handle_write(Socket *s, const void *data, int len)
+static size_t sk_handle_write(Socket *s, const void *data, size_t len)
 {
     HandleSocket *hs = container_of(s, HandleSocket, sock);
 
     return handle_write(hs->send_h, data, len);
 }
 
-static int sk_handle_write_oob(Socket *s, const void *data, int len)
+static size_t sk_handle_write_oob(Socket *s, const void *data, size_t len)
 {
     /*
      * oob data is treated as inband; nasty, but nothing really
@@ -163,7 +165,7 @@ static void handle_socket_unfreeze(void *hsv)
 {
     HandleSocket *hs = (HandleSocket *)hsv;
     void *data;
-    int len;
+    size_t len;
 
     /*
      * If we've been put into a state other than THAWING since the

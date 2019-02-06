@@ -13,8 +13,8 @@
 #include "ssh1connection.h"
 #include "sshserver.h"
 
-static int ssh1sesschan_write(SshChannel *c, bool is_stderr,
-                              const void *, int);
+static size_t ssh1sesschan_write(SshChannel *c, bool is_stderr,
+                                 const void *, size_t);
 static void ssh1sesschan_write_eof(SshChannel *c);
 static void ssh1sesschan_initiate_close(SshChannel *c, const char *err);
 static void ssh1sesschan_send_exit_status(SshChannel *c, int status);
@@ -274,8 +274,8 @@ struct ssh_rportfwd *ssh1_rportfwd_alloc(
     unreachable("Should never be called in the server");
 }
 
-static int ssh1sesschan_write(SshChannel *sc, bool is_stderr,
-                              const void *data, int len)
+static size_t ssh1sesschan_write(SshChannel *sc, bool is_stderr,
+                                 const void *data, size_t len)
 {
     struct ssh1_connection_state *s =
         container_of(sc, struct ssh1_connection_state, mainchan_sc);

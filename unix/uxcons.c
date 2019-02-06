@@ -490,7 +490,7 @@ static void console_close(FILE *outfp, int infd)
         fclose(outfp);             /* will automatically close infd too */
 }
 
-static void console_prompt_text(FILE *outfp, const char *data, int len)
+static void console_prompt_text(FILE *outfp, const char *data, size_t len)
 {
     bufchain sanitised;
     void *vdata;

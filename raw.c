@@ -14,7 +14,7 @@ typedef struct Raw Raw;
 struct Raw {
     Socket *s;
     bool closed_on_socket_error;
-    int bufsize;
+    size_t bufsize;
     Seat *seat;
     LogContext *logctx;
     bool sent_console_eof, sent_socket_eof, session_started;
@@ -27,9 +27,9 @@ struct Raw {
 
 static void raw_size(Backend *be, int width, int height);
 
-static void c_write(Raw *raw, const void *buf, int len)
+static void c_write(Raw *raw, const void *buf, size_t len)
 {
-    int backlog = seat_stdout(raw->seat, buf, len);
+    size_t backlog = seat_stdout(raw->seat, buf, len);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
@@ -89,7 +89,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void raw_receive(Plug *plug, int urgent, const char *data, int len)
+static void raw_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
     Raw *raw = container_of(plug, Raw, plug);
     c_write(raw, data, len);
@@ -98,7 +98,7 @@ static void raw_receive(Plug *plug, int urgent, const char *data, int len)
     raw->session_started = true;
 }
 
-static void raw_sent(Plug *plug, int bufsize)
+static void raw_sent(Plug *plug, size_t bufsize)
 {
     Raw *raw = container_of(plug, Raw, plug);
     raw->bufsize = bufsize;
@@ -201,7 +201,7 @@ static void raw_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the raw connection.
  */
-static int raw_send(Backend *be, const char *buf, int len)
+static size_t raw_send(Backend *be, const char *buf, size_t len)
 {
     Raw *raw = container_of(be, Raw, backend);
 
@@ -216,7 +216,7 @@ static int raw_send(Backend *be, const char *buf, int len)
 /*
  * Called to query the current socket sendability status.
  */
-static int raw_sendbuffer(Backend *be)
+static size_t raw_sendbuffer(Backend *be)
 {
     Raw *raw = container_of(be, Raw, backend);
     return raw->bufsize;
@@ -266,7 +266,7 @@ static bool raw_sendok(Backend *be)
     return true;
 }
 
-static void raw_unthrottle(Backend *be, int backlog)
+static void raw_unthrottle(Backend *be, size_t backlog)
 {
     Raw *raw = container_of(be, Raw, backend);
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);

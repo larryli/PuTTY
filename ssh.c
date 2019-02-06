@@ -61,7 +61,7 @@ struct Ssh {
 
     int version;
     int conn_throttle_count;
-    int overall_bufsize;
+    size_t overall_bufsize;
     bool throttled_all;
 
     /*
@@ -139,7 +139,7 @@ struct Ssh {
         logevent_and_free((ssh)->logctx, dupprintf params))
 
 static void ssh_shutdown(Ssh *ssh);
-static void ssh_throttle_all(Ssh *ssh, bool enable, int bufsize);
+static void ssh_throttle_all(Ssh *ssh, bool enable, size_t bufsize);
 static void ssh_bpp_output_raw_data_callback(void *vctx);
 
 LogContext *ssh_get_logctx(Ssh *ssh)
@@ -349,7 +349,7 @@ static void ssh_bpp_output_raw_data_callback(void *vctx)
 
     while (bufchain_size(&ssh->out_raw) > 0) {
         void *data;
-        int len, backlog;
+        size_t len, backlog;
 
         bufchain_prefix(&ssh->out_raw, &data, &len);
 
@@ -573,7 +573,7 @@ static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void ssh_receive(Plug *plug, int urgent, const char *data, int len)
+static void ssh_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
 
@@ -589,7 +589,7 @@ static void ssh_receive(Plug *plug, int urgent, const char *data, int len)
     ssh_check_frozen(ssh);
 }
 
-static void ssh_sent(Plug *plug, int bufsize)
+static void ssh_sent(Plug *plug, size_t bufsize)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
     /*
@@ -810,7 +810,7 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
  * Throttle or unthrottle _all_ local data streams (for when sends
  * on the SSH connection itself back up).
  */
-static void ssh_throttle_all(Ssh *ssh, bool enable, int bufsize)
+static void ssh_throttle_all(Ssh *ssh, bool enable, size_t bufsize)
 {
     if (enable == ssh->throttled_all)
 	return;
@@ -928,7 +928,7 @@ static void ssh_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the SSH connection.
  */
-static int ssh_send(Backend *be, const char *buf, int len)
+static size_t ssh_send(Backend *be, const char *buf, size_t len)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
 
@@ -945,10 +945,10 @@ static int ssh_send(Backend *be, const char *buf, int len)
 /*
  * Called to query the current amount of buffered stdin data.
  */
-static int ssh_sendbuffer(Backend *be)
+static size_t ssh_sendbuffer(Backend *be)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
-    int backlog;
+    size_t backlog;
 
     if (!ssh || !ssh->s || !ssh->cl)
 	return 0;
@@ -1049,7 +1049,7 @@ static void ssh_special(Backend *be, SessionSpecialCode code, int arg)
  * This is called when the seat's output channel manages to clear some
  * backlog.
  */
-static void ssh_unthrottle(Backend *be, int bufsize)
+static void ssh_unthrottle(Backend *be, size_t bufsize)
 {
     Ssh *ssh = container_of(be, Ssh, backend);
 

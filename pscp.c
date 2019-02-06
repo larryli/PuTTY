@@ -60,7 +60,7 @@ const char *const appname = "PSCP";
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
 
-static int pscp_output(Seat *, bool is_stderr, const void *, int);
+static size_t pscp_output(Seat *, bool is_stderr, const void *, size_t);
 static bool pscp_eof(Seat *);
 
 static const SeatVtable pscp_seat_vt = {
@@ -145,7 +145,8 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  */
 
 static bufchain received_data;
-static int pscp_output(Seat *seat, bool is_stderr, const void *data, int len)
+static size_t pscp_output(
+    Seat *seat, bool is_stderr, const void *data, size_t len)
 {
     /*
      * stderr data is just spouted to local stderr and otherwise
@@ -175,7 +176,7 @@ static bool pscp_eof(Seat *seat)
     }
     return false;
 }
-static bool ssh_scp_recv(void *vbuf, int len)
+static bool ssh_scp_recv(void *vbuf, size_t len)
 {
     char *buf = (char *)vbuf;
     while (len > 0) {
@@ -185,7 +186,7 @@ static bool ssh_scp_recv(void *vbuf, int len)
                 return false;          /* doom */
         }
 
-        int got = bufchain_fetch_consume_up_to(&received_data, buf, len);
+        size_t got = bufchain_fetch_consume_up_to(&received_data, buf, len);
         buf += got;
         len -= got;
     }
@@ -570,16 +571,16 @@ static int response(void)
     }
 }
 
-bool sftp_recvdata(char *buf, int len)
+bool sftp_recvdata(char *buf, size_t len)
 {
     return ssh_scp_recv(buf, len);
 }
-bool sftp_senddata(const char *buf, int len)
+bool sftp_senddata(const char *buf, size_t len)
 {
     backend_send(backend, buf, len);
     return true;
 }
-int sftp_sendbuffer(void)
+size_t sftp_sendbuffer(void)
 {
     return backend_sendbuffer(backend);
 }

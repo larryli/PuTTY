@@ -271,10 +271,10 @@ struct ConnectionLayerVtable {
     void (*terminal_size)(ConnectionLayer *cl, int width, int height);
 
     /* Indicate that the backlog on standard output has cleared */
-    void (*stdout_unthrottle)(ConnectionLayer *cl, int bufsize);
+    void (*stdout_unthrottle)(ConnectionLayer *cl, size_t bufsize);
 
     /* Query the size of the backlog on standard _input_ */
-    int (*stdin_backlog)(ConnectionLayer *cl);
+    size_t (*stdin_backlog)(ConnectionLayer *cl);
 
     /* Tell the connection layer that the SSH connection itself has
      * backed up, so it should tell all currently open channels to

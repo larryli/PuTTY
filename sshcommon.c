@@ -262,7 +262,8 @@ void ssh_free_pktout(PktOut *pkt)
  */
 
 static void zombiechan_free(Channel *chan);
-static int zombiechan_send(Channel *chan, bool is_stderr, const void *, int);
+static size_t zombiechan_send(
+    Channel *chan, bool is_stderr, const void *, size_t);
 static void zombiechan_set_input_wanted(Channel *chan, bool wanted);
 static void zombiechan_do_nothing(Channel *chan);
 static void zombiechan_open_failure(Channel *chan, const char *);
@@ -318,8 +319,8 @@ static void zombiechan_open_failure(Channel *chan, const char *errtext)
     assert(chan->vt == &zombiechan_channelvt);
 }
 
-static int zombiechan_send(Channel *chan, bool is_stderr,
-                           const void *data, int length)
+static size_t zombiechan_send(Channel *chan, bool is_stderr,
+                              const void *data, size_t length)
 {
     assert(chan->vt == &zombiechan_channelvt);
     return 0;

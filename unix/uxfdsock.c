@@ -163,7 +163,8 @@ static int fdsocket_try_send(FdSocket *fds)
 
     while (bufchain_size(&fds->pending_output_data) > 0) {
 	void *data;
-	int len, ret;
+	size_t len;
+        ssize_t ret;
 
 	bufchain_prefix(&fds->pending_output_data, &data, &len);
 	ret = write(fds->outfd, data, len);
@@ -198,7 +199,7 @@ static int fdsocket_try_send(FdSocket *fds)
     return sent;
 }
 
-static int fdsocket_write(Socket *s, const void *data, int len)
+static size_t fdsocket_write(Socket *s, const void *data, size_t len)
 {
     FdSocket *fds = container_of(s, FdSocket, sock);
 
@@ -211,7 +212,7 @@ static int fdsocket_write(Socket *s, const void *data, int len)
     return bufchain_size(&fds->pending_output_data);
 }
 
-static int fdsocket_write_oob(Socket *s, const void *data, int len)
+static size_t fdsocket_write_oob(Socket *s, const void *data, size_t len)
 {
     /*
      * oob data is treated as inband; nasty, but nothing really

@@ -48,7 +48,8 @@ typedef struct sesschan {
 } sesschan;
 
 static void sesschan_free(Channel *chan);
-static int sesschan_send(Channel *chan, bool is_stderr, const void *, int);
+static size_t sesschan_send(
+    Channel *chan, bool is_stderr, const void *, size_t);
 static void sesschan_send_eof(Channel *chan);
 static char *sesschan_log_close_msg(Channel *chan);
 static bool sesschan_want_close(Channel *, bool, bool);
@@ -95,7 +96,8 @@ static const struct ChannelVtable sesschan_channelvt = {
     chan_no_request_response,
 };
 
-static int sftp_chan_send(Channel *chan, bool is_stderr, const void *, int);
+static size_t sftp_chan_send(
+    Channel *chan, bool is_stderr, const void *, size_t);
 static void sftp_chan_send_eof(Channel *chan);
 static char *sftp_log_close_msg(Channel *chan);
 
@@ -124,7 +126,8 @@ static const struct ChannelVtable sftp_channelvt = {
     chan_no_request_response,
 };
 
-static int scp_chan_send(Channel *chan, bool is_stderr, const void *, int);
+static size_t scp_chan_send(
+    Channel *chan, bool is_stderr, const void *, size_t);
 static void scp_chan_send_eof(Channel *chan);
 static void scp_set_input_wanted(Channel *chan, bool wanted);
 static char *scp_log_close_msg(Channel *chan);
@@ -166,7 +169,8 @@ static const LogPolicyVtable sesschan_logpolicy_vt = {
     sesschan_logging_error,
 };
 
-static int sesschan_seat_output(Seat *, bool is_stderr, const void *, int);
+static size_t sesschan_seat_output(
+    Seat *, bool is_stderr, const void *, size_t);
 static bool sesschan_seat_eof(Seat *);
 static void sesschan_notify_remote_exit(Seat *seat);
 static void sesschan_connection_fatal(Seat *seat, const char *message);
@@ -241,8 +245,8 @@ static void sesschan_free(Channel *chan)
     sfree(sess);
 }
 
-static int sesschan_send(Channel *chan, bool is_stderr,
-                         const void *data, int length)
+static size_t sesschan_send(Channel *chan, bool is_stderr,
+                            const void *data, size_t length)
 {
     sesschan *sess = container_of(chan, sesschan, chan);
 
@@ -553,8 +557,8 @@ bool sesschan_change_window_size(
     return true;
 }
 
-static int sesschan_seat_output(
-    Seat *seat, bool is_stderr, const void *data, int len)
+static size_t sesschan_seat_output(
+    Seat *seat, bool is_stderr, const void *data, size_t len)
 {
     sesschan *sess = container_of(seat, sesschan, seat);
     return sshfwd_write_ext(sess->c, is_stderr, data, len);
@@ -647,8 +651,8 @@ static bool sesschan_get_window_pixel_size(Seat *seat, int *width, int *height)
  * Built-in SFTP subsystem.
  */
 
-static int sftp_chan_send(Channel *chan, bool is_stderr,
-                          const void *data, int length)
+static size_t sftp_chan_send(Channel *chan, bool is_stderr,
+                             const void *data, size_t length)
 {
     sesschan *sess = container_of(chan, sesschan, chan);
 
@@ -695,8 +699,8 @@ static char *sftp_log_close_msg(Channel *chan)
  * Built-in SCP subsystem.
  */
 
-static int scp_chan_send(Channel *chan, bool is_stderr,
-                         const void *data, int length)
+static size_t scp_chan_send(Channel *chan, bool is_stderr,
+                            const void *data, size_t length)
 {
     sesschan *sess = container_of(chan, sesschan, chan);
     return scp_send(sess->scpsrv, data, length);

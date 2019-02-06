@@ -2692,8 +2692,7 @@ static void term_print_setup(Terminal *term, char *printer)
 static void term_print_flush(Terminal *term)
 {
     void *data;
-    int len;
-    int size;
+    size_t len, size;
     while ((size = bufchain_size(&term->printer_buf)) > 5) {
 	bufchain_prefix(&term->printer_buf, &data, &len);
 	if (len > size-5)
@@ -2705,7 +2704,7 @@ static void term_print_flush(Terminal *term)
 static void term_print_finish(Terminal *term)
 {
     void *data;
-    int len, size;
+    size_t len, size;
     char c;
 
     if (!term->printing && !term->only_printing)
@@ -2875,7 +2874,7 @@ static void term_out(Terminal *term)
     unsigned long c;
     int unget;
     unsigned char localbuf[256], *chars;
-    int nchars = 0;
+    size_t nchars = 0;
 
     unget = -1;
 
@@ -6713,7 +6712,7 @@ static void term_added_data(Terminal *term)
     }
 }
 
-int term_data(Terminal *term, bool is_stderr, const void *data, int len)
+size_t term_data(Terminal *term, bool is_stderr, const void *data, size_t len)
 {
     bufchain_add(&term->inbuf, data, len);
     term_added_data(term);
@@ -6740,7 +6739,7 @@ int term_data(Terminal *term, bool is_stderr, const void *data, int len)
     return 0;
 }
 
-static void term_data_untrusted(Terminal *term, const void *data, int len)
+static void term_data_untrusted(Terminal *term, const void *data, size_t len)
 {
     sanitise_term_data(&term->inbuf, data, len);
     term_added_data(term);

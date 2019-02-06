@@ -31,9 +31,9 @@ struct Rlogin {
     Backend backend;
 };
 
-static void c_write(Rlogin *rlogin, const void *buf, int len)
+static void c_write(Rlogin *rlogin, const void *buf, size_t len)
 {
-    int backlog = seat_stdout(rlogin->seat, buf, len);
+    size_t backlog = seat_stdout(rlogin->seat, buf, len);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);
 }
 
@@ -71,7 +71,8 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
     }				       /* Otherwise, the remote side closed the connection normally. */
 }
 
-static void rlogin_receive(Plug *plug, int urgent, const char *data, int len)
+static void rlogin_receive(
+    Plug *plug, int urgent, const char *data, size_t len)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
     if (len == 0)
@@ -110,7 +111,7 @@ static void rlogin_receive(Plug *plug, int urgent, const char *data, int len)
     }
 }
 
-static void rlogin_sent(Plug *plug, int bufsize)
+static void rlogin_sent(Plug *plug, size_t bufsize)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
     rlogin->bufsize = bufsize;
@@ -260,7 +261,7 @@ static void rlogin_reconfig(Backend *be, Conf *conf)
 /*
  * Called to send data down the rlogin connection.
  */
-static int rlogin_send(Backend *be, const char *buf, int len)
+static size_t rlogin_send(Backend *be, const char *buf, size_t len)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
     bufchain bc;
@@ -287,7 +288,7 @@ static int rlogin_send(Backend *be, const char *buf, int len)
     if (!rlogin->prompt) {
         while (bufchain_size(&bc) > 0) {
             void *data;
-            int len;
+            size_t len;
             bufchain_prefix(&bc, &data, &len);
             rlogin->bufsize = sk_write(rlogin->s, data, len);
             bufchain_consume(&bc, len);
@@ -302,7 +303,7 @@ static int rlogin_send(Backend *be, const char *buf, int len)
 /*
  * Called to query the current socket sendability status.
  */
-static int rlogin_sendbuffer(Backend *be)
+static size_t rlogin_sendbuffer(Backend *be)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
     return rlogin->bufsize;
@@ -360,7 +361,7 @@ static bool rlogin_sendok(Backend *be)
     return true;
 }
 
-static void rlogin_unthrottle(Backend *be, int backlog)
+static void rlogin_unthrottle(Backend *be, size_t backlog)
 {
     Rlogin *rlogin = container_of(be, Rlogin, backend);
     sk_set_frozen(rlogin->s, backlog > RLOGIN_MAX_BACKLOG);

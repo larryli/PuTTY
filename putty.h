@@ -503,9 +503,9 @@ struct BackendVtable {
     /* Pass in a replacement configuration. */
     void (*reconfig) (Backend *be, Conf *conf);
     /* send() returns the current amount of buffered data. */
-    int (*send) (Backend *be, const char *buf, int len);
+    size_t (*send) (Backend *be, const char *buf, size_t len);
     /* sendbuffer() does the same thing but without attempting a send */
-    int (*sendbuffer) (Backend *be);
+    size_t (*sendbuffer) (Backend *be);
     void (*size) (Backend *be, int width, int height);
     void (*special) (Backend *be, SessionSpecialCode code, int arg);
     const SessionSpecial *(*get_specials) (Backend *be);
@@ -518,7 +518,7 @@ struct BackendVtable {
     bool (*ldisc_option_state) (Backend *be, int);
     void (*provide_ldisc) (Backend *be, Ldisc *ldisc);
     /* Tells the back end that the front end  buffer is clearing. */
-    void (*unthrottle) (Backend *be, int bufsize);
+    void (*unthrottle) (Backend *be, size_t bufsize);
     int (*cfg_info) (Backend *be);
 
     /* Only implemented in the SSH protocol: check whether a
@@ -742,7 +742,7 @@ struct SeatVtable {
      *
      * The return value is the current size of the output backlog.
      */
-    int (*output)(Seat *seat, bool is_stderr, const void *data, int len);
+    size_t (*output)(Seat *seat, bool is_stderr, const void *data, size_t len);
 
     /*
      * Called when the back end wants to indicate that EOF has arrived
@@ -964,7 +964,8 @@ void seat_connection_fatal(Seat *seat, const char *fmt, ...);
  * These are generally obvious, except for is_utf8, where you might
  * plausibly want to return either fixed answer 'no' or 'yes'.
  */
-int nullseat_output(Seat *seat, bool is_stderr, const void *data, int len);
+size_t nullseat_output(
+    Seat *seat, bool is_stderr, const void *data, size_t len);
 bool nullseat_eof(Seat *seat);
 int nullseat_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 void nullseat_notify_remote_exit(Seat *seat);
@@ -1546,7 +1547,7 @@ void term_reconfig(Terminal *, Conf *);
 void term_request_copy(Terminal *, const int *clipboards, int n_clipboards);
 void term_request_paste(Terminal *, int clipboard);
 void term_seen_key_event(Terminal *); 
-int term_data(Terminal *, bool is_stderr, const void *data, int len);
+size_t term_data(Terminal *, bool is_stderr, const void *data, size_t len);
 void term_provide_backend(Terminal *term, Backend *backend);
 void term_provide_logctx(Terminal *term, LogContext *logctx);
 void term_set_focus(Terminal *term, bool has_focus);
@@ -1634,7 +1635,7 @@ struct logblank_t {
     int type;
 };
 void log_packet(LogContext *logctx, int direction, int type,
-		const char *texttype, const void *data, int len,
+		const char *texttype, const void *data, size_t len,
 		int n_blanks, const struct logblank_t *blanks,
 		const unsigned long *sequence,
                 unsigned downstream_id, const char *additional_log_text);

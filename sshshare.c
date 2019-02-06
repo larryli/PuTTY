@@ -164,7 +164,7 @@ struct ssh_sharing_connstate {
     int curr_packetlen;
 
     unsigned char recvbuf[0x4010];
-    int recvlen;
+    size_t recvlen;
 
     /*
      * Assorted state we have to remember about this downstream, so
@@ -1754,7 +1754,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
         (c) = (unsigned char)*data++;                           \
     } while (0)
 
-static void share_receive(Plug *plug, int urgent, const char *data, int len)
+static void share_receive(Plug *plug, int urgent, const char *data, size_t len)
 {
     ssh_sharing_connstate *cs = container_of(
         plug, ssh_sharing_connstate, plug);
@@ -1830,7 +1830,7 @@ static void share_receive(Plug *plug, int urgent, const char *data, int len)
     crFinishV;
 }
 
-static void share_sent(Plug *plug, int bufsize)
+static void share_sent(Plug *plug, size_t bufsize)
 {
     /* ssh_sharing_connstate *cs = container_of(
         plug, ssh_sharing_connstate, plug); */
