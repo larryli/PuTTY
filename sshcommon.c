@@ -822,7 +822,11 @@ void ssh_ppl_user_output_string_and_free(PacketProtocolLayer *ppl, char *text)
 static void ssh_bpp_input_raw_data_callback(void *context)
 {
     BinaryPacketProtocol *bpp = (BinaryPacketProtocol *)context;
+    Ssh *ssh = bpp->ssh;               /* in case bpp is about to get freed */
     ssh_bpp_handle_input(bpp);
+    /* If we've now cleared enough backlog on the input connection, we
+     * may need to unfreeze it. */
+    ssh_conn_processed_data(ssh);
 }
 
 static void ssh_bpp_output_packet_callback(void *context)

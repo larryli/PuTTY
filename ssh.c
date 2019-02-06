@@ -63,7 +63,29 @@ struct Ssh {
     int conn_throttle_count;
     int overall_bufsize;
     bool throttled_all;
-    bool frozen;
+
+    /*
+     * logically_frozen is true if we're not currently _processing_
+     * data from the SSH socket (e.g. because a higher layer has asked
+     * us not to due to ssh_throttle_conn). socket_frozen is true if
+     * we're not even _reading_ data from the socket (i.e. it should
+     * always match the value we last passed to sk_set_frozen).
+     *
+     * The two differ in that socket_frozen can also become
+     * temporarily true because of a large backlog in the in_raw
+     * bufchain, to force no further plug_receive events until the BPP
+     * input function has had a chance to run. (Some front ends, like
+     * GTK, can persistently call the network and never get round to
+     * the toplevel callbacks.) If we've stopped reading from the
+     * socket for that reason, we absolutely _do_ want to carry on
+     * processing our input bufchain, because that's the only way
+     * it'll ever get cleared!
+     *
+     * ssh_check_frozen() resets socket_frozen, and should be called
+     * whenever either of logically_frozen and the bufchain size
+     * changes.
+     */
+    bool logically_frozen, socket_frozen;
 
     /* in case we find these out before we have a ConnectionLayer to tell */
     int term_width, term_height;
@@ -295,6 +317,29 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
     ssh_bpp_free(old_bpp);
 }
 
+static void ssh_check_frozen(Ssh *ssh)
+{
+    if (!ssh->s)
+        return;
+
+    bool prev_frozen = ssh->socket_frozen;
+    ssh->socket_frozen = (ssh->logically_frozen ||
+                          bufchain_size(&ssh->in_raw) > SSH_MAX_BACKLOG);
+    sk_set_frozen(ssh->s, ssh->socket_frozen);
+    if (prev_frozen && !ssh->socket_frozen && ssh->bpp) {
+        /*
+         * If we've just unfrozen, process any SSH connection data
+         * that was stashed in our queue while we were frozen.
+         */
+        queue_idempotent_callback(&ssh->bpp->ic_in_raw);
+    }
+}
+
+void ssh_conn_processed_data(Ssh *ssh)
+{
+    ssh_check_frozen(ssh);
+}
+
 static void ssh_bpp_output_raw_data_callback(void *vctx)
 {
     Ssh *ssh = (Ssh *)vctx;
@@ -320,6 +365,8 @@ static void ssh_bpp_output_raw_data_callback(void *vctx)
             return;
         }
     }
+
+    ssh_check_frozen(ssh);
 
     if (ssh->pending_close) {
         sk_close(ssh->s);
@@ -536,8 +583,10 @@ static void ssh_receive(Plug *plug, int urgent, char *data, int len)
 		   0, NULL, NULL, 0, NULL);
 
     bufchain_add(&ssh->in_raw, data, len);
-    if (!ssh->frozen && ssh->bpp)
+    if (!ssh->logically_frozen && ssh->bpp)
         queue_idempotent_callback(&ssh->bpp->ic_in_raw);
+
+    ssh_check_frozen(ssh);
 }
 
 static void ssh_sent(Plug *plug, int bufsize)
@@ -753,17 +802,8 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
         return;                /* don't change current frozen state */
     }
 
-    ssh->frozen = frozen;
-
-    if (ssh->s) {
-        sk_set_frozen(ssh->s, frozen);
-
-        /*
-         * Now process any SSH connection data that was stashed in our
-         * queue while we were frozen.
-         */
-        queue_idempotent_callback(&ssh->bpp->ic_in_raw);
-    }
+    ssh->logically_frozen = frozen;
+    ssh_check_frozen(ssh);
 }
 
 /*

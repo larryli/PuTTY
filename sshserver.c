@@ -201,6 +201,13 @@ void ssh_throttle_conn(Ssh *ssh, int adjust)
     }
 }
 
+void ssh_conn_processed_data(Ssh *ssh)
+{
+    /* FIXME: we could add the same check_frozen_state system as we
+     * have in ssh.c, but because that was originally added to work
+     * around a peculiarity of the GUI event loop, I haven't yet. */
+}
+
 static const PlugVtable ssh_server_plugvt = {
     server_socket_log,
     server_closing,

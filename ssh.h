@@ -378,6 +378,9 @@ void ssh_got_exitcode(Ssh *ssh, int status);
 void ssh_ldisc_update(Ssh *ssh);
 void ssh_got_fallback_cmd(Ssh *ssh);
 
+/* Communications back to ssh.c from the BPP */
+void ssh_conn_processed_data(Ssh *ssh);
+
 /* Functions to abort the connection, for various reasons. */
 void ssh_remote_error(Ssh *ssh, const char *fmt, ...);
 void ssh_remote_eof(Ssh *ssh, const char *fmt, ...);
