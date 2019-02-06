@@ -545,7 +545,7 @@ Socket *new_listener(const char *srcaddr, int port, Plug *plug,
  * HTTP CONNECT proxy type.
  */
 
-static int get_line_end (char * data, int len)
+static bool get_line_end(char *data, int len, int *out)
 {
     int off = 0;
 
@@ -556,16 +556,20 @@ static int get_line_end (char * data, int len)
 	    off++;
 
 	    /* is that the only thing on this line? */
-	    if (off <= 2) return off;
+            if (off <= 2) {
+                *out = off;
+                return true;
+            }
 
 	    /* if not, then there is the possibility that this header
 	     * continues onto the next line, if it starts with a space
 	     * or a tab.
 	     */
 
-	    if (off + 1 < len &&
-		data[off+1] != ' ' &&
-		data[off+1] != '\t') return off;
+            if (off + 1 < len && data[off+1] != ' ' && data[off+1] != '\t') {
+                *out = off;
+                return true;
+            }
 
 	    /* the line does continue, so we have to keep going
 	     * until we see an the header's "real" end of line.
@@ -576,7 +580,7 @@ static int get_line_end (char * data, int len)
 	off++;
     }
 
-    return -1;
+    return false;
 }
 
 int proxy_http_negotiate (ProxySocket *p, int change)
@@ -677,8 +681,7 @@ int proxy_http_negotiate (ProxySocket *p, int change)
 	     */
 	    data[len] = '\0';
 
-	    eol = get_line_end(data, len);
-	    if (eol < 0) {
+            if (!get_line_end(data, len, &eol)) {
 		sfree(data);
 		return 1;
 	    }
@@ -726,17 +729,16 @@ int proxy_http_negotiate (ProxySocket *p, int change)
 	    datap = data;
 	    bufchain_fetch(&p->pending_input_data, data, len);
 
-	    eol = get_line_end(datap, len);
-	    if (eol < 0) {
+            if (!get_line_end(datap, len, &eol)) {
 		sfree(data);
 		return 1;
 	    }
-	    while (eol > 2)
-	    {
+	    while (eol > 2) {
 		bufchain_consume(&p->pending_input_data, eol);
 		datap += eol;
 		len   -= eol;
-		eol = get_line_end(datap, len);
+                if (!get_line_end(datap, len, &eol))
+                    eol = 0;           /* terminate the loop */
 	    }
 
 	    if (eol == 2) {
