@@ -276,8 +276,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             strbuf_free(request);
             crWaitUntilV(!s->auth_agent_query);
         }
-        BinarySource_BARE_INIT(
-            s->asrc, s->agent_response.ptr, s->agent_response.len);
+        BinarySource_BARE_INIT_PL(s->asrc, s->agent_response);
 
         get_uint32(s->asrc); /* skip length field */
         if (get_byte(s->asrc) == SSH2_AGENT_IDENTITIES_ANSWER) {
@@ -645,7 +644,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 s->comment = get_string(s->asrc);
                 {
                     BinarySource src[1];
-                    BinarySource_BARE_INIT(src, s->pk.ptr, s->pk.len);
+                    BinarySource_BARE_INIT_PL(src, s->pk);
                     s->alg = get_string(src);
                 }
 
@@ -1598,8 +1597,8 @@ static void ssh2_userauth_add_sigblob(
     struct ssh2_userauth_state *s, PktOut *pkt, ptrlen pkblob, ptrlen sigblob)
 {
     BinarySource pk[1], sig[1];
-    BinarySource_BARE_INIT(pk, pkblob.ptr, pkblob.len);
-    BinarySource_BARE_INIT(sig, sigblob.ptr, sigblob.len);
+    BinarySource_BARE_INIT_PL(pk, pkblob);
+    BinarySource_BARE_INIT_PL(sig, sigblob);
 
     /* dmemdump(pkblob, pkblob_len); */
     /* dmemdump(sigblob, sigblob_len); */

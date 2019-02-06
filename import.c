@@ -600,7 +600,7 @@ static ssh2_userkey *openssh_pem_read(
 
         /* Reinitialise our BinarySource to parse just the inside of that
          * SEQUENCE. */
-        BinarySource_BARE_INIT(src, seq.data.ptr, seq.data.len);
+        BinarySource_BARE_INIT_PL(src, seq.data);
     }
 
     /* Expect a load of INTEGERs. */
@@ -625,11 +625,11 @@ static ssh2_userkey *openssh_pem_read(
         sub1 = get_ber(src);
 
         /* Now look inside sub0 for the curve OID */
-        BinarySource_BARE_INIT(src, sub0.data.ptr, sub0.data.len);
+        BinarySource_BARE_INIT_PL(src, sub0.data);
         oid = get_ber(src);
 
         /* And inside sub1 for the public-key BIT STRING */
-        BinarySource_BARE_INIT(src, sub1.data.ptr, sub1.data.len);
+        BinarySource_BARE_INIT_PL(src, sub1.data);
         pubkey = get_ber(src);
 
         if (get_err(src) ||
@@ -1229,7 +1229,7 @@ static struct openssh_new_key *load_openssh_new_key(const Filename *filename,
         {
             BinarySource opts[1];
 
-            BinarySource_BARE_INIT(opts, str.ptr, str.len);
+            BinarySource_BARE_INIT_PL(opts, str);
             ret->kdfopts.bcrypt.salt = get_string(opts);
             ret->kdfopts.bcrypt.rounds = get_uint32(opts);
 
@@ -1398,7 +1398,7 @@ static ssh2_userkey *openssh_new_read(
      * Now parse the entire encrypted section, and extract the key
      * identified by key_wanted.
      */
-    BinarySource_BARE_INIT(src, key->private.ptr, key->private.len);
+    BinarySource_BARE_INIT_PL(src, key->private);
 
     checkint = get_uint32(src);
     if (get_uint32(src) != checkint || get_err(src)) {
@@ -2077,13 +2077,13 @@ static ssh2_userkey *sshcom_read(
      * Expect the ciphertext to be formatted as a containing string,
      * and reinitialise src to start parsing the inside of that string.
      */
-    BinarySource_BARE_INIT(src, ciphertext.ptr, ciphertext.len);
+    BinarySource_BARE_INIT_PL(src, ciphertext);
     str = get_string(src);
     if (get_err(src)) {
         errmsg = "containing string was ill-formed";
         goto error;
     }
-    BinarySource_BARE_INIT(src, str.ptr, str.len);
+    BinarySource_BARE_INIT_PL(src, str);
 
     /*
      * Now we break down into RSA versus DSA. In either case we'll

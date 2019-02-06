@@ -681,8 +681,7 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                     BinarySource bs_modes[1];
                     struct ssh_ttymodes modes;
 
-                    BinarySource_BARE_INIT(
-                        bs_modes, encoded_modes.ptr, encoded_modes.len);
+                    BinarySource_BARE_INIT_PL(bs_modes, encoded_modes);
                     modes = read_ttymodes_from_packet(bs_modes, 2);
                     if (get_err(bs_modes) || get_avail(bs_modes) > 0) {
                         ppl_logevent("Unable to decode terminal mode string");

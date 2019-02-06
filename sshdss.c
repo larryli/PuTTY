@@ -17,7 +17,7 @@ static ssh_key *dss_new_pub(const ssh_keyalg *self, ptrlen data)
     BinarySource src[1];
     struct dss_key *dss;
 
-    BinarySource_BARE_INIT(src, data.ptr, data.len);
+    BinarySource_BARE_INIT_PL(src, data);
     if (!ptrlen_eq_string(get_string(src), "ssh-dss"))
 	return NULL;
 
@@ -93,7 +93,7 @@ static bool dss_verify(ssh_key *key, ptrlen sig, ptrlen data)
     if (!dss->p)
 	return false;
 
-    BinarySource_BARE_INIT(src, sig.ptr, sig.len);
+    BinarySource_BARE_INIT_PL(src, sig);
 
     /*
      * Commercial SSH (2.0.13) and OpenSSH disagree over the format
@@ -214,7 +214,7 @@ static ssh_key *dss_new_priv(const ssh_keyalg *self, ptrlen pub, ptrlen priv)
         return NULL;
 
     dss = container_of(sshk, struct dss_key, sshk);
-    BinarySource_BARE_INIT(src, priv.ptr, priv.len);
+    BinarySource_BARE_INIT_PL(src, priv);
     dss->x = get_mp_ssh2(src);
     if (get_err(src)) {
         dss_freekey(&dss->sshk);

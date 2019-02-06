@@ -350,7 +350,7 @@ static WeierstrassPoint *ecdsa_decode(
     assert(curve->type == EC_WEIERSTRASS);
     BinarySource src[1];
 
-    BinarySource_BARE_INIT(src, encoded.ptr, encoded.len);
+    BinarySource_BARE_INIT_PL(src, encoded);
     unsigned char format_type = get_byte(src);
 
     WeierstrassPoint *P;
@@ -557,7 +557,7 @@ static ssh_key *ecdsa_new_pub(const ssh_keyalg *alg, ptrlen data)
     assert(curve->type == EC_WEIERSTRASS);
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, data.ptr, data.len);
+    BinarySource_BARE_INIT_PL(src, data);
     get_string(src);
 
     /* Curve name is duplicated for Weierstrass form */
@@ -586,7 +586,7 @@ static ssh_key *eddsa_new_pub(const ssh_keyalg *alg, ptrlen data)
     assert(curve->type == EC_EDWARDS);
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, data.ptr, data.len);
+    BinarySource_BARE_INIT_PL(src, data);
     get_string(src);
 
     struct eddsa_key *ek = snew(struct eddsa_key);
@@ -687,7 +687,7 @@ static ssh_key *ecdsa_new_priv(const ssh_keyalg *alg, ptrlen pub, ptrlen priv)
     struct ecdsa_key *ek = container_of(sshk, struct ecdsa_key, sshk);
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, priv.ptr, priv.len);
+    BinarySource_BARE_INIT_PL(src, priv);
     ek->privateKey = get_mp_ssh2(src);
 
     return &ek->sshk;
@@ -701,7 +701,7 @@ static ssh_key *eddsa_new_priv(const ssh_keyalg *alg, ptrlen pub, ptrlen priv)
     struct eddsa_key *ek = container_of(sshk, struct eddsa_key, sshk);
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, priv.ptr, priv.len);
+    BinarySource_BARE_INIT_PL(src, priv);
     ek->privateKey = get_mp_le(src);
 
     return &ek->sshk;
@@ -729,8 +729,7 @@ static ssh_key *eddsa_new_priv_openssh(
      * it.
      */
     BinarySource subsrc[1];
-    BinarySource_BARE_INIT(
-        subsrc, privkey_extended_pl.ptr, privkey_extended_pl.len);
+    BinarySource_BARE_INIT_PL(subsrc, privkey_extended_pl);
     ptrlen privkey_pl = get_data(subsrc, curve->fieldBytes);
     ptrlen pubkey_copy_pl = get_data(subsrc, curve->fieldBytes);
     if (get_err(subsrc) || get_avail(subsrc))
@@ -856,7 +855,7 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
         (const struct ecsign_extra *)ek->sshk.vt->extra;
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, sig.ptr, sig.len);
+    BinarySource_BARE_INIT_PL(src, sig);
 
     /* Check the signature starts with the algorithm name */
     if (!ptrlen_eq_string(get_string(src), ek->sshk.vt->ssh_id))
@@ -866,7 +865,7 @@ static bool ecdsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     ptrlen sigstr = get_string(src);
     if (get_err(src))
         return false;
-    BinarySource_BARE_INIT(src, sigstr.ptr, sigstr.len);
+    BinarySource_BARE_INIT_PL(src, sigstr);
 
     /* Extract the signature integers r,s */
     mp_int *r = get_mp_ssh2(src);
@@ -941,7 +940,7 @@ static bool eddsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
         (const struct ecsign_extra *)ek->sshk.vt->extra;
 
     BinarySource src[1];
-    BinarySource_BARE_INIT(src, sig.ptr, sig.len);
+    BinarySource_BARE_INIT_PL(src, sig);
 
     /* Check the signature starts with the algorithm name */
     if (!ptrlen_eq_string(get_string(src), ek->sshk.vt->ssh_id))
@@ -952,7 +951,7 @@ static bool eddsa_verify(ssh_key *key, ptrlen sig, ptrlen data)
     ptrlen sigstr = get_string(src);
     if (get_err(src))
         return false;
-    BinarySource_BARE_INIT(src, sigstr.ptr, sigstr.len);
+    BinarySource_BARE_INIT_PL(src, sigstr);
     ptrlen rstr = get_data(src, ek->curve->fieldBytes);
     ptrlen sstr = get_data(src, ek->curve->fieldBytes);
     if (get_err(src) || get_avail(src))
