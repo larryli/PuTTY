@@ -133,7 +133,7 @@ static void server_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void server_receive(Plug *plug, int urgent, char *data, int len)
+static void server_receive(Plug *plug, int urgent, const char *data, int len)
 {
     server *srv = container_of(plug, server, plug);
 

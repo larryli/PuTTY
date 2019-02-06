@@ -89,7 +89,7 @@ static void raw_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void raw_receive(Plug *plug, int urgent, char *data, int len)
+static void raw_receive(Plug *plug, int urgent, const char *data, int len)
 {
     Raw *raw = container_of(plug, Raw, plug);
     c_write(raw, data, len);

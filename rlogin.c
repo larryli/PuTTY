@@ -71,9 +71,11 @@ static void rlogin_closing(Plug *plug, const char *error_msg, int error_code,
     }				       /* Otherwise, the remote side closed the connection normally. */
 }
 
-static void rlogin_receive(Plug *plug, int urgent, char *data, int len)
+static void rlogin_receive(Plug *plug, int urgent, const char *data, int len)
 {
     Rlogin *rlogin = container_of(plug, Rlogin, plug);
+    if (len == 0)
+        return;
     if (urgent == 2) {
 	char c;
 

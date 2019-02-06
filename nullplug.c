@@ -17,7 +17,7 @@ static void nullplug_closing(Plug *plug, const char *error_msg, int error_code,
 {
 }
 
-static void nullplug_receive(Plug *plug, int urgent, char *data, int len)
+static void nullplug_receive(Plug *plug, int urgent, const char *data, int len)
 {
 }
 

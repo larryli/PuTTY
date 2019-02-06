@@ -70,7 +70,7 @@ struct PlugVtable {
     /* error_msg is NULL iff it is not an error (ie it closed normally) */
     /* calling_back != 0 iff there is a Plug function */
     /* currently running (would cure the fixme in try_send()) */
-    void (*receive) (Plug *p, int urgent, char *data, int len);
+    void (*receive) (Plug *p, int urgent, const char *data, int len);
     /*
      *  - urgent==0. `data' points to `len' bytes of perfectly
      *    ordinary data.

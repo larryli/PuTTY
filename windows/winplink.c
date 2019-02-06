@@ -205,7 +205,7 @@ char *do_select(SOCKET skt, bool startup)
     return NULL;
 }
 
-int stdin_gotdata(struct handle *h, void *data, int len)
+int stdin_gotdata(struct handle *h, const void *data, int len)
 {
     if (len < 0) {
 	/*

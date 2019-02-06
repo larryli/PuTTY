@@ -68,7 +68,7 @@ struct ProxySocket {
 
     /* receive */
     bool receive_urgent;
-    char *receive_data;
+    const char *receive_data;
     int receive_len;
 
     /* sent */

@@ -573,7 +573,7 @@ static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void ssh_receive(Plug *plug, int urgent, char *data, int len)
+static void ssh_receive(Plug *plug, int urgent, const char *data, int len)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
 

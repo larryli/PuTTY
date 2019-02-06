@@ -45,7 +45,7 @@ typedef struct HandleSocket {
     Socket sock;
 } HandleSocket;
 
-static int handle_gotdata(struct handle *h, void *data, int len)
+static int handle_gotdata(struct handle *h, const void *data, int len)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
@@ -79,7 +79,7 @@ static int handle_gotdata(struct handle *h, void *data, int len)
     }
 }
 
-static int handle_stderr(struct handle *h, void *data, int len)
+static int handle_stderr(struct handle *h, const void *data, int len)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 

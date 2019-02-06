@@ -726,7 +726,7 @@ static void x11_closing(Plug *plug, const char *error_msg, int error_code,
     }
 }
 
-static void x11_receive(Plug *plug, int urgent, char *data, int len)
+static void x11_receive(Plug *plug, int urgent, const char *data, int len)
 {
     struct X11Connection *xconn = container_of(
         plug, struct X11Connection, plug);

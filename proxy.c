@@ -214,7 +214,7 @@ static void plug_proxy_closing (Plug *p, const char *error_msg,
     }
 }
 
-static void plug_proxy_receive (Plug *p, int urgent, char *data, int len)
+static void plug_proxy_receive (Plug *p, int urgent, const char *data, int len)
 {
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 

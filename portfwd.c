@@ -192,7 +192,7 @@ static char *ipv6_to_string(ptrlen ipv6)
                      (unsigned)GET_16BIT_MSB_FIRST(addr + 14));
 }
 
-static void pfd_receive(Plug *plug, int urgent, char *data, int len)
+static void pfd_receive(Plug *plug, int urgent, const char *data, int len)
 {
     struct PortForwarding *pf =
         container_of(plug, struct PortForwarding, plug);

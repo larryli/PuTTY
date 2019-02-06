@@ -31,7 +31,7 @@ static Filename *xlatlognam(Filename *s, char *hostname, int port,
  * isn't open, buffering data if it's in the process of being
  * opened asynchronously, etc.
  */
-static void logwrite(LogContext *ctx, void *data, int len)
+static void logwrite(LogContext *ctx, const void *data, int len)
 {
     /*
      * In state L_CLOSED, we call logfopen, which will set the state

@@ -155,7 +155,7 @@ void chan_no_request_response(Channel *chan, bool success) {}
  */
 static void x11_log(Plug *p, int type, SockAddr *addr, int port,
 		    const char *error_msg, int error_code) {}
-static void x11_receive(Plug *plug, int urgent, char *data, int len) {}
+static void x11_receive(Plug *plug, int urgent, const char *data, int len) {}
 static void x11_sent(Plug *plug, int bufsize) {}
 static void x11_closing(Plug *plug, const char *error_msg, int error_code,
 			bool calling_back)

@@ -40,7 +40,7 @@ static void serial_terminate(Serial *serial)
     }
 }
 
-static int serial_gotdata(struct handle *h, void *data, int len)
+static int serial_gotdata(struct handle *h, const void *data, int len)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
     if (len <= 0) {

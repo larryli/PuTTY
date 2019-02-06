@@ -506,7 +506,7 @@ static void process_subneg(Telnet *telnet)
     }
 }
 
-static void do_telnet_read(Telnet *telnet, char *buf, int len)
+static void do_telnet_read(Telnet *telnet, const char *buf, int len)
 {
     strbuf *outbuf = strbuf_new();
 
@@ -654,7 +654,7 @@ static void telnet_closing(Plug *plug, const char *error_msg, int error_code,
     /* Otherwise, the remote side closed the connection normally. */
 }
 
-static void telnet_receive(Plug *plug, int urgent, char *data, int len)
+static void telnet_receive(Plug *plug, int urgent, const char *data, int len)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);
     if (urgent)

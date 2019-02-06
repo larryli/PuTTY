@@ -1754,7 +1754,7 @@ static void share_got_pkt_from_downstream(struct ssh_sharing_connstate *cs,
         (c) = (unsigned char)*data++;                           \
     } while (0)
 
-static void share_receive(Plug *plug, int urgent, char *data, int len)
+static void share_receive(Plug *plug, int urgent, const char *data, int len)
 {
     ssh_sharing_connstate *cs = container_of(
         plug, ssh_sharing_connstate, plug);

@@ -755,7 +755,8 @@ static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
     sfree(formatted);
 }
 
-static void pageant_conn_receive(Plug *plug, int urgent, char *data, int len)
+static void pageant_conn_receive(
+    Plug *plug, int urgent, const char *data, int len)
 {
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);

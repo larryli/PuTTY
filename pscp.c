@@ -574,7 +574,7 @@ bool sftp_recvdata(char *buf, int len)
 {
     return ssh_scp_recv(buf, len);
 }
-bool sftp_senddata(char *buf, int len)
+bool sftp_senddata(const char *buf, int len)
 {
     backend_send(backend, buf, len);
     return true;
