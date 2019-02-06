@@ -238,7 +238,6 @@ static void plug_proxy_sent (Plug *p, int bufsize)
     ProxySocket *ps = container_of(p, ProxySocket, plugimpl);
 
     if (ps->state != PROXY_STATE_ACTIVE) {
-	ps->sent_bufsize = bufsize;
 	ps->negotiate(ps, PROXY_CHANGE_SENT);
 	return;
     }

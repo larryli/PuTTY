@@ -71,9 +71,6 @@ struct ProxySocket {
     const char *receive_data;
     int receive_len;
 
-    /* sent */
-    int sent_bufsize;
-
     /* accepting */
     accept_fn_t accepting_constructor;
     accept_ctx_t accepting_ctx;
