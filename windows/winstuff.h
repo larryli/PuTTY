@@ -603,8 +603,10 @@ void init_ucs(Conf *, struct unicode_data *);
 #define HANDLE_FLAG_IGNOREEOF 2
 #define HANDLE_FLAG_UNITBUFFER 4
 struct handle;
-typedef int (*handle_inputfn_t)(struct handle *h, const void *data, int len);
-typedef void (*handle_outputfn_t)(struct handle *h, int new_backlog);
+typedef int (*handle_inputfn_t)(
+    struct handle *h, const void *data, int len, int err);
+typedef void (*handle_outputfn_t)(
+    struct handle *h, int new_backlog, int err);
 struct handle *handle_input_new(HANDLE handle, handle_inputfn_t gotdata,
 				void *privdata, int flags);
 struct handle *handle_output_new(HANDLE handle, handle_outputfn_t sentdata,

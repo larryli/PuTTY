@@ -664,9 +664,9 @@ void handle_got_event(HANDLE event)
 	     * EOF, or (nearly equivalently) read error.
 	     */
 	    h->u.i.defunct = true;
-	    h->u.i.gotdata(h, NULL, -h->u.i.readerr);
+	    h->u.i.gotdata(h, NULL, 0, h->u.i.readerr);
 	} else {
-	    backlog = h->u.i.gotdata(h, h->u.i.buffer, h->u.i.len);
+	    backlog = h->u.i.gotdata(h, h->u.i.buffer, h->u.i.len, 0);
 	    handle_throttle(&h->u.i, backlog);
 	}
         break;
@@ -686,11 +686,11 @@ void handle_got_event(HANDLE event)
 	     * thread is terminating by now).
 	     */
 	    h->u.o.defunct = true;
-	    h->u.o.sentdata(h, -h->u.o.writeerr);
+	    h->u.o.sentdata(h, 0, h->u.o.writeerr);
 	} else {
 	    bufchain_consume(&h->u.o.queued_data, h->u.o.lenwritten);
             noise_ultralight(NOISE_SOURCE_IOLEN, h->u.o.lenwritten);
-	    h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data));
+	    h->u.o.sentdata(h, bufchain_size(&h->u.o.queued_data), 0);
 	    handle_try_output(&h->u.o);
 	}
         break;

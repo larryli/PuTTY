@@ -205,14 +205,11 @@ char *do_select(SOCKET skt, bool startup)
     return NULL;
 }
 
-int stdin_gotdata(struct handle *h, const void *data, int len)
+int stdin_gotdata(struct handle *h, const void *data, int len, int err)
 {
-    if (len < 0) {
-	/*
-	 * Special case: report read error.
-	 */
+    if (err) {
 	char buf[4096];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -len, 0,
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
 		      buf, lenof(buf), NULL);
 	buf[lenof(buf)-1] = '\0';
 	if (buf[strlen(buf)-1] == '\n')
@@ -232,14 +229,11 @@ int stdin_gotdata(struct handle *h, const void *data, int len)
 	return 0;
 }
 
-void stdouterr_sent(struct handle *h, int new_backlog)
+void stdouterr_sent(struct handle *h, int new_backlog, int err)
 {
-    if (new_backlog < 0) {
-	/*
-	 * Special case: report write error.
-	 */
+    if (err) {
 	char buf[4096];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, -new_backlog, 0,
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
 		      buf, lenof(buf), NULL);
 	buf[lenof(buf)-1] = '\0';
 	if (buf[strlen(buf)-1] == '\n')
@@ -248,6 +242,7 @@ void stdouterr_sent(struct handle *h, int new_backlog)
 		(h == stdout_handle ? "output" : "error"), buf);
 	cleanup_exit(0);
     }
+
     if (backend_connected(backend)) {
         backend_unthrottle(backend, (handle_backlog(stdout_handle) +
                                      handle_backlog(stderr_handle)));

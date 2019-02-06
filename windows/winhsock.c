@@ -45,11 +45,11 @@ typedef struct HandleSocket {
     Socket sock;
 } HandleSocket;
 
-static int handle_gotdata(struct handle *h, const void *data, int len)
+static int handle_gotdata(struct handle *h, const void *data, int len, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
-    if (len < 0) {
+    if (err) {
 	plug_closing(hs->plug, "Read error from handle", 0, 0);
 	return 0;
     } else if (len == 0) {
@@ -79,25 +79,22 @@ static int handle_gotdata(struct handle *h, const void *data, int len)
     }
 }
 
-static int handle_stderr(struct handle *h, const void *data, int len)
+static int handle_stderr(struct handle *h, const void *data, int len, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
-    if (len > 0)
+    if (!err && len > 0)
         log_proxy_stderr(hs->plug, &hs->stderrdata, data, len);
 
     return 0;
 }
 
-static void handle_sentdata(struct handle *h, int new_backlog)
+static void handle_sentdata(struct handle *h, int new_backlog, int err)
 {
     HandleSocket *hs = (HandleSocket *)handle_get_privdata(h);
 
-    if (new_backlog < 0) {
-        /* Special case: this is actually reporting an error writing
-         * to the underlying handle, and our input value is the error
-         * code itself, negated. */
-        plug_closing(hs->plug, win_strerror(-new_backlog), -new_backlog, 0);
+    if (err) {
+        plug_closing(hs->plug, win_strerror(err), err, 0);
         return;
     }
 

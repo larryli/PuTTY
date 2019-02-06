@@ -40,10 +40,11 @@ static void serial_terminate(Serial *serial)
     }
 }
 
-static int serial_gotdata(struct handle *h, const void *data, int len)
+static int serial_gotdata(
+    struct handle *h, const void *data, int len, int err)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
-    if (len <= 0) {
+    if (err || len == 0) {
 	const char *error_msg;
 
 	/*
@@ -53,7 +54,7 @@ static int serial_gotdata(struct handle *h, const void *data, int len)
 	 * pipes or some other non-serial device, in which case EOF
 	 * may become meaningful here.
 	 */
-	if (len == 0)
+        if (!err)
 	    error_msg = "End of file reading from serial device";
 	else
 	    error_msg = "Error reading from serial device";
@@ -66,16 +67,16 @@ static int serial_gotdata(struct handle *h, const void *data, int len)
 
 	seat_connection_fatal(serial->seat, "%s", error_msg);
 
-	return 0;		       /* placate optimiser */
+	return 0;
     } else {
 	return seat_stdout(serial->seat, data, len);
     }
 }
 
-static void serial_sentdata(struct handle *h, int new_backlog)
+static void serial_sentdata(struct handle *h, int new_backlog, int err)
 {
     Serial *serial = (Serial *)handle_get_privdata(h);
-    if (new_backlog < 0) {
+    if (err) {
 	const char *error_msg = "Error writing to serial device";
 
 	serial_terminate(serial);
