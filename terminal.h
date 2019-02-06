@@ -169,7 +169,7 @@ struct terminal_tag {
     unsigned esc_args[ARGS_MAX];
     int esc_nargs;
     int esc_query;
-#define ANSI(x,y)	((x)+((y)<<8))
+#define ANSI(x,y)	((x)+((y)*256))
 #define ANSI_QUE(x)	ANSI(x,1)
 
 #define OSC_STR_MAX 2048
