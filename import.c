@@ -281,10 +281,10 @@ struct openssh_pem_key {
     strbuf *keyblob;
 };
 
-void BinarySink_put_mp_ssh2_from_string(
-    BinarySink *bs, const void *bytesv, int nbytes)
+void BinarySink_put_mp_ssh2_from_string(BinarySink *bs, ptrlen str)
 {
-    const unsigned char *bytes = (const unsigned char *)bytesv;
+    const unsigned char *bytes = (const unsigned char *)str.ptr;
+    size_t nbytes = str.len;
     while (nbytes > 0 && bytes[0] == 0) {
         nbytes--;
         bytes++;
@@ -297,8 +297,8 @@ void BinarySink_put_mp_ssh2_from_string(
     }
     put_data(bs, bytes, nbytes);
 }
-#define put_mp_ssh2_from_string(bs, val, len) \
-    BinarySink_put_mp_ssh2_from_string(BinarySink_UPCAST(bs), val, len)
+#define put_mp_ssh2_from_string(bs, str) \
+    BinarySink_put_mp_ssh2_from_string(BinarySink_UPCAST(bs), str)
 
 static struct openssh_pem_key *load_openssh_pem_key(const Filename *filename,
                                                     const char **errmsg_p)
@@ -537,8 +537,6 @@ static ssh2_userkey *openssh_pem_read(
     const char *errmsg;
     strbuf *blob = strbuf_new();
     int privptr = 0, publen;
-    const char *modptr = NULL;
-    int modlen = 0;
 
     if (!key)
 	return NULL;
@@ -669,7 +667,7 @@ static ssh2_userkey *openssh_pem_read(
         put_stringz(blob, curve->name);
         put_stringpl(blob, pubkey.data);
         publen = blob->len;
-        put_mp_ssh2_from_string(blob, privkey.data.ptr, privkey.data.len);
+        put_mp_ssh2_from_string(blob, privkey.data);
 
         retkey->key = ssh_key_new_priv(
             alg, make_ptrlen(blob->u, publen),
@@ -684,6 +682,8 @@ static ssh2_userkey *openssh_pem_read(
     } else if (key->keytype == OP_RSA || key->keytype == OP_DSA) {
 
         put_stringz(blob, key->keytype == OP_DSA ? "ssh-dss" : "ssh-rsa");
+
+        ptrlen rsa_modulus = PTRLEN_LITERAL("");
 
         for (i = 0; i < num_integers; i++) {
             ber_item integer = get_ber(src);
@@ -712,13 +712,11 @@ static ssh2_userkey *openssh_pem_read(
                  */
                 if (i == 1) {
                     /* Save the details for after we deal with number 2. */
-                    modptr = integer.data.ptr;
-                    modlen = integer.data.len;
+                    rsa_modulus = integer.data;
                 } else if (i != 6 && i != 7) {
-                    put_mp_ssh2_from_string(blob, integer.data.ptr,
-                                            integer.data.len);
+                    put_mp_ssh2_from_string(blob, integer.data);
                     if (i == 2) {
-                        put_mp_ssh2_from_string(blob, modptr, modlen);
+                        put_mp_ssh2_from_string(blob, rsa_modulus);
                         privptr = blob->len;
                     }
                 }
@@ -727,8 +725,7 @@ static ssh2_userkey *openssh_pem_read(
                  * Integers 1-4 go into the public blob; integer 5 goes
                  * into the private blob.
                  */
-                put_mp_ssh2_from_string(blob, integer.data.ptr,
-                                        integer.data.len);
+                put_mp_ssh2_from_string(blob, integer.data);
                 if (i == 4)
                     privptr = blob->len;
             }
@@ -1918,10 +1915,10 @@ static bool sshcom_encrypted(const Filename *filename, char **comment)
     return answer;
 }
 
-void BinarySink_put_mp_sshcom_from_string(
-    BinarySink *bs, const void *bytesv, int nbytes)
+void BinarySink_put_mp_sshcom_from_string(BinarySink *bs, ptrlen str)
 {
-    const unsigned char *bytes = (const unsigned char *)bytesv;
+    const unsigned char *bytes = (const unsigned char *)str.ptr;
+    size_t nbytes = str.len;
     int bits = nbytes * 8 - 1;
 
     while (bits > 0) {
@@ -1935,8 +1932,8 @@ void BinarySink_put_mp_sshcom_from_string(
     put_data(bs, bytes, nbytes);
 }
 
-#define put_mp_sshcom_from_string(bs, val, len) \
-    BinarySink_put_mp_sshcom_from_string(BinarySink_UPCAST(bs), val, len)
+#define put_mp_sshcom_from_string(bs, str) \
+    BinarySink_put_mp_sshcom_from_string(BinarySink_UPCAST(bs), str)
 
 static ptrlen BinarySource_get_mp_sshcom_as_string(BinarySource *src)
 {
@@ -2107,13 +2104,13 @@ static ssh2_userkey *sshcom_read(
 
         alg = &ssh_rsa;
         put_stringz(blob, "ssh-rsa");
-        put_mp_ssh2_from_string(blob, e.ptr, e.len);
-        put_mp_ssh2_from_string(blob, n.ptr, n.len);
+        put_mp_ssh2_from_string(blob, e);
+        put_mp_ssh2_from_string(blob, n);
         publen = blob->len;
-        put_mp_ssh2_from_string(blob, d.ptr, d.len);
-        put_mp_ssh2_from_string(blob, q.ptr, q.len);
-        put_mp_ssh2_from_string(blob, p.ptr, p.len);
-        put_mp_ssh2_from_string(blob, u.ptr, u.len);
+        put_mp_ssh2_from_string(blob, d);
+        put_mp_ssh2_from_string(blob, q);
+        put_mp_ssh2_from_string(blob, p);
+        put_mp_ssh2_from_string(blob, u);
     } else {
         ptrlen p, q, g, x, y;
 
@@ -2135,12 +2132,12 @@ static ssh2_userkey *sshcom_read(
 
         alg = &ssh_dss;
         put_stringz(blob, "ssh-dss");
-        put_mp_ssh2_from_string(blob, p.ptr, p.len);
-        put_mp_ssh2_from_string(blob, q.ptr, q.len);
-        put_mp_ssh2_from_string(blob, g.ptr, g.len);
-        put_mp_ssh2_from_string(blob, y.ptr, y.len);
+        put_mp_ssh2_from_string(blob, p);
+        put_mp_ssh2_from_string(blob, q);
+        put_mp_ssh2_from_string(blob, g);
+        put_mp_ssh2_from_string(blob, y);
         publen = blob->len;
-        put_mp_ssh2_from_string(blob, x.ptr, x.len);
+        put_mp_ssh2_from_string(blob, x);
     }
 
     retkey = snew(ssh2_userkey);
@@ -2271,7 +2268,7 @@ static bool sshcom_write(
     if (initial_zero)
         put_uint32(outblob, 0);
     for (i = 0; i < nnumbers; i++)
-	put_mp_sshcom_from_string(outblob, numbers[i].ptr, numbers[i].len);
+	put_mp_sshcom_from_string(outblob, numbers[i]);
     /* Now wrap up the encrypted payload. */
     PUT_32BIT_MSB_FIRST(outblob->s + lenpos + 4,
                         outblob->len - (lenpos + 8));

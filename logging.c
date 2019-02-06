@@ -31,7 +31,7 @@ static Filename *xlatlognam(Filename *s, char *hostname, int port,
  * isn't open, buffering data if it's in the process of being
  * opened asynchronously, etc.
  */
-static void logwrite(LogContext *ctx, const void *data, size_t len)
+static void logwrite(LogContext *ctx, ptrlen data)
 {
     /*
      * In state L_CLOSED, we call logfopen, which will set the state
@@ -42,10 +42,10 @@ static void logwrite(LogContext *ctx, const void *data, size_t len)
 	logfopen(ctx);
 
     if (ctx->state == L_OPENING) {
-	bufchain_add(&ctx->queue, data, len);
+	bufchain_add(&ctx->queue, data.ptr, data.len);
     } else if (ctx->state == L_OPEN) {
 	assert(ctx->lgfp);
-	if (fwrite(data, 1, len, ctx->lgfp) < len) {
+	if (fwrite(data.ptr, 1, data.len, ctx->lgfp) < data.len) {
 	    logfclose(ctx);
 	    ctx->state = L_ERROR;
             lp_eventlog(ctx->lp, "Disabled writing session log "
@@ -67,7 +67,7 @@ static void logprintf(LogContext *ctx, const char *fmt, ...)
     data = dupvprintf(fmt, ap);
     va_end(ap);
 
-    logwrite(ctx, data, strlen(data));
+    logwrite(ctx, ptrlen_from_asciz(data));
     sfree(data);
 }
 
@@ -138,7 +138,7 @@ static void logfopen_callback(void *vctx, int mode)
     assert(ctx->state != L_OPENING);   /* make _sure_ it won't be requeued */
     while (bufchain_size(&ctx->queue)) {
         ptrlen data = bufchain_prefix(&ctx->queue);
-	logwrite(ctx, data.ptr, data.len);
+	logwrite(ctx, data);
 	bufchain_consume(&ctx->queue, data.len);
     }
     logflush(ctx);
@@ -203,7 +203,7 @@ void logtraffic(LogContext *ctx, unsigned char c, int logmode)
 {
     if (ctx->logtype > 0) {
 	if (ctx->logtype == logmode)
-	    logwrite(ctx, &c, 1);
+	    logwrite(ctx, make_ptrlen(&c, 1));
     }
 }
 
@@ -378,7 +378,7 @@ void log_packet(LogContext *ctx, int direction, int type,
 	if (((p % 16) == 0) || (p == len) || omitted) {
 	    if (output_pos) {
 		strcpy(dumpdata + 10+1+3*16+2+output_pos, "\r\n");
-		logwrite(ctx, dumpdata, strlen(dumpdata));
+		logwrite(ctx, ptrlen_from_asciz(dumpdata));
 		output_pos = 0;
 	    }
 	}

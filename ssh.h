@@ -1113,7 +1113,7 @@ char *ssh2_pubkey_openssh_str(ssh2_userkey *key);
 void ssh2_write_pubkey(FILE *fp, const char *comment,
                        const void *v_pub_blob, int pub_len,
                        int keytype);
-char *ssh2_fingerprint_blob(const void *blob, int bloblen);
+char *ssh2_fingerprint_blob(ptrlen);
 char *ssh2_fingerprint(ssh_key *key);
 int key_type(const Filename *filename);
 const char *key_type_to_str(int type);

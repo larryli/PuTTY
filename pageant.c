@@ -320,8 +320,7 @@ void pageant_handle_msg(BinarySink *bs,
                 have_flags = true;
 
             if (logfn) {
-                char *fingerprint = ssh2_fingerprint_blob(
-                    keyblob.ptr, keyblob.len);
+                char *fingerprint = ssh2_fingerprint_blob(keyblob);
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
@@ -553,7 +552,7 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             if (logfn) {
-                char *fingerprint = ssh2_fingerprint_blob(blob.ptr, blob.len);
+                char *fingerprint = ssh2_fingerprint_blob(blob);
                 plog(logctx, logfn, "unwanted key: %s", fingerprint);
                 sfree(fingerprint);
             }
@@ -1387,7 +1386,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             return PAGEANT_ACTION_FAILURE;
         }
 
-        fingerprint = ssh2_fingerprint_blob(pubblob.ptr, pubblob.len);
+        fingerprint = ssh2_fingerprint_blob(pubblob);
         cbkey.blob = strbuf_new();
         put_datapl(cbkey.blob, pubblob);
 

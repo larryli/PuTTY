@@ -1002,7 +1002,7 @@ int main(int argc, char **argv)
 		} else {
 		    assert(ssh2blob);
 		    fingerprint = ssh2_fingerprint_blob(
-                        ssh2blob->s, ssh2blob->len);
+                        ptrlen_from_strbuf(ssh2blob));
 		}
 	    }
 
