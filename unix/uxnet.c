@@ -1111,7 +1111,7 @@ void try_send(NetSocket *s)
     while (s->sending_oob || bufchain_size(&s->output_data) > 0) {
 	int nsent;
 	int err;
-	void *data;
+	const void *data;
 	size_t len;
         int urgentflag;
 
@@ -1121,7 +1121,9 @@ void try_send(NetSocket *s)
 	    data = &s->oobdata;
 	} else {
 	    urgentflag = 0;
-	    bufchain_prefix(&s->output_data, &data, &len);
+            ptrlen bufdata = bufchain_prefix(&s->output_data);
+            data = bufdata.ptr;
+            len = bufdata.len;
 	}
 	nsent = send(s->s, data, len, urgentflag);
 	noise_ultralight(NOISE_SOURCE_IOLEN, nsent);

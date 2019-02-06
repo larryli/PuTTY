@@ -780,13 +780,11 @@ static void ssh1_connection_got_user_input(PacketProtocolLayer *ppl)
         /*
          * Add user input to the main channel's buffer.
          */
-        void *data;
-        size_t len;
-        bufchain_prefix(s->ppl.user_input, &data, &len);
-        if (len > 512)
-            len = 512;
-        sshfwd_write(&s->mainchan_sc, data, len);
-        bufchain_consume(s->ppl.user_input, len);
+        ptrlen data = bufchain_prefix(s->ppl.user_input);
+        if (data.len > 512)
+            data.len = 512;
+        sshfwd_write(&s->mainchan_sc, data.ptr, data.len);
+        bufchain_consume(s->ppl.user_input, data.len);
     }
 }
 

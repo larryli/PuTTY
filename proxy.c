@@ -24,8 +24,7 @@
  */
 void proxy_activate (ProxySocket *p)
 {
-    void *data;
-    size_t len, output_before, output_after;
+    size_t output_before, output_after;
     
     p->state = PROXY_STATE_ACTIVE;
 
@@ -42,16 +41,16 @@ void proxy_activate (ProxySocket *p)
     
     /* send buffered OOB writes */
     while (bufchain_size(&p->pending_oob_output_data) > 0) {
-	bufchain_prefix(&p->pending_oob_output_data, &data, &len);
-	output_after += sk_write_oob(p->sub_socket, data, len);
-	bufchain_consume(&p->pending_oob_output_data, len);
+        ptrlen data = bufchain_prefix(&p->pending_oob_output_data);
+	output_after += sk_write_oob(p->sub_socket, data.ptr, data.len);
+	bufchain_consume(&p->pending_oob_output_data, data.len);
     }
 
     /* send buffered normal writes */
     while (bufchain_size(&p->pending_output_data) > 0) {
-	bufchain_prefix(&p->pending_output_data, &data, &len);
-	output_after += sk_write(p->sub_socket, data, len);
-	bufchain_consume(&p->pending_output_data, len);
+	ptrlen data = bufchain_prefix(&p->pending_output_data);
+	output_after += sk_write(p->sub_socket, data.ptr, data.len);
+	bufchain_consume(&p->pending_output_data, data.len);
     }
 
     /* if we managed to send any data, let the higher levels know. */
@@ -159,15 +158,13 @@ static void sk_proxy_set_frozen (Socket *s, bool is_frozen)
 	 * so we have to check each time.
 	 */
         while (!ps->freeze && bufchain_size(&ps->pending_input_data) > 0) {
-	    void *data;
 	    char databuf[512];
-	    size_t len;
-	    bufchain_prefix(&ps->pending_input_data, &data, &len);
-	    if (len > lenof(databuf))
-		len = lenof(databuf);
-	    memcpy(databuf, data, len);
-	    bufchain_consume(&ps->pending_input_data, len);
-	    plug_receive(ps->plug, 0, databuf, len);
+	    ptrlen data = bufchain_prefix(&ps->pending_input_data);
+	    if (data.len > lenof(databuf))
+		data.len = lenof(databuf);
+	    memcpy(databuf, data.ptr, data.len);
+	    bufchain_consume(&ps->pending_input_data, data.len);
+	    plug_receive(ps->plug, 0, databuf, data.len);
 	}
 
 	/* if we're still frozen, we'll have to wait for another

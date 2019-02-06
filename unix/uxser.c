@@ -422,15 +422,13 @@ static void serial_uxsel_setup(Serial *serial)
 
 static void serial_try_write(Serial *serial)
 {
-    void *data;
-    size_t len;
     ssize_t ret;
 
     assert(serial->fd >= 0);
 
     while (bufchain_size(&serial->output_data) > 0) {
-        bufchain_prefix(&serial->output_data, &data, &len);
-	ret = write(serial->fd, data, len);
+        ptrlen data = bufchain_prefix(&serial->output_data);
+	ret = write(serial->fd, data.ptr, data.len);
 
         if (ret < 0 && (errno == EWOULDBLOCK)) {
             /*

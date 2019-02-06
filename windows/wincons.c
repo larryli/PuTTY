@@ -392,14 +392,13 @@ static void console_data_untrusted(HANDLE hout, const char *data, size_t len)
 {
     DWORD dummy;
     bufchain sanitised;
-    void *vdata;
 
     bufchain_init(&sanitised);
     sanitise_term_data(&sanitised, data, len);
     while (bufchain_size(&sanitised) > 0) {
-        bufchain_prefix(&sanitised, &vdata, &len);
-        WriteFile(hout, vdata, len, &dummy, NULL);
-        bufchain_consume(&sanitised, len);
+        ptrlen sdata = bufchain_prefix(&sanitised);
+        WriteFile(hout, sdata.ptr, sdata.len, &dummy, NULL);
+        bufchain_consume(&sanitised, sdata.len);
     }
 }
 

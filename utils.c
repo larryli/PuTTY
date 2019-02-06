@@ -714,10 +714,9 @@ void bufchain_consume(bufchain *ch, size_t len)
     }
 }
 
-void bufchain_prefix(bufchain *ch, void **data, size_t *len)
+ptrlen bufchain_prefix(bufchain *ch)
 {
-    *len = ch->head->bufend - ch->head->bufpos;
-    *data = ch->head->bufpos;
+    return make_ptrlen(ch->head->bufpos, ch->head->bufend - ch->head->bufpos);
 }
 
 void bufchain_fetch(bufchain *ch, void *data, size_t len)

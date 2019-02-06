@@ -202,14 +202,14 @@ printer_job *printer_start_job(char *printer)
     return NULL;
 }
 
-void printer_job_data(printer_job *pj, void *data, int len)
+void printer_job_data(printer_job *pj, const void *data, size_t len)
 {
     DWORD written;
 
     if (!pj)
 	return;
 
-    p_WritePrinter(pj->hprinter, data, len, &written);
+    p_WritePrinter(pj->hprinter, (void *)data, len, &written);
 }
 
 void printer_finish_job(printer_job *pj)

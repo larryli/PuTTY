@@ -2691,20 +2691,18 @@ static void term_print_setup(Terminal *term, char *printer)
 }
 static void term_print_flush(Terminal *term)
 {
-    void *data;
-    size_t len, size;
+    size_t size;
     while ((size = bufchain_size(&term->printer_buf)) > 5) {
-	bufchain_prefix(&term->printer_buf, &data, &len);
-	if (len > size-5)
-	    len = size-5;
-	printer_job_data(term->print_job, data, len);
-	bufchain_consume(&term->printer_buf, len);
+	ptrlen data = bufchain_prefix(&term->printer_buf);
+	if (data.len > size-5)
+	    data.len = size-5;
+	printer_job_data(term->print_job, data.ptr, data.len);
+	bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
 {
-    void *data;
-    size_t len, size;
+    size_t size;
     char c;
 
     if (!term->printing && !term->only_printing)
@@ -2712,8 +2710,8 @@ static void term_print_finish(Terminal *term)
 
     term_print_flush(term);
     while ((size = bufchain_size(&term->printer_buf)) > 0) {
-	bufchain_prefix(&term->printer_buf, &data, &len);
-	c = *(char *)data;
+	ptrlen data = bufchain_prefix(&term->printer_buf);
+	c = *(char *)data.ptr;
 	if (c == '\033' || c == '\233') {
 	    bufchain_consume(&term->printer_buf, size);
 	    break;
@@ -2882,14 +2880,15 @@ static void term_out(Terminal *term)
     while (nchars > 0 || unget != -1 || bufchain_size(&term->inbuf) > 0) {
 	if (unget == -1) {
 	    if (nchars == 0) {
-		void *ret;
-		bufchain_prefix(&term->inbuf, &ret, &nchars);
-		if (nchars > sizeof(localbuf))
-		    nchars = sizeof(localbuf);
-		memcpy(localbuf, ret, nchars);
-		bufchain_consume(&term->inbuf, nchars);
+                ptrlen data = bufchain_prefix(&term->inbuf);
+		if (data.len > sizeof(localbuf))
+		    data.len = sizeof(localbuf);
+		memcpy(localbuf, data.ptr, data.len);
+		bufchain_consume(&term->inbuf, data.len);
+                nchars = data.len;
 		chars = localbuf;
 		assert(chars != NULL);
+		assert(nchars > 0);
 	    }
 	    c = *chars++;
 	    nchars--;

@@ -1841,7 +1841,7 @@ printer_enum *printer_start_enum(int *nprinters);
 char *printer_get_name(printer_enum *, int);
 void printer_finish_enum(printer_enum *);
 printer_job *printer_start_job(char *printer);
-void printer_job_data(printer_job *, void *, int);
+void printer_job_data(printer_job *, const void *, size_t);
 void printer_finish_job(printer_job *);
 
 /*

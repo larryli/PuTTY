@@ -164,8 +164,6 @@ static void sk_handle_flush(Socket *s)
 static void handle_socket_unfreeze(void *hsv)
 {
     HandleSocket *hs = (HandleSocket *)hsv;
-    void *data;
-    size_t len;
 
     /*
      * If we've been put into a state other than THAWING since the
@@ -177,16 +175,16 @@ static void handle_socket_unfreeze(void *hsv)
     /*
      * Get some of the data we've buffered.
      */
-    bufchain_prefix(&hs->inputdata, &data, &len);
-    assert(len > 0);
+    ptrlen data = bufchain_prefix(&hs->inputdata);
+    assert(data.len > 0);
 
     /*
      * Hand it off to the plug. Be careful of re-entrance - that might
      * have the effect of trying to close this socket.
      */
     hs->defer_close = true;
-    plug_receive(hs->plug, 0, data, len);
-    bufchain_consume(&hs->inputdata, len);
+    plug_receive(hs->plug, 0, data.ptr, data.len);
+    bufchain_consume(&hs->inputdata, data.len);
     hs->defer_close = false;
     if (hs->deferred_close) {
         sk_handle_close(&hs->sock);

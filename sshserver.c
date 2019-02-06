@@ -333,17 +333,16 @@ static void server_bpp_output_raw_data_callback(void *vctx)
         return;
 
     while (bufchain_size(&srv->out_raw) > 0) {
-        void *data;
-        size_t len, backlog;
+        size_t backlog;
 
-        bufchain_prefix(&srv->out_raw, &data, &len);
+        ptrlen data = bufchain_prefix(&srv->out_raw);
 
         if (srv->logctx)
-            log_packet(srv->logctx, PKT_OUTGOING, -1, NULL, data, len,
+            log_packet(srv->logctx, PKT_OUTGOING, -1, NULL, data.ptr, data.len,
                        0, NULL, NULL, 0, NULL);
-        backlog = sk_write(srv->socket, data, len);
+        backlog = sk_write(srv->socket, data.ptr, data.len);
 
-        bufchain_consume(&srv->out_raw, len);
+        bufchain_consume(&srv->out_raw, data.len);
 
         if (backlog > SSH_MAX_BACKLOG) {
 #ifdef FIXME

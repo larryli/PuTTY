@@ -257,7 +257,7 @@ struct handle_output {
      * Data set by the main thread before signalling ev_from_main,
      * and read by the input thread after receiving that signal.
      */
-    char *buffer;		       /* the data to write */
+    const char *buffer;                /* the data to write */
     DWORD len;			       /* how much data there is */
 
     /*
@@ -347,13 +347,10 @@ static DWORD WINAPI handle_output_threadfunc(void *param)
 
 static void handle_try_output(struct handle_output *ctx)
 {
-    void *senddata;
-    size_t sendlen;
-
     if (!ctx->busy && bufchain_size(&ctx->queued_data)) {
-	bufchain_prefix(&ctx->queued_data, &senddata, &sendlen);
-	ctx->buffer = senddata;
-	ctx->len = min(sendlen, ~(DWORD)0);
+	ptrlen data = bufchain_prefix(&ctx->queued_data);
+	ctx->buffer = data.ptr;
+	ctx->len = min(data.len, ~(DWORD)0);
 	SetEvent(ctx->ev_from_main);
 	ctx->busy = true;
     } else if (!ctx->busy && bufchain_size(&ctx->queued_data) == 0 &&

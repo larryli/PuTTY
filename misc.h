@@ -105,7 +105,7 @@ void bufchain_init(bufchain *ch);
 void bufchain_clear(bufchain *ch);
 size_t bufchain_size(bufchain *ch);
 void bufchain_add(bufchain *ch, const void *data, size_t len);
-void bufchain_prefix(bufchain *ch, void **data, size_t *len);
+ptrlen bufchain_prefix(bufchain *ch);
 void bufchain_consume(bufchain *ch, size_t len);
 void bufchain_fetch(bufchain *ch, void *data, size_t len);
 void bufchain_fetch_consume(bufchain *ch, void *data, size_t len);

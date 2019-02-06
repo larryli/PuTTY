@@ -329,18 +329,17 @@ size_t try_output(bool is_stderr)
 {
     bufchain *chain = (is_stderr ? &stderr_data : &stdout_data);
     int fd = (is_stderr ? STDERR_FILENO : STDOUT_FILENO);
-    void *senddata;
-    size_t sendlen;
     ssize_t ret;
 
     if (bufchain_size(chain) > 0) {
         bool prev_nonblock = nonblock(fd);
+        ptrlen senddata;
         do {
-            bufchain_prefix(chain, &senddata, &sendlen);
-            ret = write(fd, senddata, sendlen);
+            senddata = bufchain_prefix(chain);
+            ret = write(fd, senddata.ptr, senddata.len);
             if (ret > 0)
                 bufchain_consume(chain, ret);
-        } while (ret == sendlen && bufchain_size(chain) != 0);
+        } while (ret == senddata.len && bufchain_size(chain) != 0);
         if (!prev_nonblock)
             no_nonblock(fd);
         if (ret < 0 && errno != EAGAIN) {

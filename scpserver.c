@@ -1077,17 +1077,13 @@ static void scp_sink_coroutine(ScpSink *scp)
             if (scp->input_eof)
                 goto done;
 
-            void *vdata;
-            size_t len;
-            const char *cdata, *newline;
-
-            bufchain_prefix(&scp->data, &vdata, &len);
-            cdata = vdata;
-            newline = memchr(cdata, '\012', len);
+            ptrlen data = bufchain_prefix(&scp->data);
+            const char *cdata = data.ptr;
+            const char *newline = memchr(cdata, '\012', data.len);
             if (newline)
-                len = (int)(newline+1 - cdata);
-            put_data(scp->command, cdata, len);
-            bufchain_consume(&scp->data, len);
+                data.len = (int)(newline+1 - cdata);
+            put_data(scp->command, cdata, data.len);
+            bufchain_consume(&scp->data, data.len);
 
             if (newline)
                 break;
@@ -1179,8 +1175,7 @@ static void scp_sink_coroutine(ScpSink *scp)
                 sshfwd_write(scp->sc, "\0", 1);
                 scp->file_offset = 0;
                 while (scp->file_offset < scp->file_size) {
-                    void *vdata;
-                    size_t len;
+                    ptrlen data;
                     uint64_t this_len, remaining;
 
                     crMaybeWaitUntilV(
@@ -1191,14 +1186,14 @@ static void scp_sink_coroutine(ScpSink *scp)
                         goto done;
                     }
 
-                    bufchain_prefix(&scp->data, &vdata, &len);
-                    this_len = len;
+                    data = bufchain_prefix(&scp->data);
+                    this_len = data.len;
                     remaining = scp->file_size - scp->file_offset;
                     if (this_len > remaining)
                         this_len = remaining;
                     sftpsrv_write(scp->sf, &scp->reply.srb,
                                   scp->reply.handle, scp->file_offset,
-                                  make_ptrlen(vdata, this_len));
+                                  make_ptrlen(data.ptr, this_len));
                     if (scp->reply.err) {
                         scp->errmsg = dupprintf(
                             "'%.*s': unable to write to file: %s",

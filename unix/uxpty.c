@@ -1309,15 +1309,13 @@ static void pty_free(Backend *be)
 
 static void pty_try_write(Pty *pty)
 {
-    void *data;
-    size_t len;
     ssize_t ret;
 
     assert(pty->master_i >= 0);
 
     while (bufchain_size(&pty->output_data) > 0) {
-        bufchain_prefix(&pty->output_data, &data, &len);
-	ret = write(pty->master_i, data, len);
+        ptrlen data = bufchain_prefix(&pty->output_data);
+	ret = write(pty->master_i, data.ptr, data.len);
 
         if (ret < 0 && (errno == EWOULDBLOCK)) {
             /*

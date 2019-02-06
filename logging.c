@@ -137,11 +137,9 @@ static void logfopen_callback(void *vctx, int mode)
      */
     assert(ctx->state != L_OPENING);   /* make _sure_ it won't be requeued */
     while (bufchain_size(&ctx->queue)) {
-	void *data;
-	size_t len;
-	bufchain_prefix(&ctx->queue, &data, &len);
-	logwrite(ctx, data, len);
-	bufchain_consume(&ctx->queue, len);
+        ptrlen data = bufchain_prefix(&ctx->queue);
+	logwrite(ctx, data.ptr, data.len);
+	bufchain_consume(&ctx->queue, data.len);
     }
     logflush(ctx);
 }

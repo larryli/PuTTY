@@ -287,10 +287,8 @@ static size_t rlogin_send(Backend *be, const char *buf, size_t len)
 
     if (!rlogin->prompt) {
         while (bufchain_size(&bc) > 0) {
-            void *data;
-            size_t len;
-            bufchain_prefix(&bc, &data, &len);
-            rlogin->bufsize = sk_write(rlogin->s, data, len);
+            ptrlen data = bufchain_prefix(&bc);
+            rlogin->bufsize = sk_write(rlogin->s, data.ptr, data.len);
             bufchain_consume(&bc, len);
         }
     }

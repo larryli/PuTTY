@@ -348,17 +348,16 @@ static void ssh_bpp_output_raw_data_callback(void *vctx)
         return;
 
     while (bufchain_size(&ssh->out_raw) > 0) {
-        void *data;
-        size_t len, backlog;
+        size_t backlog;
 
-        bufchain_prefix(&ssh->out_raw, &data, &len);
+        ptrlen data = bufchain_prefix(&ssh->out_raw);
 
         if (ssh->logctx)
-            log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data, len,
+            log_packet(ssh->logctx, PKT_OUTGOING, -1, NULL, data.ptr, data.len,
                        0, NULL, NULL, 0, NULL);
-        backlog = sk_write(ssh->s, data, len);
+        backlog = sk_write(ssh->s, data.ptr, data.len);
 
-        bufchain_consume(&ssh->out_raw, len);
+        bufchain_consume(&ssh->out_raw, data.len);
 
         if (backlog > SSH_MAX_BACKLOG) {
             ssh_throttle_all(ssh, true, backlog);

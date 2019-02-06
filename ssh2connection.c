@@ -1064,16 +1064,14 @@ static size_t ssh2_try_send(struct ssh2_channel *c)
     while (c->remwindow > 0 &&
            (bufchain_size(&c->outbuffer) > 0 ||
             bufchain_size(&c->errbuffer) > 0)) {
-	size_t len;
-	void *data;
         bufchain *buf = (bufchain_size(&c->errbuffer) > 0 ?
                          &c->errbuffer : &c->outbuffer);
 
-	bufchain_prefix(buf, &data, &len);
-	if (len > c->remwindow)
-	    len = c->remwindow;
-	if (len > c->remmaxpkt)
-	    len = c->remmaxpkt;
+	ptrlen data = bufchain_prefix(buf);
+	if (data.len > c->remwindow)
+	    data.len = c->remwindow;
+	if (data.len > c->remmaxpkt)
+	    data.len = c->remmaxpkt;
         if (buf == &c->errbuffer) {
             pktout = ssh_bpp_new_pktout(
                 s->ppl.bpp, SSH2_MSG_CHANNEL_EXTENDED_DATA);
@@ -1083,10 +1081,10 @@ static size_t ssh2_try_send(struct ssh2_channel *c)
             pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_DATA);
             put_uint32(pktout, c->remoteid);
         }
-        put_string(pktout, data, len);
+        put_stringpl(pktout, data);
         pq_push(s->ppl.out_pq, pktout);
-	bufchain_consume(buf, len);
-	c->remwindow -= len;
+	bufchain_consume(buf, data.len);
+	c->remwindow -= data.len;
     }
 
     /*
@@ -1670,11 +1668,9 @@ static void ssh2_connection_got_user_input(PacketProtocolLayer *ppl)
         /*
          * Add user input to the main channel's buffer.
          */
-        void *data;
-        size_t len;
-        bufchain_prefix(s->ppl.user_input, &data, &len);
-        sshfwd_write(s->mainchan_sc, data, len);
-        bufchain_consume(s->ppl.user_input, len);
+        ptrlen data = bufchain_prefix(s->ppl.user_input);
+        sshfwd_write(s->mainchan_sc, data.ptr, data.len);
+        bufchain_consume(s->ppl.user_input, data.len);
     }
 }
 

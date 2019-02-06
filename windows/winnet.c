@@ -1377,7 +1377,7 @@ void try_send(NetSocket *s)
     while (s->sending_oob || bufchain_size(&s->output_data) > 0) {
 	int nsent;
 	DWORD err;
-	void *data;
+	const void *data;
 	size_t len;
         int urgentflag;
 
@@ -1387,7 +1387,9 @@ void try_send(NetSocket *s)
 	    data = &s->oobdata;
 	} else {
 	    urgentflag = 0;
-	    bufchain_prefix(&s->output_data, &data, &len);
+            ptrlen bufdata = bufchain_prefix(&s->output_data);
+            data = bufdata.ptr;
+            len = bufdata.len;
 	}
         len = min(len, INT_MAX);       /* WinSock send() takes an int */
 	nsent = p_send(s->s, data, len, urgentflag);
