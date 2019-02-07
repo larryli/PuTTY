@@ -13,9 +13,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/time.h>
-#ifndef HAVE_NO_SYS_SELECT_H
-#include <sys/select.h>
-#endif
 
 #include "putty.h"
 #include "storage.h"
@@ -122,12 +119,13 @@ void timer_change_notify(unsigned long next)
 /*
  * Wrapper around Unix read(2), suitable for use on a file descriptor
  * that's been set into nonblocking mode. Handles EAGAIN/EWOULDBLOCK
- * by means of doing a one-fd select and then trying again; all other
- * errors (including errors from select) are returned to the caller.
+ * by means of doing a one-fd poll and then trying again; all other
+ * errors (including errors from poll) are returned to the caller.
  */
 static int block_and_read(int fd, void *buf, size_t len)
 {
     int ret;
+    pollwrapper *pw = pollwrap_new();
 
     while ((ret = read(fd, buf, len)) < 0 && (
 #ifdef EAGAIN
@@ -138,18 +136,18 @@ static int block_and_read(int fd, void *buf, size_t len)
 #endif
                false)) {
 
-        fd_set rfds;
-        FD_ZERO(&rfds);
-        FD_SET(fd, &rfds);
+        pollwrap_clear(pw);
+        pollwrap_add_fd_rwx(pw, fd, SELECT_R);
         do {
-            ret = select(fd+1, &rfds, NULL, NULL, NULL);
+            ret = pollwrap_poll_endless(pw);
         } while (ret < 0 && errno == EINTR);
         assert(ret != 0);
         if (ret < 0)
             return ret;
-        assert(FD_ISSET(fd, &rfds));
+        assert(pollwrap_check_fd_rwx(pw, fd, SELECT_R));
     }
 
+    pollwrap_free(pw);
     return ret;
 }
 

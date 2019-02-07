@@ -2052,7 +2052,7 @@ bool open_for_write_would_lose_data(const Filename *fn);
  * The reason for this is that an OS's system clock might not agree
  * exactly with the timing mechanisms it supplies to wait for a
  * given interval. I'll illustrate this by the simple example of
- * Unix Plink, which uses timeouts to select() in a way which for
+ * Unix Plink, which uses timeouts to poll() in a way which for
  * these purposes can simply be considered to be a wait() function.
  * Suppose, for the sake of argument, that this wait() function
  * tends to return early by 1%. Then a possible sequence of actions
@@ -2124,12 +2124,12 @@ unsigned long timing_last_clock(void);
  * instead request notifications when a callback is available, so that
  * it knows to ask its delegate event loop to do the same thing. Also,
  * if a front end needs to know whether a callback is pending without
- * actually running it (e.g. so as to put a zero timeout on a select()
+ * actually running it (e.g. so as to put a zero timeout on a poll()
  * call) then it can call toplevel_callback_pending(), which will
  * return true if at least one callback is in the queue.
  *
  * run_toplevel_callbacks() returns true if it ran any actual code.
- * This can be used as a means of speculatively terminating a select
+ * This can be used as a means of speculatively terminating a poll
  * loop, as in PSFTP, for example - if a callback has run then perhaps
  * it might have done whatever the loop's caller was waiting for.
  */

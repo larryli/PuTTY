@@ -288,7 +288,7 @@ MISCNETCOMMON = timing callback MISC version tree234 CONF
 MISCNET  = MISCNETCOMMON be_misc settings proxy
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy
          + wintime winhsock errsock winsecur winucs miscucs winmiscs
-UXMISCCOMMON = MISCNETCOMMON uxstore uxsel uxnet uxpeer uxmisc time
+UXMISCCOMMON = MISCNETCOMMON uxstore uxsel uxpoll uxnet uxpeer uxmisc time
          + uxfdsock errsock
 UXMISC   = MISCNET UXMISCCOMMON uxproxy uxutils
 
@@ -365,6 +365,7 @@ PUTTYGEN_UNIX = sshrsag sshdssg sshprime sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming CONF sshecc sshecdsag uxnogtk sshauxcrypt sshhmac
+         + uxpoll
 puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 

@@ -89,7 +89,7 @@ case "$gtk_version_desired" in
   *) AC_ERROR([Invalid GTK version specified])
 esac
 
-AC_CHECK_HEADERS([utmpx.h sys/select.h],,,[
+AC_CHECK_HEADERS([utmpx.h],,,[
 #include <sys/types.h>
 #include <utmp.h>])
 

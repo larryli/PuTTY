@@ -37,9 +37,6 @@
 #include <pwd.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-#ifndef HAVE_NO_SYS_SELECT_H
-#include <sys/select.h>
-#endif
 
 #define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
 #include "putty.h"
@@ -558,17 +555,13 @@ int main(int argc, char **argv)
 
     now = GETTICKCOUNT();
 
+    pollwrapper *pw = pollwrap_new();
     while (!finished) {
-	fd_set rset, wset, xset;
-	int maxfd;
 	int rwx;
 	int ret;
         unsigned long next;
 
-	FD_ZERO(&rset);
-	FD_ZERO(&wset);
-	FD_ZERO(&xset);
-	maxfd = 0;
+        pollwrap_clear(pw);
 
 	/* Count the currently active fds. */
 	i = 0;
@@ -586,24 +579,15 @@ int main(int argc, char **argv)
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) {
 	    fdlist[fdcount++] = fd;
-	    if (rwx & 1)
-		FD_SET_MAX(fd, maxfd, rset);
-	    if (rwx & 2)
-		FD_SET_MAX(fd, maxfd, wset);
-	    if (rwx & 4)
-		FD_SET_MAX(fd, maxfd, xset);
+            pollwrap_add_fd_rwx(pw, fd, rwx);
 	}
 
         if (toplevel_callback_pending()) {
-            struct timeval tv;
-            tv.tv_sec = 0;
-            tv.tv_usec = 0;
-            ret = select(maxfd, &rset, &wset, &xset, &tv);
+            ret = pollwrap_poll_instant(pw);
         } else if (run_timers(now, &next)) {
             do {
                 unsigned long then;
                 long ticks;
-                struct timeval tv;
 
 		then = now;
 		now = GETTICKCOUNT();
@@ -611,38 +595,44 @@ int main(int argc, char **argv)
 		    ticks = 0;
 		else
 		    ticks = next - now;
-		tv.tv_sec = ticks / 1000;
-		tv.tv_usec = ticks % 1000 * 1000;
-                ret = select(maxfd, &rset, &wset, &xset, &tv);
-                if (ret == 0)
+
+                bool overflow = false;
+                if (ticks > INT_MAX) {
+                    ticks = INT_MAX;
+                    overflow = true;
+                }
+
+                ret = pollwrap_poll_timeout(pw, ticks);
+                if (ret == 0 && !overflow)
                     now = next;
                 else
                     now = GETTICKCOUNT();
             } while (ret < 0 && errno == EINTR);
         } else {
-            ret = select(maxfd, &rset, &wset, &xset, NULL);
+            ret = pollwrap_poll_endless(pw);
         }
 
         if (ret < 0 && errno == EINTR)
             continue;
 
 	if (ret < 0) {
-	    perror("select");
+	    perror("poll");
 	    exit(1);
 	}
 
 	for (i = 0; i < fdcount; i++) {
 	    fd = fdlist[i];
+            int rwx = pollwrap_get_fd_rwx(pw, fd);
             /*
              * We must process exceptional notifications before
              * ordinary readability ones, or we may go straight
              * past the urgent marker.
              */
-	    if (FD_ISSET(fd, &xset))
+	    if (rwx & SELECT_X)
 		select_result(fd, SELECT_X);
-	    if (FD_ISSET(fd, &rset))
+	    if (rwx & SELECT_R)
 		select_result(fd, SELECT_R);
-	    if (FD_ISSET(fd, &wset))
+	    if (rwx & SELECT_W)
 		select_result(fd, SELECT_W);
 	}
 

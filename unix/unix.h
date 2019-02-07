@@ -426,4 +426,23 @@ char *gtk_askpass_main(const char *display, const char *wintitle,
  */
 extern const SftpServerVtable unix_live_sftpserver_vt;
 
+/*
+ * uxpoll.c.
+ */
+typedef struct pollwrapper pollwrapper;
+pollwrapper *pollwrap_new(void);
+void pollwrap_free(pollwrapper *pw);
+void pollwrap_clear(pollwrapper *pw);
+void pollwrap_add_fd_events(pollwrapper *pw, int fd, int events);
+void pollwrap_add_fd_rwx(pollwrapper *pw, int fd, int rwx);
+int pollwrap_poll_instant(pollwrapper *pw);
+int pollwrap_poll_endless(pollwrapper *pw);
+int pollwrap_poll_timeout(pollwrapper *pw, int milliseconds);
+int pollwrap_get_fd_events(pollwrapper *pw, int fd);
+int pollwrap_get_fd_rwx(pollwrapper *pw, int fd);
+static inline bool pollwrap_check_fd_rwx(pollwrapper *pw, int fd, int rwx)
+{
+    return (pollwrap_get_fd_rwx(pw, fd) & rwx) != 0;
+}
+
 #endif /* PUTTY_UNIX_H */

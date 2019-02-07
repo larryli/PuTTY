@@ -117,7 +117,7 @@ int cmdline_get_passwd_input(prompts_t *p)
  * transfer tools (psftp, pscp) can't do a great deal with protocol
  * selections (ever tried running scp over telnet?) or with port
  * forwarding (even if it wasn't a hideously bad idea, they don't
- * have the select() infrastructure to make them work).
+ * have the select/poll infrastructure to make them work).
  */
 int cmdline_tooltype = 0;
 

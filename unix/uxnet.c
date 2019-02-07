@@ -1403,7 +1403,7 @@ static void net_select_result(int fd, int event)
       case SELECT_W:                   /* writable */
 	if (!s->connected) {
 	    /*
-	     * select() reports a socket as _writable_ when an
+	     * select/poll reports a socket as _writable_ when an
 	     * asynchronous connect() attempt either completes or
 	     * fails. So first we must find out which.
 	     */

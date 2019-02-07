@@ -13,9 +13,6 @@
 #include <errno.h>
 #include <assert.h>
 #include <glob.h>
-#ifndef HAVE_NO_SYS_SELECT_H
-#include <sys/select.h>
-#endif
 
 #include "putty.h"
 #include "ssh.h"
@@ -448,16 +445,17 @@ char *dir_file_cat(const char *dir, const char *file)
  */
 static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 {
-    fd_set rset, wset, xset;
     int i, *fdlist;
     size_t fdsize;
-    int fd, fdcount, fdstate, rwx, ret, maxfd;
+    int fd, fdcount, fdstate, rwx, ret;
     unsigned long now = GETTICKCOUNT();
     unsigned long next;
     bool done_something = false;
 
     fdlist = NULL;
     fdsize = 0;
+
+    pollwrapper *pw = pollwrap_new();
 
     do {
 
@@ -472,10 +470,7 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 	/* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);
 
-	FD_ZERO(&rset);
-	FD_ZERO(&wset);
-	FD_ZERO(&xset);
-	maxfd = 0;
+        pollwrap_clear(pw);
 
 	/*
 	 * Add all currently open fds to the select sets, and store
@@ -485,29 +480,20 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) {
 	    fdlist[fdcount++] = fd;
-	    if (rwx & 1)
-		FD_SET_MAX(fd, maxfd, rset);
-	    if (rwx & 2)
-		FD_SET_MAX(fd, maxfd, wset);
-	    if (rwx & 4)
-		FD_SET_MAX(fd, maxfd, xset);
+            pollwrap_add_fd_rwx(pw, fd, rwx);
 	}
 
 	if (include_stdin)
-	    FD_SET_MAX(0, maxfd, rset);
+	    pollwrap_add_fd_rwx(pw, 0, SELECT_R);
 
         if (toplevel_callback_pending()) {
-            struct timeval tv;
-            tv.tv_sec = 0;
-            tv.tv_usec = 0;
-            ret = select(maxfd, &rset, &wset, &xset, &tv);
+            ret = pollwrap_poll_instant(pw);
             if (ret == 0)
                 done_something |= run_toplevel_callbacks();
         } else if (run_timers(now, &next)) {
             do {
                 unsigned long then;
                 long ticks;
-                struct timeval tv;
 
 		then = now;
 		now = GETTICKCOUNT();
@@ -515,38 +501,44 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 		    ticks = 0;
 		else
 		    ticks = next - now;
-		tv.tv_sec = ticks / 1000;
-		tv.tv_usec = ticks % 1000 * 1000;
-                ret = select(maxfd, &rset, &wset, &xset, &tv);
-                if (ret == 0)
+
+                bool overflow = false;
+                if (ticks > INT_MAX) {
+                    ticks = INT_MAX;
+                    overflow = true;
+                }
+
+                ret = pollwrap_poll_timeout(pw, ticks);
+                if (ret == 0 && !overflow)
                     now = next;
                 else
                     now = GETTICKCOUNT();
             } while (ret < 0 && errno == EINTR);
         } else {
             do {
-                ret = select(maxfd, &rset, &wset, &xset, NULL);
+                ret = pollwrap_poll_endless(pw);
             } while (ret < 0 && errno == EINTR);
         }
     } while (ret == 0 && !done_something);
 
     if (ret < 0) {
-	perror("select");
+	perror("poll");
 	exit(1);
     }
 
     for (i = 0; i < fdcount; i++) {
 	fd = fdlist[i];
+        int rwx = pollwrap_get_fd_rwx(pw, fd);
 	/*
 	 * We must process exceptional notifications before
 	 * ordinary readability ones, or we may go straight
 	 * past the urgent marker.
 	 */
-	if (FD_ISSET(fd, &xset))
+	if (rwx & SELECT_X)
 	    select_result(fd, SELECT_X);
-	if (FD_ISSET(fd, &rset))
+	if (rwx & SELECT_R)
 	    select_result(fd, SELECT_R);
-	if (FD_ISSET(fd, &wset))
+	if (rwx & SELECT_W)
 	    select_result(fd, SELECT_W);
     }
 
@@ -554,7 +546,9 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 
     run_toplevel_callbacks();
 
-    return FD_ISSET(0, &rset) ? 1 : 0;
+    int toret = pollwrap_check_fd_rwx(pw, 0, SELECT_R) ? 1 : 0;
+    pollwrap_free(pw);
+    return toret;
 }
 
 /*
