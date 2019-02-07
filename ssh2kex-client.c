@@ -554,7 +554,21 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
          */
         {
             int klen = ssh_rsakex_klen(s->rsa_kex_key);
+
+            const struct ssh_rsa_kex_extra *extra =
+                (const struct ssh_rsa_kex_extra *)s->kex_alg->extra;
+            if (klen < extra->minklen) {
+                ssh_proto_error(s->ppl.ssh, "Server sent %d-bit RSA key, "
+                                "less than the minimum size %d for %s "
+                                "key exchange", klen, extra->minklen,
+                                s->kex_alg->name);
+                *aborted = true;
+                return;
+            }
+
             int nbits = klen - (2*s->kex_alg->hash->hlen*8 + 49);
+            assert(nbits > 0);
+
             strbuf *buf, *outstr;
 
             mp_int *tmp = mp_random_bits(nbits - 1);
