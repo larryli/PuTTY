@@ -315,6 +315,7 @@ void uxsel_init(void);
 typedef void (*uxsel_callback_fn)(int fd, int event);
 void uxsel_set(int fd, int rwx, uxsel_callback_fn callback);
 void uxsel_del(int fd);
+enum { SELECT_R = 1, SELECT_W = 2, SELECT_X = 4 };
 void select_result(int fd, int event);
 int first_fd(int *state, int *rwx);
 int next_fd(int *state, int *rwx);

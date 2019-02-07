@@ -958,11 +958,11 @@ void run_agent(void)
              * past the urgent marker.
              */
 	    if (FD_ISSET(fd, &xset))
-		select_result(fd, 4);
+		select_result(fd, SELECT_X);
 	    if (FD_ISSET(fd, &rset))
-		select_result(fd, 1);
+		select_result(fd, SELECT_R);
 	    if (FD_ISSET(fd, &wset))
-		select_result(fd, 2);
+		select_result(fd, SELECT_W);
 	}
 
         if (signalpipe[0] >= 0 && FD_ISSET(signalpipe[0], &rset)) {

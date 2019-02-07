@@ -104,7 +104,7 @@ static void agent_select_result(int fd, int event)
 {
     agent_pending_query *conn;
 
-    assert(event == 1);		       /* not selecting for anything but R */
+    assert(event == SELECT_R);  /* not selecting for anything but R */
 
     conn = find234(agent_pending_queries, &fd, agent_connfind);
     if (!conn) {
@@ -203,7 +203,7 @@ agent_pending_query *agent_query(
 	agent_pending_queries = newtree234(agent_conncmp);
     add234(agent_pending_queries, conn);
 
-    uxsel_set(sock, 1, agent_select_result);
+    uxsel_set(sock, SELECT_R, agent_select_result);
     return conn;
 
     failure:

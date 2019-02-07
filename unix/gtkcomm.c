@@ -82,11 +82,11 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
      * marker.
      */
     if (condition & G_IO_PRI)
-        select_result(sourcefd, 4);
+        select_result(sourcefd, SELECT_X);
     if (condition & (G_IO_IN | G_IO_HUP))
-        select_result(sourcefd, 1);
+        select_result(sourcefd, SELECT_R);
     if (condition & G_IO_OUT)
-        select_result(sourcefd, 2);
+        select_result(sourcefd, SELECT_W);
 
     return true;
 }
@@ -94,11 +94,11 @@ gboolean fd_input_func(GIOChannel *source, GIOCondition condition,
 void fd_input_func(gpointer data, gint sourcefd, GdkInputCondition condition)
 {
     if (condition & GDK_INPUT_EXCEPTION)
-        select_result(sourcefd, 4);
+        select_result(sourcefd, SELECT_X);
     if (condition & GDK_INPUT_READ)
-        select_result(sourcefd, 1);
+        select_result(sourcefd, SELECT_R);
     if (condition & GDK_INPUT_WRITE)
-        select_result(sourcefd, 2);
+        select_result(sourcefd, SELECT_W);
 }
 #endif
 

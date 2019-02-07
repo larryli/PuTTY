@@ -192,7 +192,7 @@ static int fdsocket_try_send(FdSocket *fds)
     if (bufchain_size(&fds->pending_output_data) == 0)
 	uxsel_del(fds->outfd);
     else
-	uxsel_set(fds->outfd, 2, fdsocket_select_result_output);
+	uxsel_set(fds->outfd, SELECT_W, fdsocket_select_result_output);
 
     return sent;
 }
@@ -245,7 +245,7 @@ static void fdsocket_set_frozen(Socket *s, bool is_frozen)
     if (is_frozen)
 	uxsel_del(fds->infd);
     else
-	uxsel_set(fds->infd, 1, fdsocket_select_result_input);
+	uxsel_set(fds->infd, SELECT_R, fdsocket_select_result_input);
 }
 
 static const char *fdsocket_socket_error(Socket *s)
@@ -349,7 +349,7 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)
         if (!fdsocket_by_infd)
             fdsocket_by_infd = newtree234(fdsocket_infd_cmp);
         add234(fdsocket_by_infd, fds);
-        uxsel_set(fds->infd, 1, fdsocket_select_result_input);
+        uxsel_set(fds->infd, SELECT_R, fdsocket_select_result_input);
     }
 
     if (fds->inerrfd >= 0) {
@@ -357,7 +357,7 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)
         if (!fdsocket_by_inerrfd)
             fdsocket_by_inerrfd = newtree234(fdsocket_inerrfd_cmp);
         add234(fdsocket_by_inerrfd, fds);
-        uxsel_set(fds->inerrfd, 1, fdsocket_select_result_input_error);
+        uxsel_set(fds->inerrfd, SELECT_R, fdsocket_select_result_input_error);
     }
 
     return &fds->sock;

@@ -629,7 +629,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
                 finished = true;
 	}
     } else {
-	if (event == 1) {
+	if (event == SELECT_R) {
             bool is_stdout = (fd == pty->master_o);
 
 	    ret = read(fd, buf, sizeof(buf));
@@ -679,7 +679,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
 	    } else if (ret > 0) {
 		seat_output(pty->seat, !is_stdout, buf, ret);
 	    }
-	} else if (event == 2) {
+	} else if (event == SELECT_W) {
             /*
              * Attempt to send data down the pty.
              */
@@ -781,10 +781,10 @@ static void pty_uxsel_setup_fd(Pty *pty, int fd)
 
     /* read from standard output and standard error pipes */
     if (pty->master_o == fd || pty->master_e == fd)
-        rwx |= 1;
+        rwx |= SELECT_R;
     /* write to standard input pipe if we have any data */
     if (pty->master_i == fd && bufchain_size(&pty->output_data))
-        rwx |= 2;
+        rwx |= SELECT_W;
 
     uxsel_set(fd, rwx, pty_select_result);
 }
@@ -794,9 +794,9 @@ static void pty_uxsel_setup(Pty *pty)
     /*
      * We potentially have three separate fds here, but on the other
      * hand, some of them might be the same (if they're a pty master).
-     * So we can't just call uxsel_set(master_o, 1) and then
-     * uxsel_set(master_i, 2), without the latter potentially undoing
-     * the work of the former if master_o == master_i.
+     * So we can't just call uxsel_set(master_o, SELECT_R) and then
+     * uxsel_set(master_i, SELECT_W), without the latter potentially
+     * undoing the work of the former if master_o == master_i.
      *
      * Instead, here we call a single uxsel on each one of these fds
      * (if it exists at all), and for each one, check it against all
@@ -811,7 +811,7 @@ static void pty_uxsel_setup(Pty *pty)
      * backend instances, but it's simplest just to call it every
      * time; uxsel won't mind.
      */
-    uxsel_set(pty_signal_pipe[0], 1, pty_select_result);
+    uxsel_set(pty_signal_pipe[0], SELECT_R, pty_select_result);
 }
 
 static void copy_ttymodes_into_termios(
