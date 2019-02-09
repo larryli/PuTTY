@@ -70,6 +70,7 @@
 /local
 /missing
 /uxconfig.in
+/uxconfig.in~
 /uxconfig.h
 /licence.h
 /*.a
