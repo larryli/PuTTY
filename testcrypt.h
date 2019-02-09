@@ -238,6 +238,7 @@ FUNC1(uint, crc32_rfc1662, val_string_ptrlen)
 FUNC1(uint, crc32_ssh1, val_string_ptrlen)
 FUNC2(uint, crc32_update, uint, val_string_ptrlen)
 FUNC2(boolean, crcda_detect, val_string_ptrlen, val_string_ptrlen)
+FUNC5(val_mpint, primegen, uint, uint, uint, val_mpint, uint)
 
 /*
  * These functions aren't part of PuTTY's own API, but are additions

@@ -389,8 +389,10 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
-testcrypt : [UT] testcrypt SSHCRYPTO marshal utils memory tree234 uxutils
-testcrypt : [C] testcrypt SSHCRYPTO marshal utils memory tree234 winmiscs
+testcrypt : [UT] testcrypt SSHCRYPTO sshprime marshal utils memory tree234
+          + uxutils
+testcrypt : [C] testcrypt SSHCRYPTO sshprime marshal utils memory tree234
+          + winmiscs
 testzlib : [UT] testzlib sshzlib memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
