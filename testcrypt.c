@@ -236,7 +236,7 @@ static const ssh_keyalg *get_keyalg(BinarySource *in)
         {"ed25519", &ssh_ecdsa_ed25519},
         {"p256", &ssh_ecdsa_nistp256},
         {"p384", &ssh_ecdsa_nistp384},
-        {"521", &ssh_ecdsa_nistp521},
+        {"p521", &ssh_ecdsa_nistp521},
     };
 
     ptrlen name = get_word(in);
