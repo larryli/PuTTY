@@ -1419,7 +1419,7 @@ int do_bidi(bidi_char *line, int count)
                 continue;
             } else if (i < count-1 && types[i+1] == ET) {
                 j=i;
-                while (j <count && types[j] == ET) {
+                while (j < count-1 && types[j] == ET) {
                     j++;
                 }
                 if (types[j] == EN)
