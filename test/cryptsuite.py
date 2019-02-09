@@ -367,6 +367,23 @@ class mpint(MyTestBase):
                     self.assertEqual(int(mp_div(n, d)), q)
                     self.assertEqual(int(mp_mod(n, d)), r)
 
+    def testBitwise(self):
+        p = 0x3243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e
+        e = 0x2b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190
+        x = mp_new(nbits(p))
+
+        mp_and_into(x, p, e)
+        self.assertEqual(int(x), p & e)
+
+        mp_or_into(x, p, e)
+        self.assertEqual(int(x), p | e)
+
+        mp_xor_into(x, p, e)
+        self.assertEqual(int(x), p ^ e)
+
+        mp_bic_into(x, p, e)
+        self.assertEqual(int(x), p & ~e)
+
     def testInversion(self):
         # Test mp_invert_mod_2to.
         testnumbers = [(mp_copy(n),n) for n in fibonacci_scattered()

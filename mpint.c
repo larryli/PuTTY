@@ -692,6 +692,38 @@ void mp_sub_into(mp_int *r, mp_int *a, mp_int *b)
     mp_add_masked_into(r->w, r->nw, a, b, ~(BignumInt)0, ~(BignumInt)0, 1);
 }
 
+void mp_and_into(mp_int *r, mp_int *a, mp_int *b)
+{
+    for (size_t i = 0; i < r->nw; i++) {
+        BignumInt aword = mp_word(a, i), bword = mp_word(b, i);
+        r->w[i] = aword & bword;
+    }
+}
+
+void mp_or_into(mp_int *r, mp_int *a, mp_int *b)
+{
+    for (size_t i = 0; i < r->nw; i++) {
+        BignumInt aword = mp_word(a, i), bword = mp_word(b, i);
+        r->w[i] = aword | bword;
+    }
+}
+
+void mp_xor_into(mp_int *r, mp_int *a, mp_int *b)
+{
+    for (size_t i = 0; i < r->nw; i++) {
+        BignumInt aword = mp_word(a, i), bword = mp_word(b, i);
+        r->w[i] = aword ^ bword;
+    }
+}
+
+void mp_bic_into(mp_int *r, mp_int *a, mp_int *b)
+{
+    for (size_t i = 0; i < r->nw; i++) {
+        BignumInt aword = mp_word(a, i), bword = mp_word(b, i);
+        r->w[i] = aword & ~bword;
+    }
+}
+
 static void mp_cond_negate(mp_int *r, mp_int *x, unsigned yes)
 {
     BignumCarry carry = yes;
