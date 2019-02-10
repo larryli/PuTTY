@@ -1166,6 +1166,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 else
                     raw_entropy_required = 256;
 
+                /* Bound the entropy collection above by the amount of
+                 * data we can actually fit into the PRNG. Any more
+                 * than that and it's doing no more good. */
+                if (raw_entropy_required > random_seed_bits())
+                    raw_entropy_required = random_seed_bits();
+
                 raw_entropy_buf = snewn(raw_entropy_required, unsigned char);
                 if (win_read_random(raw_entropy_buf, raw_entropy_required)) {
                     /*

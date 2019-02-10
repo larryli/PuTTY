@@ -902,6 +902,7 @@ void prng_seed_begin(prng *p);
 void prng_seed_finish(prng *p);
 void prng_read(prng *p, void *vout, size_t size);
 void prng_add_entropy(prng *p, unsigned source_id, ptrlen data);
+size_t prng_seed_bits(prng *p);
 
 /* This function must be implemented by the platform, and returns a
  * timer in milliseconds that the PRNG can use to know whether it's
