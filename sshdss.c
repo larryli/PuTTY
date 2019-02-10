@@ -434,10 +434,11 @@ static void dss_sign(ssh_key *key, ptrlen data, unsigned flags, BinarySink *bs)
     mp_free(gkp);
 
     mp_int *hash = mp_from_bytes_be(make_ptrlen(digest, 20));
-    mp_int *hxr = mp_mul(dss->x, r);
-    mp_add_into(hxr, hxr, hash);         /* hash + x*r */
+    mp_int *xr = mp_mul(dss->x, r);
+    mp_int *hxr = mp_add(xr, hash);         /* hash + x*r */
     mp_int *s = mp_modmul(kinv, hxr, dss->q); /* s = k^-1 * (hash+x*r) mod q */
     mp_free(hxr);
+    mp_free(xr);
     mp_free(kinv);
     mp_free(k);
     mp_free(hash);
