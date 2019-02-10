@@ -1711,6 +1711,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->n_mouse_select_clipboards = 1;
     term->mouse_paste_clipboard = CLIP_NULL;
 
+    term->last_graphic_char = 0;
+
     return term;
 }
 
@@ -3578,7 +3580,7 @@ static void term_out(Terminal *term)
 			break;
                       case 'b':        /* REP: repeat previous grap */
                         CLAMP(term->esc_args[0], term->rows * term->cols);
-                        {
+                        if (term->last_graphic_char) {
                             unsigned i;
                             for (i = 0; i < term->esc_args[0]; i++)
                                 term_display_graphic_char(
