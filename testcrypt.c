@@ -506,6 +506,14 @@ static void return_val_string_asciz(strbuf *out, char *s)
     return_val_string(out, sb);
 }
 
+static void return_opt_val_string_asciz(strbuf *out, char *s)
+{
+    if (!s)
+        strbuf_catf(out, "NULL\n");
+    else
+        return_val_string_asciz(out, s);
+}
+
 static void return_opt_val_cipher(strbuf *out, ssh_cipher *c)
 {
     if (!c)

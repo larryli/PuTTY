@@ -549,6 +549,13 @@ static void eddsa_freekey(ssh_key *key)
     sfree(ek);
 }
 
+static char *ec_signkey_invalid(ssh_key *key, unsigned flags)
+{
+    /* All validity criteria for both ECDSA and EdDSA were checked
+     * when we loaded the key in the first place */
+    return NULL;
+}
+
 static ssh_key *ecdsa_new_pub(const ssh_keyalg *alg, ptrlen data)
 {
     const struct ecsign_extra *extra =
@@ -1126,6 +1133,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     eddsa_new_priv_openssh,
 
     eddsa_freekey,
+    ec_signkey_invalid,
     eddsa_sign,
     eddsa_verify,
     eddsa_public_blob,
@@ -1155,6 +1163,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
     ecdsa_new_priv_openssh,
 
     ecdsa_freekey,
+    ec_signkey_invalid,
     ecdsa_sign,
     ecdsa_verify,
     ecdsa_public_blob,
@@ -1184,6 +1193,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
     ecdsa_new_priv_openssh,
 
     ecdsa_freekey,
+    ec_signkey_invalid,
     ecdsa_sign,
     ecdsa_verify,
     ecdsa_public_blob,
@@ -1213,6 +1223,7 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
     ecdsa_new_priv_openssh,
 
     ecdsa_freekey,
+    ec_signkey_invalid,
     ecdsa_sign,
     ecdsa_verify,
     ecdsa_public_blob,

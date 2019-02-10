@@ -170,6 +170,8 @@ int string_length_for_printf(size_t);
  * string. */
 #define PTRLEN_LITERAL(stringlit) \
     TYPECHECK("" stringlit "", make_ptrlen(stringlit, sizeof(stringlit)-1))
+/* Make a ptrlen out of a constant byte array. */
+#define PTRLEN_FROM_CONST_BYTES(a) make_ptrlen(a, sizeof(a))
 
 /* Wipe sensitive data out of memory that's about to be freed. Simpler
  * than memset because we don't need the fill char parameter; also

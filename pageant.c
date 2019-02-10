@@ -349,6 +349,15 @@ void pageant_handle_msg(BinarySink *bs,
                 return;
             }
 
+            char *invalid = ssh_key_invalid(key->key, flags);
+            if (invalid) {
+                char *msg = dupprintf("key invalid: %s", invalid);
+                pageant_failure_msg(bs, msg, logctx, logfn);
+                sfree(msg);
+                sfree(invalid);
+                return;
+            }
+
             signature = strbuf_new();
             ssh_key_sign(key->key, sigdata, flags,
                          BinarySink_UPCAST(signature));

@@ -83,6 +83,12 @@ static char *dss_cache_str(ssh_key *key)
     return strbuf_to_str(sb);
 }
 
+static char *dss_invalid(ssh_key *key, unsigned flags)
+{
+    /* No validity criterion will stop us from using a DSA key at all */
+    return NULL;
+}
+
 static bool dss_verify(ssh_key *key, ptrlen sig, ptrlen data)
 {
     struct dss_key *dss = container_of(key, struct dss_key, sshk);
@@ -459,6 +465,7 @@ const ssh_keyalg ssh_dss = {
     dss_new_priv_openssh,
 
     dss_freekey,
+    dss_invalid,
     dss_sign,
     dss_verify,
     dss_public_blob,

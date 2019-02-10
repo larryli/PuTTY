@@ -706,6 +706,7 @@ struct ssh_keyalg {
 
     /* Methods that operate on an existing ssh_key */
     void (*freekey) (ssh_key *key);
+    char *(*invalid) (ssh_key *key, unsigned flags);
     void (*sign) (ssh_key *key, ptrlen data, unsigned flags, BinarySink *);
     bool (*verify) (ssh_key *key, ptrlen sig, ptrlen data);
     void (*public_blob)(ssh_key *key, BinarySink *);
@@ -728,6 +729,7 @@ struct ssh_keyalg {
 #define ssh_key_new_priv_openssh(alg, bs) ((alg)->new_priv_openssh(alg, bs))
 
 #define ssh_key_free(key) ((key)->vt->freekey(key))
+#define ssh_key_invalid(key, flags) ((key)->vt->invalid(key, flags))
 #define ssh_key_sign(key, data, flags, bs) \
     ((key)->vt->sign(key, data, flags, bs))
 #define ssh_key_verify(key, sig, data) ((key)->vt->verify(key, sig, data))

@@ -416,6 +416,12 @@ int main(int argc, char **argv)
                             "%s\n", appname, val, error);
                     exit(1);
                 }
+                char *invalid = ssh_key_invalid(uk->key, 0);
+                if (invalid) {
+                    fprintf(stderr, "%s: host key '%s' is unusable: "
+                            "%s\n", appname, val, invalid);
+                    exit(1);
+                }
                 key = uk->key;
                 sfree(uk->comment);
                 sfree(uk);
