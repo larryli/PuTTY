@@ -720,10 +720,10 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                             pq_push(s->ppl.out_pq, s->pktout);
                             s->type = AUTH_TYPE_PUBLICKEY;
                         } else {
-                            /* FIXME: less drastic response */
-                            ssh_sw_abort(s->ppl.ssh, "Pageant failed to "
-                                         "provide a signature");
-                            return;
+                            ppl_logevent("Pageant refused signing request");
+                            ppl_printf("Pageant failed to "
+                                       "provide a signature\r\n");
+                            s->suppress_wait_for_response_packet = true;
                         }
                     }
                 }
