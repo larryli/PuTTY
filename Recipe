@@ -263,8 +263,8 @@ SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512
 	 + sshrsa sshdss sshecc
          + sshdes sshblowf sshaes sshccp ssharcf
          + sshdh sshcrc sshcrcda sshauxcrypt
-         + sshhmac sshprng
-SSHCOMMON = sshcommon sshrand SSHCRYPTO
+         + sshhmac
+SSHCOMMON = sshcommon sshprng sshrand SSHCRYPTO
          + sshverstring
          + sshpubk sshzlib
          + sshmac marshal nullplug
@@ -389,10 +389,12 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
-testcrypt : [UT] testcrypt SSHCRYPTO sshprime marshal utils memory tree234
-          + uxutils
-testcrypt : [C] testcrypt SSHCRYPTO sshprime marshal utils memory tree234
-          + winmiscs
+testcrypt : [UT] testcrypt SSHCRYPTO sshprng sshprime marshal utils
+          + memory tree234 uxutils
+testcrypt : [C] testcrypt SSHCRYPTO sshprng sshprime marshal utils
+          + memory tree234 winmiscs
+testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
+          + sshmac uxutils
 testzlib : [UT] testzlib sshzlib memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
