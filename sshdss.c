@@ -132,7 +132,13 @@ static bool dss_verify(ssh_key *key, ptrlen sig, ptrlen data)
 	return false;
     }
 
-    if (mp_eq_integer(s, 0)) {
+    /* Basic sanity checks: 0 < r,s < q */
+    unsigned invalid = 0;
+    invalid |= mp_eq_integer(r, 0);
+    invalid |= mp_eq_integer(s, 0);
+    invalid |= mp_cmp_hs(r, dss->q);
+    invalid |= mp_cmp_hs(s, dss->q);
+    if (invalid) {
         mp_free(r);
         mp_free(s);
         return false;
