@@ -1169,49 +1169,50 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 raw_entropy_buf = snewn(raw_entropy_required, unsigned char);
                 if (win_read_random(raw_entropy_buf, raw_entropy_required)) {
                     /*
-                     * If we can get the entropy we need from
-                     * CryptGenRandom, just do that, and go straight
-                     * to the key-generation phase.
+                     * If we can get entropy from CryptGenRandom, use
+                     * it. But CryptGenRandom isn't a kernel-level
+                     * CPRNG (according to Wikipedia), and papers have
+                     * been published cryptanalysing it. So we'll
+                     * still do manual entropy collection; we'll just
+                     * do it _as well_ as this.
                      */
                     random_reseed(
                         make_ptrlen(raw_entropy_buf, raw_entropy_required));
-                    start_generating_key(hwnd, state);
-                } else {
-                    /*
-                     * Manual entropy input, by making the user wave
-                     * the mouse over the window a lot.
-                     *
-                     * My brief statistical tests on mouse movements
-                     * suggest that there are about 2.5 bits of
-                     * randomness in the x position, 2.5 in the y
-                     * position, and 1.7 in the message time, making
-                     * 5.7 bits of unpredictability per mouse
-                     * movement. However, other people have told me
-                     * it's far less than that, so I'm going to be
-                     * stupidly cautious and knock that down to a nice
-                     * round 2. With this method, we require two words
-                     * per mouse movement, so with 2 bits per mouse
-                     * movement we expect 2 bits every 2 words, i.e.
-                     * the number of _words_ of mouse data we want to
-                     * collect is just the same as the number of
-                     * _bits_ of entropy we want.
-                     */
-                    state->entropy_required = raw_entropy_required;
-
-                    ui_set_state(hwnd, state, 1);
-                    SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
-                    state->key_exists = false;
-                    state->collecting_entropy = true;
-
-                    state->entropy_got = 0;
-                    state->entropy_size = (state->entropy_required *
-                                           sizeof(unsigned));
-                    state->entropy = snewn(state->entropy_required, unsigned);
-
-                    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
-                                       MAKELPARAM(0, state->entropy_required));
-                    SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
                 }
+
+                /*
+                 * Manual entropy input, by making the user wave the
+                 * mouse over the window a lot.
+                 *
+                 * My brief statistical tests on mouse movements
+                 * suggest that there are about 2.5 bits of randomness
+                 * in the x position, 2.5 in the y position, and 1.7
+                 * in the message time, making 5.7 bits of
+                 * unpredictability per mouse movement. However, other
+                 * people have told me it's far less than that, so I'm
+                 * going to be stupidly cautious and knock that down
+                 * to a nice round 2. With this method, we require two
+                 * words per mouse movement, so with 2 bits per mouse
+                 * movement we expect 2 bits every 2 words, i.e. the
+                 * number of _words_ of mouse data we want to collect
+                 * is just the same as the number of _bits_ of entropy
+                 * we want.
+                 */
+                state->entropy_required = raw_entropy_required;
+
+                ui_set_state(hwnd, state, 1);
+                SetDlgItemText(hwnd, IDC_GENERATING, entropy_msg);
+                state->key_exists = false;
+                state->collecting_entropy = true;
+
+                state->entropy_got = 0;
+                state->entropy_size = (state->entropy_required *
+                                       sizeof(unsigned));
+                state->entropy = snewn(state->entropy_required, unsigned);
+
+                SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETRANGE, 0,
+                                   MAKELPARAM(0, state->entropy_required));
+                SendDlgItemMessage(hwnd, IDC_PROGRESS, PBM_SETPOS, 0, 0);
 
                 smemclr(raw_entropy_buf, raw_entropy_required);
                 sfree(raw_entropy_buf);
