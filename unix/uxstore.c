@@ -548,34 +548,33 @@ bool enum_settings_next(settings_e *handle, strbuf *out)
 {
     struct dirent *de;
     struct stat st;
-    char *fullpath;
-    int maxlen, thislen, len;
+    strbuf *fullpath;
 
     if (!handle->dp)
         return NULL;
 
-    fullpath = make_filename(INDEX_SESSIONDIR, NULL);
-    maxlen = len = strlen(fullpath);
+    fullpath = strbuf_new();
+
+    char *sessiondir = make_filename(INDEX_SESSIONDIR, NULL);
+    put_datapl(fullpath, ptrlen_from_asciz(sessiondir));
+    sfree(sessiondir);
+    put_byte(fullpath, '/');
+
+    size_t baselen = fullpath->len;
 
     while ( (de = readdir(handle->dp)) != NULL ) {
-        thislen = len + 1 + strlen(de->d_name);
-	if (maxlen < thislen) {
-	    maxlen = thislen;
-	    fullpath = sresize(fullpath, maxlen+1, char);
-	}
-	fullpath[len] = '/';
-	strncpy(fullpath+len+1, de->d_name, thislen - (len+1));
-	fullpath[thislen] = '\0';
+        fullpath->len = baselen;
+	put_datapl(fullpath, ptrlen_from_asciz(de->d_name));
 
-        if (stat(fullpath, &st) < 0 || !S_ISREG(st.st_mode))
+        if (stat(fullpath->s, &st) < 0 || !S_ISREG(st.st_mode))
             continue;                  /* try another one */
 
         decode_session_filename(de->d_name, out);
-	sfree(fullpath);
+	strbuf_free(fullpath);
         return true;
     }
 
-    sfree(fullpath);
+    strbuf_free(fullpath);
     return false;
 }
 

@@ -4924,11 +4924,10 @@ static void wintw_clip_write(
 
     if (conf_get_bool(conf, CONF_rtf_paste)) {
 	wchar_t unitab[256];
-	char *rtf = NULL;
+	strbuf *rtf = strbuf_new();
 	unsigned char *tdata = (unsigned char *)lock2;
 	wchar_t *udata = (wchar_t *)lock;
-	int rtflen = 0, uindex = 0, tindex = 0;
-	int rtfsize = 0;
+	int uindex = 0, tindex = 0;
 	int multilen, blen, alen, totallen, i;
 	char before[16], after[4];
 	int fgcolour,  lastfgcolour  = -1;
@@ -4944,10 +4943,9 @@ static void wintw_clip_write(
 
 	get_unitab(CP_ACP, unitab, 0);
 
-	rtfsize = 100 + strlen(font->name);
-	rtf = snewn(rtfsize, char);
-	rtflen = sprintf(rtf, "{\\rtf1\\ansi\\deff0{\\fonttbl\\f0\\fmodern %s;}\\f0\\fs%d",
-			 font->name, font->height*2);
+	strbuf_catf(
+            rtf, "{\\rtf1\\ansi\\deff0{\\fonttbl\\f0\\fmodern %s;}\\f0\\fs%d",
+            font->name, font->height*2);
 
 	/*
 	 * Add colour palette
@@ -5028,23 +5026,23 @@ static void wintw_clip_write(
 	    /*
 	     * Finally - Write the colour table
 	     */
-	    rtf = sresize(rtf, rtfsize + (numcolours * 25), char);
-	    strcat(rtf, "{\\colortbl ;");
-	    rtflen = strlen(rtf);
+	    put_datapl(rtf, PTRLEN_LITERAL("{\\colortbl ;"));
 
 	    for (i = 0; i < NALLCOLOURS; i++) {
 		if (palette[i] != 0) {
-		    rtflen += sprintf(&rtf[rtflen], "\\red%d\\green%d\\blue%d;", defpal[i].rgbtRed, defpal[i].rgbtGreen, defpal[i].rgbtBlue);
+                    strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
+                                defpal[i].rgbtRed, defpal[i].rgbtGreen,
+                                defpal[i].rgbtBlue);
 		}
 	    }
 	    if (rgbtree) {
 		rgbindex *rgbp;
 		for (i = 0; (rgbp = index234(rgbtree, i)) != NULL; i++)
-		    rtflen += sprintf(&rtf[rtflen], "\\red%d\\green%d\\blue%d;",
-				      GetRValue(rgbp->ref), GetGValue(rgbp->ref), GetBValue(rgbp->ref));
+                    strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
+                                GetRValue(rgbp->ref), GetGValue(rgbp->ref),
+                                GetBValue(rgbp->ref));
 	    }
-	    strcpy(&rtf[rtflen], "}");
-	    rtflen ++;
+	    put_datapl(rtf, PTRLEN_LITERAL("}"));
 	}
 
 	/*
@@ -5078,11 +5076,6 @@ static void wintw_clip_write(
              * Set text attributes
              */
             if (attr) {
-                if (rtfsize < rtflen + 64) {
-		    rtfsize = rtflen + 512;
-		    rtf = sresize(rtf, rtfsize, char);
-                }
-
                 /*
                  * Determine foreground and background colours
                  */
@@ -5165,14 +5158,14 @@ static void wintw_clip_write(
 		if ((lastfgcolour != fgcolour) || (lastfg != fg)) {
 		    lastfgcolour  = fgcolour;
 		    lastfg        = fg;
-		    if (fg == -1)
-			rtflen += sprintf(&rtf[rtflen], "\\cf%d ",
-					  (fgcolour >= 0) ? palette[fgcolour] : 0);
-		    else {
+                    if (fg == -1) {
+                        strbuf_catf(rtf, "\\cf%d ",
+                                    (fgcolour >= 0) ? palette[fgcolour] : 0);
+                    } else {
 			rgbindex rgb, *rgbp;
 			rgb.ref = fg;
 			if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
-			    rtflen += sprintf(&rtf[rtflen], "\\cf%d ", rgbp->index);
+			    strbuf_catf(rtf, "\\cf%d ", rgbp->index);
 		    }
 		}
 
@@ -5180,24 +5173,28 @@ static void wintw_clip_write(
 		    lastbgcolour  = bgcolour;
 		    lastbg        = bg;
 		    if (bg == -1)
-			rtflen += sprintf(&rtf[rtflen], "\\highlight%d ",
-					  (bgcolour >= 0) ? palette[bgcolour] : 0);
+			strbuf_catf(rtf, "\\highlight%d ",
+                                    (bgcolour >= 0) ? palette[bgcolour] : 0);
 		    else {
 			rgbindex rgb, *rgbp;
 			rgb.ref = bg;
 			if ((rgbp = find234(rgbtree, &rgb, NULL)) != NULL)
-			    rtflen += sprintf(&rtf[rtflen], "\\highlight%d ", rgbp->index);
+			    strbuf_catf(rtf, "\\highlight%d ", rgbp->index);
 		    }
 		}
 
 		if (lastAttrBold != attrBold) {
 		    lastAttrBold  = attrBold;
-		    rtflen       += sprintf(&rtf[rtflen], "%s", attrBold ? "\\b " : "\\b0 ");
+		    put_datapl(rtf, attrBold ?
+                               PTRLEN_LITERAL("\\b ") :
+                               PTRLEN_LITERAL("\\b0 "));
 		}
 
                 if (lastAttrUnder != attrUnder) {
                     lastAttrUnder  = attrUnder;
-                    rtflen        += sprintf(&rtf[rtflen], "%s", attrUnder ? "\\ul " : "\\ulnone ");
+		    put_datapl(rtf, attrUnder ?
+                               PTRLEN_LITERAL("\\ul ") :
+                               PTRLEN_LITERAL("\\ulnone "));
                 }
 	    }
 
@@ -5233,42 +5230,35 @@ static void wintw_clip_write(
 		    totallen++;
 	    }
 
-	    if (rtfsize < rtflen + totallen + 3) {
-		rtfsize = rtflen + totallen + 512;
-		rtf = sresize(rtf, rtfsize, char);
-	    }
-
-	    strcpy(rtf + rtflen, before); rtflen += blen;
+	    put_data(rtf, before, blen);
 	    for (i = 0; i < multilen; i++) {
 		if (tdata[tindex+i] == '\\' ||
 		    tdata[tindex+i] == '{' ||
 		    tdata[tindex+i] == '}') {
-		    rtf[rtflen++] = '\\';
-		    rtf[rtflen++] = tdata[tindex+i];
+                    put_byte(rtf, '\\');
+                    put_byte(rtf, tdata[tindex+i]);
 		} else if (tdata[tindex+i] == 0x0D || tdata[tindex+i] == 0x0A) {
-		    rtflen += sprintf(rtf+rtflen, "\\par\r\n");
+                    put_datapl(rtf, PTRLEN_LITERAL("\\par\r\n"));
 		} else if (tdata[tindex+i] > 0x7E || tdata[tindex+i] < 0x20) {
-		    rtflen += sprintf(rtf+rtflen, "\\'%02x", tdata[tindex+i]);
+                    strbuf_catf(rtf, "\\'%02x", tdata[tindex+i]);
 		} else {
-		    rtf[rtflen++] = tdata[tindex+i];
+                    put_byte(rtf, tdata[tindex+i]);
 		}
 	    }
-	    strcpy(rtf + rtflen, after); rtflen += alen;
+	    put_data(rtf, after, alen);
 
 	    tindex += multilen;
 	    uindex++;
 	}
 
-        rtf[rtflen++] = '}';	       /* Terminate RTF stream */
-        rtf[rtflen++] = '\0';
-        rtf[rtflen++] = '\0';
+        put_datapl(rtf, PTRLEN_LITERAL("}\0\0")); /* Terminate RTF stream */
 
-	clipdata3 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, rtflen);
+	clipdata3 = GlobalAlloc(GMEM_DDESHARE | GMEM_MOVEABLE, rtf->len);
 	if (clipdata3 && (lock3 = GlobalLock(clipdata3)) != NULL) {
-	    memcpy(lock3, rtf, rtflen);
+	    memcpy(lock3, rtf->u, rtf->len);
 	    GlobalUnlock(clipdata3);
 	}
-	sfree(rtf);
+	strbuf_free(rtf);
 
 	if (rgbtree) {
 	    rgbindex *rgbp;

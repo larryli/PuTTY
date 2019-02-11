@@ -679,32 +679,21 @@ int main(int argc, char **argv)
                    !strcmp(p, "-no-sanitize-stderr")) {
             sanitise_stderr = FORCE_OFF;
 	} else if (*p != '-') {
-            char *command;
-            int cmdlen, cmdsize;
-            cmdlen = cmdsize = 0;
-            command = NULL;
+            strbuf *cmdbuf = strbuf_new();
 
-            while (argc) {
-                while (*p) {
-                    if (cmdlen >= cmdsize) {
-                        cmdsize = cmdlen + 512;
-                        command = sresize(command, cmdsize, char);
-                    }
-                    command[cmdlen++]=*p++;
-                }
-                if (cmdlen >= cmdsize) {
-                    cmdsize = cmdlen + 512;
-                    command = sresize(command, cmdsize, char);
-                }
-                command[cmdlen++]=' '; /* always add trailing space */
-                if (--argc) p = *++argv;
+            while (argc > 0) {
+                if (cmdbuf->len > 0)
+                    put_byte(cmdbuf, ' '); /* add space separator */
+                put_datapl(cmdbuf, ptrlen_from_asciz(p));
+                if (--argc > 0)
+                    p = *++argv;
             }
-            if (cmdlen) command[--cmdlen]='\0';
-            /* change trailing blank to NUL */
-            conf_set_str(conf, CONF_remote_cmd, command);
+
+            conf_set_str(conf, CONF_remote_cmd, cmdbuf->s);
             conf_set_str(conf, CONF_remote_cmd2, "");
             conf_set_bool(conf, CONF_nopty, true);  /* command => no tty */
 
+            strbuf_free(cmdbuf);
             break;		       /* done with cmdline */
         } else {
             fprintf(stderr, "plink: unknown option \"%s\"\n", p);

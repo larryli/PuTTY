@@ -563,10 +563,7 @@ int cmdline_process_param(const char *p, char *value,
     }
     if (!strcmp(p, "-m")) {
 	const char *filename;
-        char *command;
-	int cmdlen, cmdsize;
 	FILE *fp;
-	int c, d;
 
 	RETURN(2);
 	UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
@@ -574,29 +571,24 @@ int cmdline_process_param(const char *p, char *value,
 
 	filename = value;
 
-	cmdlen = cmdsize = 0;
-	command = NULL;
 	fp = fopen(filename, "r");
 	if (!fp) {
 	    cmdline_error("unable to open command file \"%s\"", filename);
 	    return ret;
 	}
-	do {
-	    c = fgetc(fp);
-	    d = c;
-	    if (c == EOF)
-		d = 0;
-	    if (cmdlen >= cmdsize) {
-		cmdsize = cmdlen + 512;
-		command = sresize(command, cmdsize, char);
-	    }
-	    command[cmdlen++] = d;
-	} while (c != EOF);
+        strbuf *command = strbuf_new();
+        char readbuf[4096];
+	while (1) {
+            size_t nread = fread(readbuf, 1, sizeof(readbuf), fp);
+            if (nread == 0)
+                break;
+            put_data(command, readbuf, nread);
+	}
 	fclose(fp);
-	conf_set_str(conf, CONF_remote_cmd, command);
+	conf_set_str(conf, CONF_remote_cmd, command->s);
 	conf_set_str(conf, CONF_remote_cmd2, "");
 	conf_set_bool(conf, CONF_nopty, true);   /* command => no terminal */
-	sfree(command);
+	strbuf_free(command);
     }
     if (!strcmp(p, "-P")) {
 	RETURN(2);

@@ -184,9 +184,8 @@ struct Telnet {
     bool activated;
     size_t bufsize;
     bool in_synch;
-    int sb_opt, sb_len;
-    unsigned char *sb_buf;
-    int sb_size;
+    int sb_opt;
+    strbuf *sb_buf;
     bool session_started;
 
     enum {
@@ -363,7 +362,7 @@ static void process_subneg(Telnet *telnet)
 
     switch (telnet->sb_opt) {
       case TELOPT_TSPEED:
-	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
+	if (telnet->sb_buf->len == 1 && telnet->sb_buf->u[0] == TELQUAL_SEND) {
 	    char *termspeed = conf_get_str(telnet->conf, CONF_termspeed);
 	    b = snewn(20 + strlen(termspeed), unsigned char);
 	    b[0] = IAC;
@@ -382,7 +381,7 @@ static void process_subneg(Telnet *telnet)
             logevent(telnet->logctx, "server:\tSB TSPEED <something weird>");
 	break;
       case TELOPT_TTYPE:
-	if (telnet->sb_len == 1 && telnet->sb_buf[0] == TELQUAL_SEND) {
+	if (telnet->sb_buf->len == 1 && telnet->sb_buf->u[0] == TELQUAL_SEND) {
 	    char *termtype = conf_get_str(telnet->conf, CONF_termtype);
 	    b = snewn(20 + strlen(termtype), unsigned char);
 	    b[0] = IAC;
@@ -405,8 +404,8 @@ static void process_subneg(Telnet *telnet)
 	break;
       case TELOPT_OLD_ENVIRON:
       case TELOPT_NEW_ENVIRON:
-	p = telnet->sb_buf;
-	q = p + telnet->sb_len;
+	p = telnet->sb_buf->u;
+	q = p + telnet->sb_buf->len;
 	if (p < q && *p == TELQUAL_SEND) {
 	    p++;
             logeventf(telnet->logctx, "server:\tSB %s SEND",
@@ -581,7 +580,7 @@ static void do_telnet_read(Telnet *telnet, const char *buf, size_t len)
 	    break;
 	  case SEENSB:
 	    telnet->sb_opt = c;
-	    telnet->sb_len = 0;
+	    telnet->sb_buf->len = 0;
 	    telnet->state = SUBNEGOT;
 	    break;
 	  case SUBNEGOT:
@@ -589,12 +588,7 @@ static void do_telnet_read(Telnet *telnet, const char *buf, size_t len)
 		telnet->state = SUBNEG_IAC;
 	    else {
 	      subneg_addchar:
-		if (telnet->sb_len >= telnet->sb_size) {
-		    telnet->sb_size += SB_DELTA;
-		    telnet->sb_buf = sresize(telnet->sb_buf, telnet->sb_size,
-					     unsigned char);
-		}
-		telnet->sb_buf[telnet->sb_len++] = c;
+		put_byte(telnet->sb_buf, c);
 		telnet->state = SUBNEGOT;	/* in case we came here by goto */
 	    }
 	    break;
@@ -704,8 +698,7 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
     telnet->echoing = true;
     telnet->editing = true;
     telnet->activated = false;
-    telnet->sb_buf = NULL;
-    telnet->sb_size = 0;
+    telnet->sb_buf = strbuf_new();
     telnet->seat = seat;
     telnet->logctx = logctx;
     telnet->term_width = conf_get_int(telnet->conf, CONF_width);
@@ -791,7 +784,7 @@ static void telnet_free(Backend *be)
 {
     Telnet *telnet = container_of(be, Telnet, backend);
 
-    sfree(telnet->sb_buf);
+    strbuf_free(telnet->sb_buf);
     if (telnet->s)
 	sk_close(telnet->s);
     if (telnet->pinger)

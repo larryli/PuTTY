@@ -395,7 +395,7 @@ testcrypt : [C] testcrypt SSHCRYPTO sshprng sshprime marshal utils
           + memory tree234 winmiscs
 testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
           + sshmac uxutils
-testzlib : [UT] testzlib sshzlib memory
+testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock

@@ -1096,7 +1096,7 @@ int scp_sink_init(void)
 #define SCP_SINK_RETRY  4	       /* not an action; just try again */
 struct scp_sink_action {
     int action;			       /* FILE, DIR, ENDDIR */
-    char *buf;			       /* will need freeing after use */
+    strbuf *buf;                       /* will need freeing after use */
     char *name;			       /* filename or dirname (not ENDDIR) */
     long permissions;  	       /* access permissions (not ENDDIR) */
     uint64_t size;                     /* file size (not ENDDIR) */
@@ -1327,8 +1327,9 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		act->action = SCP_SINK_RETRY;
 	    } else {
 		act->action = SCP_SINK_DIR;
-		act->buf = dupstr(stripslashes(fname, false));
-		act->name = act->buf;
+		act->buf->len = 0;
+                put_asciz(act->buf, stripslashes(fname, false));
+		act->name = act->buf->s;
 		act->size = 0;     /* duhh, it's a directory */
 		act->permissions = 07777 & attrs.permissions;
 		if (scp_sftp_preserve &&
@@ -1346,8 +1347,9 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	     * It's a file. Return SCP_SINK_FILE.
 	     */
 	    act->action = SCP_SINK_FILE;
-	    act->buf = dupstr(stripslashes(fname, false));
-	    act->name = act->buf;
+            act->buf->len = 0;
+            put_asciz(act->buf, stripslashes(fname, false));
+	    act->name = act->buf->s;
 	    if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
 		act->size = attrs.size;
 	    } else
@@ -1369,46 +1371,38 @@ int scp_get_sink_action(struct scp_sink_action *act)
 
     } else {
 	bool done = false;
-	int i, bufsize;
 	int action;
 	char ch;
 
 	act->settime = false;
-	act->buf = NULL;
-	bufsize = 0;
+        act->buf->len = 0;
 
 	while (!done) {
 	    if (!ssh_scp_recv(&ch, 1))
 		return 1;
 	    if (ch == '\n')
 		bump("Protocol error: Unexpected newline");
-	    i = 0;
 	    action = ch;
 	    do {
 		if (!ssh_scp_recv(&ch, 1))
 		    bump("Lost connection");
-		if (i >= bufsize) {
-		    bufsize = i + 128;
-		    act->buf = sresize(act->buf, bufsize, char);
-		}
-		act->buf[i++] = ch;
+                put_byte(act->buf, ch);
 	    } while (ch != '\n');
-	    act->buf[i - 1] = '\0';
 	    switch (action) {
 	      case '\01':		       /* error */
-                with_stripctrl(san, act->buf)
+                with_stripctrl(san, act->buf->s)
                     tell_user(stderr, "%s", san);
 		errs++;
 		continue;		       /* go round again */
 	      case '\02':		       /* fatal error */
-                with_stripctrl(san, act->buf)
+                with_stripctrl(san, act->buf->s)
                     bump("%s", san);
 	      case 'E':
                 backend_send(backend, "", 1);
 		act->action = SCP_SINK_ENDDIR;
 		return 0;
 	      case 'T':
-		if (sscanf(act->buf, "%lu %*d %lu %*d",
+		if (sscanf(act->buf->s, "%lu %*d %lu %*d",
 			   &act->mtime, &act->atime) == 2) {
 		    act->settime = true;
                     backend_send(backend, "", 1);
@@ -1438,10 +1432,11 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	 * SCP_SINK_DIR.
 	 */
 	{
-            if (sscanf(act->buf, "%lo %"SCNu64" %n", &act->permissions,
+            int i;
+            if (sscanf(act->buf->s, "%lo %"SCNu64" %n", &act->permissions,
                        &act->size, &i) != 2)
 		bump("Protocol error: Illegal file descriptor format");
-	    act->name = act->buf + i;
+	    act->name = act->buf->s + i;
 	    return 0;
 	}
     }
@@ -1758,13 +1753,17 @@ static void sink(const char *targ, const char *src)
 	bump("%s: Not a directory", targ);
 
     scp_sink_init();
+
+    struct scp_sink_action act;
+    act.buf = strbuf_new();
+
     while (1) {
-	struct scp_sink_action act;
+
 	if (scp_get_sink_action(&act))
-	    return;
+            goto out;
 
 	if (act.action == SCP_SINK_ENDDIR)
-	    return;
+            goto out;
 
 	if (act.action == SCP_SINK_RETRY)
 	    continue;
@@ -1889,7 +1888,7 @@ static void sink(const char *targ, const char *src)
 	if (scp_accept_filexfer()) {
             sfree(destfname);
             close_wfile(f);
-	    return;
+	    goto out;
         }
 
 	stat_bytes = 0;
@@ -1947,8 +1946,9 @@ static void sink(const char *targ, const char *src)
 	(void) scp_finish_filerecv();
 	sfree(stat_name);
 	sfree(destfname);
-	sfree(act.buf);
     }
+  out:
+    strbuf_free(act.buf);
 }
 
 /*
