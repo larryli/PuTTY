@@ -420,6 +420,7 @@ static Pty *new_pty_struct(void)
 {
     Pty *pty = snew(Pty);
     pty->conf = NULL;
+    pty->pending_eof = false;
     bufchain_init(&pty->output_data);
     return pty;
 }
