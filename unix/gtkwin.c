@@ -3769,8 +3769,11 @@ static void do_text_internal(
 	x *= 2;
 	if (x >= inst->term->cols)
 	    return;
-	if (x + len*2*widefactor > inst->term->cols)
+	if (x + len*2*widefactor > inst->term->cols) {
 	    len = (inst->term->cols-x)/2/widefactor;/* trim to LH half */
+            if (len == 0)
+                return; /* rounded down half a double-width char to zero */
+        }
 	rlen = len * 2;
     } else
 	rlen = len;
