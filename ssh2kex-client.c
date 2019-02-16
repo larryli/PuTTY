@@ -474,6 +474,15 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                  s->gss_stat == SSH_GSS_S_CONTINUE_NEEDED ||
                  !s->complete_rcvd);
 
+        {
+            const char *err = dh_validate_f(s->dh_ctx, s->f);
+            if (err) {
+                ssh_proto_error(s->ppl.ssh, "GSSAPI reply failed "
+                                "validation: %s", err);
+                *aborted = true;
+                return;
+            }
+        }
         s->K = dh_find_K(s->dh_ctx, s->f);
 
         /* We assume everything from now on will be quick, and it might
