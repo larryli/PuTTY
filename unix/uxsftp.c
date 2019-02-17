@@ -463,7 +463,7 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
-	if (i < 1 && !no_fds_ok)
+	if (i < 1 && !no_fds_ok && !toplevel_callback_pending())
 	    return -1;		       /* doom */
 
 	/* Expand the fdlist buffer if necessary. */
