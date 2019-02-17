@@ -242,6 +242,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
         bufchain_fetch(s->bpp.in_raw, s->prefix, s->prefix_wanted.len);
         if (!memcmp(s->prefix, s->prefix_wanted.ptr, s->prefix_wanted.len)) {
             bufchain_consume(s->bpp.in_raw, s->prefix_wanted.len);
+            ssh_check_frozen(s->bpp.ssh);
             break;
         }
 
@@ -258,9 +259,11 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
             data = bufchain_prefix(s->bpp.in_raw);
             if ((nl = memchr(data.ptr, '\012', data.len)) != NULL) {
                 bufchain_consume(s->bpp.in_raw, nl - (char *)data.ptr + 1);
+                ssh_check_frozen(s->bpp.ssh);
                 break;
             } else {
                 bufchain_consume(s->bpp.in_raw, data.len);
+                ssh_check_frozen(s->bpp.ssh);
             }
         }
     }
@@ -298,6 +301,7 @@ void ssh_verstring_handle_input(BinaryPacketProtocol *bpp)
         memcpy(s->vstring + s->vslen, data.ptr, data.len);
         s->vslen += data.len;
         bufchain_consume(s->bpp.in_raw, data.len);
+        ssh_check_frozen(s->bpp.ssh);
 
     } while (s->vstring[s->vslen-1] != '\012');
 

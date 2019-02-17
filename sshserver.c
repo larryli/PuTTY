@@ -76,6 +76,7 @@ void share_setup_x11_channel(ssh_sharing_connstate *cs, share_channel *chan,
 Channel *agentf_new(SshChannel *c) { return NULL; }
 bool agent_exists(void) { return false; }
 void ssh_got_exitcode(Ssh *ssh, int exitcode) {}
+void ssh_check_frozen(Ssh *ssh) {}
 
 mainchan *mainchan_new(
     PacketProtocolLayer *ppl, ConnectionLayer *cl, Conf *conf,

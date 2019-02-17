@@ -380,6 +380,7 @@ void ssh_got_fallback_cmd(Ssh *ssh);
 
 /* Communications back to ssh.c from the BPP */
 void ssh_conn_processed_data(Ssh *ssh);
+void ssh_check_frozen(Ssh *ssh);
 
 /* Functions to abort the connection, for various reasons. */
 void ssh_remote_error(Ssh *ssh, const char *fmt, ...);
