@@ -569,6 +569,8 @@ GLOBAL bool restricted_acl;
 void escape_registry_key(const char *in, strbuf *out);
 void unescape_registry_key(const char *in, strbuf *out);
 
+bool is_console_handle(HANDLE);
+
 /* A few pieces of up-to-date Windows API definition needed for older
  * compilers. */
 #ifndef LOAD_LIBRARY_SEARCH_SYSTEM32
