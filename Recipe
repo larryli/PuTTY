@@ -281,7 +281,7 @@ WINSSH   = SSH winnoise wincapi winpgntc wingss winshare winnps winnpc
 UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 
 # SFTP implementation (pscp, psftp).
-SFTP     = sftp sftpcommon logging cmdline
+SFTP     = sftp sftpcommon logging cmdline stripctrl
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
