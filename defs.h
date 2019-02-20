@@ -40,6 +40,9 @@ typedef struct RSAKey RSAKey;
 
 typedef struct BinarySink BinarySink;
 typedef struct BinarySource BinarySource;
+typedef struct stdio_sink stdio_sink;
+typedef struct bufchain_sink bufchain_sink;
+typedef struct handle_sink handle_sink;
 
 typedef struct IdempotentCallback IdempotentCallback;
 
