@@ -351,4 +351,22 @@ static inline const char *NULLTOEMPTY(const char *s)
     return s ? s : "";
 }
 
+/* StripCtrlChars, defined in stripctrl.c: an adapter you can put on
+ * the front of one BinarySink and which functions as one in turn.
+ * Interprets its input as a stream of multibyte characters in the
+ * system locale, and removes any that are not either printable
+ * characters or newlines. */
+struct StripCtrlChars {
+    BinarySink_IMPLEMENTATION;
+    /* and this is contained in a larger structure */
+};
+StripCtrlChars *stripctrl_new(
+    BinarySink *bs_out, bool permit_cr, wchar_t substitution);
+void stripctrl_free(StripCtrlChars *sanpub);
+char *stripctrl_string_ptrlen(ptrlen str);
+static inline char *stripctrl_string(const char *str)
+{
+    return stripctrl_string_ptrlen(ptrlen_from_asciz(str));
+}
+
 #endif

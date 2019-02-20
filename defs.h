@@ -120,6 +120,8 @@ typedef struct settings_e settings_e;
 
 typedef struct SessionSpecial SessionSpecial;
 
+typedef struct StripCtrlChars StripCtrlChars;
+
 /*
  * A small structure wrapping up a (pointer, length) pair so that it
  * can be conveniently passed to or from a function.

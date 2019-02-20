@@ -512,6 +512,8 @@ if (defined $makefiles{'clangcl'}) {
     #       application, do the same with wincrt0.obj. Then this
     #       makefile will include the right one of those objects
     #       alongside the matching /subsystem linker option.
+    #  - also for older versions of the VS libraries, you may also
+    #    have to set EXTRA_libs to include extra library files.
 
     open OUT, ">$makefiles{'clangcl'}"; select OUT;
     print
@@ -568,7 +570,7 @@ if (defined $makefiles{'clangcl'}) {
                          "/out:\$(BUILDDIR)$prog.exe ".
                          "/lldmap:\$(BUILDDIR)$prog.map ".
                          "/subsystem:$subsys\$(SUBSYSVER) ".
-                         "\$(EXTRA_$subsys) $objstr")."\n\n";
+                         "\$(EXTRA_$subsys) $objstr \$(EXTRA_libs)")."\n\n";
     }
     my $rc_pp_rules = "";
     foreach $d (&deps("\$(BUILDDIR)X.obj", "\$(BUILDDIR)X.res", $dirpfx, "/", "vc")) {

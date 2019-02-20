@@ -186,7 +186,7 @@ in putty/windows with clangcl_a64 do mkdir abuild64 && Platform=arm64 make -f Ma
 # a subsystem version of 4.0, and compile with /arch:IA32 to prevent
 # the use of modern CPU features like MMX which older machines also
 # might not have.
-in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj XFLAGS=/arch:IA32 all -j$(nproc)
+in putty/windows with clangcl32_2003 do mkdir buildold && Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj EXTRA_libs=libcpmt.lib XFLAGS=/arch:IA32 all -j$(nproc)
 
 # Remove Windows binaries for the test programs we don't want to ship,
 # like testbn.exe. (But we still _built_ them, to ensure the build

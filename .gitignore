@@ -46,6 +46,7 @@
 /testsc
 /testzlib
 /cgtest
+/scctest
 /*.DSA
 /*.RSA
 /*.cnt
