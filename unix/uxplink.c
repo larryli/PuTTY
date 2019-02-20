@@ -323,6 +323,10 @@ void cleanup_termios(void)
 }
 
 bufchain stdout_data, stderr_data;
+bufchain_sink stdout_bcs, stderr_bcs;
+StripCtrlChars *stdout_scc, *stderr_scc;
+BinarySink *stdout_bs, *stderr_bs;
+
 enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
 size_t try_output(bool is_stderr)
@@ -357,14 +361,12 @@ size_t try_output(bool is_stderr)
 static size_t plink_output(
     Seat *seat, bool is_stderr, const void *data, size_t len)
 {
-    if (is_stderr) {
-	bufchain_add(&stderr_data, data, len);
-	return try_output(true);
-    } else {
-        assert(outgoingeof == EOF_NO);
-	bufchain_add(&stdout_data, data, len);
-	return try_output(false);
-    }
+    assert(is_stderr || outgoingeof == EOF_NO);
+
+    BinarySink *bs = is_stderr ? stderr_bs : stdout_bs;
+    put_data(bs, data, len);
+
+    return try_output(is_stderr);
 }
 
 static bool plink_eof(Seat *seat)
@@ -529,6 +531,10 @@ static void usage(void)
     printf("  -share    enable use of connection sharing\n");
     printf("  -hostkey aa:bb:cc:...\n");
     printf("            manually specify a host key (may be repeated)\n");
+    printf("  -sanitise-stderr, -sanitise-stdout, "
+           "-no-sanitise-stderr, -no-sanitise-stdout\n");
+    printf("            do/don't strip control chars from standard "
+           "output/error\n");
     printf("  -m file   read remote command(s) from file\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
@@ -565,6 +571,7 @@ int main(int argc, char **argv)
     int i, fdsize, fdstate;
     int exitcode;
     bool errors;
+    enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
     bool use_subsystem = false;
     bool just_test_share_exists = false;
     unsigned long now;
@@ -582,6 +589,10 @@ int main(int argc, char **argv)
 
     bufchain_init(&stdout_data);
     bufchain_init(&stderr_data);
+    bufchain_sink_init(&stdout_bcs, &stdout_data);
+    bufchain_sink_init(&stderr_bcs, &stderr_data);
+    stdout_bs = BinarySink_UPCAST(&stdout_bcs);
+    stderr_bs = BinarySink_UPCAST(&stderr_bcs);
     outgoingeof = EOF_NO;
 
     flags = FLAG_STDERR_TTY;
@@ -655,6 +666,18 @@ int main(int argc, char **argv)
         } else if (!strcmp(p, "-fuzznet")) {
             conf_set_int(conf, CONF_proxy_type, PROXY_FUZZ);
             conf_set_str(conf, CONF_proxy_telnet_command, "%host");
+        } else if (!strcmp(p, "-sanitise-stdout") ||
+                   !strcmp(p, "-sanitize-stdout")) {
+            sanitise_stdout = FORCE_ON;
+        } else if (!strcmp(p, "-no-sanitise-stdout") ||
+                   !strcmp(p, "-no-sanitize-stdout")) {
+            sanitise_stdout = FORCE_OFF;
+        } else if (!strcmp(p, "-sanitise-stderr") ||
+                   !strcmp(p, "-sanitize-stderr")) {
+            sanitise_stderr = FORCE_ON;
+        } else if (!strcmp(p, "-no-sanitise-stderr") ||
+                   !strcmp(p, "-no-sanitize-stderr")) {
+            sanitise_stderr = FORCE_OFF;
 	} else if (*p != '-') {
             char *command;
             int cmdlen, cmdsize;
@@ -764,6 +787,33 @@ int main(int argc, char **argv)
     if (ioctl(STDIN_FILENO, TIOCGWINSZ, &size) >= 0) {
 	conf_set_int(conf, CONF_width, size.ws_col);
 	conf_set_int(conf, CONF_height, size.ws_row);
+    }
+
+    /*
+     * Decide whether to sanitise control sequences out of standard
+     * output and standard error.
+     *
+     * If we weren't given a command-line override, we do this if (a)
+     * the fd in question is pointing at a terminal, and (b) we aren't
+     * trying to allocate a terminal as part of the session.
+     *
+     * (Rationale: the risk of control sequences is that they cause
+     * confusion when sent to a local terminal, so if there isn't one,
+     * no problem. Also, if we allocate a remote terminal, then we
+     * sent a terminal type, i.e. we told it what kind of escape
+     * sequences we _like_, i.e. we were expecting to receive some.)
+     */
+    if (sanitise_stdout == FORCE_ON ||
+        (sanitise_stdout == AUTO && isatty(STDOUT_FILENO) &&
+         conf_get_bool(conf, CONF_nopty))) {
+        stdout_scc = stripctrl_new(stdout_bs, true, L'\0');
+        stdout_bs = BinarySink_UPCAST(stdout_scc);
+    }
+    if (sanitise_stderr == FORCE_ON ||
+        (sanitise_stderr == AUTO && isatty(STDERR_FILENO) &&
+         conf_get_bool(conf, CONF_nopty))) {
+        stderr_scc = stripctrl_new(stderr_bs, true, L'\0');
+        stderr_bs = BinarySink_UPCAST(stderr_scc);
     }
 
     sk_init();
