@@ -341,7 +341,7 @@ enum {
     CIPHER_MAX			       /* no. ciphers (inc warn) */
 };
 
-enum {
+enum TriState {
     /*
      * Several different bits of the PuTTY configuration seem to be
      * three-way settings whose values are `always yes', `always
