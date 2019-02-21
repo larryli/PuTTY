@@ -2565,8 +2565,6 @@ static void usage(void)
            " standard error\n");
     printf("  -proxycmd command\n");
     printf("            use 'command' as local proxy\n");
-    printf("  -no-sanitise-stderr   allow escape sequences in error "
-           "messages\n");
     printf("  -sshlog file\n");
     printf("  -sshrawlog file\n");
     printf("            log protocol details to a file\n");

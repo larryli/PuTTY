@@ -2206,8 +2206,6 @@ static void usage(void)
     printf("  -proxycmd command\n");
     printf("            use 'command' as local proxy\n");
     printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
-    printf("  -no-sanitise-stderr   allow escape sequences in error "
-           "messages\n");
     printf("  -sftp     force use of SFTP protocol\n");
     printf("  -scp      force use of SCP protocol\n");
     printf("  -sshlog file\n");
