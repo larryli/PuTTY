@@ -1899,7 +1899,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
  */
 typedef struct bidi_char {
     unsigned int origwc, wc;
-    unsigned short index;
+    unsigned short index, nchars;
 } bidi_char;
 int do_bidi(bidi_char *line, int count);
 int do_shape(bidi_char *line, bidi_char *to, int count);

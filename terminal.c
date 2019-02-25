@@ -4976,18 +4976,29 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 		term->wcFrom[it].origwc = term->wcFrom[it].wc =
 		    (unsigned int)uc;
 		term->wcFrom[it].index = it;
+		term->wcFrom[it].nchars = 1;
 	    }
 
+            int nbc = 0;
+            for (it = 0; it < term->cols; it++) {
+                term->wcFrom[nbc] = term->wcFrom[it];
+                if (it+1 < term->cols && term->wcFrom[it+1].wc == UCSWIDE) {
+                    term->wcFrom[nbc].nchars++;
+                    it++;
+                }
+                nbc++;
+            }
+
 	    if(!term->bidi)
-		do_bidi(term->wcFrom, term->cols);
+		do_bidi(term->wcFrom, nbc);
 
 	    /* this is saved iff done from inside the shaping */
 	    if(!term->bidi && term->arabicshaping)
-		for(it=0; it<term->cols; it++)
+		for(it=0; it<nbc; it++)
 		    term->wcTo[it] = term->wcFrom[it];
 
 	    if(!term->arabicshaping)
-		do_shape(term->wcFrom, term->wcTo, term->cols);
+		do_shape(term->wcFrom, term->wcTo, nbc);
 
 	    if (term->ltemp_size < ldata->size) {
 		term->ltemp_size = ldata->size;
@@ -4997,16 +5008,23 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 
 	    memcpy(term->ltemp, ldata->chars, ldata->size * TSIZE);
 
-	    for(it=0; it<term->cols ; it++)
-	    {
-		term->ltemp[it] = ldata->chars[term->wcTo[it].index];
-		if (term->ltemp[it].cc_next)
-		    term->ltemp[it].cc_next -=
-		    it - term->wcTo[it].index;
+            int opos = 0;
+	    for (it=0; it<nbc; it++) {
+                int ipos = term->wcTo[it].index;
+                for (int j = 0; j < term->wcTo[it].nchars; j++) {
+                    term->ltemp[opos] = ldata->chars[ipos];
+                    if (term->ltemp[opos].cc_next)
+                        term->ltemp[opos].cc_next -= opos - ipos;
 
-		if (term->wcTo[it].origwc != term->wcTo[it].wc)
-		    term->ltemp[it].chr = term->wcTo[it].wc;
+                    if (j > 0)
+                        term->ltemp[opos].chr = UCSWIDE;
+                    else if (term->wcTo[it].origwc != term->wcTo[it].wc)
+                        term->ltemp[opos].chr = term->wcTo[it].wc;
+
+                    opos++;
+                }
 	    }
+            assert(opos == term->cols);
 	    term_bidi_cache_store(term, scr_y, ldata->chars,
 				  term->ltemp, term->wcTo,
                                   term->cols, ldata->size);
