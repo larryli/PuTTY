@@ -115,7 +115,7 @@ static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
 
-static termline *newline(Terminal *term, int cols, bool bce)
+static termline *newtermline(Terminal *term, int cols, bool bce)
 {
     termline *line;
     int j;
@@ -132,7 +132,7 @@ static termline *newline(Terminal *term, int cols, bool bce)
     return line;
 }
 
-static void freeline(termline *line)
+static void freetermline(termline *line)
 {
     if (line) {
 	sfree(line->chars);
@@ -143,7 +143,7 @@ static void freeline(termline *line)
 static void unlineptr(termline *line)
 {
     if (line->temporary)
-	freeline(line);
+	freetermline(line);
 }
 
 #ifdef TERM_CC_DIAGS
@@ -729,7 +729,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
 	       (double)dused / (4 * ldata->cols));
 #endif
 
-	freeline(dcl);
+	freetermline(dcl);
     }
 #endif
 #endif /* TERM_CC_DIAGS */
@@ -1724,14 +1724,14 @@ void term_free(Terminal *term)
 	sfree(line);		       /* compressed data, not a termline */
     freetree234(term->scrollback);
     while ((line = delpos234(term->screen, 0)) != NULL)
-	freeline(line);
+	freetermline(line);
     freetree234(term->screen);
     while ((line = delpos234(term->alt_screen, 0)) != NULL)
-	freeline(line);
+	freetermline(line);
     freetree234(term->alt_screen);
     if (term->disptext) {
 	for (i = 0; i < term->rows; i++)
-	    freeline(term->disptext[i]);
+	    freetermline(term->disptext[i]);
     }
     sfree(term->disptext);
     while (term->beephead) {
@@ -1840,7 +1840,7 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	    term->alt_savecurs.y += 1;
 	} else {
 	    /* Add a new blank line at the bottom of the screen. */
-	    line = newline(term, newcols, false);
+	    line = newtermline(term, newcols, false);
 	    addpos234(term->screen, line, count234(term->screen));
 	}
 	term->rows += 1;
@@ -1850,12 +1850,12 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 	if (term->curs.y < term->rows - 1) {
 	    /* delete bottom row, unless it contains the cursor */
             line = delpos234(term->screen, term->rows - 1);
-            freeline(line);
+            freetermline(line);
 	} else {
 	    /* push top row to scrollback */
 	    line = delpos234(term->screen, 0);
 	    addpos234(term->scrollback, compressline(line), sblen++);
-	    freeline(line);
+	    freetermline(line);
 	    term->tempsblines += 1;
 	    term->curs.y -= 1;
 	    term->savecurs.y -= 1;
@@ -1882,13 +1882,13 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     /* Make a new displayed text buffer. */
     newdisp = snewn(newrows, termline *);
     for (i = 0; i < newrows; i++) {
-	newdisp[i] = newline(term, newcols, false);
+	newdisp[i] = newtermline(term, newcols, false);
 	for (j = 0; j < newcols; j++)
 	    newdisp[i]->chars[j].attr = ATTR_INVALID;
     }
     if (term->disptext) {
 	for (i = 0; i < oldrows; i++)
-	    freeline(term->disptext[i]);
+	    freetermline(term->disptext[i]);
     }
     sfree(term->disptext);
     term->disptext = newdisp;
@@ -1897,12 +1897,12 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
     /* Make a new alternate screen. */
     newalt = newtree234(NULL);
     for (i = 0; i < newrows; i++) {
-	line = newline(term, newcols, true);
+	line = newtermline(term, newcols, true);
 	addpos234(newalt, line, i);
     }
     if (term->alt_screen) {
 	while (NULL != (line = delpos234(term->alt_screen, 0)))
-	    freeline(line);
+	    freetermline(line);
 	freetree234(term->alt_screen);
     }
     term->alt_screen = newalt;
@@ -2108,6 +2108,14 @@ static void check_selection(Terminal *term, pos from, pos to)
 	deselect(term);
 }
 
+static void clear_line(Terminal *term, termline *line)
+{
+    assert(term->cols == line->cols);
+    for (int i = 0; i < term->cols; i++)
+        copy_termchar(line, i, &term->erase_char);
+    line->lattr = LATTR_NORM;
+}
+
 /*
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.) `sb' is true if the scrolling is permitted to
@@ -2117,7 +2125,7 @@ static void scroll(Terminal *term, int topline, int botline,
                    int lines, bool sb)
 {
     termline *line;
-    int i, seltop, scrollwinsize;
+    int seltop, scrollwinsize;
 
     if (topline != 0 || term->alt_which != 0)
 	sb = false;
@@ -2131,9 +2139,7 @@ static void scroll(Terminal *term, int topline, int botline,
 	while (lines-- > 0) {
 	    line = delpos234(term->screen, botline);
             resizeline(term, line, term->cols);
-	    for (i = 0; i < term->cols; i++)
-		copy_termchar(line, i, &term->erase_char);
-	    line->lattr = LATTR_NORM;
+            clear_line(term, line);
 	    addpos234(term->screen, line, topline);
 
 	    if (term->selstart.y >= topline && term->selstart.y <= botline) {
@@ -2197,9 +2203,7 @@ static void scroll(Terminal *term, int topline, int botline,
 		    term->disptop--;
 	    }
             resizeline(term, line, term->cols);
-	    for (i = 0; i < term->cols; i++)
-		copy_termchar(line, i, &term->erase_char);
-	    line->lattr = LATTR_NORM;
+            clear_line(term, line);
 	    addpos234(term->screen, line, botline);
 
 	    /*
@@ -5948,6 +5952,16 @@ static int wordtype(Terminal *term, int uc)
     return 2;
 }
 
+static int line_cols(Terminal *term, termline *ldata)
+{
+    int cols = term->cols;
+    if (ldata->lattr & LATTR_WRAPPED2)
+        cols--;
+    if (cols < 0)
+        cols = 0;
+    return cols;
+}
+
 /*
  * Spread the selection outwards according to the selection mode.
  */
@@ -5966,7 +5980,7 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 	 * for runs of spaces at the end of a non-wrapping line.
 	 */
 	if (!(ldata->lattr & LATTR_WRAPPED)) {
-	    termchar *q = ldata->chars + term->cols;
+	    termchar *q = ldata->chars + line_cols(term, ldata);
 	    while (q > ldata->chars &&
 		   IS_SPACE_CHR(q[-1].chr) && !q[-1].cc_next)
 		q--;
@@ -5984,8 +5998,7 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 	wvalue = wordtype(term, UCSGET(ldata->chars, p.x));
 	if (dir == +1) {
 	    while (1) {
-		int maxcols = (ldata->lattr & LATTR_WRAPPED2 ?
-			       term->cols-1 : term->cols);
+		int maxcols = line_cols(term, ldata);
 		if (p.x < maxcols-1) {
 		    if (wordtype(term, UCSGET(ldata->chars, p.x+1)) == wvalue)
 			p.x++;
@@ -6023,8 +6036,7 @@ static pos sel_spread_half(Terminal *term, pos p, int dir)
 		    if (p.y <= topy)
 			break;
 		    ldata2 = lineptr(p.y-1);
-		    maxcols = (ldata2->lattr & LATTR_WRAPPED2 ?
-			      term->cols-1 : term->cols);
+		    maxcols = line_cols(term, ldata2);
 		    if (ldata2->lattr & LATTR_WRAPPED) {
 			if (wordtype(term, UCSGET(ldata2->chars, maxcols-1))
 			    == wvalue) {
