@@ -5040,6 +5040,16 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
     return lchars;
 }
 
+static void do_paint_draw(Terminal *term, termline *ldata, int x, int y,
+                          wchar_t *ch, int ccount,
+                          unsigned long attr, truecolour tc)
+{
+    win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
+    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
+        win_draw_cursor(term->win, x, y, ch, ccount,
+                        attr, ldata->lattr, tc);
+}
+
 /*
  * Given a context, update the window.
  */
@@ -5344,13 +5354,8 @@ static void do_paint(Terminal *term)
 	    }
 
 	    if (break_run) {
-		if ((dirty_run || last_run_dirty) && ccount > 0) {
-		    win_draw_text(term->win, start, i, ch, ccount,
-                                  attr, ldata->lattr, tc);
-		    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
-			win_draw_cursor(term->win, start, i, ch, ccount, attr,
-                                        ldata->lattr, tc);
-		}
+		if ((dirty_run || last_run_dirty) && ccount > 0)
+                    do_paint_draw(term, ldata, start, i, ch, ccount, attr, tc);
 		start = j;
 		ccount = 0;
 		attr = tattr;
@@ -5444,13 +5449,8 @@ static void do_paint(Terminal *term)
 		}
 	    }
 	}
-	if (dirty_run && ccount > 0) {
-	    win_draw_text(term->win, start, i, ch, ccount,
-                          attr, ldata->lattr, tc);
-	    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
-		win_draw_cursor(term->win, start, i, ch, ccount,
-                                attr, ldata->lattr, tc);
-	}
+	if (dirty_run && ccount > 0)
+            do_paint_draw(term, ldata, start, i, ch, ccount, attr, tc);
 
 	unlineptr(ldata);
     }
