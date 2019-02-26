@@ -4869,10 +4869,10 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 				  termchar *lafter, bidi_char *wcTo,
 				  int width, int size)
 {
-    int i;
+    int i, j;
 
     if (!term->pre_bidi_cache || term->bidi_cache_size <= line) {
-	int j = term->bidi_cache_size;
+	j = term->bidi_cache_size;
 	term->bidi_cache_size = line+1;
 	term->pre_bidi_cache = sresize(term->pre_bidi_cache,
 				       term->bidi_cache_size,
@@ -4910,13 +4910,15 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
     memset(term->post_bidi_cache[line].forward, 0, width * sizeof(int));
     memset(term->post_bidi_cache[line].backward, 0, width * sizeof(int));
 
-    for (i = 0; i < width; i++) {
+    for (i = j = 0; j < width; j += wcTo[i].nchars, i++) {
 	int p = wcTo[i].index;
 
 	assert(0 <= p && p < width);
 
-	term->post_bidi_cache[line].backward[i] = p;
-	term->post_bidi_cache[line].forward[p] = i;
+        for (int x = 0; x < wcTo[i].nchars; x++) {
+            term->post_bidi_cache[line].backward[j+x] = p+x;
+            term->post_bidi_cache[line].forward[p+x] = j+x;
+        }
     }
 }
 
