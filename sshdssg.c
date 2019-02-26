@@ -57,7 +57,7 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
     pfn(pfnparam, PROGFN_READY, 0, 0);
 
     unsigned pfirst, qfirst;
-    invent_firstbits(&pfirst, &qfirst);
+    invent_firstbits(&pfirst, &qfirst, 0);
     /*
      * Generate q: a prime of length 160.
      */

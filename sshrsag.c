@@ -63,8 +63,14 @@ int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
      * and e to be coprime, and (q-1) and e to be coprime, but in
      * general that's slightly more fiddly to arrange. By choosing
      * a prime e, we can simplify the criterion.)
+     *
+     * We give a min_separation of 2 to invent_firstbits(), ensuring
+     * that the two primes won't be very close to each other. (The
+     * chance of them being _dangerously_ close is negligible - even
+     * more so than an attacker guessing a whole 256-bit session key -
+     * but it doesn't cost much to make sure.)
      */
-    invent_firstbits(&pfirst, &qfirst);
+    invent_firstbits(&pfirst, &qfirst, 2);
     mp_int *p = primegen(bits / 2, RSA_EXPONENT, 1, NULL,
                             1, pfn, pfnparam, pfirst);
     mp_int *q = primegen(bits - bits / 2, RSA_EXPONENT, 1, NULL,

@@ -365,7 +365,8 @@ mp_int *primegen(
 
 /*
  * Invent a pair of values suitable for use as 'firstbits' in the
- * above function, such that their product is at least 2.
+ * above function, such that their product is at least 2, and such
+ * that their difference is also at least min_separation.
  *
  * This is used for generating both RSA and DSA keys which have
  * exactly the specified number of bits rather than one fewer - if you
@@ -377,19 +378,97 @@ mp_int *primegen(
  * the lines of 'Hey, I asked PuTTYgen for a 2048-bit key and I only
  * got 2047 bits! Bug!'
  */
-void invent_firstbits(unsigned *one, unsigned *two)
+static inline unsigned firstbits_b_min(
+    unsigned a, unsigned lo, unsigned hi, unsigned min_separation)
+{
+    /* To get a large enough product, b must be at least this much */
+    unsigned b_min = (lo*lo + a - 1) / a;
+    /* Now enforce a<b, optionally with minimum separation */
+    if (b_min < a + min_separation)
+        b_min = a + min_separation;
+    /* And cap at the upper limit */
+    if (b_min > hi)
+        b_min = hi;
+    return b_min;
+}
+
+void invent_firstbits(unsigned *one, unsigned *two, unsigned min_separation)
 {
     /*
-     * Our criterion is that any number in the range [one,one+1)
-     * multiplied by any number in the range [two,two+1) should have
-     * the highest bit set. It should be clear that we can trivially
-     * test this by multiplying the smallest values in each interval,
-     * i.e. the ones we actually invented.
+     * We'll pick 12 initial bits (number selected at random) for each
+     * prime, not counting the leading 1. So we want to return two
+     * values in the range [2^12,2^13) whose product is at least 2^24.
+     *
+     * Strategy: count up all the viable pairs, then select a random
+     * number in that range and use it to pick a pair.
+     *
+     * To keep things simple, we'll ensure a < b, and randomly swap
+     * them at the end.
      */
-    do {
-        uint8_t bytes[2];
-        random_read(bytes, 2);
-        *one = 0x100 | bytes[0];
-        *two = 0x100 | bytes[1];
-    } while (*one * *two < 0x20000);
+    const unsigned lo = 1<<12, hi = 1<<13, minproduct = lo*lo;
+    unsigned a, b;
+
+    /*
+     * Count up the number of prefixes of b that would be valid for
+     * each prefix of a.
+     */
+    mp_int *total = mp_new(32);
+    for (a = lo; a < hi; a++) {
+        unsigned b_min = firstbits_b_min(a, lo, hi, min_separation);
+        mp_add_integer_into(total, total, hi - b_min);
+    }
+
+    /*
+     * Make up a random number in the range [0,2*total).
+     */
+    mp_int *mlo = mp_from_integer(0), *mhi = mp_new(32);
+    mp_lshift_fixed_into(mhi, total, 1);
+    mp_int *randval = mp_random_in_range(mlo, mhi);
+    mp_free(mlo);
+    mp_free(mhi);
+
+    /*
+     * Use the low bit of randval as our swap indicator, leaving the
+     * rest of it in the range [0,total).
+     */
+    unsigned swap = mp_get_bit(randval, 0);
+    mp_rshift_fixed_into(randval, randval, 1);
+
+    /*
+     * Now do the same counting loop again to make the actual choice.
+     */
+    a = b = 0;
+    for (unsigned a_candidate = lo; a_candidate < hi; a_candidate++) {
+        unsigned b_min = firstbits_b_min(a_candidate, lo, hi, min_separation);
+        unsigned limit = hi - b_min;
+
+        unsigned b_candidate = b_min + mp_get_integer(randval);
+        unsigned use_it = 1 ^ mp_hs_integer(randval, limit);
+        a ^= (a ^ a_candidate) & -use_it;
+        b ^= (b ^ b_candidate) & -use_it;
+
+        mp_sub_integer_into(randval, randval, limit);
+    }
+
+    mp_free(randval);
+
+    /*
+     * Check everything came out right.
+     */
+    assert(lo <= a);
+    assert(a < hi);
+    assert(lo <= b);
+    assert(b < hi);
+    assert(a * b >= minproduct);
+    assert(b >= a + min_separation);
+
+    /*
+     * Last-minute optional swap of a and b.
+     */
+    unsigned diff = (a ^ b) & (-swap);
+    a ^= diff;
+    b ^= diff;
+
+    *one = a;
+    *two = b;
 }
