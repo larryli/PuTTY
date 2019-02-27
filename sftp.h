@@ -390,40 +390,58 @@ struct SftpServerVtable {
                     int max_entries, bool omit_longname);
 };
 
-#define sftpsrv_new(vt) \
-    ((vt)->new(vt))
-#define sftpsrv_free(srv) \
-    ((srv)->vt->free(srv))
-#define sftpsrv_realpath(srv, reply, path) \
-    ((srv)->vt->realpath(srv, reply, path))
-#define sftpsrv_open(srv, reply, path, flags, attrs) \
-    ((srv)->vt->open(srv, reply, path, flags, attrs))
-#define sftpsrv_opendir(srv, reply, path) \
-    ((srv)->vt->opendir(srv, reply, path))
-#define sftpsrv_close(srv, reply, handle) \
-    ((srv)->vt->close(srv, reply, handle))
-#define sftpsrv_mkdir(srv, reply, path, attrs) \
-    ((srv)->vt->mkdir(srv, reply, path, attrs))
-#define sftpsrv_rmdir(srv, reply, path) \
-    ((srv)->vt->rmdir(srv, reply, path))
-#define sftpsrv_remove(srv, reply, path) \
-    ((srv)->vt->remove(srv, reply, path))
-#define sftpsrv_rename(srv, reply, srcpath, dstpath) \
-    ((srv)->vt->rename(srv, reply, srcpath, dstpath))
-#define sftpsrv_stat(srv, reply, path, follow) \
-    ((srv)->vt->stat(srv, reply, path, follow))
-#define sftpsrv_fstat(srv, reply, handle) \
-    ((srv)->vt->fstat(srv, reply, handle))
-#define sftpsrv_setstat(srv, reply, path, attrs) \
-    ((srv)->vt->setstat(srv, reply, path, attrs))
-#define sftpsrv_fsetstat(srv, reply, handle, attrs) \
-    ((srv)->vt->fsetstat(srv, reply, handle, attrs))
-#define sftpsrv_read(srv, reply, handle, offset, length) \
-    ((srv)->vt->read(srv, reply, handle, offset, length))
-#define sftpsrv_write(srv, reply, handle, offset, data) \
-    ((srv)->vt->write(srv, reply, handle, offset, data))
-#define sftpsrv_readdir(srv, reply, handle, max, nolongname) \
-    ((srv)->vt->readdir(srv, reply, handle, max, nolongname))
+static inline SftpServer *sftpsrv_new(const SftpServerVtable *vt)
+{ return vt->new(vt); }
+static inline void sftpsrv_free(SftpServer *srv)
+{ srv->vt->free(srv); }
+static inline void sftpsrv_realpath(SftpServer *srv, SftpReplyBuilder *reply,
+                                    ptrlen path)
+{ srv->vt->realpath(srv, reply, path); }
+static inline void sftpsrv_open(
+    SftpServer *srv, SftpReplyBuilder *reply,
+    ptrlen path, unsigned flags, struct fxp_attrs attrs)
+{ srv->vt->open(srv, reply, path, flags, attrs); }
+static inline void sftpsrv_opendir(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen path)
+{ srv->vt->opendir(srv, reply, path); }
+static inline void sftpsrv_close(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle)
+{ srv->vt->close(srv, reply, handle); }
+static inline void sftpsrv_mkdir(SftpServer *srv, SftpReplyBuilder *reply,
+                                 ptrlen path, struct fxp_attrs attrs)
+{ srv->vt->mkdir(srv, reply, path, attrs); }
+static inline void sftpsrv_rmdir(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen path)
+{ srv->vt->rmdir(srv, reply, path); }
+static inline void sftpsrv_remove(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen path)
+{ srv->vt->remove(srv, reply, path); }
+static inline void sftpsrv_rename(SftpServer *srv, SftpReplyBuilder *reply,
+                                  ptrlen srcpath, ptrlen dstpath)
+{ srv->vt->rename(srv, reply, srcpath, dstpath); }
+static inline void sftpsrv_stat(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen path, bool follow)
+{ srv->vt->stat(srv, reply, path, follow); }
+static inline void sftpsrv_fstat(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle)
+{ srv->vt->fstat(srv, reply, handle); }
+static inline void sftpsrv_setstat(SftpServer *srv, SftpReplyBuilder *reply,
+                                   ptrlen path, struct fxp_attrs attrs)
+{ srv->vt->setstat(srv, reply, path, attrs); }
+static inline void sftpsrv_fsetstat(SftpServer *srv, SftpReplyBuilder *reply,
+                                    ptrlen handle, struct fxp_attrs attrs)
+{ srv->vt->fsetstat(srv, reply, handle, attrs); }
+static inline void sftpsrv_read(
+    SftpServer *srv, SftpReplyBuilder *reply,
+    ptrlen handle, uint64_t offset, unsigned length)
+{ srv->vt->read(srv, reply, handle, offset, length); }
+static inline void sftpsrv_write(SftpServer *srv, SftpReplyBuilder *reply,
+                                 ptrlen handle, uint64_t offset, ptrlen data)
+{ srv->vt->write(srv, reply, handle, offset, data); }
+static inline void sftpsrv_readdir(
+    SftpServer *srv, SftpReplyBuilder *reply, ptrlen handle,
+    int max_entries, bool omit_longname)
+{ srv->vt->readdir(srv, reply, handle, max_entries, omit_longname); }
 
 typedef struct SftpReplyBuilderVtable SftpReplyBuilderVtable;
 struct SftpReplyBuilder {
@@ -442,22 +460,26 @@ struct SftpReplyBuilderVtable {
     void (*reply_attrs)(SftpReplyBuilder *reply, struct fxp_attrs attrs);
 };
 
-#define fxp_reply_ok(reply) \
-    ((reply)->vt->reply_ok(reply))
-#define fxp_reply_error(reply, code, msg) \
-    ((reply)->vt->reply_error(reply, code, msg))
-#define fxp_reply_simple_name(reply, name) \
-    ((reply)->vt->reply_simple_name(reply, name))
-#define fxp_reply_name_count(reply, count) \
-    ((reply)->vt->reply_name_count(reply, count))
-#define fxp_reply_full_name(reply, name, longname, attrs) \
-    ((reply)->vt->reply_full_name(reply, name, longname, attrs))
-#define fxp_reply_handle(reply, handle) \
-    ((reply)->vt->reply_handle(reply, handle))
-#define fxp_reply_data(reply, data) \
-    ((reply)->vt->reply_data(reply, data))
-#define fxp_reply_attrs(reply, attrs) \
-    ((reply)->vt->reply_attrs(reply, attrs))
+static inline void fxp_reply_ok(SftpReplyBuilder *reply)
+{ reply->vt->reply_ok(reply); }
+static inline void fxp_reply_error(SftpReplyBuilder *reply, unsigned code,
+                                   const char *msg)
+{ reply->vt->reply_error(reply, code, msg); }
+static inline void fxp_reply_simple_name(SftpReplyBuilder *reply, ptrlen name)
+{ reply->vt->reply_simple_name(reply, name); }
+static inline void fxp_reply_name_count(
+    SftpReplyBuilder *reply, unsigned count)
+{ reply->vt->reply_name_count(reply, count); }
+static inline void fxp_reply_full_name(SftpReplyBuilder *reply, ptrlen name,
+                                       ptrlen longname, struct fxp_attrs attrs)
+{ reply->vt->reply_full_name(reply, name, longname, attrs); }
+static inline void fxp_reply_handle(SftpReplyBuilder *reply, ptrlen handle)
+{ reply->vt->reply_handle(reply, handle); }
+static inline void fxp_reply_data(SftpReplyBuilder *reply, ptrlen data)
+{ reply->vt->reply_data(reply, data); }
+static inline void fxp_reply_attrs(
+    SftpReplyBuilder *reply, struct fxp_attrs attrs)
+{ reply->vt->reply_attrs(reply, attrs); }
 
 /*
  * The usual implementation of an SftpReplyBuilder, containing a
@@ -499,10 +521,14 @@ struct ScpServerVtable {
     void (*eof)(ScpServer *s);
 };
 
-#define scp_free(s) ((s)->vt->free(s))
-#define scp_send(s, data, len) ((s)->vt->send(s, data, len))
-#define scp_throttle(s, th) ((s)->vt->throttle(s, th))
-#define scp_eof(s) ((s)->vt->eof(s))
+static inline void scp_free(ScpServer *s)
+{ s->vt->free(s); }
+static inline size_t scp_send(ScpServer *s, const void *data, size_t length)
+{ return s->vt->send(s, data, length); }
+static inline void scp_throttle(ScpServer *s, bool throttled)
+{ s->vt->throttle(s, throttled); }
+static inline void scp_eof(ScpServer *s)
+{ s->vt->eof(s); }
 
 /*
  * Create an ScpServer by calling this function, giving it the command
