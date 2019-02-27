@@ -332,7 +332,8 @@ int cmdline_process_param(const char *p, char *value,
 		     * hostname argument and an argument naming a
 		     * saved session. Here we attempt to load a
 		     * session with the specified name, and if that
-		     * succeeds, we overwrite the entire Conf with it.
+		     * session exists and is launchable, we overwrite
+		     * the entire Conf with it.
                      *
                      * We skip this check if a -load option has
                      * already happened, so that
@@ -350,8 +351,8 @@ int cmdline_process_param(const char *p, char *value,
                      * -load completely.)
 		     */
                     Conf *conf2 = conf_new();
-                    do_defaults(hostname_after_user, conf2);
-                    if (conf_launchable(conf2)) {
+                    if (do_defaults(hostname_after_user, conf2) &&
+                        conf_launchable(conf2)) {
                         conf_copy_into(conf, conf2);
                         loaded_session = true;
                         /* And override the username if one was given. */
