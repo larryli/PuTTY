@@ -1516,16 +1516,20 @@ void random_destroy_seed(void);
 
 /*
  * Exports from settings.c.
+ *
+ * load_settings() and do_defaults() return false if the provided
+ * session name didn't actually exist. But they still fill in the
+ * provided Conf with _something_.
  */
 const struct BackendVtable *backend_vt_from_name(const char *name);
 const struct BackendVtable *backend_vt_from_proto(int proto);
 char *get_remote_username(Conf *conf); /* dynamically allocated */
 char *save_settings(const char *section, Conf *conf);
 void save_open_settings(settings_w *sesskey, Conf *conf);
-void load_settings(const char *section, Conf *conf);
+bool load_settings(const char *section, Conf *conf);
 void load_open_settings(settings_r *sesskey, Conf *conf);
 void get_sesslist(struct sesslist *, bool allocate);
-void do_defaults(const char *, Conf *);
+bool do_defaults(const char *, Conf *);
 void registry_cleanup(void);
 
 /*

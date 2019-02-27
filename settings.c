@@ -780,16 +780,19 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, false);
 }
 
-void load_settings(const char *section, Conf *conf)
+bool load_settings(const char *section, Conf *conf)
 {
     settings_r *sesskey;
 
     sesskey = open_settings_r(section);
+    bool exists = (sesskey != NULL);
     load_open_settings(sesskey, conf);
     close_settings_r(sesskey);
 
-    if (conf_launchable(conf))
+    if (exists && conf_launchable(conf))
         add_session_to_jumplist(section);
+
+    return exists;
 }
 
 void load_open_settings(settings_r *sesskey, Conf *conf)
@@ -1242,9 +1245,9 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
 }
 
-void do_defaults(const char *session, Conf *conf)
+bool do_defaults(const char *session, Conf *conf)
 {
-    load_settings(session, conf);
+    return load_settings(session, conf);
 }
 
 static int sessioncmp(const void *av, const void *bv)
