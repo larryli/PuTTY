@@ -330,6 +330,9 @@ struct terminal_tag {
     int mouse_paste_clipboard;
 };
 
-#define in_utf(term) ((term)->utf || (term)->ucsdata->line_codepage==CP_UTF8)
+static inline bool in_utf(Terminal *term)
+{
+    return term->utf || term->ucsdata->line_codepage == CP_UTF8;
+}
 
 #endif

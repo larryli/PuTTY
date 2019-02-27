@@ -41,7 +41,11 @@
 struct Filename {
     char *path;
 };
-#define f_open(filename, mode, isprivate) ( fopen((filename)->path, (mode)) )
+static inline FILE *f_open(const Filename *filename, const char *mode,
+                           bool isprivate)
+{
+    return fopen(filename->path, mode);
+}
 
 struct FontSpec {
     char *name;
