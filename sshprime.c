@@ -451,6 +451,7 @@ void invent_firstbits(unsigned *one, unsigned *two, unsigned min_separation)
     }
 
     mp_free(randval);
+    mp_free(total);
 
     /*
      * Check everything came out right.

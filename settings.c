@@ -519,6 +519,7 @@ static void read_clip_setting(settings_r *sesskey, char *savekey,
         val = CLIPUI_NONE;
     }
     conf_set_int(conf, confkey, val);
+    sfree(setting);
 }
 
 char *save_settings(const char *section, Conf *conf)

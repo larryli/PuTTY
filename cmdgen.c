@@ -1072,6 +1072,9 @@ int main(int argc, char **argv)
 	ssh_key_free(ssh2key->key);
 	sfree(ssh2key);
     }
+    sfree(origcomment);
+    if (infilename)
+        filename_free(infilename);
     filename_free(outfilename);
 
     return 0;
