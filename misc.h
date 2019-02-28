@@ -222,12 +222,12 @@ static inline NORETURN void unreachable_internal(void) { abort(); }
 void debug_printf(const char *fmt, ...);
 void debug_memdump(const void *buf, int len, bool L);
 #define debug(...) (debug_printf(__VA_ARGS__))
-#define dmemdump(buf,len) debug_memdump (buf, len, false);
-#define dmemdumpl(buf,len) debug_memdump (buf, len, true);
+#define dmemdump(buf,len) (debug_memdump(buf, len, false))
+#define dmemdumpl(buf,len) (debug_memdump(buf, len, true))
 #else
-#define debug(...)
-#define dmemdump(buf,len)
-#define dmemdumpl(buf,len)
+#define debug(...) ((void)0)
+#define dmemdump(buf,len) ((void)0)
+#define dmemdumpl(buf,len) ((void)0)
 #endif
 
 #ifndef lenof

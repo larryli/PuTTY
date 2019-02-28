@@ -330,7 +330,7 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
     } else \
 	val = *++argv; \
 }
-#define SECOND_PASS_ONLY { if (!do_everything) continue; }
+#define SECOND_PASS_ONLY do { if (!do_everything) continue; } while (0)
 
     while (--argc > 0) {
 	const char *p = *++argv;
