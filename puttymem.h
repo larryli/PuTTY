@@ -57,4 +57,15 @@ void safefree(void *);
  */
 NORETURN void out_of_memory(void);
 
+#ifdef MINEFIELD
+/*
+ * Definitions for Minefield, PuTTY's own Windows-specific malloc
+ * debugger in the style of Electric Fence. Implemented in winmisc.c,
+ * and referred to by the main malloc wrappers in memory.c.
+ */
+void *minefield_c_malloc(size_t size);
+void minefield_c_free(void *p);
+void *minefield_c_realloc(void *p, size_t size);
+#endif
+
 #endif
