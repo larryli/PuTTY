@@ -20,7 +20,7 @@ struct Ldisc_tag {
     int protocol, localecho, localedit;
 
     char *buf;
-    int buflen, bufsiz;
+    size_t buflen, bufsiz;
     bool quotenext;
 };
 

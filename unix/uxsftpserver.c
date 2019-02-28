@@ -28,7 +28,7 @@ typedef struct UnixSftpServer UnixSftpServer;
 struct UnixSftpServer {
     unsigned *fdseqs;
     bool *fdsopen;
-    int fdsize;
+    size_t fdsize;
 
     tree234 *dirhandles;
     int last_dirhandle_index;
@@ -74,9 +74,8 @@ static void uss_free(SftpServer *srv)
 {
     UnixSftpServer *uss = container_of(srv, UnixSftpServer, srv);
     struct uss_dirhandle *udh;
-    int i;
 
-    for (i = 0; i < uss->fdsize; i++)
+    for (size_t i = 0; i < uss->fdsize; i++)
         if (uss->fdsopen[i])
             close(i);
     sfree(uss->fdseqs);
@@ -118,9 +117,8 @@ static void uss_return_new_handle(
 {
     assert(fd >= 0);
     if (fd >= uss->fdsize) {
-        int old_size = uss->fdsize;
-        uss->fdsize = fd * 5 / 4 + 32;
-        uss->fdseqs = sresize(uss->fdseqs, uss->fdsize, unsigned);
+        size_t old_size = uss->fdsize;
+        sgrowarray(uss->fdseqs, uss->fdsize, fd);
         uss->fdsopen = sresize(uss->fdsopen, uss->fdsize, bool);
         while (old_size < uss->fdsize) {
             uss->fdseqs[old_size] = 0;

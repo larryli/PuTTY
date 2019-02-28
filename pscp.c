@@ -609,7 +609,7 @@ void scp_sftp_listdir(const char *dirname)
     struct fxp_name *ournames;
     struct sftp_packet *pktin;
     struct sftp_request *req;
-    int nnames, namesize;
+    size_t nnames, namesize;
     int i;
 
     if (!fxp_init()) {
@@ -648,10 +648,7 @@ void scp_sftp_listdir(const char *dirname)
 		break;
 	    }
 
-	    if (nnames + names->nnames >= namesize) {
-		namesize += names->nnames + 128;
-		ournames = sresize(ournames, namesize, struct fxp_name);
-	    }
+            sgrowarrayn(ournames, namesize, nnames, names->nnames);
 
 	    for (i = 0; i < names->nnames; i++)
 		ournames[nnames++] = names->names[i];
@@ -1196,7 +1193,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	if (attrs.permissions & 0040000) {
 	    struct scp_sftp_dirstack *newitem;
 	    struct fxp_handle *dirhandle;
-	    int nnames, namesize;
+	    size_t nnames, namesize;
 	    struct fxp_name *ournames;
 	    struct fxp_names *names;
 
@@ -1279,10 +1276,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 		    fxp_free_names(names);
 		    break;
 		}
-		if (nnames + names->nnames >= namesize) {
-		    namesize += names->nnames + 128;
-		    ournames = sresize(ournames, namesize, struct fxp_name);
-		}
+                sgrowarrayn(ournames, namesize, nnames, names->nnames);
 		for (i = 0; i < names->nnames; i++) {
 		    if (!strcmp(names->names[i].filename, ".") ||
 			!strcmp(names->names[i].filename, "..")) {

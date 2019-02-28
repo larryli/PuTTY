@@ -138,10 +138,7 @@ struct controlset *ctrl_settitle(struct controlbox *b,
     s->ncontrols = s->ctrlsize = 0;
     s->ncolumns = 0;		       /* this is a title! */
     s->ctrls = NULL;
-    if (b->nctrlsets >= b->ctrlsetsize) {
-	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
-    }
+    sgrowarray(b->ctrlsets, b->ctrlsetsize, b->nctrlsets);
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
 		(b->nctrlsets-index) * sizeof(*b->ctrlsets));
@@ -170,10 +167,7 @@ struct controlset *ctrl_getset(struct controlbox *b, const char *path,
     s->ncolumns = 1;
     s->ncontrols = s->ctrlsize = 0;
     s->ctrls = NULL;
-    if (b->nctrlsets >= b->ctrlsetsize) {
-	b->ctrlsetsize = b->nctrlsets + 32;
-	b->ctrlsets = sresize(b->ctrlsets, b->ctrlsetsize,struct controlset *);
-    }
+    sgrowarray(b->ctrlsets, b->ctrlsetsize, b->nctrlsets);
     if (index < b->nctrlsets)
 	memmove(&b->ctrlsets[index+1], &b->ctrlsets[index],
 		(b->nctrlsets-index) * sizeof(*b->ctrlsets));
@@ -192,11 +186,8 @@ void *ctrl_alloc_with_free(struct controlbox *b, size_t size,
      * use smalloc directly.
      */
     p = smalloc(size);
-    if (b->nfrees >= b->freesize) {
-	b->freesize = b->nfrees + 32;
-	b->frees = sresize(b->frees, b->freesize, void *);
-	b->freefuncs = sresize(b->freefuncs, b->freesize, ctrl_freefn_t);
-    }
+    sgrowarray(b->frees, b->freesize, b->nfrees);
+    b->freefuncs = sresize(b->freefuncs, b->freesize, ctrl_freefn_t);
     b->frees[b->nfrees] = p;
     b->freefuncs[b->nfrees] = freefunc;
     b->nfrees++;
@@ -218,10 +209,7 @@ static union control *ctrl_new(struct controlset *s, int type,
 			       intorptr context)
 {
     union control *c = snew(union control);
-    if (s->ncontrols >= s->ctrlsize) {
-	s->ctrlsize = s->ncontrols + 32;
-	s->ctrls = sresize(s->ctrls, s->ctrlsize, union control *);
-    }
+    sgrowarray(s->ctrls, s->ctrlsize, s->ncontrols);
     s->ctrls[s->ncontrols++] = c;
     /*
      * Fill in the standard fields.

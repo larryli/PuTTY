@@ -422,8 +422,8 @@ struct controlset {
     char *boxname;		       /* internal short name of controlset */
     char *boxtitle;		       /* title of container box */
     int ncolumns;		       /* current no. of columns at bottom */
-    int ncontrols;		       /* number of `union control' in array */
-    int ctrlsize;		       /* allocated size of array */
+    size_t ncontrols;                  /* number of `union control' in array */
+    size_t ctrlsize;                   /* allocated size of array */
     union control **ctrls;	       /* actual array */
 };
 
@@ -434,11 +434,11 @@ typedef void (*ctrl_freefn_t)(void *);    /* used by ctrl_alloc_with_free */
  * controls.
  */
 struct controlbox {
-    int nctrlsets;		       /* number of ctrlsets */
-    int ctrlsetsize;		       /* ctrlset size */
+    size_t nctrlsets;		       /* number of ctrlsets */
+    size_t ctrlsetsize;		       /* ctrlset size */
     struct controlset **ctrlsets;      /* actual array of ctrlsets */
-    int nfrees;
-    int freesize;
+    size_t nfrees;
+    size_t freesize;
     void **frees;		       /* array of aux data areas to free */
     ctrl_freefn_t *freefuncs;          /* parallel array of free functions */
 };

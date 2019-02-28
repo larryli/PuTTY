@@ -170,7 +170,7 @@ void launch_duplicate_session(Conf *conf)
 	for (i = 0; pty_argv[i]; i++)
             put_asciz(serialised, pty_argv[i]);
 
-    sprintf(option, "---[%d,%d]", pipefd[0], serialised->len);
+    sprintf(option, "---[%d,%zu]", pipefd[0], serialised->len);
     noncloexec(pipefd[0]);
     fork_and_exec_self(pipefd[1], option, NULL);
     close(pipefd[0]);

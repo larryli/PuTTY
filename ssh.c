@@ -981,7 +981,7 @@ static void ssh_size(Backend *be, int width, int height)
 
 struct ssh_add_special_ctx {
     SessionSpecial *specials;
-    int nspecials, specials_size;
+    size_t nspecials, specials_size;
 };
 
 static void ssh_add_special(void *vctx, const char *text,
@@ -990,12 +990,7 @@ static void ssh_add_special(void *vctx, const char *text,
     struct ssh_add_special_ctx *ctx = (struct ssh_add_special_ctx *)vctx;
     SessionSpecial *spec;
 
-    if (ctx->nspecials >= ctx->specials_size) {
-        ctx->specials_size = ctx->nspecials * 5 / 4 + 32;
-        ctx->specials = sresize(ctx->specials, ctx->specials_size,
-                                SessionSpecial);
-    }
-
+    sgrowarray(ctx->specials, ctx->specials_size, ctx->nspecials);
     spec = &ctx->specials[ctx->nspecials++];
     spec->name = text;
     spec->code = code;

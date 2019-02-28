@@ -568,7 +568,8 @@ int main(int argc, char **argv)
     bool sending;
     int *fdlist;
     int fd;
-    int i, fdsize, fdstate;
+    int i, fdstate;
+    size_t fdsize;
     int exitcode;
     bool errors;
     enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
@@ -909,10 +910,7 @@ int main(int argc, char **argv)
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
 	/* Expand the fdlist buffer if necessary. */
-	if (i > fdsize) {
-	    fdsize = i + 16;
-	    fdlist = sresize(fdlist, fdsize, int);
-	}
+        sgrowarray(fdlist, fdsize, i);
 
 	/*
 	 * Add all currently open fds to the select sets, and store

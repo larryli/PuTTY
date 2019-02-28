@@ -63,7 +63,7 @@ char *psftp_lcd(char *dir)
 char *psftp_getcwd(void)
 {
     char *ret = snewn(256, char);
-    int len = GetCurrentDirectory(256, ret);
+    size_t len = GetCurrentDirectory(256, ret);
     if (len > 256)
 	ret = sresize(ret, len, char);
     GetCurrentDirectory(len, ret);

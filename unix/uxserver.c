@@ -360,11 +360,12 @@ int main(int argc, char **argv)
 {
     int *fdlist;
     int fd;
-    int i, fdsize, fdstate;
+    int i, fdstate;
+    size_t fdsize;
     unsigned long now;
 
     ssh_key **hostkeys = NULL;
-    int nhostkeys = 0, hostkeysize = 0;
+    size_t nhostkeys = 0, hostkeysize = 0;
     RSAKey *hostkey1 = NULL;
 
     AuthPolicy ap;
@@ -434,10 +435,7 @@ int main(int argc, char **argv)
                         exit(1);
                     }
 
-                if (nhostkeys >= hostkeysize) {
-                    hostkeysize = nhostkeys * 5 / 4 + 16;
-                    hostkeys = sresize(hostkeys, hostkeysize, ssh_key *);
-                }
+                sgrowarray(hostkeys, hostkeysize, nhostkeys);
                 hostkeys[nhostkeys++] = key;
             } else if (keytype == SSH_KEYTYPE_SSH1) {
                 if (hostkey1) {
@@ -578,10 +576,7 @@ int main(int argc, char **argv)
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
 	/* Expand the fdlist buffer if necessary. */
-	if (i > fdsize) {
-	    fdsize = i + 16;
-	    fdlist = sresize(fdlist, fdsize, int);
-	}
+        sgrowarray(fdlist, fdsize, i);
 
 	/*
 	 * Add all currently open fds to the select sets, and store

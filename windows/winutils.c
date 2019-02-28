@@ -160,11 +160,10 @@ void pgp_fingerprints(void)
 char *GetDlgItemText_alloc(HWND hwnd, int id)
 {
     char *ret = NULL;
-    int size = 0;
+    size_t size = 0;
 
     do {
-	size = size * 4 / 3 + 512;
-	ret = sresize(ret, size, char);
+        sgrowarray(ret, size, size);
 	GetDlgItemText(hwnd, id, ret, size);
     } while (!memchr(ret, '\0', size-1));
 

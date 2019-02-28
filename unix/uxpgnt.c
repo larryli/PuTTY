@@ -734,7 +734,8 @@ void run_agent(void)
     unsigned long now;
     int *fdlist;
     int fd;
-    int i, fdsize, fdstate;
+    int i, fdstate;
+    size_t fdsize;
     int termination_pid = -1;
     bool errors = false;
     Conf *conf;
@@ -882,10 +883,7 @@ void run_agent(void)
 	     fd = next_fd(&fdstate, &rwx)) i++;
 
 	/* Expand the fdlist buffer if necessary. */
-	if (i > fdsize) {
-	    fdsize = i + 16;
-	    fdlist = sresize(fdlist, fdsize, int);
-	}
+        sgrowarray(fdlist, fdsize, i);
 
 	/*
 	 * Add all currently open fds to the select sets, and store

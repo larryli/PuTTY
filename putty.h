@@ -665,6 +665,7 @@ typedef struct {
     bool instr_reqd;    /* Display of `instruction' required or optional? */
     size_t n_prompts;   /* May be zero (in which case display the foregoing,
                          * if any, and return success) */
+    size_t prompts_size; /* allocated storage capacity for prompts[] */
     prompt_t **prompts;
     void *data;		/* slot for housekeeping data, managed by
 			 * seat_get_userpass_input(); initially NULL */

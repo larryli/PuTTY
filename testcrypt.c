@@ -380,10 +380,7 @@ size_t nfinalisers, finalisersize;
 
 static void add_finaliser(finaliser_fn_t fn, void *ctx)
 {
-    if (nfinalisers >= finalisersize) {
-        finalisersize = nfinalisers * 5 / 4 + 16;
-        finalisers = sresize(finalisers, finalisersize, struct finaliser);
-    }
+    sgrowarray(finalisers, finalisersize, nfinalisers);
     finalisers[nfinalisers].fn = fn;
     finalisers[nfinalisers].ctx = ctx;
     nfinalisers++;

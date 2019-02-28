@@ -39,7 +39,7 @@ prompts_t *new_prompts(void)
 {
     prompts_t *p = snew(prompts_t);
     p->prompts = NULL;
-    p->n_prompts = 0;
+    p->n_prompts = p->prompts_size = 0;
     p->data = NULL;
     p->to_server = true; /* to be on the safe side */
     p->name = p->instruction = NULL;
@@ -53,9 +53,8 @@ void add_prompt(prompts_t *p, char *promptstr, bool echo)
     pr->echo = echo;
     pr->result = NULL;
     pr->resultsize = 0;
-    p->n_prompts++;
-    p->prompts = sresize(p->prompts, p->n_prompts, prompt_t *);
-    p->prompts[p->n_prompts-1] = pr;
+    sgrowarray(p->prompts, p->prompts_size, p->n_prompts);
+    p->prompts[p->n_prompts++] = pr;
 }
 void prompt_ensure_result_size(prompt_t *pr, int newlen)
 {

@@ -291,10 +291,7 @@ void ldisc_send(Ldisc *ldisc, const void *vbuf, int len, bool interactive)
 		/* FALLTHROUGH */
 	      default:		       /* get to this label from ^V handler */
                 default_case:
-		if (ldisc->buflen >= ldisc->bufsiz) {
-		    ldisc->bufsiz = ldisc->buflen + 256;
-		    ldisc->buf = sresize(ldisc->buf, ldisc->bufsiz, char);
-		}
+                sgrowarray(ldisc->buf, ldisc->bufsiz, ldisc->buflen);
 		ldisc->buf[ldisc->buflen++] = c;
 		if (ECHOING)
 		    pwrite(ldisc, (unsigned char) c);

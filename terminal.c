@@ -4869,14 +4869,11 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 				  termchar *lafter, bidi_char *wcTo,
 				  int width, int size)
 {
-    int i, j;
+    size_t i, j;
 
     if (!term->pre_bidi_cache || term->bidi_cache_size <= line) {
-	j = term->bidi_cache_size;
-	term->bidi_cache_size = line+1;
-	term->pre_bidi_cache = sresize(term->pre_bidi_cache,
-				       term->bidi_cache_size,
-				       struct bidi_cache_entry);
+        j = term->bidi_cache_size;
+        sgrowarray(term->pre_bidi_cache, term->bidi_cache_size, line);
 	term->post_bidi_cache = sresize(term->post_bidi_cache,
 					term->bidi_cache_size,
 					struct bidi_cache_entry);
@@ -5061,7 +5058,7 @@ static void do_paint(Terminal *term)
     int rv, cursor;
     pos scrpos;
     wchar_t *ch;
-    int chlen;
+    size_t chlen;
     termchar *newline;
 
     chlen = 1024;
@@ -5375,10 +5372,7 @@ static void do_paint(Terminal *term)
 		dirty_run = true;
 	    }
 
-	    if (ccount+2 > chlen) {
-		chlen = ccount + 256;
-		ch = sresize(ch, chlen, wchar_t);
-	    }
+            sgrowarrayn(ch, chlen, ccount, 2);
 
 #ifdef PLATFORM_IS_UTF16
 	    if (tchar > 0x10000 && tchar < 0x110000) {
@@ -5409,10 +5403,7 @@ static void do_paint(Terminal *term)
 			break;
 		    }
 
-		    if (ccount+2 > chlen) {
-			chlen = ccount + 256;
-			ch = sresize(ch, chlen, wchar_t);
-		    }
+                    sgrowarrayn(ch, chlen, ccount, 2);
 
 #ifdef PLATFORM_IS_UTF16
 		    if (schar > 0x10000 && schar < 0x110000) {
@@ -5552,8 +5543,8 @@ void term_scroll_to_selection(Terminal *term, int which_end)
  * Helper routine for clipme(): growing buffer.
  */
 typedef struct {
-    int buflen;		    /* amount of allocated space in textbuf/attrbuf */
-    int bufpos;		    /* amount of actual data */
+    size_t bufsize;         /* amount of allocated space in textbuf/attrbuf */
+    size_t bufpos;          /* amount of actual data */
     wchar_t *textbuf;	    /* buffer for copied text */
     wchar_t *textptr;	    /* = textbuf + bufpos (current insertion point) */
     int *attrbuf;	    /* buffer for copied attributes */
@@ -5564,13 +5555,12 @@ typedef struct {
 
 static void clip_addchar(clip_workbuf *b, wchar_t chr, int attr, truecolour tc)
 {
-    if (b->bufpos >= b->buflen) {
-	b->buflen *= 2;
-	b->textbuf = sresize(b->textbuf, b->buflen, wchar_t);
+    if (b->bufpos >= b->bufsize) {
+        sgrowarray(b->textbuf, b->bufsize, b->bufpos);
 	b->textptr = b->textbuf + b->bufpos;
-	b->attrbuf = sresize(b->attrbuf, b->buflen, int);
+	b->attrbuf = sresize(b->attrbuf, b->bufsize, int);
 	b->attrptr = b->attrbuf + b->bufpos;
-	b->tcbuf = sresize(b->tcbuf, b->buflen, truecolour);
+	b->tcbuf = sresize(b->tcbuf, b->bufsize, truecolour);
 	b->tcptr = b->tcbuf + b->bufpos;
     }
     *b->textptr++ = chr;
@@ -5587,11 +5577,11 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
     int attr;
     truecolour tc;
 
-    buf.buflen = 5120;			
+    buf.bufsize = 5120;
     buf.bufpos = 0;
-    buf.textptr = buf.textbuf = snewn(buf.buflen, wchar_t);
-    buf.attrptr = buf.attrbuf = snewn(buf.buflen, int);
-    buf.tcptr = buf.tcbuf = snewn(buf.buflen, truecolour);
+    buf.textptr = buf.textbuf = snewn(buf.bufsize, wchar_t);
+    buf.attrptr = buf.attrbuf = snewn(buf.bufsize, int);
+    buf.tcptr = buf.tcbuf = snewn(buf.bufsize, truecolour);
 
     old_top_x = top.x;		       /* needed for rect==1 */
 

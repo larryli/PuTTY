@@ -98,7 +98,7 @@ char *psftp_lcd(char *dir)
 char *psftp_getcwd(void)
 {
     char *buffer, *ret;
-    int size = 256;
+    size_t size = 256;
 
     buffer = snewn(size, char);
     while (1) {
@@ -113,8 +113,7 @@ char *psftp_getcwd(void)
 	 * Otherwise, ERANGE was returned, meaning the buffer
 	 * wasn't big enough.
 	 */
-	size = size * 3 / 2;
-	buffer = sresize(buffer, size, char);
+        sgrowarray(buffer, size, size);
     }
 }
 
@@ -447,7 +446,8 @@ char *dir_file_cat(const char *dir, const char *file)
 static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 {
     fd_set rset, wset, xset;
-    int i, fdsize, *fdlist;
+    int i, *fdlist;
+    size_t fdsize;
     int fd, fdcount, fdstate, rwx, ret, maxfd;
     unsigned long now = GETTICKCOUNT();
     unsigned long next;
@@ -467,10 +467,7 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 	    return -1;		       /* doom */
 
 	/* Expand the fdlist buffer if necessary. */
-	if (i > fdsize) {
-	    fdsize = i + 16;
-	    fdlist = sresize(fdlist, fdsize, int);
-	}
+        sgrowarray(fdlist, fdsize, i);
 
 	FD_ZERO(&rset);
 	FD_ZERO(&wset);
@@ -571,7 +568,8 @@ int ssh_sftp_loop_iteration(void)
 char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 {
     char *buf;
-    int buflen, bufsize, ret;
+    size_t buflen, bufsize;
+    int ret;
 
     fputs(prompt, stdout);
     fflush(stdout);
@@ -587,10 +585,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 	    return NULL;	       /* woop woop */
 	}
 	if (ret > 0) {
-	    if (buflen >= bufsize) {
-		bufsize = buflen + 512;
-		buf = sresize(buf, bufsize, char);
-	    }
+            sgrowarray(buf, bufsize, buflen);
 	    ret = read(0, buf+buflen, 1);
 	    if (ret < 0) {
 		perror("read");

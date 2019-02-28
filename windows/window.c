@@ -3488,7 +3488,7 @@ static void do_text_internal(
     bool opaque;
     bool is_cursor = false;
     static int *lpDx = NULL;
-    static int lpDx_len = 0;
+    static size_t lpDx_len = 0;
     int *lpDx_maybe;
     int len2; /* for SURROGATE PAIR */
 
@@ -3699,9 +3699,7 @@ static void do_text_internal(
         }
 
 	if (len > lpDx_len) {
-	    lpDx_len = len * 9 / 8 + 16;
-	    lpDx = sresize(lpDx, lpDx_len, int);
-
+            sgrowarray(lpDx, lpDx_len, len);
 	    if (lpDx_maybe) lpDx_maybe = lpDx;
 	}
 
@@ -3780,14 +3778,10 @@ static void do_text_internal(
             lpDx[0] = -1;
         } else if (DIRECT_FONT(text[0])) {
             static char *directbuf = NULL;
-            static int directlen = 0;
-            int i;
-            if (len > directlen) {
-                directlen = len;
-                directbuf = sresize(directbuf, directlen, char);
-            }
+            static size_t directlen = 0;
 
-            for (i = 0; i < len; i++)
+            sgrowarray(directbuf, directlen, len);
+            for (size_t i = 0; i < len; i++)
                 directbuf[i] = text[i] & 0xFF;
 
             ExtTextOut(wintw_hdc, x + xoffset,

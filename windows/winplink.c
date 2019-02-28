@@ -262,7 +262,7 @@ int main(int argc, char **argv)
 {
     bool sending;
     SOCKET *sklist;
-    int skcount, sksize;
+    size_t skcount, sksize;
     int exitcode;
     bool errors;
     bool use_subsystem = false;
@@ -579,10 +579,7 @@ int main(int argc, char **argv)
 		 socket = next_socket(&socketstate)) i++;
 
 	    /* Expand the buffer if necessary. */
-	    if (i > sksize) {
-		sksize = i + 16;
-		sklist = sresize(sklist, sksize, SOCKET);
-	    }
+            sgrowarray(sklist, sksize, i);
 
 	    /* Retrieve the sockets into sklist. */
 	    skcount = 0;

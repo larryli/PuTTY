@@ -35,7 +35,7 @@ struct cmdline_saved_param {
 };
 struct cmdline_saved_param_set {
     struct cmdline_saved_param *params;
-    int nsaved, savesize;
+    size_t nsaved, savesize;
 };
 
 /*
@@ -46,11 +46,7 @@ static struct cmdline_saved_param_set saves[NPRIORITIES];
 
 static void cmdline_save_param(const char *p, const char *value, int pri)
 {
-    if (saves[pri].nsaved >= saves[pri].savesize) {
-	saves[pri].savesize = saves[pri].nsaved + 32;
-	saves[pri].params = sresize(saves[pri].params, saves[pri].savesize,
-				    struct cmdline_saved_param);
-    }
+    sgrowarray(saves[pri].params, saves[pri].savesize, saves[pri].nsaved);
     saves[pri].params[saves[pri].nsaved].p = dupstr(p);
     saves[pri].params[saves[pri].nsaved].value = dupstr(value);
     saves[pri].nsaved++;

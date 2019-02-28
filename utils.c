@@ -290,6 +290,18 @@ int string_length_for_printf(size_t s)
     return s;
 }
 
+/* Work around lack of va_copy in old MSC */
+#if defined _MSC_VER && !defined va_copy
+#define va_copy(a, b) TYPECHECK(                        \
+        (va_list *)0 == &(a) && (va_list *)0 == &(b),   \
+        memcpy(&a, &b, sizeof(va_list)))
+#endif
+
+/* Also lack of vsnprintf before VS2015 */
+#if defined _WINDOWS && !defined __WINE__ && _MSC_VER < 1900
+#define vsnprintf _vsnprintf
+#endif
+
 /*
  * Do an sprintf(), but into a custom-allocated buffer.
  * 
@@ -325,65 +337,40 @@ int string_length_for_printf(size_t s)
  *    directive we don't know about, we should panic and die rather
  *    than run any risk.
  */
-static char *dupvprintf_inner(char *buf, int oldlen, int *oldsize,
+static char *dupvprintf_inner(char *buf, size_t oldlen, size_t *sizeptr,
                               const char *fmt, va_list ap)
 {
-    int len, size, newsize;
+    size_t len, size;
 
-    assert(*oldsize >= oldlen);
-    size = *oldsize - oldlen;
-    if (size == 0) {
-        size = 512;
-        newsize = oldlen + size;
-        buf = sresize(buf, newsize, char);
-    } else {
-        newsize = *oldsize;
-    }
+    size = *sizeptr;
+    sgrowarrayn(buf, size, oldlen, 512);
 
     while (1) {
-#if defined _WINDOWS && !defined __WINE__ && _MSC_VER < 1900 /* 1900 == VS2015 has real snprintf */
-#define vsnprintf _vsnprintf
-#endif
-#ifdef va_copy
-	/* Use the `va_copy' macro mandated by C99, if present.
-	 * XXX some environments may have this as __va_copy() */
 	va_list aq;
 	va_copy(aq, ap);
-	len = vsnprintf(buf + oldlen, size, fmt, aq);
+	len = vsnprintf(buf + oldlen, size - oldlen, fmt, aq);
 	va_end(aq);
-#else
-	/* Ugh. No va_copy macro, so do something nasty.
-	 * Technically, you can't reuse a va_list like this: it is left
-	 * unspecified whether advancing a va_list pointer modifies its
-	 * value or something it points to, so on some platforms calling
-	 * vsnprintf twice on the same va_list might fail hideously
-	 * (indeed, it has been observed to).
-	 * XXX the autoconf manual suggests that using memcpy() will give
-	 *     "maximum portability". */
-	len = vsnprintf(buf + oldlen, size, fmt, ap);
-#endif
+
 	if (len >= 0 && len < size) {
 	    /* This is the C99-specified criterion for snprintf to have
 	     * been completely successful. */
-            *oldsize = newsize;
+            *sizeptr = size;
 	    return buf;
 	} else if (len > 0) {
 	    /* This is the C99 error condition: the returned length is
 	     * the required buffer size not counting the NUL. */
-	    size = len + 1;
+	    sgrowarrayn(buf, size, oldlen, len + 1);
 	} else {
 	    /* This is the pre-C99 glibc error condition: <0 means the
 	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
-	    size += 512;
+	    sgrowarray(buf, size, size);
 	}
-        newsize = oldlen + size;
-        buf = sresize(buf, newsize, char);
     }
 }
 
 char *dupvprintf(const char *fmt, va_list ap)
 {
-    int size = 0;
+    size_t size = 0;
     return dupvprintf_inner(NULL, 0, &size, fmt, ap);
 }
 char *dupprintf(const char *fmt, ...)
@@ -397,22 +384,21 @@ char *dupprintf(const char *fmt, ...)
 }
 
 struct strbuf_impl {
-    int size;
+    size_t size;
     struct strbuf visible;
 };
 
+#define STRBUF_SET_UPTR(buf)                                    \
+    ((buf)->visible.u = (unsigned char *)(buf)->visible.s)
 #define STRBUF_SET_PTR(buf, ptr)                                \
-    ((buf)->visible.s = (ptr),                                  \
-     (buf)->visible.u = (unsigned char *)(buf)->visible.s)
+    ((buf)->visible.s = (ptr), STRBUF_SET_UPTR(buf))
 
 void *strbuf_append(strbuf *buf_o, size_t len)
 {
     struct strbuf_impl *buf = container_of(buf_o, struct strbuf_impl, visible);
     char *toret;
-    if (buf->size < buf->visible.len + len + 1) {
-        buf->size = (buf->visible.len + len + 1) * 5 / 4 + 512;
-        STRBUF_SET_PTR(buf, sresize(buf->visible.s, buf->size, char));
-    }
+    sgrowarrayn(buf->visible.s, buf->size, buf->visible.len + 1, len);
+    STRBUF_SET_UPTR(buf);
     toret = buf->visible.s + buf->visible.len;
     buf->visible.len += len;
     buf->visible.s[buf->visible.len] = '\0';
@@ -487,13 +473,12 @@ void strbuf_finalise_agent_query(strbuf *buf_o)
 char *fgetline(FILE *fp)
 {
     char *ret = snewn(512, char);
-    int size = 512, len = 0;
+    size_t size = 512, len = 0;
     while (fgets(ret + len, size - len, fp)) {
 	len += strlen(ret + len);
 	if (len > 0 && ret[len-1] == '\n')
 	    break;		       /* got a newline, we're done */
-	size = len + 512;
-	ret = sresize(ret, size, char);
+        sgrowarrayn(ret, size, len, 512);
     }
     if (len == 0) {		       /* first fgets returned NULL */
 	sfree(ret);

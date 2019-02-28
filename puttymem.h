@@ -49,6 +49,47 @@ void safefree(void *);
 #define snew_plus_get_aux(ptr) ((void *)((ptr) + 1))
 
 /*
+ * Helper macros to deal with the common use case of growing an array.
+ *
+ * The common setup is that 'array' is a pointer to the first element
+ * of a dynamic array of some type, and 'size' represents the current
+ * allocated size of that array (in elements). Both of those macro
+ * parameters are implicitly written back to.
+ *
+ * Then sgrowarray(array, size, n) means: make sure the nth element of
+ * the array exists (i.e. the size is at least n+1). You call that
+ * before writing to the nth element, if you're looping round
+ * appending to the array.
+ *
+ * If you need to grow the array by more than one element, you can
+ * instead call sgrowarrayn(array, size, n, m), which will ensure the
+ * size of the array is at least n+m. (So sgrowarray is just the
+ * special case of that in which m == 1.)
+ *
+ * It's common to call sgrowarrayn with one of n,m equal to the
+ * previous logical length of the array, and the other equal to the
+ * new number of logical entries you want to add, so that n <= size on
+ * entry. But that's not actually a mandatory precondition: the two
+ * length parameters are just arbitrary integers that get added
+ * together with an initial check for overflow, and the semantics are
+ * simply 'make sure the array is big enough to take their sum, no
+ * matter how big it was to start with'.)
+ *
+ * Another occasionally useful idiom is to call sgrowarray with n ==
+ * size, i.e. sgrowarray(array, size, size). That just means: make
+ * array bigger by _some_ amount, I don't particularly mind how much.
+ * You might use that style if you were repeatedly calling an API
+ * function outside your control, which would either fill your buffer
+ * and return success, or else return a 'too big' error without
+ * telling you how much bigger it needed to be.
+ */
+void *safegrowarray(void *array, size_t *size, size_t eltsize,
+                    size_t oldlen, size_t extralen);
+#define sgrowarrayn(array, size, n, m)                   \
+    ((array) = safegrowarray(array, &(size), sizeof(*array), n, m))
+#define sgrowarray(array, size, n) sgrowarrayn(array, size, n, 1)
+
+/*
  * This function is called by the innermost safemalloc/saferealloc
  * functions when allocation fails. Usually it's provided by misc.c
  * which ties it into an application's existing modalfatalbox()

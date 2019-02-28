@@ -126,8 +126,7 @@ struct sftp_request;
 
 struct sftp_packet {
     char *data;
-    unsigned length, maxlen;
-    unsigned savedpos;
+    size_t length, maxlen, savedpos;
     int type;
     BinarySink_IMPLEMENTATION;
     BinarySource_IMPLEMENTATION;

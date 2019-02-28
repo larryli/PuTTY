@@ -37,7 +37,7 @@ void burnstr(char *string);
 struct strbuf {
     char *s;
     unsigned char *u;
-    int len;
+    size_t len;
     BinarySink_IMPLEMENTATION;
     /* (also there's a surrounding implementation struct in misc.c) */
 };

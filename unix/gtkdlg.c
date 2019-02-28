@@ -93,7 +93,7 @@ struct dlgparam {
     GtkWidget *currtreeitem, **treeitems;
     int ntreeitems;
 #else
-    int nselparams;
+    size_t nselparams;
     struct selparam *selparams;
 #endif
     struct controlbox *ctrlbox;
@@ -2918,7 +2918,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     struct Shortcuts scs;
 
     struct selparam *selparams = NULL;
-    int nselparams = 0, selparamsize = 0;
+    size_t nselparams = 0, selparamsize = 0;
 
     dp = snew(struct dlgparam);
     dp->after = after;
@@ -3040,11 +3040,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
                                                   page_num);
 		}
 
-		if (nselparams >= selparamsize) {
-		    selparamsize += 16;
-		    selparams = sresize(selparams, selparamsize,
-					struct selparam);
-		}
+                sgrowarray(selparams, selparamsize, nselparams);
 		selparams[nselparams].dp = dp;
 		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
 		selparams[nselparams].panel = panelvbox;
@@ -3243,8 +3239,7 @@ static void dlgparam_destroy(GtkWidget *widget, gpointer data)
     ctrl_free_box(dp->ctrlbox);
 #if GTK_CHECK_VERSION(2,0,0)
     if (dp->selparams) {
-        int i;
-        for (i = 0; i < dp->nselparams; i++)
+        for (size_t i = 0; i < dp->nselparams; i++)
             if (dp->selparams[i].treepath)
                 gtk_tree_path_free(dp->selparams[i].treepath);
         sfree(dp->selparams);

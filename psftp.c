@@ -264,7 +264,7 @@ bool sftp_get_file(char *fname, char *outfname, bool recurse, bool restart)
 	    (attrs.permissions & 0040000)) {
 
 	    struct fxp_handle *dirhandle;
-	    int nnames, namesize;
+	    size_t nnames, namesize;
 	    struct fxp_name **ournames;
 	    struct fxp_names *names;
 	    int i;
@@ -321,10 +321,7 @@ bool sftp_get_file(char *fname, char *outfname, bool recurse, bool restart)
 		    fxp_free_names(names);
 		    break;
 		}
-		if (nnames + names->nnames >= namesize) {
-		    namesize += names->nnames + 128;
-		    ournames = sresize(ournames, namesize, struct fxp_name *);
-		}
+                sgrowarrayn(ournames, namesize, nnames, names->nnames);
 		for (i = 0; i < names->nnames; i++)
 		    if (strcmp(names->names[i].filename, ".") &&
 			strcmp(names->names[i].filename, "..")) {
@@ -549,11 +546,11 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
      */
     if (recurse && file_type(fname) == FILE_TYPE_DIRECTORY) {
 	bool result;
-	int nnames, namesize;
+	size_t nnames, namesize;
 	char *name, **ournames;
         const char *opendir_err;
 	DirHandle *dh;
-	int i;
+        size_t i;
 
 	/*
 	 * First, attempt to create the destination directory,
@@ -588,10 +585,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
 	    return false;
 	}
 	while ((name = read_filename(dh)) != NULL) {
-	    if (nnames >= namesize) {
-		namesize += 128;
-		ournames = sresize(ournames, namesize, char *);
-	    }
+            sgrowarray(ournames, namesize, nnames);
 	    ournames[nnames++] = name;
 	}
 	close_directory(dh);
@@ -647,7 +641,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
 	    sfree(nextoutfname);
 	    sfree(nextfname);
 	    if (!retd) {
-		for (i = 0; i < nnames; i++) {
+		for (size_t i = 0; i < nnames; i++) {
 		    sfree(ournames[i]);
 		}
 		sfree(ournames);
@@ -658,7 +652,7 @@ bool sftp_put_file(char *fname, char *outfname, bool recurse, bool restart)
 	/*
 	 * Done this recursion level. Free everything.
 	 */
-	for (i = 0; i < nnames; i++) {
+	for (size_t i = 0; i < nnames; i++) {
 	    sfree(ournames[i]);
 	}
 	sfree(ournames);
@@ -988,7 +982,7 @@ bool is_wildcard(char *name)
  */
 struct sftp_command {
     char **words;
-    int nwords, wordssize;
+    size_t nwords, wordssize;
     int (*obey) (struct sftp_command *);	/* returns <0 to quit */
 };
 
@@ -1035,12 +1029,11 @@ int sftp_cmd_ls(struct sftp_command *cmd)
     struct fxp_handle *dirh;
     struct fxp_names *names;
     struct fxp_name **ournames;
-    int nnames, namesize;
+    size_t nnames, namesize;
     const char *dir;
     char *cdir, *unwcdir, *wildcard;
     struct sftp_packet *pktin;
     struct sftp_request *req;
-    int i;
 
     if (!backend) {
 	not_connected();
@@ -1114,12 +1107,9 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 		break;
 	    }
 
-	    if (nnames + names->nnames >= namesize) {
-		namesize += names->nnames + 128;
-		ournames = sresize(ournames, namesize, struct fxp_name *);
-	    }
+            sgrowarrayn(ournames, namesize, nnames, names->nnames);
 
-	    for (i = 0; i < names->nnames; i++)
+	    for (size_t i = 0; i < names->nnames; i++)
 		if (!wildcard || wc_match(wildcard, names->names[i].filename))
 		    ournames[nnames++] = fxp_dup_name(&names->names[i]);
 
@@ -1139,7 +1129,7 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	/*
 	 * And print them.
 	 */
-	for (i = 0; i < nnames; i++) {
+	for (size_t i = 0; i < nnames; i++) {
             with_stripctrl(san, ournames[i]->longname)
                 printf("%s\n", san);
 	    fxp_free_name(ournames[i]);
@@ -2257,8 +2247,8 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	 * exactly two words: one containing the !, and the second
 	 * containing everything else on the line.
 	 */
-	cmd->nwords = cmd->wordssize = 2;
-	cmd->words = sresize(cmd->words, cmd->wordssize, char *);
+        cmd->nwords = 2;
+        sgrowarrayn(cmd->words, cmd->wordssize, cmd->nwords, 0);
 	cmd->words[0] = dupstr("!");
 	cmd->words[1] = dupstr(p+1);
     } else if (*p == '#') {
@@ -2307,10 +2297,7 @@ struct sftp_command *sftp_getcmd(FILE *fp, int mode, int modeflags)
 	    if (*p)
 		p++;		       /* skip over the whitespace */
 	    *r = '\0';
-	    if (cmd->nwords >= cmd->wordssize) {
-		cmd->wordssize = cmd->nwords + 16;
-		cmd->words = sresize(cmd->words, cmd->wordssize, char *);
-	    }
+            sgrowarray(cmd->words, cmd->wordssize, cmd->nwords);
 	    cmd->words[cmd->nwords++] = dupstr(q);
 	}
     }
