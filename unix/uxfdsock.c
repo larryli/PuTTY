@@ -18,7 +18,7 @@ typedef struct FdSocket {
 
     bufchain pending_output_data;
     bufchain pending_input_data;
-    bufchain pending_input_error_data;
+    ProxyStderrBuf psb;
     enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
     int pending_error;
@@ -300,7 +300,7 @@ static void fdsocket_select_result_input_error(int fd, int event)
 
     retd = read(fd, buf, sizeof(buf));
     if (retd > 0) {
-        log_proxy_stderr(fds->plug, &fds->pending_input_error_data, buf, retd);
+        log_proxy_stderr(fds->plug, &fds->psb, buf, retd);
     } else {
         del234(fdsocket_by_inerrfd, fds);
         uxsel_del(fds->inerrfd);
@@ -337,7 +337,7 @@ Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)
 
     bufchain_init(&fds->pending_input_data);
     bufchain_init(&fds->pending_output_data);
-    bufchain_init(&fds->pending_input_error_data);
+    psb_init(&fds->psb);
 
     if (fds->outfd >= 0) {
         if (!fdsocket_by_outfd)
