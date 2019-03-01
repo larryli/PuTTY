@@ -621,6 +621,7 @@ void bufchain_clear(bufchain *ch)
     while (ch->head) {
 	b = ch->head;
 	ch->head = ch->head->next;
+        smemclr(b, sizeof(*b));
 	sfree(b);
     }
     ch->tail = NULL;
@@ -691,6 +692,7 @@ void bufchain_consume(bufchain *ch, size_t len)
 	    ch->head = tmp->next;
 	    if (!ch->head)
 		ch->tail = NULL;
+            smemclr(tmp, sizeof(*tmp));
 	    sfree(tmp);
 	} else
 	    ch->head->bufpos += remlen;
