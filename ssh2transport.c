@@ -1283,9 +1283,9 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * session keys.
      */
     {
-        strbuf *cipher_key = strbuf_new();
-        strbuf *cipher_iv = strbuf_new();
-        strbuf *mac_key = strbuf_new();
+        strbuf *cipher_key = strbuf_new_nm();
+        strbuf *cipher_iv = strbuf_new_nm();
+        strbuf *mac_key = strbuf_new_nm();
 
         if (s->out.cipher) {
             ssh2_mkkey(s, cipher_iv, s->K, s->exchange_hash,
@@ -1338,9 +1338,9 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * incoming session keys.
      */
     {
-        strbuf *cipher_key = strbuf_new();
-        strbuf *cipher_iv = strbuf_new();
-        strbuf *mac_key = strbuf_new();
+        strbuf *cipher_key = strbuf_new_nm();
+        strbuf *cipher_iv = strbuf_new_nm();
+        strbuf *mac_key = strbuf_new_nm();
 
         if (s->in.cipher) {
             ssh2_mkkey(s, cipher_iv, s->K, s->exchange_hash,

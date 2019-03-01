@@ -204,7 +204,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
     {
         RSAKey *smaller, *larger;
-        strbuf *data = strbuf_new();
+        strbuf *data = strbuf_new_nm();
 
         if (mp_get_nbits(s->hostkey->modulus) >
             mp_get_nbits(s->servkey->modulus)) {

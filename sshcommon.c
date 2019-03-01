@@ -232,7 +232,7 @@ PktOut *ssh_new_packet(void)
 
 static void ssh_pkt_adddata(PktOut *pkt, const void *data, int len)
 {
-    sgrowarrayn(pkt->data, pkt->maxlen, pkt->length, len);
+    sgrowarrayn_nm(pkt->data, pkt->maxlen, pkt->length, len);
     memcpy(pkt->data + pkt->length, data, len);
     pkt->length += len;
 }

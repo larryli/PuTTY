@@ -770,7 +770,7 @@ static void eddsa_openssh_blob(ssh_key *key, BinarySink *bs)
     put_epoint(pub_sb, ek->publicKey, ek->curve, false);
     ptrlen pub = make_ptrlen(pub_sb->s + 4, pub_sb->len - 4);
 
-    strbuf *priv_sb = strbuf_new();
+    strbuf *priv_sb = strbuf_new_nm();
     put_mp_le_unsigned(priv_sb, ek->privateKey);
     ptrlen priv = make_ptrlen(priv_sb->s + 4, priv_sb->len - 4);
 
@@ -1279,7 +1279,7 @@ static void ssh_ecdhkex_w_setup(ecdh_key *dh)
 
 static void ssh_ecdhkex_m_setup(ecdh_key *dh)
 {
-    strbuf *bytes = strbuf_new();
+    strbuf *bytes = strbuf_new_nm();
     random_read(strbuf_append(bytes, dh->curve->fieldBytes),
                 dh->curve->fieldBytes);
 

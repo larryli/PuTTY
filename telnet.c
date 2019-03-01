@@ -506,7 +506,7 @@ static void process_subneg(Telnet *telnet)
 
 static void do_telnet_read(Telnet *telnet, const char *buf, size_t len)
 {
-    strbuf *outbuf = strbuf_new();
+    strbuf *outbuf = strbuf_new_nm();
 
     while (len--) {
 	int c = (unsigned char) *buf++;

@@ -984,7 +984,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                         put_stringz(pkt, s->cur_prompt->prompts[0]->result);
                         pq_push(s->ppl.out_pq, pkt);
                     } else {
-                        strbuf *random_data = strbuf_new();
+                        strbuf *random_data = strbuf_new_nm();
                         random_read(strbuf_append(random_data, i), i);
 
                         pkt = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_MSG_IGNORE);
@@ -1000,7 +1000,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                  * but can deal with padded passwords, so we
                  * can use the secondary defence.
                  */
-                strbuf *padded_pw = strbuf_new();
+                strbuf *padded_pw = strbuf_new_nm();
 
                 ppl_logevent("Sending length-padded password");
                 pkt = ssh_bpp_new_pktout(s->ppl.bpp, s->pwpkt_type);

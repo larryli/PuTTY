@@ -384,7 +384,7 @@ bool sesschan_enable_x11_forwarding(
      */
     if (authdata_hex.len % 2)
         return false;                  /* expected an even number of digits */
-    authdata_bin = strbuf_new();
+    authdata_bin = strbuf_new_nm();
     for (i = 0; i < authdata_hex.len; i += 2) {
         const unsigned char *hex = authdata_hex.ptr;
         char hexbuf[3];

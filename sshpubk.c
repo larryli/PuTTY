@@ -37,7 +37,7 @@ static int rsa_ssh1_load_main(FILE * fp, RSAKey *key, bool pub_only,
     *error = NULL;
 
     /* Slurp the whole file (minus the header) into a buffer. */
-    buf = strbuf_new();
+    buf = strbuf_new_nm();
     {
         int ch;
         while ((ch = fgetc(fp)) != EOF)
@@ -310,7 +310,7 @@ int rsa_ssh1_loadpub(const Filename *filename, BinarySink *bs,
 bool rsa_ssh1_savekey(const Filename *filename, RSAKey *key,
                       char *passphrase)
 {
-    strbuf *buf = strbuf_new();
+    strbuf *buf = strbuf_new_nm();
     int estart;
     FILE *fp;
 
@@ -490,7 +490,7 @@ static bool read_header(FILE * fp, char *header)
 
 static char *read_body(FILE * fp)
 {
-    strbuf *buf = strbuf_new();
+    strbuf *buf = strbuf_new_nm();
 
     while (1) {
 	int c = fgetc(fp);
@@ -678,7 +678,7 @@ ssh2_userkey *ssh2_load_userkey(
 	goto error;
     i = atoi(b);
     sfree(b);
-    private_blob = strbuf_new();
+    private_blob = strbuf_new_nm();
     if (!read_blob(fp, i, BinarySink_UPCAST(private_blob)))
 	goto error;
 
@@ -728,7 +728,7 @@ ssh2_userkey *ssh2_load_userkey(
 	    macdata = private_blob;
 	    free_macdata = false;
 	} else {
-            macdata = strbuf_new();
+            macdata = strbuf_new_nm();
 	    put_stringz(macdata, alg->ssh_id);
 	    put_stringz(macdata, encryption);
 	    put_stringz(macdata, comment);
@@ -1236,7 +1236,7 @@ bool ssh2_save_userkey(
      */
     pub_blob = strbuf_new();
     ssh_key_public_blob(key->key, BinarySink_UPCAST(pub_blob));
-    priv_blob = strbuf_new();
+    priv_blob = strbuf_new_nm();
     ssh_key_private_blob(key->key, BinarySink_UPCAST(priv_blob));
 
     /*
@@ -1267,7 +1267,7 @@ bool ssh2_save_userkey(
 	unsigned char mackey[20];
 	char header[] = "putty-private-key-file-mac-key";
 
-	macdata = strbuf_new();
+	macdata = strbuf_new_nm();
 	put_stringz(macdata, ssh_key_ssh_id(key->key));
 	put_stringz(macdata, cipherstr);
 	put_stringz(macdata, key->comment);

@@ -18,7 +18,7 @@ static void sftp_pkt_BinarySink_write(
 
     assert(length <= 0xFFFFFFFFU - pkt->length);
 
-    sgrowarrayn(pkt->data, pkt->maxlen, pkt->length, length);
+    sgrowarrayn_nm(pkt->data, pkt->maxlen, pkt->length, length);
     memcpy(pkt->data + pkt->length, data, length);
     pkt->length += length;
 }

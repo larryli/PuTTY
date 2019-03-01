@@ -58,7 +58,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
 
     int displayno;
 
-    authfiledata = strbuf_new();
+    authfiledata = strbuf_new_nm();
 
     int nsockets = 0;
 

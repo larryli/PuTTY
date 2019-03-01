@@ -343,7 +343,7 @@ static char *dupvprintf_inner(char *buf, size_t oldlen, size_t *sizeptr,
     size_t len, size;
 
     size = *sizeptr;
-    sgrowarrayn(buf, size, oldlen, 512);
+    sgrowarrayn_nm(buf, size, oldlen, 512);
 
     while (1) {
 	va_list aq;
@@ -359,11 +359,11 @@ static char *dupvprintf_inner(char *buf, size_t oldlen, size_t *sizeptr,
 	} else if (len > 0) {
 	    /* This is the C99 error condition: the returned length is
 	     * the required buffer size not counting the NUL. */
-	    sgrowarrayn(buf, size, oldlen, len + 1);
+	    sgrowarrayn_nm(buf, size, oldlen, len + 1);
 	} else {
 	    /* This is the pre-C99 glibc error condition: <0 means the
 	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
-	    sgrowarray(buf, size, size);
+	    sgrowarray_nm(buf, size, size);
 	}
     }
 }
@@ -483,7 +483,7 @@ char *fgetline(FILE *fp)
 	len += strlen(ret + len);
 	if (len > 0 && ret[len-1] == '\n')
 	    break;		       /* got a newline, we're done */
-        sgrowarrayn(ret, size, len, 512);
+        sgrowarrayn_nm(ret, size, len, 512);
     }
     if (len == 0) {		       /* first fgets returned NULL */
 	sfree(ret);

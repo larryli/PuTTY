@@ -565,7 +565,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             /*
              * Encode this as an mpint.
              */
-            buf = strbuf_new();
+            buf = strbuf_new_nm();
             put_mp_ssh2(buf, s->K);
 
             /*
