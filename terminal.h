@@ -359,4 +359,19 @@ unsigned long term_translate(
 #define UCSTRUNCATED  0x80000021U    /* '!' */
 #define UCSINVALID    0x8000002AU    /* '*' */
 
+/*
+ * Maximum number of combining characters we're willing to store in a
+ * character cell. Our linked-list data representation permits an
+ * unlimited number of these in principle, but if we allowed that in
+ * practice then it would be an easy DoS to just squirt a squillion
+ * identical combining characters to someone's terminal and cause
+ * their PuTTY or pterm to consume lots of memory and CPU pointlessly.
+ *
+ * The precise figure of 32 is more or less arbitrary, but one point
+ * supporting it is UAX #15's comment that 30 combining characters is
+ * "significantly beyond what is required for any linguistic or
+ * technical usage".
+ */
+#define CC_LIMIT 32
+
 #endif

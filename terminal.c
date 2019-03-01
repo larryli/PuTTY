@@ -199,6 +199,8 @@ static void cc_check(termline *line)
 }
 #endif
 
+static void clear_cc(termline *line, int col);
+
 /*
  * Add a combining character to a character cell.
  */
@@ -209,7 +211,49 @@ static void add_cc(termline *line, int col, unsigned long chr)
     assert(col >= 0 && col < line->cols);
 
     /*
-     * Start by extending the cols array if the free list is empty.
+     * Don't add combining characters at all to U+FFFD REPLACEMENT
+     * CHARACTER. (Partly it's a slightly incoherent idea in the first
+     * place; mostly, U+FFFD is what we generate if a cell already has
+     * too many ccs, in which case we want it to be a fixed point when
+     * further ccs are added.)
+     */
+    if (line->chars[col].chr == 0xFFFD)
+        return;
+
+    /*
+     * Walk the cc list of the cell in question to find its current
+     * end point.
+     */
+    size_t ncc = 0;
+    int origcol = col;
+    while (line->chars[col].cc_next) {
+	col += line->chars[col].cc_next;
+        if (++ncc >= CC_LIMIT) {
+            /*
+             * There are already too many combining characters in this
+             * character cell. Change strategy: throw out the entire
+             * chain and replace the main character with U+FFFD.
+             *
+             * (Rationale: extrapolating from UTR #36 section 3.6.2
+             * suggests the principle that it's better to substitute
+             * U+FFFD than to _ignore_ input completely. Also, if the
+             * user copies and pastes an overcombined character cell,
+             * this way it will clearly indicate that we haven't
+             * reproduced the writer's original intentions, instead of
+             * looking as if it was the _writer's_ fault that the 33rd
+             * cc is missing.)
+             *
+             * Per the code above, this will also prevent any further
+             * ccs from being added to this cell.
+             */
+            clear_cc(line, origcol);
+            line->chars[origcol].chr = 0xFFFD;
+            return;
+        }
+    }
+
+    /*
+     * Extend the cols array if the free list is empty.
      */
     if (!line->cc_free) {
 	int n = line->size;
@@ -228,12 +272,6 @@ static void add_cc(termline *line, int col, unsigned long chr)
 	    n++;
 	}
     }
-
-    /*
-     * Now walk the cc list of the cell in question.
-     */
-    while (line->chars[col].cc_next)
-	col += line->chars[col].cc_next;
 
     /*
      * `col' now points at the last cc currently in this cell; so
