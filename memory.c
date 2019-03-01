@@ -8,6 +8,7 @@
 
 #include "defs.h"
 #include "puttymem.h"
+#include "misc.h"
 
 void *safemalloc(size_t n, size_t size)
 {
@@ -72,7 +73,7 @@ void safefree(void *ptr)
 }
 
 void *safegrowarray(void *ptr, size_t *allocated, size_t eltsize,
-                    size_t oldlen, size_t extralen)
+                    size_t oldlen, size_t extralen, bool secret)
 {
     /* The largest value we can safely multiply by eltsize */
     assert(eltsize > 0);
@@ -108,7 +109,15 @@ void *safegrowarray(void *ptr, size_t *allocated, size_t eltsize,
         increment = maxincr;
 
     size_t newsize = oldsize + increment;
-    void *toret = saferealloc(ptr, newsize, eltsize);
+    void *toret;
+    if (secret) {
+        toret = safemalloc(newsize, eltsize);
+        memcpy(toret, ptr, oldsize * eltsize);
+        smemclr(ptr, oldsize * eltsize);
+        sfree(ptr);
+    } else {
+        toret = saferealloc(ptr, newsize, eltsize);
+    }
     *allocated = newsize;
     return toret;
 }

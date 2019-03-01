@@ -386,6 +386,7 @@ char *dupprintf(const char *fmt, ...)
 struct strbuf_impl {
     size_t size;
     struct strbuf visible;
+    bool nm;          /* true if we insist on non-moving buffer resizes */
 };
 
 #define STRBUF_SET_UPTR(buf)                                    \
@@ -397,7 +398,8 @@ void *strbuf_append(strbuf *buf_o, size_t len)
 {
     struct strbuf_impl *buf = container_of(buf_o, struct strbuf_impl, visible);
     char *toret;
-    sgrowarrayn(buf->visible.s, buf->size, buf->visible.len + 1, len);
+    sgrowarray_general(
+        buf->visible.s, buf->size, buf->visible.len + 1, len, buf->nm);
     STRBUF_SET_UPTR(buf);
     toret = buf->visible.s + buf->visible.len;
     buf->visible.len += len;
@@ -412,16 +414,19 @@ static void strbuf_BinarySink_write(
     memcpy(strbuf_append(buf_o, len), data, len);
 }
 
-strbuf *strbuf_new(void)
+static strbuf *strbuf_new_general(bool nm)
 {
     struct strbuf_impl *buf = snew(struct strbuf_impl);
     BinarySink_INIT(&buf->visible, strbuf_BinarySink_write);
     buf->visible.len = 0;
     buf->size = 512;
+    buf->nm = nm;
     STRBUF_SET_PTR(buf, snewn(buf->size, char));
     *buf->visible.s = '\0';
     return &buf->visible;
 }
+strbuf *strbuf_new(void) { return strbuf_new_general(false); }
+strbuf *strbuf_new_nm(void) { return strbuf_new_general(true); }
 void strbuf_free(strbuf *buf_o)
 {
     struct strbuf_impl *buf = container_of(buf_o, struct strbuf_impl, visible);

@@ -82,12 +82,28 @@ void safefree(void *);
  * function outside your control, which would either fill your buffer
  * and return success, or else return a 'too big' error without
  * telling you how much bigger it needed to be.
+ *
+ * The _nm variants of the macro set the 'private' flag in the
+ * underlying function, which forces array resizes to be done by a
+ * manual allocate/copy/free instead of realloc, with careful clearing
+ * of the previous memory block before we free it. This costs
+ * performance, but if the block contains important secrets such as
+ * private keys or passwords, it avoids the risk that a realloc that
+ * moves the memory block might leave a copy of the data visible in
+ * the freed memory at the previous location.
  */
 void *safegrowarray(void *array, size_t *size, size_t eltsize,
-                    size_t oldlen, size_t extralen);
-#define sgrowarrayn(array, size, n, m)                   \
-    ((array) = safegrowarray(array, &(size), sizeof(*array), n, m))
-#define sgrowarray(array, size, n) sgrowarrayn(array, size, n, 1)
+                    size_t oldlen, size_t extralen, bool private);
+
+/* The master macro wrapper, of which all others are special cases */
+#define sgrowarray_general(array, size, n, m, priv)                     \
+    ((array) = safegrowarray(array, &(size), sizeof(*array), n, m, priv))
+
+/* The special-case macros that are easier to use in most situations */
+#define sgrowarrayn(   a, s, n, m) sgrowarray_general(a, s, n, m, false)
+#define sgrowarray(    a, s, n   ) sgrowarray_general(a, s, n, 1, false)
+#define sgrowarrayn_nm(a, s, n, m) sgrowarray_general(a, s, n, m, true )
+#define sgrowarray_nm( a, s, n   ) sgrowarray_general(a, s, n, 1, true )
 
 /*
  * This function is called by the innermost safemalloc/saferealloc

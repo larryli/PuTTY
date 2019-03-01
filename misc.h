@@ -34,14 +34,26 @@ char *dupprintf(const char *fmt, ...)
 char *dupvprintf(const char *fmt, va_list ap);
 void burnstr(char *string);
 
+/*
+ * The visible part of a strbuf structure. There's a surrounding
+ * implementation struct in misc.c, which isn't exposed to client
+ * code.
+ */
 struct strbuf {
     char *s;
     unsigned char *u;
     size_t len;
     BinarySink_IMPLEMENTATION;
-    /* (also there's a surrounding implementation struct in misc.c) */
 };
+
+/* strbuf constructors: strbuf_new_nm and strbuf_new differ in that a
+ * strbuf constructed using the _nm version will resize itself by
+ * alloc/copy/smemclr/free instead of realloc. Use that version for
+ * data sensitive enough that it's worth costing performance to
+ * avoid copies of it lingering in process memory. */
 strbuf *strbuf_new(void);
+strbuf *strbuf_new_nm(void);
+
 void strbuf_free(strbuf *buf);
 void *strbuf_append(strbuf *buf, size_t len);
 char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
