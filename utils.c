@@ -340,15 +340,13 @@ int string_length_for_printf(size_t s)
 static char *dupvprintf_inner(char *buf, size_t oldlen, size_t *sizeptr,
                               const char *fmt, va_list ap)
 {
-    size_t len, size;
-
-    size = *sizeptr;
+    size_t size = *sizeptr;
     sgrowarrayn_nm(buf, size, oldlen, 512);
 
     while (1) {
 	va_list aq;
 	va_copy(aq, ap);
-	len = vsnprintf(buf + oldlen, size - oldlen, fmt, aq);
+	int len = vsnprintf(buf + oldlen, size - oldlen, fmt, aq);
 	va_end(aq);
 
 	if (len >= 0 && len < size) {
@@ -359,7 +357,7 @@ static char *dupvprintf_inner(char *buf, size_t oldlen, size_t *sizeptr,
 	} else if (len > 0) {
 	    /* This is the C99 error condition: the returned length is
 	     * the required buffer size not counting the NUL. */
-	    sgrowarrayn_nm(buf, size, oldlen, len + 1);
+	    sgrowarrayn_nm(buf, size, oldlen + 1, len);
 	} else {
 	    /* This is the pre-C99 glibc error condition: <0 means the
 	     * buffer wasn't big enough, so we enlarge it a bit and hope. */
