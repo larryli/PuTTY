@@ -213,8 +213,12 @@ static void add_cc(termline *line, int col, unsigned long chr)
      */
     if (!line->cc_free) {
 	int n = line->size;
-	line->size += 16 + (line->size - line->cols) / 2;
-	line->chars = sresize(line->chars, line->size, termchar);
+
+        size_t tmpsize = line->size;
+        sgrowarray(line->chars, tmpsize, tmpsize);
+        assert(tmpsize <= INT_MAX);
+        line->size = tmpsize;
+
 	line->cc_free = n;
 	while (n < line->size) {
 	    if (n+1 < line->size)
