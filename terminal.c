@@ -717,7 +717,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
 	printf("\n");
 #endif
 
-	dcl = decompressline(b->data);
+	dcl = decompressline((compressed_scrollback_line *)b->u);
 	assert(ldata->cols == dcl->cols);
 	assert(ldata->lattr == dcl->lattr);
 	for (i = 0; i < ldata->cols; i++)
