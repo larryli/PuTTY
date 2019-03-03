@@ -1060,30 +1060,32 @@ static size_t ssh2_try_send(struct ssh2_channel *c)
     PktOut *pktout;
     size_t bufsize;
 
-    while (c->remwindow > 0 &&
-           (bufchain_size(&c->outbuffer) > 0 ||
-            bufchain_size(&c->errbuffer) > 0)) {
-        bufchain *buf = (bufchain_size(&c->errbuffer) > 0 ?
-                         &c->errbuffer : &c->outbuffer);
+    if (!c->halfopen) {
+        while (c->remwindow > 0 &&
+               (bufchain_size(&c->outbuffer) > 0 ||
+                bufchain_size(&c->errbuffer) > 0)) {
+            bufchain *buf = (bufchain_size(&c->errbuffer) > 0 ?
+                             &c->errbuffer : &c->outbuffer);
 
-	ptrlen data = bufchain_prefix(buf);
-	if (data.len > c->remwindow)
-	    data.len = c->remwindow;
-	if (data.len > c->remmaxpkt)
-	    data.len = c->remmaxpkt;
-        if (buf == &c->errbuffer) {
-            pktout = ssh_bpp_new_pktout(
-                s->ppl.bpp, SSH2_MSG_CHANNEL_EXTENDED_DATA);
-            put_uint32(pktout, c->remoteid);
-            put_uint32(pktout, SSH2_EXTENDED_DATA_STDERR);
-        } else {
-            pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_DATA);
-            put_uint32(pktout, c->remoteid);
+            ptrlen data = bufchain_prefix(buf);
+            if (data.len > c->remwindow)
+                data.len = c->remwindow;
+            if (data.len > c->remmaxpkt)
+                data.len = c->remmaxpkt;
+            if (buf == &c->errbuffer) {
+                pktout = ssh_bpp_new_pktout(
+                    s->ppl.bpp, SSH2_MSG_CHANNEL_EXTENDED_DATA);
+                put_uint32(pktout, c->remoteid);
+                put_uint32(pktout, SSH2_EXTENDED_DATA_STDERR);
+            } else {
+                pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_CHANNEL_DATA);
+                put_uint32(pktout, c->remoteid);
+            }
+            put_stringpl(pktout, data);
+            pq_push(s->ppl.out_pq, pktout);
+            bufchain_consume(buf, data.len);
+            c->remwindow -= data.len;
         }
-        put_stringpl(pktout, data);
-        pq_push(s->ppl.out_pq, pktout);
-	bufchain_consume(buf, data.len);
-	c->remwindow -= data.len;
     }
 
     /*
