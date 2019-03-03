@@ -104,6 +104,8 @@ static void ssh2_userauth_add_session_id(
 static PktOut *ssh2_userauth_gss_packet(
     struct ssh2_userauth_state *s, const char *authtype);
 #endif
+static void ssh2_userauth_antispoof_msg(
+    struct ssh2_userauth_state *s, const char *msg);
 
 static const struct PacketProtocolLayerVtable ssh2_userauth_vtable = {
     ssh2_userauth_free,
@@ -191,6 +193,8 @@ static void ssh2_userauth_filter_queue(struct ssh2_userauth_state *s)
             if (!s->banner_scc_initialised) {
                 s->banner_scc = seat_stripctrl_new(
                     s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), SIC_BANNER);
+                if (s->banner_scc)
+                    stripctrl_enable_line_limiting(s->banner_scc);
                 s->banner_scc_initialised = true;
             }
             if (s->banner_scc)
@@ -461,30 +465,41 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * that we've accumulated. (This should ensure that when
              * we exit the auth loop, we haven't any left to deal
              * with.)
+             *
+             * Don't show the banner if we're operating in non-verbose
+             * non-interactive mode. (It's probably a script, which
+             * means nobody will read the banner _anyway_, and
+             * moreover the printing of the banner will screw up
+             * processing on the output of (say) plink.)
+             *
+             * The banner data has been sanitised already by this
+             * point, but we still need to precede and follow it with
+             * anti-spoofing header lines.
              */
-            {
-                /*
-                 * Don't show the banner if we're operating in
-                 * non-verbose non-interactive mode. (It's probably
-                 * a script, which means nobody will read the
-                 * banner _anyway_, and moreover the printing of
-                 * the banner will screw up processing on the
-                 * output of (say) plink.)
-                 *
-                 * The banner data has been sanitised already by this
-                 * point, so we can safely pass it straight to
-                 * seat_stderr.
-                 */
-                if (bufchain_size(&s->banner) &&
-                    (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
-                    while (bufchain_size(&s->banner) > 0) {
-                        ptrlen data = bufchain_prefix(&s->banner);
-                        seat_stderr_pl(s->ppl.seat, data);
-                        bufchain_consume(&s->banner, data.len);
-                    }
+            if (bufchain_size(&s->banner) &&
+                (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
+                if (s->banner_scc)
+                    ssh2_userauth_antispoof_msg(
+                        s, "Pre-authentication banner message from server:");
+
+                bool mid_line = false;
+                while (bufchain_size(&s->banner) > 0) {
+                    ptrlen data = bufchain_prefix(&s->banner);
+                    seat_stderr_pl(s->ppl.seat, data);
+                    bufchain_consume(&s->banner, data.len);
+                    mid_line =
+                        (((const char *)data.ptr)[data.len-1] != '\n');
                 }
                 bufchain_clear(&s->banner);
+
+                if (mid_line)
+                    seat_stderr_pl(s->ppl.seat, PTRLEN_LITERAL("\r\n"));
+
+                if (s->banner_scc)
+                    ssh2_userauth_antispoof_msg(
+                        s, "End of banner message from server");
             }
+
             if (pktin && pktin->type == SSH2_MSG_USERAUTH_SUCCESS) {
                 ppl_logevent("Access granted");
                 goto userauth_success;
@@ -1759,4 +1774,16 @@ static void ssh2_userauth_reconfigure(PacketProtocolLayer *ppl, Conf *conf)
     struct ssh2_userauth_state *s =
         container_of(ppl, struct ssh2_userauth_state, ppl);
     ssh_ppl_reconfigure(s->successor_layer, conf);
+}
+
+static void ssh2_userauth_antispoof_msg(
+    struct ssh2_userauth_state *s, const char *msg)
+{
+    strbuf *sb = strbuf_new();
+    strbuf_catf(sb, "-- %s ", msg);
+    while (sb->len < 78)
+        put_byte(sb, '-');
+    put_datapl(sb, PTRLEN_LITERAL("\r\n"));
+    seat_stderr_pl(s->ppl.seat, ptrlen_from_strbuf(sb));
+    strbuf_free(sb);
 }
