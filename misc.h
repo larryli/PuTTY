@@ -379,6 +379,12 @@ struct StripCtrlChars {
 };
 StripCtrlChars *stripctrl_new(
     BinarySink *bs_out, bool permit_cr, wchar_t substitution);
+StripCtrlChars *stripctrl_new_term_fn(
+    BinarySink *bs_out, bool permit_cr, wchar_t substitution,
+    Terminal *term, unsigned long (*translate)(
+        Terminal *, term_utf8_decode *, unsigned char));
+#define stripctrl_new_term(bs, cr, sub, term) \
+    stripctrl_new_term_fn(bs, cr, sub, term, term_translate)
 void stripctrl_free(StripCtrlChars *sanpub);
 char *stripctrl_string_ptrlen(ptrlen str);
 static inline char *stripctrl_string(const char *str)

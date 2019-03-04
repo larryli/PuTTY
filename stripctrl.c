@@ -11,7 +11,8 @@
 #include <wchar.h>
 #include <wctype.h>
 
-#include "defs.h"
+#include "putty.h"
+#include "terminal.h"
 #include "misc.h"
 #include "marshal.h"
 
@@ -27,15 +28,22 @@ struct StripCtrlCharsImpl {
     char buf[SCC_BUFSIZE];
     size_t buflen;
 
+    Terminal *term;
+    bool last_term_utf;
+    struct term_utf8_decode utf8;
+    unsigned long (*translate)(Terminal *, term_utf8_decode *, unsigned char);
+
     BinarySink *bs_out;
 
     StripCtrlChars public;
 };
 
-static void stripctrl_BinarySink_write(
+static void stripctrl_locale_BinarySink_write(
+    BinarySink *bs, const void *vp, size_t len);
+static void stripctrl_term_BinarySink_write(
     BinarySink *bs, const void *vp, size_t len);
 
-StripCtrlChars *stripctrl_new(
+static StripCtrlCharsImpl *stripctrl_new_common(
     BinarySink *bs_out, bool permit_cr, wchar_t substitution)
 {
     StripCtrlCharsImpl *scc = snew(StripCtrlCharsImpl);
@@ -43,7 +51,28 @@ StripCtrlChars *stripctrl_new(
     scc->bs_out = bs_out;
     scc->permit_cr = permit_cr;
     scc->substitution = substitution;
-    BinarySink_INIT(&scc->public, stripctrl_BinarySink_write);
+    return scc;
+}
+
+StripCtrlChars *stripctrl_new(
+    BinarySink *bs_out, bool permit_cr, wchar_t substitution)
+{
+    StripCtrlCharsImpl *scc = stripctrl_new_common(
+        bs_out, permit_cr, substitution);
+    BinarySink_INIT(&scc->public, stripctrl_locale_BinarySink_write);
+    return &scc->public;
+}
+
+StripCtrlChars *stripctrl_new_term_fn(
+    BinarySink *bs_out, bool permit_cr, wchar_t substitution,
+    Terminal *term, unsigned long (*translate)(
+        Terminal *, term_utf8_decode *, unsigned char))
+{
+    StripCtrlCharsImpl *scc = stripctrl_new_common(
+        bs_out, permit_cr, substitution);
+    scc->term = term;
+    scc->translate = translate;
+    BinarySink_INIT(&scc->public, stripctrl_term_BinarySink_write);
     return &scc->public;
 }
 
@@ -55,9 +84,14 @@ void stripctrl_free(StripCtrlChars *sccpub)
     sfree(scc);
 }
 
-static inline void stripctrl_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
+static inline bool stripctrl_ctrlchar_ok(StripCtrlCharsImpl *scc, wchar_t wc)
 {
-    if (wc == L'\n' || (wc == L'\r' && scc->permit_cr) || iswprint(wc)) {
+    return wc == L'\n' || (wc == L'\r' && scc->permit_cr);
+}
+
+static inline void stripctrl_locale_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
+{
+    if (iswprint(wc) || stripctrl_ctrlchar_ok(scc, wc)) {
         /* Printable character, or one we're going to let through anyway. */
     } else if (scc->substitution) {
         wc = scc->substitution;
@@ -72,7 +106,54 @@ static inline void stripctrl_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
         put_data(scc->bs_out, outbuf, produced);
 }
 
-static inline size_t stripctrl_try_consume(
+static inline void stripctrl_term_put_wc(
+    StripCtrlCharsImpl *scc, unsigned long wc)
+{
+    if (!(wc & ~0x9F)) {
+        /* This is something the terminal interprets as a control
+         * character. */
+        if (!stripctrl_ctrlchar_ok(scc, wc)) {
+            if (!scc->substitution)
+                return;
+            else
+                wc = scc->substitution;
+        }
+
+        if (wc == '\012') {
+            /* Precede \n with \r, because our terminal will not
+             * generally be in the ONLCR mode where it assumes that
+             * internally, and any \r on input has been stripped
+             * out. */
+            put_datapl(scc->bs_out, PTRLEN_LITERAL("\r"));
+        }
+    }
+
+    char outbuf[6];
+    size_t produced;
+
+    /*
+     * The Terminal implementation encodes 7-bit ASCII characters in
+     * UTF-8 mode, and all printing characters in non-UTF-8 (i.e.
+     * single-byte character set) mode, as values in the surrogate
+     * range (a conveniently unused piece of space in this context)
+     * whose low byte is the original 1-byte representation of the
+     * character.
+     */
+    if ((wc - 0xD800) < (0xE000 - 0xD800))
+        wc &= 0xFF;
+
+    if (in_utf(scc->term)) {
+        produced = encode_utf8(outbuf, wc);
+    } else {
+        outbuf[0] = wc;
+        produced = 1;
+    }
+
+    if (produced > 0)
+        put_data(scc->bs_out, outbuf, produced);
+}
+
+static inline size_t stripctrl_locale_try_consume(
     StripCtrlCharsImpl *scc, const char *p, size_t len)
 {
     wchar_t wc;
@@ -115,7 +196,7 @@ static inline size_t stripctrl_try_consume(
          * some way other than a single zero byte - then probably lots
          * of other things will have gone wrong before we get here!)
          */
-        stripctrl_put_wc(scc, L'\0');
+        stripctrl_locale_put_wc(scc, L'\0');
         return 1;
     }
 
@@ -123,11 +204,11 @@ static inline size_t stripctrl_try_consume(
      * Otherwise, this is the easy case: consumed > 0, and we've eaten
      * a valid multibyte character.
      */
-    stripctrl_put_wc(scc, wc);
+    stripctrl_locale_put_wc(scc, wc);
     return consumed;
 }
 
-static void stripctrl_BinarySink_write(
+static void stripctrl_locale_BinarySink_write(
     BinarySink *bs, const void *vp, size_t len)
 {
     StripCtrlChars *sccpub = BinarySink_DOWNCAST(bs, StripCtrlChars);
@@ -148,7 +229,7 @@ static void stripctrl_BinarySink_write(
             to_copy = len;
 
         memcpy(scc->buf + scc->buflen, p, to_copy);
-        size_t consumed = stripctrl_try_consume(
+        size_t consumed = stripctrl_locale_try_consume(
             scc, scc->buf, scc->buflen + to_copy);
 
         if (consumed >= scc->buflen) {
@@ -203,7 +284,7 @@ static void stripctrl_BinarySink_write(
      * Now charge along the main string.
      */
     while (len > 0) {
-        size_t consumed = stripctrl_try_consume(scc, p, len);
+        size_t consumed = stripctrl_locale_try_consume(scc, p, len);
         if (consumed == 0)
             break;
         assert(consumed <= len);
@@ -221,6 +302,36 @@ static void stripctrl_BinarySink_write(
 
   out:
     setlocale(LC_CTYPE, previous_locale);
+}
+
+static void stripctrl_term_BinarySink_write(
+    BinarySink *bs, const void *vp, size_t len)
+{
+    StripCtrlChars *sccpub = BinarySink_DOWNCAST(bs, StripCtrlChars);
+    StripCtrlCharsImpl *scc =
+        container_of(sccpub, StripCtrlCharsImpl, public);
+
+    bool utf = in_utf(scc->term);
+    if (utf != scc->last_term_utf) {
+        scc->last_term_utf = utf;
+        scc->utf8.state = 0;
+    }
+
+    for (const unsigned char *p = (const unsigned char *)vp;
+         len > 0; len--, p++) {
+        unsigned long t = scc->translate(scc->term, &scc->utf8, *p);
+        if (t == UCSTRUNCATED) {
+            stripctrl_term_put_wc(scc, 0xFFFD);
+            /* go round again */
+            t = scc->translate(scc->term, &scc->utf8, *p);
+        }
+        if (t == UCSINCOMPLETE)
+            continue;
+        if (t == UCSINVALID)
+            t = 0xFFFD;
+
+        stripctrl_term_put_wc(scc, t);
+    }
 }
 
 char *stripctrl_string_ptrlen(ptrlen str)
