@@ -2867,6 +2867,153 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
 }
 
 /*
+ * UCSINCOMPLETE is returned from term_translate if it's successfully
+ * absorbed a byte but not emitted a complete character yet.
+ * UCSTRUNCATED indicates a truncated multibyte sequence (so the
+ * caller emits an error character and then calls term_translate again
+ * with the same input byte). UCSINVALID indicates some other invalid
+ * multibyte sequence, such as an overlong synonym, or a standalone
+ * continuation byte, or a completely illegal thing like 0xFE. These
+ * values are not stored in the terminal data structures at all.
+ */
+#define UCSINCOMPLETE 0x8000003FU    /* '?' */
+#define UCSTRUNCATED  0x80000021U    /* '!' */
+#define UCSINVALID    0x8000002AU    /* '*' */
+
+static unsigned long term_translate(Terminal *term, unsigned char c)
+{
+    if (in_utf(term)) {
+        switch (term->utf_state) {
+          case 0:
+            if (c < 0x80) {
+                /* UTF-8 must be stateless so we ignore iso2022. */
+                if (term->ucsdata->unitab_ctrl[c] != 0xFF)  {
+                    return term->ucsdata->unitab_ctrl[c];
+                } else if ((term->utf8linedraw) &&
+                           (term->cset_attr[term->cset] == CSET_LINEDRW)) {
+                    /* Linedraw characters are explicitly enabled */
+                    return c | CSET_LINEDRW;
+                } else {
+                    return c | CSET_ASCII;
+                }
+            } else if ((c & 0xe0) == 0xc0) {
+                term->utf_size = term->utf_state = 1;
+                term->utf_char = (c & 0x1f);
+            } else if ((c & 0xf0) == 0xe0) {
+                term->utf_size = term->utf_state = 2;
+                term->utf_char = (c & 0x0f);
+            } else if ((c & 0xf8) == 0xf0) {
+                term->utf_size = term->utf_state = 3;
+                term->utf_char = (c & 0x07);
+            } else if ((c & 0xfc) == 0xf8) {
+                term->utf_size = term->utf_state = 4;
+                term->utf_char = (c & 0x03);
+            } else if ((c & 0xfe) == 0xfc) {
+                term->utf_size = term->utf_state = 5;
+                term->utf_char = (c & 0x01);
+            } else {
+                return UCSINVALID;
+            }
+            return UCSINCOMPLETE;
+          case 1:
+          case 2:
+          case 3:
+          case 4:
+          case 5:
+            if ((c & 0xC0) != 0x80) {
+                term->utf_state = 0;
+                return UCSTRUNCATED;   /* caller will then give us the
+                                        * same byte again */
+            }
+            term->utf_char = (term->utf_char << 6) | (c & 0x3f);
+            if (--term->utf_state)
+                return UCSINCOMPLETE;
+
+            unsigned long t = term->utf_char;
+
+            /* Is somebody trying to be evil! */
+            if (t < 0x80 ||
+                (t < 0x800 && term->utf_size >= 2) ||
+                (t < 0x10000 && term->utf_size >= 3) ||
+                (t < 0x200000 && term->utf_size >= 4) ||
+                (t < 0x4000000 && term->utf_size >= 5))
+                return UCSINVALID;
+
+            /* Unicode line separator and paragraph separator are CR-LF */
+            if (t == 0x2028 || t == 0x2029)
+                return 0x85;
+
+            /* High controls are probably a Baaad idea too. */
+            if (t < 0xA0)
+                return 0xFFFD;
+
+            /* The UTF-16 surrogates are not nice either. */
+            /*       The standard give the option of decoding these: 
+             *       I don't want to! */
+            if (t >= 0xD800 && t < 0xE000)
+                return UCSINVALID;
+
+            /* ISO 10646 characters now limited to UTF-16 range. */
+            if (t > 0x10FFFF)
+                return UCSINVALID;
+
+            /* This is currently a TagPhobic application.. */
+            if (t >= 0xE0000 && t <= 0xE007F)
+                return UCSINCOMPLETE;
+
+            /* U+FEFF is best seen as a null. */
+            if (t == 0xFEFF)
+                return UCSINCOMPLETE;
+            /* But U+FFFE is an error. */
+            if (t == 0xFFFE || t == 0xFFFF)
+                return UCSINVALID;
+
+            return t;
+        }
+    } else if (term->sco_acs && 
+               (c!='\033' && c!='\012' && c!='\015' && c!='\b')) {
+        /* Are we in the nasty ACS mode? Note: no sco in utf mode. */
+        if (term->sco_acs == 2)
+            c |= 0x80;
+
+        return c | CSET_SCOACS;
+    } else {
+        switch (term->cset_attr[term->cset]) {
+            /* 
+             * Linedraw characters are different from 'ESC ( B'
+             * only for a small range. For ones outside that
+             * range, make sure we use the same font as well as
+             * the same encoding.
+             */
+          case CSET_LINEDRW:
+            if (term->ucsdata->unitab_ctrl[c] != 0xFF)
+                return term->ucsdata->unitab_ctrl[c];
+            else
+                return c | CSET_LINEDRW;
+            break;
+
+          case CSET_GBCHR:
+            /* If UK-ASCII, make the '#' a LineDraw Pound */
+            if (c == '#')
+                return '}' | CSET_LINEDRW;
+            /* fall through */
+
+          case CSET_ASCII:
+            if (term->ucsdata->unitab_ctrl[c] != 0xFF)
+                return term->ucsdata->unitab_ctrl[c];
+            else
+                return c | CSET_ASCII;
+            break;
+          case CSET_SCOACS:
+            if (c >= ' ')
+                return c | CSET_SCOACS;
+            break;
+        }
+    }
+    return c;
+}
+
+/*
  * Remove everything currently in `inbuf' and stick it up on the
  * in-memory display. There's a big state machine in here to
  * process escape sequences...
@@ -2945,135 +3092,22 @@ static void term_out(Terminal *term)
 	    }
 	}
 
-	/* First see about all those translations. */
+	/* Do character-set translation. */
 	if (term->termstate == TOPLEVEL) {
-	    if (in_utf(term))
-		switch (term->utf_state) {
-		  case 0:
-		    if (c < 0x80) {
-			/* UTF-8 must be stateless so we ignore iso2022. */
-			if (term->ucsdata->unitab_ctrl[c] != 0xFF) 
-			     c = term->ucsdata->unitab_ctrl[c];
-                        else if ((term->utf8linedraw) &&
-                                 (term->cset_attr[term->cset] == CSET_LINEDRW))
-                            /* Linedraw characters are explicitly enabled */
-                            c = ((unsigned char) c) | CSET_LINEDRW;
-			else c = ((unsigned char)c) | CSET_ASCII;
-			break;
-		    } else if ((c & 0xe0) == 0xc0) {
-			term->utf_size = term->utf_state = 1;
-			term->utf_char = (c & 0x1f);
-		    } else if ((c & 0xf0) == 0xe0) {
-			term->utf_size = term->utf_state = 2;
-			term->utf_char = (c & 0x0f);
-		    } else if ((c & 0xf8) == 0xf0) {
-			term->utf_size = term->utf_state = 3;
-			term->utf_char = (c & 0x07);
-		    } else if ((c & 0xfc) == 0xf8) {
-			term->utf_size = term->utf_state = 4;
-			term->utf_char = (c & 0x03);
-		    } else if ((c & 0xfe) == 0xfc) {
-			term->utf_size = term->utf_state = 5;
-			term->utf_char = (c & 0x01);
-		    } else {
-			c = UCSERR;
-			break;
-		    }
-		    continue;
-		  case 1:
-		  case 2:
-		  case 3:
-		  case 4:
-		  case 5:
-		    if ((c & 0xC0) != 0x80) {
-			unget = c;
-			c = UCSERR;
-			term->utf_state = 0;
-			break;
-		    }
-		    term->utf_char = (term->utf_char << 6) | (c & 0x3f);
-		    if (--term->utf_state)
-			continue;
-
-		    c = term->utf_char;
-
-		    /* Is somebody trying to be evil! */
-		    if (c < 0x80 ||
-			(c < 0x800 && term->utf_size >= 2) ||
-			(c < 0x10000 && term->utf_size >= 3) ||
-			(c < 0x200000 && term->utf_size >= 4) ||
-			(c < 0x4000000 && term->utf_size >= 5))
-			c = UCSERR;
-
-		    /* Unicode line separator and paragraph separator are CR-LF */
-		    if (c == 0x2028 || c == 0x2029)
-			c = 0x85;
-
-		    /* High controls are probably a Baaad idea too. */
-		    if (c < 0xA0)
-			c = 0xFFFD;
-
-		    /* The UTF-16 surrogates are not nice either. */
-		    /*       The standard give the option of decoding these: 
-		     *       I don't want to! */
-		    if (c >= 0xD800 && c < 0xE000)
-			c = UCSERR;
-
-		    /* ISO 10646 characters now limited to UTF-16 range. */
-		    if (c > 0x10FFFF)
-			c = UCSERR;
-
-		    /* This is currently a TagPhobic application.. */
-		    if (c >= 0xE0000 && c <= 0xE007F)
-			continue;
-
-		    /* U+FEFF is best seen as a null. */
-		    if (c == 0xFEFF)
-			continue;
-		    /* But U+FFFE is an error. */
-		    if (c == 0xFFFE || c == 0xFFFF)
-			c = UCSERR;
-
-		    break;
-	    }
-	    /* Are we in the nasty ACS mode? Note: no sco in utf mode. */
-	    else if(term->sco_acs && 
-		    (c!='\033' && c!='\012' && c!='\015' && c!='\b'))
-	    {
-	       if (term->sco_acs == 2) c |= 0x80;
-	       c |= CSET_SCOACS;
-	    } else {
-		switch (term->cset_attr[term->cset]) {
-		    /* 
-		     * Linedraw characters are different from 'ESC ( B'
-		     * only for a small range. For ones outside that
-		     * range, make sure we use the same font as well as
-		     * the same encoding.
-		     */
-		  case CSET_LINEDRW:
-		    if (term->ucsdata->unitab_ctrl[c] != 0xFF)
-			c = term->ucsdata->unitab_ctrl[c];
-		    else
-			c = ((unsigned char) c) | CSET_LINEDRW;
-		    break;
-
-		  case CSET_GBCHR:
-		    /* If UK-ASCII, make the '#' a LineDraw Pound */
-		    if (c == '#') {
-			c = '}' | CSET_LINEDRW;
-			break;
-		    }
-		  /*FALLTHROUGH*/ case CSET_ASCII:
-		    if (term->ucsdata->unitab_ctrl[c] != 0xFF)
-			c = term->ucsdata->unitab_ctrl[c];
-		    else
-			c = ((unsigned char) c) | CSET_ASCII;
-		    break;
-		case CSET_SCOACS:
-		    if (c>=' ') c = ((unsigned char)c) | CSET_SCOACS;
-		    break;
-		}
-	    }
+            unsigned long t = term_translate(term, c);
+            switch (t) {
+              case UCSINCOMPLETE:
+                continue;       /* didn't complete a multibyte char */
+              case UCSTRUNCATED:
+                unget = c;
+                /* fall through */
+              case UCSINVALID:
+                c = UCSERR;
+                break;
+              default:
+                c = t;
+                break;
+            }
 	}
 
 	/*
