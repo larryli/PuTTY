@@ -63,6 +63,12 @@ struct bidi_cache_entry {
     int *forward, *backward;	       /* the permutations of line positions */
 };
 
+struct term_utf8_decode {
+    int state;                         /* Is there a pending UTF-8 character */
+    int chr;                           /* and what is it so far? */
+    int size;                          /* The size of the UTF character. */
+};
+
 struct terminal_tag {
 
     int compatibility_level;
@@ -116,9 +122,7 @@ struct terminal_tag {
     int sco_acs, save_sco_acs;	       /* CSI 10,11,12m -> OEM charset */
     bool vt52_bold;                    /* Force bold on non-bold colours */
     bool utf;                          /* Are we in toggleable UTF-8 mode? */
-    int utf_state;		       /* Is there a pending UTF-8 character */
-    int utf_char;		       /* and what is it so far. */
-    int utf_size;		       /* The size of the UTF character. */
+    term_utf8_decode utf8;             /* If so, here's our decoding state */
     bool printing, only_printing;      /* Are we doing ANSI printing? */
     int print_state;		       /* state of print-end-sequence scan */
     bufchain printer_buf;	       /* buffered data for printer */
@@ -334,5 +338,22 @@ static inline bool in_utf(Terminal *term)
 {
     return term->utf || term->ucsdata->line_codepage == CP_UTF8;
 }
+
+unsigned long term_translate(
+    Terminal *term, term_utf8_decode *utf8, unsigned char c);
+
+/*
+ * UCSINCOMPLETE is returned from term_translate if it's successfully
+ * absorbed a byte but not emitted a complete character yet.
+ * UCSTRUNCATED indicates a truncated multibyte sequence (so the
+ * caller emits an error character and then calls term_translate again
+ * with the same input byte). UCSINVALID indicates some other invalid
+ * multibyte sequence, such as an overlong synonym, or a standalone
+ * continuation byte, or a completely illegal thing like 0xFE. These
+ * values are not stored in the terminal data structures at all.
+ */
+#define UCSINCOMPLETE 0x8000003FU    /* '?' */
+#define UCSTRUNCATED  0x80000021U    /* '!' */
+#define UCSINVALID    0x8000002AU    /* '*' */
 
 #endif

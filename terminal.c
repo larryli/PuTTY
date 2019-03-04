@@ -1285,7 +1285,7 @@ static void power_on(Terminal *term, bool clear)
     term->utf = false;
     term->save_utf = false;
     term->alt_save_utf = false;
-    term->utf_state = 0;
+    term->utf8.state = 0;
     term->alt_sco_acs = term->sco_acs =
         term->save_sco_acs = term->alt_save_sco_acs = 0;
     term->cset_attr[0] = term->cset_attr[1] =
@@ -2866,24 +2866,11 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
     seen_disp_event(term);
 }
 
-/*
- * UCSINCOMPLETE is returned from term_translate if it's successfully
- * absorbed a byte but not emitted a complete character yet.
- * UCSTRUNCATED indicates a truncated multibyte sequence (so the
- * caller emits an error character and then calls term_translate again
- * with the same input byte). UCSINVALID indicates some other invalid
- * multibyte sequence, such as an overlong synonym, or a standalone
- * continuation byte, or a completely illegal thing like 0xFE. These
- * values are not stored in the terminal data structures at all.
- */
-#define UCSINCOMPLETE 0x8000003FU    /* '?' */
-#define UCSTRUNCATED  0x80000021U    /* '!' */
-#define UCSINVALID    0x8000002AU    /* '*' */
-
-static unsigned long term_translate(Terminal *term, unsigned char c)
+unsigned long term_translate(
+    Terminal *term, struct term_utf8_decode *utf8, unsigned char c)
 {
     if (in_utf(term)) {
-        switch (term->utf_state) {
+        switch (utf8->state) {
           case 0:
             if (c < 0x80) {
                 /* UTF-8 must be stateless so we ignore iso2022. */
@@ -2897,20 +2884,20 @@ static unsigned long term_translate(Terminal *term, unsigned char c)
                     return c | CSET_ASCII;
                 }
             } else if ((c & 0xe0) == 0xc0) {
-                term->utf_size = term->utf_state = 1;
-                term->utf_char = (c & 0x1f);
+                utf8->size = utf8->state = 1;
+                utf8->chr = (c & 0x1f);
             } else if ((c & 0xf0) == 0xe0) {
-                term->utf_size = term->utf_state = 2;
-                term->utf_char = (c & 0x0f);
+                utf8->size = utf8->state = 2;
+                utf8->chr = (c & 0x0f);
             } else if ((c & 0xf8) == 0xf0) {
-                term->utf_size = term->utf_state = 3;
-                term->utf_char = (c & 0x07);
+                utf8->size = utf8->state = 3;
+                utf8->chr = (c & 0x07);
             } else if ((c & 0xfc) == 0xf8) {
-                term->utf_size = term->utf_state = 4;
-                term->utf_char = (c & 0x03);
+                utf8->size = utf8->state = 4;
+                utf8->chr = (c & 0x03);
             } else if ((c & 0xfe) == 0xfc) {
-                term->utf_size = term->utf_state = 5;
-                term->utf_char = (c & 0x01);
+                utf8->size = utf8->state = 5;
+                utf8->chr = (c & 0x01);
             } else {
                 return UCSINVALID;
             }
@@ -2921,22 +2908,22 @@ static unsigned long term_translate(Terminal *term, unsigned char c)
           case 4:
           case 5:
             if ((c & 0xC0) != 0x80) {
-                term->utf_state = 0;
+                utf8->state = 0;
                 return UCSTRUNCATED;   /* caller will then give us the
                                         * same byte again */
             }
-            term->utf_char = (term->utf_char << 6) | (c & 0x3f);
-            if (--term->utf_state)
+            utf8->chr = (utf8->chr << 6) | (c & 0x3f);
+            if (--utf8->state)
                 return UCSINCOMPLETE;
 
-            unsigned long t = term->utf_char;
+            unsigned long t = utf8->chr;
 
             /* Is somebody trying to be evil! */
             if (t < 0x80 ||
-                (t < 0x800 && term->utf_size >= 2) ||
-                (t < 0x10000 && term->utf_size >= 3) ||
-                (t < 0x200000 && term->utf_size >= 4) ||
-                (t < 0x4000000 && term->utf_size >= 5))
+                (t < 0x800 && utf8->size >= 2) ||
+                (t < 0x10000 && utf8->size >= 3) ||
+                (t < 0x200000 && utf8->size >= 4) ||
+                (t < 0x4000000 && utf8->size >= 5))
                 return UCSINVALID;
 
             /* Unicode line separator and paragraph separator are CR-LF */
@@ -3094,7 +3081,7 @@ static void term_out(Terminal *term)
 
 	/* Do character-set translation. */
 	if (term->termstate == TOPLEVEL) {
-            unsigned long t = term_translate(term, c);
+            unsigned long t = term_translate(term, &term->utf8, c);
             switch (t) {
               case UCSINCOMPLETE:
                 continue;       /* didn't complete a multibyte char */
