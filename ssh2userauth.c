@@ -77,6 +77,9 @@ struct ssh2_userauth_state {
 
     agent_pending_query *auth_agent_query;
     bufchain banner;
+    bufchain_sink banner_bs;
+    StripCtrlChars *banner_scc;
+    bool banner_scc_initialised;
 
     PacketProtocolLayer ppl;
 };
@@ -139,6 +142,7 @@ PacketProtocolLayer *ssh2_userauth_new(
     s->shgss = shgss;
     s->last_methods_string = strbuf_new();
     bufchain_init(&s->banner);
+    bufchain_sink_init(&s->banner_bs, &s->banner);
 
     return &s->ppl;
 }
@@ -168,6 +172,8 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     sfree(s->hostname);
     sfree(s->fullhostname);
     strbuf_free(s->last_methods_string);
+    if (s->banner_scc)
+        stripctrl_free(s->banner_scc);
     sfree(s);
 }
 
@@ -182,7 +188,15 @@ static void ssh2_userauth_filter_queue(struct ssh2_userauth_state *s)
             string = get_string(pktin);
             if (string.len > BANNER_LIMIT - bufchain_size(&s->banner))
                 string.len = BANNER_LIMIT - bufchain_size(&s->banner);
-	    sanitise_term_data(&s->banner, string.ptr, string.len);
+            if (!s->banner_scc_initialised) {
+                s->banner_scc = seat_stripctrl_new(
+                    s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), false, 0);
+                s->banner_scc_initialised = true;
+            }
+            if (s->banner_scc)
+                put_datapl(s->banner_scc, string);
+            else
+                put_datapl(&s->banner_bs, string);
             pq_pop(s->ppl.in_pq);
             break;
 
