@@ -113,6 +113,7 @@ static const SeatVtable server_seat_vt = {
     nullseat_get_x_display,
     nullseat_get_windowid,
     nullseat_get_window_pixel_size,
+    nullseat_stripctrl_new,
 };
 
 static void server_socket_log(Plug *plug, int type, SockAddr *addr, int port,

@@ -388,6 +388,12 @@ static void console_eventlog(LogPolicy *lp, const char *string)
         console_logging_error(lp, string);
 }
 
+StripCtrlChars *console_stripctrl_new(Seat *seat, BinarySink *bs_out,
+                                      bool permit_cr, wchar_t substitution)
+{
+    return stripctrl_new(bs_out, permit_cr, substitution);
+}
+
 static void console_data_untrusted(HANDLE hout, const char *data, size_t len)
 {
     DWORD dummy;

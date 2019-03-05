@@ -930,6 +930,15 @@ struct SeatVtable {
      * true.
      */
     bool (*get_window_pixel_size)(Seat *seat, int *width, int *height);
+
+    /*
+     * Return a StripCtrlChars appropriate for sanitising untrusted
+     * terminal data (e.g. SSH banners, prompts) being sent to the
+     * user of this seat. May return NULL if no sanitisation is
+     * needed.
+     */
+    StripCtrlChars *(*stripctrl_new)(Seat *seat, BinarySink *bs_out,
+                                     bool permit_cr, wchar_t substitution);
 };
 
 static inline size_t seat_output(
@@ -970,6 +979,9 @@ static inline bool seat_get_windowid(Seat *seat, long *id_out)
 { return seat->vt->get_windowid(seat, id_out); }
 static inline bool seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 { return seat->vt->get_window_pixel_size(seat, w, h); }
+static inline StripCtrlChars *seat_stripctrl_new(
+    Seat *seat, BinarySink *bs, bool cr, wchar_t sub)
+{ return seat->vt->stripctrl_new(seat, bs, cr, sub); }
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
@@ -1014,6 +1026,8 @@ void nullseat_echoedit_update(Seat *seat, bool echoing, bool editing);
 const char *nullseat_get_x_display(Seat *seat);
 bool nullseat_get_windowid(Seat *seat, long *id_out);
 bool nullseat_get_window_pixel_size(Seat *seat, int *width, int *height);
+StripCtrlChars *nullseat_stripctrl_new(Seat *seat, BinarySink *bs_out,
+                                       bool permit_cr, wchar_t substitution);
 
 /*
  * Seat functions provided by the platform's console-application
@@ -1031,6 +1045,8 @@ int console_confirm_weak_crypto_primitive(
 int console_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx);
+StripCtrlChars *console_stripctrl_new(Seat *seat, BinarySink *bs_out,
+                                      bool permit_cr, wchar_t substitution);
 
 /*
  * Other centralised seat functions.

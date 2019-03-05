@@ -351,6 +351,13 @@ static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
     return true;
 }
 
+StripCtrlChars *gtk_seat_stripctrl_new(Seat *seat, BinarySink *bs_out,
+                                       bool permit_cr, wchar_t substitution)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    return stripctrl_new_term(bs_out, permit_cr, substitution, inst->term);
+}
+
 static void gtk_seat_notify_remote_exit(Seat *seat);
 static void gtk_seat_update_specials_menu(Seat *seat);
 static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status);
@@ -380,6 +387,7 @@ static const SeatVtable gtk_seat_vt = {
     gtk_seat_get_windowid,
 #endif
     gtk_seat_get_window_pixel_size,
+    gtk_seat_stripctrl_new,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)

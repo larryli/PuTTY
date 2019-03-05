@@ -320,6 +320,12 @@ bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
     return true;
 }
 
+StripCtrlChars *win_seat_stripctrl_new(Seat *seat, BinarySink *bs_out,
+                                       bool permit_cr, wchar_t substitution)
+{
+    return stripctrl_new_term(bs_out, permit_cr, substitution, term);
+}
+
 static size_t win_seat_output(
     Seat *seat, bool is_stderr, const void *, size_t);
 static bool win_seat_eof(Seat *seat);
@@ -347,6 +353,7 @@ static const SeatVtable win_seat_vt = {
     nullseat_get_x_display,
     nullseat_get_windowid,
     win_seat_get_window_pixel_size,
+    win_seat_stripctrl_new,
 };
 static Seat win_seat_impl = { &win_seat_vt };
 Seat *const win_seat = &win_seat_impl;
