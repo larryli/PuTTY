@@ -100,6 +100,9 @@ struct terminal_tag {
     termchar basic_erase_char, erase_char;
 
     bufchain inbuf;		       /* terminal input buffer */
+    bufchain_sink inbuf_bs;
+    StripCtrlChars *inbuf_scc;
+
     pos curs;			       /* cursor */
     pos savecurs;		       /* saved cursor position */
     int marg_t, marg_b;		       /* scroll margins */

@@ -1644,6 +1644,9 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->paste_buffer = NULL;
     term->paste_len = 0;
     bufchain_init(&term->inbuf);
+    bufchain_sink_init(&term->inbuf_bs, &term->inbuf);
+    term->inbuf_scc = stripctrl_new_term(
+        BinarySink_UPCAST(&term->inbuf_bs), false, 0, term);
     bufchain_init(&term->printer_buf);
     term->printing = term->only_printing = false;
     term->print_job = NULL;
@@ -1736,6 +1739,7 @@ void term_free(Terminal *term)
 	term->beephead = beep->next;
 	sfree(beep);
     }
+    stripctrl_free(term->inbuf_scc);
     bufchain_clear(&term->inbuf);
     if(term->print_job)
 	printer_finish_job(term->print_job);
@@ -6775,7 +6779,7 @@ size_t term_data(Terminal *term, bool is_stderr, const void *data, size_t len)
 
 static void term_data_untrusted(Terminal *term, const void *data, size_t len)
 {
-    sanitise_term_data(&term->inbuf, data, len);
+    put_data(term->inbuf_scc, data, len);
     term_added_data(term);
 }
 
