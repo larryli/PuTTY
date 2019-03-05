@@ -499,9 +499,14 @@ static void console_close(FILE *outfp, int infd)
 static void console_prompt_text(FILE *outfp, const char *data, size_t len)
 {
     bufchain sanitised;
+    bufchain_sink bs;
 
     bufchain_init(&sanitised);
-    sanitise_term_data(&sanitised, data, len);
+    bufchain_sink_init(&bs, &sanitised);
+    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(&bs), false, 0);
+    put_data(scc, data, len);
+    stripctrl_free(scc);
+
     while (bufchain_size(&sanitised) > 0) {
         ptrlen sdata = bufchain_prefix(&sanitised);
         fwrite(sdata.ptr, 1, sdata.len, outfp);
