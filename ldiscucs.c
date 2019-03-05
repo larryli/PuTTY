@@ -65,21 +65,7 @@ void luni_send(Ldisc *ldisc, const wchar_t *widebuf, int len, bool interactive)
 		}
 	    }
 
-	    if (ch < 0x80) {
-		*p++ = (char) (ch);
-	    } else if (ch < 0x800) {
-		*p++ = (char) (0xC0 | (ch >> 6));
-		*p++ = (char) (0x80 | (ch & 0x3F));
-	    } else if (ch < 0x10000) {
-		*p++ = (char) (0xE0 | (ch >> 12));
-		*p++ = (char) (0x80 | ((ch >> 6) & 0x3F));
-		*p++ = (char) (0x80 | (ch & 0x3F));
-	    } else {
-		*p++ = (char) (0xF0 | (ch >> 18));
-		*p++ = (char) (0x80 | ((ch >> 12) & 0x3F));
-		*p++ = (char) (0x80 | ((ch >> 6) & 0x3F));
-		*p++ = (char) (0x80 | (ch & 0x3F));
-	    }
+            p += encode_utf8(p, ch);
 	}
     } else {
 	int rv;

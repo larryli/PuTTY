@@ -199,6 +199,11 @@ void smemclr(void *b, size_t len);
  * hinted at by the 'eq' in the name. */
 bool smemeq(const void *av, const void *bv, size_t len);
 
+/* Encode a single UTF-8 character. Assumes that illegal characters
+ * (such as things in the surrogate range, or > 0x10FFFF) have already
+ * been removed. */
+size_t encode_utf8(void *output, unsigned long ch);
+
 char *buildinfo(const char *newline);
 
 /*
