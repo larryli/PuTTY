@@ -137,8 +137,6 @@ static inline void bufchain_set_callback(bufchain *ch, IdempotentCallback *ic)
     bufchain_set_callback_inner(ch, ic, queue_idempotent_callback);
 }
 
-void sanitise_term_data(bufchain *out, const void *vdata, size_t len);
-
 bool validate_manual_hostkey(char *key);
 
 struct tm ltime(void);
