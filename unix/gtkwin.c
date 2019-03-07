@@ -351,11 +351,11 @@ static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
     return true;
 }
 
-StripCtrlChars *gtk_seat_stripctrl_new(Seat *seat, BinarySink *bs_out,
-                                       bool permit_cr, wchar_t substitution)
+StripCtrlChars *gtk_seat_stripctrl_new(
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
-    return stripctrl_new_term(bs_out, permit_cr, substitution, inst->term);
+    return stripctrl_new_term(bs_out, false, 0, inst->term);
 }
 
 static void gtk_seat_notify_remote_exit(Seat *seat);

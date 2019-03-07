@@ -190,7 +190,7 @@ static void ssh2_userauth_filter_queue(struct ssh2_userauth_state *s)
                 string.len = BANNER_LIMIT - bufchain_size(&s->banner);
             if (!s->banner_scc_initialised) {
                 s->banner_scc = seat_stripctrl_new(
-                    s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), false, 0);
+                    s->ppl.seat, BinarySink_UPCAST(&s->banner_bs), SIC_BANNER);
                 s->banner_scc_initialised = true;
             }
             if (s->banner_scc)

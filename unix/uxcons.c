@@ -465,10 +465,10 @@ static void console_eventlog(LogPolicy *lp, const char *string)
         console_logging_error(lp, string);
 }
 
-StripCtrlChars *console_stripctrl_new(Seat *seat, BinarySink *bs_out,
-                                      bool permit_cr, wchar_t substitution)
+StripCtrlChars *console_stripctrl_new(
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
-    return stripctrl_new(bs_out, permit_cr, substitution);
+    return stripctrl_new(bs_out, false, 0);
 }
 
 /*

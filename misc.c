@@ -334,7 +334,7 @@ bool nullseat_get_windowid(Seat *seat, long *id_out) { return false; }
 bool nullseat_get_window_pixel_size(
     Seat *seat, int *width, int *height) { return false; }
 StripCtrlChars *nullseat_stripctrl_new(
-    Seat *seat, BinarySink *bs, bool cr, wchar_t sub) { return NULL; }
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic) {return NULL;}
 
 void sk_free_peer_info(SocketPeerInfo *pi)
 {

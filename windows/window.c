@@ -320,10 +320,10 @@ bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
     return true;
 }
 
-StripCtrlChars *win_seat_stripctrl_new(Seat *seat, BinarySink *bs_out,
-                                       bool permit_cr, wchar_t substitution)
+StripCtrlChars *win_seat_stripctrl_new(
+    Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
-    return stripctrl_new_term(bs_out, permit_cr, substitution, term);
+    return stripctrl_new_term(bs_out, false, 0, term);
 }
 
 static size_t win_seat_output(
