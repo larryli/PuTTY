@@ -479,7 +479,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
                     while (bufchain_size(&s->banner) > 0) {
                         ptrlen data = bufchain_prefix(&s->banner);
-                        seat_stderr(s->ppl.seat, data.ptr, data.len);
+                        seat_stderr_pl(s->ppl.seat, data);
                         bufchain_consume(&s->banner, data.len);
                     }
                 }

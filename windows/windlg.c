@@ -799,8 +799,8 @@ static void win_gui_logging_error(LogPolicy *lp, const char *event)
 {
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    seat_stderr(win_seat, event, strlen(event));
-    seat_stderr(win_seat, "\r\n", 2);
+    seat_stderr_pl(win_seat, ptrlen_from_asciz(event));
+    seat_stderr_pl(win_seat, PTRLEN_LITERAL("\r\n"));
 }
 
 void showeventlog(HWND hwnd)

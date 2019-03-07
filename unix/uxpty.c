@@ -729,7 +729,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
                  * is better than no message at all */
                 message = dupprintf("\r\n[pterm: process terminated]\r\n");
             }
-	    seat_stdout(pty->seat, message, strlen(message));
+	    seat_stdout_pl(pty->seat, ptrlen_from_asciz(message));
             sfree(message);
 	}
 

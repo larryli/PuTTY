@@ -715,7 +715,7 @@ static const char *connect_to_host(
              * behave in quite the usual way. */
             const char *msg =
                 "Reusing a shared connection to this server.\r\n";
-            seat_stderr(ssh->seat, msg, strlen(msg));
+            seat_stderr_pl(ssh->seat, ptrlen_from_asciz(msg));
         }
     } else {
         /*

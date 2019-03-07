@@ -991,8 +991,12 @@ void seat_connection_fatal(Seat *seat, const char *fmt, ...);
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
 static inline size_t seat_stdout(Seat *seat, const void *data, size_t len)
 { return seat_output(seat, false, data, len); }
+static inline size_t seat_stdout_pl(Seat *seat, ptrlen data)
+{ return seat_output(seat, false, data.ptr, data.len); }
 static inline size_t seat_stderr(Seat *seat, const void *data, size_t len)
 { return seat_output(seat, true, data, len); }
+static inline size_t seat_stderr_pl(Seat *seat, ptrlen data)
+{ return seat_output(seat, true, data.ptr, data.len); }
 
 /*
  * Stub methods for seat implementations that want to use the obvious

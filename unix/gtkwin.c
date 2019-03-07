@@ -409,8 +409,8 @@ static void gtk_logging_error(LogPolicy *lp, const char *event)
 
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    seat_stderr(&inst->seat, event, strlen(event));
-    seat_stderr(&inst->seat, "\r\n", 2);
+    seat_stderr_pl(&inst->seat, ptrlen_from_asciz(event));
+    seat_stderr_pl(&inst->seat, PTRLEN_LITERAL("\r\n"));
 }
 
 static const LogPolicyVtable gtk_logpolicy_vt = {
