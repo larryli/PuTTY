@@ -207,11 +207,21 @@ char *host_strduptrim(const char *s)
                 break;
             p++;
         }
+        if (*p == '%') {
+            /*
+             * This delimiter character introduces an RFC 4007 scope
+             * id suffix (e.g. suffixing the address literal with
+             * %eth1 or %2 or some such). There's no syntax
+             * specification for the scope id, so just accept anything
+             * except the closing ].
+             */
+            p += strcspn(p, "]");
+        }
         if (*p == ']' && !p[1] && colons > 1) {
             /*
              * This looks like an IPv6 address literal (hex digits and
-             * at least two colons, contained in square brackets).
-             * Trim off the brackets.
+             * at least two colons, plus optional scope id, contained
+             * in square brackets). Trim off the brackets.
              */
             return dupprintf("%.*s", (int)(p - (s+1)), s+1);
         }
