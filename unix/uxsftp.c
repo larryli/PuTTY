@@ -436,7 +436,10 @@ bool create_directory(const char *name)
 
 char *dir_file_cat(const char *dir, const char *file)
 {
-    return dupcat(dir, "/", file, NULL);
+    ptrlen dir_pl = ptrlen_from_asciz(dir);
+    return dupcat(
+        dir, ptrlen_endswith(dir_pl, PTRLEN_LITERAL("/"), NULL) ? "" : "/",
+        file, NULL);
 }
 
 /*
