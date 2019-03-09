@@ -169,6 +169,7 @@ bool ptrlen_eq_string(ptrlen pl, const char *str);
 bool ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2);
 int ptrlen_strcmp(ptrlen pl1, ptrlen pl2);
 bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail);
+bool ptrlen_endswith(ptrlen whole, ptrlen suffix, ptrlen *tail);
 char *mkstr(ptrlen pl);
 int string_length_for_printf(size_t);
 /* Derive two printf arguments from a ptrlen, suitable for "%.*s" */

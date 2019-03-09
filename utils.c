@@ -924,6 +924,20 @@ bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail)
     return false;
 }
 
+bool ptrlen_endswith(ptrlen whole, ptrlen suffix, ptrlen *tail)
+{
+    if (whole.len >= suffix.len &&
+        !memcmp((char *)whole.ptr + (whole.len - suffix.len),
+                suffix.ptr, suffix.len)) {
+        if (tail) {
+            tail->ptr = whole.ptr;
+            tail->len = whole.len - suffix.len;
+        }
+        return true;
+    }
+    return false;
+}
+
 char *mkstr(ptrlen pl)
 {
     char *p = snewn(pl.len + 1, char);
