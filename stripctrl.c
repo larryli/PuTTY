@@ -76,6 +76,30 @@ StripCtrlChars *stripctrl_new_term_fn(
     return &scc->public;
 }
 
+void stripctrl_retarget(StripCtrlChars *sccpub, BinarySink *new_bs_out)
+{
+    StripCtrlCharsImpl *scc =
+        container_of(sccpub, StripCtrlCharsImpl, public);
+    scc->bs_out = new_bs_out;
+    stripctrl_reset(sccpub);
+}
+
+void stripctrl_reset(StripCtrlChars *sccpub)
+{
+    StripCtrlCharsImpl *scc =
+        container_of(sccpub, StripCtrlCharsImpl, public);
+
+    /*
+     * Clear all the fields that might have been in the middle of a
+     * multibyte character or non-default shift state, so that we can
+     * start converting a fresh piece of data to send to a channel
+     * that hasn't seen the previous output.
+     */
+    memset(&scc->term_utf8_decode, 0, sizeof(scc->term_utf8_decode));
+    memset(&scc->mbs_in, 0, sizeof(scc->mbs_in));
+    memset(&scc->mbs_out, 0, sizeof(scc->mbs_out));
+}
+
 void stripctrl_free(StripCtrlChars *sccpub)
 {
     StripCtrlCharsImpl *scc =

@@ -384,6 +384,8 @@ StripCtrlChars *stripctrl_new_term_fn(
         Terminal *, term_utf8_decode *, unsigned char));
 #define stripctrl_new_term(bs, cr, sub, term) \
     stripctrl_new_term_fn(bs, cr, sub, term, term_translate)
+void stripctrl_retarget(StripCtrlChars *sccpub, BinarySink *new_bs_out);
+void stripctrl_reset(StripCtrlChars *sccpub);
 void stripctrl_free(StripCtrlChars *sanpub);
 char *stripctrl_string_ptrlen(ptrlen str);
 static inline char *stripctrl_string(const char *str)
