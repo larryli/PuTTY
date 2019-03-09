@@ -394,23 +394,10 @@ StripCtrlChars *console_stripctrl_new(
     return stripctrl_new(bs_out, false, 0);
 }
 
-static void console_data_untrusted(HANDLE hout, const char *data, size_t len)
+static void console_write(HANDLE hout, ptrlen data)
 {
     DWORD dummy;
-    bufchain sanitised;
-    bufchain_sink bs;
-
-    bufchain_init(&sanitised);
-    bufchain_sink_init(&bs, &sanitised);
-    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(&bs), false, 0);
-    put_data(scc, data, len);
-    stripctrl_free(scc);
-
-    while (bufchain_size(&sanitised) > 0) {
-        ptrlen sdata = bufchain_prefix(&sanitised);
-        WriteFile(hout, sdata.ptr, sdata.len, &dummy, NULL);
-        bufchain_consume(&sanitised, sdata.len);
-    }
+    WriteFile(hout, data.ptr, data.len, &dummy, NULL);
 }
 
 int console_get_userpass_input(prompts_t *p)
@@ -459,17 +446,17 @@ int console_get_userpass_input(prompts_t *p)
      */
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
-	size_t l = strlen(p->name);
-	console_data_untrusted(hout, p->name, l);
-	if (p->name[l-1] != '\n')
-	    console_data_untrusted(hout, "\n", 1);
+	ptrlen plname = ptrlen_from_asciz(p->name);
+	console_write(hout, plname);
+        if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
+	    console_write(hout, PTRLEN_LITERAL("\n"));
     }
     /* ...but we always print any `instruction'. */
     if (p->instruction) {
-	size_t l = strlen(p->instruction);
-	console_data_untrusted(hout, p->instruction, l);
-	if (p->instruction[l-1] != '\n')
-	    console_data_untrusted(hout, "\n", 1);
+	ptrlen plinst = ptrlen_from_asciz(p->instruction);
+	console_write(hout, plinst);
+        if (!ptrlen_endswith(plinst, PTRLEN_LITERAL("\n"), NULL))
+	    console_write(hout, PTRLEN_LITERAL("\n"));
     }
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
@@ -486,7 +473,7 @@ int console_get_userpass_input(prompts_t *p)
 	    newmode |= ENABLE_ECHO_INPUT;
 	SetConsoleMode(hin, newmode);
 
-	console_data_untrusted(hout, pr->prompt, strlen(pr->prompt));
+	console_write(hout, ptrlen_from_asciz(pr->prompt));
 
         len = 0;
         while (1) {
@@ -510,10 +497,8 @@ int console_get_userpass_input(prompts_t *p)
 
 	SetConsoleMode(hin, savemode);
 
-	if (!pr->echo) {
-	    DWORD dummy;
-	    WriteFile(hout, "\r\n", 2, &dummy, NULL);
-	}
+	if (!pr->echo)
+            console_write(hout, PTRLEN_LITERAL("\r\n"));
 
         if (len == (size_t)-1) {
             return 0;                  /* failure due to read error */

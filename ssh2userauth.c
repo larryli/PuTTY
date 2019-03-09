@@ -81,6 +81,10 @@ struct ssh2_userauth_state {
     StripCtrlChars *banner_scc;
     bool banner_scc_initialised;
 
+    StripCtrlChars *ki_scc;
+    bool ki_scc_initialised;
+    bool ki_printed_header;
+
     PacketProtocolLayer ppl;
 };
 
@@ -176,6 +180,8 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     strbuf_free(s->last_methods_string);
     if (s->banner_scc)
         stripctrl_free(s->banner_scc);
+    if (s->ki_scc)
+        stripctrl_free(s->ki_scc);
     sfree(s);
 }
 
@@ -1174,6 +1180,14 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 
                 ppl_logevent("Attempting keyboard-interactive authentication");
 
+                if (!s->ki_scc_initialised) {
+                    s->ki_scc = seat_stripctrl_new(
+                        s->ppl.seat, NULL, SIC_KI_PROMPTS);
+                    if (s->ki_scc)
+                        stripctrl_enable_line_limiting(s->ki_scc);
+                    s->ki_scc_initialised = true;
+                }
+
                 crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
                 if (pktin->type != SSH2_MSG_USERAUTH_INFO_REQUEST) {
                     /* Server is not willing to do keyboard-interactive
@@ -1186,12 +1200,15 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     continue;
                 }
 
+                s->ki_printed_header = false;
+
                 /*
                  * Loop while the server continues to send INFO_REQUESTs.
                  */
                 while (pktin->type == SSH2_MSG_USERAUTH_INFO_REQUEST) {
 
                     ptrlen name, inst;
+                    strbuf *sb;
                     int i;
 
                     /*
@@ -1210,52 +1227,78 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      */
                     s->num_prompts = get_uint32(pktin);
                     for (i = 0; i < s->num_prompts; i++) {
-                        ptrlen prompt;
-                        bool echo;
-                        static char noprompt[] =
-                            "<server failed to send prompt>: ";
+                        ptrlen prompt = get_string(pktin);
+                        bool echo = get_bool(pktin);
 
-                        prompt = get_string(pktin);
-                        echo = get_bool(pktin);
+                        sb = strbuf_new();
                         if (!prompt.len) {
-                            prompt.ptr = noprompt;
-                            prompt.len = lenof(noprompt)-1;
+                            put_datapl(sb, PTRLEN_LITERAL(
+                                "<server failed to send prompt>: "));
+                        } else if (s->ki_scc) {
+                            stripctrl_retarget(
+                                s->ki_scc, BinarySink_UPCAST(sb));
+                            put_datapl(s->ki_scc, prompt);
+                            stripctrl_retarget(s->ki_scc, NULL);
+                        } else {
+                            put_datapl(sb, prompt);
                         }
-                        add_prompt(s->cur_prompt, mkstr(prompt), echo);
+                        add_prompt(s->cur_prompt, strbuf_to_str(sb), echo);
                     }
 
+                    /*
+                     * Make the header strings. This includes the
+                     * 'name' (optional dialog-box title) and
+                     * 'instruction' from the server.
+                     *
+                     * First, display our disambiguating header line
+                     * if this is the first time round the loop -
+                     * _unless_ the server has sent a completely empty
+                     * k-i packet with no prompts _or_ text, which
+                     * apparently some do. In that situation there's
+                     * no need to alert the user that the following
+                     * text is server- supplied, because, well, _what_
+                     * text?
+                     *
+                     * We also only do this if we got a stripctrl,
+                     * because if we didn't, that suggests this is all
+                     * being done via dialog boxes anyway.
+                     */
+                    if (!s->ki_printed_header && s->ki_scc &&
+                        (s->num_prompts || name.len || inst.len)) {
+                        ssh2_userauth_antispoof_msg(
+                            s, "Keyboard-interactive authentication "
+                            "prompts from server:");
+                        s->ki_printed_header = true;
+                    }
+
+                    sb = strbuf_new();
                     if (name.len) {
-                        /* FIXME: better prefix to distinguish from
-                         * local prompts? */
-                        s->cur_prompt->name =
-                            dupprintf("SSH server: %.*s", PTRLEN_PRINTF(name));
+                        stripctrl_retarget(s->ki_scc, BinarySink_UPCAST(sb));
+                        put_datapl(s->ki_scc, name);
+                        stripctrl_retarget(s->ki_scc, NULL);
+
                         s->cur_prompt->name_reqd = true;
                     } else {
-                        s->cur_prompt->name =
-                            dupstr("SSH server authentication");
+                        put_datapl(sb, PTRLEN_LITERAL(
+                            "SSH server authentication"));
                         s->cur_prompt->name_reqd = false;
                     }
-                    /* We add a prefix to try to make it clear that a prompt
-                     * has come from the server.
-                     * FIXME: ugly to print "Using..." in prompt _every_
-                     * time round. Can this be done more subtly? */
-                    /* Special case: for reasons best known to themselves,
-                     * some servers send k-i requests with no prompts and
-                     * nothing to display. Keep quiet in this case. */
-                    if (s->num_prompts || name.len || inst.len) {
-                        s->cur_prompt->instruction =
-                            dupprintf("Using keyboard-interactive "
-                                      "authentication.%s%.*s",
-                                      inst.len ? "\n" : "",
-                                      PTRLEN_PRINTF(inst));
+                    s->cur_prompt->name = strbuf_to_str(sb);
+
+                    sb = strbuf_new();
+                    if (inst.len) {
+                        stripctrl_retarget(s->ki_scc, BinarySink_UPCAST(sb));
+                        put_datapl(s->ki_scc, inst);
+                        stripctrl_retarget(s->ki_scc, NULL);
+
                         s->cur_prompt->instr_reqd = true;
                     } else {
                         s->cur_prompt->instr_reqd = false;
                     }
 
                     /*
-                     * Display any instructions, and get the user's
-                     * response(s).
+                     * Our prompts_t is fully constructed now. Get the
+                     * user's response(s).
                      */
                     s->userpass_ret = seat_get_userpass_input(
                         s->ppl.seat, s->cur_prompt, NULL);
@@ -1312,6 +1355,13 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     crMaybeWaitUntilV((pktin = ssh2_userauth_pop(s)) != NULL);
 
                 }
+
+                /*
+                 * Print our trailer line, if we printed a header.
+                 */
+                if (s->ki_printed_header)
+                    ssh2_userauth_antispoof_msg(
+                        s, "End of keyboard-interactive prompts from server");
 
                 /*
                  * We should have SUCCESS or FAILURE now.

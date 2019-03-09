@@ -1682,9 +1682,6 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->paste_buffer = NULL;
     term->paste_len = 0;
     bufchain_init(&term->inbuf);
-    bufchain_sink_init(&term->inbuf_bs, &term->inbuf);
-    term->inbuf_scc = stripctrl_new_term(
-        BinarySink_UPCAST(&term->inbuf_bs), false, 0, term);
     bufchain_init(&term->printer_buf);
     term->printing = term->only_printing = false;
     term->print_job = NULL;
@@ -1779,7 +1776,6 @@ void term_free(Terminal *term)
 	term->beephead = beep->next;
 	sfree(beep);
     }
-    stripctrl_free(term->inbuf_scc);
     bufchain_clear(&term->inbuf);
     if(term->print_job)
 	printer_finish_job(term->print_job);
@@ -6837,12 +6833,6 @@ size_t term_data(Terminal *term, bool is_stderr, const void *data, size_t len)
     return 0;
 }
 
-static void term_data_untrusted(Terminal *term, const void *data, size_t len)
-{
-    put_data(term->inbuf_scc, data, len);
-    term_added_data(term);
-}
-
 void term_provide_logctx(Terminal *term, LogContext *logctx)
 {
     term->logctx = logctx;
@@ -6877,6 +6867,12 @@ struct term_userpass_state {
     size_t pos;		/* cursor position */
 };
 
+/* Tiny wrapper to make it easier to write lots of little strings */
+static inline void term_write(Terminal *term, ptrlen data)
+{
+    term_data(term, false, data.ptr, data.len);
+}
+
 /*
  * Process some terminal data in the course of username/password
  * input.
@@ -6893,17 +6889,17 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 	s->done_prompt = false;
 	/* We only print the `name' caption if we have to... */
 	if (p->name_reqd && p->name) {
-	    size_t l = strlen(p->name);
-	    term_data_untrusted(term, p->name, l);
-	    if (p->name[l-1] != '\n')
-		term_data_untrusted(term, "\n", 1);
+            ptrlen plname = ptrlen_from_asciz(p->name);
+            term_write(term, plname);
+            if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
+                term_write(term, PTRLEN_LITERAL("\r\n"));
 	}
 	/* ...but we always print any `instruction'. */
 	if (p->instruction) {
-	    size_t l = strlen(p->instruction);
-	    term_data_untrusted(term, p->instruction, l);
-	    if (p->instruction[l-1] != '\n')
-		term_data_untrusted(term, "\n", 1);
+            ptrlen plinst = ptrlen_from_asciz(p->instruction);
+            term_write(term, plinst);
+            if (!ptrlen_endswith(plinst, PTRLEN_LITERAL("\n"), NULL))
+                term_write(term, PTRLEN_LITERAL("\r\n"));
 	}
 	/*
 	 * Zero all the results, in case we abort half-way through.
@@ -6921,7 +6917,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 	bool finished_prompt = false;
 
 	if (!s->done_prompt) {
-	    term_data_untrusted(term, pr->prompt, strlen(pr->prompt));
+	    term_write(term, ptrlen_from_asciz(pr->prompt));
 	    s->done_prompt = true;
 	    s->pos = 0;
 	}
@@ -6937,7 +6933,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 	    switch (c) {
 	      case 10:
 	      case 13:
-		term_data(term, false, "\r\n", 2);
+		term_write(term, PTRLEN_LITERAL("\r\n"));
                 prompt_ensure_result_size(pr, s->pos + 1);
 		pr->result[s->pos] = '\0';
 		/* go to next prompt, if any */
@@ -6949,7 +6945,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 	      case 127:
 		if (s->pos > 0) {
 		    if (pr->echo)
-			term_data(term, false, "\b \b", 3);
+			term_write(term, PTRLEN_LITERAL("\b \b"));
 		    s->pos--;
 		}
 		break;
@@ -6957,14 +6953,14 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 	      case 27:
 		while (s->pos > 0) {
 		    if (pr->echo)
-			term_data(term, false, "\b \b", 3);
+			term_write(term, PTRLEN_LITERAL("\b \b"));
 		    s->pos--;
 		}
 		break;
 	      case 3:
 	      case 4:
 		/* Immediate abort. */
-		term_data(term, false, "\r\n", 2);
+		term_write(term, PTRLEN_LITERAL("\r\n"));
 		sfree(s);
 		p->data = NULL;
 		return 0; /* user abort */
@@ -6979,7 +6975,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                     prompt_ensure_result_size(pr, s->pos + 1);
 		    pr->result[s->pos++] = c;
 		    if (pr->echo)
-			term_data(term, false, &c, 1);
+			term_write(term, make_ptrlen(&c, 1));
 		}
 		break;
 	    }

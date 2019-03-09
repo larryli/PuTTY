@@ -494,22 +494,9 @@ static void console_close(FILE *outfp, int infd)
         fclose(outfp);             /* will automatically close infd too */
 }
 
-static void console_prompt_text(FILE *outfp, const char *data, size_t len)
+static void console_write(FILE *outfp, ptrlen data)
 {
-    bufchain sanitised;
-    bufchain_sink bs;
-
-    bufchain_init(&sanitised);
-    bufchain_sink_init(&bs, &sanitised);
-    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(&bs), false, 0);
-    put_data(scc, data, len);
-    stripctrl_free(scc);
-
-    while (bufchain_size(&sanitised) > 0) {
-        ptrlen sdata = bufchain_prefix(&sanitised);
-        fwrite(sdata.ptr, 1, sdata.len, outfp);
-        bufchain_consume(&sanitised, sdata.len);
-    }
+    fwrite(data.ptr, 1, data.len, outfp);
     fflush(outfp);
 }
 
@@ -538,17 +525,17 @@ int console_get_userpass_input(prompts_t *p)
      */
     /* We only print the `name' caption if we have to... */
     if (p->name_reqd && p->name) {
-	size_t l = strlen(p->name);
-	console_prompt_text(outfp, p->name, l);
-	if (p->name[l-1] != '\n')
-	    console_prompt_text(outfp, "\n", 1);
+	ptrlen plname = ptrlen_from_asciz(p->name);
+	console_write(outfp, plname);
+        if (!ptrlen_endswith(plname, PTRLEN_LITERAL("\n"), NULL))
+	    console_write(outfp, PTRLEN_LITERAL("\n"));
     }
     /* ...but we always print any `instruction'. */
     if (p->instruction) {
-	size_t l = strlen(p->instruction);
-	console_prompt_text(outfp, p->instruction, l);
-	if (p->instruction[l-1] != '\n')
-	    console_prompt_text(outfp, "\n", 1);
+	ptrlen plinst = ptrlen_from_asciz(p->instruction);
+	console_write(outfp, plinst);
+        if (!ptrlen_endswith(plinst, PTRLEN_LITERAL("\n"), NULL))
+	    console_write(outfp, PTRLEN_LITERAL("\n"));
     }
 
     for (curr_prompt = 0; curr_prompt < p->n_prompts; curr_prompt++) {
@@ -566,7 +553,7 @@ int console_get_userpass_input(prompts_t *p)
 	    newmode.c_lflag |= ECHO;
 	tcsetattr(infd, TCSANOW, &newmode);
 
-	console_prompt_text(outfp, pr->prompt, strlen(pr->prompt));
+	console_write(outfp, ptrlen_from_asciz(pr->prompt));
 
         len = 0;
         while (1) {
@@ -588,7 +575,7 @@ int console_get_userpass_input(prompts_t *p)
 	tcsetattr(infd, TCSANOW, &oldmode);
 
 	if (!pr->echo)
-	    console_prompt_text(outfp, "\n", 1);
+            console_write(outfp, PTRLEN_LITERAL("\n"));
 
         if (len < 0) {
             console_close(outfp, infd);
