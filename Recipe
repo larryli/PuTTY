@@ -283,7 +283,7 @@ SFTP     = sftp sftpcommon logging cmdline
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
-MISC     = misc utils marshal memory stripctrl
+MISC     = misc utils marshal memory stripctrl wcwidth
 MISCNETCOMMON = timing callback MISC version tree234 CONF
 MISCNET  = MISCNETCOMMON be_misc settings proxy
 WINMISC  = MISCNET winstore winnet winhandl cmdline windefs winmisc winproxy

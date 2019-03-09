@@ -344,6 +344,10 @@ static inline bool in_utf(Terminal *term)
 
 unsigned long term_translate(
     Terminal *term, term_utf8_decode *utf8, unsigned char c);
+static inline int term_char_width(Terminal *term, unsigned int c)
+{
+    return term->cjk_ambig_wide ? mk_wcwidth_cjk(c) : mk_wcwidth(c);
+}
 
 /*
  * UCSINCOMPLETE is returned from term_translate if it's successfully

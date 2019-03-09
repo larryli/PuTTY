@@ -2784,9 +2784,7 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
     if (DIRECT_CHAR(c))
         width = 1;
     if (!width)
-        width = (term->cjk_ambig_wide ?
-                 mk_wcwidth_cjk((unsigned int) c) :
-                 mk_wcwidth((unsigned int) c));
+        width = term_char_width(term, c);
 
     if (term->wrapnext && term->wrap && width > 0) {
         cline->lattr |= LATTR_WRAPPED;

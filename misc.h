@@ -387,6 +387,7 @@ StripCtrlChars *stripctrl_new_term_fn(
 void stripctrl_retarget(StripCtrlChars *sccpub, BinarySink *new_bs_out);
 void stripctrl_reset(StripCtrlChars *sccpub);
 void stripctrl_free(StripCtrlChars *sanpub);
+void stripctrl_enable_line_limiting(StripCtrlChars *sccpub);
 char *stripctrl_string_ptrlen(StripCtrlChars *sccpub, ptrlen str);
 static inline char *stripctrl_string(StripCtrlChars *sccpub, const char *str)
 {

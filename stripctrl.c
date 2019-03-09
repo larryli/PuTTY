@@ -17,6 +17,7 @@
 #include "marshal.h"
 
 #define SCC_BUFSIZE 64
+#define LINE_LIMIT 77
 
 typedef struct StripCtrlCharsImpl StripCtrlCharsImpl;
 struct StripCtrlCharsImpl {
@@ -32,6 +33,10 @@ struct StripCtrlCharsImpl {
     bool last_term_utf;
     struct term_utf8_decode utf8;
     unsigned long (*translate)(Terminal *, term_utf8_decode *, unsigned char);
+
+    bool line_limit;
+    bool line_start;
+    size_t line_chars_remaining;
 
     BinarySink *bs_out;
 
@@ -98,6 +103,11 @@ void stripctrl_reset(StripCtrlChars *sccpub)
     memset(&scc->utf8, 0, sizeof(scc->utf8));
     memset(&scc->mbs_in, 0, sizeof(scc->mbs_in));
     memset(&scc->mbs_out, 0, sizeof(scc->mbs_out));
+
+    /*
+     * Also, reset the line-limiting system to its starting state.
+     */
+    scc->line_start = true;
 }
 
 void stripctrl_free(StripCtrlChars *sccpub)
@@ -108,9 +118,43 @@ void stripctrl_free(StripCtrlChars *sccpub)
     sfree(scc);
 }
 
+void stripctrl_enable_line_limiting(StripCtrlChars *sccpub)
+{
+    StripCtrlCharsImpl *scc =
+        container_of(sccpub, StripCtrlCharsImpl, public);
+    scc->line_limit = true;
+    scc->line_start = true;
+}
+
 static inline bool stripctrl_ctrlchar_ok(StripCtrlCharsImpl *scc, wchar_t wc)
 {
     return wc == L'\n' || (wc == L'\r' && scc->permit_cr);
+}
+
+static inline void stripctrl_check_line_limit(
+    StripCtrlCharsImpl *scc, wchar_t wc, size_t width)
+{
+    if (!scc->line_limit)
+        return;                        /* nothing to do */
+
+    if (scc->line_start) {
+        put_datapl(scc->bs_out, PTRLEN_LITERAL("| "));
+        scc->line_start = false;
+        scc->line_chars_remaining = LINE_LIMIT;
+    }
+
+    if (wc == '\n') {
+        scc->line_start = true;
+        return;
+    }
+
+    if (scc->line_chars_remaining < width) {
+        put_datapl(scc->bs_out, PTRLEN_LITERAL("\r\n> "));
+        scc->line_chars_remaining = LINE_LIMIT;
+    }
+
+    assert(width <= scc->line_chars_remaining);
+    scc->line_chars_remaining -= width;
 }
 
 static inline void stripctrl_locale_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
@@ -124,6 +168,8 @@ static inline void stripctrl_locale_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
         return;
     }
 
+    stripctrl_check_line_limit(scc, wc, mk_wcwidth(wc));
+
     char outbuf[MB_LEN_MAX];
     size_t produced = wcrtomb(outbuf, wc, &scc->mbs_out);
     if (produced > 0)
@@ -133,6 +179,8 @@ static inline void stripctrl_locale_put_wc(StripCtrlCharsImpl *scc, wchar_t wc)
 static inline void stripctrl_term_put_wc(
     StripCtrlCharsImpl *scc, unsigned long wc)
 {
+    ptrlen prefix = PTRLEN_LITERAL("");
+
     if (!(wc & ~0x9F)) {
         /* This is something the terminal interprets as a control
          * character. */
@@ -148,9 +196,14 @@ static inline void stripctrl_term_put_wc(
              * generally be in the ONLCR mode where it assumes that
              * internally, and any \r on input has been stripped
              * out. */
-            put_datapl(scc->bs_out, PTRLEN_LITERAL("\r"));
+            prefix = PTRLEN_LITERAL("\r");
         }
     }
+
+    stripctrl_check_line_limit(scc, wc, term_char_width(scc->term, wc));
+
+    if (prefix.len)
+        put_datapl(scc->bs_out, prefix);
 
     char outbuf[6];
     size_t produced;
