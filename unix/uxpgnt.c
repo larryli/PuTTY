@@ -328,6 +328,7 @@ static char *askpass_tty(const char *prompt)
     int ret;
     prompts_t *p = new_prompts();
     p->to_server = false;
+    p->from_server = false;
     p->name = dupstr("Pageant passphrase prompt");
     add_prompt(p, dupcat(prompt, ": ", (const char *)NULL), false);
     ret = console_get_userpass_input(p);

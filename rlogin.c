@@ -228,6 +228,7 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
 
         rlogin->prompt = new_prompts();
         rlogin->prompt->to_server = true;
+        rlogin->prompt->from_server = false;
         rlogin->prompt->name = dupstr("Rlogin login name");
         add_prompt(rlogin->prompt, dupstr("rlogin username: "), true); 
         ret = seat_get_userpass_input(rlogin->seat, rlogin->prompt, NULL);

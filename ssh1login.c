@@ -383,6 +383,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     if ((s->username = get_remote_username(s->conf)) == NULL) {
         s->cur_prompt = new_prompts();
         s->cur_prompt->to_server = true;
+        s->cur_prompt->from_server = false;
         s->cur_prompt->name = dupstr("SSH login name");
         add_prompt(s->cur_prompt, dupstr("login as: "), true);
         s->userpass_ret = seat_get_userpass_input(
@@ -641,6 +642,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 } else {
                     s->cur_prompt = new_prompts(s->ppl.seat);
                     s->cur_prompt->to_server = false;
+                    s->cur_prompt->from_server = false;
                     s->cur_prompt->name = dupstr("SSH key passphrase");
                     add_prompt(s->cur_prompt,
                                dupprintf("Passphrase for key \"%s\": ",
@@ -805,6 +807,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 }
                 ppl_logevent("Received TIS challenge");
                 s->cur_prompt->to_server = true;
+                s->cur_prompt->from_server = true;
                 s->cur_prompt->name = dupstr("SSH TIS authentication");
                 /* Prompt heuristic comes from OpenSSH */
                 if (!memchr(challenge.ptr, '\n', challenge.len)) {
@@ -853,6 +856,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 }
                 ppl_logevent("Received CryptoCard challenge");
                 s->cur_prompt->to_server = true;
+                s->cur_prompt->from_server = true;
                 s->cur_prompt->name = dupstr("SSH CryptoCard authentication");
                 s->cur_prompt->name_reqd = false;
                 /* Prompt heuristic comes from OpenSSH */
@@ -885,6 +889,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 return;
             }
             s->cur_prompt->to_server = true;
+            s->cur_prompt->from_server = false;
             s->cur_prompt->name = dupstr("SSH password");
             add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
                                                 s->username, s->savedhost),

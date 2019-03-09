@@ -385,6 +385,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
         } else if ((s->username = s->default_username) == NULL) {
             s->cur_prompt = new_prompts();
             s->cur_prompt->to_server = true;
+            s->cur_prompt->from_server = false;
             s->cur_prompt->name = dupstr("SSH login name");
             add_prompt(s->cur_prompt, dupstr("login as: "), true); 
             s->userpass_ret = seat_get_userpass_input(
@@ -822,6 +823,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                          */
                         s->cur_prompt = new_prompts();
                         s->cur_prompt->to_server = false;
+                        s->cur_prompt->from_server = false;
                         s->cur_prompt->name = dupstr("SSH key passphrase");
                         add_prompt(s->cur_prompt,
                                    dupprintf("Passphrase for key \"%s\": ",
@@ -1201,6 +1203,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     get_string(pktin); /* skip language tag */
                     s->cur_prompt = new_prompts();
                     s->cur_prompt->to_server = true;
+                    s->cur_prompt->from_server = true;
 
                     /*
                      * Get any prompt(s) from the packet.
@@ -1326,6 +1329,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                 s->cur_prompt = new_prompts();
                 s->cur_prompt->to_server = true;
+                s->cur_prompt->from_server = false;
                 s->cur_prompt->name = dupstr("SSH password");
                 add_prompt(s->cur_prompt, dupprintf("%s@%s's password: ",
                                                     s->username, s->hostname),
@@ -1420,6 +1424,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                     s->cur_prompt = new_prompts();
                     s->cur_prompt->to_server = true;
+                    s->cur_prompt->from_server = false;
                     s->cur_prompt->name = dupstr("New SSH password");
                     s->cur_prompt->instruction = mkstr(prompt);
                     s->cur_prompt->instr_reqd = true;

@@ -753,6 +753,7 @@ int main(int argc, char **argv)
 		prompts_t *p = new_prompts();
 		int ret;
 		p->to_server = false;
+		p->from_server = false;
 		p->name = dupstr("SSH key passphrase");
 		add_prompt(p, dupstr("Enter passphrase to load key: "), false);
 		ret = console_get_userpass_input(p);
@@ -889,6 +890,7 @@ int main(int argc, char **argv)
 	int ret;
 
 	p->to_server = false;
+	p->from_server = false;
 	p->name = dupstr("New SSH key passphrase");
 	add_prompt(p, dupstr("Enter passphrase to save key: "), false);
 	add_prompt(p, dupstr("Re-enter passphrase to verify: "), false);

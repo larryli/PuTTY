@@ -659,6 +659,15 @@ typedef struct {
      * sufficient).
      */
     bool to_server;
+
+    /*
+     * Indicates whether the prompts originated _at_ the server, so
+     * that the front end can display some kind of trust sigil that
+     * distinguishes (say) a legit private-key passphrase prompt from
+     * a fake one sent by a malicious server.
+     */
+    bool from_server;
+
     char *name;		/* Short description, perhaps for dialog box title */
     bool name_reqd;     /* Display of `name' required or optional? */
     char *instruction;	/* Long description, maybe with embedded newlines */
