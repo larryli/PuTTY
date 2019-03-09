@@ -387,10 +387,10 @@ StripCtrlChars *stripctrl_new_term_fn(
 void stripctrl_retarget(StripCtrlChars *sccpub, BinarySink *new_bs_out);
 void stripctrl_reset(StripCtrlChars *sccpub);
 void stripctrl_free(StripCtrlChars *sanpub);
-char *stripctrl_string_ptrlen(ptrlen str);
-static inline char *stripctrl_string(const char *str)
+char *stripctrl_string_ptrlen(StripCtrlChars *sccpub, ptrlen str);
+static inline char *stripctrl_string(StripCtrlChars *sccpub, const char *str)
 {
-    return stripctrl_string_ptrlen(ptrlen_from_asciz(str));
+    return stripctrl_string_ptrlen(sccpub, ptrlen_from_asciz(str));
 }
 
 #endif

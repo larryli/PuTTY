@@ -70,8 +70,9 @@ static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
  * version of a string for display, and free it automatically
  * afterwards.
  */
-#define with_stripctrl(varname, input)                          \
-    for (char *varname = stripctrl_string(input); varname;      \
+static StripCtrlChars *string_scc;
+#define with_stripctrl(varname, input)                                  \
+    for (char *varname = stripctrl_string(string_scc, input); varname;  \
          sfree(varname), varname = NULL)
 
 /* ----------------------------------------------------------------------
@@ -2862,6 +2863,8 @@ int psftp_main(int argc, char *argv[])
         stderr_scc = stripctrl_new(stderr_bs, false, L'\0');
         stderr_bs = BinarySink_UPCAST(stderr_scc);
     }
+
+    string_scc = stripctrl_new(NULL, false, L'\0');
 
     /*
      * If the loaded session provides a hostname, and a hostname has not

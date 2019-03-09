@@ -95,7 +95,7 @@ void stripctrl_reset(StripCtrlChars *sccpub)
      * start converting a fresh piece of data to send to a channel
      * that hasn't seen the previous output.
      */
-    memset(&scc->term_utf8_decode, 0, sizeof(scc->term_utf8_decode));
+    memset(&scc->utf8, 0, sizeof(scc->utf8));
     memset(&scc->mbs_in, 0, sizeof(scc->mbs_in));
     memset(&scc->mbs_out, 0, sizeof(scc->mbs_out));
 }
@@ -358,12 +358,12 @@ static void stripctrl_term_BinarySink_write(
     }
 }
 
-char *stripctrl_string_ptrlen(ptrlen str)
+char *stripctrl_string_ptrlen(StripCtrlChars *sccpub, ptrlen str)
 {
     strbuf *out = strbuf_new();
-    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(out), false, L'?');
-    put_datapl(scc, str);
-    stripctrl_free(scc);
+    stripctrl_retarget(sccpub, BinarySink_UPCAST(out));
+    put_datapl(sccpub, str);
+    stripctrl_retarget(sccpub, NULL);
     return strbuf_to_str(out);
 }
 

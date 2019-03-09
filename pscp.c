@@ -256,8 +256,9 @@ static NORETURN void bump(const char *fmt, ...)
  * version of a string for display, and free it automatically
  * afterwards.
  */
-#define with_stripctrl(varname, input)                          \
-    for (char *varname = stripctrl_string(input); varname;      \
+static StripCtrlChars *string_scc;
+#define with_stripctrl(varname, input)                                  \
+    for (char *varname = stripctrl_string(string_scc, input); varname;  \
          sfree(varname), varname = NULL)
 
 /*
@@ -1889,7 +1890,8 @@ static void sink(const char *targ, const char *src)
 	stat_bytes = 0;
 	stat_starttime = time(NULL);
 	stat_lasttime = 0;
-        stat_name = stripctrl_string(stripslashes(destfname, true));
+        stat_name = stripctrl_string(
+            string_scc, stripslashes(destfname, true));
 
 	received = 0;
 	while (received < act.size) {
@@ -2318,6 +2320,8 @@ int psftp_main(int argc, char *argv[])
         stderr_scc = stripctrl_new(stderr_bs, false, L'\0');
         stderr_bs = BinarySink_UPCAST(stderr_scc);
     }
+
+    string_scc = stripctrl_new(NULL, false, L'\0');
 
     if (list) {
 	if (argc != 1)
