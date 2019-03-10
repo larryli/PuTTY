@@ -408,7 +408,8 @@ static bool ssh2_transport_filter_queue(struct ssh2_transport_state *s)
 
 PktIn *ssh2_transport_pop(struct ssh2_transport_state *s)
 {
-    ssh2_transport_filter_queue(s);
+    if (ssh2_transport_filter_queue(s))
+        return NULL;   /* we've been freed */
     return pq_pop(s->ppl.in_pq);
 }
 
@@ -988,7 +989,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * from, even if we're _not_ looping on pq_pop. That way we can
      * still proactively handle those messages even if we're waiting
      * for a user response. */
-    ssh2_transport_filter_queue(s);
+    if (ssh2_transport_filter_queue(s))
+        return;   /* we've been freed */
 
     crBegin(s->crState);
 
