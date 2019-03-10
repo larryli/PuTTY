@@ -414,8 +414,26 @@ static int console_askappend(LogPolicy *lp, Filename *filename,
 	return 0;
 }
 
+bool console_antispoof_prompt = true;
 bool console_set_trust_status(Seat *seat, bool trusted)
 {
+    if (console_batch_mode || !is_interactive() || !console_antispoof_prompt) {
+        /*
+         * In batch mode, we don't need to worry about the server
+         * mimicking our interactive authentication, because the user
+         * already knows not to expect any.
+         *
+         * If standard input isn't connected to a terminal, likewise,
+         * because even if the server did send a spoof authentication
+         * prompt, the user couldn't respond to it via the terminal
+         * anyway.
+         *
+         * We also vacuously return success if the user has purposely
+         * disabled the antispoof prompt.
+         */
+        return true;
+    }
+
     return false;
 }
 

@@ -954,6 +954,41 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
         share_activate(s->connshare, s->peer_verstring);
 
     /*
+     * Signal the seat that authentication is done, so that it can
+     * deploy spoofing defences. If it doesn't have any, deploy our
+     * own fallback one.
+     *
+     * We do this here rather than at the end of userauth, because we
+     * might not have gone through userauth at all (if we're a
+     * connection-sharing downstream).
+     */
+    if (ssh2_connection_need_antispoof_prompt(s)) {
+        s->antispoof_prompt = new_prompts();
+        s->antispoof_prompt->to_server = true;
+        s->antispoof_prompt->from_server = false;
+        s->antispoof_prompt->name = dupstr("Authentication successful");
+        add_prompt(
+            s->antispoof_prompt,
+            dupstr("Access granted. Press Return to begin session. "), false);
+        s->antispoof_ret = seat_get_userpass_input(
+            s->ppl.seat, s->antispoof_prompt, NULL);
+        while (1) {
+            while (s->antispoof_ret < 0 &&
+                   bufchain_size(s->ppl.user_input) > 0)
+                s->antispoof_ret = seat_get_userpass_input(
+                    s->ppl.seat, s->antispoof_prompt, s->ppl.user_input);
+
+            if (s->antispoof_ret >= 0)
+                break;
+
+            s->want_user_input = true;
+            crReturnV;
+            s->want_user_input = false;
+        }
+        free_prompts(s->antispoof_prompt);
+    }
+
+    /*
      * Enable port forwardings.
      */
     portfwdmgr_config(s->portfwdmgr, s->conf);

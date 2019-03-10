@@ -534,6 +534,8 @@ static void usage(void)
            "-no-sanitise-stderr, -no-sanitise-stdout\n");
     printf("            do/don't strip control chars from standard "
            "output/error\n");
+    printf("  -no-antispoof   omit anti-spoofing prompt after "
+           "authentication\n");
     printf("  -m file   read remote command(s) from file\n");
     printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
     printf("  -N        don't start a shell/command (SSH-2 only)\n");
@@ -678,6 +680,8 @@ int main(int argc, char **argv)
         } else if (!strcmp(p, "-no-sanitise-stderr") ||
                    !strcmp(p, "-no-sanitize-stderr")) {
             sanitise_stderr = FORCE_OFF;
+        } else if (!strcmp(p, "-no-antispoof")) {
+            console_antispoof_prompt = false;
 	} else if (*p != '-') {
             strbuf *cmdbuf = strbuf_new();
 

@@ -1926,7 +1926,7 @@ bool have_ssh_host_key(const char *host, int port, const char *keytype);
  * Exports from console frontends (wincons.c, uxcons.c)
  * that aren't equivalents to things in windlg.c et al.
  */
-extern bool console_batch_mode;
+extern bool console_batch_mode, console_antispoof_prompt;
 int console_get_userpass_input(prompts_t *p);
 bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);

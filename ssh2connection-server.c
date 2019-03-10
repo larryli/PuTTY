@@ -297,3 +297,8 @@ void ssh2channel_send_terminal_size_change(SshChannel *sc, int w, int h)
 {
     unreachable("Should never be called in the server");
 }
+
+bool ssh2_connection_need_antispoof_prompt(struct ssh2_connection_state *s)
+{
+    return false;
+}
