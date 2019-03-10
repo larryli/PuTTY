@@ -373,6 +373,7 @@ static const char *gtk_seat_get_x_display(Seat *seat);
 #ifndef NOT_X_WINDOWS
 static bool gtk_seat_get_windowid(Seat *seat, long *id);
 #endif
+static bool gtk_seat_set_trust_status(Seat *seat, bool trusted);
 
 static const SeatVtable gtk_seat_vt = {
     gtk_seat_output,
@@ -396,6 +397,7 @@ static const SeatVtable gtk_seat_vt = {
 #endif
     gtk_seat_get_window_pixel_size,
     gtk_seat_stripctrl_new,
+    gtk_seat_set_trust_status,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)
@@ -5502,4 +5504,11 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     if (inst->ldisc) /* early backend failure might make this NULL already */
         ldisc_echoedit_update(inst->ldisc); /* cause ldisc to notice changes */
+}
+
+static bool gtk_seat_set_trust_status(Seat *seat, bool trusted)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    term_set_trust_status(inst->term, trusted);
+    return true;
 }

@@ -76,6 +76,9 @@ static const char *null_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
 			       const char *host, int port, char **realhost,
 			       int nodelay, int keepalive) {
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
+
     *backend_handle = NULL;
     return NULL;
 }
@@ -85,6 +88,9 @@ static const char *loop_init(Seat *seat, Backend **backend_handle,
                              const char *host, int port, char **realhost,
                              int nodelay, int keepalive) {
     struct loop_state *st = snew(struct loop_state);
+
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
 
     st->seat = seat;
     *backend_handle = &st->backend;

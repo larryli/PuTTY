@@ -194,6 +194,7 @@ static const SeatVtable sesschan_seat_vt = {
     nullseat_get_windowid,
     sesschan_get_window_pixel_size,
     nullseat_stripctrl_new,
+    nullseat_set_trust_status,
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,

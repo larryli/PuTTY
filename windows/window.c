@@ -339,6 +339,7 @@ static void win_seat_notify_remote_exit(Seat *seat);
 static void win_seat_connection_fatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
+static bool win_seat_set_trust_status(Seat *seat, bool trusted);
 
 static const SeatVtable win_seat_vt = {
     win_seat_output,
@@ -358,6 +359,7 @@ static const SeatVtable win_seat_vt = {
     nullseat_get_windowid,
     win_seat_get_window_pixel_size,
     win_seat_stripctrl_new,
+    win_seat_set_trust_status,
 };
 static Seat win_seat_impl = { &win_seat_vt };
 Seat *const win_seat = &win_seat_impl;
@@ -5823,4 +5825,10 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
     c->data = data;
     c->len = len;
     PostMessage(hwnd, WM_AGENT_CALLBACK, 0, (LPARAM)c);
+}
+
+static bool win_seat_set_trust_status(Seat *seat, bool trusted)
+{
+    term_set_trust_status(term, trusted);
+    return true;
 }

@@ -343,6 +343,8 @@ bool nullseat_get_window_pixel_size(
     Seat *seat, int *width, int *height) { return false; }
 StripCtrlChars *nullseat_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic) {return NULL;}
+bool nullseat_set_trust_status(Seat *seat, bool tr) { return false; }
+bool nullseat_set_trust_status_vacuously(Seat *seat, bool tr) { return true; }
 
 void sk_free_peer_info(SocketPeerInfo *pi)
 {

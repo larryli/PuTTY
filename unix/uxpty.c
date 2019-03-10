@@ -868,6 +868,9 @@ Backend *pty_backend_create(
     Pty *pty;
     int i;
 
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
+
     if (single_pty) {
 	pty = single_pty;
         assert(pty->conf == NULL);

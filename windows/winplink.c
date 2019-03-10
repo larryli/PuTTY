@@ -106,6 +106,7 @@ static const SeatVtable plink_seat_vt = {
     nullseat_get_windowid,
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
+    console_set_trust_status,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 

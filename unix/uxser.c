@@ -288,6 +288,9 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
     const char *err;
     char *line;
 
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
+
     serial = snew(Serial);
     serial->backend.vt = &serial_backend;
     *backend_handle = &serial->backend;

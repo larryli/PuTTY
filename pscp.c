@@ -81,6 +81,7 @@ static const SeatVtable pscp_seat_vt = {
     nullseat_get_windowid,
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
+    nullseat_set_trust_status_vacuously,
 };
 static Seat pscp_seat[1] = {{ &pscp_seat_vt }};
 

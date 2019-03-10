@@ -130,6 +130,9 @@ static const char *raw_init(Seat *seat, Backend **backend_handle,
     int addressfamily;
     char *loghost;
 
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
+
     raw = snew(Raw);
     raw->plug.vt = &Raw_plugvt;
     raw->backend.vt = &raw_backend;

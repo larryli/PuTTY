@@ -414,6 +414,11 @@ static int console_askappend(LogPolicy *lp, Filename *filename,
 	return 0;
 }
 
+bool console_set_trust_status(Seat *seat, bool trusted)
+{
+    return false;
+}
+
 /*
  * Warn about the obsolescent key file format.
  * 

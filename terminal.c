@@ -1810,12 +1810,9 @@ void term_free(Terminal *term)
     sfree(term);
 }
 
-void term_set_trust_status(Terminal *term, SeatTrustStatus status)
+void term_set_trust_status(Terminal *term, bool trusted)
 {
-    /* We don't need to distinguish STS_UNTRUSTED from STS_SESSION,
-     * because the terminal's method of communicating trust can flip
-     * back and forth between trusted and untrusted easily. */
-    term->trusted = (status == STS_TRUSTED);
+    term->trusted = trusted;
 }
 
 /*

@@ -689,6 +689,9 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
     char *loghost;
     int addressfamily;
 
+    /* No local authentication phase in this protocol */
+    seat_set_trust_status(seat, false);
+
     telnet = snew(Telnet);
     telnet->plug.vt = &Telnet_plugvt;
     telnet->backend.vt = &telnet_backend;

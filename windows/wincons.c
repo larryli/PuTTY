@@ -279,6 +279,11 @@ int console_confirm_weak_cached_hostkey(
     }
 }
 
+bool console_set_trust_status(Seat *seat, bool trusted)
+{
+    return false;
+}
+
 /*
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
