@@ -2110,7 +2110,7 @@ static void check_selection(Terminal *term, pos from, pos to)
 
 static void clear_line(Terminal *term, termline *line)
 {
-    assert(term->cols == line->cols);
+    resizeline(term, line, term->cols);
     for (int i = 0; i < term->cols; i++)
         copy_termchar(line, i, &term->erase_char);
     line->lattr = LATTR_NORM;
