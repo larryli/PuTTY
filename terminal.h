@@ -16,6 +16,9 @@ struct beeptime {
     unsigned long ticks;
 };
 
+#define TRUST_SIGIL_WIDTH 3
+#define TRUST_SIGIL_CHAR 0xDFFE
+
 typedef struct {
     int y, x;
 } pos;
@@ -55,10 +58,12 @@ struct termline {
     bool temporary;                    /* true if decompressed from scrollback */
     int cc_free;		       /* offset to first cc in free list */
     struct termchar *chars;
+    bool trusted;
 };
 
 struct bidi_cache_entry {
     int width;
+    bool trusted;
     struct termchar *chars;
     int *forward, *backward;	       /* the permutations of line positions */
 };
@@ -276,6 +281,12 @@ struct terminal_tag {
     int wcFromTo_size;
     struct bidi_cache_entry *pre_bidi_cache, *post_bidi_cache;
     size_t bidi_cache_size;
+
+    /*
+     * Current trust state, used to annotate every line of the
+     * terminal that a graphic character is output to.
+     */
+    bool trusted;
 
     /*
      * We copy a bunch of stuff out of the Conf structure into local

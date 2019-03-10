@@ -1627,6 +1627,7 @@ void term_provide_logctx(Terminal *term, LogContext *logctx);
 void term_set_focus(Terminal *term, bool has_focus);
 char *term_get_ttymode(Terminal *term, const char *mode);
 int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
+void term_set_trust_status(Terminal *term, SeatTrustStatus status);
 
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,
@@ -1977,6 +1978,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
 /*
  * Exports from minibidi.c.
  */
+#define BIDI_CHAR_INDEX_NONE ((unsigned short)-1)
 typedef struct bidi_char {
     unsigned int origwc, wc;
     unsigned short index, nchars;

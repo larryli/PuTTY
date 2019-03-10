@@ -126,6 +126,7 @@ static termline *newtermline(Terminal *term, int cols, bool bce)
 	line->chars[j] = (bce ? term->erase_char : term->basic_erase_char);
     line->cols = line->size = cols;
     line->lattr = LATTR_NORM;
+    line->trusted = false;
     line->temporary = false;
     line->cc_free = 0;
 
@@ -707,10 +708,11 @@ static compressed_scrollback_line *compressline(termline *ldata)
     }
 
     /*
-     * Next store the lattrs; same principle.
+     * Next store the lattrs; same principle. We add one extra bit to
+     * this to indicate the trust state of the line.
      */
     {
-	int n = ldata->lattr;
+	int n = ldata->lattr | (ldata->trusted ? 0x10000 : 0);
 	while (n >= 128) {
 	    put_byte(b, (unsigned char)((n & 0x7F) | 0x80));
 	    n >>= 7;
@@ -954,12 +956,14 @@ static termline *decompressline(compressed_scrollback_line *line)
     /*
      * Now read in the lattr.
      */
-    ldata->lattr = shift = 0;
+    int lattr = shift = 0;
     do {
 	byte = get_byte(bs);
-	ldata->lattr |= (byte & 0x7F) << shift;
+	lattr |= (byte & 0x7F) << shift;
 	shift += 7;
     } while (byte & 0x80);
+    ldata->lattr = lattr & 0xFFFF;
+    ldata->trusted = (lattr & 0x10000) != 0;
 
     /*
      * Now we read in each of the RLE streams in turn.
@@ -1748,6 +1752,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->last_graphic_char = 0;
 
+    term->trusted = true;
+
     return term;
 }
 
@@ -1802,6 +1808,14 @@ void term_free(Terminal *term)
     conf_free(term->conf);
 
     sfree(term);
+}
+
+void term_set_trust_status(Terminal *term, SeatTrustStatus status)
+{
+    /* We don't need to distinguish STS_UNTRUSTED from STS_SESSION,
+     * because the terminal's method of communicating trust can flip
+     * back and forth between trusted and untrusted easily. */
+    term->trusted = (status == STS_TRUSTED);
 }
 
 /*
@@ -2152,6 +2166,20 @@ static void clear_line(Terminal *term, termline *line)
     line->lattr = LATTR_NORM;
 }
 
+static void check_trust_status(Terminal *term, termline *line)
+{
+    if (line->trusted != term->trusted) {
+        /*
+         * If we're displaying trusted output on a previously
+         * untrusted line, or vice versa, we need to switch the
+         * 'trusted' attribute on this terminal line, and also clear
+         * all its previous contents.
+         */
+        clear_line(term, line);
+        line->trusted = term->trusted;
+    }
+}
+
 /*
  * Scroll the screen. (`lines' is +ve for scrolling forward, -ve
  * for backward.) `sb' is true if the scrolling is permitted to
@@ -2240,6 +2268,7 @@ static void scroll(Terminal *term, int topline, int botline,
 	    }
             resizeline(term, line, term->cols);
             clear_line(term, line);
+            check_trust_status(term, line);
 	    addpos234(term->screen, line, botline);
 
 	    /*
@@ -2380,6 +2409,7 @@ static void check_boundary(Terminal *term, int x, int y)
 	return;
 
     ldata = scrlineptr(y);
+    check_trust_status(term, ldata);
     check_line_size(term, ldata);
     if (x == term->cols) {
 	ldata->lattr &= ~LATTR_WRAPPED2;
@@ -2450,6 +2480,7 @@ static void erase_lots(Terminal *term,
 	    scroll(term, 0, scrolllines - 1, scrolllines, true);
     } else {
 	termline *ldata = scrlineptr(start.y);
+        check_trust_status(term, ldata);
 	while (poslt(start, end)) {
             check_line_size(term, ldata);
 	    if (start.x == term->cols) {
@@ -2462,6 +2493,7 @@ static void erase_lots(Terminal *term,
 	    }
 	    if (incpos(start) && start.y < term->rows) {
 		ldata = scrlineptr(start.y);
+                check_trust_status(term, ldata);
 	    }
 	}
     }
@@ -2530,6 +2562,7 @@ static void insch(Terminal *term, int n)
     if (dir < 0)
 	check_boundary(term, term->curs.x + n, term->curs.y);
     ldata = scrlineptr(term->curs.y);
+    check_trust_status(term, ldata);
     if (dir < 0) {
 	for (j = 0; j < m; j++)
 	    move_termchar(ldata,
@@ -2803,12 +2836,18 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
          (c & CSET_MASK) == 0) && term->logctx)
         logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 
+    check_trust_status(term, cline);
+
+    int linecols = term->cols;
+    if (cline->trusted)
+        linecols -= TRUST_SIGIL_WIDTH;
+
     /*
      * Preliminary check: if the terminal is only one character cell
      * wide, then we cannot display any double-width character at all.
      * Substitute single-width REPLACEMENT CHARACTER instead.
      */
-    if (width == 2 && term->cols < 2) {
+    if (width == 2 && linecols < 2) {
         width = 1;
         c = 0xFFFD;
     }
@@ -2831,7 +2870,7 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
          */
         check_boundary(term, term->curs.x, term->curs.y);
         check_boundary(term, term->curs.x+2, term->curs.y);
-        if (term->curs.x == term->cols-1) {
+        if (term->curs.x >= linecols-1) {
             copy_termchar(cline, term->curs.x,
                           &term->erase_char);
             cline->lattr |= LATTR_WRAPPED | LATTR_WRAPPED2;
@@ -2902,8 +2941,8 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
         return;
     }
     term->curs.x++;
-    if (term->curs.x == term->cols) {
-        term->curs.x--;
+    if (term->curs.x >= linecols) {
+        term->curs.x = linecols - 1;
         term->wrapnext = true;
         if (term->wrap && term->vt52_mode) {
             cline->lattr |= LATTR_WRAPPED;
@@ -3514,6 +3553,7 @@ static void term_out(Terminal *term)
 			}
 			ldata = scrlineptr(term->curs.y);
                         check_line_size(term, ldata);
+                        check_trust_status(term, ldata);
                         ldata->lattr = nlattr;
 		    }
 		    break;
@@ -4297,6 +4337,7 @@ static void term_out(Terminal *term)
 			    int p = term->curs.x;
 			    termline *cline = scrlineptr(term->curs.y);
 
+                            check_trust_status(term, cline);
 			    if (n > term->cols - term->curs.x)
 				n = term->cols - term->curs.x;
 			    cursplus = term->curs;
@@ -4919,7 +4960,7 @@ static void parse_optionalrgb(optionalrgb *out, unsigned *values)
  * fed to the algorithm on each line of the display.
  */
 static bool term_bidi_cache_hit(Terminal *term, int line,
-                                termchar *lbefore, int width)
+                                termchar *lbefore, int width, bool trusted)
 {
     int i;
 
@@ -4935,6 +4976,9 @@ static bool term_bidi_cache_hit(Terminal *term, int line,
     if (term->pre_bidi_cache[line].width != width)
 	return false;		       /* line is wrong width */
 
+    if (term->pre_bidi_cache[line].trusted != trusted)
+	return false;		       /* line has wrong trust state */
+
     for (i = 0; i < width; i++)
 	if (!termchars_equal(term->pre_bidi_cache[line].chars+i, lbefore+i))
 	    return false;	       /* line doesn't match cache */
@@ -4944,7 +4988,7 @@ static bool term_bidi_cache_hit(Terminal *term, int line,
 
 static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 				  termchar *lafter, bidi_char *wcTo,
-				  int width, int size)
+				  int width, int size, bool trusted)
 {
     size_t i, j;
 
@@ -4959,6 +5003,8 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
 		term->post_bidi_cache[j].chars = NULL;
 	    term->pre_bidi_cache[j].width =
 		term->post_bidi_cache[j].width = -1;
+	    term->pre_bidi_cache[j].trusted = false;
+            term->post_bidi_cache[j].trusted = false;
 	    term->pre_bidi_cache[j].forward =
 		term->post_bidi_cache[j].forward = NULL;
 	    term->pre_bidi_cache[j].backward =
@@ -4973,8 +5019,10 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
     sfree(term->post_bidi_cache[line].backward);
 
     term->pre_bidi_cache[line].width = width;
+    term->pre_bidi_cache[line].trusted = trusted;
     term->pre_bidi_cache[line].chars = snewn(size, termchar);
     term->post_bidi_cache[line].width = width;
+    term->post_bidi_cache[line].trusted = trusted;
     term->post_bidi_cache[line].chars = snewn(size, termchar);
     term->post_bidi_cache[line].forward = snewn(width, int);
     term->post_bidi_cache[line].backward = snewn(width, int);
@@ -4987,11 +5035,13 @@ static void term_bidi_cache_store(Terminal *term, int line, termchar *lbefore,
     for (i = j = 0; j < width; j += wcTo[i].nchars, i++) {
 	int p = wcTo[i].index;
 
-	assert(0 <= p && p < width);
+        if (p != BIDI_CHAR_INDEX_NONE) {
+            assert(0 <= p && p < width);
 
-        for (int x = 0; x < wcTo[i].nchars; x++) {
-            term->post_bidi_cache[line].backward[j+x] = p+x;
-            term->post_bidi_cache[line].forward[p+x] = j+x;
+            for (int x = 0; x < wcTo[i].nchars; x++) {
+                term->post_bidi_cache[line].backward[j+x] = p+x;
+                term->post_bidi_cache[line].forward[p+x] = j+x;
+            }
         }
     }
 }
@@ -5011,9 +5061,11 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
     int it;
 
     /* Do Arabic shaping and bidi. */
-    if(!term->bidi || !term->arabicshaping) {
+    if (!term->bidi || !term->arabicshaping ||
+        (ldata->trusted && term->cols > TRUST_SIGIL_WIDTH)) {
 
-	if (!term_bidi_cache_hit(term, scr_y, ldata->chars, term->cols)) {
+	if (!term_bidi_cache_hit(term, scr_y, ldata->chars, term->cols,
+                                 ldata->trusted)) {
 
 	    if (term->wcFromTo_size < term->cols) {
 		term->wcFromTo_size = term->cols;
@@ -5055,6 +5107,19 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 		term->wcFrom[it].nchars = 1;
 	    }
 
+            if (ldata->trusted && term->cols > TRUST_SIGIL_WIDTH) {
+                memmove(
+                    term->wcFrom + TRUST_SIGIL_WIDTH, term->wcFrom,
+                    (term->cols - TRUST_SIGIL_WIDTH) * sizeof(*term->wcFrom));
+                for (it = 0; it < TRUST_SIGIL_WIDTH; it++) {
+                    term->wcFrom[it].origwc = term->wcFrom[it].wc =
+                        (it == 0 ? TRUST_SIGIL_CHAR :
+                         it == 1 ? UCSWIDE : ' ');
+                    term->wcFrom[it].index = BIDI_CHAR_INDEX_NONE;
+                    term->wcFrom[it].nchars = 1;
+                }
+            }
+
             int nbc = 0;
             for (it = 0; it < term->cols; it++) {
                 term->wcFrom[nbc] = term->wcFrom[it];
@@ -5088,22 +5153,27 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 	    for (it=0; it<nbc; it++) {
                 int ipos = term->wcTo[it].index;
                 for (int j = 0; j < term->wcTo[it].nchars; j++) {
-                    term->ltemp[opos] = ldata->chars[ipos];
-                    if (term->ltemp[opos].cc_next)
-                        term->ltemp[opos].cc_next -= opos - ipos;
+                    if (ipos != BIDI_CHAR_INDEX_NONE) {
+                        term->ltemp[opos] = ldata->chars[ipos];
+                        if (term->ltemp[opos].cc_next)
+                            term->ltemp[opos].cc_next -= opos - ipos;
 
-                    if (j > 0)
-                        term->ltemp[opos].chr = UCSWIDE;
-                    else if (term->wcTo[it].origwc != term->wcTo[it].wc)
-                        term->ltemp[opos].chr = term->wcTo[it].wc;
-
+                        if (j > 0)
+                            term->ltemp[opos].chr = UCSWIDE;
+                        else if (term->wcTo[it].origwc != term->wcTo[it].wc)
+                            term->ltemp[opos].chr = term->wcTo[it].wc;
+                    } else {
+                        term->ltemp[opos] = term->basic_erase_char;
+                        term->ltemp[opos].chr =
+                            j > 0 ? UCSWIDE : term->wcTo[it].origwc;
+                    }
                     opos++;
                 }
 	    }
             assert(opos == term->cols);
 	    term_bidi_cache_store(term, scr_y, ldata->chars,
 				  term->ltemp, term->wcTo,
-                                  term->cols, ldata->size);
+                                  term->cols, ldata->size, ldata->trusted);
 
 	    lchars = term->ltemp;
 	} else {
@@ -5120,10 +5190,21 @@ static void do_paint_draw(Terminal *term, termline *ldata, int x, int y,
                           wchar_t *ch, int ccount,
                           unsigned long attr, truecolour tc)
 {
-    win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
-    if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
-        win_draw_cursor(term->win, x, y, ch, ccount,
-                        attr, ldata->lattr, tc);
+    if (ch[0] == TRUST_SIGIL_CHAR) {
+        assert(ldata->trusted);
+        assert(ccount == 1);
+        assert(attr & ATTR_WIDE);
+        wchar_t tch[2];
+        tch[0] = tch[1] = L' ';
+        win_draw_text(term->win, x, y, tch, 2, term->basic_erase_char.attr,
+                      ldata->lattr, term->basic_erase_char.truecolour);
+        win_draw_trust_sigil(term->win, x, y);
+    } else {
+        win_draw_text(term->win, x, y, ch, ccount, attr, ldata->lattr, tc);
+        if (attr & (TATTR_ACTCURS | TATTR_PASCURS))
+            win_draw_cursor(term->win, x, y, ch, ccount,
+                            attr, ldata->lattr, tc);
+    }
 }
 
 /*
@@ -5421,6 +5502,14 @@ static void do_paint(Terminal *term)
 		(j > 0 && d[-1].cc_next != 0))
 		break_run = true;
 
+            /*
+             * Break on both sides of a trust sigil.
+             */
+            if (d->chr == TRUST_SIGIL_CHAR ||
+                (j >= 2 && d[-1].chr == UCSWIDE &&
+                 d[-2].chr == TRUST_SIGIL_CHAR))
+                break_run = true;
+
 	    if (!term->ucsdata->dbcs_screenfont && !dirty_line) {
 		if (term->disptext[i]->chars[j].chr == tchar &&
 		    (term->disptext[i]->chars[j].attr &~ DATTR_MASK) == tattr)
@@ -5689,9 +5778,17 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
 		decpos(nlpos);
 	    if (poslt(nlpos, bottom))
 		nl = true;
-	} else if (ldata->lattr & LATTR_WRAPPED2) {
-	    /* Ignore the last char on the line in a WRAPPED2 line. */
-	    decpos(nlpos);
+	} else {
+            if (ldata->trusted) {
+                /* A wrapped line with a trust sigil on it terminates
+                 * a few characters earlier. */
+                nlpos.x = (nlpos.x < TRUST_SIGIL_WIDTH ? 0 :
+                           nlpos.x - TRUST_SIGIL_WIDTH);
+            }
+            if (ldata->lattr & LATTR_WRAPPED2) {
+                /* Ignore the last char on the line in a WRAPPED2 line. */
+                decpos(nlpos);
+            }
 	}
 
 	/*
@@ -5999,6 +6096,9 @@ static int wordtype(Terminal *term, int uc)
 static int line_cols(Terminal *term, termline *ldata)
 {
     int cols = term->cols;
+    if (ldata->trusted) {
+        cols -= TRUST_SIGIL_WIDTH;
+    }
     if (ldata->lattr & LATTR_WRAPPED2)
         cols--;
     if (cols < 0)
