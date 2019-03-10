@@ -231,6 +231,7 @@ static void wintw_draw_text(TermWin *, int x, int y, wchar_t *text, int len,
                             unsigned long attrs, int lattrs, truecolour tc);
 static void wintw_draw_cursor(TermWin *, int x, int y, wchar_t *text, int len,
                               unsigned long attrs, int lattrs, truecolour tc);
+static void wintw_draw_trust_sigil(TermWin *, int x, int y);
 static int wintw_char_width(TermWin *, int uc);
 static void wintw_free_draw_ctx(TermWin *);
 static void wintw_set_cursor_pos(TermWin *, int x, int y);
@@ -262,6 +263,7 @@ static const TermWinVtable windows_termwin_vt = {
     wintw_setup_draw_ctx,
     wintw_draw_text,
     wintw_draw_cursor,
+    wintw_draw_trust_sigil,
     wintw_char_width,
     wintw_free_draw_ctx,
     wintw_set_cursor_pos,
@@ -290,6 +292,8 @@ static const TermWinVtable windows_termwin_vt = {
 
 static TermWin wintw[1];
 static HDC wintw_hdc;
+
+static HICON icon;
 
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
@@ -674,6 +678,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         prepare_session(conf);
     }
 
+    icon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
+
     if (!prev) {
         WNDCLASSW wndclass;
 
@@ -682,7 +688,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	wndclass.cbClsExtra = 0;
 	wndclass.cbWndExtra = 0;
 	wndclass.hInstance = inst;
-	wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
+	wndclass.hIcon = icon;
 	wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
 	wndclass.hbrBackground = NULL;
 	wndclass.lpszMenuName = NULL;
@@ -3984,6 +3990,17 @@ static void wintw_draw_cursor(
 	    }
 	}
     }
+}
+
+static void wintw_draw_trust_sigil(TermWin *tw, int x, int y)
+{
+    x *= font_width;
+    y *= font_height;
+    x += offset_width;
+    y += offset_height;
+
+    DrawIconEx(wintw_hdc, x, y, icon, font_width * 2, font_height,
+               0, NULL, DI_NORMAL);
 }
 
 /* This function gets the actual width of a character in the normal font.

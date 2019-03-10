@@ -1099,6 +1099,10 @@ struct TermWinVtable {
      * redraw it in different colours). */
     void (*draw_cursor)(TermWin *, int x, int y, wchar_t *text, int len,
                         unsigned long attrs, int line_attrs, truecolour tc);
+    /* Draw the sigil indicating that a line of text has come from
+     * PuTTY itself rather than the far end (defence against end-of-
+     * authentication spoofing) */
+    void (*draw_trust_sigil)(TermWin *, int x, int y);
     int (*char_width)(TermWin *, int uc);
     void (*free_draw_ctx)(TermWin *);
 
@@ -1151,6 +1155,8 @@ static inline void win_draw_cursor(
     TermWin *win, int x, int y, wchar_t *text, int len,
     unsigned long attrs, int line_attrs, truecolour tc)
 { win->vt->draw_cursor(win, x, y, text, len, attrs, line_attrs, tc); }
+static inline void win_draw_trust_sigil(TermWin *win, int x, int y)
+{ win->vt->draw_trust_sigil(win, x, y); }
 static inline int win_char_width(TermWin *win, int uc)
 { return win->vt->char_width(win, uc); }
 static inline void win_free_draw_ctx(TermWin *win)

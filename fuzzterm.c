@@ -69,6 +69,10 @@ static void fuzz_draw_cursor(
     }
     printf("\n");
 }
+static void fuzz_draw_trust_sigil(TermWin *tw, int x, int y)
+{
+    printf("TRUST@(%d,%d)\n", x, y);
+}
 static int fuzz_char_width(TermWin *tw, int uc) { return 1; }
 static void fuzz_free_draw_ctx(TermWin *tw) {}
 static void fuzz_set_cursor_pos(TermWin *tw, int x, int y) {}
@@ -101,6 +105,7 @@ static const TermWinVtable fuzz_termwin_vt = {
     fuzz_setup_draw_ctx,
     fuzz_draw_text,
     fuzz_draw_cursor,
+    fuzz_draw_trust_sigil,
     fuzz_char_width,
     fuzz_free_draw_ctx,
     fuzz_set_cursor_pos,

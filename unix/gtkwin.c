@@ -88,6 +88,8 @@ struct clipboard_state {
 #endif
 };
 
+typedef struct XpmHolder XpmHolder;    /* only used for GTK 1 */
+
 struct GtkFrontend {
     GtkWidget *window, *area, *sbar;
     gboolean sbar_visible;
@@ -183,6 +185,12 @@ struct GtkFrontend {
 #endif
     bool send_raw_mouse;
     unifont_drawctx uctx;
+#if GTK_CHECK_VERSION(2,0,0)
+    GdkPixbuf *trust_sigil_pb;
+#else
+    GdkPixmap *trust_sigil_pm;
+#endif
+    int trust_sigil_w, trust_sigil_h;
 
     Seat seat;
     TermWin termwin;
@@ -2311,6 +2319,17 @@ static void delete_inst(GtkFrontend *inst)
         log_free(inst->logctx);
         inst->logctx = NULL;
     }
+#if GTK_CHECK_VERSION(2,0,0)
+    if (inst->trust_sigil_pb) {
+        g_object_unref(G_OBJECT(inst->trust_sigil_pb));
+        inst->trust_sigil_pb = NULL;
+    }
+#else
+    if (inst->trust_sigil_pm) {
+        gdk_pixmap_unref(inst->trust_sigil_pm);
+        inst->trust_sigil_pm = NULL;
+    }
+#endif
 
 #ifdef JUST_USE_GTK_CLIPBOARD_UTF8
     /*
@@ -3991,6 +4010,145 @@ static void gtkwin_draw_cursor(
 #endif
 }
 
+#if !GTK_CHECK_VERSION(2,0,0)
+/*
+ * For GTK 1, manual code to scale an in-memory XPM, producing a new
+ * one as output. It will be ugly, but good enough to use as a trust
+ * sigil.
+ */
+struct XpmHolder {
+    char **strings;
+    size_t nstrings;
+};
+
+static void xpmholder_free(XpmHolder *xh)
+{
+    for (size_t i = 0; i < xh->nstrings; i++)
+        sfree(xh->strings[i]);
+    sfree(xh->strings);
+    sfree(xh);
+}
+
+static XpmHolder *xpm_scale(const char *const *xpm, int wo, int ho)
+{
+    /* Get image dimensions, # colours, and chars-per-pixel */
+    int wi = 0, hi = 0, nc = 0, cpp = 0;
+    int retd = sscanf(xpm[0], "%d %d %d %d", &wi, &hi, &nc, &cpp);
+    assert(retd == 4);
+
+    /* Make output XpmHolder */
+    XpmHolder *xh = snew(XpmHolder);
+    xh->nstrings = 1 + nc + ho;
+    xh->strings = snewn(xh->nstrings, char *);
+
+    /* Set up header */
+    xh->strings[0] = dupprintf("%d %d %d %d", wo, ho, nc, cpp);
+    for (int i = 0; i < nc; i++)
+        xh->strings[1 + i] = dupstr(xpm[1 + i]);
+
+    /* Scale image */
+    for (int yo = 0; yo < ho; yo++) {
+        int yi = yo * hi / ho;
+        char *ro = snewn(cpp * wo + 1, char);
+        ro[cpp * wo] = '\0';
+        xh->strings[1 + nc + yo] = ro;
+        const char *ri = xpm[1 + nc + yi];
+
+        for (int xo = 0; xo < wo; xo++) {
+            int xi = xo * wi / wo;
+            memcpy(ro + cpp * xo, ri + cpp * xi, cpp);
+        }
+    }
+
+    return xh;
+}
+#endif /* !GTK_CHECK_VERSION(2,0,0) */
+
+static void gtkwin_draw_trust_sigil(TermWin *tw, int cx, int cy)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+
+    int x = cx * inst->font_width + inst->window_border;
+    int y = cy * inst->font_height + inst->window_border;
+    int w = 2*inst->font_width, h = inst->font_height;
+
+    if (inst->trust_sigil_w != w || inst->trust_sigil_h != h ||
+#if GTK_CHECK_VERSION(2,0,0)
+        !inst->trust_sigil_pb
+#else
+        !inst->trust_sigil_pm
+#endif
+        ) {
+
+#if GTK_CHECK_VERSION(2,0,0)
+        if (inst->trust_sigil_pb)
+            g_object_unref(G_OBJECT(inst->trust_sigil_pb));
+#else
+        if (inst->trust_sigil_pm)
+            gdk_pixmap_unref(inst->trust_sigil_pm);
+#endif
+
+        int best_icon_index = 0;
+        unsigned score = UINT_MAX;
+        for (int i = 0; i < n_main_icon; i++) {
+            int iw, ih;
+            if (sscanf(main_icon[i][0], "%d %d", &iw, &ih) == 2) {
+                int this_excess = (iw + ih) - (w + h);
+                unsigned this_score = (abs(this_excess) |
+                                       (this_excess > 0 ? 0 : 0x80000000U));
+                if (this_score < score) {
+                    best_icon_index = i;
+                    score = this_score;
+                }
+            }
+        }
+
+#if GTK_CHECK_VERSION(2,0,0)
+        GdkPixbuf *icon_unscaled = gdk_pixbuf_new_from_xpm_data(
+            (const gchar **)main_icon[best_icon_index]);
+        inst->trust_sigil_pb = gdk_pixbuf_scale_simple(
+            icon_unscaled, w, h, GDK_INTERP_BILINEAR);
+        g_object_unref(G_OBJECT(icon_unscaled));
+#else
+        XpmHolder *xh = xpm_scale(main_icon[best_icon_index], w, h);
+        inst->trust_sigil_pm = gdk_pixmap_create_from_xpm_d(
+            gtk_widget_get_window(inst->window), NULL,
+            &inst->cols[258], xh->strings);
+        xpmholder_free(xh);
+#endif
+
+        inst->trust_sigil_w = w;
+        inst->trust_sigil_h = h;
+    }
+
+#ifdef DRAW_TEXT_GDK
+    if (inst->uctx.type == DRAWTYPE_GDK) {
+#if GTK_CHECK_VERSION(2,0,0)
+        gdk_draw_pixbuf(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
+                        inst->trust_sigil_pb, 0, 0, x, y, w, h,
+                        GDK_RGB_DITHER_NORMAL, 0, 0);
+#else
+        gdk_draw_pixmap(inst->uctx.u.gdk.target, inst->uctx.u.gdk.gc,
+                        inst->trust_sigil_pm, 0, 0, x, y, w, h);
+#endif
+    }
+#endif
+#ifdef DRAW_TEXT_CAIRO
+    if (inst->uctx.type == DRAWTYPE_CAIRO) {
+        inst->uctx.u.cairo.widget = GTK_WIDGET(inst->area);
+        cairo_save(inst->uctx.u.cairo.cr);
+        cairo_translate(inst->uctx.u.cairo.cr, x, y);
+        gdk_cairo_set_source_pixbuf(inst->uctx.u.cairo.cr,
+                                    inst->trust_sigil_pb, 0, 0);
+        cairo_rectangle(inst->uctx.u.cairo.cr, 0, 0, w, h);
+        cairo_fill(inst->uctx.u.cairo.cr);
+        cairo_restore(inst->uctx.u.cairo.cr);
+    }
+#endif
+
+    draw_update(inst, x, y, w, h);
+}
+
 GdkCursor *make_mouse_ptr(GtkFrontend *inst, int cursor_val)
 {
     if (cursor_val == -1) {
@@ -4964,6 +5122,7 @@ static const TermWinVtable gtk_termwin_vt = {
     gtkwin_setup_draw_ctx,
     gtkwin_draw_text,
     gtkwin_draw_cursor,
+    gtkwin_draw_trust_sigil,
     gtkwin_char_width,
     gtkwin_free_draw_ctx,
     gtkwin_set_cursor_pos,
