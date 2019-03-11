@@ -2171,10 +2171,12 @@ void request_callback_notifications(toplevel_callback_notify_fn_t notify,
 #endif
 
 /* SURROGATE PAIR */
+#ifndef HIGH_SURROGATE_START /* in some toolchains <winnls.h> defines these */
 #define HIGH_SURROGATE_START 0xd800
 #define HIGH_SURROGATE_END 0xdbff
 #define LOW_SURROGATE_START 0xdc00
 #define LOW_SURROGATE_END 0xdfff
+#endif
 
 /* These macros exist in the Windows API, so the environment may
  * provide them. If not, define them in terms of the above. */
