@@ -122,15 +122,26 @@ case "$gtk_version_desired:$gtk" in
     # manual check for gtk1
     AC_PATH_PROG(GTK1_CONFIG, gtk-config, absent)
     if test "$GTK1_CONFIG" != "absent"; then
-      # the gtk1 headers need -std=gnu89, which flips round the
-      # definitions of 'inline' and 'extern inline' to their old GNU
-      # semantics before C99 chose different ones
-      GTK_CFLAGS="`"$GTK1_CONFIG" --cflags` -std=gnu89"
+      GTK_CFLAGS="`"$GTK1_CONFIG" --cflags`"
       GTK_LIBS=`"$GTK1_CONFIG" --libs`
+      AC_SUBST(GTK_CFLAGS)
+      AC_SUBST(GTK_LIBS)
       gtk=1
     fi
     ])
     ;;
+esac
+
+case "$gtk" in
+  1)
+    # Add some manual #defines to make the GTK 1 headers work when
+    # compiling in C99 mode. Left to themselves, they'll expect the
+    # old-style pre-C99 GNU semantics of 'inline' and 'extern inline',
+    # with the effect that they'll end up defining out-of-line
+    # versions of the inlined functions in more than one translation
+    # unit and cause a link failure. Override them to 'static inline',
+    # which is safe.
+    GTK_CFLAGS="$GTK_CFLAGS -DG_INLINE_FUNC='static inline' -DG_CAN_INLINE=1"
 esac
 
 AM_CONDITIONAL(HAVE_GTK, [test "$gtk" != "none"])

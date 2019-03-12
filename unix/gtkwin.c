@@ -990,7 +990,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     wchar_t ucsoutput[2];
     int ucsval, start, end, output_charset;
     bool special, use_ucsoutput;
-    bool nethack_mode, app_keypad_mode;
     bool force_format_numeric_keypad = false;
     bool generated_something = false;
     char num_keypad_key = '\0';
@@ -1392,10 +1391,6 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	special = false;
 	use_ucsoutput = false;
 
-        nethack_mode = conf_get_bool(inst->conf, CONF_nethack_keypad);
-        app_keypad_mode = (inst->term->app_keypad_keys &&
-                           !conf_get_bool(inst->conf, CONF_no_applic_k));
-
 	/* ALT+things gives leading Escape. */
 	output[0] = '\033';
 #if !GTK_CHECK_VERSION(2,0,0)
@@ -1418,6 +1413,10 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * it to.
          */
         bool numeric = false;
+        bool nethack_mode = conf_get_bool(inst->conf, CONF_nethack_keypad);
+        bool app_keypad_mode = (inst->term->app_keypad_keys &&
+                                !conf_get_bool(inst->conf, CONF_no_applic_k));
+
         switch (event->keyval) {
           case GDK_KEY_Num_Lock: num_keypad_key = 'G'; break;
           case GDK_KEY_KP_Divide: num_keypad_key = '/'; break;
