@@ -2771,6 +2771,16 @@ static void term_display_graphic_char(Terminal *term, unsigned long c)
          (c & CSET_MASK) == 0) && term->logctx)
         logtraffic(term->logctx, (unsigned char) c, LGTYP_ASCII);
 
+    /*
+     * Preliminary check: if the terminal is only one character cell
+     * wide, then we cannot display any double-width character at all.
+     * Substitute single-width REPLACEMENT CHARACTER instead.
+     */
+    if (width == 2 && term->cols < 2) {
+        width = 1;
+        c = 0xFFFD;
+    }
+
     switch (width) {
       case 2:
         /*
