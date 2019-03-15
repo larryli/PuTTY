@@ -1,7 +1,5 @@
 /*
- * winhelp.c: centralised functions to launch Windows help files,
- * and to decide whether to use .HLP or .CHM help in any given
- * situation.
+ * winhelp.c: centralised functions to launch Windows HTML Help files.
  */
 
 #include <stdio.h>

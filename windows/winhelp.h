@@ -2,7 +2,8 @@
  * winhelp.h - define Windows Help context names.
  * Each definition has the form "winhelp-topic:halibut-topic", where:
  *  - "winhelp-topic" matches up with the \cfg{winhelp-topic} directives
- *    in the Halibut source, and is used for WinHelp;
+ *    in the Halibut source, and was used for WinHelp (FIXME: this isn't
+ *    used any more);
  *  - "halibut-topic" matches up with the Halibut keywords in the source,
  *    and is used for HTML Help.
  */
