@@ -370,7 +370,7 @@ char *stripctrl_string_ptrlen(StripCtrlChars *sccpub, ptrlen str)
 #ifdef STRIPCTRL_TEST
 
 /*
-gcc -DSTRIPCTRL_TEST -o scctest stripctrl.c marshal.c utils.c memory.c
+gcc -std=c99 -DSTRIPCTRL_TEST -o scctest stripctrl.c marshal.c utils.c memory.c wcwidth.c -I . -I unix -I charset
 */
 
 void out_of_memory(void) { fprintf(stderr, "out of memory\n"); abort(); }
@@ -396,7 +396,7 @@ int main(void)
 {
     struct foo { BinarySink_IMPLEMENTATION; } foo;
     BinarySink_INIT(&foo, stripctrl_write);
-    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(&foo));
+    StripCtrlChars *scc = stripctrl_new(BinarySink_UPCAST(&foo), false, '?');
     stripctrl_test(scc, PTRLEN_LITERAL("a\033[1mb"));
     stripctrl_test(scc, PTRLEN_LITERAL("a\xC2\x9B[1mb"));
     stripctrl_test(scc, PTRLEN_LITERAL("a\xC2\xC2[1mb"));
