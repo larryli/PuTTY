@@ -3,8 +3,8 @@
 #define APPNAME "PuTTYtel"
 #define APPDESC "Telnet and Rlogin client"
 
-#include "win_res.rc2"
 #include "winhelp.rc2"
+#include "win_res.rc2"
 
 #ifndef NO_MANIFESTS
 1 RT_MANIFEST "puttytel.mft"
