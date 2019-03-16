@@ -100,7 +100,7 @@ if ($upload) {
                        }
                    } elsif (m!^putty/(.*sum)s!) {
                        print $pipe "echo checking ${1}s\n";
-                       print $pipe "$1 -c ${1}s\n";
+                       print $pipe "grep -vF ' (installer version)' ${1}s | grep . | $1 -c\n";
                    }
                }, no_chdir => 1}, "putty");
         print $pipe "echo all verified ok\n";
