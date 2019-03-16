@@ -173,17 +173,21 @@ time by double-clicking or using \c{REGEDIT}.
 \S{faq-server}{Question} Will you write an SSH server for the PuTTY
 suite, to go with the client?
 
-No. The only reason we might want to would be if we could easily
-re-use existing code and significantly cut down the effort. We don't
-believe this is the case; there just isn't enough common ground
-between an SSH client and server to make it worthwhile.
+Not one that you'd want to use.
 
-If someone else wants to use bits of PuTTY in the process of writing
-a Windows SSH server, they'd be perfectly welcome to of course, but
-I really can't see it being a lot less effort for us to do that than
-it would be for us to write a server from the ground up. We don't
-have time, and we don't have motivation. The code is available if
-anyone else wants to try it.
+While much of the protocol and networking code can be made common
+between a client and server, to make a \e{useful} general-purpose
+server requires all sorts of fiddly new code like interacting with OS
+authentication databases and the like.
+
+A special-purpose SSH server (called \i{Uppity}) can now be built from
+the PuTTY source code, and indeed it is not usable as a
+general-purpose server; it exists mainly as a test harness.
+
+If someone else wants to use this as a basis for writing a
+general-purpose SSH server, they'd be perfectly welcome to of course;
+but we don't have time, and we don't have motivation. The code is
+available if anyone else wants to try it.
 
 \S{faq-pscp-ascii}{Question} Can PSCP or PSFTP transfer files in
 \i{ASCII} mode?
