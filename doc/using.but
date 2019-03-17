@@ -1071,4 +1071,4 @@ Pageant stores the more critical information (hence benefits more from
 the extra protection), so it's reasonable to want to run Pageant but
 not PuTTY with the ACL restrictions. You can force Pageant to start
 subsidiary PuTTY processes with a restricted ACL if you also pass the
-\c{-restrict-putty-acl} option.
+\i\c{-restrict-putty-acl} option.

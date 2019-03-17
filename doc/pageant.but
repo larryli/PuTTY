@@ -159,6 +159,17 @@ by the command, like this:
 
 \c C:\PuTTY\pageant.exe d:\main.ppk -c C:\PuTTY\putty.exe
 
+\S{pageant-cmdline-restrict-acl} Restricting the \i{Windows process ACL}
+
+Pageant supports the same \i\c{-restrict-acl} option as the other
+PuTTY utilities to lock down the Pageant process's access control;
+see \k{using-cmdline-restrict-acl} for why you might want to do this.
+
+By default, if Pageant is started with \c{-restrict-acl}, it won't
+pass this to any PuTTY sessions started from its System Tray submenu.
+Use \c{-restrict-putty-acl} to change this. (Again, see
+\k{using-cmdline-restrict-acl} for details.)
+
 \H{pageant-forward} Using \i{agent forwarding}
 
 Agent forwarding is a mechanism that allows applications on your SSH
