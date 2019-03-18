@@ -45,8 +45,6 @@ if ($setver) {
     $plink_transcript =~ s/^Unidentified build/Release ${version}/m or die;
     $plink_transcript =~ s/^/\\c /mg;
     &transform("LATEST.VER", sub { s/^\d+\.\d+$/$version/ });
-    &transform("windows/putty.iss", sub {
-        s/^(AppVerName=PuTTY version |VersionInfoTextVersion=Release |AppVersion=|VersionInfoVersion=)\d+\.\d+/$1$version/ });
     our $transforming = 0;
     &transform("doc/pscp.but", sub {
         if (/^\\c.*>pscp$/) { $transforming = 1; $_ .= $pscp_transcript; }

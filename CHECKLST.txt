@@ -64,7 +64,6 @@ Making a release candidate build
     * putty/LATEST.VER
     * putty/doc/plink.but
     * putty/doc/pscp.but
-    * putty/windows/putty.iss (four times, on consecutive lines)
 
    and also check that it has reset the definition of 'Epoch' in
    Buildscr.
