@@ -47,6 +47,8 @@ BEGIN
 	    VALUE "InternalName",	APPNAME
 	    VALUE "OriginalFilename",	APPNAME
 #if (defined HELPVER)
+	    /* FIXME: this doesn't seem to be visible in Win7/Win10's UI.
+	     * Oh well. */
 	    VALUE "FileVersion",	TEXTVER HELPVER
 #else
 	    VALUE "FileVersion",	TEXTVER
