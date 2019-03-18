@@ -222,9 +222,10 @@ systems and Unix.
 As of 0.68, the supplied PuTTY executables run on versions of Windows
 from XP onwards, up to and including Windows 10; and we know of no
 reason why PuTTY should not continue to work on future versions of
-Windows. We provide 32-bit and 64-bit Windows executables; see
-\k{faq-32bit-64bit} for discussion of the compatibility issues around
-that.
+Windows. We provide 32-bit and 64-bit Windows executables for the
+common x86 processor family; see \k{faq-32bit-64bit} for discussion
+of the compatibility issues around that. We also provide executables
+for Windows on Arm processors.
 
 (We used to also provide executables for Windows for the Alpha
 processor, but stopped after 0.58 due to lack of interest.)
