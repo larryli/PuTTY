@@ -163,7 +163,7 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
     size_t size = 0;
 
     do {
-        sgrowarray(ret, size, size);
+        sgrowarray_nm(ret, size, size);
 	GetDlgItemText(hwnd, id, ret, size);
     } while (!memchr(ret, '\0', size-1));
 
