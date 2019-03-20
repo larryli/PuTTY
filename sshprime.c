@@ -382,7 +382,7 @@ static inline unsigned firstbits_b_min(
     unsigned a, unsigned lo, unsigned hi, unsigned min_separation)
 {
     /* To get a large enough product, b must be at least this much */
-    unsigned b_min = (lo*lo + a - 1) / a;
+    unsigned b_min = (2*lo*lo + a - 1) / a;
     /* Now enforce a<b, optionally with minimum separation */
     if (b_min < a + min_separation)
         b_min = a + min_separation;
@@ -397,7 +397,7 @@ void invent_firstbits(unsigned *one, unsigned *two, unsigned min_separation)
     /*
      * We'll pick 12 initial bits (number selected at random) for each
      * prime, not counting the leading 1. So we want to return two
-     * values in the range [2^12,2^13) whose product is at least 2^24.
+     * values in the range [2^12,2^13) whose product is at least 2^25.
      *
      * Strategy: count up all the viable pairs, then select a random
      * number in that range and use it to pick a pair.
@@ -405,7 +405,7 @@ void invent_firstbits(unsigned *one, unsigned *two, unsigned min_separation)
      * To keep things simple, we'll ensure a < b, and randomly swap
      * them at the end.
      */
-    const unsigned lo = 1<<12, hi = 1<<13, minproduct = lo*lo;
+    const unsigned lo = 1<<12, hi = 1<<13, minproduct = 2*lo*lo;
     unsigned a, b;
 
     /*
