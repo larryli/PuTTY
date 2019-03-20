@@ -5059,6 +5059,7 @@ static void start_backend(GtkFrontend *inst)
 
     vt = select_backend(inst->conf);
 
+    seat_set_trust_status(&inst->seat, true);
     error = backend_init(vt, &inst->seat, &inst->backend,
                          inst->logctx, inst->conf,
                          conf_get_str(inst->conf, CONF_host),

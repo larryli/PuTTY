@@ -385,6 +385,7 @@ static void start_backend(void)
 	cleanup_exit(1);
     }
 
+    seat_set_trust_status(win_seat, true);
     error = backend_init(vt, win_seat, &backend, logctx, conf,
                          conf_get_str(conf, CONF_host),
                          conf_get_int(conf, CONF_port),
