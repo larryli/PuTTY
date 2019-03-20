@@ -417,9 +417,9 @@ static void serial_uxsel_setup(Serial *serial)
     int rwx = 0;
 
     if (serial->inbufsize <= SERIAL_MAX_BACKLOG)
-	rwx |= 1;
+	rwx |= SELECT_R;
     if (bufchain_size(&serial->output_data))
-        rwx |= 2;                      /* might also want to write to it */
+        rwx |= SELECT_W;               /* might also want to write to it */
     uxsel_set(serial->fd, rwx, serial_select_result);
 }
 

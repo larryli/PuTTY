@@ -107,18 +107,18 @@ uxsel_id *uxsel_input_add(int fd, int rwx) {
 
 #if GTK_CHECK_VERSION(2,0,0)
     int flags = 0;
-    if (rwx & 1) flags |= G_IO_IN | G_IO_HUP;
-    if (rwx & 2) flags |= G_IO_OUT;
-    if (rwx & 4) flags |= G_IO_PRI;
+    if (rwx & SELECT_R) flags |= G_IO_IN | G_IO_HUP;
+    if (rwx & SELECT_W) flags |= G_IO_OUT;
+    if (rwx & SELECT_X) flags |= G_IO_PRI;
     id->chan = g_io_channel_unix_new(fd);
     g_io_channel_set_encoding(id->chan, NULL, NULL);
     id->watch_id = g_io_add_watch_full(id->chan, GDK_PRIORITY_REDRAW+1, flags,
                                        fd_input_func, NULL, NULL);
 #else
     int flags = 0;
-    if (rwx & 1) flags |= GDK_INPUT_READ;
-    if (rwx & 2) flags |= GDK_INPUT_WRITE;
-    if (rwx & 4) flags |= GDK_INPUT_EXCEPTION;
+    if (rwx & SELECT_R) flags |= GDK_INPUT_READ;
+    if (rwx & SELECT_W) flags |= GDK_INPUT_WRITE;
+    if (rwx & SELECT_X) flags |= GDK_INPUT_EXCEPTION;
     assert(flags);
     id->id = gdk_input_add(fd, flags, fd_input_func, NULL);
 #endif
