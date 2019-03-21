@@ -1380,11 +1380,13 @@ int scp_get_sink_action(struct scp_sink_action *act)
 	    if (ch == '\n')
 		bump("Protocol error: Unexpected newline");
 	    action = ch;
-	    do {
+            while (1) {
 		if (!ssh_scp_recv(&ch, 1))
 		    bump("Lost connection");
+                if (ch == '\n')
+                    break;
                 put_byte(act->buf, ch);
-	    } while (ch != '\n');
+            }
 	    switch (action) {
 	      case '\01':		       /* error */
                 with_stripctrl(san, act->buf->s)
