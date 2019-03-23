@@ -451,6 +451,7 @@ struct ec_mcurve
 {
     MontgomeryCurve *mc;
     MontgomeryPoint *G;
+    unsigned log2_cofactor;
 };
 
 /* Edwards form curve */

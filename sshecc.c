@@ -66,11 +66,12 @@ static void initialise_wcurve(
 
 static void initialise_mcurve(
     struct ec_curve *curve, mp_int *p, mp_int *a, mp_int *b,
-    mp_int *G_x)
+    mp_int *G_x, unsigned log2_cofactor)
 {
     initialise_common(curve, EC_MONTGOMERY, p);
 
     curve->m.mc = ecc_montgomery_curve(p, a, b);
+    curve->m.log2_cofactor = log2_cofactor;
 
     curve->m.G = ecc_montgomery_point_new(curve->m.mc, G_x);
 }
@@ -194,7 +195,7 @@ static struct ec_curve *ec_curve25519(void)
         mp_int *a = MP_LITERAL(0x0000000000000000000000000000000000000000000000000000000000076d06);
         mp_int *b = MP_LITERAL(0x0000000000000000000000000000000000000000000000000000000000000001);
         mp_int *G_x = MP_LITERAL(0x0000000000000000000000000000000000000000000000000000000000000009);
-        initialise_mcurve(&curve, p, a, b, G_x);
+        initialise_mcurve(&curve, p, a, b, G_x, 3);
         mp_free(p);
         mp_free(a);
         mp_free(b);
@@ -1283,10 +1284,17 @@ static void ssh_ecdhkex_m_setup(ecdh_key *dh)
     random_read(strbuf_append(bytes, dh->curve->fieldBytes),
                 dh->curve->fieldBytes);
 
-    bytes->u[0] &= 0xF8;
-    bytes->u[bytes->len-1] &= 0x7F;
-    bytes->u[bytes->len-1] |= 0x40;
     dh->private = mp_from_bytes_le(ptrlen_from_strbuf(bytes));
+
+    /* Ensure the private key has the highest valid bit set, and no
+     * bits _above_ the highest valid one */
+    mp_reduce_mod_2to(dh->private, dh->curve->fieldBits);
+    mp_set_bit(dh->private, dh->curve->fieldBits - 1, 1);
+
+    /* Clear a curve-specific number of low bits */
+    for (unsigned bit = 0; bit < dh->curve->m.log2_cofactor; bit++)
+        mp_set_bit(dh->private, bit, 0);
+
     strbuf_free(bytes);
 
     dh->m_public = ecc_montgomery_multiply(dh->curve->m.G, dh->private);
