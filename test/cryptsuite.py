@@ -116,6 +116,12 @@ def queued_random_data(nbytes, seed):
     yield None
     random_clear()
 
+@contextlib.contextmanager
+def queued_specific_random_data(data):
+    random_queue(data)
+    yield None
+    random_clear()
+
 def hash_str(alg, message):
     h = ssh_hash_new(alg)
     ssh_hash_update(h, message)
@@ -1739,6 +1745,48 @@ class standard_test_vectors(MyTestBase):
                     message = unhex(words[2])
                     signature = unhex(words[3])[:64]
                     vector(privkey, pubkey, message, signature)
+
+    def testMontgomeryKex(self):
+        # Unidirectional tests, consisting of an input random number
+        # string and peer public value, giving the expected output
+        # shared key. Source: RFC 7748 section 5.2.
+        rfc7748s5_2 = [
+            ('a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4',
+             'e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c',
+             0xc3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552),
+            ('4b66e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba0d',
+             'e5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a493',
+             0x95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957),
+        ]
+
+        for priv, pub, expected in rfc7748s5_2:
+            with queued_specific_random_data(unhex(priv)):
+                ecdh = ssh_ecdhkex_newkey('curve25519')
+            key = ssh_ecdhkex_getkey(ecdh, unhex(pub))
+            self.assertEqual(int(key), expected)
+
+        # Bidirectional tests, consisting of the input random number
+        # strings for both parties, and the expected public values and
+        # shared key. Source: RFC 7748 section 6.1.
+        rfc7748s6_1 = [
+            ('77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a',
+             '8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a',
+             '5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb',
+             'de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f',
+             0x4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742),
+        ]
+
+        for apriv, apub, bpriv, bpub, expected in rfc7748s6_1:
+            with queued_specific_random_data(unhex(apriv)):
+                alice = ssh_ecdhkex_newkey('curve25519')
+            with queued_specific_random_data(unhex(bpriv)):
+                bob = ssh_ecdhkex_newkey('curve25519')
+            self.assertEqualBin(ssh_ecdhkex_getpublic(alice), unhex(apub))
+            self.assertEqualBin(ssh_ecdhkex_getpublic(bob), unhex(bpub))
+            akey = ssh_ecdhkex_getkey(alice, unhex(bpub))
+            bkey = ssh_ecdhkex_getkey(bob, unhex(apub))
+            self.assertEqual(int(akey), expected)
+            self.assertEqual(int(bkey), expected)
 
     def testCRC32(self):
         self.assertEqual(crc32_rfc1662("123456789"), 0xCBF43926)
