@@ -1828,7 +1828,7 @@ static void sink(const char *targ, const char *src)
 		    !using_sftp && !scp_unsafe_mode) {
                     with_stripctrl(san, striptarget)
                         tell_user(stderr, "warning: remote host tried to "
-                                  "write  to a file called '%s'", san);
+                                  "write to a file called '%s'", san);
 		    tell_user(stderr, "         when we requested a file "
 			      "called '%s'.", stripsrc);
 		    tell_user(stderr, "         If this is a wildcard, "
