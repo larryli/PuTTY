@@ -1357,6 +1357,14 @@ static mp_int *ssh_ecdhkex_w_getkey(ecdh_key *dh, ptrlen remoteKey)
 static mp_int *ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey)
 {
     mp_int *remote_x = mp_from_bytes_le(remoteKey);
+
+    /* Per RFC 7748 section 5, discard any set bits of the other
+     * side's public value beyond the minimum number of bits required
+     * to represent all valid values. However, an overlarge value that
+     * still fits into the remaining number of bits is accepted, and
+     * will be reduced mod p. */
+    mp_reduce_mod_2to(remote_x, dh->curve->fieldBits);
+
     if (mp_eq_integer(remote_x, 0)) {
         /*
          * The libssh spec for Curve25519 key exchange says that
