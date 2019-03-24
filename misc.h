@@ -168,8 +168,14 @@ static inline ptrlen ptrlen_from_strbuf(strbuf *sb)
 bool ptrlen_eq_string(ptrlen pl, const char *str);
 bool ptrlen_eq_ptrlen(ptrlen pl1, ptrlen pl2);
 int ptrlen_strcmp(ptrlen pl1, ptrlen pl2);
+/* ptrlen_startswith and ptrlen_endswith write through their 'tail'
+ * argument if and only if it is non-NULL and they return true. Hence
+ * you can write ptrlen_startswith(thing, prefix, &thing), writing
+ * back to the same ptrlen it read from, to remove a prefix if present
+ * and say whether it did so. */
 bool ptrlen_startswith(ptrlen whole, ptrlen prefix, ptrlen *tail);
 bool ptrlen_endswith(ptrlen whole, ptrlen suffix, ptrlen *tail);
+ptrlen ptrlen_get_word(ptrlen *input, const char *separators);
 char *mkstr(ptrlen pl);
 int string_length_for_printf(size_t);
 /* Derive two printf arguments from a ptrlen, suitable for "%.*s" */

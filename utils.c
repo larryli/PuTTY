@@ -938,6 +938,26 @@ bool ptrlen_endswith(ptrlen whole, ptrlen suffix, ptrlen *tail)
     return false;
 }
 
+ptrlen ptrlen_get_word(ptrlen *input, const char *separators)
+{
+    const char *p = input->ptr, *end = p + input->len;
+    ptrlen toret;
+
+    while (p < end && strchr(separators, *p))
+        p++;
+    toret.ptr = p;
+    while (p < end && !strchr(separators, *p))
+        p++;
+    toret.len = p - (const char *)toret.ptr;
+
+    size_t to_consume = p - (const char *)input->ptr;
+    assert(to_consume <= input->len);
+    input->ptr = (const char *)input->ptr + to_consume;
+    input->len -= to_consume;
+
+    return toret;
+}
+
 char *mkstr(ptrlen pl)
 {
     char *p = snewn(pl.len + 1, char);
