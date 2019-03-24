@@ -97,16 +97,22 @@ void random_reseed(ptrlen seed)
     prng_seed_finish(global_prng);
 }
 
-void random_unref(void)
+void random_clear(void)
 {
-    assert(random_active > 0);
-    if (random_active == 1) {
+    if (global_prng) {
         random_save_seed();
         expire_timer_context(&random_timer_ctx);
         prng_free(global_prng);
         global_prng = NULL;
+        random_active = 0;
     }
-    random_active--;
+}
+
+void random_unref(void)
+{
+    assert(random_active > 0);
+    if (--random_active == 0)
+        random_clear();
 }
 
 void random_read(void *buf, size_t size)

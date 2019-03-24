@@ -1160,6 +1160,7 @@ void test(int retval, ...)
         printf("\n");
     }
     ret = cmdgen_main(argc, argv);
+    random_clear();
 
     if (ret != retval) {
 	printf("FAILED retval (exp %d got %d):", retval, ret);
