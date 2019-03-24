@@ -1431,14 +1431,15 @@ work in the PuTTY window.
 
 PuTTY's copy and paste mechanism is by default modelled on the Unix
 \i\c{xterm} application. The X Window System uses a three-button mouse,
-and the convention is that the \i{left button} \I{selecting text}selects,
-the \i{right button} extends an existing selection, and the
-\i{middle button} pastes.
+and the convention in that system is that the \i{left button}
+\I{selecting text}selects, the \i{right button} extends an existing
+selection, and the \i{middle button} pastes.
 
-Windows often only has two mouse buttons, so in PuTTY's default
-configuration (\q{Compromise}), the \e{right} button pastes, and the
-\e{middle} button (if you have one) \I{adjusting a selection}extends
-a selection.
+Windows often only has two mouse buttons, so when run on Windows,
+PuTTY is configurable. In PuTTY's default configuration
+(\q{Compromise}), the \e{right} button pastes, and the \e{middle}
+button (if you have one) \I{adjusting a selection}extends a
+selection.
 
 If you have a \i{three-button mouse} and you are already used to the
 \c{xterm} arrangement, you can select it using the \q{Action of
@@ -1449,6 +1450,9 @@ button extends, and the right button brings up a \i{context menu} (on
 which one of the options is \q{Paste}). (This context menu is always
 available by holding down Ctrl and right-clicking, regardless of the
 setting of this option.)
+
+(When PuTTY iself is running on Unix, it follows the X Window System
+convention.)
 
 \S{config-mouseshift} \q{Shift overrides application's use of mouse}
 
@@ -1499,10 +1503,17 @@ you have to hold down Alt to get the \e{normal} behaviour.
 Here you can configure which clipboard(s) are written or read by
 PuTTY's various copy and paste actions.
 
+Most platforms, including Windows, have a single system clipboard.
+On these platforms, PuTTY provides a second clipboard-like facility by
+permitting you to paste the text you last selected in \e{this window},
+whether or not it is currently also in the system clipboard. This is
+not enabled by default.
+
 The X Window System (which underlies most Unix graphical interfaces)
 provides multiple clipboards (or \q{\i{selections}}), and many
 applications support more than one of them by a different user
-interface mechanism.
+interface mechanism. When PuTTY itself is running on Unix, it has
+more configurability relating to these selections.
 
 The two most commonly used selections are called \cq{\i{PRIMARY}} and
 \cq{\I{CLIPBOARD selection}CLIPBOARD}; in applications supporting both,
@@ -1511,12 +1522,6 @@ the usual behaviour is that \cw{PRIMARY} is used by mouse-only actions
 \i{middle-clicking} pastes from \cw{PRIMARY}), whereas \cw{CLIPBOARD}
 is used by explicit Copy and Paste menu items or keypresses such as
 \i{Ctrl-C} and \i{Ctrl-V}.
-
-On other platforms such as Windows, where there is a single system
-clipboard, PuTTY provides a second clipboard-like facility by permitting
-you to paste the text you last selected in \e{this window}, whether or
-not it is currently also in the system clipboard. This is not enabled
-by default.
 
 \S2{config-selection-autocopy} \q{Auto-copy selected text}
 
@@ -1530,8 +1535,9 @@ clipboard, without requiring a separate user interface action.
 On X, the wording of this option is changed slightly so that
 \cq{CLIPBOARD} is mentioned in place of the \q{system clipboard}. Text
 selected in the terminal window will \e{always} be automatically
-placed in the \cw{PRIMARY} selection, but if you tick this box, it
-will \e{also} be placed in \cq{CLIPBOARD} at the same time.
+placed in the \cw{PRIMARY} selection, as is conventional, but if you
+tick this box, it will \e{also} be placed in \cq{CLIPBOARD} at the
+same time.
 
 \S2{config-selection-clipactions} Choosing a clipboard for UI actions
 
@@ -1545,10 +1551,11 @@ whichever mouse button (if any) is configured to paste (see
 
 You can configure which of the available clipboards each of these
 actions pastes from (including turning the paste action off
-completely). On platforms with a single system clipboard, the
-available options are to paste from that clipboard or to paste from
-PuTTY's internal memory of the \i{last selected text} within that
-window. On X, the standard options are \cw{CLIPBOARD} or \cw{PRIMARY}.
+completely). On platforms with a single system clipboard (such as
+Windows), the available options are to paste from that clipboard or
+to paste from PuTTY's internal memory of the \i{last selected text}
+within that window. On X, the standard options are \cw{CLIPBOARD} or
+\cw{PRIMARY}.
 
 (\cw{PRIMARY} is conceptually similar in that it \e{also} refers to
 the last selected text \dash just across all applications instead of
