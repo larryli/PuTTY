@@ -1833,10 +1833,17 @@ class standard_test_vectors(MyTestBase):
             self.assertEqual(crc32_rfc1662(vec), 0x2144DF1C)
 
 if __name__ == "__main__":
-    try:
-        unittest.main()
-    finally:
-        # On exit, make sure we check the subprocess's return status,
-        # so that if Leak Sanitiser detected any memory leaks, the
-        # test will turn into a failure at the last minute.
-        childprocess.check_return_status()
+    # Run the tests, suppressing automatic sys.exit and collecting the
+    # unittest.TestProgram instance returned by unittest.main instead.
+    testprogram = unittest.main(exit=False)
+
+    # If any test failed, just exit with failure status.
+    if not testprogram.result.wasSuccessful():
+        childprocess.wait_for_exit()
+        sys.exit(1)
+
+    # But if no tests failed, we have one last check to do: look at
+    # the subprocess's return status, so that if Leak Sanitiser
+    # detected any memory leaks, the success return status will turn
+    # into a failure at the last minute.
+    childprocess.check_return_status()

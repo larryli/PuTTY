@@ -26,6 +26,7 @@ class ChildProcess(object):
     def __init__(self):
         self.sp = None
         self.debug = None
+        self.exitstatus = None
 
         dbg = os.environ.get("PUTTY_TESTCRYPT_DEBUG")
         if dbg is not None:
@@ -62,12 +63,16 @@ class ChildProcess(object):
             unicode_to_bytes(arg) for arg in args))
         argcount = int(self.read_line())
         return [self.read_line() for arg in range(argcount)]
+    def wait_for_exit(self):
+        if self.sp is not None:
+            self.sp.stdin.close()
+            self.exitstatus = self.sp.wait()
+            self.sp = None
     def check_return_status(self):
-        assert self.sp is not None
-        self.sp.stdin.close()
-        status = self.sp.wait()
-        if status != 0:
-            raise Exception("testcrypt returned exit status {}".format(status))
+        self.wait_for_exit()
+        if self.exitstatus is not None and self.exitstatus != 0:
+            raise Exception("testcrypt returned exit status {}"
+                            .format(self.exitstatus))
 
 childprocess = ChildProcess()
 
