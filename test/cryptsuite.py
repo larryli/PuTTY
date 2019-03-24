@@ -7,6 +7,7 @@ import functools
 import contextlib
 import hashlib
 import binascii
+import base64
 try:
     from math import gcd
 except ImportError:
@@ -14,6 +15,11 @@ except ImportError:
 
 from eccref import *
 from testcrypt import *
+
+try:
+    base64decode = base64.decodebytes
+except AttributeError:
+    base64decode = base64.decodestring
 
 def nbits(n):
     # Mimic mp_get_nbits for ordinary Python integers.
@@ -1269,6 +1275,110 @@ culpa qui officia deserunt mollit anim id est laborum.
         self.assertFalse(ssh_key_verify(pubkey, badsigq, "hello, world"))
         self.assertFalse(ssh_key_verify(pubkey, badsig0, "hello, again"))
         self.assertFalse(ssh_key_verify(pubkey, badsigq, "hello, again"))
+
+    def testKeyMethods(self):
+        # Exercise all the methods of the ssh_key trait on all key
+        # types, and ensure that they're consistent with each other.
+        # No particular test is done on the rightness of the
+        # signatures by any objective standard, only that the output
+        # from our signing method can be verified by the corresponding
+        # verification method.
+        #
+        # However, we do include the expected signature text in each
+        # case, which checks determinism in the sense of being
+        # independent of any random numbers, and also in the sense of
+        # tomorrow's change to the code not having accidentally
+        # changed the behaviour.
+
+        test_message = b"Message to be signed by crypt.testKeyMethods\n"
+
+        test_keys = [
+            ('ed25519', 'AAAAC3NzaC1lZDI1NTE5AAAAIM7jupzef6CD0ps2JYxJp9IlwY49oorOseV5z5JFDFKn', 'AAAAIAf4/WRtypofgdNF2vbZOUFE1h4hvjw4tkGJZyOzI7c3', 255, b'0xf4d6e7f6f4479c23f0764ef43cea1711dbfe02aa2b5a32ff925c7c1fbf0f0db,0x27520c4592cf79e5b1ce8aa23d8ec125d2a7498c25369bd283a07fde9cbae3ce', [(0, 'AAAAC3NzaC1lZDI1NTE5AAAAQN73EqfyA4WneqDhgZ98TlRj9V5Wg8zCrMxTLJN1UtyfAnPUJDtfG/U0vOsP8PrnQxd41DDDnxrAXuqJz8rOagc=')]),
+            ('p256', 'AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBHkYQ0sQoq5LbJI1VMWhw3bV43TSYi3WVpqIgKcBKK91TcFFlAMZgceOHQ0xAFYcSczIttLvFu+xkcLXrRd4N7Q=', 'AAAAIQCV/1VqiCsHZm/n+bq7lHEHlyy7KFgZBEbzqYaWtbx48Q==', 256, b'nistp256,0x7918434b10a2ae4b6c923554c5a1c376d5e374d2622dd6569a8880a70128af75,0x4dc14594031981c78e1d0d3100561c49ccc8b6d2ef16efb191c2d7ad177837b4', [(0, 'AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAABIAAAAIAryzHDGi/TcCnbdxZkIYR5EGR6SNYXr/HlQRF8le+/IAAAAIERfzn6eHuBbqWIop2qL8S7DWRB3lenN1iyL10xYQPKw')]),
+            ('p384', 'AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAAAIbmlzdHAzODQAAABhBMYK8PUtfAlJwKaBTIGEuCzH0vqOMa4UbcjrBbTbkGVSUnfo+nuC80NCdj9JJMs1jvfF8GzKLc5z8H3nZyM741/BUFjV7rEHsQFDek4KyWvKkEgKiTlZid19VukNo1q2Hg==', 'AAAAMGsfTmdB4zHdbiQ2euTSdzM6UKEOnrVjMAWwHEYvmG5qUOcBnn62fJDRJy67L+QGdg==', 384, b'nistp384,0xc60af0f52d7c0949c0a6814c8184b82cc7d2fa8e31ae146dc8eb05b4db9065525277e8fa7b82f34342763f4924cb358e,0xf7c5f06cca2dce73f07de767233be35fc15058d5eeb107b101437a4e0ac96bca90480a89395989dd7d56e90da35ab61e', [(0, 'AAAAE2VjZHNhLXNoYTItbmlzdHAzODQAAABpAAAAMDmHrtXCADzLvkkWG/duBAHlf6B1mVvdt6F0uzXfsf8Yub8WXNUNVnYq6ovrWPzLggAAADEA9izzwoUuFcXYRJeKcRLZEGMmSDDPzUZb7oZR0UgD1jsMQXs8UfpO31Qur/FDSCRK')]),
+            ('p521', 'AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAAAIbmlzdHA1MjEAAACFBAFrGthlKM152vu2Ghk+R7iO9/M6e+hTehNZ6+FBwof4HPkPB2/HHXj5+w5ynWyUrWiX5TI2riuJEIrJErcRH5LglADnJDX2w4yrKZ+wDHSz9lwh9p2F+B5R952es6gX3RJRkGA+qhKpKup8gKx78RMbleX8wgRtIu+4YMUnKb1edREiRg==', 'AAAAQgFh7VNJFUljWhhyAEiL0z+UPs/QggcMTd3Vv2aKDeBdCRl5di8r+BMm39L7bRzxRMEtW5NSKlDtE8MFEGdIE9khsw==', 521, b'nistp521,0x16b1ad86528cd79dafbb61a193e47b88ef7f33a7be8537a1359ebe141c287f81cf90f076fc71d78f9fb0e729d6c94ad6897e53236ae2b89108ac912b7111f92e094,0xe72435f6c38cab299fb00c74b3f65c21f69d85f81e51f79d9eb3a817dd125190603eaa12a92aea7c80ac7bf1131b95e5fcc2046d22efb860c52729bd5e75112246', [(0, 'AAAAE2VjZHNhLXNoYTItbmlzdHA1MjEAAACMAAAAQgCLgvftvwM3CUaigrW0yzmCHoYjC6GLtO+6S91itqpgMEtWPNlaTZH6QQqkgscijWdXx98dDkQao/gcAKVmOZKPXgAAAEIB1PIrsDF1y6poJ/czqujB7NSUWt31v+c2t6UA8m2gTA1ARuVJ9XBGLMdceOTB00Hi9psC2RYFLpaWREOGCeDa6ow=')]),
+            ('dsa', 'AAAAB3NzaC1kc3MAAABhAJyWZzjVddGdyc5JPu/WPrC07vKRAmlqO6TUi49ah96iRcM7/D1aRMVAdYBepQ2mf1fsQTmvoC9KgQa79nN3kHhz0voQBKOuKI1ZAodfVOgpP4xmcXgjaA73Vjz22n4newAAABUA6l7/vIveaiA33YYv+SKcKLQaA8cAAABgbErc8QLw/WDz7mhVRZrU+9x3Tfs68j3eW+B/d7Rz1ZCqMYDk7r/F8dlBdQlYhpQvhuSBgzoFa0+qPvSSxPmutgb94wNqhHlVIUb9ZOJNloNr2lXiPP//Wu51TxXAEvAAAAAAYQCcQ9mufXtZa5RyfwT4NuLivdsidP4HRoLXdlnppfFAbNdbhxE0Us8WZt+a/443bwKnYxgif8dgxv5UROnWTngWu0jbJHpaDcTc9lRyTeSUiZZK312s/Sl7qDk3/Du7RUI=', 'AAAAFGx3ft7G8AQzFsjhle7PWardUXh3', 768, b'0x9c966738d575d19dc9ce493eefd63eb0b4eef29102696a3ba4d48b8f5a87dea245c33bfc3d5a44c54075805ea50da67f57ec4139afa02f4a8106bbf67377907873d2fa1004a3ae288d5902875f54e8293f8c66717823680ef7563cf6da7e277b,0xea5effbc8bde6a2037dd862ff9229c28b41a03c7,0x6c4adcf102f0fd60f3ee6855459ad4fbdc774dfb3af23dde5be07f77b473d590aa3180e4eebfc5f1d94175095886942f86e481833a056b4faa3ef492c4f9aeb606fde3036a8479552146fd64e24d96836bda55e23cffff5aee754f15c012f000,0x9c43d9ae7d7b596b94727f04f836e2e2bddb2274fe074682d77659e9a5f1406cd75b87113452cf1666df9aff8e376f02a76318227fc760c6fe5444e9d64e7816bb48db247a5a0dc4dcf654724de49489964adf5dacfd297ba83937fc3bbb4542', [(0, 'AAAAB3NzaC1kc3MAAAAo0T2t6dr8Qr5DK2B0ETwUa3BhxMLPjLY0ZtlOACmP/kUt3JgByLv+3g==')]),
+            ('rsa', 'AAAAB3NzaC1yc2EAAAABJQAAAGEA2ChX9+mQD/NULFkBrxLDI8d1PHgrInC2u11U4Grqu4oVzKvnFROo6DZeCu6sKhFJE5CnIL7evAthQ9hkXVHDhQ7xGVauzqyHGdIU4/pHRScAYWBv/PZOlNMrSoP/PP91', 'AAAAYCMNdgyGvWpez2EjMLSbQj0nQ3GW8jzvru3zdYwtA3hblNUU9QpWNxDmOMOApkwCzUgsdIPsBxctIeWT2h+v8sVOH+d66LCaNmNR0lp+dQ+iXM67hcGNuxJwRdMupD9ZbQAAADEA7XMrMAb4WuHaFafoTfGrf6Jhdy9Ozjqi1fStuld7Nj9JkoZluiL2dCwIrxqOjwU5AAAAMQDpC1gYiGVSPeDRILr2oxREtXWOsW+/ZZTfZNX7lvoufnp+qvwZPqvZnXQFHyZ8qB0AAAAwQE0wx8TPgcvRVEVv8Wt+o1NFlkJZayWD5hqpe/8AqUMZbqfg/aiso5mvecDLFgfV', 768, b'0x25,0xd82857f7e9900ff3542c5901af12c323c7753c782b2270b6bb5d54e06aeabb8a15ccabe71513a8e8365e0aeeac2a11491390a720bedebc0b6143d8645d51c3850ef11956aeceac8719d214e3fa4745270061606ffcf64e94d32b4a83ff3cff75', [(0, 'AAAAB3NzaC1yc2EAAABgrLSC4635RCsH1b3en58NqLsrH7PKRZyb3YmRasOyr8xIZMSlKZyxNg+kkn9OgBzbH9vChafzarfHyVwtJE2IMt3uwxTIWjwgwH19tc16k8YmNfDzujmB6OFOArmzKJgJ'), (2, 'AAAADHJzYS1zaGEyLTI1NgAAAGAJszr04BZlVBEdRLGOv1rTJwPiid/0I6/MycSH+noahvUH2wjrRhqDuv51F4nKYF5J9vBsEotTSrSF/cnLsliCdvVkEfmvhdcn/jx2LWF2OfjqETiYSc69Dde9UFmAPds='), (4, 'AAAADHJzYS1zaGEyLTUxMgAAAGBxfZ2m+WjvZ5YV5RFm0+w84CgHQ95EPndoAha0PCMc93AUHBmoHnezsJvEGuLovUm35w/0POmUNHI7HzM9PECwXrV0rO6N/HL/oFxJuDYmeqCpjMVmN8QXka+yxs2GEtA=')]),
+        ]
+
+        for alg, pubb64, privb64, bits, cachestr, siglist in test_keys:
+            # Decode the blobs in the above test data.
+            pubblob = base64decode(pubb64.encode('ASCII'))
+            privblob = base64decode(privb64.encode('ASCII'))
+
+            # Check the method that examines a public blob directly
+            # and returns an integer showing the key size.
+            self.assertEqual(ssh_key_public_bits(alg, pubblob), bits)
+
+            # Make a public-only and a full ssh_key object.
+            pubkey = ssh_key_new_pub(alg, pubblob)
+            privkey = ssh_key_new_priv(alg, pubblob, privblob)
+
+            # Test that they re-export the public and private key
+            # blobs unchanged.
+            self.assertEqual(ssh_key_public_blob(pubkey), pubblob)
+            self.assertEqual(ssh_key_public_blob(privkey), pubblob)
+            self.assertEqual(ssh_key_private_blob(privkey), privblob)
+
+            # Round-trip through the OpenSSH wire encoding used by the
+            # agent protocol (and the newer OpenSSH key file format),
+            # and check the result still exports all the same blobs.
+            osshblob = ssh_key_openssh_blob(privkey)
+            privkey2 = ssh_key_new_priv_openssh(alg, osshblob)
+            self.assertEqual(ssh_key_public_blob(privkey2), pubblob)
+            self.assertEqual(ssh_key_private_blob(privkey2), privblob)
+            self.assertEqual(ssh_key_openssh_blob(privkey2), osshblob)
+
+            # Test that the string description used in the host key
+            # cache is as expected.
+            for key in [pubkey, privkey, privkey2]:
+                self.assertEqual(ssh_key_cache_str(key), cachestr)
+
+            # Now test signatures, separately for each provided flags
+            # value.
+            for flags, sigb64 in siglist:
+                # Decode the signature blob from the test data.
+                sigblob = base64decode(sigb64.encode('ASCII'))
+
+                # Sign our test message, and check it produces exactly
+                # the expected signature blob.
+                #
+                # We do this with both the original private key and
+                # the one we round-tripped through OpenSSH wire
+                # format, just in case that round trip made some kind
+                # of a mess that didn't show up in the re-extraction
+                # of the blobs.
+                for key in [privkey, privkey2]:
+                    self.assertEqual(ssh_key_sign(
+                        key, test_message, flags), sigblob)
+
+                if flags != 0:
+                    # Currently we only support _generating_
+                    # signatures with flags != 0, not verifying them.
+                    continue
+
+                # Check the signature verifies successfully, with all
+                # three of the key objects we have.
+                for key in [pubkey, privkey, privkey2]:
+                    self.assertTrue(ssh_key_verify(key, sigblob, test_message))
+
+                # A crude check that at least _something_ doesn't
+                # verify successfully: flip a bit of the signature
+                # and expect it to fail.
+                #
+                # We do this twice, at the 1/3 and 2/3 points along
+                # the signature's length, so that in the case of
+                # signatures in two parts (DSA-like) we try perturbing
+                # both parts. Other than that, we don't do much to
+                # make this a rigorous cryptographic test.
+                for n, d in [(1,3),(2,3)]:
+                    sigbytes = list(bytevals(sigblob))
+                    bit = 8 * len(sigbytes) * n // d
+                    sigbytes[bit // 8] ^= 1 << (bit % 8)
+                    badsig = valbytes(sigbytes)
+                    for key in [pubkey, privkey, privkey2]:
+                        self.assertFalse(ssh_key_verify(
+                            key, badsig, test_message))
 
 class standard_test_vectors(MyTestBase):
     def testAES(self):
