@@ -940,6 +940,7 @@ int main(int argc, char **argv)
         int real_outtype;
 
       case PRIVATE:
+        random_ref(); /* we'll need a few random bytes in the save file */
 	if (sshver == 1) {
 	    assert(ssh1key);
 	    ret = rsa_ssh1_savekey(outfilename, ssh1key, new_passphrase);
