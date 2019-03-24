@@ -36,6 +36,7 @@
  *    I define another main() which calls the former repeatedly to
  *    run tests.
  */
+bool cgtest_verbose = false;
 #define get_random_data get_random_data_diagnostic
 char *get_random_data(int len, const char *device)
 {
@@ -53,9 +54,15 @@ int console_get_userpass_input(prompts_t *p)
     for (i = 0; i < p->n_prompts; i++) {
 	if (promptsgot < nprompts) {
 	    p->prompts[i]->result = dupstr(prompts[promptsgot++]);
+            if (cgtest_verbose)
+                printf("  prompt \"%s\": response \"%s\"\n",
+                       p->prompts[i]->prompt, p->prompts[i]->result);
 	} else {
 	    promptsgot++;	    /* track number of requests anyway */
 	    ret = 0;
+            if (cgtest_verbose)
+                printf("  prompt \"%s\": no response preloaded\n",
+                       p->prompts[i]->prompt);
 	}
     }
     return ret;
@@ -1126,6 +1133,31 @@ void test(int retval, ...)
     va_end(ap);
 
     promptsgot = 0;
+    if (cgtest_verbose) {
+        printf("run:");
+        for (int i = 0; i < argc; i++) {
+            static const char okchars[] =
+                "0123456789abcdefghijklmnopqrstuvwxyz"
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZ%+,-./:=[]^_";
+            const char *arg = argv[i];
+
+            printf(" ");
+            if (arg[strspn(arg, okchars)]) {
+                printf("'");
+                for (const char *c = argv[i]; *c; c++) {
+                    if (*c == '\'') {
+                        printf("'\\''");
+                    } else {
+                        putchar(*c);
+                    }
+                }
+                printf("'");
+            } else {
+                fputs(arg, stdout);
+            }
+        }
+        printf("\n");
+    }
     ret = cmdgen_main(argc, argv);
 
     if (ret != retval) {
@@ -1242,6 +1274,9 @@ int main(int argc, char **argv)
 {
     int i;
     static char *const keytypes[] = { "rsa1", "dsa", "rsa" };
+
+    if (getenv("CGTEST_VERBOSE"))
+        cgtest_verbose = true;
 
     /*
      * Even when this thing is compiled for automatic test mode,
