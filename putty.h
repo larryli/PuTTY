@@ -1393,8 +1393,8 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, window_border) /* in pixels */ \
     X(STR, NONE, answerback) \
     X(STR, NONE, printer) \
-    X(BOOL, NONE, arabicshaping) \
-    X(BOOL, NONE, bidi) \
+    X(BOOL, NONE, no_arabicshaping) \
+    X(BOOL, NONE, no_bidi) \
     /* Colour options */ \
     X(BOOL, NONE, ansi_colour) \
     X(BOOL, NONE, xterm_256_colour) \

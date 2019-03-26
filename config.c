@@ -1840,10 +1840,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
 		  I(CONF_no_remote_charset));
     ctrl_checkbox(s, "Disable Arabic text shaping",
 		  'l', HELPCTX(features_arabicshaping), conf_checkbox_handler,
-		  I(CONF_arabicshaping));
+		  I(CONF_no_arabicshaping));
     ctrl_checkbox(s, "Disable bidirectional text display",
 		  'd', HELPCTX(features_bidi), conf_checkbox_handler,
-		  I(CONF_bidi));
+		  I(CONF_no_bidi));
 
     /*
      * The Window panel.

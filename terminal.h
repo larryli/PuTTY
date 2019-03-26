@@ -297,13 +297,13 @@ struct terminal_tag {
     bool ansi_colour;
     char *answerback;
     int answerbacklen;
-    bool arabicshaping;
+    bool no_arabicshaping;
     int beep;
     bool bellovl;
     int bellovl_n;
     int bellovl_s;
     int bellovl_t;
-    bool bidi;
+    bool no_bidi;
     bool bksp_is_delete;
     bool blink_cur;
     bool blinktext;

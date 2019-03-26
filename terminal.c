@@ -1464,13 +1464,13 @@ static void set_erase_char(Terminal *term)
 void term_copy_stuff_from_conf(Terminal *term)
 {
     term->ansi_colour = conf_get_bool(term->conf, CONF_ansi_colour);
-    term->arabicshaping = conf_get_bool(term->conf, CONF_arabicshaping);
+    term->no_arabicshaping = conf_get_bool(term->conf, CONF_no_arabicshaping);
     term->beep = conf_get_int(term->conf, CONF_beep);
     term->bellovl = conf_get_bool(term->conf, CONF_bellovl);
     term->bellovl_n = conf_get_int(term->conf, CONF_bellovl_n);
     term->bellovl_s = conf_get_int(term->conf, CONF_bellovl_s);
     term->bellovl_t = conf_get_int(term->conf, CONF_bellovl_t);
-    term->bidi = conf_get_bool(term->conf, CONF_bidi);
+    term->no_bidi = conf_get_bool(term->conf, CONF_no_bidi);
     term->bksp_is_delete = conf_get_bool(term->conf, CONF_bksp_is_delete);
     term->blink_cur = conf_get_bool(term->conf, CONF_blink_cur);
     term->blinktext = conf_get_bool(term->conf, CONF_blinktext);
@@ -1564,10 +1564,10 @@ void term_reconfig(Terminal *term, Conf *conf)
      * If the bidi or shaping settings have changed, flush the bidi
      * cache completely.
      */
-    if (conf_get_bool(term->conf, CONF_arabicshaping) !=
-	conf_get_bool(conf, CONF_arabicshaping) ||
-	conf_get_bool(term->conf, CONF_bidi) !=
-	conf_get_bool(conf, CONF_bidi)) {
+    if (conf_get_bool(term->conf, CONF_no_arabicshaping) !=
+	conf_get_bool(conf, CONF_no_arabicshaping) ||
+	conf_get_bool(term->conf, CONF_no_bidi) !=
+	conf_get_bool(conf, CONF_no_bidi)) {
 	for (i = 0; i < term->bidi_cache_size; i++) {
 	    sfree(term->pre_bidi_cache[i].chars);
 	    sfree(term->post_bidi_cache[i].chars);
@@ -5058,7 +5058,7 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
     int it;
 
     /* Do Arabic shaping and bidi. */
-    if (!term->bidi || !term->arabicshaping ||
+    if (!term->no_bidi || !term->no_arabicshaping ||
         (ldata->trusted && term->cols > TRUST_SIGIL_WIDTH)) {
 
 	if (!term_bidi_cache_hit(term, scr_y, ldata->chars, term->cols,
@@ -5127,10 +5127,10 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
                 nbc++;
             }
 
-	    if(!term->bidi)
+	    if(!term->no_bidi)
 		do_bidi(term->wcFrom, nbc);
 
-	    if(!term->arabicshaping) {
+	    if(!term->no_arabicshaping) {
 		do_shape(term->wcFrom, term->wcTo, nbc);
             } else {
                 /* If we're not calling do_shape, we must copy the
