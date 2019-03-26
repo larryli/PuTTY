@@ -5130,13 +5130,13 @@ static termchar *term_bidi_line(Terminal *term, struct termline *ldata,
 	    if(!term->bidi)
 		do_bidi(term->wcFrom, nbc);
 
-	    /* this is saved iff done from inside the shaping */
-	    if(!term->bidi && term->arabicshaping)
-		for(it=0; it<nbc; it++)
-		    term->wcTo[it] = term->wcFrom[it];
-
-	    if(!term->arabicshaping)
+	    if(!term->arabicshaping) {
 		do_shape(term->wcFrom, term->wcTo, nbc);
+            } else {
+                /* If we're not calling do_shape, we must copy the
+                 * data into wcTo anyway, unchanged */
+                memcpy(term->wcTo, term->wcFrom, nbc * sizeof(*term->wcTo));
+            }
 
 	    if (term->ltemp_size < ldata->size) {
 		term->ltemp_size = ldata->size;
