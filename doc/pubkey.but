@@ -61,8 +61,6 @@ The key types supported by PuTTY are described in \k{puttygen-keytype}.
 
 \H{pubkey-puttygen} Using \i{PuTTYgen}, the PuTTY key generator
 
-\cfg{winhelp-topic}{puttygen.general}
-
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
 public and private keys to be used with PuTTY, PSCP, and Plink, as well
 as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
@@ -106,8 +104,6 @@ server to accept it.
 
 \S{puttygen-keytype} Selecting the type of key
 
-\cfg{winhelp-topic}{puttygen.keytype}
-
 Before generating a key pair using PuTTYgen, you need to select
 which type of key you need. PuTTYgen currently supports these types
 of key:
@@ -133,8 +129,6 @@ supported by PuTTY are RSA, DSA, ECDSA, and Ed25519.
 
 \S{puttygen-strength} Selecting the size (strength) of the key
 
-\cfg{winhelp-topic}{puttygen.bits}
-
 The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
@@ -148,8 +142,6 @@ equivalent security to RSA with smaller key sizes.)
 \b For Ed25519, the only valid size is 256 bits.
 
 \S{puttygen-generate} The \q{Generate} button
-
-\cfg{winhelp-topic}{puttygen.generate}
 
 Once you have chosen the type of key you want, and the strength of
 the key, press the \q{Generate} button and PuTTYgen will begin the
@@ -177,8 +169,6 @@ appear in the window to indicate this.
 
 \S{puttygen-fingerprint} The \q{\ii{Key fingerprint}} box
 
-\cfg{winhelp-topic}{puttygen.fingerprint}
-
 The \q{Key fingerprint} box shows you a fingerprint value for the
 generated key. This is derived cryptographically from the \e{public}
 key value, so it doesn't need to be kept secret; it is supposed to
@@ -192,8 +182,6 @@ list box (see \k{pageant-mainwin-keylist}) and the Unix \c{ssh-add}
 utility, will list key fingerprints rather than the whole public key.
 
 \S{puttygen-comment} Setting a comment for your key
-
-\cfg{winhelp-topic}{puttygen.comment}
 
 If you have more than one key and use them for different purposes,
 you don't need to memorise the key fingerprints in order to tell
@@ -212,8 +200,6 @@ change the comment later, you can load the private key back into
 PuTTYgen, change the comment, and save it again.
 
 \S{puttygen-passphrase} Setting a \i{passphrase} for your key
-
-\cfg{winhelp-topic}{puttygen.passphrase}
 
 The \q{Key passphrase} and \q{Confirm passphrase} boxes allow you to
 choose a passphrase for your key. The passphrase will be used to
@@ -258,8 +244,6 @@ a result.
 
 \S{puttygen-savepriv} Saving your private key to a disk file
 
-\cfg{winhelp-topic}{puttygen.savepriv}
-
 Once you have generated a key, set a comment field and set a
 passphrase, you are ready to save your private key to disk.
 
@@ -273,8 +257,6 @@ will need to tell PuTTY to use for authentication (see
 \k{pageant-mainwin-addkey}).
 
 \S{puttygen-savepub} Saving your public key to a disk file
-
-\cfg{winhelp-topic}{puttygen.savepub}
 
 RFC 4716 specifies a \I{SSH-2 public key format}standard format for
 storing SSH-2 public keys on disk. Some SSH servers (such as
@@ -300,8 +282,6 @@ public keys.
 \S{puttygen-pastekey} \q{Public key for pasting into \i{authorized_keys
 file}}
 
-\cfg{winhelp-topic}{puttygen.pastekey}
-
 All SSH-1 servers require your public key to be given to it in a
 one-line format before it will accept authentication with your
 private key. The \i{OpenSSH} server also requires this for SSH-2.
@@ -316,8 +296,6 @@ See \k{pubkey-gettingready} for general instructions on configuring
 public-key authentication once you have generated a key.
 
 \S{puttygen-load} Reloading a private key
-
-\cfg{winhelp-topic}{puttygen.load}
 
 PuTTYgen allows you to load an existing private key file into
 memory. If you do this, you can then change the passphrase and
@@ -336,8 +314,6 @@ have loaded is not a PuTTY native key. See \k{puttygen-conversions}
 for information about importing foreign key formats.
 
 \S{puttygen-conversions} Dealing with private keys in other formats
-
-\cfg{winhelp-topic}{puttygen.conversions}
 
 Most SSH-1 clients use a standard format for storing private keys on
 disk. PuTTY uses this format as well; so if you have generated an

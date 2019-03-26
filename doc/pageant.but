@@ -1,7 +1,5 @@
 \C{pageant} Using \i{Pageant} for authentication
 
-\cfg{winhelp-topic}{pageant.general}
-
 Pageant is an SSH \i{authentication agent}. It holds your \i{private key}s
 in memory, already decoded, so that you can use them often
 \I{passwordless login}without needing to type a \i{passphrase}.
@@ -58,8 +56,6 @@ existing keys.
 
 \S{pageant-mainwin-keylist} The key list box
 
-\cfg{winhelp-topic}{pageant.keylist}
-
 The large list box in the Pageant main window lists the private keys
 that are currently loaded into Pageant. The list might look
 something like this:
@@ -87,8 +83,6 @@ applied to your \c{authorized_keys} file.
 
 \S{pageant-mainwin-addkey} The \q{Add Key} button
 
-\cfg{winhelp-topic}{pageant.addkey}
-
 To add a key to Pageant by reading it out of a local disk file,
 press the \q{Add Key} button in the Pageant main window, or
 alternatively right-click on the Pageant icon in the system tray and
@@ -108,8 +102,6 @@ also add one from a remote system by using agent forwarding; see
 \k{pageant-forward} for details.)
 
 \S{pageant-mainwin-remkey} The \q{Remove Key} button
-
-\cfg{winhelp-topic}{pageant.remkey}
 
 If you need to remove a key from Pageant, select that key in the
 list box, and press the \q{Remove Key} button. Pageant will remove

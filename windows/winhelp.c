@@ -229,11 +229,8 @@ void launch_help(HWND hwnd, const char *topic)
         return;
 
     if (topic) {
-	int colonpos = strcspn(topic, ":");
-        assert(topic[colonpos] != '\0');
-
         char *fname = dupprintf(
-            "%s::/%s.html>main", chm_path, topic + colonpos + 1);
+            "%s::/%s.html>main", chm_path, topic);
         p_HtmlHelpA(hwnd, fname, HH_DISPLAY_TOPIC, 0);
         sfree(fname);
     } else {
