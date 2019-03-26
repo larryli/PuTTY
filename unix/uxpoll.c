@@ -1,3 +1,6 @@
+/* On some systems this is needed to get poll.h to define eg.. POLLRDNORM */
+#define _XOPEN_SOURCE
+
 #include <poll.h>
 
 #include "putty.h"
@@ -71,6 +74,21 @@ void pollwrap_add_fd_events(pollwrapper *pw, int fd, int events)
 
     pw->fds[f2p->pos].events |= events;
 }
+
+/* Omit any of the POLL{RD,WR}{NORM,BAND} flag values that are still
+ * not defined by poll.h, just in case */
+#ifndef POLLRDNORM
+#define POLLRDNORM 0
+#endif
+#ifndef POLLRDBAND
+#define POLLRDBAND 0
+#endif
+#ifndef POLLWRNORM
+#define POLLWRNORM 0
+#endif
+#ifndef POLLWRBAND
+#define POLLWRBAND 0
+#endif
 
 #define SELECT_R_IN (POLLIN  | POLLRDNORM | POLLRDBAND)
 #define SELECT_W_IN (POLLOUT | POLLWRNORM | POLLWRBAND)
