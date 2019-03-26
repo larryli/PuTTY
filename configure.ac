@@ -100,25 +100,21 @@ gtk=none
 
 case "$gtk_version_desired:$gtk" in
   3:none | any:none)
-    ifdef([AM_PATH_GTK_3_0],[
-    AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])
-    ],[AC_WARNING([generating configure script without GTK 3 autodetection])])
+    ifdef([AM_PATH_GTK_3_0],[AM_PATH_GTK_3_0([3.0.0], [gtk=3], [])],
+    [AC_WARNING([generating configure script without GTK 3 autodetection])])
     ;;
 esac
 
 case "$gtk_version_desired:$gtk" in
   2:none | any:none)
-    ifdef([AM_PATH_GTK_2_0],[
-    AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])
-    ],[AC_WARNING([generating configure script without GTK 2 autodetection])])
+    ifdef([AM_PATH_GTK_2_0],[AM_PATH_GTK_2_0([2.0.0], [gtk=2], [])],
+    [AC_WARNING([generating configure script without GTK 2 autodetection])])
     ;;
 esac
 
 case "$gtk_version_desired:$gtk" in
   1:none | any:none)
-    ifdef([AM_PATH_GTK],[
-    AM_PATH_GTK([1.2.0], [gtk=1], [])
-    ],[
+    ifdef([AM_PATH_GTK],[AM_PATH_GTK([1.2.0], [gtk=1], [])],[
     # manual check for gtk1
     AC_PATH_PROG(GTK1_CONFIG, gtk-config, absent)
     if test "$GTK1_CONFIG" != "absent"; then
