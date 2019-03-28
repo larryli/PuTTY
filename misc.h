@@ -97,6 +97,7 @@ static inline int toint(unsigned u)
 }
 
 char *fgetline(FILE *fp);
+bool read_file_into(BinarySink *bs, FILE *fp);
 char *chomp(char *str);
 bool strstartswith(const char *s, const char *t);
 bool strendswith(const char *s, const char *t);

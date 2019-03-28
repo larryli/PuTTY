@@ -502,6 +502,20 @@ char *fgetline(FILE *fp)
 }
 
 /*
+ * Read an entire file into a BinarySink.
+ */
+bool read_file_into(BinarySink *bs, FILE *fp)
+{
+    char buf[4096];
+    while (1) {
+        size_t retd = fread(buf, 1, sizeof(buf), fp);
+        if (retd == 0)
+            return !ferror(fp);
+        put_data(bs, buf, retd);
+    }
+}
+
+/*
  * Perl-style 'chomp', for a line we just read with fgetline. Unlike
  * Perl chomp, however, we're deliberately forgiving of strange
  * line-ending conventions. Also we forgive NULL on input, so you can
