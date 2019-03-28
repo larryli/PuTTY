@@ -127,6 +127,13 @@ static void ssh2_userauth_server_process_queue(PacketProtocolLayer *ppl)
 
     s->session_id = ssh2_transport_get_session_id(s->transport_layer);
 
+    if (s->ssc->banner.ptr) {
+        pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_USERAUTH_BANNER);
+        put_stringpl(pktout, s->ssc->banner);
+        put_stringz(pktout, ""); /* language tag */
+        pq_push(s->ppl.out_pq, pktout);
+    }
+
     while (1) {
         crMaybeWaitUntilV((pktin = ssh2_userauth_server_pop(s)) != NULL);
         if (pktin->type != SSH2_MSG_USERAUTH_REQUEST) {

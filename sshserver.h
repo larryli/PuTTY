@@ -1,7 +1,7 @@
 typedef struct AuthPolicy AuthPolicy;
 
 struct SshServerConfig {
-    int dummy;                         /* no fields in here yet */
+    ptrlen banner;        /* banner.ptr == NULL indicates no banner */
 };
 
 Plug *ssh_server_plug(

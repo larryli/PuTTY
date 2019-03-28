@@ -510,6 +510,23 @@ int main(int argc, char **argv)
                         "(%s)\n", appname, val, key_type_to_str(keytype));
                 exit(1);
             }
+        } else if (longoptarg(arg, "--bannerfile", &val, &argc, &argv)) {
+            FILE *fp = fopen(val, "r");
+            if (!fp) {
+                fprintf(stderr, "%s: %s: open: %s\n", appname,
+                        val, strerror(errno));
+                exit(1);
+            }
+            strbuf *sb = strbuf_new();
+            if (!read_file_into(BinarySink_UPCAST(sb), fp)) {
+                fprintf(stderr, "%s: %s: read: %s\n", appname,
+                        val, strerror(errno));
+                exit(1);
+            }
+            fclose(fp);
+            ssc.banner = ptrlen_from_strbuf(sb);
+        } else if (longoptarg(arg, "--bannertext", &val, &argc, &argv)) {
+            ssc.banner = ptrlen_from_asciz(val);
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||
                    longoptarg(arg, "-sshlog", &val, &argc, &argv)) {
             Filename *logfile = filename_from_str(val);
