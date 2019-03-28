@@ -52,6 +52,8 @@ struct ssh1_connection_state {
     bool compressing;                  /* used in server mode only */
     bool sent_exit_status;             /* also for server mode */
 
+    const SshServerConfig *ssc;
+
     ConnectionLayer cl;
     PacketProtocolLayer ppl;
 };

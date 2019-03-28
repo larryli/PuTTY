@@ -36,6 +36,7 @@ struct server {
     bool frozen;
 
     Conf *conf;
+    const SshServerConfig *ssc;
     ssh_key *const *hostkeys;
     int nhostkeys;
     RSAKey *hostkey1;
@@ -223,7 +224,8 @@ static const PlugVtable ssh_server_plugvt = {
 };
 
 Plug *ssh_server_plug(
-    Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
+    Conf *conf, const SshServerConfig *ssc,
+    ssh_key *const *hostkeys, int nhostkeys,
     RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
     const SftpServerVtable *sftpserver_vt)
 {
@@ -233,6 +235,7 @@ Plug *ssh_server_plug(
 
     srv->plug.vt = &ssh_server_plugvt;
     srv->conf = conf_copy(conf);
+    srv->ssc = ssc;
     srv->logctx = log_init(logpolicy, conf);
     conf_set_bool(srv->conf, CONF_ssh_no_shell, true);
     srv->nhostkeys = nhostkeys;
@@ -431,7 +434,8 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
         connection_layer = ssh2_connection_new(
             &srv->ssh, NULL, false, srv->conf, 
             ssh_verstring_get_local(old_bpp), &srv->cl);
-        ssh2connection_server_configure(connection_layer, srv->sftpserver_vt);
+        ssh2connection_server_configure(connection_layer,
+                                        srv->sftpserver_vt, srv->ssc);
         server_connect_ppl(srv, connection_layer);
 
         if (conf_get_bool(srv->conf, CONF_ssh_no_userauth)) {
@@ -439,7 +443,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
             transport_child_layer = connection_layer;
         } else {
             userauth_layer = ssh2_userauth_server_new(
-                connection_layer, srv->authpolicy);
+                connection_layer, srv->authpolicy, srv->ssc);
             server_connect_ppl(srv, userauth_layer);
             transport_child_layer = userauth_layer;
         }
@@ -453,7 +457,7 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
 #else
             NULL,
 #endif
-            &srv->stats, transport_child_layer, true);
+            &srv->stats, transport_child_layer, srv->ssc);
         ssh2_transport_provide_hostkeys(
             srv->base_layer, srv->hostkeys, srv->nhostkeys);
         if (userauth_layer)
@@ -466,10 +470,11 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
         server_connect_bpp(srv);
 
         connection_layer = ssh1_connection_new(&srv->ssh, srv->conf, &srv->cl);
+        ssh1connection_server_configure(connection_layer, srv->ssc);
         server_connect_ppl(srv, connection_layer);
 
         srv->base_layer = ssh1_login_server_new(
-            connection_layer, srv->hostkey1, srv->authpolicy);
+            connection_layer, srv->hostkey1, srv->authpolicy, srv->ssc);
         server_connect_ppl(srv, srv->base_layer);
     }
 

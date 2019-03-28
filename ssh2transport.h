@@ -139,6 +139,8 @@ struct ssh2_transport_state {
 
     struct DataTransferStats *stats;
 
+    const SshServerConfig *ssc;
+
     char *client_greeting, *server_greeting;
 
     bool kex_in_progress;

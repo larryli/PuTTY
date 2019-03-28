@@ -283,7 +283,7 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
 #else
                 NULL,
 #endif
-                &ssh->stats, transport_child_layer, false);
+                &ssh->stats, transport_child_layer, NULL);
             ssh_connect_ppl(ssh, ssh->base_layer);
 
             if (userauth_layer)

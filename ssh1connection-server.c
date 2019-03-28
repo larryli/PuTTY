@@ -45,6 +45,14 @@ static const struct SshChannelVtable ssh1sesschan_vtable = {
     NULL /* hint_channel_is_simple */,
 };
 
+void ssh1connection_server_configure(
+    PacketProtocolLayer *ppl, const SshServerConfig *ssc)
+{
+    struct ssh1_connection_state *s =
+        container_of(ppl, struct ssh1_connection_state, ppl);
+    s->ssc = ssc;
+}
+
 void ssh1_connection_direction_specific_setup(
     struct ssh1_connection_state *s)
 {

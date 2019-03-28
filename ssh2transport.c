@@ -115,7 +115,7 @@ PacketProtocolLayer *ssh2_transport_new(
     const char *client_greeting, const char *server_greeting,
     struct ssh_connection_shared_gss_state *shgss,
     struct DataTransferStats *stats, PacketProtocolLayer *higher_layer,
-    bool is_server)
+    const SshServerConfig *ssc)
 {
     struct ssh2_transport_state *s = snew(struct ssh2_transport_state);
     memset(s, 0, sizeof(*s));
@@ -151,7 +151,8 @@ PacketProtocolLayer *ssh2_transport_new(
 
     s->outgoing_kexinit = strbuf_new();
     s->incoming_kexinit = strbuf_new();
-    if (is_server) {
+    if (ssc) {
+        s->ssc = ssc;
         s->client_kexinit = s->incoming_kexinit;
         s->server_kexinit = s->outgoing_kexinit;
         s->out.mkkey_adjust = 1;

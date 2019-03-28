@@ -79,6 +79,7 @@ typedef struct MontgomeryPoint MontgomeryPoint;
 typedef struct EdwardsCurve EdwardsCurve;
 typedef struct EdwardsPoint EdwardsPoint;
 
+typedef struct SshServerConfig SshServerConfig;
 typedef struct SftpServer SftpServer;
 typedef struct SftpServerVtable SftpServerVtable;
 

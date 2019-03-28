@@ -17,6 +17,8 @@ struct ssh1_login_server_state {
 
     PacketProtocolLayer *successor_layer;
 
+    const SshServerConfig *ssc;
+
     int remote_protoflags;
     int local_protoflags;
     unsigned long supported_ciphers_mask, supported_auths_mask;
@@ -70,12 +72,13 @@ static void no_progress(void *param, int action, int phase, int iprogress) {}
 
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, RSAKey *hostkey,
-    AuthPolicy *authpolicy)
+    AuthPolicy *authpolicy, const SshServerConfig *ssc)
 {
     struct ssh1_login_server_state *s = snew(struct ssh1_login_server_state);
     memset(s, 0, sizeof(*s));
     s->ppl.vt = &ssh1_login_server_vtable;
 
+    s->ssc = ssc;
     s->hostkey = hostkey;
     s->authpolicy = authpolicy;
 

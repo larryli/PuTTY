@@ -366,6 +366,7 @@ int main(int argc, char **argv)
     RSAKey *hostkey1 = NULL;
 
     AuthPolicy ap;
+    SshServerConfig ssc;
 
     Conf *conf = conf_new();
     load_open_settings(NULL, conf);
@@ -373,6 +374,8 @@ int main(int argc, char **argv)
     ap.kbdint_state = 0;
     ap.ssh1keys = NULL;
     ap.ssh2keys = NULL;
+
+    memset(&ssc, 0, sizeof(ssc));
 
     if (argc <= 1) {
         /*
@@ -548,7 +551,7 @@ int main(int argc, char **argv)
 
     {
         Plug *plug = ssh_server_plug(
-            conf, hostkeys, nhostkeys, hostkey1, &ap, server_logpolicy,
+            conf, &ssc, hostkeys, nhostkeys, hostkey1, &ap, server_logpolicy,
             &unix_live_sftpserver_vt);
         ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
     }

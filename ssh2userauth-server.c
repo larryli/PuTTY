@@ -24,6 +24,7 @@ struct ssh2_userauth_server_state {
     ptrlen session_id;
 
     AuthPolicy *authpolicy;
+    const SshServerConfig *ssc;
 
     ptrlen username, service, method;
     unsigned methods, this_method;
@@ -64,7 +65,8 @@ static void free_auth_kbdint(AuthKbdInt *aki)
 }
 
 PacketProtocolLayer *ssh2_userauth_server_new(
-    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy)
+    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy,
+    const SshServerConfig *ssc)
 {
     struct ssh2_userauth_server_state *s =
         snew(struct ssh2_userauth_server_state);
@@ -73,6 +75,7 @@ PacketProtocolLayer *ssh2_userauth_server_new(
 
     s->successor_layer = successor_layer;
     s->authpolicy = authpolicy;
+    s->ssc = ssc;
 
     return &s->ppl;
 }

@@ -1,7 +1,12 @@
 typedef struct AuthPolicy AuthPolicy;
 
+struct SshServerConfig {
+    int dummy;                         /* no fields in here yet */
+};
+
 Plug *ssh_server_plug(
-    Conf *conf, ssh_key *const *hostkeys, int nhostkeys,
+    Conf *conf, const SshServerConfig *ssc,
+    ssh_key *const *hostkeys, int nhostkeys,
     RSAKey *hostkey1, AuthPolicy *authpolicy, LogPolicy *logpolicy,
     const SftpServerVtable *sftpserver_vt);
 void ssh_server_start(Plug *plug, Socket *socket);
@@ -67,16 +72,20 @@ RSAKey *auth_publickey_ssh1(
 bool auth_successful(AuthPolicy *, ptrlen username, unsigned method);
 
 PacketProtocolLayer *ssh2_userauth_server_new(
-    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy);
+    PacketProtocolLayer *successor_layer, AuthPolicy *authpolicy,
+    const SshServerConfig *ssc);
 void ssh2_userauth_server_set_transport_layer(
     PacketProtocolLayer *userauth, PacketProtocolLayer *transport);
 
 void ssh2connection_server_configure(
-    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt);
+    PacketProtocolLayer *ppl, const SftpServerVtable *sftpserver_vt,
+    const SshServerConfig *ssc);
+void ssh1connection_server_configure(
+    PacketProtocolLayer *ppl, const SshServerConfig *ssc);
 
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, RSAKey *hostkey,
-    AuthPolicy *authpolicy);
+    AuthPolicy *authpolicy, const SshServerConfig *ssc);
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
                       const SftpServerVtable *sftpserver_vt);
