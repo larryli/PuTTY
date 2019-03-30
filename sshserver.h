@@ -2,6 +2,8 @@ typedef struct AuthPolicy AuthPolicy;
 
 struct SshServerConfig {
     ptrlen banner;        /* banner.ptr == NULL indicates no banner */
+
+    bool exit_signal_numeric;          /* mimic an old server bug */
 };
 
 Plug *ssh_server_plug(
@@ -94,6 +96,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
     struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty);
+int pty_backend_exit_signum(Backend *be);
 ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg);
 
 /*

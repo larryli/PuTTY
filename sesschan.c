@@ -608,24 +608,38 @@ static bool sesschan_seat_eof(Seat *seat)
 static void sesschan_notify_remote_exit(Seat *seat)
 {
     sesschan *sess = container_of(seat, sesschan, seat);
-    ptrlen signame;
-    char *sigmsg;
 
     if (!sess->backend)
         return;
 
-    signame = pty_backend_exit_signame(sess->backend, &sigmsg);
-    if (signame.len) {
-        if (!sigmsg)
-            sigmsg = dupstr("");
+    bool got_signal = false;
+    if (!sess->ssc->exit_signal_numeric) {
+        char *sigmsg;
+        ptrlen signame = pty_backend_exit_signame(sess->backend, &sigmsg);
 
-        sshfwd_send_exit_signal(
-            sess->c, signame, false, ptrlen_from_asciz(sigmsg));
+        if (signame.len) {
+            if (!sigmsg)
+                sigmsg = dupstr("");
 
-        sfree(sigmsg);
+            sshfwd_send_exit_signal(
+                sess->c, signame, false, ptrlen_from_asciz(sigmsg));
+
+            sfree(sigmsg);
+
+            got_signal = true;
+        }
     } else {
-        sshfwd_send_exit_status(sess->c, backend_exitcode(sess->backend));
+        int signum = pty_backend_exit_signum(sess->backend);
+
+        if (signum >= 0) {
+            sshfwd_send_exit_signal_numeric(sess->c, signum, false,
+                                            PTRLEN_LITERAL(""));
+            got_signal = true;
+        }
     }
+
+    if (!got_signal)
+        sshfwd_send_exit_status(sess->c, backend_exitcode(sess->backend));
 
     sess->seen_exit = true;
     queue_toplevel_callback(sesschan_check_close_callback, sess);

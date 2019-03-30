@@ -1526,17 +1526,23 @@ static int pty_exitcode(Backend *be)
         return WEXITSTATUS(pty->exit_code);
 }
 
-ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
+int pty_backend_exit_signum(Backend *be)
 {
     Pty *pty = container_of(be, Pty, backend);
-    int sig;
-
-    *aux_msg = NULL;
 
     if (!pty->finished || !WIFSIGNALED(pty->exit_code))
-	return PTRLEN_LITERAL("");
+	return -1;
 
-    sig = WTERMSIG(pty->exit_code);
+    return WTERMSIG(pty->exit_code);
+}
+
+ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
+{
+    *aux_msg = NULL;
+
+    int sig = pty_backend_exit_signum(be);
+    if (sig < 0)
+	return PTRLEN_LITERAL("");
 
 #define TRANSLATE_SIGNAL(s) do                          \
     {                                                   \
