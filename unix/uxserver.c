@@ -353,6 +353,21 @@ static bool longoptarg(const char *arg, const char *expected,
     return false;
 }
 
+static bool longoptnoarg(const char *arg, const char *expected)
+{
+    int len = strlen(expected);
+    if (memcmp(arg, expected, len))
+        return false;
+    if (arg[len] == '=') {
+        fprintf(stderr, "%s: option %s expects no argument\n",
+                appname, expected);
+        exit(1);
+    } else if (arg[len] == '\0') {
+        return true;
+    }
+    return false;
+}
+
 int main(int argc, char **argv)
 {
     int *fdlist;
@@ -395,9 +410,9 @@ int main(int argc, char **argv)
         if (!strcmp(arg, "--help")) {
             show_help(stdout);
             exit(0);
-        } else if (!strcmp(arg, "--version")) {
+        } else if (longoptnoarg(arg, "--version")) {
             show_version_and_exit();
-        } else if (!strcmp(arg, "--verbose") || !strcmp(arg, "-v")) {
+        } else if (longoptnoarg(arg, "--verbose") || !strcmp(arg, "-v")) {
             verbose = true;
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
             Filename *keyfile;
