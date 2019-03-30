@@ -293,7 +293,7 @@ static const TermWinVtable windows_termwin_vt = {
 static TermWin wintw[1];
 static HDC wintw_hdc;
 
-static HICON icon;
+static HICON trust_icon = INVALID_HANDLE_VALUE;
 
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
@@ -681,8 +681,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         prepare_session(conf);
     }
 
-    icon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-
     if (!prev) {
         WNDCLASSW wndclass;
 
@@ -691,7 +689,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	wndclass.cbClsExtra = 0;
 	wndclass.cbWndExtra = 0;
 	wndclass.hInstance = inst;
-	wndclass.hIcon = icon;
+	wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
 	wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
 	wndclass.hbrBackground = NULL;
 	wndclass.lpszMenuName = NULL;
@@ -1500,6 +1498,8 @@ static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
  * - verify that the underlined font is the same width as the
  *   ordinary one (manual underlining by means of line drawing can
  *   be done in a pinch).
+ *
+ * - find a trust sigil icon that will look OK with the chosen font.
  */
 static void init_fonts(int pick_width, int pick_height)
 {
@@ -1665,6 +1665,11 @@ static void init_fonts(int pick_width, int pick_height)
 
     ReleaseDC(hwnd, hdc);
 
+    DestroyIcon(trust_icon);
+    trust_icon = LoadImage(hinst, MAKEINTRESOURCE(IDI_MAINICON),
+			   IMAGE_ICON, font_width*2, font_height,
+			   LR_DEFAULTCOLOR);
+
     if (fontsize[FONT_UNDERLINE] != fontsize[FONT_NORMAL]) {
 	und_mode = UND_LINE;
 	DeleteObject(fonts[FONT_UNDERLINE]);
@@ -1747,6 +1752,9 @@ static void deinit_fonts(void)
 	fonts[i] = 0;
 	fontflag[i] = false;
     }
+
+    DestroyIcon(trust_icon);
+    trust_icon = INVALID_HANDLE_VALUE;
 }
 
 static void wintw_request_resize(TermWin *tw, int w, int h)
@@ -4002,7 +4010,7 @@ static void wintw_draw_trust_sigil(TermWin *tw, int x, int y)
     x += offset_width;
     y += offset_height;
 
-    DrawIconEx(wintw_hdc, x, y, icon, font_width * 2, font_height,
+    DrawIconEx(wintw_hdc, x, y, trust_icon, font_width * 2, font_height,
                0, NULL, DI_NORMAL);
 }
 
