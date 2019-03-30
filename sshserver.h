@@ -88,7 +88,8 @@ PacketProtocolLayer *ssh1_login_server_new(
     AuthPolicy *authpolicy, const SshServerConfig *ssc);
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
-                      const SftpServerVtable *sftpserver_vt);
+                      const SftpServerVtable *sftpserver_vt,
+                      const SshServerConfig *ssc);
 
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,

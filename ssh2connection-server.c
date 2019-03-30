@@ -30,7 +30,7 @@ static ChanopenResult chan_open_session(
 
     ppl_logevent("Opened session channel");
     CHANOPEN_RETURN_SUCCESS(sesschan_new(sc, s->ppl.logctx,
-                                         s->sftpserver_vt));
+                                         s->sftpserver_vt, s->ssc));
 }
 
 static ChanopenResult chan_open_direct_tcpip(

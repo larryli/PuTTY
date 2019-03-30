@@ -43,6 +43,7 @@ typedef struct sesschan {
     bufchain subsys_input;
     SftpServer *sftpsrv;
     ScpServer *scpsrv;
+    const SshServerConfig *ssc;
 
     Channel chan;
 } sesschan;
@@ -198,7 +199,8 @@ static const SeatVtable sesschan_seat_vt = {
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
-                      const SftpServerVtable *sftpserver_vt)
+                      const SftpServerVtable *sftpserver_vt,
+                      const SshServerConfig *ssc)
 {
     sesschan *sess = snew(sesschan);
     memset(sess, 0, sizeof(sesschan));
@@ -207,6 +209,7 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
     sess->chan.vt = &sesschan_channelvt;
     sess->chan.initial_fixed_window_size = 0;
     sess->parent_logctx = logctx;
+    sess->ssc = ssc;
 
     /* Start with a completely default Conf */
     sess->conf = conf_new();
