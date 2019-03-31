@@ -489,8 +489,7 @@ int main(int argc, char **argv)
     AuthPolicy ap;
     SshServerConfig ssc;
 
-    Conf *conf = conf_new();
-    load_open_settings(NULL, conf);
+    Conf *conf = make_ssh_server_conf();
 
     ap.kbdint_state = 0;
     ap.ssh1keys = NULL;

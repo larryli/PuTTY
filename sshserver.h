@@ -119,3 +119,5 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
                              const char *screen_number_suffix,
                              ptrlen authproto, ptrlen authdata,
                              Socket **sockets, Conf *conf);
+
+Conf *make_ssh_server_conf(void);

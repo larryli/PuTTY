@@ -216,6 +216,19 @@ void ssh_conn_processed_data(Ssh *ssh)
      * around a peculiarity of the GUI event loop, I haven't yet. */
 }
 
+Conf *make_ssh_server_conf(void)
+{
+    Conf *conf = conf_new();
+    load_open_settings(NULL, conf);
+    /* In Uppity, we support even the legacy des-cbc cipher by
+     * default, so that it will be available if the user forces it by
+     * overriding the KEXINIT strings. If the user wants it _not_
+     * supported, of course, they can override KEXINIT in the other
+     * direction. */
+    conf_set_bool(conf, CONF_ssh2_des_cbc, true);
+    return conf;
+}
+
 static const PlugVtable ssh_server_plugvt = {
     server_socket_log,
     server_closing,
