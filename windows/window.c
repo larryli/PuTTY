@@ -1665,7 +1665,9 @@ static void init_fonts(int pick_width, int pick_height)
 
     ReleaseDC(hwnd, hdc);
 
-    DestroyIcon(trust_icon);
+    if (trust_icon != INVALID_HANDLE_VALUE) {
+	DestroyIcon(trust_icon);
+    }
     trust_icon = LoadImage(hinst, MAKEINTRESOURCE(IDI_MAINICON),
 			   IMAGE_ICON, font_width*2, font_height,
 			   LR_DEFAULTCOLOR);
@@ -1753,7 +1755,9 @@ static void deinit_fonts(void)
 	fontflag[i] = false;
     }
 
-    DestroyIcon(trust_icon);
+    if (trust_icon != INVALID_HANDLE_VALUE) {
+	DestroyIcon(trust_icon);
+    }
     trust_icon = INVALID_HANDLE_VALUE;
 }
 
