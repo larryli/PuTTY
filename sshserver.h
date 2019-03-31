@@ -1,7 +1,12 @@
 typedef struct AuthPolicy AuthPolicy;
 
 struct SshServerConfig {
-    ptrlen banner;        /* banner.ptr == NULL indicates no banner */
+    /*
+     * In all of these ptrlens, setting the 'ptr' member to NULL means
+     * that we're not overriding the default configuration.
+     */
+    ptrlen banner;                     /* default here is 'no banner' */
+    ptrlen kex_override[NKEXLIST];
 
     bool exit_signal_numeric;          /* mimic an old server bug */
 };

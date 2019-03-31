@@ -742,6 +742,13 @@ struct ssh_kexes {
     const ssh_kex *const *list;
 };
 
+/* Indices of the negotiation strings in the KEXINIT packet */
+enum kexlist {
+    KEXLIST_KEX, KEXLIST_HOSTKEY, KEXLIST_CSCIPHER, KEXLIST_SCCIPHER,
+    KEXLIST_CSMAC, KEXLIST_SCMAC, KEXLIST_CSCOMP, KEXLIST_SCCOMP,
+    NKEXLIST
+};
+
 struct ssh_keyalg {
     /* Constructors that create an ssh_key */
     ssh_key *(*new_pub) (const ssh_keyalg *self, ptrlen pub);

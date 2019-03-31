@@ -18,11 +18,6 @@
 #define DH_MIN_SIZE 1024
 #define DH_MAX_SIZE 8192
 
-enum kexlist {
-    KEXLIST_KEX, KEXLIST_HOSTKEY, KEXLIST_CSCIPHER, KEXLIST_SCCIPHER,
-    KEXLIST_CSMAC, KEXLIST_SCMAC, KEXLIST_CSCOMP, KEXLIST_SCCOMP,
-    NKEXLIST
-};
 #define MAXKEXLIST 16
 struct kexinit_algorithm {
     const char *name;

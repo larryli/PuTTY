@@ -542,6 +542,22 @@ int main(int argc, char **argv)
             ssc.banner = ptrlen_from_strbuf(sb);
         } else if (longoptarg(arg, "--bannertext", &val, &argc, &argv)) {
             ssc.banner = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-kex", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_KEX] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-hostkey", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_HOSTKEY] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-cscipher", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_CSCIPHER] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-csmac", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_CSMAC] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-cscomp", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_CSCOMP] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-sccipher", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_SCCIPHER] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-scmac", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_SCMAC] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--kexinit-sccomp", &val, &argc, &argv)) {
+            ssc.kex_override[KEXLIST_SCCOMP] = ptrlen_from_asciz(val);
         } else if (longoptnoarg(arg, "--exitsignum")) {
             ssc.exit_signal_numeric = true;
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||
