@@ -18,7 +18,7 @@ Plug *ssh_server_plug(
     const SftpServerVtable *sftpserver_vt);
 void ssh_server_start(Plug *plug, Socket *socket);
 
-void server_instance_terminated(void);
+void server_instance_terminated(LogPolicy *logpolicy);
 void platform_logevent(const char *msg);
 
 #define AUTHMETHODS(X)                          \

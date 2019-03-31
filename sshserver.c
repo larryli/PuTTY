@@ -41,6 +41,7 @@ struct server {
     int nhostkeys;
     RSAKey *hostkey1;
     AuthPolicy *authpolicy;
+    LogPolicy *logpolicy;
     const SftpServerVtable *sftpserver_vt;
 
     Seat seat;
@@ -242,6 +243,7 @@ Plug *ssh_server_plug(
     srv->hostkeys = hostkeys;
     srv->hostkey1 = hostkey1;
     srv->authpolicy = authpolicy;
+    srv->logpolicy = logpolicy;
     srv->sftpserver_vt = sftpserver_vt;
 
     srv->seat.vt = &server_seat_vt;
@@ -310,7 +312,7 @@ static void ssh_server_free_callback(void *vsrv)
 
     sfree(srv);
 
-    server_instance_terminated();
+    server_instance_terminated(srv->logpolicy);
 }
 
 static void server_connect_bpp(server *srv)

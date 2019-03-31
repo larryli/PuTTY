@@ -397,7 +397,7 @@ testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
 testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
-         + uxpty uxsftpserver ux_x11 uxagentsock
+         + uxpty uxsftpserver ux_x11 uxagentsock procnet
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

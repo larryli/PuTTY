@@ -112,19 +112,15 @@ char *platform_get_x_display(void) { return NULL; }
 
 static bool verbose;
 
-static void log_to_stderr(const char *msg)
-{
-    /*
-     * FIXME: in multi-connection proper-socket mode, prefix this with
-     * a connection id of some kind. We'll surely pass this in to
-     * sshserver.c by way of constructing a distinct LogPolicy per
-     * instance and making its containing structure contain the id -
-     * but we'll also have to arrange for those LogPolicy structs to
-     * be freed when the server instance terminates.
-     *
-     * For now, though, we only have one server instance, so no need.
-     */
+struct server_instance {
+    unsigned id;
+    LogPolicy logpolicy;
+};
 
+static void log_to_stderr(unsigned id, const char *msg)
+{
+    if (id != (unsigned)-1)
+        fprintf(stderr, "#%u: ", id);
     fputs(msg, stderr);
     fputc('\n', stderr);
     fflush(stderr);
@@ -132,13 +128,17 @@ static void log_to_stderr(const char *msg)
 
 static void server_eventlog(LogPolicy *lp, const char *event)
 {
+    struct server_instance *inst = container_of(
+        lp, struct server_instance, logpolicy);
     if (verbose)
-        log_to_stderr(event);
+        log_to_stderr(inst->id, event);
 }
 
 static void server_logging_error(LogPolicy *lp, const char *event)
 {
-    log_to_stderr(event);              /* unconditional */
+    struct server_instance *inst = container_of(
+        lp, struct server_instance, logpolicy);
+    log_to_stderr(inst->id, event);    /* unconditional */
 }
 
 static int server_askappend(
@@ -153,7 +153,6 @@ static const LogPolicyVtable server_logpolicy_vt = {
     server_askappend,
     server_logging_error,
 };
-LogPolicy server_logpolicy[1] = {{ &server_logpolicy_vt }};
 
 struct AuthPolicy_ssh1_pubkey {
     RSAKey key;
@@ -324,11 +323,20 @@ static void show_version_and_exit(void)
 
 const bool buildinfo_gtk_relevant = false;
 
+static bool listening = false;
 static bool finished = false;
-void server_instance_terminated(void)
+void server_instance_terminated(LogPolicy *lp)
 {
-    /* FIXME: change policy here if we're running in a listening loop */
-    finished = true;
+    struct server_instance *inst = container_of(
+        lp, struct server_instance, logpolicy);
+
+    if (listening) {
+        log_to_stderr(inst->id, "connection terminated");
+    } else {
+        finished = true;
+    }
+
+    sfree(inst);
 }
 
 static bool longoptarg(const char *arg, const char *expected,
@@ -368,6 +376,95 @@ static bool longoptnoarg(const char *arg, const char *expected)
     return false;
 }
 
+struct server_config {
+    Conf *conf;
+    const SshServerConfig *ssc;
+
+    ssh_key **hostkeys;
+    int nhostkeys;
+
+    RSAKey *hostkey1;
+
+    AuthPolicy *ap;
+
+    unsigned next_id;
+
+    Plug listening_plug;
+};
+
+static Plug *server_conn_plug(
+    struct server_config *cfg, struct server_instance **inst_out)
+{
+    struct server_instance *inst = snew(struct server_instance);
+
+    inst->id = cfg->next_id++;
+    inst->logpolicy.vt = &server_logpolicy_vt;
+
+    if (inst_out)
+        *inst_out = inst;
+
+    return ssh_server_plug(
+        cfg->conf, cfg->ssc, cfg->hostkeys, cfg->nhostkeys, cfg->hostkey1,
+        cfg->ap, &inst->logpolicy, &unix_live_sftpserver_vt);
+}
+
+static void server_log(Plug *plug, int type, SockAddr *addr, int port,
+                       const char *error_msg, int error_code)
+{
+    log_to_stderr((unsigned)-1, error_msg);
+}
+
+static void server_closing(Plug *plug, const char *error_msg, int error_code,
+                           bool calling_back)
+{
+    log_to_stderr((unsigned)-1, error_msg);
+}
+
+static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
+{
+    struct server_config *cfg = container_of(
+        p, struct server_config, listening_plug);
+    Socket *s;
+    const char *err;
+
+    struct server_instance *inst;
+
+    unsigned old_next_id = cfg->next_id;
+
+    Plug *plug = server_conn_plug(cfg, &inst);
+    s = constructor(ctx, plug);
+    if ((err = sk_socket_error(s)) != NULL)
+	return 1;
+
+    SocketPeerInfo *pi = sk_peer_info(s);
+
+    if (!sk_peer_trusted(s)) {
+        fprintf(stderr, "rejected connection from %s (untrustworthy peer)\n",
+                pi->log_text);
+        sk_free_peer_info(pi);
+        sk_close(s);
+        cfg->next_id = old_next_id;
+        return 1;
+    }
+
+    char *msg = dupprintf("new connection from %s", pi->log_text);
+    log_to_stderr(inst->id, msg);
+    sfree(msg);
+    sk_free_peer_info(pi);
+
+    sk_set_frozen(s, false);
+    ssh_server_start(plug, s);
+    return 0;
+}
+
+static const PlugVtable server_plugvt = {
+    server_log,
+    server_closing,
+    NULL,                          /* recv */
+    NULL,                          /* send */
+    server_accepting
+};
+
 int main(int argc, char **argv)
 {
     int *fdlist;
@@ -375,6 +472,7 @@ int main(int argc, char **argv)
     int i, fdstate;
     size_t fdsize;
     unsigned long now;
+    int listen_port = -1;
 
     ssh_key **hostkeys = NULL;
     size_t nhostkeys = 0, hostkeysize = 0;
@@ -414,6 +512,8 @@ int main(int argc, char **argv)
             show_version_and_exit();
         } else if (longoptnoarg(arg, "--verbose") || !strcmp(arg, "-v")) {
             verbose = true;
+        } else if (longoptarg(arg, "--listen", &val, &argc, &argv)) {
+            listen_port = atoi(val);
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
             Filename *keyfile;
             int keytype;
@@ -599,10 +699,22 @@ int main(int argc, char **argv)
     sk_init();
     uxsel_init();
 
-    {
-        Plug *plug = ssh_server_plug(
-            conf, &ssc, hostkeys, nhostkeys, hostkey1, &ap, server_logpolicy,
-            &unix_live_sftpserver_vt);
+    struct server_config scfg;
+    scfg.conf = conf;
+    scfg.ssc = &ssc;
+    scfg.hostkeys = hostkeys;
+    scfg.nhostkeys = nhostkeys;
+    scfg.hostkey1 = hostkey1;
+    scfg.ap = &ap;
+    scfg.next_id = 0;
+
+    if (listen_port >= 0) {
+        listening = true;
+        scfg.listening_plug.vt = &server_plugvt;
+        sk_newlistener(NULL, listen_port, &scfg.listening_plug,
+                       true, ADDRTYPE_UNSPEC);
+    } else {
+        Plug *plug = server_conn_plug(&scfg, NULL);
         ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
     }
 
