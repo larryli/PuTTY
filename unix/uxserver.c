@@ -323,14 +323,14 @@ static void show_version_and_exit(void)
 
 const bool buildinfo_gtk_relevant = false;
 
-static bool listening = false;
+static bool listening = false, listen_once = false;
 static bool finished = false;
 void server_instance_terminated(LogPolicy *lp)
 {
     struct server_instance *inst = container_of(
         lp, struct server_instance, logpolicy);
 
-    if (listening) {
+    if (listening && !listen_once) {
         log_to_stderr(inst->id, "connection terminated");
     } else {
         finished = true;
@@ -389,6 +389,7 @@ struct server_config {
 
     unsigned next_id;
 
+    Socket *listening_socket;
     Plug listening_plug;
 };
 
@@ -428,6 +429,13 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     const char *err;
 
     struct server_instance *inst;
+
+    if (listen_once) {
+        if (!cfg->listening_socket) /* in case of rapid double-accept */
+            return 1;
+        sk_close(cfg->listening_socket);
+        cfg->listening_socket = NULL;
+    }
 
     unsigned old_next_id = cfg->next_id;
 
@@ -514,6 +522,8 @@ int main(int argc, char **argv)
             verbose = true;
         } else if (longoptarg(arg, "--listen", &val, &argc, &argv)) {
             listen_port = atoi(val);
+        } else if (!strcmp(arg, "--listen-once")) {
+            listen_once = true;
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
             Filename *keyfile;
             int keytype;
@@ -711,8 +721,8 @@ int main(int argc, char **argv)
     if (listen_port >= 0) {
         listening = true;
         scfg.listening_plug.vt = &server_plugvt;
-        sk_newlistener(NULL, listen_port, &scfg.listening_plug,
-                       true, ADDRTYPE_UNSPEC);
+        scfg.listening_socket = sk_newlistener(
+            NULL, listen_port, &scfg.listening_plug, true, ADDRTYPE_UNSPEC);
     } else {
         Plug *plug = server_conn_plug(&scfg, NULL);
         ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
