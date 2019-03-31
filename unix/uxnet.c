@@ -221,6 +221,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
     }
     if (err != 0) {
 	ret->error = gai_strerror(err);
+        strbuf_free(realhost);
 	return ret;
     }
     ret->superfamily = IP;
