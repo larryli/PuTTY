@@ -312,6 +312,7 @@ static void show_help(FILE *fp)
           "(in SSH-1 format)\n"
           "         --userkey KEY        public key"
            " acceptable for user authentication\n"
+          "         --sessiondir DIR     cwd for session subprocess (default $HOME)\n"
           "         --bannertext TEXT    send TEXT as SSH-2 auth banner\n"
           "         --bannerfile FILE    send contents of FILE as SSH-2 auth "
           "banner\n"
@@ -527,6 +528,8 @@ int main(int argc, char **argv)
 
     memset(&ssc, 0, sizeof(ssc));
 
+    ssc.session_starting_dir = getenv("HOME");
+
     if (argc <= 1) {
         /*
          * We're going to terminate with an error message below,
@@ -710,6 +713,8 @@ int main(int argc, char **argv)
             ssc.banner = ptrlen_from_strbuf(sb);
         } else if (longoptarg(arg, "--bannertext", &val, &argc, &argv)) {
             ssc.banner = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--sessiondir", &val, &argc, &argv)) {
+            ssc.session_starting_dir = val;
         } else if (longoptarg(arg, "--kexinit-kex", &val, &argc, &argv)) {
             ssc.kex_override[KEXLIST_KEX] = ptrlen_from_asciz(val);
         } else if (longoptarg(arg, "--kexinit-hostkey", &val, &argc, &argv)) {

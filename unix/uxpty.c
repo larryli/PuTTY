@@ -857,7 +857,7 @@ static void copy_ttymodes_into_termios(
  */
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, bool pipes_instead,
+    struct ssh_ttymodes ttymodes, bool pipes_instead, const char *dir,
     const char *const *env_vars_to_unset)
 {
     int slavefd;
@@ -1145,6 +1145,9 @@ Backend *pty_backend_create(
 	    }
 	}
 
+        if (dir)
+            chdir(dir);
+
 	/*
 	 * SIGINT, SIGQUIT and SIGPIPE may have been set to ignored by
 	 * our parent, particularly by things like sh -c 'pterm &' and
@@ -1274,7 +1277,7 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
         cmd = pty_argv[0];
 
     *backend_handle= pty_backend_create(
-        seat, logctx, conf, pty_argv, cmd, modes, false, NULL);
+        seat, logctx, conf, pty_argv, cmd, modes, false, NULL, NULL);
     *realhost = dupstr("");
     return NULL;
 }

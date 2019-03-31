@@ -297,7 +297,8 @@ static void sesschan_start_backend(sesschan *sess, const char *cmd)
 
     sess->backend = pty_backend_create(
         &sess->seat, sess->child_logctx, sess->conf, NULL, cmd,
-        sess->ttymodes, !sess->want_pty, env_to_unset);
+        sess->ttymodes, !sess->want_pty, sess->ssc->session_starting_dir,
+        env_to_unset);
     backend_size(sess->backend, sess->wc, sess->hc);
 }
 
