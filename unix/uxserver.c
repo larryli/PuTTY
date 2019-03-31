@@ -112,8 +112,19 @@ char *platform_get_x_display(void) { return NULL; }
 
 static bool verbose;
 
+struct AuthPolicyShared {
+    struct AuthPolicy_ssh1_pubkey *ssh1keys;
+    struct AuthPolicy_ssh2_pubkey *ssh2keys;
+};
+
+struct AuthPolicy {
+    struct AuthPolicyShared *shared;
+    int kbdint_state;
+};
+
 struct server_instance {
     unsigned id;
+    AuthPolicy ap;
     LogPolicy logpolicy;
 };
 
@@ -163,11 +174,6 @@ struct AuthPolicy_ssh2_pubkey {
     struct AuthPolicy_ssh2_pubkey *next;
 };
 
-struct AuthPolicy {
-    struct AuthPolicy_ssh1_pubkey *ssh1keys;
-    struct AuthPolicy_ssh2_pubkey *ssh2keys;
-    int kbdint_state;
-};
 unsigned auth_methods(AuthPolicy *ap)
 {
     return (AUTHMETHOD_PUBLICKEY | AUTHMETHOD_PASSWORD | AUTHMETHOD_KBDINT |
@@ -211,7 +217,7 @@ int auth_password(AuthPolicy *ap, ptrlen username, ptrlen password,
 bool auth_publickey(AuthPolicy *ap, ptrlen username, ptrlen public_blob)
 {
     struct AuthPolicy_ssh2_pubkey *iter;
-    for (iter = ap->ssh2keys; iter; iter = iter->next) {
+    for (iter = ap->shared->ssh2keys; iter; iter = iter->next) {
         if (ptrlen_eq_ptrlen(public_blob, iter->public_blob))
             return true;
     }
@@ -221,7 +227,7 @@ RSAKey *auth_publickey_ssh1(
     AuthPolicy *ap, ptrlen username, mp_int *rsa_modulus)
 {
     struct AuthPolicy_ssh1_pubkey *iter;
-    for (iter = ap->ssh1keys; iter; iter = iter->next) {
+    for (iter = ap->shared->ssh1keys; iter; iter = iter->next) {
         if (mp_cmp_eq(rsa_modulus, iter->key.modulus))
             return &iter->key;
     }
@@ -416,7 +422,7 @@ struct server_config {
 
     RSAKey *hostkey1;
 
-    AuthPolicy *ap;
+    struct AuthPolicyShared *ap_shared;
 
     unsigned next_id;
 
@@ -429,7 +435,10 @@ static Plug *server_conn_plug(
 {
     struct server_instance *inst = snew(struct server_instance);
 
+    memset(inst, 0, sizeof(*inst));
+
     inst->id = cfg->next_id++;
+    inst->ap.shared = cfg->ap_shared;
     inst->logpolicy.vt = &server_logpolicy_vt;
 
     if (inst_out)
@@ -437,7 +446,7 @@ static Plug *server_conn_plug(
 
     return ssh_server_plug(
         cfg->conf, cfg->ssc, cfg->hostkeys, cfg->nhostkeys, cfg->hostkey1,
-        cfg->ap, &inst->logpolicy, &unix_live_sftpserver_vt);
+        &inst->ap, &inst->logpolicy, &unix_live_sftpserver_vt);
 }
 
 static void server_log(Plug *plug, int type, SockAddr *addr, int port,
@@ -517,14 +526,13 @@ int main(int argc, char **argv)
     size_t nhostkeys = 0, hostkeysize = 0;
     RSAKey *hostkey1 = NULL;
 
-    AuthPolicy ap;
+    struct AuthPolicyShared aps;
     SshServerConfig ssc;
 
     Conf *conf = make_ssh_server_conf();
 
-    ap.kbdint_state = 0;
-    ap.ssh1keys = NULL;
-    ap.ssh2keys = NULL;
+    aps.ssh1keys = NULL;
+    aps.ssh2keys = NULL;
 
     memset(&ssc, 0, sizeof(ssc));
 
@@ -667,8 +675,8 @@ int main(int argc, char **argv)
                 memcpy(blob, sb->u, sb->len);
                 node->public_blob = make_ptrlen(blob, sb->len);
 
-                node->next = ap.ssh2keys;
-                ap.ssh2keys = node;
+                node->next = aps.ssh2keys;
+                aps.ssh2keys = node;
 
                 strbuf_free(sb);
             } else if (keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
@@ -687,8 +695,8 @@ int main(int argc, char **argv)
                 BinarySource_BARE_INIT(src, sb->u, sb->len);
                 get_rsa_ssh1_pub(src, &node->key, RSA_SSH1_EXPONENT_FIRST);
 
-                node->next = ap.ssh1keys;
-                ap.ssh1keys = node;
+                node->next = aps.ssh1keys;
+                aps.ssh1keys = node;
 
                 strbuf_free(sb);
             } else {
@@ -778,7 +786,7 @@ int main(int argc, char **argv)
     scfg.hostkeys = hostkeys;
     scfg.nhostkeys = nhostkeys;
     scfg.hostkey1 = hostkey1;
-    scfg.ap = &ap;
+    scfg.ap_shared = &aps;
     scfg.next_id = 0;
 
     if (listen_port >= 0) {
