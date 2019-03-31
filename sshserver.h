@@ -1,6 +1,8 @@
 typedef struct AuthPolicy AuthPolicy;
 
 struct SshServerConfig {
+    RSAKey *rsa_kex_key;
+
     /*
      * In all of these ptrlens, setting the 'ptr' member to NULL means
      * that we're not overriding the default configuration.

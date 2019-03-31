@@ -579,6 +579,35 @@ int main(int argc, char **argv)
                         key_type_to_str(keytype));
                 exit(1);
             }
+        } else if (longoptarg(arg, "--rsakexkey", &val, &argc, &argv)) {
+            Filename *keyfile;
+            int keytype;
+            const char *error;
+
+            keyfile = filename_from_str(val);
+            keytype = key_type(keyfile);
+
+            if (keytype != SSH_KEYTYPE_SSH1) {
+                fprintf(stderr, "%s: '%s' is not loadable as an SSH-1 format "
+                        "private key (%s)", appname, val,
+                        key_type_to_str(keytype));
+                exit(1);
+            }
+
+            if (ssc.rsa_kex_key) {
+                freersakey(ssc.rsa_kex_key);
+            } else {
+                ssc.rsa_kex_key = snew(RSAKey);
+            }
+
+            if (!rsa_ssh1_loadkey(keyfile, ssc.rsa_kex_key,
+                                  NULL, &error)) {
+                fprintf(stderr, "%s: unable to load RSA kex key '%s': "
+                        "%s\n", appname, val, error);
+                exit(1);
+            }
+
+            ssc.rsa_kex_key->sshk.vt = &ssh_rsa;
         } else if (longoptarg(arg, "--userkey", &val, &argc, &argv)) {
             Filename *keyfile;
             int keytype;

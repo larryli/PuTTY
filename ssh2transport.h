@@ -173,6 +173,7 @@ struct ssh2_transport_state {
     char *keystr, *fingerprint;
     ssh_key *hkey;                     /* actual host key */
     RSAKey *rsa_kex_key;             /* for RSA kex */
+    bool rsa_kex_key_needs_freeing;
     ecdh_key *ecdh_key;                     /* for ECDH kex */
     unsigned char exchange_hash[MAX_HASH_LEN];
     bool can_gssapi_keyex;

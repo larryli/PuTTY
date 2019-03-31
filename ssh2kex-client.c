@@ -552,6 +552,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             *aborted = true;
             return;
         }
+        s->rsa_kex_key_needs_freeing = true;
 
         put_stringpl(s->exhash, rsakeydata);
 
@@ -611,6 +612,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 
         ssh_rsakex_freekey(s->rsa_kex_key);
         s->rsa_kex_key = NULL;
+        s->rsa_kex_key_needs_freeing = false;
 
         crMaybeWaitUntilV((pktin = ssh2_transport_pop(s)) != NULL);
         if (pktin->type != SSH2_MSG_KEXRSA_DONE) {
