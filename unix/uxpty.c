@@ -857,7 +857,8 @@ static void copy_ttymodes_into_termios(
  */
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, bool pipes_instead)
+    struct ssh_ttymodes ttymodes, bool pipes_instead,
+    const char *const *env_vars_to_unset)
 {
     int slavefd;
     pid_t pid, pgrp;
@@ -1088,6 +1089,11 @@ Backend *pty_backend_create(
                 close(ptyfd);
         }
 	setpgid(pgrp, pgrp);
+
+        if (env_vars_to_unset)
+            for (const char *const *p = env_vars_to_unset; *p; p++)
+                unsetenv(*p);
+
 	if (!pipes_instead) {
 	    char *term_env_var = dupprintf("TERM=%s",
 					   conf_get_str(conf, CONF_termtype));
@@ -1268,7 +1274,7 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
         cmd = pty_argv[0];
 
     *backend_handle= pty_backend_create(
-        seat, logctx, conf, pty_argv, cmd, modes, false);
+        seat, logctx, conf, pty_argv, cmd, modes, false, NULL);
     *realhost = dupstr("");
     return NULL;
 }

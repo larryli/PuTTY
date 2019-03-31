@@ -280,9 +280,24 @@ static void sesschan_set_input_wanted(Channel *chan, bool wanted)
 
 static void sesschan_start_backend(sesschan *sess, const char *cmd)
 {
+    /*
+     * List of environment variables that we should not pass through
+     * from the login session Uppity was run in (which, it being a
+     * test server, there will usually be one of). These variables
+     * will be set as part of X or agent forwarding, and shouldn't be
+     * confusingly set in the absence of that.
+     *
+     * (DISPLAY must also be cleared, but uxpty.c will do that anyway
+     * when our get_x_display method returns NULL.)
+     */
+    static const char *const env_to_unset[] = {
+        "XAUTHORITY", "SSH_AUTH_SOCK", "SSH_AGENT_PID",
+        NULL /* terminator */
+    };
+
     sess->backend = pty_backend_create(
         &sess->seat, sess->child_logctx, sess->conf, NULL, cmd,
-        sess->ttymodes, !sess->want_pty);
+        sess->ttymodes, !sess->want_pty, env_to_unset);
     backend_size(sess->backend, sess->wc, sess->hc);
 }
 

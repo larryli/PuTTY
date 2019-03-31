@@ -102,7 +102,8 @@ Channel *sesschan_new(SshChannel *c, LogContext *logctx,
 
 Backend *pty_backend_create(
     Seat *seat, LogContext *logctx, Conf *conf, char **argv, const char *cmd,
-    struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty);
+    struct ssh_ttymodes ttymodes, bool pipes_instead_of_pty,
+    const char *const *env_vars_to_unset);
 int pty_backend_exit_signum(Backend *be);
 ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg);
 
