@@ -323,9 +323,10 @@ static void ssh_server_free_callback(void *vsrv)
     sfree(srv->gss_state.libs);        /* FIXME: replace with sensible */
 #endif
 
+    LogPolicy *lp = srv->logpolicy;
     sfree(srv);
 
-    server_instance_terminated(srv->logpolicy);
+    server_instance_terminated(lp);
 }
 
 static void server_connect_bpp(server *srv)
