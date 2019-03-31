@@ -156,10 +156,14 @@ PacketProtocolLayer *ssh2_transport_new(
         s->ssc = ssc;
         s->client_kexinit = s->incoming_kexinit;
         s->server_kexinit = s->outgoing_kexinit;
+        s->cstrans = &s->in;
+        s->sctrans = &s->out;
         s->out.mkkey_adjust = 1;
     } else {
         s->client_kexinit = s->outgoing_kexinit;
         s->server_kexinit = s->incoming_kexinit;
+        s->cstrans = &s->out;
+        s->sctrans = &s->in;
         s->in.mkkey_adjust = 1;
     }
 
@@ -1129,8 +1133,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         if (!ssh2_scan_kexinits(
                 ptrlen_from_strbuf(s->client_kexinit),
                 ptrlen_from_strbuf(s->server_kexinit),
-                s->kexlists, &s->kex_alg, &s->hostkey_alg, &s->out, &s->in,
-                &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
+                s->kexlists, &s->kex_alg, &s->hostkey_alg, s->cstrans,
+                s->sctrans, &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
                 &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks))
             return; /* false means a fatal error function was called */
 

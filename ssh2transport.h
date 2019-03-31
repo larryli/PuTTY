@@ -167,7 +167,7 @@ struct ssh2_transport_state {
     strbuf *outgoing_kexinit, *incoming_kexinit;
     strbuf *client_kexinit, *server_kexinit; /* aliases to the above */
     int kex_init_value, kex_reply_value;
-    transport_direction in, out;
+    transport_direction in, out, *cstrans, *sctrans;
     ptrlen hostkeydata, sigdata;
     strbuf *hostkeyblob;
     char *keystr, *fingerprint;
