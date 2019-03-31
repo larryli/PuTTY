@@ -1113,9 +1113,13 @@ Backend *pty_backend_create(
              * on.
              */
             const char *x_display = seat_get_x_display(pty->seat);
-            char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
-            putenv(x_display_env_var);
-            /* As above, we don't free this. */
+            if (x_display) {
+                char *x_display_env_var = dupprintf("DISPLAY=%s", x_display);
+                putenv(x_display_env_var);
+                /* As above, we don't free this. */
+            } else {
+                unsetenv("DISPLAY");
+            }
         }
 #endif
 	{
