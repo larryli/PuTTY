@@ -409,10 +409,11 @@ void ssh_proto_error(Ssh *ssh, const char *fmt, ...);
 void ssh_sw_abort(Ssh *ssh, const char *fmt, ...);
 void ssh_user_close(Ssh *ssh, const char *fmt, ...);
 
-#define SSH_CIPHER_IDEA		1
-#define SSH_CIPHER_DES		2
-#define SSH_CIPHER_3DES		3
-#define SSH_CIPHER_BLOWFISH	6
+/* Bit positions in the SSH-1 cipher protocol word */
+#define SSH1_CIPHER_IDEA        1
+#define SSH1_CIPHER_DES         2
+#define SSH1_CIPHER_3DES        3
+#define SSH1_CIPHER_BLOWFISH    6
 
 struct ssh_key {
     const ssh_keyalg *vt;

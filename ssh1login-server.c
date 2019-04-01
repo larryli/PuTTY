@@ -147,9 +147,9 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
     s->local_protoflags = SSH1_PROTOFLAGS_SUPPORTED;
     /* FIXME: ability to configure this to a subset */
-    s->supported_ciphers_mask = ((1U << SSH_CIPHER_3DES) |
-                                 (1U << SSH_CIPHER_BLOWFISH) |
-                                 (1U << SSH_CIPHER_DES));
+    s->supported_ciphers_mask = ((1U << SSH1_CIPHER_3DES) |
+                                 (1U << SSH1_CIPHER_BLOWFISH) |
+                                 (1U << SSH1_CIPHER_DES));
     s->supported_auths_mask = 0;
     s->ap_methods = auth_methods(s->authpolicy);
     if (s->ap_methods & AUTHMETHOD_PASSWORD)
@@ -244,8 +244,8 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
 
     {
         const ssh_cipheralg *cipher =
-            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
-             s->cipher_type == SSH_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
+            (s->cipher_type == SSH1_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
+             s->cipher_type == SSH1_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
         ssh1_bpp_new_cipher(s->ppl.bpp, cipher, s->session_key);
     }
 
