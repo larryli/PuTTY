@@ -1145,8 +1145,12 @@ Backend *pty_backend_create(
 	    }
 	}
 
-        if (dir)
-            chdir(dir);
+        if (dir) {
+            if (chdir(dir) < 0) {
+                /* Ignore the error - nothing we can sensibly do about it,
+                 * and our existing cwd is as good a fallback as any. */
+            }
+        }
 
 	/*
 	 * SIGINT, SIGQUIT and SIGPIPE may have been set to ignored by
