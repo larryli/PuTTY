@@ -338,6 +338,7 @@ static void show_help(FILE *fp)
           "         --kexinit-sccomp STR   override list of SSH-2 "
           "s->c compression types\n"
           "         --ssh1-ciphers STR     override list of SSH-1 ciphers\n"
+          "         --ssh1-no-compression  forbid compression in SSH-1\n"
           "         --exitsignum         send buggy numeric \"exit-signal\" "
           "message\n"
           "         --verbose            print event log messages to standard "
@@ -539,6 +540,7 @@ int main(int argc, char **argv)
 
     ssc.session_starting_dir = getenv("HOME");
     ssc.ssh1_cipher_mask = SSH1_SUPPORTED_CIPHER_MASK;
+    ssc.ssh1_allow_compression = true;
 
     if (argc <= 1) {
         /*
@@ -760,6 +762,8 @@ int main(int argc, char **argv)
                 exit(1);
             }
             ssc.ssh1_cipher_mask = mask;
+        } else if (longoptnoarg(arg, "--ssh1-no-compression")) {
+            ssc.ssh1_allow_compression = false;
         } else if (longoptnoarg(arg, "--exitsignum")) {
             ssc.exit_signal_numeric = true;
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||

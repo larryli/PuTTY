@@ -15,6 +15,7 @@ struct SshServerConfig {
     bool exit_signal_numeric;          /* mimic an old server bug */
 
     unsigned long ssh1_cipher_mask;
+    bool ssh1_allow_compression;
 };
 
 Plug *ssh_server_plug(

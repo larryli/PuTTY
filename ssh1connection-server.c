@@ -97,7 +97,7 @@ bool ssh1_handle_direction_specific_packet(
         return true;
 
       case SSH1_CMSG_REQUEST_COMPRESSION:
-        if (s->compressing) {
+        if (s->compressing || !s->ssc->ssh1_allow_compression) {
             pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH1_SMSG_FAILURE);
             pq_push(s->ppl.out_pq, pktout);
         } else {
