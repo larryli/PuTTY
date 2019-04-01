@@ -13,6 +13,8 @@ struct SshServerConfig {
     ptrlen kex_override[NKEXLIST];
 
     bool exit_signal_numeric;          /* mimic an old server bug */
+
+    unsigned long ssh1_cipher_mask;
 };
 
 Plug *ssh_server_plug(

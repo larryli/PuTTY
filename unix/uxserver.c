@@ -337,6 +337,7 @@ static void show_help(FILE *fp)
           "c->s compression types\n"
           "         --kexinit-sccomp STR   override list of SSH-2 "
           "s->c compression types\n"
+          "         --ssh1-ciphers STR     override list of SSH-1 ciphers\n"
           "         --exitsignum         send buggy numeric \"exit-signal\" "
           "message\n"
           "         --verbose            print event log messages to standard "
@@ -537,6 +538,7 @@ int main(int argc, char **argv)
     memset(&ssc, 0, sizeof(ssc));
 
     ssc.session_starting_dir = getenv("HOME");
+    ssc.ssh1_cipher_mask = SSH1_SUPPORTED_CIPHER_MASK;
 
     if (argc <= 1) {
         /*
@@ -739,6 +741,25 @@ int main(int argc, char **argv)
             ssc.kex_override[KEXLIST_SCMAC] = ptrlen_from_asciz(val);
         } else if (longoptarg(arg, "--kexinit-sccomp", &val, &argc, &argv)) {
             ssc.kex_override[KEXLIST_SCCOMP] = ptrlen_from_asciz(val);
+        } else if (longoptarg(arg, "--ssh1-ciphers", &val, &argc, &argv)) {
+            ptrlen list = ptrlen_from_asciz(val);
+            ptrlen word;
+            unsigned long mask = 0;
+            while (word = ptrlen_get_word(&list, ","), word.len != 0) {
+
+#define SSH1_CIPHER_CASE(bitpos, name)                  \
+                if (ptrlen_eq_string(word, name)) {     \
+                    mask |= 1U << bitpos;               \
+                    continue;                           \
+                }
+                SSH1_SUPPORTED_CIPHER_LIST(SSH1_CIPHER_CASE);
+#undef SSH1_CIPHER_CASE
+
+                fprintf(stderr, "%s: unrecognised SSH-1 cipher '%.*s'\n",
+                        appname, PTRLEN_PRINTF(word));
+                exit(1);
+            }
+            ssc.ssh1_cipher_mask = mask;
         } else if (longoptnoarg(arg, "--exitsignum")) {
             ssc.exit_signal_numeric = true;
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||

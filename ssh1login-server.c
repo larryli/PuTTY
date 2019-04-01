@@ -146,10 +146,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
     }
 
     s->local_protoflags = SSH1_PROTOFLAGS_SUPPORTED;
-    /* FIXME: ability to configure this to a subset */
-    s->supported_ciphers_mask = ((1U << SSH1_CIPHER_3DES) |
-                                 (1U << SSH1_CIPHER_BLOWFISH) |
-                                 (1U << SSH1_CIPHER_DES));
+    s->supported_ciphers_mask = s->ssc->ssh1_cipher_mask;
     s->supported_auths_mask = 0;
     s->ap_methods = auth_methods(s->authpolicy);
     if (s->ap_methods & AUTHMETHOD_PASSWORD)

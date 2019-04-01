@@ -415,6 +415,17 @@ void ssh_user_close(Ssh *ssh, const char *fmt, ...);
 #define SSH1_CIPHER_3DES        3
 #define SSH1_CIPHER_BLOWFISH    6
 
+/* The subset of those that we support, with names for selecting them
+ * on Uppity's command line */
+#define SSH1_SUPPORTED_CIPHER_LIST(X)           \
+    X(SSH1_CIPHER_3DES, "3des")                 \
+    X(SSH1_CIPHER_BLOWFISH, "blowfish")         \
+    X(SSH1_CIPHER_DES, "des")                   \
+    /* end of list */
+#define SSH1_CIPHER_LIST_MAKE_MASK(bitpos, name) | (1U << bitpos)
+#define SSH1_SUPPORTED_CIPHER_MASK \
+    (0 SSH1_SUPPORTED_CIPHER_LIST(SSH1_CIPHER_LIST_MAKE_MASK))
+
 struct ssh_key {
     const ssh_keyalg *vt;
 };
