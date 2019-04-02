@@ -786,6 +786,14 @@ void save_open_settings(settings_w *sesskey, Conf *conf)
     write_setting_b(sesskey, "ConnectionSharingUpstream", conf_get_bool(conf, CONF_ssh_connection_sharing_upstream));
     write_setting_b(sesskey, "ConnectionSharingDownstream", conf_get_bool(conf, CONF_ssh_connection_sharing_downstream));
     wmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys, false);
+
+    /*
+     * SUPDUP settings
+     */
+    write_setting_s(sesskey, "SUPDUPLocation", conf_get_str(conf, CONF_supdup_location));
+    write_setting_i(sesskey, "SUPDUPCharset", conf_get_int(conf, CONF_supdup_ascii_set));
+    write_setting_b(sesskey, "SUPDUPMoreProcessing", conf_get_bool(conf, CONF_supdup_more));
+    write_setting_b(sesskey, "SUPDUPScrolling", conf_get_bool(conf, CONF_supdup_scroll));
 }
 
 bool load_settings(const char *section, Conf *conf)
@@ -1255,6 +1263,14 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "ConnectionSharingDownstream", true,
          conf, CONF_ssh_connection_sharing_downstream);
     gppmap(sesskey, "SSHManualHostKeys", conf, CONF_ssh_manual_hostkeys);
+
+    /*
+     * SUPDUP settings
+     */
+    gpps(sesskey, "SUPDUPLocation", "The Internet", conf, CONF_supdup_location);
+    gppi(sesskey, "SUPDUPCharset", false, conf, CONF_supdup_ascii_set);
+    gppb(sesskey, "SUPDUPMoreProcessing", false, conf, CONF_supdup_more);
+    gppb(sesskey, "SUPDUPScrolling", false, conf, CONF_supdup_scroll);
 }
 
 bool do_defaults(const char *session, Conf *conf)

@@ -365,11 +365,18 @@ enum {
 };
 
 enum {
+    /* SUPDUP character set options */
+    SUPDUP_CHARSET_ASCII, SUPDUP_CHARSET_ITS, SUPDUP_CHARSET_WAITS
+};
+
+enum {
     /* Protocol back ends. (CONF_protocol) */
     PROT_RAW, PROT_TELNET, PROT_RLOGIN, PROT_SSH, PROT_SSHCONN,
     /* PROT_SERIAL is supported on a subset of platforms, but it doesn't
      * hurt to define it globally. */
     PROT_SERIAL,
+    /* PROT_SUPDUP is the historical RFC 734 protocol. */
+    PROT_SUPDUP,
     PROTOCOL_LIMIT, /* upper bound on number of protocols */
 };
 
@@ -1299,6 +1306,11 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, serstopbits) \
     X(INT, NONE, serparity) /* SER_PAR_NONE, SER_PAR_ODD, ... */ \
     X(INT, NONE, serflow) /* SER_FLOW_NONE, SER_FLOW_XONXOFF, ... */ \
+    /* Supdup options */ \
+    X(STR, NONE, supdup_location) \
+    X(INT, NONE, supdup_ascii_set) \
+    X(BOOL, NONE, supdup_more) \
+    X(BOOL, NONE, supdup_scroll) \
     /* Keyboard options */ \
     X(BOOL, NONE, bksp_is_delete) \
     X(BOOL, NONE, rxvt_homeend) \
@@ -1765,6 +1777,11 @@ extern const struct BackendVtable telnet_backend;
  */
 extern const struct BackendVtable ssh_backend;
 extern const struct BackendVtable sshconn_backend;
+
+/*
+ * Exports from supdup.c.
+ */
+extern const struct BackendVtable supdup_backend;
 
 /*
  * Exports from ldisc.c.

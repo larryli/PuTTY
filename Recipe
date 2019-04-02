@@ -253,7 +253,7 @@ GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
 GTKMAIN  = gtkmain cmdline
 
 # Non-SSH back ends (putty, puttytel, plink).
-NONSSH   = telnet raw rlogin ldisc pinger
+NONSSH   = telnet raw rlogin supdup ldisc pinger
 
 # SSH back end (putty, plink, pscp, psftp).
 ARITH    = mpint ecc

@@ -2367,6 +2367,36 @@ void setup_config_box(struct controlbox *b, bool midsession,
                      HELPCTX(rlogin_localuser),
                      conf_editbox_handler, I(CONF_localusername), I(1));
 
+        /*
+         * The Protocol/SUPDUP panel.
+         */
+        ctrl_settitle(b, "Connection/SUPDUP",
+                      "Enabling and disabling SUPDUP user options");
+
+        s = ctrl_getset(b, "Connection/SUPDUP", "main", NULL);
+
+        ctrl_editbox(s, "Location string", 'l', 70,
+                     HELPCTX(supdup_location),
+                     conf_editbox_handler, I(CONF_supdup_location),
+                     I(1));
+
+        ctrl_radiobuttons(s, "Extended ASCII Character set:", 'z', 4,
+                          HELPCTX(supdup_ascii),
+                          conf_radiobutton_handler,
+                          I(CONF_supdup_ascii_set),
+                          "None", I(SUPDUP_CHARSET_ASCII),
+                          "ITS", I(SUPDUP_CHARSET_ITS),
+                          "WAITS", I(SUPDUP_CHARSET_WAITS), NULL);
+
+        ctrl_checkbox(s, "**MORE** processing", 'm',
+                      HELPCTX(supdup_more),
+                      conf_checkbox_handler,
+                      I(CONF_supdup_more));
+
+        ctrl_checkbox(s, "Terminal scrolling", 's',
+                      HELPCTX(supdup_scroll),
+                      conf_checkbox_handler,
+                      I(CONF_supdup_scroll));
     }
 
     /*
