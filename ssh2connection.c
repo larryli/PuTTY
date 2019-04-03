@@ -536,6 +536,17 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                         data.ptr, data.len);
 
                     /*
+                     * The channel may have turned into a connection-
+                     * shared one as a result of that chan_send, e.g.
+                     * if the data we just provided completed the X11
+                     * auth phase and caused a callback to
+                     * x11_sharing_handover. If so, do nothing
+                     * further.
+                     */
+                    if (c->sharectx)
+                        break;
+
+                    /*
                      * If it looks like the remote end hit the end of
                      * its window, and we didn't want it to do that,
                      * think about using a larger window.
