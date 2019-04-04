@@ -1810,6 +1810,12 @@ void term_set_trust_status(Terminal *term, bool trusted)
     term->trusted = trusted;
 }
 
+void term_get_cursor_position(Terminal *term, int *x, int *y)
+{
+    *x = term->curs.x;
+    *y = term->curs.y;
+}
+
 /*
  * Set up the terminal for a given size.
  */

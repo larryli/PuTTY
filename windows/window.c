@@ -336,6 +336,7 @@ static void win_seat_connection_fatal(Seat *seat, const char *msg);
 static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
 static bool win_seat_set_trust_status(Seat *seat, bool trusted);
+static bool win_seat_get_cursor_position(Seat *seat, int *x, int *y);
 
 static const SeatVtable win_seat_vt = {
     win_seat_output,
@@ -358,6 +359,7 @@ static const SeatVtable win_seat_vt = {
     win_seat_set_trust_status,
     nullseat_verbose_yes,
     nullseat_interactive_yes,
+    win_seat_get_cursor_position,
 };
 static WinGuiSeat wgs = { .seat.vt = &win_seat_vt,
                           .logpolicy.vt = &win_gui_logpolicy_vt };
@@ -5799,5 +5801,11 @@ static int win_seat_get_userpass_input(
 static bool win_seat_set_trust_status(Seat *seat, bool trusted)
 {
     term_set_trust_status(term, trusted);
+    return true;
+}
+
+static bool win_seat_get_cursor_position(Seat *seat, int *x, int *y)
+{
+    term_get_cursor_position(term, x, y);
     return true;
 }

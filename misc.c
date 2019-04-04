@@ -368,6 +368,7 @@ bool nullseat_verbose_no(Seat *seat) { return false; }
 bool nullseat_verbose_yes(Seat *seat) { return true; }
 bool nullseat_interactive_no(Seat *seat) { return false; }
 bool nullseat_interactive_yes(Seat *seat) { return true; }
+bool nullseat_get_cursor_position(Seat *seat, int *x, int *y) { return false; }
 
 bool null_lp_verbose_no(LogPolicy *lp) { return false; }
 bool null_lp_verbose_yes(LogPolicy *lp) { return true; }

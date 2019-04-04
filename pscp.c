@@ -83,6 +83,7 @@ static const SeatVtable pscp_seat_vt = {
     nullseat_set_trust_status_vacuously,
     cmdline_seat_verbose,
     nullseat_interactive_no,
+    nullseat_get_cursor_position,
 };
 static Seat pscp_seat[1] = {{ &pscp_seat_vt }};
 

@@ -122,6 +122,7 @@ static const SeatVtable server_seat_vt = {
     nullseat_set_trust_status,
     nullseat_verbose_no,
     nullseat_interactive_no,
+    nullseat_get_cursor_position,
 };
 
 static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,

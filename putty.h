@@ -918,6 +918,13 @@ struct SeatVtable {
      * Ask the seat whether it's an interactive program.
      */
     bool (*interactive)(Seat *seat);
+
+    /*
+     * Return the seat's current idea of where the output cursor is.
+     *
+     * Returns true if the seat has a cursor. Returns false if not.
+     */
+    bool (*get_cursor_position)(Seat *seat, int *x, int *y);
 };
 
 static inline size_t seat_output(
@@ -967,6 +974,8 @@ static inline bool seat_verbose(Seat *seat)
 { return seat->vt->verbose(seat); }
 static inline bool seat_interactive(Seat *seat)
 { return seat->vt->interactive(seat); }
+static inline bool seat_get_cursor_position(Seat *seat, int *x, int *y)
+{ return  seat->vt->get_cursor_position(seat, x, y); }
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
@@ -1023,6 +1032,7 @@ bool nullseat_verbose_no(Seat *seat);
 bool nullseat_verbose_yes(Seat *seat);
 bool nullseat_interactive_no(Seat *seat);
 bool nullseat_interactive_yes(Seat *seat);
+bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
 
 /*
  * Seat functions provided by the platform's console-application
@@ -1607,6 +1617,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input);
 void term_set_trust_status(Terminal *term, bool trusted);
 void term_keyinput(Terminal *, int codepage, const void *buf, int len);
 void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
+void term_get_cursor_position(Terminal *term, int *x, int *y);
 
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,

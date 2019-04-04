@@ -65,6 +65,7 @@ static const SeatVtable psftp_seat_vt = {
     nullseat_set_trust_status_vacuously,
     cmdline_seat_verbose,
     nullseat_interactive_yes,
+    nullseat_get_cursor_position,
 };
 static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
 

@@ -373,6 +373,7 @@ static const char *gtk_seat_get_x_display(Seat *seat);
 static bool gtk_seat_get_windowid(Seat *seat, long *id);
 #endif
 static bool gtk_seat_set_trust_status(Seat *seat, bool trusted);
+static bool gtk_seat_get_cursor_position(Seat *seat, int *x, int *y);
 
 static const SeatVtable gtk_seat_vt = {
     gtk_seat_output,
@@ -399,6 +400,7 @@ static const SeatVtable gtk_seat_vt = {
     gtk_seat_set_trust_status,
     nullseat_verbose_yes,
     nullseat_interactive_yes,
+    gtk_seat_get_cursor_position,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)
@@ -5529,4 +5531,14 @@ static bool gtk_seat_set_trust_status(Seat *seat, bool trusted)
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     term_set_trust_status(inst->term, trusted);
     return true;
+}
+
+static bool gtk_seat_get_cursor_position(Seat *seat, int *x, int *y)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    if (inst->term) {
+        term_get_cursor_position(inst->term, x, y);
+        return true;
+    }
+    return false;
 }
