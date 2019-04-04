@@ -4,7 +4,7 @@
 
 \S{putty-manpage-name} NAME
 
-\cw{putty} - GUI SSH, Telnet and Rlogin client for X
+\cw{putty} - GUI SSH, Telnet, Rlogin and SUPDUP client for X
 
 \S{putty-manpage-synopsis} SYNOPSIS
 
@@ -13,8 +13,8 @@
 
 \S{putty-manpage-description} DESCRIPTION
 
-\cw{putty} is a graphical SSH, Telnet and Rlogin client for X. It is
-a direct port of the Windows SSH client of the same name.
+\cw{putty} is a graphical SSH, Telnet, Rlogin and SUPDUP client for
+X. It is a direct port of the Windows SSH client of the same name.
 
 \S{putty-manpage-options} OPTIONS
 

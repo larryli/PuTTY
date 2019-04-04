@@ -29,13 +29,15 @@ network connection.
 \lcont{
 
 \b See \k{which-one} for a summary of the
-differences between the network remote login protocols SSH, Telnet and
-Rlogin.
+differences between the network remote login protocols SSH, Telnet,
+Rlogin, and SUPDUP.
 
 \b See \k{using-rawprot} for an explanation of \q{raw}
 connections.
 
 \b See \k{using-serial} for information about using a serial line.
+
+\b See \k{using-supdup} for information about using SUPDUP.
 
 \b The \q{Bare ssh-connection} option in the \q{Connection type} box
 is experimental, for specialist uses, and servers for it are not
@@ -44,11 +46,11 @@ widely available.
 }
 
 \b The \q{Port} box lets you specify which \i{port number} on the
-server to connect to. If you select Telnet, Rlogin, or SSH, this box
-will be filled in automatically to the usual value, and you will
-only need to change it if you have an unusual server. If you select
-Raw mode, you will almost certainly need to fill in the \q{Port} box
-yourself.
+server to connect to. If you select Telnet, Rlogin, SUPDUP, or SSH,
+this box will be filled in automatically to the usual value, and you
+will only need to change it if you have an unusual server. If you
+select Raw mode, you will almost certainly need to fill in the
+\q{Port} box yourself.
 
 If you select \q{Serial} from the \q{Connection type} radio buttons,
 the \q{Host Name} and \q{Port} boxes are replaced by \q{Serial line}
@@ -2216,6 +2218,46 @@ The \q{Local username} control allows you to specify what user name
 PuTTY should claim you have, in case it doesn't match your \i{Windows
 user name} (or in case you didn't bother to set up a Windows user
 name).
+
+\H{config-supdup} The SUPDUP panel
+
+The \i{SUPDUP} panel allows you to configure options that only apply
+to SUPDUP sessions.
+
+\S{supdup-location} \q{Location string}
+
+In SUPDUP, the client sends a piece of text of its choice to the
+server giving the user's location. This is typically displayed in
+lists of logged-in users.
+
+By default, PuTTY just defaults this to "The Internet". If you want
+your location to show up as something more specific, you can configure
+it here.
+
+\S{supdup-ascii} \q{Extended ASCII Character set}
+
+This declares what kind of character set extension your terminal
+supports. If the server supports it, it will send text using that
+character set. \q{None} means the standard 95 printable ASCII
+characters. \q{ITS} means ASCII extended with printable characters in
+the control character range. This character set is documented in the
+SUPDUP protocol definition. \q{WAITS} is similar to \q{ITS} but uses
+some alternative characters in the extended set: most prominently, it
+will display arrows instead of \c{^} and \c{_}, and \c{\}} instead of
+\c{~}.  \q{ITS} extended ASCII is used by ITS and Lisp machines,
+whilst \q{WAITS} is only used by the WAITS operating system from the
+Stanford AI Laboratory.
+
+\S{supdup-more} \q{**MORE** processing}
+
+When **MORE** processing is enabled, the server causes output to pause
+at the bottom of the screen, until a space is typed.
+
+\S{supdup-scroll} \q{Terminal scrolling}
+
+This controls whether the terminal will perform scrolling then the
+cursor goes below the last line, or if the cursor will return to the
+first line.
 
 \H{config-ssh} The SSH panel
 

@@ -7,8 +7,8 @@ appendix in the manual.
 
 \S{faq-what}{Question} What is PuTTY?
 
-PuTTY is a client program for the SSH, Telnet and Rlogin network
-protocols.
+PuTTY is a client program for the SSH, Telnet, Rlogin, and SUPDUP
+network protocols.
 
 These protocols are all used to run a remote session on a computer,
 over a network. PuTTY implements the client end of that session: the
