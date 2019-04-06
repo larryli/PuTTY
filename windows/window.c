@@ -4515,10 +4515,26 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 break;
             }
 
-            p += format_numeric_keypad_key(
-                (char *)p, term, keypad_key,
-                shift_state & 1, shift_state & 2);
-            return p - output;
+            {
+                int nchars = format_numeric_keypad_key(
+                    (char *)p, term, keypad_key,
+                    shift_state & 1, shift_state & 2);
+                if (!nchars) {
+                    /* If we didn't get an escape sequence out of the
+                     * numeric keypad key, then that must be because
+                     * we're in Num Lock mode without application
+                     * keypad enabled. In that situation we leave this
+                     * keypress to the ToUnicode/ToAsciiEx handler
+                     * below, which will translate it according to the
+                     * appropriate keypad layout (e.g. so that what a
+                     * Brit thinks of as keypad '.' can become ',' in
+                     * the German layout). */
+                    break;
+                }
+
+                p += nchars;
+                return p - output;
+            }
 
             int fkey_number;
 	  case VK_F1: fkey_number = 1; goto numbered_function_key;

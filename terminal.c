@@ -6836,12 +6836,6 @@ int format_numeric_keypad_key(char *buf, Terminal *term, char key,
         }
     }
 
-    if (p == buf && !app_keypad && key != 'G') {
-        /* Fallback: numeric keypad keys decode as their ASCII
-         * representation. */
-        p += sprintf(p, "%c", key);
-    }
-
     return p - buf;
 }
 
