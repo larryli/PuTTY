@@ -580,7 +580,7 @@ static void ssh_closing(Plug *plug, const char *error_msg, int error_code,
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
     if (error_msg) {
-        ssh_remote_error(ssh, "Network error: %s", error_msg);
+        ssh_remote_error(ssh, "%s", error_msg);
     } else if (ssh->bpp) {
         ssh->bpp->input_eof = true;
         queue_idempotent_callback(&ssh->bpp->ic_in_raw);
