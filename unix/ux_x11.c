@@ -78,8 +78,7 @@ int platform_make_x11_server(Plug *plug, const char *progname, int mindisp,
             char *hostname = get_hostname();
             if (hostname) {
                 char *canonicalname = NULL;
-                a_tcp = name_lookup(hostname, tcp_port, &canonicalname,
-                                    conf, addrtype, NULL, "");
+                a_tcp = sk_namelookup(hostname, &canonicalname, addrtype);
                 sfree(canonicalname);
             }
             sfree(hostname);
