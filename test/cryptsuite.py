@@ -998,13 +998,13 @@ class crypt(MyTestBase):
 
         for prior in test_prior_values:
             prior_shifted = shift8(prior)
-        for i in range(256):
-            exp = shift8(i) ^ prior_shifted
-            self.assertEqual(crc32_update(prior, struct.pack("B", i)), exp)
+            for i in range(256):
+                exp = shift8(i) ^ prior_shifted
+                self.assertEqual(crc32_update(prior, struct.pack("B", i)), exp)
 
-            # Check linearity of the _reference_ implementation, while
-            # we're at it!
-            self.assertEqual(shift8(i ^ prior), exp)
+                # Check linearity of the _reference_ implementation, while
+                # we're at it!
+                self.assertEqual(shift8(i ^ prior), exp)
 
     def testCRCDA(self):
         def pattern(badblk, otherblks, pat):
