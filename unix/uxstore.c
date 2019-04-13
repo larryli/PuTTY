@@ -301,9 +301,10 @@ static int keycmp(void *av, void *bv)
     return strcmp(a->key, b->key);
 }
 
-void provide_xrm_string(char *string)
+void provide_xrm_string(const char *string)
 {
-    char *p, *q, *key;
+    const char *p, *q;
+    char *key;
     struct skeyval *xrms, *ret;
 
     p = q = strchr(string, ':');

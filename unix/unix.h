@@ -267,7 +267,7 @@ int keysym_to_unicode(int keysym);
 char *x_get_default(const char *key);
 
 /* Things uxstore.c provides to gtkwin.c */
-void provide_xrm_string(char *string);
+void provide_xrm_string(const char *string);
 
 /* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
  * early process setup that varies between applications (e.g.
