@@ -661,7 +661,11 @@ int main(int argc, char **argv)
                 errors = true;
             } else {
                 --argc;
-                provide_xrm_string(*++argv);
+                /* Explicitly pass "plink" in place of appname for
+                 * error reporting purposes. appname will have been
+                 * set by be_foo.c to something more generic, probably
+                 * "PuTTY". */
+                provide_xrm_string(*++argv, "plink");
             }
         } else if (!strcmp(p, "-shareexists")) {
             just_test_share_exists = true;
