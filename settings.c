@@ -107,7 +107,7 @@ char *get_remote_username(Conf *conf)
 
 static char *gpps_raw(settings_r *sesskey, const char *name, const char *def)
 {
-    char *ret = sesskey ? read_setting_s(sesskey, name) : NULL;
+    char *ret = read_setting_s(sesskey, name);
     if (!ret)
 	ret = platform_default_s(name);
     if (!ret)
@@ -131,7 +131,7 @@ static void gpps(settings_r *sesskey, const char *name, const char *def,
 static void gppfont(settings_r *sesskey, char *name,
                     Conf *conf, int primary)
 {
-    FontSpec *result = sesskey ? read_setting_fontspec(sesskey, name) : NULL;
+    FontSpec *result = read_setting_fontspec(sesskey, name);
     if (!result)
         result = platform_default_fontspec(name);
     conf_set_fontspec(conf, primary, result);
@@ -140,7 +140,7 @@ static void gppfont(settings_r *sesskey, char *name,
 static void gppfile(settings_r *sesskey, const char *name,
                     Conf *conf, int primary)
 {
-    Filename *result = sesskey ? read_setting_filename(sesskey, name) : NULL;
+    Filename *result = read_setting_filename(sesskey, name);
     if (!result)
 	result = platform_default_filename(name);
     conf_set_filename(conf, primary, result);
@@ -162,7 +162,7 @@ static void gppb(settings_r *sesskey, const char *name, bool def,
 static int gppi_raw(settings_r *sesskey, const char *name, int def)
 {
     def = platform_default_i(name, def);
-    return sesskey ? read_setting_i(sesskey, name, def) : def;
+    return read_setting_i(sesskey, name, def);
 }
 
 static void gppi(settings_r *sesskey, const char *name, int def,
