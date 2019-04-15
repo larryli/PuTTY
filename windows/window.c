@@ -4114,6 +4114,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
     bool no_applic_k = conf_get_bool(conf, CONF_no_applic_k);
     bool ctrlaltkeys = conf_get_bool(conf, CONF_ctrlaltkeys);
     bool nethack_keypad = conf_get_bool(conf, CONF_nethack_keypad);
+    char keypad_key = '\0';
 
     HKL kbd_layout = GetKeyboardLayout(0);
 
@@ -4479,14 +4480,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 	    *p++ = 0x1E;	       /* Ctrl-~ == Ctrl-^ in xterm at least */
 	    return p - output;
 	}
-	if (shift_state == 0 && wParam == VK_RETURN && term->cr_lf_return) {
-	    *p++ = '\r';
-	    *p++ = '\n';
-	    return p - output;
-	}
 
 	switch (wParam) {
-            char keypad_key;
           case VK_NUMPAD0: keypad_key = '0'; goto numeric_keypad;
           case VK_NUMPAD1: keypad_key = '1'; goto numeric_keypad;
           case VK_NUMPAD2: keypad_key = '2'; goto numeric_keypad;
@@ -4520,7 +4515,8 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                     (char *)p, term, keypad_key,
                     shift_state & 1, shift_state & 2);
                 if (!nchars) {
-                    /* If we didn't get an escape sequence out of the
+                    /*
+                     * If we didn't get an escape sequence out of the
                      * numeric keypad key, then that must be because
                      * we're in Num Lock mode without application
                      * keypad enabled. In that situation we leave this
@@ -4528,7 +4524,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                      * below, which will translate it according to the
                      * appropriate keypad layout (e.g. so that what a
                      * Brit thinks of as keypad '.' can become ',' in
-                     * the German layout). */
+                     * the German layout).
+                     *
+                     * An exception is the keypad Return key: if we
+                     * didn't get an escape sequence for that, we
+                     * treat it like ordinary Return, taking into
+                     * account Telnet special new line codes and
+                     * config options.
+                     */
+                    if (keypad_key == '\r')
+                        goto ordinary_return_key;
                     break;
                 }
 
@@ -4592,9 +4597,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 keypad_key = '\r';
                 goto numeric_keypad;
             }
-	    *p++ = 0x0D;
-	    *p++ = 0;
-	    return -2;
+          ordinary_return_key:
+            if (shift_state == 0 && term->cr_lf_return) {
+                *p++ = '\r';
+                *p++ = '\n';
+                return p - output;
+            } else {
+                *p++ = 0x0D;
+                *p++ = 0;
+                return -2;
+            }
 	}
     }
 

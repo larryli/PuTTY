@@ -993,6 +993,32 @@ char *dup_keyval_name(guint keyval)
 static void change_font_size(GtkFrontend *inst, int increment);
 static void key_pressed(GtkFrontend *inst);
 
+/* Subroutine used in key_event */
+static int return_key(GtkFrontend *inst, char *output, bool *special)
+{
+    int end;
+
+    /* Ugly label so we can come here as a fallback from
+     * numeric keypad Enter handling */
+    if (inst->term->cr_lf_return) {
+#ifdef KEY_EVENT_DIAGNOSTICS
+        debug(" - Return in cr_lf_return mode, translating as 0d 0a\n");
+#endif
+        output[1] = '\015';
+        output[2] = '\012';
+        end = 3;
+    } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
+        debug(" - Return special case, translating as 0d + special\n");
+#endif
+        output[1] = '\015';
+        end = 2;
+        *special = true;
+    }
+
+    return end;
+}
+
 gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
@@ -1688,13 +1714,8 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	/* We handle Return ourselves, because it needs to be flagged as
 	 * special to ldisc. */
 	if (event->keyval == GDK_KEY_Return) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-            debug(" - Return special case, translating as 0d + special\n");
-#endif
-	    output[1] = '\015';
-	    use_ucsoutput = false;
-	    end = 2;
-	    special = true;
+            end = return_key(inst, output, &special);
+            use_ucsoutput = false;
 	}
 
 	/* Control-2, Control-Space and Control-@ are NUL */
@@ -1870,6 +1891,15 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 #ifdef KEY_EVENT_DIAGNOSTICS
             debug(" - numeric keypad key");
 #endif
+
+            if (end == 1 && num_keypad_key == '\r') {
+                /* Keypad Enter, lacking any other translation,
+                 * becomes the same special Return code as normal
+                 * Return. */
+                end = return_key(inst, output, &special);
+                use_ucsoutput = false;
+            }
+
             use_ucsoutput = false;
             goto done;
 	}
