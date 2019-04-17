@@ -194,10 +194,12 @@ mp_int *primegen(
      * random number with the top bit set and the bottom bit clear,
      * multiply it by `factor', and add one.
      */
-    mp_int *p = mp_random_bits(bits - 1);
+    mp_int *p = mp_power_2(bits - 1);  /* ensure top bit is 1 */
+    mp_int *r = mp_random_bits(bits - 1);
+    mp_or_into(p, p, r);
+    mp_free(r);
+    mp_set_bit(p, 0, factor ? 0 : 1);  /* set bottom bit appropriately */
 
-    mp_set_bit(p, 0, factor ? 0 : 1);  /* bottom bit */
-    mp_set_bit(p, bits-1, 1);          /* top bit */
     for (size_t i = 0; i < fbsize; i++)
         mp_set_bit(p, bits-fbsize + i, 1 & (firstbits >> i));
 
