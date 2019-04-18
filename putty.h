@@ -1533,10 +1533,6 @@ bool conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
  * Functions to copy, free, serialise and deserialise FontSpecs.
  * Provided per-platform, to go with the platform's idea of a
  * FontSpec's contents.
- *
- * fontspec_serialise returns the number of bytes written, and can
- * handle data==NULL without crashing. So you can call it once to find
- * out a size, then again once you've allocated a buffer.
  */
 FontSpec *fontspec_copy(const FontSpec *f);
 void fontspec_free(FontSpec *f);
