@@ -3234,6 +3234,174 @@ three states:
 \b \q{Auto}: PuTTY will use the server's version number announcement
 to try to guess whether or not the server has the bug.
 
+\S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
+
+An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
+which can be sent from the client to the server, or from the server
+to the client, at any time. Either side is required to ignore the
+message whenever it receives it. PuTTY uses ignore messages in SSH-2
+to confuse the encrypted data stream and make it harder to
+cryptanalyse. It also uses ignore messages for connection
+\i{keepalives} (see \k{config-keepalive}).
+
+If it believes the server to have this bug, PuTTY will stop using
+ignore messages. If this bug is enabled when talking to a correct
+server, the session will succeed, but keepalives will not work and
+the session might be less cryptographically secure than it could be.
+
+\S{config-ssh-bug-rekey} \q{Handles SSH-2 key re-exchange badly}
+
+Some SSH servers cannot cope with \i{repeat key exchange} at
+all, and will ignore attempts by the client to start one. Since
+PuTTY pauses the session while performing a repeat key exchange, the
+effect of this would be to cause the session to hang after an hour
+(unless you have your rekey timeout set differently; see
+\k{config-ssh-kex-rekey} for more about rekeys).
+Other, very old, SSH servers handle repeat key exchange even more
+badly, and disconnect upon receiving a repeat key exchange request.
+
+If this bug is detected, PuTTY will never initiate a repeat key
+exchange. If this bug is enabled when talking to a correct server,
+the session should still function, but may be less secure than you
+would expect.
+
+This is an SSH-2-specific bug.
+
+\S{config-ssh-bug-winadj} \q{Chokes on PuTTY's SSH-2 \cq{winadj} requests}
+
+PuTTY sometimes sends a special request to SSH servers in the middle
+of channel data, with the name \cw{winadj@putty.projects.tartarus.org}
+(see \k{sshnames-channel}). The purpose of this request is to measure
+the round-trip time to the server, which PuTTY uses to tune its flow
+control. The server does not actually have to \e{understand} the
+message; it is expected to send back a \cw{SSH_MSG_CHANNEL_FAILURE}
+message indicating that it didn't understand it. (All PuTTY needs for
+its timing calculations is \e{some} kind of response.)
+
+It has been known for some SSH servers to get confused by this message
+in one way or another \dash because it has a long name, or because
+they can't cope with unrecognised request names even to the extent of
+sending back the correct failure response, or because they handle it
+sensibly but fill up the server's log file with pointless spam, or
+whatever. PuTTY therefore supports this bug-compatibility flag: if it
+believes the server has this bug, it will never send its
+\cq{winadj@putty.projects.tartarus.org} request, and will make do
+without its timing data.
+
+\S{config-ssh-bug-chanreq} \q{Replies to requests on closed channels}
+
+The SSH protocol as published in RFC 4254 has an ambiguity which
+arises if one side of a connection tries to close a channel, while the
+other side simultaneously sends a request within the channel and asks
+for a reply. RFC 4254 leaves it unclear whether the closing side
+should reply to the channel request after having announced its
+intention to close the channel.
+
+Discussion on the \cw{ietf-ssh} mailing list in April 2014 formed a
+clear consensus that the right answer is no. However, because of the
+ambiguity in the specification, some SSH servers have implemented the
+other policy; for example,
+\W{https://bugzilla.mindrot.org/show_bug.cgi?id=1818}{OpenSSH used to}
+until it was fixed.
+
+Because PuTTY sends channel requests with the \q{want reply} flag
+throughout channels' lifetime (see \k{config-ssh-bug-winadj}), it's
+possible that when connecting to such a server it might receive a
+reply to a request after it thinks the channel has entirely closed,
+and terminate with an error along the lines of \q{Received
+\cw{SSH2_MSG_CHANNEL_FAILURE} for nonexistent channel 256}.
+
+\S{config-ssh-bug-maxpkt2} \q{Ignores SSH-2 \i{maximum packet size}}
+
+When an SSH-2 channel is set up, each end announces the maximum size
+of data packet that it is willing to receive for that channel.  Some
+servers ignore PuTTY's announcement and send packets larger than PuTTY
+is willing to accept, causing it to report \q{Incoming packet was
+garbled on decryption}.
+
+If this bug is detected, PuTTY never allows the channel's
+\i{flow-control window} to grow large enough to allow the server to
+send an over-sized packet.  If this bug is enabled when talking to a
+correct server, the session will work correctly, but download
+performance will be less than it could be.
+
+\S{config-ssh-bug-sig} \q{Requires padding on SSH-2 \i{RSA} \i{signatures}}
+
+Versions below 3.3 of \i{OpenSSH} require SSH-2 RSA signatures to be
+padded with zero bytes to the same length as the RSA key modulus.
+The SSH-2 specification says that an unpadded signature MUST be
+accepted, so this is a bug. A typical symptom of this problem is
+that PuTTY mysteriously fails RSA authentication once in every few
+hundred attempts, and falls back to passwords.
+
+If this bug is detected, PuTTY will pad its signatures in the way
+OpenSSH expects. If this bug is enabled when talking to a correct
+server, it is likely that no damage will be done, since correct
+servers usually still accept padded signatures because they're used
+to talking to OpenSSH.
+
+This is an SSH-2-specific bug.
+
+\S{config-ssh-bug-oldgex2} \q{Only supports pre-RFC4419 SSH-2 DH GEX}
+
+The SSH key exchange method that uses Diffie-Hellman group exchange
+was redesigned after its original release, to use a slightly more
+sophisticated setup message. Almost all SSH implementations switched
+over to the new version. (PuTTY was one of the last.) A few old
+servers still only support the old one.
+
+If this bug is detected, and the client and server negotiate
+Diffie-Hellman group exchange, then PuTTY will send the old message
+now known as \cw{SSH2_MSG_KEX_DH_GEX_REQUEST_OLD} in place of the new
+\cw{SSH2_MSG_KEX_DH_GEX_REQUEST}.
+
+This is an SSH-2-specific bug.
+
+\S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
+
+Versions 2.3.0 and below of the SSH server software from
+\cw{ssh.com} compute the keys for their \i{HMAC} \i{message authentication
+code}s incorrectly. A typical symptom of this problem is that PuTTY
+dies unexpectedly at the beginning of the session, saying
+\q{Incorrect MAC received on packet}.
+
+If this bug is detected, PuTTY will compute its HMAC keys in the
+same way as the buggy server, so that communication will still be
+possible. If this bug is enabled when talking to a correct server,
+communication will fail.
+
+This is an SSH-2-specific bug.
+
+\S{config-ssh-bug-pksessid2} \q{Misuses the \i{session ID} in SSH-2 PK auth}
+
+Versions below 2.3 of \i{OpenSSH} require SSH-2 \i{public-key authentication}
+to be done slightly differently: the data to be signed by the client
+contains the session ID formatted in a different way. If public-key
+authentication mysteriously does not work but the Event Log (see
+\k{using-eventlog}) thinks it has successfully sent a signature, it
+might be worth enabling the workaround for this bug to see if it
+helps.
+
+If this bug is detected, PuTTY will sign data in the way OpenSSH
+expects. If this bug is enabled when talking to a correct server,
+SSH-2 public-key authentication will fail.
+
+This is an SSH-2-specific bug.
+
+\S{config-ssh-bug-derivekey2} \q{Miscomputes SSH-2 \i{encryption} keys}
+
+Versions below 2.0.11 of the SSH server software from \i\cw{ssh.com}
+compute the keys for the session encryption incorrectly. This
+problem can cause various error messages, such as \q{Incoming packet
+was garbled on decryption}, or possibly even \q{Out of memory}.
+
+If this bug is detected, PuTTY will compute its encryption keys in
+the same way as the buggy server, so that communication will still
+be possible. If this bug is enabled when talking to a correct
+server, communication will fail.
+
+This is an SSH-2-specific bug.
+
 \S{config-ssh-bug-ignore1} \q{Chokes on SSH-1 \i{ignore message}s}
 
 An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
@@ -3289,174 +3457,6 @@ server, the session will succeed, but of course RSA authentication
 will be impossible.
 
 This is an SSH-1-specific bug.
-
-\S{config-ssh-bug-ignore2} \q{Chokes on SSH-2 \i{ignore message}s}
-
-An ignore message (SSH_MSG_IGNORE) is a message in the SSH protocol
-which can be sent from the client to the server, or from the server
-to the client, at any time. Either side is required to ignore the
-message whenever it receives it. PuTTY uses ignore messages in SSH-2
-to confuse the encrypted data stream and make it harder to
-cryptanalyse. It also uses ignore messages for connection
-\i{keepalives} (see \k{config-keepalive}).
-
-If it believes the server to have this bug, PuTTY will stop using
-ignore messages. If this bug is enabled when talking to a correct
-server, the session will succeed, but keepalives will not work and
-the session might be less cryptographically secure than it could be.
-
-\S{config-ssh-bug-winadj} \q{Chokes on PuTTY's SSH-2 \cq{winadj} requests}
-
-PuTTY sometimes sends a special request to SSH servers in the middle
-of channel data, with the name \cw{winadj@putty.projects.tartarus.org}
-(see \k{sshnames-channel}). The purpose of this request is to measure
-the round-trip time to the server, which PuTTY uses to tune its flow
-control. The server does not actually have to \e{understand} the
-message; it is expected to send back a \cw{SSH_MSG_CHANNEL_FAILURE}
-message indicating that it didn't understand it. (All PuTTY needs for
-its timing calculations is \e{some} kind of response.)
-
-It has been known for some SSH servers to get confused by this message
-in one way or another \dash because it has a long name, or because
-they can't cope with unrecognised request names even to the extent of
-sending back the correct failure response, or because they handle it
-sensibly but fill up the server's log file with pointless spam, or
-whatever. PuTTY therefore supports this bug-compatibility flag: if it
-believes the server has this bug, it will never send its
-\cq{winadj@putty.projects.tartarus.org} request, and will make do
-without its timing data.
-
-\S{config-ssh-bug-hmac2} \q{Miscomputes SSH-2 HMAC keys}
-
-Versions 2.3.0 and below of the SSH server software from
-\cw{ssh.com} compute the keys for their \i{HMAC} \i{message authentication
-code}s incorrectly. A typical symptom of this problem is that PuTTY
-dies unexpectedly at the beginning of the session, saying
-\q{Incorrect MAC received on packet}.
-
-If this bug is detected, PuTTY will compute its HMAC keys in the
-same way as the buggy server, so that communication will still be
-possible. If this bug is enabled when talking to a correct server,
-communication will fail.
-
-This is an SSH-2-specific bug.
-
-\S{config-ssh-bug-derivekey2} \q{Miscomputes SSH-2 \i{encryption} keys}
-
-Versions below 2.0.11 of the SSH server software from \i\cw{ssh.com}
-compute the keys for the session encryption incorrectly. This
-problem can cause various error messages, such as \q{Incoming packet
-was garbled on decryption}, or possibly even \q{Out of memory}.
-
-If this bug is detected, PuTTY will compute its encryption keys in
-the same way as the buggy server, so that communication will still
-be possible. If this bug is enabled when talking to a correct
-server, communication will fail.
-
-This is an SSH-2-specific bug.
-
-\S{config-ssh-bug-sig} \q{Requires padding on SSH-2 \i{RSA} \i{signatures}}
-
-Versions below 3.3 of \i{OpenSSH} require SSH-2 RSA signatures to be
-padded with zero bytes to the same length as the RSA key modulus.
-The SSH-2 specification says that an unpadded signature MUST be
-accepted, so this is a bug. A typical symptom of this problem is
-that PuTTY mysteriously fails RSA authentication once in every few
-hundred attempts, and falls back to passwords.
-
-If this bug is detected, PuTTY will pad its signatures in the way
-OpenSSH expects. If this bug is enabled when talking to a correct
-server, it is likely that no damage will be done, since correct
-servers usually still accept padded signatures because they're used
-to talking to OpenSSH.
-
-This is an SSH-2-specific bug.
-
-\S{config-ssh-bug-pksessid2} \q{Misuses the \i{session ID} in SSH-2 PK auth}
-
-Versions below 2.3 of \i{OpenSSH} require SSH-2 \i{public-key authentication}
-to be done slightly differently: the data to be signed by the client
-contains the session ID formatted in a different way. If public-key
-authentication mysteriously does not work but the Event Log (see
-\k{using-eventlog}) thinks it has successfully sent a signature, it
-might be worth enabling the workaround for this bug to see if it
-helps.
-
-If this bug is detected, PuTTY will sign data in the way OpenSSH
-expects. If this bug is enabled when talking to a correct server,
-SSH-2 public-key authentication will fail.
-
-This is an SSH-2-specific bug.
-
-\S{config-ssh-bug-rekey} \q{Handles SSH-2 key re-exchange badly}
-
-Some SSH servers cannot cope with \i{repeat key exchange} at
-all, and will ignore attempts by the client to start one. Since
-PuTTY pauses the session while performing a repeat key exchange, the
-effect of this would be to cause the session to hang after an hour
-(unless you have your rekey timeout set differently; see
-\k{config-ssh-kex-rekey} for more about rekeys).
-Other, very old, SSH servers handle repeat key exchange even more
-badly, and disconnect upon receiving a repeat key exchange request.
-
-If this bug is detected, PuTTY will never initiate a repeat key
-exchange. If this bug is enabled when talking to a correct server,
-the session should still function, but may be less secure than you
-would expect.
-
-This is an SSH-2-specific bug.
-
-\S{config-ssh-bug-maxpkt2} \q{Ignores SSH-2 \i{maximum packet size}}
-
-When an SSH-2 channel is set up, each end announces the maximum size
-of data packet that it is willing to receive for that channel.  Some
-servers ignore PuTTY's announcement and send packets larger than PuTTY
-is willing to accept, causing it to report \q{Incoming packet was
-garbled on decryption}.
-
-If this bug is detected, PuTTY never allows the channel's
-\i{flow-control window} to grow large enough to allow the server to
-send an over-sized packet.  If this bug is enabled when talking to a
-correct server, the session will work correctly, but download
-performance will be less than it could be.
-
-\S{config-ssh-bug-chanreq} \q{Replies to requests on closed channels}
-
-The SSH protocol as published in RFC 4254 has an ambiguity which
-arises if one side of a connection tries to close a channel, while the
-other side simultaneously sends a request within the channel and asks
-for a reply. RFC 4254 leaves it unclear whether the closing side
-should reply to the channel request after having announced its
-intention to close the channel.
-
-Discussion on the \cw{ietf-ssh} mailing list in April 2014 formed a
-clear consensus that the right answer is no. However, because of the
-ambiguity in the specification, some SSH servers have implemented the
-other policy; for example,
-\W{https://bugzilla.mindrot.org/show_bug.cgi?id=1818}{OpenSSH used to}
-until it was fixed.
-
-Because PuTTY sends channel requests with the \q{want reply} flag
-throughout channels' lifetime (see \k{config-ssh-bug-winadj}), it's
-possible that when connecting to such a server it might receive a
-reply to a request after it thinks the channel has entirely closed,
-and terminate with an error along the lines of \q{Received
-\cw{SSH2_MSG_CHANNEL_FAILURE} for nonexistent channel 256}.
-
-\S{config-ssh-bug-oldgex2} \q{Only supports pre-RFC4419 SSH-2 DH GEX}
-
-The SSH key exchange method that uses Diffie-Hellman group exchange
-was redesigned after its original release, to use a slightly more
-sophisticated setup message. Almost all SSH implementations switched
-over to the new version. (PuTTY was one of the last.) A few old
-servers still only support the old one.
-
-If this bug is detected, and the client and server negotiate
-Diffie-Hellman group exchange, then PuTTY will send the old message
-now known as \cw{SSH2_MSG_KEX_DH_GEX_REQUEST_OLD} in place of the new
-\cw{SSH2_MSG_KEX_DH_GEX_REQUEST}.
-
-This is an SSH-2-specific bug.
 
 \H{config-serial} The Serial panel
 
