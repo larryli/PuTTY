@@ -53,7 +53,7 @@ in the same way as you would if it was new.
 See \k{gs-hostkey} for more information on host keys.
 
 \H{errors-ssh-protocol} \q{SSH protocol version 2 required by our
-configuration but server only provides (old, insecure) SSH-1}
+configuration but remote only provides (old, insecure) SSH-1}
 
 By default, PuTTY only supports connecting to SSH servers that
 implement \i{SSH protocol version 2}. If you see this message, the
@@ -80,7 +80,7 @@ puts up this warning only for \ii{single-DES} and \i{Arcfour} encryption.
 
 See \k{config-ssh-encryption} for more information on this message.
 
-\H{errors-toomanyauth} \q{Server sent disconnect message type 2
+\H{errors-toomanyauth} \q{Remote side sent disconnect message type 2
 (protocol error): "Too many authentication failures for root"}
 
 This message is produced by an \i{OpenSSH} (or \i{Sun SSH}) server if it
