@@ -153,15 +153,15 @@ If you see one of these messages, it often indicates that you've tried
 to load a key of an inappropriate type into PuTTY, Plink, PSCP, PSFTP,
 or Pageant.
 
-You may have specified a key that's inappropriate for the connection
-you're making. The SSH-1 and SSH-2 protocols require different private
-key formats, and a SSH-1 key can't be used for a SSH-2 connection (or
-vice versa).
-
-Alternatively, you may have tried to load an SSH-2 key in a \q{foreign}
+You may have tried to load an SSH-2 key in a \q{foreign}
 format (OpenSSH or \cw{ssh.com}) directly into one of the PuTTY tools,
 in which case you need to import it into PuTTY's native format
 (\c{*.PPK}) using PuTTYgen \dash see \k{puttygen-conversions}.
+
+Alternatively, you may have specified a key that's inappropriate for
+the connection you're making. The SSH-2 and the old SSH-1 protocols
+require different private key formats, and a SSH-1 key can't be used
+for a SSH-2 connection (or vice versa).
 
 \H{errors-refused} \q{Server refused our key},
 \q{Server refused our public key}, \q{Key refused}
@@ -212,8 +212,8 @@ you to an SSH server.  This may be because PuTTY has TIS or
 keyboard-interactive authentication disabled, in which case see
 \k{config-ssh-tis} and \k{config-ssh-ki}.
 
-\H{errors-crc} \q{Incorrect \i{CRC} received on packet} or \q{Incorrect
-\i{MAC} received on packet}
+\H{errors-crc} \q{Incorrect \i{MAC} received on packet} or
+\q{Incorrect \i{CRC} received on packet}
 
 This error occurs when PuTTY decrypts an SSH packet and its checksum
 is not correct. This probably means something has gone wrong in the
