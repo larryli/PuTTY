@@ -107,16 +107,16 @@ Saved sessions are stored in the \i{Registry}, at the location
 If you need to store them in a file, you could try the method
 described in \k{config-file}.
 
-\S{config-closeonexit} \q{\ii{Close Window} on Exit}
+\S{config-closeonexit} \q{\ii{Close window} on exit}
 
 Finally in the Session panel, there is an option labelled \q{Close
-Window on Exit}. This controls whether the PuTTY \i{terminal window}
+window on exit}. This controls whether the PuTTY \i{terminal window}
 disappears as soon as the session inside it terminates. If you are
 likely to want to copy and paste text out of the session after it
 has terminated, or restart the session, you should arrange for this
 option to be off.
 
-\q{Close Window On Exit} has three settings. \q{Always} means always
+\q{Close window on exit} has three settings. \q{Always} means always
 close the window on exit; \q{Never} means never close on exit
 (always leave the window open, but \I{inactive window}inactive). The
 third setting, and the default one, is \q{Only on clean exit}. In this
@@ -1713,7 +1713,7 @@ are terminated than for keeping a connection alive.
 
 TCP keepalives are disabled by default.
 
-\S{config-address-family} \I{Internet protocol version}\q{Internet protocol}
+\S{config-address-family} \q{\i{Internet protocol version}}
 
 This option allows the user to select between the old and new
 Internet protocols and addressing schemes (\i{IPv4} and \i{IPv6}).
