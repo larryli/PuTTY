@@ -76,9 +76,13 @@ attack.
 
 This occurs when the SSH server does not offer any ciphers which you
 have configured PuTTY to consider strong enough. By default, PuTTY
-puts up this warning only for \ii{single-DES} and \i{Arcfour} encryption.
+puts up this warning only for \i{Blowfish}, \ii{single-DES}, and
+\i{Arcfour} encryption.
 
 See \k{config-ssh-encryption} for more information on this message.
+
+(There are similar messages for other cryptographic primitives, such
+as host key algorithms.)
 
 \H{errors-toomanyauth} \q{Remote side sent disconnect message type 2
 (protocol error): "Too many authentication failures for root"}
@@ -137,8 +141,8 @@ Similarly, any error message starting with \q{Assertion failed} is a
 bug in PuTTY. Please report it to us, and include the exact text
 from the error message box.
 
-\H{errors-cant-load-key} \q{Unable to use this private key file},
-\q{Couldn't load private key}, \q{Key is of wrong type}
+\H{errors-cant-load-key} \q{Unable to use key file},
+\q{Couldn't load private key}, \q{Couldn't load this key}
 
 Various forms of this error are printed in the PuTTY window, or
 written to the PuTTY Event Log (see \k{using-eventlog}) when trying
@@ -157,10 +161,10 @@ vice versa).
 Alternatively, you may have tried to load an SSH-2 key in a \q{foreign}
 format (OpenSSH or \cw{ssh.com}) directly into one of the PuTTY tools,
 in which case you need to import it into PuTTY's native format
-(\c{*.PPK}) using PuTTYgen - see \k{puttygen-conversions}.
+(\c{*.PPK}) using PuTTYgen \dash see \k{puttygen-conversions}.
 
-\H{errors-refused} \q{Server refused our public key} or \q{Key
-refused}
+\H{errors-refused} \q{Server refused our key},
+\q{Server refused our public key}, \q{Key refused}
 
 Various forms of this error are printed in the PuTTY window, or
 written to the PuTTY Event Log (see \k{using-eventlog}) when trying
@@ -205,7 +209,7 @@ Upgrade your server, or use the workarounds described in
 
 This error indicates that PuTTY has run out of ways to authenticate
 you to an SSH server.  This may be because PuTTY has TIS or
-keyboard-interactive authentication disabled, in which case
+keyboard-interactive authentication disabled, in which case see
 \k{config-ssh-tis} and \k{config-ssh-ki}.
 
 \H{errors-crc} \q{Incorrect \i{CRC} received on packet} or \q{Incorrect
