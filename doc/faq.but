@@ -424,7 +424,7 @@ You can ask PuTTY to delete all this data; see \k{faq-cleanup}.
 On Unix, PuTTY stores all of this data in a directory \cw{~/.putty}
 by default.
 
-\S{faq-trust-sigils} Why do small PuTTY icons appear next to the login
+\S{faq-trust-sigils} Why do small \i{PuTTY icon}s appear next to the login
 prompts?
 
 As of PuTTY 0.71, some lines of text in the terminal window are marked
