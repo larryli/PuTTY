@@ -91,7 +91,7 @@ detail in \k{puttygen-keytype} and
 
 Your key pair is now ready for use. You may also want to copy the
 public key to your server, either by copying it out of the \q{Public
-key for pasting into authorized_keys file} box (see
+key for pasting into OpenSSH authorized_keys file} box (see
 \k{puttygen-pastekey}), or by using the \q{Save public key} button
 (\k{puttygen-savepub}). However, you don't need to do this
 immediately; if you want, you can load the private key back into
@@ -277,14 +277,14 @@ will contain exactly the same text that appears in the \q{Public key
 for pasting} box. This is the only existing standard for SSH-1
 public keys.
 
-\S{puttygen-pastekey} \q{Public key for pasting into \i{authorized_keys
-file}}
+\S{puttygen-pastekey} \q{Public key for pasting into OpenSSH
+\i{authorized_keys file}}
 
 The \i{OpenSSH} server, among others, requires your public key to be
 given to it in a one-line format before it will accept authentication
 with your private key. (SSH-1 servers also used this method.)
 
-The \q{Public key for pasting into authorized_keys file} gives the
+The \q{Public key for pasting into OpenSSH authorized_keys file} gives the
 public-key data in the correct one-line format. Typically you will
 want to select the entire contents of the box using the mouse, press
 Ctrl+C to copy it to the clipboard, and then paste the data into a
@@ -365,7 +365,7 @@ accept your public key for authentication:
 \i\c{authorized_keys} with your favourite editor. (You may have to
 create this file, if this is the first key you have put in it.) Then
 switch to the PuTTYgen window, select all of the text in the \q{Public
-key for pasting into authorized_keys file} box (see
+key for pasting into OpenSSH authorized_keys file} box (see
 \k{puttygen-pastekey}), and copy it to the clipboard (\c{Ctrl+C}).
 Then, switch back to the PuTTY window and insert the data into the
 open file, making sure it ends up all on one line. Save the file.
