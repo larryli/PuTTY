@@ -407,6 +407,7 @@ void ssh_remote_error(Ssh *ssh, const char *fmt, ...);
 void ssh_remote_eof(Ssh *ssh, const char *fmt, ...);
 void ssh_proto_error(Ssh *ssh, const char *fmt, ...);
 void ssh_sw_abort(Ssh *ssh, const char *fmt, ...);
+void ssh_sw_abort_deferred(Ssh *ssh, const char *fmt, ...);
 void ssh_user_close(Ssh *ssh, const char *fmt, ...);
 
 /* Bit positions in the SSH-1 cipher protocol word */
