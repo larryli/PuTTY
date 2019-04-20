@@ -310,6 +310,8 @@ static void ssh2_connection_free(PacketProtocolLayer *ppl)
     }
     portfwdmgr_free(s->portfwdmgr);
 
+    delete_callbacks_for_context(s);
+
     sfree(s);
 }
 
