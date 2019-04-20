@@ -311,6 +311,8 @@ static void ssh_server_free_callback(void *vsrv)
 
     sk_close(srv->socket);
 
+    if (srv->base_layer)
+        ssh_ppl_free(srv->base_layer);
     if (srv->bpp)
         ssh_bpp_free(srv->bpp);
 
