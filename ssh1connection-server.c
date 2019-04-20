@@ -374,3 +374,8 @@ SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 
     return &c->sc;
 }
+
+bool ssh1_connection_need_antispoof_prompt(struct ssh1_connection_state *s)
+{
+    return false;
+}
