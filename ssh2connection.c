@@ -310,6 +310,9 @@ static void ssh2_connection_free(PacketProtocolLayer *ppl)
     }
     portfwdmgr_free(s->portfwdmgr);
 
+    if (s->antispoof_prompt)
+        free_prompts(s->antispoof_prompt);
+
     delete_callbacks_for_context(s);
 
     sfree(s);
@@ -999,6 +1002,7 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
             s->want_user_input = false;
         }
         free_prompts(s->antispoof_prompt);
+        s->antispoof_prompt = NULL;
     }
 
     /*
