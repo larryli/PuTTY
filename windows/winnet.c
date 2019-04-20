@@ -1344,6 +1344,7 @@ static void sk_net_close(Socket *sock)
     p_closesocket(s->s);
     if (s->addr)
 	sk_addr_free(s->addr);
+    delete_callbacks_for_context(s);
     sfree(s);
 }
 

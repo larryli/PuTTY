@@ -521,6 +521,9 @@ static void scp_source_free(ScpServer *s)
         scp->head = node->next;
         sfree(node);
     }
+
+    delete_callbacks_for_context(scp);
+
     sfree(scp);
 }
 

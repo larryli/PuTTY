@@ -1804,6 +1804,7 @@ void term_free(Terminal *term)
     sfree(term->tabs);
 
     expire_timer_context(term);
+    delete_callbacks_for_context(term);
 
     conf_free(term->conf);
 
