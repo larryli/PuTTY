@@ -197,6 +197,8 @@ static void ssh1_connection_free(PacketProtocolLayer *ppl)
     while ((c = delpos234(s->channels, 0)) != NULL)
         ssh1_channel_free(c);
     freetree234(s->channels);
+    if (s->mainchan_chan)
+        chan_free(s->mainchan_chan);
 
     if (s->x11disp)
 	x11_free_display(s->x11disp);
