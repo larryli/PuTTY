@@ -52,8 +52,6 @@ def warn(s):
     sys.stderr.write("%s:%d: %s\n"
                      % (fileinput.filename(), fileinput.filelineno(), s))
 
-output_type = 'windows'
-
 def invert(n, p):
     """Compute inverse mod p."""
     if n % p == 0:
@@ -163,21 +161,6 @@ nist_curves = {
     "ecdsa-sha2-nistp521": NistCurve(0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, 0x01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffc, 0x0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00),
 }
 
-try:
-    optlist, args = getopt.getopt(sys.argv[1:], '', [ 'win', 'unix' ])
-    if any(x[0] == '--unix' for x in optlist):
-        output_type = 'unix'
-except getopt.error as e:
-    sys.stderr.write(str(e) + "\n")
-    sys.exit(1)
-
-if output_type == 'windows':
-    # Output REG file header.
-    sys.stdout.write("""REGEDIT4
-
-[HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\SshHostKeys]
-""")
-
 class BlankInputLine(Exception):
     pass
 
@@ -189,9 +172,7 @@ class KeyFormatError(Exception):
     def __init__(self, msg):
         self.msg = msg
 
-# Now process all known_hosts input.
-for line in fileinput.input(args):
-
+def handle_line(line, output_formatter):
     try:
         # Remove leading/trailing whitespace (should zap CR and LF)
         line = line.strip()
@@ -346,14 +327,7 @@ for line in fileinput.input(args):
                     lambda x: x if isinstance(x, str)
                     else x.decode('ASCII') if isinstance(x, bytes)
                     else inttohex(x), keyparams))
-                if output_type == 'unix':
-                    # Unix format.
-                    sys.stdout.write('%s %s\n' % (key, value))
-                else:
-                    # Windows format.
-                    # XXX: worry about double quotes?
-                    sys.stdout.write("\"%s\"=\"%s\"\n"
-                                     % (winmungestr(key), value))
+                output_formatter.key(key, value)
 
     except UnknownKeyType as k:
         warn("unknown SSH key type '%s', skipping" % k.keytype)
@@ -362,13 +336,54 @@ for line in fileinput.input(args):
     except BlankInputLine:
         pass
 
-# The spec at http://support.microsoft.com/kb/310516 says we need
-# a blank line at the end of the reg file:
-#
-#   Note the registry file should contain a blank line at the
-#   bottom of the file.
-#
-if output_type == 'windows':
-    # Output REG file header.
-    sys.stdout.write("\n")
-            
+class OutputFormatter(object):
+    def __init__(self, fh):
+        self.fh = fh
+    def header(self):
+        pass
+    def trailer(self):
+        pass
+
+class WindowsOutputFormatter(OutputFormatter):
+    def header(self):
+        # Output REG file header.
+        self.fh.write("""REGEDIT4
+
+[HKEY_CURRENT_USER\Software\SimonTatham\PuTTY\SshHostKeys]
+""")
+
+    def key(self, key, value):
+        # XXX: worry about double quotes?
+        self.fh.write("\"%s\"=\"%s\"\n" % (winmungestr(key), value))
+
+    def trailer(self):
+        # The spec at http://support.microsoft.com/kb/310516 says we need
+        # a blank line at the end of the reg file:
+        #
+        #   Note the registry file should contain a blank line at the
+        #   bottom of the file.
+        #
+        self.fh.write("\n")
+
+class UnixOutputFormatter(OutputFormatter):
+    def key(self, key, value):
+        self.fh.write('%s %s\n' % (key, value))
+
+def main():
+    output_formatter_class = WindowsOutputFormatter
+    try:
+        optlist, args = getopt.getopt(sys.argv[1:], '', [ 'win', 'unix' ])
+        if any(x[0] == '--unix' for x in optlist):
+            output_formatter_class = UnixOutputFormatter
+    except getopt.error as e:
+        sys.stderr.write(str(e) + "\n")
+        sys.exit(1)
+
+    output_formatter = output_formatter_class(sys.stdout)
+    output_formatter.header()
+    for line in fileinput.input(args):
+        handle_line(line, output_formatter)
+    output_formatter.trailer()
+
+if __name__ == "__main__":
+    main()
