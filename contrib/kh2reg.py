@@ -16,7 +16,7 @@ import struct
 import string
 import re
 import sys
-import getopt
+import argparse
 import itertools
 import collections
 from functools import reduce
@@ -370,18 +370,26 @@ class UnixOutputFormatter(OutputFormatter):
         self.fh.write('%s %s\n' % (key, value))
 
 def main():
-    output_formatter_class = WindowsOutputFormatter
-    try:
-        optlist, args = getopt.getopt(sys.argv[1:], '', [ 'win', 'unix' ])
-        if any(x[0] == '--unix' for x in optlist):
-            output_formatter_class = UnixOutputFormatter
-    except getopt.error as e:
-        sys.stderr.write(str(e) + "\n")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Convert OpenSSH known hosts files to PuTTY's format.")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--windows", "--win", action='store_const',
+        dest="output_formatter_class", const=WindowsOutputFormatter,
+        help="Produce Windows .reg file output that regedit.exe can import"
+        " (default).")
+    group.add_argument(
+        "--unix", action='store_const',
+        dest="output_formatter_class", const=UnixOutputFormatter,
+        help="Produce a file suitable for use as ~/.putty/sshhostkeys.")
+    parser.add_argument("infile", nargs="*",
+                        help="Input file(s) to read from (default stdin).")
+    parser.set_defaults(output_formatter_class=WindowsOutputFormatter)
+    args = parser.parse_args()
 
-    output_formatter = output_formatter_class(sys.stdout)
+    output_formatter = args.output_formatter_class(sys.stdout)
     output_formatter.header()
-    for line in fileinput.input(args):
+    for line in fileinput.input(args.infile):
         handle_line(line, output_formatter)
     output_formatter.trailer()
 
