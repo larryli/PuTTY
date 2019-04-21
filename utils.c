@@ -308,7 +308,10 @@ int string_length_for_printf(size_t s)
 #endif
 
 /* Also lack of vsnprintf before VS2015 */
-#if defined _WINDOWS && !defined __WINE__ && _MSC_VER < 1900
+#if defined _WINDOWS && \
+    !defined __MINGW32__ && \
+    !defined __WINE__ && \
+    _MSC_VER < 1900
 #define vsnprintf _vsnprintf
 #endif
 
