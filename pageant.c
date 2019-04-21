@@ -131,7 +131,7 @@ void pageant_make_keylist2(BinarySink *bs)
 
 static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
 #ifdef __GNUC__
-__attribute__ ((format (printf, 3, 4)))
+__attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 3, 4)))
 #endif
     ;
 

@@ -24,11 +24,27 @@ char *host_strchr(const char *s, int c);
 char *host_strrchr(const char *s, int c);
 char *host_strduptrim(const char *s);
 
+#ifdef __GNUC__
+/*
+ * On MinGW, the correct compiler format checking for vsnprintf() etc
+ * can depend on compile-time flags; these control whether you get
+ * ISO C or Microsoft's non-standard format strings.
+ * We sometimes use __attribute__ ((format)) for our own printf-like
+ * functions, which are ultimately interpreted by the toolchain-chosen
+ * printf, so we need to take that into account to get correct warnings.
+ */
+#ifdef __MINGW_PRINTF_FORMAT
+#define PUTTY_PRINTF_ARCHETYPE __MINGW_PRINTF_FORMAT
+#else
+#define PUTTY_PRINTF_ARCHETYPE printf
+#endif
+#endif /* __GNUC__ */
+
 char *dupstr(const char *s);
 char *dupcat(const char *s1, ...);
 char *dupprintf(const char *fmt, ...)
 #ifdef __GNUC__
-    __attribute__ ((format (printf, 1, 2)))
+    __attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 1, 2)))
 #endif
     ;
 char *dupvprintf(const char *fmt, va_list ap);
