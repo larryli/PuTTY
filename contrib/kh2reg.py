@@ -382,12 +382,15 @@ def main():
         "--unix", action='store_const',
         dest="output_formatter_class", const=UnixOutputFormatter,
         help="Produce a file suitable for use as ~/.putty/sshhostkeys.")
+    parser.add_argument("-o", "--output", type=argparse.FileType("w"),
+                        default=argparse.FileType("w")("-"),
+                        help="Output file to write to (default stdout).")
     parser.add_argument("infile", nargs="*",
                         help="Input file(s) to read from (default stdin).")
     parser.set_defaults(output_formatter_class=WindowsOutputFormatter)
     args = parser.parse_args()
 
-    output_formatter = args.output_formatter_class(sys.stdout)
+    output_formatter = args.output_formatter_class(args.output)
     output_formatter.header()
     for line in fileinput.input(args.infile):
         handle_line(line, output_formatter)
