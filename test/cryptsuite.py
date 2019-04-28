@@ -1276,6 +1276,57 @@ culpa qui officia deserunt mollit anim id est laborum.
         self.assertFalse(ssh_key_verify(pubkey, badsig0, "hello, again"))
         self.assertFalse(ssh_key_verify(pubkey, badsigq, "hello, again"))
 
+    def testRSAVerify(self):
+        def blobs(n, e, d, p, q, iqmp):
+            pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)
+            privblob = (ssh2_mpint(d) + ssh2_mpint(p) +
+                        ssh2_mpint(q) + ssh2_mpint(iqmp))
+            return pubblob, privblob
+
+        def failure_test(*args):
+            pubblob, privblob = blobs(*args)
+            key = ssh_key_new_priv('rsa', pubblob, privblob)
+            self.assertEqual(key, None)
+
+        def success_test(*args):
+            pubblob, privblob = blobs(*args)
+            key = ssh_key_new_priv('rsa', pubblob, privblob)
+            self.assertNotEqual(key, None)
+
+        # Parameters for a (trivially small) test key.
+        n = 0xb5d545a2f6423eabd55ffede53e21628d5d4491541482e10676d9d6f2783b9a5
+        e = 0x25
+        d = 0x6733db6a546ac99fcc21ba2b28b0c077156e8a705976205a955c6d9cef98f419
+        p = 0xe30ebd7348bf10dca72b36f2724dafa7
+        q = 0xcd02c87a7f7c08c4e9dc80c9b9bad5d3
+        iqmp = 0x60a129b30db9227910efe1608976c513
+
+        # Check the test key makes sense unmodified.
+        success_test(n, e, d, p, q, iqmp)
+
+        # Try modifying the values one by one to ensure they are
+        # rejected, except iqmp, which sshrsa.c regenerates anyway so
+        # it won't matter at all.
+        failure_test(n+1, e, d, p, q, iqmp)
+        failure_test(n, e+1, d, p, q, iqmp)
+        failure_test(n, e, d+1, p, q, iqmp)
+        failure_test(n, e, d, p+1, q, iqmp)
+        failure_test(n, e, d, p, q+1, iqmp)
+        success_test(n, e, d, p, q, iqmp+1)
+
+        # The key should also be accepted with p,q reversed. (Again,
+        # iqmp gets regenerated, so it won't matter if that's wrong.)
+        success_test(n, e, d, q, p, iqmp)
+
+        # Replace each of p and q with 0, and with 1. These should
+        # still fail validation (obviously), but the point is that the
+        # validator should also avoid trying to divide by zero in the
+        # process.
+        failure_test(n, e, d, 0, q, iqmp)
+        failure_test(n, e, d, p, 0, iqmp)
+        failure_test(n, e, d, 1, q, iqmp)
+        failure_test(n, e, d, p, 1, iqmp)
+
     def testKeyMethods(self):
         # Exercise all the methods of the ssh_key trait on all key
         # types, and ensure that they're consistent with each other.
