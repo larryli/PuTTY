@@ -145,8 +145,8 @@ FUNC1(val_string, ssh2_mac_genresult, val_mac)
  * returning a string.
  */
 FUNC2(val_key, ssh_key_new_pub, keyalg, val_string_ptrlen)
-FUNC3(val_key, ssh_key_new_priv, keyalg, val_string_ptrlen, val_string_ptrlen)
-FUNC2(val_key, ssh_key_new_priv_openssh, keyalg, val_string_binarysource)
+FUNC3(opt_val_key, ssh_key_new_priv, keyalg, val_string_ptrlen, val_string_ptrlen)
+FUNC2(opt_val_key, ssh_key_new_priv_openssh, keyalg, val_string_binarysource)
 FUNC2(opt_val_string_asciz, ssh_key_invalid, val_key, uint)
 FUNC4(void, ssh_key_sign, val_key, val_string_ptrlen, uint, out_val_string_binarysink)
 FUNC3(boolean, ssh_key_verify, val_key, val_string_ptrlen, val_string_ptrlen)

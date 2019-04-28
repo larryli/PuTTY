@@ -515,6 +515,7 @@ static void return_val_string_asciz(strbuf *out, char *s)
 NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
 NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
+NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
 
 static void handle_hello(BinarySource *in, strbuf *out)
 {
