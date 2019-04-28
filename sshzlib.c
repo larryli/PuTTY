@@ -1105,10 +1105,13 @@ bool zlib_decompress_block(ssh_decompressor *dc,
 		    zlib_freetable(&dctx->currdisttable);
 		    dctx->currdisttable = NULL;
 		}
-	    } else if (code < 286) {   /* static tree can give >285; ignore */
+	    } else if (code < 286) {
 		dctx->state = GOTLENSYM;
 		dctx->sym = code;
-	    }
+	    } else {
+                /* literal/length symbols 286 and 287 are invalid */
+                goto decode_error;
+            }
 	    break;
 	  case GOTLENSYM:
 	    rec = &lencodes[dctx->sym - 257];
