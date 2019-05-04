@@ -88,8 +88,11 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
 	}
 	infd = open(cmd, O_RDONLY);
 	if (infd == -1) {
+            Socket *toret = new_error_socket_fmt(
+                plug, "%s: %s", cmd, strerror(errno));
 	    sfree(cmd);
-	    return new_error_socket_fmt(plug, "%s: %s", cmd, strerror(errno));
+            close(outfd);
+	    return toret;
 	}
 	sfree(cmd);
 	inerrfd = -1;
