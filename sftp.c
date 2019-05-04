@@ -596,8 +596,6 @@ bool fxp_fstat_recv(struct sftp_packet *pktin, struct sftp_request *req,
     sfree(req);
     if (pktin->type == SSH_FXP_ATTRS) {
         return fxp_got_attrs(pktin, attrs);
-	sftp_pkt_free(pktin);
-	return true;
     } else {
 	fxp_got_status(pktin);
         sftp_pkt_free(pktin);
