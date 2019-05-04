@@ -1252,6 +1252,13 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         ptrlen prompt = get_string(pktin);
                         bool echo = get_bool(pktin);
 
+                        if (get_err(pktin)) {
+                            ssh_proto_error(
+                                s->ppl.ssh, "Server sent truncated "
+                                "SSH_MSG_USERAUTH_INFO_REQUEST packet");
+                            return;
+                        }
+
                         sb = strbuf_new();
                         if (!prompt.len) {
                             put_datapl(sb, PTRLEN_LITERAL(
