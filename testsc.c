@@ -658,6 +658,7 @@ static void test_mp_modsqrt(void)
     }
 
     mp_free(x);
+    modsqrt_free(sc);
 }
 
 static WeierstrassCurve *wcurve(void)

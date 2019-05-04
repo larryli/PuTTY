@@ -1213,6 +1213,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
              */
             *retstr = dupstr(error);
             sfree(rkey);
+            if (comment)
+                sfree(comment);
             return PAGEANT_ACTION_FAILURE;
         } else if (ret == 1) {
             /*
@@ -1309,6 +1311,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                 return PAGEANT_ACTION_FAILURE;
             }
 
+            ssh_key_free(skey->key);
+            sfree(skey);
 	    sfree(response);
 	} else {
 	    if (!pageant_add_ssh2_key(skey)) {

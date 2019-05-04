@@ -235,10 +235,11 @@ RSAKey *auth_publickey_ssh1(
 }
 AuthKbdInt *auth_kbdint_prompts(AuthPolicy *ap, ptrlen username)
 {
-    AuthKbdInt *aki = snew(AuthKbdInt);
+    AuthKbdInt *aki;
 
     switch (ap->kbdint_state) {
       case 0:
+        aki = snew(AuthKbdInt);
         aki->title = dupstr("Initial double prompt");
         aki->instruction =
             dupstr("First prompt should echo, second should not");
@@ -250,6 +251,7 @@ AuthKbdInt *auth_kbdint_prompts(AuthPolicy *ap, ptrlen username)
         aki->prompts[1].echo = false;
         return aki;
       case 1:
+        aki = snew(AuthKbdInt);
         aki->title = dupstr("Zero-prompt step");
         aki->instruction = dupstr("Shouldn't see any prompts this time");
         aki->nprompts = 0;

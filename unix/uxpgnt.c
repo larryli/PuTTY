@@ -990,6 +990,7 @@ void run_agent(void)
     }
 
     conf_free(conf);
+    pollwrap_free(pw);
 }
 
 int main(int argc, char **argv)
