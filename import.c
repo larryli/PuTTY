@@ -1442,7 +1442,7 @@ static ssh2_userkey *openssh_new_read(
         }
     }
 
-    if (!retkey) {
+    if (!retkey->key) {
         errmsg = "key index out of range";
         goto error;
     }
