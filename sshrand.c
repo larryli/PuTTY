@@ -4,6 +4,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "storage.h"
 #include <assert.h>
 
 /* Collect environmental noise every 5 minutes */
@@ -76,6 +77,18 @@ static void random_create(const ssh_hashalg *hashalg)
      * before we finish, and also in case an attacker gets hold of
      * the seed data we used. */
     random_save_seed();
+}
+
+void random_save_seed(void)
+{
+    int len;
+    void *data;
+
+    if (random_active) {
+	random_get_savedata(&data, &len);
+	write_random_seed(data, len);
+	sfree(data);
+    }
 }
 
 void random_ref(void)
