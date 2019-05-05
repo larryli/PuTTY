@@ -2353,8 +2353,10 @@ int psftp_main(int argc, char *argv[])
     random_save_seed();
 
     cmdline_cleanup();
-    backend_free(backend);
-    backend = NULL;
+    if (backend) {
+        backend_free(backend);
+        backend = NULL;
+    }
     sk_cleanup();
     return (errs == 0 ? 0 : 1);
 }
