@@ -1303,9 +1303,9 @@ static void test_mac(const ssh2_macalg *malg)
         return;
     }
 
-    uint8_t *mkey = malg ? snewn(malg->keylen, uint8_t) : NULL;
+    uint8_t *mkey = snewn(malg->keylen, uint8_t);
     size_t datalen = 256;
-    size_t maclen = malg ? malg->len : 0;
+    size_t maclen = malg->len;
     uint8_t *data = snewn(datalen + maclen, uint8_t);
 
     /* Preliminarily key the MAC, to avoid the divergence of control
