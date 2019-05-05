@@ -57,7 +57,7 @@ struct ssh2_userauth_state {
     strbuf *last_methods_string;
     bool kbd_inter_refused;
     prompts_t *cur_prompt;
-    int num_prompts;
+    uint32_t num_prompts;
     const char *username;
     char *locally_allocated_username;
     char *password;
@@ -1231,7 +1231,6 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
 
                     ptrlen name, inst;
                     strbuf *sb;
-                    int i;
 
                     /*
                      * We've got a fresh USERAUTH_INFO_REQUEST.
@@ -1248,7 +1247,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                      * Get any prompt(s) from the packet.
                      */
                     s->num_prompts = get_uint32(pktin);
-                    for (i = 0; i < s->num_prompts; i++) {
+                    for (uint32_t i = 0; i < s->num_prompts; i++) {
                         ptrlen prompt = get_string(pktin);
                         bool echo = get_bool(pktin);
 
@@ -1366,7 +1365,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     s->pktout = ssh_bpp_new_pktout(
                         s->ppl.bpp, SSH2_MSG_USERAUTH_INFO_RESPONSE);
                     put_uint32(s->pktout, s->num_prompts);
-                    for (i=0; i < s->num_prompts; i++) {
+                    for (uint32_t i = 0; i < s->num_prompts; i++) {
                         put_stringz(s->pktout,
                                     s->cur_prompt->prompts[i]->result);
                     }
