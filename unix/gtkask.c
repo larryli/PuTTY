@@ -80,6 +80,13 @@ static void cleanup_keypress_prng(void)
 }
 static int choose_new_area(int prev_area)
 {
+    /*
+     * Don't actually put the passphrase keystrokes themselves into
+     * the PRNG; that doesn't seem like the course of wisdom when
+     * that's precisely what the information displayed on the screen
+     * is trying _not_ to be correlated to.
+     */
+    noise_ultralight(NOISE_SOURCE_KEY, 0);
     uint8_t data[8];
     prng_read(keypress_prng, data, 8);
     uint64_t randval = GET_64BIT_MSB_FIRST(data);
