@@ -821,9 +821,16 @@ int main(int argc, char **argv)
         scfg.listening_plug.vt = &server_plugvt;
         scfg.listening_socket = sk_newlistener(
             NULL, listen_port, &scfg.listening_plug, true, ADDRTYPE_UNSPEC);
+
+        char *msg = dupprintf("%s: listening on port %d",
+                              appname, listen_port);
+        log_to_stderr(-1, msg);
+        sfree(msg);
     } else {
-        Plug *plug = server_conn_plug(&scfg, NULL);
+        struct server_instance *inst;
+        Plug *plug = server_conn_plug(&scfg, &inst);
         ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
+        log_to_stderr(inst->id, "speaking SSH on stdio");
     }
 
     now = GETTICKCOUNT();
