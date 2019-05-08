@@ -1405,6 +1405,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
 			   &act->mtime, &act->atime) == 2) {
 		    act->settime = true;
                     backend_send(backend, "", 1);
+                    act->buf->len = 0;
 		    continue;	       /* go round again */
 		}
 		bump("Protocol error: Illegal time format");
