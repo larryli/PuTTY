@@ -1310,6 +1310,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     } else {
                         s->cur_prompt->instr_reqd = false;
                     }
+                    if (sb->len)
+                        s->cur_prompt->instruction = strbuf_to_str(sb);
 
                     /*
                      * Our prompts_t is fully constructed now. Get the
