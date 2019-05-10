@@ -21,6 +21,7 @@ typedef struct server server;
 struct server {
     bufchain in_raw, out_raw;
     IdempotentCallback ic_out_raw;
+    bool pending_close;
 
     bufchain dummy_user_input;     /* we never put anything on this */
 
@@ -305,11 +306,14 @@ static void ssh_server_free_callback(void *vsrv)
 {
     server *srv = (server *)vsrv;
 
+    logeventf(srv->logctx, "freeing server instance");
+
     bufchain_clear(&srv->in_raw);
     bufchain_clear(&srv->out_raw);
     bufchain_clear(&srv->dummy_user_input);
 
-    sk_close(srv->socket);
+    if (srv->socket)
+        sk_close(srv->socket);
 
     if (srv->base_layer)
         ssh_ppl_free(srv->base_layer);
@@ -382,13 +386,50 @@ static void server_bpp_output_raw_data_callback(void *vctx)
         }
     }
 
-#ifdef FIXME
-    if (ssh->pending_close) {
-        sk_close(ssh->s);
-        ssh->s = NULL;
+    if (srv->pending_close) {
+        sk_close(srv->socket);
+        srv->socket = NULL;
+        queue_toplevel_callback(ssh_server_free_callback, srv);
     }
-#endif
 }
+
+static void server_shutdown_internal(server *srv)
+{
+    /*
+     * We only need to free the base PPL, which will free the others
+     * (if any) transitively.
+     */
+    if (srv->base_layer) {
+        ssh_ppl_free(srv->base_layer);
+        srv->base_layer = NULL;
+    }
+
+    srv->cl = NULL;
+}
+
+static void server_initiate_connection_close(server *srv)
+{
+    /* Wind up everything above the BPP. */
+    server_shutdown_internal(srv);
+
+    /* Force any remaining queued SSH packets through the BPP, and
+     * schedule closing the network socket after they go out. */
+    ssh_bpp_handle_output(srv->bpp);
+    srv->pending_close = true;
+    queue_idempotent_callback(&srv->ic_out_raw);
+
+    /* Now we expect the other end to close the connection too in
+     * response, so arrange that we'll receive notification of that
+     * via ssh_remote_eof. */
+    srv->bpp->expect_close = true;
+}
+
+#define GET_FORMATTED_MSG(fmt)                  \
+    char *msg;                                  \
+    va_list ap;                                 \
+    va_start(ap, fmt);                          \
+    msg = dupvprintf(fmt, ap);                  \
+    va_end(ap);
 
 #define LOG_FORMATTED_MSG(logctx, fmt) do       \
     {                                           \
@@ -415,8 +456,14 @@ void ssh_remote_eof(Ssh *ssh, const char *fmt, ...)
 void ssh_proto_error(Ssh *ssh, const char *fmt, ...)
 {
     server *srv = container_of(ssh, server, ssh);
-    LOG_FORMATTED_MSG(srv->logctx, fmt);
-    queue_toplevel_callback(ssh_server_free_callback, srv);
+    if (srv->base_layer) {
+        GET_FORMATTED_MSG(fmt);
+        ssh_bpp_queue_disconnect(srv->bpp, msg,
+                                 SSH2_DISCONNECT_PROTOCOL_ERROR);
+        server_initiate_connection_close(srv);
+        logeventf(srv->logctx, "Protocol error: %s", msg);
+        sfree(msg);
+    }
 }
 
 void ssh_sw_abort(Ssh *ssh, const char *fmt, ...)
