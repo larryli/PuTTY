@@ -599,21 +599,24 @@ size_t sftp_sendbuffer(void)
 /* ----------------------------------------------------------------------
  * sftp-based replacement for the hacky `pscp -ls'.
  */
-static int sftp_ls_compare(const void *av, const void *bv)
+void list_directory_from_sftp_warn_unsorted(void)
 {
-    const struct fxp_name *a = (const struct fxp_name *) av;
-    const struct fxp_name *b = (const struct fxp_name *) bv;
-    return strcmp(a->filename, b->filename);
+    fprintf(stderr,
+            "Directory is too large to sort; writing file names unsorted\n");
 }
+
+void list_directory_from_sftp_print(struct fxp_name *name)
+{
+    with_stripctrl(san, name->longname)
+        printf("%s\n", san);
+}
+
 void scp_sftp_listdir(const char *dirname)
 {
     struct fxp_handle *dirh;
     struct fxp_names *names;
-    struct fxp_name *ournames;
     struct sftp_packet *pktin;
     struct sftp_request *req;
-    size_t nnames, namesize;
-    int i;
 
     if (!fxp_init()) {
 	tell_user(stderr, "unable to initialise SFTP: %s", fxp_error());
@@ -631,8 +634,8 @@ void scp_sftp_listdir(const char *dirname)
 		tell_user(stderr, "Unable to open %s: %s\n", dirname, fxp_error());
 		errs++;
     } else {
-	nnames = namesize = 0;
-	ournames = NULL;
+        struct list_directory_from_sftp_ctx *ctx =
+            list_directory_from_sftp_new();
 
 	while (1) {
 
@@ -651,33 +654,17 @@ void scp_sftp_listdir(const char *dirname)
 		break;
 	    }
 
-            sgrowarrayn(ournames, namesize, nnames, names->nnames);
+	    for (size_t i = 0; i < names->nnames; i++)
+                list_directory_from_sftp_feed(ctx, &names->names[i]);
 
-	    for (i = 0; i < names->nnames; i++)
-		ournames[nnames++] = names->names[i];
-	    names->nnames = 0;	       /* prevent free_names */
 	    fxp_free_names(names);
 	}
 	req = fxp_close_send(dirh);
         pktin = sftp_wait_for_reply(req);
 	fxp_close_recv(pktin, req);
 
-	/*
-	 * Now we have our filenames. Sort them by actual file
-	 * name, and then output the longname parts.
-	 */
-        if (nnames > 0)
-            qsort(ournames, nnames, sizeof(*ournames), sftp_ls_compare);
-
-	/*
-	 * And print them.
-	 */
-	for (i = 0; i < nnames; i++) {
-            with_stripctrl(san, ournames[i].longname)
-                printf("%s\n", san);
-        }
-
-        sfree(ournames);
+        list_directory_from_sftp_finish(ctx);
+        list_directory_from_sftp_free(ctx);
     }
 }
 

@@ -211,20 +211,6 @@ char *canonify(const char *name)
     }
 }
 
-/*
- * qsort comparison routine for fxp_name structures. Sorts by real
- * file name.
- */
-static int sftp_name_compare(const void *av, const void *bv)
-{
-    const struct fxp_name *const *a = (const struct fxp_name *const *) av;
-    const struct fxp_name *const *b = (const struct fxp_name *const *) bv;
-    return strcmp((*a)->filename, (*b)->filename);
-}
-
-/*
- * Likewise, but for a bare char *.
- */
 static int bare_name_compare(const void *av, const void *bv)
 {
     const char **a = (const char **) av;
@@ -1024,6 +1010,17 @@ int sftp_cmd_close(struct sftp_command *cmd)
     return 0;
 }
 
+void list_directory_from_sftp_warn_unsorted(void)
+{
+    printf("Directory is too large to sort; writing file names unsorted\n");
+}
+
+void list_directory_from_sftp_print(struct fxp_name *name)
+{
+    with_stripctrl(san, name->longname)
+        printf("%s\n", san);
+}
+
 /*
  * List a directory. If no arguments are given, list pwd; otherwise
  * list the directory given in words[1].
@@ -1032,8 +1029,6 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 {
     struct fxp_handle *dirh;
     struct fxp_names *names;
-    struct fxp_name **ournames;
-    size_t nnames, namesize;
     const char *dir;
     char *cdir, *unwcdir, *wildcard;
     struct sftp_packet *pktin;
@@ -1091,8 +1086,8 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 	sfree(unwcdir);
 	return 0;
     } else {
-	nnames = namesize = 0;
-	ournames = NULL;
+        struct list_directory_from_sftp_ctx *ctx =
+            list_directory_from_sftp_new();
 
 	while (1) {
 
@@ -1111,34 +1106,19 @@ int sftp_cmd_ls(struct sftp_command *cmd)
 		break;
 	    }
 
-            sgrowarrayn(ournames, namesize, nnames, names->nnames);
-
 	    for (size_t i = 0; i < names->nnames; i++)
 		if (!wildcard || wc_match(wildcard, names->names[i].filename))
-		    ournames[nnames++] = fxp_dup_name(&names->names[i]);
+                    list_directory_from_sftp_feed(ctx, &names->names[i]);
 
 	    fxp_free_names(names);
 	}
+
 	req = fxp_close_send(dirh);
         pktin = sftp_wait_for_reply(req);
 	fxp_close_recv(pktin, req);
 
-	/*
-	 * Now we have our filenames. Sort them by actual file
-	 * name, and then output the longname parts.
-	 */
-        if (nnames > 0)
-            qsort(ournames, nnames, sizeof(*ournames), sftp_name_compare);
-
-	/*
-	 * And print them.
-	 */
-	for (size_t i = 0; i < nnames; i++) {
-            with_stripctrl(san, ournames[i]->longname)
-                printf("%s\n", san);
-	    fxp_free_name(ournames[i]);
-	}
-	sfree(ournames);
+        list_directory_from_sftp_finish(ctx);
+        list_directory_from_sftp_free(ctx);
     }
 
     sfree(cdir);
