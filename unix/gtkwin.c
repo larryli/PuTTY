@@ -5085,11 +5085,10 @@ static void start_backend(GtkFrontend *inst)
                          conf_get_bool(inst->conf, CONF_tcp_keepalives));
 
     if (error) {
-	char *msg = dupprintf("Unable to open connection to %s:\n%s",
+	seat_connection_fatal(&inst->seat,
+                              "Unable to open connection to %s:\n%s",
 			      conf_dest(inst->conf), error);
 	inst->exited = true;
-	seat_connection_fatal(&inst->seat, msg);
-	sfree(msg);
         return;
     }
 
