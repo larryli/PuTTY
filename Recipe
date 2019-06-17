@@ -239,7 +239,7 @@ CFLAGS += -DWINVER=0x0500 -D_WIN32_WINDOWS=0x0410 -D_WIN32_WINNT=0x0500
 CONF     = conf marshal
 
 # Terminal emulator and its (platform-independent) dependencies.
-TERMINAL = terminal stripctrl wcwidth ldiscucs logging tree234 minibidi
+TERMINAL = terminal stripctrl wcwidth logging tree234 minibidi
          + config dialog CONF
 
 # GUI front end and terminal emulator (putty, puttytel).

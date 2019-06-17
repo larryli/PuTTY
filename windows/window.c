@@ -3245,9 +3245,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		     * messages. We _have_ to buffer everything
 		     * we're sent.
 		     */
-		    term_seen_key_event(term);
-		    if (ldisc)
-			ldisc_send(ldisc, buf, len, true);
+                    term_keyinput(term, -1, buf, len);
 		    show_mouseptr(false);
 		}
 	    }
@@ -3289,10 +3287,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		/*
 		 * Jaeyoun Chung reports that Korean character
 		 * input doesn't work correctly if we do a single
-		 * luni_send() covering the whole of buff. So
-		 * instead we luni_send the characters one by one.
+		 * term_keyinputw covering the whole of buff. So
+		 * instead we send the characters one by one.
 		 */
-		term_seen_key_event(term);
 		/* don't divide SURROGATE PAIR */
 		if (ldisc) {
                     for (i = 0; i < n; i += 2) {
@@ -3300,13 +3297,14 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 			if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
 			    WCHAR ls = *(unsigned short *)(buff+i+2);
 			    if (IS_LOW_SURROGATE(ls)) {
-				luni_send(ldisc, (unsigned short *)(buff+i),
-                                          2, true);
+                                term_keyinputw(
+                                    term, (unsigned short *)(buff+i), 2);
 				i += 2;
 				continue;
 			    }
 			}
-			luni_send(ldisc, (unsigned short *)(buff+i), 1, true);
+                        term_keyinputw(
+                            term, (unsigned short *)(buff+i), 1);
                     }
 		}
 		free(buff);
@@ -3321,14 +3319,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
 	    buf[1] = wParam;
 	    buf[0] = wParam >> 8;
-	    term_seen_key_event(term);
-	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, buf, 2, true);
+            term_keyinput(term, kbd_codepage, buf, 2);
 	} else {
 	    char c = (unsigned char) wParam;
 	    term_seen_key_event(term);
-	    if (ldisc)
-		lpage_send(ldisc, kbd_codepage, &c, 1, true);
+            term_keyinput(term, kbd_codepage, &c, 1);
 	}
 	return (0);
       case WM_CHAR:
@@ -3349,11 +3344,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 wchar_t pair[2];
                 pair[0] = pending_surrogate;
                 pair[1] = c;
-                term_seen_key_event(term);
-                luni_send(ldisc, pair, 2, true);
+                term_keyinputw(term, pair, 2);
             } else if (!IS_SURROGATE(c)) {
-                term_seen_key_event(term);
-                luni_send(ldisc, &c, 1, true);
+                term_keyinputw(term, &c, 1);
             }
 	}
 	return 0;
@@ -4691,9 +4684,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			return 0;
 		    }
 		    keybuf = nc;
-		    term_seen_key_event(term);
-		    if (ldisc)
-			luni_send(ldisc, &keybuf, 1, true);
+                    term_keyinputw(term, &keybuf, 1);
 		    continue;
 		}
 
@@ -4703,9 +4694,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		    if (alt_sum) {
 			if (in_utf(term) || ucsdata.dbcs_screenfont) {
 			    keybuf = alt_sum;
-			    term_seen_key_event(term);
-			    if (ldisc)
-				luni_send(ldisc, &keybuf, 1, true);
+                            term_keyinputw(term, &keybuf, 1);
 			} else {
 			    char ch = (char) alt_sum;
 			    /*
@@ -4717,33 +4706,23 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 			     * messages. We _have_ to buffer
 			     * everything we're sent.
 			     */
-			    term_seen_key_event(term);
-			    if (ldisc)
-				ldisc_send(ldisc, &ch, 1, true);
+			    term_keyinput(term, -1, &ch, 1);
 			}
 			alt_sum = 0;
 		    } else {
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, &wch, 1, true);
+			term_keyinputw(term, &wch, 1);
 		    }
 		} else {
 		    if(capsOn && wch < 0x80) {
 			WCHAR cbuf[2];
 			cbuf[0] = 27;
 			cbuf[1] = xlat_uskbd2cyrllic(wch);
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, cbuf+!left_alt, 1+!!left_alt,
-                                      true);
+			term_keyinputw(term, cbuf+!left_alt, 1+!!left_alt);
 		    } else {
 			WCHAR cbuf[2];
 			cbuf[0] = '\033';
 			cbuf[1] = wch;
-			term_seen_key_event(term);
-			if (ldisc)
-			    luni_send(ldisc, cbuf +!left_alt, 1+!!left_alt,
-                                      true);
+			term_keyinputw(term, cbuf +!left_alt, 1+!!left_alt);
 		    }
 		}
 		show_mouseptr(false);
