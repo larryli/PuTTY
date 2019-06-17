@@ -79,10 +79,6 @@ char *x_get_default(const char *key)
 {
     return NULL;		       /* this is a stub */
 }
-bool term_ldisc(Terminal *term, int mode)
-{
-    return false;
-}
 static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
     /* Update stdin read mode to reflect changes in line discipline. */

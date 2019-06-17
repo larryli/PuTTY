@@ -1341,7 +1341,6 @@ static void power_on(Terminal *term, bool clear)
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
     term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
     term->save_truecolour = term->alt_save_truecolour = term->curr_truecolour;
-    term->term_editing = false;
     term->app_cursor_keys = conf_get_bool(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_bool(term->conf, CONF_app_keypad);
     term->use_bce = conf_get_bool(term->conf, CONF_bce);
@@ -2638,11 +2637,6 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 	    break;
 	  case 8:		       /* DECARM: auto key repeat */
 	    term->repeat_off = !state;
-	    break;
-	  case 10:		       /* DECEDM: set local edit mode */
-	    term->term_editing = state;
-	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_echoedit_update(term->ldisc);
 	    break;
 	  case 25:		       /* DECTCEM: enable/disable cursor */
 	    compatibility2(OTHER, VT220);
@@ -7023,15 +7017,6 @@ void term_lost_clipboard_ownership(Terminal *term, int clipboard)
      */
     if (term->selstate != DRAGGING)
         term_out(term);
-}
-
-bool term_ldisc(Terminal *term, int option)
-{
-    if (option == LD_ECHO)
-	return false;
-    if (option == LD_EDIT)
-	return term->term_editing;
-    return false;
 }
 
 static void term_added_data(Terminal *term)

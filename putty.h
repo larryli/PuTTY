@@ -1630,7 +1630,6 @@ void term_invalidate(Terminal *);
 void term_blink(Terminal *, bool set_cursor);
 void term_do_paste(Terminal *, const wchar_t *, int);
 void term_nopaste(Terminal *);
-bool term_ldisc(Terminal *, int option);
 void term_copyall(Terminal *, const int *, int);
 void term_reconfig(Terminal *, Conf *);
 void term_request_copy(Terminal *, const int *clipboards, int n_clipboards);
