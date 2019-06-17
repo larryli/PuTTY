@@ -1341,7 +1341,7 @@ static void power_on(Terminal *term, bool clear)
 	term->alt_save_attr = term->curr_attr = ATTR_DEFAULT;
     term->curr_truecolour.fg = term->curr_truecolour.bg = optionalrgb_none;
     term->save_truecolour = term->alt_save_truecolour = term->curr_truecolour;
-    term->term_editing = term->term_echoing = false;
+    term->term_editing = false;
     term->app_cursor_keys = conf_get_bool(term->conf, CONF_app_cursor);
     term->app_keypad_keys = conf_get_bool(term->conf, CONF_app_keypad);
     term->use_bce = conf_get_bool(term->conf, CONF_bce);
@@ -1354,6 +1354,7 @@ static void power_on(Terminal *term, bool clear)
     term->urxvt_extended_mouse = false;
     win_set_raw_mouse_mode(term->win, false);
     term->bracketed_paste = false;
+    term->srm_echo = false;
     {
 	int i;
 	for (i = 0; i < 256; i++)
@@ -1754,6 +1755,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->last_graphic_char = 0;
 
     term->trusted = true;
+
+    term->bracketed_paste_active = false;
 
     return term;
 }
@@ -2702,9 +2705,7 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
 	    term->insert = state;
 	    break;
 	  case 12:		       /* SRM: set echo mode */
-	    term->term_echoing = !state;
-	    if (term->ldisc)	       /* cause ldisc to notice changes */
-		ldisc_echoedit_update(term->ldisc);
+            term->srm_echo = !state;
 	    break;
 	  case 20:		       /* LNM: Return sends ... */
 	    term->cr_lf_return = state;
@@ -3026,9 +3027,49 @@ static strbuf *term_input_data_from_charset(
     return buf;
 }
 
+static inline void term_bracketed_paste_start(Terminal *term)
+{
+    ptrlen seq = PTRLEN_LITERAL("\033[200~");
+    if (term->ldisc)
+        ldisc_send(term->ldisc, seq.ptr, seq.len, false);
+    term->bracketed_paste_active = true;
+}
+
+static inline void term_bracketed_paste_stop(Terminal *term)
+{
+    if (!term->bracketed_paste_active)
+        return;
+
+    ptrlen seq = PTRLEN_LITERAL("\033[201~");
+    if (term->ldisc)
+        ldisc_send(term->ldisc, seq.ptr, seq.len, false);
+    term->bracketed_paste_active = false;
+}
+
 static inline void term_keyinput_internal(
     Terminal *term, const void *buf, int len, bool interactive)
 {
+    if (term->srm_echo) {
+        /*
+         * Implement the terminal-level local echo behaviour that
+         * ECMA-48 specifies when terminal mode 12 is configured off
+         * (ESC[12l). In this mode, data input to the terminal via the
+         * keyboard is also added to the output buffer. But this
+         * doesn't apply to escape sequences generated as session
+         * input _within_ the terminal, e.g. in response to terminal
+         * query sequences, or the bracketing sequences of bracketed
+         * paste mode. Those will be sent directly via
+         * ldisc_send(term->ldisc, ...) and won't go through this
+         * function.
+         */
+
+        /* Mimic the special case of negative length in ldisc_send */
+        int true_len = len >= 0 ? len : strlen(buf);
+
+        bufchain_add(&term->inbuf, buf, true_len);
+        term_added_data(term);
+    }
+    term_bracketed_paste_stop(term);
     if (term->ldisc)
         ldisc_send(term->ldisc, buf, len, interactive);
     term_seen_key_event(term);
@@ -6326,6 +6367,7 @@ static void term_paste_callback(void *vterm)
 	    return;
 	}
     }
+    term_bracketed_paste_stop(term);
     sfree(term->paste_buffer);
     term->paste_buffer = NULL;
     term->paste_len = 0;
@@ -6361,10 +6403,8 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
     term->paste_pos = term->paste_len = 0;
     term->paste_buffer = snewn(len + 12, wchar_t);
 
-    if (term->bracketed_paste) {
-        memcpy(term->paste_buffer, L"\033[200~", 6 * sizeof(wchar_t));
-        term->paste_len += 6;
-    }
+    if (term->bracketed_paste)
+        term_bracketed_paste_start(term);
 
     p = data;
     while (p < data + len) {
@@ -6413,12 +6453,6 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
         term->paste_buffer[term->paste_len++] = wc;
     }
 
-    if (term->bracketed_paste) {
-        memcpy(term->paste_buffer + term->paste_len,
-               L"\033[201~", 6 * sizeof(wchar_t));
-        term->paste_len += 6;
-    }
-
     /* Assume a small paste will be OK in one go. */
     if (term->paste_len < 256) {
         if (term->ldisc) {
@@ -6429,7 +6463,8 @@ void term_do_paste(Terminal *term, const wchar_t *data, int len)
         }
         if (term->paste_buffer)
             sfree(term->paste_buffer);
-        term->paste_buffer = 0;
+        term_bracketed_paste_stop(term);
+        term->paste_buffer = NULL;
         term->paste_pos = term->paste_len = 0;
     }
 
@@ -6961,6 +6996,7 @@ void term_nopaste(Terminal *term)
     if (term->paste_len == 0)
 	return;
     sfree(term->paste_buffer);
+    term_bracketed_paste_stop(term);
     term->paste_buffer = NULL;
     term->paste_len = 0;
 }
@@ -6992,7 +7028,7 @@ void term_lost_clipboard_ownership(Terminal *term, int clipboard)
 bool term_ldisc(Terminal *term, int option)
 {
     if (option == LD_ECHO)
-	return term->term_echoing;
+	return false;
     if (option == LD_EDIT)
 	return term->term_editing;
     return false;

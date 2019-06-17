@@ -123,7 +123,6 @@ struct terminal_tag {
     bool cblinker;                     /* When blinking is the cursor on ? */
     bool tblinker;                     /* When the blinking text is on */
     bool blink_is_real;                /* Actually blink blinking text */
-    bool term_echoing;                 /* Does terminal want local echo? */
     bool term_editing;                 /* Does terminal want local edit? */
     int sco_acs, save_sco_acs;	       /* CSI 10,11,12m -> OEM charset */
     bool vt52_bold;                    /* Force bold on non-bold colours */
@@ -148,7 +147,7 @@ struct terminal_tag {
     bool in_vbell;
     long vbell_end;
     bool app_cursor_keys, app_keypad_keys, vt52_mode;
-    bool repeat_off, cr_lf_return;
+    bool repeat_off, srm_echo, cr_lf_return;
     bool seen_disp_event;
     bool big_cursor;
 
@@ -157,7 +156,7 @@ struct terminal_tag {
     bool urxvt_extended_mouse;
     int mouse_is_down;		       /* used while tracking mouse buttons */
 
-    bool bracketed_paste;
+    bool bracketed_paste, bracketed_paste_active;
 
     int cset_attr[2];
 
