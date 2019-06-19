@@ -247,7 +247,7 @@ void sk_init(void)
     if (GetProcAddress(winsock_module, "getaddrinfo") != NULL) {
 	GET_WINDOWS_FUNCTION(winsock_module, getaddrinfo);
 	GET_WINDOWS_FUNCTION(winsock_module, freeaddrinfo);
-	GET_WINDOWS_FUNCTION(winsock_module, getnameinfo);
+	GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, getnameinfo);
         /* This function would fail its type-check if we did one,
          * because the VS header file provides an inline definition
          * which is __cdecl instead of WINAPI. */
@@ -258,8 +258,8 @@ void sk_init(void)
 	if (wship6_module) {
 	    GET_WINDOWS_FUNCTION(wship6_module, getaddrinfo);
 	    GET_WINDOWS_FUNCTION(wship6_module, freeaddrinfo);
-	    GET_WINDOWS_FUNCTION(wship6_module, getnameinfo);
             /* See comment above about type check */
+	    GET_WINDOWS_FUNCTION_NO_TYPECHECK(wship6_module, getnameinfo);
             GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gai_strerror);
 	} else {
 	}
