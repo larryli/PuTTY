@@ -804,7 +804,7 @@ static ssh_key *ecdsa_new_priv_openssh(
 
     ek->publicKey = get_wpoint(src, curve);
     if (!ek->publicKey) {
-        eddsa_freekey(&ek->sshk);
+        ecdsa_freekey(&ek->sshk);
         return NULL;
     }
 
