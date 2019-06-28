@@ -217,8 +217,11 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         return;
     }
 
-    s->len = (s->hostkey.bytes > s->servkey.bytes ?
-              s->hostkey.bytes : s->servkey.bytes);
+    s->len = 32;
+    if (s->len < s->hostkey.bytes)
+        s->len = s->hostkey.bytes;
+    if (s->len < s->servkey.bytes)
+        s->len = s->servkey.bytes;
 
     s->rsabuf = snewn(s->len, unsigned char);
 
