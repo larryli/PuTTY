@@ -2067,6 +2067,17 @@ static struct winctrl *dlg_findbyctrl(struct dlgparam *dp, union control *ctrl)
     return NULL;
 }
 
+bool dlg_is_visible(union control *ctrl, dlgparam *dp)
+{
+    /*
+     * In this implementation of the dialog box, we physically
+     * uncreate controls that aren't in a visible panel of the config
+     * box. So we can tell if a control is visible just by checking if
+     * it _exists_.
+     */
+    return dlg_findbyctrl(dp, ctrl) != NULL;
+}
+
 void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int whichbutton)
 {
     struct winctrl *c = dlg_findbyctrl(dp, ctrl);

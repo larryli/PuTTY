@@ -175,6 +175,7 @@ void dlg_coloursel_start(union control *ctrl, void *dlg,
 bool dlg_coloursel_results(union control *ctrl, void *dlg,
                            int *r, int *g, int *b) { return false; }
 void dlg_refresh(union control *ctrl, void *dlg) { }
+bool dlg_is_visible(union control *ctrl, dlgparam *dp) { return false; }
 
 const char *const appname = "FuZZterm";
 const int ngsslibs = 0;

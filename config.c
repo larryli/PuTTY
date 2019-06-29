@@ -780,7 +780,7 @@ static void sessionsaver_handler(union control *ctrl, dlgparam *dlg,
 	     * valid host name in it, then load it and go.
 	     */
 	    if (dlg_last_focused(ctrl, dlg) == ssd->listbox &&
-		!conf_launchable(conf)) {
+		!conf_launchable(conf) && dlg_is_visible(ssd->listbox, dlg)) {
 		Conf *conf2 = conf_new();
 		bool mbl = false;
 		if (!load_selected_session(ssd, dlg, conf2, &mbl)) {

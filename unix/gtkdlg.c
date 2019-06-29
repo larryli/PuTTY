@@ -51,6 +51,8 @@ struct Shortcuts {
     struct Shortcut sc[128];
 };
 
+struct selparam;
+
 struct uctrl {
     union control *ctrl;
     GtkWidget *toplevel;
@@ -71,6 +73,7 @@ struct uctrl {
     GtkWidget *text;	      /* for text */
     GtkWidget *label;         /* for dlg_label_change */
     GtkAdjustment *adj;       /* for the scrollbar in a list box */
+    struct selparam *sp;      /* which switchable pane of the box we're in */
     guint entrysig;
     guint textsig;
     int nclicks;
@@ -94,8 +97,9 @@ struct dlgparam {
     int ntreeitems;
 #else
     size_t nselparams;
-    struct selparam *selparams;
+    struct selparam **selparams;
 #endif
+    struct selparam *curr_panel;
     struct controlbox *ctrlbox;
     int retval;
     post_dialog_fn_t after;
@@ -206,6 +210,7 @@ static void dlg_init(struct dlgparam *dp)
     dp->treeitems = NULL;
     dp->currtreeitem = NULL;
 #endif
+    dp->curr_panel = NULL;
     dp->flags = 0;
     dp->currfocus = NULL;
 }
@@ -1843,8 +1848,9 @@ static void label_sizealloc(GtkWidget *widget, GtkAllocation *alloc,
  * non-NULL, all buttons created will be default-capable (so they
  * have extra space round them for the default highlight).
  */
-GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
-			struct controlset *s, GtkWindow *win)
+GtkWidget *layout_ctrls(
+    struct dlgparam *dp, struct selparam *sp, struct Shortcuts *scs,
+    struct controlset *s, GtkWindow *win)
 {
     Columns *cols;
     GtkWidget *ret;
@@ -1903,6 +1909,7 @@ GtkWidget *layout_ctrls(struct dlgparam *dp, struct Shortcuts *scs,
 	}
 
 	uc = snew(struct uctrl);
+        uc->sp = sp;
 	uc->ctrl = ctrl;
 	uc->buttons = NULL;
 	uc->entry = NULL;
@@ -2523,7 +2530,7 @@ struct selparam {
 static void treeselection_changed(GtkTreeSelection *treeselection,
 				  gpointer data)
 {
-    struct selparam *sps = (struct selparam *)data, *sp;
+    struct selparam **sps = (struct selparam **)data, *sp;
     GtkTreeModel *treemodel;
     GtkTreeIter treeiter;
     gint spindex;
@@ -2533,11 +2540,12 @@ static void treeselection_changed(GtkTreeSelection *treeselection,
 	return;
 
     gtk_tree_model_get(treemodel, &treeiter, TREESTORE_PARAMS, &spindex, -1);
-    sp = &sps[spindex];
+    sp = sps[spindex];
 
     page_num = gtk_notebook_page_num(sp->panels, sp->panel);
     gtk_notebook_set_current_page(sp->panels, page_num);
 
+    sp->dp->curr_panel = sp;
     dlg_refresh(NULL, sp->dp);
 
     sp->dp->shortcuts = &sp->shortcuts;
@@ -2551,12 +2559,24 @@ static void treeitem_sel(GtkItem *item, gpointer data)
     page_num = gtk_notebook_page_num(sp->panels, sp->panel);
     gtk_notebook_set_page(sp->panels, page_num);
 
+    sp->dp->curr_panel = sp;
     dlg_refresh(NULL, sp->dp);
 
     sp->dp->shortcuts = &sp->shortcuts;
     sp->dp->currtreeitem = sp->treeitem;
 }
 #endif
+
+bool dlg_is_visible(union control *ctrl, dlgparam *dp)
+{
+    struct uctrl *uc = dlg_find_byctrl(dp, ctrl);
+    /*
+     * A control is visible if it belongs to _no_ notebook page (i.e.
+     * it's one of the config-box-global buttons like Load or About),
+     * or if it belongs to the currently selected page.
+     */
+    return uc->sp == NULL || uc->sp == dp->curr_panel;
+}
 
 #if !GTK_CHECK_VERSION(2,0,0)
 static bool tree_grab_focus(struct dlgparam *dp)
@@ -2879,9 +2899,9 @@ void initial_treeview_collapse(struct dlgparam *dp, GtkWidget *tree)
      */
     int i;
     for (i = 0; i < dp->nselparams; i++)
-        if (dp->selparams[i].depth >= 2)
+        if (dp->selparams[i]->depth >= 2)
             gtk_tree_view_collapse_row(GTK_TREE_VIEW(tree),
-                                       dp->selparams[i].treepath);
+                                       dp->selparams[i]->treepath);
 }
 #endif
 
@@ -2917,7 +2937,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     struct dlgparam *dp;
     struct Shortcuts scs;
 
-    struct selparam *selparams = NULL;
+    struct selparam **selparams = NULL;
     size_t nselparams = 0, selparamsize = 0;
 
     dp = snew(struct dlgparam);
@@ -2991,7 +3011,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 	GtkWidget *w;
 
 	if (!*s->pathname) {
-	    w = layout_ctrls(dp, &scs, s, GTK_WINDOW(window));
+	    w = layout_ctrls(dp, NULL, &scs, s, GTK_WINDOW(window));
 
 	    our_dialog_set_action_area(GTK_WINDOW(window), w);
 	} else {
@@ -3031,6 +3051,9 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 		gtk_widget_show(panelvbox);
 		gtk_notebook_append_page(GTK_NOTEBOOK(panels), panelvbox,
 					 NULL);
+
+                struct selparam *sp = snew(struct selparam);
+
 		if (first) {
 		    gint page_num;
 
@@ -3038,13 +3061,16 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 						     panelvbox);
 		    gtk_notebook_set_current_page(GTK_NOTEBOOK(panels),
                                                   page_num);
+
+                    dp->curr_panel = sp;
 		}
 
                 sgrowarray(selparams, selparamsize, nselparams);
-		selparams[nselparams].dp = dp;
-		selparams[nselparams].panels = GTK_NOTEBOOK(panels);
-		selparams[nselparams].panel = panelvbox;
-		selparams[nselparams].shortcuts = scs;   /* structure copy */
+		selparams[nselparams] = sp;
+		sp->dp = dp;
+		sp->panels = GTK_NOTEBOOK(panels);
+		sp->panel = panelvbox;
+		sp->shortcuts = scs;   /* structure copy */
 
 		assert(j-1 < level);
 
@@ -3063,11 +3089,10 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 				   -1);
 		treeiterlevels[j] = treeiter;
 
-		selparams[nselparams].depth = j;
+		sp->depth = j;
 		if (j > 0) {
-		    selparams[nselparams].treepath =
-			gtk_tree_model_get_path(GTK_TREE_MODEL(treestore),
-						&treeiterlevels[j-1]);
+		    sp->treepath = gtk_tree_model_get_path(
+                        GTK_TREE_MODEL(treestore), &treeiterlevels[j-1]);
 		    /*
 		     * We are going to collapse all tree branches
 		     * at depth greater than 2, but not _yet_; see
@@ -3075,10 +3100,9 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 		     * gtk_tree_view_collapse_row below.
 		     */
 		    gtk_tree_view_expand_row(GTK_TREE_VIEW(tree),
-					     selparams[nselparams].treepath,
-					     false);
+					     sp->treepath, false);
 		} else {
-		    selparams[nselparams].treepath = NULL;
+		    sp->treepath = NULL;
 		}
 #else
 		treeitem = gtk_tree_item_new_with_label(c);
@@ -3109,14 +3133,15 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
 
 		if (first)
 		    gtk_tree_select_child(GTK_TREE(tree), treeitem);
-		selparams[nselparams].treeitem = treeitem;
+		sp->treeitem = treeitem;
 #endif
 
 		level = j+1;
 		nselparams++;
 	    }
 
-	    w = layout_ctrls(dp, &selparams[nselparams-1].shortcuts, s, NULL);
+	    w = layout_ctrls(dp, selparams[nselparams-1],
+                             &selparams[nselparams-1]->shortcuts, s, NULL);
 	    gtk_box_pack_start(GTK_BOX(panelvbox), w, false, false, 0);
             gtk_widget_show(w);
 	}
@@ -3178,7 +3203,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     dp->data = conf;
     dlg_refresh(NULL, dp);
 
-    dp->shortcuts = &selparams[0].shortcuts;
+    dp->shortcuts = &selparams[0]->shortcuts;
 #if !GTK_CHECK_VERSION(2,0,0)
     dp->currtreeitem = dp->treeitems[0];
 #endif
@@ -3239,9 +3264,11 @@ static void dlgparam_destroy(GtkWidget *widget, gpointer data)
     ctrl_free_box(dp->ctrlbox);
 #if GTK_CHECK_VERSION(2,0,0)
     if (dp->selparams) {
-        for (size_t i = 0; i < dp->nselparams; i++)
-            if (dp->selparams[i].treepath)
-                gtk_tree_path_free(dp->selparams[i].treepath);
+        for (size_t i = 0; i < dp->nselparams; i++) {
+            if (dp->selparams[i]->treepath)
+                gtk_tree_path_free(dp->selparams[i]->treepath);
+            sfree(dp->selparams[i]);
+        }
         sfree(dp->selparams);
     }
 #endif
@@ -3341,10 +3368,10 @@ GtkWidget *create_message_box(
 
     window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
-    w0 = layout_ctrls(dp, &scs, s0, GTK_WINDOW(window));
+    w0 = layout_ctrls(dp, NULL, &scs, s0, GTK_WINDOW(window));
     our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
-    w1 = layout_ctrls(dp, &scs, s1, GTK_WINDOW(window));
+    w1 = layout_ctrls(dp, NULL, &scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_size_request(w1, minwid+20, -1);
     our_dialog_add_to_content_area(GTK_WINDOW(window), w1, true, true, 0);
@@ -3911,10 +3938,10 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     title = dupcat(appname, " Event Log", (const char *)NULL);
     gtk_window_set_title(GTK_WINDOW(window), title);
     sfree(title);
-    w0 = layout_ctrls(&es->dp, &es->scs, s0, GTK_WINDOW(window));
+    w0 = layout_ctrls(&es->dp, NULL, &es->scs, s0, GTK_WINDOW(window));
     our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
-    w1 = layout_ctrls(&es->dp, &es->scs, s1, GTK_WINDOW(window));
+    w1 = layout_ctrls(&es->dp, NULL, &es->scs, s1, GTK_WINDOW(window));
     gtk_container_set_border_width(GTK_CONTAINER(w1), 10);
     gtk_widget_set_size_request(w1, 20 + string_width
                                 ("LINE OF TEXT GIVING WIDTH OF EVENT LOG IS "
