@@ -2991,11 +2991,13 @@ static strbuf *term_input_data_from_unicode(
          * Since the terminal doesn't currently support any multibyte
          * character set other than UTF-8, we can assume here that
          * there will be at most one output byte per input wchar_t.
+         * (But also we must allow space for the trailing NUL that
+         * wc_to_mb will write.)
          */
-        char *bufptr = strbuf_append(buf, len);
+        char *bufptr = strbuf_append(buf, len + 1);
         int rv;
         rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
-                      bufptr, len, NULL, term->ucsdata);
+                      bufptr, len + 1, NULL, term->ucsdata);
         buf->len = rv < 0 ? 0 : rv;
     }
 
