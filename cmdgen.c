@@ -222,7 +222,8 @@ int main(int argc, char **argv)
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
            OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
     int bits = -1;
-    char *comment = NULL, *origcomment = NULL;
+    const char *comment = NULL;
+    char *origcomment = NULL;
     bool change_passphrase = false;
     bool errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
