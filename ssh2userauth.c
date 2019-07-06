@@ -392,7 +392,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
         /*
          * Get a username.
          */
-        if (s->got_username && s->change_username) {
+        if (s->got_username && !s->change_username) {
             /*
              * We got a username last time round this loop, and
              * with change_username turned off we don't try to get
