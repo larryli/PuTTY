@@ -936,7 +936,7 @@ void pageant_forget_passphrases(void)
 	char *pp = index234(passphrases, 0);
 	smemclr(pp, strlen(pp));
 	delpos234(passphrases, 0);
-	free(pp);
+	sfree(pp);
     }
 }
 
