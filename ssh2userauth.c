@@ -178,6 +178,10 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
     sfree(s->default_username);
     sfree(s->hostname);
     sfree(s->fullhostname);
+    sfree(s->publickey_comment);
+    sfree(s->publickey_algorithm);
+    if (s->publickey_blob)
+        strbuf_free(s->publickey_blob);
     strbuf_free(s->last_methods_string);
     if (s->banner_scc)
         stripctrl_free(s->banner_scc);

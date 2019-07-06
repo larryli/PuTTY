@@ -33,6 +33,7 @@ static void do_sftp_cleanup(void);
  */
 
 char *pwd, *homedir;
+static LogContext *psftp_logctx = NULL;
 static Backend *backend;
 Conf *conf;
 bool sent_eof = false;
@@ -2576,7 +2577,6 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 {
     char *host, *realhost;
     const char *err;
-    LogContext *logctx;
 
     /* Separate host and username */
     host = userhost;
@@ -2733,11 +2733,11 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
 		 "exec sftp-server");
     conf_set_bool(conf, CONF_ssh_subsys2, false);
 
-    logctx = log_init(default_logpolicy, conf);
+    psftp_logctx = log_init(default_logpolicy, conf);
 
     platform_psftp_pre_conn_setup();
 
-    err = backend_init(&ssh_backend, psftp_seat, &backend, logctx, conf,
+    err = backend_init(&ssh_backend, psftp_seat, &backend, psftp_logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,
@@ -2905,6 +2905,12 @@ int psftp_main(int argc, char *argv[])
     random_save_seed();
     cmdline_cleanup();
     sk_cleanup();
+
+    stripctrl_free(string_scc);
+    stripctrl_free(stderr_scc);
+
+    if (psftp_logctx)
+        log_free(psftp_logctx);
 
     return ret;
 }
