@@ -58,7 +58,8 @@ struct ssh2_userauth_state {
     bool kbd_inter_refused;
     prompts_t *cur_prompt;
     int num_prompts;
-    char *username;
+    const char *username;
+    char *locally_allocated_username;
     char *password;
     bool got_username;
     strbuf *publickey_blob;
@@ -176,6 +177,7 @@ static void ssh2_userauth_free(PacketProtocolLayer *ppl)
         agent_cancel_query(s->auth_agent_query);
     filename_free(s->keyfile);
     sfree(s->default_username);
+    sfree(s->locally_allocated_username);
     sfree(s->hostname);
     sfree(s->fullhostname);
     sfree(s->publickey_comment);
@@ -428,7 +430,9 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 ssh_user_close(s->ppl.ssh, "No username provided");
                 return;
             }
-            s->username = dupstr(s->cur_prompt->prompts[0]->result);
+            sfree(s->locally_allocated_username); /* for change_username */
+            s->username = s->locally_allocated_username =
+                dupstr(s->cur_prompt->prompts[0]->result);
             free_prompts(s->cur_prompt);
         } else {
             if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE))
