@@ -421,6 +421,8 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 ssh2_channel_init(c);
                 c->remwindow = winsize;
                 c->remmaxpkt = pktsize;
+                if (c->remmaxpkt > s->ppl.bpp->vt->packet_size_limit)
+                    c->remmaxpkt = s->ppl.bpp->vt->packet_size_limit;
                 if (c->chan->initial_fixed_window_size) {
                     c->locwindow = c->locmaxwin = c->remlocwin =
                         c->chan->initial_fixed_window_size;
@@ -487,6 +489,8 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                 c->halfopen = false;
                 c->remwindow = get_uint32(pktin);
                 c->remmaxpkt = get_uint32(pktin);
+                if (c->remmaxpkt > s->ppl.bpp->vt->packet_size_limit)
+                    c->remmaxpkt = s->ppl.bpp->vt->packet_size_limit;
 
                 chan_open_confirmation(c->chan);
 
