@@ -4,7 +4,7 @@ Checklists for PuTTY administrative procedures
 Going into pre-release stabilisation
 ------------------------------------
 
-When we begin to work towards a release and want to enabling
+When we begin to work towards a release and want to enable
 pre-releases on the website:
 
  - Make a branch whose tip will be the current state of the
@@ -33,19 +33,21 @@ Things to do during the branch-stabilisation period:
 
  - Do some testing of the Windows version with Minefield (you can
    build a Minefield version using 'bob . XFLAGS=-DMINEFIELD'), and of
-   the Unix version with valgrind. In particular, any headline
-   features for the release should get a workout with memory checking
-   enabled!
+   the Unix version with valgrind and/or Address Sanitiser. In
+   particular, any headline features for the release should get a
+   workout with memory checking enabled!
 
 Making a release candidate build
 --------------------------------
 
  - Make a directory to hold all the release paraphernalia. I usually
    call it ~/src/putty/X.YZ (where X.YZ will stand throughout for the
-   version number). In that directory, make a git clone of the PuTTY
-   repository, where you can make release-related commits and tags
-   tentatively, and keep them out of the way of any 'git push' you
-   might still be doing in other checkouts.
+   version number).
+
+ - Inside that directory, clone the PuTTY git repository to a
+   subdirectory ~/src/putty/X.YZ/putty. Here you can make release-
+   related commits and tags tentatively, and keep them out of the way
+   of any 'git push' you might still be doing in other checkouts.
 
  - Double-check that we have removed anything tagged with a comment
    containing the words XXX-REMOVE-BEFORE-RELEASE or
@@ -75,9 +77,13 @@ Making a release candidate build
    be), merge that branch to master.
 
  - Make a release-candidate build from the release tag, and put the
-   build.out and build.log dfiles somewhere safe. Normally I store
-   these in an adjacent directory, so I'll run a command like
-     bob -o ../X.YZ/build-X.YZ-rcN.out -l ../X.YZ/build-X.YZ-rcN.log -c X.YZ . RELEASE=X.YZ
+   build.out and build.log files somewhere safe. Normally I store
+   these inside the ~/src/putty/X.YZ directory, alongside the git
+   checkout at ~/src/putty/X.YZ/putty, so I'll sit in that checkout
+   directory and run a command like
+
+     bob -o ../build-X.YZ-rcN.out -l ../build-X.YZ-rcN.log -c X.YZ . RELEASE=X.YZ
+
    This should generate a basically valid release directory as
    `build-X.YZ-rcN.out/putty', and provide link maps and sign.sh
    alongside that.
@@ -91,12 +97,11 @@ Making a release candidate build
    one that ended up being the release.) In the 'build.X.YZ-rcN.out'
    directory, run
      sh sign.sh -r -p putty
-   and you should only have to enter the release key passphrase once,
    which will generate a clearsigned file called
    sha512sums-preliminary.gpg _outside_ the 'putty' subdirectory.
 
  - For my own safety, make the release candidate build read-only.
-     chmod -R a-w build-X.YZ-rcN.out build-X.YZ-rcN.log
+     chmod -R a-w build-X.YZ-rcN.{out,log}
 
  - Now do some checking of the release binaries, and pass them to the
    rest of the team to do some as well. Do at least these things:
@@ -111,9 +116,8 @@ Preparing to make the release
 -----------------------------
 
  - Write a release announcement (basically a summary of the changes
-   since the last release). Squirrel it away in
-   thyestes:src/putty-local/announce-<ver> in case it's needed again
-   within days of the release going out.
+   since the last release). Check the draft version into the putty-aux
+   repository, so the whole team can help wordsmith it if they want to.
 
  - Update the website, in a local checkout:
     * Write a release file in components/releases which identifies the
@@ -138,12 +142,18 @@ Preparing to make the release
  - Sign the release in full. In the `build-X.YZ-rcN.out' directory,
    re-verify that the preliminary signed checksums file has a correct
    signature on it and also matches the files you're about to sign for real:
+
      gpg -d sha512sums-preliminary.gpg | (cd putty; grep -vF ' (installer version)' | grep . | sha512sum -c)
+
    If the combined output of that pipeline reports both a good
    signature (from the release key) and a successful verification of
-   all the sha512sums, then all is well, so now run
-     sh sign.sh -r putty
-   and enter the release key passphrase a lot of times.
+   all the sha512sums, then all is well and you can do the full
+   signing (not forgetting that the directory will have been readonly
+   during the last-minute testing period):
+
+     chmod -R u+w putty
+     sh sign.sh -r putty     # and enter the release key passphrase
+     chmod -R a-w putty
 
 The actual release procedure
 ----------------------------
@@ -155,11 +165,11 @@ locally, this is the procedure for putting it up on the web.
    the release date in components/releases/X.YZ.mi.
 
  - Upload the release itself and its link maps to everywhere it needs
-   to be, by running this in the build.out directory:
-      ../release.pl --version=X.YZ --upload
+   to be, by running this in the build-X.YZ-rcN.out directory:
+      ../putty/release.pl --version=X.YZ --upload
 
  - Check that downloads via version-numbered URLs all work:
-      ../release.pl --version=X.YZ --precheck
+      ../putty/release.pl --version=X.YZ --precheck
    If this has trouble accessing chiark's ftp server, that is
    unfortunately normal; add --no-ftp and try again.
 
@@ -169,7 +179,7 @@ locally, this is the procedure for putting it up on the web.
 
  - Now verify that downloads via the 'latest' URLs are all redirected
    correctly and work:
-      ../release.pl --version=X.YZ --postcheck
+      ../putty/release.pl --version=X.YZ --postcheck
 
  - Push all the git repositories:
     * run 'git push' in the website checkout
