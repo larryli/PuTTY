@@ -78,7 +78,7 @@ static void cleanup_keypress_prng(void)
 {
     prng_free(keypress_prng);
 }
-static int choose_new_area(int prev_area)
+static uint64_t keypress_prng_value(void)
 {
     /*
      * Don't actually put the passphrase keystrokes themselves into
@@ -89,8 +89,11 @@ static int choose_new_area(int prev_area)
     noise_ultralight(NOISE_SOURCE_KEY, 0);
     uint8_t data[8];
     prng_read(keypress_prng, data, 8);
-    uint64_t randval = GET_64BIT_MSB_FIRST(data);
-    int reduced = randval % (N_DRAWING_AREAS - 1);
+    return GET_64BIT_MSB_FIRST(data);
+}
+static int choose_new_area(int prev_area)
+{
+    int reduced = keypress_prng_value() % (N_DRAWING_AREAS - 1);
     return (prev_area + 1 + reduced) % N_DRAWING_AREAS;
 }
 
@@ -353,7 +356,7 @@ static gboolean try_grab_keyboard(gpointer vctx)
      * And repaint the key-acknowledgment drawing areas as not greyed
      * out.
      */
-    ctx->active_area = rand() % N_DRAWING_AREAS;
+    ctx->active_area = keypress_prng_value() % N_DRAWING_AREAS;
     for (i = 0; i < N_DRAWING_AREAS; i++) {
         ctx->drawingareas[i].state =
             (i == ctx->active_area ? CURRENT : NOT_CURRENT);
