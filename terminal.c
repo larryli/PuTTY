@@ -13,22 +13,6 @@
 #include "putty.h"
 #include "terminal.h"
 
-#define poslt(p1,p2) ( (p1).y < (p2).y || ( (p1).y == (p2).y && (p1).x < (p2).x ) )
-#define posle(p1,p2) ( (p1).y < (p2).y || ( (p1).y == (p2).y && (p1).x <= (p2).x ) )
-#define poseq(p1,p2) ( (p1).y == (p2).y && (p1).x == (p2).x )
-#define posdiff(p1,p2) ( ((p1).y - (p2).y) * (term->cols+1) + (p1).x - (p2).x )
-
-/* Product-order comparisons for rectangular block selection. */
-#define posPlt(p1,p2) ( (p1).y <= (p2).y && (p1).x < (p2).x )
-#define posPle(p1,p2) ( (p1).y <= (p2).y && (p1).x <= (p2).x )
-
-#define incpos(p) ( (p).x == term->cols ?               \
-                    ((p).x = 0, (p).y++, true) :        \
-                    ((p).x++, false) )
-#define decpos(p) ( (p).x == 0 ?                                \
-                    ((p).x = term->cols, (p).y--, true) :       \
-                    ((p).x--, false) )
-
 #define VT52_PLUS
 
 #define CL_ANSIMIN	0x0001	       /* Codes in all ANSI like terminals. */
@@ -5492,7 +5476,7 @@ static void do_paint(Terminal *term)
 				poslt(scrpos, term->selend));
 		else
 		    selected = (posPle(term->selstart, scrpos) &&
-				posPlt(scrpos, term->selend));
+				posPle_left(scrpos, term->selend));
 	    } else
 		selected = false;
 	    tattr = (tattr ^ rv
