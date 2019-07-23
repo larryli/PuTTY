@@ -1601,6 +1601,24 @@ void term_reconfig(Terminal *term, Conf *conf)
 }
 
 /*
+ * Ensure the position variables describing the ends of the terminal
+ * selection are in bounds with respect to the actual extent of the
+ * screen and scrollback.
+ */
+static void term_selection_bounds_check(Terminal *term)
+{
+    pos lo, hi;
+    lo.y = -count234(term->scrollback);
+    lo.x = 0;
+    hi.y = count234(term->screen);
+    hi.x = term->cols - 1;
+
+    term->selstart = bound_pos(term->selstart, lo, hi);
+    term->selend = bound_pos(term->selend, lo, hi);
+    term->selanchor = bound_pos(term->selanchor, lo, hi);
+}
+
+/*
  * Clear the scrollback.
  */
 void term_clrsb(Terminal *term)
@@ -1620,6 +1638,11 @@ void term_clrsb(Terminal *term)
     while ((line = delpos234(term->scrollback, 0)) != NULL) {
 	sfree(line);            /* this is compressed data, not a termline */
     }
+
+    /*
+     * Make sure we didn't invalidate selstart and selend in the process.
+     */
+    term_selection_bounds_check(term);
 
     /*
      * When clearing the scrollback, we also truncate any termlines on

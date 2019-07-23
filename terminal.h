@@ -475,4 +475,9 @@ static inline bool decpos_fn(pos *p, int cols)
 #define incpos(p) incpos_fn(&(p), GET_TERM_COLS)
 #define decpos(p) decpos_fn(&(p), GET_TERM_COLS)
 
+static inline pos bound_pos(pos p, pos lo, pos hi)
+{
+    return poslt(p, lo) ? lo : poslt(p, hi) ? p : hi;
+}
+
 #endif
