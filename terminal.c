@@ -1634,6 +1634,13 @@ void term_clrsb(Terminal *term)
         check_line_size(term, scrlineptr(i));
 
     /*
+     * That operation has invalidated the selection, if it overlapped
+     * the scrollback at all.
+     */
+    if (term->selstate != NO_SELECTION && term->selstart.y < 0)
+        deselect(term);
+
+    /*
      * There are now no lines of real scrollback which can be pulled
      * back into the screen by a resize, and no lines of the alternate
      * screen which should be displayed as if part of the scrollback.
