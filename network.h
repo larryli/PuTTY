@@ -107,8 +107,6 @@ Socket *new_listener(const char *srcaddr, int port, Plug *plug,
 SockAddr *name_lookup(const char *host, int port, char **canonicalname,
                       Conf *conf, int addressfamily, LogContext *logctx,
                       const char *lookup_reason_for_logging);
-bool proxy_for_destination (SockAddr *addr, const char *hostname, int port,
-                            Conf *conf);
 
 /* platform-dependent callback from new_connection() */
 /* (same caveat about addr as new_connection()) */

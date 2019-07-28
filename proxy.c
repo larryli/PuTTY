@@ -242,8 +242,8 @@ static int plug_proxy_accepting(Plug *p,
  * This function can accept a NULL pointer as `addr', in which case
  * it will only check the host name.
  */
-bool proxy_for_destination (SockAddr *addr, const char *hostname,
-                           int port, Conf *conf)
+static bool proxy_for_destination(SockAddr *addr, const char *hostname,
+                                  int port, Conf *conf)
 {
     int s = 0, e = 0;
     char hostip[64];
