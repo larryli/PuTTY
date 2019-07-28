@@ -229,12 +229,6 @@ static void fdsocket_write_eof(Socket *s)
     fdsocket_try_send(fds);
 }
 
-static void fdsocket_flush(Socket *s)
-{
-    /* FdSocket *fds = container_of(s, FdSocket, sock); */
-    /* do nothing */
-}
-
 static void fdsocket_set_frozen(Socket *s, bool is_frozen)
 {
     FdSocket *fds = container_of(s, FdSocket, sock);
@@ -315,7 +309,6 @@ static const SocketVtable FdSocket_sockvt = {
     fdsocket_write,
     fdsocket_write_oob,
     fdsocket_write_eof,
-    fdsocket_flush,
     fdsocket_set_frozen,
     fdsocket_socket_error,
     NULL, /* peer_info */

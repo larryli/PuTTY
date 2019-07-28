@@ -57,11 +57,6 @@ void proxy_activate (ProxySocket *p)
     if (output_after < output_before)
         plug_sent(p->plug, output_after);
 
-    /* if we were asked to flush the output during
-     * the proxy negotiation process, do so now.
-     */
-    if (p->pending_flush) sk_flush(p->sub_socket);
-
     /* if we have a pending EOF to send, send it */
     if (p->pending_eof) sk_write_eof(p->sub_socket);
 
@@ -126,17 +121,6 @@ static void sk_proxy_write_eof (Socket *s)
 	return;
     }
     sk_write_eof(ps->sub_socket);
-}
-
-static void sk_proxy_flush (Socket *s)
-{
-    ProxySocket *ps = container_of(s, ProxySocket, sock);
-
-    if (ps->state != PROXY_STATE_ACTIVE) {
-	ps->pending_flush = true;
-	return;
-    }
-    sk_flush(ps->sub_socket);
 }
 
 static void sk_proxy_set_frozen (Socket *s, bool is_frozen)
@@ -393,7 +377,6 @@ static const struct SocketVtable ProxySocket_sockvt = {
     sk_proxy_write,
     sk_proxy_write_oob,
     sk_proxy_write_eof,
-    sk_proxy_flush,
     sk_proxy_set_frozen,
     sk_proxy_socket_error,
     NULL, /* peer_info */
@@ -437,7 +420,6 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
 	ret->remote_port = port;
 
 	ret->error = NULL;
-	ret->pending_flush = false;
 	ret->pending_eof = false;
 	ret->freeze = false;
 

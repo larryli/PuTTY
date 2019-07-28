@@ -31,7 +31,6 @@ struct SocketVtable {
     size_t (*write) (Socket *s, const void *data, size_t len);
     size_t (*write_oob) (Socket *s, const void *data, size_t len);
     void (*write_eof) (Socket *s);
-    void (*flush) (Socket *s);
     void (*set_frozen) (Socket *s, bool is_frozen);
     /* ignored by tcp, but vital for ssl */
     const char *(*socket_error) (Socket *s);
@@ -158,8 +157,6 @@ static inline size_t sk_write_oob(Socket *s, const void *data, size_t len)
 { return s->vt->write_oob(s, data, len); }
 static inline void sk_write_eof(Socket *s)
 { s->vt->write_eof(s); }
-static inline void sk_flush(Socket *s)
-{ s->vt->flush(s); }
 
 static inline void plug_log(
     Plug *p, int type, SockAddr *addr, int port, const char *msg, int code)

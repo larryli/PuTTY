@@ -492,14 +492,6 @@ static Plug *sk_net_plug(Socket *sock, Plug *p)
     return ret;
 }
 
-static void sk_net_flush(Socket *s)
-{
-    /*
-     * We send data to the socket as soon as we can anyway,
-     * so we don't need to do anything here.  :-)
-     */
-}
-
 static void sk_net_close(Socket *s);
 static size_t sk_net_write(Socket *s, const void *data, size_t len);
 static size_t sk_net_write_oob(Socket *s, const void *data, size_t len);
@@ -514,7 +506,6 @@ static struct SocketVtable NetSocket_sockvt = {
     sk_net_write,
     sk_net_write_oob,
     sk_net_write_eof,
-    sk_net_flush,
     sk_net_set_frozen,
     sk_net_socket_error,
     sk_net_peer_info,
