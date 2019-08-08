@@ -2439,15 +2439,48 @@ static void erase_lots(Terminal *term,
 	end.x = 0;
 	erase_lattr = true;
     }
+
+    /* This is the endpoint of the clearing operation that is not
+     * either the start or end of the line / screen. */
+    pos boundary = term->curs;
+
     if (!from_begin) {
-	start = term->curs;
+        /*
+         * If we're erasing from the current char to the end of
+         * line/screen, then we take account of wrapnext, so as to
+         * maintain the invariant that writing a printing character
+         * followed by ESC[K should not overwrite the character you
+         * _just wrote_. That is, when wrapnext says the cursor is
+         * 'logically' at the very rightmost edge of the screen
+         * instead of just before the last printing char, ESC[K should
+         * do nothing at all, and ESC[J should clear the next line but
+         * leave this one unchanged.
+         *
+         * This adjusted position will also be the position we use for
+         * check_boundary (i.e. the thing we ensure isn't in the
+         * middle of a double-width printing char).
+         */
+        if (term->wrapnext)
+            incpos(boundary);
+
+	start = boundary;
     }
     if (!to_end) {
-	end = term->curs;
-	incpos(end);
+        /*
+         * If we're erasing from the start of (at least) the line _to_
+         * the current position, then that is taken to mean 'inclusive
+         * of the cell under the cursor', which means we don't
+         * consider wrapnext at all: whether it's set or not, we still
+         * clear the cell under the cursor.
+         *
+         * Again, that incremented boundary position is where we
+         * should be careful of a straddling wide character.
+         */
+        incpos(boundary);
+	end = boundary;
     }
     if (!from_begin || !to_end)
-	check_boundary(term, term->curs.x, term->curs.y);
+	check_boundary(term, boundary.x, boundary.y);
     check_selection(term, start, end);
 
     /* Clear screen also forces a full window redraw, just in case. */
