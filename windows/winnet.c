@@ -124,7 +124,7 @@ static tree234 *sktree;
 static int cmpfortree(void *av, void *bv)
 {
     NetSocket *a = (NetSocket *)av, *b = (NetSocket *)bv;
-    unsigned long as = (unsigned long) a->s, bs = (unsigned long) b->s;
+    uintptr_t as = (uintptr_t) a->s, bs = (uintptr_t) b->s;
     if (as < bs)
 	return -1;
     if (as > bs)
