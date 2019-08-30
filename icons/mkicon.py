@@ -70,7 +70,7 @@ def render(canvas, minx, miny, maxx, maxy):
 
 sqrthash = {}
 def memoisedsqrt(x):
-    if not sqrthash.has_key(x):
+    if x not in sqrthash:
         sqrthash[x] = math.sqrt(x)
     return sqrthash[x]
 
@@ -165,7 +165,7 @@ def border(canvas, thickness, squarecorners, out={}):
                     bvalues[(x+dx,y+dy)] = bval
 
     for (x, y), value in bvalues.items():
-        if not canvas.has_key((x,y)):
+        if (x,y) not in canvas:
             canvas[(x,y)] = dark(value)
 
 def sysbox(size, out={}):
@@ -483,11 +483,11 @@ def hat(size):
             grey = bothere - tophere
             # Only draw brim pixels over pixels which are (a) part
             # of the main hat, and (b) not right on its edge.
-            if canvas.has_key((x,y)) and \
-            canvas.has_key((x,y-1)) and \
-            canvas.has_key((x,y+1)) and \
-            canvas.has_key((x-1,y)) and \
-            canvas.has_key((x+1,y)):
+            if (x,y) in canvas and \
+            (x,y-1) in canvas and \
+            (x,y+1) in canvas and \
+            (x-1,y) in canvas and \
+            (x+1,y) in canvas:
                 pixel(x, y, greypix(grey), canvas)
 
     return canvas
@@ -865,7 +865,7 @@ def pageant_icon(size):
     yrelmin = None
     for cx in cty.keys():
         hx = cx - xrel
-        assert hty.has_key(hx)
+        assert hx in hty
         yrel = cty[cx] - hty[hx]
         if yrelmin == None:
             yrelmin = yrel
