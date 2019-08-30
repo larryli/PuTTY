@@ -2,6 +2,7 @@
 
 from __future__ import division
 
+import decimal
 import math
 
 # Python code which draws the PuTTY icon components at a range of
@@ -14,6 +15,11 @@ import math
 #     + try for variable-transparency borders
 #
 #  - can we integrate the Mac icons into all this? Do we want to?
+
+# Python 3 prefers round-to-even.  Emulate Python 2's behaviour instead.
+def round(number):
+    return float(
+        decimal.Decimal(number).to_integral(rounding=decimal.ROUND_HALF_UP))
 
 def pixel(x, y, colour, canvas):
     canvas[(int(x),int(y))] = colour
