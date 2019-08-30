@@ -74,7 +74,7 @@ def memoisedsqrt(x):
         sqrthash[x] = math.sqrt(x)
     return sqrthash[x]
 
-BR, TR, BL, TL = range(4) # enumeration of quadrants for border()
+BR, TR, BL, TL = list(range(4)) # enumeration of quadrants for border()
 
 def border(canvas, thickness, squarecorners, out={}):
     # I haven't yet worked out exactly how to do borders in a
@@ -992,7 +992,7 @@ if colours == 0:
         return (col1, col2)
 elif colours == 1:
     # Windows 16-colour palette.
-    cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW = range(16)
+    cK,cr,cg,cy,cb,cm,cc,cP,cw,cR,cG,cY,cB,cM,cC,cW = list(range(16))
     cT = -1
     cD = -2 # special translucent half-darkening value used internally
     def greypix(value):
