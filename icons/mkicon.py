@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+from __future__ import division
+
 import math
 
 # Python code which draws the PuTTY icon components at a range of
@@ -244,8 +246,8 @@ def monitor(size):
             if x >= surround and y >= surround and \
             x < surround+swidth and y < surround+sheight:
                 # Screen.
-                sx = (float(x-surround) - swidth/3) / swidth
-                sy = (float(y-surround) - sheight/3) / sheight
+                sx = (float(x-surround) - swidth//3) / swidth
+                sy = (float(y-surround) - sheight//3) / sheight
                 shighlight = 1.0 - (sx*sx+sy*sy)*0.27
                 pix = bluepix(shighlight)
                 if x < surround+shadow or y < surround+shadow:
@@ -400,8 +402,8 @@ def document(size):
         # Decide where this line of text begins.
         if line == 0:
             start = round(4*size)
-        elif line < 5*nlines/7:
-            start = round((line - (nlines/7)) * size)
+        elif line < 5*nlines//7:
+            start = round((line - (nlines//7)) * size)
         else:
             start = round(1*size)
         if start < round(1*size):
@@ -845,7 +847,7 @@ def pageant_icon(size):
 
     # Determine the relative y-coordinates of the computer and hat.
     # We just centre the one on the other.
-    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])/2
+    xrel = (cbb[0]+cbb[2]-hbb[0]-hbb[2])//2
 
     # Determine the relative y-coordinates of the computer and hat.
     # We do this by sitting the hat as low down on the computer as
@@ -1086,7 +1088,7 @@ else:
     def halftone(col1, col2):
         r1,g1,b1,a1 = col1
         r2,g2,b2,a2 = col2
-        colret = (int(r1+r2)/2, int(g1+g2)/2, int(b1+b2)/2, int(a1+a2)/2)
+        colret = (int(r1+r2)//2, int(g1+g2)//2, int(b1+b2)//2, int(a1+a2)//2)
         return (colret, colret)
 
 if test:
