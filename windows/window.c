@@ -3072,7 +3072,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	    width = LOWORD(lParam);
 	    height = HIWORD(lParam);
 
-            if (wParam == SIZE_MAXIMIZED && !was_zoomed) {
+            if (wParam == SIZE_MAXIMIZED) {
                 was_zoomed = true;
                 prev_rows = term->rows;
                 prev_cols = term->cols;
