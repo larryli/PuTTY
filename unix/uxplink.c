@@ -15,7 +15,7 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
+#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
@@ -46,9 +46,9 @@ Conf *conf;
 char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "TermType"))
-	return dupstr(getenv("TERM"));
+        return dupstr(getenv("TERM"));
     if (!strcmp(name, "SerialLine"))
-	return dupstr("/dev/ttyS0");
+        return dupstr("/dev/ttyS0");
     return NULL;
 }
 
@@ -70,14 +70,14 @@ FontSpec *platform_default_fontspec(const char *name)
 Filename *platform_default_filename(const char *name)
 {
     if (!strcmp(name, "LogFileName"))
-	return filename_from_str("putty.log");
+        return filename_from_str("putty.log");
     else
-	return filename_from_str("");
+        return filename_from_str("");
 }
 
 char *x_get_default(const char *key)
 {
-    return NULL;		       /* this is a stub */
+    return NULL;                       /* this is a stub */
 }
 static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 {
@@ -89,29 +89,29 @@ static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
     mode = orig_termios;
 
     if (echo)
-	mode.c_lflag |= ECHO;
+        mode.c_lflag |= ECHO;
     else
-	mode.c_lflag &= ~ECHO;
+        mode.c_lflag &= ~ECHO;
 
     if (edit) {
-	mode.c_iflag |= ICRNL;
-	mode.c_lflag |= ISIG | ICANON;
-	mode.c_oflag |= OPOST;
+        mode.c_iflag |= ICRNL;
+        mode.c_lflag |= ISIG | ICANON;
+        mode.c_oflag |= OPOST;
     } else {
-	mode.c_iflag &= ~ICRNL;
-	mode.c_lflag &= ~(ISIG | ICANON);
-	mode.c_oflag &= ~OPOST;
-	/* Solaris sets these to unhelpful values */
-	mode.c_cc[VMIN] = 1;
-	mode.c_cc[VTIME] = 0;
-	/* FIXME: perhaps what we do with IXON/IXOFF should be an
-	 * argument to the echoedit_update() method, to allow
-	 * implementation of SSH-2 "xon-xoff" and Rlogin's
-	 * equivalent? */
-	mode.c_iflag &= ~IXON;
-	mode.c_iflag &= ~IXOFF;
+        mode.c_iflag &= ~ICRNL;
+        mode.c_lflag &= ~(ISIG | ICANON);
+        mode.c_oflag &= ~OPOST;
+        /* Solaris sets these to unhelpful values */
+        mode.c_cc[VMIN] = 1;
+        mode.c_cc[VTIME] = 0;
+        /* FIXME: perhaps what we do with IXON/IXOFF should be an
+         * argument to the echoedit_update() method, to allow
+         * implementation of SSH-2 "xon-xoff" and Rlogin's
+         * equivalent? */
+        mode.c_iflag &= ~IXON;
+        mode.c_iflag &= ~IXOFF;
     }
-    /* 
+    /*
      * Mark parity errors and (more important) BREAK on input.  This
      * is more complex than it need be because POSIX-2001 suggests
      * that escaping of valid 0xff in the input stream is dependent on
@@ -132,7 +132,7 @@ static char *get_ttychar(struct termios *t, int index)
     cc_t c = t->c_cc[index];
 #if defined(_POSIX_VDISABLE)
     if (c == _POSIX_VDISABLE)
-	return dupstr("");
+        return dupstr("");
 #endif
     return dupprintf("^<%d>", c);
 }
@@ -147,16 +147,16 @@ static char *plink_get_ttymode(Seat *seat, const char *mode)
 
 #define GET_CHAR(ourname, uxname) \
     do { \
-	if (strcmp(mode, ourname) == 0) \
-	    return get_ttychar(&orig_termios, uxname); \
+        if (strcmp(mode, ourname) == 0) \
+            return get_ttychar(&orig_termios, uxname); \
     } while(0)
 #define GET_BOOL(ourname, uxname, uxmemb, transform) \
     do { \
-	if (strcmp(mode, ourname) == 0) { \
-	    bool b = (orig_termios.uxmemb & uxname) != 0; \
-	    transform; \
-	    return dupprintf("%d", b); \
-	} \
+        if (strcmp(mode, ourname) == 0) { \
+            bool b = (orig_termios.uxmemb & uxname) != 0; \
+            transform; \
+            return dupprintf("%d", b); \
+        } \
     } while (0)
 
     /*
@@ -312,7 +312,7 @@ static char *plink_get_ttymode(Seat *seat, const char *mode)
 void cleanup_termios(void)
 {
     if (local_tty)
-	tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
+        tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
 bufchain stdout_data, stderr_data;
@@ -375,7 +375,7 @@ static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
-	ret = console_get_userpass_input(p);
+        ret = console_get_userpass_input(p);
     return ret;
 }
 
@@ -411,59 +411,59 @@ static void from_tty(void *vbuf, unsigned len)
 
     p = buf; end = buf + len;
     while (p < end) {
-	switch (state) {
-	    case NORMAL:
-		if (*p == '\xff') {
-		    p++;
-		    state = FF;
-		} else {
-		    q = memchr(p, '\xff', end - p);
-		    if (q == NULL) q = end;
+        switch (state) {
+            case NORMAL:
+                if (*p == '\xff') {
+                    p++;
+                    state = FF;
+                } else {
+                    q = memchr(p, '\xff', end - p);
+                    if (q == NULL) q = end;
                     backend_send(backend, p, q - p);
-		    p = q;
-		}
-		break;
-	    case FF:
-		if (*p == '\xff') {
+                    p = q;
+                }
+                break;
+            case FF:
+                if (*p == '\xff') {
                     backend_send(backend, p, 1);
-		    p++;
-		    state = NORMAL;
-		} else if (*p == '\0') {
-		    p++;
-		    state = FF00;
-		} else abort();
-		break;
-	    case FF00:
-		if (*p == '\0') {
+                    p++;
+                    state = NORMAL;
+                } else if (*p == '\0') {
+                    p++;
+                    state = FF00;
+                } else abort();
+                break;
+            case FF00:
+                if (*p == '\0') {
                     backend_special(backend, SS_BRK, 0);
-		} else {
-		    /* 
-		     * Pretend that PARMRK wasn't set.  This involves
-		     * faking what INPCK and IGNPAR would have done if
-		     * we hadn't overridden them.  Unfortunately, we
-		     * can't do this entirely correctly because INPCK
-		     * distinguishes between framing and parity
-		     * errors, but PARMRK format represents both in
-		     * the same way.  We assume that parity errors are
-		     * more common than framing errors, and hence
-		     * treat all input errors as being subject to
-		     * INPCK.
-		     */
-		    if (orig_termios.c_iflag & INPCK) {
-			/* If IGNPAR is set, we throw away the character. */
-			if (!(orig_termios.c_iflag & IGNPAR)) {
-			    /* PE/FE get passed on as NUL. */
-			    *p = 0;
+                } else {
+                    /*
+                     * Pretend that PARMRK wasn't set.  This involves
+                     * faking what INPCK and IGNPAR would have done if
+                     * we hadn't overridden them.  Unfortunately, we
+                     * can't do this entirely correctly because INPCK
+                     * distinguishes between framing and parity
+                     * errors, but PARMRK format represents both in
+                     * the same way.  We assume that parity errors are
+                     * more common than framing errors, and hence
+                     * treat all input errors as being subject to
+                     * INPCK.
+                     */
+                    if (orig_termios.c_iflag & INPCK) {
+                        /* If IGNPAR is set, we throw away the character. */
+                        if (!(orig_termios.c_iflag & IGNPAR)) {
+                            /* PE/FE get passed on as NUL. */
+                            *p = 0;
                             backend_send(backend, p, 1);
-			}
-		    } else {
-			/* INPCK not set.  Assume we got a parity error. */
+                        }
+                    } else {
+                        /* INPCK not set.  Assume we got a parity error. */
                         backend_send(backend, p, 1);
-		    }
-		}
-		p++;
-		state = NORMAL;
-	}
+                    }
+                }
+                p++;
+                state = NORMAL;
+        }
     }
 }
 
@@ -472,7 +472,7 @@ int signalpipe[2];
 void sigwinch(int signum)
 {
     if (write(signalpipe[1], "x", 1) <= 0)
-	/* not much we can do about it */;
+        /* not much we can do about it */;
 }
 
 /*
@@ -611,22 +611,22 @@ int main(int argc, char **argv)
     default_port = conf_get_int(conf, CONF_port);
     errors = false;
     {
-	/*
-	 * Override the default protocol if PLINK_PROTOCOL is set.
-	 */
-	char *p = getenv("PLINK_PROTOCOL");
-	if (p) {
+        /*
+         * Override the default protocol if PLINK_PROTOCOL is set.
+         */
+        char *p = getenv("PLINK_PROTOCOL");
+        if (p) {
             const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
                 default_protocol = vt->protocol;
                 default_port = vt->default_port;
-		conf_set_int(conf, CONF_protocol, default_protocol);
-		conf_set_int(conf, CONF_port, default_port);
-	    }
-	}
+                conf_set_int(conf, CONF_protocol, default_protocol);
+                conf_set_int(conf, CONF_port, default_port);
+            }
+        }
     }
     while (--argc) {
-	char *p = *++argv;
+        char *p = *++argv;
         int ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
                                         1, conf);
         if (ret == -2) {
@@ -682,7 +682,7 @@ int main(int argc, char **argv)
             sanitise_stderr = FORCE_OFF;
         } else if (!strcmp(p, "-no-antispoof")) {
             console_antispoof_prompt = false;
-	} else if (*p != '-') {
+        } else if (*p != '-') {
             strbuf *cmdbuf = strbuf_new();
 
             while (argc > 0) {
@@ -698,18 +698,18 @@ int main(int argc, char **argv)
             conf_set_bool(conf, CONF_nopty, true);  /* command => no tty */
 
             strbuf_free(cmdbuf);
-            break;		       /* done with cmdline */
+            break;                     /* done with cmdline */
         } else {
             fprintf(stderr, "plink: unknown option \"%s\"\n", p);
             errors = true;
-	}
+        }
     }
 
     if (errors)
-	return 1;
+        return 1;
 
     if (!cmdline_host_ok(conf)) {
-	usage();
+        usage();
     }
 
     prepare_session(conf);
@@ -724,11 +724,11 @@ int main(int argc, char **argv)
      * one, as 'ssh' does.
      */
     if (conf_get_str(conf, CONF_username)[0] == '\0') {
-	char *user = get_username();
-	if (user) {
-	    conf_set_str(conf, CONF_username, user);
-	    sfree(user);
-	}
+        char *user = get_username();
+        if (user) {
+            conf_set_str(conf, CONF_username, user);
+            sfree(user);
+        }
     }
 
     /*
@@ -738,9 +738,9 @@ int main(int argc, char **argv)
         conf_set_bool(conf, CONF_ssh_subsys, true);
 
     if (!*conf_get_str(conf, CONF_remote_cmd) &&
-	!*conf_get_str(conf, CONF_remote_cmd2) &&
-	!*conf_get_str(conf, CONF_ssh_nc_host))
-	flags |= FLAG_INTERACTIVE;
+        !*conf_get_str(conf, CONF_remote_cmd2) &&
+        !*conf_get_str(conf, CONF_ssh_nc_host))
+        flags |= FLAG_INTERACTIVE;
 
     /*
      * Select protocol. This is farmed out into a table in a
@@ -748,9 +748,9 @@ int main(int argc, char **argv)
      */
     backvt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     if (!backvt) {
-	fprintf(stderr,
-		"Internal fault: Unsupported protocol found\n");
-	return 1;
+        fprintf(stderr,
+                "Internal fault: Unsupported protocol found\n");
+        return 1;
     }
 
     /*
@@ -763,8 +763,8 @@ int main(int argc, char **argv)
      * Set up the pipe we'll use to tell us about SIGWINCH.
      */
     if (pipe(signalpipe) < 0) {
-	perror("pipe");
-	exit(1);
+        perror("pipe");
+        exit(1);
     }
     /* We don't want the signal handler to block if the pipe's full. */
     nonblock(signalpipe[0]);
@@ -778,8 +778,8 @@ int main(int argc, char **argv)
      * out the initial terminal size.
      */
     if (ioctl(STDIN_FILENO, TIOCGWINSZ, &size) >= 0) {
-	conf_set_int(conf, CONF_width, size.ws_col);
-	conf_set_int(conf, CONF_height, size.ws_row);
+        conf_set_int(conf, CONF_width, size.ws_col);
+        conf_set_int(conf, CONF_height, size.ws_row);
     }
 
     /*
@@ -818,10 +818,10 @@ int main(int argc, char **argv)
      * the "simple" flag.
      */
     if (conf_get_int(conf, CONF_protocol) == PROT_SSH &&
-	!conf_get_bool(conf, CONF_x11_forward) &&
-	!conf_get_bool(conf, CONF_agentfwd) &&
-	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
-	conf_set_bool(conf, CONF_ssh_simple, true);
+        !conf_get_bool(conf, CONF_x11_forward) &&
+        !conf_get_bool(conf, CONF_agentfwd) &&
+        !conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
+        conf_set_bool(conf, CONF_ssh_simple, true);
 
     if (just_test_share_exists) {
         if (!backvt->test_for_upstream) {
@@ -841,14 +841,14 @@ int main(int argc, char **argv)
      */
     logctx = log_init(default_logpolicy, conf);
     {
-	const char *error;
-	char *realhost;
-	/* nodelay is only useful if stdin is a terminal device */
-	bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
+        const char *error;
+        char *realhost;
+        /* nodelay is only useful if stdin is a terminal device */
+        bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
 
-	/* This is a good place for a fuzzer to fork us. */
+        /* This is a good place for a fuzzer to fork us. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL
-	__AFL_INIT();
+        __AFL_INIT();
 #endif
 
         error = backend_init(backvt, plink_seat, &backend, logctx, conf,
@@ -856,12 +856,12 @@ int main(int argc, char **argv)
                              conf_get_int(conf, CONF_port),
                              &realhost, nodelay,
                              conf_get_bool(conf, CONF_tcp_keepalives));
-	if (error) {
-	    fprintf(stderr, "Unable to open connection:\n%s\n", error);
-	    return 1;
-	}
+        if (error) {
+            fprintf(stderr, "Unable to open connection:\n%s\n", error);
+            return 1;
+        }
         ldisc_create(conf, NULL, backend, plink_seat);
-	sfree(realhost);
+        sfree(realhost);
     }
 
     /*
@@ -878,50 +878,50 @@ int main(int argc, char **argv)
     pollwrapper *pw = pollwrap_new();
 
     while (1) {
-	int rwx;
-	int ret;
+        int rwx;
+        int ret;
         unsigned long next;
 
         pollwrap_clear(pw);
 
-	pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
+        pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
 
-	if (!sending &&
+        if (!sending &&
             backend_connected(backend) &&
             backend_sendok(backend) &&
             backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
-	    /* If we're OK to send, then try to read from stdin. */
+            /* If we're OK to send, then try to read from stdin. */
             pollwrap_add_fd_rwx(pw, STDIN_FILENO, SELECT_R);
-	}
+        }
 
-	if (bufchain_size(&stdout_data) > 0) {
-	    /* If we have data for stdout, try to write to stdout. */
+        if (bufchain_size(&stdout_data) > 0) {
+            /* If we have data for stdout, try to write to stdout. */
             pollwrap_add_fd_rwx(pw, STDOUT_FILENO, SELECT_W);
-	}
+        }
 
-	if (bufchain_size(&stderr_data) > 0) {
-	    /* If we have data for stderr, try to write to stderr. */
+        if (bufchain_size(&stderr_data) > 0) {
+            /* If we have data for stderr, try to write to stderr. */
             pollwrap_add_fd_rwx(pw, STDERR_FILENO, SELECT_W);
-	}
+        }
 
-	/* Count the currently active fds. */
-	i = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) i++;
+        /* Count the currently active fds. */
+        i = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) i++;
 
-	/* Expand the fdlist buffer if necessary. */
+        /* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);
 
-	/*
-	 * Add all currently open fds to pw, and store them in fdlist
-	 * as well.
-	 */
-	int fdcount = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) {
-	    fdlist[fdcount++] = fd;
+        /*
+         * Add all currently open fds to pw, and store them in fdlist
+         * as well.
+         */
+        int fdcount = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) {
+            fdlist[fdcount++] = fd;
             pollwrap_add_fd_rwx(pw, fd, rwx);
-	}
+        }
 
         if (toplevel_callback_pending()) {
             ret = pollwrap_poll_instant(pw);
@@ -930,12 +930,12 @@ int main(int argc, char **argv)
                 unsigned long then;
                 long ticks;
 
-		then = now;
-		now = GETTICKCOUNT();
-		if (now - then > next - then)
-		    ticks = 0;
-		else
-		    ticks = next - now;
+                then = now;
+                now = GETTICKCOUNT();
+                if (now - then > next - then)
+                    ticks = 0;
+                else
+                    ticks = next - now;
 
                 bool overflow = false;
                 if (ticks > INT_MAX) {
@@ -956,79 +956,79 @@ int main(int argc, char **argv)
         if (ret < 0 && errno == EINTR)
             continue;
 
-	if (ret < 0) {
-	    perror("poll");
-	    exit(1);
-	}
+        if (ret < 0) {
+            perror("poll");
+            exit(1);
+        }
 
-	for (i = 0; i < fdcount; i++) {
-	    fd = fdlist[i];
+        for (i = 0; i < fdcount; i++) {
+            fd = fdlist[i];
             int rwx = pollwrap_get_fd_rwx(pw, fd);
             /*
              * We must process exceptional notifications before
              * ordinary readability ones, or we may go straight
              * past the urgent marker.
              */
-	    if (rwx & SELECT_X)
-		select_result(fd, SELECT_X);
-	    if (rwx & SELECT_R)
-		select_result(fd, SELECT_R);
-	    if (rwx & SELECT_W)
-		select_result(fd, SELECT_W);
-	}
+            if (rwx & SELECT_X)
+                select_result(fd, SELECT_X);
+            if (rwx & SELECT_R)
+                select_result(fd, SELECT_R);
+            if (rwx & SELECT_W)
+                select_result(fd, SELECT_W);
+        }
 
-	if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
-	    char c[1];
-	    struct winsize size;
-	    if (read(signalpipe[0], c, 1) <= 0)
-		/* ignore error */;
-	    /* ignore its value; it'll be `x' */
-	    if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
+        if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
+            char c[1];
+            struct winsize size;
+            if (read(signalpipe[0], c, 1) <= 0)
+                /* ignore error */;
+            /* ignore its value; it'll be `x' */
+            if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
                 backend_size(backend, size.ws_col, size.ws_row);
-	}
+        }
 
-	if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
-	    char buf[4096];
-	    int ret;
+        if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
+            char buf[4096];
+            int ret;
 
             if (backend_connected(backend)) {
-		ret = read(STDIN_FILENO, buf, sizeof(buf));
+                ret = read(STDIN_FILENO, buf, sizeof(buf));
                 noise_ultralight(NOISE_SOURCE_IOLEN, ret);
-		if (ret < 0) {
-		    perror("stdin: read");
-		    exit(1);
-		} else if (ret == 0) {
+                if (ret < 0) {
+                    perror("stdin: read");
+                    exit(1);
+                } else if (ret == 0) {
                     backend_special(backend, SS_EOF, 0);
-		    sending = false;   /* send nothing further after this */
-		} else {
-		    if (local_tty)
-			from_tty(buf, ret);
-		    else
+                    sending = false;   /* send nothing further after this */
+                } else {
+                    if (local_tty)
+                        from_tty(buf, ret);
+                    else
                         backend_send(backend, buf, ret);
-		}
-	    }
-	}
+                }
+            }
+        }
 
-	if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
+        if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
             backend_unthrottle(backend, try_output(false));
-	}
+        }
 
-	if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
+        if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
             backend_unthrottle(backend, try_output(true));
-	}
+        }
 
         run_toplevel_callbacks();
 
         if (!backend_connected(backend) &&
-	    bufchain_size(&stdout_data) == 0 &&
-	    bufchain_size(&stderr_data) == 0)
-	    break;		       /* we closed the connection */
+            bufchain_size(&stdout_data) == 0 &&
+            bufchain_size(&stderr_data) == 0)
+            break;                     /* we closed the connection */
     }
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
-	fprintf(stderr, "Remote process exit code unavailable\n");
-	exitcode = 1;		       /* this is an error condition */
+        fprintf(stderr, "Remote process exit code unavailable\n");
+        exitcode = 1;                  /* this is an error condition */
     }
     cleanup_exit(exitcode);
-    return exitcode;		       /* shouldn't happen, but placates gcc */
+    return exitcode;                   /* shouldn't happen, but placates gcc */
 }

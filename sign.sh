@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/sh
 
 # Generate GPG signatures on a PuTTY release/snapshot directory as
 # delivered by Buildscr.

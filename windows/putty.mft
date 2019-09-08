@@ -15,9 +15,9 @@
              looking controls in the client area. -->
         <assemblyIdentity type="win32"
              name="Microsoft.Windows.Common-Controls"
-             version="6.0.0.0" 
+             version="6.0.0.0"
              publicKeyToken="6595b64144ccf1df"
-             language="*" 
+             language="*"
              processorArchitecture="*"/>
    </dependentAssembly>
    </dependency>

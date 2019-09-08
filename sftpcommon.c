@@ -42,23 +42,23 @@ void BinarySink_put_fxp_attrs(BinarySink *bs, struct fxp_attrs attrs)
 {
     put_uint32(bs, attrs.flags);
     if (attrs.flags & SSH_FILEXFER_ATTR_SIZE)
-	put_uint64(bs, attrs.size);
+        put_uint64(bs, attrs.size);
     if (attrs.flags & SSH_FILEXFER_ATTR_UIDGID) {
-	put_uint32(bs, attrs.uid);
-	put_uint32(bs, attrs.gid);
+        put_uint32(bs, attrs.uid);
+        put_uint32(bs, attrs.gid);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS) {
-	put_uint32(bs, attrs.permissions);
+        put_uint32(bs, attrs.permissions);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_ACMODTIME) {
-	put_uint32(bs, attrs.atime);
-	put_uint32(bs, attrs.mtime);
+        put_uint32(bs, attrs.atime);
+        put_uint32(bs, attrs.mtime);
     }
     if (attrs.flags & SSH_FILEXFER_ATTR_EXTENDED) {
-	/*
-	 * We currently don't support sending any extended
-	 * attributes.
-	 */
+        /*
+         * We currently don't support sending any extended
+         * attributes.
+         */
     }
 }
 
@@ -73,31 +73,31 @@ bool BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
     if (attrs->flags & SSH_FILEXFER_ATTR_SIZE)
         attrs->size = get_uint64(src);
     if (attrs->flags & SSH_FILEXFER_ATTR_UIDGID) {
-	attrs->uid = get_uint32(src);
-	attrs->gid = get_uint32(src);
+        attrs->uid = get_uint32(src);
+        attrs->gid = get_uint32(src);
     }
     if (attrs->flags & SSH_FILEXFER_ATTR_PERMISSIONS)
-	attrs->permissions = get_uint32(src);
+        attrs->permissions = get_uint32(src);
     if (attrs->flags & SSH_FILEXFER_ATTR_ACMODTIME) {
-	attrs->atime = get_uint32(src);
-	attrs->mtime = get_uint32(src);
+        attrs->atime = get_uint32(src);
+        attrs->mtime = get_uint32(src);
     }
     if (attrs->flags & SSH_FILEXFER_ATTR_EXTENDED) {
-	unsigned long count = get_uint32(src);
-	while (count--) {
-	    if (get_err(src)) {
-		/* Truncated packet. Don't waste time looking for
-		 * attributes that aren't there. Caller should spot
-		 * the truncation. */
-		break;
-	    }
-	    /*
-	     * We should try to analyse these, if we ever find one
-	     * we recognise.
-	     */
-	    get_string(src);
-	    get_string(src);
-	}
+        unsigned long count = get_uint32(src);
+        while (count--) {
+            if (get_err(src)) {
+                /* Truncated packet. Don't waste time looking for
+                 * attributes that aren't there. Caller should spot
+                 * the truncation. */
+                break;
+            }
+            /*
+             * We should try to analyse these, if we ever find one
+             * we recognise.
+             */
+            get_string(src);
+            get_string(src);
+        }
     }
     return true;
 }
@@ -105,7 +105,7 @@ bool BinarySource_get_fxp_attrs(BinarySource *src, struct fxp_attrs *attrs)
 void sftp_pkt_free(struct sftp_packet *pkt)
 {
     if (pkt->data)
-	sfree(pkt->data);
+        sfree(pkt->data);
     sfree(pkt);
 }
 

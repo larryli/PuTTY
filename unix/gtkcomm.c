@@ -152,7 +152,7 @@ static gint timer_trigger(gpointer data)
      * Destroy the timer we got here on.
      */
     if (timer_id) {
-	g_source_remove(timer_id);
+        g_source_remove(timer_id);
         timer_id = 0;
     }
 
@@ -163,13 +163,13 @@ static gint timer_trigger(gpointer data)
      * still needs to be done, we do it ourselves.
      */
     if (run_timers(now, &next) && !timer_id) {
-	then = now;
-	now = GETTICKCOUNT();
-	if (now - then > next - then)
-	    ticks = 0;
-	else
-	    ticks = next - now;
-	timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
+        then = now;
+        now = GETTICKCOUNT();
+        if (now - then > next - then)
+            ticks = 0;
+        else
+            ticks = next - now;
+        timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
     }
 
     /*
@@ -185,11 +185,11 @@ void timer_change_notify(unsigned long next)
     long ticks;
 
     if (timer_id)
-	g_source_remove(timer_id);
+        g_source_remove(timer_id);
 
     ticks = next - GETTICKCOUNT();
     if (ticks <= 0)
-	ticks = 1;		       /* just in case */
+        ticks = 1;                     /* just in case */
 
     timer_id = g_timeout_add(ticks, timer_trigger, LONG_TO_GPOINTER(next));
 }

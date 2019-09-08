@@ -30,7 +30,7 @@ void uxsel_input_remove(uxsel_id *id) { }
 
 char *x_get_default(const char *key)
 {
-    return NULL;		       /* this is a stub */
+    return NULL;                       /* this is a stub */
 }
 
 void platform_get_x11_auth(struct X11Display *display, Conf *conf)
@@ -65,9 +65,9 @@ FontSpec *platform_default_fontspec(const char *name)
 Filename *platform_default_filename(const char *name)
 {
     if (!strcmp(name, "LogFileName"))
-	return filename_from_str("putty.log");
+        return filename_from_str("putty.log");
     else
-	return filename_from_str("");
+        return filename_from_str("");
 }
 
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
@@ -75,7 +75,7 @@ int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
-	ret = console_get_userpass_input(p);
+        ret = console_get_userpass_input(p);
     return ret;
 }
 
@@ -86,9 +86,9 @@ int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
 char *psftp_lcd(char *dir)
 {
     if (chdir(dir) < 0)
-	return dupprintf("%s: chdir: %s", dir, strerror(errno));
+        return dupprintf("%s: chdir: %s", dir, strerror(errno));
     else
-	return NULL;
+        return NULL;
 }
 
 /*
@@ -102,17 +102,17 @@ char *psftp_getcwd(void)
 
     buffer = snewn(size, char);
     while (1) {
-	ret = getcwd(buffer, size);
-	if (ret != NULL)
-	    return ret;
-	if (errno != ERANGE) {
-	    sfree(buffer);
-	    return dupprintf("[cwd unavailable: %s]", strerror(errno));
-	}
-	/*
-	 * Otherwise, ERANGE was returned, meaning the buffer
-	 * wasn't big enough.
-	 */
+        ret = getcwd(buffer, size);
+        if (ret != NULL)
+            return ret;
+        if (errno != ERANGE) {
+            sfree(buffer);
+            return dupprintf("[cwd unavailable: %s]", strerror(errno));
+        }
+        /*
+         * Otherwise, ERANGE was returned, meaning the buffer
+         * wasn't big enough.
+         */
         sgrowarray(buffer, size, size);
     }
 }
@@ -122,7 +122,7 @@ struct RFile {
 };
 
 RFile *open_existing_file(const char *name, uint64_t *size,
-			  unsigned long *mtime, unsigned long *atime,
+                          unsigned long *mtime, unsigned long *atime,
                           long *perms)
 {
     int fd;
@@ -130,29 +130,29 @@ RFile *open_existing_file(const char *name, uint64_t *size,
 
     fd = open(name, O_RDONLY);
     if (fd < 0)
-	return NULL;
+        return NULL;
 
     ret = snew(RFile);
     ret->fd = fd;
 
     if (size || mtime || atime || perms) {
-	struct stat statbuf;
-	if (fstat(fd, &statbuf) < 0) {
-	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
-	    memset(&statbuf, 0, sizeof(statbuf));
-	}
+        struct stat statbuf;
+        if (fstat(fd, &statbuf) < 0) {
+            fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+            memset(&statbuf, 0, sizeof(statbuf));
+        }
 
-	if (size)
-	    *size = statbuf.st_size;
-	 	
-	if (mtime)
-	    *mtime = statbuf.st_mtime;
+        if (size)
+            *size = statbuf.st_size;
 
-	if (atime)
-	    *atime = statbuf.st_atime;
+        if (mtime)
+            *mtime = statbuf.st_mtime;
 
-	if (perms)
-	    *perms = statbuf.st_mode;
+        if (atime)
+            *atime = statbuf.st_atime;
+
+        if (perms)
+            *perms = statbuf.st_mode;
     }
 
     return ret;
@@ -182,7 +182,7 @@ WFile *open_new_file(const char *name, long perms)
     fd = open(name, O_CREAT | O_TRUNC | O_WRONLY,
               (mode_t)(perms ? perms : 0666));
     if (fd < 0)
-	return NULL;
+        return NULL;
 
     ret = snew(WFile);
     ret->fd = fd;
@@ -199,20 +199,20 @@ WFile *open_existing_wfile(const char *name, uint64_t *size)
 
     fd = open(name, O_APPEND | O_WRONLY);
     if (fd < 0)
-	return NULL;
+        return NULL;
 
     ret = snew(WFile);
     ret->fd = fd;
     ret->name = dupstr(name);
 
     if (size) {
-	struct stat statbuf;
-	if (fstat(fd, &statbuf) < 0) {
-	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
-	    memset(&statbuf, 0, sizeof(statbuf));
-	}
+        struct stat statbuf;
+        if (fstat(fd, &statbuf) < 0) {
+            fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+            memset(&statbuf, 0, sizeof(statbuf));
+        }
 
-	*size = statbuf.st_size;
+        *size = statbuf.st_size;
     }
 
     return ret;
@@ -225,17 +225,17 @@ int write_to_file(WFile *f, void *buffer, int length)
 
     /* Keep trying until we've really written as much as we can. */
     while (length > 0) {
-	int ret = write(f->fd, p, length);
+        int ret = write(f->fd, p, length);
 
-	if (ret < 0)
-	    return ret;
+        if (ret < 0)
+            return ret;
 
-	if (ret == 0)
-	    break;
+        if (ret == 0)
+            break;
 
-	p += ret;
-	length -= ret;
-	so_far += ret;
+        p += ret;
+        length -= ret;
+        so_far += ret;
     }
 
     return so_far;
@@ -264,19 +264,19 @@ void close_wfile(WFile *f)
 int seek_file(WFile *f, uint64_t offset, int whence)
 {
     int lseek_whence;
-    
+
     switch (whence) {
     case FROM_START:
-	lseek_whence = SEEK_SET;
-	break;
+        lseek_whence = SEEK_SET;
+        break;
     case FROM_CURRENT:
-	lseek_whence = SEEK_CUR;
-	break;
+        lseek_whence = SEEK_CUR;
+        break;
     case FROM_END:
-	lseek_whence = SEEK_END;
-	break;
+        lseek_whence = SEEK_END;
+        break;
     default:
-	return -1;
+        return -1;
     }
 
     return lseek(f->fd, offset, lseek_whence) >= 0 ? 0 : -1;
@@ -292,16 +292,16 @@ int file_type(const char *name)
     struct stat statbuf;
 
     if (stat(name, &statbuf) < 0) {
-	if (errno != ENOENT)
-	    fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
-	return FILE_TYPE_NONEXISTENT;
+        if (errno != ENOENT)
+            fprintf(stderr, "%s: stat: %s\n", name, strerror(errno));
+        return FILE_TYPE_NONEXISTENT;
     }
 
     if (S_ISREG(statbuf.st_mode))
-	return FILE_TYPE_FILE;
+        return FILE_TYPE_FILE;
 
     if (S_ISDIR(statbuf.st_mode))
-	return FILE_TYPE_DIRECTORY;
+        return FILE_TYPE_DIRECTORY;
 
     return FILE_TYPE_WEIRD;
 }
@@ -318,7 +318,7 @@ DirHandle *open_directory(const char *name, const char **errmsg)
     dir = opendir(name);
     if (!dir) {
         *errmsg = strerror(errno);
-	return NULL;
+        return NULL;
     }
 
     ret = snew(DirHandle);
@@ -331,12 +331,12 @@ char *read_filename(DirHandle *dir)
     struct dirent *de;
 
     do {
-	de = readdir(dir->dir);
-	if (de == NULL)
-	    return NULL;
+        de = readdir(dir->dir);
+        if (de == NULL)
+            return NULL;
     } while ((de->d_name[0] == '.' &&
-	      (de->d_name[1] == '\0' ||
-	       (de->d_name[1] == '.' && de->d_name[2] == '\0'))));
+              (de->d_name[1] == '\0' ||
+               (de->d_name[1] == '.' && de->d_name[2] == '\0'))));
 
     return dupstr(de->d_name);
 }
@@ -352,26 +352,26 @@ int test_wildcard(const char *name, bool cmdline)
     struct stat statbuf;
 
     if (stat(name, &statbuf) == 0) {
-	return WCTYPE_FILENAME;
+        return WCTYPE_FILENAME;
     } else if (cmdline) {
-	/*
-	 * On Unix, we never need to parse wildcards coming from
-	 * the command line, because the shell will have expanded
-	 * them into a filename list already.
-	 */
-	return WCTYPE_NONEXISTENT;
+        /*
+         * On Unix, we never need to parse wildcards coming from
+         * the command line, because the shell will have expanded
+         * them into a filename list already.
+         */
+        return WCTYPE_NONEXISTENT;
     } else {
 #if HAVE_GLOB_H
-	glob_t globbed;
-	int ret = WCTYPE_NONEXISTENT;
+        glob_t globbed;
+        int ret = WCTYPE_NONEXISTENT;
 
-	if (glob(name, GLOB_ERR, NULL, &globbed) == 0) {
-	    if (globbed.gl_pathc > 0)
-		ret = WCTYPE_WILDCARD;
-	    globfree(&globbed);
-	}
+        if (glob(name, GLOB_ERR, NULL, &globbed) == 0) {
+            if (globbed.gl_pathc > 0)
+                ret = WCTYPE_WILDCARD;
+            globfree(&globbed);
+        }
 
-	return ret;
+        return ret;
 #else
         /* On a system without glob.h, we just have to return a
          * failure code */
@@ -392,8 +392,8 @@ WildcardMatcher *begin_wildcard_matching(const char *name) {
     WildcardMatcher *ret = snew(WildcardMatcher);
 
     if (glob(name, 0, NULL, &ret->globbed) < 0) {
-	sfree(ret);
-	return NULL;
+        sfree(ret);
+        return NULL;
     }
 
     ret->i = 0;
@@ -402,9 +402,9 @@ WildcardMatcher *begin_wildcard_matching(const char *name) {
 }
 char *wildcard_get_filename(WildcardMatcher *dir) {
     if (dir->i < dir->globbed.gl_pathc) {
-	return dupstr(dir->globbed.gl_pathv[dir->i++]);
+        return dupstr(dir->globbed.gl_pathv[dir->i++]);
     } else
-	return NULL;
+        return NULL;
 }
 void finish_wildcard_matching(WildcardMatcher *dir) {
     globfree(&dir->globbed);
@@ -442,10 +442,10 @@ char *stripslashes(const char *str, bool local)
 bool vet_filename(const char *name)
 {
     if (strchr(name, '/'))
-	return false;
+        return false;
 
     if (name[0] == '.' && (!name[1] || (name[1] == '.' && !name[2])))
-	return false;
+        return false;
 
     return true;
 }
@@ -483,34 +483,34 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 
     do {
 
-	/* Count the currently active fds. */
-	i = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) i++;
+        /* Count the currently active fds. */
+        i = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) i++;
 
-	if (i < 1 && !no_fds_ok && !toplevel_callback_pending()) {
+        if (i < 1 && !no_fds_ok && !toplevel_callback_pending()) {
             pollwrap_free(pw);
-	    return -1;		       /* doom */
+            return -1;                 /* doom */
         }
 
-	/* Expand the fdlist buffer if necessary. */
+        /* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);
 
         pollwrap_clear(pw);
 
-	/*
-	 * Add all currently open fds to the select sets, and store
-	 * them in fdlist as well.
-	 */
-	fdcount = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) {
-	    fdlist[fdcount++] = fd;
+        /*
+         * Add all currently open fds to the select sets, and store
+         * them in fdlist as well.
+         */
+        fdcount = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) {
+            fdlist[fdcount++] = fd;
             pollwrap_add_fd_rwx(pw, fd, rwx);
-	}
+        }
 
-	if (include_stdin)
-	    pollwrap_add_fd_rwx(pw, 0, SELECT_R);
+        if (include_stdin)
+            pollwrap_add_fd_rwx(pw, 0, SELECT_R);
 
         if (toplevel_callback_pending()) {
             ret = pollwrap_poll_instant(pw);
@@ -521,12 +521,12 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
                 unsigned long then;
                 long ticks;
 
-		then = now;
-		now = GETTICKCOUNT();
-		if (now - then > next - then)
-		    ticks = 0;
-		else
-		    ticks = next - now;
+                then = now;
+                now = GETTICKCOUNT();
+                if (now - then > next - then)
+                    ticks = 0;
+                else
+                    ticks = next - now;
 
                 bool overflow = false;
                 if (ticks > INT_MAX) {
@@ -548,24 +548,24 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
     } while (ret == 0 && !done_something);
 
     if (ret < 0) {
-	perror("poll");
-	exit(1);
+        perror("poll");
+        exit(1);
     }
 
     for (i = 0; i < fdcount; i++) {
-	fd = fdlist[i];
+        fd = fdlist[i];
         int rwx = pollwrap_get_fd_rwx(pw, fd);
-	/*
-	 * We must process exceptional notifications before
-	 * ordinary readability ones, or we may go straight
-	 * past the urgent marker.
-	 */
-	if (rwx & SELECT_X)
-	    select_result(fd, SELECT_X);
-	if (rwx & SELECT_R)
-	    select_result(fd, SELECT_R);
-	if (rwx & SELECT_W)
-	    select_result(fd, SELECT_W);
+        /*
+         * We must process exceptional notifications before
+         * ordinary readability ones, or we may go straight
+         * past the urgent marker.
+         */
+        if (rwx & SELECT_X)
+            select_result(fd, SELECT_X);
+        if (rwx & SELECT_R)
+            select_result(fd, SELECT_R);
+        if (rwx & SELECT_W)
+            select_result(fd, SELECT_W);
     }
 
     sfree(fdlist);
@@ -601,31 +601,31 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     buflen = bufsize = 0;
 
     while (1) {
-	ret = ssh_sftp_do_select(true, no_fds_ok);
-	if (ret < 0) {
-	    printf("connection died\n");
+        ret = ssh_sftp_do_select(true, no_fds_ok);
+        if (ret < 0) {
+            printf("connection died\n");
             sfree(buf);
-	    return NULL;	       /* woop woop */
-	}
-	if (ret > 0) {
+            return NULL;               /* woop woop */
+        }
+        if (ret > 0) {
             sgrowarray(buf, bufsize, buflen);
-	    ret = read(0, buf+buflen, 1);
-	    if (ret < 0) {
-		perror("read");
+            ret = read(0, buf+buflen, 1);
+            if (ret < 0) {
+                perror("read");
                 sfree(buf);
-		return NULL;
-	    }
-	    if (ret == 0) {
-		/* eof on stdin; no error, but no answer either */
+                return NULL;
+            }
+            if (ret == 0) {
+                /* eof on stdin; no error, but no answer either */
                 sfree(buf);
-		return NULL;
-	    }
+                return NULL;
+            }
 
-	    if (buf[buflen++] == '\n') {
-		/* we have a full line */
-		return buf;
-	    }
-	}
+            if (buf[buflen++] == '\n') {
+                /* we have a full line */
+                return buf;
+            }
+        }
     }
 }
 

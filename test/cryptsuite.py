@@ -1738,7 +1738,7 @@ class standard_test_vectors(MyTestBase):
             '1a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7'))
         self.assertEqualBin(hash_str('sha384',
             "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-	    "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
+            "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
             '09330c33f71147e83d192fc782cd1b4753111b173b3b05d2'
             '2fa08086e3b0f712fcc7c71a557e2db966c3e9fa91746039'))
         self.assertEqualBin(hash_str_iter('sha384',
@@ -1776,7 +1776,7 @@ class standard_test_vectors(MyTestBase):
             '2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f'))
         self.assertEqualBin(hash_str('sha512',
             "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-	    "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
+            "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
             '8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018'
             '501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26545e96e55b874be909'))
         self.assertEqualBin(hash_str_iter('sha512',

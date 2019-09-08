@@ -30,18 +30,18 @@ void pty_preinit(void)
      */
     master = open("/dev/ptmx", O_RDWR);
     if (master < 0) {
-	perror("/dev/ptmx: open");
-	exit(1);
+        perror("/dev/ptmx: open");
+        exit(1);
     }
 
     if (grantpt(master) < 0) {
-	perror("grantpt");
-	exit(1);
+        perror("grantpt");
+        exit(1);
     }
-    
+
     if (unlockpt(master) < 0) {
-	perror("unlockpt");
-	exit(1);
+        perror("unlockpt");
+        exit(1);
     }
 }
 
@@ -70,24 +70,24 @@ int run_program_in_pty(const struct shell_data *shdata,
 
 #if 0
     {
-	struct winsize ws;
-	struct termios ts;
+        struct winsize ws;
+        struct termios ts;
 
-	/*
-	 * FIXME: think up some good defaults here
-	 */
+        /*
+         * FIXME: think up some good defaults here
+         */
 
-	if (!ioctl(0, TIOCGWINSZ, &ws))
-	    ioctl(master, TIOCSWINSZ, &ws);
-	if (!tcgetattr(0, &ts))
-	    tcsetattr(master, TCSANOW, &ts);
+        if (!ioctl(0, TIOCGWINSZ, &ws))
+            ioctl(master, TIOCSWINSZ, &ws);
+        if (!tcgetattr(0, &ts))
+            tcsetattr(master, TCSANOW, &ts);
     }
 #endif
 
     slave = open(ptyname, O_RDWR | O_NOCTTY);
     if (slave < 0) {
-	perror("slave pty: open");
-	return 1;
+        perror("slave pty: open");
+        return 1;
     }
 
     /*
@@ -95,26 +95,26 @@ int run_program_in_pty(const struct shell_data *shdata,
      */
     pid = fork();
     if (pid < 0) {
-	perror("fork");
-	return 1;
+        perror("fork");
+        return 1;
     }
 
     if (pid == 0) {
-	int i, fd;
+        int i, fd;
 
-	/*
-	 * We are the child.
-	 */
-	close(master);
+        /*
+         * We are the child.
+         */
+        close(master);
 
-	fcntl(slave, F_SETFD, 0);    /* don't close on exec */
-	dup2(slave, 0);
-	dup2(slave, 1);
-	if (slave != 0 && slave != 1)
-	    close(slave);
-	dup2(1, 2);
-	setsid();
-	setpgrp();
+        fcntl(slave, F_SETFD, 0);    /* don't close on exec */
+        dup2(slave, 0);
+        dup2(slave, 1);
+        if (slave != 0 && slave != 1)
+            close(slave);
+        dup2(1, 2);
+        setsid();
+        setpgrp();
         i = 0;
 #ifdef TIOCNOTTY
         if ((fd = open("/dev/tty", O_RDWR)) >= 0) {
@@ -139,26 +139,26 @@ int run_program_in_pty(const struct shell_data *shdata,
             perror("slave pty: open");
             exit(127);
         }
-	tcsetpgrp(0, getpgrp());
+        tcsetpgrp(0, getpgrp());
 
-	for (i = 0; i < shdata->nenvvars; i++)
+        for (i = 0; i < shdata->nenvvars; i++)
             putenv(shdata->envvars[i]);
-	if (shdata->termtype)
+        if (shdata->termtype)
             putenv(shdata->termtype);
 
         if (directory)
             chdir(directory);
 
-	/*
-	 * Use the provided shell program name, if the user gave
-	 * one. Failing that, use $SHELL; failing that, look up
-	 * the user's default shell in the password file; failing
-	 * _that_, revert to the bog-standard /bin/sh.
-	 */
-	if (!program_args) {
+        /*
+         * Use the provided shell program name, if the user gave
+         * one. Failing that, use $SHELL; failing that, look up
+         * the user's default shell in the password file; failing
+         * _that_, revert to the bog-standard /bin/sh.
+         */
+        if (!program_args) {
             char *shell;
-            
-	    shell = getenv("SHELL");
+
+            shell = getenv("SHELL");
             if (!shell) {
                 const char *login;
                 uid_t uid;
@@ -189,11 +189,11 @@ int run_program_in_pty(const struct shell_data *shdata,
 
         execv(program_args[0], program_args);
 
-	/*
-	 * If we're here, exec has gone badly foom.
-	 */
-	perror("exec");
-	exit(127);
+        /*
+         * If we're here, exec has gone badly foom.
+         */
+        perror("exec");
+        exit(127);
     }
 
     close(slave);

@@ -1,6 +1,6 @@
 /*
  * uxsel.c
- * 
+ *
  * This module is a sort of all-purpose interchange for file
  * descriptors. At one end it talks to uxnet.c and pty.c and
  * anything else which might have one or more fds that need
@@ -17,7 +17,7 @@
 
 struct fd {
     int fd;
-    int rwx;			       /* 4=except 2=write 1=read */
+    int rwx;                           /* 4=except 2=write 1=read */
     uxsel_callback_fn callback;
     uxsel_id *id;                      /* for uxsel_input_remove */
 };
@@ -29,9 +29,9 @@ static int uxsel_fd_cmp(void *av, void *bv)
     struct fd *a = (struct fd *)av;
     struct fd *b = (struct fd *)bv;
     if (a->fd < b->fd)
-	return -1;
+        return -1;
     if (a->fd > b->fd)
-	return +1;
+        return +1;
     return 0;
 }
 static int uxsel_fd_findcmp(void *av, void *bv)
@@ -39,9 +39,9 @@ static int uxsel_fd_findcmp(void *av, void *bv)
     int *a = (int *)av;
     struct fd *b = (struct fd *)bv;
     if (*a < b->fd)
-	return -1;
+        return -1;
     if (*a > b->fd)
-	return +1;
+        return +1;
     return 0;
 }
 
@@ -69,12 +69,12 @@ void uxsel_set(int fd, int rwx, uxsel_callback_fn callback)
     uxsel_del(fd);
 
     if (rwx) {
-	newfd = snew(struct fd);
-	newfd->fd = fd;
-	newfd->rwx = rwx;
-	newfd->callback = callback;
-	newfd->id = uxsel_input_add(fd, rwx);
-	add234(fds, newfd);
+        newfd = snew(struct fd);
+        newfd->fd = fd;
+        newfd->rwx = rwx;
+        newfd->callback = callback;
+        newfd->id = uxsel_input_add(fd, rwx);
+        add234(fds, newfd);
     }
 }
 
@@ -82,16 +82,16 @@ void uxsel_del(int fd)
 {
     struct fd *oldfd = find234(fds, &fd, uxsel_fd_findcmp);
     if (oldfd) {
-	if (oldfd->id)
+        if (oldfd->id)
             uxsel_input_remove(oldfd->id);
-	del234(fds, oldfd);
-	sfree(oldfd);
+        del234(fds, oldfd);
+        sfree(oldfd);
     }
 }
 
 /*
  * And here is the interface to select-functionality-supplying
- * modules. 
+ * modules.
  */
 
 int next_fd(int *state, int *rwx)
@@ -99,10 +99,10 @@ int next_fd(int *state, int *rwx)
     struct fd *fd;
     fd = index234(fds, (*state)++);
     if (fd) {
-	*rwx = fd->rwx;
-	return fd->fd;
+        *rwx = fd->rwx;
+        return fd->fd;
     } else
-	return -1;
+        return -1;
 }
 
 int first_fd(int *state, int *rwx)

@@ -37,7 +37,7 @@ typedef void (*sel_readerr_fn_t)(sel_rfd *rfd, int error);
 
 /*
  * Create a sel structure, which will oversee a select loop.
- * 
+ *
  * "ctx" is user-supplied data stored in the sel structure; it can
  * be read and written with sel_get_ctx() and sel_set_ctx().
  */
@@ -47,10 +47,10 @@ sel *sel_new(void *ctx);
  * Add a new fd for writing. Returns a sel_wfd which identifies
  * that fd in the sel structure, e.g. for putting data into its
  * output buffer.
- * 
+ *
  * "ctx" is user-supplied data stored in the sel structure; it can
  * be read and written with sel_wfd_get_ctx() and sel_wfd_set_ctx().
- * 
+ *
  * "written" and "writeerr" are called from the event loop when
  * things happen.
  *
@@ -59,22 +59,22 @@ sel *sel_new(void *ctx);
  * using sel_wfd_setfd.
  */
 sel_wfd *sel_wfd_add(sel *sel, int fd,
-		     sel_written_fn_t written, sel_writeerr_fn_t writeerr,
-		     void *ctx);
+                     sel_written_fn_t written, sel_writeerr_fn_t writeerr,
+                     void *ctx);
 
 /*
  * Add a new fd for reading. Returns a sel_rfd which identifies
  * that fd in the sel structure.
- * 
+ *
  * "ctx" is user-supplied data stored in the sel structure; it can
  * be read and written with sel_rfd_get_ctx() and sel_rfd_set_ctx().
- * 
+ *
  * "readdata" and "readerr" are called from the event loop when
  * things happen. "ctx" is passed to both of them.
  */
 sel_rfd *sel_rfd_add(sel *sel, int fd,
-		     sel_readdata_fn_t readdata, sel_readerr_fn_t readerr,
-		     void *ctx);
+                     sel_readdata_fn_t readdata, sel_readerr_fn_t readerr,
+                     void *ctx);
 
 /*
  * Write data into the output buffer of a wfd. Returns the new
@@ -137,7 +137,7 @@ void sel_rfd_set_ctx(sel_rfd *rfd, void *ctx);
  * Run one iteration of the sel event loop, calling callbacks as
  * necessary. Returns zero on success; in the event of a fatal
  * error, returns the errno value.
- * 
+ *
  * "timeout" is a value in microseconds to limit the length of the
  * select call. Less than zero means to wait indefinitely.
  */

@@ -47,12 +47,12 @@ void fatal(const char *fmt, ...)
 void net_readdata(sel_rfd *rfd, void *data, size_t len)
 {
     if (len == 0)
-	exit(0);		       /* EOF on network - client went away */
+        exit(0);                       /* EOF on network - client went away */
     telnet_from_net(telnet, data, len);
     if (sel_write(netw, NULL, 0) > BUF)
-	sel_rfd_freeze(ptyr);
+        sel_rfd_freeze(ptyr);
     if (sel_write(ptyw, NULL, 0) > BUF)
-	sel_rfd_freeze(netr);
+        sel_rfd_freeze(netr);
 }
 
 void net_readerr(sel_rfd *rfd, int error)
@@ -64,7 +64,7 @@ void net_readerr(sel_rfd *rfd, int error)
 void net_written(sel_wfd *wfd, size_t bufsize)
 {
     if (bufsize < BUF)
-	sel_rfd_unfreeze(ptyr);
+        sel_rfd_unfreeze(ptyr);
 }
 
 void net_writeerr(sel_wfd *wfd, int error)
@@ -76,18 +76,18 @@ void net_writeerr(sel_wfd *wfd, int error)
 void pty_readdata(sel_rfd *rfd, void *data, size_t len)
 {
     if (len == 0)
-	exit(0);		       /* EOF on pty */
+        exit(0);                       /* EOF on pty */
     telnet_from_pty(telnet, data, len);
     if (sel_write(netw, NULL, 0) > BUF)
-	sel_rfd_freeze(ptyr);
+        sel_rfd_freeze(ptyr);
     if (sel_write(ptyw, NULL, 0) > BUF)
-	sel_rfd_freeze(netr);
+        sel_rfd_freeze(netr);
 }
 
 void pty_readerr(sel_rfd *rfd, int error)
 {
-    if (error == EIO)		       /* means EOF, on a pty */
-	exit(0);
+    if (error == EIO)                  /* means EOF, on a pty */
+        exit(0);
     fprintf(stderr, "pty: read: %s\n", strerror(errno));
     exit(1);
 }
@@ -95,7 +95,7 @@ void pty_readerr(sel_rfd *rfd, int error)
 void pty_written(sel_wfd *wfd, size_t bufsize)
 {
     if (bufsize < BUF)
-	sel_rfd_unfreeze(netr);
+        sel_rfd_unfreeze(netr);
 }
 
 void pty_writeerr(sel_wfd *wfd, int error)
@@ -109,12 +109,12 @@ void sig_readdata(sel_rfd *rfd, void *data, size_t len)
     char *p = data;
 
     while (len > 0) {
-	if (*p == 'C') {
-	    int status;
-	    waitpid(-1, &status, WNOHANG);
-	    if (WIFEXITED(status) || WIFSIGNALED(status))
-		exit(0);	       /* child process vanished */
-	}
+        if (*p == 'C') {
+            int status;
+            waitpid(-1, &status, WNOHANG);
+            if (WIFEXITED(status) || WIFSIGNALED(status))
+                exit(0);               /* child process vanished */
+        }
     }
 }
 
@@ -150,24 +150,24 @@ int main(int argc, char **argv)
     telnet = telnet_new(netw, ptyw);
 
     if (pipe(signalpipe) < 0) {
-	perror("pipe");
-	return 1;
+        perror("pipe");
+        return 1;
     }
     sigr = sel_rfd_add(asel, signalpipe[0], sig_readdata,
-		       sig_readerr, NULL);
+                       sig_readerr, NULL);
 
     signal(SIGCHLD, sigchld);
 
     do {
-	struct shell_data shdata;
+        struct shell_data shdata;
 
-	ret = sel_iterate(asel, -1);
-	if (!shell_started && telnet_shell_ok(telnet, &shdata)) {
-	    ptyfd = run_program_in_pty(&shdata, directory, program_args);
-	    sel_rfd_setfd(ptyr, ptyfd);
-	    sel_wfd_setfd(ptyw, ptyfd);
-	    shell_started = 1;
-	}
+        ret = sel_iterate(asel, -1);
+        if (!shell_started && telnet_shell_ok(telnet, &shdata)) {
+            ptyfd = run_program_in_pty(&shdata, directory, program_args);
+            sel_rfd_setfd(ptyr, ptyfd);
+            sel_wfd_setfd(ptyw, ptyfd);
+            shell_started = 1;
+        }
     } while (ret == 0);
 
     return 0;

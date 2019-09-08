@@ -1,6 +1,6 @@
 /*
  * notiming.c: stub version of timing API.
- * 
+ *
  * Used in any tool which needs a subsystem linked against the
  * timing API but doesn't want to actually provide timing. For
  * example, key generation tools need the random number generator,

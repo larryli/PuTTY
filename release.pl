@@ -10,7 +10,7 @@ use File::Find;
 use File::Temp qw/tempdir/;
 use LWP::UserAgent;
 
-my $version = undef; 
+my $version = undef;
 my $setver = 0;
 my $upload = 0;
 my $precheck = 0;

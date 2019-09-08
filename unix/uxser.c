@@ -39,9 +39,9 @@ static int serial_compare_by_fd(void *av, void *bv)
     Serial *b = (Serial *)bv;
 
     if (a->fd < b->fd)
-	return -1;
+        return -1;
     else if (a->fd > b->fd)
-	return +1;
+        return +1;
     return 0;
 }
 
@@ -51,9 +51,9 @@ static int serial_find_by_fd(void *av, void *bv)
     Serial *b = (Serial *)bv;
 
     if (a < b->fd)
-	return -1;
+        return -1;
     else if (a > b->fd)
-	return +1;
+        return +1;
     return 0;
 }
 
@@ -70,7 +70,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
     const char *str;
 
     if (serial->fd < 0)
-	return "Unable to reconfigure already-closed serial connection";
+        return "Unable to reconfigure already-closed serial connection";
 
     tcgetattr(serial->fd, &options);
 
@@ -195,9 +195,9 @@ static const char *serial_configure(Serial *serial, Conf *conf)
               conf_get_int(conf, CONF_serdatabits));
 
     if (conf_get_int(conf, CONF_serstopbits) >= 4) {
-	options.c_cflag |= CSTOPB;
+        options.c_cflag |= CSTOPB;
     } else {
-	options.c_cflag &= ~CSTOPB;
+        options.c_cflag &= ~CSTOPB;
     }
     logeventf(serial->logctx, "Configuring %d stop bits",
               (options.c_cflag & CSTOPB ? 2 : 1));
@@ -211,33 +211,33 @@ static const char *serial_configure(Serial *serial, Conf *conf)
 #endif
     flow = conf_get_int(conf, CONF_serflow);
     if (flow == SER_FLOW_XONXOFF) {
-	options.c_iflag |= IXON | IXOFF;
-	str = "XON/XOFF";
+        options.c_iflag |= IXON | IXOFF;
+        str = "XON/XOFF";
     } else if (flow == SER_FLOW_RTSCTS) {
 #ifdef CRTSCTS
-	options.c_cflag |= CRTSCTS;
+        options.c_cflag |= CRTSCTS;
 #endif
 #ifdef CNEW_RTSCTS
-	options.c_cflag |= CNEW_RTSCTS;
+        options.c_cflag |= CNEW_RTSCTS;
 #endif
-	str = "RTS/CTS";
+        str = "RTS/CTS";
     } else
-	str = "no";
+        str = "no";
     logeventf(serial->logctx, "Configuring %s flow control", str);
 
     /* Parity */
     parity = conf_get_int(conf, CONF_serparity);
     if (parity == SER_PAR_ODD) {
-	options.c_cflag |= PARENB;
-	options.c_cflag |= PARODD;
-	str = "odd";
+        options.c_cflag |= PARENB;
+        options.c_cflag |= PARODD;
+        str = "odd";
     } else if (parity == SER_PAR_EVEN) {
-	options.c_cflag |= PARENB;
-	options.c_cflag &= ~PARODD;
-	str = "even";
+        options.c_cflag |= PARENB;
+        options.c_cflag &= ~PARODD;
+        str = "even";
     } else {
-	options.c_cflag &= ~PARENB;
-	str = "no";
+        options.c_cflag &= ~PARENB;
+        str = "no";
     }
     logeventf(serial->logctx, "Configuring %s parity", str);
 
@@ -245,35 +245,35 @@ static const char *serial_configure(Serial *serial, Conf *conf)
     options.c_lflag &= ~(ICANON | ECHO | ECHOE | ISIG);
     options.c_iflag &= ~(ISTRIP | IGNCR | INLCR | ICRNL
 #ifdef IUCLC
-			 | IUCLC
+                         | IUCLC
 #endif
-			 );
+                         );
     options.c_oflag &= ~(OPOST
 #ifdef ONLCR
-			 | ONLCR
+                         | ONLCR
 #endif
 #ifdef OCRNL
-			 | OCRNL
+                         | OCRNL
 #endif
 #ifdef ONOCR
-			 | ONOCR
+                         | ONOCR
 #endif
 #ifdef ONLRET
-			 | ONLRET
+                         | ONLRET
 #endif
-			 );
+                         );
     options.c_cc[VMIN] = 1;
     options.c_cc[VTIME] = 0;
 
     if (tcsetattr(serial->fd, TCSANOW, &options) < 0)
-	return "Unable to configure serial port";
+        return "Unable to configure serial port";
 
     return NULL;
 }
 
 /*
  * Called to set up the serial connection.
- * 
+ *
  * Returns an error message, or NULL on success.
  *
  * Also places the canonical host name into `realhost'. It must be
@@ -281,7 +281,7 @@ static const char *serial_configure(Serial *serial, Conf *conf)
  */
 static const char *serial_init(Seat *seat, Backend **backend_handle,
                                LogContext *logctx, Conf *conf,
-			       const char *host, int port, char **realhost,
+                               const char *host, int port, char **realhost,
                                bool nodelay, bool keepalive)
 {
     Serial *serial;
@@ -306,18 +306,18 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
 
     serial->fd = open(line, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
     if (serial->fd < 0)
-	return "Unable to open serial port";
+        return "Unable to open serial port";
 
     cloexec(serial->fd);
 
     err = serial_configure(serial, conf);
     if (err)
-	return err;
+        return err;
 
     *realhost = dupstr(line);
 
     if (!serial_by_fd)
-	serial_by_fd = newtree234(serial_compare_by_fd);
+        serial_by_fd = newtree234(serial_compare_by_fd);
     add234(serial_by_fd, serial);
 
     serial_uxsel_setup(serial);
@@ -333,8 +333,8 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
 static void serial_close(Serial *serial)
 {
     if (serial->fd >= 0) {
-	close(serial->fd);
-	serial->fd = -1;
+        close(serial->fd);
+        serial->fd = -1;
     }
 }
 
@@ -369,46 +369,46 @@ static void serial_select_result(int fd, int event)
     serial = find234(serial_by_fd, &fd, serial_find_by_fd);
 
     if (!serial)
-	return;		       /* spurious event; keep going */
+        return;                /* spurious event; keep going */
 
     if (event == 1) {
-	ret = read(serial->fd, buf, sizeof(buf));
+        ret = read(serial->fd, buf, sizeof(buf));
 
-	if (ret == 0) {
-	    /*
-	     * Shouldn't happen on a real serial port, but I'm open
-	     * to the idea that there might be two-way devices we
-	     * can treat _like_ serial ports which can return EOF.
-	     */
-	    finished = true;
-	} else if (ret < 0) {
+        if (ret == 0) {
+            /*
+             * Shouldn't happen on a real serial port, but I'm open
+             * to the idea that there might be two-way devices we
+             * can treat _like_ serial ports which can return EOF.
+             */
+            finished = true;
+        } else if (ret < 0) {
 #ifdef EAGAIN
-	    if (errno == EAGAIN)
-		return;	       /* spurious */
+            if (errno == EAGAIN)
+                return;        /* spurious */
 #endif
 #ifdef EWOULDBLOCK
-	    if (errno == EWOULDBLOCK)
-		return;	       /* spurious */
+            if (errno == EWOULDBLOCK)
+                return;        /* spurious */
 #endif
-	    perror("read serial port");
-	    exit(1);
-	} else if (ret > 0) {
-	    serial->inbufsize = seat_stdout(serial->seat, buf, ret);
-	    serial_uxsel_setup(serial); /* might acquire backlog and freeze */
-	}
+            perror("read serial port");
+            exit(1);
+        } else if (ret > 0) {
+            serial->inbufsize = seat_stdout(serial->seat, buf, ret);
+            serial_uxsel_setup(serial); /* might acquire backlog and freeze */
+        }
     } else if (event == 2) {
-	/*
-	 * Attempt to send data down the pty.
-	 */
-	serial_try_write(serial);
+        /*
+         * Attempt to send data down the pty.
+         */
+        serial_try_write(serial);
     }
 
     if (finished) {
-	serial_close(serial);
+        serial_close(serial);
 
-	serial->finished = true;
+        serial->finished = true;
 
-	seat_notify_remote_exit(serial->seat);
+        seat_notify_remote_exit(serial->seat);
     }
 }
 
@@ -417,7 +417,7 @@ static void serial_uxsel_setup(Serial *serial)
     int rwx = 0;
 
     if (serial->inbufsize <= SERIAL_MAX_BACKLOG)
-	rwx |= SELECT_R;
+        rwx |= SELECT_R;
     if (bufchain_size(&serial->output_data))
         rwx |= SELECT_W;               /* might also want to write to it */
     uxsel_set(serial->fd, rwx, serial_select_result);
@@ -431,7 +431,7 @@ static void serial_try_write(Serial *serial)
 
     while (bufchain_size(&serial->output_data) > 0) {
         ptrlen data = bufchain_prefix(&serial->output_data);
-	ret = write(serial->fd, data.ptr, data.len);
+        ret = write(serial->fd, data.ptr, data.len);
 
         if (ret < 0 && (errno == EWOULDBLOCK)) {
             /*
@@ -439,11 +439,11 @@ static void serial_try_write(Serial *serial)
              */
             break;
         }
-	if (ret < 0) {
-	    perror("write serial port");
-	    exit(1);
-	}
-	bufchain_consume(&serial->output_data, ret);
+        if (ret < 0) {
+            perror("write serial port");
+            exit(1);
+        }
+        bufchain_consume(&serial->output_data, ret);
     }
 
     serial_uxsel_setup(serial);
@@ -457,7 +457,7 @@ static size_t serial_send(Backend *be, const char *buf, size_t len)
     Serial *serial = container_of(be, Serial, backend);
 
     if (serial->fd < 0)
-	return 0;
+        return 0;
 
     bufchain_add(&serial->output_data, buf, len);
     serial_try_write(serial);
@@ -491,7 +491,7 @@ static void serial_special(Backend *be, SessionSpecialCode code, int arg)
     Serial *serial = container_of(be, Serial, backend);
 
     if (serial->fd >= 0 && code == SS_BRK) {
-	tcsendbreak(serial->fd, 0);
+        tcsendbreak(serial->fd, 0);
         logevent(serial->logctx, "Sending serial break at user request");
     }
 
@@ -505,8 +505,8 @@ static void serial_special(Backend *be, SessionSpecialCode code, int arg)
 static const SessionSpecial *serial_get_specials(Backend *be)
 {
     static const struct SessionSpecial specials[] = {
-	{"Break", SS_BRK},
-	{NULL, SS_EXITMENU}
+        {"Break", SS_BRK},
+        {NULL, SS_EXITMENU}
     };
     return specials;
 }

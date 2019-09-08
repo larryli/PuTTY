@@ -28,8 +28,8 @@ typedef struct ColumnsChild_tag ColumnsChild;
 struct Columns_tag {
     GtkContainer container;
     /* private after here */
-    GList *children;		       /* this holds ColumnsChild structures */
-    GList *taborder;		       /* this just holds GtkWidgets */
+    GList *children;                   /* this holds ColumnsChild structures */
+    GList *taborder;                   /* this just holds GtkWidgets */
     gint spacing;
 };
 

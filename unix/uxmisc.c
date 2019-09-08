@@ -96,7 +96,7 @@ static FILE *debug_fp = NULL;
 void dputs(const char *buf)
 {
     if (!debug_fp) {
-	debug_fp = fopen("debug.log", "w");
+        debug_fp = fopen("debug.log", "w");
     }
 
     if (write(1, buf, strlen(buf)) < 0) {} /* 'error check' to placate gcc */
@@ -123,25 +123,25 @@ char *get_username(void)
     setpwent();
 #endif
     if (user)
-	p = getpwnam(user);
+        p = getpwnam(user);
     else
-	p = NULL;
+        p = NULL;
     if (p && p->pw_uid == uid) {
-	/*
-	 * The result of getlogin() really does correspond to
-	 * our uid. Fine.
-	 */
-	ret = user;
+        /*
+         * The result of getlogin() really does correspond to
+         * our uid. Fine.
+         */
+        ret = user;
     } else {
-	/*
-	 * If that didn't work, for whatever reason, we'll do
-	 * the simpler version: look up our uid in the password
-	 * file and map it straight to a name.
-	 */
-	p = getpwuid(uid);
-	if (!p)
-	    return NULL;
-	ret = p->pw_name;
+        /*
+         * If that didn't work, for whatever reason, we'll do
+         * the simpler version: look up our uid in the password
+         * file and map it straight to a name.
+         */
+        p = getpwuid(uid);
+        if (!p)
+            return NULL;
+        ret = p->pw_name;
     }
 #if HAVE_ENDPWENT
     endpwent();
@@ -158,16 +158,16 @@ char *get_username(void)
 void pgp_fingerprints(void)
 {
     fputs("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
-	  "be used to establish a trust path from this executable to another\n"
-	  "one. See the manual for more information.\n"
-	  "(Note: these fingerprints have nothing to do with SSH!)\n"
-	  "\n"
-	  "PuTTY Master Key as of " PGP_MASTER_KEY_YEAR
+          "be used to establish a trust path from this executable to another\n"
+          "one. See the manual for more information.\n"
+          "(Note: these fingerprints have nothing to do with SSH!)\n"
+          "\n"
+          "PuTTY Master Key as of " PGP_MASTER_KEY_YEAR
           " (" PGP_MASTER_KEY_DETAILS "):\n"
-	  "  " PGP_MASTER_KEY_FP "\n\n"
-	  "Previous Master Key (" PGP_PREV_MASTER_KEY_YEAR
+          "  " PGP_MASTER_KEY_FP "\n\n"
+          "Previous Master Key (" PGP_PREV_MASTER_KEY_YEAR
           ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
-	  "  " PGP_PREV_MASTER_KEY_FP "\n", stdout);
+          "  " PGP_PREV_MASTER_KEY_FP "\n", stdout);
 }
 
 /*
@@ -240,15 +240,15 @@ bool no_nonblock(int fd) {
 FILE *f_open(const Filename *filename, char const *mode, bool is_private)
 {
     if (!is_private) {
-	return fopen(filename->path, mode);
+        return fopen(filename->path, mode);
     } else {
-	int fd;
-	assert(mode[0] == 'w');	       /* is_private is meaningless for read,
-					  and tricky for append */
-	fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
-	if (fd < 0)
-	    return NULL;
-	return fdopen(fd, mode);
+        int fd;
+        assert(mode[0] == 'w');        /* is_private is meaningless for read,
+                                          and tricky for append */
+        fd = open(filename->path, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+        if (fd < 0)
+            return NULL;
+        return fdopen(fd, mode);
     }
 }
 

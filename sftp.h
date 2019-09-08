@@ -4,31 +4,31 @@
 
 #include "defs.h"
 
-#define SSH_FXP_INIT                              1	/* 0x1 */
-#define SSH_FXP_VERSION                           2	/* 0x2 */
-#define SSH_FXP_OPEN                              3	/* 0x3 */
-#define SSH_FXP_CLOSE                             4	/* 0x4 */
-#define SSH_FXP_READ                              5	/* 0x5 */
-#define SSH_FXP_WRITE                             6	/* 0x6 */
-#define SSH_FXP_LSTAT                             7	/* 0x7 */
-#define SSH_FXP_FSTAT                             8	/* 0x8 */
-#define SSH_FXP_SETSTAT                           9	/* 0x9 */
-#define SSH_FXP_FSETSTAT                          10	/* 0xa */
-#define SSH_FXP_OPENDIR                           11	/* 0xb */
-#define SSH_FXP_READDIR                           12	/* 0xc */
-#define SSH_FXP_REMOVE                            13	/* 0xd */
-#define SSH_FXP_MKDIR                             14	/* 0xe */
-#define SSH_FXP_RMDIR                             15	/* 0xf */
-#define SSH_FXP_REALPATH                          16	/* 0x10 */
-#define SSH_FXP_STAT                              17	/* 0x11 */
-#define SSH_FXP_RENAME                            18	/* 0x12 */
-#define SSH_FXP_STATUS                            101	/* 0x65 */
-#define SSH_FXP_HANDLE                            102	/* 0x66 */
-#define SSH_FXP_DATA                              103	/* 0x67 */
-#define SSH_FXP_NAME                              104	/* 0x68 */
-#define SSH_FXP_ATTRS                             105	/* 0x69 */
-#define SSH_FXP_EXTENDED                          200	/* 0xc8 */
-#define SSH_FXP_EXTENDED_REPLY                    201	/* 0xc9 */
+#define SSH_FXP_INIT                              1     /* 0x1 */
+#define SSH_FXP_VERSION                           2     /* 0x2 */
+#define SSH_FXP_OPEN                              3     /* 0x3 */
+#define SSH_FXP_CLOSE                             4     /* 0x4 */
+#define SSH_FXP_READ                              5     /* 0x5 */
+#define SSH_FXP_WRITE                             6     /* 0x6 */
+#define SSH_FXP_LSTAT                             7     /* 0x7 */
+#define SSH_FXP_FSTAT                             8     /* 0x8 */
+#define SSH_FXP_SETSTAT                           9     /* 0x9 */
+#define SSH_FXP_FSETSTAT                          10    /* 0xa */
+#define SSH_FXP_OPENDIR                           11    /* 0xb */
+#define SSH_FXP_READDIR                           12    /* 0xc */
+#define SSH_FXP_REMOVE                            13    /* 0xd */
+#define SSH_FXP_MKDIR                             14    /* 0xe */
+#define SSH_FXP_RMDIR                             15    /* 0xf */
+#define SSH_FXP_REALPATH                          16    /* 0x10 */
+#define SSH_FXP_STAT                              17    /* 0x11 */
+#define SSH_FXP_RENAME                            18    /* 0x12 */
+#define SSH_FXP_STATUS                            101   /* 0x65 */
+#define SSH_FXP_HANDLE                            102   /* 0x66 */
+#define SSH_FXP_DATA                              103   /* 0x67 */
+#define SSH_FXP_NAME                              104   /* 0x68 */
+#define SSH_FXP_ATTRS                             105   /* 0x69 */
+#define SSH_FXP_EXTENDED                          200   /* 0xc8 */
+#define SSH_FXP_EXTENDED_REPLY                    201   /* 0xc9 */
 
 #define SSH_FX_OK                                 0
 #define SSH_FX_EOF                                1
@@ -60,11 +60,11 @@
 /*
  * External references. The sftp client module sftp.c expects to be
  * able to get at these functions.
- * 
+ *
  * sftp_recvdata must never return less than len. It either blocks
  * until len is available and then returns true, or it returns false
  * for failure.
- * 
+ *
  * sftp_senddata returns true on success, false on failure.
  *
  * sftp_sendbuffer returns the size of the backlog of data in the
@@ -182,14 +182,14 @@ char *fxp_realpath_recv(struct sftp_packet *pktin, struct sftp_request *req);
 struct sftp_request *fxp_open_send(const char *path, int type,
                                    const struct fxp_attrs *attrs);
 struct fxp_handle *fxp_open_recv(struct sftp_packet *pktin,
-				 struct sftp_request *req);
+                                 struct sftp_request *req);
 
 /*
  * Open a directory.
  */
 struct sftp_request *fxp_opendir_send(const char *path);
 struct fxp_handle *fxp_opendir_recv(struct sftp_packet *pktin,
-				    struct sftp_request *req);
+                                    struct sftp_request *req);
 
 /*
  * Close a file/dir. Returns true on success, false on error.
@@ -240,14 +240,14 @@ struct sftp_request *fxp_setstat_send(const char *fname,
                                       struct fxp_attrs attrs);
 bool fxp_setstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 struct sftp_request *fxp_fsetstat_send(struct fxp_handle *handle,
-				       struct fxp_attrs attrs);
+                                       struct fxp_attrs attrs);
 bool fxp_fsetstat_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
  * Read from a file.
  */
 struct sftp_request *fxp_read_send(struct fxp_handle *handle,
-				   uint64_t offset, int len);
+                                   uint64_t offset, int len);
 int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
                   char *buffer, int len);
 
@@ -255,7 +255,7 @@ int fxp_read_recv(struct sftp_packet *pktin, struct sftp_request *req,
  * Write to a file.
  */
 struct sftp_request *fxp_write_send(struct fxp_handle *handle,
-				    void *buffer, uint64_t offset, int len);
+                                    void *buffer, uint64_t offset, int len);
 bool fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
 
 /*
@@ -263,7 +263,7 @@ bool fxp_write_recv(struct sftp_packet *pktin, struct sftp_request *req);
  */
 struct sftp_request *fxp_readdir_send(struct fxp_handle *handle);
 struct fxp_names *fxp_readdir_recv(struct sftp_packet *pktin,
-				   struct sftp_request *req);
+                                   struct sftp_request *req);
 
 /*
  * Free up an fxp_names structure.

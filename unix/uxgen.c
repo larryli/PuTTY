@@ -39,23 +39,23 @@ char *get_random_data(int len, const char *device)
 
     fd = open(device, O_RDONLY);
     if (fd < 0) {
-	sfree(buf);
-	fprintf(stderr, "puttygen: %s: open: %s\n",
+        sfree(buf);
+        fprintf(stderr, "puttygen: %s: open: %s\n",
                 device, strerror(errno));
-	return NULL;
+        return NULL;
     }
 
     ngot = 0;
     while (ngot < len) {
-	ret = read(fd, buf+ngot, len-ngot);
-	if (ret < 0) {
-	    close(fd);
+        ret = read(fd, buf+ngot, len-ngot);
+        if (ret < 0) {
+            close(fd);
             sfree(buf);
             fprintf(stderr, "puttygen: %s: read: %s\n",
                     device, strerror(errno));
-	    return NULL;
-	}
-	ngot += ret;
+            return NULL;
+        }
+        ngot += ret;
     }
 
     close(fd);

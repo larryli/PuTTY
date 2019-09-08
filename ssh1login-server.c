@@ -43,7 +43,7 @@ struct ssh1_login_server_state {
     PacketProtocolLayer ppl;
 };
 
-static void ssh1_login_server_free(PacketProtocolLayer *); 
+static void ssh1_login_server_free(PacketProtocolLayer *);
 static void ssh1_login_server_process_queue(PacketProtocolLayer *);
 
 static bool ssh1_login_server_get_specials(

@@ -89,7 +89,7 @@ enum ValueType {
 #define VALTYPE_ENUM(n,t,f) VT_##n,
     VALUE_TYPES(VALTYPE_ENUM)
 #undef VALTYPE_ENUM
-}; 
+};
 
 typedef enum ValueType ValueType;
 

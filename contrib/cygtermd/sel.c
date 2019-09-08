@@ -25,7 +25,7 @@
 
 typedef struct bufchain_tag {
     struct bufchain_granule *head, *tail;
-    size_t buffersize;		       /* current amount of buffered data */
+    size_t buffersize;                 /* current amount of buffered data */
 } bufchain;
 struct bufchain_granule {
     struct bufchain_granule *next;
@@ -43,9 +43,9 @@ static void bufchain_clear(bufchain *ch)
 {
     struct bufchain_granule *b;
     while (ch->head) {
-	b = ch->head;
-	ch->head = ch->head->next;
-	sfree(b);
+        b = ch->head;
+        ch->head = ch->head->next;
+        sfree(b);
     }
     ch->tail = NULL;
     ch->buffersize = 0;
@@ -65,31 +65,31 @@ static void bufchain_add(bufchain *ch, const void *data, size_t len)
     ch->buffersize += len;
 
     if (ch->tail && ch->tail->buflen < BUFFER_GRANULE) {
-	size_t copylen = BUFFER_GRANULE - ch->tail->buflen;
-	if (copylen > len)
-	    copylen = len;
-	memcpy(ch->tail->buf + ch->tail->buflen, buf, copylen);
-	buf += copylen;
-	len -= copylen;
-	ch->tail->buflen += copylen;
+        size_t copylen = BUFFER_GRANULE - ch->tail->buflen;
+        if (copylen > len)
+            copylen = len;
+        memcpy(ch->tail->buf + ch->tail->buflen, buf, copylen);
+        buf += copylen;
+        len -= copylen;
+        ch->tail->buflen += copylen;
     }
     while (len > 0) {
-	struct bufchain_granule *newbuf;
-	size_t grainlen = BUFFER_GRANULE;
-	if (grainlen > len)
-	    grainlen = len;
-	newbuf = snew(struct bufchain_granule);
-	newbuf->bufpos = 0;
-	newbuf->buflen = grainlen;
-	memcpy(newbuf->buf, buf, grainlen);
-	buf += grainlen;
-	len -= grainlen;
-	if (ch->tail)
-	    ch->tail->next = newbuf;
-	else
-	    ch->head = ch->tail = newbuf;
-	newbuf->next = NULL;
-	ch->tail = newbuf;
+        struct bufchain_granule *newbuf;
+        size_t grainlen = BUFFER_GRANULE;
+        if (grainlen > len)
+            grainlen = len;
+        newbuf = snew(struct bufchain_granule);
+        newbuf->bufpos = 0;
+        newbuf->buflen = grainlen;
+        memcpy(newbuf->buf, buf, grainlen);
+        buf += grainlen;
+        len -= grainlen;
+        if (ch->tail)
+            ch->tail->next = newbuf;
+        else
+            ch->head = ch->tail = newbuf;
+        newbuf->next = NULL;
+        ch->tail = newbuf;
     }
 }
 
@@ -99,19 +99,19 @@ static void bufchain_consume(bufchain *ch, size_t len)
 
     assert(ch->buffersize >= len);
     while (len > 0) {
-	size_t remlen = len;
-	assert(ch->head != NULL);
-	if (remlen >= ch->head->buflen - ch->head->bufpos) {
-	    remlen = ch->head->buflen - ch->head->bufpos;
-	    tmp = ch->head;
-	    ch->head = tmp->next;
-	    sfree(tmp);
-	    if (!ch->head)
-		ch->tail = NULL;
-	} else
-	    ch->head->bufpos += remlen;
-	ch->buffersize -= remlen;
-	len -= remlen;
+        size_t remlen = len;
+        assert(ch->head != NULL);
+        if (remlen >= ch->head->buflen - ch->head->bufpos) {
+            remlen = ch->head->buflen - ch->head->bufpos;
+            tmp = ch->head;
+            ch->head = tmp->next;
+            sfree(tmp);
+            if (!ch->head)
+                ch->tail = NULL;
+        } else
+            ch->head->bufpos += remlen;
+        ch->buffersize -= remlen;
+        len -= remlen;
     }
 }
 
@@ -163,8 +163,8 @@ sel *sel_new(void *ctx)
 }
 
 sel_wfd *sel_wfd_add(sel *sel, int fd,
-		     sel_written_fn_t written, sel_writeerr_fn_t writeerr,
-		     void *ctx)
+                     sel_written_fn_t written, sel_writeerr_fn_t writeerr,
+                     void *ctx)
 {
     sel_wfd *wfd = snew(sel_wfd);
 
@@ -177,9 +177,9 @@ sel_wfd *sel_wfd_add(sel *sel, int fd,
     wfd->next = NULL;
     wfd->prev = sel->wtail;
     if (sel->wtail)
-	sel->wtail->next = wfd;
+        sel->wtail->next = wfd;
     else
-	sel->whead = wfd;
+        sel->whead = wfd;
     sel->wtail = wfd;
     wfd->parent = sel;
 
@@ -187,8 +187,8 @@ sel_wfd *sel_wfd_add(sel *sel, int fd,
 }
 
 sel_rfd *sel_rfd_add(sel *sel, int fd,
-		     sel_readdata_fn_t readdata, sel_readerr_fn_t readerr,
-		     void *ctx)
+                     sel_readdata_fn_t readdata, sel_readerr_fn_t readerr,
+                     void *ctx)
 {
     sel_rfd *rfd = snew(sel_rfd);
 
@@ -201,9 +201,9 @@ sel_rfd *sel_rfd_add(sel *sel, int fd,
     rfd->next = NULL;
     rfd->prev = sel->rtail;
     if (sel->rtail)
-	sel->rtail->next = rfd;
+        sel->rtail->next = rfd;
     else
-	sel->rhead = rfd;
+        sel->rhead = rfd;
     sel->rtail = rfd;
     rfd->parent = sel;
 
@@ -242,13 +242,13 @@ int sel_wfd_delete(sel_wfd *wfd)
     int ret;
 
     if (wfd->prev)
-	wfd->prev->next = wfd->next;
+        wfd->prev->next = wfd->next;
     else
-	sel->whead = wfd->next;
+        sel->whead = wfd->next;
     if (wfd->next)
-	wfd->next->prev = wfd->prev;
+        wfd->next->prev = wfd->prev;
     else
-	sel->wtail = wfd->prev;
+        sel->wtail = wfd->prev;
 
     bufchain_clear(&wfd->buf);
 
@@ -263,13 +263,13 @@ int sel_rfd_delete(sel_rfd *rfd)
     int ret;
 
     if (rfd->prev)
-	rfd->prev->next = rfd->next;
+        rfd->prev->next = rfd->next;
     else
-	sel->rhead = rfd->next;
+        sel->rhead = rfd->next;
     if (rfd->next)
-	rfd->next->prev = rfd->prev;
+        rfd->next->prev = rfd->prev;
     else
-	sel->rtail = rfd->prev;
+        sel->rtail = rfd->prev;
 
     ret = rfd->fd;
     sfree(rfd);
@@ -279,9 +279,9 @@ int sel_rfd_delete(sel_rfd *rfd)
 void sel_free(sel *sel)
 {
     while (sel->whead)
-	sel_wfd_delete(sel->whead);
+        sel_wfd_delete(sel->whead);
     while (sel->rhead)
-	sel_rfd_delete(sel->rhead);
+        sel_rfd_delete(sel->rhead);
     sfree(sel);
 }
 
@@ -306,35 +306,35 @@ int sel_iterate(sel *sel, long timeout)
     FD_ZERO(&wset);
 
     for (rfd = sel->rhead; rfd; rfd = rfd->next) {
-	if (rfd->fd >= 0 && !rfd->frozen) {
-	    FD_SET(rfd->fd, &rset);
-	    if (maxfd < rfd->fd + 1)
-		maxfd = rfd->fd + 1;
-	}
+        if (rfd->fd >= 0 && !rfd->frozen) {
+            FD_SET(rfd->fd, &rset);
+            if (maxfd < rfd->fd + 1)
+                maxfd = rfd->fd + 1;
+        }
     }
 
     for (wfd = sel->whead; wfd; wfd = wfd->next) {
-	if (wfd->fd >= 0 && bufchain_size(&wfd->buf)) {
-	    FD_SET(wfd->fd, &wset);
-	    if (maxfd < wfd->fd + 1)
-		maxfd = wfd->fd + 1;
-	}
+        if (wfd->fd >= 0 && bufchain_size(&wfd->buf)) {
+            FD_SET(wfd->fd, &wset);
+            if (maxfd < wfd->fd + 1)
+                maxfd = wfd->fd + 1;
+        }
     }
 
     if (timeout < 0) {
-	ptv = NULL;
+        ptv = NULL;
     } else {
-	ptv = &tv;
-	tv.tv_sec = timeout / 1000;
-	tv.tv_usec = 1000 * (timeout % 1000);
+        ptv = &tv;
+        tv.tv_sec = timeout / 1000;
+        tv.tv_usec = 1000 * (timeout % 1000);
     }
 
     do {
-	ret = select(maxfd, &rset, &wset, NULL, ptv);
+        ret = select(maxfd, &rset, &wset, NULL, ptv);
     } while (ret < 0 && (errno == EINTR || errno == EAGAIN));
 
     if (ret < 0)
-	return errno;
+        return errno;
 
     /*
      * Just in case one of the callbacks destroys an rfd or wfd we
@@ -346,40 +346,40 @@ int sel_iterate(sel *sel, long timeout)
      * using select in the first place.
      */
     do {
-	for (wfd = sel->whead; wfd; wfd = wfd->next)
-	    if (wfd->fd >= 0 && FD_ISSET(wfd->fd, &wset)) {
-		void *data;
-		size_t len;
+        for (wfd = sel->whead; wfd; wfd = wfd->next)
+            if (wfd->fd >= 0 && FD_ISSET(wfd->fd, &wset)) {
+                void *data;
+                size_t len;
 
-		FD_CLR(wfd->fd, &wset);
-		bufchain_prefix(&wfd->buf, &data, &len);
-		ret = write(wfd->fd, data, len);
-		assert(ret != 0);
-		if (ret < 0) {
-		    if (wfd->writeerr)
-			wfd->writeerr(wfd, errno);
-		} else {
-		    bufchain_consume(&wfd->buf, len);
-		    if (wfd->written)
-			wfd->written(wfd, bufchain_size(&wfd->buf));
-		}
-		break;
-	    }
+                FD_CLR(wfd->fd, &wset);
+                bufchain_prefix(&wfd->buf, &data, &len);
+                ret = write(wfd->fd, data, len);
+                assert(ret != 0);
+                if (ret < 0) {
+                    if (wfd->writeerr)
+                        wfd->writeerr(wfd, errno);
+                } else {
+                    bufchain_consume(&wfd->buf, len);
+                    if (wfd->written)
+                        wfd->written(wfd, bufchain_size(&wfd->buf));
+                }
+                break;
+            }
     } while (wfd);
     do {
-	for (rfd = sel->rhead; rfd; rfd = rfd->next) 
-	    if (rfd->fd >= 0 && !rfd->frozen && FD_ISSET(rfd->fd, &rset)) {
-		FD_CLR(rfd->fd, &rset);
-		ret = read(rfd->fd, buf, sizeof(buf));
-		if (ret < 0) {
-		    if (rfd->readerr)
-			rfd->readerr(rfd, errno);
-		} else {
-		    if (rfd->readdata)
-			rfd->readdata(rfd, buf, ret);
-		}
-		break;
-	    }
+        for (rfd = sel->rhead; rfd; rfd = rfd->next)
+            if (rfd->fd >= 0 && !rfd->frozen && FD_ISSET(rfd->fd, &rset)) {
+                FD_CLR(rfd->fd, &rset);
+                ret = read(rfd->fd, buf, sizeof(buf));
+                if (ret < 0) {
+                    if (rfd->readerr)
+                        rfd->readerr(rfd, errno);
+                } else {
+                    if (rfd->readdata)
+                        rfd->readdata(rfd, buf, ret);
+                }
+                break;
+            }
     } while (rfd);
 
     return 0;

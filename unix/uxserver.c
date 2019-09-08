@@ -38,7 +38,7 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
+#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "mpint.h"
 #include "ssh.h"
@@ -93,7 +93,7 @@ Filename *platform_default_filename(const char *name)
 
 char *x_get_default(const char *key)
 {
-    return NULL;		       /* this is a stub */
+    return NULL;                       /* this is a stub */
 }
 
 /*
@@ -486,7 +486,7 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     Plug *plug = server_conn_plug(cfg, &inst);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL)
-	return 1;
+        return 1;
 
     SocketPeerInfo *pi = sk_peer_info(s);
 
@@ -837,30 +837,30 @@ int main(int argc, char **argv)
 
     pollwrapper *pw = pollwrap_new();
     while (!finished) {
-	int rwx;
-	int ret;
+        int rwx;
+        int ret;
         unsigned long next;
 
         pollwrap_clear(pw);
 
-	/* Count the currently active fds. */
-	i = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) i++;
+        /* Count the currently active fds. */
+        i = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) i++;
 
-	/* Expand the fdlist buffer if necessary. */
+        /* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);
 
-	/*
-	 * Add all currently open fds to the select sets, and store
-	 * them in fdlist as well.
-	 */
-	int fdcount = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) {
-	    fdlist[fdcount++] = fd;
+        /*
+         * Add all currently open fds to the select sets, and store
+         * them in fdlist as well.
+         */
+        int fdcount = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) {
+            fdlist[fdcount++] = fd;
             pollwrap_add_fd_rwx(pw, fd, rwx);
-	}
+        }
 
         if (toplevel_callback_pending()) {
             ret = pollwrap_poll_instant(pw);
@@ -869,12 +869,12 @@ int main(int argc, char **argv)
                 unsigned long then;
                 long ticks;
 
-		then = now;
-		now = GETTICKCOUNT();
-		if (now - then > next - then)
-		    ticks = 0;
-		else
-		    ticks = next - now;
+                then = now;
+                now = GETTICKCOUNT();
+                if (now - then > next - then)
+                    ticks = 0;
+                else
+                    ticks = next - now;
 
                 bool overflow = false;
                 if (ticks > INT_MAX) {
@@ -895,26 +895,26 @@ int main(int argc, char **argv)
         if (ret < 0 && errno == EINTR)
             continue;
 
-	if (ret < 0) {
-	    perror("poll");
-	    exit(1);
-	}
+        if (ret < 0) {
+            perror("poll");
+            exit(1);
+        }
 
-	for (i = 0; i < fdcount; i++) {
-	    fd = fdlist[i];
+        for (i = 0; i < fdcount; i++) {
+            fd = fdlist[i];
             int rwx = pollwrap_get_fd_rwx(pw, fd);
             /*
              * We must process exceptional notifications before
              * ordinary readability ones, or we may go straight
              * past the urgent marker.
              */
-	    if (rwx & SELECT_X)
-		select_result(fd, SELECT_X);
-	    if (rwx & SELECT_R)
-		select_result(fd, SELECT_R);
-	    if (rwx & SELECT_W)
-		select_result(fd, SELECT_W);
-	}
+            if (rwx & SELECT_X)
+                select_result(fd, SELECT_X);
+            if (rwx & SELECT_R)
+                select_result(fd, SELECT_R);
+            if (rwx & SELECT_W)
+                select_result(fd, SELECT_W);
+        }
 
         run_toplevel_callbacks();
     }

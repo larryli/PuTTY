@@ -14,7 +14,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
+#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"
@@ -153,11 +153,11 @@ void chan_no_request_response(Channel *chan, bool success) {}
  * it's time to terminate.
  */
 static void x11_log(Plug *p, int type, SockAddr *addr, int port,
-		    const char *error_msg, int error_code) {}
+                    const char *error_msg, int error_code) {}
 static void x11_receive(Plug *plug, int urgent, const char *data, size_t len) {}
 static void x11_sent(Plug *plug, size_t bufsize) {}
 static void x11_closing(Plug *plug, const char *error_msg, int error_code,
-			bool calling_back)
+                        bool calling_back)
 {
     time_to_die = true;
 }
@@ -864,8 +864,8 @@ void run_agent(void)
     pollwrapper *pw = pollwrap_new();
 
     while (!time_to_die) {
-	int rwx;
-	int ret;
+        int rwx;
+        int ret;
         unsigned long next;
 
         pollwrap_clear(pw);
@@ -874,24 +874,24 @@ void run_agent(void)
             pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
         }
 
-	/* Count the currently active fds. */
-	i = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) i++;
+        /* Count the currently active fds. */
+        i = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) i++;
 
-	/* Expand the fdlist buffer if necessary. */
+        /* Expand the fdlist buffer if necessary. */
         sgrowarray(fdlist, fdsize, i);
 
-	/*
-	 * Add all currently open fds to pw, and store them in fdlist
-	 * as well.
-	 */
-	int fdcount = 0;
-	for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-	     fd = next_fd(&fdstate, &rwx)) {
-	    fdlist[fdcount++] = fd;
+        /*
+         * Add all currently open fds to pw, and store them in fdlist
+         * as well.
+         */
+        int fdcount = 0;
+        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
+             fd = next_fd(&fdstate, &rwx)) {
+            fdlist[fdcount++] = fd;
             pollwrap_add_fd_rwx(pw, fd, rwx);
-	}
+        }
 
         if (toplevel_callback_pending()) {
             ret = pollwrap_poll_instant(pw);
@@ -924,10 +924,10 @@ void run_agent(void)
         if (ret < 0 && errno == EINTR)
             continue;
 
-	if (ret < 0) {
-	    perror("poll");
-	    exit(1);
-	}
+        if (ret < 0) {
+            perror("poll");
+            exit(1);
+        }
 
         if (life == LIFE_TTY) {
             /*
@@ -943,21 +943,21 @@ void run_agent(void)
             }
         }
 
-	for (i = 0; i < fdcount; i++) {
-	    fd = fdlist[i];
+        for (i = 0; i < fdcount; i++) {
+            fd = fdlist[i];
             int rwx = pollwrap_get_fd_rwx(pw, fd);
             /*
              * We must process exceptional notifications before
              * ordinary readability ones, or we may go straight
              * past the urgent marker.
              */
-	    if (rwx & SELECT_X)
-		select_result(fd, SELECT_X);
-	    if (rwx & SELECT_R)
-		select_result(fd, SELECT_R);
-	    if (rwx & SELECT_W)
-		select_result(fd, SELECT_W);
-	}
+            if (rwx & SELECT_X)
+                select_result(fd, SELECT_X);
+            if (rwx & SELECT_R)
+                select_result(fd, SELECT_R);
+            if (rwx & SELECT_W)
+                select_result(fd, SELECT_W);
+        }
 
         if (signalpipe[0] >= 0 &&
             pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
@@ -1002,11 +1002,11 @@ int main(int argc, char **argv)
      * Process the command line.
      */
     while (--argc > 0) {
-	char *p = *++argv;
-	if (*p == '-' && doing_opts) {
+        char *p = *++argv;
+        if (*p == '-' && doing_opts) {
             if (!strcmp(p, "-V") || !strcmp(p, "--version")) {
                 version();
-	    } else if (!strcmp(p, "--help")) {
+            } else if (!strcmp(p, "--help")) {
                 usage();
                 exit(0);
             } else if (!strcmp(p, "-v")) {

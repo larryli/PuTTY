@@ -29,7 +29,7 @@ const struct keyvalwhere gsslibkeywords[] = {
  */
 
 static void gss_init(struct ssh_gss_library *lib, void *dlhandle,
-		     int id, const char *msg)
+                     int id, const char *msg)
 {
     lib->id = id;
     lib->gsslogmsg = msg;
@@ -67,25 +67,25 @@ struct ssh_gss_liblist *ssh_gss_setup(Conf *conf)
 
     /* Heimdal's GSSAPI Library */
     if ((gsslib = dlopen("libgssapi.so.2", RTLD_LAZY)) != NULL)
-	gss_init(&list->libraries[list->nlibraries++], gsslib,
-		 0, "Using GSSAPI from libgssapi.so.2");
+        gss_init(&list->libraries[list->nlibraries++], gsslib,
+                 0, "Using GSSAPI from libgssapi.so.2");
 
     /* MIT Kerberos's GSSAPI Library */
     if ((gsslib = dlopen("libgssapi_krb5.so.2", RTLD_LAZY)) != NULL)
-	gss_init(&list->libraries[list->nlibraries++], gsslib,
-		 1, "Using GSSAPI from libgssapi_krb5.so.2");
+        gss_init(&list->libraries[list->nlibraries++], gsslib,
+                 1, "Using GSSAPI from libgssapi_krb5.so.2");
 
     /* Sun's GSSAPI Library */
     if ((gsslib = dlopen("libgss.so.1", RTLD_LAZY)) != NULL)
-	gss_init(&list->libraries[list->nlibraries++], gsslib,
-		 2, "Using GSSAPI from libgss.so.1");
+        gss_init(&list->libraries[list->nlibraries++], gsslib,
+                 2, "Using GSSAPI from libgss.so.1");
 
     /* User-specified GSSAPI library */
     gsspath = conf_get_filename(conf, CONF_ssh_gss_custom)->path;
     if (*gsspath && (gsslib = dlopen(gsspath, RTLD_LAZY)) != NULL)
-	gss_init(&list->libraries[list->nlibraries++], gsslib,
-		 3, dupprintf("Using GSSAPI from user-specified"
-			      " library '%s'", gsspath));
+        gss_init(&list->libraries[list->nlibraries++], gsslib,
+                 3, dupprintf("Using GSSAPI from user-specified"
+                              " library '%s'", gsspath));
 
     return list;
 }
@@ -103,12 +103,12 @@ void ssh_gss_cleanup(struct ssh_gss_liblist *list)
      * using it.
      */
     for (i = 0; i < list->nlibraries; i++) {
-	dlclose(list->libraries[i].handle);
-	if (list->libraries[i].id == 3) {
-	    /* The 'custom' id involves a dynamically allocated message.
-	     * Note that we must cast away the 'const' to free it. */
-	    sfree((char *)list->libraries[i].gsslogmsg);
-	}
+        dlclose(list->libraries[i].handle);
+        if (list->libraries[i].id == 3) {
+            /* The 'custom' id involves a dynamically allocated message.
+             * Note that we must cast away the 'const' to free it. */
+            sfree((char *)list->libraries[i].gsslogmsg);
+        }
     }
     sfree(list->libraries);
     sfree(list);

@@ -10,7 +10,7 @@
 typedef struct Telnet Telnet;
 
 struct shell_data {
-    char **envvars;		       /* array of "VAR=value" terms */
+    char **envvars;                    /* array of "VAR=value" terms */
     int nenvvars;
     char *termtype;
 };

@@ -540,7 +540,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/dd391569(v=vs.85).aspx
       <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
 
 <?if $(var.DllOk) = yes ?>
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" 
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction"
                Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
 <?endif ?>
 

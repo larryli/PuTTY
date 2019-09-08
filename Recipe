@@ -1,5 +1,5 @@
 # -*- makefile -*-
-# 
+#
 # This file describes which PuTTY programs are made up from which
 # object and resource files. It is processed into the various
 # Makefiles by means of a Perl script. Makefile changes should

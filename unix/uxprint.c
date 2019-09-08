@@ -19,8 +19,8 @@ printer_job *printer_start_job(char *printer)
      */
     ret->fp = popen(printer, "w");
     if (!ret->fp) {
-	sfree(ret);
-	ret = NULL;
+        sfree(ret);
+        ret = NULL;
     }
     return ret;
 }
@@ -28,16 +28,16 @@ printer_job *printer_start_job(char *printer)
 void printer_job_data(printer_job *pj, const void *data, size_t len)
 {
     if (!pj)
-	return;
+        return;
 
     if (fwrite(data, 1, len, pj->fp) < len)
-	/* ignore */;
+        /* ignore */;
 }
 
 void printer_finish_job(printer_job *pj)
 {
     if (!pj)
-	return;
+        return;
 
     pclose(pj->fp);
     sfree(pj);

@@ -5,10 +5,10 @@
 # include "uxconfig.h" /* Space to hide it from mkfiles.pl */
 #endif
 
-#include <stdio.h>		       /* for FILENAME_MAX */
-#include <stdint.h>		       /* C99 int types */
+#include <stdio.h>                     /* for FILENAME_MAX */
+#include <stdint.h>                    /* C99 int types */
 #ifndef NO_LIBDL
-#include <dlfcn.h>		       /* Dynamic library loading */
+#include <dlfcn.h>                     /* Dynamic library loading */
 #endif /*  NO_LIBDL */
 #include "charset.h"
 #include <sys/types.h>         /* for mode_t */
@@ -95,8 +95,8 @@ extern const struct BackendVtable pty_backend;
 /* Simple wraparound timer function */
 unsigned long getticks(void);
 #define GETTICKCOUNT getticks
-#define TICKSPERSEC    1000	       /* we choose to use milliseconds */
-#define CURSORBLINK     450	       /* no standard way to set this */
+#define TICKSPERSEC    1000            /* we choose to use milliseconds */
+#define CURSORBLINK     450            /* no standard way to set this */
 
 #define WCHAR wchar_t
 #define BYTE unsigned char
@@ -341,7 +341,7 @@ void gtk_setup_config_box(
  * from the command line or config files is assumed to be encoded).
  */
 #define DEFAULT_CODEPAGE 0xFFFF
-#define CP_UTF8 CS_UTF8		       /* from libcharset */
+#define CP_UTF8 CS_UTF8                /* from libcharset */
 
 #define strnicmp strncasecmp
 #define stricmp strcasecmp

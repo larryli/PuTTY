@@ -21,15 +21,15 @@ int proxy_socks5_handlechap (ProxySocket *p)
 {
 
     plug_closing(p->plug, "Proxy error: Trying to handle a SOCKS5 CHAP request"
-		 " in telnet-only build",
-		 PROXY_ERROR_GENERAL, 0);
+                 " in telnet-only build",
+                 PROXY_ERROR_GENERAL, 0);
     return 1;
 }
 
 int proxy_socks5_selectchap(ProxySocket *p)
 {
     plug_closing(p->plug, "Proxy error: Trying to handle a SOCKS5 CHAP request"
-		 " in telnet-only build",
-		 PROXY_ERROR_GENERAL, 0);
+                 " in telnet-only build",
+                 PROXY_ERROR_GENERAL, 0);
     return 1;
 }

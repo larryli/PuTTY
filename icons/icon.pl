@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/perl
 
 # Take a collection of input image files and convert them into a
 # multi-resolution Windows .ICO icon file.
@@ -87,11 +87,11 @@
 $depth = undef;
 foreach $_ (@ARGV) {
     if (/^-(24|8|4|1)$/) {
-	$depth = $1;
+        $depth = $1;
     } elsif (defined $depth) {
-	&readicon($_, $depth);
+        &readicon($_, $depth);
     } else {
-	$usage = 1;
+        $usage = 1;
     }
 }
 if ($usage || length @hdr == 0) {
@@ -149,86 +149,86 @@ sub readicon {
     my $alpha = "";
 
     for ($y = 0; $y < $h; $y++) {
-	my $currbyte = 0, $currbits = 0;
-	for ($x = 0; $x < (($w+31)|31)-31; $x++) {
-	    $pix = ($x < $w ? $data->[$y*$w+$x] : "\x00\x00\x00\xFF");
-	    my @rgba = unpack "CCCC", $pix;
-	    $currbyte <<= 1;
-	    $currbits++;
-	    if ($rgba[3] < 0x80) {
-		if ($x < $w) {
-		    $data->[$y*$w+$x] = undef;
-		}
-		$currbyte |= 1; # MS has the alpha channel inverted :-)
-	    } else {
-		# Might as well flip RGBA into BGR0 while we're here.
-		if ($x < $w) {
-		    $data->[$y*$w+$x] = pack "CCCC",
-		      $rgba[2], $rgba[1], $rgba[0], 0;
-		}
-	    }
-	    if ($currbits >= 8) {
-		$alpha .= pack "C", $currbyte;
-		$currbits -= 8;
-	    }
-	}
+        my $currbyte = 0, $currbits = 0;
+        for ($x = 0; $x < (($w+31)|31)-31; $x++) {
+            $pix = ($x < $w ? $data->[$y*$w+$x] : "\x00\x00\x00\xFF");
+            my @rgba = unpack "CCCC", $pix;
+            $currbyte <<= 1;
+            $currbits++;
+            if ($rgba[3] < 0x80) {
+                if ($x < $w) {
+                    $data->[$y*$w+$x] = undef;
+                }
+                $currbyte |= 1; # MS has the alpha channel inverted :-)
+            } else {
+                # Might as well flip RGBA into BGR0 while we're here.
+                if ($x < $w) {
+                    $data->[$y*$w+$x] = pack "CCCC",
+                      $rgba[2], $rgba[1], $rgba[0], 0;
+                }
+            }
+            if ($currbits >= 8) {
+                $alpha .= pack "C", $currbyte;
+                $currbits -= 8;
+            }
+        }
     }
 
     # For an 8-bit image, check we have at most 256 distinct
     # colours, and build the palette.
     %pal = ();
     if ($depth == 8) {
-	my $palindex = 0;
-	foreach $pix (@$data) {
-	    next unless defined $pix;
-	    $pal{$pix} = $palindex++ unless defined $pal{$pix};
-	}
-	die "too many colours in 8-bit image $filename\n" unless $palindex <= 256;
+        my $palindex = 0;
+        foreach $pix (@$data) {
+            next unless defined $pix;
+            $pal{$pix} = $palindex++ unless defined $pal{$pix};
+        }
+        die "too many colours in 8-bit image $filename\n" unless $palindex <= 256;
     } elsif ($depth == 4) {
-	%pal = %win16pal;
+        %pal = %win16pal;
     } elsif ($depth == 1) {
-	%pal = %win2pal;
+        %pal = %win2pal;
     }
 
     my $raster = "";
     if ($depth < 24) {
-	# For a non-24-bit image, flatten the image into one palette
-	# index per pixel.
-	$pad = 32 / $depth; # number of pixels to pad scanline to 4-byte align
-	$pmask = $pad-1;
-	for ($y = 0; $y < $h; $y++) {
-	    my $currbyte = 0, $currbits = 0;
-	    for ($x = 0; $x < (($w+$pmask)|$pmask)-$pmask; $x++) {
-		$currbyte <<= $depth;
-		$currbits += $depth;
-		if ($x < $w && defined ($pix = $data->[$y*$w+$x])) {
-		    if (!defined $pal{$pix}) {
+        # For a non-24-bit image, flatten the image into one palette
+        # index per pixel.
+        $pad = 32 / $depth; # number of pixels to pad scanline to 4-byte align
+        $pmask = $pad-1;
+        for ($y = 0; $y < $h; $y++) {
+            my $currbyte = 0, $currbits = 0;
+            for ($x = 0; $x < (($w+$pmask)|$pmask)-$pmask; $x++) {
+                $currbyte <<= $depth;
+                $currbits += $depth;
+                if ($x < $w && defined ($pix = $data->[$y*$w+$x])) {
+                    if (!defined $pal{$pix}) {
                         $pixhex = sprintf "%02x%02x%02x", unpack "CCC", $pix;
-			die "illegal colour value $pixhex at pixel ($x,$y) in $filename\n";
-		    }
-		    $currbyte |= $pal{$pix};
-		}
-		if ($currbits >= 8) {
-		    $raster .= pack "C", $currbyte;
-		    $currbits -= 8;
-		}
-	    }
-	}
+                        die "illegal colour value $pixhex at pixel ($x,$y) in $filename\n";
+                    }
+                    $currbyte |= $pal{$pix};
+                }
+                if ($currbits >= 8) {
+                    $raster .= pack "C", $currbyte;
+                    $currbits -= 8;
+                }
+            }
+        }
     } else {
-	# For a 24-bit image, reverse the order of the R,G,B values
-	# and stick a padding zero on the end.
-	#
-	# (In this loop we don't need to bother padding the
-	# scanline out to a multiple of four bytes, because every
-	# pixel takes four whole bytes anyway.)
-	for ($i = 0; $i < scalar @$data; $i++) {
-	    if (defined $data->[$i]) {
-		$raster .= $data->[$i];
-	    } else {
-		$raster .= "\x00\x00\x00\x00";
-	    }
-	}
-	$depth = 32; # and adjust this
+        # For a 24-bit image, reverse the order of the R,G,B values
+        # and stick a padding zero on the end.
+        #
+        # (In this loop we don't need to bother padding the
+        # scanline out to a multiple of four bytes, because every
+        # pixel takes four whole bytes anyway.)
+        for ($i = 0; $i < scalar @$data; $i++) {
+            if (defined $data->[$i]) {
+                $raster .= $data->[$i];
+            } else {
+                $raster .= "\x00\x00\x00\x00";
+            }
+        }
+        $depth = 32; # and adjust this
     }
 
     # Prepare the icon data. First the header...
@@ -243,12 +243,12 @@ sub readicon {
       0, 0, 0, 0; # resolution, colours used, colours important (ignored)
     # ... then the palette ...
     if ($depth <= 8) {
-	my $ncols = (1 << $depth);
-	my $palette = "\x00\x00\x00\x00" x $ncols;
-	foreach $i (keys %pal) {
-	    substr($palette, $pal{$i}*4, 4) = $i;
-	}
-	$data .= $palette;
+        my $ncols = (1 << $depth);
+        my $palette = "\x00\x00\x00\x00" x $ncols;
+        foreach $i (keys %pal) {
+            substr($palette, $pal{$i}*4, 4) = $i;
+        }
+        $data .= $palette;
     }
     # ... the raster data we already had ready ...
     $data .= $raster;

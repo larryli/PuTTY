@@ -9,8 +9,8 @@ struct printer_enum_tag {
     int nprinters;
     DWORD enum_level;
     union {
-	LPPRINTER_INFO_4 i4;
-	LPPRINTER_INFO_5 i5;
+        LPPRINTER_INFO_4 i4;
+        LPPRINTER_INFO_5 i5;
     } info;
 };
 
@@ -92,7 +92,7 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
     printer_enum *ret = snew(printer_enum);
     char *buffer = NULL;
 
-    *nprinters_ptr = 0;		       /* default return value */
+    *nprinters_ptr = 0;                /* default return value */
     buffer = snewn(512, char);
 
     /*
@@ -106,9 +106,9 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
      * Bletch.
      */
     if (osPlatformId != VER_PLATFORM_WIN32_NT) {
-	ret->enum_level = 5;
+        ret->enum_level = 5;
     } else {
-	ret->enum_level = 4;
+        ret->enum_level = 4;
     }
 
     if (!printer_add_enum(PRINTER_ENUM_LOCAL | PRINTER_ENUM_CONNECTIONS,
@@ -117,14 +117,14 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 
     switch (ret->enum_level) {
       case 4:
-	ret->info.i4 = (LPPRINTER_INFO_4)buffer;
-	break;
+        ret->info.i4 = (LPPRINTER_INFO_4)buffer;
+        break;
       case 5:
-	ret->info.i5 = (LPPRINTER_INFO_5)buffer;
-	break;
+        ret->info.i5 = (LPPRINTER_INFO_5)buffer;
+        break;
     }
     ret->nprinters = *nprinters_ptr;
-    
+
     return ret;
 
     error:
@@ -137,30 +137,30 @@ printer_enum *printer_start_enum(int *nprinters_ptr)
 char *printer_get_name(printer_enum *pe, int i)
 {
     if (!pe)
-	return NULL;
+        return NULL;
     if (i < 0 || i >= pe->nprinters)
-	return NULL;
+        return NULL;
     switch (pe->enum_level) {
       case 4:
-	return pe->info.i4[i].pPrinterName;
+        return pe->info.i4[i].pPrinterName;
       case 5:
-	return pe->info.i5[i].pPrinterName;
+        return pe->info.i5[i].pPrinterName;
       default:
-	return NULL;
+        return NULL;
     }
 }
 
 void printer_finish_enum(printer_enum *pe)
 {
     if (!pe)
-	return;
+        return;
     switch (pe->enum_level) {
       case 4:
-	sfree(pe->info.i4);
-	break;
+        sfree(pe->info.i4);
+        break;
       case 5:
-	sfree(pe->info.i5);
-	break;
+        sfree(pe->info.i5);
+        break;
     }
     sfree(pe);
 }
@@ -175,29 +175,29 @@ printer_job *printer_start_job(char *printer)
 
     ret->hprinter = NULL;
     if (!p_OpenPrinter(printer, &ret->hprinter, NULL))
-	goto error;
+        goto error;
 
     docinfo.pDocName = "PuTTY remote printer output";
     docinfo.pOutputFile = NULL;
     docinfo.pDatatype = "RAW";
 
     if (!p_StartDocPrinter(ret->hprinter, 1, (LPBYTE)&docinfo))
-	goto error;
+        goto error;
     jobstarted = true;
 
     if (!p_StartPagePrinter(ret->hprinter))
-	goto error;
+        goto error;
     pagestarted = true;
 
     return ret;
 
     error:
     if (pagestarted)
-	p_EndPagePrinter(ret->hprinter);
+        p_EndPagePrinter(ret->hprinter);
     if (jobstarted)
-	p_EndDocPrinter(ret->hprinter);
+        p_EndDocPrinter(ret->hprinter);
     if (ret->hprinter)
-	p_ClosePrinter(ret->hprinter);
+        p_ClosePrinter(ret->hprinter);
     sfree(ret);
     return NULL;
 }
@@ -207,7 +207,7 @@ void printer_job_data(printer_job *pj, const void *data, size_t len)
     DWORD written;
 
     if (!pj)
-	return;
+        return;
 
     p_WritePrinter(pj->hprinter, (void *)data, len, &written);
 }
@@ -215,7 +215,7 @@ void printer_job_data(printer_job *pj, const void *data, size_t len)
 void printer_finish_job(printer_job *pj)
 {
     if (!pj)
-	return;
+        return;
 
     p_EndPagePrinter(pj->hprinter);
     p_EndDocPrinter(pj->hprinter);

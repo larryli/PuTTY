@@ -223,7 +223,7 @@ def sysbox(size, out={}):
         for y in range(depth):
             grey = 3
             if x >= width-1 - highlight:
-                grey = grey + 1         
+                grey = grey + 1
             pixel(x+(y+1), -(y+1), greypix(grey/4.0), canvas)
 
     # And draw a border.

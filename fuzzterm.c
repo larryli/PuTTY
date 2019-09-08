@@ -13,34 +13,34 @@ static const TermWinVtable fuzz_termwin_vt;
 
 int main(int argc, char **argv)
 {
-	char blk[512];
-	size_t len;
-	Terminal *term;
-	Conf *conf;
-	struct unicode_data ucsdata;
+        char blk[512];
+        size_t len;
+        Terminal *term;
+        Conf *conf;
+        struct unicode_data ucsdata;
         TermWin termwin;
 
         termwin.vt = &fuzz_termwin_vt;
 
-	conf = conf_new();
-	do_defaults(NULL, conf);
-	init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
-		 conf_get_bool(conf, CONF_utf8_override),
-		 CS_NONE, conf_get_int(conf, CONF_vtmode));
+        conf = conf_new();
+        do_defaults(NULL, conf);
+        init_ucs(&ucsdata, conf_get_str(conf, CONF_line_codepage),
+                 conf_get_bool(conf, CONF_utf8_override),
+                 CS_NONE, conf_get_int(conf, CONF_vtmode));
 
-	term = term_init(conf, &ucsdata, &termwin);
-	term_size(term, 24, 80, 10000);
-	term->ldisc = NULL;
-	/* Tell american fuzzy lop that this is a good place to fork. */
+        term = term_init(conf, &ucsdata, &termwin);
+        term_size(term, 24, 80, 10000);
+        term->ldisc = NULL;
+        /* Tell american fuzzy lop that this is a good place to fork. */
 #ifdef __AFL_HAVE_MANUAL_CONTROL
-	__AFL_INIT();
+        __AFL_INIT();
 #endif
-	while (!feof(stdin)) {
-		len = fread(blk, 1, sizeof(blk), stdin);
-		term_data(term, false, blk, len);
-	}
-	term_update(term);
-	return 0;
+        while (!feof(stdin)) {
+                len = fread(blk, 1, sizeof(blk), stdin);
+                term_data(term, false, blk, len);
+        }
+        term_update(term);
+        return 0;
 }
 
 /* functions required by terminal.c */
@@ -53,7 +53,7 @@ static void fuzz_draw_text(
 
     printf("TEXT[attr=%08lx,lattr=%02x]@(%d,%d):", attr, lattr, x, y);
     for (i = 0; i < len; i++) {
-	printf(" %x", (unsigned)text[i]);
+        printf(" %x", (unsigned)text[i]);
     }
     printf("\n");
 }
@@ -65,7 +65,7 @@ static void fuzz_draw_cursor(
 
     printf("CURS[attr=%08lx,lattr=%02x]@(%d,%d):", attr, lattr, x, y);
     for (i = 0; i < len; i++) {
-	printf(" %x", (unsigned)text[i]);
+        printf(" %x", (unsigned)text[i]);
     }
     printf("\n");
 }
@@ -152,7 +152,7 @@ void dlg_listbox_clear(union control *ctrl, void *dlg) { }
 void dlg_listbox_del(union control *ctrl, void *dlg, int index) { }
 void dlg_listbox_add(union control *ctrl, void *dlg, char const *text) { }
 void dlg_listbox_addwithid(union control *ctrl, void *dlg,
-			   char const *text, int id) { }
+                           char const *text, int id) { }
 int dlg_listbox_getid(union control *ctrl, void *dlg, int index) { return 0; }
 int dlg_listbox_index(union control *ctrl, void *dlg) { return -1; }
 int dlg_listbox_issel(union control *ctrl, void *dlg, int index) { return 0; }
@@ -171,7 +171,7 @@ void dlg_beep(void *dlg) { }
 void dlg_error_msg(void *dlg, const char *msg) { }
 void dlg_end(void *dlg, int value) { }
 void dlg_coloursel_start(union control *ctrl, void *dlg,
-			 int r, int g, int b) { }
+                         int r, int g, int b) { }
 bool dlg_coloursel_results(union control *ctrl, void *dlg,
                            int *r, int *g, int *b) { return false; }
 void dlg_refresh(union control *ctrl, void *dlg) { }
@@ -188,9 +188,9 @@ const struct keyvalwhere gsslibkeywords[0] = { };
 char *platform_default_s(const char *name)
 {
     if (!strcmp(name, "TermType"))
-	return dupstr(getenv("TERM"));
+        return dupstr(getenv("TERM"));
     if (!strcmp(name, "SerialLine"))
-	return dupstr("/dev/ttyS0");
+        return dupstr("/dev/ttyS0");
     return NULL;
 }
 
@@ -212,12 +212,12 @@ FontSpec *platform_default_fontspec(const char *name)
 Filename *platform_default_filename(const char *name)
 {
     if (!strcmp(name, "LogFileName"))
-	return filename_from_str("putty.log");
+        return filename_from_str("putty.log");
     else
-	return filename_from_str("");
+        return filename_from_str("");
 }
 
 char *x_get_default(const char *key)
 {
-    return NULL;		       /* this is a stub */
+    return NULL;                       /* this is a stub */
 }

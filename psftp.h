@@ -24,7 +24,7 @@ char *psftp_lcd(char *newdir);
  * longs in POSIX time_t format.
  */
 void get_file_times(char *filename, unsigned long *mtime,
-		    unsigned long *atime);
+                    unsigned long *atime);
 
 /*
  * One iteration of the PSFTP event loop: wait for network data and
@@ -35,7 +35,7 @@ int ssh_sftp_loop_iteration(void);
 /*
  * Read a command line for PSFTP from standard input. Caller must
  * free.
- * 
+ *
  * If `backend_required' is true, should also listen for activity
  * at the backend (rekeys, clientalives, unexpected closures etc)
  * and respond as necessary, and if the backend closes it should
@@ -64,9 +64,9 @@ int psftp_main(int argc, char *argv[]);
  * can safely be stubs on all other platforms.
  */
 void gui_update_stats(const char *name, unsigned long size,
-		      int percentage, unsigned long elapsed,
-		      unsigned long done, unsigned long eta,
-		      unsigned long ratebs);
+                      int percentage, unsigned long elapsed,
+                      unsigned long done, unsigned long eta,
+                      unsigned long ratebs);
 void gui_send_errcount(int list, int errs);
 void gui_send_char(int is_stderr, int c);
 void gui_enable(const char *arg);
@@ -76,13 +76,13 @@ void gui_enable(const char *arg);
  * transfer utilities is going to want to do things with them that
  * aren't present in stdio. Hence we supply an alternative
  * abstraction for file access functions.
- * 
+ *
  * This abstraction tells you the size and access times when you
  * open an existing file (platforms may choose the meaning of the
  * file times if it's not clear; whatever they choose will be what
  * PSCP sends to the server as mtime and atime), and lets you set
  * the times when saving a new file.
- * 
+ *
  * On the other hand, the abstraction is pretty simple: it supports
  * only opening a file and reading it, or creating a file and writing
  * it. None of this read-and-write, seeking-back-and-forth stuff.
@@ -92,7 +92,7 @@ typedef struct WFile WFile;
 /* Output params size, perms, mtime and atime can all be NULL if
  * desired. perms will be -1 if the OS does not support POSIX permissions. */
 RFile *open_existing_file(const char *name, uint64_t *size,
-			  unsigned long *mtime, unsigned long *atime,
+                          unsigned long *mtime, unsigned long *atime,
                           long *perms);
 WFile *open_existing_wfile(const char *name, uint64_t *size);
 /* Returns <0 on error, 0 on eof, or number of bytes read, as usual */
@@ -135,11 +135,11 @@ void close_directory(DirHandle *dir);
 /*
  * Test a filespec to see whether it's a local wildcard or not.
  * Return values:
- * 
+ *
  *  - WCTYPE_WILDCARD (this is a wildcard).
  *  - WCTYPE_FILENAME (this is a single file name).
  *  - WCTYPE_NONEXISTENT (whichever it was, nothing of that name exists).
- * 
+ *
  * Some platforms may choose not to support local wildcards when
  * they come from the command line; in this case they simply never
  * return WCTYPE_WILDCARD, but still test the file's existence.
@@ -165,7 +165,7 @@ void finish_wildcard_matching(WildcardMatcher *dir);
  * in some way malicious. The idea is that this function is applied
  * to filenames returned from FXP_READDIR, which means we can panic
  * if we see _anything_ resembling a directory separator.
- * 
+ *
  * Returns true if the filename is kosher, false if dangerous.
  */
 bool vet_filename(const char *name);

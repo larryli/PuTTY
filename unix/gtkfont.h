@@ -49,7 +49,7 @@
 /*
  * Exports from gtkfont.c.
  */
-struct UnifontVtable;		       /* contents internal to gtkfont.c */
+struct UnifontVtable;                  /* contents internal to gtkfont.c */
 typedef struct unifont {
     const struct UnifontVtable *vt;
     /*
@@ -134,8 +134,8 @@ typedef struct unifont_drawctx {
 } unifont_drawctx;
 
 unifont *unifont_create(GtkWidget *widget, const char *name,
-			bool wide, bool bold,
-			int shadowoffset, bool shadowalways);
+                        bool wide, bool bold,
+                        int shadowoffset, bool shadowalways);
 void unifont_destroy(unifont *font);
 void unifont_draw_text(unifont_drawctx *ctx, unifont *font,
                        int x, int y, const wchar_t *string, int len,
@@ -166,13 +166,13 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
  * Unified font selector dialog. I can't be bothered to do a
  * proper GTK subclassing today, so this will just be an ordinary
  * data structure with some useful members.
- * 
+ *
  * (Of course, these aren't the only members; this structure is
  * contained within a bigger one which holds data visible only to
  * the implementation.)
  */
 typedef struct unifontsel {
-    void *user_data;		       /* settable by the user */
+    void *user_data;                   /* settable by the user */
     GtkWindow *window;
     GtkWidget *ok_button, *cancel_button;
 } unifontsel;

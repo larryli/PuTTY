@@ -368,7 +368,7 @@ static int xfwd_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     chan = portfwd_raw_new(sess->c->cl, &plug);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
-	portfwd_raw_free(chan);
+        portfwd_raw_free(chan);
         return 1;
     }
     pi = sk_peer_info(s);
@@ -444,7 +444,7 @@ static int agentfwd_accepting(
     chan = portfwd_raw_new(sess->c->cl, &plug);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
-	portfwd_raw_free(chan);
+        portfwd_raw_free(chan);
         return 1;
     }
     portfwd_raw_setup(chan, s, ssh_serverside_agent_open(sess->c->cl, chan));

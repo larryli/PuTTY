@@ -44,9 +44,9 @@ static int fdsocket_infd_cmp(void *av, void *bv)
     FdSocket *a = (FdSocket *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a->infd < b->infd)
-	return -1;
+        return -1;
     if (a->infd > b->infd)
-	return +1;
+        return +1;
     return 0;
 }
 static int fdsocket_infd_find(void *av, void *bv)
@@ -54,9 +54,9 @@ static int fdsocket_infd_find(void *av, void *bv)
     int a = *(int *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a < b->infd)
-	return -1;
+        return -1;
     if (a > b->infd)
-	return +1;
+        return +1;
     return 0;
 }
 static int fdsocket_inerrfd_cmp(void *av, void *bv)
@@ -64,9 +64,9 @@ static int fdsocket_inerrfd_cmp(void *av, void *bv)
     FdSocket *a = (FdSocket *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a->inerrfd < b->inerrfd)
-	return -1;
+        return -1;
     if (a->inerrfd > b->inerrfd)
-	return +1;
+        return +1;
     return 0;
 }
 static int fdsocket_inerrfd_find(void *av, void *bv)
@@ -74,9 +74,9 @@ static int fdsocket_inerrfd_find(void *av, void *bv)
     int a = *(int *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a < b->inerrfd)
-	return -1;
+        return -1;
     if (a > b->inerrfd)
-	return +1;
+        return +1;
     return 0;
 }
 static int fdsocket_outfd_cmp(void *av, void *bv)
@@ -84,9 +84,9 @@ static int fdsocket_outfd_cmp(void *av, void *bv)
     FdSocket *a = (FdSocket *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a->outfd < b->outfd)
-	return -1;
+        return -1;
     if (a->outfd > b->outfd)
-	return +1;
+        return +1;
     return 0;
 }
 static int fdsocket_outfd_find(void *av, void *bv)
@@ -94,9 +94,9 @@ static int fdsocket_outfd_find(void *av, void *bv)
     int a = *(int *)av;
     FdSocket *b = (FdSocket *)bv;
     if (a < b->outfd)
-	return -1;
+        return -1;
     if (a > b->outfd)
-	return +1;
+        return +1;
     return 0;
 }
 
@@ -105,7 +105,7 @@ static Plug *fdsocket_plug(Socket *s, Plug *p)
     FdSocket *fds = container_of(s, FdSocket, sock);
     Plug *ret = fds->plug;
     if (p)
-	fds->plug = p;
+        fds->plug = p;
     return ret;
 }
 
@@ -164,21 +164,21 @@ static int fdsocket_try_send(FdSocket *fds)
     while (bufchain_size(&fds->pending_output_data) > 0) {
         ssize_t ret;
 
-	ptrlen data = bufchain_prefix(&fds->pending_output_data);
-	ret = write(fds->outfd, data.ptr, data.len);
+        ptrlen data = bufchain_prefix(&fds->pending_output_data);
+        ret = write(fds->outfd, data.ptr, data.len);
         noise_ultralight(NOISE_SOURCE_IOID, ret);
-	if (ret < 0 && errno != EWOULDBLOCK) {
+        if (ret < 0 && errno != EWOULDBLOCK) {
             if (!fds->pending_error) {
                 fds->pending_error = errno;
                 queue_toplevel_callback(fdsocket_error_callback, fds);
             }
             return 0;
-	} else if (ret <= 0) {
-	    break;
-	} else {
-	    bufchain_consume(&fds->pending_output_data, ret);
-	    sent += ret;
-	}
+        } else if (ret <= 0) {
+            break;
+        } else {
+            bufchain_consume(&fds->pending_output_data, ret);
+            sent += ret;
+        }
     }
 
     if (fds->outgoingeof == EOF_PENDING) {
@@ -190,9 +190,9 @@ static int fdsocket_try_send(FdSocket *fds)
     }
 
     if (bufchain_size(&fds->pending_output_data) == 0)
-	uxsel_del(fds->outfd);
+        uxsel_del(fds->outfd);
     else
-	uxsel_set(fds->outfd, SELECT_W, fdsocket_select_result_output);
+        uxsel_set(fds->outfd, SELECT_W, fdsocket_select_result_output);
 
     return sent;
 }
@@ -237,9 +237,9 @@ static void fdsocket_set_frozen(Socket *s, bool is_frozen)
         return;
 
     if (is_frozen)
-	uxsel_del(fds->infd);
+        uxsel_del(fds->infd);
     else
-	uxsel_set(fds->infd, SELECT_R, fdsocket_select_result_input);
+        uxsel_set(fds->infd, SELECT_R, fdsocket_select_result_input);
 }
 
 static const char *fdsocket_socket_error(Socket *s)

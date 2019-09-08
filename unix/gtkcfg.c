@@ -11,10 +11,10 @@
 #include "storage.h"
 
 static void about_handler(union control *ctrl, dlgparam *dlg,
-			  void *data, int event)
+                          void *data, int event)
 {
     if (event == EVENT_ACTION) {
-	about_box(ctrl->generic.context.p);
+        about_box(ctrl->generic.context.p);
     }
 }
 
@@ -25,13 +25,13 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
     int i;
 
     if (!midsession) {
-	/*
-	 * Add the About button to the standard panel.
-	 */
-	s = ctrl_getset(b, "", "", "");
-	c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
-			    about_handler, P(win));
-	c->generic.column = 0;
+        /*
+         * Add the About button to the standard panel.
+         */
+        s = ctrl_getset(b, "", "", "");
+        c = ctrl_pushbutton(s, "About", 'a', HELPCTX(no_help),
+                            about_handler, P(win));
+        c->generic.column = 0;
     }
 
     /*
@@ -39,10 +39,10 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * than Windows does!
      */
     s = ctrl_getset(b, "Window", "scrollback",
-		    "Control the scrollback in the window");
+                    "Control the scrollback in the window");
     ctrl_checkbox(s, "Scrollbar on left", 'l',
-		  HELPCTX(no_help),
-		  conf_checkbox_handler,
+                  HELPCTX(no_help),
+                  conf_checkbox_handler,
                   I(CONF_scrollbar_on_left));
     /*
      * Really this wants to go just after `Display scrollbar'. See
@@ -89,29 +89,29 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
     s = ctrl_getset(b, "Window/Fonts", "font",
                     "Fonts for displaying non-bold text");
     ctrl_fontsel(s, "Font used for ordinary text", 'f',
-		 HELPCTX(no_help),
-		 conf_fontsel_handler, I(CONF_font));
+                 HELPCTX(no_help),
+                 conf_fontsel_handler, I(CONF_font));
     ctrl_fontsel(s, "Font used for wide (CJK) text", 'w',
-		 HELPCTX(no_help),
-		 conf_fontsel_handler, I(CONF_widefont));
+                 HELPCTX(no_help),
+                 conf_fontsel_handler, I(CONF_widefont));
     s = ctrl_getset(b, "Window/Fonts", "fontbold",
                     "Fonts for displaying bolded text");
     ctrl_fontsel(s, "Font used for bolded text", 'b',
-		 HELPCTX(no_help),
-		 conf_fontsel_handler, I(CONF_boldfont));
+                 HELPCTX(no_help),
+                 conf_fontsel_handler, I(CONF_boldfont));
     ctrl_fontsel(s, "Font used for bold wide text", 'i',
-		 HELPCTX(no_help),
-		 conf_fontsel_handler, I(CONF_wideboldfont));
+                 HELPCTX(no_help),
+                 conf_fontsel_handler, I(CONF_wideboldfont));
     ctrl_checkbox(s, "Use shadow bold instead of bold fonts", 'u',
-		  HELPCTX(no_help),
-		  conf_checkbox_handler,
-		  I(CONF_shadowbold));
+                  HELPCTX(no_help),
+                  conf_checkbox_handler,
+                  I(CONF_shadowbold));
     ctrl_text(s, "(Note that bold fonts or shadow bolding are only"
-	      " used if you have not requested bolding to be done by"
-	      " changing the text colour.)",
+              " used if you have not requested bolding to be done by"
+              " changing the text colour.)",
               HELPCTX(no_help));
     ctrl_editbox(s, "Horizontal offset for shadow bold:", 'z', 20,
-		 HELPCTX(no_help), conf_editbox_handler,
+                 HELPCTX(no_help), conf_editbox_handler,
                  I(CONF_shadowboldoffset), I(-1));
 
     /*
@@ -123,11 +123,11 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * here's an override option in the Translation panel.
      */
     s = ctrl_getset(b, "Window/Translation", "trans",
-		    "Character set translation on received data");
+                    "Character set translation on received data");
     ctrl_checkbox(s, "Override with UTF-8 if locale says so", 'l',
-		  HELPCTX(translation_utf8_override),
-		  conf_checkbox_handler,
-		  I(CONF_utf8_override));
+                  HELPCTX(translation_utf8_override),
+                  conf_checkbox_handler,
+                  I(CONF_utf8_override));
 
 #ifdef OSX_META_KEY_CONFIG
     /*
@@ -136,13 +136,13 @@ void gtk_setup_config_box(struct controlbox *b, bool midsession, void *win)
      * key, or whether they should have their normal OS functions.
      */
     s = ctrl_getset(b, "Terminal/Keyboard", "meta",
-		    "Choose the Meta key:");
+                    "Choose the Meta key:");
     ctrl_checkbox(s, "Option key acts as Meta", 'p',
-		  HELPCTX(no_help),
-		  conf_checkbox_handler, I(CONF_osx_option_meta));
+                  HELPCTX(no_help),
+                  conf_checkbox_handler, I(CONF_osx_option_meta));
     ctrl_checkbox(s, "Command key acts as Meta", 'm',
-		  HELPCTX(no_help),
-		  conf_checkbox_handler, I(CONF_osx_command_meta));
+                  HELPCTX(no_help),
+                  conf_checkbox_handler, I(CONF_osx_command_meta));
 #endif
 
     if (!midsession) {

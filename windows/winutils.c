@@ -41,36 +41,36 @@ bool request_file(filereq *state, OPENFILENAME *of, bool preserve, bool save)
 
     /* Get process CWD */
     if (preserve) {
-	DWORD r = GetCurrentDirectory(lenof(cwd), cwd);
-	if (r == 0 || r >= lenof(cwd))
-	    /* Didn't work, oh well. Stop trying to be clever. */
-	    preserve = false;
+        DWORD r = GetCurrentDirectory(lenof(cwd), cwd);
+        if (r == 0 || r >= lenof(cwd))
+            /* Didn't work, oh well. Stop trying to be clever. */
+            preserve = false;
     }
 
     /* Open the file requester, maybe setting lpstrInitialDir */
     {
 #ifdef OPENFILENAME_SIZE_VERSION_400
-	of->lStructSize = OPENFILENAME_SIZE_VERSION_400;
+        of->lStructSize = OPENFILENAME_SIZE_VERSION_400;
 #else
-	of->lStructSize = sizeof(*of);
+        of->lStructSize = sizeof(*of);
 #endif
-	of->lpstrInitialDir = (state && state->cwd[0]) ? state->cwd : NULL;
-	/* Actually put up the requester. */
-	ret = save ? GetSaveFileName(of) : GetOpenFileName(of);
+        of->lpstrInitialDir = (state && state->cwd[0]) ? state->cwd : NULL;
+        /* Actually put up the requester. */
+        ret = save ? GetSaveFileName(of) : GetOpenFileName(of);
     }
 
     /* Get CWD left by requester */
     if (state) {
-	DWORD r = GetCurrentDirectory(lenof(state->cwd), state->cwd);
-	if (r == 0 || r >= lenof(state->cwd))
-	    /* Didn't work, oh well. */
-	    state->cwd[0] = '\0';
+        DWORD r = GetCurrentDirectory(lenof(state->cwd), state->cwd);
+        if (r == 0 || r >= lenof(state->cwd))
+            /* Didn't work, oh well. */
+            state->cwd[0] = '\0';
     }
-    
+
     /* Restore process CWD */
     if (preserve)
-	/* If it fails, there's not much we can do. */
-	(void) SetCurrentDirectory(cwd);
+        /* If it fails, there's not much we can do. */
+        (void) SetCurrentDirectory(cwd);
 
     return ret;
 }
@@ -97,8 +97,8 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
     const char *context = NULL;
 #define CHECK_CTX(name) \
     do { \
-	if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
-	    context = WINHELP_CTX_ ## name; \
+        if (lpHelpInfo->dwContextId == WINHELP_CTXID_ ## name) \
+            context = WINHELP_CTX_ ## name; \
     } while (0)
     CHECK_CTX(errors_hostkey_absent);
     CHECK_CTX(errors_hostkey_changed);
@@ -107,13 +107,13 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
     CHECK_CTX(pgp_fingerprints);
 #undef CHECK_CTX
     if (context)
-	launch_help(hwnd, context);
+        launch_help(hwnd, context);
 }
 
 int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
 {
     MSGBOXPARAMS mbox;
-    
+
     /*
      * We use MessageBoxIndirect() because it allows us to specify a
      * callback function for the Help button.
@@ -138,18 +138,18 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
 void pgp_fingerprints(void)
 {
     message_box("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
-		"be used to establish a trust path from this executable to another\n"
-		"one. See the manual for more information.\n"
-		"(Note: these fingerprints have nothing to do with SSH!)\n"
-		"\n"
+                "be used to establish a trust path from this executable to another\n"
+                "one. See the manual for more information.\n"
+                "(Note: these fingerprints have nothing to do with SSH!)\n"
+                "\n"
                 "PuTTY Master Key as of " PGP_MASTER_KEY_YEAR
                 " (" PGP_MASTER_KEY_DETAILS "):\n"
                 "  " PGP_MASTER_KEY_FP "\n\n"
                 "Previous Master Key (" PGP_PREV_MASTER_KEY_YEAR
                 ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
                 "  " PGP_PREV_MASTER_KEY_FP,
-		"PGP fingerprints", MB_ICONINFORMATION | MB_OK,
-		HELPCTXID(pgp_fingerprints));
+                "PGP fingerprints", MB_ICONINFORMATION | MB_OK,
+                HELPCTXID(pgp_fingerprints));
 }
 
 /*
@@ -164,7 +164,7 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
 
     do {
         sgrowarray_nm(ret, size, size);
-	GetDlgItemText(hwnd, id, ret, size);
+        GetDlgItemText(hwnd, id, ret, size);
     } while (!memchr(ret, '\0', size-1));
 
     return ret;
@@ -177,9 +177,9 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
  * broken apart by the C library, will have their command lines
  * processed in the same way as the GUI utilities which get a whole
  * command line and must call this function).
- * 
+ *
  * Does not modify the input command line.
- * 
+ *
  * The final parameter (argstart) is used to return a second array
  * of char * pointers, the same length as argv, each one pointing
  * at the start of the corresponding element of argv in the
@@ -189,7 +189,7 @@ char *GetDlgItemText_alloc(HWND hwnd, int id)
  * `argstart' can be safely left NULL.
  */
 void split_into_argv(char *cmdline, int *argc, char ***argv,
-		     char ***argstart)
+                     char ***argstart)
 {
     char *p;
     char *outputline, *q;
@@ -237,11 +237,11 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      *    quotes (down the left), and indicate how many backslashes
      *    are output, how many quotes are output, and whether a
      *    quoted segment is open at the end of the sequence:
-     * 
+     *
      *                      backslashes
-     * 
+     *
      *               0         1      2      3      4
-     * 
+     *
      *         0   0,0,y  |  1,0,y  2,0,y  3,0,y  4,0,y
      *            --------+-----------------------------
      *         1   0,0,n  |  0,1,y  1,0,n  1,1,y  2,0,n
@@ -255,18 +255,18 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      *         9   0,3,y  |  0,4,n  1,3,y  1,4,n  2,3,y
      *        10   0,3,n  |  0,4,y  1,3,n  1,4,y  2,3,n
      *        11   0,4,n  |  0,4,n  1,4,n  1,4,n  2,4,n
-     * 
-     * 
+     *
+     *
      *      [Test fragment was of the form "a\\\"""b c" d.]
-     * 
+     *
      * There is very weird mod-3 behaviour going on here in the
      * number of quotes, and it even applies when there aren't any
      * backslashes! How ghastly.
-     * 
+     *
      * With a bit of thought, this extremely odd diagram suddenly
      * coalesced itself into a coherent, if still ghastly, model of
      * how things work:
-     * 
+     *
      *  - As before, backslashes are only special when one or more
      *    of them appear contiguously before at least one double
      *    quote. In this situation the backslashes do exactly what
@@ -275,17 +275,17 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      *    even) or (n-1)/2 literal backslashes and a literal quote
      *    (if n is odd). In the latter case the double quote
      *    character right after the backslashes is used up.
-     * 
+     *
      *  - After that, any remaining double quotes are processed. A
      *    string of contiguous unescaped double quotes has a mod-3
      *    behaviour:
-     * 
+     *
      *     * inside a quoted segment, a quote ends the segment.
      *     * _immediately_ after ending a quoted segment, a quote
      *       simply produces a literal quote.
      *     * otherwise, outside a quoted segment, a quote begins a
      *       quoted segment.
-     * 
+     *
      *    So, for example, if we started inside a quoted segment
      *    then two contiguous quotes would close the segment and
      *    produce a literal quote; three would close the segment,
@@ -303,10 +303,10 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
      */
     while (*cmdline && isspace(*cmdline)) cmdline++;
     if (!*cmdline) {
-	if (argc) *argc = 0;
-	if (argv) *argv = NULL;
-	if (argstart) *argstart = NULL;
-	return;
+        if (argc) *argc = 0;
+        if (argv) *argv = NULL;
+        if (argstart) *argstart = NULL;
+        return;
     }
 
     /*
@@ -320,66 +320,66 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
     p = cmdline; q = outputline; outputargc = 0;
 
     while (*p) {
-	bool quote;
+        bool quote;
 
-	/* Skip whitespace searching for start of argument. */
-	while (*p && isspace(*p)) p++;
-	if (!*p) break;
+        /* Skip whitespace searching for start of argument. */
+        while (*p && isspace(*p)) p++;
+        if (!*p) break;
 
-	/* We have an argument; start it. */
-	outputargv[outputargc] = q;
-	outputargstart[outputargc] = p;
-	outputargc++;
-	quote = false;
+        /* We have an argument; start it. */
+        outputargv[outputargc] = q;
+        outputargstart[outputargc] = p;
+        outputargc++;
+        quote = false;
 
-	/* Copy data into the argument until it's finished. */
-	while (*p) {
-	    if (!quote && isspace(*p))
-		break;		       /* argument is finished */
+        /* Copy data into the argument until it's finished. */
+        while (*p) {
+            if (!quote && isspace(*p))
+                break;                 /* argument is finished */
 
-	    if (*p == '"' || *p == '\\') {
-		/*
-		 * We have a sequence of zero or more backslashes
-		 * followed by a sequence of zero or more quotes.
-		 * Count up how many of each, and then deal with
-		 * them as appropriate.
-		 */
-		int i, slashes = 0, quotes = 0;
-		while (*p == '\\') slashes++, p++;
-		while (*p == '"') quotes++, p++;
+            if (*p == '"' || *p == '\\') {
+                /*
+                 * We have a sequence of zero or more backslashes
+                 * followed by a sequence of zero or more quotes.
+                 * Count up how many of each, and then deal with
+                 * them as appropriate.
+                 */
+                int i, slashes = 0, quotes = 0;
+                while (*p == '\\') slashes++, p++;
+                while (*p == '"') quotes++, p++;
 
-		if (!quotes) {
-		    /*
-		     * Special case: if there are no quotes,
-		     * slashes are not special at all, so just copy
-		     * n slashes to the output string.
-		     */
-		    while (slashes--) *q++ = '\\';
-		} else {
-		    /* Slashes annihilate in pairs. */
-		    while (slashes >= 2) slashes -= 2, *q++ = '\\';
+                if (!quotes) {
+                    /*
+                     * Special case: if there are no quotes,
+                     * slashes are not special at all, so just copy
+                     * n slashes to the output string.
+                     */
+                    while (slashes--) *q++ = '\\';
+                } else {
+                    /* Slashes annihilate in pairs. */
+                    while (slashes >= 2) slashes -= 2, *q++ = '\\';
 
-		    /* One remaining slash takes out the first quote. */
-		    if (slashes) quotes--, *q++ = '"';
+                    /* One remaining slash takes out the first quote. */
+                    if (slashes) quotes--, *q++ = '"';
 
-		    if (quotes > 0) {
-			/* Outside a quote segment, a quote starts one. */
-			if (!quote) quotes--;
+                    if (quotes > 0) {
+                        /* Outside a quote segment, a quote starts one. */
+                        if (!quote) quotes--;
 
-			/* Now we produce (n+1)/3 literal quotes... */
-			for (i = 3; i <= quotes+1; i += 3) *q++ = '"';
+                        /* Now we produce (n+1)/3 literal quotes... */
+                        for (i = 3; i <= quotes+1; i += 3) *q++ = '"';
 
-			/* ... and end in a quote segment iff 3 divides n. */
-			quote = (quotes % 3 == 0);
-		    }
-		}
-	    } else {
-		*q++ = *p++;
-	    }
-	}
+                        /* ... and end in a quote segment iff 3 divides n. */
+                        quote = (quotes % 3 == 0);
+                    }
+                }
+            } else {
+                *q++ = *p++;
+            }
+        }
 
-	/* At the end of an argument, just append a trailing NUL. */
-	*q++ = '\0';
+        /* At the end of an argument, just append a trailing NUL. */
+        *q++ = '\0';
     }
 
     outputargv = sresize(outputargv, outputargc, char *);
@@ -497,96 +497,96 @@ int main(int argc, char **argv)
     int i, j;
 
     if (argc > 1) {
-	/*
-	 * Generation of tests.
-	 * 
-	 * Given `-splat <args>', we print out a C-style
-	 * representation of each argument (in the form "a", "b",
-	 * NULL), backslash-escaping each backslash and double
-	 * quote.
-	 * 
-	 * Given `-split <string>', we first doctor `string' by
-	 * turning forward slashes into backslashes, single quotes
-	 * into double quotes and underscores into spaces; and then
-	 * we feed the resulting string to ourself with `-splat'.
-	 * 
-	 * Given `-generate', we concoct a variety of fun test
-	 * cases, encode them in quote-safe form (mapping \, " and
-	 * space to /, ' and _ respectively) and feed each one to
-	 * `-split'.
-	 */
-	if (!strcmp(argv[1], "-splat")) {
-	    int i;
-	    char *p;
-	    for (i = 2; i < argc; i++) {
-		putchar('"');
-		for (p = argv[i]; *p; p++) {
-		    if (*p == '\\' || *p == '"')
-			putchar('\\');
-		    putchar(*p);
-		}
-		printf("\", ");
-	    }
-	    printf("NULL");
-	    return 0;
-	}
+        /*
+         * Generation of tests.
+         *
+         * Given `-splat <args>', we print out a C-style
+         * representation of each argument (in the form "a", "b",
+         * NULL), backslash-escaping each backslash and double
+         * quote.
+         *
+         * Given `-split <string>', we first doctor `string' by
+         * turning forward slashes into backslashes, single quotes
+         * into double quotes and underscores into spaces; and then
+         * we feed the resulting string to ourself with `-splat'.
+         *
+         * Given `-generate', we concoct a variety of fun test
+         * cases, encode them in quote-safe form (mapping \, " and
+         * space to /, ' and _ respectively) and feed each one to
+         * `-split'.
+         */
+        if (!strcmp(argv[1], "-splat")) {
+            int i;
+            char *p;
+            for (i = 2; i < argc; i++) {
+                putchar('"');
+                for (p = argv[i]; *p; p++) {
+                    if (*p == '\\' || *p == '"')
+                        putchar('\\');
+                    putchar(*p);
+                }
+                printf("\", ");
+            }
+            printf("NULL");
+            return 0;
+        }
 
-	if (!strcmp(argv[1], "-split") && argc > 2) {
-	    char *str = malloc(20 + strlen(argv[0]) + strlen(argv[2]));
-	    char *p, *q;
+        if (!strcmp(argv[1], "-split") && argc > 2) {
+            char *str = malloc(20 + strlen(argv[0]) + strlen(argv[2]));
+            char *p, *q;
 
-	    q = str + sprintf(str, "%s -splat ", argv[0]);
-	    printf("    {\"");
-	    for (p = argv[2]; *p; p++, q++) {
-		switch (*p) {
-		  case '/':  printf("\\\\"); *q = '\\'; break;
-		  case '\'': printf("\\\""); *q = '"';  break;
-		  case '_':  printf(" ");    *q = ' ';  break;
-		  default:   putchar(*p);    *q = *p;   break;
-		}
-	    }
-	    *p = '\0';
-	    printf("\", {");
-	    fflush(stdout);
+            q = str + sprintf(str, "%s -splat ", argv[0]);
+            printf("    {\"");
+            for (p = argv[2]; *p; p++, q++) {
+                switch (*p) {
+                  case '/':  printf("\\\\"); *q = '\\'; break;
+                  case '\'': printf("\\\""); *q = '"';  break;
+                  case '_':  printf(" ");    *q = ' ';  break;
+                  default:   putchar(*p);    *q = *p;   break;
+                }
+            }
+            *p = '\0';
+            printf("\", {");
+            fflush(stdout);
 
-	    system(str);
+            system(str);
 
-	    printf("}},\n");
+            printf("}},\n");
 
-	    return 0;
-	}
+            return 0;
+        }
 
-	if (!strcmp(argv[1], "-generate")) {
-	    char *teststr, *p;
-	    int i, initialquote, backslashes, quotes;
+        if (!strcmp(argv[1], "-generate")) {
+            char *teststr, *p;
+            int i, initialquote, backslashes, quotes;
 
-	    teststr = malloc(200 + strlen(argv[0]));
+            teststr = malloc(200 + strlen(argv[0]));
 
-	    for (initialquote = 0; initialquote <= 1; initialquote++) {
-		for (backslashes = 0; backslashes < 5; backslashes++) {
-		    for (quotes = 0; quotes < 9; quotes++) {
-			p = teststr + sprintf(teststr, "%s -split ", argv[0]);
-			if (initialquote) *p++ = '\'';
-			*p++ = 'a';
-			for (i = 0; i < backslashes; i++) *p++ = '/';
-			for (i = 0; i < quotes; i++) *p++ = '\'';
-			*p++ = 'b';
-			*p++ = '_';
-			*p++ = 'c';
-			*p++ = '\'';
-			*p++ = '_';
-			*p++ = 'd';
-			*p = '\0';
+            for (initialquote = 0; initialquote <= 1; initialquote++) {
+                for (backslashes = 0; backslashes < 5; backslashes++) {
+                    for (quotes = 0; quotes < 9; quotes++) {
+                        p = teststr + sprintf(teststr, "%s -split ", argv[0]);
+                        if (initialquote) *p++ = '\'';
+                        *p++ = 'a';
+                        for (i = 0; i < backslashes; i++) *p++ = '/';
+                        for (i = 0; i < quotes; i++) *p++ = '\'';
+                        *p++ = 'b';
+                        *p++ = '_';
+                        *p++ = 'c';
+                        *p++ = '\'';
+                        *p++ = '_';
+                        *p++ = 'd';
+                        *p = '\0';
 
-			system(teststr);
-		    }
-		}
-	    }
-	    return 0;
-	}
+                        system(teststr);
+                    }
+                }
+            }
+            return 0;
+        }
 
-	fprintf(stderr, "unrecognised option: \"%s\"\n", argv[1]);
-	return 1;
+        fprintf(stderr, "unrecognised option: \"%s\"\n", argv[1]);
+        return 1;
     }
 
     /*
@@ -595,31 +595,31 @@ int main(int argc, char **argv)
      */
 
     for (i = 0; i < lenof(argv_tests); i++) {
-	int ac;
-	char **av;
+        int ac;
+        char **av;
 
-	split_into_argv(argv_tests[i].cmdline, &ac, &av);
+        split_into_argv(argv_tests[i].cmdline, &ac, &av);
 
-	for (j = 0; j < ac && argv_tests[i].argv[j]; j++) {
-	    if (strcmp(av[j], argv_tests[i].argv[j])) {
-		printf("failed test %d (|%s|) arg %d: |%s| should be |%s|\n",
-		       i, argv_tests[i].cmdline,
-		       j, av[j], argv_tests[i].argv[j]);
-	    }
+        for (j = 0; j < ac && argv_tests[i].argv[j]; j++) {
+            if (strcmp(av[j], argv_tests[i].argv[j])) {
+                printf("failed test %d (|%s|) arg %d: |%s| should be |%s|\n",
+                       i, argv_tests[i].cmdline,
+                       j, av[j], argv_tests[i].argv[j]);
+            }
 #ifdef VERBOSE
-	    else {
-		printf("test %d (|%s|) arg %d: |%s| == |%s|\n",
-		       i, argv_tests[i].cmdline,
-		       j, av[j], argv_tests[i].argv[j]);
-	    }
+            else {
+                printf("test %d (|%s|) arg %d: |%s| == |%s|\n",
+                       i, argv_tests[i].cmdline,
+                       j, av[j], argv_tests[i].argv[j]);
+            }
 #endif
-	}
-	if (j < ac)
-	    printf("failed test %d (|%s|): %d args returned, should be %d\n",
-		   i, argv_tests[i].cmdline, ac, j);
-	if (argv_tests[i].argv[j])
-	    printf("failed test %d (|%s|): %d args returned, should be more\n",
-		   i, argv_tests[i].cmdline, ac);
+        }
+        if (j < ac)
+            printf("failed test %d (|%s|): %d args returned, should be %d\n",
+                   i, argv_tests[i].cmdline, ac, j);
+        if (argv_tests[i].argv[j])
+            printf("failed test %d (|%s|): %d args returned, should be more\n",
+                   i, argv_tests[i].cmdline, ac);
     }
 
     return 0;

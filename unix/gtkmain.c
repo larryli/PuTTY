@@ -67,7 +67,7 @@ void fork_and_exec_self(int fd_to_close, ...)
      * Re-execing ourself is not an exact science under Unix. I do
      * the best I can by using /proc/self/exe if available and by
      * assuming argv[0] can be found on $PATH if not.
-     * 
+     *
      * Note that we also have to reconstruct the elements of the
      * original argv which gtk swallowed, since the user wants the
      * new session to appear on the same X display as the old one.
@@ -81,17 +81,17 @@ void fork_and_exec_self(int fd_to_close, ...)
      * Collect the arguments with which to re-exec ourself.
      */
     va_start(ap, fd_to_close);
-    n = 2;			       /* progname and terminating NULL */
+    n = 2;                             /* progname and terminating NULL */
     n += ngtkargs;
     while (va_arg(ap, char *) != NULL)
-	n++;
+        n++;
     va_end(ap);
 
     args = snewn(n, char *);
     args[0] = progname;
     args[n-1] = NULL;
     for (i = 0; i < ngtkargs; i++)
-	args[i+1] = gtkargvstart[i];
+        args[i+1] = gtkargvstart[i];
 
     i++;
     va_start(ap, fd_to_close);
@@ -105,43 +105,43 @@ void fork_and_exec_self(int fd_to_close, ...)
      */
     pid = fork();
     if (pid < 0) {
-	perror("fork");
+        perror("fork");
         sfree(args);
-	return;
+        return;
     }
 
     if (pid == 0) {
-	int pid2 = fork();
-	if (pid2 < 0) {
-	    perror("fork");
-	    _exit(1);
-	} else if (pid2 > 0) {
-	    /*
-	     * First child has successfully forked second child. My
-	     * Work Here Is Done. Note the use of _exit rather than
-	     * exit: the latter appears to cause destroy messages
-	     * to be sent to the X server. I suspect gtk uses
-	     * atexit.
-	     */
-	    _exit(0);
-	}
+        int pid2 = fork();
+        if (pid2 < 0) {
+            perror("fork");
+            _exit(1);
+        } else if (pid2 > 0) {
+            /*
+             * First child has successfully forked second child. My
+             * Work Here Is Done. Note the use of _exit rather than
+             * exit: the latter appears to cause destroy messages
+             * to be sent to the X server. I suspect gtk uses
+             * atexit.
+             */
+            _exit(0);
+        }
 
-	/*
-	 * If we reach here, we are the second child, so we now
-	 * actually perform the exec.
-	 */
-	if (fd_to_close >= 0)
-	    close(fd_to_close);
+        /*
+         * If we reach here, we are the second child, so we now
+         * actually perform the exec.
+         */
+        if (fd_to_close >= 0)
+            close(fd_to_close);
 
-	execv("/proc/self/exe", args);
-	execvp(progname, args);
-	perror("exec");
-	_exit(127);
+        execv("/proc/self/exe", args);
+        execvp(progname, args);
+        perror("exec");
+        _exit(127);
 
     } else {
-	int status;
+        int status;
         sfree(args);
-	waitpid(pid, &status, 0);
+        waitpid(pid, &status, 0);
     }
 
 }
@@ -159,15 +159,15 @@ void launch_duplicate_session(Conf *conf)
     int pipefd[2];
 
     if (pipe(pipefd) < 0) {
-	perror("pipe");
-	return;
+        perror("pipe");
+        return;
     }
 
     serialised = strbuf_new();
 
     conf_serialise(BinarySink_UPCAST(serialised), conf);
     if (use_pty_argv && pty_argv)
-	for (i = 0; pty_argv[i]; i++)
+        for (i = 0; pty_argv[i]; i++)
             put_asciz(serialised, pty_argv[i]);
 
     sprintf(option, "---[%d,%zu]", pipefd[0], serialised->len);
@@ -179,9 +179,9 @@ void launch_duplicate_session(Conf *conf)
     while (i < serialised->len &&
            (ret = write(pipefd[1], serialised->s + i,
                         serialised->len - i)) > 0)
-	i += ret;
+        i += ret;
     if (ret < 0)
-	perror("write to pipe");
+        perror("write to pipe");
     close(pipefd[1]);
     strbuf_free(serialised);
 }
@@ -203,21 +203,21 @@ int read_dupsession_data(Conf *conf, char *arg)
     BinarySource src[1];
 
     if (sscanf(arg, "---[%d,%d]", &fd, &size) != 2) {
-	fprintf(stderr, "%s: malformed magic argument `%s'\n", appname, arg);
-	exit(1);
+        fprintf(stderr, "%s: malformed magic argument `%s'\n", appname, arg);
+        exit(1);
     }
 
     data = snewn(size, char);
     i = ret = 0;
     while (i < size && (ret = read(fd, data + i, size - i)) > 0)
-	i += ret;
+        i += ret;
     if (ret < 0) {
-	perror("read from pipe");
-	exit(1);
+        perror("read from pipe");
+        exit(1);
     } else if (i < size) {
-	fprintf(stderr, "%s: unexpected EOF in Duplicate Session data\n",
-		appname);
-	exit(1);
+        fprintf(stderr, "%s: unexpected EOF in Duplicate Session data\n",
+                appname);
+        exit(1);
     }
 
     BinarySource_BARE_INIT(src, data, size);
@@ -226,7 +226,7 @@ int read_dupsession_data(Conf *conf, char *arg)
         exit(1);
     }
     if (use_pty_argv) {
-	int pty_argc = 0;
+        int pty_argc = 0;
         size_t argv_startpos = src->pos;
 
         while (get_asciz(src), !get_err(src))
@@ -274,9 +274,9 @@ static void help(FILE *fp) {
 "  -nethack                  Map numeric keypad to hjklyubn direction keys\n"
 "  -xrm RESOURCE-STRING      Set an X resource\n"
 "  -e COMMAND [ARGS...]      Execute command (consumes all remaining args)\n"
-	 ) < 0 || fflush(fp) < 0) {
-	perror("output error");
-	exit(1);
+         ) < 0 || fflush(fp) < 0) {
+        perror("output error");
+        exit(1);
     }
 }
 
@@ -284,8 +284,8 @@ static void version(FILE *fp) {
     char *buildinfo_text = buildinfo("\n");
     if(fprintf(fp, "%s: %s\n%s\n", appname, ver, buildinfo_text) < 0 ||
        fflush(fp) < 0) {
-	perror("output error");
-	exit(1);
+        perror("output error");
+        exit(1);
     }
     sfree(buildinfo_text);
 }
@@ -324,92 +324,92 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
      */
 #define EXPECTS_ARG { \
     if (--argc <= 0) { \
-	err = true; \
-	fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
+        err = true; \
+        fprintf(stderr, "%s: %s expects an argument\n", appname, p); \
         continue; \
     } else \
-	val = *++argv; \
+        val = *++argv; \
 }
 #define SECOND_PASS_ONLY do { if (!do_everything) continue; } while (0)
 
     while (--argc > 0) {
-	const char *p = *++argv;
+        const char *p = *++argv;
         int ret;
 
-	/*
-	 * Shameless cheating. Debian requires all X terminal
-	 * emulators to support `-T title'; but
-	 * cmdline_process_param will eat -T (it means no-pty) and
-	 * complain that pterm doesn't support it. So, in pterm
-	 * only, we convert -T into -title.
-	 */
-	if ((cmdline_tooltype & TOOLTYPE_NONNETWORK) &&
-	    !strcmp(p, "-T"))
-	    p = "-title";
+        /*
+         * Shameless cheating. Debian requires all X terminal
+         * emulators to support `-T title'; but
+         * cmdline_process_param will eat -T (it means no-pty) and
+         * complain that pterm doesn't support it. So, in pterm
+         * only, we convert -T into -title.
+         */
+        if ((cmdline_tooltype & TOOLTYPE_NONNETWORK) &&
+            !strcmp(p, "-T"))
+            p = "-title";
 
         ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
                                     do_everything ? 1 : -1, conf);
 
-	if (ret == -2) {
-	    cmdline_error("option \"%s\" requires an argument", p);
-	} else if (ret == 2) {
-	    --argc, ++argv;            /* skip next argument */
+        if (ret == -2) {
+            cmdline_error("option \"%s\" requires an argument", p);
+        } else if (ret == 2) {
+            --argc, ++argv;            /* skip next argument */
             continue;
-	} else if (ret == 1) {
+        } else if (ret == 1) {
             continue;
         }
 
-	if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
-	    FontSpec *fs;
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        if (!strcmp(p, "-fn") || !strcmp(p, "-font")) {
+            FontSpec *fs;
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_font, fs);
+            conf_set_fontspec(conf, CONF_font, fs);
             fontspec_free(fs);
 
-	} else if (!strcmp(p, "-fb")) {
-	    FontSpec *fs;
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-fb")) {
+            FontSpec *fs;
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_boldfont, fs);
+            conf_set_fontspec(conf, CONF_boldfont, fs);
             fontspec_free(fs);
 
-	} else if (!strcmp(p, "-fw")) {
-	    FontSpec *fs;
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-fw")) {
+            FontSpec *fs;
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_widefont, fs);
+            conf_set_fontspec(conf, CONF_widefont, fs);
             fontspec_free(fs);
 
-	} else if (!strcmp(p, "-fwb")) {
-	    FontSpec *fs;
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-fwb")) {
+            FontSpec *fs;
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             fs = fontspec_new(val);
-	    conf_set_fontspec(conf, CONF_wideboldfont, fs);
+            conf_set_fontspec(conf, CONF_wideboldfont, fs);
             fontspec_free(fs);
 
-	} else if (!strcmp(p, "-cs")) {
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
-	    conf_set_str(conf, CONF_line_codepage, val);
+        } else if (!strcmp(p, "-cs")) {
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
+            conf_set_str(conf, CONF_line_codepage, val);
 
-	} else if (!strcmp(p, "-geometry")) {
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-geometry")) {
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             geometry_string = val;
-	} else if (!strcmp(p, "-sl")) {
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
-	    conf_set_int(conf, CONF_savelines, atoi(val));
+        } else if (!strcmp(p, "-sl")) {
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
+            conf_set_int(conf, CONF_savelines, atoi(val));
 
-	} else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
-		   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
-		   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-fg") || !strcmp(p, "-bg") ||
+                   !strcmp(p, "-bfg") || !strcmp(p, "-bbg") ||
+                   !strcmp(p, "-cfg") || !strcmp(p, "-cbg")) {
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
 
             {
 #if GTK_CHECK_VERSION(3,0,0)
@@ -450,86 +450,86 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
                 }
             }
 
-	} else if (use_pty_argv && !strcmp(p, "-e")) {
-	    /* This option swallows all further arguments. */
-	    if (!do_everything)
-		break;
+        } else if (use_pty_argv && !strcmp(p, "-e")) {
+            /* This option swallows all further arguments. */
+            if (!do_everything)
+                break;
 
-	    if (--argc > 0) {
-		int i;
-		pty_argv = snewn(argc+1, char *);
-		++argv;
-		for (i = 0; i < argc; i++)
-		    pty_argv[i] = argv[i];
-		pty_argv[argc] = NULL;
-		break;		       /* finished command-line processing */
-	    } else
-		err = true, fprintf(stderr, "%s: -e expects an argument\n",
+            if (--argc > 0) {
+                int i;
+                pty_argv = snewn(argc+1, char *);
+                ++argv;
+                for (i = 0; i < argc; i++)
+                    pty_argv[i] = argv[i];
+                pty_argv[argc] = NULL;
+                break;                 /* finished command-line processing */
+            } else
+                err = true, fprintf(stderr, "%s: -e expects an argument\n",
                                  appname);
 
-	} else if (!strcmp(p, "-title")) {
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
-	    conf_set_str(conf, CONF_wintitle, val);
+        } else if (!strcmp(p, "-title")) {
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
+            conf_set_str(conf, CONF_wintitle, val);
 
-	} else if (!strcmp(p, "-log")) {
-	    Filename *fn;
-	    EXPECTS_ARG;
-	    SECOND_PASS_ONLY;
+        } else if (!strcmp(p, "-log")) {
+            Filename *fn;
+            EXPECTS_ARG;
+            SECOND_PASS_ONLY;
             fn = filename_from_str(val);
-	    conf_set_filename(conf, CONF_logfilename, fn);
-	    conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
+            conf_set_filename(conf, CONF_logfilename, fn);
+            conf_set_int(conf, CONF_logtype, LGTYP_DEBUG);
             filename_free(fn);
 
-	} else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_stamp_utmp, false);
+        } else if (!strcmp(p, "-ut-") || !strcmp(p, "+ut")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_stamp_utmp, false);
 
-	} else if (!strcmp(p, "-ut")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_stamp_utmp, true);
+        } else if (!strcmp(p, "-ut")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_stamp_utmp, true);
 
-	} else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_login_shell, false);
+        } else if (!strcmp(p, "-ls-") || !strcmp(p, "+ls")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_login_shell, false);
 
-	} else if (!strcmp(p, "-ls")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_login_shell, true);
+        } else if (!strcmp(p, "-ls")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_login_shell, true);
 
-	} else if (!strcmp(p, "-nethack")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_nethack_keypad, true);
+        } else if (!strcmp(p, "-nethack")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_nethack_keypad, true);
 
-	} else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_scrollbar, false);
+        } else if (!strcmp(p, "-sb-") || !strcmp(p, "+sb")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_scrollbar, false);
 
-	} else if (!strcmp(p, "-sb")) {
-	    SECOND_PASS_ONLY;
-	    conf_set_bool(conf, CONF_scrollbar, true);
+        } else if (!strcmp(p, "-sb")) {
+            SECOND_PASS_ONLY;
+            conf_set_bool(conf, CONF_scrollbar, true);
 
-	} else if (!strcmp(p, "-name")) {
-	    EXPECTS_ARG;
-	    app_name = val;
+        } else if (!strcmp(p, "-name")) {
+            EXPECTS_ARG;
+            app_name = val;
 
-	} else if (!strcmp(p, "-xrm")) {
-	    EXPECTS_ARG;
-	    provide_xrm_string(val, appname);
+        } else if (!strcmp(p, "-xrm")) {
+            EXPECTS_ARG;
+            provide_xrm_string(val, appname);
 
-	} else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
-	    help(stdout);
-	    exit(0);
+        } else if(!strcmp(p, "-help") || !strcmp(p, "--help")) {
+            help(stdout);
+            exit(0);
 
-	} else if(!strcmp(p, "-version") || !strcmp(p, "--version")) {
-	    version(stdout);
-	    exit(0);
+        } else if(!strcmp(p, "-version") || !strcmp(p, "--version")) {
+            version(stdout);
+            exit(0);
 
         } else if (!strcmp(p, "-pgpfp")) {
             pgp_fingerprints();
             exit(1);
 
-	} else if (p[0] != '-') {
+        } else if (p[0] != '-') {
             /* Non-option arguments not handled by cmdline.c are errors. */
             if (do_everything) {
                 err = true;
@@ -537,10 +537,10 @@ bool do_cmdline(int argc, char **argv, bool do_everything, Conf *conf)
                         appname, p);
             }
 
-	} else {
-	    err = true;
-	    fprintf(stderr, "%s: unrecognized option '%s'\n", appname, p);
-	}
+        } else {
+            err = true;
+            fprintf(stderr, "%s: unrecognized option '%s'\n", appname, p);
+        }
     }
 
     return err;
@@ -598,13 +598,13 @@ int main(int argc, char **argv)
      * it. It will be required later.
      */
     {
-	int i, oldargc;
+        int i, oldargc;
         gtkargvstart = snewn(argc-1, char *);
-	for (i = 1; i < argc; i++)
-	    gtkargvstart[i-1] = dupstr(argv[i]);
-	oldargc = argc;
-	gtk_init(&argc, &argv);
-	ngtkargs = oldargc - argc;
+        for (i = 1; i < argc; i++)
+            gtkargvstart[i-1] = dupstr(argv[i]);
+        oldargc = argc;
+        gtk_init(&argc, &argv);
+        ngtkargs = oldargc - argc;
     }
 
     conf = conf_new();
@@ -620,20 +620,20 @@ int main(int argc, char **argv)
     block_signal(SIGPIPE, true);
 
     if (argc > 1 && !strncmp(argv[1], "---", 3)) {
-	read_dupsession_data(conf, argv[1]);
-	/* Splatter this argument so it doesn't clutter a ps listing */
-	smemclr(argv[1], strlen(argv[1]));
+        read_dupsession_data(conf, argv[1]);
+        /* Splatter this argument so it doesn't clutter a ps listing */
+        smemclr(argv[1], strlen(argv[1]));
 
         assert(!dup_check_launchable || conf_launchable(conf));
         need_config_box = false;
     } else {
-	if (do_cmdline(argc, argv, false, conf))
-	    exit(1);		       /* pre-defaults pass to get -class */
-	do_defaults(NULL, conf);
-	if (do_cmdline(argc, argv, true, conf))
-	    exit(1);		       /* post-defaults, do everything */
+        if (do_cmdline(argc, argv, false, conf))
+            exit(1);                   /* pre-defaults pass to get -class */
+        do_defaults(NULL, conf);
+        if (do_cmdline(argc, argv, true, conf))
+            exit(1);                   /* post-defaults, do everything */
 
-	cmdline_run_saved(conf);
+        cmdline_run_saved(conf);
 
         if (cmdline_tooltype & TOOLTYPE_HOST_ARG)
             need_config_box = !cmdline_host_ok(conf);

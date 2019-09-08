@@ -38,7 +38,7 @@ static Plug *sk_namedpipeserver_plug(Socket *s, Plug *p)
     NamedPipeServerSocket *ps = container_of(s, NamedPipeServerSocket, sock);
     Plug *ret = ps->plug;
     if (p)
-	ps->plug = p;
+        ps->plug = p;
     return ret;
 }
 

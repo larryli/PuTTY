@@ -458,7 +458,7 @@ static void scp_source_abort(ScpSource *scp, const char *fmt, ...)
 static void scp_source_push_name(
     ScpSource *scp, ptrlen pathname, struct fxp_attrs attrs, const char *wc)
 {
-    if (!(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {        
+    if (!(attrs.flags & SSH_FILEXFER_ATTR_PERMISSIONS)) {
         scp_source_err(scp, "unable to read file permissions for %.*s",
                        PTRLEN_PRINTF(pathname));
         return;
@@ -555,7 +555,7 @@ static void scp_source_send_CD(
     while ((slash = memchr(name.ptr, '/', name.len)) != NULL)
         name = make_ptrlen(
             slash+1, name.len - (slash+1 - (const char *)name.ptr));
- 
+
     scp->pending_commands[scp->n_pending_commands++] = cmd = strbuf_new();
     strbuf_catf(cmd, "%c%04o %"PRIu64" %.*s\012", cmdchar,
                 (unsigned)(attrs.permissions & 07777),
