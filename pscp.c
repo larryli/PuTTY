@@ -127,14 +127,10 @@ static void tell_user(FILE *stream, const char *fmt, ...)
     sfree(str2);
 }
 
-/*
- * In pscp, all agent requests should be synchronous, so this is a
- * never-called stub.
- */
 void agent_schedule_callback(void (*callback)(void *, void *, int),
                              void *callback_ctx, void *data, int len)
 {
-    assert(!"We shouldn't be here");
+    unreachable("all PSCP agent requests should be synchronous");
 }
 
 /*

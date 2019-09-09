@@ -357,7 +357,7 @@ char *dlg_editbox_get(union control *ctrl, dlgparam *dp)
         return dupstr(gtk_entry_get_text(GTK_ENTRY(uc->entry)));
     }
 
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in editbox_get");
 }
 
 #if !GTK_CHECK_VERSION(2,4,0)
@@ -395,7 +395,7 @@ void dlg_listbox_clear(union control *ctrl, dlgparam *dp)
         return;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_clear");
 }
 
 void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index)
@@ -429,7 +429,7 @@ void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index)
         return;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_del");
 }
 
 void dlg_listbox_add(union control *ctrl, dlgparam *dp, char const *text)
@@ -587,7 +587,7 @@ void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
         goto done;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_addwithid");
     done:
     dp->flags &= ~FLAG_UPDATING_COMBO_LIST;
 }
@@ -626,7 +626,7 @@ int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index)
         return ret;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_getid");
     return -1;                         /* placate dataflow analysis */
 }
 
@@ -711,7 +711,7 @@ int dlg_listbox_index(union control *ctrl, dlgparam *dp)
         return ret;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_index");
     return -1;                         /* placate dataflow analysis */
 }
 
@@ -768,7 +768,7 @@ bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
         return ret;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_issel");
     return false;                      /* placate dataflow analysis */
 }
 
@@ -837,7 +837,7 @@ void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index)
         return;
     }
 #endif
-    assert(!"We shouldn't get here");
+    unreachable("bad control type in listbox_select");
 }
 
 void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text)
@@ -884,8 +884,7 @@ void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text)
         shortcut_highlight(uc->label, ctrl->listbox.shortcut);
         break;
       default:
-        assert(!"This shouldn't happen");
-        break;
+        unreachable("bad control type in label_change");
     }
 }
 
@@ -1016,8 +1015,7 @@ void dlg_set_focus(union control *ctrl, dlgparam *dp)
             break;
         }
 #endif
-        assert(!"We shouldn't get here");
-        break;
+        unreachable("bad control type in set_focus");
     }
 }
 
@@ -2730,8 +2728,7 @@ gint win_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data)
                     break;
                 }
 #endif
-                assert(!"We shouldn't get here");
-                break;
+                unreachable("bad listbox type in win_key_press");
             }
             break;
         }

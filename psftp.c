@@ -2428,14 +2428,10 @@ static bool verbose = false;
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
 
-/*
- * In psftp, all agent requests should be synchronous, so this is a
- * never-called stub.
- */
 void agent_schedule_callback(void (*callback)(void *, void *, int),
                              void *callback_ctx, void *data, int len)
 {
-    assert(!"We shouldn't be here");
+    unreachable("all PSFTP agent requests should be synchronous");
 }
 
 /*
