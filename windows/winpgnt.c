@@ -434,7 +434,7 @@ static void prompt_add_keyfile(void)
     *filelist = '\0';
     of.nMaxFile = 8192;
     of.lpstrFileTitle = NULL;
-    of.lpstrTitle = "Select Private Key File";
+    of.lpstrTitle = "选择私钥文件";
     of.Flags = OFN_ALLOWMULTISELECT | OFN_EXPLORER;
     if (request_file(keypath, &of, true, false)) {
 	if(strlen(filelist) > of.nFileOffset) {
@@ -701,7 +701,7 @@ static void update_sessions(void)
 	mii.fMask = MIIM_TYPE | MIIM_STATE;
 	mii.fType = MFT_STRING;
 	mii.fState = MFS_GRAYED;
-	mii.dwTypeData = _T("(No sessions)");
+	mii.dwTypeData = _T("(没有会话)");
 	InsertMenuItem(session_menu, index_menu, true, &mii);
     }
 }
@@ -995,8 +995,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
                 if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
                                          _T(""), SW_SHOW) <= 32) {
-                    MessageBox(NULL, "Unable to execute PuTTY!",
-                               "Error", MB_OK | MB_ICONERROR);
+                    MessageBox(NULL, "无法执行 PuTTY！",
+                               "错误", MB_OK | MB_ICONERROR);
                 }
             }
 	    break;

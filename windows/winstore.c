@@ -19,7 +19,7 @@
 #endif
 
 static const char *const reg_jumplist_key = PUTTY_REG_POS "\\Jumplist";
-static const char *const reg_jumplist_value = "Recent sessions";
+static const char *const reg_jumplist_value = "最近会话";
 static const char *const puttystr = PUTTY_REG_POS "\\Sessions";
 
 static bool tried_shgetfolderpath = false;
@@ -40,7 +40,7 @@ settings_w *open_settings_w(const char *sessionname, char **errmsg)
     *errmsg = NULL;
 
     if (!sessionname || !*sessionname)
-	sessionname = "Default Settings";
+	sessionname = "默认设置";
 
     sb = strbuf_new();
     escape_registry_key(sessionname, sb);
@@ -48,14 +48,14 @@ settings_w *open_settings_w(const char *sessionname, char **errmsg)
     ret = RegCreateKey(HKEY_CURRENT_USER, puttystr, &subkey1);
     if (ret != ERROR_SUCCESS) {
 	strbuf_free(sb);
-        *errmsg = dupprintf("Unable to create registry key\n"
+        *errmsg = dupprintf("无法创建注册表主键\n"
                             "HKEY_CURRENT_USER\\%s", puttystr);
 	return NULL;
     }
     ret = RegCreateKey(subkey1, sb->s, &sesskey);
     RegCloseKey(subkey1);
     if (ret != ERROR_SUCCESS) {
-        *errmsg = dupprintf("Unable to create registry key\n"
+        *errmsg = dupprintf("无法创建注册表主键\n"
                             "HKEY_CURRENT_USER\\%s\\%s", puttystr, sb->s);
 	strbuf_free(sb);
 	return NULL;
@@ -97,7 +97,7 @@ settings_r *open_settings_r(const char *sessionname)
     strbuf *sb;
 
     if (!sessionname || !*sessionname)
-	sessionname = "Default Settings";
+	sessionname = "默认设置";
 
     sb = strbuf_new();
     escape_registry_key(sessionname, sb);

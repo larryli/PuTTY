@@ -378,8 +378,8 @@ static void start_backend(void)
      */
     vt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     if (!vt) {
-	char *str = dupprintf("%s Internal Error", appname);
-	MessageBox(NULL, "Unsupported protocol number found",
+	char *str = dupprintf("%s 内部错误", appname);
+	MessageBox(NULL, "发现不支持的协议号",
 		   str, MB_OK | MB_ICONEXCLAMATION);
 	sfree(str);
 	cleanup_exit(1);
@@ -392,8 +392,8 @@ static void start_backend(void)
                          conf_get_bool(conf, CONF_tcp_nodelay),
                          conf_get_bool(conf, CONF_tcp_keepalives));
     if (error) {
-	char *str = dupprintf("%s Error", appname);
-        char *msg = dupprintf("Unable to open connection to\n%s\n%s",
+	char *str = dupprintf("%s 错误", appname);
+        char *msg = dupprintf("无法打开到\n%s 的连接\n%s",
                               conf_dest(conf), error);
 	MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
 	sfree(str);
@@ -443,7 +443,7 @@ static void close_session(void *ignored_context)
     int i;
 
     session_closed = true;
-    newtitle = dupprintf("%s (inactive)", appname);
+    newtitle = dupprintf("%s (不活动的)", appname);
     win_set_icon_title(wintw, newtitle);
     win_set_title(wintw, newtitle);
     sfree(newtitle);
@@ -659,9 +659,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 		    pgp_fingerprints();
 		    exit(1);
 		} else if (*p != '-') {
-		    cmdline_error("unexpected argument \"%s\"", p);
+		    cmdline_error("意外的参数 \"%s\"", p);
 		} else {
-		    cmdline_error("unknown option \"%s\"", p);
+		    cmdline_error("未知选项 \"%s\"", p);
 		}
 	    }
 	}
@@ -833,8 +833,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 	popup_menus[SYSMENU].menu = GetSystemMenu(hwnd, false);
 	popup_menus[CTXMENU].menu = CreatePopupMenu();
-	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_COPY, "&Copy");
-	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "&Paste");
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_COPY, "复制(&C)");
+	AppendMenu(popup_menus[CTXMENU].menu, MF_ENABLED, IDM_PASTE, "粘贴(&P)");
 
 	savedsess_menu = CreateMenu();
 	get_sesslist(&sesslist, true);
@@ -1199,7 +1199,7 @@ static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
  */
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
-    char *title = dupprintf("%s Fatal Error", appname);
+    char *title = dupprintf("%s 致命错误", appname);
     MessageBox(hwnd, msg, title, MB_ICONERROR | MB_OK);
     sfree(title);
 
@@ -2195,10 +2195,10 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 	{
 	    char *str;
 	    show_mouseptr(true);
-	    str = dupprintf("%s Exit Confirmation", appname);
+	    str = dupprintf("%s 退出确认", appname);
 	    if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
 		MessageBox(hwnd,
-			   "Are you sure you want to close this session?",
+			   "确定要关闭本会话么？",
 			   str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
 		== IDOK)
 		DestroyWindow(hwnd);
@@ -5402,7 +5402,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
-    title = dupprintf("%s Fatal Error", appname);
+    title = dupprintf("%s 致命错误", appname);
     MessageBox(hwnd, message, title, MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(message);
     sfree(title);
@@ -5420,7 +5420,7 @@ void nonfatal(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
-    title = dupprintf("%s Error", appname);
+    title = dupprintf("%s 错误", appname);
     MessageBox(hwnd, message, title, MB_ICONERROR | MB_OK);
     sfree(message);
     sfree(title);

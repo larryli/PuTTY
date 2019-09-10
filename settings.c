@@ -1021,8 +1021,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
     gppb(sesskey, "PassiveTelnet", false, conf, CONF_passive_telnet);
     gppb(sesskey, "BackspaceIsDelete", true, conf, CONF_bksp_is_delete);
     gppb(sesskey, "RXVTHomeEnd", false, conf, CONF_rxvt_homeend);
-    gppi(sesskey, "LinuxFunctionKeys", 0, conf, CONF_funky_type);
-    gppb(sesskey, "NoApplicationKeys", false, conf, CONF_no_applic_k);
+    gppi(sesskey, "LinuxFunctionKeys", 2, conf, CONF_funky_type);
+    gppb(sesskey, "NoApplicationKeys", true, conf, CONF_no_applic_k);
     gppb(sesskey, "NoApplicationCursors", false, conf, CONF_no_applic_c);
     gppb(sesskey, "NoMouseReporting", false, conf, CONF_no_mouse_rep);
     gppb(sesskey, "NoRemoteResize", false, conf, CONF_no_remote_resize);
@@ -1093,7 +1093,7 @@ void load_open_settings(settings_r *sesskey, Conf *conf)
 		 / 1000
 #endif
 		 );
-    gppi(sesskey, "ScrollbackLines", 2000, conf, CONF_savelines);
+    gppi(sesskey, "ScrollbackLines", 9999, conf, CONF_savelines);
     gppb(sesskey, "DECOriginMode", false, conf, CONF_dec_om);
     gppb(sesskey, "AutoWrapMode", true, conf, CONF_wrap_mode);
     gppb(sesskey, "LFImpliesCR", false, conf, CONF_lfhascr);

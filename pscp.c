@@ -2173,42 +2173,42 @@ static void get_dir_list(int argc, char *argv[])
  */
 static void usage(void)
 {
-    printf("PuTTY Secure Copy client\n");
+    printf("PuTTY 安全拷贝客户端\n");
     printf("%s\n", ver);
-    printf("Usage: pscp [options] [user@]host:source target\n");
+    printf("用法: pscp [选项] [用户@]主机:源 目标\n");
     printf
-	("       pscp [options] source [source...] [user@]host:target\n");
-    printf("       pscp [options] -ls [user@]host:filespec\n");
-    printf("Options:\n");
-    printf("  -V        print version information and exit\n");
-    printf("  -pgpfp    print PGP key fingerprints and exit\n");
-    printf("  -p        preserve file attributes\n");
-    printf("  -q        quiet, don't show statistics\n");
-    printf("  -r        copy directories recursively\n");
-    printf("  -v        show verbose messages\n");
-    printf("  -load sessname  Load settings from saved session\n");
-    printf("  -P port   connect to specified port\n");
-    printf("  -l user   connect with specified username\n");
-    printf("  -pw passw login with specified password\n");
-    printf("  -1 -2     force use of particular SSH protocol version\n");
-    printf("  -4 -6     force use of IPv4 or IPv6\n");
-    printf("  -C        enable compression\n");
-    printf("  -i key    private key file for user authentication\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+	("       pscp [选项] 源 [其他源...] [用户@]主机:目标\n");
+    printf("       pscp [选项] -ls [用户@]主机:指定文件\n");
+    printf("选项:\n");
+    printf("  -V        显示版本信息后退出\n");
+    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
+    printf("  -p        保留文件属性\n");
+    printf("  -q        安静模式，不显示状态信息\n");
+    printf("  -r        递归拷贝目录\n");
+    printf("  -v        显示详细信息\n");
+    printf("  -load 会话名  载入保存的会话信息\n");
+    printf("  -P 端口   连接指定的端口\n");
+    printf("  -l 用户   使用指定的用户名连接\n");
+    printf("  -pw 密码  使用指定的密码登录\n");
+    printf("  -1 -2     强制使用 SSH 协议版本\n");
+    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
+    printf("  -C        允许压缩\n");
+    printf("  -i 密钥   认证使用的密钥文件\n");
+    printf("  -noagent  禁用 Pageant 认证代理\n");
+    printf("  -agent    启用 Pageant 认证代理\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            manually specify a host key (may be repeated)\n");
-    printf("  -batch    disable all interactive prompts\n");
-    printf("  -no-sanitise-stderr  don't strip control chars from"
-           " standard error\n");
-    printf("  -proxycmd command\n");
-    printf("            use 'command' as local proxy\n");
-    printf("  -unsafe   allow server-side wildcards (DANGEROUS)\n");
-    printf("  -sftp     force use of SFTP protocol\n");
-    printf("  -scp      force use of SCP protocol\n");
-    printf("  -sshlog file\n");
-    printf("  -sshrawlog file\n");
-    printf("            log protocol details to a file\n");
+    printf("            手动指定主机密钥 (可能重复)\n");
+    printf("  -batch    禁止所有交互提示\n");
+    printf("  -no-sanitise-stderr  不要从标准错误中删除"
+           "控制字符\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
+    printf("  -unsafe   允许服务端通配符 (危险操作)\n");
+    printf("  -sftp     强制使用 SFTP 协议\n");
+    printf("  -scp      强制使用 SCP 协议\n");
+    printf("  -sshlog 文件\n");
+    printf("  -sshrawlog 文件\n");
+    printf("            记录协议详细日志到指定文件\n");
     cleanup_exit(1);
 }
 

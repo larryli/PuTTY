@@ -813,7 +813,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 {
     static const char generating_msg[] =
-	"Please wait while a key is generated...";
+	"正在生成密钥，请稍等...";
 
     struct rsa_key_thread_params *params;
     DWORD threadid;
@@ -834,8 +834,8 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
 
     if (!CreateThread(NULL, 0, generate_key_thread,
                       params, 0, &threadid)) {
-        MessageBox(hwnd, "Out of thread resources",
-                   "Key generation error",
+        MessageBox(hwnd, "创建线程发生错误",
+                   "密钥生成错误",
                    MB_OK | MB_ICONERROR);
         sfree(params);
     } else {
@@ -850,7 +850,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 				WPARAM wParam, LPARAM lParam)
 {
     static const char entropy_msg[] =
-	"Please generate some randomness by moving the mouse over the blank area.";
+	"请在空白区域移动鼠标，以便产生随机数据。";
     struct MainDlgState *state;
 
     switch (msg) {
@@ -1276,25 +1276,24 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		if (!*passphrase) {
 		    int ret;
 		    ret = MessageBox(hwnd,
-				     "Are you sure you want to save this key\n"
-				     "without a passphrase to protect it?",
-				     "PuTTYgen Warning",
+				     "确定不给该密钥设置密码保护么？",
+				     "PuTTYgen 警告",
 				     MB_YESNO | MB_ICONWARNING);
 		    if (ret != IDYES) {
                         burnstr(passphrase);
                         break;
                     }
 		}
-		if (prompt_keyfile(hwnd, "Save private key as:",
+		if (prompt_keyfile(hwnd, "保存私钥为：",
 				   filename, true, (type == realtype))) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
 			char *buffer;
 			fclose(fp);
-			buffer = dupprintf("Overwrite existing file\n%s?",
+			buffer = dupprintf("覆盖已存在的文件\n%s?",
 					   filename);
-			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
+			ret = MessageBox(hwnd, buffer, "PuTTYgen 警告",
 					 MB_YESNO | MB_ICONWARNING);
 			sfree(buffer);
 			if (ret != IDYES) {
@@ -1339,16 +1338,16 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (state->key_exists) {
 		char filename[FILENAME_MAX];
-		if (prompt_keyfile(hwnd, "Save public key as:",
+		if (prompt_keyfile(hwnd, "保存公钥为：",
 				   filename, true, false)) {
 		    int ret;
 		    FILE *fp = fopen(filename, "r");
 		    if (fp) {
 			char *buffer;
 			fclose(fp);
-			buffer = dupprintf("Overwrite existing file\n%s?",
+			buffer = dupprintf("覆盖已存在的文件\n%s?",
 					   filename);
-			ret = MessageBox(hwnd, buffer, "PuTTYgen Warning",
+			ret = MessageBox(hwnd, buffer, "PuTTYgen 警告",
 					 MB_YESNO | MB_ICONWARNING);
 			sfree(buffer);
 			if (ret != IDYES)
@@ -1356,8 +1355,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		    }
                     fp = fopen(filename, "w");
                     if (!fp) {
-                        MessageBox(hwnd, "Unable to open key file",
-                                   "PuTTYgen Error", MB_OK | MB_ICONERROR);
+                        MessageBox(hwnd, "无法打开密钥文件",
+                                   "PuTTYgen 错误", MB_OK | MB_ICONERROR);
                     } else {
                         if (state->ssh2) {
                             strbuf *blob = strbuf_new();
@@ -1386,7 +1385,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 		(struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
 	    if (!state->generation_thread_exists) {
 		char filename[FILENAME_MAX];
-		if (prompt_keyfile(hwnd, "Load private key:", filename, false,
+		if (prompt_keyfile(hwnd, "载入私钥：", filename, false,
                                    LOWORD(wParam) == IDC_LOAD)) {
                     Filename *fn = filename_from_str(filename);
 		    load_key_file(hwnd, state, fn, LOWORD(wParam) != IDC_LOAD);

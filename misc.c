@@ -218,24 +218,24 @@ char *buildinfo(const char *newline)
 {
     strbuf *buf = strbuf_new();
 
-    strbuf_catf(buf, "Build platform: %d-bit %s",
+    strbuf_catf(buf, "构建平台: %d 位 %s",
                 (int)(CHAR_BIT * sizeof(void *)),
                 BUILDINFO_PLATFORM);
 
 #ifdef __clang_version__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: clang %s", newline, __clang_version__);
+    strbuf_catf(buf, "%编译器: clang %s", newline, __clang_version__);
 #elif defined __GNUC__ && defined __VERSION__
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: gcc %s", newline, __VERSION__);
+    strbuf_catf(buf, "%编译器: gcc %s", newline, __VERSION__);
 #endif
 
 #if defined _MSC_VER
 #ifndef FOUND_COMPILER
 #define FOUND_COMPILER
-    strbuf_catf(buf, "%sCompiler: ", newline);
+    strbuf_catf(buf, "%编译器: ", newline);
 #else
-    strbuf_catf(buf, ", emulating ");
+    strbuf_catf(buf, ", 模拟的 ");
 #endif
     strbuf_catf(buf, "Visual Studio", newline);
 #if _MSC_VER == 1900
@@ -266,7 +266,7 @@ char *buildinfo(const char *newline)
     {
         char *gtk_buildinfo = buildinfo_gtk_version();
         if (gtk_buildinfo) {
-            strbuf_catf(buf, "%sCompiled against GTK version %s",
+            strbuf_catf(buf, "%s针对 GTK 版本编译 %s",
                         newline, gtk_buildinfo);
             sfree(gtk_buildinfo);
         }
@@ -276,13 +276,13 @@ char *buildinfo(const char *newline)
     {
         int echm = has_embedded_chm();
         if (echm >= 0)
-            strbuf_catf(buf, "%sEmbedded HTML Help file: %s", newline,
-                        echm ? "yes" : "no");
+            strbuf_catf(buf, "%s嵌入式 HTML 帮助文件: %s", newline,
+                        echm ? "是" : "否");
     }
 #endif
 
 #if defined _WINDOWS && defined MINEFIELD
-    strbuf_catf(buf, "%sBuild option: MINEFIELD", newline);
+    strbuf_catf(buf, "%s构建选项: MINEFIELD", newline);
 #endif
 #ifdef NO_SECURITY
     strbuf_catf(buf, "%s构建选项: NO_SECURITY", newline);
@@ -357,5 +357,5 @@ void sk_free_peer_info(SocketPeerInfo *pi)
 
 void out_of_memory(void)
 {
-    modalfatalbox("Out of memory");
+    modalfatalbox("内存不足");
 }

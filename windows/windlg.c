@@ -49,7 +49,7 @@ static char *events_initial[LOGEVENT_INITIAL_MAX];
 static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
-#define PRINTER_DISABLED_STRING "None (printing disabled)"
+#define PRINTER_DISABLED_STRING "无 (禁止打印)"
 
 void force_normal(HWND hwnd)
 {
@@ -703,8 +703,8 @@ bool do_config(void)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Configuration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
+    dp.wintitle = dupprintf("%s 配置", appname);
+    dp.errtitle = dupprintf("%s 错误", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
@@ -738,8 +738,8 @@ bool do_reconfig(HWND hwnd, int protcfginfo)
     winctrl_init(&ctrls_panel);
     dp_add_tree(&dp, &ctrls_base);
     dp_add_tree(&dp, &ctrls_panel);
-    dp.wintitle = dupprintf("%s Reconfiguration", appname);
-    dp.errtitle = dupprintf("%s Error", appname);
+    dp.wintitle = dupprintf("%s 重新配置", appname);
+    dp.errtitle = dupprintf("%s 错误", appname);
     dp.data = conf;
     dlg_auto_set_fixed_pitch_flag(&dp);
     dp.shortcuts['g'] = true;	       /* the treeview: `Cate&gory' */
@@ -907,12 +907,11 @@ int win_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
-	"The first %s supported by the server\n"
-	"is %s, which is below the configured\n"
-	"warning threshold.\n"
-	"Do you want to continue with this connection?\n";
+	"服务器支持的第一个 %s\n"
+	"是 %.64s，其低于配置的警告阀值。\n"
+	"你要继续连接么？\n";
     char *message, *title;
     int mbret;
 
@@ -933,14 +932,14 @@ int win_seat_confirm_weak_cached_hostkey(
     Seat *seat, const char *algname, const char *betteralgs,
     void (*callback)(void *ctx, int result), void *ctx)
 {
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
     static const char msg[] =
-	"The first host key type we have stored for this server\n"
-	"is %s, which is below the configured warning threshold.\n"
-	"The server also provides the following types of host key\n"
-        "above the threshold, which we do not have stored:\n"
+	"我们储存的此服务器第一个主机密钥类型\n"
+	"为 %s，其低于配置的警告阀值。\n"
+	"此服务器同时也提供有我们没有储存的高\n"
+        "于阀值的下列主机密钥类型：\n"
         "%s\n"
-	"Do you want to continue with this connection?\n";
+	"你要继续连接么？\n";
     char *message, *title;
     int mbret;
 
@@ -966,12 +965,12 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
                              void *ctx)
 {
     static const char msgtemplate[] =
-	"The session log file \"%.*s\" already exists.\n"
-	"You can overwrite it with a new session log,\n"
-	"append your session log to the end of it,\n"
-	"or disable session logging for this session.\n"
-	"Hit Yes to wipe the file, No to append to it,\n"
-	"or Cancel to disable logging.";
+	"会话日志文件 \"%.*s\" 已经存在。\n"
+	"你可以使用新会话日志覆盖旧文件，\n"
+	"或者在旧日志文件结尾增加新日志，\n"
+	"或在此会话中禁止日志记录。\n"
+	"点击是覆盖为新文件，否附加到旧文件，\n"
+	"或者点击取消禁止日志记录。";
     char *message;
     char *mbtitle;
     int mbret;

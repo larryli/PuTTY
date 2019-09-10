@@ -156,8 +156,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
 	    }
 	}
     }
-    ctrl_filesel(s, "Custom sound file to play as a bell:", NO_SHORTCUT,
-		 FILTER_WAVE_FILES, false, "Select bell sound file",
+    ctrl_filesel(s, "响铃时播放的声音文件：", NO_SHORTCUT,
+		 FILTER_WAVE_FILES, false, "选择声音文件",
 		 HELPCTX(bell_style),
 		 conf_filesel_handler, I(CONF_bell_wavefile));
 
@@ -268,9 +268,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     /*
      * RTF paste is Windows-specific.
      */
-    s = ctrl_getset(b, "Window/Selection/Copy", "format",
-		    "Formatting of copied characters");
-    ctrl_checkbox(s, "Copy to clipboard in RTF as well as plain text", 'f',
+    s = ctrl_getset(b, "窗口/选择/复制", "format",
+		    "格式化复制的字符");
+    ctrl_checkbox(s, "同时复制 RTF 富文本和纯文本到剪贴板", 'f',
 		  HELPCTX(copy_rtf),
 		  conf_checkbox_handler, I(CONF_rtf_paste));
 
@@ -394,9 +394,9 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
      * means to override it.
      */
     if (!midsession && backend_vt_from_proto(PROT_SSH)) {
-	s = ctrl_getset(b, "Connection/SSH/X11", "x11", "X11 forwarding");
-	ctrl_filesel(s, "X authority file for local display", 't',
-		     NULL, false, "Select X authority file",
+	s = ctrl_getset(b, "连接/SSH/X11", "x11", "X11 映射");
+	ctrl_filesel(s, "用于本地显示的 X 认证文件(T)", 't',
+		     NULL, false, "选择 X 认证文件",
 		     HELPCTX(ssh_tunnels_xauthority),
 		     conf_filesel_handler, I(CONF_xauthfile));
     }
