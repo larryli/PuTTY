@@ -62,6 +62,6 @@ BEGIN
     BLOCK "VarFileInfo"
     BEGIN
 	/* Once again -- same meanings -- apparently necessary */
-	VALUE "Translation", 0x809, 1200
+	VALUE "Translation", 0x804, 0x4B0
     END
 END

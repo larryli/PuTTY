@@ -86,7 +86,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    char *str = dupprintf("%s Event Log", appname);
+	    char *str = dupprintf("%s 事件日志记录", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
 	}
@@ -182,7 +182,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
     switch (msg) {
       case WM_INITDIALOG:
 	{
-	    char *str = dupprintf("%s Licence", appname);
+	    char *str = dupprintf("%s 许可证", appname);
 	    SetWindowText(hwnd, str);
 	    sfree(str);
             SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
@@ -210,7 +210,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 
     switch (msg) {
       case WM_INITDIALOG:
-	str = dupprintf("About %s", appname);
+	str = dupprintf("关于 %s", appname);
 	SetWindowText(hwnd, str);
 	sfree(str);
         {
@@ -218,7 +218,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             char *text = dupprintf
                 ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
                  appname, ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, IDA_TEXT, text);
             sfree(text);
@@ -241,7 +241,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case IDA_WEB:
 	    /* Load web browser */
 	    ShellExecute(hwnd, "open",
-			 "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+			 "https://github.com/larryli/PuTTY",
 			 0, 0, SW_SHOWDEFAULT);
 	    return 0;
 	}
@@ -367,7 +367,7 @@ static void create_controls(HWND hwnd, char *path)
 	/*
 	 * Here we must create the basic standard controls.
 	 */
-	ctlposinit(&cp, hwnd, 3, 3, 235);
+	ctlposinit(&cp, hwnd, 3, 3, 240); // fix height 235
 	wc = &ctrls_base;
 	base_id = IDCX_STDBASE;
     } else {
@@ -442,7 +442,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.top = 3;
 	    r.bottom = r.top + 10;
 	    MapDialogRect(hwnd, &r);
-	    tvstatic = CreateWindowEx(0, "STATIC", "Cate&gory:",
+	    tvstatic = CreateWindowEx(0, "STATIC", "分类(&G)：",
 				      WS_CHILD | WS_VISIBLE,
 				      r.left, r.top,
 				      r.right - r.left, r.bottom - r.top,
@@ -454,7 +454,7 @@ static INT_PTR CALLBACK GenericMainDlgProc(HWND hwnd, UINT msg,
 	    r.left = 3;
 	    r.right = r.left + 95;
 	    r.top = 13;
-	    r.bottom = r.top + 219;
+	    r.bottom = r.top + 224; // fix height 219
 	    MapDialogRect(hwnd, &r);
 	    treeview = CreateWindowEx(WS_EX_CLIENTEDGE, WC_TREEVIEW, "",
 				      WS_CHILD | WS_VISIBLE |
@@ -826,36 +826,36 @@ int win_seat_verify_ssh_host_key(
     int ret;
 
     static const char absentmsg[] =
-	"The server's host key is not cached in the registry. You\n"
-	"have no guarantee that the server is the computer you\n"
-	"think it is.\n"
-	"The server's %s key fingerprint is:\n"
+	"在系统注册表缓存中没有找到该服务器密钥。\n"
+	"不能保证该服务器是能够正确访问的计算机。\n"
+	""
+	"该服务器的 %s 密钥指纹为:\n"
 	"%s\n"
-	"If you trust this host, hit Yes to add the key to\n"
-	"%s's cache and carry on connecting.\n"
-	"If you want to carry on connecting just once, without\n"
-	"adding the key to the cache, hit No.\n"
-	"If you do not trust this host, hit Cancel to abandon the\n"
-	"connection.\n";
+	"如果信任该主机，请点击 \"是\" 增加密钥到"
+	" %s 缓存中并继续连接。\n"
+	"如果仅仅只希望进行本次连接，而不"
+	"将密钥储存，请点击 \"否\"。\n"
+	"如果不信任该主机，请点击 \"取消\" 放弃"
+	"连接。\n";
 
     static const char wrongmsg[] =
-	"WARNING - POTENTIAL SECURITY BREACH!\n"
+	"**警告** - 潜在安全隐患！\n"
 	"\n"
-	"The server's host key does not match the one %s has\n"
-	"cached in the registry. This means that either the\n"
-	"server administrator has changed the host key, or you\n"
-	"have actually connected to another computer pretending\n"
-	"to be the server.\n"
-	"The new %s key fingerprint is:\n"
+	"在 %s 注册表缓存中不能匹配该服务器密钥。\n"
+	"这说明可能该服务器管理员更新了主机密钥，\n"
+	"或者更可能是连接到了一台伪装成该服务器的\n"
+	"虚假计算机系统。\n"
+	""
+	"新的 %s 密钥指纹为:\n"
 	"%s\n"
-	"If you were expecting this change and trust the new key,\n"
-	"hit Yes to update %s's cache and continue connecting.\n"
-	"If you want to carry on connecting but without updating\n"
-	"the cache, hit No.\n"
-	"If you want to abandon the connection completely, hit\n"
-	"Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
+	"如果确信该密钥被更新同意接受新的密钥，\n"
+	"请点击 \"是\" 更新 %s 缓存并继续连接。\n"
+	"如果仅仅只希望继续本次连接，而不更新\n"
+	"系统缓存，请点击 \"否\"。\n"
+	"如果希望完全放弃本次连接，请点击\n"
+	" \"取消\"。点击 \"取消\" 是**唯一**可以保证的安全" "操作。\n";
 
-    static const char mbtitle[] = "%s Security Alert";
+    static const char mbtitle[] = "%s 安全警告";
 
     /*
      * Verify the key against the registry.
@@ -1014,17 +1014,17 @@ LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "%s Key File Warning";
+    static const char mbtitle[] = "%s 密钥文件警告";
     static const char message[] =
-	"You are loading an SSH-2 private key which has an\n"
-	"old version of the file format. This means your key\n"
-	"file is not fully tamperproof. Future versions of\n"
-	"%s may stop supporting this private key format,\n"
-	"so we recommend you convert your key to the new\n"
-	"format.\n"
+	"现在载入的是一个旧版本文件格式的 SSH2\n"
+	" 私钥格式。这意味着该私钥文件不是\n"
+	"足够的安全。未来版本的 %s 可能会\n"
+	"停止支持此私钥格式，\n"
+	"建议将其转换为新的\n"
+	"格式。\n"
 	"\n"
-	"You can perform this conversion by loading the key\n"
-	"into PuTTYgen and then saving it again.";
+	"请使用 PuTTYgen 载入该密钥进行转换\n"
+	"然后保存。";
 
     char *msg, *title;
     msg = dupprintf(message, appname);

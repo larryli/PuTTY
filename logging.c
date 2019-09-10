@@ -116,7 +116,7 @@ static void logfopen_callback(void *vctx, int mode)
 		      (mode == 1 ? "Appending" : "Writing new"),
 		      (ctx->logtype == LGTYP_ASCII ? "ASCII" :
 		       ctx->logtype == LGTYP_DEBUG ? "raw" :
-		       ctx->logtype == LGTYP_PACKETS ? "SSH packets" :
+		       ctx->logtype == LGTYP_PACKETS ? "SSH °ü" :
 		       ctx->logtype == LGTYP_SSHRAW ? "SSH raw data" :
 		       "unknown"),
 		      filename_to_str(ctx->currlogfilename));

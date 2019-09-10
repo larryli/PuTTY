@@ -29,8 +29,8 @@
 #define DLGWIDTH 168
 #define STATICHEIGHT 8
 #define TITLEHEIGHT 12
-#define CHECKBOXHEIGHT 8
-#define RADIOHEIGHT 8
+#define CHECKBOXHEIGHT 9
+#define RADIOHEIGHT 9
 #define EDITHEIGHT 12
 #define LISTHEIGHT 11
 #define LISTINCREMENT 8
@@ -949,7 +949,7 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
             doctl(cp, r, "BUTTON",
                   BS_NOTIFY | WS_CHILD | WS_VISIBLE |
 		  WS_TABSTOP | BS_PUSHBUTTON,
-                  0, "&Up", upbid);
+                  0, "上(&U)", upbid);
 
             r.left = left; r.right = wid;
             r.top = cp->ypos + buttonpos + PUSHBTNHEIGHT + GAPBETWEEN;
@@ -957,7 +957,7 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
             doctl(cp, r, "BUTTON",
                   BS_NOTIFY | WS_CHILD | WS_VISIBLE |
 		  WS_TABSTOP | BS_PUSHBUTTON,
-                  0, "&Down", dnbid);
+                  0, "下(&D)", dnbid);
 
             break;
 
@@ -1643,7 +1643,7 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
 				      ctrl->fileselect.shortcut);
 	    shortcuts[nshortcuts++] = ctrl->fileselect.shortcut;
 	    editbutton(&pos, escaped, base_id, base_id+1,
-		       "Bro&wse...", base_id+2);
+		       "浏览(&W)", base_id+2);
 	    shortcuts[nshortcuts++] = 'w';
 	    sfree(escaped);
 	    break;
@@ -1924,7 +1924,7 @@ bool winctrl_handle_command(struct dlgparam *dp, UINT msg,
 	    if (ctrl->fileselect.filter)
 		of.lpstrFilter = ctrl->fileselect.filter;
 	    else
-		of.lpstrFilter = "All Files (*.*)\0*\0\0\0";
+		of.lpstrFilter = "所有文件 (*.*)\0*\0\0\0";
 	    of.lpstrCustomFilter = NULL;
 	    of.nFilterIndex = 1;
 	    of.lpstrFile = filename;
@@ -2314,11 +2314,11 @@ void dlg_fontsel_set(union control *ctrl, dlgparam *dp, FontSpec *fs)
 
     boldstr = (fs->isbold ? "bold, " : "");
     if (fs->height == 0)
-	buf = dupprintf("Font: %s, %sdefault height", fs->name, boldstr);
+	buf = dupprintf("字体: %s, %s默认高度", fs->name, boldstr);
     else
-	buf = dupprintf("Font: %s, %s%d-%s", fs->name, boldstr,
+	buf = dupprintf("字体: %s, %s%d %s", fs->name, boldstr,
 			(fs->height < 0 ? -fs->height : fs->height),
-			(fs->height < 0 ? "pixel" : "point"));
+			(fs->height < 0 ? "像素" : "点"));
     SetDlgItemText(dp->hwnd, c->base_id+1, buf);
     sfree(buf);
 

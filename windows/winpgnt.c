@@ -79,7 +79,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, buf, "Pageant Fatal Error",
+    MessageBox(hwnd, buf, "Pageant 致命错误",
 	       MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -130,7 +130,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             char *text = dupprintf
                 ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
                  ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+                 "(C) " SHORT_COPYRIGHT_DETAILS ". 保留所有权利。");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
             sfree(text);
@@ -152,7 +152,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case 102:
 	    /* Load web browser */
 	    ShellExecute(hwnd, "open",
-			 "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+			 "https://github.com/larryli/PuTTY",
 			 0, 0, SW_SHOWDEFAULT);
 	    return 0;
 	}
@@ -236,17 +236,17 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
  */
 void old_keyfile_warning(void)
 {
-    static const char mbtitle[] = "PuTTY Key File Warning";
+    static const char mbtitle[] = "PuTTY 密钥文件警告";
     static const char message[] =
-	"You are loading an SSH-2 private key which has an\n"
-	"old version of the file format. This means your key\n"
-	"file is not fully tamperproof. Future versions of\n"
-	"PuTTY may stop supporting this private key format,\n"
-	"so we recommend you convert your key to the new\n"
-	"format.\n"
+	"现在载入的是一个旧版本文件格式的 SSH2\n"
+	" 私钥格式。这意味着该私钥文件不是\n"
+	"足够的安全。未来版本的 PuTTY 可能会\n"
+	"停止对该私钥格式的支持。\n"
+	"建议将其转换为新的\n"
+	"格式。\n"
 	"\n"
-	"You can perform this conversion by loading the key\n"
-	"into PuTTYgen and then saving it again.";
+	"请使用 PuTTYgen 载入该密钥进行转换\n"
+	"然后保存。";
 
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
@@ -640,7 +640,7 @@ static BOOL AddTrayIcon(HWND hwnd)
     tnid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     tnid.uCallbackMessage = WM_SYSTRAY;
     tnid.hIcon = hicon = LoadIcon(hinst, MAKEINTRESOURCE(201));
-    strcpy(tnid.szTip, "Pageant (PuTTY authentication agent)");
+    strcpy(tnid.szTip, "Pageant (PuTTY 认证代理)");
 
     res = Shell_NotifyIcon(NIM_ADD, &tnid);
 
@@ -1066,7 +1066,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 		    strcat(param, mii.dwTypeData);
 		    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
 					 _T(""), SW_SHOW) <= 32) {
-			MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+			MessageBox(NULL, "无法执行 PuTTY！", "错误",
 				   MB_OK | MB_ICONERROR);
 		    }
 		}
@@ -1165,16 +1165,16 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 	 */
         if (!got_advapi()) {
 	    MessageBox(NULL,
-		       "Unable to access security APIs. Pageant will\n"
-		       "not run, in case it causes a security breach.",
-		       "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+		       "无法访问安全认证 API 函数。\nPageant"
+		       "无法运行，因为存在安全隐患。",
+		       "Pageant 致命错误", MB_ICONERROR | MB_OK);
 	    return 1;
 	}
 #else
 	MessageBox(NULL,
-		   "This program has been compiled for Win9X and will\n"
-		   "not run on NT, in case it causes a security breach.",
-		   "Pageant Fatal Error", MB_ICONERROR | MB_OK);
+		   "本程序在 Win9x 下编译，无法运行在 NT 系统。\n"
+		   "因为存在安全隐患。",
+		   "Pageant 致命错误", MB_ICONERROR | MB_OK);
 	return 1;
 #endif
     }
@@ -1277,7 +1277,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     if (already_running) {
 	if (!command && !added_keys) {
-	    MessageBox(NULL, "Pageant is already running", "Pageant Error",
+	    MessageBox(NULL, "Pageant 已经运行了", "Pageant 错误",
 		       MB_ICONERROR | MB_OK);
 	}
 	return 0;
@@ -1312,20 +1312,20 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     systray_menu = CreatePopupMenu();
     if (putty_path) {
 	session_menu = CreateMenu();
-	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "&New Session");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_PUTTY, "新会话(&N)");
 	AppendMenu(systray_menu, MF_POPUP | MF_ENABLED,
-		   (UINT_PTR) session_menu, "&Saved Sessions");
+		   (UINT_PTR) session_menu, "保存会话(&S)");
 	AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     }
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
-	   "&View Keys");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+	   "查看密钥(&V)");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "增加密钥(&K)");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
-	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
-    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "&About");
+	AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "帮助(&H)");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ABOUT, "关于(&A)");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
-    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "E&xit");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_CLOSE, "退出(&X)");
     initial_menuitems_count = GetMenuItemCount(session_menu);
 
     /* Set the default menu item. */

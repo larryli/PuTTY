@@ -23,7 +23,7 @@ static void serial_parity_handler(union control *ctrl, dlgparam *dlg,
 	const char *name;
 	int val;
     } parities[] = {
-	{"None", SER_PAR_NONE},
+	{"无", SER_PAR_NONE},
 	{"Odd", SER_PAR_ODD},
 	{"Even", SER_PAR_EVEN},
 	{"Mark", SER_PAR_MARK},
@@ -78,7 +78,7 @@ static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
 	const char *name;
 	int val;
     } flows[] = {
-	{"None", SER_FLOW_NONE},
+	{"无", SER_FLOW_NONE},
 	{"XON/XOFF", SER_FLOW_XONXOFF},
 	{"RTS/CTS", SER_FLOW_RTSCTS},
 	{"DSR/DTR", SER_FLOW_DSRDTR},
@@ -137,19 +137,21 @@ void ser_setup_config_box(struct controlbox *b, bool midsession,
 	 * Add the serial back end to the protocols list at the
 	 * top of the config box.
 	 */
-	s = ctrl_getset(b, "Session", "hostport",
-			"Specify the destination you want to connect to");
+	s = ctrl_getset(b, "会话", "hostport",
+			"指定要连接的目的地址");
 
         for (i = 0; i < s->ncontrols; i++) {
             c = s->ctrls[i];
 	    if (c->generic.type == CTRL_RADIO &&
 		c->generic.handler == config_protocolbuttons_handler) {
 		c->radio.nbuttons++;
-		c->radio.ncolumns++;
+		if (c->radio.ncolumns < 4) {
+		    c->radio.ncolumns++;
+		}
 		c->radio.buttons =
 		    sresize(c->radio.buttons, c->radio.nbuttons, char *);
 		c->radio.buttons[c->radio.nbuttons-1] =
-		    dupstr("Serial");
+		    dupstr("串口(R)");
 		c->radio.buttondata =
 		    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
 		c->radio.buttondata[c->radio.nbuttons-1] = I(PROT_SERIAL);
@@ -166,8 +168,8 @@ void ser_setup_config_box(struct controlbox *b, bool midsession,
      * Entirely new Connection/Serial panel for serial port
      * configuration.
      */
-    ctrl_settitle(b, "Connection/Serial",
-		  "Options controlling local serial lines");
+    ctrl_settitle(b, "连接/串口",
+		  "本地串口设置");
 
     if (!midsession) {
 	/*
@@ -175,30 +177,30 @@ void ser_setup_config_box(struct controlbox *b, bool midsession,
 	 * midflight, although we do allow all other
 	 * reconfiguration.
 	 */
-	s = ctrl_getset(b, "Connection/Serial", "serline",
-			"Select a serial line");
-	ctrl_editbox(s, "Serial line to connect to", 'l', 40,
+	s = ctrl_getset(b, "连接/串口", "serline",
+			"选择一个串口");
+	ctrl_editbox(s, "连接到的串口(L)", 'l', 40,
 		     HELPCTX(serial_line),
 		     conf_editbox_handler, I(CONF_serline), I(1));
     }
 
-    s = ctrl_getset(b, "Connection/Serial", "sercfg", "Configure the serial line");
-    ctrl_editbox(s, "Speed (baud)", 's', 40,
+    s = ctrl_getset(b, "连接/串口", "sercfg", "配置串口");
+    ctrl_editbox(s, "速度/波特率(S)", 's', 40,
 		 HELPCTX(serial_speed),
 		 conf_editbox_handler, I(CONF_serspeed), I(-1));
-    ctrl_editbox(s, "Data bits", 'b', 40,
+    ctrl_editbox(s, "数据位(B)", 'b', 40,
 		 HELPCTX(serial_databits),
 		 conf_editbox_handler, I(CONF_serdatabits), I(-1));
     /*
      * Stop bits come in units of one half.
      */
-    ctrl_editbox(s, "Stop bits", 't', 40,
+    ctrl_editbox(s, "停止位(T)", 't', 40,
 		 HELPCTX(serial_stopbits),
 		 conf_editbox_handler, I(CONF_serstopbits), I(-2));
-    ctrl_droplist(s, "Parity", 'p', 40,
+    ctrl_droplist(s, "奇偶校验位(P)", 'p', 40,
 		  HELPCTX(serial_parity),
 		  serial_parity_handler, I(parity_mask));
-    ctrl_droplist(s, "Flow control", 'f', 40,
+    ctrl_droplist(s, "流量控制(F)", 'f', 40,
 		  HELPCTX(serial_flow),
 		  serial_flow_handler, I(flow_mask));
 }
