@@ -448,29 +448,6 @@ int main(int argc, char **argv)
         lp_eventlog(default_logpolicy, "Running with restricted process ACL");
     }
 
-    /*
-     * Start up the connection.
-     */
-    netevent = CreateEvent(NULL, false, false, NULL);
-    {
-        const char *error;
-        char *realhost;
-        /* nodelay is only useful if stdin is a character device (console) */
-        bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
-            (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
-
-        error = backend_init(vt, plink_seat, &backend, logctx, conf,
-                             conf_get_str(conf, CONF_host),
-                             conf_get_int(conf, CONF_port),
-                             &realhost, nodelay,
-                             conf_get_bool(conf, CONF_tcp_keepalives));
-        if (error) {
-            fprintf(stderr, "Unable to open connection:\n%s", error);
-            return 1;
-        }
-        sfree(realhost);
-    }
-
     inhandle = GetStdHandle(STD_INPUT_HANDLE);
     outhandle = GetStdHandle(STD_OUTPUT_HANDLE);
     errhandle = GetStdHandle(STD_ERROR_HANDLE);
@@ -520,6 +497,29 @@ int main(int argc, char **argv)
          conf_get_bool(conf, CONF_nopty))) {
         stderr_scc = stripctrl_new(stderr_bs, true, L'\0');
         stderr_bs = BinarySink_UPCAST(stderr_scc);
+    }
+
+    /*
+     * Start up the connection.
+     */
+    netevent = CreateEvent(NULL, false, false, NULL);
+    {
+        const char *error;
+        char *realhost;
+        /* nodelay is only useful if stdin is a character device (console) */
+        bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
+            (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
+
+        error = backend_init(vt, plink_seat, &backend, logctx, conf,
+                             conf_get_str(conf, CONF_host),
+                             conf_get_int(conf, CONF_port),
+                             &realhost, nodelay,
+                             conf_get_bool(conf, CONF_tcp_keepalives));
+        if (error) {
+            fprintf(stderr, "Unable to open connection:\n%s", error);
+            return 1;
+        }
+        sfree(realhost);
     }
 
     main_thread_id = GetCurrentThreadId();
