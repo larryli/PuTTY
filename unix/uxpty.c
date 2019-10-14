@@ -1134,7 +1134,7 @@ Backend *pty_backend_create(
             for (val = conf_get_str_strs(conf, CONF_environmt, NULL, &key);
                  val != NULL;
                  val = conf_get_str_strs(conf, CONF_environmt, key, &key)) {
-                char *varval = dupcat(key, "=", val, NULL);
+                char *varval = dupcat(key, "=", val);
                 putenv(varval);
                 /*
                  * We must not free varval, since putenv links it

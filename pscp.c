@@ -120,7 +120,7 @@ static void tell_user(FILE *stream, const char *fmt, ...)
     va_start(ap, fmt);
     str = dupvprintf(fmt, ap);
     va_end(ap);
-    str2 = dupcat(str, "\n", NULL);
+    str2 = dupcat(str, "\n");
     sfree(str);
     abandon_stats();
     tell_str(stream, str2);
@@ -231,7 +231,7 @@ static NORETURN void bump(const char *fmt, ...)
     va_start(ap, fmt);
     str = dupvprintf(fmt, ap);
     va_end(ap);
-    str2 = dupcat(str, "\n", NULL);
+    str2 = dupcat(str, "\n");
     sfree(str);
     abandon_stats();
     tell_str(stderr, str2);
@@ -762,7 +762,7 @@ int scp_send_filename(const char *name, uint64_t size, int permissions)
         struct fxp_attrs attrs;
 
         if (scp_sftp_targetisdir) {
-            fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
+            fullname = dupcat(scp_sftp_remotepath, "/", name);
         } else {
             fullname = dupstr(scp_sftp_remotepath);
         }
@@ -917,7 +917,7 @@ int scp_send_dirname(const char *name, int modes)
         bool ret;
 
         if (scp_sftp_targetisdir) {
-            fullname = dupcat(scp_sftp_remotepath, "/", name, NULL);
+            fullname = dupcat(scp_sftp_remotepath, "/", name);
         } else {
             fullname = dupstr(scp_sftp_remotepath);
         }
@@ -1128,8 +1128,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
             if (head->namepos < head->namelen) {
                 head->matched_something = true;
                 fname = dupcat(head->dirpath, "/",
-                               head->names[head->namepos++].filename,
-                               NULL);
+                               head->names[head->namepos++].filename);
                 must_free_fname = true;
             } else {
                 /*
@@ -1549,7 +1548,7 @@ static void run_err(const char *fmt, ...)
     va_start(ap, fmt);
     errs++;
     str = dupvprintf(fmt, ap);
-    str2 = dupcat("pscp: ", str, "\n", NULL);
+    str2 = dupcat("pscp: ", str, "\n");
     sfree(str);
     scp_send_errmsg(str2);
     abandon_stats();
@@ -1697,7 +1696,7 @@ static void rsource(const char *src)
     if (dir != NULL) {
         char *filename;
         while ((filename = read_filename(dir)) != NULL) {
-            char *foundfile = dupcat(src, "/", filename, NULL);
+            char *foundfile = dupcat(src, "/", filename);
             source(foundfile);
             sfree(foundfile);
             sfree(filename);

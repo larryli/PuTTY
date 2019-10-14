@@ -1200,9 +1200,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
             if (better) {
                 if (betteralgs) {
                     char *old_ba = betteralgs;
-                    betteralgs = dupcat(betteralgs, ",",
-                                        hktype->alg->ssh_id,
-                                        (const char *)NULL);
+                    betteralgs = dupcat(betteralgs, ",", hktype->alg->ssh_id);
                     sfree(old_ba);
                 } else {
                     betteralgs = dupstr(hktype->alg->ssh_id);

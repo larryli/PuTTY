@@ -490,8 +490,7 @@ static void write_clip_setting(settings_w *sesskey, const char *savekey,
         break;
       case CLIPUI_CUSTOM:
         {
-            char *sval = dupcat("custom:", conf_get_str(conf, strconfkey),
-                                (const char *)NULL);
+            char *sval = dupcat("custom:", conf_get_str(conf, strconfkey));
             write_setting_s(sesskey, savekey, sval);
             sfree(sval);
         }

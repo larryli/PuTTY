@@ -249,7 +249,7 @@ char *dupstr(const char *s)
 }
 
 /* Allocate the concatenation of N strings. Terminate arg list with NULL. */
-char *dupcat(const char *s1, ...)
+char *dupcat_fn(const char *s1, ...)
 {
     int len;
     char *p, *q, *sn;

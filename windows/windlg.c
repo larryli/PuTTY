@@ -776,7 +776,7 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
     if (*location)
         sfree(*location);
-    *location = dupcat(timebuf, string, (const char *)NULL);
+    *location = dupcat(timebuf, string);
     if (logbox) {
         int count;
         SendDlgItemMessage(logbox, IDN_LIST, LB_ADDSTRING,

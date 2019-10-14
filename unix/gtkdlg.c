@@ -3654,7 +3654,7 @@ void old_keyfile_warning(void)
 
 void nonfatal_message_box(void *window, const char *msg)
 {
-    char *title = dupcat(appname, " Error", NULL);
+    char *title = dupcat(appname, " Error");
     create_message_box(
         window, title, msg,
         string_width("REASONABLY LONG LINE OF TEXT FOR BASIC SANITY"),
@@ -3694,7 +3694,7 @@ static void licence_clicked(GtkButton *button, gpointer data)
 {
     char *title;
 
-    title = dupcat(appname, " Licence", NULL);
+    title = dupcat(appname, " Licence");
     assert(aboutbox != NULL);
     create_message_box(aboutbox, title, LICENCE_TEXT("\n\n"),
                        string_width("LONGISH LINE OF TEXT SO THE LICENCE"
@@ -3716,7 +3716,7 @@ void about_box(void *window)
 
     aboutbox = our_dialog_new();
     gtk_container_set_border_width(GTK_CONTAINER(aboutbox), 10);
-    title = dupcat("About ", appname, NULL);
+    title = dupcat("About ", appname);
     gtk_window_set_title(GTK_WINDOW(aboutbox), title);
     sfree(title);
 
@@ -3932,7 +3932,7 @@ void showeventlog(eventlog_stuff *es, void *parentwin)
     c->listbox.percentages[2] = 65;
 
     es->window = window = our_dialog_new();
-    title = dupcat(appname, " Event Log", (const char *)NULL);
+    title = dupcat(appname, " Event Log");
     gtk_window_set_title(GTK_WINDOW(window), title);
     sfree(title);
     w0 = layout_ctrls(&es->dp, NULL, &es->scs, s0, GTK_WINDOW(window));
@@ -4025,7 +4025,7 @@ void logevent_dlg(eventlog_stuff *es, const char *string)
     strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S\t", &tm);
 
     sfree(*location);
-    *location = dupcat(timebuf, string, NULL);
+    *location = dupcat(timebuf, string);
     if (es->window) {
         dlg_listbox_add(es->listctrl, &es->dp, *location);
     }

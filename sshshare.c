@@ -1858,7 +1858,7 @@ static void share_listen_closing(Plug *plug, const char *error_msg,
 static void share_send_verstring(ssh_sharing_connstate *cs)
 {
     char *fullstring = dupcat("SSHCONNECTION@putty.projects.tartarus.org-2.0-",
-                              cs->parent->server_verstring, "\015\012", NULL);
+                              cs->parent->server_verstring, "\015\012");
     sk_write(cs->sock, fullstring, strlen(fullstring));
     sfree(fullstring);
 

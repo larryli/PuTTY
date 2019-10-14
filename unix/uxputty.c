@@ -47,7 +47,7 @@ const struct BackendVtable *select_backend(Conf *conf)
 
 void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 {
-    char *title = dupcat(appname, " Configuration", NULL);
+    char *title = dupcat(appname, " Configuration");
     create_config_box(title, conf, false, 0, after, afterctx);
     sfree(title);
 }
@@ -57,7 +57,7 @@ const bool dup_check_launchable = true;
 
 char *make_default_wintitle(char *hostname)
 {
-    return dupcat(hostname, " - ", appname, NULL);
+    return dupcat(hostname, " - ", appname);
 }
 
 /*

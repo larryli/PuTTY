@@ -449,7 +449,7 @@ FontSpec *read_setting_fontspec(settings_r *handle, const char *name)
      * provided name string (e.g. "Font") to a suffixed one
      * ("FontName").
      */
-    char *suffname = dupcat(name, "Name", NULL);
+    char *suffname = dupcat(name, "Name");
     char *tmp;
 
     if ((tmp = read_setting_s(handle, suffname)) != NULL) {
@@ -463,7 +463,7 @@ FontSpec *read_setting_fontspec(settings_r *handle, const char *name)
     /* Fall back to old-style name. */
     tmp = read_setting_s(handle, name);
     if (tmp && *tmp) {
-        char *tmp2 = dupcat("server:", tmp, NULL);
+        char *tmp2 = dupcat("server:", tmp);
         FontSpec *fs = fontspec_new(tmp2);
         sfree(tmp2);
         sfree(tmp);
@@ -491,7 +491,7 @@ void write_setting_fontspec(settings_w *handle, const char *name, FontSpec *fs)
      * writing our settings back out we simply always generate the
      * new-style name.
      */
-    char *suffname = dupcat(name, "Name", NULL);
+    char *suffname = dupcat(name, "Name");
     write_setting_s(handle, suffname, fs->name);
     sfree(suffname);
 }

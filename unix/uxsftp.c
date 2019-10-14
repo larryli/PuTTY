@@ -460,7 +460,7 @@ char *dir_file_cat(const char *dir, const char *file)
     ptrlen dir_pl = ptrlen_from_asciz(dir);
     return dupcat(
         dir, ptrlen_endswith(dir_pl, PTRLEN_LITERAL("/"), NULL) ? "" : "/",
-        file, NULL);
+        file);
 }
 
 /*

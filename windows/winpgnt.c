@@ -451,7 +451,7 @@ static void prompt_add_keyfile(void)
             char *dir = filelist;
             char *filewalker = filelist + strlen(dir) + 1;
             while (*filewalker != '\0') {
-                char *filename = dupcat(dir, "\\", filewalker, NULL);
+                char *filename = dupcat(dir, "\\", filewalker);
                 Filename *fn = filename_from_str(filename);
                 win_add_keyfile(fn);
                 filename_free(fn);

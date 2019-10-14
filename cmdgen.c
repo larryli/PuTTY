@@ -619,7 +619,7 @@ int main(int argc, char **argv)
         (intype == SSH_KEYTYPE_SSHCOM && outtype == SSHCOM)) {
         if (!outfile) {
             outfile = infile;
-            outfiletmp = dupcat(outfile, ".tmp", NULL);
+            outfiletmp = dupcat(outfile, ".tmp");
         }
 
         if (!change_passphrase && !comment) {

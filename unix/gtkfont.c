@@ -461,7 +461,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
         reg = XGetAtomName(disp, (Atom)registry_ret);
         enc = XGetAtomName(disp, (Atom)encoding_ret);
         if (reg && enc) {
-            char *encoding = dupcat(reg, "-", enc, NULL);
+            char *encoding = dupcat(reg, "-", enc);
             pubcs = realcs = charset_from_xenc(encoding);
 
             /*
@@ -1280,8 +1280,7 @@ static char *x11font_size_increment(unifont *font, int increment)
         if (xlfd_best) {
             char *bare_returned_name = xlfd_recompose(xlfd_best);
             returned_name = dupcat(
-                xfont->u.vt->prefix, ":", bare_returned_name,
-                (const char *)NULL);
+                xfont->u.vt->prefix, ":", bare_returned_name);
             sfree(bare_returned_name);
         }
 
@@ -2042,8 +2041,7 @@ static char *pangofont_size_increment(unifont *font, int increment)
     } else {
         pango_font_description_set_size(desc, size);
         newname = pango_font_description_to_string(desc);
-        retname = dupcat(pfont->u.vt->prefix, ":",
-                         newname, (const char *)NULL);
+        retname = dupcat(pfont->u.vt->prefix, ":", newname);
         g_free(newname);
     }
 
@@ -3780,15 +3778,14 @@ char *unifontsel_get_name(unifontsel *fontsel)
         name = fs->selected->fontclass->scale_fontname
             (GTK_WIDGET(fs->u.window), fs->selected->realname, fs->selsize);
         if (name) {
-            char *ret = dupcat(fs->selected->fontclass->prefix, ":",
-                               name, NULL);
+            char *ret = dupcat(fs->selected->fontclass->prefix, ":", name);
             sfree(name);
             return ret;
         }
     }
 
     return dupcat(fs->selected->fontclass->prefix, ":",
-                  fs->selected->realname, NULL);
+                  fs->selected->realname);
 }
 
 #endif /* GTK_CHECK_VERSION(2,0,0) */

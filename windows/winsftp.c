@@ -274,7 +274,7 @@ DirHandle *open_directory(const char *name, const char **errmsg)
     DirHandle *ret;
 
     /* Enumerate files in dir `foo'. */
-    findfile = dupcat(name, "/*", NULL);
+    findfile = dupcat(name, "/*");
     h = FindFirstFile(findfile, &fdat);
     if (h == INVALID_HANDLE_VALUE) {
         *errmsg = win_strerror(GetLastError());
@@ -395,7 +395,7 @@ WildcardMatcher *begin_wildcard_matching(const char *name)
          (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
         ret->name = NULL;
     else
-        ret->name = dupcat(ret->srcpath, fdat.cFileName, NULL);
+        ret->name = dupcat(ret->srcpath, fdat.cFileName);
 
     return ret;
 }
@@ -413,7 +413,7 @@ char *wildcard_get_filename(WildcardMatcher *dir)
              (fdat.cFileName[1] == '.' && fdat.cFileName[2] == '\0')))
             dir->name = NULL;
         else
-            dir->name = dupcat(dir->srcpath, fdat.cFileName, NULL);
+            dir->name = dupcat(dir->srcpath, fdat.cFileName);
     }
 
     if (dir->name) {
@@ -455,7 +455,7 @@ char *dir_file_cat(const char *dir, const char *file)
     return dupcat(
         dir, (ptrlen_endswith(dir_pl, PTRLEN_LITERAL("\\"), NULL) ||
               ptrlen_endswith(dir_pl, PTRLEN_LITERAL("/"), NULL)) ? "" : "\\",
-        file, NULL);
+        file);
 }
 
 /* ----------------------------------------------------------------------
