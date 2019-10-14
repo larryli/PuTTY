@@ -1788,7 +1788,7 @@ static void ssh2_userauth_add_sigblob(
         /* debug("modulus length is %d\n", len); */
         /* debug("signature length is %d\n", siglen); */
 
-        if (mod_mp.len != sig_mp.len) {
+        if (mod_mp.len > sig_mp.len) {
             strbuf *substr = strbuf_new();
             put_data(substr, sigblob.ptr, sig_prefix_len);
             put_uint32(substr, mod_mp.len);
