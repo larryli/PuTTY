@@ -3190,10 +3190,10 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     dp->ntreeitems = nselparams;
     dp->treeitems = snewn(dp->ntreeitems, GtkWidget *);
     for (index = 0; index < nselparams; index++) {
-        g_signal_connect(G_OBJECT(selparams[index].treeitem), "select",
+        g_signal_connect(G_OBJECT(selparams[index]->treeitem), "select",
                          G_CALLBACK(treeitem_sel),
                          &selparams[index]);
-        dp->treeitems[index] = selparams[index].treeitem;
+        dp->treeitems[index] = selparams[index]->treeitem;
     }
 #endif
 
