@@ -131,6 +131,7 @@ struct GtkFrontend {
      */
     cairo_surface_t *surface;
 #endif
+    int backing_w, backing_h;
 #if GTK_CHECK_VERSION(2,0,0)
     GtkIMContext *imc;
 #endif
@@ -747,6 +748,14 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     new_scale = 1;
 #endif
 
+    int new_backing_w = w * inst->font_width + 2*inst->window_border;
+    int new_backing_h = h * inst->font_height + 2*inst->window_border;
+    new_backing_w *= new_scale;
+    new_backing_h *= new_scale;
+
+    if (inst->backing_w != new_backing_w || inst->backing_h != new_backing_h)
+        inst->drawing_area_setup_needed = true;
+
     /*
      * This event might be spurious; some GTK setups have been known
      * to call it when nothing at all has changed. Check if we have
@@ -757,12 +766,8 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
 
     inst->drawing_area_setup_needed = false;
     inst->scale = new_scale;
-
-    int backing_w = w * inst->font_width + 2*inst->window_border;
-    int backing_h = h * inst->font_height + 2*inst->window_border;
-
-    backing_w *= inst->scale;
-    backing_h *= inst->scale;
+    inst->backing_w = new_backing_w;
+    inst->backing_h = new_backing_h;
 
 #ifndef NO_BACKING_PIXMAPS
     if (inst->pixmap) {
@@ -771,7 +776,7 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     }
 
     inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
-                                  backing_w, backing_h, -1);
+                                  inst->backing_w, inst->backing_h, -1);
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
@@ -780,8 +785,8 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
         inst->surface = NULL;
     }
 
-    inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-                                               backing_w, backing_h);
+    inst->surface = cairo_image_surface_create(
+        CAIRO_FORMAT_ARGB32, inst->backing_w, inst->backing_h);
 #endif
 
     draw_backing_rect(inst);
