@@ -758,33 +758,31 @@ static void drawing_area_setup(GtkFrontend *inst, int width, int height)
     inst->drawing_area_setup_needed = false;
     inst->scale = new_scale;
 
-    {
-        int backing_w = w * inst->font_width + 2*inst->window_border;
-        int backing_h = h * inst->font_height + 2*inst->window_border;
+    int backing_w = w * inst->font_width + 2*inst->window_border;
+    int backing_h = h * inst->font_height + 2*inst->window_border;
 
-        backing_w *= inst->scale;
-        backing_h *= inst->scale;
+    backing_w *= inst->scale;
+    backing_h *= inst->scale;
 
 #ifndef NO_BACKING_PIXMAPS
-        if (inst->pixmap) {
-            gdk_pixmap_unref(inst->pixmap);
-            inst->pixmap = NULL;
-        }
+    if (inst->pixmap) {
+        gdk_pixmap_unref(inst->pixmap);
+        inst->pixmap = NULL;
+    }
 
-        inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
-                                      backing_w, backing_h, -1);
+    inst->pixmap = gdk_pixmap_new(gtk_widget_get_window(inst->area),
+                                  backing_w, backing_h, -1);
 #endif
 
 #ifdef DRAW_TEXT_CAIRO
-        if (inst->surface) {
-            cairo_surface_destroy(inst->surface);
-            inst->surface = NULL;
-        }
-
-        inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
-                                                   backing_w, backing_h);
-#endif
+    if (inst->surface) {
+        cairo_surface_destroy(inst->surface);
+        inst->surface = NULL;
     }
+
+    inst->surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32,
+                                               backing_w, backing_h);
+#endif
 
     draw_backing_rect(inst);
 
