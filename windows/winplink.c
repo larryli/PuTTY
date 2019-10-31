@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <stdarg.h>
 
-#define PUTTY_DO_GLOBALS	       /* actually _define_ globals */
+#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "storage.h"
 #include "tree234.h"
@@ -50,13 +50,13 @@ static void plink_echoedit_update(Seat *seat, bool echo, bool edit)
 
     mode = ENABLE_PROCESSED_INPUT;
     if (echo)
-	mode = mode | ENABLE_ECHO_INPUT;
+        mode = mode | ENABLE_ECHO_INPUT;
     else
-	mode = mode & ~ENABLE_ECHO_INPUT;
+        mode = mode & ~ENABLE_ECHO_INPUT;
     if (edit)
-	mode = mode | ENABLE_LINE_INPUT;
+        mode = mode | ENABLE_LINE_INPUT;
     else
-	mode = mode & ~ENABLE_LINE_INPUT;
+        mode = mode & ~ENABLE_LINE_INPUT;
     SetConsoleMode(inhandle, mode);
 }
 
@@ -80,7 +80,7 @@ static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
     int ret;
     ret = cmdline_get_passwd_input(p);
     if (ret == -1)
-	ret = console_get_userpass_input(p);
+        ret = console_get_userpass_input(p);
     return ret;
 }
 
@@ -109,7 +109,7 @@ static Seat plink_seat[1] = {{ &plink_seat_vt }};
 static DWORD main_thread_id;
 
 void agent_schedule_callback(void (*callback)(void *, void *, int),
-			     void *callback_ctx, void *data, int len)
+                             void *callback_ctx, void *data, int len)
 {
     struct agent_callback *c = snew(struct agent_callback);
     c->callback = callback;
@@ -124,61 +124,61 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
  */
 static void usage(void)
 {
-    printf("Plink: command-line connection utility\n");
+    printf("Plink: 命令行连接工具\n");
     printf("%s\n", ver);
-    printf("Usage: plink [options] [user@]host [command]\n");
-    printf("       (\"host\" can also be a PuTTY saved session name)\n");
-    printf("Options:\n");
-    printf("  -V        print version information and exit\n");
-    printf("  -pgpfp    print PGP key fingerprints and exit\n");
-    printf("  -v        show verbose messages\n");
-    printf("  -load sessname  Load settings from saved session\n");
+    printf("用法: plink [选项] [用户名@]主机 [命令]\n");
+    printf("       (\"主机\" 也可以是 PuTTY 已有的会话名称)\n");
+    printf("选项:\n");
+    printf("  -V        显示版本信息后退出\n");
+    printf("  -pgpfp    显示 PGP 密钥指纹后退出\n");
+    printf("  -v        显示详细信息\n");
+    printf("  -load 会话名  载入保存的会话信息\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
-    printf("            force use of a particular protocol\n");
-    printf("  -P port   connect to specified port\n");
-    printf("  -l user   connect with specified username\n");
-    printf("  -batch    disable all interactive prompts\n");
-    printf("  -proxycmd command\n");
-    printf("            use 'command' as local proxy\n");
-    printf("  -sercfg configuration-string (e.g. 19200,8,n,1,X)\n");
-    printf("            Specify the serial configuration (serial only)\n");
-    printf("The following options only apply to SSH connections:\n");
-    printf("  -pw passw login with specified password\n");
-    printf("  -D [listen-IP:]listen-port\n");
-    printf("            Dynamic SOCKS-based port forwarding\n");
-    printf("  -L [listen-IP:]listen-port:host:port\n");
-    printf("            Forward local port to remote address\n");
-    printf("  -R [listen-IP:]listen-port:host:port\n");
-    printf("            Forward remote port to local address\n");
-    printf("  -X -x     enable / disable X11 forwarding\n");
-    printf("  -A -a     enable / disable agent forwarding\n");
-    printf("  -t -T     enable / disable pty allocation\n");
-    printf("  -1 -2     force use of particular protocol version\n");
-    printf("  -4 -6     force use of IPv4 or IPv6\n");
-    printf("  -C        enable compression\n");
-    printf("  -i key    private key file for user authentication\n");
-    printf("  -noagent  disable use of Pageant\n");
-    printf("  -agent    enable use of Pageant\n");
+    printf("            强制使用特定协议\n");
+    printf("  -P 端口   连接指定的端口\n");
+    printf("  -l 用户名 使用指定的用户名连接\n");
+    printf("  -batch    禁止所有交互提示\n");
+    printf("  -proxycmd 命令\n");
+    printf("            使用 '命令' 作为本地代理\n");
+    printf("  -sercfg 配置字符串 (例如: 19200,8,n,1,X)\n");
+    printf("            指定串口配置(仅限串口)\n");
+    printf("以下选项仅适用于 SSH 连接:\n");
+    printf("  -pw 密码  使用指定的密码登录\n");
+    printf("  -D [监听-IP:]监听-端口\n");
+    printf("            基于 SOCKS 协议的动态端口转发\n");
+    printf("  -L [监听-IP:]监听-端口:主机:端口\n");
+    printf("            转发本地端口到远程地址\n");
+    printf("  -R [监听-IP:]监听-端口:主机:端口\n");
+    printf("            转发远程端口到本地地址\n");
+    printf("  -X -x     启禁用 X11 转发\n");
+    printf("  -A -a     启禁用 agent 转发\n");
+    printf("  -t -T     启禁用 pty 转发\n");
+    printf("  -1 -2     强制使用特定协议版本\n");
+    printf("  -4 -6     强制使用 IPv4 或 IPv6 版本\n");
+    printf("  -C        允许压缩\n");
+    printf("  -i 密钥   认证使用的密钥文件\n");
+    printf("  -noagent  禁用 Pageant 认证代理\n");
+    printf("  -agent    启用 Pageant 认证代理\n");
     printf("  -noshare  disable use of connection sharing\n");
     printf("  -share    enable use of connection sharing\n");
     printf("  -hostkey aa:bb:cc:...\n");
-    printf("            manually specify a host key (may be repeated)\n");
+    printf("            手动指定主机密钥(可能重复)\n");
     printf("  -sanitise-stderr, -sanitise-stdout, "
            "-no-sanitise-stderr, -no-sanitise-stdout\n");
     printf("            do/don't strip control chars from standard "
            "output/error\n");
     printf("  -no-antispoof   omit anti-spoofing prompt after "
            "authentication\n");
-    printf("  -m file   read remote command(s) from file\n");
-    printf("  -s        remote command is an SSH subsystem (SSH-2 only)\n");
-    printf("  -N        don't start a shell/command (SSH-2 only)\n");
-    printf("  -nc host:port\n");
-    printf("            open tunnel in place of session (SSH-2 only)\n");
-    printf("  -sshlog file\n");
-    printf("  -sshrawlog file\n");
-    printf("            log protocol details to a file\n");
+    printf("  -m 文件   从文件读取远程命令\n");
+    printf("  -s        SSH 子系统远程命令(仅限 SSH-2)\n");
+    printf("  -N        不启动 shell 或执行命令(仅限 SSH-2)\n");
+    printf("  -nc 主机:端口\n");
+    printf("            打开隧道代替会话(仅限 SSH-2)\n");
+    printf("  -sshlog 文件\n");
+    printf("  -sshrawlog 文件\n");
+    printf("            记录协议详细日志到指定文件\n");
     printf("  -shareexists\n");
-    printf("            test whether a connection-sharing upstream exists\n");
+    printf("            测试是否存在上游共享连接\n");
     exit(1);
 }
 
@@ -194,18 +194,18 @@ char *do_select(SOCKET skt, bool startup)
 {
     int events;
     if (startup) {
-	events = (FD_CONNECT | FD_READ | FD_WRITE |
-		  FD_OOB | FD_CLOSE | FD_ACCEPT);
+        events = (FD_CONNECT | FD_READ | FD_WRITE |
+                  FD_OOB | FD_CLOSE | FD_ACCEPT);
     } else {
-	events = 0;
+        events = 0;
     }
     if (p_WSAEventSelect(skt, netevent, events) == SOCKET_ERROR) {
-	switch (p_WSAGetLastError()) {
-	  case WSAENETDOWN:
-	    return "Network is down";
-	  default:
-	    return "WSAEventSelect(): unknown error";
-	}
+        switch (p_WSAGetLastError()) {
+          case WSAENETDOWN:
+            return "Network is down";
+          default:
+            return "WSAEventSelect(): unknown error";
+        }
     }
     return NULL;
 }
@@ -213,40 +213,40 @@ char *do_select(SOCKET skt, bool startup)
 size_t stdin_gotdata(struct handle *h, const void *data, size_t len, int err)
 {
     if (err) {
-	char buf[4096];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
-		      buf, lenof(buf), NULL);
-	buf[lenof(buf)-1] = '\0';
-	if (buf[strlen(buf)-1] == '\n')
-	    buf[strlen(buf)-1] = '\0';
-	fprintf(stderr, "Unable to read from standard input: %s\n", buf);
-	cleanup_exit(0);
+        char buf[4096];
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
+                      buf, lenof(buf), NULL);
+        buf[lenof(buf)-1] = '\0';
+        if (buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        fprintf(stderr, "Unable to read from standard input: %s\n", buf);
+        cleanup_exit(0);
     }
 
     noise_ultralight(NOISE_SOURCE_IOLEN, len);
     if (backend_connected(backend)) {
-	if (len > 0) {
+        if (len > 0) {
             return backend_send(backend, data, len);
-	} else {
+        } else {
             backend_special(backend, SS_EOF, 0);
-	    return 0;
-	}
+            return 0;
+        }
     } else
-	return 0;
+        return 0;
 }
 
 void stdouterr_sent(struct handle *h, size_t new_backlog, int err)
 {
     if (err) {
-	char buf[4096];
-	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
-		      buf, lenof(buf), NULL);
-	buf[lenof(buf)-1] = '\0';
-	if (buf[strlen(buf)-1] == '\n')
-	    buf[strlen(buf)-1] = '\0';
-	fprintf(stderr, "Unable to write to standard %s: %s\n",
-		(h == stdout_handle ? "output" : "error"), buf);
-	cleanup_exit(0);
+        char buf[4096];
+        FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, err, 0,
+                      buf, lenof(buf), NULL);
+        buf[lenof(buf)-1] = '\0';
+        if (buf[strlen(buf)-1] == '\n')
+            buf[strlen(buf)-1] = '\0';
+        fprintf(stderr, "Unable to write to standard %s: %s\n",
+                (h == stdout_handle ? "output" : "error"), buf);
+        cleanup_exit(0);
     }
 
     if (backend_connected(backend)) {
@@ -299,22 +299,22 @@ int main(int argc, char **argv)
     default_port = conf_get_int(conf, CONF_port);
     errors = false;
     {
-	/*
-	 * Override the default protocol if PLINK_PROTOCOL is set.
-	 */
-	char *p = getenv("PLINK_PROTOCOL");
-	if (p) {
+        /*
+         * Override the default protocol if PLINK_PROTOCOL is set.
+         */
+        char *p = getenv("PLINK_PROTOCOL");
+        if (p) {
             const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
                 default_protocol = vt->protocol;
                 default_port = vt->default_port;
-		conf_set_int(conf, CONF_protocol, default_protocol);
-		conf_set_int(conf, CONF_port, default_port);
-	    }
-	}
+                conf_set_int(conf, CONF_protocol, default_protocol);
+                conf_set_int(conf, CONF_port, default_port);
+            }
+        }
     }
     while (--argc) {
-	char *p = *++argv;
+        char *p = *++argv;
         int ret = cmdline_process_param(p, (argc > 1 ? argv[1] : NULL),
                                         1, conf);
         if (ret == -2) {
@@ -353,7 +353,7 @@ int main(int argc, char **argv)
             sanitise_stderr = FORCE_OFF;
         } else if (!strcmp(p, "-no-antispoof")) {
             console_antispoof_prompt = false;
-	} else if (*p != '-') {
+        } else if (*p != '-') {
             strbuf *cmdbuf = strbuf_new();
 
             while (argc > 0) {
@@ -369,7 +369,7 @@ int main(int argc, char **argv)
             conf_set_bool(conf, CONF_nopty, true);  /* command => no tty */
 
             strbuf_free(cmdbuf);
-            break;		       /* done with cmdline */
+            break;                     /* done with cmdline */
         } else {
             fprintf(stderr, "plink: unknown option \"%s\"\n", p);
             errors = true;
@@ -377,10 +377,10 @@ int main(int argc, char **argv)
     }
 
     if (errors)
-	return 1;
+        return 1;
 
     if (!cmdline_host_ok(conf)) {
-	usage();
+        usage();
     }
 
     prepare_session(conf);
@@ -397,9 +397,9 @@ int main(int argc, char **argv)
         conf_set_bool(conf, CONF_ssh_subsys, true);
 
     if (!*conf_get_str(conf, CONF_remote_cmd) &&
-	!*conf_get_str(conf, CONF_remote_cmd2) &&
-	!*conf_get_str(conf, CONF_ssh_nc_host))
-	flags |= FLAG_INTERACTIVE;
+        !*conf_get_str(conf, CONF_remote_cmd2) &&
+        !*conf_get_str(conf, CONF_ssh_nc_host))
+        flags |= FLAG_INTERACTIVE;
 
     /*
      * Select protocol. This is farmed out into a table in a
@@ -407,15 +407,15 @@ int main(int argc, char **argv)
      */
     vt = backend_vt_from_proto(conf_get_int(conf, CONF_protocol));
     if (vt == NULL) {
-	fprintf(stderr,
-		"Internal fault: Unsupported protocol found\n");
-	return 1;
+        fprintf(stderr,
+                "Internal fault: Unsupported protocol found\n");
+        return 1;
     }
 
     sk_init();
     if (p_WSAEventSelect == NULL) {
-	fprintf(stderr, "Plink requires WinSock 2\n");
-	return 1;
+        fprintf(stderr, "Plink requires WinSock 2\n");
+        return 1;
     }
 
     /*
@@ -424,10 +424,10 @@ int main(int argc, char **argv)
      * the "simple" flag.
      */
     if (conf_get_int(conf, CONF_protocol) == PROT_SSH &&
-	!conf_get_bool(conf, CONF_x11_forward) &&
-	!conf_get_bool(conf, CONF_agentfwd) &&
-	!conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
-	conf_set_bool(conf, CONF_ssh_simple, true);
+        !conf_get_bool(conf, CONF_x11_forward) &&
+        !conf_get_bool(conf, CONF_agentfwd) &&
+        !conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
+        conf_set_bool(conf, CONF_ssh_simple, true);
 
     logctx = log_init(default_logpolicy, conf);
 
@@ -446,29 +446,6 @@ int main(int argc, char **argv)
 
     if (restricted_acl) {
         lp_eventlog(default_logpolicy, "Running with restricted process ACL");
-    }
-
-    /*
-     * Start up the connection.
-     */
-    netevent = CreateEvent(NULL, false, false, NULL);
-    {
-	const char *error;
-	char *realhost;
-	/* nodelay is only useful if stdin is a character device (console) */
-	bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
-	    (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
-
-        error = backend_init(vt, plink_seat, &backend, logctx, conf,
-                             conf_get_str(conf, CONF_host),
-                             conf_get_int(conf, CONF_port),
-                             &realhost, nodelay,
-                             conf_get_bool(conf, CONF_tcp_keepalives));
-	if (error) {
-	    fprintf(stderr, "Unable to open connection:\n%s", error);
-	    return 1;
-	}
-	sfree(realhost);
     }
 
     inhandle = GetStdHandle(STD_INPUT_HANDLE);
@@ -522,6 +499,29 @@ int main(int argc, char **argv)
         stderr_bs = BinarySink_UPCAST(stderr_scc);
     }
 
+    /*
+     * Start up the connection.
+     */
+    netevent = CreateEvent(NULL, false, false, NULL);
+    {
+        const char *error;
+        char *realhost;
+        /* nodelay is only useful if stdin is a character device (console) */
+        bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
+            (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
+
+        error = backend_init(vt, plink_seat, &backend, logctx, conf,
+                             conf_get_str(conf, CONF_host),
+                             conf_get_int(conf, CONF_port),
+                             &realhost, nodelay,
+                             conf_get_bool(conf, CONF_tcp_keepalives));
+        if (error) {
+            fprintf(stderr, "Unable to open connection:\n%s", error);
+            return 1;
+        }
+        sfree(realhost);
+    }
+
     main_thread_id = GetCurrentThreadId();
 
     sending = false;
@@ -529,74 +529,74 @@ int main(int argc, char **argv)
     now = GETTICKCOUNT();
 
     while (1) {
-	int nhandles;
-	HANDLE *handles;	
-	int n;
-	DWORD ticks;
+        int nhandles;
+        HANDLE *handles;
+        int n;
+        DWORD ticks;
 
         if (!sending && backend_sendok(backend)) {
-	    stdin_handle = handle_input_new(inhandle, stdin_gotdata, NULL,
-					    0);
-	    sending = true;
-	}
+            stdin_handle = handle_input_new(inhandle, stdin_gotdata, NULL,
+                                            0);
+            sending = true;
+        }
 
         if (toplevel_callback_pending()) {
             ticks = 0;
             next = now;
         } else if (run_timers(now, &next)) {
-	    then = now;
-	    now = GETTICKCOUNT();
-	    if (now - then > next - then)
-		ticks = 0;
-	    else
-		ticks = next - now;
-	} else {
-	    ticks = INFINITE;
+            then = now;
+            now = GETTICKCOUNT();
+            if (now - then > next - then)
+                ticks = 0;
+            else
+                ticks = next - now;
+        } else {
+            ticks = INFINITE;
             /* no need to initialise next here because we can never
              * get WAIT_TIMEOUT */
-	}
+        }
 
-	handles = handle_get_events(&nhandles);
-	handles = sresize(handles, nhandles+1, HANDLE);
-	handles[nhandles] = netevent;
-	n = MsgWaitForMultipleObjects(nhandles+1, handles, false, ticks,
-				      QS_POSTMESSAGE);
-	if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
-	    handle_got_event(handles[n - WAIT_OBJECT_0]);
-	} else if (n == WAIT_OBJECT_0 + nhandles) {
-	    WSANETWORKEVENTS things;
-	    SOCKET socket;
-	    int i, socketstate;
+        handles = handle_get_events(&nhandles);
+        handles = sresize(handles, nhandles+1, HANDLE);
+        handles[nhandles] = netevent;
+        n = MsgWaitForMultipleObjects(nhandles+1, handles, false, ticks,
+                                      QS_POSTMESSAGE);
+        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+            handle_got_event(handles[n - WAIT_OBJECT_0]);
+        } else if (n == WAIT_OBJECT_0 + nhandles) {
+            WSANETWORKEVENTS things;
+            SOCKET socket;
+            int i, socketstate;
 
-	    /*
-	     * We must not call select_result() for any socket
-	     * until we have finished enumerating within the tree.
-	     * This is because select_result() may close the socket
-	     * and modify the tree.
-	     */
-	    /* Count the active sockets. */
-	    i = 0;
-	    for (socket = first_socket(&socketstate);
-		 socket != INVALID_SOCKET;
-		 socket = next_socket(&socketstate)) i++;
+            /*
+             * We must not call select_result() for any socket
+             * until we have finished enumerating within the tree.
+             * This is because select_result() may close the socket
+             * and modify the tree.
+             */
+            /* Count the active sockets. */
+            i = 0;
+            for (socket = first_socket(&socketstate);
+                 socket != INVALID_SOCKET;
+                 socket = next_socket(&socketstate)) i++;
 
-	    /* Expand the buffer if necessary. */
+            /* Expand the buffer if necessary. */
             sgrowarray(sklist, sksize, i);
 
-	    /* Retrieve the sockets into sklist. */
-	    skcount = 0;
-	    for (socket = first_socket(&socketstate);
-		 socket != INVALID_SOCKET;
-		 socket = next_socket(&socketstate)) {
-		sklist[skcount++] = socket;
-	    }
+            /* Retrieve the sockets into sklist. */
+            skcount = 0;
+            for (socket = first_socket(&socketstate);
+                 socket != INVALID_SOCKET;
+                 socket = next_socket(&socketstate)) {
+                sklist[skcount++] = socket;
+            }
 
-	    /* Now we're done enumerating; go through the list. */
-	    for (i = 0; i < skcount; i++) {
-		WPARAM wp;
-		socket = sklist[i];
-		wp = (WPARAM) socket;
-		if (!p_WSAEnumNetworkEvents(socket, NULL, &things)) {
+            /* Now we're done enumerating; go through the list. */
+            for (i = 0; i < skcount; i++) {
+                WPARAM wp;
+                socket = sklist[i];
+                wp = (WPARAM) socket;
+                if (!p_WSAEnumNetworkEvents(socket, NULL, &things)) {
                     static const struct { int bit, mask; } eventtypes[] = {
                         {FD_CONNECT_BIT, FD_CONNECT},
                         {FD_READ_BIT, FD_READ},
@@ -607,7 +607,7 @@ int main(int argc, char **argv)
                     };
                     int e;
 
-		    noise_ultralight(NOISE_SOURCE_IOID, socket);
+                    noise_ultralight(NOISE_SOURCE_IOID, socket);
 
                     for (e = 0; e < lenof(eventtypes); e++)
                         if (things.lNetworkEvents & eventtypes[e].mask) {
@@ -616,41 +616,41 @@ int main(int argc, char **argv)
                             lp = WSAMAKESELECTREPLY(eventtypes[e].mask, err);
                             select_result(wp, lp);
                         }
-		}
-	    }
-	} else if (n == WAIT_OBJECT_0 + nhandles + 1) {
-	    MSG msg;
-	    while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
-			       WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
-			       PM_REMOVE)) {
-		struct agent_callback *c = (struct agent_callback *)msg.lParam;
-		c->callback(c->callback_ctx, c->data, c->len);
-		sfree(c);
-	    }
-	}
+                }
+            }
+        } else if (n == WAIT_OBJECT_0 + nhandles + 1) {
+            MSG msg;
+            while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
+                               WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
+                               PM_REMOVE)) {
+                struct agent_callback *c = (struct agent_callback *)msg.lParam;
+                c->callback(c->callback_ctx, c->data, c->len);
+                sfree(c);
+            }
+        }
 
         run_toplevel_callbacks();
 
-	if (n == WAIT_TIMEOUT) {
-	    now = next;
-	} else {
-	    now = GETTICKCOUNT();
-	}
+        if (n == WAIT_TIMEOUT) {
+            now = next;
+        } else {
+            now = GETTICKCOUNT();
+        }
 
-	sfree(handles);
+        sfree(handles);
 
-	if (sending)
+        if (sending)
             handle_unthrottle(stdin_handle, backend_sendbuffer(backend));
 
         if (!backend_connected(backend) &&
-	    handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
-	    break;		       /* we closed the connection */
+            handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
+            break;                     /* we closed the connection */
     }
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
-	fprintf(stderr, "Remote process exit code unavailable\n");
-	exitcode = 1;		       /* this is an error condition */
+        fprintf(stderr, "Remote process exit code unavailable\n");
+        exitcode = 1;                  /* this is an error condition */
     }
     cleanup_exit(exitcode);
-    return 0;			       /* placate compiler warning */
+    return 0;                          /* placate compiler warning */
 }
