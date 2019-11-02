@@ -3192,7 +3192,7 @@ GtkWidget *create_config_box(const char *title, Conf *conf,
     for (index = 0; index < nselparams; index++) {
         g_signal_connect(G_OBJECT(selparams[index]->treeitem), "select",
                          G_CALLBACK(treeitem_sel),
-                         &selparams[index]);
+                         selparams[index]);
         dp->treeitems[index] = selparams[index]->treeitem;
     }
 #endif
