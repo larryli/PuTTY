@@ -539,9 +539,12 @@ static void load_module(
          * need to add more aliases here to stop the test failing.
          */
         TRY_WRAP("__GI___libc_malloc", wrap_malloc_pre, wrap_alloc_post);
+        TRY_WRAP("__libc_malloc", wrap_malloc_pre, wrap_alloc_post);
         TRY_WRAP("__GI___libc_realloc", wrap_realloc_pre, wrap_alloc_post);
         TRY_WRAP("__GI___libc_free", wrap_free_pre, unpause_post);
         TRY_WRAP("__memset_sse2_unaligned", wrap_memset_pre, unpause_post);
+        TRY_WRAP("__memset_sse2", wrap_memset_pre, unpause_post);
+        TRY_WRAP("cfree", wrap_free_pre, unpause_post);
     }
 }
 
