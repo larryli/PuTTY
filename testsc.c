@@ -1454,6 +1454,15 @@ int main(int argc, char **argv)
     if (is_dry_run) {
         printf("Dry run (DynamoRIO instrumentation not detected)\n");
     } else {
+        /* Print the address of main() in this run. The idea is that
+         * if this image is compiled to be position-independent, then
+         * PC values in the logs won't match the ones you get if you
+         * disassemble the binary, so it'll be harder to match up the
+         * log messages to the code. But if you know the address of a
+         * fixed (and not inlined) function in both worlds, you can
+         * find out the offset between them. */
+        printf("Live run, main = %p\n", (void *)main);
+
         if (!outdir) {
             fprintf(stderr, "expected -O <outdir> option\n");
             return 1;
