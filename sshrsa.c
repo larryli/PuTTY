@@ -998,7 +998,7 @@ mp_int *ssh_rsakex_decrypt(
         if (out[i] == 1) {
             i++;  /* skip over the 1 byte */
             break;
-        } else if (out[i] != 1) {
+        } else if (out[i] != 0) {
             sfree(out);
             return NULL;
         }
