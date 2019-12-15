@@ -1174,6 +1174,50 @@ class crypt(MyTestBase):
                 ssh_cipher_decrypt(cipher, iv[:ivlen])
                 self.assertEqualBin(ssh_cipher_decrypt(cipher, c), p)
 
+    def testRSAKex(self):
+        # Round-trip test of the RSA key exchange functions, plus a
+        # hardcoded plain/ciphertext pair to guard against the
+        # behaviour accidentally changing.
+        def blobs(n, e, d, p, q, iqmp):
+            # For RSA kex, the public blob is formatted exactly like
+            # any other SSH-2 RSA public key. But there's no private
+            # key blob format defined by the protocol, so for the
+            # purposes of making a test RSA private key, we borrow the
+            # function we already had that decodes one out of the wire
+            # format used in the SSH-1 agent protocol.
+            pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)
+            privblob = (ssh_uint32(nbits(n)) + ssh1_mpint(n) + ssh1_mpint(e) +
+                        ssh1_mpint(d) + ssh1_mpint(iqmp) +
+                        ssh1_mpint(q) + ssh1_mpint(p))
+            return pubblob, privblob
+
+        # Parameters for a test key.
+        p = 0xf49e4d21c1ec3d1c20dc8656cc29aadb2644a12c98ed6c81a6161839d20d398d
+        q = 0xa5f0bc464bf23c4c83cf17a2f396b15136fbe205c07cb3bb3bdb7ed357d1cd13
+        n = p*q
+        e = 37
+        d = int(mp_invert(e, (p-1)*(q-1)))
+        iqmp = int(mp_invert(q, p))
+        assert iqmp * q % p == 1
+        assert d * e % (p-1) == 1
+        assert d * e % (q-1) == 1
+
+        pubblob, privblob = blobs(n, e, d, p, q, iqmp)
+
+        pubkey = ssh_rsakex_newkey(pubblob)
+        privkey = get_rsa_ssh1_priv_agent(privblob)
+
+        plain = 0x123456789abcdef
+        hashalg = 'md5'
+        with queued_random_data(64, "rsakex encrypt test"):
+            cipher = ssh_rsakex_encrypt(pubkey, hashalg, ssh2_mpint(plain))
+        decoded = ssh_rsakex_decrypt(privkey, hashalg, cipher)
+        self.assertEqual(int(decoded), plain)
+        self.assertEqualBin(cipher, unhex(
+            '34277d1060dc0a434d98b4239de9cec59902a4a7d17a763587cdf8c25d57f51a'
+            '7964541892e7511798e61dd78429358f4d6a887a50d2c5ebccf0e04f48fc665c'
+        ))
+
     def testPRNG(self):
         hashalg = 'sha256'
         seed = b"hello, world"

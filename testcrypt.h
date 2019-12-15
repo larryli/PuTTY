@@ -194,7 +194,7 @@ FUNC2(val_mpint, ssh_ecdhkex_getkey, val_ecdh, val_string_ptrlen)
 FUNC1(val_rsakex, ssh_rsakex_newkey, val_string_ptrlen)
 FUNC1(uint, ssh_rsakex_klen, val_rsakex)
 FUNC3(val_string, ssh_rsakex_encrypt, val_rsakex, hashalg, val_string_ptrlen)
-FUNC3(val_mpint, ssh_rsakex_decrypt, val_rsakex, hashalg, val_string_ptrlen)
+FUNC3(opt_val_mpint, ssh_rsakex_decrypt, val_rsakex, hashalg, val_string_ptrlen)
 FUNC1(val_rsakex, get_rsa_ssh1_priv_agent, val_string_binarysource)
 
 /*
