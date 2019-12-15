@@ -273,9 +273,9 @@ void prng_add_entropy(prng *pr, unsigned source_id, ptrlen data)
         prngdebug("prng entropy reseed #%"PRIu32"\n", reseed_index);
         for (size_t i = 0; i < NCOLLECTORS; i++) {
             prngdebug("emptying collector %zu\n", i);
-            ssh_hash_final(pi->collectors[i], pi->pending_output);
+            ssh_hash_digest(pi->collectors[i], pi->pending_output);
             put_data(&pi->Prng, pi->pending_output, pi->hashalg->hlen);
-            pi->collectors[i] = ssh_hash_new(pi->hashalg);
+            ssh_hash_reset(pi->collectors[i]);
             if (reseed_index & 1)
                 break;
             reseed_index >>= 1;

@@ -516,9 +516,9 @@ static void openssh_pem_derivekey(
     h = ssh_hash_new(&ssh_md5);
     put_datapl(h, passphrase);
     put_data(h, iv, 8);
-    ssh_hash_final(h, keybuf);
+    ssh_hash_digest(h, keybuf);
 
-    h = ssh_hash_new(&ssh_md5);
+    ssh_hash_reset(h);
     put_data(h, keybuf, 16);
     put_datapl(h, passphrase);
     put_data(h, iv, 8);
@@ -1932,7 +1932,7 @@ static void sshcom_derivekey(ptrlen passphrase, uint8_t *keybuf)
 
     h = ssh_hash_new(&ssh_md5);
     put_datapl(h, passphrase);
-    ssh_hash_final(ssh_hash_copy(h), keybuf);
+    ssh_hash_digest_nondestructive(h, keybuf);
     put_data(h, keybuf, 16);
     ssh_hash_final(h, keybuf + 16);
 }

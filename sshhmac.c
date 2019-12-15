@@ -98,11 +98,7 @@ static void hmac_key(ssh2_mac *mac, ptrlen key)
          */
         sb = strbuf_new_nm();
         strbuf_append(sb, ctx->hashalg->hlen);
-
-        ssh_hash *htmp = ssh_hash_new(ctx->hashalg);
-        put_datapl(htmp, key);
-        ssh_hash_final(htmp, sb->u);
-
+        hash_simple(ctx->hashalg, key, sb->u);
         kp = sb->u;
         klen = sb->len;
     } else {
@@ -140,11 +136,10 @@ static void hmac_genresult(ssh2_mac *mac, unsigned char *output)
     struct hmac *ctx = container_of(mac, struct hmac, mac);
     ssh_hash *htmp;
 
-    /* Leave h_live in place, so that the SSH-2 BPP can continue
-     * regenerating test results from different-length prefixes of the
-     * packet */
-    htmp = ssh_hash_copy(ctx->h_live);
-    ssh_hash_final(htmp, ctx->digest);
+    /* Leave h_live and h_outer in place, so that the SSH-2 BPP can
+     * continue regenerating test results from different-length
+     * prefixes of the packet */
+    ssh_hash_digest_nondestructive(ctx->h_live, ctx->digest);
 
     htmp = ssh_hash_copy(ctx->h_outer);
     put_data(htmp, ctx->digest, ctx->hashalg->hlen);

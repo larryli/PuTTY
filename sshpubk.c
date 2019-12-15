@@ -372,9 +372,7 @@ bool rsa_ssh1_savekey(const Filename *filename, RSAKey *key,
     if (passphrase) {
         unsigned char keybuf[16];
 
-        ssh_hash *h = ssh_hash_new(&ssh_md5);
-        put_data(h, passphrase, strlen(passphrase));
-        ssh_hash_final(h, keybuf);
+        hash_simple(&ssh_md5, ptrlen_from_asciz(passphrase), keybuf);
         des3_encrypt_pubkey(keybuf, buf->u + estart, buf->len - estart);
         smemclr(keybuf, sizeof(keybuf));        /* burn the evidence */
     }
@@ -591,8 +589,8 @@ static void ssh2_ppk_derivekey(ptrlen passphrase, uint8_t *key)
     h = ssh_hash_new(&ssh_sha1);
     put_uint32(h, 0);
     put_datapl(h, passphrase);
-    ssh_hash_final(h, key + 0);
-    h = ssh_hash_new(&ssh_sha1);
+    ssh_hash_digest(h, key + 0);
+    ssh_hash_reset(h);
     put_uint32(h, 1);
     put_datapl(h, passphrase);
     ssh_hash_final(h, key + 20);

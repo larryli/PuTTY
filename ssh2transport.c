@@ -275,25 +275,25 @@ static void ssh2_mkkey(
     put_data(h, H, hlen);
     put_byte(h, chr);
     put_data(h, s->session_id, s->session_id_len);
-    ssh_hash_final(h, key);
+    ssh_hash_digest(h, key);
 
     /* Subsequent blocks of hlen bytes. */
     if (keylen_padded > hlen) {
         int offset;
 
-        h = ssh_hash_new(s->kex_alg->hash);
+        ssh_hash_reset(h);
         if (!(s->ppl.remote_bugs & BUG_SSH2_DERIVEKEY))
             put_mp_ssh2(h, K);
         put_data(h, H, hlen);
 
         for (offset = hlen; offset < keylen_padded; offset += hlen) {
             put_data(h, key + offset - hlen, hlen);
-            ssh_hash *h2 = ssh_hash_copy(h);
-            ssh_hash_final(h2, key + offset);
+            ssh_hash_digest_nondestructive(h, key + offset);
         }
 
-        ssh_hash_free(h);
     }
+
+    ssh_hash_free(h);
 }
 
 /*

@@ -122,7 +122,9 @@ FUNC3(void, ecc_edwards_get_affine, val_epoint, out_val_mpint, out_val_mpint)
  * API by the hash object also functioning as a BinarySink.
  */
 FUNC1(opt_val_hash, ssh_hash_new, hashalg)
+FUNC1(void, ssh_hash_reset, val_hash)
 FUNC1(val_hash, ssh_hash_copy, val_hash)
+FUNC1(val_string, ssh_hash_digest, val_hash)
 FUNC1(val_string, ssh_hash_final, consumed_val_hash)
 FUNC2(void, ssh_hash_update, val_hash, val_string_ptrlen)
 

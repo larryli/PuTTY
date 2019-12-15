@@ -832,16 +832,17 @@ static void oaep_mask(const ssh_hashalg *h, void *seed, int seedlen,
     unsigned char *data = (unsigned char *)vdata;
     unsigned count = 0;
 
+    ssh_hash *s = ssh_hash_new(h);
+
     while (datalen > 0) {
         int i, max = (datalen > h->hlen ? h->hlen : datalen);
-        ssh_hash *s;
         unsigned char hash[MAX_HASH_LEN];
 
+        ssh_hash_reset(s);
         assert(h->hlen <= MAX_HASH_LEN);
-        s = ssh_hash_new(h);
         put_data(s, seed, seedlen);
         put_uint32(s, count);
-        ssh_hash_final(s, hash);
+        ssh_hash_digest(s, hash);
         count++;
 
         for (i = 0; i < max; i++)
@@ -850,6 +851,8 @@ static void oaep_mask(const ssh_hashalg *h, void *seed, int seedlen,
         data += max;
         datalen -= max;
     }
+
+    ssh_hash_free(s);
 }
 
 strbuf *ssh_rsakex_encrypt(RSAKey *rsa, const ssh_hashalg *h, ptrlen in)
@@ -907,10 +910,7 @@ strbuf *ssh_rsakex_encrypt(RSAKey *rsa, const ssh_hashalg *h, ptrlen in)
     random_read(out + 1, HLEN);
     /* At position 1+HLEN, the data block DB, consisting of: */
     /* The hash of the label (we only support an empty label here) */
-    {
-        ssh_hash *s = ssh_hash_new(h);
-        ssh_hash_final(s, out + HLEN + 1);
-    }
+    hash_simple(h, PTRLEN_LITERAL(""), out + HLEN + 1);
     /* A bunch of zero octets */
     memset(out + 2*HLEN + 1, 0, outlen - (2*HLEN + 1));
     /* A single 1 octet, followed by the input message data. */
@@ -953,7 +953,6 @@ mp_int *ssh_rsakex_decrypt(
     int outlen, i;
     unsigned char *out;
     unsigned char labelhash[64];
-    ssh_hash *hash;
     BinarySource src[1];
     const int HLEN = h->hlen;
 
@@ -987,8 +986,7 @@ mp_int *ssh_rsakex_decrypt(
     }
     /* Check the label hash at position 1+HLEN */
     assert(HLEN <= lenof(labelhash));
-    hash = ssh_hash_new(h);
-    ssh_hash_final(hash, labelhash);
+    hash_simple(h, PTRLEN_LITERAL(""), labelhash);
     if (memcmp(out + HLEN + 1, labelhash, HLEN)) {
         sfree(out);
         return NULL;

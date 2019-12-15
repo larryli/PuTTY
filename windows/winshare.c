@@ -86,11 +86,7 @@ static char *obfuscate_name(const char *realname)
      * We don't want to give away the length of the hostname either,
      * so having got it back out of CryptProtectMemory we now hash it.
      */
-    {
-        ssh_hash *h = ssh_hash_new(&ssh_sha256);
-        put_string(h, cryptdata, cryptlen);
-        ssh_hash_final(h, digest);
-    }
+    hash_simple(&ssh_sha256, make_ptrlen(cryptdata, cryptlen), digest);
 
     sfree(cryptdata);
 

@@ -399,12 +399,12 @@ mp_int *dss_gen_k(const char *id_string, mp_int *modulus,
     h = ssh_hash_new(&ssh_sha512);
     put_asciz(h, id_string);
     put_mp_ssh2(h, private_key);
-    ssh_hash_final(h, digest512);
+    ssh_hash_digest(h, digest512);
 
     /*
      * Now hash that digest plus the message hash.
      */
-    h = ssh_hash_new(&ssh_sha512);
+    ssh_hash_reset(h);
     put_data(h, digest512, sizeof(digest512));
     put_data(h, digest, digest_len);
     ssh_hash_final(h, digest512);

@@ -623,6 +623,16 @@ mp_int *monty_modulus_wrapper(MontyContext *mc)
 }
 #define monty_modulus monty_modulus_wrapper
 
+strbuf *ssh_hash_digest_wrapper(ssh_hash *h)
+{
+    strbuf *sb = strbuf_new();
+    void *p = strbuf_append(sb, ssh_hash_alg(h)->hlen);
+    ssh_hash_digest(h, p);
+    return sb;
+}
+#undef ssh_hash_digest
+#define ssh_hash_digest ssh_hash_digest_wrapper
+
 strbuf *ssh_hash_final_wrapper(ssh_hash *h)
 {
     strbuf *sb = strbuf_new();
