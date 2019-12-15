@@ -715,8 +715,9 @@ struct ssh_hash {
 
 struct ssh_hashalg {
     ssh_hash *(*new)(const ssh_hashalg *alg);
-    ssh_hash *(*copy)(ssh_hash *);
-    void (*final)(ssh_hash *, unsigned char *); /* ALSO FREES THE ssh_hash! */
+    void (*reset)(ssh_hash *);
+    void (*copyfrom)(ssh_hash *dest, ssh_hash *src);
+    void (*digest)(ssh_hash *, unsigned char *);
     void (*free)(ssh_hash *);
     int hlen; /* output length in bytes */
     int blocklen; /* length of the hash's input block, or 0 for N/A */
@@ -726,15 +727,26 @@ struct ssh_hashalg {
 };
 
 static inline ssh_hash *ssh_hash_new(const ssh_hashalg *alg)
-{ return alg->new(alg); }
-static inline ssh_hash *ssh_hash_copy(ssh_hash *h)
-{ return h->vt->copy(h); }
-static inline void ssh_hash_final(ssh_hash *h, unsigned char *out)
-{ h->vt->final(h, out); }
+{ ssh_hash *h = alg->new(alg); if (h) h->vt->reset(h); return h; }
+static inline ssh_hash *ssh_hash_copy(ssh_hash *orig)
+{ ssh_hash *h = orig->vt->new(orig->vt); h->vt->copyfrom(h, orig); return h; }
+static inline void ssh_hash_digest(ssh_hash *h, unsigned char *out)
+{ h->vt->digest(h, out); }
 static inline void ssh_hash_free(ssh_hash *h)
 { h->vt->free(h); }
 static inline const ssh_hashalg *ssh_hash_alg(ssh_hash *h)
 { return h->vt; }
+
+/* The reset and copyfrom vtable methods return void. But for call-site
+ * convenience, these wrappers return their input pointer. */
+static inline ssh_hash *ssh_hash_reset(ssh_hash *h)
+{ h->vt->reset(h); return h; }
+static inline ssh_hash *ssh_hash_copyfrom(ssh_hash *dest, ssh_hash *src)
+{ dest->vt->copyfrom(dest, src); return dest; }
+
+/* ssh_hash_final emits the digest _and_ frees the ssh_hash */
+static inline void ssh_hash_final(ssh_hash *h, unsigned char *out)
+{ h->vt->digest(h, out); h->vt->free(h); }
 
 /* Handy macros for defining all those text-name fields at once */
 #define HASHALG_NAMES_BARE(base) \

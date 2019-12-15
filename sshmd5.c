@@ -235,24 +235,24 @@ struct md5_hash {
 static ssh_hash *md5_new(const ssh_hashalg *alg)
 {
     struct md5_hash *h = snew(struct md5_hash);
-    MD5Init(&h->state);
     h->hash.vt = alg;
     BinarySink_DELEGATE_INIT(&h->hash, &h->state);
     return &h->hash;
 }
 
-static ssh_hash *md5_copy(ssh_hash *hashold)
+static void md5_reset(ssh_hash *hash)
 {
-    struct md5_hash *hold, *hnew;
-    ssh_hash *hashnew = md5_new(hashold->vt);
+    struct md5_hash *h = container_of(hash, struct md5_hash, hash);
+    MD5Init(&h->state);
+}
 
-    hold = container_of(hashold, struct md5_hash, hash);
-    hnew = container_of(hashnew, struct md5_hash, hash);
+static void md5_copyfrom(ssh_hash *hcopy, ssh_hash *horig)
+{
+    struct md5_hash *copy = container_of(hcopy, struct md5_hash, hash);
+    struct md5_hash *orig = container_of(horig, struct md5_hash, hash);
 
-    hnew->state = hold->state;
-    BinarySink_COPIED(&hnew->state);
-
-    return hashnew;
+    copy->state = orig->state;
+    BinarySink_COPIED(&copy->state);
 }
 
 static void md5_free(ssh_hash *hash)
@@ -263,13 +263,13 @@ static void md5_free(ssh_hash *hash)
     sfree(h);
 }
 
-static void md5_final(ssh_hash *hash, unsigned char *output)
+static void md5_digest(ssh_hash *hash, unsigned char *output)
 {
     struct md5_hash *h = container_of(hash, struct md5_hash, hash);
     MD5Final(output, &h->state);
-    md5_free(hash);
 }
 
 const ssh_hashalg ssh_md5 = {
-    md5_new, md5_copy, md5_final, md5_free, 16, 64, HASHALG_NAMES_BARE("MD5"),
+    md5_new, md5_reset, md5_copyfrom, md5_digest, md5_free,
+    16, 64, HASHALG_NAMES_BARE("MD5"),
 };

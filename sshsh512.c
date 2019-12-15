@@ -307,24 +307,24 @@ struct sha512_hash {
 static ssh_hash *sha512_new(const ssh_hashalg *alg)
 {
     struct sha512_hash *h = snew(struct sha512_hash);
-    SHA512_Init(&h->state);
     h->hash.vt = alg;
     BinarySink_DELEGATE_INIT(&h->hash, &h->state);
-    return &h->hash;
+    return ssh_hash_reset(&h->hash);
 }
 
-static ssh_hash *sha512_copy(ssh_hash *hashold)
+static void sha512_reset(ssh_hash *hash)
 {
-    struct sha512_hash *hold, *hnew;
-    ssh_hash *hashnew = sha512_new(hashold->vt);
+    struct sha512_hash *h = container_of(hash, struct sha512_hash, hash);
+    SHA512_Init(&h->state);
+}
 
-    hold = container_of(hashold, struct sha512_hash, hash);
-    hnew = container_of(hashnew, struct sha512_hash, hash);
+static void sha512_copyfrom(ssh_hash *hashnew, ssh_hash *hashold)
+{
+    struct sha512_hash *hold = container_of(hashold, struct sha512_hash, hash);
+    struct sha512_hash *hnew = container_of(hashnew, struct sha512_hash, hash);
 
     hnew->state = hold->state;
     BinarySink_COPIED(&hnew->state);
-
-    return hashnew;
 }
 
 static void sha512_free(ssh_hash *hash)
@@ -335,35 +335,30 @@ static void sha512_free(ssh_hash *hash)
     sfree(h);
 }
 
-static void sha512_final(ssh_hash *hash, unsigned char *output)
+static void sha512_digest(ssh_hash *hash, unsigned char *output)
 {
     struct sha512_hash *h = container_of(hash, struct sha512_hash, hash);
     SHA512_Final(&h->state, output);
-    sha512_free(hash);
 }
 
 const ssh_hashalg ssh_sha512 = {
-    sha512_new, sha512_copy, sha512_final, sha512_free,
+    sha512_new, sha512_reset, sha512_copyfrom, sha512_digest, sha512_free,
     64, BLKSIZE, HASHALG_NAMES_BARE("SHA-512"),
 };
 
-static ssh_hash *sha384_new(const ssh_hashalg *alg)
+static void sha384_reset(ssh_hash *hash)
 {
-    struct sha512_hash *h = snew(struct sha512_hash);
+    struct sha512_hash *h = container_of(hash, struct sha512_hash, hash);
     SHA384_Init(&h->state);
-    h->hash.vt = alg;
-    BinarySink_DELEGATE_INIT(&h->hash, &h->state);
-    return &h->hash;
 }
 
-static void sha384_final(ssh_hash *hash, unsigned char *output)
+static void sha384_digest(ssh_hash *hash, unsigned char *output)
 {
     struct sha512_hash *h = container_of(hash, struct sha512_hash, hash);
     SHA384_Final(&h->state, output);
-    sha512_free(hash);
 }
 
 const ssh_hashalg ssh_sha384 = {
-    sha384_new, sha512_copy, sha384_final, sha512_free,
+    sha512_new, sha384_reset, sha512_copyfrom, sha384_digest, sha512_free,
     48, BLKSIZE, HASHALG_NAMES_BARE("SHA-384"),
 };
