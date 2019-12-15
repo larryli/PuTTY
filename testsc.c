@@ -1320,12 +1320,6 @@ static void test_mac(const ssh2_macalg *malg)
     size_t maclen = malg->len;
     uint8_t *data = snewn(datalen + maclen, uint8_t);
 
-    /* Preliminarily key the MAC, to avoid the divergence of control
-     * flow in which hmac_key() avoids some free()s the first time
-     * through */
-    random_read(mkey, malg->keylen);
-    ssh2_mac_setkey(m, make_ptrlen(mkey, malg->keylen));
-
     for (size_t i = 0; i < looplimit(16); i++) {
         random_read(mkey, malg->keylen);
         random_read(data, datalen);
