@@ -388,10 +388,10 @@ static dr_emit_flags_t instrument_instr(
     if (instr_reads_memory(instr) || instr_writes_memory(instr)) {
         for (int i = 0, limit = instr_num_srcs(instr); i < limit; i++)
             try_mem_opnd(drcontext, bb, instr, &loc,
-                         instr_get_src(instr, i), false);
+                         instr_get_src(instr, i), instr_writes_memory(instr));
         for (int i = 0, limit = instr_num_dsts(instr); i < limit; i++)
             try_mem_opnd(drcontext, bb, instr, &loc,
-                         instr_get_dst(instr, i), false);
+                         instr_get_dst(instr, i), instr_writes_memory(instr));
     }
 
     /*
