@@ -187,12 +187,15 @@ FUNC2(void, ssh_ecdhkex_getpublic, val_ecdh, out_val_string_binarysink)
 FUNC2(val_mpint, ssh_ecdhkex_getkey, val_ecdh, val_string_ptrlen)
 
 /*
- * RSA key exchange.
+ * RSA key exchange, and also the BinarySource get function
+ * get_ssh1_rsa_priv_agent, which is a convenient way to make an
+ * RSAKey for RSA kex testing purposes.
  */
 FUNC1(val_rsakex, ssh_rsakex_newkey, val_string_ptrlen)
 FUNC1(uint, ssh_rsakex_klen, val_rsakex)
 FUNC3(val_string, ssh_rsakex_encrypt, val_rsakex, hashalg, val_string_ptrlen)
 FUNC3(val_mpint, ssh_rsakex_decrypt, val_rsakex, hashalg, val_string_ptrlen)
+FUNC1(val_rsakex, get_rsa_ssh1_priv_agent, val_string_binarysource)
 
 /*
  * Bare RSA keys as used in SSH-1. The construction API functions

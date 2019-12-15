@@ -43,6 +43,24 @@ void BinarySource_get_rsa_ssh1_priv(
     rsa->private_exponent = get_mp_ssh1(src);
 }
 
+RSAKey *BinarySource_get_rsa_ssh1_priv_agent(BinarySource *src)
+{
+    RSAKey *rsa = snew(RSAKey);
+    memset(rsa, 0, sizeof(RSAKey));
+
+    get_rsa_ssh1_pub(src, rsa, RSA_SSH1_MODULUS_FIRST);
+    get_rsa_ssh1_priv(src, rsa);
+
+    /* SSH-1 names p and q the other way round, i.e. we have the
+     * inverse of p mod q and not of q mod p. We swap the names,
+     * because our internal RSA wants iqmp. */
+    rsa->iqmp = get_mp_ssh1(src);
+    rsa->q = get_mp_ssh1(src);
+    rsa->p = get_mp_ssh1(src);
+
+    return rsa;
+}
+
 bool rsa_ssh1_encrypt(unsigned char *data, int length, RSAKey *key)
 {
     mp_int *b1, *b2;

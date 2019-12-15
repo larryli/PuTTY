@@ -539,6 +539,7 @@ void BinarySource_get_rsa_ssh1_pub(
     BinarySource *src, RSAKey *result, RsaSsh1Order order);
 void BinarySource_get_rsa_ssh1_priv(
     BinarySource *src, RSAKey *rsa);
+RSAKey *BinarySource_get_rsa_ssh1_priv_agent(BinarySource *src);
 bool rsa_ssh1_encrypt(unsigned char *data, int length, RSAKey *key);
 mp_int *rsa_ssh1_decrypt(mp_int *input, RSAKey *key);
 bool rsa_ssh1_decrypt_pkcs1(mp_int *input, RSAKey *key, strbuf *outbuf);

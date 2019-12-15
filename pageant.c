@@ -379,19 +379,7 @@ void pageant_handle_msg(BinarySink *bs,
 
             plog(logctx, logfn, "request: SSH1_AGENTC_ADD_RSA_IDENTITY");
 
-            key = snew(RSAKey);
-            memset(key, 0, sizeof(RSAKey));
-
-            get_rsa_ssh1_pub(msg, key, RSA_SSH1_MODULUS_FIRST);
-            get_rsa_ssh1_priv(msg, key);
-
-            /* SSH-1 names p and q the other way round, i.e. we have
-             * the inverse of p mod q and not of q mod p. We swap the
-             * names, because our internal RSA wants iqmp. */
-            key->iqmp = get_mp_ssh1(msg);
-            key->q = get_mp_ssh1(msg);
-            key->p = get_mp_ssh1(msg);
-
+            key = get_rsa_ssh1_priv_agent(msg);
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
