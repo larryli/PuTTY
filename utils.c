@@ -182,10 +182,21 @@ int main(void)
     printf("passed %d failed %d total %d\n", passes, fails, passes+fails);
     return fails != 0 ? 1 : 0;
 }
+
 /* Stubs to stop the rest of this module causing compile failures. */
-void modalfatalbox(const char *fmt, ...) {}
-int conf_get_int(Conf *conf, int primary) { return 0; }
-char *conf_get_str(Conf *conf, int primary) { return NULL; }
+static NORETURN void fatal_error(const char *p, ...)
+{
+    va_list ap;
+    fprintf(stderr, "host_string_test: ");
+    va_start(ap, p);
+    vfprintf(stderr, p, ap);
+    va_end(ap);
+    fputc('\n', stderr);
+    exit(1);
+}
+
+void out_of_memory(void) { fatal_error("out of memory"); }
+
 #endif /* TEST_HOST_STRFOO */
 
 /*
