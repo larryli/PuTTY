@@ -1679,7 +1679,7 @@ int main(int argc, char **argv)
         test(1, "puttygen", "-C", "spurious-new-comment", pubfilename, NULL);
     }
     printf("%d passes, %d fails\n", passes, fails);
-    return 0;
+    return fails == 0 ? 0 : 1;
 }
 
 #endif
