@@ -2754,6 +2754,11 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                        TO_CHR_X(X_POS(lParam)),
                        TO_CHR_Y(Y_POS(lParam)), wParam & MK_SHIFT,
                        wParam & MK_CONTROL, is_alt_pressed());
+        } else {
+            term_mouse(term, MBT_NOTHING, MBT_NOTHING, MA_MOVE,
+                       TO_CHR_X(X_POS(lParam)),
+                       TO_CHR_Y(Y_POS(lParam)), false,
+                       false, false);
         }
         return 0;
       }
