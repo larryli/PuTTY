@@ -502,6 +502,8 @@ static Mouse_Button translate_button(Mouse_Button button)
         return MBT_PASTE;
     if (button == MBT_RIGHT)
         return MBT_EXTEND;
+    if (button == MBT_NOTHING)
+        return MBT_NOTHING;
     return 0;                          /* shouldn't happen */
 }
 
@@ -2305,7 +2307,9 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
     bool shift, ctrl, alt;
-    int x, y, button;
+    Mouse_Action action = MA_DRAG;
+    Mouse_Button button = MBT_NOTHING;
+    int x, y;
 
     /* Remember the timestamp. */
     inst->input_event_time = event->time;
@@ -2325,12 +2329,12 @@ gint motion_event(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     else if (event->state & GDK_BUTTON3_MASK)
         button = MBT_RIGHT;
     else
-        return false;                  /* don't even know what button! */
+        action = MA_MOVE;
 
     x = (event->x - inst->window_border) / inst->font_width;
     y = (event->y - inst->window_border) / inst->font_height;
 
-    term_mouse(inst->term, button, translate_button(button), MA_DRAG,
+    term_mouse(inst->term, button, translate_button(button), action,
                x, y, shift, ctrl, alt);
 
     return true;
