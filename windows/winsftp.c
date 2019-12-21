@@ -467,19 +467,21 @@ char *dir_file_cat(const char *dir, const char *file)
  */
 static SOCKET sftp_ssh_socket = INVALID_SOCKET;
 static HANDLE netevent = INVALID_HANDLE_VALUE;
-char *do_select(SOCKET skt, bool startup)
+char *do_select(SOCKET skt, bool enable)
 {
     int events;
-    if (startup)
+    if (enable)
         sftp_ssh_socket = skt;
     else
         sftp_ssh_socket = INVALID_SOCKET;
 
+    if (netevent == INVALID_HANDLE_VALUE)
+        netevent = CreateEvent(NULL, false, false, NULL);
+
     if (p_WSAEventSelect) {
-        if (startup) {
+        if (enable) {
             events = (FD_CONNECT | FD_READ | FD_WRITE |
                       FD_OOB | FD_CLOSE | FD_ACCEPT);
-            netevent = CreateEvent(NULL, false, false, NULL);
         } else {
             events = 0;
         }
@@ -732,7 +734,9 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     do {
         ret = do_eventsel_loop(ctx->event);
 
-        /* Error return can only occur if netevent==NULL, and it ain't. */
+        /* do_eventsel_loop can't return an error (unlike
+         * ssh_sftp_loop_iteration, which can return -1 if select goes
+         * wrong or if the socket doesn't exist). */
         assert(ret >= 0);
     } while (ret == 0);
 

@@ -1026,10 +1026,10 @@ void cleanup_exit(int code)
 /*
  * Set up, or shut down, an AsyncSelect. Called from winnet.c.
  */
-char *do_select(SOCKET skt, bool startup)
+char *do_select(SOCKET skt, bool enable)
 {
     int msg, events;
-    if (startup) {
+    if (enable) {
         msg = WM_NETEVENT;
         events = (FD_CONNECT | FD_READ | FD_WRITE |
                   FD_OOB | FD_CLOSE | FD_ACCEPT);
