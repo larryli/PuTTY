@@ -569,7 +569,7 @@ const bool buildinfo_gtk_relevant = true;
 char *gtk_askpass_main(const char *display, const char *wintitle,
                        const char *prompt, bool *success)
 {
-    struct askpass_ctx actx, *ctx = &actx;
+    struct askpass_ctx ctx[1];
     const char *err;
 
     ctx->passphrase = NULL;

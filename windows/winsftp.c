@@ -705,7 +705,7 @@ static DWORD WINAPI command_read_thread(void *param)
 char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 {
     int ret;
-    struct command_read_ctx actx, *ctx = &actx;
+    struct command_read_ctx ctx[1];
     DWORD threadid;
     HANDLE hThread;
 

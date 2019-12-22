@@ -498,7 +498,7 @@ void key_find_callback(void *vctx, const char *fingerprint,
 
 struct pageant_pubkey *find_key(const char *string, char **retstr)
 {
-    struct key_find_ctx actx, *ctx = &actx;
+    struct key_find_ctx ctx[1];
     struct pageant_pubkey key_in, *key_ret;
     bool try_file = true, try_fp = true, try_comment = true;
     bool file_errors = false;

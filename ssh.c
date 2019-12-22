@@ -1052,21 +1052,21 @@ static const SessionSpecial *ssh_get_specials(Backend *be)
      * and amalgamate the list into one combined one.
      */
 
-    struct ssh_add_special_ctx ctx;
+    struct ssh_add_special_ctx ctx[1];
 
-    ctx.specials = NULL;
-    ctx.nspecials = ctx.specials_size = 0;
+    ctx->specials = NULL;
+    ctx->nspecials = ctx->specials_size = 0;
 
     if (ssh->base_layer)
-        ssh_ppl_get_specials(ssh->base_layer, ssh_add_special, &ctx);
+        ssh_ppl_get_specials(ssh->base_layer, ssh_add_special, ctx);
 
-    if (ctx.specials) {
+    if (ctx->specials) {
         /* If the list is non-empty, terminate it with a SS_EXITMENU. */
-        ssh_add_special(&ctx, NULL, SS_EXITMENU, 0);
+        ssh_add_special(ctx, NULL, SS_EXITMENU, 0);
     }
 
     sfree(ssh->specials);
-    ssh->specials = ctx.specials;
+    ssh->specials = ctx->specials;
     return ssh->specials;
 }
 

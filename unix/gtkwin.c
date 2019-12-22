@@ -4408,7 +4408,7 @@ static void compute_geom_hints(GtkFrontend *inst, GdkGeometry *geom)
      * ourselves.
      */
     {
-        struct find_app_menu_bar_ctx actx, *ctx = &actx;
+        struct find_app_menu_bar_ctx ctx[1];
         ctx->area = inst->area;
         ctx->menubar = NULL;
         gtk_container_foreach(GTK_CONTAINER(inst->window),

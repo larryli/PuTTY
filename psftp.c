@@ -1588,7 +1588,7 @@ static bool sftp_action_mv(void *vctx, char *srcfname)
 
 int sftp_cmd_mv(struct sftp_command *cmd)
 {
-    struct sftp_context_mv actx, *ctx = &actx;
+    struct sftp_context_mv ctx[1];
     int i, ret;
 
     if (!backend) {
@@ -1677,7 +1677,7 @@ int sftp_cmd_chmod(struct sftp_command *cmd)
 {
     char *mode;
     int i, ret;
-    struct sftp_context_chmod actx, *ctx = &actx;
+    struct sftp_context_chmod ctx[1];
 
     if (!backend) {
         not_connected();
