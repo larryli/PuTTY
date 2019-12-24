@@ -2089,35 +2089,35 @@ static void swap_screen(Terminal *term, int which,
         term->alt_sco_acs = t;
 
         tp = term->savecurs;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->savecurs = term->alt_savecurs;
         term->alt_savecurs = tp;
         t = term->save_cset;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_cset = term->alt_save_cset;
         term->alt_save_cset = t;
         t = term->save_csattr;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_csattr = term->alt_save_csattr;
         term->alt_save_csattr = t;
         t = term->save_attr;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_attr = term->alt_save_attr;
         term->alt_save_attr = t;
         ttc = term->save_truecolour;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_truecolour = term->alt_save_truecolour;
         term->alt_save_truecolour = ttc;
         bt = term->save_utf;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_utf = term->alt_save_utf;
         term->alt_save_utf = bt;
         bt = term->save_wnext;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_wnext = term->alt_save_wnext;
         term->alt_save_wnext = bt;
         t = term->save_sco_acs;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_sco_acs = term->alt_save_sco_acs;
         term->alt_save_sco_acs = t;
     }
