@@ -2046,6 +2046,21 @@ static void swap_screen(Terminal *term, int which,
         reset = false;                 /* do no weird resetting if which==0 */
 
     if (which != term->alt_which) {
+        if (term->erase_to_scrollback && term->alt_screen &&
+            term->alt_which && term->disptop < 0) {
+            /*
+             * We're swapping away from the alternate screen, so some
+             * lines are about to vanish from the virtual scrollback.
+             * Adjust disptop by that much, so that (if we're not
+             * resetting the scrollback anyway on a display event) the
+             * current scroll position still ends up pointing at the
+             * same text.
+             */
+            term->disptop += term->alt_sblines;
+            if (term->disptop > 0)
+                term->disptop = 0;
+        }
+
         term->alt_which = which;
 
         ttr = term->alt_screen;
@@ -2120,6 +2135,26 @@ static void swap_screen(Terminal *term, int which,
         if (!reset)
             term->save_sco_acs = term->alt_save_sco_acs;
         term->alt_save_sco_acs = t;
+
+        if (term->erase_to_scrollback && term->alt_screen &&
+            term->alt_which && term->disptop < 0) {
+            /*
+             * Inverse of the adjustment at the top of this function.
+             * This time, we're swapping _to_ the alternate screen, so
+             * some lines are about to _appear_ in the virtual
+             * scrollback, and we adjust disptop in the other
+             * direction.
+             *
+             * Both these adjustments depend on the value stored in
+             * term->alt_sblines while the alt screen is selected,
+             * which is why we had to do one _before_ switching away
+             * from it and the other _after_ switching to it.
+             */
+            term->disptop -= term->alt_sblines;
+            int limit = -sblines(term);
+            if (term->disptop < limit)
+                term->disptop = limit;
+        }
     }
 
     if (reset && term->screen) {
