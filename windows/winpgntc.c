@@ -150,7 +150,30 @@ char *agent_named_pipe_name(void)
     return pipename;
 }
 
-#endif /* NO_SECURITY */
+struct agent_connect_ctx {
+    char *pipename;
+};
+
+Socket *agent_connect(void *vctx, Plug *plug)
+{
+    agent_connect_ctx *ctx = (agent_connect_ctx *)vctx;
+    return new_named_pipe_client(ctx->pipename, plug);
+}
+
+agent_connect_ctx *agent_get_connect_ctx(void)
+{
+    agent_connect_ctx *ctx = snew(agent_connect_ctx);
+    ctx->pipename = agent_named_pipe_name();
+    return ctx;
+}
+
+void agent_free_connect_ctx(agent_connect_ctx *ctx)
+{
+    sfree(ctx->pipename);
+    sfree(ctx);
+}
+
+#else /* NO_SECURITY */
 
 Socket *agent_connect(void *vctx, Plug *plug)
 {
@@ -165,3 +188,5 @@ agent_connect_ctx *agent_get_connect_ctx(void)
 void agent_free_connect_ctx(agent_connect_ctx *ctx)
 {
 }
+
+#endif /* NO_SECURITY */
