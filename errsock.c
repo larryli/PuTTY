@@ -55,7 +55,7 @@ static const SocketVtable ErrorSocket_sockvt = {
     sk_error_peer_info,
 };
 
-static Socket *new_error_socket_internal(char *errmsg, Plug *plug)
+Socket *new_error_socket_consume_string(Plug *plug, char *errmsg)
 {
     ErrorSocket *es = snew(ErrorSocket);
     es->sock.vt = &ErrorSocket_sockvt;
@@ -73,5 +73,5 @@ Socket *new_error_socket_fmt(Plug *plug, const char *fmt, ...)
     msg = dupvprintf(fmt, ap);
     va_end(ap);
 
-    return new_error_socket_internal(msg, plug);
+    return new_error_socket_consume_string(plug, msg);
 }

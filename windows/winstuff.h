@@ -373,6 +373,12 @@ Socket *make_handle_socket(HANDLE send_H, HANDLE recv_H, HANDLE stderr_H,
 Socket *new_named_pipe_client(const char *pipename, Plug *plug); /* winnpc */
 Socket *new_named_pipe_listener(const char *pipename, Plug *plug); /* winnps */
 
+/* A lower-level function in winnpc.c, which does most of the work of
+ * new_named_pipe_client (including checking the ownership of what
+ * it's connected to), but returns a plain HANDLE instead of wrapping
+ * it into a Socket. */
+HANDLE connect_to_named_pipe(const char *pipename, char **err);
+
 /*
  * Exports from winctrls.c.
  */

@@ -264,8 +264,12 @@ char *get_hostname(void);
 /*
  * Trivial socket implementation which just stores an error. Found in
  * errsock.c.
+ *
+ * The consume_string variant takes an already-formatted dynamically
+ * allocated string, and takes over ownership of that string.
  */
 Socket *new_error_socket_fmt(Plug *plug, const char *fmt, ...);
+Socket *new_error_socket_consume_string(Plug *plug, char *errmsg);
 
 /*
  * Trivial plug that does absolutely nothing. Found in nullplug.c.
