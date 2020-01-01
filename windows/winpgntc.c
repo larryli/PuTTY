@@ -135,3 +135,17 @@ agent_pending_query *agent_query(
         LocalFree(psd);
     return NULL;
 }
+
+Socket *agent_connect(void *vctx, Plug *plug)
+{
+    unreachable("no agent_connect_ctx can be constructed on this platform");
+}
+
+agent_connect_ctx *agent_get_connect_ctx(void)
+{
+    return NULL;
+}
+
+void agent_free_connect_ctx(agent_connect_ctx *ctx)
+{
+}

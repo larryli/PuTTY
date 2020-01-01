@@ -125,17 +125,48 @@ static void agent_select_result(int fd, int event)
     agent_cancel_query(conn);
 }
 
+static const char *agent_socket_path(void)
+{
+    return getenv("SSH_AUTH_SOCK");
+}
+
+struct agent_connect_ctx {
+    SockAddr *addr;
+};
+
+Socket *agent_connect(void *vctx, Plug *plug)
+{
+    agent_connect_ctx *ctx = (agent_connect_ctx *)vctx;
+    return sk_new(ctx->addr, 0, false, false, false, false, plug);
+}
+
+agent_connect_ctx *agent_get_connect_ctx(void)
+{
+    const char *path = agent_socket_path();
+    if (!path)
+        return NULL;
+    agent_connect_ctx *ctx = snew(agent_connect_ctx);
+    ctx->addr = unix_sock_addr(path);
+    return ctx;
+}
+
+void agent_free_connect_ctx(agent_connect_ctx *ctx)
+{
+    sk_addr_free(ctx->addr);
+    sfree(ctx);
+}
+
 agent_pending_query *agent_query(
     strbuf *query, void **out, int *outlen,
     void (*callback)(void *, void *, int), void *callback_ctx)
 {
-    char *name;
+    const char *name;
     int sock;
     struct sockaddr_un addr;
     int done;
     agent_pending_query *conn;
 
-    name = getenv("SSH_AUTH_SOCK");
+    name = agent_socket_path();
     if (!name || strlen(name) >= sizeof(addr.sun_path))
         goto failure;
 

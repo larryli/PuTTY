@@ -161,8 +161,31 @@ bool ssh1_handle_direction_specific_packet(
             c->connlayer = s;
             ssh1_channel_init(c);
             c->remoteid = remid;
-            c->chan = agentf_new(&c->sc);
             c->halfopen = false;
+
+            /*
+             * If possible, make a stream-oriented connection to the
+             * agent and set up an ordinary port-forwarding type
+             * channel over it.
+             */
+            agent_connect_ctx *ctx = agent_get_connect_ctx();
+            bool got_stream_connection = false;
+            if (ctx) {
+                char *err = portfwdmgr_connect_socket(
+                    s->portfwdmgr, &c->chan, agent_connect, ctx, &c->sc);
+                agent_free_connect_ctx(ctx);
+                if (err == NULL)
+                    got_stream_connection = true;
+            }
+            if (!got_stream_connection) {
+                /*
+                 * Otherwise, fall back to the old-fashioned system of
+                 * parsing the forwarded data stream ourselves for
+                 * message boundaries, and passing each individual
+                 * message to the one-off agent_query().
+                 */
+                c->chan = agentf_new(&c->sc);
+            }
 
             pktout = ssh_bpp_new_pktout(
                 s->ppl.bpp, SSH1_MSG_CHANNEL_OPEN_CONFIRMATION);
