@@ -352,7 +352,7 @@ DECL_WINDOWS_FUNCTION(GLOBAL, int, select,
  * Implemented differently depending on the client of winnet.c, and
  * called by winnet.c to turn on or off WSA*Select for a given socket.
  */
-char *do_select(SOCKET skt, bool enable);
+const char *do_select(SOCKET skt, bool enable);
 
 /*
  * Exports from winselgui.c and winselcli.c, each of which provides an

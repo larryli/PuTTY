@@ -18,7 +18,7 @@ void winselgui_clear_hwnd(void)
     winsel_hwnd = NULL;
 }
 
-char *do_select(SOCKET skt, bool enable)
+const char *do_select(SOCKET skt, bool enable)
 {
     int msg, events;
     if (enable) {

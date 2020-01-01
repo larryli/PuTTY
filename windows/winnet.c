@@ -845,7 +845,7 @@ static const SocketVtable NetSocket_sockvt = {
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)
 {
     DWORD err;
-    char *errstr;
+    const char *errstr;
     NetSocket *ret;
 
     /*
@@ -897,7 +897,7 @@ static DWORD try_connect(NetSocket *sock)
 #endif
     SOCKADDR_IN a;
     DWORD err;
-    char *errstr;
+    const char *errstr;
     short localport;
     int family;
 
@@ -1137,7 +1137,7 @@ Socket *sk_newlistener(const char *srcaddr, int port, Plug *plug,
     SOCKADDR_IN a;
 
     DWORD err;
-    char *errstr;
+    const char *errstr;
     NetSocket *ret;
     int retcode;
 

@@ -45,7 +45,7 @@ SOCKET winselcli_unique_socket(void)
     return *p;
 }
 
-char *do_select(SOCKET skt, bool enable)
+const char *do_select(SOCKET skt, bool enable)
 {
     /* Check everything's been set up, for convenience of callers. */
     winselcli_setup();
