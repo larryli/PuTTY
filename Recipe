@@ -244,7 +244,7 @@ TERMINAL = terminal stripctrl wcwidth logging tree234 minibidi
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
-	 + wincfg sercfg winhelp winjump sessprep
+	 + wincfg sercfg winhelp winjump sessprep winselgui
 
 # Same thing on Unix.
 UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
@@ -331,11 +331,11 @@ U_BE_NOSSH = be_nos_s uxser nocproxy
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
 plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
-         + winx11 plink.res winnojmp sessprep noterm winnohlp LIBS
+         + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp winnohlp LIBS
+         + pscp.res winnojmp winnohlp winselcli LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp winnohlp LIBS
+         + psftp.res winnojmp winnohlp winselcli LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256

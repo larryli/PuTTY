@@ -462,41 +462,6 @@ char *dir_file_cat(const char *dir, const char *file)
  * Platform-specific network handling.
  */
 
-/*
- * Be told what socket we're supposed to be using.
- */
-static SOCKET sftp_ssh_socket = INVALID_SOCKET;
-static HANDLE netevent = INVALID_HANDLE_VALUE;
-char *do_select(SOCKET skt, bool enable)
-{
-    int events;
-    if (enable)
-        sftp_ssh_socket = skt;
-    else
-        sftp_ssh_socket = INVALID_SOCKET;
-
-    if (netevent == INVALID_HANDLE_VALUE)
-        netevent = CreateEvent(NULL, false, false, NULL);
-
-    if (p_WSAEventSelect) {
-        if (enable) {
-            events = (FD_CONNECT | FD_READ | FD_WRITE |
-                      FD_OOB | FD_CLOSE | FD_ACCEPT);
-        } else {
-            events = 0;
-        }
-        if (p_WSAEventSelect(skt, netevent, events) == SOCKET_ERROR) {
-            switch (p_WSAGetLastError()) {
-              case WSAENETDOWN:
-                return "Network is down";
-              default:
-                return "WSAEventSelect(): unknown error";
-            }
-        }
-    }
-    return NULL;
-}
-
 int do_eventsel_loop(HANDLE other_event)
 {
     int n, nhandles, nallhandles, netindex, otherindex;
@@ -527,8 +492,8 @@ int do_eventsel_loop(HANDLE other_event)
     handles = sresize(handles, nhandles+2, HANDLE);
     nallhandles = nhandles;
 
-    if (netevent != INVALID_HANDLE_VALUE)
-        handles[netindex = nallhandles++] = netevent;
+    if (winselcli_event != INVALID_HANDLE_VALUE)
+        handles[netindex = nallhandles++] = winselcli_event;
     else
         netindex = -1;
     if (other_event != INVALID_HANDLE_VALUE)
@@ -630,12 +595,13 @@ int ssh_sftp_loop_iteration(void)
         fd_set readfds;
         int ret;
         unsigned long now = GETTICKCOUNT(), then;
+        SOCKET skt = winselcli_unique_socket();
 
-        if (sftp_ssh_socket == INVALID_SOCKET)
+        if (skt == INVALID_SOCKET)
             return -1;                 /* doom */
 
-        if (socket_writable(sftp_ssh_socket))
-            select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_WRITE);
+        if (socket_writable(skt))
+            select_result((WPARAM) skt, (LPARAM) FD_WRITE);
 
         do {
             unsigned long next;
@@ -657,7 +623,7 @@ int ssh_sftp_loop_iteration(void)
             }
 
             FD_ZERO(&readfds);
-            FD_SET(sftp_ssh_socket, &readfds);
+            FD_SET(skt, &readfds);
             ret = p_select(1, &readfds, NULL, NULL, ptv);
 
             if (ret < 0)
@@ -669,7 +635,7 @@ int ssh_sftp_loop_iteration(void)
 
         } while (ret == 0);
 
-        select_result((WPARAM) sftp_ssh_socket, (LPARAM) FD_READ);
+        select_result((WPARAM) skt, (LPARAM) FD_READ);
 
         return 0;
     } else {
@@ -712,7 +678,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     fputs(prompt, stdout);
     fflush(stdout);
 
-    if ((sftp_ssh_socket == INVALID_SOCKET && no_fds_ok) ||
+    if ((winselcli_unique_socket() == INVALID_SOCKET && no_fds_ok) ||
         p_WSAEventSelect == NULL) {
         return fgetline(stdin);        /* very simple */
     }

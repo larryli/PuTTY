@@ -871,6 +871,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         lp_eventlog(default_logpolicy, "Running with restricted process ACL");
     }
 
+    winselgui_set_hwnd(hwnd);
     start_backend();
 
     /*
@@ -1021,32 +1022,6 @@ void cleanup_exit(int code)
     CoUninitialize();
 
     exit(code);
-}
-
-/*
- * Set up, or shut down, an AsyncSelect. Called from winnet.c.
- */
-char *do_select(SOCKET skt, bool enable)
-{
-    int msg, events;
-    if (enable) {
-        msg = WM_NETEVENT;
-        events = (FD_CONNECT | FD_READ | FD_WRITE |
-                  FD_OOB | FD_CLOSE | FD_ACCEPT);
-    } else {
-        msg = events = 0;
-    }
-    if (!hwnd)
-        return "do_select(): internal error (hwnd==NULL)";
-    if (p_WSAAsyncSelect(skt, hwnd, msg, events) == SOCKET_ERROR) {
-        switch (p_WSAGetLastError()) {
-          case WSAENETDOWN:
-            return "Network is down";
-          default:
-            return "WSAAsyncSelect(): unknown error";
-        }
-    }
-    return NULL;
 }
 
 /*
