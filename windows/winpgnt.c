@@ -16,6 +16,7 @@
 #include "misc.h"
 #include "tree234.h"
 #include "winsecur.h"
+#include "wincapi.h"
 #include "pageant.h"
 #include "licence.h"
 
@@ -1125,6 +1126,16 @@ void agent_schedule_callback(void (*callback)(void *, void *, int),
     unreachable("all Pageant's own agent requests should be synchronous");
 }
 
+void logevent(LogContext *logctx, const char *event)
+{
+    unreachable("Pageant can't create a LogContext, so this can't be called");
+}
+
+void noise_ultralight(NoiseSourceId id, unsigned long data)
+{
+    /* Pageant doesn't use random numbers, so we ignore this */
+}
+
 void cleanup_exit(int code)
 {
     shutdown_help();
@@ -1279,6 +1290,29 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         return 0;
     }
 
+#if !defined NO_SECURITY
+
+    /*
+     * Set up a named-pipe listener.
+     */
+    {
+        Plug *pl_plug;
+        struct pageant_listen_state *pl = pageant_listener_new(&pl_plug);
+        char *pipename = agent_named_pipe_name();
+        Socket *sock = new_named_pipe_listener(pipename, pl_plug);
+        if (sk_socket_error(sock)) {
+            char *err = dupprintf("Unable to open named pipe at %s "
+                                  "for SSH agent:\n", pipename,
+                                  sk_socket_error(sock));
+            MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
+            return 1;
+        }
+        pageant_listener_got_socket(pl, sock);
+        sfree(pipename);
+    }
+
+#endif /* !defined NO_SECURITY */
+
     if (!prev) {
         wndclass.style = 0;
         wndclass.lpfnWndProc = WndProc;
@@ -1300,6 +1334,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                         WS_OVERLAPPEDWINDOW | WS_VSCROLL,
                         CW_USEDEFAULT, CW_USEDEFAULT,
                         100, 100, NULL, NULL, inst, NULL);
+    winselgui_set_hwnd(hwnd);
 
     /* Set up a system tray icon */
     AddTrayIcon(hwnd);
@@ -1332,13 +1367,35 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /*
      * Main message loop.
      */
-    while (GetMessage(&msg, NULL, 0, 0) == 1) {
-        if (!(IsWindow(keylist) && IsDialogMessage(keylist, &msg)) &&
-            !(IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))) {
+    while (true) {
+        HANDLE *handles;
+        int nhandles, n;
+
+        handles = handle_get_events(&nhandles);
+
+        n = MsgWaitForMultipleObjects(nhandles, handles, false,
+                                      INFINITE, QS_ALLINPUT);
+
+        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
+            handle_got_event(handles[n - WAIT_OBJECT_0]);
+            sfree(handles);
+        } else
+            sfree(handles);
+
+        while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
+            if (msg.message == WM_QUIT)
+                goto finished;         /* two-level break */
+
+            if (IsWindow(keylist) && IsDialogMessage(keylist, &msg))
+                continue;
+            if (IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))
+                continue;
+
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
     }
+  finished:
 
     /* Clean up the system tray icon */
     {

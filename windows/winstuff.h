@@ -654,6 +654,11 @@ struct handle_sink {
 void handle_sink_init(handle_sink *sink, struct handle *h);
 
 /*
+ * Exports from winpgntc.c.
+ */
+char *agent_named_pipe_name(void);
+
+/*
  * winpgntc.c needs to schedule callbacks for asynchronous agent
  * requests. This has to be done differently in GUI and console, so
  * there's an exported function used for the purpose.

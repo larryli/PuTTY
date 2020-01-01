@@ -11,6 +11,7 @@
 
 #ifndef NO_SECURITY
 #include "winsecur.h"
+#include "wincapi.h"
 #endif
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
@@ -135,6 +136,21 @@ agent_pending_query *agent_query(
         LocalFree(psd);
     return NULL;
 }
+
+#ifndef NO_SECURITY
+
+char *agent_named_pipe_name(void)
+{
+    char *username, *suffix, *pipename;
+    username = get_username();
+    suffix = capi_obfuscate_string("Pageant");
+    pipename = dupprintf("\\\\.\\pipe\\pageant.%s.%s", username, suffix);
+    sfree(username);
+    sfree(suffix);
+    return pipename;
+}
+
+#endif /* NO_SECURITY */
 
 Socket *agent_connect(void *vctx, Plug *plug)
 {
