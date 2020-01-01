@@ -1561,52 +1561,16 @@ ptrlen pty_backend_exit_signame(Backend *be, char **aux_msg)
     if (sig < 0)
         return PTRLEN_LITERAL("");
 
-#define TRANSLATE_SIGNAL(s) do                          \
-    {                                                   \
+    #define SIGNAL_SUB(s) {                             \
         if (sig == SIG ## s)                            \
             return PTRLEN_LITERAL(#s);                  \
-    } while (0)
-
-#ifdef SIGABRT
-    TRANSLATE_SIGNAL(ABRT);
-#endif
-#ifdef SIGALRM
-    TRANSLATE_SIGNAL(ALRM);
-#endif
-#ifdef SIGFPE
-    TRANSLATE_SIGNAL(FPE);
-#endif
-#ifdef SIGHUP
-    TRANSLATE_SIGNAL(HUP);
-#endif
-#ifdef SIGILL
-    TRANSLATE_SIGNAL(ILL);
-#endif
-#ifdef SIGINT
-    TRANSLATE_SIGNAL(INT);
-#endif
-#ifdef SIGKILL
-    TRANSLATE_SIGNAL(KILL);
-#endif
-#ifdef SIGPIPE
-    TRANSLATE_SIGNAL(PIPE);
-#endif
-#ifdef SIGQUIT
-    TRANSLATE_SIGNAL(QUIT);
-#endif
-#ifdef SIGSEGV
-    TRANSLATE_SIGNAL(SEGV);
-#endif
-#ifdef SIGTERM
-    TRANSLATE_SIGNAL(TERM);
-#endif
-#ifdef SIGUSR1
-    TRANSLATE_SIGNAL(USR1);
-#endif
-#ifdef SIGUSR2
-    TRANSLATE_SIGNAL(USR2);
-#endif
-#undef TRANSLATE_SIGNAL
+    }
+    #define SIGNAL_MAIN(s, desc) SIGNAL_SUB(s)
+    #define SIGNALS_LOCAL_ONLY
+    #include "sshsignals.h"
+    #undef SIGNAL_MAIN
+    #undef SIGNAL_SUB
+    #undef SIGNALS_LOCAL_ONLY
 
     *aux_msg = dupprintf("untranslatable signal number %d: %s",
                          sig, strsignal(sig));
