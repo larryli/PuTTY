@@ -451,13 +451,13 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             keytype == SSH_KEYTYPE_SSH1_PUBLIC) {
             const char *error;
             s->publickey_blob = strbuf_new();
-            if (rsa_ssh1_loadpub(s->keyfile,
-                                 BinarySink_UPCAST(s->publickey_blob),
-                                 &s->publickey_comment, &error)) {
+            if (rsa1_loadpub_f(s->keyfile,
+                               BinarySink_UPCAST(s->publickey_blob),
+                               &s->publickey_comment, &error)) {
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH1);
                 if (!s->privatekey_available)
                     ppl_logevent("Key file contains public key only");
-                s->privatekey_encrypted = rsa_ssh1_encrypted(s->keyfile, NULL);
+                s->privatekey_encrypted = rsa1_encrypted_f(s->keyfile, NULL);
             } else {
                 ppl_logevent("Unable to load key (%s)", error);
                 ppl_printf("Unable to load key file \"%s\" (%s)\r\n",
@@ -683,8 +683,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 /*
                  * Try decrypting key with passphrase.
                  */
-                retd = rsa_ssh1_loadkey(
-                    s->keyfile, &s->key, passphrase, &error);
+                retd = rsa1_load_f(s->keyfile, &s->key, passphrase, &error);
                 if (passphrase) {
                     smemclr(passphrase, strlen(passphrase));
                     sfree(passphrase);
@@ -702,7 +701,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     got_passphrase = false;
                     /* and try again */
                 } else {
-                    unreachable("unexpected return from rsa_ssh1_loadkey()");
+                    unreachable("unexpected return from rsa1_load_f()");
                 }
             }
 

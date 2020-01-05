@@ -1147,13 +1147,6 @@ mp_int *dh_create_e(dh_ctx *, int nbits);
 const char *dh_validate_f(dh_ctx *, mp_int *f);
 mp_int *dh_find_K(dh_ctx *, mp_int *f);
 
-bool rsa_ssh1_encrypted(const Filename *filename, char **comment);
-int rsa_ssh1_loadpub(const Filename *filename, BinarySink *bs,
-                     char **commentptr, const char **errorstr);
-int rsa_ssh1_loadkey(const Filename *filename, RSAKey *key,
-                     const char *passphrase, const char **errorstr);
-bool rsa_ssh1_savekey(const Filename *filename, RSAKey *key, char *passphrase);
-
 static inline bool is_base64_char(char c)
 {
     return ((c >= '0' && c <= '9') ||
@@ -1168,18 +1161,26 @@ extern void base64_encode_atom(const unsigned char *data, int n, char *out);
 extern void base64_encode(FILE *fp, const unsigned char *data, int datalen,
                           int cpl);
 
-/* ssh2_load_userkey can return this as an error */
+/* ppk_load_* can return this as an error */
 extern ssh2_userkey ssh2_wrong_passphrase;
 #define SSH2_WRONG_PASSPHRASE (&ssh2_wrong_passphrase)
 
-bool ssh2_userkey_encrypted(const Filename *filename, char **comment);
-ssh2_userkey *ssh2_load_userkey(
-    const Filename *filename, const char *passphrase, const char **errorstr);
-bool ssh2_userkey_loadpub(
-    const Filename *filename, char **algorithm, BinarySink *bs,
-    char **commentptr, const char **errorstr);
-bool ssh2_save_userkey(
-    const Filename *filename, ssh2_userkey *key, char *passphrase);
+bool ppk_encrypted_f(const Filename *filename, char **comment);
+bool rsa1_encrypted_f(const Filename *filename, char **comment);
+
+ssh2_userkey *ppk_load_f(const Filename *filename, const char *passphrase,
+                         const char **errorstr);
+int rsa1_load_f(const Filename *filename, RSAKey *key,
+                const char *passphrase, const char **errorstr);
+
+bool ppk_save_f(const Filename *filename, ssh2_userkey *key, char *passphrase);
+bool rsa1_save_f(const Filename *filename, RSAKey *key, char *passphrase);
+
+bool ppk_loadpub_f(const Filename *filename, char **algorithm, BinarySink *bs,
+                   char **commentptr, const char **errorstr);
+int rsa1_loadpub_f(const Filename *filename, BinarySink *bs,
+                   char **commentptr, const char **errorstr);
+
 const ssh_keyalg *find_pubkey_alg(const char *name);
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name);
 

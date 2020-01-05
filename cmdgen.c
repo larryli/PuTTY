@@ -750,9 +750,9 @@ int main(int argc, char **argv)
          * Find out whether the input key is encrypted.
          */
         if (intype == SSH_KEYTYPE_SSH1)
-            encrypted = rsa_ssh1_encrypted(infilename, &origcomment);
+            encrypted = rsa1_encrypted_f(infilename, &origcomment);
         else if (intype == SSH_KEYTYPE_SSH2)
-            encrypted = ssh2_userkey_encrypted(infilename, &origcomment);
+            encrypted = ppk_encrypted_f(infilename, &origcomment);
         else
             encrypted = import_encrypted(infilename, intype, &origcomment);
 
@@ -797,8 +797,8 @@ int main(int argc, char **argv)
 
                 blob = strbuf_new();
 
-                ret = rsa_ssh1_loadpub(infilename, BinarySink_UPCAST(blob),
-                                       &origcomment, &error);
+                ret = rsa1_loadpub_f(infilename, BinarySink_UPCAST(blob),
+                                     &origcomment, &error);
                 BinarySource_BARE_INIT(src, blob->u, blob->len);
                 get_rsa_ssh1_pub(src, ssh1key, RSA_SSH1_EXPONENT_FIRST);
                 strbuf_free(blob);
@@ -809,8 +809,7 @@ int main(int argc, char **argv)
                 ssh1key->q = NULL;
                 ssh1key->iqmp = NULL;
             } else {
-                ret = rsa_ssh1_loadkey(
-                    infilename, ssh1key, old_passphrase, &error);
+                ret = rsa1_load_f(infilename, ssh1key, old_passphrase, &error);
             }
             if (ret > 0)
                 error = NULL;
@@ -825,8 +824,9 @@ int main(int argc, char **argv)
                 sfree(origcomment);
                 origcomment = NULL;
                 ssh2blob = strbuf_new();
-                if (ssh2_userkey_loadpub(infilename, &ssh2alg, BinarySink_UPCAST(ssh2blob),
-                                         &origcomment, &error)) {
+                if (ppk_loadpub_f(infilename, &ssh2alg,
+                                  BinarySink_UPCAST(ssh2blob),
+                                  &origcomment, &error)) {
                     const ssh_keyalg *alg = find_pubkey_alg(ssh2alg);
                     if (alg)
                         bits = ssh_key_public_bits(
@@ -839,8 +839,7 @@ int main(int argc, char **argv)
                 }
                 sfree(ssh2alg);
             } else {
-                ssh2key = ssh2_load_userkey(infilename, old_passphrase,
-                                            &error);
+                ssh2key = ppk_load_f(infilename, old_passphrase, &error);
             }
             if ((ssh2key && ssh2key != SSH2_WRONG_PASSPHRASE) || ssh2blob)
                 error = NULL;
@@ -953,14 +952,14 @@ int main(int argc, char **argv)
         random_ref(); /* we'll need a few random bytes in the save file */
         if (sshver == 1) {
             assert(ssh1key);
-            ret = rsa_ssh1_savekey(outfilename, ssh1key, new_passphrase);
+            ret = rsa1_save_f(outfilename, ssh1key, new_passphrase);
             if (!ret) {
                 fprintf(stderr, "puttygen: unable to save SSH-1 private key\n");
                 return 1;
             }
         } else {
             assert(ssh2key);
-            ret = ssh2_save_userkey(outfilename, ssh2key, new_passphrase);
+            ret = ppk_save_f(outfilename, ssh2key, new_passphrase);
             if (!ret) {
                 fprintf(stderr, "puttygen: unable to save SSH-2 private key\n");
                 return 1;

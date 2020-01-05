@@ -269,15 +269,13 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             keytype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH) {
             const char *error;
             s->publickey_blob = strbuf_new();
-            if (ssh2_userkey_loadpub(s->keyfile,
-                                     &s->publickey_algorithm,
-                                     BinarySink_UPCAST(s->publickey_blob),
-                                     &s->publickey_comment, &error)) {
+            if (ppk_loadpub_f(s->keyfile, &s->publickey_algorithm,
+                              BinarySink_UPCAST(s->publickey_blob),
+                              &s->publickey_comment, &error)) {
                 s->privatekey_available = (keytype == SSH_KEYTYPE_SSH2);
                 if (!s->privatekey_available)
                     ppl_logevent("Key file contains public key only");
-                s->privatekey_encrypted =
-                    ssh2_userkey_encrypted(s->keyfile, NULL);
+                s->privatekey_encrypted = ppk_encrypted_f(s->keyfile, NULL);
             } else {
                 ppl_logevent("Unable to load key (%s)", error);
                 ppl_printf("Unable to load key file \"%s\" (%s)\r\n",
@@ -893,7 +891,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     /*
                      * Try decrypting the key.
                      */
-                    key = ssh2_load_userkey(s->keyfile, passphrase, &error);
+                    key = ppk_load_f(s->keyfile, passphrase, &error);
                     if (passphrase) {
                         /* burn the evidence */
                         smemclr(passphrase, strlen(passphrase));

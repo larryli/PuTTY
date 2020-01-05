@@ -581,7 +581,7 @@ int main(int argc, char **argv)
             if (keytype == SSH_KEYTYPE_SSH2) {
                 ssh2_userkey *uk;
                 ssh_key *key;
-                uk = ssh2_load_userkey(keyfile, NULL, &error);
+                uk = ppk_load_f(keyfile, NULL, &error);
                 filename_free(keyfile);
                 if (!uk || !uk->key) {
                     fprintf(stderr, "%s: unable to load host key '%s': "
@@ -615,7 +615,7 @@ int main(int argc, char **argv)
                     exit(1);
                 }
                 hostkey1 = snew(RSAKey);
-                if (!rsa_ssh1_loadkey(keyfile, hostkey1, NULL, &error)) {
+                if (!rsa1_load_f(keyfile, hostkey1, NULL, &error)) {
                     fprintf(stderr, "%s: unable to load host key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);
@@ -647,8 +647,7 @@ int main(int argc, char **argv)
                 ssc.rsa_kex_key = snew(RSAKey);
             }
 
-            if (!rsa_ssh1_loadkey(keyfile, ssc.rsa_kex_key,
-                                  NULL, &error)) {
+            if (!rsa1_load_f(keyfile, ssc.rsa_kex_key, NULL, &error)) {
                 fprintf(stderr, "%s: unable to load RSA kex key '%s': "
                         "%s\n", appname, val, error);
                 exit(1);
@@ -669,8 +668,8 @@ int main(int argc, char **argv)
                 struct AuthPolicy_ssh2_pubkey *node;
                 void *blob;
 
-                if (!ssh2_userkey_loadpub(keyfile, NULL, BinarySink_UPCAST(sb),
-                                          NULL, &error)) {
+                if (!ppk_loadpub_f(keyfile, NULL, BinarySink_UPCAST(sb),
+                                   NULL, &error)) {
                     fprintf(stderr, "%s: unable to load user key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);
@@ -690,8 +689,8 @@ int main(int argc, char **argv)
                 BinarySource src[1];
                 struct AuthPolicy_ssh1_pubkey *node;
 
-                if (!rsa_ssh1_loadpub(keyfile, BinarySink_UPCAST(sb),
-                                      NULL, &error)) {
+                if (!rsa1_loadpub_f(keyfile, BinarySink_UPCAST(sb),
+                                    NULL, &error)) {
                     fprintf(stderr, "%s: unable to load user key '%s': "
                             "%s\n", appname, val, error);
                     exit(1);

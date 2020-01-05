@@ -537,8 +537,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             const char *error;
 
             key_in.blob = strbuf_new();
-            if (!rsa_ssh1_loadpub(fn, BinarySink_UPCAST(key_in.blob),
-                                  NULL, &error)) {
+            if (!rsa1_loadpub_f(fn, BinarySink_UPCAST(key_in.blob),
+                                NULL, &error)) {
                 strbuf_free(key_in.blob);
                 key_in.blob = NULL;
                 if (file_errors) {
@@ -567,8 +567,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
             const char *error;
 
             key_in.blob = strbuf_new();
-            if (!ssh2_userkey_loadpub(fn, NULL, BinarySink_UPCAST(key_in.blob),
-                                     NULL, &error)) {
+            if (!ppk_loadpub_f(fn, NULL, BinarySink_UPCAST(key_in.blob),
+                               NULL, &error)) {
                 strbuf_free(key_in.blob);
                 key_in.blob = NULL;
                 if (file_errors) {

@@ -1036,7 +1036,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         int i, nkeys, keylistlen;
 
         if (type == SSH_KEYTYPE_SSH1) {
-            if (!rsa_ssh1_loadpub(filename, BinarySink_UPCAST(blob), NULL, &error)) {
+            if (!rsa1_loadpub_f(filename, BinarySink_UPCAST(blob),
+                                NULL, &error)) {
                 *retstr = dupprintf("Couldn't load private key (%s)", error);
                 strbuf_free(blob);
                 return PAGEANT_ACTION_FAILURE;
@@ -1047,8 +1048,8 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
              * length, so add a placeholder here to fill in
              * afterwards */
             put_uint32(blob, 0);
-            if (!ssh2_userkey_loadpub(filename, NULL, BinarySink_UPCAST(blob),
-                                      NULL, &error)) {
+            if (!ppk_loadpub_f(filename, NULL, BinarySink_UPCAST(blob),
+                               NULL, &error)) {
                 *retstr = dupprintf("Couldn't load private key (%s)", error);
                 strbuf_free(blob);
                 return PAGEANT_ACTION_FAILURE;
@@ -1145,9 +1146,9 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
     error = NULL;
     if (type == SSH_KEYTYPE_SSH1)
-        needs_pass = rsa_ssh1_encrypted(filename, &comment);
+        needs_pass = rsa1_encrypted_f(filename, &comment);
     else
-        needs_pass = ssh2_userkey_encrypted(filename, &comment);
+        needs_pass = ppk_encrypted_f(filename, &comment);
     attempts = 0;
     if (type == SSH_KEYTYPE_SSH1)
         rkey = snew(RSAKey);
@@ -1183,9 +1184,9 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
             this_passphrase = "";
 
         if (type == SSH_KEYTYPE_SSH1)
-            ret = rsa_ssh1_loadkey(filename, rkey, this_passphrase, &error);
+            ret = rsa1_load_f(filename, rkey, this_passphrase, &error);
         else {
-            skey = ssh2_load_userkey(filename, this_passphrase, &error);
+            skey = ppk_load_f(filename, this_passphrase, &error);
             if (skey == SSH2_WRONG_PASSPHRASE)
                 ret = -1;
             else if (!skey)

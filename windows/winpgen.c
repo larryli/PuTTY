@@ -672,9 +672,9 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
     comment = NULL;
     passphrase = NULL;
     if (realtype == SSH_KEYTYPE_SSH1)
-        needs_pass = rsa_ssh1_encrypted(filename, &comment);
+        needs_pass = rsa1_encrypted_f(filename, &comment);
     else if (realtype == SSH_KEYTYPE_SSH2)
-        needs_pass = ssh2_userkey_encrypted(filename, &comment);
+        needs_pass = ppk_encrypted_f(filename, &comment);
     else
         needs_pass = import_encrypted(filename, realtype, &comment);
     do {
@@ -699,14 +699,13 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
             passphrase = dupstr("");
         if (type == SSH_KEYTYPE_SSH1) {
             if (realtype == type)
-                ret = rsa_ssh1_loadkey(
-                    filename, &newkey1, passphrase, &errmsg);
+                ret = rsa1_load_f(filename, &newkey1, passphrase, &errmsg);
             else
                 ret = import_ssh1(filename, realtype, &newkey1,
                                   passphrase, &errmsg);
         } else {
             if (realtype == type)
-                newkey2 = ssh2_load_userkey(filename, passphrase, &errmsg);
+                newkey2 = ppk_load_f(filename, passphrase, &errmsg);
             else
                 newkey2 = import_ssh2(filename, realtype, passphrase, &errmsg);
             if (newkey2 == SSH2_WRONG_PASSPHRASE)
@@ -1309,9 +1308,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                             ret = export_ssh2(fn, type, &state->ssh2key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = ssh2_save_userkey(fn, &state->ssh2key,
-                                                    *passphrase ? passphrase :
-                                                    NULL);
+                            ret = ppk_save_f(fn, &state->ssh2key,
+                                             *passphrase ? passphrase : NULL);
                         filename_free(fn);
                     } else {
                         Filename *fn = filename_from_str(filename);
@@ -1319,9 +1317,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                             ret = export_ssh1(fn, type, &state->key,
                                               *passphrase ? passphrase : NULL);
                         else
-                            ret = rsa_ssh1_savekey(
-                                fn, &state->key,
-                                *passphrase ? passphrase : NULL);
+                            ret = rsa1_save_f(fn, &state->key,
+                                              *passphrase ? passphrase : NULL);
                         filename_free(fn);
                     }
                     if (ret <= 0) {
