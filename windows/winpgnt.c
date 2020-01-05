@@ -1302,7 +1302,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         Socket *sock = new_named_pipe_listener(pipename, pl_plug);
         if (sk_socket_error(sock)) {
             char *err = dupprintf("Unable to open named pipe at %s "
-                                  "for SSH agent:\n", pipename,
+                                  "for SSH agent:\n%s", pipename,
                                   sk_socket_error(sock));
             MessageBox(NULL, err, "Pageant Error", MB_ICONERROR | MB_OK);
             return 1;
