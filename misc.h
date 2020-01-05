@@ -205,6 +205,10 @@ int string_length_for_printf(size_t);
  * string. */
 #define PTRLEN_LITERAL(stringlit) \
     TYPECHECK("" stringlit "", make_ptrlen(stringlit, sizeof(stringlit)-1))
+/* Make a ptrlen out of a compile-time string literal in a way that
+ * allows you to declare the ptrlen itself as a compile-time initialiser. */
+#define PTRLEN_DECL_LITERAL(stringlit) \
+    { TYPECHECK("" stringlit "", stringlit), sizeof(stringlit)-1 }
 /* Make a ptrlen out of a constant byte array. */
 #define PTRLEN_FROM_CONST_BYTES(a) make_ptrlen(a, sizeof(a))
 
