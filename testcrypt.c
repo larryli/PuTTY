@@ -48,6 +48,12 @@ static NORETURN void fatal_error(const char *p, ...)
 
 void out_of_memory(void) { fatal_error("out of memory"); }
 
+FILE *f_open(const struct Filename *fn, char const *mode, bool private)
+{ unreachable("f_open should never be called by this test program"); }
+
+static bool old_keyfile_warning_given;
+void old_keyfile_warning(void) { old_keyfile_warning_given = true; }
+
 static bufchain random_data_queue;
 void random_read(void *buf, size_t size)
 {
@@ -118,6 +124,8 @@ struct Value {
 #define VALTYPE_UNION(n,t,f) t vu_##n;
         VALUE_TYPES(VALTYPE_UNION)
 #undef VALTYPE_UNION
+
+        char *bare_string;
     };
 };
 
@@ -428,6 +436,14 @@ static char *get_val_string_asciz(BinarySource *in)
     return get_val_string(in)->s;
 }
 
+static strbuf *get_opt_val_string(BinarySource *in);
+
+static char *get_opt_val_string_asciz(BinarySource *in)
+{
+    strbuf *sb = get_opt_val_string(in);
+    return sb ? sb->s : NULL;
+}
+
 static mp_int **get_out_val_mpint(BinarySource *in)
 {
     Value *val = value_new(VT_mpint);
@@ -455,6 +471,47 @@ static BinarySink *get_out_val_string_binarysink(BinarySource *in)
     val->vu_string = strbuf_new();
     add_finaliser(finaliser_return_value, val);
     return BinarySink_UPCAST(val->vu_string);
+}
+
+static void return_val_string_asciz_const(strbuf *out, const char *s);
+static void return_val_string_asciz(strbuf *out, char *s);
+
+static void finaliser_return_opt_string_asciz(strbuf *out, void *ctx)
+{
+    char **valp = (char **)ctx;
+    char *val = *valp;
+    sfree(valp);
+    if (!val)
+        strbuf_catf(out, "NULL\n");
+    else
+        return_val_string_asciz(out, val);
+}
+
+static char **get_out_opt_val_string_asciz(BinarySource *in)
+{
+    char **valp = snew(char *);
+    *valp = NULL;
+    add_finaliser(finaliser_return_opt_string_asciz, valp);
+    return valp;
+}
+
+static void finaliser_return_opt_string_asciz_const(strbuf *out, void *ctx)
+{
+    const char **valp = (const char **)ctx;
+    const char *val = *valp;
+    sfree(valp);
+    if (!val)
+        strbuf_catf(out, "NULL\n");
+    else
+        return_val_string_asciz_const(out, val);
+}
+
+static const char **get_out_opt_val_string_asciz_const(BinarySource *in)
+{
+    const char **valp = snew(const char *);
+    *valp = NULL;
+    add_finaliser(finaliser_return_opt_string_asciz_const, valp);
+    return valp;
 }
 
 static void finaliser_sfree(strbuf *out, void *ctx)
@@ -495,12 +552,17 @@ static void return_boolean(strbuf *out, bool b)
     strbuf_catf(out, "%s\n", b ? "true" : "false");
 }
 
-static void return_val_string_asciz(strbuf *out, char *s)
+static void return_val_string_asciz_const(strbuf *out, const char *s)
 {
     strbuf *sb = strbuf_new();
     put_data(sb, s, strlen(s));
-    sfree(s);
     return_val_string(out, sb);
+}
+
+static void return_val_string_asciz(strbuf *out, char *s)
+{
+    return_val_string_asciz_const(out, s);
+    sfree(s);
 }
 
 #define NULLABLE_RETURN_WRAPPER(type_name, c_type)                      \
@@ -908,6 +970,57 @@ bool crcda_detect(ptrlen packet, ptrlen iv)
     return toret;
 }
 
+ssh_key *ppk_load_s_wrapper(BinarySource *src, char **comment,
+                            const char *passphrase, const char **errorstr)
+{
+    ssh2_userkey *uk = ppk_load_s(src, passphrase, errorstr);
+    if (uk == SSH2_WRONG_PASSPHRASE) {
+        /* Fudge this special return value */
+        *errorstr = "SSH2_WRONG_PASSPHRASE";
+        return NULL;
+    }
+    if (uk == NULL)
+        return NULL;
+    ssh_key *toret = uk->key;
+    *comment = uk->comment;
+    sfree(uk);
+    return toret;
+}
+#define ppk_load_s ppk_load_s_wrapper
+
+int rsa1_load_s_wrapper(BinarySource *src, RSAKey *rsa, char **comment,
+                        const char *passphrase, const char **errorstr)
+{
+    int toret = rsa1_load_s(src, rsa, passphrase, errorstr);
+    *comment = rsa->comment;
+    rsa->comment = NULL;
+    return toret;
+}
+#define rsa1_load_s rsa1_load_s_wrapper
+
+strbuf *ppk_save_sb_wrapper(ssh_key *key, const char *comment,
+                            const char *passphrase)
+{
+    ssh2_userkey uk;
+    uk.key = key;
+    uk.comment = dupstr(comment);
+    strbuf *toret = ppk_save_sb(&uk, passphrase);
+    sfree(uk.comment);
+    return toret;
+}
+#define ppk_save_sb ppk_save_sb_wrapper
+
+strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
+                             const char *passphrase)
+{
+    key->comment = dupstr(comment);
+    strbuf *toret = rsa1_save_sb(key, passphrase);
+    sfree(key->comment);
+    key->comment = NULL;
+    return toret;
+}
+#define rsa1_save_sb rsa1_save_sb_wrapper
+
 #define return_void(out, expression) (expression)
 
 static void no_progress(void *param, int action, int phase, int iprogress) {}
@@ -980,6 +1093,7 @@ VALUE_TYPES(VALTYPE_TYPEDEF)
     }
 OPTIONAL_PTR_FUNC(cipher)
 OPTIONAL_PTR_FUNC(mpint)
+OPTIONAL_PTR_FUNC(string)
 
 typedef uintmax_t TD_uint;
 typedef ptrlen TD_val_string_ptrlen;
@@ -987,6 +1101,10 @@ typedef char *TD_val_string_asciz;
 typedef BinarySource *TD_val_string_binarysource;
 typedef unsigned *TD_out_uint;
 typedef BinarySink *TD_out_val_string_binarysink;
+typedef const char *TD_opt_val_string_asciz;
+typedef char **TD_out_val_string_asciz;
+typedef char **TD_out_opt_val_string_asciz;
+typedef const char **TD_out_opt_val_string_asciz_const;
 typedef ssh_hash *TD_consumed_val_hash;
 typedef const ssh_hashalg *TD_hashalg;
 typedef const ssh2_macalg *TD_macalg;

@@ -229,6 +229,19 @@ FUNC2(val_string, prng_read, val_prng, uint)
 FUNC3(void, prng_add_entropy, val_prng, uint, val_string_ptrlen)
 
 /*
+ * Key load/save functions, or rather, the BinarySource / strbuf API
+ * that sits just inside the file I/O versions.
+ */
+FUNC2(boolean, ppk_encrypted_s, val_string_binarysource, out_opt_val_string_asciz)
+FUNC2(boolean, rsa1_encrypted_s, val_string_binarysource, out_opt_val_string_asciz)
+FUNC5(boolean, ppk_loadpub_s, val_string_binarysource, out_opt_val_string_asciz, out_val_string_binarysink, out_opt_val_string_asciz, out_opt_val_string_asciz_const)
+FUNC4(int, rsa1_loadpub_s, val_string_binarysource, out_val_string_binarysink, out_opt_val_string_asciz, out_opt_val_string_asciz_const)
+FUNC4(opt_val_key, ppk_load_s, val_string_binarysource, out_opt_val_string_asciz, opt_val_string_asciz, out_opt_val_string_asciz_const)
+FUNC5(int, rsa1_load_s, val_string_binarysource, val_rsa, out_opt_val_string_asciz, opt_val_string_asciz, out_opt_val_string_asciz_const)
+FUNC3(val_string, ppk_save_sb, val_key, opt_val_string_asciz, opt_val_string_asciz)
+FUNC3(val_string, rsa1_save_sb, val_rsa, opt_val_string_asciz, opt_val_string_asciz)
+
+/*
  * Key generation functions.
  */
 FUNC1(val_key, rsa_generate, uint)
