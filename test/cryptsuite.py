@@ -1475,6 +1475,121 @@ culpa qui officia deserunt mollit anim id est laborum.
                         self.assertFalse(ssh_key_verify(
                             key, badsig, test_message))
 
+    def testPPKLoadSave(self):
+        # Stability test of PPK load/save functions.
+        input_clear_key = b"""\
+PuTTY-User-Key-File-2: ssh-ed25519
+Encryption: none
+Comment: ed25519-key-20200105
+Public-Lines: 2
+AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
+JH1W
+Private-Lines: 1
+AAAAIGvvIpl8jyqn8Xufkw6v3FnEGtXF3KWw55AP3/AGEBpY
+Private-MAC: 2a629acfcfbe28488a1ba9b6948c36406bc28422
+"""
+        input_encrypted_key = b"""\
+PuTTY-User-Key-File-2: ssh-ed25519
+Encryption: aes256-cbc
+Comment: ed25519-key-20200105
+Public-Lines: 2
+AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
+JH1W
+Private-Lines: 1
+4/jKlTgC652oa9HLVGrMjHZw7tj0sKRuZaJPOuLhGTvb25Jzpcqpbi+Uf+y+uo+Z
+Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
+"""
+        algorithm = b'ssh-ed25519'
+        comment = b'ed25519-key-20200105'
+        pp = b'test-passphrase'
+        public_blob = unhex(
+            '0000000b7373682d65643235353139000000207242b33387688f57ff218bb639'
+            'f6d9fd213ba54f3100d5b5cb64ca6e85247d56')
+
+        self.assertEqual(ppk_encrypted_s(input_clear_key), (False, comment))
+        self.assertEqual(ppk_encrypted_s(input_encrypted_key), (True, comment))
+        self.assertEqual(ppk_encrypted_s("not a key file"), (False, None))
+
+        self.assertEqual(ppk_loadpub_s(input_clear_key),
+                         (True, algorithm, public_blob, comment, None))
+        self.assertEqual(ppk_loadpub_s(input_encrypted_key),
+                         (True, algorithm, public_blob, comment, None))
+        self.assertEqual(ppk_loadpub_s("not a key file"),
+                         (False, None, b'', None,
+                          b'not a PuTTY SSH-2 private key'))
+
+        k1, c, e = ppk_load_s(input_clear_key, None)
+        self.assertEqual((c, e), (comment, None))
+        k2, c, e = ppk_load_s(input_encrypted_key, pp)
+        self.assertEqual((c, e), (comment, None))
+
+        self.assertEqual(ppk_save_sb(k1, comment, None), input_clear_key)
+        self.assertEqual(ppk_save_sb(k2, comment, None), input_clear_key)
+
+        self.assertEqual(ppk_save_sb(k1, comment, pp), input_encrypted_key)
+        self.assertEqual(ppk_save_sb(k2, comment, pp), input_encrypted_key)
+
+    def testRSA1LoadSave(self):
+        # Stability test of SSH-1 RSA key-file load/save functions.
+        input_clear_key = unhex(
+            "5353482050524956415445204B45592046494C4520464F524D415420312E310A"
+            "000000000000000002000200BB115A85B741E84E3D940E690DF96A0CBFDC07CA"
+            "70E51DA8234D211DE77341CEF40C214CAA5DCF68BE2127447FD6C84CCB17D057"
+            "A74F2365B9D84A78906AEB51000625000000107273612D6B65792D3230323030"
+            "313036208E208E0200929EE615C6FC4E4B29585E52570F984F2E97B3144AA5BD"
+            "4C6EB2130999BB339305A21FFFA79442462A8397AF8CAC395A3A3827DE10457A"
+            "1F1B277ABFB8C069C100FF55B1CAD69B3BD9E42456CF28B1A4B98130AFCE08B2"
+            "8BCFFF5FFFED76C5D51E9F0100C5DE76889C62B1090A770AE68F087A19AB5126"
+            "E60DF87710093A2AD57B3380FB0100F2068AC47ECB33BF8F13DF402BABF35EE7"
+            "26BD32F7564E51502DF5C8F4888B2300000000")
+        input_encrypted_key = unhex(
+            "5353482050524956415445204b45592046494c4520464f524d415420312e310a"
+            "000300000000000002000200bb115a85b741e84e3d940e690df96a0cbfdc07ca"
+            "70e51da8234d211de77341cef40c214caa5dcf68be2127447fd6c84ccb17d057"
+            "a74f2365b9d84a78906aeb51000625000000107273612d6b65792d3230323030"
+            "3130363377f926e811a5f044c52714801ecdcf9dd572ee0a193c4f67e87ab2ce"
+            "4569d0c5776fd6028909ed8b6d663bef15d207d3ef6307e7e21dbec56e8d8b4e"
+            "894ded34df891bb29bae6b2b74805ac80f7304926abf01ae314dd69c64240761"
+            "34f15d50c99f7573252993530ec9c4d5016dd1f5191730cda31a5d95d362628b"
+            "2a26f4bb21840d01c8360e4a6ce216c4686d25b8699d45cf361663bb185e2c5e"
+            "652012a1e0f9d6d19afbb28506f7775bfd8129")
+
+        comment = b'rsa-key-20200106'
+        pp = b'test-passphrase'
+        public_blob = unhex(
+            "000002000006250200bb115a85b741e84e3d940e690df96a0cbfdc07ca70e51d"
+            "a8234d211de77341cef40c214caa5dcf68be2127447fd6c84ccb17d057a74f23"
+            "65b9d84a78906aeb51")
+
+        self.assertEqual(rsa1_encrypted_s(input_clear_key), (False, comment))
+        self.assertEqual(rsa1_encrypted_s(input_encrypted_key),
+                         (True, comment))
+        self.assertEqual(rsa1_encrypted_s("not a key file"), (False, None))
+
+        self.assertEqual(rsa1_loadpub_s(input_clear_key),
+                         (1, public_blob, comment, None))
+        self.assertEqual(rsa1_loadpub_s(input_encrypted_key),
+                         (1, public_blob, comment, None))
+
+        k1 = rsa_new()
+        status, c, e = rsa1_load_s(input_clear_key, k1, None)
+        self.assertEqual((status, c, e), (1, comment, None))
+        k2 = rsa_new()
+        status, c, e = rsa1_load_s(input_clear_key, k2, None)
+        self.assertEqual((status, c, e), (1, comment, None))
+
+        with queued_specific_random_data(unhex("208e")):
+            self.assertEqual(rsa1_save_sb(k1, comment, None), input_clear_key)
+        with queued_specific_random_data(unhex("208e")):
+            self.assertEqual(rsa1_save_sb(k2, comment, None), input_clear_key)
+
+        with queued_specific_random_data(unhex("99f3")):
+            self.assertEqual(rsa1_save_sb(k1, comment, pp),
+                             input_encrypted_key)
+        with queued_specific_random_data(unhex("99f3")):
+            self.assertEqual(rsa1_save_sb(k2, comment, pp),
+                             input_encrypted_key)
+
 class standard_test_vectors(MyTestBase):
     def testAES(self):
         def vector(cipher, key, plaintext, ciphertext):
