@@ -255,6 +255,10 @@ static inline void BinarySource_INIT__(BinarySource *src, ptrlen data)
               (object)->binarysource_)
 #define BinarySource_COPIED(obj) \
     ((obj)->binarysource_->binarysource_ = (obj)->binarysource_)
+#define BinarySource_REWIND_TO(src, pos) \
+    BinarySource_REWIND_TO__((src)->binarysource_, pos)
+#define BinarySource_REWIND(src) \
+    BinarySource_REWIND_TO__((src)->binarysource_, 0)
 
 #define get_data(src, len) \
     BinarySource_get_data(BinarySource_UPCAST(src), len)
@@ -272,6 +276,12 @@ static inline void BinarySource_INIT__(BinarySource *src, ptrlen data)
     BinarySource_get_string(BinarySource_UPCAST(src))
 #define get_asciz(src) \
     BinarySource_get_asciz(BinarySource_UPCAST(src))
+#define get_chars(src, include) \
+    BinarySource_get_chars(BinarySource_UPCAST(src), include)
+#define get_nonchars(src, exclude) \
+    BinarySource_get_nonchars(BinarySource_UPCAST(src), exclude)
+#define get_chomped_line(src) \
+    BinarySource_get_chomped_line(BinarySource_UPCAST(src))
 #define get_pstring(src) \
     BinarySource_get_pstring(BinarySource_UPCAST(src))
 #define get_mp_ssh1(src) \
@@ -301,9 +311,14 @@ unsigned long BinarySource_get_uint32(BinarySource *);
 uint64_t BinarySource_get_uint64(BinarySource *);
 ptrlen BinarySource_get_string(BinarySource *);
 const char *BinarySource_get_asciz(BinarySource *);
+ptrlen BinarySource_get_chars(BinarySource *, const char *include_set);
+ptrlen BinarySource_get_nonchars(BinarySource *, const char *exclude_set);
+ptrlen BinarySource_get_chomped_line(BinarySource *);
 ptrlen BinarySource_get_pstring(BinarySource *);
 mp_int *BinarySource_get_mp_ssh1(BinarySource *src);
 mp_int *BinarySource_get_mp_ssh2(BinarySource *src);
+
+void BinarySource_REWIND_TO__(BinarySource *src, size_t pos);
 
 /*
  * A couple of useful standard BinarySink implementations, which live

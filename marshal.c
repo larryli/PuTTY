@@ -218,6 +218,53 @@ const char *BinarySource_get_asciz(BinarySource *src)
     return start;
 }
 
+static ptrlen BinarySource_get_chars_internal(
+    BinarySource *src, const char *set, bool include)
+{
+    const char *start = here;
+    while (avail(1)) {
+        bool present = NULL != strchr(set, *(const char *)consume(0));
+        if (present != include)
+            break;
+        consume(1);
+    }
+    const char *end = here;
+    return make_ptrlen(start, end - start);
+}
+
+ptrlen BinarySource_get_chars(BinarySource *src, const char *include_set)
+{
+    return BinarySource_get_chars_internal(src, include_set, true);
+}
+
+ptrlen BinarySource_get_nonchars(BinarySource *src, const char *exclude_set)
+{
+    return BinarySource_get_chars_internal(src, exclude_set, false);
+}
+
+ptrlen BinarySource_get_chomped_line(BinarySource *src)
+{
+    const char *start, *end;
+
+    if (src->err)
+        return make_ptrlen(here, 0);
+
+    start = here;
+    end = memchr(start, '\n', src->len - src->pos);
+    if (end)
+        advance(end + 1 - start);
+    else
+        advance(src->len - src->pos);
+    end = here;
+
+    if (end > start && end[-1] == '\n')
+        end--;
+    if (end > start && end[-1] == '\r')
+        end--;
+
+    return make_ptrlen(start, end - start);
+}
+
 ptrlen BinarySource_get_pstring(BinarySource *src)
 {
     const unsigned char *ucp;
@@ -233,6 +280,17 @@ ptrlen BinarySource_get_pstring(BinarySource *src)
         return make_ptrlen("", 0);
 
     return make_ptrlen(consume(len), len);
+}
+
+void BinarySource_REWIND_TO__(BinarySource *src, size_t pos)
+{
+    if (pos <= src->len) {
+        src->pos = pos;
+        src->err = BSE_NO_ERROR;    /* clear any existing error */
+    } else {
+        src->pos = src->len;
+        src->err = BSE_OUT_OF_DATA; /* new error if we rewind out of range */
+    }
 }
 
 static void stdio_sink_write(BinarySink *bs, const void *data, size_t len)
