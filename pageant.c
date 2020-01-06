@@ -30,104 +30,181 @@ void random_read(void *buf, size_t size)
 static bool pageant_local = false;
 
 /*
- * rsakeys stores SSH-1 RSA keys. ssh2keys stores all SSH-2 keys.
+ * Master list of all the keys we have stored, in any form at all.
  */
-static tree234 *rsakeys, *ssh2keys;
+static tree234 *keytree;
+typedef struct PageantKeySort {
+    /* Prefix of the main PageantKey structure which contains all the
+     * data that the sorting order depends on. Also simple enough that
+     * you can construct one for lookup purposes. */
+    int ssh_version; /* 1 or 2; primary sort key */
+    ptrlen public_blob; /* secondary sort key */
+} PageantKeySort;
+typedef struct PageantKey {
+    PageantKeySort sort;
+    strbuf *public_blob; /* the true owner of sort.public_blob */
+    char *comment;       /* always stored separately, never in rkey/skey */
+    union {
+        RSAKey *rkey;       /* if ssh_version == 1 */
+        ssh2_userkey *skey; /* if ssh_version == 2 */
+    };
+} PageantKey;
 
-/*
- * Key comparison function for the 2-3-4 tree of RSA keys.
- */
-static int cmpkeys_rsa(void *av, void *bv)
+static void pk_free(PageantKey *pk)
 {
-    RSAKey *a = (RSAKey *) av;
-    RSAKey *b = (RSAKey *) bv;
-
-    return ((int)mp_cmp_hs(a->modulus, b->modulus) -
-            (int)mp_cmp_hs(b->modulus, a->modulus));
-}
-
-/*
- * Key comparison function for looking up a blob in the 2-3-4 tree
- * of SSH-2 keys.
- */
-static int cmpkeys_ssh2_asymm(void *av, void *bv)
-{
-    ptrlen *ablob = (ptrlen *) av;
-    ssh2_userkey *b = (ssh2_userkey *) bv;
-    strbuf *bblob;
-    int i, c;
-
-    /*
-     * Compare purely by public blob.
-     */
-    bblob = strbuf_new();
-    ssh_key_public_blob(b->key, BinarySink_UPCAST(bblob));
-
-    c = 0;
-    for (i = 0; i < ablob->len && i < bblob->len; i++) {
-        unsigned char abyte = ((unsigned char *)ablob->ptr)[i];
-        if (abyte < bblob->u[i]) {
-            c = -1;
-            break;
-        } else if (abyte > bblob->u[i]) {
-            c = +1;
-            break;
-        }
+    if (pk->public_blob) strbuf_free(pk->public_blob);
+    sfree(pk->comment);
+    if (pk->sort.ssh_version == 1 && pk->rkey) {
+        freersakey(pk->rkey);
+        sfree(pk->rkey);
     }
-    if (c == 0 && i < ablob->len)
-        c = +1;                        /* a is longer */
-    if (c == 0 && i < bblob->len)
-        c = -1;                        /* a is longer */
-
-    strbuf_free(bblob);
-
-    return c;
+    if (pk->sort.ssh_version == 2 && pk->skey) {
+        ssh_key_free(pk->skey->key);
+        sfree(pk->skey);
+    }
+    sfree(pk);
 }
 
-/*
- * Main key comparison function for the 2-3-4 tree of SSH-2 keys.
- */
-static int cmpkeys_ssh2(void *av, void *bv)
+static int cmpkeys(void *av, void *bv)
 {
-    ssh2_userkey *a = (ssh2_userkey *) av;
-    strbuf *ablob;
-    ptrlen apl;
-    int toret;
+    PageantKeySort *a = (PageantKeySort *)av, *b = (PageantKeySort *)bv;
 
-    ablob = strbuf_new();
-    ssh_key_public_blob(a->key, BinarySink_UPCAST(ablob));
-    apl.ptr = ablob->u;
-    apl.len = ablob->len;
-    toret = cmpkeys_ssh2_asymm(&apl, bv);
-    strbuf_free(ablob);
+    if (a->ssh_version != b->ssh_version)
+        return a->ssh_version < b->ssh_version ? -1 : +1;
+    else
+        return ptrlen_strcmp(a->public_blob, b->public_blob);
+}
+
+static inline PageantKeySort keysort(int version, ptrlen blob)
+{
+    PageantKeySort sort;
+    sort.ssh_version = version;
+    sort.public_blob = blob;
+    return sort;
+}
+
+static strbuf *makeblob1(RSAKey *rkey)
+{
+    strbuf *blob = strbuf_new();
+    rsa_ssh1_public_blob(BinarySink_UPCAST(blob), rkey,
+                         RSA_SSH1_EXPONENT_FIRST);
+    return blob;
+}
+
+static strbuf *makeblob2(ssh2_userkey *skey)
+{
+    strbuf *blob = strbuf_new();
+    ssh_key_public_blob(skey->key, BinarySink_UPCAST(blob));
+    return blob;
+}
+
+static PageantKey *findkey1(RSAKey *reqkey)
+{
+    strbuf *blob = makeblob1(reqkey);
+    PageantKeySort sort = keysort(1, ptrlen_from_strbuf(blob));
+    PageantKey *toret = find234(keytree, &sort, NULL);
+    strbuf_free(blob);
     return toret;
 }
 
-void pageant_make_keylist1(BinarySink *bs)
+static PageantKey *findkey2(ptrlen blob)
 {
-    int i;
-    RSAKey *key;
+    PageantKeySort sort = keysort(2, blob);
+    return find234(keytree, &sort, NULL);
+}
 
-    put_uint32(bs, count234(rsakeys));
-    for (i = 0; NULL != (key = index234(rsakeys, i)); i++) {
-        rsa_ssh1_public_blob(bs, key, RSA_SSH1_EXPONENT_FIRST);
-        put_stringz(bs, key->comment);
+static int find_first_key_for_version(int ssh_version)
+{
+    PageantKeySort sort = keysort(ssh_version, PTRLEN_LITERAL(""));
+    int pos;
+    if (findrelpos234(keytree, &sort, NULL, REL234_GE, &pos))
+        return pos;
+    return count234(keytree);
+}
+
+static int count_keys(int ssh_version)
+{
+    return (find_first_key_for_version(ssh_version + 1) -
+            find_first_key_for_version(ssh_version));
+}
+int pageant_count_ssh1_keys(void) { return count_keys(1); }
+int pageant_count_ssh2_keys(void) { return count_keys(2); }
+
+bool pageant_add_ssh1_key(RSAKey *rkey)
+{
+    PageantKey *pk = snew(PageantKey);
+    memset(pk, 0, sizeof(PageantKey));
+    pk->sort.ssh_version = 1;
+    pk->public_blob = makeblob1(rkey);
+    pk->sort.public_blob = ptrlen_from_strbuf(pk->public_blob);
+
+    if (add234(keytree, pk) == pk) {
+        pk->rkey = rkey;
+        if (rkey->comment) {
+            pk->comment = rkey->comment;
+            rkey->comment = NULL;
+        }
+        return true;
+    } else {
+        pk_free(pk);
+        return false;
     }
 }
 
-void pageant_make_keylist2(BinarySink *bs)
+bool pageant_add_ssh2_key(ssh2_userkey *skey)
 {
-    int i;
-    ssh2_userkey *key;
+    PageantKey *pk = snew(PageantKey);
+    memset(pk, 0, sizeof(PageantKey));
+    pk->sort.ssh_version = 2;
+    pk->public_blob = makeblob2(skey);
+    pk->sort.public_blob = ptrlen_from_strbuf(pk->public_blob);
 
-    put_uint32(bs, count234(ssh2keys));
-    for (i = 0; NULL != (key = index234(ssh2keys, i)); i++) {
-        strbuf *blob = strbuf_new();
-        ssh_key_public_blob(key->key, BinarySink_UPCAST(blob));
-        put_stringsb(bs, blob);
-        put_stringz(bs, key->comment);
+    if (add234(keytree, pk) == pk) {
+        pk->skey = skey;
+        if (skey->comment) {
+            pk->comment = skey->comment;
+            skey->comment = NULL;
+        }
+        return true;
+    } else {
+        pk_free(pk);
+        return false;
     }
 }
+
+static void remove_all_keys(int ssh_version)
+{
+    int start = find_first_key_for_version(ssh_version);
+    int end = find_first_key_for_version(ssh_version + 1);
+    while (end > start) {
+        PageantKey *pk = delpos234(keytree, --end);
+        assert(pk->sort.ssh_version == ssh_version);
+        pk_free(pk);
+    }
+}
+
+static void list_keys(BinarySink *bs, int ssh_version)
+{
+    int i;
+    PageantKey *pk;
+
+    put_uint32(bs, count_keys(ssh_version));
+    for (i = find_first_key_for_version(ssh_version);
+         NULL != (pk = index234(keytree, i)); i++) {
+        if (pk->sort.ssh_version != ssh_version)
+            break;
+
+        if (ssh_version > 1)
+            put_stringpl(bs, pk->sort.public_blob);
+        else
+            put_datapl(bs, pk->sort.public_blob); /* no header */
+
+        put_stringpl(bs, ptrlen_from_asciz(pk->comment));
+    }
+}
+
+void pageant_make_keylist1(BinarySink *bs) { return list_keys(bs, 1); }
+void pageant_make_keylist2(BinarySink *bs) { return list_keys(bs, 2); }
 
 static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
 #ifdef __GNUC__
@@ -222,7 +299,8 @@ void pageant_handle_msg(BinarySink *bs,
          * or not.
          */
         {
-            RSAKey reqkey, *key;
+            RSAKey reqkey;
+            PageantKey *pk;
             mp_int *challenge, *response;
             ptrlen session_id;
             unsigned response_type;
@@ -258,11 +336,12 @@ void pageant_handle_msg(BinarySink *bs,
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
-            if ((key = find234(rsakeys, &reqkey, NULL)) == NULL) {
+
+            if ((pk = findkey1(&reqkey)) == NULL) {
                 pageant_failure_msg(bs, "key not found", logctx, logfn);
                 goto challenge1_cleanup;
             }
-            response = rsa_ssh1_decrypt(challenge, key);
+            response = rsa_ssh1_decrypt(challenge, pk->rkey);
 
             {
                 ssh_hash *h = ssh_hash_new(&ssh_md5);
@@ -291,7 +370,7 @@ void pageant_handle_msg(BinarySink *bs,
          * or not.
          */
         {
-            ssh2_userkey *key;
+            PageantKey *pk;
             ptrlen keyblob, sigdata;
             strbuf *signature;
             uint32_t flags, supported_flags;
@@ -325,8 +404,7 @@ void pageant_handle_msg(BinarySink *bs,
                 plog(logctx, logfn, "requested key: %s", fingerprint);
                 sfree(fingerprint);
             }
-            key = find234(ssh2keys, &keyblob, cmpkeys_ssh2_asymm);
-            if (!key) {
+            if ((pk = findkey2(keyblob)) == NULL) {
                 pageant_failure_msg(bs, "key not found", logctx, logfn);
                 return;
             }
@@ -336,7 +414,7 @@ void pageant_handle_msg(BinarySink *bs,
             else
                 plog(logctx, logfn, "no signature flags");
 
-            supported_flags = ssh_key_alg(key->key)->supported_flags;
+            supported_flags = ssh_key_alg(pk->skey->key)->supported_flags;
             if (flags & ~supported_flags) {
                 /*
                  * We MUST reject any message containing flags we
@@ -350,7 +428,7 @@ void pageant_handle_msg(BinarySink *bs,
                 return;
             }
 
-            char *invalid = ssh_key_invalid(key->key, flags);
+            char *invalid = ssh_key_invalid(pk->skey->key, flags);
             if (invalid) {
                 char *msg = dupprintf("key invalid: %s", invalid);
                 pageant_failure_msg(bs, msg, logctx, logfn);
@@ -360,7 +438,7 @@ void pageant_handle_msg(BinarySink *bs,
             }
 
             signature = strbuf_new();
-            ssh_key_sign(key->key, sigdata, flags,
+            ssh_key_sign(pk->skey->key, sigdata, flags,
                          BinarySink_UPCAST(signature));
 
             put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
@@ -399,7 +477,7 @@ void pageant_handle_msg(BinarySink *bs,
                 sfree(fingerprint);
             }
 
-            if (add234(rsakeys, key) == key) {
+            if (pageant_add_ssh1_key(key)) {
                 keylist_update();
                 put_byte(bs, SSH_AGENT_SUCCESS);
                 plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
@@ -461,7 +539,7 @@ void pageant_handle_msg(BinarySink *bs,
                 sfree(fingerprint);
             }
 
-            if (add234(ssh2keys, key) == key) {
+            if (pageant_add_ssh2_key(key)) {
                 keylist_update();
                 put_byte(bs, SSH_AGENT_SUCCESS);
 
@@ -490,7 +568,8 @@ void pageant_handle_msg(BinarySink *bs,
          * start with.
          */
         {
-            RSAKey reqkey, *key;
+            RSAKey reqkey;
+            PageantKey *pk;
 
             plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
 
@@ -512,15 +591,15 @@ void pageant_handle_msg(BinarySink *bs,
                 sfree(fingerprint);
             }
 
-            key = find234(rsakeys, &reqkey, NULL);
+            pk = findkey1(&reqkey);
             freersakey(&reqkey);
-            if (key) {
-                plog(logctx, logfn, "found with comment: %s", key->comment);
+            if (pk) {
+                plog(logctx, logfn, "found with comment: %s",
+                     pk->rkey->comment);
 
-                del234(rsakeys, key);
+                del234(keytree, pk);
                 keylist_update();
-                freersakey(key);
-                sfree(key);
+                pk_free(pk);
                 put_byte(bs, SSH_AGENT_SUCCESS);
 
                 plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
@@ -536,7 +615,7 @@ void pageant_handle_msg(BinarySink *bs,
          * start with.
          */
         {
-            ssh2_userkey *key;
+            PageantKey *pk;
             ptrlen blob;
 
             plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_IDENTITY");
@@ -555,19 +634,17 @@ void pageant_handle_msg(BinarySink *bs,
                 sfree(fingerprint);
             }
 
-            key = find234(ssh2keys, &blob, cmpkeys_ssh2_asymm);
-            if (!key) {
+            pk = findkey2(blob);
+            if (!pk) {
                 pageant_failure_msg(bs, "key not found", logctx, logfn);
                 return;
             }
 
-            plog(logctx, logfn, "found with comment: %s", key->comment);
+            plog(logctx, logfn, "found with comment: %s", pk->skey->comment);
 
-            del234(ssh2keys, key);
+            del234(keytree, pk);
             keylist_update();
-            ssh_key_free(key->key);
-            sfree(key->comment);
-            sfree(key);
+            pk_free(pk);
             put_byte(bs, SSH_AGENT_SUCCESS);
 
             plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
@@ -578,16 +655,10 @@ void pageant_handle_msg(BinarySink *bs,
          * Remove all SSH-1 keys. Always returns success.
          */
         {
-            RSAKey *rkey;
-
             plog(logctx, logfn, "request:"
                 " SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES");
 
-            while ((rkey = index234(rsakeys, 0)) != NULL) {
-                del234(rsakeys, rkey);
-                freersakey(rkey);
-                sfree(rkey);
-            }
+            remove_all_keys(1);
             keylist_update();
 
             put_byte(bs, SSH_AGENT_SUCCESS);
@@ -600,16 +671,9 @@ void pageant_handle_msg(BinarySink *bs,
          * Remove all SSH-2 keys. Always returns success.
          */
         {
-            ssh2_userkey *skey;
-
             plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_ALL_IDENTITIES");
 
-            while ((skey = index234(ssh2keys, 0)) != NULL) {
-                del234(ssh2keys, skey);
-                ssh_key_free(skey->key);
-                sfree(skey->comment);
-                sfree(skey);
-            }
+            remove_all_keys(2);
             keylist_update();
 
             put_byte(bs, SSH_AGENT_SUCCESS);
@@ -635,55 +699,52 @@ void pageant_failure_msg(BinarySink *bs,
 void pageant_init(void)
 {
     pageant_local = true;
-    rsakeys = newtree234(cmpkeys_rsa);
-    ssh2keys = newtree234(cmpkeys_ssh2);
+    keytree = newtree234(cmpkeys);
 }
 
 RSAKey *pageant_nth_ssh1_key(int i)
 {
-    return index234(rsakeys, i);
+    PageantKey *pk = index234(keytree, find_first_key_for_version(1) + i);
+    if (pk && pk->sort.ssh_version == 1)
+        return pk->rkey;
+    else
+        return NULL;
 }
 
 ssh2_userkey *pageant_nth_ssh2_key(int i)
 {
-    return index234(ssh2keys, i);
-}
-
-int pageant_count_ssh1_keys(void)
-{
-    return count234(rsakeys);
-}
-
-int pageant_count_ssh2_keys(void)
-{
-    return count234(ssh2keys);
-}
-
-bool pageant_add_ssh1_key(RSAKey *rkey)
-{
-    return add234(rsakeys, rkey) == rkey;
-}
-
-bool pageant_add_ssh2_key(ssh2_userkey *skey)
-{
-    return add234(ssh2keys, skey) == skey;
+    PageantKey *pk = index234(keytree, find_first_key_for_version(2) + i);
+    if (pk && pk->sort.ssh_version == 2)
+        return pk->skey;
+    else
+        return NULL;
 }
 
 bool pageant_delete_ssh1_key(RSAKey *rkey)
 {
-    RSAKey *deleted = del234(rsakeys, rkey);
+    strbuf *blob = makeblob1(rkey);
+    PageantKeySort sort = keysort(1, ptrlen_from_strbuf(blob));
+    PageantKey *deleted = del234(keytree, &sort);
+    strbuf_free(blob);
+
     if (!deleted)
         return false;
-    assert(deleted == rkey);
+    assert(deleted->sort.ssh_version == 1);
+    assert(deleted->rkey == rkey);
     return true;
 }
 
 bool pageant_delete_ssh2_key(ssh2_userkey *skey)
 {
-    ssh2_userkey *deleted = del234(ssh2keys, skey);
+    strbuf *blob = makeblob2(skey);
+    PageantKeySort sort = keysort(2, ptrlen_from_strbuf(blob));
+    PageantKey *deleted = del234(keytree, &sort);
+    strbuf_free(blob);
+
     if (!deleted)
         return false;
-    assert(deleted == skey);
+    assert(deleted->sort.ssh_version == 2);
+    assert(deleted->skey == skey);
     return true;
 }
 
@@ -1342,9 +1403,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
         fingerprint = rsa_ssh1_fingerprint(&rkey);
 
-        cbkey.blob = strbuf_new();
-        rsa_ssh1_public_blob(BinarySink_UPCAST(cbkey.blob), &rkey,
-                             RSA_SSH1_EXPONENT_FIRST);
+        cbkey.blob = makeblob1(&rkey);
         cbkey.comment = mkstr(comment);
         cbkey.ssh_version = 1;
         callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
