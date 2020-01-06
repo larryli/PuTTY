@@ -495,12 +495,17 @@ static void return_boolean(strbuf *out, bool b)
     strbuf_catf(out, "%s\n", b ? "true" : "false");
 }
 
-static void return_val_string_asciz(strbuf *out, char *s)
+static void return_val_string_asciz_const(strbuf *out, const char *s)
 {
     strbuf *sb = strbuf_new();
     put_data(sb, s, strlen(s));
-    sfree(s);
     return_val_string(out, sb);
+}
+
+static void return_val_string_asciz(strbuf *out, char *s)
+{
+    return_val_string_asciz_const(out, s);
+    sfree(s);
 }
 
 #define NULLABLE_RETURN_WRAPPER(type_name, c_type)                      \
