@@ -176,7 +176,7 @@ def make_retval(rettype, word, unpack_strings):
                       retwords[0])
     if rettype.startswith("val_"):
         return Value(rettype, word)
-    elif rettype == "uint":
+    elif rettype == "int" or rettype == "uint":
         return int(word, 0)
     elif rettype == "boolean":
         assert word == b"true" or word == b"false"
