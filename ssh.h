@@ -1497,6 +1497,7 @@ enum {
 #define SSH2_AGENTC_ADD_IDENTITY                17
 #define SSH2_AGENTC_REMOVE_IDENTITY             18
 #define SSH2_AGENTC_REMOVE_ALL_IDENTITIES       19
+#define SSH2_AGENTC_EXTENSION                   27
 
 /*
  * Assorted other SSH-related enumerations.
