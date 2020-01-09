@@ -512,6 +512,7 @@ static void return_val_string_asciz(strbuf *out, char *s)
             return_##type_name(out, ptr);                               \
     }
 
+NULLABLE_RETURN_WRAPPER(val_string, strbuf *)
 NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
 NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
@@ -751,11 +752,14 @@ static RSAKey *rsa_new(void)
 strbuf *rsa_ssh1_encrypt_wrapper(ptrlen input, RSAKey *key)
 {
     /* Fold the boolean return value in C into the string return value
-     * for this purpose, by returning the empty string on failure */
+     * for this purpose, by returning NULL on failure */
     strbuf *sb = strbuf_new();
     put_datapl(sb, input);
-    if (!rsa_ssh1_encrypt(sb->u, sb->len, key))
-        sb->len = 0;
+    put_padding(sb, key->bytes - input.len, 0);
+    if (!rsa_ssh1_encrypt(sb->u, input.len, key)) {
+        strbuf_free(sb);
+        return NULL;
+    }
     return sb;
 }
 #define rsa_ssh1_encrypt rsa_ssh1_encrypt_wrapper
