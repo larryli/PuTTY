@@ -920,6 +920,50 @@ mp_int *primegen_wrapper(
 }
 #define primegen primegen_wrapper
 
+RSAKey *rsa1_generate(int bits)
+{
+    RSAKey *rsakey = snew(RSAKey);
+    rsa_generate(rsakey, bits, no_progress, NULL);
+    rsakey->comment = NULL;
+    return rsakey;
+}
+
+ssh_key *rsa_generate_wrapper(int bits)
+{
+    return &rsa1_generate(bits)->sshk;
+}
+#define rsa_generate rsa_generate_wrapper
+
+ssh_key *dsa_generate_wrapper(int bits)
+{
+    struct dss_key *dsskey = snew(struct dss_key);
+    dsa_generate(dsskey, bits, no_progress, NULL);
+    return &dsskey->sshk;
+}
+#define dsa_generate dsa_generate_wrapper
+
+ssh_key *ecdsa_generate_wrapper(int bits)
+{
+    struct ecdsa_key *ek = snew(struct ecdsa_key);
+    if (!ecdsa_generate(ek, bits, no_progress, NULL)) {
+        sfree(ek);
+        return NULL;
+    }
+    return &ek->sshk;
+}
+#define ecdsa_generate ecdsa_generate_wrapper
+
+ssh_key *eddsa_generate_wrapper(int bits)
+{
+    struct eddsa_key *ek = snew(struct eddsa_key);
+    if (!eddsa_generate(ek, bits, no_progress, NULL)) {
+        sfree(ek);
+        return NULL;
+    }
+    return &ek->sshk;
+}
+#define eddsa_generate eddsa_generate_wrapper
+
 #define VALTYPE_TYPEDEF(n,t,f)                  \
     typedef t TD_val_##n;                       \
     typedef t *TD_out_val_##n;

@@ -124,5 +124,8 @@ int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
     key->q = q;
     key->iqmp = iqmp;
 
+    key->bits = mp_get_nbits(modulus);
+    key->bytes = (key->bits + 7) / 8;
+
     return 1;
 }

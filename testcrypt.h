@@ -229,6 +229,16 @@ FUNC2(val_string, prng_read, val_prng, uint)
 FUNC3(void, prng_add_entropy, val_prng, uint, val_string_ptrlen)
 
 /*
+ * Key generation functions.
+ */
+FUNC1(val_key, rsa_generate, uint)
+FUNC1(val_key, dsa_generate, uint)
+FUNC1(opt_val_key, ecdsa_generate, uint)
+FUNC1(opt_val_key, eddsa_generate, uint)
+FUNC1(val_rsa, rsa1_generate, uint)
+FUNC5(val_mpint, primegen, uint, uint, uint, val_mpint, uint)
+
+/*
  * Miscellaneous.
  */
 FUNC2(val_wpoint, ecdsa_public, val_mpint, keyalg)
@@ -245,7 +255,6 @@ FUNC1(uint, crc32_rfc1662, val_string_ptrlen)
 FUNC1(uint, crc32_ssh1, val_string_ptrlen)
 FUNC2(uint, crc32_update, uint, val_string_ptrlen)
 FUNC2(boolean, crcda_detect, val_string_ptrlen, val_string_ptrlen)
-FUNC5(val_mpint, primegen, uint, uint, uint, val_mpint, uint)
 
 /*
  * These functions aren't part of PuTTY's own API, but are additions
