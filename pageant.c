@@ -1247,13 +1247,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
             request = strbuf_new_for_agent_query();
             put_byte(request, SSH1_AGENTC_ADD_RSA_IDENTITY);
-            put_uint32(request, mp_get_nbits(rkey->modulus));
-            put_mp_ssh1(request, rkey->modulus);
-            put_mp_ssh1(request, rkey->exponent);
-            put_mp_ssh1(request, rkey->private_exponent);
-            put_mp_ssh1(request, rkey->iqmp);
-            put_mp_ssh1(request, rkey->q);
-            put_mp_ssh1(request, rkey->p);
+            rsa_ssh1_private_blob_agent(BinarySink_UPCAST(request), rkey);
             put_stringz(request, rkey->comment);
             agent_query_synchronous(request, &vresponse, &resplen);
             strbuf_free(request);

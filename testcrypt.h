@@ -214,6 +214,7 @@ FUNC1(val_string_asciz, rsastr_fmt, val_rsa)
 FUNC1(val_string_asciz, rsa_ssh1_fingerprint, val_rsa)
 FUNC3(void, rsa_ssh1_public_blob, out_val_string_binarysink, val_rsa, rsaorder)
 FUNC1(int, rsa_ssh1_public_blob_len, val_string_ptrlen)
+FUNC2(void, rsa_ssh1_private_blob_agent, out_val_string_binarysink, val_rsa)
 
 /*
  * The PRNG type. Similarly to hashes and MACs, I've invented an extra

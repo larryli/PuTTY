@@ -551,6 +551,7 @@ char *rsa_ssh1_fingerprint(RSAKey *key);
 bool rsa_verify(RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, RSAKey *key, RsaSsh1Order order);
 int rsa_ssh1_public_blob_len(ptrlen data);
+void rsa_ssh1_private_blob_agent(BinarySink *bs, RSAKey *key);
 void freersapriv(RSAKey *key);
 void freersakey(RSAKey *key);
 

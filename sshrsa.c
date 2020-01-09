@@ -374,6 +374,15 @@ void rsa_ssh1_public_blob(BinarySink *bs, RSAKey *key,
     }
 }
 
+void rsa_ssh1_private_blob_agent(BinarySink *bs, RSAKey *key)
+{
+    rsa_ssh1_public_blob(bs, key, RSA_SSH1_MODULUS_FIRST);
+    put_mp_ssh1(bs, key->private_exponent);
+    put_mp_ssh1(bs, key->iqmp);
+    put_mp_ssh1(bs, key->q);
+    put_mp_ssh1(bs, key->p);
+}
+
 /* Given an SSH-1 public key blob, determine its length. */
 int rsa_ssh1_public_blob_len(ptrlen data)
 {
