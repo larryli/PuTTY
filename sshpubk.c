@@ -400,8 +400,8 @@ bool rsa_ssh1_savekey(const Filename *filename, RSAKey *key,
 /*
  * PuTTY's own format for SSH-2 keys is as follows:
  *
- * The file is text. Lines are terminated by CRLF, although CR-only
- * and LF-only are tolerated on input.
+ * The file is text. Lines are terminated by LF by preference,
+ * although CRLF and CR-only are tolerated on input.
  *
  * The first line says "PuTTY-User-Key-File-2: " plus the name of the
  * algorithm ("ssh-dss", "ssh-rsa" etc).
