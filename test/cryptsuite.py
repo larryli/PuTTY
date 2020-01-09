@@ -15,40 +15,15 @@ except ImportError:
 
 from eccref import *
 from testcrypt import *
+from ssh import *
 
 try:
     base64decode = base64.decodebytes
 except AttributeError:
     base64decode = base64.decodestring
 
-def nbits(n):
-    # Mimic mp_get_nbits for ordinary Python integers.
-    assert 0 <= n
-    smax = next(s for s in itertools.count() if (n >> (1 << s)) == 0)
-    toret = 0
-    for shift in reversed([1 << s for s in range(smax)]):
-        if n >> shift != 0:
-            n >>= shift
-            toret += shift
-    assert n <= 1
-    if n == 1:
-        toret += 1
-    return toret
-
 def unhex(s):
     return binascii.unhexlify(s.replace(" ", "").replace("\n", ""))
-
-def ssh_uint32(n):
-    return struct.pack(">L", n)
-def ssh_string(s):
-    return ssh_uint32(len(s)) + s
-def ssh1_mpint(x):
-    bits = nbits(x)
-    bytevals = [0xFF & (x >> (8*n)) for n in range((bits-1)//8, -1, -1)]
-    return struct.pack(">H" + "B" * len(bytevals), bits, *bytevals)
-def ssh2_mpint(x):
-    bytevals = [0xFF & (x >> (8*n)) for n in range(nbits(x)//8, -1, -1)]
-    return struct.pack(">L" + "B" * len(bytevals), len(bytevals), *bytevals)
 
 def rsa_bare(e, n):
     rsa = rsa_new()
