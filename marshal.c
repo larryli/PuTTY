@@ -226,7 +226,7 @@ static ptrlen BinarySource_get_chars_internal(
         bool present = NULL != strchr(set, *(const char *)consume(0));
         if (present != include)
             break;
-        consume(1);
+        (void) consume(1);
     }
     const char *end = here;
     return make_ptrlen(start, end - start);
