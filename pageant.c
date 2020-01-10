@@ -43,7 +43,7 @@ typedef struct PageantKeySort {
 typedef struct PageantKey {
     PageantKeySort sort;
     strbuf *public_blob; /* the true owner of sort.public_blob */
-    char *comment;       /* always stored separately, never in rkey/skey */
+    char *comment;       /* stored separately, whether or not in rkey/skey */
     union {
         RSAKey *rkey;       /* if ssh_version == 1 */
         ssh2_userkey *skey; /* if ssh_version == 2 */
@@ -59,6 +59,7 @@ static void pk_free(PageantKey *pk)
         sfree(pk->rkey);
     }
     if (pk->sort.ssh_version == 2 && pk->skey) {
+        sfree(pk->skey->comment);
         ssh_key_free(pk->skey->key);
         sfree(pk->skey);
     }
@@ -140,10 +141,8 @@ bool pageant_add_ssh1_key(RSAKey *rkey)
 
     if (add234(keytree, pk) == pk) {
         pk->rkey = rkey;
-        if (rkey->comment) {
-            pk->comment = rkey->comment;
-            rkey->comment = NULL;
-        }
+        if (rkey->comment)
+            pk->comment = dupstr(rkey->comment);
         return true;
     } else {
         pk_free(pk);
@@ -161,10 +160,8 @@ bool pageant_add_ssh2_key(ssh2_userkey *skey)
 
     if (add234(keytree, pk) == pk) {
         pk->skey = skey;
-        if (skey->comment) {
-            pk->comment = skey->comment;
-            skey->comment = NULL;
-        }
+        if (skey->comment)
+            pk->comment = dupstr(skey->comment);
         return true;
     } else {
         pk_free(pk);
