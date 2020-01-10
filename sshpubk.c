@@ -423,7 +423,7 @@ bool rsa1_save_f(const Filename *filename, RSAKey *key, const char *passphrase)
         return false;
 
     strbuf *buf = rsa1_save_sb(key, passphrase);
-    bool toret = fwrite(buf->s, 1, buf->len, fp) != buf->len;
+    bool toret = fwrite(buf->s, 1, buf->len, fp) == buf->len;
     if (fclose(fp))
         toret = false;
     strbuf_free(buf);
