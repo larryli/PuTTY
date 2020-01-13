@@ -1291,16 +1291,17 @@ int main(int argc, char **argv)
     int i;
     static char *const keytypes[] = { "rsa1", "dsa", "rsa" };
 
-    if (getenv("CGTEST_VERBOSE"))
-        cgtest_verbose = true;
-
-    /*
-     * Even when this thing is compiled for automatic test mode,
-     * it's helpful to be able to invoke it with command-line
-     * options for _manual_ tests.
-     */
-    if (argc > 1)
-        return cmdgen_main(argc, argv);
+    while (--argc > 0) {
+        ptrlen arg = ptrlen_from_asciz(*++argv);
+        if (ptrlen_eq_string(arg, "-v") ||
+            ptrlen_eq_string(arg, "--verbose")) {
+            cgtest_verbose = true;
+        } else {
+            fprintf(stderr, "cgtest: unrecognised option '%.*s'\n",
+                    PTRLEN_PRINTF(arg));
+            return 1;
+        }
+    }
 
     passes = fails = 0;
 
