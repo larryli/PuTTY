@@ -3406,7 +3406,8 @@ static void term_out(Terminal *term)
                     strbuf *buf = term_input_data_from_charset(
                         term, DEFAULT_CODEPAGE,
                         term->answerback, term->answerbacklen);
-                    ldisc_send(term->ldisc, buf->s, buf->len, false);
+                    if (buf->len)
+                        ldisc_send(term->ldisc, buf->s, buf->len, false);
                     strbuf_free(buf);
                 }
                 break;
