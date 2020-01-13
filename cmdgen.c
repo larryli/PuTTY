@@ -1235,38 +1235,71 @@ void filecmp(char *file1, char *file2, char *fmt, ...)
         passes++;
 }
 
-char *cleanup_fp(char *s)
+/*
+ * General-purpose flags word
+ */
+#define CGT_FLAGS(X)                            \
+    X(CGT_TYPE_KNOWN_EARLY)                     \
+    X(CGT_OPENSSH)                              \
+    X(CGT_SSHCOM)                               \
+    X(CGT_SSH_KEYGEN)                           \
+    X(CGT_ED25519)                              \
+    /* end of list */
+
+#define FLAG_SHIFTS(name) name ## _shift,
+enum { CGT_FLAGS(FLAG_SHIFTS) CGT_dummy_shift };
+#define FLAG_VALUES(name) name = 1 << name ## _shift,
+enum { CGT_FLAGS(FLAG_VALUES) CGT_dummy_flag };
+
+char *cleanup_fp(char *s, unsigned flags)
 {
     ptrlen pl = ptrlen_from_asciz(s);
     static const char separators[] = " \n\t";
 
     /* Skip initial key type word if we find one */
-    if (ptrlen_startswith(pl, PTRLEN_LITERAL("ssh-"), NULL))
+    if (ptrlen_startswith(pl, PTRLEN_LITERAL("ssh-"), NULL) ||
+        ptrlen_startswith(pl, PTRLEN_LITERAL("ecdsa-"), NULL))
         ptrlen_get_word(&pl, separators);
 
     /* Expect two words giving the key length and the hash */
     ptrlen bits = ptrlen_get_word(&pl, separators);
     ptrlen hash = ptrlen_get_word(&pl, separators);
 
-    /* Strip "MD5:" prefix if it's present, and do nothing if it isn't */
-    ptrlen_startswith(hash, PTRLEN_LITERAL("MD5:"), &hash);
+    if (flags & CGT_SSH_KEYGEN) {
+        /* Strip "MD5:" prefix if it's present, and do nothing if it isn't */
+        ptrlen_startswith(hash, PTRLEN_LITERAL("MD5:"), &hash);
+
+        if (flags & CGT_ED25519) {
+            /* OpenSSH ssh-keygen lists ed25519 keys as 256 bits, not 255 */
+            if (ptrlen_eq_string(bits, "256"))
+                bits = PTRLEN_LITERAL("255");
+        }
+    }
 
     return dupprintf("%.*s %.*s", PTRLEN_PRINTF(bits), PTRLEN_PRINTF(hash));
 }
 
-char *get_fp(char *filename)
+char *get_line(char *filename)
 {
     FILE *fp;
-    char buf[256], *ret;
+    char *line;
 
     fp = fopen(filename, "r");
     if (!fp)
         return NULL;
-    ret = fgets(buf, sizeof(buf), fp);
+    line = fgetline(fp);
     fclose(fp);
-    if (!ret)
+    return line;
+}
+
+char *get_fp(char *filename, unsigned flags)
+{
+    char *orig = get_line(filename);
+    if (!orig)
         return NULL;
-    return cleanup_fp(buf);
+    char *toret = cleanup_fp(orig, flags);
+    sfree(orig);
+    return toret;
 }
 
 void check_fp(char *filename, char *fp, char *fmt, ...)
@@ -1276,7 +1309,7 @@ void check_fp(char *filename, char *fp, char *fmt, ...)
     if (!fp)
         return;
 
-    newfp = get_fp(filename);
+    newfp = get_fp(filename, 0);
 
     if (!strcmp(fp, newfp)) {
         passes++;
@@ -1297,10 +1330,20 @@ void check_fp(char *filename, char *fp, char *fmt, ...)
     sfree(newfp);
 }
 
+static const struct cgtest_keytype {
+    const char *name;
+    unsigned flags;
+} cgtest_keytypes[] = {
+    { "rsa1", CGT_TYPE_KNOWN_EARLY },
+    { "dsa", CGT_OPENSSH | CGT_SSHCOM },
+    { "rsa", CGT_OPENSSH | CGT_SSHCOM },
+    { "ecdsa", CGT_OPENSSH },
+    { "ed25519", CGT_OPENSSH | CGT_ED25519 },
+};
+
 int main(int argc, char **argv)
 {
     int i;
-    static char *const keytypes[] = { "rsa1", "dsa", "rsa" };
 
     while (--argc > 0) {
         ptrlen arg = ptrlen_from_asciz(*++argv);
@@ -1316,23 +1359,28 @@ int main(int argc, char **argv)
 
     passes = fails = 0;
 
-    for (i = 0; i < lenof(keytypes); i++) {
+    for (i = 0; i < lenof(cgtest_keytypes); i++) {
+        const struct cgtest_keytype *keytype = &cgtest_keytypes[i];
+        bool supports_openssh = keytype->flags & CGT_OPENSSH;
+        bool supports_sshcom = keytype->flags & CGT_SSHCOM;
+        bool type_known_early = keytype->flags & CGT_TYPE_KNOWN_EARLY;
+
         char filename[128], osfilename[128], scfilename[128];
         char pubfilename[128], tmpfilename1[128], tmpfilename2[128];
         char *fp = NULL;
 
-        sprintf(filename, "test-%s.ppk", keytypes[i]);
-        sprintf(pubfilename, "test-%s.pub", keytypes[i]);
-        sprintf(osfilename, "test-%s.os", keytypes[i]);
-        sprintf(scfilename, "test-%s.sc", keytypes[i]);
-        sprintf(tmpfilename1, "test-%s.tmp1", keytypes[i]);
-        sprintf(tmpfilename2, "test-%s.tmp2", keytypes[i]);
+        sprintf(filename, "test-%s.ppk", keytype->name);
+        sprintf(pubfilename, "test-%s.pub", keytype->name);
+        sprintf(osfilename, "test-%s.os", keytype->name);
+        sprintf(scfilename, "test-%s.sc", keytype->name);
+        sprintf(tmpfilename1, "test-%s.tmp1", keytype->name);
+        sprintf(tmpfilename2, "test-%s.tmp2", keytype->name);
 
         /*
          * Create an encrypted key.
          */
         setup_passphrases("sponge", "sponge", NULL);
-        test(0, "puttygen", "-t", keytypes[i], "-o", filename, NULL);
+        test(0, "puttygen", "-t", keytype->name, "-o", filename, NULL);
 
         /*
          * List the public key in OpenSSH format.
@@ -1344,11 +1392,20 @@ int main(int argc, char **argv)
             fp = NULL;
             cmdbuf = dupprintf("ssh-keygen -E md5 -l -f '%s' > '%s'",
                     pubfilename, tmpfilename1);
+            if (cgtest_verbose)
+                printf("OpenSSH fp check: %s\n", cmdbuf);
             if (system(cmdbuf) ||
-                (fp = get_fp(tmpfilename1)) == NULL) {
+                (fp = get_fp(tmpfilename1,
+                             CGT_SSH_KEYGEN | keytype->flags)) == NULL) {
                 printf("UNABLE to test fingerprint matching against OpenSSH");
             }
             sfree(cmdbuf);
+            if (fp && cgtest_verbose) {
+                char *line = get_line(tmpfilename1);
+                printf("OpenSSH fp: %s\n", line);
+                printf("Cleaned up: %s\n", fp);
+                sfree(line);
+            }
         }
 
         /*
@@ -1369,9 +1426,9 @@ int main(int argc, char **argv)
              * fingerprints we generate of this key throughout
              * testing.
              */
-            fp = get_fp(tmpfilename1);
+            fp = get_fp(tmpfilename1, 0);
         } else {
-            check_fp(tmpfilename1, fp, "%s initial fp", keytypes[i]);
+            check_fp(tmpfilename1, fp, "%s initial fp", keytype->name);
         }
 
         /*
@@ -1412,19 +1469,19 @@ int main(int argc, char **argv)
         /*
          * Export the private key into OpenSSH format; no passphrase
          * should be required since the key is currently unencrypted.
-         * For RSA1 keys, this should give an error.
          */
         setup_passphrases(NULL);
-        test((i==0), "puttygen", "-O", "private-openssh", "-o", osfilename,
+        test(supports_openssh ? 0 : 1,
+             "puttygen", "-O", "private-openssh", "-o", osfilename,
              filename, NULL);
 
-        if (i) {
+        if (supports_openssh) {
             /*
              * List the fingerprint of the OpenSSH-formatted key.
              */
             setup_passphrases(NULL);
             test(0, "puttygen", "-l", osfilename, "-o", tmpfilename1, NULL);
-            check_fp(tmpfilename1, fp, "%s openssh clear fp", keytypes[i]);
+            check_fp(tmpfilename1, fp, "%s openssh clear fp", keytype->name);
 
             /*
              * List the public half of the OpenSSH-formatted key in
@@ -1444,19 +1501,19 @@ int main(int argc, char **argv)
         /*
          * Export the private key into ssh.com format; no passphrase
          * should be required since the key is currently unencrypted.
-         * For RSA1 keys, this should give an error.
          */
         setup_passphrases(NULL);
-        test((i==0), "puttygen", "-O", "private-sshcom", "-o", scfilename,
-             filename, NULL);
+        test(supports_sshcom ? 0 : 1,
+             "puttygen", "-O", "private-sshcom",
+             "-o", scfilename, filename, NULL);
 
-        if (i) {
+        if (supports_sshcom) {
             /*
              * List the fingerprint of the ssh.com-formatted key.
              */
             setup_passphrases(NULL);
             test(0, "puttygen", "-l", scfilename, "-o", tmpfilename1, NULL);
-            check_fp(tmpfilename1, fp, "%s ssh.com clear fp", keytypes[i]);
+            check_fp(tmpfilename1, fp, "%s ssh.com clear fp", keytype->name);
 
             /*
              * List the public half of the ssh.com-formatted key in
@@ -1473,7 +1530,7 @@ int main(int argc, char **argv)
             test(0, "puttygen", "-p", scfilename, NULL);
         }
 
-        if (i) {
+        if (supports_openssh && supports_sshcom) {
             /*
              * Convert from OpenSSH into ssh.com.
              */
@@ -1495,7 +1552,7 @@ int main(int argc, char **argv)
              * the original.
              */
             filecmp(filename, tmpfilename2,
-                    "p->o->s->p clear %s", keytypes[i]);
+                    "p->o->s->p clear %s", keytype->name);
 
             /*
              * Convert from ssh.com to OpenSSH.
@@ -1518,7 +1575,7 @@ int main(int argc, char **argv)
              * the original.
              */
             filecmp(filename, tmpfilename2,
-                    "p->s->o->p clear %s", keytypes[i]);
+                    "p->s->o->p clear %s", keytype->name);
 
             /*
              * Finally, do a round-trip conversion between PuTTY
@@ -1531,7 +1588,7 @@ int main(int argc, char **argv)
             setup_passphrases(NULL);
             test(0, "puttygen", tmpfilename1, "-o", tmpfilename2, NULL);
             filecmp(filename, tmpfilename2,
-                    "p->s->p clear %s", keytypes[i]);
+                    "p->s->p clear %s", keytype->name);
         }
 
         /*
@@ -1548,23 +1605,28 @@ int main(int argc, char **argv)
 
         /*
          * Export the private key into OpenSSH format, this time
-         * while encrypted. For RSA1 keys, this should give an
-         * error.
+         * while encrypted.
          */
-        if (i == 0)
-            setup_passphrases(NULL);   /* error, hence no passphrase read */
-        else
+        if (!supports_openssh && type_known_early) {
+            /* We'll know far enough in advance that this combination
+             * is going to fail that we never ask for the passphrase */
+            setup_passphrases(NULL);
+        } else {
             setup_passphrases("sponge2", NULL);
-        test((i==0), "puttygen", "-O", "private-openssh", "-o", osfilename,
+        }
+
+        test(supports_openssh ? 0 : 1,
+             "puttygen", "-O", "private-openssh", "-o", osfilename,
              filename, NULL);
 
-        if (i) {
+        if (supports_openssh) {
             /*
              * List the fingerprint of the OpenSSH-formatted key.
              */
             setup_passphrases("sponge2", NULL);
             test(0, "puttygen", "-l", osfilename, "-o", tmpfilename1, NULL);
-            check_fp(tmpfilename1, fp, "%s openssh encrypted fp", keytypes[i]);
+            check_fp(tmpfilename1, fp, "%s openssh encrypted fp",
+                     keytype->name);
 
             /*
              * List the public half of the OpenSSH-formatted key in
@@ -1586,20 +1648,26 @@ int main(int argc, char **argv)
          * while encrypted. For RSA1 keys, this should give an
          * error.
          */
-        if (i == 0)
-            setup_passphrases(NULL);   /* error, hence no passphrase read */
-        else
+        if (!supports_sshcom && type_known_early) {
+            /* We'll know far enough in advance that this combination
+             * is going to fail that we never ask for the passphrase */
+            setup_passphrases(NULL);
+        } else {
             setup_passphrases("sponge2", NULL);
-        test((i==0), "puttygen", "-O", "private-sshcom", "-o", scfilename,
+        }
+
+        test(supports_sshcom ? 0 : 1,
+             "puttygen", "-O", "private-sshcom", "-o", scfilename,
              filename, NULL);
 
-        if (i) {
+        if (supports_sshcom) {
             /*
              * List the fingerprint of the ssh.com-formatted key.
              */
             setup_passphrases("sponge2", NULL);
             test(0, "puttygen", "-l", scfilename, "-o", tmpfilename1, NULL);
-            check_fp(tmpfilename1, fp, "%s ssh.com encrypted fp", keytypes[i]);
+            check_fp(tmpfilename1, fp, "%s ssh.com encrypted fp",
+                     keytype->name);
 
             /*
              * List the public half of the ssh.com-formatted key in
@@ -1616,7 +1684,7 @@ int main(int argc, char **argv)
             test(0, "puttygen", "-p", scfilename, NULL);
         }
 
-        if (i) {
+        if (supports_openssh && supports_sshcom) {
             /*
              * Convert from OpenSSH into ssh.com.
              */
@@ -1638,7 +1706,7 @@ int main(int argc, char **argv)
              * the original.
              */
             filecmp(filename, tmpfilename2,
-                    "p->o->s->p encrypted %s", keytypes[i]);
+                    "p->o->s->p encrypted %s", keytype->name);
 
             /*
              * Convert from ssh.com to OpenSSH.
@@ -1661,7 +1729,7 @@ int main(int argc, char **argv)
              * the original.
              */
             filecmp(filename, tmpfilename2,
-                    "p->s->o->p encrypted %s", keytypes[i]);
+                    "p->s->o->p encrypted %s", keytype->name);
 
             /*
              * Finally, do a round-trip conversion between PuTTY
@@ -1674,7 +1742,7 @@ int main(int argc, char **argv)
             setup_passphrases("sponge2", NULL);
             test(0, "puttygen", tmpfilename1, "-o", tmpfilename2, NULL);
             filecmp(filename, tmpfilename2,
-                    "p->s->p encrypted %s", keytypes[i]);
+                    "p->s->p encrypted %s", keytype->name);
         }
 
         /*
