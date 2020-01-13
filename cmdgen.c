@@ -236,6 +236,9 @@ int main(int argc, char **argv)
     bool load_encrypted;
     progfn_t progressfn = is_interactive() ? progress_update : no_progress;
     const char *random_device = NULL;
+    int exit_status = 0;
+
+    #define RETURN(status) do { exit_status = (status); goto out; } while (0)
 
     /* ------------------------------------------------------------------
      * Parse the command line to figure out what we've been asked to do.
@@ -247,7 +250,7 @@ int main(int argc, char **argv)
      */
     if (argc <= 1) {
         usage(true);
-        return 0;
+        RETURN(0);
     }
 
     /*
@@ -518,10 +521,10 @@ int main(int argc, char **argv)
     }
 
     if (errs)
-        return 1;
+        RETURN(1);
 
     if (nogo)
-        return 0;
+        RETURN(0);
 
     /*
      * If run with at least one argument _but_ not the required
@@ -529,7 +532,7 @@ int main(int argc, char **argv)
      */
     if (!infile && keytype == NOKEYGEN) {
         usage(true);
-        return 1;
+        RETURN(1);
     }
 
     /* ------------------------------------------------------------------
@@ -542,7 +545,7 @@ int main(int argc, char **argv)
      */
     if (keytype != NOKEYGEN && infile) {
         fprintf(stderr, "puttygen: cannot both load and generate a key\n");
-        return 1;
+        RETURN(1);
     }
 
     /*
@@ -553,7 +556,7 @@ int main(int argc, char **argv)
          outtype != OPENSSH_NEW && outtype != SSHCOM)) {
         fprintf(stderr, "puttygen: this would generate a new key but "
                 "discard the private part\n");
-        return 1;
+        RETURN(1);
     }
 
     /*
@@ -570,14 +573,14 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_UNKNOWN:
             fprintf(stderr, "puttygen: unable to load file `%s': %s\n",
                     infile, key_type_to_str(intype));
-            return 1;
+            RETURN(1);
 
           case SSH_KEYTYPE_SSH1:
           case SSH_KEYTYPE_SSH1_PUBLIC:
             if (sshver == 2) {
                 fprintf(stderr, "puttygen: conversion from SSH-1 to SSH-2 keys"
                         " not supported\n");
-                return 1;
+                RETURN(1);
             }
             sshver = 1;
             break;
@@ -591,7 +594,7 @@ int main(int argc, char **argv)
             if (sshver == 1) {
                 fprintf(stderr, "puttygen: conversion from SSH-2 to SSH-1 keys"
                         " not supported\n");
-                return 1;
+                RETURN(1);
             }
             sshver = 2;
             break;
@@ -625,7 +628,7 @@ int main(int argc, char **argv)
         if (!change_passphrase && !comment) {
             fprintf(stderr, "puttygen: this command would perform no useful"
                     " action\n");
-            return 1;
+            RETURN(1);
         }
     } else {
         if (!outfile) {
@@ -636,7 +639,7 @@ int main(int argc, char **argv)
             if (outtype == PRIVATE || outtype == OPENSSH_AUTO ||
                 outtype == OPENSSH_NEW || outtype == SSHCOM) {
                 fprintf(stderr, "puttygen: need to specify an output file\n");
-                return 1;
+                RETURN(1);
             }
         }
     }
@@ -661,7 +664,7 @@ int main(int argc, char **argv)
                            intype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH)) {
         fprintf(stderr, "puttygen: cannot perform this action on a "
                 "public-key-only input file\n");
-        return 1;
+        RETURN(1);
     }
 
     /* ------------------------------------------------------------------
@@ -694,7 +697,7 @@ int main(int argc, char **argv)
         if (!entropy) {
             fprintf(stderr, "puttygen: failed to collect entropy, "
                     "could not generate key\n");
-            return 1;
+            RETURN(1);
         }
         random_setup_special();
         random_reseed(make_ptrlen(entropy, bits / 8));
@@ -772,7 +775,7 @@ int main(int argc, char **argv)
                 if (!ret) {
                     free_prompts(p);
                     perror("puttygen: unable to read passphrase");
-                    return 1;
+                    RETURN(1);
                 } else {
                     old_passphrase = dupstr(p->prompts[0]->result);
                     free_prompts(p);
@@ -788,6 +791,7 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_SSH1:
           case SSH_KEYTYPE_SSH1_PUBLIC:
             ssh1key = snew(RSAKey);
+            memset(ssh1key, 0, sizeof(RSAKey));
             if (!load_encrypted) {
                 strbuf *blob;
                 BinarySource src[1];
@@ -871,7 +875,7 @@ int main(int argc, char **argv)
         if (error) {
             fprintf(stderr, "puttygen: error loading `%s': %s\n",
                     infile, error);
-            return 1;
+            RETURN(1);
         }
     }
 
@@ -915,12 +919,12 @@ int main(int argc, char **argv)
         if (!ret) {
             free_prompts(p);
             perror("puttygen: unable to read new passphrase");
-            return 1;
+            RETURN(1);
         } else {
             if (strcmp(p->prompts[0]->result, p->prompts[1]->result)) {
                 free_prompts(p);
                 fprintf(stderr, "puttygen: passphrases do not match\n");
-                return 1;
+                RETURN(1);
             }
             new_passphrase = dupstr(p->prompts[0]->result);
             free_prompts(p);
@@ -955,19 +959,19 @@ int main(int argc, char **argv)
             ret = rsa1_save_f(outfilename, ssh1key, new_passphrase);
             if (!ret) {
                 fprintf(stderr, "puttygen: unable to save SSH-1 private key\n");
-                return 1;
+                RETURN(1);
             }
         } else {
             assert(ssh2key);
             ret = ppk_save_f(outfilename, ssh2key, new_passphrase);
             if (!ret) {
                 fprintf(stderr, "puttygen: unable to save SSH-2 private key\n");
-                return 1;
+                RETURN(1);
             }
         }
         if (outfiletmp) {
             if (!move(outfiletmp, outfile))
-                return 1;              /* rename failed */
+                RETURN(1);              /* rename failed */
         }
         break;
 
@@ -1065,14 +1069,18 @@ int main(int argc, char **argv)
         ret = export_ssh2(outfilename, real_outtype, ssh2key, new_passphrase);
         if (!ret) {
             fprintf(stderr, "puttygen: unable to export key\n");
-            return 1;
+            RETURN(1);
         }
         if (outfiletmp) {
             if (!move(outfiletmp, outfile))
-                return 1;              /* rename failed */
+                RETURN(1);              /* rename failed */
         }
         break;
     }
+
+  out:
+
+    #undef RETURN
 
     if (old_passphrase) {
         smemclr(old_passphrase, strlen(old_passphrase));
@@ -1087,9 +1095,10 @@ int main(int argc, char **argv)
         freersakey(ssh1key);
         sfree(ssh1key);
     }
-    if (ssh2key) {
+    if (ssh2key && ssh2key != SSH2_WRONG_PASSPHRASE) {
         sfree(ssh2key->comment);
-        ssh_key_free(ssh2key->key);
+        if (ssh2key->key)
+            ssh_key_free(ssh2key->key);
         sfree(ssh2key);
     }
     if (ssh2blob)
@@ -1097,9 +1106,11 @@ int main(int argc, char **argv)
     sfree(origcomment);
     if (infilename)
         filename_free(infilename);
-    filename_free(outfilename);
+    if (outfilename)
+        filename_free(outfilename);
+    sfree(outfiletmp);
 
-    return 0;
+    return exit_status;
 }
 
 #ifdef TEST_CMDGEN
@@ -1308,7 +1319,7 @@ int main(int argc, char **argv)
     for (i = 0; i < lenof(keytypes); i++) {
         char filename[128], osfilename[128], scfilename[128];
         char pubfilename[128], tmpfilename1[128], tmpfilename2[128];
-        char *fp;
+        char *fp = NULL;
 
         sprintf(filename, "test-%s.ppk", keytypes[i]);
         sprintf(pubfilename, "test-%s.pub", keytypes[i]);
@@ -1677,6 +1688,8 @@ int main(int argc, char **argv)
          */
         setup_passphrases(NULL);
         test(1, "puttygen", "-C", "spurious-new-comment", pubfilename, NULL);
+
+        sfree(fp);
     }
     printf("%d passes, %d fails\n", passes, fails);
     return fails == 0 ? 0 : 1;
