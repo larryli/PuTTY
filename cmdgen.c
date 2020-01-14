@@ -489,7 +489,7 @@ int main(int argc, char **argv)
             bits = 384;
             break;
           case ED25519:
-            bits = 256;
+            bits = 255;
             break;
           default:
             bits = DEFAULT_RSADSA_BITS;
@@ -502,8 +502,8 @@ int main(int argc, char **argv)
         errs = true;
     }
 
-    if (keytype == ED25519 && (bits != 256)) {
-        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 256\n");
+    if (keytype == ED25519 && (bits != 255) && (bits != 256)) {
+        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 255\n");
         errs = true;
     }
 
