@@ -1129,8 +1129,9 @@ struct portfwdmgr_connect_ctx {
 static Socket *portfwdmgr_connect_helper(void *vctx, Plug *plug)
 {
     struct portfwdmgr_connect_ctx *ctx = (struct portfwdmgr_connect_ctx *)vctx;
-    return new_connection(ctx->addr, ctx->canonical_hostname, ctx->port,
-                          false, true, false, false, plug, ctx->conf);
+    return new_connection(sk_addr_dup(ctx->addr), ctx->canonical_hostname,
+                          ctx->port, false, true, false, false, plug,
+                          ctx->conf);
 }
 
 /*

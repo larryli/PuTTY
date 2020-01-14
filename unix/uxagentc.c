@@ -137,7 +137,7 @@ struct agent_connect_ctx {
 Socket *agent_connect(void *vctx, Plug *plug)
 {
     agent_connect_ctx *ctx = (agent_connect_ctx *)vctx;
-    return sk_new(ctx->addr, 0, false, false, false, false, plug);
+    return sk_new(sk_addr_dup(ctx->addr), 0, false, false, false, false, plug);
 }
 
 agent_connect_ctx *agent_get_connect_ctx(void)
