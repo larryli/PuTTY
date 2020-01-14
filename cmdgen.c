@@ -1344,12 +1344,39 @@ static const struct cgtest_keytype {
 int main(int argc, char **argv)
 {
     int i;
+    int active[lenof(cgtest_keytypes)], active_value;
+
+    active_value = 0;
+    for (i = 0; i < lenof(cgtest_keytypes); i++)
+        active[i] = active_value;
 
     while (--argc > 0) {
         ptrlen arg = ptrlen_from_asciz(*++argv);
         if (ptrlen_eq_string(arg, "-v") ||
             ptrlen_eq_string(arg, "--verbose")) {
             cgtest_verbose = true;
+        } else if (ptrlen_eq_string(arg, "--help")) {
+            printf("usage:     cgtest [options] [key types]\n");
+            printf("options:   -v, --verbose         "
+                   "print more output during tests\n");
+            printf("           --help                "
+                   "display this help text\n");
+            printf("key types: ");
+            for (i = 0; i < lenof(cgtest_keytypes); i++)
+                printf("%s%s", i ? ", " : "", cgtest_keytypes[i].name);
+            printf("\n");
+            return 0;
+        } else if (!ptrlen_startswith(arg, PTRLEN_LITERAL("-"), NULL)) {
+            for (i = 0; i < lenof(cgtest_keytypes); i++)
+                if (ptrlen_eq_string(arg, cgtest_keytypes[i].name))
+                    break;
+            if (i == lenof(cgtest_keytypes)) {
+                fprintf(stderr, "cgtest: unrecognised key type '%.*s'\n",
+                        PTRLEN_PRINTF(arg));
+                return 1;
+            }
+            active_value = 1; /* disables all keys not explicitly enabled */
+            active[i] = active_value;
         } else {
             fprintf(stderr, "cgtest: unrecognised option '%.*s'\n",
                     PTRLEN_PRINTF(arg));
@@ -1360,6 +1387,9 @@ int main(int argc, char **argv)
     passes = fails = 0;
 
     for (i = 0; i < lenof(cgtest_keytypes); i++) {
+        if (active[i] != active_value)
+            continue;
+
         const struct cgtest_keytype *keytype = &cgtest_keytypes[i];
         bool supports_openssh = keytype->flags & CGT_OPENSSH;
         bool supports_sshcom = keytype->flags & CGT_SSHCOM;
