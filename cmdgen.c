@@ -1345,6 +1345,7 @@ int main(int argc, char **argv)
 {
     int i;
     int active[lenof(cgtest_keytypes)], active_value;
+    bool remove_files = true;
 
     active_value = 0;
     for (i = 0; i < lenof(cgtest_keytypes); i++)
@@ -1355,10 +1356,14 @@ int main(int argc, char **argv)
         if (ptrlen_eq_string(arg, "-v") ||
             ptrlen_eq_string(arg, "--verbose")) {
             cgtest_verbose = true;
+        } else if (ptrlen_eq_string(arg, "--keep")) {
+            remove_files = false;
         } else if (ptrlen_eq_string(arg, "--help")) {
             printf("usage:     cgtest [options] [key types]\n");
             printf("options:   -v, --verbose         "
                    "print more output during tests\n");
+            printf("           --keep                "
+                   "do not delete the temporary output files\n");
             printf("           --help                "
                    "display this help text\n");
             printf("key types: ");
@@ -1788,6 +1793,15 @@ int main(int argc, char **argv)
         test(1, "puttygen", "-C", "spurious-new-comment", pubfilename, NULL);
 
         sfree(fp);
+
+        if (remove_files) {
+            remove(filename);
+            remove(pubfilename);
+            remove(osfilename);
+            remove(scfilename);
+            remove(tmpfilename1);
+            remove(tmpfilename2);
+        }
     }
     printf("%d passes, %d fails\n", passes, fails);
     return fails == 0 ? 0 : 1;
