@@ -365,7 +365,7 @@ static DWORD WINAPI generate_key_thread(void *param)
         ecdsa_generate(params->eckey, params->curve_bits,
                        progress_update, &prog);
     else if (params->keytype == ED25519)
-        eddsa_generate(params->edkey, 256, progress_update, &prog);
+        eddsa_generate(params->edkey, 255, progress_update, &prog);
     else
         rsa_generate(params->key, params->key_bits, progress_update, &prog);
 
