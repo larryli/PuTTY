@@ -15,6 +15,7 @@ typedef struct PageantClientVtable PageantClientVtable;
 typedef struct PageantClient PageantClient;
 typedef struct PageantClientInfo PageantClientInfo;
 typedef struct PageantClientRequestId PageantClientRequestId;
+typedef struct PageantClientDialogId PageantClientDialogId;
 struct PageantClient {
     const struct PageantClientVtable *vt;
     PageantClientInfo *info;    /* used by the central Pageant code */
@@ -32,6 +33,8 @@ struct PageantClientVtable {
                 const char *fmt, va_list ap);
     void (*got_response)(PageantClient *pc, PageantClientRequestId *reqid,
                          ptrlen response);
+    bool (*ask_passphrase)(PageantClient *pc, PageantClientDialogId *dlgid,
+                           const char *msg);
 };
 
 static inline void pageant_client_log_v(
@@ -54,6 +57,9 @@ static inline PRINTF_LIKE(3, 4) void pageant_client_log(
 static inline void pageant_client_got_response(
     PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
 { pc->vt->got_response(pc, reqid, response); }
+static inline bool pageant_client_ask_passphrase(
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+{ return pc->vt->ask_passphrase(pc, dlgid, msg); }
 
 /* PageantClientRequestId is used to match up responses to the agent
  * requests they refer to. A client may allocate one of these for each
@@ -90,6 +96,13 @@ void pageant_unregister_client(PageantClient *pc);
  */
 void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
                         ptrlen msg);
+
+/*
+ * Send the core Pageant code a response to a passphrase request.
+ */
+void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
+                                        ptrlen passphrase);
+void pageant_passphrase_request_refused(PageantClientDialogId *dlgid);
 
 /*
  * Construct a list of public keys, just as the two LIST_IDENTITIES
@@ -145,6 +158,8 @@ struct PageantListenerClient {
 };
 struct PageantListenerClientVtable {
     void (*log)(PageantListenerClient *, const char *fmt, va_list ap);
+    bool (*ask_passphrase)(PageantListenerClient *pc,
+                           PageantClientDialogId *dlgid, const char *msg);
 };
 
 static inline void pageant_listener_client_log_v(
@@ -163,6 +178,9 @@ static inline PRINTF_LIKE(2, 3) void pageant_listener_client_log(
         va_end(ap);
     }
 }
+static inline bool pageant_listener_client_ask_passphrase(
+    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
+{ return plc->vt->ask_passphrase(plc, dlgid, msg); }
 
 struct pageant_listen_state;
 struct pageant_listen_state *pageant_listener_new(

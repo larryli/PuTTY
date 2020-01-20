@@ -1037,9 +1037,19 @@ static void pageant_conn_got_response(
     }
 }
 
+static bool pageant_conn_ask_passphrase(
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+{
+    struct pageant_conn_state *pcs =
+        container_of(pc, struct pageant_conn_state, pc);
+    return pageant_listener_client_ask_passphrase(pcs->plc, dlgid, msg);
+}
+
+
 static const struct PageantClientVtable pageant_connection_clientvt = {
     pageant_conn_log,
     pageant_conn_got_response,
+    pageant_conn_ask_passphrase,
 };
 
 static void pageant_conn_receive(

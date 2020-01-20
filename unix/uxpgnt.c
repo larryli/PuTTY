@@ -44,8 +44,16 @@ static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
     fprintf(pageant_logfp, "\n");
 }
 
+static bool uxpgnt_ask_passphrase(
+    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
+{
+    /* FIXME: we don't yet support dialog boxes */
+    return false;
+}
+
 static const PageantListenerClientVtable uxpgnt_vtable = {
     uxpgnt_log,
+    uxpgnt_ask_passphrase,
 };
 
 /*

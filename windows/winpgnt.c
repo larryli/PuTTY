@@ -792,9 +792,17 @@ static void wm_copydata_got_response(
     SetEvent(wmct.ev_reply_ready);
 }
 
+static bool wm_copydata_ask_passphrase(
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+{
+    /* FIXME: we don't yet support dialog boxes */
+    return false;
+}
+
 static const PageantClientVtable wmcpc_vtable = {
     NULL, /* no logging in this client */
     wm_copydata_got_response,
+    wm_copydata_ask_passphrase,
 };
 
 static char *answer_filemapping_message(const char *mapname)
@@ -1176,11 +1184,19 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+static bool winpgnt_listener_ask_passphrase(
+    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
+{
+    /* FIXME: we don't yet support dialog boxes */
+    return false;
+}
+
 struct winpgnt_client {
     PageantListenerClient plc;
 };
 static const PageantListenerClientVtable winpgnt_vtable = {
     NULL, /* no logging */
+    winpgnt_listener_ask_passphrase,
 };
 
 static struct winpgnt_client wpc[1];
