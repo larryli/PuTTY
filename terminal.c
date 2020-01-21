@@ -7156,7 +7156,6 @@ char *term_get_ttymode(Terminal *term, const char *mode)
 struct term_userpass_state {
     size_t curr_prompt;
     bool done_prompt;   /* printed out prompt yet? */
-    size_t pos;         /* cursor position */
 };
 
 /* Tiny wrapper to make it easier to write lots of little strings */
@@ -7211,7 +7210,6 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
         if (!s->done_prompt) {
             term_write(term, ptrlen_from_asciz(pr->prompt));
             s->done_prompt = true;
-            s->pos = 0;
         }
 
         /* Breaking out here ensures that the prompt is printed even
@@ -7226,8 +7224,6 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
               case 10:
               case 13:
                 term_write(term, PTRLEN_LITERAL("\r\n"));
-                prompt_ensure_result_size(pr, s->pos + 1);
-                pr->result[s->pos] = '\0';
                 /* go to next prompt, if any */
                 s->curr_prompt++;
                 s->done_prompt = false;
@@ -7235,18 +7231,18 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                 break;
               case 8:
               case 127:
-                if (s->pos > 0) {
+                if (pr->result->len > 0) {
                     if (pr->echo)
                         term_write(term, PTRLEN_LITERAL("\b \b"));
-                    s->pos--;
+                    strbuf_shrink_by(pr->result, 1);
                 }
                 break;
               case 21:
               case 27:
-                while (s->pos > 0) {
+                while (pr->result->len > 0) {
                     if (pr->echo)
                         term_write(term, PTRLEN_LITERAL("\b \b"));
-                    s->pos--;
+                    strbuf_shrink_by(pr->result, 1);
                 }
                 break;
               case 3:
@@ -7264,8 +7260,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                  */
                 if (!pr->echo || (c >= ' ' && c <= '~') ||
                      ((unsigned char) c >= 160)) {
-                    prompt_ensure_result_size(pr, s->pos + 1);
-                    pr->result[s->pos++] = c;
+                    put_byte(pr->result, c);
                     if (pr->echo)
                         term_write(term, make_ptrlen(&c, 1));
                 }

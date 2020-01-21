@@ -53,10 +53,10 @@ int console_get_userpass_input(prompts_t *p)
     int ret = 1;
     for (i = 0; i < p->n_prompts; i++) {
         if (promptsgot < nprompts) {
-            p->prompts[i]->result = dupstr(prompts[promptsgot++]);
+            prompt_set_result(p->prompts[i], prompts[promptsgot++]);
             if (cgtest_verbose)
                 printf("  prompt \"%s\": response \"%s\"\n",
-                       p->prompts[i]->prompt, p->prompts[i]->result);
+                       p->prompts[i]->prompt, p->prompts[i]->result->s);
         } else {
             promptsgot++;           /* track number of requests anyway */
             ret = 0;
@@ -774,7 +774,7 @@ int main(int argc, char **argv)
                     perror("puttygen: unable to read passphrase");
                     return 1;
                 } else {
-                    old_passphrase = dupstr(p->prompts[0]->result);
+                    old_passphrase = prompt_get_result(p->prompts[0]);
                     free_prompts(p);
                 }
             }
@@ -918,12 +918,13 @@ int main(int argc, char **argv)
             perror("puttygen: unable to read new passphrase");
             return 1;
         } else {
-            if (strcmp(p->prompts[0]->result, p->prompts[1]->result)) {
+            if (strcmp(prompt_get_result_ref(p->prompts[0]),
+                       prompt_get_result_ref(p->prompts[1]))) {
                 free_prompts(p);
                 fprintf(stderr, "puttygen: passphrases do not match\n");
                 return 1;
             }
-            new_passphrase = dupstr(p->prompts[0]->result);
+            new_passphrase = prompt_get_result(p->prompts[0]);
             free_prompts(p);
         }
     }
