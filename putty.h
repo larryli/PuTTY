@@ -636,19 +636,7 @@ GLOBAL char *cmdline_session_name;
 typedef struct {
     char *prompt;
     bool echo;
-    /*
-     * 'result' must be a dynamically allocated array of exactly
-     * 'resultsize' chars. The code for actually reading input may
-     * realloc it bigger (and adjust resultsize accordingly) if it has
-     * to. The caller should free it again when finished with it.
-     *
-     * If resultsize==0, then result may be NULL. When setting up a
-     * prompt_t, it's therefore easiest to initialise them this way,
-     * which means all actual allocation is done by the callee. This
-     * is what add_prompt does.
-     */
-    char *result;
-    size_t resultsize;
+    strbuf *result;
 } prompt_t;
 typedef struct {
     /*
@@ -682,8 +670,8 @@ typedef struct {
 prompts_t *new_prompts();
 void add_prompt(prompts_t *p, char *promptstr, bool echo);
 void prompt_set_result(prompt_t *pr, const char *newstr);
-void prompt_ensure_result_size(prompt_t *pr, int len);
-/* Burn the evidence. (Assumes _all_ strings want free()ing.) */
+char *prompt_get_result(prompt_t *pr);
+const char *prompt_get_result_ref(prompt_t *pr);
 void free_prompts(prompts_t *p);
 
 /*

@@ -430,7 +430,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
             }
             sfree(s->locally_allocated_username); /* for change_username */
             s->username = s->locally_allocated_username =
-                dupstr(s->cur_prompt->prompts[0]->result);
+                prompt_get_result(s->cur_prompt->prompts[0]);
             free_prompts(s->cur_prompt);
         } else {
             if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE))
@@ -882,7 +882,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                             return;
                         }
                         passphrase =
-                            dupstr(s->cur_prompt->prompts[0]->result);
+                            prompt_get_result(s->cur_prompt->prompts[0]);
                         free_prompts(s->cur_prompt);
                     } else {
                         passphrase = NULL; /* no passphrase needed */
@@ -1372,8 +1372,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         s->ppl.bpp, SSH2_MSG_USERAUTH_INFO_RESPONSE);
                     put_uint32(s->pktout, s->num_prompts);
                     for (uint32_t i = 0; i < s->num_prompts; i++) {
-                        put_stringz(s->pktout,
-                                    s->cur_prompt->prompts[i]->result);
+                        put_stringz(s->pktout, prompt_get_result_ref(
+                                        s->cur_prompt->prompts[i]));
                     }
                     s->pktout->minlen = 256;
                     pq_push(s->ppl.out_pq, s->pktout);
@@ -1455,7 +1455,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  * Squirrel away the password. (We may need it later if
                  * asked to change it.)
                  */
-                s->password = dupstr(s->cur_prompt->prompts[0]->result);
+                s->password = prompt_get_result(s->cur_prompt->prompts[0]);
                 free_prompts(s->cur_prompt);
 
                 /*
@@ -1581,20 +1581,20 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                          * (A side effect is that the user doesn't have to
                          * re-enter it if they louse up the new password.)
                          */
-                        if (s->cur_prompt->prompts[0]->result[0]) {
+                        if (s->cur_prompt->prompts[0]->result->s[0]) {
                             smemclr(s->password, strlen(s->password));
                                 /* burn the evidence */
                             sfree(s->password);
-                            s->password =
-                                dupstr(s->cur_prompt->prompts[0]->result);
+                            s->password = prompt_get_result(
+                                s->cur_prompt->prompts[0]);
                         }
 
                         /*
                          * Check the two new passwords match.
                          */
-                        got_new = (strcmp(s->cur_prompt->prompts[1]->result,
-                                          s->cur_prompt->prompts[2]->result)
-                                   == 0);
+                        got_new = !strcmp(
+                            prompt_get_result_ref(s->cur_prompt->prompts[1]),
+                            prompt_get_result_ref(s->cur_prompt->prompts[2]));
                         if (!got_new)
                             /* They don't. Silly user. */
                             ppl_printf("Passwords do not match\r\n");
@@ -1612,8 +1612,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_stringz(s->pktout, "password");
                     put_bool(s->pktout, true);
                     put_stringz(s->pktout, s->password);
-                    put_stringz(s->pktout,
-                                       s->cur_prompt->prompts[1]->result);
+                    put_stringz(s->pktout, prompt_get_result_ref(
+                                    s->cur_prompt->prompts[1]));
                     free_prompts(s->cur_prompt);
                     s->pktout->minlen = 256;
                     pq_push(s->ppl.out_pq, s->pktout);

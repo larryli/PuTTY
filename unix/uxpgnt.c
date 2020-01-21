@@ -338,7 +338,7 @@ static char *askpass_tty(const char *prompt)
         free_prompts(p);
         return NULL;
     } else {
-        char *passphrase = dupstr(p->prompts[0]->result);
+        char *passphrase = prompt_get_result(p->prompts[0]);
         free_prompts(p);
         return passphrase;
     }
