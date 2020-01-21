@@ -516,7 +516,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     get_rsa_ssh1_pub(s->asrc, &s->key,
                                      RSA_SSH1_EXPONENT_FIRST);
                     end = s->asrc->pos;
-                    s->agent_comment->len = 0;
+                    strbuf_clear(s->agent_comment);
                     put_datapl(s->agent_comment, get_string(s->asrc));
                     if (get_err(s->asrc)) {
                         ppl_logevent("Pageant key list packet was truncated");

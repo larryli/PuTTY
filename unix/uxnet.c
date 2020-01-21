@@ -252,7 +252,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
             return ret;
         }
         /* This way we are always sure the h->h_name is valid :) */
-        realhost->len = 0;
+        strbuf_clear(realhost);
         strbuf_catf(realhost, "%s", h->h_name);
         for (n = 0; h->h_addr_list[n]; n++);
         ret->addresses = snewn(n, unsigned long);
@@ -267,7 +267,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_fami
          * success return from inet_addr.
          */
         ret->superfamily = IP;
-        realhost->len = 0;
+        strbuf_clear(realhost);
         strbuf_catf(realhost, "%s", host);
         ret->addresses = snew(unsigned long);
         ret->naddresses = 1;

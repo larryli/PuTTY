@@ -440,11 +440,11 @@ static void makerle(strbuf *b, termline *ldata,
                 if (hdrsize == 0) {
                     assert(prevpos == hdrpos + 1);
                     runpos = hdrpos;
-                    b->len = prevpos+prevlen;
+                    strbuf_shrink_to(b, prevpos+prevlen);
                 } else {
                     memmove(b->u + prevpos+1, b->u + prevpos, prevlen);
                     runpos = prevpos;
-                    b->len = prevpos+prevlen+1;
+                    strbuf_shrink_to(b, prevpos+prevlen+1);
                     /*
                      * Terminate the previous run of ordinary
                      * literals.
@@ -461,7 +461,7 @@ static void makerle(strbuf *b, termline *ldata,
                     oldstate = state;
                     makeliteral(b, c, &state);
                     tmplen = b->len - tmppos;
-                    b->len = tmppos;
+                    strbuf_shrink_to(b, tmppos);
                     if (tmplen != thislen ||
                         memcmp(b->u + runpos+1, b->u + tmppos, tmplen)) {
                         state = oldstate;
@@ -519,7 +519,7 @@ static void makerle(strbuf *b, termline *ldata,
         assert(hdrsize <= 128);
         b->u[hdrpos] = hdrsize - 1;
     } else {
-        b->len = hdrpos;
+        strbuf_shrink_to(b, hdrpos);
     }
 }
 static void makeliteral_chr(strbuf *b, termchar *c, unsigned long *state)
@@ -3057,7 +3057,7 @@ static strbuf *term_input_data_from_unicode(
         int rv;
         rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
                       bufptr, len + 1, NULL, term->ucsdata);
-        buf->len = rv < 0 ? 0 : rv;
+        strbuf_shrink_to(buf, rv < 0 ? 0 : rv);
     }
 
     return buf;

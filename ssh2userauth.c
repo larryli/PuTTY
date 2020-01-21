@@ -620,7 +620,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 /*
                  * Save the methods string for use in error messages.
                  */
-                s->last_methods_string->len = 0;
+                strbuf_clear(s->last_methods_string);
                 put_datapl(s->last_methods_string, methods);
 
                 /*

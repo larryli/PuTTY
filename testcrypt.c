@@ -760,7 +760,7 @@ strbuf *rsa_ssh1_decrypt_pkcs1_wrapper(mp_int *input, RSAKey *key)
     /* Again, return "" on failure */
     strbuf *sb = strbuf_new();
     if (!rsa_ssh1_decrypt_pkcs1(input, key, sb))
-        sb->len = 0;
+        strbuf_clear(sb);
     return sb;
 }
 #define rsa_ssh1_decrypt_pkcs1 rsa_ssh1_decrypt_pkcs1_wrapper

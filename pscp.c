@@ -1306,7 +1306,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
                 act->action = SCP_SINK_RETRY;
             } else {
                 act->action = SCP_SINK_DIR;
-                act->buf->len = 0;
+                strbuf_clear(act->buf);
                 put_asciz(act->buf, stripslashes(fname, false));
                 act->name = act->buf->s;
                 act->size = 0;     /* duhh, it's a directory */
@@ -1326,7 +1326,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
              * It's a file. Return SCP_SINK_FILE.
              */
             act->action = SCP_SINK_FILE;
-            act->buf->len = 0;
+            strbuf_clear(act->buf);
             put_asciz(act->buf, stripslashes(fname, false));
             act->name = act->buf->s;
             if (attrs.flags & SSH_FILEXFER_ATTR_SIZE) {
@@ -1354,7 +1354,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
         char ch;
 
         act->settime = false;
-        act->buf->len = 0;
+        strbuf_clear(act->buf);
 
         while (!done) {
             if (!ssh_scp_recv(&ch, 1))
@@ -1387,7 +1387,7 @@ int scp_get_sink_action(struct scp_sink_action *act)
                            &act->mtime, &act->atime) == 2) {
                     act->settime = true;
                     backend_send(backend, "", 1);
-                    act->buf->len = 0;
+                    strbuf_clear(act->buf);
                     continue;          /* go round again */
                 }
                 bump("Protocol error: Illegal time format");
