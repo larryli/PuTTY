@@ -3835,7 +3835,7 @@ static void eventlog_list_handler(union control *ctrl, dlgparam *dp,
         /*
          * Construct the data to use as the selection.
          */
-        es->seldata->len = 0;
+        strbuf_clear(es->seldata);
         for (i = 0; i < es->ninitial; i++) {
             if (dlg_listbox_issel(ctrl, dp, i))
                 strbuf_catf(es->seldata, "%s\n", es->events_initial[i]);

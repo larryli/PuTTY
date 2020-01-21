@@ -678,7 +678,7 @@ static void update_sessions(void)
     sb = strbuf_new();
     while(ERROR_SUCCESS == RegEnumKey(hkey, index_key, buf, MAX_PATH)) {
         if(strcmp(buf, PUTTY_DEFAULT) != 0) {
-            sb->len = 0;
+            strbuf_clear(sb);
             unescape_registry_key(buf, sb);
 
             memset(&mii, 0, sizeof(mii));

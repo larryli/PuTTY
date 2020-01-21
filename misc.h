@@ -73,9 +73,12 @@ strbuf *strbuf_new_nm(void);
 
 void strbuf_free(strbuf *buf);
 void *strbuf_append(strbuf *buf, size_t len);
+void strbuf_shrink_to(strbuf *buf, size_t new_len);
+void strbuf_shrink_by(strbuf *buf, size_t amount_to_remove);
 char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
 void strbuf_catf(strbuf *buf, const char *fmt, ...);
 void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap);
+static inline void strbuf_clear(strbuf *buf) { strbuf_shrink_to(buf, 0); }
 
 strbuf *strbuf_new_for_agent_query(void);
 void strbuf_finalise_agent_query(strbuf *buf);

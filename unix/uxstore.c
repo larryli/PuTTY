@@ -564,7 +564,7 @@ bool enum_settings_next(settings_e *handle, strbuf *out)
     size_t baselen = fullpath->len;
 
     while ( (de = readdir(handle->dp)) != NULL ) {
-        fullpath->len = baselen;
+        strbuf_shrink_to(fullpath, baselen);
         put_datapl(fullpath, ptrlen_from_asciz(de->d_name));
 
         if (stat(fullpath->s, &st) < 0 || !S_ISREG(st.st_mode))

@@ -265,7 +265,7 @@ static void ssh2_mkkey(
      */
     keylen_padded = ((keylen + hlen - 1) / hlen) * hlen;
 
-    out->len = 0;
+    strbuf_clear(out);
     key = strbuf_append(out, keylen_padded);
 
     /* First hlen bytes. */
@@ -1083,7 +1083,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
      * Construct our KEXINIT packet, in a strbuf so we can refer to it
      * later.
      */
-    s->client_kexinit->len = 0;
+    strbuf_clear(s->client_kexinit);
     put_byte(s->outgoing_kexinit, SSH2_MSG_KEXINIT);
     random_read(strbuf_append(s->outgoing_kexinit, 16), 16);
     ssh2_write_kexinit_lists(
@@ -1121,7 +1121,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                                       s->ppl.bpp->pls->actx, pktin->type));
         return;
     }
-    s->incoming_kexinit->len = 0;
+    strbuf_clear(s->incoming_kexinit);
     put_byte(s->incoming_kexinit, SSH2_MSG_KEXINIT);
     put_data(s->incoming_kexinit, get_ptr(pktin), get_avail(pktin));
 

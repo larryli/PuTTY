@@ -1074,7 +1074,7 @@ static void scp_sink_coroutine(ScpSink *scp)
          * Send an ack, and read a command.
          */
         sshfwd_write(scp->sc, "\0", 1);
-        scp->command->len = 0;
+        strbuf_clear(scp->command);
         while (1) {
             crMaybeWaitUntilV(scp->input_eof || bufchain_size(&scp->data) > 0);
             if (scp->input_eof)
@@ -1095,7 +1095,7 @@ static void scp_sink_coroutine(ScpSink *scp)
         /*
          * Parse the command.
          */
-        scp->command->len--;           /* chomp the newline */
+        strbuf_shrink_by(scp->command, 1); /* chomp the newline */
         scp->command_chr = scp->command->len > 0 ? scp->command->s[0] : '\0';
         if (scp->command_chr == 'T') {
             unsigned long dummy1, dummy2;
@@ -1131,7 +1131,7 @@ static void scp_sink_coroutine(ScpSink *scp)
 
             ptrlen leafname = make_ptrlen(
                 p, scp->command->len - (p - scp->command->s));
-            scp->filename_sb->len = 0;
+            strbuf_clear(scp->filename_sb);
             put_datapl(scp->filename_sb, scp->head->destpath);
             if (scp->head->isdir) {
                 if (scp->filename_sb->len > 0 &&
