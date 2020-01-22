@@ -79,6 +79,7 @@ char *strbuf_to_str(strbuf *buf); /* does free buf, but you must free result */
 void strbuf_catf(strbuf *buf, const char *fmt, ...);
 void strbuf_catfv(strbuf *buf, const char *fmt, va_list ap);
 static inline void strbuf_clear(strbuf *buf) { strbuf_shrink_to(buf, 0); }
+bool strbuf_chomp(strbuf *buf, char char_to_remove);
 
 strbuf *strbuf_new_for_agent_query(void);
 void strbuf_finalise_agent_query(strbuf *buf);

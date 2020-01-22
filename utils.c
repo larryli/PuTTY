@@ -443,6 +443,15 @@ void strbuf_shrink_by(strbuf *buf, size_t amount_to_remove)
     buf->s[buf->len] = '\0';
 }
 
+bool strbuf_chomp(strbuf *buf, char char_to_remove)
+{
+    if (buf->len > 0 && buf->s[buf->len-1] == char_to_remove) {
+        strbuf_shrink_by(buf, 1);
+        return true;
+    }
+    return false;
+}
+
 static void strbuf_BinarySink_write(
     BinarySink *bs, const void *data, size_t len)
 {

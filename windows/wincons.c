@@ -515,10 +515,8 @@ int console_get_userpass_input(prompts_t *p)
             }
 
             strbuf_shrink_to(pr->result, prev_result_len + ret);
-            if (pr->result->s[pr->result->len - 1] == '\n') {
-                strbuf_shrink_by(pr->result, 1);
-                if (pr->result->s[pr->result->len - 1] == '\r')
-                    strbuf_shrink_by(pr->result, 1);
+            if (strbuf_chomp(pr->result, '\n')) {
+                strbuf_chomp(pr->result, '\r');
                 break;
             }
         }

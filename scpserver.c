@@ -1095,7 +1095,7 @@ static void scp_sink_coroutine(ScpSink *scp)
         /*
          * Parse the command.
          */
-        strbuf_shrink_by(scp->command, 1); /* chomp the newline */
+        strbuf_chomp(scp->command, '\n');
         scp->command_chr = scp->command->len > 0 ? scp->command->s[0] : '\0';
         if (scp->command_chr == 'T') {
             unsigned long dummy1, dummy2;
