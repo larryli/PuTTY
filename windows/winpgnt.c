@@ -51,6 +51,15 @@
 
 #define APPNAME "Pageant"
 
+/* Titles and class names for invisible windows. IPCWINTITLE and
+ * IPCCLASSNAME are critical to backwards compatibility: WM_COPYDATA
+ * based Pageant clients will call FindWindow with those parameters
+ * and expect to find the Pageant IPC receiver. */
+#define TRAYWINTITLE  "Pageant"
+#define TRAYCLASSNAME "PageantSysTray"
+#define IPCWINTITLE   "Pageant"
+#define IPCCLASSNAME  "Pageant"
+
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
@@ -754,23 +763,30 @@ PSID get_default_sid(void)
 }
 #endif
 
-struct PageantReply {
-    char *buf;
-    size_t size, len;
-    bool overflowed;
-    BinarySink_IMPLEMENTATION;
-};
+struct WmCopydataTransaction {
+    char *length, *body;
+    size_t bodysize, bodylen;
+    HANDLE ev_msg_ready, ev_reply_ready;
+} wmct;
 
-static void pageant_reply_BinarySink_write(
-    BinarySink *bs, const void *data, size_t len)
+static void wm_copydata_got_msg(void *vctx)
 {
-    struct PageantReply *rep = BinarySink_DOWNCAST(bs, struct PageantReply);
-    if (!rep->overflowed && len <= rep->size - rep->len) {
-        memcpy(rep->buf + rep->len, data, len);
-        rep->len += len;
-    } else {
-        rep->overflowed = true;
+    strbuf *sb = strbuf_new();
+    pageant_handle_msg(BinarySink_UPCAST(sb), wmct.body, wmct.bodylen,
+                       NULL, NULL);
+
+    if (sb->len > wmct.bodysize) {
+        /* Output would overflow message buffer. Replace with a
+         * failure message. */
+        sb->len = 0;
+        put_byte(sb, SSH_AGENT_FAILURE);
+        assert(sb->len <= wmct.bodysize);
     }
+
+    PUT_32BIT_MSB_FIRST(wmct.length, sb->len);
+    memcpy(wmct.body, sb->u, sb->len);
+
+    SetEvent(wmct.ev_reply_ready);
 }
 
 static char *answer_filemapping_message(const char *mapname)
@@ -780,7 +796,6 @@ static char *answer_filemapping_message(const char *mapname)
     char *err = NULL;
     size_t mapsize;
     unsigned msglen;
-    struct PageantReply reply;
 
 #ifndef NO_SECURITY
     PSID mapsid = NULL;
@@ -789,7 +804,7 @@ static char *answer_filemapping_message(const char *mapname)
     PSECURITY_DESCRIPTOR psd = NULL;
 #endif
 
-    reply.buf = NULL;
+    wmct.length = wmct.body = NULL;
 
 #ifdef DEBUG_IPC
     debug("mapname = \"%s\"\n", mapname);
@@ -892,41 +907,30 @@ static char *answer_filemapping_message(const char *mapname)
         goto cleanup;
     }
 
-    msglen = GET_32BIT_MSB_FIRST((unsigned char *)mapaddr);
+    wmct.length = (char *)mapaddr;
+    msglen = GET_32BIT_MSB_FIRST(wmct.length);
 
 #ifdef DEBUG_IPC
     debug("msg length=%08x, msg type=%02x\n",
           msglen, (unsigned)((unsigned char *) mapaddr)[4]);
 #endif
 
-    reply.buf = (char *)mapaddr + 4;
-    reply.size = mapsize - 4;
-    reply.len = 0;
-    reply.overflowed = false;
-    BinarySink_INIT(&reply, pageant_reply_BinarySink_write);
+    wmct.body = wmct.length + 4;
+    wmct.bodysize = mapsize - 4;
 
-    if (msglen > mapsize - 4) {
-        pageant_failure_msg(BinarySink_UPCAST(&reply),
-                            "incoming length field too large", NULL, NULL);
+    if (msglen > wmct.bodysize) {
+        /* Incoming length field is too large. Emit a failure response
+         * without even trying to handle the request.
+         *
+         * (We know this must fit, because we checked mapsize >= 5
+         * above.) */
+        PUT_32BIT_MSB_FIRST(wmct.length, 1);
+        *wmct.body = SSH_AGENT_FAILURE;
     } else {
-        pageant_handle_msg(BinarySink_UPCAST(&reply),
-                           (unsigned char *)mapaddr + 4, msglen, NULL, NULL);
-        if (reply.overflowed) {
-            reply.len = 0;
-            reply.overflowed = false;
-            pageant_failure_msg(BinarySink_UPCAST(&reply),
-                                "output would overflow message buffer",
-                                NULL, NULL);
-        }
+        wmct.bodylen = msglen;
+        SetEvent(wmct.ev_msg_ready);
+        WaitForSingleObject(wmct.ev_reply_ready, INFINITE);
     }
-
-    if (reply.overflowed) {
-        err = dupstr("even failure message overflows buffer");
-        goto cleanup;
-    }
-
-    /* Write in the initial length field, and we're done. */
-    PUT_32BIT_MSB_FIRST(((unsigned char *)mapaddr), reply.len);
 
   cleanup:
     /* expectedsid has the lifetime of the program, so we don't free it */
@@ -940,8 +944,8 @@ static char *answer_filemapping_message(const char *mapname)
     return err;
 }
 
-static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
-                                WPARAM wParam, LPARAM lParam)
+static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
+                                    WPARAM wParam, LPARAM lParam)
 {
     static bool menuinprogress;
     static UINT msgTaskbarCreated = 0;
@@ -1079,6 +1083,15 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         quit_help(hwnd);
         PostQuitMessage(0);
         return 0;
+    }
+
+    return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
+                                            WPARAM wParam, LPARAM lParam)
+{
+    switch (message) {
       case WM_COPYDATA:
         {
             COPYDATASTRUCT *cds;
@@ -1103,6 +1116,25 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
     }
 
     return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+static DWORD WINAPI wm_copydata_threadfunc(void *param)
+{
+    HINSTANCE inst = *(HINSTANCE *)param;
+
+    HWND ipchwnd = CreateWindow(IPCCLASSNAME, IPCWINTITLE,
+                                WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                                CW_USEDEFAULT, CW_USEDEFAULT,
+                                100, 100, NULL, NULL, inst, NULL);
+    ShowWindow(ipchwnd, SW_HIDE);
+
+    MSG msg;
+    while (GetMessage(&msg, NULL, 0, 0) == 1) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);
+    }
+
+    return 0;
 }
 
 /*
@@ -1146,7 +1178,6 @@ int flags = FLAG_SYNCAGENT;
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
-    WNDCLASS wndclass;
     MSG msg;
     const char *command = NULL;
     bool added_keys = false;
@@ -1313,24 +1344,35 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
 #endif /* !defined NO_SECURITY */
 
+    /*
+     * Set up window classes for two hidden windows: one that receives
+     * all the messages to do with our presence in the system tray,
+     * and one that receives the WM_COPYDATA message used by the
+     * old-style Pageant IPC system.
+     */
+
     if (!prev) {
-        wndclass.style = 0;
-        wndclass.lpfnWndProc = WndProc;
-        wndclass.cbClsExtra = 0;
-        wndclass.cbWndExtra = 0;
+        WNDCLASS wndclass;
+
+        memset(&wndclass, 0, sizeof(wndclass));
+        wndclass.lpfnWndProc = TrayWndProc;
         wndclass.hInstance = inst;
         wndclass.hIcon = LoadIcon(inst, MAKEINTRESOURCE(IDI_MAINICON));
-        wndclass.hCursor = LoadCursor(NULL, IDC_IBEAM);
-        wndclass.hbrBackground = GetStockObject(BLACK_BRUSH);
-        wndclass.lpszMenuName = NULL;
-        wndclass.lpszClassName = APPNAME;
+        wndclass.lpszClassName = TRAYCLASSNAME;
+
+        RegisterClass(&wndclass);
+
+        memset(&wndclass, 0, sizeof(wndclass));
+        wndclass.lpfnWndProc = wm_copydata_WndProc;
+        wndclass.hInstance = inst;
+        wndclass.lpszClassName = IPCCLASSNAME;
 
         RegisterClass(&wndclass);
     }
 
     keylist = NULL;
 
-    hwnd = CreateWindow(APPNAME, APPNAME,
+    hwnd = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
                         WS_OVERLAPPEDWINDOW | WS_VSCROLL,
                         CW_USEDEFAULT, CW_USEDEFAULT,
                         100, 100, NULL, NULL, inst, NULL);
@@ -1364,6 +1406,13 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     ShowWindow(hwnd, SW_HIDE);
 
+    DWORD wm_copydata_threadid;
+    wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
+    wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);
+    CreateThread(NULL, 0, wm_copydata_threadfunc,
+                 &inst, 0, &wm_copydata_threadid);
+    handle_add_foreign_event(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
+
     /*
      * Main message loop.
      */
@@ -1394,6 +1443,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
+
+        run_toplevel_callbacks();
     }
   finished:
 
