@@ -30,7 +30,12 @@ void cmdline_error(const char *fmt, ...)
 }
 
 FILE *pageant_logfp = NULL;
-void pageant_log(void *ctx, const char *fmt, va_list ap)
+
+struct uxpgnt_client {
+    PageantListenerClient plc;
+};
+
+static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
 {
     if (!pageant_logfp)
         return;
@@ -39,6 +44,10 @@ void pageant_log(void *ctx, const char *fmt, va_list ap)
     vfprintf(pageant_logfp, fmt, ap);
     fprintf(pageant_logfp, "\n");
 }
+
+const PageantListenerClientVtable uxpgnt_vtable = {
+    uxpgnt_log,
+};
 
 /*
  * In Pageant our selects are synchronous, so these functions are
@@ -760,7 +769,9 @@ void run_agent(void)
     /*
      * Set up a listening socket and run Pageant on it.
      */
-    pl = pageant_listener_new(&pl_plug);
+    struct uxpgnt_client upc[1];
+    upc->plc.vt = &uxpgnt_vtable;
+    pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
     if (!sock) {
@@ -853,11 +864,8 @@ void run_agent(void)
         }
     }
 
-    /*
-     * Now we've decided on our logging arrangements, pass them on to
-     * pageant.c.
-     */
-    pageant_listener_set_logfn(pl, NULL, pageant_logfp ? pageant_log : NULL);
+    if (!pageant_logfp)
+        upc->plc.suppress_logging = true;
 
     now = GETTICKCOUNT();
 

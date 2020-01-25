@@ -31,6 +31,55 @@ static bool pageant_local = false;
 
 typedef struct PageantKeySort PageantKeySort;
 typedef struct PageantKey PageantKey;
+typedef struct PageantAsyncOp PageantAsyncOp;
+typedef struct PageantAsyncOpVtable PageantAsyncOpVtable;
+typedef struct PageantClientRequestNode PageantClientRequestNode;
+typedef struct PageantKeyRequestNode PageantKeyRequestNode;
+
+struct PageantClientRequestNode {
+    PageantClientRequestNode *prev, *next;
+};
+struct PageantKeyRequestNode {
+    PageantKeyRequestNode *prev, *next;
+};
+
+struct PageantClientInfo {
+    PageantClient *pc; /* goes to NULL when client is unregistered */
+    PageantClientRequestNode head;
+};
+
+struct PageantAsyncOp {
+    const PageantAsyncOpVtable *vt;
+    PageantClientInfo *info;
+    PageantClientRequestNode cr;
+    PageantClientRequestId *reqid;
+};
+struct PageantAsyncOpVtable {
+    void (*coroutine)(PageantAsyncOp *pao);
+    void (*free)(PageantAsyncOp *pao);
+};
+static inline void pageant_async_op_coroutine(PageantAsyncOp *pao)
+{ pao->vt->coroutine(pao); }
+static inline void pageant_async_op_free(PageantAsyncOp *pao)
+{
+    delete_callbacks_for_context(pao);
+    pao->vt->free(pao);
+}
+static inline void pageant_async_op_unlink(PageantAsyncOp *pao)
+{
+    pao->cr.prev->next = pao->cr.next;
+    pao->cr.next->prev = pao->cr.prev;
+}
+static inline void pageant_async_op_unlink_and_free(PageantAsyncOp *pao)
+{
+    pageant_async_op_unlink(pao);
+    pageant_async_op_free(pao);
+}
+static void pageant_async_op_callback(void *vctx)
+{
+    pageant_async_op_coroutine((PageantAsyncOp *)vctx);
+}
+
 /*
  * Master list of all the keys we have stored, in any form at all.
  */
@@ -51,6 +100,9 @@ struct PageantKey {
         ssh2_userkey *skey; /* if ssh_version == 2 */
     };
 };
+
+static void failure(PageantClient *pc, PageantClientRequestId *reqid,
+                    strbuf *sb, const char *fmt, ...);
 
 static void pk_free(PageantKey *pk)
 {
@@ -205,44 +257,90 @@ static void list_keys(BinarySink *bs, int ssh_version)
 void pageant_make_keylist1(BinarySink *bs) { return list_keys(bs, 1); }
 void pageant_make_keylist2(BinarySink *bs) { return list_keys(bs, 2); }
 
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
-#ifdef __GNUC__
-__attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 3, 4)))
-#endif
-    ;
-
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
+void pageant_register_client(PageantClient *pc)
 {
-    /*
-     * This is the wrapper that takes a variadic argument list and
-     * turns it into the va_list that the log function really expects.
-     * It's safe to call this with logfn==NULL, because we
-     * double-check that below; but if you're going to do lots of work
-     * before getting here (such as looping, or hashing things) then
-     * you should probably check logfn manually before doing that.
-     */
-    if (logfn) {
+    pc->info = snew(PageantClientInfo);
+    pc->info->pc = pc;
+    pc->info->head.prev = pc->info->head.next = &pc->info->head;
+}
+
+void pageant_unregister_client(PageantClient *pc)
+{
+    PageantClientInfo *info = pc->info;
+    assert(info);
+    assert(info->pc == pc);
+
+    while (pc->info->head.next != &pc->info->head) {
+        PageantAsyncOp *pao = container_of(pc->info->head.next,
+                                           PageantAsyncOp, cr);
+        pageant_async_op_unlink_and_free(pao);
+    }
+
+    sfree(pc->info);
+}
+
+static void failure(PageantClient *pc, PageantClientRequestId *reqid,
+                    strbuf *sb, const char *fmt, ...)
+{
+    strbuf_clear(sb);
+    put_byte(sb, SSH_AGENT_FAILURE);
+    if (!pc->suppress_logging) {
         va_list ap;
         va_start(ap, fmt);
-        logfn(logctx, fmt, ap);
+        char *msg = dupprintf(fmt, ap);
         va_end(ap);
+        pageant_client_log(pc, reqid, "reply: SSH_AGENT_FAILURE (%s)", msg);
+        sfree(msg);
     }
 }
 
-void pageant_handle_msg(BinarySink *bs,
-                        const void *msgdata, int msglen,
-                        void *logctx, pageant_logfn_t logfn)
+typedef struct PageantImmOp PageantImmOp;
+struct PageantImmOp {
+    int crLine;
+    strbuf *response;
+
+    PageantAsyncOp pao;
+};
+
+static void immop_free(PageantAsyncOp *pao)
+{
+    PageantImmOp *io = container_of(pao, PageantImmOp, pao);
+    strbuf_free(io->response);
+    sfree(io);
+}
+
+static void immop_coroutine(PageantAsyncOp *pao)
+{
+    PageantImmOp *io = container_of(pao, PageantImmOp, pao);
+
+    crBegin(io->crLine);
+
+    if (0) crReturnV;
+
+    pageant_client_got_response(io->pao.info->pc, io->pao.reqid,
+                                ptrlen_from_strbuf(io->response));
+    pageant_async_op_unlink_and_free(&io->pao);
+    crFinishFreedV;
+}
+
+static struct PageantAsyncOpVtable immop_vtable = {
+    immop_coroutine,
+    immop_free,
+};
+
+void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
+                        ptrlen msgpl)
 {
     BinarySource msg[1];
+    strbuf *sb = strbuf_new_nm();
     int type;
 
-    BinarySource_BARE_INIT(msg, msgdata, msglen);
+    BinarySource_BARE_INIT_PL(msg, msgpl);
 
     type = get_byte(msg);
     if (get_err(msg)) {
-        pageant_failure_msg(bs, "message contained no type code",
-                            logctx, logfn);
-        return;
+        failure(pc, reqid, sb, "message contained no type code");
+        goto responded;
     }
 
     switch (type) {
@@ -251,18 +349,21 @@ void pageant_handle_msg(BinarySink *bs,
          * Reply with SSH1_AGENT_RSA_IDENTITIES_ANSWER.
          */
         {
-            plog(logctx, logfn, "request: SSH1_AGENTC_REQUEST_RSA_IDENTITIES");
+            pageant_client_log(pc, reqid,
+                               "request: SSH1_AGENTC_REQUEST_RSA_IDENTITIES");
 
-            put_byte(bs, SSH1_AGENT_RSA_IDENTITIES_ANSWER);
-            pageant_make_keylist1(bs);
+            put_byte(sb, SSH1_AGENT_RSA_IDENTITIES_ANSWER);
+            pageant_make_keylist1(BinarySink_UPCAST(sb));
 
-            plog(logctx, logfn, "reply: SSH1_AGENT_RSA_IDENTITIES_ANSWER");
-            if (logfn) {               /* skip this loop if not logging */
+            pageant_client_log(pc, reqid,
+                               "reply: SSH1_AGENT_RSA_IDENTITIES_ANSWER");
+            if (!pc->suppress_logging) {
                 int i;
                 RSAKey *rkey;
                 for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
                     char *fingerprint = rsa_ssh1_fingerprint(rkey);
-                    plog(logctx, logfn, "returned key: %s", fingerprint);
+                    pageant_client_log(pc, reqid, "returned key: %s",
+                                       fingerprint);
                     sfree(fingerprint);
                 }
             }
@@ -273,19 +374,21 @@ void pageant_handle_msg(BinarySink *bs,
          * Reply with SSH2_AGENT_IDENTITIES_ANSWER.
          */
         {
-            plog(logctx, logfn, "request: SSH2_AGENTC_REQUEST_IDENTITIES");
+            pageant_client_log(pc, reqid,
+                               "request: SSH2_AGENTC_REQUEST_IDENTITIES");
 
-            put_byte(bs, SSH2_AGENT_IDENTITIES_ANSWER);
-            pageant_make_keylist2(bs);
+            put_byte(sb, SSH2_AGENT_IDENTITIES_ANSWER);
+            pageant_make_keylist2(BinarySink_UPCAST(sb));
 
-            plog(logctx, logfn, "reply: SSH2_AGENT_IDENTITIES_ANSWER");
-            if (logfn) {               /* skip this loop if not logging */
+            pageant_client_log(pc, reqid,
+                               "reply: SSH2_AGENT_IDENTITIES_ANSWER");
+            if (!pc->suppress_logging) {
                 int i;
                 ssh2_userkey *skey;
                 for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
                     char *fingerprint = ssh2_fingerprint(skey->key);
-                    plog(logctx, logfn, "returned key: %s %s",
-                         fingerprint, skey->comment);
+                    pageant_client_log(pc, reqid, "returned key: %s %s",
+                                       fingerprint, skey->comment);
                     sfree(fingerprint);
                 }
             }
@@ -306,7 +409,8 @@ void pageant_handle_msg(BinarySink *bs,
             unsigned char response_md5[16];
             int i;
 
-            plog(logctx, logfn, "request: SSH1_AGENTC_RSA_CHALLENGE");
+            pageant_client_log(pc, reqid,
+                               "request: SSH1_AGENTC_RSA_CHALLENGE");
 
             response = NULL;
             memset(&reqkey, 0, sizeof(reqkey));
@@ -317,27 +421,26 @@ void pageant_handle_msg(BinarySink *bs,
             response_type = get_uint32(msg);
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "unable to decode request");
                 goto challenge1_cleanup;
             }
             if (response_type != 1) {
-                pageant_failure_msg(
-                    bs, "response type other than 1 not supported",
-                    logctx, logfn);
+                failure(pc, reqid, sb,
+                        "response type other than 1 not supported");
                 goto challenge1_cleanup;
             }
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint;
                 reqkey.comment = NULL;
                 fingerprint = rsa_ssh1_fingerprint(&reqkey);
-                plog(logctx, logfn, "requested key: %s", fingerprint);
+                pageant_client_log(pc, reqid, "requested key: %s",
+                                   fingerprint);
                 sfree(fingerprint);
             }
 
             if ((pk = findkey1(&reqkey)) == NULL) {
-                pageant_failure_msg(bs, "key not found", logctx, logfn);
+                failure(pc, reqid, sb, "key not found");
                 goto challenge1_cleanup;
             }
             response = rsa_ssh1_decrypt(challenge, pk->rkey);
@@ -350,10 +453,10 @@ void pageant_handle_msg(BinarySink *bs,
                 ssh_hash_final(h, response_md5);
             }
 
-            put_byte(bs, SSH1_AGENT_RSA_RESPONSE);
-            put_data(bs, response_md5, 16);
+            put_byte(sb, SSH1_AGENT_RSA_RESPONSE);
+            put_data(sb, response_md5, 16);
 
-            plog(logctx, logfn, "reply: SSH1_AGENT_RSA_RESPONSE");
+            pageant_client_log(pc, reqid, "reply: SSH1_AGENT_RSA_RESPONSE");
 
           challenge1_cleanup:
             if (response)
@@ -374,15 +477,14 @@ void pageant_handle_msg(BinarySink *bs,
             strbuf *signature;
             uint32_t flags, supported_flags;
 
-            plog(logctx, logfn, "request: SSH2_AGENTC_SIGN_REQUEST");
+            pageant_client_log(pc, reqid, "request: SSH2_AGENTC_SIGN_REQUEST");
 
             keyblob = get_string(msg);
             sigdata = get_string(msg);
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
-                return;
+                failure(pc, reqid, sb, "unable to decode request");
+                goto responded;
             }
 
             /*
@@ -398,20 +500,22 @@ void pageant_handle_msg(BinarySink *bs,
             if (!get_err(msg))
                 have_flags = true;
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint = ssh2_fingerprint_blob(keyblob);
-                plog(logctx, logfn, "requested key: %s", fingerprint);
+                pageant_client_log(pc, reqid, "requested key: %s",
+                                   fingerprint);
                 sfree(fingerprint);
             }
             if ((pk = findkey2(keyblob)) == NULL) {
-                pageant_failure_msg(bs, "key not found", logctx, logfn);
-                return;
+                failure(pc, reqid, sb, "key not found");
+                goto responded;
             }
 
             if (have_flags)
-                plog(logctx, logfn, "signature flags = 0x%08"PRIx32, flags);
+                pageant_client_log(pc, reqid, "signature flags = 0x%08"PRIx32,
+                                   flags);
             else
-                plog(logctx, logfn, "no signature flags");
+                pageant_client_log(pc, reqid, "no signature flags");
 
             supported_flags = ssh_key_alg(pk->skey->key)->supported_flags;
             if (flags & ~supported_flags) {
@@ -419,31 +523,26 @@ void pageant_handle_msg(BinarySink *bs,
                  * We MUST reject any message containing flags we
                  * don't understand.
                  */
-                char *msg = dupprintf(
-                    "unsupported flag bits 0x%08"PRIx32,
-                    flags & ~supported_flags);
-                pageant_failure_msg(bs, msg, logctx, logfn);
-                sfree(msg);
-                return;
+                failure(pc, reqid, sb, "unsupported flag bits 0x%08"PRIx32,
+                        flags & ~supported_flags);
+                goto responded;
             }
 
             char *invalid = ssh_key_invalid(pk->skey->key, flags);
             if (invalid) {
-                char *msg = dupprintf("key invalid: %s", invalid);
-                pageant_failure_msg(bs, msg, logctx, logfn);
-                sfree(msg);
+                failure(pc, reqid, sb, "key invalid: %s", invalid);
                 sfree(invalid);
-                return;
+                goto responded;
             }
 
             signature = strbuf_new();
             ssh_key_sign(pk->skey->key, sigdata, flags,
                          BinarySink_UPCAST(signature));
 
-            put_byte(bs, SSH2_AGENT_SIGN_RESPONSE);
-            put_stringsb(bs, signature);
+            put_byte(sb, SSH2_AGENT_SIGN_RESPONSE);
+            put_stringsb(sb, signature);
 
-            plog(logctx, logfn, "reply: SSH2_AGENT_SIGN_RESPONSE");
+            pageant_client_log(pc, reqid, "reply: SSH2_AGENT_SIGN_RESPONSE");
         }
         break;
       case SSH1_AGENTC_ADD_RSA_IDENTITY:
@@ -454,36 +553,36 @@ void pageant_handle_msg(BinarySink *bs,
         {
             RSAKey *key;
 
-            plog(logctx, logfn, "request: SSH1_AGENTC_ADD_RSA_IDENTITY");
+            pageant_client_log(pc, reqid,
+                               "request: SSH1_AGENTC_ADD_RSA_IDENTITY");
 
             key = get_rsa_ssh1_priv_agent(msg);
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "unable to decode request");
                 goto add1_cleanup;
             }
 
             if (!rsa_verify(key)) {
-                pageant_failure_msg(bs, "key is invalid", logctx, logfn);
+                failure(pc, reqid, sb, "key is invalid");
                 goto add1_cleanup;
             }
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint = rsa_ssh1_fingerprint(key);
-                plog(logctx, logfn, "submitted key: %s", fingerprint);
+                pageant_client_log(pc, reqid,
+                                   "submitted key: %s", fingerprint);
                 sfree(fingerprint);
             }
 
             if (pageant_add_ssh1_key(key)) {
                 keylist_update();
-                put_byte(bs, SSH_AGENT_SUCCESS);
-                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+                put_byte(sb, SSH_AGENT_SUCCESS);
+                pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
                 key = NULL;            /* don't free it in cleanup */
             } else {
-                pageant_failure_msg(bs, "key already present",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "key already present");
             }
 
           add1_cleanup:
@@ -503,7 +602,7 @@ void pageant_handle_msg(BinarySink *bs,
             ptrlen algpl;
             const ssh_keyalg *alg;
 
-            plog(logctx, logfn, "request: SSH2_AGENTC_ADD_IDENTITY");
+            pageant_client_log(pc, reqid, "request: SSH2_AGENTC_ADD_IDENTITY");
 
             algpl = get_string(msg);
 
@@ -512,42 +611,40 @@ void pageant_handle_msg(BinarySink *bs,
             key->comment = NULL;
             alg = find_pubkey_alg_len(algpl);
             if (!alg) {
-                pageant_failure_msg(bs, "algorithm unknown", logctx, logfn);
+                failure(pc, reqid, sb, "algorithm unknown");
                 goto add2_cleanup;
             }
 
             key->key = ssh_key_new_priv_openssh(alg, msg);
 
             if (!key->key) {
-                pageant_failure_msg(bs, "key setup failed", logctx, logfn);
+                failure(pc, reqid, sb, "key setup failed");
                 goto add2_cleanup;
             }
 
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "unable to decode request");
                 goto add2_cleanup;
             }
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint = ssh2_fingerprint(key->key);
-                plog(logctx, logfn, "submitted key: %s %s",
-                     fingerprint, key->comment);
+                pageant_client_log(pc, reqid, "submitted key: %s %s",
+                                   fingerprint, key->comment);
                 sfree(fingerprint);
             }
 
             if (pageant_add_ssh2_key(key)) {
                 keylist_update();
-                put_byte(bs, SSH_AGENT_SUCCESS);
+                put_byte(sb, SSH_AGENT_SUCCESS);
 
-                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+                pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
 
                 key = NULL;            /* don't clean it up */
             } else {
-                pageant_failure_msg(bs, "key already present",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "key already present");
             }
 
           add2_cleanup:
@@ -570,40 +667,40 @@ void pageant_handle_msg(BinarySink *bs,
             RSAKey reqkey;
             PageantKey *pk;
 
-            plog(logctx, logfn, "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
+            pageant_client_log(pc, reqid,
+                               "request: SSH1_AGENTC_REMOVE_RSA_IDENTITY");
 
             memset(&reqkey, 0, sizeof(reqkey));
             get_rsa_ssh1_pub(msg, &reqkey, RSA_SSH1_EXPONENT_FIRST);
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
+                failure(pc, reqid, sb, "unable to decode request");
                 freersakey(&reqkey);
-                return;
+                goto responded;
             }
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint;
                 reqkey.comment = NULL;
                 fingerprint = rsa_ssh1_fingerprint(&reqkey);
-                plog(logctx, logfn, "unwanted key: %s", fingerprint);
+                pageant_client_log(pc, reqid, "unwanted key: %s", fingerprint);
                 sfree(fingerprint);
             }
 
             pk = findkey1(&reqkey);
             freersakey(&reqkey);
             if (pk) {
-                plog(logctx, logfn, "found with comment: %s",
-                     pk->rkey->comment);
+                pageant_client_log(pc, reqid, "found with comment: %s",
+                                   pk->rkey->comment);
 
                 del234(keytree, pk);
                 keylist_update();
                 pk_free(pk);
-                put_byte(bs, SSH_AGENT_SUCCESS);
+                put_byte(sb, SSH_AGENT_SUCCESS);
 
-                plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+                pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
             } else {
-                pageant_failure_msg(bs, "key not found", logctx, logfn);
+                failure(pc, reqid, sb, "key not found");
             }
         }
         break;
@@ -617,36 +714,37 @@ void pageant_handle_msg(BinarySink *bs,
             PageantKey *pk;
             ptrlen blob;
 
-            plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_IDENTITY");
+            pageant_client_log(pc, reqid,
+                               "request: SSH2_AGENTC_REMOVE_IDENTITY");
 
             blob = get_string(msg);
 
             if (get_err(msg)) {
-                pageant_failure_msg(bs, "unable to decode request",
-                                    logctx, logfn);
-                return;
+                failure(pc, reqid, sb, "unable to decode request");
+                goto responded;
             }
 
-            if (logfn) {
+            if (!pc->suppress_logging) {
                 char *fingerprint = ssh2_fingerprint_blob(blob);
-                plog(logctx, logfn, "unwanted key: %s", fingerprint);
+                pageant_client_log(pc, reqid, "unwanted key: %s", fingerprint);
                 sfree(fingerprint);
             }
 
             pk = findkey2(blob);
             if (!pk) {
-                pageant_failure_msg(bs, "key not found", logctx, logfn);
-                return;
+                failure(pc, reqid, sb, "key not found");
+                goto responded;
             }
 
-            plog(logctx, logfn, "found with comment: %s", pk->skey->comment);
+            pageant_client_log(pc, reqid,
+                               "found with comment: %s", pk->skey->comment);
 
             del234(keytree, pk);
             keylist_update();
             pk_free(pk);
-            put_byte(bs, SSH_AGENT_SUCCESS);
+            put_byte(sb, SSH_AGENT_SUCCESS);
 
-            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+            pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
         }
         break;
       case SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES:
@@ -654,15 +752,15 @@ void pageant_handle_msg(BinarySink *bs,
          * Remove all SSH-1 keys. Always returns success.
          */
         {
-            plog(logctx, logfn, "request:"
-                " SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES");
+            pageant_client_log(pc, reqid, "request:"
+                               " SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES");
 
             remove_all_keys(1);
             keylist_update();
 
-            put_byte(bs, SSH_AGENT_SUCCESS);
+            put_byte(sb, SSH_AGENT_SUCCESS);
 
-            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+            pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
         }
         break;
       case SSH2_AGENTC_REMOVE_ALL_IDENTITIES:
@@ -670,29 +768,35 @@ void pageant_handle_msg(BinarySink *bs,
          * Remove all SSH-2 keys. Always returns success.
          */
         {
-            plog(logctx, logfn, "request: SSH2_AGENTC_REMOVE_ALL_IDENTITIES");
+            pageant_client_log(pc, reqid,
+                               "request: SSH2_AGENTC_REMOVE_ALL_IDENTITIES");
 
             remove_all_keys(2);
             keylist_update();
 
-            put_byte(bs, SSH_AGENT_SUCCESS);
+            put_byte(sb, SSH_AGENT_SUCCESS);
 
-            plog(logctx, logfn, "reply: SSH_AGENT_SUCCESS");
+            pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
         }
         break;
       default:
-        plog(logctx, logfn, "request: unknown message type %d", type);
-        pageant_failure_msg(bs, "unrecognised message", logctx, logfn);
+        pageant_client_log(pc, reqid, "request: unknown message type %d",
+                           type);
+        failure(pc, reqid, sb, "unrecognised message");
         break;
     }
-}
 
-void pageant_failure_msg(BinarySink *bs,
-                         const char *log_reason,
-                         void *logctx, pageant_logfn_t logfn)
-{
-    put_byte(bs, SSH_AGENT_FAILURE);
-    plog(logctx, logfn, "reply: SSH_AGENT_FAILURE (%s)", log_reason);
+  responded:;
+
+    PageantImmOp *io = snew(PageantImmOp);
+    io->pao.vt = &immop_vtable;
+    io->pao.info = pc->info;
+    io->pao.cr.prev = pc->info->head.prev;
+    io->pao.cr.next = &pc->info->head;
+    io->pao.reqid = reqid;
+    io->response = sb;
+    io->crLine = 0;
+    queue_toplevel_callback(pageant_async_op_callback, &io->pao);
 }
 
 void pageant_init(void)
@@ -764,15 +868,26 @@ bool pageant_delete_ssh2_key(ssh2_userkey *skey)
         (c) = (unsigned char)*data++;                           \
     } while (0)
 
+struct pageant_conn_queued_response {
+    struct pageant_conn_queued_response *next, *prev;
+    size_t req_index;      /* for indexing requests in log messages */
+    strbuf *sb;
+    PageantClientRequestId reqid;
+};
+
 struct pageant_conn_state {
     Socket *connsock;
-    void *logctx;
-    pageant_logfn_t logfn;
+    PageantListenerClient *plc;
     unsigned char lenbuf[4], pktbuf[AGENT_MAX_MSGLEN];
     unsigned len, got;
     bool real_packet;
+    size_t conn_index;     /* for indexing connections in log messages */
+    size_t req_index;      /* for indexing requests in log messages */
     int crLine;            /* for coroutine in pageant_conn_receive */
 
+    struct pageant_conn_queued_response response_queue;
+
+    PageantClient pc;
     Plug plug;
 };
 
@@ -782,10 +897,13 @@ static void pageant_conn_closing(Plug *plug, const char *error_msg,
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
     if (error_msg)
-        plog(pc->logctx, pc->logfn, "%p: error: %s", pc, error_msg);
+        pageant_listener_client_log(pc->plc, "c#%zu: error: %s",
+                                    pc->conn_index, error_msg);
     else
-        plog(pc->logctx, pc->logfn, "%p: connection closed", pc);
+        pageant_listener_client_log(pc->plc, "c#%zu: connection closed",
+                                    pc->conn_index);
     sk_close(pc->connsock);
+    pageant_unregister_client(&pc->pc);
     sfree(pc);
 }
 
@@ -802,14 +920,46 @@ static void pageant_conn_sent(Plug *plug, size_t bufsize)
      */
 }
 
-static void pageant_conn_log(void *logctx, const char *fmt, va_list ap)
+static void pageant_conn_log(PageantClient *pc, PageantClientRequestId *reqid,
+                             const char *fmt, va_list ap)
 {
-    /* Wrapper on pc->logfn that prefixes the connection identifier */
-    struct pageant_conn_state *pc = (struct pageant_conn_state *)logctx;
+    struct pageant_conn_state *pcs =
+        container_of(pc, struct pageant_conn_state, pc);
+    struct pageant_conn_queued_response *qr =
+        container_of(reqid, struct pageant_conn_queued_response, reqid);
+
     char *formatted = dupvprintf(fmt, ap);
-    plog(pc->logctx, pc->logfn, "%p: %s", pc, formatted);
+    pageant_listener_client_log(pcs->plc, "c#%zu,r#%zu: %s",
+                                pcs->conn_index, qr->req_index, formatted);
     sfree(formatted);
 }
+
+static void pageant_conn_got_response(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
+{
+    struct pageant_conn_state *pcs =
+        container_of(pc, struct pageant_conn_state, pc);
+    struct pageant_conn_queued_response *qr =
+        container_of(reqid, struct pageant_conn_queued_response, reqid);
+
+    qr->sb = strbuf_new_nm();
+    put_stringpl(qr->sb, response);
+
+    while (pcs->response_queue.next != &pcs->response_queue &&
+           pcs->response_queue.next->sb) {
+        qr = pcs->response_queue.next;
+        sk_write(pcs->connsock, qr->sb->u, qr->sb->len);
+        qr->next->prev = qr->prev;
+        qr->prev->next = qr->next;
+        strbuf_free(qr->sb);
+        sfree(qr);
+    }
+}
+
+static const struct PageantClientVtable pageant_connection_clientvt = {
+    pageant_conn_log,
+    pageant_conn_got_response,
+};
 
 static void pageant_conn_receive(
     Plug *plug, int urgent, const char *data, size_t len)
@@ -831,6 +981,31 @@ static void pageant_conn_receive(
         pc->got = 0;
         pc->real_packet = (pc->len < AGENT_MAX_MSGLEN-4);
 
+        {
+            struct pageant_conn_queued_response *qr =
+                snew(struct pageant_conn_queued_response);
+            qr->prev = pc->response_queue.prev;
+            qr->next = &pc->response_queue;
+            qr->prev->next = qr->next->prev = qr;
+            qr->sb = NULL;
+            qr->req_index = pc->req_index++;
+        }
+
+        if (!pc->real_packet) {
+            /*
+             * Send failure immediately, before consuming the packet
+             * data. That way we notify the client reasonably early
+             * even if the data channel has just started spewing
+             * nonsense.
+             */
+            pageant_client_log(&pc->pc, &pc->response_queue.prev->reqid,
+                               "early reply: SSH_AGENT_FAILURE "
+                               "(overlong message, length %u)", pc->len);
+            static const unsigned char failure[] = { SSH_AGENT_FAILURE };
+            pageant_conn_got_response(&pc->pc, &pc->response_queue.prev->reqid,
+                                      make_ptrlen(failure, lenof(failure)));
+        }
+
         while (pc->got < pc->len) {
             crGetChar(c);
             if (pc->real_packet)
@@ -838,26 +1013,9 @@ static void pageant_conn_receive(
             pc->got++;
         }
 
-        {
-            strbuf *reply = strbuf_new();
-
-            put_uint32(reply, 0);      /* length field to fill in later */
-
-            if (pc->real_packet) {
-                pageant_handle_msg(BinarySink_UPCAST(reply), pc->pktbuf, pc->len, pc,
-                                   pc->logfn ? pageant_conn_log : NULL);
-            } else {
-                plog(pc->logctx, pc->logfn, "%p: overlong message (%u)",
-                     pc, pc->len);
-                pageant_failure_msg(BinarySink_UPCAST(reply), "message too long", pc,
-                                    pc->logfn ? pageant_conn_log : NULL);
-            }
-
-            PUT_32BIT_MSB_FIRST(reply->s, reply->len - 4);
-            sk_write(pc->connsock, reply->s, reply->len);
-
-            strbuf_free(reply);
-        }
+        if (pc->real_packet)
+            pageant_handle_msg(&pc->pc, &pc->response_queue.prev->reqid,
+                               make_ptrlen(pc->pktbuf, pc->len));
     }
 
     crFinishV;
@@ -865,8 +1023,8 @@ static void pageant_conn_receive(
 
 struct pageant_listen_state {
     Socket *listensock;
-    void *logctx;
-    pageant_logfn_t logfn;
+    PageantListenerClient *plc;
+    size_t conn_index;     /* for indexing connections in log messages */
 
     Plug plug;
 };
@@ -877,7 +1035,8 @@ static void pageant_listen_closing(Plug *plug, const char *error_msg,
     struct pageant_listen_state *pl = container_of(
         plug, struct pageant_listen_state, plug);
     if (error_msg)
-        plog(pl->logctx, pl->logfn, "listening socket: error: %s", error_msg);
+        pageant_listener_client_log(pl->plc, "listening socket: error: %s",
+                                    error_msg);
     sk_close(pl->listensock);
     pl->listensock = NULL;
 }
@@ -901,8 +1060,11 @@ static int pageant_listen_accepting(Plug *plug,
 
     pc = snew(struct pageant_conn_state);
     pc->plug.vt = &pageant_connection_plugvt;
-    pc->logfn = pl->logfn;
-    pc->logctx = pl->logctx;
+    pc->pc.vt = &pageant_connection_clientvt;
+    pc->plc = pl->plc;
+    pc->response_queue.next = pc->response_queue.prev = &pc->response_queue;
+    pc->conn_index = pl->conn_index++;
+    pc->req_index = 0;
     pc->crLine = 0;
 
     pc->connsock = constructor(ctx, &pc->plug);
@@ -916,12 +1078,15 @@ static int pageant_listen_accepting(Plug *plug,
 
     peerinfo = sk_peer_info(pc->connsock);
     if (peerinfo && peerinfo->log_text) {
-        plog(pl->logctx, pl->logfn, "%p: new connection from %s",
-             pc, peerinfo->log_text);
+        pageant_listener_client_log(pl->plc, "c#%zu: new connection from %s",
+                                    pc->conn_index, peerinfo->log_text);
     } else {
-        plog(pl->logctx, pl->logfn, "%p: new connection", pc);
+        pageant_listener_client_log(pl->plc, "c#%zu: new connection",
+                                    pc->conn_index);
     }
     sk_free_peer_info(peerinfo);
+
+    pageant_register_client(&pc->pc);
 
     return 0;
 }
@@ -934,13 +1099,14 @@ static const PlugVtable pageant_listener_plugvt = {
     pageant_listen_accepting
 };
 
-struct pageant_listen_state *pageant_listener_new(Plug **plug)
+struct pageant_listen_state *pageant_listener_new(
+    Plug **plug, PageantListenerClient *plc)
 {
     struct pageant_listen_state *pl = snew(struct pageant_listen_state);
     pl->plug.vt = &pageant_listener_plugvt;
-    pl->logctx = NULL;
-    pl->logfn = NULL;
+    pl->plc = plc;
     pl->listensock = NULL;
+    pl->conn_index = 0;
     *plug = &pl->plug;
     return pl;
 }
@@ -948,13 +1114,6 @@ struct pageant_listen_state *pageant_listener_new(Plug **plug)
 void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket *sock)
 {
     pl->listensock = sock;
-}
-
-void pageant_listener_set_logfn(struct pageant_listen_state *pl,
-                                void *logctx, pageant_logfn_t logfn)
-{
-    pl->logctx = logctx;
-    pl->logfn = logfn;
 }
 
 void pageant_listener_free(struct pageant_listen_state *pl)

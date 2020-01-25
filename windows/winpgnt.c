@@ -769,25 +769,34 @@ struct WmCopydataTransaction {
     HANDLE ev_msg_ready, ev_reply_ready;
 } wmct;
 
+static struct PageantClient wmcpc;
+
 static void wm_copydata_got_msg(void *vctx)
 {
-    strbuf *sb = strbuf_new();
-    pageant_handle_msg(BinarySink_UPCAST(sb), wmct.body, wmct.bodylen,
-                       NULL, NULL);
+    pageant_handle_msg(&wmcpc, NULL, make_ptrlen(wmct.body, wmct.bodylen));
+}
 
-    if (sb->len > wmct.bodysize) {
+static void wm_copydata_got_response(PageantClient *pc, void *reqid,
+                                     ptrlen response)
+{
+    if (response.len > wmct.bodysize) {
         /* Output would overflow message buffer. Replace with a
          * failure message. */
-        sb->len = 0;
-        put_byte(sb, SSH_AGENT_FAILURE);
-        assert(sb->len <= wmct.bodysize);
+        static const unsigned char failure[] = { SSH_AGENT_FAILURE };
+        response = make_ptrlen(failure, lenof(failure));
+        assert(response.len <= wmct.bodysize);
     }
 
-    PUT_32BIT_MSB_FIRST(wmct.length, sb->len);
-    memcpy(wmct.body, sb->u, sb->len);
+    PUT_32BIT_MSB_FIRST(wmct.length, response.len);
+    memcpy(wmct.body, response.ptr, response.len);
 
     SetEvent(wmct.ev_reply_ready);
 }
+
+static const PageantClientVtable wmcpc_vtable = {
+    NULL, /* no logging in this client */
+    wm_copydata_got_response,
+};
 
 static char *answer_filemapping_message(const char *mapname)
 {
@@ -1176,6 +1185,15 @@ void cleanup_exit(int code)
 
 int flags = FLAG_SYNCAGENT;
 
+struct winpgnt_client {
+    PageantListenerClient plc;
+};
+const PageantListenerClientVtable winpgnt_vtable = {
+    NULL, /* no logging */
+};
+
+static struct winpgnt_client wpc[1];
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
@@ -1328,7 +1346,10 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     {
         Plug *pl_plug;
-        struct pageant_listen_state *pl = pageant_listener_new(&pl_plug);
+        wpc->plc.vt = &winpgnt_vtable;
+        wpc->plc.suppress_logging = true;
+        struct pageant_listen_state *pl =
+            pageant_listener_new(&pl_plug, &wpc->plc);
         char *pipename = agent_named_pipe_name();
         Socket *sock = new_named_pipe_listener(pipename, pl_plug);
         if (sk_socket_error(sock)) {
@@ -1406,6 +1427,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     ShowWindow(hwnd, SW_HIDE);
 
+    wmcpc.vt = &wmcpc_vtable;
+    wmcpc.suppress_logging = true;
+    pageant_register_client(&wmcpc);
     DWORD wm_copydata_threadid;
     wmct.ev_msg_ready = CreateEvent(NULL, false, false, NULL);
     wmct.ev_reply_ready = CreateEvent(NULL, false, false, NULL);

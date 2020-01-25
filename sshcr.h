@@ -34,6 +34,8 @@
 #define crState(t)      crStateP(t, ssh->t)
 #define crFinish(z)     } *crLine = 0; return (z); }
 #define crFinishV       } *crLine = 0; return; }
+#define crFinishFreed(z) } return (z); }
+#define crFinishFreedV   } return; }
 #define crFinishFree(z) } sfree(s); return (z); }
 #define crFinishFreeV   } sfree(s); return; }
 #define crReturn(z)     \

@@ -11,7 +11,56 @@
  */
 #define AGENT_MAX_MSGLEN  262144
 
-typedef void (*pageant_logfn_t)(void *logctx, const char *fmt, va_list ap);
+typedef struct PageantClientVtable PageantClientVtable;
+typedef struct PageantClient PageantClient;
+typedef struct PageantClientInfo PageantClientInfo;
+typedef struct PageantClientRequestId PageantClientRequestId;
+struct PageantClient {
+    const struct PageantClientVtable *vt;
+    PageantClientInfo *info;    /* used by the central Pageant code */
+
+    /* Setting this flag prevents the 'log' vtable entry from ever
+     * being called, so that it's safe to make it NULL. This also
+     * allows optimisations in the core code (it can avoid entire
+     * loops that are only used for logging purposes). So you can also
+     * set it dynamically if you find out at run time that you're not
+     * doing logging. */
+    bool suppress_logging;
+};
+struct PageantClientVtable {
+    void (*log)(PageantClient *pc, PageantClientRequestId *reqid,
+                const char *fmt, va_list ap);
+    void (*got_response)(PageantClient *pc, PageantClientRequestId *reqid,
+                         ptrlen response);
+};
+
+static inline void pageant_client_log_v(
+    PageantClient *pc, PageantClientRequestId *reqid,
+    const char *fmt, va_list ap)
+{
+    if (!pc->suppress_logging)
+        pc->vt->log(pc, reqid, fmt, ap);
+}
+static inline void pageant_client_log(
+    PageantClient *pc, PageantClientRequestId *reqid, const char *fmt, ...)
+{
+    if (!pc->suppress_logging) {
+        va_list ap;
+        va_start(ap, fmt);
+        pc->vt->log(pc, reqid, fmt, ap);
+        va_end(ap);
+    }
+}
+static inline void pageant_client_got_response(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
+{ pc->vt->got_response(pc, reqid, response); }
+
+/* PageantClientRequestId is used to match up responses to the agent
+ * requests they refer to. A client may allocate one of these for each
+ * call to pageant_handle_request, (probably as a subfield of some
+ * larger struct on the client side) and expect the same pointer to be
+ * passed back in pageant_client_got_response. */
+struct PageantClientRequestId { int unused_; };
 
 /*
  * Initial setup.
@@ -19,27 +68,28 @@ typedef void (*pageant_logfn_t)(void *logctx, const char *fmt, va_list ap);
 void pageant_init(void);
 
 /*
+ * Register and unregister PageantClients. This is necessary so that
+ * when a PageantClient goes away, any unfinished asynchronous
+ * requests can be cleaned up.
+ *
+ * pageant_register_client will fill in pc->id. The client itself
+ * should not touch that field.
+ */
+void pageant_register_client(PageantClient *pc);
+void pageant_unregister_client(PageantClient *pc);
+
+/*
  * The main agent function that answers messages.
  *
  * Expects a message/length pair as input, minus its initial length
  * field but still with its type code on the front.
  *
- * Returns a fully formatted message as output, *with* its initial
- * length field, and sets *outlen to the full size of that message.
+ * When a response is ready, the got_response method in the
+ * PageantClient vtable will be passed it in the form of a ptrlen,
+ * again minus its length field.
  */
-void pageant_handle_msg(BinarySink *bs,
-                        const void *msg, int msglen,
-                        void *logctx, pageant_logfn_t logfn);
-
-/*
- * Construct a failure response. Useful for agent front ends which
- * suffer a problem before they even get to pageant_handle_msg.
- *
- * 'log_reason' is only used if logfn is not NULL.
- */
-void pageant_failure_msg(BinarySink *bs,
-                         const char *log_reason,
-                         void *logctx, pageant_logfn_t logfn);
+void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
+                        ptrlen msg);
 
 /*
  * Construct a list of public keys, just as the two LIST_IDENTITIES
@@ -83,11 +133,41 @@ void keylist_update(void);
  * socket pointer. Also, provide a logging function later if you want
  * to.
  */
+typedef struct PageantListenerClientVtable PageantListenerClientVtable;
+typedef struct PageantListenerClient PageantListenerClient;
+struct PageantListenerClient {
+    const PageantListenerClientVtable *vt;
+    /* suppress_logging flag works similarly to the one in
+     * PageantClient, but it is only read when a new connection comes
+     * in. So if you do need to change it in mid-run, expect existing
+     * agent connections to still use the old value. */
+    bool suppress_logging;
+};
+struct PageantListenerClientVtable {
+    void (*log)(PageantListenerClient *, const char *fmt, va_list ap);
+};
+
+static inline void pageant_listener_client_log_v(
+    PageantListenerClient *plc, const char *fmt, va_list ap)
+{
+    if (!plc->suppress_logging)
+        plc->vt->log(plc, fmt, ap);
+}
+static inline void pageant_listener_client_log(
+    PageantListenerClient *plc, const char *fmt, ...)
+{
+    if (!plc->suppress_logging) {
+        va_list ap;
+        va_start(ap, fmt);
+        plc->vt->log(plc, fmt, ap);
+        va_end(ap);
+    }
+}
+
 struct pageant_listen_state;
-struct pageant_listen_state *pageant_listener_new(Plug **plug);
+struct pageant_listen_state *pageant_listener_new(
+    Plug **plug, PageantListenerClient *plc);
 void pageant_listener_got_socket(struct pageant_listen_state *pl, Socket *);
-void pageant_listener_set_logfn(struct pageant_listen_state *pl,
-                                void *logctx, pageant_logfn_t logfn);
 void pageant_listener_free(struct pageant_listen_state *pl);
 
 /*
