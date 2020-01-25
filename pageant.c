@@ -99,6 +99,18 @@ struct PageantKey {
         RSAKey *rkey;       /* if ssh_version == 1 */
         ssh2_userkey *skey; /* if ssh_version == 2 */
     };
+    PageantKeyRequestNode blocked_requests;
+};
+
+typedef struct PageantSignOp PageantSignOp;
+struct PageantSignOp {
+    PageantKey *pk;
+    strbuf *data_to_sign;
+    unsigned flags;
+    int crLine;
+
+    PageantKeyRequestNode pkr;
+    PageantAsyncOp pao;
 };
 
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
@@ -116,6 +128,19 @@ static void pk_free(PageantKey *pk)
         sfree(pk->skey->comment);
         ssh_key_free(pk->skey->key);
         sfree(pk->skey);
+    }
+    while (pk->blocked_requests.next != &pk->blocked_requests) {
+        PageantSignOp *so = container_of(pk->blocked_requests.next,
+                                         PageantSignOp, pkr);
+        so->pkr.next->prev = so->pkr.prev;
+        so->pkr.prev->next = so->pkr.next;
+        strbuf *sb = strbuf_new();
+        failure(so->pao.info->pc, so->pao.reqid, sb,
+                "key deleted from Pageant while signing request was pending");
+        pageant_client_got_response(so->pao.info->pc, so->pao.reqid,
+                                    ptrlen_from_strbuf(sb));
+        strbuf_free(sb);
+        pageant_async_op_unlink_and_free(&so->pao);
     }
     sfree(pk);
 }
@@ -192,6 +217,8 @@ bool pageant_add_ssh1_key(RSAKey *rkey)
     pk->sort.ssh_version = 1;
     pk->public_blob = makeblob1(rkey);
     pk->sort.public_blob = ptrlen_from_strbuf(pk->public_blob);
+    pk->blocked_requests.next = pk->blocked_requests.prev =
+        &pk->blocked_requests;
 
     if (add234(keytree, pk) == pk) {
         pk->rkey = rkey;
@@ -211,6 +238,8 @@ bool pageant_add_ssh2_key(ssh2_userkey *skey)
     pk->sort.ssh_version = 2;
     pk->public_blob = makeblob2(skey);
     pk->sort.public_blob = ptrlen_from_strbuf(pk->public_blob);
+    pk->blocked_requests.next = pk->blocked_requests.prev =
+        &pk->blocked_requests;
 
     if (add234(keytree, pk) == pk) {
         pk->skey = skey;
@@ -293,6 +322,47 @@ static void failure(PageantClient *pc, PageantClientRequestId *reqid,
         sfree(msg);
     }
 }
+
+static void signop_free(PageantAsyncOp *pao)
+{
+    PageantSignOp *so = container_of(pao, PageantSignOp, pao);
+    strbuf_free(so->data_to_sign);
+    sfree(so);
+}
+
+static void signop_coroutine(PageantAsyncOp *pao)
+{
+    PageantSignOp *so = container_of(pao, PageantSignOp, pao);
+
+    crBegin(so->crLine);
+
+    /*
+     * If we want to request a user interaction, we should set it up;
+     * arrange that when it finishes, it re-queues
+     * pageant_async_op_callback; and then crReturnV so that we resume
+     * from after that.
+     */
+    if (0) crReturnV;
+
+    strbuf *signature = strbuf_new();
+    ssh_key_sign(so->pk->skey->key, ptrlen_from_strbuf(so->data_to_sign),
+                 so->flags, BinarySink_UPCAST(signature));
+
+    strbuf *response = strbuf_new();
+    put_byte(response, SSH2_AGENT_SIGN_RESPONSE);
+    put_stringsb(response, signature);
+    pageant_client_got_response(so->pao.info->pc, so->pao.reqid,
+                                ptrlen_from_strbuf(response));
+    strbuf_free(response);
+
+    pageant_async_op_unlink_and_free(&so->pao);
+    crFinishFreedV;
+}
+
+static struct PageantAsyncOpVtable signop_vtable = {
+    signop_coroutine,
+    signop_free,
+};
 
 typedef struct PageantImmOp PageantImmOp;
 struct PageantImmOp {
@@ -474,7 +544,6 @@ void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
         {
             PageantKey *pk;
             ptrlen keyblob, sigdata;
-            strbuf *signature;
             uint32_t flags, supported_flags;
 
             pageant_client_log(pc, reqid, "request: SSH2_AGENTC_SIGN_REQUEST");
@@ -535,14 +604,25 @@ void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
                 goto responded;
             }
 
-            signature = strbuf_new();
-            ssh_key_sign(pk->skey->key, sigdata, flags,
-                         BinarySink_UPCAST(signature));
+            strbuf_free(sb); /* no immediate response */
 
-            put_byte(sb, SSH2_AGENT_SIGN_RESPONSE);
-            put_stringsb(sb, signature);
-
-            pageant_client_log(pc, reqid, "reply: SSH2_AGENT_SIGN_RESPONSE");
+            PageantSignOp *so = snew(PageantSignOp);
+            so->pao.vt = &signop_vtable;
+            so->pao.info = pc->info;
+            so->pao.cr.prev = pc->info->head.prev;
+            so->pao.cr.next = &pc->info->head;
+            so->pao.reqid = reqid;
+            so->pk = pk;
+            so->pkr.prev = pk->blocked_requests.prev;
+            so->pkr.next = &pk->blocked_requests;
+            so->pkr.prev->next = so->pkr.next;
+            so->pkr.next->prev = so->pkr.prev;
+            so->data_to_sign = strbuf_new();
+            put_datapl(so->data_to_sign, sigdata);
+            so->flags = flags;
+            so->crLine = 0;
+            queue_toplevel_callback(pageant_async_op_callback, &so->pao);
+            return;
         }
         break;
       case SSH1_AGENTC_ADD_RSA_IDENTITY:
