@@ -29,18 +29,20 @@ void random_read(void *buf, size_t size)
 
 static bool pageant_local = false;
 
+typedef struct PageantKeySort PageantKeySort;
+typedef struct PageantKey PageantKey;
 /*
  * Master list of all the keys we have stored, in any form at all.
  */
 static tree234 *keytree;
-typedef struct PageantKeySort {
+struct PageantKeySort {
     /* Prefix of the main PageantKey structure which contains all the
      * data that the sorting order depends on. Also simple enough that
      * you can construct one for lookup purposes. */
     int ssh_version; /* 1 or 2; primary sort key */
     ptrlen public_blob; /* secondary sort key */
-} PageantKeySort;
-typedef struct PageantKey {
+};
+struct PageantKey {
     PageantKeySort sort;
     strbuf *public_blob; /* the true owner of sort.public_blob */
     char *comment;       /* stored separately, whether or not in rkey/skey */
@@ -48,7 +50,7 @@ typedef struct PageantKey {
         RSAKey *rkey;       /* if ssh_version == 1 */
         ssh2_userkey *skey; /* if ssh_version == 2 */
     };
-} PageantKey;
+};
 
 static void pk_free(PageantKey *pk)
 {
