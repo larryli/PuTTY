@@ -776,8 +776,8 @@ static void wm_copydata_got_msg(void *vctx)
     pageant_handle_msg(&wmcpc, NULL, make_ptrlen(wmct.body, wmct.bodylen));
 }
 
-static void wm_copydata_got_response(PageantClient *pc, void *reqid,
-                                     ptrlen response)
+static void wm_copydata_got_response(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
 {
     if (response.len > wmct.bodysize) {
         /* Output would overflow message buffer. Replace with a
