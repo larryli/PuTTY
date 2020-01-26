@@ -1794,8 +1794,9 @@ static void share_receive(Plug *plug, int urgent, const char *data, size_t len)
     }
     if (cs->recvlen > 0 && cs->recvbuf[cs->recvlen-1] == '\015')
         cs->recvlen--;                 /* trim off \r before \n */
+    ptrlen verstring = make_ptrlen(cs->recvbuf, cs->recvlen);
     log_downstream(cs, "Downstream version string: %.*s",
-                   cs->recvlen, cs->recvbuf);
+                   PTRLEN_PRINTF(verstring));
     cs->got_verstring = true;
 
     /*

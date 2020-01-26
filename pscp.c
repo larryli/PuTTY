@@ -1789,7 +1789,7 @@ static void sink(const char *targ, const char *src)
                     with_stripctrl(santarg, act.name) {
                         tell_user(stderr, "warning: remote host sent a"
                                   " compound pathname '%s'", sanname);
-                        tell_user(stderr, "         renaming local",
+                        tell_user(stderr, "         renaming local"
                                   " file to '%s'", santarg);
                     }
                 }

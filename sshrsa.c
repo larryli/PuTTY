@@ -296,7 +296,7 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
     ssh_hash_final(hash, digest);
 
     out = strbuf_new();
-    strbuf_catf(out, "%d ", mp_get_nbits(key->modulus));
+    strbuf_catf(out, "%zu ", mp_get_nbits(key->modulus));
     for (i = 0; i < 16; i++)
         strbuf_catf(out, "%s%02x", i ? ":" : "", digest[i]);
     if (key->comment)

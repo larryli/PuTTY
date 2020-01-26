@@ -562,7 +562,7 @@ void ssh_deferred_abort_callback(void *vctx)
     Ssh *ssh = (Ssh *)vctx;
     char *msg = ssh->deferred_abort_message;
     ssh->deferred_abort_message = NULL;
-    ssh_sw_abort(ssh, msg);
+    ssh_sw_abort(ssh, "%s", msg);
     sfree(msg);
 }
 
