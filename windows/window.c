@@ -2344,8 +2344,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                     for (i = 0; i < lenof(popup_menus); i++)
                         EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
                                        MF_BYCOMMAND |
-                                       (resize_action == RESIZE_DISABLED)
-                                       ? MF_GRAYED : MF_ENABLED);
+                                       (resize_action == RESIZE_DISABLED
+                                        ? MF_GRAYED : MF_ENABLED));
                     /* Gracefully unzoom if necessary */
                     if (IsZoomed(hwnd) && (resize_action == RESIZE_DISABLED))
                         ShowWindow(hwnd, SW_RESTORE);
