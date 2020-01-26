@@ -55,17 +55,9 @@ struct prng_impl {
      * into it. The counter-mode generation is achieved by copying
      * that hash object, appending the counter value to the copy, and
      * calling ssh_hash_final.
-     *
-     * pending_output is a buffer of size equal to the hash length,
-     * which receives each of those hashes as it's generated. The
-     * bytes of the hash are returned in reverse order, just because
-     * that made it marginally easier to deal with the
-     * pending_output_remaining field.
      */
     ssh_hash *generator;
     mp_int *counter;
-    uint8_t *pending_output;
-    size_t pending_output_remaining;
 
     /*
      * When re-seeding the generator, you call prng_seed_begin(),
@@ -121,8 +113,6 @@ prng *prng_new(const ssh_hashalg *hashalg)
     pi->hashalg = hashalg;
     pi->keymaker = NULL;
     pi->generator = NULL;
-    pi->pending_output = snewn(pi->hashalg->hlen, uint8_t);
-    pi->pending_output_remaining = 0;
     pi->counter = mp_new(128);
     for (size_t i = 0; i < NCOLLECTORS; i++)
         pi->collectors[i] = ssh_hash_new(pi->hashalg);
@@ -138,7 +128,6 @@ void prng_free(prng *pr)
 {
     prng_impl *pi = container_of(pr, prng_impl, Prng);
 
-    sfree(pi->pending_output);
     mp_free(pi->counter);
     for (size_t i = 0; i < NCOLLECTORS; i++)
         ssh_hash_free(pi->collectors[i]);
@@ -184,6 +173,7 @@ static void prng_seed_BinarySink_write(
 void prng_seed_finish(prng *pr)
 {
     prng_impl *pi = container_of(pr, prng_impl, Prng);
+    unsigned char buf[MAX_HASH_LEN];
 
     assert(pi->keymaker);
 
@@ -192,7 +182,7 @@ void prng_seed_finish(prng *pr)
     /*
      * Actually generate the key.
      */
-    ssh_hash_final(pi->keymaker, pi->pending_output);
+    ssh_hash_final(pi->keymaker, buf);
     pi->keymaker = NULL;
 
     /*
@@ -201,15 +191,15 @@ void prng_seed_finish(prng *pr)
      */
     assert(!pi->generator);
     pi->generator = ssh_hash_new(pi->hashalg);
-    put_data(pi->generator, pi->pending_output, pi->hashalg->hlen);
-    smemclr(pi->pending_output, pi->hashalg->hlen);
+    put_data(pi->generator, buf, pi->hashalg->hlen);
 
     pi->until_reseed = RESEED_DATA_SIZE;
     pi->last_reseed_time = prng_reseed_time_ms();
-    pi->pending_output_remaining = 0;
+
+    smemclr(buf, sizeof(buf));
 }
 
-static inline void prng_generate(prng_impl *pi)
+static inline void prng_generate(prng_impl *pi, void *outbuf)
 {
     ssh_hash *h = ssh_hash_copy(pi->generator);
 
@@ -218,26 +208,28 @@ static inline void prng_generate(prng_impl *pi)
     put_byte(h, 'G');
     put_mp_ssh2(h, pi->counter);
     mp_add_integer_into(pi->counter, pi->counter, 1);
-    ssh_hash_final(h, pi->pending_output);
-    pi->pending_output_remaining = pi->hashalg->hlen;
+    ssh_hash_final(h, outbuf);
 }
 
 void prng_read(prng *pr, void *vout, size_t size)
 {
     prng_impl *pi = container_of(pr, prng_impl, Prng);
+    unsigned char buf[MAX_HASH_LEN];
 
     assert(!pi->keymaker);
 
     prngdebug("prng_read %"SIZEu"\n", size);
 
     uint8_t *out = (uint8_t *)vout;
-    for (; size > 0; size--) {
-        if (pi->pending_output_remaining == 0)
-            prng_generate(pi);
-        pi->pending_output_remaining--;
-        *out++ = pi->pending_output[pi->pending_output_remaining];
-        pi->pending_output[pi->pending_output_remaining] = 0;
+    while (size > 0) {
+        prng_generate(pi, buf);
+        size_t to_use = size > pi->hashalg->hlen ? pi->hashalg->hlen : size;
+        memcpy(out, buf, to_use);
+        out += to_use;
+        size -= to_use;
     }
+
+    smemclr(buf, sizeof(buf));
 
     prng_seed_begin(&pi->Prng);
     prng_seed_finish(&pi->Prng);
@@ -269,18 +261,19 @@ void prng_add_entropy(prng *pr, unsigned source_id, ptrlen data)
         prng_reseed_time_ms() - pi->last_reseed_time >= 100) {
         prng_seed_begin(&pi->Prng);
 
+        unsigned char buf[MAX_HASH_LEN];
         uint32_t reseed_index = ++pi->reseeds;
         prngdebug("prng entropy reseed #%"PRIu32"\n", reseed_index);
         for (size_t i = 0; i < NCOLLECTORS; i++) {
             prngdebug("emptying collector %"SIZEu"\n", i);
-            ssh_hash_digest(pi->collectors[i], pi->pending_output);
-            put_data(&pi->Prng, pi->pending_output, pi->hashalg->hlen);
+            ssh_hash_digest(pi->collectors[i], buf);
+            put_data(&pi->Prng, buf, pi->hashalg->hlen);
             ssh_hash_reset(pi->collectors[i]);
             if (reseed_index & 1)
                 break;
             reseed_index >>= 1;
         }
-
+        smemclr(buf, sizeof(buf));
         prng_seed_finish(&pi->Prng);
     }
 }
