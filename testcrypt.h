@@ -136,6 +136,7 @@ FUNC2(void, ssh2_mac_setkey, val_mac, val_string_ptrlen)
 FUNC1(void, ssh2_mac_start, val_mac)
 FUNC2(void, ssh2_mac_update, val_mac, val_string_ptrlen)
 FUNC1(val_string, ssh2_mac_genresult, val_mac)
+FUNC1(val_string_asciz_const, ssh2_mac_text_name, val_mac)
 
 /*
  * The ssh_key abstraction. All the uses of BinarySink and
