@@ -229,16 +229,20 @@ char *buildinfo(const char *newline)
     /*
      * List of _MSC_VER values and their translations taken from
      * https://docs.microsoft.com/en-us/cpp/preprocessor/predefined-macros
-     * except for 1920, which is not yet listed on that page as of
-     * 2019-03-22, and was determined experimentally by Sean Kain.
      *
      * The pointless #if 0 branch containing this comment is there so
      * that every real clause can start with #elif and there's no
      * anomalous first clause. That way the patch looks nicer when you
      * add extra ones.
      */
+#elif _MSC_VER == 1923
+    strbuf_catf(buf, " 2019 (16.3)");
+#elif _MSC_VER == 1922
+    strbuf_catf(buf, " 2019 (16.2)");
+#elif _MSC_VER == 1921
+    strbuf_catf(buf, " 2019 (16.1)");
 #elif _MSC_VER == 1920
-    strbuf_catf(buf, " 2019 (16.x)");
+    strbuf_catf(buf, " 2019 (16.0)");
 #elif _MSC_VER == 1916
     strbuf_catf(buf, " 2017 version 15.9");
 #elif _MSC_VER == 1915
