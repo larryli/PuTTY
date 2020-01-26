@@ -1421,8 +1421,8 @@ char *ssh1_pubkey_str(RSAKey *key)
 
     dec1 = mp_get_decimal(key->exponent);
     dec2 = mp_get_decimal(key->modulus);
-    buffer = dupprintf("%zd %s %s%s%s", mp_get_nbits(key->modulus), dec1, dec2,
-                       key->comment ? " " : "",
+    buffer = dupprintf("%"SIZEu" %s %s%s%s", mp_get_nbits(key->modulus),
+                       dec1, dec2, key->comment ? " " : "",
                        key->comment ? key->comment : "");
     sfree(dec1);
     sfree(dec2);

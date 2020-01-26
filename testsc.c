@@ -161,7 +161,7 @@ VOLATILE_WRAPPED_DEFN(, void, log_to_file, (const char *filename))
 static const char *outdir = NULL;
 char *log_filename(const char *basename, size_t index)
 {
-    return dupprintf("%s/%s.%04zu", outdir, basename, index);
+    return dupprintf("%s/%s.%04"SIZEu, outdir, basename, index);
 }
 
 static char *last_filename;
@@ -1572,7 +1572,7 @@ int main(int argc, char **argv)
         printf("All tests passed\n");
         return 0;
     } else {
-        printf("%zu tests failed\n", nrun - npass);
+        printf("%"SIZEu" tests failed\n", nrun - npass);
         return 1;
     }
 }

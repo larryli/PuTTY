@@ -978,10 +978,10 @@ static void pageant_conn_closing(Plug *plug, const char *error_msg,
     struct pageant_conn_state *pc = container_of(
         plug, struct pageant_conn_state, plug);
     if (error_msg)
-        pageant_listener_client_log(pc->plc, "c#%zu: error: %s",
+        pageant_listener_client_log(pc->plc, "c#%"SIZEu": error: %s",
                                     pc->conn_index, error_msg);
     else
-        pageant_listener_client_log(pc->plc, "c#%zu: connection closed",
+        pageant_listener_client_log(pc->plc, "c#%"SIZEu": connection closed",
                                     pc->conn_index);
     sk_close(pc->connsock);
     pageant_unregister_client(&pc->pc);
@@ -1010,7 +1010,7 @@ static void pageant_conn_log(PageantClient *pc, PageantClientRequestId *reqid,
         container_of(reqid, struct pageant_conn_queued_response, reqid);
 
     char *formatted = dupvprintf(fmt, ap);
-    pageant_listener_client_log(pcs->plc, "c#%zu,r#%zu: %s",
+    pageant_listener_client_log(pcs->plc, "c#%"SIZEu",r#%"SIZEu": %s",
                                 pcs->conn_index, qr->req_index, formatted);
     sfree(formatted);
 }
@@ -1159,10 +1159,11 @@ static int pageant_listen_accepting(Plug *plug,
 
     peerinfo = sk_peer_info(pc->connsock);
     if (peerinfo && peerinfo->log_text) {
-        pageant_listener_client_log(pl->plc, "c#%zu: new connection from %s",
+        pageant_listener_client_log(pl->plc,
+                                    "c#%"SIZEu": new connection from %s",
                                     pc->conn_index, peerinfo->log_text);
     } else {
-        pageant_listener_client_log(pl->plc, "c#%zu: new connection",
+        pageant_listener_client_log(pl->plc, "c#%"SIZEu": new connection",
                                     pc->conn_index);
     }
     sk_free_peer_info(peerinfo);

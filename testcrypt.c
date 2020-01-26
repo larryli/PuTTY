@@ -1286,7 +1286,7 @@ int main(int argc, char **argv)
         for (size_t i = 0; i < sb->len; i++)
             if (sb->s[i] == '\n')
                 lines++;
-        fprintf(outfp, "%zu\n%s", lines, sb->s);
+        fprintf(outfp, "%"SIZEu"\n%s", lines, sb->s);
         fflush(outfp);
         strbuf_free(sb);
         sfree(line);

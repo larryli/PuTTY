@@ -296,7 +296,7 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
     ssh_hash_final(hash, digest);
 
     out = strbuf_new();
-    strbuf_catf(out, "%zu ", mp_get_nbits(key->modulus));
+    strbuf_catf(out, "%"SIZEu" ", mp_get_nbits(key->modulus));
     for (i = 0; i < 16; i++)
         strbuf_catf(out, "%s%02x", i ? ":" : "", digest[i]);
     if (key->comment)
@@ -788,7 +788,7 @@ char *rsa2_invalid(ssh_key *key, unsigned flags)
     const ssh_hashalg *halg = rsa2_hash_alg_for_flags(flags, &sign_alg_name);
     if (nbytes < rsa_pkcs1_length_of_fixed_parts(halg)) {
         return dupprintf(
-            "%zu-bit RSA key is too short to generate %s signatures",
+            "%"SIZEu"-bit RSA key is too short to generate %s signatures",
             bits, sign_alg_name);
     }
 
