@@ -431,7 +431,8 @@ static char *scp_source_err_base(ScpSource *scp, const char *fmt, va_list ap)
     sshfwd_write_ext(scp->sc, true, "\012", 1);
     return msg;
 }
-static void scp_source_err(ScpSource *scp, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void scp_source_err(
+    ScpSource *scp, const char *fmt, ...)
 {
     va_list ap;
 
@@ -439,7 +440,8 @@ static void scp_source_err(ScpSource *scp, const char *fmt, ...)
     sfree(scp_source_err_base(scp, fmt, ap));
     va_end(ap);
 }
-static void scp_source_abort(ScpSource *scp, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void scp_source_abort(
+    ScpSource *scp, const char *fmt, ...)
 {
     va_list ap;
     char *msg;
@@ -1312,7 +1314,8 @@ static void scp_error_send_message_cb(void *vscp)
     sshfwd_initiate_close(scp->sc, scp->message);
 }
 
-static ScpError *scp_error_new(SshChannel *sc, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) ScpError *scp_error_new(
+    SshChannel *sc, const char *fmt, ...)
 {
     va_list ap;
     ScpError *scp = snew(ScpError);

@@ -113,7 +113,7 @@ static void abandon_stats(void)
     }
 }
 
-static void tell_user(FILE *stream, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void tell_user(FILE *stream, const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -224,7 +224,7 @@ static void ssh_scp_init(void)
 /*
  *  Print an error message and exit after closing the SSH link.
  */
-static NORETURN void bump(const char *fmt, ...)
+static NORETURN PRINTF_LIKE(1, 2) void bump(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;
@@ -1541,7 +1541,7 @@ int scp_finish_filerecv(void)
  *  Send an error message to the other side and to the screen.
  *  Increment error counter.
  */
-static void run_err(const char *fmt, ...)
+static PRINTF_LIKE(1, 2) void run_err(const char *fmt, ...)
 {
     char *str, *str2;
     va_list ap;

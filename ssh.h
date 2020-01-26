@@ -406,12 +406,12 @@ void ssh_conn_processed_data(Ssh *ssh);
 void ssh_check_frozen(Ssh *ssh);
 
 /* Functions to abort the connection, for various reasons. */
-void ssh_remote_error(Ssh *ssh, const char *fmt, ...);
-void ssh_remote_eof(Ssh *ssh, const char *fmt, ...);
-void ssh_proto_error(Ssh *ssh, const char *fmt, ...);
-void ssh_sw_abort(Ssh *ssh, const char *fmt, ...);
-void ssh_sw_abort_deferred(Ssh *ssh, const char *fmt, ...);
-void ssh_user_close(Ssh *ssh, const char *fmt, ...);
+void ssh_remote_error(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_remote_eof(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_proto_error(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_sw_abort(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_sw_abort_deferred(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
+void ssh_user_close(Ssh *ssh, const char *fmt, ...) PRINTF_LIKE(2, 3);
 
 /* Bit positions in the SSH-1 cipher protocol word */
 #define SSH1_CIPHER_IDEA        1

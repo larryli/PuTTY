@@ -41,7 +41,7 @@ static inline void pageant_client_log_v(
     if (!pc->suppress_logging)
         pc->vt->log(pc, reqid, fmt, ap);
 }
-static inline void pageant_client_log(
+static inline PRINTF_LIKE(3, 4) void pageant_client_log(
     PageantClient *pc, PageantClientRequestId *reqid, const char *fmt, ...)
 {
     if (!pc->suppress_logging) {
@@ -153,7 +153,7 @@ static inline void pageant_listener_client_log_v(
     if (!plc->suppress_logging)
         plc->vt->log(plc, fmt, ap);
 }
-static inline void pageant_listener_client_log(
+static inline PRINTF_LIKE(2, 3) void pageant_listener_client_log(
     PageantListenerClient *plc, const char *fmt, ...)
 {
     if (!plc->suppress_logging) {

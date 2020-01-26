@@ -308,8 +308,9 @@ void pageant_unregister_client(PageantClient *pc)
     sfree(pc->info);
 }
 
-static void failure(PageantClient *pc, PageantClientRequestId *reqid,
-                    strbuf *sb, const char *fmt, ...)
+static PRINTF_LIKE(4, 5) void failure(PageantClient *pc,
+                                      PageantClientRequestId *reqid,
+                                      strbuf *sb, const char *fmt, ...)
 {
     strbuf_clear(sb);
     put_byte(sb, SSH_AGENT_FAILURE);

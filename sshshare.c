@@ -705,8 +705,8 @@ static void share_remove_forwarding(struct ssh_sharing_connstate *cs,
     sfree(fwd);
 }
 
-static void log_downstream(struct ssh_sharing_connstate *cs,
-                           const char *logfmt, ...)
+static PRINTF_LIKE(2, 3) void log_downstream(struct ssh_sharing_connstate *cs,
+                                             const char *logfmt, ...)
 {
     va_list ap;
     char *buf;
@@ -719,8 +719,8 @@ static void log_downstream(struct ssh_sharing_connstate *cs,
     sfree(buf);
 }
 
-static void log_general(struct ssh_sharing_state *sharestate,
-                        const char *logfmt, ...)
+static PRINTF_LIKE(2, 3) void log_general(struct ssh_sharing_state *sharestate,
+                                          const char *logfmt, ...)
 {
     va_list ap;
     char *buf;
