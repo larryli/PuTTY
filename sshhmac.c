@@ -195,7 +195,7 @@ const ssh2_macalg ssh_hmac_sha1_96 = {
 };
 
 const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
-    &ssh_sha1, " (bug-compatible)"
+    &ssh_sha1, "", "bug-compatible"
 };
 
 const ssh2_macalg ssh_hmac_sha1_buggy = {
@@ -206,7 +206,7 @@ const ssh2_macalg ssh_hmac_sha1_buggy = {
 };
 
 const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
-    &ssh_sha1, "-96 (bug-compatible)"
+    &ssh_sha1, "-96", "bug-compatible"
 };
 
 const ssh2_macalg ssh_hmac_sha1_96_buggy = {
