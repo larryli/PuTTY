@@ -504,7 +504,23 @@ int console_get_userpass_input(prompts_t *p)
 
         bool failed = false;
         while (1) {
-            DWORD toread = 65536;
+            /*
+             * Amount of data to try to read from the console in one
+             * go. This isn't completely arbitrary: a user reported
+             * that trying to read more than 31366 bytes at a time
+             * would fail with ERROR_NOT_ENOUGH_MEMORY on Windows 7,
+             * and Ruby's Win32 support module has evidence of a
+             * similar workaround:
+             *
+             * https://github.com/ruby/ruby/blob/0aa5195262d4193d3accf3e6b9bad236238b816b/win32/win32.c#L6842
+             *
+             * To keep things simple, I stick with a nice round power
+             * of 2 rather than trying to go to the very limit of that
+             * bug. (We're typically reading user passphrases and the
+             * like here, so even this much is overkill really.)
+             */
+            DWORD toread = 16384;
+
             size_t prev_result_len = pr->result->len;
             void *ptr = strbuf_append(pr->result, toread);
 
