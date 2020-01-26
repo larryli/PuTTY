@@ -750,7 +750,8 @@ static bool ssh2_connection_filter_queue(struct ssh2_connection_state *s)
                         "Received %s for channel %d with no outstanding "
                         "channel request",
                         ssh2_pkt_type(s->ppl.bpp->pls->kctx,
-                                      s->ppl.bpp->pls->actx, pktin->type));
+                                      s->ppl.bpp->pls->actx, pktin->type),
+                        c->localid);
                     return true;
                 }
                 ocr->handler(c, pktin, ocr->ctx);

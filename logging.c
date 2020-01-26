@@ -344,7 +344,7 @@ void log_packet(LogContext *ctx, int direction, int type,
         /* If we're about to stop omitting, it's time to say how
          * much we omitted. */
         if ((blktype != PKTLOG_OMIT) && omitted) {
-            logprintf(ctx, "  (%d byte%s omitted)\r\n",
+            logprintf(ctx, "  (%zu byte%s omitted)\r\n",
                       omitted, (omitted==1?"":"s"));
             omitted = 0;
         }
@@ -387,7 +387,7 @@ void log_packet(LogContext *ctx, int direction, int type,
 
     /* Tidy up */
     if (omitted)
-        logprintf(ctx, "  (%d byte%s omitted)\r\n",
+        logprintf(ctx, "  (%zu byte%s omitted)\r\n",
                   omitted, (omitted==1?"":"s"));
     logflush(ctx);
 }

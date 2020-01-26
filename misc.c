@@ -223,7 +223,7 @@ char *buildinfo(const char *newline)
 #else
     strbuf_catf(buf, ", emulating ");
 #endif
-    strbuf_catf(buf, "Visual Studio", newline);
+    strbuf_catf(buf, "Visual Studio");
 
 #if 0
     /*
