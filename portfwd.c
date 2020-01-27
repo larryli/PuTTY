@@ -468,7 +468,7 @@ static const struct ChannelVtable PortForwarding_channelvt = {
     chan_no_request_response,
 };
 
-Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug)
+Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug, bool start_ready)
 {
     struct PortForwarding *pf;
 
@@ -482,7 +482,7 @@ Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug)
 
     pf->cl = cl;
     pf->input_wanted = true;
-    pf->ready = false;
+    pf->ready = start_ready;
 
     pf->socks_state = SOCKS_NONE;
     pf->hostname = NULL;
@@ -523,7 +523,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     Socket *s;
     const char *err;
 
-    chan = portfwd_raw_new(pl->cl, &plug);
+    chan = portfwd_raw_new(pl->cl, &plug, false);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
         portfwd_raw_free(chan);
@@ -1120,20 +1120,6 @@ bool portfwdmgr_unlisten(PortFwdManager *mgr, const char *host, int port)
     return true;
 }
 
-struct portfwdmgr_connect_ctx {
-    SockAddr *addr;
-    int port;
-    char *canonical_hostname;
-    Conf *conf;
-};
-static Socket *portfwdmgr_connect_helper(void *vctx, Plug *plug)
-{
-    struct portfwdmgr_connect_ctx *ctx = (struct portfwdmgr_connect_ctx *)vctx;
-    return new_connection(sk_addr_dup(ctx->addr), ctx->canonical_hostname,
-                          ctx->port, false, true, false, false, plug,
-                          ctx->conf);
-}
-
 /*
  * Called when receiving a PORT OPEN from the server to make a
  * connection to a destination host.
@@ -1145,39 +1131,26 @@ char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
                          char *hostname, int port, SshChannel *c,
                          int addressfamily)
 {
-    struct portfwdmgr_connect_ctx ctx[1];
-    const char *err_retd;
-    char *err_toret;
+    SockAddr *addr;
+    const char *err;
+    char *dummy_realhost = NULL;
+    struct PortForwarding *pf;
 
     /*
      * Try to find host.
      */
-    ctx->addr = name_lookup(hostname, port, &ctx->canonical_hostname,
-                            mgr->conf, addressfamily, NULL, NULL);
-    if ((err_retd = sk_addr_error(ctx->addr)) != NULL) {
-        err_toret = dupstr(err_retd);
-        goto out;
+    addr = name_lookup(hostname, port, &dummy_realhost, mgr->conf,
+                       addressfamily, NULL, NULL);
+    if ((err = sk_addr_error(addr)) != NULL) {
+        char *err_ret = dupstr(err);
+        sk_addr_free(addr);
+        sfree(dummy_realhost);
+        return err_ret;
     }
 
-    ctx->conf = mgr->conf;
-    ctx->port = port;
-
-    err_toret = portfwdmgr_connect_socket(
-        mgr, chan_ret, portfwdmgr_connect_helper, ctx, c);
-
-  out:
-    sk_addr_free(ctx->addr);
-    sfree(ctx->canonical_hostname);
-    return err_toret;
-}
-
-char *portfwdmgr_connect_socket(PortFwdManager *mgr, Channel **chan_ret,
-                                Socket *(*connect)(void *, Plug *), void *ctx,
-                                SshChannel *c)
-{
-    struct PortForwarding *pf;
-    const char *err;
-
+    /*
+     * Open socket.
+     */
     pf = new_portfwd_state();
     *chan_ret = &pf->chan;
     pf->plug.vt = &PortForwarding_plugvt;
@@ -1189,7 +1162,9 @@ char *portfwdmgr_connect_socket(PortFwdManager *mgr, Channel **chan_ret,
     pf->cl = mgr->cl;
     pf->socks_state = SOCKS_NONE;
 
-    pf->s = connect(ctx, &pf->plug);
+    pf->s = new_connection(addr, dummy_realhost, port,
+                           false, true, false, false, &pf->plug, mgr->conf);
+    sfree(dummy_realhost);
     if ((err = sk_socket_error(pf->s)) != NULL) {
         char *err_ret = dupstr(err);
         sk_close(pf->s);

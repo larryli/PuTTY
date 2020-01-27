@@ -1889,15 +1889,8 @@ void agent_cancel_query(agent_pending_query *);
 void agent_query_synchronous(strbuf *in, void **out, int *outlen);
 bool agent_exists(void);
 
-/* For stream-oriented agent connections, if available: agent_connect
- * is a callback for use with portfwdmgr_connect_socket, and the
- * context structure it requires is created and freed by the next two
- * functions. agent_get_connect_ctx may return NULL if no streaming
- * agent connection is available at all on this platform. */
-typedef struct agent_connect_ctx agent_connect_ctx;
-Socket *agent_connect(void *vctx, Plug *plug);
-agent_connect_ctx *agent_get_connect_ctx(void);
-void agent_free_connect_ctx(agent_connect_ctx *ctx);
+/* For stream-oriented agent connections, if available. */
+Socket *agent_connect(Plug *plug);
 
 /*
  * Exports from wildcard.c

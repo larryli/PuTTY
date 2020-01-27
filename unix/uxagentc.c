@@ -130,30 +130,12 @@ static const char *agent_socket_path(void)
     return getenv("SSH_AUTH_SOCK");
 }
 
-struct agent_connect_ctx {
-    SockAddr *addr;
-};
-
-Socket *agent_connect(void *vctx, Plug *plug)
-{
-    agent_connect_ctx *ctx = (agent_connect_ctx *)vctx;
-    return sk_new(sk_addr_dup(ctx->addr), 0, false, false, false, false, plug);
-}
-
-agent_connect_ctx *agent_get_connect_ctx(void)
+Socket *agent_connect(Plug *plug)
 {
     const char *path = agent_socket_path();
     if (!path)
-        return NULL;
-    agent_connect_ctx *ctx = snew(agent_connect_ctx);
-    ctx->addr = unix_sock_addr(path);
-    return ctx;
-}
-
-void agent_free_connect_ctx(agent_connect_ctx *ctx)
-{
-    sk_addr_free(ctx->addr);
-    sfree(ctx);
+        return new_error_socket_fmt(plug, "SSH_AUTH_SOCK not set");
+    return sk_new(unix_sock_addr(path), 0, false, false, false, false, plug);
 }
 
 agent_pending_query *agent_query(

@@ -99,27 +99,22 @@ static ChanopenResult chan_open_auth_agent(
      * If possible, make a stream-oriented connection to the agent and
      * set up an ordinary port-forwarding type channel over it.
      */
-    agent_connect_ctx *ctx = agent_get_connect_ctx();
-    if (ctx) {
-        Channel *ch;
-        char *err = portfwdmgr_connect_socket(
-            s->portfwdmgr, &ch, agent_connect, ctx, sc);
-        agent_free_connect_ctx(ctx);
+    Plug *plug;
+    Channel *ch = portfwd_raw_new(&s->cl, &plug, true);
+    Socket *skt = agent_connect(plug);
 
-        if (err == NULL) {
-            CHANOPEN_RETURN_SUCCESS(ch);
-        } else {
-            sfree(err);
-            /* now continue to the fallback case below */
-        }
+    if (!sk_socket_error(skt)) {
+        portfwd_raw_setup(ch, skt, sc);
+        CHANOPEN_RETURN_SUCCESS(ch);
+    } else {
+        portfwd_raw_free(ch);
+        /*
+         * Otherwise, fall back to the old-fashioned system of parsing the
+         * forwarded data stream ourselves for message boundaries, and
+         * passing each individual message to the one-off agent_query().
+         */
+        CHANOPEN_RETURN_SUCCESS(agentf_new(sc));
     }
-
-    /*
-     * Otherwise, fall back to the old-fashioned system of parsing the
-     * forwarded data stream ourselves for message boundaries, and
-     * passing each individual message to the one-off agent_query().
-     */
-    CHANOPEN_RETURN_SUCCESS(agentf_new(sc));
 }
 
 ChanopenResult ssh2_connection_parse_channel_open(

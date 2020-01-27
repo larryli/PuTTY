@@ -168,16 +168,15 @@ bool ssh1_handle_direction_specific_packet(
              * agent and set up an ordinary port-forwarding type
              * channel over it.
              */
-            agent_connect_ctx *ctx = agent_get_connect_ctx();
-            bool got_stream_connection = false;
-            if (ctx) {
-                char *err = portfwdmgr_connect_socket(
-                    s->portfwdmgr, &c->chan, agent_connect, ctx, &c->sc);
-                agent_free_connect_ctx(ctx);
-                if (err == NULL)
-                    got_stream_connection = true;
-            }
-            if (!got_stream_connection) {
+            Plug *plug;
+            Channel *ch = portfwd_raw_new(&s->cl, &plug, true);
+            Socket *skt = agent_connect(plug);
+            if (!sk_socket_error(skt)) {
+                portfwd_raw_setup(ch, skt, &c->sc);
+                c->chan = ch;
+            } else {
+                portfwd_raw_free(ch);
+
                 /*
                  * Otherwise, fall back to the old-fashioned system of
                  * parsing the forwarded data stream ourselves for

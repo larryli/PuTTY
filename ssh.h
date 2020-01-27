@@ -380,13 +380,10 @@ void portfwdmgr_close_all(PortFwdManager *mgr);
 char *portfwdmgr_connect(PortFwdManager *mgr, Channel **chan_ret,
                          char *hostname, int port, SshChannel *c,
                          int addressfamily);
-char *portfwdmgr_connect_socket(PortFwdManager *mgr, Channel **chan_ret,
-                                Socket *(*connect)(void *, Plug *), void *ctx,
-                                SshChannel *c);
 bool portfwdmgr_listen(PortFwdManager *mgr, const char *host, int port,
                        const char *keyhost, int keyport, Conf *conf);
 bool portfwdmgr_unlisten(PortFwdManager *mgr, const char *host, int port);
-Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug);
+Channel *portfwd_raw_new(ConnectionLayer *cl, Plug **plug, bool start_ready);
 void portfwd_raw_free(Channel *pfchan);
 void portfwd_raw_setup(Channel *pfchan, Socket *s, SshChannel *sc);
 

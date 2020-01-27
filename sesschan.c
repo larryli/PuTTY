@@ -365,7 +365,7 @@ static int xfwd_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
     SocketPeerInfo *pi;
     const char *err;
 
-    chan = portfwd_raw_new(sess->c->cl, &plug);
+    chan = portfwd_raw_new(sess->c->cl, &plug, false);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
         portfwd_raw_free(chan);
@@ -441,7 +441,7 @@ static int agentfwd_accepting(
     Socket *s;
     const char *err;
 
-    chan = portfwd_raw_new(sess->c->cl, &plug);
+    chan = portfwd_raw_new(sess->c->cl, &plug, false);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
         portfwd_raw_free(chan);
