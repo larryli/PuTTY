@@ -520,10 +520,12 @@ static void ssh1_channel_close_local(struct ssh1_channel *c,
 {
     struct ssh1_connection_state *s = c->connlayer;
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
-    const char *msg = chan_log_close_msg(c->chan);
+    char *msg = chan_log_close_msg(c->chan);
 
-    if (msg != NULL)
+    if (msg != NULL) {
         ppl_logevent("%s%s%s", msg, reason ? " " : "", reason ? reason : "");
+        sfree(msg);
+    }
 
     chan_free(c->chan);
     c->chan = zombiechan_new();
