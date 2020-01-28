@@ -232,7 +232,7 @@ in putty/windows with clangcl_a64 do Platform=arm64 make -f Makefile.clangcl BUI
 #
 # There's no installer to go with these, so they must also embed the
 # help file.
-in putty/windows with clangcl32_2003 do Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ RCFL=-DEMBED_CHM $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj EXTRA_libs=libcpmt.lib XFLAGS=/arch:IA32 all -j$(nproc)
+in putty/windows with clangcl32_2003 do Platform=x86 make -f Makefile.clangcl BUILDDIR=buildold/ RCFL=-DEMBED_CHM $(Makeargs) CCTARGET=i386-pc-windows-msvc13.0.0 SUBSYSVER=,4.0 EXTRA_windows=wincrt0.obj EXTRA_console=crt0.obj EXTRA_libs=libcpmt.lib XFLAGS="/arch:IA32 -Wno-pragma-pack" all -j$(nproc)
 
 # Remove test programs again.
 in putty/windows do make -f Makefile.clangcl BUILDDIR=build32/ cleantestprogs

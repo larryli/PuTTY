@@ -549,7 +549,7 @@ if (defined $makefiles{'clangcl'}) {
                (join " ", map {"-I$dirpfx$_"} @srcdirs) .
                " /D_WINDOWS /D_WIN32_WINDOWS=0x500 /DWINVER=0x500 ".
                "/D_CRT_SECURE_NO_WARNINGS /D_WINSOCK_DEPRECATED_NO_WARNINGS").
-               " \$(PLATFORMCFLAGS)\n".
+               " -Werror \$(PLATFORMCFLAGS)\n".
     "LFLAGS = /incremental:no /dynamicbase /nxcompat\n".
     &splitline("RCPPFLAGS = ".(join " ", map {"-I$dirpfx$_"} @srcdirs).
                " -DWIN32 -D_WIN32 -DWINVER=0x0400")." \$(RCFL)\n".
