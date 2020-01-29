@@ -123,7 +123,7 @@ struct aes_extra {
         pid, 16, bits, bits/8, flags, name HW_NAME_SUFFIX,              \
         NULL, NULL };                                                   \
                                                                         \
-    const struct aes_extra extra_##cid = {                              \
+    static const struct aes_extra extra_##cid = {                       \
         &ssh_##cid##_sw, &ssh_##cid##_hw };                             \
                                                                         \
     const ssh_cipheralg ssh_##cid = {                                   \

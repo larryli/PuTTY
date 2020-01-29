@@ -1124,7 +1124,7 @@ static void eddsa_sign(ssh_key *key, ptrlen data,
     mp_free(s);
 }
 
-const struct ecsign_extra sign_extra_ed25519 = {
+static const struct ecsign_extra sign_extra_ed25519 = {
     ec_ed25519, &ssh_sha512,
     NULL, 0,
 };
@@ -1154,7 +1154,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
 static const unsigned char nistp256_oid[] = {
     0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
 };
-const struct ecsign_extra sign_extra_nistp256 = {
+static const struct ecsign_extra sign_extra_nistp256 = {
     ec_p256, &ssh_sha256,
     nistp256_oid, lenof(nistp256_oid),
 };
@@ -1184,7 +1184,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
 static const unsigned char nistp384_oid[] = {
     0x2b, 0x81, 0x04, 0x00, 0x22
 };
-const struct ecsign_extra sign_extra_nistp384 = {
+static const struct ecsign_extra sign_extra_nistp384 = {
     ec_p384, &ssh_sha384,
     nistp384_oid, lenof(nistp384_oid),
 };
@@ -1214,7 +1214,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
 static const unsigned char nistp521_oid[] = {
     0x2b, 0x81, 0x04, 0x00, 0x23
 };
-const struct ecsign_extra sign_extra_nistp521 = {
+static const struct ecsign_extra sign_extra_nistp521 = {
     ec_p521, &ssh_sha512,
     nistp521_oid, lenof(nistp521_oid),
 };
@@ -1449,7 +1449,7 @@ const ssh_kex ssh_ec_kex_curve25519 = {
     &ssh_sha256, &kex_extra_curve25519,
 };
 
-const struct eckex_extra kex_extra_nistp256 = {
+static const struct eckex_extra kex_extra_nistp256 = {
     ec_p256,
     ssh_ecdhkex_w_setup,
     ssh_ecdhkex_w_cleanup,
@@ -1461,7 +1461,7 @@ const ssh_kex ssh_ec_kex_nistp256 = {
     &ssh_sha256, &kex_extra_nistp256,
 };
 
-const struct eckex_extra kex_extra_nistp384 = {
+static const struct eckex_extra kex_extra_nistp384 = {
     ec_p384,
     ssh_ecdhkex_w_setup,
     ssh_ecdhkex_w_cleanup,
@@ -1473,7 +1473,7 @@ const ssh_kex ssh_ec_kex_nistp384 = {
     &ssh_sha384, &kex_extra_nistp384,
 };
 
-const struct eckex_extra kex_extra_nistp521 = {
+static const struct eckex_extra kex_extra_nistp521 = {
     ec_p521,
     ssh_ecdhkex_w_setup,
     ssh_ecdhkex_w_cleanup,

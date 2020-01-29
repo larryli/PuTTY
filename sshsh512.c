@@ -193,14 +193,14 @@ static void SHA512_Block(SHA512_State *s, uint64_t *block) {
 static void SHA512_BinarySink_write(BinarySink *bs,
                                     const void *p, size_t len);
 
-void SHA512_Init(SHA512_State *s) {
+static void SHA512_Init(SHA512_State *s) {
     SHA512_Core_Init(s);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
     BinarySink_INIT(s, SHA512_BinarySink_write);
 }
 
-void SHA384_Init(SHA512_State *s) {
+static void SHA384_Init(SHA512_State *s) {
     SHA384_Core_Init(s);
     s->blkused = 0;
     s->lenhi = s->lenlo = 0;
@@ -246,7 +246,7 @@ static void SHA512_BinarySink_write(BinarySink *bs,
     }
 }
 
-void SHA512_Final(SHA512_State *s, unsigned char *digest) {
+static void SHA512_Final(SHA512_State *s, unsigned char *digest) {
     int i;
     int pad;
     unsigned char c[BLKSIZE];
@@ -271,7 +271,7 @@ void SHA512_Final(SHA512_State *s, unsigned char *digest) {
         PUT_64BIT_MSB_FIRST(digest + i*8, s->h[i]);
 }
 
-void SHA384_Final(SHA512_State *s, unsigned char *digest) {
+static void SHA384_Final(SHA512_State *s, unsigned char *digest) {
     unsigned char biggerDigest[512 / 8];
     SHA512_Final(s, biggerDigest);
     memcpy(digest, biggerDigest, 384 / 8);

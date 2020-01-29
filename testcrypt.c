@@ -99,7 +99,7 @@ enum ValueType {
 
 typedef enum ValueType ValueType;
 
-const char *const type_names[] = {
+static const char *const type_names[] = {
 #define VALTYPE_NAME(n,t,f) #n,
     VALUE_TYPES(VALTYPE_NAME)
 #undef VALTYPE_NAME
@@ -384,7 +384,7 @@ struct finaliser {
 };
 
 static struct finaliser *finalisers;
-size_t nfinalisers, finalisersize;
+static size_t nfinalisers, finalisersize;
 
 static void add_finaliser(finaliser_fn_t fn, void *ctx)
 {

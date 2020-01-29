@@ -3279,14 +3279,14 @@ static void messagebox_handler(union control *ctrl, dlgparam *dp,
         dlg_end(dp, ctrl->generic.context.i);
 }
 
-const struct message_box_button button_array_yn[] = {
+static const struct message_box_button button_array_yn[] = {
     {"Yes", 'y', +1, 1},
     {"No", 'n', -1, 0},
 };
 const struct message_box_buttons buttons_yn = {
     button_array_yn, lenof(button_array_yn),
 };
-const struct message_box_button button_array_ok[] = {
+static const struct message_box_button button_array_ok[] = {
     {"OK", 'o', 1, 1},
 };
 const struct message_box_buttons buttons_ok = {

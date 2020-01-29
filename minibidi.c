@@ -102,7 +102,7 @@ typedef struct {
 #define SHAPE_FIRST 0x621
 #define SHAPE_LAST (SHAPE_FIRST + lenof(shapetypes) - 1)
 
-const shape_node shapetypes[] = {
+static const shape_node shapetypes[] = {
     /* index, Typ, Iso, Ligature Index*/
     /* 621 */ {SU, 0xFE80},
     /* 622 */ {SR, 0xFE81},

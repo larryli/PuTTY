@@ -130,7 +130,7 @@ static void MD5_Block(MD5_Core_State *s, uint32_t *block)
 
 static void MD5_BinarySink_write(BinarySink *bs, const void *data, size_t len);
 
-void MD5Init(struct MD5Context *s)
+static void MD5Init(struct MD5Context *s)
 {
     MD5_Core_Init(&s->core);
     s->blkused = 0;
@@ -183,7 +183,7 @@ static void MD5_BinarySink_write(BinarySink *bs, const void *data, size_t len)
     }
 }
 
-void MD5Final(unsigned char output[16], struct MD5Context *s)
+static void MD5Final(unsigned char output[16], struct MD5Context *s)
 {
     int i;
     unsigned pad;

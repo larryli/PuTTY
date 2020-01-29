@@ -430,7 +430,7 @@ static inline uint64_t bitsel(
     return ret;
 }
 
-void des_key_setup(uint64_t key, des_keysched *sched)
+static void des_key_setup(uint64_t key, des_keysched *sched)
 {
     static const int8_t PC1[] = {
          7, 15, 23, 31, 39, 47, 55, 63,  6, 14, 22, 30, 38, 46,

@@ -210,7 +210,7 @@ static size_t named_pipe_agent_gotdata(
     return 0;
 }
 
-agent_pending_query *named_pipe_agent_query(
+static agent_pending_query *named_pipe_agent_query(
     strbuf *query, void **out, int *outlen,
     void (*callback)(void *, void *, int), void *callback_ctx)
 {

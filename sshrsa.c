@@ -128,8 +128,8 @@ bool rsa_ssh1_encrypt(unsigned char *data, int length, RSAKey *key)
  * Uses Chinese Remainder Theorem to speed computation up over the
  * obvious implementation of a single big modpow.
  */
-mp_int *crt_modpow(mp_int *base, mp_int *exp, mp_int *mod,
-                      mp_int *p, mp_int *q, mp_int *iqmp)
+static mp_int *crt_modpow(mp_int *base, mp_int *exp, mp_int *mod,
+                          mp_int *p, mp_int *q, mp_int *iqmp)
 {
     mp_int *pm1, *qm1, *pexp, *qexp, *presult, *qresult;
     mp_int *diff, *multiplier, *ret0, *ret;
@@ -780,7 +780,7 @@ static void rsa2_sign(ssh_key *key, ptrlen data,
     mp_free(out);
 }
 
-char *rsa2_invalid(ssh_key *key, unsigned flags)
+static char *rsa2_invalid(ssh_key *key, unsigned flags)
 {
     RSAKey *rsa = container_of(key, RSAKey, sshk);
     size_t bits = mp_get_nbits(rsa->modulus), nbytes = (bits + 7) / 8;

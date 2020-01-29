@@ -878,7 +878,7 @@ unsigned mp_eq_integer(mp_int *x, uintmax_t n)
     return 1 ^ normalise_to_1(diff);   /* return 1 if diff _is_ zero */
 }
 
-void mp_neg_into(mp_int *r, mp_int *a)
+static void mp_neg_into(mp_int *r, mp_int *a)
 {
     mp_int zero;
     zero.nw = 0;

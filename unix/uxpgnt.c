@@ -45,7 +45,7 @@ static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
     fprintf(pageant_logfp, "\n");
 }
 
-const PageantListenerClientVtable uxpgnt_vtable = {
+static const PageantListenerClientVtable uxpgnt_vtable = {
     uxpgnt_log,
 };
 

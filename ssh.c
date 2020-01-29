@@ -557,7 +557,7 @@ void ssh_user_close(Ssh *ssh, const char *fmt, ...)
     }
 }
 
-void ssh_deferred_abort_callback(void *vctx)
+static void ssh_deferred_abort_callback(void *vctx)
 {
     Ssh *ssh = (Ssh *)vctx;
     char *msg = ssh->deferred_abort_message;

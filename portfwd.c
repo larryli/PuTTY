@@ -732,7 +732,7 @@ static int pfr_cmp(void *av, void *bv)
     return 0;
 }
 
-void pfr_free(PortFwdRecord *pfr)
+static void pfr_free(PortFwdRecord *pfr)
 {
     /* Dispose of any listening socket. */
     if (pfr->local)

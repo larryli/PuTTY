@@ -55,12 +55,12 @@
 
 #define has_compat(x) ( ((CL_##x)&term->compatibility_level) != 0 )
 
-const char *EMPTY_WINDOW_TITLE = "";
+static const char *const EMPTY_WINDOW_TITLE = "";
 
-const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
+static const char sco2ansicolour[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 #define sel_nl_sz  (sizeof(sel_nl)/sizeof(wchar_t))
-const wchar_t sel_nl[] = SEL_NL;
+static const wchar_t sel_nl[] = SEL_NL;
 
 /*
  * Fetch the character at a particular position in a line array,

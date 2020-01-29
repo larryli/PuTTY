@@ -160,7 +160,7 @@ static const char *hmac_text_name(ssh2_mac *mac)
     return ctx->text_name->s;
 }
 
-const struct hmac_extra ssh_hmac_sha256_extra = { &ssh_sha256, "" };
+static const struct hmac_extra ssh_hmac_sha256_extra = { &ssh_sha256, "" };
 const ssh2_macalg ssh_hmac_sha256 = {
     hmac_new, hmac_free, hmac_key,
     hmac_start, hmac_genresult, hmac_text_name,
@@ -168,7 +168,7 @@ const ssh2_macalg ssh_hmac_sha256 = {
     32, 32, &ssh_hmac_sha256_extra,
 };
 
-const struct hmac_extra ssh_hmac_md5_extra = { &ssh_md5, "" };
+static const struct hmac_extra ssh_hmac_md5_extra = { &ssh_md5, "" };
 const ssh2_macalg ssh_hmac_md5 = {
     hmac_new, hmac_free, hmac_key,
     hmac_start, hmac_genresult, hmac_text_name,
@@ -176,7 +176,7 @@ const ssh2_macalg ssh_hmac_md5 = {
     16, 16, &ssh_hmac_md5_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_extra = { &ssh_sha1, "" };
+static const struct hmac_extra ssh_hmac_sha1_extra = { &ssh_sha1, "" };
 
 const ssh2_macalg ssh_hmac_sha1 = {
     hmac_new, hmac_free, hmac_key,
@@ -185,7 +185,7 @@ const ssh2_macalg ssh_hmac_sha1 = {
     20, 20, &ssh_hmac_sha1_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_96_extra = { &ssh_sha1, "-96" };
+static const struct hmac_extra ssh_hmac_sha1_96_extra = { &ssh_sha1, "-96" };
 
 const ssh2_macalg ssh_hmac_sha1_96 = {
     hmac_new, hmac_free, hmac_key,
@@ -194,7 +194,7 @@ const ssh2_macalg ssh_hmac_sha1_96 = {
     12, 20, &ssh_hmac_sha1_96_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
+static const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
     &ssh_sha1, "", "bug-compatible"
 };
 
@@ -205,7 +205,7 @@ const ssh2_macalg ssh_hmac_sha1_buggy = {
     20, 16, &ssh_hmac_sha1_buggy_extra,
 };
 
-const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
+static const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
     &ssh_sha1, "-96", "bug-compatible"
 };
 

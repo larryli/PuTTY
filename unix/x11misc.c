@@ -32,9 +32,8 @@ struct x11_err_to_ignore {
     unsigned long serial;
 };
 
-struct x11_err_to_ignore *errs;
-
-size_t nerrs, errsize;
+static struct x11_err_to_ignore *errs;
+static size_t nerrs, errsize;
 
 static int x11_error_handler(Display *thisdisp, XErrorEvent *err)
 {

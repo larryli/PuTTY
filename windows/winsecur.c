@@ -92,7 +92,7 @@ PSID get_user_sid(void)
     return ret;
 }
 
-bool getsids(char **error)
+static bool getsids(char **error)
 {
 #ifdef __clang__
 #pragma clang diagnostic push

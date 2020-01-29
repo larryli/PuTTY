@@ -1188,7 +1188,7 @@ int flags = FLAG_SYNCAGENT;
 struct winpgnt_client {
     PageantListenerClient plc;
 };
-const PageantListenerClientVtable winpgnt_vtable = {
+static const PageantListenerClientVtable winpgnt_vtable = {
     NULL, /* no logging */
 };
 
