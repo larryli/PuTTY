@@ -906,7 +906,7 @@ int main(int argc, char **argv)
      * we have just generated a key.
      */
     if (!new_passphrase && (change_passphrase || keytype != NOKEYGEN)) {
-        prompts_t *p = new_prompts(NULL);
+        prompts_t *p = new_prompts();
         int ret;
 
         p->to_server = false;
