@@ -1001,30 +1001,28 @@ static void process_line(BinarySource *in, strbuf *out)
 {
     ptrlen id = get_word(in);
 
-#define DISPATCH_COMMAND(cmd)                   \
-    if (ptrlen_eq_string(id, #cmd)) {           \
-        handle_##cmd(in, out);                  \
-        return;                                 \
-    }
+#define DISPATCH_INTERNAL(cmdname, handler) do {        \
+        if (ptrlen_eq_string(id, cmdname)) {            \
+            handler(in, out);                           \
+            return;                                     \
+        }                                               \
+    } while (0)
+
+#define DISPATCH_COMMAND(cmd) DISPATCH_INTERNAL(#cmd, handle_##cmd)
     DISPATCH_COMMAND(hello);
     DISPATCH_COMMAND(free);
     DISPATCH_COMMAND(newstring);
     DISPATCH_COMMAND(getstring);
     DISPATCH_COMMAND(mp_literal);
     DISPATCH_COMMAND(mp_dump);
+#undef DISPATCH_COMMAND
 
-#define FUNC(rettype, function, ...)            \
-    if (ptrlen_eq_string(id, #function)) {      \
-        handle_##function(in, out);             \
-        return;                                 \
-    }
-
-#define FUNC0 FUNC
-#define FUNC1 FUNC
-#define FUNC2 FUNC
-#define FUNC3 FUNC
-#define FUNC4 FUNC
-#define FUNC5 FUNC
+#define FUNC0(ret,func)           DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC1(ret,func,x)         DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC2(ret,func,x,y)       DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC3(ret,func,x,y,z)     DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC4(ret,func,x,y,z,v)   DISPATCH_INTERNAL(#func, handle_##func);
+#define FUNC5(ret,func,x,y,z,v,w) DISPATCH_INTERNAL(#func, handle_##func);
 
 #include "testcrypt.h"
 
@@ -1034,6 +1032,8 @@ static void process_line(BinarySource *in, strbuf *out)
 #undef FUNC2
 #undef FUNC1
 #undef FUNC0
+
+#undef DISPATCH_INTERNAL
 
     fatal_error("command '%.*s': unrecognised", PTRLEN_PRINTF(id));
 }
