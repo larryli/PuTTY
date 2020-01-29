@@ -13,6 +13,7 @@
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"
+#include "ssh.h"
 #include "storage.h"
 
 #include "gtkcompat.h"

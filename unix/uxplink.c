@@ -17,6 +17,7 @@
 
 #define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
+#include "ssh.h"
 #include "storage.h"
 #include "tree234.h"
 

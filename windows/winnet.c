@@ -16,6 +16,7 @@
 #include "putty.h"
 #include "network.h"
 #include "tree234.h"
+#include "ssh.h"
 
 #include <ws2tcpip.h>
 
