@@ -317,7 +317,7 @@ static PRINTF_LIKE(4, 5) void failure(PageantClient *pc,
     if (!pc->suppress_logging) {
         va_list ap;
         va_start(ap, fmt);
-        char *msg = dupprintf(fmt, ap);
+        char *msg = dupvprintf(fmt, ap);
         va_end(ap);
         pageant_client_log(pc, reqid, "reply: SSH_AGENT_FAILURE (%s)", msg);
         sfree(msg);
