@@ -150,19 +150,20 @@ static void SHA512_Block(SHA512_State *s, uint64_t *block) {
     for (t = 0; t < 80; t+=8) {
         uint64_t tmp, p, q, r;
 
-#define ROUND(j,a,b,c,d,e,f,g,h) \
-        bigsigma1(p, tmp, e); \
-        Ch(q, tmp, e, f, g); \
-        add(r, p, q); \
-        add(p, r, k[j]) ; \
-        add(q, p, w[j]); \
-        add(r, q, h); \
-        bigsigma0(p, tmp, a); \
-        Maj(tmp, q, a, b, c); \
-        add(q, tmp, p); \
-        add(p, r, d); \
-        d = p; \
-        add(h, q, r);
+#define ROUND(j,a,b,c,d,e,f,g,h) do {           \
+            bigsigma1(p, tmp, e);               \
+            Ch(q, tmp, e, f, g);                \
+            add(r, p, q);                       \
+            add(p, r, k[j]) ;                   \
+            add(q, p, w[j]);                    \
+            add(r, q, h);                       \
+            bigsigma0(p, tmp, a);               \
+            Maj(tmp, q, a, b, c);               \
+            add(q, tmp, p);                     \
+            add(p, r, d);                       \
+            d = p;                              \
+            add(h, q, r);                       \
+        } while (0)
 
         ROUND(t+0, a,b,c,d,e,f,g,h);
         ROUND(t+1, h,a,b,c,d,e,f,g);

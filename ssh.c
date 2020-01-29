@@ -457,7 +457,8 @@ static void ssh_initiate_connection_close(Ssh *ssh)
     va_list ap;                                 \
     va_start(ap, fmt);                          \
     msg = dupvprintf(fmt, ap);                  \
-    va_end(ap);
+    va_end(ap);                                 \
+    ((void)0) /* eat trailing semicolon */
 
 void ssh_remote_error(Ssh *ssh, const char *fmt, ...)
 {

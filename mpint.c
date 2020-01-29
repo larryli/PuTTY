@@ -187,7 +187,7 @@ mp_int *mp_from_decimal_pl(ptrlen decimal)
 
     mp_int *x = mp_make_sized(words);
     for (size_t i = 0; i < decimal.len; i++) {
-        mp_add_integer_into(x, x, ((char *)decimal.ptr)[i] - '0');
+        mp_add_integer_into(x, x, ((const char *)decimal.ptr)[i] - '0');
 
         if (i+1 == decimal.len)
             break;
@@ -216,7 +216,7 @@ mp_int *mp_from_hex_pl(ptrlen hex)
     words = size_t_max(words, 1);
     mp_int *x = mp_make_sized(words);
     for (size_t nibble = 0; nibble < hex.len; nibble++) {
-        BignumInt digit = ((char *)hex.ptr)[hex.len-1 - nibble];
+        BignumInt digit = ((const char *)hex.ptr)[hex.len-1 - nibble];
 
         BignumInt lmask = ~-((BignumInt)((digit-'a')|('f'-digit))
                              >> (BIGNUM_INT_BITS-1));

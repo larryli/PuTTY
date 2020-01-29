@@ -1664,23 +1664,36 @@ int key_type(const Filename *filename)
 const char *key_type_to_str(int type)
 {
     switch (type) {
-      case SSH_KEYTYPE_UNOPENABLE: return "unable to open file"; break;
-      case SSH_KEYTYPE_UNKNOWN: return "not a recognised key file format"; break;
-      case SSH_KEYTYPE_SSH1_PUBLIC: return "SSH-1 public key"; break;
-      case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716: return "SSH-2 public key (RFC 4716 format)"; break;
-      case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH: return "SSH-2 public key (OpenSSH format)"; break;
-      case SSH_KEYTYPE_SSH1: return "SSH-1 private key"; break;
-      case SSH_KEYTYPE_SSH2: return "PuTTY SSH-2 private key"; break;
-      case SSH_KEYTYPE_OPENSSH_PEM: return "OpenSSH SSH-2 private key (old PEM format)"; break;
-      case SSH_KEYTYPE_OPENSSH_NEW: return "OpenSSH SSH-2 private key (new format)"; break;
-      case SSH_KEYTYPE_SSHCOM: return "ssh.com SSH-2 private key"; break;
+      case SSH_KEYTYPE_UNOPENABLE:
+        return "unable to open file";
+      case SSH_KEYTYPE_UNKNOWN:
+        return "not a recognised key file format";
+      case SSH_KEYTYPE_SSH1_PUBLIC:
+        return "SSH-1 public key";
+      case SSH_KEYTYPE_SSH2_PUBLIC_RFC4716:
+        return "SSH-2 public key (RFC 4716 format)";
+      case SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH:
+        return "SSH-2 public key (OpenSSH format)";
+      case SSH_KEYTYPE_SSH1:
+        return "SSH-1 private key";
+      case SSH_KEYTYPE_SSH2:
+        return "PuTTY SSH-2 private key";
+      case SSH_KEYTYPE_OPENSSH_PEM:
+        return "OpenSSH SSH-2 private key (old PEM format)";
+      case SSH_KEYTYPE_OPENSSH_NEW:
+        return "OpenSSH SSH-2 private key (new format)";
+      case SSH_KEYTYPE_SSHCOM:
+        return "ssh.com SSH-2 private key";
+
         /*
          * This function is called with a key type derived from
          * looking at an actual key file, so the output-only type
          * OPENSSH_AUTO should never get here, and is much an INTERNAL
          * ERROR as a code we don't even understand.
          */
-      case SSH_KEYTYPE_OPENSSH_AUTO: return "INTERNAL ERROR (OPENSSH_AUTO)"; break;
-      default: return "INTERNAL ERROR"; break;
+      case SSH_KEYTYPE_OPENSSH_AUTO:
+        unreachable("OPENSSH_AUTO should never reach key_type_to_str");
+      default:
+        unreachable("bad key type in key_type_to_str");
     }
 }

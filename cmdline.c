@@ -858,9 +858,8 @@ int cmdline_process_param(const char *p, char *value,
 
 void cmdline_run_saved(Conf *conf)
 {
-    int pri, i;
-    for (pri = 0; pri < NPRIORITIES; pri++) {
-        for (i = 0; i < saves[pri].nsaved; i++) {
+    for (size_t pri = 0; pri < NPRIORITIES; pri++) {
+        for (size_t i = 0; i < saves[pri].nsaved; i++) {
             cmdline_process_param(saves[pri].params[i].p,
                                   saves[pri].params[i].value, 0, conf);
             sfree(saves[pri].params[i].p);

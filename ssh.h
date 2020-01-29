@@ -720,8 +720,8 @@ struct ssh_hashalg {
     void (*copyfrom)(ssh_hash *dest, ssh_hash *src);
     void (*digest)(ssh_hash *, unsigned char *);
     void (*free)(ssh_hash *);
-    int hlen; /* output length in bytes */
-    int blocklen; /* length of the hash's input block, or 0 for N/A */
+    size_t hlen; /* output length in bytes */
+    size_t blocklen; /* length of the hash's input block, or 0 for N/A */
     const char *text_basename;     /* the semantic name of the hash */
     const char *annotation;   /* extra info, e.g. which of multiple impls */
     const char *text_name;    /* both combined, e.g. "SHA-n (unaccelerated)" */

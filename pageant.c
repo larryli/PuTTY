@@ -283,8 +283,8 @@ static void list_keys(BinarySink *bs, int ssh_version)
     }
 }
 
-void pageant_make_keylist1(BinarySink *bs) { return list_keys(bs, 1); }
-void pageant_make_keylist2(BinarySink *bs) { return list_keys(bs, 2); }
+void pageant_make_keylist1(BinarySink *bs) { list_keys(bs, 1); }
+void pageant_make_keylist2(BinarySink *bs) { list_keys(bs, 2); }
 
 void pageant_register_client(PageantClient *pc)
 {

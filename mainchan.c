@@ -142,7 +142,7 @@ static void mainchan_open_confirmation(Channel *chan)
         struct X11FakeAuth *x11auth;
         bool retry_cmd_now = false;
 
-        if (conf_get_bool(mc->conf, CONF_x11_forward)) {;
+        if (conf_get_bool(mc->conf, CONF_x11_forward)) {
             char *x11_setup_err;
             if ((x11disp = x11_setup_display(
                      conf_get_str(mc->conf, CONF_x11_display),

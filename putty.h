@@ -1790,7 +1790,7 @@ void random_unref(void);
 void random_clear(void);
 /* random_setup_special is used by PuTTYgen. It makes an extra-big
  * random number generator. */
-void random_setup_special();
+void random_setup_special(void);
 /* Manually drop a random seed into the random number generator, e.g.
  * just before generating a key. */
 void random_reseed(ptrlen seed);
