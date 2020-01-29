@@ -667,7 +667,7 @@ typedef struct {
     void *data;         /* slot for housekeeping data, managed by
                          * seat_get_userpass_input(); initially NULL */
 } prompts_t;
-prompts_t *new_prompts();
+prompts_t *new_prompts(void);
 void add_prompt(prompts_t *p, char *promptstr, bool echo);
 void prompt_set_result(prompt_t *pr, const char *newstr);
 char *prompt_get_result(prompt_t *pr);
