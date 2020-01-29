@@ -277,24 +277,6 @@ void SHA384_Final(SHA512_State *s, unsigned char *digest) {
     memcpy(digest, biggerDigest, 384 / 8);
 }
 
-void SHA512_Simple(const void *p, int len, unsigned char *output) {
-    SHA512_State s;
-
-    SHA512_Init(&s);
-    put_data(&s, p, len);
-    SHA512_Final(&s, output);
-    smemclr(&s, sizeof(s));
-}
-
-void SHA384_Simple(const void *p, int len, unsigned char *output) {
-    SHA512_State s;
-
-    SHA384_Init(&s);
-    put_data(&s, p, len);
-    SHA384_Final(&s, output);
-    smemclr(&s, sizeof(s));
-}
-
 /*
  * Thin abstraction for things where hashes are pluggable.
  */

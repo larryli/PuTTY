@@ -899,13 +899,6 @@ mp_int *mp_sub(mp_int *x, mp_int *y)
     return r;
 }
 
-mp_int *mp_neg(mp_int *a)
-{
-    mp_int *r = mp_make_sized(a->nw);
-    mp_neg_into(r, a);
-    return r;
-}
-
 /*
  * Internal routine: multiply and accumulate in the trivial O(N^2)
  * way. Sets r <- r + a*b.

@@ -213,16 +213,6 @@ void MD5Final(unsigned char output[16], struct MD5Context *s)
     }
 }
 
-void MD5Simple(void const *p, unsigned len, unsigned char output[16])
-{
-    struct MD5Context s;
-
-    MD5Init(&s);
-    put_data(&s, (unsigned char const *)p, len);
-    MD5Final(output, &s);
-    smemclr(&s, sizeof(s));
-}
-
 /* ----------------------------------------------------------------------
  * Thin abstraction for things where hashes are pluggable.
  */
