@@ -1107,7 +1107,7 @@ static void x11font_enum_fonts(GtkWidget *widget,
              * font, which we do by examining the spacing field
              * again.
              */
-            flags = FONTFLAG_SERVERSIDE;
+            int flags = FONTFLAG_SERVERSIDE;
             if (!strchr("CcMm", xlfd->spacing[0]))
                 flags |= FONTFLAG_NONMONOSPACED;
 

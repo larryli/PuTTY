@@ -15,6 +15,7 @@ struct sftp_packet *sftp_handle_request(
 {
     struct sftp_packet *reply;
     unsigned id;
+    uint32_t flags;
     ptrlen path, dstpath, handle, data;
     uint64_t offset;
     unsigned length;
