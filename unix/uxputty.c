@@ -77,11 +77,14 @@ char *platform_get_x_display(void) {
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_PORT_ARG |
+    TOOLTYPE_NO_VERBOSE_OPTION;
+
 void setup(bool single)
 {
     sk_init();
-    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG |
-        TOOLTYPE_NO_VERBOSE_OPTION;
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {

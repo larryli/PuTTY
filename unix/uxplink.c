@@ -570,6 +570,12 @@ const bool share_can_be_upstream = true;
 
 const bool buildinfo_gtk_relevant = false;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
+    TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
+    TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
+
 int main(int argc, char **argv)
 {
     bool sending;
@@ -602,12 +608,6 @@ int main(int argc, char **argv)
     stdout_bs = BinarySink_UPCAST(&stdout_bcs);
     stderr_bs = BinarySink_UPCAST(&stderr_bcs);
     outgoingeof = EOF_NO;
-
-    cmdline_tooltype |=
-        (TOOLTYPE_HOST_ARG |
-         TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
-         TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
-         TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD);
 
     stderr_tty_init();
     /*

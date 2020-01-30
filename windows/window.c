@@ -467,6 +467,11 @@ static void close_session(void *ignored_context)
 
 extern LogPolicy win_gui_logpolicy[1]; /* defined in windlg.c */
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_PORT_ARG |
+    TOOLTYPE_NO_VERBOSE_OPTION;
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
@@ -477,8 +482,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hinst = inst;
     hwnd = NULL;
-    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG |
-        TOOLTYPE_NO_VERBOSE_OPTION;
 
     sk_init();
 

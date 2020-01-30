@@ -109,18 +109,6 @@ int cmdline_get_passwd_input(prompts_t *p)
     return 1;
 }
 
-/*
- * Here we have a flags word which describes the capabilities of
- * the particular tool on whose behalf we're running. We will
- * refuse certain command-line options if a particular tool
- * inherently can't do anything sensible. For example, the file
- * transfer tools (psftp, pscp) can't do a great deal with protocol
- * selections (ever tried running scp over telnet?) or with port
- * forwarding (even if it wasn't a hideously bad idea, they don't
- * have the select/poll infrastructure to make them work).
- */
-int cmdline_tooltype = 0;
-
 static bool cmdline_check_unavailable(int flag, const char *p)
 {
     if (cmdline_tooltype & flag) {

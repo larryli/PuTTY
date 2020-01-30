@@ -225,6 +225,12 @@ void stdouterr_sent(struct handle *h, size_t new_backlog, int err)
 const bool share_can_be_downstream = true;
 const bool share_can_be_upstream = true;
 
+const unsigned cmdline_tooltype =
+    TOOLTYPE_HOST_ARG |
+    TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
+    TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
+    TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
+
 int main(int argc, char **argv)
 {
     bool sending;
@@ -248,12 +254,6 @@ int main(int argc, char **argv)
      */
     default_protocol = PROT_SSH;
     default_port = 22;
-
-    cmdline_tooltype |=
-        (TOOLTYPE_HOST_ARG |
-         TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
-         TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
-         TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD);
 
     /*
      * Process the command line.

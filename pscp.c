@@ -2218,6 +2218,8 @@ const bool share_can_be_upstream = false;
 static stdio_sink stderr_ss;
 static StripCtrlChars *stderr_scc;
 
+const unsigned cmdline_tooltype = TOOLTYPE_FILETRANSFER;
+
 /*
  * Main program. (Called `psftp_main' because it gets called from
  * *sftp.c; bit silly, I know, but it had to be called _something_.)
@@ -2229,7 +2231,6 @@ int psftp_main(int argc, char *argv[])
 
     default_protocol = PROT_TELNET;
 
-    cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     sk_init();
 
     /* Load Default Settings before doing anything else. */

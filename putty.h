@@ -1962,15 +1962,34 @@ void cmdline_cleanup(void);
 int cmdline_get_passwd_input(prompts_t *p);
 bool cmdline_host_ok(Conf *);
 bool cmdline_verbose(void);
-#define TOOLTYPE_FILETRANSFER 1
-#define TOOLTYPE_NONNETWORK 2
-#define TOOLTYPE_HOST_ARG 4
-#define TOOLTYPE_HOST_ARG_CAN_BE_SESSION 8
-#define TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX 16
-#define TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD 32
-#define TOOLTYPE_PORT_ARG 64
-#define TOOLTYPE_NO_VERBOSE_OPTION 128
-extern int cmdline_tooltype;
+
+/*
+ * Here we have a flags word provided by each tool, which describes
+ * the capabilities of that tool that cmdline.c needs to know about.
+ * It will refuse certain command-line options if a particular tool
+ * inherently can't do anything sensible. For example, the file
+ * transfer tools (psftp, pscp) can't do a great deal with protocol
+ * selections (ever tried running scp over telnet?) or with port
+ * forwarding (even if it wasn't a hideously bad idea, they don't have
+ * the select/poll infrastructure to make them work).
+ */
+extern const unsigned cmdline_tooltype;
+
+/* Bit flags for the above */
+#define TOOLTYPE_LIST(X)                        \
+    X(TOOLTYPE_FILETRANSFER)                    \
+    X(TOOLTYPE_NONNETWORK)                      \
+    X(TOOLTYPE_HOST_ARG)                        \
+    X(TOOLTYPE_HOST_ARG_CAN_BE_SESSION)         \
+    X(TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX)        \
+    X(TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD)   \
+    X(TOOLTYPE_PORT_ARG)                        \
+    X(TOOLTYPE_NO_VERBOSE_OPTION)               \
+    /* end of list */
+#define BITFLAG_INDEX(val) val ## _bitflag_index,
+enum { TOOLTYPE_LIST(BITFLAG_INDEX) };
+#define BITFLAG_DEF(val) val = 1U << (val ## _bitflag_index),
+enum { TOOLTYPE_LIST(BITFLAG_DEF) };
 
 void cmdline_error(const char *, ...) PRINTF_LIKE(1, 2);
 

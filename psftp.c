@@ -2750,6 +2750,8 @@ const bool share_can_be_upstream = false;
 static stdio_sink stderr_ss;
 static StripCtrlChars *stderr_scc;
 
+const unsigned cmdline_tooltype = TOOLTYPE_FILETRANSFER;
+
 /*
  * Main program. Parse arguments etc.
  */
@@ -2763,7 +2765,6 @@ int psftp_main(int argc, char *argv[])
     bool sanitise_stderr = true;
     char *batchfile = NULL;
 
-    cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     sk_init();
 
     userhost = user = NULL;

@@ -35,8 +35,3 @@ int cmdline_process_param(const char *p, char *value,
 {
     unreachable("cmdline_process_param should never be called");
 }
-
-/*
- * This variable will be referred to, so it has to exist. It's ignored.
- */
-int cmdline_tooltype = 0;
