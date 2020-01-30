@@ -168,6 +168,7 @@ static const LogPolicyVtable sesschan_logpolicy_vt = {
     sesschan_eventlog,
     sesschan_askappend,
     sesschan_logging_error,
+    null_lp_verbose_no,
 };
 
 static size_t sesschan_seat_output(
@@ -196,6 +197,7 @@ static const SeatVtable sesschan_seat_vt = {
     sesschan_get_window_pixel_size,
     nullseat_stripctrl_new,
     nullseat_set_trust_status,
+    nullseat_verbose_no,
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,

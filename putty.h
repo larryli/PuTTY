@@ -581,8 +581,6 @@ extern const char *const appname;
 /*
  * Some global flags denoting the type of application.
  *
- * FLAG_VERBOSE is set when the user requests verbose details.
- *
  * FLAG_INTERACTIVE is set when a full interactive shell session is
  * being run, _either_ because no remote command has been provided
  * _or_ because the application is GUI and can't run non-
@@ -596,7 +594,6 @@ extern const char *const appname;
  * headers. It's probably best if those ones start from 0x1000, to
  * avoid collision.
  */
-#define FLAG_VERBOSE     0x0001
 #define FLAG_INTERACTIVE 0x0002
 GLOBAL int flags;
 
@@ -954,6 +951,11 @@ struct SeatVtable {
      * prompts by malicious servers.
      */
     bool (*set_trust_status)(Seat *seat, bool trusted);
+
+    /*
+     * Ask the seat whether it would like verbose messages.
+     */
+    bool (*verbose)(Seat *seat);
 };
 
 static inline size_t seat_output(
@@ -999,6 +1001,8 @@ static inline StripCtrlChars *seat_stripctrl_new(
 { return seat->vt->stripctrl_new(seat, bs, sic); }
 static inline bool seat_set_trust_status(Seat *seat, bool trusted)
 { return  seat->vt->set_trust_status(seat, trusted); }
+static inline bool seat_verbose(Seat *seat)
+{ return seat->vt->verbose(seat); }
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
@@ -1051,6 +1055,8 @@ StripCtrlChars *nullseat_stripctrl_new(
         Seat *seat, BinarySink *bs_out, SeatInteractionContext sic);
 bool nullseat_set_trust_status(Seat *seat, bool trusted);
 bool nullseat_set_trust_status_vacuously(Seat *seat, bool trusted);
+bool nullseat_verbose_no(Seat *seat);
+bool nullseat_verbose_yes(Seat *seat);
 
 /*
  * Seat functions provided by the platform's console-application
@@ -1076,6 +1082,7 @@ bool console_set_trust_status(Seat *seat, bool trusted);
  * Other centralised seat functions.
  */
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
+bool cmdline_seat_verbose(Seat *seat);
 
 /*
  * Data type 'TermWin', which is a vtable encapsulating all the
@@ -1681,6 +1688,11 @@ struct LogPolicyVtable {
      * file :-)
      */
     void (*logging_error)(LogPolicy *lp, const char *event);
+
+    /*
+     * Ask whether extra verbose log messages are required.
+     */
+    bool (*verbose)(LogPolicy *lp);
 };
 struct LogPolicy {
     const LogPolicyVtable *vt;
@@ -1694,6 +1706,19 @@ static inline int lp_askappend(
 { return lp->vt->askappend(lp, filename, callback, ctx); }
 static inline void lp_logging_error(LogPolicy *lp, const char *event)
 { lp->vt->logging_error(lp, event); }
+static inline bool lp_verbose(LogPolicy *lp)
+{ return lp->vt->verbose(lp); }
+
+/* Defined in conscli.c, used in several console command-line tools */
+extern LogPolicy console_cli_logpolicy[];
+
+int console_askappend(LogPolicy *lp, Filename *filename,
+                      void (*callback)(void *ctx, int result), void *ctx);
+void console_logging_error(LogPolicy *lp, const char *string);
+void console_eventlog(LogPolicy *lp, const char *string);
+bool null_lp_verbose_yes(LogPolicy *lp);
+bool null_lp_verbose_no(LogPolicy *lp);
+bool cmdline_lp_verbose(LogPolicy *lp);
 
 LogContext *log_init(LogPolicy *lp, Conf *conf);
 void log_free(LogContext *logctx);
@@ -1724,10 +1749,6 @@ void log_packet(LogContext *logctx, int direction, int type,
                 int n_blanks, const struct logblank_t *blanks,
                 const unsigned long *sequence,
                 unsigned downstream_id, const char *additional_log_text);
-
-/* This is defined by applications that have an obvious logging
- * destination like standard error or the GUI. */
-extern LogPolicy default_logpolicy[1];
 
 /*
  * Exports from testback.c
@@ -1950,6 +1971,7 @@ void cmdline_run_saved(Conf *);
 void cmdline_cleanup(void);
 int cmdline_get_passwd_input(prompts_t *p);
 bool cmdline_host_ok(Conf *);
+bool cmdline_verbose(void);
 #define TOOLTYPE_FILETRANSFER 1
 #define TOOLTYPE_NONNETWORK 2
 #define TOOLTYPE_HOST_ARG 4
@@ -1957,6 +1979,7 @@ bool cmdline_host_ok(Conf *);
 #define TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX 16
 #define TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD 32
 #define TOOLTYPE_PORT_ARG 64
+#define TOOLTYPE_NO_VERBOSE_OPTION 128
 extern int cmdline_tooltype;
 
 void cmdline_error(const char *, ...) PRINTF_LIKE(1, 2);

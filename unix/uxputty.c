@@ -80,8 +80,9 @@ const bool share_can_be_upstream = true;
 void setup(bool single)
 {
     sk_init();
-    flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
-    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG;
+    flags = FLAG_INTERACTIVE;
+    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG |
+        TOOLTYPE_NO_VERBOSE_OPTION;
     default_protocol = be_default_protocol;
     /* Find the appropriate default port. */
     {

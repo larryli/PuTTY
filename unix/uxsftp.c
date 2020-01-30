@@ -631,7 +631,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 
 void frontend_net_error_pending(void) {}
 
-void platform_psftp_pre_conn_setup(void) {}
+void platform_psftp_pre_conn_setup(LogPolicy *lp) {}
 
 const bool buildinfo_gtk_relevant = false;
 

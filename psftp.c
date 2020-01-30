@@ -64,6 +64,7 @@ static const SeatVtable psftp_seat_vt = {
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
     nullseat_set_trust_status_vacuously,
+    cmdline_seat_verbose,
 };
 static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
 
@@ -2709,9 +2710,9 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
                  "exec sftp-server");
     conf_set_bool(conf, CONF_ssh_subsys2, false);
 
-    psftp_logctx = log_init(default_logpolicy, conf);
+    psftp_logctx = log_init(console_cli_logpolicy, conf);
 
-    platform_psftp_pre_conn_setup();
+    platform_psftp_pre_conn_setup(console_cli_logpolicy);
 
     err = backend_init(&ssh_backend, psftp_seat, &backend, psftp_logctx, conf,
                        conf_get_str(conf, CONF_host),
@@ -2798,7 +2799,7 @@ int psftp_main(int argc, char *argv[])
             i++;               /* skip next argument */
         } else if (ret == 1) {
             /* We have our own verbosity in addition to `flags'. */
-            if (flags & FLAG_VERBOSE)
+            if (cmdline_verbose())
                 verbose = true;
         } else if (strcmp(argv[i], "-h") == 0 ||
                    strcmp(argv[i], "-?") == 0 ||

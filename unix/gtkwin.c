@@ -399,6 +399,7 @@ static const SeatVtable gtk_seat_vt = {
     gtk_seat_get_window_pixel_size,
     gtk_seat_stripctrl_new,
     gtk_seat_set_trust_status,
+    nullseat_verbose_yes,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)
@@ -428,6 +429,7 @@ static const LogPolicyVtable gtk_logpolicy_vt = {
     gtk_eventlog,
     gtk_askappend,
     gtk_logging_error,
+    null_lp_verbose_yes,
 };
 
 /*

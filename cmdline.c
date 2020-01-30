@@ -157,6 +157,10 @@ static bool cmdline_check_unavailable(int flag, const char *p)
 
 static bool seen_hostname_argument = false;
 static bool seen_port_argument = false;
+static bool seen_verbose_option = false;
+bool cmdline_verbose(void) { return seen_verbose_option; }
+bool cmdline_seat_verbose(Seat *seat) { return cmdline_verbose(); }
+bool cmdline_lp_verbose(LogPolicy *lp) { return cmdline_verbose(); }
 
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
@@ -452,7 +456,8 @@ int cmdline_process_param(const char *p, char *value,
     }
     if (!strcmp(p, "-v")) {
         RETURN(1);
-        flags |= FLAG_VERBOSE;
+        UNAVAILABLE_IN(TOOLTYPE_NO_VERBOSE_OPTION);
+        seen_verbose_option = true;
     }
     if (!strcmp(p, "-l")) {
         RETURN(2);

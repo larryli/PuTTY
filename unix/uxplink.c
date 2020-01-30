@@ -399,6 +399,7 @@ static const SeatVtable plink_seat_vt = {
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
     console_set_trust_status,
+    cmdline_seat_verbose,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
@@ -840,7 +841,7 @@ int main(int argc, char **argv)
     /*
      * Start up the connection.
      */
-    logctx = log_init(default_logpolicy, conf);
+    logctx = log_init(console_cli_logpolicy, conf);
     {
         const char *error;
         char *realhost;

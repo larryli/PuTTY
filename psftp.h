@@ -49,7 +49,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool backend_required);
  * Platform-specific function called when we're about to make a
  * network connection.
  */
-void platform_psftp_pre_conn_setup(void);
+void platform_psftp_pre_conn_setup(LogPolicy *lp);
 
 /*
  * The main program in psftp.c. Called from main() in the platform-

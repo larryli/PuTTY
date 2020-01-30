@@ -364,6 +364,11 @@ StripCtrlChars *nullseat_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic) {return NULL;}
 bool nullseat_set_trust_status(Seat *seat, bool tr) { return false; }
 bool nullseat_set_trust_status_vacuously(Seat *seat, bool tr) { return true; }
+bool nullseat_verbose_no(Seat *seat) { return false; }
+bool nullseat_verbose_yes(Seat *seat) { return true; }
+
+bool null_lp_verbose_no(LogPolicy *lp) { return false; }
+bool null_lp_verbose_yes(LogPolicy *lp) { return true; }
 
 void sk_free_peer_info(SocketPeerInfo *pi)
 {

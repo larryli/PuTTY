@@ -433,7 +433,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 prompt_get_result(s->cur_prompt->prompts[0]);
             free_prompts(s->cur_prompt);
         } else {
-            if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE))
+            if (seat_verbose(s->ppl.seat) || (flags & FLAG_INTERACTIVE))
                 ppl_printf("Using username \"%s\".\r\n", s->username);
         }
         s->got_username = true;
@@ -496,7 +496,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
              * anti-spoofing header lines.
              */
             if (bufchain_size(&s->banner) &&
-                (flags & (FLAG_VERBOSE | FLAG_INTERACTIVE))) {
+                (seat_verbose(s->ppl.seat) || (flags & FLAG_INTERACTIVE))) {
                 if (s->banner_scc) {
                     ssh2_userauth_antispoof_msg(
                         s, "Pre-authentication banner message from server:");
@@ -727,7 +727,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 } else {
                     strbuf *agentreq, *sigdata;
 
-                    if (flags & FLAG_VERBOSE)
+                    if (seat_verbose(s->ppl.seat))
                         ppl_printf("Authenticating with public key "
                                    "\"%.*s\" from agent\r\n",
                                    PTRLEN_PRINTF(s->comment));
@@ -836,7 +836,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                  * Actually attempt a serious authentication using
                  * the key.
                  */
-                if (flags & FLAG_VERBOSE)
+                if (seat_verbose(s->ppl.seat))
                     ppl_printf("Authenticating with public key \"%s\"\r\n",
                                s->publickey_comment);
 

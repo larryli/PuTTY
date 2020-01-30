@@ -120,6 +120,7 @@ static const SeatVtable server_seat_vt = {
     nullseat_get_window_pixel_size,
     nullseat_stripctrl_new,
     nullseat_set_trust_status,
+    nullseat_verbose_no,
 };
 
 static void server_socket_log(Plug *plug, int type, SockAddr *addr, int port,

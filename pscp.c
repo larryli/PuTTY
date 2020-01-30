@@ -82,6 +82,7 @@ static const SeatVtable pscp_seat_vt = {
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
     nullseat_set_trust_status_vacuously,
+    cmdline_seat_verbose,
 };
 static Seat pscp_seat[1] = {{ &pscp_seat_vt }};
 
@@ -450,9 +451,9 @@ static void do_cmd(char *host, char *user, char *cmd)
     }
     conf_set_bool(conf, CONF_nopty, true);
 
-    logctx = log_init(default_logpolicy, conf);
+    logctx = log_init(console_cli_logpolicy, conf);
 
-    platform_psftp_pre_conn_setup();
+    platform_psftp_pre_conn_setup(console_cli_logpolicy);
 
     err = backend_init(&ssh_backend, pscp_seat, &backend, logctx, conf,
                        conf_get_str(conf, CONF_host),
@@ -2257,7 +2258,7 @@ int psftp_main(int argc, char *argv[])
             i++;               /* skip next argument */
         } else if (ret == 1) {
             /* We have our own verbosity in addition to `flags'. */
-            if (flags & FLAG_VERBOSE)
+            if (cmdline_verbose())
                 verbose = true;
         } else if (strcmp(argv[i], "-pgpfp") == 0) {
             pgp_fingerprints();

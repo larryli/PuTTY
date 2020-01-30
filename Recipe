@@ -334,11 +334,12 @@ KEYGEN   = sshrsag sshdssg sshecdsag
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
 plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
-         + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli LIBS
+         + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli
+         + clicons LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp winnohlp winselcli LIBS
+         + pscp.res winnojmp winnohlp winselcli clicons LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp winnohlp winselcli LIBS
+         + psftp.res winnojmp winnohlp winselcli clicons LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
@@ -363,7 +364,7 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + nogss utils memory GTKMAIN
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
-         + ux_x11 noterm uxnogtk sessprep cmdline
+         + ux_x11 noterm uxnogtk sessprep cmdline clicons
 
 PUTTYGEN_UNIX = KEYGEN sshprime sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
@@ -374,7 +375,9 @@ puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
+         + clicons
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
+         + clicons
 
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes ARITH
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512

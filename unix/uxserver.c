@@ -163,6 +163,7 @@ static const LogPolicyVtable server_logpolicy_vt = {
     server_eventlog,
     server_askappend,
     server_logging_error,
+    null_lp_verbose_no,
 };
 
 struct AuthPolicy_ssh1_pubkey {

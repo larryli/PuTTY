@@ -366,9 +366,8 @@ int console_confirm_weak_cached_hostkey(
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-static int console_askappend(LogPolicy *lp, Filename *filename,
-                             void (*callback)(void *ctx, int result),
-                             void *ctx)
+int console_askappend(LogPolicy *lp, Filename *filename,
+                      void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char msgtemplate[] =
         "The session log file \"%.*s\" already exists.\n"
@@ -468,7 +467,7 @@ void old_keyfile_warning(void)
     postmsg(&cf);
 }
 
-static void console_logging_error(LogPolicy *lp, const char *string)
+void console_logging_error(LogPolicy *lp, const char *string)
 {
     /* Errors setting up logging are considered important, so they're
      * displayed to standard error even when not in verbose mode */
@@ -480,11 +479,11 @@ static void console_logging_error(LogPolicy *lp, const char *string)
 }
 
 
-static void console_eventlog(LogPolicy *lp, const char *string)
+void console_eventlog(LogPolicy *lp, const char *string)
 {
     /* Ordinary Event Log entries are displayed in the same way as
      * logging errors, but only in verbose mode */
-    if (flags & FLAG_VERBOSE)
+    if (lp_verbose(lp))
         console_logging_error(lp, string);
 }
 
@@ -624,10 +623,3 @@ bool is_interactive(void)
 char *platform_get_x_display(void) {
     return dupstr(getenv("DISPLAY"));
 }
-
-static const LogPolicyVtable default_logpolicy_vt = {
-    console_eventlog,
-    console_askappend,
-    console_logging_error,
-};
-LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};

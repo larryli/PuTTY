@@ -101,6 +101,7 @@ static const SeatVtable plink_seat_vt = {
     nullseat_get_window_pixel_size,
     console_stripctrl_new,
     console_set_trust_status,
+    cmdline_seat_verbose,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
@@ -407,7 +408,7 @@ int main(int argc, char **argv)
         !conf_get_str_nthstrkey(conf, CONF_portfwd, 0))
         conf_set_bool(conf, CONF_ssh_simple, true);
 
-    logctx = log_init(default_logpolicy, conf);
+    logctx = log_init(console_cli_logpolicy, conf);
 
     if (just_test_share_exists) {
         if (!vt->test_for_upstream) {
@@ -423,7 +424,8 @@ int main(int argc, char **argv)
     }
 
     if (restricted_acl) {
-        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
+        lp_eventlog(console_cli_logpolicy,
+                    "Running with restricted process ACL");
     }
 
     inhandle = GetStdHandle(STD_INPUT_HANDLE);

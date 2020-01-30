@@ -712,10 +712,10 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
     return ctx->line;
 }
 
-void platform_psftp_pre_conn_setup(void)
+void platform_psftp_pre_conn_setup(LogPolicy *lp)
 {
     if (restricted_acl) {
-        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
+        lp_eventlog(lp, "Running with restricted process ACL");
     }
 }
 

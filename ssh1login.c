@@ -426,7 +426,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     pq_push(s->ppl.out_pq, pkt);
 
     ppl_logevent("Sent username \"%s\"", s->username);
-    if ((flags & FLAG_VERBOSE) || (flags & FLAG_INTERACTIVE))
+    if (seat_verbose(s->ppl.seat) || (flags & FLAG_INTERACTIVE))
         ppl_printf("Sent username \"%s\"\r\n", s->username);
 
     crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
@@ -586,7 +586,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                                 if (pktin->type == SSH1_SMSG_SUCCESS) {
                                     ppl_logevent("Pageant's response "
                                                  "accepted");
-                                    if (flags & FLAG_VERBOSE) {
+                                    if (seat_verbose(s->ppl.seat)) {
                                         ptrlen comment = ptrlen_from_strbuf(
                                             s->agent_comment);
                                         ppl_printf("Authenticated using RSA "
@@ -630,7 +630,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
              * key file.
              */
             bool got_passphrase; /* need not be kept over crReturn */
-            if (flags & FLAG_VERBOSE)
+            if (seat_verbose(s->ppl.seat))
                 ppl_printf("Trying public key authentication.\r\n");
             ppl_logevent("Trying public key \"%s\"",
                          filename_to_str(s->keyfile));
@@ -644,7 +644,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 char *passphrase = NULL;    /* only written after crReturn */
                 const char *error;
                 if (!s->privatekey_encrypted) {
-                    if (flags & FLAG_VERBOSE)
+                    if (seat_verbose(s->ppl.seat))
                         ppl_printf("No passphrase required.\r\n");
                     passphrase = NULL;
                 } else {
@@ -766,7 +766,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 crMaybeWaitUntilV((pktin = ssh1_login_pop(s))
                                   != NULL);
                 if (pktin->type == SSH1_SMSG_FAILURE) {
-                    if (flags & FLAG_VERBOSE)
+                    if (seat_verbose(s->ppl.seat))
                         ppl_printf("Failed to authenticate with"
                                    " our public key.\r\n");
                     continue;          /* go and try something else */
@@ -1054,7 +1054,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         s->cur_prompt = NULL;
         crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
         if (pktin->type == SSH1_SMSG_FAILURE) {
-            if (flags & FLAG_VERBOSE)
+            if (seat_verbose(s->ppl.seat))
                 ppl_printf("Access denied\r\n");
             ppl_logevent("Authentication refused");
         } else if (pktin->type != SSH1_SMSG_SUCCESS) {

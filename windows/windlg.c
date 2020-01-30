@@ -995,12 +995,13 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
         return 0;
 }
 
-static const LogPolicyVtable default_logpolicy_vt = {
+static const LogPolicyVtable win_gui_logpolicy_vt = {
     win_gui_eventlog,
     win_gui_askappend,
     win_gui_logging_error,
+    null_lp_verbose_yes,
 };
-LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
+LogPolicy win_gui_logpolicy[1] = {{ &win_gui_logpolicy_vt }};
 
 /*
  * Warn about the obsolescent key file format.

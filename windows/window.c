@@ -360,6 +360,7 @@ static const SeatVtable win_seat_vt = {
     win_seat_get_window_pixel_size,
     win_seat_stripctrl_new,
     win_seat_set_trust_status,
+    nullseat_verbose_yes,
 };
 static Seat win_seat_impl = { &win_seat_vt };
 Seat *const win_seat = &win_seat_impl;
@@ -471,6 +472,8 @@ static void close_session(void *ignored_context)
     }
 }
 
+extern LogPolicy win_gui_logpolicy[1]; /* defined in windlg.c */
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;
@@ -481,8 +484,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hinst = inst;
     hwnd = NULL;
-    flags = FLAG_VERBOSE | FLAG_INTERACTIVE;
-    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG;
+    flags = FLAG_INTERACTIVE;
+    cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG |
+        TOOLTYPE_NO_VERBOSE_OPTION;
 
     sk_init();
 
@@ -760,7 +764,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     wintw->vt = &windows_termwin_vt;
     term = term_init(conf, &ucsdata, wintw);
     setup_clipboards(term, conf);
-    logctx = log_init(default_logpolicy, conf);
+    logctx = log_init(win_gui_logpolicy, conf);
     term_provide_logctx(term, logctx);
     term_size(term, conf_get_int(conf, CONF_height),
               conf_get_int(conf, CONF_width),
@@ -868,7 +872,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     }
 
     if (restricted_acl) {
-        lp_eventlog(default_logpolicy, "Running with restricted process ACL");
+        lp_eventlog(win_gui_logpolicy, "Running with restricted process ACL");
     }
 
     winselgui_set_hwnd(hwnd);
@@ -2299,7 +2303,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             break;
           case IDM_RESTART:
             if (!backend) {
-                lp_eventlog(default_logpolicy,
+                lp_eventlog(win_gui_logpolicy,
                             "----- Session restarted -----");
                 term_pwron(term, false);
                 start_backend();

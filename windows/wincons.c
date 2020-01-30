@@ -412,7 +412,7 @@ static void console_eventlog(LogPolicy *lp, const char *string)
 {
     /* Ordinary Event Log entries are displayed in the same way as
      * logging errors, but only in verbose mode */
-    if (flags & FLAG_VERBOSE)
+    if (lp_verbose(lp))
         console_logging_error(lp, string);
 }
 
@@ -549,10 +549,3 @@ int console_get_userpass_input(prompts_t *p)
 
     return 1; /* success */
 }
-
-static const LogPolicyVtable default_logpolicy_vt = {
-    console_eventlog,
-    console_askappend,
-    console_logging_error,
-};
-LogPolicy default_logpolicy[1] = {{ &default_logpolicy_vt }};
