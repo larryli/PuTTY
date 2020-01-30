@@ -581,11 +581,6 @@ extern const char *const appname;
 /*
  * Some global flags denoting the type of application.
  *
- * FLAG_INTERACTIVE is set when a full interactive shell session is
- * being run, _either_ because no remote command has been provided
- * _or_ because the application is GUI and can't run non-
- * interactively.
- *
  * These flags describe the type of _application_ - they wouldn't
  * vary between individual sessions - and so it's OK to have this
  * variable be GLOBAL.
@@ -594,7 +589,6 @@ extern const char *const appname;
  * headers. It's probably best if those ones start from 0x1000, to
  * avoid collision.
  */
-#define FLAG_INTERACTIVE 0x0002
 GLOBAL int flags;
 
 /*
@@ -956,6 +950,11 @@ struct SeatVtable {
      * Ask the seat whether it would like verbose messages.
      */
     bool (*verbose)(Seat *seat);
+
+    /*
+     * Ask the seat whether it's an interactive program.
+     */
+    bool (*interactive)(Seat *seat);
 };
 
 static inline size_t seat_output(
@@ -1003,6 +1002,8 @@ static inline bool seat_set_trust_status(Seat *seat, bool trusted)
 { return  seat->vt->set_trust_status(seat, trusted); }
 static inline bool seat_verbose(Seat *seat)
 { return seat->vt->verbose(seat); }
+static inline bool seat_interactive(Seat *seat)
+{ return seat->vt->interactive(seat); }
 
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
@@ -1057,6 +1058,8 @@ bool nullseat_set_trust_status(Seat *seat, bool trusted);
 bool nullseat_set_trust_status_vacuously(Seat *seat, bool trusted);
 bool nullseat_verbose_no(Seat *seat);
 bool nullseat_verbose_yes(Seat *seat);
+bool nullseat_interactive_no(Seat *seat);
+bool nullseat_interactive_yes(Seat *seat);
 
 /*
  * Seat functions provided by the platform's console-application

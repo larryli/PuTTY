@@ -426,7 +426,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     pq_push(s->ppl.out_pq, pkt);
 
     ppl_logevent("Sent username \"%s\"", s->username);
-    if (seat_verbose(s->ppl.seat) || (flags & FLAG_INTERACTIVE))
+    if (seat_verbose(s->ppl.seat) || seat_interactive(s->ppl.seat))
         ppl_printf("Sent username \"%s\"\r\n", s->username);
 
     crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
@@ -799,7 +799,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
             if (pktin->type == SSH1_SMSG_FAILURE) {
                 ppl_logevent("TIS authentication declined");
-                if (flags & FLAG_INTERACTIVE)
+                if (seat_interactive(s->ppl.seat))
                     ppl_printf("TIS authentication refused.\r\n");
                 s->tis_auth_refused = true;
                 continue;

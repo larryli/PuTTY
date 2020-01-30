@@ -65,6 +65,7 @@ static const SeatVtable psftp_seat_vt = {
     console_stripctrl_new,
     nullseat_set_trust_status_vacuously,
     cmdline_seat_verbose,
+    nullseat_interactive_yes,
 };
 static Seat psftp_seat[1] = {{ &psftp_seat_vt }};
 
@@ -2768,7 +2769,7 @@ int psftp_main(int argc, char *argv[])
     bool sanitise_stderr = true;
     char *batchfile = NULL;
 
-    flags = FLAG_INTERACTIVE
+    flags = 0
 #ifdef FLAG_SYNCAGENT
         | FLAG_SYNCAGENT
 #endif

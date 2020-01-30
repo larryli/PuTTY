@@ -198,6 +198,7 @@ static const SeatVtable sesschan_seat_vt = {
     nullseat_stripctrl_new,
     nullseat_set_trust_status,
     nullseat_verbose_no,
+    nullseat_interactive_no,
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,

@@ -380,6 +380,13 @@ static int plink_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input)
     return ret;
 }
 
+static bool plink_seat_interactive(Seat *seat)
+{
+    return (!*conf_get_str(conf, CONF_remote_cmd) &&
+            !*conf_get_str(conf, CONF_remote_cmd2) &&
+            !*conf_get_str(conf, CONF_ssh_nc_host));
+}
+
 static const SeatVtable plink_seat_vt = {
     plink_output,
     plink_eof,
@@ -400,6 +407,7 @@ static const SeatVtable plink_seat_vt = {
     console_stripctrl_new,
     console_set_trust_status,
     cmdline_seat_verbose,
+    plink_seat_interactive,
 };
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
@@ -738,11 +746,6 @@ int main(int argc, char **argv)
      */
     if (use_subsystem)
         conf_set_bool(conf, CONF_ssh_subsys, true);
-
-    if (!*conf_get_str(conf, CONF_remote_cmd) &&
-        !*conf_get_str(conf, CONF_remote_cmd2) &&
-        !*conf_get_str(conf, CONF_ssh_nc_host))
-        flags |= FLAG_INTERACTIVE;
 
     /*
      * Select protocol. This is farmed out into a table in a

@@ -400,6 +400,7 @@ static const SeatVtable gtk_seat_vt = {
     gtk_seat_stripctrl_new,
     gtk_seat_set_trust_status,
     nullseat_verbose_yes,
+    nullseat_interactive_yes,
 };
 
 static void gtk_eventlog(LogPolicy *lp, const char *string)

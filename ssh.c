@@ -744,7 +744,7 @@ static const char *connect_to_host(
         ssh->fullhostname = NULL;
         *realhost = dupstr(host);      /* best we can do */
 
-        if (seat_verbose(ssh->seat) || (flags & FLAG_INTERACTIVE)) {
+        if (seat_verbose(ssh->seat) || seat_interactive(ssh->seat)) {
             /* In an interactive session, or in verbose mode, announce
              * in the console window that we're a sharing downstream,
              * to avoid confusing users as to why this session doesn't

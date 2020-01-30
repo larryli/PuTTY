@@ -361,6 +361,7 @@ static const SeatVtable win_seat_vt = {
     win_seat_stripctrl_new,
     win_seat_set_trust_status,
     nullseat_verbose_yes,
+    nullseat_interactive_yes,
 };
 static Seat win_seat_impl = { &win_seat_vt };
 Seat *const win_seat = &win_seat_impl;
@@ -484,7 +485,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     hinst = inst;
     hwnd = NULL;
-    flags = FLAG_INTERACTIVE;
     cmdline_tooltype |= TOOLTYPE_HOST_ARG | TOOLTYPE_PORT_ARG |
         TOOLTYPE_NO_VERBOSE_OPTION;
 
