@@ -2235,7 +2235,6 @@ int psftp_main(int argc, char *argv[])
 
     default_protocol = PROT_TELNET;
 
-    flags = 0;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     sk_init();
 

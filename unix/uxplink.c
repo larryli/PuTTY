@@ -603,7 +603,6 @@ int main(int argc, char **argv)
     stderr_bs = BinarySink_UPCAST(&stderr_bcs);
     outgoingeof = EOF_NO;
 
-    flags = 0;
     cmdline_tooltype |=
         (TOOLTYPE_HOST_ARG |
          TOOLTYPE_HOST_ARG_CAN_BE_SESSION |
