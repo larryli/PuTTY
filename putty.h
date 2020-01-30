@@ -587,11 +587,6 @@ GLOBAL int default_protocol;
 GLOBAL int default_port;
 
 /*
- * This is set true by cmdline.c iff a session is loaded with "-load".
- */
-GLOBAL bool loaded_session;
-
-/*
  * Mechanism for getting text strings such as usernames and passwords
  * from the front-end.
  * The fields are mostly modelled after SSH's keyboard-interactive auth.
@@ -1958,6 +1953,7 @@ void cmdline_cleanup(void);
 int cmdline_get_passwd_input(prompts_t *p);
 bool cmdline_host_ok(Conf *);
 bool cmdline_verbose(void);
+bool cmdline_loaded_session(void);
 
 /*
  * Here we have a flags word provided by each tool, which describes

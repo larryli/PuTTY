@@ -2568,7 +2568,7 @@ static int psftp_connect(char *userhost, char *user, int portnumber)
      * If we haven't loaded session details already (e.g., from -load),
      * try looking for a session called "host".
      */
-    if (!loaded_session) {
+    if (!cmdline_loaded_session()) {
         /* Try to load settings for `host' into a temporary config */
         Conf *conf2 = conf_new();
         conf_set_str(conf2, CONF_host, "");
@@ -2772,7 +2772,6 @@ int psftp_main(int argc, char *argv[])
     /* Load Default Settings before doing anything else. */
     conf = conf_new();
     do_defaults(NULL, conf);
-    loaded_session = false;
 
     for (i = 1; i < argc; i++) {
         int ret;

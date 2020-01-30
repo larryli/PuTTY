@@ -146,9 +146,11 @@ static bool cmdline_check_unavailable(int flag, const char *p)
 static bool seen_hostname_argument = false;
 static bool seen_port_argument = false;
 static bool seen_verbose_option = false;
+static bool loaded_session = false;
 bool cmdline_verbose(void) { return seen_verbose_option; }
 bool cmdline_seat_verbose(Seat *seat) { return cmdline_verbose(); }
 bool cmdline_lp_verbose(LogPolicy *lp) { return cmdline_verbose(); }
+bool cmdline_loaded_session(void) { return loaded_session; }
 
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
