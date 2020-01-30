@@ -391,7 +391,6 @@ int cmdline_process_param(const char *p, char *value,
          * saved. */
         do_defaults(value, conf);
         loaded_session = true;
-        cmdline_session_name = dupstr(value);
         return 2;
     }
     if (!strcmp(p, "-ssh")) {

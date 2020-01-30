@@ -590,10 +590,6 @@ GLOBAL int default_port;
  * This is set true by cmdline.c iff a session is loaded with "-load".
  */
 GLOBAL bool loaded_session;
-/*
- * This is set to the name of the loaded session.
- */
-GLOBAL char *cmdline_session_name;
 
 /*
  * Mechanism for getting text strings such as usernames and passwords
