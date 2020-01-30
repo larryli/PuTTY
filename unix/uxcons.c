@@ -26,7 +26,7 @@ static bool stderr_is_a_tty;
 void stderr_tty_init()
 {
     /* Ensure that if stderr is a tty, we can get it back to a sane state. */
-    if ((flags & FLAG_STDERR_TTY) && isatty(STDERR_FILENO)) {
+    if (isatty(STDERR_FILENO)) {
         stderr_is_a_tty = true;
         tcgetattr(STDERR_FILENO, &orig_termios_stderr);
     }
