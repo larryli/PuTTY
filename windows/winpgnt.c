@@ -1183,7 +1183,7 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-int flags = FLAG_SYNCAGENT;
+int flags = 0;
 
 struct winpgnt_client {
     PageantListenerClient plc;

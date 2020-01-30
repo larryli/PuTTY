@@ -662,13 +662,9 @@ char *agent_named_pipe_name(void);
  * winpgntc.c needs to schedule callbacks for asynchronous agent
  * requests. This has to be done differently in GUI and console, so
  * there's an exported function used for the purpose.
- *
- * Also, we supply FLAG_SYNCAGENT to force agent requests to be
- * synchronous in pscp and psftp.
  */
 void agent_schedule_callback(void (*callback)(void *, void *, int),
                              void *callback_ctx, void *data, int len);
-#define FLAG_SYNCAGENT 0x1000
 
 /*
  * Exports from winser.c.

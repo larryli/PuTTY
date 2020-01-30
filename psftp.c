@@ -2769,11 +2769,7 @@ int psftp_main(int argc, char *argv[])
     bool sanitise_stderr = true;
     char *batchfile = NULL;
 
-    flags = 0
-#ifdef FLAG_SYNCAGENT
-        | FLAG_SYNCAGENT
-#endif
-        ;
+    flags = 0;
     cmdline_tooltype = TOOLTYPE_FILETRANSFER;
     sk_init();
 
