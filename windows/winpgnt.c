@@ -1161,12 +1161,6 @@ void spawn_cmd(const char *cmdline, const char *args, int show)
     }
 }
 
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    unreachable("all Pageant's own agent requests should be synchronous");
-}
-
 void logevent(LogContext *logctx, const char *event)
 {
     unreachable("Pageant can't create a LogContext, so this can't be called");

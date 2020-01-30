@@ -2430,12 +2430,6 @@ static bool verbose = false;
 
 void ldisc_echoedit_update(Ldisc *ldisc) { }
 
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    unreachable("all PSFTP agent requests should be synchronous");
-}
-
 /*
  * Receive a block of data from the SSH link. Block until all data
  * is available.

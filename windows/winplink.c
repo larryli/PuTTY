@@ -13,15 +13,6 @@
 #include "tree234.h"
 #include "winsecur.h"
 
-#define WM_AGENT_CALLBACK (WM_APP + 4)
-
-struct agent_callback {
-    void (*callback)(void *, void *, int);
-    void *callback_ctx;
-    void *data;
-    int len;
-};
-
 void cmdline_error(const char *fmt, ...)
 {
     va_list ap;
@@ -114,17 +105,6 @@ static const SeatVtable plink_seat_vt = {
 static Seat plink_seat[1] = {{ &plink_seat_vt }};
 
 static DWORD main_thread_id;
-
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    struct agent_callback *c = snew(struct agent_callback);
-    c->callback = callback;
-    c->callback_ctx = callback_ctx;
-    c->data = data;
-    c->len = len;
-    PostThreadMessage(main_thread_id, WM_AGENT_CALLBACK, 0, (LPARAM)c);
-}
 
 /*
  *  Short description of parameters.
@@ -541,8 +521,7 @@ int main(int argc, char **argv)
         handles = handle_get_events(&nhandles);
         handles = sresize(handles, nhandles+1, HANDLE);
         handles[nhandles] = winselcli_event;
-        n = MsgWaitForMultipleObjects(nhandles+1, handles, false, ticks,
-                                      QS_POSTMESSAGE);
+        n = WaitForMultipleObjects(nhandles+1, handles, false, ticks);
         if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
             handle_got_event(handles[n - WAIT_OBJECT_0]);
         } else if (n == WAIT_OBJECT_0 + nhandles) {
@@ -599,15 +578,6 @@ int main(int argc, char **argv)
                             select_result(wp, lp);
                         }
                 }
-            }
-        } else if (n == WAIT_OBJECT_0 + nhandles + 1) {
-            MSG msg;
-            while (PeekMessage(&msg, INVALID_HANDLE_VALUE,
-                               WM_AGENT_CALLBACK, WM_AGENT_CALLBACK,
-                               PM_REMOVE)) {
-                struct agent_callback *c = (struct agent_callback *)msg.lParam;
-                c->callback(c->callback_ctx, c->data, c->len);
-                sfree(c);
             }
         }
 

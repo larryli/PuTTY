@@ -659,14 +659,6 @@ void handle_sink_init(handle_sink *sink, struct handle *h);
 char *agent_named_pipe_name(void);
 
 /*
- * winpgntc.c needs to schedule callbacks for asynchronous agent
- * requests. This has to be done differently in GUI and console, so
- * there's an exported function used for the purpose.
- */
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len);
-
-/*
  * Exports from winser.c.
  */
 extern const struct BackendVtable serial_backend;

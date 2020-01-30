@@ -67,8 +67,7 @@
 
 #define WM_IGNORE_CLIP (WM_APP + 2)
 #define WM_FULLSCR_ON_MAX (WM_APP + 3)
-#define WM_AGENT_CALLBACK (WM_APP + 4)
-#define WM_GOT_CLIPDATA (WM_APP + 6)
+#define WM_GOT_CLIPDATA (WM_APP + 4)
 
 /* Needed for Chinese support and apparently not always defined. */
 #ifndef VK_PROCESSKEY
@@ -157,13 +156,6 @@ int cursor_type;
 int vtmode;
 
 static struct sesslist sesslist;       /* for saved-session menu */
-
-struct agent_callback {
-    void (*callback)(void *, void *, int);
-    void *callback_ctx;
-    void *data;
-    int len;
-};
 
 #define FONT_NORMAL 0
 #define FONT_BOLD 1
@@ -3339,13 +3331,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             term_invalidate(term);
         }
         break;
-      case WM_AGENT_CALLBACK:
-        {
-            struct agent_callback *c = (struct agent_callback *)lParam;
-            c->callback(c->callback_ctx, c->data, c->len);
-            sfree(c);
-        }
-        return 0;
       case WM_GOT_CLIPDATA:
         process_clipdata((HGLOBAL)lParam, wParam);
         return 0;
@@ -5813,17 +5798,6 @@ static int win_seat_get_userpass_input(
     if (ret == -1)
         ret = term_get_userpass_input(term, p, input);
     return ret;
-}
-
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    struct agent_callback *c = snew(struct agent_callback);
-    c->callback = callback;
-    c->callback_ctx = callback_ctx;
-    c->data = data;
-    c->len = len;
-    PostMessage(hwnd, WM_AGENT_CALLBACK, 0, (LPARAM)c);
 }
 
 static bool win_seat_set_trust_status(Seat *seat, bool trusted)

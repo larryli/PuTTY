@@ -129,12 +129,6 @@ static PRINTF_LIKE(2, 3) void tell_user(FILE *stream, const char *fmt, ...)
     sfree(str2);
 }
 
-void agent_schedule_callback(void (*callback)(void *, void *, int),
-                             void *callback_ctx, void *data, int len)
-{
-    unreachable("all PSCP agent requests should be synchronous");
-}
-
 /*
  * Receive a block of data from the SSH link. Block until all data
  * is available.
