@@ -311,9 +311,8 @@ bool console_set_trust_status(Seat *seat, bool trusted)
  * Ask whether to wipe a session log file before writing to it.
  * Returns 2 for wipe, 1 for append, 0 for cancel (don't log).
  */
-static int console_askappend(LogPolicy *lp, Filename *filename,
-                             void (*callback)(void *ctx, int result),
-                             void *ctx)
+int console_askappend(LogPolicy *lp, Filename *filename,
+                      void (*callback)(void *ctx, int result), void *ctx)
 {
     HANDLE hin;
     DWORD savemode, i;
@@ -400,7 +399,7 @@ void pgp_fingerprints(void)
           "  " PGP_PREV_MASTER_KEY_FP "\n", stdout);
 }
 
-static void console_logging_error(LogPolicy *lp, const char *string)
+void console_logging_error(LogPolicy *lp, const char *string)
 {
     /* Ordinary Event Log entries are displayed in the same way as
      * logging errors, but only in verbose mode */
@@ -408,7 +407,7 @@ static void console_logging_error(LogPolicy *lp, const char *string)
     fflush(stderr);
 }
 
-static void console_eventlog(LogPolicy *lp, const char *string)
+void console_eventlog(LogPolicy *lp, const char *string)
 {
     /* Ordinary Event Log entries are displayed in the same way as
      * logging errors, but only in verbose mode */
