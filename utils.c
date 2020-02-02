@@ -1019,7 +1019,7 @@ char *mkstr(ptrlen pl)
 
 bool strstartswith(const char *s, const char *t)
 {
-    return !memcmp(s, t, strlen(t));
+    return !strncmp(s, t, strlen(t));
 }
 
 bool strendswith(const char *s, const char *t)

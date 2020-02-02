@@ -1265,9 +1265,15 @@ const char *key_type_to_str(int type);
 bool import_possible(int type);
 int import_target_type(int type);
 bool import_encrypted(const Filename *filename, int type, char **comment);
+bool import_encrypted_s(const Filename *filename, BinarySource *src,
+                      int type, char **comment);
 int import_ssh1(const Filename *filename, int type,
                 RSAKey *key, char *passphrase, const char **errmsg_p);
+int import_ssh1_s(BinarySource *src, int type,
+                  RSAKey *key, char *passphrase, const char **errmsg_p);
 ssh2_userkey *import_ssh2(const Filename *filename, int type,
+                          char *passphrase, const char **errmsg_p);
+ssh2_userkey *import_ssh2_s(BinarySource *src, int type,
                           char *passphrase, const char **errmsg_p);
 bool export_ssh1(const Filename *filename, int type,
                  RSAKey *key, char *passphrase);
