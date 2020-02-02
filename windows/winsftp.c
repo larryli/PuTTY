@@ -714,7 +714,7 @@ char *ssh_sftp_get_cmdline(const char *prompt, bool no_fds_ok)
 
 void platform_psftp_pre_conn_setup(LogPolicy *lp)
 {
-    if (restricted_acl) {
+    if (restricted_acl()) {
         lp_eventlog(lp, "Running with restricted process ACL");
     }
 }

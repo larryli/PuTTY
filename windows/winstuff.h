@@ -587,7 +587,7 @@ void dll_hijacking_protection(void);
 HMODULE load_system32_dll(const char *libname);
 const char *win_strerror(int error);
 void restrict_process_acl(void);
-GLOBAL bool restricted_acl;
+bool restricted_acl(void);
 void escape_registry_key(const char *in, strbuf *out);
 void unescape_registry_key(const char *in, strbuf *out);
 

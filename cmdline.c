@@ -845,7 +845,6 @@ int cmdline_process_param(const char *p, char *value,
         !strcmp(p, "-restrictacl")) {
         RETURN(1);
         restrict_process_acl();
-        restricted_acl = true;
     }
 #endif
 

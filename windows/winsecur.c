@@ -228,6 +228,9 @@ bool make_private_security_descriptor(DWORD permissions,
     return ret;
 }
 
+static bool acl_restricted = false;
+bool restricted_acl(void) { return acl_restricted; }
+
 static bool really_restrict_process_acl(char **error)
 {
     EXPLICIT_ACCESS ea[2];
@@ -278,7 +281,7 @@ static bool really_restrict_process_acl(char **error)
         goto cleanup;
     }
 
-
+    acl_restricted = true;
     ret=true;
 
   cleanup:

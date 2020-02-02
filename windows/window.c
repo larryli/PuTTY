@@ -561,7 +561,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             (!p[2] || p[2] == '@' || p[2] == '&')) {
             /* &R restrict-acl prefix */
             restrict_process_acl();
-            restricted_acl = true;
             p += 2;
         }
 
@@ -866,7 +865,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         }
     }
 
-    if (restricted_acl) {
+    if (restricted_acl()) {
         lp_eventlog(win_gui_logpolicy, "Running with restricted process ACL");
     }
 
@@ -2224,7 +2223,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                 PROCESS_INFORMATION pi;
                 HANDLE filemap = NULL;
 
-                if (restricted_acl)
+                if (restricted_acl())
                     argprefix = "&R";
                 else
                     argprefix = "";

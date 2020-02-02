@@ -404,7 +404,7 @@ int main(int argc, char **argv)
             return 1;
     }
 
-    if (restricted_acl) {
+    if (restricted_acl()) {
         lp_eventlog(console_cli_logpolicy,
                     "Running with restricted process ACL");
     }
