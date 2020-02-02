@@ -147,6 +147,8 @@ enum { SYSMENU, CTXMENU };
 static HMENU savedsess_menu;
 
 static Conf *conf;
+static LogContext *logctx;
+static Terminal *term;
 
 struct wm_netevent_params {
     /* Used to pass data to wm_netevent_callback */
@@ -472,6 +474,8 @@ const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG |
     TOOLTYPE_PORT_ARG |
     TOOLTYPE_NO_VERBOSE_OPTION;
+
+HINSTANCE hinst;
 
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {

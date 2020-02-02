@@ -1187,6 +1187,8 @@ static const PageantListenerClientVtable winpgnt_vtable = {
 
 static struct winpgnt_client wpc[1];
 
+HINSTANCE hinst;
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     MSG msg;

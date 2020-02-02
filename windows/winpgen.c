@@ -1551,6 +1551,8 @@ void cleanup_exit(int code)
     exit(code);
 }
 
+HINSTANCE hinst;
+
 int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 {
     int argc, i;
@@ -1561,7 +1563,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     init_common_controls();
     hinst = inst;
-    hwnd = NULL;
 
     /*
      * See if we can find our Help file.

@@ -30,6 +30,7 @@ BinarySink *stdout_bs, *stderr_bs;
 DWORD orig_console_mode;
 
 static Backend *backend;
+static LogContext *logctx;
 static Conf *conf;
 
 static void plink_echoedit_update(Seat *seat, bool echo, bool edit)

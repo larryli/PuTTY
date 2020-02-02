@@ -210,15 +210,11 @@ typedef void *Ssh_gss_name;
 #endif
 
 /*
- * Window handles for the windows that can be running during a
- * PuTTY session.
+ * The all-important instance handle, saved from WinMain in every GUI
+ * program and exported for other GUI code to pass back to the Windows
+ * API.
  */
-GLOBAL HWND hwnd;       /* the main terminal window */
-
-/*
- * The all-important instance handle.
- */
-GLOBAL HINSTANCE hinst;
+extern HINSTANCE hinst;
 
 /*
  * Help file stuff in winhelp.c.
@@ -229,15 +225,6 @@ bool has_help(void);
 void launch_help(HWND hwnd, const char *topic);
 void quit_help(HWND hwnd);
 int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
-
-/*
- * The terminal and logging context are notionally local to the
- * Windows front end, but they must be shared between window.c and
- * windlg.c. Likewise the Seat structure for the Windows GUI, and the
- * Conf for the main session..
- */
-GLOBAL Terminal *term;
-GLOBAL LogContext *logctx;
 
 /*
  * GUI seat methods in windlg.c, so that the vtable definition in
@@ -579,7 +566,7 @@ HWND event_log_window(void);
 /*
  * Exports from winmisc.c.
  */
-GLOBAL DWORD osMajorVersion, osMinorVersion, osPlatformId;
+extern DWORD osMajorVersion, osMinorVersion, osPlatformId;
 void init_winver(void);
 void dll_hijacking_protection(void);
 HMODULE load_system32_dll(const char *libname);
