@@ -784,6 +784,13 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                             s->suppress_wait_for_response_packet = true;
                             ssh_free_pktout(s->pktout);
                         }
+                    } else {
+                        ppl_logevent("Pageant failed to respond to "
+                                     "signing request");
+                        ppl_printf("Pageant failed to "
+                                   "respond to signing request\r\n");
+                        s->suppress_wait_for_response_packet = true;
+                        ssh_free_pktout(s->pktout);
                     }
                 }
 
