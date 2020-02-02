@@ -252,12 +252,6 @@ int win_seat_confirm_weak_cached_hostkey(
     void (*callback)(void *ctx, int result), void *ctx);
 
 /*
- * The Windows GUI seat object itself, so that its methods can be
- * called outside window.c.
- */
-extern Seat *const win_seat;
-
-/*
  * Windows-specific clipboard helper function shared with windlg.c,
  * which takes the data string in the system code page instead of
  * Unicode.

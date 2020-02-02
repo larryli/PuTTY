@@ -12,6 +12,7 @@
 #include "putty.h"
 #include "ssh.h"
 #include "win_res.h"
+#include "winseat.h"
 #include "storage.h"
 #include "dialog.h"
 #include "licence.h"
@@ -800,10 +801,12 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
 static void win_gui_logging_error(LogPolicy *lp, const char *event)
 {
+    WinGuiSeat *wgs = container_of(lp, WinGuiSeat, logpolicy);
+
     /* Send 'can't open log file' errors to the terminal window.
      * (Marked as stderr, although terminal.c won't care.) */
-    seat_stderr_pl(win_seat, ptrlen_from_asciz(event));
-    seat_stderr_pl(win_seat, PTRLEN_LITERAL("\r\n"));
+    seat_stderr_pl(&wgs->seat, ptrlen_from_asciz(event));
+    seat_stderr_pl(&wgs->seat, PTRLEN_LITERAL("\r\n"));
 }
 
 void showeventlog(HWND hwnd)
@@ -860,6 +863,8 @@ int win_seat_verify_ssh_host_key(
 
     static const char mbtitle[] = "%s Security Alert";
 
+    WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
+
     /*
      * Verify the key against the registry.
      */
@@ -872,7 +877,7 @@ int win_seat_verify_ssh_host_key(
         char *text = dupprintf(wrongmsg, appname, keytype, fingerprint,
                                appname);
         char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(hwnd, text, caption,
+        mbret = message_box(wgs->term_hwnd, text, caption,
                             MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
                             HELPCTXID(errors_hostkey_changed));
         assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
@@ -887,7 +892,7 @@ int win_seat_verify_ssh_host_key(
         int mbret;
         char *text = dupprintf(absentmsg, keytype, fingerprint, appname);
         char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(hwnd, text, caption,
+        mbret = message_box(wgs->term_hwnd, text, caption,
                             MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
                             HELPCTXID(errors_hostkey_absent));
         assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
@@ -998,13 +1003,12 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
         return 0;
 }
 
-static const LogPolicyVtable win_gui_logpolicy_vt = {
+const LogPolicyVtable win_gui_logpolicy_vt = {
     win_gui_eventlog,
     win_gui_askappend,
     win_gui_logging_error,
     null_lp_verbose_yes,
 };
-LogPolicy win_gui_logpolicy[1] = {{ &win_gui_logpolicy_vt }};
 
 /*
  * Warn about the obsolescent key file format.
