@@ -1260,6 +1260,7 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
 char *ssh2_fingerprint_blob(ptrlen);
 char *ssh2_fingerprint(ssh_key *key);
 int key_type(const Filename *filename);
+int key_type_s(BinarySource *src);
 const char *key_type_to_str(int type);
 
 bool import_possible(int type);

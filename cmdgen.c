@@ -215,6 +215,8 @@ int main(int argc, char **argv)
 {
     char *infile = NULL;
     Filename *infilename = NULL, *outfilename = NULL;
+    LoadedFile *infile_lf = NULL;
+    BinarySource *infile_bs = NULL;
     enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, ED25519 } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
@@ -256,7 +258,7 @@ int main(int argc, char **argv)
      */
     while (--argc) {
         char *p = *++argv;
-        if (*p == '-') {
+        if (p[0] == '-' && p[1]) {
             /*
              * An option.
              */
@@ -562,9 +564,23 @@ int main(int argc, char **argv)
      * course of action.
      */
     if (infile) {
-        infilename = filename_from_str(infile);
+        const char *load_error;
 
-        intype = key_type(infilename);
+        infilename = filename_from_str(infile);
+        if (!strcmp(infile, "-"))
+            infile_lf = lf_load_keyfile_fp(stdin, &load_error);
+        else
+            infile_lf = lf_load_keyfile(infilename, &load_error);
+
+        if (!infile_lf) {
+            fprintf(stderr, "puttygen: unable to load file `%s': %s\n",
+                    infile, load_error);
+            RETURN(1);
+        }
+
+        infile_bs = BinarySource_UPCAST(infile_lf);
+        intype = key_type_s(infile_bs);
+        BinarySource_REWIND(infile_bs);
 
         switch (intype) {
           case SSH_KEYTYPE_UNOPENABLE:
@@ -751,11 +767,13 @@ int main(int argc, char **argv)
          * Find out whether the input key is encrypted.
          */
         if (intype == SSH_KEYTYPE_SSH1)
-            encrypted = rsa1_encrypted_f(infilename, &origcomment);
+            encrypted = rsa1_encrypted_s(infile_bs, &origcomment);
         else if (intype == SSH_KEYTYPE_SSH2)
-            encrypted = ppk_encrypted_f(infilename, &origcomment);
+            encrypted = ppk_encrypted_s(infile_bs, &origcomment);
         else
-            encrypted = import_encrypted(infilename, intype, &origcomment);
+            encrypted = import_encrypted_s(infilename, infile_bs,
+                                           intype, &origcomment);
+        BinarySource_REWIND(infile_bs);
 
         /*
          * If so, ask for a passphrase.
@@ -799,7 +817,7 @@ int main(int argc, char **argv)
 
                 blob = strbuf_new();
 
-                ret = rsa1_loadpub_f(infilename, BinarySink_UPCAST(blob),
+                ret = rsa1_loadpub_s(infile_bs, BinarySink_UPCAST(blob),
                                      &origcomment, &error);
                 BinarySource_BARE_INIT(src, blob->u, blob->len);
                 get_rsa_ssh1_pub(src, ssh1key, RSA_SSH1_EXPONENT_FIRST);
@@ -811,8 +829,9 @@ int main(int argc, char **argv)
                 ssh1key->q = NULL;
                 ssh1key->iqmp = NULL;
             } else {
-                ret = rsa1_load_f(infilename, ssh1key, old_passphrase, &error);
+                ret = rsa1_load_s(infile_bs, ssh1key, old_passphrase, &error);
             }
+            BinarySource_REWIND(infile_bs);
             if (ret > 0)
                 error = NULL;
             else if (!error)
@@ -826,7 +845,7 @@ int main(int argc, char **argv)
                 sfree(origcomment);
                 origcomment = NULL;
                 ssh2blob = strbuf_new();
-                if (ppk_loadpub_f(infilename, &ssh2alg,
+                if (ppk_loadpub_s(infile_bs, &ssh2alg,
                                   BinarySink_UPCAST(ssh2blob),
                                   &origcomment, &error)) {
                     const ssh_keyalg *alg = find_pubkey_alg(ssh2alg);
@@ -841,8 +860,9 @@ int main(int argc, char **argv)
                 }
                 sfree(ssh2alg);
             } else {
-                ssh2key = ppk_load_f(infilename, old_passphrase, &error);
+                ssh2key = ppk_load_s(infile_bs, old_passphrase, &error);
             }
+            BinarySource_REWIND(infile_bs);
             if ((ssh2key && ssh2key != SSH2_WRONG_PASSPHRASE) || ssh2blob)
                 error = NULL;
             else if (!error) {
@@ -856,7 +876,7 @@ int main(int argc, char **argv)
           case SSH_KEYTYPE_OPENSSH_PEM:
           case SSH_KEYTYPE_OPENSSH_NEW:
           case SSH_KEYTYPE_SSHCOM:
-            ssh2key = import_ssh2(infilename, intype, old_passphrase, &error);
+            ssh2key = import_ssh2_s(infile_bs, intype, old_passphrase, &error);
             if (ssh2key) {
                 if (ssh2key != SSH2_WRONG_PASSPHRASE)
                     error = NULL;
@@ -1105,6 +1125,8 @@ int main(int argc, char **argv)
     sfree(origcomment);
     if (infilename)
         filename_free(infilename);
+    if (infile_lf)
+        lf_free(infile_lf);
     if (outfilename)
         filename_free(outfilename);
     sfree(outfiletmp);

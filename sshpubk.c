@@ -146,8 +146,6 @@ LoadedFile *lf_load_keyfile_fp(FILE *fp, const char **errptr)
     return lf;
 }
 
-static int key_type_s(BinarySource *src);
-
 static bool expect_signature(BinarySource *src, ptrlen realsig)
 {
     ptrlen thissig = get_data(src, realsig.len);
@@ -1678,7 +1676,7 @@ static int key_type_s_internal(BinarySource *src)
     return SSH_KEYTYPE_UNKNOWN;        /* unrecognised or EOF */
 }
 
-static int key_type_s(BinarySource *src)
+int key_type_s(BinarySource *src)
 {
     int toret = key_type_s_internal(src);
     BinarySource_REWIND(src);
