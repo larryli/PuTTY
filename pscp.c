@@ -2229,7 +2229,7 @@ int psftp_main(int argc, char *argv[])
     int i;
     bool sanitise_stderr = true;
 
-    settings_set_default_protocol(PROT_TELNET);
+    settings_set_default_protocol(PROT_SSH);
 
     sk_init();
 
