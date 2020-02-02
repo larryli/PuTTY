@@ -6,6 +6,8 @@
  */
 
 #include <stdio.h>
+#include <string.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
 
@@ -42,36 +44,35 @@ static const ptrlen rsa1_signature =
                           (x)=='+' ? 62 : \
                           (x)=='/' ? 63 : 0 )
 
-typedef struct LoadedFile {
-    char *data;
-    size_t len;
-    BinarySource_IMPLEMENTATION;
-} LoadedFile;
+typedef enum {
+    LF_OK,      /* file loaded successfully */
+    LF_TOO_BIG, /* file didn't fit in buffer */
+    LF_ERROR,   /* error from stdio layer */
+} LoadFileStatus;
 
-static void lf_free(LoadedFile *lf)
+static LoadedFile *lf_new(size_t max_size)
 {
+    LoadedFile *lf = snew_plus(LoadedFile, max_size);
+    lf->data = snew_plus_get_aux(lf);
+    lf->len = 0;
+    lf->max_size = max_size;
+    return lf;
+}
+
+void lf_free(LoadedFile *lf)
+{
+    smemclr(lf->data, lf->max_size);
     smemclr(lf, sizeof(LoadedFile));
     sfree(lf);
 }
 
-static LoadedFile *lf_load(const Filename *filename, size_t max_size,
-                           bool tolerate_overflow)
+static LoadFileStatus lf_load_fp(LoadedFile *lf, FILE *fp)
 {
-    FILE *fp = f_open(filename, "rb", false);
-    if (!fp)
-        return NULL;
-
-    LoadedFile *lf = snew_plus(LoadedFile, max_size);
-    lf->data = snew_plus_get_aux(lf);
     lf->len = 0;
-
-    while (lf->len < max_size) {
-        size_t retd = fread(lf->data + lf->len, 1, max_size - lf->len, fp);
-        if (ferror(fp)) {
-            lf_free(lf);
-            fclose(fp);
-            return NULL;
-        }
+    while (lf->len < lf->max_size) {
+        size_t retd = fread(lf->data + lf->len, 1, lf->max_size - lf->len, fp);
+        if (ferror(fp))
+            return LF_ERROR;
 
         if (retd == 0)
             break;
@@ -79,24 +80,70 @@ static LoadedFile *lf_load(const Filename *filename, size_t max_size,
         lf->len += retd;
     }
 
-    if (lf->len == max_size && !tolerate_overflow) {
+    LoadFileStatus status = LF_OK;
+
+    if (lf->len == lf->max_size) {
         /* The file might be too long to fit in our fixed-size
          * structure. Try reading one more byte, to check. */
-        if (fgetc(fp) != EOF) {
-            lf_free(lf);
-            fclose(fp);
-            return NULL;
-        }
+        if (fgetc(fp) != EOF)
+            status = LF_TOO_BIG;
     }
 
-    fclose(fp);
     BinarySource_INIT(lf, lf->data, lf->len);
+
+    return status;
+}
+
+static LoadFileStatus lf_load(LoadedFile *lf, const Filename *filename)
+{
+    FILE *fp = f_open(filename, "rb", false);
+    if (!fp)
+        return LF_ERROR;
+
+    LoadFileStatus status = lf_load_fp(lf, fp);
+    fclose(fp);
+    return status;
+}
+
+static inline bool lf_load_keyfile_helper(LoadFileStatus status,
+                                          const char **errptr)
+{
+    const char *error;
+    switch (status) {
+      case LF_OK:
+        return true;
+      case LF_TOO_BIG:
+        error = "file is too large to be a key file";
+        break;
+      case LF_ERROR:
+        error = strerror(errno);
+        break;
+      default:
+        unreachable("bad status value in lf_load_keyfile_helper");
+    }
+    if (errptr)
+        *errptr = error;
+    return false;
+}
+
+LoadedFile *lf_load_keyfile(const Filename *filename, const char **errptr)
+{
+    LoadedFile *lf = lf_new(MAX_KEY_FILE_SIZE);
+    if (!lf_load_keyfile_helper(lf_load(lf, filename), errptr)) {
+        lf_free(lf);
+        return NULL;
+    }
     return lf;
 }
 
-static LoadedFile *lf_load_keyfile(const Filename *filename)
+LoadedFile *lf_load_keyfile_fp(FILE *fp, const char **errptr)
 {
-    return lf_load(filename, MAX_KEY_FILE_SIZE, false);
+    LoadedFile *lf = lf_new(MAX_KEY_FILE_SIZE);
+    if (!lf_load_keyfile_helper(lf_load_fp(lf, fp), errptr)) {
+        lf_free(lf);
+        return NULL;
+    }
+    return lf;
 }
 
 static int key_type_s(BinarySource *src);
@@ -220,11 +267,9 @@ int rsa1_load_s(BinarySource *src, RSAKey *key,
 int rsa1_load_f(const Filename *filename, RSAKey *key,
                 const char *passphrase, const char **errstr)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
-    if (!lf) {
-        *errstr = "can't open file";
+    LoadedFile *lf = lf_load_keyfile(filename, errstr);
+    if (!lf)
         return false;
-    }
 
     int toret = rsa1_load_s(BinarySource_UPCAST(lf), key, passphrase, errstr);
     lf_free(lf);
@@ -243,7 +288,7 @@ bool rsa1_encrypted_s(BinarySource *src, char **comment)
 
 bool rsa1_encrypted_f(const Filename *filename, char **comment)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
+    LoadedFile *lf = lf_load_keyfile(filename, NULL);
     if (!lf)
         return false; /* couldn't even open the file */
 
@@ -342,11 +387,9 @@ int rsa1_loadpub_s(BinarySource *src, BinarySink *bs,
 int rsa1_loadpub_f(const Filename *filename, BinarySink *bs,
                    char **commentptr, const char **errorstr)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
-    if (!lf) {
-        *errorstr = "can't open file";
+    LoadedFile *lf = lf_load_keyfile(filename, errorstr);
+    if (!lf)
         return 0;
-    }
 
     int toret = rsa1_loadpub_s(BinarySource_UPCAST(lf), bs,
                                commentptr, errorstr);
@@ -883,11 +926,9 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
 ssh2_userkey *ppk_load_f(const Filename *filename, const char *passphrase,
                          const char **errorstr)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
-    if (!lf) {
+    LoadedFile *lf = lf_load_keyfile(filename, errorstr);
+    if (!lf)
         *errorstr = "can't open file";
-        return NULL;
-    }
 
     ssh2_userkey *toret = ppk_load_s(BinarySource_UPCAST(lf),
                                      passphrase, errorstr);
@@ -1191,11 +1232,9 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
 bool ppk_loadpub_f(const Filename *filename, char **algorithm, BinarySink *bs,
                    char **commentptr, const char **errorstr)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
-    if (!lf) {
-        *errorstr = "can't open file";
+    LoadedFile *lf = lf_load_keyfile(filename, errorstr);
+    if (!lf)
         return false;
-    }
 
     bool toret = ppk_loadpub_s(BinarySource_UPCAST(lf), algorithm, bs,
                                commentptr, errorstr);
@@ -1253,7 +1292,7 @@ bool ppk_encrypted_s(BinarySource *src, char **commentptr)
 
 bool ppk_encrypted_f(const Filename *filename, char **commentptr)
 {
-    LoadedFile *lf = lf_load_keyfile(filename);
+    LoadedFile *lf = lf_load_keyfile(filename, NULL);
     if (!lf) {
         if (commentptr)
             *commentptr = NULL;
@@ -1648,9 +1687,11 @@ static int key_type_s(BinarySource *src)
 
 int key_type(const Filename *filename)
 {
-    LoadedFile *lf = lf_load(filename, 1024, true);
-    if (!lf)
+    LoadedFile *lf = lf_new(1024);
+    if (lf_load(lf, filename) == LF_ERROR) {
+        lf_free(lf);
         return SSH_KEYTYPE_UNOPENABLE;
+    }
 
     int toret = key_type_s(BinarySource_UPCAST(lf));
     lf_free(lf);

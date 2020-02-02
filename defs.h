@@ -64,6 +64,7 @@ typedef struct FontSpec FontSpec;
 typedef struct bufchain_tag bufchain;
 
 typedef struct strbuf strbuf;
+typedef struct LoadedFile LoadedFile;
 
 typedef struct RSAKey RSAKey;
 
