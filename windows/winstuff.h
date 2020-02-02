@@ -235,7 +235,6 @@ int has_embedded_chm(void);            /* 1 = yes, 0 = no, -1 = N/A */
  */
 GLOBAL Terminal *term;
 GLOBAL LogContext *logctx;
-GLOBAL Conf *conf;
 
 /*
  * GUI seat methods in windlg.c, so that the vtable definition in
@@ -569,8 +568,8 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
  * Exports from windlg.c.
  */
 void defuse_showwindow(void);
-bool do_config(void);
-bool do_reconfig(HWND, int);
+bool do_config(Conf *);
+bool do_reconfig(HWND, Conf *, int);
 void showeventlog(HWND);
 void showabout(HWND);
 void force_normal(HWND hwnd);

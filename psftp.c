@@ -35,7 +35,7 @@ static void do_sftp_cleanup(void);
 char *pwd, *homedir;
 static LogContext *psftp_logctx = NULL;
 static Backend *backend;
-Conf *conf;
+static Conf *conf;
 bool sent_eof = false;
 
 /* ------------------------------------------------------------

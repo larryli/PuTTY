@@ -145,6 +145,8 @@ static struct {
 enum { SYSMENU, CTXMENU };
 static HMENU savedsess_menu;
 
+static Conf *conf;
+
 struct wm_netevent_params {
     /* Used to pass data to wm_netevent_callback */
     WPARAM wParam;
@@ -577,7 +579,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                 i--;
             p[i] = '\0';
             do_defaults(p + 1, conf);
-            if (!conf_launchable(conf) && !do_config()) {
+            if (!conf_launchable(conf) && !do_config(conf)) {
                 cleanup_exit(0);
             }
             special_launchable_argument = true;
@@ -600,7 +602,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                     modalfatalbox("Serialised configuration data was invalid");
                 UnmapViewOfFile(cp);
                 CloseHandle(filemap);
-            } else if (!do_config()) {
+            } else if (!do_config(conf)) {
                 cleanup_exit(0);
             }
             special_launchable_argument = true;
@@ -672,7 +674,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
          * (explicitly) specified a launchable configuration.
          */
         if (!(special_launchable_argument || cmdline_host_ok(conf))) {
-            if (!do_config())
+            if (!do_config(conf))
                 cleanup_exit(0);
         }
 
@@ -2326,8 +2328,8 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
 
                 prev_conf = conf_copy(conf);
 
-                reconfig_result =
-                    do_reconfig(hwnd, backend ? backend_cfg_info(backend) : 0);
+                reconfig_result = do_reconfig(
+                    hwnd, conf, backend ? backend_cfg_info(backend) : 0);
                 reconfiguring = false;
                 if (!reconfig_result) {
                     conf_free(prev_conf);

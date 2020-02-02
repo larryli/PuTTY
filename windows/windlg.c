@@ -694,7 +694,7 @@ void defuse_showwindow(void)
     }
 }
 
-bool do_config(void)
+bool do_config(Conf *conf)
 {
     bool ret;
 
@@ -724,7 +724,7 @@ bool do_config(void)
     return ret;
 }
 
-bool do_reconfig(HWND hwnd, int protcfginfo)
+bool do_reconfig(HWND hwnd, Conf *conf, int protcfginfo)
 {
     Conf *backup_conf;
     bool ret;

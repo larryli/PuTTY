@@ -39,7 +39,7 @@ void cmdline_error(const char *fmt, ...)
 static bool local_tty = false; /* do we have a local tty? */
 
 static Backend *backend;
-Conf *conf;
+static Conf *conf;
 
 /*
  * Default settings that are specific to Unix plink.
