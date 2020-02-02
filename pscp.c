@@ -43,7 +43,7 @@ static bool uploading = false;
 
 static Backend *backend;
 static Conf *conf;
-bool sent_eof = false;
+static bool sent_eof = false;
 
 static void source(const char *src);
 static void rsource(const char *src);

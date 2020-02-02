@@ -156,8 +156,8 @@ struct wm_netevent_params {
 };
 
 static void conf_cache_data(void);
-int cursor_type;
-int vtmode;
+static int cursor_type;
+static int vtmode;
 
 static struct sesslist sesslist;       /* for saved-session menu */
 
@@ -192,7 +192,7 @@ static int descent;
 #define NEXTCOLOURS 240
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 static COLORREF colours[NALLCOLOURS];
-struct rgb {
+static struct rgb {
     int r, g, b;
 } colours_rgb[NALLCOLOURS];
 static HPALETTE pal;

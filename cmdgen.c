@@ -34,7 +34,7 @@
  *    I define another main() which calls the former repeatedly to
  *    run tests.
  */
-bool cgtest_verbose = false;
+static bool cgtest_verbose = false;
 #define get_random_data get_random_data_diagnostic
 char *get_random_data(int len, const char *device)
 {
@@ -43,8 +43,8 @@ char *get_random_data(int len, const char *device)
     return buf;
 }
 #define console_get_userpass_input console_get_userpass_input_diagnostic
-int nprompts, promptsgot;
-const char *prompts[3];
+static int nprompts, promptsgot;
+static const char *prompts[3];
 int console_get_userpass_input(prompts_t *p)
 {
     size_t i;
@@ -1118,7 +1118,7 @@ int main(int argc, char **argv)
 
 #include <stdarg.h>
 
-int passes, fails;
+static int passes, fails;
 
 void setup_passphrases(char *first, ...)
 {

@@ -21,12 +21,12 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-HANDLE inhandle, outhandle, errhandle;
-struct handle *stdin_handle, *stdout_handle, *stderr_handle;
-handle_sink stdout_hs, stderr_hs;
-StripCtrlChars *stdout_scc, *stderr_scc;
-BinarySink *stdout_bs, *stderr_bs;
-DWORD orig_console_mode;
+static HANDLE inhandle, outhandle, errhandle;
+static struct handle *stdin_handle, *stdout_handle, *stderr_handle;
+static handle_sink stdout_hs, stderr_hs;
+static StripCtrlChars *stdout_scc, *stderr_scc;
+static BinarySink *stdout_bs, *stderr_bs;
+static DWORD orig_console_mode;
 
 static Backend *backend;
 static LogContext *logctx;

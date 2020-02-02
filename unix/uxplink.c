@@ -315,12 +315,12 @@ void cleanup_termios(void)
         tcsetattr(STDIN_FILENO, TCSANOW, &orig_termios);
 }
 
-bufchain stdout_data, stderr_data;
-bufchain_sink stdout_bcs, stderr_bcs;
-StripCtrlChars *stdout_scc, *stderr_scc;
-BinarySink *stdout_bs, *stderr_bs;
+static bufchain stdout_data, stderr_data;
+static bufchain_sink stdout_bcs, stderr_bcs;
+static StripCtrlChars *stdout_scc, *stderr_scc;
+static BinarySink *stdout_bs, *stderr_bs;
 
-enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
+static enum { EOF_NO, EOF_PENDING, EOF_SENT } outgoingeof;
 
 size_t try_output(bool is_stderr)
 {
@@ -476,7 +476,7 @@ static void from_tty(void *vbuf, unsigned len)
     }
 }
 
-int signalpipe[2];
+static int signalpipe[2];
 
 void sigwinch(int signum)
 {

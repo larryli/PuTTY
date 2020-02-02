@@ -31,11 +31,11 @@ static void do_sftp_cleanup(void);
  * sftp client state.
  */
 
-char *pwd, *homedir;
+static char *pwd, *homedir;
 static LogContext *psftp_logctx = NULL;
 static Backend *backend;
 static Conf *conf;
-bool sent_eof = false;
+static bool sent_eof = false;
 
 /* ------------------------------------------------------------
  * Seat vtable.

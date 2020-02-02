@@ -49,7 +49,7 @@
 #define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
 
 GdkAtom compound_text_atom, utf8_string_atom;
-GdkAtom clipboard_atom
+static GdkAtom clipboard_atom
 #if GTK_CHECK_VERSION(2,0,0) /* GTK1 will have to fill this in at startup */
     = GDK_SELECTION_CLIPBOARD
 #endif

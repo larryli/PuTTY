@@ -28,7 +28,7 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-FILE *pageant_logfp = NULL;
+static FILE *pageant_logfp = NULL;
 
 struct uxpgnt_client {
     PageantListenerClient plc;
@@ -173,7 +173,7 @@ struct X11Connection {
     Plug plug;
 };
 
-char *socketname;
+static char *socketname;
 static enum { SHELL_AUTO, SHELL_SH, SHELL_CSH } shell_type = SHELL_AUTO;
 void pageant_print_env(int pid)
 {
@@ -256,7 +256,7 @@ void pageant_fork_and_print_env(bool retain_tty)
     }
 }
 
-int signalpipe[2];
+static int signalpipe[2];
 
 void sigchld(int signum)
 {
@@ -265,7 +265,7 @@ void sigchld(int signum)
 }
 
 #define TTY_LIFE_POLL_INTERVAL (TICKSPERSEC * 30)
-void *dummy_timer_ctx;
+static void *dummy_timer_ctx;
 static void tty_life_timer(void *ctx, unsigned long now)
 {
     schedule_timer(TTY_LIFE_POLL_INTERVAL, tty_life_timer, &dummy_timer_ctx);
@@ -291,7 +291,7 @@ bool is_agent_action(keyact action)
     return action == KEYACT_AGENT_LOAD;
 }
 
-struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
+static struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
 
 void add_keyact(keyact action, const char *filename)
 {
@@ -321,12 +321,12 @@ bool have_controlling_tty(void)
     }
 }
 
-char **exec_args = NULL;
-enum {
+static char **exec_args = NULL;
+static enum {
     LIFE_UNSPEC, LIFE_X11, LIFE_TTY, LIFE_DEBUG, LIFE_PERM, LIFE_EXEC
 } life = LIFE_UNSPEC;
-const char *display = NULL;
-enum {
+static const char *display = NULL;
+static enum {
     PROMPT_UNSPEC, PROMPT_TTY, PROMPT_GUI
 } prompt_type = PROMPT_UNSPEC;
 
