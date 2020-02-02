@@ -60,6 +60,7 @@
 #define IPCWINTITLE   "Pageant"
 #define IPCCLASSNAME  "Pageant"
 
+static HWND traywindow;
 static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
@@ -89,7 +90,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     buf = dupvprintf(fmt, ap);
     va_end(ap);
-    MessageBox(hwnd, buf, "Pageant Fatal Error",
+    MessageBox(traywindow, buf, "Pageant Fatal Error",
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
     sfree(buf);
     exit(1);
@@ -415,7 +416,7 @@ static void win_add_keyfile(Filename *filename)
     }
 
   error:
-    message_box(hwnd, err, APPNAME, MB_OK | MB_ICONERROR,
+    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
                 HELPCTXID(errors_cantloadkey));
   done:
     if (passphrase) {
@@ -436,7 +437,7 @@ static void prompt_add_keyfile(void)
 
     if (!keypath) keypath = filereq_new();
     memset(&of, 0, sizeof(of));
-    of.hwndOwner = hwnd;
+    of.hwndOwner = traywindow;
     of.lpstrFilter = FILTER_KEY_FILES;
     of.lpstrCustomFilter = NULL;
     of.nFilterIndex = 1;
@@ -1197,7 +1198,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     dll_hijacking_protection();
 
     hinst = inst;
-    hwnd = NULL;
 
     /*
      * Determine whether we're an NT system (should have security
@@ -1385,14 +1385,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     keylist = NULL;
 
-    hwnd = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
-                        WS_OVERLAPPEDWINDOW | WS_VSCROLL,
-                        CW_USEDEFAULT, CW_USEDEFAULT,
-                        100, 100, NULL, NULL, inst, NULL);
-    winselgui_set_hwnd(hwnd);
+    traywindow = CreateWindow(TRAYCLASSNAME, TRAYWINTITLE,
+                              WS_OVERLAPPEDWINDOW | WS_VSCROLL,
+                              CW_USEDEFAULT, CW_USEDEFAULT,
+                              100, 100, NULL, NULL, inst, NULL);
+    winselgui_set_hwnd(traywindow);
 
     /* Set up a system tray icon */
-    AddTrayIcon(hwnd);
+    AddTrayIcon(traywindow);
 
     /* Accelerators used: nsvkxa */
     systray_menu = CreatePopupMenu();
@@ -1417,7 +1417,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     /* Set the default menu item. */
     SetMenuDefaultItem(systray_menu, IDM_VIEWKEYS, false);
 
-    ShowWindow(hwnd, SW_HIDE);
+    ShowWindow(traywindow, SW_HIDE);
 
     wmcpc.vt = &wmcpc_vtable;
     wmcpc.suppress_logging = true;
@@ -1469,7 +1469,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         NOTIFYICONDATA tnid;
 
         tnid.cbSize = sizeof(NOTIFYICONDATA);
-        tnid.hWnd = hwnd;
+        tnid.hWnd = traywindow;
         tnid.uID = 1;
 
         Shell_NotifyIcon(NIM_DELETE, &tnid);
