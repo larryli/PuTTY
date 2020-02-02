@@ -48,7 +48,7 @@ char *make_default_wintitle(char *hostname)
 
 void setup(bool single)
 {
-    default_protocol = -1;
+    settings_set_default_protocol(-1);
 
     if (single)
         pty_pre_init();

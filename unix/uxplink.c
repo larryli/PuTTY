@@ -598,8 +598,8 @@ int main(int argc, char **argv)
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
      */
-    default_protocol = PROT_SSH;
-    default_port = 22;
+    settings_set_default_protocol(PROT_SSH);
+    settings_set_default_port(22);
 
     bufchain_init(&stdout_data);
     bufchain_init(&stderr_data);
@@ -615,8 +615,8 @@ int main(int argc, char **argv)
      */
     conf = conf_new();
     do_defaults(NULL, conf);
-    default_protocol = conf_get_int(conf, CONF_protocol);
-    default_port = conf_get_int(conf, CONF_port);
+    settings_set_default_protocol(conf_get_int(conf, CONF_protocol));
+    settings_set_default_port(conf_get_int(conf, CONF_port));
     errors = false;
     {
         /*
@@ -626,10 +626,10 @@ int main(int argc, char **argv)
         if (p) {
             const struct BackendVtable *vt = backend_vt_from_name(p);
             if (vt) {
-                default_protocol = vt->protocol;
-                default_port = vt->default_port;
-                conf_set_int(conf, CONF_protocol, default_protocol);
-                conf_set_int(conf, CONF_port, default_port);
+                settings_set_default_protocol(vt->protocol);
+                settings_set_default_port(vt->default_port);
+                conf_set_int(conf, CONF_protocol, vt->protocol);
+                conf_set_int(conf, CONF_port, vt->default_port);
             }
         }
     }

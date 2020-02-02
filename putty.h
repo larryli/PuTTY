@@ -4,19 +4,6 @@
 #include <stddef.h>                    /* for wchar_t */
 #include <limits.h>                    /* for INT_MAX */
 
-/*
- * Global variables. Most modules declare these `extern', but
- * window.c will do `#define PUTTY_DO_GLOBALS' before including this
- * module, and so will get them properly defined.
- */
-#ifndef GLOBAL
-#ifdef PUTTY_DO_GLOBALS
-#define GLOBAL
-#else
-#define GLOBAL extern
-#endif
-#endif
-
 #include "defs.h"
 #include "puttyps.h"
 #include "network.h"
@@ -577,14 +564,6 @@ extern const int be_default_protocol;
  * and other pieces of text.
  */
 extern const char *const appname;
-
-/*
- * Likewise, these two variables are set up when the application
- * initialises, and inform all default-settings accesses after
- * that.
- */
-GLOBAL int default_protocol;
-GLOBAL int default_port;
 
 /*
  * Mechanism for getting text strings such as usernames and passwords
@@ -1562,6 +1541,8 @@ void load_open_settings(settings_r *sesskey, Conf *conf);
 void get_sesslist(struct sesslist *, bool allocate);
 bool do_defaults(const char *, Conf *);
 void registry_cleanup(void);
+void settings_set_default_protocol(int);
+void settings_set_default_port(int);
 
 /*
  * Functions used by settings.c to provide platform-specific

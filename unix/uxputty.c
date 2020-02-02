@@ -85,13 +85,13 @@ const unsigned cmdline_tooltype =
 void setup(bool single)
 {
     sk_init();
-    default_protocol = be_default_protocol;
+    settings_set_default_protocol(be_default_protocol);
     /* Find the appropriate default port. */
     {
         const struct BackendVtable *vt =
-            backend_vt_from_proto(default_protocol);
-        default_port = 0; /* illegal */
+            backend_vt_from_proto(be_default_protocol);
+        settings_set_default_port(0); /* illegal */
         if (vt)
-            default_port = vt->default_port;
+            settings_set_default_port(vt->default_port);
     }
 }

@@ -152,6 +152,18 @@ bool cmdline_seat_verbose(Seat *seat) { return cmdline_verbose(); }
 bool cmdline_lp_verbose(LogPolicy *lp) { return cmdline_verbose(); }
 bool cmdline_loaded_session(void) { return loaded_session; }
 
+static void set_protocol(Conf *conf, int protocol)
+{
+    settings_set_default_protocol(protocol);
+    conf_set_int(conf, CONF_protocol, protocol);
+}
+
+static void set_port(Conf *conf, int port)
+{
+    settings_set_default_port(port);
+    conf_set_int(conf, CONF_port, port);
+}
+
 int cmdline_process_param(const char *p, char *value,
                           int need_save, Conf *conf)
 {
@@ -269,9 +281,7 @@ int cmdline_process_param(const char *p, char *value,
                             backend_vt_from_name(prefix);
 
                         if (vt) {
-                            default_protocol = vt->protocol;
-                            conf_set_int(conf, CONF_protocol,
-                                         default_protocol);
+                            set_protocol(conf, vt->protocol);
                             port_override = vt->default_port;
                         } else {
                             cmdline_error("unrecognised protocol prefix '%s'",
@@ -399,46 +409,38 @@ int cmdline_process_param(const char *p, char *value,
         RETURN(1);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        default_protocol = PROT_SSH;
-        default_port = 22;
-        conf_set_int(conf, CONF_protocol, default_protocol);
-        conf_set_int(conf, CONF_port, default_port);
+        set_protocol(conf, PROT_SSH);
+        set_port(conf, 22);
         return 1;
     }
     if (!strcmp(p, "-telnet")) {
         RETURN(1);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        default_protocol = PROT_TELNET;
-        default_port = 23;
-        conf_set_int(conf, CONF_protocol, default_protocol);
-        conf_set_int(conf, CONF_port, default_port);
+        set_protocol(conf, PROT_TELNET);
+        set_port(conf, 23);
         return 1;
     }
     if (!strcmp(p, "-rlogin")) {
         RETURN(1);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        default_protocol = PROT_RLOGIN;
-        default_port = 513;
-        conf_set_int(conf, CONF_protocol, default_protocol);
-        conf_set_int(conf, CONF_port, default_port);
+        set_protocol(conf, PROT_RLOGIN);
+        set_port(conf, 513);
         return 1;
     }
     if (!strcmp(p, "-raw")) {
         RETURN(1);
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        default_protocol = PROT_RAW;
-        conf_set_int(conf, CONF_protocol, default_protocol);
+        set_protocol(conf, PROT_RAW);
     }
     if (!strcmp(p, "-serial")) {
         RETURN(1);
         /* Serial is not NONNETWORK in an odd sense of the word */
         UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
         SAVEABLE(0);
-        default_protocol = PROT_SERIAL;
-        conf_set_int(conf, CONF_protocol, default_protocol);
+        set_protocol(conf, PROT_SERIAL);
         /* The host parameter will already be loaded into CONF_host,
          * so copy it across */
         conf_set_str(conf, CONF_serline, conf_get_str(conf, CONF_host));

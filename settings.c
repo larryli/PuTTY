@@ -69,6 +69,10 @@ const char *const ttymodes[] = {
     "CS7",      "CS8",      "PARENB",   "PARODD",   NULL
 };
 
+static int default_protocol, default_port;
+void settings_set_default_protocol(int newval) { default_protocol = newval; }
+void settings_set_default_port(int newval) { default_port = newval; }
+
 /*
  * Convenience functions to access the backends[] array
  * (which is only present in tools that manage settings).

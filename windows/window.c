@@ -532,14 +532,14 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         char *p;
         bool special_launchable_argument = false;
 
-        default_protocol = be_default_protocol;
+        settings_set_default_protocol(be_default_protocol);
         /* Find the appropriate default port. */
         {
             const struct BackendVtable *vt =
-                backend_vt_from_proto(default_protocol);
-            default_port = 0; /* illegal */
+                backend_vt_from_proto(be_default_protocol);
+            settings_set_default_port(0); /* illegal */
             if (vt)
-                default_port = vt->default_port;
+                settings_set_default_port(vt->default_port);
         }
         conf_set_int(conf, CONF_logtype, LGTYP_NONE);
 
