@@ -1431,7 +1431,8 @@ int main(int argc, char **argv)
             if (system(cmdbuf) ||
                 (fp = get_fp(tmpfilename1,
                              CGT_SSH_KEYGEN | keytype->flags)) == NULL) {
-                printf("UNABLE to test fingerprint matching against OpenSSH");
+                printf("UNABLE to test fingerprint matching against "
+                       "OpenSSH\n");
             }
             sfree(cmdbuf);
             if (fp && cgtest_verbose) {
