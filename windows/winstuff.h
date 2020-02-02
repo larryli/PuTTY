@@ -211,7 +211,6 @@ typedef void *Ssh_gss_name;
  * PuTTY session.
  */
 GLOBAL HWND hwnd;       /* the main terminal window */
-GLOBAL HWND logbox;
 
 /*
  * The all-important instance handle.
@@ -577,6 +576,7 @@ void showabout(HWND);
 void force_normal(HWND hwnd);
 void modal_about_box(HWND hwnd);
 void show_help(HWND hwnd);
+HWND event_log_window(void);
 
 /*
  * Exports from winmisc.c.

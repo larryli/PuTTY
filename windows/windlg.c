@@ -78,6 +78,9 @@ static char *getevent(int i)
     return NULL;
 }
 
+static HWND logbox;
+HWND event_log_window(void) { return logbox; }
+
 static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {

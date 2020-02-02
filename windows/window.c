@@ -939,6 +939,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             if (msg.message == WM_QUIT)
                 goto finished;         /* two-level break */
 
+            HWND logbox = event_log_window();
             if (!(IsWindow(logbox) && IsDialogMessage(logbox, &msg)))
                 DispatchMessageW(&msg);
 
