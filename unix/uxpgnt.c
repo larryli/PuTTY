@@ -11,6 +11,7 @@
 
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <termios.h>
@@ -775,7 +776,7 @@ static const PlugVtable X11Connection_plugvt = {
     NULL
 };
 
-void run_agent(FILE *logfp)
+void run_agent(FILE *logfp, const char *symlink_path)
 {
     const char *err;
     char *errw;
@@ -825,6 +826,29 @@ void run_agent(FILE *logfp)
         exit(1);
     }
     pageant_listener_got_socket(pl, sock);
+
+    if (symlink_path) {
+        /*
+         * Try to make a symlink to the Unix socket, in a location of
+         * the user's choosing.
+         *
+         * If the link already exists, we want to replace it. There
+         * are two ways we could do this: either make it under another
+         * name and then rename it over the top, or remove the old
+         * link first. The former is what 'ln -sf' does, on the
+         * grounds that it's more atomic. But I think in this case,
+         * where the expected use case is that the previous agent has
+         * long since shut down, atomicity isn't a critical concern
+         * compared to not accidentally overwriting some non-symlink
+         * that might have important data in it!
+         */
+        struct stat st;
+        if (lstat(symlink_path, &st) == 0 && S_ISLNK(st.st_mode))
+            unlink(symlink_path);
+        if (symlink(socketname, symlink_path) < 0)
+            fprintf(stderr, "pageant: making symlink %s: %s\n",
+                    symlink_path, strerror(errno));
+    }
 
     conf = conf_new();
     conf_set_int(conf, CONF_proxy_type, PROXY_NONE);
@@ -1117,6 +1141,7 @@ int main(int argc, char **argv)
     bool doing_opts = true;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
     const char *standalone_askpass_prompt = NULL;
+    const char *symlink_path = NULL;
     FILE *logfp = NULL;
 
     /*
@@ -1179,8 +1204,19 @@ int main(int argc, char **argv)
                             "after --askpass\n");
                     exit(1);
                 }
+            } else if (!strcmp(p, "--symlink")) {
+                if (--argc > 0) {
+                    symlink_path = *++argv;
+                } else {
+                    fprintf(stderr, "pageant: expected a pathname "
+                            "after --symlink\n");
+                    exit(1);
+                }
             } else if (!strcmp(p, "--")) {
                 doing_opts = false;
+            } else {
+                fprintf(stderr, "pageant: unrecognised option '%s'\n", p);
+                exit(1);
             }
         } else {
             /*
@@ -1268,7 +1304,7 @@ int main(int argc, char **argv)
         }
 
         if (has_lifetime) {
-            run_agent(logfp);
+            run_agent(logfp, symlink_path);
         } else if (has_client_actions) {
             run_client();
         }
