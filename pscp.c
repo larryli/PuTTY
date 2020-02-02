@@ -19,7 +19,6 @@
 #include <time.h>
 #include <assert.h>
 
-#define PUTTY_DO_GLOBALS
 #include "putty.h"
 #include "psftp.h"
 #include "ssh.h"

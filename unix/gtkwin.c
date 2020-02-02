@@ -27,8 +27,6 @@
 #include <gtk/gtkimmodule.h>
 #endif
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
-
 #define MAY_REFER_TO_GTK_IN_HEADERS
 
 #include "putty.h"

@@ -18,7 +18,6 @@
 #define COMPILE_MULTIMON_STUBS
 #endif
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "terminal.h"
 #include "storage.h"

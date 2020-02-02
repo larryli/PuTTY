@@ -157,19 +157,6 @@ struct FontSpec *fontspec_new(
     (p_##name = module ?                                \
      (t_##name) GetProcAddress(module, #name) : NULL)
 
-/*
- * Global variables. Most modules declare these `extern', but
- * window.c will do `#define PUTTY_DO_GLOBALS' before including this
- * module, and so will get them properly defined.
-*/
-#ifndef GLOBAL
-#ifdef PUTTY_DO_GLOBALS
-#define GLOBAL
-#else
-#define GLOBAL extern
-#endif
-#endif
-
 #define PUTTY_REG_POS "Software\\SimonTatham\\PuTTY"
 #define PUTTY_REG_PARENT "Software\\SimonTatham"
 #define PUTTY_REG_PARENT_CHILD "PuTTY"

@@ -27,10 +27,6 @@
 #include "x11misc.h"
 #endif
 
-#ifdef TESTMODE
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
-#endif
-
 #include "storage.h"
 #include "dialog.h"
 #include "tree234.h"

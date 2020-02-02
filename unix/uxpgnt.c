@@ -14,7 +14,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"

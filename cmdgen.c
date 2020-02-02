@@ -2,8 +2,6 @@
  * cmdgen.c - command-line form of PuTTYgen
  */
 
-#define PUTTY_DO_GLOBALS
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>

@@ -15,7 +15,6 @@
 #include <sys/ioctl.h>
 #include <sys/time.h>
 
-#define PUTTY_DO_GLOBALS               /* actually _define_ globals */
 #include "putty.h"
 #include "ssh.h"
 #include "storage.h"

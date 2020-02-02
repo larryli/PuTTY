@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define PUTTY_DO_GLOBALS
 #include "putty.h"
 #include "terminal.h"
 

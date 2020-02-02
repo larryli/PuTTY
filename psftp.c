@@ -8,7 +8,6 @@
 #include <assert.h>
 #include <limits.h>
 
-#define PUTTY_DO_GLOBALS
 #include "putty.h"
 #include "psftp.h"
 #include "storage.h"

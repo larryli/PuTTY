@@ -9,8 +9,6 @@
 #include <assert.h>
 #include <tchar.h>
 
-#define PUTTY_DO_GLOBALS
-
 #include "putty.h"
 #include "ssh.h"
 #include "misc.h"
