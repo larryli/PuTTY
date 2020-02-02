@@ -782,6 +782,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                             ppl_printf("Pageant failed to "
                                        "provide a signature\r\n");
                             s->suppress_wait_for_response_packet = true;
+                            ssh_free_pktout(s->pktout);
                         }
                     }
                 }
@@ -1334,6 +1335,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     }
                     if (sb->len)
                         s->cur_prompt->instruction = strbuf_to_str(sb);
+                    else
+                        strbuf_free(sb);
 
                     /*
                      * Our prompts_t is fully constructed now. Get the
