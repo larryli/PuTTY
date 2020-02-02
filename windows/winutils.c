@@ -91,6 +91,8 @@ void filereq_free(filereq *state)
  * Message box with optional context help.
  */
 
+static HWND message_box_owner;
+
 /* Callback function to launch context help. */
 static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
 {
@@ -107,10 +109,11 @@ static VOID CALLBACK message_box_help_callback(LPHELPINFO lpHelpInfo)
     CHECK_CTX(pgp_fingerprints);
 #undef CHECK_CTX
     if (context)
-        launch_help(hwnd, context);
+        launch_help(message_box_owner, context);
 }
 
-int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
+int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
+                DWORD style, DWORD helpctxid)
 {
     MSGBOXPARAMS mbox;
 
@@ -121,7 +124,7 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
     mbox.cbSize = sizeof(mbox);
     /* Assumes the globals `hinst' and `hwnd' have sensible values. */
     mbox.hInstance = hinst;
-    mbox.hwndOwner = hwnd;
+    mbox.hwndOwner = message_box_owner = owner;
     mbox.lpfnMsgBoxCallback = &message_box_help_callback;
     mbox.dwLanguageId = LANG_NEUTRAL;
     mbox.lpszText = text;
@@ -135,21 +138,23 @@ int message_box(LPCTSTR text, LPCTSTR caption, DWORD style, DWORD helpctxid)
 /*
  * Display the fingerprints of the PGP Master Keys to the user.
  */
-void pgp_fingerprints(void)
+void pgp_fingerprints_msgbox(HWND owner)
 {
-    message_box("These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
-                "be used to establish a trust path from this executable to another\n"
-                "one. See the manual for more information.\n"
-                "(Note: these fingerprints have nothing to do with SSH!)\n"
-                "\n"
-                "PuTTY Master Key as of " PGP_MASTER_KEY_YEAR
-                " (" PGP_MASTER_KEY_DETAILS "):\n"
-                "  " PGP_MASTER_KEY_FP "\n\n"
-                "Previous Master Key (" PGP_PREV_MASTER_KEY_YEAR
-                ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
-                "  " PGP_PREV_MASTER_KEY_FP,
-                "PGP fingerprints", MB_ICONINFORMATION | MB_OK,
-                HELPCTXID(pgp_fingerprints));
+    message_box(
+        owner,
+        "These are the fingerprints of the PuTTY PGP Master Keys. They can\n"
+        "be used to establish a trust path from this executable to another\n"
+        "one. See the manual for more information.\n"
+        "(Note: these fingerprints have nothing to do with SSH!)\n"
+        "\n"
+        "PuTTY Master Key as of " PGP_MASTER_KEY_YEAR
+        " (" PGP_MASTER_KEY_DETAILS "):\n"
+        "  " PGP_MASTER_KEY_FP "\n\n"
+        "Previous Master Key (" PGP_PREV_MASTER_KEY_YEAR
+        ", " PGP_PREV_MASTER_KEY_DETAILS "):\n"
+        "  " PGP_PREV_MASTER_KEY_FP,
+        "PGP fingerprints", MB_ICONINFORMATION | MB_OK,
+        HELPCTXID(pgp_fingerprints));
 }
 
 /*

@@ -648,7 +648,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                                    "Are you really sure you want to continue?",
                                    appname);
                     s2 = dupprintf("%s Warning", appname);
-                    if (message_box(s1, s2,
+                    if (message_box(NULL, s1, s2,
                                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2,
                                     HELPCTXID(option_cleanup)) == IDYES) {
                         cleanup_all();
@@ -657,7 +657,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                     sfree(s2);
                     exit(0);
                 } else if (!strcmp(p, "-pgpfp")) {
-                    pgp_fingerprints();
+                    pgp_fingerprints_msgbox(NULL);
                     exit(1);
                 } else if (*p != '-') {
                     cmdline_error("unexpected argument \"%s\"", p);

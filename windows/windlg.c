@@ -872,7 +872,7 @@ int win_seat_verify_ssh_host_key(
         char *text = dupprintf(wrongmsg, appname, keytype, fingerprint,
                                appname);
         char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(text, caption,
+        mbret = message_box(hwnd, text, caption,
                             MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
                             HELPCTXID(errors_hostkey_changed));
         assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
@@ -887,7 +887,7 @@ int win_seat_verify_ssh_host_key(
         int mbret;
         char *text = dupprintf(absentmsg, keytype, fingerprint, appname);
         char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(text, caption,
+        mbret = message_box(hwnd, text, caption,
                             MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
                             HELPCTXID(errors_hostkey_absent));
         assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);

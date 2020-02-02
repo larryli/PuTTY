@@ -657,7 +657,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
         !import_possible(type)) {
         char *msg = dupprintf("Couldn't load private key (%s)",
                               key_type_to_str(type));
-        message_box(msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
         return;
@@ -720,7 +720,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
         sfree(comment);
     if (ret == 0) {
         char *msg = dupprintf("Couldn't load private key (%s)", errmsg);
-        message_box(msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
+        message_box(hwnd, msg, "PuTTYgen Error", MB_OK | MB_ICONERROR,
                     HELPCTXID(errors_cantloadkey));
         sfree(msg);
     } else if (ret == 1) {
@@ -1572,7 +1572,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     for (i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "-pgpfp")) {
-            pgp_fingerprints();
+            pgp_fingerprints_msgbox(NULL);
             return 1;
         } else if (!strcmp(argv[i], "-restrict-acl") ||
                    !strcmp(argv[i], "-restrict_acl") ||

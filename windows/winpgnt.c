@@ -415,7 +415,7 @@ static void win_add_keyfile(Filename *filename)
     }
 
   error:
-    message_box(err, APPNAME, MB_OK | MB_ICONERROR,
+    message_box(hwnd, err, APPNAME, MB_OK | MB_ICONERROR,
                 HELPCTXID(errors_cantloadkey));
   done:
     if (passphrase) {
@@ -1271,7 +1271,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     split_into_argv(cmdline, &argc, &argv, &argstart);
     for (i = 0; i < argc; i++) {
         if (!strcmp(argv[i], "-pgpfp")) {
-            pgp_fingerprints();
+            pgp_fingerprints_msgbox(NULL);
             return 1;
         } else if (!strcmp(argv[i], "-restrict-acl") ||
                    !strcmp(argv[i], "-restrict_acl") ||
