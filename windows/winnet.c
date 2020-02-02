@@ -224,12 +224,11 @@ static bool sk_startup(int hi, int lo)
     return true;
 }
 
-/* Actually define this function pointer, which won't have been
- * defined alongside all the others by PUTTY_DO_GLOBALS because of the
- * annoying winelib header-ordering issue. (See comment in winstuff.h.) */
-DECL_WINDOWS_FUNCTION(/* empty */, int, select,
-                      (int, fd_set FAR *, fd_set FAR *,
-                       fd_set FAR *, const struct timeval FAR *));
+DEF_WINDOWS_FUNCTION(WSAAsyncSelect);
+DEF_WINDOWS_FUNCTION(WSAEventSelect);
+DEF_WINDOWS_FUNCTION(WSAGetLastError);
+DEF_WINDOWS_FUNCTION(WSAEnumNetworkEvents);
+DEF_WINDOWS_FUNCTION(select);
 
 void sk_init(void)
 {

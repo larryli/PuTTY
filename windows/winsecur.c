@@ -9,12 +9,18 @@
 
 #if !defined NO_SECURITY
 
-#define WINSECUR_GLOBAL
 #include "winsecur.h"
 
 /* Initialised once, then kept around to reuse forever */
 static PSID worldsid, networksid, usersid;
 
+DEF_WINDOWS_FUNCTION(OpenProcessToken);
+DEF_WINDOWS_FUNCTION(GetTokenInformation);
+DEF_WINDOWS_FUNCTION(InitializeSecurityDescriptor);
+DEF_WINDOWS_FUNCTION(SetSecurityDescriptorOwner);
+DEF_WINDOWS_FUNCTION(GetSecurityInfo);
+DEF_WINDOWS_FUNCTION(SetSecurityInfo);
+DEF_WINDOWS_FUNCTION(SetEntriesInAclA);
 
 bool got_advapi(void)
 {

@@ -9,8 +9,9 @@
 #include "putty.h"
 #include "ssh.h"
 
-#define WINCAPI_GLOBAL
 #include "wincapi.h"
+
+DEF_WINDOWS_FUNCTION(CryptProtectMemory);
 
 bool got_crypt(void)
 {

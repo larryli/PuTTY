@@ -140,6 +140,9 @@ struct FontSpec *fontspec_new(
 #define DECL_WINDOWS_FUNCTION(linkage, rettype, name, params)   \
     typedef rettype (WINAPI *t_##name) params;                  \
     linkage t_##name p_##name
+/* If you DECL_WINDOWS_FUNCTION as extern in a header file, use this to
+ * define the function pointer in a source file */
+#define DEF_WINDOWS_FUNCTION(name) t_##name p_##name
 #define STR1(x) #x
 #define STR(x) STR1(x)
 #define GET_WINDOWS_FUNCTION_PP(module, name)                           \
@@ -320,12 +323,12 @@ const char *winsock_error_string(int error);
  * that module must be exported from it as function pointers. So
  * here they are.
  */
-DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAAsyncSelect,
+DECL_WINDOWS_FUNCTION(extern, int, WSAAsyncSelect,
                       (SOCKET, HWND, u_int, long));
-DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAEventSelect,
+DECL_WINDOWS_FUNCTION(extern, int, WSAEventSelect,
                       (SOCKET, WSAEVENT, long));
-DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAGetLastError, (void));
-DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAEnumNetworkEvents,
+DECL_WINDOWS_FUNCTION(extern, int, WSAGetLastError, (void));
+DECL_WINDOWS_FUNCTION(extern, int, WSAEnumNetworkEvents,
                       (SOCKET, WSAEVENT, LPWSANETWORKEVENTS));
 #ifdef NEED_DECLARATION_OF_SELECT
 /* This declaration is protected by an ifdef for the sake of building
@@ -335,7 +338,7 @@ DECL_WINDOWS_FUNCTION(GLOBAL, int, WSAEnumNetworkEvents,
  * only a modules actually needing to use (or define, or initialise)
  * this function pointer will see its declaration, and _those_ modules
  * - which will be Windows-specific anyway - can take more care. */
-DECL_WINDOWS_FUNCTION(GLOBAL, int, select,
+DECL_WINDOWS_FUNCTION(extern, int, select,
                       (int, fd_set FAR *, fd_set FAR *,
                        fd_set FAR *, const struct timeval FAR *));
 #endif

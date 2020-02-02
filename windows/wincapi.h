@@ -7,12 +7,7 @@
 
 #if !defined NO_SECURITY
 
-#ifndef WINCAPI_GLOBAL
-#define WINCAPI_GLOBAL extern
-#endif
-
-DECL_WINDOWS_FUNCTION(WINCAPI_GLOBAL, BOOL, CryptProtectMemory,
-                      (LPVOID,DWORD,DWORD));
+DECL_WINDOWS_FUNCTION(extern, BOOL, CryptProtectMemory, (LPVOID,DWORD,DWORD));
 
 bool got_crypt(void);
 
