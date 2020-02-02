@@ -13,6 +13,7 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <termios.h>
 
 #include "putty.h"
 #include "ssh.h"
@@ -28,27 +29,61 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
-static FILE *pageant_logfp = NULL;
-
 struct uxpgnt_client {
+    FILE *logfp;
+    strbuf *debug_prompt_buf;
+    bool debug_prompt_active, debug_prompt_possible;
+    PageantClientDialogId *dlgid;
+
     PageantListenerClient plc;
 };
 
 static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
 {
-    if (!pageant_logfp)
+    struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
+
+    if (!upc->logfp)
         return;
 
-    fprintf(pageant_logfp, "pageant: ");
-    vfprintf(pageant_logfp, fmt, ap);
-    fprintf(pageant_logfp, "\n");
+    fprintf(upc->logfp, "pageant: ");
+    vfprintf(upc->logfp, fmt, ap);
+    fprintf(upc->logfp, "\n");
 }
 
 static bool uxpgnt_ask_passphrase(
     PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
 {
-    /* FIXME: we don't yet support dialog boxes */
-    return false;
+    struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
+
+    if (!upc->debug_prompt_possible)
+        return false;
+
+    /*
+     * FIXME; we ought to check upc->dlgid here, and if it's already
+     * not NULL, queue this request up behind the previous one rather
+     * than trying to confusingly run both at oncec.
+     */
+
+    fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
+    upc->debug_prompt_active = true;
+    upc->dlgid = dlgid;
+    return true;
+}
+
+static void passphrase_done(struct uxpgnt_client *upc, bool success)
+{
+    upc->debug_prompt_active = false;
+
+    fprintf(upc->logfp, "pageant passphrase response: %s\n",
+            success ? "success" : "failure");
+    if (success)
+        pageant_passphrase_request_success(
+            upc->dlgid, ptrlen_from_strbuf(upc->debug_prompt_buf));
+    else
+        pageant_passphrase_request_refused(upc->dlgid);
+
+    strbuf_free(upc->debug_prompt_buf);
+    upc->debug_prompt_buf = strbuf_new_nm();
 }
 
 static const PageantListenerClientVtable uxpgnt_vtable = {
@@ -740,7 +775,7 @@ static const PlugVtable X11Connection_plugvt = {
     NULL
 };
 
-void run_agent(void)
+void run_agent(FILE *logfp)
 {
     const char *err;
     char *errw;
@@ -752,6 +787,7 @@ void run_agent(void)
     int fd;
     int i, fdstate;
     size_t fdsize;
+    int passphrase_fd = -1;
     int termination_pid = -1;
     bool errors = false;
     Conf *conf;
@@ -777,7 +813,9 @@ void run_agent(void)
      * Set up a listening socket and run Pageant on it.
      */
     struct uxpgnt_client upc[1];
+    memset(upc, 0, sizeof(upc));
     upc->plc.vt = &uxpgnt_vtable;
+    upc->logfp = logfp;
     pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
@@ -841,7 +879,39 @@ void run_agent(void)
         pageant_fork_and_print_env(false);
     } else if (life == LIFE_DEBUG) {
         pageant_print_env(getpid());
-        pageant_logfp = stdout;
+        upc->logfp = stdout;
+
+        struct termios orig_termios;
+        passphrase_fd = fileno(stdin);
+        if (tcgetattr(passphrase_fd, &orig_termios) == 0) {
+            struct termios new_termios = orig_termios;
+            new_termios.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
+
+            /*
+             * Try to set up a watchdog process that will restore
+             * termios if we crash or are killed. If successful, turn
+             * off echo, for runtime passphrase prompts.
+             */
+            int pipefd[2];
+            if (pipe(pipefd) == 0) {
+                pid_t pid = fork();
+                if (pid == 0) {
+                    tcsetattr(passphrase_fd, TCSADRAIN, &new_termios);
+                    close(pipefd[1]);
+                    char buf[4096];
+                    while (read(pipefd[0], buf, sizeof(buf)) > 0);
+                    tcsetattr(passphrase_fd, TCSADRAIN, &new_termios);
+                    _exit(0);
+                } else if (pid > 0) {
+                    upc->debug_prompt_possible = true;
+                    upc->debug_prompt_buf = strbuf_new_nm();
+                }
+
+                close(pipefd[0]);
+                if (pid < 0)
+                    close(pipefd[1]);
+            }
+        }
     } else if (life == LIFE_EXEC) {
         pid_t agentpid, pid;
 
@@ -871,7 +941,7 @@ void run_agent(void)
         }
     }
 
-    if (!pageant_logfp)
+    if (!upc->logfp)
         upc->plc.suppress_logging = true;
 
     now = GETTICKCOUNT();
@@ -907,6 +977,9 @@ void run_agent(void)
             fdlist[fdcount++] = fd;
             pollwrap_add_fd_rwx(pw, fd, rwx);
         }
+
+        if (upc->debug_prompt_active)
+            pollwrap_add_fd_rwx(pw, passphrase_fd, SELECT_R);
 
         if (toplevel_callback_pending()) {
             ret = pollwrap_poll_instant(pw);
@@ -991,6 +1064,37 @@ void run_agent(void)
             }
         }
 
+        if (upc->debug_prompt_active &&
+            pollwrap_check_fd_rwx(pw, passphrase_fd, SELECT_R)) {
+            char c;
+            int retd = read(passphrase_fd, &c, 1);
+            if (retd <= 0) {
+                passphrase_done(upc, false);
+                /* Now never try to read from stdin again */
+                upc->debug_prompt_possible = false;
+            } else {
+                switch (c) {
+                  case '\n':
+                  case '\r':
+                    passphrase_done(upc, true);
+                    break;
+                  case '\004':
+                    passphrase_done(upc, false);
+                    break;
+                  case '\b':
+                  case '\177':
+                    strbuf_shrink_by(upc->debug_prompt_buf, 1);
+                    break;
+                  case '\025':
+                    strbuf_clear(upc->debug_prompt_buf);
+                    break;
+                  default:
+                    put_byte(upc->debug_prompt_buf, c);
+                    break;
+                }
+            }
+        }
+
         run_toplevel_callbacks();
     }
 
@@ -1013,6 +1117,7 @@ int main(int argc, char **argv)
     bool doing_opts = true;
     keyact curr_keyact = KEYACT_AGENT_LOAD;
     const char *standalone_askpass_prompt = NULL;
+    FILE *logfp = NULL;
 
     /*
      * Process the command line.
@@ -1026,7 +1131,7 @@ int main(int argc, char **argv)
                 usage();
                 exit(0);
             } else if (!strcmp(p, "-v")) {
-                pageant_logfp = stderr;
+                logfp = stderr;
             } else if (!strcmp(p, "-a")) {
                 curr_keyact = KEYACT_CLIENT_ADD;
             } else if (!strcmp(p, "-d")) {
@@ -1163,7 +1268,7 @@ int main(int argc, char **argv)
         }
 
         if (has_lifetime) {
-            run_agent();
+            run_agent(logfp);
         } else if (has_client_actions) {
             run_client();
         }
