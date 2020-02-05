@@ -65,6 +65,7 @@ static const struct PacketProtocolLayerVtable ssh1_login_server_vtable = {
     ssh1_login_server_want_user_input,
     ssh1_login_server_got_user_input,
     ssh1_login_server_reconfigure,
+    ssh_ppl_default_queued_data_size,
     NULL /* no layer names in SSH-1 */,
 };
 
