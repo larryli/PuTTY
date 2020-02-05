@@ -52,6 +52,7 @@ struct ssh_channel;
 typedef struct PacketQueueNode PacketQueueNode;
 struct PacketQueueNode {
     PacketQueueNode *next, *prev;
+    size_t formal_size;    /* contribution to PacketQueueBase's total_size */
     bool on_free_queue;     /* is this packet scheduled for freeing? */
 };
 
@@ -84,6 +85,7 @@ typedef struct PktOut {
 
 typedef struct PacketQueueBase {
     PacketQueueNode end;
+    size_t total_size;    /* sum of all formal_size fields on the queue */
     struct IdempotentCallback *ic;
 } PacketQueueBase;
 
