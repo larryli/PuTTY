@@ -835,6 +835,11 @@ void ssh_ppl_user_output_string_and_free(PacketProtocolLayer *ppl, char *text)
     sfree(text);
 }
 
+size_t ssh_ppl_default_queued_data_size(PacketProtocolLayer *ppl)
+{
+    return ppl->out_pq->pqb.total_size;
+}
+
 /* ----------------------------------------------------------------------
  * Common helper functions for clients and implementations of
  * BinaryPacketProtocol.

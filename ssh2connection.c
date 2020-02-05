@@ -30,6 +30,7 @@ static const struct PacketProtocolLayerVtable ssh2_connection_vtable = {
     ssh2_connection_want_user_input,
     ssh2_connection_got_user_input,
     ssh2_connection_reconfigure,
+    ssh_ppl_default_queued_data_size,
     "ssh-connection",
 };
 

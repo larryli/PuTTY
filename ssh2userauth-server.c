@@ -46,6 +46,7 @@ static const struct PacketProtocolLayerVtable ssh2_userauth_server_vtable = {
     NULL /* want_user_input */,
     NULL /* got_user_input */,
     NULL /* reconfigure */,
+    ssh_ppl_default_queued_data_size,
     "ssh-userauth",
 };
 

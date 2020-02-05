@@ -71,6 +71,7 @@ static void ssh2_transport_special_cmd(PacketProtocolLayer *ppl,
 static bool ssh2_transport_want_user_input(PacketProtocolLayer *ppl);
 static void ssh2_transport_got_user_input(PacketProtocolLayer *ppl);
 static void ssh2_transport_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
+static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl);
 
 static void ssh2_transport_set_max_data_size(struct ssh2_transport_state *s);
 static unsigned long sanitise_rekey_time(int rekey_time, unsigned long def);
@@ -84,6 +85,7 @@ static const struct PacketProtocolLayerVtable ssh2_transport_vtable = {
     ssh2_transport_want_user_input,
     ssh2_transport_got_user_input,
     ssh2_transport_reconfigure,
+    ssh2_transport_queued_data_size,
     NULL, /* no protocol name for this layer */
 };
 
@@ -2027,4 +2029,13 @@ static int ssh2_transport_confirm_weak_crypto_primitive(
 
     return seat_confirm_weak_crypto_primitive(
         s->ppl.seat, type, name, ssh2_transport_dialog_callback, s);
+}
+
+static size_t ssh2_transport_queued_data_size(PacketProtocolLayer *ppl)
+{
+    struct ssh2_transport_state *s =
+        container_of(ppl, struct ssh2_transport_state, ppl);
+
+    return (ssh_ppl_default_queued_data_size(ppl) +
+            ssh_ppl_queued_data_size(s->higher_layer));
 }

@@ -997,7 +997,8 @@ static size_t ssh_sendbuffer(Backend *be)
 
     backlog = ssh_stdin_backlog(ssh->cl);
 
-    /* FIXME: also include sizes of pqs */
+    if (ssh->base_layer)
+        backlog += ssh_ppl_queued_data_size(ssh->base_layer);
 
     /*
      * If the SSH socket itself has backed up, add the total backup
