@@ -782,6 +782,8 @@ int main(int argc, char **argv)
             filename_free(logfile);
             conf_set_int(conf, CONF_logtype, LGTYP_SSHRAW);
             conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
+        } else if (!strcmp(arg, "--pretend-to-accept-any-pubkey")) {
+            ssc.stunt_pretend_to_accept_any_pubkey = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);
