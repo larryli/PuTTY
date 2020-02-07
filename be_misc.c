@@ -28,6 +28,10 @@ void backend_socket_log(Seat *seat, LogContext *logctx,
         sk_getaddr(addr, addrbuf, lenof(addrbuf));
         msg = dupprintf("Failed to connect to %s: %s", addrbuf, error_msg);
         break;
+      case PLUGLOG_CONNECT_SUCCESS:
+        sk_getaddr(addr, addrbuf, lenof(addrbuf));
+        msg = dupprintf("Connected to %s", addrbuf);
+        break;
       case PLUGLOG_PROXY_MSG:
         /* Proxy-related log messages have their own identifying
          * prefix already, put on by our caller. */

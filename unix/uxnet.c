@@ -733,6 +733,10 @@ static int try_connect(NetSocket *sock)
          */
         sock->connected = true;
         sock->writable = true;
+
+        SockAddr thisaddr = sk_extractaddr_tmp(sock->addr, &sock->step);
+        plug_log(sock->plug, PLUGLOG_CONNECT_SUCCESS,
+                 &thisaddr, sock->port, NULL, 0);
     }
 
     uxsel_tell(sock);
@@ -1435,6 +1439,13 @@ static void net_select_result(int fd, int event)
                     }
                     if (!s->connected)
                         return;      /* another async attempt in progress */
+                } else {
+                    /*
+                     * The connection attempt succeeded.
+                     */
+                    SockAddr thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
+                    plug_log(s->plug, PLUGLOG_CONNECT_SUCCESS,
+                             &thisaddr, s->port, NULL, 0);
                 }
             }
 

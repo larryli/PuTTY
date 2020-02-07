@@ -47,6 +47,7 @@ struct Plug {
 typedef enum PlugLogType {
     PLUGLOG_CONNECT_TRYING,
     PLUGLOG_CONNECT_FAILED,
+    PLUGLOG_CONNECT_SUCCESS,
     PLUGLOG_PROXY_MSG,
 } PlugLogType;
 
@@ -65,6 +66,9 @@ struct PlugVtable {
      *    is not a fatal error - we may well have other candidate
      *    addresses to fall back to. When it _is_ fatal, the closing()
      *    function will be called.
+     *
+     *  - PLUGLOG_CONNECT_SUCCESS means we have succeeded in
+     *    connecting to address `addr'.
      *
      *  - PLUGLOG_PROXY_MSG means that error_msg contains a line of
      *    logging information from whatever the connection is being

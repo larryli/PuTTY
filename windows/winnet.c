@@ -1068,6 +1068,9 @@ static DWORD try_connect(NetSocket *sock)
          * and we should set the socket as writable.
          */
         sock->writable = true;
+        SockAddr thisaddr = sk_extractaddr_tmp(sock->addr, &sock->step);
+        plug_log(sock->plug, PLUGLOG_CONNECT_SUCCESS,
+                 &thisaddr, sock->port, NULL, 0);
     }
 
     err = 0;
@@ -1546,12 +1549,18 @@ void select_result(WPARAM wParam, LPARAM lParam)
       case FD_CONNECT:
         s->connected = true;
         s->writable = true;
+
         /*
-         * Once a socket is connected, we can stop falling
-         * back through the candidate addresses to connect
-         * to.
+         * Once a socket is connected, we can stop falling back
+         * through the candidate addresses to connect to. But first,
+         * let the plug know we were successful.
          */
         if (s->addr) {
+            SockAddr thisaddr = sk_extractaddr_tmp(
+                s->addr, &s->step);
+            plug_log(s->plug, PLUGLOG_CONNECT_SUCCESS,
+                     &thisaddr, s->port, NULL, 0);
+
             sk_addr_free(s->addr);
             s->addr = NULL;
         }
