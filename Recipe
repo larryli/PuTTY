@@ -262,7 +262,7 @@ SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512
          + sshdes sshblowf sshaes sshccp ssharcf
          + sshdh sshcrc sshcrcda sshauxcrypt
          + sshhmac
-SSHCOMMON = sshcommon sshprng sshrand SSHCRYPTO
+SSHCOMMON = sshcommon sshutils sshprng sshrand SSHCRYPTO
          + sshverstring
          + sshpubk sshzlib
          + sshmac marshal nullplug
