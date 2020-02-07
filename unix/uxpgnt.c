@@ -35,6 +35,8 @@ struct uxpgnt_client {
     strbuf *debug_prompt_buf;
     bool debug_prompt_active, debug_prompt_possible;
     PageantClientDialogId *dlgid;
+    int passphrase_fd;
+    int termination_pid;
 
     PageantListenerClient plc;
 };
@@ -91,13 +93,6 @@ static const PageantListenerClientVtable uxpgnt_vtable = {
     uxpgnt_log,
     uxpgnt_ask_passphrase,
 };
-
-/*
- * In Pageant our selects are synchronous, so these functions are
- * empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
 
 /*
  * More stubs.
@@ -776,6 +771,93 @@ static const PlugVtable X11Connection_plugvt = {
     NULL
 };
 
+
+static bool agent_loop_pw_setup(void *vctx, pollwrapper *pw)
+{
+    struct uxpgnt_client *upc = (struct uxpgnt_client *)vctx;
+
+    if (signalpipe[0] >= 0) {
+        pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
+    }
+
+    if (upc->debug_prompt_active)
+        pollwrap_add_fd_rwx(pw, upc->passphrase_fd, SELECT_R);
+
+    return true;
+}
+
+static void agent_loop_pw_check(void *vctx, pollwrapper *pw)
+{
+    struct uxpgnt_client *upc = (struct uxpgnt_client *)vctx;
+
+    if (life == LIFE_TTY) {
+        /*
+         * Every time we wake up (whether it was due to tty_timer
+         * elapsing or for any other reason), poll to see if we still
+         * have a controlling terminal. If we don't, then our
+         * containing tty session has ended, so it's time to clean up
+         * and leave.
+         */
+        if (!have_controlling_tty()) {
+            time_to_die = true;
+            return;
+        }
+    }
+
+    if (signalpipe[0] >= 0 &&
+        pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
+        char c[1];
+        if (read(signalpipe[0], c, 1) <= 0)
+            /* ignore error */;
+        /* ignore its value; it'll be `x' */
+        while (1) {
+            int status;
+            pid_t pid;
+            pid = waitpid(-1, &status, WNOHANG);
+            if (pid <= 0)
+                break;
+            if (pid == upc->termination_pid)
+                time_to_die = true;
+        }
+    }
+
+    if (upc->debug_prompt_active &&
+        pollwrap_check_fd_rwx(pw, upc->passphrase_fd, SELECT_R)) {
+        char c;
+        int retd = read(upc->passphrase_fd, &c, 1);
+        if (retd <= 0) {
+            passphrase_done(upc, false);
+            /* Now never try to read from stdin again */
+            upc->debug_prompt_possible = false;
+        } else {
+            switch (c) {
+              case '\n':
+              case '\r':
+                passphrase_done(upc, true);
+                break;
+              case '\004':
+                passphrase_done(upc, false);
+                break;
+              case '\b':
+              case '\177':
+                strbuf_shrink_by(upc->debug_prompt_buf, 1);
+                break;
+              case '\025':
+                strbuf_clear(upc->debug_prompt_buf);
+                break;
+              default:
+                put_byte(upc->debug_prompt_buf, c);
+                break;
+            }
+        }
+    }
+}
+
+static bool agent_loop_continue(void *vctx, bool fd, bool cb)
+{
+    return !time_to_die;
+}
+
 void run_agent(FILE *logfp, const char *symlink_path)
 {
     const char *err;
@@ -783,19 +865,9 @@ void run_agent(FILE *logfp, const char *symlink_path)
     struct pageant_listen_state *pl;
     Plug *pl_plug;
     Socket *sock;
-    unsigned long now;
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
-    int passphrase_fd = -1;
-    int termination_pid = -1;
     bool errors = false;
     Conf *conf;
     const struct cmdline_key_action *act;
-
-    fdlist = NULL;
-    fdsize = 0;
 
     pageant_init();
 
@@ -817,6 +889,8 @@ void run_agent(FILE *logfp, const char *symlink_path)
     memset(upc, 0, sizeof(upc));
     upc->plc.vt = &uxpgnt_vtable;
     upc->logfp = logfp;
+    upc->passphrase_fd = -1;
+    upc->termination_pid = -1;
     pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
@@ -906,8 +980,8 @@ void run_agent(FILE *logfp, const char *symlink_path)
         upc->logfp = stdout;
 
         struct termios orig_termios;
-        passphrase_fd = fileno(stdin);
-        if (tcgetattr(passphrase_fd, &orig_termios) == 0) {
+        upc->passphrase_fd = fileno(stdin);
+        if (tcgetattr(upc->passphrase_fd, &orig_termios) == 0) {
             struct termios new_termios = orig_termios;
             new_termios.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
 
@@ -920,11 +994,11 @@ void run_agent(FILE *logfp, const char *symlink_path)
             if (pipe(pipefd) == 0) {
                 pid_t pid = fork();
                 if (pid == 0) {
-                    tcsetattr(passphrase_fd, TCSADRAIN, &new_termios);
+                    tcsetattr(upc->passphrase_fd, TCSADRAIN, &new_termios);
                     close(pipefd[1]);
                     char buf[4096];
                     while (read(pipefd[0], buf, sizeof(buf)) > 0);
-                    tcsetattr(passphrase_fd, TCSADRAIN, &new_termios);
+                    tcsetattr(upc->passphrase_fd, TCSADRAIN, &new_termios);
                     _exit(0);
                 } else if (pid > 0) {
                     upc->debug_prompt_possible = true;
@@ -961,170 +1035,18 @@ void run_agent(FILE *logfp, const char *symlink_path)
             perror("exec");
             _exit(127);
         } else {
-            termination_pid = pid;
+            upc->termination_pid = pid;
         }
     }
 
     if (!upc->logfp)
         upc->plc.suppress_logging = true;
 
-    now = GETTICKCOUNT();
-
-    pollwrapper *pw = pollwrap_new();
-
-    while (!time_to_die) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        if (signalpipe[0] >= 0) {
-            pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
-        }
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to pw, and store them in fdlist
-         * as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (upc->debug_prompt_active)
-            pollwrap_add_fd_rwx(pw, passphrase_fd, SELECT_R);
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            unsigned long then;
-            long ticks;
-
-            then = now;
-            now = GETTICKCOUNT();
-            if (now - then > next - then)
-                ticks = 0;
-            else
-                ticks = next - now;
-
-            bool overflow = false;
-            if (ticks > INT_MAX) {
-                ticks = INT_MAX;
-                overflow = true;
-            }
-
-            ret = pollwrap_poll_timeout(pw, ticks);
-            if (ret == 0 && !overflow)
-                now = next;
-            else
-                now = GETTICKCOUNT();
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        if (life == LIFE_TTY) {
-            /*
-             * Every time we wake up (whether it was due to tty_timer
-             * elapsing or for any other reason), poll to see if we
-             * still have a controlling terminal. If we don't, then
-             * our containing tty session has ended, so it's time to
-             * clean up and leave.
-             */
-            if (!have_controlling_tty()) {
-                time_to_die = true;
-                break;
-            }
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        if (signalpipe[0] >= 0 &&
-            pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
-            char c[1];
-            if (read(signalpipe[0], c, 1) <= 0)
-                /* ignore error */;
-            /* ignore its value; it'll be `x' */
-            while (1) {
-                int status;
-                pid_t pid;
-                pid = waitpid(-1, &status, WNOHANG);
-                if (pid <= 0)
-                    break;
-                if (pid == termination_pid)
-                    time_to_die = true;
-            }
-        }
-
-        if (upc->debug_prompt_active &&
-            pollwrap_check_fd_rwx(pw, passphrase_fd, SELECT_R)) {
-            char c;
-            int retd = read(passphrase_fd, &c, 1);
-            if (retd <= 0) {
-                passphrase_done(upc, false);
-                /* Now never try to read from stdin again */
-                upc->debug_prompt_possible = false;
-            } else {
-                switch (c) {
-                  case '\n':
-                  case '\r':
-                    passphrase_done(upc, true);
-                    break;
-                  case '\004':
-                    passphrase_done(upc, false);
-                    break;
-                  case '\b':
-                  case '\177':
-                    strbuf_shrink_by(upc->debug_prompt_buf, 1);
-                    break;
-                  case '\025':
-                    strbuf_clear(upc->debug_prompt_buf);
-                    break;
-                  default:
-                    put_byte(upc->debug_prompt_buf, c);
-                    break;
-                }
-            }
-        }
-
-        run_toplevel_callbacks();
-    }
+    cli_main_loop(agent_loop_pw_setup, agent_loop_pw_check,
+                  agent_loop_continue, upc);
 
     /*
-     * When we come here, we're terminating, and should clean up our
-     * Unix socket file if possible.
+     * Before terminating, clean up our Unix socket file if possible.
      */
     if (unlink(socketname) < 0) {
         fprintf(stderr, "pageant: %s: %s\n", socketname, strerror(errno));
@@ -1132,8 +1054,6 @@ void run_agent(FILE *logfp, const char *symlink_path)
     }
 
     conf_free(conf);
-    pollwrap_free(pw);
-    sfree(fdlist);
 }
 
 int main(int argc, char **argv)

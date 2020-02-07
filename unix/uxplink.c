@@ -485,13 +485,6 @@ void sigwinch(int signum)
 }
 
 /*
- * In Plink our selects are synchronous, so these functions are
- * empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
-
-/*
  * Short description of parameters.
  */
 static void usage(void)
@@ -575,24 +568,95 @@ const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
     TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
 
+static bool sending;
+
+static bool plink_pw_setup(void *vctx, pollwrapper *pw)
+{
+    pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
+
+    if (!sending &&
+        backend_connected(backend) &&
+        backend_sendok(backend) &&
+        backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
+        /* If we're OK to send, then try to read from stdin. */
+        pollwrap_add_fd_rwx(pw, STDIN_FILENO, SELECT_R);
+    }
+
+    if (bufchain_size(&stdout_data) > 0) {
+        /* If we have data for stdout, try to write to stdout. */
+        pollwrap_add_fd_rwx(pw, STDOUT_FILENO, SELECT_W);
+    }
+
+    if (bufchain_size(&stderr_data) > 0) {
+        /* If we have data for stderr, try to write to stderr. */
+        pollwrap_add_fd_rwx(pw, STDERR_FILENO, SELECT_W);
+    }
+
+    return true;
+}
+
+static void plink_pw_check(void *vctx, pollwrapper *pw)
+{
+    if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
+        char c[1];
+        struct winsize size;
+        if (read(signalpipe[0], c, 1) <= 0)
+            /* ignore error */;
+        /* ignore its value; it'll be `x' */
+        if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
+            backend_size(backend, size.ws_col, size.ws_row);
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
+        char buf[4096];
+        int ret;
+
+        if (backend_connected(backend)) {
+            ret = read(STDIN_FILENO, buf, sizeof(buf));
+            noise_ultralight(NOISE_SOURCE_IOLEN, ret);
+            if (ret < 0) {
+                perror("stdin: read");
+                exit(1);
+            } else if (ret == 0) {
+                backend_special(backend, SS_EOF, 0);
+                sending = false;   /* send nothing further after this */
+            } else {
+                if (local_tty)
+                    from_tty(buf, ret);
+                else
+                    backend_send(backend, buf, ret);
+            }
+        }
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
+        backend_unthrottle(backend, try_output(false));
+    }
+
+    if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
+        backend_unthrottle(backend, try_output(true));
+    }
+}
+
+static bool plink_continue(void *vctx, bool found_any_fd,
+                           bool ran_any_callback)
+{
+    if (!backend_connected(backend) &&
+        bufchain_size(&stdout_data) == 0 && bufchain_size(&stderr_data) == 0)
+        return false;                  /* terminate main loop */
+    return true;
+}
+
 int main(int argc, char **argv)
 {
-    bool sending;
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
     int exitcode;
     bool errors;
     enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
     bool use_subsystem = false;
     bool just_test_share_exists = false;
-    unsigned long now;
     struct winsize size;
     const struct BackendVtable *backvt;
 
-    fdlist = NULL;
-    fdsize = 0;
     /*
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
@@ -875,157 +939,9 @@ int main(int argc, char **argv)
     atexit(cleanup_termios);
     seat_echoedit_update(plink_seat, 1, 1);
     sending = false;
-    now = GETTICKCOUNT();
 
-    pollwrapper *pw = pollwrap_new();
+    cli_main_loop(plink_pw_setup, plink_pw_check, plink_continue, NULL);
 
-    while (1) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
-
-        if (!sending &&
-            backend_connected(backend) &&
-            backend_sendok(backend) &&
-            backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
-            /* If we're OK to send, then try to read from stdin. */
-            pollwrap_add_fd_rwx(pw, STDIN_FILENO, SELECT_R);
-        }
-
-        if (bufchain_size(&stdout_data) > 0) {
-            /* If we have data for stdout, try to write to stdout. */
-            pollwrap_add_fd_rwx(pw, STDOUT_FILENO, SELECT_W);
-        }
-
-        if (bufchain_size(&stderr_data) > 0) {
-            /* If we have data for stderr, try to write to stderr. */
-            pollwrap_add_fd_rwx(pw, STDERR_FILENO, SELECT_W);
-        }
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to pw, and store them in fdlist
-         * as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            do {
-                unsigned long then;
-                long ticks;
-
-                then = now;
-                now = GETTICKCOUNT();
-                if (now - then > next - then)
-                    ticks = 0;
-                else
-                    ticks = next - now;
-
-                bool overflow = false;
-                if (ticks > INT_MAX) {
-                    ticks = INT_MAX;
-                    overflow = true;
-                }
-
-                ret = pollwrap_poll_timeout(pw, ticks);
-                if (ret == 0 && !overflow)
-                    now = next;
-                else
-                    now = GETTICKCOUNT();
-            } while (ret < 0 && errno == EINTR);
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        if (pollwrap_check_fd_rwx(pw, signalpipe[0], SELECT_R)) {
-            char c[1];
-            struct winsize size;
-            if (read(signalpipe[0], c, 1) <= 0)
-                /* ignore error */;
-            /* ignore its value; it'll be `x' */
-            if (ioctl(STDIN_FILENO, TIOCGWINSZ, (void *)&size) >= 0)
-                backend_size(backend, size.ws_col, size.ws_row);
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDIN_FILENO, SELECT_R)) {
-            char buf[4096];
-            int ret;
-
-            if (backend_connected(backend)) {
-                ret = read(STDIN_FILENO, buf, sizeof(buf));
-                noise_ultralight(NOISE_SOURCE_IOLEN, ret);
-                if (ret < 0) {
-                    perror("stdin: read");
-                    exit(1);
-                } else if (ret == 0) {
-                    backend_special(backend, SS_EOF, 0);
-                    sending = false;   /* send nothing further after this */
-                } else {
-                    if (local_tty)
-                        from_tty(buf, ret);
-                    else
-                        backend_send(backend, buf, ret);
-                }
-            }
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDOUT_FILENO, SELECT_W)) {
-            backend_unthrottle(backend, try_output(false));
-        }
-
-        if (pollwrap_check_fd_rwx(pw, STDERR_FILENO, SELECT_W)) {
-            backend_unthrottle(backend, try_output(true));
-        }
-
-        run_toplevel_callbacks();
-
-        if (!backend_connected(backend) &&
-            bufchain_size(&stdout_data) == 0 &&
-            bufchain_size(&stderr_data) == 0)
-            break;                     /* we closed the connection */
-    }
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
         fprintf(stderr, "Remote process exit code unavailable\n");

@@ -364,7 +364,7 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + nogss utils memory GTKMAIN
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
-         + ux_x11 noterm uxnogtk sessprep cmdline clicons
+         + ux_x11 noterm uxnogtk sessprep cmdline clicons uxcliloop
 
 PUTTYGEN_UNIX = KEYGEN sshprime sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
@@ -375,15 +375,15 @@ puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
-         + clicons
+         + clicons uxcliloop
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
-         + clicons
+         + clicons uxcliloop
 
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes ARITH
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
          + gtkask gtkmisc nullplug logging UXMISC uxagentsock utils memory
-	 + sshauxcrypt sshhmac sshprng uxnoise
+	 + sshauxcrypt sshhmac sshprng uxnoise uxcliloop
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg
@@ -404,7 +404,7 @@ testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
 testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
-         + uxpty uxsftpserver ux_x11 uxagentsock procnet
+         + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we

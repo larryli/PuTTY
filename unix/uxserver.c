@@ -95,12 +95,6 @@ char *x_get_default(const char *key)
     return NULL;                       /* this is a stub */
 }
 
-/*
- * Our selects are synchronous, so these functions are empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
-
 void old_keyfile_warning(void) { }
 
 void timer_change_notify(unsigned long next)
@@ -519,11 +513,6 @@ static const PlugVtable server_plugvt = {
 
 int main(int argc, char **argv)
 {
-    int *fdlist;
-    int fd;
-    int i, fdstate;
-    size_t fdsize;
-    unsigned long now;
     int listen_port = -1;
 
     ssh_key **hostkeys = NULL;
@@ -598,7 +587,7 @@ int main(int argc, char **argv)
                 sfree(uk->comment);
                 sfree(uk);
 
-                for (i = 0; i < nhostkeys; i++)
+                for (int i = 0; i < nhostkeys; i++)
                     if (ssh_key_alg(hostkeys[i]) == ssh_key_alg(key)) {
                         fprintf(stderr, "%s: host key '%s' duplicates key "
                                 "type %s\n", appname, val,
@@ -792,9 +781,6 @@ int main(int argc, char **argv)
         exit(1);
     }
 
-    fdlist = NULL;
-    fdsize = 0;
-
     random_ref();
 
     /*
@@ -832,90 +818,8 @@ int main(int argc, char **argv)
         log_to_stderr(inst->id, "speaking SSH on stdio");
     }
 
-    now = GETTICKCOUNT();
+    cli_main_loop(cliloop_no_pw_setup, cliloop_no_pw_check,
+                  cliloop_always_continue, NULL);
 
-    pollwrapper *pw = pollwrap_new();
-    while (!finished) {
-        int rwx;
-        int ret;
-        unsigned long next;
-
-        pollwrap_clear(pw);
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        /*
-         * Add all currently open fds to the select sets, and store
-         * them in fdlist as well.
-         */
-        int fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-        } else if (run_timers(now, &next)) {
-            do {
-                unsigned long then;
-                long ticks;
-
-                then = now;
-                now = GETTICKCOUNT();
-                if (now - then > next - then)
-                    ticks = 0;
-                else
-                    ticks = next - now;
-
-                bool overflow = false;
-                if (ticks > INT_MAX) {
-                    ticks = INT_MAX;
-                    overflow = true;
-                }
-
-                ret = pollwrap_poll_timeout(pw, ticks);
-                if (ret == 0 && !overflow)
-                    now = next;
-                else
-                    now = GETTICKCOUNT();
-            } while (ret < 0 && errno == EINTR);
-        } else {
-            ret = pollwrap_poll_endless(pw);
-        }
-
-        if (ret < 0 && errno == EINTR)
-            continue;
-
-        if (ret < 0) {
-            perror("poll");
-            exit(1);
-        }
-
-        for (i = 0; i < fdcount; i++) {
-            fd = fdlist[i];
-            int rwx = pollwrap_get_fd_rwx(pw, fd);
-            /*
-             * We must process exceptional notifications before
-             * ordinary readability ones, or we may go straight
-             * past the urgent marker.
-             */
-            if (rwx & SELECT_X)
-                select_result(fd, SELECT_X);
-            if (rwx & SELECT_R)
-                select_result(fd, SELECT_R);
-            if (rwx & SELECT_W)
-                select_result(fd, SELECT_W);
-        }
-
-        run_toplevel_callbacks();
-    }
-    exit(0);
+    return 0;
 }

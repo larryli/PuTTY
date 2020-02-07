@@ -21,13 +21,6 @@
 #include <glob.h>
 #endif
 
-/*
- * In PSFTP our selects are synchronous, so these functions are
- * empty stubs.
- */
-uxsel_id *uxsel_input_add(int fd, int rwx) { return NULL; }
-void uxsel_input_remove(uxsel_id *id) { }
-
 char *x_get_default(const char *key)
 {
     return NULL;                       /* this is a stub */
@@ -465,116 +458,55 @@ char *dir_file_cat(const char *dir, const char *file)
 
 /*
  * Do a select() between all currently active network fds and
- * optionally stdin.
+ * optionally stdin, using cli_main_loop.
  */
+
+struct ssh_sftp_mainloop_ctx {
+    bool include_stdin, no_fds_ok;
+    int toret;
+};
+static bool ssh_sftp_pw_setup(void *vctx, pollwrapper *pw)
+{
+    struct ssh_sftp_mainloop_ctx *ctx = (struct ssh_sftp_mainloop_ctx *)vctx;
+    int fdstate, rwx;
+
+    if (!ctx->no_fds_ok && !toplevel_callback_pending() &&
+        first_fd(&fdstate, &rwx) < 0) {
+        ctx->toret = -1;
+        return false; /* terminate cli_main_loop */
+    }
+
+    if (ctx->include_stdin)
+        pollwrap_add_fd_rwx(pw, 0, SELECT_R);
+
+    return true;
+}
+static void ssh_sftp_pw_check(void *vctx, pollwrapper *pw)
+{
+    struct ssh_sftp_mainloop_ctx *ctx = (struct ssh_sftp_mainloop_ctx *)vctx;
+
+    if (ctx->include_stdin && pollwrap_check_fd_rwx(pw, 0, SELECT_R))
+        ctx->toret = 1;
+}
+static bool ssh_sftp_mainloop_continue(void *vctx, bool found_any_fd,
+                                       bool ran_any_callback)
+{
+    struct ssh_sftp_mainloop_ctx *ctx = (struct ssh_sftp_mainloop_ctx *)vctx;
+    if (ctx->toret != 0 || found_any_fd || ran_any_callback)
+        return false;                  /* finish the loop */
+    return true;
+}
 static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 {
-    int i, *fdlist;
-    size_t fdsize;
-    int fd, fdcount, fdstate, rwx, ret;
-    unsigned long now = GETTICKCOUNT();
-    unsigned long next;
-    bool done_something = false;
+    struct ssh_sftp_mainloop_ctx ctx[1];
+    ctx->include_stdin = include_stdin;
+    ctx->no_fds_ok = no_fds_ok;
+    ctx->toret = 0;
 
-    fdlist = NULL;
-    fdsize = 0;
+    cli_main_loop(ssh_sftp_pw_setup, ssh_sftp_pw_check,
+                  ssh_sftp_mainloop_continue, ctx);
 
-    pollwrapper *pw = pollwrap_new();
-
-    do {
-
-        /* Count the currently active fds. */
-        i = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) i++;
-
-        if (i < 1 && !no_fds_ok && !toplevel_callback_pending()) {
-            pollwrap_free(pw);
-            return -1;                 /* doom */
-        }
-
-        /* Expand the fdlist buffer if necessary. */
-        sgrowarray(fdlist, fdsize, i);
-
-        pollwrap_clear(pw);
-
-        /*
-         * Add all currently open fds to the select sets, and store
-         * them in fdlist as well.
-         */
-        fdcount = 0;
-        for (fd = first_fd(&fdstate, &rwx); fd >= 0;
-             fd = next_fd(&fdstate, &rwx)) {
-            fdlist[fdcount++] = fd;
-            pollwrap_add_fd_rwx(pw, fd, rwx);
-        }
-
-        if (include_stdin)
-            pollwrap_add_fd_rwx(pw, 0, SELECT_R);
-
-        if (toplevel_callback_pending()) {
-            ret = pollwrap_poll_instant(pw);
-            if (ret == 0)
-                done_something |= run_toplevel_callbacks();
-        } else if (run_timers(now, &next)) {
-            do {
-                unsigned long then;
-                long ticks;
-
-                then = now;
-                now = GETTICKCOUNT();
-                if (now - then > next - then)
-                    ticks = 0;
-                else
-                    ticks = next - now;
-
-                bool overflow = false;
-                if (ticks > INT_MAX) {
-                    ticks = INT_MAX;
-                    overflow = true;
-                }
-
-                ret = pollwrap_poll_timeout(pw, ticks);
-                if (ret == 0 && !overflow)
-                    now = next;
-                else
-                    now = GETTICKCOUNT();
-            } while (ret < 0 && errno == EINTR);
-        } else {
-            do {
-                ret = pollwrap_poll_endless(pw);
-            } while (ret < 0 && errno == EINTR);
-        }
-    } while (ret == 0 && !done_something);
-
-    if (ret < 0) {
-        perror("poll");
-        exit(1);
-    }
-
-    for (i = 0; i < fdcount; i++) {
-        fd = fdlist[i];
-        int rwx = pollwrap_get_fd_rwx(pw, fd);
-        /*
-         * We must process exceptional notifications before
-         * ordinary readability ones, or we may go straight
-         * past the urgent marker.
-         */
-        if (rwx & SELECT_X)
-            select_result(fd, SELECT_X);
-        if (rwx & SELECT_R)
-            select_result(fd, SELECT_R);
-        if (rwx & SELECT_W)
-            select_result(fd, SELECT_W);
-    }
-
-    sfree(fdlist);
-
-    run_toplevel_callbacks();
-
-    int toret = pollwrap_check_fd_rwx(pw, 0, SELECT_R) ? 1 : 0;
-    pollwrap_free(pw);
-    return toret;
+    return ctx->toret;
 }
 
 /*
