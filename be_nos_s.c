@@ -17,18 +17,3 @@ const struct BackendVtable *const backends[] = {
     &serial_backend,
     NULL
 };
-
-/*
- * Stub implementations of functions not used in non-ssh versions.
- */
-void random_save_seed(void)
-{
-}
-
-void random_destroy_seed(void)
-{
-}
-
-void noise_ultralight(NoiseSourceId id, unsigned long data)
-{
-}

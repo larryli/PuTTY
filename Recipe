@@ -312,15 +312,15 @@ LIBS     = advapi32.lib user32.lib gdi32.lib comdlg32.lib
 # Network backend sets. This also brings in the relevant attachment
 # to proxy.c depending on whether we're crypto-avoidant or not.
 BE_ALL   = be_all cproxy
-BE_NOSSH = be_nossh nocproxy
+BE_NOSSH = be_nossh norand nocproxy
 BE_SSH   = be_ssh cproxy
 BE_NONE  = be_none nocproxy
 # More backend sets, with the additional Windows serial-port module.
 W_BE_ALL = be_all_s winser cproxy
-W_BE_NOSSH = be_nos_s winser nocproxy
+W_BE_NOSSH = be_nos_s norand winser nocproxy
 # And with the Unix serial-port module.
 U_BE_ALL = be_all_s uxser cproxy
-U_BE_NOSSH = be_nos_s uxser nocproxy
+U_BE_NOSSH = be_nos_s norand uxser nocproxy
 
 # Auxiliary crypto modules used by key generators.
 KEYGEN   = sshrsag sshdssg sshecdsag
