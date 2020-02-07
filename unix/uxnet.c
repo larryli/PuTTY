@@ -575,7 +575,8 @@ static int try_connect(NetSocket *sock)
     {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, 0, &thisaddr, sock->port, NULL, 0);
+        plug_log(sock->plug, PLUGLOG_CONNECT_TRYING,
+                 &thisaddr, sock->port, NULL, 0);
     }
 
     /*
@@ -746,7 +747,8 @@ static int try_connect(NetSocket *sock)
     if (err) {
         SockAddr thisaddr = sk_extractaddr_tmp(
             sock->addr, &sock->step);
-        plug_log(sock->plug, 1, &thisaddr, sock->port, strerror(err), err);
+        plug_log(sock->plug, PLUGLOG_CONNECT_FAILED,
+                 &thisaddr, sock->port, strerror(err), err);
     }
     return err;
 }
@@ -1421,7 +1423,8 @@ static void net_select_result(int fd, int event)
                     assert(s->addr);
 
                     thisaddr = sk_extractaddr_tmp(s->addr, &s->step);
-                    plug_log(s->plug, 1, &thisaddr, s->port, errmsg, err);
+                    plug_log(s->plug, PLUGLOG_CONNECT_FAILED,
+                             &thisaddr, s->port, errmsg, err);
 
                     while (err && s->addr && sk_nextaddr(s->addr, &s->step)) {
                         err = try_connect(s);

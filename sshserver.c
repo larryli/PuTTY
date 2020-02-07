@@ -124,8 +124,8 @@ static const SeatVtable server_seat_vt = {
     nullseat_interactive_no,
 };
 
-static void server_socket_log(Plug *plug, int type, SockAddr *addr, int port,
-                              const char *error_msg, int error_code)
+static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                              int port, const char *error_msg, int error_code)
 {
     /* server *srv = container_of(plug, server, plug); */
     /* FIXME */

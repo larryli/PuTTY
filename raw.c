@@ -33,7 +33,7 @@ static void c_write(Raw *raw, const void *buf, size_t len)
     sk_set_frozen(raw->s, backlog > RAW_MAX_BACKLOG);
 }
 
-static void raw_log(Plug *plug, int type, SockAddr *addr, int port,
+static void raw_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code)
 {
     Raw *raw = container_of(plug, Raw, plug);

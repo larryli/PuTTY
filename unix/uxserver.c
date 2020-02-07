@@ -447,7 +447,7 @@ static Plug *server_conn_plug(
         &inst->ap, &inst->logpolicy, &unix_live_sftpserver_vt);
 }
 
-static void server_log(Plug *plug, int type, SockAddr *addr, int port,
+static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        const char *error_msg, int error_code)
 {
     log_to_stderr((unsigned)-1, error_msg);

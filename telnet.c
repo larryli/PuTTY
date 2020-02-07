@@ -613,7 +613,7 @@ static void do_telnet_read(Telnet *telnet, const char *buf, size_t len)
     strbuf_free(outbuf);
 }
 
-static void telnet_log(Plug *plug, int type, SockAddr *addr, int port,
+static void telnet_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                        const char *error_msg, int error_code)
 {
     Telnet *telnet = container_of(plug, Telnet, plug);

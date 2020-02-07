@@ -576,8 +576,8 @@ void ssh_sw_abort_deferred(Ssh *ssh, const char *fmt, ...)
     }
 }
 
-static void ssh_socket_log(Plug *plug, int type, SockAddr *addr, int port,
-                           const char *error_msg, int error_code)
+static void ssh_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                           int port, const char *error_msg, int error_code)
 {
     Ssh *ssh = container_of(plug, Ssh, plug);
 

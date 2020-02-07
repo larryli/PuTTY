@@ -684,7 +684,7 @@ void x11_format_auth_for_authfile(
     put_stringpl_xauth(bs, authdata);
 }
 
-static void x11_log(Plug *p, int type, SockAddr *addr, int port,
+static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code)
 {
     /* We have no interface to the logging module here, so we drop these. */

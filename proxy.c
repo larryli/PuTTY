@@ -171,8 +171,8 @@ static const char * sk_proxy_socket_error (Socket *s)
 
 /* basic proxy plug functions */
 
-static void plug_proxy_log(Plug *plug, int type, SockAddr *addr, int port,
-                           const char *error_msg, int error_code)
+static void plug_proxy_log(Plug *plug, PlugLogType type, SockAddr *addr,
+                           int port, const char *error_msg, int error_code)
 {
     ProxySocket *ps = container_of(plug, ProxySocket, plugimpl);
 
@@ -455,7 +455,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
                                       conf_get_str(conf, CONF_proxy_host),
                                       conf_get_int(conf, CONF_proxy_port),
                                       hostname, port);
-            plug_log(plug, 2, NULL, 0, logmsg, 0);
+            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 
@@ -463,7 +463,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
             char *logmsg = dns_log_msg(conf_get_str(conf, CONF_proxy_host),
                                        conf_get_int(conf, CONF_addressfamily),
                                        "proxy");
-            plug_log(plug, 2, NULL, 0, logmsg, 0);
+            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 
@@ -484,7 +484,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
             logmsg = dupprintf("Connecting to %s proxy at %s port %d",
                                proxy_type, addrbuf,
                                conf_get_int(conf, CONF_proxy_port));
-            plug_log(plug, 2, NULL, 0, logmsg, 0);
+            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 
@@ -1456,7 +1456,7 @@ int proxy_telnet_negotiate (ProxySocket *p, int change)
             *out = '\0';
 
             logmsg = dupprintf("Sending Telnet proxy command: %s", reescaped);
-            plug_log(p->plug, 2, NULL, 0, logmsg, 0);
+            plug_log(p->plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
             sfree(reescaped);
         }

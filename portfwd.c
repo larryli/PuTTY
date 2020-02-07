@@ -95,13 +95,13 @@ static void free_portlistener_state(struct PortListener *pl)
     sfree(pl);
 }
 
-static void pfd_log(Plug *plug, int type, SockAddr *addr, int port,
+static void pfd_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code)
 {
     /* we have to dump these since we have no interface to logging.c */
 }
 
-static void pfl_log(Plug *plug, int type, SockAddr *addr, int port,
+static void pfl_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code)
 {
     /* we have to dump these since we have no interface to logging.c */

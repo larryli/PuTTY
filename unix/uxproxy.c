@@ -33,7 +33,7 @@ Socket *platform_new_connection(SockAddr *addr, const char *hostname,
 
         {
             char *logmsg = dupprintf("Starting local proxy command: %s", cmd);
-            plug_log(plug, 2, NULL, 0, logmsg, 0);
+            plug_log(plug, PLUGLOG_PROXY_MSG, NULL, 0, logmsg, 0);
             sfree(logmsg);
         }
 

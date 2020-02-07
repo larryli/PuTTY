@@ -199,7 +199,7 @@ void chan_no_request_response(Channel *chan, bool success) {}
  * except that x11_closing has to signal back to the main loop that
  * it's time to terminate.
  */
-static void x11_log(Plug *p, int type, SockAddr *addr, int port,
+static void x11_log(Plug *p, PlugLogType type, SockAddr *addr, int port,
                     const char *error_msg, int error_code) {}
 static void x11_receive(Plug *plug, int urgent, const char *data, size_t len) {}
 static void x11_sent(Plug *plug, size_t bufsize) {}
