@@ -686,4 +686,12 @@ char *get_jumplist_registry_entries(void);
 /* In winmisc.c */
 char *registry_get_string(HKEY root, const char *path, const char *leaf);
 
+/* In wincliloop.c */
+typedef bool (*cliloop_pre_t)(void *vctx, const HANDLE **extra_handles,
+                              size_t *n_extra_handles);
+typedef bool (*cliloop_post_t)(void *vctx, size_t extra_handle_index);
+void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx);
+bool cliloop_null_pre(void *vctx, const HANDLE **, size_t *);
+bool cliloop_null_post(void *vctx, size_t);
+
 #endif

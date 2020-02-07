@@ -231,23 +231,43 @@ const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
     TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
 
+static bool sending;
+
+static bool plink_mainloop_pre(void *vctx, const HANDLE **extra_handles,
+                               size_t *n_extra_handles)
+{
+    if (!sending && backend_sendok(backend)) {
+        stdin_handle = handle_input_new(inhandle, stdin_gotdata, NULL,
+                                        0);
+        sending = true;
+    }
+
+    return true;
+}
+
+static bool plink_mainloop_post(void *vctx, size_t extra_handle_index)
+{
+    if (sending)
+        handle_unthrottle(stdin_handle, backend_sendbuffer(backend));
+
+    if (!backend_connected(backend) &&
+        handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
+        return false; /* we closed the connection */
+
+    return true;
+}
+
 int main(int argc, char **argv)
 {
-    bool sending;
-    SOCKET *sklist;
-    size_t skcount, sksize;
     int exitcode;
     bool errors;
     bool use_subsystem = false;
     bool just_test_share_exists = false;
     enum TriState sanitise_stdout = AUTO, sanitise_stderr = AUTO;
-    unsigned long now, next, then;
     const struct BackendVtable *vt;
 
     dll_hijacking_protection();
 
-    sklist = NULL;
-    skcount = sksize = 0;
     /*
      * Initialise port and protocol to sensible defaults. (These
      * will be overridden by more or less anything.)
@@ -487,116 +507,8 @@ int main(int argc, char **argv)
 
     sending = false;
 
-    now = GETTICKCOUNT();
+    cli_main_loop(plink_mainloop_pre, plink_mainloop_post, NULL);
 
-    while (1) {
-        int nhandles;
-        HANDLE *handles;
-        int n;
-        DWORD ticks;
-
-        if (!sending && backend_sendok(backend)) {
-            stdin_handle = handle_input_new(inhandle, stdin_gotdata, NULL,
-                                            0);
-            sending = true;
-        }
-
-        if (toplevel_callback_pending()) {
-            ticks = 0;
-            next = now;
-        } else if (run_timers(now, &next)) {
-            then = now;
-            now = GETTICKCOUNT();
-            if (now - then > next - then)
-                ticks = 0;
-            else
-                ticks = next - now;
-        } else {
-            ticks = INFINITE;
-            /* no need to initialise next here because we can never
-             * get WAIT_TIMEOUT */
-        }
-
-        handles = handle_get_events(&nhandles);
-        handles = sresize(handles, nhandles+1, HANDLE);
-        handles[nhandles] = winselcli_event;
-        n = WaitForMultipleObjects(nhandles+1, handles, false, ticks);
-        if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
-            handle_got_event(handles[n - WAIT_OBJECT_0]);
-        } else if (n == WAIT_OBJECT_0 + nhandles) {
-            WSANETWORKEVENTS things;
-            SOCKET socket;
-            int i, socketstate;
-
-            /*
-             * We must not call select_result() for any socket
-             * until we have finished enumerating within the tree.
-             * This is because select_result() may close the socket
-             * and modify the tree.
-             */
-            /* Count the active sockets. */
-            i = 0;
-            for (socket = first_socket(&socketstate);
-                 socket != INVALID_SOCKET;
-                 socket = next_socket(&socketstate)) i++;
-
-            /* Expand the buffer if necessary. */
-            sgrowarray(sklist, sksize, i);
-
-            /* Retrieve the sockets into sklist. */
-            skcount = 0;
-            for (socket = first_socket(&socketstate);
-                 socket != INVALID_SOCKET;
-                 socket = next_socket(&socketstate)) {
-                sklist[skcount++] = socket;
-            }
-
-            /* Now we're done enumerating; go through the list. */
-            for (i = 0; i < skcount; i++) {
-                WPARAM wp;
-                socket = sklist[i];
-                wp = (WPARAM) socket;
-                if (!p_WSAEnumNetworkEvents(socket, NULL, &things)) {
-                    static const struct { int bit, mask; } eventtypes[] = {
-                        {FD_CONNECT_BIT, FD_CONNECT},
-                        {FD_READ_BIT, FD_READ},
-                        {FD_CLOSE_BIT, FD_CLOSE},
-                        {FD_OOB_BIT, FD_OOB},
-                        {FD_WRITE_BIT, FD_WRITE},
-                        {FD_ACCEPT_BIT, FD_ACCEPT},
-                    };
-                    int e;
-
-                    noise_ultralight(NOISE_SOURCE_IOID, socket);
-
-                    for (e = 0; e < lenof(eventtypes); e++)
-                        if (things.lNetworkEvents & eventtypes[e].mask) {
-                            LPARAM lp;
-                            int err = things.iErrorCode[eventtypes[e].bit];
-                            lp = WSAMAKESELECTREPLY(eventtypes[e].mask, err);
-                            select_result(wp, lp);
-                        }
-                }
-            }
-        }
-
-        run_toplevel_callbacks();
-
-        if (n == WAIT_TIMEOUT) {
-            now = next;
-        } else {
-            now = GETTICKCOUNT();
-        }
-
-        sfree(handles);
-
-        if (sending)
-            handle_unthrottle(stdin_handle, backend_sendbuffer(backend));
-
-        if (!backend_connected(backend) &&
-            handle_backlog(stdout_handle) + handle_backlog(stderr_handle) == 0)
-            break;                     /* we closed the connection */
-    }
     exitcode = backend_exitcode(backend);
     if (exitcode < 0) {
         fprintf(stderr, "Remote process exit code unavailable\n");

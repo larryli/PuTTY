@@ -335,11 +335,11 @@ putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
 plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
          + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli
-         + clicons LIBS
+         + clicons wincliloop LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp winnohlp winselcli clicons LIBS
+         + pscp.res winnojmp winnohlp winselcli clicons wincliloop LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp winnohlp winselcli clicons LIBS
+         + psftp.res winnojmp winnohlp winselcli clicons wincliloop LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
