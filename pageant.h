@@ -220,7 +220,7 @@ enum {
     PAGEANT_ACTION_NEED_PP   /* need passphrase: *retstr is key comment */
 };
 int pageant_add_keyfile(Filename *filename, const char *passphrase,
-                        char **retstr);
+                        char **retstr, bool add_encrypted);
 void pageant_forget_passphrases(void);
 
 struct pageant_pubkey {

@@ -312,7 +312,10 @@ static void tty_life_timer(void *ctx, unsigned long now)
 
 typedef enum {
     KEYACT_AGENT_LOAD,
-    KEYACT_CLIENT_ADD,
+    KEYACT_AGENT_LOAD_ENCRYPTED,
+    KEYACT_CLIENT_BASE,
+    KEYACT_CLIENT_ADD = KEYACT_CLIENT_BASE,
+    KEYACT_CLIENT_ADD_ENCRYPTED,
     KEYACT_CLIENT_DEL,
     KEYACT_CLIENT_DEL_ALL,
     KEYACT_CLIENT_LIST,
@@ -327,7 +330,7 @@ struct cmdline_key_action {
 
 bool is_agent_action(keyact action)
 {
-    return action == KEYACT_AGENT_LOAD;
+    return action < KEYACT_CLIENT_BASE;
 }
 
 static struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
@@ -438,7 +441,7 @@ static char *askpass(const char *prompt)
     }
 }
 
-static bool unix_add_keyfile(const char *filename_str)
+static bool unix_add_keyfile(const char *filename_str, bool add_encrypted)
 {
     Filename *filename = filename_from_str(filename_str);
     int status;
@@ -450,7 +453,7 @@ static bool unix_add_keyfile(const char *filename_str)
     /*
      * Try without a passphrase.
      */
-    status = pageant_add_keyfile(filename, NULL, &err);
+    status = pageant_add_keyfile(filename, NULL, &err, add_encrypted);
     if (status == PAGEANT_ACTION_OK) {
         goto cleanup;
     } else if (status == PAGEANT_ACTION_FAILURE) {
@@ -472,7 +475,8 @@ static bool unix_add_keyfile(const char *filename_str)
         if (!passphrase)
             break;
 
-        status = pageant_add_keyfile(filename, passphrase, &err);
+        status = pageant_add_keyfile(filename, passphrase, &err,
+                                     add_encrypted);
 
         smemclr(passphrase, strlen(passphrase));
         sfree(passphrase);
@@ -692,7 +696,9 @@ void run_client(void)
     for (act = keyact_head; act; act = act->next) {
         switch (act->action) {
           case KEYACT_CLIENT_ADD:
-            if (!unix_add_keyfile(act->filename))
+          case KEYACT_CLIENT_ADD_ENCRYPTED:
+            if (!unix_add_keyfile(act->filename,
+                                  act->action == KEYACT_CLIENT_ADD_ENCRYPTED))
                 errors = true;
             break;
           case KEYACT_CLIENT_LIST:
@@ -875,8 +881,10 @@ void run_agent(FILE *logfp, const char *symlink_path)
      * Start by loading any keys provided on the command line.
      */
     for (act = keyact_head; act; act = act->next) {
-        assert(act->action == KEYACT_AGENT_LOAD);
-        if (!unix_add_keyfile(act->filename))
+        assert(act->action == KEYACT_AGENT_LOAD ||
+               act->action == KEYACT_AGENT_LOAD_ENCRYPTED);
+        if (!unix_add_keyfile(act->filename,
+                              act->action == KEYACT_AGENT_LOAD_ENCRYPTED))
             errors = true;
     }
     if (errors)
@@ -1097,6 +1105,16 @@ int main(int argc, char **argv)
                 life = LIFE_X11;
             } else if (!strcmp(p, "-T")) {
                 life = LIFE_TTY;
+            } else if (!strcmp(p, "-E")) {
+                if (curr_keyact == KEYACT_AGENT_LOAD)
+                    curr_keyact = KEYACT_AGENT_LOAD_ENCRYPTED;
+                else if (curr_keyact == KEYACT_CLIENT_ADD)
+                    curr_keyact = KEYACT_CLIENT_ADD_ENCRYPTED;
+                else {
+                    fprintf(stderr, "pageant: unexpected -E while not adding "
+                            "keys\n");
+                    exit(1);
+                }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
             } else if (!strcmp(p, "--permanent")) {

@@ -373,7 +373,7 @@ static void win_add_keyfile(Filename *filename)
      * _new_ passphrase; pageant_add_keyfile will take care of trying
      * all the passphrases we've already stored.)
      */
-    ret = pageant_add_keyfile(filename, NULL, &err);
+    ret = pageant_add_keyfile(filename, NULL, &err, false);
     if (ret == PAGEANT_ACTION_OK) {
         goto done;
     } else if (ret == PAGEANT_ACTION_FAILURE) {
@@ -401,7 +401,7 @@ static void win_add_keyfile(Filename *filename)
 
         assert(passphrase != NULL);
 
-        ret = pageant_add_keyfile(filename, passphrase, &err);
+        ret = pageant_add_keyfile(filename, passphrase, &err, false);
         if (ret == PAGEANT_ACTION_OK) {
             goto done;
         } else if (ret == PAGEANT_ACTION_FAILURE) {

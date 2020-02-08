@@ -1604,7 +1604,7 @@ void *pageant_get_keylist2(int *length)
 }
 
 int pageant_add_keyfile(Filename *filename, const char *passphrase,
-                        char **retstr)
+                        char **retstr, bool add_encrypted)
 {
     RSAKey *rkey = NULL;
     ssh2_userkey *skey = NULL;
@@ -1626,6 +1626,11 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
     if (type != SSH_KEYTYPE_SSH1 && type != SSH_KEYTYPE_SSH2) {
         *retstr = dupprintf("Couldn't load this key (%s)",
                             key_type_to_str(type));
+        return PAGEANT_ACTION_FAILURE;
+    }
+
+    if (add_encrypted && type == SSH_KEYTYPE_SSH1) {
+        *retstr = dupprintf("Can't add SSH-1 keys in encrypted form");
         return PAGEANT_ACTION_FAILURE;
     }
 
@@ -1745,6 +1750,38 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         }
 
         strbuf_free(blob);
+    }
+
+    if (add_encrypted) {
+        const char *load_error;
+        LoadedFile *lf = lf_load_keyfile(filename, &load_error);
+        if (!lf) {
+            *retstr = dupstr(load_error);
+            return PAGEANT_ACTION_FAILURE;
+        }
+
+        strbuf *request = strbuf_new_for_agent_query();
+        put_byte(request, SSH2_AGENTC_EXTENSION);
+        put_stringpl(request, PUTTYEXT("add-ppk"));
+        put_string(request, lf->data, lf->len);
+
+        lf_free(lf);
+
+        void *vresponse;
+        int resplen;
+        pageant_client_query(request, &vresponse, &resplen);
+        strbuf_free(request);
+
+        unsigned char *response = vresponse;
+        if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
+            *retstr = dupstr("The already running Pageant "
+                             "refused to add the key.");
+            sfree(response);
+            return PAGEANT_ACTION_FAILURE;
+        }
+
+        sfree(response);
+        return PAGEANT_ACTION_OK;
     }
 
     error = NULL;
