@@ -30,6 +30,8 @@ void cmdline_error(const char *fmt, ...)
     exit(1);
 }
 
+static void setup_sigchld_handler(void);
+
 struct uxpgnt_client {
     FILE *logfp;
     strbuf *debug_prompt_buf;
@@ -291,12 +293,27 @@ void pageant_fork_and_print_env(bool retain_tty)
     }
 }
 
-static int signalpipe[2];
+static int signalpipe[2] = { -1, -1 };
 
-void sigchld(int signum)
+static void sigchld(int signum)
 {
     if (write(signalpipe[1], "x", 1) <= 0)
         /* not much we can do about it */;
+}
+
+static void setup_sigchld_handler(void)
+{
+    if (signalpipe[0] >= 0)
+        return;
+
+    /*
+     * Set up the pipe we'll use to tell us about SIGCHLD.
+     */
+    if (pipe(signalpipe) < 0) {
+        perror("pipe");
+        exit(1);
+    }
+    putty_signal(SIGCHLD, sigchld);
 }
 
 #define TTY_LIFE_POLL_INTERVAL (TICKSPERSEC * 30)
@@ -934,7 +951,6 @@ void run_agent(FILE *logfp, const char *symlink_path)
     /*
      * Lifetime preparations.
      */
-    signalpipe[0] = signalpipe[1] = -1;
     if (life == LIFE_X11) {
         struct X11Display *disp;
         void *greeting;
@@ -1018,15 +1034,7 @@ void run_agent(FILE *logfp, const char *symlink_path)
         pid_t agentpid, pid;
 
         agentpid = getpid();
-
-        /*
-         * Set up the pipe we'll use to tell us about SIGCHLD.
-         */
-        if (pipe(signalpipe) < 0) {
-            perror("pipe");
-            exit(1);
-        }
-        putty_signal(SIGCHLD, sigchld);
+        setup_sigchld_handler();
 
         pid = fork();
         if (pid < 0) {
