@@ -32,10 +32,19 @@ void cmdline_error(const char *fmt, ...)
 
 static void setup_sigchld_handler(void);
 
+typedef enum RuntimePromptType {
+    RTPROMPT_UNAVAILABLE,
+    RTPROMPT_DEBUG,
+    RTPROMPT_GUI,
+} RuntimePromptType;
+
+static const char *progname;
+
 struct uxpgnt_client {
     FILE *logfp;
-    strbuf *debug_prompt_buf;
-    bool debug_prompt_active, debug_prompt_possible;
+    strbuf *prompt_buf;
+    RuntimePromptType prompt_type;
+    bool prompt_active;
     PageantClientDialogId *dlgid;
     int passphrase_fd;
     int termination_pid;
@@ -55,36 +64,89 @@ static void uxpgnt_log(PageantListenerClient *plc, const char *fmt, va_list ap)
     fprintf(upc->logfp, "\n");
 }
 
+static int make_pipe_to_askpass(const char *msg)
+{
+    int pipefds[2];
+
+    setup_sigchld_handler();
+
+    if (pipe(pipefds) < 0)
+        return -1;
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        close(pipefds[0]);
+        close(pipefds[1]);
+        return -1;
+    }
+
+    if (pid == 0) {
+        const char *args[5] = {
+            progname, "--gui-prompt", "--askpass", msg, NULL
+        };
+
+        dup2(pipefds[1], 1);
+        cloexec(pipefds[0]);
+        cloexec(pipefds[1]);
+
+        /*
+         * See comment in fork_and_exec_self() in gtkmain.c.
+         */
+        execv("/proc/self/exe", (char **)args);
+        execvp(progname, (char **)args);
+        perror("exec");
+        _exit(127);
+    }
+
+    close(pipefds[1]);
+    return pipefds[0];
+}
+
 static bool uxpgnt_ask_passphrase(
     PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
 {
     struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
 
-    if (!upc->debug_prompt_possible)
-        return false;
-
     assert(!upc->dlgid); /* Pageant core should be serialising requests */
 
-    fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
-    upc->debug_prompt_active = true;
+    switch (upc->prompt_type) {
+      case RTPROMPT_UNAVAILABLE:
+        return false;
+
+      case RTPROMPT_GUI:
+        upc->passphrase_fd = make_pipe_to_askpass(msg);
+        if (upc->passphrase_fd < 0)
+            return false; /* something went wrong */
+        break;
+
+      case RTPROMPT_DEBUG:
+        fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
+        break;
+    }
+
+    upc->prompt_active = true;
     upc->dlgid = dlgid;
     return true;
 }
 
 static void passphrase_done(struct uxpgnt_client *upc, bool success)
 {
-    upc->debug_prompt_active = false;
+    PageantClientDialogId *dlgid = upc->dlgid;
+    upc->dlgid = NULL;
+    upc->prompt_active = false;
 
-    fprintf(upc->logfp, "pageant passphrase response: %s\n",
-            success ? "success" : "failure");
+    if (upc->logfp)
+        fprintf(upc->logfp, "pageant passphrase response: %s\n",
+                success ? "success" : "failure");
+
     if (success)
         pageant_passphrase_request_success(
-            upc->dlgid, ptrlen_from_strbuf(upc->debug_prompt_buf));
+            dlgid, ptrlen_from_strbuf(upc->prompt_buf));
     else
-        pageant_passphrase_request_refused(upc->dlgid);
+        pageant_passphrase_request_refused(dlgid);
 
-    strbuf_free(upc->debug_prompt_buf);
-    upc->debug_prompt_buf = strbuf_new_nm();
+    strbuf_free(upc->prompt_buf);
+    upc->prompt_buf = strbuf_new_nm();
 }
 
 static const PageantListenerClientVtable uxpgnt_vtable = {
@@ -799,7 +861,7 @@ static bool agent_loop_pw_setup(void *vctx, pollwrapper *pw)
         pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
     }
 
-    if (upc->debug_prompt_active)
+    if (upc->prompt_active)
         pollwrap_add_fd_rwx(pw, upc->passphrase_fd, SELECT_R);
 
     return true;
@@ -840,15 +902,32 @@ static void agent_loop_pw_check(void *vctx, pollwrapper *pw)
         }
     }
 
-    if (upc->debug_prompt_active &&
+    if (upc->prompt_active &&
         pollwrap_check_fd_rwx(pw, upc->passphrase_fd, SELECT_R)) {
         char c;
         int retd = read(upc->passphrase_fd, &c, 1);
-        if (retd <= 0) {
-            passphrase_done(upc, false);
-            /* Now never try to read from stdin again */
-            upc->debug_prompt_possible = false;
-        } else {
+
+        switch (upc->prompt_type) {
+          case RTPROMPT_GUI:
+            if (retd <= 0) {
+                close(upc->passphrase_fd);
+                upc->passphrase_fd = -1;
+                bool ok = (retd == 0);
+                if (!strbuf_chomp(upc->prompt_buf, '\n'))
+                    ok = false;
+                passphrase_done(upc, ok);
+            } else {
+                put_byte(upc->prompt_buf, c);
+            }
+            break;
+          case RTPROMPT_DEBUG:
+            if (retd <= 0) {
+                passphrase_done(upc, false);
+                /* Now never try to read from stdin again */
+                upc->prompt_type = RTPROMPT_UNAVAILABLE;
+                break;
+            }
+
             switch (c) {
               case '\n':
               case '\r':
@@ -859,15 +938,18 @@ static void agent_loop_pw_check(void *vctx, pollwrapper *pw)
                 break;
               case '\b':
               case '\177':
-                strbuf_shrink_by(upc->debug_prompt_buf, 1);
+                strbuf_shrink_by(upc->prompt_buf, 1);
                 break;
               case '\025':
-                strbuf_clear(upc->debug_prompt_buf);
+                strbuf_clear(upc->prompt_buf);
                 break;
               default:
-                put_byte(upc->debug_prompt_buf, c);
+                put_byte(upc->prompt_buf, c);
                 break;
             }
+            break;
+          case RTPROMPT_UNAVAILABLE:
+            unreachable("Should never have started a prompt at all");
         }
     }
 }
@@ -912,6 +994,8 @@ void run_agent(FILE *logfp, const char *symlink_path)
     upc->logfp = logfp;
     upc->passphrase_fd = -1;
     upc->termination_pid = -1;
+    upc->prompt_buf = strbuf_new_nm();
+    upc->prompt_type = display ? RTPROMPT_GUI : RTPROMPT_UNAVAILABLE;
     pl = pageant_listener_new(&pl_plug, &upc->plc);
     sock = platform_make_agent_socket(pl_plug, PAGEANT_DIR_PREFIX,
                                       &errw, &socketname);
@@ -1021,8 +1105,7 @@ void run_agent(FILE *logfp, const char *symlink_path)
                     tcsetattr(upc->passphrase_fd, TCSADRAIN, &new_termios);
                     _exit(0);
                 } else if (pid > 0) {
-                    upc->debug_prompt_possible = true;
-                    upc->debug_prompt_buf = strbuf_new_nm();
+                    upc->prompt_type = RTPROMPT_DEBUG;
                 }
 
                 close(pipefd[0]);
@@ -1075,6 +1158,8 @@ int main(int argc, char **argv)
     const char *standalone_askpass_prompt = NULL;
     const char *symlink_path = NULL;
     FILE *logfp = NULL;
+
+    progname = argv[0];
 
     /*
      * Process the command line.
