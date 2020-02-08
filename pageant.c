@@ -511,7 +511,8 @@ struct PageantImmOp {
 static void immop_free(PageantAsyncOp *pao)
 {
     PageantImmOp *io = container_of(pao, PageantImmOp, pao);
-    strbuf_free(io->response);
+    if (io->response)
+        strbuf_free(io->response);
     sfree(io);
 }
 
@@ -536,8 +537,8 @@ static struct PageantAsyncOpVtable immop_vtable = {
 
 #define PUTTYEXT(base) PTRLEN_LITERAL(base "@putty.projects.tartarus.org")
 
-void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
-                        ptrlen msgpl)
+static PageantAsyncOp *pageant_make_op(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen msgpl)
 {
     BinarySource msg[1];
     strbuf *sb = strbuf_new_nm();
@@ -741,8 +742,7 @@ void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
             put_datapl(so->data_to_sign, sigdata);
             so->flags = flags;
             so->crLine = 0;
-            queue_toplevel_callback(pageant_async_op_callback, &so->pao);
-            return;
+            return &so->pao;
         }
         break;
       case SSH1_AGENTC_ADD_RSA_IDENTITY:
@@ -1120,7 +1120,14 @@ void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
     io->pao.reqid = reqid;
     io->response = sb;
     io->crLine = 0;
-    queue_toplevel_callback(pageant_async_op_callback, &io->pao);
+    return &io->pao;
+}
+
+void pageant_handle_msg(PageantClient *pc, PageantClientRequestId *reqid,
+                        ptrlen msgpl)
+{
+    PageantAsyncOp *pao = pageant_make_op(pc, reqid, msgpl);
+    queue_toplevel_callback(pageant_async_op_callback, pao);
 }
 
 void pageant_init(void)
@@ -1464,6 +1471,61 @@ void pageant_listener_free(struct pageant_listen_state *pl)
 
 static tree234 *passphrases = NULL;
 
+typedef struct PageantInternalClient {
+    strbuf *response;
+    bool got_response;
+    PageantClient pc;
+} PageantInternalClient;
+
+static void internal_client_got_response(
+    PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
+{
+    PageantInternalClient *pic = container_of(pc, PageantInternalClient, pc);
+    put_datapl(pic->response, response);
+    pic->got_response = true;
+}
+
+static bool internal_client_ask_passphrase(
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+{
+    /* No delaying operations are permitted in this mode */
+    return false;
+}
+
+static const struct PageantClientVtable internal_clientvt = {
+    NULL /* log */,
+    internal_client_got_response,
+    internal_client_ask_passphrase,
+};
+
+void pageant_client_query(strbuf *request, void **resp_p, int *resplen_p)
+{
+    if (!pageant_local) {
+        agent_query_synchronous(request, resp_p, resplen_p);
+    } else {
+        PageantInternalClient pic;
+        PageantClientRequestId reqid;
+
+        pic.pc.vt = &internal_clientvt;
+        pic.pc.suppress_logging = true;
+        pic.response = strbuf_new_for_agent_query();
+        pic.got_response = false;
+        pageant_register_client(&pic.pc);
+
+        assert(request->len > 4);
+        PageantAsyncOp *pao = pageant_make_op(
+            &pic.pc, &reqid, make_ptrlen(request->s + 4, request->len - 4));
+        while (!pic.got_response)
+            pageant_async_op_coroutine(pao);
+
+        pageant_unregister_client(&pic.pc);
+
+        strbuf_finalise_agent_query(pic.response);
+        *resplen_p = pic.response->len;
+        *resp_p = strbuf_to_str(pic.response);
+    }
+}
+
 /*
  * After processing a list of filenames, we want to forget the
  * passphrases.
@@ -1485,35 +1547,29 @@ void *pageant_get_keylist1(int *length)
 {
     void *ret;
 
-    if (!pageant_local) {
-        strbuf *request;
-        unsigned char *response;
-        void *vresponse;
-        int resplen;
+    strbuf *request;
+    unsigned char *response;
+    void *vresponse;
+    int resplen;
 
-        request = strbuf_new_for_agent_query();
-        put_byte(request, SSH1_AGENTC_REQUEST_RSA_IDENTITIES);
-        agent_query_synchronous(request, &vresponse, &resplen);
-        strbuf_free(request);
+    request = strbuf_new_for_agent_query();
+    put_byte(request, SSH1_AGENTC_REQUEST_RSA_IDENTITIES);
+    pageant_client_query(request, &vresponse, &resplen);
+    strbuf_free(request);
 
-        response = vresponse;
-        if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
-            sfree(response);
-            return NULL;
-        }
-
-        ret = snewn(resplen-5, unsigned char);
-        memcpy(ret, response+5, resplen-5);
+    response = vresponse;
+    if (resplen < 5 || response[4] != SSH1_AGENT_RSA_IDENTITIES_ANSWER) {
         sfree(response);
-
-        if (length)
-            *length = resplen-5;
-    } else {
-        strbuf *buf = strbuf_new();
-        pageant_make_keylist1(BinarySink_UPCAST(buf));
-        *length = buf->len;
-        ret = strbuf_to_str(buf);
+        return NULL;
     }
+
+    ret = snewn(resplen-5, unsigned char);
+    memcpy(ret, response+5, resplen-5);
+    sfree(response);
+
+    if (length)
+        *length = resplen-5;
+
     return ret;
 }
 
@@ -1521,35 +1577,29 @@ void *pageant_get_keylist2(int *length)
 {
     void *ret;
 
-    if (!pageant_local) {
-        strbuf *request;
-        unsigned char *response;
-        void *vresponse;
-        int resplen;
+    strbuf *request;
+    unsigned char *response;
+    void *vresponse;
+    int resplen;
 
-        request = strbuf_new_for_agent_query();
-        put_byte(request, SSH2_AGENTC_REQUEST_IDENTITIES);
-        agent_query_synchronous(request, &vresponse, &resplen);
-        strbuf_free(request);
+    request = strbuf_new_for_agent_query();
+    put_byte(request, SSH2_AGENTC_REQUEST_IDENTITIES);
+    pageant_client_query(request, &vresponse, &resplen);
+    strbuf_free(request);
 
-        response = vresponse;
-        if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
-            sfree(response);
-            return NULL;
-        }
-
-        ret = snewn(resplen-5, unsigned char);
-        memcpy(ret, response+5, resplen-5);
+    response = vresponse;
+    if (resplen < 5 || response[4] != SSH2_AGENT_IDENTITIES_ANSWER) {
         sfree(response);
-
-        if (length)
-            *length = resplen-5;
-    } else {
-        strbuf *buf = strbuf_new();
-        pageant_make_keylist2(BinarySink_UPCAST(buf));
-        *length = buf->len;
-        ret = strbuf_to_str(buf);
+        return NULL;
     }
+
+    ret = snewn(resplen-5, unsigned char);
+    memcpy(ret, response+5, resplen-5);
+    sfree(response);
+
+    if (length)
+        *length = resplen-5;
+
     return ret;
 }
 
@@ -1793,69 +1843,55 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(comment);
 
     if (type == SSH_KEYTYPE_SSH1) {
-        if (!pageant_local) {
-            strbuf *request;
-            unsigned char *response;
-            void *vresponse;
-            int resplen;
+        strbuf *request;
+        unsigned char *response;
+        void *vresponse;
+        int resplen;
 
-            request = strbuf_new_for_agent_query();
-            put_byte(request, SSH1_AGENTC_ADD_RSA_IDENTITY);
-            rsa_ssh1_private_blob_agent(BinarySink_UPCAST(request), rkey);
-            put_stringz(request, rkey->comment);
-            agent_query_synchronous(request, &vresponse, &resplen);
-            strbuf_free(request);
+        request = strbuf_new_for_agent_query();
+        put_byte(request, SSH1_AGENTC_ADD_RSA_IDENTITY);
+        rsa_ssh1_private_blob_agent(BinarySink_UPCAST(request), rkey);
+        put_stringz(request, rkey->comment);
+        pageant_client_query(request, &vresponse, &resplen);
+        strbuf_free(request);
 
-            response = vresponse;
-            if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
-                *retstr = dupstr("The already running Pageant "
-                                 "refused to add the key.");
-                freersakey(rkey);
-                sfree(rkey);
-                sfree(response);
-                return PAGEANT_ACTION_FAILURE;
-            }
+        response = vresponse;
+        if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
+            *retstr = dupstr("The already running Pageant "
+                             "refused to add the key.");
             freersakey(rkey);
             sfree(rkey);
             sfree(response);
-        } else {
-            if (!pageant_add_ssh1_key(rkey)) {
-                freersakey(rkey);
-                sfree(rkey);           /* already present, don't waste RAM */
-            }
+            return PAGEANT_ACTION_FAILURE;
         }
+        freersakey(rkey);
+        sfree(rkey);
+        sfree(response);
     } else {
-        if (!pageant_local) {
-            strbuf *request;
-            unsigned char *response;
-            void *vresponse;
-            int resplen;
+        strbuf *request;
+        unsigned char *response;
+        void *vresponse;
+        int resplen;
 
-            request = strbuf_new_for_agent_query();
-            put_byte(request, SSH2_AGENTC_ADD_IDENTITY);
-            put_stringz(request, ssh_key_ssh_id(skey->key));
-            ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(request));
-            put_stringz(request, skey->comment);
-            agent_query_synchronous(request, &vresponse, &resplen);
-            strbuf_free(request);
+        request = strbuf_new_for_agent_query();
+        put_byte(request, SSH2_AGENTC_ADD_IDENTITY);
+        put_stringz(request, ssh_key_ssh_id(skey->key));
+        ssh_key_openssh_blob(skey->key, BinarySink_UPCAST(request));
+        put_stringz(request, skey->comment);
+        pageant_client_query(request, &vresponse, &resplen);
+        strbuf_free(request);
 
-            response = vresponse;
-            if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
-                *retstr = dupstr("The already running Pageant "
-                                 "refused to add the key.");
-                sfree(response);
-                return PAGEANT_ACTION_FAILURE;
-            }
-
-            ssh_key_free(skey->key);
-            sfree(skey);
+        response = vresponse;
+        if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
+            *retstr = dupstr("The already running Pageant "
+                             "refused to add the key.");
             sfree(response);
-        } else {
-            if (!pageant_add_ssh2_key(skey)) {
-                ssh_key_free(skey->key);
-                sfree(skey);           /* already present, don't waste RAM */
-            }
+            return PAGEANT_ACTION_FAILURE;
         }
+
+        ssh_key_free(skey->key);
+        sfree(skey);
+        sfree(response);
     }
     return PAGEANT_ACTION_OK;
 }
@@ -1971,7 +2007,7 @@ int pageant_delete_key(struct pageant_pubkey *key, char **retstr)
         put_string(request, key->blob->s, key->blob->len);
     }
 
-    agent_query_synchronous(request, &vresponse, &resplen);
+    pageant_client_query(request, &vresponse, &resplen);
     strbuf_free(request);
 
     response = vresponse;
@@ -1996,7 +2032,7 @@ int pageant_delete_all_keys(char **retstr)
 
     request = strbuf_new_for_agent_query();
     put_byte(request, SSH2_AGENTC_REMOVE_ALL_IDENTITIES);
-    agent_query_synchronous(request, &vresponse, &resplen);
+    pageant_client_query(request, &vresponse, &resplen);
     strbuf_free(request);
     response = vresponse;
     success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
@@ -2008,7 +2044,7 @@ int pageant_delete_all_keys(char **retstr)
 
     request = strbuf_new_for_agent_query();
     put_byte(request, SSH1_AGENTC_REMOVE_ALL_RSA_IDENTITIES);
-    agent_query_synchronous(request, &vresponse, &resplen);
+    pageant_client_query(request, &vresponse, &resplen);
     strbuf_free(request);
     response = vresponse;
     success = (resplen >= 4 && response[4] == SSH_AGENT_SUCCESS);
