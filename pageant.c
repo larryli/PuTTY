@@ -479,6 +479,8 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
             fail_requests_for_key(pk, "unable to decrypt key");
             return;
         } else if (pk->skey == SSH2_WRONG_PASSPHRASE) {
+            pk->skey = NULL;
+
             /*
              * Find a PageantClient to use for another attempt at
              * request_passphrase.
@@ -496,11 +498,12 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
             PageantSignOp *so = container_of(pk->blocked_requests.next,
                                              PageantSignOp, pkr);
 
+            pk->decryption_prompt_active = false;
             if (!request_passphrase(so->pao.info->pc, pk)) {
                 fail_requests_for_key(pk, "unable to continue creating "
                                       "passphrase prompts");
-                return;
             }
+            return;
         }
     }
 
@@ -514,7 +517,7 @@ void pageant_passphrase_request_refused(PageantClientDialogId *dlgid)
     assert(gui_request_in_progress);
     gui_request_in_progress = false;
 
-    unblock_requests_for_key(pk);
+    fail_requests_for_key(pk, "user refused to supply passphrase");
 }
 
 typedef struct PageantImmOp PageantImmOp;
