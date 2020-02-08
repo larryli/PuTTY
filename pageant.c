@@ -120,6 +120,10 @@ struct PageantSignOp {
     PageantAsyncOp pao;
 };
 
+/* Master lock that indicates whether a GUI request is currently in
+ * progress */
+static bool gui_request_in_progress = false;
+
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
                     strbuf *sb, const char *fmt, ...);
 static void fail_requests_for_key(PageantKey *pk, const char *reason);
@@ -332,6 +336,8 @@ static void signop_free(PageantAsyncOp *pao)
 static bool request_passphrase(PageantClient *pc, PageantKey *pk)
 {
     if (!pk->decryption_prompt_active) {
+        assert(!gui_request_in_progress);
+
         strbuf *sb = strbuf_new();
         strbuf_catf(sb, "Enter passphrase to decrypt key '%s'", pk->comment);
         bool created_dlg = pageant_client_ask_passphrase(
@@ -341,6 +347,7 @@ static bool request_passphrase(PageantClient *pc, PageantKey *pk)
         if (!created_dlg)
             return false;
 
+        gui_request_in_progress = true;
         pk->decryption_prompt_active = true;
     }
 
@@ -353,6 +360,9 @@ static void signop_coroutine(PageantAsyncOp *pao)
     strbuf *response;
 
     crBegin(so->crLine);
+
+    while (!so->pk->skey && gui_request_in_progress)
+        crReturnV;
 
     if (!so->pk->skey) {
         assert(so->pk->encrypted_key_file);
@@ -448,6 +458,9 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
 {
     PageantKey *pk = container_of(dlgid, PageantKey, dlgid);
 
+    assert(gui_request_in_progress);
+    gui_request_in_progress = false;
+
     if (!pk->skey) {
         const char *error;
 
@@ -497,6 +510,10 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
 void pageant_passphrase_request_refused(PageantClientDialogId *dlgid)
 {
     PageantKey *pk = container_of(dlgid, PageantKey, dlgid);
+
+    assert(gui_request_in_progress);
+    gui_request_in_progress = false;
+
     unblock_requests_for_key(pk);
 }
 

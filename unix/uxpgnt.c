@@ -61,11 +61,7 @@ static bool uxpgnt_ask_passphrase(
     if (!upc->debug_prompt_possible)
         return false;
 
-    /*
-     * FIXME; we ought to check upc->dlgid here, and if it's already
-     * not NULL, queue this request up behind the previous one rather
-     * than trying to confusingly run both at oncec.
-     */
+    assert(!upc->dlgid); /* Pageant core should be serialising requests */
 
     fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
     upc->debug_prompt_active = true;
