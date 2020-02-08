@@ -1192,6 +1192,8 @@ int main(int argc, char **argv)
             return 1;
 
         puts(passphrase);
+        fflush(stdout);
+
         smemclr(passphrase, strlen(passphrase));
         sfree(passphrase);
         return 0;
