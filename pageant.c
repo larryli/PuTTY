@@ -1294,6 +1294,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
                 return PAGEANT_ACTION_FAILURE;
             }
 
+            sfree(skey->comment);
             ssh_key_free(skey->key);
             sfree(skey);
             sfree(response);
@@ -1391,6 +1392,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
         callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
         sfree(fingerprint);
         sfree(cbkey.comment);
+        strbuf_free(cbkey.blob);
     }
 
     sfree(keylist);
