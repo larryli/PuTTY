@@ -129,13 +129,8 @@ void pageant_make_keylist2(BinarySink *bs)
     }
 }
 
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
-#ifdef __GNUC__
-__attribute__ ((format (PUTTY_PRINTF_ARCHETYPE, 3, 4)))
-#endif
-    ;
-
-static void plog(void *logctx, pageant_logfn_t logfn, const char *fmt, ...)
+static PRINTF_LIKE(3, 4) void plog(void *logctx, pageant_logfn_t logfn,
+                                   const char *fmt, ...)
 {
     /*
      * This is the wrapper that takes a variadic argument list and

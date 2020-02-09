@@ -1195,7 +1195,7 @@ void test(int retval, ...)
     sfree(argv);
 }
 
-void filecmp(char *file1, char *file2, char *fmt, ...)
+PRINTF_LIKE(3, 4) void filecmp(char *file1, char *file2, char *fmt, ...)
 {
     /*
      * Ideally I should do file comparison myself, to maximise the
@@ -1260,7 +1260,7 @@ char *get_fp(char *filename)
     return cleanup_fp(buf);
 }
 
-void check_fp(char *filename, char *fp, char *fmt, ...)
+PRINTF_LIKE(3, 4) void check_fp(char *filename, char *fp, char *fmt, ...)
 {
     char *newfp;
 

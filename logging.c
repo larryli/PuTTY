@@ -58,7 +58,7 @@ static void logwrite(LogContext *ctx, ptrlen data)
  * Convenience wrapper on logwrite() which printf-formats the
  * string.
  */
-static void logprintf(LogContext *ctx, const char *fmt, ...)
+static PRINTF_LIKE(2, 3) void logprintf(LogContext *ctx, const char *fmt, ...)
 {
     va_list ap;
     char *data;

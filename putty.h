@@ -1003,7 +1003,7 @@ static inline bool seat_set_trust_status(Seat *seat, bool trusted)
 /* Unlike the seat's actual method, the public entry point
  * seat_connection_fatal is a wrapper function with a printf-like API,
  * defined in misc.c. */
-void seat_connection_fatal(Seat *seat, const char *fmt, ...);
+void seat_connection_fatal(Seat *seat, const char *fmt, ...) PRINTF_LIKE(2, 3);
 
 /* Handy aliases for seat_output which set is_stderr to a fixed value. */
 static inline size_t seat_stdout(Seat *seat, const void *data, size_t len)
@@ -1218,8 +1218,8 @@ static inline bool win_is_utf8(TermWin *win)
 /*
  * Global functions not specific to a connection instance.
  */
-void nonfatal(const char *, ...);
-NORETURN void modalfatalbox(const char *, ...);
+void nonfatal(const char *, ...) PRINTF_LIKE(1, 2);
+NORETURN void modalfatalbox(const char *, ...) PRINTF_LIKE(1, 2);
 NORETURN void cleanup_exit(int);
 
 /*
@@ -1703,7 +1703,7 @@ void logfclose(LogContext *logctx);
 void logtraffic(LogContext *logctx, unsigned char c, int logmode);
 void logflush(LogContext *logctx);
 void logevent(LogContext *logctx, const char *event);
-void logeventf(LogContext *logctx, const char *fmt, ...);
+void logeventf(LogContext *logctx, const char *fmt, ...) PRINTF_LIKE(2, 3);
 void logeventvf(LogContext *logctx, const char *fmt, va_list ap);
 
 /*
@@ -1917,7 +1917,8 @@ bool is_interactive(void);
 void console_print_error_msg(const char *prefix, const char *msg);
 void console_print_error_msg_fmt_v(
     const char *prefix, const char *fmt, va_list ap);
-void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...);
+void console_print_error_msg_fmt(const char *prefix, const char *fmt, ...)
+    PRINTF_LIKE(2, 3);
 
 /*
  * Exports from printing.c.
@@ -1955,7 +1956,7 @@ bool cmdline_host_ok(Conf *);
 #define TOOLTYPE_PORT_ARG 64
 extern int cmdline_tooltype;
 
-void cmdline_error(const char *, ...);
+void cmdline_error(const char *, ...) PRINTF_LIKE(1, 2);
 
 /*
  * Exports from config.c.
