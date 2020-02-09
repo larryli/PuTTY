@@ -2231,7 +2231,7 @@ int psftp_main(int argc, char *argv[])
     int i;
     bool sanitise_stderr = true;
 
-    default_protocol = PROT_TELNET;
+    default_protocol = PROT_SSH;
 
     flags = 0
 #ifdef FLAG_SYNCAGENT
