@@ -44,13 +44,7 @@ static const ptrlen rsa1_signature =
                           (x)=='+' ? 62 : \
                           (x)=='/' ? 63 : 0 )
 
-typedef enum {
-    LF_OK,      /* file loaded successfully */
-    LF_TOO_BIG, /* file didn't fit in buffer */
-    LF_ERROR,   /* error from stdio layer */
-} LoadFileStatus;
-
-static LoadedFile *lf_new(size_t max_size)
+LoadedFile *lf_new(size_t max_size)
 {
     LoadedFile *lf = snew_plus(LoadedFile, max_size);
     lf->data = snew_plus_get_aux(lf);
@@ -66,7 +60,7 @@ void lf_free(LoadedFile *lf)
     sfree(lf);
 }
 
-static LoadFileStatus lf_load_fp(LoadedFile *lf, FILE *fp)
+LoadFileStatus lf_load_fp(LoadedFile *lf, FILE *fp)
 {
     lf->len = 0;
     while (lf->len < lf->max_size) {
@@ -94,7 +88,7 @@ static LoadFileStatus lf_load_fp(LoadedFile *lf, FILE *fp)
     return status;
 }
 
-static LoadFileStatus lf_load(LoadedFile *lf, const Filename *filename)
+LoadFileStatus lf_load(LoadedFile *lf, const Filename *filename)
 {
     FILE *fp = f_open(filename, "rb", false);
     if (!fp)

@@ -1197,18 +1197,9 @@ int rsa1_loadpub_f(const Filename *filename, BinarySink *bs,
 const ssh_keyalg *find_pubkey_alg(const char *name);
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name);
 
-/*
- * A mechanism for loading a key file from disk into a memory buffer
- * where it can be picked apart as a BinarySource.
- */
-struct LoadedFile {
-    char *data;
-    size_t len, max_size;
-    BinarySource_IMPLEMENTATION;
-};
+/* Convenient wrappers on the LoadedFile mechanism suitable for key files */
 LoadedFile *lf_load_keyfile(const Filename *filename, const char **errptr);
 LoadedFile *lf_load_keyfile_fp(FILE *fp, const char **errptr);
-void lf_free(LoadedFile *lf);
 
 enum {
     SSH_KEYTYPE_UNOPENABLE,

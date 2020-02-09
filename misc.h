@@ -406,4 +406,25 @@ static inline char *stripctrl_string(StripCtrlChars *sccpub, const char *str)
     return stripctrl_string_ptrlen(sccpub, ptrlen_from_asciz(str));
 }
 
+/*
+ * A mechanism for loading a file from disk into a memory buffer where
+ * it can be picked apart as a BinarySource.
+ */
+struct LoadedFile {
+    char *data;
+    size_t len, max_size;
+    BinarySource_IMPLEMENTATION;
+};
+typedef enum {
+    LF_OK,      /* file loaded successfully */
+    LF_TOO_BIG, /* file didn't fit in buffer */
+    LF_ERROR,   /* error from stdio layer */
+} LoadFileStatus;
+LoadedFile *lf_new(size_t max_size);
+void lf_free(LoadedFile *lf);
+LoadFileStatus lf_load_fp(LoadedFile *lf, FILE *fp);
+LoadFileStatus lf_load(LoadedFile *lf, const Filename *filename);
+static inline ptrlen ptrlen_from_lf(LoadedFile *lf)
+{ return make_ptrlen(lf->data, lf->len); }
+
 #endif
