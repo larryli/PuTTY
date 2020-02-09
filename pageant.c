@@ -2117,6 +2117,38 @@ int pageant_delete_all_keys(char **retstr)
     return PAGEANT_ACTION_OK;
 }
 
+int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
+                 uint32_t flags, char **retstr)
+{
+    strbuf *request;
+    void *response;
+    int resplen;
+    BinarySource src[1];
+
+    request = strbuf_new_for_agent_query();
+    put_byte(request, SSH2_AGENTC_SIGN_REQUEST);
+    put_string(request, key->blob->s, key->blob->len);
+    put_stringpl(request, message);
+    put_uint32(request, flags);
+    pageant_client_query(request, &response, &resplen);
+    strbuf_free(request);
+    BinarySource_BARE_INIT(src, response, resplen);
+    BinarySource_BARE_INIT_PL(src, get_string(src));
+
+    int type = get_byte(src);
+    ptrlen signature = get_string(src);
+    put_datapl(out, signature);
+    sfree(response);
+
+    if (type == SSH2_AGENT_SIGN_RESPONSE && !get_err(src)) {
+        *retstr = NULL;
+        return PAGEANT_ACTION_OK;
+    } else {
+        *retstr = dupstr("Agent failed to create signature");
+        return PAGEANT_ACTION_FAILURE;
+    }
+}
+
 struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key)
 {
     struct pageant_pubkey *ret = snew(struct pageant_pubkey);

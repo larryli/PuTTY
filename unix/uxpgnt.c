@@ -395,7 +395,8 @@ typedef enum {
     KEYACT_CLIENT_DEL_ALL,
     KEYACT_CLIENT_LIST,
     KEYACT_CLIENT_PUBLIC_OPENSSH,
-    KEYACT_CLIENT_PUBLIC
+    KEYACT_CLIENT_PUBLIC,
+    KEYACT_CLIENT_SIGN,
 } keyact;
 struct cmdline_key_action {
     struct cmdline_key_action *next;
@@ -409,6 +410,7 @@ bool is_agent_action(keyact action)
 }
 
 static struct cmdline_key_action *keyact_head = NULL, *keyact_tail = NULL;
+static uint32_t sign_flags = 0;
 
 void add_keyact(keyact action, const char *filename)
 {
@@ -762,6 +764,9 @@ void run_client(void)
     struct pageant_pubkey *key;
     bool errors = false;
     char *retstr;
+    LoadedFile *message = lf_new(AGENT_MAX_MSGLEN);
+    bool message_loaded = false, message_ok = false;
+    strbuf *signature = strbuf_new();
 
     if (!agent_exists()) {
         fprintf(stderr, "pageant: no agent running to talk to\n");
@@ -835,10 +840,48 @@ void run_client(void)
                 errors = true;
             }
             break;
+          case KEYACT_CLIENT_SIGN:
+            key = NULL;
+            if (!message_loaded) {
+                message_loaded = true;
+                switch(lf_load_fp(message, stdin)) {
+                  case LF_TOO_BIG:
+                    fprintf(stderr, "pageant: message to sign is too big\n");
+                    errors = true;
+                    break;
+                  case LF_ERROR:
+                    fprintf(stderr, "pageant: reading message to sign: %s\n",
+                            strerror(errno));
+                    errors = true;
+                    break;
+                  case LF_OK:
+                    message_ok = true;
+                    break;
+                }
+            }
+            if (!message_ok)
+                break;
+            strbuf_clear(signature);
+            if (!(key = find_key(act->filename, &retstr)) ||
+                pageant_sign(key, ptrlen_from_lf(message), signature,
+                             sign_flags, &retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: signing with key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = true;
+            } else {
+                fwrite(signature->s, 1, signature->len, stdout);
+            }
+            if (key)
+                pageant_pubkey_free(key);
+            break;
           default:
             unreachable("Invalid client action found");
         }
     }
+
+    lf_free(message);
+    strbuf_free(signature);
 
     if (errors)
         exit(1);
@@ -1206,6 +1249,12 @@ int main(int argc, char **argv)
                 }
             } else if (!strcmp(p, "--debug")) {
                 life = LIFE_DEBUG;
+            } else if (!strcmp(p, "--test-sign")) {
+                curr_keyact = KEYACT_CLIENT_SIGN;
+                sign_flags = 0;
+            } else if (strstartswith(p, "--test-sign-with-flags=")) {
+                curr_keyact = KEYACT_CLIENT_SIGN;
+                sign_flags = atoi(p + strlen("--test-sign-with-flags="));
             } else if (!strcmp(p, "--permanent")) {
                 life = LIFE_PERM;
             } else if (!strcmp(p, "--exec")) {
