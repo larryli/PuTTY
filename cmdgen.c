@@ -1336,7 +1336,8 @@ int main(int argc, char **argv)
                     pubfilename, tmpfilename1);
             if (system(cmdbuf) ||
                 (fp = get_fp(tmpfilename1)) == NULL) {
-                printf("UNABLE to test fingerprint matching against OpenSSH");
+                printf("UNABLE to test fingerprint matching against "
+                       "OpenSSH\n");
             }
             sfree(cmdbuf);
         }
