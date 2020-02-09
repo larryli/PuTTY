@@ -884,7 +884,7 @@ static char *answer_filemapping_message(const char *mapname)
         mapsize = mbi.RegionSize;
     }
 #ifdef DEBUG_IPC
-    debug("region size = %zd\n", mapsize);
+    debug("region size = %"SIZEu"\n", mapsize);
 #endif
     if (mapsize < 5) {
         err = dupstr("mapping smaller than smallest possible request");

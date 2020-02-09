@@ -22,9 +22,16 @@
 #define PRIdMAX "I64d"
 #define PRIXMAX "I64X"
 #define SCNu64 "I64u"
+#define SIZEx "Ix"
+#define SIZEu "Iu"
 uintmax_t strtoumax(const char *nptr, char **endptr, int base);
 #else
 #include <inttypes.h>
+/* Because we still support older MSVC libraries which don't recognise the
+ * standard C "z" modifier for size_t-sized integers, we must use an
+ * inttypes.h-style macro for those */
+#define SIZEx "zx"
+#define SIZEu "zu"
 #endif
 
 #if defined __GNUC__ || defined __clang__
