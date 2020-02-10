@@ -115,6 +115,7 @@ struct PageantSignOp {
     strbuf *data_to_sign;
     unsigned flags;
     int crLine;
+    unsigned char failure_type;
 
     PageantKeyRequestNode pkr;
     PageantAsyncOp pao;
@@ -125,7 +126,7 @@ struct PageantSignOp {
 static bool gui_request_in_progress = false;
 
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
-                    strbuf *sb, const char *fmt, ...);
+                    strbuf *sb, unsigned char type, const char *fmt, ...);
 static void fail_requests_for_key(PageantKey *pk, const char *reason);
 
 static void pk_free(PageantKey *pk)
@@ -310,12 +311,12 @@ void pageant_unregister_client(PageantClient *pc)
     sfree(pc->info);
 }
 
-static PRINTF_LIKE(4, 5) void failure(PageantClient *pc,
-                                      PageantClientRequestId *reqid,
-                                      strbuf *sb, const char *fmt, ...)
+static PRINTF_LIKE(5, 6) void failure(
+    PageantClient *pc, PageantClientRequestId *reqid, strbuf *sb,
+    unsigned char type, const char *fmt, ...)
 {
     strbuf_clear(sb);
-    put_byte(sb, SSH_AGENT_FAILURE);
+    put_byte(sb, type);
     if (!pc->suppress_logging) {
         va_list ap;
         va_start(ap, fmt);
@@ -370,8 +371,8 @@ static void signop_coroutine(PageantAsyncOp *pao)
         if (!request_passphrase(so->pao.info->pc, so->pk)) {
             response = strbuf_new();
             failure(so->pao.info->pc, so->pao.reqid, response,
-                    "on-demand decryption could not prompt for a "
-                    "passphrase");
+                    so->failure_type, "on-demand decryption could not "
+                    "prompt for a passphrase");
             goto respond;
         }
 
@@ -390,7 +391,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
          * understand.
          */
         response = strbuf_new();
-        failure(so->pao.info->pc, so->pao.reqid, response,
+        failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
                 "unsupported flag bits 0x%08"PRIx32,
                 so->flags & ~supported_flags);
         goto respond;
@@ -399,7 +400,7 @@ static void signop_coroutine(PageantAsyncOp *pao)
     char *invalid = ssh_key_invalid(so->pk->skey->key, so->flags);
     if (invalid) {
         response = strbuf_new();
-        failure(so->pao.info->pc, so->pao.reqid, response,
+        failure(so->pao.info->pc, so->pao.reqid, response, so->failure_type,
                 "key invalid: %s", invalid);
         sfree(invalid);
         goto respond;
@@ -435,7 +436,8 @@ static void fail_requests_for_key(PageantKey *pk, const char *reason)
         so->pkr.next->prev = so->pkr.prev;
         so->pkr.prev->next = so->pkr.next;
         strbuf *sb = strbuf_new();
-        failure(so->pao.info->pc, so->pao.reqid, sb, "%s", reason);
+        failure(so->pao.info->pc, so->pao.reqid, sb, so->failure_type,
+                "%s", reason);
         pageant_client_got_response(so->pao.info->pc, so->pao.reqid,
                                     ptrlen_from_strbuf(sb));
         strbuf_free(sb);
@@ -555,20 +557,33 @@ static struct PageantAsyncOpVtable immop_vtable = {
     immop_free,
 };
 
-#define PUTTYEXT(base) PTRLEN_LITERAL(base "@putty.projects.tartarus.org")
+#define PUTTYEXT(base) base "@putty.projects.tartarus.org"
+
+#define KNOWN_EXTENSIONS(X)                  \
+    X(EXT_QUERY, "query")                    \
+    X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))      \
+    /* end of list */
+
+#define DECL_EXT_ENUM(id, name) id,
+enum Extension { KNOWN_EXTENSIONS(DECL_EXT_ENUM) EXT_UNKNOWN };
+#define DEF_EXT_NAMES(id, name) PTRLEN_DECL_LITERAL(name),
+static const ptrlen extension_names[] = { KNOWN_EXTENSIONS(DEF_EXT_NAMES) };
 
 static PageantAsyncOp *pageant_make_op(
     PageantClient *pc, PageantClientRequestId *reqid, ptrlen msgpl)
 {
     BinarySource msg[1];
     strbuf *sb = strbuf_new_nm();
+    unsigned char failure_type = SSH_AGENT_FAILURE;
     int type;
+
+#define fail(...) failure(pc, reqid, sb, failure_type, __VA_ARGS__)
 
     BinarySource_BARE_INIT_PL(msg, msgpl);
 
     type = get_byte(msg);
     if (get_err(msg)) {
-        failure(pc, reqid, sb, "message contained no type code");
+        fail("message contained no type code");
         goto responded;
     }
 
@@ -650,12 +665,11 @@ static PageantAsyncOp *pageant_make_op(
             response_type = get_uint32(msg);
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 goto challenge1_cleanup;
             }
             if (response_type != 1) {
-                failure(pc, reqid, sb,
-                        "response type other than 1 not supported");
+                fail("response type other than 1 not supported");
                 goto challenge1_cleanup;
             }
 
@@ -669,7 +683,7 @@ static PageantAsyncOp *pageant_make_op(
             }
 
             if ((pk = findkey1(&reqkey)) == NULL) {
-                failure(pc, reqid, sb, "key not found");
+                fail("key not found");
                 goto challenge1_cleanup;
             }
             response = rsa_ssh1_decrypt(challenge, pk->rkey);
@@ -711,7 +725,7 @@ static PageantAsyncOp *pageant_make_op(
             sigdata = get_string(msg);
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 goto responded;
             }
 
@@ -735,7 +749,7 @@ static PageantAsyncOp *pageant_make_op(
                 sfree(fingerprint);
             }
             if ((pk = findkey2(keyblob)) == NULL) {
-                failure(pc, reqid, sb, "key not found");
+                fail("key not found");
                 goto responded;
             }
 
@@ -761,6 +775,7 @@ static PageantAsyncOp *pageant_make_op(
             so->data_to_sign = strbuf_new();
             put_datapl(so->data_to_sign, sigdata);
             so->flags = flags;
+            so->failure_type = failure_type;
             so->crLine = 0;
             return &so->pao;
         }
@@ -780,12 +795,12 @@ static PageantAsyncOp *pageant_make_op(
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 goto add1_cleanup;
             }
 
             if (!rsa_verify(key)) {
-                failure(pc, reqid, sb, "key is invalid");
+                fail("key is invalid");
                 goto add1_cleanup;
             }
 
@@ -802,7 +817,7 @@ static PageantAsyncOp *pageant_make_op(
                 pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
                 key = NULL;            /* don't free it in cleanup */
             } else {
-                failure(pc, reqid, sb, "key already present");
+                fail("key already present");
             }
 
           add1_cleanup:
@@ -831,21 +846,21 @@ static PageantAsyncOp *pageant_make_op(
             key->comment = NULL;
             alg = find_pubkey_alg_len(algpl);
             if (!alg) {
-                failure(pc, reqid, sb, "algorithm unknown");
+                fail("algorithm unknown");
                 goto add2_cleanup;
             }
 
             key->key = ssh_key_new_priv_openssh(alg, msg);
 
             if (!key->key) {
-                failure(pc, reqid, sb, "key setup failed");
+                fail("key setup failed");
                 goto add2_cleanup;
             }
 
             key->comment = mkstr(get_string(msg));
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 goto add2_cleanup;
             }
 
@@ -864,7 +879,7 @@ static PageantAsyncOp *pageant_make_op(
 
                 key = NULL;            /* don't clean it up */
             } else {
-                failure(pc, reqid, sb, "key already present");
+                fail("key already present");
             }
 
           add2_cleanup:
@@ -894,7 +909,7 @@ static PageantAsyncOp *pageant_make_op(
             get_rsa_ssh1_pub(msg, &reqkey, RSA_SSH1_EXPONENT_FIRST);
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 freersakey(&reqkey);
                 goto responded;
             }
@@ -920,7 +935,7 @@ static PageantAsyncOp *pageant_make_op(
 
                 pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
             } else {
-                failure(pc, reqid, sb, "key not found");
+                fail("key not found");
             }
         }
         break;
@@ -940,7 +955,7 @@ static PageantAsyncOp *pageant_make_op(
             blob = get_string(msg);
 
             if (get_err(msg)) {
-                failure(pc, reqid, sb, "unable to decode request");
+                fail("unable to decode request");
                 goto responded;
             }
 
@@ -952,7 +967,7 @@ static PageantAsyncOp *pageant_make_op(
 
             pk = findkey2(blob);
             if (!pk) {
-                failure(pc, reqid, sb, "key not found");
+                fail("key not found");
                 goto responded;
             }
 
@@ -1001,12 +1016,44 @@ static PageantAsyncOp *pageant_make_op(
         break;
       case SSH2_AGENTC_EXTENSION:
         {
-            ptrlen exttype = get_string(msg);
-            if (ptrlen_eq_ptrlen(exttype, PUTTYEXT("add-ppk"))) {
+            enum Extension exttype = EXT_UNKNOWN;
+            ptrlen extname = get_string(msg);
+            for (size_t i = 0; i < lenof(extension_names); i++)
+                if (ptrlen_eq_ptrlen(extname, extension_names[i])) {
+                    exttype = i;
+
+                    /*
+                     * For SSH_AGENTC_EXTENSION requests, the message
+                     * code SSH_AGENT_FAILURE is reserved for "I don't
+                     * recognise this extension name at all". For any
+                     * other kind of failure while processing an
+                     * extension we _do_ recognise, we must switch to
+                     * returning a different failure code, with
+                     * semantics "I understood the extension name, but
+                     * something else went wrong".
+                     */
+                    failure_type = SSH_AGENT_EXTENSION_FAILURE;
+                    break;
+                }
+
+            switch (exttype) {
+              case EXT_UNKNOWN:
+                fail("unrecognised extension name '%.*s'",
+                     PTRLEN_PRINTF(extname));
+                break;
+
+              case EXT_QUERY:
+                /* Standard request to list the supported extensions. */
+                put_byte(sb, SSH_AGENT_SUCCESS);
+                for (size_t i = 0; i < lenof(extension_names); i++)
+                    put_stringpl(sb, extension_names[i]);
+                break;
+
+              case EXT_ADD_PPK: {
                 ptrlen keyfile = get_string(msg);
 
                 if (get_err(msg)) {
-                    failure(pc, reqid, sb, "unable to decode request");
+                    fail("unable to decode request");
                     goto responded;
                 }
 
@@ -1020,9 +1067,7 @@ static PageantAsyncOp *pageant_make_op(
                 if (!ppk_loadpub_s(src, NULL,
                                    BinarySink_UPCAST(public_blob),
                                    &comment, &error)) {
-                    failure(pc, reqid, sb,
-                            "add-ppk: failed to extract public key blob: %s",
-                            error);
+                    fail("failed to extract public key blob: %s", error);
                     goto add_ppk_cleanup;
                 }
 
@@ -1043,9 +1088,7 @@ static PageantAsyncOp *pageant_make_op(
                     BinarySource_BARE_INIT_PL(src, keyfile);
                     ssh2_userkey *skey = ppk_load_s(src, NULL, &error);
                     if (!skey) {
-                        failure(pc, reqid, sb,
-                                "add-ppk: failed to load private key: %s",
-                                error);
+                        fail("failed to decode private key: %s", error);
                     } else if (pageant_add_ssh2_key(skey)) {
                         keylist_update();
                         put_byte(sb, SSH_AGENT_SUCCESS);
@@ -1054,7 +1097,7 @@ static PageantAsyncOp *pageant_make_op(
                                            "reply: SSH_AGENT_SUCCESS"
                                            " (loaded unencrypted PPK)");
                     } else {
-                        failure(pc, reqid, sb, "key already present");
+                        fail("key already present");
                         if (skey->key)
                             ssh_key_free(skey->key);
                         if (skey->comment)
@@ -1084,7 +1127,7 @@ static PageantAsyncOp *pageant_make_op(
                                            " encrypted PPK to existing key"
                                            " record)");
                     } else {
-                        failure(pc, reqid, sb, "key already present");
+                        fail("key already present");
                     }
                 } else {
                     /*
@@ -1116,19 +1159,19 @@ static PageantAsyncOp *pageant_make_op(
                 if (public_blob)
                     strbuf_free(public_blob);
                 sfree(comment);
-                goto responded;
-            } else {
-                failure(pc, reqid, sb, "key not found");
-                goto responded;
+                break;
+              }
             }
         }
         break;
       default:
         pageant_client_log(pc, reqid, "request: unknown message type %d",
                            type);
-        failure(pc, reqid, sb, "unrecognised message");
+        fail("unrecognised message");
         break;
     }
+
+#undef fail
 
   responded:;
 
@@ -1782,7 +1825,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
         strbuf *request = strbuf_new_for_agent_query();
         put_byte(request, SSH2_AGENTC_EXTENSION);
-        put_stringpl(request, PUTTYEXT("add-ppk"));
+        put_stringpl(request, extension_names[EXT_ADD_PPK]);
         put_string(request, lf->data, lf->len);
 
         lf_free(lf);
