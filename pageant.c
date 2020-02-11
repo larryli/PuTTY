@@ -327,6 +327,28 @@ static PRINTF_LIKE(5, 6) void failure(
     }
 }
 
+static void signop_link(PageantSignOp *so)
+{
+    assert(!so->pkr.prev);
+    assert(!so->pkr.next);
+
+    so->pkr.prev = so->pk->blocked_requests.prev;
+    so->pkr.next = &so->pk->blocked_requests;
+    so->pkr.prev->next = &so->pkr;
+    so->pkr.next->prev = &so->pkr;
+}
+
+static void signop_unlink(PageantSignOp *so)
+{
+    if (so->pkr.next) {
+        assert(so->pkr.prev);
+        so->pkr.next->prev = so->pkr.prev;
+        so->pkr.prev->next = so->pkr.next;
+    } else {
+        assert(!so->pkr.prev);
+    }
+}
+
 static void signop_free(PageantAsyncOp *pao)
 {
     PageantSignOp *so = container_of(pao, PageantSignOp, pao);
@@ -376,12 +398,9 @@ static void signop_coroutine(PageantAsyncOp *pao)
             goto respond;
         }
 
-        so->pkr.prev = so->pk->blocked_requests.prev;
-        so->pkr.next = &so->pk->blocked_requests;
-        so->pkr.prev->next = &so->pkr;
-        so->pkr.next->prev = &so->pkr;
-
+        signop_link(so);
         crReturnV;
+        signop_unlink(so);
     }
 
     uint32_t supported_flags = ssh_key_alg(so->pk->skey->key)->supported_flags;
@@ -433,8 +452,7 @@ static void fail_requests_for_key(PageantKey *pk, const char *reason)
     while (pk->blocked_requests.next != &pk->blocked_requests) {
         PageantSignOp *so = container_of(pk->blocked_requests.next,
                                          PageantSignOp, pkr);
-        so->pkr.next->prev = so->pkr.prev;
-        so->pkr.prev->next = so->pkr.next;
+        signop_unlink(so);
         strbuf *sb = strbuf_new();
         failure(so->pao.info->pc, so->pao.reqid, sb, so->failure_type,
                 "%s", reason);
@@ -768,10 +786,7 @@ static PageantAsyncOp *pageant_make_op(
             so->pao.cr.next = &pc->info->head;
             so->pao.reqid = reqid;
             so->pk = pk;
-            so->pkr.prev = pk->blocked_requests.prev;
-            so->pkr.next = &pk->blocked_requests;
-            so->pkr.prev->next = so->pkr.next;
-            so->pkr.next->prev = so->pkr.prev;
+            so->pkr.prev = so->pkr.next = NULL;
             so->data_to_sign = strbuf_new();
             put_datapl(so->data_to_sign, sigdata);
             so->flags = flags;
