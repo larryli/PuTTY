@@ -16,30 +16,43 @@ def run(command, verbose):
         sys.stdout.write("".join(
             "> {}\n".format(line) for line in out.splitlines()))
 
-def set_platform(msi, platform, verbose):
-    run(["msidump", "-t", msi], verbose)
+def make_changes(msi, args):
+    run(["msidump", "-t", msi], args.verbose)
+    build_cmd = ["msibuild", msi]
 
-    summary_stream = "_SummaryInformation.idt"
+    def change_table(filename):
+        with open(filename) as fh:
+            lines = [line.rstrip("\r\n").split("\t")
+                     for line in iter(fh.readline, "")]
 
-    with open(summary_stream) as fh:
-        lines = [line.rstrip("\r\n").split("\t")
-                 for line in iter(fh.readline, "")]
+        for line in lines[3:]:
+            yield line
 
-    for line in lines[3:]:
-        if line[0] == "7":
-            line[1] = ";".join([platform] + line[1].split(";", 1)[1:])
+        with open(filename, "w") as fh:
+            for line in lines:
+                fh.write("\t".join(line) + "\r\n")
 
-    with open(summary_stream, "w") as fh:
-        for line in lines:
-            fh.write("\t".join(line) + "\r\n")
+        build_cmd.extend(["-i", filename])
 
-    run(["msibuild", msi, "-i", summary_stream], verbose)
+    if args.platform is not None:
+        for line in change_table("_SummaryInformation.idt"):
+            if line[0] == "7":
+                line[1] = ";".join([args.platform] + line[1].split(";", 1)[1:])
+
+    if args.dialog_bmp_width is not None:
+        for line in change_table("Control.idt"):
+            if line[9] == "WixUI_Bmp_Dialog":
+                line[5] = args.dialog_bmp_width
+
+    run(build_cmd, args.verbose)
 
 def main():
     parser = argparse.ArgumentParser(
         description='Change the platform field of an MSI installer package.')
     parser.add_argument("msi", help="MSI installer file.")
-    parser.add_argument("platform", help="New value for the platform field.")
+    parser.add_argument("--platform", help="Change the platform field.")
+    parser.add_argument("--dialog-bmp-width", help="Change the width field"
+                        " in all uses of WixUI_Bmp_Dialog.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Log what this script is doing.")
     parser.add_argument("-k", "--keep", action="store_true",
@@ -51,7 +64,7 @@ def main():
     try:
         tempdir = tempfile.mkdtemp(dir=msidir)
         os.chdir(tempdir)
-        set_platform(msi, args.platform, args.verbose)
+        make_changes(msi, args)
     finally:
         if args.keep:
             sys.stdout.write(
