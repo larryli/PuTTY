@@ -152,8 +152,7 @@ in putty do perl -i~ -pe 'y/\015//d;s/$$/\015/' LICENCE
 
 # Some gratuitous theming for the MSI installer UI.
 in putty/icons do make -j$(nproc)
-in putty do convert -size 164x312 'gradient:blue-white' -distort SRT -90 -swirl 180 \( -size 329x312 canvas:white \) +append \( icons/putty-48.png -geometry +28+24 \) -composite \( icons/pscp-48.png -geometry +88+96 \) -composite \( icons/puttygen-48.png -geometry +28+168 \) -composite \( icons/pageant-48.png -geometry +88+240 \) -composite windows/msidialog.bmp
-in putty do convert -size 493x58 canvas:white \( icons/putty-48.png -geometry +440+5 \) -composite windows/msibanner.bmp
+in putty do ./windows/make_install_images.sh
 
 mkdir putty/windows/build32
 mkdir putty/windows/build64
@@ -200,10 +199,20 @@ in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=x64 -dDllOk=
 in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm -dDllOk=no -dBuilddir=abuild32/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera32.msi -spdb
 in putty/windows with wixonlinux do candle -arch x64 -dRealPlatform=Arm64 -dDllOk=no -dBuilddir=abuild64/ -dWinver="$(Winver)" -dPuttytextver="$(Puttytextver)" installer.wxs && light -ext WixUIExtension -ext WixUtilExtension -sval installer.wixobj -o installera64.msi -spdb
 
-# Bodge the platform fields for the Windows on Arm installers, since
-# WiX 3 doesn't understand Arm platform names itself.
-in putty/windows do ./msiplatform.py installera32.msi Arm
-in putty/windows do ./msiplatform.py installera64.msi Arm64
+# Change the width field for our dialog background image so that it
+# doesn't stretch across the whole dialog. (WiX's default one does; we
+# replace it with a narrow one so that the text to the right of it
+# shows up on system default background colour, meaning that
+# high-contrast mode doesn't make the text white on white. But that
+# means we also have to modify the width field, and there's nothing in
+# WiX's source syntax to make that happen.)
+#
+# Also bodge the platform fields for the Windows on Arm installers,
+# since WiX 3 doesn't understand Arm platform names itself.
+in putty/windows do ./msifixup.py installer32.msi --dialog-bmp-width=123
+in putty/windows do ./msifixup.py installer64.msi --dialog-bmp-width=123
+in putty/windows do ./msifixup.py installera32.msi --dialog-bmp-width=123 --platform=Arm
+in putty/windows do ./msifixup.py installera64.msi --dialog-bmp-width=123 --platform=Arm64
 
 # Sign the Windows installers.
 ifneq "$(cross_winsigncode)" "" in putty/windows do $(cross_winsigncode) -i https://www.chiark.greenend.org.uk/~sgtatham/putty/ -n "PuTTY Installer" installer32.msi installer64.msi installera32.msi installera64.msi
