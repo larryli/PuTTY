@@ -65,7 +65,7 @@ void proxy_activate (ProxySocket *p)
      * unfreezing the actual underlying socket.
      */
     if (!p->freeze)
-        sk_set_frozen(&p->sock, 0);
+        sk_set_frozen(&p->sock, false);
 }
 
 /* basic proxy socket functions */
@@ -499,7 +499,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
             return &ret->sock;
 
         /* start the proxy negotiation process... */
-        sk_set_frozen(ret->sub_socket, 0);
+        sk_set_frozen(ret->sub_socket, false);
         ret->negotiate(ret, PROXY_CHANGE_NEW);
 
         return &ret->sock;

@@ -408,7 +408,7 @@ static void pfd_receive(Plug *plug, int urgent, const char *data, size_t len)
          * Freeze the socket until the SSH server confirms the
          * connection.
          */
-        sk_set_frozen(pf->s, 1);
+        sk_set_frozen(pf->s, true);
 
         pf->c = wrap_lportfwd_open(pf->cl, pf->hostname, pf->port, pf->s,
                                    &pf->chan);
@@ -538,7 +538,7 @@ static int pfl_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
         pf->socksbuf = strbuf_new();
         pf->socksbuf_consumed = 0;
         pf->port = 0;                  /* "hostname" buffer is so far empty */
-        sk_set_frozen(s, 0);           /* we want to receive SOCKS _now_! */
+        sk_set_frozen(s, false);       /* we want to receive SOCKS _now_! */
     } else {
         pf->hostname = dupstr(pl->hostname);
         pf->port = pl->port;
@@ -666,7 +666,7 @@ static void pfd_open_confirmation(Channel *chan)
     PortForwarding *pf = container_of(chan, PortForwarding, chan);
 
     pf->ready = true;
-    sk_set_frozen(pf->s, 0);
+    sk_set_frozen(pf->s, false);
     sk_write(pf->s, NULL, 0);
     if (pf->socksbuf) {
         sshfwd_write(pf->c, pf->socksbuf->u + pf->socksbuf_consumed,

@@ -1940,7 +1940,7 @@ static int share_listen_accepting(Plug *plug,
         return err != NULL;
     }
 
-    sk_set_frozen(cs->sock, 0);
+    sk_set_frozen(cs->sock, false);
 
     add234(cs->parent->connections, cs);
 

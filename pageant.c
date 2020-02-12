@@ -1492,7 +1492,7 @@ static int pageant_listen_accepting(Plug *plug,
         return 1;
     }
 
-    sk_set_frozen(pc->connsock, 0);
+    sk_set_frozen(pc->connsock, false);
 
     peerinfo = sk_peer_info(pc->connsock);
     if (peerinfo && peerinfo->log_text) {
