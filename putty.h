@@ -479,6 +479,10 @@ enum {
     ADDRTYPE_NAME      /* SockAddr storing an unresolved host name */
 };
 
+/* Backend flags */
+#define BACKEND_RESIZE_FORBIDDEN    0x01   /* Backend does not allow
+                                              resizing terminal */
+
 struct Backend {
     const BackendVtable *vt;
 };

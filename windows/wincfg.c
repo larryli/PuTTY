@@ -43,6 +43,8 @@ static void variable_pitch_handler(union control *ctrl, dlgparam *dlg,
 void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
                           bool midsession, int protocol)
 {
+    const struct BackendVtable *backvt;
+    bool resize_forbidden = false;
     struct controlset *s;
     union control *c;
     char *str;
@@ -313,15 +315,21 @@ void win_setup_config_box(struct controlbox *b, HWND *hwndp, bool has_help,
     /*
      * Resize-by-changing-font is a Windows insanity.
      */
-    s = ctrl_getset(b, "Window", "size", "Set the size of the window");
-    ctrl_radiobuttons(s, "When window is resized:", 'z', 1,
-                      HELPCTX(window_resize),
-                      conf_radiobutton_handler,
-                      I(CONF_resize_action),
-                      "Change the number of rows and columns", I(RESIZE_TERM),
-                      "Change the size of the font", I(RESIZE_FONT),
-                      "Change font size only when maximised", I(RESIZE_EITHER),
-                      "Forbid resizing completely", I(RESIZE_DISABLED), NULL);
+
+    backvt = backend_vt_from_proto(protocol);
+    if (backvt)
+        resize_forbidden = (backvt->flags & BACKEND_RESIZE_FORBIDDEN);
+    if (!midsession || !resize_forbidden) {
+        s = ctrl_getset(b, "Window", "size", "Set the size of the window");
+        ctrl_radiobuttons(s, "When window is resized:", 'z', 1,
+                          HELPCTX(window_resize),
+                          conf_radiobutton_handler,
+                          I(CONF_resize_action),
+                          "Change the number of rows and columns", I(RESIZE_TERM),
+                          "Change the size of the font", I(RESIZE_FONT),
+                          "Change font size only when maximised", I(RESIZE_EITHER),
+                          "Forbid resizing completely", I(RESIZE_DISABLED), NULL);
+    }
 
     /*
      * Most of the Window/Behaviour stuff is there to mimic Windows
