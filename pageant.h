@@ -194,10 +194,6 @@ void pageant_listener_free(struct pageant_listen_state *pl);
  * process. (On at least one platform we want to do this in an
  * agnostic way between the two situations.)
  *
- * pageant_get_keylist{1,2} work just like pageant_make_keylist{1,2}
- * above, except that they can also cope if they have to contact an
- * external agent.
- *
  * pageant_add_keyfile() is used to load a private key from a file and
  * add it to the agent. Initially, you should call it with passphrase
  * NULL, and it will check if the key is already in the agent, and
@@ -212,8 +208,6 @@ void pageant_listener_free(struct pageant_listen_state *pl);
  * for keys that have the same trust properties). Call
  * pageant_forget_passphrases() to get rid of them all.
  */
-void *pageant_get_keylist1(int *length);
-void *pageant_get_keylist2(int *length);
 enum {
     PAGEANT_ACTION_OK,       /* success; no further action needed */
     PAGEANT_ACTION_FAILURE,  /* failure; *retstr is error message */
