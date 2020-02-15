@@ -577,11 +577,45 @@ static struct PageantAsyncOpVtable immop_vtable = {
     immop_free,
 };
 
+static bool reencrypt_key(PageantKey *pk)
+{
+    if (pk->sort.ssh_version != 2) {
+        /*
+         * We don't support storing SSH-1 keys in encrypted form at
+         * all.
+         */
+        return false;
+    }
+
+    if (!pk->encrypted_key_file) {
+        /*
+         * We can't re-encrypt a key if it doesn't have an encrypted
+         * form. (We could make one up, of course - but with what
+         * passphrase that we could expect the user to know later?)
+         */
+        return false;
+    }
+
+    /* Only actually free pk->skey if it exists. But we return success
+     * regardless, so that 'please ensure this key isn't stored
+     * decrypted' is idempotent. */
+    if (pk->skey) {
+        sfree(pk->skey->comment);
+        ssh_key_free(pk->skey->key);
+        sfree(pk->skey);
+        pk->skey = NULL;
+    }
+
+    return true;
+}
+
 #define PUTTYEXT(base) base "@putty.projects.tartarus.org"
 
-#define KNOWN_EXTENSIONS(X)                  \
-    X(EXT_QUERY, "query")                    \
-    X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))      \
+#define KNOWN_EXTENSIONS(X)                             \
+    X(EXT_QUERY, "query")                               \
+    X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))                 \
+    X(EXT_REENCRYPT, PUTTYEXT("reencrypt"))             \
+    X(EXT_REENCRYPT_ALL, PUTTYEXT("reencrypt-all"))     \
     /* end of list */
 
 #define DECL_EXT_ENUM(id, name) id,
@@ -1035,6 +1069,10 @@ static PageantAsyncOp *pageant_make_op(
         {
             enum Extension exttype = EXT_UNKNOWN;
             ptrlen extname = get_string(msg);
+            pageant_client_log(pc, reqid,
+                               "request: SSH2_AGENTC_EXTENSION \"%.*s\"",
+                               PTRLEN_PRINTF(extname));
+
             for (size_t i = 0; i < lenof(extension_names); i++)
                 if (ptrlen_eq_ptrlen(extname, extension_names[i])) {
                     exttype = i;
@@ -1064,6 +1102,8 @@ static PageantAsyncOp *pageant_make_op(
                 put_byte(sb, SSH_AGENT_SUCCESS);
                 for (size_t i = 0; i < lenof(extension_names); i++)
                     put_stringpl(sb, extension_names[i]);
+                pageant_client_log(pc, reqid,
+                                   "reply: SSH_AGENT_SUCCESS + names");
                 break;
 
               case EXT_ADD_PPK: {
@@ -1176,6 +1216,84 @@ static PageantAsyncOp *pageant_make_op(
                 if (public_blob)
                     strbuf_free(public_blob);
                 sfree(comment);
+                break;
+              }
+
+              case EXT_REENCRYPT: {
+                /*
+                 * Re-encrypt a single key, in the sense of deleting
+                 * its unencrypted copy, returning it to the state of
+                 * only having the encrypted PPK form stored, so that
+                 * the next attempt to use it will have to re-prompt
+                 * for the passphrase.
+                 */
+                ptrlen blob = get_string(msg);
+
+                if (get_err(msg)) {
+                    fail("unable to decode request");
+                    goto responded;
+                }
+
+                if (!pc->suppress_logging) {
+                    char *fingerprint = ssh2_fingerprint_blob(blob);
+                    pageant_client_log(pc, reqid, "key to re-encrypt: %s",
+                                       fingerprint);
+                    sfree(fingerprint);
+                }
+
+                PageantKey *pk = findkey2(blob);
+                if (!pk) {
+                    fail("key not found");
+                    goto responded;
+                }
+
+                pageant_client_log(pc, reqid,
+                                   "found with comment: %s", pk->comment);
+
+                if (!reencrypt_key(pk)) {
+                    fail("this key couldn't be re-encrypted");
+                    goto responded;
+                }
+
+                put_byte(sb, SSH_AGENT_SUCCESS);
+                pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
+                break;
+              }
+
+              case EXT_REENCRYPT_ALL: {
+                /*
+                 * Re-encrypt all keys that have an encrypted form
+                 * stored. Usually, returns success, but with a uint32
+                 * appended indicating how many keys remain
+                 * unencrypted. The exception is if there is at least
+                 * one key in the agent and _no_ key was successfully
+                 * re-encrypted; in that situation we've done nothing,
+                 * and the client didn't _want_ us to do nothing, so
+                 * we return failure.
+                 *
+                 * (Rationale: the 'failure' message ought to be
+                 * atomic, that is, you shouldn't return failure
+                 * having made a state change.)
+                 */
+                unsigned nfailures = 0, nsuccesses = 0;
+                PageantKey *pk;
+
+                for (int i = 0; (pk = index234(keytree, i)) != NULL; i++) {
+                    if (reencrypt_key(pk))
+                        nsuccesses++;
+                    else
+                        nfailures++;
+                }
+
+                if (nsuccesses == 0 && nfailures > 0) {
+                    fail("no key could be re-encrypted");
+                } else {
+                    put_byte(sb, SSH_AGENT_SUCCESS);
+                    put_uint32(sb, nfailures);
+                    pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS "
+                                       "(%u keys re-encrypted, %u failures)",
+                                       nsuccesses, nfailures);
+                }
                 break;
               }
             }
