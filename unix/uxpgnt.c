@@ -1191,6 +1191,7 @@ void run_agent(FILE *logfp, const char *symlink_path)
         exit(1);
     }
 
+    strbuf_free(upc->prompt_buf);
     conf_free(conf);
 }
 
