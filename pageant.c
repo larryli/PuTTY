@@ -480,6 +480,7 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
 
     assert(gui_request_in_progress);
     gui_request_in_progress = false;
+    pk->decryption_prompt_active = false;
 
     if (!pk->skey) {
         const char *error;
@@ -536,6 +537,7 @@ void pageant_passphrase_request_refused(PageantClientDialogId *dlgid)
 
     assert(gui_request_in_progress);
     gui_request_in_progress = false;
+    pk->decryption_prompt_active = false;
 
     fail_requests_for_key(pk, "user refused to supply passphrase");
 }
