@@ -211,7 +211,9 @@ void pageant_listener_free(struct pageant_listen_state *pl);
 enum {
     PAGEANT_ACTION_OK,       /* success; no further action needed */
     PAGEANT_ACTION_FAILURE,  /* failure; *retstr is error message */
-    PAGEANT_ACTION_NEED_PP   /* need passphrase: *retstr is key comment */
+    PAGEANT_ACTION_NEED_PP,  /* need passphrase: *retstr is key comment */
+    PAGEANT_ACTION_WARNING,  /* success but with a warning message;
+                              * *retstr is warning message */
 };
 int pageant_add_keyfile(Filename *filename, const char *passphrase,
                         char **retstr, bool add_encrypted);
@@ -236,5 +238,7 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr);
 int pageant_delete_key(struct pageant_pubkey *key, char **retstr);
 int pageant_delete_all_keys(char **retstr);
+int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr);
+int pageant_reencrypt_all_keys(char **retstr);
 int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
                  uint32_t flags, char **retstr);

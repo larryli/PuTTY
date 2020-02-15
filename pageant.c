@@ -2214,6 +2214,55 @@ int pageant_delete_all_keys(char **retstr)
     return PAGEANT_ACTION_OK;
 }
 
+int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr)
+{
+    PageantClientOp *pco = pageant_client_op_new();
+
+    if (key->ssh_version == 1) {
+        *retstr = dupstr("Can't re-encrypt an SSH-1 key");
+        return PAGEANT_ACTION_FAILURE;
+    } else {
+        put_byte(pco, SSH2_AGENTC_EXTENSION);
+        put_stringpl(pco, extension_names[EXT_REENCRYPT]);
+        put_string(pco, key->blob->s, key->blob->len);
+    }
+
+    unsigned reply = pageant_client_op_query(pco);
+    pageant_client_op_free(pco);
+
+    if (reply != SSH_AGENT_SUCCESS) {
+        *retstr = dupstr("Agent failed to re-encrypt key");
+        return PAGEANT_ACTION_FAILURE;
+    } else {
+        *retstr = NULL;
+        return PAGEANT_ACTION_OK;
+    }
+}
+
+int pageant_reencrypt_all_keys(char **retstr)
+{
+    PageantClientOp *pco = pageant_client_op_new();
+    put_byte(pco, SSH2_AGENTC_EXTENSION);
+    put_stringpl(pco, extension_names[EXT_REENCRYPT_ALL]);
+    unsigned reply = pageant_client_op_query(pco);
+    uint32_t failures = get_uint32(pco);
+    pageant_client_op_free(pco);
+    if (reply != SSH_AGENT_SUCCESS) {
+        *retstr = dupstr("Agent failed to re-encrypt any keys");
+        return PAGEANT_ACTION_FAILURE;
+    } else if (failures == 1) {
+        /* special case for English grammar */
+        *retstr = dupstr("1 key remains unencrypted");
+        return PAGEANT_ACTION_WARNING;
+    } else if (failures > 0) {
+        *retstr = dupprintf("%"PRIu32" keys remain unencrypted", failures);
+        return PAGEANT_ACTION_WARNING;
+    } else {
+        *retstr = NULL;
+        return PAGEANT_ACTION_OK;
+    }
+}
+
 int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
                  uint32_t flags, char **retstr)
 {
