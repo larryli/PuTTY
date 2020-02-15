@@ -397,6 +397,8 @@ typedef enum {
     KEYACT_CLIENT_PUBLIC_OPENSSH,
     KEYACT_CLIENT_PUBLIC,
     KEYACT_CLIENT_SIGN,
+    KEYACT_CLIENT_REENCRYPT,
+    KEYACT_CLIENT_REENCRYPT_ALL,
 } keyact;
 struct cmdline_key_action {
     struct cmdline_key_action *next;
@@ -801,6 +803,18 @@ void run_client(void)
             if (key)
                 pageant_pubkey_free(key);
             break;
+          case KEYACT_CLIENT_REENCRYPT:
+            key = NULL;
+            if (!(key = find_key(act->filename, &retstr)) ||
+                pageant_reencrypt_key(key, &retstr) == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: re-encrypting key '%s': %s\n",
+                        act->filename, retstr);
+                sfree(retstr);
+                errors = true;
+            }
+            if (key)
+                pageant_pubkey_free(key);
+            break;
           case KEYACT_CLIENT_PUBLIC_OPENSSH:
           case KEYACT_CLIENT_PUBLIC:
             key = NULL;
@@ -840,6 +854,20 @@ void run_client(void)
                 errors = true;
             }
             break;
+          case KEYACT_CLIENT_REENCRYPT_ALL: {
+            int status = pageant_reencrypt_all_keys(&retstr);
+            if (status == PAGEANT_ACTION_FAILURE) {
+                fprintf(stderr, "pageant: re-encrypting all keys: "
+                        "%s\n", retstr);
+                sfree(retstr);
+                errors = true;
+            } else if (status == PAGEANT_ACTION_WARNING) {
+                fprintf(stderr, "pageant: re-encrypting all keys: "
+                        "warning: %s\n", retstr);
+                sfree(retstr);
+            }
+            break;
+          }
           case KEYACT_CLIENT_SIGN:
             key = NULL;
             if (!message_loaded) {
@@ -1222,12 +1250,16 @@ int main(int argc, char **argv)
                 curr_keyact = KEYACT_CLIENT_ADD;
             } else if (!strcmp(p, "-d")) {
                 curr_keyact = KEYACT_CLIENT_DEL;
+            } else if (!strcmp(p, "-r")) {
+                curr_keyact = KEYACT_CLIENT_REENCRYPT;
             } else if (!strcmp(p, "-s")) {
                 shell_type = SHELL_SH;
             } else if (!strcmp(p, "-c")) {
                 shell_type = SHELL_CSH;
             } else if (!strcmp(p, "-D")) {
                 add_keyact(KEYACT_CLIENT_DEL_ALL, NULL);
+            } else if (!strcmp(p, "-R")) {
+                add_keyact(KEYACT_CLIENT_REENCRYPT_ALL, NULL);
             } else if (!strcmp(p, "-l")) {
                 add_keyact(KEYACT_CLIENT_LIST, NULL);
             } else if (!strcmp(p, "--public")) {
