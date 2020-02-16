@@ -1268,9 +1268,9 @@ Backend *pty_backend_create(
  * it gets the argv array from the global variable pty_argv, expecting
  * that it will have been invoked by pterm.
  */
-static const char *pty_init(Seat *seat, Backend **backend_handle,
-                            LogContext *logctx, Conf *conf,
-                            const char *host, int port,
+static const char *pty_init(const BackendVtable *vt, Seat *seat,
+                            Backend **backend_handle, LogContext *logctx,
+                            Conf *conf, const char *host, int port,
                             char **realhost, bool nodelay, bool keepalive)
 {
     const char *cmd = NULL;
@@ -1281,7 +1281,8 @@ static const char *pty_init(Seat *seat, Backend **backend_handle,
     if (pty_argv && pty_argv[0] && !pty_argv[1])
         cmd = pty_argv[0];
 
-    *backend_handle= pty_backend_create(
+    assert(vt == &pty_backend);
+    *backend_handle = pty_backend_create(
         seat, logctx, conf, pty_argv, cmd, modes, false, NULL, NULL);
     *realhost = dupstr("");
     return NULL;

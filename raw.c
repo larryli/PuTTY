@@ -119,10 +119,10 @@ static const PlugVtable Raw_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *raw_init(Seat *seat, Backend **backend_handle,
-                            LogContext *logctx, Conf *conf,
-                            const char *host, int port, char **realhost,
-                            bool nodelay, bool keepalive)
+static const char *raw_init(const BackendVtable *vt, Seat *seat,
+                            Backend **backend_handle, LogContext *logctx,
+                            Conf *conf, const char *host, int port,
+                            char **realhost, bool nodelay, bool keepalive)
 {
     SockAddr *addr;
     const char *err;
@@ -135,7 +135,7 @@ static const char *raw_init(Seat *seat, Backend **backend_handle,
 
     raw = snew(Raw);
     raw->plug.vt = &Raw_plugvt;
-    raw->backend.vt = &raw_backend;
+    raw->backend.vt = vt;
     raw->s = NULL;
     raw->closed_on_socket_error = false;
     *backend_handle = &raw->backend;

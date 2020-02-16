@@ -482,8 +482,8 @@ struct Backend {
     const BackendVtable *vt;
 };
 struct BackendVtable {
-    const char *(*init) (Seat *seat, Backend **backend_out,
-                         LogContext *logctx, Conf *conf,
+    const char *(*init) (const BackendVtable *vt, Seat *seat,
+                         Backend **backend_out, LogContext *logctx, Conf *conf,
                          const char *host, int port,
                          char **realhost, bool nodelay, bool keepalive);
 
@@ -525,7 +525,7 @@ struct BackendVtable {
 static inline const char *backend_init(
     const BackendVtable *vt, Seat *seat, Backend **out, LogContext *logctx,
     Conf *conf, const char *host, int port, char **rhost, bool nd, bool ka)
-{ return vt->init(seat, out, logctx, conf, host, port, rhost, nd, ka); }
+{ return vt->init(vt, seat, out, logctx, conf, host, port, rhost, nd, ka); }
 static inline void backend_free(Backend *be)
 { be->vt->free(be); }
 static inline void backend_reconfig(Backend *be, Conf *conf)

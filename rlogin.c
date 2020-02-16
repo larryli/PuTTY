@@ -153,10 +153,10 @@ static const PlugVtable Rlogin_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *rlogin_init(Seat *seat, Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port, char **realhost,
-                               bool nodelay, bool keepalive)
+static const char *rlogin_init(const BackendVtable *vt, Seat *seat,
+                               Backend **backend_handle, LogContext *logctx,
+                               Conf *conf, const char *host, int port,
+                               char **realhost, bool nodelay, bool keepalive)
 {
     SockAddr *addr;
     const char *err;
@@ -167,7 +167,7 @@ static const char *rlogin_init(Seat *seat, Backend **backend_handle,
 
     rlogin = snew(Rlogin);
     rlogin->plug.vt = &Rlogin_plugvt;
-    rlogin->backend.vt = &rlogin_backend;
+    rlogin->backend.vt = vt;
     rlogin->s = NULL;
     rlogin->closed_on_socket_error = false;
     rlogin->seat = seat;

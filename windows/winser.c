@@ -191,9 +191,9 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(Seat *seat, Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port,
+static const char *serial_init(const BackendVtable *vt, Seat *seat,
+                               Backend **backend_handle, LogContext *logctx,
+                               Conf *conf, const char *host, int port,
                                char **realhost, bool nodelay, bool keepalive)
 {
     Serial *serial;
@@ -209,7 +209,7 @@ static const char *serial_init(Seat *seat, Backend **backend_handle,
     serial->out = serial->in = NULL;
     serial->bufsize = 0;
     serial->break_in_progress = false;
-    serial->backend.vt = &serial_backend;
+    serial->backend.vt = vt;
     *backend_handle = &serial->backend;
 
     serial->seat = seat;

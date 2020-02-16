@@ -866,10 +866,10 @@ static void ssh_cache_conf_values(Ssh *ssh)
  *
  * Returns an error message, or NULL on success.
  */
-static const char *ssh_init(Seat *seat, Backend **backend_handle,
-                            LogContext *logctx, Conf *conf,
-                            const char *host, int port, char **realhost,
-                            bool nodelay, bool keepalive)
+static const char *ssh_init(const BackendVtable *vt, Seat *seat,
+                            Backend **backend_handle, LogContext *logctx,
+                            Conf *conf, const char *host, int port,
+                            char **realhost, bool nodelay, bool keepalive)
 {
     const char *p;
     Ssh *ssh;
@@ -891,7 +891,7 @@ static const char *ssh_init(Seat *seat, Backend **backend_handle,
     ssh->term_width = conf_get_int(ssh->conf, CONF_width);
     ssh->term_height = conf_get_int(ssh->conf, CONF_height);
 
-    ssh->backend.vt = &ssh_backend;
+    ssh->backend.vt = vt;
     *backend_handle = &ssh->backend;
 
     ssh->seat = seat;

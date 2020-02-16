@@ -678,9 +678,9 @@ static const PlugVtable Telnet_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *telnet_init(Seat *seat, Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port,
+static const char *telnet_init(const BackendVtable *vt, Seat *seat,
+                               Backend **backend_handle, LogContext *logctx,
+                               Conf *conf, const char *host, int port,
                                char **realhost, bool nodelay, bool keepalive)
 {
     SockAddr *addr;
@@ -694,7 +694,7 @@ static const char *telnet_init(Seat *seat, Backend **backend_handle,
 
     telnet = snew(Telnet);
     telnet->plug.vt = &Telnet_plugvt;
-    telnet->backend.vt = &telnet_backend;
+    telnet->backend.vt = vt;
     telnet->conf = conf_copy(conf);
     telnet->s = NULL;
     telnet->closed_on_socket_error = false;
