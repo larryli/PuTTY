@@ -133,18 +133,17 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                               WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
-            sfree(buildinfo_text);
-            SetDlgItemText(hwnd, 1000, text);
-            sfree(text);
-        }
+      case WM_INITDIALOG: {
+        char *buildinfo_text = buildinfo("\r\n");
+        char *text = dupprintf
+            ("Pageant\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+             ver, buildinfo_text,
+             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+        sfree(buildinfo_text);
+        SetDlgItemText(hwnd, 1000, text);
+        sfree(text);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -186,22 +185,20 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
     struct PassphraseProcStruct *p;
 
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         passphrase_box = hwnd;
         /*
          * Centre the window.
          */
-        {                              /* centre the window */
-            RECT rs, rd;
-            HWND hw;
+        RECT rs, rd;
+        HWND hw;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        hw = GetDesktopWindow();
+        if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+            MoveWindow(hwnd,
+                       (rs.right + rs.left + rd.left - rd.right) / 2,
+                       (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                       rd.right - rd.left, rd.bottom - rd.top, true);
 
         SetForegroundWindow(hwnd);
         SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
@@ -214,6 +211,7 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         *passphrase = dupstr("");
         SetDlgItemText(hwnd, 102, *passphrase);
         return 0;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -485,41 +483,40 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
     ssh2_userkey *skey;
 
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         /*
          * Centre the window.
          */
-        {                              /* centre the window */
-            RECT rs, rd;
-            HWND hw;
+        RECT rs, rd;
+        HWND hw;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        hw = GetDesktopWindow();
+        if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+            MoveWindow(hwnd,
+                       (rs.right + rs.left + rd.left - rd.right) / 2,
+                       (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                       rd.right - rd.left, rd.bottom - rd.top, true);
 
         if (has_help())
             SetWindowLongPtr(hwnd, GWL_EXSTYLE,
                              GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
                              WS_EX_CONTEXTHELP);
         else {
-            HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
-            if (item)
-                DestroyWindow(item);
+          HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
+          if (item)
+              DestroyWindow(item);
         }
 
         keylist = hwnd;
         {
-            static int tabs[] = { 35, 75, 250 };
-            SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
-                               sizeof(tabs) / sizeof(*tabs),
-                               (LPARAM) tabs);
+          static int tabs[] = { 35, 75, 250 };
+          SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
+                             sizeof(tabs) / sizeof(*tabs),
+                             (LPARAM) tabs);
         }
         keylist_update();
         return 0;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -607,22 +604,21 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             return 0;
         }
         return 0;
-      case WM_HELP:
-        {
-            int id = ((LPHELPINFO)lParam)->iCtrlId;
-            const char *topic = NULL;
-            switch (id) {
-              case 100: topic = WINHELP_CTX_pageant_keylist; break;
-              case 101: topic = WINHELP_CTX_pageant_addkey; break;
-              case 102: topic = WINHELP_CTX_pageant_remkey; break;
-            }
-            if (topic) {
-                launch_help(hwnd, topic);
-            } else {
-                MessageBeep(0);
-            }
+      case WM_HELP: {
+        int id = ((LPHELPINFO)lParam)->iCtrlId;
+        const char *topic = NULL;
+        switch (id) {
+          case 100: topic = WINHELP_CTX_pageant_keylist; break;
+          case 101: topic = WINHELP_CTX_pageant_addkey; break;
+          case 102: topic = WINHELP_CTX_pageant_remkey; break;
+        }
+        if (topic) {
+          launch_help(hwnd, topic);
+        } else {
+          MessageBeep(0);
         }
         break;
+      }
       case WM_CLOSE:
         keylist = NULL;
         DestroyWindow(hwnd);
@@ -1007,20 +1003,19 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
       case WM_COMMAND:
       case WM_SYSCOMMAND:
         switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
-          case IDM_PUTTY:
-            {
-                TCHAR cmdline[10];
-                cmdline[0] = '\0';
-                if (restrict_putty_acl)
-                    strcat(cmdline, "&R");
+          case IDM_PUTTY: {
+            TCHAR cmdline[10];
+            cmdline[0] = '\0';
+            if (restrict_putty_acl)
+                strcat(cmdline, "&R");
 
-                if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
-                                         _T(""), SW_SHOW) <= 32) {
-                    MessageBox(NULL, "Unable to execute PuTTY!",
-                               "Error", MB_OK | MB_ICONERROR);
-                }
+            if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, cmdline,
+                                     _T(""), SW_SHOW) <= 32) {
+              MessageBox(NULL, "Unable to execute PuTTY!",
+                         "Error", MB_OK | MB_ICONERROR);
             }
             break;
+          }
           case IDM_CLOSE:
             if (passphrase_box)
                 SendMessage(passphrase_box, WM_CLOSE, 0, 0);
@@ -1068,31 +1063,30 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
           case IDM_HELP:
             launch_help(hwnd, WINHELP_CTX_pageant_general);
             break;
-          default:
-            {
-                if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
-                    MENUITEMINFO mii;
-                    TCHAR buf[MAX_PATH + 1];
-                    TCHAR param[MAX_PATH + 1];
-                    memset(&mii, 0, sizeof(mii));
-                    mii.cbSize = sizeof(mii);
-                    mii.fMask = MIIM_TYPE;
-                    mii.cch = MAX_PATH;
-                    mii.dwTypeData = buf;
-                    GetMenuItemInfo(session_menu, wParam, false, &mii);
-                    param[0] = '\0';
-                    if (restrict_putty_acl)
-                        strcat(param, "&R");
-                    strcat(param, "@");
-                    strcat(param, mii.dwTypeData);
-                    if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
-                                         _T(""), SW_SHOW) <= 32) {
-                        MessageBox(NULL, "Unable to execute PuTTY!", "Error",
-                                   MB_OK | MB_ICONERROR);
-                    }
-                }
+          default: {
+            if(wParam >= IDM_SESSIONS_BASE && wParam <= IDM_SESSIONS_MAX) {
+              MENUITEMINFO mii;
+              TCHAR buf[MAX_PATH + 1];
+              TCHAR param[MAX_PATH + 1];
+              memset(&mii, 0, sizeof(mii));
+              mii.cbSize = sizeof(mii);
+              mii.fMask = MIIM_TYPE;
+              mii.cch = MAX_PATH;
+              mii.dwTypeData = buf;
+              GetMenuItemInfo(session_menu, wParam, false, &mii);
+              param[0] = '\0';
+              if (restrict_putty_acl)
+                  strcat(param, "&R");
+              strcat(param, "@");
+              strcat(param, mii.dwTypeData);
+              if((INT_PTR)ShellExecute(hwnd, NULL, putty_path, param,
+                                       _T(""), SW_SHOW) <= 32) {
+                MessageBox(NULL, "Unable to execute PuTTY!", "Error",
+                           MB_OK | MB_ICONERROR);
+              }
             }
             break;
+          }
         }
         break;
       case WM_DESTROY:
@@ -1108,27 +1102,26 @@ static LRESULT CALLBACK wm_copydata_WndProc(HWND hwnd, UINT message,
                                             WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
-      case WM_COPYDATA:
-        {
-            COPYDATASTRUCT *cds;
-            char *mapname, *err;
+      case WM_COPYDATA: {
+        COPYDATASTRUCT *cds;
+        char *mapname, *err;
 
-            cds = (COPYDATASTRUCT *) lParam;
-            if (cds->dwData != AGENT_COPYDATA_ID)
-                return 0;              /* not our message, mate */
-            mapname = (char *) cds->lpData;
-            if (mapname[cds->cbData - 1] != '\0')
-                return 0;              /* failure to be ASCIZ! */
-            err = answer_filemapping_message(mapname);
-            if (err) {
+        cds = (COPYDATASTRUCT *) lParam;
+        if (cds->dwData != AGENT_COPYDATA_ID)
+            return 0;              /* not our message, mate */
+        mapname = (char *) cds->lpData;
+        if (mapname[cds->cbData - 1] != '\0')
+            return 0;              /* failure to be ASCIZ! */
+        err = answer_filemapping_message(mapname);
+        if (err) {
 #ifdef DEBUG_IPC
-                debug("IPC failed: %s\n", err);
+          debug("IPC failed: %s\n", err);
 #endif
-                sfree(err);
-                return 0;
-            }
-            return 1;
+          sfree(err);
+          return 0;
         }
+        return 1;
+      }
     }
 
     return DefWindowProc(hwnd, message, wParam, lParam);

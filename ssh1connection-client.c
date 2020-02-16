@@ -262,15 +262,14 @@ bool ssh1_handle_direction_specific_packet(
 
         return true;
 
-      case SSH1_SMSG_EXIT_STATUS:
-        {
-            int exitcode = get_uint32(pktin);
-            ppl_logevent("Server sent command exit status %d", exitcode);
-            ssh_got_exitcode(s->ppl.ssh, exitcode);
+      case SSH1_SMSG_EXIT_STATUS: {
+        int exitcode = get_uint32(pktin);
+        ppl_logevent("Server sent command exit status %d", exitcode);
+        ssh_got_exitcode(s->ppl.ssh, exitcode);
 
-            s->session_terminated = true;
-        }
+        s->session_terminated = true;
         return true;
+      }
 
       default:
         return false;

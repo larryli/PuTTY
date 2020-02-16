@@ -1235,20 +1235,19 @@ static struct openssh_new_key *load_openssh_new_key(BinarySource *filesrc,
             goto error;
         }
         break;
-      case ON_K_BCRYPT:
-        {
-            BinarySource opts[1];
+      case ON_K_BCRYPT: {
+        BinarySource opts[1];
 
-            BinarySource_BARE_INIT_PL(opts, str);
-            ret->kdfopts.bcrypt.salt = get_string(opts);
-            ret->kdfopts.bcrypt.rounds = get_uint32(opts);
+        BinarySource_BARE_INIT_PL(opts, str);
+        ret->kdfopts.bcrypt.salt = get_string(opts);
+        ret->kdfopts.bcrypt.rounds = get_uint32(opts);
 
-            if (get_err(opts)) {
-                errmsg = "failed to parse bcrypt options string";
-                goto error;
-            }
+        if (get_err(opts)) {
+          errmsg = "failed to parse bcrypt options string";
+          goto error;
         }
         break;
+      }
     }
 
     /*

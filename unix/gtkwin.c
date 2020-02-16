@@ -5044,17 +5044,16 @@ static void gtk_seat_update_specials_menu(Seat *seat)
               case SS_SEP:
                 menuitem = gtk_menu_item_new();
                 break;
-              default:
+              default: {
                 menuitem = gtk_menu_item_new_with_label(specials[i].name);
-                {
-                    SessionSpecial *sc = snew(SessionSpecial);
-                    *sc = specials[i]; /* structure copy */
-                    g_object_set_data_full(G_OBJECT(menuitem), "user-data",
-                                           sc, free_special_cmd);
-                }
+                SessionSpecial *sc = snew(SessionSpecial);
+                *sc = specials[i]; /* structure copy */
+                g_object_set_data_full(G_OBJECT(menuitem), "user-data",
+                                       sc, free_special_cmd);
                 g_signal_connect(G_OBJECT(menuitem), "activate",
                                  G_CALLBACK(special_menuitem), inst);
                 break;
+              }
             }
             if (menuitem) {
                 gtk_container_add(GTK_CONTAINER(menu), menuitem);

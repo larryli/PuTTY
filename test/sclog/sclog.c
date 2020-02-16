@@ -422,30 +422,29 @@ static dr_emit_flags_t instrument_instr(
       case OP_rol:
       case OP_ror:
       case OP_rcl:
-      case OP_rcr:
+      case OP_rcr: {
         /*
          * Shift instructions. If they're register-controlled, log the
          * shift count.
          */
-        {
-            opnd_t shiftcount = instr_get_src(instr, 0);
-            if (!opnd_is_immed(shiftcount)) {
-                reg_id_t r0;
-                drreg_status_t st;
-                st = drreg_reserve_register(drcontext, bb, instr, NULL, &r0);
-                DR_ASSERT(st == DRREG_SUCCESS);
-                opnd_t op_r0 = opnd_create_reg(r0);
-                instrlist_preinsert(bb, instr, INSTR_CREATE_movzx(
-                                        drcontext, op_r0, shiftcount));
-                instr_format_location(instr, &loc);
-                dr_insert_clean_call(
-                    drcontext, bb, instr, (void *)log_var_shift, false,
-                    2, op_r0, OPND_CREATE_INTPTR(loc));
-                st = drreg_unreserve_register(drcontext, bb, instr, r0);
-                DR_ASSERT(st == DRREG_SUCCESS);
-            }
+        opnd_t shiftcount = instr_get_src(instr, 0);
+        if (!opnd_is_immed(shiftcount)) {
+          reg_id_t r0;
+          drreg_status_t st;
+          st = drreg_reserve_register(drcontext, bb, instr, NULL, &r0);
+          DR_ASSERT(st == DRREG_SUCCESS);
+          opnd_t op_r0 = opnd_create_reg(r0);
+          instrlist_preinsert(bb, instr, INSTR_CREATE_movzx(
+                                  drcontext, op_r0, shiftcount));
+          instr_format_location(instr, &loc);
+          dr_insert_clean_call(
+              drcontext, bb, instr, (void *)log_var_shift, false,
+              2, op_r0, OPND_CREATE_INTPTR(loc));
+          st = drreg_unreserve_register(drcontext, bb, instr, r0);
+          DR_ASSERT(st == DRREG_SUCCESS);
         }
         break;
+      }
     }
 
     return DR_EMIT_DEFAULT;

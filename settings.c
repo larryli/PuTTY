@@ -492,13 +492,12 @@ static void write_clip_setting(settings_w *sesskey, const char *savekey,
       case CLIPUI_EXPLICIT:
         write_setting_s(sesskey, savekey, "explicit");
         break;
-      case CLIPUI_CUSTOM:
-        {
-            char *sval = dupcat("custom:", conf_get_str(conf, strconfkey));
-            write_setting_s(sesskey, savekey, sval);
-            sfree(sval);
-        }
+      case CLIPUI_CUSTOM: {
+        char *sval = dupcat("custom:", conf_get_str(conf, strconfkey));
+        write_setting_s(sesskey, savekey, sval);
+        sfree(sval);
         break;
+      }
     }
 }
 

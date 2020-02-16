@@ -1624,17 +1624,16 @@ void select_result(WPARAM wParam, LPARAM lParam)
             plug_receive(s->plug, 2, buf, ret);
         }
         break;
-      case FD_WRITE:
-        {
-            int bufsize_before, bufsize_after;
-            s->writable = true;
-            bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
-            try_send(s);
-            bufsize_after = s->sending_oob + bufchain_size(&s->output_data);
-            if (bufsize_after < bufsize_before)
-                plug_sent(s->plug, bufsize_after);
-        }
+      case FD_WRITE: {
+        int bufsize_before, bufsize_after;
+        s->writable = true;
+        bufsize_before = s->sending_oob + bufchain_size(&s->output_data);
+        try_send(s);
+        bufsize_after = s->sending_oob + bufchain_size(&s->output_data);
+        if (bufsize_after < bufsize_before)
+            plug_sent(s->plug, bufsize_after);
         break;
+      }
       case FD_CLOSE:
         /* Signal a close on the socket. First read any outstanding data. */
         do {
@@ -1652,42 +1651,42 @@ void select_result(WPARAM wParam, LPARAM lParam)
             }
         } while (ret > 0);
         return;
-       case FD_ACCEPT:
-        {
+      case FD_ACCEPT: {
 #ifdef NO_IPV6
-            struct sockaddr_in isa;
+        struct sockaddr_in isa;
 #else
-            struct sockaddr_storage isa;
+        struct sockaddr_storage isa;
 #endif
-            int addrlen = sizeof(isa);
-            SOCKET t;  /* socket of connection */
-            accept_ctx_t actx;
+        int addrlen = sizeof(isa);
+        SOCKET t;  /* socket of connection */
+        accept_ctx_t actx;
 
-            memset(&isa, 0, sizeof(isa));
-            err = 0;
-            t = p_accept(s->s,(struct sockaddr *)&isa,&addrlen);
-            if (t == INVALID_SOCKET)
-            {
-                err = p_WSAGetLastError();
-                if (err == WSATRY_AGAIN)
-                    break;
-            }
+        memset(&isa, 0, sizeof(isa));
+        err = 0;
+        t = p_accept(s->s,(struct sockaddr *)&isa,&addrlen);
+        if (t == INVALID_SOCKET)
+        {
+          err = p_WSAGetLastError();
+          if (err == WSATRY_AGAIN)
+              break;
+        }
 
-            actx.p = (void *)t;
+        actx.p = (void *)t;
 
 #ifndef NO_IPV6
-            if (isa.ss_family == AF_INET &&
-                s->localhost_only &&
-                !ipv4_is_local_addr(((struct sockaddr_in *)&isa)->sin_addr))
+        if (isa.ss_family == AF_INET &&
+            s->localhost_only &&
+            !ipv4_is_local_addr(((struct sockaddr_in *)&isa)->sin_addr))
 #else
-            if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr))
+        if (s->localhost_only && !ipv4_is_local_addr(isa.sin_addr))
 #endif
-            {
-                p_closesocket(t);      /* dodgy WinSock let nonlocal through */
-            } else if (plug_accepting(s->plug, sk_net_accept, actx)) {
-                p_closesocket(t);      /* denied or error */
-            }
+        {
+          p_closesocket(t);      /* dodgy WinSock let nonlocal through */
+        } else if (plug_accepting(s->plug, sk_net_accept, actx)) {
+          p_closesocket(t);      /* denied or error */
         }
+        break;
+      }
     }
 }
 

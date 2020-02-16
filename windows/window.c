@@ -2180,20 +2180,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         return 0;
       case WM_CREATE:
         break;
-      case WM_CLOSE:
-        {
-            char *str;
-            show_mouseptr(true);
-            str = dupprintf("%s Exit Confirmation", appname);
-            if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
-                MessageBox(hwnd,
-                           "Are you sure you want to close this session?",
-                           str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
-                == IDOK)
-                DestroyWindow(hwnd);
-            sfree(str);
-        }
+      case WM_CLOSE: {
+        char *str;
+        show_mouseptr(true);
+        str = dupprintf("%s Exit Confirmation", appname);
+        if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
+            MessageBox(hwnd,
+                       "Are you sure you want to close this session?",
+                       str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
+            == IDOK)
+            DestroyWindow(hwnd);
+        sfree(str);
         return 0;
+      }
       case WM_DESTROY:
         show_mouseptr(true);
         PostQuitMessage(0);
@@ -2216,88 +2215,87 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             break;
           case IDM_NEWSESS:
           case IDM_DUPSESS:
-          case IDM_SAVEDSESS:
-            {
-                char b[2048];
-                char *cl;
-                const char *argprefix;
-                bool inherit_handles;
-                STARTUPINFO si;
-                PROCESS_INFORMATION pi;
-                HANDLE filemap = NULL;
+          case IDM_SAVEDSESS: {
+            char b[2048];
+            char *cl;
+            const char *argprefix;
+            bool inherit_handles;
+            STARTUPINFO si;
+            PROCESS_INFORMATION pi;
+            HANDLE filemap = NULL;
 
-                if (restricted_acl())
-                    argprefix = "&R";
-                else
-                    argprefix = "";
+            if (restricted_acl())
+                argprefix = "&R";
+            else
+                argprefix = "";
 
-                if (wParam == IDM_DUPSESS) {
-                    /*
-                     * Allocate a file-mapping memory chunk for the
-                     * config structure.
-                     */
-                    SECURITY_ATTRIBUTES sa;
-                    strbuf *serbuf;
-                    void *p;
-                    int size;
+            if (wParam == IDM_DUPSESS) {
+              /*
+               * Allocate a file-mapping memory chunk for the
+               * config structure.
+               */
+              SECURITY_ATTRIBUTES sa;
+              strbuf *serbuf;
+              void *p;
+              int size;
 
-                    serbuf = strbuf_new();
-                    conf_serialise(BinarySink_UPCAST(serbuf), conf);
-                    size = serbuf->len;
+              serbuf = strbuf_new();
+              conf_serialise(BinarySink_UPCAST(serbuf), conf);
+              size = serbuf->len;
 
-                    sa.nLength = sizeof(sa);
-                    sa.lpSecurityDescriptor = NULL;
-                    sa.bInheritHandle = true;
-                    filemap = CreateFileMapping(INVALID_HANDLE_VALUE,
-                                                &sa,
-                                                PAGE_READWRITE,
-                                                0, size, NULL);
-                    if (filemap && filemap != INVALID_HANDLE_VALUE) {
-                        p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, size);
-                        if (p) {
-                            memcpy(p, serbuf->s, size);
-                            UnmapViewOfFile(p);
-                        }
-                    }
-
-                    strbuf_free(serbuf);
-                    inherit_handles = true;
-                    cl = dupprintf("putty %s&%p:%u", argprefix,
-                                   filemap, (unsigned)size);
-                } else if (wParam == IDM_SAVEDSESS) {
-                    unsigned int sessno = ((lParam - IDM_SAVED_MIN)
-                                           / MENU_SAVED_STEP) + 1;
-                    if (sessno < (unsigned)sesslist.nsessions) {
-                        const char *session = sesslist.sessions[sessno];
-                        cl = dupprintf("putty %s@%s", argprefix, session);
-                        inherit_handles = false;
-                    } else
-                        break;
-                } else /* IDM_NEWSESS */ {
-                    cl = dupprintf("putty%s%s",
-                                   *argprefix ? " " : "",
-                                   argprefix);
-                    inherit_handles = false;
+              sa.nLength = sizeof(sa);
+              sa.lpSecurityDescriptor = NULL;
+              sa.bInheritHandle = true;
+              filemap = CreateFileMapping(INVALID_HANDLE_VALUE,
+                                          &sa,
+                                          PAGE_READWRITE,
+                                          0, size, NULL);
+              if (filemap && filemap != INVALID_HANDLE_VALUE) {
+                p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, size);
+                if (p) {
+                  memcpy(p, serbuf->s, size);
+                  UnmapViewOfFile(p);
                 }
+              }
 
-                GetModuleFileName(NULL, b, sizeof(b) - 1);
-                si.cb = sizeof(si);
-                si.lpReserved = NULL;
-                si.lpDesktop = NULL;
-                si.lpTitle = NULL;
-                si.dwFlags = 0;
-                si.cbReserved2 = 0;
-                si.lpReserved2 = NULL;
-                CreateProcess(b, cl, NULL, NULL, inherit_handles,
-                              NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
-                CloseHandle(pi.hProcess);
-                CloseHandle(pi.hThread);
-
-                if (filemap)
-                    CloseHandle(filemap);
-                sfree(cl);
+              strbuf_free(serbuf);
+              inherit_handles = true;
+              cl = dupprintf("putty %s&%p:%u", argprefix,
+                             filemap, (unsigned)size);
+            } else if (wParam == IDM_SAVEDSESS) {
+              unsigned int sessno = ((lParam - IDM_SAVED_MIN)
+                                     / MENU_SAVED_STEP) + 1;
+              if (sessno < (unsigned)sesslist.nsessions) {
+                const char *session = sesslist.sessions[sessno];
+                cl = dupprintf("putty %s@%s", argprefix, session);
+                inherit_handles = false;
+              } else
+                  break;
+            } else /* IDM_NEWSESS */ {
+              cl = dupprintf("putty%s%s",
+                             *argprefix ? " " : "",
+                             argprefix);
+              inherit_handles = false;
             }
+
+            GetModuleFileName(NULL, b, sizeof(b) - 1);
+            si.cb = sizeof(si);
+            si.lpReserved = NULL;
+            si.lpDesktop = NULL;
+            si.lpTitle = NULL;
+            si.dwFlags = 0;
+            si.cbReserved2 = 0;
+            si.lpReserved2 = NULL;
+            CreateProcess(b, cl, NULL, NULL, inherit_handles,
+                          NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+
+            if (filemap)
+                CloseHandle(filemap);
+            sfree(cl);
             break;
+          }
           case IDM_RESTART:
             if (!backend) {
                 lp_eventlog(&wgs.logpolicy, "----- Session restarted -----");
@@ -2306,193 +2304,192 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
 
             break;
-          case IDM_RECONF:
-            {
-                Conf *prev_conf;
-                int init_lvl = 1;
-                bool reconfig_result;
+          case IDM_RECONF: {
+            Conf *prev_conf;
+            int init_lvl = 1;
+            bool reconfig_result;
 
-                if (reconfiguring)
-                    break;
-                else
-                    reconfiguring = true;
+            if (reconfiguring)
+                break;
+            else
+                reconfiguring = true;
 
-                /*
-                 * Copy the current window title into the stored
-                 * previous configuration, so that doing nothing to
-                 * the window title field in the config box doesn't
-                 * reset the title to its startup state.
-                 */
-                conf_set_str(conf, CONF_wintitle, window_name);
+            /*
+             * Copy the current window title into the stored
+             * previous configuration, so that doing nothing to
+             * the window title field in the config box doesn't
+             * reset the title to its startup state.
+             */
+            conf_set_str(conf, CONF_wintitle, window_name);
 
-                prev_conf = conf_copy(conf);
+            prev_conf = conf_copy(conf);
 
-                reconfig_result = do_reconfig(
-                    hwnd, conf, backend ? backend_cfg_info(backend) : 0);
-                reconfiguring = false;
-                if (!reconfig_result) {
-                    conf_free(prev_conf);
-                    break;
-                }
-
-                conf_cache_data();
-
-                resize_action = conf_get_int(conf, CONF_resize_action);
-                {
-                    /* Disable full-screen if resizing forbidden */
-                    int i;
-                    for (i = 0; i < lenof(popup_menus); i++)
-                        EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
-                                       MF_BYCOMMAND |
-                                       (resize_action == RESIZE_DISABLED
-                                        ? MF_GRAYED : MF_ENABLED));
-                    /* Gracefully unzoom if necessary */
-                    if (IsZoomed(hwnd) && (resize_action == RESIZE_DISABLED))
-                        ShowWindow(hwnd, SW_RESTORE);
-                }
-
-                /* Pass new config data to the logging module */
-                log_reconfig(logctx, conf);
-
-                sfree(logpal);
-                /*
-                 * Flush the line discipline's edit buffer in the
-                 * case where local editing has just been disabled.
-                 */
-                if (ldisc) {
-                    ldisc_configure(ldisc, conf);
-                    ldisc_echoedit_update(ldisc);
-                }
-                if (pal)
-                    DeleteObject(pal);
-                logpal = NULL;
-                pal = NULL;
-                conftopalette();
-                init_palette();
-
-                /* Pass new config data to the terminal */
-                term_reconfig(term, conf);
-                setup_clipboards(term, conf);
-
-                /* Pass new config data to the back end */
-                if (backend)
-                    backend_reconfig(backend, conf);
-
-                /* Screen size changed ? */
-                if (conf_get_int(conf, CONF_height) !=
-                    conf_get_int(prev_conf, CONF_height) ||
-                    conf_get_int(conf, CONF_width) !=
-                    conf_get_int(prev_conf, CONF_width) ||
-                    conf_get_int(conf, CONF_savelines) !=
-                    conf_get_int(prev_conf, CONF_savelines) ||
-                    resize_action == RESIZE_FONT ||
-                    (resize_action == RESIZE_EITHER && IsZoomed(hwnd)) ||
-                    resize_action == RESIZE_DISABLED)
-                    term_size(term, conf_get_int(conf, CONF_height),
-                              conf_get_int(conf, CONF_width),
-                              conf_get_int(conf, CONF_savelines));
-
-                /* Enable or disable the scroll bar, etc */
-                {
-                    LONG nflg, flag = GetWindowLongPtr(hwnd, GWL_STYLE);
-                    LONG nexflag, exflag =
-                        GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-
-                    nexflag = exflag;
-                    if (conf_get_bool(conf, CONF_alwaysontop) !=
-                        conf_get_bool(prev_conf, CONF_alwaysontop)) {
-                        if (conf_get_bool(conf, CONF_alwaysontop)) {
-                            nexflag |= WS_EX_TOPMOST;
-                            SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
-                                         SWP_NOMOVE | SWP_NOSIZE);
-                        } else {
-                            nexflag &= ~(WS_EX_TOPMOST);
-                            SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
-                                         SWP_NOMOVE | SWP_NOSIZE);
-                        }
-                    }
-                    if (conf_get_bool(conf, CONF_sunken_edge))
-                        nexflag |= WS_EX_CLIENTEDGE;
-                    else
-                        nexflag &= ~(WS_EX_CLIENTEDGE);
-
-                    nflg = flag;
-                    if (conf_get_bool(conf, is_full_screen() ?
-                                      CONF_scrollbar_in_fullscreen :
-                                      CONF_scrollbar))
-                        nflg |= WS_VSCROLL;
-                    else
-                        nflg &= ~WS_VSCROLL;
-
-                    if (resize_action == RESIZE_DISABLED ||
-                        is_full_screen())
-                        nflg &= ~WS_THICKFRAME;
-                    else
-                        nflg |= WS_THICKFRAME;
-
-                    if (resize_action == RESIZE_DISABLED)
-                        nflg &= ~WS_MAXIMIZEBOX;
-                    else
-                        nflg |= WS_MAXIMIZEBOX;
-
-                    if (nflg != flag || nexflag != exflag) {
-                        if (nflg != flag)
-                            SetWindowLongPtr(hwnd, GWL_STYLE, nflg);
-                        if (nexflag != exflag)
-                            SetWindowLongPtr(hwnd, GWL_EXSTYLE, nexflag);
-
-                        SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
-                                     SWP_NOACTIVATE | SWP_NOCOPYBITS |
-                                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                                     SWP_FRAMECHANGED);
-
-                        init_lvl = 2;
-                    }
-                }
-
-                /* Oops */
-                if (resize_action == RESIZE_DISABLED && IsZoomed(hwnd)) {
-                    force_normal(hwnd);
-                    init_lvl = 2;
-                }
-
-                win_set_title(wintw, conf_get_str(conf, CONF_wintitle));
-                if (IsIconic(hwnd)) {
-                    SetWindowText(hwnd,
-                                  conf_get_bool(conf, CONF_win_name_always) ?
-                                  window_name : icon_name);
-                }
-
-                {
-                    FontSpec *font = conf_get_fontspec(conf, CONF_font);
-                    FontSpec *prev_font = conf_get_fontspec(prev_conf,
-                                                             CONF_font);
-
-                    if (!strcmp(font->name, prev_font->name) ||
-                        !strcmp(conf_get_str(conf, CONF_line_codepage),
-                                conf_get_str(prev_conf, CONF_line_codepage)) ||
-                        font->isbold != prev_font->isbold ||
-                        font->height != prev_font->height ||
-                        font->charset != prev_font->charset ||
-                        conf_get_int(conf, CONF_font_quality) !=
-                        conf_get_int(prev_conf, CONF_font_quality) ||
-                        conf_get_int(conf, CONF_vtmode) !=
-                        conf_get_int(prev_conf, CONF_vtmode) ||
-                        conf_get_int(conf, CONF_bold_style) !=
-                        conf_get_int(prev_conf, CONF_bold_style) ||
-                        resize_action == RESIZE_DISABLED ||
-                        resize_action == RESIZE_EITHER ||
-                        resize_action != conf_get_int(prev_conf,
-                                                      CONF_resize_action))
-                        init_lvl = 2;
-                }
-
-                InvalidateRect(hwnd, NULL, true);
-                reset_window(init_lvl);
-
-                conf_free(prev_conf);
+            reconfig_result = do_reconfig(
+                hwnd, conf, backend ? backend_cfg_info(backend) : 0);
+            reconfiguring = false;
+            if (!reconfig_result) {
+              conf_free(prev_conf);
+              break;
             }
+
+            conf_cache_data();
+
+            resize_action = conf_get_int(conf, CONF_resize_action);
+            {
+              /* Disable full-screen if resizing forbidden */
+              int i;
+              for (i = 0; i < lenof(popup_menus); i++)
+                  EnableMenuItem(popup_menus[i].menu, IDM_FULLSCREEN,
+                                 MF_BYCOMMAND |
+                                 (resize_action == RESIZE_DISABLED
+                                  ? MF_GRAYED : MF_ENABLED));
+              /* Gracefully unzoom if necessary */
+              if (IsZoomed(hwnd) && (resize_action == RESIZE_DISABLED))
+                  ShowWindow(hwnd, SW_RESTORE);
+            }
+
+            /* Pass new config data to the logging module */
+            log_reconfig(logctx, conf);
+
+            sfree(logpal);
+            /*
+             * Flush the line discipline's edit buffer in the
+             * case where local editing has just been disabled.
+             */
+            if (ldisc) {
+              ldisc_configure(ldisc, conf);
+              ldisc_echoedit_update(ldisc);
+            }
+            if (pal)
+                DeleteObject(pal);
+            logpal = NULL;
+            pal = NULL;
+            conftopalette();
+            init_palette();
+
+            /* Pass new config data to the terminal */
+            term_reconfig(term, conf);
+            setup_clipboards(term, conf);
+
+            /* Pass new config data to the back end */
+            if (backend)
+                backend_reconfig(backend, conf);
+
+            /* Screen size changed ? */
+            if (conf_get_int(conf, CONF_height) !=
+                conf_get_int(prev_conf, CONF_height) ||
+                conf_get_int(conf, CONF_width) !=
+                conf_get_int(prev_conf, CONF_width) ||
+                conf_get_int(conf, CONF_savelines) !=
+                conf_get_int(prev_conf, CONF_savelines) ||
+                resize_action == RESIZE_FONT ||
+                (resize_action == RESIZE_EITHER && IsZoomed(hwnd)) ||
+                resize_action == RESIZE_DISABLED)
+                term_size(term, conf_get_int(conf, CONF_height),
+                          conf_get_int(conf, CONF_width),
+                          conf_get_int(conf, CONF_savelines));
+
+            /* Enable or disable the scroll bar, etc */
+            {
+              LONG nflg, flag = GetWindowLongPtr(hwnd, GWL_STYLE);
+              LONG nexflag, exflag =
+                  GetWindowLongPtr(hwnd, GWL_EXSTYLE);
+
+              nexflag = exflag;
+              if (conf_get_bool(conf, CONF_alwaysontop) !=
+                  conf_get_bool(prev_conf, CONF_alwaysontop)) {
+                if (conf_get_bool(conf, CONF_alwaysontop)) {
+                  nexflag |= WS_EX_TOPMOST;
+                  SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                               SWP_NOMOVE | SWP_NOSIZE);
+                } else {
+                  nexflag &= ~(WS_EX_TOPMOST);
+                  SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0,
+                               SWP_NOMOVE | SWP_NOSIZE);
+                }
+              }
+              if (conf_get_bool(conf, CONF_sunken_edge))
+                  nexflag |= WS_EX_CLIENTEDGE;
+              else
+                  nexflag &= ~(WS_EX_CLIENTEDGE);
+
+              nflg = flag;
+              if (conf_get_bool(conf, is_full_screen() ?
+                                CONF_scrollbar_in_fullscreen :
+                                CONF_scrollbar))
+                  nflg |= WS_VSCROLL;
+              else
+                  nflg &= ~WS_VSCROLL;
+
+              if (resize_action == RESIZE_DISABLED ||
+                  is_full_screen())
+                  nflg &= ~WS_THICKFRAME;
+              else
+                  nflg |= WS_THICKFRAME;
+
+              if (resize_action == RESIZE_DISABLED)
+                  nflg &= ~WS_MAXIMIZEBOX;
+              else
+                  nflg |= WS_MAXIMIZEBOX;
+
+              if (nflg != flag || nexflag != exflag) {
+                if (nflg != flag)
+                    SetWindowLongPtr(hwnd, GWL_STYLE, nflg);
+                if (nexflag != exflag)
+                    SetWindowLongPtr(hwnd, GWL_EXSTYLE, nexflag);
+
+                SetWindowPos(hwnd, NULL, 0, 0, 0, 0,
+                             SWP_NOACTIVATE | SWP_NOCOPYBITS |
+                             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                             SWP_FRAMECHANGED);
+
+                init_lvl = 2;
+              }
+            }
+
+            /* Oops */
+            if (resize_action == RESIZE_DISABLED && IsZoomed(hwnd)) {
+              force_normal(hwnd);
+              init_lvl = 2;
+            }
+
+            win_set_title(wintw, conf_get_str(conf, CONF_wintitle));
+            if (IsIconic(hwnd)) {
+              SetWindowText(hwnd,
+                            conf_get_bool(conf, CONF_win_name_always) ?
+                            window_name : icon_name);
+            }
+
+            {
+              FontSpec *font = conf_get_fontspec(conf, CONF_font);
+              FontSpec *prev_font = conf_get_fontspec(prev_conf,
+                                                      CONF_font);
+
+              if (!strcmp(font->name, prev_font->name) ||
+                  !strcmp(conf_get_str(conf, CONF_line_codepage),
+                          conf_get_str(prev_conf, CONF_line_codepage)) ||
+                  font->isbold != prev_font->isbold ||
+                  font->height != prev_font->height ||
+                  font->charset != prev_font->charset ||
+                  conf_get_int(conf, CONF_font_quality) !=
+                  conf_get_int(prev_conf, CONF_font_quality) ||
+                  conf_get_int(conf, CONF_vtmode) !=
+                  conf_get_int(prev_conf, CONF_vtmode) ||
+                  conf_get_int(conf, CONF_bold_style) !=
+                  conf_get_int(prev_conf, CONF_bold_style) ||
+                  resize_action == RESIZE_DISABLED ||
+                  resize_action == RESIZE_EITHER ||
+                  resize_action != conf_get_int(prev_conf,
+                                                CONF_resize_action))
+                  init_lvl = 2;
+            }
+
+            InvalidateRect(hwnd, NULL, true);
+            reset_window(init_lvl);
+
+            conf_free(prev_conf);
             break;
+          }
           case IDM_COPYALL:
             term_copyall(term, clips_system, lenof(clips_system));
             break;
@@ -2680,21 +2677,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
         }
         return 0;
-      case WM_MOUSEMOVE:
-        {
-            /*
-             * Windows seems to like to occasionally send MOUSEMOVE
-             * events even if the mouse hasn't moved. Don't unhide
-             * the mouse pointer in this case.
-             */
-            static WPARAM wp = 0;
-            static LPARAM lp = 0;
-            if (wParam != wp || lParam != lp ||
-                last_mousemove != WM_MOUSEMOVE) {
-                show_mouseptr(true);
-                wp = wParam; lp = lParam;
-                last_mousemove = WM_MOUSEMOVE;
-            }
+      case WM_MOUSEMOVE: {
+        /*
+         * Windows seems to like to occasionally send MOUSEMOVE
+         * events even if the mouse hasn't moved. Don't unhide
+         * the mouse pointer in this case.
+         */
+        static WPARAM wp = 0;
+        static LPARAM lp = 0;
+        if (wParam != wp || lParam != lp ||
+            last_mousemove != WM_MOUSEMOVE) {
+          show_mouseptr(true);
+          wp = wParam; lp = lParam;
+          last_mousemove = WM_MOUSEMOVE;
         }
         /*
          * Add the mouse position and message time to the random
@@ -2717,19 +2712,19 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                        wParam & MK_CONTROL, is_alt_pressed());
         }
         return 0;
-      case WM_NCMOUSEMOVE:
-        {
-            static WPARAM wp = 0;
-            static LPARAM lp = 0;
-            if (wParam != wp || lParam != lp ||
-                last_mousemove != WM_NCMOUSEMOVE) {
-                show_mouseptr(true);
-                wp = wParam; lp = lParam;
-                last_mousemove = WM_NCMOUSEMOVE;
-            }
+      }
+      case WM_NCMOUSEMOVE: {
+        static WPARAM wp = 0;
+        static LPARAM lp = 0;
+        if (wParam != wp || lParam != lp ||
+            last_mousemove != WM_NCMOUSEMOVE) {
+          show_mouseptr(true);
+          wp = wParam; lp = lParam;
+          last_mousemove = WM_NCMOUSEMOVE;
         }
         noise_ultralight(NOISE_SOURCE_MOUSEPOS, lParam);
         break;
+      }
       case WM_IGNORE_CLIP:
         ignore_clip = wParam;          /* don't panic on DESTROYCLIPBOARD */
         break;
@@ -2738,122 +2733,120 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             term_lost_clipboard_ownership(term, CLIP_SYSTEM);
         ignore_clip = false;
         return 0;
-      case WM_PAINT:
-        {
-            PAINTSTRUCT p;
+      case WM_PAINT: {
+        PAINTSTRUCT p;
 
-            HideCaret(hwnd);
-            hdc = BeginPaint(hwnd, &p);
-            if (pal) {
-                SelectPalette(hdc, pal, true);
-                RealizePalette(hdc);
-            }
-
-            /*
-             * We have to be careful about term_paint(). It will
-             * set a bunch of character cells to INVALID and then
-             * call do_paint(), which will redraw those cells and
-             * _then mark them as done_. This may not be accurate:
-             * when painting in WM_PAINT context we are restricted
-             * to the rectangle which has just been exposed - so if
-             * that only covers _part_ of a character cell and the
-             * rest of it was already visible, that remainder will
-             * not be redrawn at all. Accordingly, we must not
-             * paint any character cell in a WM_PAINT context which
-             * already has a pending update due to terminal output.
-             * The simplest solution to this - and many, many
-             * thanks to Hung-Te Lin for working all this out - is
-             * not to do any actual painting at _all_ if there's a
-             * pending terminal update: just mark the relevant
-             * character cells as INVALID and wait for the
-             * scheduled full update to sort it out.
-             *
-             * I have a suspicion this isn't the _right_ solution.
-             * An alternative approach would be to have terminal.c
-             * separately track what _should_ be on the terminal
-             * screen and what _is_ on the terminal screen, and
-             * have two completely different types of redraw (one
-             * for full updates, which syncs the former with the
-             * terminal itself, and one for WM_PAINT which syncs
-             * the latter with the former); yet another possibility
-             * would be to have the Windows front end do what the
-             * GTK one already does, and maintain a bitmap of the
-             * current terminal appearance so that WM_PAINT becomes
-             * completely trivial. However, this should do for now.
-             */
-            assert(!wintw_hdc);
-            wintw_hdc = hdc;
-            term_paint(term,
-                       (p.rcPaint.left-offset_width)/font_width,
-                       (p.rcPaint.top-offset_height)/font_height,
-                       (p.rcPaint.right-offset_width-1)/font_width,
-                       (p.rcPaint.bottom-offset_height-1)/font_height,
-                       !term->window_update_pending);
-            wintw_hdc = NULL;
-
-            if (p.fErase ||
-                p.rcPaint.left  < offset_width  ||
-                p.rcPaint.top   < offset_height ||
-                p.rcPaint.right >= offset_width + font_width*term->cols ||
-                p.rcPaint.bottom>= offset_height + font_height*term->rows)
-            {
-                HBRUSH fillcolour, oldbrush;
-                HPEN   edge, oldpen;
-                fillcolour = CreateSolidBrush (
-                                    colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
-                oldbrush = SelectObject(hdc, fillcolour);
-                edge = CreatePen(PS_SOLID, 0,
-                                    colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
-                oldpen = SelectObject(hdc, edge);
-
-                /*
-                 * Jordan Russell reports that this apparently
-                 * ineffectual IntersectClipRect() call masks a
-                 * Windows NT/2K bug causing strange display
-                 * problems when the PuTTY window is taller than
-                 * the primary monitor. It seems harmless enough...
-                 */
-                IntersectClipRect(hdc,
-                        p.rcPaint.left, p.rcPaint.top,
-                        p.rcPaint.right, p.rcPaint.bottom);
-
-                ExcludeClipRect(hdc,
-                        offset_width, offset_height,
-                        offset_width+font_width*term->cols,
-                        offset_height+font_height*term->rows);
-
-                Rectangle(hdc, p.rcPaint.left, p.rcPaint.top,
-                          p.rcPaint.right, p.rcPaint.bottom);
-
-                /* SelectClipRgn(hdc, NULL); */
-
-                SelectObject(hdc, oldbrush);
-                DeleteObject(fillcolour);
-                SelectObject(hdc, oldpen);
-                DeleteObject(edge);
-            }
-            SelectObject(hdc, GetStockObject(SYSTEM_FONT));
-            SelectObject(hdc, GetStockObject(WHITE_PEN));
-            EndPaint(hwnd, &p);
-            ShowCaret(hwnd);
+        HideCaret(hwnd);
+        hdc = BeginPaint(hwnd, &p);
+        if (pal) {
+          SelectPalette(hdc, pal, true);
+          RealizePalette(hdc);
         }
-        return 0;
-      case WM_NETEVENT:
+
+        /*
+         * We have to be careful about term_paint(). It will
+         * set a bunch of character cells to INVALID and then
+         * call do_paint(), which will redraw those cells and
+         * _then mark them as done_. This may not be accurate:
+         * when painting in WM_PAINT context we are restricted
+         * to the rectangle which has just been exposed - so if
+         * that only covers _part_ of a character cell and the
+         * rest of it was already visible, that remainder will
+         * not be redrawn at all. Accordingly, we must not
+         * paint any character cell in a WM_PAINT context which
+         * already has a pending update due to terminal output.
+         * The simplest solution to this - and many, many
+         * thanks to Hung-Te Lin for working all this out - is
+         * not to do any actual painting at _all_ if there's a
+         * pending terminal update: just mark the relevant
+         * character cells as INVALID and wait for the
+         * scheduled full update to sort it out.
+         *
+         * I have a suspicion this isn't the _right_ solution.
+         * An alternative approach would be to have terminal.c
+         * separately track what _should_ be on the terminal
+         * screen and what _is_ on the terminal screen, and
+         * have two completely different types of redraw (one
+         * for full updates, which syncs the former with the
+         * terminal itself, and one for WM_PAINT which syncs
+         * the latter with the former); yet another possibility
+         * would be to have the Windows front end do what the
+         * GTK one already does, and maintain a bitmap of the
+         * current terminal appearance so that WM_PAINT becomes
+         * completely trivial. However, this should do for now.
+         */
+        assert(!wintw_hdc);
+        wintw_hdc = hdc;
+        term_paint(term,
+                   (p.rcPaint.left-offset_width)/font_width,
+                   (p.rcPaint.top-offset_height)/font_height,
+                   (p.rcPaint.right-offset_width-1)/font_width,
+                   (p.rcPaint.bottom-offset_height-1)/font_height,
+                   !term->window_update_pending);
+        wintw_hdc = NULL;
+
+        if (p.fErase ||
+            p.rcPaint.left  < offset_width  ||
+            p.rcPaint.top   < offset_height ||
+            p.rcPaint.right >= offset_width + font_width*term->cols ||
+            p.rcPaint.bottom>= offset_height + font_height*term->rows)
         {
-            /*
-             * To protect against re-entrancy when Windows's recv()
-             * immediately triggers a new WSAAsyncSelect window
-             * message, we don't call select_result directly from this
-             * handler but instead wait until we're back out at the
-             * top level of the message loop.
-             */
-            struct wm_netevent_params *params =
-                snew(struct wm_netevent_params);
-            params->wParam = wParam;
-            params->lParam = lParam;
-            queue_toplevel_callback(wm_netevent_callback, params);
+          HBRUSH fillcolour, oldbrush;
+          HPEN   edge, oldpen;
+          fillcolour = CreateSolidBrush (
+              colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
+          oldbrush = SelectObject(hdc, fillcolour);
+          edge = CreatePen(PS_SOLID, 0,
+                           colours[ATTR_DEFBG>>ATTR_BGSHIFT]);
+          oldpen = SelectObject(hdc, edge);
+
+          /*
+           * Jordan Russell reports that this apparently
+           * ineffectual IntersectClipRect() call masks a
+           * Windows NT/2K bug causing strange display
+           * problems when the PuTTY window is taller than
+           * the primary monitor. It seems harmless enough...
+           */
+          IntersectClipRect(hdc,
+                            p.rcPaint.left, p.rcPaint.top,
+                            p.rcPaint.right, p.rcPaint.bottom);
+
+          ExcludeClipRect(hdc,
+                          offset_width, offset_height,
+                          offset_width+font_width*term->cols,
+                          offset_height+font_height*term->rows);
+
+          Rectangle(hdc, p.rcPaint.left, p.rcPaint.top,
+                    p.rcPaint.right, p.rcPaint.bottom);
+
+          /* SelectClipRgn(hdc, NULL); */
+
+          SelectObject(hdc, oldbrush);
+          DeleteObject(fillcolour);
+          SelectObject(hdc, oldpen);
+          DeleteObject(edge);
         }
+        SelectObject(hdc, GetStockObject(SYSTEM_FONT));
+        SelectObject(hdc, GetStockObject(WHITE_PEN));
+        EndPaint(hwnd, &p);
+        ShowCaret(hwnd);
         return 0;
+      }
+      case WM_NETEVENT: {
+        /*
+         * To protect against re-entrancy when Windows's recv()
+         * immediately triggers a new WSAAsyncSelect window
+         * message, we don't call select_result directly from this
+         * handler but instead wait until we're back out at the
+         * top level of the message loop.
+         */
+        struct wm_netevent_params *params =
+            snew(struct wm_netevent_params);
+        params->wParam = wParam;
+        params->lParam = lParam;
+        queue_toplevel_callback(wm_netevent_callback, params);
+        return 0;
+      }
       case WM_SETFOCUS:
         term_set_focus(term, true);
         CreateCaret(hwnd, caretbm, font_width, font_height);
@@ -3137,21 +3130,20 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             term_scroll(term, 0, -term->rows / 2);
             break;
           case SB_THUMBPOSITION:
-          case SB_THUMBTRACK:
+          case SB_THUMBTRACK: {
             /*
              * Use GetScrollInfo instead of HIWORD(wParam) to get
              * 32-bit scroll position.
              */
-            {
-                SCROLLINFO si;
+            SCROLLINFO si;
 
-                si.cbSize = sizeof(si);
-                si.fMask = SIF_TRACKPOS;
-                if (GetScrollInfo(hwnd, SB_VERT, &si) == 0)
-                    si.nTrackPos = HIWORD(wParam);
-                term_scroll(term, 1, si.nTrackPos);
-            }
+            si.cbSize = sizeof(si);
+            si.fMask = SIF_TRACKPOS;
+            if (GetScrollInfo(hwnd, SB_VERT, &si) == 0)
+                si.nTrackPos = HIWORD(wParam);
+            term_scroll(term, 1, si.nTrackPos);
             break;
+          }
         }
         break;
       case WM_PALETTECHANGED:
@@ -3232,61 +3224,59 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         set_input_locale((HKL)lParam);
         sys_cursor_update();
         break;
-      case WM_IME_STARTCOMPOSITION:
-        {
-            HIMC hImc = ImmGetContext(hwnd);
-            ImmSetCompositionFont(hImc, &lfont);
-            ImmReleaseContext(hwnd, hImc);
-        }
+      case WM_IME_STARTCOMPOSITION: {
+        HIMC hImc = ImmGetContext(hwnd);
+        ImmSetCompositionFont(hImc, &lfont);
+        ImmReleaseContext(hwnd, hImc);
         break;
-      case WM_IME_COMPOSITION:
-        {
-            HIMC hIMC;
-            int n;
-            char *buff;
+      }
+      case WM_IME_COMPOSITION: {
+        HIMC hIMC;
+        int n;
+        char *buff;
 
-            if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS ||
-                osPlatformId == VER_PLATFORM_WIN32s)
-                break; /* no Unicode */
+        if (osPlatformId == VER_PLATFORM_WIN32_WINDOWS ||
+            osPlatformId == VER_PLATFORM_WIN32s)
+            break; /* no Unicode */
 
-            if ((lParam & GCS_RESULTSTR) == 0) /* Composition unfinished. */
-                break; /* fall back to DefWindowProc */
+        if ((lParam & GCS_RESULTSTR) == 0) /* Composition unfinished. */
+            break; /* fall back to DefWindowProc */
 
-            hIMC = ImmGetContext(hwnd);
-            n = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
+        hIMC = ImmGetContext(hwnd);
+        n = ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, NULL, 0);
 
-            if (n > 0) {
-                int i;
-                buff = snewn(n, char);
-                ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
-                /*
-                 * Jaeyoun Chung reports that Korean character
-                 * input doesn't work correctly if we do a single
-                 * term_keyinputw covering the whole of buff. So
-                 * instead we send the characters one by one.
-                 */
-                /* don't divide SURROGATE PAIR */
-                if (ldisc) {
-                    for (i = 0; i < n; i += 2) {
-                        WCHAR hs = *(unsigned short *)(buff+i);
-                        if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
-                            WCHAR ls = *(unsigned short *)(buff+i+2);
-                            if (IS_LOW_SURROGATE(ls)) {
-                                term_keyinputw(
-                                    term, (unsigned short *)(buff+i), 2);
-                                i += 2;
-                                continue;
-                            }
-                        }
-                        term_keyinputw(
-                            term, (unsigned short *)(buff+i), 1);
-                    }
+        if (n > 0) {
+          int i;
+          buff = snewn(n, char);
+          ImmGetCompositionStringW(hIMC, GCS_RESULTSTR, buff, n);
+          /*
+           * Jaeyoun Chung reports that Korean character
+           * input doesn't work correctly if we do a single
+           * term_keyinputw covering the whole of buff. So
+           * instead we send the characters one by one.
+           */
+          /* don't divide SURROGATE PAIR */
+          if (ldisc) {
+            for (i = 0; i < n; i += 2) {
+              WCHAR hs = *(unsigned short *)(buff+i);
+              if (IS_HIGH_SURROGATE(hs) && i+2 < n) {
+                WCHAR ls = *(unsigned short *)(buff+i+2);
+                if (IS_LOW_SURROGATE(ls)) {
+                  term_keyinputw(
+                      term, (unsigned short *)(buff+i), 2);
+                  i += 2;
+                  continue;
                 }
-                free(buff);
+              }
+              term_keyinputw(
+                  term, (unsigned short *)(buff+i), 1);
             }
-            ImmReleaseContext(hwnd, hIMC);
-            return 1;
+          }
+          free(buff);
         }
+        ImmReleaseContext(hwnd, hIMC);
+        return 1;
+      }
 
       case WM_IME_CHAR:
         if (wParam & 0xFF00) {

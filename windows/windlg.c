@@ -88,17 +88,15 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
     int i;
 
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *str = dupprintf("%s Event Log", appname);
-            SetWindowText(hwnd, str);
-            sfree(str);
-        }
-        {
-            static int tabs[4] = { 78, 108 };
-            SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
-                               (LPARAM) tabs);
-        }
+      case WM_INITDIALOG: {
+        char *str = dupprintf("%s Event Log", appname);
+        SetWindowText(hwnd, str);
+        sfree(str);
+
+        static int tabs[4] = { 78, 108 };
+        SendDlgItemMessage(hwnd, IDN_LIST, LB_SETTABSTOPS, 2,
+                           (LPARAM) tabs);
+
         for (i = 0; i < ninitial; i++)
             SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
                                0, (LPARAM) events_initial[i]);
@@ -106,6 +104,7 @@ static INT_PTR CALLBACK LogProc(HWND hwnd, UINT msg,
             SendDlgItemMessage(hwnd, IDN_LIST, LB_ADDSTRING,
                                0, (LPARAM) events_circular[(circular_first + i) % LOGEVENT_CIRCULAR_MAX]);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -184,14 +183,13 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
                                     WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-      case WM_INITDIALOG:
-        {
-            char *str = dupprintf("%s Licence", appname);
-            SetWindowText(hwnd, str);
-            sfree(str);
-            SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
-        }
+      case WM_INITDIALOG: {
+        char *str = dupprintf("%s Licence", appname);
+        SetWindowText(hwnd, str);
+        sfree(str);
+        SetDlgItemText(hwnd, IDA_TEXT, LICENCE_TEXT("\r\n\r\n"));
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -213,21 +211,20 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     char *str;
 
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         str = dupprintf("About %s", appname);
         SetWindowText(hwnd, str);
         sfree(str);
-        {
-            char *buildinfo_text = buildinfo("\r\n");
-            char *text = dupprintf
-                ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
-                 appname, ver, buildinfo_text,
-                 "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
-            sfree(buildinfo_text);
-            SetDlgItemText(hwnd, IDA_TEXT, text);
-            sfree(text);
-        }
+        char *buildinfo_text = buildinfo("\r\n");
+        char *text = dupprintf
+            ("%s\r\n\r\n%s\r\n\r\n%s\r\n\r\n%s",
+             appname, ver, buildinfo_text,
+             "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
+        sfree(buildinfo_text);
+        SetDlgItemText(hwnd, IDA_TEXT, text);
+        sfree(text);
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:

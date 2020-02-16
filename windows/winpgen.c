@@ -100,20 +100,19 @@ static void progress_update(void *param, int action, int phase, int iprogress)
       case PROGFN_PHASE_EXTENT:
         p->phases[phase-1].total = progress;
         break;
-      case PROGFN_READY:
-        {
-            unsigned total = 0;
-            int i;
-            for (i = 0; i < p->nphases; i++) {
-                p->phases[i].startpoint = total;
-                total += p->phases[i].total;
-            }
-            p->total = total;
-            p->divisor = ((p->total + PROGRESSRANGE - 1) / PROGRESSRANGE);
-            p->range = p->total / p->divisor;
-            SendMessage(p->progbar, PBM_SETRANGE, 0, MAKELPARAM(0, p->range));
+      case PROGFN_READY: {
+        unsigned total = 0;
+        int i;
+        for (i = 0; i < p->nphases; i++) {
+          p->phases[i].startpoint = total;
+          total += p->phases[i].total;
         }
+        p->total = total;
+        p->divisor = ((p->total + PROGRESSRANGE - 1) / PROGRESSRANGE);
+        p->range = p->total / p->divisor;
+        SendMessage(p->progbar, PBM_SETRANGE, 0, MAKELPARAM(0, p->range));
         break;
+      }
       case PROGFN_PROGRESS:
         if (p->phases[phase-1].exponential) {
             while (p->phases[phase-1].n < progress) {
@@ -236,24 +235,23 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
-      case WM_INITDIALOG:
+      case WM_INITDIALOG: {
         /*
          * Centre the window.
          */
-        {                              /* centre the window */
-            RECT rs, rd;
-            HWND hw;
+        RECT rs, rd;
+        HWND hw;
 
-            hw = GetDesktopWindow();
-            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
-                MoveWindow(hwnd,
-                           (rs.right + rs.left + rd.left - rd.right) / 2,
-                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
-                           rd.right - rd.left, rd.bottom - rd.top, true);
-        }
+        hw = GetDesktopWindow();
+        if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+            MoveWindow(hwnd,
+                       (rs.right + rs.left + rd.left - rd.right) / 2,
+                       (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                       rd.right - rd.left, rd.bottom - rd.top, true);
 
         SetDlgItemText(hwnd, 1000, LICENCE_TEXT("\r\n\r\n"));
         return 1;
+      }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
@@ -1057,13 +1055,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
           case IDC_KEYSSH2RSA:
           case IDC_KEYSSH2DSA:
           case IDC_KEYSSH2ECDSA:
-          case IDC_KEYSSH2ED25519:
-            {
-                state = (struct MainDlgState *)
-                    GetWindowLongPtr(hwnd, GWLP_USERDATA);
-                ui_set_key_type(hwnd, state, LOWORD(wParam));
-            }
+          case IDC_KEYSSH2ED25519: {
+            state = (struct MainDlgState *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            ui_set_key_type(hwnd, state, LOWORD(wParam));
             break;
+          }
           case IDC_QUIT:
             PostMessage(hwnd, WM_CLOSE, 0, 0);
             break;
@@ -1478,61 +1475,60 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
          */
         ui_set_state(hwnd, state, 2);
         break;
-      case WM_HELP:
-        {
-            int id = ((LPHELPINFO)lParam)->iCtrlId;
-            const char *topic = NULL;
-            switch (id) {
-              case IDC_GENERATING:
-              case IDC_PROGRESS:
-              case IDC_GENSTATIC:
-              case IDC_GENERATE:
-                topic = WINHELP_CTX_puttygen_generate; break;
-              case IDC_PKSTATIC:
-              case IDC_KEYDISPLAY:
-                topic = WINHELP_CTX_puttygen_pastekey; break;
-              case IDC_FPSTATIC:
-              case IDC_FINGERPRINT:
-                topic = WINHELP_CTX_puttygen_fingerprint; break;
-              case IDC_COMMENTSTATIC:
-              case IDC_COMMENTEDIT:
-                topic = WINHELP_CTX_puttygen_comment; break;
-              case IDC_PASSPHRASE1STATIC:
-              case IDC_PASSPHRASE1EDIT:
-              case IDC_PASSPHRASE2STATIC:
-              case IDC_PASSPHRASE2EDIT:
-                topic = WINHELP_CTX_puttygen_passphrase; break;
-              case IDC_LOADSTATIC:
-              case IDC_LOAD:
-                topic = WINHELP_CTX_puttygen_load; break;
-              case IDC_SAVESTATIC:
-              case IDC_SAVE:
-                topic = WINHELP_CTX_puttygen_savepriv; break;
-              case IDC_SAVEPUB:
-                topic = WINHELP_CTX_puttygen_savepub; break;
-              case IDC_TYPESTATIC:
-              case IDC_KEYSSH1:
-              case IDC_KEYSSH2RSA:
-              case IDC_KEYSSH2DSA:
-              case IDC_KEYSSH2ECDSA:
-              case IDC_KEYSSH2ED25519:
-                topic = WINHELP_CTX_puttygen_keytype; break;
-              case IDC_BITSSTATIC:
-              case IDC_BITS:
-                topic = WINHELP_CTX_puttygen_bits; break;
-              case IDC_IMPORT:
-              case IDC_EXPORT_OPENSSH_AUTO:
-              case IDC_EXPORT_OPENSSH_NEW:
-              case IDC_EXPORT_SSHCOM:
-                topic = WINHELP_CTX_puttygen_conversions; break;
-            }
-            if (topic) {
-                launch_help(hwnd, topic);
-            } else {
-                MessageBeep(0);
-            }
+      case WM_HELP: {
+        int id = ((LPHELPINFO)lParam)->iCtrlId;
+        const char *topic = NULL;
+        switch (id) {
+          case IDC_GENERATING:
+          case IDC_PROGRESS:
+          case IDC_GENSTATIC:
+          case IDC_GENERATE:
+            topic = WINHELP_CTX_puttygen_generate; break;
+          case IDC_PKSTATIC:
+          case IDC_KEYDISPLAY:
+            topic = WINHELP_CTX_puttygen_pastekey; break;
+          case IDC_FPSTATIC:
+          case IDC_FINGERPRINT:
+            topic = WINHELP_CTX_puttygen_fingerprint; break;
+          case IDC_COMMENTSTATIC:
+          case IDC_COMMENTEDIT:
+            topic = WINHELP_CTX_puttygen_comment; break;
+          case IDC_PASSPHRASE1STATIC:
+          case IDC_PASSPHRASE1EDIT:
+          case IDC_PASSPHRASE2STATIC:
+          case IDC_PASSPHRASE2EDIT:
+            topic = WINHELP_CTX_puttygen_passphrase; break;
+          case IDC_LOADSTATIC:
+          case IDC_LOAD:
+            topic = WINHELP_CTX_puttygen_load; break;
+          case IDC_SAVESTATIC:
+          case IDC_SAVE:
+            topic = WINHELP_CTX_puttygen_savepriv; break;
+          case IDC_SAVEPUB:
+            topic = WINHELP_CTX_puttygen_savepub; break;
+          case IDC_TYPESTATIC:
+          case IDC_KEYSSH1:
+          case IDC_KEYSSH2RSA:
+          case IDC_KEYSSH2DSA:
+          case IDC_KEYSSH2ECDSA:
+          case IDC_KEYSSH2ED25519:
+            topic = WINHELP_CTX_puttygen_keytype; break;
+          case IDC_BITSSTATIC:
+          case IDC_BITS:
+            topic = WINHELP_CTX_puttygen_bits; break;
+          case IDC_IMPORT:
+          case IDC_EXPORT_OPENSSH_AUTO:
+          case IDC_EXPORT_OPENSSH_NEW:
+          case IDC_EXPORT_SSHCOM:
+            topic = WINHELP_CTX_puttygen_conversions; break;
+        }
+        if (topic) {
+          launch_help(hwnd, topic);
+        } else {
+          MessageBeep(0);
         }
         break;
+      }
       case WM_CLOSE:
         state = (struct MainDlgState *) GetWindowLongPtr(hwnd, GWLP_USERDATA);
         sfree(state);

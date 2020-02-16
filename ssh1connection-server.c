@@ -115,35 +115,35 @@ bool ssh1_handle_direction_specific_packet(
 
         return true;
 
-      case SSH1_CMSG_REQUEST_PTY:
+      case SSH1_CMSG_REQUEST_PTY: {
         if (s->finished_setup)
             goto unexpected_setup_packet;
-        {
-            ptrlen termtype = get_string(pktin);
-            unsigned height = get_uint32(pktin);
-            unsigned width = get_uint32(pktin);
-            unsigned pixwidth = get_uint32(pktin);
-            unsigned pixheight = get_uint32(pktin);
-            struct ssh_ttymodes modes = read_ttymodes_from_packet(
-                BinarySource_UPCAST(pktin), 1);
 
-            if (get_err(pktin)) {
-                ppl_logevent("Unable to decode pty request packet");
-                success = false;
-            } else if (!chan_allocate_pty(
-                           s->mainchan_chan, termtype, width, height,
-                           pixwidth, pixheight, modes)) {
-                ppl_logevent("Unable to allocate a pty");
-                success = false;
-            } else {
-                success = true;
-            }
+        ptrlen termtype = get_string(pktin);
+        unsigned height = get_uint32(pktin);
+        unsigned width = get_uint32(pktin);
+        unsigned pixwidth = get_uint32(pktin);
+        unsigned pixheight = get_uint32(pktin);
+        struct ssh_ttymodes modes = read_ttymodes_from_packet(
+            BinarySource_UPCAST(pktin), 1);
+
+        if (get_err(pktin)) {
+          ppl_logevent("Unable to decode pty request packet");
+          success = false;
+        } else if (!chan_allocate_pty(
+                       s->mainchan_chan, termtype, width, height,
+                       pixwidth, pixheight, modes)) {
+          ppl_logevent("Unable to allocate a pty");
+          success = false;
+        } else {
+          success = true;
         }
 
         pktout = ssh_bpp_new_pktout(
             s->ppl.bpp, (success ? SSH1_SMSG_SUCCESS : SSH1_SMSG_FAILURE));
         pq_push(s->ppl.out_pq, pktout);
         return true;
+      }
 
       case SSH1_CMSG_PORT_FORWARD_REQUEST:
         if (s->finished_setup)
@@ -166,25 +166,24 @@ bool ssh1_handle_direction_specific_packet(
         pq_push(s->ppl.out_pq, pktout);
         return true;
 
-      case SSH1_CMSG_X11_REQUEST_FORWARDING:
+      case SSH1_CMSG_X11_REQUEST_FORWARDING: {
         if (s->finished_setup)
             goto unexpected_setup_packet;
 
-        {
-            ptrlen authproto = get_string(pktin);
-            ptrlen authdata = get_string(pktin);
-            unsigned screen_number = 0;
-            if (s->remote_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER)
-                screen_number = get_uint32(pktin);
+        ptrlen authproto = get_string(pktin);
+        ptrlen authdata = get_string(pktin);
+        unsigned screen_number = 0;
+        if (s->remote_protoflags & SSH1_PROTOFLAG_SCREEN_NUMBER)
+            screen_number = get_uint32(pktin);
 
-            success = chan_enable_x11_forwarding(
-                s->mainchan_chan, false, authproto, authdata, screen_number);
-        }
+        success = chan_enable_x11_forwarding(
+            s->mainchan_chan, false, authproto, authdata, screen_number);
 
         pktout = ssh_bpp_new_pktout(
             s->ppl.bpp, (success ? SSH1_SMSG_SUCCESS : SSH1_SMSG_FAILURE));
         pq_push(s->ppl.out_pq, pktout);
         return true;
+      }
 
       case SSH1_CMSG_AGENT_REQUEST_FORWARDING:
         if (s->finished_setup)

@@ -925,20 +925,18 @@ void prefslist(struct prefslist *hdl, struct ctlpos *cp, int lines,
         wid = xpos - left;
 
         switch (i) {
-          case 1:
+          case 1: {
             /* The drag list box. */
             r.left = left; r.right = wid;
             r.top = cp->ypos; r.bottom = listheight;
-            {
-                HWND ctl;
-                ctl = doctl(cp, r, "LISTBOX",
-                            WS_CHILD | WS_VISIBLE | WS_TABSTOP |
-                            WS_VSCROLL | LBS_HASSTRINGS | LBS_USETABSTOPS,
-                            WS_EX_CLIENTEDGE,
-                            "", listid);
-                p_MakeDragList(ctl);
-            }
+            HWND ctl = doctl(cp, r, "LISTBOX",
+                             WS_CHILD | WS_VISIBLE | WS_TABSTOP |
+                             WS_VSCROLL | LBS_HASSTRINGS | LBS_USETABSTOPS,
+                             WS_EX_CLIENTEDGE,
+                             "", listid);
+            p_MakeDragList(ctl);
             break;
+          }
 
           case 2:
             /* The "Up" and "Down" buttons. */
@@ -1496,19 +1494,18 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
          * switching on its type.
          */
         switch (ctrl->generic.type) {
-          case CTRL_TEXT:
-            {
-                char *wrapped, *escaped;
-                int lines;
-                num_ids = 1;
-                wrapped = staticwrap(&pos, cp->hwnd,
-                                     ctrl->generic.label, &lines);
-                escaped = shortcut_escape(wrapped, NO_SHORTCUT);
-                statictext(&pos, escaped, lines, base_id);
-                sfree(escaped);
-                sfree(wrapped);
-            }
+          case CTRL_TEXT: {
+            char *wrapped, *escaped;
+            int lines;
+            num_ids = 1;
+            wrapped = staticwrap(&pos, cp->hwnd,
+                                 ctrl->generic.label, &lines);
+            escaped = shortcut_escape(wrapped, NO_SHORTCUT);
+            statictext(&pos, escaped, lines, base_id);
+            sfree(escaped);
+            sfree(wrapped);
             break;
+          }
           case CTRL_EDITBOX:
             num_ids = 2;               /* static, edit */
             escaped = shortcut_escape(ctrl->editbox.label,
@@ -1533,42 +1530,41 @@ void winctrl_layout(struct dlgparam *dp, struct winctrls *wc,
             }
             sfree(escaped);
             break;
-          case CTRL_RADIO:
+          case CTRL_RADIO: {
             num_ids = ctrl->radio.nbuttons + 1;   /* label as well */
-            {
-                struct radio *buttons;
-                int i;
+            struct radio *buttons;
+            int i;
 
-                escaped = shortcut_escape(ctrl->radio.label,
-                                          ctrl->radio.shortcut);
-                shortcuts[nshortcuts++] = ctrl->radio.shortcut;
+            escaped = shortcut_escape(ctrl->radio.label,
+                                      ctrl->radio.shortcut);
+            shortcuts[nshortcuts++] = ctrl->radio.shortcut;
 
-                buttons = snewn(ctrl->radio.nbuttons, struct radio);
+            buttons = snewn(ctrl->radio.nbuttons, struct radio);
 
-                for (i = 0; i < ctrl->radio.nbuttons; i++) {
-                    buttons[i].text =
-                        shortcut_escape(ctrl->radio.buttons[i],
-                                        (char)(ctrl->radio.shortcuts ?
-                                               ctrl->radio.shortcuts[i] :
-                                               NO_SHORTCUT));
-                    buttons[i].id = base_id + 1 + i;
-                    if (ctrl->radio.shortcuts) {
-                        assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
-                        shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
-                    }
-                }
-
-                radioline_common(&pos, escaped, base_id,
-                                 ctrl->radio.ncolumns,
-                                 buttons, ctrl->radio.nbuttons);
-
-                for (i = 0; i < ctrl->radio.nbuttons; i++) {
-                    sfree(buttons[i].text);
-                }
-                sfree(buttons);
-                sfree(escaped);
+            for (i = 0; i < ctrl->radio.nbuttons; i++) {
+              buttons[i].text =
+                  shortcut_escape(ctrl->radio.buttons[i],
+                                  (char)(ctrl->radio.shortcuts ?
+                                         ctrl->radio.shortcuts[i] :
+                                         NO_SHORTCUT));
+              buttons[i].id = base_id + 1 + i;
+              if (ctrl->radio.shortcuts) {
+                assert(nshortcuts < MAX_SHORTCUTS_PER_CTRL);
+                shortcuts[nshortcuts++] = ctrl->radio.shortcuts[i];
+              }
             }
+
+            radioline_common(&pos, escaped, base_id,
+                             ctrl->radio.ncolumns,
+                             buttons, ctrl->radio.nbuttons);
+
+            for (i = 0; i < ctrl->radio.nbuttons; i++) {
+              sfree(buttons[i].text);
+            }
+            sfree(buttons);
+            sfree(escaped);
             break;
+          }
           case CTRL_CHECKBOX:
             num_ids = 1;
             escaped = shortcut_escape(ctrl->checkbox.label,

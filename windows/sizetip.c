@@ -22,44 +22,43 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
       case WM_ERASEBKGND:
         return true;
 
-      case WM_PAINT:
-        {
-            HBRUSH hbr;
-            HGDIOBJ holdbr;
-            RECT cr;
-            int wtlen;
-            LPTSTR wt;
-            HDC hdc;
+      case WM_PAINT: {
+        HBRUSH hbr;
+        HGDIOBJ holdbr;
+        RECT cr;
+        int wtlen;
+        LPTSTR wt;
+        HDC hdc;
 
-            PAINTSTRUCT ps;
-            hdc = BeginPaint(hWnd, &ps);
+        PAINTSTRUCT ps;
+        hdc = BeginPaint(hWnd, &ps);
 
-            SelectObject(hdc, tip_font);
-            SelectObject(hdc, GetStockObject(BLACK_PEN));
+        SelectObject(hdc, tip_font);
+        SelectObject(hdc, GetStockObject(BLACK_PEN));
 
-            hbr = CreateSolidBrush(tip_bg);
-            holdbr = SelectObject(hdc, hbr);
+        hbr = CreateSolidBrush(tip_bg);
+        holdbr = SelectObject(hdc, hbr);
 
-            GetClientRect(hWnd, &cr);
-            Rectangle(hdc, cr.left, cr.top, cr.right, cr.bottom);
+        GetClientRect(hWnd, &cr);
+        Rectangle(hdc, cr.left, cr.top, cr.right, cr.bottom);
 
-            wtlen = GetWindowTextLength(hWnd);
-            wt = (LPTSTR) snewn(wtlen + 1, TCHAR);
-            GetWindowText(hWnd, wt, wtlen + 1);
+        wtlen = GetWindowTextLength(hWnd);
+        wt = (LPTSTR) snewn(wtlen + 1, TCHAR);
+        GetWindowText(hWnd, wt, wtlen + 1);
 
-            SetTextColor(hdc, tip_text);
-            SetBkColor(hdc, tip_bg);
+        SetTextColor(hdc, tip_text);
+        SetBkColor(hdc, tip_bg);
 
-            TextOut(hdc, cr.left + 3, cr.top + 3, wt, wtlen);
+        TextOut(hdc, cr.left + 3, cr.top + 3, wt, wtlen);
 
-            sfree(wt);
+        sfree(wt);
 
-            SelectObject(hdc, holdbr);
-            DeleteObject(hbr);
+        SelectObject(hdc, holdbr);
+        DeleteObject(hbr);
 
-            EndPaint(hWnd, &ps);
-        }
+        EndPaint(hWnd, &ps);
         return 0;
+      }
 
       case WM_NCHITTEST:
         return HTTRANSPARENT;
@@ -69,22 +68,21 @@ static LRESULT CALLBACK SizeTipWndProc(HWND hWnd, UINT nMsg,
         tip_font = NULL;
         break;
 
-      case WM_SETTEXT:
-        {
-            LPCTSTR str = (LPCTSTR) lParam;
-            SIZE sz;
-            HDC hdc = CreateCompatibleDC(NULL);
+      case WM_SETTEXT: {
+        LPCTSTR str = (LPCTSTR) lParam;
+        SIZE sz;
+        HDC hdc = CreateCompatibleDC(NULL);
 
-            SelectObject(hdc, tip_font);
-            GetTextExtentPoint32(hdc, str, _tcslen(str), &sz);
+        SelectObject(hdc, tip_font);
+        GetTextExtentPoint32(hdc, str, _tcslen(str), &sz);
 
-            SetWindowPos(hWnd, NULL, 0, 0, sz.cx + 6, sz.cy + 6,
-                         SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
-            InvalidateRect(hWnd, NULL, false);
+        SetWindowPos(hWnd, NULL, 0, 0, sz.cx + 6, sz.cy + 6,
+                     SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE);
+        InvalidateRect(hWnd, NULL, false);
 
-            DeleteDC(hdc);
-        }
+        DeleteDC(hdc);
         break;
+      }
     }
 
     return DefWindowProc(hWnd, nMsg, wParam, lParam);
