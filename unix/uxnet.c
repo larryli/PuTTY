@@ -186,6 +186,11 @@ void sk_cleanup(void)
 
 SockAddr *sk_namelookup(const char *host, char **canonicalname, int address_family)
 {
+    if (host[0] == '/') {
+        *canonicalname = dupstr(host);
+        return unix_sock_addr(host);
+    }
+
     SockAddr *ret = snew(SockAddr);
 #ifndef NO_IPV6
     struct addrinfo hints;
@@ -604,7 +609,7 @@ static int try_connect(NetSocket *sock)
         }
     }
 
-    if (sock->nodelay) {
+    if (sock->nodelay && family != AF_UNIX) {
         int b = 1;
         if (setsockopt(s, IPPROTO_TCP, TCP_NODELAY,
                        (void *) &b, sizeof(b)) < 0) {
@@ -706,7 +711,6 @@ static int try_connect(NetSocket *sock)
         break;
 #endif
       case AF_UNIX:
-        assert(sock->port == 0);       /* to catch confused people */
         assert(strlen(sock->addr->hostname) < sizeof u.su.sun_path);
         u.su.sun_family = AF_UNIX;
         strcpy(u.su.sun_path, sock->addr->hostname);
