@@ -422,7 +422,7 @@ const struct BackendVtable rlogin_backend = {
     rlogin_unthrottle,
     rlogin_cfg_info,
     NULL /* test_for_upstream */,
-    "rlogin",
+    "rlogin", "Rlogin",
     PROT_RLOGIN,
     513
 };

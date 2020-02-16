@@ -1064,7 +1064,7 @@ const struct BackendVtable telnet_backend = {
     telnet_unthrottle,
     telnet_cfg_info,
     NULL /* test_for_upstream */,
-    "telnet",
+    "telnet", "Telnet",
     PROT_TELNET,
     23
 };

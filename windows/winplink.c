@@ -413,8 +413,8 @@ int main(int argc, char **argv)
 
     if (just_test_share_exists) {
         if (!vt->test_for_upstream) {
-            fprintf(stderr, "Connection sharing not supported for connection "
-                    "type '%s'\n", vt->name);
+            fprintf(stderr, "Connection sharing not supported for this "
+                    "connection type (%s)'\n", vt->displayname);
             return 1;
         }
         if (vt->test_for_upstream(conf_get_str(conf, CONF_host),

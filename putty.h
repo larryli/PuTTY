@@ -512,7 +512,11 @@ struct BackendVtable {
      * connection-sharing upstream exists for a given configuration. */
     bool (*test_for_upstream)(const char *host, int port, Conf *conf);
 
-    const char *name;
+    /* 'id' is a machine-readable name for the backend, used in
+     * saved-session storage. 'displayname' is a human-readable name
+     * for error messages. */
+    const char *id, *displayname;
+
     int protocol;
     int default_port;
 };

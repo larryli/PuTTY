@@ -891,8 +891,8 @@ int main(int argc, char **argv)
 
     if (just_test_share_exists) {
         if (!backvt->test_for_upstream) {
-            fprintf(stderr, "Connection sharing not supported for connection "
-                    "type '%s'\n", backvt->name);
+            fprintf(stderr, "Connection sharing not supported for this "
+                    "connection type (%s)'\n", backvt->displayname);
             return 1;
         }
         if (backvt->test_for_upstream(conf_get_str(conf, CONF_host),

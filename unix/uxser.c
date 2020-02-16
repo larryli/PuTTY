@@ -576,7 +576,7 @@ const struct BackendVtable serial_backend = {
     serial_unthrottle,
     serial_cfg_info,
     NULL /* test_for_upstream */,
-    "serial",
+    "serial", "Serial",
     PROT_SERIAL,
     0
 };

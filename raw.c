@@ -324,7 +324,7 @@ const struct BackendVtable raw_backend = {
     raw_unthrottle,
     raw_cfg_info,
     NULL /* test_for_upstream */,
-    "raw",
+    "raw", "Raw",
     PROT_RAW,
     0
 };

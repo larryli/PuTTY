@@ -1601,7 +1601,7 @@ const struct BackendVtable pty_backend = {
     pty_unthrottle,
     pty_cfg_info,
     NULL /* test_for_upstream */,
-    "pty",
+    "pty", "pty",
     -1,
     0
 };

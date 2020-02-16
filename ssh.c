@@ -1190,7 +1190,7 @@ const struct BackendVtable ssh_backend = {
     ssh_unthrottle,
     ssh_cfg_info,
     ssh_test_for_upstream,
-    "ssh",
+    "ssh", "SSH",
     PROT_SSH,
     22
 };
