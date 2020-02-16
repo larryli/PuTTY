@@ -282,7 +282,9 @@ void ssh_server_start(Plug *plug, Socket *socket)
     server *srv = container_of(plug, server, plug);
     const char *our_protoversion;
 
-    if (srv->hostkey1 && srv->nhostkeys) {
+    if (srv->ssc->bare_connection) {
+        our_protoversion = "2.0";     /* SSH-2 only */
+    } else if (srv->hostkey1 && srv->nhostkeys) {
         our_protoversion = "1.99";    /* offer both SSH-1 and SSH-2 */
     } else if (srv->hostkey1) {
         our_protoversion = "1.5";     /* SSH-1 only */
@@ -297,7 +299,7 @@ void ssh_server_start(Plug *plug, Socket *socket)
     srv->ic_out_raw.ctx = srv;
     srv->version_receiver.got_ssh_version = server_got_ssh_version;
     srv->bpp = ssh_verstring_new(
-        srv->conf, srv->logctx, false /* bare_connection */,
+        srv->conf, srv->logctx, srv->ssc->bare_connection,
         our_protoversion, &srv->version_receiver,
         true, "Uppity");
     server_connect_bpp(srv);
@@ -492,7 +494,19 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
     old_bpp = srv->bpp;
     srv->remote_bugs = ssh_verstring_get_bugs(old_bpp);
 
-    if (major_version == 2) {
+    if (srv->ssc->bare_connection) {
+        srv->bpp = ssh2_bare_bpp_new(srv->logctx);
+        server_connect_bpp(srv);
+
+        connection_layer = ssh2_connection_new(
+            &srv->ssh, NULL, false, srv->conf,
+            ssh_verstring_get_local(old_bpp), &srv->cl);
+        ssh2connection_server_configure(connection_layer,
+                                        srv->sftpserver_vt, srv->ssc);
+        server_connect_ppl(srv, connection_layer);
+
+        srv->base_layer = connection_layer;
+    } else if (major_version == 2) {
         PacketProtocolLayer *userauth_layer, *transport_child_layer;
 
         srv->bpp = ssh2_bpp_new(srv->logctx, &srv->stats, true);

@@ -268,8 +268,8 @@ SSHCOMMON = sshcommon sshutils sshprng sshrand SSHCRYPTO
          + sshmac marshal nullplug
          + sshgssc pgssapi wildcard ssh1censor ssh2censor ssh2bpp
 	 + ssh2transport ssh2transhk ssh2connection portfwd x11fwd
-         + ssh1connection ssh1bpp
-SSH      = SSHCOMMON ssh ssh2bpp-bare
+         + ssh1connection ssh1bpp ssh2bpp-bare
+SSH      = SSHCOMMON ssh
          + ssh1login ssh2userauth
          + pinger
          + sshshare aqsync agentf
@@ -404,6 +404,8 @@ testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
 testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
+         + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
+psusan   : [UT] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
 
 # ----------------------------------------------------------------------
