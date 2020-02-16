@@ -25,6 +25,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshserver.h" /* to check the prototypes of server-needed things */
 #include "tree234.h"
 
 #ifndef OMIT_UTMP
