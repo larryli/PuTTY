@@ -27,5 +27,6 @@ const struct BackendVtable *const backends[] = {
     &telnet_backend,
     &rlogin_backend,
     &raw_backend,
+    &sshconn_backend,
     NULL
 };

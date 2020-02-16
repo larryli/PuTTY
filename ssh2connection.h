@@ -7,8 +7,6 @@ struct outstanding_global_request;
 struct ssh2_connection_state {
     int crState;
 
-    Ssh *ssh;
-
     ssh_sharing_state *connshare;
     char *peer_verstring;
 

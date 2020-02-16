@@ -28,5 +28,6 @@ const struct BackendVtable *const backends[] = {
     &rlogin_backend,
     &raw_backend,
     &serial_backend,
+    &sshconn_backend,
     NULL
 };

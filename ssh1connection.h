@@ -5,8 +5,6 @@ struct outstanding_succfail;
 struct ssh1_connection_state {
     int crState;
 
-    Ssh *ssh;
-
     Conf *conf;
     int local_protoflags, remote_protoflags;
 

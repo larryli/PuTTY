@@ -311,8 +311,8 @@ static void ssh_got_ssh_version(struct ssh_version_receiver *rcv,
         ssh_connect_bpp(ssh);
 
         connection_layer = ssh2_connection_new(
-            ssh, NULL, false, ssh->conf, ssh_verstring_get_remote(old_bpp),
-            &ssh->cl);
+            ssh, ssh->connshare, false, ssh->conf,
+            ssh_verstring_get_remote(old_bpp), &ssh->cl);
         ssh_connect_ppl(ssh, connection_layer);
         ssh->base_layer = connection_layer;
     }
@@ -861,6 +861,11 @@ static void ssh_cache_conf_values(Ssh *ssh)
     ssh->pls.omit_data = conf_get_bool(ssh->conf, CONF_logomitdata);
 }
 
+bool ssh_is_bare(Ssh *ssh)
+{
+    return ssh->backend.vt->protocol == PROT_SSHCONN;
+}
+
 /*
  * Called to set up the connection.
  *
@@ -893,6 +898,8 @@ static const char *ssh_init(const BackendVtable *vt, Seat *seat,
 
     ssh->backend.vt = vt;
     *backend_handle = &ssh->backend;
+
+    ssh->bare_connection = (vt->protocol == PROT_SSHCONN);
 
     ssh->seat = seat;
     ssh->cl_dummy.logctx = ssh->logctx = logctx;
@@ -1193,4 +1200,26 @@ const struct BackendVtable ssh_backend = {
     "ssh", "SSH",
     PROT_SSH,
     22
+};
+
+const struct BackendVtable sshconn_backend = {
+    ssh_init,
+    ssh_free,
+    ssh_reconfig,
+    ssh_send,
+    ssh_sendbuffer,
+    ssh_size,
+    ssh_special,
+    ssh_get_specials,
+    ssh_connected,
+    ssh_return_exitcode,
+    ssh_sendok,
+    ssh_ldisc,
+    ssh_provide_ldisc,
+    ssh_unthrottle,
+    ssh_cfg_info,
+    ssh_test_for_upstream,
+    "ssh-connection", "Bare ssh-connection",
+    PROT_SSHCONN,
+    0
 };

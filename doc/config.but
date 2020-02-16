@@ -22,13 +22,26 @@ filled in before PuTTY can open a session at all.
 address}, of the server you want to connect to.
 
 \b The \q{Connection type} radio buttons let you choose what type of
-connection you want to make: a \I{raw TCP connections}raw
-connection, a \i{Telnet} connection, an \i{Rlogin} connection, an
-\i{SSH} connection, or a connection to a local \i{serial line}. (See
-\k{which-one} for a summary of the differences between SSH, Telnet
-and rlogin; see \k{using-rawprot} for an explanation of \q{raw}
-connections; see \k{using-serial} for information about using a
-serial line.)
+connection you want to make: an \i{SSH} network connection, a
+connection to a local \i{serial line}, or various other kinds of
+network connection.
+
+\lcont{
+
+\b See \k{which-one} for a summary of the
+differences between the network remote login protocols SSH, Telnet and
+Rlogin.
+
+\b See \k{using-rawprot} for an explanation of \q{raw}
+connections.
+
+\b See \k{using-serial} for information about using a serial line.
+
+\b The \q{Bare ssh-connection} option in the \q{Connection type} box
+is experimental, for specialist uses, and servers for it are not
+widely available.
+
+}
 
 \b The \q{Port} box lets you specify which \i{port number} on the
 server to connect to. If you select Telnet, Rlogin, or SSH, this box

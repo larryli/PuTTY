@@ -1993,8 +1993,13 @@ static int share_listen_accepting(Plug *plug,
  */
 char *ssh_share_sockname(const char *host, int port, Conf *conf)
 {
-    char *username = get_remote_username(conf);
+    char *username = NULL;
     char *sockname;
+
+    /* Include the username we're logging in as in the hash, unless
+     * we're using a protocol for which it's completely irrelevant. */
+    if (conf_get_int(conf, CONF_protocol) != PROT_SSHCONN)
+        username = get_remote_username(conf);
 
     if (port == 22) {
         if (username)
