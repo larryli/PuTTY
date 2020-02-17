@@ -215,6 +215,9 @@ bool smemeq(const void *av, const void *bv, size_t len);
  * been removed. */
 size_t encode_utf8(void *output, unsigned long ch);
 
+/* Write a string out in C string-literal format. */
+void write_c_string_literal(FILE *fp, ptrlen str);
+
 char *buildinfo(const char *newline);
 
 /*

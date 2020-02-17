@@ -87,6 +87,7 @@ uint64_t prng_reseed_time_ms(void)
     X(rsakex, RSAKey *, ssh_rsakex_freekey(v))                          \
     X(rsa, RSAKey *, rsa_free(v))                                       \
     X(prng, prng *, prng_free(v))                                       \
+    X(keycomponents, key_components *, key_components_free(v))          \
     /* end of list */
 
 typedef struct Value Value;
@@ -576,6 +577,7 @@ static void return_val_string_asciz(strbuf *out, char *s)
 
 NULLABLE_RETURN_WRAPPER(val_string, strbuf *)
 NULLABLE_RETURN_WRAPPER(val_string_asciz, char *)
+NULLABLE_RETURN_WRAPPER(val_string_asciz_const, const char *)
 NULLABLE_RETURN_WRAPPER(val_cipher, ssh_cipher *)
 NULLABLE_RETURN_WRAPPER(val_hash, ssh_hash *)
 NULLABLE_RETURN_WRAPPER(val_key, ssh_key *)
@@ -1077,6 +1079,25 @@ ssh_key *eddsa_generate_wrapper(int bits)
 }
 #define eddsa_generate eddsa_generate_wrapper
 
+size_t key_components_count(key_components *kc) { return kc->ncomponents; }
+const char *key_components_nth_name(key_components *kc, size_t n)
+{
+    return (n >= kc->ncomponents ? NULL :
+            kc->components[n].name);
+}
+const char *key_components_nth_str(key_components *kc, size_t n)
+{
+    return (n >= kc->ncomponents ? NULL :
+            kc->components[n].is_mp_int ? NULL :
+            kc->components[n].text);
+}
+mp_int *key_components_nth_mp(key_components *kc, size_t n)
+{
+    return (n >= kc->ncomponents ? NULL :
+            !kc->components[n].is_mp_int ? NULL :
+            mp_copy(kc->components[n].mp));
+}
+
 #define VALTYPE_TYPEDEF(n,t,f)                  \
     typedef t TD_val_##n;                       \
     typedef t *TD_out_val_##n;
@@ -1113,6 +1134,7 @@ typedef const ssh_cipheralg *TD_cipheralg;
 typedef const ssh_kex *TD_dh_group;
 typedef const ssh_kex *TD_ecdh_alg;
 typedef RsaSsh1Order TD_rsaorder;
+typedef key_components *TD_keycomponents;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \

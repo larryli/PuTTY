@@ -83,6 +83,23 @@ static char *dss_cache_str(ssh_key *key)
     return strbuf_to_str(sb);
 }
 
+static key_components *dss_components(ssh_key *key)
+{
+    struct dss_key *dss = container_of(key, struct dss_key, sshk);
+    key_components *kc = key_components_new();
+
+    key_components_add_text(kc, "key_type", "DSA");
+    assert(dss->p);
+    key_components_add_mp(kc, "p", dss->p);
+    key_components_add_mp(kc, "q", dss->q);
+    key_components_add_mp(kc, "g", dss->g);
+    key_components_add_mp(kc, "public_y", dss->y);
+    if (dss->x)
+        key_components_add_mp(kc, "private_x", dss->x);
+
+    return kc;
+}
+
 static char *dss_invalid(ssh_key *key, unsigned flags)
 {
     /* No validity criterion will stop us from using a DSA key at all */
@@ -478,6 +495,7 @@ const ssh_keyalg ssh_dss = {
     dss_private_blob,
     dss_openssh_blob,
     dss_cache_str,
+    dss_components,
 
     dss_pubkey_bits,
 

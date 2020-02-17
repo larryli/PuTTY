@@ -400,7 +400,7 @@ testcrypt : [UT] testcrypt SSHCRYPTO sshprng sshprime sshpubk marshal utils
 testcrypt : [C] testcrypt SSHCRYPTO sshprng sshprime sshpubk marshal utils
           + memory tree234 winmiscs KEYGEN
 testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
-          + sshmac uxutils
+          + sshmac uxutils sshpubk
 testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk

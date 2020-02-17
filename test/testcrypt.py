@@ -163,17 +163,41 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
         "Can't convert {}() argument {:d} to {} (value was {!r})".format(
             fnname, argindex, typename, arg))
 
+def unpack_string(identifier):
+    retwords = childprocess.funcall("getstring", [identifier])
+    childprocess.funcall("free", [identifier])
+    return re.sub(b"%[0-9A-F][0-9A-F]",
+                  lambda m: valbytes([int(m.group(0)[1:], 16)]),
+                  retwords[0])
+
+def unpack_mp(identifier):
+    retwords = childprocess.funcall("mp_dump", [identifier])
+    childprocess.funcall("free", [identifier])
+    return int(retwords[0], 16)
+
 def make_retval(rettype, word, unpack_strings):
     if rettype.startswith("opt_"):
         if word == b"NULL":
             return None
         rettype = rettype[4:]
     if rettype == "val_string" and unpack_strings:
-        retwords = childprocess.funcall("getstring", [word])
+        return unpack_string(word)
+    if rettype == "val_keycomponents":
+        kc = {}
+        retwords = childprocess.funcall("key_components_count", [word])
+        for i in range(int(retwords[0], 0)):
+            args = [word, "{:d}".format(i)]
+            retwords = childprocess.funcall("key_components_nth_name", args)
+            kc_key = unpack_string(retwords[0])
+            retwords = childprocess.funcall("key_components_nth_str", args)
+            if retwords[0] != b"NULL":
+                kc_value = unpack_string(retwords[0]).decode("ASCII")
+            else:
+                retwords = childprocess.funcall("key_components_nth_mp", args)
+                kc_value = unpack_mp(retwords[0])
+            kc[kc_key.decode("ASCII")] = kc_value
         childprocess.funcall("free", [word])
-        return re.sub(b"%[0-9A-F][0-9A-F]",
-                      lambda m: valbytes([int(m.group(0)[1:], 16)]),
-                      retwords[0])
+        return kc
     if rettype.startswith("val_"):
         return Value(rettype, word)
     elif rettype == "int" or rettype == "uint":

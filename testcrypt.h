@@ -157,7 +157,16 @@ FUNC2(void, ssh_key_public_blob, val_key, out_val_string_binarysink)
 FUNC2(void, ssh_key_private_blob, val_key, out_val_string_binarysink)
 FUNC2(void, ssh_key_openssh_blob, val_key, out_val_string_binarysink)
 FUNC1(val_string_asciz, ssh_key_cache_str, val_key)
+FUNC1(val_keycomponents, ssh_key_components, val_key)
 FUNC2(uint, ssh_key_public_bits, keyalg, val_string_ptrlen)
+
+/*
+ * Accessors to retrieve the innards of a 'key_components'.
+ */
+FUNC1(uint, key_components_count, val_keycomponents)
+FUNC2(opt_val_string_asciz_const, key_components_nth_name, val_keycomponents, uint)
+FUNC2(opt_val_string_asciz_const, key_components_nth_str, val_keycomponents, uint)
+FUNC2(opt_val_mpint, key_components_nth_mp, val_keycomponents, uint)
 
 /*
  * The ssh_cipher abstraction. The in-place encrypt and decrypt

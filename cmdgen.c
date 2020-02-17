@@ -13,6 +13,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "mpint.h"
 
 struct progress {
     int phase, current;
@@ -97,6 +98,8 @@ void help(void)
            "           public              RFC 4716 / ssh.com public key\n"
            "           public-openssh      OpenSSH public key\n"
            "           fingerprint         output the key fingerprint\n"
+           "           text                output the key components as "
+           "'name=0x####'\n"
            "  -o    specify output file\n"
            "  -l    equivalent to `-O fingerprint'\n"
            "  -L    equivalent to `-O public-openssh'\n"
@@ -166,7 +169,7 @@ int main(int argc, char **argv)
     enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, ED25519 } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
-           OPENSSH_NEW, SSHCOM } outtype = PRIVATE;
+           OPENSSH_NEW, SSHCOM, TEXT } outtype = PRIVATE;
     int bits = -1;
     const char *comment = NULL;
     char *origcomment = NULL;
@@ -287,6 +290,8 @@ int main(int argc, char **argv)
                       } else {
                         random_device = val;
                       }
+                    } else if (!strcmp(opt, "-dump")) {
+                        outtype = TEXT;
                     } else {
                       errs = true;
                       fprintf(stderr,
@@ -389,6 +394,8 @@ int main(int argc, char **argv)
                             outtype = OPENSSH_NEW, sshver = 2;
                         else if (!strcmp(p, "private-sshcom"))
                             outtype = SSHCOM, sshver = 2;
+                        else if (!strcmp(p, "text"))
+                            outtype = TEXT;
                         else {
                             fprintf(stderr,
                                     "puttygen: unknown output type `%s'\n", p);
@@ -498,7 +505,7 @@ int main(int argc, char **argv)
      */
     if (keytype != NOKEYGEN &&
         (outtype != PRIVATE && outtype != OPENSSH_AUTO &&
-         outtype != OPENSSH_NEW && outtype != SSHCOM)) {
+         outtype != OPENSSH_NEW && outtype != SSHCOM && outtype != TEXT)) {
         fprintf(stderr, "puttygen: this would generate a new key but "
                 "discard the private part\n");
         RETURN(1);
@@ -867,8 +874,13 @@ int main(int argc, char **argv)
     /*
      * Prompt for a new passphrase if we have been asked to, or if
      * we have just generated a key.
+     *
+     * In the latter case, an exception is if we're producing text
+     * output, because that output format doesn't support encryption
+     * in any case.
      */
-    if (!new_passphrase && (change_passphrase || keytype != NOKEYGEN)) {
+    if (!new_passphrase && (change_passphrase ||
+                            (keytype != NOKEYGEN && outtype != TEXT))) {
         prompts_t *p = new_prompts();
         int ret;
 
@@ -1039,6 +1051,65 @@ int main(int argc, char **argv)
                 RETURN(1);              /* rename failed */
         }
         break;
+
+      case TEXT: {
+        key_components *kc;
+        if (sshver == 1) {
+            assert(ssh1key);
+            kc = rsa_components(ssh1key);
+        } else {
+            if (ssh2key) {
+                kc = ssh_key_components(ssh2key->key);
+            } else {
+                assert(ssh2blob);
+
+                BinarySource src[1];
+                BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(ssh2blob));
+                ptrlen algname = get_string(src);
+                const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+                if (!alg) {
+                    fprintf(stderr, "puttygen: cannot extract key components "
+                            "from public key of unknown type '%.*s'\n",
+                            PTRLEN_PRINTF(algname));
+                    RETURN(1);
+                }
+                ssh_key *sk = ssh_key_new_pub(
+                    alg, ptrlen_from_strbuf(ssh2blob));
+                kc = ssh_key_components(sk);
+                ssh_key_free(sk);
+            }
+        }
+
+        FILE *fp;
+        if (outfile) {
+            fp = f_open(outfilename, "w", false);
+            if (!fp) {
+                fprintf(stderr, "unable to open output file\n");
+                exit(1);
+            }
+        } else {
+            fp = stdout;
+        }
+
+        for (size_t i = 0; i < kc->ncomponents; i++) {
+            if (kc->components[i].is_mp_int) {
+                char *hex = mp_get_hex(kc->components[i].mp);
+                fprintf(fp, "%s=0x%s\n", kc->components[i].name, hex);
+                smemclr(hex, strlen(hex));
+                sfree(hex);
+            } else {
+                fprintf(fp, "%s=\"", kc->components[i].name);
+                write_c_string_literal(fp, ptrlen_from_asciz(
+                                           kc->components[i].text));
+                fputs("\"\n", fp);
+            }
+        }
+
+        if (outfile)
+            fclose(fp);
+        key_components_free(kc);
+        break;
+      }
     }
 
   out:

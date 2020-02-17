@@ -640,6 +640,27 @@ static char *ecdsa_cache_str(ssh_key *key)
     return toret;
 }
 
+static key_components *ecdsa_components(ssh_key *key)
+{
+    struct ecdsa_key *ek = container_of(key, struct ecdsa_key, sshk);
+    key_components *kc = key_components_new();
+
+    key_components_add_text(kc, "key_type", "ECDSA");
+    key_components_add_text(kc, "curve_name", ek->curve->textname);
+
+    mp_int *x, *y;
+    ecc_weierstrass_get_affine(ek->publicKey, &x, &y);
+    key_components_add_mp(kc, "public_affine_x", x);
+    key_components_add_mp(kc, "public_affine_y", y);
+    mp_free(x);
+    mp_free(y);
+
+    if (ek->privateKey)
+        key_components_add_mp(kc, "private_exponent", ek->privateKey);
+
+    return kc;
+}
+
 static char *eddsa_cache_str(ssh_key *key)
 {
     struct eddsa_key *ek = container_of(key, struct eddsa_key, sshk);
@@ -650,6 +671,27 @@ static char *eddsa_cache_str(ssh_key *key)
     mp_free(x);
     mp_free(y);
     return toret;
+}
+
+static key_components *eddsa_components(ssh_key *key)
+{
+    struct eddsa_key *ek = container_of(key, struct eddsa_key, sshk);
+    key_components *kc = key_components_new();
+
+    key_components_add_text(kc, "key_type", "EdDSA");
+    key_components_add_text(kc, "curve_name", ek->curve->textname);
+
+    mp_int *x, *y;
+    ecc_edwards_get_affine(ek->publicKey, &x, &y);
+    key_components_add_mp(kc, "affine_x", x);
+    key_components_add_mp(kc, "affine_y", y);
+    mp_free(x);
+    mp_free(y);
+
+    if (ek->privateKey)
+        key_components_add_mp(kc, "private_exponent", ek->privateKey);
+
+    return kc;
 }
 
 static void ecdsa_public_blob(ssh_key *key, BinarySink *bs)
@@ -1141,6 +1183,7 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     eddsa_private_blob,
     eddsa_openssh_blob,
     eddsa_cache_str,
+    eddsa_components,
 
     ec_shared_pubkey_bits,
 
@@ -1171,6 +1214,7 @@ const ssh_keyalg ssh_ecdsa_nistp256 = {
     ecdsa_private_blob,
     ecdsa_openssh_blob,
     ecdsa_cache_str,
+    ecdsa_components,
 
     ec_shared_pubkey_bits,
 
@@ -1201,6 +1245,7 @@ const ssh_keyalg ssh_ecdsa_nistp384 = {
     ecdsa_private_blob,
     ecdsa_openssh_blob,
     ecdsa_cache_str,
+    ecdsa_components,
 
     ec_shared_pubkey_bits,
 
@@ -1231,6 +1276,7 @@ const ssh_keyalg ssh_ecdsa_nistp521 = {
     ecdsa_private_blob,
     ecdsa_openssh_blob,
     ecdsa_cache_str,
+    ecdsa_components,
 
     ec_shared_pubkey_bits,
 

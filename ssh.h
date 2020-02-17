@@ -528,6 +528,24 @@ struct eddsa_key {
 WeierstrassPoint *ecdsa_public(mp_int *private_key, const ssh_keyalg *alg);
 EdwardsPoint *eddsa_public(mp_int *private_key, const ssh_keyalg *alg);
 
+typedef struct key_components {
+    size_t ncomponents, componentsize;
+    struct {
+        char *name;
+        bool is_mp_int;
+        union {
+            char *text;
+            mp_int *mp;
+        };
+    } *components;
+} key_components;
+key_components *key_components_new(void);
+void key_components_add_text(key_components *kc,
+                             const char *name, const char *value);
+void key_components_add_mp(key_components *kc,
+                           const char *name, mp_int *value);
+void key_components_free(key_components *kc);
+
 /*
  * SSH-1 never quite decided which order to store the two components
  * of an RSA key. During connection setup, the server sends its host
@@ -554,6 +572,7 @@ int rsa_ssh1_public_blob_len(ptrlen data);
 void rsa_ssh1_private_blob_agent(BinarySink *bs, RSAKey *key);
 void freersapriv(RSAKey *key);
 void freersakey(RSAKey *key);
+key_components *rsa_components(RSAKey *key);
 
 uint32_t crc32_rfc1662(ptrlen data);
 uint32_t crc32_ssh1(ptrlen data);
@@ -801,6 +820,7 @@ struct ssh_keyalg {
     void (*private_blob)(ssh_key *key, BinarySink *);
     void (*openssh_blob) (ssh_key *key, BinarySink *);
     char *(*cache_str) (ssh_key *key);
+    key_components *(*components) (ssh_key *key);
 
     /* 'Class methods' that don't deal with an ssh_key at all */
     int (*pubkey_bits) (const ssh_keyalg *self, ptrlen blob);
@@ -837,6 +857,8 @@ static inline void ssh_key_openssh_blob(ssh_key *key, BinarySink *bs)
 { key->vt->openssh_blob(key, bs); }
 static inline char *ssh_key_cache_str(ssh_key *key)
 { return key->vt->cache_str(key); }
+static inline key_components *ssh_key_components(ssh_key *key)
+{ return key->vt->components(key); }
 static inline int ssh_key_public_bits(const ssh_keyalg *self, ptrlen blob)
 { return self->pubkey_bits(self, blob); }
 static inline const ssh_keyalg *ssh_key_alg(ssh_key *key)

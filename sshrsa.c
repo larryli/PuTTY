@@ -43,6 +43,21 @@ void BinarySource_get_rsa_ssh1_priv(
     rsa->private_exponent = get_mp_ssh1(src);
 }
 
+key_components *rsa_components(RSAKey *rsa)
+{
+    key_components *kc = key_components_new();
+    key_components_add_text(kc, "key_type", "RSA");
+    key_components_add_mp(kc, "public_modulus", rsa->modulus);
+    key_components_add_mp(kc, "public_exponent", rsa->exponent);
+    if (rsa->private_exponent) {
+        key_components_add_mp(kc, "private_exponent", rsa->private_exponent);
+        key_components_add_mp(kc, "private_p", rsa->p);
+        key_components_add_mp(kc, "private_q", rsa->q);
+        key_components_add_mp(kc, "private_inverse_q_mod_p", rsa->iqmp);
+    }
+    return kc;
+}
+
 RSAKey *BinarySource_get_rsa_ssh1_priv_agent(BinarySource *src)
 {
     RSAKey *rsa = snew(RSAKey);
@@ -484,6 +499,12 @@ static char *rsa2_cache_str(ssh_key *key)
     return rsastr_fmt(rsa);
 }
 
+static key_components *rsa2_components(ssh_key *key)
+{
+    RSAKey *rsa = container_of(key, RSAKey, sshk);
+    return rsa_components(rsa);
+}
+
 static void rsa2_public_blob(ssh_key *key, BinarySink *bs)
 {
     RSAKey *rsa = container_of(key, RSAKey, sshk);
@@ -808,6 +829,7 @@ const ssh_keyalg ssh_rsa = {
     rsa2_private_blob,
     rsa2_openssh_blob,
     rsa2_cache_str,
+    rsa2_components,
 
     rsa2_pubkey_bits,
 
