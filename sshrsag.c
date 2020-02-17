@@ -7,7 +7,7 @@
 #include "ssh.h"
 #include "mpint.h"
 
-#define RSA_EXPONENT 37                /* we like this prime */
+#define RSA_EXPONENT 65537
 
 static void invent_firstbits(unsigned *one, unsigned *two,
                              unsigned min_separation);
