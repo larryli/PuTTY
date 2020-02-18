@@ -257,6 +257,17 @@ mp_int *mp_div(mp_int *n, mp_int *d);
 mp_int *mp_mod(mp_int *x, mp_int *modulus);
 
 /*
+ * Integer nth root. mp_nthroot returns the largest integer x such
+ * that x^n <= y, and if 'remainder' is non-NULL then it fills it with
+ * the residue (y - x^n).
+ *
+ * Currently, n has to be small enough that the largest binomial
+ * coefficient (n choose k) fits in 16 bits, which works out to at
+ * most 18.
+ */
+mp_int *mp_nthroot(mp_int *y, unsigned n, mp_int *remainder);
+
+/*
  * Trivially easy special case of mp_mod: reduce a number mod a power
  * of two.
  */

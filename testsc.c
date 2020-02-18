@@ -294,6 +294,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(mp_mul)                                   \
     X(mp_rshift_safe)                           \
     X(mp_divmod)                                \
+    X(mp_nthroot)                               \
     X(mp_modadd)                                \
     X(mp_modsub)                                \
     X(mp_modmul)                                \
@@ -575,6 +576,23 @@ static void test_mp_divmod(void)
     mp_free(d);
     mp_free(q);
     mp_free(r);
+}
+
+static void test_mp_nthroot(void)
+{
+    mp_int *x = mp_new(256), *remainder = mp_new(256);
+
+    for (size_t i = 0; i < looplimit(32); i++) {
+        uint8_t sizes[1];
+        random_read(sizes, 1);
+        mp_random_bits_into(x, sizes[0]);
+        log_start();
+        mp_free(mp_nthroot(x, 3, remainder));
+        log_end();
+    }
+
+    mp_free(x);
+    mp_free(remainder);
 }
 
 static void test_mp_modarith(

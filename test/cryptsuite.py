@@ -391,6 +391,29 @@ class mpint(MyTestBase):
                     # No tests we can do after that last one - we just
                     # insist that it isn't allowed to have crashed!
 
+    def testNthRoot(self):
+        roots = [1, 13, 1234567654321,
+                 57721566490153286060651209008240243104215933593992]
+        tests = []
+        tests.append((0, 2, 0, 0))
+        tests.append((0, 3, 0, 0))
+        for r in roots:
+            for n in 2, 3, 5:
+                tests.append((r**n, n, r, 0))
+                tests.append((r**n+1, n, r, 1))
+                tests.append((r**n-1, n, r-1, r**n - (r-1)**n - 1))
+        for x, n, eroot, eremainder in tests:
+            with self.subTest(x=x):
+                mx = mp_copy(x)
+                remainder = mp_copy(mx)
+                root = mp_nthroot(x, n, remainder)
+                self.assertEqual(int(root), eroot)
+                self.assertEqual(int(remainder), eremainder)
+        self.assertEqual(int(mp_nthroot(2*10**100, 2, None)),
+                         141421356237309504880168872420969807856967187537694)
+        self.assertEqual(int(mp_nthroot(3*10**150, 3, None)),
+                         144224957030740838232163831078010958839186925349935)
+
     def testBitwise(self):
         p = 0x3243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e
         e = 0x2b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190

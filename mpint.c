@@ -2225,6 +2225,82 @@ mp_int *mp_mod(mp_int *n, mp_int *d)
     return r;
 }
 
+mp_int *mp_nthroot(mp_int *y, unsigned n, mp_int *remainder_out)
+{
+    /*
+     * Allocate scratch space.
+     */
+    mp_int **alloc, **powers, **newpowers, *scratch;
+    size_t nalloc = 2*(n+1)+1;
+    alloc = snewn(nalloc, mp_int *);
+    for (size_t i = 0; i < nalloc; i++)
+        alloc[i] = mp_make_sized(y->nw + 1);
+    powers = alloc;
+    newpowers = alloc + (n+1);
+    scratch = alloc[2*n+2];
+
+    /*
+     * We're computing the rounded-down nth root of y, i.e. the
+     * maximal x such that x^n <= y. We try to add 2^i to it for each
+     * possible value of i, starting from the largest one that might
+     * fit (i.e. such that 2^{n*i} fits in the size of y) downwards to
+     * i=0.
+     *
+     * We track all the smaller powers of x in the array 'powers'. In
+     * each iteration, if we update x, we update all of those values
+     * to match.
+     */
+    mp_copy_integer_into(powers[0], 1);
+    for (size_t s = mp_max_bits(y) / n + 1; s-- > 0 ;) {
+        /*
+         * Let b = 2^s. We need to compute the powers (x+b)^i for each
+         * i, starting from our recorded values of x^i.
+         */
+        for (size_t i = 0; i < n+1; i++) {
+            /*
+             * (x+b)^i = x^i
+             *         + (i choose 1) x^{i-1} b
+             *         + (i choose 2) x^{i-2} b^2
+             *         + ...
+             *         + b^i
+             */
+            uint16_t binom = 1;       /* coefficient of b^i */
+            mp_copy_into(newpowers[i], powers[i]);
+            for (size_t j = 0; j < i; j++) {
+                /* newpowers[i] += binom * powers[j] * 2^{(i-j)*s} */
+                mp_mul_integer_into(scratch, powers[j], binom);
+                mp_lshift_fixed_into(scratch, scratch, (i-j) * s);
+                mp_add_into(newpowers[i], newpowers[i], scratch);
+
+                uint32_t binom_mul = binom;
+                binom_mul *= (i-j);
+                binom_mul /= (j+1);
+                assert(binom_mul < 0x10000);
+                binom = binom_mul;
+            }
+        }
+
+        /*
+         * Now, is the new value of x^n still <= y? If so, update.
+         */
+        unsigned newbit = mp_cmp_hs(y, newpowers[n]);
+        for (size_t i = 0; i < n+1; i++)
+            mp_select_into(powers[i], powers[i], newpowers[i], newbit);
+    }
+
+    if (remainder_out)
+        mp_sub_into(remainder_out, y, powers[n]);
+
+    mp_int *root = mp_new(mp_max_bits(y) / n);
+    mp_copy_into(root, powers[1]);
+
+    for (size_t i = 0; i < nalloc; i++)
+        mp_free(alloc[i]);
+    sfree(alloc);
+
+    return root;
+}
+
 mp_int *mp_modmul(mp_int *x, mp_int *y, mp_int *modulus)
 {
     mp_int *product = mp_mul(x, y);
