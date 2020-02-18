@@ -820,6 +820,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (backvt->flags & BACKEND_NEEDS_TERMINAL) {
+        fprintf(stderr,
+                "Plink must have a terminal to run.\n");
+        return 1;
+    }
+
     /*
      * Block SIGPIPE, so that we'll get EPIPE individually on
      * particular network connections that go wrong.

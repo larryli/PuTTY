@@ -482,6 +482,7 @@ enum {
 /* Backend flags */
 #define BACKEND_RESIZE_FORBIDDEN    0x01   /* Backend does not allow
                                               resizing terminal */
+#define BACKEND_NEEDS_TERMINAL      0x02   /* Backend must have terminal */
 
 struct Backend {
     const BackendVtable *vt;

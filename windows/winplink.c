@@ -393,6 +393,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    if (vt->flags & BACKEND_NEEDS_TERMINAL) {
+        fprintf(stderr,
+                "Plink must have a terminal to run.\n");
+        return 1;
+    }
+
     sk_init();
     if (p_WSAEventSelect == NULL) {
         fprintf(stderr, "Plink requires WinSock 2\n");
