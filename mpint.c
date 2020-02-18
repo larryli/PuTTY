@@ -1132,12 +1132,10 @@ mp_int *mp_rshift_fixed(mp_int *x, size_t bits)
  * by a power of 2 words, using the usual bit twiddling to make the
  * whole shift conditional on the appropriate bit of n.
  */
-mp_int *mp_rshift_safe(mp_int *x, size_t bits)
+static void mp_rshift_safe_in_place(mp_int *r, size_t bits)
 {
     size_t wordshift = bits / BIGNUM_INT_BITS;
     size_t bitshift = bits % BIGNUM_INT_BITS;
-
-    mp_int *r = mp_copy(x);
 
     unsigned clear = (r->nw - wordshift) >> (CHAR_BIT * sizeof(size_t) - 1);
     mp_cond_clear(r, clear);
@@ -1163,8 +1161,58 @@ mp_int *mp_rshift_safe(mp_int *x, size_t bits)
             r->w[i] ^= (r->w[i] ^ w) & mask;
         }
     }
+}
 
+mp_int *mp_rshift_safe(mp_int *x, size_t bits)
+{
+    mp_int *r = mp_copy(x);
+    mp_rshift_safe_in_place(r, bits);
     return r;
+}
+
+void mp_rshift_safe_into(mp_int *r, mp_int *x, size_t bits)
+{
+    mp_copy_into(r, x);
+    mp_rshift_safe_in_place(r, bits);
+}
+
+static void mp_lshift_safe_in_place(mp_int *r, size_t bits)
+{
+    size_t wordshift = bits / BIGNUM_INT_BITS;
+    size_t bitshift = bits % BIGNUM_INT_BITS;
+
+    /*
+     * Same strategy as mp_rshift_safe_in_place, but of course the
+     * other way up.
+     */
+
+    unsigned clear = (r->nw - wordshift) >> (CHAR_BIT * sizeof(size_t) - 1);
+    mp_cond_clear(r, clear);
+
+    for (unsigned bit = 0; r->nw >> bit; bit++) {
+        size_t word_offset = 1 << bit;
+        BignumInt mask = -(BignumInt)((wordshift >> bit) & 1);
+        for (size_t i = r->nw; i-- > 0 ;) {
+            BignumInt w = mp_word(r, i - word_offset);
+            r->w[i] ^= (r->w[i] ^ w) & mask;
+        }
+    }
+
+    size_t downshift = BIGNUM_INT_BITS - bitshift;
+    size_t no_shift = (downshift >> BIGNUM_INT_BITS_BITS);
+    downshift &= ~-(size_t)no_shift;
+    BignumInt downshifted_mask = ~-(BignumInt)no_shift;
+
+    for (size_t i = r->nw; i-- > 0 ;) {
+        r->w[i] = (r->w[i] << bitshift) |
+            ((mp_word(r, i-1) >> downshift) & downshifted_mask);
+    }
+}
+
+void mp_lshift_safe_into(mp_int *r, mp_int *x, size_t bits)
+{
+    mp_copy_into(r, x);
+    mp_lshift_safe_in_place(r, bits);
 }
 
 void mp_reduce_mod_2to(mp_int *x, size_t p)

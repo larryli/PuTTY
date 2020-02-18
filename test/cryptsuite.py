@@ -575,9 +575,19 @@ class mpint(MyTestBase):
             self.assertEqual(int(mp), (x << i) & mp_mask(mp))
 
             mp_copy_into(mp, x)
+            mp_lshift_safe_into(mp, mp, i)
+            self.assertEqual(int(mp), (x << i) & mp_mask(mp))
+
+            mp_copy_into(mp, x)
             mp_rshift_fixed_into(mp, mp, i)
             self.assertEqual(int(mp), x >> i)
+
+            mp_copy_into(mp, x)
+            mp_rshift_safe_into(mp, mp, i)
+            self.assertEqual(int(mp), x >> i)
+
             self.assertEqual(int(mp_rshift_fixed(x, i)), x >> i)
+
             self.assertEqual(int(mp_rshift_safe(x, i)), x >> i)
 
     def testRandom(self):

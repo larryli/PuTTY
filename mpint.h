@@ -360,10 +360,17 @@ mp_int *mp_modadd(mp_int *x, mp_int *y, mp_int *modulus);
 mp_int *mp_modsub(mp_int *x, mp_int *y, mp_int *modulus);
 
 /*
- * Shift an mp_int right by a given number of bits. The shift count is
+ * Shift an mp_int by a given number of bits. The shift count is
  * considered to be secret data, and as a result, the algorithm takes
  * O(n log n) time instead of the obvious O(n).
+ *
+ * There's no mp_lshift_safe, because the size of mp_int to allocate
+ * would not be able to avoid depending on the shift count. So if you
+ * need to behave independently of the size of a left shift, you have
+ * to know a bound on the space you'll need by some other means.
  */
+void mp_lshift_safe_into(mp_int *r, mp_int *x, size_t shift);
+void mp_rshift_safe_into(mp_int *r, mp_int *x, size_t shift);
 mp_int *mp_rshift_safe(mp_int *x, size_t shift);
 
 /*
