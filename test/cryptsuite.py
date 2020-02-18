@@ -437,6 +437,48 @@ class mpint(MyTestBase):
                         int(monty_invert(mc, monty_import(mc, x))),
                         int(monty_import(mc, inv)))
 
+    def testGCD(self):
+        powerpairs = [(0,0), (1,0), (1,1), (2,1), (2,2), (75,3), (17,23)]
+        for a2, b2 in powerpairs:
+            for a3, b3 in powerpairs:
+                for a5, b5 in powerpairs:
+                    a = 2**a2 * 3**a3 * 5**a5 * 17 * 19 * 23
+                    b = 2**b2 * 3**b3 * 5**b5 * 65423
+                    d = 2**min(a2, b2) * 3**min(a3, b3) * 5**min(a5, b5)
+
+                    ma = mp_copy(a)
+                    mb = mp_copy(b)
+
+                    self.assertEqual(int(mp_gcd(ma, mb)), d)
+
+                    md = mp_new(nbits(d))
+                    mA = mp_new(nbits(b))
+                    mB = mp_new(nbits(a))
+                    mp_gcd_into(ma, mb, md, mA, mB)
+                    self.assertEqual(int(md), d)
+                    A = int(mA)
+                    B = int(mB)
+                    self.assertEqual(a*A - b*B, d)
+                    self.assertTrue(0 <= A < b//d)
+                    self.assertTrue(0 <= B < a//d)
+
+                    self.assertEqual(mp_coprime(ma, mb), 1 if d==1 else 0)
+
+                    # Make sure gcd_into can handle not getting some
+                    # of its output pointers.
+                    mp_clear(md)
+                    mp_gcd_into(ma, mb, md, None, None)
+                    self.assertEqual(int(md), d)
+                    mp_clear(mA)
+                    mp_gcd_into(ma, mb, None, mA, None)
+                    self.assertEqual(int(mA), A)
+                    mp_clear(mB)
+                    mp_gcd_into(ma, mb, None, None, mB)
+                    self.assertEqual(int(mB), B)
+                    mp_gcd_into(ma, mb, None, None, None)
+                    # No tests we can do after that last one - we just
+                    # insist that it isn't allowed to have crashed!
+
     def testMonty(self):
         moduli = [5, 19, 2**16+1, 2**31-1, 2**128-159, 2**255-19,
                   293828847201107461142630006802421204703,

@@ -271,6 +271,25 @@ mp_int *mp_invert_mod_2to(mp_int *x, size_t p);
 mp_int *mp_invert(mp_int *x, mp_int *modulus);
 
 /*
+ * Greatest common divisor.
+ *
+ * mp_gcd_into also returns a pair of Bezout coefficients, namely A,B
+ * such that a*A - b*B = gcd. (The minus sign is so that both returned
+ * coefficients can be positive.)
+ *
+ * You can pass any of mp_gcd_into's output pointers as NULL if you
+ * don't need that output value.
+ *
+ * mp_gcd is a wrapper with a less cumbersome API, for the case where
+ * the only output value you need is the gcd itself. mp_coprime is
+ * even easier, if all you care about is whether or not that gcd is 1.
+ */
+mp_int *mp_gcd(mp_int *a, mp_int *b);
+void mp_gcd_into(mp_int *a, mp_int *b,
+                 mp_int *gcd_out, mp_int *A_out, mp_int *B_out);
+unsigned mp_coprime(mp_int *a, mp_int *b);
+
+/*
  * System for taking square roots modulo an odd prime.
  *
  * In order to do this efficiently, you need to provide an extra piece
