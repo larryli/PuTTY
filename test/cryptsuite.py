@@ -370,6 +370,18 @@ class mpint(MyTestBase):
                     self.assertEqual(int(mp_div(n, d)), q)
                     self.assertEqual(int(mp_mod(n, d)), r)
 
+                    # Make sure divmod_into can handle not getting one
+                    # of its output pointers (or even both).
+                    mp_clear(mq)
+                    mp_divmod_into(n, d, mq, None)
+                    self.assertEqual(int(mq), q)
+                    mp_clear(mr)
+                    mp_divmod_into(n, d, None, mr)
+                    self.assertEqual(int(mr), r)
+                    mp_divmod_into(n, d, None, None)
+                    # No tests we can do after that last one - we just
+                    # insist that it isn't allowed to have crashed!
+
     def testBitwise(self):
         p = 0x3243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e
         e = 0x2b7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190
