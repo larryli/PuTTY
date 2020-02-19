@@ -103,6 +103,12 @@ def queued_specific_random_data(data):
     yield None
     random_clear()
 
+@contextlib.contextmanager
+def random_prng(seed):
+    random_make_prng('sha256', seed)
+    yield None
+    random_clear()
+
 def hash_str(alg, message):
     h = ssh_hash_new(alg)
     ssh_hash_update(h, message)

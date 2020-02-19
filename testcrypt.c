@@ -55,10 +55,15 @@ static bool old_keyfile_warning_given;
 void old_keyfile_warning(void) { old_keyfile_warning_given = true; }
 
 static bufchain random_data_queue;
+static prng *test_prng;
 void random_read(void *buf, size_t size)
 {
-    if (!bufchain_try_fetch_consume(&random_data_queue, buf, size))
-        fatal_error("No random data in queue");
+    if (test_prng) {
+        prng_read(test_prng, buf, size);
+    } else {
+        if (!bufchain_try_fetch_consume(&random_data_queue, buf, size))
+            fatal_error("No random data in queue");
+    }
 }
 
 uint64_t prng_reseed_time_ms(void)
@@ -673,7 +678,22 @@ static size_t random_queue_len(void)
 
 static void random_clear(void)
 {
+    if (test_prng) {
+        prng_free(test_prng);
+        test_prng = NULL;
+    }
+
     bufchain_clear(&random_data_queue);
+}
+
+static void random_make_prng(const ssh_hashalg *hashalg, ptrlen seed)
+{
+    random_clear();
+
+    test_prng = prng_new(hashalg);
+    prng_seed_begin(test_prng);
+    put_datapl(test_prng, seed);
+    prng_seed_finish(test_prng);
 }
 
 mp_int *monty_identity_wrapper(MontyContext *mc)

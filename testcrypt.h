@@ -290,4 +290,5 @@ FUNC2(boolean, crcda_detect, val_string_ptrlen, val_string_ptrlen)
  */
 FUNC1(void, random_queue, val_string_ptrlen)
 FUNC0(uint, random_queue_len)
+FUNC2(void, random_make_prng, hashalg, val_string_ptrlen)
 FUNC0(void, random_clear)
