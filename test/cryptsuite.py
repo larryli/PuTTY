@@ -349,12 +349,14 @@ class mpint(MyTestBase):
 
         x = mp_new(mp_max_bits(initial) + 64)
 
-        # mp_{add,sub}_integer_into should be able to cope with any
-        # uintmax_t. Test a number that requires more than 32 bits.
+        # mp_{add,sub,copy}_integer_into should be able to cope with
+        # any uintmax_t. Test a number that requires more than 32 bits.
         mp_add_integer_into(x, initial, 123123123123123)
         self.assertEqual(int(x), 4444444444567567567567567)
         mp_sub_integer_into(x, initial, 123123123123123)
         self.assertEqual(int(x), 4444444444321321321321321)
+        mp_copy_integer_into(x, 123123123123123)
+        self.assertEqual(int(x), 123123123123123)
 
         # mp_mul_integer_into only takes a uint16_t integer input
         mp_mul_integer_into(x, initial, 10001)

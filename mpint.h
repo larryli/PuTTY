@@ -176,9 +176,10 @@ mp_int *mp_max(mp_int *x, mp_int *y);
 void mp_dump(FILE *fp, const char *prefix, mp_int *x, const char *suffix);
 
 /*
- * Overwrite one mp_int with another.
+ * Overwrite one mp_int with another, or with a plain integer.
  */
 void mp_copy_into(mp_int *dest, mp_int *src);
+void mp_copy_integer_into(mp_int *dest, uintmax_t n);
 
 /*
  * Conditional selection. Overwrites dest with either src0 or src1,

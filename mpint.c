@@ -90,6 +90,14 @@ void mp_copy_into(mp_int *dest, mp_int *src)
     smemclr(dest->w + copy_nw, (dest->nw - copy_nw) * sizeof(BignumInt));
 }
 
+void mp_copy_integer_into(mp_int *r, uintmax_t n)
+{
+    for (size_t i = 0; i < r->nw; i++) {
+        r->w[i] = (BignumInt)n;
+        n = (BIGNUM_INT_BYTES < sizeof(n)) ? n >> BIGNUM_INT_BITS : 0;
+    }
+}
+
 /*
  * Conditional selection is done by negating 'which', to give a mask
  * word which is all 1s if which==1 and all 0s if which==0. Then you
