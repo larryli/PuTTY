@@ -335,6 +335,22 @@ class mpint(MyTestBase):
         bm = mp_copy(bi)
         self.assertEqual(int(mp_mul(am, bm)), ai * bi)
 
+    def testAddInteger(self):
+        initial = mp_copy(4444444444444444444444444)
+
+        x = mp_new(mp_max_bits(initial) + 64)
+
+        # mp_{add,sub}_integer_into should be able to cope with any
+        # uintmax_t. Test a number that requires more than 32 bits.
+        mp_add_integer_into(x, initial, 123123123123123)
+        self.assertEqual(int(x), 4444444444567567567567567)
+        mp_sub_integer_into(x, initial, 123123123123123)
+        self.assertEqual(int(x), 4444444444321321321321321)
+
+        # mp_mul_integer_into only takes a uint16_t integer input
+        mp_mul_integer_into(x, initial, 10001)
+        self.assertEqual(int(x), 44448888888888888888888884444)
+
     def testDivision(self):
         divisors = [1, 2, 3, 2**16+1, 2**32-1, 2**32+1, 2**128-159,
                     141421356237309504880168872420969807856967187537694807]
