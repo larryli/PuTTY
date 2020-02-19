@@ -758,7 +758,7 @@ static BignumCarry mp_add_masked_integer_into(
     for (size_t i = 0; i < rw; i++) {
         BignumInt aword = mp_word(a, i);
         size_t shift = i * BIGNUM_INT_BITS;
-        BignumInt bword = shift < BIGNUM_INT_BYTES ? b >> shift : 0;
+        BignumInt bword = shift < CHAR_BIT*sizeof(b) ? b >> shift : 0;
         BignumInt out;
         bword = (bword ^ b_xor) & b_and;
         BignumADC(out, carry, aword, bword, carry);
@@ -799,7 +799,8 @@ static void mp_add_integer_into_shifted_by_words(
          * shift n down. If it's 0, we add zero bits into r, and
          * leave n alone. */
         BignumInt bword = n & -(BignumInt)indicator;
-        uintmax_t new_n = (BIGNUM_INT_BITS < 64 ? n >> BIGNUM_INT_BITS : 0);
+        uintmax_t new_n = (BIGNUM_INT_BYTES < sizeof(n) ?
+                           n >> BIGNUM_INT_BITS : 0);
         n ^= (n ^ new_n) & -(uintmax_t)indicator;
 
         BignumInt aword = mp_word(a, i);
