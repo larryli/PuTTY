@@ -33,7 +33,7 @@ static inline BignumInt mp_word(mp_int *x, size_t i)
     return i < x->nw ? x->w[i] : 0;
 }
 
-static mp_int *mp_make_sized(size_t nw)
+mp_int *mp_make_sized(size_t nw)
 {
     mp_int *x = snew_plus(mp_int, nw * sizeof(BignumInt));
     assert(nw);                   /* we outlaw the zero-word mp_int */

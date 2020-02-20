@@ -5,6 +5,7 @@
 #include <assert.h>
 #include "ssh.h"
 #include "mpint.h"
+#include "mpunsafe.h"
 #include "sshkeygen.h"
 
 /*
@@ -108,23 +109,6 @@
  * but 1s.)
  */
 
-static unsigned short mp_mod_short(mp_int *x, unsigned short modulus)
-{
-    /*
-     * This function lives here rather than in mpint.c partly because
-     * this is the only place it's needed, but mostly because it
-     * doesn't pay careful attention to constant running time, since
-     * as far as I can tell that's a lost cause for key generation
-     * anyway.
-     */
-    unsigned accumulator = 0;
-    for (size_t i = mp_max_bytes(x); i-- > 0 ;) {
-        accumulator = 0x100 * accumulator + mp_get_byte(x, i);
-        accumulator %= modulus;
-    }
-    return accumulator;
-}
-
 /*
  * Generate a prime. We can deal with various extra properties of
  * the prime:
@@ -204,9 +188,9 @@ mp_int *primegen(
      * we're incrementing by multiples of factor). */
     unsigned long residues[NSMALLPRIMES + 1], multipliers[NSMALLPRIMES + 1];
     for (size_t i = 0; i < lenof(moduli); i++) {
-        residues[i] = mp_mod_short(p, moduli[i]);
+        residues[i] = mp_unsafe_mod_integer(p, moduli[i]);
         if (factor)
-            multipliers[i] = mp_mod_short(factor, moduli[i]);
+            multipliers[i] = mp_unsafe_mod_integer(factor, moduli[i]);
         else
             multipliers[i] = 1;
     }

@@ -13,6 +13,12 @@
 #include "ssh2transport.h"
 #include "mpint.h"
 
+/*
+ * Another copy of the symbol defined in mpunsafe.c. See the comment
+ * there.
+ */
+const int deliberate_symbol_clash = 12345;
+
 void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */

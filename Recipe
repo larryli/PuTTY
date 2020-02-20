@@ -282,7 +282,7 @@ UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 SFTP     = psftpcommon sftp sftpcommon logging cmdline
 
 # Components of the prime-generation system.
-SSHPRIME = sshprime smallprimes
+SSHPRIME = sshprime smallprimes mpunsafe
 
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
