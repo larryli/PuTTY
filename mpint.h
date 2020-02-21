@@ -383,6 +383,7 @@ mp_int *mp_rshift_safe(mp_int *x, size_t shift);
  */
 void mp_lshift_fixed_into(mp_int *r, mp_int *a, size_t shift);
 void mp_rshift_fixed_into(mp_int *r, mp_int *x, size_t shift);
+mp_int *mp_lshift_fixed(mp_int *x, size_t shift);
 mp_int *mp_rshift_fixed(mp_int *x, size_t shift);
 
 /*

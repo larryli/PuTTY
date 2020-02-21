@@ -1115,6 +1115,14 @@ void mp_rshift_fixed_into(mp_int *r, mp_int *a, size_t bits)
     }
 }
 
+mp_int *mp_lshift_fixed(mp_int *x, size_t bits)
+{
+    size_t words = (bits + BIGNUM_INT_BITS - 1) / BIGNUM_INT_BITS;
+    mp_int *r = mp_make_sized(x->nw + words);
+    mp_lshift_fixed_into(r, x, bits);
+    return r;
+}
+
 mp_int *mp_rshift_fixed(mp_int *x, size_t bits)
 {
     size_t words = bits / BIGNUM_INT_BITS;
