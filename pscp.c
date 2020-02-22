@@ -322,10 +322,12 @@ static void do_cmd(char *host, char *user, char *cmd)
     }
 
     /*
-     * Force use of SSH. (If they got the protocol wrong we assume the
-     * port is useless too.)
+     * Force protocol to SSH if the user has somehow contrived to
+     * select one we don't support (e.g. by loading an inappropriate
+     * saved session). In that situation we assume the port number is
+     * useless too.)
      */
-    if (conf_get_int(conf, CONF_protocol) != PROT_SSH) {
+    if (!backend_vt_from_proto(conf_get_int(conf, CONF_protocol))) {
         conf_set_int(conf, CONF_protocol, PROT_SSH);
         conf_set_int(conf, CONF_port, 22);
     }
@@ -449,7 +451,9 @@ static void do_cmd(char *host, char *user, char *cmd)
 
     platform_psftp_pre_conn_setup(console_cli_logpolicy);
 
-    err = backend_init(&ssh_backend, pscp_seat, &backend, logctx, conf,
+    err = backend_init(backend_vt_from_proto(
+                           conf_get_int(conf, CONF_protocol)),
+                       pscp_seat, &backend, logctx, conf,
                        conf_get_str(conf, CONF_host),
                        conf_get_int(conf, CONF_port),
                        &realhost, 0,

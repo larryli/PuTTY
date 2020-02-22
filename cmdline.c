@@ -408,7 +408,7 @@ int cmdline_process_param(const char *p, char *value,
     for (size_t i = 0; backends[i]; i++) {
         if (p[0] == '-' && !strcmp(p+1, backends[i]->id)) {
             RETURN(1);
-            UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+            UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
             SAVEABLE(0);
             set_protocol(conf, backends[i]->protocol);
             if (backends[i]->default_port)
