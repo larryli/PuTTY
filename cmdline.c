@@ -405,45 +405,23 @@ int cmdline_process_param(const char *p, char *value,
         loaded_session = true;
         return 2;
     }
-    if (!strcmp(p, "-ssh")) {
-        RETURN(1);
-        UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-        SAVEABLE(0);
-        set_protocol(conf, PROT_SSH);
-        set_port(conf, 22);
-        return 1;
-    }
-    if (!strcmp(p, "-telnet")) {
-        RETURN(1);
-        UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-        SAVEABLE(0);
-        set_protocol(conf, PROT_TELNET);
-        set_port(conf, 23);
-        return 1;
-    }
-    if (!strcmp(p, "-rlogin")) {
-        RETURN(1);
-        UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-        SAVEABLE(0);
-        set_protocol(conf, PROT_RLOGIN);
-        set_port(conf, 513);
-        return 1;
-    }
-    if (!strcmp(p, "-raw")) {
-        RETURN(1);
-        UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-        SAVEABLE(0);
-        set_protocol(conf, PROT_RAW);
-    }
-    if (!strcmp(p, "-serial")) {
-        RETURN(1);
-        /* Serial is not NONNETWORK in an odd sense of the word */
-        UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
-        SAVEABLE(0);
-        set_protocol(conf, PROT_SERIAL);
-        /* The host parameter will already be loaded into CONF_host,
-         * so copy it across */
-        conf_set_str(conf, CONF_serline, conf_get_str(conf, CONF_host));
+    for (size_t i = 0; backends[i]; i++) {
+        if (p[0] == '-' && !strcmp(p+1, backends[i]->id)) {
+            RETURN(1);
+            UNAVAILABLE_IN(TOOLTYPE_FILETRANSFER | TOOLTYPE_NONNETWORK);
+            SAVEABLE(0);
+            set_protocol(conf, backends[i]->protocol);
+            if (backends[i]->default_port)
+                set_port(conf, backends[i]->default_port);
+            if (backends[i]->protocol == PROT_SERIAL) {
+                /* Special handling: the 'where to connect to' argument will
+                 * have been placed into CONF_host, but for this protocol, it
+                 * needs to be in CONF_serline */
+                conf_set_str(conf, CONF_serline,
+                             conf_get_str(conf, CONF_host));
+            }
+            return 1;
+        }
     }
     if (!strcmp(p, "-v")) {
         RETURN(1);
