@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include "putty.h"
 
+const int be_default_protocol = -1;
+
 const struct BackendVtable *const backends[] = {
     NULL
 };

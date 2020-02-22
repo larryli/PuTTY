@@ -128,39 +128,6 @@ void ser_setup_config_box(struct controlbox *b, bool midsession,
                           int parity_mask, int flow_mask)
 {
     struct controlset *s;
-    union control *c;
-
-    if (!midsession) {
-        int i;
-
-        /*
-         * Add the serial back end to the protocols list at the
-         * top of the config box.
-         */
-        s = ctrl_getset(b, "Session", "hostport",
-                        "Specify the destination you want to connect to");
-
-        for (i = 0; i < s->ncontrols; i++) {
-            c = s->ctrls[i];
-            if (c->generic.type == CTRL_RADIO &&
-                c->generic.handler == config_protocolbuttons_handler) {
-                c->radio.nbuttons++;
-                c->radio.ncolumns++;
-                c->radio.buttons =
-                    sresize(c->radio.buttons, c->radio.nbuttons, char *);
-                c->radio.buttons[c->radio.nbuttons-1] =
-                    dupstr("Serial");
-                c->radio.buttondata =
-                    sresize(c->radio.buttondata, c->radio.nbuttons, intorptr);
-                c->radio.buttondata[c->radio.nbuttons-1] = I(PROT_SERIAL);
-                if (c->radio.shortcuts) {
-                    c->radio.shortcuts =
-                        sresize(c->radio.shortcuts, c->radio.nbuttons, char);
-                    c->radio.shortcuts[c->radio.nbuttons-1] = 'r';
-                }
-            }
-        }
-    }
 
     /*
      * Entirely new Connection/Serial panel for serial port

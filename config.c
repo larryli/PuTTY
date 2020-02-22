@@ -1535,23 +1535,34 @@ void setup_config_box(struct controlbox *b, bool midsession,
         hp->port = c;
         ctrl_columns(s, 1, 100);
 
-        if (!backend_vt_from_proto(PROT_SSH)) {
-            ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 3,
+        c = ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 4,
                               HELPCTX(session_hostname),
-                              config_protocolbuttons_handler, P(hp),
-                              "Raw", 'w', I(PROT_RAW),
-                              "Telnet", 't', I(PROT_TELNET),
-                              "Rlogin", 'i', I(PROT_RLOGIN),
-                              NULL);
-        } else {
-            ctrl_radiobuttons(s, "Connection type:", NO_SHORTCUT, 4,
-                              HELPCTX(session_hostname),
-                              config_protocolbuttons_handler, P(hp),
-                              "Raw", 'w', I(PROT_RAW),
-                              "Telnet", 't', I(PROT_TELNET),
-                              "Rlogin", 'i', I(PROT_RLOGIN),
-                              "SSH", 's', I(PROT_SSH),
-                              NULL);
+                              config_protocolbuttons_handler, P(hp), NULL);
+        c->radio.buttons = sresize(c->radio.buttons, PROTOCOL_LIMIT, char *);
+        c->radio.shortcuts = sresize(c->radio.shortcuts, PROTOCOL_LIMIT, char);
+        c->radio.buttondata = sresize(c->radio.buttondata, PROTOCOL_LIMIT,
+                                      intorptr);
+        assert(c->radio.nbuttons == 0);
+        for (int pass = 0; pass < 4; pass++) {
+            for (size_t i = 0; backends[i]; i++) {
+                int pass_needed = (
+                    backends[i]->protocol == be_default_protocol ? 0 :
+                    backends[i]->protocol == PROT_SERIAL ? 1 :
+                    backends[i]->protocol == PROT_RAW ? 2 : 3);
+                if (pass != pass_needed)
+                    continue;
+
+                c->radio.buttons[c->radio.nbuttons] =
+                    dupstr(backends[i]->displayname);
+                c->radio.shortcuts[c->radio.nbuttons] =
+                    (backends[i]->protocol == PROT_SSH ? 's' :
+                     backends[i]->protocol == PROT_SERIAL ? 'r' :
+                     backends[i]->protocol == PROT_RAW ? 'w' :
+                     NO_SHORTCUT);
+                c->radio.buttondata[c->radio.nbuttons] =
+                    I(backends[i]->protocol);
+                c->radio.nbuttons++;
+            }
         }
     }
 
