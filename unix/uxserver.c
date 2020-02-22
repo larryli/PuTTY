@@ -306,7 +306,7 @@ static void show_help(FILE *fp)
     safety_warning(fp);
     fputs("\n"
           "usage:   uppity [options]\n"
-          "options: --listen PORT        listen to a port on localhost\n"
+          "options: --listen [PORT|PATH] listen to a port on localhost, or Unix socket\n"
           "         --listen-once        (with --listen) stop after one "
           "connection\n"
           "         --hostkey KEY        SSH host key (need at least one)\n"
@@ -484,7 +484,7 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 
     SocketPeerInfo *pi = sk_peer_info(s);
 
-    if (!sk_peer_trusted(s)) {
+    if (pi->addressfamily != ADDRTYPE_LOCAL && !sk_peer_trusted(s)) {
         fprintf(stderr, "rejected connection from %s (untrustworthy peer)\n",
                 pi->log_text);
         sk_free_peer_info(pi);
@@ -514,6 +514,7 @@ static const PlugVtable server_plugvt = {
 int main(int argc, char **argv)
 {
     int listen_port = -1;
+    const char *listen_socket = NULL;
 
     ssh_key **hostkeys = NULL;
     size_t nhostkeys = 0, hostkeysize = 0;
@@ -556,7 +557,13 @@ int main(int argc, char **argv)
         } else if (longoptnoarg(arg, "--verbose") || !strcmp(arg, "-v")) {
             verbose = true;
         } else if (longoptarg(arg, "--listen", &val, &argc, &argv)) {
-            listen_port = atoi(val);
+            if (val[0] == '/') {
+                listen_port = -1;
+                listen_socket = val;
+            } else {
+                listen_port = atoi(val);
+                listen_socket = NULL;
+            }
         } else if (!strcmp(arg, "--listen-once")) {
             listen_once = true;
         } else if (longoptarg(arg, "--hostkey", &val, &argc, &argv)) {
@@ -801,14 +808,24 @@ int main(int argc, char **argv)
     scfg.ap_shared = &aps;
     scfg.next_id = 0;
 
-    if (listen_port >= 0) {
+    if (listen_port >= 0 || listen_socket) {
         listening = true;
         scfg.listening_plug.vt = &server_plugvt;
-        scfg.listening_socket = sk_newlistener(
-            NULL, listen_port, &scfg.listening_plug, true, ADDRTYPE_UNSPEC);
+        char *msg;
+        if (listen_port >= 0) {
+            scfg.listening_socket = sk_newlistener(
+                NULL, listen_port, &scfg.listening_plug, true,
+                ADDRTYPE_UNSPEC);
+            msg = dupprintf("%s: listening on port %d",
+                            appname, listen_port);
+        } else {
+            SockAddr *addr = unix_sock_addr(listen_socket);
+            scfg.listening_socket = new_unix_listener(
+                addr, &scfg.listening_plug);
+            msg = dupprintf("%s: listening on Unix socket %s",
+                            appname, listen_socket);
+        }
 
-        char *msg = dupprintf("%s: listening on port %d",
-                              appname, listen_port);
         log_to_stderr(-1, msg);
         sfree(msg);
     } else {
