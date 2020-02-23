@@ -399,13 +399,16 @@ mp_int *mp_rshift_fixed(mp_int *x, size_t shift);
  * then _they_ have link-time dependencies on both modules.)
  *
  * mp_random_bits[_fn] returns an integer 0 <= n < 2^bits.
+ * mp_random_upto[_fn](limit) returns an integer 0 <= n < limit.
  * mp_random_in_range[_fn](lo,hi) returns an integer lo <= n < hi.
  */
 typedef void (*random_read_fn_t)(void *, size_t);
 mp_int *mp_random_bits_fn(size_t bits, random_read_fn_t randfn);
+mp_int *mp_random_upto_fn(mp_int *limit, random_read_fn_t randfn);
 mp_int *mp_random_in_range_fn(
     mp_int *lo_inclusive, mp_int *hi_exclusive, random_read_fn_t randfn);
 #define mp_random_bits(bits) mp_random_bits_fn(bits, random_read)
+#define mp_random_upto(limit) mp_random_upto_fn(limit, random_read)
 #define mp_random_in_range(lo, hi) mp_random_in_range_fn(lo, hi, random_read)
 
 #endif /* PUTTY_MPINT_H */

@@ -2423,10 +2423,8 @@ mp_int *mp_random_bits_fn(size_t bits, random_read_fn_t random_read)
     return toret;
 }
 
-mp_int *mp_random_in_range_fn(mp_int *lo, mp_int *hi, random_read_fn_t rf)
+mp_int *mp_random_upto_fn(mp_int *limit, random_read_fn_t rf)
 {
-    mp_int *n_outcomes = mp_sub(hi, lo);
-
     /*
      * It would be nice to generate our random numbers in such a way
      * as to make every possible outcome literally equiprobable. But
@@ -2436,10 +2434,19 @@ mp_int *mp_random_in_range_fn(mp_int *lo, mp_int *hi, random_read_fn_t rf)
      * is acceptable on the grounds that you'd have to examine so many
      * outputs to even detect it.
      */
-    mp_int *unreduced = mp_random_bits_fn(mp_max_bits(n_outcomes) + 128, rf);
-    mp_int *reduced = mp_mod(unreduced, n_outcomes);
-    mp_add_into(reduced, reduced, lo);
+    mp_int *unreduced = mp_random_bits_fn(mp_max_bits(limit) + 128, rf);
+    mp_int *reduced = mp_mod(unreduced, limit);
     mp_free(unreduced);
-    mp_free(n_outcomes);
     return reduced;
+}
+
+mp_int *mp_random_in_range_fn(mp_int *lo, mp_int *hi, random_read_fn_t rf)
+{
+    mp_int *n_outcomes = mp_sub(hi, lo);
+    mp_int *addend = mp_random_upto_fn(n_outcomes, rf);
+    mp_int *result = mp_make_sized(hi->nw);
+    mp_add_into(result, addend, lo);
+    mp_free(addend);
+    mp_free(n_outcomes);
+    return result;
 }
