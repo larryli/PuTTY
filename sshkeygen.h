@@ -261,6 +261,9 @@ static inline mp_int *primegen_generate(
 { return ctx->vt->generate(ctx, pcs, prog); }
 
 extern const PrimeGenerationPolicy primegen_probabilistic;
+extern const PrimeGenerationPolicy primegen_provable_fast;
+extern const PrimeGenerationPolicy primegen_provable_maurer_simple;
+extern const PrimeGenerationPolicy primegen_provable_maurer_complex;
 
 /* ----------------------------------------------------------------------
  * The overall top-level API for generating entire key pairs.

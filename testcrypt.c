@@ -378,6 +378,9 @@ static const PrimeGenerationPolicy *get_primegenpolicy(BinarySource *in)
         const PrimeGenerationPolicy *value;
     } algs[] = {
         {"probabilistic", &primegen_probabilistic},
+        {"provable_fast", &primegen_provable_fast},
+        {"provable_maurer_simple", &primegen_provable_maurer_simple},
+        {"provable_maurer_complex", &primegen_provable_maurer_complex},
     };
 
     ptrlen name = get_word(in);
