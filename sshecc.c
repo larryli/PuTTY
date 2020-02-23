@@ -683,8 +683,8 @@ static key_components *eddsa_components(ssh_key *key)
 
     mp_int *x, *y;
     ecc_edwards_get_affine(ek->publicKey, &x, &y);
-    key_components_add_mp(kc, "affine_x", x);
-    key_components_add_mp(kc, "affine_y", y);
+    key_components_add_mp(kc, "public_affine_x", x);
+    key_components_add_mp(kc, "public_affine_y", y);
     mp_free(x);
     mp_free(y);
 
