@@ -281,6 +281,9 @@ UXSSH    = SSH uxnoise uxagentc uxgss uxshare
 # SFTP implementation (pscp, psftp).
 SFTP     = psftpcommon sftp sftpcommon logging cmdline
 
+# Components of the prime-generation system.
+SSHPRIME = sshprime smallprimes
+
 # Miscellaneous objects appearing in all the utilities, or all the
 # network ones, or the Unix or Windows subsets of those in turn.
 MISC     = misc utils marshal memory stripctrl wcwidth
@@ -294,7 +297,7 @@ UXMISC   = MISCNET UXMISCCOMMON uxproxy uxutils
 
 # SSH server.
 SSHSERVER = SSHCOMMON sshserver settings be_none logging ssh2kex-server
-         + ssh2userauth-server sshrsag sshprime ssh2connection-server
+         + ssh2userauth-server sshrsag SSHPRIME ssh2connection-server
          + sesschan sftpcommon sftpserver proxy cproxy ssh1login-server
          + ssh1connection-server scpserver
 
@@ -347,7 +350,7 @@ pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + sshauxcrypt sshhmac wincapi winnps winnpc winhsock errsock winnet
 	 + winhandl callback be_misc winselgui winhandl LIBS
 
-puttygen : [G] winpgen KEYGEN sshprime sshdes ARITH sshmd5 version
+puttygen : [G] winpgen KEYGEN SSHPRIME sshdes ARITH sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc sshprng
@@ -366,7 +369,7 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
          + ux_x11 noterm uxnogtk sessprep cmdline clicons uxcliloop
 
-PUTTYGEN_UNIX = KEYGEN sshprime sshdes ARITH sshmd5 version sshprng
+PUTTYGEN_UNIX = KEYGEN SSHPRIME sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming CONF sshecc uxnogtk sshauxcrypt sshhmac
@@ -395,9 +398,9 @@ osxlaunch : [UT] osxlaunch
 
 fuzzterm : [UT] UXTERM CHARSET MISC version uxmisc uxucs fuzzterm time settings
 	 + uxstore be_none uxnogtk memory
-testcrypt : [UT] testcrypt SSHCRYPTO sshprng sshprime sshpubk marshal utils
+testcrypt : [UT] testcrypt SSHCRYPTO sshprng SSHPRIME sshpubk marshal utils
           + memory tree234 uxutils KEYGEN
-testcrypt : [C] testcrypt SSHCRYPTO sshprng sshprime sshpubk marshal utils
+testcrypt : [C] testcrypt SSHCRYPTO sshprng SSHPRIME sshpubk marshal utils
           + memory tree234 winmiscs KEYGEN
 testsc    : [UT] testsc SSHCRYPTO marshal utils memory tree234 wildcard
           + sshmac uxutils sshpubk
