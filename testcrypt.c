@@ -31,6 +31,7 @@
 
 #include "defs.h"
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "misc.h"
 #include "mpint.h"
 #include "ecc.h"
@@ -93,6 +94,7 @@ uint64_t prng_reseed_time_ms(void)
     X(rsa, RSAKey *, rsa_free(v))                                       \
     X(prng, prng *, prng_free(v))                                       \
     X(keycomponents, key_components *, key_components_free(v))          \
+    X(pcs, PrimeCandidateSource *, pcs_free(v))                         \
     /* end of list */
 
 typedef struct Value Value;

@@ -130,6 +130,9 @@ def mac_str(alg, key, message, cipher=None):
     ssh2_mac_update(m, message)
     return ssh2_mac_genresult(m)
 
+def lcm(a, b):
+    return a * b // gcd(a, b)
+
 class MyTestBase(unittest.TestCase):
     "Intermediate class that adds useful helper methods."
     def assertEqualBin(self, x, y):
@@ -863,6 +866,78 @@ class ecc(MyTestBase):
             rGi = ed25519.G * i
             self.assertEqual(int(x), int(rGi.x))
             self.assertEqual(int(y), int(rGi.y))
+
+class keygen(MyTestBase):
+    def testPrimeCandidateSource(self):
+        def inspect(pcs):
+            # Returns (pcs->limit, pcs->factor, pcs->addend) as Python integers
+            return tuple(map(int, pcs_inspect(pcs)))
+
+        # Test accumulating modular congruence requirements, by
+        # inspecting the internal values computed during
+        # require_residue. We ensure that the addend satisfies all our
+        # congruences and the factor is the lcm of all the moduli
+        # (hence, the arithmetic progression defined by those
+        # parameters is precisely the set of integers satisfying the
+        # requirements); we also ensure that the limiting values
+        # (addend itself at the low end, and addend + (limit-1) *
+        # factor at the high end) are the maximal subsequence of that
+        # progression that are within the originally specified range.
+
+        def check(pcs, lo, hi, mod_res_pairs):
+            limit, factor, addend = inspect(pcs)
+
+            for mod, res in mod_res_pairs:
+                self.assertEqual(addend % mod, res % mod)
+
+            self.assertEqual(factor, functools.reduce(
+                lcm, [mod for mod, res in mod_res_pairs]))
+
+            self.assertFalse(lo <= addend +      (-1) * factor < hi)
+            self.assertTrue (lo <= addend                      < hi)
+            self.assertTrue (lo <= addend + (limit-1) * factor < hi)
+            self.assertFalse(lo <= addend +  limit    * factor < hi)
+
+        pcs = pcs_new(64, 1, 1)
+        check(pcs, 2**63, 2**64, [(2, 1)])
+        pcs_require_residue(pcs, 3, 2)
+        check(pcs, 2**63, 2**64, [(2, 1), (3, 2)])
+        pcs_require_residue_1(pcs, 7)
+        check(pcs, 2**63, 2**64, [(2, 1), (3, 2), (7, 1)])
+        pcs_require_residue(pcs, 16, 7)
+        check(pcs, 2**63, 2**64, [(2, 1), (3, 2), (7, 1), (16, 7)])
+        pcs_require_residue(pcs, 49, 8)
+        check(pcs, 2**63, 2**64, [(2, 1), (3, 2), (7, 1), (16, 7), (49, 8)])
+
+        # Now test-generate some actual values, and ensure they
+        # satisfy all the congruences, and also avoid one residue mod
+        # 5 that we told them to. Also, give a nontrivial range.
+        pcs = pcs_new(64, 0xAB, 8)
+        pcs_require_residue(pcs, 0x100, 0xCD)
+        pcs_require_residue_1(pcs, 65537)
+        pcs_avoid_residue_small(pcs, 5, 3)
+        pcs_ready(pcs)
+        with random_prng("test seed"):
+            for i in range(100):
+                n = int(pcs_generate(pcs))
+                self.assertTrue((0xAB<<56) < n < (0xAC<<56))
+                self.assertEqual(n % 0x100, 0xCD)
+                self.assertEqual(n % 65537, 1)
+                self.assertNotEqual(n % 5, 3)
+
+                # I'm not actually testing here that the outputs of
+                # pcs_generate are non-multiples of _all_ primes up to
+                # 2^16. But checking this many for 100 turns is enough
+                # to be pretty sure. (If you take the product of
+                # (1-1/p) over all p in the list below, you find that
+                # a given random number has about a 13% chance of
+                # avoiding being a multiple of any of them. So 100
+                # trials without a mistake gives you 0.13^100 < 10^-88
+                # as the probability of it happening by chance. More
+                # likely the code is actually working :-)
+
+                for p in [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61]:
+                    self.assertNotEqual(n % p, 0)
 
 class crypt(MyTestBase):
     def testSSH1Fingerprint(self):

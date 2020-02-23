@@ -133,107 +133,24 @@ mp_int *primegen(
     int bits, int modulus, int residue, mp_int *factor,
     int phase, progfn_t pfn, void *pfnparam, unsigned firstbits)
 {
-    init_smallprimes();
-
     int progress = 0;
 
     size_t fbsize = 0;
     while (firstbits >> fbsize)        /* work out how to align this */
         fbsize++;
 
+    PrimeCandidateSource *pcs = pcs_new(bits, firstbits, fbsize);
+    if (factor)
+        pcs_require_residue_1(pcs, factor);
+    if (modulus)
+        pcs_avoid_residue_small(pcs, modulus, residue);
+    pcs_ready(pcs);
+
   STARTOVER:
 
     pfn(pfnparam, PROGFN_PROGRESS, phase, ++progress);
 
-    /*
-     * Generate a k-bit random number with top and bottom bits set.
-     * Alternatively, if `factor' is nonzero, generate a k-bit
-     * random number with the top bit set and the bottom bit clear,
-     * multiply it by `factor', and add one.
-     */
-    mp_int *p = mp_power_2(bits - 1);  /* ensure top bit is 1 */
-    mp_int *r = mp_random_bits(bits - 1);
-    mp_or_into(p, p, r);
-    mp_free(r);
-    mp_set_bit(p, 0, factor ? 0 : 1);  /* set bottom bit appropriately */
-
-    for (size_t i = 0; i < fbsize; i++)
-        mp_set_bit(p, bits-fbsize + i, 1 & (firstbits >> i));
-
-    if (factor) {
-        mp_int *tmp = p;
-        p = mp_mul(tmp, factor);
-        mp_free(tmp);
-        assert(mp_get_bit(p, 0) == 0);
-        mp_set_bit(p, 0, 1);
-    }
-
-    /*
-     * We need to ensure this random number is coprime to the first
-     * few primes, by repeatedly adding either 2 or 2*factor to it
-     * until it is. To do this we make a list of (modulus, residue)
-     * pairs to avoid, and we also add to that list the extra pair our
-     * caller wants to avoid.
-     */
-
-    /* List the moduli */
-    unsigned long moduli[NSMALLPRIMES + 1];
-    for (size_t i = 0; i < NSMALLPRIMES; i++)
-        moduli[i] = smallprimes[i];
-    moduli[NSMALLPRIMES] = modulus;
-
-    /* Find the residue of our starting number mod each of them. Also
-     * set up the multipliers array which tells us how each one will
-     * change when we increment the number (which isn't just 1 if
-     * we're incrementing by multiples of factor). */
-    unsigned long residues[NSMALLPRIMES + 1], multipliers[NSMALLPRIMES + 1];
-    for (size_t i = 0; i < lenof(moduli); i++) {
-        residues[i] = mp_unsafe_mod_integer(p, moduli[i]);
-        if (factor)
-            multipliers[i] = mp_unsafe_mod_integer(factor, moduli[i]);
-        else
-            multipliers[i] = 1;
-    }
-
-    /* Adjust the last entry so that it avoids a residue other than zero */
-    residues[NSMALLPRIMES] = (residues[NSMALLPRIMES] + modulus
-                              - residue) % modulus;
-
-    /*
-     * Now loop until no residue in that list is zero, to find a
-     * sensible increment. We maintain the increment in an ordinary
-     * integer, so if it gets too big, we'll have to give up and go
-     * back to making up a fresh random large integer.
-     */
-    unsigned delta = 0;
-    while (1) {
-        for (size_t i = 0; i < lenof(moduli); i++)
-            if (!((residues[i] + delta * multipliers[i]) % moduli[i]))
-                goto found_a_zero;
-
-        /* If we didn't exit that loop by goto, we've got our candidate. */
-        break;
-
-      found_a_zero:
-        delta += 2;
-        if (delta > 65536) {
-            mp_free(p);
-            goto STARTOVER;
-        }
-    }
-
-    /*
-     * Having found a plausible increment, actually add it on.
-     */
-    if (factor) {
-        mp_int *d = mp_from_integer(delta);
-        mp_int *df = mp_mul(d, factor);
-        mp_add_into(p, p, df);
-        mp_free(d);
-        mp_free(df);
-    } else {
-        mp_add_integer_into(p, p, delta);
-    }
+    mp_int *p = pcs_generate(pcs);
 
     /*
      * Now apply the Miller-Rabin primality test a few times. First

@@ -265,6 +265,13 @@ FUNC1(opt_val_key, ecdsa_generate, uint)
 FUNC1(opt_val_key, eddsa_generate, uint)
 FUNC1(val_rsa, rsa1_generate, uint)
 FUNC5(val_mpint, primegen, uint, uint, uint, val_mpint, uint)
+FUNC3(val_pcs, pcs_new, uint, uint, uint)
+FUNC3(void, pcs_require_residue, val_pcs, val_mpint, val_mpint)
+FUNC2(void, pcs_require_residue_1, val_pcs, val_mpint)
+FUNC3(void, pcs_avoid_residue_small, val_pcs, uint, uint)
+FUNC1(void, pcs_ready, val_pcs)
+FUNC4(void, pcs_inspect, val_pcs, out_val_mpint, out_val_mpint, out_val_mpint)
+FUNC1(val_mpint, pcs_generate, val_pcs)
 
 /*
  * Miscellaneous.
