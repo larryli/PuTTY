@@ -104,6 +104,7 @@ void help(void)
            "  -l    equivalent to `-O fingerprint'\n"
            "  -L    equivalent to `-O public-openssh'\n"
            "  -p    equivalent to `-O public'\n"
+           "  --dump   equivalent to `-O text'\n"
            "  --old-passphrase file\n"
            "        specify file containing old key passphrase\n"
            "  --new-passphrase file\n"
