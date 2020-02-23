@@ -1335,7 +1335,6 @@ int eddsa_generate(struct eddsa_key *key, int bits, progfn_t pfn,
 mp_int *primegen(
     int bits, int modulus, int residue, mp_int *factor,
     int phase, progfn_t pfn, void *pfnparam, unsigned firstbits);
-void invent_firstbits(unsigned *one, unsigned *two, unsigned min_separation);
 
 /*
  * Connection-sharing API provided by platforms. This function must
