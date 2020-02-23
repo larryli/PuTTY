@@ -204,6 +204,8 @@ else
   AC_SUBST(WARNINGOPTS, [])
 fi
 
+AC_SEARCH_LIBS([pow], [m])
+
 AC_OUTPUT
 
 if test "$gtk_version_desired" = "no"; then cat <<EOF

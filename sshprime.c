@@ -3,6 +3,8 @@
  */
 
 #include <assert.h>
+#include <math.h>
+
 #include "ssh.h"
 #include "mpint.h"
 #include "mpunsafe.h"
@@ -108,16 +110,51 @@
  * all, so after we've seen a -1 we can be sure of seeing nothing
  * but 1s.)
  */
-mp_int *primegen(PrimeCandidateSource *pcs,
-                 int phase, progfn_t pfn, void *pfnparam)
+
+static unsigned miller_rabin_checks_needed(unsigned bits)
+{
+    /* Table 4.4 from Handbook of Applied Cryptography */
+    return (bits >= 1300 ?  2 : bits >= 850 ?  3 : bits >= 650 ?  4 :
+            bits >=  550 ?  5 : bits >= 450 ?  6 : bits >= 400 ?  7 :
+            bits >=  350 ?  8 : bits >= 300 ?  9 : bits >= 250 ? 12 :
+            bits >=  200 ? 15 : bits >= 150 ? 18 : 27);
+}
+
+ProgressPhase primegen_add_progress_phase(ProgressReceiver *prog,
+                                          unsigned bits)
+{
+    /*
+     * The density of primes near x is 1/(log x). When x is about 2^b,
+     * that's 1/(b log 2).
+     *
+     * But we're only doing the expensive part of the process (the M-R
+     * checks) for a number that passes the initial winnowing test of
+     * having no factor less than 2^16 (at least, unless the prime is
+     * so small that PrimeCandidateSource gives up on that winnowing).
+     * The density of _those_ numbers is about 1/19.76. So the odds of
+     * hitting a prime per expensive attempt are boosted by a factor
+     * of 19.76.
+     */
+    const double log_2 = 0.693147180559945309417232121458;
+    double winnow_factor = (bits < 32 ? 1.0 : 19.76);
+    double prob = winnow_factor / (bits * log_2);
+
+    /*
+     * Estimate the cost of prime generation as the cost of the M-R
+     * modexps.
+     */
+    double cost = (miller_rabin_checks_needed(bits) *
+                   estimate_modexp_cost(bits));
+    return progress_add_probabilistic(prog, cost, prob);
+}
+
+mp_int *primegen(PrimeCandidateSource *pcs, ProgressReceiver *prog)
 {
     pcs_ready(pcs);
 
-    int progress = 0;
-
   STARTOVER:
 
-    pfn(pfnparam, PROGFN_PROGRESS, phase, ++progress);
+    progress_report_attempt(prog);
 
     mp_int *p = pcs_generate(pcs);
 
@@ -125,11 +162,7 @@ mp_int *primegen(PrimeCandidateSource *pcs,
      * Now apply the Miller-Rabin primality test a few times. First
      * work out how many checks are needed.
      */
-    unsigned checks =
-        bits >= 1300 ?  2 : bits >= 850 ?  3 : bits >= 650 ?  4 :
-        bits >=  550 ?  5 : bits >= 450 ?  6 : bits >= 400 ?  7 :
-        bits >=  350 ?  8 : bits >= 300 ?  9 : bits >= 250 ? 12 :
-        bits >=  200 ? 15 : bits >= 150 ? 18 : 27;
+    unsigned checks = miller_rabin_checks_needed(pcs_get_bits(pcs));
 
     /*
      * Next, write p-1 as q*2^k.
@@ -159,8 +192,6 @@ mp_int *primegen(PrimeCandidateSource *pcs,
          */
         mp_int *w = mp_random_in_range(two, pm1);
         monty_import_into(mc, w, w);
-
-        pfn(pfnparam, PROGFN_PROGRESS, phase, ++progress);
 
         /*
          * Compute w^q mod p.
@@ -208,4 +239,39 @@ mp_int *primegen(PrimeCandidateSource *pcs,
      */
     pcs_free(pcs);
     return p;
+}
+
+/* ----------------------------------------------------------------------
+ * Reusable null implementation of the progress-reporting API.
+ */
+
+ProgressPhase null_progress_add_probabilistic(
+    ProgressReceiver *prog, double c, double p) {
+    ProgressPhase ph = { .n = 0 };
+    return ph;
+}
+void null_progress_ready(ProgressReceiver *prog) {}
+void null_progress_start_phase(ProgressReceiver *prog, ProgressPhase phase) {}
+void null_progress_report_attempt(ProgressReceiver *prog) {}
+void null_progress_report_phase_complete(ProgressReceiver *prog) {}
+const ProgressReceiverVtable null_progress_vt = {
+    null_progress_add_probabilistic,
+    null_progress_ready,
+    null_progress_start_phase,
+    null_progress_report_attempt,
+    null_progress_report_phase_complete,
+};
+
+/* ----------------------------------------------------------------------
+ * Helper function for progress estimation.
+ */
+
+double estimate_modexp_cost(unsigned bits)
+{
+    /*
+     * A modexp of n bits goes roughly like O(n^2.58), on the grounds
+     * that our modmul is O(n^1.58) (Karatsuba) and you need O(n) of
+     * them in a modexp.
+     */
+    return pow(bits, 2.58);
 }

@@ -13,36 +13,35 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "mpint.h"
 
-struct progress {
-    int phase, current;
+FILE *progress_fp = NULL;
+
+static void cmdgen_progress_report_attempt(ProgressReceiver *prog)
+{
+    if (progress_fp) {
+        fputc('+', progress_fp);
+        fflush(progress_fp);
+    }
+}
+static void cmdgen_progress_report_phase_complete(ProgressReceiver *prog)
+{
+    if (progress_fp) {
+        fputc('\n', progress_fp);
+        fflush(progress_fp);
+    }
+}
+
+static const ProgressReceiverVtable cmdgen_progress_vt = {
+    null_progress_add_probabilistic,
+    null_progress_ready,
+    null_progress_start_phase,
+    cmdgen_progress_report_attempt,
+    cmdgen_progress_report_phase_complete,
 };
 
-static void progress_update(void *param, int action, int phase, int iprogress)
-{
-    struct progress *p = (struct progress *)param;
-    if (action != PROGFN_PROGRESS)
-        return;
-    if (phase > p->phase) {
-        if (p->phase >= 0)
-            fputc('\n', stderr);
-        p->phase = phase;
-        if (iprogress >= 0)
-            p->current = iprogress - 1;
-        else
-            p->current = iprogress;
-    }
-    while (p->current < iprogress) {
-        fputc('+', stdout);
-        p->current++;
-    }
-    fflush(stdout);
-}
-
-static void no_progress(void *param, int action, int phase, int iprogress)
-{
-}
+static ProgressReceiver cmdgen_progress = { .vt = &cmdgen_progress_vt };
 
 /*
  * Stubs to let everything else link sensibly.
@@ -184,9 +183,11 @@ int main(int argc, char **argv)
     char *ssh2alg = NULL;
     char *old_passphrase = NULL, *new_passphrase = NULL;
     bool load_encrypted;
-    progfn_t progressfn = is_interactive() ? progress_update : no_progress;
     const char *random_device = NULL;
     int exit_status = 0;
+
+    if (is_interactive())
+        progress_fp = stderr;
 
     #define RETURN(status) do { exit_status = (status); goto out; } while (0)
 
@@ -333,7 +334,7 @@ int main(int argc, char **argv)
                         outtype = PUBLIC;
                         break;
                       case 'q':
-                        progressfn = no_progress;
+                        progress_fp = NULL;
                         break;
                     }
                     break;
@@ -645,10 +646,6 @@ int main(int argc, char **argv)
         char *entropy;
         char default_comment[80];
         struct tm tm;
-        struct progress prog;
-
-        prog.phase = -1;
-        prog.current = -1;
 
         tm = ltime();
         if (keytype == DSA)
@@ -673,25 +670,25 @@ int main(int argc, char **argv)
 
         if (keytype == DSA) {
             struct dss_key *dsskey = snew(struct dss_key);
-            dsa_generate(dsskey, bits, progressfn, &prog);
+            dsa_generate(dsskey, bits, &cmdgen_progress);
             ssh2key = snew(ssh2_userkey);
             ssh2key->key = &dsskey->sshk;
             ssh1key = NULL;
         } else if (keytype == ECDSA) {
             struct ecdsa_key *ek = snew(struct ecdsa_key);
-            ecdsa_generate(ek, bits, progressfn, &prog);
+            ecdsa_generate(ek, bits);
             ssh2key = snew(ssh2_userkey);
             ssh2key->key = &ek->sshk;
             ssh1key = NULL;
         } else if (keytype == ED25519) {
             struct eddsa_key *ek = snew(struct eddsa_key);
-            eddsa_generate(ek, bits, progressfn, &prog);
+            eddsa_generate(ek, bits);
             ssh2key = snew(ssh2_userkey);
             ssh2key->key = &ek->sshk;
             ssh1key = NULL;
         } else {
             RSAKey *rsakey = snew(RSAKey);
-            rsa_generate(rsakey, bits, progressfn, &prog);
+            rsa_generate(rsakey, bits, &cmdgen_progress);
             rsakey->comment = NULL;
             if (keytype == RSA1) {
                 ssh1key = rsakey;
@@ -700,7 +697,6 @@ int main(int argc, char **argv)
                 ssh2key->key = &rsakey->sshk;
             }
         }
-        progressfn(&prog, PROGFN_PROGRESS, INT_MAX, -1);
 
         if (ssh2key)
             ssh2key->comment = dupstr(default_comment);

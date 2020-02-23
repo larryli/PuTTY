@@ -70,8 +70,6 @@ static const struct PacketProtocolLayerVtable ssh1_login_server_vtable = {
     NULL /* no layer names in SSH-1 */,
 };
 
-static void no_progress(void *param, int action, int phase, int iprogress) {}
-
 PacketProtocolLayer *ssh1_login_server_new(
     PacketProtocolLayer *successor_layer, RSAKey *hostkey,
     AuthPolicy *authpolicy, const SshServerConfig *ssc)
@@ -142,7 +140,9 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         if (server_key_bits < 512)
             server_key_bits = s->hostkey->bytes + 256;
         s->servkey = snew(RSAKey);
-        rsa_generate(s->servkey, server_key_bits, no_progress, NULL);
+        ProgressReceiver null_progress;
+        null_progress.vt = &null_progress_vt;
+        rsa_generate(s->servkey, server_key_bits, &null_progress);
         s->servkey->comment = NULL;
         s->servkey_generated_here = true;
     }

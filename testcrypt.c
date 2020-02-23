@@ -1047,18 +1047,18 @@ strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
 
 #define return_void(out, expression) (expression)
 
-static void no_progress(void *param, int action, int phase, int iprogress) {}
+static ProgressReceiver null_progress = { .vt = &null_progress_vt };
 
 mp_int *primegen_wrapper(PrimeCandidateSource *pcs)
 {
-    return primegen(pcs, 0, no_progress, NULL);
+    return primegen(pcs, &null_progress);
 }
 #define primegen primegen_wrapper
 
 RSAKey *rsa1_generate(int bits)
 {
     RSAKey *rsakey = snew(RSAKey);
-    rsa_generate(rsakey, bits, no_progress, NULL);
+    rsa_generate(rsakey, bits, &null_progress);
     rsakey->comment = NULL;
     return rsakey;
 }
@@ -1072,7 +1072,7 @@ ssh_key *rsa_generate_wrapper(int bits)
 ssh_key *dsa_generate_wrapper(int bits)
 {
     struct dss_key *dsskey = snew(struct dss_key);
-    dsa_generate(dsskey, bits, no_progress, NULL);
+    dsa_generate(dsskey, bits, &null_progress);
     return &dsskey->sshk;
 }
 #define dsa_generate dsa_generate_wrapper
@@ -1080,7 +1080,7 @@ ssh_key *dsa_generate_wrapper(int bits)
 ssh_key *ecdsa_generate_wrapper(int bits)
 {
     struct ecdsa_key *ek = snew(struct ecdsa_key);
-    if (!ecdsa_generate(ek, bits, no_progress, NULL)) {
+    if (!ecdsa_generate(ek, bits)) {
         sfree(ek);
         return NULL;
     }
@@ -1091,7 +1091,7 @@ ssh_key *ecdsa_generate_wrapper(int bits)
 ssh_key *eddsa_generate_wrapper(int bits)
 {
     struct eddsa_key *ek = snew(struct eddsa_key);
-    if (!eddsa_generate(ek, bits, no_progress, NULL)) {
+    if (!eddsa_generate(ek, bits)) {
         sfree(ek);
         return NULL;
     }

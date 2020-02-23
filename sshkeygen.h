@@ -68,9 +68,73 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
 unsigned pcs_get_bits(PrimeCandidateSource *pcs);
 
 /* ----------------------------------------------------------------------
+ * Callback API that allows key generation to report progress to its
+ * caller.
+ */
+
+typedef struct ProgressReceiverVtable ProgressReceiverVtable;
+typedef struct ProgressReceiver ProgressReceiver;
+typedef union ProgressPhase ProgressPhase;
+
+union ProgressPhase {
+    int n;
+    void *p;
+};
+
+struct ProgressReceiver {
+    const ProgressReceiverVtable *vt;
+};
+
+struct ProgressReceiverVtable {
+    ProgressPhase (*add_probabilistic)(ProgressReceiver *prog,
+                                       double cost_per_attempt,
+                                       double attempt_probability);
+    void (*ready)(ProgressReceiver *prog);
+    void (*start_phase)(ProgressReceiver *prog, ProgressPhase phase);
+    void (*report_attempt)(ProgressReceiver *prog);
+    void (*report_phase_complete)(ProgressReceiver *prog);
+};
+
+static inline ProgressPhase progress_add_probabilistic(ProgressReceiver *prog,
+                                                       double c, double p)
+{ return prog->vt->add_probabilistic(prog, c, p); }
+static inline void progress_ready(ProgressReceiver *prog)
+{ prog->vt->ready(prog); }
+static inline void progress_start_phase(
+    ProgressReceiver *prog, ProgressPhase phase)
+{ prog->vt->start_phase(prog, phase); }
+static inline void progress_report_attempt(ProgressReceiver *prog)
+{ prog->vt->report_attempt(prog); }
+static inline void progress_report_phase_complete(ProgressReceiver *prog)
+{ prog->vt->report_phase_complete(prog); }
+
+ProgressPhase null_progress_add_probabilistic(
+    ProgressReceiver *prog, double c, double p);
+void null_progress_ready(ProgressReceiver *prog);
+void null_progress_start_phase(ProgressReceiver *prog, ProgressPhase phase);
+void null_progress_report_attempt(ProgressReceiver *prog);
+void null_progress_report_phase_complete(ProgressReceiver *prog);
+extern const ProgressReceiverVtable null_progress_vt;
+
+/* A helper function for dreaming up progress cost estimates. */
+double estimate_modexp_cost(unsigned bits);
+
+/* ----------------------------------------------------------------------
  * The top-level API for generating primes.
  */
 
 /* This function consumes and frees the PrimeCandidateSource you give it */
-mp_int *primegen(PrimeCandidateSource *pcs,
-                 int phase, progfn_t pfn, void *pfnparam);
+mp_int *primegen(PrimeCandidateSource *pcs, ProgressReceiver *prog);
+
+/* Estimate how long it will take, and add a phase to a ProgressReceiver */
+ProgressPhase primegen_add_progress_phase(ProgressReceiver *prog,
+                                          unsigned bits);
+
+/* ----------------------------------------------------------------------
+ * The overall top-level API for generating entire key pairs.
+ */
+
+int rsa_generate(RSAKey *key, int bits, ProgressReceiver *prog);
+int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog);
+int ecdsa_generate(struct ecdsa_key *key, int bits);
+int eddsa_generate(struct eddsa_key *key, int bits);
