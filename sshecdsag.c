@@ -3,10 +3,10 @@
  */
 
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "mpint.h"
 
-int ecdsa_generate(struct ecdsa_key *ek, int bits,
-                   progfn_t pfn, void *pfnparam)
+int ecdsa_generate(struct ecdsa_key *ek, int bits)
 {
     if (!ec_nist_alg_and_curve_by_bits(bits, &ek->curve, &ek->sshk.vt))
         return 0;
@@ -20,8 +20,7 @@ int ecdsa_generate(struct ecdsa_key *ek, int bits,
     return 1;
 }
 
-int eddsa_generate(struct eddsa_key *ek, int bits,
-                   progfn_t pfn, void *pfnparam)
+int eddsa_generate(struct eddsa_key *ek, int bits)
 {
     if (!ec_ed_alg_and_curve_by_bits(bits, &ek->curve, &ek->sshk.vt))
         return 0;

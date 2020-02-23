@@ -1314,26 +1314,6 @@ void openssh_bcrypt(const char *passphrase,
                     int rounds, unsigned char *out, int outbytes);
 
 /*
- * For progress updates in the key generation utility.
- */
-#define PROGFN_INITIALISE 1
-#define PROGFN_LIN_PHASE 2
-#define PROGFN_EXP_PHASE 3
-#define PROGFN_PHASE_EXTENT 4
-#define PROGFN_READY 5
-#define PROGFN_PROGRESS 6
-typedef void (*progfn_t) (void *param, int action, int phase, int progress);
-
-int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
-                 void *pfnparam);
-int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
-                 void *pfnparam);
-int ecdsa_generate(struct ecdsa_key *key, int bits, progfn_t pfn,
-                   void *pfnparam);
-int eddsa_generate(struct eddsa_key *key, int bits, progfn_t pfn,
-                   void *pfnparam);
-
-/*
  * Connection-sharing API provided by platforms. This function must
  * either:
  *  - return SHARE_NONE and do nothing

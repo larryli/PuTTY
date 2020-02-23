@@ -7,71 +7,50 @@
 #include "sshkeygen.h"
 #include "mpint.h"
 
-int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
-                 void *pfnparam)
+int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
 {
     /*
-     * Set up the phase limits for the progress report. We do this
-     * by passing minus the phase number.
+     * Progress-reporting setup.
      *
-     * For prime generation: our initial filter finds things
-     * coprime to everything below 2^16. Computing the product of
-     * (p-1)/p for all prime p below 2^16 gives about 20.33; so
-     * among B-bit integers, one in every 20.33 will get through
-     * the initial filter to be a candidate prime.
+     * DSA generation involves three potentially long jobs: inventing
+     * the small prime q, the large prime p, and finding an order-q
+     * element of the multiplicative group of p.
      *
-     * Meanwhile, we are searching for primes in the region of 2^B;
-     * since pi(x) ~ x/log(x), when x is in the region of 2^B, the
-     * prime density will be d/dx pi(x) ~ 1/log(B), i.e. about
-     * 1/0.6931B. So the chance of any given candidate being prime
-     * is 20.33/0.6931B, which is roughly 29.34 divided by B.
+     * The latter is done by finding an element whose order is
+     * _divisible_ by q and raising it to the power of (p-1)/q. Every
+     * element whose order is not divisible by q is a qth power of q
+     * distinct elements whose order _is_ divisible by q, so the
+     * probability of not finding a suitable element on the first try
+     * is in the region of 1/q, i.e. at most 2^-159.
      *
-     * So now we have this probability P, we're looking at an
-     * exponential distribution with parameter P: we will manage in
-     * one attempt with probability P, in two with probability
-     * P(1-P), in three with probability P(1-P)^2, etc. The
-     * probability that we have still not managed to find a prime
-     * after N attempts is (1-P)^N.
-     *
-     * We therefore inform the progress indicator of the number B
-     * (29.34/B), so that it knows how much to increment by each
-     * time. We do this in 16-bit fixed point, so 29.34 becomes
-     * 0x1D.57C4.
+     * (So the probability of success will end up indistinguishable
+     * from 1 in IEEE standard floating point! But what can you do.)
      */
-    pfn(pfnparam, PROGFN_PHASE_EXTENT, 1, 0x2800);
-    pfn(pfnparam, PROGFN_EXP_PHASE, 1, -0x1D57C4 / 160);
-    pfn(pfnparam, PROGFN_PHASE_EXTENT, 2, 0x40 * bits);
-    pfn(pfnparam, PROGFN_EXP_PHASE, 2, -0x1D57C4 / bits);
-
-    /*
-     * In phase three we are finding an order-q element of the
-     * multiplicative group of p, by finding an element whose order
-     * is _divisible_ by q and raising it to the power of (p-1)/q.
-     * _Most_ elements will have order divisible by q, since for a
-     * start phi(p) of them will be primitive roots. So
-     * realistically we don't need to set this much below 1 (64K).
-     * Still, we'll set it to 1/2 (32K) to be on the safe side.
-     */
-    pfn(pfnparam, PROGFN_PHASE_EXTENT, 3, 0x2000);
-    pfn(pfnparam, PROGFN_EXP_PHASE, 3, -32768);
-
-    pfn(pfnparam, PROGFN_READY, 0, 0);
+    ProgressPhase phase_q = primegen_add_progress_phase(prog, 160);
+    ProgressPhase phase_p = primegen_add_progress_phase(prog, bits);
+    ProgressPhase phase_g = progress_add_probabilistic(
+        prog, estimate_modexp_cost(bits), 1.0 - 0x1.0p-159);
+    progress_ready(prog);
 
     PrimeCandidateSource *pcs;
 
     /*
      * Generate q: a prime of length 160.
      */
+    progress_start_phase(prog, phase_q);
     pcs = pcs_new(160);
-    mp_int *q = primegen(pcs, 1, pfn, pfnparam);
+    mp_int *q = primegen(pcs, prog);
+    progress_report_phase_complete(prog);
 
     /*
      * Now generate p: a prime of length `bits', such that p-1 is
      * divisible by q.
      */
+    progress_start_phase(prog, phase_p);
     pcs = pcs_new(bits);
     pcs_require_residue_1(pcs, q);
-    mp_int *p = primegen(pcs, 2, pfn, pfnparam);
+    mp_int *p = primegen(pcs, prog);
+    progress_report_phase_complete(prog);
 
     /*
      * Next we need g. Raise 2 to the power (p-1)/q modulo p, and
@@ -79,12 +58,12 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
      * soon as we hit a non-unit (and non-zero!) one, that'll do
      * for g.
      */
+    progress_start_phase(prog, phase_g);
     mp_int *power = mp_div(p, q); /* this is floor(p/q) == (p-1)/q */
     mp_int *h = mp_from_integer(1);
-    int progress = 0;
     mp_int *g;
     while (1) {
-        pfn(pfnparam, PROGFN_PROGRESS, 3, ++progress);
+        progress_report_attempt(prog);
         g = mp_modpow(h, power, p);
         if (mp_hs_integer(g, 2))
             break;                     /* got one */
@@ -93,6 +72,7 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
     }
     mp_free(h);
     mp_free(power);
+    progress_report_phase_complete(prog);
 
     /*
      * Now we're nearly done. All we need now is our private key x,
