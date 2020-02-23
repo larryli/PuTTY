@@ -96,6 +96,7 @@ uint64_t prng_reseed_time_ms(void)
     X(keycomponents, key_components *, key_components_free(v))          \
     X(pcs, PrimeCandidateSource *, pcs_free(v))                         \
     X(pgc, PrimeGenerationContext *, primegen_free_context(v))          \
+    X(pockle, Pockle *, pockle_free(v))                                 \
     /* end of list */
 
 typedef struct Value Value;
@@ -440,6 +441,11 @@ static void finaliser_return_value(strbuf *out, void *ctx)
     put_byte(out, '\n');
 }
 
+static void finaliser_sfree(strbuf *out, void *ctx)
+{
+    sfree(ctx);
+}
+
 #define VALTYPE_GETFN(n,t,f)                                            \
     static Value *unwrap_value_##n(Value *val) {                        \
         ValueType expected = VT_##n;                                    \
@@ -481,6 +487,26 @@ static mp_int **get_out_val_mpint(BinarySource *in)
     Value *val = value_new(VT_mpint);
     add_finaliser(finaliser_return_value, val);
     return &val->vu_mpint;
+}
+
+struct mpint_list {
+    size_t n;
+    mp_int **integers;
+};
+
+static struct mpint_list get_mpint_list(BinarySource *in)
+{
+    size_t n = get_uint(in);
+
+    struct mpint_list mpl;
+    mpl.n = n;
+
+    mpl.integers = snewn(n, mp_int *);
+    for (size_t i = 0; i < n; i++)
+        mpl.integers[i] = get_val_mpint(in);
+
+    add_finaliser(finaliser_sfree, mpl.integers);
+    return mpl;
 }
 
 static void finaliser_return_uint(strbuf *out, void *ctx)
@@ -546,11 +572,6 @@ static const char **get_out_opt_val_string_asciz_const(BinarySource *in)
     return valp;
 }
 
-static void finaliser_sfree(strbuf *out, void *ctx)
-{
-    sfree(ctx);
-}
-
 static BinarySource *get_val_string_binarysource(BinarySource *in)
 {
     strbuf *sb = get_val_string(in);
@@ -586,6 +607,25 @@ static void return_uint(strbuf *out, uintmax_t u)
 static void return_boolean(strbuf *out, bool b)
 {
     strbuf_catf(out, "%s\n", b ? "true" : "false");
+}
+
+static void return_pocklestatus(strbuf *out, PockleStatus status)
+{
+    switch (status) {
+      default:
+        strbuf_catf(out, "POCKLE_BAD_STATUS_VALUE\n");
+        break;
+
+#define STATUS_CASE(id)                         \
+      case id:                                  \
+        strbuf_catf(out, "%s\n", #id);          \
+        break;
+
+        POCKLE_STATUSES(STATUS_CASE);
+
+#undef STATUS_CASE
+
+    }
 }
 
 static void return_val_string_asciz_const(strbuf *out, const char *s)
@@ -1147,6 +1187,13 @@ mp_int *key_components_nth_mp(key_components *kc, size_t n)
             mp_copy(kc->components[n].mp));
 }
 
+PockleStatus pockle_add_prime_wrapper(Pockle *pockle, mp_int *p,
+                                      struct mpint_list mpl, mp_int *witness)
+{
+    return pockle_add_prime(pockle, p, mpl.integers, mpl.n, witness);
+}
+#define pockle_add_prime pockle_add_prime_wrapper
+
 #define OPTIONAL_PTR_FUNC(type)                                         \
     typedef TD_val_##type TD_opt_val_##type;                            \
     static TD_opt_val_##type get_opt_val_##type(BinarySource *in) {     \
@@ -1179,6 +1226,8 @@ typedef const ssh_kex *TD_ecdh_alg;
 typedef RsaSsh1Order TD_rsaorder;
 typedef key_components *TD_keycomponents;
 typedef const PrimeGenerationPolicy *TD_primegenpolicy;
+typedef struct mpint_list TD_mpint_list;
+typedef PockleStatus TD_pocklestatus;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \

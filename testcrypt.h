@@ -277,6 +277,11 @@ FUNC3(void, pcs_avoid_residue_small, val_pcs, uint, uint)
 FUNC1(void, pcs_ready, val_pcs)
 FUNC4(void, pcs_inspect, val_pcs, out_val_mpint, out_val_mpint, out_val_mpint)
 FUNC1(val_mpint, pcs_generate, val_pcs)
+FUNC0(val_pockle, pockle_new)
+FUNC1(uint, pockle_mark, val_pockle)
+FUNC2(void, pockle_release, val_pockle, uint)
+FUNC2(pocklestatus, pockle_add_small_prime, val_pockle, val_mpint)
+FUNC4(pocklestatus, pockle_add_prime, val_pockle, val_mpint, mpint_list, val_mpint)
 
 /*
  * Miscellaneous.

@@ -970,6 +970,152 @@ class keygen(MyTestBase):
                 for p in [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61]:
                     self.assertNotEqual(n % p, 0)
 
+    def testPocklePositive(self):
+        def add_small(po, *ps):
+            for p in ps:
+                self.assertEqual(pockle_add_small_prime(po, p), 'POCKLE_OK')
+        def add(po, *args):
+            self.assertEqual(pockle_add_prime(po, *args), 'POCKLE_OK')
+
+        # Transcription of the proof that 2^130-5 is prime from
+        # Theorem 3.1 from http://cr.yp.to/mac/poly1305-20050329.pdf
+        po = pockle_new()
+        p1 = (2**130 - 6) // 1517314646
+        p2 = (p1 - 1) // 222890620702
+        add_small(po, 37003, 221101)
+        add(po, p2, [37003, 221101], 2)
+        add(po, p1, [p2], 2)
+        add(po, 2**130 - 5, [p1], 2)
+
+        # My own proof that 2^255-19 is prime
+        po = pockle_new()
+        p1 = 8574133
+        p2 = 1919519569386763
+        p3 = 75445702479781427272750846543864801
+        p4 = (2**255 - 20) // (65147*12)
+        p = 2**255 - 19
+        add_small(po, p1)
+        add(po, p2, [p1], 2)
+        add(po, p3, [p2], 2)
+        add(po, p4, [p3], 2)
+        add(po, p, [p4], 2)
+
+        # And the prime used in Ed448, while I'm here
+        po = pockle_new()
+        p1 = 379979
+        p2 = 1764234391
+        p3 = 97859369123353
+        p4 = 34741861125639557
+        p5 = 36131535570665139281
+        p6 = 167773885276849215533569
+        p7 = 596242599987116128415063
+        p = 2**448 - 2**224 - 1
+        add_small(po, p1, p2)
+        add(po, p3, [p1], 2)
+        add(po, p4, [p2], 2)
+        add(po, p5, [p4], 2)
+        add(po, p6, [p3], 3)
+        add(po, p7, [p5], 3)
+        add(po, p, [p6, p7], 2)
+
+        p = 4095744004479977
+        factors = [2, 79999] # just enough factors to exceed cbrt(p)
+        po = pockle_new()
+        for q in factors:
+            add_small(po, q)
+        add(po, p, factors, 3)
+
+        # The order of the generator in Ed25519
+        po = pockle_new()
+        p1a, p1b = 132667, 137849
+        p2 = 3044861653679985063343
+        p3 = 198211423230930754013084525763697
+        p = 2**252 + 0x14def9dea2f79cd65812631a5cf5d3ed
+        add_small(po, p1a, p1b)
+        add(po, p2, [p1a, p1b], 2)
+        add(po, p3, [p2], 2)
+        add(po, p, [p3], 2)
+
+        # And the one in Ed448
+        po = pockle_new()
+        p1 = 766223
+        p2 = 3009341
+        p3 = 7156907
+        p4 = 671065561
+        p5 = 342682509629
+        p6 = 6730519843040614479184435237013
+        p = 2**446 - 0x8335dc163bb124b65129c96fde933d8d723a70aadc873d6d54a7bb0d
+        add_small(po, p1, p2, p3, p4)
+        add(po, p5, [p1], 2)
+        add(po, p6, [p3,p4], 2)
+        add(po, p, [p2,p5,p6], 2)
+
+    def testPockleNegative(self):
+        def add_small(po, p):
+            self.assertEqual(pockle_add_small_prime(po, p), 'POCKLE_OK')
+
+        po = pockle_new()
+        self.assertEqual(pockle_add_small_prime(po, 0),
+                         'POCKLE_PRIME_SMALLER_THAN_2')
+        self.assertEqual(pockle_add_small_prime(po, 1),
+                         'POCKLE_PRIME_SMALLER_THAN_2')
+        self.assertEqual(pockle_add_small_prime(po, 2**61 - 1),
+                         'POCKLE_SMALL_PRIME_NOT_SMALL')
+        self.assertEqual(pockle_add_small_prime(po, 4),
+                         'POCKLE_SMALL_PRIME_NOT_PRIME')
+
+        po = pockle_new()
+        self.assertEqual(pockle_add_prime(po, 1919519569386763, [8574133], 2),
+                         'POCKLE_FACTOR_NOT_KNOWN_PRIME')
+
+        po = pockle_new()
+        add_small(po, 8574133)
+        self.assertEqual(pockle_add_prime(po, 1919519569386765, [8574133], 2),
+                         'POCKLE_FACTOR_NOT_A_FACTOR')
+
+        p = 4095744004479977
+        factors = [2, 79997] # not quite enough factors to reach cbrt(p)
+        po = pockle_new()
+        for q in factors:
+            add_small(po, q)
+        self.assertEqual(pockle_add_prime(po, p, factors, 3),
+                         'POCKLE_PRODUCT_OF_FACTORS_TOO_SMALL')
+
+        p = 1999527 * 3999053
+        factors = [999763]
+        po = pockle_new()
+        for q in factors:
+            add_small(po, q)
+        self.assertEqual(pockle_add_prime(po, p, factors, 3),
+                         'POCKLE_DISCRIMINANT_IS_SQUARE')
+
+        p = 9999929 * 9999931
+        factors = [257, 2593]
+        po = pockle_new()
+        for q in factors:
+            add_small(po, q)
+        self.assertEqual(pockle_add_prime(po, p, factors, 3),
+                         'POCKLE_FERMAT_TEST_FAILED')
+
+        p = 1713000920401 # a Carmichael number
+        po = pockle_new()
+        add_small(po, 561787)
+        self.assertEqual(pockle_add_prime(po, p, [561787], 2),
+                         'POCKLE_WITNESS_POWER_IS_1')
+
+        p = 4294971121
+        factors = [3, 5, 11, 17]
+        po = pockle_new()
+        for q in factors:
+            add_small(po, q)
+        self.assertEqual(pockle_add_prime(po, p, factors, 17),
+                         'POCKLE_WITNESS_POWER_NOT_COPRIME')
+
+        po = pockle_new()
+        add_small(po, 2)
+        self.assertEqual(pockle_add_prime(po, 1, [2], 1),
+                         'POCKLE_PRIME_SMALLER_THAN_2')
+
 class crypt(MyTestBase):
     def testSSH1Fingerprint(self):
         # Example key and reference fingerprint value generated by

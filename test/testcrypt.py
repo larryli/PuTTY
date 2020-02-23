@@ -105,6 +105,7 @@ method_prefixes = {
     'val_rsakex': 'ssh_rsakex_',
     'val_prng': 'prng_',
     'val_pcs': 'pcs_',
+    'val_pockle': 'pockle_',
 }
 method_lists = {t: [] for t in method_prefixes}
 
@@ -181,6 +182,13 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
         arg = unicode_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
             return arg
+    if typename == "mpint_list":
+        sublist = [make_argword(len(arg), ("uint", False),
+                                fnname, argindex, to_preserve)]
+        for val in arg:
+            sublist.append(make_argword(val, ("val_mpint", False),
+                                        fnname, argindex, to_preserve))
+        return b" ".join(unicode_to_bytes(sub) for sub in sublist)
     raise TypeError(
         "Can't convert {}() argument {:d} to {} (value was {!r})".format(
             fnname, argindex, typename, arg))
@@ -227,6 +235,8 @@ def make_retval(rettype, word, unpack_strings):
     elif rettype == "boolean":
         assert word == b"true" or word == b"false"
         return word == b"true"
+    elif rettype == "pocklestatus":
+        return word.decode("ASCII")
     raise TypeError("Can't deal with return value {!r} of type {!r}"
                     .format(word, rettype))
 

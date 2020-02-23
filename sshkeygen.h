@@ -93,6 +93,68 @@ unsigned miller_rabin_checks_needed(unsigned bits);
 mp_int *miller_rabin_find_potential_primitive_root(MillerRabin *mr);
 
 /* ----------------------------------------------------------------------
+ * A system for proving numbers to be prime, using the Pocklington
+ * test, which requires knowing a partial factorisation of p-1
+ * (specifically, factors whose product is at least cbrt(p)) and a
+ * primitive root.
+ *
+ * The API consists of instantiating a 'Pockle' object, which
+ * internally stores a list of numbers you've already convinced it is
+ * prime, and can accept further primes if you give a satisfactory
+ * certificate of their primality based on primes it already knows
+ * about.
+ */
+
+typedef struct Pockle Pockle;
+
+/* In real use, you only really need to know whether the Pockle
+ * successfully accepted your prime. But for testcrypt, it's useful to
+ * expose many different failure modes so we can try to provoke them
+ * all in unit tests and check they're working. */
+#define POCKLE_STATUSES(X)                      \
+    X(POCKLE_OK)                                \
+    X(POCKLE_SMALL_PRIME_NOT_SMALL)             \
+    X(POCKLE_SMALL_PRIME_NOT_PRIME)             \
+    X(POCKLE_PRIME_SMALLER_THAN_2)              \
+    X(POCKLE_FACTOR_NOT_KNOWN_PRIME)            \
+    X(POCKLE_FACTOR_NOT_A_FACTOR)               \
+    X(POCKLE_PRODUCT_OF_FACTORS_TOO_SMALL)      \
+    X(POCKLE_FERMAT_TEST_FAILED)                \
+    X(POCKLE_DISCRIMINANT_IS_SQUARE)            \
+    X(POCKLE_WITNESS_POWER_IS_1)                \
+    X(POCKLE_WITNESS_POWER_NOT_COPRIME)         \
+    /* end of list */
+
+#define DEFINE_ENUM(id) id,
+typedef enum PockleStatus { POCKLE_STATUSES(DEFINE_ENUM) } PockleStatus;
+#undef DEFINE_ENUM
+
+/* Make a new empty Pockle, containing no primes. */
+Pockle *pockle_new(void);
+
+/* Insert a prime below 2^32 into the Pockle. No evidence is required:
+ * Pockle will check it itself. */
+PockleStatus pockle_add_small_prime(Pockle *pockle, mp_int *p);
+
+/* Insert a general prime into the Pockle. You must provide a list of
+ * prime factors of p-1, whose product exceeds the cube root of p, and
+ * also a primitive root mod p. */
+PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
+                              mp_int **factors, size_t nfactors,
+                              mp_int *primitive_root);
+
+/* If you call pockle_mark, and later pass the returned value to
+ * pockle_release, it will free all the primes that were added to the
+ * Pockle between those two calls. Useful in recursive algorithms, to
+ * stop the Pockle growing unboundedly if the recursion keeps having
+ * to backtrack. */
+size_t pockle_mark(Pockle *pockle);
+void pockle_release(Pockle *pockle, size_t mark);
+
+/* Free a Pockle. */
+void pockle_free(Pockle *pockle);
+
+/* ----------------------------------------------------------------------
  * Callback API that allows key generation to report progress to its
  * caller.
  */
