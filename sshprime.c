@@ -237,5 +237,6 @@ mp_int *primegen(
     /*
      * We have a prime!
      */
+    pcs_free(pcs);
     return p;
 }
