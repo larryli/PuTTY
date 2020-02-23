@@ -411,15 +411,22 @@ uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
 psusan   : [UT] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
 
+PSOCKS   = psocks portfwd conf sshutils logging proxy nocproxy timing callback
+         + time tree234 version errsock be_misc norand MISC
+psocks   : [C] PSOCKS winsocks wincons winproxy winnet winmisc winselcli
+         + winhsock winhandl winmiscs winnohlp wincliloop LIBS
+psocks   : [UT] PSOCKS uxsocks uxcons uxproxy uxnet uxmisc uxpoll uxsel uxnogtk
+         + uxpeer uxfdsock uxcliloop uxsignal
+
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we
 # aren't going to actually ship. (I prefer this to not building them
 # in the first place, so that we find out about build breakage early.)
 !begin vc
 cleantestprogs:
-	-del $(BUILDDIR)testcrypt.exe
+	-del $(BUILDDIR)testcrypt.exe $(BUILDDIR)psocks.exe
 !end
 !begin clangcl
 cleantestprogs:
-	-rm -f $(BUILDDIR)testcrypt.exe
+	-rm -f $(BUILDDIR)testcrypt.exe $(BUILDDIR)psocks.exe
 !end
