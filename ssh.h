@@ -1332,9 +1332,6 @@ int ecdsa_generate(struct ecdsa_key *key, int bits, progfn_t pfn,
                    void *pfnparam);
 int eddsa_generate(struct eddsa_key *key, int bits, progfn_t pfn,
                    void *pfnparam);
-mp_int *primegen(
-    int bits, int modulus, int residue, mp_int *factor,
-    int phase, progfn_t pfn, void *pfnparam, unsigned firstbits);
 
 /*
  * Connection-sharing API provided by platforms. This function must

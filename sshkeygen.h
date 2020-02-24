@@ -23,15 +23,17 @@ typedef struct PrimeCandidateSource PrimeCandidateSource;
 /*
  * pcs_new: you say how many bits you want the prime to have (with the
  * usual semantics that an n-bit number is in the range [2^{n-1},2^n))
- * and also specify what you want its topmost 'nfirst' bits to be.
+ * and also optionally specify what you want its topmost 'nfirst' bits
+ * to be.
  *
  * (The 'first' system is used for RSA keys, where you need to arrange
  * that the product of your two primes is in a more tightly
  * constrained range than the factor of 4 you'd get by just generating
- * two (n/2)-bit primes and multiplying them. Any application that
- * doesn't need that can simply specify first = nfirst = 1.)
+ * two (n/2)-bit primes and multiplying them.)
  */
-PrimeCandidateSource *pcs_new(unsigned bits, unsigned first, unsigned nfirst);
+PrimeCandidateSource *pcs_new(unsigned bits);
+PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
+                                             unsigned first, unsigned nfirst);
 
 /* Insist that generated numbers must be congruent to 'res' mod 'mod' */
 void pcs_require_residue(PrimeCandidateSource *s, mp_int *mod, mp_int *res);
@@ -61,3 +63,14 @@ void pcs_free(PrimeCandidateSource *s);
  * unit-testing this system. */
 void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
                  mp_int **factor_out, mp_int **addend_out);
+
+/* Query functions for primegen to use */
+unsigned pcs_get_bits(PrimeCandidateSource *pcs);
+
+/* ----------------------------------------------------------------------
+ * The top-level API for generating primes.
+ */
+
+/* This function consumes and frees the PrimeCandidateSource you give it */
+mp_int *primegen(PrimeCandidateSource *pcs,
+                 int phase, progfn_t pfn, void *pfnparam);

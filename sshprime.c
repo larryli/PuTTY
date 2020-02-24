@@ -108,43 +108,12 @@
  * all, so after we've seen a -1 we can be sure of seeing nothing
  * but 1s.)
  */
-
-/*
- * Generate a prime. We can deal with various extra properties of
- * the prime:
- *
- *  - to speed up use in RSA, we can arrange to select a prime with
- *    the property (prime % modulus) != residue.
- *
- *  - for use in DSA, we can arrange to select a prime which is one
- *    more than a multiple of a dirty great bignum. In this case
- *    `bits' gives the size of the factor by which we _multiply_
- *    that bignum, rather than the size of the whole number.
- *
- *  - for the basically cosmetic purposes of generating keys of the
- *    length actually specified rather than off by one bit, we permit
- *    the caller to provide an unsigned integer 'firstbits' which will
- *    match the top few bits of the returned prime. (That is, there
- *    will exist some n such that (returnvalue >> n) == firstbits.) If
- *    'firstbits' is not needed, specifying it to either 0 or 1 is
- *    an adequate no-op.
- */
-mp_int *primegen(
-    int bits, int modulus, int residue, mp_int *factor,
-    int phase, progfn_t pfn, void *pfnparam, unsigned firstbits)
+mp_int *primegen(PrimeCandidateSource *pcs,
+                 int phase, progfn_t pfn, void *pfnparam)
 {
-    int progress = 0;
-
-    size_t fbsize = 0;
-    while (firstbits >> fbsize)        /* work out how to align this */
-        fbsize++;
-
-    PrimeCandidateSource *pcs = pcs_new(bits, firstbits, fbsize);
-    if (factor)
-        pcs_require_residue_1(pcs, factor);
-    if (modulus)
-        pcs_avoid_residue_small(pcs, modulus, residue);
     pcs_ready(pcs);
+
+    int progress = 0;
 
   STARTOVER:
 

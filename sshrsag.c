@@ -5,10 +5,12 @@
 #include <assert.h>
 
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "mpint.h"
 
 #define RSA_EXPONENT 65537
 
+#define NFIRSTBITS 13
 static void invent_firstbits(unsigned *one, unsigned *two,
                              unsigned min_separation);
 
@@ -77,10 +79,16 @@ int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
     int qbits = bits / 2;
     int pbits = bits - qbits;
     assert(pbits >= qbits);
-    mp_int *p = primegen(pbits, RSA_EXPONENT, 1, NULL,
-                         1, pfn, pfnparam, pfirst);
-    mp_int *q = primegen(qbits, RSA_EXPONENT, 1, NULL,
-                         2, pfn, pfnparam, qfirst);
+
+    PrimeCandidateSource *pcs;
+
+    pcs = pcs_new_with_firstbits(pbits, pfirst, NFIRSTBITS);
+    pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
+    mp_int *p = primegen(pcs, 1, pfn, pfnparam);
+
+    pcs = pcs_new_with_firstbits(qbits, qfirst, NFIRSTBITS);
+    pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
+    mp_int *q = primegen(pcs, 2, pfn, pfnparam);
 
     /*
      * Ensure p > q, by swapping them if not.

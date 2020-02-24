@@ -25,7 +25,8 @@ struct PrimeCandidateSource {
     unsigned avoid_residue, avoid_modulus;
 };
 
-PrimeCandidateSource *pcs_new(unsigned bits, unsigned first, unsigned nfirst)
+PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
+                                             unsigned first, unsigned nfirst)
 {
     PrimeCandidateSource *s = snew(PrimeCandidateSource);
 
@@ -58,6 +59,11 @@ PrimeCandidateSource *pcs_new(unsigned bits, unsigned first, unsigned nfirst)
     s->avoid_modulus = 0;
 
     return s;
+}
+
+PrimeCandidateSource *pcs_new(unsigned bits)
+{
+    return pcs_new_with_firstbits(bits, 1, 1);
 }
 
 void pcs_free(PrimeCandidateSource *s)
@@ -294,4 +300,9 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
     *limit_out = mp_copy(pcs->limit);
     *factor_out = mp_copy(pcs->factor);
     *addend_out = mp_copy(pcs->addend);
+}
+
+unsigned pcs_get_bits(PrimeCandidateSource *pcs)
+{
+    return pcs->bits;
 }

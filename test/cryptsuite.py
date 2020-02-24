@@ -904,7 +904,7 @@ class keygen(MyTestBase):
             self.assertTrue (lo <= addend + (limit-1) * factor < hi)
             self.assertFalse(lo <= addend +  limit    * factor < hi)
 
-        pcs = pcs_new(64, 1, 1)
+        pcs = pcs_new(64)
         check(pcs, 2**63, 2**64, [(2, 1)])
         pcs_require_residue(pcs, 3, 2)
         check(pcs, 2**63, 2**64, [(2, 1), (3, 2)])
@@ -918,7 +918,7 @@ class keygen(MyTestBase):
         # Now test-generate some actual values, and ensure they
         # satisfy all the congruences, and also avoid one residue mod
         # 5 that we told them to. Also, give a nontrivial range.
-        pcs = pcs_new(64, 0xAB, 8)
+        pcs = pcs_new_with_firstbits(64, 0xAB, 8)
         pcs_require_residue(pcs, 0x100, 0xCD)
         pcs_require_residue_1(pcs, 65537)
         pcs_avoid_residue_small(pcs, 5, 3)

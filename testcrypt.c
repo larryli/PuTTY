@@ -1049,11 +1049,9 @@ strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
 
 static void no_progress(void *param, int action, int phase, int iprogress) {}
 
-mp_int *primegen_wrapper(
-    int bits, int modulus, int residue, mp_int *factor, unsigned firstbits)
+mp_int *primegen_wrapper(PrimeCandidateSource *pcs)
 {
-    return primegen(bits, modulus, residue, factor,
-                    0, no_progress, NULL, firstbits);
+    return primegen(pcs, 0, no_progress, NULL);
 }
 #define primegen primegen_wrapper
 

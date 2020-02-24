@@ -4,6 +4,7 @@
 
 #include "misc.h"
 #include "ssh.h"
+#include "sshkeygen.h"
 #include "mpint.h"
 
 int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
@@ -56,15 +57,21 @@ int dsa_generate(struct dss_key *key, int bits, progfn_t pfn,
 
     pfn(pfnparam, PROGFN_READY, 0, 0);
 
+    PrimeCandidateSource *pcs;
+
     /*
      * Generate q: a prime of length 160.
      */
-    mp_int *q = primegen(160, 0, 0, NULL, 1, pfn, pfnparam, 1);
+    pcs = pcs_new(160);
+    mp_int *q = primegen(pcs, 1, pfn, pfnparam);
+
     /*
      * Now generate p: a prime of length `bits', such that p-1 is
      * divisible by q.
      */
-    mp_int *p = primegen(bits, 0, 0, q, 2, pfn, pfnparam, 1);
+    pcs = pcs_new(bits);
+    pcs_require_residue_1(pcs, q);
+    mp_int *p = primegen(pcs, 2, pfn, pfnparam);
 
     /*
      * Next we need g. Raise 2 to the power (p-1)/q modulo p, and

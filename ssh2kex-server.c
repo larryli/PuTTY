@@ -10,6 +10,7 @@
 #include "sshppl.h"
 #include "sshcr.h"
 #include "sshserver.h"
+#include "sshkeygen.h"
 #include "storage.h"
 #include "ssh2transport.h"
 #include "mpint.h"
@@ -100,7 +101,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * group! It's good enough for testing a client against,
              * but not for serious use.
              */
-            s->p = primegen(s->pbits, 2, 2, NULL, 1, no_progress, NULL, 1);
+            s->p = primegen(pcs_new(s->pbits), 1, no_progress, NULL);
             s->g = mp_from_integer(2);
             s->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;

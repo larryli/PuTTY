@@ -11,6 +11,7 @@
 #include "sshppl.h"
 #include "sshcr.h"
 #include "sshserver.h"
+#include "sshkeygen.h"
 
 struct ssh1_login_server_state {
     int crState;
