@@ -812,6 +812,15 @@ int scp_send_filedata(char *data, int len)
         }
 
         while (!xfer_upload_ready(scp_sftp_xfer)) {
+            if (toplevel_callback_pending()) {
+                /* If we have pending callbacks, they might make
+                 * xfer_upload_ready start to return true. So we should
+                 * run them and then re-check xfer_upload_ready, before
+                 * we go as far as waiting for an entire packet to
+                 * arrive. */
+                run_toplevel_callbacks();
+                continue;
+            }
             pktin = sftp_recv();
             ret = xfer_upload_gotpkt(scp_sftp_xfer, pktin);
             if (ret <= 0) {
