@@ -202,7 +202,7 @@ FUNC2(val_mpint, dh_find_K, val_dh, val_mpint)
  */
 FUNC1(val_ecdh, ssh_ecdhkex_newkey, ecdh_alg)
 FUNC2(void, ssh_ecdhkex_getpublic, val_ecdh, out_val_string_binarysink)
-FUNC2(val_mpint, ssh_ecdhkex_getkey, val_ecdh, val_string_ptrlen)
+FUNC2(opt_val_mpint, ssh_ecdhkex_getkey, val_ecdh, val_string_ptrlen)
 
 /*
  * RSA key exchange, and also the BinarySource get function

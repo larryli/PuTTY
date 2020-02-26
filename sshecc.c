@@ -1411,26 +1411,18 @@ static mp_int *ssh_ecdhkex_m_getkey(ecdh_key *dh, ptrlen remoteKey)
      * will be reduced mod p. */
     mp_reduce_mod_2to(remote_x, dh->curve->fieldBits);
 
-    if (mp_eq_integer(remote_x, 0)) {
-        /*
-         * The libssh spec for Curve25519 key exchange says that
-         * 'every possible public key maps to a valid ECC Point' and
-         * therefore no validation needs to be done on the server's
-         * provided x-coordinate. However, I don't believe it: an
-         * x-coordinate of zero doesn't work sensibly, because you end
-         * up dividing by zero in the doubling formula
-         * (x+1)^2(x-1)^2/(4(x^3+ax^2+x)). (Put another way, although
-         * that point P is not the _identity_ of the curve, it is a
-         * torsion point such that 2P is the identity.)
-         */
-        mp_free(remote_x);
-        return NULL;
-    }
     MontgomeryPoint *remote_p = ecc_montgomery_point_new(
         dh->curve->m.mc, remote_x);
     mp_free(remote_x);
 
     MontgomeryPoint *p = ecc_montgomery_multiply(remote_p, dh->private);
+
+    if (ecc_montgomery_is_identity(p)) {
+        ecc_montgomery_point_free(remote_p);
+        ecc_montgomery_point_free(p);
+        return NULL;
+    }
+
     mp_int *x;
     ecc_montgomery_get_affine(p, &x);
 

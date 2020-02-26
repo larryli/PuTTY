@@ -1360,6 +1360,46 @@ class crypt(MyTestBase):
             '7964541892e7511798e61dd78429358f4d6a887a50d2c5ebccf0e04f48fc665c'
         ))
 
+    def testMontgomeryKexLowOrderPoints(self):
+        # List of all the bad input values for Curve25519 which can
+        # end up generating a zero output key. You can find the first
+        # five (the ones in canonical representation, i.e. in
+        # [0,2^255-19)) by running
+        # find_montgomery_power2_order_x_values(curve25519.p, curve25519.a)
+        # and then encoding the results little-endian.
+        bad_keys_25519 = [
+            "0000000000000000000000000000000000000000000000000000000000000000",
+            "0100000000000000000000000000000000000000000000000000000000000000",
+            "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f1157",
+            "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b800",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+
+            # Input values less than 2^255 are reduced mod p, so those
+            # of the above values which are still in that range when
+            # you add 2^255-19 to them should also be caught.
+            "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+            "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
+
+            # Input values are reduced mod 2^255 before reducing mod
+            # p. So setting the high-order bit of any of the above 7
+            # values should also lead to rejection, because it will be
+            # stripped off and then the value will be recognised as
+            # one of the above.
+            "0000000000000000000000000000000000000000000000000000000000000080",
+            "0100000000000000000000000000000000000000000000000000000000000080",
+            "5f9c95bca3508c24b1d0b1559c83ef5b04445cc4581c8e86d8224eddd09f11d7",
+            "e0eb7a7c3b41b8ae1656e3faf19fc46ada098deb9c32b1fd866205165f49b880",
+            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        ]
+
+        with random_prng("doesn't matter"):
+            ecdh25519 = ssh_ecdhkex_newkey('curve25519')
+        for pub in bad_keys_25519:
+            key = ssh_ecdhkex_getkey(ecdh25519, unhex(pub))
+            self.assertEqual(key, None)
+
     def testPRNG(self):
         hashalg = 'sha256'
         seed = b"hello, world"
