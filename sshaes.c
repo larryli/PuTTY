@@ -85,7 +85,7 @@
  * vtables: one for the pure software implementation, one using
  * hardware acceleration (if available), and a top-level one which is
  * never actually instantiated, and only contains a new() method whose
- * job is to decide whihc of the other two to return an actual
+ * job is to decide which of the other two to return an actual
  * instance of.
  */
 
