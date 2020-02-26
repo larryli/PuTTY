@@ -316,9 +316,13 @@ class MontgomeryCurve(CurveBase):
             xdiff = x2-x1
             if xdiff != 0:
                 slope = (y2-y1) / xdiff
-            else:
+            elif y1 != 0:
                 assert y1 == y2
                 slope = (3*x1*x1 + 2*self.curve.a*x1 + 1) / (2*self.curve.b*y1)
+            else:
+                # If y1 was 0 as well, then we must have found an
+                # order-2 point that doubles to the identity.
+                return self.curve.point()
             xp = self.curve.b*slope*slope - self.curve.a - x1 - x2
             yp = -(y1 + slope * (xp-x1))
             return self.curve.point(xp, yp)
