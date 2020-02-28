@@ -833,6 +833,11 @@ void ecc_montgomery_get_affine(MontgomeryPoint *mp, mp_int **x)
         *x = monty_export(mc->mc, mp->X);
 }
 
+unsigned ecc_montgomery_is_identity(MontgomeryPoint *mp)
+{
+    return mp_eq_integer(mp->Z, 0);
+}
+
 /* ----------------------------------------------------------------------
  * Twisted Edwards curves.
  */

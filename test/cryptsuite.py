@@ -769,6 +769,12 @@ class ecc(MyTestBase):
         check_point(ecc_montgomery_double(mP), rP + rP)
         check_point(ecc_montgomery_double(mQ), rQ + rQ)
 
+        zero = ecc_montgomery_point_new(mc, 0)
+        self.assertEqual(ecc_montgomery_is_identity(zero), False)
+        identity = ecc_montgomery_double(zero)
+        ecc_montgomery_get_affine(identity)
+        self.assertEqual(ecc_montgomery_is_identity(identity), True)
+
     def testEdwardsSimple(self):
         p, d, a = 3141592661, 2688750488, 367934288
 
