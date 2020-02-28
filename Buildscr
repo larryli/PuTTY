@@ -144,7 +144,7 @@ delegate -
 in putty do ./mkauto.sh
 in putty do ./configure CC=clang CFLAGS="-fsanitize=address -fsanitize=leak"
 in putty do make -j$(nproc)
-in putty do python test/cryptsuite.py
+in putty do python3 test/cryptsuite.py
 enddelegate
 
 # Windowsify LICENCE, since it's going in the Windows installers.
