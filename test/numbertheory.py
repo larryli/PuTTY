@@ -1,6 +1,16 @@
 import numbers
 import itertools
 
+def invert(a, b):
+    "Multiplicative inverse of a mod b. a,b must be coprime."
+    A = (a, 1, 0)
+    B = (b, 0, 1)
+    while B[0]:
+        q = A[0] // B[0]
+        A, B = B, tuple(Ai - q*Bi for Ai, Bi in zip(A, B))
+    assert abs(A[0]) == 1
+    return A[1]*A[0] % b
+
 def jacobi(n,m):
     """Compute the Jacobi symbol.
 
@@ -103,18 +113,6 @@ class ModP(object):
         else:
             self.check(other)
         return other
-    def invert(self):
-        "Internal routine which returns the bare inverse."
-        if self.n % self.p == 0:
-            raise ZeroDivisionError("division by {!r}".format(self))
-        a = self.n, 1, 0
-        b = self.p, 0, 1
-        while b[0]:
-            q = a[0] // b[0]
-            a = a[0] - q*b[0], a[1] - q*b[1], a[2] - q*b[2]
-            b, a = a, b
-        assert abs(a[0]) == 1
-        return a[1]*a[0]
     def __int__(self):
         return self.n
     def __add__(self, rhs):
@@ -139,10 +137,10 @@ class ModP(object):
         return type(self)(self.p, (self.n * rhs.n) % self.p)
     def __div__(self, rhs):
         rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (self.n * rhs.invert()) % self.p)
+        return type(self)(self.p, (self.n * invert(rhs.n, self.p)) % self.p)
     def __rdiv__(self, rhs):
         rhs = self.coerce_to(rhs)
-        return type(self)(self.p, (rhs.n * self.invert()) % self.p)
+        return type(self)(self.p, (rhs.n * invert(self.n, self.p)) % self.p)
     def __truediv__(self, rhs): return self.__div__(rhs)
     def __rtruediv__(self, rhs): return self.__rdiv__(rhs)
     def __pow__(self, exponent):
