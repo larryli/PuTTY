@@ -211,6 +211,96 @@ class TwistedEdwardsCurve(CurveBase):
         return "{}(0x{:x}, {}, {})".format(
             type(self).__name__, self.p, self.d, self.a)
 
+def find_montgomery_power2_order_x_values(p, a):
+    # Find points on a Montgomery elliptic curve that have order a
+    # power of 2.
+    #
+    # Motivation: both Curve25519 and Curve448 are abelian groups
+    # whose overall order is a large prime times a small factor of 2.
+    # The approved base point of each curve generates a cyclic
+    # subgroup whose order is the large prime. Outside that cyclic
+    # subgroup there are many other points that have large prime
+    # order, plus just a handful that have tiny order. If one of the
+    # latter is presented to you as a Diffie-Hellman public value,
+    # nothing useful is going to happen, and RFC 7748 says we should
+    # outlaw those values. And any actual attempt to outlaw them is
+    # going to need to know what they are, either to check for each
+    # one directly, or to use them as test cases for some other
+    # approach.
+    #
+    # In a group of order p 2^k, an obvious way to search for points
+    # with order dividing 2^k is to generate random group elements and
+    # raise them to the power p. That guarantees that you end up with
+    # _something_ with order dividing 2^k (even if it's boringly the
+    # identity). And you also know from theory how many such points
+    # you expect to exist, so you can count the distinct ones you've
+    # found, and stop once you've got the right number.
+    #
+    # But that isn't actually good enough to find all the public
+    # values that are problematic! The reason why not is that in
+    # Montgomery key exchange we don't actually use a full elliptic
+    # curve point: we only use its x-coordinate. And the formulae for
+    # doubling and differential addition on x-coordinates can accept
+    # some values that don't correspond to group elements _at all_
+    # without detecting any error - and some of those nonsense x
+    # coordinates can also behave like low-order points.
+    #
+    # (For example, the x-coordinate -1 in Curve25519 is such a value.
+    # The reference ECC code in this module will raise an exception if
+    # you call curve25519.cpoint(-1): it corresponds to no valid point
+    # at all. But if you feed it into the doubling formula _anyway_,
+    # it doubles to the valid curve point with x-coord 0, which in
+    # turn doubles to the curve identity. Bang.)
+    #
+    # So we use an alternative approach which discards the group
+    # theory of the actual elliptic curve, and focuses purely on the
+    # doubling formula as an algebraic transformation on Z_p. Our
+    # question is: what values of x have the property that if you
+    # iterate the doubling map you eventually end up dividing by zero?
+    # To answer that, we must solve cubics and quartics mod p, via the
+    # code in numbertheory.py for doing so.
+
+    E = EquationSolverModP(p)
+
+    def viableSolutions(it):
+        for x in it:
+            try:
+                yield int(x)
+            except ValueError:
+                pass # some field-extension element that isn't a real value
+
+    def valuesDoublingTo(y):
+        # The doubling formula for a Montgomery curve point given only
+        # by x coordinate is (x+1)^2(x-1)^2 / (4(x^3+ax^2+x)).
+        #
+        # If we want to find a point that doubles to some particular
+        # value, we can set that formula equal to y and expand to get the
+        # quartic equation x^4 + (-4y)x^3 + (-4ay-2)x^2 + (-4y)x + 1 = 0.
+        return viableSolutions(E.solve_monic_quartic(-4*y, -4*a*y-2, -4*y, 1))
+
+    queue = []
+    qset = set()
+    pos = 0
+    def insert(x):
+        if x not in qset:
+            queue.append(x)
+            qset.add(x)
+
+    # Our ultimate aim is to find points that end up going to the
+    # curve identity / point at infinity after some number of
+    # doublings. So our starting point is: what values of x make the
+    # denominator of the doubling formula zero?
+    for x in viableSolutions(E.solve_monic_cubic(a, 1, 0)):
+        insert(x)
+
+    while pos < len(queue):
+        y = queue[pos]
+        pos += 1
+        for x in valuesDoublingTo(y):
+            insert(x)
+
+    return queue
+
 p256 = WeierstrassCurve(0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff, -3, 0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b)
 p256.G = p256.point(0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296,0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5)
 p256.G_order = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
