@@ -111,9 +111,9 @@ class WeierstrassCurve(CurveBase):
 
     def cpoint(self, x, yparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(2, self.p)
         rhs = x**3 + self.a.n * x + self.b.n
-        y = self.sqrtmodp.sqrt(rhs)
+        y = self.sqrtmodp.root(rhs)
         if (y - yparity) % 2:
             y = -y
         return self.point(x, y)
@@ -157,9 +157,9 @@ class MontgomeryCurve(CurveBase):
 
     def cpoint(self, x, yparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(2, self.p)
         rhs = (x**3 + self.a.n * x**2 + x) / self.b
-        y = self.sqrtmodp.sqrt(int(rhs))
+        y = self.sqrtmodp.root(int(rhs))
         if (y - yparity) % 2:
             y = -y
         return self.point(x, y)
@@ -198,11 +198,11 @@ class TwistedEdwardsCurve(CurveBase):
 
     def cpoint(self, y, xparity=0):
         if not hasattr(self, 'sqrtmodp'):
-            self.sqrtmodp = SqrtModP(self.p)
+            self.sqrtmodp = RootModP(self.p)
         y = ModP(self.p, y)
         y2 = y**2
         radicand = (y2 - 1) / (self.d * y2 - self.a)
-        x = self.sqrtmodp.sqrt(radicand.n)
+        x = self.sqrtmodp.root(radicand.n)
         if (x - xparity) % 2:
             x = -x
         return self.point(x, y)
