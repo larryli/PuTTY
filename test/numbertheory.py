@@ -177,3 +177,5 @@ class ModP(object):
         return "0x{:x}".format(self.n)
     def __repr__(self):
         return "{}(0x{:x},0x{:x})".format(type(self).__name__, self.p, self.n)
+    def __hash__(self):
+        return hash((type(self).__name__, self.p, self.n))
