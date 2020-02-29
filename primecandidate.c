@@ -15,7 +15,7 @@ struct avoid {
 
 struct PrimeCandidateSource {
     unsigned bits;
-    bool ready;
+    bool ready, try_sophie_germain;
 
     /* We'll start by making up a random number strictly less than this ... */
     mp_int *limit;
@@ -47,6 +47,7 @@ PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
 
     s->bits = bits;
     s->ready = false;
+    s->try_sophie_germain = false;
 
     s->kps = NULL;
     s->nkps = s->kpsize = 0;
@@ -95,6 +96,11 @@ void pcs_free(PrimeCandidateSource *s)
     sfree(s->avoids);
     sfree(s->kps);
     sfree(s);
+}
+
+void pcs_try_sophie_germain(PrimeCandidateSource *s)
+{
+    s->try_sophie_germain = true;
 }
 
 static void pcs_require_residue_inner(PrimeCandidateSource *s,
@@ -269,6 +275,29 @@ void pcs_ready(PrimeCandidateSource *s)
      */
     for (size_t i = 0; i < NSMALLPRIMES && smallprimes[i] < limit; i++)
         ADD_AVOID(smallprimes[i], 0);
+
+    if (s->try_sophie_germain) {
+        /*
+         * If we're aiming to generate a Sophie Germain prime (i.e. p
+         * such that 2p+1 is also prime), then we also want to ensure
+         * 2p+1 is not congruent to 0 mod any small prime, because if
+         * it is, we'll waste a lot of time generating a p for which
+         * 2p+1 can't possibly work. So we have to avoid an extra
+         * residue mod each odd q.
+         *
+         * We can simplify:        2p+1 ==  0      (mod q)
+         *                    =>     2p == -1      (mod q)
+         *                    =>      p == -2^{-1} (mod q)
+         *
+         * There's no need to do Euclid's algorithm to compute those
+         * inverses, because for any odd q, the modular inverse of -2
+         * mod q is just (q-1)/2. (Proof: multiplying it by -2 gives
+         * 1-q, which is congruent to 1 mod q.)
+         */
+        for (size_t i = 0; i < NSMALLPRIMES && smallprimes[i] < limit; i++)
+            if (smallprimes[i] != 2)
+                ADD_AVOID(smallprimes[i], (smallprimes[i] - 1) / 2);
+    }
 
     /*
      * Finally, if there's a particular modulus and residue we've been

@@ -51,6 +51,9 @@ void pcs_require_residue_1_mod_prime(PrimeCandidateSource *s, mp_int *mod);
 void pcs_avoid_residue_small(PrimeCandidateSource *s,
                              unsigned mod, unsigned res);
 
+/* Exclude any prime that has no chance of being a Sophie Germain prime. */
+void pcs_try_sophie_germain(PrimeCandidateSource *s);
+
 /* Prepare a PrimeCandidateSource to actually generate numbers. This
  * function does last-minute computation that has to be delayed until
  * all constraints have been input. */
