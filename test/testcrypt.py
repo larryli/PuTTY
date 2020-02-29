@@ -69,8 +69,11 @@ class ChildProcess(object):
         if self.debug is not None:
             self.debug.write("recv: {}\n".format(line))
         return line
+    def already_terminated(self):
+        return self.sp is None and self.exitstatus is not None
     def funcall(self, cmd, args):
         if self.sp is None:
+            assert self.exitstatus is None
             self.start()
         self.write_line(unicode_to_bytes(cmd) + b" " + b" ".join(
             unicode_to_bytes(arg) for arg in args))
@@ -117,7 +120,7 @@ class Value(object):
     def __repr__(self):
         return "Value({!r}, {!r})".format(self._typename, self._ident)
     def __del__(self):
-        if self._ident is not None:
+        if self._ident is not None and not childprocess.already_terminated():
             try:
                 childprocess.funcall("free", [self._ident])
             except ChildProcessFailure:
