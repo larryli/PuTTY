@@ -213,6 +213,35 @@ static struct ec_curve *ec_curve25519(void)
     return &curve;
 }
 
+static struct ec_curve *ec_curve448(void)
+{
+    static struct ec_curve curve = { 0 };
+    static bool initialised = false;
+
+    if (!initialised)
+    {
+        mp_int *p = MP_LITERAL(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+        mp_int *a = MP_LITERAL(0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000262a6);
+        mp_int *b = MP_LITERAL(0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001);
+        mp_int *G_x = MP_LITERAL(0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000005);
+        initialise_mcurve(&curve, p, a, b, G_x, 2);
+        mp_free(p);
+        mp_free(a);
+        mp_free(b);
+        mp_free(G_x);
+
+        /* This curve doesn't need a name, because it's never used in
+         * any format that embeds the curve name */
+        curve.name = NULL;
+        curve.textname = "Curve448";
+
+        /* Now initialised, no need to do it again */
+        initialised = true;
+    }
+
+    return &curve;
+}
+
 static struct ec_curve *ec_ed25519(void)
 {
     static struct ec_curve curve = { 0 };
@@ -1492,6 +1521,18 @@ const ssh_kex ssh_ec_kex_curve25519_libssh = {
     &ssh_sha256, &kex_extra_curve25519,
 };
 
+static const struct eckex_extra kex_extra_curve448 = {
+    ec_curve448,
+    ssh_ecdhkex_m_setup,
+    ssh_ecdhkex_m_cleanup,
+    ssh_ecdhkex_m_getpublic,
+    ssh_ecdhkex_m_getkey,
+};
+const ssh_kex ssh_ec_kex_curve448 = {
+    "curve448-sha512", NULL, KEXTYPE_ECDH,
+    &ssh_sha512, &kex_extra_curve448,
+};
+
 static const struct eckex_extra kex_extra_nistp256 = {
     ec_p256,
     ssh_ecdhkex_w_setup,
@@ -1529,6 +1570,7 @@ const ssh_kex ssh_ec_kex_nistp521 = {
 };
 
 static const ssh_kex *const ec_kex_list[] = {
+    &ssh_ec_kex_curve448,
     &ssh_ec_kex_curve25519,
     &ssh_ec_kex_curve25519_libssh,
     &ssh_ec_kex_nistp256,

@@ -340,6 +340,7 @@ static const ssh_kex *get_ecdh_alg(BinarySource *in)
         const ssh_kex *value;
     } algs[] = {
         {"curve25519", &ssh_ec_kex_curve25519},
+        {"curve448", &ssh_ec_kex_curve448},
         {"nistp256", &ssh_ec_kex_nistp256},
         {"nistp384", &ssh_ec_kex_nistp384},
         {"nistp521", &ssh_ec_kex_nistp521},

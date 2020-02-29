@@ -981,6 +981,7 @@ extern const ssh_kexes ssh_diffiehellman_gex;
 extern const ssh_kexes ssh_gssk5_sha1_kex;
 extern const ssh_kexes ssh_rsa_kex;
 extern const ssh_kex ssh_ec_kex_curve25519;
+extern const ssh_kex ssh_ec_kex_curve448;
 extern const ssh_kex ssh_ec_kex_nistp256;
 extern const ssh_kex ssh_ec_kex_nistp384;
 extern const ssh_kex ssh_ec_kex_nistp521;
