@@ -260,12 +260,13 @@ FUNC3(val_string, rsa1_save_sb, val_rsa, opt_val_string_asciz, opt_val_string_as
 /*
  * Key generation functions.
  */
-FUNC1(val_key, rsa_generate, uint)
-FUNC1(val_key, dsa_generate, uint)
+FUNC2(val_key, rsa_generate, uint, val_pgc)
+FUNC2(val_key, dsa_generate, uint, val_pgc)
 FUNC1(opt_val_key, ecdsa_generate, uint)
 FUNC1(opt_val_key, eddsa_generate, uint)
-FUNC1(val_rsa, rsa1_generate, uint)
-FUNC1(val_mpint, primegen, val_pcs)
+FUNC2(val_rsa, rsa1_generate, uint, val_pgc)
+FUNC1(val_pgc, primegen_new_context, primegenpolicy)
+FUNC2(opt_val_mpint, primegen_generate, val_pgc, consumed_val_pcs)
 FUNC1(val_pcs, pcs_new, uint)
 FUNC3(val_pcs, pcs_new_with_firstbits, uint, uint, uint)
 FUNC3(void, pcs_require_residue, val_pcs, val_mpint, val_mpint)

@@ -148,18 +148,48 @@ double estimate_modexp_cost(unsigned bits);
  * The top-level API for generating primes.
  */
 
-/* This function consumes and frees the PrimeCandidateSource you give it */
-mp_int *primegen(PrimeCandidateSource *pcs, ProgressReceiver *prog);
+typedef struct PrimeGenerationPolicy PrimeGenerationPolicy;
+typedef struct PrimeGenerationContext PrimeGenerationContext;
 
-/* Estimate how long it will take, and add a phase to a ProgressReceiver */
-ProgressPhase primegen_add_progress_phase(ProgressReceiver *prog,
-                                          unsigned bits);
+struct PrimeGenerationContext {
+    const PrimeGenerationPolicy *vt;
+};
+
+struct PrimeGenerationPolicy {
+    ProgressPhase (*add_progress_phase)(const PrimeGenerationPolicy *policy,
+                                        ProgressReceiver *prog, unsigned bits);
+    PrimeGenerationContext *(*new_context)(
+        const PrimeGenerationPolicy *policy);
+    void (*free_context)(PrimeGenerationContext *ctx);
+    mp_int *(*generate)(
+        PrimeGenerationContext *ctx,
+        PrimeCandidateSource *pcs, ProgressReceiver *prog);
+
+    const void *extra; /* additional data a particular impl might need */
+};
+
+static inline ProgressPhase primegen_add_progress_phase(
+    PrimeGenerationContext *ctx, ProgressReceiver *prog, unsigned bits)
+{ return ctx->vt->add_progress_phase(ctx->vt, prog, bits); }
+static inline PrimeGenerationContext *primegen_new_context(
+    const PrimeGenerationPolicy *policy)
+{ return policy->new_context(policy); }
+static inline void primegen_free_context(PrimeGenerationContext *ctx)
+{ ctx->vt->free_context(ctx); }
+static inline mp_int *primegen_generate(
+    PrimeGenerationContext *ctx,
+    PrimeCandidateSource *pcs, ProgressReceiver *prog)
+{ return ctx->vt->generate(ctx, pcs, prog); }
+
+extern const PrimeGenerationPolicy primegen_probabilistic;
 
 /* ----------------------------------------------------------------------
  * The overall top-level API for generating entire key pairs.
  */
 
-int rsa_generate(RSAKey *key, int bits, ProgressReceiver *prog);
-int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog);
+int rsa_generate(RSAKey *key, int bits, PrimeGenerationContext *pgc,
+                 ProgressReceiver *prog);
+int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
+                 ProgressReceiver *prog);
 int ecdsa_generate(struct ecdsa_key *key, int bits);
 int eddsa_generate(struct eddsa_key *key, int bits);

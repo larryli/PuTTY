@@ -95,6 +95,7 @@ uint64_t prng_reseed_time_ms(void)
     X(prng, prng *, prng_free(v))                                       \
     X(keycomponents, key_components *, key_components_free(v))          \
     X(pcs, PrimeCandidateSource *, pcs_free(v))                         \
+    X(pgc, PrimeGenerationContext *, primegen_free_context(v))          \
     /* end of list */
 
 typedef struct Value Value;
@@ -112,6 +113,12 @@ static const char *const type_names[] = {
     VALUE_TYPES(VALTYPE_NAME)
 #undef VALTYPE_NAME
 };
+
+#define VALTYPE_TYPEDEF(n,t,f)                  \
+    typedef t TD_val_##n;                       \
+    typedef t *TD_out_val_##n;
+VALUE_TYPES(VALTYPE_TYPEDEF)
+#undef VALTYPE_TYPEDEF
 
 struct Value {
     /*
@@ -363,6 +370,23 @@ static RsaSsh1Order get_rsaorder(BinarySource *in)
     fatal_error("rsaorder '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
+static const PrimeGenerationPolicy *get_primegenpolicy(BinarySource *in)
+{
+    static const struct {
+        const char *key;
+        const PrimeGenerationPolicy *value;
+    } algs[] = {
+        {"probabilistic", &primegen_probabilistic},
+    };
+
+    ptrlen name = get_word(in);
+    for (size_t i = 0; i < lenof(algs); i++)
+        if (ptrlen_eq_string(name, algs[i].key))
+            return algs[i].value;
+
+    fatal_error("primegenpolicy '%.*s': not found", PTRLEN_PRINTF(name));
+}
+
 static uintmax_t get_uint(BinarySource *in)
 {
     ptrlen word = get_word(in);
@@ -536,14 +560,18 @@ static BinarySource *get_val_string_binarysource(BinarySource *in)
     return src;
 }
 
-static ssh_hash *get_consumed_val_hash(BinarySource *in)
-{
-    Value *val = get_value_hash(in);
-    ssh_hash *toret = val->vu_hash;
-    del234(values, val);
-    sfree(val);
-    return toret;
-}
+#define GET_CONSUMED_FN(type)                                           \
+    typedef TD_val_##type TD_consumed_val_##type;                       \
+    static TD_val_##type get_consumed_val_##type(BinarySource *in)      \
+    {                                                                   \
+        Value *val = get_value_##type(in);                              \
+        TD_val_##type toret = val->vu_##type;                           \
+        del234(values, val);                                            \
+        sfree(val);                                                     \
+        return toret;                                                   \
+    }
+GET_CONSUMED_FN(hash)
+GET_CONSUMED_FN(pcs)
 
 static void return_int(strbuf *out, intmax_t u)
 {
@@ -1049,30 +1077,31 @@ strbuf *rsa1_save_sb_wrapper(RSAKey *key, const char *comment,
 
 static ProgressReceiver null_progress = { .vt = &null_progress_vt };
 
-mp_int *primegen_wrapper(PrimeCandidateSource *pcs)
+mp_int *primegen_generate_wrapper(
+    PrimeGenerationContext *ctx, PrimeCandidateSource *pcs)
 {
-    return primegen(pcs, &null_progress);
+    return primegen_generate(ctx, pcs, &null_progress);
 }
-#define primegen primegen_wrapper
+#define primegen_generate primegen_generate_wrapper
 
-RSAKey *rsa1_generate(int bits)
+RSAKey *rsa1_generate(int bits, PrimeGenerationContext *pgc)
 {
     RSAKey *rsakey = snew(RSAKey);
-    rsa_generate(rsakey, bits, &null_progress);
+    rsa_generate(rsakey, bits, pgc, &null_progress);
     rsakey->comment = NULL;
     return rsakey;
 }
 
-ssh_key *rsa_generate_wrapper(int bits)
+ssh_key *rsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
 {
-    return &rsa1_generate(bits)->sshk;
+    return &rsa1_generate(bits, pgc)->sshk;
 }
 #define rsa_generate rsa_generate_wrapper
 
-ssh_key *dsa_generate_wrapper(int bits)
+ssh_key *dsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
 {
     struct dss_key *dsskey = snew(struct dss_key);
-    dsa_generate(dsskey, bits, &null_progress);
+    dsa_generate(dsskey, bits, pgc, &null_progress);
     return &dsskey->sshk;
 }
 #define dsa_generate dsa_generate_wrapper
@@ -1118,12 +1147,6 @@ mp_int *key_components_nth_mp(key_components *kc, size_t n)
             mp_copy(kc->components[n].mp));
 }
 
-#define VALTYPE_TYPEDEF(n,t,f)                  \
-    typedef t TD_val_##n;                       \
-    typedef t *TD_out_val_##n;
-VALUE_TYPES(VALTYPE_TYPEDEF)
-#undef VALTYPE_TYPEDEF
-
 #define OPTIONAL_PTR_FUNC(type)                                         \
     typedef TD_val_##type TD_opt_val_##type;                            \
     static TD_opt_val_##type get_opt_val_##type(BinarySource *in) {     \
@@ -1155,6 +1178,7 @@ typedef const ssh_kex *TD_dh_group;
 typedef const ssh_kex *TD_ecdh_alg;
 typedef RsaSsh1Order TD_rsaorder;
 typedef key_components *TD_keycomponents;
+typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \

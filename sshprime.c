@@ -10,9 +10,8 @@
 #include "mpunsafe.h"
 #include "sshkeygen.h"
 
-/*
- * This prime generation algorithm is pretty much cribbed from
- * OpenSSL. The algorithm is:
+/* ----------------------------------------------------------------------
+ * Standard probabilistic prime-generation algorithm:
  *
  *  - invent a B-bit random number and ensure the top and bottom
  *    bits are set (so it's definitely B-bit, and it's definitely
@@ -28,8 +27,22 @@
  *  - go back to square one if any M-R test fails.
  */
 
-ProgressPhase primegen_add_progress_phase(ProgressReceiver *prog,
-                                          unsigned bits)
+static PrimeGenerationContext *probprime_new_context(
+    const PrimeGenerationPolicy *policy)
+{
+    PrimeGenerationContext *ctx = snew(PrimeGenerationContext);
+    ctx->vt = policy;
+    return ctx;
+}
+
+static void probprime_free_context(PrimeGenerationContext *ctx)
+{
+    sfree(ctx);
+}
+
+static ProgressPhase probprime_add_progress_phase(
+    const PrimeGenerationPolicy *policy,
+    ProgressReceiver *prog, unsigned bits)
 {
     /*
      * The density of primes near x is 1/(log x). When x is about 2^b,
@@ -56,7 +69,9 @@ ProgressPhase primegen_add_progress_phase(ProgressReceiver *prog,
     return progress_add_probabilistic(prog, cost, prob);
 }
 
-mp_int *primegen(PrimeCandidateSource *pcs, ProgressReceiver *prog)
+static mp_int *probprime_generate(
+    PrimeGenerationContext *ctx,
+    PrimeCandidateSource *pcs, ProgressReceiver *prog)
 {
     pcs_ready(pcs);
 
@@ -88,6 +103,12 @@ mp_int *primegen(PrimeCandidateSource *pcs, ProgressReceiver *prog)
     }
 }
 
+const PrimeGenerationPolicy primegen_probabilistic = {
+    probprime_add_progress_phase,
+    probprime_new_context,
+    probprime_free_context,
+    probprime_generate,
+};
 
 /* ----------------------------------------------------------------------
  * Reusable null implementation of the progress-reporting API.

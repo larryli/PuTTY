@@ -386,14 +386,19 @@ static DWORD WINAPI generate_key_thread(void *param)
 
     win_progress_initialise(&prog);
 
+    PrimeGenerationContext *pgc = primegen_new_context(
+        &primegen_probabilistic);
+
     if (params->keytype == DSA)
-        dsa_generate(params->dsskey, params->key_bits, &prog.rec);
+        dsa_generate(params->dsskey, params->key_bits, pgc, &prog.rec);
     else if (params->keytype == ECDSA)
         ecdsa_generate(params->eckey, params->curve_bits);
     else if (params->keytype == ED25519)
         eddsa_generate(params->edkey, 255);
     else
-        rsa_generate(params->key, params->key_bits, &prog.rec);
+        rsa_generate(params->key, params->key_bits, pgc, &prog.rec);
+
+    primegen_free_context(pgc);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 

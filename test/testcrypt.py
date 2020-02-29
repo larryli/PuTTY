@@ -177,7 +177,7 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
         return "0x{:x}".format(arg)
     if typename in {
             "hashalg", "macalg", "keyalg", "cipheralg",
-            "dh_group", "ecdh_alg", "rsaorder"}:
+            "dh_group", "ecdh_alg", "rsaorder", "primegenpolicy"}:
         arg = unicode_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
             return arg

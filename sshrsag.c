@@ -14,10 +14,9 @@
 static void invent_firstbits(unsigned *one, unsigned *two,
                              unsigned min_separation);
 
-int rsa_generate(RSAKey *key, int bits, ProgressReceiver *prog)
+int rsa_generate(RSAKey *key, int bits, PrimeGenerationContext *pgc,
+                 ProgressReceiver *prog)
 {
-    unsigned pfirst, qfirst;
-
     key->sshk.vt = &ssh_rsa;
 
     /*
@@ -38,27 +37,29 @@ int rsa_generate(RSAKey *key, int bits, ProgressReceiver *prog)
      * more so than an attacker guessing a whole 256-bit session key -
      * but it doesn't cost much to make sure.)
      */
-    invent_firstbits(&pfirst, &qfirst, 2);
     int qbits = bits / 2;
     int pbits = bits - qbits;
     assert(pbits >= qbits);
 
-    ProgressPhase phase_p = primegen_add_progress_phase(prog, pbits);
-    ProgressPhase phase_q = primegen_add_progress_phase(prog, qbits);
+    ProgressPhase phase_p = primegen_add_progress_phase(pgc, prog, pbits);
+    ProgressPhase phase_q = primegen_add_progress_phase(pgc, prog, qbits);
     progress_ready(prog);
+
+    unsigned pfirst, qfirst;
+    invent_firstbits(&pfirst, &qfirst, 2);
 
     PrimeCandidateSource *pcs;
 
     progress_start_phase(prog, phase_p);
     pcs = pcs_new_with_firstbits(pbits, pfirst, NFIRSTBITS);
     pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
-    mp_int *p = primegen(pcs, prog);
+    mp_int *p = primegen_generate(pgc, pcs, prog);
     progress_report_phase_complete(prog);
 
     progress_start_phase(prog, phase_q);
     pcs = pcs_new_with_firstbits(qbits, qfirst, NFIRSTBITS);
     pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
-    mp_int *q = primegen(pcs, prog);
+    mp_int *q = primegen_generate(pgc, pcs, prog);
     progress_report_phase_complete(prog);
 
     /*

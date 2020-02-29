@@ -7,7 +7,8 @@
 #include "sshkeygen.h"
 #include "mpint.h"
 
-int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
+int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
+                 ProgressReceiver *prog)
 {
     /*
      * Progress-reporting setup.
@@ -26,8 +27,8 @@ int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
      * (So the probability of success will end up indistinguishable
      * from 1 in IEEE standard floating point! But what can you do.)
      */
-    ProgressPhase phase_q = primegen_add_progress_phase(prog, 160);
-    ProgressPhase phase_p = primegen_add_progress_phase(prog, bits);
+    ProgressPhase phase_q = primegen_add_progress_phase(pgc, prog, 160);
+    ProgressPhase phase_p = primegen_add_progress_phase(pgc, prog, bits);
     double g_failure_probability = 1.0
         / (double)(1ULL << 53)
         / (double)(1ULL << 53)
@@ -43,7 +44,7 @@ int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
      */
     progress_start_phase(prog, phase_q);
     pcs = pcs_new(160);
-    mp_int *q = primegen(pcs, prog);
+    mp_int *q = primegen_generate(pgc, pcs, prog);
     progress_report_phase_complete(prog);
 
     /*
@@ -53,7 +54,7 @@ int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
     progress_start_phase(prog, phase_p);
     pcs = pcs_new(bits);
     pcs_require_residue_1(pcs, q);
-    mp_int *p = primegen(pcs, prog);
+    mp_int *p = primegen_generate(pgc, pcs, prog);
     progress_report_phase_complete(prog);
 
     /*

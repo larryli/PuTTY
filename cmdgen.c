@@ -668,9 +668,12 @@ int main(int argc, char **argv)
         smemclr(entropy, bits/8);
         sfree(entropy);
 
+        PrimeGenerationContext *pgc = primegen_new_context(
+            &primegen_probabilistic);
+
         if (keytype == DSA) {
             struct dss_key *dsskey = snew(struct dss_key);
-            dsa_generate(dsskey, bits, &cmdgen_progress);
+            dsa_generate(dsskey, bits, pgc, &cmdgen_progress);
             ssh2key = snew(ssh2_userkey);
             ssh2key->key = &dsskey->sshk;
             ssh1key = NULL;
@@ -688,7 +691,7 @@ int main(int argc, char **argv)
             ssh1key = NULL;
         } else {
             RSAKey *rsakey = snew(RSAKey);
-            rsa_generate(rsakey, bits, &cmdgen_progress);
+            rsa_generate(rsakey, bits, pgc, &cmdgen_progress);
             rsakey->comment = NULL;
             if (keytype == RSA1) {
                 ssh1key = rsakey;
@@ -697,6 +700,8 @@ int main(int argc, char **argv)
                 ssh2key->key = &rsakey->sshk;
             }
         }
+
+        primegen_free_context(pgc);
 
         if (ssh2key)
             ssh2key->comment = dupstr(default_comment);

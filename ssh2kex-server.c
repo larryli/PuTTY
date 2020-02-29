@@ -97,9 +97,13 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * group! It's good enough for testing a client against,
              * but not for serious use.
              */
+            PrimeGenerationContext *pgc = primegen_new_context(
+                &primegen_probabilistic);
             ProgressReceiver null_progress;
             null_progress.vt = &null_progress_vt;
-            s->p = primegen(pcs_new(s->pbits), &null_progress);
+            s->p = primegen_generate(pgc, pcs_new(s->pbits), &null_progress);
+            primegen_free_context(pgc);
+
             s->g = mp_from_integer(2);
             s->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
@@ -261,9 +265,14 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ppl_logevent("Generating a %d-bit RSA key", extra->minklen);
 
             s->rsa_kex_key = snew(RSAKey);
+
+            PrimeGenerationContext *pgc = primegen_new_context(
+                &primegen_probabilistic);
             ProgressReceiver null_progress;
             null_progress.vt = &null_progress_vt;
-            rsa_generate(s->rsa_kex_key, extra->minklen, &null_progress);
+            rsa_generate(s->rsa_kex_key, extra->minklen, pgc, &null_progress);
+            primegen_free_context(pgc);
+
             s->rsa_kex_key->comment = NULL;
             s->rsa_kex_key_needs_freeing = true;
         }

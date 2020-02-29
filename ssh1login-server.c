@@ -140,9 +140,14 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
         if (server_key_bits < 512)
             server_key_bits = s->hostkey->bytes + 256;
         s->servkey = snew(RSAKey);
+
+        PrimeGenerationContext *pgc = primegen_new_context(
+            &primegen_probabilistic);
         ProgressReceiver null_progress;
         null_progress.vt = &null_progress_vt;
-        rsa_generate(s->servkey, server_key_bits, &null_progress);
+        rsa_generate(s->servkey, server_key_bits, pgc, &null_progress);
+        primegen_free_context(pgc);
+
         s->servkey->comment = NULL;
         s->servkey_generated_here = true;
     }
