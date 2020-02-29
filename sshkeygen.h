@@ -54,6 +54,10 @@ void pcs_avoid_residue_small(PrimeCandidateSource *s,
 /* Exclude any prime that has no chance of being a Sophie Germain prime. */
 void pcs_try_sophie_germain(PrimeCandidateSource *s);
 
+/* Mark a PrimeCandidateSource as one-shot, so that the prime generation
+ * function will return NULL if an attempt fails, rather than looping. */
+void pcs_set_oneshot(PrimeCandidateSource *s);
+
 /* Prepare a PrimeCandidateSource to actually generate numbers. This
  * function does last-minute computation that has to be delayed until
  * all constraints have been input. */

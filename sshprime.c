@@ -75,6 +75,10 @@ static mp_int *probprime_generate(
         progress_report_attempt(prog);
 
         mp_int *p = pcs_generate(pcs);
+        if (!p) {
+            pcs_free(pcs);
+            return NULL;
+        }
 
         MillerRabin *mr = miller_rabin_new(p);
         bool known_bad = false;
@@ -259,6 +263,10 @@ static mp_int *primegen_small(Pockle *pockle, PrimeCandidateSource *pcs)
 
     while (true) {
         mp_int *p = pcs_generate(pcs);
+        if (!p) {
+            pcs_free(pcs);
+            return NULL;
+        }
         if (pockle_add_small_prime(pockle, p) == POCKLE_OK) {
             pcs_free(pcs);
             return p;
@@ -627,6 +635,10 @@ static mp_int *provableprime_generate_inner(
 
     while (true) {
         mp_int *p = pcs_generate(pcs);
+        if (!p) {
+            pcs_free(pcs);
+            return NULL;
+        }
 
         debug_f_mp("provable_step p=", p);
 

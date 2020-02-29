@@ -16,6 +16,7 @@ struct avoid {
 struct PrimeCandidateSource {
     unsigned bits;
     bool ready, try_sophie_germain;
+    bool one_shot, thrown_away_my_shot;
 
     /* We'll start by making up a random number strictly less than this ... */
     mp_int *limit;
@@ -48,6 +49,8 @@ PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
     s->bits = bits;
     s->ready = false;
     s->try_sophie_germain = false;
+    s->one_shot = false;
+    s->thrown_away_my_shot = false;
 
     s->kps = NULL;
     s->nkps = s->kpsize = 0;
@@ -101,6 +104,11 @@ void pcs_free(PrimeCandidateSource *s)
 void pcs_try_sophie_germain(PrimeCandidateSource *s)
 {
     s->try_sophie_germain = true;
+}
+
+void pcs_set_oneshot(PrimeCandidateSource *s)
+{
+    s->one_shot = true;
 }
 
 static void pcs_require_residue_inner(PrimeCandidateSource *s,
@@ -360,6 +368,11 @@ void pcs_ready(PrimeCandidateSource *s)
 mp_int *pcs_generate(PrimeCandidateSource *s)
 {
     assert(s->ready);
+    if (s->one_shot) {
+        if (s->thrown_away_my_shot)
+            return NULL;
+        s->thrown_away_my_shot = true;
+    }
 
     while (true) {
         mp_int *x = mp_random_upto(s->limit);
