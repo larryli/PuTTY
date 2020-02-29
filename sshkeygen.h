@@ -70,6 +70,8 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
 
 /* Query functions for primegen to use */
 unsigned pcs_get_bits(PrimeCandidateSource *pcs);
+unsigned pcs_get_bits_remaining(PrimeCandidateSource *pcs);
+mp_int *pcs_get_upper_bound(PrimeCandidateSource *pcs);
 mp_int **pcs_get_known_prime_factors(PrimeCandidateSource *pcs, size_t *nout);
 
 /* ----------------------------------------------------------------------

@@ -381,6 +381,21 @@ unsigned pcs_get_bits(PrimeCandidateSource *pcs)
     return pcs->bits;
 }
 
+unsigned pcs_get_bits_remaining(PrimeCandidateSource *pcs)
+{
+    return mp_get_nbits(pcs->limit);
+}
+
+mp_int *pcs_get_upper_bound(PrimeCandidateSource *pcs)
+{
+    /* Compute (limit-1) * factor + addend */
+    mp_int *tmp = mp_mul(pcs->limit, pcs->factor);
+    mp_int *bound = mp_add(tmp, pcs->addend);
+    mp_free(tmp);
+    mp_sub_into(bound, bound, pcs->factor);
+    return bound;
+}
+
 mp_int **pcs_get_known_prime_factors(PrimeCandidateSource *pcs, size_t *nout)
 {
     *nout = pcs->nkps;
