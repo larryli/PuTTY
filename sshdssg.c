@@ -53,7 +53,7 @@ int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
      */
     progress_start_phase(prog, phase_p);
     pcs = pcs_new(bits);
-    pcs_require_residue_1(pcs, q);
+    pcs_require_residue_1_mod_prime(pcs, q);
     mp_int *p = primegen_generate(pgc, pcs, prog);
     progress_report_phase_complete(prog);
 

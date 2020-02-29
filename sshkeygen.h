@@ -41,6 +41,10 @@ void pcs_require_residue(PrimeCandidateSource *s, mp_int *mod, mp_int *res);
 /* Convenience wrapper for the common case where res = 1 */
 void pcs_require_residue_1(PrimeCandidateSource *s, mp_int *mod);
 
+/* Same as pcs_require_residue_1, but also records that the modulus is
+ * known to be prime */
+void pcs_require_residue_1_mod_prime(PrimeCandidateSource *s, mp_int *mod);
+
 /* Insist that generated numbers must _not_ be congruent to 'res' mod
  * 'mod'. This is used to avoid being 1 mod the RSA public exponent,
  * which is small, so it only needs ordinary integer parameters. */
@@ -66,6 +70,7 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
 
 /* Query functions for primegen to use */
 unsigned pcs_get_bits(PrimeCandidateSource *pcs);
+mp_int **pcs_get_known_prime_factors(PrimeCandidateSource *pcs, size_t *nout);
 
 /* ----------------------------------------------------------------------
  * A system for doing Miller-Rabin probabilistic primality tests.

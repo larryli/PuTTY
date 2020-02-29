@@ -32,6 +32,10 @@ struct PrimeCandidateSource {
      * (modulus, residue) pairs we want to avoid. */
     struct avoid *avoids;
     size_t navoids, avoidsize;
+
+    /* List of known primes that our number will be congruent to 1 modulo */
+    mp_int **kps;
+    size_t nkps, kpsize;
 };
 
 PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
@@ -43,6 +47,9 @@ PrimeCandidateSource *pcs_new_with_firstbits(unsigned bits,
 
     s->bits = bits;
     s->ready = false;
+
+    s->kps = NULL;
+    s->nkps = s->kpsize = 0;
 
     s->avoids = NULL;
     s->navoids = s->avoidsize = 0;
@@ -83,7 +90,10 @@ void pcs_free(PrimeCandidateSource *s)
     mp_free(s->limit);
     mp_free(s->factor);
     mp_free(s->addend);
+    for (size_t i = 0; i < s->nkps; i++)
+        mp_free(s->kps[i]);
     sfree(s->avoids);
+    sfree(s->kps);
     sfree(s);
 }
 
@@ -194,6 +204,14 @@ void pcs_require_residue_1(PrimeCandidateSource *s, mp_int *mod)
     mp_int *res = mp_from_integer(1);
     pcs_require_residue(s, mod, res);
     mp_free(res);
+}
+
+void pcs_require_residue_1_mod_prime(PrimeCandidateSource *s, mp_int *mod)
+{
+    pcs_require_residue_1(s, mod);
+
+    sgrowarray(s->kps, s->kpsize, s->nkps);
+    s->kps[s->nkps++] = mp_copy(mod);
 }
 
 void pcs_avoid_residue_small(PrimeCandidateSource *s,
@@ -361,4 +379,10 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
 unsigned pcs_get_bits(PrimeCandidateSource *pcs)
 {
     return pcs->bits;
+}
+
+mp_int **pcs_get_known_prime_factors(PrimeCandidateSource *pcs, size_t *nout)
+{
+    *nout = pcs->nkps;
+    return pcs->kps;
 }
