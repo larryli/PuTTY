@@ -393,6 +393,7 @@ struct rsa_key_thread_params {
     int key_bits;                      /* bits in key modulus (RSA, DSA) */
     int curve_bits;                    /* bits in elliptic curve (ECDSA) */
     keytype keytype;
+    const PrimeGenerationPolicy *primepolicy;
     union {
         RSAKey *key;
         struct dss_key *dsskey;
@@ -409,8 +410,7 @@ static DWORD WINAPI generate_key_thread(void *param)
 
     win_progress_initialise(&prog);
 
-    PrimeGenerationContext *pgc = primegen_new_context(
-        &primegen_probabilistic);
+    PrimeGenerationContext *pgc = primegen_new_context(params->primepolicy);
 
     if (params->keytype == DSA)
         dsa_generate(params->dsskey, params->key_bits, pgc, &prog.rec);
@@ -437,6 +437,7 @@ struct MainDlgState {
     int key_bits, curve_bits;
     bool ssh2;
     keytype keytype;
+    const PrimeGenerationPolicy *primepolicy;
     char **commentptr;                 /* points to key.comment or ssh2key.comment */
     ssh2_userkey ssh2key;
     unsigned *entropy;
@@ -515,6 +516,7 @@ enum {
     IDC_BOX_PARAMS,
     IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
     IDC_KEYSSH2ECDSA, IDC_KEYSSH2ED25519,
+    IDC_PRIMEGEN_PROB, IDC_PRIMEGEN_MAURER_SIMPLE, IDC_PRIMEGEN_MAURER_COMPLEX,
     IDC_BITSSTATIC, IDC_BITS,
     IDC_CURVESTATIC, IDC_CURVE,
     IDC_NOTHINGSTATIC,
@@ -691,6 +693,22 @@ void ui_set_key_type(HWND hwnd, struct MainDlgState *state, int button)
     CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2ED25519,
                        button, MF_BYCOMMAND);
     ui_update_key_type_ctrls(hwnd);
+}
+void ui_set_primepolicy(HWND hwnd, struct MainDlgState *state, int option)
+{
+    CheckMenuRadioItem(state->keymenu, IDC_PRIMEGEN_PROB,
+                       IDC_PRIMEGEN_MAURER_COMPLEX, option, MF_BYCOMMAND);
+    switch (option) {
+      case IDC_PRIMEGEN_PROB:
+        state->primepolicy = &primegen_probabilistic;
+        break;
+      case IDC_PRIMEGEN_MAURER_SIMPLE:
+        state->primepolicy = &primegen_provable_maurer_simple;
+        break;
+      case IDC_PRIMEGEN_MAURER_COMPLEX:
+        state->primepolicy = &primegen_provable_maurer_complex;
+        break;
+    }
 }
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
@@ -882,6 +900,7 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
     params->key_bits = state->key_bits;
     params->curve_bits = state->curve_bits;
     params->keytype = state->keytype;
+    params->primepolicy = state->primepolicy;
     params->key = &state->key;
     params->dsskey = &state->dsskey;
 
@@ -949,6 +968,13 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ED25519, "SSH-2 Ed&25519 key");
+            AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+            AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_PROB,
+                       "Use probable primes (fast)");
+            AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_MAURER_SIMPLE,
+                       "Use proven primes (slower)");
+            AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_MAURER_COMPLEX,
+                       "Use proven primes with even distribution (slowest)");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
             state->keymenu = menu1;
 
@@ -1063,6 +1089,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             endbox(&cp);
         }
         ui_set_key_type(hwnd, state, IDC_KEYSSH2RSA);
+        ui_set_primepolicy(hwnd, state, IDC_PRIMEGEN_PROB);
         SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
         SendDlgItemMessage(hwnd, IDC_CURVE, CB_SETCURSEL,
                            DEFAULT_CURVE_INDEX, 0);
@@ -1117,6 +1144,14 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             state = (struct MainDlgState *)
                 GetWindowLongPtr(hwnd, GWLP_USERDATA);
             ui_set_key_type(hwnd, state, LOWORD(wParam));
+            break;
+          }
+          case IDC_PRIMEGEN_PROB:
+          case IDC_PRIMEGEN_MAURER_SIMPLE:
+          case IDC_PRIMEGEN_MAURER_COMPLEX: {
+            state = (struct MainDlgState *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            ui_set_primepolicy(hwnd, state, LOWORD(wParam));
             break;
           }
           case IDC_QUIT:

@@ -217,6 +217,7 @@ int main(int argc, char **argv)
     bool load_encrypted;
     const char *random_device = NULL;
     int exit_status = 0;
+    const PrimeGenerationPolicy *primegen = &primegen_probabilistic;
 
     if (is_interactive())
         progress_fp = stderr;
@@ -326,6 +327,30 @@ int main(int argc, char **argv)
                       }
                     } else if (!strcmp(opt, "-dump")) {
                         outtype = TEXT;
+                    } else if (!strcmp(opt, "-primes")) {
+                        if (!val && argc > 1)
+                            --argc, val = *++argv;
+                        if (!val) {
+                            errs = true;
+                            fprintf(stderr, "puttygen: option `-%s'"
+                                    " expects an argument\n", opt);
+                        } else if (!strcmp(val, "probable") ||
+                                   !strcmp(val, "probabilistic")) {
+                            primegen = &primegen_probabilistic;
+                        } else if (!strcmp(val, "provable") ||
+                                   !strcmp(val, "simple") ||
+                                   !strcmp(val, "maurer-simple")) {
+                            primegen = &primegen_provable_maurer_simple;
+                        } else if (!strcmp(val, "provable-even") ||
+                                   !strcmp(val, "even") ||
+                                   !strcmp(val, "complex") ||
+                                   !strcmp(val, "maurer-complex")) {
+                            primegen = &primegen_provable_maurer_complex;
+                        } else {
+                            errs = true;
+                            fprintf(stderr, "puttygen: unrecognised prime-"
+                                    "generation mode `%s'\n", val);
+                        }
                     } else {
                       errs = true;
                       fprintf(stderr,
@@ -700,8 +725,7 @@ int main(int argc, char **argv)
         smemclr(entropy, bits/8);
         sfree(entropy);
 
-        PrimeGenerationContext *pgc = primegen_new_context(
-            &primegen_probabilistic);
+        PrimeGenerationContext *pgc = primegen_new_context(primegen);
 
         if (keytype == DSA) {
             struct dss_key *dsskey = snew(struct dss_key);
