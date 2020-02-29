@@ -114,19 +114,25 @@ const PrimeGenerationPolicy primegen_probabilistic = {
  * Reusable null implementation of the progress-reporting API.
  */
 
-ProgressPhase null_progress_add_probabilistic(
-    ProgressReceiver *prog, double c, double p) {
+static inline ProgressPhase null_progress_add(void) {
     ProgressPhase ph = { .n = 0 };
     return ph;
 }
+ProgressPhase null_progress_add_linear(
+    ProgressReceiver *prog, double c) { return null_progress_add(); }
+ProgressPhase null_progress_add_probabilistic(
+    ProgressReceiver *prog, double c, double p) { return null_progress_add(); }
 void null_progress_ready(ProgressReceiver *prog) {}
 void null_progress_start_phase(ProgressReceiver *prog, ProgressPhase phase) {}
+void null_progress_report(ProgressReceiver *prog, double progress) {}
 void null_progress_report_attempt(ProgressReceiver *prog) {}
 void null_progress_report_phase_complete(ProgressReceiver *prog) {}
 const ProgressReceiverVtable null_progress_vt = {
+    null_progress_add_linear,
     null_progress_add_probabilistic,
     null_progress_ready,
     null_progress_start_phase,
+    null_progress_report,
     null_progress_report_attempt,
     null_progress_report_phase_complete,
 };

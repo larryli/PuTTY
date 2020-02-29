@@ -180,15 +180,20 @@ struct ProgressReceiver {
 };
 
 struct ProgressReceiverVtable {
+    ProgressPhase (*add_linear)(ProgressReceiver *prog, double overall_cost);
     ProgressPhase (*add_probabilistic)(ProgressReceiver *prog,
                                        double cost_per_attempt,
                                        double attempt_probability);
     void (*ready)(ProgressReceiver *prog);
     void (*start_phase)(ProgressReceiver *prog, ProgressPhase phase);
+    void (*report)(ProgressReceiver *prog, double progress);
     void (*report_attempt)(ProgressReceiver *prog);
     void (*report_phase_complete)(ProgressReceiver *prog);
 };
 
+static inline ProgressPhase progress_add_linear(ProgressReceiver *prog,
+                                                double c)
+{ return prog->vt->add_linear(prog, c); }
 static inline ProgressPhase progress_add_probabilistic(ProgressReceiver *prog,
                                                        double c, double p)
 { return prog->vt->add_probabilistic(prog, c, p); }
@@ -197,15 +202,20 @@ static inline void progress_ready(ProgressReceiver *prog)
 static inline void progress_start_phase(
     ProgressReceiver *prog, ProgressPhase phase)
 { prog->vt->start_phase(prog, phase); }
+static inline void progress_report(ProgressReceiver *prog, double progress)
+{ prog->vt->report(prog, progress); }
 static inline void progress_report_attempt(ProgressReceiver *prog)
 { prog->vt->report_attempt(prog); }
 static inline void progress_report_phase_complete(ProgressReceiver *prog)
 { prog->vt->report_phase_complete(prog); }
 
+ProgressPhase null_progress_add_linear(
+    ProgressReceiver *prog, double c);
 ProgressPhase null_progress_add_probabilistic(
     ProgressReceiver *prog, double c, double p);
 void null_progress_ready(ProgressReceiver *prog);
 void null_progress_start_phase(ProgressReceiver *prog, ProgressPhase phase);
+void null_progress_report(ProgressReceiver *prog, double progress);
 void null_progress_report_attempt(ProgressReceiver *prog);
 void null_progress_report_phase_complete(ProgressReceiver *prog);
 extern const ProgressReceiverVtable null_progress_vt;

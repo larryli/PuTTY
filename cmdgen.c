@@ -16,8 +16,36 @@
 #include "sshkeygen.h"
 #include "mpint.h"
 
-FILE *progress_fp = NULL;
+static FILE *progress_fp = NULL;
+static bool linear_progress_phase;
+static unsigned last_progress_col;
 
+static ProgressPhase cmdgen_progress_add_linear(
+    ProgressReceiver *prog, double c)
+{
+    ProgressPhase ph = { .n = 0 };
+    return ph;
+}
+
+static ProgressPhase cmdgen_progress_add_probabilistic(
+    ProgressReceiver *prog, double c, double p)
+{
+    ProgressPhase ph = { .n = 1 };
+    return ph;
+}
+
+static void cmdgen_progress_start_phase(ProgressReceiver *prog,
+                                        ProgressPhase p)
+{
+    linear_progress_phase = (p.n == 0);
+    last_progress_col = 0;
+}
+static void cmdgen_progress_report(ProgressReceiver *prog, double p)
+{
+    unsigned new_col = p * 64 + 0.5;
+    for (; last_progress_col < new_col; last_progress_col++)
+        fputc('+', progress_fp);
+}
 static void cmdgen_progress_report_attempt(ProgressReceiver *prog)
 {
     if (progress_fp) {
@@ -27,6 +55,8 @@ static void cmdgen_progress_report_attempt(ProgressReceiver *prog)
 }
 static void cmdgen_progress_report_phase_complete(ProgressReceiver *prog)
 {
+    if (linear_progress_phase)
+        cmdgen_progress_report(prog, 1.0);
     if (progress_fp) {
         fputc('\n', progress_fp);
         fflush(progress_fp);
@@ -34,9 +64,11 @@ static void cmdgen_progress_report_phase_complete(ProgressReceiver *prog)
 }
 
 static const ProgressReceiverVtable cmdgen_progress_vt = {
-    null_progress_add_probabilistic,
+    cmdgen_progress_add_linear,
+    cmdgen_progress_add_probabilistic,
     null_progress_ready,
-    null_progress_start_phase,
+    cmdgen_progress_start_phase,
+    cmdgen_progress_report,
     cmdgen_progress_report_attempt,
     cmdgen_progress_report_phase_complete,
 };

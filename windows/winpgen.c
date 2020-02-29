@@ -68,6 +68,7 @@ void nonfatal(const char *fmt, ...)
 
 struct progressphase {
     double startpoint, total;
+    /* For exponential phases */
     double exp_probability, exp_current_value;
 };
 
@@ -80,6 +81,19 @@ struct progress {
 
     ProgressReceiver rec;
 };
+
+static ProgressPhase win_progress_add_linear(
+    ProgressReceiver *prog, double overall_cost) {
+    struct progress *p = container_of(prog, struct progress, rec);
+
+    assert(p->nphases < MAXPHASE);
+    int phase = p->nphases++;
+
+    p->phases[phase].total = overall_cost;
+
+    ProgressPhase ph = { .n = phase };
+    return ph;
+}
 
 static ProgressPhase win_progress_add_probabilistic(
     ProgressReceiver *prog, double cost_per_attempt, double probability) {
@@ -133,6 +147,13 @@ static void win_progress_update(struct progress *p, double phasepos)
     SendMessage(p->progbar, PBM_SETPOS, (WPARAM)position, 0);
 }
 
+static void win_progress_report(ProgressReceiver *prog, double progress)
+{
+    struct progress *p = container_of(prog, struct progress, rec);
+
+    win_progress_update(p, progress);
+}
+
 static void win_progress_report_attempt(ProgressReceiver *prog)
 {
     struct progress *p = container_of(prog, struct progress, rec);
@@ -149,9 +170,11 @@ static void win_progress_report_phase_complete(ProgressReceiver *prog)
 }
 
 static const ProgressReceiverVtable win_progress_vt = {
+    win_progress_add_linear,
     win_progress_add_probabilistic,
     win_progress_ready,
     win_progress_start_phase,
+    win_progress_report,
     win_progress_report_attempt,
     win_progress_report_phase_complete,
 };
