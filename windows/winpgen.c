@@ -9,7 +9,6 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "sshkeygen.h"
 #include "licence.h"
 #include "winsecur.h"
 
@@ -60,106 +59,76 @@ void nonfatal(const char *fmt, ...)
 }
 
 /* ----------------------------------------------------------------------
- * ProgressReceiver implementation.
+ * Progress report code. This is really horrible :-)
  */
-
 #define PROGRESSRANGE 65535
 #define MAXPHASE 5
-
-struct progressphase {
-    double startpoint, total;
-    double exp_probability, exp_current_value;
-};
-
 struct progress {
     int nphases;
-    struct progressphase phases[MAXPHASE], *currphase;
-
-    double scale;
+    struct {
+        bool exponential;
+        unsigned startpoint, total;
+        unsigned param, current, n;    /* if exponential */
+        unsigned mult;                 /* if linear */
+    } phases[MAXPHASE];
+    unsigned total, divisor, range;
     HWND progbar;
-
-    ProgressReceiver rec;
 };
 
-static ProgressPhase win_progress_add_probabilistic(
-    ProgressReceiver *prog, double cost_per_attempt, double probability) {
-    struct progress *p = container_of(prog, struct progress, rec);
-
-    assert(p->nphases < MAXPHASE);
-    int phase = p->nphases++;
-
-    p->phases[phase].exp_probability = 1.0 - probability;
-    p->phases[phase].exp_current_value = 1.0;
-    /* Expected number of attempts = 1 / probability of attempt succeeding */
-    p->phases[phase].total = cost_per_attempt / probability;
-
-    ProgressPhase ph = { .n = phase };
-    return ph;
-}
-
-static void win_progress_ready(ProgressReceiver *prog)
+static void progress_update(void *param, int action, int phase, int iprogress)
 {
-    struct progress *p = container_of(prog, struct progress, rec);
+    struct progress *p = (struct progress *) param;
+    unsigned progress = iprogress;
+    int position;
 
-    double total = 0;
-    for (int i = 0; i < p->nphases; i++) {
-        p->phases[i].startpoint = total;
-        total += p->phases[i].total;
+    if (action < PROGFN_READY && p->nphases < phase)
+        p->nphases = phase;
+    switch (action) {
+      case PROGFN_INITIALISE:
+        p->nphases = 0;
+        break;
+      case PROGFN_LIN_PHASE:
+        p->phases[phase-1].exponential = false;
+        p->phases[phase-1].mult = p->phases[phase].total / progress;
+        break;
+      case PROGFN_EXP_PHASE:
+        p->phases[phase-1].exponential = true;
+        p->phases[phase-1].param = 0x10000 + progress;
+        p->phases[phase-1].current = p->phases[phase-1].total;
+        p->phases[phase-1].n = 0;
+        break;
+      case PROGFN_PHASE_EXTENT:
+        p->phases[phase-1].total = progress;
+        break;
+      case PROGFN_READY: {
+        unsigned total = 0;
+        int i;
+        for (i = 0; i < p->nphases; i++) {
+          p->phases[i].startpoint = total;
+          total += p->phases[i].total;
+        }
+        p->total = total;
+        p->divisor = ((p->total + PROGRESSRANGE - 1) / PROGRESSRANGE);
+        p->range = p->total / p->divisor;
+        SendMessage(p->progbar, PBM_SETRANGE, 0, MAKELPARAM(0, p->range));
+        break;
+      }
+      case PROGFN_PROGRESS:
+        if (p->phases[phase-1].exponential) {
+            while (p->phases[phase-1].n < progress) {
+                p->phases[phase-1].n++;
+                p->phases[phase-1].current *= p->phases[phase-1].param;
+                p->phases[phase-1].current /= 0x10000;
+            }
+            position = (p->phases[phase-1].startpoint +
+                        p->phases[phase-1].total - p->phases[phase-1].current);
+        } else {
+            position = (p->phases[phase-1].startpoint +
+                        progress * p->phases[phase-1].mult);
+        }
+        SendMessage(p->progbar, PBM_SETPOS, position / p->divisor, 0);
+        break;
     }
-    p->scale = PROGRESSRANGE / total;
-
-    SendMessage(p->progbar, PBM_SETRANGE, 0, MAKELPARAM(0, PROGRESSRANGE));
-}
-
-static void win_progress_start_phase(ProgressReceiver *prog,
-                                     ProgressPhase phase)
-{
-    struct progress *p = container_of(prog, struct progress, rec);
-
-    assert(phase.n < p->nphases);
-    p->currphase = &p->phases[phase.n];
-}
-
-static void win_progress_update(struct progress *p, double phasepos)
-{
-    double position = (p->currphase->startpoint +
-                       p->currphase->total * phasepos);
-    position *= p->scale;
-    if (position < 0)
-        position = 0;
-    if (position > PROGRESSRANGE)
-        position = PROGRESSRANGE;
-
-    SendMessage(p->progbar, PBM_SETPOS, (WPARAM)position, 0);
-}
-
-static void win_progress_report_attempt(ProgressReceiver *prog)
-{
-    struct progress *p = container_of(prog, struct progress, rec);
-
-    p->currphase->exp_current_value *= p->currphase->exp_probability;
-    win_progress_update(p, 1.0 - p->currphase->exp_current_value);
-}
-
-static void win_progress_report_phase_complete(ProgressReceiver *prog)
-{
-    struct progress *p = container_of(prog, struct progress, rec);
-
-    win_progress_update(p, 1.0);
-}
-
-static const ProgressReceiverVtable win_progress_vt = {
-    win_progress_add_probabilistic,
-    win_progress_ready,
-    win_progress_start_phase,
-    win_progress_report_attempt,
-    win_progress_report_phase_complete,
-};
-
-static void win_progress_initialise(struct progress *p)
-{
-    p->nphases = 0;
-    p->rec.vt = &win_progress_vt;
 }
 
 struct PassphraseProcStruct {
@@ -384,16 +353,17 @@ static DWORD WINAPI generate_key_thread(void *param)
     struct progress prog;
     prog.progbar = params->progressbar;
 
-    win_progress_initialise(&prog);
+    progress_update(&prog, PROGFN_INITIALISE, 0, 0);
 
     if (params->keytype == DSA)
-        dsa_generate(params->dsskey, params->key_bits, &prog.rec);
+        dsa_generate(params->dsskey, params->key_bits, progress_update, &prog);
     else if (params->keytype == ECDSA)
-        ecdsa_generate(params->eckey, params->curve_bits);
+        ecdsa_generate(params->eckey, params->curve_bits,
+                       progress_update, &prog);
     else if (params->keytype == ED25519)
-        eddsa_generate(params->edkey, 255);
+        eddsa_generate(params->edkey, 255, progress_update, &prog);
     else
-        rsa_generate(params->key, params->key_bits, &prog.rec);
+        rsa_generate(params->key, params->key_bits, progress_update, &prog);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
 

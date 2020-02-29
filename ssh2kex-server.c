@@ -36,6 +36,10 @@ static strbuf *finalise_and_sign_exhash(struct ssh2_transport_state *s)
     return sb;
 }
 
+static void no_progress(void *param, int action, int phase, int iprogress)
+{
+}
+
 void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
 {
     PacketProtocolLayer *ppl = &s->ppl; /* for ppl_logevent */
@@ -97,9 +101,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * group! It's good enough for testing a client against,
              * but not for serious use.
              */
-            ProgressReceiver null_progress;
-            null_progress.vt = &null_progress_vt;
-            s->p = primegen(pcs_new(s->pbits), &null_progress);
+            s->p = primegen(pcs_new(s->pbits), 1, no_progress, NULL);
             s->g = mp_from_integer(2);
             s->dh_ctx = dh_setup_gex(s->p, s->g);
             s->kex_init_value = SSH2_MSG_KEX_DH_GEX_INIT;
@@ -261,9 +263,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             ppl_logevent("Generating a %d-bit RSA key", extra->minklen);
 
             s->rsa_kex_key = snew(RSAKey);
-            ProgressReceiver null_progress;
-            null_progress.vt = &null_progress_vt;
-            rsa_generate(s->rsa_kex_key, extra->minklen, &null_progress);
+            rsa_generate(s->rsa_kex_key, extra->minklen, no_progress, NULL);
             s->rsa_kex_key->comment = NULL;
             s->rsa_kex_key_needs_freeing = true;
         }
