@@ -5,23 +5,42 @@
 #include "mpunsafe.h"
 #include "tree234.h"
 
+typedef struct PocklePrimeRecord PocklePrimeRecord;
+
 struct Pockle {
     tree234 *tree;
 
-    mp_int **list;
+    PocklePrimeRecord **list;
     size_t nlist, listsize;
 };
 
-static int mpcmp(void *av, void *bv)
+struct PocklePrimeRecord {
+    mp_int *prime;
+    PocklePrimeRecord **factors;
+    size_t nfactors;
+    mp_int *witness;
+
+    size_t index; /* index in pockle->list */
+};
+
+static int ppr_cmp(void *av, void *bv)
 {
-    mp_int *a = (mp_int *)av, *b = (mp_int *)bv;
-    return mp_cmp_hs(a, b) - mp_cmp_hs(b, a);
+    PocklePrimeRecord *a = (PocklePrimeRecord *)av;
+    PocklePrimeRecord *b = (PocklePrimeRecord *)bv;
+    return mp_cmp_hs(a->prime, b->prime) - mp_cmp_hs(b->prime, a->prime);
+}
+
+static int ppr_find(void *av, void *bv)
+{
+    mp_int *a = (mp_int *)av;
+    PocklePrimeRecord *b = (PocklePrimeRecord *)bv;
+    return mp_cmp_hs(a, b->prime) - mp_cmp_hs(b->prime, a);
 }
 
 Pockle *pockle_new(void)
 {
     Pockle *pockle = snew(Pockle);
-    pockle->tree = newtree234(mpcmp);
+    pockle->tree = newtree234(ppr_cmp);
     pockle->list = NULL;
     pockle->nlist = pockle->listsize = 0;
     return pockle;
@@ -29,23 +48,44 @@ Pockle *pockle_new(void)
 
 void pockle_free(Pockle *pockle)
 {
-    for (mp_int *mp; (mp = delpos234(pockle->tree, 0)) != NULL ;)
-        mp_free(mp);
+    pockle_release(pockle, 0);
+    assert(count234(pockle->tree) == 0);
     freetree234(pockle->tree);
     sfree(pockle->list);
     sfree(pockle);
 }
 
-static PockleStatus pockle_insert(Pockle *pockle, mp_int *p)
+static PockleStatus pockle_insert(Pockle *pockle, mp_int *p, mp_int **factors,
+                                  size_t nfactors, mp_int *w)
 {
-    mp_int *copy = mp_copy(p);
-    mp_int *found = add234(pockle->tree, copy);
-    if (copy != found) {
-        mp_free(copy); /* it was already in there */
+    PocklePrimeRecord *pr = snew(PocklePrimeRecord);
+    pr->prime = mp_copy(p);
+
+    PocklePrimeRecord *found = add234(pockle->tree, pr);
+    if (pr != found) {
+        /* it was already in there */
+        mp_free(pr->prime);
+        sfree(pr);
         return POCKLE_OK;
     }
+
+    if (w) {
+        pr->factors = snewn(nfactors, PocklePrimeRecord *);
+        for (size_t i = 0; i < nfactors; i++) {
+            pr->factors[i] = find234(pockle->tree, factors[i], ppr_find);
+            assert(pr->factors[i]);
+        }
+        pr->nfactors = nfactors;
+        pr->witness = mp_copy(w);
+    } else {
+        pr->factors = NULL;
+        pr->nfactors = 0;
+        pr->witness = NULL;
+    }
+    pr->index = pockle->nlist;
+
     sgrowarray(pockle->list, pockle->listsize, pockle->nlist);
-    pockle->list[pockle->nlist++] = copy;
+    pockle->list[pockle->nlist++] = pr;
     return POCKLE_OK;
 }
 
@@ -57,9 +97,13 @@ size_t pockle_mark(Pockle *pockle)
 void pockle_release(Pockle *pockle, size_t mark)
 {
     while (pockle->nlist > mark) {
-        mp_int *val = pockle->list[--pockle->nlist];
-        del234(pockle->tree, val);
-        mp_free(val);
+        PocklePrimeRecord *pr = pockle->list[--pockle->nlist];
+        del234(pockle->tree, pr);
+        mp_free(pr->prime);
+        if (pr->witness)
+            mp_free(pr->witness);
+        sfree(pr->factors);
+        sfree(pr);
     }
 }
 
@@ -81,7 +125,7 @@ PockleStatus pockle_add_small_prime(Pockle *pockle, mp_int *p)
             return POCKLE_SMALL_PRIME_NOT_PRIME;
     }
 
-    return pockle_insert(pockle, p);
+    return pockle_insert(pockle, p, NULL, 0, NULL);
 }
 
 PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
@@ -139,7 +183,7 @@ PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
     for (size_t i = 0; i < nfactors; i++) {
         mp_int *q = factors[i];
 
-        if (!find234(pockle->tree, q, NULL)) {
+        if (!find234(pockle->tree, q, ppr_find)) {
             status = POCKLE_FACTOR_NOT_KNOWN_PRIME;
             goto out;
         }
@@ -328,7 +372,7 @@ PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
      * primes, so that future calls to this function can cite it in
      * evidence of larger numbers' primality.
      */
-    status = pockle_insert(pockle, p);
+    status = pockle_insert(pockle, p, factors, nfactors, witness);
 
   out:
     if (x)
@@ -340,4 +384,62 @@ PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
     if (mc)
         monty_free(mc);
     return status;
+}
+
+static void mp_write_decimal(strbuf *sb, mp_int *x)
+{
+    char *s = mp_get_decimal(x);
+    ptrlen pl = ptrlen_from_asciz(s);
+    put_datapl(sb, pl);
+    smemclr(s, pl.len);
+    sfree(s);
+}
+
+strbuf *pockle_mpu(Pockle *pockle, mp_int *p)
+{
+    strbuf *sb = strbuf_new_nm();
+    PocklePrimeRecord *pr = find234(pockle->tree, p, ppr_find);
+    assert(pr);
+
+    bool *needed = snewn(pockle->nlist, bool);
+    memset(needed, 0, pockle->nlist * sizeof(bool));
+    needed[pr->index] = true;
+
+    strbuf_catf(sb, "[MPU - Primality Certificate]\nVersion 1.0\nBase 10\n\n"
+                "Proof for:\nN  ");
+    mp_write_decimal(sb, p);
+    strbuf_catf(sb, "\n");
+
+    for (size_t index = pockle->nlist; index-- > 0 ;) {
+        if (!needed[index])
+            continue;
+        pr = pockle->list[index];
+
+        if (mp_get_nbits(pr->prime) <= 64) {
+            strbuf_catf(sb, "\nType Small\nN  ");
+            mp_write_decimal(sb, pr->prime);
+            strbuf_catf(sb, "\n");
+        } else {
+            assert(pr->witness);
+            strbuf_catf(sb, "\nType BLS5\nN  ");
+            mp_write_decimal(sb, pr->prime);
+            strbuf_catf(sb, "\n");
+            for (size_t i = 0; i < pr->nfactors; i++) {
+                strbuf_catf(sb, "Q[%"SIZEu"]  ", i+1);
+                mp_write_decimal(sb, pr->factors[i]->prime);
+                assert(pr->factors[i]->index < index);
+                needed[pr->factors[i]->index] = true;
+                strbuf_catf(sb, "\n");
+            }
+            for (size_t i = 0; i < pr->nfactors + 1; i++) {
+                strbuf_catf(sb, "A[%"SIZEu"]  ", i);
+                mp_write_decimal(sb, pr->witness);
+                strbuf_catf(sb, "\n");
+            }
+            strbuf_catf(sb, "----\n");
+        }
+    }
+    sfree(needed);
+
+    return sb;
 }

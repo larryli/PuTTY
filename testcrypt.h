@@ -269,6 +269,7 @@ FUNC1(opt_val_key, eddsa_generate, uint)
 FUNC2(val_rsa, rsa1_generate, uint, val_pgc)
 FUNC1(val_pgc, primegen_new_context, primegenpolicy)
 FUNC2(opt_val_mpint, primegen_generate, val_pgc, consumed_val_pcs)
+FUNC2(val_string, primegen_mpu_certificate, val_pgc, val_mpint)
 FUNC1(val_pcs, pcs_new, uint)
 FUNC3(val_pcs, pcs_new_with_firstbits, uint, uint, uint)
 FUNC3(void, pcs_require_residue, val_pcs, val_mpint, val_mpint)
@@ -283,6 +284,7 @@ FUNC1(uint, pockle_mark, val_pockle)
 FUNC2(void, pockle_release, val_pockle, uint)
 FUNC2(pocklestatus, pockle_add_small_prime, val_pockle, val_mpint)
 FUNC4(pocklestatus, pockle_add_prime, val_pockle, val_mpint, mpint_list, val_mpint)
+FUNC2(val_string, pockle_mpu, val_pockle, val_mpint)
 
 /*
  * Miscellaneous.

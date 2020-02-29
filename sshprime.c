@@ -99,11 +99,17 @@ static mp_int *probprime_generate(
     }
 }
 
+static strbuf *null_mpu_certificate(PrimeGenerationContext *ctx, mp_int *p)
+{
+    return NULL;
+}
+
 const PrimeGenerationPolicy primegen_probabilistic = {
     probprime_add_progress_phase,
     probprime_new_context,
     probprime_free_context,
     probprime_generate,
+    null_mpu_certificate,
 };
 
 /* ----------------------------------------------------------------------
@@ -679,6 +685,13 @@ static mp_int *provableprime_generate(
     return p;
 }
 
+static inline strbuf *provableprime_mpu_certificate(
+    PrimeGenerationContext *ctx, mp_int *p)
+{
+    ProvablePrimeContext *ppc = container_of(ctx, ProvablePrimeContext, pgc);
+    return pockle_mpu(ppc->pockle, p);
+}
+
 #define DECLARE_POLICY(name, policy)                                    \
     static const struct ProvablePrimePolicyExtra                        \
         pppextra_##name = {policy};                                     \
@@ -687,6 +700,7 @@ static mp_int *provableprime_generate(
         provableprime_new_context,                                      \
         provableprime_free_context,                                     \
         provableprime_generate,                                         \
+        provableprime_mpu_certificate,                                  \
         &pppextra_##name,                                               \
     }
 

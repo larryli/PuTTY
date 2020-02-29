@@ -161,6 +161,10 @@ void pockle_release(Pockle *pockle, size_t mark);
 /* Free a Pockle. */
 void pockle_free(Pockle *pockle);
 
+/* Generate a certificate of primality for a prime already known to
+ * the Pockle, in a format acceptable to Math::Prime::Util. */
+strbuf *pockle_mpu(Pockle *pockle, mp_int *p);
+
 /* ----------------------------------------------------------------------
  * Callback API that allows key generation to report progress to its
  * caller.
@@ -243,6 +247,7 @@ struct PrimeGenerationPolicy {
     mp_int *(*generate)(
         PrimeGenerationContext *ctx,
         PrimeCandidateSource *pcs, ProgressReceiver *prog);
+    strbuf *(*mpu_certificate)(PrimeGenerationContext *ctx, mp_int *p);
 
     const void *extra; /* additional data a particular impl might need */
 };
@@ -259,6 +264,9 @@ static inline mp_int *primegen_generate(
     PrimeGenerationContext *ctx,
     PrimeCandidateSource *pcs, ProgressReceiver *prog)
 { return ctx->vt->generate(ctx, pcs, prog); }
+static inline strbuf *primegen_mpu_certificate(
+    PrimeGenerationContext *ctx, mp_int *p)
+{ return ctx->vt->mpu_certificate(ctx, p); }
 
 extern const PrimeGenerationPolicy primegen_probabilistic;
 extern const PrimeGenerationPolicy primegen_provable_fast;
