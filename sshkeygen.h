@@ -68,6 +68,31 @@ void pcs_inspect(PrimeCandidateSource *pcs, mp_int **limit_out,
 unsigned pcs_get_bits(PrimeCandidateSource *pcs);
 
 /* ----------------------------------------------------------------------
+ * A system for doing Miller-Rabin probabilistic primality tests.
+ * These benefit from having set up some context beforehand, if you're
+ * going to do more than one of them on the same candidate prime, so
+ * we declare an object type here to store that context.
+ */
+
+typedef struct MillerRabin MillerRabin;
+
+/* Make and free a Miller-Rabin context. */
+MillerRabin *miller_rabin_new(mp_int *p);
+void miller_rabin_free(MillerRabin *mr);
+
+/* Perform a single Miller-Rabin test, using a random witness value. */
+bool miller_rabin_test_random(MillerRabin *mr);
+
+/* Suggest how many tests are needed to make it sufficiently unlikely
+ * that a composite number will pass them all */
+unsigned miller_rabin_checks_needed(unsigned bits);
+
+/* An extension to the M-R test, which iterates until it either finds
+ * a witness value that is potentially a primitive root, or one
+ * that proves the number to be composite. */
+mp_int *miller_rabin_find_potential_primitive_root(MillerRabin *mr);
+
+/* ----------------------------------------------------------------------
  * Callback API that allows key generation to report progress to its
  * caller.
  */
