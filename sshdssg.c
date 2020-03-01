@@ -28,8 +28,12 @@ int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
      */
     ProgressPhase phase_q = primegen_add_progress_phase(prog, 160);
     ProgressPhase phase_p = primegen_add_progress_phase(prog, bits);
+    double g_failure_probability = 1.0
+        / (double)(1ULL << 53)
+        / (double)(1ULL << 53)
+        / (double)(1ULL << 53);
     ProgressPhase phase_g = progress_add_probabilistic(
-        prog, estimate_modexp_cost(bits), 1.0 - 0x1.0p-159);
+        prog, estimate_modexp_cost(bits), 1.0 - g_failure_probability);
     progress_ready(prog);
 
     PrimeCandidateSource *pcs;
