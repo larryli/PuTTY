@@ -64,7 +64,7 @@ int dsa_generate(struct dss_key *key, int bits, ProgressReceiver *prog)
      */
     progress_start_phase(prog, phase_g);
     mp_int *power = mp_div(p, q); /* this is floor(p/q) == (p-1)/q */
-    mp_int *h = mp_from_integer(1);
+    mp_int *h = mp_from_integer(2);
     mp_int *g;
     while (1) {
         progress_report_attempt(prog);
