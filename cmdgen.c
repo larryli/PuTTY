@@ -142,6 +142,10 @@ void help(void)
            "        specify file containing new key passphrase\n"
            "  --random-device device\n"
            "        specify device to read entropy from (e.g. /dev/urandom)\n"
+           "  --primes <type>      select prime-generation method:\n"
+           "        probable       conventional probabilistic prime finding\n"
+           "        proven         numbers that have been proven to be prime\n"
+           "        proven-even    also try harder for an even distribution\n"
            );
 }
 
@@ -338,10 +342,12 @@ int main(int argc, char **argv)
                                    !strcmp(val, "probabilistic")) {
                             primegen = &primegen_probabilistic;
                         } else if (!strcmp(val, "provable") ||
+                                   !strcmp(val, "proven") ||
                                    !strcmp(val, "simple") ||
                                    !strcmp(val, "maurer-simple")) {
                             primegen = &primegen_provable_maurer_simple;
                         } else if (!strcmp(val, "provable-even") ||
+                                   !strcmp(val, "proven-even") ||
                                    !strcmp(val, "even") ||
                                    !strcmp(val, "complex") ||
                                    !strcmp(val, "maurer-complex")) {
