@@ -556,13 +556,17 @@ static mp_int *provableprime_generate_inner(
               got_list:;
                 /*
                  * Now translate those real numbers into actual bit
-                 * counts, and do a last-minute check to make sure we
-                 * haven't generated one too close to the final output
-                 * size.
+                 * counts, and do a last-minute check to make sure
+                 * their product is going to be in range.
+                 *
+                 * We have to check both the min and max sizes of the
+                 * total. A b-bit number is in [2^{b-1},2^b). So the
+                 * product of numbers of sizes b_1,...,b_k is at least
+                 * 2^{\sum (b_i-1)}, and less than 2^{\sum b_i}.
                  */
                 nsizes = 0;
 
-                unsigned total = 1;    /* account for leading 1 */
+                unsigned min_total = 0, max_total = 0;
 
                 for (size_t i = 0; i < ns; i++) {
                     /* These sizes are measured in actual entropy, so
@@ -573,15 +577,16 @@ static mp_int *provableprime_generate_inner(
                     sgrowarray(sizes, sizesize, nsizes);
                     sizes[nsizes++] = this_size;
 
-                    total += this_size - 1;
+                    min_total += this_size - 1;
+                    max_total += this_size;
                 }
 
-                debug_f("  total bits = %u", total);
-                if (total < real_min || total > real_max) {
+                debug_f("  total bits = [%u,%u)", min_total, max_total);
+                if (min_total < real_min || max_total > real_max+1) {
                     debug_f("  total out of range, try again");
                 } else {
-                    debug_f("  success! %"SIZEu" sub-primes totalling %u bits",
-                            nsizes, total);
+                    debug_f("  success! %"SIZEu" sub-primes totalling [%u,%u) "
+                            "bits", nsizes, min_total, max_total);
                     break;
                 }
             }
