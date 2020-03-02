@@ -8,8 +8,8 @@
 
 \S{puttygen-manpage-synopsis} SYNOPSIS
 
-\c puttygen ( keyfile | -t keytype [ -b bits ] )
-\e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii
+\c puttygen ( keyfile | -t keytype [ -b bits ] [ --primes method ] )
+\e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii     bbbbbbbb iiiiii
 \c          [ -C new-comment ] [ -P ] [ -q ]
 \e            bb iiiiiiiiiii     bb     bb
 \c          [ -O output-type | -l | -L | -p ]
@@ -63,12 +63,22 @@ OpenSSH format, or the standard SSH-1 format.
 \dt \cw{\-t} \e{keytype}
 
 \dd Specify a type of key to generate. The acceptable values here are
-\c{rsa}, \c{dsa}, \c{ecdsa}, and \c{ed25519} (to generate SSH-2 keys),
-and \c{rsa1} (to generate SSH-1 keys).
+\c{rsa}, \c{dsa}, \c{ecdsa}, \c{eddsa}, \c{ed25519}, and \c{ed448}
+(to generate SSH-2 keys), and \c{rsa1} (to generate SSH-1 keys).
 
 \dt \cw{\-b} \e{bits}
 
-\dd Specify the size of the key to generate, in bits. Default is 2048.
+\dd Specify the size of the key to generate, in bits. Default for
+\c{rsa} and \c{dsa} keys is 2048.
+
+\dt \cw{\-\-primes} \e{method}
+
+\dd Method for generating prime numbers. The acceptable values here
+are \c{probable} (the default), \c{proven}, and \c{proven-even}; the
+the later methods are slower. (Various synonyms for these method
+names are also accepted.)
+\#{XXX-REVIEW-BEFORE-RELEASE: explain in more detail why you would
+want to fiddle with this}
 
 \dt \cw{\-q}
 

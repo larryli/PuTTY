@@ -795,6 +795,9 @@ saved sessions from
 \IM{DSA} DSA
 \IM{DSA} Digital Signature Standard
 
+\IM{EdDSA} EdDSA
+\IM{EdDSA} Edwards-curve DSA
+
 \IM{public-key algorithm} public-key algorithm
 \IM{public-key algorithm} asymmetric key algorithm
 \IM{public-key algorithm} algorithm, public-key
@@ -804,6 +807,12 @@ saved sessions from
 \IM{generating keys} key pairs, generating
 \IM{generating keys} public keys, generating
 \IM{generating keys} private keys, generating
+
+\IM{probable primes} probable primes
+\IM{probable primes} primes, probable
+
+\IM{proven primes} proven primes
+\IM{proven primes} primes, proven
 
 \IM{authorized_keys file}{authorized_keys} \cw{authorized_keys} file
 

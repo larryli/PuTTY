@@ -64,7 +64,7 @@ The key types supported by PuTTY are described in \k{puttygen-keytype}.
 PuTTYgen is a key generator. It \I{generating keys}generates pairs of
 public and private keys to be used with PuTTY, PSCP, and Plink, as well
 as the PuTTY authentication agent, Pageant (see \k{pageant}).  PuTTYgen
-generates RSA, DSA, ECDSA, and Ed25519 keys.
+generates RSA, DSA, ECDSA, and EdDSA keys.
 
 When you run PuTTYgen you will see a window where you have two main
 choices: \q{Generate}, to generate a new public/private key pair, or
@@ -117,8 +117,8 @@ different key types. PuTTYgen can generate:
 \b An \i{ECDSA} (\i{elliptic curve} DSA) key for use with the
 SSH-2 protocol.
 
-\b An \i{Ed25519} key (another elliptic curve algorithm) for use
-with the SSH-2 protocol.
+\b An \i{EdDSA} key (Edwards-curve DSA, another elliptic curve
+algorithm) for use with the SSH-2 protocol.
 
 PuTTYgen can also generate an RSA key suitable for use with the old
 SSH-1 protocol (which only supports RSA); for this, you need to select
@@ -137,7 +137,28 @@ of the key PuTTYgen will generate.
 \b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
 equivalent security to RSA with smaller key sizes.)
 
-\b For Ed25519, the only valid size is 256 bits.
+\b For EdDSA, the only valid sizes are 255 bits (these keys are also
+known as \q{\i{Ed25519}} and are commonly used) and 448 bits
+(\q{\i{Ed448}}, which is much less common at the time of writing).
+(256 is also accepted for backward compatibility, but the effect is
+the same as 255.)
+
+\S{puttygen-primes} Selecting the \i{prime generation method}
+
+On the \q{Key} menu, you can also optionally change the method for
+generating the prime numbers used in the generated key. This affects
+the quality of the key, but not its compatibility. The default method
+is usually fine. The available methods are:
+
+\b Use \i{probable primes} (fast)
+
+\b Use \i{proven primes} (slower)
+
+\b Use proven primes with even distribution (slowest)
+
+\#{XXX-REVIEW-BEFORE-RELEASE: really need more words here, about why
+you'd fiddle with this, and particularly around why 'probable' is ever
+considered fine}
 
 \S{puttygen-generate} The \q{Generate} button
 
