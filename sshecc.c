@@ -78,11 +78,13 @@ static void initialise_mcurve(
 
 static void initialise_ecurve(
     struct ec_curve *curve, mp_int *p, mp_int *d, mp_int *a,
-    mp_int *nonsquare, mp_int *G_x, mp_int *G_y, mp_int *G_order)
+    mp_int *nonsquare, mp_int *G_x, mp_int *G_y, mp_int *G_order,
+    unsigned log2_cofactor)
 {
     initialise_common(curve, EC_EDWARDS, p);
 
     curve->e.ec = ecc_edwards_curve(p, d, a, nonsquare);
+    curve->e.log2_cofactor = log2_cofactor;
 
     curve->e.G = ecc_edwards_point_new(curve->e.ec, G_x, G_y);
     curve->e.G_order = mp_copy(G_order);
@@ -256,7 +258,8 @@ static struct ec_curve *ec_ed25519(void)
         mp_int *G_y = MP_LITERAL(0x6666666666666666666666666666666666666666666666666666666666666658);
         mp_int *G_order = MP_LITERAL(0x1000000000000000000000000000000014def9dea2f79cd65812631a5cf5d3ed);
         mp_int *nonsquare_mod_p = mp_from_integer(2);
-        initialise_ecurve(&curve, p, d, a, nonsquare_mod_p, G_x, G_y, G_order);
+        initialise_ecurve(&curve, p, d, a, nonsquare_mod_p,
+                          G_x, G_y, G_order, 3);
         mp_free(p);
         mp_free(d);
         mp_free(a);
@@ -322,9 +325,9 @@ static mp_int *eddsa_exponent_from_hash(
     mp_reduce_mod_2to(e, curve->fieldBits);
 
     /*
-     * Clear exactly three low bits.
+     * Clear a curve-specific number of low bits.
      */
-    for (size_t bit = 0; bit < 3; bit++)
+    for (unsigned bit = 0; bit < curve->e.log2_cofactor; bit++)
         mp_set_bit(e, bit, 0);
 
     return e;

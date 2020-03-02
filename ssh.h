@@ -476,6 +476,7 @@ struct ec_ecurve
     EdwardsCurve *ec;
     EdwardsPoint *G;
     mp_int *G_order;
+    unsigned log2_cofactor;
 };
 
 typedef enum EllipticCurveType {
