@@ -13,12 +13,8 @@
 /* ----------------------------------------------------------------------
  * Standard probabilistic prime-generation algorithm:
  *
- *  - invent a B-bit random number and ensure the top and bottom
- *    bits are set (so it's definitely B-bit, and it's definitely
- *    odd)
- *
- *  - see if it's coprime to all primes below 2^16; increment it by
- *    two until it is (this shouldn't take long in general)
+ *  - get a number from our PrimeCandidateSource which will at least
+ *    avoid being divisible by any prime under 2^16
  *
  *  - perform the Miller-Rabin primality test enough times to
  *    ensure the probability of it being composite is 2^-80 or
