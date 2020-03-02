@@ -2341,6 +2341,22 @@ class standard_test_vectors(MyTestBase):
             'c665befb36da189d78822d10528cbf3b12b3eef726039909c1a16a270d487193'
             '77966b957a878e720584779a62825c18da26415e49a7176a894e7510fd1451f5'))
 
+    def testSHA3(self):
+        # Source: all the SHA-3 test strings from
+        # https://csrc.nist.gov/projects/cryptographic-standards-and-guidelines/example-values#aHashing
+        # which are a multiple of 8 bits long.
+
+        self.assertEqualBin(hash_str('sha3_224', ''), unhex("6b4e03423667dbb73b6e15454f0eb1abd4597f9a1b078e3f5b5a6bc7"))
+        self.assertEqualBin(hash_str('sha3_224', unhex('a3')*200), unhex("9376816aba503f72f96ce7eb65ac095deee3be4bf9bbc2a1cb7e11e0"))
+        self.assertEqualBin(hash_str('sha3_256', ''), unhex("a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a"))
+        self.assertEqualBin(hash_str('sha3_256', unhex('a3')*200), unhex("79f38adec5c20307a98ef76e8324afbfd46cfd81b22e3973c65fa1bd9de31787"))
+        self.assertEqualBin(hash_str('sha3_384', ''), unhex("0c63a75b845e4f7d01107d852e4c2485c51a50aaaa94fc61995e71bbee983a2ac3713831264adb47fb6bd1e058d5f004"))
+        self.assertEqualBin(hash_str('sha3_384', unhex('a3')*200), unhex("1881de2ca7e41ef95dc4732b8f5f002b189cc1e42b74168ed1732649ce1dbcdd76197a31fd55ee989f2d7050dd473e8f"))
+        self.assertEqualBin(hash_str('sha3_512', ''), unhex("a69f73cca23a9ac5c8b567dc185a756e97c982164fe25859e0d1dcc1475c80a615b2123af1f5f94c11e3e9402c3ac558f500199d95b6d3e301758586281dcd26"))
+        self.assertEqualBin(hash_str('sha3_512', unhex('a3')*200), unhex("e76dfad22084a8b1467fcf2ffa58361bec7628edf5f3fdc0e4805dc48caeeca81b7c13c30adf52a3659584739a2df46be589c51ca1a4a8416df6545a1ce8ba00"))
+        self.assertEqualBin(hash_str('shake256_114bytes', ''), unhex("46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762fd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be141e96616fb13957692cc7edd0b45ae3dc07223c8e92937bef84bc0eab862853349ec75546f58fb7c2775c38462c5010d846"))
+        self.assertEqualBin(hash_str('shake256_114bytes', unhex('a3')*200), unhex("cd8a920ed141aa0407a22d59288652e9d9f1a7ee0c1e7c1ca699424da84a904d2d700caae7396ece96604440577da4f3aa22aeb8857f961c4cd8e06f0ae6610b1048a7f64e1074cd629e85ad7566048efc4fb500b486a3309a8f26724c0ed628001a1099422468de726f1061d99eb9e93604"))
+
     def testHmacSHA(self):
         # Test cases from RFC 6234 section 8.5.
         def vector(key, message, s1=None, s256=None):

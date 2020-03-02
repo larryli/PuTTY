@@ -929,7 +929,7 @@ struct ssh2_userkey {
 };
 
 /* The maximum length of any hash algorithm. (bytes) */
-#define MAX_HASH_LEN (64)              /* longest is SHA-512 */
+#define MAX_HASH_LEN (114) /* longest is SHAKE256 with 114-byte output */
 
 extern const ssh_cipheralg ssh_3des_ssh1;
 extern const ssh_cipheralg ssh_blowfish_ssh1;
@@ -975,6 +975,11 @@ extern const ssh_hashalg ssh_sha256_hw;
 extern const ssh_hashalg ssh_sha256_sw;
 extern const ssh_hashalg ssh_sha384;
 extern const ssh_hashalg ssh_sha512;
+extern const ssh_hashalg ssh_sha3_224;
+extern const ssh_hashalg ssh_sha3_256;
+extern const ssh_hashalg ssh_sha3_384;
+extern const ssh_hashalg ssh_sha3_512;
+extern const ssh_hashalg ssh_shake256_114bytes;
 extern const ssh_kexes ssh_diffiehellman_group1;
 extern const ssh_kexes ssh_diffiehellman_group14;
 extern const ssh_kexes ssh_diffiehellman_gex;

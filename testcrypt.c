@@ -216,6 +216,11 @@ static const ssh_hashalg *get_hashalg(BinarySource *in)
         {"sha256_hw", &ssh_sha256_hw},
         {"sha384", &ssh_sha384},
         {"sha512", &ssh_sha512},
+        {"sha3_224", &ssh_sha3_224},
+        {"sha3_256", &ssh_sha3_256},
+        {"sha3_384", &ssh_sha3_384},
+        {"sha3_512", &ssh_sha3_512},
+        {"shake256_114bytes", &ssh_shake256_114bytes},
     };
 
     ptrlen name = get_word(in);
