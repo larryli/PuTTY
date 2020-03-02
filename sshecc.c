@@ -295,6 +295,10 @@ struct ecsign_extra {
     /* These fields are used by the OpenSSH PEM format importer/exporter */
     const unsigned char *oid;
     int oidlen;
+
+    /* Some EdDSA instances prefix a string to all hash preimages, to
+     * disambiguate which signature variant they're being used with */
+    ptrlen hash_prefix;
 };
 
 WeierstrassPoint *ecdsa_public(mp_int *private_key, const ssh_keyalg *alg)
@@ -1005,6 +1009,7 @@ static mp_int *eddsa_signing_exponent_from_data(
     /* Hash (r || public key || message) */
     unsigned char hash[MAX_HASH_LEN];
     ssh_hash *h = ssh_hash_new(extra->hash);
+    put_datapl(h, extra->hash_prefix);
     put_datapl(h, r_encoded);
     put_epoint(h, ek->publicKey, ek->curve, true); /* omit string header */
     put_datapl(h, data);
@@ -1157,6 +1162,7 @@ static void eddsa_sign(ssh_key *key, ptrlen data,
      * generate the signature point r.
      */
     h = ssh_hash_new(extra->hash);
+    put_datapl(h, extra->hash_prefix);
     put_data(h, hash + ek->curve->fieldBytes,
              extra->hash->hlen - ek->curve->fieldBytes);
     put_datapl(h, data);
@@ -1202,7 +1208,7 @@ static void eddsa_sign(ssh_key *key, ptrlen data,
 
 static const struct ecsign_extra sign_extra_ed25519 = {
     ec_ed25519, &ssh_sha512,
-    NULL, 0,
+    NULL, 0, PTRLEN_DECL_LITERAL(""),
 };
 const ssh_keyalg ssh_ecdsa_ed25519 = {
     eddsa_new_pub,
