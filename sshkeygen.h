@@ -284,8 +284,8 @@ extern const PrimeGenerationPolicy primegen_provable_maurer_complex;
  * The overall top-level API for generating entire key pairs.
  */
 
-int rsa_generate(RSAKey *key, int bits, PrimeGenerationContext *pgc,
-                 ProgressReceiver *prog);
+int rsa_generate(RSAKey *key, int bits, bool strong,
+                 PrimeGenerationContext *pgc, ProgressReceiver *prog);
 int dsa_generate(struct dss_key *key, int bits, PrimeGenerationContext *pgc,
                  ProgressReceiver *prog);
 int ecdsa_generate(struct ecdsa_key *key, int bits);

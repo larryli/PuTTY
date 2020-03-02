@@ -14,8 +14,91 @@
 static void invent_firstbits(unsigned *one, unsigned *two,
                              unsigned min_separation);
 
-int rsa_generate(RSAKey *key, int bits, PrimeGenerationContext *pgc,
-                 ProgressReceiver *prog)
+typedef struct RSAPrimeDetails RSAPrimeDetails;
+struct RSAPrimeDetails {
+    bool strong;
+    int bits, bitsm1m1, bitsm1, bitsp1;
+    unsigned firstbits;
+    ProgressPhase phase_main, phase_m1m1, phase_m1, phase_p1;
+};
+
+#define STRONG_MARGIN (20 + NFIRSTBITS)
+
+static RSAPrimeDetails setup_rsa_prime(
+    int bits, bool strong, PrimeGenerationContext *pgc, ProgressReceiver *prog)
+{
+    RSAPrimeDetails pd;
+    pd.bits = bits;
+    if (strong) {
+        pd.bitsm1 = (bits - STRONG_MARGIN) / 2;
+        pd.bitsp1 = (bits - STRONG_MARGIN) - pd.bitsm1;
+        pd.bitsm1m1 = (pd.bitsm1 - STRONG_MARGIN) / 2;
+        if (pd.bitsm1m1 < STRONG_MARGIN) {
+            /* Absurdly small prime, but we should at least not crash. */
+            strong = false;
+        }
+    }
+    pd.strong = strong;
+
+    if (pd.strong) {
+        pd.phase_m1m1 = primegen_add_progress_phase(pgc, prog, pd.bitsm1m1);
+        pd.phase_m1 = primegen_add_progress_phase(pgc, prog, pd.bitsm1);
+        pd.phase_p1 = primegen_add_progress_phase(pgc, prog, pd.bitsp1);
+    }
+    pd.phase_main = primegen_add_progress_phase(pgc, prog, pd.bits);
+
+    return pd;
+}
+
+static mp_int *generate_rsa_prime(
+    RSAPrimeDetails pd, PrimeGenerationContext *pgc, ProgressReceiver *prog)
+{
+    mp_int *m1m1 = NULL, *m1 = NULL, *p1 = NULL, *p = NULL;
+    PrimeCandidateSource *pcs;
+
+    if (pd.strong) {
+        progress_start_phase(prog, pd.phase_m1m1);
+        pcs = pcs_new_with_firstbits(pd.bitsm1m1, pd.firstbits, NFIRSTBITS);
+        m1m1 = primegen_generate(pgc, pcs, prog);
+        progress_report_phase_complete(prog);
+
+        progress_start_phase(prog, pd.phase_m1);
+        pcs = pcs_new_with_firstbits(pd.bitsm1, pd.firstbits, NFIRSTBITS);
+        pcs_require_residue_1_mod_prime(pcs, m1m1);
+        m1 = primegen_generate(pgc, pcs, prog);
+        progress_report_phase_complete(prog);
+
+        progress_start_phase(prog, pd.phase_p1);
+        pcs = pcs_new_with_firstbits(pd.bitsp1, pd.firstbits, NFIRSTBITS);
+        p1 = primegen_generate(pgc, pcs, prog);
+        progress_report_phase_complete(prog);
+    }
+
+    progress_start_phase(prog, pd.phase_main);
+    pcs = pcs_new_with_firstbits(pd.bits, pd.firstbits, NFIRSTBITS);
+    pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
+    if (pd.strong) {
+        pcs_require_residue_1_mod_prime(pcs, m1);
+        mp_int *p1_minus_1 = mp_copy(p1);
+        mp_sub_integer_into(p1_minus_1, p1, 1);
+        pcs_require_residue(pcs, p1, p1_minus_1);
+        mp_free(p1_minus_1);
+    }
+    p = primegen_generate(pgc, pcs, prog);
+    progress_report_phase_complete(prog);
+
+    if (m1m1)
+        mp_free(m1m1);
+    if (m1)
+        mp_free(m1);
+    if (p1)
+        mp_free(p1);
+
+    return p;
+}
+
+int rsa_generate(RSAKey *key, int bits, bool strong,
+                 PrimeGenerationContext *pgc, ProgressReceiver *prog)
 {
     key->sshk.vt = &ssh_rsa;
 
@@ -41,26 +124,14 @@ int rsa_generate(RSAKey *key, int bits, PrimeGenerationContext *pgc,
     int pbits = bits - qbits;
     assert(pbits >= qbits);
 
-    ProgressPhase phase_p = primegen_add_progress_phase(pgc, prog, pbits);
-    ProgressPhase phase_q = primegen_add_progress_phase(pgc, prog, qbits);
+    RSAPrimeDetails pd = setup_rsa_prime(pbits, strong, pgc, prog);
+    RSAPrimeDetails qd = setup_rsa_prime(qbits, strong, pgc, prog);
     progress_ready(prog);
 
-    unsigned pfirst, qfirst;
-    invent_firstbits(&pfirst, &qfirst, 2);
+    invent_firstbits(&pd.firstbits, &qd.firstbits, 2);
 
-    PrimeCandidateSource *pcs;
-
-    progress_start_phase(prog, phase_p);
-    pcs = pcs_new_with_firstbits(pbits, pfirst, NFIRSTBITS);
-    pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
-    mp_int *p = primegen_generate(pgc, pcs, prog);
-    progress_report_phase_complete(prog);
-
-    progress_start_phase(prog, phase_q);
-    pcs = pcs_new_with_firstbits(qbits, qfirst, NFIRSTBITS);
-    pcs_avoid_residue_small(pcs, RSA_EXPONENT, 1);
-    mp_int *q = primegen_generate(pgc, pcs, prog);
-    progress_report_phase_complete(prog);
+    mp_int *p = generate_rsa_prime(pd, pgc, prog);
+    mp_int *q = generate_rsa_prime(qd, pgc, prog);
 
     /*
      * Ensure p > q, by swapping them if not.

@@ -30,7 +30,7 @@ def generate():
     import ssh
 
     keygen2 = [
-        ('RSA-1024', lambda: rsa_generate(1024),
+        ('RSA-1024', lambda: rsa_generate(1024, False),
          (ssh.SSH_AGENT_RSA_SHA2_256, ssh.SSH_AGENT_RSA_SHA2_512)),
         ('DSA-1024', lambda: dsa_generate(1024)),
         ('ECDSA-p256', lambda: ecdsa_generate(256)),

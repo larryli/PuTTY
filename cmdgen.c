@@ -147,6 +147,7 @@ void help(void)
            "        probable       conventional probabilistic prime finding\n"
            "        proven         numbers that have been proven to be prime\n"
            "        proven-even    also try harder for an even distribution\n"
+           "  --strong-rsa         use \"strong\" primes as RSA key factors\n"
            );
 }
 
@@ -223,6 +224,7 @@ int main(int argc, char **argv)
     const char *random_device = NULL;
     int exit_status = 0;
     const PrimeGenerationPolicy *primegen = &primegen_probabilistic;
+    bool strong_rsa = false;
 
     if (is_interactive())
         progress_fp = stderr;
@@ -358,6 +360,8 @@ int main(int argc, char **argv)
                             fprintf(stderr, "puttygen: unrecognised prime-"
                                     "generation mode `%s'\n", val);
                         }
+                    } else if (!strcmp(opt, "-strong-rsa")) {
+                        strong_rsa = true;
                     } else {
                       errs = true;
                       fprintf(stderr,
@@ -775,7 +779,7 @@ int main(int argc, char **argv)
             ssh1key = NULL;
         } else {
             RSAKey *rsakey = snew(RSAKey);
-            rsa_generate(rsakey, bits, pgc, &cmdgen_progress);
+            rsa_generate(rsakey, bits, strong_rsa, pgc, &cmdgen_progress);
             rsakey->comment = NULL;
             if (keytype == RSA1) {
                 ssh1key = rsakey;

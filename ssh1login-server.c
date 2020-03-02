@@ -145,7 +145,7 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
             &primegen_probabilistic);
         ProgressReceiver null_progress;
         null_progress.vt = &null_progress_vt;
-        rsa_generate(s->servkey, server_key_bits, pgc, &null_progress);
+        rsa_generate(s->servkey, server_key_bits, false, pgc, &null_progress);
         primegen_free_context(pgc);
 
         s->servkey->comment = NULL;

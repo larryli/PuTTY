@@ -407,6 +407,11 @@ static uintmax_t get_uint(BinarySource *in)
     return toret;
 }
 
+static bool get_boolean(BinarySource *in)
+{
+    return ptrlen_eq_string(get_word(in), "true");
+}
+
 static Value *lookup_value(ptrlen word)
 {
     Value *val = find234(values, &word, valuefind);
@@ -1134,17 +1139,18 @@ mp_int *primegen_generate_wrapper(
 }
 #define primegen_generate primegen_generate_wrapper
 
-RSAKey *rsa1_generate(int bits, PrimeGenerationContext *pgc)
+RSAKey *rsa1_generate(int bits, bool strong, PrimeGenerationContext *pgc)
 {
     RSAKey *rsakey = snew(RSAKey);
-    rsa_generate(rsakey, bits, pgc, &null_progress);
+    rsa_generate(rsakey, bits, strong, pgc, &null_progress);
     rsakey->comment = NULL;
     return rsakey;
 }
 
-ssh_key *rsa_generate_wrapper(int bits, PrimeGenerationContext *pgc)
+ssh_key *rsa_generate_wrapper(int bits, bool strong,
+                              PrimeGenerationContext *pgc)
 {
-    return &rsa1_generate(bits, pgc)->sshk;
+    return &rsa1_generate(bits, strong, pgc)->sshk;
 }
 #define rsa_generate rsa_generate_wrapper
 
@@ -1217,6 +1223,7 @@ OPTIONAL_PTR_FUNC(mpint)
 OPTIONAL_PTR_FUNC(string)
 
 typedef uintmax_t TD_uint;
+typedef bool TD_boolean;
 typedef ptrlen TD_val_string_ptrlen;
 typedef char *TD_val_string_asciz;
 typedef BinarySource *TD_val_string_binarysource;

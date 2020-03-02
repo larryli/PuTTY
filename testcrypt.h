@@ -262,11 +262,11 @@ FUNC3(val_string, rsa1_save_sb, val_rsa, opt_val_string_asciz, opt_val_string_as
 /*
  * Key generation functions.
  */
-FUNC2(val_key, rsa_generate, uint, val_pgc)
+FUNC3(val_key, rsa_generate, uint, boolean, val_pgc)
 FUNC2(val_key, dsa_generate, uint, val_pgc)
 FUNC1(opt_val_key, ecdsa_generate, uint)
 FUNC1(opt_val_key, eddsa_generate, uint)
-FUNC2(val_rsa, rsa1_generate, uint, val_pgc)
+FUNC3(val_rsa, rsa1_generate, uint, boolean, val_pgc)
 FUNC1(val_pgc, primegen_new_context, primegenpolicy)
 FUNC2(opt_val_mpint, primegen_generate, val_pgc, consumed_val_pcs)
 FUNC2(val_string, primegen_mpu_certificate, val_pgc, val_mpint)

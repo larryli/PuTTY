@@ -168,6 +168,8 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
         return ident
     if typename == "uint" and isinstance(arg, numbers.Integral):
         return "0x{:x}".format(arg)
+    if typename == "boolean":
+        return "true" if arg else "false"
     if typename in {
             "hashalg", "macalg", "keyalg", "cipheralg",
             "dh_group", "ecdh_alg", "rsaorder", "primegenpolicy"}:

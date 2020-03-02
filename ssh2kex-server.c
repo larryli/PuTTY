@@ -270,7 +270,8 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 &primegen_probabilistic);
             ProgressReceiver null_progress;
             null_progress.vt = &null_progress_vt;
-            rsa_generate(s->rsa_kex_key, extra->minklen, pgc, &null_progress);
+            rsa_generate(s->rsa_kex_key, extra->minklen, false,
+                         pgc, &null_progress);
             primegen_free_context(pgc);
 
             s->rsa_kex_key->comment = NULL;

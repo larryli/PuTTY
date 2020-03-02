@@ -65,7 +65,6 @@ void nonfatal(const char *fmt, ...)
  */
 
 #define PROGRESSRANGE 65535
-#define MAXPHASE 5
 
 struct progressphase {
     double startpoint, total;
@@ -74,8 +73,8 @@ struct progressphase {
 };
 
 struct progress {
-    int nphases;
-    struct progressphase phases[MAXPHASE], *currphase;
+    size_t nphases, phasessize;
+    struct progressphase *phases, *currphase;
 
     double scale;
     HWND progbar;
@@ -87,7 +86,7 @@ static ProgressPhase win_progress_add_linear(
     ProgressReceiver *prog, double overall_cost) {
     struct progress *p = container_of(prog, struct progress, rec);
 
-    assert(p->nphases < MAXPHASE);
+    sgrowarray(p->phases, p->phasessize, p->nphases);
     int phase = p->nphases++;
 
     p->phases[phase].total = overall_cost;
@@ -100,7 +99,7 @@ static ProgressPhase win_progress_add_probabilistic(
     ProgressReceiver *prog, double cost_per_attempt, double probability) {
     struct progress *p = container_of(prog, struct progress, rec);
 
-    assert(p->nphases < MAXPHASE);
+    sgrowarray(p->phases, p->phasessize, p->nphases);
     int phase = p->nphases++;
 
     p->phases[phase].exp_probability = 1.0 - probability;
@@ -182,8 +181,14 @@ static const ProgressReceiverVtable win_progress_vt = {
 
 static void win_progress_initialise(struct progress *p)
 {
-    p->nphases = 0;
+    p->nphases = p->phasessize = 0;
+    p->phases = p->currphase = NULL;
     p->rec.vt = &win_progress_vt;
+}
+
+static void win_progress_cleanup(struct progress *p)
+{
+    sfree(p->phases);
 }
 
 struct PassphraseProcStruct {
@@ -395,6 +400,7 @@ struct rsa_key_thread_params {
     int curve_bits;                    /* bits in elliptic curve (ECDSA) */
     keytype keytype;
     const PrimeGenerationPolicy *primepolicy;
+    bool rsa_strong;
     union {
         RSAKey *key;
         struct dss_key *dsskey;
@@ -420,11 +426,14 @@ static DWORD WINAPI generate_key_thread(void *param)
     else if (params->keytype == EDDSA)
         eddsa_generate(params->edkey, params->curve_bits);
     else
-        rsa_generate(params->key, params->key_bits, pgc, &prog.rec);
+        rsa_generate(params->key, params->key_bits, params->rsa_strong,
+                     pgc, &prog.rec);
 
     primegen_free_context(pgc);
 
     PostMessage(params->dialog, WM_DONEKEY, 0, 0);
+
+    win_progress_cleanup(&prog);
 
     sfree(params);
     return 0;
@@ -439,6 +448,7 @@ struct MainDlgState {
     bool ssh2;
     keytype keytype;
     const PrimeGenerationPolicy *primepolicy;
+    bool rsa_strong;
     char **commentptr;                 /* points to key.comment or ssh2key.comment */
     ssh2_userkey ssh2key;
     unsigned *entropy;
@@ -518,6 +528,7 @@ enum {
     IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
     IDC_KEYSSH2ECDSA, IDC_KEYSSH2EDDSA,
     IDC_PRIMEGEN_PROB, IDC_PRIMEGEN_MAURER_SIMPLE, IDC_PRIMEGEN_MAURER_COMPLEX,
+    IDC_RSA_STRONG,
     IDC_BITSSTATIC, IDC_BITS,
     IDC_ECCURVESTATIC, IDC_ECCURVE,
     IDC_EDCURVESTATIC, IDC_EDCURVE,
@@ -720,6 +731,12 @@ void ui_set_primepolicy(HWND hwnd, struct MainDlgState *state, int option)
         break;
     }
 }
+void ui_set_rsa_strong(HWND hwnd, struct MainDlgState *state, bool enable)
+{
+    state->rsa_strong = enable;
+    CheckMenuItem(state->keymenu, IDC_RSA_STRONG,
+                  (enable ? MF_CHECKED : 0) | MF_BYCOMMAND);
+}
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
                    Filename *filename, bool was_import_cmd)
@@ -911,6 +928,7 @@ static void start_generating_key(HWND hwnd, struct MainDlgState *state)
     params->curve_bits = state->curve_bits;
     params->keytype = state->keytype;
     params->primepolicy = state->primepolicy;
+    params->rsa_strong = state->rsa_strong;
     params->key = &state->key;
     params->dsskey = &state->dsskey;
 
@@ -985,6 +1003,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                        "Use proven primes (slower)");
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_MAURER_COMPLEX,
                        "Use proven primes with even distribution (slowest)");
+            AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+            AppendMenu(menu1, MF_ENABLED, IDC_RSA_STRONG,
+                       "Use \"strong\" primes as RSA key factors");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
             state->keymenu = menu1;
 
@@ -1120,6 +1141,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         }
         ui_set_key_type(hwnd, state, IDC_KEYSSH2RSA);
         ui_set_primepolicy(hwnd, state, IDC_PRIMEGEN_PROB);
+        ui_set_rsa_strong(hwnd, state, false);
         SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
         SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_SETCURSEL,
                            DEFAULT_ECCURVE_INDEX, 0);
@@ -1184,6 +1206,12 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             state = (struct MainDlgState *)
                 GetWindowLongPtr(hwnd, GWLP_USERDATA);
             ui_set_primepolicy(hwnd, state, LOWORD(wParam));
+            break;
+          }
+          case IDC_RSA_STRONG: {
+            state = (struct MainDlgState *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            ui_set_rsa_strong(hwnd, state, !state->rsa_strong);
             break;
           }
           case IDC_QUIT:
