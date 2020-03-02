@@ -877,11 +877,12 @@ unsigned mp_cmp_hs(mp_int *a, mp_int *b)
 unsigned mp_hs_integer(mp_int *x, uintmax_t n)
 {
     BignumInt carry = 1;
-    for (size_t i = 0; i < x->nw; i++) {
+    size_t nwords = sizeof(n)/BIGNUM_INT_BYTES;
+    for (size_t i = 0, e = size_t_max(x->nw, nwords); i < e; i++) {
         BignumInt nword = n;
         n = shift_right_by_one_word(n);
         BignumInt dummy_out;
-        BignumADC(dummy_out, carry, x->w[i], ~nword, carry);
+        BignumADC(dummy_out, carry, mp_word(x, i), ~nword, carry);
         (void)dummy_out;
     }
     return carry;
@@ -903,10 +904,11 @@ unsigned mp_cmp_eq(mp_int *a, mp_int *b)
 unsigned mp_eq_integer(mp_int *x, uintmax_t n)
 {
     BignumInt diff = 0;
-    for (size_t i = 0; i < x->nw; i++) {
+    size_t nwords = sizeof(n)/BIGNUM_INT_BYTES;
+    for (size_t i = 0, e = size_t_max(x->nw, nwords); i < e; i++) {
         BignumInt nword = n;
         n = shift_right_by_one_word(n);
-        diff |= x->w[i] ^ nword;
+        diff |= mp_word(x, i) ^ nword;
     }
     return 1 ^ normalise_to_1(diff);   /* return 1 if diff _is_ zero */
 }

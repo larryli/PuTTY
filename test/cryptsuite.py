@@ -261,6 +261,19 @@ class mpint(MyTestBase):
                 mp_max_into(am_big, am, bm)
                 self.assertEqual(int(am_big), max(ai, bi))
 
+        # Test mp_{eq,hs}_integer in the case where the integer is as
+        # large as possible and the bignum contains very few words. In
+        # modes where BIGNUM_INT_BITS < 64, this used to go wrong.
+        mp10 = mp_new(4)
+        mp_copy_integer_into(mp10, 10)
+        highbit = 1 << 63
+        self.assertEqual(mp_hs_integer(mp10, highbit | 9), 0)
+        self.assertEqual(mp_hs_integer(mp10, highbit | 10), 0)
+        self.assertEqual(mp_hs_integer(mp10, highbit | 11), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 9), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 10), 0)
+        self.assertEqual(mp_eq_integer(mp10, highbit | 11), 0)
+
     def testConditionals(self):
         testnumbers = [(mp_copy(n),n) for n in fibonacci_scattered()]
         for am, ai in testnumbers:
