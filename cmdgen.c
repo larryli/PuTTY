@@ -114,8 +114,9 @@ void help(void)
     printf("PuTTYgen: key generator and converter for the PuTTY tools\n"
            "%s\n", ver);
     usage(false);
-    printf("  -t    specify key type when generating (ed25519, ecdsa, rsa, "
-                                                        "dsa, rsa1)\n"
+    printf("  -t    specify key type when generating:\n"
+           "           eddsa, ecdsa, rsa, dsa, rsa1   use with -b\n"
+           "           ed25519                        special case of eddsa\n"
            "  -b    specify number of bits when generating key\n"
            "  -C    change or specify key comment\n"
            "  -P    change key passphrase\n"
@@ -202,7 +203,7 @@ int main(int argc, char **argv)
     Filename *infilename = NULL, *outfilename = NULL;
     LoadedFile *infile_lf = NULL;
     BinarySource *infile_bs = NULL;
-    enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, ED25519 } keytype = NOKEYGEN;
+    enum { NOKEYGEN, RSA1, RSA2, DSA, ECDSA, EDDSA } keytype = NOKEYGEN;
     char *outfile = NULL, *outfiletmp = NULL;
     enum { PRIVATE, PUBLIC, PUBLICO, FP, OPENSSH_AUTO,
            OPENSSH_NEW, SSHCOM, TEXT } outtype = PRIVATE;
@@ -430,8 +431,10 @@ int main(int argc, char **argv)
                             keytype = DSA, sshver = 2;
                         else if (!strcmp(p, "ecdsa"))
                             keytype = ECDSA, sshver = 2;
+                        else if (!strcmp(p, "eddsa"))
+                            keytype = EDDSA, sshver = 2;
                         else if (!strcmp(p, "ed25519"))
-                            keytype = ED25519, sshver = 2;
+                            keytype = EDDSA, bits = 255, sshver = 2;
                         else {
                             fprintf(stderr,
                                     "puttygen: unknown key type `%s'\n", p);
@@ -505,7 +508,7 @@ int main(int argc, char **argv)
           case ECDSA:
             bits = 384;
             break;
-          case ED25519:
+          case EDDSA:
             bits = 255;
             break;
           default:
@@ -514,14 +517,29 @@ int main(int argc, char **argv)
         }
     }
 
-    if (keytype == ECDSA && (bits != 256 && bits != 384 && bits != 521)) {
-        fprintf(stderr, "puttygen: invalid bits for ECDSA, choose 256, 384 or 521\n");
-        errs = true;
-    }
+    if (keytype == ECDSA || keytype == EDDSA) {
+        const char *name = (keytype == ECDSA ? "ECDSA" : "EdDSA");
+        const int *valid_lengths = (keytype == ECDSA ? ec_nist_curve_lengths :
+                                    ec_ed_curve_lengths);
+        size_t n_lengths = (keytype == ECDSA ? n_ec_nist_curve_lengths :
+                            n_ec_ed_curve_lengths);
+        bool (*alg_and_curve_by_bits)(int, const struct ec_curve **,
+                                      const ssh_keyalg **) =
+            (keytype == ECDSA ? ec_nist_alg_and_curve_by_bits :
+             ec_ed_alg_and_curve_by_bits);
 
-    if (keytype == ED25519 && (bits != 255) && (bits != 256)) {
-        fprintf(stderr, "puttygen: invalid bits for ED25519, choose 255\n");
-        errs = true;
+        const struct ec_curve *curve;
+        const ssh_keyalg *alg;
+
+        if (!alg_and_curve_by_bits(bits, &curve, &alg)) {
+            fprintf(stderr, "puttygen: invalid bits for %s, choose", name);
+            for (size_t i = 0; i < n_lengths; i++)
+                fprintf(stderr, "%s%d", (i == 0 ? " " :
+                                         i == n_lengths-1 ? " or " : ", "),
+                        valid_lengths[i]);
+            fputc('\n', stderr);
+            errs = true;
+        }
     }
 
     if (keytype == RSA2 || keytype == RSA1 || keytype == DSA) {
@@ -715,8 +733,10 @@ int main(int argc, char **argv)
             strftime(default_comment, 30, "dsa-key-%Y%m%d", &tm);
         else if (keytype == ECDSA)
             strftime(default_comment, 30, "ecdsa-key-%Y%m%d", &tm);
-        else if (keytype == ED25519)
+        else if (keytype == EDDSA && bits == 255)
             strftime(default_comment, 30, "ed25519-key-%Y%m%d", &tm);
+        else if (keytype == EDDSA)
+            strftime(default_comment, 30, "eddsa-key-%Y%m%d", &tm);
         else
             strftime(default_comment, 30, "rsa-key-%Y%m%d", &tm);
 
@@ -745,7 +765,7 @@ int main(int argc, char **argv)
             ssh2key = snew(ssh2_userkey);
             ssh2key->key = &ek->sshk;
             ssh1key = NULL;
-        } else if (keytype == ED25519) {
+        } else if (keytype == EDDSA) {
             struct eddsa_key *ek = snew(struct eddsa_key);
             eddsa_generate(ek, bits);
             ssh2key = snew(ssh2_userkey);

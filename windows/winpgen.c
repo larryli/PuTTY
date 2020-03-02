@@ -22,7 +22,8 @@
 #define WM_DONEKEY (WM_APP + 1)
 
 #define DEFAULT_KEY_BITS 2048
-#define DEFAULT_CURVE_INDEX 0
+#define DEFAULT_ECCURVE_INDEX 0
+#define DEFAULT_EDCURVE_INDEX 0
 
 static char *cmdline_keyfile = NULL;
 
@@ -382,7 +383,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-typedef enum {RSA, DSA, ECDSA, ED25519} keytype;
+typedef enum {RSA, DSA, ECDSA, EDDSA} keytype;
 
 /*
  * Thread to generate a key.
@@ -416,8 +417,8 @@ static DWORD WINAPI generate_key_thread(void *param)
         dsa_generate(params->dsskey, params->key_bits, pgc, &prog.rec);
     else if (params->keytype == ECDSA)
         ecdsa_generate(params->eckey, params->curve_bits);
-    else if (params->keytype == ED25519)
-        eddsa_generate(params->edkey, 255);
+    else if (params->keytype == EDDSA)
+        eddsa_generate(params->edkey, params->curve_bits);
     else
         rsa_generate(params->key, params->key_bits, pgc, &prog.rec);
 
@@ -515,10 +516,11 @@ enum {
     IDC_SAVESTATIC, IDC_SAVE, IDC_SAVEPUB,
     IDC_BOX_PARAMS,
     IDC_TYPESTATIC, IDC_KEYSSH1, IDC_KEYSSH2RSA, IDC_KEYSSH2DSA,
-    IDC_KEYSSH2ECDSA, IDC_KEYSSH2ED25519,
+    IDC_KEYSSH2ECDSA, IDC_KEYSSH2EDDSA,
     IDC_PRIMEGEN_PROB, IDC_PRIMEGEN_MAURER_SIMPLE, IDC_PRIMEGEN_MAURER_COMPLEX,
     IDC_BITSSTATIC, IDC_BITS,
-    IDC_CURVESTATIC, IDC_CURVE,
+    IDC_ECCURVESTATIC, IDC_ECCURVE,
+    IDC_EDCURVESTATIC, IDC_EDCURVE,
     IDC_NOTHINGSTATIC,
     IDC_ABOUT,
     IDC_GIVEHELP,
@@ -558,7 +560,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 1);
-        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 1);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2EDDSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
         EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
@@ -569,7 +571,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
                        MF_ENABLED|MF_BYCOMMAND);
-        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2EDDSA,
                        MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_AUTO,
@@ -591,7 +593,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 0);
-        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 0);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2EDDSA), 0);
         EnableWindow(GetDlgItem(hwnd, IDC_BITS), 0);
         EnableMenuItem(state->filemenu, IDC_LOAD, MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->filemenu, IDC_SAVE, MF_GRAYED|MF_BYCOMMAND);
@@ -602,7 +604,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA, MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
                        MF_GRAYED|MF_BYCOMMAND);
-        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2EDDSA,
                        MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_GRAYED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_EXPORT_OPENSSH_AUTO,
@@ -624,7 +626,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2RSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2DSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ECDSA), 1);
-        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2ED25519), 1);
+        EnableWindow(GetDlgItem(hwnd, IDC_KEYSSH2EDDSA), 1);
         EnableWindow(GetDlgItem(hwnd, IDC_BITS), 1);
         EnableMenuItem(state->filemenu, IDC_LOAD, MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->filemenu, IDC_SAVE, MF_ENABLED|MF_BYCOMMAND);
@@ -635,7 +637,7 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
         EnableMenuItem(state->keymenu, IDC_KEYSSH2DSA,MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->keymenu, IDC_KEYSSH2ECDSA,
                        MF_ENABLED|MF_BYCOMMAND);
-        EnableMenuItem(state->keymenu, IDC_KEYSSH2ED25519,
+        EnableMenuItem(state->keymenu, IDC_KEYSSH2EDDSA,
                        MF_ENABLED|MF_BYCOMMAND);
         EnableMenuItem(state->cvtmenu, IDC_IMPORT, MF_ENABLED|MF_BYCOMMAND);
         /*
@@ -661,12 +663,15 @@ void ui_set_state(HWND hwnd, struct MainDlgState *state, int status)
  */
 void ui_update_key_type_ctrls(HWND hwnd)
 {
-    enum { BITS, CURVE, NOTHING } which;
+    enum { BITS, ECCURVE, EDCURVE, NOTHING } which;
     static const int bits_ids[] = {
         IDC_BITSSTATIC, IDC_BITS, 0
     };
-    static const int curve_ids[] = {
-        IDC_CURVESTATIC, IDC_CURVE, 0
+    static const int eccurve_ids[] = {
+        IDC_ECCURVESTATIC, IDC_ECCURVE, 0
+    };
+    static const int edcurve_ids[] = {
+        IDC_EDCURVESTATIC, IDC_EDCURVE, 0
     };
     static const int nothing_ids[] = {
         IDC_NOTHINGSTATIC, 0
@@ -677,20 +682,25 @@ void ui_update_key_type_ctrls(HWND hwnd)
         IsDlgButtonChecked(hwnd, IDC_KEYSSH2DSA)) {
         which = BITS;
     } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ECDSA)) {
-        which = CURVE;
+        which = ECCURVE;
+    } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2EDDSA)) {
+        which = EDCURVE;
     } else {
-        /* ED25519 implicitly only supports one curve */
+        /* Currently not used since Ed25519 stopped being the only
+         * thing in its class, but I'll keep it here in case it comes
+         * in useful again */
         which = NOTHING;
     }
 
     hidemany(hwnd, bits_ids, which != BITS);
-    hidemany(hwnd, curve_ids, which != CURVE);
+    hidemany(hwnd, eccurve_ids, which != ECCURVE);
+    hidemany(hwnd, edcurve_ids, which != EDCURVE);
     hidemany(hwnd, nothing_ids, which != NOTHING);
 }
 void ui_set_key_type(HWND hwnd, struct MainDlgState *state, int button)
 {
-    CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2ED25519, button);
-    CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2ED25519,
+    CheckRadioButton(hwnd, IDC_KEYSSH1, IDC_KEYSSH2EDDSA, button);
+    CheckMenuRadioItem(state->keymenu, IDC_KEYSSH1, IDC_KEYSSH2EDDSA,
                        button, MF_BYCOMMAND);
     ui_update_key_type_ctrls(hwnd);
 }
@@ -967,7 +977,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2RSA, "SSH-2 &RSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2DSA, "SSH-2 &DSA key");
             AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ECDSA, "SSH-2 &ECDSA key");
-            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2ED25519, "SSH-2 Ed&25519 key");
+            AppendMenu(menu1, MF_ENABLED, IDC_KEYSSH2EDDSA, "SSH-2 EdD&SA key");
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_PRIMEGEN_PROB,
                        "Use probable primes (fast)");
@@ -1057,7 +1067,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                       "&RSA", IDC_KEYSSH2RSA,
                       "&DSA", IDC_KEYSSH2DSA,
                       "&ECDSA", IDC_KEYSSH2ECDSA,
-                      "Ed&25519", IDC_KEYSSH2ED25519,
+                      "EdD&SA", IDC_KEYSSH2EDDSA,
                       "SSH-&1 (RSA)", IDC_KEYSSH1,
                       NULL);
             cp2 = cp;
@@ -1066,8 +1076,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             ymax = cp2.ypos;
             cp2 = cp;
             staticddl(&cp2, "Cur&ve to use for generating this key:",
-                      IDC_CURVESTATIC, IDC_CURVE, 20);
-            SendDlgItemMessage(hwnd, IDC_CURVE, CB_RESETCONTENT, 0, 0);
+                      IDC_ECCURVESTATIC, IDC_ECCURVE, 30);
+            SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_RESETCONTENT, 0, 0);
             {
                 int i, bits;
                 const struct ec_curve *curve;
@@ -1076,8 +1086,28 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 for (i = 0; i < n_ec_nist_curve_lengths; i++) {
                     bits = ec_nist_curve_lengths[i];
                     ec_nist_alg_and_curve_by_bits(bits, &curve, &alg);
-                    SendDlgItemMessage(hwnd, IDC_CURVE, CB_ADDSTRING, 0,
+                    SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_ADDSTRING, 0,
                                        (LPARAM)curve->textname);
+                }
+            }
+            ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
+            cp2 = cp;
+            staticddl(&cp2, "Cur&ve to use for generating this key:",
+                      IDC_EDCURVESTATIC, IDC_EDCURVE, 30);
+            SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_RESETCONTENT, 0, 0);
+            {
+                int i, bits;
+                const struct ec_curve *curve;
+                const ssh_keyalg *alg;
+
+                for (i = 0; i < n_ec_ed_curve_lengths; i++) {
+                    bits = ec_ed_curve_lengths[i];
+                    ec_ed_alg_and_curve_by_bits(bits, &curve, &alg);
+                    char *desc = dupprintf("%s (%d bits)",
+                                           curve->textname, bits);
+                    SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_ADDSTRING, 0,
+                                       (LPARAM)desc);
+                    sfree(desc);
                 }
             }
             ymax = ymax > cp2.ypos ? ymax : cp2.ypos;
@@ -1091,8 +1121,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         ui_set_key_type(hwnd, state, IDC_KEYSSH2RSA);
         ui_set_primepolicy(hwnd, state, IDC_PRIMEGEN_PROB);
         SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
-        SendDlgItemMessage(hwnd, IDC_CURVE, CB_SETCURSEL,
-                           DEFAULT_CURVE_INDEX, 0);
+        SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_SETCURSEL,
+                           DEFAULT_ECCURVE_INDEX, 0);
+        SendDlgItemMessage(hwnd, IDC_EDCURVE, CB_SETCURSEL,
+                           DEFAULT_EDCURVE_INDEX, 0);
 
         /*
          * Initially, hide the progress bar and the key display,
@@ -1140,7 +1172,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
           case IDC_KEYSSH2RSA:
           case IDC_KEYSSH2DSA:
           case IDC_KEYSSH2ECDSA:
-          case IDC_KEYSSH2ED25519: {
+          case IDC_KEYSSH2EDDSA: {
             state = (struct MainDlgState *)
                 GetWindowLongPtr(hwnd, GWLP_USERDATA);
             ui_set_key_type(hwnd, state, LOWORD(wParam));
@@ -1200,25 +1232,36 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 unsigned raw_entropy_required;
                 unsigned char *raw_entropy_buf;
                 BOOL ok;
+
                 state->key_bits = GetDlgItemInt(hwnd, IDC_BITS, &ok, false);
                 if (!ok)
                     state->key_bits = DEFAULT_KEY_BITS;
-                {
-                    int curveindex = SendDlgItemMessage(hwnd, IDC_CURVE,
+                state->ssh2 = true;
+
+                if (IsDlgButtonChecked(hwnd, IDC_KEYSSH1)) {
+                    state->ssh2 = false;
+                    state->keytype = RSA;
+                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2RSA)) {
+                    state->keytype = RSA;
+                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2DSA)) {
+                    state->keytype = DSA;
+                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ECDSA)) {
+                    state->keytype = ECDSA;
+                    int curveindex = SendDlgItemMessage(hwnd, IDC_ECCURVE,
                                                         CB_GETCURSEL, 0, 0);
                     assert(curveindex >= 0);
                     assert(curveindex < n_ec_nist_curve_lengths);
                     state->curve_bits = ec_nist_curve_lengths[curveindex];
-                }
-                /* If we ever introduce a new key type, check it here! */
-                state->ssh2 = !IsDlgButtonChecked(hwnd, IDC_KEYSSH1);
-                state->keytype = RSA;
-                if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2DSA)) {
-                    state->keytype = DSA;
-                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ECDSA)) {
-                    state->keytype = ECDSA;
-                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2ED25519)) {
-                    state->keytype = ED25519;
+                } else if (IsDlgButtonChecked(hwnd, IDC_KEYSSH2EDDSA)) {
+                    state->keytype = EDDSA;
+                    int curveindex = SendDlgItemMessage(hwnd, IDC_EDCURVE,
+                                                        CB_GETCURSEL, 0, 0);
+                    assert(curveindex >= 0);
+                    assert(curveindex < n_ec_ed_curve_lengths);
+                    state->curve_bits = ec_ed_curve_lengths[curveindex];
+                } else {
+                    /* Somehow, no button was checked */
+                    break;
                 }
 
                 if ((state->keytype == RSA || state->keytype == DSA) &&
@@ -1248,10 +1291,10 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
 
                 if (state->keytype == RSA || state->keytype == DSA)
                     raw_entropy_required = (state->key_bits / 2) * 2;
-                else if (state->keytype == ECDSA)
+                else if (state->keytype == ECDSA || state->keytype == EDDSA)
                     raw_entropy_required = (state->curve_bits / 2) * 2;
                 else
-                    raw_entropy_required = 256;
+                    unreachable("we must have initialised keytype by now");
 
                 /* Bound the entropy collection above by the amount of
                  * data we can actually fit into the PRNG. Any more
@@ -1493,7 +1536,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 state->ssh2key.key = &state->dsskey.sshk;
             } else if (state->keytype == ECDSA) {
                 state->ssh2key.key = &state->eckey.sshk;
-            } else if (state->keytype == ED25519) {
+            } else if (state->keytype == EDDSA) {
                 state->ssh2key.key = &state->edkey.sshk;
             } else {
                 state->ssh2key.key = &state->key.sshk;
@@ -1516,8 +1559,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                 strftime(*state->commentptr, 30, "dsa-key-%Y%m%d", &tm);
             else if (state->keytype == ECDSA)
                 strftime(*state->commentptr, 30, "ecdsa-key-%Y%m%d", &tm);
-            else if (state->keytype == ED25519)
-                strftime(*state->commentptr, 30, "ed25519-key-%Y%m%d", &tm);
+            else if (state->keytype == EDDSA)
+                strftime(*state->commentptr, 30, "eddsa-key-%Y%m%d", &tm);
             else
                 strftime(*state->commentptr, 30, "rsa-key-%Y%m%d", &tm);
         }
@@ -1604,7 +1647,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
           case IDC_KEYSSH2RSA:
           case IDC_KEYSSH2DSA:
           case IDC_KEYSSH2ECDSA:
-          case IDC_KEYSSH2ED25519:
+          case IDC_KEYSSH2EDDSA:
             topic = WINHELP_CTX_puttygen_keytype; break;
           case IDC_BITSSTATIC:
           case IDC_BITS:
