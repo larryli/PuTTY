@@ -44,19 +44,20 @@
  */
 
 static void initialise_common(
-    struct ec_curve *curve, EllipticCurveType type, mp_int *p)
+    struct ec_curve *curve, EllipticCurveType type, mp_int *p,
+    unsigned extrabits)
 {
     curve->type = type;
     curve->p = mp_copy(p);
     curve->fieldBits = mp_get_nbits(p);
-    curve->fieldBytes = (curve->fieldBits + 7) / 8;
+    curve->fieldBytes = (curve->fieldBits + extrabits + 7) / 8;
 }
 
 static void initialise_wcurve(
     struct ec_curve *curve, mp_int *p, mp_int *a, mp_int *b,
     mp_int *nonsquare, mp_int *G_x, mp_int *G_y, mp_int *G_order)
 {
-    initialise_common(curve, EC_WEIERSTRASS, p);
+    initialise_common(curve, EC_WEIERSTRASS, p, 0);
 
     curve->w.wc = ecc_weierstrass_curve(p, a, b, nonsquare);
 
@@ -68,7 +69,7 @@ static void initialise_mcurve(
     struct ec_curve *curve, mp_int *p, mp_int *a, mp_int *b,
     mp_int *G_x, unsigned log2_cofactor)
 {
-    initialise_common(curve, EC_MONTGOMERY, p);
+    initialise_common(curve, EC_MONTGOMERY, p, 0);
 
     curve->m.mc = ecc_montgomery_curve(p, a, b);
     curve->m.log2_cofactor = log2_cofactor;
@@ -81,7 +82,9 @@ static void initialise_ecurve(
     mp_int *nonsquare, mp_int *G_x, mp_int *G_y, mp_int *G_order,
     unsigned log2_cofactor)
 {
-    initialise_common(curve, EC_EDWARDS, p);
+    /* Ensure curve->fieldBytes is long enough to store an extra bit
+     * for a compressed point */
+    initialise_common(curve, EC_EDWARDS, p, 1);
 
     curve->e.ec = ecc_edwards_curve(p, d, a, nonsquare);
     curve->e.log2_cofactor = log2_cofactor;
@@ -366,16 +369,15 @@ static mp_int *BinarySource_get_mp_le(BinarySource *src)
 }
 #define get_mp_le(src) BinarySource_get_mp_le(BinarySource_UPCAST(src))
 
-static void BinarySink_put_mp_le_unsigned(BinarySink *bs, mp_int *x)
+static void BinarySink_put_mp_le_fixedlen(BinarySink *bs, mp_int *x,
+                                          size_t bytes)
 {
-    size_t bytes = (mp_get_nbits(x) + 7) / 8;
-
     put_uint32(bs, bytes);
     for (size_t i = 0; i < bytes; ++i)
         put_byte(bs, mp_get_byte(x, i));
 }
-#define put_mp_le_unsigned(bs, x) \
-    BinarySink_put_mp_le_unsigned(BinarySink_UPCAST(bs), x)
+#define put_mp_le_fixedlen(bs, x, bytes)                        \
+    BinarySink_put_mp_le_fixedlen(BinarySink_UPCAST(bs), x, bytes)
 
 static WeierstrassPoint *ecdsa_decode(
     ptrlen encoded, const struct ec_curve *curve)
@@ -494,19 +496,19 @@ static void BinarySink_put_wpoint(
 static EdwardsPoint *eddsa_decode(ptrlen encoded, const struct ec_curve *curve)
 {
     assert(curve->type == EC_EDWARDS);
-    assert(curve->fieldBits % 8 == 7);
 
     mp_int *y = mp_from_bytes_le(encoded);
 
-    if (mp_get_nbits(y) > curve->fieldBits+1) {
+    /* The topmost bit of the encoding isn't part of y, so it stores
+     * the bottom bit of x. Extract it, and zero that bit in y. */
+    unsigned desired_x_parity = mp_get_bit(y, curve->fieldBytes * 8 - 1);
+    mp_set_bit(y, curve->fieldBytes * 8 - 1, 0);
+
+    /* What's left should now be within the range of the curve's modulus */
+    if (mp_cmp_hs(y, curve->p)) {
         mp_free(y);
         return NULL;
     }
-
-    /* The topmost bit of the encoding isn't part of y, so it stores
-     * the bottom bit of x. Extract it, and zero that bit in y. */
-    unsigned desired_x_parity = mp_get_bit(y, curve->fieldBits);
-    mp_set_bit(y, curve->fieldBits, 0);
 
     EdwardsPoint *P = ecc_edwards_point_new_from_y(
         curve->e.ec, y, desired_x_parity);
@@ -758,7 +760,7 @@ static void eddsa_private_blob(ssh_key *key, BinarySink *bs)
 
     /* EdDSA stores the private key integer little-endian and unsigned */
     assert(ek->privateKey);
-    put_mp_le_unsigned(bs, ek->privateKey);
+    put_mp_le_fixedlen(bs, ek->privateKey, ek->curve->fieldBytes);
 }
 
 static ssh_key *ecdsa_new_priv(const ssh_keyalg *alg, ptrlen pub, ptrlen priv)
@@ -846,7 +848,7 @@ static void eddsa_openssh_blob(ssh_key *key, BinarySink *bs)
     ptrlen pub = make_ptrlen(pub_sb->s + 4, pub_sb->len - 4);
 
     strbuf *priv_sb = strbuf_new_nm();
-    put_mp_le_unsigned(priv_sb, ek->privateKey);
+    put_mp_le_fixedlen(priv_sb, ek->privateKey, ek->curve->fieldBytes);
     ptrlen priv = make_ptrlen(priv_sb->s + 4, priv_sb->len - 4);
 
     put_stringpl(bs, pub);
