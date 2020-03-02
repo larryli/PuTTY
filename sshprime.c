@@ -358,7 +358,7 @@ static mp_int *provableprime_generate_inner(
             mp_free(to_free);
         }
 
-        max_bits_needed = mp_get_nbits(upperbound);
+        max_bits_needed = pcs_get_bits_remaining(pcs);
 
         /*
          * We need a prime that is greater than or equal to
@@ -619,7 +619,8 @@ static mp_int *provableprime_generate_inner(
         debug_f("ppgi(%u) no need to recurse", bits);
     }
 
-    debug_f("ppgi(%u) ready", bits);
+    debug_f("ppgi(%u) ready, %u bits remaining",
+            bits, pcs_get_bits_remaining(pcs));
     pcs_ready(pcs);
 
     while (true) {
