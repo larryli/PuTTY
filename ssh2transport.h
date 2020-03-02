@@ -47,6 +47,7 @@ struct kexinit_algorithm {
 
 #define HOSTKEY_ALGORITHMS(X)                   \
     X(HK_ED25519, ssh_ecdsa_ed25519)            \
+    X(HK_ED448, ssh_ecdsa_ed448)                \
     X(HK_ECDSA, ssh_ecdsa_nistp256)             \
     X(HK_ECDSA, ssh_ecdsa_nistp384)             \
     X(HK_ECDSA, ssh_ecdsa_nistp521)             \

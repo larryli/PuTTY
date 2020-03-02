@@ -302,7 +302,7 @@ def handle_line(line, output_formatter, try_hosts):
 
                 keyparams = [curvename, x, y]
 
-            elif sshkeytype == "ssh-ed25519":
+            elif sshkeytype in { "ssh-ed25519",  "ssh-ed448" }:
                 keytype = sshkeytype
 
                 if len(subfields) != 2:
@@ -314,12 +314,14 @@ def handle_line(line, output_formatter, try_hosts):
                 x_parity = y >> 255
                 y &= ~(1 << 255)
 
-                # Standard Ed25519 parameters.
-                p = 2**255 - 19
-                d = 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3
+                # Curve parameters.
+                p, d, a = {
+                    "ssh-ed25519": (2**255 - 19, 0x52036cee2b6ffe738cc740797779e89800700a4d4141d8ab75eb4dca135978a3, -1),
+                    "ssh-ed448": (2**448-2**224-1, -39081, +1),
+                }[sshkeytype]
 
-                # Recover x^2 = (y^2 - 1) / (d y^2 + 1).
-                xx = (y*y - 1) * invert(d*y*y + 1, p) % p
+                # Recover x^2 = (y^2 - 1) / (d y^2 - a).
+                xx = (y*y - 1) * invert(d*y*y - a, p) % p
 
                 # Take the square root.
                 x = SqrtModP.root(xx, p)

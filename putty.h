@@ -311,6 +311,7 @@ enum {
     HK_DSA,
     HK_ECDSA,
     HK_ED25519,
+    HK_ED448,
     HK_MAX
 };
 

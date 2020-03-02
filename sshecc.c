@@ -7,7 +7,7 @@
  *
  *       Montgomery form curves are supported for DH. (Curve25519)
  *
- *       Edwards form curves are supported for DSA. (Ed25519)
+ *       Edwards form curves are supported for DSA. (Ed25519, Ed448)
  */
 
 /*
@@ -276,6 +276,43 @@ static struct ec_curve *ec_ed25519(void)
         curve.name = NULL;
 
         curve.textname = "Ed25519";
+
+        /* Now initialised, no need to do it again */
+        initialised = true;
+    }
+
+    return &curve;
+}
+
+static struct ec_curve *ec_ed448(void)
+{
+    static struct ec_curve curve = { 0 };
+    static bool initialised = false;
+
+    if (!initialised)
+    {
+        mp_int *p = MP_LITERAL(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffffffffffffffffffffffffffffffffffffffffffffffffffff);
+        mp_int *d = MP_LITERAL(0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffffffffffffffffffffffffffffffffffffffffffffffff6756); /* = p - 39081 */
+        mp_int *a = MP_LITERAL(0x1);
+        mp_int *G_x = MP_LITERAL(0x4f1970c66bed0ded221d15a622bf36da9e146570470f1767ea6de324a3d3a46412ae1af72ab66511433b80e18b00938e2626a82bc70cc05e);
+        mp_int *G_y = MP_LITERAL(0x693f46716eb6bc248876203756c9c7624bea73736ca3984087789c1e05a0c2d73ad3ff1ce67c39c4fdbd132c4ed7c8ad9808795bf230fa14);
+        mp_int *G_order = MP_LITERAL(0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffff7cca23e9c44edb49aed63690216cc2728dc58f552378c292ab5844f3);
+        mp_int *nonsquare_mod_p = mp_from_integer(7);
+        initialise_ecurve(&curve, p, d, a, nonsquare_mod_p,
+                          G_x, G_y, G_order, 2);
+        mp_free(p);
+        mp_free(d);
+        mp_free(a);
+        mp_free(G_x);
+        mp_free(G_y);
+        mp_free(G_order);
+        mp_free(nonsquare_mod_p);
+
+        /* This curve doesn't need a name, because it's never used in
+         * any format that embeds the curve name */
+        curve.name = NULL;
+
+        curve.textname = "Ed448";
 
         /* Now initialised, no need to do it again */
         initialised = true;
@@ -815,6 +852,10 @@ static ssh_key *eddsa_new_priv_openssh(
      * correct as well, otherwise the key we think we've imported
      * won't behave identically to the way OpenSSH would have treated
      * it.
+     *
+     * We assume that Ed448 will work the same way, as and when
+     * OpenSSH implements it, which at the time of writing this they
+     * had not.
      */
     BinarySource subsrc[1];
     BinarySource_BARE_INIT_PL(subsrc, privkey_extended_pl);
@@ -1233,6 +1274,33 @@ const ssh_keyalg ssh_ecdsa_ed25519 = {
     0, /* no supported flags */
 };
 
+static const struct ecsign_extra sign_extra_ed448 = {
+    ec_ed448, &ssh_shake256_114bytes,
+    NULL, 0, PTRLEN_DECL_LITERAL("SigEd448\0\0"),
+};
+const ssh_keyalg ssh_ecdsa_ed448 = {
+    eddsa_new_pub,
+    eddsa_new_priv,
+    eddsa_new_priv_openssh,
+
+    eddsa_freekey,
+    ec_signkey_invalid,
+    eddsa_sign,
+    eddsa_verify,
+    eddsa_public_blob,
+    eddsa_private_blob,
+    eddsa_openssh_blob,
+    eddsa_cache_str,
+    eddsa_components,
+
+    ec_shared_pubkey_bits,
+
+    "ssh-ed448",
+    "ssh-ed448",
+    &sign_extra_ed448,
+    0, /* no supported flags */
+};
+
 /* OID: 1.2.840.10045.3.1.7 (ansiX9p256r1) */
 static const unsigned char nistp256_oid[] = {
     0x2a, 0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07
@@ -1629,6 +1697,9 @@ const unsigned char *ec_alg_oid(const ssh_keyalg *alg,
 const int ec_nist_curve_lengths[] = { 256, 384, 521 };
 const int n_ec_nist_curve_lengths = lenof(ec_nist_curve_lengths);
 
+const int ec_ed_curve_lengths[] = { 255, 448 };
+const int n_ec_ed_curve_lengths = lenof(ec_ed_curve_lengths);
+
 bool ec_nist_alg_and_curve_by_bits(
     int bits, const struct ec_curve **curve, const ssh_keyalg **alg)
 {
@@ -1647,6 +1718,7 @@ bool ec_ed_alg_and_curve_by_bits(
 {
     switch (bits) {
       case 255: case 256: *alg = &ssh_ecdsa_ed25519; break;
+      case 448: *alg = &ssh_ecdsa_ed448; break;
       default: return false;
     }
     *curve = ((struct ecsign_extra *)(*alg)->extra)->curve();

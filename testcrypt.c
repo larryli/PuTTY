@@ -263,6 +263,7 @@ static const ssh_keyalg *get_keyalg(BinarySource *in)
         {"dsa", &ssh_dss},
         {"rsa", &ssh_rsa},
         {"ed25519", &ssh_ecdsa_ed25519},
+        {"ed448", &ssh_ecdsa_ed448},
         {"p256", &ssh_ecdsa_nistp256},
         {"p384", &ssh_ecdsa_nistp384},
         {"p521", &ssh_ecdsa_nistp521},

@@ -506,6 +506,7 @@ const ssh_keyalg *ec_alg_by_oid(int len, const void *oid,
                                         const struct ec_curve **curve);
 const unsigned char *ec_alg_oid(const ssh_keyalg *alg, int *oidlen);
 extern const int ec_nist_curve_lengths[], n_ec_nist_curve_lengths;
+extern const int ec_ed_curve_lengths[], n_ec_ed_curve_lengths;
 bool ec_nist_alg_and_curve_by_bits(int bits,
                                    const struct ec_curve **curve,
                                    const ssh_keyalg **alg);
@@ -995,6 +996,7 @@ extern const ssh_kexes ssh_ecdh_kex;
 extern const ssh_keyalg ssh_dss;
 extern const ssh_keyalg ssh_rsa;
 extern const ssh_keyalg ssh_ecdsa_ed25519;
+extern const ssh_keyalg ssh_ecdsa_ed448;
 extern const ssh_keyalg ssh_ecdsa_nistp256;
 extern const ssh_keyalg ssh_ecdsa_nistp384;
 extern const ssh_keyalg ssh_ecdsa_nistp521;

@@ -39,6 +39,7 @@ static const struct keyvalwhere kexnames[] = {
 
 static const struct keyvalwhere hknames[] = {
     { "ed25519",    HK_ED25519,             -1, +1 },
+    { "ed448",      HK_ED448,               -1, +1 },
     { "ecdsa",      HK_ECDSA,               -1, -1 },
     { "dsa",        HK_DSA,                 -1, -1 },
     { "rsa",        HK_RSA,                 -1, -1 },

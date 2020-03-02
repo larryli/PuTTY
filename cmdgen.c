@@ -116,7 +116,7 @@ void help(void)
     usage(false);
     printf("  -t    specify key type when generating:\n"
            "           eddsa, ecdsa, rsa, dsa, rsa1   use with -b\n"
-           "           ed25519                        special case of eddsa\n"
+           "           ed25519, ed448                 special cases of eddsa\n"
            "  -b    specify number of bits when generating key\n"
            "  -C    change or specify key comment\n"
            "  -P    change key passphrase\n"
@@ -435,6 +435,8 @@ int main(int argc, char **argv)
                             keytype = EDDSA, sshver = 2;
                         else if (!strcmp(p, "ed25519"))
                             keytype = EDDSA, bits = 255, sshver = 2;
+                        else if (!strcmp(p, "ed448"))
+                            keytype = EDDSA, bits = 448, sshver = 2;
                         else {
                             fprintf(stderr,
                                     "puttygen: unknown key type `%s'\n", p);
