@@ -2082,64 +2082,61 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
     int toret = PAGEANT_ACTION_FAILURE;
 
     kl1 = pageant_get_keylist(1);
-    if (!kl1) {
-        *retstr = dupstr("Did not receive an SSH-1 key list from agent");
-        goto out;
-    }
-    if (kl1->broken) {
+    if (kl1 && kl1->broken) {
         *retstr = dupstr("Received broken SSH-1 key list from agent");
         goto out;
     }
 
     kl2 = pageant_get_keylist(2);
-    if (!kl2) {
-        *retstr = dupstr("Did not receive an SSH-2 key list from agent");
-        goto out;
-    }
-    if (kl2->broken) {
+    if (kl2 && kl2->broken) {
         *retstr = dupstr("Received broken SSH-2 key list from agent");
         goto out;
     }
 
-    for (size_t i = 0; i < kl1->nkeys; i++) {
-        cbkey.blob = strbuf_new();
-        put_datapl(cbkey.blob, kl1->keys[i].blob);
-        cbkey.comment = mkstr(kl1->keys[i].comment);
-        cbkey.ssh_version = 1;
+    if (kl1) {
+        for (size_t i = 0; i < kl1->nkeys; i++) {
+            cbkey.blob = strbuf_new();
+            put_datapl(cbkey.blob, kl1->keys[i].blob);
+            cbkey.comment = mkstr(kl1->keys[i].comment);
+            cbkey.ssh_version = 1;
 
-        /* Decode public blob into a key in order to fingerprint it */
-        RSAKey rkey;
-        memset(&rkey, 0, sizeof(rkey));
-        {
-            BinarySource src[1];
-            BinarySource_BARE_INIT_PL(src, kl1->keys[i].blob);
-            get_rsa_ssh1_pub(src, &rkey, RSA_SSH1_EXPONENT_FIRST);
-            if (get_err(src)) {
-                *retstr = dupstr("Received an invalid SSH-1 key from agent");
-                goto out;
+            /* Decode public blob into a key in order to fingerprint it */
+            RSAKey rkey;
+            memset(&rkey, 0, sizeof(rkey));
+            {
+                BinarySource src[1];
+                BinarySource_BARE_INIT_PL(src, kl1->keys[i].blob);
+                get_rsa_ssh1_pub(src, &rkey, RSA_SSH1_EXPONENT_FIRST);
+                if (get_err(src)) {
+                    *retstr = dupstr(
+                        "Received an invalid SSH-1 key from agent");
+                    goto out;
+                }
             }
-        }
-        char *fingerprint = rsa_ssh1_fingerprint(&rkey);
-        freersakey(&rkey);
+            char *fingerprint = rsa_ssh1_fingerprint(&rkey);
+            freersakey(&rkey);
 
-        callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
-        strbuf_free(cbkey.blob);
-        sfree(cbkey.comment);
-        sfree(fingerprint);
+            callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
+            strbuf_free(cbkey.blob);
+            sfree(cbkey.comment);
+            sfree(fingerprint);
+        }
     }
 
-    for (size_t i = 0; i < kl2->nkeys; i++) {
-        cbkey.blob = strbuf_new();
-        put_datapl(cbkey.blob, kl2->keys[i].blob);
-        cbkey.comment = mkstr(kl2->keys[i].comment);
-        cbkey.ssh_version = 2;
+    if (kl2) {
+        for (size_t i = 0; i < kl2->nkeys; i++) {
+            cbkey.blob = strbuf_new();
+            put_datapl(cbkey.blob, kl2->keys[i].blob);
+            cbkey.comment = mkstr(kl2->keys[i].comment);
+            cbkey.ssh_version = 2;
 
-        char *fingerprint = ssh2_fingerprint_blob(kl2->keys[i].blob);
+            char *fingerprint = ssh2_fingerprint_blob(kl2->keys[i].blob);
 
-        callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
-        sfree(fingerprint);
-        sfree(cbkey.comment);
-        strbuf_free(cbkey.blob);
+            callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
+            sfree(fingerprint);
+            sfree(cbkey.comment);
+            strbuf_free(cbkey.blob);
+        }
     }
 
     *retstr = NULL;
