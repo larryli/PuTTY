@@ -326,5 +326,6 @@ const struct BackendVtable raw_backend = {
     NULL /* test_for_upstream */,
     "raw", "Raw",
     PROT_RAW,
+    0,
     0
 };

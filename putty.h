@@ -521,6 +521,7 @@ struct BackendVtable {
 
     int protocol;
     int default_port;
+    unsigned flags;
 };
 
 static inline const char *backend_init(

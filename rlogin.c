@@ -424,5 +424,6 @@ const struct BackendVtable rlogin_backend = {
     NULL /* test_for_upstream */,
     "rlogin", "Rlogin",
     PROT_RLOGIN,
-    513
+    513,
+    0
 };

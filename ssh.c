@@ -1199,7 +1199,8 @@ const struct BackendVtable ssh_backend = {
     ssh_test_for_upstream,
     "ssh", "SSH",
     PROT_SSH,
-    22
+    22,
+    0
 };
 
 const struct BackendVtable sshconn_backend = {
