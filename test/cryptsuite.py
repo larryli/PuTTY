@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import sys
 import unittest
 import struct
 import itertools
@@ -16,6 +17,8 @@ except ImportError:
 from eccref import *
 from testcrypt import *
 from ssh import *
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 try:
     base64decode = base64.decodebytes
@@ -90,7 +93,7 @@ def last(iterable):
 def queued_random_data(nbytes, seed):
     hashsize = 512 // 8
     data = b''.join(
-        hashlib.sha512(unicode_to_bytes("preimage:{:d}:{}".format(i, seed)))
+        hashlib.sha512("preimage:{:d}:{}".format(i, seed).encode('ascii'))
         .digest() for i in range((nbytes + hashsize - 1) // hashsize))
     data = data[:nbytes]
     random_queue(data)
@@ -199,9 +202,9 @@ class mpint(MyTestBase):
             n = mp_from_hex(hexstr)
             i = int(hexstr, 16)
             self.assertEqual(mp_get_hex(n),
-                             unicode_to_bytes("{:x}".format(i)))
+                             "{:x}".format(i).encode('ascii'))
             self.assertEqual(mp_get_hex_uppercase(n),
-                             unicode_to_bytes("{:X}".format(i)))
+                             "{:X}".format(i).encode('ascii'))
         checkHex("0")
         checkHex("f")
         checkHex("00000000000000000000000000000000000000000000000000")
@@ -212,7 +215,7 @@ class mpint(MyTestBase):
             n = mp_from_hex(hexstr)
             i = int(hexstr, 16)
             self.assertEqual(mp_get_decimal(n),
-                             unicode_to_bytes("{:d}".format(i)))
+                             "{:d}".format(i).encode('ascii'))
         checkDec("0")
         checkDec("f")
         checkDec("00000000000000000000000000000000000000000000000000")
@@ -1857,10 +1860,10 @@ culpa qui officia deserunt mollit anim id est laborum.
                 # both parts. Other than that, we don't do much to
                 # make this a rigorous cryptographic test.
                 for n, d in [(1,3),(2,3)]:
-                    sigbytes = list(bytevals(sigblob))
+                    sigbytes = list(sigblob)
                     bit = 8 * len(sigbytes) * n // d
                     sigbytes[bit // 8] ^= 1 << (bit % 8)
-                    badsig = valbytes(sigbytes)
+                    badsig = bytes(sigbytes)
                     for key in [pubkey, privkey, privkey2]:
                         self.assertFalse(ssh_key_verify(
                             key, badsig, test_message))

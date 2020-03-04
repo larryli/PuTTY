@@ -4,14 +4,21 @@
 # The idea of this is that you can use it to manually construct key
 # exchange sequences of interesting kinds, for testing purposes.
 
-import struct, random
+import sys
+import struct
+import random
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
+
+def tobytes(s):
+    return s if isinstance(s, bytes) else s.encode('ASCII')
 
 def boolean(b):
-    return "\1" if b else "\0"
+    return b"\1" if b else b"\0"
 
 def byte(b):
     assert 0 <= b < 0x100
-    return chr(b)
+    return bytes([b])
 
 def uint32(u):
     assert 0 <= u < 0x100000000
@@ -22,25 +29,24 @@ def uint64(u):
     return struct.pack(">L", u)
 
 def string(s):
-    return uint32(len(s)) + s
+    return uint32(len(s)) + tobytes(s)
 
 def mpint(m):
-    s = ""
-    lastbyte = 0
+    s = []
     while m > 0:
-        lastbyte = m & 0xFF
-        s = chr(lastbyte) + s
+        s.append(m & 0xFF)
         m >>= 8
-    if lastbyte & 0x80:
-        s = "\0" + s
-    return string(s)
+    if len(s) > 0 and (s[-1] & 0x80):
+        s.append(0)
+    s.reverse()
+    return string(bytes(s))
 
 def name_list(ns):
-    s = ""
-    for n in ns:
-        assert "," not in n
-        if s != "":
-            s += ","
+    s = b""
+    for n in map(tobytes, ns):
+        assert b"," not in n
+        if s != b"":
+            s += b","
         s += n
     return string(s)
 
@@ -52,7 +58,7 @@ def ssh_rsa_signature_blob(signature):
 
 def greeting(string):
     # Greeting at the start of an SSH connection.
-    return string + "\r\n"
+    return tobytes(string) + b"\r\n"
 
 # Packet types.
 SSH2_MSG_DISCONNECT = 1
@@ -122,8 +128,5 @@ def decode_uint32(s):
 def read_clearpkt(fh):
     length_field = fh.read(4)
     s = fh.read(decode_uint32(length_field))
-    import sys
-    padlen = ord(s[0])
-    s = s[1:-padlen]
-    msgtype = ord(s[0])
-    return msgtype, s[1:]
+    padlen, msgtype = s[:2]
+    return msgtype, s[2:-padlen]

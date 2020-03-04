@@ -1,8 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 import string
 from collections import namedtuple
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 class Multiprecision(object):
     def __init__(self, target, minval, maxval, words):
@@ -89,21 +91,21 @@ class Multiprecision(object):
         for i in range(nwords):
             srcpos = i * self.target.bits + start
             maxbits = min(self.target.bits, start + bits - srcpos)
-            wordindex = srcpos / self.target.bits
+            wordindex = srcpos // self.target.bits
             if srcpos % self.target.bits == 0:
-                word = self.getword(srcpos / self.target.bits)
+                word = self.getword(srcpos // self.target.bits)
             elif (wordindex+1 >= len(self.words) or
                   srcpos % self.target.bits + maxbits < self.target.bits):
                 word = self.target.new_value(
                     "(%%s) >> %d" % (srcpos % self.target.bits),
-                    self.getword(srcpos / self.target.bits))
+                    self.getword(srcpos // self.target.bits))
             else:
                 word = self.target.new_value(
                     "((%%s) >> %d) | ((%%s) << %d)" % (
                         srcpos % self.target.bits,
                         self.target.bits - (srcpos % self.target.bits)),
-                    self.getword(srcpos / self.target.bits),
-                    self.getword(srcpos / self.target.bits + 1))
+                    self.getword(srcpos // self.target.bits),
+                    self.getword(srcpos // self.target.bits + 1))
             if maxbits < self.target.bits and maxbits < bits:
                 word = self.target.new_value(
                     "(%%s) & ((((BignumInt)1) << %d)-1)" % maxbits,
@@ -127,11 +129,11 @@ class CodegenTarget(object):
         self.valindex = 0
         self.stmts = []
         self.generators = {}
-        self.bv_words = (130 + self.bits - 1) / self.bits
+        self.bv_words = (130 + self.bits - 1) // self.bits
         self.carry_index = 0
 
     def nwords(self, maxval):
-        return (maxval.bit_length() + self.bits - 1) / self.bits
+        return (maxval.bit_length() + self.bits - 1) // self.bits
 
     def stmt(self, stmt, needed=False):
         index = len(self.stmts)
@@ -149,7 +151,7 @@ class CodegenTarget(object):
         return name
 
     def bigval_input(self, name, bits):
-        words = (bits + self.bits - 1) / self.bits
+        words = (bits + self.bits - 1) // self.bits
         # Expect not to require an entire extra word
         assert words == self.bv_words
 

@@ -1,5 +1,8 @@
+import sys
 import struct
 import itertools
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 def nbits(n):
     # Mimic mp_get_nbits for ordinary Python integers.

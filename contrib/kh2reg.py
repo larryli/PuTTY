@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#!/usr/bin/env python3
 
 # Convert OpenSSH known_hosts and known_hosts2 files to "new format" PuTTY
 # host keys.

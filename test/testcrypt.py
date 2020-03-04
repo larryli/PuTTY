@@ -6,21 +6,14 @@ import re
 import struct
 from binascii import hexlify
 
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
+
 # Expect to be run from the 'test' subdirectory, one level down from
 # the main source
 putty_srcdir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-def unicode_to_bytes(arg):
-    # Slightly fiddly way to do this which should work in Python 2 and 3
-    if isinstance(arg, type(u'a')) and not isinstance(arg, type(b'a')):
-        arg = arg.encode("UTF-8")
-    return arg
-
-def bytevals(b):
-    return struct.unpack("{:d}B".format(len(b)), b)
-def valbytes(b):
-    b = list(b)
-    return struct.pack("{:d}B".format(len(b)), *b)
+def coerce_to_bytes(arg):
+    return arg.encode("UTF-8") if isinstance(arg, str) else arg
 
 class ChildProcessFailure(Exception):
     pass
@@ -75,8 +68,8 @@ class ChildProcess(object):
         if self.sp is None:
             assert self.exitstatus is None
             self.start()
-        self.write_line(unicode_to_bytes(cmd) + b" " + b" ".join(
-            unicode_to_bytes(arg) for arg in args))
+        self.write_line(coerce_to_bytes(cmd) + b" " + b" ".join(
+            coerce_to_bytes(arg) for arg in args))
         argcount = int(self.read_line())
         return [self.read_line() for arg in range(argcount)]
     def wait_for_exit(self):
@@ -154,11 +147,10 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
             return "NULL"
         typename = typename[4:]
     if typename == "val_string":
-        arg = unicode_to_bytes(arg)
+        arg = coerce_to_bytes(arg)
         if isinstance(arg, bytes):
             retwords = childprocess.funcall(
-                "newstring", ["".join("%{:02x}".format(b)
-                                      for b in bytevals(arg))])
+                "newstring", ["".join("%{:02x}".format(b) for b in arg)])
             arg = make_retvals([typename], retwords, unpack_strings=False)[0]
             to_preserve.append(arg)
     if typename == "val_mpint" and isinstance(arg, numbers.Integral):
@@ -179,7 +171,7 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
     if typename in {
             "hashalg", "macalg", "keyalg", "cipheralg",
             "dh_group", "ecdh_alg", "rsaorder", "primegenpolicy"}:
-        arg = unicode_to_bytes(arg)
+        arg = coerce_to_bytes(arg)
         if isinstance(arg, bytes) and b" " not in arg:
             return arg
     if typename == "mpint_list":
@@ -188,7 +180,7 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
         for val in arg:
             sublist.append(make_argword(val, ("val_mpint", False),
                                         fnname, argindex, to_preserve))
-        return b" ".join(unicode_to_bytes(sub) for sub in sublist)
+        return b" ".join(coerce_to_bytes(sub) for sub in sublist)
     raise TypeError(
         "Can't convert {}() argument {:d} to {} (value was {!r})".format(
             fnname, argindex, typename, arg))
@@ -197,7 +189,7 @@ def unpack_string(identifier):
     retwords = childprocess.funcall("getstring", [identifier])
     childprocess.funcall("free", [identifier])
     return re.sub(b"%[0-9A-F][0-9A-F]",
-                  lambda m: valbytes([int(m.group(0)[1:], 16)]),
+                  lambda m: bytes([int(m.group(0)[1:], 16)]),
                   retwords[0])
 
 def unpack_mp(identifier):

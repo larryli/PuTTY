@@ -1,6 +1,9 @@
+import sys
 import numbers
 import itertools
 import unittest
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 def invert(a, b):
     "Multiplicative inverse of a mod b. a,b must be coprime."

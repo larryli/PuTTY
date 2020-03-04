@@ -10,6 +10,8 @@ import collections
 from ssh import *
 import agenttestdata
 
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
+
 test_session_id = b'Test16ByteSessId'
 assert len(test_session_id) == 16
 test_message_to_sign = b'test message to sign'

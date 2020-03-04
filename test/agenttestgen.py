@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+import sys
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
+
 def generate():
     import hashlib
 

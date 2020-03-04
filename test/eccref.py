@@ -1,5 +1,8 @@
+import sys
 import numbers
 import itertools
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 from numbertheory import *
 

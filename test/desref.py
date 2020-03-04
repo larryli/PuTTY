@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Reference implementation of DES.
 #
@@ -14,6 +14,8 @@ import sys
 import struct
 import functools
 import argparse
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 def bitor(x, y):
     return x | y

@@ -2,8 +2,11 @@
 
 from __future__ import division
 
+import sys
 import decimal
 import math
+
+assert sys.version_info[:2] >= (3,0), "This is Python 3 code"
 
 # Python code which draws the PuTTY icon components at a range of
 # sizes.
