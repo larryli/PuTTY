@@ -140,6 +140,14 @@ class Value(object):
     def __int__(self):
         return int(self.__long__())
 
+def marshal_string(val):
+    val = coerce_to_bytes(val)
+    assert isinstance(val, bytes), "Bad type for val_string input"
+    return "".join(
+        chr(b) if (0x20 <= b < 0x7F and b != 0x25)
+        else "%{:02x}".format(b)
+        for b in val)
+
 def make_argword(arg, argtype, fnname, argindex, to_preserve):
     typename, consumed = argtype
     if typename.startswith("opt_"):
@@ -147,12 +155,9 @@ def make_argword(arg, argtype, fnname, argindex, to_preserve):
             return "NULL"
         typename = typename[4:]
     if typename == "val_string":
-        arg = coerce_to_bytes(arg)
-        if isinstance(arg, bytes):
-            retwords = childprocess.funcall(
-                "newstring", ["".join("%{:02x}".format(b) for b in arg)])
-            arg = make_retvals([typename], retwords, unpack_strings=False)[0]
-            to_preserve.append(arg)
+        retwords = childprocess.funcall("newstring", [marshal_string(arg)])
+        arg = make_retvals([typename], retwords, unpack_strings=False)[0]
+        to_preserve.append(arg)
     if typename == "val_mpint" and isinstance(arg, numbers.Integral):
         retwords = childprocess.funcall("mp_literal", ["0x{:x}".format(arg)])
         arg = make_retvals([typename], retwords)[0]
