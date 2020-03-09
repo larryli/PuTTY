@@ -225,7 +225,7 @@ def handle_line(line, output_formatter, try_hosts):
             # Treat as SSH-1-type host key.
             # Format: hostpat bits10 exp10 mod10 comment...
             # (PuTTY doesn't store the number of bits.)
-            keyparams = map (int, fields[2:4])
+            keyparams = list(map(int, fields[2:4]))
             keytype = "rsa"
 
         else:
@@ -259,12 +259,12 @@ def handle_line(line, output_formatter, try_hosts):
                 keytype = "rsa2"
                 # The rest of the subfields we can treat as an opaque list
                 # of bignums (same numbers and order as stored by PuTTY).
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype == "ssh-dss":
                 keytype = "dss"
                 # Same again.
-                keyparams = map (strtoint, subfields[1:])
+                keyparams = list(map(strtoint, subfields[1:]))
 
             elif sshkeytype in nist_curves:
                 keytype = sshkeytype
