@@ -73,8 +73,8 @@ class HMAC(object):
 def openssh_hashed_host_match(hashed_host, try_host):
     if hashed_host.startswith(b'|1|'):
         salt, expected = hashed_host[3:].split(b'|')
-        salt = base64.decodestring(salt)
-        expected = base64.decodestring(expected)
+        salt = base64.decodebytes(salt)
+        expected = base64.decodebytes(expected)
         mac = HMAC(hashlib.sha1, 64)
     else:
         return False # unrecognised magic number prefix
@@ -232,7 +232,7 @@ def handle_line(line, output_formatter, try_hosts):
 
             # Treat as SSH-2-type host key.
             # Format: hostpat keytype keyblob64 comment...
-            sshkeytype, blob = fields[1], base64.decodestring(
+            sshkeytype, blob = fields[1], base64.decodebytes(
                 fields[2].encode("ASCII"))
 
             # 'blob' consists of a number of
