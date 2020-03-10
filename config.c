@@ -2316,90 +2316,6 @@ void setup_config_box(struct controlbox *b, bool midsession,
     }
 
     /*
-     * The Telnet panel exists in the base config box, and in a
-     * mid-session reconfig box _if_ we're using Telnet.
-     */
-    if (!midsession || protocol == PROT_TELNET) {
-        /*
-         * The Connection/Telnet panel.
-         */
-        ctrl_settitle(b, "Connection/Telnet",
-                      "Options controlling Telnet connections");
-
-        s = ctrl_getset(b, "Connection/Telnet", "protocol",
-                        "Telnet protocol adjustments");
-
-        if (!midsession) {
-            ctrl_radiobuttons(s, "Handling of OLD_ENVIRON ambiguity:",
-                              NO_SHORTCUT, 2,
-                              HELPCTX(telnet_oldenviron),
-                              conf_radiobutton_bool_handler,
-                              I(CONF_rfc_environ),
-                              "BSD (commonplace)", 'b', I(false),
-                              "RFC 1408 (unusual)", 'f', I(true), NULL);
-            ctrl_radiobuttons(s, "Telnet negotiation mode:", 't', 2,
-                              HELPCTX(telnet_passive),
-                              conf_radiobutton_bool_handler,
-                              I(CONF_passive_telnet),
-                              "Passive", I(true), "Active", I(false), NULL);
-        }
-        ctrl_checkbox(s, "Keyboard sends Telnet special commands", 'k',
-                      HELPCTX(telnet_specialkeys),
-                      conf_checkbox_handler,
-                      I(CONF_telnet_keyboard));
-        ctrl_checkbox(s, "Return key sends Telnet New Line instead of ^M",
-                      'm', HELPCTX(telnet_newline),
-                      conf_checkbox_handler,
-                      I(CONF_telnet_newline));
-    }
-
-    if (!midsession) {
-
-        /*
-         * The Connection/Rlogin panel.
-         */
-        ctrl_settitle(b, "Connection/Rlogin",
-                      "Options controlling Rlogin connections");
-
-        s = ctrl_getset(b, "Connection/Rlogin", "data",
-                        "Data to send to the server");
-        ctrl_editbox(s, "Local username:", 'l', 50,
-                     HELPCTX(rlogin_localuser),
-                     conf_editbox_handler, I(CONF_localusername), I(1));
-
-        /*
-         * The Protocol/SUPDUP panel.
-         */
-        ctrl_settitle(b, "Connection/SUPDUP",
-                      "Enabling and disabling SUPDUP user options");
-
-        s = ctrl_getset(b, "Connection/SUPDUP", "main", NULL);
-
-        ctrl_editbox(s, "Location string", 'l', 70,
-                     HELPCTX(supdup_location),
-                     conf_editbox_handler, I(CONF_supdup_location),
-                     I(1));
-
-        ctrl_radiobuttons(s, "Extended ASCII Character set:", 'z', 4,
-                          HELPCTX(supdup_ascii),
-                          conf_radiobutton_handler,
-                          I(CONF_supdup_ascii_set),
-                          "None", I(SUPDUP_CHARSET_ASCII),
-                          "ITS", I(SUPDUP_CHARSET_ITS),
-                          "WAITS", I(SUPDUP_CHARSET_WAITS), NULL);
-
-        ctrl_checkbox(s, "**MORE** processing", 'm',
-                      HELPCTX(supdup_more),
-                      conf_checkbox_handler,
-                      I(CONF_supdup_more));
-
-        ctrl_checkbox(s, "Terminal scrolling", 's',
-                      HELPCTX(supdup_scroll),
-                      conf_checkbox_handler,
-                      I(CONF_supdup_scroll));
-    }
-
-    /*
      * All the SSH stuff is omitted in PuTTYtel, or in a reconfig
      * when we're not doing SSH.
      */
@@ -2910,5 +2826,89 @@ void setup_config_box(struct controlbox *b, bool midsession,
                           HELPCTX(ssh_bugs_rsa1),
                           sshbug_handler, I(CONF_sshbug_rsa1));
         }
+    }
+
+    /*
+     * The Telnet panel exists in the base config box, and in a
+     * mid-session reconfig box _if_ we're using Telnet.
+     */
+    if (!midsession || protocol == PROT_TELNET) {
+        /*
+         * The Connection/Telnet panel.
+         */
+        ctrl_settitle(b, "Connection/Telnet",
+                      "Options controlling Telnet connections");
+
+        s = ctrl_getset(b, "Connection/Telnet", "protocol",
+                        "Telnet protocol adjustments");
+
+        if (!midsession) {
+            ctrl_radiobuttons(s, "Handling of OLD_ENVIRON ambiguity:",
+                              NO_SHORTCUT, 2,
+                              HELPCTX(telnet_oldenviron),
+                              conf_radiobutton_bool_handler,
+                              I(CONF_rfc_environ),
+                              "BSD (commonplace)", 'b', I(false),
+                              "RFC 1408 (unusual)", 'f', I(true), NULL);
+            ctrl_radiobuttons(s, "Telnet negotiation mode:", 't', 2,
+                              HELPCTX(telnet_passive),
+                              conf_radiobutton_bool_handler,
+                              I(CONF_passive_telnet),
+                              "Passive", I(true), "Active", I(false), NULL);
+        }
+        ctrl_checkbox(s, "Keyboard sends Telnet special commands", 'k',
+                      HELPCTX(telnet_specialkeys),
+                      conf_checkbox_handler,
+                      I(CONF_telnet_keyboard));
+        ctrl_checkbox(s, "Return key sends Telnet New Line instead of ^M",
+                      'm', HELPCTX(telnet_newline),
+                      conf_checkbox_handler,
+                      I(CONF_telnet_newline));
+    }
+
+    if (!midsession) {
+
+        /*
+         * The Connection/Rlogin panel.
+         */
+        ctrl_settitle(b, "Connection/Rlogin",
+                      "Options controlling Rlogin connections");
+
+        s = ctrl_getset(b, "Connection/Rlogin", "data",
+                        "Data to send to the server");
+        ctrl_editbox(s, "Local username:", 'l', 50,
+                     HELPCTX(rlogin_localuser),
+                     conf_editbox_handler, I(CONF_localusername), I(1));
+
+        /*
+         * The Protocol/SUPDUP panel.
+         */
+        ctrl_settitle(b, "Connection/SUPDUP",
+                      "Enabling and disabling SUPDUP user options");
+
+        s = ctrl_getset(b, "Connection/SUPDUP", "main", NULL);
+
+        ctrl_editbox(s, "Location string", 'l', 70,
+                     HELPCTX(supdup_location),
+                     conf_editbox_handler, I(CONF_supdup_location),
+                     I(1));
+
+        ctrl_radiobuttons(s, "Extended ASCII Character set:", 'z', 4,
+                          HELPCTX(supdup_ascii),
+                          conf_radiobutton_handler,
+                          I(CONF_supdup_ascii_set),
+                          "None", I(SUPDUP_CHARSET_ASCII),
+                          "ITS", I(SUPDUP_CHARSET_ITS),
+                          "WAITS", I(SUPDUP_CHARSET_WAITS), NULL);
+
+        ctrl_checkbox(s, "**MORE** processing", 'm',
+                      HELPCTX(supdup_more),
+                      conf_checkbox_handler,
+                      I(CONF_supdup_more));
+
+        ctrl_checkbox(s, "Terminal scrolling", 's',
+                      HELPCTX(supdup_scroll),
+                      conf_checkbox_handler,
+                      I(CONF_supdup_scroll));
     }
 }
