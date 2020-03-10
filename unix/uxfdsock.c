@@ -1,5 +1,5 @@
 /*
- * uxfdsick.c: implementation of Socket that just talks to two
+ * uxfdsock.c: implementation of Socket that just talks to two
  * existing input and output file descriptors.
  */
 
