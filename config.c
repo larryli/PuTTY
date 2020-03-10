@@ -1469,6 +1469,114 @@ static void clipboard_control(struct controlset *s, const char *label,
 #endif
 }
 
+static void serial_parity_handler(union control *ctrl, dlgparam *dlg,
+                                  void *data, int event)
+{
+    static const struct {
+        const char *name;
+        int val;
+    } parities[] = {
+        {"None", SER_PAR_NONE},
+        {"Odd", SER_PAR_ODD},
+        {"Even", SER_PAR_EVEN},
+        {"Mark", SER_PAR_MARK},
+        {"Space", SER_PAR_SPACE},
+    };
+    int mask = ctrl->listbox.context.i;
+    int i, j;
+    Conf *conf = (Conf *)data;
+
+    if (event == EVENT_REFRESH) {
+        /* Fetching this once at the start of the function ensures we
+         * remember what the right value is supposed to be when
+         * operations below cause reentrant calls to this function. */
+        int oldparity = conf_get_int(conf, CONF_serparity);
+
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (i = 0; i < lenof(parities); i++)  {
+            if (mask & (1 << parities[i].val))
+                dlg_listbox_addwithid(ctrl, dlg, parities[i].name,
+                                      parities[i].val);
+        }
+        for (i = j = 0; i < lenof(parities); i++) {
+            if (mask & (1 << parities[i].val)) {
+                if (oldparity == parities[i].val) {
+                    dlg_listbox_select(ctrl, dlg, j);
+                    break;
+                }
+                j++;
+            }
+        }
+        if (i == lenof(parities)) {    /* an unsupported setting was chosen */
+            dlg_listbox_select(ctrl, dlg, 0);
+            oldparity = SER_PAR_NONE;
+        }
+        dlg_update_done(ctrl, dlg);
+        conf_set_int(conf, CONF_serparity, oldparity);    /* restore */
+    } else if (event == EVENT_SELCHANGE) {
+        int i = dlg_listbox_index(ctrl, dlg);
+        if (i < 0)
+            i = SER_PAR_NONE;
+        else
+            i = dlg_listbox_getid(ctrl, dlg, i);
+        conf_set_int(conf, CONF_serparity, i);
+    }
+}
+
+static void serial_flow_handler(union control *ctrl, dlgparam *dlg,
+                                void *data, int event)
+{
+    static const struct {
+        const char *name;
+        int val;
+    } flows[] = {
+        {"None", SER_FLOW_NONE},
+        {"XON/XOFF", SER_FLOW_XONXOFF},
+        {"RTS/CTS", SER_FLOW_RTSCTS},
+        {"DSR/DTR", SER_FLOW_DSRDTR},
+    };
+    int mask = ctrl->listbox.context.i;
+    int i, j;
+    Conf *conf = (Conf *)data;
+
+    if (event == EVENT_REFRESH) {
+        /* Fetching this once at the start of the function ensures we
+         * remember what the right value is supposed to be when
+         * operations below cause reentrant calls to this function. */
+        int oldflow = conf_get_int(conf, CONF_serflow);
+
+        dlg_update_start(ctrl, dlg);
+        dlg_listbox_clear(ctrl, dlg);
+        for (i = 0; i < lenof(flows); i++)  {
+            if (mask & (1 << flows[i].val))
+                dlg_listbox_addwithid(ctrl, dlg, flows[i].name, flows[i].val);
+        }
+        for (i = j = 0; i < lenof(flows); i++) {
+            if (mask & (1 << flows[i].val)) {
+                if (oldflow == flows[i].val) {
+                    dlg_listbox_select(ctrl, dlg, j);
+                    break;
+                }
+                j++;
+            }
+        }
+        if (i == lenof(flows)) {       /* an unsupported setting was chosen */
+            dlg_listbox_select(ctrl, dlg, 0);
+            oldflow = SER_FLOW_NONE;
+        }
+        dlg_update_done(ctrl, dlg);
+        conf_set_int(conf, CONF_serflow, oldflow);/* restore */
+    } else if (event == EVENT_SELCHANGE) {
+        int i = dlg_listbox_index(ctrl, dlg);
+        if (i < 0)
+            i = SER_FLOW_NONE;
+        else
+            i = dlg_listbox_getid(ctrl, dlg, i);
+        conf_set_int(conf, CONF_serflow, i);
+    }
+}
+
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo)
 {
@@ -2316,13 +2424,22 @@ void setup_config_box(struct controlbox *b, bool midsession,
     }
 
     /*
-     * All the SSH stuff is omitted in PuTTYtel, or in a reconfig
-     * when we're not doing SSH.
+     * Each per-protocol configuration GUI panel is conditionally
+     * displayed. We don't display it if this binary doesn't contain a
+     * backend for its protocol at all; we don't display it if we're
+     * already in mid-session with a different protocol selected; and
+     * even if we _do_ have this protocol selected, we don't display
+     * the panel if the protocol doesn't permit any mid-session
+     * reconfiguration anyway.
      */
 
-    if (backend_vt_from_proto(PROT_SSH) &&
-        (!midsession || protocol == PROT_SSH)) {
+#define DISPLAY_RECONFIGURABLE_PROTOCOL(which_proto) \
+    (backend_vt_from_proto(which_proto) && \
+     (!midsession || protocol == (which_proto)))
+#define DISPLAY_NON_RECONFIGURABLE_PROTOCOL(which_proto) \
+    (backend_vt_from_proto(which_proto) && !midsession)
 
+    if (DISPLAY_RECONFIGURABLE_PROTOCOL(PROT_SSH)) {
         /*
          * The Connection/SSH panel.
          */
@@ -2828,11 +2945,50 @@ void setup_config_box(struct controlbox *b, bool midsession,
         }
     }
 
-    /*
-     * The Telnet panel exists in the base config box, and in a
-     * mid-session reconfig box _if_ we're using Telnet.
-     */
-    if (!midsession || protocol == PROT_TELNET) {
+    if (DISPLAY_RECONFIGURABLE_PROTOCOL(PROT_SERIAL)) {
+        const BackendVtable *ser_vt = backend_vt_from_proto(PROT_SERIAL);
+
+        /*
+         * The Connection/Serial panel.
+         */
+        ctrl_settitle(b, "Connection/Serial",
+                      "Options controlling local serial lines");
+
+        if (!midsession) {
+            /*
+             * We don't permit switching to a different serial port in
+             * midflight, although we do allow all other
+             * reconfiguration.
+             */
+            s = ctrl_getset(b, "Connection/Serial", "serline",
+                            "Select a serial line");
+            ctrl_editbox(s, "Serial line to connect to", 'l', 40,
+                         HELPCTX(serial_line),
+                         conf_editbox_handler, I(CONF_serline), I(1));
+        }
+
+        s = ctrl_getset(b, "Connection/Serial", "sercfg", "Configure the serial line");
+        ctrl_editbox(s, "Speed (baud)", 's', 40,
+                     HELPCTX(serial_speed),
+                     conf_editbox_handler, I(CONF_serspeed), I(-1));
+        ctrl_editbox(s, "Data bits", 'b', 40,
+                     HELPCTX(serial_databits),
+                     conf_editbox_handler, I(CONF_serdatabits), I(-1));
+        /*
+         * Stop bits come in units of one half.
+         */
+        ctrl_editbox(s, "Stop bits", 't', 40,
+                     HELPCTX(serial_stopbits),
+                     conf_editbox_handler, I(CONF_serstopbits), I(-2));
+        ctrl_droplist(s, "Parity", 'p', 40,
+                      HELPCTX(serial_parity), serial_parity_handler,
+                      I(ser_vt->serial_parity_mask));
+        ctrl_droplist(s, "Flow control", 'f', 40,
+                      HELPCTX(serial_flow), serial_flow_handler,
+                      I(ser_vt->serial_flow_mask));
+    }
+
+    if (DISPLAY_RECONFIGURABLE_PROTOCOL(PROT_TELNET)) {
         /*
          * The Connection/Telnet panel.
          */
@@ -2866,8 +3022,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                       I(CONF_telnet_newline));
     }
 
-    if (!midsession) {
-
+    if (DISPLAY_NON_RECONFIGURABLE_PROTOCOL(PROT_RLOGIN)) {
         /*
          * The Connection/Rlogin panel.
          */
@@ -2880,8 +3035,11 @@ void setup_config_box(struct controlbox *b, bool midsession,
                      HELPCTX(rlogin_localuser),
                      conf_editbox_handler, I(CONF_localusername), I(1));
 
+    }
+
+    if (DISPLAY_NON_RECONFIGURABLE_PROTOCOL(PROT_SUPDUP)) {
         /*
-         * The Protocol/SUPDUP panel.
+         * The Connection/SUPDUP panel.
          */
         ctrl_settitle(b, "Connection/SUPDUP",
                       "Enabling and disabling SUPDUP user options");

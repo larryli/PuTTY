@@ -534,6 +534,10 @@ struct BackendVtable {
     int protocol;
     int default_port;
     unsigned flags;
+
+    /* Only relevant for the serial protocol: bit masks of which
+     * parity and flow control settings are supported. */
+    unsigned serial_parity_mask, serial_flow_mask;
 };
 
 static inline const char *backend_init(

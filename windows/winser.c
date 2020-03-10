@@ -446,4 +446,13 @@ const BackendVtable serial_backend = {
     .id = "serial",
     .displayname = "Serial",
     .protocol = PROT_SERIAL,
+    .serial_parity_mask = ((1 << SER_PAR_NONE) |
+                           (1 << SER_PAR_ODD) |
+                           (1 << SER_PAR_EVEN) |
+                           (1 << SER_PAR_MARK) |
+                           (1 << SER_PAR_SPACE)),
+    .serial_flow_mask =   ((1 << SER_FLOW_NONE) |
+                           (1 << SER_FLOW_XONXOFF) |
+                           (1 << SER_FLOW_RTSCTS) |
+                           (1 << SER_FLOW_DSRDTR)),
 };

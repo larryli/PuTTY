@@ -244,10 +244,10 @@ TERMINAL = terminal stripctrl wcwidth logging tree234 minibidi
 
 # GUI front end and terminal emulator (putty, puttytel).
 GUITERM  = TERMINAL window windlg winctrls sizetip winprint winutils
-	 + wincfg sercfg winhelp winjump sessprep winselgui
+	 + wincfg winhelp winjump sessprep winselgui
 
 # Same thing on Unix.
-UXTERM   = TERMINAL uxcfg sercfg uxucs uxprint timing callback miscucs
+UXTERM   = TERMINAL uxcfg uxucs uxprint timing callback miscucs
 GTKTERM  = UXTERM gtkwin gtkcfg gtkdlg gtkfont gtkcols gtkmisc xkeysym
 	 + x11misc gtkcomm sessprep
 GTKMAIN  = gtkmain cmdline
