@@ -304,14 +304,14 @@ static void fdsocket_select_result_input_error(int fd, int event)
 }
 
 static const SocketVtable FdSocket_sockvt = {
-    fdsocket_plug,
-    fdsocket_close,
-    fdsocket_write,
-    fdsocket_write_oob,
-    fdsocket_write_eof,
-    fdsocket_set_frozen,
-    fdsocket_socket_error,
-    NULL, /* peer_info */
+    .plug = fdsocket_plug,
+    .close = fdsocket_close,
+    .write = fdsocket_write,
+    .write_oob = fdsocket_write_oob,
+    .write_eof = fdsocket_write_eof,
+    .set_frozen = fdsocket_set_frozen,
+    .socket_error = fdsocket_socket_error,
+    .peer_info = NULL,
 };
 
 Socket *make_fd_socket(int infd, int outfd, int inerrfd, Plug *plug)

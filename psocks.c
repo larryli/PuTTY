@@ -72,31 +72,9 @@ static SshChannel *psocks_lportfwd_open(
     ConnectionLayer *cl, const char *hostname, int port,
     const char *description, const SocketPeerInfo *pi, Channel *chan);
 
-static const struct ConnectionLayerVtable psocks_clvt = {
-    NULL /* rportfwd_alloc */,
-    NULL /* rportfwd_remove */,
-    psocks_lportfwd_open,
-    NULL /* session_open */,
-    NULL /* serverside_x11_open */,
-    NULL /* serverside_agent_open */,
-    NULL /* add_x11_display */,
-    NULL /* add_sharing_x11_display */,
-    NULL /* remove_sharing_x11_display */,
-    NULL /* send_packet_from_downstream */,
-    NULL /* alloc_sharing_channel */,
-    NULL /* delete_sharing_channel */,
-    NULL /* sharing_queue_global_request */,
-    NULL /* sharing_no_more_downstreams */,
-    NULL /* agent_forwarding_permitted */,
-    NULL /* terminal_size */,
-    NULL /* stdout_unthrottle */,
-    NULL /* stdin_backlog */,
-    NULL /* throttle_all_channels */,
-    NULL /* ldisc_option */,
-    NULL /* set_ldisc_option */,
-    NULL /* enable_x_fwd */,
-    NULL /* enable_agent_fwd */,
-    NULL /* set_wants_user_input */,
+static const ConnectionLayerVtable psocks_clvt = {
+    .lportfwd_open = psocks_lportfwd_open,
+    /* everything else is NULL */
 };
 
 static size_t psocks_sc_write(SshChannel *sc, bool is_stderr, const void *,
@@ -105,28 +83,12 @@ static void psocks_sc_write_eof(SshChannel *sc);
 static void psocks_sc_initiate_close(SshChannel *sc, const char *err);
 static void psocks_sc_unthrottle(SshChannel *sc, size_t bufsize);
 
-static const struct SshChannelVtable psocks_scvt = {
-    psocks_sc_write,
-    psocks_sc_write_eof,
-    psocks_sc_initiate_close,
-    psocks_sc_unthrottle,
-    NULL /* get_conf */,
-    NULL /* window_override_removed */,
-    NULL /* x11_sharing_handover */,
-    NULL /* send_exit_status */,
-    NULL /* send_exit_signal */,
-    NULL /* send_exit_signal_numeric */,
-    NULL /* request_x11_forwarding */,
-    NULL /* request_agent_forwarding */,
-    NULL /* request_pty */,
-    NULL /* send_env_var */,
-    NULL /* start_shell */,
-    NULL /* start_command */,
-    NULL /* start_subsystem */,
-    NULL /* send_serial_break */,
-    NULL /* send_signal */,
-    NULL /* send_terminal_size_change */,
-    NULL /* hint_channel_is_simple */,
+static const SshChannelVtable psocks_scvt = {
+    .write = psocks_sc_write,
+    .write_eof = psocks_sc_write_eof,
+    .initiate_close = psocks_sc_initiate_close,
+    .unthrottle = psocks_sc_unthrottle,
+    /* all the rest are NULL */
 };
 
 static void psocks_plug_log(Plug *p, PlugLogType type, SockAddr *addr,
@@ -138,11 +100,10 @@ static void psocks_plug_receive(Plug *p, int urgent,
 static void psocks_plug_sent(Plug *p, size_t bufsize);
 
 static const PlugVtable psocks_plugvt = {
-    psocks_plug_log,
-    psocks_plug_closing,
-    psocks_plug_receive,
-    psocks_plug_sent,
-    NULL /* accepting */,
+    .log = psocks_plug_log,
+    .closing = psocks_plug_closing,
+    .receive = psocks_plug_receive,
+    .sent = psocks_plug_sent,
 };
 
 static void psocks_conn_log(psocks_connection *conn, const char *fmt, ...)

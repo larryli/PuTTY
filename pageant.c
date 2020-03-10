@@ -442,9 +442,9 @@ static void signop_coroutine(PageantAsyncOp *pao)
     crFinishFreedV;
 }
 
-static struct PageantAsyncOpVtable signop_vtable = {
-    signop_coroutine,
-    signop_free,
+static const PageantAsyncOpVtable signop_vtable = {
+    .coroutine = signop_coroutine,
+    .free = signop_free,
 };
 
 static void fail_requests_for_key(PageantKey *pk, const char *reason)
@@ -572,9 +572,9 @@ static void immop_coroutine(PageantAsyncOp *pao)
     crFinishFreedV;
 }
 
-static struct PageantAsyncOpVtable immop_vtable = {
-    immop_coroutine,
-    immop_free,
+static const PageantAsyncOpVtable immop_vtable = {
+    .coroutine = immop_coroutine,
+    .free = immop_free,
 };
 
 static bool reencrypt_key(PageantKey *pk)
@@ -1482,10 +1482,10 @@ static bool pageant_conn_ask_passphrase(
     return pageant_listener_client_ask_passphrase(pcs->plc, dlgid, msg);
 }
 
-static const struct PageantClientVtable pageant_connection_clientvt = {
-    pageant_conn_log,
-    pageant_conn_got_response,
-    pageant_conn_ask_passphrase,
+static const PageantClientVtable pageant_connection_clientvt = {
+    .log = pageant_conn_log,
+    .got_response = pageant_conn_got_response,
+    .ask_passphrase = pageant_conn_ask_passphrase,
 };
 
 static void pageant_conn_receive(
@@ -1569,11 +1569,9 @@ static void pageant_listen_closing(Plug *plug, const char *error_msg,
 }
 
 static const PlugVtable pageant_connection_plugvt = {
-    NULL, /* no log function, because that's for outgoing connections */
-    pageant_conn_closing,
-    pageant_conn_receive,
-    pageant_conn_sent,
-    NULL /* no accepting function, because we've already done it */
+    .closing = pageant_conn_closing,
+    .receive = pageant_conn_receive,
+    .sent = pageant_conn_sent,
 };
 
 static int pageant_listen_accepting(Plug *plug,
@@ -1620,11 +1618,8 @@ static int pageant_listen_accepting(Plug *plug,
 }
 
 static const PlugVtable pageant_listener_plugvt = {
-    NULL, /* no log function, because that's for outgoing connections */
-    pageant_listen_closing,
-    NULL, /* no receive function on a listening socket */
-    NULL, /* no sent function on a listening socket */
-    pageant_listen_accepting
+    .closing = pageant_listen_closing,
+    .accepting = pageant_listen_accepting,
 };
 
 struct pageant_listen_state *pageant_listener_new(
@@ -1680,10 +1675,10 @@ static bool internal_client_ask_passphrase(
     return false;
 }
 
-static const struct PageantClientVtable internal_clientvt = {
-    NULL /* log */,
-    internal_client_got_response,
-    internal_client_ask_passphrase,
+static const PageantClientVtable internal_clientvt = {
+    .log = NULL,
+    .got_response = internal_client_got_response,
+    .ask_passphrase = internal_client_ask_passphrase,
 };
 
 typedef struct PageantClientOp {

@@ -45,14 +45,11 @@ static SocketPeerInfo *sk_error_peer_info(Socket *s)
 }
 
 static const SocketVtable ErrorSocket_sockvt = {
-    sk_error_plug,
-    sk_error_close,
-    NULL /* write */,
-    NULL /* write_oob */,
-    NULL /* write_eof */,
-    NULL /* set_frozen */,
-    sk_error_socket_error,
-    sk_error_peer_info,
+    .plug = sk_error_plug,
+    .close = sk_error_close,
+    .socket_error = sk_error_socket_error,
+    .peer_info = sk_error_peer_info,
+    /* other methods are NULL */
 };
 
 Socket *new_error_socket_consume_string(Plug *plug, char *errmsg)

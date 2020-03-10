@@ -334,15 +334,15 @@ static void scp_reply_attrs(
     reply->attrs = attrs;
 }
 
-static const struct SftpReplyBuilderVtable ScpReplyReceiver_vt = {
-    scp_reply_ok,
-    scp_reply_error,
-    scp_reply_simple_name,
-    scp_reply_name_count,
-    scp_reply_full_name,
-    scp_reply_handle,
-    scp_reply_data,
-    scp_reply_attrs,
+static const SftpReplyBuilderVtable ScpReplyReceiver_vt = {
+    .reply_ok = scp_reply_ok,
+    .reply_error = scp_reply_error,
+    .reply_simple_name = scp_reply_simple_name,
+    .reply_name_count = scp_reply_name_count,
+    .reply_full_name = scp_reply_full_name,
+    .reply_handle = scp_reply_handle,
+    .reply_data = scp_reply_data,
+    .reply_attrs = scp_reply_attrs,
 };
 
 static void scp_reply_setup(ScpReplyReceiver *reply)
@@ -487,11 +487,11 @@ static size_t scp_source_send(ScpServer *s, const void *data, size_t length);
 static void scp_source_eof(ScpServer *s);
 static void scp_source_throttle(ScpServer *s, bool throttled);
 
-static struct ScpServerVtable ScpSource_ScpServer_vt = {
-    scp_source_free,
-    scp_source_send,
-    scp_source_throttle,
-    scp_source_eof,
+static const ScpServerVtable ScpSource_ScpServer_vt = {
+    .free = scp_source_free,
+    .send = scp_source_send,
+    .throttle = scp_source_throttle,
+    .eof = scp_source_eof,
 };
 
 static ScpSource *scp_source_new(
@@ -1003,11 +1003,11 @@ static size_t scp_sink_send(ScpServer *s, const void *data, size_t length);
 static void scp_sink_eof(ScpServer *s);
 static void scp_sink_throttle(ScpServer *s, bool throttled) {}
 
-static struct ScpServerVtable ScpSink_ScpServer_vt = {
-    scp_sink_free,
-    scp_sink_send,
-    scp_sink_throttle,
-    scp_sink_eof,
+static const ScpServerVtable ScpSink_ScpServer_vt = {
+    .free = scp_sink_free,
+    .send = scp_sink_send,
+    .throttle = scp_sink_throttle,
+    .eof = scp_sink_eof,
 };
 
 static void scp_sink_coroutine(ScpSink *scp);
@@ -1297,11 +1297,11 @@ static size_t scp_error_send(ScpServer *s, const void *data, size_t length)
 static void scp_error_eof(ScpServer *s) {}
 static void scp_error_throttle(ScpServer *s, bool throttled) {}
 
-static struct ScpServerVtable ScpError_ScpServer_vt = {
-    scp_error_free,
-    scp_error_send,
-    scp_error_throttle,
-    scp_error_eof,
+static const ScpServerVtable ScpError_ScpServer_vt = {
+    .free = scp_error_free,
+    .send = scp_error_send,
+    .throttle = scp_error_throttle,
+    .eof = scp_error_eof,
 };
 
 static void scp_error_send_message_cb(void *vscp)

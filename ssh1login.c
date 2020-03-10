@@ -72,16 +72,16 @@ static bool ssh1_login_want_user_input(PacketProtocolLayer *ppl);
 static void ssh1_login_got_user_input(PacketProtocolLayer *ppl);
 static void ssh1_login_reconfigure(PacketProtocolLayer *ppl, Conf *conf);
 
-static const struct PacketProtocolLayerVtable ssh1_login_vtable = {
-    ssh1_login_free,
-    ssh1_login_process_queue,
-    ssh1_common_get_specials,
-    ssh1_login_special_cmd,
-    ssh1_login_want_user_input,
-    ssh1_login_got_user_input,
-    ssh1_login_reconfigure,
-    ssh_ppl_default_queued_data_size,
-    NULL /* no layer names in SSH-1 */,
+static const PacketProtocolLayerVtable ssh1_login_vtable = {
+    .free = ssh1_login_free,
+    .process_queue = ssh1_login_process_queue,
+    .get_specials = ssh1_common_get_specials,
+    .special_cmd = ssh1_login_special_cmd,
+    .want_user_input = ssh1_login_want_user_input,
+    .got_user_input = ssh1_login_got_user_input,
+    .reconfigure = ssh1_login_reconfigure,
+    .queued_data_size = ssh_ppl_default_queued_data_size,
+    .name = NULL, /* no layer names in SSH-1 */
 };
 
 static void ssh1_login_agent_query(struct ssh1_login_state *s, strbuf *req);

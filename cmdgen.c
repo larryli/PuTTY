@@ -64,13 +64,13 @@ static void cmdgen_progress_report_phase_complete(ProgressReceiver *prog)
 }
 
 static const ProgressReceiverVtable cmdgen_progress_vt = {
-    cmdgen_progress_add_linear,
-    cmdgen_progress_add_probabilistic,
-    null_progress_ready,
-    cmdgen_progress_start_phase,
-    cmdgen_progress_report,
-    cmdgen_progress_report_attempt,
-    cmdgen_progress_report_phase_complete,
+    .add_linear = cmdgen_progress_add_linear,
+    .add_probabilistic = cmdgen_progress_add_probabilistic,
+    .ready = null_progress_ready,
+    .start_phase = cmdgen_progress_start_phase,
+    .report = cmdgen_progress_report,
+    .report_attempt = cmdgen_progress_report_attempt,
+    .report_phase_complete = cmdgen_progress_report_phase_complete,
 };
 
 static ProgressReceiver cmdgen_progress = { .vt = &cmdgen_progress_vt };

@@ -170,13 +170,13 @@ static void win_progress_report_phase_complete(ProgressReceiver *prog)
 }
 
 static const ProgressReceiverVtable win_progress_vt = {
-    win_progress_add_linear,
-    win_progress_add_probabilistic,
-    win_progress_ready,
-    win_progress_start_phase,
-    win_progress_report,
-    win_progress_report_attempt,
-    win_progress_report_phase_complete,
+    .add_linear = win_progress_add_linear,
+    .add_probabilistic = win_progress_add_probabilistic,
+    .ready = win_progress_ready,
+    .start_phase = win_progress_start_phase,
+    .report = win_progress_report,
+    .report_attempt = win_progress_report_attempt,
+    .report_phase_complete = win_progress_report_phase_complete,
 };
 
 static void win_progress_initialise(struct progress *p)

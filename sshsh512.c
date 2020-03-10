@@ -325,8 +325,14 @@ static void sha512_digest(ssh_hash *hash, unsigned char *output)
 }
 
 const ssh_hashalg ssh_sha512 = {
-    sha512_new, sha512_reset, sha512_copyfrom, sha512_digest, sha512_free,
-    64, BLKSIZE, HASHALG_NAMES_BARE("SHA-512"),
+    .new = sha512_new,
+    .reset = sha512_reset,
+    .copyfrom = sha512_copyfrom,
+    .digest = sha512_digest,
+    .free = sha512_free,
+    .hlen = 64,
+    .blocklen = BLKSIZE,
+    HASHALG_NAMES_BARE("SHA-512"),
 };
 
 static void sha384_reset(ssh_hash *hash)
@@ -342,6 +348,12 @@ static void sha384_digest(ssh_hash *hash, unsigned char *output)
 }
 
 const ssh_hashalg ssh_sha384 = {
-    sha512_new, sha384_reset, sha512_copyfrom, sha384_digest, sha512_free,
-    48, BLKSIZE, HASHALG_NAMES_BARE("SHA-384"),
+    .new = sha512_new,
+    .reset = sha384_reset,
+    .copyfrom = sha512_copyfrom,
+    .digest = sha384_digest,
+    .free = sha512_free,
+    .hlen = 48,
+    .blocklen = BLKSIZE,
+    HASHALG_NAMES_BARE("SHA-384"),
 };

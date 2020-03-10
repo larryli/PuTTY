@@ -52,11 +52,16 @@ static bool ssh_decomp_none_block(ssh_decompressor *handle,
 {
     return false;
 }
-const static ssh_compression_alg ssh_comp_none = {
-    "none", NULL,
-    ssh_comp_none_init, ssh_comp_none_cleanup, ssh_comp_none_block,
-    ssh_decomp_none_init, ssh_decomp_none_cleanup, ssh_decomp_none_block,
-    NULL
+static const ssh_compression_alg ssh_comp_none = {
+    .name = "none",
+    .delayed_name = NULL,
+    .compress_new = ssh_comp_none_init,
+    .compress_free = ssh_comp_none_cleanup,
+    .compress = ssh_comp_none_block,
+    .decompress_new = ssh_decomp_none_init,
+    .decompress_free = ssh_decomp_none_cleanup,
+    .decompress = ssh_decomp_none_block,
+    .text_name = NULL,
 };
 const static ssh_compression_alg *const compressions[] = {
     &ssh_zlib, &ssh_comp_none
@@ -77,16 +82,16 @@ static void ssh2_transport_set_max_data_size(struct ssh2_transport_state *s);
 static unsigned long sanitise_rekey_time(int rekey_time, unsigned long def);
 static void ssh2_transport_higher_layer_packet_callback(void *context);
 
-static const struct PacketProtocolLayerVtable ssh2_transport_vtable = {
-    ssh2_transport_free,
-    ssh2_transport_process_queue,
-    ssh2_transport_get_specials,
-    ssh2_transport_special_cmd,
-    ssh2_transport_want_user_input,
-    ssh2_transport_got_user_input,
-    ssh2_transport_reconfigure,
-    ssh2_transport_queued_data_size,
-    NULL, /* no protocol name for this layer */
+static const PacketProtocolLayerVtable ssh2_transport_vtable = {
+    .free = ssh2_transport_free,
+    .process_queue = ssh2_transport_process_queue,
+    .get_specials = ssh2_transport_get_specials,
+    .special_cmd = ssh2_transport_special_cmd,
+    .want_user_input = ssh2_transport_want_user_input,
+    .got_user_input = ssh2_transport_got_user_input,
+    .reconfigure = ssh2_transport_reconfigure,
+    .queued_data_size = ssh2_transport_queued_data_size,
+    .name = NULL, /* no protocol name for this layer */
 };
 
 #ifndef NO_GSSAPI

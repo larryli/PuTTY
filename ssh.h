@@ -209,6 +209,8 @@ struct ssh_rportfwd {
 };
 void free_rportfwd(struct ssh_rportfwd *rpf);
 
+typedef struct ConnectionLayerVtable ConnectionLayerVtable;
+
 struct ConnectionLayerVtable {
     /* Allocate and free remote-to-local port forwardings, called by
      * PortFwdManager or by connection sharing */
@@ -782,9 +784,9 @@ static inline void ssh_hash_digest_nondestructive(ssh_hash *h,
 
 /* Handy macros for defining all those text-name fields at once */
 #define HASHALG_NAMES_BARE(base) \
-    base, NULL, base
-#define HASHALG_NAMES_ANNOTATED(base, annotation) \
-    base, annotation, base " (" annotation ")"
+    .text_basename = base, .annotation = NULL, .text_name = base
+#define HASHALG_NAMES_ANNOTATED(base, ann) \
+    .text_basename = base, .annotation = ann, .text_name = base " (" ann ")"
 
 void hash_simple(const ssh_hashalg *alg, ptrlen data, void *output);
 

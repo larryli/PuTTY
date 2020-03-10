@@ -105,10 +105,10 @@ static void raw_sent(Plug *plug, size_t bufsize)
 }
 
 static const PlugVtable Raw_plugvt = {
-    raw_log,
-    raw_closing,
-    raw_receive,
-    raw_sent
+    .log = raw_log,
+    .closing = raw_closing,
+    .receive = raw_receive,
+    .sent = raw_sent,
 };
 
 /*
@@ -307,25 +307,25 @@ static int raw_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable raw_backend = {
-    raw_init,
-    raw_free,
-    raw_reconfig,
-    raw_send,
-    raw_sendbuffer,
-    raw_size,
-    raw_special,
-    raw_get_specials,
-    raw_connected,
-    raw_exitcode,
-    raw_sendok,
-    raw_ldisc,
-    raw_provide_ldisc,
-    raw_unthrottle,
-    raw_cfg_info,
-    NULL /* test_for_upstream */,
-    "raw", "Raw",
-    PROT_RAW,
-    0,
-    0
+const BackendVtable raw_backend = {
+    .init = raw_init,
+    .free = raw_free,
+    .reconfig = raw_reconfig,
+    .send = raw_send,
+    .sendbuffer = raw_sendbuffer,
+    .size = raw_size,
+    .special = raw_special,
+    .get_specials = raw_get_specials,
+    .connected = raw_connected,
+    .exitcode = raw_exitcode,
+    .sendok = raw_sendok,
+    .ldisc_option_state = raw_ldisc,
+    .provide_ldisc = raw_provide_ldisc,
+    .unthrottle = raw_unthrottle,
+    .cfg_info = raw_cfg_info,
+    .test_for_upstream = NULL,
+    .id = "raw",
+    .displayname = "Raw",
+    .protocol = PROT_RAW,
+    .default_port = 0,
 };

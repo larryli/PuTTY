@@ -290,29 +290,29 @@ static void zombiechan_open_failure(Channel *chan, const char *);
 static bool zombiechan_want_close(Channel *chan, bool sent_eof, bool rcvd_eof);
 static char *zombiechan_log_close_msg(Channel *chan) { return NULL; }
 
-static const struct ChannelVtable zombiechan_channelvt = {
-    zombiechan_free,
-    zombiechan_do_nothing,             /* open_confirmation */
-    zombiechan_open_failure,
-    zombiechan_send,
-    zombiechan_do_nothing,             /* send_eof */
-    zombiechan_set_input_wanted,
-    zombiechan_log_close_msg,
-    zombiechan_want_close,
-    chan_no_exit_status,
-    chan_no_exit_signal,
-    chan_no_exit_signal_numeric,
-    chan_no_run_shell,
-    chan_no_run_command,
-    chan_no_run_subsystem,
-    chan_no_enable_x11_forwarding,
-    chan_no_enable_agent_forwarding,
-    chan_no_allocate_pty,
-    chan_no_set_env,
-    chan_no_send_break,
-    chan_no_send_signal,
-    chan_no_change_window_size,
-    chan_no_request_response,
+static const ChannelVtable zombiechan_channelvt = {
+    .free = zombiechan_free,
+    .open_confirmation = zombiechan_do_nothing,
+    .open_failed = zombiechan_open_failure,
+    .send = zombiechan_send,
+    .send_eof = zombiechan_do_nothing,
+    .set_input_wanted = zombiechan_set_input_wanted,
+    .log_close_msg = zombiechan_log_close_msg,
+    .want_close = zombiechan_want_close,
+    .rcvd_exit_status = chan_no_exit_status,
+    .rcvd_exit_signal = chan_no_exit_signal,
+    .rcvd_exit_signal_numeric = chan_no_exit_signal_numeric,
+    .run_shell = chan_no_run_shell,
+    .run_command = chan_no_run_command,
+    .run_subsystem = chan_no_run_subsystem,
+    .enable_x11_forwarding = chan_no_enable_x11_forwarding,
+    .enable_agent_forwarding = chan_no_enable_agent_forwarding,
+    .allocate_pty = chan_no_allocate_pty,
+    .set_env = chan_no_set_env,
+    .send_break = chan_no_send_break,
+    .send_signal = chan_no_send_signal,
+    .change_window_size = chan_no_change_window_size,
+    .request_response = chan_no_request_response,
 };
 
 Channel *zombiechan_new(void)

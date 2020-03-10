@@ -796,9 +796,9 @@ static bool wm_copydata_ask_passphrase(
 }
 
 static const PageantClientVtable wmcpc_vtable = {
-    NULL, /* no logging in this client */
-    wm_copydata_got_response,
-    wm_copydata_ask_passphrase,
+    .log = NULL, /* no logging in this client */
+    .got_response = wm_copydata_got_response,
+    .ask_passphrase = wm_copydata_ask_passphrase,
 };
 
 static char *answer_filemapping_message(const char *mapname)
@@ -1188,8 +1188,8 @@ struct winpgnt_client {
     PageantListenerClient plc;
 };
 static const PageantListenerClientVtable winpgnt_vtable = {
-    NULL, /* no logging */
-    winpgnt_listener_ask_passphrase,
+    .log = NULL, /* no logging */
+    .ask_passphrase = winpgnt_listener_ask_passphrase,
 };
 
 static struct winpgnt_client wpc[1];

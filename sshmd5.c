@@ -260,6 +260,12 @@ static void md5_digest(ssh_hash *hash, unsigned char *output)
 }
 
 const ssh_hashalg ssh_md5 = {
-    md5_new, md5_reset, md5_copyfrom, md5_digest, md5_free,
-    16, 64, HASHALG_NAMES_BARE("MD5"),
+    .new = md5_new,
+    .reset = md5_reset,
+    .copyfrom = md5_copyfrom,
+    .digest = md5_digest,
+    .free = md5_free,
+    .hlen = 16,
+    .blocklen = 64,
+    HASHALG_NAMES_BARE("MD5"),
 };

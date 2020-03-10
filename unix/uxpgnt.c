@@ -150,8 +150,8 @@ static void passphrase_done(struct uxpgnt_client *upc, bool success)
 }
 
 static const PageantListenerClientVtable uxpgnt_vtable = {
-    uxpgnt_log,
-    uxpgnt_ask_passphrase,
+    .log = uxpgnt_log,
+    .ask_passphrase = uxpgnt_ask_passphrase,
 };
 
 /*
@@ -916,11 +916,10 @@ void run_client(void)
 }
 
 static const PlugVtable X11Connection_plugvt = {
-    x11_log,
-    x11_closing,
-    x11_receive,
-    x11_sent,
-    NULL
+    .log = x11_log,
+    .closing = x11_closing,
+    .receive = x11_receive,
+    .sent = x11_sent,
 };
 
 

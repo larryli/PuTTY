@@ -162,36 +162,64 @@ static const char *hmac_text_name(ssh2_mac *mac)
 
 static const struct hmac_extra ssh_hmac_sha256_extra = { &ssh_sha256, "" };
 const ssh2_macalg ssh_hmac_sha256 = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-sha2-256", "hmac-sha2-256-etm@openssh.com",
-    32, 32, &ssh_hmac_sha256_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-sha2-256",
+    .etm_name = "hmac-sha2-256-etm@openssh.com",
+    .len = 32,
+    .keylen = 32,
+    .extra = &ssh_hmac_sha256_extra,
 };
 
 static const struct hmac_extra ssh_hmac_md5_extra = { &ssh_md5, "" };
 const ssh2_macalg ssh_hmac_md5 = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-md5", "hmac-md5-etm@openssh.com",
-    16, 16, &ssh_hmac_md5_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-md5",
+    .etm_name = "hmac-md5-etm@openssh.com",
+    .len = 16,
+    .keylen = 16,
+    .extra = &ssh_hmac_md5_extra,
 };
 
 static const struct hmac_extra ssh_hmac_sha1_extra = { &ssh_sha1, "" };
 
 const ssh2_macalg ssh_hmac_sha1 = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-sha1", "hmac-sha1-etm@openssh.com",
-    20, 20, &ssh_hmac_sha1_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-sha1",
+    .etm_name = "hmac-sha1-etm@openssh.com",
+    .len = 20,
+    .keylen = 20,
+    .extra = &ssh_hmac_sha1_extra,
 };
 
 static const struct hmac_extra ssh_hmac_sha1_96_extra = { &ssh_sha1, "-96" };
 
 const ssh2_macalg ssh_hmac_sha1_96 = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-sha1-96", "hmac-sha1-96-etm@openssh.com",
-    12, 20, &ssh_hmac_sha1_96_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-sha1-96",
+    .etm_name = "hmac-sha1-96-etm@openssh.com",
+    .len = 12,
+    .keylen = 20,
+    .extra = &ssh_hmac_sha1_96_extra,
 };
 
 static const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
@@ -199,10 +227,16 @@ static const struct hmac_extra ssh_hmac_sha1_buggy_extra = {
 };
 
 const ssh2_macalg ssh_hmac_sha1_buggy = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-sha1", NULL,
-    20, 16, &ssh_hmac_sha1_buggy_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-sha1",
+    .len = 20,
+    .keylen = 16,
+    .extra = &ssh_hmac_sha1_buggy_extra,
 };
 
 static const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
@@ -210,8 +244,14 @@ static const struct hmac_extra ssh_hmac_sha1_96_buggy_extra = {
 };
 
 const ssh2_macalg ssh_hmac_sha1_96_buggy = {
-    hmac_new, hmac_free, hmac_key,
-    hmac_start, hmac_genresult, hmac_text_name,
-    "hmac-sha1-96", NULL,
-    12, 16, &ssh_hmac_sha1_96_buggy_extra,
+    .new = hmac_new,
+    .free = hmac_free,
+    .setkey = hmac_key,
+    .start = hmac_start,
+    .genresult = hmac_genresult,
+    .text_name = hmac_text_name,
+    .name = "hmac-sha1-96",
+    .len = 12,
+    .keylen = 16,
+    .extra = &ssh_hmac_sha1_96_buggy_extra,
 };

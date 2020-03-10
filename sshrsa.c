@@ -817,26 +817,22 @@ static char *rsa2_invalid(ssh_key *key, unsigned flags)
 }
 
 const ssh_keyalg ssh_rsa = {
-    rsa2_new_pub,
-    rsa2_new_priv,
-    rsa2_new_priv_openssh,
-
-    rsa2_freekey,
-    rsa2_invalid,
-    rsa2_sign,
-    rsa2_verify,
-    rsa2_public_blob,
-    rsa2_private_blob,
-    rsa2_openssh_blob,
-    rsa2_cache_str,
-    rsa2_components,
-
-    rsa2_pubkey_bits,
-
-    "ssh-rsa",
-    "rsa2",
-    NULL,
-    SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
+    .new_pub = rsa2_new_pub,
+    .new_priv = rsa2_new_priv,
+    .new_priv_openssh = rsa2_new_priv_openssh,
+    .freekey = rsa2_freekey,
+    .invalid = rsa2_invalid,
+    .sign = rsa2_sign,
+    .verify = rsa2_verify,
+    .public_blob = rsa2_public_blob,
+    .private_blob = rsa2_private_blob,
+    .openssh_blob = rsa2_openssh_blob,
+    .cache_str = rsa2_cache_str,
+    .components = rsa2_components,
+    .pubkey_bits = rsa2_pubkey_bits,
+    .ssh_id = "ssh-rsa",
+    .cache_id = "rsa2",
+    .supported_flags = SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
 };
 
 RSAKey *ssh_rsakex_newkey(ptrlen data)

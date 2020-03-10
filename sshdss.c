@@ -483,24 +483,19 @@ static void dss_sign(ssh_key *key, ptrlen data, unsigned flags, BinarySink *bs)
 }
 
 const ssh_keyalg ssh_dss = {
-    dss_new_pub,
-    dss_new_priv,
-    dss_new_priv_openssh,
-
-    dss_freekey,
-    dss_invalid,
-    dss_sign,
-    dss_verify,
-    dss_public_blob,
-    dss_private_blob,
-    dss_openssh_blob,
-    dss_cache_str,
-    dss_components,
-
-    dss_pubkey_bits,
-
-    "ssh-dss",
-    "dss",
-    NULL,
-    0, /* no supported flags */
+    .new_pub = dss_new_pub,
+    .new_priv = dss_new_priv,
+    .new_priv_openssh = dss_new_priv_openssh,
+    .freekey = dss_freekey,
+    .invalid = dss_invalid,
+    .sign = dss_sign,
+    .verify = dss_verify,
+    .public_blob = dss_public_blob,
+    .private_blob = dss_private_blob,
+    .openssh_blob = dss_openssh_blob,
+    .cache_str = dss_cache_str,
+    .components = dss_components,
+    .pubkey_bits = dss_pubkey_bits,
+    .ssh_id = "ssh-dss",
+    .cache_id = "dss",
 };

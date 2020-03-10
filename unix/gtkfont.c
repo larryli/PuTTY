@@ -216,18 +216,18 @@ struct x11font {
     unifont u;
 };
 
-static const struct UnifontVtable x11font_vtable = {
-    x11font_create,
-    NULL,                              /* no fallback fonts in X11 */
-    x11font_destroy,
-    x11font_has_glyph,
-    x11font_draw_text,
-    x11font_draw_combining,
-    x11font_enum_fonts,
-    x11font_canonify_fontname,
-    x11font_scale_fontname,
-    x11font_size_increment,
-    "server",
+static const UnifontVtable x11font_vtable = {
+    .create = x11font_create,
+    .create_fallback = NULL, /* no fallback fonts in X11 */
+    .destroy = x11font_destroy,
+    .has_glyph = x11font_has_glyph,
+    .draw_text = x11font_draw_text,
+    .draw_combining = x11font_draw_combining,
+    .enum_fonts = x11font_enum_fonts,
+    .canonify_fontname = x11font_canonify_fontname,
+    .scale_fontname = x11font_scale_fontname,
+    .size_increment = x11font_size_increment,
+    .prefix = "server",
 };
 
 #define XLFD_STRING_PARTS_LIST(S,I)             \
@@ -1353,18 +1353,18 @@ struct pangofont {
     struct unifont u;
 };
 
-static const struct UnifontVtable pangofont_vtable = {
-    pangofont_create,
-    pangofont_create_fallback,
-    pangofont_destroy,
-    pangofont_has_glyph,
-    pangofont_draw_text,
-    pangofont_draw_combining,
-    pangofont_enum_fonts,
-    pangofont_canonify_fontname,
-    pangofont_scale_fontname,
-    pangofont_size_increment,
-    "client",
+static const UnifontVtable pangofont_vtable = {
+    .create = pangofont_create,
+    .create_fallback = pangofont_create_fallback,
+    .destroy = pangofont_destroy,
+    .has_glyph = pangofont_has_glyph,
+    .draw_text = pangofont_draw_text,
+    .draw_combining = pangofont_draw_combining,
+    .enum_fonts = pangofont_enum_fonts,
+    .canonify_fontname = pangofont_canonify_fontname,
+    .scale_fontname = pangofont_scale_fontname,
+    .size_increment = pangofont_size_increment,
+    .prefix = "client",
 };
 
 /*
@@ -2190,18 +2190,18 @@ struct multifont {
     struct unifont u;
 };
 
-static const struct UnifontVtable multifont_vtable = {
-    NULL,                             /* creation is done specially */
-    NULL,
-    multifont_destroy,
-    NULL,
-    multifont_draw_text,
-    multifont_draw_combining,
-    NULL,
-    NULL,
-    NULL,
-    multifont_size_increment,
-    "client",
+static const UnifontVtable multifont_vtable = {
+    .create = NULL, /* creation is done specially */
+    .create_fallback = NULL,
+    .destroy = multifont_destroy,
+    .has_glyph = NULL,
+    .draw_text = multifont_draw_text,
+    .draw_combining = multifont_draw_combining,
+    .enum_fonts = NULL,
+    .canonify_fontname = NULL,
+    .scale_fontname = NULL,
+    .size_increment = multifont_size_increment,
+    .prefix = "client",
 };
 
 unifont *multifont_create(GtkWidget *widget, const char *name,

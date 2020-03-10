@@ -153,10 +153,10 @@ static int server_askappend(
 }
 
 static const LogPolicyVtable server_logpolicy_vt = {
-    server_eventlog,
-    server_askappend,
-    server_logging_error,
-    null_lp_verbose_no,
+    .eventlog = server_eventlog,
+    .askappend = server_askappend,
+    .logging_error = server_logging_error,
+    .verbose = null_lp_verbose_no,
 };
 
 struct AuthPolicy_ssh1_pubkey {
@@ -504,11 +504,9 @@ static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 }
 
 static const PlugVtable server_plugvt = {
-    server_log,
-    server_closing,
-    NULL,                          /* recv */
-    NULL,                          /* send */
-    server_accepting
+    .log = server_log,
+    .closing = server_closing,
+    .accepting = server_accepting,
 };
 
 int main(int argc, char **argv)

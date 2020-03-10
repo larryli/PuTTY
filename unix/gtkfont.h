@@ -49,7 +49,8 @@
 /*
  * Exports from gtkfont.c.
  */
-struct UnifontVtable;                  /* contents internal to gtkfont.c */
+typedef struct UnifontVtable UnifontVtable; /* contents internal to
+                                             * gtkfont.c */
 typedef struct unifont {
     const struct UnifontVtable *vt;
     /*

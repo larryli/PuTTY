@@ -72,29 +72,29 @@ static bool sesschan_change_window_size(
     Channel *chan, unsigned width, unsigned height,
     unsigned pixwidth, unsigned pixheight);
 
-static const struct ChannelVtable sesschan_channelvt = {
-    sesschan_free,
-    chan_remotely_opened_confirmation,
-    chan_remotely_opened_failure,
-    sesschan_send,
-    sesschan_send_eof,
-    sesschan_set_input_wanted,
-    sesschan_log_close_msg,
-    sesschan_want_close,
-    chan_no_exit_status,
-    chan_no_exit_signal,
-    chan_no_exit_signal_numeric,
-    sesschan_run_shell,
-    sesschan_run_command,
-    sesschan_run_subsystem,
-    sesschan_enable_x11_forwarding,
-    sesschan_enable_agent_forwarding,
-    sesschan_allocate_pty,
-    sesschan_set_env,
-    sesschan_send_break,
-    sesschan_send_signal,
-    sesschan_change_window_size,
-    chan_no_request_response,
+static const ChannelVtable sesschan_channelvt = {
+    .free = sesschan_free,
+    .open_confirmation = chan_remotely_opened_confirmation,
+    .open_failed = chan_remotely_opened_failure,
+    .send = sesschan_send,
+    .send_eof = sesschan_send_eof,
+    .set_input_wanted = sesschan_set_input_wanted,
+    .log_close_msg = sesschan_log_close_msg,
+    .want_close = sesschan_want_close,
+    .rcvd_exit_status = chan_no_exit_status,
+    .rcvd_exit_signal = chan_no_exit_signal,
+    .rcvd_exit_signal_numeric = chan_no_exit_signal_numeric,
+    .run_shell = sesschan_run_shell,
+    .run_command = sesschan_run_command,
+    .run_subsystem = sesschan_run_subsystem,
+    .enable_x11_forwarding = sesschan_enable_x11_forwarding,
+    .enable_agent_forwarding = sesschan_enable_agent_forwarding,
+    .allocate_pty = sesschan_allocate_pty,
+    .set_env = sesschan_set_env,
+    .send_break = sesschan_send_break,
+    .send_signal = sesschan_send_signal,
+    .change_window_size = sesschan_change_window_size,
+    .request_response = chan_no_request_response,
 };
 
 static size_t sftp_chan_send(
@@ -102,29 +102,29 @@ static size_t sftp_chan_send(
 static void sftp_chan_send_eof(Channel *chan);
 static char *sftp_log_close_msg(Channel *chan);
 
-static const struct ChannelVtable sftp_channelvt = {
-    sesschan_free,
-    chan_remotely_opened_confirmation,
-    chan_remotely_opened_failure,
-    sftp_chan_send,
-    sftp_chan_send_eof,
-    sesschan_set_input_wanted,
-    sftp_log_close_msg,
-    chan_default_want_close,
-    chan_no_exit_status,
-    chan_no_exit_signal,
-    chan_no_exit_signal_numeric,
-    chan_no_run_shell,
-    chan_no_run_command,
-    chan_no_run_subsystem,
-    chan_no_enable_x11_forwarding,
-    chan_no_enable_agent_forwarding,
-    chan_no_allocate_pty,
-    chan_no_set_env,
-    chan_no_send_break,
-    chan_no_send_signal,
-    chan_no_change_window_size,
-    chan_no_request_response,
+static const ChannelVtable sftp_channelvt = {
+    .free = sesschan_free,
+    .open_confirmation = chan_remotely_opened_confirmation,
+    .open_failed = chan_remotely_opened_failure,
+    .send = sftp_chan_send,
+    .send_eof = sftp_chan_send_eof,
+    .set_input_wanted = sesschan_set_input_wanted,
+    .log_close_msg = sftp_log_close_msg,
+    .want_close = chan_default_want_close,
+    .rcvd_exit_status = chan_no_exit_status,
+    .rcvd_exit_signal = chan_no_exit_signal,
+    .rcvd_exit_signal_numeric = chan_no_exit_signal_numeric,
+    .run_shell = chan_no_run_shell,
+    .run_command = chan_no_run_command,
+    .run_subsystem = chan_no_run_subsystem,
+    .enable_x11_forwarding = chan_no_enable_x11_forwarding,
+    .enable_agent_forwarding = chan_no_enable_agent_forwarding,
+    .allocate_pty = chan_no_allocate_pty,
+    .set_env = chan_no_set_env,
+    .send_break = chan_no_send_break,
+    .send_signal = chan_no_send_signal,
+    .change_window_size = chan_no_change_window_size,
+    .request_response = chan_no_request_response,
 };
 
 static size_t scp_chan_send(
@@ -133,29 +133,29 @@ static void scp_chan_send_eof(Channel *chan);
 static void scp_set_input_wanted(Channel *chan, bool wanted);
 static char *scp_log_close_msg(Channel *chan);
 
-static const struct ChannelVtable scp_channelvt = {
-    sesschan_free,
-    chan_remotely_opened_confirmation,
-    chan_remotely_opened_failure,
-    scp_chan_send,
-    scp_chan_send_eof,
-    scp_set_input_wanted,
-    scp_log_close_msg,
-    chan_default_want_close,
-    chan_no_exit_status,
-    chan_no_exit_signal,
-    chan_no_exit_signal_numeric,
-    chan_no_run_shell,
-    chan_no_run_command,
-    chan_no_run_subsystem,
-    chan_no_enable_x11_forwarding,
-    chan_no_enable_agent_forwarding,
-    chan_no_allocate_pty,
-    chan_no_set_env,
-    chan_no_send_break,
-    chan_no_send_signal,
-    chan_no_change_window_size,
-    chan_no_request_response,
+static const ChannelVtable scp_channelvt = {
+    .free = sesschan_free,
+    .open_confirmation = chan_remotely_opened_confirmation,
+    .open_failed = chan_remotely_opened_failure,
+    .send = scp_chan_send,
+    .send_eof = scp_chan_send_eof,
+    .set_input_wanted = scp_set_input_wanted,
+    .log_close_msg = scp_log_close_msg,
+    .want_close = chan_default_want_close,
+    .rcvd_exit_status = chan_no_exit_status,
+    .rcvd_exit_signal = chan_no_exit_signal,
+    .rcvd_exit_signal_numeric = chan_no_exit_signal_numeric,
+    .run_shell = chan_no_run_shell,
+    .run_command = chan_no_run_command,
+    .run_subsystem = chan_no_run_subsystem,
+    .enable_x11_forwarding = chan_no_enable_x11_forwarding,
+    .enable_agent_forwarding = chan_no_enable_agent_forwarding,
+    .allocate_pty = chan_no_allocate_pty,
+    .set_env = chan_no_set_env,
+    .send_break = chan_no_send_break,
+    .send_signal = chan_no_send_signal,
+    .change_window_size = chan_no_change_window_size,
+    .request_response = chan_no_request_response,
 };
 
 static void sesschan_eventlog(LogPolicy *lp, const char *event) {}
@@ -165,10 +165,10 @@ static int sesschan_askappend(
     void (*callback)(void *ctx, int result), void *ctx) { return 2; }
 
 static const LogPolicyVtable sesschan_logpolicy_vt = {
-    sesschan_eventlog,
-    sesschan_askappend,
-    sesschan_logging_error,
-    null_lp_verbose_no,
+    .eventlog = sesschan_eventlog,
+    .askappend = sesschan_askappend,
+    .logging_error = sesschan_logging_error,
+    .verbose = null_lp_verbose_no,
 };
 
 static size_t sesschan_seat_output(
@@ -179,27 +179,27 @@ static void sesschan_connection_fatal(Seat *seat, const char *message);
 static bool sesschan_get_window_pixel_size(Seat *seat, int *w, int *h);
 
 static const SeatVtable sesschan_seat_vt = {
-    sesschan_seat_output,
-    sesschan_seat_eof,
-    nullseat_get_userpass_input,
-    sesschan_notify_remote_exit,
-    sesschan_connection_fatal,
-    nullseat_update_specials_menu,
-    nullseat_get_ttymode,
-    nullseat_set_busy_status,
-    nullseat_verify_ssh_host_key,
-    nullseat_confirm_weak_crypto_primitive,
-    nullseat_confirm_weak_cached_hostkey,
-    nullseat_is_never_utf8,
-    nullseat_echoedit_update,
-    nullseat_get_x_display,
-    nullseat_get_windowid,
-    sesschan_get_window_pixel_size,
-    nullseat_stripctrl_new,
-    nullseat_set_trust_status,
-    nullseat_verbose_no,
-    nullseat_interactive_no,
-    nullseat_get_cursor_position,
+    .output = sesschan_seat_output,
+    .eof = sesschan_seat_eof,
+    .get_userpass_input = nullseat_get_userpass_input,
+    .notify_remote_exit = sesschan_notify_remote_exit,
+    .connection_fatal = sesschan_connection_fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = nullseat_get_ttymode,
+    .set_busy_status = nullseat_set_busy_status,
+    .verify_ssh_host_key = nullseat_verify_ssh_host_key,
+    .confirm_weak_crypto_primitive = nullseat_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = nullseat_confirm_weak_cached_hostkey,
+    .is_utf8 = nullseat_is_never_utf8,
+    .echoedit_update = nullseat_echoedit_update,
+    .get_x_display = nullseat_get_x_display,
+    .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = sesschan_get_window_pixel_size,
+    .stripctrl_new = nullseat_stripctrl_new,
+    .set_trust_status = nullseat_set_trust_status,
+    .verbose = nullseat_verbose_no,
+    .interactive = nullseat_interactive_no,
+    .get_cursor_position = nullseat_get_cursor_position,
 };
 
 Channel *sesschan_new(SshChannel *c, LogContext *logctx,
@@ -383,11 +383,9 @@ static int xfwd_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 }
 
 static const PlugVtable xfwd_plugvt = {
-    fwd_log,
-    fwd_closing,
-    NULL, /* recv */
-    NULL, /* send */
-    xfwd_accepting,
+    .log = fwd_log,
+    .closing = fwd_closing,
+    .accepting = xfwd_accepting,
 };
 
 bool sesschan_enable_x11_forwarding(
@@ -457,11 +455,9 @@ static int agentfwd_accepting(
 }
 
 static const PlugVtable agentfwd_plugvt = {
-    fwd_log,
-    fwd_closing,
-    NULL, /* recv */
-    NULL, /* send */
-    agentfwd_accepting,
+    .log = fwd_log,
+    .closing = fwd_closing,
+    .accepting = agentfwd_accepting,
 };
 
 bool sesschan_enable_agent_forwarding(Channel *chan)

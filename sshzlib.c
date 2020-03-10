@@ -1241,13 +1241,13 @@ bool zlib_decompress_block(ssh_decompressor *dc,
 }
 
 const ssh_compression_alg ssh_zlib = {
-    "zlib",
-    "zlib@openssh.com", /* delayed version */
-    zlib_compress_init,
-    zlib_compress_cleanup,
-    zlib_compress_block,
-    zlib_decompress_init,
-    zlib_decompress_cleanup,
-    zlib_decompress_block,
-    "zlib (RFC1950)"
+    .name = "zlib",
+    .delayed_name = "zlib@openssh.com", /* delayed version */
+    .compress_new = zlib_compress_init,
+    .compress_free = zlib_compress_cleanup,
+    .compress = zlib_compress_block,
+    .decompress_new = zlib_decompress_init,
+    .decompress_free = zlib_decompress_cleanup,
+    .decompress = zlib_decompress_block,
+    .text_name = "zlib (RFC1950)",
 };

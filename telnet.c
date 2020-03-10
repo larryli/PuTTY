@@ -664,10 +664,10 @@ static void telnet_sent(Plug *plug, size_t bufsize)
 }
 
 static const PlugVtable Telnet_plugvt = {
-    telnet_log,
-    telnet_closing,
-    telnet_receive,
-    telnet_sent
+    .log = telnet_log,
+    .closing = telnet_closing,
+    .receive = telnet_receive,
+    .sent = telnet_sent,
 };
 
 /*
@@ -1047,25 +1047,24 @@ static int telnet_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable telnet_backend = {
-    telnet_init,
-    telnet_free,
-    telnet_reconfig,
-    telnet_send,
-    telnet_sendbuffer,
-    telnet_size,
-    telnet_special,
-    telnet_get_specials,
-    telnet_connected,
-    telnet_exitcode,
-    telnet_sendok,
-    telnet_ldisc,
-    telnet_provide_ldisc,
-    telnet_unthrottle,
-    telnet_cfg_info,
-    NULL /* test_for_upstream */,
-    "telnet", "Telnet",
-    PROT_TELNET,
-    23,
-    0
+const BackendVtable telnet_backend = {
+    .init = telnet_init,
+    .free = telnet_free,
+    .reconfig = telnet_reconfig,
+    .send = telnet_send,
+    .sendbuffer = telnet_sendbuffer,
+    .size = telnet_size,
+    .special = telnet_special,
+    .get_specials = telnet_get_specials,
+    .connected = telnet_connected,
+    .exitcode = telnet_exitcode,
+    .sendok = telnet_sendok,
+    .ldisc_option_state = telnet_ldisc,
+    .provide_ldisc = telnet_provide_ldisc,
+    .unthrottle = telnet_unthrottle,
+    .cfg_info = telnet_cfg_info,
+    .id = "telnet",
+    .displayname = "Telnet",
+    .protocol = PROT_TELNET,
+    .default_port = 23,
 };

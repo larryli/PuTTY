@@ -98,8 +98,10 @@ static ssh_hash *sha256_select(const ssh_hashalg *alg)
 }
 
 const ssh_hashalg ssh_sha256 = {
-    sha256_select, NULL, NULL, NULL, NULL,
-    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "dummy selector vtable"),
+    .new = sha256_select,
+    .hlen = 32,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-256", "dummy selector vtable"),
 };
 
 /* ----------------------------------------------------------------------
@@ -327,9 +329,14 @@ static void sha256_sw_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha256_sw = {
-    sha256_sw_new, sha256_sw_reset, sha256_sw_copyfrom, sha256_sw_digest,
-    sha256_sw_free,
-    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "unaccelerated"),
+    .new = sha256_sw_new,
+    .reset = sha256_sw_reset,
+    .copyfrom = sha256_sw_copyfrom,
+    .digest = sha256_sw_digest,
+    .free = sha256_sw_free,
+    .hlen = 32,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-256", "unaccelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -686,9 +693,14 @@ FUNC_ISA static void sha256_ni_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha256_hw = {
-    sha256_ni_new, sha256_ni_reset, sha256_ni_copyfrom, sha256_ni_digest,
-    sha256_ni_free,
-    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "SHA-NI accelerated"),
+    .new = sha256_ni_new,
+    .reset = sha256_ni_reset,
+    .copyfrom = sha256_ni_copyfrom,
+    .digest = sha256_ni_digest,
+    .free = sha256_ni_free,
+    .hlen = 32,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-256", "SHA-NI accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -876,9 +888,14 @@ static void sha256_neon_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha256_hw = {
-    sha256_neon_new, sha256_neon_reset, sha256_neon_copyfrom,
-    sha256_neon_digest, sha256_neon_free,
-    32, 64, HASHALG_NAMES_ANNOTATED("SHA-256", "NEON accelerated"),
+    .new = sha256_neon_new,
+    .reset = sha256_neon_reset,
+    .copyfrom = sha256_neon_copyfrom,
+    .digest = sha256_neon_digest,
+    .free = sha256_neon_free,
+    .hlen = 32,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-256", "NEON accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -909,10 +926,14 @@ static void sha256_stub_free(ssh_hash *hash) STUB_BODY
 static void sha256_stub_digest(ssh_hash *hash, uint8_t *digest) STUB_BODY
 
 const ssh_hashalg ssh_sha256_hw = {
-    sha256_stub_new, sha256_stub_reset, sha256_stub_copyfrom,
-    sha256_stub_digest, sha256_stub_free,
-    32, 64, HASHALG_NAMES_ANNOTATED(
-        "SHA-256", "!NONEXISTENT ACCELERATED VERSION!"),
+    .new = sha256_stub_new,
+    .reset = sha256_stub_reset,
+    .copyfrom = sha256_stub_copyfrom,
+    .digest = sha256_stub_digest,
+    .free = sha256_stub_free,
+    .hlen = 32,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-256", "!NONEXISTENT ACCELERATED VERSION!"),
 };
 
 #endif /* HW_SHA256 */

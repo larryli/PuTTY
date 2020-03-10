@@ -38,16 +38,12 @@ struct ssh2_userauth_server_state {
 static void ssh2_userauth_server_free(PacketProtocolLayer *);
 static void ssh2_userauth_server_process_queue(PacketProtocolLayer *);
 
-static const struct PacketProtocolLayerVtable ssh2_userauth_server_vtable = {
-    ssh2_userauth_server_free,
-    ssh2_userauth_server_process_queue,
-    NULL /* get_specials */,
-    NULL /* special_cmd */,
-    NULL /* want_user_input */,
-    NULL /* got_user_input */,
-    NULL /* reconfigure */,
-    ssh_ppl_default_queued_data_size,
-    "ssh-userauth",
+static const PacketProtocolLayerVtable ssh2_userauth_server_vtable = {
+    .free = ssh2_userauth_server_free,
+    .process_queue = ssh2_userauth_server_process_queue,
+    .queued_data_size = ssh_ppl_default_queued_data_size,
+    .name = "ssh-userauth",
+    /* other methods are NULL */
 };
 
 static void free_auth_kbdint(AuthKbdInt *aki)

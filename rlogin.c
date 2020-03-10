@@ -139,10 +139,10 @@ static void rlogin_startup(Rlogin *rlogin, const char *ruser)
 }
 
 static const PlugVtable Rlogin_plugvt = {
-    rlogin_log,
-    rlogin_closing,
-    rlogin_receive,
-    rlogin_sent
+    .log = rlogin_log,
+    .closing = rlogin_closing,
+    .receive = rlogin_receive,
+    .sent = rlogin_sent,
 };
 
 /*
@@ -405,25 +405,25 @@ static int rlogin_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable rlogin_backend = {
-    rlogin_init,
-    rlogin_free,
-    rlogin_reconfig,
-    rlogin_send,
-    rlogin_sendbuffer,
-    rlogin_size,
-    rlogin_special,
-    rlogin_get_specials,
-    rlogin_connected,
-    rlogin_exitcode,
-    rlogin_sendok,
-    rlogin_ldisc,
-    rlogin_provide_ldisc,
-    rlogin_unthrottle,
-    rlogin_cfg_info,
-    NULL /* test_for_upstream */,
-    "rlogin", "Rlogin",
-    PROT_RLOGIN,
-    513,
-    0
+const BackendVtable rlogin_backend = {
+    .init = rlogin_init,
+    .free = rlogin_free,
+    .reconfig = rlogin_reconfig,
+    .send = rlogin_send,
+    .sendbuffer = rlogin_sendbuffer,
+    .size = rlogin_size,
+    .special = rlogin_special,
+    .get_specials = rlogin_get_specials,
+    .connected = rlogin_connected,
+    .exitcode = rlogin_exitcode,
+    .sendok = rlogin_sendok,
+    .ldisc_option_state = rlogin_ldisc,
+    .provide_ldisc = rlogin_provide_ldisc,
+    .unthrottle = rlogin_unthrottle,
+    .cfg_info = rlogin_cfg_info,
+    .test_for_upstream = NULL,
+    .id = "rlogin",
+    .displayname = "Rlogin",
+    .protocol = PROT_RLOGIN,
+    .default_port = 513,
 };

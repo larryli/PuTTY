@@ -280,12 +280,16 @@ static void sha3_reset(ssh_hash *hash)
     keccak_sha3_init(&kh->state, hash->vt->hlen * 8);
 }
 
-#define DEFINE_SHA3(bits)                               \
-    const ssh_hashalg ssh_sha3_##bits = {               \
-        keccak_new, sha3_reset, keccak_copyfrom,        \
-        keccak_digest, keccak_free,                     \
-        bits/8, 200 - 2*(bits/8),                       \
-        HASHALG_NAMES_BARE("SHA3-" #bits),              \
+#define DEFINE_SHA3(bits)                       \
+    const ssh_hashalg ssh_sha3_##bits = {       \
+        .new = keccak_new,                      \
+        .reset = sha3_reset,                    \
+        .copyfrom = keccak_copyfrom,            \
+        .digest = keccak_digest,                \
+        .free = keccak_free,                    \
+        .hlen = bits/8,                         \
+        .blocklen = 200 - 2*(bits/8),           \
+        HASHALG_NAMES_BARE("SHA3-" #bits),      \
     }
 
 DEFINE_SHA3(224);
@@ -310,11 +314,16 @@ static void shake256_reset(ssh_hash *hash)
  * to be clear which we're talking about
  */
 
-#define DEFINE_SHAKE(param, hashbytes)                                  \
-    const ssh_hashalg ssh_shake##param##_##hashbytes##bytes = {         \
-        keccak_new, shake##param##_reset, keccak_copyfrom,              \
-        keccak_digest, keccak_free,                                     \
-        hashbytes, 0, HASHALG_NAMES_BARE("SHAKE" #param),               \
+#define DEFINE_SHAKE(param, hashbytes)                          \
+    const ssh_hashalg ssh_shake##param##_##hashbytes##bytes = { \
+        .new = keccak_new,                                      \
+        .reset = shake##param##_reset,                          \
+        .copyfrom = keccak_copyfrom,                            \
+        .digest = keccak_digest,                                \
+        .free = keccak_free,                                    \
+        .hlen = hashbytes,                                      \
+        .blocklen = 0,                                          \
+        HASHALG_NAMES_BARE("SHAKE" #param),                     \
     }
 
 DEFINE_SHAKE(256, 114);

@@ -98,8 +98,10 @@ static ssh_hash *sha1_select(const ssh_hashalg *alg)
 }
 
 const ssh_hashalg ssh_sha1 = {
-    sha1_select, NULL, NULL, NULL, NULL,
-    20, 64, HASHALG_NAMES_ANNOTATED("SHA-1", "dummy selector vtable"),
+    .new = sha1_select,
+    .hlen = 20,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-1", "dummy selector vtable"),
 };
 
 /* ----------------------------------------------------------------------
@@ -310,8 +312,14 @@ static void sha1_sw_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha1_sw = {
-    sha1_sw_new, sha1_sw_reset, sha1_sw_copyfrom, sha1_sw_digest, sha1_sw_free,
-    20, 64, HASHALG_NAMES_ANNOTATED("SHA-1", "unaccelerated"),
+    .new = sha1_sw_new,
+    .reset = sha1_sw_reset,
+    .copyfrom = sha1_sw_copyfrom,
+    .digest = sha1_sw_digest,
+    .free = sha1_sw_free,
+    .hlen = 20,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-1", "unaccelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -652,8 +660,14 @@ FUNC_ISA static void sha1_ni_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha1_hw = {
-    sha1_ni_new, sha1_ni_reset, sha1_ni_copyfrom, sha1_ni_digest, sha1_ni_free,
-    20, 64, HASHALG_NAMES_ANNOTATED("SHA-1", "SHA-NI accelerated"),
+    .new = sha1_ni_new,
+    .reset = sha1_ni_reset,
+    .copyfrom = sha1_ni_copyfrom,
+    .digest = sha1_ni_digest,
+    .free = sha1_ni_free,
+    .hlen = 20,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-1", "SHA-NI accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -868,9 +882,14 @@ static void sha1_neon_digest(ssh_hash *hash, uint8_t *digest)
 }
 
 const ssh_hashalg ssh_sha1_hw = {
-    sha1_neon_new, sha1_neon_reset, sha1_neon_copyfrom, sha1_neon_digest,
-    sha1_neon_free,
-    20, 64, HASHALG_NAMES_ANNOTATED("SHA-1", "NEON accelerated"),
+    .new = sha1_neon_new,
+    .reset = sha1_neon_reset,
+    .copyfrom = sha1_neon_copyfrom,
+    .digest = sha1_neon_digest,
+    .free = sha1_neon_free,
+    .hlen = 20,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-1", "NEON accelerated"),
 };
 
 /* ----------------------------------------------------------------------
@@ -901,10 +920,14 @@ static void sha1_stub_free(ssh_hash *hash) STUB_BODY
 static void sha1_stub_digest(ssh_hash *hash, uint8_t *digest) STUB_BODY
 
 const ssh_hashalg ssh_sha1_hw = {
-    sha1_stub_new, sha1_stub_reset, sha1_stub_copyfrom, sha1_stub_digest,
-    sha1_stub_free,
-    20, 64, HASHALG_NAMES_ANNOTATED(
-        "SHA-1", "!NONEXISTENT ACCELERATED VERSION!"),
+    .new = sha1_stub_new,
+    .reset = sha1_stub_reset,
+    .copyfrom = sha1_stub_copyfrom,
+    .digest = sha1_stub_digest,
+    .free = sha1_stub_free,
+    .hlen = 20,
+    .blocklen = 64,
+    HASHALG_NAMES_ANNOTATED("SHA-1", "!NONEXISTENT ACCELERATED VERSION!"),
 };
 
 #endif /* HW_SHA1 */

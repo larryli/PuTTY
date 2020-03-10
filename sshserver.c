@@ -102,27 +102,27 @@ static int server_confirm_weak_cached_hostkey(
     void (*callback)(void *ctx, int result), void *ctx) { return 1; }
 
 static const SeatVtable server_seat_vt = {
-    nullseat_output,
-    nullseat_eof,
-    nullseat_get_userpass_input,
-    nullseat_notify_remote_exit,
-    nullseat_connection_fatal,
-    nullseat_update_specials_menu,
-    nullseat_get_ttymode,
-    nullseat_set_busy_status,
-    nullseat_verify_ssh_host_key,
-    server_confirm_weak_crypto_primitive,
-    server_confirm_weak_cached_hostkey,
-    nullseat_is_never_utf8,
-    nullseat_echoedit_update,
-    nullseat_get_x_display,
-    nullseat_get_windowid,
-    nullseat_get_window_pixel_size,
-    nullseat_stripctrl_new,
-    nullseat_set_trust_status,
-    nullseat_verbose_no,
-    nullseat_interactive_no,
-    nullseat_get_cursor_position,
+    .output = nullseat_output,
+    .eof = nullseat_eof,
+    .get_userpass_input = nullseat_get_userpass_input,
+    .notify_remote_exit = nullseat_notify_remote_exit,
+    .connection_fatal = nullseat_connection_fatal,
+    .update_specials_menu = nullseat_update_specials_menu,
+    .get_ttymode = nullseat_get_ttymode,
+    .set_busy_status = nullseat_set_busy_status,
+    .verify_ssh_host_key = nullseat_verify_ssh_host_key,
+    .confirm_weak_crypto_primitive = server_confirm_weak_crypto_primitive,
+    .confirm_weak_cached_hostkey = server_confirm_weak_cached_hostkey,
+    .is_utf8 = nullseat_is_never_utf8,
+    .echoedit_update = nullseat_echoedit_update,
+    .get_x_display = nullseat_get_x_display,
+    .get_windowid = nullseat_get_windowid,
+    .get_window_pixel_size = nullseat_get_window_pixel_size,
+    .stripctrl_new = nullseat_stripctrl_new,
+    .set_trust_status = nullseat_set_trust_status,
+    .verbose = nullseat_verbose_no,
+    .interactive = nullseat_interactive_no,
+    .get_cursor_position = nullseat_get_cursor_position,
 };
 
 static void server_socket_log(Plug *plug, PlugLogType type, SockAddr *addr,
@@ -234,11 +234,10 @@ Conf *make_ssh_server_conf(void)
 }
 
 static const PlugVtable ssh_server_plugvt = {
-    server_socket_log,
-    server_closing,
-    server_receive,
-    server_sent,
-    NULL
+    .log = server_socket_log,
+    .closing = server_closing,
+    .receive = server_receive,
+    .sent = server_sent,
 };
 
 Plug *ssh_server_plug(

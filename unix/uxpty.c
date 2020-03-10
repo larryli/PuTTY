@@ -1585,24 +1585,23 @@ static int pty_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable pty_backend = {
-    pty_init,
-    pty_free,
-    pty_reconfig,
-    pty_send,
-    pty_sendbuffer,
-    pty_size,
-    pty_special,
-    pty_get_specials,
-    pty_connected,
-    pty_exitcode,
-    pty_sendok,
-    pty_ldisc,
-    pty_provide_ldisc,
-    pty_unthrottle,
-    pty_cfg_info,
-    NULL /* test_for_upstream */,
-    "pty", "pty",
-    -1,
-    0
+const BackendVtable pty_backend = {
+    .init = pty_init,
+    .free = pty_free,
+    .reconfig = pty_reconfig,
+    .send = pty_send,
+    .sendbuffer = pty_sendbuffer,
+    .size = pty_size,
+    .special = pty_special,
+    .get_specials = pty_get_specials,
+    .connected = pty_connected,
+    .exitcode = pty_exitcode,
+    .sendok = pty_sendok,
+    .ldisc_option_state = pty_ldisc,
+    .provide_ldisc = pty_provide_ldisc,
+    .unthrottle = pty_unthrottle,
+    .cfg_info = pty_cfg_info,
+    .id = "pty",
+    .displayname = "pty",
+    .protocol = -1,
 };

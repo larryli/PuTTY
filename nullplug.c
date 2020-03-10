@@ -27,11 +27,10 @@ static void nullplug_sent(Plug *plug, size_t bufsize)
 }
 
 static const PlugVtable nullplug_plugvt = {
-    nullplug_socket_log,
-    nullplug_closing,
-    nullplug_receive,
-    nullplug_sent,
-    NULL
+    .log = nullplug_socket_log,
+    .closing = nullplug_closing,
+    .receive = nullplug_receive,
+    .sent = nullplug_sent,
 };
 
 static Plug nullplug_plug = { &nullplug_plugvt };

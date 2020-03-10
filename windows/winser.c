@@ -427,24 +427,23 @@ static int serial_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable serial_backend = {
-    serial_init,
-    serial_free,
-    serial_reconfig,
-    serial_send,
-    serial_sendbuffer,
-    serial_size,
-    serial_special,
-    serial_get_specials,
-    serial_connected,
-    serial_exitcode,
-    serial_sendok,
-    serial_ldisc,
-    serial_provide_ldisc,
-    serial_unthrottle,
-    serial_cfg_info,
-    NULL /* test_for_upstream */,
-    "serial", "Serial",
-    PROT_SERIAL,
-    0
+const BackendVtable serial_backend = {
+    .init = serial_init,
+    .free = serial_free,
+    .reconfig = serial_reconfig,
+    .send = serial_send,
+    .sendbuffer = serial_sendbuffer,
+    .size = serial_size,
+    .special = serial_special,
+    .get_specials = serial_get_specials,
+    .connected = serial_connected,
+    .exitcode = serial_exitcode,
+    .sendok = serial_sendok,
+    .ldisc_option_state = serial_ldisc,
+    .provide_ldisc = serial_provide_ldisc,
+    .unthrottle = serial_unthrottle,
+    .cfg_info = serial_cfg_info,
+    .id = "serial",
+    .displayname = "Serial",
+    .protocol = PROT_SERIAL,
 };

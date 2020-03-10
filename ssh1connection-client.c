@@ -441,28 +441,21 @@ static void ssh1mainchan_write_eof(SshChannel *sc)
     pq_push(s->ppl.out_pq, pktout);
 }
 
-static const struct SshChannelVtable ssh1mainchan_vtable = {
-    ssh1mainchan_write,
-    ssh1mainchan_write_eof,
-    NULL /* unclean_close */,
-    NULL /* unthrottle */,
-    NULL /* get_conf */,
-    NULL /* window_override_removed is only used by SSH-2 sharing */,
-    NULL /* x11_sharing_handover, likewise */,
-    NULL /* send_exit_status */,
-    NULL /* send_exit_signal */,
-    NULL /* send_exit_signal_numeric */,
-    ssh1mainchan_request_x11_forwarding,
-    ssh1mainchan_request_agent_forwarding,
-    ssh1mainchan_request_pty,
-    ssh1mainchan_send_env_var,
-    ssh1mainchan_start_shell,
-    ssh1mainchan_start_command,
-    ssh1mainchan_start_subsystem,
-    ssh1mainchan_send_serial_break,
-    ssh1mainchan_send_signal,
-    ssh1mainchan_send_terminal_size_change,
-    ssh1mainchan_hint_channel_is_simple,
+static const SshChannelVtable ssh1mainchan_vtable = {
+    .write = ssh1mainchan_write,
+    .write_eof = ssh1mainchan_write_eof,
+    .request_x11_forwarding = ssh1mainchan_request_x11_forwarding,
+    .request_agent_forwarding = ssh1mainchan_request_agent_forwarding,
+    .request_pty = ssh1mainchan_request_pty,
+    .send_env_var = ssh1mainchan_send_env_var,
+    .start_shell = ssh1mainchan_start_shell,
+    .start_command = ssh1mainchan_start_command,
+    .start_subsystem = ssh1mainchan_start_subsystem,
+    .send_serial_break = ssh1mainchan_send_serial_break,
+    .send_signal = ssh1mainchan_send_signal,
+    .send_terminal_size_change = ssh1mainchan_send_terminal_size_change,
+    .hint_channel_is_simple = ssh1mainchan_hint_channel_is_simple,
+    /* other methods are NULL */
 };
 
 static void ssh1_session_confirm_callback(void *vctx)

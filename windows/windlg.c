@@ -1001,10 +1001,10 @@ static int win_gui_askappend(LogPolicy *lp, Filename *filename,
 }
 
 const LogPolicyVtable win_gui_logpolicy_vt = {
-    win_gui_eventlog,
-    win_gui_askappend,
-    win_gui_logging_error,
-    null_lp_verbose_yes,
+    .eventlog = win_gui_eventlog,
+    .askappend = win_gui_askappend,
+    .logging_error = win_gui_logging_error,
+    .verbose = null_lp_verbose_yes,
 };
 
 /*

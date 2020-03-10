@@ -21,28 +21,13 @@ static void ssh1sesschan_send_exit_status(SshChannel *c, int status);
 static void ssh1sesschan_send_exit_signal(
     SshChannel *c, ptrlen signame, bool core_dumped, ptrlen msg);
 
-static const struct SshChannelVtable ssh1sesschan_vtable = {
-    ssh1sesschan_write,
-    ssh1sesschan_write_eof,
-    ssh1sesschan_initiate_close,
-    NULL /* unthrottle */,
-    NULL /* get_conf */,
-    NULL /* window_override_removed is only used by SSH-2 sharing */,
-    NULL /* x11_sharing_handover, likewise */,
-    ssh1sesschan_send_exit_status,
-    ssh1sesschan_send_exit_signal,
-    NULL /* send_exit_signal_numeric */,
-    NULL /* request_x11_forwarding */,
-    NULL /* request_agent_forwarding */,
-    NULL /* request_pty */,
-    NULL /* send_env_var */,
-    NULL /* start_shell */,
-    NULL /* start_command */,
-    NULL /* start_subsystem */,
-    NULL /* send_serial_break */,
-    NULL /* send_signal */,
-    NULL /* send_terminal_size_change */,
-    NULL /* hint_channel_is_simple */,
+static const SshChannelVtable ssh1sesschan_vtable = {
+    .write = ssh1sesschan_write,
+    .write_eof = ssh1sesschan_write_eof,
+    .initiate_close = ssh1sesschan_initiate_close,
+    .send_exit_status = ssh1sesschan_send_exit_status,
+    .send_exit_signal = ssh1sesschan_send_exit_signal,
+    /* everything else is NULL */
 };
 
 void ssh1connection_server_configure(

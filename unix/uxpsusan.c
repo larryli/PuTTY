@@ -123,10 +123,10 @@ static int server_askappend(
 }
 
 static const LogPolicyVtable server_logpolicy_vt = {
-    server_eventlog,
-    server_askappend,
-    server_logging_error,
-    null_lp_verbose_no,
+    .eventlog = server_eventlog,
+    .askappend = server_askappend,
+    .logging_error = server_logging_error,
+    .verbose = null_lp_verbose_no,
 };
 
 static void show_help(FILE *fp)

@@ -831,14 +831,14 @@ static const char *sk_net_socket_error(Socket *s);
 static SocketPeerInfo *sk_net_peer_info(Socket *s);
 
 static const SocketVtable NetSocket_sockvt = {
-    sk_net_plug,
-    sk_net_close,
-    sk_net_write,
-    sk_net_write_oob,
-    sk_net_write_eof,
-    sk_net_set_frozen,
-    sk_net_socket_error,
-    sk_net_peer_info,
+    .plug = sk_net_plug,
+    .close = sk_net_close,
+    .write = sk_net_write,
+    .write_oob = sk_net_write_oob,
+    .write_eof = sk_net_write_eof,
+    .set_frozen = sk_net_set_frozen,
+    .socket_error = sk_net_socket_error,
+    .peer_info = sk_net_peer_info,
 };
 
 static Socket *sk_net_accept(accept_ctx_t ctx, Plug *plug)

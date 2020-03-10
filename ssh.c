@@ -692,11 +692,10 @@ static bool ssh_test_for_upstream(const char *host, int port, Conf *conf)
 }
 
 static const PlugVtable Ssh_plugvt = {
-    ssh_socket_log,
-    ssh_closing,
-    ssh_receive,
-    ssh_sent,
-    NULL
+    .log = ssh_socket_log,
+    .closing = ssh_closing,
+    .receive = ssh_receive,
+    .sent = ssh_sent,
 };
 
 /*
@@ -1180,47 +1179,47 @@ void ssh_got_fallback_cmd(Ssh *ssh)
     ssh->fallback_cmd = true;
 }
 
-const struct BackendVtable ssh_backend = {
-    ssh_init,
-    ssh_free,
-    ssh_reconfig,
-    ssh_send,
-    ssh_sendbuffer,
-    ssh_size,
-    ssh_special,
-    ssh_get_specials,
-    ssh_connected,
-    ssh_return_exitcode,
-    ssh_sendok,
-    ssh_ldisc,
-    ssh_provide_ldisc,
-    ssh_unthrottle,
-    ssh_cfg_info,
-    ssh_test_for_upstream,
-    "ssh", "SSH",
-    PROT_SSH,
-    22,
-    0
+const BackendVtable ssh_backend = {
+    .init = ssh_init,
+    .free = ssh_free,
+    .reconfig = ssh_reconfig,
+    .send = ssh_send,
+    .sendbuffer = ssh_sendbuffer,
+    .size = ssh_size,
+    .special = ssh_special,
+    .get_specials = ssh_get_specials,
+    .connected = ssh_connected,
+    .exitcode = ssh_return_exitcode,
+    .sendok = ssh_sendok,
+    .ldisc_option_state = ssh_ldisc,
+    .provide_ldisc = ssh_provide_ldisc,
+    .unthrottle = ssh_unthrottle,
+    .cfg_info = ssh_cfg_info,
+    .test_for_upstream = ssh_test_for_upstream,
+    .id = "ssh",
+    .displayname = "SSH",
+    .protocol = PROT_SSH,
+    .default_port = 22,
 };
 
-const struct BackendVtable sshconn_backend = {
-    ssh_init,
-    ssh_free,
-    ssh_reconfig,
-    ssh_send,
-    ssh_sendbuffer,
-    ssh_size,
-    ssh_special,
-    ssh_get_specials,
-    ssh_connected,
-    ssh_return_exitcode,
-    ssh_sendok,
-    ssh_ldisc,
-    ssh_provide_ldisc,
-    ssh_unthrottle,
-    ssh_cfg_info,
-    ssh_test_for_upstream,
-    "ssh-connection", "Bare ssh-connection",
-    PROT_SSHCONN,
-    0
+const BackendVtable sshconn_backend = {
+    .init = ssh_init,
+    .free = ssh_free,
+    .reconfig = ssh_reconfig,
+    .send = ssh_send,
+    .sendbuffer = ssh_sendbuffer,
+    .size = ssh_size,
+    .special = ssh_special,
+    .get_specials = ssh_get_specials,
+    .connected = ssh_connected,
+    .exitcode = ssh_return_exitcode,
+    .sendok = ssh_sendok,
+    .ldisc_option_state = ssh_ldisc,
+    .provide_ldisc = ssh_provide_ldisc,
+    .unthrottle = ssh_unthrottle,
+    .cfg_info = ssh_cfg_info,
+    .test_for_upstream = ssh_test_for_upstream,
+    .id = "ssh-connection",
+    .displayname = "Bare ssh-connection",
+    .protocol = PROT_SSHCONN,
 };

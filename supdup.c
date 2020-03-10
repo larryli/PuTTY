@@ -642,10 +642,10 @@ static const char *supdup_init(const BackendVtable *x, Seat *seat,
                                bool nodelay, bool keepalive)
 {
     static const PlugVtable fn_table = {
-        supdup_log,
-        supdup_closing,
-        supdup_receive,
-        supdup_sent
+        .log = supdup_log,
+        .closing = supdup_closing,
+        .receive = supdup_receive,
+        .sent = supdup_sent,
     };
     SockAddr *addr;
     const char *err;
@@ -899,26 +899,25 @@ static int supdup_cfg_info(Backend *be)
     return 0;
 }
 
-const struct BackendVtable supdup_backend = {
-    supdup_init,
-    supdup_free,
-    supdup_reconfig,
-    supdup_send,
-    supdup_sendbuffer,
-    supdup_size,
-    supdup_special,
-    supdup_get_specials,
-    supdup_connected,
-    supdup_exitcode,
-    supdup_sendok,
-    supdup_ldisc,
-    supdup_provide_ldisc,
-    supdup_unthrottle,
-    supdup_cfg_info,
-    NULL /* test_for_upstream */,
-    "supdup",
-    "SUPDUP",
-    PROT_SUPDUP,
-    0137,
-    BACKEND_RESIZE_FORBIDDEN | BACKEND_NEEDS_TERMINAL
+const BackendVtable supdup_backend = {
+    .init = supdup_init,
+    .free = supdup_free,
+    .reconfig = supdup_reconfig,
+    .send = supdup_send,
+    .sendbuffer = supdup_sendbuffer,
+    .size = supdup_size,
+    .special = supdup_special,
+    .get_specials = supdup_get_specials,
+    .connected = supdup_connected,
+    .exitcode = supdup_exitcode,
+    .sendok = supdup_sendok,
+    .ldisc_option_state = supdup_ldisc,
+    .provide_ldisc = supdup_provide_ldisc,
+    .unthrottle = supdup_unthrottle,
+    .cfg_info = supdup_cfg_info,
+    .id = "supdup",
+    .displayname = "SUPDUP",
+    .protocol = PROT_SUPDUP,
+    .default_port = 0137,
+    .flags = BACKEND_RESIZE_FORBIDDEN | BACKEND_NEEDS_TERMINAL,
 };

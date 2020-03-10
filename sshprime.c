@@ -738,13 +738,13 @@ void null_progress_report(ProgressReceiver *prog, double progress) {}
 void null_progress_report_attempt(ProgressReceiver *prog) {}
 void null_progress_report_phase_complete(ProgressReceiver *prog) {}
 const ProgressReceiverVtable null_progress_vt = {
-    null_progress_add_linear,
-    null_progress_add_probabilistic,
-    null_progress_ready,
-    null_progress_start_phase,
-    null_progress_report,
-    null_progress_report_attempt,
-    null_progress_report_phase_complete,
+    .add_linear = null_progress_add_linear,
+    .add_probabilistic = null_progress_add_probabilistic,
+    .ready = null_progress_ready,
+    .start_phase = null_progress_start_phase,
+    .report = null_progress_report,
+    .report_attempt = null_progress_report_attempt,
+    .report_phase_complete = null_progress_report_phase_complete,
 };
 
 /* ----------------------------------------------------------------------

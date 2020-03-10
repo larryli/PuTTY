@@ -5,6 +5,8 @@
 #ifndef PUTTY_SSHBPP_H
 #define PUTTY_SSHBPP_H
 
+typedef struct BinaryPacketProtocolVtable BinaryPacketProtocolVtable;
+
 struct BinaryPacketProtocolVtable {
     void (*free)(BinaryPacketProtocol *);
     void (*handle_input)(BinaryPacketProtocol *);
