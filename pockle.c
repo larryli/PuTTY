@@ -279,19 +279,24 @@ PockleStatus pockle_add_prime(Pockle *pockle, mp_int *p,
          * this check at all: the straightforward Pocklington theorem
          * is all we need. */
         if (!mp_eq_integer(a, 0)) {
-            /* Compute the discriminant b^2 - 4a. */
+            unsigned perfect_square = 0;
+
             mp_int *bsq = mp_mul(b, b);
             mp_lshift_fixed_into(a, a, 2);
-            mp_int *discriminant = mp_sub(bsq, a);
 
-            /* See if it's a perfect square. */
-            mp_int *remainder = mp_new(mp_max_bits(discriminant));
-            mp_int *root = mp_nthroot(discriminant, 2, remainder);
-            unsigned perfect_square = mp_eq_integer(remainder, 0);
+            if (mp_cmp_hs(bsq, a)) {
+                /* b^2-4a is non-negative, so it might be a square.
+                 * Check it. */
+                mp_int *discriminant = mp_sub(bsq, a);
+                mp_int *remainder = mp_new(mp_max_bits(discriminant));
+                mp_int *root = mp_nthroot(discriminant, 2, remainder);
+                perfect_square = mp_eq_integer(remainder, 0);
+                mp_free(discriminant);
+                mp_free(root);
+                mp_free(remainder);
+            }
+
             mp_free(bsq);
-            mp_free(discriminant);
-            mp_free(root);
-            mp_free(remainder);
 
             if (perfect_square) {
                 mp_free(b);
