@@ -333,6 +333,7 @@ static const char *serial_init(const BackendVtable *vt, Seat *seat,
 static void serial_close(Serial *serial)
 {
     if (serial->fd >= 0) {
+        uxsel_del(serial->fd);
         close(serial->fd);
         serial->fd = -1;
     }
