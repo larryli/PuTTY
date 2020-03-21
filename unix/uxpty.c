@@ -1208,16 +1208,18 @@ Backend *pty_backend_create(
                     execl(shell, shell, "-c", cmd, (void *)NULL);
             }
         } else {
-            char *shell = getenv("SHELL");
+            const char *shell = getenv("SHELL");
+            if (!shell)
+                shell = "/bin/sh";
             char *shellname;
             if (conf_get_bool(conf, CONF_login_shell)) {
-                char *p = strrchr(shell, '/');
+                const char *p = strrchr(shell, '/');
                 shellname = snewn(2+strlen(shell), char);
                 p = p ? p+1 : shell;
                 sprintf(shellname, "-%s", p);
             } else
-                shellname = shell;
-            execl(getenv("SHELL"), shellname, (void *)NULL);
+                shellname = (char *)shell;
+            execl(shell, shellname, (void *)NULL);
         }
 
         /*
