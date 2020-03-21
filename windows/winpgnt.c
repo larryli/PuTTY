@@ -97,8 +97,10 @@ void modalfatalbox(const char *fmt, ...)
 static bool has_security;
 
 struct PassphraseProcStruct {
-    char **passphrase;
-    char *comment;
+    bool modal;
+    PageantClientDialogId *dlgid;
+    char *passphrase;
+    const char *comment;
 };
 
 /*
@@ -173,7 +175,30 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
     return 0;
 }
 
-static HWND passphrase_box;
+static HWND modal_passphrase_hwnd = NULL;
+static HWND nonmodal_passphrase_hwnd = NULL;
+
+static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
+{
+    struct PassphraseProcStruct *p = (struct PassphraseProcStruct *)
+        GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+    if (p->modal) {
+        EndDialog(hwnd, result);
+    } else {
+        if (result)
+            pageant_passphrase_request_success(
+                p->dlgid, ptrlen_from_asciz(p->passphrase));
+        else
+            pageant_passphrase_request_refused(p->dlgid);
+
+        burnstr(p->passphrase);
+        sfree(p);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) NULL);
+        DestroyWindow(hwnd);
+        nonmodal_passphrase_hwnd = NULL;
+    }
+}
 
 /*
  * Dialog-box function for the passphrase box.
@@ -181,12 +206,21 @@ static HWND passphrase_box;
 static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                                    WPARAM wParam, LPARAM lParam)
 {
-    static char **passphrase = NULL;
     struct PassphraseProcStruct *p;
+
+    if (msg == WM_INITDIALOG) {
+        p = (struct PassphraseProcStruct *) lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) p);
+    } else {
+        p = (struct PassphraseProcStruct *)
+            GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    }
 
     switch (msg) {
       case WM_INITDIALOG: {
-        passphrase_box = hwnd;
+        if (p->modal)
+            modal_passphrase_hwnd = hwnd;
+
         /*
          * Centre the window.
          */
@@ -203,36 +237,36 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         SetForegroundWindow(hwnd);
         SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
                      SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-        p = (struct PassphraseProcStruct *) lParam;
-        passphrase = p->passphrase;
+        if (!p->modal)
+            SetActiveWindow(hwnd); /* this won't have happened automatically */
         if (p->comment)
             SetDlgItemText(hwnd, 101, p->comment);
-        burnstr(*passphrase);
-        *passphrase = dupstr("");
-        SetDlgItemText(hwnd, 102, *passphrase);
+        burnstr(p->passphrase);
+        p->passphrase = dupstr("");
+        SetDlgItemText(hwnd, 102, p->passphrase);
         return 0;
       }
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
           case IDOK:
-            if (*passphrase)
-                EndDialog(hwnd, 1);
+            if (p->passphrase)
+                end_passphrase_dialog(hwnd, 1);
             else
                 MessageBeep(0);
             return 0;
           case IDCANCEL:
-            EndDialog(hwnd, 0);
+            end_passphrase_dialog(hwnd, 0);
             return 0;
           case 102:                    /* edit box */
-            if ((HIWORD(wParam) == EN_CHANGE) && passphrase) {
-                burnstr(*passphrase);
-                *passphrase = GetDlgItemText_alloc(hwnd, 102);
+            if ((HIWORD(wParam) == EN_CHANGE) && p->passphrase) {
+                burnstr(p->passphrase);
+                p->passphrase = GetDlgItemText_alloc(hwnd, 102);
             }
             return 0;
         }
         return 0;
       case WM_CLOSE:
-        EndDialog(hwnd, 0);
+        end_passphrase_dialog(hwnd, 0);
         return 0;
     }
     return 0;
@@ -364,7 +398,6 @@ static void win_add_keyfile(Filename *filename)
 {
     char *err;
     int ret;
-    char *passphrase = NULL;
 
     /*
      * Try loading the key without a passphrase. (Or rather, without a
@@ -385,40 +418,37 @@ static void win_add_keyfile(Filename *filename)
     while (1) {
         INT_PTR dlgret;
         struct PassphraseProcStruct pps;
-
-        pps.passphrase = &passphrase;
+        pps.modal = true;
+        pps.dlgid = NULL;
+        pps.passphrase = NULL;
         pps.comment = err;
         dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
                                 NULL, PassphraseProc, (LPARAM) &pps);
-        passphrase_box = NULL;
+        modal_passphrase_hwnd = NULL;
 
-        if (!dlgret)
+        if (!dlgret) {
+            burnstr(pps.passphrase);
             goto done;                 /* operation cancelled */
+        }
 
         sfree(err);
 
-        assert(passphrase != NULL);
+        assert(pps.passphrase != NULL);
 
-        ret = pageant_add_keyfile(filename, passphrase, &err, false);
+        ret = pageant_add_keyfile(filename, pps.passphrase, &err, false);
+        burnstr(pps.passphrase);
+
         if (ret == PAGEANT_ACTION_OK) {
             goto done;
         } else if (ret == PAGEANT_ACTION_FAILURE) {
             goto error;
         }
-
-        smemclr(passphrase, strlen(passphrase));
-        sfree(passphrase);
-        passphrase = NULL;
     }
 
   error:
     message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
                 HELPCTXID(errors_cantloadkey));
   done:
-    if (passphrase) {
-        smemclr(passphrase, strlen(passphrase));
-        sfree(passphrase);
-    }
     sfree(err);
     return;
 }
@@ -527,9 +557,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
           case 101:                    /* add key */
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
-                if (passphrase_box) {
+                if (modal_passphrase_hwnd) {
                     MessageBeep(MB_ICONERROR);
-                    SetForegroundWindow(passphrase_box);
+                    SetForegroundWindow(modal_passphrase_hwnd);
                     break;
                 }
                 prompt_add_keyfile();
@@ -788,11 +818,29 @@ static void wm_copydata_got_response(
     SetEvent(wmct.ev_reply_ready);
 }
 
+static bool ask_passphrase_common(PageantClientDialogId *dlgid,
+                                  const char *msg)
+{
+    /* Pageant core should be serialising requests, so we never expect
+     * a passphrase prompt to exist already at this point */
+    assert(!nonmodal_passphrase_hwnd);
+
+    struct PassphraseProcStruct *pps = snew(struct PassphraseProcStruct);
+    pps->modal = false;
+    pps->dlgid = dlgid;
+    pps->passphrase = NULL;
+    pps->comment = msg;
+
+    nonmodal_passphrase_hwnd = CreateDialogParam(
+        hinst, MAKEINTRESOURCE(210), NULL, PassphraseProc, (LPARAM)pps);
+
+    return true;
+}
+
 static bool wm_copydata_ask_passphrase(
     PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
 {
-    /* FIXME: we don't yet support dialog boxes */
-    return false;
+    return ask_passphrase_common(dlgid, msg);
 }
 
 static const PageantClientVtable wmcpc_vtable = {
@@ -1017,8 +1065,8 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             break;
           }
           case IDM_CLOSE:
-            if (passphrase_box)
-                SendMessage(passphrase_box, WM_CLOSE, 0, 0);
+            if (modal_passphrase_hwnd)
+                SendMessage(modal_passphrase_hwnd, WM_CLOSE, 0, 0);
             SendMessage(hwnd, WM_CLOSE, 0, 0);
             break;
           case IDM_VIEWKEYS:
@@ -1039,9 +1087,9 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                          SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             break;
           case IDM_ADDKEY:
-            if (passphrase_box) {
+            if (modal_passphrase_hwnd) {
                 MessageBeep(MB_ICONERROR);
-                SetForegroundWindow(passphrase_box);
+                SetForegroundWindow(modal_passphrase_hwnd);
                 break;
             }
             prompt_add_keyfile();
@@ -1180,8 +1228,7 @@ void cleanup_exit(int code)
 static bool winpgnt_listener_ask_passphrase(
     PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
 {
-    /* FIXME: we don't yet support dialog boxes */
-    return false;
+    return ask_passphrase_common(dlgid, msg);
 }
 
 struct winpgnt_client {
@@ -1463,6 +1510,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             if (IsWindow(keylist) && IsDialogMessage(keylist, &msg))
                 continue;
             if (IsWindow(aboutbox) && IsDialogMessage(aboutbox, &msg))
+                continue;
+            if (IsWindow(nonmodal_passphrase_hwnd) &&
+                IsDialogMessage(nonmodal_passphrase_hwnd, &msg))
                 continue;
 
             TranslateMessage(&msg);
