@@ -2185,21 +2185,26 @@ gboolean button_event(GtkWidget *widget, GdkEventButton *event, gpointer data)
 gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
 {
     GtkFrontend *inst = (GtkFrontend *)data;
+    GdkScrollDirection dir;
 
 #if GTK_CHECK_VERSION(3,4,0)
     gdouble dx, dy;
     if (gdk_event_get_scroll_deltas((GdkEvent *)event, &dx, &dy)) {
         return scroll_internal(inst, dy, event->state, event->x, event->y);
-    } else
+    } else if (!gdk_event_get_scroll_direction((GdkEvent *)event, &dir)) {
         return false;
+    }
 #else
+    dir = event->direction;
+#endif
+
     guint button;
     GdkEventButton *event_button;
     gboolean ret;
 
-    if (event->direction == GDK_SCROLL_UP)
+    if (dir == GDK_SCROLL_UP)
         button = 4;
-    else if (event->direction == GDK_SCROLL_DOWN)
+    else if (dir == GDK_SCROLL_DOWN)
         button = 5;
     else
         return false;
@@ -2219,7 +2224,6 @@ gboolean scroll_event(GtkWidget *widget, GdkEventScroll *event, gpointer data)
     ret = button_internal(inst, event_button);
     gdk_event_free((GdkEvent *)event_button);
     return ret;
-#endif
 }
 #endif
 
