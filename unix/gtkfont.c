@@ -1458,8 +1458,10 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
     pfont->u.vt = &pangofont_vtable;
     pfont->u.width =
         PANGO_PIXELS(pango_font_metrics_get_approximate_digit_width(metrics));
-    pfont->u.ascent = PANGO_PIXELS(pango_font_metrics_get_ascent(metrics));
-    pfont->u.descent = PANGO_PIXELS(pango_font_metrics_get_descent(metrics));
+    pfont->u.ascent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_ascent(metrics));
+    pfont->u.descent =
+        PANGO_PIXELS_CEIL(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
     pfont->u.want_fallback = false;
 #ifdef DRAW_TEXT_CAIRO
