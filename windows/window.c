@@ -88,6 +88,7 @@
 #endif
 
 static Mouse_Button translate_button(Mouse_Button button);
+static void show_mouseptr(bool show);
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                         unsigned char *output);
@@ -1183,6 +1184,7 @@ static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
 static void win_seat_connection_fatal(Seat *seat, const char *msg)
 {
     char *title = dupprintf("%s Fatal Error", appname);
+    show_mouseptr(true);
     MessageBox(wgs.term_hwnd, msg, title, MB_ICONERROR | MB_OK);
     sfree(title);
 
@@ -2116,9 +2118,11 @@ static void win_seat_notify_remote_exit(Seat *seat)
             /* exitcode == INT_MAX indicates that the connection was closed
              * by a fatal error, so an error box will be coming our way and
              * we should not generate this informational one. */
-            if (exitcode != INT_MAX)
+            if (exitcode != INT_MAX) {
+                show_mouseptr(true);
                 MessageBox(wgs.term_hwnd, "Connection closed by remote host",
                            appname, MB_OK | MB_ICONINFORMATION);
+            }
         }
     }
 }
@@ -5392,6 +5396,7 @@ void modalfatalbox(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
+    show_mouseptr(true);
     title = dupprintf("%s Fatal Error", appname);
     MessageBox(wgs.term_hwnd, message, title,
                MB_SYSTEMMODAL | MB_ICONERROR | MB_OK);
@@ -5411,6 +5416,7 @@ void nonfatal(const char *fmt, ...)
     va_start(ap, fmt);
     message = dupvprintf(fmt, ap);
     va_end(ap);
+    show_mouseptr(true);
     title = dupprintf("%s Error", appname);
     MessageBox(wgs.term_hwnd, message, title, MB_ICONERROR | MB_OK);
     sfree(message);
@@ -5525,6 +5531,7 @@ static void wintw_bell(TermWin *tw, int mode)
         if (!p_PlaySound || !p_PlaySound(bell_wavefile->path, NULL,
                          SND_ASYNC | SND_FILENAME)) {
             char *buf, *otherbuf;
+            show_mouseptr(true);
             buf = dupprintf(
                 "Unable to play sound file\n%s\nUsing default sound instead",
                 bell_wavefile->path);
