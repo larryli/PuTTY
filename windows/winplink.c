@@ -492,8 +492,7 @@ int main(int argc, char **argv)
      */
     winselcli_setup();                 /* ensure event object exists */
     {
-        const char *error;
-        char *realhost;
+        char *error, *realhost;
         /* nodelay is only useful if stdin is a character device (console) */
         bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) &&
             (GetFileType(GetStdHandle(STD_INPUT_HANDLE)) == FILE_TYPE_CHAR);
@@ -505,6 +504,7 @@ int main(int argc, char **argv)
                              conf_get_bool(conf, CONF_tcp_keepalives));
         if (error) {
             fprintf(stderr, "Unable to open connection:\n%s", error);
+            sfree(error);
             return 1;
         }
         sfree(realhost);

@@ -495,10 +495,10 @@ struct Backend {
     const BackendVtable *vt;
 };
 struct BackendVtable {
-    const char *(*init) (const BackendVtable *vt, Seat *seat,
-                         Backend **backend_out, LogContext *logctx, Conf *conf,
-                         const char *host, int port,
-                         char **realhost, bool nodelay, bool keepalive);
+    char *(*init) (const BackendVtable *vt, Seat *seat,
+                   Backend **backend_out, LogContext *logctx, Conf *conf,
+                   const char *host, int port, char **realhost,
+                   bool nodelay, bool keepalive);
 
     void (*free) (Backend *be);
     /* Pass in a replacement configuration. */
@@ -540,7 +540,7 @@ struct BackendVtable {
     unsigned serial_parity_mask, serial_flow_mask;
 };
 
-static inline const char *backend_init(
+static inline char *backend_init(
     const BackendVtable *vt, Seat *seat, Backend **out, LogContext *logctx,
     Conf *conf, const char *host, int port, char **rhost, bool nd, bool ka)
 { return vt->init(vt, seat, out, logctx, conf, host, port, rhost, nd, ka); }

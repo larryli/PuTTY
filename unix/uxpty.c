@@ -1270,10 +1270,10 @@ Backend *pty_backend_create(
  * it gets the argv array from the global variable pty_argv, expecting
  * that it will have been invoked by pterm.
  */
-static const char *pty_init(const BackendVtable *vt, Seat *seat,
-                            Backend **backend_handle, LogContext *logctx,
-                            Conf *conf, const char *host, int port,
-                            char **realhost, bool nodelay, bool keepalive)
+static char *pty_init(const BackendVtable *vt, Seat *seat,
+                      Backend **backend_handle, LogContext *logctx,
+                      Conf *conf, const char *host, int port,
+                      char **realhost, bool nodelay, bool keepalive)
 {
     const char *cmd = NULL;
     struct ssh_ttymodes modes;

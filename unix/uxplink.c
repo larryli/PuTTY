@@ -914,8 +914,7 @@ int main(int argc, char **argv)
      */
     logctx = log_init(console_cli_logpolicy, conf);
     {
-        const char *error;
-        char *realhost;
+        char *error, *realhost;
         /* nodelay is only useful if stdin is a terminal device */
         bool nodelay = conf_get_bool(conf, CONF_tcp_nodelay) && isatty(0);
 
@@ -931,6 +930,7 @@ int main(int argc, char **argv)
                              conf_get_bool(conf, CONF_tcp_keepalives));
         if (error) {
             fprintf(stderr, "Unable to open connection:\n%s\n", error);
+            sfree(error);
             return 1;
         }
         ldisc_create(conf, NULL, backend, plink_seat);

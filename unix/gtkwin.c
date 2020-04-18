@@ -5088,8 +5088,7 @@ static void gtk_seat_update_specials_menu(Seat *seat)
 static void start_backend(GtkFrontend *inst)
 {
     const struct BackendVtable *vt;
-    char *realhost;
-    const char *error;
+    char *error, *realhost;
     char *s;
 
     vt = select_backend(inst->conf);
@@ -5107,6 +5106,7 @@ static void start_backend(GtkFrontend *inst)
         seat_connection_fatal(&inst->seat,
                               "Unable to open connection to %s:\n%s",
                               conf_dest(inst->conf), error);
+        sfree(error);
         inst->exited = true;
         return;
     }

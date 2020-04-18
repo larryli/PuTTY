@@ -32,12 +32,10 @@
 
 #include "putty.h"
 
-static const char *null_init(const BackendVtable *, Seat *, Backend **,
-                             LogContext *, Conf *, const char *, int, char **,
-                             bool, bool);
-static const char *loop_init(const BackendVtable *, Seat *, Backend **,
-                             LogContext *, Conf *, const char *, int, char **,
-                             bool, bool);
+static char *null_init(const BackendVtable *, Seat *, Backend **, LogContext *,
+                       Conf *, const char *, int, char **, bool, bool);
+static char *loop_init(const BackendVtable *, Seat *, Backend **, LogContext *,
+                       Conf *, const char *, int, char **, bool, bool);
 static void null_free(Backend *);
 static void loop_free(Backend *);
 static void null_reconfig(Backend *, Conf *);
@@ -104,10 +102,10 @@ struct loop_state {
     Backend backend;
 };
 
-static const char *null_init(const BackendVtable *vt, Seat *seat,
-                             Backend **backend_handle, LogContext *logctx,
-                             Conf *conf, const char *host, int port,
-                             char **realhost, bool nodelay, bool keepalive) {
+static char *null_init(const BackendVtable *vt, Seat *seat,
+                       Backend **backend_handle, LogContext *logctx,
+                       Conf *conf, const char *host, int port,
+                       char **realhost, bool nodelay, bool keepalive) {
     /* No local authentication phase in this protocol */
     seat_set_trust_status(seat, false);
 
@@ -115,10 +113,10 @@ static const char *null_init(const BackendVtable *vt, Seat *seat,
     return NULL;
 }
 
-static const char *loop_init(const BackendVtable *vt, Seat *seat,
-                             Backend **backend_handle, LogContext *logctx,
-                             Conf *conf, const char *host, int port,
-                             char **realhost, bool nodelay, bool keepalive) {
+static char *loop_init(const BackendVtable *vt, Seat *seat,
+                       Backend **backend_handle, LogContext *logctx,
+                       Conf *conf, const char *host, int port,
+                       char **realhost, bool nodelay, bool keepalive) {
     struct loop_state *st = snew(struct loop_state);
 
     /* No local authentication phase in this protocol */

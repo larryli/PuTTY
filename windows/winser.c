@@ -91,7 +91,7 @@ static void serial_sentdata(struct handle *h, size_t new_backlog, int err)
     }
 }
 
-static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
+static char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
 {
     DCB dcb;
     COMMTIMEOUTS timeouts;
@@ -134,7 +134,8 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
           case 2: dcb.StopBits = ONESTOPBIT; str = "1 stop bit"; break;
           case 3: dcb.StopBits = ONE5STOPBITS; str = "1.5 stop bits"; break;
           case 4: dcb.StopBits = TWOSTOPBITS; str = "2 stop bits"; break;
-          default: return "Invalid number of stop bits (need 1, 1.5 or 2)";
+          default: return dupstr("Invalid number of stop bits "
+                                 "(need 1, 1.5 or 2)");
         }
         logeventf(serial->logctx, "Configuring %s", str);
 
@@ -169,7 +170,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
         logeventf(serial->logctx, "Configuring %s flow control", str);
 
         if (!SetCommState(serport, &dcb))
-            return "Unable to configure serial port";
+            return dupstr("Unable to configure serial port");
 
         timeouts.ReadIntervalTimeout = 1;
         timeouts.ReadTotalTimeoutMultiplier = 0;
@@ -177,7 +178,7 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
         timeouts.WriteTotalTimeoutMultiplier = 0;
         timeouts.WriteTotalTimeoutConstant = 0;
         if (!SetCommTimeouts(serport, &timeouts))
-            return "Unable to configure serial timeouts";
+            return dupstr("Unable to configure serial timeouts");
     }
 
     return NULL;
@@ -191,14 +192,14 @@ static const char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *serial_init(const BackendVtable *vt, Seat *seat,
-                               Backend **backend_handle, LogContext *logctx,
-                               Conf *conf, const char *host, int port,
-                               char **realhost, bool nodelay, bool keepalive)
+static char *serial_init(const BackendVtable *vt, Seat *seat,
+                         Backend **backend_handle, LogContext *logctx,
+                         Conf *conf, const char *host, int port,
+                         char **realhost, bool nodelay, bool keepalive)
 {
     Serial *serial;
     HANDLE serport;
-    const char *err;
+    char *err;
     char *serline;
 
     /* No local authentication phase in this protocol */
@@ -250,7 +251,7 @@ static const char *serial_init(const BackendVtable *vt, Seat *seat,
     }
 
     if (serport == INVALID_HANDLE_VALUE)
-        return "Unable to open serial port";
+        return dupstr("Unable to open serial port");
 
     err = serial_configure(serial, serport, conf);
     if (err)

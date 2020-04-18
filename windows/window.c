@@ -368,9 +368,8 @@ static WinGuiSeat wgs = { .seat.vt = &win_seat_vt,
 static void start_backend(void)
 {
     const struct BackendVtable *vt;
-    const char *error;
     const char *title;
-    char *realhost;
+    char *error, *realhost;
     int i;
 
     /*
@@ -397,6 +396,7 @@ static void start_backend(void)
         char *str = dupprintf("%s Error", appname);
         char *msg = dupprintf("Unable to open connection to\n%s\n%s",
                               conf_dest(conf), error);
+        sfree(error);
         MessageBox(NULL, msg, str, MB_ICONERROR | MB_OK);
         sfree(str);
         sfree(msg);

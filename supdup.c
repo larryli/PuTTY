@@ -635,11 +635,11 @@ static void supdup_send_config(Supdup *supdup)
 * Also places the canonical host name into `realhost'. It must be
 * freed by the caller.
 */
-static const char *supdup_init(const BackendVtable *x, Seat *seat,
-                               Backend **backend_handle,
-                               LogContext *logctx, Conf *conf,
-                               const char *host, int port, char **realhost,
-                               bool nodelay, bool keepalive)
+static char *supdup_init(const BackendVtable *x, Seat *seat,
+                         Backend **backend_handle,
+                         LogContext *logctx, Conf *conf,
+                         const char *host, int port, char **realhost,
+                         bool nodelay, bool keepalive)
 {
     static const PlugVtable fn_table = {
         .log = supdup_log,
@@ -696,7 +696,7 @@ static const char *supdup_init(const BackendVtable *x, Seat *seat,
     addr = name_lookup(host, port, realhost, supdup->conf, addressfamily, NULL, "");
     if ((err = sk_addr_error(addr)) != NULL) {
         sk_addr_free(addr);
-        return err;
+        return dupstr(err);
     }
 
     if (port < 0)
@@ -708,7 +708,7 @@ static const char *supdup_init(const BackendVtable *x, Seat *seat,
     supdup->s = new_connection(addr, *realhost, port, false, true,
                                nodelay, keepalive, &supdup->plug, supdup->conf);
     if ((err = sk_socket_error(supdup->s)) != NULL)
-        return err;
+        return dupstr(err);
 
     supdup->pinger = pinger_new(supdup->conf, &supdup->backend);
 

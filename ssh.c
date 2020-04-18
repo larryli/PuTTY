@@ -704,7 +704,7 @@ static const PlugVtable Ssh_plugvt = {
  * Also places the canonical host name into `realhost'. It must be
  * freed by the caller.
  */
-static const char *connect_to_host(
+static char *connect_to_host(
     Ssh *ssh, const char *host, int port, char **realhost,
     bool nodelay, bool keepalive)
 {
@@ -765,7 +765,7 @@ static const char *connect_to_host(
                            ssh->logctx, "SSH connection");
         if ((err = sk_addr_error(addr)) != NULL) {
             sk_addr_free(addr);
-            return err;
+            return dupstr(err);
         }
         ssh->fullhostname = dupstr(*realhost);   /* save in case of GSSAPI */
 
@@ -775,7 +775,7 @@ static const char *connect_to_host(
         if ((err = sk_socket_error(ssh->s)) != NULL) {
             ssh->s = NULL;
             seat_notify_remote_exit(ssh->seat);
-            return err;
+            return dupstr(err);
         }
     }
 
@@ -870,12 +870,11 @@ bool ssh_is_bare(Ssh *ssh)
  *
  * Returns an error message, or NULL on success.
  */
-static const char *ssh_init(const BackendVtable *vt, Seat *seat,
-                            Backend **backend_handle, LogContext *logctx,
-                            Conf *conf, const char *host, int port,
-                            char **realhost, bool nodelay, bool keepalive)
+static char *ssh_init(const BackendVtable *vt, Seat *seat,
+                      Backend **backend_handle, LogContext *logctx,
+                      Conf *conf, const char *host, int port,
+                      char **realhost, bool nodelay, bool keepalive)
 {
-    const char *p;
     Ssh *ssh;
 
     ssh = snew(Ssh);
@@ -906,15 +905,16 @@ static const char *ssh_init(const BackendVtable *vt, Seat *seat,
     random_ref(); /* do this now - may be needed by sharing setup code */
     ssh->need_random_unref = true;
 
-    p = connect_to_host(ssh, host, port, realhost, nodelay, keepalive);
-    if (p != NULL) {
+    char *conn_err = connect_to_host(
+        ssh, host, port, realhost, nodelay, keepalive);
+    if (conn_err) {
         /* Call random_unref now instead of waiting until the caller
          * frees this useless Ssh object, in case the caller is
          * impatient and just exits without bothering, in which case
          * the random seed won't be re-saved. */
         ssh->need_random_unref = false;
         random_unref();
-        return p;
+        return conn_err;
     }
 
     return NULL;
