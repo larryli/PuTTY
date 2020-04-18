@@ -268,7 +268,7 @@ static char *serial_configure(Serial *serial, Conf *conf)
     options.c_cc[VTIME] = 0;
 
     if (tcsetattr(serial->fd, TCSANOW, &options) < 0)
-        return dupstr("Unable to configure serial port");
+        return dupprintf("Configuring serial port: %s", strerror(errno));
 
     return NULL;
 }
@@ -308,7 +308,8 @@ static char *serial_init(const BackendVtable *vt, Seat *seat,
 
     serial->fd = open(line, O_RDWR | O_NOCTTY | O_NDELAY | O_NONBLOCK);
     if (serial->fd < 0)
-        return dupstr("Unable to open serial port");
+        return dupprintf("Opening serial port '%s': %s",
+                         line, strerror(errno));
 
     cloexec(serial->fd);
 

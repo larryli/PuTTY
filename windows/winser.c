@@ -170,7 +170,8 @@ static char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
         logeventf(serial->logctx, "Configuring %s flow control", str);
 
         if (!SetCommState(serport, &dcb))
-            return dupstr("Unable to configure serial port");
+            return dupprintf("Configuring serial port: %s",
+                             win_strerror(GetLastError()));
 
         timeouts.ReadIntervalTimeout = 1;
         timeouts.ReadTotalTimeoutMultiplier = 0;
@@ -178,7 +179,8 @@ static char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
         timeouts.WriteTotalTimeoutMultiplier = 0;
         timeouts.WriteTotalTimeoutConstant = 0;
         if (!SetCommTimeouts(serport, &timeouts))
-            return dupstr("Unable to configure serial timeouts");
+            return dupprintf("Configuring serial timeouts: %s",
+                             win_strerror(GetLastError()));
     }
 
     return NULL;
@@ -219,39 +221,41 @@ static char *serial_init(const BackendVtable *vt, Seat *seat,
     serline = conf_get_str(conf, CONF_serline);
     logeventf(serial->logctx, "Opening serial device %s", serline);
 
-    {
-        /*
-         * Munge the string supplied by the user into a Windows filename.
-         *
-         * Windows supports opening a few "legacy" devices (including
-         * COM1-9) by specifying their names verbatim as a filename to
-         * open. (Thus, no files can ever have these names. See
-         * <http://msdn2.microsoft.com/en-us/library/aa365247.aspx>
-         * ("Naming a File") for the complete list of reserved names.)
-         *
-         * However, this doesn't let you get at devices COM10 and above.
-         * For that, you need to specify a filename like "\\.\COM10".
-         * This is also necessary for special serial and serial-like
-         * devices such as \\.\WCEUSBSH001. It also works for the "legacy"
-         * names, so you can do \\.\COM1 (verified as far back as Win95).
-         * See <http://msdn2.microsoft.com/en-us/library/aa363858.aspx>
-         * (CreateFile() docs).
-         *
-         * So, we believe that prepending "\\.\" should always be the
-         * Right Thing. However, just in case someone finds something to
-         * talk to that doesn't exist under there, if the serial line
-         * contains a backslash, we use it verbatim. (This also lets
-         * existing configurations using \\.\ continue working.)
-         */
-        char *serfilename =
-            dupprintf("%s%s", strchr(serline, '\\') ? "" : "\\\\.\\", serline);
-        serport = CreateFile(serfilename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
-                             OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    /*
+     * Munge the string supplied by the user into a Windows filename.
+     *
+     * Windows supports opening a few "legacy" devices (including
+     * COM1-9) by specifying their names verbatim as a filename to
+     * open. (Thus, no files can ever have these names. See
+     * <http://msdn2.microsoft.com/en-us/library/aa365247.aspx>
+     * ("Naming a File") for the complete list of reserved names.)
+     *
+     * However, this doesn't let you get at devices COM10 and above.
+     * For that, you need to specify a filename like "\\.\COM10".
+     * This is also necessary for special serial and serial-like
+     * devices such as \\.\WCEUSBSH001. It also works for the "legacy"
+     * names, so you can do \\.\COM1 (verified as far back as Win95).
+     * See <http://msdn2.microsoft.com/en-us/library/aa363858.aspx>
+     * (CreateFile() docs).
+     *
+     * So, we believe that prepending "\\.\" should always be the
+     * Right Thing. However, just in case someone finds something to
+     * talk to that doesn't exist under there, if the serial line
+     * contains a backslash, we use it verbatim. (This also lets
+     * existing configurations using \\.\ continue working.)
+     */
+    char *serfilename =
+        dupprintf("%s%s", strchr(serline, '\\') ? "" : "\\\\.\\", serline);
+    serport = CreateFile(serfilename, GENERIC_READ | GENERIC_WRITE, 0, NULL,
+                         OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
+    if (serport == INVALID_HANDLE_VALUE) {
+        err = dupprintf("Opening '%s': %s",
+                        serfilename, win_strerror(GetLastError()));
         sfree(serfilename);
+        return err;
     }
 
-    if (serport == INVALID_HANDLE_VALUE)
-        return dupstr("Unable to open serial port");
+    sfree(serfilename);
 
     err = serial_configure(serial, serport, conf);
     if (err)
