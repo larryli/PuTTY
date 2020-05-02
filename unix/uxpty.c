@@ -890,6 +890,15 @@ Backend *pty_backend_create(
         pty->fds[i].pty = pty;
     }
 
+    if (pty_signal_pipe[0] < 0) {
+        if (pipe(pty_signal_pipe) < 0) {
+            perror("pipe");
+            exit(1);
+        }
+        cloexec(pty_signal_pipe[0]);
+        cloexec(pty_signal_pipe[1]);
+    }
+
     pty->seat = seat;
     pty->backend.vt = &pty_backend;
 
@@ -1248,14 +1257,6 @@ Backend *pty_backend_create(
         add234(ptys_by_pid, pty);
     }
 
-    if (pty_signal_pipe[0] < 0) {
-        if (pipe(pty_signal_pipe) < 0) {
-            perror("pipe");
-            exit(1);
-        }
-        cloexec(pty_signal_pipe[0]);
-        cloexec(pty_signal_pipe[1]);
-    }
     pty_uxsel_setup(pty);
 
     return &pty->backend;
