@@ -47,7 +47,7 @@ class CyclicGroupRootFinder(object):
     #
     # We write |G| = r^k u, with u coprime to r. This gives us a
     # nested sequence of subgroups G = G_0 > G_1 > ... > G_k, each
-    # with index 3 in its predecessor. G_0 is the whole group, and the
+    # with index r in its predecessor. G_0 is the whole group, and the
     # innermost G_k has order u.
     #
     # Within G_k, you can take an rth root by raising an element to
@@ -61,9 +61,9 @@ class CyclicGroupRootFinder(object):
     # take rth roots of, as above.
     #
     # In between, you can follow an inductive process, as long as you
-    # know one element z of index 0. Suppose we're trying to take the
-    # rth root of some g with index i. Repeatedly multiply g by
-    # z^{r^i} until its index increases; then take the root of that
+    # know one element z of rank 0. Suppose we're trying to take the
+    # rth root of some g with rank i. Repeatedly multiply g by z^{r^i}
+    # until its rank increases; then take the root of that
     # (recursively), and divide off z^{r^{i-1}} once you're done.
 
     def __init__(self, r, order):
