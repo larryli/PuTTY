@@ -9,6 +9,7 @@
 #include "ssh.h"
 #include "sshbpp.h"
 #include "sshppl.h"
+#include "sshchan.h"
 #include "sshserver.h"
 #ifndef NO_GSSAPI
 #include "sshgssc.h"
@@ -85,7 +86,7 @@ void ssh_check_frozen(Ssh *ssh) {}
 
 mainchan *mainchan_new(
     PacketProtocolLayer *ppl, ConnectionLayer *cl, Conf *conf,
-    int term_width, int term_height, int is_simple, SshChannel **sc_out)
+    int term_width, int term_height, bool is_simple, SshChannel **sc_out)
 { return NULL; }
 void mainchan_get_specials(
     mainchan *mc, add_special_fn_t add_special, void *ctx) {}
