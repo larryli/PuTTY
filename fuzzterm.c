@@ -4,6 +4,7 @@
 
 #define PUTTY_DO_GLOBALS
 #include "putty.h"
+#include "dialog.h"
 #include "terminal.h"
 
 /* For Unix in particular, but harmless if this main() is reused elsewhere */
@@ -142,39 +143,43 @@ void timer_change_notify(unsigned long next) { }
 
 /* needed by config.c and sercfg.c */
 
-void dlg_radiobutton_set(union control *ctrl, void *dlg, int whichbutton) { }
-int dlg_radiobutton_get(union control *ctrl, void *dlg) { return 0; }
-void dlg_checkbox_set(union control *ctrl, void *dlg, int checked) { }
-int dlg_checkbox_get(union control *ctrl, void *dlg) { return 0; }
-void dlg_editbox_set(union control *ctrl, void *dlg, char const *text) { }
-char *dlg_editbox_get(union control *ctrl, void *dlg) { return dupstr("moo"); }
-void dlg_listbox_clear(union control *ctrl, void *dlg) { }
-void dlg_listbox_del(union control *ctrl, void *dlg, int index) { }
-void dlg_listbox_add(union control *ctrl, void *dlg, char const *text) { }
-void dlg_listbox_addwithid(union control *ctrl, void *dlg,
+void dlg_radiobutton_set(union control *ctrl, dlgparam *dp, int whichbutton) { }
+int dlg_radiobutton_get(union control *ctrl, dlgparam *dp) { return 0; }
+void dlg_checkbox_set(union control *ctrl, dlgparam *dp, bool checked) { }
+bool dlg_checkbox_get(union control *ctrl, dlgparam *dp) { return false; }
+void dlg_editbox_set(union control *ctrl, dlgparam *dp, char const *text) { }
+char *dlg_editbox_get(union control *ctrl, dlgparam *dp)
+{ return dupstr("moo"); }
+void dlg_listbox_clear(union control *ctrl, dlgparam *dp) { }
+void dlg_listbox_del(union control *ctrl, dlgparam *dp, int index) { }
+void dlg_listbox_add(union control *ctrl, dlgparam *dp, char const *text) { }
+void dlg_listbox_addwithid(union control *ctrl, dlgparam *dp,
                            char const *text, int id) { }
-int dlg_listbox_getid(union control *ctrl, void *dlg, int index) { return 0; }
-int dlg_listbox_index(union control *ctrl, void *dlg) { return -1; }
-int dlg_listbox_issel(union control *ctrl, void *dlg, int index) { return 0; }
-void dlg_listbox_select(union control *ctrl, void *dlg, int index) { }
-void dlg_text_set(union control *ctrl, void *dlg, char const *text) { }
-void dlg_filesel_set(union control *ctrl, void *dlg, Filename *fn) { }
-Filename *dlg_filesel_get(union control *ctrl, void *dlg) { return NULL; }
-void dlg_fontsel_set(union control *ctrl, void *dlg, FontSpec *fn) { }
-FontSpec *dlg_fontsel_get(union control *ctrl, void *dlg) { return NULL; }
-void dlg_update_start(union control *ctrl, void *dlg) { }
-void dlg_update_done(union control *ctrl, void *dlg) { }
-void dlg_set_focus(union control *ctrl, void *dlg) { }
-void dlg_label_change(union control *ctrl, void *dlg, char const *text) { }
-union control *dlg_last_focused(union control *ctrl, void *dlg) { return NULL; }
-void dlg_beep(void *dlg) { }
-void dlg_error_msg(void *dlg, const char *msg) { }
-void dlg_end(void *dlg, int value) { }
-void dlg_coloursel_start(union control *ctrl, void *dlg,
+int dlg_listbox_getid(union control *ctrl, dlgparam *dp, int index)
+{ return 0; }
+int dlg_listbox_index(union control *ctrl, dlgparam *dp) { return -1; }
+bool dlg_listbox_issel(union control *ctrl, dlgparam *dp, int index)
+{ return false; }
+void dlg_listbox_select(union control *ctrl, dlgparam *dp, int index) { }
+void dlg_text_set(union control *ctrl, dlgparam *dp, char const *text) { }
+void dlg_filesel_set(union control *ctrl, dlgparam *dp, Filename *fn) { }
+Filename *dlg_filesel_get(union control *ctrl, dlgparam *dp) { return NULL; }
+void dlg_fontsel_set(union control *ctrl, dlgparam *dp, FontSpec *fn) { }
+FontSpec *dlg_fontsel_get(union control *ctrl, dlgparam *dp) { return NULL; }
+void dlg_update_start(union control *ctrl, dlgparam *dp) { }
+void dlg_update_done(union control *ctrl, dlgparam *dp) { }
+void dlg_set_focus(union control *ctrl, dlgparam *dp) { }
+void dlg_label_change(union control *ctrl, dlgparam *dp, char const *text) { }
+union control *dlg_last_focused(union control *ctrl, dlgparam *dp)
+{ return NULL; }
+void dlg_beep(dlgparam *dp) { }
+void dlg_error_msg(dlgparam *dp, const char *msg) { }
+void dlg_end(dlgparam *dp, int value) { }
+void dlg_coloursel_start(union control *ctrl, dlgparam *dp,
                          int r, int g, int b) { }
-bool dlg_coloursel_results(union control *ctrl, void *dlg,
+bool dlg_coloursel_results(union control *ctrl, dlgparam *dp,
                            int *r, int *g, int *b) { return false; }
-void dlg_refresh(union control *ctrl, void *dlg) { }
+void dlg_refresh(union control *ctrl, dlgparam *dp) { }
 bool dlg_is_visible(union control *ctrl, dlgparam *dp) { return false; }
 
 const char *const appname = "FuZZterm";
