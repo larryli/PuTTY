@@ -68,7 +68,7 @@ int wc_to_mb(int codepage, int flags, const wchar_t *wcstr, int wclen,
         memset(&state, 0, sizeof state);
 
         while (wclen > 0) {
-            int i = wcrtomb(output, wcstr[0], &state);
+            size_t i = wcrtomb(output, wcstr[0], &state);
             if (i == (size_t)-1 || i > n - mblen)
                 break;
             memcpy(mbstr+n, output, i);
