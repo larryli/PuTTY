@@ -2486,6 +2486,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               HELPCTX(ssh_hklist),
                               hklist_handler, P(NULL));
             c->listbox.height = 5;
+
+            ctrl_checkbox(s, "Prefer algorithms for which a host key is known",
+                          'p', HELPCTX(ssh_hk_known), conf_checkbox_handler,
+                          I(CONF_ssh_prefer_known_hostkeys));
         }
 
         /*
