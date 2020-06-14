@@ -3412,8 +3412,7 @@ static void term_out(Terminal *term)
                     strbuf *buf = term_input_data_from_charset(
                         term, DEFAULT_CODEPAGE,
                         term->answerback, term->answerbacklen);
-                    if (buf->len)
-                        ldisc_send(term->ldisc, buf->s, buf->len, false);
+                    ldisc_send(term->ldisc, buf->s, buf->len, false);
                     strbuf_free(buf);
                 }
                 break;
@@ -3660,7 +3659,7 @@ static void term_out(Terminal *term)
                     break;
                   case 'Z':            /* DECID: terminal type query */
                     compatibility(VT100);
-                    if (term->ldisc && term->id_string[0])
+                    if (term->ldisc)
                         ldisc_send(term->ldisc, term->id_string,
                                    strlen(term->id_string), false);
                     break;
@@ -3974,7 +3973,7 @@ static void term_out(Terminal *term)
                       case 'c':       /* DA: terminal type query */
                         compatibility(VT100);
                         /* This is the response for a VT102 */
-                        if (term->ldisc && term->id_string[0])
+                        if (term->ldisc)
                             ldisc_send(term->ldisc, term->id_string,
                                        strlen(term->id_string), false);
                         break;
@@ -4419,8 +4418,7 @@ static void term_out(Terminal *term)
                                     len = strlen(p);
                                     ldisc_send(term->ldisc, "\033]L", 3,
                                                false);
-                                    if (len > 0)
-                                        ldisc_send(term->ldisc, p, len, false);
+                                    ldisc_send(term->ldisc, p, len, false);
                                     ldisc_send(term->ldisc, "\033\\", 2,
                                                false);
                                 }
@@ -4435,8 +4433,7 @@ static void term_out(Terminal *term)
                                     len = strlen(p);
                                     ldisc_send(term->ldisc, "\033]l", 3,
                                                false);
-                                    if (len > 0)
-                                        ldisc_send(term->ldisc, p, len, false);
+                                    ldisc_send(term->ldisc, p, len, false);
                                     ldisc_send(term->ldisc, "\033\\", 2,
                                                false);
                                 }
