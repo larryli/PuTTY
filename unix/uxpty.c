@@ -206,6 +206,8 @@ static void setup_utmp(char *ttyname, char *location)
     struct timeval tv;
 
     pw = getpwuid(getuid());
+    if (!pw)
+        return; /* can't stamp utmp if we don't have a username */
     memset(&utmp_entry, 0, sizeof(utmp_entry));
     utmp_entry.ut_type = USER_PROCESS;
     utmp_entry.ut_pid = getpid();
