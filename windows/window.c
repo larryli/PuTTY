@@ -5255,7 +5255,7 @@ static void wintw_clip_write(
                                    (int)udata[uindex]);
                     alen = 1; strcpy(after, "}");
                 } else {
-                    blen = sprintf(before, "\\u%d", udata[uindex]);
+                    blen = sprintf(before, "\\u%d", (int)udata[uindex]);
                     alen = 0; after[0] = '\0';
                 }
             }
