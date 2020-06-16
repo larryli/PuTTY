@@ -490,6 +490,7 @@ static int ssh_sftp_do_select(bool include_stdin, bool no_fds_ok)
 
         if (i < 1 && !no_fds_ok && !toplevel_callback_pending()) {
             pollwrap_free(pw);
+            sfree(fdlist);
             return -1;                 /* doom */
         }
 

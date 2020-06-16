@@ -640,10 +640,10 @@ static void sesschan_notify_remote_exit(Seat *seat)
             sshfwd_send_exit_signal(
                 sess->c, signame, false, ptrlen_from_asciz(sigmsg));
 
-            sfree(sigmsg);
-
             got_signal = true;
         }
+
+        sfree(sigmsg);
     } else {
         int signum = pty_backend_exit_signum(sess->backend);
 

@@ -1290,6 +1290,9 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
             if (resplen < 5 || response[4] != SSH_AGENT_SUCCESS) {
                 *retstr = dupstr("The already running Pageant "
                                  "refused to add the key.");
+                sfree(skey->comment);
+                ssh_key_free(skey->key);
+                sfree(skey);
                 sfree(response);
                 return PAGEANT_ACTION_FAILURE;
             }
