@@ -37,7 +37,7 @@ Once you've got a console window to type into, you can just type
 version of PSCP you're using, and gives you a brief summary of how to
 use PSCP:
 
-\c Z:\owendadmin>pscp
+\c C:\>pscp
 \c PuTTY Secure Copy client
 \c Release 0.73
 \c Usage: pscp [options] [user@]host:source target
