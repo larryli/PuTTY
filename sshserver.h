@@ -17,6 +17,8 @@ struct SshServerConfig {
     unsigned long ssh1_cipher_mask;
     bool ssh1_allow_compression;
     bool bare_connection;
+
+    bool stunt_pretend_to_accept_any_pubkey;
 };
 
 Plug *ssh_server_plug(

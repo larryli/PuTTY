@@ -1256,6 +1256,7 @@ NORETURN void cleanup_exit(int);
     X(BOOL, NONE, compression) \
     X(INT, INT, ssh_kexlist) \
     X(INT, INT, ssh_hklist) \
+    X(BOOL, NONE, ssh_prefer_known_hostkeys) \
     X(INT, NONE, ssh_rekey_time) /* in minutes */ \
     X(STR, NONE, ssh_rekey_data) /* string encoding e.g. "100K", "2M", "1G" */ \
     X(BOOL, NONE, tryagent) \

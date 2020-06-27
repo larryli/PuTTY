@@ -2072,7 +2072,9 @@ static void swap_screen(Terminal *term, int which,
         ttr = term->alt_screen;
         term->alt_screen = term->screen;
         term->screen = ttr;
-        term->alt_sblines = find_last_nonempty_line(term, term->alt_screen) + 1;
+        term->alt_sblines = (
+            term->alt_screen ?
+            find_last_nonempty_line(term, term->alt_screen) + 1 : 0);
         t = term->curs.x;
         if (!reset && !keep_cur_pos)
             term->curs.x = term->alt_x;

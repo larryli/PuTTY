@@ -1430,7 +1430,7 @@ static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
 #endif
         ) {
 #ifdef NAMED_CLIPBOARDS
-        const char *sval = dlg_editbox_get(ctrl, dlg);
+        char *sval = dlg_editbox_get(ctrl, dlg);
         int i;
 
         for (i = 0; i < lenof(options); i++)
@@ -1445,6 +1445,8 @@ static void clipboard_selector_handler(union control *ctrl, dlgparam *dlg,
                 sval++;
             conf_set_str(conf, strsetting, sval);
         }
+
+        sfree(sval);
 #else
         int index = dlg_listbox_index(ctrl, dlg);
         if (index >= 0) {
@@ -2570,6 +2572,10 @@ void setup_config_box(struct controlbox *b, bool midsession,
                               HELPCTX(ssh_hklist),
                               hklist_handler, P(NULL));
             c->listbox.height = 5;
+
+            ctrl_checkbox(s, "Prefer algorithms for which a host key is known",
+                          'p', HELPCTX(ssh_hk_known), conf_checkbox_handler,
+                          I(CONF_ssh_prefer_known_hostkeys));
         }
 
         /*

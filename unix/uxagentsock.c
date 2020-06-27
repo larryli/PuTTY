@@ -29,6 +29,7 @@ Socket *platform_make_agent_socket(
     if ((errw = make_dir_and_check_ours(socketdir)) != NULL) {
         *error = dupprintf("%s: %s\n", socketdir, errw);
         sfree(errw);
+        sfree(socketdir);
         return NULL;
     }
 

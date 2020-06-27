@@ -298,18 +298,34 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                 mp_int *modulus = get_mp_ssh1(pktin);
                 s->authkey = auth_publickey_ssh1(
                     s->authpolicy, s->username, modulus);
+
+                if (!s->authkey &&
+                    s->ssc->stunt_pretend_to_accept_any_pubkey) {
+                    mp_int *zero = mp_from_integer(0);
+                    mp_int *fake_challenge = mp_random_in_range(zero, modulus);
+
+                    pktout = ssh_bpp_new_pktout(
+                        s->ppl.bpp, SSH1_SMSG_AUTH_RSA_CHALLENGE);
+                    put_mp_ssh1(pktout, fake_challenge);
+                    pq_push(s->ppl.out_pq, pktout);
+
+                    mp_free(zero);
+                    mp_free(fake_challenge);
+                }
+
                 mp_free(modulus);
             }
 
-            if (!s->authkey)
+            if (!s->authkey &&
+                !s->ssc->stunt_pretend_to_accept_any_pubkey)
                 continue;
 
-            if (s->authkey->bytes < 32) {
+            if (s->authkey && s->authkey->bytes < 32) {
                 ppl_logevent("Auth key far too small");
                 continue;
             }
 
-            {
+            if (s->authkey) {
                 unsigned char *rsabuf =
                     snewn(s->authkey->bytes, unsigned char);
 
@@ -348,6 +364,9 @@ static void ssh1_login_server_process_queue(PacketProtocolLayer *ppl)
                                 pktin->type, ssh1_pkt_type(pktin->type));
                 return;
             }
+
+            if (!s->authkey)
+                continue;
 
             {
                 ptrlen response = get_data(pktin, 16);

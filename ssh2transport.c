@@ -576,9 +576,10 @@ static void ssh2_write_kexinit_lists(
         }
     } else if (first_time) {
         /*
-         * In the first key exchange, we list all the algorithms
-         * we're prepared to cope with, but prefer those algorithms
-         * for which we have a host key for this host.
+         * In the first key exchange, we list all the algorithms we're
+         * prepared to cope with, but (if configured to) we prefer
+         * those algorithms for which we have a host key for this
+         * host.
          *
          * If the host key algorithm is below the warning
          * threshold, we warn even if we did already have a key
@@ -594,7 +595,8 @@ static void ssh2_write_kexinit_lists(
             for (j = 0; j < lenof(ssh2_hostkey_algs); j++) {
                 if (ssh2_hostkey_algs[j].id != preferred_hk[i])
                     continue;
-                if (have_ssh_host_key(hk_host, hk_port,
+                if (conf_get_bool(conf, CONF_ssh_prefer_known_hostkeys) &&
+                    have_ssh_host_key(hk_host, hk_port,
                                       ssh2_hostkey_algs[j].alg->cache_id)) {
                     alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
                                               ssh2_hostkey_algs[j].alg->ssh_id);
