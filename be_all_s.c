@@ -16,11 +16,7 @@
  */
 const char *const appname = "PuTTY";
 
-#ifdef TELNET_DEFAULT
-const int be_default_protocol = PROT_TELNET;
-#else
 const int be_default_protocol = PROT_SSH;
-#endif
 
 const struct BackendVtable *const backends[] = {
     &ssh_backend,
