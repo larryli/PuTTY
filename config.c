@@ -260,13 +260,8 @@ struct hostport {
     union control *host, *port;
 };
 
-/*
- * We export this function so that platform-specific config
- * routines can use it to conveniently identify the protocol radio
- * buttons in order to add to them.
- */
-void config_protocolbuttons_handler(union control *ctrl, dlgparam *dlg,
-                                    void *data, int event)
+static void config_protocolbuttons_handler(union control *ctrl, dlgparam *dlg,
+                                           void *data, int event)
 {
     int button;
     Conf *conf = (Conf *)data;

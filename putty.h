@@ -2034,8 +2034,6 @@ void conf_filesel_handler(union control *ctrl, dlgparam *dlg,
                           void *data, int event);
 void conf_fontsel_handler(union control *ctrl, dlgparam *dlg,
                           void *data, int event);
-/* Much more special-purpose function needed by sercfg.c */
-void config_protocolbuttons_handler(union control *, dlgparam *, void *, int);
 
 void setup_config_box(struct controlbox *b, bool midsession,
                       int protocol, int protcfginfo);
