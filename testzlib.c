@@ -24,6 +24,11 @@ void out_of_memory(void)
     exit(1);
 }
 
+void dputs(const char *buf)
+{
+    fputs(buf, stderr);
+}
+
 int main(int argc, char **argv)
 {
     unsigned char buf[16], *outbuf;

@@ -1414,6 +1414,11 @@ TESTLIST(STRUCT_TEST)
 #undef STRUCT_TEST
 };
 
+void dputs(const char *buf)
+{
+    fputs(buf, stderr);
+}
+
 int main(int argc, char **argv)
 {
     bool doing_opts = true;
