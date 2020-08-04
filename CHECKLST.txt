@@ -109,8 +109,17 @@ Making a release candidate build
     * check they report the right version number
     * if there's any easily observable behaviour difference between
       the release branch and master, arrange to observe it
-    * test the Windows installer
-    * test the Unix source tarball.
+    * test that the Windows installer installs successfully
+       + on x86 and Arm, and test that putty.exe runs in both cases
+    * test that the Unix source tarball unpacks and builds
+       + on at least a reasonably current stable Linux distro, and
+         also try Debian sid
+       + test-build with all of GTK 1, 2 and 3
+    * feed the release-candidate source to Coverity and make sure it
+      didn't turn up any last-minute problems
+    * make sure we have a clean run of sctest
+    * do some testing on a system with a completely clean slate (no
+      prior saved session data)
 
 Preparing to make the release
 -----------------------------
