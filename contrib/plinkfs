@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+# Wrapper around the FUSE 'sshfs' client, which arranges to use Plink
+# as the SSH transport subcommand.
+#
+# This is not totally trivial because sshfs assumes slightly more of
+# OpenSSH's command-line syntax than Plink supports. So we actually
+# give sshfs a subcommand which is this script itself, re-invoked with
+# the --helper option.
+
+import sys
+import os
+import shlex
+
+if sys.argv[1:2] == ["--helper"]:
+    # Helper mode. Strip OpenSSH-specific '-o' options from the
+    # command line, and invoke Plink.
+    plink_command = ["plink"]
+
+    it = iter(sys.argv)
+    next(it) # discard command name
+    next(it) # discard --helper
+
+    for arg in it:
+        if arg == "-o":
+            next(it) # discard -o option
+        elif arg.startswith("-o"):
+            pass
+        else:
+            plink_command.append(arg)
+
+    os.execvp(plink_command[0], plink_command)
+
+else:
+    # Normal mode, invoked by the user.
+    sshfs_command = [
+        "sshfs", "-o", "ssh_command={} --helper".format(
+            os.path.realpath(__file__))
+    ] + sys.argv[1:]
+
+    os.execvp(sshfs_command[0], sshfs_command)
