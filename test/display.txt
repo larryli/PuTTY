@@ -4,11 +4,11 @@ Test of all features involved in do_text()
 Reverse video + red on yellow:      [31;43;7m bing! [m
 Yellow on red should look the same: [33;41m bong! [m
 
-Basic attrs, combining chars, both widths: [1mBold[22m [5mblink[25m [4munderline[24m [Λ̊][チ][text]
-Wide char should be off by 1 narrow char: [1mBold[22m [5mblink[25m [4munderline[24m [Λ̊][チ][text]
+Basic attrs, combining chars, both widths: [1mBold[22m [5mblink[25m [4munder[24m [9mstrike[29m [Λ̊][チ][text]
+Wide char should be off by 1 narrow char: [1mBold[22m [5mblink[25m [4munder[24m [9mstrike[29m [Λ̊][チ][text]
 
 Double width, double height. Should be red top, magenta bottom, blue DW only:
-#3[41m[1mBold[22m [5mblink[25m [4munderline[24m [Λ̊][チ][text][m
-#4[45m[1mBold[22m [5mblink[25m [4munderline[24m [Λ̊][チ][text][m
-#6[44m[1mBold[22m [5mblink[25m [4munderline[24m [Λ̊][チ][text][m
+#3[41m[1mBold[22m [5mblink[25m [4munder[24m [9mstrike[29m [Λ̊][チ][text][m
+#4[45m[1mBold[22m [5mblink[25m [4munder[24m [9mstrike[29m [Λ̊][チ][text][m
+#6[44m[1mBold[22m [5mblink[25m [4munder[24m [9mstrike[29m [Λ̊][チ][text][m
 
