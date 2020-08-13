@@ -511,6 +511,7 @@ static unifont *x11font_create(GtkWidget *widget, const char *name,
     xfont->u.height = xfont->u.ascent + xfont->u.descent;
     xfont->u.public_charset = pubcs;
     xfont->u.want_fallback = true;
+    xfont->u.strikethrough_y = xfont->u.ascent - (xfont->u.ascent * 3 / 8);
 #ifdef DRAW_TEXT_GDK
     xfont->u.preferred_drawtype = DRAWTYPE_GDK;
 #elif defined DRAW_TEXT_CAIRO
@@ -1463,6 +1464,9 @@ static unifont *pangofont_create_internal(GtkWidget *widget,
     pfont->u.descent =
         PANGO_PIXELS_CEIL(pango_font_metrics_get_descent(metrics));
     pfont->u.height = pfont->u.ascent + pfont->u.descent;
+    pfont->u.strikethrough_y =
+        PANGO_PIXELS(pango_font_metrics_get_ascent(metrics) -
+                     pango_font_metrics_get_strikethrough_position(metrics));
     pfont->u.want_fallback = false;
 #ifdef DRAW_TEXT_CAIRO
     pfont->u.preferred_drawtype = DRAWTYPE_CAIRO;
@@ -2242,6 +2246,7 @@ unifont *multifont_create(GtkWidget *widget, const char *name,
     mfont->u.ascent = font->ascent;
     mfont->u.descent = font->descent;
     mfont->u.height = font->height;
+    mfont->u.strikethrough_y = font->strikethrough_y;
     mfont->u.public_charset = font->public_charset;
     mfont->u.want_fallback = false; /* shouldn't be needed, but just in case */
     mfont->u.preferred_drawtype = font->preferred_drawtype;

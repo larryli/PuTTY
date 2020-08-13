@@ -187,7 +187,7 @@ static bool bold_colours;
 static enum {
     UND_LINE, UND_FONT
 } und_mode;
-static int descent;
+static int descent, font_strikethrough_y;
 
 #define NCFGCOLOURS 22
 #define NEXTCOLOURS 240
@@ -1490,6 +1490,7 @@ static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
 static void init_fonts(int pick_width, int pick_height)
 {
     TEXTMETRIC tm;
+    OUTLINETEXTMETRIC otm;
     CPINFO cpinfo;
     FontSpec *font;
     int fontsize[3];
@@ -1539,6 +1540,10 @@ static void init_fonts(int pick_width, int pick_height)
 
     SelectObject(hdc, fonts[FONT_NORMAL]);
     GetTextMetrics(hdc, &tm);
+    if (GetOutlineTextMetrics(hdc, sizeof(otm), &otm))
+        font_strikethrough_y = tm.tmAscent - otm.otmsStrikeoutPosition;
+    else
+        font_strikethrough_y = tm.tmAscent - (tm.tmAscent * 3 / 8);
 
     GetObject(fonts[FONT_NORMAL], sizeof(LOGFONT), &lfont);
 
@@ -3462,6 +3467,25 @@ static void sys_cursor_update(void)
     ImmReleaseContext(wgs.term_hwnd, hIMC);
 }
 
+static void draw_horizontal_line_on_text(int y, int lattr, RECT line_box,
+                                         COLORREF colour)
+{
+    if (lattr == LATTR_TOP || lattr == LATTR_BOT) {
+        y *= 2;
+        if (lattr == LATTR_BOT)
+            y -= font_height;
+    }
+
+    if (!(0 <= y && y < font_height))
+        return;
+
+    HPEN oldpen = SelectObject(wintw_hdc, CreatePen(PS_SOLID, 0, colour));
+    MoveToEx(wintw_hdc, line_box.left, line_box.top + y, NULL);
+    LineTo(wintw_hdc, line_box.right, line_box.top + y);
+    oldpen = SelectObject(wintw_hdc, oldpen);
+    DeleteObject(oldpen);
+}
+
 /*
  * Draw a line of text in the window, at given character
  * coordinates, in given attributes.
@@ -3838,20 +3862,13 @@ static void do_text_internal(
         SetBkMode(wintw_hdc, TRANSPARENT);
         opaque = false;
     }
-    if (lattr != LATTR_TOP && (force_manual_underline ||
-                               (und_mode == UND_LINE
-                                && (attr & ATTR_UNDER)))) {
-        HPEN oldpen;
-        int dec = descent;
-        if (lattr == LATTR_BOT)
-            dec = dec * 2 - font_height;
 
-        oldpen = SelectObject(wintw_hdc, CreatePen(PS_SOLID, 0, fg));
-        MoveToEx(wintw_hdc, line_box.left, line_box.top + dec, NULL);
-        LineTo(wintw_hdc, line_box.right, line_box.top + dec);
-        oldpen = SelectObject(wintw_hdc, oldpen);
-        DeleteObject(oldpen);
-    }
+    if (lattr != LATTR_TOP && (force_manual_underline ||
+                               (und_mode == UND_LINE && (attr & ATTR_UNDER))))
+        draw_horizontal_line_on_text(descent, lattr, line_box, fg);
+
+    if (attr & ATTR_STRIKE)
+        draw_horizontal_line_on_text(font_strikethrough_y, lattr, line_box, fg);
 }
 
 /*

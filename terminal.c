@@ -4132,6 +4132,9 @@ static void term_out(Terminal *term)
                             case 7:       /* enable reverse video */
                               term->curr_attr |= ATTR_REVERSE;
                               break;
+                            case 9:       /* enable strikethrough */
+                              term->curr_attr |= ATTR_STRIKE;
+                              break;
                             case 10:      /* SCO acs off */
                               compatibility(SCOANSI);
                               if (term->no_remote_charset) break;
@@ -4159,6 +4162,9 @@ static void term_out(Terminal *term)
                             case 27:      /* disable reverse video */
                               compatibility2(OTHER, VT220);
                               term->curr_attr &= ~ATTR_REVERSE;
+                              break;
+                            case 29:      /* disable strikethrough */
+                              term->curr_attr &= ~ATTR_STRIKE;
                               break;
                             case 30:
                             case 31:
