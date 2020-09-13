@@ -7,7 +7,7 @@
 
 #include "putty.h"
 #include "ssh.h"
-#include "mpint.h"
+#include "mpint_i.h"
 
 #ifdef PRNG_DIAGNOSTICS
 #define prngdebug debug
@@ -57,7 +57,7 @@ struct prng_impl {
      * calling ssh_hash_final.
      */
     ssh_hash *generator;
-    mp_int *counter;
+    BignumInt counter[128 / BIGNUM_INT_BITS];
 
     /*
      * When re-seeding the generator, you call prng_seed_begin(),
@@ -113,7 +113,7 @@ prng *prng_new(const ssh_hashalg *hashalg)
     pi->hashalg = hashalg;
     pi->keymaker = NULL;
     pi->generator = NULL;
-    pi->counter = mp_new(128);
+    memset(pi->counter, 0, sizeof(pi->counter));
     for (size_t i = 0; i < NCOLLECTORS; i++)
         pi->collectors[i] = ssh_hash_new(pi->hashalg);
     pi->until_reseed = 0;
@@ -128,7 +128,7 @@ void prng_free(prng *pr)
 {
     prng_impl *pi = container_of(pr, prng_impl, Prng);
 
-    mp_free(pi->counter);
+    smemclr(pi->counter, sizeof(pi->counter));
     for (size_t i = 0; i < NCOLLECTORS; i++)
         ssh_hash_free(pi->collectors[i]);
     if (pi->generator)
@@ -204,10 +204,12 @@ static inline void prng_generate(prng_impl *pi, void *outbuf)
     ssh_hash *h = ssh_hash_copy(pi->generator);
 
     prngdebug("prng_generate\n");
-
     put_byte(h, 'G');
-    put_mp_ssh2(h, pi->counter);
-    mp_add_integer_into(pi->counter, pi->counter, 1);
+    for (unsigned i = 0; i < 128; i += 8)
+        put_byte(h, pi->counter[i/BIGNUM_INT_BITS] >> (i%BIGNUM_INT_BITS));
+    BignumCarry c = 1;
+    for (unsigned i = 0; i < lenof(pi->counter); i++)
+        BignumADC(pi->counter[i], c, pi->counter[i], 0, c);
     ssh_hash_final(h, outbuf);
 }
 

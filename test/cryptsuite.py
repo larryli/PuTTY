@@ -89,6 +89,10 @@ def last(iterable):
         pass
     return toret
 
+def le_integer(x, nbits):
+    assert nbits % 8 == 0
+    return bytes([0xFF & (x >> (8*n)) for n in range(nbits//8)])
+
 @contextlib.contextmanager
 def queued_random_data(nbytes, seed):
     hashsize = 512 // 8
@@ -1627,23 +1631,25 @@ class crypt(MyTestBase):
         prng_add_entropy(pr, 0, entropy) # forces a reseed
         data3 = prng_read(pr, 128)
 
+        le128 = lambda x: le_integer(x, 128)
+
         key1 = hash_str(hashalg, b'R' + seed)
         expected_data1 = b''.join(
-            hash_str(hashalg, key1 + b'G' + ssh2_mpint(counter))
+            hash_str(hashalg, key1 + b'G' + le128(counter))
             for counter in range(4))
         # After prng_read finishes, we expect the PRNG to have
         # automatically reseeded itself, so that if its internal state
         # is revealed then the previous output can't be reconstructed.
         key2 = hash_str(hashalg, key1 + b'R')
         expected_data2 = b''.join(
-            hash_str(hashalg, key2 + b'G' + ssh2_mpint(counter))
+            hash_str(hashalg, key2 + b'G' + le128(counter))
             for counter in range(4,8))
         # There will have been another reseed after the second
         # prng_read, and then another due to the entropy.
         key3 = hash_str(hashalg, key2 + b'R')
         key4 = hash_str(hashalg, key3 + b'R' + hash_str(hashalg, entropy))
         expected_data3 = b''.join(
-            hash_str(hashalg, key4 + b'G' + ssh2_mpint(counter))
+            hash_str(hashalg, key4 + b'G' + le128(counter))
             for counter in range(8,12))
 
         self.assertEqualBin(data1, expected_data1)
