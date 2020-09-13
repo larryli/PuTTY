@@ -7,10 +7,7 @@
 #include <stdlib.h>
 
 #include "putty.h"
-#include "mpint.h"
 #include "ssh.h"
-#include "sshbpp.h"
-#include "sshppl.h"
 #include "sshchan.h"
 
 /* ----------------------------------------------------------------------
