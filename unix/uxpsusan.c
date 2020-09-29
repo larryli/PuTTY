@@ -160,6 +160,11 @@ void server_instance_terminated(LogPolicy *lp)
     sfree(inst);
 }
 
+bool psusan_continue(void *ctx, bool fd, bool cb)
+{
+    return !finished;
+}
+
 static bool longoptarg(const char *arg, const char *expected,
                        const char **val, int *argcp, char ***argvp)
 {
@@ -299,7 +304,7 @@ int main(int argc, char **argv)
     ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
 
     cli_main_loop(cliloop_no_pw_setup, cliloop_no_pw_check,
-                  cliloop_always_continue, NULL);
+                  psusan_continue, NULL);
 
     return 0;
 }
