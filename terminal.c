@@ -723,6 +723,11 @@ static compressed_scrollback_line *compressline(termline *ldata)
     makerle(b, ldata, makeliteral_truecolour);
     makerle(b, ldata, makeliteral_cc);
 
+    size_t linelen = b->len - sizeof(compressed_scrollback_line);
+    compressed_scrollback_line *line =
+        (compressed_scrollback_line *)strbuf_to_str(b);
+    line->len = linelen;
+
     /*
      * Diagnostics: ensure that the compressed data really does
      * decompress to the right thing.
@@ -742,7 +747,7 @@ static compressed_scrollback_line *compressline(termline *ldata)
         printf("\n");
 #endif
 
-        dcl = decompressline((compressed_scrollback_line *)b->u);
+        dcl = decompressline(line);
         assert(ldata->cols == dcl->cols);
         assert(ldata->lattr == dcl->lattr);
         for (i = 0; i < ldata->cols; i++)
@@ -759,10 +764,6 @@ static compressed_scrollback_line *compressline(termline *ldata)
 #endif
 #endif /* TERM_CC_DIAGS */
 
-    size_t linelen = b->len - sizeof(compressed_scrollback_line);
-    compressed_scrollback_line *line =
-        (compressed_scrollback_line *)strbuf_to_str(b);
-    line->len = linelen;
     return line;
 }
 
