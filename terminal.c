@@ -461,9 +461,10 @@ static void makerle(strbuf *b, termline *ldata,
                     oldstate = state;
                     makeliteral(b, c, &state);
                     tmplen = b->len - tmppos;
+                    bool match = tmplen == thislen &&
+                        !memcmp(b->u + runpos+1, b->u + tmppos, tmplen);
                     strbuf_shrink_to(b, tmppos);
-                    if (tmplen != thislen ||
-                        memcmp(b->u + runpos+1, b->u + tmppos, tmplen)) {
+                    if (!match) {
                         state = oldstate;
                         break;         /* run over */
                     }
