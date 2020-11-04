@@ -84,6 +84,16 @@ void timer_change_notify(unsigned long next)
 
 char *platform_get_x_display(void) { return NULL; }
 
+void make_unix_sftp_filehandle_key(void *vdata, size_t size)
+{
+    /* psusan runs without a random number generator, so we can't make
+     * this up by random_read. Fortunately, psusan is also
+     * non-adversarial, so it's safe to generate this trivially. */
+    unsigned char *data = (unsigned char *)vdata;
+    for (size_t i = 0; i < size; i++)
+        data[i] = (unsigned)rand() / ((unsigned)RAND_MAX / 256);
+}
+
 static bool verbose;
 
 struct server_instance {

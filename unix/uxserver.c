@@ -103,6 +103,11 @@ void timer_change_notify(unsigned long next)
 
 char *platform_get_x_display(void) { return NULL; }
 
+void make_unix_sftp_filehandle_key(void *data, size_t size)
+{
+    random_read(data, size);
+}
+
 static bool verbose;
 
 struct AuthPolicyShared {

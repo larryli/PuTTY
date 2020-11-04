@@ -20,6 +20,7 @@
 
 #include "putty.h"
 #include "ssh.h"
+#include "sshserver.h"
 #include "sftp.h"
 #include "tree234.h"
 
@@ -65,7 +66,7 @@ static SftpServer *uss_new(const SftpServerVtable *vt)
     uss->dirhandles = newtree234(uss_dirhandle_cmp);
     uss->srv.vt = vt;
 
-    random_read(uss->handlekey, sizeof(uss->handlekey));
+    make_unix_sftp_filehandle_key(uss->handlekey, sizeof(uss->handlekey));
 
     return &uss->srv;
 }
