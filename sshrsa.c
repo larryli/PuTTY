@@ -456,8 +456,12 @@ void freersakey(RSAKey *key)
 }
 
 /* ----------------------------------------------------------------------
- * Implementation of the ssh-rsa signing key type.
+ * Implementation of the ssh-rsa signing key type family.
  */
+
+struct ssh2_rsa_extra {
+    unsigned signflags;
+};
 
 static void rsa2_freekey(ssh_key *key);   /* forward reference */
 
@@ -471,7 +475,7 @@ static ssh_key *rsa2_new_pub(const ssh_keyalg *self, ptrlen data)
         return NULL;
 
     rsa = snew(RSAKey);
-    rsa->sshk.vt = &ssh_rsa;
+    rsa->sshk.vt = self;
     rsa->exponent = get_mp_ssh2(src);
     rsa->modulus = get_mp_ssh2(src);
     rsa->private_exponent = NULL;
@@ -729,8 +733,10 @@ static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
     ptrlen type, in_pl;
     mp_int *in, *out;
 
-    /* If we need to support variable flags on verify, this is where they go */
-    const ssh_hashalg *halg = rsa2_hash_alg_for_flags(0, NULL);
+    const struct ssh2_rsa_extra *extra =
+        (const struct ssh2_rsa_extra *)key->vt->extra;
+
+    const ssh_hashalg *halg = rsa2_hash_alg_for_flags(extra->signflags, NULL);
 
     /* Start by making sure the key is even long enough to encode a
      * signature. If not, everything fails to verify. */
@@ -751,7 +757,7 @@ static bool rsa2_verify(ssh_key *key, ptrlen sig, ptrlen data)
      * mp_from_bytes_be, which will tolerate anything.
      */
     in_pl = get_string(src);
-    if (get_err(src) || !ptrlen_eq_string(type, "ssh-rsa"))
+    if (get_err(src) || !ptrlen_eq_string(type, key->vt->ssh_id))
         return false;
 
     in = mp_from_bytes_be(in_pl);
@@ -779,6 +785,10 @@ static void rsa2_sign(ssh_key *key, ptrlen data,
     mp_int *in, *out;
     const ssh_hashalg *halg;
     const char *sign_alg_name;
+
+    const struct ssh2_rsa_extra *extra =
+        (const struct ssh2_rsa_extra *)key->vt->extra;
+    flags |= extra->signflags;
 
     halg = rsa2_hash_alg_for_flags(flags, &sign_alg_name);
 
@@ -816,23 +826,46 @@ static char *rsa2_invalid(ssh_key *key, unsigned flags)
     return NULL;
 }
 
+static const struct ssh2_rsa_extra
+    rsa_extra = { 0 },
+    rsa_sha256_extra = { SSH_AGENT_RSA_SHA2_256 },
+    rsa_sha512_extra = { SSH_AGENT_RSA_SHA2_512 };
+
+#define COMMON_KEYALG_FIELDS                    \
+    .new_pub = rsa2_new_pub,                    \
+    .new_priv = rsa2_new_priv,                  \
+    .new_priv_openssh = rsa2_new_priv_openssh,  \
+    .freekey = rsa2_freekey,                    \
+    .invalid = rsa2_invalid,                    \
+    .sign = rsa2_sign,                          \
+    .verify = rsa2_verify,                      \
+    .public_blob = rsa2_public_blob,            \
+    .private_blob = rsa2_private_blob,          \
+    .openssh_blob = rsa2_openssh_blob,          \
+    .cache_str = rsa2_cache_str,                \
+    .components = rsa2_components,              \
+    .pubkey_bits = rsa2_pubkey_bits,            \
+    .cache_id = "rsa2"
+
 const ssh_keyalg ssh_rsa = {
-    .new_pub = rsa2_new_pub,
-    .new_priv = rsa2_new_priv,
-    .new_priv_openssh = rsa2_new_priv_openssh,
-    .freekey = rsa2_freekey,
-    .invalid = rsa2_invalid,
-    .sign = rsa2_sign,
-    .verify = rsa2_verify,
-    .public_blob = rsa2_public_blob,
-    .private_blob = rsa2_private_blob,
-    .openssh_blob = rsa2_openssh_blob,
-    .cache_str = rsa2_cache_str,
-    .components = rsa2_components,
-    .pubkey_bits = rsa2_pubkey_bits,
+    COMMON_KEYALG_FIELDS,
     .ssh_id = "ssh-rsa",
-    .cache_id = "rsa2",
     .supported_flags = SSH_AGENT_RSA_SHA2_256 | SSH_AGENT_RSA_SHA2_512,
+    .extra = &rsa_extra,
+};
+
+const ssh_keyalg ssh_rsa_sha256 = {
+    COMMON_KEYALG_FIELDS,
+    .ssh_id = "rsa-sha2-256",
+    .supported_flags = 0,
+    .extra = &rsa_sha256_extra,
+};
+
+const ssh_keyalg ssh_rsa_sha512 = {
+    COMMON_KEYALG_FIELDS,
+    .ssh_id = "rsa-sha2-512",
+    .supported_flags = 0,
+    .extra = &rsa_sha512_extra,
 };
 
 RSAKey *ssh_rsakex_newkey(ptrlen data)

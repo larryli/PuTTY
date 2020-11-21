@@ -997,6 +997,8 @@ extern const ssh_kex ssh_ec_kex_nistp521;
 extern const ssh_kexes ssh_ecdh_kex;
 extern const ssh_keyalg ssh_dss;
 extern const ssh_keyalg ssh_rsa;
+extern const ssh_keyalg ssh_rsa_sha256;
+extern const ssh_keyalg ssh_rsa_sha512;
 extern const ssh_keyalg ssh_ecdsa_ed25519;
 extern const ssh_keyalg ssh_ecdsa_ed448;
 extern const ssh_keyalg ssh_ecdsa_nistp256;
