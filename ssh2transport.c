@@ -404,6 +404,33 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
             for (uint32_t i = 0; i < nexts && !get_err(pktin); i++) {
                 ptrlen extname = get_string(pktin);
                 ptrlen extvalue = get_string(pktin);
+                if (ptrlen_eq_string(extname, "server-sig-algs")) {
+                    /*
+                     * Server has sent a list of signature algorithms
+                     * it will potentially accept for user
+                     * authentication keys. Check in particular
+                     * whether the RFC 8332 improved versions of
+                     * ssh-rsa are in the list, and set flags in the
+                     * BPP if so.
+                     *
+                     * TODO: another thing we _could_ do here is to
+                     * record a full list of the algorithm identifiers
+                     * we've seen, whether we understand them
+                     * ourselves or not. Then we could use that as a
+                     * pre-filter during userauth, to skip keys in the
+                     * SSH agent if we already know the server can't
+                     * possibly accept them. (Even if the key
+                     * algorithm is one that the agent and the server
+                     * both understand but we do not.)
+                     */
+                    ptrlen algname;
+                    while (get_commasep_word(&extvalue, &algname)) {
+                        if (ptrlen_eq_string(algname, "rsa-sha2-256"))
+                            ppl->bpp->ext_info_rsa_sha256_ok = true;
+                        if (ptrlen_eq_string(algname, "rsa-sha2-512"))
+                            ppl->bpp->ext_info_rsa_sha512_ok = true;
+                    }
+                }
             }
             pq_pop(ppl->in_pq);
             break;

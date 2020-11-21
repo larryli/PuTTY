@@ -77,6 +77,8 @@ struct ssh2_userauth_state {
     size_t agent_keys_len;
     agent_key *agent_keys;
     size_t agent_key_index, agent_key_limit;
+    ptrlen agent_keyalg;
+    unsigned signflags;
     int len;
     PktOut *pktout;
     bool want_user_input;
@@ -719,6 +721,19 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 /*
                  * Attempt public-key authentication using a key from Pageant.
                  */
+                s->agent_keyalg = s->agent_keys[s->agent_key_index].algorithm;
+                s->signflags = 0;
+                if (ptrlen_eq_string(s->agent_keyalg, "ssh-rsa")) {
+                    /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
+                     * if the server has announced support for them. */
+                    if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
+                        s->agent_keyalg = PTRLEN_LITERAL("rsa-sha2-512");
+                        s->signflags = SSH_AGENT_RSA_SHA2_512;
+                    } else if (s->ppl.bpp->ext_info_rsa_sha256_ok) {
+                        s->agent_keyalg = PTRLEN_LITERAL("rsa-sha2-256");
+                        s->signflags = SSH_AGENT_RSA_SHA2_256;
+                    }
+                }
 
                 s->ppl.bpp->pls->actx = SSH2_PKTCTX_PUBLICKEY;
 
@@ -732,8 +747,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 put_stringz(s->pktout, "publickey");
                                                     /* method */
                 put_bool(s->pktout, false); /* no signature included */
-                put_stringpl(s->pktout,
-                             s->agent_keys[s->agent_key_index].algorithm);
+                put_stringpl(s->pktout, s->agent_keyalg);
                 put_stringpl(s->pktout, ptrlen_from_strbuf(
                             s->agent_keys[s->agent_key_index].blob));
                 pq_push(s->ppl.out_pq, s->pktout);
@@ -767,8 +781,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_stringz(s->pktout, "publickey");
                                                         /* method */
                     put_bool(s->pktout, true);  /* signature included */
-                    put_stringpl(s->pktout,
-                                 s->agent_keys[s->agent_key_index].algorithm);
+                    put_stringpl(s->pktout, s->agent_keyalg);
                     put_stringpl(s->pktout, ptrlen_from_strbuf(
                             s->agent_keys[s->agent_key_index].blob));
 
@@ -783,8 +796,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_data(sigdata, s->pktout->data + 5,
                              s->pktout->length - 5);
                     put_stringsb(agentreq, sigdata);
-                    /* And finally the (zero) flags word. */
-                    put_uint32(agentreq, 0);
+                    /* And finally the flags word. */
+                    put_uint32(agentreq, s->signflags);
                     ssh2_userauth_agent_query(s, agentreq);
                     strbuf_free(agentreq);
                     crWaitUntilV(!s->auth_agent_query);
@@ -839,8 +852,24 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                 /*
                  * Try the public key supplied in the configuration.
                  *
-                 * First, offer the public blob to see if the server is
-                 * willing to accept it.
+                 * First, try to upgrade its algorithm.
+                 */
+                if (!strcmp(s->publickey_algorithm, "ssh-rsa")) {
+                    /* Try to upgrade ssh-rsa to one of the rsa-sha2-* family,
+                     * if the server has announced support for them. */
+                    if (s->ppl.bpp->ext_info_rsa_sha512_ok) {
+                        sfree(s->publickey_algorithm);
+                        s->publickey_algorithm = dupstr("rsa-sha2-512");
+                        s->signflags = SSH_AGENT_RSA_SHA2_512;
+                    } else if (s->ppl.bpp->ext_info_rsa_sha256_ok) {
+                        s->publickey_algorithm = dupstr("rsa-sha2-256");
+                        s->signflags = SSH_AGENT_RSA_SHA2_256;
+                    }
+                }
+
+                /*
+                 * Offer the public blob to see if the server is willing to
+                 * accept it.
                  */
                 s->pktout = ssh_bpp_new_pktout(
                     s->ppl.bpp, SSH2_MSG_USERAUTH_REQUEST);
@@ -975,7 +1004,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_stringz(s->pktout, s->successor_layer->vt->name);
                     put_stringz(s->pktout, "publickey"); /* method */
                     put_bool(s->pktout, true); /* signature follows */
-                    put_stringz(s->pktout, ssh_key_ssh_id(key->key));
+                    put_stringz(s->pktout, s->publickey_algorithm);
                     pkblob = strbuf_new();
                     ssh_key_public_blob(key->key, BinarySink_UPCAST(pkblob));
                     put_string(s->pktout, pkblob->s, pkblob->len);
@@ -993,8 +1022,8 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                     put_data(sigdata, s->pktout->data + 5,
                              s->pktout->length - 5);
                     sigblob = strbuf_new();
-                    ssh_key_sign(key->key, ptrlen_from_strbuf(sigdata), 0,
-                                 BinarySink_UPCAST(sigblob));
+                    ssh_key_sign(key->key, ptrlen_from_strbuf(sigdata),
+                                 s->signflags, BinarySink_UPCAST(sigblob));
                     strbuf_free(sigdata);
                     ssh2_userauth_add_sigblob(
                         s, s->pktout, ptrlen_from_strbuf(pkblob),
