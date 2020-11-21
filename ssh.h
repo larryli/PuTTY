@@ -1412,6 +1412,7 @@ void platform_ssh_share_cleanup(const char *name);
     X(y, SSH2_MSG_DEBUG, 4)                                             \
     X(y, SSH2_MSG_SERVICE_REQUEST, 5)                                   \
     X(y, SSH2_MSG_SERVICE_ACCEPT, 6)                                    \
+    X(y, SSH2_MSG_EXT_INFO, 7)                                          \
     X(y, SSH2_MSG_KEXINIT, 20)                                          \
     X(y, SSH2_MSG_NEWKEYS, 21)                                          \
     K(y, SSH2_MSG_KEXDH_INIT, 30, SSH2_PKTCTX_DHGROUP)                  \

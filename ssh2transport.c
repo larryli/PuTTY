@@ -378,6 +378,37 @@ bool ssh2_common_filter_queue(PacketProtocolLayer *ppl)
             pq_pop(ppl->in_pq);
             break;
 
+          case SSH2_MSG_EXT_INFO: {
+            /*
+             * The BPP enforces that these turn up only at legal
+             * points in the protocol. In particular, it will not pass
+             * an EXT_INFO on to us if it arrives before encryption is
+             * enabled (which is when a MITM could inject one
+             * maliciously).
+             *
+             * However, one of the criteria for legality is that a
+             * server is permitted to send this message immediately
+             * _before_ USERAUTH_SUCCESS. So we may receive this
+             * message not yet knowing whether it's legal to have sent
+             * it - we won't know until the BPP processes the next
+             * packet.
+             *
+             * But that should be OK, because firstly, an
+             * out-of-sequence EXT_INFO that's still within the
+             * encrypted session is only a _protocol_ violation, not
+             * an attack; secondly, any data we set in response to
+             * such an illegal EXT_INFO won't have a chance to affect
+             * the session before the BPP aborts it anyway.
+             */
+            uint32_t nexts = get_uint32(pktin);
+            for (uint32_t i = 0; i < nexts && !get_err(pktin); i++) {
+                ptrlen extname = get_string(pktin);
+                ptrlen extvalue = get_string(pktin);
+            }
+            pq_pop(ppl->in_pq);
+            break;
+          }
+
           default:
             return false;
         }
@@ -761,6 +792,12 @@ static void ssh2_write_kexinit_lists(
                 if (kexlists[i][j].name == NULL) break;
                 add_to_commasep(list, kexlists[i][j].name);
             }
+        }
+        if (i == KEXLIST_KEX) {
+            if (our_hostkeys)          /* we're the server */
+                add_to_commasep(list, "ext-info-s");
+            else                       /* we're the client */
+                add_to_commasep(list, "ext-info-c");
         }
         put_stringsb(pktout, list);
     }

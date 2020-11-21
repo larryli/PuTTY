@@ -110,6 +110,18 @@ static void ssh2_bare_bpp_handle_input(BinaryPacketProtocol *bpp)
         s->packetlen--;
         BinarySource_INIT(s->pktin, s->data, s->packetlen);
 
+        if (s->pktin->type == SSH2_MSG_EXT_INFO) {
+            /*
+             * Mild layer violation: EXT_INFO is not permitted in the
+             * bare ssh-connection protocol. Faulting it here means
+             * that ssh2_common_filter_queue doesn't receive it in the
+             * first place unless it's legal to have sent it.
+             */
+            ssh_proto_error(s->bpp.ssh, "Remote side sent SSH2_MSG_EXT_INFO "
+                            "in bare connection protocol");
+            return;
+        }
+
         /*
          * Log incoming packet, possibly omitting sensitive fields.
          */
