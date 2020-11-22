@@ -807,6 +807,20 @@ int cmdline_process_param(const char *p, char *value,
         filename_free(fn);
     }
 
+    if (!strcmp(p, "-logoverwrite")) {
+        RETURN(1);
+        UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+        SAVEABLE(0);
+        conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
+    }
+
+    if (!strcmp(p, "-logappend")) {
+        RETURN(1);
+        UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
+        SAVEABLE(0);
+        conf_set_int(conf, CONF_logxfovr, LGXF_APN);
+    }
+
     if (!strcmp(p, "-proxycmd")) {
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
