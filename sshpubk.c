@@ -634,24 +634,26 @@ static bool read_blob(BinarySource *src, int nlines, BinarySink *bs)
  */
 ssh2_userkey ssh2_wrong_passphrase = { NULL, NULL };
 
+const ssh_keyalg *const all_keyalgs[] = {
+    &ssh_rsa,
+    &ssh_rsa_sha256,
+    &ssh_rsa_sha512,
+    &ssh_dss,
+    &ssh_ecdsa_nistp256,
+    &ssh_ecdsa_nistp384,
+    &ssh_ecdsa_nistp521,
+    &ssh_ecdsa_ed25519,
+    &ssh_ecdsa_ed448,
+};
+const size_t n_keyalgs = lenof(all_keyalgs);
+
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name)
 {
-    if (ptrlen_eq_string(name, "ssh-rsa"))
-        return &ssh_rsa;
-    else if (ptrlen_eq_string(name, "ssh-dss"))
-        return &ssh_dss;
-    else if (ptrlen_eq_string(name, "ecdsa-sha2-nistp256"))
-        return &ssh_ecdsa_nistp256;
-    else if (ptrlen_eq_string(name, "ecdsa-sha2-nistp384"))
-        return &ssh_ecdsa_nistp384;
-    else if (ptrlen_eq_string(name, "ecdsa-sha2-nistp521"))
-        return &ssh_ecdsa_nistp521;
-    else if (ptrlen_eq_string(name, "ssh-ed25519"))
-        return &ssh_ecdsa_ed25519;
-    else if (ptrlen_eq_string(name, "ssh-ed448"))
-        return &ssh_ecdsa_ed448;
-    else
-        return NULL;
+    for (size_t i = 0; i < n_keyalgs; i++)
+        if (ptrlen_eq_string(name, all_keyalgs[i]->ssh_id))
+            return all_keyalgs[i];
+
+    return NULL;
 }
 
 const ssh_keyalg *find_pubkey_alg(const char *name)

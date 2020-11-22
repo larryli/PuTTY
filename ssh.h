@@ -1230,6 +1230,8 @@ int rsa1_loadpub_s(BinarySource *src, BinarySink *bs,
 int rsa1_loadpub_f(const Filename *filename, BinarySink *bs,
                    char **commentptr, const char **errorstr);
 
+extern const ssh_keyalg *const all_keyalgs[];
+extern const size_t n_keyalgs;
 const ssh_keyalg *find_pubkey_alg(const char *name);
 const ssh_keyalg *find_pubkey_alg_len(ptrlen name);
 
