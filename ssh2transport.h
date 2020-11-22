@@ -185,6 +185,7 @@ struct ssh2_transport_state {
     bool need_gss_transient_hostkey;
     bool warned_about_no_gss_transient_hostkey;
     bool got_session_id;
+    bool can_send_ext_info, post_newkeys_ext_info;
     int dlgret;
     bool guessok;
     bool ignorepkt;

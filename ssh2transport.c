@@ -858,7 +858,8 @@ static bool ssh2_scan_kexinits(
     transport_direction *cs, transport_direction *sc,
     bool *warn_kex, bool *warn_hk, bool *warn_cscipher, bool *warn_sccipher,
     Ssh *ssh, bool *ignore_guess_cs_packet, bool *ignore_guess_sc_packet,
-    int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST], unsigned *hkflags)
+    int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST], unsigned *hkflags,
+    bool *can_send_ext_info)
 {
     BinarySource client[1], server[1];
     int i;
@@ -1058,6 +1059,20 @@ static bool ssh2_scan_kexinits(
         }
     }
 
+    /*
+     * Check whether the other side advertised support for EXT_INFO.
+     */
+    {
+        ptrlen extinfo_advert =
+            (server_hostkeys ? PTRLEN_LITERAL("ext-info-c") :
+             PTRLEN_LITERAL("ext-info-s"));
+        ptrlen list = (server_hostkeys ? clists[KEXLIST_KEX] :
+                       slists[KEXLIST_KEX]);
+        for (ptrlen word; get_commasep_word(&list, &word) ;)
+            if (ptrlen_eq_ptrlen(word, extinfo_advert))
+                *can_send_ext_info = true;
+    }
+
     if (server_hostkeys) {
         /*
          * Finally, make an auxiliary pass over the server's host key
@@ -1229,7 +1244,7 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 s->kexlists, &s->kex_alg, &s->hostkey_alg, s->cstrans,
                 s->sctrans, &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
                 &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks,
-                &s->hkflags))
+                &s->hkflags, &s->can_send_ext_info))
             return; /* false means a fatal error function was called */
 
         /*
@@ -1426,6 +1441,40 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
         strbuf_free(cipher_key);
         strbuf_free(cipher_iv);
         strbuf_free(mac_key);
+    }
+
+    /*
+     * If that was our first key exchange, this is the moment to send
+     * our EXT_INFO, if we're sending one.
+     */
+    if (!s->post_newkeys_ext_info) {
+        s->post_newkeys_ext_info = true; /* never do this again */
+        if (s->can_send_ext_info) {
+            strbuf *extinfo = strbuf_new();
+            uint32_t n_exts = 0;
+
+            if (s->ssc) {
+                /* Server->client EXT_INFO lists our supported user
+                 * key algorithms. */
+                n_exts++;
+                put_stringz(extinfo, "server-sig-algs");
+                strbuf *list = strbuf_new();
+                for (size_t i = 0; i < n_keyalgs; i++)
+                    add_to_commasep(list, all_keyalgs[i]->ssh_id);
+                put_stringsb(extinfo, list);
+            } else {
+                /* Client->server EXT_INFO is currently not sent, but here's
+                 * where we should put things in it if we ever want to. */
+            }
+
+            /* Only send EXT_INFO if it's non-empty */
+            if (n_exts) {
+                pktout = ssh_bpp_new_pktout(s->ppl.bpp, SSH2_MSG_EXT_INFO);
+                put_uint32(pktout, n_exts);
+                put_datapl(pktout, ptrlen_from_strbuf(extinfo));
+                pq_push(s->ppl.out_pq, pktout);
+            }
+        }
     }
 
     /*
