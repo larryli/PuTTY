@@ -627,10 +627,27 @@ static void ssh2_write_kexinit_lists(
          * host keys we actually have.
          */
         for (i = 0; i < our_nhostkeys; i++) {
+            const ssh_keyalg *keyalg = ssh_key_alg(our_hostkeys[i]);
+
             alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
-                                      ssh_key_alg(our_hostkeys[i])->ssh_id);
-            alg->u.hk.hostkey = ssh_key_alg(our_hostkeys[i]);
+                                      keyalg->ssh_id);
+            alg->u.hk.hostkey = keyalg;
+            alg->u.hk.hkflags = 0;
             alg->u.hk.warn = false;
+
+            if (keyalg == &ssh_rsa) {
+                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                                          "rsa-sha2-256");
+                alg->u.hk.hostkey = keyalg;
+                alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_256;
+                alg->u.hk.warn = false;
+
+                alg = ssh2_kexinit_addalg(kexlists[KEXLIST_HOSTKEY],
+                                          "rsa-sha2-512");
+                alg->u.hk.hostkey = keyalg;
+                alg->u.hk.hkflags = SSH_AGENT_RSA_SHA2_512;
+                alg->u.hk.warn = false;
+            }
         }
     } else if (first_time) {
         /*
@@ -841,7 +858,7 @@ static bool ssh2_scan_kexinits(
     transport_direction *cs, transport_direction *sc,
     bool *warn_kex, bool *warn_hk, bool *warn_cscipher, bool *warn_sccipher,
     Ssh *ssh, bool *ignore_guess_cs_packet, bool *ignore_guess_sc_packet,
-    int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST])
+    int *n_server_hostkeys, int server_hostkeys[MAXKEXLIST], unsigned *hkflags)
 {
     BinarySource client[1], server[1];
     int i;
@@ -1002,6 +1019,7 @@ static bool ssh2_scan_kexinits(
                 continue;
 
             *hostkey_alg = alg->u.hk.hostkey;
+            *hkflags = alg->u.hk.hkflags;
             *warn_hk = alg->u.hk.warn;
             break;
 
@@ -1210,7 +1228,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 ptrlen_from_strbuf(s->server_kexinit),
                 s->kexlists, &s->kex_alg, &s->hostkey_alg, s->cstrans,
                 s->sctrans, &s->warn_kex, &s->warn_hk, &s->warn_cscipher,
-                &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks))
+                &s->warn_sccipher, s->ppl.ssh, NULL, &s->ignorepkt, &nhk, hks,
+                &s->hkflags))
             return; /* false means a fatal error function was called */
 
         /*

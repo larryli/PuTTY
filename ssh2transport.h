@@ -28,6 +28,7 @@ struct kexinit_algorithm {
         } kex;
         struct {
             const ssh_keyalg *hostkey;
+            unsigned hkflags;
             bool warn;
         } hk;
         struct {
@@ -175,6 +176,7 @@ struct ssh2_transport_state {
     strbuf *hostkeyblob;
     char *keystr, *fingerprint;
     ssh_key *hkey;                     /* actual host key */
+    unsigned hkflags;                  /* signing flags, used in server */
     RSAKey *rsa_kex_key;             /* for RSA kex */
     bool rsa_kex_key_needs_freeing;
     ecdh_key *ecdh_key;                     /* for ECDH kex */
