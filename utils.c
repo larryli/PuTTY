@@ -858,7 +858,7 @@ void debug_memdump(const void *buf, int len, bool L)
                 dputs("   ");          /* 3 spaces */
                 foo[i] = ' ';
             } else {
-                debug_printf("%c%02.2x",
+                debug_printf("%c%2.2x",
                         &p[i] != (unsigned char *) buf
                         && i % 4 ? '.' : ' ', p[i]
                     );

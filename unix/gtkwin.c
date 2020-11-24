@@ -1928,7 +1928,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
                 sfree(old);
             }
             debug(" - final output, special, generic encoding = [%s]\n",
-                  charset_to_localenc(output_charset), string_string);
+                  string_string);
             sfree(string_string);
 #endif
             /*
