@@ -1674,35 +1674,37 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * The translations below are in line with X11 policy as far
          * as I know. */
         if ((event->state & GDK_CONTROL_MASK) && end == 2) {
-#ifdef KEY_EVENT_DIAGNOSTICS
-            int orig = output[1];
-#endif
+            int orig = use_ucsoutput ? ucsoutput[1] : output[1];
+            int new = orig;
 
-            if (output[1] >= '3' && output[1] <= '7') {
+            if (new >= '3' && new <= '7') {
                 /* ^3,...,^7 map to 0x1B,...,0x1F */
-                output[1] += '\x1B' - '3';
-            } else if (output[1] == '2' || output[1] == ' ') {
+                new += '\x1B' - '3';
+            } else if (new == '2' || new == ' ') {
                 /* ^2 and ^Space are both ^@, i.e. \0 */
-                output[1] = '\0';
-            } else if (output[1] == '8') {
+                new = '\0';
+            } else if (new == '8') {
                 /* ^8 is DEL */
-                output[1] = '\x7F';
-            } else if (output[1] == '/') {
+                new = '\x7F';
+            } else if (new == '/') {
                 /* ^/ is the same as ^_ */
-                output[1] = '\x1F';
-            } else if (output[1] >= 0x40 && output[1] < 0x7F) {
+                new = '\x1F';
+            } else if (new >= 0x40 && new < 0x7F) {
                 /* Everything anywhere near the alphabetics just gets
                  * masked. */
-                output[1] &= 0x1F;
+                new &= 0x1F;
             }
             /* Anything else, e.g. '0', is unchanged. */
 
 #ifdef KEY_EVENT_DIAGNOSTICS
-            if (orig == output[1])
+            if (orig == new) {
                 debug(" - manual Ctrl key handling did nothing\n");
-            else
+            } else {
                 debug(" - manual Ctrl key handling: %02x -> %02x\n",
-                      (unsigned)orig, (unsigned)output[1]);
+                      (unsigned)orig, (unsigned)new);
+                output[1] = new;
+                use_ucsoutput = false;
+            }
 #endif
         }
 
