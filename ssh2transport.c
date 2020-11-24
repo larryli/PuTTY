@@ -837,7 +837,7 @@ static void ssh2_write_kexinit_lists(
                 add_to_commasep(list, kexlists[i][j].name);
             }
         }
-        if (i == KEXLIST_KEX) {
+        if (i == KEXLIST_KEX && first_time) {
             if (our_hostkeys)          /* we're the server */
                 add_to_commasep(list, "ext-info-s");
             else                       /* we're the client */
