@@ -1035,6 +1035,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
     bool force_format_numeric_keypad = false;
     bool generated_something = false;
     char num_keypad_key = '\0';
+    const char *event_string = event->string ? event->string : "";
 
     noise_ultralight(NOISE_SOURCE_KEY, event->keyval);
 
@@ -1106,11 +1107,11 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         string_string = dupstr("");
         {
             int i;
-            for (i = 0; event->string[i]; i++) {
+            for (i = 0; event_string[i]; i++) {
                 char *old = string_string;
                 string_string = dupprintf("%s%s%02x", string_string,
                                           string_string[0] ? " " : "",
-                                          (unsigned)event->string[i] & 0xFF);
+                                          (unsigned)event_string[i] & 0xFF);
                 sfree(old);
             }
         }
@@ -1443,7 +1444,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
          * confirmation.)
          */
         output_charset = CS_ISO8859_1;
-        strncpy(output+1, event->string, lenof(output)-1);
+        strncpy(output+1, event_string, lenof(output)-1);
 #else /* !GTK_CHECK_VERSION(2,0,0) */
         /*
          * Most things can now be passed to
@@ -1552,7 +1553,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             int ulen;
 
             wlen = mb_to_wc(DEFAULT_CODEPAGE, 0,
-                            event->string, strlen(event->string),
+                            event_string, strlen(event_string),
                             widedata, lenof(widedata)-1);
 
 #ifdef KEY_EVENT_DIAGNOSTICS
