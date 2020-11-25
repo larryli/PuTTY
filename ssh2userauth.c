@@ -862,6 +862,7 @@ static void ssh2_userauth_process_queue(PacketProtocolLayer *ppl)
                         s->publickey_algorithm = dupstr("rsa-sha2-512");
                         s->signflags = SSH_AGENT_RSA_SHA2_512;
                     } else if (s->ppl.bpp->ext_info_rsa_sha256_ok) {
+                        sfree(s->publickey_algorithm);
                         s->publickey_algorithm = dupstr("rsa-sha2-256");
                         s->signflags = SSH_AGENT_RSA_SHA2_256;
                     }
