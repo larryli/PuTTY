@@ -1025,7 +1025,7 @@ For example, \cq{-sercfg 19200,8,n,1,N} denotes a baud rate of
 19200, 8 data bits, no parity, 1 stop bit and no flow control.
 
 \S2{using-cmdline-sshlog} \i\c{-sessionlog}, \i\c{-sshlog},
-\i\c{-sshrawlog}: specify session logging
+\i\c{-sshrawlog}: enable session logging
 
 These options cause the PuTTY network tools to write out a \i{log
 file}. Each of them expects a file name as an argument, e.g.
@@ -1040,6 +1040,14 @@ different logging modes, all available from the GUI too:
 \b \c{-sshrawlog} selects \q{SSH packets and raw data} logging mode.
 
 For more information on logging configuration, see \k{config-logging}.
+
+\S2{using-cmdline-logfileexists} \i\c{-logoverwrite}, \i\c{-logappend}:
+control behaviour with existing log file
+
+If logging has been enabled (in the saved configuration, or by another
+command-line option), and the specified log file already exists, these
+options tell the PuTTY network tools what to do so that they don't
+have to ask the user. See \k{config-logfileexists} for details.
 
 \S2{using-cmdline-proxycmd} \i\c{-proxycmd}: specify a local proxy
 command

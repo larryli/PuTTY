@@ -176,6 +176,16 @@ to suppress obvious passwords.)
 encrypted packet data.
 }
 
+\dt \cw{\-logoverwrite}
+
+\dd If PSCP is configured to write to a log file that already exists,
+discard the existing file.
+
+\dt \cw{\-logappend}
+
+\dd If PSCP is configured to write to a log file that already exists,
+append new log data to the existing file.
+
 \S{pscp-manpage-more-information} MORE INFORMATION
 
 For more information on \cw{pscp} it's probably best to go and look at

@@ -128,6 +128,16 @@ an effort is made to suppress obvious passwords.)
 encrypted packet data.
 }
 
+\dt \cw{\-logoverwrite}
+
+\dd If \cw{putty} is configured to write to a log file that already exists,
+discard the existing file.
+
+\dt \cw{\-logappend}
+
+\dd If \cw{putty} is configured to write to a log file that already exists,
+append new log data to the existing file.
+
 \dt \cw{\-cs} \e{charset}
 
 \dd This option specifies the character set in which \cw{putty}

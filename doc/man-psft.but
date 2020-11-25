@@ -156,6 +156,16 @@ to suppress obvious passwords.)
 encrypted packet data.
 }
 
+\dt \cw{\-logoverwrite}
+
+\dd If PSFTP is configured to write to a log file that already exists,
+discard the existing file.
+
+\dt \cw{\-logappend}
+
+\dd If PSFTP is configured to write to a log file that already exists,
+append new log data to the existing file.
+
 \S{psftp-manpage-commands} COMMANDS
 
 For a list of commands available inside \cw{psftp}, type \cw{help}

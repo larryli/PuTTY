@@ -90,6 +90,9 @@ use Plink:
 \c   -sshlog file
 \c   -sshrawlog file
 \c             log protocol details to a file
+\c   -logoverwrite
+\c   -logappend
+\c             control what happens when a log file already exists
 \c   -shareexists
 \c             test whether a connection-sharing upstream exists
 

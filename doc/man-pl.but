@@ -267,6 +267,16 @@ an effort is made to suppress obvious passwords.)
 encrypted packet data.
 }
 
+\dt \cw{\-logoverwrite}
+
+\dd If Plink is configured to write to a log file that already exists,
+discard the existing file.
+
+\dt \cw{\-logappend}
+
+\dd If Plink is configured to write to a log file that already exists,
+append new log data to the existing file.
+
 \dt \cw{\-shareexists}
 
 \dd Instead of making a new connection, test for the presence of an

@@ -72,6 +72,9 @@ use PSCP:
 \c   -sshlog file
 \c   -sshrawlog file
 \c             log protocol details to a file
+\c   -logoverwrite
+\c   -logappend
+\c             control what happens when a log file already exists
 
 (PSCP's interface is much like the Unix \c{scp} command, if you're
 familiar with that.)
