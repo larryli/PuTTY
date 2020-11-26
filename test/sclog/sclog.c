@@ -415,6 +415,19 @@ static dr_emit_flags_t instrument_instr(
             OPND_CREATE_INTPTR(loc));
         break;
 #endif
+#if defined(AARCH64)
+      case OP_sdiv:
+      case OP_udiv:
+        /*
+         * AArch64 hardware divisions. 0 = numerator, 1 = denominator.
+         */
+        instr_format_location(instr, &loc);
+        dr_insert_clean_call(
+            drcontext, bb, instr, (void *)log_div, false,
+            3, instr_get_src(instr, 0), instr_get_src(instr, 1),
+            OPND_CREATE_INTPTR(loc));
+        break;
+#endif
 #if defined(X86)
       case OP_shl:
       case OP_shr:
@@ -446,6 +459,26 @@ static dr_emit_flags_t instrument_instr(
           st = drreg_unreserve_register(drcontext, bb, instr, r0);
           DR_ASSERT(st == DRREG_SUCCESS);
         }
+        break;
+      }
+#endif
+#if defined(AARCH64)
+      case OP_lslv:
+      case OP_asrv:
+      case OP_lsrv:
+      case OP_rorv: {
+        /*
+         * AArch64 variable shift instructions.
+         */
+        opnd_t shiftcount = instr_get_src(instr, 1);
+        DR_ASSERT(opnd_is_reg(shiftcount));
+        reg_id_t shiftreg = opnd_get_reg(shiftcount);
+        if (shiftreg >= DR_REG_W0 && shiftreg <= DR_REG_WSP)
+            shiftreg = reg_32_to_64(shiftreg);
+        instr_format_location(instr, &loc);
+        dr_insert_clean_call(
+            drcontext, bb, instr, (void *)log_var_shift, false,
+            2, opnd_create_reg(shiftreg), OPND_CREATE_INTPTR(loc));
         break;
       }
 #endif
