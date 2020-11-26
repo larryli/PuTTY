@@ -546,6 +546,7 @@ static void try_wrap_fn(const module_data_t *module, const char *name,
 static void load_module(
     void *drcontext, const module_data_t *module, bool loaded)
 {
+    bool libc = !strncmp(dr_module_preferred_name(module), "libc", 4);
 
 #define TRY_WRAP(fn, pre, post) do                              \
     {                                                           \
@@ -556,31 +557,33 @@ static void load_module(
     if (loaded) {
         TRY_WRAP("log_to_file_real", wrap_logsetfile, NULL);
         TRY_WRAP("dry_run_real", NULL, wrap_dryrun);
-        TRY_WRAP("malloc", wrap_malloc_pre, wrap_alloc_post);
-        TRY_WRAP("realloc", wrap_realloc_pre, wrap_alloc_post);
-        TRY_WRAP("free", wrap_free_pre, unpause_post);
-        TRY_WRAP("memset", wrap_memset_pre, unpause_post);
+        if (libc) {
+            TRY_WRAP("malloc", wrap_malloc_pre, wrap_alloc_post);
+            TRY_WRAP("realloc", wrap_realloc_pre, wrap_alloc_post);
+            TRY_WRAP("free", wrap_free_pre, unpause_post);
+            TRY_WRAP("memset", wrap_memset_pre, unpause_post);
 
-        /*
-         * More strangely named versions of standard C library
-         * functions, which I've observed in practice to be where the
-         * calls end up. I think these are probably selected by
-         * STT_IFUNC in libc.so, so that the normally named version of
-         * the function is never reached at all.
-         *
-         * This list is not expected to be complete. If you re-run
-         * this test on a different platform and find control flow
-         * diverging inside some libc function that looks as if it's
-         * another name for malloc or memset or whatever, then you may
-         * need to add more aliases here to stop the test failing.
-         */
-        TRY_WRAP("__GI___libc_malloc", wrap_malloc_pre, wrap_alloc_post);
-        TRY_WRAP("__libc_malloc", wrap_malloc_pre, wrap_alloc_post);
-        TRY_WRAP("__GI___libc_realloc", wrap_realloc_pre, wrap_alloc_post);
-        TRY_WRAP("__GI___libc_free", wrap_free_pre, unpause_post);
-        TRY_WRAP("__memset_sse2_unaligned", wrap_memset_pre, unpause_post);
-        TRY_WRAP("__memset_sse2", wrap_memset_pre, unpause_post);
-        TRY_WRAP("cfree", wrap_free_pre, unpause_post);
+            /*
+             * More strangely named versions of standard C library
+             * functions, which I've observed in practice to be where the
+             * calls end up. I think these are probably selected by
+             * STT_IFUNC in libc.so, so that the normally named version of
+             * the function is never reached at all.
+             *
+             * This list is not expected to be complete. If you re-run
+             * this test on a different platform and find control flow
+             * diverging inside some libc function that looks as if it's
+             * another name for malloc or memset or whatever, then you may
+             * need to add more aliases here to stop the test failing.
+             */
+            TRY_WRAP("__GI___libc_malloc", wrap_malloc_pre, wrap_alloc_post);
+            TRY_WRAP("__libc_malloc", wrap_malloc_pre, wrap_alloc_post);
+            TRY_WRAP("__GI___libc_realloc", wrap_realloc_pre, wrap_alloc_post);
+            TRY_WRAP("__GI___libc_free", wrap_free_pre, unpause_post);
+            TRY_WRAP("__memset_sse2_unaligned", wrap_memset_pre, unpause_post);
+            TRY_WRAP("__memset_sse2", wrap_memset_pre, unpause_post);
+            TRY_WRAP("cfree", wrap_free_pre, unpause_post);
+        }
     }
 }
 
