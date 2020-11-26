@@ -400,6 +400,7 @@ static dr_emit_flags_t instrument_instr(
     int opcode = instr_get_opcode(instr);
 
     switch (opcode) {
+#if defined(X86)
       case OP_div:
       case OP_idiv:
         /*
@@ -413,6 +414,8 @@ static dr_emit_flags_t instrument_instr(
             3, instr_get_src(instr, 2), instr_get_src(instr, 0),
             OPND_CREATE_INTPTR(loc));
         break;
+#endif
+#if defined(X86)
       case OP_shl:
       case OP_shr:
       case OP_sar:
@@ -445,6 +448,7 @@ static dr_emit_flags_t instrument_instr(
         }
         break;
       }
+#endif
     }
 
     return DR_EMIT_DEFAULT;
