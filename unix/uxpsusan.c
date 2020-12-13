@@ -103,6 +103,8 @@ struct server_instance {
 
 static void log_to_stderr(unsigned id, const char *msg)
 {
+    if (!verbose)
+        return;
     if (id != (unsigned)-1)
         fprintf(stderr, "#%u: ", id);
     fputs(msg, stderr);
@@ -142,7 +144,10 @@ static const LogPolicyVtable server_logpolicy_vt = {
 static void show_help(FILE *fp)
 {
     fputs("usage:   psusan [options]\n"
-          "options: --sessiondir DIR     cwd for session subprocess (default $HOME)\n"
+          "options: --listen SOCKETPATH  listen for connections on a Unix-domain socket\n"
+          "         --listen-once        (with --listen) stop after one connection\n"
+          "         --verbose            print log messages to standard error\n"
+          "         --sessiondir DIR     cwd for session subprocess (default $HOME)\n"
           "         --sshlog FILE        write ssh-connection packet log to FILE\n"
           "         --sshrawlog FILE     write packets and raw data log to FILE\n"
           "also:    psusan --help        show this text\n"
@@ -159,13 +164,18 @@ static void show_version_and_exit(void)
 
 const bool buildinfo_gtk_relevant = false;
 
+static bool listening = false, listen_once = false;
 static bool finished = false;
 void server_instance_terminated(LogPolicy *lp)
 {
     struct server_instance *inst = container_of(
         lp, struct server_instance, logpolicy);
 
-    finished = true;
+    if (listening && !listen_once) {
+        log_to_stderr(inst->id, "connection terminated");
+    } else {
+        finished = true;
+    }
 
     sfree(inst);
 }
@@ -215,7 +225,11 @@ static bool longoptnoarg(const char *arg, const char *expected)
 struct server_config {
     Conf *conf;
     const SshServerConfig *ssc;
+
     unsigned next_id;
+
+    Socket *listening_socket;
+    Plug listening_plug;
 };
 
 static Plug *server_conn_plug(
@@ -235,6 +249,57 @@ static Plug *server_conn_plug(
         cfg->conf, cfg->ssc, NULL, 0, NULL, NULL,
         &inst->logpolicy, &unix_live_sftpserver_vt);
 }
+
+static void server_log(Plug *plug, PlugLogType type, SockAddr *addr, int port,
+                       const char *error_msg, int error_code)
+{
+    log_to_stderr(-1, error_msg);
+}
+
+static void server_closing(Plug *plug, const char *error_msg, int error_code,
+                           bool calling_back)
+{
+    log_to_stderr(-1, error_msg);
+}
+
+static int server_accepting(Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
+{
+    struct server_config *cfg = container_of(
+        p, struct server_config, listening_plug);
+    Socket *s;
+    const char *err;
+
+    struct server_instance *inst;
+
+    if (listen_once) {
+        if (!cfg->listening_socket) /* in case of rapid double-accept */
+            return 1;
+        sk_close(cfg->listening_socket);
+        cfg->listening_socket = NULL;
+    }
+
+    Plug *plug = server_conn_plug(cfg, &inst);
+    s = constructor(ctx, plug);
+    if ((err = sk_socket_error(s)) != NULL)
+        return 1;
+
+    SocketPeerInfo *pi = sk_peer_info(s);
+
+    char *msg = dupprintf("new connection from %s", pi->log_text);
+    log_to_stderr(inst->id, msg);
+    sfree(msg);
+    sk_free_peer_info(pi);
+
+    sk_set_frozen(s, false);
+    ssh_server_start(plug, s);
+    return 0;
+}
+
+static const PlugVtable server_plugvt = {
+    .log = server_log,
+    .closing = server_closing,
+    .accepting = server_accepting,
+};
 
 unsigned auth_methods(AuthPolicy *ap)
 { return 0; }
@@ -261,6 +326,8 @@ bool auth_successful(AuthPolicy *ap, ptrlen username, unsigned method)
 
 int main(int argc, char **argv)
 {
+    const char *listen_socket = NULL;
+
     SshServerConfig ssc;
 
     Conf *conf = make_ssh_server_conf();
@@ -280,6 +347,8 @@ int main(int argc, char **argv)
             exit(0);
         } else if (longoptnoarg(arg, "--version")) {
             show_version_and_exit();
+        } else if (longoptnoarg(arg, "--verbose") || !strcmp(arg, "-v")) {
+            verbose = true;
         } else if (longoptarg(arg, "--sessiondir", &val, &argc, &argv)) {
             ssc.session_starting_dir = val;
         } else if (longoptarg(arg, "--sshlog", &val, &argc, &argv) ||
@@ -296,6 +365,10 @@ int main(int argc, char **argv)
             filename_free(logfile);
             conf_set_int(conf, CONF_logtype, LGTYP_SSHRAW);
             conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
+        } else if (longoptarg(arg, "--listen", &val, &argc, &argv)) {
+            listen_socket = val;
+        } else if (!strcmp(arg, "--listen-once")) {
+            listen_once = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);
@@ -310,9 +383,20 @@ int main(int argc, char **argv)
     scfg.ssc = &ssc;
     scfg.next_id = 0;
 
-    struct server_instance *inst;
-    Plug *plug = server_conn_plug(&scfg, &inst);
-    ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
+    if (listen_socket) {
+        listening = true;
+        scfg.listening_plug.vt = &server_plugvt;
+        SockAddr *addr = unix_sock_addr(listen_socket);
+        scfg.listening_socket = new_unix_listener(addr, &scfg.listening_plug);
+        char *msg = dupprintf("listening on Unix socket %s", listen_socket);
+        log_to_stderr(-1, msg);
+        sfree(msg);
+    } else {
+        struct server_instance *inst;
+        Plug *plug = server_conn_plug(&scfg, &inst);
+        ssh_server_start(plug, make_fd_socket(0, 1, -1, plug));
+        log_to_stderr(inst->id, "running directly on stdio");
+    }
 
     cli_main_loop(cliloop_no_pw_setup, cliloop_no_pw_check,
                   psusan_continue, NULL);
