@@ -343,7 +343,7 @@ static void show_help(FILE *fp)
           "         --exitsignum         send buggy numeric \"exit-signal\" "
           "message\n"
           "         --verbose            print event log messages to standard "
-          "output\n"
+          "error\n"
           "         --sshlog FILE        write SSH packet log to FILE\n"
           "         --sshrawlog FILE     write SSH packets + raw data log"
           " to FILE\n"
