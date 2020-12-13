@@ -1,6 +1,7 @@
 typedef struct AuthPolicy AuthPolicy;
 
 struct SshServerConfig {
+    const char *application_name;
     const char *session_starting_dir;
 
     RSAKey *rsa_kex_key;

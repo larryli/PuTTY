@@ -302,7 +302,7 @@ void ssh_server_start(Plug *plug, Socket *socket)
     srv->bpp = ssh_verstring_new(
         srv->conf, srv->logctx, srv->ssc->bare_connection,
         our_protoversion, &srv->version_receiver,
-        true, "Uppity");
+        true, srv->ssc->application_name);
     server_connect_bpp(srv);
     queue_idempotent_callback(&srv->bpp->ic_in_raw);
 }

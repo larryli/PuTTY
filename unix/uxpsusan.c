@@ -267,6 +267,7 @@ int main(int argc, char **argv)
 
     memset(&ssc, 0, sizeof(ssc));
 
+    ssc.application_name = "PSUSAN";
     ssc.session_starting_dir = getenv("HOME");
     ssc.bare_connection = true;
 

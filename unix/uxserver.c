@@ -533,6 +533,7 @@ int main(int argc, char **argv)
 
     memset(&ssc, 0, sizeof(ssc));
 
+    ssc.application_name = "Uppity";
     ssc.session_starting_dir = getenv("HOME");
     ssc.ssh1_cipher_mask = SSH1_SUPPORTED_CIPHER_MASK;
     ssc.ssh1_allow_compression = true;
