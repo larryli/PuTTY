@@ -59,7 +59,7 @@ putty.info: $(INPUTS)
 
 MKMAN = $(HALIBUT) --man=$@ mancfg.but $<
 MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1 \
-           pageant.1
+           pageant.1 psusan.1
 man: $(MANPAGES)
 
 putty.1: man-putt.but mancfg.but; $(MKMAN)
@@ -70,6 +70,7 @@ psftp.1: man-psft.but mancfg.but; $(MKMAN)
 puttytel.1: man-ptel.but mancfg.but; $(MKMAN)
 pterm.1: man-pter.but mancfg.but; $(MKMAN)
 pageant.1: man-pag.but mancfg.but; $(MKMAN)
+psusan.1: man-psusan.but mancfg.but; $(MKMAN)
 
 mostlyclean:
 	rm -f *.html *.txt *.hlp *.cnt *.1 *.info vstr.but *.hh[pck]

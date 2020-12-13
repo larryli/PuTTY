@@ -2,8 +2,25 @@
  * 'psusan': Pseudo Ssh for Untappable, Separately Authenticated Networks
  *
  * This is a standalone application that speaks on its standard I/O
- * the server end of the bare ssh-connection protocol used by PuTTY's
- * connection sharing.
+ * (or a listening Unix-domain socket) the server end of the bare
+ * ssh-connection protocol used by PuTTY's connection sharing.
+ *
+ * The idea of this tool is that you can use it to communicate across
+ * any 8-bit-clean data channel between two inconveniently separated
+ * domains, provided the channel is already (as the name suggests)
+ * adequately secured against eavesdropping and modification and
+ * already authenticated as the right user.
+ *
+ * If you're sitting at one end of such a channel and want to type
+ * commands into the other end, the most obvious thing to do is to run
+ * a terminal session directly over it. But if you run psusan at one
+ * end, and a PuTTY (or compatible) client at the other end, then you
+ * not only get a single terminal session: you get all the other SSH
+ * amenities, like the ability to spawn extra terminal sessions,
+ * forward ports or X11 connections, even forward an SSH agent.
+ *
+ * There are a surprising number of channels of that kind; see the man
+ * page for some examples.
  */
 
 #include <stdio.h>
