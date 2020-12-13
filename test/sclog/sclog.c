@@ -212,6 +212,7 @@ static void wrap_malloc_pre(void *wrapctx, void **user_data)
 {
     logging_paused++;
     *user_data = drwrap_get_arg(wrapctx, 0);
+    dr_fprintf(outfile, "malloc %"PRIuMAX"\n", (uintmax_t)*user_data);
 }
 static void wrap_free_pre(void *wrapctx, void **user_data)
 {
@@ -225,6 +226,7 @@ static void wrap_realloc_pre(void *wrapctx, void **user_data)
     void *ptr = drwrap_get_arg(wrapctx, 0);
     freed(ptr);
     *user_data = drwrap_get_arg(wrapctx, 1);
+    dr_fprintf(outfile, "realloc %"PRIuMAX"\n", (uintmax_t)*user_data);
 }
 static void wrap_alloc_post(void *wrapctx, void *user_data)
 {
