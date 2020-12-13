@@ -62,14 +62,14 @@ MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1 \
            pageant.1 psusan.1
 man: $(MANPAGES)
 
-putty.1: man-putt.but mancfg.but; $(MKMAN)
-puttygen.1: man-pg.but mancfg.but; $(MKMAN)
-plink.1: man-pl.but mancfg.but; $(MKMAN)
+putty.1: man-putty.but mancfg.but; $(MKMAN)
+puttygen.1: man-puttygen.but mancfg.but; $(MKMAN)
+plink.1: man-plink.but mancfg.but; $(MKMAN)
 pscp.1: man-pscp.but mancfg.but; $(MKMAN)
-psftp.1: man-psft.but mancfg.but; $(MKMAN)
-puttytel.1: man-ptel.but mancfg.but; $(MKMAN)
-pterm.1: man-pter.but mancfg.but; $(MKMAN)
-pageant.1: man-pag.but mancfg.but; $(MKMAN)
+psftp.1: man-psftp.but mancfg.but; $(MKMAN)
+puttytel.1: man-puttytel.but mancfg.but; $(MKMAN)
+pterm.1: man-pterm.but mancfg.but; $(MKMAN)
+pageant.1: man-pageant.but mancfg.but; $(MKMAN)
 psusan.1: man-psusan.but mancfg.but; $(MKMAN)
 
 mostlyclean:
