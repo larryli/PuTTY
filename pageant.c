@@ -266,7 +266,7 @@ static void remove_all_keys(int ssh_version)
     }
 }
 
-static void list_keys(BinarySink *bs, int ssh_version)
+static void list_keys(BinarySink *bs, int ssh_version, bool extended)
 {
     int i;
     PageantKey *pk;
@@ -283,11 +283,33 @@ static void list_keys(BinarySink *bs, int ssh_version)
             put_datapl(bs, pk->sort.public_blob); /* no header */
 
         put_stringpl(bs, ptrlen_from_asciz(pk->comment));
+
+        if (extended) {
+            /*
+             * Append to each key entry a string containing extension
+             * data. This string begins with a flags word, and may in
+             * future contain further data if flag bits are set saying
+             * that it does. Hence, it's wrapped in a containing
+             * string, so that clients that only partially understand
+             * it can still find the parts they do understand.
+             */
+            strbuf *sb = strbuf_new();
+
+            uint32_t flags = 0;
+            if (!pk->skey)
+                flags |= LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY;
+            if (pk->encrypted_key_file)
+                flags |= LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE;
+            put_uint32(sb, flags);
+
+            put_stringsb(bs, sb);
+        }
     }
 }
 
-void pageant_make_keylist1(BinarySink *bs) { list_keys(bs, 1); }
-void pageant_make_keylist2(BinarySink *bs) { list_keys(bs, 2); }
+void pageant_make_keylist1(BinarySink *bs) { list_keys(bs, 1, false); }
+void pageant_make_keylist2(BinarySink *bs) { list_keys(bs, 2, false); }
+void pageant_make_keylist_extended(BinarySink *bs) { list_keys(bs, 2, true); }
 
 void pageant_register_client(PageantClient *pc)
 {
@@ -1261,6 +1283,35 @@ static PageantAsyncOp *pageant_make_op(
                 pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS "
                                    "(%u keys re-encrypted, %u failures)",
                                    nsuccesses, nfailures);
+            }
+            break;
+          }
+
+          case EXT_LIST_EXTENDED: {
+            /*
+             * Return a key list like SSH2_AGENTC_REQUEST_IDENTITIES,
+             * except that each key is annotated with extra
+             * information such as whether it's currently encrypted.
+             *
+             * The return message type is AGENT_SUCCESS with auxiliary
+             * data, which is more like other extension messages. I
+             * think it would be confusing to reuse IDENTITIES_ANSWER
+             * for a reply message with an incompatible format.
+             */
+            put_byte(sb, SSH_AGENT_SUCCESS);
+            pageant_make_keylist_extended(BinarySink_UPCAST(sb));
+
+            pageant_client_log(pc, reqid,
+                               "reply: SSH2_AGENT_SUCCESS + key list");
+            if (!pc->suppress_logging) {
+                int i;
+                ssh2_userkey *skey;
+                for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
+                    char *fingerprint = ssh2_fingerprint(skey->key);
+                    pageant_client_log(pc, reqid, "returned key: %s %s",
+                                       fingerprint, skey->comment);
+                    sfree(fingerprint);
+                }
             }
             break;
           }

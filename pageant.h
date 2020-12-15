@@ -253,4 +253,8 @@ int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
     X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))                 \
     X(EXT_REENCRYPT, PUTTYEXT("reencrypt"))             \
     X(EXT_REENCRYPT_ALL, PUTTYEXT("reencrypt-all"))     \
+    X(EXT_LIST_EXTENDED, PUTTYEXT("list-extended"))     \
     /* end of list */
+
+#define LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE    1
+#define LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY      2
