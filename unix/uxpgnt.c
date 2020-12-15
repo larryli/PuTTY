@@ -576,10 +576,16 @@ static bool unix_add_keyfile(const char *filename_str, bool add_encrypted)
     return ret;
 }
 
-void key_list_callback(void *ctx, const char *fingerprint,
-                       const char *comment, struct pageant_pubkey *key)
+void key_list_callback(void *ctx, const char *fingerprint, const char *comment,
+                       uint32_t ext_flags, struct pageant_pubkey *key)
 {
-    printf("%s %s\n", fingerprint, comment);
+    const char *mode = "";
+    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY)
+        mode = " (encrypted)";
+    else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
+        mode = " (re-encryptable)";
+
+    printf("%s %s%s\n", fingerprint, comment, mode);
 }
 
 struct key_find_ctx {
@@ -613,7 +619,8 @@ bool match_fingerprint_string(const char *string, const char *fingerprint)
 }
 
 void key_find_callback(void *vctx, const char *fingerprint,
-                       const char *comment, struct pageant_pubkey *key)
+                       const char *comment, uint32_t ext_flags,
+                       struct pageant_pubkey *key)
 {
     struct key_find_ctx *ctx = (struct key_find_ctx *)vctx;
 

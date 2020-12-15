@@ -2209,7 +2209,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             char *fingerprint = rsa_ssh1_fingerprint(&rkey);
             freersakey(&rkey);
 
-            callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
+            callback(callback_ctx, fingerprint, cbkey.comment,
+                     kl1->keys[i].flags, &cbkey);
             strbuf_free(cbkey.blob);
             sfree(cbkey.comment);
             sfree(fingerprint);
@@ -2225,7 +2226,8 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
 
             char *fingerprint = ssh2_fingerprint_blob(kl2->keys[i].blob);
 
-            callback(callback_ctx, fingerprint, cbkey.comment, &cbkey);
+            callback(callback_ctx, fingerprint, cbkey.comment,
+                     kl2->keys[i].flags, &cbkey);
             sfree(fingerprint);
             sfree(cbkey.comment);
             strbuf_free(cbkey.blob);

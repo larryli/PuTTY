@@ -233,6 +233,7 @@ void pageant_pubkey_free(struct pageant_pubkey *key);
 typedef void (*pageant_key_enum_fn_t)(void *ctx,
                                       const char *fingerprint,
                                       const char *comment,
+                                      uint32_t ext_flags,
                                       struct pageant_pubkey *key);
 int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr);
