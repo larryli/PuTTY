@@ -242,3 +242,15 @@ int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr);
 int pageant_reencrypt_all_keys(char **retstr);
 int pageant_sign(struct pageant_pubkey *key, ptrlen message, strbuf *out,
                  uint32_t flags, char **retstr);
+
+/*
+ * Definitions for agent protocol extensions.
+ */
+#define PUTTYEXT(base) base "@putty.projects.tartarus.org"
+
+#define KNOWN_EXTENSIONS(X)                             \
+    X(EXT_QUERY, "query")                               \
+    X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))                 \
+    X(EXT_REENCRYPT, PUTTYEXT("reencrypt"))             \
+    X(EXT_REENCRYPT_ALL, PUTTYEXT("reencrypt-all"))     \
+    /* end of list */

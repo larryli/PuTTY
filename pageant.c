@@ -609,15 +609,6 @@ static bool reencrypt_key(PageantKey *pk)
     return true;
 }
 
-#define PUTTYEXT(base) base "@putty.projects.tartarus.org"
-
-#define KNOWN_EXTENSIONS(X)                             \
-    X(EXT_QUERY, "query")                               \
-    X(EXT_ADD_PPK, PUTTYEXT("add-ppk"))                 \
-    X(EXT_REENCRYPT, PUTTYEXT("reencrypt"))             \
-    X(EXT_REENCRYPT_ALL, PUTTYEXT("reencrypt-all"))     \
-    /* end of list */
-
 #define DECL_EXT_ENUM(id, name) id,
 enum Extension { KNOWN_EXTENSIONS(DECL_EXT_ENUM) EXT_UNKNOWN };
 #define DEF_EXT_NAMES(id, name) PTRLEN_DECL_LITERAL(name),
