@@ -1805,6 +1805,7 @@ void pageant_forget_passphrases(void)
 
 typedef struct KeyListEntry {
     ptrlen blob, comment;
+    uint32_t flags;
 } KeyListEntry;
 typedef struct KeyList {
     strbuf *raw_data;
@@ -1820,22 +1821,53 @@ static void keylist_free(KeyList *kl)
     sfree(kl);
 }
 
+static PageantClientOp *pageant_request_keylist_1(void)
+{
+    PageantClientOp *pco = pageant_client_op_new();
+    put_byte(pco, SSH1_AGENTC_REQUEST_RSA_IDENTITIES);
+    if (pageant_client_op_query(pco) == SSH1_AGENT_RSA_IDENTITIES_ANSWER)
+        return pco;
+    pageant_client_op_free(pco);
+    return NULL;
+}
+
+static PageantClientOp *pageant_request_keylist_2(void)
+{
+    PageantClientOp *pco = pageant_client_op_new();
+    put_byte(pco, SSH2_AGENTC_REQUEST_IDENTITIES);
+    if (pageant_client_op_query(pco) == SSH2_AGENT_IDENTITIES_ANSWER)
+        return pco;
+    pageant_client_op_free(pco);
+    return NULL;
+}
+
+static PageantClientOp *pageant_request_keylist_extended(void)
+{
+    PageantClientOp *pco = pageant_client_op_new();
+    put_byte(pco, SSH2_AGENTC_EXTENSION);
+    put_stringpl(pco, extension_names[EXT_LIST_EXTENDED]);
+    if (pageant_client_op_query(pco) == SSH_AGENT_SUCCESS)
+        return pco;
+    pageant_client_op_free(pco);
+    return NULL;
+}
+
 static KeyList *pageant_get_keylist(unsigned ssh_version)
 {
-    static const unsigned char requests[] = {
-        0, SSH1_AGENTC_REQUEST_RSA_IDENTITIES, SSH2_AGENTC_REQUEST_IDENTITIES
-    }, responses[] = {
-        0, SSH1_AGENT_RSA_IDENTITIES_ANSWER, SSH2_AGENT_IDENTITIES_ANSWER
-    };
+    PageantClientOp *pco;
+    bool list_is_extended = false;
 
-    PageantClientOp *pco = pageant_client_op_new();
-    put_byte(pco, requests[ssh_version]);
-    unsigned reply = pageant_client_op_query(pco);
-
-    if (reply != responses[ssh_version]) {
-        pageant_client_op_free(pco);
-        return NULL;
+    if (ssh_version == 1) {
+        pco = pageant_request_keylist_1();
+    } else {
+        if ((pco = pageant_request_keylist_extended()) != NULL)
+            list_is_extended = true;
+        else
+            pco = pageant_request_keylist_2();
     }
+
+    if (!pco)
+        return NULL;
 
     KeyList *kl = snew(KeyList);
     kl->nkeys = get_uint32(pco);
@@ -1849,6 +1881,16 @@ static KeyList *pageant_get_keylist(unsigned ssh_version)
             kl->keys[i].blob = get_string(pco);
         }
         kl->keys[i].comment = get_string(pco);
+
+        if (list_is_extended) {
+            ptrlen key_ext_info = get_string(pco);
+            BinarySource src[1];
+            BinarySource_BARE_INIT_PL(src, key_ext_info);
+
+            kl->keys[i].flags = get_uint32(src);
+        } else {
+            kl->keys[i].flags = 0;
+        }
     }
 
     kl->broken = get_err(pco);
