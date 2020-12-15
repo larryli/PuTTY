@@ -244,12 +244,21 @@ bool pageant_add_ssh2_key(ssh2_userkey *skey)
     pk->blocked_requests.next = pk->blocked_requests.prev =
         &pk->blocked_requests;
 
-    if (add234(keytree, pk) == pk) {
+    PageantKey *pk_in_tree = add234(keytree, pk);
+    if (pk_in_tree == pk) {
+        /* The key wasn't in the tree at all, and we've just added it. */
         pk->skey = skey;
         if (skey->comment)
             pk->comment = dupstr(skey->comment);
         return true;
+    } else if (!pk_in_tree->skey) {
+        /* The key was only stored encrypted, and now we have an
+         * unencrypted version to add to the existing record. */
+        pk_in_tree->skey = skey;
+        pk_free(pk);
+        return true;
     } else {
+        /* The key was already in the tree in full. */
         pk_free(pk);
         return false;
     }
