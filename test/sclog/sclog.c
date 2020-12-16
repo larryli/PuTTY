@@ -452,8 +452,9 @@ static dr_emit_flags_t instrument_instr(
           st = drreg_reserve_register(drcontext, bb, instr, NULL, &r0);
           DR_ASSERT(st == DRREG_SUCCESS);
           opnd_t op_r0 = opnd_create_reg(r0);
-          instrlist_preinsert(bb, instr, INSTR_CREATE_movzx(
-                                  drcontext, op_r0, shiftcount));
+          instr_t *movzx = INSTR_CREATE_movzx(drcontext, op_r0, shiftcount);
+          instr_set_translation(movzx, instr_get_app_pc(instr));
+          instrlist_preinsert(bb, instr, movzx);
           instr_format_location(instr, &loc);
           dr_insert_clean_call(
               drcontext, bb, instr, (void *)log_var_shift, false,
