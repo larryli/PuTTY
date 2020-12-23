@@ -13,6 +13,12 @@
 #include "sshserver.h"
 #include "sftp.h"
 
+struct agentfwd {
+    ConnectionLayer *cl;
+    Socket *socket;
+    Plug plug;
+};
+
 typedef struct sesschan {
     SshChannel *c;
 
@@ -35,8 +41,7 @@ typedef struct sesschan {
     int n_x11_sockets;
     Socket *x11_sockets[MAX_X11_SOCKETS];
 
-    Plug agentfwd_plug;
-    Socket *agentfwd_socket;
+    agentfwd *agent;
 
     Backend *backend;
 
@@ -248,8 +253,8 @@ static void sesschan_free(Channel *chan)
         sftpsrv_free(sess->sftpsrv);
     for (i = 0; i < sess->n_x11_sockets; i++)
         sk_close(sess->x11_sockets[i]);
-    if (sess->agentfwd_socket)
-        sk_close(sess->agentfwd_socket);
+    if (sess->agent)
+        agentfwd_free(sess->agent);
 
     sfree(sess);
 }
@@ -437,19 +442,19 @@ bool sesschan_enable_x11_forwarding(
 static int agentfwd_accepting(
     Plug *p, accept_fn_t constructor, accept_ctx_t ctx)
 {
-    sesschan *sess = container_of(p, sesschan, agentfwd_plug);
+    agentfwd *agent = container_of(p, agentfwd, plug);
     Plug *plug;
     Channel *chan;
     Socket *s;
     const char *err;
 
-    chan = portfwd_raw_new(sess->c->cl, &plug, false);
+    chan = portfwd_raw_new(agent->cl, &plug, false);
     s = constructor(ctx, plug);
     if ((err = sk_socket_error(s)) != NULL) {
         portfwd_raw_free(chan);
         return 1;
     }
-    portfwd_raw_setup(chan, s, ssh_serverside_agent_open(sess->c->cl, chan));
+    portfwd_raw_setup(chan, s, ssh_serverside_agent_open(agent->cl, chan));
 
     return 0;
 }
@@ -460,28 +465,51 @@ static const PlugVtable agentfwd_plugvt = {
     .accepting = agentfwd_accepting,
 };
 
+agentfwd *agentfwd_new(ConnectionLayer *cl, char **socketname_out)
+{
+    agentfwd *agent = snew(agentfwd);
+    agent->cl = cl;
+    agent->plug.vt = &agentfwd_plugvt;
+
+    char *dir_prefix = dupprintf("/tmp/%s-agentfwd", appname);
+    char *error = NULL, *socketname = NULL;
+    agent->socket = platform_make_agent_socket(
+        &agent->plug, dir_prefix, &error, &socketname);
+    sfree(dir_prefix);
+    sfree(error);
+
+    if (!agent->socket) {
+        sfree(agent);
+        sfree(socketname);
+        return NULL;
+    }
+
+    *socketname_out = socketname;
+    return agent;
+}
+
+void agentfwd_free(agentfwd *agent)
+{
+    if (agent->socket)
+        sk_close(agent->socket);
+    sfree(agent);
+}
+
 bool sesschan_enable_agent_forwarding(Channel *chan)
 {
     sesschan *sess = container_of(chan, sesschan, chan);
-    char *error, *socketname, *dir_prefix;
+    char *socketname;
 
-    dir_prefix = dupprintf("/tmp/%s-agentfwd", appname);
+    assert(!sess->agent);
 
-    sess->agentfwd_plug.vt = &agentfwd_plugvt;
-    sess->agentfwd_socket = platform_make_agent_socket(
-        &sess->agentfwd_plug, dir_prefix, &error, &socketname);
+    sess->agent = agentfwd_new(sess->c->cl, &socketname);
 
-    sfree(dir_prefix);
+    if (!sess->agent)
+        return false;
 
-    if (sess->agentfwd_socket) {
-        conf_set_str_str(sess->conf, CONF_environmt,
-                         "SSH_AUTH_SOCK", socketname);
-    }
-
-    sfree(error);
+    conf_set_str_str(sess->conf, CONF_environmt, "SSH_AUTH_SOCK", socketname);
     sfree(socketname);
-
-    return sess->agentfwd_socket != NULL;
+    return true;
 }
 
 bool sesschan_allocate_pty(

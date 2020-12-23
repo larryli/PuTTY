@@ -783,6 +783,8 @@ int main(int argc, char **argv)
             conf_set_int(conf, CONF_logxfovr, LGXF_OVR);
         } else if (!strcmp(arg, "--pretend-to-accept-any-pubkey")) {
             ssc.stunt_pretend_to_accept_any_pubkey = true;
+        } else if (!strcmp(arg, "--open-unconditional-agent-socket")) {
+            ssc.stunt_open_unconditional_agent_socket = true;
         } else {
             fprintf(stderr, "%s: unrecognised option '%s'\n", appname, arg);
             exit(1);

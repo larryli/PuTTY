@@ -46,6 +46,8 @@ struct server {
     LogPolicy *logpolicy;
     const SftpServerVtable *sftpserver_vt;
 
+    agentfwd *stunt_agentfwd;
+
     Seat seat;
     Ssh ssh;
     struct ssh_version_receiver version_receiver;
@@ -320,6 +322,9 @@ static void ssh_server_free_callback(void *vsrv)
     if (srv->socket)
         sk_close(srv->socket);
 
+    if (srv->stunt_agentfwd)
+        agentfwd_free(srv->stunt_agentfwd);
+
     if (srv->base_layer)
         ssh_ppl_free(srv->base_layer);
     if (srv->bpp)
@@ -568,6 +573,16 @@ static void server_got_ssh_version(struct ssh_version_receiver *rcv,
 #ifdef FIXME // we probably will want one of these, in the end
     srv->pinger = pinger_new(srv->conf, &srv->backend);
 #endif
+
+    if (srv->ssc->stunt_open_unconditional_agent_socket) {
+        char *socketname;
+        srv->stunt_agentfwd = agentfwd_new(srv->cl, &socketname);
+        if (srv->stunt_agentfwd) {
+            logeventf(srv->logctx, "opened unconditional agent socket at %s\n",
+                      socketname);
+            sfree(socketname);
+        }
+    }
 
     queue_idempotent_callback(&srv->bpp->ic_in_raw);
     ssh_ppl_process_queue(srv->base_layer);
