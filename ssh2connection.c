@@ -62,7 +62,6 @@ static void ssh2_throttle_all_channels(ConnectionLayer *cl, bool throttled);
 static bool ssh2_ldisc_option(ConnectionLayer *cl, int option);
 static void ssh2_set_ldisc_option(ConnectionLayer *cl, int option, bool value);
 static void ssh2_enable_x_fwd(ConnectionLayer *cl);
-static void ssh2_enable_agent_fwd(ConnectionLayer *cl);
 static void ssh2_set_wants_user_input(ConnectionLayer *cl, bool wanted);
 
 static const ConnectionLayerVtable ssh2_connlayer_vtable = {
@@ -88,7 +87,6 @@ static const ConnectionLayerVtable ssh2_connlayer_vtable = {
     .ldisc_option = ssh2_ldisc_option,
     .set_ldisc_option = ssh2_set_ldisc_option,
     .enable_x_fwd = ssh2_enable_x_fwd,
-    .enable_agent_fwd = ssh2_enable_agent_fwd,
     .set_wants_user_input = ssh2_set_wants_user_input,
 };
 
@@ -1692,14 +1690,6 @@ static void ssh2_enable_x_fwd(ConnectionLayer *cl)
         container_of(cl, struct ssh2_connection_state, cl);
 
     s->X11_fwd_enabled = true;
-}
-
-static void ssh2_enable_agent_fwd(ConnectionLayer *cl)
-{
-    struct ssh2_connection_state *s =
-        container_of(cl, struct ssh2_connection_state, cl);
-
-    s->agent_fwd_enabled = true;
 }
 
 static void ssh2_set_wants_user_input(ConnectionLayer *cl, bool wanted)

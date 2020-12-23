@@ -236,7 +236,6 @@ static void mainchan_request_response(Channel *chan, bool success)
 
         if (success) {
             ppl_logevent("Agent forwarding enabled");
-            ssh_enable_agent_fwd(mc->cl);
         } else {
             ppl_logevent("Agent forwarding refused");
         }

@@ -294,11 +294,10 @@ struct ConnectionLayerVtable {
      * channel) what its preference for line-discipline options is. */
     void (*set_ldisc_option)(ConnectionLayer *cl, int option, bool value);
 
-    /* Communicate to the connection layer whether X and agent
-     * forwarding were successfully enabled (for purposes of
-     * knowing whether to accept subsequent channel-opens). */
+    /* Communicate to the connection layer whether X forwarding was
+     * successfully enabled (for purposes of knowing whether to accept
+     * subsequent channel-opens). */
     void (*enable_x_fwd)(ConnectionLayer *cl);
-    void (*enable_agent_fwd)(ConnectionLayer *cl);
 
     /* Communicate to the connection layer whether the main session
      * channel currently wants user input. */
@@ -370,8 +369,6 @@ static inline void ssh_set_ldisc_option(ConnectionLayer *cl, int opt, bool val)
 { cl->vt->set_ldisc_option(cl, opt, val); }
 static inline void ssh_enable_x_fwd(ConnectionLayer *cl)
 { cl->vt->enable_x_fwd(cl); }
-static inline void ssh_enable_agent_fwd(ConnectionLayer *cl)
-{ cl->vt->enable_agent_fwd(cl); }
 static inline void ssh_set_wants_user_input(ConnectionLayer *cl, bool wanted)
 { cl->vt->set_wants_user_input(cl, wanted); }
 

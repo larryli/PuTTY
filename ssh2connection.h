@@ -29,7 +29,6 @@ struct ssh2_connection_state {
     tree234 *x11authtree;
 
     bool got_pty;
-    bool agent_fwd_enabled;
 
     tree234 *rportfwds;
     PortFwdManager *portfwdmgr;

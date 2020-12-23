@@ -151,7 +151,7 @@ bool ssh1_handle_direction_specific_packet(
         remid = get_uint32(pktin);
 
         /* Refuse if agent forwarding is disabled. */
-        if (!s->agent_fwd_enabled) {
+        if (!ssh_agent_forwarding_permitted(&s->cl)) {
             pktout = ssh_bpp_new_pktout(
                 s->ppl.bpp, SSH1_MSG_CHANNEL_OPEN_FAILURE);
             put_uint32(pktout, remid);

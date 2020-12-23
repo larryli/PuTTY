@@ -89,7 +89,7 @@ static ChanopenResult chan_open_forwarded_tcpip(
 static ChanopenResult chan_open_auth_agent(
     struct ssh2_connection_state *s, SshChannel *sc)
 {
-    if (!s->agent_fwd_enabled) {
+    if (!ssh_agent_forwarding_permitted(&s->cl)) {
         CHANOPEN_RETURN_FAILURE(
             SSH2_OPEN_ADMINISTRATIVELY_PROHIBITED,
             ("Agent forwarding is not enabled"));

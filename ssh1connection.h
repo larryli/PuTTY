@@ -31,8 +31,6 @@ struct ssh1_connection_state {
     struct X11FakeAuth *x11auth;
     tree234 *x11authtree;
 
-    bool agent_fwd_enabled;
-
     tree234 *rportfwds;
     PortFwdManager *portfwdmgr;
     bool portfwdmgr_configured;
