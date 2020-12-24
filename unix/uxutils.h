@@ -24,6 +24,10 @@
 #include <asm/hwcap.h>
 #endif
 
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
+
 #if defined HAVE_GETAUXVAL
 /* No code needed: getauxval has just the API we want already */
 #elif defined HAVE_ELF_AUX_INFO
@@ -41,5 +45,15 @@ static inline u_long getauxval(int which) { return 0; }
 #endif
 
 #endif /* defined __arm__ || defined __aarch64__ */
+
+#if defined __APPLE__
+static inline bool test_sysctl_flag(const char *flagname)
+{
+    int value;
+    size_t size = sizeof(value);
+    return (sysctlbyname(flagname, &value, &size, NULL, 0) == 0 &&
+            size == sizeof(value) && value != 0);
+}
+#endif /* defined __APPLE__ */
 
 #endif /* PUTTY_UXUTILS_H */

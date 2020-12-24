@@ -2289,80 +2289,95 @@ class standard_test_vectors(MyTestBase):
                     "8ad3361763f7e9b2d95f4f0da6e1ccbc"))
 
     def testSHA384(self):
-        # Test cases from RFC 6234 section 8.5, omitting the ones
-        # whose input is not a multiple of 8 bits
-        self.assertEqualBin(hash_str('sha384', "abc"), unhex(
-            'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded163'
-            '1a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7'))
-        self.assertEqualBin(hash_str('sha384',
-            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-            "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
-            '09330c33f71147e83d192fc782cd1b4753111b173b3b05d2'
-            '2fa08086e3b0f712fcc7c71a557e2db966c3e9fa91746039'))
-        self.assertEqualBin(hash_str_iter('sha384',
-            ("a" * 1000 for _ in range(1000))), unhex(
-            '9d0e1809716474cb086e834e310a4a1ced149e9c00f24852'
-            '7972cec5704c2a5b07b8b3dc38ecc4ebae97ddd87f3d8985'))
-        self.assertEqualBin(hash_str('sha384',
-            "01234567012345670123456701234567" * 20), unhex(
-            '2fc64a4f500ddb6828f6a3430b8dd72a368eb7f3a8322a70'
-            'bc84275b9c0b3ab00d27a5cc3c2d224aa6b61a0d79fb4596'))
-        self.assertEqualBin(hash_str('sha384', b"\xB9"), unhex(
-            'bc8089a19007c0b14195f4ecc74094fec64f01f90929282c'
-            '2fb392881578208ad466828b1c6c283d2722cf0ad1ab6938'))
-        self.assertEqualBin(hash_str('sha384',
-            unhex("a41c497779c0375ff10a7f4e08591739")), unhex(
-            'c9a68443a005812256b8ec76b00516f0dbb74fab26d66591'
-            '3f194b6ffb0e91ea9967566b58109cbc675cc208e4c823f7'))
-        self.assertEqualBin(hash_str('sha384', unhex(
-            "399669e28f6b9c6dbcbb6912ec10ffcf74790349b7dc8fbe4a8e7b3b5621db0f"
-            "3e7dc87f823264bbe40d1811c9ea2061e1c84ad10a23fac1727e7202fc3f5042"
-            "e6bf58cba8a2746e1f64f9b9ea352c711507053cf4e5339d52865f25cc22b5e8"
-            "7784a12fc961d66cb6e89573199a2ce6565cbdf13dca403832cfcb0e8b7211e8"
-            "3af32a11ac17929ff1c073a51cc027aaedeff85aad7c2b7c5a803e2404d96d2a"
-            "77357bda1a6daeed17151cb9bc5125a422e941de0ca0fc5011c23ecffefdd096"
-            "76711cf3db0a3440720e1615c1f22fbc3c721de521e1b99ba1bd557740864214"
-            "7ed096")), unhex(
-            '4f440db1e6edd2899fa335f09515aa025ee177a79f4b4aaf'
-            '38e42b5c4de660f5de8fb2a5b2fbd2a3cbffd20cff1288c0'))
+        for hashname in ['sha384_sw', 'sha384_hw']:
+            if ssh_hash_new(hashname) is None:
+                continue # skip testing of unavailable HW implementation
+
+            # Test cases from RFC 6234 section 8.5, omitting the ones
+            # whose input is not a multiple of 8 bits
+            self.assertEqualBin(hash_str('sha384', "abc"), unhex(
+                'cb00753f45a35e8bb5a03d699ac65007272c32ab0eded163'
+                '1a8b605a43ff5bed8086072ba1e7cc2358baeca134c825a7'))
+            self.assertEqualBin(hash_str('sha384',
+                "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
+                "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"),
+                unhex('09330c33f71147e83d192fc782cd1b4753111b173b3b05d2'
+                      '2fa08086e3b0f712fcc7c71a557e2db966c3e9fa91746039'))
+            self.assertEqualBin(hash_str_iter('sha384',
+                ("a" * 1000 for _ in range(1000))), unhex(
+                '9d0e1809716474cb086e834e310a4a1ced149e9c00f24852'
+                '7972cec5704c2a5b07b8b3dc38ecc4ebae97ddd87f3d8985'))
+            self.assertEqualBin(hash_str('sha384',
+                "01234567012345670123456701234567" * 20), unhex(
+                '2fc64a4f500ddb6828f6a3430b8dd72a368eb7f3a8322a70'
+                'bc84275b9c0b3ab00d27a5cc3c2d224aa6b61a0d79fb4596'))
+            self.assertEqualBin(hash_str('sha384', b"\xB9"), unhex(
+                'bc8089a19007c0b14195f4ecc74094fec64f01f90929282c'
+                '2fb392881578208ad466828b1c6c283d2722cf0ad1ab6938'))
+            self.assertEqualBin(hash_str('sha384',
+                unhex("a41c497779c0375ff10a7f4e08591739")), unhex(
+                'c9a68443a005812256b8ec76b00516f0dbb74fab26d66591'
+                '3f194b6ffb0e91ea9967566b58109cbc675cc208e4c823f7'))
+            self.assertEqualBin(hash_str('sha384', unhex(
+                "399669e28f6b9c6dbcbb6912ec10ffcf74790349b7dc8fbe4a8e7b3b5621"
+                "db0f3e7dc87f823264bbe40d1811c9ea2061e1c84ad10a23fac1727e7202"
+                "fc3f5042e6bf58cba8a2746e1f64f9b9ea352c711507053cf4e5339d5286"
+                "5f25cc22b5e87784a12fc961d66cb6e89573199a2ce6565cbdf13dca4038"
+                "32cfcb0e8b7211e83af32a11ac17929ff1c073a51cc027aaedeff85aad7c"
+                "2b7c5a803e2404d96d2a77357bda1a6daeed17151cb9bc5125a422e941de"
+                "0ca0fc5011c23ecffefdd09676711cf3db0a3440720e1615c1f22fbc3c72"
+                "1de521e1b99ba1bd5577408642147ed096")), unhex(
+                '4f440db1e6edd2899fa335f09515aa025ee177a79f4b4aaf'
+                '38e42b5c4de660f5de8fb2a5b2fbd2a3cbffd20cff1288c0'))
 
     def testSHA512(self):
-        # Test cases from RFC 6234 section 8.5, omitting the ones
-        # whose input is not a multiple of 8 bits
-        self.assertEqualBin(hash_str('sha512', "abc"), unhex(
-            'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a'
-            '2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f'))
-        self.assertEqualBin(hash_str('sha512',
-            "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
-            "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"), unhex(
-            '8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299aeadb6889018'
-            '501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26545e96e55b874be909'))
-        self.assertEqualBin(hash_str_iter('sha512',
-            ("a" * 1000 for _ in range(1000))), unhex(
-            'e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa973eb'
-            'de0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217ad8cc09b'))
-        self.assertEqualBin(hash_str('sha512',
-            "01234567012345670123456701234567" * 20), unhex(
-            '89d05ba632c699c31231ded4ffc127d5a894dad412c0e024db872d1abd2ba814'
-            '1a0f85072a9be1e2aa04cf33c765cb510813a39cd5a84c4acaa64d3f3fb7bae9'))
-        self.assertEqualBin(hash_str('sha512', b"\xD0"), unhex(
-            '9992202938e882e73e20f6b69e68a0a7149090423d93c81bab3f21678d4aceee'
-            'e50e4e8cafada4c85a54ea8306826c4ad6e74cece9631bfa8a549b4ab3fbba15'))
-        self.assertEqualBin(hash_str('sha512',
-            unhex("8d4e3c0e3889191491816e9d98bff0a0")), unhex(
-            'cb0b67a4b8712cd73c9aabc0b199e9269b20844afb75acbdd1c153c9828924c3'
-            'ddedaafe669c5fdd0bc66f630f6773988213eb1b16f517ad0de4b2f0c95c90f8'))
-        self.assertEqualBin(hash_str('sha512', unhex(
-            "a55f20c411aad132807a502d65824e31a2305432aa3d06d3e282a8d84e0de1de"
-            "6974bf495469fc7f338f8054d58c26c49360c3e87af56523acf6d89d03e56ff2"
-            "f868002bc3e431edc44df2f0223d4bb3b243586e1a7d924936694fcbbaf88d95"
-            "19e4eb50a644f8e4f95eb0ea95bc4465c8821aacd2fe15ab4981164bbb6dc32f"
-            "969087a145b0d9cc9c67c22b763299419cc4128be9a077b3ace634064e6d9928"
-            "3513dc06e7515d0d73132e9a0dc6d3b1f8b246f1a98a3fc72941b1e3bb2098e8"
-            "bf16f268d64f0b0f4707fe1ea1a1791ba2f3c0c758e5f551863a96c949ad47d7"
-            "fb40d2")), unhex(
-            'c665befb36da189d78822d10528cbf3b12b3eef726039909c1a16a270d487193'
-            '77966b957a878e720584779a62825c18da26415e49a7176a894e7510fd1451f5'))
+        for hashname in ['sha512_sw', 'sha512_hw']:
+            if ssh_hash_new(hashname) is None:
+                continue # skip testing of unavailable HW implementation
+
+            # Test cases from RFC 6234 section 8.5, omitting the ones
+            # whose input is not a multiple of 8 bits
+            self.assertEqualBin(hash_str('sha512', "abc"), unhex(
+                'ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55'
+                'd39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94f'
+                'a54ca49f'))
+            self.assertEqualBin(hash_str('sha512',
+                "abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmn"
+                "hijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu"),
+                unhex('8e959b75dae313da8cf4f72814fc143f8f7779c6eb9f7fa17299'
+                'aeadb6889018501d289e4900f7e4331b99dec4b5433ac7d329eeb6dd26'
+                '545e96e55b874be909'))
+            self.assertEqualBin(hash_str_iter('sha512',
+                ("a" * 1000 for _ in range(1000))), unhex(
+                'e718483d0ce769644e2e42c7bc15b4638e1f98b13b2044285632a803afa9'
+                '73ebde0ff244877ea60a4cb0432ce577c31beb009c5c2c49aa2e4eadb217'
+                'ad8cc09b'))
+            self.assertEqualBin(hash_str('sha512',
+                "01234567012345670123456701234567" * 20), unhex(
+                '89d05ba632c699c31231ded4ffc127d5a894dad412c0e024db872d1abd2b'
+                'a8141a0f85072a9be1e2aa04cf33c765cb510813a39cd5a84c4acaa64d3f'
+                '3fb7bae9'))
+            self.assertEqualBin(hash_str('sha512', b"\xD0"), unhex(
+                '9992202938e882e73e20f6b69e68a0a7149090423d93c81bab3f21678d4a'
+                'ceeee50e4e8cafada4c85a54ea8306826c4ad6e74cece9631bfa8a549b4a'
+                'b3fbba15'))
+            self.assertEqualBin(hash_str('sha512',
+                unhex("8d4e3c0e3889191491816e9d98bff0a0")), unhex(
+                'cb0b67a4b8712cd73c9aabc0b199e9269b20844afb75acbdd1c153c98289'
+                '24c3ddedaafe669c5fdd0bc66f630f6773988213eb1b16f517ad0de4b2f0'
+                'c95c90f8'))
+            self.assertEqualBin(hash_str('sha512', unhex(
+                "a55f20c411aad132807a502d65824e31a2305432aa3d06d3e282a8d84e0d"
+                "e1de6974bf495469fc7f338f8054d58c26c49360c3e87af56523acf6d89d"
+                "03e56ff2f868002bc3e431edc44df2f0223d4bb3b243586e1a7d92493669"
+                "4fcbbaf88d9519e4eb50a644f8e4f95eb0ea95bc4465c8821aacd2fe15ab"
+                "4981164bbb6dc32f969087a145b0d9cc9c67c22b763299419cc4128be9a0"
+                "77b3ace634064e6d99283513dc06e7515d0d73132e9a0dc6d3b1f8b246f1"
+                "a98a3fc72941b1e3bb2098e8bf16f268d64f0b0f4707fe1ea1a1791ba2f3"
+                "c0c758e5f551863a96c949ad47d7fb40d2")), unhex(
+                'c665befb36da189d78822d10528cbf3b12b3eef726039909c1a16a270d48'
+                '719377966b957a878e720584779a62825c18da26415e49a7176a894e7510'
+                'fd1451f5'))
 
     def testSHA3(self):
         # Source: all the SHA-3 test strings from

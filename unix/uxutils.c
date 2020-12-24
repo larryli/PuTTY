@@ -49,4 +49,17 @@ bool platform_sha1_hw_available(void)
 #endif
 }
 
+bool platform_sha512_hw_available(void)
+{
+#if defined HWCAP_SHA512
+    return getauxval(AT_HWCAP) & HWCAP_SHA512;
+#elif defined HWCAP2_SHA512
+    return getauxval(AT_HWCAP2) & HWCAP2_SHA512;
+#elif defined __APPLE__
+    return test_sysctl_flag("hw.optional.armv8_2_sha512");
+#else
+    return false;
+#endif
+}
+
 #endif /* defined __arm__ || defined __aarch64__ */

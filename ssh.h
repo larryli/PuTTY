@@ -976,7 +976,11 @@ extern const ssh_hashalg ssh_sha256;
 extern const ssh_hashalg ssh_sha256_hw;
 extern const ssh_hashalg ssh_sha256_sw;
 extern const ssh_hashalg ssh_sha384;
+extern const ssh_hashalg ssh_sha384_hw;
+extern const ssh_hashalg ssh_sha384_sw;
 extern const ssh_hashalg ssh_sha512;
+extern const ssh_hashalg ssh_sha512_hw;
+extern const ssh_hashalg ssh_sha512_sw;
 extern const ssh_hashalg ssh_sha3_224;
 extern const ssh_hashalg ssh_sha3_256;
 extern const ssh_hashalg ssh_sha3_384;
@@ -1020,6 +1024,7 @@ extern const ssh_compression_alg ssh_zlib;
 bool platform_aes_hw_available(void);
 bool platform_sha256_hw_available(void);
 bool platform_sha1_hw_available(void);
+bool platform_sha512_hw_available(void);
 
 /*
  * PuTTY version number formatted as an SSH version string.
