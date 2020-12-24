@@ -10,6 +10,12 @@
 #ifndef PUTTY_UXUTILS_H
 #define PUTTY_UXUTILS_H
 
+#if defined __APPLE__
+#ifdef HAVE_SYS_SYSCTL_H
+#include <sys/sysctl.h>
+#endif
+#endif /* defined __APPLE__ */
+
 #if defined __arm__ || defined __aarch64__
 
 #ifdef HAVE_SYS_TYPES_H
@@ -22,10 +28,6 @@
 
 #ifdef HAVE_ASM_HWCAP_H
 #include <asm/hwcap.h>
-#endif
-
-#ifdef HAVE_SYS_SYSCTL_H
-#include <sys/sysctl.h>
 #endif
 
 #if defined HAVE_GETAUXVAL
