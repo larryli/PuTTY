@@ -11,6 +11,11 @@ bool platform_aes_hw_available(void)
     return getauxval(AT_HWCAP) & HWCAP_AES;
 #elif defined HWCAP2_AES
     return getauxval(AT_HWCAP2) & HWCAP2_AES;
+#elif defined __APPLE__
+    /* M1 macOS defines no optional sysctl flag indicating presence of
+     * the AES extension, which I assume to be because it's always
+     * present */
+    return true;
 #else
     return false;
 #endif
@@ -22,6 +27,9 @@ bool platform_sha256_hw_available(void)
     return getauxval(AT_HWCAP) & HWCAP_SHA2;
 #elif defined HWCAP2_SHA2
     return getauxval(AT_HWCAP2) & HWCAP2_SHA2;
+#elif defined __APPLE__
+    /* Assume always present on M1 macOS, similarly to AES */
+    return true;
 #else
     return false;
 #endif
@@ -33,6 +41,9 @@ bool platform_sha1_hw_available(void)
     return getauxval(AT_HWCAP) & HWCAP_SHA1;
 #elif defined HWCAP2_SHA1
     return getauxval(AT_HWCAP2) & HWCAP2_SHA1;
+#elif defined __APPLE__
+    /* Assume always present on M1 macOS, similarly to AES */
+    return true;
 #else
     return false;
 #endif
