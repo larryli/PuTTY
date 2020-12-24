@@ -49,10 +49,14 @@ static inline u_long getauxval(int which) { return 0; }
 #if defined __APPLE__
 static inline bool test_sysctl_flag(const char *flagname)
 {
+#ifdef HAVE_SYSCTLBYNAME
     int value;
     size_t size = sizeof(value);
     return (sysctlbyname(flagname, &value, &size, NULL, 0) == 0 &&
             size == sizeof(value) && value != 0);
+#else /* HAVE_SYSCTLBYNAME */
+    return false;
+#endif /* HAVE_SYSCTLBYNAME */
 }
 #endif /* defined __APPLE__ */
 
