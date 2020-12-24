@@ -749,6 +749,17 @@ static void sha512_neon_digest(ssh_hash *hash, uint8_t *digest)
     vst1q_u8(digest+48, vrev64q_u8(vreinterpretq_u8_u64(s->core.gh)));
 }
 
+static void sha384_neon_digest(ssh_hash *hash, uint8_t *digest)
+{
+    sha512_neon *s = container_of(hash, sha512_neon, hash);
+
+    sha512_block_pad(&s->blk, BinarySink_UPCAST(s));
+
+    vst1q_u8(digest,    vrev64q_u8(vreinterpretq_u8_u64(s->core.ab)));
+    vst1q_u8(digest+16, vrev64q_u8(vreinterpretq_u8_u64(s->core.cd)));
+    vst1q_u8(digest+32, vrev64q_u8(vreinterpretq_u8_u64(s->core.ef)));
+}
+
 const ssh_hashalg ssh_sha512_hw = {
     .new = sha512_neon_new,
     .reset = sha512_neon_reset,
@@ -765,7 +776,7 @@ const ssh_hashalg ssh_sha384_hw = {
     .new = sha512_neon_new,
     .reset = sha512_neon_reset,
     .copyfrom = sha512_neon_copyfrom,
-    .digest = sha512_neon_digest,
+    .digest = sha384_neon_digest,
     .free = sha512_neon_free,
     .hlen = 48,
     .blocklen = 128,
