@@ -748,6 +748,7 @@ struct ssh_hashalg {
     const char *text_basename;     /* the semantic name of the hash */
     const char *annotation;   /* extra info, e.g. which of multiple impls */
     const char *text_name;    /* both combined, e.g. "SHA-n (unaccelerated)" */
+    const void *extra;        /* private to the hash implementation */
 };
 
 static inline ssh_hash *ssh_hash_new(const ssh_hashalg *alg)
