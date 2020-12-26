@@ -142,12 +142,11 @@ potentially managing multiple sessions.
 Therefore, the platform-independent parts of PuTTY never use global
 variables to store per-session data. The global variables that do
 exist are tolerated because they are not specific to a particular
-login session: \c{flags} defines properties that are expected to
-apply equally to \e{all} the sessions run by a single PuTTY process,
-the random number state in \cw{sshrand.c} and the timer list in
-\cw{timing.c} serve all sessions equally, and so on. But most data
-is specific to a particular network session, and is therefore stored
-in dynamically allocated data structures, and pointers to these
+login session. The random number state in \cw{sshrand.c}, the timer
+list in \cw{timing.c} and the queue of top-level callbacks in
+\cw{callback.c} serve all sessions equally. But most data is specific
+to a particular network session, and is therefore stored in
+dynamically allocated data structures, and pointers to these
 structures are passed around between functions.
 
 Platform-specific code can reverse this decision if it likes. The
