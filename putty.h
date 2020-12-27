@@ -1822,10 +1822,10 @@ void random_clear(void);
  * generator specially, with a hash function of your choice. */
 void random_setup_custom(const ssh_hashalg *hash);
 /* random_setup_special() is a macro wrapper on that, which makes an
- * extra-big one based on SHA-512. It's defined this way to avoid what
- * would otherwise be an unnecessary module dependency from sshrand.c
- * to sshsh512.c. */
-#define random_setup_special() random_setup_custom(&ssh_sha512)
+ * extra-big one based on the largest hash function we have. It's
+ * defined this way to avoid what would otherwise be an unnecessary
+ * module dependency from sshrand.c to a hash function implementation. */
+#define random_setup_special() random_setup_custom(&ssh_shake256_114bytes)
 /* Manually drop a random seed into the random number generator, e.g.
  * just before generating a key. */
 void random_reseed(ptrlen seed);
