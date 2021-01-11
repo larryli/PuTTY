@@ -1696,16 +1696,18 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             }
             /* Anything else, e.g. '0', is unchanged. */
 
-#ifdef KEY_EVENT_DIAGNOSTICS
             if (orig == new) {
+#ifdef KEY_EVENT_DIAGNOSTICS
                 debug(" - manual Ctrl key handling did nothing\n");
+#endif
             } else {
+#ifdef KEY_EVENT_DIAGNOSTICS
                 debug(" - manual Ctrl key handling: %02x -> %02x\n",
                       (unsigned)orig, (unsigned)new);
+#endif
                 output[1] = new;
                 use_ucsoutput = false;
             }
-#endif
         }
 
         /* Control-Break sends a Break special to the backend */
