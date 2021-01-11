@@ -1218,7 +1218,7 @@ gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
             if (digit < 0)
                 inst->alt_keycode = -2;   /* it's invalid */
             else {
-#ifdef KEY_EVENT_DIAGNOSTICS
+#if defined(DEBUG) && defined(KEY_EVENT_DIAGNOSTICS)
                 int old_keycode = inst->alt_keycode;
 #endif
                 if (inst->alt_keycode == -1)
