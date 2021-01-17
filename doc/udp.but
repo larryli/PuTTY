@@ -669,8 +669,9 @@ late as you like which vtable to pass to it.
 
 }
 
-\b The \e{implementation} structure can also contain publicly visible
-data fields (this time, usually treated as mutable). For example,
+\b The abstract \e{instance} structure can also contain publicly
+visible data fields (this time, usually treated as mutable) which are
+common to all implementations of the trait. For example,
 \cw{BinaryPacketProtocol} has lots of these.
 
 \b Not all abstractions of this kind want virtual constructors. It
