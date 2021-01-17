@@ -16,7 +16,7 @@ Socket *platform_make_agent_socket(
     Plug *plug, const char *dirprefix, char **error, char **name)
 {
     char *username, *socketdir, *socketname, *errw;
-    const char *errr;
+    const char *err;
     Socket *sock;
 
     *name = NULL;
@@ -35,8 +35,8 @@ Socket *platform_make_agent_socket(
 
     socketname = dupprintf("%s/pageant.%d", socketdir, (int)getpid());
     sock = new_unix_listener(unix_sock_addr(socketname), plug);
-    if ((errr = sk_socket_error(sock)) != NULL) {
-        *error = dupprintf("%s: %s\n", socketname, errr);
+    if ((err = sk_socket_error(sock)) != NULL) {
+        *error = dupprintf("%s: %s\n", socketname, err);
         sk_close(sock);
         sfree(socketname);
         rmdir(socketdir);

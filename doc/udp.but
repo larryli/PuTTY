@@ -778,7 +778,7 @@ or other of the subtypes depending on what it finds out about the
 machine it's running on. That top-level selector vtable is nearly
 always the one used by client code. (Except for the test suite, which
 has to instantiate both of the subtypes in order to make sure they
-both passs the tests.)
+both pass the tests.)
 
 \lcont{
 
