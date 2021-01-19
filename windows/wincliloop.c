@@ -10,7 +10,7 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
     while (true) {
         int nhandles;
         HANDLE *handles;
-        int n;
+        DWORD n;
         DWORD ticks;
 
         const HANDLE *extra_handles = NULL;
@@ -35,11 +35,14 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
         }
 
         handles = handle_get_events(&nhandles);
-        size_t winselcli_index = nhandles;
-        size_t extra_base = winselcli_index + 1;
+        size_t winselcli_index = -(size_t)1;
+        size_t extra_base = nhandles;
+        if (winselcli_event != INVALID_HANDLE_VALUE) {
+            winselcli_index = extra_base++;
+            handles[winselcli_index] = winselcli_event;
+        }
         size_t total_handles = extra_base + n_extra_handles;
         handles = sresize(handles, total_handles, HANDLE);
-        handles[winselcli_index] = winselcli_event;
         for (size_t i = 0; i < n_extra_handles; i++)
             handles[extra_base + i] = extra_handles[i];
 
@@ -49,7 +52,8 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
 
         if ((unsigned)(n - WAIT_OBJECT_0) < (unsigned)nhandles) {
             handle_got_event(handles[n - WAIT_OBJECT_0]);
-        } else if (n == WAIT_OBJECT_0 + nhandles) {
+        } else if (winselcli_event != INVALID_HANDLE_VALUE &&
+                   n == WAIT_OBJECT_0 + winselcli_index) {
             WSANETWORKEVENTS things;
             SOCKET socket;
             int i, socketstate;
