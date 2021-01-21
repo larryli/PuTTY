@@ -550,8 +550,7 @@ SockAddr *sk_namelookup(const char *host, char **canonicalname,
         strncpy(realhost, host, sizeof(realhost));
     }
     realhost[lenof(realhost)-1] = '\0';
-    *canonicalname = snewn(1+strlen(realhost), char);
-    strcpy(*canonicalname, realhost);
+    *canonicalname = dupstr(realhost);
     return ret;
 }
 

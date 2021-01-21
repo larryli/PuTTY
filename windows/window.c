@@ -4748,8 +4748,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 static void wintw_set_title(TermWin *tw, const char *title)
 {
     sfree(window_name);
-    window_name = snewn(1 + strlen(title), char);
-    strcpy(window_name, title);
+    window_name = dupstr(title);
     if (conf_get_bool(conf, CONF_win_name_always) || !IsIconic(wgs.term_hwnd))
         SetWindowText(wgs.term_hwnd, title);
 }
@@ -4757,8 +4756,7 @@ static void wintw_set_title(TermWin *tw, const char *title)
 static void wintw_set_icon_title(TermWin *tw, const char *title)
 {
     sfree(icon_name);
-    icon_name = snewn(1 + strlen(title), char);
-    strcpy(icon_name, title);
+    icon_name = dupstr(title);
     if (!conf_get_bool(conf, CONF_win_name_always) && IsIconic(wgs.term_hwnd))
         SetWindowText(wgs.term_hwnd, title);
 }
