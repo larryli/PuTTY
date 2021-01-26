@@ -39,6 +39,7 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
         size_t extra_base = nhandles;
         if (winselcli_event != INVALID_HANDLE_VALUE) {
             winselcli_index = extra_base++;
+            handles = sresize(handles, extra_base, HANDLE);
             handles[winselcli_index] = winselcli_event;
         }
         size_t total_handles = extra_base + n_extra_handles;
