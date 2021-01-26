@@ -115,6 +115,7 @@ Making a release candidate build
        + on at least a reasonably current stable Linux distro, and
          also try Debian sid
        + test-build with all of GTK 1, 2 and 3
+       + test-build with -DNOT_X_WINDOWS
     * feed the release-candidate source to Coverity and make sure it
       didn't turn up any last-minute problems
     * make sure we have a clean run of sctest

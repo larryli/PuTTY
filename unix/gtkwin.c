@@ -2880,16 +2880,16 @@ static void gtkwin_clip_request_paste(TermWin *tw, int clipboard)
  * GtkTargetList.) But that work can wait until there's a need for it!
  */
 
+#ifndef NOT_X_WINDOWS
+
 /* Store the data in a cut-buffer. */
 static void store_cutbuffer(GtkFrontend *inst, char *ptr, int len)
 {
-#ifndef NOT_X_WINDOWS
     if (inst->disp) {
         /* ICCCM says we must rotate the buffers before storing to buffer 0. */
         XRotateBuffers(inst->disp, 1);
         XStoreBytes(inst->disp, ptr, len);
     }
-#endif
 }
 
 /* Retrieve data from a cut-buffer.
@@ -2897,7 +2897,6 @@ static void store_cutbuffer(GtkFrontend *inst, char *ptr, int len)
  */
 static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
 {
-#ifndef NOT_X_WINDOWS
     char *ptr;
     if (!inst->disp) {
         *nbytes = 0;
@@ -2909,11 +2908,11 @@ static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
         ptr = 0;
     }
     return ptr;
-#else
     *nbytes = 0;
     return NULL;
-#endif
 }
+
+#endif /* NOT_X_WINDOWS */
 
 static void gtkwin_clip_write(
     TermWin *tw, int clipboard, wchar_t *data, int *attr,
@@ -2995,9 +2994,11 @@ static void gtkwin_clip_write(
             sresize(state->pasteout_data, state->pasteout_data_len, char);
     }
 
+#ifndef NOT_X_WINDOWS
     /* The legacy X cut buffers go with PRIMARY, not any other clipboard */
     if (state->atom == GDK_SELECTION_PRIMARY)
         store_cutbuffer(inst, state->pasteout_data, state->pasteout_data_len);
+#endif
 
     if (gtk_selection_owner_set(inst->area, state->atom,
                                 inst->input_event_time)) {
