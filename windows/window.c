@@ -310,18 +310,18 @@ static bool win_seat_is_utf8(Seat *seat)
     return is_utf8();
 }
 
-char *win_seat_get_ttymode(Seat *seat, const char *mode)
+static char *win_seat_get_ttymode(Seat *seat, const char *mode)
 {
     return term_get_ttymode(term, mode);
 }
 
-bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
+static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
 {
     win_get_pixels(wintw, x, y);
     return true;
 }
 
-StripCtrlChars *win_seat_stripctrl_new(
+static StripCtrlChars *win_seat_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
     return stripctrl_new_term(bs_out, false, 0, term);
