@@ -90,7 +90,7 @@ method_prefixes = {
     'val_mpoint': 'ecc_montgomery_',
     'val_epoint': 'ecc_edwards_',
     'val_hash': 'ssh_hash_',
-    'val_mac': 'ssh_mac_',
+    'val_mac': 'ssh2_mac_',
     'val_key': 'ssh_key_',
     'val_cipher': 'ssh_cipher_',
     'val_dh': 'dh_',
