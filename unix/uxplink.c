@@ -572,13 +572,13 @@ const unsigned cmdline_tooltype =
     TOOLTYPE_HOST_ARG_PROTOCOL_PREFIX |
     TOOLTYPE_HOST_ARG_FROM_LAUNCHABLE_LOAD;
 
-static bool sending;
+static bool seen_stdin_eof = false;
 
 static bool plink_pw_setup(void *vctx, pollwrapper *pw)
 {
     pollwrap_add_fd_rwx(pw, signalpipe[0], SELECT_R);
 
-    if (!sending &&
+    if (!seen_stdin_eof &&
         backend_connected(backend) &&
         backend_sendok(backend) &&
         backend_sendbuffer(backend) < MAX_STDIN_BACKLOG) {
@@ -623,7 +623,7 @@ static void plink_pw_check(void *vctx, pollwrapper *pw)
                 exit(1);
             } else if (ret == 0) {
                 backend_special(backend, SS_EOF, 0);
-                sending = false;   /* send nothing further after this */
+                seen_stdin_eof = true;
             } else {
                 if (local_tty)
                     from_tty(buf, ret);
@@ -948,7 +948,6 @@ int main(int argc, char **argv)
     local_tty = (tcgetattr(STDIN_FILENO, &orig_termios) == 0);
     atexit(cleanup_termios);
     seat_echoedit_update(plink_seat, 1, 1);
-    sending = false;
 
     cli_main_loop(plink_pw_setup, plink_pw_check, plink_continue, NULL);
 
