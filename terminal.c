@@ -1187,41 +1187,58 @@ static void check_line_size(Terminal *term, termline *line)
 
 static void term_schedule_tblink(Terminal *term);
 static void term_schedule_cblink(Terminal *term);
+static void term_update_callback(void *ctx);
 
 static void term_timer(void *ctx, unsigned long now)
 {
     Terminal *term = (Terminal *)ctx;
-    bool update = false;
 
     if (term->tblink_pending && now == term->next_tblink) {
         term->tblinker = !term->tblinker;
         term->tblink_pending = false;
         term_schedule_tblink(term);
-        update = true;
+        term->window_update_pending = true;
     }
 
     if (term->cblink_pending && now == term->next_cblink) {
         term->cblinker = !term->cblinker;
         term->cblink_pending = false;
         term_schedule_cblink(term);
-        update = true;
+        term->window_update_pending = true;
     }
 
     if (term->in_vbell && now == term->vbell_end) {
         term->in_vbell = false;
-        update = true;
+        term->window_update_pending = true;
     }
 
-    if (update ||
-        (term->window_update_pending && now == term->next_update))
+    if (term->window_update_cooldown &&
+        now == term->window_update_cooldown_end) {
+        term->window_update_cooldown = false;
+    }
+
+    if (term->window_update_pending)
+        term_update_callback(term);
+}
+
+static void term_update_callback(void *ctx)
+{
+    Terminal *term = (Terminal *)ctx;
+    if (!term->window_update_pending)
+        return;
+    if (!term->window_update_cooldown) {
         term_update(term);
+        term->window_update_cooldown = true;
+        term->window_update_cooldown_end = schedule_timer(
+            UPDATE_DELAY, term_timer, term);
+    }
 }
 
 static void term_schedule_update(Terminal *term)
 {
     if (!term->window_update_pending) {
         term->window_update_pending = true;
-        term->next_update = schedule_timer(UPDATE_DELAY, term_timer, term);
+        queue_toplevel_callback(term_update_callback, term);
     }
 }
 
@@ -1940,6 +1957,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->wcFromTo_size = 0;
 
     term->window_update_pending = false;
+    term->window_update_cooldown = false;
 
     term->bidi_cache_size = 0;
     term->pre_bidi_cache = term->post_bidi_cache = NULL;

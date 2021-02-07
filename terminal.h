@@ -259,11 +259,17 @@ struct terminal_tag {
     bool in_term_out;
 
     /*
-     * We schedule a window update shortly after receiving terminal
-     * data. This tracks whether one is currently pending.
+     * We don't permit window updates too close together, to avoid CPU
+     * churn pointlessly redrawing the window faster than the user can
+     * read. So after an update, we set window_update_cooldown = true
+     * and schedule a timer to reset it to false. In between those
+     * times, window updates are not performed, and instead we set
+     * window_update_pending = true, which will remind us to perform
+     * the deferred redraw when the cooldown period ends and
+     * window_update_cooldown is reset to false.
      */
-    bool window_update_pending;
-    long next_update;
+    bool window_update_pending, window_update_cooldown;
+    long window_update_cooldown_end;
 
     /*
      * Track pending blinks and tblinks.
