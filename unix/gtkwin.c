@@ -179,6 +179,7 @@ struct GtkFrontend {
     int system_mod_mask;
 #endif
     bool send_raw_mouse;
+    bool pointer_indicates_raw_mouse;
     unifont_drawctx uctx;
 #if GTK_CHECK_VERSION(2,0,0)
     GdkPixbuf *trust_sigil_pb;
@@ -647,7 +648,7 @@ static void update_mouseptr(GtkFrontend *inst)
         if (!inst->mouseptr_visible) {
             gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->blankcursor);
-        } else if (inst->send_raw_mouse) {
+        } else if (inst->pointer_indicates_raw_mouse) {
             gdk_window_set_cursor(gtk_widget_get_window(inst->area),
                                   inst->rawcursor);
         } else {
@@ -2397,13 +2398,16 @@ static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
     update_mouseptr(inst);
 }
 
-/*
- * set or clear the "raw mouse message" mode
- */
 static void gtkwin_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
     inst->send_raw_mouse = activate;
+}
+
+static void gtkwin_set_raw_mouse_mode_pointer(TermWin *tw, bool activate)
+{
+    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
+    inst->pointer_indicates_raw_mouse = activate;
     update_mouseptr(inst);
 }
 
@@ -5023,6 +5027,7 @@ static const TermWinVtable gtk_termwin_vt = {
     .free_draw_ctx = gtkwin_free_draw_ctx,
     .set_cursor_pos = gtkwin_set_cursor_pos,
     .set_raw_mouse_mode = gtkwin_set_raw_mouse_mode,
+    .set_raw_mouse_mode_pointer = gtkwin_set_raw_mouse_mode_pointer,
     .set_scrollbar = gtkwin_set_scrollbar,
     .bell = gtkwin_bell,
     .clip_write = gtkwin_clip_write,

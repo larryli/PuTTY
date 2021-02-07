@@ -1246,7 +1246,13 @@ struct TermWinVtable {
 
     void (*set_cursor_pos)(TermWin *, int x, int y);
 
+    /* set_raw_mouse_mode instructs the front end to start sending mouse events
+     * in raw mode suitable for translating into mouse-tracking terminal data
+     * (e.g. include scroll-wheel events and don't bother to identify double-
+     * and triple-clicks). set_raw_mouse_mode_pointer instructs the front end
+     * to change the mouse pointer shape to *indicate* raw mouse mode. */
     void (*set_raw_mouse_mode)(TermWin *, bool enable);
+    void (*set_raw_mouse_mode_pointer)(TermWin *, bool enable);
 
     void (*set_scrollbar)(TermWin *, int total, int start, int page);
 
@@ -1304,6 +1310,8 @@ static inline void win_set_cursor_pos(TermWin *win, int x, int y)
 { win->vt->set_cursor_pos(win, x, y); }
 static inline void win_set_raw_mouse_mode(TermWin *win, bool enable)
 { win->vt->set_raw_mouse_mode(win, enable); }
+static inline void win_set_raw_mouse_mode_pointer(TermWin *win, bool enable)
+{ win->vt->set_raw_mouse_mode_pointer(win, enable); }
 static inline void win_set_scrollbar(TermWin *win, int t, int s, int p)
 { win->vt->set_scrollbar(win, t, s, p); }
 static inline void win_bell(TermWin *win, int mode)

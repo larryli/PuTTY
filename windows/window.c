@@ -202,6 +202,8 @@ static Mouse_Button lastbtn;
 static bool send_raw_mouse = false;
 static int wheel_accumulator = 0;
 
+static bool pointer_indicates_raw_mouse = false;
+
 static BusyStatus busy_status = BUSY_NOT;
 
 static char *window_name, *icon_name;
@@ -226,6 +228,7 @@ static int wintw_char_width(TermWin *, int uc);
 static void wintw_free_draw_ctx(TermWin *);
 static void wintw_set_cursor_pos(TermWin *, int x, int y);
 static void wintw_set_raw_mouse_mode(TermWin *, bool enable);
+static void wintw_set_raw_mouse_mode_pointer(TermWin *, bool enable);
 static void wintw_set_scrollbar(TermWin *, int total, int start, int page);
 static void wintw_bell(TermWin *, int mode);
 static void wintw_clip_write(
@@ -252,6 +255,7 @@ static const TermWinVtable windows_termwin_vt = {
     .free_draw_ctx = wintw_free_draw_ctx,
     .set_cursor_pos = wintw_set_cursor_pos,
     .set_raw_mouse_mode = wintw_set_raw_mouse_mode,
+    .set_raw_mouse_mode_pointer = wintw_set_raw_mouse_mode_pointer,
     .set_scrollbar = wintw_set_scrollbar,
     .bell = wintw_bell,
     .clip_write = wintw_clip_write,
@@ -1087,7 +1091,7 @@ static void update_mouse_pointer(void)
     static bool forced_visible = false;
     switch (busy_status) {
       case BUSY_NOT:
-        if (send_raw_mouse)
+        if (pointer_indicates_raw_mouse)
             curstype = IDC_ARROW;
         else
             curstype = IDC_IBEAM;
@@ -1124,12 +1128,14 @@ static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
     update_mouse_pointer();
 }
 
-/*
- * set or clear the "raw mouse message" mode
- */
 static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     send_raw_mouse = activate;
+}
+
+static void wintw_set_raw_mouse_mode_pointer(TermWin *tw, bool activate)
+{
+    pointer_indicates_raw_mouse = activate;
     update_mouse_pointer();
 }
 

@@ -1357,6 +1357,7 @@ static void power_on(Terminal *term, bool clear)
     term->xterm_extended_mouse = false;
     term->urxvt_extended_mouse = false;
     win_set_raw_mouse_mode(term->win, false);
+    win_set_raw_mouse_mode_pointer(term->win, false);
     term->bracketed_paste = false;
     term->srm_echo = false;
     {
@@ -2829,6 +2830,7 @@ static void term_update_raw_mouse_mode(Terminal *term)
 {
     bool want_raw = (term->xterm_mouse != 0 && !term->xterm_mouse_forbidden);
     win_set_raw_mouse_mode(term->win, want_raw);
+    win_set_raw_mouse_mode_pointer(term->win, want_raw);
 }
 
 /*
