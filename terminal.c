@@ -3471,7 +3471,7 @@ static void term_out(Terminal *term)
                               term->curs.x, &term->erase_char);
             }
         } else
-            /* Or normal C0 controls. */
+        /* Or normal C0 controls. */
         if ((c & ~0x1F) == 0 && term->termstate < DO_CTRLS) {
             switch (c) {
               case '\005':             /* ENQ: terminal type query */
@@ -3498,15 +3498,15 @@ static void term_out(Terminal *term)
                 ticks = GETTICKCOUNT();
 
                 if (!term->beep_overloaded) {
-                  newbeep = snew(struct beeptime);
-                  newbeep->ticks = ticks;
-                  newbeep->next = NULL;
-                  if (!term->beephead)
-                      term->beephead = newbeep;
-                  else
-                      term->beeptail->next = newbeep;
-                  term->beeptail = newbeep;
-                  term->nbeeps++;
+                    newbeep = snew(struct beeptime);
+                    newbeep->ticks = ticks;
+                    newbeep->next = NULL;
+                    if (!term->beephead)
+                        term->beephead = newbeep;
+                    else
+                        term->beeptail->next = newbeep;
+                    term->beeptail = newbeep;
+                    term->nbeeps++;
                 }
 
                 /*
@@ -3515,30 +3515,30 @@ static void term_out(Terminal *term)
                  */
                 while (term->beephead &&
                        term->beephead->ticks < ticks - term->bellovl_t) {
-                  struct beeptime *tmp = term->beephead;
-                  term->beephead = tmp->next;
-                  sfree(tmp);
-                  if (!term->beephead)
-                      term->beeptail = NULL;
-                  term->nbeeps--;
+                    struct beeptime *tmp = term->beephead;
+                    term->beephead = tmp->next;
+                    sfree(tmp);
+                    if (!term->beephead)
+                        term->beeptail = NULL;
+                    term->nbeeps--;
                 }
 
                 if (term->bellovl && term->beep_overloaded &&
                     ticks - term->lastbeep >= (unsigned)term->bellovl_s) {
-                  /*
-                   * If we're currently overloaded and the
-                   * last beep was more than s seconds ago,
-                   * leave overload mode.
-                   */
-                  term->beep_overloaded = false;
+                    /*
+                     * If we're currently overloaded and the
+                     * last beep was more than s seconds ago,
+                     * leave overload mode.
+                     */
+                    term->beep_overloaded = false;
                 } else if (term->bellovl && !term->beep_overloaded &&
                            term->nbeeps >= term->bellovl_n) {
-                  /*
-                   * Now, if we have n or more beeps
-                   * remaining in the queue, go into overload
-                   * mode.
-                   */
-                  term->beep_overloaded = true;
+                    /*
+                     * Now, if we have n or more beeps
+                     * remaining in the queue, go into overload
+                     * mode.
+                     */
+                    term->beep_overloaded = true;
                 }
                 term->lastbeep = ticks;
 
@@ -3546,11 +3546,11 @@ static void term_out(Terminal *term)
                  * Perform an actual beep if we're not overloaded.
                  */
                 if (!term->bellovl || !term->beep_overloaded) {
-                  win_bell(term->win, term->beep);
+                    win_bell(term->win, term->beep);
 
-                  if (term->beep == BELL_VISUAL) {
-                    term_schedule_vbell(term, false, 0);
-                  }
+                    if (term->beep == BELL_VISUAL) {
+                        term_schedule_vbell(term, false, 0);
+                    }
                 }
                 seen_disp_event(term);
                 break;
@@ -3626,16 +3626,16 @@ static void term_out(Terminal *term)
                 termline *ldata = scrlineptr(term->curs.y);
 
                 do {
-                  term->curs.x++;
+                    term->curs.x++;
                 } while (term->curs.x < term->cols - 1 &&
                          !term->tabs[term->curs.x]);
 
                 if ((ldata->lattr & LATTR_MODE) != LATTR_NORM) {
-                  if (term->curs.x >= term->cols / 2)
-                      term->curs.x = term->cols / 2 - 1;
+                    if (term->curs.x >= term->cols / 2)
+                        term->curs.x = term->cols / 2 - 1;
                 } else {
-                  if (term->curs.x >= term->cols)
-                      term->curs.x = term->cols - 1;
+                    if (term->curs.x >= term->cols)
+                        term->curs.x = term->cols - 1;
                 }
 
                 check_selection(term, old_curs, term->curs);
@@ -3764,14 +3764,14 @@ static void term_out(Terminal *term)
                     pos scrtop, scrbot;
 
                     for (i = 0; i < term->rows; i++) {
-                      ldata = scrlineptr(i);
-                      check_line_size(term, ldata);
-                      for (j = 0; j < term->cols; j++) {
-                        copy_termchar(ldata, j,
-                                      &term->basic_erase_char);
-                        ldata->chars[j].chr = 'E';
-                      }
-                      ldata->lattr = LATTR_NORM;
+                        ldata = scrlineptr(i);
+                        check_line_size(term, ldata);
+                        for (j = 0; j < term->cols; j++) {
+                            copy_termchar(ldata, j,
+                                          &term->basic_erase_char);
+                            ldata->chars[j].chr = 'E';
+                        }
+                        ldata->lattr = LATTR_NORM;
                     }
                     if (term->scroll_on_disp)
                         term->disptop = 0;
@@ -3992,15 +3992,15 @@ static void term_out(Terminal *term)
                       case 'J': {       /* ED: erase screen or parts of it */
                         unsigned int i = def(term->esc_args[0], 0);
                         if (i == 3) {
-                          /* Erase Saved Lines (xterm)
-                           * This follows Thomas Dickey's xterm. */
-                          if (!term->no_remote_clearscroll)
-                              term_clrsb(term);
+                            /* Erase Saved Lines (xterm)
+                             * This follows Thomas Dickey's xterm. */
+                            if (!term->no_remote_clearscroll)
+                                term_clrsb(term);
                         } else {
-                          i++;
-                          if (i > 3)
-                              i = 0;
-                          erase_lots(term, false, !!(i & 2), !!(i & 1));
+                            i++;
+                            if (i > 3)
+                                i = 0;
+                            erase_lots(term, false, !!(i & 2), !!(i & 1));
                         }
                         if (term->scroll_on_disp)
                             term->disptop = 0;
@@ -4080,13 +4080,13 @@ static void term_out(Terminal *term)
                         if (term->esc_args[0] == 5 &&
                             (printer = conf_get_str(term->conf,
                                                     CONF_printer))[0]) {
-                          term->printing = true;
-                          term->only_printing = !term->esc_query;
-                          term->print_state = 0;
-                          term_print_setup(term, printer);
+                            term->printing = true;
+                            term->only_printing = !term->esc_query;
+                            term->print_state = 0;
+                            term_print_setup(term, printer);
                         } else if (term->esc_args[0] == 4 &&
                                    term->printing) {
-                          term_print_finish(term);
+                            term_print_finish(term);
                         }
                         break;
                       }
@@ -4171,159 +4171,159 @@ static void term_out(Terminal *term)
                          * The 39 and 49 attributes are likely to be
                          * unimplemented.
                          */
-                        for (int i = 0; i < term->esc_nargs; i++) {
-                          switch (def(term->esc_args[i], 0)) {
-                            case 0:       /* restore defaults */
-                              term->curr_attr = term->default_attr;
-                              term->curr_truecolour =
-                                  term->basic_erase_char.truecolour;
-                              break;
-                            case 1:       /* enable bold */
-                              compatibility(VT100AVO);
-                              term->curr_attr |= ATTR_BOLD;
-                              break;
-                            case 2:       /* enable dim */
-                              compatibility(OTHER);
-                              term->curr_attr |= ATTR_DIM;
-                              break;
-                            case 21:      /* (enable double underline) */
-                              compatibility(OTHER);
-                            case 4:       /* enable underline */
-                              compatibility(VT100AVO);
-                              term->curr_attr |= ATTR_UNDER;
-                              break;
-                            case 5:       /* enable blink */
-                              compatibility(VT100AVO);
-                              term->curr_attr |= ATTR_BLINK;
-                              break;
-                            case 6:       /* SCO light bkgrd */
-                              compatibility(SCOANSI);
-                              term->blink_is_real = false;
-                              term->curr_attr |= ATTR_BLINK;
-                              term_schedule_tblink(term);
-                              break;
-                            case 7:       /* enable reverse video */
-                              term->curr_attr |= ATTR_REVERSE;
-                              break;
-                            case 9:       /* enable strikethrough */
-                              term->curr_attr |= ATTR_STRIKE;
-                              break;
-                            case 10:      /* SCO acs off */
-                              compatibility(SCOANSI);
-                              if (term->no_remote_charset) break;
-                              term->sco_acs = 0; break;
-                            case 11:      /* SCO acs on */
-                              compatibility(SCOANSI);
-                              if (term->no_remote_charset) break;
-                              term->sco_acs = 1; break;
-                            case 12:      /* SCO acs on, |0x80 */
-                              compatibility(SCOANSI);
-                              if (term->no_remote_charset) break;
-                              term->sco_acs = 2; break;
-                            case 22:      /* disable bold and dim */
-                              compatibility2(OTHER, VT220);
-                              term->curr_attr &= ~(ATTR_BOLD | ATTR_DIM);
-                              break;
-                            case 24:      /* disable underline */
-                              compatibility2(OTHER, VT220);
-                              term->curr_attr &= ~ATTR_UNDER;
-                              break;
-                            case 25:      /* disable blink */
-                              compatibility2(OTHER, VT220);
-                              term->curr_attr &= ~ATTR_BLINK;
-                              break;
-                            case 27:      /* disable reverse video */
-                              compatibility2(OTHER, VT220);
-                              term->curr_attr &= ~ATTR_REVERSE;
-                              break;
-                            case 29:      /* disable strikethrough */
-                              term->curr_attr &= ~ATTR_STRIKE;
-                              break;
-                            case 30:
-                            case 31:
-                            case 32:
-                            case 33:
-                            case 34:
-                            case 35:
-                            case 36:
-                            case 37:
-                              /* foreground */
-                              term->curr_truecolour.fg.enabled = false;
-                              term->curr_attr &= ~ATTR_FGMASK;
-                              term->curr_attr |=
-                                  (term->esc_args[i] - 30)<<ATTR_FGSHIFT;
-                              break;
-                            case 90:
-                            case 91:
-                            case 92:
-                            case 93:
-                            case 94:
-                            case 95:
-                            case 96:
-                            case 97:
-                              /* aixterm-style bright foreground */
-                              term->curr_truecolour.fg.enabled = false;
-                              term->curr_attr &= ~ATTR_FGMASK;
-                              term->curr_attr |=
-                                  ((term->esc_args[i] - 90 + 8)
-                                   << ATTR_FGSHIFT);
-                              break;
-                            case 39:      /* default-foreground */
-                              term->curr_truecolour.fg.enabled = false;
-                              term->curr_attr &= ~ATTR_FGMASK;
-                              term->curr_attr |= ATTR_DEFFG;
-                              break;
-                            case 40:
-                            case 41:
-                            case 42:
-                            case 43:
-                            case 44:
-                            case 45:
-                            case 46:
-                            case 47:
-                              /* background */
-                              term->curr_truecolour.bg.enabled = false;
-                              term->curr_attr &= ~ATTR_BGMASK;
-                              term->curr_attr |=
-                                  (term->esc_args[i] - 40)<<ATTR_BGSHIFT;
-                              break;
-                            case 100:
-                            case 101:
-                            case 102:
-                            case 103:
-                            case 104:
-                            case 105:
-                            case 106:
-                            case 107:
-                              /* aixterm-style bright background */
-                              term->curr_truecolour.bg.enabled = false;
-                              term->curr_attr &= ~ATTR_BGMASK;
-                              term->curr_attr |=
-                                  ((term->esc_args[i] - 100 + 8)
-                                   << ATTR_BGSHIFT);
-                              break;
-                            case 49:      /* default-background */
-                              term->curr_truecolour.bg.enabled = false;
-                              term->curr_attr &= ~ATTR_BGMASK;
-                              term->curr_attr |= ATTR_DEFBG;
-                              break;
+                        for (int i = 0; i < term->esc_nargs; i++)
+                        switch (def(term->esc_args[i], 0)) {
+                          case 0:       /* restore defaults */
+                            term->curr_attr = term->default_attr;
+                            term->curr_truecolour =
+                                term->basic_erase_char.truecolour;
+                            break;
+                          case 1:       /* enable bold */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_BOLD;
+                            break;
+                          case 2:       /* enable dim */
+                            compatibility(OTHER);
+                            term->curr_attr |= ATTR_DIM;
+                            break;
+                          case 21:      /* (enable double underline) */
+                            compatibility(OTHER);
+                          case 4:       /* enable underline */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_UNDER;
+                            break;
+                          case 5:       /* enable blink */
+                            compatibility(VT100AVO);
+                            term->curr_attr |= ATTR_BLINK;
+                            break;
+                          case 6:       /* SCO light bkgrd */
+                            compatibility(SCOANSI);
+                            term->blink_is_real = false;
+                            term->curr_attr |= ATTR_BLINK;
+                            term_schedule_tblink(term);
+                            break;
+                          case 7:       /* enable reverse video */
+                            term->curr_attr |= ATTR_REVERSE;
+                            break;
+                          case 9:       /* enable strikethrough */
+                            term->curr_attr |= ATTR_STRIKE;
+                            break;
+                          case 10:      /* SCO acs off */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 0; break;
+                          case 11:      /* SCO acs on */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 1; break;
+                          case 12:      /* SCO acs on, |0x80 */
+                            compatibility(SCOANSI);
+                            if (term->no_remote_charset) break;
+                            term->sco_acs = 2; break;
+                          case 22:      /* disable bold and dim */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~(ATTR_BOLD | ATTR_DIM);
+                            break;
+                          case 24:      /* disable underline */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_UNDER;
+                            break;
+                          case 25:      /* disable blink */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_BLINK;
+                            break;
+                          case 27:      /* disable reverse video */
+                            compatibility2(OTHER, VT220);
+                            term->curr_attr &= ~ATTR_REVERSE;
+                            break;
+                          case 29:      /* disable strikethrough */
+                            term->curr_attr &= ~ATTR_STRIKE;
+                            break;
+                          case 30:
+                          case 31:
+                          case 32:
+                          case 33:
+                          case 34:
+                          case 35:
+                          case 36:
+                          case 37:
+                            /* foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |=
+                                (term->esc_args[i] - 30)<<ATTR_FGSHIFT;
+                            break;
+                          case 90:
+                          case 91:
+                          case 92:
+                          case 93:
+                          case 94:
+                          case 95:
+                          case 96:
+                          case 97:
+                            /* aixterm-style bright foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |=
+                                ((term->esc_args[i] - 90 + 8)
+                                 << ATTR_FGSHIFT);
+                            break;
+                          case 39:      /* default-foreground */
+                            term->curr_truecolour.fg.enabled = false;
+                            term->curr_attr &= ~ATTR_FGMASK;
+                            term->curr_attr |= ATTR_DEFFG;
+                            break;
+                          case 40:
+                          case 41:
+                          case 42:
+                          case 43:
+                          case 44:
+                          case 45:
+                          case 46:
+                          case 47:
+                            /* background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |=
+                                (term->esc_args[i] - 40)<<ATTR_BGSHIFT;
+                            break;
+                          case 100:
+                          case 101:
+                          case 102:
+                          case 103:
+                          case 104:
+                          case 105:
+                          case 106:
+                          case 107:
+                            /* aixterm-style bright background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |=
+                                ((term->esc_args[i] - 100 + 8)
+                                 << ATTR_BGSHIFT);
+                            break;
+                          case 49:      /* default-background */
+                            term->curr_truecolour.bg.enabled = false;
+                            term->curr_attr &= ~ATTR_BGMASK;
+                            term->curr_attr |= ATTR_DEFBG;
+                            break;
 
-                              /*
-                               * 256-colour and true-colour
-                               * sequences. A 256-colour
-                               * foreground is selected by a
-                               * sequence of 3 arguments in the
-                               * form 38;5;n, where n is in the
-                               * range 0-255. A true-colour RGB
-                               * triple is selected by 5 args of
-                               * the form 38;2;r;g;b. Replacing
-                               * the initial 38 with 48 in both
-                               * cases selects the same colour
-                               * as the background.
-                               */
-                            case 38:
-                              if (i+2 < term->esc_nargs &&
-                                  term->esc_args[i+1] == 5) {
+                            /*
+                             * 256-colour and true-colour
+                             * sequences. A 256-colour
+                             * foreground is selected by a
+                             * sequence of 3 arguments in the
+                             * form 38;5;n, where n is in the
+                             * range 0-255. A true-colour RGB
+                             * triple is selected by 5 args of
+                             * the form 38;2;r;g;b. Replacing
+                             * the initial 38 with 48 in both
+                             * cases selects the same colour
+                             * as the background.
+                             */
+                          case 38:
+                            if (i+2 < term->esc_nargs &&
+                                term->esc_args[i+1] == 5) {
                                 term->curr_attr &= ~ATTR_FGMASK;
                                 term->curr_attr |=
                                     ((term->esc_args[i+2] & 0xFF)
@@ -4331,18 +4331,18 @@ static void term_out(Terminal *term)
                                 term->curr_truecolour.fg =
                                     optionalrgb_none;
                                 i += 2;
-                              }
-                              if (i + 4 < term->esc_nargs &&
-                                  term->esc_args[i + 1] == 2) {
+                            }
+                            if (i + 4 < term->esc_nargs &&
+                                term->esc_args[i + 1] == 2) {
                                 parse_optionalrgb(
                                     &term->curr_truecolour.fg,
                                     term->esc_args + (i+2));
                                 i += 4;
-                              }
-                              break;
-                            case 48:
-                              if (i+2 < term->esc_nargs &&
-                                  term->esc_args[i+1] == 5) {
+                            }
+                            break;
+                          case 48:
+                            if (i+2 < term->esc_nargs &&
+                                term->esc_args[i+1] == 5) {
                                 term->curr_attr &= ~ATTR_BGMASK;
                                 term->curr_attr |=
                                     ((term->esc_args[i+2] & 0xFF)
@@ -4350,16 +4350,15 @@ static void term_out(Terminal *term)
                                 term->curr_truecolour.bg =
                                     optionalrgb_none;
                                 i += 2;
-                              }
-                              if (i + 4 < term->esc_nargs &&
-                                  term->esc_args[i+1] == 2) {
+                            }
+                            if (i + 4 < term->esc_nargs &&
+                                term->esc_args[i+1] == 2) {
                                 parse_optionalrgb(
                                     &term->curr_truecolour.bg,
                                     term->esc_args + (i+2));
                                 i += 4;
-                              }
-                              break;
-                          }
+                            }
+                            break;
                         }
                         set_erase_char(term);
                         break;
@@ -4612,10 +4611,10 @@ static void term_out(Terminal *term)
                         pos old_curs = term->curs;
 
                         for(;i>0 && term->curs.x>0; i--) {
-                          do {
-                            term->curs.x--;
-                          } while (term->curs.x >0 &&
-                                   !term->tabs[term->curs.x]);
+                            do {
+                                term->curs.x--;
+                            } while (term->curs.x >0 &&
+                                     !term->tabs[term->curs.x]);
                         }
                         check_selection(term, old_curs, term->curs);
                         break;
@@ -4881,23 +4880,23 @@ static void term_out(Terminal *term)
                 else if ((int)c >= 'a' && (int)c <= 'a' + max - 10)
                     val = c - 'a' + 10;
                 else {
-                  term->termstate = TOPLEVEL;
-                  break;
+                    term->termstate = TOPLEVEL;
+                    break;
                 }
                 term->osc_string[term->osc_strlen++] = val;
                 if (term->osc_strlen >= 7) {
-                  unsigned oscp_index = term->osc_string[0];
-                  assert(oscp_index < OSCP_NCOLOURS);
-                  unsigned osc4_index =
-                      colour_indices_oscp_to_osc4[oscp_index];
+                    unsigned oscp_index = term->osc_string[0];
+                    assert(oscp_index < OSCP_NCOLOURS);
+                    unsigned osc4_index =
+                        colour_indices_oscp_to_osc4[oscp_index];
 
-                  win_palette_set(
-                      term->win, osc4_index,
-                      term->osc_string[1] * 16 + term->osc_string[2],
-                      term->osc_string[3] * 16 + term->osc_string[4],
-                      term->osc_string[5] * 16 + term->osc_string[6]);
-                  term_invalidate(term);
-                  term->termstate = TOPLEVEL;
+                    win_palette_set(
+                        term->win, osc4_index,
+                        term->osc_string[1] * 16 + term->osc_string[2],
+                        term->osc_string[3] * 16 + term->osc_string[4],
+                        term->osc_string[5] * 16 + term->osc_string[6]);
+                    term_invalidate(term);
+                    term->termstate = TOPLEVEL;
                 }
                 break;
               }
