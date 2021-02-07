@@ -1150,7 +1150,6 @@ struct TermWinVtable {
     void (*get_pos)(TermWin *, int *x, int *y);
     void (*get_pixels)(TermWin *, int *x, int *y);
     const char *(*get_title)(TermWin *, bool icon);
-    bool (*is_utf8)(TermWin *);
 };
 
 static inline bool win_setup_draw_ctx(TermWin *win)
@@ -1213,8 +1212,6 @@ static inline void win_get_pixels(TermWin *win, int *x, int *y)
 { win->vt->get_pixels(win, x, y); }
 static inline const char *win_get_title(TermWin *win, bool icon)
 { return win->vt->get_title(win, icon); }
-static inline bool win_is_utf8(TermWin *win)
-{ return win->vt->is_utf8(win); }
 
 /*
  * Global functions not specific to a connection instance.

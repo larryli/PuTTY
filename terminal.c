@@ -7138,7 +7138,7 @@ char *term_get_ttymode(Terminal *term, const char *mode)
     if (strcmp(mode, "ERASE") == 0) {
         val = term->bksp_is_delete ? "^?" : "^H";
     } else if (strcmp(mode, "IUTF8") == 0) {
-        val = win_is_utf8(term->win) ? "yes" : "no";
+        val = (term->ucsdata->line_codepage == CP_UTF8) ? "yes" : "no";
     }
     /* FIXME: perhaps we should set ONLCR based on lfhascr as well? */
     /* FIXME: or ECHO and friends based on local echo state? */

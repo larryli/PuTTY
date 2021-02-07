@@ -254,7 +254,6 @@ static void wintw_palette_reset(TermWin *);
 static void wintw_get_pos(TermWin *, int *x, int *y);
 static void wintw_get_pixels(TermWin *, int *x, int *y);
 static const char *wintw_get_title(TermWin *, bool icon);
-static bool wintw_is_utf8(TermWin *);
 
 static const TermWinVtable windows_termwin_vt = {
     .setup_draw_ctx = wintw_setup_draw_ctx,
@@ -284,7 +283,6 @@ static const TermWinVtable windows_termwin_vt = {
     .get_pos = wintw_get_pos,
     .get_pixels = wintw_get_pixels,
     .get_title = wintw_get_title,
-    .is_utf8 = wintw_is_utf8,
 };
 
 static TermWin wintw[1];
@@ -298,11 +296,6 @@ const bool share_can_be_upstream = true;
 static bool is_utf8(void)
 {
     return ucsdata.line_codepage == CP_UTF8;
-}
-
-static bool wintw_is_utf8(TermWin *tw)
-{
-    return is_utf8();
 }
 
 static bool win_seat_is_utf8(Seat *seat)

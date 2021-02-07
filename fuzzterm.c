@@ -99,7 +99,6 @@ static void fuzz_palette_reset(TermWin *tw) {}
 static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static const char *fuzz_get_title(TermWin *tw, bool icon) { return "moo"; }
-static bool fuzz_is_utf8(TermWin *tw) { return true; }
 
 static const TermWinVtable fuzz_termwin_vt = {
     .setup_draw_ctx = fuzz_setup_draw_ctx,
@@ -129,7 +128,6 @@ static const TermWinVtable fuzz_termwin_vt = {
     .get_pos = fuzz_get_pos,
     .get_pixels = fuzz_get_pixels,
     .get_title = fuzz_get_title,
-    .is_utf8 = fuzz_is_utf8,
 };
 
 void ldisc_send(Ldisc *ldisc, const void *buf, int len, bool interactive) {}

@@ -348,7 +348,7 @@ static int gtk_seat_get_userpass_input(Seat *seat, prompts_t *p,
 static bool gtk_seat_is_utf8(Seat *seat)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
-    return win_is_utf8(&inst->termwin);
+    return inst->ucsdata.line_codepage == CS_UTF8;
 }
 
 static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
@@ -4251,12 +4251,6 @@ static bool gtk_seat_get_windowid(Seat *seat, long *id)
 }
 #endif
 
-static bool gtkwin_is_utf8(TermWin *tw)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    return inst->ucsdata.line_codepage == CS_UTF8;
-}
-
 char *setup_fonts_ucs(GtkFrontend *inst)
 {
     bool shadowbold = conf_get_bool(inst->conf, CONF_shadowbold);
@@ -5197,7 +5191,6 @@ static const TermWinVtable gtk_termwin_vt = {
     .get_pos = gtkwin_get_pos,
     .get_pixels = gtkwin_get_pixels,
     .get_title = gtkwin_get_title,
-    .is_utf8 = gtkwin_is_utf8,
 };
 
 void new_session_window(Conf *conf, const char *geometry_string)
