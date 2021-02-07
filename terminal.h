@@ -150,6 +150,7 @@ struct terminal_tag {
     bool seen_disp_event;
     bool big_cursor;
 
+    bool xterm_mouse_forbidden;
     int xterm_mouse;                   /* send mouse messages to host */
     bool xterm_extended_mouse;
     bool urxvt_extended_mouse;

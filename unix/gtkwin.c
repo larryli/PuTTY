@@ -2403,7 +2403,6 @@ static void gtk_seat_set_busy_status(Seat *seat, BusyStatus status)
 static void gtkwin_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    activate = activate && !conf_get_bool(inst->conf, CONF_no_mouse_rep);
     inst->send_raw_mouse = activate;
     update_mouseptr(inst);
 }

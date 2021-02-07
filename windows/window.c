@@ -1129,7 +1129,6 @@ static void win_seat_set_busy_status(Seat *seat, BusyStatus status)
  */
 static void wintw_set_raw_mouse_mode(TermWin *tw, bool activate)
 {
-    activate = activate && !conf_get_bool(conf, CONF_no_mouse_rep);
     send_raw_mouse = activate;
     update_mouse_pointer();
 }

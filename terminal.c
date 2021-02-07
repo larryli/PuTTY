@@ -99,6 +99,7 @@ static void term_print_finish(Terminal *);
 static void scroll(Terminal *, int, int, int, bool);
 static void parse_optionalrgb(optionalrgb *out, unsigned *values);
 static void term_added_data(Terminal *term);
+static void term_update_raw_mouse_mode(Terminal *term);
 
 static termline *newtermline(Terminal *term, int cols, bool bce)
 {
@@ -1506,6 +1507,7 @@ void term_copy_stuff_from_conf(Terminal *term)
     term->rxvt_homeend = conf_get_bool(term->conf, CONF_rxvt_homeend);
     term->scroll_on_disp = conf_get_bool(term->conf, CONF_scroll_on_disp);
     term->scroll_on_key = conf_get_bool(term->conf, CONF_scroll_on_key);
+    term->xterm_mouse_forbidden = conf_get_bool(term->conf, CONF_no_mouse_rep);
     term->xterm_256_colour = conf_get_bool(term->conf, CONF_xterm_256_colour);
     term->true_colour = conf_get_bool(term->conf, CONF_true_colour);
 
@@ -1624,10 +1626,6 @@ void term_reconfig(Terminal *term, Conf *conf)
 
     if (conf_get_bool(term->conf, CONF_no_alt_screen))
         swap_screen(term, 0, false, false);
-    if (conf_get_bool(term->conf, CONF_no_mouse_rep)) {
-        term->xterm_mouse = 0;
-        win_set_raw_mouse_mode(term->win, 0);
-    }
     if (conf_get_bool(term->conf, CONF_no_remote_charset)) {
         term->cset_attr[0] = term->cset_attr[1] = CSET_ASCII;
         term->sco_acs = term->alt_sco_acs = 0;
@@ -1639,6 +1637,7 @@ void term_reconfig(Terminal *term, Conf *conf)
     term_schedule_tblink(term);
     term_schedule_cblink(term);
     term_copy_stuff_from_conf(term);
+    term_update_raw_mouse_mode(term);
 }
 
 /*
@@ -2826,6 +2825,12 @@ static void insch(Terminal *term, int n)
     }
 }
 
+static void term_update_raw_mouse_mode(Terminal *term)
+{
+    bool want_raw = (term->xterm_mouse != 0 && !term->xterm_mouse_forbidden);
+    win_set_raw_mouse_mode(term->win, want_raw);
+}
+
 /*
  * Toggle terminal mode `mode' to state `state'. (`query' indicates
  * whether the mode is a DEC private one or a normal one.)
@@ -2897,11 +2902,11 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 1000:                   /* xterm mouse 1 (normal) */
             term->xterm_mouse = state ? 1 : 0;
-            win_set_raw_mouse_mode(term->win, state);
+            term_update_raw_mouse_mode(term);
             break;
           case 1002:                   /* xterm mouse 2 (inc. button drags) */
             term->xterm_mouse = state ? 2 : 0;
-            win_set_raw_mouse_mode(term->win, state);
+            term_update_raw_mouse_mode(term);
             break;
           case 1006:                   /* xterm extended mouse */
             term->xterm_extended_mouse = state;
