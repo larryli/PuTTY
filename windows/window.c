@@ -189,16 +189,13 @@ static enum {
 } und_mode;
 static int descent, font_strikethrough_y;
 
-#define NCFGCOLOURS 22
-#define NEXTCOLOURS 240
-#define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
-static COLORREF colours[NALLCOLOURS];
+static COLORREF colours[OSC4_NCOLOURS];
 static struct rgb {
     int r, g, b;
-} colours_rgb[NALLCOLOURS];
+} colours_rgb[OSC4_NCOLOURS];
 static HPALETTE pal;
 static LPLOGPALETTE logpal;
-static RGBTRIPLE defpal[NALLCOLOURS];
+static RGBTRIPLE defpal[OSC4_NCOLOURS];
 
 static HBITMAP caretbm;
 
@@ -247,8 +244,8 @@ static void wintw_set_minimised(TermWin *, bool minimised);
 static void wintw_set_maximised(TermWin *, bool maximised);
 static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
-static bool wintw_palette_get(TermWin *, int n, int *r, int *g, int *b);
-static void wintw_palette_set(TermWin *, int n, int r, int g, int b);
+static bool wintw_palette_get(TermWin *, unsigned n, int *r, int *g, int *b);
+static void wintw_palette_set(TermWin *, unsigned n, int r, int g, int b);
 static void wintw_palette_reset(TermWin *);
 static void wintw_get_pos(TermWin *, int *x, int *y);
 static void wintw_get_pixels(TermWin *, int *x, int *y);
@@ -1203,35 +1200,27 @@ static void wm_netevent_callback(void *vctx)
 
 /*
  * Copy the colour palette from the configuration data into defpal.
- * This is non-trivial because the colour indices are different.
  */
 static void conftopalette(void)
 {
     int i;
-    static const int ww[] = {
-        256, 257, 258, 259, 260, 261,
-        0, 8, 1, 9, 2, 10, 3, 11,
-        4, 12, 5, 13, 6, 14, 7, 15
-    };
 
     for (i = 0; i < 22; i++) {
-        int w = ww[i];
+        int w = colour_indices_conf_to_osc4[i];
         defpal[w].rgbtRed = conf_get_int_int(conf, CONF_colours, i*3+0);
         defpal[w].rgbtGreen = conf_get_int_int(conf, CONF_colours, i*3+1);
         defpal[w].rgbtBlue = conf_get_int_int(conf, CONF_colours, i*3+2);
     }
-    for (i = 0; i < NEXTCOLOURS; i++) {
-        if (i < 216) {
-            int r = i / 36, g = (i / 6) % 6, b = i % 6;
-            defpal[i+16].rgbtRed = r ? r * 40 + 55 : 0;
-            defpal[i+16].rgbtGreen = g ? g * 40 + 55 : 0;
-            defpal[i+16].rgbtBlue = b ? b * 40 + 55 : 0;
-        } else {
-            int shade = i - 216;
-            shade = shade * 10 + 8;
-            defpal[i+16].rgbtRed = defpal[i+16].rgbtGreen =
-                defpal[i+16].rgbtBlue = shade;
-        }
+    for (i = 0; i < 216; i++) {
+        int r = i / 36, g = (i / 6) % 6, b = i % 6;
+        defpal[i+16].rgbtRed = r ? r * 40 + 55 : 0;
+        defpal[i+16].rgbtGreen = g ? g * 40 + 55 : 0;
+        defpal[i+16].rgbtBlue = b ? b * 40 + 55 : 0;
+    }
+    for (i = 0; i < 24; i++) {
+        int shade = i * 10 + 8;
+        defpal[i+232].rgbtRed = defpal[i+232].rgbtGreen =
+            defpal[i+232].rgbtBlue = shade;
     }
 
     /* Override with system colours if appropriate */
@@ -1250,10 +1239,10 @@ static void systopalette(void)
     int i;
     static const struct { int nIndex; int norm; int bold; } or[] =
     {
-        { COLOR_WINDOWTEXT,     256, 257 }, /* Default Foreground */
-        { COLOR_WINDOW,         258, 259 }, /* Default Background */
-        { COLOR_HIGHLIGHTTEXT,  260, 260 }, /* Cursor Text */
-        { COLOR_HIGHLIGHT,      261, 261 }, /* Cursor Colour */
+        { COLOR_WINDOWTEXT,    OSC4_COLOUR_fg,        OSC4_COLOUR_fg_bold   },
+        { COLOR_WINDOW,        OSC4_COLOUR_bg,        OSC4_COLOUR_bg_bold   },
+        { COLOR_HIGHLIGHTTEXT, OSC4_COLOUR_cursor_fg, OSC4_COLOUR_cursor_fg },
+        { COLOR_HIGHLIGHT,     OSC4_COLOUR_cursor_bg, OSC4_COLOUR_cursor_bg },
     };
 
     for (i = 0; i < (sizeof(or)/sizeof(or[0])); i++) {
@@ -1267,10 +1256,9 @@ static void systopalette(void)
     }
 }
 
-static void internal_set_colour(int i, int r, int g, int b)
+static void internal_set_colour(unsigned i, int r, int g, int b)
 {
-    assert(i >= 0);
-    assert(i < NALLCOLOURS);
+    assert(i < OSC4_NCOLOURS);
     if (pal)
         colours[i] = PALETTERGB(r, g, b);
     else
@@ -1296,10 +1284,10 @@ static void init_palette(void)
              */
             logpal = smalloc(sizeof(*logpal)
                              - sizeof(logpal->palPalEntry)
-                             + NALLCOLOURS * sizeof(PALETTEENTRY));
+                             + OSC4_NCOLOURS * sizeof(PALETTEENTRY));
             logpal->palVersion = 0x300;
-            logpal->palNumEntries = NALLCOLOURS;
-            for (i = 0; i < NALLCOLOURS; i++) {
+            logpal->palNumEntries = OSC4_NCOLOURS;
+            for (i = 0; i < OSC4_NCOLOURS; i++) {
                 logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
                 logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
                 logpal->palPalEntry[i].peBlue = defpal[i].rgbtBlue;
@@ -1314,7 +1302,7 @@ static void init_palette(void)
         }
         ReleaseDC(wgs.term_hwnd, hdc);
     }
-    for (i = 0; i < NALLCOLOURS; i++)
+    for (i = 0; i < OSC4_NCOLOURS; i++)
         internal_set_colour(i, defpal[i].rgbtRed,
                             defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 }
@@ -4758,7 +4746,7 @@ static void wintw_free_draw_ctx(TermWin *tw)
     wintw_hdc = NULL;
 }
 
-static void real_palette_set(int n, int r, int g, int b)
+static void real_palette_set(unsigned n, int r, int g, int b)
 {
     internal_set_colour(n, r, g, b);
     if (pal) {
@@ -4766,13 +4754,13 @@ static void real_palette_set(int n, int r, int g, int b)
         logpal->palPalEntry[n].peGreen = g;
         logpal->palPalEntry[n].peBlue = b;
         logpal->palPalEntry[n].peFlags = PC_NOCOLLAPSE;
-        SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
+        SetPaletteEntries(pal, 0, OSC4_NCOLOURS, logpal->palPalEntry);
     }
 }
 
-static bool wintw_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static bool wintw_palette_get(TermWin *tw, unsigned n, int *r, int *g, int *b)
 {
-    if (n < 0 || n >= NALLCOLOURS)
+    if (n >= OSC4_NCOLOURS)
         return false;
     *r = colours_rgb[n].r;
     *g = colours_rgb[n].g;
@@ -4780,11 +4768,9 @@ static bool wintw_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
     return true;
 }
 
-static void wintw_palette_set(TermWin *tw, int n, int r, int g, int b)
+static void wintw_palette_set(TermWin *tw, unsigned n, int r, int g, int b)
 {
-    if (n >= 16)
-        n += 256 - 16;
-    if (n >= NALLCOLOURS)
+    if (n >= OSC4_NCOLOURS)
         return;
     real_palette_set(n, r, g, b);
     if (pal) {
@@ -4793,7 +4779,7 @@ static void wintw_palette_set(TermWin *tw, int n, int r, int g, int b)
         RealizePalette(hdc);
         free_hdc(hdc);
     } else {
-        if (n == (ATTR_DEFBG>>ATTR_BGSHIFT))
+        if (n == OSC4_COLOUR_bg)
             /* If Default Background changes, we need to ensure any
              * space between the text area and the window border is
              * redrawn. */
@@ -4803,10 +4789,8 @@ static void wintw_palette_set(TermWin *tw, int n, int r, int g, int b)
 
 static void wintw_palette_reset(TermWin *tw)
 {
-    int i;
-
     /* And this */
-    for (i = 0; i < NALLCOLOURS; i++) {
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++) {
         internal_set_colour(i, defpal[i].rgbtRed,
                             defpal[i].rgbtGreen, defpal[i].rgbtBlue);
         if (pal) {
@@ -4819,7 +4803,7 @@ static void wintw_palette_reset(TermWin *tw)
 
     if (pal) {
         HDC hdc;
-        SetPaletteEntries(pal, 0, NALLCOLOURS, logpal->palPalEntry);
+        SetPaletteEntries(pal, 0, OSC4_NCOLOURS, logpal->palPalEntry);
         hdc = make_hdc();
         RealizePalette(hdc);
         free_hdc(hdc);
@@ -4930,7 +4914,7 @@ static void wintw_clip_write(
         COLORREF bg,   lastbg = -1;
         int attrBold,  lastAttrBold  = 0;
         int attrUnder, lastAttrUnder = 0;
-        int palette[NALLCOLOURS];
+        int palette[OSC4_NCOLOURS];
         int numcolours;
         tree234 *rgbtree = NULL;
         FontSpec *font = conf_get_fontspec(conf, CONF_font);
@@ -5006,7 +4990,7 @@ static void wintw_clip_write(
              * Next - Create a reduced palette
              */
             numcolours = 0;
-            for (i = 0; i < NALLCOLOURS; i++) {
+            for (i = 0; i < OSC4_NCOLOURS; i++) {
                 if (palette[i] != 0)
                     palette[i]  = ++numcolours;
             }
@@ -5022,7 +5006,7 @@ static void wintw_clip_write(
              */
             put_datapl(rtf, PTRLEN_LITERAL("{\\colortbl ;"));
 
-            for (i = 0; i < NALLCOLOURS; i++) {
+            for (i = 0; i < OSC4_NCOLOURS; i++) {
                 if (palette[i] != 0) {
                     strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
                                 defpal[i].rgbtRed, defpal[i].rgbtGreen,

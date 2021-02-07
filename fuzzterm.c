@@ -91,9 +91,9 @@ static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
 static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
 static void fuzz_set_zorder(TermWin *tw, bool top) {}
-static bool fuzz_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static bool fuzz_palette_get(TermWin *tw, unsigned n, int *r, int *g, int *b)
 { return false; }
-static void fuzz_palette_set(TermWin *tw, int n, int r, int g, int b) {}
+static void fuzz_palette_set(TermWin *tw, unsigned n, int r, int g, int b) {}
 static void fuzz_palette_reset(TermWin *tw) {}
 static void fuzz_get_pos(TermWin *tw, int *x, int *y) { *x = *y = 0; }
 static void fuzz_get_pixels(TermWin *tw, int *x, int *y) { *x = *y = 0; }

@@ -44,10 +44,6 @@
 
 #include "x11misc.h"
 
-/* Colours come in two flavours: configurable, and xterm-extended. */
-#define NEXTCOLOURS 240 /* 216 colour-cube plus 24 shades of grey */
-#define NALLCOLOURS (NCFGCOLOURS + NEXTCOLOURS)
-
 GdkAtom compound_text_atom, utf8_string_atom;
 static GdkAtom clipboard_atom
 #if GTK_CHECK_VERSION(2,0,0) /* GTK1 will have to fill this in at startup */
@@ -137,7 +133,7 @@ struct GtkFrontend {
     int xpos, ypos, gravity;
     bool gotpos;
     GdkCursor *rawcursor, *textcursor, *blankcursor, *waitcursor, *currcursor;
-    GdkColor cols[NALLCOLOURS];
+    GdkColor cols[OSC4_NCOLOURS];        /* indexed by xterm colour indices */
 #if !GTK_CHECK_VERSION(3,0,0)
     GdkColormap *colmap;
 #endif
@@ -2522,7 +2518,8 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 
 }
 
-static void real_palette_set(GtkFrontend *inst, int n, int r, int g, int b)
+static void real_palette_set(GtkFrontend *inst, unsigned n,
+                             int r, int g, int b)
 {
     inst->cols[n].red = r * 0x0101;
     inst->cols[n].green = g * 0x0101;
@@ -2584,15 +2581,13 @@ void set_window_background(GtkFrontend *inst)
         set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
-static void gtkwin_palette_set(TermWin *tw, int n, int r, int g, int b)
+static void gtkwin_palette_set(TermWin *tw, unsigned n, int r, int g, int b)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    if (n >= 16)
-        n += 256 - 16;
-    if (n >= NALLCOLOURS)
+    if (n >= OSC4_NCOLOURS)
         return;
     real_palette_set(inst, n, r, g, b);
-    if (n == 258) {
+    if (n == OSC4_COLOUR_bg) {
         /* Default Background changed. Ensure space between text area and
          * window border is redrawn */
         set_window_background(inst);
@@ -2601,10 +2596,10 @@ static void gtkwin_palette_set(TermWin *tw, int n, int r, int g, int b)
     }
 }
 
-static bool gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
+static bool gtkwin_palette_get(TermWin *tw, unsigned n, int *r, int *g, int *b)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    if (n < 0 || n >= NALLCOLOURS)
+    if (n >= OSC4_NCOLOURS)
         return false;
     *r = inst->cols[n].red >> 8;
     *g = inst->cols[n].green >> 8;
@@ -2615,53 +2610,44 @@ static bool gtkwin_palette_get(TermWin *tw, int n, int *r, int *g, int *b)
 static void gtkwin_palette_reset(TermWin *tw)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    /* This maps colour indices in inst->conf to those used in inst->cols. */
-    static const int ww[] = {
-        256, 257, 258, 259, 260, 261,
-        0, 8, 1, 9, 2, 10, 3, 11,
-        4, 12, 5, 13, 6, 14, 7, 15
-    };
     int i;
-
-    assert(lenof(ww) == NCFGCOLOURS);
 
 #if !GTK_CHECK_VERSION(3,0,0)
     if (!inst->colmap) {
         inst->colmap = gdk_colormap_get_system();
     } else {
-        gdk_colormap_free_colors(inst->colmap, inst->cols, NALLCOLOURS);
+        gdk_colormap_free_colors(inst->colmap, inst->cols, OSC4_NCOLOURS);
     }
 #endif
 
-    for (i = 0; i < NCFGCOLOURS; i++) {
-        inst->cols[ww[i]].red =
+    for (i = 0; i < CONF_NCOLOURS; i++) {
+        int w = colour_indices_conf_to_osc4[i];
+        inst->cols[w].red =
             conf_get_int_int(inst->conf, CONF_colours, i*3+0) * 0x0101;
-        inst->cols[ww[i]].green =
+        inst->cols[w].green =
             conf_get_int_int(inst->conf, CONF_colours, i*3+1) * 0x0101;
-        inst->cols[ww[i]].blue =
+        inst->cols[w].blue =
             conf_get_int_int(inst->conf, CONF_colours, i*3+2) * 0x0101;
     }
 
-    for (i = 0; i < NEXTCOLOURS; i++) {
-        if (i < 216) {
-            int r = i / 36, g = (i / 6) % 6, b = i % 6;
-            inst->cols[i+16].red = r ? r * 0x2828 + 0x3737 : 0;
-            inst->cols[i+16].green = g ? g * 0x2828 + 0x3737 : 0;
-            inst->cols[i+16].blue = b ? b * 0x2828 + 0x3737 : 0;
-        } else {
-            int shade = i - 216;
-            shade = shade * 0x0a0a + 0x0808;
-            inst->cols[i+16].red = inst->cols[i+16].green =
-                inst->cols[i+16].blue = shade;
-        }
+    for (i = 0; i < 216; i++) {
+        int r = i / 36, g = (i / 6) % 6, b = i % 6;
+        inst->cols[i+16].red = r ? r * 0x2828 + 0x3737 : 0;
+        inst->cols[i+16].green = g ? g * 0x2828 + 0x3737 : 0;
+        inst->cols[i+16].blue = b ? b * 0x2828 + 0x3737 : 0;
+    }
+    for (i = 0; i < 24; i++) {
+        int shade = i * 0x0a0a + 0x0808;
+        inst->cols[i+232].red = inst->cols[i+232].green =
+            inst->cols[i+232].blue = shade;
     }
 
 #if !GTK_CHECK_VERSION(3,0,0)
     {
-        gboolean success[NALLCOLOURS];
-        gdk_colormap_alloc_colors(inst->colmap, inst->cols, NALLCOLOURS,
+        gboolean success[OSC4_NCOLOURS];
+        gdk_colormap_alloc_colors(inst->colmap, inst->cols, OSC4_NCOLOURS,
                                   false, true, success);
-        for (i = 0; i < NALLCOLOURS; i++) {
+        for (i = 0; i < OSC4_NCOLOURS; i++) {
             if (!success[i])
                 g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
                         appname, i,
@@ -4626,12 +4612,6 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
 
 static void after_change_settings_dialog(void *vctx, int retval)
 {
-    /* This maps colour indices in inst->conf to those used in inst->cols. */
-    static const int ww[] = {
-        256, 257, 258, 259, 260, 261,
-        0, 8, 1, 9, 2, 10, 3, 11,
-        4, 12, 5, 13, 6, 14, 7, 15
-    };
     struct after_change_settings_dialog_ctx ctx =
         *(struct after_change_settings_dialog_ctx *)vctx;
     GtkFrontend *inst = ctx.inst;
@@ -4640,8 +4620,6 @@ static void after_change_settings_dialog(void *vctx, int retval)
     bool need_size;
 
     sfree(vctx); /* we've copied this already */
-
-    assert(lenof(ww) == NCFGCOLOURS);
 
     unregister_dialog(&inst->seat, DIALOG_SLOT_RECONFIGURE);
 
@@ -4675,13 +4653,13 @@ static void after_change_settings_dialog(void *vctx, int retval)
          * to the new default, on the assumption that the user is
          * most likely to want an immediate update.
          */
-        for (i = 0; i < NCFGCOLOURS; i++) {
+        for (i = 0; i < CONF_NCOLOURS; i++) {
             for (j = 0; j < 3; j++)
                 if (conf_get_int_int(oldconf, CONF_colours, i*3+j) !=
                     conf_get_int_int(newconf, CONF_colours, i*3+j))
                     break;
             if (j < 3) {
-                real_palette_set(inst, ww[i],
+                real_palette_set(inst, colour_indices_conf_to_osc4[i],
                                  conf_get_int_int(newconf,CONF_colours,i*3+0),
                                  conf_get_int_int(newconf,CONF_colours,i*3+1),
                                  conf_get_int_int(newconf,CONF_colours,i*3+2));
@@ -4691,7 +4669,7 @@ static void after_change_settings_dialog(void *vctx, int retval)
                  * repaint the space in between the window border
                  * and the text area.
                  */
-                if (ww[i] == 258) {
+                if (i == CONF_COLOUR_bg) {
                     set_window_background(inst);
                     draw_backing_rect(inst);
                 }

@@ -132,6 +132,24 @@ static void unlineptr(termline *line)
         freetermline(line);
 }
 
+const int colour_indices_conf_to_oscp[CONF_NCOLOURS] = {
+    #define COLOUR_ENTRY(id,name) OSCP_COLOUR_##id,
+    CONF_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
+
+const int colour_indices_conf_to_osc4[CONF_NCOLOURS] = {
+    #define COLOUR_ENTRY(id,name) OSC4_COLOUR_##id,
+    CONF_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
+
+const int colour_indices_oscp_to_osc4[OSCP_NCOLOURS] = {
+    #define COLOUR_ENTRY(id) OSC4_COLOUR_##id,
+    OSCP_COLOUR_LIST(COLOUR_ENTRY)
+    #undef COLOUR_ENTRY
+};
+
 #ifdef TERM_CC_DIAGS
 /*
  * Diagnostic function: verify that a termline has a correct
@@ -4868,8 +4886,13 @@ static void term_out(Terminal *term)
                 }
                 term->osc_string[term->osc_strlen++] = val;
                 if (term->osc_strlen >= 7) {
+                  unsigned oscp_index = term->osc_string[0];
+                  assert(oscp_index < OSCP_NCOLOURS);
+                  unsigned osc4_index =
+                      colour_indices_oscp_to_osc4[oscp_index];
+
                   win_palette_set(
-                      term->win, term->osc_string[0],
+                      term->win, osc4_index,
                       term->osc_string[1] * 16 + term->osc_string[2],
                       term->osc_string[3] * 16 + term->osc_string[4],
                       term->osc_string[5] * 16 + term->osc_string[6]);
