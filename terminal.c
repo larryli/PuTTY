@@ -1918,6 +1918,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->window_title = dupstr("");
     term->icon_title = dupstr("");
     term->minimised = false;
+    term->winpos_x = term->winpos_y = 0;
+    term->winpixsize_x = term->winpixsize_y = 0;
 
     palette_reset(term, false);
 
@@ -4498,7 +4500,7 @@ static void term_out(Terminal *term)
                             compatibility(OTHER);
 
                             switch (term->esc_args[0]) {
-                                int x, y, len;
+                                int len;
                                 char buf[80];
                                 const char *p;
                               case 1:
@@ -4557,17 +4559,17 @@ static void term_out(Terminal *term)
                                 break;
                               case 13:
                                 if (term->ldisc) {
-                                    win_get_pos(term->win, &x, &y);
                                     len = sprintf(buf, "\033[3;%u;%ut",
-                                                  (unsigned)x,
-                                                  (unsigned)y);
+                                                  term->winpos_x,
+                                                  term->winpos_y);
                                     ldisc_send(term->ldisc, buf, len, false);
                                 }
                                 break;
                               case 14:
                                 if (term->ldisc) {
-                                    win_get_pixels(term->win, &x, &y);
-                                    len = sprintf(buf, "\033[4;%d;%dt", y, x);
+                                    len = sprintf(buf, "\033[4;%u;%ut",
+                                                  term->winpixsize_y,
+                                                  term->winpixsize_x);
                                     ldisc_send(term->ldisc, buf, len, false);
                                 }
                                 break;
@@ -7465,4 +7467,16 @@ void term_notify_minimised(Terminal *term, bool minimised)
 void term_notify_palette_overrides_changed(Terminal *term)
 {
     palette_reset(term, true);
+}
+
+void term_notify_window_pos(Terminal *term, int x, int y)
+{
+    term->winpos_x = x;
+    term->winpos_y = y;
+}
+
+void term_notify_window_size_pixels(Terminal *term, int x, int y)
+{
+    term->winpixsize_x = x;
+    term->winpixsize_y = y;
 }

@@ -242,8 +242,6 @@ static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
 static void wintw_palette_set(TermWin *, unsigned, unsigned, const rgb *);
 static void wintw_palette_get_overrides(TermWin *);
-static void wintw_get_pos(TermWin *, int *x, int *y);
-static void wintw_get_pixels(TermWin *, int *x, int *y);
 
 static const TermWinVtable windows_termwin_vt = {
     .setup_draw_ctx = wintw_setup_draw_ctx,
@@ -268,8 +266,6 @@ static const TermWinVtable windows_termwin_vt = {
     .set_zorder = wintw_set_zorder,
     .palette_set = wintw_palette_set,
     .palette_get_overrides = wintw_palette_get_overrides,
-    .get_pos = wintw_get_pos,
-    .get_pixels = wintw_get_pixels,
 };
 
 static TermWin wintw[1];
@@ -295,12 +291,6 @@ static char *win_seat_get_ttymode(Seat *seat, const char *mode)
     return term_get_ttymode(term, mode);
 }
 
-static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
-{
-    win_get_pixels(wintw, x, y);
-    return true;
-}
-
 static StripCtrlChars *win_seat_stripctrl_new(
     Seat *seat, BinarySink *bs_out, SeatInteractionContext sic)
 {
@@ -318,6 +308,7 @@ static void win_seat_update_specials_menu(Seat *seat);
 static void win_seat_set_busy_status(Seat *seat, BusyStatus status);
 static bool win_seat_set_trust_status(Seat *seat, bool trusted);
 static bool win_seat_get_cursor_position(Seat *seat, int *x, int *y);
+static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y);
 
 static const SeatVtable win_seat_vt = {
     .output = win_seat_output,
@@ -2870,6 +2861,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         fullscr_on_max = true;
         break;
       case WM_MOVE:
+        term_notify_window_pos(term, LOWORD(lParam), HIWORD(lParam));
         sys_cursor_update();
         break;
       case WM_SIZE:
@@ -2884,6 +2876,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
               LOWORD(lParam), HIWORD(lParam));
 #endif
         term_notify_minimised(term, wParam == SIZE_MINIMIZED);
+        {
+            /*
+             * WM_SIZE's lParam tells us the size of the client area.
+             * But historic PuTTY practice is that we want to tell the
+             * terminal the size of the overall window.
+             */
+            RECT r;
+            GetWindowRect(hwnd, &r);
+            term_notify_window_size_pixels(
+                term, r.right - r.left, r.bottom - r.top);
+        }
         if (wParam == SIZE_MINIMIZED)
             SetWindowText(hwnd,
                           conf_get_bool(conf, CONF_win_name_always) ?
@@ -5514,28 +5517,6 @@ static void wintw_set_maximised(TermWin *tw, bool maximised)
 }
 
 /*
- * Report the window's position, for terminal reports.
- */
-static void wintw_get_pos(TermWin *tw, int *x, int *y)
-{
-    RECT r;
-    GetWindowRect(wgs.term_hwnd, &r);
-    *x = r.left;
-    *y = r.top;
-}
-
-/*
- * Report the window's pixel size, for terminal reports.
- */
-static void wintw_get_pixels(TermWin *tw, int *x, int *y)
-{
-    RECT r;
-    GetWindowRect(wgs.term_hwnd, &r);
-    *x = r.right - r.left;
-    *y = r.bottom - r.top;
-}
-
-/*
  * See if we're in full-screen mode.
  */
 static bool is_full_screen()
@@ -5691,5 +5672,14 @@ static bool win_seat_set_trust_status(Seat *seat, bool trusted)
 static bool win_seat_get_cursor_position(Seat *seat, int *x, int *y)
 {
     term_get_cursor_position(term, x, y);
+    return true;
+}
+
+static bool win_seat_get_window_pixel_size(Seat *seat, int *x, int *y)
+{
+    RECT r;
+    GetWindowRect(wgs.term_hwnd, &r);
+    *x = r.right - r.left;
+    *y = r.bottom - r.top;
     return true;
 }

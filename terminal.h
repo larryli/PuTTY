@@ -360,6 +360,8 @@ struct terminal_tag {
 
     /* The composite palette that we make out of the above */
     rgb palette[OSC4_NCOLOURS];
+
+    unsigned winpos_x, winpos_y, winpixsize_x, winpixsize_y;
 };
 
 static inline bool in_utf(Terminal *term)

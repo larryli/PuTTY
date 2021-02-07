@@ -350,7 +350,16 @@ static bool gtk_seat_is_utf8(Seat *seat)
 static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 {
     GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
-    win_get_pixels(&inst->termwin, w, h);
+    /*
+     * I assume that when the GTK version of this call is available
+     * we should use it. Not sure how it differs from the GDK one,
+     * though.
+     */
+#if GTK_CHECK_VERSION(2,0,0)
+    gtk_window_get_size(GTK_WINDOW(inst->window), w, h);
+#else
+    gdk_window_get_size(gtk_widget_get_window(inst->window), w, h);
+#endif
     return true;
 }
 
@@ -558,42 +567,6 @@ static void gtkwin_set_maximised(TermWin *tw, bool maximised)
         gtk_window_maximize(GTK_WINDOW(inst->window));
     else
         gtk_window_unmaximize(GTK_WINDOW(inst->window));
-#endif
-}
-
-/*
- * Report the window's position, for terminal reports.
- */
-static void gtkwin_get_pos(TermWin *tw, int *x, int *y)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    /*
-     * I assume that when the GTK version of this call is available
-     * we should use it. Not sure how it differs from the GDK one,
-     * though.
-     */
-#if GTK_CHECK_VERSION(2,0,0)
-    gtk_window_get_position(GTK_WINDOW(inst->window), x, y);
-#else
-    gdk_window_get_position(gtk_widget_get_window(inst->window), x, y);
-#endif
-}
-
-/*
- * Report the window's pixel size, for terminal reports.
- */
-static void gtkwin_get_pixels(TermWin *tw, int *x, int *y)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    /*
-     * I assume that when the GTK version of this call is available
-     * we should use it. Not sure how it differs from the GDK one,
-     * though.
-     */
-#if GTK_CHECK_VERSION(2,0,0)
-    gtk_window_get_size(GTK_WINDOW(inst->window), x, y);
-#else
-    gdk_window_get_size(gtk_widget_get_window(inst->window), x, y);
 #endif
 }
 
@@ -841,6 +814,18 @@ static void area_check_scale(GtkFrontend *inst)
     }
 }
 #endif
+
+static gboolean window_configured(
+    GtkWidget *widget, GdkEventConfigure *event, gpointer data)
+{
+    GtkFrontend *inst = (GtkFrontend *)data;
+    if (inst->term) {
+        term_notify_window_pos(inst->term, event->x, event->y);
+        term_notify_window_size_pixels(
+            inst->term, event->width, event->height);
+    }
+    return false;
+}
 
 #if GTK_CHECK_VERSION(3,10,0)
 static gboolean area_configured(
@@ -5053,8 +5038,6 @@ static const TermWinVtable gtk_termwin_vt = {
     .set_zorder = gtkwin_set_zorder,
     .palette_set = gtkwin_palette_set,
     .palette_get_overrides = gtkwin_palette_get_overrides,
-    .get_pos = gtkwin_get_pos,
-    .get_pixels = gtkwin_get_pixels,
 };
 
 void new_session_window(Conf *conf, const char *geometry_string)
@@ -5263,6 +5246,8 @@ void new_session_window(Conf *conf, const char *geometry_string)
                      G_CALLBACK(area_realised), inst);
     g_signal_connect(G_OBJECT(inst->area), "size_allocate",
                      G_CALLBACK(area_size_allocate), inst);
+    g_signal_connect(G_OBJECT(inst->window), "configure_event",
+                     G_CALLBACK(window_configured), inst);
 #if GTK_CHECK_VERSION(3,10,0)
     g_signal_connect(G_OBJECT(inst->area), "configure_event",
                      G_CALLBACK(area_configured), inst);

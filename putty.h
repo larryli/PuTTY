@@ -1282,9 +1282,6 @@ struct TermWinVtable {
      * colours stored in Conf. The front end should set any it cares
      * about by calling term_palette_override. */
     void (*palette_get_overrides)(TermWin *);
-
-    void (*get_pos)(TermWin *, int *x, int *y);
-    void (*get_pixels)(TermWin *, int *x, int *y);
 };
 
 static inline bool win_setup_draw_ctx(TermWin *win)
@@ -1327,8 +1324,6 @@ static inline void win_set_icon_title(TermWin *win, const char *icontitle)
 { win->vt->set_icon_title(win, icontitle); }
 static inline void win_set_minimised(TermWin *win, bool minimised)
 { win->vt->set_minimised(win, minimised); }
-static inline bool win_is_minimised(TermWin *win)
-{ return win->vt->is_minimised(win); }
 static inline void win_set_maximised(TermWin *win, bool maximised)
 { win->vt->set_maximised(win, maximised); }
 static inline void win_move(TermWin *win, int x, int y)
@@ -1340,10 +1335,6 @@ static inline void win_palette_set(
 { win->vt->palette_set(win, start, ncolours, colours); }
 static inline void win_palette_get_overrides(TermWin *win)
 { win->vt->palette_get_overrides(win); }
-static inline void win_get_pos(TermWin *win, int *x, int *y)
-{ win->vt->get_pos(win, x, y); }
-static inline void win_get_pixels(TermWin *win, int *x, int *y)
-{ win->vt->get_pixels(win, x, y); }
 
 /*
  * Global functions not specific to a connection instance.
@@ -1773,6 +1764,8 @@ void term_get_cursor_position(Terminal *term, int *x, int *y);
 void term_setup_window_titles(Terminal *term, const char *title_hostname);
 void term_notify_minimised(Terminal *term, bool minimised);
 void term_notify_palette_overrides_changed(Terminal *term);
+void term_notify_window_pos(Terminal *term, int x, int y);
+void term_notify_window_size_pixels(Terminal *term, int x, int y);
 void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb);
 
 typedef enum SmallKeypadKey {
