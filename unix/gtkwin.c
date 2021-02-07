@@ -629,15 +629,6 @@ static bool find_and_raise_dialog(GtkFrontend *inst, enum DialogSlot slot)
     return true;
 }
 
-/*
- * Return the window or icon title.
- */
-static const char *gtkwin_get_title(TermWin *tw, bool icon)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    return icon ? inst->icontitle : inst->wintitle;
-}
-
 static void warn_on_close_callback(void *vctx, int result)
 {
     GtkFrontend *inst = (GtkFrontend *)vctx;
@@ -3330,15 +3321,6 @@ static void gtkwin_set_icon_title(TermWin *tw, const char *title)
     set_window_titles(inst);
 }
 
-void set_title_and_icon(GtkFrontend *inst, char *title, char *icon)
-{
-    sfree(inst->wintitle);
-    inst->wintitle = dupstr(title);
-    sfree(inst->icontitle);
-    inst->icontitle = dupstr(icon);
-    set_window_titles(inst);
-}
-
 static void gtkwin_set_scrollbar(TermWin *tw, int total, int start, int page)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
@@ -4630,6 +4612,8 @@ void change_settings_menuitem(GtkMenuItem *item, gpointer data)
     ctx->inst = inst;
     ctx->newconf = conf_copy(inst->conf);
 
+    term_pre_reconfig(inst->term, ctx->newconf);
+
     dialog = create_config_box(
         title, ctx->newconf, true,
         inst->backend ? backend_cfg_info(inst->backend) : 0,
@@ -4730,15 +4714,6 @@ static void after_change_settings_dialog(void *vctx, int retval)
                                   conf_get_bool(newconf, CONF_scrollbar_on_left)
                                   ? 0 : 1);
         }
-
-        /*
-         * Change the window title, if required.
-         */
-        if (strcmp(conf_get_str(oldconf, CONF_wintitle),
-                   conf_get_str(newconf, CONF_wintitle)))
-            win_set_title(&inst->termwin,
-                          conf_get_str(newconf, CONF_wintitle));
-        set_window_titles(inst);
 
         /*
          * Redo the whole tangled fonts and Unicode mess if
@@ -5097,7 +5072,6 @@ static void start_backend(GtkFrontend *inst)
 {
     const struct BackendVtable *vt;
     char *error, *realhost;
-    char *s;
 
     vt = select_backend(inst->conf);
 
@@ -5119,14 +5093,7 @@ static void start_backend(GtkFrontend *inst)
         return;
     }
 
-    s = conf_get_str(inst->conf, CONF_wintitle);
-    if (s[0]) {
-        set_title_and_icon(inst, s, s);
-    } else {
-        char *title = make_default_wintitle(realhost);
-        set_title_and_icon(inst, title, title);
-        sfree(title);
-    }
+    term_setup_window_titles(inst->term, realhost);
     sfree(realhost);
 
     term_provide_backend(inst->term, inst->backend);
@@ -5190,7 +5157,6 @@ static const TermWinVtable gtk_termwin_vt = {
     .palette_reset = gtkwin_palette_reset,
     .get_pos = gtkwin_get_pos,
     .get_pixels = gtkwin_get_pixels,
-    .get_title = gtkwin_get_title,
 };
 
 void new_session_window(Conf *conf, const char *geometry_string)

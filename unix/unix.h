@@ -245,9 +245,6 @@ GtkWidget *create_message_box(
     post_dialog_fn_t after, void *afterctx);
 #endif
 
-/* Things gtkwin.c needs from {ptermm,uxputty}.c */
-char *make_default_wintitle(char *hostname);
-
 /* gtkwin.c needs this special function in xkeysym.c */
 int keysym_to_unicode(int keysym);
 

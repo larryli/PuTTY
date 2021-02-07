@@ -253,7 +253,6 @@ static void wintw_palette_set(TermWin *, int n, int r, int g, int b);
 static void wintw_palette_reset(TermWin *);
 static void wintw_get_pos(TermWin *, int *x, int *y);
 static void wintw_get_pixels(TermWin *, int *x, int *y);
-static const char *wintw_get_title(TermWin *, bool icon);
 
 static const TermWinVtable windows_termwin_vt = {
     .setup_draw_ctx = wintw_setup_draw_ctx,
@@ -282,7 +281,6 @@ static const TermWinVtable windows_termwin_vt = {
     .palette_reset = wintw_palette_reset,
     .get_pos = wintw_get_pos,
     .get_pixels = wintw_get_pixels,
-    .get_title = wintw_get_title,
 };
 
 static TermWin wintw[1];
@@ -361,7 +359,6 @@ static WinGuiSeat wgs = { .seat.vt = &win_seat_vt,
 static void start_backend(void)
 {
     const struct BackendVtable *vt;
-    const char *title;
     char *error, *realhost;
     int i;
 
@@ -395,16 +392,8 @@ static void start_backend(void)
         sfree(msg);
         exit(0);
     }
-    window_name = icon_name = NULL;
-    char *title_to_free = NULL;
-    title = conf_get_str(conf, CONF_wintitle);
-    if (!*title) {
-        title_to_free = dupprintf("%s - %s", realhost, appname);
-        title = title_to_free;
-    }
+    term_setup_window_titles(term, realhost);
     sfree(realhost);
-    win_set_title(wintw, title);
-    win_set_icon_title(wintw, title);
 
     /*
      * Connect the terminal to the backend for resize purposes.
@@ -428,8 +417,6 @@ static void start_backend(void)
     }
 
     session_closed = false;
-
-    sfree(title_to_free);
 }
 
 static void close_session(void *ignored_context)
@@ -2328,14 +2315,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             else
                 reconfiguring = true;
 
-            /*
-             * Copy the current window title into the stored
-             * previous configuration, so that doing nothing to
-             * the window title field in the config box doesn't
-             * reset the title to its startup state.
-             */
-            conf_set_str(conf, CONF_wintitle, window_name);
-
+            term_pre_reconfig(term, conf);
             prev_conf = conf_copy(conf);
 
             reconfig_result = do_reconfig(
@@ -2465,13 +2445,6 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             if (resize_action == RESIZE_DISABLED && IsZoomed(hwnd)) {
               force_normal(hwnd);
               init_lvl = 2;
-            }
-
-            win_set_title(wintw, conf_get_str(conf, CONF_wintitle));
-            if (IsIconic(hwnd)) {
-              SetWindowText(hwnd,
-                            conf_get_bool(conf, CONF_win_name_always) ?
-                            window_name : icon_name);
             }
 
             {
@@ -5666,14 +5639,6 @@ static void wintw_get_pixels(TermWin *tw, int *x, int *y)
     GetWindowRect(wgs.term_hwnd, &r);
     *x = r.right - r.left;
     *y = r.bottom - r.top;
-}
-
-/*
- * Return the window or icon title.
- */
-static const char *wintw_get_title(TermWin *tw, bool icon)
-{
-    return icon ? icon_name : window_name;
 }
 
 /*

@@ -1149,7 +1149,6 @@ struct TermWinVtable {
 
     void (*get_pos)(TermWin *, int *x, int *y);
     void (*get_pixels)(TermWin *, int *x, int *y);
-    const char *(*get_title)(TermWin *, bool icon);
 };
 
 static inline bool win_setup_draw_ctx(TermWin *win)
@@ -1210,8 +1209,6 @@ static inline void win_get_pos(TermWin *win, int *x, int *y)
 { win->vt->get_pos(win, x, y); }
 static inline void win_get_pixels(TermWin *win, int *x, int *y)
 { win->vt->get_pixels(win, x, y); }
-static inline const char *win_get_title(TermWin *win, bool icon)
-{ return win->vt->get_title(win, icon); }
 
 /*
  * Global functions not specific to a connection instance.
@@ -1625,6 +1622,7 @@ void term_blink(Terminal *, bool set_cursor);
 void term_do_paste(Terminal *, const wchar_t *, int);
 void term_nopaste(Terminal *);
 void term_copyall(Terminal *, const int *, int);
+void term_pre_reconfig(Terminal *, Conf *);
 void term_reconfig(Terminal *, Conf *);
 void term_request_copy(Terminal *, const int *clipboards, int n_clipboards);
 void term_request_paste(Terminal *, int clipboard);
@@ -1639,6 +1637,7 @@ void term_set_trust_status(Terminal *term, bool trusted);
 void term_keyinput(Terminal *, int codepage, const void *buf, int len);
 void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
 void term_get_cursor_position(Terminal *term, int *x, int *y);
+void term_setup_window_titles(Terminal *term, const char *title_hostname);
 
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,

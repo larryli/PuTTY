@@ -56,11 +56,6 @@ void initial_config_box(Conf *conf, post_dialog_fn_t after, void *afterctx)
 const bool use_event_log = true, new_session = true, saved_sessions = true;
 const bool dup_check_launchable = true;
 
-char *make_default_wintitle(char *hostname)
-{
-    return dupcat(hostname, " - ", appname);
-}
-
 /*
  * X11-forwarding-related things suitable for Gtk app.
  */

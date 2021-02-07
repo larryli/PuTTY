@@ -342,6 +342,8 @@ struct terminal_tag {
     int mouse_select_clipboards[N_CLIPBOARDS];
     int n_mouse_select_clipboards;
     int mouse_paste_clipboard;
+
+    char *window_title, *icon_title;
 };
 
 static inline bool in_utf(Terminal *term)

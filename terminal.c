@@ -1515,6 +1515,17 @@ void term_copy_stuff_from_conf(Terminal *term)
     }
 }
 
+void term_pre_reconfig(Terminal *term, Conf *conf)
+{
+
+    /*
+     * Copy the current window title into the stored previous
+     * configuration, so that doing nothing to the window title field
+     * in the config box doesn't reset the title to its startup state.
+     */
+    conf_set_str(conf, CONF_wintitle, term->window_title);
+}
+
 /*
  * When the user reconfigures us, we need to check the forbidden-
  * alternate-screen config option, disable raw mouse mode if the
@@ -1562,6 +1573,16 @@ void term_reconfig(Terminal *term, Conf *conf)
             term->pre_bidi_cache[i].chars = NULL;
             term->post_bidi_cache[i].width = -1;
             term->post_bidi_cache[i].chars = NULL;
+        }
+    }
+
+    {
+        const char *old_title = conf_get_str(term->conf, CONF_wintitle);
+        const char *new_title = conf_get_str(conf, CONF_wintitle);
+        if (strcmp(old_title, new_title)) {
+            sfree(term->window_title);
+            term->window_title = dupstr(new_title);
+            win_set_title(term->win, term->window_title);
         }
     }
 
@@ -1658,6 +1679,25 @@ void term_clrsb(Terminal *term)
 
 const optionalrgb optionalrgb_none = {0, 0, 0, 0};
 
+void term_setup_window_titles(Terminal *term, const char *title_hostname)
+{
+    const char *conf_title = conf_get_str(term->conf, CONF_wintitle);
+    sfree(term->window_title);
+    sfree(term->icon_title);
+    if (*conf_title) {
+        term->window_title = dupstr(conf_title);
+        term->icon_title = dupstr(conf_title);
+    } else {
+        if (title_hostname)
+            term->window_title = dupcat(title_hostname, " - ", appname);
+        else
+            term->window_title = dupstr(appname);
+        term->icon_title = dupstr(term->window_title);
+    }
+    win_set_title(term->win, term->window_title);
+    win_set_icon_title(term->win, term->icon_title);
+}
+
 /*
  * Initialise the terminal.
  */
@@ -1750,6 +1790,9 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->bracketed_paste_active = false;
 
+    term->window_title = dupstr("");
+    term->icon_title = dupstr("");
+
     return term;
 }
 
@@ -1803,6 +1846,9 @@ void term_free(Terminal *term)
     delete_callbacks_for_context(term);
 
     conf_free(term->conf);
+
+    sfree(term->window_title);
+    sfree(term->icon_title);
 
     sfree(term);
 }
@@ -2794,15 +2840,21 @@ static void do_osc(Terminal *term)
         switch (term->esc_args[0]) {
           case 0:
           case 1:
-            if (!term->no_remote_wintitle)
+            if (!term->no_remote_wintitle) {
                 win_set_icon_title(term->win, term->osc_string);
+                sfree(term->icon_title);
+                term->icon_title = dupstr(term->osc_string);
+            }
             if (term->esc_args[0] == 1)
                 break;
             /* fall through: parameter 0 means set both */
           case 2:
           case 21:
-            if (!term->no_remote_wintitle)
+            if (!term->no_remote_wintitle) {
                 win_set_title(term->win, term->osc_string);
+                sfree(term->window_title);
+                term->window_title = dupstr(term->osc_string);
+            }
             break;
           case 4:
             if (term->ldisc && !strcmp(term->osc_string, "?")) {
@@ -4422,7 +4474,7 @@ static void term_out(Terminal *term)
                                 if (term->ldisc &&
                                     term->remote_qtitle_action != TITLE_NONE) {
                                     if(term->remote_qtitle_action == TITLE_REAL)
-                                        p = win_get_title(term->win, true);
+                                        p = term->icon_title;
                                     else
                                         p = EMPTY_WINDOW_TITLE;
                                     len = strlen(p);
@@ -4437,7 +4489,7 @@ static void term_out(Terminal *term)
                                 if (term->ldisc &&
                                     term->remote_qtitle_action != TITLE_NONE) {
                                     if(term->remote_qtitle_action == TITLE_REAL)
-                                        p = win_get_title(term->win, false);
+                                        p = term->window_title;
                                     else
                                         p = EMPTY_WINDOW_TITLE;
                                     len = strlen(p);

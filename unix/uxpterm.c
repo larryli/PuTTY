@@ -41,11 +41,6 @@ void cleanup_exit(int code)
     exit(code);
 }
 
-char *make_default_wintitle(char *hostname)
-{
-    return dupstr("pterm");
-}
-
 void setup(bool single)
 {
     settings_set_default_protocol(-1);
