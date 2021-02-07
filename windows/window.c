@@ -2049,12 +2049,44 @@ static void free_hdc(HDC hdc)
     ReleaseDC(wgs.term_hwnd, hdc);
 }
 
+static bool need_backend_resize = false;
+
+static void wm_size_resize_term(LPARAM lParam, bool border)
+{
+    int width = LOWORD(lParam);
+    int height = HIWORD(lParam);
+    int border_size = border ? conf_get_int(conf, CONF_window_border) : 0;
+
+    int w = (width - border_size*2) / font_width;
+    int h = (height - border_size*2) / font_height;
+
+    if (w < 1) w = 1;
+    if (h < 1) h = 1;
+
+    if (resizing) {
+        /*
+         * If we're in the middle of an interactive resize, we don't
+         * call term_size. This means that, firstly, the user can drag
+         * the size back and forth indecisively without wiping out any
+         * actual terminal contents, and secondly, the Terminal
+         * doesn't call back->size in turn for each increment of the
+         * resizing drag, so we don't spam the server with huge
+         * numbers of resize events.
+         */
+        need_backend_resize = true;
+        conf_set_int(conf, CONF_height, h);
+        conf_set_int(conf, CONF_width, w);
+    } else {
+        term_size(term, h, w,
+                  conf_get_int(conf, CONF_savelines));
+    }
+}
+
 static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                                 WPARAM wParam, LPARAM lParam)
 {
     HDC hdc;
     static bool ignore_clip = false;
-    static bool need_backend_resize = false;
     static bool fullscr_on_max = false;
     static bool processed_resize = false;
     static UINT last_mousemove = 0;
@@ -2932,48 +2964,17 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             /* A resize, well it better be a minimize. */
             reset_window(-1);
         } else {
-
-            int width, height, w, h;
-            int window_border = conf_get_int(conf, CONF_window_border);
-
-            width = LOWORD(lParam);
-            height = HIWORD(lParam);
-
             if (wParam == SIZE_MAXIMIZED) {
                 was_zoomed = true;
                 prev_rows = term->rows;
                 prev_cols = term->cols;
-                if (resize_action == RESIZE_TERM) {
-                    w = width / font_width;
-                    if (w < 1) w = 1;
-                    h = height / font_height;
-                    if (h < 1) h = 1;
-
-                    if (resizing) {
-                        /*
-                         * As below, if we're in the middle of an
-                         * interactive resize we don't call
-                         * back->size. In Windows 7, this case can
-                         * arise in maximisation as well via the Aero
-                         * snap UI.
-                         */
-                        need_backend_resize = true;
-                        conf_set_int(conf, CONF_height, h);
-                        conf_set_int(conf, CONF_width, w);
-                    } else {
-                        term_size(term, h, w,
-                                  conf_get_int(conf, CONF_savelines));
-                    }
-                }
+                if (resize_action == RESIZE_TERM)
+                    wm_size_resize_term(lParam, false);
                 reset_window(0);
             } else if (wParam == SIZE_RESTORED && was_zoomed) {
                 was_zoomed = false;
                 if (resize_action == RESIZE_TERM) {
-                    w = (width-window_border*2) / font_width;
-                    if (w < 1) w = 1;
-                    h = (height-window_border*2) / font_height;
-                    if (h < 1) h = 1;
-                    term_size(term, h, w, conf_get_int(conf, CONF_savelines));
+                    wm_size_resize_term(lParam, true);
                     reset_window(2);
                 } else if (resize_action != RESIZE_FONT)
                     reset_window(2);
@@ -2984,24 +2985,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             } else if (resize_action == RESIZE_TERM ||
                        (resize_action == RESIZE_EITHER &&
                         !is_alt_pressed())) {
-                w = (width-window_border*2) / font_width;
-                if (w < 1) w = 1;
-                h = (height-window_border*2) / font_height;
-                if (h < 1) h = 1;
-
-                if (resizing) {
-                    /*
-                     * Don't call back->size in mid-resize. (To
-                     * prevent massive numbers of resize events
-                     * getting sent down the connection during an NT
-                     * opaque drag.)
-                     */
-                    need_backend_resize = true;
-                    conf_set_int(conf, CONF_height, h);
-                    conf_set_int(conf, CONF_width, w);
-                } else {
-                    term_size(term, h, w, conf_get_int(conf, CONF_savelines));
-                }
+                wm_size_resize_term(lParam, true);
             } else {
                 reset_window(0);
             }
