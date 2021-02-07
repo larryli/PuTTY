@@ -345,6 +345,21 @@ struct terminal_tag {
 
     char *window_title, *icon_title;
     bool minimised;
+
+    /* Multi-layered colour palette. The colours from Conf (plus the
+     * default xterm-256 ones that don't have Conf ids at all) have
+     * lowest priority, followed by platform overrides if any,
+     * followed by escape-sequence overrides during the session. */
+    struct term_subpalette {
+        rgb values[OSC4_NCOLOURS];
+        bool present[OSC4_NCOLOURS];
+    } subpalettes[3];
+#define SUBPAL_CONF 0
+#define SUBPAL_PLATFORM 1
+#define SUBPAL_SESSION 2
+
+    /* The composite palette that we make out of the above */
+    rgb palette[OSC4_NCOLOURS];
 };
 
 static inline bool in_utf(Terminal *term)

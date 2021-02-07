@@ -63,9 +63,9 @@
  * Since the OSC 4 encoding contains the full set of colours used in
  * the terminal display, that's the encoding used by front ends to
  * store any actual data associated with their palette entries. So the
- * TermWin palette_{set,get} methods use that encoding, and so does
- * the bitwise encoding of attribute words used in terminal redraw
- * operations.
+ * TermWin palette_set and palette_get_overrides methods use that
+ * encoding, and so does the bitwise encoding of attribute words used
+ * in terminal redraw operations.
  *
  * The Conf encoding, of course, is used by config.c and settings.c.
  *
@@ -1204,6 +1204,10 @@ bool console_set_trust_status(Seat *seat, bool trusted);
 int filexfer_get_userpass_input(Seat *seat, prompts_t *p, bufchain *input);
 bool cmdline_seat_verbose(Seat *seat);
 
+typedef struct rgb {
+    uint8_t r, g, b;
+} rgb;
+
 /*
  * Data type 'TermWin', which is a vtable encapsulating all the
  * functionality that Terminal expects from its containing terminal
@@ -1268,10 +1272,16 @@ struct TermWinVtable {
     void (*move)(TermWin *, int x, int y);
     void (*set_zorder)(TermWin *, bool top);
 
-    /* Palette-handling functions. Palette indices are in OSC 4 encoding. */
-    bool (*palette_get)(TermWin *, unsigned n, int *r, int *g, int *b);
-    void (*palette_set)(TermWin *, unsigned n, int r, int g, int b);
-    void (*palette_reset)(TermWin *);
+    /* Set the colour palette that the TermWin will use to display
+     * text. One call to this function sets 'ncolours' consecutive
+     * colours in the OSC 4 sequence, starting at 'start'. */
+    void (*palette_set)(TermWin *, unsigned start, unsigned ncolours,
+                        const rgb *colours);
+
+    /* Query the front end for any OS-local overrides to the default
+     * colours stored in Conf. The front end should set any it cares
+     * about by calling term_palette_override. */
+    void (*palette_get_overrides)(TermWin *);
 
     void (*get_pos)(TermWin *, int *x, int *y);
     void (*get_pixels)(TermWin *, int *x, int *y);
@@ -1325,12 +1335,11 @@ static inline void win_move(TermWin *win, int x, int y)
 { win->vt->move(win, x, y); }
 static inline void win_set_zorder(TermWin *win, bool top)
 { win->vt->set_zorder(win, top); }
-static inline bool win_palette_get(TermWin *win, unsigned n,
- int *r, int *g, int *b) { return win->vt->palette_get(win, n, r, g, b); }
-static inline void win_palette_set(TermWin *win, unsigned n,
- int r, int g, int b) { win->vt->palette_set(win, n, r, g, b); }
-static inline void win_palette_reset(TermWin *win)
-{ win->vt->palette_reset(win); }
+static inline void win_palette_set(
+    TermWin *win, unsigned start, unsigned ncolours, const rgb *colours)
+{ win->vt->palette_set(win, start, ncolours, colours); }
+static inline void win_palette_get_overrides(TermWin *win)
+{ win->vt->palette_get_overrides(win); }
 static inline void win_get_pos(TermWin *win, int *x, int *y)
 { win->vt->get_pos(win, x, y); }
 static inline void win_get_pixels(TermWin *win, int *x, int *y)
@@ -1763,6 +1772,8 @@ void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
 void term_get_cursor_position(Terminal *term, int *x, int *y);
 void term_setup_window_titles(Terminal *term, const char *title_hostname);
 void term_notify_minimised(Terminal *term, bool minimised);
+void term_notify_palette_overrides_changed(Terminal *term);
+void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb);
 
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,

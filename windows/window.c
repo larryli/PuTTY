@@ -92,8 +92,6 @@ static void show_mouseptr(bool show);
 static LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                         unsigned char *output);
-static void conftopalette(void);
-static void systopalette(void);
 static void init_palette(void);
 static void init_fonts(int, int);
 static void another_font(int);
@@ -190,12 +188,10 @@ static enum {
 static int descent, font_strikethrough_y;
 
 static COLORREF colours[OSC4_NCOLOURS];
-static struct rgb {
-    int r, g, b;
-} colours_rgb[OSC4_NCOLOURS];
 static HPALETTE pal;
 static LPLOGPALETTE logpal;
-static RGBTRIPLE defpal[OSC4_NCOLOURS];
+bool tried_pal = false;
+COLORREF colorref_modifier = 0;
 
 static HBITMAP caretbm;
 
@@ -244,9 +240,8 @@ static void wintw_set_minimised(TermWin *, bool minimised);
 static void wintw_set_maximised(TermWin *, bool maximised);
 static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
-static bool wintw_palette_get(TermWin *, unsigned n, int *r, int *g, int *b);
-static void wintw_palette_set(TermWin *, unsigned n, int r, int g, int b);
-static void wintw_palette_reset(TermWin *);
+static void wintw_palette_set(TermWin *, unsigned, unsigned, const rgb *);
+static void wintw_palette_get_overrides(TermWin *);
 static void wintw_get_pos(TermWin *, int *x, int *y);
 static void wintw_get_pixels(TermWin *, int *x, int *y);
 
@@ -271,9 +266,8 @@ static const TermWinVtable windows_termwin_vt = {
     .set_maximised = wintw_set_maximised,
     .move = wintw_move,
     .set_zorder = wintw_set_zorder,
-    .palette_get = wintw_palette_get,
     .palette_set = wintw_palette_set,
-    .palette_reset = wintw_palette_reset,
+    .palette_get_overrides = wintw_palette_get_overrides,
     .get_pos = wintw_get_pos,
     .get_pixels = wintw_get_pixels,
 };
@@ -681,8 +675,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
 
     conf_cache_data();
 
-    conftopalette();
-
     /*
      * Guess some defaults for the window size. This all gets
      * updated later, so we don't really care too much. However, we
@@ -734,6 +726,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * for font_{width,height}.
      */
     init_fonts(0,0);
+
+    /*
+     * Prepare a logical palette.
+     */
+    init_palette();
 
     /*
      * Initialise the terminal. (We have to do this _after_
@@ -868,13 +865,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     ShowWindow(wgs.term_hwnd, show);
     SetForegroundWindow(wgs.term_hwnd);
-
-    /*
-     * Set the palette up.
-     */
-    pal = NULL;
-    logpal = NULL;
-    init_palette();
 
     term_set_focus(term, GetForegroundWindow() == wgs.term_hwnd);
     UpdateWindow(wgs.term_hwnd);
@@ -1198,113 +1188,34 @@ static void wm_netevent_callback(void *vctx)
     sfree(vctx);
 }
 
-/*
- * Copy the colour palette from the configuration data into defpal.
- */
-static void conftopalette(void)
+static inline rgb rgb_from_colorref(COLORREF cr)
 {
-    int i;
-
-    for (i = 0; i < 22; i++) {
-        int w = colour_indices_conf_to_osc4[i];
-        defpal[w].rgbtRed = conf_get_int_int(conf, CONF_colours, i*3+0);
-        defpal[w].rgbtGreen = conf_get_int_int(conf, CONF_colours, i*3+1);
-        defpal[w].rgbtBlue = conf_get_int_int(conf, CONF_colours, i*3+2);
-    }
-    for (i = 0; i < 216; i++) {
-        int r = i / 36, g = (i / 6) % 6, b = i % 6;
-        defpal[i+16].rgbtRed = r ? r * 40 + 55 : 0;
-        defpal[i+16].rgbtGreen = g ? g * 40 + 55 : 0;
-        defpal[i+16].rgbtBlue = b ? b * 40 + 55 : 0;
-    }
-    for (i = 0; i < 24; i++) {
-        int shade = i * 10 + 8;
-        defpal[i+232].rgbtRed = defpal[i+232].rgbtGreen =
-            defpal[i+232].rgbtBlue = shade;
-    }
-
-    /* Override with system colours if appropriate */
-    if (conf_get_bool(conf, CONF_system_colour))
-        systopalette();
+    rgb toret;
+    toret.r = GetRValue(cr);
+    toret.g = GetGValue(cr);
+    toret.b = GetBValue(cr);
+    return toret;
 }
 
-/*
- * Override bit of defpal with colours from the system.
- * (NB that this takes a copy the system colours at the time this is called,
- * so subsequent colour scheme changes don't take effect. To fix that we'd
- * probably want to be using GetSysColorBrush() and the like.)
- */
-static void systopalette(void)
+static void wintw_palette_get_overrides(TermWin *tw)
 {
-    int i;
-    static const struct { int nIndex; int norm; int bold; } or[] =
-    {
-        { COLOR_WINDOWTEXT,    OSC4_COLOUR_fg,        OSC4_COLOUR_fg_bold   },
-        { COLOR_WINDOW,        OSC4_COLOUR_bg,        OSC4_COLOUR_bg_bold   },
-        { COLOR_HIGHLIGHTTEXT, OSC4_COLOUR_cursor_fg, OSC4_COLOUR_cursor_fg },
-        { COLOR_HIGHLIGHT,     OSC4_COLOUR_cursor_bg, OSC4_COLOUR_cursor_bg },
-    };
+    if (conf_get_bool(conf, CONF_system_colour)) {
+        rgb rgb;
 
-    for (i = 0; i < (sizeof(or)/sizeof(or[0])); i++) {
-        COLORREF colour = GetSysColor(or[i].nIndex);
-        defpal[or[i].norm].rgbtRed =
-           defpal[or[i].bold].rgbtRed = GetRValue(colour);
-        defpal[or[i].norm].rgbtGreen =
-           defpal[or[i].bold].rgbtGreen = GetGValue(colour);
-        defpal[or[i].norm].rgbtBlue =
-           defpal[or[i].bold].rgbtBlue = GetBValue(colour);
+        rgb = rgb_from_colorref(GetSysColor(COLOR_WINDOWTEXT));
+        term_palette_override(term, OSC4_COLOUR_fg, rgb);
+        term_palette_override(term, OSC4_COLOUR_fg_bold, rgb);
+
+        rgb = rgb_from_colorref(GetSysColor(COLOR_WINDOW));
+        term_palette_override(term, OSC4_COLOUR_bg, rgb);
+        term_palette_override(term, OSC4_COLOUR_bg_bold, rgb);
+
+        rgb = rgb_from_colorref(GetSysColor(COLOR_HIGHLIGHTTEXT));
+        term_palette_override(term, OSC4_COLOUR_cursor_fg, rgb);
+
+        rgb = rgb_from_colorref(GetSysColor(COLOR_HIGHLIGHT));
+        term_palette_override(term, OSC4_COLOUR_cursor_bg, rgb);
     }
-}
-
-static void internal_set_colour(unsigned i, int r, int g, int b)
-{
-    assert(i < OSC4_NCOLOURS);
-    if (pal)
-        colours[i] = PALETTERGB(r, g, b);
-    else
-        colours[i] = RGB(r, g, b);
-    colours_rgb[i].r = r;
-    colours_rgb[i].g = g;
-    colours_rgb[i].b = b;
-}
-
-/*
- * Set up the colour palette.
- */
-static void init_palette(void)
-{
-    int i;
-    HDC hdc = GetDC(wgs.term_hwnd);
-    if (hdc) {
-        if (conf_get_bool(conf, CONF_try_palette) &&
-            GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) {
-            /*
-             * This is a genuine case where we must use smalloc
-             * because the snew macros can't cope.
-             */
-            logpal = smalloc(sizeof(*logpal)
-                             - sizeof(logpal->palPalEntry)
-                             + OSC4_NCOLOURS * sizeof(PALETTEENTRY));
-            logpal->palVersion = 0x300;
-            logpal->palNumEntries = OSC4_NCOLOURS;
-            for (i = 0; i < OSC4_NCOLOURS; i++) {
-                logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
-                logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
-                logpal->palPalEntry[i].peBlue = defpal[i].rgbtBlue;
-                logpal->palPalEntry[i].peFlags = PC_NOCOLLAPSE;
-            }
-            pal = CreatePalette(logpal);
-            if (pal) {
-                SelectPalette(hdc, pal, false);
-                RealizePalette(hdc);
-                SelectPalette(hdc, GetStockObject(DEFAULT_PALETTE), false);
-            }
-        }
-        ReleaseDC(wgs.term_hwnd, hdc);
-    }
-    for (i = 0; i < OSC4_NCOLOURS; i++)
-        internal_set_colour(i, defpal[i].rgbtRed,
-                            defpal[i].rgbtGreen, defpal[i].rgbtBlue);
 }
 
 /*
@@ -2340,16 +2251,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
               ldisc_configure(ldisc, conf);
               ldisc_echoedit_update(ldisc);
             }
-            if (pal)
-                DeleteObject(pal);
-            logpal = NULL;
-            pal = NULL;
-            conftopalette();
-            init_palette();
+
+            if (conf_get_bool(conf, CONF_system_colour) !=
+                conf_get_bool(prev_conf, CONF_system_colour))
+                term_notify_palette_overrides_changed(term);
 
             /* Pass new config data to the terminal */
             term_reconfig(term, conf);
             setup_clipboards(term, conf);
+
+            /* Reinitialise the colour palette, in case the terminal
+             * just read new settings out of Conf */
+            if (pal)
+                DeleteObject(pal);
+            logpal = NULL;
+            pal = NULL;
+            init_palette();
 
             /* Pass new config data to the back end */
             if (backend)
@@ -3292,8 +3209,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_SYSCOLORCHANGE:
         if (conf_get_bool(conf, CONF_system_colour)) {
             /* Refresh palette from system colours. */
-            /* XXX actually this zaps the entire palette. */
-            systopalette();
+            term_notify_palette_overrides_changed(term);
             init_palette();
             /* Force a repaint of the terminal window. */
             term_invalidate(term);
@@ -4746,70 +4662,73 @@ static void wintw_free_draw_ctx(TermWin *tw)
     wintw_hdc = NULL;
 }
 
-static void real_palette_set(unsigned n, int r, int g, int b)
+/*
+ * Set up the colour palette.
+ */
+static void init_palette(void)
 {
-    internal_set_colour(n, r, g, b);
-    if (pal) {
-        logpal->palPalEntry[n].peRed = r;
-        logpal->palPalEntry[n].peGreen = g;
-        logpal->palPalEntry[n].peBlue = b;
-        logpal->palPalEntry[n].peFlags = PC_NOCOLLAPSE;
-        SetPaletteEntries(pal, 0, OSC4_NCOLOURS, logpal->palPalEntry);
+    pal = NULL;
+    logpal = snew_plus(LOGPALETTE, (OSC4_NCOLOURS - 1) * sizeof(PALETTEENTRY));
+    logpal->palVersion = 0x300;
+    logpal->palNumEntries = OSC4_NCOLOURS;
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+        logpal->palPalEntry[i].peFlags = PC_NOCOLLAPSE;
+}
+
+static void wintw_palette_set(TermWin *win, unsigned start,
+                              unsigned ncolours, const rgb *colours_in)
+{
+    assert(start <= OSC4_NCOLOURS);
+    assert(ncolours <= OSC4_NCOLOURS - start);
+
+    for (unsigned i = 0; i < ncolours; i++) {
+        const rgb *in = &colours_in[i];
+        PALETTEENTRY *out = &logpal->palPalEntry[i + start];
+        out->peRed = in->r;
+        out->peGreen = in->g;
+        out->peBlue = in->b;
+        colours[i + start] = RGB(in->r, in->g, in->b) ^ colorref_modifier;
     }
-}
 
-static bool wintw_palette_get(TermWin *tw, unsigned n, int *r, int *g, int *b)
-{
-    if (n >= OSC4_NCOLOURS)
-        return false;
-    *r = colours_rgb[n].r;
-    *g = colours_rgb[n].g;
-    *b = colours_rgb[n].b;
-    return true;
-}
+    bool got_new_palette = false;
 
-static void wintw_palette_set(TermWin *tw, unsigned n, int r, int g, int b)
-{
-    if (n >= OSC4_NCOLOURS)
-        return;
-    real_palette_set(n, r, g, b);
-    if (pal) {
+    if (!tried_pal && conf_get_bool(conf, CONF_try_palette)) {
+        HDC hdc = GetDC(wgs.term_hwnd);
+        if (GetDeviceCaps(hdc, RASTERCAPS) & RC_PALETTE) {
+            pal = CreatePalette(logpal);
+            if (pal) {
+                SelectPalette(hdc, pal, false);
+                RealizePalette(hdc);
+                SelectPalette(hdc, GetStockObject(DEFAULT_PALETTE), false);
+
+                /* Convert all RGB() values in colours[] into PALETTERGB(),
+                 * and ensure we stick to that later */
+                colorref_modifier = PALETTERGB(0, 0, 0) ^ RGB(0, 0, 0);
+                for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+                    colours[i] ^= colorref_modifier;
+
+                /* Inhibit the SetPaletteEntries call below */
+                got_new_palette = true;
+            }
+        }
+        ReleaseDC(wgs.term_hwnd, hdc);
+        tried_pal = true;
+    }
+
+    if (pal && !got_new_palette) {
+        /* We already had a palette, so replace the changed colours in the
+         * existing one. */
+        SetPaletteEntries(pal, start, ncolours, logpal->palPalEntry + start);
+
         HDC hdc = make_hdc();
         UnrealizeObject(pal);
         RealizePalette(hdc);
         free_hdc(hdc);
-    } else {
-        if (n == OSC4_COLOUR_bg)
-            /* If Default Background changes, we need to ensure any
-             * space between the text area and the window border is
-             * redrawn. */
-            InvalidateRect(wgs.term_hwnd, NULL, true);
-    }
-}
-
-static void wintw_palette_reset(TermWin *tw)
-{
-    /* And this */
-    for (unsigned i = 0; i < OSC4_NCOLOURS; i++) {
-        internal_set_colour(i, defpal[i].rgbtRed,
-                            defpal[i].rgbtGreen, defpal[i].rgbtBlue);
-        if (pal) {
-            logpal->palPalEntry[i].peRed = defpal[i].rgbtRed;
-            logpal->palPalEntry[i].peGreen = defpal[i].rgbtGreen;
-            logpal->palPalEntry[i].peBlue = defpal[i].rgbtBlue;
-            logpal->palPalEntry[i].peFlags = 0;
-        }
     }
 
-    if (pal) {
-        HDC hdc;
-        SetPaletteEntries(pal, 0, OSC4_NCOLOURS, logpal->palPalEntry);
-        hdc = make_hdc();
-        RealizePalette(hdc);
-        free_hdc(hdc);
-    } else {
-        /* Default Background may have changed. Ensure any space between
-         * text area and window border is redrawn. */
+    if (start <= OSC4_COLOUR_bg && OSC4_COLOUR_bg < start + ncolours) {
+        /* If Default Background changes, we need to ensure any space between
+         * the text area and the window border is redrawn. */
         InvalidateRect(wgs.term_hwnd, NULL, true);
     }
 }
@@ -5008,9 +4927,9 @@ static void wintw_clip_write(
 
             for (i = 0; i < OSC4_NCOLOURS; i++) {
                 if (palette[i] != 0) {
+                    const PALETTEENTRY *pe = &logpal->palPalEntry[i];
                     strbuf_catf(rtf, "\\red%d\\green%d\\blue%d;",
-                                defpal[i].rgbtRed, defpal[i].rgbtGreen,
-                                defpal[i].rgbtBlue);
+                                pe->peRed, pe->peGreen, pe->peBlue);
                 }
             }
             if (rgbtree) {

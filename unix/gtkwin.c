@@ -2518,26 +2518,6 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
 
 }
 
-static void real_palette_set(GtkFrontend *inst, unsigned n,
-                             int r, int g, int b)
-{
-    inst->cols[n].red = r * 0x0101;
-    inst->cols[n].green = g * 0x0101;
-    inst->cols[n].blue = b * 0x0101;
-
-#if !GTK_CHECK_VERSION(3,0,0)
-    {
-        gboolean success[1];
-        gdk_colormap_free_colors(inst->colmap, inst->cols + n, 1);
-        gdk_colormap_alloc_colors(inst->colmap, inst->cols + n, 1,
-                                  false, true, success);
-        if (!success[0])
-            g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
-                    appname, n, r, g, b);
-    }
-#endif
-}
-
 #if GTK_CHECK_VERSION(3,0,0)
 char *colour_to_css(const GdkColor *col)
 {
@@ -2581,36 +2561,13 @@ void set_window_background(GtkFrontend *inst)
         set_gtk_widget_background(GTK_WIDGET(inst->window), &inst->cols[258]);
 }
 
-static void gtkwin_palette_set(TermWin *tw, unsigned n, int r, int g, int b)
+static void gtkwin_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
+                               const rgb *colours)
 {
     GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    if (n >= OSC4_NCOLOURS)
-        return;
-    real_palette_set(inst, n, r, g, b);
-    if (n == OSC4_COLOUR_bg) {
-        /* Default Background changed. Ensure space between text area and
-         * window border is redrawn */
-        set_window_background(inst);
-        draw_backing_rect(inst);
-        gtk_widget_queue_draw(inst->area);
-    }
-}
 
-static bool gtkwin_palette_get(TermWin *tw, unsigned n, int *r, int *g, int *b)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    if (n >= OSC4_NCOLOURS)
-        return false;
-    *r = inst->cols[n].red >> 8;
-    *g = inst->cols[n].green >> 8;
-    *b = inst->cols[n].blue >> 8;
-    return true;
-}
-
-static void gtkwin_palette_reset(TermWin *tw)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    int i;
+    assert(start <= OSC4_NCOLOURS);
+    assert(ncolours <= OSC4_NCOLOURS - start);
 
 #if !GTK_CHECK_VERSION(3,0,0)
     if (!inst->colmap) {
@@ -2620,37 +2577,24 @@ static void gtkwin_palette_reset(TermWin *tw)
     }
 #endif
 
-    for (i = 0; i < CONF_NCOLOURS; i++) {
-        int w = colour_indices_conf_to_osc4[i];
-        inst->cols[w].red =
-            conf_get_int_int(inst->conf, CONF_colours, i*3+0) * 0x0101;
-        inst->cols[w].green =
-            conf_get_int_int(inst->conf, CONF_colours, i*3+1) * 0x0101;
-        inst->cols[w].blue =
-            conf_get_int_int(inst->conf, CONF_colours, i*3+2) * 0x0101;
-    }
+    for (unsigned i = 0; i < ncolours; i++) {
+        const rgb *in = &colours[i];
+        GdkColor *out = &inst->cols[start + i];
 
-    for (i = 0; i < 216; i++) {
-        int r = i / 36, g = (i / 6) % 6, b = i % 6;
-        inst->cols[i+16].red = r ? r * 0x2828 + 0x3737 : 0;
-        inst->cols[i+16].green = g ? g * 0x2828 + 0x3737 : 0;
-        inst->cols[i+16].blue = b ? b * 0x2828 + 0x3737 : 0;
-    }
-    for (i = 0; i < 24; i++) {
-        int shade = i * 0x0a0a + 0x0808;
-        inst->cols[i+232].red = inst->cols[i+232].green =
-            inst->cols[i+232].blue = shade;
+        out->red = in->r * 0x0101;
+        out->green = in->g * 0x0101;
+        out->blue = in->b * 0x0101;
     }
 
 #if !GTK_CHECK_VERSION(3,0,0)
     {
         gboolean success[OSC4_NCOLOURS];
-        gdk_colormap_alloc_colors(inst->colmap, inst->cols, OSC4_NCOLOURS,
-                                  false, true, success);
-        for (i = 0; i < OSC4_NCOLOURS; i++) {
+        gdk_colormap_alloc_colors(inst->colmap + start, inst->cols + start,
+                                  ncolours, false, true, success);
+        for (unsigned i = 0; i < ncolours; i++) {
             if (!success[i])
                 g_error("%s: couldn't allocate colour %d (#%02x%02x%02x)\n",
-                        appname, i,
+                        appname, start + i,
                         conf_get_int_int(inst->conf, CONF_colours, i*3+0),
                         conf_get_int_int(inst->conf, CONF_colours, i*3+1),
                         conf_get_int_int(inst->conf, CONF_colours, i*3+2));
@@ -2658,13 +2602,22 @@ static void gtkwin_palette_reset(TermWin *tw)
     }
 #endif
 
-    /* Since Default Background may have changed, ensure that space
-     * between text area and window border is refreshed. */
-    set_window_background(inst);
-    if (inst->area && gtk_widget_get_window(inst->area)) {
-        draw_backing_rect(inst);
-        gtk_widget_queue_draw(inst->area);
+    if (start <= OSC4_COLOUR_bg && OSC4_COLOUR_bg < start + ncolours) {
+        /* Default Background has changed, so ensure that space between text
+         * area and window border is refreshed. */
+        set_window_background(inst);
+        if (inst->area && gtk_widget_get_window(inst->area)) {
+            draw_backing_rect(inst);
+            gtk_widget_queue_draw(inst->area);
+        }
     }
+}
+
+static void gtkwin_palette_get_overrides(TermWin *tw)
+{
+    /* GTK has no analogue of Windows's 'standard system colours', so GTK PuTTY
+     * has no config option to override the normally configured colours from
+     * it */
 }
 
 static struct clipboard_state *clipboard_from_atom(
@@ -4616,7 +4569,6 @@ static void after_change_settings_dialog(void *vctx, int retval)
         *(struct after_change_settings_dialog_ctx *)vctx;
     GtkFrontend *inst = ctx.inst;
     Conf *oldconf = inst->conf, *newconf = ctx.newconf;
-    int i, j;
     bool need_size;
 
     sfree(vctx); /* we've copied this already */
@@ -4644,37 +4596,6 @@ static void after_change_settings_dialog(void *vctx, int retval)
             backend_reconfig(inst->backend, inst->conf);
 
         cache_conf_values(inst);
-
-        /*
-         * Just setting inst->conf is sufficient to cause colour
-         * setting changes to appear on the next ESC]R palette
-         * reset. But we should also check whether any colour
-         * settings have been changed, and revert the ones that have
-         * to the new default, on the assumption that the user is
-         * most likely to want an immediate update.
-         */
-        for (i = 0; i < CONF_NCOLOURS; i++) {
-            for (j = 0; j < 3; j++)
-                if (conf_get_int_int(oldconf, CONF_colours, i*3+j) !=
-                    conf_get_int_int(newconf, CONF_colours, i*3+j))
-                    break;
-            if (j < 3) {
-                real_palette_set(inst, colour_indices_conf_to_osc4[i],
-                                 conf_get_int_int(newconf,CONF_colours,i*3+0),
-                                 conf_get_int_int(newconf,CONF_colours,i*3+1),
-                                 conf_get_int_int(newconf,CONF_colours,i*3+2));
-
-                /*
-                 * If the default background has changed, we must
-                 * repaint the space in between the window border
-                 * and the text area.
-                 */
-                if (i == CONF_COLOUR_bg) {
-                    set_window_background(inst);
-                    draw_backing_rect(inst);
-                }
-            }
-        }
 
         need_size = false;
 
@@ -5130,9 +5051,8 @@ static const TermWinVtable gtk_termwin_vt = {
     .set_maximised = gtkwin_set_maximised,
     .move = gtkwin_move,
     .set_zorder = gtkwin_set_zorder,
-    .palette_get = gtkwin_palette_get,
     .palette_set = gtkwin_palette_set,
-    .palette_reset = gtkwin_palette_reset,
+    .palette_get_overrides = gtkwin_palette_get_overrides,
     .get_pos = gtkwin_get_pos,
     .get_pixels = gtkwin_get_pixels,
 };
@@ -5242,11 +5162,6 @@ void new_session_window(Conf *conf, const char *geometry_string)
 #endif
         }
     }
-
-    /*
-     * Set up the colour map.
-     */
-    win_palette_reset(&inst->termwin);
 
     inst->width = conf_get_int(inst->conf, CONF_width);
     inst->height = conf_get_int(inst->conf, CONF_height);

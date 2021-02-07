@@ -1716,6 +1716,113 @@ void term_setup_window_titles(Terminal *term, const char *title_hostname)
     win_set_icon_title(term->win, term->icon_title);
 }
 
+static void palette_rebuild(Terminal *term)
+{
+    unsigned min_changed = OSC4_NCOLOURS, max_changed = 0;
+
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++) {
+        rgb new_value;
+        bool found = false;
+
+        for (unsigned j = lenof(term->subpalettes); j-- > 0 ;) {
+            if (term->subpalettes[j].present[i]) {
+                new_value = term->subpalettes[j].values[i];
+                found = true;
+                break;
+            }
+        }
+
+        assert(found);    /* we expect SUBPAL_CONF to always be set */
+
+        if (new_value.r != term->palette[i].r ||
+            new_value.g != term->palette[i].g ||
+            new_value.b != term->palette[i].b) {
+            term->palette[i] = new_value;
+            if (min_changed > i)
+                min_changed = i;
+            if (max_changed < i)
+                max_changed = i;
+        }
+    }
+
+    if (min_changed <= max_changed) {
+        /*
+         * At least one colour changed, so pass the result back to the
+         * TermWin. This also requires invalidating the rest of the
+         * window, because usually all the text will need redrawing in
+         * the new colours.
+         */
+        win_palette_set(term->win, min_changed, max_changed - min_changed + 1,
+                        term->palette + min_changed);
+        term_invalidate(term);
+        term_schedule_update(term);
+    }
+}
+
+static void palette_reset(Terminal *term, bool overrides_only)
+{
+    if (!overrides_only) {
+        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+            term->subpalettes[SUBPAL_CONF].present[i] = true;
+
+        /*
+         * Copy all the palette information out of the Conf.
+         */
+        for (unsigned i = 0; i < CONF_NCOLOURS; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[
+                colour_indices_conf_to_osc4[i]];
+            col->r = conf_get_int_int(term->conf, CONF_colours, i*3+0);
+            col->g = conf_get_int_int(term->conf, CONF_colours, i*3+1);
+            col->b = conf_get_int_int(term->conf, CONF_colours, i*3+2);
+        }
+
+        /*
+         * Directly invent the rest of the xterm-256 colours.
+         */
+        for (unsigned i = 0; i < 216; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 16];
+            int r = i / 36, g = (i / 6) % 6, b = i % 6;
+            col->r = r ? r * 40 + 55 : 0;
+            col->g = g ? g * 40 + 55 : 0;
+            col->b = b ? b * 40 + 55 : 0;
+        }
+        for (unsigned i = 0; i < 24; i++) {
+            rgb *col = &term->subpalettes[SUBPAL_CONF].values[i + 232];
+            int shade = i * 10 + 8;
+            col->r = col->g = col->b = shade;
+        }
+
+        /*
+         * Get rid of all escape-sequence configuration.
+         */
+        for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+            term->subpalettes[SUBPAL_SESSION].present[i] = false;
+    }
+
+    /*
+     * Re-fetch any OS-local overrides.
+     */
+    for (unsigned i = 0; i < OSC4_NCOLOURS; i++)
+        term->subpalettes[SUBPAL_PLATFORM].present[i] = false;
+    win_palette_get_overrides(term->win);
+
+    /*
+     * Rebuild the composite palette.
+     */
+    palette_rebuild(term);
+}
+
+void term_palette_override(Terminal *term, unsigned osc4_index, rgb rgb)
+{
+    /*
+     * We never expect to be called except as re-entry from our own
+     * call to win_palette_get_overrides above, so we need not mess
+     * about calling palette_rebuild.
+     */
+    term->subpalettes[SUBPAL_PLATFORM].present[osc4_index] = true;
+    term->subpalettes[SUBPAL_PLATFORM].values[osc4_index] = rgb;
+}
+
 /*
  * Initialise the terminal.
  */
@@ -1811,6 +1918,8 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->window_title = dupstr("");
     term->icon_title = dupstr("");
     term->minimised = false;
+
+    palette_reset(term, false);
 
     return term;
 }
@@ -2877,15 +2986,14 @@ static void do_osc(Terminal *term)
             break;
           case 4:
             if (term->ldisc && !strcmp(term->osc_string, "?")) {
-                int r, g, b;
-                if (win_palette_get(term->win, toint(term->esc_args[1]),
-                                    &r, &g, &b)) {
+                unsigned index = term->esc_args[1];
+                if (index < OSC4_NCOLOURS) {
+                    rgb colour = term->palette[index];
                     char *reply_buf = dupprintf(
-                        "\033]4;%u;rgb:%04x/%04x/%04x\007",
-                        term->esc_args[1],
-                        (unsigned)r * 0x0101,
-                        (unsigned)g * 0x0101,
-                        (unsigned)b * 0x0101);
+                        "\033]4;%u;rgb:%04x/%04x/%04x\007", index,
+                        (unsigned)colour.r * 0x0101,
+                        (unsigned)colour.g * 0x0101,
+                        (unsigned)colour.b * 0x0101);
                     ldisc_send(term->ldisc, reply_buf, strlen(reply_buf),
                                false);
                     sfree(reply_buf);
@@ -4788,7 +4896,7 @@ static void term_out(Terminal *term)
                     term->osc_strlen = 0;
                     break;
                   case 'R':            /* Linux palette reset */
-                    win_palette_reset(term->win);
+                    palette_reset(term, false);
                     term_invalidate(term);
                     term->termstate = TOPLEVEL;
                     break;
@@ -4890,12 +4998,16 @@ static void term_out(Terminal *term)
                     unsigned osc4_index =
                         colour_indices_oscp_to_osc4[oscp_index];
 
-                    win_palette_set(
-                        term->win, osc4_index,
-                        term->osc_string[1] * 16 + term->osc_string[2],
-                        term->osc_string[3] * 16 + term->osc_string[4],
-                        term->osc_string[5] * 16 + term->osc_string[6]);
-                    term_invalidate(term);
+                    rgb *value = &term->subpalettes[SUBPAL_SESSION].values[
+                        osc4_index];
+                    value->r = term->osc_string[1] * 16 + term->osc_string[2];
+                    value->g = term->osc_string[3] * 16 + term->osc_string[4];
+                    value->b = term->osc_string[5] * 16 + term->osc_string[6];
+                    term->subpalettes[SUBPAL_SESSION].present[
+                        osc4_index] = true;
+
+                    palette_rebuild(term);
+
                     term->termstate = TOPLEVEL;
                 }
                 break;
@@ -7348,4 +7460,9 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
 void term_notify_minimised(Terminal *term, bool minimised)
 {
     term->minimised = minimised;
+}
+
+void term_notify_palette_overrides_changed(Terminal *term)
+{
+    palette_reset(term, true);
 }
