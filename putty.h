@@ -1138,7 +1138,6 @@ struct TermWinVtable {
      * the window it remembers whether to go back to normal or
      * maximised. */
     void (*set_minimised)(TermWin *, bool minimised);
-    bool (*is_minimised)(TermWin *);
     void (*set_maximised)(TermWin *, bool maximised);
     void (*move)(TermWin *, int x, int y);
     void (*set_zorder)(TermWin *, bool top);
@@ -1638,6 +1637,7 @@ void term_keyinput(Terminal *, int codepage, const void *buf, int len);
 void term_keyinputw(Terminal *, const wchar_t * widebuf, int len);
 void term_get_cursor_position(Terminal *term, int *x, int *y);
 void term_setup_window_titles(Terminal *term, const char *title_hostname);
+void term_notify_minimised(Terminal *term, bool minimised);
 
 typedef enum SmallKeypadKey {
     SKK_HOME, SKK_END, SKK_INSERT, SKK_DELETE, SKK_PGUP, SKK_PGDN,

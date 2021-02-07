@@ -88,7 +88,6 @@ static void fuzz_request_resize(TermWin *tw, int w, int h) {}
 static void fuzz_set_title(TermWin *tw, const char *title) {}
 static void fuzz_set_icon_title(TermWin *tw, const char *icontitle) {}
 static void fuzz_set_minimised(TermWin *tw, bool minimised) {}
-static bool fuzz_is_minimised(TermWin *tw) { return false; }
 static void fuzz_set_maximised(TermWin *tw, bool maximised) {}
 static void fuzz_move(TermWin *tw, int x, int y) {}
 static void fuzz_set_zorder(TermWin *tw, bool top) {}
@@ -117,7 +116,6 @@ static const TermWinVtable fuzz_termwin_vt = {
     .set_title = fuzz_set_title,
     .set_icon_title = fuzz_set_icon_title,
     .set_minimised = fuzz_set_minimised,
-    .is_minimised = fuzz_is_minimised,
     .set_maximised = fuzz_set_maximised,
     .move = fuzz_move,
     .set_zorder = fuzz_set_zorder,

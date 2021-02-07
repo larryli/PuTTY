@@ -566,15 +566,6 @@ static void gtkwin_set_maximised(TermWin *tw, bool maximised)
 }
 
 /*
- * Report whether the window is minimised, for terminal reports.
- */
-static bool gtkwin_is_minimised(TermWin *tw)
-{
-    GtkFrontend *inst = container_of(tw, GtkFrontend, termwin);
-    return !gdk_window_is_viewable(gtk_widget_get_window(inst->window));
-}
-
-/*
  * Report the window's position, for terminal reports.
  */
 static void gtkwin_get_pos(TermWin *tw, int *x, int *y)
@@ -669,6 +660,16 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
     }
     return false;
 }
+
+#if GTK_CHECK_VERSION(2,0,0)
+static void window_state_event(GtkWidget *widget, GdkEventWindowState *event,
+                               gpointer user_data)
+{
+    GtkFrontend *inst = (GtkFrontend *)user_data;
+    term_notify_minimised(
+        inst->term, event->new_window_state & GDK_WINDOW_STATE_ICONIFIED);
+}
+#endif
 
 static void update_mouseptr(GtkFrontend *inst)
 {
@@ -5148,7 +5149,6 @@ static const TermWinVtable gtk_termwin_vt = {
     .set_title = gtkwin_set_title,
     .set_icon_title = gtkwin_set_icon_title,
     .set_minimised = gtkwin_set_minimised,
-    .is_minimised = gtkwin_is_minimised,
     .set_maximised = gtkwin_set_maximised,
     .move = gtkwin_move,
     .set_zorder = gtkwin_set_zorder,
@@ -5505,6 +5505,12 @@ void new_session_window(Conf *conf, const char *geometry_string)
 
     term_size(inst->term, inst->height, inst->width,
               conf_get_int(inst->conf, CONF_savelines));
+
+#if GTK_CHECK_VERSION(2,0,0)
+    /* Delay this signal connection until after inst->term exists */
+    g_signal_connect(G_OBJECT(inst->window), "window_state_event",
+                     G_CALLBACK(window_state_event), inst);
+#endif
 
     inst->exited = false;
 

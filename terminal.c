@@ -1792,6 +1792,7 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
 
     term->window_title = dupstr("");
     term->icon_title = dupstr("");
+    term->minimised = false;
 
     return term;
 }
@@ -4425,8 +4426,7 @@ static void term_out(Terminal *term)
                                 break;
                               case 11:
                                 if (term->ldisc)
-                                    ldisc_send(term->ldisc,
-                                               win_is_minimised(term->win) ?
+                                    ldisc_send(term->ldisc, term->minimised ?
                                                "\033[2t" : "\033[1t", 4,
                                                false);
                                 break;
@@ -7321,4 +7321,9 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
         p->data = NULL;
         return +1; /* all done */
     }
+}
+
+void term_notify_minimised(Terminal *term, bool minimised)
+{
+    term->minimised = minimised;
 }

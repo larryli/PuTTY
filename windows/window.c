@@ -244,7 +244,6 @@ static void wintw_request_resize(TermWin *, int w, int h);
 static void wintw_set_title(TermWin *, const char *title);
 static void wintw_set_icon_title(TermWin *, const char *icontitle);
 static void wintw_set_minimised(TermWin *, bool minimised);
-static bool wintw_is_minimised(TermWin *);
 static void wintw_set_maximised(TermWin *, bool maximised);
 static void wintw_move(TermWin *, int x, int y);
 static void wintw_set_zorder(TermWin *, bool top);
@@ -272,7 +271,6 @@ static const TermWinVtable windows_termwin_vt = {
     .set_title = wintw_set_title,
     .set_icon_title = wintw_set_icon_title,
     .set_minimised = wintw_set_minimised,
-    .is_minimised = wintw_is_minimised,
     .set_maximised = wintw_set_maximised,
     .move = wintw_move,
     .set_zorder = wintw_set_zorder,
@@ -2980,6 +2978,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
               "...",
               LOWORD(lParam), HIWORD(lParam));
 #endif
+        term_notify_minimised(term, wParam == SIZE_MINIMIZED);
         if (wParam == SIZE_MINIMIZED)
             SetWindowText(hwnd,
                           conf_get_bool(conf, CONF_win_name_always) ?
@@ -5609,14 +5608,6 @@ static void wintw_set_maximised(TermWin *tw, bool maximised)
         if (maximised)
             ShowWindow(wgs.term_hwnd, SW_MAXIMIZE);
     }
-}
-
-/*
- * Report whether the window is iconic, for terminal reports.
- */
-static bool wintw_is_minimised(TermWin *tw)
-{
-    return IsIconic(wgs.term_hwnd);
 }
 
 /*

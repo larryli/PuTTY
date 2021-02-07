@@ -344,6 +344,7 @@ struct terminal_tag {
     int mouse_paste_clipboard;
 
     char *window_title, *icon_title;
+    bool minimised;
 };
 
 static inline bool in_utf(Terminal *term)
