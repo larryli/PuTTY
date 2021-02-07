@@ -363,6 +363,30 @@ struct terminal_tag {
     rgb palette[OSC4_NCOLOURS];
 
     unsigned winpos_x, winpos_y, winpixsize_x, winpixsize_y;
+
+    /*
+     * Assorted 'pending' flags for ancillary window changes performed
+     * in term_update. Generally, to trigger one of these operations,
+     * you set the pending flag and/or the parameters here, then call
+     * term_schedule_update.
+     */
+    bool win_move_pending;
+    int win_move_pending_x, win_move_pending_y;
+    bool win_resize_pending;
+    int win_resize_pending_w, win_resize_pending_h;
+    bool win_zorder_pending;
+    bool win_zorder_top;
+    bool win_minimise_pending;
+    bool win_minimise_enable;
+    bool win_maximise_pending;
+    bool win_maximise_enable;
+    bool win_title_pending, win_icon_title_pending;
+    bool win_pointer_shape_pending;
+    bool win_pointer_shape_raw;
+    bool win_refresh_pending;
+    bool win_scrollbar_update_pending;
+    bool win_palette_pending;
+    unsigned win_palette_pending_min, win_palette_pending_limit;
 };
 
 static inline bool in_utf(Terminal *term)

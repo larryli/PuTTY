@@ -1357,7 +1357,8 @@ static void power_on(Terminal *term, bool clear)
     term->xterm_extended_mouse = false;
     term->urxvt_extended_mouse = false;
     win_set_raw_mouse_mode(term->win, false);
-    win_set_raw_mouse_mode_pointer(term->win, false);
+    term->win_pointer_shape_pending = true;
+    term->win_pointer_shape_raw = false;
     term->bracketed_paste = false;
     term->srm_echo = false;
     {
@@ -1382,6 +1383,7 @@ static void power_on(Terminal *term, bool clear)
     term->curs.x = 0;
     term_schedule_tblink(term);
     term_schedule_cblink(term);
+    term_schedule_update(term);
 }
 
 /*
@@ -1391,8 +1393,55 @@ void term_update(Terminal *term)
 {
     term->window_update_pending = false;
 
+    if (term->win_move_pending) {
+        win_move(term->win, term->win_move_pending_x,
+                 term->win_move_pending_y);
+        term->win_move_pending = false;
+    }
+    if (term->win_resize_pending) {
+        win_request_resize(term->win, term->win_resize_pending_w,
+                           term->win_resize_pending_h);
+        term->win_resize_pending = false;
+    }
+    if (term->win_zorder_pending) {
+        win_set_zorder(term->win, term->win_zorder_top);
+        term->win_zorder_pending = false;
+    }
+    if (term->win_minimise_pending) {
+        win_set_minimised(term->win, term->win_minimise_enable);
+        term->win_minimise_pending = false;
+    }
+    if (term->win_maximise_pending) {
+        win_set_maximised(term->win, term->win_maximise_enable);
+        term->win_maximise_pending = false;
+    }
+    if (term->win_title_pending) {
+        win_set_title(term->win, term->window_title);
+        term->win_title_pending = false;
+    }
+    if (term->win_icon_title_pending) {
+        win_set_icon_title(term->win, term->icon_title);
+        term->win_icon_title_pending = false;
+    }
+    if (term->win_pointer_shape_pending) {
+        win_set_raw_mouse_mode_pointer(term->win, term->win_pointer_shape_raw);
+        term->win_pointer_shape_pending = false;
+    }
+    if (term->win_refresh_pending) {
+        win_refresh(term->win);
+        term->win_refresh_pending = false;
+    }
+    if (term->win_palette_pending) {
+        unsigned start = term->win_palette_pending_min;
+        unsigned ncolours = term->win_palette_pending_limit - start;
+        win_palette_set(term->win, start, ncolours, term->palette + start);
+        term->win_palette_pending = false;
+    }
+
     if (win_setup_draw_ctx(term->win)) {
-        bool need_sbar_update = term->seen_disp_event;
+        bool need_sbar_update = term->seen_disp_event ||
+            term->win_scrollbar_update_pending;
+        term->win_scrollbar_update_pending = false;
         if (term->seen_disp_event && term->scroll_on_disp) {
             term->disptop = 0;         /* return to main screen */
             term->seen_disp_event = false;
@@ -1603,7 +1652,8 @@ void term_reconfig(Terminal *term, Conf *conf)
         if (strcmp(old_title, new_title)) {
             sfree(term->window_title);
             term->window_title = dupstr(new_title);
-            win_set_title(term->win, term->window_title);
+            term->win_title_pending = true;
+            term_schedule_update(term);
         }
     }
 
@@ -1690,9 +1740,11 @@ void term_clrsb(Terminal *term)
     term->alt_sblines = 0;
 
     /*
-     * Update the scrollbar to reflect the new state of the world.
+     * The scrollbar will need updating to reflect the new state of
+     * the world.
      */
-    update_sbar(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
 }
 
 const optionalrgb optionalrgb_none = {0, 0, 0, 0};
@@ -1712,8 +1764,8 @@ void term_setup_window_titles(Terminal *term, const char *title_hostname)
             term->window_title = dupstr(appname);
         term->icon_title = dupstr(term->window_title);
     }
-    win_set_title(term->win, term->window_title);
-    win_set_icon_title(term->win, term->icon_title);
+    term->win_title_pending = true;
+    term->win_icon_title_pending = true;
 }
 
 static void palette_rebuild(Terminal *term)
@@ -1747,13 +1799,14 @@ static void palette_rebuild(Terminal *term)
 
     if (min_changed <= max_changed) {
         /*
-         * At least one colour changed, so pass the result back to the
-         * TermWin. This also requires invalidating the rest of the
-         * window, because usually all the text will need redrawing in
-         * the new colours.
+         * At least one colour changed, so schedule a redraw event to
+         * pass the result back to the TermWin. This also requires
+         * invalidating the rest of the window, because usually all
+         * the text will need redrawing in the new colours.
          */
-        win_palette_set(term->win, min_changed, max_changed - min_changed + 1,
-                        term->palette + min_changed);
+        term->win_palette_pending = true;
+        term->win_palette_pending_min = min_changed;
+        term->win_palette_pending_limit = max_changed + 1;
         term_invalidate(term);
         term_schedule_update(term);
     }
@@ -1920,6 +1973,18 @@ Terminal *term_init(Conf *myconf, struct unicode_data *ucsdata, TermWin *win)
     term->minimised = false;
     term->winpos_x = term->winpos_y = 0;
     term->winpixsize_x = term->winpixsize_y = 0;
+
+    term->win_move_pending = false;
+    term->win_resize_pending = false;
+    term->win_zorder_pending = false;
+    term->win_minimise_pending = false;
+    term->win_maximise_pending = false;
+    term->win_title_pending = false;
+    term->win_icon_title_pending = false;
+    term->win_pointer_shape_pending = false;
+    term->win_refresh_pending = false;
+    term->win_scrollbar_update_pending = false;
+    term->win_palette_pending = false;
 
     palette_reset(term, false);
 
@@ -2176,8 +2241,8 @@ void term_size(Terminal *term, int newrows, int newcols, int newsavelines)
 
     swap_screen(term, save_alt_which, false, false);
 
-    update_sbar(term);
-    term_update(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
     if (term->backend)
         backend_size(term->backend, term->cols, term->rows);
 }
@@ -2830,7 +2895,9 @@ static void term_update_raw_mouse_mode(Terminal *term)
 {
     bool want_raw = (term->xterm_mouse != 0 && !term->xterm_mouse_forbidden);
     win_set_raw_mouse_mode(term->win, want_raw);
-    win_set_raw_mouse_mode_pointer(term->win, want_raw);
+    term->win_pointer_shape_pending = true;
+    term->win_pointer_shape_raw = want_raw;
+    term_schedule_update(term);
 }
 
 /*
@@ -2856,8 +2923,12 @@ static void toggle_mode(Terminal *term, int mode, int query, bool state)
             break;
           case 3:                      /* DECCOLM: 80/132 columns */
             deselect(term);
-            if (!term->no_remote_resize)
-                win_request_resize(term->win, state ? 132 : 80, term->rows);
+            if (!term->no_remote_resize) {
+                term->win_resize_pending = true;
+                term->win_resize_pending_w = state ? 132 : 80;
+                term->win_resize_pending_h = term->rows;
+                term_schedule_update(term);
+            }
             term->reset_132 = state;
             term->alt_t = term->marg_t = 0;
             term->alt_b = term->marg_b = term->rows - 1;
@@ -2978,9 +3049,10 @@ static void do_osc(Terminal *term)
           case 0:
           case 1:
             if (!term->no_remote_wintitle) {
-                win_set_icon_title(term->win, term->osc_string);
                 sfree(term->icon_title);
                 term->icon_title = dupstr(term->osc_string);
+                term->win_icon_title_pending = true;
+                term_schedule_update(term);
             }
             if (term->esc_args[0] == 1)
                 break;
@@ -2988,9 +3060,10 @@ static void do_osc(Terminal *term)
           case 2:
           case 21:
             if (!term->no_remote_wintitle) {
-                win_set_title(term->win, term->osc_string);
                 sfree(term->window_title);
                 term->window_title = dupstr(term->osc_string);
+                term->win_title_pending = true;
+                term_schedule_update(term);
             }
             break;
           case 4:
@@ -3861,8 +3934,12 @@ static void term_out(Terminal *term)
                     if (term->ldisc)   /* cause ldisc to notice changes */
                         ldisc_echoedit_update(term->ldisc);
                     if (term->reset_132) {
-                        if (!term->no_remote_resize)
-                            win_request_resize(term->win, 80, term->rows);
+                        if (!term->no_remote_resize) {
+                            term->win_resize_pending = true;
+                            term->win_resize_pending_w = 80;
+                            term->win_resize_pending_h = term->rows;
+                            term_schedule_update(term);
+                        }
                         term->reset_132 = false;
                     }
                     if (term->scroll_on_disp)
@@ -4497,9 +4574,13 @@ static void term_out(Terminal *term)
                             && (term->esc_args[0] < 1 ||
                                 term->esc_args[0] >= 24)) {
                             compatibility(VT340TEXT);
-                            if (!term->no_remote_resize)
-                                win_request_resize(term->win, term->cols,
-                                                   def(term->esc_args[0], 24));
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w = term->cols;
+                                term->win_resize_pending_h =
+                                    def(term->esc_args[0], 24);
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         } else if (term->esc_nargs >= 1 &&
                                    term->esc_args[0] >= 1 &&
@@ -4511,17 +4592,25 @@ static void term_out(Terminal *term)
                                 char buf[80];
                                 const char *p;
                               case 1:
-                                win_set_minimised(term->win, false);
+                                term->win_minimise_pending = true;
+                                term->win_minimise_enable = false;
+                                term_schedule_update(term);
                                 break;
                               case 2:
-                                win_set_minimised(term->win, true);
+                                term->win_minimise_pending = true;
+                                term->win_minimise_enable = true;
+                                term_schedule_update(term);
                                 break;
                               case 3:
                                 if (term->esc_nargs >= 3) {
-                                    if (!term->no_remote_resize)
-                                        win_move(term->win,
-                                                 def(term->esc_args[1], 0),
-                                                 def(term->esc_args[2], 0));
+                                    if (!term->no_remote_resize) {
+                                        term->win_move_pending = true;
+                                        term->win_move_pending_x =
+                                            def(term->esc_args[1], 0);
+                                        term->win_move_pending_y =
+                                            def(term->esc_args[2], 0);
+                                        term_schedule_update(term);
+                                    }
                                 }
                                 break;
                               case 4:
@@ -4532,31 +4621,40 @@ static void term_out(Terminal *term)
                                 break;
                               case 5:
                                 /* move to top */
-                                win_set_zorder(term->win, true);
+                                term->win_zorder_pending = true;
+                                term->win_zorder_top = true;
+                                term_schedule_update(term);
                                 break;
                               case 6:
                                 /* move to bottom */
-                                win_set_zorder(term->win, false);
+                                term->win_zorder_pending = true;
+                                term->win_zorder_top = false;
+                                term_schedule_update(term);
                                 break;
                               case 7:
-                                win_refresh(term->win);
+                                term->win_refresh_pending = true;
+                                term_schedule_update(term);
                                 break;
                               case 8:
-                                if (term->esc_nargs >= 3) {
-                                    if (!term->no_remote_resize)
-                                        win_request_resize(
-                                            term->win,
-                                            def(term->esc_args[2],
-                                                term->conf_width),
-                                            def(term->esc_args[1],
-                                                term->conf_height));
+                                if (term->esc_nargs >= 3 &&
+                                    !term->no_remote_resize) {
+                                    term->win_resize_pending = true;
+                                    term->win_resize_pending_w =
+                                        def(term->esc_args[2],
+                                            term->conf_width);
+                                    term->win_resize_pending_h =
+                                        def(term->esc_args[1],
+                                            term->conf_height);
+                                    term_schedule_update(term);
                                 }
                                 break;
                               case 9:
-                                if (term->esc_nargs >= 2)
-                                    win_set_maximised(
-                                        term->win,
-                                        term->esc_args[1] ? true : false);
+                                if (term->esc_nargs >= 2) {
+                                    term->win_maximise_pending = true;
+                                    term->win_maximise_enable =
+                                        term->esc_args[1];
+                                    term_schedule_update(term);
+                                }
                                 break;
                               case 11:
                                 if (term->ldisc)
@@ -4662,10 +4760,13 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT420);
                         if (term->esc_nargs == 1 && term->esc_args[0] > 0) {
-                            if (!term->no_remote_resize)
-                                win_request_resize(term->win, term->cols,
-                                                   def(term->esc_args[0],
-                                                       term->conf_height));
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w = term->cols;
+                                term->win_resize_pending_h =
+                                    def(term->esc_args[0], term->conf_height);
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         }
                         break;
@@ -4677,11 +4778,13 @@ static void term_out(Terminal *term)
                          */
                         compatibility(VT340TEXT);
                         if (term->esc_nargs <= 1) {
-                            if (!term->no_remote_resize)
-                                win_request_resize(
-                                    term->win,
-                                    def(term->esc_args[0], term->conf_width),
-                                    term->rows);
+                            if (!term->no_remote_resize) {
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w =
+                                    def(term->esc_args[0], term->conf_width);
+                                term->win_resize_pending_h = term->rows;
+                                term_schedule_update(term);
+                            }
                             deselect(term);
                         }
                         break;
@@ -4887,10 +4990,11 @@ static void term_out(Terminal *term)
                          */
                         if (!has_compat(VT420) && has_compat(VT100)) {
                             if (!term->no_remote_resize) {
-                                if (term->reset_132)
-                                    win_request_resize(term->win, 132, 24);
-                                else
-                                    win_request_resize(term->win, 80, 24);
+                                term->win_resize_pending = true;
+                                term->win_resize_pending_w =
+                                    term->reset_132 ? 132 : 80;
+                                term->win_resize_pending_h = 24;
+                                term_schedule_update(term);
                             }
                         }
 #endif
@@ -6041,8 +6145,8 @@ void term_scroll(Terminal *term, int rel, int where)
         term->disptop = sbtop;
     if (term->disptop > 0)
         term->disptop = 0;
-    update_sbar(term);
-    term_update(term);
+    term->win_scrollbar_update_pending = true;
+    term_schedule_update(term);
 }
 
 /*
@@ -6998,7 +7102,7 @@ void term_mouse(Terminal *term, Mouse_Button braw, Mouse_Button bcooked,
      */
     if (term->selstate != DRAGGING)
         term_out(term);
-    term_update(term);
+    term_schedule_update(term);
 }
 
 int format_arrow_key(char *buf, Terminal *term, int xkey, bool ctrl)
