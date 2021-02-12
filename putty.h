@@ -216,9 +216,9 @@ extern const int colour_indices_oscp_to_osc4[OSCP_NCOLOURS];
 
 #define ATTR_INVALID 0x03FFFFU
 
-/* Like Linux use the F000 page for direct to font. */
-#define CSET_OEMCP   0x0000F000UL      /* OEM Codepage DTF */
-#define CSET_ACP     0x0000F100UL      /* Ansi Codepage DTF */
+/* Use the DC00 page for direct to font. */
+#define CSET_OEMCP   0x0000DC00UL      /* OEM Codepage DTF */
+#define CSET_ACP     0x0000DD00UL      /* Ansi Codepage DTF */
 
 /* These are internal use overlapping with the UTF-16 surrogates */
 #define CSET_ASCII   0x0000D800UL      /* normal ASCII charset ESC ( B */
@@ -228,7 +228,7 @@ extern const int colour_indices_oscp_to_osc4[OSCP_NCOLOURS];
 #define CSET_MASK    0xFFFFFF00UL      /* Character set mask */
 
 #define DIRECT_CHAR(c) ((c&0xFFFFFC00)==0xD800)
-#define DIRECT_FONT(c) ((c&0xFFFFFE00)==0xF000)
+#define DIRECT_FONT(c) ((c&0xFFFFFE00)==0xDC00)
 
 #define UCSERR       (CSET_LINEDRW|'a') /* UCS Format error character. */
 /*
