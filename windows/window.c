@@ -1686,6 +1686,25 @@ static void wintw_request_resize(TermWin *tw, int w, int h)
     InvalidateRect(wgs.term_hwnd, NULL, true);
 }
 
+static void recompute_window_offset(void)
+{
+    RECT cr;
+    GetClientRect(wgs.term_hwnd, &cr);
+
+    int win_width  = cr.right - cr.left;
+    int win_height = cr.bottom - cr.top;
+
+    int new_offset_width = (win_width-font_width*term->cols)/2;
+    int new_offset_height = (win_height-font_height*term->rows)/2;
+
+    if (offset_width != new_offset_width ||
+        offset_height != new_offset_height) {
+        offset_width = new_offset_width;
+        offset_height = new_offset_height;
+        InvalidateRect(wgs.term_hwnd, NULL, true);
+    }
+}
+
 static void reset_window(int reinit) {
     /*
      * This function decides how to resize or redraw when the
@@ -1728,12 +1747,8 @@ static void reset_window(int reinit) {
         return;
 
     /* Is the window out of position ? */
-    if ( !reinit &&
-            (offset_width != (win_width-font_width*term->cols)/2 ||
-             offset_height != (win_height-font_height*term->rows)/2) ){
-        offset_width = (win_width-font_width*term->cols)/2;
-        offset_height = (win_height-font_height*term->rows)/2;
-        InvalidateRect(wgs.term_hwnd, NULL, true);
+    if (!reinit) {
+        recompute_window_offset();
 #ifdef RDB_DEBUG_PATCH
         debug("reset_window() -> Reposition terminal\n");
 #endif
@@ -2986,6 +3001,22 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                        (resize_action == RESIZE_EITHER &&
                         !is_alt_pressed())) {
                 wm_size_resize_term(lParam, true);
+
+                /*
+                 * Sometimes, we can get a spontaneous resize event
+                 * outside a WM_SIZING interactive drag which wants to
+                 * set us to a new specific SIZE_RESTORED size. An
+                 * example is what happens if you press Windows+Right
+                 * and then Windows+Up: the first operation fits the
+                 * window to the right-hand half of the screen, and
+                 * the second one changes that for the top right
+                 * quadrant. In that situation, if we've responded
+                 * here by resizing the terminal, we may still need to
+                 * recompute the border around the window and do a
+                 * full redraw to clear the new border.
+                 */
+                if (!resizing)
+                    recompute_window_offset();
             } else {
                 reset_window(0);
             }
