@@ -407,8 +407,7 @@ Socket *new_connection(SockAddr *addr, const char *hostname,
 
         if ((sret = platform_new_connection(addr, hostname, port, privport,
                                             oobinline, nodelay, keepalive,
-                                            plug, conf)) !=
-            NULL)
+                                            plug, conf)) != NULL)
             return sret;
 
         ret = snew(ProxySocket);
