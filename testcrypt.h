@@ -262,6 +262,12 @@ FUNC3(val_string, ppk_save_sb, val_key, opt_val_string_asciz, opt_val_string_asc
 FUNC3(val_string, rsa1_save_sb, val_rsa, opt_val_string_asciz, opt_val_string_asciz)
 
 /*
+ * Password hashing.
+ */
+FUNC9(val_string, argon2, argon2flavour, uint, uint, uint, uint, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen, val_string_ptrlen)
+FUNC2(val_string, argon2_long_hash, uint, val_string_ptrlen)
+
+/*
  * Key generation functions.
  */
 FUNC3(val_key, rsa_generate, uint, boolean, val_pgc)

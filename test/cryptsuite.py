@@ -1757,6 +1757,199 @@ culpa qui officia deserunt mollit anim id est laborum.
             "daafcf2bd6fccf976cbc234b71cd9f4f7d56fe0eb33a40018707089a215c44a8"
             "4b272d0329ae6d85a0f8acc7e964dc2facb715ba472bb6"))
 
+    def testArgon2LongHash(self):
+        # Unit-test the Argon2 long hash function H', which starts off
+        # the same as BLAKE2b, but comes with its own method of
+        # extending the output length past 64 bytes.
+        #
+        # I generated these test values using a test program linked
+        # against the reference implementation's libargon2.a and
+        # calling its blake2b_long function.
+        preimage = b'hello, world'
+
+        self.assertEqualBin(argon2_long_hash(1, preimage), unhex("8b"))
+        self.assertEqualBin(argon2_long_hash(2, preimage), unhex("1ff9"))
+        self.assertEqualBin(argon2_long_hash(63, preimage), unhex(
+            "e2c997721f1d64aa8c25e588fb8ab19646ce6d5c2a431fa560fcb813e55dd481"
+            "322d2630d95ca6b1b63317b13d6b111e5816170c80c3ca7d5b4bf894096de4"))
+        self.assertEqualBin(argon2_long_hash(64, preimage), unhex(
+            "0c7ba7ee6d510b4bb5c9b69ac91e25e0b11aa30dd6234b8e61b0fe1537c037b8"
+            "8ed5aa59a277e8cc07095c81aff26d08967e4dfdabd32db8b6af6ceb78cf8c47"))
+        self.assertEqualBin(argon2_long_hash(65, preimage), unhex(
+            "680941abbd8fc80f28c38d623e90903f08709bf76575e2775d4ce01c31b192c8"
+            "73038d9a31af8991c8b1ad4f2b1991f4d15f73ab0f4f3add415c297a12eb9ddb"
+            "76"))
+        self.assertEqualBin(argon2_long_hash(95, preimage), unhex(
+            "4be28c51850fed70d9403e1406b6ba68a83d98cf222a4ee162beef60fd3384df"
+            "eba3fce9d95f646982eb384ac943ce5263cb03428fd8d261cc41ffdb7ba328fe"
+            "098526f2b49593f9e7f38188598ce4693b59f4dd32db30c1be9a9d35784fa0"))
+        self.assertEqualBin(argon2_long_hash(96, preimage), unhex(
+            "20295ea01e822cca113f668f33e5e481ed5879bfd7de6359ea42d497da97be52"
+            "2cdd518d34ae32c44cabd45249b4e697626b0b14b6a33a2bd138be0a4bceeaf4"
+            "9528f93acef01b093ee84d8d871d1ee6cf7c10e83ad0619631aed19345166f03"))
+        self.assertEqualBin(argon2_long_hash(97, preimage), unhex(
+            "d24b31f3ac0baad168d524efc4bafee55fef743fd60b14e28b860d7523e319c7"
+            "520e2d5457cc3d06dc1044530afdf6990fa12e38d5802eb642f8e77fcfee2c0b"
+            "1f84a28877f2f2f049ed9299e1e0230f98af3a161185970aad21f0ea0f5184cf"
+            "90"))
+        self.assertEqualBin(argon2_long_hash(127, preimage), unhex(
+            "5d1e8380450dbc985418ed1f3700b925ae0719e4486e29131c81bca7083ac6b8"
+            "f535c3398488e34d3dc1390de44097f1eee498f10ebe85b579e99a7672023b01"
+            "ca5c20e63c595b640e00d80f113a52e3773719889b266ab4c65269c11fb212e4"
+            "75f2b769bb26321bb60ecc0d490821e5056d7dfc9def3cd065d3ba90360764"))
+        self.assertEqualBin(argon2_long_hash(128, preimage), unhex(
+            "be15b316f3483c4d0d00f71a65b974894a2025f441b79b9fe461bc740cb0b039"
+            "c4fe914f61c05a612d63ebc50a662b2d59b1996091e5e3474340544ea46a46cb"
+            "25c41ff700fafcd96c4f12ddc698cd2426558f960696837ea8170fd2fe284b54"
+            "8f585f97919ef14f2b3cbb351eb98872add7ba6d08c1401232df6cc878fbeb22"))
+        self.assertEqualBin(argon2_long_hash(129, preimage), unhex(
+            "83da464c278dcb12c29b6685fee6d32f0b461337c155369ad0d56b58b0aa5f80"
+            "9aa7b56bd41b664c8d768957f8f0e40999fb0178eb53cf83f31d725bf92881bc"
+            "900774bce4cdf56b6386ad3de6891d11a0ccd4564a3431fc4c24105a02d0a6a2"
+            "434712b9a7471f3223c72a6e64912200d0a3d149a19d06fe9dc8ec09d7ed5a48"
+            "bb"))
+        self.assertEqualBin(argon2_long_hash(511, preimage), unhex(
+            "30c0c0d0467e7665368db0b40a2324a61fb569d35172de2df53a9739a8d18e60"
+            "b4f25d521c8855604be3e24ea56302566074323d94c0bd3a33d08f185d8ba5ac"
+            "a2bc3fb2e4c4e5ffec5778daea67c6b5913c9cac16f2e5c7b7818e757fa747b3"
+            "69e586d616010a752762f69c604238ed8738430366fbdb7493454fa02391a76b"
+            "30f241695b9fa8d3a3116227c6bb6f72d325cf104ab153d15f928b22767d467d"
+            "4bf7e16176aaa7315954b7872061933c12d548f1f93a8abb9d73791661bee521"
+            "b2ae51be373a229dfef32787234c1be5846d133563002b9a029178716ad41e70"
+            "1539d3fad300c77607c5217701e3e485d72c980f3f71d525c8148375a2f8d22c"
+            "a211ba165330a90b7e0e6baa6073833925c23bdd388ee904f38463c7e6b85475"
+            "09b810aae5c9ffc5dd902c2ffe049c338e3ae2c6416d3b874d6a9d384089564c"
+            "0d8e4dce9b6e47e1d5ec9087bf526cc9fa35aab1893a0588d31b77fea37e0799"
+            "468deacde47629d2960a3519b3bcd4e22364a9cccd3b128cba21cac27f140d53"
+            "f79c11e4157e4cb48272eecdf62f52084a27e5b0933bbe66ded17e2df6f8d398"
+            "f6c479c3c716457820ad177b8bd9334cb594e03d09fcc4f82d4385e141eacd7d"
+            "9ad1e1c4cb42788af70bac0509f0a891e662960955490abf2763373803e8c89c"
+            "df632579cb9c647634b30df214a3d67b92fd55d283c42c63b470a48a78cd5b"))
+        self.assertEqualBin(argon2_long_hash(512, preimage), unhex(
+            "79a6974e29a9a6c069e0156774d35c5014a409f5ffc60013725367a7208d4929"
+            "7d228637751768a31a59e27aa89372f1bcc095a6fa331198a5bd5ad053ba2ebb"
+            "cbcc501ea55cf142e8d95209228c9ab60cd104d5077472f2a9ecaa071aed6ee9"
+            "5de29e188b7399d5b6b7ed897b2bc4dd1ea745eb9974e39ca6fb983380cc537a"
+            "c04dfe6caefe85faf206b1613092ebadf791eaa8a5b814c9a79a73a5733b0505"
+            "a47163c10a0f7309df6663896df6079a7c88c6879bb591a40abd398c6deda792"
+            "1cc3986435b1c840a768b2fa507446f2f77a406b1b2f739f7795db24789c8927"
+            "24b4c84b7005445123154f8cd2ba63a7ede672af5d197f846700732025c9931d"
+            "1c67c5493417ca394a8f68ba532645815cf7b5102af134ecb4fd9e326f53779a"
+            "3039dbef6a0880db9e38b6b61d2f9ead969e4224c2d9c69b5897e5eeb7032e83"
+            "334e192ff50017056ccb84d4cc8eee3ab248d2614643d0174fe18c72186dd967"
+            "92d8545645ddf4a9b2c7a91c9a71857a399449d7154077a8e9580f1a2d20227d"
+            "671b455ccb897cba0491e50892120d7877f7776d653cfdb176fa3f64a9e6f848"
+            "cd681c487b488775aaf698294eec813b2cca90d68d63b5d886d61c1a8e922aaa"
+            "330fd658ede56e34bcd288048e845eba7b8e2e7cc22ba6c91b523e48017aa878"
+            "8ce4f91d0e6d6c6706762fb0cc7f465cee3916684fb21e337cfe1b583e0b1e92"))
+        self.assertEqualBin(argon2_long_hash(513, preimage), unhex(
+            "32243cfbd7eca582d60b3b8ea3ba3d93783537689c7cbcd1d1cbde46200b8c86"
+            "617fc00e8a9ae991a1e2f91c67e07d5f0a777d982c1461d0c5474e4e164b053c"
+            "2808559e2b8a5ac4a46a5fcbc825b1d5302c7b0611940194eb494d45ce7113a2"
+            "3424b51c199c6a5100ab159ff323eda5feffee4da4155a028a81da9d44e4286b"
+            "ac3dab4ffce43a80b6ce97a47ea0ac51ee16e8b4d3b68942afdc20e1c21747c4"
+            "94859c3d3883e7dc19ea416a393a3507683d9d03e6a3a91f8f1cb8a7d5d9892e"
+            "80c8fb0222527a73a1f59b9dd41770982f2af177a6e96093064534803edd0713"
+            "71ede53024cedc291d768325bb4e4def9af1b5569c349b64816496c37a8787b5"
+            "4fbe248372ebadb5ce20e03eaa935dc55ff4b8cbe5d6d844c7b71d4656fef22c"
+            "5a49f13d75a7a8368a2dbc1e78d732b879bfc5c9467eda2bf4918f0c59037ae3"
+            "dee7880a171409dd1a4e143c814e60301ac77237f261fa7519a04e68000530f9"
+            "708ed9fda5609d655560a9491f80f5875ad5725e3120686b73319c6a727932e3"
+            "20a2174422523498c38fea47aeb20d135ff9fd93c6fa6db0005e0001685d7577"
+            "33a82a4dc9dd6556b938f7b8dafd0d670846780b9931b815063708189b17877b"
+            "825533bcc250fb576a28be4caa107e6a3a6f7b0c60fb51b0def27008b7e272ac"
+            "95d610bfa912339799a2e537ce543d7862dddbe31bb224fda4ae283571847a28"
+            "54"))
+        self.assertEqualBin(argon2_long_hash(1024, preimage), unhex(
+            "951252f6fa152124f381266a358d9b78b88e469d08d5fc78e4ea32253c7fc26c"
+            "3ff1c93529ab4ee6fcf00acf29bbaba934a4014ce2625e0806601c55e6ce70d7"
+            "121fd82f0904f335c5c7ba07dc6e6adf7582c92f7f255072203ea85844b4fe54"
+            "817476a20bb742710ffc42750361be94332d0fc721b192309acfa70da43db6ae"
+            "1d0f0bbe8a3250966a4532b36728162073c9eb3e119ea4c1c187c775dbb25a5d"
+            "d883e3f65706a5fca897cdc4a8aa7b68ba3f57940c72f3a3396c417e758ba071"
+            "95be4afba325237c0e2738a74d96fd1350fb623cb2ad40ea8b1e070cf398b98c"
+            "2865ea40225b81f031f2b405409ca01dc5d9903d3d8e1d6381fbe7ccfc8f3dab"
+            "eadafd7c976c0ba84a936f78ff7df0f112c089ba88f82bed7f9a6e31a91e5fee"
+            "f675755454b948de22695660b243b9eca3bcc89608f83d2baa1d73dd6b8bd4f9"
+            "b995ed9cb0f1edc6e98a49ed841b506c1bf59b43f4b3457a376bbff116c1a4f6"
+            "07cc62381fc5c19953c68f300c1b51198d40784d812d25810ba404862f04b680"
+            "6039a074f612ad8b84e0941ba23c915c3e7162c225fbecffdb7dc1ab559b2b54"
+            "32fe8a498c32e918d8e7e33254ff75077f648827705e987f4d90fba971e78e1a"
+            "6896b4d775c7359dc950f1e964fa04621aacf3c0988969490f4c72c54caf79e8"
+            "481053cc0a27ffcd3580aabf9ef1268d498d8a18bd70e9b8402e011753bb7dc7"
+            "e856c00d988fca924ee7cf61979c38cda8a872e4cc4fbdc90c23a0ded71eb944"
+            "bb816ab22d9a4380e3e9d1cec818165c2fba6c5d51dcbf452c0cb1779a384937"
+            "64d695370e13a301eca7be68d4112d2177381514efbb36fe08fc5bc2970301b8"
+            "06f8e5a57a780e894d5276e2025bb775b6d1861e33c54ab6e3eb72947fbe6f91"
+            "8174ce24eb4682efbb3c4f01233dc7ce9ef44792e9e876bb03e6751b3d559047"
+            "d045127d976aa042fc55c690c9048e200065e7b7de19d9353aa9ac9b3e7611f0"
+            "d1c42d069a300455ca1f7420a352bace89215e705106927510c11b3b1c1486d9"
+            "f3ab006d2de2ee2c94574f760ce8c246bca229f98c66f06042b14f1fff9a16c0"
+            "1550237e16d108ce5597299b1eb406a9ee505a29a6e0fa526b3e6beafd336aea"
+            "138b2f31971586f67c5ffffbd6826d1c75666038c43d0bdff4edfc294e064a49"
+            "2eed43e2dc78d00abc4e85edcd9563b8251b66f57b0f4b6d17f5a3f35c87c488"
+            "dbeeb84fd720286197c2dec8290eccf3a313747de285b9cd3548e90cf81b3838"
+            "3ffcc8c2a7f582feb369d05cb96b9b224d05902b3e39e5b96536032e9dddeb9b"
+            "9d4f40a9c8f544ca37cf8d39d7c8c6a33880e9184ed017bd642db9590759bd10"
+            "7362048ede5c0257feecc4984584592c566f37fba8469c064015339fb4f03023"
+            "56ece37fd3655aae2bfc989b9b4c1384efc3503c8866db901802cb36eda9fb00"))
+
+    def testArgon2(self):
+        # A few tests of my own of Argon2, derived from the reference
+        # implementation.
+        pwd = b"password"
+        salt = b"salt of at least 16 bytes"
+        secret = b"secret"
+        assoc = b"associated data"
+
+        # Smallest memory (8Kb) and parallelism (1) parameters the
+        # reference implementation will accept, but lots of passes
+        self.assertEqualBin(
+            argon2('i', 8, 16, 1, 24, pwd, salt, secret, assoc), unhex(
+                "314da280240a3ca1eedd1f1db417a76eb0741e7df64b8cdf"))
+        self.assertEqualBin(
+            argon2('d', 8, 16, 1, 24, pwd, salt, secret, assoc), unhex(
+                "9cc961cf43e0f86c2d4e202b816dc5bc5b2177e68faa0b08"))
+        self.assertEqualBin(
+            argon2('id', 8, 16, 1, 24, pwd, salt, secret, assoc), unhex(
+                "6cd6c490c582fa597721d772d4e3de166987792491b48c51"))
+
+        # Test a memory cost value that isn't a power of 2. This
+        # checks a wraparound case during the conversion of J1 to a
+        # block index, and is a regression test for a bug that nearly
+        # got past me during original development.
+        self.assertEqualBin(
+            argon2('i', 104, 16, 2, 24, pwd, salt, secret, assoc), unhex(
+                "a561963623f1073c9aa8caecdb600c73ffc6de677ba8d97c"))
+        self.assertEqualBin(
+            argon2('d', 104, 16, 2, 24, pwd, salt, secret, assoc), unhex(
+                "a9014db7f1d468fb25b88fa7fc0deac0f2e7f27e25d2cf6e"))
+        self.assertEqualBin(
+            argon2('id', 104, 16, 2, 24, pwd, salt, secret, assoc), unhex(
+                "64f3212b1e7725ffcf9ae2d1753d63e763bcd6970061a435"))
+
+        # Larger parameters that should exercise the pseudorandom
+        # block indexing reasonably thoroughly. Also generate plenty
+        # of output data.
+        self.assertEqualBin(
+            argon2('i', 1024, 5, 16, 77, pwd, salt, secret, assoc), unhex(
+                "b008a685ff57730fad0e6f3ef3b9189282c0d9b05303675f43b5f3054724"
+                "733fcbe8e2639cc2c930535b31b723339041bcd703bf2483455acf86c0e6"
+                "9ed88c545ad40f1f2068855e4d61e99407"))
+        self.assertEqualBin(
+            argon2('d', 1024, 5, 16, 111, pwd, salt, secret, assoc), unhex(
+                "399ffbcd720c47745b9deb391ed0de7d5e0ffe53aef9f8ef7a7918cfa212"
+                "53df8cc577affbd5e0c0f8bf6d93c11b2f63973f8fc8f89dccd832fc587e"
+                "5d61717be6e88ca33eef5d1e168c028bae632a2a723c6c83f8e755f39171"
+                "5eda1c77c8e2fe06fbdd4e56d35262587e7df73cd7"))
+        self.assertEqualBin(
+            argon2('id', 1024, 5, 16, 123, pwd, salt, secret, assoc), unhex(
+                "6636807289cb9b9c032f48dcc31ffed1de4ca6c1b97e1ce768d690486341"
+                "2ac84b39d568a81dd01d9ee3ceec6cc23441d95e6abeb4a2024f1f540d56"
+                "9b799277c4037ddc7195ba783c9158a901adc7d4a5df8357b34a3869e5d6"
+                "aeae2a21201eef5e347de22c922192e8f46274b0c9d33e965155a91e7686"
+                "9d530e"))
+
     def testRSAVerify(self):
         def blobs(n, e, d, p, q, iqmp):
             pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)
@@ -2470,6 +2663,24 @@ class standard_test_vectors(MyTestBase):
                 ssh_hash_update(h, unhex(vector['in']))
                 digest = ssh_hash_digest(h)
                 self.assertEqualBin(digest, unhex(vector['out']))
+
+    def testArgon2(self):
+        # draft-irtf-cfrg-argon2-12 section 5
+        self.assertEqualBin(
+            argon2('d', 32, 3, 4, 32, b'\x01' * 32, b'\x02' * 16,
+                   b'\x03' * 8, b'\x04' * 12),
+            unhex("512b391b6f1162975371d30919734294"
+                  "f868e3be3984f3c1a13a4db9fabe4acb"))
+        self.assertEqualBin(
+            argon2('i', 32, 3, 4, 32, b'\x01' * 32, b'\x02' * 16,
+                   b'\x03' * 8, b'\x04' * 12),
+            unhex("c814d9d1dc7f37aa13f0d77f2494bda1"
+                  "c8de6b016dd388d29952a4c4672b6ce8"))
+        self.assertEqualBin(
+            argon2('id', 32, 3, 4, 32, b'\x01' * 32, b'\x02' * 16,
+                   b'\x03' * 8, b'\x04' * 12),
+            unhex("0d640df58d78766c08c037a34a8b53c9"
+                  "d01ef0452d75b65eb52520e96b01e659"))
 
     def testHmacSHA(self):
         # Test cases from RFC 6234 section 8.5.

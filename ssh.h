@@ -930,6 +930,18 @@ struct ssh2_userkey {
     char *comment;                     /* the key comment */
 };
 
+/* Argon2 password hashing function */
+typedef enum { Argon2d = 0, Argon2i = 1, Argon2id = 2 } Argon2Flavour;
+void argon2(Argon2Flavour, uint32_t mem, uint32_t passes,
+            uint32_t parallel, uint32_t taglen,
+            ptrlen P, ptrlen S, ptrlen K, ptrlen X, strbuf *out);
+void argon2_choose_passes(
+    Argon2Flavour, uint32_t mem, uint32_t milliseconds, uint32_t *passes,
+    uint32_t parallel, uint32_t taglen, ptrlen P, ptrlen S, ptrlen K, ptrlen X,
+    strbuf *out);
+/* The H' hash defined in Argon2, exposed just for testcrypt */
+strbuf *argon2_long_hash(unsigned length, ptrlen data);
+
 /* The maximum length of any hash algorithm. (bytes) */
 #define MAX_HASH_LEN (114) /* longest is SHAKE256 with 114-byte output */
 

@@ -403,6 +403,32 @@ static const PrimeGenerationPolicy *get_primegenpolicy(BinarySource *in)
     fatal_error("primegenpolicy '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
+static Argon2Flavour get_argon2flavour(BinarySource *in)
+{
+    static const struct {
+        const char *key;
+        Argon2Flavour value;
+    } algs[] = {
+        {"d", Argon2d},
+        {"i", Argon2i},
+        {"id", Argon2id},
+        /* I expect to forget which spelling I chose, so let's support many */
+        {"argon2d", Argon2d},
+        {"argon2i", Argon2i},
+        {"argon2id", Argon2id},
+        {"Argon2d", Argon2d},
+        {"Argon2i", Argon2i},
+        {"Argon2id", Argon2id},
+    };
+
+    ptrlen name = get_word(in);
+    for (size_t i = 0; i < lenof(algs); i++)
+        if (ptrlen_eq_string(name, algs[i].key))
+            return algs[i].value;
+
+    fatal_error("Argon2 flavour '%.*s': not found", PTRLEN_PRINTF(name));
+}
+
 static uintmax_t get_uint(BinarySource *in)
 {
     ptrlen word = get_word(in);
@@ -1219,6 +1245,16 @@ PockleStatus pockle_add_prime_wrapper(Pockle *pockle, mp_int *p,
 }
 #define pockle_add_prime pockle_add_prime_wrapper
 
+strbuf *argon2_wrapper(Argon2Flavour flavour, uint32_t mem, uint32_t passes,
+                       uint32_t parallel, uint32_t taglen,
+                       ptrlen P, ptrlen S, ptrlen K, ptrlen X)
+{
+    strbuf *out = strbuf_new();
+    argon2(flavour, mem, passes, parallel, taglen, P, S, K, X, out);
+    return out;
+}
+#define argon2 argon2_wrapper
+
 #define OPTIONAL_PTR_FUNC(type)                                         \
     typedef TD_val_##type TD_opt_val_##type;                            \
     static TD_opt_val_##type get_opt_val_##type(BinarySource *in) {     \
@@ -1254,6 +1290,7 @@ typedef key_components *TD_keycomponents;
 typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 typedef struct mpint_list TD_mpint_list;
 typedef PockleStatus TD_pocklestatus;
+typedef Argon2Flavour TD_argon2flavour;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \
