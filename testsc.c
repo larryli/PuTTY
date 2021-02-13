@@ -277,6 +277,7 @@ VOLATILE_WRAPPED_DEFN(static, size_t, looplimit, (size_t x))
     X(Y, ssh_sha3_384)                          \
     X(Y, ssh_sha3_512)                          \
     X(Y, ssh_shake256_114bytes)                 \
+    X(Y, ssh_blake2b)                           \
     /* end of list */
 
 #define HASH_TESTLIST(X, name) X(hash_ ## name)

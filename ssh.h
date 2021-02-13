@@ -986,6 +986,7 @@ extern const ssh_hashalg ssh_sha3_256;
 extern const ssh_hashalg ssh_sha3_384;
 extern const ssh_hashalg ssh_sha3_512;
 extern const ssh_hashalg ssh_shake256_114bytes;
+extern const ssh_hashalg ssh_blake2b;
 extern const ssh_kexes ssh_diffiehellman_group1;
 extern const ssh_kexes ssh_diffiehellman_group14;
 extern const ssh_kexes ssh_diffiehellman_gex;
@@ -1014,6 +1015,10 @@ extern const ssh2_macalg ssh_hmac_sha1_96_buggy;
 extern const ssh2_macalg ssh_hmac_sha256;
 extern const ssh2_macalg ssh2_poly1305;
 extern const ssh_compression_alg ssh_zlib;
+
+/* Special constructor: BLAKE2b can be instantiated with any hash
+ * length up to 128 bytes */
+ssh_hash *blake2b_new_general(unsigned hashlen);
 
 /*
  * On some systems, you have to detect hardware crypto acceleration by

@@ -252,7 +252,7 @@ NONSSH   = telnet raw rlogin supdup ldisc pinger
 
 # SSH back end (putty, plink, pscp, psftp).
 ARITH    = mpint ecc
-SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512 sshsha3
+SSHCRYPTO = ARITH sshmd5 sshsha sshsh256 sshsh512 sshsha3 sshblake2
 	 + sshrsa sshdss sshecc
          + sshdes sshblowf sshaes sshccp ssharcf
          + sshdh sshcrc sshcrcda sshauxcrypt

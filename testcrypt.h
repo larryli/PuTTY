@@ -136,6 +136,8 @@ FUNC1(val_string, ssh_hash_digest, val_hash)
 FUNC1(val_string, ssh_hash_final, consumed_val_hash)
 FUNC2(void, ssh_hash_update, val_hash, val_string_ptrlen)
 
+FUNC1(opt_val_hash, blake2b_new_general, uint)
+
 /*
  * The ssh2_mac abstraction. Note the optional ssh_cipher parameter
  * to ssh2_mac_new. Also, again, I've invented an ssh2_mac_update so

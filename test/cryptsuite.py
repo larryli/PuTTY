@@ -9,6 +9,7 @@ import contextlib
 import hashlib
 import binascii
 import base64
+import json
 try:
     from math import gcd
 except ImportError:
@@ -1727,6 +1728,35 @@ culpa qui officia deserunt mollit anim id est laborum.
         self.assertFalse(ssh_key_verify(pubkey, badsig0, "hello, again"))
         self.assertFalse(ssh_key_verify(pubkey, badsigq, "hello, again"))
 
+    def testBLAKE2b(self):
+        # The standard test vectors for BLAKE2b (in the separate class
+        # below) don't satisfy me because they only test one hash
+        # size. These additional tests exercise BLAKE2b's configurable
+        # output length. The expected results are derived from the
+        # BLAKE2 reference implementation.
+
+        def b2_with_len(data, length):
+            h = blake2b_new_general(length)
+            h.update(data)
+            return h.digest()[:length]
+
+        self.assertEqualBin(b2_with_len(b'hello', 1), unhex("29"))
+        self.assertEqualBin(b2_with_len(b'hello', 2), unhex("accd"))
+        self.assertEqualBin(b2_with_len(b'hello', 3), unhex("980032"))
+        self.assertEqualBin(b2_with_len(b'hello', 5), unhex("9baecc38f2"))
+        self.assertEqualBin(b2_with_len(b'hello', 8), unhex(
+            "a7b6eda801e5347d"))
+        self.assertEqualBin(b2_with_len(b'hello', 13), unhex(
+            "6eedb122c6707328a66aa34a07"))
+        self.assertEqualBin(b2_with_len(b'hello', 21), unhex(
+            "c7f0f74a227116547b3d2788e927ee2a76c87d8797"))
+        self.assertEqualBin(b2_with_len(b'hello', 34), unhex(
+            "2f5fcdf2b870fa254051dd448193a1fb6e92be122efca539ba2aeac0bc6c77d0"
+            "dadc"))
+        self.assertEqualBin(b2_with_len(b'hello', 55), unhex(
+            "daafcf2bd6fccf976cbc234b71cd9f4f7d56fe0eb33a40018707089a215c44a8"
+            "4b272d0329ae6d85a0f8acc7e964dc2facb715ba472bb6"))
+
     def testRSAVerify(self):
         def blobs(n, e, d, p, q, iqmp):
             pubblob = ssh_string(b"ssh-rsa") + ssh2_mpint(e) + ssh2_mpint(n)
@@ -2403,6 +2433,43 @@ class standard_test_vectors(MyTestBase):
         self.assertEqualBin(hash_str('sha3_512', unhex('a3')*200), unhex("e76dfad22084a8b1467fcf2ffa58361bec7628edf5f3fdc0e4805dc48caeeca81b7c13c30adf52a3659584739a2df46be589c51ca1a4a8416df6545a1ce8ba00"))
         self.assertEqualBin(hash_str('shake256_114bytes', ''), unhex("46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b81b82b50c27646ed5762fd75dc4ddd8c0f200cb05019d67b592f6fc821c49479ab48640292eacb3b7c4be141e96616fb13957692cc7edd0b45ae3dc07223c8e92937bef84bc0eab862853349ec75546f58fb7c2775c38462c5010d846"))
         self.assertEqualBin(hash_str('shake256_114bytes', unhex('a3')*200), unhex("cd8a920ed141aa0407a22d59288652e9d9f1a7ee0c1e7c1ca699424da84a904d2d700caae7396ece96604440577da4f3aa22aeb8857f961c4cd8e06f0ae6610b1048a7f64e1074cd629e85ad7566048efc4fb500b486a3309a8f26724c0ed628001a1099422468de726f1061d99eb9e93604"))
+
+    def testBLAKE2b(self):
+        # Test case from RFC 7693 appendix A.
+        self.assertEqualBin(hash_str('blake2b', b'abc'), unhex(
+            "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d1"
+            "7d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923"))
+
+        # A small number of test cases from the larger test vector
+        # set, testing multiple blocks and the empty input.
+        self.assertEqualBin(hash_str('blake2b', b''), unhex(
+            "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419"
+            "d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce"))
+        self.assertEqualBin(hash_str('blake2b', unhex('00')), unhex(
+            "2fa3f686df876995167e7c2e5d74c4c7b6e48f8068fe0e44208344d480f7904c"
+            "36963e44115fe3eb2a3ac8694c28bcb4f5a0f3276f2e79487d8219057a506e4b"))
+        self.assertEqualBin(hash_str('blake2b', bytes(range(255))), unhex(
+            "5b21c5fd8868367612474fa2e70e9cfa2201ffeee8fafab5797ad58fefa17c9b"
+            "5b107da4a3db6320baaf2c8617d5a51df914ae88da3867c2d41f0cc14fa67928"))
+
+        # You can get this test program to run the full version of the
+        # test vectors by modifying the source temporarily to set this
+        # variable to a pathname where you downloaded the JSON file
+        # blake2-kat.json.
+        blake2_test_vectors_path = None
+        if blake2_test_vectors_path is not None:
+            with open(blake2_test_vectors_path) as fh:
+                vectors = json.load(fh)
+            for vector in vectors:
+                if vector['hash'] != 'blake2b':
+                    continue
+                if len(vector['key']) != 0:
+                    continue
+
+                h = blake2b_new_general(len(vector['out']) // 2)
+                ssh_hash_update(h, unhex(vector['in']))
+                digest = ssh_hash_digest(h)
+                self.assertEqualBin(digest, unhex(vector['out']))
 
     def testHmacSHA(self):
         # Test cases from RFC 6234 section 8.5.
