@@ -2815,6 +2815,7 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
                       conf_get_int(conf, CONF_savelines));
             InvalidateRect(hwnd, NULL, true);
         }
+        recompute_window_offset();
         break;
       case WM_SIZING:
         /*
