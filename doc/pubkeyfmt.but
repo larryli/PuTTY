@@ -32,7 +32,7 @@ to become useless.
 This MAC protects the key file against active cryptographic attacks in
 which the public half of a key pair is modified in a controlled way
 that allows an attacker to deduce information about the private half
-from the resultinn corrupted signatures. Any attempt to do that to a
+from the resulting corrupted signatures. Any attempt to do that to a
 PPK file should be reliably caught by the MAC failing to validate.
 
 (Such an attack would only be useful if the key file was stored in a
@@ -227,7 +227,7 @@ point. The private key stores:
 \b \cw{mpint}: the private exponent, which is the discrete log of the
 public point.
 
-\S{ppk-privkey-ecdsa} EdDSA elliptic-curve keys (Ed25519 and Ed448)
+\S{ppk-privkey-eddsa} EdDSA elliptic-curve keys (Ed25519 and Ed448)
 
 EdDSA elliptic-curve keys are stored using one of the following
 \s{algorithm-name} values, each corresponding to a different elliptic
