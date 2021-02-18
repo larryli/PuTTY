@@ -1029,28 +1029,32 @@ strbuf *des3_decrypt_pubkey_ossh_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 }
 #define des3_decrypt_pubkey_ossh des3_decrypt_pubkey_ossh_wrapper
 
-strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen data)
+strbuf *aes256_encrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
     if (key.len != 32)
         fatal_error("aes256_encrypt_pubkey: key must be 32 bytes long");
+    if (iv.len != 16)
+        fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_encrypt_pubkey: data must be a multiple of 16 bytes");
     strbuf *sb = strbuf_new();
     put_datapl(sb, data);
-    aes256_encrypt_pubkey(key.ptr, sb->u, sb->len);
+    aes256_encrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
 #define aes256_encrypt_pubkey aes256_encrypt_pubkey_wrapper
 
-strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen data)
+strbuf *aes256_decrypt_pubkey_wrapper(ptrlen key, ptrlen iv, ptrlen data)
 {
     if (key.len != 32)
         fatal_error("aes256_decrypt_pubkey: key must be 32 bytes long");
+    if (iv.len != 16)
+        fatal_error("aes256_encrypt_pubkey: iv must be 16 bytes long");
     if (data.len % 16 != 0)
         fatal_error("aes256_decrypt_pubkey: data must be a multiple of 16 bytes");
     strbuf *sb = strbuf_new();
     put_datapl(sb, data);
-    aes256_decrypt_pubkey(key.ptr, sb->u, sb->len);
+    aes256_decrypt_pubkey(key.ptr, iv.ptr, sb->u, sb->len);
     return sb;
 }
 #define aes256_decrypt_pubkey aes256_decrypt_pubkey_wrapper

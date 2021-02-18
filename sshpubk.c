@@ -608,6 +608,8 @@ static int userkey_parse_line_counter(const char *text)
         return -1;
 }
 
+static const unsigned char zero_iv[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
 ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
                          const char **errorstr)
 {
@@ -729,7 +731,8 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
             goto error;
 
         ssh2_ppk_derivekey(ptrlen_from_asciz(passphrase), key);
-        aes256_decrypt_pubkey(key, private_blob->u, private_blob->len);
+        aes256_decrypt_pubkey(key, zero_iv,
+                              private_blob->u, private_blob->len);
     }
 
     /*
@@ -1323,7 +1326,8 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
         unsigned char key[40];
 
         ssh2_ppk_derivekey(ptrlen_from_asciz(passphrase), key);
-        aes256_encrypt_pubkey(key, priv_blob_encrypted, priv_encrypted_len);
+        aes256_encrypt_pubkey(key, zero_iv,
+                              priv_blob_encrypted, priv_encrypted_len);
 
         smemclr(key, sizeof(key));
     }

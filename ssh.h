@@ -1321,8 +1321,10 @@ void des3_decrypt_pubkey_ossh(const void *key, const void *iv,
                               void *blk, int len);
 void des3_encrypt_pubkey_ossh(const void *key, const void *iv,
                               void *blk, int len);
-void aes256_encrypt_pubkey(const void *key, void *blk, int len);
-void aes256_decrypt_pubkey(const void *key, void *blk, int len);
+void aes256_encrypt_pubkey(const void *key, const void *iv,
+                           void *blk, int len);
+void aes256_decrypt_pubkey(const void *key, const void *iv,
+                           void *blk, int len);
 
 void des_encrypt_xdmauth(const void *key, void *blk, int len);
 void des_decrypt_xdmauth(const void *key, void *blk, int len);

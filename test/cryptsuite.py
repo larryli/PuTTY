@@ -1410,11 +1410,20 @@ class crypt(MyTestBase):
         p = b'three AES blocks, or six DES, of arbitrary input'
 
         k = b'thirty-two-byte aes-256 test key'
+        iv = b'\0' * 16
         c = unhex('7b112d00c0fc95bc13fcdacfd43281bf'
                   'de9389db1bbcfde79d59a303d41fd2eb'
                   '0955c9477ae4ee3a4d6c1fbe474c0ef6')
-        self.assertEqualBin(aes256_encrypt_pubkey(k, p), c)
-        self.assertEqualBin(aes256_decrypt_pubkey(k, c), p)
+        self.assertEqualBin(aes256_encrypt_pubkey(k, iv, p), c)
+        self.assertEqualBin(aes256_decrypt_pubkey(k, iv, c), p)
+
+        # same k as in the previous case
+        iv = unhex('0102030405060708090a0b0c0d0e0f10')
+        c = unhex('9e9c8a91b739677b834397bdd8e70c05'
+                  'c3e2cf6cce68d376d798a59848621c6d'
+                  '42b9e7101260a438daadd7b742875a36')
+        self.assertEqualBin(aes256_encrypt_pubkey(k, iv, p), c)
+        self.assertEqualBin(aes256_decrypt_pubkey(k, iv, c), p)
 
         k = b'3des with keys distinct.'
         iv = b'randomIV'
