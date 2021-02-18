@@ -585,17 +585,54 @@ const ssh_keyalg *find_pubkey_alg(const char *name)
     return find_pubkey_alg_len(ptrlen_from_asciz(name));
 }
 
-static void ssh2_ppk_derivekey(ptrlen passphrase, uint8_t *key)
+struct ppk_cipher {
+    const char *name;
+    size_t blocklen, keylen, ivlen;
+};
+static const struct ppk_cipher ppk_cipher_none = { "none", 1, 0, 0 };
+static const struct ppk_cipher ppk_cipher_aes256_cbc = { "aes256-cbc", 16, 32, 16 };
+
+static void ssh2_ppk_derive_keys(
+    unsigned fmt_version, const struct ppk_cipher *ciphertype,
+    ptrlen passphrase, strbuf *storage, ptrlen *cipherkey, ptrlen *cipheriv,
+    ptrlen *mackey)
 {
-    ssh_hash *h;
-    h = ssh_hash_new(&ssh_sha1);
-    put_uint32(h, 0);
-    put_datapl(h, passphrase);
-    ssh_hash_digest(h, key + 0);
-    ssh_hash_reset(h);
-    put_uint32(h, 1);
-    put_datapl(h, passphrase);
-    ssh_hash_final(h, key + 20);
+    size_t mac_keylen;
+
+    switch (fmt_version) {
+      case 2:
+      case 1: {
+        /* Counter-mode iteration to generate cipher key data. */
+        for (unsigned ctr = 0; ctr * 20 < ciphertype->keylen; ctr++) {
+            ssh_hash *h = ssh_hash_new(&ssh_sha1);
+            put_uint32(h, ctr);
+            put_datapl(h, passphrase);
+            ssh_hash_final(h, strbuf_append(storage, 20));
+        }
+        strbuf_shrink_to(storage, ciphertype->keylen);
+
+        /* In this version of the format, the CBC IV was always all 0. */
+        put_padding(storage, ciphertype->ivlen, 0);
+
+        /* Completely separate hash for the MAC key. */
+        ssh_hash *h = ssh_hash_new(&ssh_sha1);
+        mac_keylen = ssh_hash_alg(h)->hlen;
+        put_datapl(h, PTRLEN_LITERAL("putty-private-key-file-mac-key"));
+        put_datapl(h, passphrase);
+        ssh_hash_final(h, strbuf_append(storage, mac_keylen));
+
+        break;
+      }
+
+      default:
+        unreachable("bad format version in ssh2_ppk_derive_keys");
+    }
+
+    BinarySource src[1];
+    BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(storage));
+    *cipherkey = get_data(src, ciphertype->keylen);
+    *cipheriv = get_data(src, ciphertype->ivlen);
+    *mackey = get_data(src, mac_keylen);
 }
 
 static int userkey_parse_line_counter(const char *text)
@@ -608,24 +645,23 @@ static int userkey_parse_line_counter(const char *text)
         return -1;
 }
 
-static const unsigned char zero_iv[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
 ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
                          const char **errorstr)
 {
     char header[40], *b, *encryption, *comment, *mac;
     const ssh_keyalg *alg;
     ssh2_userkey *ret;
-    int cipher, cipherblk;
-    strbuf *public_blob, *private_blob;
+    strbuf *public_blob, *private_blob, *cipher_mac_keys_blob;
+    ptrlen cipherkey, cipheriv, mackey;
+    const struct ppk_cipher *ciphertype;
     int i;
-    bool is_mac, old_fmt;
-    int passlen = passphrase ? strlen(passphrase) : 0;
+    bool is_mac;
+    unsigned fmt_version;
     const char *error = NULL;
 
     ret = NULL;                        /* return NULL for most errors */
     encryption = comment = mac = NULL;
-    public_blob = private_blob = NULL;
+    public_blob = private_blob = cipher_mac_keys_blob = NULL;
 
     /* Read the first header line which contains the key type. */
     if (!read_header(src, header)) {
@@ -633,11 +669,11 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         goto error;
     }
     if (0 == strcmp(header, "PuTTY-User-Key-File-2")) {
-        old_fmt = false;
+        fmt_version = 2;
     } else if (0 == strcmp(header, "PuTTY-User-Key-File-1")) {
         /* this is an old key file; warn and then continue */
         old_keyfile_warning();
-        old_fmt = true;
+        fmt_version = 1;
     } else if (0 == strncmp(header, "PuTTY-User-Key-File-", 20)) {
         /* this is a key file FROM THE FUTURE; refuse it, but with a
          * more specific error message than the generic one below */
@@ -664,11 +700,9 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     if ((encryption = read_body(src)) == NULL)
         goto error;
     if (!strcmp(encryption, "aes256-cbc")) {
-        cipher = 1;
-        cipherblk = 16;
+        ciphertype = &ppk_cipher_aes256_cbc;
     } else if (!strcmp(encryption, "none")) {
-        cipher = 0;
-        cipherblk = 1;
+        ciphertype = &ppk_cipher_none;
     } else {
         goto error;
     }
@@ -712,26 +746,25 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         if ((mac = read_body(src)) == NULL)
             goto error;
         is_mac = true;
-    } else if (0 == strcmp(header, "Private-Hash") && old_fmt) {
+    } else if (0 == strcmp(header, "Private-Hash") && fmt_version == 1) {
         if ((mac = read_body(src)) == NULL)
             goto error;
         is_mac = false;
     } else
         goto error;
 
+    cipher_mac_keys_blob = strbuf_new();
+    ssh2_ppk_derive_keys(fmt_version, ciphertype,
+                         ptrlen_from_asciz(passphrase ? passphrase : ""),
+                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey);
+
     /*
      * Decrypt the private blob.
      */
-    if (cipher) {
-        unsigned char key[40];
-
-        if (!passphrase)
-            goto error;
-        if (private_blob->len % cipherblk)
-            goto error;
-
-        ssh2_ppk_derivekey(ptrlen_from_asciz(passphrase), key);
-        aes256_decrypt_pubkey(key, zero_iv,
+    if (private_blob->len % ciphertype->blocklen)
+        goto error;
+    if (ciphertype == &ppk_cipher_aes256_cbc) {
+        aes256_decrypt_pubkey(cipherkey.ptr, cipheriv.ptr,
                               private_blob->u, private_blob->len);
     }
 
@@ -739,12 +772,14 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
      * Verify the MAC.
      */
     {
-        char realmac[41];
         unsigned char binary[20];
+        char realmac[sizeof(binary) * 2 + 1];
         strbuf *macdata;
         bool free_macdata;
 
-        if (old_fmt) {
+        const ssh2_macalg *mac_alg = &ssh_hmac_sha1;
+
+        if (fmt_version == 1) {
             /* MAC (or hash) only covers the private blob. */
             macdata = private_blob;
             free_macdata = false;
@@ -761,25 +796,14 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         }
 
         if (is_mac) {
-            ssh_hash *hash;
             ssh2_mac *mac;
-            unsigned char mackey[20];
-            char header[] = "putty-private-key-file-mac-key";
 
-            hash = ssh_hash_new(&ssh_sha1);
-            put_data(hash, header, sizeof(header)-1);
-            if (cipher && passphrase)
-                put_data(hash, passphrase, passlen);
-            ssh_hash_final(hash, mackey);
-
-            mac = ssh2_mac_new(&ssh_hmac_sha1, NULL);
-            ssh2_mac_setkey(mac, make_ptrlen(mackey, 20));
+            mac = ssh2_mac_new(mac_alg, NULL);
+            ssh2_mac_setkey(mac, mackey);
             ssh2_mac_start(mac);
             put_data(mac, macdata->s, macdata->len);
             ssh2_mac_genresult(mac, binary);
             ssh2_mac_free(mac);
-
-            smemclr(mackey, sizeof(mackey));
         } else {
             hash_simple(&ssh_sha1, ptrlen_from_strbuf(macdata), binary);
         }
@@ -787,13 +811,13 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         if (free_macdata)
             strbuf_free(macdata);
 
-        for (i = 0; i < 20; i++)
+        for (i = 0; i < mac_alg->len; i++)
             sprintf(realmac + 2 * i, "%02x", binary[i]);
 
         if (strcmp(mac, realmac)) {
             /* An incorrect MAC is an unconditional Error if the key is
              * unencrypted. Otherwise, it means Wrong Passphrase. */
-            if (cipher) {
+            if (ciphertype->keylen != 0) {
                 error = "wrong passphrase";
                 ret = SSH2_WRONG_PASSPHRASE;
             } else {
@@ -835,6 +859,8 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         strbuf_free(public_blob);
     if (private_blob)
         strbuf_free(private_blob);
+    if (cipher_mac_keys_blob)
+        strbuf_free(cipher_mac_keys_blob);
     if (errorstr)
         *errorstr = error;
     return ret;
@@ -1260,12 +1286,14 @@ void base64_encode(FILE *fp, const unsigned char *data, int datalen, int cpl)
 
 strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
 {
-    strbuf *pub_blob, *priv_blob;
+    strbuf *pub_blob, *priv_blob, *cipher_mac_keys_blob;
     unsigned char *priv_blob_encrypted;
     int priv_encrypted_len;
     int cipherblk;
     int i;
     const char *cipherstr;
+    ptrlen cipherkey, cipheriv, mackey;
+    const struct ppk_cipher *ciphertype;
     unsigned char priv_mac[20];
 
     /*
@@ -1282,9 +1310,11 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
     if (passphrase) {
         cipherstr = "aes256-cbc";
         cipherblk = 16;
+        ciphertype = &ppk_cipher_aes256_cbc;
     } else {
         cipherstr = "none";
         cipherblk = 1;
+        ciphertype = &ppk_cipher_none;
     }
     priv_encrypted_len = priv_blob->len + cipherblk - 1;
     priv_encrypted_len -= priv_encrypted_len % cipherblk;
@@ -1298,11 +1328,14 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
     memcpy(priv_blob_encrypted + priv_blob->len, priv_mac,
            priv_encrypted_len - priv_blob->len);
 
+    cipher_mac_keys_blob = strbuf_new();
+    ssh2_ppk_derive_keys(2, ciphertype,
+                         ptrlen_from_asciz(passphrase ? passphrase : ""),
+                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey);
+
     /* Now create the MAC. */
     {
         strbuf *macdata;
-        unsigned char mackey[20];
-        char header[] = "putty-private-key-file-mac-key";
 
         macdata = strbuf_new_nm();
         put_stringz(macdata, ssh_key_ssh_id(key->key));
@@ -1311,25 +1344,15 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
         put_string(macdata, pub_blob->s, pub_blob->len);
         put_string(macdata, priv_blob_encrypted, priv_encrypted_len);
 
-        ssh_hash *h = ssh_hash_new(&ssh_sha1);
-        put_data(h, header, sizeof(header)-1);
-        if (passphrase)
-            put_data(h, passphrase, strlen(passphrase));
-        ssh_hash_final(h, mackey);
-        mac_simple(&ssh_hmac_sha1, make_ptrlen(mackey, 20),
+        mac_simple(&ssh_hmac_sha1, mackey,
                    ptrlen_from_strbuf(macdata), priv_mac);
         strbuf_free(macdata);
-        smemclr(mackey, sizeof(mackey));
     }
 
     if (passphrase) {
-        unsigned char key[40];
-
-        ssh2_ppk_derivekey(ptrlen_from_asciz(passphrase), key);
-        aes256_encrypt_pubkey(key, zero_iv,
+        assert(cipherkey.len == 32);
+        aes256_encrypt_pubkey(cipherkey.ptr, cipheriv.ptr,
                               priv_blob_encrypted, priv_encrypted_len);
-
-        smemclr(key, sizeof(key));
     }
 
     strbuf *out = strbuf_new_nm();
@@ -1346,6 +1369,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
         strbuf_catf(out, "%02x", priv_mac[i]);
     strbuf_catf(out, "\n");
 
+    strbuf_free(cipher_mac_keys_blob);
     strbuf_free(pub_blob);
     strbuf_free(priv_blob);
     smemclr(priv_blob_encrypted, priv_encrypted_len);
