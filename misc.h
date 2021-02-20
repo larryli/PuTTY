@@ -430,4 +430,13 @@ LoadFileStatus lf_load(LoadedFile *lf, const Filename *filename);
 static inline ptrlen ptrlen_from_lf(LoadedFile *lf)
 { return make_ptrlen(lf->data, lf->len); }
 
+/* Set the memory block of 'size' bytes at 'out' to the bitwise XOR of
+ * the two blocks of the same size at 'in1' and 'in2'.
+ *
+ * 'out' may point to exactly the same address as one of the inputs,
+ * but if the input and output blocks overlap in any other way, the
+ * result of this function is not guaranteed. No memmove-style effort
+ * is made to handle difficult overlap cases. */
+void memxor(uint8_t *out, const uint8_t *in1, const uint8_t *in2, size_t size);
+
 #endif
