@@ -1029,7 +1029,8 @@ int main(int argc, char **argv)
             }
         } else {
             assert(ssh2key);
-            ret = ppk_save_f(outfilename, ssh2key, new_passphrase);
+            ret = ppk_save_f(outfilename, ssh2key, new_passphrase,
+                             &ppk_save_default_parameters);
             if (!ret) {
                 fprintf(stderr, "puttygen: unable to save SSH-2 private key\n");
                 RETURN(1);

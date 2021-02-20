@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <ctype.h>
 
 #include "putty.h"
 #include "mpint.h"
@@ -595,11 +596,42 @@ static const struct ppk_cipher ppk_cipher_aes256_cbc = { "aes256-cbc", 16, 32, 1
 static void ssh2_ppk_derive_keys(
     unsigned fmt_version, const struct ppk_cipher *ciphertype,
     ptrlen passphrase, strbuf *storage, ptrlen *cipherkey, ptrlen *cipheriv,
-    ptrlen *mackey)
+    ptrlen *mackey, ptrlen passphrase_salt, ppk_save_parameters *params)
 {
     size_t mac_keylen;
 
     switch (fmt_version) {
+      case 3: {
+        if (ciphertype->keylen == 0) {
+            mac_keylen = 0;
+            break;
+        }
+        ptrlen empty = PTRLEN_LITERAL("");
+
+        mac_keylen = 32;
+
+        uint32_t taglen = ciphertype->keylen + ciphertype->ivlen + mac_keylen;
+
+        if (params->argon2_passes_auto) {
+            uint32_t passes;
+
+            argon2_choose_passes(
+                params->argon2_flavour, params->argon2_mem,
+                params->argon2_milliseconds, &passes,
+                params->argon2_parallelism, taglen,
+                passphrase, passphrase_salt, empty, empty, storage);
+
+            params->argon2_passes_auto = false;
+            params->argon2_passes = passes;
+        } else {
+            argon2(params->argon2_flavour, params->argon2_mem,
+                   params->argon2_passes, params->argon2_parallelism, taglen,
+                   passphrase, passphrase_salt, empty, empty, storage);
+        }
+
+        break;
+      }
+
       case 2:
       case 1: {
         /* Counter-mode iteration to generate cipher key data. */
@@ -645,6 +677,18 @@ static int userkey_parse_line_counter(const char *text)
         return -1;
 }
 
+static bool str_to_uint32_t(const char *s, uint32_t *out)
+{
+    char *endptr;
+    unsigned long converted = strtoul(s, &endptr, 10);
+    if (*s && !*endptr && converted <= ~(uint32_t)0) {
+        *out = converted;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
                          const char **errorstr)
 {
@@ -652,12 +696,14 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     const ssh_keyalg *alg;
     ssh2_userkey *ret;
     strbuf *public_blob, *private_blob, *cipher_mac_keys_blob;
+    strbuf *passphrase_salt = strbuf_new();
     ptrlen cipherkey, cipheriv, mackey;
     const struct ppk_cipher *ciphertype;
     int i;
     bool is_mac;
     unsigned fmt_version;
     const char *error = NULL;
+    ppk_save_parameters params;
 
     ret = NULL;                        /* return NULL for most errors */
     encryption = comment = mac = NULL;
@@ -668,7 +714,9 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         error = "no header line found in key file";
         goto error;
     }
-    if (0 == strcmp(header, "PuTTY-User-Key-File-2")) {
+    if (0 == strcmp(header, "PuTTY-User-Key-File-3")) {
+        fmt_version = 3;
+    } else if (0 == strcmp(header, "PuTTY-User-Key-File-2")) {
         fmt_version = 2;
     } else if (0 == strcmp(header, "PuTTY-User-Key-File-1")) {
         /* this is an old key file; warn and then continue */
@@ -713,6 +761,9 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     if ((comment = read_body(src)) == NULL)
         goto error;
 
+    memset(&params, 0, sizeof(params)); /* in particular, sets
+                                         * passes_auto=false */
+
     /* Read the Public-Lines header line and the public blob. */
     if (!read_header(src, header) || 0 != strcmp(header, "Public-Lines"))
         goto error;
@@ -725,6 +776,75 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     public_blob = strbuf_new();
     if (!read_blob(src, i, BinarySink_UPCAST(public_blob)))
         goto error;
+
+    if (fmt_version >= 3 && ciphertype->keylen != 0) {
+        /* Read Argon2 key derivation parameters. */
+        if (!read_header(src, header) || 0 != strcmp(header, "Key-Derivation"))
+            goto error;
+        if ((b = read_body(src)) == NULL)
+            goto error;
+        if (!strcmp(b, "Argon2d")) {
+            params.argon2_flavour = Argon2d;
+        } else if (!strcmp(b, "Argon2i")) {
+            params.argon2_flavour = Argon2i;
+        } else if (!strcmp(b, "Argon2id")) {
+            params.argon2_flavour = Argon2id;
+        } else {
+            sfree(b);
+            goto error;
+        }
+        sfree(b);
+
+        if (!read_header(src, header) || 0 != strcmp(header, "Argon2-Memory"))
+            goto error;
+        if ((b = read_body(src)) == NULL)
+            goto error;
+        if (!str_to_uint32_t(b, &params.argon2_mem)) {
+            sfree(b);
+            goto error;
+        }
+        sfree(b);
+
+        if (!read_header(src, header) || 0 != strcmp(header, "Argon2-Passes"))
+            goto error;
+        if ((b = read_body(src)) == NULL)
+            goto error;
+        if (!str_to_uint32_t(b, &params.argon2_passes)) {
+            sfree(b);
+            goto error;
+        }
+        sfree(b);
+
+        if (!read_header(src, header) ||
+            0 != strcmp(header, "Argon2-Parallelism"))
+            goto error;
+        if ((b = read_body(src)) == NULL)
+            goto error;
+        if (!str_to_uint32_t(b, &params.argon2_parallelism)) {
+            sfree(b);
+            goto error;
+        }
+        sfree(b);
+
+        if (!read_header(src, header) || 0 != strcmp(header, "Argon2-Salt"))
+            goto error;
+        if ((b = read_body(src)) == NULL)
+            goto error;
+        for (size_t i = 0; b[i]; i += 2) {
+            if (isxdigit((unsigned char)b[i]) && b[i+1] &&
+                isxdigit((unsigned char)b[i+1])) {
+                char s[3];
+                s[0] = b[i];
+                s[1] = b[i+1];
+                s[2] = '\0';
+                put_byte(passphrase_salt, strtoul(s, NULL, 16));
+            } else {
+                sfree(b);
+                goto error;
+            }
+        }
+        sfree(b);
+    }
 
     /* Read the Private-Lines header line and the Private blob. */
     if (!read_header(src, header) || 0 != strcmp(header, "Private-Lines"))
@@ -756,7 +876,8 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
     cipher_mac_keys_blob = strbuf_new();
     ssh2_ppk_derive_keys(fmt_version, ciphertype,
                          ptrlen_from_asciz(passphrase ? passphrase : ""),
-                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey);
+                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey,
+                         ptrlen_from_strbuf(passphrase_salt), &params);
 
     /*
      * Decrypt the private blob.
@@ -772,12 +893,13 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
      * Verify the MAC.
      */
     {
-        unsigned char binary[20];
+        unsigned char binary[32];
         char realmac[sizeof(binary) * 2 + 1];
         strbuf *macdata;
         bool free_macdata;
 
-        const ssh2_macalg *mac_alg = &ssh_hmac_sha1;
+        const ssh2_macalg *mac_alg =
+            fmt_version <= 2 ? &ssh_hmac_sha1 : &ssh_hmac_sha256;
 
         if (fmt_version == 1) {
             /* MAC (or hash) only covers the private blob. */
@@ -861,6 +983,7 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         strbuf_free(private_blob);
     if (cipher_mac_keys_blob)
         strbuf_free(cipher_mac_keys_blob);
+    strbuf_free(passphrase_salt);
     if (errorstr)
         *errorstr = error;
     return ret;
@@ -1107,7 +1230,8 @@ bool ppk_loadpub_s(BinarySource *src, char **algorithm, BinarySink *bs,
 
     /* Read the first header line which contains the key type. */
     if (!read_header(src, header)
-        || (0 != strcmp(header, "PuTTY-User-Key-File-2") &&
+        || (0 != strcmp(header, "PuTTY-User-Key-File-3") &&
+            0 != strcmp(header, "PuTTY-User-Key-File-2") &&
             0 != strcmp(header, "PuTTY-User-Key-File-1"))) {
         if (0 == strncmp(header, "PuTTY-User-Key-File-", 20))
             error = "PuTTY key format too new";
@@ -1194,7 +1318,8 @@ bool ppk_encrypted_s(BinarySource *src, char **commentptr)
         *commentptr = NULL;
 
     if (!read_header(src, header)
-        || (0 != strcmp(header, "PuTTY-User-Key-File-2") &&
+        || (0 != strcmp(header, "PuTTY-User-Key-File-3") &&
+            0 != strcmp(header, "PuTTY-User-Key-File-2") &&
             0 != strcmp(header, "PuTTY-User-Key-File-1"))) {
         return false;
     }
@@ -1284,7 +1409,54 @@ void base64_encode(FILE *fp, const unsigned char *data, int datalen, int cpl)
     base64_encode_s(BinarySink_UPCAST(&ss), data, datalen, cpl);
 }
 
-strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
+const ppk_save_parameters ppk_save_default_parameters = {
+    /*
+     * The Argon2 spec recommends the hybrid variant Argon2id, where
+     * you don't have a good reason to go with the pure Argon2d or
+     * Argon2i.
+     */
+    .argon2_flavour = Argon2id,
+
+    /*
+     * Memory requirement for hashing a password: I don't want to set
+     * this to some truly huge thing like a gigabyte, because for all
+     * I know people might perfectly reasonably be running PuTTY on
+     * machines that don't _have_ a gigabyte spare to hash a private
+     * key passphrase in the legitimate use cases.
+     *
+     * I've picked 8 MB as an amount of memory that isn't unreasonable
+     * to expect a desktop client machine to have, but is also large
+     * compared to the memory requirements of the PPK v2 password hash
+     * (which was plain SHA-1), so it still imposes a limit on
+     * parallel attacks on someone's key file.
+     */
+    .argon2_mem = 8192,                /* require 8 Mb memory */
+
+    /*
+     * Automatically scale the number of Argon2 passes so that the
+     * overall time taken is about 1/10 second. (Again, I could crank
+     * this up to a larger time and _most_ people might be OK with it,
+     * but for the moment, I'm trying to err on the side of not
+     * stopping anyone from using the tools at all.)
+     */
+    .argon2_passes_auto = true,
+    .argon2_milliseconds = 100,
+
+    /*
+     * PuTTY's own Argon2 implementation is single-threaded. So we
+     * might as well set parallelism to 1, which requires that
+     * attackers' implementations must also be effectively
+     * single-threaded, and they don't get any benefit from using
+     * multiple cores on the same hash attempt. (Of course they can
+     * still use multiple cores for _separate_ hash attempts, but at
+     * least they don't get a speed advantage over us in computing
+     * even one hash.)
+     */
+    .argon2_parallelism = 1,
+};
+
+strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
+                    const ppk_save_parameters *params_orig)
 {
     strbuf *pub_blob, *priv_blob, *cipher_mac_keys_blob;
     unsigned char *priv_blob_encrypted;
@@ -1294,7 +1466,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
     const char *cipherstr;
     ptrlen cipherkey, cipheriv, mackey;
     const struct ppk_cipher *ciphertype;
-    unsigned char priv_mac[20];
+    unsigned char priv_mac[32];
 
     /*
      * Fetch the key component blobs.
@@ -1328,10 +1500,20 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
     memcpy(priv_blob_encrypted + priv_blob->len, priv_mac,
            priv_encrypted_len - priv_blob->len);
 
+    /* Copy the save parameters, so that when derive_keys chooses the
+     * number of Argon2 passes, it can write the result back to our
+     * copy for us to retrieve. */
+    ppk_save_parameters params = *params_orig;
+
+    /* Invent a salt for the password hash. */
+    strbuf *passphrase_salt = strbuf_new();
+    random_read(strbuf_append(passphrase_salt, 16), 16);
+
     cipher_mac_keys_blob = strbuf_new();
-    ssh2_ppk_derive_keys(2, ciphertype,
+    ssh2_ppk_derive_keys(3, ciphertype,
                          ptrlen_from_asciz(passphrase ? passphrase : ""),
-                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey);
+                         cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey,
+                         ptrlen_from_strbuf(passphrase_salt), &params);
 
     /* Now create the MAC. */
     {
@@ -1344,7 +1526,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
         put_string(macdata, pub_blob->s, pub_blob->len);
         put_string(macdata, priv_blob_encrypted, priv_encrypted_len);
 
-        mac_simple(&ssh_hmac_sha1, mackey,
+        mac_simple(&ssh_hmac_sha256, mackey,
                    ptrlen_from_strbuf(macdata), priv_mac);
         strbuf_free(macdata);
     }
@@ -1356,20 +1538,35 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
     }
 
     strbuf *out = strbuf_new_nm();
-    strbuf_catf(out, "PuTTY-User-Key-File-2: %s\n", ssh_key_ssh_id(key->key));
+    strbuf_catf(out, "PuTTY-User-Key-File-3: %s\n", ssh_key_ssh_id(key->key));
     strbuf_catf(out, "Encryption: %s\n", cipherstr);
     strbuf_catf(out, "Comment: %s\n", key->comment);
     strbuf_catf(out, "Public-Lines: %d\n", base64_lines(pub_blob->len));
     base64_encode_s(BinarySink_UPCAST(out), pub_blob->u, pub_blob->len, 64);
+    if (ciphertype->keylen != 0) {
+        strbuf_catf(out, "Key-Derivation: %s\n",
+                    params.argon2_flavour == Argon2d ? "Argon2d" :
+                    params.argon2_flavour == Argon2i ? "Argon2i" : "Argon2id");
+        strbuf_catf(out, "Argon2-Memory: %"PRIu32"\n", params.argon2_mem);
+        assert(!params.argon2_passes_auto);
+        strbuf_catf(out, "Argon2-Passes: %"PRIu32"\n", params.argon2_passes);
+        strbuf_catf(out, "Argon2-Parallelism: %"PRIu32"\n",
+                    params.argon2_parallelism);
+        strbuf_catf(out, "Argon2-Salt: ");
+        for (size_t i = 0; i < passphrase_salt->len; i++)
+            strbuf_catf(out, "%02x", passphrase_salt->u[i]);
+        strbuf_catf(out, "\n");
+    }
     strbuf_catf(out, "Private-Lines: %d\n", base64_lines(priv_encrypted_len));
     base64_encode_s(BinarySink_UPCAST(out),
                     priv_blob_encrypted, priv_encrypted_len, 64);
     strbuf_catf(out, "Private-MAC: ");
-    for (i = 0; i < 20; i++)
+    for (i = 0; i < 32; i++)
         strbuf_catf(out, "%02x", priv_mac[i]);
     strbuf_catf(out, "\n");
 
     strbuf_free(cipher_mac_keys_blob);
+    strbuf_free(passphrase_salt);
     strbuf_free(pub_blob);
     strbuf_free(priv_blob);
     smemclr(priv_blob_encrypted, priv_encrypted_len);
@@ -1378,13 +1575,13 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase)
 }
 
 bool ppk_save_f(const Filename *filename, ssh2_userkey *key,
-                const char *passphrase)
+                const char *passphrase, const ppk_save_parameters *params)
 {
     FILE *fp = f_open(filename, "wb", true);
     if (!fp)
         return false;
 
-    strbuf *buf = ppk_save_sb(key, passphrase);
+    strbuf *buf = ppk_save_sb(key, passphrase, params);
     bool toret = fwrite(buf->s, 1, buf->len, fp) == buf->len;
     if (fclose(fp))
         toret = false;

@@ -71,7 +71,7 @@ about what's stored in it and how. They look like this:
 \e          bbbbbbbbbbbbbbbbbb
 
 \s{version} is a decimal number giving the version number of the file
-format itself. The current file format version is 2.
+format itself. The current file format version is 3.
 
 \s{algorithm-name} is the SSH protocol identifier for the public key
 algorithm that this key is used for (such as \cq{ssh-dss} or
@@ -103,6 +103,35 @@ base64 data is split across multiple lines. But if you remove the
 newlines from the middle of this section, the resulting base64 blob is
 in the right format to go in an \c{authorized_keys} line.
 
+If the key is encrypted (i.e. \s{encryption-type} is not \cq{none}),
+then the next thing that appears is a sequence of lines specifying how
+the keys for encrypting the file are to be derived from the
+passphrase:
+
+\c Key-Derivation: argon2-flavour
+\e                 bbbbbbbbbbbbbb
+\c Argon2-Memory: decimal-integer
+\e                bbbbbbbbbbbbbbb
+\c Argon2-Passes: decimal-integer
+\e                bbbbbbbbbbbbbbb
+\c Argon2-Parallelism: decimal-integer
+\e                     bbbbbbbbbbbbbbb
+\c Argon2-Salt: hex-string
+\e              bbbbbbbbbb
+
+\s{argon2-flavour} is one of the identifiers \cq{Argon2d},
+\cq{Argon2i} or \cq{Argon2id}, all describing variants of the Argon2
+password-hashing function.
+
+The three integer values are used as parameters for Argon2, which
+allows you to configure the amount of memory used (in Kb), the number
+of passes of the algorithm to run (to tune its running time), and the
+degree of parallelism required by the hash function. The salt is
+decoded into a sequence of binary bytes and used as an additional
+input to Argon2. (It is chosen randomly when the key file is written,
+so that a guessing attack can't be mounted in parallel against
+multiple key files.)
+
 The next part of the file gives the private key. This is
 base64-encoded in the same way:
 
@@ -119,8 +148,8 @@ shown above:
 plain text.
 
 \b If \s{encryption-type} is \cq{aes256-cbc}, then this data is
-encrypted using AES, with a 256-bit key length, in the CBC cipher mode
-with an all-zero initialisation vector. The key is derived from the
+encrypted using AES, with a 256-bit key length, in the CBC cipher
+mode. The key and initialisation vector are derived from the
 passphrase: see \k{ppk-keys}.
 
 \lcont{
@@ -144,8 +173,9 @@ The final thing in the key file is the MAC:
 \c Private-MAC: hex-mac-data
 \e              bbbbbbbbbbbb
 
-\s{hex-mac-data} is a hexadecimal-encoded value, generated using the
-HMAC-SHA-1 algorithm with the following binary data as input:
+\s{hex-mac-data} is a hexadecimal-encoded value, 64 digits long (i.e.
+32 bytes), generated using the HMAC-SHA-256 algorithm with the
+following binary data as input:
 
 \b \cw{string}: the \s{algorithm-name} header field.
 
@@ -245,30 +275,97 @@ public point.
 
 \H{ppk-keys} Key derivation
 
-When a key file is encrypted, the encryption key is derived from the
-passphrase by means of generating a sequence of hashes, concatenating
-them, and taking an appropriate-length prefix of the resulting
-sequence.
+When a key file is encrypted, there are three pieces of key material
+that need to be computed from the passphrase:
 
-Each hash in the sequence is a SHA-1 hash of the following data:
+\b the key for the symmetric cipher used to encrypt the private key
 
-\b \cw{uint32}: a sequence number. This is 0 in the first hash, and
-increments by 1 each time after that.
+\b the initialisation vector for that cipher encryption
+
+\b the key for the MAC.
+
+If \s{encryption-type} is \cq{aes256-cbc}, then the symmetric cipher
+key is 32 bytes long, and the initialisation vector is 16 bytes (one
+cipher block). The length of the MAC key is also chosen to be 32
+bytes.
+
+If \s{encryption-type} is \cq{none}, then all three of these pieces of
+data have zero length. (The MAC is still generated and checked in the
+key file format, but it has a zero-length key.)
+
+If the amount of key material required is not zero, then the
+passphrase is fed to the Argon2 key derivation function, in whichever
+mode is described in the \cq{Key-Derivation} header in the key file,
+with parameters derived from the various
+\q{\cw{Argon2-}\e{Parameter}\cw{:}} headers.
+
+(If the key is unencrypted, then all those headers are omitted, and
+Argon2 is not run at all.)
+
+Argon2 takes two extra string inputs in addition to the passphrase and
+the salt: a secret key, and some \q{associated data}. In PPK's use of
+Argon2, these are both set to the empty string.
+
+The \q{tag length} parameter to Argon2 (i.e. the amount of data it is
+asked to output) is set to the sum of the lengths of all of the data
+items required, i.e. (cipher key length + IV length + MAC key length).
+The output data is interpreted as the concatenation of the cipher key,
+the IV and the MAC key, in that order.
+
+So, for \cq{aes256-cbc}, the tag length will be 32+16+32\_=\_80 bytes;
+of the 80 bytes of output data, the first 32 bytes are used as the
+256-bit AES key, the next 16 as the CBC IV, and the final 32 bytes as
+the HMAC-SHA-256 key.
+
+\H{ppk-old} Older versions of the PPK format
+
+\S{ppk-v2} Version 2
+
+PPK version 2 was used by PuTTY 0.52 to 0.74 inclusive.
+
+In PPK version 2, the MAC algorithm used was HMAC-SHA-1 (so the
+\cw{Private-MAC} line contained only 40 hex digits).
+
+The \cq{Key-Derivation:} header and all the
+\q{\cw{Argon2-}\e{Parameter}\cw{:}} headers were absent. Instead of
+using Argon2, the key material for encrypting the private blob was
+derived from the passphrase in a totally different way, as follows.
+
+The cipher key for \cq{aes256-cbc} was constructed by generating two
+SHA-1 hashes, concatenating them, and taking the first 32 bytes of the
+result. (So you'd get all 20 bytes of the first hash output, and the
+first 12 of the second). Each hash preimage was as follows:
+
+\b \cw{uint32}: a sequence number. This is 0 in the first hash, and 1
+in the second. (The idea was to extend this mechanism to further
+hashes by continuing to increment the sequence number, if future
+changes required even longer keys.)
 
 \b the passphrase, without any prefix length field.
 
-The MAC key is also derived from the passphrase. It is a single SHA-1
-hash of the following data:
+In PPK v2, the CBC initialisation vector was all zeroes.
+
+The MAC key was 20 bytes long, and was a single SHA-1 hash of the
+following data:
 
 \b the fixed string \cq{putty-private-key-file-mac-key}, without any
 prefix length field.
 
-\b the passphrase, without any prefix length field. (If the key file
-is unencrypted, the MAC is still computed in the same way, and the
-passphrase is taken to be the empty string for the purpose of deriving
-the MAC key.)
+\b the passphrase, without any prefix length field. (If the key is
+stored unencrypted, the passphrase was taken to be the empty string
+for these purposes.)
 
-\H{ppk-v1} PPK version 1
+\S{ppk-v1} Version 1
+
+PPK version 1 was a badly designed format, only used during initial
+development, and not recommended for production use.
+
+PPK version 1 was never used by a released version of PuTTY. It was
+only emitted by some early development snapshots between version 0.51
+(which did not support SSH-2 public keys at all) and 0.52 (which
+already used version 2 of this file format). I \e{hope} there are no
+PPK v1 files in use anywhere. But just in case, the old badly designed
+format is documented here anyway.
 
 In PPK version 1, the input to the MAC does not include any of the
 header fields or the public key. It is simply the private key data
@@ -309,8 +406,3 @@ In an \e{unencrypted} version 1 key file, the MAC is replaced by a
 plain SHA-1 hash of the private key data. This is indicated by the
 \cq{Private-MAC:} header being replaced with \cq{Private-Hash:}
 instead.
-
-PPK version 1 is not recommended for use! It was only emitted in some
-early development snapshots between version 0.51 (which did not
-support SSH-2 public keys at all) and 0.52 (which already used version
-2 of this file format).

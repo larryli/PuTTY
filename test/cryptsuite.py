@@ -2109,7 +2109,7 @@ culpa qui officia deserunt mollit anim id est laborum.
     def testPPKLoadSave(self):
         # Stability test of PPK load/save functions.
         input_clear_key = b"""\
-PuTTY-User-Key-File-2: ssh-ed25519
+PuTTY-User-Key-File-3: ssh-ed25519
 Encryption: none
 Comment: ed25519-key-20200105
 Public-Lines: 2
@@ -2117,18 +2117,23 @@ AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
 JH1W
 Private-Lines: 1
 AAAAIGvvIpl8jyqn8Xufkw6v3FnEGtXF3KWw55AP3/AGEBpY
-Private-MAC: 2a629acfcfbe28488a1ba9b6948c36406bc28422
+Private-MAC: 816c84093fc4877e8411b8e5139c5ce35d8387a2630ff087214911d67417a54d
 """
         input_encrypted_key = b"""\
-PuTTY-User-Key-File-2: ssh-ed25519
+PuTTY-User-Key-File-3: ssh-ed25519
 Encryption: aes256-cbc
 Comment: ed25519-key-20200105
 Public-Lines: 2
 AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
 JH1W
+Key-Derivation: Argon2id
+Argon2-Memory: 8192
+Argon2-Passes: 13
+Argon2-Parallelism: 1
+Argon2-Salt: 37c3911bfefc8c1d11ec579627d2b3d9
 Private-Lines: 1
-4/jKlTgC652oa9HLVGrMjHZw7tj0sKRuZaJPOuLhGTvb25Jzpcqpbi+Uf+y+uo+Z
-Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
+amviz4sVUBN64jLO3gt4HGXJosUArghc4Soi7aVVLb2Tir5Baj0OQClorycuaPRd
+Private-MAC: 6f5e588e475e55434106ec2c3569695b03f423228b44993a9e97d52ffe7be5a8
 """
         algorithm = b'ssh-ed25519'
         comment = b'ed25519-key-20200105'
@@ -2153,12 +2158,66 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         self.assertEqual((c, e), (comment, None))
         k2, c, e = ppk_load_s(input_encrypted_key, pp)
         self.assertEqual((c, e), (comment, None))
+        privblob = ssh_key_private_blob(k1)
+        self.assertEqual(ssh_key_private_blob(k2), privblob)
 
-        self.assertEqual(ppk_save_sb(k1, comment, None), input_clear_key)
-        self.assertEqual(ppk_save_sb(k2, comment, None), input_clear_key)
+        salt = unhex('37c3911bfefc8c1d11ec579627d2b3d9')
+        with queued_specific_random_data(salt):
+            self.assertEqual(ppk_save_sb(k1, comment, None, 'id', 8192, 13, 1),
+                             input_clear_key)
+        with queued_specific_random_data(salt):
+            self.assertEqual(ppk_save_sb(k2, comment, None, 'id', 8192, 13, 1),
+                             input_clear_key)
 
-        self.assertEqual(ppk_save_sb(k1, comment, pp), input_encrypted_key)
-        self.assertEqual(ppk_save_sb(k2, comment, pp), input_encrypted_key)
+        with queued_specific_random_data(salt):
+            self.assertEqual(ppk_save_sb(k1, comment, pp, 'id', 8192, 13, 1),
+                             input_encrypted_key)
+        with queued_specific_random_data(salt):
+            self.assertEqual(ppk_save_sb(k2, comment, pp, 'id', 8192, 13, 1),
+                             input_encrypted_key)
+
+        # And check we can still handle v2 key files.
+        v2_clear_key = b"""\
+PuTTY-User-Key-File-2: ssh-ed25519
+Encryption: none
+Comment: ed25519-key-20200105
+Public-Lines: 2
+AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
+JH1W
+Private-Lines: 1
+AAAAIGvvIpl8jyqn8Xufkw6v3FnEGtXF3KWw55AP3/AGEBpY
+Private-MAC: 2a629acfcfbe28488a1ba9b6948c36406bc28422
+"""
+        v2_encrypted_key = b"""\
+PuTTY-User-Key-File-2: ssh-ed25519
+Encryption: aes256-cbc
+Comment: ed25519-key-20200105
+Public-Lines: 2
+AAAAC3NzaC1lZDI1NTE5AAAAIHJCszOHaI9X/yGLtjn22f0hO6VPMQDVtctkym6F
+JH1W
+Private-Lines: 1
+4/jKlTgC652oa9HLVGrMjHZw7tj0sKRuZaJPOuLhGTvb25Jzpcqpbi+Uf+y+uo+Z
+Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
+"""
+
+        self.assertEqual(ppk_encrypted_s(v2_clear_key), (False, comment))
+        self.assertEqual(ppk_encrypted_s(v2_encrypted_key), (True, comment))
+        self.assertEqual(ppk_encrypted_s("not a key file"), (False, None))
+
+        self.assertEqual(ppk_loadpub_s(v2_clear_key),
+                         (True, algorithm, public_blob, comment, None))
+        self.assertEqual(ppk_loadpub_s(v2_encrypted_key),
+                         (True, algorithm, public_blob, comment, None))
+        self.assertEqual(ppk_loadpub_s("not a key file"),
+                         (False, None, b'', None,
+                          b'not a PuTTY SSH-2 private key'))
+
+        k1, c, e = ppk_load_s(v2_clear_key, None)
+        self.assertEqual((c, e), (comment, None))
+        k2, c, e = ppk_load_s(v2_encrypted_key, pp)
+        self.assertEqual((c, e), (comment, None))
+        self.assertEqual(ssh_key_private_blob(k1), privblob)
+        self.assertEqual(ssh_key_private_blob(k2), privblob)
 
     def testRSA1LoadSave(self):
         # Stability test of SSH-1 RSA key-file load/save functions.

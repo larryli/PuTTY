@@ -1468,7 +1468,8 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                                               *passphrase ? passphrase : NULL);
                         else
                             ret = ppk_save_f(fn, &state->ssh2key,
-                                             *passphrase ? passphrase : NULL);
+                                             *passphrase ? passphrase : NULL,
+                                             &ppk_save_default_parameters);
                         filename_free(fn);
                     } else {
                         Filename *fn = filename_from_str(filename);

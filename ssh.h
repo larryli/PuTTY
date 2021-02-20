@@ -1234,9 +1234,22 @@ int rsa1_load_s(BinarySource *src, RSAKey *key,
 int rsa1_load_f(const Filename *filename, RSAKey *key,
                 const char *passphrase, const char **errorstr);
 
-strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase);
+typedef struct ppk_save_parameters {
+    Argon2Flavour argon2_flavour;
+    uint32_t argon2_mem;               /* in Kb */
+    bool argon2_passes_auto;
+    union {
+        uint32_t argon2_passes;        /* if auto == false */
+        uint32_t argon2_milliseconds;  /* if auto == true */
+    };
+    uint32_t argon2_parallelism;
+} ppk_save_parameters;
+extern const ppk_save_parameters ppk_save_default_parameters;
+
+strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
+                    const ppk_save_parameters *params);
 bool ppk_save_f(const Filename *filename, ssh2_userkey *key,
-                const char *passphrase);
+                const char *passphrase, const ppk_save_parameters *params);
 strbuf *rsa1_save_sb(RSAKey *key, const char *passphrase);
 bool rsa1_save_f(const Filename *filename, RSAKey *key,
                  const char *passphrase);

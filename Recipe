@@ -343,13 +343,14 @@ pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
 	 + sshsh512 winutils sshecc winmisc winmiscs winhelp conf pageant.res
 	 + sshauxcrypt sshhmac wincapi winnps winnpc winhsock errsock winnet
-	 + winhandl callback be_misc winselgui winhandl sshsha3 LIBS
+	 + winhandl callback be_misc winselgui winhandl sshsha3 sshblake2
+         + sshargon2 LIBS
 
 puttygen : [G] winpgen KEYGEN SSHPRIME sshdes ARITH sshmd5 version
          + sshrand winnoise sshsha winstore MISC winctrls sshrsa sshdss winmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT winutils puttygen.res
          + tree234 notiming winhelp winnojmp CONF LIBS wintime sshecc sshprng
-         + sshauxcrypt sshhmac winsecur winmiscs sshsha3
+         + sshauxcrypt sshhmac winsecur winmiscs sshsha3 sshblake2 sshargon2
 
 pterm    : [X] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET cmdline uxpterm version time xpmpterm xpmptcfg
@@ -368,7 +369,7 @@ PUTTYGEN_UNIX = KEYGEN SSHPRIME sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming CONF sshecc sshsha3 uxnogtk sshauxcrypt sshhmac
-         + uxpoll uxutils
+         + uxpoll uxutils sshblake2 sshargon2
 puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
@@ -381,7 +382,8 @@ pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes ARITH
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
          + gtkask gtkmisc nullplug logging UXMISC uxagentsock utils memory
-	 + sshauxcrypt sshhmac sshprng uxnoise uxcliloop sshsha3
+	 + sshauxcrypt sshhmac sshprng uxnoise uxcliloop sshsha3 sshblake2
+         + sshargon2
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg

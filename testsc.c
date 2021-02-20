@@ -97,6 +97,9 @@ FILE *f_open(const Filename *filename, char const *mode, bool is_private)
 { unreachable("this is a stub needed to link, and should never be called"); }
 void old_keyfile_warning(void)
 { unreachable("this is a stub needed to link, and should never be called"); }
+/* For platforms where getticks is defined within this code base */
+unsigned long (getticks)(void)
+{ unreachable("this is a stub needed to link, and should never be called"); }
 
 /*
  * A simple deterministic PRNG, without any of the Fortuna

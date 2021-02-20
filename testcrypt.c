@@ -49,6 +49,10 @@ static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 
 void out_of_memory(void) { fatal_error("out of memory"); }
 
+/* For platforms where getticks is defined within this code base */
+unsigned long (getticks)(void)
+{ unreachable("this is a stub needed to link, and should never be called"); }
+
 FILE *f_open(const struct Filename *fn, char const *mode, bool private)
 { unreachable("f_open should never be called by this test program"); }
 
@@ -1141,12 +1145,24 @@ int rsa1_load_s_wrapper(BinarySource *src, RSAKey *rsa, char **comment,
 #define rsa1_load_s rsa1_load_s_wrapper
 
 strbuf *ppk_save_sb_wrapper(ssh_key *key, const char *comment,
-                            const char *passphrase)
+                            const char *passphrase, Argon2Flavour flavour,
+                            uint32_t mem, uint32_t passes, uint32_t parallel)
 {
+    /*
+     * For repeatable testing purposes, we never want a timing-dependent
+     * choice of password hashing parameters, so this is easy.
+     */
+    ppk_save_parameters save_params;
+    save_params.argon2_flavour = flavour;
+    save_params.argon2_mem = mem;
+    save_params.argon2_passes_auto = false;
+    save_params.argon2_passes = passes;
+    save_params.argon2_parallelism = parallel;
+
     ssh2_userkey uk;
     uk.key = key;
     uk.comment = dupstr(comment);
-    strbuf *toret = ppk_save_sb(&uk, passphrase);
+    strbuf *toret = ppk_save_sb(&uk, passphrase, &save_params);
     sfree(uk.comment);
     return toret;
 }
