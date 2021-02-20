@@ -255,14 +255,18 @@ Each hash in the sequence is a SHA-1 hash of the following data:
 \b \cw{uint32}: a sequence number. This is 0 in the first hash, and
 increments by 1 each time after that.
 
-\b \cw{string}: the passphrase.
+\b the passphrase, without any prefix length field.
 
 The MAC key is also derived from the passphrase. It is a single SHA-1
 hash of the following data:
 
-\b \cw{string}: the fixed string \cq{putty-private-key-file-mac-key}.
+\b the fixed string \cq{putty-private-key-file-mac-key}, without any
+prefix length field.
 
-\b \cw{string}: the passphrase.
+\b the passphrase, without any prefix length field. (If the key file
+is unencrypted, the MAC is still computed in the same way, and the
+passphrase is taken to be the empty string for the purpose of deriving
+the MAC key.)
 
 \H{ppk-v1} PPK version 1
 
