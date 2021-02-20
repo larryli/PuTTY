@@ -800,14 +800,13 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
             goto error;
         }
     }
-    sfree(mac);
-    mac = NULL;
 
     /*
      * Create and return the key.
      */
     ret = snew(ssh2_userkey);
     ret->comment = comment;
+    comment = NULL;
     ret->key = ssh_key_new_priv(
         alg, ptrlen_from_strbuf(public_blob),
         ptrlen_from_strbuf(private_blob));
@@ -817,12 +816,7 @@ ssh2_userkey *ppk_load_s(BinarySource *src, const char *passphrase,
         error = "createkey failed";
         goto error;
     }
-    strbuf_free(public_blob);
-    strbuf_free(private_blob);
-    sfree(encryption);
-    if (errorstr)
-        *errorstr = NULL;
-    return ret;
+    error = NULL;
 
     /*
      * Error processing.
