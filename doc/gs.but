@@ -26,6 +26,7 @@ login sessions; you would usually use this for debugging other Internet
 services (see \k{using-rawprot}). The \e{Serial} option is used for
 connecting to a local serial line, and works somewhat differently:
 see \k{using-serial} for more information on this.
+\#{FIXME: describe bare ssh-connection}
 
 When you change the selected protocol, the number in the \q{Port}
 box will change. This is normal: it happens because the various

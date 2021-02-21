@@ -563,7 +563,7 @@ int cmdline_process_param(const char *p, char *value,
     if (!strcmp(p, "-P")) {
         RETURN(2);
         UNAVAILABLE_IN(TOOLTYPE_NONNETWORK);
-        SAVEABLE(1);                   /* lower priority than -ssh,-telnet */
+        SAVEABLE(1);            /* lower priority than -ssh, -telnet, etc */
         conf_set_int(conf, CONF_port, atoi(value));
     }
     if (!strcmp(p, "-pw")) {

@@ -616,13 +616,13 @@ window}, or a \i{Windows shortcut}).
 
 \S{using-cmdline-session} Starting a session from the command line
 
-\I\c{-ssh}\I\c{-telnet}\I\c{-rlogin}\I\c{-raw}\I\c{-serial}These
+\I\c{-ssh}\I\c{-ssh-connection}\I\c{-telnet}\I\c{-rlogin}\I\c{-supdup}\I\c{-raw}\I\c{-serial}These
 options allow you to bypass the configuration window and launch
 straight into a session.
 
 To start a connection to a server called \c{host}:
 
-\c putty.exe [-ssh | -telnet | -rlogin | -raw] [user@]host
+\c putty.exe [-ssh | -ssh-connection | -telnet | -rlogin | -supdup | -raw] [user@]host
 
 If this syntax is used, settings are taken from the \i{Default Settings}
 (see \k{config-saving}); \c{user} overrides these settings if
@@ -688,23 +688,32 @@ must be the very first thing on the command line. This form of the
 option is deprecated.)
 
 \S2{using-cmdline-protocol} Selecting a protocol: \c{-ssh},
-\c{-telnet}, \c{-rlogin}, \c{-raw} \c{-serial}
+\c{-ssh-connection}, \c{-telnet}, \c{-rlogin}, \c{-supdup},
+\c{-raw}, \c{-serial}
 
 To choose which protocol you want to connect with, you can use one
 of these options:
 
 \b \i\c{-ssh} selects the SSH protocol.
 
+\b \i\c{-ssh-connection} selects the bare ssh-connection protocol.
+(This is only useful in specialised circumstances.)
+\#{FIXME: describe those circumstances somewhere in this manual,
+with reference to the psusan man page}
+
 \b \i\c{-telnet} selects the Telnet protocol.
 
 \b \i\c{-rlogin} selects the Rlogin protocol.
+
+\b \i\c{-supdup} selects the SUPDUP protocol.
 
 \b \i\c{-raw} selects the raw protocol.
 
 \b \i\c{-serial} selects a serial connection.
 
-These options are not available in the file transfer tools PSCP and
-PSFTP (which only work with the SSH protocol).
+Most of these options are not available in the file transfer tools
+PSCP and PSFTP (which only work with the SSH protocol and the bare
+ssh-connection protocol).
 
 These options are equivalent to the \i{protocol selection} buttons
 in the Session panel of the PuTTY configuration box (see

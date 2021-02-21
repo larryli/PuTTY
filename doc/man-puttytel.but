@@ -161,7 +161,7 @@ in verifying new files released by the PuTTY team.
 straight from the command line without having to go through the
 configuration box first.
 
-\dt \cw{\-telnet}, \cw{\-rlogin}, \cw{\-raw}
+\dt \cw{\-telnet}, \cw{\-rlogin}, \cw{\-supdup}, \cw{\-raw}
 
 \dd Select the protocol \cw{puttytel} will use to make the connection.
 

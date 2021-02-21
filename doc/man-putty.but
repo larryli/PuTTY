@@ -184,7 +184,8 @@ in verifying new files released by the PuTTY team.
 straight from the command line without having to go through the
 configuration box first.
 
-\dt \cw{\-ssh}, \cw{\-telnet}, \cw{\-rlogin}, \cw{\-raw}, \cw{\-serial}
+\dt \cw{\-ssh}, \cw{\-telnet}, \cw{\-rlogin}, \cw{\-supdup}, \cw{\-raw},
+\cw{-ssh-connection}, \cw{\-serial}
 
 \dd Select the protocol \cw{putty} will use to make the connection.
 

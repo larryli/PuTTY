@@ -501,6 +501,8 @@ static void usage(void)
     printf("  -load sessname  Load settings from saved session\n");
     printf("  -ssh -telnet -rlogin -raw -serial\n");
     printf("            force use of a particular protocol\n");
+    printf("  -ssh-connection\n");
+    printf("            force use of the bare ssh-connection protocol\n");
     printf("  -P port   connect to specified port\n");
     printf("  -l user   connect with specified username\n");
     printf("  -batch    disable all interactive prompts\n");

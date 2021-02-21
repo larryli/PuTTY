@@ -51,6 +51,8 @@ use Plink:
 \c   -load sessname  Load settings from saved session
 \c   -ssh -telnet -rlogin -raw -serial
 \c             force use of a particular protocol
+\c   -ssh-connection
+\c             force use of the bare ssh-connection protocol
 \c   -P port   connect to specified port
 \c   -l user   connect with specified username
 \c   -batch    disable all interactive prompts
@@ -117,8 +119,8 @@ characters appearing in your window. Interactive connections like
 this are not the main point of Plink.
 
 In order to connect with a different protocol, you can give the
-command line options \c{-ssh}, \c{-telnet}, \c{-rlogin} or \c{-raw}.
-To make an SSH connection, for example:
+command line options \c{-ssh}, \c{-ssh-connection}, \c{-telnet},
+\c{-rlogin}, or \c{-raw}. To make an SSH connection, for example:
 
 \c C:\>plink -ssh login.example.com
 \c login as:
