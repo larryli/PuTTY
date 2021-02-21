@@ -19,6 +19,7 @@ struct ssh2_connection_state {
 
     bool ssh_is_simple;
     bool persistent;
+    bool started;
 
     Conf *conf;
 

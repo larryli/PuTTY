@@ -1020,6 +1020,7 @@ static void ssh2_connection_process_queue(PacketProtocolLayer *ppl)
     s->mainchan = mainchan_new(
         &s->ppl, &s->cl, s->conf, s->term_width, s->term_height,
         s->ssh_is_simple, &s->mainchan_sc);
+    s->started = true;
 
     /*
      * Transfer data!
@@ -1247,6 +1248,15 @@ static void ssh2_check_termination(struct ssh2_connection_state *s)
 
     if (s->persistent)
         return;     /* persistent mode: never proactively terminate */
+
+    if (!s->started) {
+        /* At startup, we don't have any channels open because we
+         * haven't got round to opening the main one yet. In that
+         * situation, we don't want to terminate, even if a sharing
+         * connection opens and closes and causes a call to this
+         * function. */
+        return;
+    }
 
     if (count234(s->channels) == 0 &&
         !(s->connshare && share_ndownstreams(s->connshare) > 0)) {
