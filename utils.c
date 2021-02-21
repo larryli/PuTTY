@@ -1079,6 +1079,7 @@ void memxor(uint8_t *out, const uint8_t *in1, const uint8_t *in2, size_t size)
     switch (size & 15) {
       case 0:
         while (size >= 16) {
+            size -= 16;
                    *out++ = *in1++ ^ *in2++;
           case 15: *out++ = *in1++ ^ *in2++;
           case 14: *out++ = *in1++ ^ *in2++;
@@ -1095,7 +1096,6 @@ void memxor(uint8_t *out, const uint8_t *in1, const uint8_t *in2, size_t size)
           case 3:  *out++ = *in1++ ^ *in2++;
           case 2:  *out++ = *in1++ ^ *in2++;
           case 1:  *out++ = *in1++ ^ *in2++;
-            size -= 16;
         }
     }
 }
