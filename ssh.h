@@ -1235,6 +1235,11 @@ int rsa1_load_f(const Filename *filename, RSAKey *key,
                 const char *passphrase, const char **errorstr);
 
 typedef struct ppk_save_parameters {
+    unsigned fmt_version;              /* currently 2 or 3 */
+
+    /*
+     * Parameters for fmt_version == 3
+     */
     Argon2Flavour argon2_flavour;
     uint32_t argon2_mem;               /* in Kb */
     bool argon2_passes_auto;

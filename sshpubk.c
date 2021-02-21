@@ -1410,6 +1410,8 @@ void base64_encode(FILE *fp, const unsigned char *data, int datalen, int cpl)
 }
 
 const ppk_save_parameters ppk_save_default_parameters = {
+    .fmt_version = 3,
+
     /*
      * The Argon2 spec recommends the hybrid variant Argon2id, where
      * you don't have a good reason to go with the pure Argon2d or
@@ -1505,18 +1507,24 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
      * copy for us to retrieve. */
     ppk_save_parameters params = *params_orig;
 
-    /* Invent a salt for the password hash. */
     strbuf *passphrase_salt = strbuf_new();
-    if (params.salt)
-        put_data(passphrase_salt, params.salt, params.saltlen);
-    else
-        random_read(strbuf_append(passphrase_salt, 16), 16);
+
+    if (params.fmt_version == 3) {
+        /* Invent a salt for the password hash. */
+        if (params.salt)
+            put_data(passphrase_salt, params.salt, params.saltlen);
+        else
+            random_read(strbuf_append(passphrase_salt, 16), 16);
+    }
 
     cipher_mac_keys_blob = strbuf_new();
-    ssh2_ppk_derive_keys(3, ciphertype,
+    ssh2_ppk_derive_keys(params.fmt_version, ciphertype,
                          ptrlen_from_asciz(passphrase ? passphrase : ""),
                          cipher_mac_keys_blob, &cipherkey, &cipheriv, &mackey,
                          ptrlen_from_strbuf(passphrase_salt), &params);
+
+    const ssh2_macalg *macalg = (params.fmt_version == 2 ?
+                                 &ssh_hmac_sha1 : &ssh_hmac_sha256);
 
     /* Now create the MAC. */
     {
@@ -1529,8 +1537,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
         put_string(macdata, pub_blob->s, pub_blob->len);
         put_string(macdata, priv_blob_encrypted, priv_encrypted_len);
 
-        mac_simple(&ssh_hmac_sha256, mackey,
-                   ptrlen_from_strbuf(macdata), priv_mac);
+        mac_simple(macalg, mackey, ptrlen_from_strbuf(macdata), priv_mac);
         strbuf_free(macdata);
     }
 
@@ -1541,12 +1548,13 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
     }
 
     strbuf *out = strbuf_new_nm();
-    strbuf_catf(out, "PuTTY-User-Key-File-3: %s\n", ssh_key_ssh_id(key->key));
+    strbuf_catf(out, "PuTTY-User-Key-File-%u: %s\n",
+                params.fmt_version, ssh_key_ssh_id(key->key));
     strbuf_catf(out, "Encryption: %s\n", cipherstr);
     strbuf_catf(out, "Comment: %s\n", key->comment);
     strbuf_catf(out, "Public-Lines: %d\n", base64_lines(pub_blob->len));
     base64_encode_s(BinarySink_UPCAST(out), pub_blob->u, pub_blob->len, 64);
-    if (ciphertype->keylen != 0) {
+    if (params.fmt_version == 3 && ciphertype->keylen != 0) {
         strbuf_catf(out, "Key-Derivation: %s\n",
                     params.argon2_flavour == Argon2d ? "Argon2d" :
                     params.argon2_flavour == Argon2i ? "Argon2i" : "Argon2id");
@@ -1564,7 +1572,7 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
     base64_encode_s(BinarySink_UPCAST(out),
                     priv_blob_encrypted, priv_encrypted_len, 64);
     strbuf_catf(out, "Private-MAC: ");
-    for (i = 0; i < 32; i++)
+    for (i = 0; i < macalg->len; i++)
         strbuf_catf(out, "%02x", priv_mac[i]);
     strbuf_catf(out, "\n");
 

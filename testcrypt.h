@@ -258,7 +258,7 @@ FUNC5(boolean, ppk_loadpub_s, val_string_binarysource, out_opt_val_string_asciz,
 FUNC4(int, rsa1_loadpub_s, val_string_binarysource, out_val_string_binarysink, out_opt_val_string_asciz, out_opt_val_string_asciz_const)
 FUNC4(opt_val_key, ppk_load_s, val_string_binarysource, out_opt_val_string_asciz, opt_val_string_asciz, out_opt_val_string_asciz_const)
 FUNC5(int, rsa1_load_s, val_string_binarysource, val_rsa, out_opt_val_string_asciz, opt_val_string_asciz, out_opt_val_string_asciz_const)
-FUNC7(val_string, ppk_save_sb, val_key, opt_val_string_asciz, opt_val_string_asciz, argon2flavour, uint, uint, uint)
+FUNC8(val_string, ppk_save_sb, val_key, opt_val_string_asciz, opt_val_string_asciz, uint, argon2flavour, uint, uint, uint)
 FUNC3(val_string, rsa1_save_sb, val_rsa, opt_val_string_asciz, opt_val_string_asciz)
 
 /*

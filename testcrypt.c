@@ -1144,9 +1144,10 @@ int rsa1_load_s_wrapper(BinarySource *src, RSAKey *rsa, char **comment,
 }
 #define rsa1_load_s rsa1_load_s_wrapper
 
-strbuf *ppk_save_sb_wrapper(ssh_key *key, const char *comment,
-                            const char *passphrase, Argon2Flavour flavour,
-                            uint32_t mem, uint32_t passes, uint32_t parallel)
+strbuf *ppk_save_sb_wrapper(
+    ssh_key *key, const char *comment, const char *passphrase,
+    unsigned fmt_version, Argon2Flavour flavour,
+    uint32_t mem, uint32_t passes, uint32_t parallel)
 {
     /*
      * For repeatable testing purposes, we never want a timing-dependent
@@ -1154,6 +1155,7 @@ strbuf *ppk_save_sb_wrapper(ssh_key *key, const char *comment,
      */
     ppk_save_parameters save_params;
     memset(&save_params, 0, sizeof(save_params));
+    save_params.fmt_version = fmt_version;
     save_params.argon2_flavour = flavour;
     save_params.argon2_mem = mem;
     save_params.argon2_passes_auto = false;

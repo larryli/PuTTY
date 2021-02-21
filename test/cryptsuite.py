@@ -2163,17 +2163,21 @@ Private-MAC: 6f5e588e475e55434106ec2c3569695b03f423228b44993a9e97d52ffe7be5a8
 
         salt = unhex('37c3911bfefc8c1d11ec579627d2b3d9')
         with queued_specific_random_data(salt):
-            self.assertEqual(ppk_save_sb(k1, comment, None, 'id', 8192, 13, 1),
+            self.assertEqual(ppk_save_sb(k1, comment, None,
+                                         3, 'id', 8192, 13, 1),
                              input_clear_key)
         with queued_specific_random_data(salt):
-            self.assertEqual(ppk_save_sb(k2, comment, None, 'id', 8192, 13, 1),
+            self.assertEqual(ppk_save_sb(k2, comment, None,
+                                         3, 'id', 8192, 13, 1),
                              input_clear_key)
 
         with queued_specific_random_data(salt):
-            self.assertEqual(ppk_save_sb(k1, comment, pp, 'id', 8192, 13, 1),
+            self.assertEqual(ppk_save_sb(k1, comment, pp,
+                                         3, 'id', 8192, 13, 1),
                              input_encrypted_key)
         with queued_specific_random_data(salt):
-            self.assertEqual(ppk_save_sb(k2, comment, pp, 'id', 8192, 13, 1),
+            self.assertEqual(ppk_save_sb(k2, comment, pp,
+                                         3, 'id', 8192, 13, 1),
                              input_encrypted_key)
 
         # And check we can still handle v2 key files.
@@ -2218,6 +2222,13 @@ Private-MAC: 5b1f6f4cc43eb0060d2c3e181bc0129343adba2b
         self.assertEqual((c, e), (comment, None))
         self.assertEqual(ssh_key_private_blob(k1), privblob)
         self.assertEqual(ssh_key_private_blob(k2), privblob)
+
+        self.assertEqual(ppk_save_sb(k2, comment, None,
+                                     2, 'id', 8192, 13, 1),
+                         v2_clear_key)
+        self.assertEqual(ppk_save_sb(k1, comment, pp,
+                                     2, 'id', 8192, 13, 1),
+                         v2_encrypted_key)
 
     def testRSA1LoadSave(self):
         # Stability test of SSH-1 RSA key-file load/save functions.
