@@ -398,7 +398,8 @@ int main(int argc, char **argv)
 
     if (vt->flags & BACKEND_NEEDS_TERMINAL) {
         fprintf(stderr,
-                "Plink must have a terminal to run.\n");
+                "Plink doesn't support %s, which needs terminal emulation\n",
+                vt->displayname);
         return 1;
     }
 

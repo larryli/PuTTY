@@ -825,7 +825,8 @@ int main(int argc, char **argv)
 
     if (backvt->flags & BACKEND_NEEDS_TERMINAL) {
         fprintf(stderr,
-                "Plink must have a terminal to run.\n");
+                "Plink doesn't support %s, which needs terminal emulation\n",
+                backvt->displayname);
         return 1;
     }
 
