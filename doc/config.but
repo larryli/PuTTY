@@ -1683,8 +1683,8 @@ connection loss, or you might find they make it worse, depending on
 what \e{kind} of network problems you have between you and the
 server.
 
-Keepalives are only supported in Telnet and SSH; the Rlogin and Raw
-protocols offer no way of implementing them. (For an alternative, see
+Keepalives are only supported in Telnet and SSH; the Rlogin, SUPDUP, and
+Raw protocols offer no way of implementing them. (For an alternative, see
 \k{config-tcp-keepalives}.)
 
 Note that if you are using SSH-1 and the server has a bug that makes
@@ -1713,7 +1713,7 @@ The idea of TCP keepalives is similar to application-level keepalives,
 and the same caveats apply. The main differences are:
 
 \b TCP keepalives are available on \e{all} connection types, including
-Raw and Rlogin.
+Raw, Rlogin, and SUPDUP.
 
 \b The interval between TCP keepalives is usually much longer,
 typically two hours; this is set by the operating system, and cannot
@@ -1806,7 +1806,7 @@ configuration panels.
 
 \S{config-username} \q{\ii{Auto-login username}}
 
-All three of the SSH, Telnet and Rlogin protocols allow you to
+All three of the SSH, Telnet, and Rlogin protocols allow you to
 specify what user name you want to log in as, without having to type
 it explicitly every time. (Some Telnet servers don't support this.)
 
@@ -1835,7 +1835,7 @@ Most servers you might connect to with PuTTY are designed to be
 connected to from lots of different types of terminal. In order to
 send the right \i{control sequence}s to each one, the server will need
 to know what type of terminal it is dealing with. Therefore, each of
-the SSH, Telnet and Rlogin protocols allow a text string to be sent
+the SSH, Telnet, and Rlogin protocols allow a text string to be sent
 down the connection describing the terminal.  On a \i{Unix} server,
 this selects an entry from the \i\c{termcap} or \i\c{terminfo} database
 that tells applications what \i{control sequences} to send to the
@@ -2219,10 +2219,11 @@ PuTTY should claim you have, in case it doesn't match your \i{Windows
 user name} (or in case you didn't bother to set up a Windows user
 name).
 
-\H{config-supdup} The SUPDUP panel
+\H{config-supdup} The \i{SUPDUP} panel
 
-The \i{SUPDUP} panel allows you to configure options that only apply
-to SUPDUP sessions.
+The SUPDUP panel allows you to configure options that only apply
+to SUPDUP sessions. See \k{using-supdup} for more about the SUPDUP
+protocol.
 
 \S{supdup-location} \q{Location string}
 

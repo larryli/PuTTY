@@ -582,7 +582,7 @@ connection to notify the other that the connection is finished.
 Therefore, PuTTY in serial mode will remain connected until you
 close the window using the close button.
 
-\H{using-supdup} Connecting using the SUPDUP protocol
+\H{using-supdup} Connecting using the \i{SUPDUP} protocol
 
 PuTTY can use the SUPDUP protocol to connect to a server. SUPDUP is a
 login protocol used mainly by PDP-10 and Lisp machines during the
@@ -594,6 +594,11 @@ To make a connection of this type, select \q{SUPDUP} from the
 \k{config-hostname}). For further configuration options (character
 set, more processing, scrolling), you can use the \q{SUPDUP}
 configuration panel (see \k{config-supdup}).
+
+In SUPDUP, terminal emulation is more integrated with the network
+protocol than in other protocols such as SSH. The SUPDUP protocol can
+thus only be used with PuTTY proper, not with the command-line tool
+Plink.
 
 The SUPDUP protocol does not support changing the terminal dimensions,
 so this capability is disabled during a SUPDUP session.
