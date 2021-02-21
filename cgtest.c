@@ -24,6 +24,7 @@
 #define get_random_data get_random_data_diagnostic
 #define console_get_userpass_input console_get_userpass_input_diagnostic
 #define main cmdgen_main
+#define ppk_save_default_parameters ppk_save_cgtest_parameters
 
 #include "cmdgen.c"
 
@@ -32,6 +33,22 @@
 #undef main
 
 static bool cgtest_verbose = false;
+
+const struct ppk_save_parameters ppk_save_cgtest_parameters = {
+    /* Replacement set of key derivation parameters that make this
+     * test suite run a bit faster and also add determinism: we don't
+     * try to auto-scale the number of passes (in case it gets
+     * different answers twice in the test suite when we were
+     * expecting two key files to compare equal), and we specify a
+     * passphrase salt. */
+    .argon2_flavour = Argon2id,
+    .argon2_mem = 16,
+    .argon2_passes_auto = false,
+    .argon2_passes = 2,
+    .argon2_parallelism = 1,
+    .salt = (const uint8_t *)"SameSaltEachTime",
+    .saltlen = 16,
+};
 
 /*
  * Define the special versions of get_random_data and

@@ -1153,6 +1153,7 @@ strbuf *ppk_save_sb_wrapper(ssh_key *key, const char *comment,
      * choice of password hashing parameters, so this is easy.
      */
     ppk_save_parameters save_params;
+    memset(&save_params, 0, sizeof(save_params));
     save_params.argon2_flavour = flavour;
     save_params.argon2_mem = mem;
     save_params.argon2_passes_auto = false;

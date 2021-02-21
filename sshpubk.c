@@ -1507,7 +1507,10 @@ strbuf *ppk_save_sb(ssh2_userkey *key, const char *passphrase,
 
     /* Invent a salt for the password hash. */
     strbuf *passphrase_salt = strbuf_new();
-    random_read(strbuf_append(passphrase_salt, 16), 16);
+    if (params.salt)
+        put_data(passphrase_salt, params.salt, params.saltlen);
+    else
+        random_read(strbuf_append(passphrase_salt, 16), 16);
 
     cipher_mac_keys_blob = strbuf_new();
     ssh2_ppk_derive_keys(3, ciphertype,

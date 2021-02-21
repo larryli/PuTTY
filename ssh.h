@@ -1243,6 +1243,14 @@ typedef struct ppk_save_parameters {
         uint32_t argon2_milliseconds;  /* if auto == true */
     };
     uint32_t argon2_parallelism;
+
+    /* The ability to choose a specific salt is only intended for the
+     * use of the automated test of PuTTYgen. It's a (mild) security
+     * risk to do it with any passphrase you actually care about,
+     * because it invalidates the entire point of having a salt in the
+     * first place. */
+    const uint8_t *salt;
+    size_t saltlen;
 } ppk_save_parameters;
 extern const ppk_save_parameters ppk_save_default_parameters;
 
