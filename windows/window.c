@@ -2122,16 +2122,23 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
       case WM_CREATE:
         break;
       case WM_CLOSE: {
-        char *str;
+        char *title, *msg, *additional = NULL;
         show_mouseptr(true);
-        str = dupprintf("%s Exit Confirmation", appname);
+        title = dupprintf("%s Exit Confirmation", appname);
+        if (backend && backend->vt->close_warn_text) {
+            additional = backend->vt->close_warn_text(backend);
+        }
+        msg = dupprintf("Are you sure you want to close this session?%s%s",
+                        additional ? "\n" : "",
+                        additional ? additional : "");
         if (session_closed || !conf_get_bool(conf, CONF_warn_on_close) ||
-            MessageBox(hwnd,
-                       "Are you sure you want to close this session?",
-                       str, MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
+            MessageBox(hwnd, msg, title,
+                       MB_ICONWARNING | MB_OKCANCEL | MB_DEFBUTTON1)
             == IDOK)
             DestroyWindow(hwnd);
-        sfree(str);
+        sfree(title);
+        sfree(msg);
+        sfree(additional);
         return 0;
       }
       case WM_DESTROY:

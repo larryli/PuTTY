@@ -618,13 +618,21 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
          */
         if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
             char *title = dupcat(appname, " Exit Confirmation");
+            char *msg, *additional = NULL;
+            if (inst && inst->backend && inst->backend->vt->close_warn_text) {
+                additional = inst->backend->vt->close_warn_text(inst->backend);
+            }
+            msg = dupprintf("Are you sure you want to close this session?%s%s",
+                            additional ? "\n" : "",
+                            additional ? additional : "");
             GtkWidget *dialog = create_message_box(
-                inst->window, title,
-                "Are you sure you want to close this session?",
+                inst->window, title, msg,
                 string_width("Most of the width of the above text"),
                 false, &buttons_yn, warn_on_close_callback, inst);
             register_dialog(&inst->seat, DIALOG_SLOT_WARN_ON_CLOSE, dialog);
             sfree(title);
+            sfree(msg);
+            sfree(additional);
         }
         return true;
     }

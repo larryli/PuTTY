@@ -324,6 +324,7 @@ const BackendVtable raw_backend = {
     .unthrottle = raw_unthrottle,
     .cfg_info = raw_cfg_info,
     .test_for_upstream = NULL,
+    .close_warn_text = NULL,
     .id = "raw",
     .displayname = "Raw",
     .protocol = PROT_RAW,

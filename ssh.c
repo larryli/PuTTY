@@ -691,6 +691,19 @@ static bool ssh_test_for_upstream(const char *host, int port, Conf *conf)
     return ret;
 }
 
+static char *ssh_close_warn_text(Backend *be)
+{
+    Ssh *ssh = container_of(be, Ssh, backend);
+    if (!ssh->connshare)
+        return NULL;
+    int ndowns = share_ndownstreams(ssh->connshare);
+    if (ndowns == 0)
+        return NULL;
+    char *msg = dupprintf("This will also close %d downstream connection%s.",
+                          ndowns, ndowns==1 ? "" : "s");
+    return msg;
+}
+
 static const PlugVtable Ssh_plugvt = {
     .log = ssh_socket_log,
     .closing = ssh_closing,
@@ -1204,6 +1217,7 @@ const BackendVtable ssh_backend = {
     .unthrottle = ssh_unthrottle,
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
+    .close_warn_text = ssh_close_warn_text,
     .id = "ssh",
     .displayname = "SSH",
     .protocol = PROT_SSH,
@@ -1227,6 +1241,7 @@ const BackendVtable sshconn_backend = {
     .unthrottle = ssh_unthrottle,
     .cfg_info = ssh_cfg_info,
     .test_for_upstream = ssh_test_for_upstream,
+    .close_warn_text = ssh_close_warn_text,
     .id = "ssh-connection",
     .displayname = "Bare ssh-connection",
     .protocol = PROT_SSHCONN,

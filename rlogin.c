@@ -422,6 +422,7 @@ const BackendVtable rlogin_backend = {
     .unthrottle = rlogin_unthrottle,
     .cfg_info = rlogin_cfg_info,
     .test_for_upstream = NULL,
+    .close_warn_text = NULL,
     .id = "rlogin",
     .displayname = "Rlogin",
     .protocol = PROT_RLOGIN,

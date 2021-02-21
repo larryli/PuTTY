@@ -652,6 +652,12 @@ struct BackendVtable {
     /* Only implemented in the SSH protocol: check whether a
      * connection-sharing upstream exists for a given configuration. */
     bool (*test_for_upstream)(const char *host, int port, Conf *conf);
+    /* Special-purpose function to return additional information to put
+     * in a "are you sure you want to close this session" dialog;
+     * return NULL if no such info, otherwise caller must free.
+     * Only implemented in the SSH protocol, to warn about downstream
+     * connections that would be lost if this one were terminated. */
+    char *(*close_warn_text)(Backend *be);
 
     /* 'id' is a machine-readable name for the backend, used in
      * saved-session storage. 'displayname' is a human-readable name
