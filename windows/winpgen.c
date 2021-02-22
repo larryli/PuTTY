@@ -12,6 +12,7 @@
 #include "sshkeygen.h"
 #include "licence.h"
 #include "winsecur.h"
+#include "puttygen-rc.h"
 
 #include <commctrl.h>
 
@@ -250,6 +251,144 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
                 burnstr(*passphrase);
                 *passphrase = GetDlgItemText_alloc(hwnd, 102);
             }
+            return 0;
+        }
+        return 0;
+      case WM_CLOSE:
+        EndDialog(hwnd, 0);
+        return 0;
+    }
+    return 0;
+}
+
+static void try_get_dlg_item_uint32(HWND hwnd, int id, uint32_t *out)
+{
+    char buf[128];
+    if (!GetDlgItemText(hwnd, id, buf, sizeof(buf)))
+        return;
+
+    if (!*buf)
+        return;
+
+    char *end;
+    unsigned long val = strtoul(buf, &end, 10);
+    if (*end)
+        return;
+
+    if ((val >> 16) >> 16)
+        return;
+
+    *out = val;
+}
+
+static ppk_save_parameters save_params;
+
+struct PPKParams {
+    ppk_save_parameters params;
+    uint32_t time_passes, time_ms;
+};
+
+/*
+ * Dialog-box function for the passphrase box.
+ */
+static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
+                                      WPARAM wParam, LPARAM lParam)
+{
+    struct PPKParams *pp;
+    char *buf;
+
+    if (msg == WM_INITDIALOG) {
+        pp = (struct PPKParams *)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pp);
+    } else {
+        pp = (struct PPKParams *)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+    }
+
+    switch (msg) {
+      case WM_INITDIALOG:
+        SetForegroundWindow(hwnd);
+        SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+
+        /*
+         * Centre the window.
+         */
+        {                              /* centre the window */
+            RECT rs, rd;
+            HWND hw;
+
+            hw = GetDesktopWindow();
+            if (GetWindowRect(hw, &rs) && GetWindowRect(hwnd, &rd))
+                MoveWindow(hwnd,
+                           (rs.right + rs.left + rd.left - rd.right) / 2,
+                           (rs.bottom + rs.top + rd.top - rd.bottom) / 2,
+                           rd.right - rd.left, rd.bottom - rd.top, true);
+        }
+
+        CheckRadioButton(hwnd, IDC_PPKVER_2, IDC_PPKVER_3,
+                         IDC_PPKVER_2 + (pp->params.fmt_version - 2));
+
+        buf = dupprintf("%"PRIu32, pp->params.argon2_mem);
+        SetDlgItemText(hwnd, IDC_ARGON2_MEM, buf);
+        sfree(buf);
+
+        if (pp->params.argon2_passes_auto) {
+            CheckRadioButton(hwnd, IDC_PPK_AUTO_YES, IDC_PPK_AUTO_NO,
+                             IDC_PPK_AUTO_YES);
+            buf = dupprintf("%"PRIu32, pp->time_ms);
+            SetDlgItemText(hwnd, IDC_ARGON2_TIME, buf);
+            sfree(buf);
+        } else {
+            CheckRadioButton(hwnd, IDC_PPK_AUTO_YES, IDC_PPK_AUTO_NO,
+                             IDC_PPK_AUTO_NO);
+            buf = dupprintf("%"PRIu32, pp->time_passes);
+            SetDlgItemText(hwnd, IDC_ARGON2_TIME, buf);
+            sfree(buf);
+        }
+
+        buf = dupprintf("%"PRIu32, pp->params.argon2_parallelism);
+        SetDlgItemText(hwnd, IDC_ARGON2_PARALLEL, buf);
+        sfree(buf);
+
+        return 0;
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDOK:
+            EndDialog(hwnd, 1);
+            return 0;
+          case IDCANCEL:
+            EndDialog(hwnd, 0);
+            return 0;
+          case IDC_PPKVER_2:
+            pp->params.fmt_version = 2;
+            return 0;
+          case IDC_PPKVER_3:
+            pp->params.fmt_version = 3;
+            return 0;
+          case IDC_ARGON2_MEM:
+            try_get_dlg_item_uint32(hwnd, IDC_ARGON2_MEM,
+                                    &pp->params.argon2_mem);
+            return 0;
+          case IDC_PPK_AUTO_YES:
+            pp->params.argon2_passes_auto = true;
+            buf = dupprintf("%"PRIu32, pp->time_ms);
+            SetDlgItemText(hwnd, IDC_ARGON2_TIME, buf);
+            sfree(buf);
+            return 0;
+          case IDC_PPK_AUTO_NO:
+            pp->params.argon2_passes_auto = false;
+            buf = dupprintf("%"PRIu32, pp->time_passes);
+            SetDlgItemText(hwnd, IDC_ARGON2_TIME, buf);
+            sfree(buf);
+            return 0;
+          case IDC_ARGON2_TIME:
+            try_get_dlg_item_uint32(hwnd, IDC_ARGON2_TIME,
+                                    pp->params.argon2_passes_auto ?
+                                    &pp->time_ms : &pp->time_passes);
+            return 0;
+          case IDC_ARGON2_PARALLEL:
+            try_get_dlg_item_uint32(hwnd, IDC_ARGON2_PARALLEL,
+                                    &pp->params.argon2_parallelism);
             return 0;
         }
         return 0;
@@ -529,6 +668,7 @@ enum {
     IDC_KEYSSH2ECDSA, IDC_KEYSSH2EDDSA,
     IDC_PRIMEGEN_PROB, IDC_PRIMEGEN_MAURER_SIMPLE, IDC_PRIMEGEN_MAURER_COMPLEX,
     IDC_RSA_STRONG,
+    IDC_PPK_PARAMS,
     IDC_BITSSTATIC, IDC_BITS,
     IDC_ECCURVESTATIC, IDC_ECCURVE,
     IDC_EDCURVESTATIC, IDC_EDCURVE,
@@ -1006,6 +1146,9 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_RSA_STRONG,
                        "Use \"strong\" primes as RSA key factors");
+            AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+            AppendMenu(menu1, MF_ENABLED, IDC_PPK_PARAMS,
+                       "Parameters for saving key files...");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
             state->keymenu = menu1;
 
@@ -1212,6 +1355,28 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             state = (struct MainDlgState *)
                 GetWindowLongPtr(hwnd, GWLP_USERDATA);
             ui_set_rsa_strong(hwnd, state, !state->rsa_strong);
+            break;
+          }
+          case IDC_PPK_PARAMS: {
+            struct PPKParams pp[1];
+            pp->params = save_params;
+            if (pp->params.argon2_passes_auto) {
+                pp->time_ms = pp->params.argon2_milliseconds;
+                pp->time_passes = 13;
+            } else {
+                pp->time_ms = 100;
+                pp->time_passes = pp->params.argon2_passes;
+            }
+            int dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(215),
+                                        NULL, PPKParamsProc, (LPARAM)pp);
+            if (dlgret) {
+                if (pp->params.argon2_passes_auto) {
+                    pp->params.argon2_milliseconds = pp->time_ms;
+                } else {
+                    pp->params.argon2_passes = pp->time_passes;
+                }
+                save_params = pp->params;
+            }
             break;
           }
           case IDC_QUIT:
@@ -1469,7 +1634,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         else
                             ret = ppk_save_f(fn, &state->ssh2key,
                                              *passphrase ? passphrase : NULL,
-                                             &ppk_save_default_parameters);
+                                             &save_params);
                         filename_free(fn);
                     } else {
                         Filename *fn = filename_from_str(filename);
@@ -1747,6 +1912,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             break;
         }
     }
+
+    save_params = ppk_save_default_parameters;
 
     random_setup_special();
     ret = DialogBox(hinst, MAKEINTRESOURCE(201), NULL, MainDlgProc) != IDOK;

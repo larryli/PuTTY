@@ -1,0 +1,13 @@
+#define IDC_PPKVER_STATIC               100
+#define IDC_PPKVER_2                    101
+#define IDC_PPKVER_3                    102
+#define IDC_ARGON2_MEM_STATIC           103
+#define IDC_ARGON2_MEM                  104
+#define IDC_ARGON2_MEM_STATIC2          105
+#define IDC_PPK_AUTO_STATIC             106
+#define IDC_PPK_AUTO_YES                107
+#define IDC_PPK_AUTO_NO                 108
+#define IDC_ARGON2_TIME_STATIC          109
+#define IDC_ARGON2_TIME                 110
+#define IDC_ARGON2_PARALLEL_STATIC      111
+#define IDC_ARGON2_PARALLEL             112
