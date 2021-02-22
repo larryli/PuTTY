@@ -137,6 +137,8 @@ void help(void)
            "  -L    equivalent to `-O public-openssh'\n"
            "  -p    equivalent to `-O public'\n"
            "  --dump   equivalent to `-O text'\n"
+           "  --reencrypt          load a key and save it with fresh "
+           "encryption\n"
            "  --old-passphrase file\n"
            "        specify file containing old key passphrase\n"
            "  --new-passphrase file\n"
@@ -211,7 +213,7 @@ int main(int argc, char **argv)
     int bits = -1;
     const char *comment = NULL;
     char *origcomment = NULL;
-    bool change_passphrase = false;
+    bool change_passphrase = false, reencrypt = false;
     bool errs = false, nogo = false;
     int intype = SSH_KEYTYPE_UNOPENABLE;
     int sshver = 0;
@@ -362,6 +364,8 @@ int main(int argc, char **argv)
                         }
                     } else if (!strcmp(opt, "-strong-rsa")) {
                         strong_rsa = true;
+                    } else if (!strcmp(opt, "-reencrypt")) {
+                        reencrypt = true;
                     } else {
                       errs = true;
                       fprintf(stderr,
@@ -680,7 +684,7 @@ int main(int argc, char **argv)
             outfiletmp = dupcat(outfile, ".tmp");
         }
 
-        if (!change_passphrase && !comment) {
+        if (!change_passphrase && !comment && !reencrypt) {
             fprintf(stderr, "puttygen: this command would perform no useful"
                     " action\n");
             RETURN(1);
