@@ -328,6 +328,12 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
         CheckRadioButton(hwnd, IDC_PPKVER_2, IDC_PPKVER_3,
                          IDC_PPKVER_2 + (pp->params.fmt_version - 2));
 
+        CheckRadioButton(
+            hwnd, IDC_KDF_ARGON2ID, IDC_KDF_ARGON2D,
+            (pp->params.argon2_flavour == Argon2id ?    IDC_KDF_ARGON2ID :
+             pp->params.argon2_flavour == Argon2i  ?    IDC_KDF_ARGON2I  :
+          /* pp->params.argon2_flavour == Argon2d  ? */ IDC_KDF_ARGON2D));
+
         buf = dupprintf("%"PRIu32, pp->params.argon2_mem);
         SetDlgItemText(hwnd, IDC_ARGON2_MEM, buf);
         sfree(buf);
@@ -364,6 +370,15 @@ static INT_PTR CALLBACK PPKParamsProc(HWND hwnd, UINT msg,
             return 0;
           case IDC_PPKVER_3:
             pp->params.fmt_version = 3;
+            return 0;
+          case IDC_KDF_ARGON2ID:
+            pp->params.argon2_flavour = Argon2id;
+            return 0;
+          case IDC_KDF_ARGON2I:
+            pp->params.argon2_flavour = Argon2i;
+            return 0;
+          case IDC_KDF_ARGON2D:
+            pp->params.argon2_flavour = Argon2d;
             return 0;
           case IDC_ARGON2_MEM:
             try_get_dlg_item_uint32(hwnd, IDC_ARGON2_MEM,

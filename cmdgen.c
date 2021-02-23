@@ -155,11 +155,13 @@ void help(void)
            "format:\n"
            "            version       PPK format version (min 2, max 3, "
            "default 3)\n"
+           "            kdf           key derivation function (argon2id, "
+           "argon2i, argon2d)\n"
            "            memory        Kb of memory to use in password hash "
            "(default 8192)\n"
            "            time          approx milliseconds to hash for "
            "(default 100)\n"
-           "            passes        exact number of hash passes to run "
+           "            passes        number of hash passes to run "
            "(alternative to 'time')\n"
            "            parallelism   number of parallelisable threads in the "
            "hash function\n"
@@ -403,8 +405,27 @@ int main(int argc, char **argv)
                                             "'%s' expected a value\n", val);
                                     continue;
                                 }
-
                                 *optvalue++ = '\0';
+
+                                /* Non-numeric options */
+                                if (!strcmp(val, "kdf")) {
+                                    if (!strcmp(optvalue, "Argon2id") ||
+                                        !strcmp(optvalue, "argon2id")) {
+                                        params.argon2_flavour = Argon2id;
+                                    } else if (!strcmp(optvalue, "Argon2i") ||
+                                               !strcmp(optvalue, "argon2i")) {
+                                        params.argon2_flavour = Argon2i;
+                                    } else if (!strcmp(optvalue, "Argon2d") ||
+                                               !strcmp(optvalue, "argon2d")) {
+                                        params.argon2_flavour = Argon2d;
+                                    } else {
+                                        errs = true;
+                                        fprintf(stderr, "puttygen: unrecognise"
+                                                "d kdf '%s'\n", optvalue);
+                                    }
+                                    continue;
+                                }
+
                                 char *end;
                                 unsigned long n = strtoul(optvalue, &end, 0);
                                 if (!*optvalue || *end) {
