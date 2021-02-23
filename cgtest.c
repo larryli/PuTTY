@@ -41,6 +41,7 @@ const struct ppk_save_parameters ppk_save_cgtest_parameters = {
      * different answers twice in the test suite when we were
      * expecting two key files to compare equal), and we specify a
      * passphrase salt. */
+    .fmt_version = 3,
     .argon2_flavour = Argon2id,
     .argon2_mem = 16,
     .argon2_passes_auto = false,
