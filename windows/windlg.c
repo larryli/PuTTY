@@ -835,44 +835,115 @@ void showabout(HWND hwnd)
     DialogBox(hinst, MAKEINTRESOURCE(IDD_ABOUTBOX), hwnd, AboutProc);
 }
 
+struct hostkey_dialog_ctx {
+    const char *const *keywords;
+    const char *const *values;
+    const char *fingerprint;
+    LPCTSTR iconid;
+    const char *helpctx;
+};
+
+static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
+                                          WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_INITDIALOG: {
+        strbuf *sb = strbuf_new();
+        const struct hostkey_dialog_ctx *ctx =
+            (const struct hostkey_dialog_ctx *)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
+        for (int id = 100;; id++) {
+            char buf[256];
+
+            if (!GetDlgItemText(hwnd, id, buf, (int)lenof(buf)))
+                break;
+
+            strbuf_clear(sb);
+            for (const char *p = buf; *p ;) {
+                if (*p == '{') {
+                    for (size_t i = 0; ctx->keywords[i]; i++) {
+                        if (strstartswith(p, ctx->keywords[i])) {
+                            p += strlen(ctx->keywords[i]);
+                            put_datapl(sb, ptrlen_from_asciz(ctx->values[i]));
+                            goto matched;
+                        }
+                    }
+                } else {
+                    put_byte(sb, *p++);
+                }
+              matched:;
+            }
+
+            SetDlgItemText(hwnd, id, sb->s);
+        }
+        strbuf_free(sb);
+
+        SetDlgItemText(hwnd, IDC_HK_FINGERPRINT, ctx->fingerprint);
+        MakeDlgItemBorderless(hwnd, IDC_HK_FINGERPRINT);
+
+        HANDLE icon = LoadImage(
+            NULL, ctx->iconid, IMAGE_ICON,
+            GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON),
+            LR_SHARED);
+        SendDlgItemMessage(hwnd, IDC_HK_ICON, STM_SETICON, (WPARAM)icon, 0);
+
+        if (!has_help()) {
+            HWND item = GetDlgItem(hwnd, IDHELP);
+            if (item)
+                DestroyWindow(item);
+        }
+
+        return 1;
+      }
+      case WM_CTLCOLORSTATIC: {
+        HDC hdc = (HDC)wParam;
+        HWND control = (HWND)lParam;
+
+        if (GetWindowLong(control, GWL_ID) == IDC_HK_TITLE) {
+            SetBkMode(hdc, TRANSPARENT);
+            HFONT prev_font = (HFONT)SelectObject(
+                hdc, (HFONT)GetStockObject(SYSTEM_FONT));
+            LOGFONT lf;
+            if (GetObject(prev_font, sizeof(lf), &lf)) { 
+                lf.lfWeight = FW_BOLD;
+                lf.lfHeight = lf.lfHeight * 3 / 2;
+                HFONT bold_font = CreateFontIndirect(&lf);
+                if (bold_font)
+                    SelectObject(hdc, bold_font);
+            }
+            return (INT_PTR)GetSysColorBrush(COLOR_BTNFACE);
+        }
+        return 0;
+      }
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDC_HK_ACCEPT:
+          case IDC_HK_ONCE:
+          case IDCANCEL:
+            EndDialog(hwnd, LOWORD(wParam));
+            return 0;
+          case IDHELP: {
+            const struct hostkey_dialog_ctx *ctx =
+                (const struct hostkey_dialog_ctx *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            launch_help(hwnd, ctx->helpctx);
+            return 0;
+          }
+        }
+        return 0;
+      case WM_CLOSE:
+        EndDialog(hwnd, IDCANCEL);
+        return 0;
+    }
+    return 0;
+}
+
 int win_seat_verify_ssh_host_key(
     Seat *seat, const char *host, int port,
     const char *keytype, char *keystr, char *fingerprint,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
-
-    static const char absentmsg[] =
-        "The server's host key is not cached in the registry. You\n"
-        "have no guarantee that the server is the computer you\n"
-        "think it is.\n"
-        "The server's %s key fingerprint is:\n"
-        "%s\n"
-        "If you trust this host, hit Yes to add the key to\n"
-        "%s's cache and carry on connecting.\n"
-        "If you want to carry on connecting just once, without\n"
-        "adding the key to the cache, hit No.\n"
-        "If you do not trust this host, hit Cancel to abandon the\n"
-        "connection.\n";
-
-    static const char wrongmsg[] =
-        "WARNING - POTENTIAL SECURITY BREACH!\n"
-        "\n"
-        "The server's host key does not match the one %s has\n"
-        "cached in the registry. This means that either the\n"
-        "server administrator has changed the host key, or you\n"
-        "have actually connected to another computer pretending\n"
-        "to be the server.\n"
-        "The new %s key fingerprint is:\n"
-        "%s\n"
-        "If you were expecting this change and trust the new key,\n"
-        "hit Yes to update %s's cache and continue connecting.\n"
-        "If you want to carry on connecting but without updating\n"
-        "the cache, hit No.\n"
-        "If you want to abandon the connection completely, hit\n"
-        "Cancel. Hitting Cancel is the ONLY guaranteed safe\n" "choice.\n";
-
-    static const char mbtitle[] = "%s Security Alert";
 
     WinGuiSeat *wgs = container_of(seat, WinGuiSeat, seat);
 
@@ -883,36 +954,30 @@ int win_seat_verify_ssh_host_key(
 
     if (ret == 0)                      /* success - key matched OK */
         return 1;
-    else if (ret == 2) {               /* key was different */
-        int mbret;
-        char *text = dupprintf(wrongmsg, appname, keytype, fingerprint,
-                               appname);
-        char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(wgs->term_hwnd, text, caption,
-                            MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
-                            HELPCTXID(errors_hostkey_changed));
-        assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-        sfree(text);
-        sfree(caption);
-        if (mbret == IDYES) {
+    else {
+        static const char *const keywords[] =
+            { "{KEYTYPE}", "{APPNAME}", NULL };
+
+        const char *values[2];
+        values[0] = keytype;
+        values[1] = appname;
+
+        struct hostkey_dialog_ctx ctx[1];
+        ctx->keywords = keywords;
+        ctx->values = values;
+        ctx->fingerprint = fingerprint;
+        ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
+        ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
+                        WINHELP_CTX_errors_hostkey_absent);
+        int dlgid = (ret == 2 ? IDD_HK_WRONG : IDD_HK_ABSENT);
+        int mbret = DialogBoxParam(
+            hinst, MAKEINTRESOURCE(dlgid), wgs->term_hwnd,
+            HostKeyDialogProc, (LPARAM)ctx);
+        assert(mbret==IDC_HK_ACCEPT || mbret==IDC_HK_ONCE || mbret==IDCANCEL);
+        if (mbret == IDC_HK_ACCEPT) {
             store_host_key(host, port, keytype, keystr);
             return 1;
-        } else if (mbret == IDNO)
-            return 1;
-    } else if (ret == 1) {             /* key was absent */
-        int mbret;
-        char *text = dupprintf(absentmsg, keytype, fingerprint, appname);
-        char *caption = dupprintf(mbtitle, appname);
-        mbret = message_box(wgs->term_hwnd, text, caption,
-                            MB_ICONWARNING | MB_YESNOCANCEL | MB_DEFBUTTON3,
-                            HELPCTXID(errors_hostkey_absent));
-        assert(mbret==IDYES || mbret==IDNO || mbret==IDCANCEL);
-        sfree(text);
-        sfree(caption);
-        if (mbret == IDYES) {
-            store_host_key(host, port, keytype, keystr);
-            return 1;
-        } else if (mbret == IDNO)
+        } else if (mbret == IDC_HK_ONCE)
             return 1;
     }
     return 0;   /* abandon the connection */
