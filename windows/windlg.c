@@ -205,6 +205,19 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
     return 0;
 }
 
+static void MakeDlgItemBorderless(HWND parent, int id)
+{
+    HWND child = GetDlgItem(parent, id);
+    LONG_PTR style = GetWindowLongPtr(child, GWL_STYLE);
+    LONG_PTR exstyle = GetWindowLongPtr(child, GWL_EXSTYLE);
+    style &= ~WS_BORDER;
+    exstyle &= ~(WS_EX_CLIENTEDGE | WS_EX_STATICEDGE | WS_EX_WINDOWEDGE);
+    SetWindowLongPtr(child, GWL_STYLE, style);
+    SetWindowLongPtr(child, GWL_EXSTYLE, exstyle);
+    SetWindowPos(child, NULL, 0, 0, 0, 0,
+                 SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+}
+
 static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                                   WPARAM wParam, LPARAM lParam)
 {
@@ -222,6 +235,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
              "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
         sfree(buildinfo_text);
         SetDlgItemText(hwnd, IDA_TEXT, text);
+        MakeDlgItemBorderless(hwnd, IDA_TEXT);
         sfree(text);
         return 1;
       }
