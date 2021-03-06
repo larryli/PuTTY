@@ -1474,6 +1474,8 @@ static void ssh2_transport_process_queue(PacketProtocolLayer *ppl)
                 put_datapl(pktout, ptrlen_from_strbuf(extinfo));
                 pq_push(s->ppl.out_pq, pktout);
             }
+
+            strbuf_free(extinfo);
         }
     }
 
