@@ -83,7 +83,10 @@ int console_verify_ssh_host_key(
     ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
     SetConsoleMode(hin, savemode);
 
-    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
+    /* In case of misplaced reflexes from another program, also recognise 'q'
+     * as 'abandon connection rather than trust this key' */
+    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n' &&
+        line[0] != 'q' && line[0] != 'Q') {
         if (line[0] == 'y' || line[0] == 'Y')
             store_host_key(host, port, keytype, keystr);
         return 1;

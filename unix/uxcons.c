@@ -154,7 +154,10 @@ int console_verify_ssh_host_key(
         /* handled below */;
     tcsetattr(0, TCSANOW, &oldmode);
 
-    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n') {
+    /* In case of misplaced reflexes from another program, also recognise 'q'
+     * as 'abandon connection rather than trust this key' */
+    if (line[0] != '\0' && line[0] != '\r' && line[0] != '\n' &&
+        line[0] != 'q' && line[0] != 'Q') {
         if (line[0] == 'y' || line[0] == 'Y')
             store_host_key(host, port, keytype, keystr);
         postmsg(&cf);
