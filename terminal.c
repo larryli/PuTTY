@@ -1775,7 +1775,7 @@ void term_setup_window_titles(Terminal *term, const char *title_hostname)
         term->window_title = dupstr(conf_title);
         term->icon_title = dupstr(conf_title);
     } else {
-        if (title_hostname)
+        if (title_hostname && *title_hostname)
             term->window_title = dupcat(title_hostname, " - ", appname);
         else
             term->window_title = dupstr(appname);
