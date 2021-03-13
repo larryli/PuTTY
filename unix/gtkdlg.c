@@ -3282,10 +3282,11 @@ const struct message_box_buttons buttons_ok = {
     button_array_ok, lenof(button_array_ok),
 };
 
-GtkWidget *create_message_box(
+static GtkWidget *create_message_box_general(
     GtkWidget *parentwin, const char *title, const char *msg, int minwid,
     bool selectable, const struct message_box_buttons *buttons,
-    post_dialog_fn_t after, void *afterctx)
+    post_dialog_fn_t after, void *afterctx,
+    GtkWidget *(*action_postproc)(GtkWidget *, void *), void *postproc_ctx)
 {
     GtkWidget *window, *w0, *w1;
     struct controlset *s0, *s1;
@@ -3355,6 +3356,8 @@ GtkWidget *create_message_box(
     window = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(window), title);
     w0 = layout_ctrls(dp, NULL, &scs, s0, GTK_WINDOW(window));
+    if (action_postproc)
+        w0 = action_postproc(w0, postproc_ctx);
     our_dialog_set_action_area(GTK_WINDOW(window), w0);
     gtk_widget_show(w0);
     w1 = layout_ctrls(dp, NULL, &scs, s1, GTK_WINDOW(window));
@@ -3411,6 +3414,16 @@ GtkWidget *create_message_box(
                      G_CALLBACK(win_key_press), dp);
 
     return window;
+}
+
+GtkWidget *create_message_box(
+    GtkWidget *parentwin, const char *title, const char *msg, int minwid,
+    bool selectable, const struct message_box_buttons *buttons,
+    post_dialog_fn_t after, void *afterctx)
+{
+    return create_message_box_general(
+        parentwin, title, msg, minwid, selectable, buttons, after, afterctx,
+        NULL /* action_postproc */, NULL /* postproc_ctx */);
 }
 
 struct verify_ssh_host_key_result_ctx {
