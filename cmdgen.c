@@ -244,6 +244,7 @@ int main(int argc, char **argv)
     const PrimeGenerationPolicy *primegen = &primegen_probabilistic;
     bool strong_rsa = false;
     ppk_save_parameters params = ppk_save_default_parameters;
+    FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
     if (is_interactive())
         progress_fp = stderr;
@@ -507,6 +508,7 @@ int main(int argc, char **argv)
                   case 'C':
                   case 'O':
                   case 'o':
+                  case 'E':
                     /*
                      * Option requiring parameter.
                      */
@@ -574,6 +576,17 @@ int main(int argc, char **argv)
                         break;
                       case 'o':
                         outfile = p;
+                        break;
+                      case 'E':
+                        if (!strcmp(p, "md5"))
+                            fptype = SSH_FPTYPE_MD5;
+                        else if (!strcmp(p, "sha256"))
+                            fptype = SSH_FPTYPE_SHA256;
+                        else {
+                            fprintf(stderr, "puttygen: unknown fingerprint "
+                                    "type `%s'\n", p);
+                            errs = true;
+                        }
                         break;
                     }
                     p = NULL;          /* prevent continued processing */
@@ -1182,11 +1195,11 @@ int main(int argc, char **argv)
           fingerprint = rsa_ssh1_fingerprint(ssh1key);
         } else {
           if (ssh2key) {
-            fingerprint = ssh2_fingerprint(ssh2key->key, SSH_FPTYPE_DEFAULT);
+            fingerprint = ssh2_fingerprint(ssh2key->key, fptype);
           } else {
             assert(ssh2blob);
             fingerprint = ssh2_fingerprint_blob(
-                ptrlen_from_strbuf(ssh2blob), SSH_FPTYPE_DEFAULT);
+                ptrlen_from_strbuf(ssh2blob), fptype);
           }
         }
 
