@@ -1335,7 +1335,7 @@ typedef enum {
     SSH_FPTYPE_SHA256,
 } FingerprintType;
 
-#define SSH_FPTYPE_DEFAULT SSH_FPTYPE_MD5
+#define SSH_FPTYPE_DEFAULT SSH_FPTYPE_SHA256
 #define SSH_N_FPTYPES (SSH_FPTYPE_SHA256 + 1)
 
 FingerprintType ssh2_pick_fingerprint(char **fingerprints,
