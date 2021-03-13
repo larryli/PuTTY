@@ -826,28 +826,28 @@ bool ssh2_bpp_check_unimplemented(BinaryPacketProtocol *bpp, PktIn *pktin)
  * Function to check a host key against any manually configured in Conf.
  */
 
-int verify_ssh_manual_host_key(
-    Conf *conf, const char *fingerprint, ssh_key *key)
+int verify_ssh_manual_host_key(Conf *conf, char **fingerprints, ssh_key *key)
 {
     if (!conf_get_str_nthstrkey(conf, CONF_ssh_manual_hostkeys, 0))
         return -1;                     /* no manual keys configured */
 
-    if (fingerprint) {
-        /*
-         * The fingerprint string we've been given will have things
-         * like 'ssh-rsa 2048' at the front of it. Strip those off and
-         * narrow down to just the colon-separated hex block at the
-         * end of the string.
-         */
-        const char *p = strrchr(fingerprint, ' ');
-        fingerprint = p ? p+1 : fingerprint;
-        /* Quick sanity checks, including making sure it's in lowercase */
-        assert(strlen(fingerprint) == 16*3 - 1);
-        assert(fingerprint[2] == ':');
-        assert(fingerprint[strspn(fingerprint, "0123456789abcdef:")] == 0);
-
-        if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys, fingerprint))
-            return 1;                  /* success */
+    if (fingerprints) {
+        for (size_t i = 0; i < SSH_N_FPTYPES; i++) {
+            /*
+             * Each fingerprint string we've been given will have
+             * things like 'ssh-rsa 2048' at the front of it. Strip
+             * those off and narrow down to just the hash at the end
+             * of the string.
+             */
+            const char *fingerprint = fingerprints[i];
+            if (!fingerprint)
+                continue;
+            const char *p = strrchr(fingerprint, ' ');
+            fingerprint = p ? p+1 : fingerprint;
+            if (conf_get_str_str_opt(conf, CONF_ssh_manual_hostkeys,
+                                     fingerprint))
+                return 1;                  /* success */
+        }
     }
 
     if (key) {

@@ -22,6 +22,10 @@
 #include "putty.h"
 #include "misc.h"
 
+#define BASE64_CHARS_NOEQ \
+    "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ+/"
+#define BASE64_CHARS_ALL BASE64_CHARS_NOEQ "="
+
 void seat_connection_fatal(Seat *seat, const char *fmt, ...)
 {
     va_list ap;
@@ -129,22 +133,32 @@ bool validate_manual_hostkey(char *key)
          * Now q is our word.
          */
 
-        if (strlen(q) == 16*3 - 1 &&
-            q[strspn(q, "0123456789abcdefABCDEF:")] == 0) {
+        if (strstartswith(q, "SHA256:")) {
+            /* Test for a valid SHA256 key fingerprint. */
+            r = q + 7;
+            if (strlen(r) == 43 && r[strspn(r, BASE64_CHARS_NOEQ)] == 0)
+                return true;
+        }
+
+        r = q;
+        if (strstartswith(r, "MD5:"))
+            r += 4;
+        if (strlen(r) == 16*3 - 1 &&
+            r[strspn(r, "0123456789abcdefABCDEF:")] == 0) {
             /*
-             * Might be a key fingerprint. Check the colons are in the
-             * right places, and if so, return the same fingerprint
-             * canonicalised into lowercase.
+             * Test for a valid MD5 key fingerprint. Check the colons
+             * are in the right places, and if so, return the same
+             * fingerprint canonicalised into lowercase.
              */
             int i;
             for (i = 0; i < 16; i++)
-                if (q[3*i] == ':' || q[3*i+1] == ':')
+                if (r[3*i] == ':' || r[3*i+1] == ':')
                     goto not_fingerprint; /* sorry */
             for (i = 0; i < 15; i++)
-                if (q[3*i+2] != ':')
+                if (r[3*i+2] != ':')
                     goto not_fingerprint; /* sorry */
             for (i = 0; i < 16*3 - 1; i++)
-                key[i] = tolower(q[i]);
+                key[i] = tolower(r[i]);
             key[16*3 - 1] = '\0';
             return true;
         }
@@ -161,8 +175,7 @@ bool validate_manual_hostkey(char *key)
         *s = '\0';
 
         if (strlen(q) % 4 == 0 && strlen(q) > 2*4 &&
-            q[strspn(q, "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                     "abcdefghijklmnopqrstuvwxyz+/=")] == 0) {
+            q[strspn(q, BASE64_CHARS_ALL)] == 0) {
             /*
              * Might be a base64-encoded SSH-2 public key blob. Check
              * that it starts with a sensible algorithm string. No

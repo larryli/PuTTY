@@ -843,13 +843,16 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * Authenticate remote host: verify host key. (We've already
              * checked the signature of the exchange hash.)
              */
-            char *fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
+            char **fingerprints = ssh2_all_fingerprints(s->hkey);
+            FingerprintType fptype_default =
+                ssh2_pick_default_fingerprint(fingerprints);
             ppl_logevent("Host key fingerprint is:");
-            ppl_logevent("%s", fingerprint);
+            ppl_logevent("%s", fingerprints[fptype_default]);
             /* First check against manually configured host keys. */
             s->dlgret = verify_ssh_manual_host_key(
-                s->conf, fingerprint, s->hkey);
+                s->conf, fingerprints, s->hkey);
             if (s->dlgret == 0) {          /* did not match */
+                ssh2_free_all_fingerprints(fingerprints);
                 ssh_sw_abort(s->ppl.ssh, "Host key did not appear in manually "
                              "configured list");
                 *aborted = true;
@@ -857,9 +860,10 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             } else if (s->dlgret < 0) { /* none configured; use standard handling */
                 s->dlgret = seat_verify_ssh_host_key(
                     s->ppl.seat, s->savedhost, s->savedport,
-                    ssh_key_cache_id(s->hkey), s->keystr, fingerprint,
+                    ssh_key_cache_id(s->hkey), s->keystr,
+                    fingerprints[SSH_FPTYPE_DEFAULT],
                     ssh2_transport_dialog_callback, s);
-                sfree(fingerprint);
+                ssh2_free_all_fingerprints(fingerprints);
 #ifdef FUZZING
                 s->dlgret = 1;
 #endif
