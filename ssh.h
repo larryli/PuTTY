@@ -567,6 +567,7 @@ mp_int *rsa_ssh1_decrypt(mp_int *input, RSAKey *key);
 bool rsa_ssh1_decrypt_pkcs1(mp_int *input, RSAKey *key, strbuf *outbuf);
 char *rsastr_fmt(RSAKey *key);
 char *rsa_ssh1_fingerprint(RSAKey *key);
+char **rsa_ssh1_fake_all_fingerprints(RSAKey *key);
 bool rsa_verify(RSAKey *key);
 void rsa_ssh1_public_blob(BinarySink *bs, RSAKey *key, RsaSsh1Order order);
 int rsa_ssh1_public_blob_len(ptrlen data);
@@ -1337,6 +1338,10 @@ typedef enum {
 #define SSH_FPTYPE_DEFAULT SSH_FPTYPE_MD5
 #define SSH_N_FPTYPES (SSH_FPTYPE_SHA256 + 1)
 
+FingerprintType ssh2_pick_fingerprint(char **fingerprints,
+                                      FingerprintType preferred_type);
+FingerprintType ssh2_pick_default_fingerprint(char **fingerprints);
+
 char *ssh1_pubkey_str(RSAKey *ssh1key);
 void ssh1_write_pubkey(FILE *fp, RSAKey *ssh1key);
 char *ssh2_pubkey_openssh_str(ssh2_userkey *key);
@@ -1345,6 +1350,9 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
                        int keytype);
 char *ssh2_fingerprint_blob(ptrlen, FingerprintType);
 char *ssh2_fingerprint(ssh_key *key, FingerprintType);
+char **ssh2_all_fingerprints_for_blob(ptrlen);
+char **ssh2_all_fingerprints(ssh_key *key);
+void ssh2_free_all_fingerprints(char **);
 int key_type(const Filename *filename);
 int key_type_s(BinarySource *src);
 const char *key_type_to_str(int type);

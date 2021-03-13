@@ -320,6 +320,19 @@ char *rsa_ssh1_fingerprint(RSAKey *key)
 }
 
 /*
+ * Wrap the output of rsa_ssh1_fingerprint up into the same kind of
+ * structure that comes from ssh2_all_fingerprints.
+ */
+char **rsa_ssh1_fake_all_fingerprints(RSAKey *key)
+{
+    char **ret = snewn(SSH_N_FPTYPES, char *);
+    for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
+        ret[i] = NULL;
+    ret[SSH_FPTYPE_MD5] = rsa_ssh1_fingerprint(key);
+    return ret;
+}
+
+/*
  * Verify that the public data in an RSA key matches the private
  * data. We also check the private data itself: we ensure that p >
  * q and that iqmp really is the inverse of q mod p.

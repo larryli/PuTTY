@@ -1794,6 +1794,14 @@ char *ssh2_fingerprint_blob(ptrlen blob, FingerprintType fptype)
     return strbuf_to_str(sb);
 }
 
+char **ssh2_all_fingerprints_for_blob(ptrlen blob)
+{
+    char **fps = snewn(SSH_N_FPTYPES, char *);
+    for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
+        fps[i] = ssh2_fingerprint_blob(blob, i);
+    return fps;
+}
+
 char *ssh2_fingerprint(ssh_key *data, FingerprintType fptype)
 {
     strbuf *blob = strbuf_new();
@@ -1801,6 +1809,22 @@ char *ssh2_fingerprint(ssh_key *data, FingerprintType fptype)
     char *ret = ssh2_fingerprint_blob(ptrlen_from_strbuf(blob), fptype);
     strbuf_free(blob);
     return ret;
+}
+
+char **ssh2_all_fingerprints(ssh_key *data)
+{
+    strbuf *blob = strbuf_new();
+    ssh_key_public_blob(data, BinarySink_UPCAST(blob));
+    char **ret = ssh2_all_fingerprints_for_blob(ptrlen_from_strbuf(blob));
+    strbuf_free(blob);
+    return ret;
+}
+
+void ssh2_free_all_fingerprints(char **fps)
+{
+    for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
+        sfree(fps[i]);
+    sfree(fps);
 }
 
 /* ----------------------------------------------------------------------
