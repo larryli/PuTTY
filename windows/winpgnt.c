@@ -63,6 +63,7 @@ static HWND keylist;
 static HWND aboutbox;
 static HMENU systray_menu, session_menu;
 static bool already_running;
+static FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
 static char *putty_path;
 static bool restrict_putty_acl = false;
@@ -353,7 +354,7 @@ void keylist_update(void)
              * stop and leave out a tab character. Urgh.
              */
 
-            p = ssh2_fingerprint(skey->key, SSH_FPTYPE_DEFAULT);
+            p = ssh2_fingerprint(skey->key, fptype);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             sfree(p);
 
@@ -512,6 +513,14 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
     RSAKey *rkey;
     ssh2_userkey *skey;
 
+    static const struct {
+        const char *name;
+        FingerprintType value;
+    } fptypes[] = {
+        {"SHA256", SSH_FPTYPE_SHA256},
+        {"MD5", SSH_FPTYPE_MD5},
+    };
+
     switch (msg) {
       case WM_INITDIALOG: {
         /*
@@ -539,11 +548,21 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
         keylist = hwnd;
         {
-          static int tabs[] = { 35, 75, 250 };
+          static int tabs[] = { 35, 75, 300 };
           SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
                              sizeof(tabs) / sizeof(*tabs),
                              (LPARAM) tabs);
         }
+
+        int selection = 0;
+        for (size_t i = 0; i < lenof(fptypes); i++) {
+            SendDlgItemMessage(hwnd, 105, CB_ADDSTRING,
+                               0, (LPARAM)fptypes[i].name);
+            if (fptype == fptypes[i].value)
+                selection = (int)i;
+        }
+        SendDlgItemMessage(hwnd, 105, CB_SETCURSEL, 0, selection);
+
         keylist_update();
         return 0;
       }
@@ -630,6 +649,16 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 launch_help(hwnd, WINHELP_CTX_pageant_general);
+            }
+            return 0;
+          case 105:                    /* fingerprint type */
+            if (HIWORD(wParam) == CBN_SELCHANGE) {
+                int selection = SendDlgItemMessage(
+                    hwnd, 105, CB_GETCURSEL, 0, 0);
+                if (selection >= 0 && (size_t)selection < lenof(fptypes)) {
+                    fptype = fptypes[selection].value;
+                    keylist_update();
+                }
             }
             return 0;
         }
