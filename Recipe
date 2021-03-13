@@ -331,13 +331,15 @@ KEYGEN   = sshrsag sshdssg sshecdsag
 
 putty    : [G] GUITERM NONSSH WINSSH W_BE_ALL WINMISC winx11 putty.res LIBS
 puttytel : [G] GUITERM NONSSH W_BE_NOSSH WINMISC puttytel.res nogss LIBS
-plink    : [C] winplink wincons NONSSH WINSSH W_BE_ALL logging WINMISC
+plink    : [C] winplink wincons console NONSSH WINSSH W_BE_ALL logging WINMISC
          + winx11 plink.res winnojmp sessprep noterm winnohlp winselcli
-         + clicons wincliloop LIBS
+         + clicons wincliloop console LIBS
 pscp     : [C] pscp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + pscp.res winnojmp winnohlp winselcli clicons wincliloop LIBS
+         + pscp.res winnojmp winnohlp winselcli clicons wincliloop
+         + console LIBS
 psftp    : [C] psftp winsftp wincons WINSSH BE_SSH SFTP wildcard WINMISC
-         + psftp.res winnojmp winnohlp winselcli clicons wincliloop LIBS
+         + psftp.res winnojmp winnohlp winselcli clicons wincliloop
+         + console LIBS
 
 pageant  : [G] winpgnt pageant sshrsa sshpubk sshdes ARITH sshmd5 version
 	 + tree234 MISC sshaes sshsha winsecur winpgntc aqsync sshdss sshsh256
@@ -363,27 +365,27 @@ puttytel : [X] GTKTERM uxmisc misc ldisc settings uxsel U_BE_NOSSH
 	 + nogss utils memory GTKMAIN
 
 plink    : [U] uxplink uxcons NONSSH UXSSH U_BE_ALL logging UXMISC uxsignal
-         + ux_x11 noterm uxnogtk sessprep cmdline clicons uxcliloop
+         + ux_x11 noterm uxnogtk sessprep cmdline clicons uxcliloop console
 
 PUTTYGEN_UNIX = KEYGEN SSHPRIME sshdes ARITH sshmd5 version sshprng
          + sshrand uxnoise sshsha MISC sshrsa sshdss uxcons uxstore uxmisc
          + sshpubk sshaes sshsh256 sshsh512 IMPORT puttygen.res time tree234
          + uxgen notiming CONF sshecc sshsha3 uxnogtk sshauxcrypt sshhmac
-         + uxpoll uxutils sshblake2 sshargon2
+         + uxpoll uxutils sshblake2 sshargon2 console
 puttygen : [U] cmdgen PUTTYGEN_UNIX
 cgtest   : [UT] cgtest PUTTYGEN_UNIX
 
 pscp     : [U] pscp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
-         + clicons uxcliloop
+         + clicons uxcliloop console
 psftp    : [U] psftp uxsftp uxcons UXSSH BE_SSH SFTP wildcard UXMISC uxnogtk
-         + clicons uxcliloop
+         + clicons uxcliloop console
 
 pageant  : [X] uxpgnt uxagentc aqsync pageant sshrsa sshpubk sshdes ARITH
 	 + sshmd5 version tree234 misc sshaes sshsha sshdss sshsh256 sshsh512
 	 + sshecc CONF uxsignal nocproxy nogss be_none x11fwd ux_x11 uxcons
          + gtkask gtkmisc nullplug logging UXMISC uxagentsock utils memory
 	 + sshauxcrypt sshhmac sshprng uxnoise uxcliloop sshsha3 sshblake2
-         + sshargon2
+         + sshargon2 console
 
 ptermapp : [XT] GTKTERM uxmisc misc ldisc settings uxpty uxsel BE_NONE uxstore
          + uxsignal CHARSET uxpterm version time xpmpterm xpmptcfg
@@ -411,9 +413,9 @@ psusan   : [UT] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
 PSOCKS   = psocks portfwd conf sshutils logging proxy nocproxy timing callback
          + time tree234 version errsock be_misc norand MISC
 psocks   : [C] PSOCKS winsocks wincons winproxy winnet winmisc winselcli
-         + winhsock winhandl winmiscs winnohlp wincliloop LIBS
+         + winhsock winhandl winmiscs winnohlp wincliloop console LIBS
 psocks   : [UT] PSOCKS uxsocks uxcons uxproxy uxnet uxmisc uxpoll uxsel uxnogtk
-         + uxpeer uxfdsock uxcliloop uxsignal
+         + uxpeer uxfdsock uxcliloop uxsignal console
 
 # ----------------------------------------------------------------------
 # On Windows, provide a means of removing local test binaries that we
