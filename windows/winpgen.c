@@ -603,6 +603,7 @@ struct MainDlgState {
     keytype keytype;
     const PrimeGenerationPolicy *primepolicy;
     bool rsa_strong;
+    FingerprintType fptype;
     char **commentptr;                 /* points to key.comment or ssh2key.comment */
     ssh2_userkey ssh2key;
     unsigned *entropy;
@@ -683,6 +684,7 @@ enum {
     IDC_KEYSSH2ECDSA, IDC_KEYSSH2EDDSA,
     IDC_PRIMEGEN_PROB, IDC_PRIMEGEN_MAURER_SIMPLE, IDC_PRIMEGEN_MAURER_COMPLEX,
     IDC_RSA_STRONG,
+    IDC_FPTYPE_SHA256, IDC_FPTYPE_MD5,
     IDC_PPK_PARAMS,
     IDC_BITSSTATIC, IDC_BITS,
     IDC_ECCURVESTATIC, IDC_ECCURVE,
@@ -892,6 +894,41 @@ void ui_set_rsa_strong(HWND hwnd, struct MainDlgState *state, bool enable)
     CheckMenuItem(state->keymenu, IDC_RSA_STRONG,
                   (enable ? MF_CHECKED : 0) | MF_BYCOMMAND);
 }
+static FingerprintType idc_to_fptype(int option)
+{
+    switch (option) {
+      case IDC_FPTYPE_SHA256:
+        return SSH_FPTYPE_SHA256;
+      case IDC_FPTYPE_MD5:
+        return SSH_FPTYPE_MD5;
+      default:
+        unreachable("bad control id in idc_to_fptype");
+    }
+}
+static int fptype_to_idc(FingerprintType fptype)
+{
+    switch (fptype) {
+      case SSH_FPTYPE_SHA256:
+        return IDC_FPTYPE_SHA256;
+      case SSH_FPTYPE_MD5:
+        return IDC_FPTYPE_MD5;
+      default:
+        unreachable("bad fptype in fptype_to_idc");
+    }
+}
+void ui_set_fptype(HWND hwnd, struct MainDlgState *state, int option)
+{
+    CheckMenuRadioItem(state->keymenu, IDC_FPTYPE_SHA256,
+                       IDC_FPTYPE_MD5, option, MF_BYCOMMAND);
+
+    state->fptype = idc_to_fptype(option);
+
+    if (state->key_exists && state->ssh2) {
+        char *fp = ssh2_fingerprint(state->ssh2key.key, state->fptype);
+        SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
+        sfree(fp);
+    }
+}
 
 void load_key_file(HWND hwnd, struct MainDlgState *state,
                    Filename *filename, bool was_import_cmd)
@@ -1023,7 +1060,7 @@ void load_key_file(HWND hwnd, struct MainDlgState *state,
 
                 savecomment = state->ssh2key.comment;
                 state->ssh2key.comment = NULL;
-                fp = ssh2_fingerprint(state->ssh2key.key, SSH_FPTYPE_DEFAULT);
+                fp = ssh2_fingerprint(state->ssh2key.key, state->fptype);
                 state->ssh2key.comment = savecomment;
 
                 SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
@@ -1164,6 +1201,11 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             AppendMenu(menu1, MF_SEPARATOR, 0, 0);
             AppendMenu(menu1, MF_ENABLED, IDC_PPK_PARAMS,
                        "Parameters for saving key files...");
+            AppendMenu(menu1, MF_SEPARATOR, 0, 0);
+            AppendMenu(menu1, MF_ENABLED, IDC_FPTYPE_SHA256,
+                       "Show fingerprint as SHA256");
+            AppendMenu(menu1, MF_ENABLED, IDC_FPTYPE_MD5,
+                       "Show fingerprint as MD5");
             AppendMenu(menu, MF_POPUP | MF_ENABLED, (UINT_PTR) menu1, "&Key");
             state->keymenu = menu1;
 
@@ -1222,15 +1264,15 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
                         IDC_PKSTATIC, IDC_KEYDISPLAY, 5);
             SendDlgItemMessage(hwnd, IDC_KEYDISPLAY, EM_SETREADONLY, 1, 0);
             staticedit(&cp, "Key f&ingerprint:", IDC_FPSTATIC,
-                       IDC_FINGERPRINT, 75);
+                       IDC_FINGERPRINT, 82);
             SendDlgItemMessage(hwnd, IDC_FINGERPRINT, EM_SETREADONLY, 1,
                                0);
             staticedit(&cp, "Key &comment:", IDC_COMMENTSTATIC,
-                       IDC_COMMENTEDIT, 75);
+                       IDC_COMMENTEDIT, 82);
             staticpassedit(&cp, "Key p&assphrase:", IDC_PASSPHRASE1STATIC,
-                           IDC_PASSPHRASE1EDIT, 75);
+                           IDC_PASSPHRASE1EDIT, 82);
             staticpassedit(&cp, "C&onfirm passphrase:",
-                           IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 75);
+                           IDC_PASSPHRASE2STATIC, IDC_PASSPHRASE2EDIT, 82);
             endbox(&cp);
             beginbox(&cp, "Actions", IDC_BOX_ACTIONS);
             staticbtn(&cp, "Generate a public/private key pair",
@@ -1300,6 +1342,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
         ui_set_key_type(hwnd, state, IDC_KEYSSH2RSA);
         ui_set_primepolicy(hwnd, state, IDC_PRIMEGEN_PROB);
         ui_set_rsa_strong(hwnd, state, false);
+        ui_set_fptype(hwnd, state, fptype_to_idc(SSH_FPTYPE_DEFAULT));
         SetDlgItemInt(hwnd, IDC_BITS, DEFAULT_KEY_BITS, false);
         SendDlgItemMessage(hwnd, IDC_ECCURVE, CB_SETCURSEL,
                            DEFAULT_ECCURVE_INDEX, 0);
@@ -1364,6 +1407,13 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             state = (struct MainDlgState *)
                 GetWindowLongPtr(hwnd, GWLP_USERDATA);
             ui_set_primepolicy(hwnd, state, LOWORD(wParam));
+            break;
+          }
+          case IDC_FPTYPE_SHA256:
+          case IDC_FPTYPE_MD5: {
+            state = (struct MainDlgState *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            ui_set_fptype(hwnd, state, LOWORD(wParam));
             break;
           }
           case IDC_RSA_STRONG: {
@@ -1796,7 +1846,7 @@ static INT_PTR CALLBACK MainDlgProc(HWND hwnd, UINT msg,
             savecomment = *state->commentptr;
             *state->commentptr = NULL;
             if (state->ssh2)
-                fp = ssh2_fingerprint(state->ssh2key.key, SSH_FPTYPE_DEFAULT);
+                fp = ssh2_fingerprint(state->ssh2key.key, state->fptype);
             else
                 fp = rsa_ssh1_fingerprint(&state->key);
             SetDlgItemText(hwnd, IDC_FINGERPRINT, fp);
