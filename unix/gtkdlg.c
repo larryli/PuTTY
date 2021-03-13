@@ -3426,20 +3426,24 @@ GtkWidget *create_message_box(
         NULL /* action_postproc */, NULL /* postproc_ctx */);
 }
 
-struct verify_ssh_host_key_result_ctx {
+struct verify_ssh_host_key_dialog_ctx {
     char *host;
     int port;
     char *keytype;
     char *keystr;
+    char *more_info;
     void (*callback)(void *callback_ctx, int result);
     void *callback_ctx;
     Seat *seat;
+
+    GtkWidget *main_dialog;
+    GtkWidget *more_info_dialog;
 };
 
 static void verify_ssh_host_key_result_callback(void *vctx, int result)
 {
-    struct verify_ssh_host_key_result_ctx *ctx =
-        (struct verify_ssh_host_key_result_ctx *)vctx;
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
 
     if (result >= 0) {
         int logical_result;
@@ -3468,10 +3472,49 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
      */
     unregister_dialog(ctx->seat, DIALOG_SLOT_NETWORK_PROMPT);
 
+    if (ctx->more_info_dialog)
+        gtk_widget_destroy(ctx->more_info_dialog);
+
     sfree(ctx->host);
     sfree(ctx->keytype);
     sfree(ctx->keystr);
+    sfree(ctx->more_info);
     sfree(ctx);
+}
+
+static GtkWidget *add_more_info_button(GtkWidget *w, void *vctx)
+{
+    GtkWidget *box = gtk_hbox_new(false, 10);
+    gtk_widget_show(box);
+    gtk_box_pack_end(GTK_BOX(box), w, false, true, 0);
+    GtkWidget *button = gtk_button_new_with_label("More info...");
+    gtk_widget_show(button);
+    gtk_box_pack_start(GTK_BOX(box), button, false, true, 0);
+    *(GtkWidget **)vctx = button;
+    return box;
+}
+
+static void more_info_closed(void *vctx, int result)
+{
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+
+    ctx->more_info_dialog = NULL;
+}
+
+static void more_info_button_clicked(GtkButton *button, gpointer vctx)
+{
+    struct verify_ssh_host_key_dialog_ctx *ctx =
+        (struct verify_ssh_host_key_dialog_ctx *)vctx;
+
+    if (ctx->more_info_dialog)
+        return;
+
+    ctx->more_info_dialog = create_message_box(
+        ctx->main_dialog, "Host key information", ctx->more_info,
+        string_width("SHA256 fingerprint: ecdsa-sha2-nistp521 521 "
+                     "abcdefghkmnopqrsuvwxyzABCDEFGHJKLMNOPQRSTUW"), true,
+        &buttons_ok, more_info_closed, ctx);
 }
 
 int gtk_seat_verify_ssh_host_key(
@@ -3516,7 +3559,7 @@ int gtk_seat_verify_ssh_host_key(
 
     char *text;
     int ret;
-    struct verify_ssh_host_key_result_ctx *result_ctx;
+    struct verify_ssh_host_key_dialog_ctx *result_ctx;
     GtkWidget *mainwin, *msgbox;
 
     /*
@@ -3533,7 +3576,7 @@ int gtk_seat_verify_ssh_host_key(
     text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype,
                      fingerprints[fptype_default]);
 
-    result_ctx = snew(struct verify_ssh_host_key_result_ctx);
+    result_ctx = snew(struct verify_ssh_host_key_dialog_ctx);
     result_ctx->callback = callback;
     result_ctx->callback_ctx = ctx;
     result_ctx->host = dupstr(host);
@@ -3543,10 +3586,40 @@ int gtk_seat_verify_ssh_host_key(
     result_ctx->seat = seat;
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
-    msgbox = create_message_box(
+    GtkWidget *more_info_button = NULL;
+    msgbox = create_message_box_general(
         mainwin, "PuTTY Security Alert", text,
         string_width(fingerprints[fptype_default]), true,
-        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
+        &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx,
+        add_more_info_button, &more_info_button);
+
+    result_ctx->main_dialog = msgbox;
+    result_ctx->more_info_dialog = NULL;
+
+    strbuf *sb = strbuf_new();
+    if (fingerprints[SSH_FPTYPE_SHA256])
+        strbuf_catf(sb, "SHA256 fingerprint: %s\n",
+                    fingerprints[SSH_FPTYPE_SHA256]);
+    if (fingerprints[SSH_FPTYPE_MD5])
+        strbuf_catf(sb, "MD5 fingerprint: %s\n",
+                    fingerprints[SSH_FPTYPE_MD5]);
+    strbuf_catf(sb, "Full text of host's public key:");
+    /* We have to manually wrap the public key, or else the GtkLabel
+     * will resize itself to accommodate the longest word, which will
+     * lead to a hilariously wide message box. */
+    for (const char *p = keydisp, *q = p + strlen(p); p < q ;) {
+        size_t linelen = q-p;
+        if (linelen > 72)
+            linelen = 72;
+        put_byte(sb, '\n');
+        put_data(sb, p, linelen);
+        p += linelen;
+    }
+    result_ctx->more_info = strbuf_to_str(sb);
+
+    g_signal_connect(G_OBJECT(more_info_button), "clicked",
+                     G_CALLBACK(more_info_button_clicked), result_ctx);
+
     register_dialog(seat, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 
     sfree(text);

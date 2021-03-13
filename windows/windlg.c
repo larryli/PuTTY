@@ -838,10 +838,46 @@ void showabout(HWND hwnd)
 struct hostkey_dialog_ctx {
     const char *const *keywords;
     const char *const *values;
-    const char *fingerprint;
+    FingerprintType fptype_default;
+    char **fingerprints;
+    const char *keydisp;
     LPCTSTR iconid;
     const char *helpctx;
 };
+
+static INT_PTR CALLBACK HostKeyMoreInfoProc(HWND hwnd, UINT msg,
+                                            WPARAM wParam, LPARAM lParam)
+{
+    switch (msg) {
+      case WM_INITDIALOG: {
+        const struct hostkey_dialog_ctx *ctx =
+            (const struct hostkey_dialog_ctx *)lParam;
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (INT_PTR)ctx);
+
+        if (ctx->fingerprints[SSH_FPTYPE_SHA256])
+            SetDlgItemText(hwnd, IDC_HKI_SHA256,
+                           ctx->fingerprints[SSH_FPTYPE_SHA256]);
+        if (ctx->fingerprints[SSH_FPTYPE_MD5])
+            SetDlgItemText(hwnd, IDC_HKI_MD5,
+                           ctx->fingerprints[SSH_FPTYPE_MD5]);
+
+        SetDlgItemText(hwnd, IDA_TEXT, ctx->keydisp);
+
+        return 1;
+      }
+      case WM_COMMAND:
+        switch (LOWORD(wParam)) {
+          case IDOK:
+            EndDialog(hwnd, 0);
+            return 0;
+        }
+        return 0;
+      case WM_CLOSE:
+        EndDialog(hwnd, 0);
+        return 0;
+    }
+    return 0;
+}
 
 static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
                                           WPARAM wParam, LPARAM lParam)
@@ -878,7 +914,8 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
         }
         strbuf_free(sb);
 
-        SetDlgItemText(hwnd, IDC_HK_FINGERPRINT, ctx->fingerprint);
+        SetDlgItemText(hwnd, IDC_HK_FINGERPRINT,
+                       ctx->fingerprints[ctx->fptype_default]);
         MakeDlgItemBorderless(hwnd, IDC_HK_FINGERPRINT);
 
         HANDLE icon = LoadImage(
@@ -929,6 +966,13 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
             launch_help(hwnd, ctx->helpctx);
             return 0;
           }
+          case IDC_HK_MOREINFO: {
+            const struct hostkey_dialog_ctx *ctx =
+                (const struct hostkey_dialog_ctx *)
+                GetWindowLongPtr(hwnd, GWLP_USERDATA);
+            DialogBoxParam(hinst, MAKEINTRESOURCE(IDD_HK_MOREINFO),
+                           hwnd, HostKeyMoreInfoProc, (LPARAM)ctx);
+          }
         }
         return 0;
       case WM_CLOSE:
@@ -965,8 +1009,9 @@ int win_seat_verify_ssh_host_key(
         struct hostkey_dialog_ctx ctx[1];
         ctx->keywords = keywords;
         ctx->values = values;
-        ctx->fingerprint = fingerprints[
-            ssh2_pick_default_fingerprint(fingerprints)];
+        ctx->fingerprints = fingerprints;
+        ctx->fptype_default = ssh2_pick_default_fingerprint(fingerprints);
+        ctx->keydisp = keydisp;
         ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
         ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
                         WINHELP_CTX_errors_hostkey_absent);

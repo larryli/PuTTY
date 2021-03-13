@@ -15,6 +15,7 @@
 #define IDD_LICENCEBOX   113
 #define IDD_HK_ABSENT    114
 #define IDD_HK_WRONG     115
+#define IDD_HK_MOREINFO  116
 
 #define IDN_LIST        1001
 #define IDN_COPY        1002
@@ -36,6 +37,11 @@
 #define IDC_HK_ACCEPT   1001
 #define IDC_HK_ONCE     1000
 #define IDC_HK_FINGERPRINT 1002
+#define IDC_HK_MOREINFO 1003
+
+#define IDC_HKI_SHA256  1000
+#define IDC_HKI_MD5     1001
+#define IDC_HKI_PUBKEY  1002
 
 #define ID_CUSTOM_CHMFILE 2000
 #define TYPE_CUSTOM_CHMFILE 2000
