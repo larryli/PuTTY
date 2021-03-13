@@ -22,7 +22,8 @@ const char hk_absentmsg_interactive_intro[] =
     "If you do not trust this host, press Return to abandon the\n"
     "connection.\n";
 const char hk_absentmsg_interactive_prompt[] =
-    "Store key in cache? (y/n, Return cancels connection) ";
+    "Store key in cache? (y/n, Return cancels connection, "
+    "i for more info) ";
 
 const char hk_wrongmsg_common_fmt[] =
     "WARNING - POTENTIAL SECURITY BREACH!\n"
@@ -41,7 +42,8 @@ const char hk_wrongmsg_interactive_intro[] =
     "Return to cancel. Pressing Return is the ONLY guaranteed\n"
     "safe choice.\n";
 const char hk_wrongmsg_interactive_prompt[] =
-    "Update cached key? (y/n, Return cancels connection) ";
+    "Update cached key? (y/n, Return cancels connection, "
+    "i for more info) ";
 
 const char weakcrypto_msg_common_fmt[] =
     "The first %s supported by the server is\n"

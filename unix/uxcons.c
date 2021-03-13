@@ -143,19 +143,32 @@ int console_verify_ssh_host_key(
 
     fputs(intro, stderr);
     fflush(stderr);
+    while (true) {
+        fputs(prompt, stderr);
+        fflush(stderr);
 
-    fputs(prompt, stderr);
-    fflush(stderr);
+        struct termios oldmode, newmode;
+        tcgetattr(0, &oldmode);
+        newmode = oldmode;
+        newmode.c_lflag |= ECHO | ISIG | ICANON;
+        tcsetattr(0, TCSANOW, &newmode);
+        line[0] = '\0';
+        if (block_and_read(0, line, sizeof(line) - 1) <= 0)
+            /* handled below */;
+        tcsetattr(0, TCSANOW, &oldmode);
 
-    struct termios oldmode, newmode;
-    tcgetattr(0, &oldmode);
-    newmode = oldmode;
-    newmode.c_lflag |= ECHO | ISIG | ICANON;
-    tcsetattr(0, TCSANOW, &newmode);
-    line[0] = '\0';
-    if (block_and_read(0, line, sizeof(line) - 1) <= 0)
-        /* handled below */;
-    tcsetattr(0, TCSANOW, &oldmode);
+        if (line[0] == 'i' || line[0] == 'I') {
+            fprintf(stderr, "Full public key:\n%s\n", keydisp);
+            if (fingerprints[SSH_FPTYPE_SHA256])
+                fprintf(stderr, "SHA256 key fingerprint:\n%s\n",
+                        fingerprints[SSH_FPTYPE_SHA256]);
+            if (fingerprints[SSH_FPTYPE_MD5])
+                fprintf(stderr, "MD5 key fingerprint:\n%s\n",
+                        fingerprints[SSH_FPTYPE_MD5]);
+        } else {
+            break;
+        }
+    }
 
     /* In case of misplaced reflexes from another program, also recognise 'q'
      * as 'abandon connection rather than trust this key' */

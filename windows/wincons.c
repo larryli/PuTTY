@@ -74,17 +74,31 @@ int console_verify_ssh_host_key(
     fputs(intro, stderr);
     fflush(stderr);
 
-    fputs(prompt, stderr);
-    fflush(stderr);
+    while (true) {
+        fputs(prompt, stderr);
+        fflush(stderr);
 
-    line[0] = '\0';    /* fail safe if ReadFile returns no data */
+        line[0] = '\0';    /* fail safe if ReadFile returns no data */
 
-    hin = GetStdHandle(STD_INPUT_HANDLE);
-    GetConsoleMode(hin, &savemode);
-    SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
-                         ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
-    ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
-    SetConsoleMode(hin, savemode);
+        hin = GetStdHandle(STD_INPUT_HANDLE);
+        GetConsoleMode(hin, &savemode);
+        SetConsoleMode(hin, (savemode | ENABLE_ECHO_INPUT |
+                             ENABLE_PROCESSED_INPUT | ENABLE_LINE_INPUT));
+        ReadFile(hin, line, sizeof(line) - 1, &i, NULL);
+        SetConsoleMode(hin, savemode);
+
+        if (line[0] == 'i' || line[0] == 'I') {
+            fprintf(stderr, "Full public key:\n%s\n", keydisp);
+            if (fingerprints[SSH_FPTYPE_SHA256])
+                fprintf(stderr, "SHA256 key fingerprint:\n%s\n",
+                        fingerprints[SSH_FPTYPE_SHA256]);
+            if (fingerprints[SSH_FPTYPE_MD5])
+                fprintf(stderr, "MD5 key fingerprint:\n%s\n",
+                        fingerprints[SSH_FPTYPE_MD5]);
+        } else {
+            break;
+        }
+    }
 
     /* In case of misplaced reflexes from another program, also recognise 'q'
      * as 'abandon connection rather than trust this key' */
