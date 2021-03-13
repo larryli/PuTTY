@@ -178,6 +178,7 @@ int console_confirm_weak_crypto_primitive(
 
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
+        postmsg(&cf);
         return 0;
     }
 
@@ -218,6 +219,7 @@ int console_confirm_weak_cached_hostkey(
 
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
+        postmsg(&cf);
         return 0;
     }
 
