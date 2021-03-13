@@ -216,7 +216,6 @@ static void ssh2_transport_free(PacketProtocolLayer *ppl)
     sfree(s->keystr);
     sfree(s->hostkey_str);
     strbuf_free(s->hostkeyblob);
-    sfree(s->fingerprint);
     if (s->hkey && !s->hostkeys) {
         ssh_key_free(s->hkey);
         s->hkey = NULL;

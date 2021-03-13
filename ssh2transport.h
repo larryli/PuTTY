@@ -174,7 +174,7 @@ struct ssh2_transport_state {
     transport_direction in, out, *cstrans, *sctrans;
     ptrlen hostkeydata, sigdata;
     strbuf *hostkeyblob;
-    char *keystr, *fingerprint;
+    char *keystr;
     ssh_key *hkey;                     /* actual host key */
     unsigned hkflags;                  /* signing flags, used in server */
     RSAKey *rsa_kex_key;             /* for RSA kex */
