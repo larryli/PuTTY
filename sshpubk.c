@@ -1732,51 +1732,73 @@ void ssh2_write_pubkey(FILE *fp, const char *comment,
 /* ----------------------------------------------------------------------
  * Utility functions to compute SSH-2 fingerprints in a uniform way.
  */
-char *ssh2_fingerprint_blob(ptrlen blob)
+static void ssh2_fingerprint_blob_md5(ptrlen blob, strbuf *sb)
 {
     unsigned char digest[16];
-    char fingerprint_str[16*3];
-    ptrlen algname;
-    const ssh_keyalg *alg;
-    int i;
-    BinarySource src[1];
 
-    /*
-     * The fingerprint hash itself is always just the MD5 of the blob.
-     */
     hash_simple(&ssh_md5, blob, digest);
-    for (i = 0; i < 16; i++)
-        sprintf(fingerprint_str + i*3, "%02x%s", digest[i], i==15 ? "" : ":");
+    for (unsigned i = 0; i < 16; i++)
+        strbuf_catf(sb, "%02x%s", digest[i], i==15 ? "" : ":");
+}
+
+static void ssh2_fingerprint_blob_sha256(ptrlen blob, strbuf *sb)
+{
+    unsigned char digest[32];
+    hash_simple(&ssh_sha256, blob, digest);
+
+    put_datapl(sb, PTRLEN_LITERAL("SHA256:"));
+
+    for (unsigned i = 0; i < 32; i += 3) {
+        char buf[5];
+        unsigned len = 32-i;
+        if (len > 3)
+            len = 3;
+        base64_encode_atom(digest + i, len, buf);
+        put_data(sb, buf, 4);
+    }
+    strbuf_chomp(sb, '=');
+}
+
+char *ssh2_fingerprint_blob(ptrlen blob, FingerprintType fptype)
+{
+    strbuf *sb = strbuf_new();
 
     /*
      * Identify the key algorithm, if possible.
+     *
+     * If we can't do that, then we have a seriously confused key
+     * blob, in which case we return only the hash.
      */
+    BinarySource src[1];
     BinarySource_BARE_INIT_PL(src, blob);
-    algname = get_string(src);
+    ptrlen algname = get_string(src);
     if (!get_err(src)) {
-        alg = find_pubkey_alg_len(algname);
+        const ssh_keyalg *alg = find_pubkey_alg_len(algname);
         if (alg) {
             int bits = ssh_key_public_bits(alg, blob);
-            return dupprintf("%.*s %d %s", PTRLEN_PRINTF(algname),
-                             bits, fingerprint_str);
+            strbuf_catf(sb, "%.*s %d ", PTRLEN_PRINTF(algname), bits);
         } else {
-            return dupprintf("%.*s %s", PTRLEN_PRINTF(algname),
-                             fingerprint_str);
+            strbuf_catf(sb, "%.*s ", PTRLEN_PRINTF(algname));
         }
-    } else {
-        /*
-         * No algorithm available (which means a seriously confused
-         * key blob, but there we go). Return only the hash.
-         */
-        return dupstr(fingerprint_str);
     }
+
+    switch (fptype) {
+      case SSH_FPTYPE_MD5:
+        ssh2_fingerprint_blob_md5(blob, sb);
+        break;
+      case SSH_FPTYPE_SHA256:
+        ssh2_fingerprint_blob_sha256(blob, sb);
+        break;
+    }
+
+    return strbuf_to_str(sb);
 }
 
-char *ssh2_fingerprint(ssh_key *data)
+char *ssh2_fingerprint(ssh_key *data, FingerprintType fptype)
 {
     strbuf *blob = strbuf_new();
     ssh_key_public_blob(data, BinarySink_UPCAST(blob));
-    char *ret = ssh2_fingerprint_blob(ptrlen_from_strbuf(blob));
+    char *ret = ssh2_fingerprint_blob(ptrlen_from_strbuf(blob), fptype);
     strbuf_free(blob);
     return ret;
 }

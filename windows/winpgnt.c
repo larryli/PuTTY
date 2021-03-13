@@ -353,7 +353,7 @@ void keylist_update(void)
              * stop and leave out a tab character. Urgh.
              */
 
-            p = ssh2_fingerprint(skey->key);
+            p = ssh2_fingerprint(skey->key, SSH_FPTYPE_DEFAULT);
             listentry = dupprintf("%s\t%s", p, skey->comment);
             sfree(p);
 

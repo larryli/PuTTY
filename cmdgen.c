@@ -1182,11 +1182,11 @@ int main(int argc, char **argv)
           fingerprint = rsa_ssh1_fingerprint(ssh1key);
         } else {
           if (ssh2key) {
-            fingerprint = ssh2_fingerprint(ssh2key->key);
+            fingerprint = ssh2_fingerprint(ssh2key->key, SSH_FPTYPE_DEFAULT);
           } else {
             assert(ssh2blob);
             fingerprint = ssh2_fingerprint_blob(
-                ptrlen_from_strbuf(ssh2blob));
+                ptrlen_from_strbuf(ssh2blob), SSH_FPTYPE_DEFAULT);
           }
         }
 

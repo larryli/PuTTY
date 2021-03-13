@@ -433,6 +433,24 @@ static Argon2Flavour get_argon2flavour(BinarySource *in)
     fatal_error("Argon2 flavour '%.*s': not found", PTRLEN_PRINTF(name));
 }
 
+static FingerprintType get_fptype(BinarySource *in)
+{
+    static const struct {
+        const char *key;
+        FingerprintType value;
+    } ids[] = {
+        {"md5", SSH_FPTYPE_MD5},
+        {"sha256", SSH_FPTYPE_SHA256},
+    };
+
+    ptrlen name = get_word(in);
+    for (size_t i = 0; i < lenof(ids); i++)
+        if (ptrlen_eq_string(name, ids[i].key))
+            return ids[i].value;
+
+    fatal_error("fingerprint type '%.*s': not found", PTRLEN_PRINTF(name));
+}
+
 static uintmax_t get_uint(BinarySource *in)
 {
     ptrlen word = get_word(in);
@@ -1310,6 +1328,7 @@ typedef const PrimeGenerationPolicy *TD_primegenpolicy;
 typedef struct mpint_list TD_mpint_list;
 typedef PockleStatus TD_pocklestatus;
 typedef Argon2Flavour TD_argon2flavour;
+typedef FingerprintType TD_fptype;
 
 #define FUNC0(rettype, function)                                        \
     static void handle_##function(BinarySource *in, strbuf *out) {      \

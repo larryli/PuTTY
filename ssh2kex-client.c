@@ -721,7 +721,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * host key, store it.
              */
             if (s->hkey) {
-                s->fingerprint = ssh2_fingerprint(s->hkey);
+                s->fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
                 ppl_logevent("GSS kex provided fallback host key:");
                 ppl_logevent("%s", s->fingerprint);
                 sfree(s->fingerprint);
@@ -779,7 +779,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * triggered on purpose to populate the transient cache.
              */
             assert(s->hkey);  /* only KEXTYPE_GSS lets this be null */
-            s->fingerprint = ssh2_fingerprint(s->hkey);
+            s->fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
 
             if (s->need_gss_transient_hostkey) {
                 ppl_logevent("Post-GSS rekey provided fallback host key:");
@@ -843,7 +843,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
              * Authenticate remote host: verify host key. (We've already
              * checked the signature of the exchange hash.)
              */
-            s->fingerprint = ssh2_fingerprint(s->hkey);
+            s->fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
             ppl_logevent("Host key fingerprint is:");
             ppl_logevent("%s", s->fingerprint);
             /* First check against manually configured host keys. */
@@ -882,7 +882,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
             assert(s->hkey);
             assert(ssh_key_alg(s->hkey) == s->cross_certifying);
 
-            s->fingerprint = ssh2_fingerprint(s->hkey);
+            s->fingerprint = ssh2_fingerprint(s->hkey, SSH_FPTYPE_DEFAULT);
             ppl_logevent("Storing additional host key for this host:");
             ppl_logevent("%s", s->fingerprint);
             sfree(s->fingerprint);

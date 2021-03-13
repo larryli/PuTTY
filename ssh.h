@@ -1328,14 +1328,23 @@ enum {
     SSH_KEYTYPE_SSH2_PUBLIC_RFC4716,
     SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH
 };
+
+typedef enum {
+    SSH_FPTYPE_MD5,
+    SSH_FPTYPE_SHA256,
+} FingerprintType;
+
+#define SSH_FPTYPE_DEFAULT SSH_FPTYPE_MD5
+#define SSH_N_FPTYPES (SSH_FPTYPE_SHA256 + 1)
+
 char *ssh1_pubkey_str(RSAKey *ssh1key);
 void ssh1_write_pubkey(FILE *fp, RSAKey *ssh1key);
 char *ssh2_pubkey_openssh_str(ssh2_userkey *key);
 void ssh2_write_pubkey(FILE *fp, const char *comment,
                        const void *v_pub_blob, int pub_len,
                        int keytype);
-char *ssh2_fingerprint_blob(ptrlen);
-char *ssh2_fingerprint(ssh_key *key);
+char *ssh2_fingerprint_blob(ptrlen, FingerprintType);
+char *ssh2_fingerprint(ssh_key *key, FingerprintType);
 int key_type(const Filename *filename);
 int key_type_s(BinarySource *src);
 const char *key_type_to_str(int type);
