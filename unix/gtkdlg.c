@@ -31,6 +31,7 @@
 #include "dialog.h"
 #include "tree234.h"
 #include "licence.h"
+#include "ssh.h"
 
 #if GTK_CHECK_VERSION(2,0,0)
 /* Decide which of GtkFileChooserDialog and GtkFileSelection to use */
@@ -3461,8 +3462,8 @@ static void verify_ssh_host_key_result_callback(void *vctx, int result)
 }
 
 int gtk_seat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     static const char absenttxt[] =
@@ -3513,7 +3514,11 @@ int gtk_seat_verify_ssh_host_key(
     if (ret == 0)                      /* success - key matched OK */
         return 1;
 
-    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype, fingerprint);
+    FingerprintType fptype_default =
+        ssh2_pick_default_fingerprint(fingerprints);
+
+    text = dupprintf((ret == 2 ? wrongtxt : absenttxt), keytype,
+                     fingerprints[fptype_default]);
 
     result_ctx = snew(struct verify_ssh_host_key_result_ctx);
     result_ctx->callback = callback;
@@ -3526,7 +3531,8 @@ int gtk_seat_verify_ssh_host_key(
 
     mainwin = GTK_WIDGET(gtk_seat_get_window(seat));
     msgbox = create_message_box(
-        mainwin, "PuTTY Security Alert", text, string_width(fingerprint), true,
+        mainwin, "PuTTY Security Alert", text,
+        string_width(fingerprints[fptype_default]), true,
         &buttons_hostkey, verify_ssh_host_key_result_callback, result_ctx);
     register_dialog(seat, DIALOG_SLOT_NETWORK_PROMPT, msgbox);
 

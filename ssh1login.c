@@ -256,10 +256,11 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                             "configured list");
             return;
         } else if (s->dlgret < 0) { /* none configured; use standard handling */
+            char *keydisp = ssh1_pubkey_str(&s->hostkey);
             s->dlgret = seat_verify_ssh_host_key(
-                s->ppl.seat, s->savedhost, s->savedport,
-                "rsa", keystr, fingerprints[SSH_FPTYPE_DEFAULT],
-                ssh1_login_dialog_callback, s);
+                s->ppl.seat, s->savedhost, s->savedport, "rsa", keystr,
+                keydisp, fingerprints, ssh1_login_dialog_callback, s);
+            sfree(keydisp);
             ssh2_free_all_fingerprints(fingerprints);
             sfree(keystr);
 #ifdef FUZZING

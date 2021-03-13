@@ -939,8 +939,8 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
 }
 
 int win_seat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
@@ -965,7 +965,8 @@ int win_seat_verify_ssh_host_key(
         struct hostkey_dialog_ctx ctx[1];
         ctx->keywords = keywords;
         ctx->values = values;
-        ctx->fingerprint = fingerprint;
+        ctx->fingerprint = fingerprints[
+            ssh2_pick_default_fingerprint(fingerprints)];
         ctx->iconid = (ret == 2 ? IDI_WARNING : IDI_QUESTION);
         ctx->helpctx = (ret == 2 ? WINHELP_CTX_errors_hostkey_changed :
                         WINHELP_CTX_errors_hostkey_absent);

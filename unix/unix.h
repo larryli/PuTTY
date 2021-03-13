@@ -218,8 +218,8 @@ void logevent_dlg(eventlog_stuff *estuff, const char *string);
 int gtkdlg_askappend(Seat *seat, Filename *filename,
                      void (*callback)(void *ctx, int result), void *ctx);
 int gtk_seat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx);
 int gtk_seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,

@@ -858,11 +858,13 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                 *aborted = true;
                 return;
             } else if (s->dlgret < 0) { /* none configured; use standard handling */
+                ssh2_userkey uk = { .key = s->hkey, .comment = NULL };
+                char *keydisp = ssh2_pubkey_openssh_str(&uk);
                 s->dlgret = seat_verify_ssh_host_key(
                     s->ppl.seat, s->savedhost, s->savedport,
-                    ssh_key_cache_id(s->hkey), s->keystr,
-                    fingerprints[SSH_FPTYPE_DEFAULT],
-                    ssh2_transport_dialog_callback, s);
+                    ssh_key_cache_id(s->hkey), s->keystr, keydisp,
+                    fingerprints, ssh2_transport_dialog_callback, s);
+                sfree(keydisp);
                 ssh2_free_all_fingerprints(fingerprints);
 #ifdef FUZZING
                 s->dlgret = 1;
@@ -875,6 +877,7 @@ void ssh2kex_coroutine(struct ssh2_transport_state *s, bool *aborted)
                     return;
                 }
             }
+
             /*
              * Save this host key, to check against the one presented in
              * subsequent rekeys.

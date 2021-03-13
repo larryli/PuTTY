@@ -103,8 +103,8 @@ static int block_and_read(int fd, void *buf, size_t len)
 }
 
 int console_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **fingerprints,
     void (*callback)(void *ctx, int result), void *ctx)
 {
     int ret;
@@ -132,7 +132,10 @@ int console_verify_ssh_host_key(
         prompt = hk_absentmsg_interactive_prompt;
     }
 
-    fprintf(stderr, common_fmt, keytype, fingerprint);
+    FingerprintType fptype_default =
+        ssh2_pick_default_fingerprint(fingerprints);
+
+    fprintf(stderr, common_fmt, keytype, fingerprints[fptype_default]);
     if (console_batch_mode) {
         fputs(console_abandoned_msg, stderr);
         return 0;

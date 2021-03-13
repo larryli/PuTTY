@@ -972,8 +972,8 @@ struct SeatVtable {
      *    or +1'.
      */
     int (*verify_ssh_host_key)(
-        Seat *seat, const char *host, int port,
-        const char *keytype, char *keystr, char *key_fingerprint,
+        Seat *seat, const char *host, int port, const char *keytype,
+        char *keystr, const char *keydisp, char **key_fingerprints,
         void (*callback)(void *ctx, int result), void *ctx);
 
     /*
@@ -1095,8 +1095,9 @@ static inline void seat_set_busy_status(Seat *seat, BusyStatus status)
 { seat->vt->set_busy_status(seat, status); }
 static inline int seat_verify_ssh_host_key(
     Seat *seat, const char *h, int p, const char *ktyp, char *kstr,
-    char *fp, void (*cb)(void *ctx, int result), void *ctx)
-{ return seat->vt->verify_ssh_host_key(seat, h, p, ktyp, kstr, fp, cb, ctx); }
+    const char *kdsp, char **fps, void (*cb)(void *ctx, int result), void *ctx)
+{ return seat->vt->verify_ssh_host_key(seat, h, p, ktyp, kstr, kdsp, fps,
+                                       cb, ctx); }
 static inline int seat_confirm_weak_crypto_primitive(
     Seat *seat, const char *atyp, const char *aname,
     void (*cb)(void *ctx, int result), void *ctx)
@@ -1159,8 +1160,8 @@ void nullseat_update_specials_menu(Seat *seat);
 char *nullseat_get_ttymode(Seat *seat, const char *mode);
 void nullseat_set_busy_status(Seat *seat, BusyStatus status);
 int nullseat_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *key_fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **key_fingerprints,
     void (*callback)(void *ctx, int result), void *ctx);
 int nullseat_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
@@ -1191,8 +1192,8 @@ bool nullseat_get_cursor_position(Seat *seat, int *x, int *y);
 
 void console_connection_fatal(Seat *seat, const char *message);
 int console_verify_ssh_host_key(
-    Seat *seat, const char *host, int port,
-    const char *keytype, char *keystr, char *key_fingerprint,
+    Seat *seat, const char *host, int port, const char *keytype,
+    char *keystr, const char *keydisp, char **key_fingerprints,
     void (*callback)(void *ctx, int result), void *ctx);
 int console_confirm_weak_crypto_primitive(
     Seat *seat, const char *algtype, const char *algname,
