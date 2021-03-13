@@ -2211,14 +2211,15 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                     goto out;
                 }
             }
-            char *fingerprint = rsa_ssh1_fingerprint(&rkey);
+            char **fingerprints = rsa_ssh1_fake_all_fingerprints(&rkey);
             freersakey(&rkey);
 
-            callback(callback_ctx, fingerprint, cbkey.comment,
+            callback(callback_ctx, fingerprints, cbkey.comment,
                      kl1->keys[i].flags, &cbkey);
+
             strbuf_free(cbkey.blob);
             sfree(cbkey.comment);
-            sfree(fingerprint);
+            ssh2_free_all_fingerprints(fingerprints);
         }
     }
 
@@ -2229,12 +2230,13 @@ int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
             cbkey.comment = mkstr(kl2->keys[i].comment);
             cbkey.ssh_version = 2;
 
-            char *fingerprint = ssh2_fingerprint_blob(kl2->keys[i].blob,
-                                                      SSH_FPTYPE_DEFAULT);
+            char **fingerprints =
+                ssh2_all_fingerprints_for_blob(kl2->keys[i].blob);
 
-            callback(callback_ctx, fingerprint, cbkey.comment,
+            callback(callback_ctx, fingerprints, cbkey.comment,
                      kl2->keys[i].flags, &cbkey);
-            sfree(fingerprint);
+
+            ssh2_free_all_fingerprints(fingerprints);
             sfree(cbkey.comment);
             strbuf_free(cbkey.blob);
         }

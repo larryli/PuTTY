@@ -230,10 +230,8 @@ struct pageant_pubkey {
 struct pageant_pubkey *pageant_pubkey_copy(struct pageant_pubkey *key);
 void pageant_pubkey_free(struct pageant_pubkey *key);
 
-typedef void (*pageant_key_enum_fn_t)(void *ctx,
-                                      const char *fingerprint,
-                                      const char *comment,
-                                      uint32_t ext_flags,
+typedef void (*pageant_key_enum_fn_t)(void *ctx, char **fingerprints,
+                                      const char *comment, uint32_t ext_flags,
                                       struct pageant_pubkey *key);
 int pageant_enum_keys(pageant_key_enum_fn_t callback, void *callback_ctx,
                       char **retstr);

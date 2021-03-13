@@ -450,6 +450,7 @@ static const char *display = NULL;
 static enum {
     PROMPT_UNSPEC, PROMPT_TTY, PROMPT_GUI
 } prompt_type = PROMPT_UNSPEC;
+static FingerprintType key_list_fptype = SSH_FPTYPE_DEFAULT;
 
 static char *askpass_tty(const char *prompt)
 {
@@ -576,7 +577,7 @@ static bool unix_add_keyfile(const char *filename_str, bool add_encrypted)
     return ret;
 }
 
-void key_list_callback(void *ctx, const char *fingerprint, const char *comment,
+void key_list_callback(void *ctx, char **fingerprints, const char *comment,
                        uint32_t ext_flags, struct pageant_pubkey *key)
 {
     const char *mode = "";
@@ -585,47 +586,97 @@ void key_list_callback(void *ctx, const char *fingerprint, const char *comment,
     else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
         mode = " (re-encryptable)";
 
-    printf("%s %s%s\n", fingerprint, comment, mode);
+    FingerprintType this_type =
+        ssh2_pick_fingerprint(fingerprints, key_list_fptype);
+    printf("%s %s%s\n", fingerprints[this_type], comment, mode);
 }
 
 struct key_find_ctx {
     const char *string;
     bool match_fp, match_comment;
+    bool match_fptypes[SSH_N_FPTYPES];
     struct pageant_pubkey *found;
     int nfound;
 };
 
-bool match_fingerprint_string(const char *string, const char *fingerprint)
+static bool match_fingerprint_string(
+    const char *string_orig, char **fingerprints,
+    const struct key_find_ctx *ctx)
 {
     const char *hash;
 
-    /* Find the hash in the fingerprint string. It'll be the word at the end. */
-    hash = strrchr(fingerprint, ' ');
-    assert(hash);
-    hash++;
+    for (unsigned fptype = 0; fptype < SSH_N_FPTYPES; fptype++) {
+        if (!ctx->match_fptypes[fptype])
+            continue;
 
-    /* Now see if the search string is a prefix of the full hash,
-     * neglecting colons and case differences. */
-    while (1) {
-        while (*string == ':') string++;
-        while (*hash == ':') hash++;
-        if (!*string)
-            return true;
-        if (tolower((unsigned char)*string) != tolower((unsigned char)*hash))
-            return false;
-        string++;
+        const char *fingerprint = fingerprints[fptype];
+        if (!fingerprint)
+            continue;
+
+        /* Find the hash in the fingerprint string. It'll be the word
+         * at the end. */
+        hash = strrchr(fingerprint, ' ');
+        assert(hash);
         hash++;
+
+        const char *string = string_orig;
+        bool case_sensitive;
+        const char *ignore_chars = "";
+
+        switch (fptype) {
+          case SSH_FPTYPE_MD5:
+            /* MD5 fingerprints are in hex, so disregard case differences. */
+            case_sensitive = false;
+            /* And we don't really need to force the user to type the
+             * colons in between the digits, which are always the
+             * same. */
+            ignore_chars = ":";
+            break;
+          case SSH_FPTYPE_SHA256:
+            /* Skip over the "SHA256:" prefix, which we don't really
+             * want to force the user to type. On the other hand,
+             * tolerate it on the input string. */
+            assert(strstartswith(hash, "SHA256:"));
+            hash += 7;
+            if (strstartswith(string, "SHA256:"))
+                string += 7;
+            /* SHA256 fingerprints are base64, which is intrinsically
+             * case sensitive. */
+            case_sensitive = true;
+            break;
+        }
+
+        /* Now see if the search string is a prefix of the full hash,
+         * neglecting colons and (where appropriate) case differences. */
+        while (1) {
+            string += strspn(string, ignore_chars);
+            hash += strspn(hash, ignore_chars);
+            if (!*string)
+                return true;
+            char sc = *string, hc = *hash;
+            if (!case_sensitive) {
+                sc = tolower((unsigned char)sc);
+                hc = tolower((unsigned char)hc);
+            }
+            if (sc != hc)
+                break;
+            string++;
+            hash++;
+        }
     }
+
+    return false;
 }
 
-void key_find_callback(void *vctx, const char *fingerprint,
+void key_find_callback(void *vctx, char **fingerprints,
                        const char *comment, uint32_t ext_flags,
                        struct pageant_pubkey *key)
 {
     struct key_find_ctx *ctx = (struct key_find_ctx *)vctx;
 
     if ((ctx->match_comment && !strcmp(ctx->string, comment)) ||
-        (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprint)))
+        (ctx->match_fp && match_fingerprint_string(ctx->string, fingerprints,
+                                                   ctx)))
     {
         if (!ctx->found)
             ctx->found = pageant_pubkey_copy(key);
@@ -639,6 +690,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
     struct pageant_pubkey key_in, *key_ret;
     bool try_file = true, try_fp = true, try_comment = true;
     bool file_errors = false;
+    bool try_all_fptypes = true;
+    FingerprintType fptype = SSH_FPTYPE_DEFAULT;
 
     /*
      * Trim off disambiguating prefixes telling us how to interpret
@@ -661,6 +714,18 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
         string += 12;
         try_file = false;
         try_comment = false;
+    } else if (!strnicmp(string, "md5:", 4)) {
+        string += 4;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_MD5;
+    } else if (!strncmp(string, "sha256:", 7)) {
+        string += 7;
+        try_file = false;
+        try_comment = false;
+        try_all_fptypes = false;
+        fptype = SSH_FPTYPE_SHA256;
     }
 
     /*
@@ -746,6 +811,8 @@ struct pageant_pubkey *find_key(const char *string, char **retstr)
     ctx->string = string;
     ctx->match_fp = try_fp;
     ctx->match_comment = try_comment;
+    for (unsigned i = 0; i < SSH_N_FPTYPES; i++)
+        ctx->match_fptypes[i] = (try_all_fptypes || i == fptype);
     ctx->found = NULL;
     ctx->nfound = 0;
     if (pageant_enum_keys(key_find_callback, ctx, retstr) ==
@@ -1325,6 +1392,24 @@ int main(int argc, char **argv)
                 } else {
                     fprintf(stderr, "pageant: expected a pathname "
                             "after --symlink\n");
+                    exit(1);
+                }
+            } else if (!strcmp(p, "--fptype")) {
+                const char *keyword;
+                if (--argc > 0) {
+                    keyword = *++argv;
+                } else {
+                    fprintf(stderr, "pageant: expected a pathname "
+                            "after --fptype\n");
+                    exit(1);
+                }
+                if (!strcmp(keyword, "md5"))
+                    key_list_fptype = SSH_FPTYPE_MD5;
+                else if (!strcmp(keyword, "sha256"))
+                    key_list_fptype = SSH_FPTYPE_SHA256;
+                else {
+                    fprintf(stderr, "pageant: unknown fingerprint type `%s'\n",
+                            keyword);
                     exit(1);
                 }
             } else if (!strcmp(p, "--")) {
