@@ -6,20 +6,7 @@
  * the Internet-Draft description:
  *
  *   https://github.com/P-H-C/phc-winner-argon2
- *   https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-argon2-12
- *
- * Note on the spec: I believe draft-irtf-cfrg-argon2-12 has an error in the
- * description. When making the pseudorandom data used for calculating Argon2i
- * block indices, the spec in the Github repository says that you make a block
- * of preimage data and then apply the block-mixing function G to it _twice_
- * in iteration. But draft-irtf-cfrg-argon2-12 only mentions applying it once.
- *
- * The test vectors and reference implementation settle the difference: the
- * reference implementation also applies G twice, and comes with a program
- * that regenerates the test vectors as found in draft-irtf-cfrg-argon2-12. So
- * draft-irtf-cfrg-argon2-12 is not consistent within itself - the algorithm
- * with G applied just once does not pass its own test vectors. I'm convinced
- * that the intention was to apply G twice.
+ *   https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-argon2-13
  */
 
 #include <assert.h>
@@ -343,15 +330,14 @@ static void argon2_internal(uint32_t p, uint32_t T, uint32_t m, uint32_t t,
                          * this point in the algorithm (array position and
                          * pass number) to make all the hash outputs distinct.
                          *
-                         * The hash we use is G itself, applied twice (see
-                         * comment at top of file). So we generate 1Kb of data
-                         * at a time, which is enough for 128 (J1,J2) pairs.
-                         * Hence we only need to do the hashing if our index
-                         * within the segment is a multiple of 128, or if
-                         * we're at the very start of the algorithm (in which
-                         * case we started at 2 rather than 0). After that we
-                         * can just keep picking data out of our most recent
-                         * hash output.
+                         * The hash we use is G itself, applied twice. So we
+                         * generate 1Kb of data at a time, which is enough for
+                         * 128 (J1,J2) pairs. Hence we only need to do the
+                         * hashing if our index within the segment is a
+                         * multiple of 128, or if we're at the very start of
+                         * the algorithm (in which case we started at 2 rather
+                         * than 0). After that we can just keep picking data
+                         * out of our most recent hash output.
                          */
                         if (jpre == jstart || jpre % 128 == 0) {
                             /*
