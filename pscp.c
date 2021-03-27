@@ -2201,7 +2201,7 @@ static void usage(void)
     printf("  -i key    private key file for user authentication\n");
     printf("  -noagent  disable use of Pageant\n");
     printf("  -agent    enable use of Pageant\n");
-    printf("  -hostkey aa:bb:cc:...\n");
+    printf("  -hostkey keyid\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -batch    disable all interactive prompts\n");
     printf("  -no-sanitise-stderr  don't strip control chars from"

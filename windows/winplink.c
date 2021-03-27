@@ -151,7 +151,7 @@ static void usage(void)
     printf("  -agent    enable use of Pageant\n");
     printf("  -noshare  disable use of connection sharing\n");
     printf("  -share    enable use of connection sharing\n");
-    printf("  -hostkey aa:bb:cc:...\n");
+    printf("  -hostkey keyid\n");
     printf("            manually specify a host key (may be repeated)\n");
     printf("  -sanitise-stderr, -sanitise-stdout, "
            "-no-sanitise-stderr, -no-sanitise-stdout\n");

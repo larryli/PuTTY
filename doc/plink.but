@@ -79,7 +79,7 @@ use Plink:
 \c   -agent    enable use of Pageant
 \c   -noshare  disable use of connection sharing
 \c   -share    enable use of connection sharing
-\c   -hostkey aa:bb:cc:...
+\c   -hostkey keyid
 \c             manually specify a host key (may be repeated)
 \c   -sanitise-stderr, -sanitise-stdout, -no-sanitise-stderr, -no-sanitise-stdout
 \c             do/don't strip control chars from standard output/error

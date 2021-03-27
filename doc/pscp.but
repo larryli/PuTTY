@@ -60,7 +60,7 @@ use PSCP:
 \c   -i key    private key file for user authentication
 \c   -noagent  disable use of Pageant
 \c   -agent    enable use of Pageant
-\c   -hostkey aa:bb:cc:...
+\c   -hostkey keyid
 \c             manually specify a host key (may be repeated)
 \c   -batch    disable all interactive prompts
 \c   -no-sanitise-stderr  don't strip control chars from standard error
