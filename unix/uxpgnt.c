@@ -1399,7 +1399,7 @@ int main(int argc, char **argv)
                 if (--argc > 0) {
                     keyword = *++argv;
                 } else {
-                    fprintf(stderr, "pageant: expected a pathname "
+                    fprintf(stderr, "pageant: expected a type string "
                             "after --fptype\n");
                     exit(1);
                 }
