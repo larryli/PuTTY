@@ -2591,8 +2591,8 @@ NIST-standardised elliptic curves.
 \b \q{RSA}: the ordinary \i{RSA} algorithm.
 
 If PuTTY already has one or more host keys stored for the server,
-it will prefer to use one of those, even if the server has a key
-type that is higher in the preference order. You can add such a
+it will by default prefer to use one of those, even if the server has
+a key type that is higher in the preference order. You can add such a
 key to PuTTY's cache from within an existing session using the
 \q{Special Commands} menu; see \k{using-specials}.
 
@@ -2657,9 +2657,13 @@ You can remove keys again with the \q{Remove} button.
 
 The text describing a host key can be in one of the following formats:
 
-\b An MD5-based host key fingerprint of the form displayed in PuTTY's
-Event Log and host key dialog boxes, i.e. sixteen 2-digit hex numbers
-separated by colons.
+\b An \I{SHA256 fingerprint}SHA-256-based host key fingerprint of the
+form displayed in PuTTY's Event Log and host key dialog boxes,
+i.e. \cq{SHA256:} followed by 43 case-sensitive characters.
+
+\b An \I{MD5 fingerprint}MD5-based host key fingerprint, i.e. sixteen
+2-digit hex numbers separated by colons, optionally preceded by the
+prefix \cq{MD5:}. (The case of the characters does not matter.)
 
 \b A base64-encoded blob describing an SSH-2 public key in
 OpenSSH's one-line public key format. How you acquire a public key in

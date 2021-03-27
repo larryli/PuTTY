@@ -60,8 +60,8 @@ The large list box in the Pageant main window lists the private keys
 that are currently loaded into Pageant. The list might look
 something like this:
 
-\c ssh-rsa 2048 22:d6:69:c9:22:51:ac:cb:b9:15:67:47:f7:65:6d:d7 k1
-\c ssh-dss 2048 e4:6c:69:f3:4f:fc:cf:fc:96:c0:88:34:a7:1e:59:d7 k2
+\c ssh-ed25519  SHA256:TddlQk20DVs4LRcAsIfDN9pInKpY06D+h4kSHwWAj4w
+\c ssh-rsa 2048 SHA256:8DFtyHm3kQihgy52nzX96qMcEVOq7/yJmmwQQhBWYFg
 
 For each key, the list box will tell you:
 
@@ -73,12 +73,20 @@ For each key, the list box will tell you:
 \c{ssh-ed448} (an Ed448 key for use with the SSH-2 protocol),
 or \c{ssh1} (an RSA key for use with the old SSH-1 protocol).
 
-\b The size (in bits) of the key.
+\b The size (in bits) of the key, for key types that come in different
+sizes.
 
 \b The \I{key fingerprint}fingerprint for the public key. This should be
 the same fingerprint given by PuTTYgen, and (hopefully) also the same
 fingerprint shown by remote utilities such as \i\c{ssh-keygen} when
 applied to your \c{authorized_keys} file.
+
+\lcont{
+By default this is shown in the \q{SHA256} format. You can change to the
+older \q{MD5} format (which looks like \c{aa:bb:cc:...}) with the
+\q{Fingerprint type} drop-down, but bear in mind that this format is
+less secure and should be avoided for comparison purposes where possible.
+}
 
 \b The comment attached to the key.
 

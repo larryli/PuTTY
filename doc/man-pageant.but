@@ -18,8 +18,8 @@
 \e bbbbbbb   bb   bbbbbbbb   bbbbbbbbbbbbbbbb   iiiiiiiiiiiiii
 \c pageant -D
 \e bbbbbbb bb
-\c pageant -l
-\e bbbbbbb bb
+\c pageant -l [ --fptype format ]
+\e bbbbbbb bb   bbbbbbbb iiiiii
 \c pageant --askpass prompt
 \e bbbbbbb bbbbbbbbb iiiiii
 
@@ -188,7 +188,8 @@ The private key files must be in PuTTY's \cw{.ppk} file format.
 \dt \cw{-l}
 
 \dd List the keys currently in the running agent. Each key's
-fingerprint and comment string will be shown.
+fingerprint and comment string will be shown. (Use the
+\cw{--fptype} opton to change the fingerprint format.)
 
 \dt \cw{--public} \e{key-identifiers}
 
@@ -205,8 +206,8 @@ in \cw{.ppk} format) or just its public half.
 
 \b The key's comment string, as shown by \cw{pageant -l}.
 
-\b Enough hex digits of the key's fingerprint to be unique among keys
-currently loaded into the agent.
+\b Enough of one of the key's fingerprint formats to be unique among
+keys currently loaded into the agent.
 
 If Pageant can uniquely identify one key by interpreting the
 \e{key-identifier} in any of these ways, it will assume that key was
@@ -214,9 +215,24 @@ the one you meant. If it cannot, you will have to specify more detail.
 
 If you find that your desired \e{key-identifier} string can be validly
 interpreted as more than one of the above \e{kinds} of identification,
-you can disambiguate by prefixing it with \cq{file:}, \cq{comment:} or
-\cq{fp:} to indicate that it is a filename, comment string or
-fingerprint prefix respectively.
+you can disambiguate by prefixing it as follows:
+
+\dt \cq{file:}
+
+\dd to indicate that it is a filename
+
+\dt \cq{comment:}
+
+\dd to indicate that it is a comment string
+
+\dt \cq{fp:}
+
+\dd to indicate that it is a fingerprint; any fingerprint format will
+be matched
+
+\dt \cq{sha256:} or \cq{md5:}
+
+\dd to indicate that it is a fingerprint of a specific format
 
 }
 
@@ -291,6 +307,11 @@ style of POSIX / Bourne shells (\cw{-s}) or C shells (\cw{-c})
 respectively. If neither option is given, Pageant will guess based on
 whether the environment variable \cw{SHELL} has a value ending in
 \cq{csh}.
+
+\dt \cw{--fptype sha256}, \cw{--fptype md5}
+
+\dd Specify the fingerprint format to print. Only applicable when
+listing fingerprints with \cw{-l}.
 
 \dt \cw{--gui-prompt}, \cw{--tty-prompt}
 
