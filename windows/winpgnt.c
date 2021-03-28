@@ -293,104 +293,108 @@ void old_keyfile_warning(void)
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
 
+static void keylist_update_callback(
+    void *ctx, char **fingerprints, const char *comment, uint32_t ext_flags,
+    struct pageant_pubkey *key)
+{
+    FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
+    const char *fingerprint = fingerprints[this_type];
+    char *listentry;
+
+    switch (key->ssh_version) {
+      case 1: {
+        listentry = dupprintf("ssh1\t%s\t%s", fingerprint, comment);
+
+        /*
+         * Replace the space in the fingerprint (between bit count and
+         * hash) with a tab, for nice alignment in the box.
+         */
+        char *p = strchr(listentry, ' ');
+        if (p)
+            *p = '\t';
+        break;
+      }
+
+      case 2: {
+        /*
+         * For nice alignment in the list box, we would ideally want
+         * every entry to align to the tab stop settings, and have a
+         * column for algorithm name, one for bit count, one for hex
+         * fingerprint, and one for key comment.
+         *
+         * Unfortunately, some of the algorithm names are so long that
+         * they overflow into the bit-count field. Fortunately, at the
+         * moment, those are _precisely_ the algorithm names that
+         * don't need a bit count displayed anyway (because for
+         * NIST-style ECDSA the bit count is mentioned in the
+         * algorithm name, and for ssh-ed25519 there is only one
+         * possible value anyway). So we fudge this by simply omitting
+         * the bit count field in that situation.
+         *
+         * This is fragile not only in the face of further key types
+         * that don't follow this pattern, but also in the face of
+         * font metrics changes - the Windows semantics for list box
+         * tab stops is that \t aligns to the next one you haven't
+         * already exceeded, so I have to guess when the key type will
+         * overflow past the bit-count tab stop and leave out a tab
+         * character. Urgh.
+         */
+        listentry = dupprintf("%s\t%s", fingerprint, comment);
+
+        size_t pos = 0;
+        while (1) {
+            pos += strcspn(listentry + pos, " :");
+            if (listentry[pos] == ':' || !listentry[pos])
+                break;
+            listentry[pos++] = '\t';
+        }
+
+        BinarySource src[1];
+        BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(key->blob));
+        ptrlen algname = get_string(src);
+        const ssh_keyalg *alg = find_pubkey_alg_len(algname);
+
+        if (alg != &ssh_dss && alg != &ssh_rsa) {
+            /*
+             * Remove the bit-count field, which is between the
+             * first and second \t.
+             */
+            int outpos;
+            pos = 0;
+            while (listentry[pos] && listentry[pos] != '\t')
+                pos++;
+            outpos = pos;
+            pos++;
+            while (listentry[pos] && listentry[pos] != '\t')
+                pos++;
+            while (1) {
+                if ((listentry[outpos] = listentry[pos]) == '\0')
+                    break;
+                outpos++;
+                pos++;
+            }
+        }
+        break;
+      }
+    }
+
+    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM)listentry);
+    sfree(listentry);
+}
+
 /*
  * Update the visible key list.
  */
 void keylist_update(void)
 {
-    RSAKey *rkey;
-    ssh2_userkey *skey;
-    int i;
-
     if (keylist) {
         SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
-        for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
-            char *listentry, *fp, *p;
 
-            fp = rsa_ssh1_fingerprint(rkey);
-            listentry = dupprintf("ssh1\t%s", fp);
-            sfree(fp);
+        char *errmsg;
+        int status = pageant_enum_keys(keylist_update_callback, NULL, &errmsg);
+        assert(status == PAGEANT_ACTION_OK);
+        assert(!errmsg);
 
-            /*
-             * Replace two spaces in the fingerprint with tabs, for
-             * nice alignment in the box.
-             */
-            p = strchr(listentry, ' ');
-            if (p)
-                *p = '\t';
-            p = strchr(listentry, ' ');
-            if (p)
-                *p = '\t';
-            SendDlgItemMessage(keylist, 100, LB_ADDSTRING,
-                               0, (LPARAM) listentry);
-            sfree(listentry);
-        }
-        for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-            char *listentry, *p;
-            int pos;
-
-            /*
-             * For nice alignment in the list box, we would ideally
-             * want every entry to align to the tab stop settings, and
-             * have a column for algorithm name, one for bit count,
-             * one for hex fingerprint, and one for key comment.
-             *
-             * Unfortunately, some of the algorithm names are so long
-             * that they overflow into the bit-count field.
-             * Fortunately, at the moment, those are _precisely_ the
-             * algorithm names that don't need a bit count displayed
-             * anyway (because for NIST-style ECDSA the bit count is
-             * mentioned in the algorithm name, and for ssh-ed25519
-             * there is only one possible value anyway). So we fudge
-             * this by simply omitting the bit count field in that
-             * situation.
-             *
-             * This is fragile not only in the face of further key
-             * types that don't follow this pattern, but also in the
-             * face of font metrics changes - the Windows semantics
-             * for list box tab stops is that \t aligns to the next
-             * one you haven't already exceeded, so I have to guess
-             * when the key type will overflow past the bit-count tab
-             * stop and leave out a tab character. Urgh.
-             */
-
-            p = ssh2_fingerprint(skey->key, fptype);
-            listentry = dupprintf("%s\t%s", p, skey->comment);
-            sfree(p);
-
-            pos = 0;
-            while (1) {
-                pos += strcspn(listentry + pos, " :");
-                if (listentry[pos] == ':' || !listentry[pos])
-                    break;
-                listentry[pos++] = '\t';
-            }
-            if (ssh_key_alg(skey->key) != &ssh_dss &&
-                ssh_key_alg(skey->key) != &ssh_rsa) {
-                /*
-                 * Remove the bit-count field, which is between the
-                 * first and second \t.
-                 */
-                int outpos;
-                pos = 0;
-                while (listentry[pos] && listentry[pos] != '\t')
-                    pos++;
-                outpos = pos;
-                pos++;
-                while (listentry[pos] && listentry[pos] != '\t')
-                    pos++;
-                while (1) {
-                    if ((listentry[outpos] = listentry[pos]) == '\0')
-                        break;
-                    outpos++;
-                    pos++;
-                }
-            }
-
-            SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0,
-                               (LPARAM) listentry);
-            sfree(listentry);
-        }
         SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
     }
 }
@@ -449,6 +453,27 @@ static void win_add_keyfile(Filename *filename)
   error:
     message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
                 HELPCTXID(errors_cantloadkey));
+  done:
+    sfree(err);
+    return;
+}
+
+static void win_add_keyfile_encrypted(Filename *filename)
+{
+    char *err;
+    int ret;
+
+    ret = pageant_add_keyfile(filename, NULL, &err, true);
+    if (ret == PAGEANT_ACTION_OK) {
+        goto done;
+    } else if (ret == PAGEANT_ACTION_FAILURE) {
+        goto error;
+    }
+
+  error:
+    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
+                HELPCTXID(errors_cantloadkey));
+
   done:
     sfree(err);
     return;
