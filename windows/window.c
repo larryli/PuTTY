@@ -82,6 +82,14 @@
 #define WHEEL_DELTA 120
 #endif
 
+/* DPI awareness support */
+#ifndef WM_DPICHANGED
+#define WM_DPICHANGED 0x02E0
+#define WM_DPICHANGED_BEFOREPARENT 0x02E2
+#define WM_DPICHANGED_AFTERPARENT 0x02E3
+#define WM_GETDPISCALEDSIZE 0x02E4
+#endif
+
 /* VK_PACKET, used to send Unicode characters in WM_KEYDOWNs */
 #ifndef VK_PACKET
 #define VK_PACKET 0xE7
@@ -94,6 +102,7 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                         unsigned char *output);
 static void init_palette(void);
 static void init_fonts(int, int);
+static void init_dpi_info(void);
 static void another_font(int);
 static void deinit_fonts(void);
 static void set_input_locale(HKL);
@@ -192,6 +201,16 @@ static HPALETTE pal;
 static LPLOGPALETTE logpal;
 bool tried_pal = false;
 COLORREF colorref_modifier = 0;
+
+enum MONITOR_DPI_TYPE { MDT_EFFECTIVE_DPI, MDT_ANGULAR_DPI, MDT_RAW_DPI, MDT_DEFAULT };
+DECL_WINDOWS_FUNCTION(static, HRESULT, GetDpiForMonitor, (HMONITOR hmonitor, enum MONITOR_DPI_TYPE dpiType, UINT *dpiX, UINT *dpiY));
+DECL_WINDOWS_FUNCTION(static, HRESULT, GetSystemMetricsForDpi, (int nIndex, UINT dpi));
+DECL_WINDOWS_FUNCTION(static, HRESULT, AdjustWindowRectExForDpi, (LPRECT lpRect, DWORD dwStyle, BOOL bMenu, DWORD dwExStyle, UINT dpi));
+
+static struct _dpi_info {
+    POINT cur_dpi;
+    RECT new_wnd_rect;
+} dpi_info;
 
 static HBITMAP caretbm;
 
@@ -713,6 +732,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         wgs.term_hwnd = CreateWindowExW(
             exwinmode, uappname, uappname, winmode, CW_USEDEFAULT,
             CW_USEDEFAULT, guess_width, guess_height, NULL, NULL, inst, NULL);
+        memset(&dpi_info, 0, sizeof(struct _dpi_info));
+        init_dpi_info();
         sfree(uappname);
     }
 
@@ -1341,6 +1362,30 @@ static int get_font_width(HDC hdc, const TEXTMETRIC *tm)
     return ret;
 }
 
+static void init_dpi_info(void)
+{
+    if (dpi_info.cur_dpi.x == 0 || dpi_info.cur_dpi.y == 0) {
+        if (p_GetDpiForMonitor) {
+            UINT dpiX, dpiY;
+            HMONITOR currentMonitor = MonitorFromWindow(
+                wgs.term_hwnd, MONITOR_DEFAULTTOPRIMARY);
+            if (p_GetDpiForMonitor(currentMonitor, MDT_EFFECTIVE_DPI,
+                                   &dpiX, &dpiY) == S_OK) {
+                dpi_info.cur_dpi.x = (int)dpiX;
+                dpi_info.cur_dpi.y = (int)dpiY;
+            }
+        }
+
+        /* Fall back to system DPI */
+        if (dpi_info.cur_dpi.x == 0 || dpi_info.cur_dpi.y == 0) {
+            HDC hdc = GetDC(wgs.term_hwnd);
+            dpi_info.cur_dpi.x = GetDeviceCaps(hdc, LOGPIXELSX);
+            dpi_info.cur_dpi.y = GetDeviceCaps(hdc, LOGPIXELSY);
+            ReleaseDC(wgs.term_hwnd, hdc);
+        }
+    }
+}
+
 /*
  * Initialise all the fonts we will need initially. There may be as many as
  * three or as few as one.  The other (potentially) twenty-one fonts are done
@@ -1397,7 +1442,7 @@ static void init_fonts(int pick_width, int pick_height)
         font_height = font->height;
         if (font_height > 0) {
             font_height =
-                -MulDiv(font_height, GetDeviceCaps(hdc, LOGPIXELSY), 72);
+                -MulDiv(font_height, dpi_info.cur_dpi.y, 72);
         }
     }
     font_width = pick_width;
@@ -1791,6 +1836,35 @@ static void reset_window(int reinit) {
 #endif
             }
         }
+        return;
+    }
+
+    /* Resize window after DPI change */
+    if (reinit == 3 && p_GetSystemMetricsForDpi && p_AdjustWindowRectExForDpi) {
+        RECT rect;
+        rect.left = rect.top = 0;
+        rect.right = (font_width * term->cols);
+        if (conf_get_bool(conf, CONF_scrollbar))
+            rect.right += p_GetSystemMetricsForDpi(SM_CXVSCROLL,
+                                                   dpi_info.cur_dpi.x);
+        rect.bottom = (font_height * term->rows);
+        p_AdjustWindowRectExForDpi(
+            &rect, GetWindowLongPtr(wgs.term_hwnd, GWL_STYLE),
+            FALSE, GetWindowLongPtr(wgs.term_hwnd, GWL_EXSTYLE),
+            dpi_info.cur_dpi.x);
+        rect.right += (window_border * 2);
+        rect.bottom += (window_border * 2);
+        OffsetRect(&dpi_info.new_wnd_rect,
+            ((dpi_info.new_wnd_rect.right - dpi_info.new_wnd_rect.left) -
+             (rect.right - rect.left)) / 2,
+            ((dpi_info.new_wnd_rect.bottom - dpi_info.new_wnd_rect.top) -
+             (rect.bottom - rect.top)) / 2);
+        SetWindowPos(wgs.term_hwnd, NULL,
+                     dpi_info.new_wnd_rect.left, dpi_info.new_wnd_rect.top,
+                     rect.right - rect.left, rect.bottom - rect.top,
+                     SWP_NOZORDER);
+
+        InvalidateRect(wgs.term_hwnd, NULL, true);
         return;
     }
 
@@ -3031,6 +3105,12 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
         }
         sys_cursor_update();
         return 0;
+      case WM_DPICHANGED:
+        dpi_info.cur_dpi.x = LOWORD(wParam);
+        dpi_info.cur_dpi.y = HIWORD(wParam);
+        dpi_info.new_wnd_rect = *(RECT*)(lParam);
+        reset_window(3);
+        return 0;
       case WM_VSCROLL:
         switch (LOWORD(wParam)) {
           case SB_BOTTOM:
@@ -3974,9 +4054,13 @@ static void init_winfuncs(void)
 {
     HMODULE user32_module = load_system32_dll("user32.dll");
     HMODULE winmm_module = load_system32_dll("winmm.dll");
+    HMODULE shcore_module = load_system32_dll("shcore.dll");
     GET_WINDOWS_FUNCTION(user32_module, FlashWindowEx);
     GET_WINDOWS_FUNCTION(user32_module, ToUnicodeEx);
     GET_WINDOWS_FUNCTION_PP(winmm_module, PlaySound);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(shcore_module, GetDpiForMonitor);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, GetSystemMetricsForDpi);
+    GET_WINDOWS_FUNCTION_NO_TYPECHECK(user32_module, AdjustWindowRectExForDpi);
 }
 
 /*
