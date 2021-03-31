@@ -11,7 +11,8 @@ format. See \k{pubkey} to find out how to generate and use one.
 
 When you run Pageant, it will put an icon of a computer wearing a
 hat into the \ii{System tray}. It will then sit and do nothing, until you
-load a private key into it.
+load a private key into it. (You may need to use Windows'
+\q{Show hidden icons} arrow to see the Pageant icon.)
 
 If you click the Pageant icon with the right mouse button, you will
 see a menu. Select \q{View Keys} from this menu. The Pageant main
