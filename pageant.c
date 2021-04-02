@@ -556,6 +556,8 @@ void pageant_passphrase_request_success(PageantClientDialogId *dlgid,
                                       "passphrase prompts");
             }
             return;
+        } else {
+            keylist_update();
         }
     }
 
@@ -1182,6 +1184,7 @@ static PageantAsyncOp *pageant_make_op(
                     pk->encrypted_key_file = strbuf_new_nm();
                     put_datapl(pk->encrypted_key_file, keyfile);
 
+                    keylist_update();
                     put_byte(sb, SSH_AGENT_SUCCESS);
                     pageant_client_log(
                         pc, reqid, "reply: SSH_AGENT_SUCCESS (added encrypted"
@@ -1209,6 +1212,7 @@ static PageantAsyncOp *pageant_make_op(
                 PageantKey *added = add234(keytree, pk);
                 assert(added == pk); (void)added;
 
+                keylist_update();
                 put_byte(sb, SSH_AGENT_SUCCESS);
                 pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS (made"
                                    " new encrypted-only key record)");
@@ -1258,6 +1262,7 @@ static PageantAsyncOp *pageant_make_op(
                 goto responded;
             }
 
+            keylist_update();
             put_byte(sb, SSH_AGENT_SUCCESS);
             pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS");
             break;
@@ -1291,6 +1296,7 @@ static PageantAsyncOp *pageant_make_op(
             if (nsuccesses == 0 && nfailures > 0) {
                 fail("no key could be re-encrypted");
             } else {
+                keylist_update();
                 put_byte(sb, SSH_AGENT_SUCCESS);
                 put_uint32(sb, nfailures);
                 pageant_client_log(pc, reqid, "reply: SSH_AGENT_SUCCESS "

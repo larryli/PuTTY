@@ -299,17 +299,17 @@ static void keylist_update_callback(
 {
     FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
     const char *fingerprint = fingerprints[this_type];
-    char *listentry;
+    strbuf *listentry = strbuf_new();
 
     switch (key->ssh_version) {
       case 1: {
-        listentry = dupprintf("ssh1\t%s\t%s", fingerprint, comment);
+        strbuf_catf(listentry, "ssh1\t%s\t%s", fingerprint, comment);
 
         /*
          * Replace the space in the fingerprint (between bit count and
          * hash) with a tab, for nice alignment in the box.
          */
-        char *p = strchr(listentry, ' ');
+        char *p = strchr(listentry->s, ' ');
         if (p)
             *p = '\t';
         break;
@@ -339,47 +339,37 @@ static void keylist_update_callback(
          * overflow past the bit-count tab stop and leave out a tab
          * character. Urgh.
          */
-        listentry = dupprintf("%s\t%s", fingerprint, comment);
-
-        size_t pos = 0;
-        while (1) {
-            pos += strcspn(listentry + pos, " :");
-            if (listentry[pos] == ':' || !listentry[pos])
-                break;
-            listentry[pos++] = '\t';
-        }
-
         BinarySource src[1];
         BinarySource_BARE_INIT_PL(src, ptrlen_from_strbuf(key->blob));
         ptrlen algname = get_string(src);
         const ssh_keyalg *alg = find_pubkey_alg_len(algname);
 
-        if (alg != &ssh_dss && alg != &ssh_rsa) {
-            /*
-             * Remove the bit-count field, which is between the
-             * first and second \t.
-             */
-            int outpos;
-            pos = 0;
-            while (listentry[pos] && listentry[pos] != '\t')
-                pos++;
-            outpos = pos;
-            pos++;
-            while (listentry[pos] && listentry[pos] != '\t')
-                pos++;
-            while (1) {
-                if ((listentry[outpos] = listentry[pos]) == '\0')
-                    break;
-                outpos++;
-                pos++;
+        bool include_bit_count = (alg == &ssh_dss && alg == &ssh_rsa);
+
+        int wordnumber = 0;
+        for (const char *p = fingerprint; *p; p++) {
+            char c = *p;
+            if (c == ' ') {
+                if (wordnumber < 2)
+                    c = '\t';
+                wordnumber++;
             }
+            if (include_bit_count || wordnumber != 1)
+                put_byte(listentry, c);
         }
+
+        strbuf_catf(listentry, "\t%s", comment);
         break;
       }
     }
 
-    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM)listentry);
-    sfree(listentry);
+    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY)
+        strbuf_catf(listentry, "\t(encrypted)");
+    else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
+        strbuf_catf(listentry, "\t(re-encryptable)");
+
+    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM)listentry->s);
+    strbuf_free(listentry);
 }
 
 /*
