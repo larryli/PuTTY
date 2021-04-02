@@ -1407,30 +1407,42 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      * Process the command line and add keys as listed on it.
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
+    bool doing_opts = true;
     for (i = 0; i < argc; i++) {
-        if (!strcmp(argv[i], "-pgpfp")) {
-            pgp_fingerprints_msgbox(NULL);
-            return 1;
-        } else if (!strcmp(argv[i], "-restrict-acl") ||
-                   !strcmp(argv[i], "-restrict_acl") ||
-                   !strcmp(argv[i], "-restrictacl")) {
-            restrict_process_acl();
-        } else if (!strcmp(argv[i], "-restrict-putty-acl") ||
-                   !strcmp(argv[i], "-restrict_putty_acl")) {
-            restrict_putty_acl = true;
-        } else if (!strcmp(argv[i], "-c")) {
-            /*
-             * If we see `-c', then the rest of the
-             * command line should be treated as a
-             * command to be spawned.
-             */
-            if (i < argc-1)
-                command = argstart[i+1];
-            else
-                command = "";
-            break;
+        char *p = argv[i];
+        if (*p == '-' && doing_opts) {
+            if (!strcmp(p, "-pgpfp")) {
+                pgp_fingerprints_msgbox(NULL);
+                return 1;
+            } else if (!strcmp(p, "-restrict-acl") ||
+                       !strcmp(p, "-restrict_acl") ||
+                       !strcmp(p, "-restrictacl")) {
+                restrict_process_acl();
+            } else if (!strcmp(p, "-restrict-putty-acl") ||
+                       !strcmp(p, "-restrict_putty_acl")) {
+                restrict_putty_acl = true;
+            } else if (!strcmp(p, "-c")) {
+                /*
+                 * If we see `-c', then the rest of the
+                 * command line should be treated as a
+                 * command to be spawned.
+                 */
+                if (i < argc-1)
+                    command = argstart[i+1];
+                else
+                    command = "";
+                break;
+            } else if (!strcmp(p, "--")) {
+                doing_opts = false;
+            } else {
+                char *msg = dupprintf("unrecognised command-line option\n"
+                                      "'%s'", p);
+                MessageBox(NULL, msg, "Pageant command-line syntax error",
+                           MB_ICONERROR | MB_OK);
+                exit(1);
+            }
         } else {
-            Filename *fn = filename_from_str(argv[i]);
+            Filename *fn = filename_from_str(p);
             win_add_keyfile(fn);
             filename_free(fn);
             added_keys = true;
