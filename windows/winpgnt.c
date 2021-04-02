@@ -41,11 +41,12 @@
  * attempt to store information in them. Hence all these identifiers have
  * the low 4 bits clear. Also, identifiers should < 0xF000. */
 
-#define IDM_CLOSE    0x0010
-#define IDM_VIEWKEYS 0x0020
-#define IDM_ADDKEY   0x0030
-#define IDM_HELP     0x0040
-#define IDM_ABOUT    0x0050
+#define IDM_CLOSE              0x0010
+#define IDM_VIEWKEYS           0x0020
+#define IDM_ADDKEY             0x0030
+#define IDM_ADDKEY_ENCRYPTED   0x0040
+#define IDM_HELP               0x0050
+#define IDM_ABOUT              0x0060
 
 #define APPNAME "Pageant"
 
@@ -71,7 +72,7 @@ static bool restrict_putty_acl = false;
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
 
-#define IDM_PUTTY         0x0060
+#define IDM_PUTTY         0x0070
 #define IDM_SESSIONS_BASE 0x1000
 #define IDM_SESSIONS_MAX  0x2000
 #define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
@@ -568,6 +569,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             DestroyWindow(hwnd);
             return 0;
           case 101:                    /* add key */
+          case 110:                    /* add key encrypted */
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 if (modal_passphrase_hwnd) {
@@ -575,7 +577,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                     SetForegroundWindow(modal_passphrase_hwnd);
                     break;
                 }
-                prompt_add_keyfile(false);
+                prompt_add_keyfile(LOWORD(wParam) == 110);
             }
             return 0;
           case 102:                    /* remove key */
@@ -1109,8 +1111,9 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
         }
         break;
       case WM_COMMAND:
-      case WM_SYSCOMMAND:
-        switch (wParam & ~0xF) {       /* low 4 bits reserved to Windows */
+      case WM_SYSCOMMAND: {
+        unsigned command = wParam & ~0xF; /* low 4 bits reserved to Windows */
+        switch (command) {
           case IDM_PUTTY: {
             TCHAR cmdline[10];
             cmdline[0] = '\0';
@@ -1147,12 +1150,13 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                          SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
             break;
           case IDM_ADDKEY:
+          case IDM_ADDKEY_ENCRYPTED:
             if (modal_passphrase_hwnd) {
                 MessageBeep(MB_ICONERROR);
                 SetForegroundWindow(modal_passphrase_hwnd);
                 break;
             }
-            prompt_add_keyfile(false);
+            prompt_add_keyfile(command == IDM_ADDKEY_ENCRYPTED);
             break;
           case IDM_ABOUT:
             if (!aboutbox) {
@@ -1197,6 +1201,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
           }
         }
         break;
+      }
       case WM_DESTROY:
         quit_help(hwnd);
         PostQuitMessage(0);
@@ -1545,6 +1550,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     AppendMenu(systray_menu, MF_ENABLED, IDM_VIEWKEYS,
            "&View Keys");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
+               "Add key (encrypted)");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
         AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");
