@@ -433,6 +433,13 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
 #if GTK_CHECK_VERSION(3,0,0)
     gtk_label_set_width_chars(GTK_LABEL(ctx->promptlabel), 48);
 #endif
+    int margin = string_width("MM");
+#if GTK_CHECK_VERSION(3,12,0)
+    gtk_widget_set_margin_start(ctx->promptlabel, margin);
+    gtk_widget_set_margin_end(ctx->promptlabel, margin);
+#else
+    gtk_misc_set_padding(GTK_MISC(ctx->promptlabel), margin, 0);
+#endif
     our_dialog_add_to_content_area(GTK_WINDOW(ctx->dialog),
                                    ctx->promptlabel, true, true, 0);
 #if GTK_CHECK_VERSION(2,0,0)
