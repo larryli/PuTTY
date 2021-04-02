@@ -125,8 +125,8 @@ int pageant_count_ssh1_keys(void);
 int pageant_count_ssh2_keys(void);
 bool pageant_add_ssh1_key(RSAKey *rkey);
 bool pageant_add_ssh2_key(ssh2_userkey *skey);
-bool pageant_delete_ssh1_key(RSAKey *rkey);
-bool pageant_delete_ssh2_key(ssh2_userkey *skey);
+bool pageant_delete_nth_ssh1_key(int i);
+bool pageant_delete_nth_ssh2_key(int i);
 
 /*
  * This callback must be provided by the Pageant front end code.

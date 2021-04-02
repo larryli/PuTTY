@@ -1388,31 +1388,21 @@ ssh2_userkey *pageant_nth_ssh2_key(int i)
         return NULL;
 }
 
-bool pageant_delete_ssh1_key(RSAKey *rkey)
+bool pageant_delete_nth_ssh1_key(int i)
 {
-    strbuf *blob = makeblob1(rkey);
-    PageantKeySort sort = keysort(1, ptrlen_from_strbuf(blob));
-    PageantKey *deleted = del234(keytree, &sort);
-    strbuf_free(blob);
-
-    if (!deleted)
+    PageantKey *pk = delpos234(keytree, find_first_key_for_version(1) + i);
+    if (!pk)
         return false;
-    assert(deleted->sort.ssh_version == 1);
-    assert(deleted->rkey == rkey);
+    pk_free(pk);
     return true;
 }
 
-bool pageant_delete_ssh2_key(ssh2_userkey *skey)
+bool pageant_delete_nth_ssh2_key(int i)
 {
-    strbuf *blob = makeblob2(skey);
-    PageantKeySort sort = keysort(2, ptrlen_from_strbuf(blob));
-    PageantKey *deleted = del234(keytree, &sort);
-    strbuf_free(blob);
-
-    if (!deleted)
+    PageantKey *pk = delpos234(keytree, find_first_key_for_version(2) + i);
+    if (!pk)
         return false;
-    assert(deleted->sort.ssh_version == 2);
-    assert(deleted->skey == skey);
+    pk_free(pk);
     return true;
 }
 

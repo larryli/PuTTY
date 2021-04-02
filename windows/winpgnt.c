@@ -505,9 +505,6 @@ static void prompt_add_keyfile(bool encrypted)
 static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                                 WPARAM wParam, LPARAM lParam)
 {
-    RSAKey *rkey;
-    ssh2_userkey *skey;
-
     static const struct {
         const char *name;
         FingerprintType value;
@@ -615,24 +612,16 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                  * things hence altering the offset of subsequent items
                  */
                 for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-                    skey = pageant_nth_ssh2_key(i);
-
                     if (selectedArray[itemNum] == rCount + i) {
-                        pageant_delete_ssh2_key(skey);
-                        ssh_key_free(skey->key);
-                        sfree(skey);
+                        pageant_delete_nth_ssh2_key(i);
                         itemNum--;
                     }
                 }
 
                 /* do the same for the rsa keys */
                 for (i = rCount - 1; (itemNum >= 0) && (i >= 0); i--) {
-                    rkey = pageant_nth_ssh1_key(i);
-
                     if(selectedArray[itemNum] == i) {
-                        pageant_delete_ssh1_key(rkey);
-                        freersakey(rkey);
-                        sfree(rkey);
+                        pageant_delete_nth_ssh1_key(i);
                         itemNum--;
                     }
                 }
