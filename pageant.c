@@ -128,8 +128,7 @@ static bool gui_request_in_progress = false;
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
                     strbuf *sb, unsigned char type, const char *fmt, ...);
 static void fail_requests_for_key(PageantKey *pk, const char *reason);
-static RSAKey *pageant_nth_ssh1_key(int i);
-static ssh2_userkey *pageant_nth_ssh2_key(int i);
+static PageantKey *pageant_nth_key(int ssh_version, int i);
 
 static void pk_free(PageantKey *pk)
 {
@@ -679,9 +678,9 @@ static PageantAsyncOp *pageant_make_op(
                            "reply: SSH1_AGENT_RSA_IDENTITIES_ANSWER");
         if (!pc->suppress_logging) {
             int i;
-            RSAKey *rkey;
-            for (i = 0; NULL != (rkey = pageant_nth_ssh1_key(i)); i++) {
-                char *fingerprint = rsa_ssh1_fingerprint(rkey);
+            PageantKey *pk;
+            for (i = 0; NULL != (pk = pageant_nth_key(1, i)); i++) {
+                char *fingerprint = rsa_ssh1_fingerprint(pk->rkey);
                 pageant_client_log(pc, reqid, "returned key: %s",
                                    fingerprint);
                 sfree(fingerprint);
@@ -702,12 +701,12 @@ static PageantAsyncOp *pageant_make_op(
         pageant_client_log(pc, reqid, "reply: SSH2_AGENT_IDENTITIES_ANSWER");
         if (!pc->suppress_logging) {
             int i;
-            ssh2_userkey *skey;
-            for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-                char *fingerprint = ssh2_fingerprint(
-                    skey->key, SSH_FPTYPE_DEFAULT);
+            PageantKey *pk;
+            for (i = 0; NULL != (pk = pageant_nth_key(2, i)); i++) {
+                char *fingerprint = ssh2_fingerprint_blob(
+                    ptrlen_from_strbuf(pk->public_blob), SSH_FPTYPE_DEFAULT);
                 pageant_client_log(pc, reqid, "returned key: %s %s",
-                                   fingerprint, skey->comment);
+                                   fingerprint, pk->comment);
                 sfree(fingerprint);
             }
         }
@@ -1323,12 +1322,13 @@ static PageantAsyncOp *pageant_make_op(
                                "reply: SSH2_AGENT_SUCCESS + key list");
             if (!pc->suppress_logging) {
                 int i;
-                ssh2_userkey *skey;
-                for (i = 0; NULL != (skey = pageant_nth_ssh2_key(i)); i++) {
-                    char *fingerprint = ssh2_fingerprint(
-                        skey->key, SSH_FPTYPE_DEFAULT);
+                PageantKey *pk;
+                for (i = 0; NULL != (pk = pageant_nth_key(2, i)); i++) {
+                    char *fingerprint = ssh2_fingerprint_blob(
+                        ptrlen_from_strbuf(pk->public_blob),
+                        SSH_FPTYPE_DEFAULT);
                     pageant_client_log(pc, reqid, "returned key: %s %s",
-                                       fingerprint, skey->comment);
+                                       fingerprint, pk->comment);
                     sfree(fingerprint);
                 }
             }
@@ -1372,20 +1372,12 @@ void pageant_init(void)
     keytree = newtree234(cmpkeys);
 }
 
-static RSAKey *pageant_nth_ssh1_key(int i)
+static PageantKey *pageant_nth_key(int ssh_version, int i)
 {
-    PageantKey *pk = index234(keytree, find_first_key_for_version(1) + i);
-    if (pk && pk->sort.ssh_version == 1)
-        return pk->rkey;
-    else
-        return NULL;
-}
-
-static ssh2_userkey *pageant_nth_ssh2_key(int i)
-{
-    PageantKey *pk = index234(keytree, find_first_key_for_version(2) + i);
-    if (pk && pk->sort.ssh_version == 2)
-        return pk->skey;
+    PageantKey *pk = index234(
+        keytree, find_first_key_for_version(ssh_version) + i);
+    if (pk && pk->sort.ssh_version == ssh_version)
+        return pk;
     else
         return NULL;
 }
