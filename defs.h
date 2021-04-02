@@ -13,6 +13,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>                     /* for __MINGW_PRINTF_FORMAT */
 #include <stdbool.h>
 
 #if defined _MSC_VER && _MSC_VER < 1800
