@@ -103,24 +103,34 @@ static int make_pipe_to_askpass(const char *msg)
 }
 
 static bool uxpgnt_ask_passphrase(
-    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
+    PageantListenerClient *plc, PageantClientDialogId *dlgid,
+    const char *comment)
 {
     struct uxpgnt_client *upc = container_of(plc, struct uxpgnt_client, plc);
 
     assert(!upc->dlgid); /* Pageant core should be serialising requests */
 
+    char *msg = dupprintf(
+        "A client of Pageant wants to use the following encrypted key:\n"
+        "%s\n"
+        "If you intended this, enter the passphrase to decrypt the key.",
+        comment);
+
     switch (upc->prompt_type) {
       case RTPROMPT_UNAVAILABLE:
+        sfree(msg);
         return false;
 
       case RTPROMPT_GUI:
         upc->passphrase_fd = make_pipe_to_askpass(msg);
+        sfree(msg);
         if (upc->passphrase_fd < 0)
             return false; /* something went wrong */
         break;
 
       case RTPROMPT_DEBUG:
         fprintf(upc->logfp, "pageant passphrase request: %s\n", msg);
+        sfree(msg);
         break;
     }
 

@@ -863,7 +863,7 @@ static void wm_copydata_got_response(
 }
 
 static bool ask_passphrase_common(PageantClientDialogId *dlgid,
-                                  const char *msg)
+                                  const char *comment)
 {
     /* Pageant core should be serialising requests, so we never expect
      * a passphrase prompt to exist already at this point */
@@ -873,18 +873,55 @@ static bool ask_passphrase_common(PageantClientDialogId *dlgid,
     pps->modal = false;
     pps->dlgid = dlgid;
     pps->passphrase = NULL;
-    pps->comment = msg;
+    pps->comment = comment;
 
     nonmodal_passphrase_hwnd = CreateDialogParam(
-        hinst, MAKEINTRESOURCE(210), NULL, PassphraseProc, (LPARAM)pps);
+        hinst, MAKEINTRESOURCE(212), NULL, PassphraseProc, (LPARAM)pps);
+
+    /*
+     * Try to put this passphrase prompt into the foreground.
+     *
+     * This will probably not succeed in giving it the actual keyboard
+     * focus, because Windows is quite opposed to applications being
+     * able to suddenly steal the focus on their own initiative.
+     *
+     * That makes sense in a lot of situations, as a defensive
+     * measure. If you were about to type a password or other secret
+     * data into the window you already had focused, and some
+     * malicious app stole the focus, it might manage to trick you
+     * into typing your secrets into _it_ instead.
+     *
+     * In this case it's possible to regard the same defensive measure
+     * as counterproductive, because the effect if we _do_ steal focus
+     * is that you type something into our passphrase prompt that
+     * isn't the passphrase, and we fail to decrypt the key, and no
+     * harm is done. Whereas the effect of the user wrongly _assuming_
+     * the new passphrase prompt has the focus is much worse: now you
+     * type your highly secret passphrase into some other window you
+     * didn't mean to trust with that information - such as the
+     * agent-forwarded PuTTY in which you just ran an ssh command,
+     * which the _whole point_ was to avoid telling your passphrase to!
+     *
+     * On the other hand, I'm sure _every_ application author can come
+     * up with an argument for why they think _they_ should be allowed
+     * to steal the focus. Probably most of them include the claim
+     * that no harm is done if their application receives data
+     * intended for something else, and of course that's not always
+     * true!
+     *
+     * In any case, I don't know of anything I can do about it, or
+     * anything I _should_ do about it if I could. If anyone thinks
+     * they can improve on all this, patches are welcome.
+     */
+    SetForegroundWindow(nonmodal_passphrase_hwnd);
 
     return true;
 }
 
 static bool wm_copydata_ask_passphrase(
-    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *comment)
 {
-    return ask_passphrase_common(dlgid, msg);
+    return ask_passphrase_common(dlgid, comment);
 }
 
 static const PageantClientVtable wmcpc_vtable = {
@@ -1270,9 +1307,10 @@ void cleanup_exit(int code)
 }
 
 static bool winpgnt_listener_ask_passphrase(
-    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
+    PageantListenerClient *plc, PageantClientDialogId *dlgid,
+    const char *comment)
 {
-    return ask_passphrase_common(dlgid, msg);
+    return ask_passphrase_common(dlgid, comment);
 }
 
 struct winpgnt_client {

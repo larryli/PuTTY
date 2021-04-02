@@ -34,7 +34,7 @@ struct PageantClientVtable {
     void (*got_response)(PageantClient *pc, PageantClientRequestId *reqid,
                          ptrlen response);
     bool (*ask_passphrase)(PageantClient *pc, PageantClientDialogId *dlgid,
-                           const char *msg);
+                           const char *key_comment);
 };
 
 static inline void pageant_client_log_v(
@@ -58,8 +58,8 @@ static inline void pageant_client_got_response(
     PageantClient *pc, PageantClientRequestId *reqid, ptrlen response)
 { pc->vt->got_response(pc, reqid, response); }
 static inline bool pageant_client_ask_passphrase(
-    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
-{ return pc->vt->ask_passphrase(pc, dlgid, msg); }
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *comment)
+{ return pc->vt->ask_passphrase(pc, dlgid, comment); }
 
 /* PageantClientRequestId is used to match up responses to the agent
  * requests they refer to. A client may allocate one of these for each
@@ -159,7 +159,8 @@ struct PageantListenerClient {
 struct PageantListenerClientVtable {
     void (*log)(PageantListenerClient *, const char *fmt, va_list ap);
     bool (*ask_passphrase)(PageantListenerClient *pc,
-                           PageantClientDialogId *dlgid, const char *msg);
+                           PageantClientDialogId *dlgid,
+                           const char *key_comment);
 };
 
 static inline void pageant_listener_client_log_v(
@@ -179,8 +180,9 @@ static inline PRINTF_LIKE(2, 3) void pageant_listener_client_log(
     }
 }
 static inline bool pageant_listener_client_ask_passphrase(
-    PageantListenerClient *plc, PageantClientDialogId *dlgid, const char *msg)
-{ return plc->vt->ask_passphrase(plc, dlgid, msg); }
+    PageantListenerClient *plc, PageantClientDialogId *dlgid,
+    const char *comment)
+{ return plc->vt->ask_passphrase(plc, dlgid, comment); }
 
 struct pageant_listen_state;
 struct pageant_listen_state *pageant_listener_new(

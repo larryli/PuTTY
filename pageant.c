@@ -392,11 +392,8 @@ static bool request_passphrase(PageantClient *pc, PageantKey *pk)
     if (!pk->decryption_prompt_active) {
         assert(!gui_request_in_progress);
 
-        strbuf *sb = strbuf_new();
-        strbuf_catf(sb, "Enter passphrase to decrypt key '%s'", pk->comment);
         bool created_dlg = pageant_client_ask_passphrase(
-            pc, &pk->dlgid, sb->s);
-        strbuf_free(sb);
+            pc, &pk->dlgid, pk->comment);
 
         if (!created_dlg)
             return false;
@@ -1525,11 +1522,11 @@ static void pageant_conn_got_response(
 }
 
 static bool pageant_conn_ask_passphrase(
-    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *comment)
 {
     struct pageant_conn_state *pcs =
         container_of(pc, struct pageant_conn_state, pc);
-    return pageant_listener_client_ask_passphrase(pcs->plc, dlgid, msg);
+    return pageant_listener_client_ask_passphrase(pcs->plc, dlgid, comment);
 }
 
 static const PageantClientVtable pageant_connection_clientvt = {
@@ -1719,7 +1716,7 @@ static void internal_client_got_response(
 }
 
 static bool internal_client_ask_passphrase(
-    PageantClient *pc, PageantClientDialogId *dlgid, const char *msg)
+    PageantClient *pc, PageantClientDialogId *dlgid, const char *comment)
 {
     /* No delaying operations are permitted in this mode */
     return false;
