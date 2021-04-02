@@ -389,7 +389,7 @@ void keylist_update(void)
     }
 }
 
-static void win_add_keyfile(Filename *filename)
+static void win_add_keyfile(Filename *filename, bool encrypted)
 {
     char *err;
     int ret;
@@ -399,7 +399,7 @@ static void win_add_keyfile(Filename *filename)
      * _new_ passphrase; pageant_add_keyfile will take care of trying
      * all the passphrases we've already stored.)
      */
-    ret = pageant_add_keyfile(filename, NULL, &err, false);
+    ret = pageant_add_keyfile(filename, NULL, &err, encrypted);
     if (ret == PAGEANT_ACTION_OK) {
         goto done;
     } else if (ret == PAGEANT_ACTION_FAILURE) {
@@ -448,31 +448,10 @@ static void win_add_keyfile(Filename *filename)
     return;
 }
 
-static void win_add_keyfile_encrypted(Filename *filename)
-{
-    char *err;
-    int ret;
-
-    ret = pageant_add_keyfile(filename, NULL, &err, true);
-    if (ret == PAGEANT_ACTION_OK) {
-        goto done;
-    } else if (ret == PAGEANT_ACTION_FAILURE) {
-        goto error;
-    }
-
-  error:
-    message_box(traywindow, err, APPNAME, MB_OK | MB_ICONERROR,
-                HELPCTXID(errors_cantloadkey));
-
-  done:
-    sfree(err);
-    return;
-}
-
 /*
  * Prompt for a key file to add, and add it.
  */
-static void prompt_add_keyfile(void)
+static void prompt_add_keyfile(bool encrypted)
 {
     OPENFILENAME of;
     char *filelist = snewn(8192, char);
@@ -493,7 +472,7 @@ static void prompt_add_keyfile(void)
         if(strlen(filelist) > of.nFileOffset) {
             /* Only one filename returned? */
             Filename *fn = filename_from_str(filelist);
-            win_add_keyfile(fn);
+            win_add_keyfile(fn, encrypted);
             filename_free(fn);
         } else {
             /* we are returned a bunch of strings, end to
@@ -506,7 +485,7 @@ static void prompt_add_keyfile(void)
             while (*filewalker != '\0') {
                 char *filename = dupcat(dir, "\\", filewalker);
                 Filename *fn = filename_from_str(filename);
-                win_add_keyfile(fn);
+                win_add_keyfile(fn, encrypted);
                 filename_free(fn);
                 sfree(filename);
                 filewalker += strlen(filewalker) + 1;
@@ -596,7 +575,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                     SetForegroundWindow(modal_passphrase_hwnd);
                     break;
                 }
-                prompt_add_keyfile();
+                prompt_add_keyfile(false);
             }
             return 0;
           case 102:                    /* remove key */
@@ -1173,7 +1152,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                 SetForegroundWindow(modal_passphrase_hwnd);
                 break;
             }
-            prompt_add_keyfile();
+            prompt_add_keyfile(false);
             break;
           case IDM_ABOUT:
             if (!aboutbox) {
@@ -1408,6 +1387,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
      */
     split_into_argv(cmdline, &argc, &argv, &argstart);
     bool doing_opts = true;
+    bool add_keys_encrypted = false;
     for (i = 0; i < argc; i++) {
         char *p = argv[i];
         if (*p == '-' && doing_opts) {
@@ -1421,6 +1401,15 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             } else if (!strcmp(p, "-restrict-putty-acl") ||
                        !strcmp(p, "-restrict_putty_acl")) {
                 restrict_putty_acl = true;
+            } else if (!strcmp(p, "--no-decrypt") ||
+                       !strcmp(p, "-no-decrypt") ||
+                       !strcmp(p, "--no_decrypt") ||
+                       !strcmp(p, "-no_decrypt") ||
+                       !strcmp(p, "--nodecrypt") ||
+                       !strcmp(p, "-nodecrypt") ||
+                       !strcmp(p, "--encrypted") ||
+                       !strcmp(p, "-encrypted")) {
+                add_keys_encrypted = true;
             } else if (!strcmp(p, "-c")) {
                 /*
                  * If we see `-c', then the rest of the
@@ -1443,7 +1432,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
             }
         } else {
             Filename *fn = filename_from_str(p);
-            win_add_keyfile(fn);
+            win_add_keyfile(fn, add_keys_encrypted);
             filename_free(fn);
             added_keys = true;
         }
