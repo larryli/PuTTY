@@ -112,19 +112,11 @@ void pageant_make_keylist1(BinarySink *);
 void pageant_make_keylist2(BinarySink *);
 
 /*
- * Accessor functions for Pageant's internal key lists. Fetch the nth
- * key; count the keys; attempt to add a key (returning true on
- * success, in which case the ownership of the key structure has been
- * taken over by pageant.c); attempt to delete a key (returning true
- * on success, in which case the ownership of the key structure is
- * passed back to the client).
+ * Accessor functions for Pageant's internal key lists, used by GUI
+ * Pageant, to count the keys and to delete a key.
  */
-RSAKey *pageant_nth_ssh1_key(int i);
-ssh2_userkey *pageant_nth_ssh2_key(int i);
 int pageant_count_ssh1_keys(void);
 int pageant_count_ssh2_keys(void);
-bool pageant_add_ssh1_key(RSAKey *rkey);
-bool pageant_add_ssh2_key(ssh2_userkey *skey);
 bool pageant_delete_nth_ssh1_key(int i);
 bool pageant_delete_nth_ssh2_key(int i);
 

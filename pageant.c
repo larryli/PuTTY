@@ -128,6 +128,8 @@ static bool gui_request_in_progress = false;
 static void failure(PageantClient *pc, PageantClientRequestId *reqid,
                     strbuf *sb, unsigned char type, const char *fmt, ...);
 static void fail_requests_for_key(PageantKey *pk, const char *reason);
+static RSAKey *pageant_nth_ssh1_key(int i);
+static ssh2_userkey *pageant_nth_ssh2_key(int i);
 
 static void pk_free(PageantKey *pk)
 {
@@ -213,7 +215,7 @@ static int count_keys(int ssh_version)
 int pageant_count_ssh1_keys(void) { return count_keys(1); }
 int pageant_count_ssh2_keys(void) { return count_keys(2); }
 
-bool pageant_add_ssh1_key(RSAKey *rkey)
+static bool pageant_add_ssh1_key(RSAKey *rkey)
 {
     PageantKey *pk = snew(PageantKey);
     memset(pk, 0, sizeof(PageantKey));
@@ -234,7 +236,7 @@ bool pageant_add_ssh1_key(RSAKey *rkey)
     }
 }
 
-bool pageant_add_ssh2_key(ssh2_userkey *skey)
+static bool pageant_add_ssh2_key(ssh2_userkey *skey)
 {
     PageantKey *pk = snew(PageantKey);
     memset(pk, 0, sizeof(PageantKey));
@@ -1370,7 +1372,7 @@ void pageant_init(void)
     keytree = newtree234(cmpkeys);
 }
 
-RSAKey *pageant_nth_ssh1_key(int i)
+static RSAKey *pageant_nth_ssh1_key(int i)
 {
     PageantKey *pk = index234(keytree, find_first_key_for_version(1) + i);
     if (pk && pk->sort.ssh_version == 1)
@@ -1379,7 +1381,7 @@ RSAKey *pageant_nth_ssh1_key(int i)
         return NULL;
 }
 
-ssh2_userkey *pageant_nth_ssh2_key(int i)
+static ssh2_userkey *pageant_nth_ssh2_key(int i)
 {
     PageantKey *pk = index234(keytree, find_first_key_for_version(2) + i);
     if (pk && pk->sort.ssh_version == 2)
