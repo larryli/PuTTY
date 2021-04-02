@@ -231,6 +231,42 @@ you can send it all the way back to Pageant using the local
 and then it's available to every machine that has agent forwarding
 available (not just the ones downstream of the place you added it).
 
+\H{pageant-mainwin-addkey} Loading keys without decrypting them
+
+You can also add keys to Pageant \e{without} decrypting them. The key
+file will be held in Pageant's memory still encrypted, and when a
+client program first tries to use the key, Pageant will display a
+dialog box prompting for the passphrase so that the key can be
+decrypted.
+
+This works the same way whether the key is used by an instance of
+PuTTY running locally, or a remote client connecting to Pageant
+through agent forwarding.
+
+After the key has been decrypted for the first use, it remains
+decrypted, so that it can be used again.
+
+To add a key to Pageant by reading it out of a local disk file, press
+the \q{Add Key (encrypted)} button in the Pageant main window, or
+alternatively right-click on the Pageant icon in the system tray and
+select \q{Add Key (encrypted)} from there. Pageant will bring up a
+file dialog, in just the same way as it would for the plain \q{Add
+Key} button. But it won't ask for a passphrase. Instead, the key will
+be listed in the main window with \q{(encrypted)} after it.
+
+To start Pageant up in the first place with encrypted keys loaded into
+it, you can use the \cq{--encrypted} option on the command line. For
+example:
+
+\c C:\PuTTY\pageant.exe --encrypted d:\main.ppk
+
+\s{CAUTION}: When Pageant displays a prompt to decrypt an
+already-loaded key, it cannot give keyboard focus to the prompt dialog
+box. As far as I know this is a deliberate defensive measure by
+Windows, against malicious software. So make sure you click in the
+prompt window before typing your passphrase, or else the passphrase
+might be sent to somewhere you didn't want to trust with it!
+
 \H{pageant-security} Security considerations
 
 \I{security risk}Using Pageant for public-key authentication gives you the
