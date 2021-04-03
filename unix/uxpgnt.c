@@ -1353,7 +1353,14 @@ int main(int argc, char **argv)
                 life = LIFE_X11;
             } else if (!strcmp(p, "-T")) {
                 life = LIFE_TTY;
-            } else if (!strcmp(p, "-E")) {
+            } else if (!strcmp(p, "--no-decrypt") ||
+                       !strcmp(p, "-no-decrypt") ||
+                       !strcmp(p, "--no_decrypt") ||
+                       !strcmp(p, "-no_decrypt") ||
+                       !strcmp(p, "--nodecrypt") ||
+                       !strcmp(p, "-nodecrypt") ||
+                       !strcmp(p, "--encrypted") ||
+                       !strcmp(p, "-encrypted")) {
                 if (curr_keyact == KEYACT_AGENT_LOAD)
                     curr_keyact = KEYACT_AGENT_LOAD_ENCRYPTED;
                 else if (curr_keyact == KEYACT_CLIENT_ADD)
@@ -1404,13 +1411,13 @@ int main(int argc, char **argv)
                             "after --symlink\n");
                     exit(1);
                 }
-            } else if (!strcmp(p, "--fptype")) {
+            } else if (!strcmp(p, "-E") || !strcmp(p, "--fptype")) {
                 const char *keyword;
                 if (--argc > 0) {
                     keyword = *++argv;
                 } else {
                     fprintf(stderr, "pageant: expected a type string "
-                            "after --fptype\n");
+                            "after %s\n", p);
                     exit(1);
                 }
                 if (!strcmp(keyword, "md5"))
