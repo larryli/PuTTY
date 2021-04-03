@@ -2491,6 +2491,28 @@ GtkWidget *layout_ctrls(
                     COLUMN_SPAN(ctrl->generic.column));
         if (left)
             columns_force_left_align(cols, w);
+        if (ctrl->generic.align_next_to) {
+            /*
+             * Implement align_next_to by simply forcing the two
+             * controls to have the same height of size allocation. At
+             * least for the controls we're currently doing this with,
+             * the GTK layout system will automatically vertically
+             * centre each control within its allocation, which will
+             * get the two controls aligned alongside each other
+             * reasonably well.
+             */
+            struct uctrl *uc2 = dlg_find_byctrl(
+                dp, ctrl->generic.align_next_to);
+            assert(uc2);
+            columns_force_same_height(cols, w, uc2->toplevel);
+
+#if GTK_CHECK_VERSION(3, 10, 0)
+            /* Slightly nicer to align baselines than just vertically
+             * centring, where the option is available */
+            gtk_widget_set_valign(w, GTK_ALIGN_BASELINE);
+            gtk_widget_set_valign(uc2->toplevel, GTK_ALIGN_BASELINE);
+#endif
+        }
         gtk_widget_show(w);
 
         uc->toplevel = w;

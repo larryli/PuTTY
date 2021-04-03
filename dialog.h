@@ -113,7 +113,8 @@ typedef void (*handler_fn)(union control *ctrl, dlgparam *dp,
         int column; \
         handler_fn handler; \
         intorptr context; \
-        intorptr helpctx
+        intorptr helpctx; \
+        union control *align_next_to
 
 union control {
     /*
@@ -179,6 +180,18 @@ union control {
          * to ensure it brings up the right piece of help text.
          */
         intorptr helpctx;
+        /*
+         * Setting this to non-NULL coerces two controls to have their
+         * y-coordinates adjusted so that they can sit alongside each
+         * other and look nicely aligned, even if they're different
+         * heights.
+         *
+         * Set this field on the _second_ control of the pair (in
+         * terms of order in the data structure), so that when it's
+         * instantiated, the first one is already there to be referred
+         * to.
+         */
+        union control *align_next_to;
     } generic;
     struct {
         STANDARD_PREFIX;

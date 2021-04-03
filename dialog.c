@@ -221,6 +221,7 @@ static union control *ctrl_new(struct controlset *s, int type,
     c->generic.handler = handler;
     c->generic.context = context;
     c->generic.label = NULL;
+    c->generic.align_next_to = NULL;
     return c;
 }
 

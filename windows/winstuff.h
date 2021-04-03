@@ -492,6 +492,12 @@ struct winctrl {
     int base_id;
     int num_ids;
     /*
+     * For vertical alignment, the id of a particular representative
+     * control that has the y-extent of the sensible part of the
+     * control.
+     */
+    int align_id;
+    /*
      * Remember what keyboard shortcuts were used by this control,
      * so that when we remove it again we can take them out of the
      * list in the dlgparam.
