@@ -231,7 +231,7 @@ you can send it all the way back to Pageant using the local
 and then it's available to every machine that has agent forwarding
 available (not just the ones downstream of the place you added it).
 
-\H{pageant-mainwin-addkey} Loading keys without decrypting them
+\H{pageant-deferred-decryption} Loading keys without decrypting them
 
 You can also add keys to Pageant \e{without} decrypting them. The key
 file will be held in Pageant's memory still encrypted, and when a

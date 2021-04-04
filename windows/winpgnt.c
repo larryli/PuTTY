@@ -659,6 +659,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
           case IDC_KEYLIST_LISTBOX: topic = WINHELP_CTX_pageant_keylist; break;
           case IDC_KEYLIST_ADDKEY: topic = WINHELP_CTX_pageant_addkey; break;
           case IDC_KEYLIST_REMOVE: topic = WINHELP_CTX_pageant_remkey; break;
+          case IDC_KEYLIST_ADDKEY_ENC:
+            topic = WINHELP_CTX_pageant_deferred; break;
         }
         if (topic) {
           launch_help(hwnd, topic);

@@ -172,6 +172,7 @@
 #define WINHELP_CTX_pageant_keylist "pageant-mainwin-keylist"
 #define WINHELP_CTX_pageant_addkey "pageant-mainwin-addkey"
 #define WINHELP_CTX_pageant_remkey "pageant-mainwin-remkey"
+#define WINHELP_CTX_pageant_deferred "pageant-deferred-decryption"
 #define WINHELP_CTX_pgpfingerprints "pgpkeys"
 #define WINHELP_CTX_puttygen_general "pubkey-puttygen"
 #define WINHELP_CTX_puttygen_keytype "puttygen-keytype"
