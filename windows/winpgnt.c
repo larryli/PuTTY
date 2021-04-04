@@ -34,18 +34,6 @@
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 
-/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
- * wParam are used by Windows, and should be masked off, so we shouldn't
- * attempt to store information in them. Hence all these identifiers have
- * the low 4 bits clear. Also, identifiers should < 0xF000. */
-
-#define IDM_CLOSE              0x0010
-#define IDM_VIEWKEYS           0x0020
-#define IDM_ADDKEY             0x0030
-#define IDM_ADDKEY_ENCRYPTED   0x0040
-#define IDM_HELP               0x0050
-#define IDM_ABOUT              0x0060
-
 #define APPNAME "Pageant"
 
 /* Titles and class names for invisible windows. IPCWINTITLE and
@@ -70,9 +58,20 @@ static bool restrict_putty_acl = false;
 /* CWD for "add key" file requester. */
 static filereq *keypath = NULL;
 
-#define IDM_PUTTY         0x0070
-#define IDM_SESSIONS_BASE 0x1000
-#define IDM_SESSIONS_MAX  0x2000
+/* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
+ * wParam are used by Windows, and should be masked off, so we shouldn't
+ * attempt to store information in them. Hence all these identifiers have
+ * the low 4 bits clear. Also, identifiers should < 0xF000. */
+
+#define IDM_CLOSE              0x0010
+#define IDM_VIEWKEYS           0x0020
+#define IDM_ADDKEY             0x0030
+#define IDM_ADDKEY_ENCRYPTED   0x0040
+#define IDM_HELP               0x0050
+#define IDM_ABOUT              0x0060
+#define IDM_PUTTY              0x0070
+#define IDM_SESSIONS_BASE      0x1000
+#define IDM_SESSIONS_MAX       0x2000
 #define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
 #define PUTTY_DEFAULT     "Default%20Settings"
 static int initial_menuitems_count;
