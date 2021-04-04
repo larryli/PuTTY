@@ -67,9 +67,11 @@ static filereq *keypath = NULL;
 #define IDM_VIEWKEYS           0x0020
 #define IDM_ADDKEY             0x0030
 #define IDM_ADDKEY_ENCRYPTED   0x0040
-#define IDM_HELP               0x0050
-#define IDM_ABOUT              0x0060
-#define IDM_PUTTY              0x0070
+#define IDM_REMOVE_ALL         0x0050
+#define IDM_REENCRYPT_ALL      0x0060
+#define IDM_HELP               0x0070
+#define IDM_ABOUT              0x0080
+#define IDM_PUTTY              0x0090
 #define IDM_SESSIONS_BASE      0x1000
 #define IDM_SESSIONS_MAX       0x2000
 #define PUTTY_REGKEY      "Software\\SimonTatham\\PuTTY\\Sessions"
@@ -1175,6 +1177,14 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             }
             prompt_add_keyfile(command == IDM_ADDKEY_ENCRYPTED);
             break;
+          case IDM_REMOVE_ALL:
+            pageant_delete_all();
+            keylist_update();
+            break;
+          case IDM_REENCRYPT_ALL:
+            pageant_reencrypt_all();
+            keylist_update();
+            break;
           case IDM_ABOUT:
             if (!aboutbox) {
                 aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(IDD_ABOUT),
@@ -1572,6 +1582,11 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY, "Add &Key");
     AppendMenu(systray_menu, MF_ENABLED, IDM_ADDKEY_ENCRYPTED,
                "Add key (encrypted)");
+    AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REMOVE_ALL,
+               "Remove All Keys");
+    AppendMenu(systray_menu, MF_ENABLED, IDM_REENCRYPT_ALL,
+               "Re-encrypt All Keys");
     AppendMenu(systray_menu, MF_SEPARATOR, 0, 0);
     if (has_help())
         AppendMenu(systray_menu, MF_ENABLED, IDM_HELP, "&Help");

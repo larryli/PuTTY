@@ -1408,6 +1408,19 @@ bool pageant_reencrypt_nth_ssh2_key(int i)
     return reencrypt_key(pk);
 }
 
+void pageant_delete_all(void)
+{
+    remove_all_keys(1);
+    remove_all_keys(2);
+}
+
+void pageant_reencrypt_all(void)
+{
+    PageantKey *pk;
+    for (int i = 0; (pk = index234(keytree, i)) != NULL; i++)
+        reencrypt_key(pk);
+}
+
 /* ----------------------------------------------------------------------
  * The agent plug.
  */

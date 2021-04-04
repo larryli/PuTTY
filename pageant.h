@@ -121,6 +121,8 @@ int pageant_count_ssh2_keys(void);
 bool pageant_delete_nth_ssh1_key(int i);
 bool pageant_delete_nth_ssh2_key(int i);
 bool pageant_reencrypt_nth_ssh2_key(int i);
+void pageant_delete_all(void);
+void pageant_reencrypt_all(void);
 
 /*
  * This callback must be provided by the Pageant front end code.
