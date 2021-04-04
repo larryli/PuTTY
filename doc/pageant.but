@@ -243,22 +243,23 @@ This works the same way whether the key is used by an instance of
 PuTTY running locally, or a remote client connecting to Pageant
 through agent forwarding.
 
-After the key has been decrypted for the first use, it remains
-decrypted, so that it can be used again.
-
-To add a key to Pageant by reading it out of a local disk file, press
-the \q{Add Key (encrypted)} button in the Pageant main window, or
-alternatively right-click on the Pageant icon in the system tray and
-select \q{Add Key (encrypted)} from there. Pageant will bring up a
-file dialog, in just the same way as it would for the plain \q{Add
-Key} button. But it won't ask for a passphrase. Instead, the key will
-be listed in the main window with \q{(encrypted)} after it.
+To add a key to Pageant in this encrypted form, press the \q{Add Key
+(encrypted)} button in the Pageant main window, or alternatively
+right-click on the Pageant icon in the system tray and select \q{Add
+Key (encrypted)} from there. Pageant will bring up a file dialog, in
+just the same way as it would for the plain \q{Add Key} button. But it
+won't ask for a passphrase. Instead, the key will be listed in the
+main window with \q{(encrypted)} after it.
 
 To start Pageant up in the first place with encrypted keys loaded into
 it, you can use the \cq{--encrypted} option on the command line. For
 example:
 
 \c C:\PuTTY\pageant.exe --encrypted d:\main.ppk
+
+After a key has been decrypted for the first use, it remains
+decrypted, so that it can be used again. You can do this using the
+\q{Re-encrypt} button in the Pageant main window.
 
 \s{CAUTION}: When Pageant displays a prompt to decrypt an
 already-loaded key, it cannot give keyboard focus to the prompt dialog

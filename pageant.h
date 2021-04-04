@@ -113,12 +113,14 @@ void pageant_make_keylist2(BinarySink *);
 
 /*
  * Accessor functions for Pageant's internal key lists, used by GUI
- * Pageant, to count the keys and to delete a key.
+ * Pageant, to count the keys, to delete a key, or to re-encrypt a
+ * decrypted-on-demand key (SSH-2 only).
  */
 int pageant_count_ssh1_keys(void);
 int pageant_count_ssh2_keys(void);
 bool pageant_delete_nth_ssh1_key(int i);
 bool pageant_delete_nth_ssh2_key(int i);
+bool pageant_reencrypt_nth_ssh2_key(int i);
 
 /*
  * This callback must be provided by the Pageant front end code.

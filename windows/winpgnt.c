@@ -582,6 +582,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             }
             return 0;
           case IDC_KEYLIST_REMOVE:
+          case IDC_KEYLIST_REENCRYPT:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 int i;
@@ -617,7 +618,14 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                  */
                 for (i = sCount - 1; (itemNum >= 0) && (i >= 0); i--) {
                     if (selectedArray[itemNum] == rCount + i) {
-                        pageant_delete_nth_ssh2_key(i);
+                        switch (LOWORD(wParam)) {
+                          case IDC_KEYLIST_REMOVE:
+                            pageant_delete_nth_ssh2_key(i);
+                            break;
+                          case IDC_KEYLIST_REENCRYPT:
+                            pageant_reencrypt_nth_ssh2_key(i);
+                            break;
+                        }
                         itemNum--;
                     }
                 }
@@ -625,7 +633,14 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 /* do the same for the rsa keys */
                 for (i = rCount - 1; (itemNum >= 0) && (i >= 0); i--) {
                     if(selectedArray[itemNum] == i) {
-                        pageant_delete_nth_ssh1_key(i);
+                        switch (LOWORD(wParam)) {
+                          case IDC_KEYLIST_REMOVE:
+                            pageant_delete_nth_ssh1_key(i);
+                            break;
+                          case IDC_KEYLIST_REENCRYPT:
+                            /* SSH-1 keys can't be re-encrypted */
+                            break;
+                        }
                         itemNum--;
                     }
                 }
@@ -660,6 +675,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
           case IDC_KEYLIST_ADDKEY: topic = WINHELP_CTX_pageant_addkey; break;
           case IDC_KEYLIST_REMOVE: topic = WINHELP_CTX_pageant_remkey; break;
           case IDC_KEYLIST_ADDKEY_ENC:
+          case IDC_KEYLIST_REENCRYPT:
             topic = WINHELP_CTX_pageant_deferred; break;
         }
         if (topic) {

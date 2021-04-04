@@ -1400,6 +1400,14 @@ bool pageant_delete_nth_ssh2_key(int i)
     return true;
 }
 
+bool pageant_reencrypt_nth_ssh2_key(int i)
+{
+    PageantKey *pk = index234(keytree, find_first_key_for_version(2) + i);
+    if (!pk)
+        return false;
+    return reencrypt_key(pk);
+}
+
 /* ----------------------------------------------------------------------
  * The agent plug.
  */
