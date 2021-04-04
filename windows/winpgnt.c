@@ -294,13 +294,23 @@ void old_keyfile_warning(void)
     MessageBox(NULL, message, mbtitle, MB_OK);
 }
 
+struct keylist_update_ctx {
+    bool enable_remove_controls;
+    bool enable_reencrypt_controls;
+};
+
 static void keylist_update_callback(
-    void *ctx, char **fingerprints, const char *comment, uint32_t ext_flags,
+    void *vctx, char **fingerprints, const char *comment, uint32_t ext_flags,
     struct pageant_pubkey *key)
 {
+    struct keylist_update_ctx *ctx = (struct keylist_update_ctx *)vctx;
     FingerprintType this_type = ssh2_pick_fingerprint(fingerprints, fptype);
     const char *fingerprint = fingerprints[this_type];
     strbuf *listentry = strbuf_new();
+
+    /* There is at least one key, so the controls for removing keys
+     * should be enabled */
+    ctx->enable_remove_controls = true;
 
     switch (key->ssh_version) {
       case 1: {
@@ -364,10 +374,14 @@ static void keylist_update_callback(
       }
     }
 
-    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY)
+    if (ext_flags & LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY) {
         strbuf_catf(listentry, "\t(encrypted)");
-    else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
+    } else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE) {
         strbuf_catf(listentry, "\t(re-encryptable)");
+
+        /* At least one key can be re-encrypted */
+        ctx->enable_reencrypt_controls = true;
+    }
 
     SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
                        LB_ADDSTRING, 0, (LPARAM)listentry->s);
@@ -384,12 +398,20 @@ void keylist_update(void)
                            LB_RESETCONTENT, 0, 0);
 
         char *errmsg;
-        int status = pageant_enum_keys(keylist_update_callback, NULL, &errmsg);
+        struct keylist_update_ctx ctx[1];
+        ctx->enable_remove_controls = false;
+        ctx->enable_reencrypt_controls = false;
+        int status = pageant_enum_keys(keylist_update_callback, ctx, &errmsg);
         assert(status == PAGEANT_ACTION_OK);
         assert(!errmsg);
 
         SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
                            LB_SETCURSEL, (WPARAM) - 1, 0);
+
+        EnableWindow(GetDlgItem(keylist, IDC_KEYLIST_REMOVE),
+                     ctx->enable_remove_controls);
+        EnableWindow(GetDlgItem(keylist, IDC_KEYLIST_REENCRYPT),
+                     ctx->enable_reencrypt_controls);
     }
 }
 
