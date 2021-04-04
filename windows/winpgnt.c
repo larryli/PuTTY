@@ -1055,6 +1055,15 @@ static char *answer_filemapping_message(const char *mapname)
     return err;
 }
 
+static void create_keylist_window(void)
+{
+    if (keylist)
+        return;
+
+    keylist = CreateDialog(hinst, MAKEINTRESOURCE(211), NULL, KeyListProc);
+    ShowWindow(keylist, SW_SHOWNORMAL);
+}
+
 static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
                                     WPARAM wParam, LPARAM lParam)
 {
@@ -1122,11 +1131,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             SendMessage(hwnd, WM_CLOSE, 0, 0);
             break;
           case IDM_VIEWKEYS:
-            if (!keylist) {
-                keylist = CreateDialog(hinst, MAKEINTRESOURCE(211),
-                                       NULL, KeyListProc);
-                ShowWindow(keylist, SW_SHOWNORMAL);
-            }
+            create_keylist_window();
             /*
              * Sometimes the window comes up minimised / hidden for
              * no obvious reason. Prevent this. This also brings it
@@ -1303,6 +1308,7 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     MSG msg;
     const char *command = NULL;
     bool added_keys = false;
+    bool show_keylist_on_startup = false;
     int argc, i;
     char **argv, **argstart;
 
@@ -1404,6 +1410,8 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                        !strcmp(p, "--encrypted") ||
                        !strcmp(p, "-encrypted")) {
                 add_keys_encrypted = true;
+            } else if (!strcmp(p, "-keylist") || !strcmp(p, "--keylist")) {
+                show_keylist_on_startup = true;
             } else if (!strcmp(p, "-c")) {
                 /*
                  * If we see `-c', then the rest of the
@@ -1563,6 +1571,9 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     CreateThread(NULL, 0, wm_copydata_threadfunc,
                  &inst, 0, &wm_copydata_threadid);
     handle_add_foreign_event(wmct.ev_msg_ready, wm_copydata_got_msg, NULL);
+
+    if (show_keylist_on_startup)
+        create_keylist_window();
 
     /*
      * Main message loop.
