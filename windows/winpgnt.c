@@ -17,6 +17,7 @@
 #include "wincapi.h"
 #include "pageant.h"
 #include "licence.h"
+#include "pageant-rc.h"
 
 #include <shellapi.h>
 
@@ -27,9 +28,6 @@
 #include <sddl.h>
 #endif
 #endif
-
-#define IDI_MAINICON 200
-#define IDI_TRAYICON 201
 
 #define WM_SYSTRAY   (WM_APP + 6)
 #define WM_SYSTRAY2  (WM_APP + 7)
@@ -113,7 +111,7 @@ static INT_PTR CALLBACK LicenceProc(HWND hwnd, UINT msg,
 {
     switch (msg) {
       case WM_INITDIALOG:
-        SetDlgItemText(hwnd, 1000, LICENCE_TEXT("\r\n\r\n"));
+        SetDlgItemText(hwnd, IDC_LICENCE_TEXTBOX, LICENCE_TEXT("\r\n\r\n"));
         return 1;
       case WM_COMMAND:
         switch (LOWORD(wParam)) {
@@ -144,7 +142,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
              ver, buildinfo_text,
              "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
         sfree(buildinfo_text);
-        SetDlgItemText(hwnd, 1000, text);
+        SetDlgItemText(hwnd, IDC_ABOUT_TEXTBOX, text);
         sfree(text);
         return 1;
       }
@@ -155,13 +153,13 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
             aboutbox = NULL;
             DestroyWindow(hwnd);
             return 0;
-          case 101:
+          case IDC_ABOUT_LICENCE:
             EnableWindow(hwnd, 0);
-            DialogBox(hinst, MAKEINTRESOURCE(214), hwnd, LicenceProc);
+            DialogBox(hinst, MAKEINTRESOURCE(IDD_LICENCE), hwnd, LicenceProc);
             EnableWindow(hwnd, 1);
             SetActiveWindow(hwnd);
             return 0;
-          case 102:
+          case IDC_ABOUT_WEBSITE:
             /* Load web browser */
             ShellExecute(hwnd, "open",
                          "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
@@ -242,10 +240,10 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
         if (!p->modal)
             SetActiveWindow(hwnd); /* this won't have happened automatically */
         if (p->comment)
-            SetDlgItemText(hwnd, 101, p->comment);
+            SetDlgItemText(hwnd, IDC_PASSPHRASE_FINGERPRINT, p->comment);
         burnstr(p->passphrase);
         p->passphrase = dupstr("");
-        SetDlgItemText(hwnd, 102, p->passphrase);
+        SetDlgItemText(hwnd, IDC_PASSPHRASE_EDITBOX, p->passphrase);
         return 0;
       }
       case WM_COMMAND:
@@ -259,10 +257,11 @@ static INT_PTR CALLBACK PassphraseProc(HWND hwnd, UINT msg,
           case IDCANCEL:
             end_passphrase_dialog(hwnd, 0);
             return 0;
-          case 102:                    /* edit box */
+          case IDC_PASSPHRASE_EDITBOX:
             if ((HIWORD(wParam) == EN_CHANGE) && p->passphrase) {
                 burnstr(p->passphrase);
-                p->passphrase = GetDlgItemText_alloc(hwnd, 102);
+                p->passphrase = GetDlgItemText_alloc(
+                    hwnd, IDC_PASSPHRASE_EDITBOX);
             }
             return 0;
         }
@@ -369,7 +368,8 @@ static void keylist_update_callback(
     else if (ext_flags & LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE)
         strbuf_catf(listentry, "\t(re-encryptable)");
 
-    SendDlgItemMessage(keylist, 100, LB_ADDSTRING, 0, (LPARAM)listentry->s);
+    SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                       LB_ADDSTRING, 0, (LPARAM)listentry->s);
     strbuf_free(listentry);
 }
 
@@ -379,14 +379,16 @@ static void keylist_update_callback(
 void keylist_update(void)
 {
     if (keylist) {
-        SendDlgItemMessage(keylist, 100, LB_RESETCONTENT, 0, 0);
+        SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                           LB_RESETCONTENT, 0, 0);
 
         char *errmsg;
         int status = pageant_enum_keys(keylist_update_callback, NULL, &errmsg);
         assert(status == PAGEANT_ACTION_OK);
         assert(!errmsg);
 
-        SendDlgItemMessage(keylist, 100, LB_SETCURSEL, (WPARAM) - 1, 0);
+        SendDlgItemMessage(keylist, IDC_KEYLIST_LISTBOX,
+                           LB_SETCURSEL, (WPARAM) - 1, 0);
     }
 }
 
@@ -418,8 +420,9 @@ static void win_add_keyfile(Filename *filename, bool encrypted)
         pps.dlgid = NULL;
         pps.passphrase = NULL;
         pps.comment = err;
-        dlgret = DialogBoxParam(hinst, MAKEINTRESOURCE(210),
-                                NULL, PassphraseProc, (LPARAM) &pps);
+        dlgret = DialogBoxParam(
+            hinst, MAKEINTRESOURCE(IDD_LOAD_PASSPHRASE),
+            NULL, PassphraseProc, (LPARAM) &pps);
         modal_passphrase_hwnd = NULL;
 
         if (!dlgret) {
@@ -533,7 +536,7 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                              GetWindowLongPtr(hwnd, GWL_EXSTYLE) |
                              WS_EX_CONTEXTHELP);
         else {
-          HWND item = GetDlgItem(hwnd, 103);   /* the Help button */
+          HWND item = GetDlgItem(hwnd, IDC_KEYLIST_HELP);
           if (item)
               DestroyWindow(item);
         }
@@ -541,19 +544,20 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         keylist = hwnd;
         {
           static int tabs[] = { 35, 75, 300 };
-          SendDlgItemMessage(hwnd, 100, LB_SETTABSTOPS,
+          SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_SETTABSTOPS,
                              sizeof(tabs) / sizeof(*tabs),
                              (LPARAM) tabs);
         }
 
         int selection = 0;
         for (size_t i = 0; i < lenof(fptypes); i++) {
-            SendDlgItemMessage(hwnd, 105, CB_ADDSTRING,
+            SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE, CB_ADDSTRING,
                                0, (LPARAM)fptypes[i].name);
             if (fptype == fptypes[i].value)
                 selection = (int)i;
         }
-        SendDlgItemMessage(hwnd, 105, CB_SETCURSEL, 0, selection);
+        SendDlgItemMessage(hwnd, IDC_KEYLIST_FPTYPE,
+                           CB_SETCURSEL, 0, selection);
 
         keylist_update();
         return 0;
@@ -565,8 +569,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
             keylist = NULL;
             DestroyWindow(hwnd);
             return 0;
-          case 101:                    /* add key */
-          case 110:                    /* add key encrypted */
+          case IDC_KEYLIST_ADDKEY:
+          case IDC_KEYLIST_ADDKEY_ENC:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 if (modal_passphrase_hwnd) {
@@ -574,10 +578,10 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                     SetForegroundWindow(modal_passphrase_hwnd);
                     break;
                 }
-                prompt_add_keyfile(LOWORD(wParam) == 110);
+                prompt_add_keyfile(LOWORD(wParam) == IDC_KEYLIST_ADDKEY_ENC);
             }
             return 0;
-          case 102:                    /* remove key */
+          case IDC_KEYLIST_REMOVE:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 int i;
@@ -588,8 +592,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 int itemNum;
 
                 /* get the number of items selected in the list */
-                int numSelected =
-                        SendDlgItemMessage(hwnd, 100, LB_GETSELCOUNT, 0, 0);
+                int numSelected = SendDlgItemMessage(
+                    hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELCOUNT, 0, 0);
 
                 /* none selected? that was silly */
                 if (numSelected == 0) {
@@ -599,8 +603,8 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
 
                 /* get item indices in an array */
                 selectedArray = snewn(numSelected, int);
-                SendDlgItemMessage(hwnd, 100, LB_GETSELITEMS,
-                                numSelected, (WPARAM)selectedArray);
+                SendDlgItemMessage(hwnd, IDC_KEYLIST_LISTBOX, LB_GETSELITEMS,
+                                   numSelected, (WPARAM)selectedArray);
 
                 itemNum = numSelected - 1;
                 rCount = pageant_count_ssh1_keys();
@@ -630,16 +634,16 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
                 keylist_update();
             }
             return 0;
-          case 103:                    /* help */
+          case IDC_KEYLIST_HELP:
             if (HIWORD(wParam) == BN_CLICKED ||
                 HIWORD(wParam) == BN_DOUBLECLICKED) {
                 launch_help(hwnd, WINHELP_CTX_pageant_general);
             }
             return 0;
-          case 105:                    /* fingerprint type */
+          case IDC_KEYLIST_FPTYPE:
             if (HIWORD(wParam) == CBN_SELCHANGE) {
                 int selection = SendDlgItemMessage(
-                    hwnd, 105, CB_GETCURSEL, 0, 0);
+                    hwnd, IDC_KEYLIST_FPTYPE, CB_GETCURSEL, 0, 0);
                 if (selection >= 0 && (size_t)selection < lenof(fptypes)) {
                     fptype = fptypes[selection].value;
                     keylist_update();
@@ -652,9 +656,9 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         int id = ((LPHELPINFO)lParam)->iCtrlId;
         const char *topic = NULL;
         switch (id) {
-          case 100: topic = WINHELP_CTX_pageant_keylist; break;
-          case 101: topic = WINHELP_CTX_pageant_addkey; break;
-          case 102: topic = WINHELP_CTX_pageant_remkey; break;
+          case IDC_KEYLIST_LISTBOX: topic = WINHELP_CTX_pageant_keylist; break;
+          case IDC_KEYLIST_ADDKEY: topic = WINHELP_CTX_pageant_addkey; break;
+          case IDC_KEYLIST_REMOVE: topic = WINHELP_CTX_pageant_remkey; break;
         }
         if (topic) {
           launch_help(hwnd, topic);
@@ -846,7 +850,8 @@ static bool ask_passphrase_common(PageantClientDialogId *dlgid,
     pps->comment = comment;
 
     nonmodal_passphrase_hwnd = CreateDialogParam(
-        hinst, MAKEINTRESOURCE(212), NULL, PassphraseProc, (LPARAM)pps);
+        hinst, MAKEINTRESOURCE(IDD_ONDEMAND_PASSPHRASE),
+        NULL, PassphraseProc, (LPARAM)pps);
 
     /*
      * Try to put this passphrase prompt into the foreground.
@@ -1060,7 +1065,8 @@ static void create_keylist_window(void)
     if (keylist)
         return;
 
-    keylist = CreateDialog(hinst, MAKEINTRESOURCE(211), NULL, KeyListProc);
+    keylist = CreateDialog(hinst, MAKEINTRESOURCE(IDD_KEYLIST),
+                           NULL, KeyListProc);
     ShowWindow(keylist, SW_SHOWNORMAL);
 }
 
@@ -1154,7 +1160,7 @@ static LRESULT CALLBACK TrayWndProc(HWND hwnd, UINT message,
             break;
           case IDM_ABOUT:
             if (!aboutbox) {
-                aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(213),
+                aboutbox = CreateDialog(hinst, MAKEINTRESOURCE(IDD_ABOUT),
                                         NULL, AboutProc);
                 ShowWindow(aboutbox, SW_SHOWNORMAL);
                 /*
