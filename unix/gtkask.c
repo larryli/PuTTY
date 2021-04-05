@@ -146,6 +146,23 @@ static void add_text_to_passphrase(struct askpass_ctx *ctx, gchar *str)
     visually_acknowledge_keypress(ctx);
 }
 
+static void cancel_askpass(struct askpass_ctx *ctx, const char *msg)
+{
+    smemclr(ctx->passphrase, ctx->passsize);
+    ctx->passphrase = NULL;
+    ctx->error_message = dupstr(msg);
+    gtk_main_quit();
+}
+
+static gboolean askpass_dialog_closed(GtkWidget *widget, GdkEvent *event,
+                                      gpointer data)
+{
+    struct askpass_ctx *ctx = (struct askpass_ctx *)data;
+    cancel_askpass(ctx, "passphrase input cancelled");
+    /* Don't destroy dialog yet, so gtk_askpass_cleanup() can do its work */
+    return true;
+}
+
 static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
     struct askpass_ctx *ctx = (struct askpass_ctx *)data;
@@ -155,10 +172,7 @@ static gint key_event(GtkWidget *widget, GdkEventKey *event, gpointer data)
         gtk_main_quit();
     } else if (event->keyval == GDK_KEY_Escape &&
                event->type == GDK_KEY_PRESS) {
-        smemclr(ctx->passphrase, ctx->passsize);
-        ctx->passphrase = NULL;
-        ctx->error_message = dupstr("passphrase input cancelled");
-        gtk_main_quit();
+        cancel_askpass(ctx, "passphrase input cancelled");
     } else {
 #if GTK_CHECK_VERSION(2,0,0)
         if (gtk_im_context_filter_keypress(ctx->imc, event))
@@ -380,10 +394,7 @@ static gboolean try_grab_keyboard(gpointer vctx)
      * to give the user time to release that key.
      */
     if (++ctx->nattempts >= 4) {
-        smemclr(ctx->passphrase, ctx->passsize);
-        ctx->passphrase = NULL;
-        ctx->error_message = dupstr("unable to grab keyboard after 5 seconds");
-        gtk_main_quit();
+        cancel_askpass(ctx, "unable to grab keyboard after 5 seconds");
     } else {
         g_timeout_add(1000/8, try_grab_keyboard, ctx);
     }
@@ -426,6 +437,8 @@ static const char *gtk_askpass_setup(struct askpass_ctx *ctx,
     ctx->dialog = our_dialog_new();
     gtk_window_set_title(GTK_WINDOW(ctx->dialog), window_title);
     gtk_window_set_position(GTK_WINDOW(ctx->dialog), GTK_WIN_POS_CENTER);
+    g_signal_connect(G_OBJECT(ctx->dialog), "delete-event",
+                              G_CALLBACK(askpass_dialog_closed), ctx);
     ctx->promptlabel = gtk_label_new(prompt_text);
     align_label_left(GTK_LABEL(ctx->promptlabel));
     gtk_widget_show(ctx->promptlabel);
