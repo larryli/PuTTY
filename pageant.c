@@ -2053,8 +2053,15 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         pageant_client_op_free(pco);
 
         if (reply != SSH_AGENT_SUCCESS) {
-            *retstr = dupstr("The already running Pageant "
-                             "refused to add the key.");
+            if (reply == SSH_AGENT_FAILURE) {
+                /* The agent didn't understand the protocol extension
+                 * at all. */
+                *retstr = dupstr("Agent doesn't support adding "
+                                 "encrypted keys");
+            } else {
+                *retstr = dupstr("The already running agent "
+                                 "refused to add the key.");
+            }
             return PAGEANT_ACTION_FAILURE;
         }
 
@@ -2168,7 +2175,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(rkey);
 
         if (reply != SSH_AGENT_SUCCESS) {
-            *retstr = dupstr("The already running Pageant "
+            *retstr = dupstr("The already running agent "
                              "refused to add the key.");
             return PAGEANT_ACTION_FAILURE;
         }
@@ -2186,7 +2193,7 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
         sfree(skey);
 
         if (reply != SSH_AGENT_SUCCESS) {
-            *retstr = dupstr("The already running Pageant "
+            *retstr = dupstr("The already running agent "
                              "refused to add the key.");
             return PAGEANT_ACTION_FAILURE;
         }
@@ -2342,7 +2349,12 @@ int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr)
     pageant_client_op_free(pco);
 
     if (reply != SSH_AGENT_SUCCESS) {
-        *retstr = dupstr("Agent failed to re-encrypt key");
+        if (reply == SSH_AGENT_FAILURE) {
+            /* The agent didn't understand the protocol extension at all. */
+            *retstr = dupstr("Agent doesn't support encrypted keys");
+        } else {
+            *retstr = dupstr("Agent failed to re-encrypt key");
+        }
         return PAGEANT_ACTION_FAILURE;
     } else {
         *retstr = NULL;
@@ -2359,7 +2371,12 @@ int pageant_reencrypt_all_keys(char **retstr)
     uint32_t failures = get_uint32(pco);
     pageant_client_op_free(pco);
     if (reply != SSH_AGENT_SUCCESS) {
-        *retstr = dupstr("Agent failed to re-encrypt any keys");
+        if (reply == SSH_AGENT_FAILURE) {
+            /* The agent didn't understand the protocol extension at all. */
+            *retstr = dupstr("Agent doesn't support encrypted keys");
+        } else {
+            *retstr = dupstr("Agent failed to re-encrypt any keys");
+        }
         return PAGEANT_ACTION_FAILURE;
     } else if (failures == 1) {
         /* special case for English grammar */
