@@ -3755,6 +3755,11 @@ void nonfatal(const char *p, ...)
 
 static GtkWidget *aboutbox = NULL;
 
+static void about_window_destroyed(GtkWidget *widget, gpointer data)
+{
+    aboutbox = NULL;
+}
+
 static void about_close_clicked(GtkButton *button, gpointer data)
 {
     gtk_widget_destroy(aboutbox);
@@ -3799,6 +3804,9 @@ void about_box(void *window)
     title = dupcat("About ", appname);
     gtk_window_set_title(GTK_WINDOW(aboutbox), title);
     sfree(title);
+
+    g_signal_connect(G_OBJECT(aboutbox), "destroy",
+                     G_CALLBACK(about_window_destroyed), NULL);
 
     w = gtk_button_new_with_label("Close");
     gtk_widget_set_can_default(w, true);
