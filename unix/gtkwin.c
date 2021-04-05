@@ -2590,7 +2590,7 @@ static void gtkwin_palette_set(TermWin *tw, unsigned start, unsigned ncolours,
 #if !GTK_CHECK_VERSION(3,0,0)
     {
         gboolean success[OSC4_NCOLOURS];
-        gdk_colormap_alloc_colors(inst->colmap + start, inst->cols + start,
+        gdk_colormap_alloc_colors(inst->colmap, inst->cols + start,
                                   ncolours, false, true, success);
         for (unsigned i = 0; i < ncolours; i++) {
             if (!success[i])
