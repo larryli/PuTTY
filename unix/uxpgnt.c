@@ -207,8 +207,8 @@ static void usage(void)
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
-    printf("  --tty-prompt force tty-based passphrase prompt (in -a mode)\n");
-    printf("  --gui-prompt force GUI-based passphrase prompt (in -a mode)\n");
+    printf("  --tty-prompt force tty-based passphrase prompt\n");
+    printf("  --gui-prompt force GUI-based passphrase prompt\n");
     printf("  --askpass <prompt>   behave like a standalone askpass program\n");
     exit(1);
 }
