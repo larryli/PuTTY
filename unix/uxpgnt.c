@@ -183,14 +183,16 @@ static void usage(void)
 {
     printf("Pageant: SSH agent\n");
     printf("%s\n", ver);
-    printf("Usage: pageant <lifetime> [key files]\n");
-    printf("       pageant [key files] --exec <command> [args]\n");
-    printf("       pageant -a [key files]\n");
+    printf("Usage: pageant <lifetime> [[--encrypted] key files]\n");
+    printf("       pageant [[--encrypted] key files] --exec <command> [args]\n");
+    printf("       pageant -a [--encrypted] [key files]\n");
     printf("       pageant -d [key identifiers]\n");
+    printf("       pageant -D\n");
+    printf("       pageant -r [key identifiers]\n");
+    printf("       pageant -R\n");
     printf("       pageant --public [key identifiers]\n");
     printf("       pageant ( --public-openssh | -L ) [key identifiers]\n");
-    printf("       pageant -l\n");
-    printf("       pageant -D\n");
+    printf("       pageant -l [-E fptype]\n");
     printf("Lifetime options, for running Pageant as an agent:\n");
     printf("  -X           run with the lifetime of the X server\n");
     printf("  -T           run with the lifetime of the controlling tty\n");
@@ -204,9 +206,13 @@ static void usage(void)
     printf("  --public-openssh, -L   print public keys in OpenSSH format\n");
     printf("  -d           delete key(s) from the agent\n");
     printf("  -D           delete all keys from the agent\n");
+    printf("  -r           re-encrypt keys in the agent (forget cleartext\n");
+    printf("  -R           re-encrypt all possible keys in the agent\n");
     printf("Other options:\n");
     printf("  -v           verbose mode (in agent mode)\n");
     printf("  -s -c        force POSIX or C shell syntax (in agent mode)\n");
+    printf("  --encrypted  when adding keys, don't decrypt\n");
+    printf("  -E alg, --fptype alg   fingerprint type for -l (sha256, md5)\n");
     printf("  --tty-prompt force tty-based passphrase prompt\n");
     printf("  --gui-prompt force GUI-based passphrase prompt\n");
     printf("  --askpass <prompt>   behave like a standalone askpass program\n");
@@ -1507,8 +1513,8 @@ int main(int argc, char **argv)
             has_lifetime = true;
 
         if (has_lifetime && has_client_actions) {
-            fprintf(stderr, "pageant: client key actions (-a, -d, -D, -l, -L)"
-                    " do not go with an agent lifetime option\n");
+            fprintf(stderr, "pageant: client key actions (-a, -d, -D, -r, -R, "
+                    "-l, -L) do not go with an agent lifetime option\n");
             exit(1);
         }
         if (!has_lifetime && has_agent_actions) {

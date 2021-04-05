@@ -91,6 +91,9 @@ less secure and should be avoided for comparison purposes where possible.
 
 \b The comment attached to the key.
 
+\b The state of deferred decryption, if enabled for this key.
+See \k{pageant-deferred-decryption}.
+
 \S{pageant-mainwin-addkey} The \q{Add Key} button
 
 To add a key to Pageant by reading it out of a local disk file,
@@ -147,6 +150,9 @@ passphrases on startup.
 
 If Pageant is already running, this syntax loads keys into the
 existing Pageant.
+
+You can specify the \cq{--encrypted} option to defer decryption of
+these keys; see \k{pageant-deferred-decryption}.
 
 \S{pageant-cmdline-command} Making Pageant run another program
 
@@ -258,8 +264,10 @@ example:
 \c C:\PuTTY\pageant.exe --encrypted d:\main.ppk
 
 After a key has been decrypted for the first use, it remains
-decrypted, so that it can be used again. You can do this using the
-\q{Re-encrypt} button in the Pageant main window.
+decrypted, so that it can be used again. The main window will list
+the key with \q{(\i{re-encryptable})} after it. You can revert it
+to the previous state, where a passphrase is required, using the
+\q{\i{Re-encrypt}} button in the Pageant main window.
 
 \s{CAUTION}: When Pageant displays a prompt to decrypt an
 already-loaded key, it cannot give keyboard focus to the prompt dialog
