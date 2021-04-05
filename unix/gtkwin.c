@@ -348,9 +348,8 @@ static bool gtk_seat_is_utf8(Seat *seat)
     return inst->ucsdata.line_codepage == CS_UTF8;
 }
 
-static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
+static void get_window_pixel_size(GtkFrontend *inst, int *w, int *h)
 {
-    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
     /*
      * I assume that when the GTK version of this call is available
      * we should use it. Not sure how it differs from the GDK one,
@@ -361,6 +360,12 @@ static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
 #else
     gdk_window_get_size(gtk_widget_get_window(inst->window), w, h);
 #endif
+}
+
+static bool gtk_seat_get_window_pixel_size(Seat *seat, int *w, int *h)
+{
+    GtkFrontend *inst = container_of(seat, GtkFrontend, seat);
+    get_window_pixel_size(inst, w, h);
     return true;
 }
 
@@ -2456,7 +2461,7 @@ static void gtkwin_request_resize(TermWin *tw, int w, int h)
      * bogus size request which guarantees to be bigger than the
      * current size of the drawing area.
      */
-    win_get_pixels(&inst->termwin, &large_x, &large_y);
+    get_window_pixel_size(inst, &large_x, &large_y);
     large_x += 32;
     large_y += 32;
 
