@@ -1989,24 +1989,38 @@ int pageant_add_keyfile(Filename *filename, const char *passphrase,
 
             for (size_t i = 0; i < kl->nkeys; i++) {
                 /*
-                 * If the key already exists in the agent, we're done
-                 * ... *unless* it's encrypted in the agent and we're
-                 * being asked to add it unencrypted, in which case we
-                 * still want to upload the unencrypted version to
-                 * cause the key to become decrypted.
+                 * If the key already exists in the agent, we're done,
+                 * except in the following special cases:
                  *
+                 * It's encrypted in the agent, and we're being asked
+                 * to add it unencrypted, in which case we still want
+                 * to upload the unencrypted version to cause the key
+                 * to become decrypted.
                  * (Rationale: if you know in advance you're going to
                  * want it, and don't want to be interrupted at an
                  * unpredictable moment to be asked for the
                  * passphrase.)
+                 *
+                 * The agent only has cleartext, and we're being asked
+                 * to add it encrypted, in which case we'll add the
+                 * encrypted form.
+                 * (Rationale: if you might want to re-encrypt the key
+                 * at some future point, but it happened to have been
+                 * initially added in cleartext, perhaps by something
+                 * other than Pageant.)
                  */
                 if (ptrlen_eq_ptrlen(ptrlen_from_strbuf(blob),
                                      kl->keys[i].blob)) {
                     bool have_unencrypted =
                         !(kl->keys[i].flags &
                           LIST_EXTENDED_FLAG_HAS_NO_CLEARTEXT_KEY);
-                    if (have_unencrypted || add_encrypted) {
-                        /* Key is already present; we can now leave. */
+                    bool have_encrypted =
+                        (kl->keys[i].flags &
+                         LIST_EXTENDED_FLAG_HAS_ENCRYPTED_KEY_FILE);
+                    if ((have_unencrypted && !add_encrypted)
+                        || (have_encrypted && add_encrypted)) {
+                        /* Key is already present in the desired form;
+                         * we can now leave. */
                         keylist_free(kl);
                         strbuf_free(blob);
                         return PAGEANT_ACTION_OK;
