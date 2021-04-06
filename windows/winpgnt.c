@@ -695,7 +695,10 @@ static INT_PTR CALLBACK KeyListProc(HWND hwnd, UINT msg,
         int id = ((LPHELPINFO)lParam)->iCtrlId;
         const char *topic = NULL;
         switch (id) {
-          case IDC_KEYLIST_LISTBOX: topic = WINHELP_CTX_pageant_keylist; break;
+          case IDC_KEYLIST_LISTBOX:
+          case IDC_KEYLIST_FPTYPE:
+          case IDC_KEYLIST_FPTYPE_STATIC:
+            topic = WINHELP_CTX_pageant_keylist; break;
           case IDC_KEYLIST_ADDKEY: topic = WINHELP_CTX_pageant_addkey; break;
           case IDC_KEYLIST_REMOVE: topic = WINHELP_CTX_pageant_remkey; break;
           case IDC_KEYLIST_ADDKEY_ENC:
