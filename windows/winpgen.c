@@ -512,6 +512,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
                  "\251 " SHORT_COPYRIGHT_DETAILS ". All rights reserved.");
             sfree(buildinfo_text);
             SetDlgItemText(hwnd, 1000, text);
+            MakeDlgItemBorderless(hwnd, 1000);
             sfree(text);
         }
         return 1;

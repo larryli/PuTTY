@@ -373,6 +373,7 @@ void filereq_free(filereq *state);
 void pgp_fingerprints_msgbox(HWND owner);
 int message_box(HWND owner, LPCTSTR text, LPCTSTR caption,
                 DWORD style, DWORD helpctxid);
+void MakeDlgItemBorderless(HWND parent, int id);
 char *GetDlgItemText_alloc(HWND hwnd, int id);
 void split_into_argv(char *, int *, char ***, char ***);
 
