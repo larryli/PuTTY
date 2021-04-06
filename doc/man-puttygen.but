@@ -12,8 +12,8 @@
 \e bbbbbbbb   iiiiiii   bb iiiiiii   bb iiii     bbbbbbbb iiiiii
 \c          [ -C new-comment ] [ -P ] [ -q ]
 \e            bb iiiiiiiiiii     bb     bb
-\c          [ -O output-type | -l | -L | -p ] [ -E fptype ]
-\e            bb iiiiiiiiiii   bb   bb   bb     bb iiiiii
+\c          [ -O output-type | -l | -L | -p | --dump ] [ -E fptype ]
+\e            bb iiiiiiiiiii   bb   bb   bb   bbbbbb     bb iiiiii
 \c          [ -o output-file ]
 \e            bb iiiiiiiiiii
 
@@ -44,7 +44,8 @@ The options to control this phase are:
 
 \dt \e{keyfile}
 
-\dd Specify a key file to be loaded.
+\dd Specify a key file to be loaded. (Use \cq{-} to read a key
+file from standard input.)
 
 \lcont{
 
@@ -164,6 +165,12 @@ newer format even for RSA, DSA, and ECDSA keys.
 \dd Save an SSH-2 private key in ssh.com's format. This option is not
 permitted for SSH-1 keys.
 
+\dt \cw{text}
+
+\dd Save a textual dump of all the numbers that comprise the key.
+Useful for debugging, or for using PuTTYgen as a key generator for
+applications other than SSH.
+
 If no output type is specified, the default is \c{private}.
 
 }
@@ -188,6 +195,10 @@ fingerprint. Otherwise, the \c{\-o} option is required.
 \dt \cw{\-p}
 
 \dd Synonym for \q{\cw{-O public}}.
+
+\dt \cw{\-\-dump}
+
+\dd Synonym for \q{\cw{-O text}}.
 
 \dt \cw{-E} \e{fptype}
 
