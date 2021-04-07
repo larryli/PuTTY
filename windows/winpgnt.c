@@ -188,6 +188,21 @@ static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
     if (p->modal) {
         EndDialog(hwnd, result);
     } else {
+        /*
+         * Destroy this passphrase dialog box before passing the
+         * results back to pageant.c, to avoid re-entrancy issues.
+         *
+         * If we successfully got a passphrase from the user, but it
+         * was _wrong_, then pageant_passphrase_request_success will
+         * respond by calling back - synchronously - to our
+         * ask_passphrase() implementation, which will expect the
+         * previous value of nonmodal_passphrase_hwnd to have already
+         * been cleaned up.
+         */
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) NULL);
+        DestroyWindow(hwnd);
+        nonmodal_passphrase_hwnd = NULL;
+
         if (result)
             pageant_passphrase_request_success(
                 p->dlgid, ptrlen_from_asciz(p->passphrase));
@@ -196,9 +211,6 @@ static void end_passphrase_dialog(HWND hwnd, INT_PTR result)
 
         burnstr(p->passphrase);
         sfree(p);
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR) NULL);
-        DestroyWindow(hwnd);
-        nonmodal_passphrase_hwnd = NULL;
     }
 }
 
