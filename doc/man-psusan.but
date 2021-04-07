@@ -40,8 +40,11 @@ that any channel that you were prepared to run a \e{bare} shell
 session over, you can run \cw{psusan} over instead, which adds all the
 above conveniences without changing the security properties.
 
-The protocol that \cw{psusan} speaks is also spoken by PuTTY and
-Plink, if you select the protocol type \q{Bare ssh-connection}.
+The protocol that \cw{psusan} speaks is also spoken by PuTTY, Plink,
+PSCP, and PSFTP, if you select the protocol type \q{Bare ssh-connection}
+or the command-line option \cw{-ssh-connection} and specify the
+absolute path to the appropriate Unix-domain socket in place of
+a hostname.
 
 \S{psusan-manpage-examples} EXAMPLES
 
