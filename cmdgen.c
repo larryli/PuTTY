@@ -810,22 +810,30 @@ int main(int argc, char **argv)
 
     /*
      * Figure out whether we need to load the encrypted part of the
-     * key. This will be the case if either (a) we need to write
-     * out a private key format, or (b) the entire input key file
-     * is encrypted.
+     * key. This will be the case if (a) we need to write out
+     * a private key format, (b) the entire input key file is
+     * encrypted, or (c) we're outputting TEXT, in which case we
+     * want all of the input file including private material if it
+     * exists.
      */
-    if (outtype == PRIVATE || outtype == OPENSSH_AUTO ||
-        outtype == OPENSSH_NEW || outtype == SSHCOM ||
+    bool intype_entirely_encrypted =
         intype == SSH_KEYTYPE_OPENSSH_PEM ||
         intype == SSH_KEYTYPE_OPENSSH_NEW ||
-        intype == SSH_KEYTYPE_SSHCOM)
+        intype == SSH_KEYTYPE_SSHCOM;
+    bool intype_has_private =
+        !(intype == SSH_KEYTYPE_SSH1_PUBLIC ||
+          intype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
+          intype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH);
+    bool outtype_has_private =
+        outtype == PRIVATE || outtype == OPENSSH_AUTO ||
+        outtype == OPENSSH_NEW || outtype == SSHCOM;
+    if (outtype_has_private || intype_entirely_encrypted ||
+        (outtype == TEXT && intype_has_private))
         load_encrypted = true;
     else
         load_encrypted = false;
 
-    if (load_encrypted && (intype == SSH_KEYTYPE_SSH1_PUBLIC ||
-                           intype == SSH_KEYTYPE_SSH2_PUBLIC_RFC4716 ||
-                           intype == SSH_KEYTYPE_SSH2_PUBLIC_OPENSSH)) {
+    if (load_encrypted && !intype_has_private) {
         fprintf(stderr, "puttygen: cannot perform this action on a "
                 "public-key-only input file\n");
         RETURN(1);

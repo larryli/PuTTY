@@ -167,9 +167,16 @@ permitted for SSH-1 keys.
 
 \dt \cw{text}
 
-\dd Save a textual dump of all the numbers that comprise the key.
-Useful for debugging, or for using PuTTYgen as a key generator for
-applications other than SSH.
+\dd Save a textual dump of the numeric components comprising the key
+(both the public and private parts, if present). Useful for debugging,
+or for using PuTTYgen as a key generator for applications other than
+SSH.
+
+\lcont{
+The output consists of a series of \cw{name=value} lines, where each
+\c{value} is either a C-like string literal in double quotes, or a
+hexadecimal number starting with \cw{0x...}
+}
 
 If no output type is specified, the default is \c{private}.
 
