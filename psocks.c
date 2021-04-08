@@ -7,6 +7,7 @@
 #include <errno.h>
 
 #include "putty.h"
+#include "misc.h"
 #include "ssh.h"
 #include "sshchan.h"
 #include "psocks.h"
@@ -120,30 +121,6 @@ static void psocks_conn_log(psocks_connection *conn, const char *fmt, ...)
     fflush(conn->ps->logging_fp);
 }
 
-static void print_c_string(FILE *fp, const char *data, size_t len)
-{
-    while (len--) {
-	char c = *data++;
-
-	if (c == '\n')
-	    fputs("\\n", fp);
-	else if (c == '\r')
-	    fputs("\\r", fp);
-	else if (c == '\t')
-	    fputs("\\t", fp);
-	else if (c == '\b')
-	    fputs("\\b", fp);
-	else if (c == '\\')
-	    fputs("\\\\", fp);
-	else if (c == '"')
-	    fputs("\\\"", fp);
-	else if (c >= 32 && c <= 126)
-	    fputc(c, fp);
-	else
-	    fprintf(fp, "\\%03o", (unsigned char)c);
-    }
-}
-
 static void psocks_conn_log_data(psocks_connection *conn, PsocksDirection dir,
                                  const void *vdata, size_t len)
 {
@@ -161,7 +138,8 @@ static void psocks_conn_log_data(psocks_connection *conn, PsocksDirection dir,
 
             fprintf(conn->ps->logging_fp, "c#%"PRIu64": %s \"", conn->index,
                     direction_names[dir]);
-            print_c_string(conn->ps->logging_fp, thisdata, thislen);
+            write_c_string_literal(conn->ps->logging_fp,
+                                   make_ptrlen(thisdata, thislen));
             fprintf(conn->ps->logging_fp, "\"\n");
         }
 
