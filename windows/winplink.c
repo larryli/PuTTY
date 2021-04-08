@@ -513,6 +513,7 @@ int main(int argc, char **argv)
             sfree(error);
             return 1;
         }
+        ldisc_create(conf, NULL, backend, plink_seat);
         sfree(realhost);
     }
 
