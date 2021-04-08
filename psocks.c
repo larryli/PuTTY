@@ -484,7 +484,7 @@ void psocks_cmdline(psocks_state *ps, int argc, char **argv)
                  * subcommand, even if they look like options */
                 doing_opts = false;
 	    } else if (!strcmp(p, "--help")) {
-                printf("usage: psocks [ -d | -f");
+                printf("usage: psocks [ -d ] [ -f");
                 if (ps->platform->open_pipes)
                     printf(" | -p pipe-cmd");
                 printf(" ] [ -g ] port-number");
