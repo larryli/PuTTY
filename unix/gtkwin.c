@@ -2840,8 +2840,6 @@ static char *retrieve_cutbuffer(GtkFrontend *inst, int *nbytes)
         ptr = 0;
     }
     return ptr;
-    *nbytes = 0;
-    return NULL;
 }
 
 #endif /* NOT_X_WINDOWS */
