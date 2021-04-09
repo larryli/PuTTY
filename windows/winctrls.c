@@ -222,13 +222,15 @@ static void radioline_common(struct ctlpos *cp, char *text, int id,
     int i;
     int j;
 
+    r.left = GAPBETWEEN;
+    r.top = cp->ypos;
     if (text) {
-        r.left = GAPBETWEEN;
-        r.top = cp->ypos;
         r.right = cp->width;
         r.bottom = STATICHEIGHT;
         cp->ypos += r.bottom + GAPWITHIN;
         doctl(cp, r, "STATIC", WS_CHILD | WS_VISIBLE, 0, text, id);
+    } else {
+        r.right = r.bottom = 0;
     }
 
     group = WS_GROUP;
