@@ -66,12 +66,9 @@ static void hprime_final(ssh_hash *h, unsigned length, void *vout)
         uint8_t hashbuf[64];
         ssh_hash_final(h, hashbuf);
 
-        unsigned chunk = 32;
-        if (chunk > length)
-            chunk = length;
-        memcpy(out, hashbuf, chunk);
-        out += chunk;
-        length -= chunk;
+        memcpy(out, hashbuf, 32);
+        out += 32;
+        length -= 32;
 
         h = blake2b_new_general(length > 64 ? 64 : length);
         put_data(h, hashbuf, 64);
