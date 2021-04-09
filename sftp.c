@@ -38,7 +38,17 @@ struct sftp_packet *sftp_recv(void)
     if (!sftp_recvdata(x, 4))
         return NULL;
 
-    pkt = sftp_recv_prepare(GET_32BIT_MSB_FIRST(x));
+    /* Impose _some_ upper bound on packet size. We never expect to
+     * receive more than 32K of data in response to an FXP_READ,
+     * because we decide how much data to ask for. FXP_READDIR and
+     * pathname-returning things like FXP_REALPATH don't have an
+     * explicit bound, so I suppose we just have to trust the server
+     * to be sensible. */
+    unsigned pktlen = GET_32BIT_MSB_FIRST(x);
+    if (pktlen > (1<<20))
+        return NULL;
+
+    pkt = sftp_recv_prepare(pktlen);
 
     if (!sftp_recvdata(pkt->data, pkt->length)) {
         sftp_pkt_free(pkt);
