@@ -2627,6 +2627,10 @@ static void unifontsel_setup_sizelist(unifontsel_internal *fs,
      */
     for (i = start; i < end; i++) {
         info = (fontinfo *)index234(fs->fonts_by_selorder, i);
+        if (!info) {
+            /* _shouldn't_ happen unless font list is completely funted */
+            break;
+        }
         if (info->flags &~ fs->filter_flags) {
             info->sizeindex = -1;
             continue;                  /* we're filtering out this font */
@@ -3135,9 +3139,11 @@ static void family_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    info = update_for_intended_size(fs, info);
     if (!info)
         return; /* _shouldn't_ happen unless font list is completely funted */
+    info = update_for_intended_size(fs, info);
+    if (!info)
+        return; /* similarly shouldn't happen */
     if (!info->size)
         fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
@@ -3162,9 +3168,11 @@ static void style_changed(GtkTreeSelection *treeselection, gpointer data)
     if (minval < 0)
         return;                    /* somehow a charset heading got clicked */
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
-    info = update_for_intended_size(fs, info);
     if (!info)
         return; /* _shouldn't_ happen unless font list is completely funted */
+    info = update_for_intended_size(fs, info);
+    if (!info)
+        return; /* similarly shouldn't happen */
     if (!info->size)
         fs->selsize = fs->intendedsize;   /* font is scalable */
     unifontsel_select_font(fs, info, info->size ? info->size : fs->selsize,
@@ -3187,6 +3195,8 @@ static void size_changed(GtkTreeSelection *treeselection, gpointer data)
 
     gtk_tree_model_get(treemodel, &treeiter, 1, &minval, 2, &size, -1);
     info = (fontinfo *)index234(fs->fonts_by_selorder, minval);
+    if (!info)
+        return; /* _shouldn't_ happen unless font list is completely funted */
     unifontsel_select_font(fs, info, info->size ? info->size : size, 3, true);
 }
 
