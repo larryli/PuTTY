@@ -923,7 +923,7 @@ static INT_PTR CALLBACK HostKeyDialogProc(HWND hwnd, UINT msg,
         HDC hdc = (HDC)wParam;
         HWND control = (HWND)lParam;
 
-        if (GetWindowLong(control, GWL_ID) == IDC_HK_TITLE) {
+        if (GetWindowLong(control, GWLP_ID) == IDC_HK_TITLE) {
             SetBkMode(hdc, TRANSPARENT);
             HFONT prev_font = (HFONT)SelectObject(
                 hdc, (HFONT)GetStockObject(SYSTEM_FONT));

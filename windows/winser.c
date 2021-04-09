@@ -125,10 +125,12 @@ static char *serial_configure(Serial *serial, HANDLE serport, Conf *conf)
          * Configurable parameters.
          */
         dcb.BaudRate = conf_get_int(conf, CONF_serspeed);
-        logeventf(serial->logctx, "Configuring baud rate %lu", dcb.BaudRate);
+        logeventf(serial->logctx, "Configuring baud rate %lu",
+                  (unsigned long)dcb.BaudRate);
 
         dcb.ByteSize = conf_get_int(conf, CONF_serdatabits);
-        logeventf(serial->logctx, "Configuring %u data bits", dcb.ByteSize);
+        logeventf(serial->logctx, "Configuring %u data bits",
+                  (unsigned)dcb.ByteSize);
 
         switch (conf_get_int(conf, CONF_serstopbits)) {
           case 2: dcb.StopBits = ONESTOPBIT; str = "1 stop bit"; break;
