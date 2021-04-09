@@ -624,7 +624,7 @@ gint delete_window(GtkWidget *widget, GdkEvent *event, GtkFrontend *inst)
         if (!find_and_raise_dialog(inst, DIALOG_SLOT_WARN_ON_CLOSE)) {
             char *title = dupcat(appname, " Exit Confirmation");
             char *msg, *additional = NULL;
-            if (inst && inst->backend && inst->backend->vt->close_warn_text) {
+            if (inst->backend && inst->backend->vt->close_warn_text) {
                 additional = inst->backend->vt->close_warn_text(inst->backend);
             }
             msg = dupprintf("Are you sure you want to close this session?%s%s",
