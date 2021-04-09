@@ -2338,6 +2338,7 @@ int pageant_reencrypt_key(struct pageant_pubkey *key, char **retstr)
 
     if (key->ssh_version == 1) {
         *retstr = dupstr("Can't re-encrypt an SSH-1 key");
+        pageant_client_op_free(pco);
         return PAGEANT_ACTION_FAILURE;
     } else {
         put_byte(pco, SSH2_AGENTC_EXTENSION);

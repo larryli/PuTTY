@@ -127,6 +127,8 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx)
         if (!post(ctx, extra_handle_index))
             break;
     }
+
+    sfree(sklist);
 }
 
 bool cliloop_null_pre(void *vctx, const HANDLE **eh, size_t *neh)

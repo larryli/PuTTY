@@ -357,10 +357,14 @@ static void serial_reconfig(Backend *be, Conf *conf)
 {
     Serial *serial = container_of(be, Serial, backend);
 
-    /*
-     * FIXME: what should we do if this returns an error?
-     */
-    serial_configure(serial, conf);
+    char *err = serial_configure(serial, conf);
+    if (err) {
+        /*
+         * FIXME: apart from freeing the dynamically allocated
+         * message, what should we do if this returns an error?
+         */
+        sfree(err);
+    }
 }
 
 static void serial_select_result(int fd, int event)
