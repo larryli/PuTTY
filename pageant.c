@@ -1897,8 +1897,13 @@ static KeyList *pageant_get_keylist(unsigned ssh_version)
 
     for (size_t i = 0; i < kl->nkeys && !get_err(pco); i++) {
         if (ssh_version == 1) {
-            kl->keys[i].blob = get_data(pco, rsa_ssh1_public_blob_len(
-                make_ptrlen(get_ptr(pco), get_avail(pco))));
+            int bloblen = rsa_ssh1_public_blob_len(
+                make_ptrlen(get_ptr(pco), get_avail(pco)));
+            if (bloblen < 0) {
+                kl->broken = true;
+                bloblen = 0;
+            }
+            kl->keys[i].blob = get_data(pco, bloblen);
         } else {
             kl->keys[i].blob = get_string(pco);
         }
@@ -1915,7 +1920,8 @@ static KeyList *pageant_get_keylist(unsigned ssh_version)
         }
     }
 
-    kl->broken = get_err(pco);
+    if (get_err(pco))
+        kl->broken = true;
     kl->raw_data = pco->buf;
     pco->buf = NULL;
     pageant_client_op_free(pco);
