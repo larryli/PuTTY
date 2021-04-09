@@ -195,6 +195,7 @@ static size_t named_pipe_agent_gotdata(
     if (err || len == 0) {
         pq->callback(pq->callback_ctx, NULL, 0);
         agent_cancel_query(pq);
+        return 0;
     }
 
     int status = named_pipe_agent_accumulate_response(pq->response, data, len);
