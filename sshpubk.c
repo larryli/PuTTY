@@ -993,12 +993,14 @@ ssh2_userkey *ppk_load_f(const Filename *filename, const char *passphrase,
                          const char **errorstr)
 {
     LoadedFile *lf = lf_load_keyfile(filename, errorstr);
-    if (!lf)
+    ssh2_userkey *toret;
+    if (lf) {
+        toret = ppk_load_s(BinarySource_UPCAST(lf), passphrase, errorstr);
+        lf_free(lf);
+    } else {
+        toret = NULL;
         *errorstr = "can't open file";
-
-    ssh2_userkey *toret = ppk_load_s(BinarySource_UPCAST(lf),
-                                     passphrase, errorstr);
-    lf_free(lf);
+    }
     return toret;
 }
 
