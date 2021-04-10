@@ -3164,7 +3164,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
          * The Connection/SUPDUP panel.
          */
         ctrl_settitle(b, "Connection/SUPDUP",
-                      "Enabling and disabling SUPDUP user options");
+                      "Options controlling SUPDUP connections");
 
         s = ctrl_getset(b, "Connection/SUPDUP", "main", NULL);
 
@@ -3173,7 +3173,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                      conf_editbox_handler, I(CONF_supdup_location),
                      I(1));
 
-        ctrl_radiobuttons(s, "Extended ASCII Character set:", 'z', 4,
+        ctrl_radiobuttons(s, "Extended ASCII Character set:", 'e', 4,
                           HELPCTX(supdup_ascii),
                           conf_radiobutton_handler,
                           I(CONF_supdup_ascii_set),
