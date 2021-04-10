@@ -1894,6 +1894,7 @@ static KeyList *pageant_get_keylist(unsigned ssh_version)
     KeyList *kl = snew(KeyList);
     kl->nkeys = get_uint32(pco);
     kl->keys = snewn(kl->nkeys, struct KeyListEntry);
+    kl->broken = false;
 
     for (size_t i = 0; i < kl->nkeys && !get_err(pco); i++) {
         if (ssh_version == 1) {
