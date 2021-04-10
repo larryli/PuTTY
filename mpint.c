@@ -1183,7 +1183,7 @@ static void mp_rshift_safe_in_place(mp_int *r, size_t bits)
     mp_cond_clear(r, clear);
 
     for (unsigned bit = 0; r->nw >> bit; bit++) {
-        size_t word_offset = 1 << bit;
+        size_t word_offset = (size_t)1 << bit;
         BignumInt mask = -(BignumInt)((wordshift >> bit) & 1);
         for (size_t i = 0; i < r->nw; i++) {
             BignumInt w = mp_word(r, i + word_offset);
@@ -1232,7 +1232,7 @@ static void mp_lshift_safe_in_place(mp_int *r, size_t bits)
     mp_cond_clear(r, clear);
 
     for (unsigned bit = 0; r->nw >> bit; bit++) {
-        size_t word_offset = 1 << bit;
+        size_t word_offset = (size_t)1 << bit;
         BignumInt mask = -(BignumInt)((wordshift >> bit) & 1);
         for (size_t i = r->nw; i-- > 0 ;) {
             BignumInt w = mp_word(r, i - word_offset);
@@ -2042,7 +2042,7 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
      */
     size_t shift_up = 0;
     for (size_t i = BIGNUM_INT_BITS_BITS; i-- > 0;) {
-        size_t sl = 1 << i;               /* left shift count */
+        size_t sl = (size_t)1 << i;       /* left shift count */
         size_t sr = 64 - sl;     /* complementary right-shift count */
 
         /* Should we shift up? */
@@ -2079,7 +2079,7 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
      * instructions, e.g. by splitting up into cases.
      */
     for (size_t i = BIGNUM_INT_BITS_BITS; i-- > 0;) {
-        size_t sl = 1 << i;               /* left shift count */
+        size_t sl = (size_t)1 << i;       /* left shift count */
         size_t sr = 64 - sl;     /* complementary right-shift count */
 
         /* Should we shift up? */

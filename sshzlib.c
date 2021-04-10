@@ -730,7 +730,7 @@ static struct zlib_table *zlib_mkonetab(int *codes, unsigned char *lengths,
     int pfxmask = (1 << pfxbits) - 1;
     int nbits, i, j, code;
 
-    tab->table = snewn(1 << bits, struct zlib_tableentry);
+    tab->table = snewn((size_t)1 << bits, struct zlib_tableentry);
     tab->mask = (1 << bits) - 1;
 
     for (code = 0; code <= tab->mask; code++) {
