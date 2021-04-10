@@ -11,6 +11,17 @@
 #ifndef PUTTY_DEFS_H
 #define PUTTY_DEFS_H
 
+#ifdef NDEBUG
+/*
+ * PuTTY is a security project, so assertions are important - if an
+ * assumption is violated, proceeding anyway may have far worse
+ * consequences than simple program termination. This check and #error
+ * should arrange that we don't ever accidentally compile assertions
+ * out.
+ */
+#error Do not compile this code base with NDEBUG defined!
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>                     /* for __MINGW_PRINTF_FORMAT */
