@@ -3,11 +3,11 @@
  * appropriate autoconfery.
  */
 
-#ifdef HAVE_CONFIG_H
-# include "uxconfig.h" /* leading space prevents mkfiles.pl trying to follow */
+#if HAVE_CMAKE_H
+#include "cmake.h"
 #endif
 
-#ifdef HAVE_SO_PEERCRED
+#if HAVE_SO_PEERCRED
 #define _GNU_SOURCE
 #include <features.h>
 #endif
@@ -18,7 +18,7 @@
 
 bool so_peercred(int fd, int *pid, int *uid, int *gid)
 {
-#ifdef HAVE_SO_PEERCRED
+#if HAVE_SO_PEERCRED
     struct ucred cr;
     socklen_t crlen = sizeof(cr);
     if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cr, &crlen) == 0) {

@@ -1,10 +1,18 @@
-#!/usr/bin/env perl -w
+#!/usr/bin/env perl
 
 # This script generates sbcsdat.c (the data for all the SBCSes) from its
 # source form sbcs.dat.
 
-$infile = "sbcs.dat";
+use warnings;
+use Getopt::Long;
+use File::Basename;
+
+$infile = (dirname __FILE__) . "/sbcs.dat";
 $outfile = "sbcsdat.c";
+
+my $usage = "usage: sbcsgen.pl [-o OUTFILE]\n";
+GetOptions("o|output=s" => \$outfile)
+    or die $usage;
 
 open FOO, $infile;
 open BAR, ">$outfile";

@@ -6,7 +6,7 @@
 
 /* Unix code to set up the GSSAPI library list. */
 
-#if !defined NO_LIBDL && !defined NO_GSSAPI
+#if !defined NO_LIBDL && !defined STATIC_GSSAPI && !defined NO_GSSAPI
 
 const int ngsslibs = 4;
 const char *const gsslibnames[4] = {

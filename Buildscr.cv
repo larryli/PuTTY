@@ -6,16 +6,12 @@
 
 module putty
 
-# Preparations.
-in putty do ./mkfiles.pl
-in putty do ./mkauto.sh
-in putty/doc do make
-
 # Scan the Unix build, on a 64-bit system to differentiate as much as
 # possible from the other scan of the cross-platform files.
 delegate covscan64
-  in putty do ./configure
-  in putty do cov-build --dir cov-int make
+  in putty do mkdir linbuild
+  in putty/linbuild do cmake ..
+  in putty/linbuild do cov-build --dir ../cov-int make -j$(nproc) VERBOSE=1
   in putty do tar czvf cov-int.tar.gz cov-int
   return putty/cov-int.tar.gz
 enddelegate
@@ -25,7 +21,9 @@ enddelegate
 # Windows scanner for download).
 delegate covscan32wine
   in putty do tar xzvf cov-int.tar.gz
-  in putty/windows do cov-build --dir ../cov-int make -f Makefile.mgw CC=winegcc RC=wrc
+  in putty do mkdir winbuild
+  in putty/winbuild do cmake .. -DCMAKE_TOOLCHAIN_FILE=../cmake/toolchain-winegcc.cmake
+  in putty/winbuild do cov-build --dir ../cov-int make -j$(nproc) VERBOSE=1
   in putty do tar czvf cov-int.tar.gz cov-int
   return putty/cov-int.tar.gz
 enddelegate

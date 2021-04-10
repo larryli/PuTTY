@@ -1,8 +1,8 @@
 #ifndef PUTTY_UNIX_H
 #define PUTTY_UNIX_H
 
-#ifdef HAVE_CONFIG_H
-# include "uxconfig.h" /* Space to hide it from mkfiles.pl */
+#if HAVE_CMAKE_H
+#include "cmake.h"
 #endif
 
 #include <stdio.h>                     /* for FILENAME_MAX */

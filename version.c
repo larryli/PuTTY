@@ -11,15 +11,10 @@
 #include "putty.h"
 #include "ssh.h"
 
-#ifdef SOURCE_COMMIT
-#include "empty.h"
-#endif
-
 #include "version.h"
 
 const char ver[] = TEXTVER;
 const char sshver[] = SSHVER;
-const char commitid[] = SOURCE_COMMIT;
 
 /*
  * SSH local version string MUST be under 40 characters. Here's a

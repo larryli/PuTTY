@@ -5,21 +5,22 @@
 #ifndef PUTTY_WINSTUFF_H
 #define PUTTY_WINSTUFF_H
 
-#ifndef AUTO_WINSOCK
-#include <winsock2.h>
+#if HAVE_CMAKE_H
+#include "cmake.h"
 #endif
+
+#include <winsock2.h>
 #include <windows.h>
 #include <stdio.h>                     /* for FILENAME_MAX */
 
 /* We use uintptr_t for Win32/Win64 portability, so we should in
  * principle include stdint.h, which defines it according to the C
- * standard. But older versions of Visual Studio - including the one
- * used for official PuTTY builds as of 2015-09-28 - don't provide
+ * standard. But older versions of Visual Studio don't provide
  * stdint.h at all, but do (non-standardly) define uintptr_t in
  * stddef.h. So here we try to make sure _some_ standard header is
  * included which defines uintptr_t. */
 #include <stddef.h>
-#if !defined _MSC_VER || _MSC_VER >= 1600 || defined __clang__
+#if !HAVE_NO_STDINT_H
 #include <stdint.h>
 #endif
 

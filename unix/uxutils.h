@@ -11,22 +11,22 @@
 #define PUTTY_UXUTILS_H
 
 #if defined __APPLE__
-#ifdef HAVE_SYS_SYSCTL_H
+#if HAVE_SYS_SYSCTL_H
 #include <sys/sysctl.h>
 #endif
 #endif /* defined __APPLE__ */
 
 #if defined __arm__ || defined __aarch64__
 
-#ifdef HAVE_SYS_TYPES_H
+#if HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
 
-#ifdef HAVE_SYS_AUXV_H
+#if HAVE_SYS_AUXV_H
 #include <sys/auxv.h>
 #endif
 
-#ifdef HAVE_ASM_HWCAP_H
+#if HAVE_ASM_HWCAP_H
 #include <asm/hwcap.h>
 #endif
 
@@ -51,7 +51,7 @@ static inline u_long getauxval(int which) { return 0; }
 #if defined __APPLE__
 static inline bool test_sysctl_flag(const char *flagname)
 {
-#ifdef HAVE_SYSCTLBYNAME
+#if HAVE_SYSCTLBYNAME
     int value;
     size_t size = sizeof(value);
     return (sysctlbyname(flagname, &value, &size, NULL, 0) == 0 &&

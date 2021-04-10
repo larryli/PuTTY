@@ -198,7 +198,7 @@ static void pty_try_write(Pty *pty);
 #ifndef OMIT_UTMP
 static void setup_utmp(char *ttyname, char *location)
 {
-#ifdef HAVE_LASTLOG
+#if HAVE_LASTLOG
     struct lastlog lastlog_entry;
     FILE *lastlog;
 #endif
@@ -235,9 +235,11 @@ static void setup_utmp(char *ttyname, char *location)
     pututxline(&utmp_entry);
     endutxent();
 
+#if HAVE_UPDWTMPX
     updwtmpx(WTMPX_FILE, &utmp_entry);
+#endif
 
-#ifdef HAVE_LASTLOG
+#if HAVE_LASTLOG
     memset(&lastlog_entry, 0, sizeof(lastlog_entry));
     strncpy(lastlog_entry.ll_line, ttyname+5, lenof(lastlog_entry.ll_line));
     strncpy(lastlog_entry.ll_host, location, lenof(lastlog_entry.ll_host));
@@ -266,7 +268,9 @@ static void cleanup_utmp(void)
     utmp_entry.ut_tv.tv_sec = tv.tv_sec;
     utmp_entry.ut_tv.tv_usec = tv.tv_usec;
 
+#if HAVE_UPDWTMPX
     updwtmpx(WTMPX_FILE, &utmp_entry);
+#endif
 
     memset(utmp_entry.ut_line, 0, lenof(utmp_entry.ut_line));
     utmp_entry.ut_tv.tv_sec = 0;
@@ -371,7 +375,7 @@ static void pty_open_master(Pty *pty)
 #endif
         ;
 
-#ifdef HAVE_POSIX_OPENPT
+#if HAVE_POSIX_OPENPT
 #ifdef SET_NONBLOCK_VIA_OPENPT
     /*
      * OS X, as of 10.10 at least, doesn't permit me to set O_NONBLOCK
@@ -567,7 +571,7 @@ void pty_pre_init(void)
 
     /* Drop privs. */
     {
-#ifndef HAVE_NO_SETRESUID
+#if HAVE_SETRESUID && HAVE_SETRESGID
         int gid = getgid(), uid = getuid();
         int setresgid(gid_t, gid_t, gid_t);
         int setresuid(uid_t, uid_t, uid_t);
@@ -717,7 +721,7 @@ static void pty_real_select_result(Pty *pty, int fd, int event, int status)
                     "\r\n[pterm: process terminated with exit code %d]\r\n",
                     WEXITSTATUS(pty->exit_code));
             } else if (WIFSIGNALED(pty->exit_code)) {
-#ifdef HAVE_NO_STRSIGNAL
+#if !HAVE_STRSIGNAL
                 message = dupprintf(
                     "\r\n[pterm: process terminated on signal %d]\r\n",
                     WTERMSIG(pty->exit_code));

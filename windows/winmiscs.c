@@ -237,7 +237,7 @@ void *minefield_c_realloc(void *p, size_t size)
 
 #endif                          /* MINEFIELD */
 
-#if defined _MSC_VER && _MSC_VER < 1800
+#if !HAVE_STRTOUMAX
 
 /*
  * Work around lack of strtoumax in older MSVC libraries

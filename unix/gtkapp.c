@@ -9,17 +9,10 @@
 
 /*
 
-To build on OS X, you will need a build environment with GTK 3 and
-gtk-mac-bundler, and also Halibut on the path (to build the man pages,
-without which the standard Makefile will complain). Then, from a clean
-checkout, do this:
-
-./mkfiles.pl -U --with-quartz
-make -C icons icns
-make -C doc
-make
-
-and you should get unix/PuTTY.app and unix/PTerm.app as output.
+Building this for OS X is currently broken, because the new
+CMake-based build system doesn't support it yet. Probably what needs
+doing is to add it back in to unix/CMakeLists.txt under a condition
+like if(CMAKE_SYSTEM_NAME MATCHES "Darwin").
 
 */
 

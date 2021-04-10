@@ -10,13 +10,7 @@
 #include <limits.h>
 #include <assert.h>
 
-#ifdef __WINE__
-#define NO_MULTIMON                    /* winelib doesn't have this */
-#endif
-
-#ifndef NO_MULTIMON
 #define COMPILE_MULTIMON_STUBS
-#endif
 
 #include "putty.h"
 #include "terminal.h"
@@ -26,7 +20,7 @@
 #include "winseat.h"
 #include "tree234.h"
 
-#ifndef NO_MULTIMON
+#ifdef NO_MULTIMON
 #include <multimon.h>
 #endif
 
@@ -1245,16 +1239,16 @@ static void exact_textout(HDC hdc, int x, int y, CONST RECT *lprc,
                           unsigned short *lpString, UINT cbCount,
                           CONST INT *lpDx, bool opaque)
 {
-#ifdef __LCC__
+#if HAVE_GCP_RESULTSW
+    GCP_RESULTSW gcpr;
+#else
     /*
-     * The LCC include files apparently don't supply the
-     * GCP_RESULTSW type, but we can make do with GCP_RESULTS
-     * proper: the differences aren't important to us (the only
-     * variable-width string parameter is one we don't use anyway).
+     * If building against old enough headers that the GCP_RESULTSW
+     * type isn't available, we can make do with GCP_RESULTS proper:
+     * the differences aren't important to us (the only variable-width
+     * string parameter is one we don't use anyway).
      */
     GCP_RESULTS gcpr;
-#else
-    GCP_RESULTSW gcpr;
 #endif
     char *buffer = snewn(cbCount*2+2, char);
     char *classbuffer = snewn(cbCount, char);

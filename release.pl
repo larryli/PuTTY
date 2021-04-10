@@ -34,10 +34,8 @@ if ($setver) {
     my $builddir = tempdir(DIR => ".", CLEANUP => 1);
     0 == system "git archive --format=tar HEAD | ( cd $builddir && tar xf - )"
         or die;
-    0 == system "cd $builddir && ./mkfiles.pl" or die;
-    0 == system "cd $builddir && ./mkauto.sh" or die;
-    0 == system "cd $builddir && ./configure" or die;
-    0 == system "cd $builddir && make pscp plink RELEASE=${version}" or die;
+    0 == system "cd $builddir && cmake . -DCMAKE_C_FLAGS=-DRELEASE=${version}" or die;
+    0 == system "cd $builddir && cmake --build . -t pscp -t plink -j" or die;
     our $pscp_transcript = `cd $builddir && ./pscp --help`;
     $pscp_transcript =~ s/^Unidentified build/Release ${version}/m or die;
     $pscp_transcript =~ s/^/\\c /mg;

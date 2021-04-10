@@ -1,0 +1,142 @@
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_platform_sources_to_library(utils
+  wincapi.c winutils.c winucs.c winmisc.c winmiscs.c wintime.c windefs.c
+  winsecur.c)
+add_platform_sources_to_library(eventloop
+  wincliloop.c winhandl.c)
+add_platform_sources_to_library(console
+  winselcli.c winnohlp.c wincons.c)
+add_platform_sources_to_library(settings
+  winstore.c)
+add_platform_sources_to_library(network
+  winnet.c winhsock.c winnpc.c winnps.c winproxy.c)
+add_platform_sources_to_library(sshcommon
+  winnoise.c winx11.c)
+add_platform_sources_to_library(sshclient
+  winpgntc.c wingss.c winshare.c)
+add_platform_sources_to_library(sftpclient
+  winsftp.c)
+add_platform_sources_to_library(otherbackends
+  winser.c)
+add_platform_sources_to_library(agent
+  winpgntc.c)
+add_platform_sources_to_library(guiterminal
+  windlg.c winctrls.c wincfg.c winprint.c winjump.c sizetip.c)
+add_dependencies(guiterminal generated_licence_h) # windlg.c uses licence.h
+
+add_library(guimisc STATIC
+  winselgui.c)
+
+add_executable(pageant
+  winpgnt.c
+  winhelp.c
+  pageant.rc)
+add_dependencies(pageant generated_licence_h)
+target_link_libraries(pageant
+  guimisc eventloop agent network crypto utils
+  ${platform_libraries})
+set_target_properties(pageant PROPERTIES
+  WIN32_EXECUTABLE ON
+  LINK_FLAGS "${LFLAG_MANIFEST_NO}")
+installed_program(pageant)
+
+add_executable(plink
+  winplink.c
+  ${CMAKE_SOURCE_DIR}/be_all_s.c
+  winnojmp.c
+  winnohlp.c
+  plink.rc)
+add_dependencies(plink generated_licence_h)
+target_link_libraries(plink
+  eventloop console noterminal sshclient otherbackends settings network crypto
+  utils
+  ${platform_libraries})
+installed_program(plink)
+
+add_executable(pscp
+  ${CMAKE_SOURCE_DIR}/pscp.c
+  ${CMAKE_SOURCE_DIR}/be_ssh.c
+  winnojmp.c
+  winnohlp.c
+  pscp.rc)
+add_dependencies(pscp generated_licence_h)
+target_link_libraries(pscp
+  sftpclient eventloop console sshclient settings network crypto utils
+  ${platform_libraries})
+installed_program(pscp)
+
+add_executable(psftp
+  ${CMAKE_SOURCE_DIR}/psftp.c
+  ${CMAKE_SOURCE_DIR}/be_ssh.c
+  winnojmp.c
+  winnohlp.c
+  psftp.rc)
+add_dependencies(psftp generated_licence_h)
+target_link_libraries(psftp
+  sftpclient eventloop console sshclient settings network crypto utils
+  ${platform_libraries})
+installed_program(psftp)
+
+add_executable(psocks
+  winsocks.c
+  winnohlp.c
+  ${CMAKE_SOURCE_DIR}/psocks.c
+  ${CMAKE_SOURCE_DIR}/norand.c
+  ${CMAKE_SOURCE_DIR}/nocproxy.c
+  ${CMAKE_SOURCE_DIR}/portfwd.c)
+target_link_libraries(psocks
+  eventloop console network utils
+  ${platform_libraries})
+
+add_executable(putty
+  window.c
+  winhelp.c
+  ${CMAKE_SOURCE_DIR}/be_all_s.c
+  putty.rc)
+add_dependencies(putty generated_licence_h)
+target_link_libraries(putty
+  guiterminal guimisc eventloop sshclient otherbackends settings network crypto
+  utils
+  ${platform_libraries})
+set_target_properties(putty PROPERTIES
+  WIN32_EXECUTABLE ON
+  LINK_FLAGS "${LFLAG_MANIFEST_NO}")
+installed_program(putty)
+
+add_executable(puttytel
+  window.c
+  winhelp.c
+  ${CMAKE_SOURCE_DIR}/be_nos_s.c
+  ${CMAKE_SOURCE_DIR}/nogss.c
+  ${CMAKE_SOURCE_DIR}/norand.c
+  ${CMAKE_SOURCE_DIR}/nocproxy.c
+  puttytel.rc)
+add_dependencies(puttytel generated_licence_h)
+target_link_libraries(puttytel
+  guiterminal guimisc eventloop otherbackends settings network utils
+  ${platform_libraries})
+set_target_properties(puttytel PROPERTIES
+  WIN32_EXECUTABLE ON
+  LINK_FLAGS "${LFLAG_MANIFEST_NO}")
+installed_program(puttytel)
+
+add_executable(puttygen
+  winpgen.c
+  ${CMAKE_SOURCE_DIR}/notiming.c
+  winnoise.c
+  winnojmp.c
+  winstore.c
+  winhelp.c
+  ${CMAKE_SOURCE_DIR}/sshpubk.c
+  ${CMAKE_SOURCE_DIR}/sshrand.c
+  winctrls.c
+  puttygen.rc)
+add_dependencies(puttygen generated_licence_h)
+target_link_libraries(puttygen
+  keygen guimisc crypto utils
+  ${platform_libraries})
+set_target_properties(puttygen PROPERTIES
+  WIN32_EXECUTABLE ON
+  LINK_FLAGS "${LFLAG_MANIFEST_NO}")
+installed_program(puttygen)
