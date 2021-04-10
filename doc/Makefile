@@ -58,6 +58,11 @@ putty.hlp: $(INPUTS)
 putty.info: $(INPUTS)
 	$(HALIBUT) --info $(INPUTS)
 
+licence.but: ../licence.pl ../LICENCE
+	perl $< --licencedoc -o $@
+copy.but: ../licence.pl ../LICENCE
+	perl $< --copyrightdoc -o $@
+
 MKMAN = $(HALIBUT) --man=$@ mancfg.but $<
 MANPAGES = putty.1 puttygen.1 plink.1 pscp.1 psftp.1 puttytel.1 pterm.1 \
            pageant.1 psocks.1 psusan.1
