@@ -24,7 +24,7 @@ GetOptions("version=s" => \$version,
            "no-ftp" => \$skip_ftp)
     or &usage();
 
-# --set-version: construct a local commit which updates the version
+# --setver: construct a local commit which updates the version
 # number, and the command-line help transcripts in the docs.
 if ($setver) {
     defined $version or die "use --version";
