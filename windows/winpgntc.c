@@ -9,10 +9,8 @@
 #include "putty.h"
 #include "pageant.h" /* for AGENT_MAX_MSGLEN */
 
-#ifndef NO_SECURITY
 #include "winsecur.h"
 #include "wincapi.h"
-#endif
 
 #define AGENT_COPYDATA_ID 0x804e50ba   /* random goop */
 
@@ -50,7 +48,6 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
     mapname = dupprintf("PageantRequest%08x", (unsigned)GetCurrentThreadId());
 
     psa = NULL;
-#ifndef NO_SECURITY
     if (got_advapi()) {
         /*
          * Make the file mapping we create for communication with
@@ -81,7 +78,6 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
             }
         }
     }
-#endif /* NO_SECURITY */
 
     filemap = CreateFileMapping(INVALID_HANDLE_VALUE, psa, PAGE_READWRITE,
                                 0, AGENT_MAX_MSGLEN, mapname);
@@ -128,8 +124,6 @@ static void wm_copydata_agent_query(strbuf *query, void **out, int *outlen)
     if (psd)
         LocalFree(psd);
 }
-
-#ifndef NO_SECURITY
 
 char *agent_named_pipe_name(void)
 {
@@ -303,39 +297,3 @@ agent_pending_query *agent_query(
     wm_copydata_agent_query(query, out, outlen);
     return NULL;
 }
-
-#else /* NO_SECURITY */
-
-Socket *agent_connect(void *vctx, Plug *plug)
-{
-    unreachable("no agent_connect_ctx can be constructed on this platform");
-}
-
-agent_connect_ctx *agent_get_connect_ctx(void)
-{
-    return NULL;
-}
-
-void agent_free_connect_ctx(agent_connect_ctx *ctx)
-{
-}
-
-bool agent_exists(void)
-{
-    return wm_copydata_agent_exists();
-}
-
-agent_pending_query *agent_query(
-    strbuf *query, void **out, int *outlen,
-    void (*callback)(void *, void *, int), void *callback_ctx)
-{
-    wm_copydata_agent_query(query, out, outlen);
-    return NULL;
-}
-
-void agent_cancel_query(agent_pending_query *q)
-{
-    unreachable("Windows agent queries are never asynchronous!");
-}
-
-#endif /* NO_SECURITY */

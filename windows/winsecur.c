@@ -7,8 +7,6 @@
 
 #include "putty.h"
 
-#if !defined NO_SECURITY
-
 #include "winsecur.h"
 
 /* Initialised once, then kept around to reuse forever */
@@ -299,7 +297,6 @@ static bool really_restrict_process_acl(char **error)
     }
     return ret;
 }
-#endif /* !defined NO_SECURITY */
 
 /*
  * Lock down our process's ACL, to present an obstacle to malware
@@ -323,12 +320,7 @@ void restrict_process_acl(void)
     char *error = NULL;
     bool ret;
 
-#if !defined NO_SECURITY
     ret = really_restrict_process_acl(&error);
-#else
-    ret = false;
-    error = dupstr("ACL restrictions not compiled into this binary");
-#endif
     if (!ret)
         modalfatalbox("Could not restrict process ACL: %s", error);
 }

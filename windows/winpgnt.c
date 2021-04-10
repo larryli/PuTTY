@@ -21,12 +21,10 @@
 
 #include <shellapi.h>
 
-#ifndef NO_SECURITY
 #include <aclapi.h>
 #ifdef DEBUG_IPC
 #define _WIN32_WINNT 0x0500            /* for ConvertSidToStringSid */
 #include <sddl.h>
-#endif
 #endif
 
 #define WM_SYSTRAY   (WM_APP + 6)
@@ -816,7 +814,6 @@ static void update_sessions(void)
     }
 }
 
-#ifndef NO_SECURITY
 /*
  * Versions of Pageant prior to 0.61 expected this SID on incoming
  * communications. For backwards compatibility, and more particularly
@@ -861,7 +858,6 @@ PSID get_default_sid(void)
 
     return ret;
 }
-#endif
 
 struct WmCopydataTransaction {
     char *length, *body;
@@ -970,12 +966,10 @@ static char *answer_filemapping_message(const char *mapname)
     size_t mapsize;
     unsigned msglen;
 
-#ifndef NO_SECURITY
     PSID mapsid = NULL;
     PSID expectedsid = NULL;
     PSID expectedsid_bc = NULL;
     PSECURITY_DESCRIPTOR psd = NULL;
-#endif
 
     wmct.length = wmct.body = NULL;
 
@@ -994,7 +988,6 @@ static char *answer_filemapping_message(const char *mapname)
     debug("maphandle = %p\n", maphandle);
 #endif
 
-#ifndef NO_SECURITY
     if (has_security) {
         DWORD retd;
 
@@ -1037,7 +1030,6 @@ static char *answer_filemapping_message(const char *mapname)
             goto cleanup;
         }
     } else
-#endif /* NO_SECURITY */
     {
 #ifdef DEBUG_IPC
         debug("security APIs not present\n");
@@ -1395,7 +1387,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
     has_security = (osPlatformId == VER_PLATFORM_WIN32_NT);
 
     if (has_security) {
-#ifndef NO_SECURITY
         /*
          * Attempt to get the security API we need.
          */
@@ -1406,13 +1397,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
                        "Pageant Fatal Error", MB_ICONERROR | MB_OK);
             return 1;
         }
-#else
-        MessageBox(NULL,
-                   "This program has been compiled for Win9X and will\n"
-                   "not run on NT, in case it causes a security breach.",
-                   "Pageant Fatal Error", MB_ICONERROR | MB_OK);
-        return 1;
-#endif
     }
 
     /*
@@ -1543,8 +1527,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         return 0;
     }
 
-#if !defined NO_SECURITY
-
     /*
      * Set up a named-pipe listener.
      */
@@ -1566,8 +1548,6 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmdline, int show)
         pageant_listener_got_socket(pl, sock);
         sfree(pipename);
     }
-
-#endif /* !defined NO_SECURITY */
 
     /*
      * Set up window classes for two hidden windows: one that receives

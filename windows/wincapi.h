@@ -5,8 +5,6 @@
  * in turn.
  */
 
-#if !defined NO_SECURITY
-
 DECL_WINDOWS_FUNCTION(extern, BOOL, CryptProtectMemory, (LPVOID,DWORD,DWORD));
 
 bool got_crypt(void);
@@ -27,5 +25,3 @@ bool got_crypt(void);
  * The returned string is dynamically allocated.
  */
 char *capi_obfuscate_string(const char *realname);
-
-#endif

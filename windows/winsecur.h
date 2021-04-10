@@ -4,8 +4,6 @@
  * centralises the machinery for dynamically loading that library.
  */
 
-#if !defined NO_SECURITY
-
 #include <aclapi.h>
 
 /*
@@ -49,5 +47,3 @@ PSID get_user_sid(void);
  */
 bool make_private_security_descriptor(
     DWORD permissions, PSECURITY_DESCRIPTOR *psd, PACL *acl, char **error);
-
-#endif

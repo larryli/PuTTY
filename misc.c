@@ -337,9 +337,6 @@ char *buildinfo(const char *newline)
 #if defined _WINDOWS && defined MINEFIELD
     strbuf_catf(buf, "%sBuild option: MINEFIELD", newline);
 #endif
-#ifdef NO_SECURITY
-    strbuf_catf(buf, "%sBuild option: NO_SECURITY", newline);
-#endif
 #ifdef NO_SECUREZEROMEMORY
     strbuf_catf(buf, "%sBuild option: NO_SECUREZEROMEMORY", newline);
 #endif

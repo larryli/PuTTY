@@ -1,16 +1,5 @@
 set(PLATFORM_SUBDIRS windows)
 
-# I copied this over from the pre-CMake build system just to prove it
-# still worked, but I should probably remove it now, together with all
-# the #ifdefs that depend on it.
-#
-# Rationale: it was there so that you could do dev builds of PuTTY on
-# compilers designed for the pre-NT single-user versions of Windows
-# (Win95, Win98 etc). But we're not supporting those development
-# environments any more!
-set(PUTTY_NO_SECURITY OFF
-  CACHE BOOL "OBSOLETE AND DANGEROUS - DO NOT DEFINE! \
-Build PuTTY without any use of the Windows security APIs.")
 set(PUTTY_MINEFIELD OFF
   CACHE BOOL "Build PuTTY with its built-in memory debugger 'Minefield'")
 set(PUTTY_GSSAPI ON

@@ -11,8 +11,6 @@
 #include "proxy.h"
 #include "ssh.h"
 
-#if !defined NO_SECURITY
-
 #include "winsecur.h"
 
 HANDLE connect_to_named_pipe(const char *pipename, char **err)
@@ -94,5 +92,3 @@ Socket *new_named_pipe_client(const char *pipename, Plug *plug)
     else
         return make_handle_socket(pipehandle, pipehandle, NULL, plug, true);
 }
-
-#endif /* !defined NO_SECURITY */

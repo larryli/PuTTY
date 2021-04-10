@@ -4,8 +4,6 @@
 
 #include "putty.h"
 
-#if !defined NO_SECURITY
-
 #include "putty.h"
 #include "ssh.h"
 
@@ -85,5 +83,3 @@ char *capi_obfuscate_string(const char *realname)
 
     return dupstr(retbuf);
 }
-
-#endif /* !defined NO_SECURITY */

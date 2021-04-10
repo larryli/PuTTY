@@ -5,8 +5,6 @@
 #include <stdio.h>
 #include <assert.h>
 
-#if !defined NO_SECURITY
-
 #include "tree234.h"
 #include "putty.h"
 #include "network.h"
@@ -143,9 +141,3 @@ int platform_ssh_share(const char *pi_name, Conf *conf,
 void platform_ssh_share_cleanup(const char *name)
 {
 }
-
-#else /* !defined NO_SECURITY */
-
-#include "noshare.c"
-
-#endif /* !defined NO_SECURITY */

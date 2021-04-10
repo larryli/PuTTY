@@ -11,8 +11,6 @@
 #include "proxy.h"
 #include "ssh.h"
 
-#if !defined NO_SECURITY
-
 #include "winsecur.h"
 
 typedef struct NamedPipeServerSocket {
@@ -236,5 +234,3 @@ Socket *new_named_pipe_listener(const char *pipename, Plug *plug)
   cleanup:
     return &ret->sock;
 }
-
-#endif /* !defined NO_SECURITY */
