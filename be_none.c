@@ -11,3 +11,5 @@ const int be_default_protocol = -1;
 const struct BackendVtable *const backends[] = {
     NULL
 };
+
+const size_t n_ui_backends = 0;

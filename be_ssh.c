@@ -14,3 +14,5 @@ const struct BackendVtable *const backends[] = {
     &sshconn_backend,
     NULL
 };
+
+const size_t n_ui_backends = 0;  /* not used in programs with a config UI */

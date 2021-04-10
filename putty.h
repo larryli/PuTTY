@@ -708,6 +708,12 @@ static inline int backend_cfg_info(Backend *be)
 { return be->vt->cfg_info(be); }
 
 extern const struct BackendVtable *const backends[];
+/*
+ * In programs with a config UI, only the first few members of
+ * backends[] will be displayed at the top-level; the others will be
+ * relegated to a drop-down.
+ */
+extern const size_t n_ui_backends;
 
 /*
  * Suggested default protocol provided by the backend link module.

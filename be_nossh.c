@@ -17,3 +17,5 @@ const struct BackendVtable *const backends[] = {
     &raw_backend,
     NULL
 };
+
+const size_t n_ui_backends = 1;
