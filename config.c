@@ -2912,6 +2912,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
                                       HELPCTX(ssh_ttymodes),
                                       ttymodes_handler, P(td), P(NULL));
             td->valbox->generic.column = 1;
+            td->valbox->generic.align_next_to = td->valradio;
             ctrl_tabdelay(s, td->setbutton);
         }
 
