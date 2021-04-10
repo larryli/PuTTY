@@ -25,7 +25,7 @@ enddelegate
 # Windows scanner for download).
 delegate covscan32wine
   in putty do tar xzvf cov-int.tar.gz
-  in putty/windows do cov-build --dir ../cov-int make -f Makefile.mgw CC=winegcc RC=wrc XFLAGS="-DCOVERITY -DNO_SECUREZEROMEMORY -D_FORCE_SOFTWARE_AES"
+  in putty/windows do cov-build --dir ../cov-int make -f Makefile.mgw CC=winegcc RC=wrc
   in putty do tar czvf cov-int.tar.gz cov-int
   return putty/cov-int.tar.gz
 enddelegate

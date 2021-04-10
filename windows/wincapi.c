@@ -23,33 +23,10 @@ bool got_crypt(void)
         attempted = true;
         crypt = load_system32_dll("crypt32.dll");
         successful = crypt &&
-#ifdef COVERITY
-            /* The build toolchain I use with Coverity doesn't know
-             * about this function, so can't type-check it */
-            GET_WINDOWS_FUNCTION_NO_TYPECHECK(crypt, CryptProtectMemory)
-#else
-            GET_WINDOWS_FUNCTION(crypt, CryptProtectMemory)
-#endif
-            ;
+            GET_WINDOWS_FUNCTION(crypt, CryptProtectMemory);
     }
     return successful;
 }
-
-#ifdef COVERITY
-/*
- * The hack I use to build for Coverity scanning, using winegcc and
- * Makefile.mgw, didn't provide some defines in wincrypt.h last time I
- * looked. Therefore, define them myself here, but enclosed in #ifdef
- * COVERITY to ensure I don't make up random nonsense values for any
- * real build.
- */
-#ifndef CRYPTPROTECTMEMORY_BLOCK_SIZE
-#define CRYPTPROTECTMEMORY_BLOCK_SIZE 16
-#endif
-#ifndef CRYPTPROTECTMEMORY_CROSS_PROCESS
-#define CRYPTPROTECTMEMORY_CROSS_PROCESS 1
-#endif
-#endif
 
 char *capi_obfuscate_string(const char *realname)
 {

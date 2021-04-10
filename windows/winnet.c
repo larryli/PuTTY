@@ -279,21 +279,11 @@ void sk_init(void)
     GET_WINDOWS_FUNCTION(winsock_module, WSAStartup);
     GET_WINDOWS_FUNCTION(winsock_module, WSACleanup);
     GET_WINDOWS_FUNCTION(winsock_module, closesocket);
-#ifndef COVERITY
     GET_WINDOWS_FUNCTION(winsock_module, ntohl);
     GET_WINDOWS_FUNCTION(winsock_module, htonl);
     GET_WINDOWS_FUNCTION(winsock_module, htons);
     GET_WINDOWS_FUNCTION(winsock_module, ntohs);
     GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gethostname);
-#else
-    /* The toolchain I use for Windows Coverity builds doesn't know
-     * the type signatures of these */
-    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, ntohl);
-    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, htonl);
-    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, htons);
-    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, ntohs);
-    GET_WINDOWS_FUNCTION_NO_TYPECHECK(winsock_module, gethostname);
-#endif
     GET_WINDOWS_FUNCTION(winsock_module, gethostbyname);
     GET_WINDOWS_FUNCTION(winsock_module, getservbyname);
     GET_WINDOWS_FUNCTION(winsock_module, inet_addr);
