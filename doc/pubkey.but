@@ -130,9 +130,8 @@ considered secure, it's rare to need this option.
 The \q{Number of bits} input box allows you to choose the strength
 of the key PuTTYgen will generate.
 
-\b For RSA, 2048 bits should currently be sufficient for most purposes.
-
-\#{FIXME: advice for DSA?}
+\b For RSA and DSA, 2048 bits should currently be sufficient for most
+purposes.
 
 \b For ECDSA, only 256, 384, and 521 bits are supported. (ECDSA offers
 equivalent security to RSA with smaller key sizes.)
@@ -146,9 +145,18 @@ the same as 255.)
 \S{puttygen-primes} Selecting the \i{prime generation method}
 
 On the \q{Key} menu, you can also optionally change the method for
-generating the prime numbers used in the generated key. This affects
-the quality of the key, but not its compatibility. The default method
-is usually fine. The available methods are:
+generating the prime numbers used in the generated key. This is used
+for RSA and DSA keys only. (The other key types don't require
+generating prime numbers at all.)
+
+The prime-generation method does not affect compatibility: a key
+generated with any of these methods will still work with all the same
+SSH servers.
+
+If you don't care abut this, it's entirely sensible to leave it on the
+default setting.
+
+The available methods are:
 
 \b Use \i{probable primes} (fast)
 
@@ -156,9 +164,30 @@ is usually fine. The available methods are:
 
 \b Use proven primes with even distribution (slowest)
 
-\#{XXX-REVIEW-BEFORE-RELEASE: really need more words here, about why
-you'd fiddle with this, and particularly around why 'probable' is ever
-considered fine}
+The \q{probable primes} method sounds unsafe, but it's the most
+commonly used prime-generation strategy. There is in theory a
+possibility that it might accidentally generate a number that isn't
+prime, but the software does enough checking to make that probability
+vanishingly small (less than 1 in 2^80, or 1 in 10^24). So, in
+practice, nobody worries about it very much.
+
+The other methods cause PuTTYgen to use numbers that it is \e{sure}
+are prime, because it generates the output number together with a
+proof of its primality. This takes more effort, but it eliminates that
+theoretical risk in the probabilistic method.
+
+You might choose to switch from probable to proven primes if you have
+a local security standard that demands it, or if you don't trust the
+probabilistic argument for the safety of the usual method.
+
+For RSA keys, there's also an option on the \q{Key} menu to use
+\q{strong primes} as the prime factors of the public key. A strong
+prime is a prime number chosen to have a particular structure that
+makes certain factoring algorithms more difficult to apply, so some
+security standards recommend their use. However, the most modern
+factoring algorithms are unaffected, so this option is probably not
+worth turning on \e{unless} you have a local standard that recommends
+it.
 
 \S{puttygen-generate} The \q{Generate} button
 

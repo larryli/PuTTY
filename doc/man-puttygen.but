@@ -78,8 +78,36 @@ OpenSSH format, or the standard SSH-1 format.
 are \c{probable} (the default), \c{proven}, and \c{proven-even}; the
 the later methods are slower. (Various synonyms for these method
 names are also accepted.)
-\#{XXX-REVIEW-BEFORE-RELEASE: explain in more detail why you would
-want to fiddle with this}
+
+\lcont{
+
+The \q{probable primes} method sounds unsafe, but it's the most
+commonly used prime-generation strategy. There is in theory a
+possibility that it might accidentally generate a number that isn't
+prime, but the software does enough checking to make that probability
+vanishingly small (less than 1 in 2^80, or 1 in 10^24). So, in
+practice, nobody worries about it very much.
+
+The other methods cause PuTTYgen to use numbers that it is \e{sure}
+are prime, because it generates the output number together with a
+proof of its primality. This takes more effort, but it eliminates that
+theoretical risk in the probabilistic method.
+
+You might choose to switch from probable to proven primes if you have
+a local security standard that demands it, or if you don't trust the
+probabilistic argument for the safety of the usual method.
+
+}
+
+\dd \cw{\-\-strong-rsa}
+
+\dd When generating an RSA key, make sure the prime factors of the key
+modulus are \q{strong primes}. A strong prime is a prime number chosen
+to have a particular structure that makes certain factoring algorithms
+more difficult to apply, so some security standards recommend their
+use. However, the most modern factoring algorithms are unaffected, so
+this option is probably not worth turning on \e{unless} you have a
+local standard that recommends it.
 
 \dt \cw{\-q}
 

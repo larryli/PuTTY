@@ -2422,8 +2422,9 @@ PuTTY currently supports the following host key types:
 \b \q{\i{Ed25519}}: \I{EdDSA}Edwards-curve DSA using a twisted Edwards
 curve with modulus \cw{2^255-19}.
 
-\b \q{\i{Ed448}}: another \I{EdDSA}Edwards-curve DSA type.
-\#{XXX-REVIEW-BEFORE-RELEASE: better description}
+\b \q{\i{Ed448}}: another \I{EdDSA}Edwards-curve DSA type, using a
+larger elliptic curve with a 448-bit instead of 255-bit modulus (so it
+has a higher security level than Ed25519).
 
 \b \q{ECDSA}: \i{elliptic curve} \i{DSA} using one of the
 NIST-standardised elliptic curves.
