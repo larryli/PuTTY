@@ -11,6 +11,8 @@ set(PUTTY_DEBUG OFF
   CACHE BOOL "Build PuTTY with debug() statements enabled")
 set(PUTTY_FUZZING OFF
   CACHE BOOL "Build PuTTY binaries suitable for fuzzing, NOT FOR REAL USE")
+set(PUTTY_COVERAGE OFF
+  CACHE BOOL "Build PuTTY binaries suitable for code coverage analysis")
 
 set(STRICT OFF
   CACHE BOOL "Enable extra compiler warnings and make them errors")
@@ -75,4 +77,7 @@ if(PUTTY_DEBUG)
 endif()
 if(PUTTY_FUZZING)
   add_compile_definitions(FUZZING)
+endif()
+if(PUTTY_COVERAGE)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage -g ")
 endif()
