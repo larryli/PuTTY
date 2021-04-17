@@ -520,37 +520,6 @@ connection made by another copy of PuTTY, you might find the
 which host key it should be expecting. See \k{config-loghost} for
 details of this.
 
-\H{using-rawprot} Making \i{raw TCP connections}
-
-A lot of \I{debugging Internet protocols}Internet protocols are
-composed of commands and responses in plain text. For example,
-\i{SMTP} (the protocol used to transfer e-mail), \i{NNTP} (the
-protocol used to transfer Usenet news), and \i{HTTP} (the protocol
-used to serve Web pages) all consist of commands in readable plain
-text.
-
-Sometimes it can be useful to connect directly to one of these
-services and speak the protocol \q{by hand}, by typing protocol
-commands and watching the responses. On Unix machines, you can do
-this using the system's \c{telnet} command to connect to the right
-port number. For example, \c{telnet mailserver.example.com 25} might
-enable you to talk directly to the SMTP service running on a mail
-server.
-
-Although the Unix \c{telnet} program provides this functionality,
-the protocol being used is not really Telnet. Really there is no
-actual protocol at all; the bytes sent down the connection are
-exactly the ones you type, and the bytes shown on the screen are
-exactly the ones sent by the server. Unix \c{telnet} will attempt to
-detect or guess whether the service it is talking to is a real
-Telnet service or not; PuTTY prefers to be told for certain.
-
-In order to make a debugging connection to a service of this type,
-you simply select the fourth protocol name, \I{\q{Raw}
-protocol}\q{Raw}, from the \q{Protocol} buttons in the \q{Session}
-configuration panel. (See \k{config-hostname}.) You can then enter a
-host name and a port number, and make the connection.
-
 \H{using-serial} Connecting to a local serial line
 
 PuTTY can connect directly to a local serial line as an alternative
@@ -581,6 +550,37 @@ A serial line provides no well defined means for one end of the
 connection to notify the other that the connection is finished.
 Therefore, PuTTY in serial mode will remain connected until you
 close the window using the close button.
+
+\H{using-rawprot} Making \i{raw TCP connections}
+
+A lot of \I{debugging Internet protocols}Internet protocols are
+composed of commands and responses in plain text. For example,
+\i{SMTP} (the protocol used to transfer e-mail), \i{NNTP} (the
+protocol used to transfer Usenet news), and \i{HTTP} (the protocol
+used to serve Web pages) all consist of commands in readable plain
+text.
+
+Sometimes it can be useful to connect directly to one of these
+services and speak the protocol \q{by hand}, by typing protocol
+commands and watching the responses. On Unix machines, you can do
+this using the system's \c{telnet} command to connect to the right
+port number. For example, \c{telnet mailserver.example.com 25} might
+enable you to talk directly to the SMTP service running on a mail
+server.
+
+Although the Unix \c{telnet} program provides this functionality,
+the protocol being used is not really Telnet. Really there is no
+actual protocol at all; the bytes sent down the connection are
+exactly the ones you type, and the bytes shown on the screen are
+exactly the ones sent by the server. Unix \c{telnet} will attempt to
+detect or guess whether the service it is talking to is a real
+Telnet service or not; PuTTY prefers to be told for certain.
+
+In order to make a debugging connection to a service of this type,
+you simply select the fourth protocol name, \I{\q{Raw}
+protocol}\q{Raw}, from the \q{Protocol} buttons in the \q{Session}
+configuration panel. (See \k{config-hostname}.) You can then enter a
+host name and a port number, and make the connection.
 
 \H{using-supdup} Connecting using the \i{SUPDUP} protocol
 

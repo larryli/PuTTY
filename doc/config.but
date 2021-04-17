@@ -32,10 +32,10 @@ network connection.
 differences between the network remote login protocols SSH, Telnet,
 Rlogin, and SUPDUP.
 
+\b See \k{using-serial} for information about using a serial line.
+
 \b See \k{using-rawprot} for an explanation of \q{raw}
 connections.
-
-\b See \k{using-serial} for information about using a serial line.
 
 \b See \k{using-supdup} for information about using SUPDUP.
 
