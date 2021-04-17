@@ -103,6 +103,12 @@ struct FontSpec *fontspec_new(
 #define LONG_PTR LONG
 #endif
 
+#if !HAVE_STRTOUMAX
+/* Work around lack of strtoumax in older MSVC libraries */
+static inline uintmax_t strtoumax(const char *nptr, char **endptr, int base)
+{ return _strtoui64(nptr, endptr, base); }
+#endif
+
 #define BOXFLAGS DLGWINDOWEXTRA
 #define BOXRESULT (DLGWINDOWEXTRA + sizeof(LONG_PTR))
 #define DF_END 0x0001

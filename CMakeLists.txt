@@ -4,8 +4,54 @@ project(putty LANGUAGES C)
 include(cmake/setup.cmake)
 
 add_library(utils STATIC
-  memory.c marshal.c utils.c conf.c sshutils.c tree234.c version.c
-  wildcard.c wcwidth.c misc.c miscucs.c stripctrl.c sessprep.c
+  utils/base64_decode_atom.c
+  utils/base64_encode_atom.c
+  utils/bufchain.c
+  utils/buildinfo.c
+  utils/burnstr.c
+  utils/chomp.c
+  utils/conf.c
+  utils/conf_dest.c
+  utils/conf_launchable.c
+  utils/ctrlparse.c
+  utils/debug.c
+  utils/dupcat.c
+  utils/dupprintf.c
+  utils/dupstr.c
+  utils/encode_utf8.c
+  utils/fgetline.c
+  utils/host_strchr.c
+  utils/host_strchr_internal.c
+  utils/host_strcspn.c
+  utils/host_strduptrim.c
+  utils/host_strrchr.c
+  utils/marshal.c
+  utils/memory.c
+  utils/memxor.c
+  utils/miscucs.c
+  utils/null_lp.c
+  utils/nullseat.c
+  utils/nullstrcmp.c
+  utils/out_of_memory.c
+  utils/parse_blocksize.c
+  utils/prompts.c
+  utils/ptrlen.c
+  utils/read_file_into.c
+  utils/seat_connection_fatal.c
+  utils/sessprep.c
+  utils/sk_free_peer_info.c
+  utils/smemeq.c
+  utils/ssh2_pick_fingerprint.c
+  utils/sshutils.c
+  utils/strbuf.c
+  utils/string_length_for_printf.c
+  utils/stripctrl.c
+  utils/tree234.c
+  utils/validate_manual_hostkey.c
+  utils/version.c
+  utils/wcwidth.c
+  utils/wildcard.c
+  utils/write_c_string_literal.c
   ${GENERATED_COMMIT_C})
 
 add_library(logging OBJECT

@@ -1,8 +1,29 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_platform_sources_to_library(utils
-  uxutils.c uxsignal.c uxpoll.c xkeysym.c uxmisc.c xpmpucfg.c
-  xpmputty.c xpmptcfg.c xpmpterm.c x11misc.c ../time.c)
+  utils/arm_arch_queries.c
+  utils/block_signal.c
+  utils/cloexec.c
+  utils/dputs.c
+  utils/filename.c
+  utils/fontspec.c
+  utils/getticks.c
+  utils/get_username.c
+  utils/keysym_to_unicode.c
+  utils/make_dir_and_check_ours.c
+  utils/make_dir_path.c
+  utils/nonblock.c
+  utils/open_for_write_would_lose_data.c
+  utils/pgp_fingerprints.c
+  utils/pollwrap.c
+  utils/signal.c
+  utils/x11_ignore_error.c
+  ../utils/smemclr.c
+  # Compiled icon pixmap files
+  xpmpucfg.c xpmputty.c xpmptcfg.c xpmpterm.c
+  # We want the ISO C implementation of ltime(), because we don't have
+  # a local better alternative
+  ../utils/ltime.c)
 add_platform_sources_to_library(eventloop
   uxcliloop.c uxsel.c)
 add_platform_sources_to_library(console

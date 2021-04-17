@@ -1,8 +1,38 @@
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 add_platform_sources_to_library(utils
-  wincapi.c winutils.c winucs.c winmisc.c winmiscs.c wintime.c windefs.c
-  winsecur.c)
+  utils/arm_arch_queries.c
+  utils/capi.c
+  utils/defaults.c
+  utils/dll_hijacking_protection.c
+  utils/dputs.c
+  utils/escape_registry_key.c
+  utils/filename.c
+  utils/fontspec.c
+  utils/getdlgitemtext_alloc.c
+  utils/get_username.c
+  utils/is_console_handle.c
+  utils/load_system32_dll.c
+  utils/ltime.c
+  utils/makedlgitemborderless.c
+  utils/message_box.c
+  utils/minefield.c
+  utils/open_for_write_would_lose_data.c
+  utils/pgp_fingerprints_msgbox.c
+  utils/platform_get_x_display.c
+  utils/registry_get_string.c
+  utils/request_file.c
+  utils/security.c
+  utils/split_into_argv.c
+  utils/version.c
+  utils/win_strerror.c
+  winucs.c)
+if(NOT HAVE_SECUREZEROMEMORY)
+  add_platform_sources_to_library(utils ../utils/smemclr.c)
+endif()
+if(NOT HAVE_STRTOUMAX)
+  add_platform_sources_to_library(utils utils/strtoumax.c)
+endif()
 add_platform_sources_to_library(eventloop
   wincliloop.c winhandl.c)
 add_platform_sources_to_library(console
