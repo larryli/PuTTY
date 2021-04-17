@@ -43,9 +43,9 @@ connections.
 
 \b See \k{using-supdup} for information about using SUPDUP.
 
-\b The \q{Bare ssh-connection} option in the \q{Connection type} box
-is experimental, for specialist uses, and servers for it are not
-widely available.
+\b The \q{Bare ssh-connection} option in the \q{Connection type}
+control is intended for specialist uses not involving network
+connections. See \k{config-psusan} for some information about it.
 
 }
 
@@ -3388,6 +3388,48 @@ server, the session will succeed, but of course RSA authentication
 will be impossible.
 
 This is an SSH-1-specific bug.
+
+\H{config-psusan} The \q{Bare \cw{ssh-connection}} protocol
+
+In addition to SSH itself, PuTTY also supports a second protocol that
+is derived from SSH. It's listed in the PuTTY GUI under the name
+\q{Bare \cw{ssh-connection}}.
+
+This protocol consists of just the innermost of SSH's three layers: it
+leaves out the cryptography layer providing network security, and it
+leaves out the authentication layer where you provide a username and
+prove you're allowed to log in as that user.
+
+It is therefore \s{completely unsuited to any network connection}.
+Don't try to use it over a network!
+
+The purpose of this protocol is for various specialist circumstances
+in which the \q{connection} is not over a real network, but is a pipe
+or IPC channel between different processes running on the \e{same}
+computer. In these contexts, the operating system will already have
+guaranteed that each of the two communicating processes is owned by
+the expected user (so that no authentication is necessary), and that
+the communications channel cannot be tapped by a hostile user on the
+same machine (so that no cryptography is necessary either). Examples
+of possible uses involve communicating with a strongly separated
+context such as the inside of a container, or a VM, or a different
+network namespace.
+
+Explicit support for this protocol is new in PuTTY 0.75. As of
+2021-04, the only known server for the bare \cw{ssh-connection}
+protocol is the Unix program \cq{psusan} that is also part of the
+PuTTY tool suite.
+
+(However, this protocol is also the same one used between instances of
+PuTTY to implement connection sharing: see \k{config-ssh-sharing}. In
+fact, in the Unix version of PuTTY, when a sharing upstream records
+\q{Sharing this connection at [pathname]} in the Event Log, it's
+possible to connect another instance of PuTTY directly to that Unix
+socket, by entering its pathname in the host name box and selecting
+\q{Bare \cw{ssh-connection}} as the protocol!)
+
+I repeat, \s{DON'T TRY TO USE THIS PROTOCOL FOR NETWORK CONNECTIONS!}
+That's not what it's for, and it's not at all safe to do it.
 
 \H{config-serial} The Serial panel
 
