@@ -49,13 +49,6 @@ static NORETURN PRINTF_LIKE(1, 2) void fatal_error(const char *p, ...)
 
 void out_of_memory(void) { fatal_error("out of memory"); }
 
-/* For platforms where getticks is defined within this code base */
-unsigned long (getticks)(void)
-{ unreachable("this is a stub needed to link, and should never be called"); }
-
-FILE *f_open(const struct Filename *fn, char const *mode, bool private)
-{ unreachable("f_open should never be called by this test program"); }
-
 static bool old_keyfile_warning_given;
 void old_keyfile_warning(void) { old_keyfile_warning_given = true; }
 

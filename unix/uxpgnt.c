@@ -238,37 +238,6 @@ const char *const appname = "Pageant";
 
 static bool time_to_die = false;
 
-/* Stub functions to permit linking against x11fwd.c. These never get
- * used, because in LIFE_X11 mode we connect to the X server using a
- * straightforward Socket and don't try to create an ersatz SSH
- * forwarding too. */
-void chan_remotely_opened_confirmation(Channel *chan) { }
-void chan_remotely_opened_failure(Channel *chan, const char *err) { }
-bool chan_default_want_close(Channel *chan, bool s, bool r) { return false; }
-bool chan_no_exit_status(Channel *ch, int s) { return false; }
-bool chan_no_exit_signal(Channel *ch, ptrlen s, bool c, ptrlen m)
-{ return false; }
-bool chan_no_exit_signal_numeric(Channel *ch, int s, bool c, ptrlen m)
-{ return false; }
-bool chan_no_run_shell(Channel *chan) { return false; }
-bool chan_no_run_command(Channel *chan, ptrlen command) { return false; }
-bool chan_no_run_subsystem(Channel *chan, ptrlen subsys) { return false; }
-bool chan_no_enable_x11_forwarding(
-    Channel *chan, bool oneshot, ptrlen authproto, ptrlen authdata,
-    unsigned screen_number) { return false; }
-bool chan_no_enable_agent_forwarding(Channel *chan) { return false; }
-bool chan_no_allocate_pty(
-    Channel *chan, ptrlen termtype, unsigned width, unsigned height,
-    unsigned pixwidth, unsigned pixheight, struct ssh_ttymodes modes)
-{ return false; }
-bool chan_no_set_env(Channel *chan, ptrlen var, ptrlen value) { return false; }
-bool chan_no_send_break(Channel *chan, unsigned length) { return false; }
-bool chan_no_send_signal(Channel *chan, ptrlen signame) { return false; }
-bool chan_no_change_window_size(
-    Channel *chan, unsigned width, unsigned height,
-    unsigned pixwidth, unsigned pixheight) { return false; }
-void chan_no_request_response(Channel *chan, bool success) {}
-
 /*
  * These functions are part of the plug for our connection to the X
  * display, so they do get called. They needn't actually do anything,

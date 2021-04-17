@@ -1331,11 +1331,6 @@ void spawn_cmd(const char *cmdline, const char *args, int show)
     }
 }
 
-void logevent(LogContext *logctx, const char *event)
-{
-    unreachable("Pageant can't create a LogContext, so this can't be called");
-}
-
 void noise_ultralight(NoiseSourceId id, unsigned long data)
 {
     /* Pageant doesn't use random numbers, so we ignore this */

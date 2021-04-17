@@ -15,8 +15,6 @@
 #include "ssh.h"
 #include "psocks.h"
 
-const bool buildinfo_gtk_relevant = false;
-
 typedef struct PsocksDataSinkPopen {
     stdio_sink sink[2];
     PsocksDataSink pds;

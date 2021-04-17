@@ -6,9 +6,6 @@
 #include "dialog.h"
 #include "terminal.h"
 
-/* For Unix in particular, but harmless if this main() is reused elsewhere */
-const bool buildinfo_gtk_relevant = false;
-
 static const TermWinVtable fuzz_termwin_vt;
 
 int main(int argc, char **argv)
