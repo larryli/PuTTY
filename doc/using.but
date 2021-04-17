@@ -582,12 +582,42 @@ protocol}\q{Raw}, from the \q{Protocol} buttons in the \q{Session}
 configuration panel. (See \k{config-hostname}.) You can then enter a
 host name and a port number, and make the connection.
 
+\H{using-telnet} Connecting using the \i{Telnet} protocol
+
+PuTTY can use the Telnet protocol to connect to a server.
+
+Telnet was perhaps the most popular remote login protocol before SSH
+was introduced. It was general enough to be used by multiple server
+operating systems (Unix and VMS in particular), and supported many
+optional protocol extensions providing extra support for particular
+server features.
+
+Unlike SSH, Telnet runs over an unsecured network connection, so it is
+a very bad idea to use it over the hostile Internet (though it is
+still used to some extent as of 2020).
+
+\H{using-rlogin} Connecting using the \i{Rlogin} protocol
+
+PuTTY can use the Rlogin protocol to connect to a server.
+
+Rlogin was similar to Telnet in concept, but more focused on
+connections between Unix machines. It supported a feature for
+passwordless login, based on use of \q{privileged ports} (ports with
+numbers below 1024, which Unix traditionally does not allow users
+other than \cw{root} to allocate). Ultimately, based on the server
+trusting that the client's IP address was owned by the Unix machine it
+claimed to be, and that that machine would guard its privileged ports
+appropriately.
+
+Like Telnet, Rlogin runs over an unsecured network connection.
+
 \H{using-supdup} Connecting using the \i{SUPDUP} protocol
 
-PuTTY can use the SUPDUP protocol to connect to a server. SUPDUP is a
-login protocol used mainly by PDP-10 and Lisp machines during the
-period 1975-1990.  Like Telnet and Rlogin, it is unsecured, so modern
-systems almost never support it.
+PuTTY can use the SUPDUP protocol to connect to a server.
+
+SUPDUP is a login protocol used mainly by PDP-10 and Lisp machines
+during the period 1975-1990. Like Telnet and Rlogin, it is unsecured,
+so modern systems almost never support it.
 
 To make a connection of this type, select \q{SUPDUP} from the
 \q{Connection type} radio buttons on the \q{Session} panel (see
