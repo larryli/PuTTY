@@ -1712,8 +1712,8 @@ are provided for completeness.
 The idea of TCP keepalives is similar to application-level keepalives,
 and the same caveats apply. The main differences are:
 
-\b TCP keepalives are available on \e{all} connection types, including
-Raw, Rlogin, and SUPDUP.
+\b TCP keepalives are available on \e{all} network connection types,
+including Raw, Rlogin, and SUPDUP.
 
 \b The interval between TCP keepalives is usually much longer,
 typically two hours; this is set by the operating system, and cannot
