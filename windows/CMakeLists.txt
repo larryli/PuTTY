@@ -27,9 +27,6 @@ add_platform_sources_to_library(utils
   utils/version.c
   utils/win_strerror.c
   winucs.c)
-if(NOT HAVE_SECUREZEROMEMORY)
-  add_platform_sources_to_library(utils ../utils/smemclr.c)
-endif()
 if(NOT HAVE_STRTOUMAX)
   add_platform_sources_to_library(utils utils/strtoumax.c)
 endif()

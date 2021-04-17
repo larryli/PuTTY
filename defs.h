@@ -201,32 +201,4 @@ typedef struct PacketProtocolLayer PacketProtocolLayer;
 #define NORETURN
 #endif
 
-/* ----------------------------------------------------------------------
- * Platform-specific definitions.
- *
- * Most of these live in the per-platform header files, of which
- * puttyps.h selects the appropriate one. But some of the sources
- * (particularly standalone test applications) would prefer not to
- * have to include a per-platform header at all, because that makes it
- * more portable to platforms not supported by the code base as a
- * whole (for example, compiling purely computational parts of the
- * code for specialist platforms for test and analysis purposes). So
- * any definition that has to affect even _those_ modules will have to
- * go here, with the key constraint being that this code has to come
- * to _some_ decision even if the compilation platform is not a
- * recognised one at all.
- */
-
-/* Purely computational code uses smemclr(), so we have to make the
- * decision here about whether that's provided by utils.c or by a
- * platform implementation. We define PLATFORM_HAS_SMEMCLR to suppress
- * utils.c's definition. */
-#ifdef _WINDOWS
-/* Windows provides the API function 'SecureZeroMemory', which we use
- * unless the user has told us not to by defining NO_SECUREZEROMEMORY. */
-#ifndef NO_SECUREZEROMEMORY
-#define PLATFORM_HAS_SMEMCLR
-#endif
-#endif
-
 #endif /* PUTTY_DEFS_H */

@@ -40,6 +40,7 @@ add_library(utils STATIC
   utils/seat_connection_fatal.c
   utils/sessprep.c
   utils/sk_free_peer_info.c
+  utils/smemclr.c
   utils/smemeq.c
   utils/ssh2_pick_fingerprint.c
   utils/sshutils.c

@@ -18,7 +18,6 @@ add_platform_sources_to_library(utils
   utils/pollwrap.c
   utils/signal.c
   utils/x11_ignore_error.c
-  ../utils/smemclr.c
   # Compiled icon pixmap files
   xpmpucfg.c xpmputty.c xpmptcfg.c xpmpterm.c
   # We want the ISO C implementation of ltime(), because we don't have

@@ -6,18 +6,36 @@
  * won't optimise away memsets on variables that are about to be freed
  * or go out of scope. See
  * https://buildsecurityin.us-cert.gov/bsi-rules/home/g1/771-BSI.html
- *
- * Some platforms (e.g. Windows) may provide their own version of this
- * function.
  */
 
 #include "defs.h"
 #include "misc.h"
 
+/*
+ * Trivial function that is given a pointer to some memory and ignores
+ * it.
+ */
+static void no_op(void *ptr, size_t size) {}
+
+/*
+ * Function pointer that is given a pointer to some memory, and from
+ * the compiler's point of view, _might_ read it, or otherwise depend
+ * on its contents.
+ *
+ * In fact, this function pointer always points to no_op() above. But
+ * because the pointer itself is volatile-qualified, the compiler
+ * isn't allowed to optimise based on the assumption that that will
+ * always be the case. So it has to call through the function pointer
+ * anyway, on the basis that it _might_ have magically changed at run
+ * time into a pointer to some completely arbitrary function. And
+ * therefore it must also avoid optimising away any observable effect
+ * beforehand that a completely arbitrary function might depend on -
+ * such as the zeroing of our memory re3gion.
+ */
+static void (*const volatile maybe_read)(void *ptr, size_t size) = no_op;
+
 void smemclr(void *b, size_t n)
 {
-    volatile char *vp;
-
     if (b && n > 0) {
         /*
          * Zero out the memory.
@@ -25,18 +43,10 @@ void smemclr(void *b, size_t n)
         memset(b, 0, n);
 
         /*
-         * Perform a volatile access to the object, forcing the
-         * compiler to admit that the previous memset was important.
-         *
-         * This while loop should in practice run for zero iterations
-         * (since we know we just zeroed the object out), but in
-         * theory (as far as the compiler knows) it might range over
-         * the whole object. (If we had just written, say, '*vp =
-         * *vp;', a compiler could in principle have 'helpfully'
-         * optimised the memset into only zeroing out the first byte.
-         * This should be robust.)
+         * Call the above function pointer, which (for all the
+         * compiler knows) might check that we've really zeroed the
+         * memory.
          */
-        vp = b;
-        while (*vp) vp++;
+        maybe_read(b, n);
     }
 }
