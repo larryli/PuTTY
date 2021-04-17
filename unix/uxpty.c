@@ -49,20 +49,6 @@
 #endif
 #endif
 
-/*
- * Set up a default for vaguely sane systems. The idea is that if
- * OMIT_UTMP is not defined, then at least one of the symbols which
- * enable particular forms of utmp processing should be, if only so
- * that a link error can warn you that you should have defined
- * OMIT_UTMP if you didn't want any. Currently HAVE_PUTUTLINE is
- * the only such symbol.
- */
-#ifndef OMIT_UTMP
-#if !defined HAVE_PUTUTLINE
-#define HAVE_PUTUTLINE
-#endif
-#endif
-
 typedef struct Pty Pty;
 
 /*
