@@ -34,6 +34,8 @@ check_symbol_exists(dirfd "sys/types.h;dirent.h" HAVE_DIRFD)
 check_symbol_exists(setpwent "sys/types.h;pwd.h" HAVE_SETPWENT)
 check_symbol_exists(endpwent "sys/types.h;pwd.h" HAVE_ENDPWENT)
 check_symbol_exists(getauxval "sys/auxv.h" HAVE_GETAUXVAL)
+check_symbol_exists(elf_aux_info "sys/auxv.h" HAVE_ELF_AUX_INFO)
+check_symbol_exists(sysctlbyname "sys/types.h;sys/sysctl.h" HAVE_SYSCTLBYNAME)
 check_symbol_exists(CLOCK_MONOTONIC "time.h" HAVE_CLOCK_MONOTONIC)
 check_symbol_exists(clock_gettime "time.h" HAVE_CLOCK_GETTIME)
 

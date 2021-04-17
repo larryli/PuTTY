@@ -16,6 +16,11 @@
 
 #cmakedefine NOT_X_WINDOWS
 
+#cmakedefine01 HAVE_ASM_HWCAP_H
+#cmakedefine01 HAVE_SYS_AUXV_H
+#cmakedefine01 HAVE_SYS_SYSCTL_H
+#cmakedefine01 HAVE_SYS_TYPES_H
+#cmakedefine01 HAVE_GLOB_H
 #cmakedefine01 HAVE_FUTIMES
 #cmakedefine01 HAVE_GETADDRINFO
 #cmakedefine01 HAVE_POSIX_OPENPT
@@ -28,6 +33,8 @@
 #cmakedefine01 HAVE_SETPWENT
 #cmakedefine01 HAVE_ENDPWENT
 #cmakedefine01 HAVE_GETAUXVAL
+#cmakedefine01 HAVE_ELF_AUX_INFO
+#cmakedefine01 HAVE_SYSCTLBYNAME
 #cmakedefine01 HAVE_CLOCK_MONOTONIC
 #cmakedefine01 HAVE_CLOCK_GETTIME
 #cmakedefine01 HAVE_SO_PEERCRED

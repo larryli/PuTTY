@@ -24,7 +24,7 @@ unsigned long getticks(void)
      * need a decent number of them to fit into a 32-bit word so it
      * can be used for keepalives.
      */
-#if defined HAVE_CLOCK_GETTIME && defined HAVE_DECL_CLOCK_MONOTONIC
+#if HAVE_CLOCK_GETTIME && HAVE_CLOCK_MONOTONIC
     {
         /* Use CLOCK_MONOTONIC if available, so as to be unconfused if
          * the system clock changes. */

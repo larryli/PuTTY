@@ -30,9 +30,9 @@
 #include <asm/hwcap.h>
 #endif
 
-#if defined HAVE_GETAUXVAL
+#if HAVE_GETAUXVAL
 /* No code needed: getauxval has just the API we want already */
-#elif defined HAVE_ELF_AUX_INFO
+#elif HAVE_ELF_AUX_INFO
 /* Implement the simple getauxval API in terms of FreeBSD elf_aux_info */
 static inline u_long getauxval(int which)
 {
