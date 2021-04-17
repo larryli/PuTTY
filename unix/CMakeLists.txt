@@ -31,9 +31,9 @@ add_platform_sources_to_library(console
 add_platform_sources_to_library(settings
   uxstore.c)
 add_platform_sources_to_library(network
-  uxnet.c uxfdsock.c uxagentsock.c uxpeer.c uxproxy.c)
+  uxnet.c uxfdsock.c uxagentsock.c uxpeer.c uxproxy.c ux_x11.c)
 add_platform_sources_to_library(sshcommon
-  uxnoise.c ux_x11.c)
+  uxnoise.c)
 add_platform_sources_to_library(sshclient
   uxgss.c uxagentc.c uxshare.c)
 add_platform_sources_to_library(sshserver

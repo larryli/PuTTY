@@ -40,9 +40,9 @@ add_platform_sources_to_library(console
 add_platform_sources_to_library(settings
   winstore.c)
 add_platform_sources_to_library(network
-  winnet.c winhsock.c winnpc.c winnps.c winproxy.c)
+  winnet.c winhsock.c winnpc.c winnps.c winproxy.c winx11.c)
 add_platform_sources_to_library(sshcommon
-  winnoise.c winx11.c)
+  winnoise.c)
 add_platform_sources_to_library(sshclient
   winpgntc.c wingss.c winshare.c)
 add_platform_sources_to_library(sftpclient

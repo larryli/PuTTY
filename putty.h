@@ -2205,7 +2205,7 @@ enum {
     X11_XDM,                           /* XDM-AUTHORIZATION-1 */
     X11_NAUTHS
 };
-extern const char *const x11_authnames[];  /* declared in x11fwd.c */
+extern const char *const x11_authnames[X11_NAUTHS];
 
 /*
  * An enum for the copy-paste UI action configuration.

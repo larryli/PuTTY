@@ -1191,6 +1191,7 @@ void x11_format_auth_for_authfile(
     ptrlen authproto, ptrlen authdata);
 int x11_identify_auth_proto(ptrlen protoname);
 void *x11_dehexify(ptrlen hex, int *outlen);
+bool x11_parse_ip(const char *addr_string, unsigned long *ip);
 
 Channel *agentf_new(SshChannel *c);
 

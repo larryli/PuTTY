@@ -52,6 +52,12 @@ add_library(utils STATIC
   utils/wcwidth.c
   utils/wildcard.c
   utils/write_c_string_literal.c
+  utils/x11authfile.c
+  utils/x11authnames.c
+  utils/x11_dehexify.c
+  utils/x11_identify_auth_proto.c
+  utils/x11_make_greeting.c
+  utils/x11_parse_ip.c
   ${GENERATED_COMMIT_C})
 
 add_library(logging OBJECT
@@ -78,7 +84,7 @@ add_library(crypto STATIC
   cproxy.c)
 
 add_library(network STATIC
-  be_misc.c nullplug.c errsock.c proxy.c logging.c)
+  be_misc.c nullplug.c errsock.c proxy.c logging.c x11disp.c)
 
 add_library(keygen STATIC
   millerrabin.c mpunsafe.c pockle.c primecandidate.c smallprimes.c

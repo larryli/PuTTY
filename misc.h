@@ -374,6 +374,22 @@ static inline void PUT_16BIT_MSB_FIRST(void *vp, uint16_t value)
     p[0] = (uint8_t)(value >> 8);
 }
 
+/* For use in X11-related applications, an endianness-variable form of
+ * {GET,PUT}_16BIT which expects 'endian' to be either 'B' or 'l' */
+
+static inline uint16_t GET_16BIT_X11(char endian, const void *p)
+{
+    return endian == 'B' ? GET_16BIT_MSB_FIRST(p) : GET_16BIT_LSB_FIRST(p);
+}
+
+static inline void PUT_16BIT_X11(char endian, void *p, uint16_t value)
+{
+    if (endian == 'B')
+        PUT_16BIT_MSB_FIRST(p, value);
+    else
+        PUT_16BIT_LSB_FIRST(p, value);
+}
+
 /* Replace NULL with the empty string, permitting an idiom in which we
  * get a string (pointer,length) pair that might be NULL,0 and can
  * then safely say things like printf("%.*s", length, NULLTOEMPTY(ptr)) */
