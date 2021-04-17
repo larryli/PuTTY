@@ -221,7 +221,7 @@ void split_into_argv(char *cmdline, int *argc, char ***argv,
     if (argstart) *argstart = outputargstart; else sfree(outputargstart);
 }
 
-#ifdef TESTMODE
+#ifdef TEST
 
 const struct argv_test {
     const char *cmdline;
@@ -322,6 +322,12 @@ const struct argv_test {
     {"\"a\\\\\\\\\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"b", "c d", NULL}},
     {"\"a\\\\\\\\\"\"\"\"\"\"\"\"b c\" d", {"a\\\\\"\"\"b", "c d", NULL}},
 };
+
+void out_of_memory(void)
+{
+    fprintf(stderr, "out of memory!\n");
+    exit(2);
+}
 
 int main(int argc, char **argv)
 {
@@ -429,7 +435,7 @@ int main(int argc, char **argv)
         int ac;
         char **av;
 
-        split_into_argv(argv_tests[i].cmdline, &ac, &av);
+        split_into_argv((char *)argv_tests[i].cmdline, &ac, &av, NULL);
 
         for (j = 0; j < ac && argv_tests[i].argv[j]; j++) {
             if (strcmp(av[j], argv_tests[i].argv[j])) {
@@ -456,4 +462,4 @@ int main(int argc, char **argv)
     return 0;
 }
 
-#endif
+#endif /* TEST */

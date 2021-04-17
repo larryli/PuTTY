@@ -344,7 +344,7 @@ bool wc_unescape(char *output, const char *wildcard)
     return true;                       /* it's clean */
 }
 
-#ifdef TESTMODE
+#ifdef TEST
 
 struct test {
     const char *wildcard;
@@ -483,4 +483,4 @@ int main(void)
     return 0;
 }
 
-#endif
+#endif /* TEST */

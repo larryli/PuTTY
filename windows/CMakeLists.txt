@@ -167,3 +167,8 @@ set_target_properties(puttygen PROPERTIES
   WIN32_EXECUTABLE ON
   LINK_FLAGS "${LFLAG_MANIFEST_NO}")
 installed_program(puttygen)
+
+add_executable(test_split_into_argv
+  utils/split_into_argv.c)
+target_compile_definitions(test_split_into_argv PRIVATE TEST)
+target_link_libraries(test_split_into_argv utils ${platform_libraries})

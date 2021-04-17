@@ -53,7 +53,7 @@ int main(void)
 #define TEST1(func, string, arg2, suffix, result) do                    \
     {                                                                   \
         const char *str = string;                                       \
-        unsigned ret = func(string, arg2) suffix;                       \
+        unsigned ret = func(str, arg2) suffix;                          \
         if (ret == result) {                                            \
             passes++;                                                   \
         } else {                                                        \

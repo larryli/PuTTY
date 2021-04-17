@@ -31,17 +31,16 @@
 
 #include "defs.h"
 #include "tree234.h"
+#include "puttymem.h"
 
 #ifdef TEST
-#define LOG(x) (printf x)
-#define snew(type) ((type *)malloc(sizeof(type)))
-#define snewn(n, type) ((type *)malloc((n) * sizeof(type)))
-#define sresize(ptr, n, type)                                         \
-    ((type *)realloc(sizeof((type *)0 == (ptr)) ? (ptr) : (ptr),      \
-                     (n) * sizeof(type)))
-#define sfree(ptr) free(ptr)
+static int verbose = 0;
+#define LOG(x) do                               \
+    {                                           \
+        if (verbose > 2)                        \
+            printf x;                           \
+    } while (0)
 #else
-#include "puttymem.h"
 #define LOG(x)
 #endif
 
@@ -1151,7 +1150,7 @@ int chknode(chkctx * ctx, int level, node234 * node,
      * nelems should be at least 1.
      */
     if (nelems == 0) {
-        error("node %p: no elems", node, nkids);
+        error("node %p: no elems", node);
     }
 
     /*
@@ -1173,7 +1172,7 @@ int chknode(chkctx * ctx, int level, node234 * node,
                 (i + 1 == nelems ? highbound : node->elems[i + 1]);
             if (lower && higher && cmp(lower, higher) >= 0) {
                 error("node %p: kid comparison [%d=%s,%d=%s] failed",
-                      node, i, lower, i + 1, higher);
+                      node, i, (char *)lower, i + 1, (char *)higher);
             }
         }
     }
@@ -1223,9 +1222,10 @@ void verify(void)
     if (tree->root) {
         if (tree->root->parent != NULL)
             error("root->parent is %p should be null", tree->root->parent);
-        chknode(&ctx, 0, tree->root, NULL, NULL);
+        chknode(ctx, 0, tree->root, NULL, NULL);
     }
-    printf("tree depth: %d\n", ctx->treedepth);
+    if (verbose)
+        printf("tree depth: %d\n", ctx->treedepth);
     /*
      * Enumerate the tree and ensure it matches up to the array.
      */
@@ -1234,7 +1234,7 @@ void verify(void)
             error("tree contains more than %d elements", arraylen);
         if (array[i] != p)
             error("enum at position %d: array says %s, tree says %s",
-                  i, array[i], p);
+                  i, (char *)array[i], (char *)p);
     }
     if (ctx->elemcount != i) {
         error("tree really contains %d elements, enum gave %d",
@@ -1379,7 +1379,7 @@ char *strings[] = {
 
 #define NSTR lenof(strings)
 
-int findtest(void)
+void findtest(void)
 {
     const static int rels[] = {
         REL234_EQ, REL234_GE, REL234_LE, REL234_LT, REL234_GT
@@ -1444,17 +1444,16 @@ int findtest(void)
                           p, relnames[j], realret, index, index, realret2);
                 }
             }
-#if 0
-            printf("find(\"%s\",%s) gave %s(%d)\n", p, relnames[j],
-                   realret, index);
-#endif
+            if (verbose)
+                printf("find(\"%s\",%s) gave %s(%d)\n", p, relnames[j],
+                       realret, index);
         }
     }
 
     realret = findrelpos234(tree, NULL, NULL, REL234_GT, &index);
     if (arraylen && (realret != array[0] || index != 0)) {
         error("find(NULL,GT) gave %s(%d) should be %s(0)",
-              realret, index, array[0]);
+              realret, index, (char *)array[0]);
     } else if (!arraylen && (realret != NULL)) {
         error("find(NULL,GT) gave %s(%d) should be NULL", realret, index);
     }
@@ -1463,7 +1462,7 @@ int findtest(void)
     if (arraylen
         && (realret != array[arraylen - 1] || index != arraylen - 1)) {
         error("find(NULL,LT) gave %s(%d) should be %s(0)", realret, index,
-              array[arraylen - 1]);
+              (char *)array[arraylen - 1]);
     } else if (!arraylen && (realret != NULL)) {
         error("find(NULL,LT) gave %s(%d) should be NULL", realret, index);
     }
@@ -1483,9 +1482,10 @@ void searchtest_recurse(search234_state ss, int lo, int hi,
             error("search234(%s) gave index %d should be %d",
                   directionbuf, ss.index, lo);
         } else {
-            printf("%*ssearch234(%s) gave NULL,%d\n",
-                   (int)(directionptr-directionbuf) * 2, "", directionbuf,
-                   ss.index);
+            if (verbose)
+                printf("%*ssearch234(%s) gave NULL,%d\n",
+                       (int)(directionptr-directionbuf) * 2, "", directionbuf,
+                       ss.index);
         }
     } else if (lo == hi) {
         error("search234(%s) gave %s for empty interval [%d,%d)",
@@ -1500,9 +1500,10 @@ void searchtest_recurse(search234_state ss, int lo, int hi,
     } else {
         search234_state next;
 
-        printf("%*ssearch234(%s) gave %s,%d\n",
-               (int)(directionptr-directionbuf) * 2, "", directionbuf,
-               (char *)ss.element, ss.index);
+        if (verbose)
+            printf("%*ssearch234(%s) gave %s,%d\n",
+                   (int)(directionptr-directionbuf) * 2, "", directionbuf,
+                   (char *)ss.element, ss.index);
 
         next = ss;
         search234_step(&next, -1);
@@ -1525,22 +1526,41 @@ void searchtest(void)
     int n;
     search234_state ss;
 
-    printf("beginning searchtest:");
+    if (verbose)
+        printf("beginning searchtest:");
     for (n = 0; (p = index234(tree, n)) != NULL; n++) {
         expected[n] = p;
-        printf(" %d=%s", n, p);
+        if (verbose)
+            printf(" %d=%s", n, p);
     }
-    printf(" count=%d\n", n);
+    if (verbose)
+        printf(" count=%d\n", n);
 
     search234_start(&ss, tree);
     searchtest_recurse(ss, 0, n, expected, directionbuf, directionbuf);
 }
 
-int main(void)
+void out_of_memory(void)
+{
+    fprintf(stderr, "out of memory!\n");
+    exit(2);
+}
+
+int main(int argc, char **argv)
 {
     int in[NSTR];
     int i, j, k;
     unsigned seed = 0;
+
+    for (i = 1; i < argc; i++) {
+        char *arg = argv[i];
+        if (!strcmp(arg, "-v")) {
+            verbose++;
+        } else {
+            fprintf(stderr, "unrecognised option '%s'\n", arg);
+            return 1;
+        }
+    }
 
     for (i = 0; i < NSTR; i++)
         in[i] = 0;
@@ -1554,13 +1574,16 @@ int main(void)
     for (i = 0; i < 10000; i++) {
         j = randomnumber(&seed);
         j %= NSTR;
-        printf("trial: %d\n", i);
+        if (verbose)
+            printf("trial: %d\n", i);
         if (in[j]) {
-            printf("deleting %s (%d)\n", strings[j], j);
+            if (verbose)
+                printf("deleting %s (%d)\n", strings[j], j);
             deltest(strings[j]);
             in[j] = 0;
         } else {
-            printf("adding %s (%d)\n", strings[j], j);
+            if (verbose)
+                printf("adding %s (%d)\n", strings[j], j);
             addtest(strings[j]);
             in[j] = 1;
         }
@@ -1587,20 +1610,24 @@ int main(void)
     cmp = NULL;
     verify();
     for (i = 0; i < 1000; i++) {
-        printf("trial: %d\n", i);
+        if (verbose)
+            printf("trial: %d\n", i);
         j = randomnumber(&seed);
         j %= NSTR;
         k = randomnumber(&seed);
         k %= count234(tree) + 1;
-        printf("adding string %s at index %d\n", strings[j], k);
+        if (verbose)
+            printf("adding string %s at index %d\n", strings[j], k);
         addpostest(strings[j], k);
     }
     while (count234(tree) > 0) {
-        printf("cleanup: tree size %d\n", count234(tree));
+        if (verbose)
+            printf("cleanup: tree size %d\n", count234(tree));
         j = randomnumber(&seed);
         j %= count234(tree);
-        printf("deleting string %s from index %d\n",
-               (const char *)array[j], j);
+        if (verbose)
+            printf("deleting string %s from index %d\n",
+                   (const char *)array[j], j);
         delpostest(j);
     }
 
@@ -1608,4 +1635,4 @@ int main(void)
     return (n_errors != 0);
 }
 
-#endif
+#endif /* TEST */

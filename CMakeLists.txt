@@ -145,6 +145,21 @@ add_executable(testcrypt
 target_link_libraries(testcrypt
   keygen crypto utils ${platform_libraries})
 
+add_executable(test_host_strfoo
+  utils/host_strchr_internal.c)
+target_compile_definitions(test_host_strfoo PRIVATE TEST)
+target_link_libraries(test_host_strfoo utils ${platform_libraries})
+
+add_executable(test_tree234
+  utils/tree234.c)
+target_compile_definitions(test_tree234 PRIVATE TEST)
+target_link_libraries(test_tree234 utils ${platform_libraries})
+
+add_executable(test_wildcard
+  utils/wildcard.c)
+target_compile_definitions(test_wildcard PRIVATE TEST)
+target_link_libraries(test_wildcard utils ${platform_libraries})
+
 add_compile_definitions(HAVE_CMAKE_H)
 
 foreach(subdir ${PLATFORM_SUBDIRS})
