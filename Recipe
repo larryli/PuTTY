@@ -407,7 +407,7 @@ testzlib : [UT] testzlib sshzlib utils marshal memory
 
 uppity   : [UT] uxserver SSHSERVER UXMISC uxsignal uxnoise uxgss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
-psusan   : [UT] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
+psusan   : [U] uxpsusan SSHSERVER UXMISC uxsignal uxnoise nogss uxnogtk
          + uxpty uxsftpserver ux_x11 uxagentsock procnet uxcliloop
 
 PSOCKS   = psocks portfwd conf sshutils logging proxy nocproxy timing callback
