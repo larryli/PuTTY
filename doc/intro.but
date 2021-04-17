@@ -12,10 +12,11 @@ SSH, Telnet, Rlogin, and SUPDUP are four ways of doing the same thing:
 logging in to a multi-user computer from another computer, over a
 network.
 
-Multi-user operating systems, such as Unix and VMS, usually present
-a \i{command-line interface} to the user, much like the \q{\i{Command
-Prompt}} or \q{\i{MS-DOS Prompt}} in Windows. The system prints a
-prompt, and you type commands which the system will obey.
+Multi-user operating systems, typically of the Unix family (such as
+Linux, MacOS, and the BSD family), usually present a \i{command-line
+interface} to the user, much like the \q{\i{Command Prompt}} or
+\q{\i{MS-DOS Prompt}} in Windows. The system prints a prompt, and you
+type commands which the system will obey.
 
 Using this type of interface, there is no need for you to be sitting
 at the same machine you are typing commands to. The commands, and
@@ -36,8 +37,9 @@ access using Telnet. There are even a few that support SSH.
 
 You might want to use SSH, Telnet, Rlogin, or SUPDUP if:
 
-\b you have an account on a Unix or VMS system which you want to be
-able to access from somewhere else
+\b you have an account on a Unix system (or some other multi-user OS
+such as VMS or ITS) which you want to be able to access from somewhere
+else
 
 \b your Internet Service Provider provides you with a login account
 on a \i{web server}. (This might also be known as a \i\e{shell account}.
