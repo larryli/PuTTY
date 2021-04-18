@@ -2145,9 +2145,9 @@ void mp_divmod_into(mp_int *n, mp_int *d, mp_int *q_out, mp_int *r_out)
      * Make the constant 2*R, which we'll need in the iteration.
      */
     mp_int *two_R = mp_make_sized(rw);
+    BignumInt top_word = (BignumInt)1 << ((log2_R+1) % BIGNUM_INT_BITS);
     mp_add_integer_into_shifted_by_words(
-        two_R, two_R, (BignumInt)1 << ((log2_R+1) % BIGNUM_INT_BITS),
-        (log2_R+1) / BIGNUM_INT_BITS);
+        two_R, two_R, top_word, (log2_R+1) / BIGNUM_INT_BITS);
 
     /*
      * Scratch space.
