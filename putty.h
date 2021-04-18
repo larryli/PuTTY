@@ -5,7 +5,7 @@
 #include <limits.h>                    /* for INT_MAX */
 
 #include "defs.h"
-#include "puttyps.h"
+#include "platform.h"
 #include "network.h"
 #include "misc.h"
 #include "marshal.h"

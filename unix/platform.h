@@ -1,5 +1,9 @@
-#ifndef PUTTY_UNIX_H
-#define PUTTY_UNIX_H
+/*
+ * unix/platform.h: Unix-specific inter-module stuff.
+ */
+
+#ifndef PUTTY_UNIX_PLATFORM_H
+#define PUTTY_UNIX_PLATFORM_H
 
 #if HAVE_CMAKE_H
 #include "cmake.h"
@@ -457,4 +461,4 @@ bool cliloop_no_pw_setup(void *ctx, pollwrapper *pw);
 void cliloop_no_pw_check(void *ctx, pollwrapper *pw);
 bool cliloop_always_continue(void *ctx, bool, bool);
 
-#endif /* PUTTY_UNIX_H */
+#endif /* PUTTY_UNIX_PLATFORM_H */

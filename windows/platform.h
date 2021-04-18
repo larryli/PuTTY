@@ -1,9 +1,9 @@
 /*
- * winstuff.h: Windows-specific inter-module stuff.
+ * windows/platform.h: Windows-specific inter-module stuff.
  */
 
-#ifndef PUTTY_WINSTUFF_H
-#define PUTTY_WINSTUFF_H
+#ifndef PUTTY_WINDOWS_PLATFORM_H
+#define PUTTY_WINDOWS_PLATFORM_H
 
 #if HAVE_CMAKE_H
 #include "cmake.h"
@@ -708,4 +708,4 @@ void cli_main_loop(cliloop_pre_t pre, cliloop_post_t post, void *ctx);
 bool cliloop_null_pre(void *vctx, const HANDLE **, size_t *);
 bool cliloop_null_post(void *vctx, size_t);
 
-#endif
+#endif /* PUTTY_WINDOWS_PLATFORM_H */
