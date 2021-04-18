@@ -424,6 +424,83 @@ int main(int argc, char **argv)
             return 0;
         }
 
+        if (!strcmp(argv[1], "-tabulate")) {
+            char table[] = "\
+ *                      backslashes                   \n\
+ *                                                    \n\
+ *               0         1      2      3      4     \n\
+ *                                                    \n\
+ *         0          |                               \n\
+ *            --------+-----------------------------  \n\
+ *         1          |                               \n\
+ *    q    2          |                               \n\
+ *    u    3          |                               \n\
+ *    o    4          |                               \n\
+ *    t    5          |                               \n\
+ *    e    6          |                               \n\
+ *    s    7          |                               \n\
+ *         8          |                               \n\
+";
+            char *linestarts[14];
+            char *p = table;
+            for (i = 0; i < lenof(linestarts); i++) {
+                linestarts[i] = p;
+                p += strcspn(p, "\n");
+                if (*p) p++;
+            }
+
+            for (i = 0; i < lenof(argv_tests); i++) {
+                const struct argv_test *test = &argv_tests[i];
+                const char *q = test->cmdline;
+
+                /* Skip tests that aren't telling us something about
+                 * the behaviour _inside_ a quoted string */
+                if (*q != '"')
+                    continue;
+
+                q++;
+
+                assert(*q == 'a');
+                q++;
+                int backslashes_in = 0, quotes_in = 0;
+                while (*q == '\\') {
+                    q++;
+                    backslashes_in++;
+                }
+                while (*q == '"') {
+                    q++;
+                    quotes_in++;
+                }
+
+                q = test->argv[0];
+                assert(*q == 'a');
+                q++;
+                int backslashes_out = 0, quotes_out = 0;
+                while (*q == '\\') {
+                    q++;
+                    backslashes_out++;
+                }
+                while (*q == '"') {
+                    q++;
+                    quotes_out++;
+                }
+                assert(*q == 'b');
+                q++;
+                bool in_quoted_string = (*q == ' ');
+
+                int x = (backslashes_in == 0 ? 15 : 18 + 7 * backslashes_in);
+                int y = (quotes_in == 0 ? 4 : 5 + quotes_in);
+                char *buf = dupprintf("%d,%d,%c",
+                                      backslashes_out, quotes_out,
+                                      in_quoted_string ? 'y' : 'n');
+                memcpy(linestarts[y] + x, buf, strlen(buf));
+                sfree(buf);
+            }
+
+            fputs(table, stdout);
+            return 0;
+        }
+
         fprintf(stderr, "unrecognised option: \"%s\"\n", argv[1]);
         return 1;
     }
