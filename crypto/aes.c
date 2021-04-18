@@ -1,5 +1,5 @@
 /*
- * sshaes.c - implementation of AES
+ * Implementation of AES.
  */
 
 #include <assert.h>

@@ -1,13 +1,5 @@
 /*
- * Elliptic-curve crypto module for PuTTY
- * Implements the three required curves, no optional curves
- *
- * NOTE: Only curves on prime field are handled by the maths functions
- *       in Weierstrass form using Jacobian co-ordinates.
- *
- *       Montgomery form curves are supported for DH. (Curve25519)
- *
- *       Edwards form curves are supported for DSA. (Ed25519, Ed448)
+ * Elliptic-curve signing and key exchange for PuTTY's SSH layer.
  */
 
 /*

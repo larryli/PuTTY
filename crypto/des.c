@@ -1,5 +1,5 @@
 /*
- * sshdes.c: implementation of DES.
+ * Implementation of DES.
  */
 
 /*

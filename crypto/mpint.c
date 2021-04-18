@@ -1,3 +1,7 @@
+/*
+ * Multiprecision integer arithmetic, implementing mpint.h.
+ */
+
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>

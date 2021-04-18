@@ -23,15 +23,8 @@ add_library(settings STATIC
   cmdline.c settings.c)
 
 add_library(crypto STATIC
-  sshaes.c sshauxcrypt.c sshdes.c sshdss.c sshecc.c sshhmac.c sshmd5.c sshrsa.c
-  sshsh256.c sshsh512.c sshsha.c sshsha3.c
-  ecc.c mpint.c
-  sshprng.c
-  sshcrc.c
-  sshdh.c sshmac.c
-  ssharcf.c sshblowf.c sshccp.c
-  sshblake2.c sshargon2.c sshbcrypt.c
   cproxy.c)
+add_subdirectory(crypto)
 
 add_library(network STATIC
   be_misc.c nullplug.c errsock.c proxy.c logging.c x11disp.c)

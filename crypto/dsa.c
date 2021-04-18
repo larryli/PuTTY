@@ -1,5 +1,5 @@
 /*
- * Digital Signature Standard implementation for PuTTY.
+ * Digital Signature Algorithm implementation for PuTTY.
  */
 
 #include <stdio.h>

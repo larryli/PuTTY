@@ -1,6 +1,11 @@
 /*
  * CRC32 implementation, as used in SSH-1.
  *
+ * (This is not, of course, a cryptographic function! It lives in the
+ * 'crypto' directory because SSH-1 uses it _as if_ it was crypto: it
+ * handles sensitive data, and we implement it with care for side
+ * channels.)
+ *
  * This particular form of the CRC uses the polynomial
  * P(x) = x^32+x^26+x^23+x^22+x^16+x^12+x^11+x^10+x^8+x^7+x^5+x^4+x^2+x^1+1
  * and represents polynomials in bit-reversed form, so that the x^0

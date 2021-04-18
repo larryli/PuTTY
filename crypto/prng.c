@@ -1,5 +1,5 @@
 /*
- * sshprng.c: PuTTY's cryptographic pseudorandom number generator.
+ * PuTTY's cryptographic pseudorandom number generator.
  *
  * This module just defines the PRNG object type and its methods. The
  * usual global instance of it is managed by sshrand.c.

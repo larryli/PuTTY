@@ -1,3 +1,7 @@
+/*
+ * Basic arithmetic for elliptic curves, implementing ecc.h.
+ */
+
 #include <assert.h>
 
 #include "ssh.h"
